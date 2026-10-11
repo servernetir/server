@@ -485,7 +485,7 @@ class CloudCatalogController extends Controller
         $locLabel = $loc->label();
         $cityLabel = $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel();
 
-        $rows = $this->planRows($offers, collect([$loc->code => $loc]));
+        $rows = $this->planRows($offers, collect([$loc->code => $loc]), CloudPlan::offers($loc->code, hourly: true));
 
         return view('pages.cloud-location', [
             't' => $t,
@@ -648,7 +648,7 @@ class CloudCatalogController extends Controller
      * @param  Collection<string, CloudLocation>  $locations
      * @return array<int, array<string, mixed>>
      */
-    private function planRows(Collection $offers, Collection $locations): array
+    private function planRows(Collection $offers, Collection $locations, ?Collection $hourlyOffers = null): array
     {
         $rows = [];
 
@@ -657,6 +657,16 @@ class CloudCatalogController extends Controller
             if ($loc === null) {
                 continue;
             }
+
+            // Resolve hourly offers separately: the cheapest monthly alias may
+            // have no hourly contract. Use the same sellable selection as checkout.
+            $hourly = $hourlyOffers?->get($p->slug);
+            $hasHourly = $hourly !== null && ! $hourly->isMetal() && $hourly->hourlyIrt() > 0 && $hourly->hourlyEurCents() > 0;
+            $hourlyPrice = $hasHourly
+                ? (app()->getLocale() === 'fa'
+                    ? fa_num(number_format($hourly->hourlyIrt())).' تومان'
+                    : '€'.number_format($hourly->hourlyEurCents() / 100, 2))
+                : null;
 
             $rows[] = [
                 'slug' => (string) $p->slug,
@@ -679,6 +689,8 @@ class CloudCatalogController extends Controller
                 'flag_svg' => $loc->flagSvg(),
                 'loc_url' => $this->locUrl((string) $p->location_code),
                 'buy_url' => $this->buyUrl((string) $p->location_code, (string) $p->slug),
+                'hourly_price' => $hourlyPrice,
+                'hourly_buy_url' => $hasHourly ? $this->buyUrl((string) $p->location_code, (string) $p->slug, 'hourly') : null,
             ];
         }
 
@@ -1046,9 +1058,9 @@ class CloudCatalogController extends Controller
      * `account/*` را ۳۰۱ به console.servernet.cloud می‌برد، پس نه میزبان را
      * سخت‌کد می‌کنیم و نه در توسعهٔ محلی به دامنهٔ تولید پرت می‌شویم.
      */
-    private function buyUrl(string $locationCode, ?string $slug = null): string
+    private function buyUrl(string $locationCode, ?string $slug = null, ?string $billingMode = null): string
     {
-        $query = array_filter(['location' => $locationCode, 'plan' => $slug]);
+        $query = array_filter(['location' => $locationCode, 'plan' => $slug, 'billing_mode' => $billingMode]);
 
         return url($this->localePath('/account/cloud-store')).'?'.http_build_query($query);
     }
