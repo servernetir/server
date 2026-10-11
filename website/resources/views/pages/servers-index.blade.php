@@ -18,9 +18,9 @@
 <section class="container srv-wrap">
 
   <div class="srv-filter" id="srv-filter">
-    <button class="srv-chip on" data-brand="all">{{ __('ui.srv_all') }}</button>
+    <button class="srv-chip {{ $activeBrand === 'all' ? 'on' : '' }}" data-brand="all">{{ __('ui.srv_all') }}</button>
     @foreach($brands as $key => $b)
-      <button class="srv-chip" data-brand="{{ $key }}"><span class="srv-dot" style="background:{{ $b['color'] }}"></span>{{ $b['label'] }}</button>
+      <button class="srv-chip {{ $activeBrand === $key ? 'on' : '' }}" data-brand="{{ $key }}"><span class="srv-dot" style="background:{{ $b['color'] }}"></span>{{ $b['label'] }}</button>
     @endforeach
   </div>
 
@@ -33,7 +33,7 @@
         $lm = lc($m);
         $thumb = img_url(((array) ($m['gallery'] ?? []))[0] ?? null);
       @endphp
-      <a class="srv-card" data-brand="{{ $m['brand'] }}" href="{{ lroute('servers.show', $slug) }}">
+      <a class="srv-card" @if($activeBrand !== 'all' && $activeBrand !== $m['brand']) hidden @endif data-brand="{{ $m['brand'] }}" href="{{ lroute('servers.show', $slug) }}">
         <div class="srv-thumb">
           @if($thumb)
             <img src="{{ $thumb }}" alt="{{ $lm['name'] }}" loading="lazy">
@@ -65,7 +65,7 @@
     @endforeach
   </div>
 
-  <p class="srv-empty" id="srv-empty" hidden>{{ __('ui.srv_none') }}</p>
+  <p class="srv-empty" id="srv-empty" @if($activeBrand === 'all' ? count($models) > 0 : collect($models)->contains(fn ($model) => $model['brand'] === $activeBrand)) hidden @endif>{{ __('ui.srv_none') }}</p>
 
   <div class="srv-cta">
     <div>
