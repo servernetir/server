@@ -1,6 +1,10 @@
 # LightNode integration — acceptance and release record
 
-Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 396 valid fixed-bandwidth plans in 40 regions after the latest price refresh. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
+Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 400 valid fixed-bandwidth supplier offers in 40 regions after recovery of the four held offers. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
+
+## Four held offers recovered — 2026-10-11, published
+
+The four exact supplier offers in Moscow, Doha, Santiago and Manila were still offered with fresh valid Linux/Windows quotes. The anonymous calculator retry appended Authorization values after429/5xx; it now replaces the previous value. The stronger regression failed before the fix and passed afterward. Four rows were activated at10:02:54UTC with fee0%/profit5%, while396otherLightNode rows,3303other-provider rows and existing service hourly rates remained identical.226tests/1726assertions,16billing-cycle checks and12production builder renders (four plans×FA/EN/TR, withUbuntu/Windows) passed at10:06:41UTC; all four public price/resource views had no overflow at390px. The regional configurations/image catalogs were verified; no numeric supplier capacity counter is exposed and no new paid guest was created. Full evidence and scoped rollback: [LIGHTNODE-OFFER-RECOVERY-2026-10-11.md](LIGHTNODE-OFFER-RECOVERY-2026-10-11.md). The earlier exclusion below is historical.
 
 ## Zero provider overhead — 2026-10-11, published
 
