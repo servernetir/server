@@ -273,9 +273,9 @@ class CloudCatalogController extends Controller
             'tr' => 'Bulut VPS satın al | İran ve onlarca ülke, anında teslim | ServerNet',
         ],
         'cloud_meta_d' => [
-            'fa' => 'خرید سرور مجازی با دیسک NVMe، آی‌پی اختصاصی و تحویلِ خودکار در ایران و ده‌ها شهرِ اروپا، خاورمیانه، آسیا و آمریکا. قیمتِ شفاف، پرداختِ ریالی، انتخابِ پرداختِ ساعتی یا ماهانه و مدیریتِ کامل از پنل.',
-            'en' => 'Buy a cloud VPS with NVMe storage, a dedicated IP and automatic delivery in Iran and dozens of cities across Europe, the Middle East, Asia and America. Transparent pricing, hourly or monthly billing, full panel control.',
-            'tr' => 'İran ile Avrupa, Orta Doğu, Asya ve Amerika’daki onlarca şehirde NVMe diskli, özel IP’li ve otomatik teslimli bulut VPS. Şeffaf fiyat, saatlik veya aylık ödeme, panelden tam kontrol.',
+            'fa' => 'خرید سرور مجازی با منابع و دیسک مشخص در هر پلن، آی‌پی اختصاصی و تحویل خودکار در ایران و ده‌ها شهر جهان. قیمت شفاف، پرداخت ریالی و انتخاب پرداخت ساعتی یا ماهانه.',
+            'en' => 'Buy a cloud VPS with resources and storage specified per plan, a dedicated IP and automatic delivery in Iran and dozens of cities worldwide. Transparent hourly or monthly pricing.',
+            'tr' => 'İran ve dünya genelindeki onlarca şehirde pakete göre belirtilen kaynak ve disk, özel IP ve otomatik teslim ile bulut VPS. Şeffaf saatlik veya aylık fiyat.',
         ],
         'cloud_badge' => ['fa' => 'سرور مجازی ابری', 'en' => 'Cloud VPS', 'tr' => 'Bulut VPS'],
         'cloud_h1' => [
@@ -284,9 +284,9 @@ class CloudCatalogController extends Controller
             'tr' => 'İstediğiniz her ülkede bulut sunucu',
         ],
         'cloud_lead' => [
-            'fa' => 'یک پلن را انتخاب کنید، مکانش را خودتان بگذارید و چند دقیقه بعد سرور تحویل داده می‌شود. همهٔ سرورها دیسکِ NVMe، آی‌پیِ اختصاصی و کنسولِ مدیریت دارند و از پنلِ سرورنت روشن، خاموش، نصبِ دوباره و پایش می‌شوند.',
-            'en' => 'Pick a plan, pick its location, and the server is delivered within minutes. Every server ships with NVMe storage, a dedicated IPv4 and a management console — power, rebuild and monitoring all live in your ServerNet panel.',
-            'tr' => 'Bir paket seçin, konumunu belirleyin; sunucu dakikalar içinde teslim edilir. Tüm sunucular NVMe disk, özel IPv4 ve yönetim konsolu ile gelir; güç, yeniden kurulum ve izleme ServerNet panelinizde.',
+            'fa' => 'پلن و مکان را انتخاب کنید تا پس از تأیید پرداخت ساخت خودکار شروع شود. نوع و ظرفیت دیسک، مشخصات شبکه و گزینه‌های مدیریت به پلن انتخابی بستگی دارند؛ منابع و قیمت پیش از سفارش نمایش داده می‌شوند.',
+            'en' => 'Choose a plan and location to start automatic provisioning after payment confirmation. Disk type and capacity, network terms and management options depend on your plan; resources and prices are shown before ordering.',
+            'tr' => 'Paket ve konumu seçin; ödeme onayından sonra otomatik kurulum başlar. Disk türü ve kapasitesi, ağ koşulları ve yönetim seçenekleri pakete bağlıdır; kaynaklar ve fiyat siparişten önce gösterilir.',
         ],
         'cloud_stat_loc' => ['fa' => 'مکان', 'en' => 'locations', 'tr' => 'konum'],
         'cloud_stat_country' => ['fa' => 'کشور', 'en' => 'countries', 'tr' => 'ülke'],
@@ -337,10 +337,10 @@ class CloudCatalogController extends Controller
             'en' => 'Locations and plans will be published on this page shortly. If you need a server right now, contact us and we will set it up for you manually.',
             'tr' => 'Konumlar ve paketler kısa süre içinde bu sayfada yayınlanacak. Hemen sunucuya ihtiyacınız varsa bize ulaşın, manuel olarak kuralım.',
         ],
-        'cloud_feat_1' => ['fa' => 'دیسکِ NVMe', 'en' => 'NVMe storage', 'tr' => 'NVMe disk'],
+        'cloud_feat_1' => ['fa' => 'دیسک طبق مشخصات پلن', 'en' => 'Storage specified per plan', 'tr' => 'Pakette belirtilen disk'],
         'cloud_feat_2' => ['fa' => 'آی‌پیِ اختصاصی', 'en' => 'Dedicated IPv4', 'tr' => 'Özel IPv4'],
         'cloud_feat_3' => ['fa' => 'تحویلِ خودکار', 'en' => 'Automatic delivery', 'tr' => 'Otomatik teslim'],
-        'cloud_feat_4' => ['fa' => 'کنسول و نصبِ دوباره', 'en' => 'Console and rebuild', 'tr' => 'Konsol ve yeniden kurulum'],
+        'cloud_feat_4' => ['fa' => 'مدیریت و نصبِ دوباره', 'en' => 'Management and rebuild', 'tr' => 'Yönetim ve yeniden kurulum'],
         'cloud_faq_q1' => ['fa' => 'سرور چه زمانی تحویل داده می‌شود؟', 'en' => 'How fast is the server delivered?', 'tr' => 'Sunucu ne kadar hızlı teslim edilir?'],
         'cloud_faq_a1' => [
             'fa' => 'پس از تأییدِ پرداخت، ساختِ سرور خودکار شروع می‌شود و معمولاً در چند دقیقه آماده است. نامِ کاربری، رمز و آی‌پی در پنلِ کاربریِ شما نمایش داده می‌شود.',
@@ -349,15 +349,15 @@ class CloudCatalogController extends Controller
         ],
         'cloud_faq_q2' => ['fa' => 'می‌توانم بعداً پلن را ارتقا دهم؟', 'en' => 'Can I upgrade the plan later?', 'tr' => 'Paketi sonra yükseltebilir miyim?'],
         'cloud_faq_a2' => [
-            'fa' => 'بله. ارتقای هسته، رم و دیسک از پنل درخواست می‌شود و تفاوتِ قیمت به‌نسبتِ روزهای باقی‌ماندهٔ دوره حساب می‌شود.',
-            'en' => 'Yes. CPU, memory and disk upgrades are requested from the panel and the price difference is prorated over the remaining days of the period.',
-            'tr' => 'Evet. CPU, bellek ve disk yükseltmeleri panelden talep edilir; fiyat farkı dönemin kalan günlerine göre hesaplanır.',
+            'fa' => 'امکان ارتقا به پلن و مکان بستگی دارد. فقط گزینه‌های پشتیبانی‌شده در پنل نمایش داده می‌شوند؛ اگر ارتقا موجود نباشد باید سرور جدیدی سفارش دهید و داده‌ها را منتقل کنید.',
+            'en' => 'Upgrade availability depends on the plan and location. The panel shows only supported options; if upgrading is unavailable, order a new server and migrate your data.',
+            'tr' => 'Yükseltme olanağı paket ve konuma bağlıdır. Panel yalnızca desteklenen seçenekleri gösterir; yükseltme yoksa yeni bir sunucu sipariş edip verilerinizi taşımanız gerekir.',
         ],
         'cloud_faq_q3' => ['fa' => 'سیستم‌عاملش را خودم انتخاب می‌کنم؟', 'en' => 'Do I choose the operating system?', 'tr' => 'İşletim sistemini ben mi seçerim?'],
         'cloud_faq_a3' => [
-            'fa' => 'بله. اوبونتو، دبیان، آلما، راکی و چند نرم‌افزارِ آماده (مثلِ داکر) در لحظهٔ خرید انتخاب می‌شوند و هر زمان بخواهید می‌توانید سرور را با سیستم‌عاملِ دیگری از نو نصب کنید.',
-            'en' => 'Yes. Ubuntu, Debian, AlmaLinux, Rocky and a few ready-made app images (such as Docker) are selected at checkout, and you can rebuild with a different OS whenever you like.',
-            'tr' => 'Evet. Ubuntu, Debian, AlmaLinux, Rocky ve Docker gibi hazır imajlar satın alırken seçilir; istediğiniz zaman başka bir işletim sistemiyle yeniden kurabilirsiniz.',
+            'fa' => 'بله. سیستم‌عامل‌های سازگار با منابع و مکان انتخابی هنگام سفارش نمایش داده می‌شوند، از جمله لینوکس و ویندوز در پلن‌های پشتیبانی‌شده. نصب مجدد با تصاویر موجود در پنل انجام می‌شود و داده‌های دیسک سیستم را پاک می‌کند.',
+            'en' => 'Yes. Checkout lists operating systems compatible with your resources and location, including Linux and Windows on supported plans. Rebuild uses available panel images and erases the system disk.',
+            'tr' => 'Evet. Sipariş sırasında kaynak ve konumla uyumlu işletim sistemleri, desteklenen paketlerde Linux ve Windows dahil, gösterilir. Yeniden kurulum mevcut panel imajlarını kullanır ve sistem diskini siler.',
         ],
         'cloud_faq_q4' => ['fa' => 'کدام مکان را انتخاب کنم؟', 'en' => 'Which location should I choose?', 'tr' => 'Hangi konumu seçmeliyim?'],
         'cloud_faq_a4' => [
@@ -367,9 +367,9 @@ class CloudCatalogController extends Controller
         ],
         'cloud_faq_q5' => ['fa' => 'ترافیک چطور حساب می‌شود؟', 'en' => 'How is traffic counted?', 'tr' => 'Trafik nasıl hesaplanır?'],
         'cloud_faq_a5' => [
-            'fa' => 'هر پلن ترافیکِ ماهانهٔ خودش را دارد که در جدول نوشته شده؛ جایی که «مصرفِ منصفانه» نوشته شده یعنی سقفِ عددی اعلام نمی‌شود و تنها مصرفِ غیرعادی محدود می‌گردد.',
-            'en' => 'Each plan includes its own monthly traffic allowance, shown in the table. Where it says “Fair use”, no hard number is published and only abnormal usage is limited.',
-            'tr' => 'Her paketin tabloda gösterilen kendi aylık trafik kotası vardır. “Adil kullanım” yazan yerlerde sabit bir sayı yayınlanmaz, yalnızca anormal kullanım sınırlanır.',
+            'fa' => 'مدل شبکه در مشخصات هر پلن نوشته شده است. پلن پهنای‌باند ثابت سرعت مشخصی بر حسب Mbps دارد؛ پلن سهمیه‌ای حجم انتقال و شرایط اضافه‌مصرف خودش را دارد. مشخصات پلن انتخابی را پیش از خرید بررسی کنید.',
+            'en' => 'Each plan specifies its network model. Fixed-bandwidth plans have a stated Mbps speed; quota plans have their own transfer allowance and overage terms. Check your selected plan before ordering.',
+            'tr' => 'Her paket ağ modelini belirtir. Sabit bant genişliği paketleri belirli bir Mbps hızına; kotalı paketler kendi aktarım kotası ve aşım koşullarına sahiptir. Siparişten önce seçtiğiniz paketi kontrol edin.',
         ],
         'cloud_cross_t' => ['fa' => 'مسیرهای مرتبط', 'en' => 'Related pages', 'tr' => 'İlgili sayfalar'],
         // ───────────── صفحهٔ یک مکان ─────────────
@@ -379,9 +379,9 @@ class CloudCatalogController extends Controller
             'tr' => ':loc bulut VPS — anında teslim | ServerNet',
         ],
         'cloud_loc_meta_d' => [
-            'fa' => 'خرید سرور مجازی در :loc با دیسک NVMe، آی‌پی اختصاصی و تحویلِ خودکار. :n پلن با قیمتِ شفافِ ماهانه، از :price.',
-            'en' => 'Buy a cloud VPS in :loc with NVMe storage, a dedicated IP and automatic delivery. :n plans with transparent monthly pricing, from :price.',
-            'tr' => ':loc konumunda NVMe diskli, özel IP’li ve otomatik teslimli bulut VPS satın alın. Şeffaf aylık fiyatla :n paket, :price başlangıç.',
+            'fa' => 'خرید سرور مجازی در :loc با دیسک طبق مشخصات پلن، آی‌پی اختصاصی و تحویل خودکار. :n پلن با قیمت شفاف ماهانه، از :price.',
+            'en' => 'Buy a cloud VPS in :loc with storage as specified in the plan, a dedicated IP and automatic delivery. :n plans with transparent monthly pricing, from :price.',
+            'tr' => ':loc konumunda pakette belirtilen disk, özel IP ve otomatik teslim ile bulut VPS satın alın. Şeffaf aylık fiyatla :n paket, :price başlangıç.',
         ],
         'cloud_loc_h1' => ['fa' => 'سرور مجازی :loc', 'en' => 'Cloud VPS in :loc', 'tr' => ':loc bulut VPS'],
         'cloud_loc_why' => ['fa' => 'چرا :city؟', 'en' => 'Why :city?', 'tr' => 'Neden :city?'],
@@ -726,6 +726,22 @@ class CloudCatalogController extends Controller
         return ['countries' => $countries, 'vcpu' => $vcpuList, 'ram' => $ramList];
     }
 
+    private function locationNote(string $country): ?string
+    {
+        // Official notice: https://www.lightnode.com/en-US/contentDetail/378
+        // Scheduled national interruption; not a live availability signal.
+        $utc = now('UTC');
+        if ($country === 'IQ' && $utc->gte('2026-10-11 00:00:00') && $utc->lt('2026-10-13 00:00:00')) {
+            return $this->pick([
+                'fa' => 'اطلاعیه شبکه عراق: به‌دلیل امتحانات سراسری، ۱۲ اکتبر ۲۰۲۶ از ۰۳:۳۰ تا ۰۴:۱۰ UTC (۰۷:۰۰ تا ۰۷:۴۰ تهران)، قطعی اینترنت حدود ۴۰ دقیقه برنامه‌ریزی شده است. در این بازه کار حساس یا انتقال داده زمان‌بندی نکنید.',
+                'en' => 'Iraq network notice: a nationwide examination-related Internet shutdown is scheduled for 12 October 2026, 03:30–04:10 UTC (about 40 minutes). Avoid scheduling critical work or data transfers during this window.',
+                'tr' => 'Irak ağ duyurusu: ulusal sınavlar nedeniyle 12 Ekim 2026, 03:30–04:10 UTC arasında yaklaşık 40 dakikalık İnternet kesintisi planlanmıştır. Bu aralıkta kritik işlem veya veri aktarımı planlamayın.',
+            ]);
+        }
+
+        return isset(self::COUNTRY_NOTE[$country]) ? $this->pick(self::COUNTRY_NOTE[$country]) : null;
+    }
+
     /**
      * متنِ سئوی یکتای هر مکان: چرا این‌جا، تأخیرِ تقریبی، مناسبِ چه کاری.
      *
@@ -742,9 +758,9 @@ class CloudCatalogController extends Controller
         $contLabel = $this->pick(self::CONTINENTS[$cont] ?? self::CONTINENTS['xx']);
 
         $why = match (app()->getLocale()) {
-            'en' => 'Our :city location sits in :country (:cont) and is delivered from a carrier-grade datacentre with NVMe storage and a dedicated IPv4. Latency from Iran is roughly :ir ms and from central Europe roughly :eu ms, so it is the right pick whenever your visitors — or the services you talk to — are on that side of the map.',
-            'tr' => ':city konumumuz :country (:cont) içinde yer alır ve NVMe disk ile özel IPv4 sunan operatör sınıfı bir veri merkezinden teslim edilir. İran’dan gecikme yaklaşık :ir ms, Orta Avrupa’dan yaklaşık :eu ms’dir; ziyaretçileriniz veya konuştuğunuz servisler haritanın o tarafındaysa doğru seçimdir.',
-            default => 'مکانِ :city در :country (:cont) قرار دارد و از مرکزِ دادهٔ عملیاتی با دیسکِ NVMe و آی‌پیِ اختصاصی تحویل داده می‌شود. تأخیر از ایران حدودِ :ir میلی‌ثانیه و از مرکزِ اروپا حدودِ :eu میلی‌ثانیه است؛ پس هرجا مخاطبِ شما — یا سرویسی که با آن حرف می‌زنید — آن سمتِ نقشه باشد، انتخابِ درستی است.',
+            'en' => 'Our :city location sits in :country (:cont) and is delivered from a carrier-grade datacentre with plan-specific storage and a dedicated IPv4. Latency from Iran is roughly :ir ms and from central Europe roughly :eu ms, so it is the right pick whenever your visitors — or the services you talk to — are on that side of the map.',
+            'tr' => ':city konumumuz :country (:cont) içinde yer alır ve pakete göre disk ve özel IPv4 sunan operatör sınıfı bir veri merkezinden teslim edilir. İran’dan gecikme yaklaşık :ir ms, Orta Avrupa’dan yaklaşık :eu ms’dir; ziyaretçileriniz veya konuştuğunuz servisler haritanın o tarafındaysa doğru seçimdir.',
+            default => 'مکانِ :city در :country (:cont) قرار دارد و از مرکزِ دادهٔ عملیاتی با دیسک طبق مشخصات پلن و آی‌پی اختصاصی تحویل داده می‌شود. تأخیر از ایران حدودِ :ir میلی‌ثانیه و از مرکزِ اروپا حدودِ :eu میلی‌ثانیه است؛ پس هرجا مخاطبِ شما — یا سرویسی که با آن حرف می‌زنید — آن سمتِ نقشه باشد، انتخابِ درستی است.',
         };
 
         return [
@@ -755,7 +771,7 @@ class CloudCatalogController extends Controller
                 ':ir' => fa_num((string) $ir),
                 ':eu' => fa_num((string) $eu),
             ]),
-            'note' => isset(self::COUNTRY_NOTE[$country]) ? $this->pick(self::COUNTRY_NOTE[$country]) : null,
+            'note' => $this->locationNote($country),
             'lat_ir' => fa_num((string) $ir),
             'lat_eu' => fa_num((string) $eu),
             'good' => $this->pick(self::GOOD_FOR[$cont] ?? self::GOOD_FOR['xx']),

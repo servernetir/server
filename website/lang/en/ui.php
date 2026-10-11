@@ -2826,8 +2826,8 @@ return [
 
     // ───────────── Hourly VPS (/vps/hourly) ─────────────
     'hv_meta_t' => 'Hourly VPS | Pay only for what you use, instant delivery — ServerNet',
-    'hv_meta_d' => 'Buy an hourly cloud VPS from :price per hour in Iran and :n more countries: NVMe storage, a dedicated IP, automatic delivery in minutes and no monthly commitment. Billed hourly from your wallet — delete it whenever you are done.',
-    'hv_meta_d_nop' => 'Buy an hourly cloud VPS with NVMe storage, a dedicated IP, automatic delivery in minutes and no monthly commitment. Billed hourly from your wallet — delete it whenever you are done.',
+    'hv_meta_d' => 'Buy an hourly cloud VPS from :price per hour in Iran and :n more countries, with storage specified per plan, a dedicated IP and automatic delivery. No monthly commitment; delete the server to stop charges.',
+    'hv_meta_d_nop' => 'Buy an hourly cloud VPS with storage specified per plan, a dedicated IP and automatic delivery. No monthly commitment; delete the server to stop charges.',
     'hv_badge' => 'Hourly VPS',
     'hv_h1' => 'Hourly VPS,',
     'hv_h1_g' => 'pay only for what you use.',
@@ -2910,7 +2910,7 @@ return [
     'hv_faq3_q' => 'What happens when my wallet runs out?',
     'hv_faq3_a' => 'You choose at order time: power the server off (data is kept for :hours hours and it resumes once you top up), convert it to monthly billing, or delete it. The default is power-off with data kept.',
     'hv_faq4_q' => 'Is an hourly server weaker than a monthly one?',
-    'hv_faq4_a' => 'No. It is the same plan with the same vCPU, RAM, NVMe disk, traffic and dedicated IP; only the billing differs. The hourly rate is the monthly price divided by 720 hours.',
+    'hv_faq4_a' => 'No. Resources, disk, network and IP follow the selected plan; billing differs. The displayed hourly rate is the billing basis and is not necessarily derived from the monthly price. Powering off does not stop charges; delete the server to end billing.',
     'hv_faq5_q' => 'Do you offer hourly VPS in Iran?',
     'hv_faq5_a' => 'Yes. Hourly servers are available in our Iranian data centres (:cities) as well as abroad; you pick the location at checkout.',
     'hv_faq5_a_nop' => 'Yes. Hourly servers are available both in our Iranian data centres and abroad; you pick the location at checkout.',
