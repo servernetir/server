@@ -2826,8 +2826,8 @@ return [
 
     // ───────────── Saatlik VPS (/vps/hourly) ─────────────
     'hv_meta_t' => 'Saatlik VPS | Kullandığın kadar öde, anında teslim — ServerNet',
-    'hv_meta_d' => 'İran ve :n ülkede saatte :price’dan başlayan saatlik bulut VPS: NVMe disk, özel IP, dakikalar içinde otomatik teslim ve aylık taahhüt yok. Cüzdandan saatlik düşer; işiniz bitince silin.',
-    'hv_meta_d_nop' => 'NVMe disk, özel IP, dakikalar içinde otomatik teslim ve aylık taahhütsüz saatlik bulut VPS. Cüzdandan saatlik düşer; işiniz bitince silin.',
+    'hv_meta_d' => 'İran ve :n ülkede saatte :price’dan başlayan saatlik bulut VPS: pakette belirtilen disk, özel IP ve otomatik teslim. Aylık taahhüt yok; ücretleri durdurmak için sunucuyu silin.',
+    'hv_meta_d_nop' => 'Pakette belirtilen disk, özel IP ve otomatik teslim ile saatlik bulut VPS. Aylık taahhüt yok; ücretleri durdurmak için sunucuyu silin.',
     'hv_badge' => 'Saatlik VPS',
     'hv_h1' => 'Saatlik VPS,',
     'hv_h1_g' => 'yalnızca kullandığın kadar.',
@@ -2910,7 +2910,7 @@ return [
     'hv_faq3_q' => 'Cüzdan bakiyesi biterse ne olur?',
     'hv_faq3_a' => 'Siparişte siz seçersiniz: sunucu kapansın (veriler :hours saat korunur, yükleyince tekrar açılır), aylık ödemeye dönsün ya da silinsin. Varsayılan, veriler korunarak kapanmadır.',
     'hv_faq4_q' => 'Saatlik sunucu aylıktan daha mı zayıf?',
-    'hv_faq4_a' => 'Hayır. Aynı vCPU, RAM, NVMe disk, trafik ve özel IP’li aynı pakettir; yalnızca ödeme biçimi farklıdır. Saatlik ücret, aylık fiyatın 720 saate bölümüdür.',
+    'hv_faq4_a' => 'Hayır. Kaynaklar, disk, ağ ve IP seçilen pakete göre aynıdır; faturalama farklıdır. Gösterilen saatlik ücret esas alınır ve her zaman aylık fiyattan türetilmez. Kapatmak ücreti durdurmaz; faturalamayı bitirmek için sunucuyu silin.',
     'hv_faq5_q' => 'İran’da saatlik VPS var mı?',
     'hv_faq5_a' => 'Evet. Saatlik sunucular İran veri merkezlerimizde (:cities) ve yurt dışında mevcuttur; konumu siparişte seçersiniz.',
     'hv_faq5_a_nop' => 'Evet. Saatlik sunucular hem İran veri merkezlerimizde hem yurt dışında mevcuttur; konumu siparişte seçersiniz.',
