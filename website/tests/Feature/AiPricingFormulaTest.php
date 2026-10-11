@@ -95,30 +95,30 @@ class AiPricingFormulaTest extends TestCase
         $this->assertSame(14_726, AiPricing::perMillion(123_457, 98_765, 750, 1_234));
     }
 
-    public function test_worked_example_call_charges_327_iranian_and_297_foreign(): void
+    public function test_worked_example_preserves_markup_on_rounded_ledger_cost(): void
     {
         $q = $this->pricing()->quote($this->model());
 
         $c = $this->pricing()->charge($q, prompt: 12_000, cached: 8_000, completion: 900, vatBp: 1000);
         $this->assertSame(297, $c['sell_book']);
-        $this->assertSame(297, $c['sell_floor']);
-        $this->assertSame(297, $c['sell']);
+        $this->assertSame(298, $c['sell_floor']); // ceil(238 × 1.25)
+        $this->assertSame(298, $c['sell']);
         $this->assertSame(30, $c['tax']);
-        $this->assertSame(327, $c['charged']);
+        $this->assertSame(328, $c['charged']);
         $this->assertSame(2_200, $c['cost_micro']);
         $this->assertSame(238, $c['cost_irt']);
 
         $f = $this->pricing()->charge($q, 12_000, 8_000, 900, vatBp: 0);
-        $this->assertSame(297, $f['charged']);
+        $this->assertSame(298, $f['charged']);
         $this->assertSame(0, $f['tax']);
     }
 
-    public function test_worked_example_hold_is_506(): void
+    public function test_worked_example_hold_covers_rounded_markup_and_tax(): void
     {
         $q = $this->pricing()->quote($this->model());
         $h = $this->pricing()->hold($q, maxInput: 6_336, maxOutput: 4_096, vatBp: 1000);
 
-        $this->assertSame(['sell' => 460, 'tax' => 46, 'total' => 506], $h);
+        $this->assertSame(['sell' => 461, 'tax' => 47, 'total' => 508], $h);
     }
 
     public function test_eur_display_matches_spec(): void
@@ -130,14 +130,14 @@ class AiPricingFormulaTest extends TestCase
         $this->assertNull(AiPricing::eurTenThousandths(297, 0));             // نرخ نداریم ⇒ یورو پنهان
     }
 
-    public function test_zero_usage_charges_zero_and_one_token_charges_one(): void
+    public function test_zero_usage_is_free_and_tiny_usage_preserves_ledger_markup(): void
     {
         $q = $this->pricing()->quote($this->model());
 
         $this->assertSame(0, $this->pricing()->charge($q, 0, 0, 0, 1000)['charged']);
 
         $one = $this->pricing()->charge($q, 1, 0, 0, 1000);
-        $this->assertSame(1, $one['sell']);       // ⌈31,050/10⁶⌉ — هیچ حداقلِ شارژی نیست
+        $this->assertSame(2, $one['sell']);       // ceil(rounded cost 1 × 1.25)
         $this->assertSame(1, $one['tax']);        // مالیات هم رو به بالا
         $this->assertGreaterThanOrEqual($one['cost_irt'], $one['sell']);
     }

@@ -339,7 +339,7 @@
       @if($aiProjects->contains('status', 'active'))
         <div class="sec-abilities">
           <span class="sec-lbl">{{ __('ui.sec_ai_scopes') }}</span>
-          @foreach(['ai:models:read' => __('ai.scope_models'), 'ai:chat' => __('ai.scope_chat'), 'ai:embedding' => __('ai.scope_embedding'), 'ai:rerank' => __('ai.scope_rerank')] as $key => $desc)
+          @foreach(['ai:models:read' => __('ai.scope_models'), 'ai:chat' => __('ai.scope_chat'), 'ai:embedding' => __('ai.scope_embedding'), 'ai:rerank' => __('ai.scope_rerank'), 'ai:native' => __('ai.scope_native')] as $key => $desc)
             <label class="sec-chk">
               <input type="checkbox" name="abilities[]" value="{{ $key }}">
               <span><code dir="ltr">{{ $key }}</code> — {{ $desc }}</span>

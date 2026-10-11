@@ -62,7 +62,8 @@ class AiPricingPropertyTest extends TestCase
             ]);
 
             $this->assertGreaterThanOrEqual($charge['cost_irt'], $charge['sell'], "زیرِ بها: {$ctx}");
-            $this->assertGreaterThanOrEqual($charge['sell_floor'], $charge['sell_book'], "قیمتِ دفتر زیرِ کف: {$ctx}");
+            $this->assertSame(max($charge['sell_floor'],$charge['sell_book']),$charge['sell'],"کف سود رعایت نشد: {$ctx}");
+            $this->assertGreaterThanOrEqual($charge['cost_irt']*(10000+$m),$charge['sell']*10000,"سودِ هزینهٔ گرد‌شده کافی نیست: {$ctx}");
             $this->assertLessThanOrEqual($hold['total'], $charge['charged'], "شارژ بیش از رزرو: {$ctx}");
             $this->assertLessThanOrEqual($hold['tax'], $charge['tax'], "مالیات بیش از مالیاتِ رزرو: {$ctx}");
         }

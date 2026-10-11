@@ -35,6 +35,10 @@
                     @if($model->category === 'chat')<div>{{ __('ai.output') }}<strong>{{ number_format($state['quote']->pOut) }}</strong></div>@endif
                 </div>
                 <p>{{ __('ai_model.estimate_note_short', ['percent' => \App\Services\Ai\AiPricing::bpToPercent($seo['vatBp'])]) }}</p>
+            @elseif($seo['nativePrice'])
+                <div class="ai-price"><div>{{ __('ai_model.native_unit_ceiling') }}<strong>{{ number_format($seo['nativePrice']['sell']) }}</strong></div></div>
+                <p>{{ $seo['nativePrice']['quantity'] }} {{ __('ai_model.units.'.$seo['nativePrice']['unit']) }} · {{ __('ai_model.native_price_note') }}</p>
+                <p>{{ __('ai_model.estimate_note_short', ['percent'=>\App\Services\Ai\AiPricing::bpToPercent($seo['vatBp'])]) }}</p>
             @else<p>{{ __('ai.prices_pending') }}</p>@endif
         </div>
         <div class="ai-card ai-facts">
@@ -64,7 +68,7 @@
     <section class="ai-section">
         <h2>{{ __('ai_model.limits') }}</h2><p class="ai-muted">{{ $seo['limit'] }}</p>
         @if($seo['reasoningDisabled'])<p class="ai-note">{{ __('ai_model.reasoning_disabled') }}</p>@endif
-        @if(!$seo['tokenOperation'])<p class="ai-note">{{ __('ai_model.native_billing') }}</p>@endif
+        @if(!$seo['tokenOperation'])<p class="ai-note">{{ __('ai_model.'.($seo['nativeContract'] ? 'native_billing_ready' : 'native_billing')) }}</p>@endif
     </section>
     @if($seo['costExample'])
     <section class="ai-section">

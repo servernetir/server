@@ -3390,6 +3390,8 @@ Route::prefix('v1')
             ->name('ai.v1.chat.completions');
         Route::post('/embeddings', [\App\Http\Controllers\Ai\V1ChatController::class, 'embeddings'])->name('ai.v1.embeddings');
         Route::post('/rerank', [\App\Http\Controllers\Ai\V1ChatController::class, 'rerank'])->name('ai.v1.rerank');
+        Route::post('/inference', [\App\Http\Controllers\Ai\V1ChatController::class, 'native'])->name('ai.v1.native');
+        Route::get('/inference/{id}', [\App\Http\Controllers\Ai\V1ChatController::class, 'nativeResult'])->where('id','[a-z0-9]{26}')->name('ai.v1.native.result');
         Route::get('/models', [\App\Http\Controllers\Ai\V1ModelsController::class, 'index'])->name('ai.v1.models');
     });
 

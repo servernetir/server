@@ -97,8 +97,13 @@ class OpenAiCompatibleDriver implements AiProviderDriver
                     'rerank' => $this->provider->slug === 'deepinfra'
                         ? 'https://api.deepinfra.com/v1/inference/'.implode('/', array_map('rawurlencode', explode('/', $model->upstream_model)))
                         : throw new AiProviderCallException('provider_unconfigured', 'Native reranking is unavailable.', sent: false),
+                    'image', 'audio', 'video', 'music', 'classification' => $this->provider->slug === 'deepinfra'
+                        ? 'https://api.deepinfra.com/v1/inference/'.implode('/',array_map('rawurlencode',explode('/',$model->upstream_model)))
+                        : ($this->provider->slug==='gapgpt' && (\App\Services\Ai\AiNative::definition($model)['protocol']??null)==='gap-images'
+                            ? $baseUrl.'/images/generations'
+                            : throw new AiProviderCallException('provider_unconfigured','Native provider protocol is unavailable.',sent:false)),
                     default => $baseUrl.'/chat/completions',
-                }, $model->category === 'rerank' ? $payload : $body);
+                }, $model->category === 'rerank' || (\App\Services\Ai\AiNative::isNative($model) && $this->provider->slug==='deepinfra') ? $payload : $body);
         } catch (ConnectionException $e) {
             $sent = $uploaded !== null ? $uploaded > 0 : self::sentFromMessage($e->getMessage());
 

@@ -56,6 +56,8 @@ class AiUsage extends Model
             'sent_at'      => 'datetime',
             'settled_at'   => 'datetime',
             'day'          => 'date',
+            'native_snapshot' => 'array',
+            'native_usage' => 'array',
         ];
     }
 
@@ -101,12 +103,13 @@ class AiUsage extends Model
             rIn: (int) $this->input_rate_micro,
             rCached: (int) ($this->cached_rate_micro ?? $this->input_rate_micro),
             rOut: (int) $this->output_rate_micro,
-            inputPriceId: (int) $this->input_price_id,
+            inputPriceId: $this->input_price_id === null ? null : (int) $this->input_price_id,
             cachedPriceId: $this->cached_price_id === null ? null : (int) $this->cached_price_id,
             outputPriceId: $this->output_price_id === null ? null : (int) $this->output_price_id,
             pIn: (int) $this->p_input_irt_m,
             pCached: (int) $this->p_cached_irt_m,
             pOut: (int) $this->p_output_irt_m,
+            native: $this->native_snapshot['contract'] ?? null,
         );
     }
 }

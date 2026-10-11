@@ -20,8 +20,9 @@ final class AiUsageParser
     /**
      * @return array{prompt:int,completion:int,cached:int,reasoning:?int,estimated_cost:?string}|null
      */
-    public static function parse(array $body, string $raw = '', string $operation = 'chat'): ?array
+    public static function parse(array $body, string $raw = '', string $operation = 'chat',?array $native=null): ?array
     {
+        if ($operation === 'native') return AiNative::parse($body,$raw,$native);
         if (in_array($operation, ['embedding', 'rerank'], true)) {
             if (isset($body['error']) || ($operation === 'embedding' && (! is_array($body['data'] ?? null) || $body['data'] === []))
                 || ($operation === 'rerank' && ((isset($body['inference_status']['status']) && $body['inference_status']['status'] !== 'succeeded')

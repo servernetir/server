@@ -19,18 +19,19 @@ use Brick\Math\RoundingMode;
  *
  *   K     = (10⁴ + f) · (10⁴ + m)                        f سربارِ ارز، m حاشیه (bp)
  *   P_x   = ⌈ r_x · R · K / 10¹⁴ ⌉                       تومان به ازای ۱M توکن
- *   S     = max(⌈Σ n·P / 10⁶⌉ , ⌈N_b · R · K / 10²⁰⌉)     درآمد، بی‌مالیات
+ *   S     = max(⌈Σ n·P / 10⁶⌉ , ⌈N_b · R · K / 10²⁰⌉,
+ *               ⌈cost · (10⁴ + m) / 10⁴⌉)                درآمد، بی‌مالیات
  *   T     = ⌈ S · t / 10⁴ ⌉                               مالیات، روی قیمت
  *   cost  = ⌈ N_b · R · (10⁴ + f) / 10¹⁶ ⌉               بهای تمام‌شده
  *
  * ═══ خطِ قرمز: هرگز زیرِ بها ═══
  *
  * هر گام **به بالا** گرد می‌شود و فقط با عددِ صحیحِ `BigInteger` — هیچ float
- * در هیچ جا. چون P_x ≥ r_x·R·K/10¹⁴ دقیقاً، داریم S_book ≥ S_floor؛ و چون
- * K ≥ (10⁴+f)·10⁴ برای m ≥ 0، داریم S_floor ≥ cost. پس S ≥ cost برای **هر**
- * تماس، بی‌قید و شرط — `AiPricingPropertyTest` این را روی ۱۰٬۰۰۰ حالتِ تصادفی
- * می‌آزماید. مالیات روی S سوار است و در این مقایسه نیست، پس حاشیهٔ نازک هرگز
- * خرجِ مالیات نمی‌شود.
+ * در فرمول مالی. کفِ سوم حاشیهٔ مصوب را روی بهای تمام‌شدهٔ گرد‌شده حفظ می‌کند؛
+ * صرفاً گردکردن مستقلِ بها و فروش ممکن بود حاشیهٔ ثبت‌شده را کاهش دهد.
+ * `AiPricingPropertyTest` کف و پوشش hold را روی ۱۰٬۰۰۰ حالت می‌آزماید.
+ * مالیات جدا از درآمد است. این کف دربارهٔ هزینهٔ شناخته‌شده است و هزینه یا
+ * مالیاتِ اعلام‌نشدهٔ آیندهٔ تأمین‌کننده را تضمین نمی‌کند.
  *
  * ═══ فروش بسته می‌ماند تا مالک عدد بدهد ═══
  *
@@ -78,6 +79,17 @@ final class AiPricing
         [$margin, $marginSource, $marginReason] = $this->marginFor($model);
         if ($marginReason !== null) {
             $reasons[] = $marginReason;
+        }
+
+        if (AiNative::isNative($model)) {
+            $contract = AiNative::definition($model);
+            if (! $contract) $reasons[] = 'native_contract_unavailable';
+            if ($provider->billing_currency_code !== 'USD') $reasons[] = 'native_currency_mismatch';
+            if ($reasons !== []) throw new AiPricingException(AiPricingException::PRICING_INCOMPLETE, $reasons);
+            $fx = $this->fx->quote('USD');
+            if (! $fx) throw new AiPricingException(AiPricingException::FX_UNAVAILABLE, ['fx_usd']);
+            return new AiPriceQuote((int)$model->id, (int)$provider->id, 'USD', $fx, (int)$fee, $margin,
+                $marginSource, 0, 0, 0, null, null, null, 0, 0, 0, $contract);
         }
 
         try {
@@ -143,7 +155,7 @@ final class AiPricing
         if ($model->status !== AiModel::STATUS_ACTIVE) {
             $gates[] = 'model_inactive';
         }
-        if (! in_array($model->category, ['chat', 'embedding', 'rerank'], true)) {
+        if (! in_array($model->category, ['chat', 'embedding', 'rerank'], true) && ! AiNative::definition($model)) {
             $gates[] = 'model_not_chat';
         }
         if ($model->getAttribute('suspended_at') !== null) {
@@ -300,6 +312,10 @@ final class AiPricing
         );
         $floor = self::toInt($nb->multipliedBy($r)->multipliedBy($k)->dividedBy(BigInteger::ten()->power(20), RoundingMode::Up));
         $costIrt = self::toInt($nb->multipliedBy($r)->multipliedBy(10_000 + $q->feeBp)->dividedBy(BigInteger::ten()->power(16), RoundingMode::Up));
+        // Keep the configured markup against the rounded ledger cost as well.
+        $ledgerFloor=self::toInt(BigInteger::of($costIrt)->multipliedBy(10_000+$q->marginBp)
+            ->dividedBy(10_000,RoundingMode::Up));
+        $floor=max($floor,$ledgerFloor);
 
         $sell = max($book, $floor);
         $tax = self::tax($sell, $vatBp);
@@ -349,10 +365,22 @@ final class AiPricing
                 ->multipliedBy(10_000 + $b)
                 ->dividedBy(BigInteger::ten()->power(10), RoundingMode::Up)
         );
+        $upper=$this->charge($q,max(0,$maxInput),0,max(0,$maxOutput),0);
+        $sell=max($sell,self::toInt(BigInteger::of($upper['sell'])->multipliedBy(10_000+$b)
+            ->dividedBy(10_000,RoundingMode::Up)));
         $tax = self::tax($sell, $vatBp);
 
         // جمع هم از BigInteger: `+` ِ PHP در سرریز بی‌صدا float می‌شود، نه خطا
         return ['sell' => $sell, 'tax' => $tax, 'total' => self::toInt(BigInteger::of($sell)->plus($tax))];
+    }
+
+    public function holdNative(AiPriceQuote $q, int $maxCostMicro, int $vatBp): array
+    {
+        $buffered = BigInteger::of($maxCostMicro)->multipliedBy(10_000 + (int)config('ai.hold_buffer_bp',1000))
+            ->dividedBy(10_000,RoundingMode::Up)->toInt();
+        $cost = (string)\Brick\Math\BigDecimal::of($buffered)->dividedBy(1_000_000,6);
+        $calc=$this->chargeCost($q,$cost,$vatBp);
+        return ['sell'=>$calc['sell'],'tax'=>$calc['tax'],'total'=>$calc['charged']];
     }
 
     /** T = ⌈ S · t / 10⁴ ⌉ */

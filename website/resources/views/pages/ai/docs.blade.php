@@ -33,4 +33,5 @@ print(vector.usage.prompt_tokens)</pre><pre class="ai-code">curl https://servern
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: rerank-001" \
   -d '{"model":"RERANK_MODEL_ID","queries":["capital?"],"documents":["Tehran"]}'</pre></section><h2>{{ __('ai.errors') }}</h2><p class="ai-muted">{{ __('ai.errors_text') }}</p><div class="ai-actions"><a class="ai-btn primary" href="{{ lroute('account.ai') }}">{{ __('ai.start') }}</a><a class="ai-btn" href="{{ lroute('ai.models') }}">{{ __('ai.catalog') }}</a></div></main>
+@include('pages.ai.native-docs')
 @endsection

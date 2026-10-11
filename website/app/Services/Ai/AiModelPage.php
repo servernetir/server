@@ -35,6 +35,8 @@ final class AiModelPage
         $title = $model->name.$variant.' API | '.$words['title_suffix'].' | ServerNet';
         $url = lroute('ai.model', $model->slug);
         $tokenOperation = in_array($model->category, ['chat', 'embedding', 'rerank'], true);
+        $nativeContract = $state['quote']?->native;
+        $nativePrice = $nativeContract ? AiNative::unitPrice($state['quote']) : null;
         $sourceSpec = null;
         if (! $tokenOperation && $model->provider?->slug === 'deepinfra') {
             self::$sourceSpecs ??= json_decode(file_get_contents(resource_path('content/ai-model-specs.json')), true, flags: JSON_THROW_ON_ERROR);
@@ -46,11 +48,11 @@ final class AiModelPage
         $reasoningDisabled = $model->category === 'chat' && AiPayload::requiresNonReasoning($model);
         $faq = [
             ['q' => $replace($words['faq_available']), 'a' => $replace($state['ready'] ? $words['available_answer'] : $words['pending_answer'])],
-            ['q' => $replace($words['faq_connect']), 'a' => $replace($tokenOperation ? $words['connect_answer'] : $words['native_answer'])],
-            ['q' => $replace($words['faq_price']), 'a' => $replace($tokenOperation ? $type['billing'] : $words['native_billing'])],
+            ['q' => $replace($words['faq_connect']), 'a' => $replace($tokenOperation ? $words['connect_answer'] : ($nativeContract ? $words['native_connect_ready'] : $words['native_answer']))],
+            ['q' => $replace($words['faq_price']), 'a' => $replace($tokenOperation ? $type['billing'] : ($nativeContract ? $words['native_billing_ready'] : $words['native_billing']))],
             ['q' => $replace($words['faq_limits']), 'a' => $replace($type['limit'])],
         ];
-        $example = $tokenOperation ? $this->example($model) : null;
+        $example = $tokenOperation || $nativeContract ? $this->example($model,$nativeContract) : null;
         $vatBp = app(AiVat::class)->iranRateBp();
         $costExample = null;
         if ($tokenOperation && $state['quote']) {
@@ -93,6 +95,13 @@ final class AiModelPage
                     'referenceQuantity' => ['@type' => 'QuantitativeValue', 'value' => 1000000, 'unitText' => __('ai.tokens')]],
             ], $rates);
         }
+        if ($state['ready'] && $nativePrice) {
+            $service['offers']=['@type'=>'Offer','name'=>__('ai_model.native_unit_ceiling'),'url'=>$url,
+                'availability'=>'https://schema.org/InStock','priceSpecification'=>['@type'=>'UnitPriceSpecification',
+                    'priceCurrency'=>'IRR','maxPrice'=>(string)\Brick\Math\BigInteger::of($nativePrice['sell'])->multipliedBy(10),
+                    'valueAddedTaxIncluded'=>false,'referenceQuantity'=>['@type'=>'QuantitativeValue',
+                        'value'=>$nativePrice['quantity'],'unitText'=>__('ai_model.units.'.$nativePrice['unit'])]]];
+        }
         $schema = ['@context' => 'https://schema.org', '@graph' => [
             ['@type' => 'WebPage', '@id' => $url.'#page', 'url' => $url, 'name' => $title,
                 'description' => $description, 'inLanguage' => $locale, 'mainEntity' => ['@id' => $url.'#api'],
@@ -104,7 +113,7 @@ final class AiModelPage
             ]], $service,
         ]];
         return compact('title', 'description', 'intro', 'summary', 'family', 'faq', 'example', 'costExample',
-            'vatBp', 'facts', 'schema', 'url', 'tokenOperation', 'reasoningDisabled', 'sourceSpec')
+            'vatBp', 'facts', 'schema', 'url', 'tokenOperation', 'reasoningDisabled', 'sourceSpec','nativePrice','nativeContract')
             + ['uses' => array_map($replace, $type['uses']), 'workflow' => $replace($type['workflow']),
                 'limit' => $replace($type['limit']), 'indexable' => self::indexable($model)];
     }
@@ -122,7 +131,7 @@ final class AiModelPage
         return null;
     }
 
-    private function example(AiModel $model): array
+    private function example(AiModel $model,?array $native = null): array
     {
         [$path, $scope, $body] = match ($model->category) {
             'embedding' => ['embeddings', 'ai:embedding', ['model' => $model->slug, 'input' => ['Hello world', 'Search documents']]],
@@ -131,6 +140,21 @@ final class AiModelPage
             default => ['chat/completions', 'ai:chat', ['model' => $model->slug,
                 'messages' => [['role' => 'user', 'content' => 'Hello']], 'max_tokens' => min(128, max(1, $model->max_output_tokens))]],
         };
+        if ($native) {
+            $path='inference'; $scope='ai:native';$body=['model'=>$model->slug]+$native['defaults'];
+            foreach ($native['schema']['required']??[] as $key) {
+                if (array_key_exists($key,$body)) continue;
+                $rule=$native['schema']['properties'][$key];
+                $value=$rule['example']??$rule['enum'][0]??match($rule['type']??'string') {
+                    'integer','number'=>$rule['minimum']??1,'boolean'=>false,'array'=>[],default=>'Hello from ServerNet',
+                };
+                if (in_array($key,$native['media_fields'],true)) {
+                    $value='data:'.(str_contains($key,'audio')?'audio/wav':'image/png').';base64,REPLACE_WITH_YOUR_FILE';
+                    if (($rule['type']??null)==='array') $value=[$value];
+                }
+                $body[$key]=$value;
+            }
+        }
         $json = json_encode($body, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         // JSON is double quoted inside a POSIX single quoted string. Escape arbitrary model IDs safely.
         $quoted = str_replace("'", "'\"'\"'", $json);

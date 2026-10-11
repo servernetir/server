@@ -1,5 +1,9 @@
 <?php
 return [
+    'native_unit_ceiling' => 'Birim fiyat üst sınırı, IRT',
+    'native_price_note' => 'Son fiyat boyutlara, adede ve istek seçeneklerine bağlıdır.',
+    'native_connect_ready' => 'ai:native yetkili bir anahtar oluşturup bu sayfadaki örneği /v1/inference adresine gönderin. Video ve müzik için 202 alındısı ve sonuç sorgulama adresi döner.',
+    'native_billing_ready' => 'Göndermeden önce sınırlı istek maliyeti ayrılır. Doğrulanmış tarife veya sağlayıcının bildirdiği maliyet döviz kuru ve satış payıyla hesaplanır; vergi ayrıdır. Medya sohbet tokeni olarak faturalandırılmaz. Medya girdisi Data URL içinde geçerli resim veya WAV olmalıdır.',
     'title_suffix' => 'Fiyat, sınırlar ve kurulum',
     'source_task' => 'Katalog görevi', 'source_unit' => 'Özel ücretlendirme temeli',
     'source_specs' => 'Modele özgü özel girdiler', 'source_date' => 'Girdi şeması tarihi: :date. Güncel ağ geçidi yürütme durumu yukarıda gösterilir. Bu katalog alanları özel modeli değerlendirmenize yardımcı olur; kabul edilen ağ geçidi istekleri entegrasyon bölümünde belgelenir.',
@@ -9,7 +13,7 @@ return [
     'tasks' => ['automatic-speech-recognition' => 'Konuşmadan metne', 'text-to-speech' => 'Metinden konuşmaya',
         'text-to-image' => 'Görüntü üretimi veya işleme', 'text-to-video' => 'Video üretimi',
         'text-to-music' => 'Müzik üretimi', 'zero-shot-image-classification' => 'Görüntü sınıflandırma'],
-    'units' => ['input_character_length' => 'Girdi karakterleri', 'input_length' => 'Girdi ses süresi',
+    'units' => ['call' => '1024 × 1024 resim', 'input_character_length' => 'Girdi karakterleri', 'input_length' => 'Girdi ses süresi, saniye',
         'output_length' => 'Çıktı süresi', 'image_units' => 'Modelin tanımladığı görüntü birimleri', 'frame_units' => 'Video kare birimleri',
         'input_tokens' => 'Özel girdi-token sözleşmesi', 'time' => 'Çalışma süresi'],
     'estimate_note_short' => 'Fiyatlara vergi dahil değildir. Güncel İran kullanım vergisi %:percent oranındadır. Hesabınıza uygulanacak oran istek kabulünde sabitlenir.',

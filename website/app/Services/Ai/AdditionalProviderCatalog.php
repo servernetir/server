@@ -86,7 +86,15 @@ final class AdditionalProviderCatalog
                 }
             }
             // Cache-write/read semantics differ between vendors; full input is the safe fallback.
-            $rows[$name] = ['category' => $category, 'vendor' => (string) ($row['provider'] ?? ''), 'rates' => $rates];
+            $nativePrice=null;
+            if ($category==='image' && ($row['pricing_type']??null)==='call'
+                && in_array($name,['flux-1-schnell','gemini-2.5-flash-image','gapgpt/qwen-image-2.1'],true)
+                && preg_match('/"price_per_call"\s*:\s*([0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?)/',$object,$priceMatch)) {
+                $cents=(string)BigDecimal::of($priceMatch[1])->multipliedBy(100);
+                if (str_contains($cents,'.')) $cents=rtrim(rtrim($cents,'0'),'.');
+                $nativePrice=['type'=>'call','cents_per_call'=>$cents];
+            }
+            $rows[$name] = ['category' => $category, 'vendor' => (string) ($row['provider'] ?? ''), 'rates' => $rates,'native_pricing'=>$nativePrice];
         }
         return $rows;
     }
@@ -155,6 +163,8 @@ final class AdditionalProviderCatalog
             $model = AiModel::firstOrNew(['ai_provider_id' => $provider->id, 'upstream_model' => $id]);
             $new = ! $model->exists;
             $ready = isset($ids[$id]) && $row['rates'] !== [];
+            $nativePrice=$row['native_pricing']??null;
+            if ($nativePrice) $ready=isset($ids[$id]) && AiNative::candidate($provider->slug,$id,$nativePrice)!==null;
             $caps = $model->capabilities ?? [];
             $model->fill([
                 'name' => $id, 'vendor' => $row['vendor'], 'category' => $row['category'],
@@ -165,6 +175,7 @@ final class AdditionalProviderCatalog
                     'catalogue_source' => $provider->slug, 'catalogue_at' => now()->toIso8601String(),
                     'execution_ready' => $ready, 'streaming' => $ready && $row['category'] === 'chat',
                     'pending_reason' => $ready ? null : (isset($ids[$id]) ? 'endpoint_or_metering_pending' : 'model_unavailable'),
+                    'native_tariff_hash'=>$nativePrice ? AiNative::fingerprint($nativePrice) : null,
                 ]),
             ]);
             if ($new) {

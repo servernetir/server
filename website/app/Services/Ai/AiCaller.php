@@ -14,8 +14,6 @@ use App\Services\AiProviders\AiProviderDriver;
 use App\Services\AiProviders\OpenAiCompatibleDriver;
 use App\Services\Finance\Wallet;
 use App\Support\ErrorTracker;
-use Brick\Math\BigInteger;
-use Brick\Math\RoundingMode;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 
@@ -60,7 +58,7 @@ final class AiCaller
     /**
      * @param  array  $client  بدنهٔ خامِ مشتری، **همراهِ** `model`
      */
-    public function handle(AiAuthContext $auth, array $client, ?string $idempotencyKey = null, string $operation = 'chat'): AiCallOutcome
+    public function handle(AiAuthContext $auth, array $client, ?string $idempotencyKey = null, string $operation = 'chat', bool $deferNative = false): AiCallOutcome
     {
         if (! $auth->ok) {
             return AiCallOutcome::fail($auth->code, $auth->message !== '' ? $auth->message : 'دسترسی پذیرفته نشد.', 403);
@@ -81,8 +79,9 @@ final class AiCaller
         $slug = is_string($client['model'] ?? null) ? trim($client['model']) : '';
         $model = $slug === '' ? null : $this->registry->model($slug);
 
-        if (! in_array($operation, ['chat', 'embedding', 'rerank'], true) || $model === null || $model->category !== $operation) {
-            return AiCallOutcome::fail('model_not_found', 'چنین مدلِ چتی شناخته نشد.', 404);
+        if ($model === null || ($operation === 'native' ? ! AiNative::isNative($model)
+            : ! in_array($operation, ['chat', 'embedding', 'rerank'], true) || $model->category !== $operation)) {
+            return AiCallOutcome::fail('model_not_found', 'چنین مدلی شناخته نشد.', 404);
         }
         if ($model->status !== AiModel::STATUS_ACTIVE) {
             return AiCallOutcome::fail('model_inactive', 'این مدل فعال نیست.', 503);
@@ -99,7 +98,7 @@ final class AiCaller
         }
 
         if ($auth->token === null || ! $auth->token->can('ai:'.$operation)) {
-            return AiCallOutcome::fail('insufficient_scope', 'کلیدِ این تماس سطحِ «ai:chat» ندارد.', 403);
+            return AiCallOutcome::fail('insufficient_scope', 'کلیدِ این تماس سطحِ «ai:'.$operation.'» ندارد.', 403);
         }
 
         $driver = self::driverFor($model->provider);
@@ -109,8 +108,9 @@ final class AiCaller
 
         // ── A2–A3: بدنه ──
         try {
-            $prepared = $operation === 'chat' ? $this->payload->prepare($client, $model)
-                : $this->payload->prepareInputOnly($client, $model, $operation);
+            $prepared = $operation === 'native' ? app(AiNative::class)->prepare($client,$model)
+                : ($operation === 'chat' ? $this->payload->prepare($client, $model)
+                    : $this->payload->prepareInputOnly($client, $model, $operation));
         } catch (AiRequestException $e) {
             return AiCallOutcome::fail($e->errorCode, $e->getMessage(), $e->status);
         }
@@ -145,7 +145,36 @@ final class AiCaller
         /** @var AiUsage $usage */
         $usage = $opened['usage'];
 
-        return $this->send($usage, $model, $driver, $prepared, $idempotencyKey);
+        if ($deferNative && $operation === 'native' && in_array($model->category,['video','music'],true)) {
+            // Return the receipt before inference; the public proxy need not wait for rendering.
+            // Process loss before sending leaves a reserved row for the existing reconciler.
+            app()->terminating(function () use ($usage,$model,$driver,$prepared,$idempotencyKey) {
+                $this->send($usage,$model,$driver,$prepared,$idempotencyKey ?? '__native-'.$usage->public_id);
+            });
+            return self::pendingNative($usage);
+        }
+
+        return $this->send($usage, $model, $driver, $prepared, $idempotencyKey ?? ($operation==='native' ? '__native-'.$usage->public_id : null));
+    }
+
+    private static function pendingNative(AiUsage $usage): AiCallOutcome
+    {
+        return new AiCallOutcome(true,'accepted',response:['id'=>$usage->public_id,'status'=>'processing',
+            'result_url'=>url('/v1/inference/'.$usage->public_id)],status:202,
+            headers:['X-Request-Id'=>$usage->public_id,'Cache-Control'=>'no-store','Retry-After'=>'5'],usage:$usage);
+    }
+
+    public function nativeResult(AiAuthContext $auth,string $id): AiCallOutcome
+    {
+        $usage=AiUsage::where('public_id',$id)->where('customer_id',$auth->customer->id)
+            ->where('ai_project_id',$auth->token->ai_project_id)->where('operation','native')->first();
+        if (! $usage) return AiCallOutcome::fail('request_not_found','Request not found.',404);
+        if (in_array($usage->status,[AiUsage::STATUS_RESERVED,AiUsage::STATUS_SENDING,AiUsage::STATUS_STREAMING],true)) return self::pendingNative($usage);
+        $call=AiCall::where('ai_reservation_id',$usage->ai_reservation_id)->where('ok',true)->first();
+        if (is_array($call?->response_encrypted)) return new AiCallOutcome(true,'ok',response:$call->response_encrypted,
+            headers:['X-Request-Id'=>$id,'X-ServerNet-Charge-Irt'=>(string)($usage->charged_irt-$usage->refunded_irt),'Cache-Control'=>'no-store'],usage:$usage);
+        return AiCallOutcome::fail($usage->error_code ?: 'result_unavailable','The request result is unavailable; inspect its billing status.',409,
+            ['X-Request-Id'=>$id,'x-should-retry'=>'false'], $usage);
     }
 
     /** درِ فروش: `ai_sales_open = 1` یا مشتری در فهرستِ آزمایشی */
@@ -215,6 +244,7 @@ final class AiCaller
      */
     private function sizeHold(AiPreparedRequest $prepared, AiPriceQuote $q, int $vatBp, int $customerId): array
     {
+        if ($prepared->native !== null) return [$prepared,$this->pricing->holdNative($q,$prepared->native['max_cost_micro'],$vatBp)];
         $hold = $this->pricing->hold($q, $prepared->maxInput, $prepared->maxOutput, $vatBp);
         $available = $this->wallet->availableOf($customerId, 'IRT');
 
@@ -222,27 +252,16 @@ final class AiCaller
             return [$prepared, $hold];
         }
 
-        /*
-        | G2 — کیفِ کوچک: مشتری سقفِ خروجی نخواسته و سقفِ مدل بیش از موجودی است؛ به‌جای
-        | ۴۰۲، خروجی را تا جایی که کیف می‌خرد پایین می‌آوریم (کف ۲۵۶ توکن).
-        |   net = ⌊avail·10⁴/(10⁴+t)⌋ ،  O' = ⌊(net·10⁶·10⁴/(10⁴+b) − I·P_in) / P_out⌋
-        | ⌊⌋ هر دو رو به پایین‌اند تا H ِ حاصل هرگز از موجودی بیشتر نشود.
-        */
-        $b = (int) config('ai.hold_buffer_bp', 1000);
-        $net = intdiv(max(0, $available) * 10_000, 10_000 + $vatBp);
-        $budget = BigInteger::of($net)->multipliedBy(1_000_000)->multipliedBy(10_000)
-            ->dividedBy(10_000 + $b, RoundingMode::Down)
-            ->minus(BigInteger::of($prepared->maxInput)->multipliedBy($q->pIn));
-        $output = $budget->isNegative() ? 0 : $budget->dividedBy(max(1, $q->pOut), RoundingMode::Down)->toInt();
-        $output = min($output, $prepared->outputCap);
-
-        if ($output >= (int) config('ai.min_balance_aware_output', 256)) {
-            $prepared = $prepared->withOutput($output);
-            $hold = $this->pricing->hold($q, $prepared->maxInput, $output, $vatBp);
-            if ($hold['total'] <= $available) {
-                return [$prepared, $hold];
-            }
+        // Find the largest affordable output using the actual rounded hold.
+        $low=(int)config('ai.min_balance_aware_output',256);
+        $high=min($prepared->maxOutput,$prepared->outputCap);$best=null;
+        while($low<=$high){
+            $output=$low+intdiv($high-$low,2);
+            $candidate=$this->pricing->hold($q,$prepared->maxInput,$output,$vatBp);
+            if($candidate['total']<=$available){$best=[$output,$candidate];$low=$output+1;}
+            else $high=$output-1;
         }
+        if($best!==null)return [$prepared->withOutput($best[0]),$best[1]];
 
         throw new AiGateRefusal(AiCallOutcome::fail('insufficient_funds',
             'اعتبارِ در دسترس کافی نیست: این درخواست '.number_format($hold['total'])
@@ -258,7 +277,7 @@ final class AiCaller
         AiPreparedRequest $prepared, array $hold, ?string $key): AiCallOutcome|array
     {
         $customerId = (int) $auth->customer->id;
-        $tHttp = self::httpTimeout($prepared->maxOutput);
+        $tHttp = $prepared->operation === 'native' ? 300 : self::httpTimeout($prepared->maxOutput);
 
         try {
             return DB::transaction(function () use ($auth, $model, $q, $vat, $prepared, $hold, $key, $customerId, $tHttp) {
@@ -275,6 +294,7 @@ final class AiCaller
                             $prev->request_sha256 !== $prepared->sha256 => AiCallOutcome::fail('idempotency_key_reused',
                                 'این Idempotency-Key پیش‌تر با بدنهٔ دیگری به کار رفته است.', 422),
                             $prev->status === AiUsage::STATUS_SETTLED => ['replay' => $prev],
+                            $prepared->operation === 'native' && in_array($prev->status,[AiUsage::STATUS_RESERVED,AiUsage::STATUS_SENDING,AiUsage::STATUS_STREAMING],true) => self::pendingNative($prev),
                             $prev->status === AiUsage::STATUS_UNKNOWN_CHARGED => AiCallOutcome::fail('upstream_outcome_unknown',
                                 'نتیجهٔ تماسِ قبلی با این کلید نامعلوم ماند و شارژ شد؛ تکرار یعنی تماسِ تازه با کلیدِ تازه.', 409,
                                 ['x-should-retry' => 'false', 'X-Request-Id' => $prev->public_id]),
@@ -330,6 +350,8 @@ final class AiCaller
                     'request_sha256' => $prepared->sha256,
                     'stream' => $prepared->stream,
                     'operation' => $prepared->operation,
+                    'native_snapshot' => $prepared->native === null ? null : ['max_cost_micro'=>$prepared->native['max_cost_micro'],
+                        'contract'=>array_intersect_key($prepared->native['contract'],array_flip(['pricing','tariff_hash','protocol','ceiling_cents','ceiling_basis','call_units','schema_date','task']))],
                     'status' => AiUsage::STATUS_RESERVED,
                     'max_input_tokens' => $prepared->maxInput,
                     'max_output_tokens' => $prepared->maxOutput,
@@ -431,7 +453,7 @@ final class AiCaller
 
         // B2: مشتری که قطع کند، PHP باید تا تسویه برسد
         ignore_user_abort(true);
-        $tHttp = self::httpTimeout($prepared->maxOutput);
+        $tHttp = $prepared->operation === 'native' ? 300 : self::httpTimeout($prepared->maxOutput);
         // گاردِ استانداردِ پروژه (TimeLimitIsConsoleGuardedTest): در کنسول/تست، set_time_limit
         // کلِ فرایند را روی همان عدد می‌بندد و مجموعهٔ تست را روی ویندوز بی‌صدا می‌کُشد
         if (! app()->runningInConsole()) {
@@ -522,7 +544,7 @@ final class AiCaller
         }
 
         $latency = (int) intdiv(hrtime(true) - $started, 1_000_000);
-        $parsed = AiUsageParser::parse($result->body, $result->raw, $prepared->operation);
+        $parsed = AiUsageParser::parse($result->body, $result->raw, $prepared->operation,$prepared->native);
 
         if ($parsed === null) {
             // ۲xx بی مصرفِ قابلِ خواندن ⇒ نامعلوم، نه صفر

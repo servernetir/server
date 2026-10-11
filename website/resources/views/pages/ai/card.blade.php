@@ -10,5 +10,9 @@
         <div>{{ __('ai.input') }}<strong>{{ number_format($s['quote']->pIn) }}</strong></div>
         @if($m->category === 'chat')<div>{{ __('ai.output') }}<strong>{{ number_format($s['quote']->pOut) }}</strong></div>@endif
     </div><small class="ai-muted">{{ __('ai.price') }}</small>
+    @elseif($s['quote']?->native)
+        @php $unitPrice=\App\Services\Ai\AiNative::unitPrice($s['quote']); @endphp
+        <div class="ai-price"><div>{{ __('ai_model.native_unit_ceiling') }}<strong>{{ number_format($unitPrice['sell']) }}</strong></div></div>
+        <small class="ai-muted">{{ $unitPrice['quantity'] }} {{ __('ai_model.units.'.$unitPrice['unit']) }} · {{ __('ai_model.native_price_note') }}</small>
     @else<p>{{ __('ai.prices_pending') }}</p>@endif
 </article>

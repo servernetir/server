@@ -124,9 +124,10 @@ final class AiSettlement
                 'cached_tokens' => $costOnly ? null : $calc['c'],
                 'completion_tokens' => $usage['completion'],
                 'reasoning_tokens' => $usage['reasoning'],
-                'usage_source' => $costOnly ? 'cost_lookup' : ($u->status === AiUsage::STATUS_UNKNOWN_PENDING ? 'recovered' : 'provider'),
+                'usage_source' => $costOnly ? (($usage['tariff_cost']??false) ? 'native_tariff' : ($u->operation === 'native' ? 'native_provider' : 'cost_lookup')) : ($u->status === AiUsage::STATUS_UNKNOWN_PENDING ? 'recovered' : 'provider'),
+                'native_usage' => isset($usage['native_usage']) ? json_encode($usage['native_usage'],JSON_THROW_ON_ERROR) : null,
                 'cost_micro' => $calc['cost_micro'],
-                'provider_cost_micro' => $calc['estimated_micro'],
+                'provider_cost_micro' => ($usage['tariff_cost']??false) ? null : $calc['estimated_micro'],
                 'cost_irt' => $calc['cost_irt'],
                 'sell_irt' => $calc['sell'],
                 'tax_irt' => $calc['tax'],
@@ -152,7 +153,9 @@ final class AiSettlement
      */
     public function settleCap(AiUsage $u): AiUsage
     {
-        $calc = $this->pricing->charge($u->quote(), (int) $u->max_input_tokens, 0, (int) $u->max_output_tokens, (int) $u->vat_bp);
+        $calc = $u->native_snapshot !== null
+            ? $this->pricing->chargeCost($u->quote(),(string)\Brick\Math\BigDecimal::of($u->native_snapshot['max_cost_micro'])->dividedBy(1_000_000,6),(int)$u->vat_bp)
+            : $this->pricing->charge($u->quote(), (int) $u->max_input_tokens, 0, (int) $u->max_output_tokens, (int) $u->vat_bp);
 
         $n = AiUsage::whereKey($u->id)->where('status', AiUsage::STATUS_UNKNOWN_PENDING)->update([
             'status' => AiUsage::STATUS_SETTLE_PENDING,

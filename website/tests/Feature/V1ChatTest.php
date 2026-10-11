@@ -30,7 +30,7 @@ class V1ChatTest extends TestCase
         $this->sellableCatalog();
     }
 
-    public function test_worked_example_debits_exactly_327_toman_with_headers(): void
+    public function test_worked_example_debits_exactly_328_toman_with_headers(): void
     {
         [$c, $plain] = $this->greenKey(1_000_000);
         $this->fakeUsage(12_000, 900, 8_000);
@@ -38,15 +38,15 @@ class V1ChatTest extends TestCase
         $res = $this->v1($plain, $this->bigBody())->assertOk()->assertJsonPath('choices.0.message.content', 'سلام!');
 
         $u = AiUsage::firstOrFail();
-        $res->assertHeader('X-Request-Id', $u->public_id)->assertHeader('X-ServerNet-Charge-Irt', '327');
+        $res->assertHeader('X-Request-Id', $u->public_id)->assertHeader('X-ServerNet-Charge-Irt', '328');
 
         $this->assertSame(AiUsage::STATUS_SETTLED, $u->status);
-        $this->assertSame([297, 30, 327, 238], [(int) $u->sell_irt, (int) $u->tax_irt, (int) $u->charged_irt, (int) $u->cost_irt]);
-        $this->assertSame(1_000_000 - 327, $this->balance($c));
-        $this->assertSame(1_000_000 - 327, $this->available($c), 'رزرو باید کامل بسته شده باشد');
+        $this->assertSame([298, 30, 328, 238], [(int) $u->sell_irt, (int) $u->tax_irt, (int) $u->charged_irt, (int) $u->cost_irt]);
+        $this->assertSame(1_000_000 - 328, $this->balance($c));
+        $this->assertSame(1_000_000 - 328, $this->available($c), 'رزرو باید کامل بسته شده باشد');
 
         $row = CreditEntry::where('customer_id', $c->id)->where('reason', 'ai_usage')->sole();
-        $this->assertSame(-327, (int) $row->amount);
+        $this->assertSame(-328, (int) $row->amount);
         $this->assertSame(AiReservation::STATUS_SETTLED, AiReservation::sole()->status);
     }
 
@@ -157,7 +157,7 @@ class V1ChatTest extends TestCase
 
         $this->assertSame($first->json(), $second->json());
         Http::assertSentCount(1);
-        $this->assertSame(1_000_000 - 327, $this->balance($c));
+        $this->assertSame(1_000_000 - 328, $this->balance($c));
     }
 
     public function test_same_key_other_body_is_422_and_bad_key_is_400(): void

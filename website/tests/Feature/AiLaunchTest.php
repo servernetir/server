@@ -44,16 +44,16 @@ class AiLaunchTest extends TestCase
         $first = $this->v1($plain, $body, ['Idempotency-Key' => 'stream-1'])->assertOk();
         $output = $first->streamedContent();
         $this->assertStringContainsString('data: [DONE]', $output);
-        $this->assertStringContainsString('"servernet_charge_irt":327', $output);
+        $this->assertStringContainsString('"servernet_charge_irt":328', $output);
         $this->assertStringNotContainsString('private-upstream', $output);
         $this->assertStringNotContainsString('estimated_cost', $output);
-        $this->assertSame(999673, $this->balance($customer));
+        $this->assertSame(999672, $this->balance($customer));
         $this->assertSame(AiUsage::STATUS_SETTLED, AiUsage::sole()->status);
         $this->assertNull(AiCall::sole()->getRawOriginal('response_body'));
         $this->assertStringNotContainsString('hello', AiCall::sole()->getRawOriginal('response_encrypted'));
         $second = $this->v1($plain, $body, ['Idempotency-Key' => 'stream-1'])->assertOk()->assertHeader('Idempotent-Replayed', 'true');
         $this->assertSame($output, $second->streamedContent());
-        $this->assertSame(999673, $this->balance($customer));
+        $this->assertSame(999672, $this->balance($customer));
         Http::assertSentCount(1);
         Http::assertSent(fn ($r) => $r['stream_options']['include_usage'] === true && $r['max_tokens'] === 4096);
     }

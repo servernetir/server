@@ -45,7 +45,7 @@ final class DeepInfraCatalog
         $provider = AiProvider::where('slug', 'deepinfra')->firstOrFail();
         $book = app(PriceBook::class);
         $seen = [];
-        $counts = ['imported' => 0, 'chat_ready' => 0, 'pending' => 0, 'deprecated' => 0];
+        $counts = ['imported' => 0, 'chat_ready' => 0, 'native_ready'=>0, 'pending' => 0, 'deprecated' => 0];
         foreach ($rows as $row) {
             if (! empty($row['private'])) {
                 continue;
@@ -70,6 +70,8 @@ final class DeepInfraCatalog
             $deprecated = ! empty($row['deprecated']) && (int) $row['deprecated'] <= now()->timestamp;
             $ready = ($category === 'chat' && in_array('openai', $row['tags'] ?? [], true)
                 || in_array($category, ['embedding', 'rerank'], true)) && $rates !== null && ! $deprecated;
+            $native = ! in_array($category,['chat','embedding','rerank'],true);
+            if ($native) $ready = ! $deprecated && AiNative::candidate('deepinfra',$upstream,$pricing) !== null;
             $metadata = $model->capabilities ?? [];
             $managed = $new || ($metadata['catalogue_source'] ?? null) === 'deepinfra';
             $model->fill([
@@ -89,6 +91,7 @@ final class DeepInfraCatalog
                     'pending_reason' => $ready ? null : ($deprecated ? 'deprecated' : ($category !== 'chat' ? 'endpoint_pending' : 'pricing_or_api_pending')),
                     'replacement_upstream' => $row['replaced_by'] ?? null,
                     'pricing_context_limit' => $tierLimit,
+                    'native_tariff_hash' => $native ? AiNative::fingerprint($pricing) : null,
                 ]),
             ]);
             if ($new) {
@@ -102,7 +105,7 @@ final class DeepInfraCatalog
             }
             $model->save();
             $seen[] = $model->id;
-            if ($ready) {
+            if ($ready && ! $native) {
                 foreach ($rates as $unit => $micros) {
                     $old = $model->activePrice($unit);
                     if ($old === null || (int) $old->price_micro_units !== $micros || $old->currency_code !== 'USD') {
@@ -111,7 +114,7 @@ final class DeepInfraCatalog
                 }
             }
             $counts['imported']++;
-            $counts[$deprecated ? 'deprecated' : ($ready ? 'chat_ready' : 'pending')]++;
+            $counts[$deprecated ? 'deprecated' : ($ready ? ($native ? 'native_ready' : 'chat_ready') : 'pending')]++;
         }
         // Disappeared upstream models must not continue accepting paid requests.
         foreach ($provider->models()->whereNotIn('id', $seen)->get() as $missing) {

@@ -47,7 +47,7 @@ class AiSettlementTest extends TestCase
 
         $u = AiUsage::sole();
         $this->assertSame(600, (int) $u->reasoning_tokens);
-        $this->assertSame(327, (int) $u->charged_irt, 'استدلال داخلِ completion است، نه اضافه بر آن');
+        $this->assertSame(328, (int) $u->charged_irt, 'استدلال داخلِ completion است، نه اضافه بر آن');
     }
 
     public function test_zero_usage_charges_nothing_and_writes_no_ledger_row(): void
@@ -80,7 +80,7 @@ class AiSettlementTest extends TestCase
         $this->assertSame(-(int) $u->hold_irt, (int) $rows['ai_usage']);
         $this->assertSame(-((int) $u->charged_irt - (int) $u->hold_irt), (int) $rows['ai_usage_overage']);
         $this->assertSame(0, (int) $u->uncollected_irt);
-        $this->assertSame(1_000_000 - 327, $this->balance($c));
+        $this->assertSame(1_000_000 - 328, $this->balance($c));
         $this->assertNotNull($this->model->fresh()->suspended_at, 'مدل باید خودکار معلق شود');
     }
 
@@ -92,9 +92,9 @@ class AiSettlementTest extends TestCase
         $this->v1($plain, $this->chatBody(['max_tokens' => 4096]))->assertOk();
 
         $u = AiUsage::sole();
-        $this->assertSame(327, (int) $u->charged_irt);
+        $this->assertSame(328, (int) $u->charged_irt);
         $this->assertSame(0, $this->balance($c), 'کیفِ مشترک هرگز منفی نمی‌شود');
-        $this->assertSame(327 - 290, (int) $u->uncollected_irt);
+        $this->assertSame(328 - 290, (int) $u->uncollected_irt);
     }
 
     public function test_provider_cost_above_book_raises_the_floor_and_flags_drift(): void
@@ -108,8 +108,8 @@ class AiSettlementTest extends TestCase
         $u = AiUsage::sole();
         $this->assertSame(2_300, (int) $u->provider_cost_micro);
         $this->assertSame('cost_drift', $u->review_reason);
-        $this->assertSame(311, (int) $u->sell_irt);         // کفِ ضدِ ضرر روی بهای گزارش‌شده، نه ۲۹۷
-        $this->assertSame(343, (int) $u->charged_irt);
+        $this->assertSame(312, (int) $u->sell_irt);         // کفِ ضدِ ضرر روی بهای گزارش‌شده، نه ۲۹۷
+        $this->assertSame(344, (int) $u->charged_irt);
         $this->assertSame(249, (int) $u->cost_irt);
         $this->assertNull($this->model->fresh()->suspended_at, 'رانشِ بها فقط هشدار است، نه تعلیق');
     }

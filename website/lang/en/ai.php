@@ -1,5 +1,9 @@
 <?php
 return [
+    'scope_native' => 'Image, audio and video with native usage billing',
+    'native_docs_title' => 'Generate images, speech and video',
+    'native_docs_desc' => 'Choose a ready media model from the model list and enable ai:native on your key. Each model page describes its inputs. Use Data URLs for input files; requests are limited to 8 MB in total and input WAV audio to 60 seconds. Individual models may impose lower limits.',
+    'native_docs_poll' => 'Video and music initially return HTTP 202 with id and result_url. Read that URL with the same key every five seconds until the result is ready. Reusing the same Idempotency-Key and body does not purchase another execution. The final charge is recorded in X-ServerNet-Charge-Irt and your usage history.',
     'scope_embedding' => 'Text embeddings billed by input tokens',
     'scope_rerank' => 'Text reranking billed by input tokens',
     'input_operations' => 'Embeddings and reranking',

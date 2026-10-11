@@ -16,6 +16,7 @@ final class AiPreparedRequest
         public readonly string $sha256,
         public readonly bool $stream = false,
         public readonly string $operation = 'chat',
+        public readonly ?array $native = null,
     ) {}
 
     /** بدنه‌ای که واقعاً به بالادست می‌رود — `max_tokens` همیشه اجباری */
@@ -31,6 +32,6 @@ final class AiPreparedRequest
     public function withOutput(int $output): self
     {
         return new self($this->forward, $this->maxInput, $output, $this->outputCap,
-            $this->clientOmittedMaxTokens, $this->dropped, $this->sha256, $this->stream, $this->operation);
+            $this->clientOmittedMaxTokens, $this->dropped, $this->sha256, $this->stream, $this->operation,$this->native);
     }
 }

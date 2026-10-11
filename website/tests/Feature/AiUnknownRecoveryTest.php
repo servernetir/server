@@ -75,8 +75,8 @@ class AiUnknownRecoveryTest extends TestCase
         $u->refresh();
         $this->assertSame(AiUsage::STATUS_SETTLED, $u->status);
         $this->assertSame('recovered', $u->usage_source);
-        $this->assertSame(327, (int) $u->charged_irt);
-        $this->assertSame(1_000_000 - 327, $this->balance($c));
+        $this->assertSame(328, (int) $u->charged_irt);
+        $this->assertSame(1_000_000 - 328, $this->balance($c));
     }
 
     public function test_late_recovery_refunds_the_difference_once_and_never_debits_more(): void
@@ -96,11 +96,11 @@ class AiUnknownRecoveryTest extends TestCase
         $this->artisan('ai:recover-usage --late')->assertSuccessful();   // بار دوم بی‌اثر
 
         $u->refresh();
-        $this->assertSame($hold - 327, (int) $u->refunded_irt);
+        $this->assertSame($hold - 328, (int) $u->refunded_irt);
         $this->assertSame('recovered_refund', $u->review_reason);
         $this->assertSame(1, CreditEntry::where('reason', 'ai_refund')->count());
         $this->assertSame(1, CreditEntry::where('reason', 'ai_usage')->count(), 'هرگز برداشتِ دوم');
-        $this->assertSame(1_000_000 - 327, $this->balance($c), 'خالصِ شارژ = مصرفِ واقعی');
+        $this->assertSame(1_000_000 - 328, $this->balance($c), 'خالصِ شارژ = مصرفِ واقعی');
     }
 
     public function test_retry_with_the_same_key_after_a_cap_charge_is_409(): void

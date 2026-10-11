@@ -99,6 +99,22 @@ final class V1ChatController extends Controller
         return $this->execute($request, 'rerank');
     }
 
+    public function native(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $this->execute($request, 'native');
+    }
+
+    public function nativeResult(Request $request,string $id): JsonResponse
+    {
+        $token=CustomerApiToken::findByPlain((string)$request->bearerToken());
+        if (! $token) return $this->fail('invalid_token','API key is required.',401);
+        $auth=AiAdmission::authorize($token,'ai:native',$request->ip());
+        if (! $auth->ok) return $this->fail($auth->code,$auth->message,self::statusFor($auth->code));
+        $outcome=app(AiCaller::class)->nativeResult($auth,$id);
+        return $outcome->ok ? response()->json($outcome->response,$outcome->status,$outcome->headers)
+            : self::error($outcome->code,$outcome->message,$outcome->status,$outcome->headers);
+    }
+
     private function execute(Request $request, string $operation): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
     {
         // ── گیتِ توکن: هدرِ Bearer — ناشناخته یا غایب، هر دو یک کدِ پایدار ──
@@ -154,7 +170,7 @@ final class V1ChatController extends Controller
         */
         $idempotencyKey = trim((string) ($request->header('Idempotency-Key') ?? ''));
 
-        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null, $operation);
+        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null, $operation, $operation==='native');
 
         /*
         | بدنهٔ ارائه‌دهنده در M5.1b بی‌تفسیر برمی‌گردد (بازنویسیِ نام و شناسه مالِ M5.2
@@ -165,7 +181,7 @@ final class V1ChatController extends Controller
             if ($outcome->stream !== null) {
                 return response()->stream($outcome->stream, 200, $outcome->headers + ['Content-Type' => 'text/event-stream; charset=utf-8']);
             }
-            return response()->json($outcome->response, 200, $outcome->headers + ['Cache-Control' => 'no-store']);
+            return response()->json($outcome->response, $outcome->status, $outcome->headers + ['Cache-Control' => 'no-store']);
         }
 
         return self::error($outcome->code, $outcome->message, $outcome->status, $outcome->headers);

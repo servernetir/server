@@ -1,5 +1,9 @@
 <?php
 return [
+    'native_unit_ceiling' => 'Unit rate ceiling, IRT',
+    'native_price_note' => 'Final price depends on dimensions, quantity and request options.',
+    'native_connect_ready' => 'Create a key with ai:native and send this page’s example to /v1/inference. Video and music return a 202 receipt and a result polling URL.',
+    'native_billing_ready' => 'A bounded request cost is reserved before sending. The verified tariff or reported provider cost is settled using the exchange rate and sale markup; tax is separate. Media is not billed as chat tokens. Media input must be a valid image or WAV file in a Data URL.',
     'title_suffix' => 'Pricing, limits and setup',
     'source_task' => 'Catalogue task', 'source_unit' => 'Native billing basis',
     'source_specs' => 'Model-specific native inputs', 'source_date' => 'Input schema snapshot: :date. The current gateway execution status is shown above. These catalogue fields help you evaluate the native model; accepted gateway requests are documented in the integration section.',
@@ -9,7 +13,7 @@ return [
     'tasks' => ['automatic-speech-recognition' => 'Speech to text', 'text-to-speech' => 'Text to speech',
         'text-to-image' => 'Image generation or processing', 'text-to-video' => 'Video generation',
         'text-to-music' => 'Music generation', 'zero-shot-image-classification' => 'Image classification'],
-    'units' => ['input_character_length' => 'Input characters', 'input_length' => 'Input audio duration',
+    'units' => ['call' => '1024 × 1024 image', 'input_character_length' => 'Input characters', 'input_length' => 'Input audio duration, seconds',
         'output_length' => 'Output duration', 'image_units' => 'Model-defined image units', 'frame_units' => 'Video frame units',
         'input_tokens' => 'Native input-token contract', 'time' => 'Runtime'],
     'estimate_note_short' => 'Prices exclude tax. The current Iran usage tax rate is :percent%. The rate applicable to your account is fixed at request admission.',

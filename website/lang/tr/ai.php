@@ -1,5 +1,9 @@
 <?php
 return [
+    'scope_native' => 'Doğal tüketim hesabıyla resim, ses ve video',
+    'native_docs_title' => 'Resim, konuşma ve video üretimi',
+    'native_docs_desc' => 'Model listesinden hazır bir medya modeli seçip anahtarınızda ai:native yetkisini açın. Her model sayfasında girdiler açıklanır. Dosyalar için Data URL kullanın; toplam istek 8 MB, girdi WAV sesi 60 saniyeyle sınırlıdır. Modelin kendi sınırları daha düşük olabilir.',
+    'native_docs_poll' => 'Video ve müzik önce id ve result_url içeren HTTP 202 döndürür. Sonuç hazır olana kadar aynı anahtarla bu adresi beş saniyede bir sorgulayın. Aynı Idempotency-Key ve gövdeyi tekrar kullanmak yeni bir işlem satın almaz. Son ücret X-ServerNet-Charge-Irt başlığında ve tüketim geçmişinde kaydedilir.',
     'scope_embedding' => 'Girdi tokenlarına göre ücretlenen metin embedding',
     'scope_rerank' => 'Girdi tokenlarına göre ücretlenen metin yeniden sıralama',
     'input_operations' => 'Embedding ve yeniden sıralama',

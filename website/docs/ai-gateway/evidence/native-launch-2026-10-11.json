@@ -1,0 +1,1432 @@
+{
+  "activation_at": "2026-10-11T07:39:43+00:00",
+  "ready_total": 312,
+  "by_provider": {
+    "deepinfra": 204,
+    "gapgpt": 106,
+    "deepseek": 2
+  },
+  "native_ready": 78,
+  "pending": [
+    {
+      "provider": "deepinfra",
+      "upstream": "PrunaAI/p-video-avatar",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "duration_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "Bria/video_foreground_mask",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "required_input_contract_pending",
+        "duration_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "ByteDance/Seedance-2.0",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "unbounded_or_missing_tariff",
+        "tier_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "black-forest-labs/FLUX-2-pro",
+      "category": "image",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "cost_derived_image_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "openai/clip-vit-large-patch14-336",
+      "category": "classification",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "unbounded_or_missing_tariff"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "black-forest-labs/FLUX-2-max",
+      "category": "image",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "cost_derived_image_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "XiaomiMiMo/MiMo-V2.5-tts",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "unbounded_or_missing_tariff"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "Bria/video_remove_background",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "required_input_contract_pending",
+        "duration_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "Wan-AI/Wan2.7-R2V",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "required_input_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "openai/clip-vit-base-patch32",
+      "category": "classification",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "unbounded_or_missing_tariff"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "Bria/video_increase_resolution",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "required_input_contract_pending",
+        "duration_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "Bria/video_eraser",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "required_input_contract_pending",
+        "duration_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "unbounded_or_missing_tariff"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "Bria/video_mask_by_key_points",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "required_input_contract_pending",
+        "duration_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "ByteDance/Seedance-1.5-Pro",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "unbounded_or_missing_tariff"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "Bria/video_mask_by_prompt",
+      "category": "video",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "required_input_contract_pending",
+        "duration_contract_pending"
+      ]
+    },
+    {
+      "provider": "deepinfra",
+      "upstream": "XiaomiMiMo/MiMo-V2.5-tts-voiceclone",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending",
+      "contract_reasons": [
+        "unbounded_or_missing_tariff"
+      ]
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-image-1-mini",
+      "category": "image",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-image-1",
+      "category": "image",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "k3",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "deepseek-reasoner",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-chat-latest",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4v-plus",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gemini-3-pro-image-preview",
+      "category": "image",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "kimi-for-coding",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4-airx",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "deepseek-v4-flash",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-4o-mini-tts",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "tts-1",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "grok-4.3",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4-long",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4-air",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "qwen3.6-35b-a3b",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "grok-4.5",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "text-moderation-latest",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "kimi-2.7",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "typesafe/jev-1.13",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "qwen3-235b-a22b-instruct-2507",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gemini-2.5-pro-preview-tts",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "grok-4",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "whisper-1",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-5.6-luna-compaction",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-image-2",
+      "category": "image",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-5.6-luna-openai-compact",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "qwen3-235b-a22b",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gpt-5.3-codex-spark",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4-alltools",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "grok-4.6",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "babbage-002",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4-plus",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gapgpt/whisper-1",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-3-turbo",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "davinci-002",
+      "category": "chat",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4v",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "gemini-2.5-flash-preview-tts",
+      "category": "audio",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending",
+      "contract_reasons": []
+    },
+    {
+      "provider": "gapgpt",
+      "upstream": "glm-4-0520",
+      "category": "chat",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null,
+      "contract_reasons": []
+    }
+  ],
+  "paid_test_limit_usd": 5,
+  "conservative_reserved_usd": 2.07,
+  "supplier_reported_or_tariff_estimate_usd": "0.022037",
+  "invoice_verified": false,
+  "representative_requests": [
+    {
+      "provider": "deepinfra",
+      "model": "black-forest-labs/FLUX-1-schnell",
+      "operation": "image",
+      "http": 200,
+      "seconds": 1.816,
+      "settlement": {
+        "status": "settled",
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "usage_source": "native_provider",
+        "margin_bp": 500,
+        "cost_micro": 500,
+        "provider_cost_micro": 500,
+        "cost_irt": 134,
+        "sell_irt": 140,
+        "tax_irt": 14,
+        "charged_irt": 154,
+        "uncollected_irt": 0,
+        "needs_review": false,
+        "native_usage": {
+          "runtime_ms": 138,
+          "tokens_generated": null,
+          "tokens_input": null
+        }
+      },
+      "replay": {
+        "http": 200,
+        "replayed": "true",
+        "same_body": true,
+        "additional_debit_irt": 0
+      }
+    },
+    {
+      "provider": "deepinfra",
+      "model": "hexgrad/Kokoro-82M",
+      "operation": "audio",
+      "http": 200,
+      "seconds": 2.233,
+      "settlement": {
+        "status": "settled",
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "usage_source": "native_provider",
+        "margin_bp": 500,
+        "cost_micro": 48,
+        "provider_cost_micro": 48,
+        "cost_irt": 13,
+        "sell_irt": 14,
+        "tax_irt": 2,
+        "charged_irt": 16,
+        "uncollected_irt": 0,
+        "needs_review": false,
+        "native_usage": {
+          "runtime_ms": 77,
+          "tokens_generated": null,
+          "tokens_input": null,
+          "input_character_length": 48
+        }
+      },
+      "replay": {
+        "http": 200,
+        "replayed": "true",
+        "same_body": true,
+        "additional_debit_irt": 0
+      }
+    },
+    {
+      "provider": "deepinfra",
+      "model": "FastVideo/FastWan-QAD-FP8-1.3B",
+      "operation": "video",
+      "http": 200,
+      "seconds": 5.519,
+      "settlement": {
+        "status": "settled",
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "usage_source": "native_provider",
+        "margin_bp": 500,
+        "cost_micro": 12500,
+        "provider_cost_micro": 12500,
+        "cost_irt": 3327,
+        "sell_irt": 3493,
+        "tax_irt": 350,
+        "charged_irt": 3843,
+        "uncollected_irt": 0,
+        "needs_review": false,
+        "native_usage": {
+          "runtime_ms": 2354,
+          "output_length": 5
+        }
+      },
+      "replay": null
+    },
+    {
+      "provider": "gapgpt",
+      "model": "flux-1-schnell",
+      "operation": "image",
+      "http": 200,
+      "seconds": 12.81,
+      "settlement": {
+        "status": "settled",
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "usage_source": "native_tariff",
+        "margin_bp": 500,
+        "cost_micro": 1400,
+        "provider_cost_micro": null,
+        "cost_irt": 373,
+        "sell_irt": 392,
+        "tax_irt": 40,
+        "charged_irt": 432,
+        "uncollected_irt": 0,
+        "needs_review": false,
+        "native_usage": {
+          "num_images": 1,
+          "width": 1024,
+          "height": 1024
+        }
+      },
+      "replay": {
+        "http": 200,
+        "replayed": "true",
+        "same_body": true,
+        "additional_debit_irt": 0
+      }
+    },
+    {
+      "provider": "deepinfra",
+      "model": "openai/whisper-large-v3",
+      "operation": "asr",
+      "http": 200,
+      "seconds": 6.384,
+      "settlement": {
+        "status": "settled",
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "usage_source": "native_provider",
+        "margin_bp": 500,
+        "cost_micro": 3094,
+        "provider_cost_micro": 3094,
+        "cost_irt": 824,
+        "sell_irt": 866,
+        "tax_irt": 87,
+        "charged_irt": 953,
+        "uncollected_irt": 0,
+        "needs_review": true,
+        "native_usage": {
+          "runtime_ms": 4934
+        }
+      },
+      "replay": null
+    },
+    {
+      "provider": "deepinfra",
+      "model": "openai/whisper-large-v3",
+      "operation": "asr",
+      "http": 200,
+      "seconds": 16.583,
+      "settlement": {
+        "status": "settled",
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "usage_source": "native_provider",
+        "margin_bp": 500,
+        "cost_micro": 3094,
+        "provider_cost_micro": 3094,
+        "cost_irt": 824,
+        "sell_irt": 866,
+        "tax_irt": 87,
+        "charged_irt": 953,
+        "uncollected_irt": 0,
+        "needs_review": false,
+        "native_usage": {
+          "runtime_ms": 15085
+        }
+      },
+      "replay": {
+        "http": 200,
+        "replayed": "true",
+        "same_body": true,
+        "additional_debit_irt": 0
+      }
+    },
+    {
+      "provider": "deepinfra",
+      "model": "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
+      "operation": "chat",
+      "http": 200,
+      "seconds": 0.994,
+      "settlement": {
+        "status": "settled",
+        "prompt_tokens": 20,
+        "completion_tokens": 4,
+        "usage_source": "provider",
+        "margin_bp": 500,
+        "cost_micro": 1,
+        "provider_cost_micro": 1,
+        "cost_irt": 1,
+        "sell_irt": 2,
+        "tax_irt": 1,
+        "charged_irt": 3,
+        "uncollected_irt": 0,
+        "needs_review": false,
+        "native_usage": null
+      },
+      "replay": {
+        "http": 200,
+        "replayed": "true",
+        "same_body": true,
+        "additional_debit_irt": 0
+      }
+    }
+  ],
+  "final_passed": true,
+  "final_cleanup": {
+    "key_revoked": true,
+    "open_usage": 0,
+    "remaining_wallet_irt": 0,
+    "usage_count": 7
+  },
+  "scope_rejection": {
+    "http": 403,
+    "code": "insufficient_scope",
+    "debit_irt": 0
+  },
+  "budget_rejection": {
+    "http": 402,
+    "code": "budget_exceeded",
+    "debit_irt": 0
+  },
+  "revoked_key": {
+    "http": 401,
+    "code": "token_revoked"
+  },
+  "public_page_checks": [
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+      "http": 200,
+      "h1": 1,
+      "title": "FLUX-1-schnell · DeepInfra API | قیمت، محدودیت‌ها و راهنمای اتصال | ServerNet",
+      "canonical": "https://servernet.cloud/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "سقف نرخ واحد، تومان",
+        "url": "https://servernet.cloud/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "1410",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "واحد تصویرِ تعریف‌شده برای مدل"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/en/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+      "http": 200,
+      "h1": 1,
+      "title": "FLUX-1-schnell · DeepInfra API | Pricing, limits and setup | ServerNet",
+      "canonical": "https://servernet.cloud/en/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Unit rate ceiling, IRT",
+        "url": "https://servernet.cloud/en/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "1410",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "Model-defined image units"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/tr/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+      "http": 200,
+      "h1": 1,
+      "title": "FLUX-1-schnell · DeepInfra API | Fiyat, sınırlar ve kurulum | ServerNet",
+      "canonical": "https://servernet.cloud/tr/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Birim fiyat üst sınırı, IRT",
+        "url": "https://servernet.cloud/tr/ai/models/di-black-forest-labsflux-1-schnell-9979f6c653",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "1410",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "Modelin tanımladığı görüntü birimleri"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/ai/models/di-hexgradkokoro-82m-979118bdcf",
+      "http": 200,
+      "h1": 1,
+      "title": "Kokoro-82M API | قیمت، محدودیت‌ها و راهنمای اتصال | ServerNet",
+      "canonical": "https://servernet.cloud/ai/models/di-hexgradkokoro-82m-979118bdcf",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "سقف نرخ واحد، تومان",
+        "url": "https://servernet.cloud/ai/models/di-hexgradkokoro-82m-979118bdcf",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "2780",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1000,
+            "unitText": "نویسه‌های ورودی"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/en/ai/models/di-hexgradkokoro-82m-979118bdcf",
+      "http": 200,
+      "h1": 1,
+      "title": "Kokoro-82M API | Pricing, limits and setup | ServerNet",
+      "canonical": "https://servernet.cloud/en/ai/models/di-hexgradkokoro-82m-979118bdcf",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Unit rate ceiling, IRT",
+        "url": "https://servernet.cloud/en/ai/models/di-hexgradkokoro-82m-979118bdcf",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "2780",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1000,
+            "unitText": "Input characters"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/tr/ai/models/di-hexgradkokoro-82m-979118bdcf",
+      "http": 200,
+      "h1": 1,
+      "title": "Kokoro-82M API | Fiyat, sınırlar ve kurulum | ServerNet",
+      "canonical": "https://servernet.cloud/tr/ai/models/di-hexgradkokoro-82m-979118bdcf",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Birim fiyat üst sınırı, IRT",
+        "url": "https://servernet.cloud/tr/ai/models/di-hexgradkokoro-82m-979118bdcf",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "2780",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1000,
+            "unitText": "Girdi karakterleri"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+      "http": 200,
+      "h1": 1,
+      "title": "whisper-large-v3 API | قیمت، محدودیت‌ها و راهنمای اتصال | ServerNet",
+      "canonical": "https://servernet.cloud/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "سقف نرخ واحد، تومان",
+        "url": "https://servernet.cloud/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "2100",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "مدت صوت ورودی، ثانیه"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/en/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+      "http": 200,
+      "h1": 1,
+      "title": "whisper-large-v3 API | Pricing, limits and setup | ServerNet",
+      "canonical": "https://servernet.cloud/en/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Unit rate ceiling, IRT",
+        "url": "https://servernet.cloud/en/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "2100",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "Input audio duration, seconds"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/tr/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+      "http": 200,
+      "h1": 1,
+      "title": "whisper-large-v3 API | Fiyat, sınırlar ve kurulum | ServerNet",
+      "canonical": "https://servernet.cloud/tr/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Birim fiyat üst sınırı, IRT",
+        "url": "https://servernet.cloud/tr/ai/models/di-openaiwhisper-large-v3-5e95ce6ec9",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "2100",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "Girdi ses süresi, saniye"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+      "http": 200,
+      "h1": 1,
+      "title": "flux-1-schnell · GapGPT API | قیمت، محدودیت‌ها و راهنمای اتصال | ServerNet",
+      "canonical": "https://servernet.cloud/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "سقف نرخ واحد، تومان",
+        "url": "https://servernet.cloud/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "3920",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "تصویر ۱۰۲۴×۱۰۲۴"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/en/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+      "http": 200,
+      "h1": 1,
+      "title": "flux-1-schnell · GapGPT API | Pricing, limits and setup | ServerNet",
+      "canonical": "https://servernet.cloud/en/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Unit rate ceiling, IRT",
+        "url": "https://servernet.cloud/en/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "3920",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "1024 × 1024 image"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "model",
+      "url": "https://servernet.cloud/tr/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+      "http": 200,
+      "h1": 1,
+      "title": "flux-1-schnell · GapGPT API | Fiyat, sınırlar ve kurulum | ServerNet",
+      "canonical": "https://servernet.cloud/tr/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "offer": {
+        "@type": "Offer",
+        "name": "Birim fiyat üst sınırı, IRT",
+        "url": "https://servernet.cloud/tr/ai/models/gapgpt-flux-1-schnell-c7901a84ed",
+        "availability": "https://schema.org/InStock",
+        "priceSpecification": {
+          "@type": "UnitPriceSpecification",
+          "priceCurrency": "IRR",
+          "maxPrice": "3920",
+          "valueAddedTaxIncluded": false,
+          "referenceQuantity": {
+            "@type": "QuantitativeValue",
+            "value": 1,
+            "unitText": "1024 × 1024 resim"
+          }
+        }
+      },
+      "ready": true
+    },
+    {
+      "kind": "docs",
+      "url": "https://servernet.cloud/ai/docs",
+      "http": 200,
+      "h1": 1,
+      "title": "آموزش اتصال API هوش مصنوعی و ساخت کلید | ServerNet",
+      "canonical": "https://servernet.cloud/ai/docs",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ]
+    },
+    {
+      "kind": "docs",
+      "url": "https://servernet.cloud/en/ai/docs",
+      "http": 200,
+      "h1": 1,
+      "title": "AI API setup, keys and integration guide | ServerNet",
+      "canonical": "https://servernet.cloud/en/ai/docs",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ]
+    },
+    {
+      "kind": "docs",
+      "url": "https://servernet.cloud/tr/ai/docs",
+      "http": 200,
+      "h1": 1,
+      "title": "AI API kurulumu ve anahtar kılavuzu | ServerNet",
+      "canonical": "https://servernet.cloud/tr/ai/docs",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ]
+    },
+    {
+      "kind": "list",
+      "url": "https://servernet.cloud/ai/models",
+      "http": 200,
+      "h1": 1,
+      "title": "مدل‌ها و قیمت API هوش مصنوعی | ServerNet",
+      "canonical": "https://servernet.cloud/ai/models",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ]
+    },
+    {
+      "kind": "list",
+      "url": "https://servernet.cloud/en/ai/models",
+      "http": 200,
+      "h1": 1,
+      "title": "AI API models and pricing | ServerNet",
+      "canonical": "https://servernet.cloud/en/ai/models",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ]
+    },
+    {
+      "kind": "list",
+      "url": "https://servernet.cloud/tr/ai/models",
+      "http": 200,
+      "h1": 1,
+      "title": "AI API modelleri ve fiyatları | ServerNet",
+      "canonical": "https://servernet.cloud/tr/ai/models",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ]
+    },
+    {
+      "kind": "sitemap",
+      "url": "https://servernet.cloud/sitemap.xml",
+      "http": 200,
+      "selected_model_urls_present": true
+    }
+  ]
+}
