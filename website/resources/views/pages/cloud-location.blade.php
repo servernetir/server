@@ -82,12 +82,16 @@
 .cvl-plan dl div{ display:flex; align-items:baseline; justify-content:space-between; gap:10px }
 .cvl-plan dt{ font-size:12.2px; color:var(--dim) }
 .cvl-plan dd{ font-size:13px; font-weight:600 }
-.cvl-plan footer{ display:flex; align-items:center; justify-content:space-between; gap:10px;
-  margin:0; padding:12px 0 0; border-top:1px solid var(--line); background:transparent; flex-wrap:wrap }
-.cvl-price{ font-size:11.8px; color:var(--dim); min-width:0; flex:1 1 140px }
-.cvl-price b{ display:block; font-size:16px; font-weight:700; color:var(--text) }
+.cvl-plan footer{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:10px;
+  margin:0; padding:12px 0 0; border-top:1px solid var(--line); background:transparent }
+.cvl-billing{ display:flex; flex-direction:column; gap:8px; min-width:0 }
+.cvl-billing:only-child{ grid-column:1/-1 }
+.cvl-price{ display:block; font-size:11.8px; color:var(--dim); min-width:0 }
+.cvl-price b{ display:block; font-size:14px; font-weight:700; color:var(--text); overflow-wrap:anywhere }
 .cvl-buy{ font-size:12.5px; font-weight:700; color:#fff; background:var(--grad);
-  border-radius:10px; padding:8px 16px; white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; min-height:44px; flex-shrink:0 }
+  border-radius:10px; padding:8px; white-space:normal; text-align:center; display:inline-flex; align-items:center; justify-content:center; min-height:44px; flex-shrink:0 }
+.cvl-buy-monthly{ background:var(--surface); color:var(--text); border:1px solid var(--line-2) }
+.cvl-billing-hourly .cvl-price b{ color:var(--accent) }
 .cvl-buy:hover{ box-shadow:0 6px 20px rgba(34,211,238,.32) }
 
 .cvl-empty{ border:1px dashed var(--line-2); border-radius:20px; background:var(--surface);
@@ -224,8 +228,16 @@
               <div><dt>{{ __('ui.traffic') }}</dt><dd>{{ fa_num($r['traffic']) }}</dd></div>
             </dl>
             <footer>
-              <span class="cvl-price"><b>{{ $r['price'] }}</b>{{ __('ui.mo') }}</span>
-              <a class="cvl-buy" href="{{ $r['buy_url'] }}" rel="nofollow">{{ __('ui.choose') }}</a>
+              <div class="cvl-billing">
+                <span class="cvl-price"><b>{{ $r['price'] }}</b>{{ __('ui.mo') }}</span>
+                <a class="cvl-buy cvl-buy-monthly" href="{{ $r['buy_url'] }}" rel="nofollow">{{ __('ui.cloud_buy_monthly') }}</a>
+              </div>
+              @if($r['hourly_buy_url'])
+                <div class="cvl-billing cvl-billing-hourly">
+                  <span class="cvl-price"><b>{{ $r['hourly_price'] }}</b>{{ __('ui.hv_per_hour') }}</span>
+                  <a class="cvl-buy" href="{{ $r['hourly_buy_url'] }}" rel="nofollow">{{ __('ui.cloud_buy_hourly') }}</a>
+                </div>
+              @endif
             </footer>
           </article>
         @endforeach

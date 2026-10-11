@@ -16,7 +16,7 @@
       <div class="sm-countries">
         @foreach($serverMenu[$smType] as $smCountry)
         <a class="sm-country" href="{{ $smCountry['url'] }}" data-country="{{ $smCountry['iso'] }}" data-country-search="{{ $smCountry['search'] }}" aria-label="{{ $smCountry['label'] }}">
-          @include('partials.flag', ['flagSrc' => $smCountry['flag'], 'flagSize' => 20, 'flagEager' => true, 'flagEmoji' => null])
+          @include('partials.flag', ['flagSrc' => $smCountry['flag'], 'flagSize' => 20, 'flagEager' => empty($landingPageCss), 'flagEmoji' => null])
           <span>{{ $smCountry['name'] }}</span>
         </a>
         @endforeach

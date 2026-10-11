@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'cloud_buy_monthly' => 'Buy monthly',
+    'cloud_buy_hourly' => 'Buy hourly',
     'meta_title' => 'ServerNet Cloud — Cloud Infrastructure, Hosting & Enterprise Solutions',
     'meta_desc'  => 'ServerNet delivers cloud servers, VPS, dedicated servers, web hosting, domains and enterprise infrastructure with 24/7 expert support across 11+ datacenters worldwide.',
 

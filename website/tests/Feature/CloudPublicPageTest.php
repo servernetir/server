@@ -35,6 +35,98 @@ class CloudPublicPageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_location_cards_quote_the_sellable_hourly_alias_and_select_hourly_checkout_in_all_languages(): void
+    {
+        $this->seedCatalog();
+        $slug = 'cv-2c-4g-40d-de-falkenstein';
+        $hourly = CloudPlan::bestForSlug($slug, hourly: true);
+        $this->assertSame('hetzner', $hourly->provider);
+        $this->assertSame('aeza', CloudPlan::bestForSlug($slug)->provider);
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            $prefix = $locale === 'fa' ? '' : '/'.$locale;
+            $response = $this->get($prefix.'/cloud/de-falkenstein')->assertOk();
+            $rows = collect($response->viewData('rows'));
+            $row = $rows->firstWhere('slug', $slug);
+            $this->assertSame(570000, $row['price_n']);
+            $expected = $locale === 'fa'
+                ? fa_num(number_format($hourly->hourlyIrt())).' تومان'
+                : '€'.number_format($hourly->hourlyEurCents() / 100, 2);
+            $this->assertSame($expected, $row['hourly_price']);
+            parse_str(parse_url($row['hourly_buy_url'], PHP_URL_QUERY), $query);
+            $this->assertSame(['location' => 'de-falkenstein', 'plan' => $slug, 'billing_mode' => 'hourly'], $query);
+            $this->assertSame($prefix.'/account/cloud-store', parse_url($row['hourly_buy_url'], PHP_URL_PATH));
+            $this->assertStringNotContainsString('billing_mode', $row['buy_url']);
+            $response->assertSee(__('ui.cloud_buy_hourly'))->assertSee(__('ui.cloud_buy_monthly'))->assertSee($expected);
+        }
+    }
+
+    public function test_location_cards_do_not_offer_hourly_for_monthly_only_or_unavailable_aliases(): void
+    {
+        $this->seedCatalog();
+        CloudPlan::where('provider', 'hetzner')->update(['in_stock' => false]);
+        $response = $this->get('/cloud/de-falkenstein')->assertOk();
+        $this->assertCount(1, $response->viewData('rows'));
+        $row = $response->viewData('rows')[0];
+        $this->assertNull($row['hourly_price']);
+        $this->assertNull($row['hourly_buy_url']);
+        $response->assertDontSee('billing_mode=hourly')->assertDontSee(__('ui.cloud_buy_hourly'));
+        CloudPlan::where('provider', 'hetzner')->update(['in_stock' => true, 'admin_disabled' => true]);
+        $this->get('/cloud/de-falkenstein')->assertOk()->assertDontSee('billing_mode=hourly');
+    }
+
+    public function test_bare_metal_cards_never_advertise_hourly_purchase(): void
+    {
+        $this->seedCatalog();
+        foreach (CloudPlan::where('location_code', 'de-falkenstein')->get() as $plan) {
+            $plan->update(['slug' => 'cbm-'.$plan->slug]);
+        }
+        $response = $this->get('/cloud/de-falkenstein')->assertOk();
+        foreach ($response->viewData('rows') as $row) {
+            $this->assertNull($row['hourly_buy_url']);
+        }
+        $response->assertDontSee('billing_mode=hourly');
+    }
+
+    public function test_lightnode_card_uses_its_hourly_quote_instead_of_dividing_the_monthly_price(): void
+    {
+        config(['lightnode.sales_enabled' => true, 'lightnode.allow_fixture_rates' => true]);
+        \App\Models\Setting::put('pricing_rate_override', '100000');
+        \App\Models\Setting::put('cloud_margin_pct', '5');
+        $this->seedCatalog();
+        CloudPlan::where('location_code', 'ae-dubai')->update([
+            'provider' => 'lightnode', 'cost_hour_eur_micro' => 20000,
+            'price_irt' => 5000000, 'price_eur_cents' => 5000,
+        ]);
+        $response = $this->get('/cloud/ae-dubai')->assertOk();
+        $this->assertSame('۵,۰۰۰,۰۰۰ تومان', $response->viewData('rows')[0]['price']);
+        $this->assertSame('۲,۱۰۰ تومان', $response->viewData('rows')[0]['hourly_price']);
+        $this->get('/en/cloud/ae-dubai')->assertOk()->assertSee('€0.03');
+    }
+
+    public function test_dubai_and_manila_prioritize_body_font_and_defer_hidden_menu_flags(): void
+    {
+        $this->seedCatalog();
+        CloudLocation::create(['code' => 'ph-manila', 'country' => 'PH', 'city' => 'Manila', 'is_active' => true, 'sort' => 4]);
+        foreach (['', '/en', '/tr'] as $locale) {
+            foreach (['ae-dubai', 'ph-manila'] as $city) {
+                $html = $this->get($locale.'/cloud/'.$city)->assertOk()->getContent();
+                $head = explode('</head>', $html)[0];
+                $this->assertSame(1, substr_count($head, 'id="cloud-location-lcp"'));
+                $this->assertDoesNotMatchRegularExpression('~<link rel="stylesheet"[^>]*(?:site(?:\\.min)?|server-menu)\\.css~', $head);
+                foreach ([400, 700] as $weight) {
+                    $name = 'assets/font/woff2/IRANSans-location-20261011-'.$weight.'.woff2';
+                    $this->assertSame($weight === 400 ? 1 : 0, substr_count($head, '<link rel="preload" href="'.asset($name).'" as="font"'));
+                    $this->assertStringContainsString("src:url('/".$name."')", $head);
+                }
+                $this->assertMatchesRegularExpression('~<link rel="preload"[^>]*IRANSans-location-20261011-400\\.woff2[^>]*media="\\(min-width:1021px\\)"~', $head);
+                preg_match('~<div class="server-menu".*?<img[^>]+>~s', $html, $menu);
+                $this->assertStringContainsString('loading="lazy"', $menu[0] ?? '');
+                preg_match('~<span class="cvl-flag".*?<img[^>]+>~s', $html, $flag);
+                $this->assertStringContainsString('loading="eager"', $flag[0] ?? '');
+            }
+        }
+    }
+
     public function test_manual_location_label_is_preserved_in_country_seo_copy(): void
     {
         $this->seedCatalog();

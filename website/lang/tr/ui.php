@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'cloud_buy_monthly' => 'Aylık satın al',
+    'cloud_buy_hourly' => 'Saatlik satın al',
     'meta_title' => 'ServerNet Cloud — Bulut Altyapısı, Hosting ve Kurumsal Çözümler',
     'meta_desc'  => 'ServerNet; bulut sunucular, VPS, fiziksel sunucular, web hosting, alan adları ve kurumsal altyapıyı 11+ veri merkezinde 7/24 uzman desteğiyle sunar.',
 
