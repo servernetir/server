@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\CloudInstance;
 use App\Models\Customer;
+use App\Models\Domain;
+use App\Models\Server;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -104,6 +107,81 @@ class AdminCustomerServiceTableTest extends TestCase
         ]);
 
         $this->assertStringContainsString('203.0.113.44', $this->page($c));
+    }
+
+    /** هاست باید با نامِ زیرساخت و DNSهای همان سرور قابلِ تشخیص باشد */
+    public function test_a_hosting_service_shows_its_infrastructure_and_nameservers(): void
+    {
+        $c = $this->customer();
+        $server = Server::create([
+            'name' => 'هاست آلمان ۲', 'type' => 'whm', 'hostname' => 'de2.example.test',
+            'server_ip' => '203.0.113.20', 'nameservers' => 'ns1.example.test,ns2.example.test',
+            'status' => 'active',
+        ]);
+
+        Service::create([
+            'customer_id' => $c->id, 'server_id' => $server->id,
+            'name' => 'هاست حرفه‌ای', 'currency_code' => 'IRT',
+            'price' => 100000, 'cycle' => 'monthly', 'status' => 'active',
+            'domain' => 'hosted.example',
+        ]);
+
+        $html = $this->page($c);
+        $this->assertStringContainsString('هاست آلمان ۲', $html);
+        $this->assertStringContainsString('ns1.example.test · ns2.example.test', $html);
+        $this->assertStringContainsString('203.0.113.20', $html);
+    }
+
+    /** نامِ گروهِ Salad همان شناسه‌ای است که مدیر در salad.com جستجو می‌کند */
+    public function test_a_salad_gpu_shows_its_provider_group_name(): void
+    {
+        $c = $this->customer();
+        $service = Service::create([
+            'customer_id' => $c->id, 'name' => 'GPU ساعتی', 'currency_code' => 'IRT',
+            'price' => 0, 'cycle' => 'monthly', 'status' => 'active',
+            'billing_mode' => 'hourly', 'hourly_rate_irt' => 10000,
+        ]);
+        CloudInstance::create([
+            'service_id' => $service->id, 'provider' => 'salad',
+            'provider_ref' => 'sn-svc-'.$service->id, 'location_code' => 'global-gpu',
+            'image_key' => 'gpu-ollama', 'hostname' => 'gateway.salad.cloud',
+            // IPِ داخلی/زیرساختیِ GPU نباید به‌جای نامِ گروه به مدیر تحمیل شود.
+            'ipv4' => '198.51.100.88', 'status' => 'running',
+        ]);
+
+        $html = $this->page($c);
+        $this->assertStringContainsString('نام GPU در Salad:', $html);
+        $this->assertStringContainsString('sn-svc-'.$service->id, $html);
+        $this->assertStringNotContainsString('198.51.100.88', $html,
+            'GPU آدرس SSH قابلِ استفاده ندارد؛ نامِ گروه Salad شناسهٔ عملیاتی است.');
+    }
+
+    /** دامنهٔ یک سرویس، خریدِ دامنه از ما نیست و نباید کارتِ بالا را بسازد */
+    public function test_a_service_domain_does_not_count_as_a_purchased_domain(): void
+    {
+        $c = $this->customer();
+        Service::create([
+            'customer_id' => $c->id, 'name' => 'هاست', 'currency_code' => 'IRT',
+            'price' => 100000, 'cycle' => 'monthly', 'status' => 'active',
+            'domain' => 'external-domain.example',
+        ]);
+
+        $this->assertStringNotContainsString('data-kpi="purchased-domains"', $this->page($c));
+    }
+
+    /** کارتِ دامنه فقط از ردیفِ خریدِ واقعیِ رجیسترار تغذیه می‌شود */
+    public function test_a_purchased_domain_is_counted_in_the_top_card(): void
+    {
+        $c = $this->customer();
+        Domain::create([
+            'customer_id' => $c->id, 'domain' => 'bought.example',
+            'sld' => 'bought', 'tld' => 'example', 'status' => 'active',
+            'provision_status' => 'done',
+        ]);
+
+        $html = $this->page($c);
+        $this->assertStringContainsString('data-kpi="purchased-domains"', $html);
+        $this->assertStringContainsString('دامنهٔ خریداری‌شده', $html);
     }
 
     /** سرویسِ بی‌متا نباید صفحه را بشکند */

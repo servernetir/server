@@ -190,6 +190,8 @@ class SettingsController extends Controller
             'salad_branded_domain' => ['nullable', 'string', 'max:120', 'regex:/^[a-z0-9.-]*$/'],
             'salad_priority'     => ['nullable', 'string', 'in:high,medium,low,batch'],
             'salad_jupyter_sales_paused' => ['nullable', 'boolean'],
+            'salad_ollama_sales_paused' => ['nullable', 'boolean'],
+            'salad_comfyui_sales_paused' => ['nullable', 'boolean'],
             'salad_vcpu_usd_hour'   => ['nullable', 'numeric', 'min:0', 'max:10'],
             'salad_ram_gb_usd_hour' => ['nullable', 'numeric', 'min:0', 'max:10'],
             'proxmox_token_secret'   => ['nullable', 'string', 'max:200'],
@@ -269,6 +271,7 @@ class SettingsController extends Controller
         'salad_org', 'salad_project', 'salad_image', 'salad_priority', 'salad_branded_domain',
         'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour',
         'salad_jupyter_sales_paused',
+        'salad_ollama_sales_paused', 'salad_comfyui_sales_paused',
     ];
 
     /** فیلدهای اعتبارسنجیِ یک تب — برای تست هم استفاده می‌شود. */
@@ -477,6 +480,8 @@ class SettingsController extends Controller
                     'image'    => $ready ? Setting::get('salad_image') : null,
                     'priority' => $ready ? Setting::get('salad_priority') : null,
                     'jupyter_sales_paused' => $ready && Setting::get('salad_jupyter_sales_paused', '0') === '1',
+                    'ollama_sales_paused' => $ready && Setting::get('salad_ollama_sales_paused', '0') === '1',
+                    'comfyui_sales_paused' => $ready && Setting::get('salad_comfyui_sales_paused', '0') === '1',
                     'branded'  => $ready ? Setting::get('salad_branded_domain') : null,
                     'vcpu'     => $ready ? Setting::get('salad_vcpu_usd_hour') : null,
                     'ram'      => $ready ? Setting::get('salad_ram_gb_usd_hour') : null,
@@ -858,6 +863,9 @@ class SettingsController extends Controller
         }
 
         foreach (self::SALAD_PLAIN as $k) {
+            if (str_ends_with($k, '_sales_paused') && ! array_key_exists($k, $data)) {
+                continue;
+            }
             Setting::put($k, filled($data[$k] ?? null) ? trim((string) $data[$k]) : null);
         }
 

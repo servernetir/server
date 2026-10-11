@@ -76,6 +76,51 @@ class GpuStoreSeparationTest extends TestCase
         $this->assertContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
     }
 
+    public function test_each_application_pause_rejects_checkout_before_wallet_and_keeps_other_apps_available(): void
+    {
+        $this->bothLines();
+        $plan = CloudPlan::where('provider', 'salad')->firstOrFail();
+        $plan->update(['gpu_model' => 'RTX 3090 (24 GB)']);
+        foreach (['gpu-comfyui' => 'ComfyUI', 'gpu-jupyter' => 'Jupyter'] as $key => $label) {
+            CloudImage::create([
+                'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS[$key]['ref'],
+                'key' => $key, 'kind' => 'app', 'family' => $key,
+                'label' => $label, 'arch' => 'x86', 'is_active' => true,
+            ]);
+        }
+        $customer = $this->customer();
+        \App\Models\CreditEntry::create([
+            'customer_id' => $customer->id, 'currency_code' => 'IRT', 'amount' => 500000,
+            'balance_after' => 500000, 'reason' => 'topup', 'source_type' => Customer::class,
+            'source_id' => $customer->id, 'note' => 'isolated GPU application pause fixture',
+        ]);
+        $this->actingAs($customer, 'customer');
+        foreach (['gpu-ollama' => ['salad_ollama_sales_paused', 'Ollama'], 'gpu-comfyui' => ['salad_comfyui_sales_paused', 'ComfyUI']] as $key => [$setting, $label]) {
+            \App\Models\Setting::put($setting, '1');
+            $this->assertNotContains($key, CloudStoreController::imageKeysFor($plan, 'app'));
+            $this->assertContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
+            $other = $key === 'gpu-ollama' ? 'gpu-comfyui' : 'gpu-ollama';
+            $this->assertContains($other, CloudStoreController::imageKeysFor($plan, 'app'));
+            $this->assertNotNull(CloudImage::compatibleRefFor($plan, $key));
+            // Catalog activity cannot lift the separate operational hold.
+            CloudImage::where('provider', 'salad')->where('key', $key)->update(['is_active' => true]);
+            $this->post('/account/cloud-store', [
+                'location' => 'global-gpu', 'plan' => $plan->slug,
+                'image' => $key, 'cycle' => 'monthly', 'billing_mode' => 'hourly',
+            ])->assertRedirect()->assertSessionHasErrors('image');
+            $this->assertDatabaseCount('services', 0);
+            $this->assertDatabaseCount('invoices', 0);
+            $this->assertSame(500000, $customer->fresh()->creditBalance('IRT'));
+            Http::assertNothingSent();
+            $this->get('/account/cloud-store?location=global-gpu')->assertOk()
+                ->assertSee(__('ui.gpu_app_sales_paused', ['app' => $label]));
+            $this->get('/gpu')->assertOk()
+                ->assertSee(__('ui.gpu_app_sales_paused', ['app' => $label]));
+            \App\Models\Setting::put($setting, '0');
+            $this->assertContains($key, CloudStoreController::imageKeysFor($plan, 'app'));
+        }
+    }
+
     public function test_incompatible_comfyui_is_unavailable_before_payment_and_provisioning(): void
     {
         $this->bothLines();

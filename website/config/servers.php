@@ -15,22 +15,23 @@
 */
 
 $brands = [
-    'hp'         => ['label' => 'HPE ProLiant', 'color' => '#01A982'],
-    'dell'       => ['label' => 'Dell PowerEdge', 'color' => '#0076CE'],
-    'lenovo'     => ['label' => 'Lenovo ThinkSystem', 'color' => '#E1140A'],
+    'hp' => ['label' => 'HPE ProLiant', 'color' => '#01A982'],
+    'ibm' => ['label' => 'IBM System x', 'color' => '#0F62FE'],
+    'dell' => ['label' => 'Dell PowerEdge', 'color' => '#0076CE'],
+    'lenovo' => ['label' => 'Lenovo ThinkSystem', 'color' => '#E1140A'],
     'supermicro' => ['label' => 'Supermicro', 'color' => '#1E8B3B'],
 ];
 
 // برچسبِ ردیف‌های مشخصات — سه‌زبانه، یک‌بار تعریف تا در همهٔ مدل‌ها یکسان باشد.
 $L = [
-    'cpu'     => ['fa' => 'پردازنده', 'en' => 'Processor', 'tr' => 'İşlemci'],
-    'ram'     => ['fa' => 'حافظه (RAM)', 'en' => 'Memory (RAM)', 'tr' => 'Bellek (RAM)'],
+    'cpu' => ['fa' => 'پردازنده', 'en' => 'Processor', 'tr' => 'İşlemci'],
+    'ram' => ['fa' => 'حافظه (RAM)', 'en' => 'Memory (RAM)', 'tr' => 'Bellek (RAM)'],
     'storage' => ['fa' => 'ذخیره‌سازی', 'en' => 'Storage', 'tr' => 'Depolama'],
-    'raid'    => ['fa' => 'کنترلر RAID', 'en' => 'RAID controller', 'tr' => 'RAID denetleyici'],
-    'net'     => ['fa' => 'شبکه', 'en' => 'Network', 'tr' => 'Ağ'],
-    'psu'     => ['fa' => 'منبع تغذیه', 'en' => 'Power supply', 'tr' => 'Güç kaynağı'],
-    'form'    => ['fa' => 'فرم‌فاکتور', 'en' => 'Form factor', 'tr' => 'Form faktörü'],
-    'mgmt'    => ['fa' => 'مدیریت از راه دور', 'en' => 'Out-of-band mgmt', 'tr' => 'Uzaktan yönetim'],
+    'raid' => ['fa' => 'کنترلر RAID', 'en' => 'RAID controller', 'tr' => 'RAID denetleyici'],
+    'net' => ['fa' => 'شبکه', 'en' => 'Network', 'tr' => 'Ağ'],
+    'psu' => ['fa' => 'منبع تغذیه', 'en' => 'Power supply', 'tr' => 'Güç kaynağı'],
+    'form' => ['fa' => 'فرم‌فاکتور', 'en' => 'Form factor', 'tr' => 'Form faktörü'],
+    'mgmt' => ['fa' => 'مدیریت از راه دور', 'en' => 'Out-of-band mgmt', 'tr' => 'Uzaktan yönetim'],
     'warranty' => ['fa' => 'گارانتی', 'en' => 'Warranty', 'tr' => 'Garanti'],
 ];
 
