@@ -116,7 +116,7 @@ class CloudStoreController extends Controller
             return 0;
         }
 
-        $discount = $plan->provider === 'salad' ? 0
+        $discount = in_array($plan->provider, ['salad', 'lightnode'], true) ? 0
             : (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
         $discount = max(0, min(90, $discount));
 
@@ -126,6 +126,13 @@ class CloudStoreController extends Controller
             $minimumHour = (int) (ceil($floor / 1_000_000
                 * app(\App\Services\Cloud\CloudPricing::class)->eurToToman() / 100) * 100);
             $raw = max($raw, $minimumHour * \App\Services\Cloud\SaladClient::HOURS_PER_MONTH * $months);
+        }
+        if ($plan->provider === 'lightnode' && ($floor = $plan->hourlyCostFloorEurMicro()) > 0) {
+            // A customer billing cycle can span supplier calendar months, so
+            // the 672-hour calendar cap is not a safe rolling-period cost.
+            $raw = max($raw, $floor / 1_000_000
+                * app(\App\Services\Cloud\CloudPricing::class)->eurToToman()
+                * \App\Services\Cloud\LightNodePublicPricing::CALENDAR_MONTH_RESERVE_HOURS * $months);
         }
 
         // افزودنی‌های پولی (IP اضافه) از یک منبعِ واحد قیمت می‌خورند و همان
@@ -608,7 +615,18 @@ class CloudStoreController extends Controller
                 continue;                                 // این زیرساخت این اسلاگ را نمی‌فروشد
             }
 
-            if ((int) $row->min_disk_gb > (int) $offer->disk_gb) {
+            if ($row->provider === 'lightnode') {
+                if ($row->family === 'windows' && ((int) $offer->vcpu < 2 || (int) $offer->ram_mb < 4096)) {
+                    continue;
+                }
+                $region = explode('|', (string) $row->provider_ref)[0];
+                if (! CloudPlan::query()->sellable()->where('slug', $offer->slug)
+                    ->where('provider', 'lightnode')->where('provider_location', 'like', $region.'|%')->exists()) {
+                    continue;
+                }
+            }
+
+            if ((int) $row->min_disk_gb > (int) ($offer->boot_disk_gb ?? $offer->disk_gb)) {
                 continue;                                 // روی این دیسک جا نمی‌شود
             }
 
@@ -911,7 +929,7 @@ class CloudStoreController extends Controller
                     'per' => self::monthlyEquivalent($offer, $cy),
                     'setup' => $setupIrt,
                     'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
-                    'save' => $offer->provider === 'salad' ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
+                    'save' => in_array($offer->provider, ['salad', 'lightnode'], true) ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
                 ];
             }
 

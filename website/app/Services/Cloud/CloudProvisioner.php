@@ -536,7 +536,8 @@ class CloudProvisioner
                 | ذخیرهٔ این دو یعنی پنلِ مدیریت «کاربر: root» نشان دهد و هر سطحی
                 | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
                 */
-                'username' => $instance->isGpuApp() ? null : 'root',
+                'username' => $instance->isGpuApp() ? null
+                    : ($instance->provider === 'lightnode' && $instance->isWindows() ? 'Administrator' : 'root'),
                 'password' => $password ?: $service->password,
                 'domain' => $service->domain ?: ($instance->isGpuApp()
                     ? ($instance->accessHost() ?: null)
@@ -2496,7 +2497,12 @@ class CloudProvisioner
 
                 return true;
             }
-            $instance->update(['last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.']);
+            $waiting = ['last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.'];
+            if ($r['pending'] ?? false) {
+                $waiting['status'] = 'building';
+                $waiting['synced_at'] = now();
+            }
+            $instance->update($waiting);
 
             return false;
         }

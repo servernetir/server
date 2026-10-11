@@ -84,6 +84,11 @@ class CloudDominance
         if ((string) $a->cpu_kind !== (string) $b->cpu_kind) {
             return false;
         }
+        // Hourly traffic allowances and fixed-bandwidth contracts are not
+        // interchangeable, even when CPU, RAM and total storage match.
+        if (($a->network_terms ?? null) != ($b->network_terms ?? null)) {
+            return false;
+        }
 
         /*
         | کارتِ گرافیک: RTX 4090 و GTX 1650 دو محصولِ متفاوت‌اند حتی با هسته/

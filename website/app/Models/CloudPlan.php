@@ -21,8 +21,8 @@ class CloudPlan extends Model
 {
     protected $fillable = [
         'provider', 'provider_ref', 'provider_location', 'location_code',
-        'public_name', 'slug', 'vcpu', 'ram_mb', 'disk_gb', 'disk_type',
-        'traffic_gb', 'cpu_kind', 'arch', 'cost_eur_cents', 'cost_hour_eur_micro', 'setup_eur_cents', 'price_eur_cents',
+        'public_name', 'slug', 'vcpu', 'ram_mb', 'disk_gb', 'boot_disk_gb', 'data_disk_gb', 'disk_type',
+        'traffic_gb', 'network_terms', 'cpu_kind', 'arch', 'cost_eur_cents', 'cost_hour_eur_micro', 'setup_eur_cents', 'price_eur_cents',
         'price_irt', 'is_active', 'in_stock', 'sort', 'synced_at',
         'previous_cost_eur_cents', 'cost_changed_at',
         'admin_disabled', 'admin_note',
@@ -43,6 +43,7 @@ class CloudPlan extends Model
     ];
 
     protected $casts = [
+        'network_terms'   => 'array',
         'is_active'       => 'bool',
         'in_stock'        => 'bool',
         'synced_at'       => 'datetime',
@@ -91,7 +92,7 @@ class CloudPlan extends Model
      */
     public function supportsHourly(): bool
     {
-        if (! $this->isTermBased()) {
+        if (! $this->isTermBased() && $this->provider !== 'lightnode') {
             return true;
         }
 
@@ -122,8 +123,9 @@ class CloudPlan extends Model
     public function scopeHourlyCapable(Builder $q): Builder
     {
         return $q->where(function (Builder $qq) {
-            $qq->whereNotIn('provider', self::TERM_BASED_PROVIDERS)
-                ->orWhere(fn (Builder $q3) => $q3->whereIn('provider', self::TERM_BASED_PROVIDERS)
+            $rateRequired = [...self::TERM_BASED_PROVIDERS, 'lightnode'];
+            $qq->whereNotIn('provider', $rateRequired)
+                ->orWhere(fn (Builder $q3) => $q3->whereIn('provider', $rateRequired)
                     ->whereNotNull('cost_hour_eur_micro')
                     ->where('cost_hour_eur_micro', '>', 0));
         });
@@ -168,7 +170,13 @@ class CloudPlan extends Model
     {
         $raw = (string) (Setting::get('cloud_disabled_providers') ?? '');
 
-        return array_values(array_filter(array_map('trim', explode(',', $raw))));
+        $off = array_filter(array_map('trim', explode(',', $raw)));
+        $lightnodePriceSource = config('lightnode.public_pricing_enabled') === true
+            || (app()->environment('testing') && config('lightnode.allow_fixture_rates') === true);
+        if (config('lightnode.sales_enabled') !== true || ! $lightnodePriceSource) {
+            $off[] = 'lightnode';
+        }
+        return array_values(array_unique($off));
     }
 
     public static function providerIsDisabled(string $provider): bool
@@ -307,6 +315,14 @@ class CloudPlan extends Model
 
     public function diskLabel(): string
     {
+        if ($this->provider === 'lightnode' && (int) $this->data_disk_gb > 0) {
+            $boot = (int) $this->boot_disk_gb; $data = (int) $this->data_disk_gb;
+            return match (app()->getLocale()) {
+                'en' => "$boot GB system + $data GB data SSD",
+                'tr' => "$boot GB sistem + $data GB veri SSD",
+                default => "$boot GB سیستم + $data GB داده SSD",
+            };
+        }
         return $this->disk_gb.' GB '.strtoupper((string) $this->disk_type);
     }
 
@@ -314,6 +330,26 @@ class CloudPlan extends Model
     public function trafficLabel(?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
+
+        // A monthly headline allowance is prorated for hourly instances.
+        // Never turn this finite network contract into an unlimited promise.
+        if ($this->provider === 'lightnode') {
+            $speed = (int) (($this->network_terms ?? [])['bandwidth_mbps'] ?? 0);
+            $quota = (int) $this->traffic_gb;
+            if (($this->network_terms['charge_mode'] ?? '') === 'PayByBandwidth') {
+                return match ($locale) {
+                    'en' => "$speed Mbps bandwidth plan",
+                    'tr' => "$speed Mbps bant genişliği planı",
+                    default => "پلن پهنای‌باند $speed Mbps",
+                };
+            }
+            $speedText = $speed > 0 ? " · $speed Mbps" : '';
+            return match ($locale) {
+                'en' => "$quota GB/month, hourly allowance$speedText",
+                'tr' => "$quota GB/ay, saatlik kota$speedText",
+                default => "$quota GB ماهانه، سهم ساعتی$speedText",
+            };
+        }
 
         /*
         | نمایشِ «نامحدود» برای ترافیک — تصمیمِ **تجاری**، نه فنی.
@@ -448,7 +484,9 @@ class CloudPlan extends Model
     {
         $monthly = (int) $this->price_irt;
 
-        $base = $monthly > 0 ? (int) (ceil(ceil($monthly / 720) / 100) * 100) : 0;
+        // LightNode's period cost reserves a 31-day month. Its actual hourly
+        // quote must not inherit an extra markup from dividing that by 720.
+        $base = $this->provider !== 'lightnode' && $monthly > 0 ? (int) (ceil(ceil($monthly / 720) / 100) * 100) : 0;
 
         // کفِ بهایِ ساعتیِ واقعی — بدونِ نرخِ یورو، کف قابلِ‌تبدیل نیست و base می‌مانَد
         $floorMicro = $this->hourlyCostFloorEurMicro();
@@ -471,7 +509,7 @@ class CloudPlan extends Model
     {
         $monthly = (int) $this->price_eur_cents;
 
-        $base = $monthly > 0 ? (int) ceil($monthly / 720) : 0;
+        $base = $this->provider !== 'lightnode' && $monthly > 0 ? (int) ceil($monthly / 720) : 0;
 
         // ceil عمدی: خطِ قرمزِ کارفرما «هرگز زیرِ بها» است؛ گردِ پایین می‌تواند
         // روی بهایِ یک‌سنتی حاشیه را صفر کند.
