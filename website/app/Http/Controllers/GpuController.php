@@ -140,7 +140,9 @@ class GpuController extends Controller
             'minHours'  => CloudPlan::HOURLY_START_MIN_HOURS,
             'priority'  => app(SaladClient::class)->isConfigured(),
             'jupyterSalesPaused' => Schema::hasTable('settings')
-                && \App\Models\Setting::get('salad_jupyter_sales_paused', '0') === '1',
+                && SaladClient::salesPaused('gpu-jupyter'),
+            'ollamaSalesPaused' => Schema::hasTable('settings') && SaladClient::salesPaused('gpu-ollama'),
+            'comfyuiSalesPaused' => Schema::hasTable('settings') && SaladClient::salesPaused('gpu-comfyui'),
         ]);
     }
 }
