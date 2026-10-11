@@ -1,6 +1,10 @@
 # LightNode integration — acceptance and release record
 
-Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 389 valid fixed-bandwidth plans in 40 regions. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
+Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 396 valid fixed-bandwidth plans in 40 regions after the latest price refresh. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
+
+## Zero provider overhead — 2026-10-11, published
+
+The owner explicitly authorized LightNode overhead0% with profit5%. The live provider setting is now `pricing_fx_fee_pct_lightnode=0`; global funding overhead21% and all3303 competing-provider financial rows were preserved. At09:26:04UTC, 396 valid fixed-bandwidth plans across40regions/37countries were imported at a single fresh FX snapshot. Four unverified old supplier offers are excluded from new purchase; their records and existing customer rates remain intact. 226tests/1723assertions,396plan readbacks,1584cycle checks and six production builder renders passed. Independent fresh Linux/Windows sample prices and Windows parity passed; Manila starts at4900IRT/hour. No paid guest was created. Details, comparison digest, source availability limits, evidence and guarded rollback: [LIGHTNODE-ZERO-OVERHEAD-2026-10-11.md](LIGHTNODE-ZERO-OVERHEAD-2026-10-11.md). The previous21% observations below are historical.
 
 ## Mobile purchase and price audit — 2026-10-11
 
