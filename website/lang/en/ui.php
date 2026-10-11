@@ -3239,4 +3239,5 @@ return [
     'cvb_gpu_price_changed' => 'This GPU’s price has changed. No payment was taken; refresh the page and review the new price before paying.',
     'cvb_gpu_sale_policy' => 'Allow about one hour for preparation. A definitive creation failure or no initial delivery within two hours of payment triggers cancellation and a full refund of deducted funds to your account credit. Price and capacity are checked before payment. A video-generation model is not preinstalled; save important data and outputs outside the service’s temporary disk.',
     'gpu_jupyter_sales_paused' => 'New Jupyter orders are temporarily paused while code execution connectivity is verified. Your existing services are unchanged.',
+    'gpu_app_sales_paused' => 'New :app orders are temporarily paused while actual output is verified.',
 ];

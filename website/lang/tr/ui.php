@@ -3239,4 +3239,5 @@ return [
     'cvb_gpu_price_changed' => 'Bu GPU’nun fiyatı değişti. Ücret alınmadı; sayfayı yenileyip ödeme öncesi yeni fiyatı inceleyin.',
     'cvb_gpu_sale_policy' => 'Hazırlık için yaklaşık bir saat ayırın. Kesin oluşturma hatası veya ödemeden sonraki iki saat içinde ilk teslimatın yapılamaması, iptal ve kesilen tutarın hesap kredisine tam iadesini başlatır. Fiyat ve kapasite ödeme öncesi kontrol edilir. Video üretim modeli hazır kurulu değildir; önemli verileri ve çıktıları hizmetin geçici diski dışında saklayın.',
     'gpu_jupyter_sales_paused' => 'Kod çalıştırma bağlantısı doğrulanana kadar yeni Jupyter siparişleri geçici olarak durdurulmuştur. Mevcut hizmetleriniz değişmez.',
+    'gpu_app_sales_paused' => 'Gerçek çıktı doğrulanana kadar yeni :app siparişleri geçici olarak durdurulmuştur.',
 ];

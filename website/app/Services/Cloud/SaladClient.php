@@ -87,6 +87,19 @@ class SaladClient implements CloudProvider
      */
     public const LOCATION = 'global-gpu';
 
+    /** New sales only; catalog refreshes and existing runtime compatibility stay independent. */
+    public static function salesPaused(string $appKey): bool
+    {
+        $setting = match ($appKey) {
+            'gpu-ollama' => 'salad_ollama_sales_paused',
+            'gpu-comfyui' => 'salad_comfyui_sales_paused',
+            'gpu-jupyter' => 'salad_jupyter_sales_paused',
+            default => null,
+        };
+
+        return $setting !== null && Setting::get($setting, '0') === '1';
+    }
+
     public function slug(): string
     {
         return 'salad';
