@@ -190,6 +190,37 @@ class LightNodeClientTest extends TestCase
         $this->assertNotSame(19800, $cost);
     }
 
+    public function test_zero_overhead_refresh_uses_fresh_lightnode_quotes_and_preserves_other_providers(): void
+    {
+        $this->regionalModel();
+        Setting::put('cloud_margin_pct', '5');
+        Setting::put('pricing_fx_fee_pct', '21');
+        Setting::put('pricing_fx_fee_pct_lightnode', null);
+        $other = CloudPlan::create(['provider' => 'hetzner', 'provider_ref' => 'untouched',
+            'location_code' => 'de-falkenstein', 'slug' => 'untouched', 'public_name' => 'Other',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 50, 'cost_eur_cents' => 1900,
+            'cost_hour_eur_micro' => 28000, 'price_eur_cents' => 2010, 'price_irt' => 2010000,
+            'is_active' => true, 'in_stock' => true]);
+        $before = $other->fresh()->getAttributes();
+        $sync = app(CloudCatalogSync::class);
+        $this->assertTrue($sync->sync('lightnode')['ok']);
+        $old = CloudPlan::where('provider', 'lightnode')->firstOrFail();
+        $oldHour = $old->hourlyIrt();
+        Setting::put('pricing_fx_fee_pct_lightnode', '0');
+        $this->assertTrue($sync->sync('lightnode')['ok']);
+        $plan = $old->fresh();
+        $cost = (int) ceil(.037506 * .9 * 1000000);
+        $this->assertSame($cost, $plan->cost_hour_eur_micro);
+        $this->assertSame((int) ceil(25.204032 * .9 * 100), $plan->cost_eur_cents);
+        $this->assertSame((int) ceil($cost * 1.05), $plan->hourlyCostFloorEurMicro());
+        $this->assertLessThan($oldHour, $plan->hourlyIrt());
+        $this->assertSame($before, $other->fresh()->getAttributes());
+        $this->assertSame('21', Setting::get('pricing_fx_fee_pct'));
+        $this->assertSame('5', Setting::get('cloud_margin_pct'));
+        $this->assertSame(1.21, app(\App\Services\Cloud\CloudPricing::class)->costWithFee(1, 'hetzner'));
+        Http::assertNotSent(fn ($r) => $r->method() !== 'GET');
+    }
+
     private function regionalModel(string $vendor = 'intel', array $changes = [], ?callable $quote = null): array
     {
         $package = array_replace($this->package(), ['packageCode' => $vendor.'-c2m4-bgp-b5-s50-d0',
