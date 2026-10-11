@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -241,6 +242,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Laravel's default paginator is Tailwind-based. Neither the admin nor
+        // the customer panel ships Tailwind, so its utility classes are inert
+        // and the arrow SVGs inherit broad site rules and stretch across the
+        // viewport. One self-contained view keeps every links() call consistent.
+        Paginator::defaultView('pagination.servernet');
+
         $this->shareSessionAcrossSubdomains();
         $this->defineRateLimiters();
         $this->syncSiteMenu();
