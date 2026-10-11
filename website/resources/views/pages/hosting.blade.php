@@ -1,8 +1,23 @@
 @extends('layouts.site')
 
+@php
+  $countryIso = ($category ?? '') === 'vps' ? \App\Services\Cloud\CloudCountry::isoForSlug($slug ?? '') : null;
+  $countrySeo = $countryIso ? app(\App\Services\Cloud\CountryLandingSeo::class)->content($countryIso) : null;
+  if ($countrySeo) {
+      $countryLocale = app()->getLocale();
+      $product[$countryLocale]['seo_t'] = $countrySeo['title'];
+      $product[$countryLocale]['seo_d'] = $countrySeo['description'];
+      $product[$countryLocale]['hero_t'] = $countrySeo['h1'];
+      $product[$countryLocale]['hero_g'] = '';
+      $product[$countryLocale]['hero_d'] = $countrySeo['intro'];
+      $faqs = array_map(fn ($faq) => [$countryLocale => $faq], $countrySeo['faq']);
+  }
+@endphp
+
+
 {{-- `seo_t` اختیاری است: عنوانِ تبِ مرورگر جای بیشتری برای کلیدواژه دارد تا
      برچسبِ منو، و یکی‌کردنشان یعنی یا منو طولانی می‌شود یا عنوان لاغر. --}}
-@section('title', (lc($product)['seo_t'] ?? lc($product)['t']).' — '.__('ui.brand'))
+@section('title', $countrySeo ? $countrySeo['title'] : (lc($product)['seo_t'] ?? lc($product)['t']).' — '.__('ui.brand'))
 {{-- `seo_d` هم اختیاری است: متنِ hero برای خواننده نوشته شده (شعاری، بی‌قیمت)،
      ولی دسکریپشنِ نتیجهٔ جست‌وجو باید نیتِ خرید را جواب دهد — «خرید»، «قیمت»،
      «تحویل آنی». Search Console نشان داد CTR صفحاتِ محصول زیرِ ۱٪ است. --}}
@@ -149,6 +164,10 @@
 @endif
 
 {{-- ============ PLANS ============ --}}
+@if($countrySeo)
+@include('partials.country-selection-guide', ['countrySeo' => $countrySeo])
+@endif
+
 <section class="section" id="pricing" style="padding-top:30px">
   <div class="container">
     <div class="section-head reveal">
@@ -542,7 +561,7 @@
 
 {{-- ============ SIGNATURE (المان اختصاصی هر محصول) ============ --}}
 @isset($product['signature'])
-@if($product['signature']['type'] !== 'ai-builder')
+@if(! $countrySeo && $product['signature']['type'] !== 'ai-builder')
 <section class="section" style="padding-top:0">
   <div class="container">
     @includeIf('partials.sig-'.$product['signature']['type'], ['sig' => $product['signature']])
@@ -603,6 +622,7 @@
 </section>
 @endisset
 
+@if(! $countrySeo)
 {{-- ============ INFRASTRUCTURE ============ --}}
 <section class="section" style="padding-top:30px;padding-bottom:40px">
   <div class="container">
@@ -621,6 +641,8 @@
     </div>
   </div>
 </section>
+
+@endif
 
 {{-- ============ FAQ ============ --}}
 <section class="section" id="faq" style="padding-top:40px">

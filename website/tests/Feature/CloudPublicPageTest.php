@@ -421,16 +421,12 @@ class CloudPublicPageTest extends TestCase
 
         // «چرا این مکان» — تیترِ h2 با نامِ شهر + جملهٔ ویژهٔ آلمان
         $this->assertStringContainsString('چرا فالکن‌اشتاین؟', $main);
-        $this->assertStringContainsString('بزرگ‌ترین گرهِ اینترنتِ اروپا', $main);
-
-        // تأخیرِ تقریبی به ایران و اروپا (اعدادِ جدولِ LATENCY برای DE: ۹۵ و ۸)
-        $this->assertStringContainsString('به ایران', $main);
-        $this->assertStringContainsString('به اروپا', $main);
-        $this->assertStringContainsString('۹۵', $main);
-        $this->assertStringContainsString('ms', $main);
-
-        // «مناسبِ چه کاری»
-        $this->assertStringContainsString('مناسبِ چه کاری است؟', $main);
+        $this->assertStringContainsString('نوع CPU، هزینه و زمان پاسخ', $main);
+        $this->assertStringContainsString('پینگ و کیفیت شبکه', $main);
+        $this->assertStringContainsString('اندازه‌گیری‌شدهٔ عمومی منتشر نکرده‌ایم', $main);
+        $this->assertStringNotContainsString('cvl-lats', $main);
+        $this->assertStringNotContainsString('تأخیر از ایران حدودِ', $main);
+        $this->assertStringContainsString('پهنای‌باند ثابتِ Mbps', $main);
 
         // پلن‌های همین مکان و نه مکانِ دیگر
         $this->assertStringContainsString('CV-2-4', $main);
@@ -452,12 +448,9 @@ class CloudPublicPageTest extends TestCase
         $de = $this->mainOf($this->get('/cloud/de-falkenstein')->assertOk()->getContent());
         $ae = $this->mainOf($this->get('/cloud/ae-dubai')->assertOk()->getContent());
 
-        $this->assertStringContainsString('بزرگ‌ترین گرهِ اینترنتِ اروپا', $de);
-        $this->assertStringContainsString('کم‌ترین تأخیر را به کاربرِ ایرانی', $ae);
-
-        // فهرستِ «مناسبِ چه کاری» هم بر پایهٔ منطقه فرق می‌کند
-        $this->assertStringContainsString('مخاطبِ اروپایی', $de);
-        $this->assertStringContainsString('کم‌ترین تأخیر', $ae);
+        $this->assertStringContainsString('نوع CPU، هزینه و زمان پاسخ', $de);
+        $this->assertStringContainsString('فروشگاه یا API با کاربران امارات', $ae);
+        $this->assertStringNotContainsString('کم‌ترین تأخیر', $ae);
         $this->assertNotSame($de, $ae);
     }
 
@@ -467,8 +460,8 @@ class CloudPublicPageTest extends TestCase
 
         $en = $this->mainOf($this->get('/en/cloud/de-falkenstein')->assertOk()->getContent());
         $this->assertRenderIsClean($en);
-        $this->assertStringContainsString('Cloud VPS in Germany', $en);
-        $this->assertStringContainsString('to Iran', $en);
+        $this->assertStringContainsString('Germany — Falkenstein VPS hosting', $en);
+        $this->assertStringContainsString('measured latency', $en);
         $this->assertStringContainsString('€5.70', $en);
 
         $tr = $this->mainOf($this->get('/tr/cloud/de-falkenstein')->assertOk()->getContent());
