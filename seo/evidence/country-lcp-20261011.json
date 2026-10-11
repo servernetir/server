@@ -1,0 +1,2588 @@
+{
+  "date": "2026-10-11",
+  "release": "render-v18",
+  "base_develop": "a324211a",
+  "final_measurements": {
+    "v18-sim": [
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:33:41.459Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 2043.3400000000001,
+        "TBT_ms": 2.5,
+        "CLS": 0,
+        "observed_LCP_ms": 1159,
+        "performance": 0.97,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:34:22.752Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 1118.2045,
+        "TBT_ms": 18,
+        "CLS": 0,
+        "observed_LCP_ms": 992,
+        "performance": 1,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:35:03.023Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 2320.395,
+        "TBT_ms": 41,
+        "CLS": 0.0001152746796536774,
+        "observed_LCP_ms": 933,
+        "performance": 0.97,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": null
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:35:42.222Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 1131.1779999999999,
+        "TBT_ms": 47.5,
+        "CLS": 0,
+        "observed_LCP_ms": 1014,
+        "performance": 1,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:36:22.099Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 1142.769,
+        "TBT_ms": 40,
+        "CLS": 0,
+        "observed_LCP_ms": 1007,
+        "performance": 1,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:34:02.457Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 2316.3549999999996,
+        "TBT_ms": 35.00000000000023,
+        "CLS": 0,
+        "observed_LCP_ms": 1088,
+        "performance": 0.96,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:34:42.969Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 1106.645,
+        "TBT_ms": 43.5,
+        "CLS": 0,
+        "observed_LCP_ms": 1054,
+        "performance": 1,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:35:22.338Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 1104.0610000000001,
+        "TBT_ms": 20,
+        "CLS": 0,
+        "observed_LCP_ms": 1026,
+        "performance": 1,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:36:02.132Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 993.8005,
+        "TBT_ms": 17,
+        "CLS": 0,
+        "observed_LCP_ms": 1268,
+        "performance": 1,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:36:42.185Z",
+        "throttling_method": "simulate",
+        "LCP_ms": 2304.46,
+        "TBT_ms": 46,
+        "CLS": 0,
+        "observed_LCP_ms": 1009,
+        "performance": 0.97,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      }
+    ],
+    "v18-devtools": [
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:27:43.047Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1553.755,
+        "TBT_ms": 343.058,
+        "CLS": 0,
+        "observed_LCP_ms": 1554,
+        "performance": 0.92,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:28:48.827Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1443.527,
+        "TBT_ms": 288.48899998474144,
+        "CLS": 0,
+        "observed_LCP_ms": 1444,
+        "performance": 0.94,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:29:54.840Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1481.637,
+        "TBT_ms": 320.34899999999993,
+        "CLS": 0,
+        "observed_LCP_ms": 1482,
+        "performance": 0.93,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:30:59.004Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1540.811,
+        "TBT_ms": 248.93600000000015,
+        "CLS": 0,
+        "observed_LCP_ms": 1541,
+        "performance": 0.95,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ae-dubai",
+        "fetchTime": "2026-10-11T11:32:04.057Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1522.175,
+        "TBT_ms": 280.7699999847414,
+        "CLS": 0,
+        "observed_LCP_ms": 1522,
+        "performance": 0.94,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:28:15.989Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1608.377,
+        "TBT_ms": 255.4110000000005,
+        "CLS": 0,
+        "observed_LCP_ms": 1608,
+        "performance": 0.95,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:29:21.693Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1560.812,
+        "TBT_ms": 334.5779999847409,
+        "CLS": 0,
+        "observed_LCP_ms": 1561,
+        "performance": 0.92,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:30:26.394Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1476.613,
+        "TBT_ms": 221.1780000000001,
+        "CLS": 0,
+        "observed_LCP_ms": 1477,
+        "performance": 0.96,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:31:31.356Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1554.305,
+        "TBT_ms": 286.61500000000024,
+        "CLS": 0,
+        "observed_LCP_ms": 1554,
+        "performance": 0.94,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ph-manila",
+        "fetchTime": "2026-10-11T11:32:44.812Z",
+        "throttling_method": "devtools",
+        "LCP_ms": 1966.49,
+        "TBT_ms": 559.8180000000007,
+        "CLS": 0,
+        "observed_LCP_ms": 1966,
+        "performance": 0.85,
+        "analytics_transport": [
+          {
+            "event": "page_view",
+            "http_status": 204
+          },
+          {
+            "event": "view_item",
+            "http_status": 204
+          }
+        ],
+        "render_blocking_stylesheets": [],
+        "font_assets": []
+      }
+    ]
+  },
+  "historical_lab_measurements": {
+    "after-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "fetchTime": "2026-10-11T08:48:37.302Z",
+        "LCP": 1502.5695,
+        "TBT": 111,
+        "CLS": 0,
+        "FCP": 1143.0175,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "fetchTime": "2026-10-11T08:48:59.821Z",
+        "LCP": 2578.974,
+        "TBT": 73.99999999999977,
+        "CLS": 0,
+        "FCP": 2045.316,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "fetchTime": "2026-10-11T08:49:22.223Z",
+        "LCP": 2559.606,
+        "TBT": 64,
+        "CLS": 0,
+        "FCP": 1969.404,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "fetchTime": "2026-10-11T08:49:43.364Z",
+        "LCP": 1428.8995,
+        "TBT": 134,
+        "CLS": 0,
+        "FCP": 1056.902,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "fetchTime": "2026-10-11T08:50:06.645Z",
+        "LCP": 1426.914,
+        "TBT": 23,
+        "CLS": 0,
+        "FCP": 1080.375,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "fetchTime": "2026-10-11T08:50:28.351Z",
+        "LCP": 2580.2099999999996,
+        "TBT": 70,
+        "CLS": 0,
+        "FCP": 2038.1399999999999,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "fetchTime": "2026-10-11T08:50:50.064Z",
+        "LCP": 2570.9880000000003,
+        "TBT": 41.5,
+        "CLS": 0,
+        "FCP": 2016.9920000000002,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "fetchTime": "2026-10-11T08:51:11.374Z",
+        "LCP": 2580.63,
+        "TBT": 60,
+        "CLS": 0,
+        "FCP": 2014.42,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "fetchTime": "2026-10-11T08:51:33.423Z",
+        "LCP": 2584.224,
+        "TBT": 26.999999999999773,
+        "CLS": 0,
+        "FCP": 2019.816,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "fetchTime": "2026-10-11T08:51:53.971Z",
+        "LCP": 1426.8999999999999,
+        "TBT": 71,
+        "CLS": 0,
+        "FCP": 1076.3435,
+        "performance": 1,
+        "seo": 1
+      }
+    ],
+    "critical-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:25:14.973Z",
+        "LCP": 2841.755,
+        "TBT": 84,
+        "CLS": 0.0008939064324722549,
+        "FCP": 2743.255,
+        "performance": 0.9,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:25:35.640Z",
+        "LCP": 2969.5389999999998,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 2592.4620000000004,
+        "performance": 0.91,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:25:56.722Z",
+        "LCP": 1650.7735,
+        "TBT": 37,
+        "CLS": 0,
+        "FCP": 1200.7735,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:26:17.584Z",
+        "LCP": 3052.874,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 2663.892,
+        "performance": 0.9,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:26:38.384Z",
+        "LCP": 1650.701,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 1200.701,
+        "performance": 0.99,
+        "seo": 1
+      }
+    ],
+    "device-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:39:50.404Z",
+        "LCP": 2018.454,
+        "TBT": 763.2719999999993,
+        "CLS": 0,
+        "FCP": 1217.7,
+        "performance": 0.81,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:40:23.878Z",
+        "LCP": 1972.989,
+        "TBT": 799.1119999999996,
+        "CLS": 0,
+        "FCP": 1222.184,
+        "performance": 0.8,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:40:56.561Z",
+        "LCP": 2260.905,
+        "TBT": 788.1409999999998,
+        "CLS": 0,
+        "FCP": 1309.854,
+        "performance": 0.79,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:41:29.596Z",
+        "LCP": 2004.401,
+        "TBT": 763.0619999999999,
+        "CLS": 0,
+        "FCP": 1170.239,
+        "performance": 0.81,
+        "seo": 1
+      }
+    ],
+    "drawer-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:27:43.115Z",
+        "LCP": 2683.184,
+        "TBT": 75,
+        "CLS": 0,
+        "FCP": 2172.456,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:28:03.839Z",
+        "LCP": 2685.1940000000004,
+        "TBT": 119,
+        "CLS": 0,
+        "FCP": 2162.7960000000003,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:28:24.438Z",
+        "LCP": 2925.9479999999994,
+        "TBT": 106,
+        "CLS": 0,
+        "FCP": 2385.6319999999996,
+        "performance": 0.91,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:28:45.591Z",
+        "LCP": 2717.456,
+        "TBT": 122,
+        "CLS": 0,
+        "FCP": 2217.304,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:29:07.037Z",
+        "LCP": 2729.8239999999996,
+        "TBT": 144,
+        "CLS": 0,
+        "FCP": 2222.216,
+        "performance": 0.92,
+        "seo": 1
+      }
+    ],
+    "external-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:09:18.053Z",
+        "LCP": 1350.9569999999999,
+        "TBT": 57,
+        "CLS": 0,
+        "FCP": 1127.9569999999999,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:09:40.571Z",
+        "LCP": 2628.4359999999997,
+        "TBT": 101,
+        "CLS": 0,
+        "FCP": 2188.624,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:10:03.937Z",
+        "LCP": 2659.0860000000002,
+        "TBT": 68.5,
+        "CLS": 0,
+        "FCP": 2128.724,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:10:26.498Z",
+        "LCP": 1392.698,
+        "TBT": 93.5,
+        "CLS": 0,
+        "FCP": 1245.2559999999999,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:10:53.852Z",
+        "LCP": 2568.6119999999996,
+        "TBT": 80,
+        "CLS": 0,
+        "FCP": 2062.408,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:11:16.831Z",
+        "LCP": 2603.73,
+        "TBT": 70,
+        "CLS": 0,
+        "FCP": 2066.82,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "fetchTime": "2026-10-11T09:11:38.772Z",
+        "LCP": 2600.508,
+        "TBT": 84,
+        "CLS": 0,
+        "FCP": 2197.672,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "fetchTime": "2026-10-11T09:12:01.174Z",
+        "LCP": 2589.15,
+        "TBT": 67,
+        "CLS": 0,
+        "FCP": 2066.1,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "fetchTime": "2026-10-11T09:12:26.921Z",
+        "LCP": 2666.8319999999994,
+        "TBT": 70.5,
+        "CLS": 0,
+        "FCP": 2192.888,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "fetchTime": "2026-10-11T09:12:52.188Z",
+        "LCP": 1351.159,
+        "TBT": 65,
+        "CLS": 0,
+        "FCP": 1142.159,
+        "performance": 1,
+        "seo": 1
+      }
+    ],
+    "final-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "fetchTime": "2026-10-11T08:55:46.769Z",
+        "LCP": 3202.5960000000005,
+        "TBT": 245.5,
+        "CLS": 0,
+        "FCP": 2583.1400000000003,
+        "performance": 0.84,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "fetchTime": "2026-10-11T08:56:12.855Z",
+        "LCP": 2817.0559999999996,
+        "TBT": 97.5,
+        "CLS": 0,
+        "FCP": 2669.1299999999997,
+        "performance": 0.91,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "fetchTime": "2026-10-11T08:56:38.625Z",
+        "LCP": 3085.2789999999995,
+        "TBT": 324.5,
+        "CLS": 0,
+        "FCP": 2540.9849999999997,
+        "performance": 0.83,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "fetchTime": "2026-10-11T08:57:03.469Z",
+        "LCP": 2909.9849999999997,
+        "TBT": 117.5,
+        "CLS": 0,
+        "FCP": 2827.4849999999997,
+        "performance": 0.89,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "fetchTime": "2026-10-11T08:57:25.452Z",
+        "LCP": 2979.0849999999996,
+        "TBT": 119,
+        "CLS": 0,
+        "FCP": 2501.2749999999996,
+        "performance": 0.9,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "fetchTime": "2026-10-11T08:57:49.012Z",
+        "LCP": 2932.94,
+        "TBT": 278,
+        "CLS": 0,
+        "FCP": 2797.44,
+        "performance": 0.84,
+        "seo": 1
+      }
+    ],
+    "layout-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T09:51:52.358Z",
+        "LCP": 2504.0325,
+        "TBT": 119,
+        "CLS": 0,
+        "FCP": 2254.14,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T09:52:13.886Z",
+        "LCP": 2502.1009999999997,
+        "TBT": 333,
+        "CLS": 0,
+        "FCP": 1952.312,
+        "performance": 0.88,
+        "seo": 1
+      }
+    ],
+    "menu-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:16:48.715Z",
+        "LCP": 2666.598,
+        "TBT": 109.5,
+        "CLS": 0.009530865433781895,
+        "FCP": 2298.732,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:17:10.671Z",
+        "LCP": 1562.572,
+        "TBT": 101.49999999999989,
+        "CLS": 0.00960438513646557,
+        "FCP": 1370.5720000000001,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:17:32.294Z",
+        "LCP": 2829.6319999999996,
+        "TBT": 187.99999999999955,
+        "CLS": 0,
+        "FCP": 2569.632,
+        "performance": 0.89,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:17:55.673Z",
+        "LCP": 1865.1620000000003,
+        "TBT": 144.0000000000001,
+        "CLS": 0,
+        "FCP": 1641.162,
+        "performance": 0.97,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:18:19.236Z",
+        "LCP": 1351.267,
+        "TBT": 65,
+        "CLS": 0,
+        "FCP": 1126.267,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:18:42.032Z",
+        "LCP": 2727.016,
+        "TBT": 103,
+        "CLS": 0.00960438513646557,
+        "FCP": 2344.344,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "fetchTime": "2026-10-11T09:19:03.038Z",
+        "LCP": 1607.739,
+        "TBT": 153,
+        "CLS": 0.009530865433781895,
+        "FCP": 1375.739,
+        "performance": 0.97,
+        "seo": 1
+      }
+    ],
+    "optional-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:20:56.237Z",
+        "LCP": 1439.9165000000003,
+        "TBT": 48.00000000000023,
+        "CLS": 0,
+        "FCP": 1346.9164999999998,
+        "performance": 1,
+        "seo": 0.92
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:21:19.091Z",
+        "LCP": 1471.884,
+        "TBT": 15,
+        "CLS": 0,
+        "FCP": 1376.884,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:21:40.521Z",
+        "LCP": 1411.9684999999995,
+        "TBT": 63.499999999999886,
+        "CLS": 0,
+        "FCP": 1296.4684999999997,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:22:01.558Z",
+        "LCP": 2605.4039999999995,
+        "TBT": 68,
+        "CLS": 0,
+        "FCP": 2083.9359999999997,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:22:22.606Z",
+        "LCP": 1440.0744999999997,
+        "TBT": 47.99999999999977,
+        "CLS": 0,
+        "FCP": 1349.0745,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:22:44.444Z",
+        "LCP": 2578.6859999999997,
+        "TBT": 62,
+        "CLS": 0,
+        "FCP": 2061.124,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "fetchTime": "2026-10-11T09:23:04.686Z",
+        "LCP": 2606.298,
+        "TBT": 55.5,
+        "CLS": 0,
+        "FCP": 2088.532,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "fetchTime": "2026-10-11T09:23:25.357Z",
+        "LCP": 2605.182,
+        "TBT": 21.5,
+        "CLS": 0,
+        "FCP": 2283.788,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "fetchTime": "2026-10-11T09:23:47.713Z",
+        "LCP": 2607.146,
+        "TBT": 52,
+        "CLS": 0,
+        "FCP": 2253.764,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "fetchTime": "2026-10-11T09:24:08.849Z",
+        "LCP": 1507.8999999999999,
+        "TBT": 61.999999999999886,
+        "CLS": 0,
+        "FCP": 1385.4,
+        "performance": 1,
+        "seo": 1
+      }
+    ],
+    "paint-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T09:38:15.956Z",
+        "LCP": 2832.242,
+        "TBT": 192.33999999999924,
+        "CLS": 0,
+        "FCP": 2832.242,
+        "performance": 0.88,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T09:38:50.362Z",
+        "LCP": 2858.135,
+        "TBT": 156.3109999847411,
+        "CLS": 0,
+        "FCP": 2858.135,
+        "performance": 0.89,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T09:39:23.649Z",
+        "LCP": 2589.874,
+        "TBT": 87.26300000000037,
+        "CLS": 0,
+        "FCP": 2589.874,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T09:39:58.244Z",
+        "LCP": 2933.122,
+        "TBT": 147.23799999999983,
+        "CLS": 0,
+        "FCP": 2933.122,
+        "performance": 0.88,
+        "seo": 1
+      }
+    ],
+    "paint-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:34:13.108Z",
+        "LCP": 2630.1000000000004,
+        "TBT": 65.5,
+        "CLS": 0,
+        "FCP": 2349.4,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "fetchTime": "2026-10-11T09:34:35.545Z",
+        "LCP": 2615.8559999999998,
+        "TBT": 67,
+        "CLS": 0,
+        "FCP": 2307.904,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:34:57.232Z",
+        "LCP": 2595.8239999999996,
+        "TBT": 24,
+        "CLS": 0,
+        "FCP": 2295.216,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "fetchTime": "2026-10-11T09:35:17.971Z",
+        "LCP": 1473.3380000000002,
+        "TBT": 47,
+        "CLS": 0,
+        "FCP": 1371.3380000000002,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:35:41.759Z",
+        "LCP": 1351.0659999999998,
+        "TBT": 57,
+        "CLS": 0,
+        "FCP": 1134.94,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "fetchTime": "2026-10-11T09:36:01.865Z",
+        "LCP": 1469.8379999999997,
+        "TBT": 24,
+        "CLS": 0,
+        "FCP": 1367.8379999999997,
+        "performance": 1,
+        "seo": 1
+      }
+    ],
+    "policy-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T09:42:48.624Z",
+        "LCP": 1267.181,
+        "TBT": 321,
+        "CLS": 0,
+        "FCP": 950.1770000000001,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T09:43:08.435Z",
+        "LCP": 2759.3999999999996,
+        "TBT": 679.5,
+        "CLS": 0,
+        "FCP": 1914.1199999999997,
+        "performance": 0.78,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T09:43:29.538Z",
+        "LCP": 1409.2865000000002,
+        "TBT": 348.5000000000001,
+        "CLS": 0,
+        "FCP": 1008.7865,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T09:43:49.886Z",
+        "LCP": 1410.958,
+        "TBT": 28,
+        "CLS": 0,
+        "FCP": 1332.958,
+        "performance": 1,
+        "seo": 1
+      }
+    ],
+    "priority-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:28:51.476Z",
+        "LCP": 2511.459,
+        "TBT": 299.71699999999964,
+        "CLS": 0,
+        "FCP": 2227.87,
+        "performance": 0.88,
+        "seo": 1
+      }
+    ],
+    "priority-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:09:27.990Z",
+        "LCP": 2391.032,
+        "TBT": 34.5,
+        "CLS": 0,
+        "FCP": 2309.032,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:09:50.055Z",
+        "LCP": 2476.012,
+        "TBT": 42,
+        "CLS": 0,
+        "FCP": 2385.012,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:10:11.430Z",
+        "LCP": 2423.768,
+        "TBT": 2.5,
+        "CLS": 0,
+        "FCP": 2321.768,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:10:32.233Z",
+        "LCP": 1484.9859999999999,
+        "TBT": 35,
+        "CLS": 0,
+        "FCP": 1392.9859999999999,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:10:52.766Z",
+        "LCP": 1457.9759999999997,
+        "TBT": 35,
+        "CLS": 0,
+        "FCP": 1371.9759999999999,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:11:15.673Z",
+        "LCP": 2603.864,
+        "TBT": 59.999999999999545,
+        "CLS": 0,
+        "FCP": 2495.864,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:11:39.504Z",
+        "LCP": 1483.6715000000002,
+        "TBT": 4.000000000000227,
+        "CLS": 0,
+        "FCP": 1385.6715,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:12:01.837Z",
+        "LCP": 1692.104,
+        "TBT": 79,
+        "CLS": 0,
+        "FCP": 1556.104,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:12:23.548Z",
+        "LCP": 2409.4719999999998,
+        "TBT": 44,
+        "CLS": 0,
+        "FCP": 2316.4719999999998,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:12:44.952Z",
+        "LCP": 2368.496,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 2278.496,
+        "performance": 0.95,
+        "seo": 1
+      }
+    ],
+    "reconciled-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:35:13.352Z",
+        "LCP": 2923.654,
+        "TBT": 224.93100000000004,
+        "CLS": 0.0008939064324722549,
+        "FCP": 2923.654,
+        "performance": 0.86,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:35:47.710Z",
+        "LCP": 2891.727,
+        "TBT": 393.663,
+        "CLS": 0.001077479930914244,
+        "FCP": 2891.727,
+        "performance": 0.8,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:36:21.232Z",
+        "LCP": 2829.501,
+        "TBT": 253.15399999999954,
+        "CLS": 0.0008939064324722549,
+        "FCP": 2829.501,
+        "performance": 0.86,
+        "seo": 1
+      }
+    ],
+    "render-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:47:24.200Z",
+        "LCP": 1644.364,
+        "TBT": 515.9690000000003,
+        "CLS": 0.0005704920370615665,
+        "FCP": 1110.479,
+        "performance": 0.86,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:47:58.486Z",
+        "LCP": 1538.527,
+        "TBT": 366.967999984741,
+        "CLS": 0,
+        "FCP": 1188.209,
+        "performance": 0.91,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:48:32.041Z",
+        "LCP": 1534.121,
+        "TBT": 360.92499999999995,
+        "CLS": 0,
+        "FCP": 1183.754,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:49:06.241Z",
+        "LCP": 1509.632,
+        "TBT": 361.82599999999957,
+        "CLS": 0,
+        "FCP": 1175.954,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:49:38.711Z",
+        "LCP": 1658.233,
+        "TBT": 483.6210000000003,
+        "CLS": 0,
+        "FCP": 1224.409,
+        "performance": 0.87,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:50:11.425Z",
+        "LCP": 1547.935,
+        "TBT": 326.394,
+        "CLS": 0,
+        "FCP": 1214.296,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:50:44.157Z",
+        "LCP": 1541.743,
+        "TBT": 357.202,
+        "CLS": 0,
+        "FCP": 1174.679,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:51:17.069Z",
+        "LCP": 1924.843,
+        "TBT": 425.241,
+        "CLS": 0,
+        "FCP": 1407.631,
+        "performance": 0.89,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:51:50.873Z",
+        "LCP": 1635.336,
+        "TBT": 422.0899999999999,
+        "CLS": 0,
+        "FCP": 1251.622,
+        "performance": 0.89,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T10:52:24.487Z",
+        "LCP": 1490.603,
+        "TBT": 363.18399999999997,
+        "CLS": 0,
+        "FCP": 1156.84,
+        "performance": 0.92,
+        "seo": 1
+      }
+    ],
+    "render-sim-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:58:23.841Z",
+        "LCP": 3042.7169999999996,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 2655.1859999999997,
+        "performance": 0.9,
+        "seo": 1
+      }
+    ],
+    "single-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:17:14.806Z",
+        "LCP": 1658.316,
+        "TBT": 75,
+        "CLS": 0,
+        "FCP": 1529.3160000000003,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:17:38.871Z",
+        "LCP": 2553.036,
+        "TBT": 115.5,
+        "CLS": 0,
+        "FCP": 2430.536,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:18:00.162Z",
+        "LCP": 2659.852,
+        "TBT": 71.5,
+        "CLS": 0,
+        "FCP": 2544.852,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:18:21.504Z",
+        "LCP": 1557.9050000000002,
+        "TBT": 62.00000000000023,
+        "CLS": 0,
+        "FCP": 1469.9050000000002,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:18:42.366Z",
+        "LCP": 2408.74,
+        "TBT": 66,
+        "CLS": 0,
+        "FCP": 2314.74,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:19:02.921Z",
+        "LCP": 2461.312,
+        "TBT": 47,
+        "CLS": 0,
+        "FCP": 2378.312,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:19:24.813Z",
+        "LCP": 2496.216,
+        "TBT": 130,
+        "CLS": 0.0008939064324722549,
+        "FCP": 2388.216,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:19:45.876Z",
+        "LCP": 2530.48,
+        "TBT": 34,
+        "CLS": 0,
+        "FCP": 2434.48,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:20:08.664Z",
+        "LCP": 1545.1555,
+        "TBT": 59.5,
+        "CLS": 0,
+        "FCP": 1450.1555000000003,
+        "performance": 0.99,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T10:20:30.110Z",
+        "LCP": 2404.176,
+        "TBT": 24.5,
+        "CLS": 0,
+        "FCP": 2314.176,
+        "performance": 0.95,
+        "seo": 1
+      }
+    ],
+    "v16-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:07:41.096Z",
+        "LCP": 1656.373,
+        "TBT": 357.96000000000004,
+        "CLS": 0,
+        "FCP": 1289.338,
+        "performance": 0.91,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:08:12.821Z",
+        "LCP": 1546.424,
+        "TBT": 385.99899999999957,
+        "CLS": 0,
+        "FCP": 1162.686,
+        "performance": 0.9,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:08:46.035Z",
+        "LCP": 2983.066,
+        "TBT": 629.4129999999996,
+        "CLS": 0,
+        "FCP": 2282.417,
+        "performance": 0.76,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:09:21.382Z",
+        "LCP": 3002.53,
+        "TBT": 614.7110000000002,
+        "CLS": 0,
+        "FCP": 2351.828,
+        "performance": 0.76,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:09:57.346Z",
+        "LCP": 2829.866,
+        "TBT": 650.1309999999994,
+        "CLS": 0,
+        "FCP": 2346.032,
+        "performance": 0.76,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:10:34.578Z",
+        "LCP": 2818.626,
+        "TBT": 496.57699999999886,
+        "CLS": 0,
+        "FCP": 2368.143,
+        "performance": 0.8,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:11:10.341Z",
+        "LCP": 2685.019,
+        "TBT": 473.03099999999995,
+        "CLS": 0,
+        "FCP": 2267.899,
+        "performance": 0.82,
+        "seo": 1
+      }
+    ],
+    "v16-sim-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:03:45.432Z",
+        "LCP": 2125.768,
+        "TBT": 23,
+        "CLS": 0,
+        "FCP": 2125.768,
+        "performance": 0.97,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:04:07.768Z",
+        "LCP": 2352.11,
+        "TBT": 113.5,
+        "CLS": 0,
+        "FCP": 1962.0880000000002,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:04:28.860Z",
+        "LCP": 1242.2125,
+        "TBT": 54.5,
+        "CLS": 0,
+        "FCP": 1160.2125,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:04:49.684Z",
+        "LCP": 2256.995,
+        "TBT": 50,
+        "CLS": 0,
+        "FCP": 2050.3959999999997,
+        "performance": 0.97,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:05:10.194Z",
+        "LCP": 1159.585,
+        "TBT": 84.5,
+        "CLS": 0,
+        "FCP": 949.0435,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:05:32.054Z",
+        "LCP": 1161.0895,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 1118.0895,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:05:51.702Z",
+        "LCP": 2291.4500000000003,
+        "TBT": 42,
+        "CLS": 0,
+        "FCP": 2049.36,
+        "performance": 0.96,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:06:12.118Z",
+        "LCP": 1162.8115000000003,
+        "TBT": 20,
+        "CLS": 0,
+        "FCP": 1113.8115000000003,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:06:32.731Z",
+        "LCP": 1145.9405000000002,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 1098.9405000000002,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:06:52.613Z",
+        "LCP": 2296.505,
+        "TBT": 0,
+        "CLS": 0,
+        "FCP": 2059.6040000000003,
+        "performance": 0.96,
+        "seo": 1
+      }
+    ],
+    "v17-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:16:08.274Z",
+        "LCP": 1540.254,
+        "TBT": 376.3610000000001,
+        "CLS": 0,
+        "FCP": 1189.91,
+        "performance": 0.91,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:16:40.123Z",
+        "LCP": 1523.714,
+        "TBT": 328.54200000000037,
+        "CLS": 0,
+        "FCP": 1223.404,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:17:12.352Z",
+        "LCP": 1627.111,
+        "TBT": 337.1809999999998,
+        "CLS": 0,
+        "FCP": 1276.752,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:17:44.892Z",
+        "LCP": 1688.001,
+        "TBT": 487.14599999999973,
+        "CLS": 0.0008238385020246646,
+        "FCP": 1170.831,
+        "performance": 0.87,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:18:16.602Z",
+        "LCP": 1678.154,
+        "TBT": 388.7839999999999,
+        "CLS": 0.0008238385020246646,
+        "FCP": 1311.127,
+        "performance": 0.9,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:18:48.243Z",
+        "LCP": 1525.775,
+        "TBT": 348.67700000000013,
+        "CLS": 0,
+        "FCP": 1158.713,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:19:21.758Z",
+        "LCP": 1609.962,
+        "TBT": 378.28899999999976,
+        "CLS": 0,
+        "FCP": 1259.598,
+        "performance": 0.91,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:19:54.684Z",
+        "LCP": 1678.429,
+        "TBT": 429.34999999999945,
+        "CLS": 0,
+        "FCP": 1211.397,
+        "performance": 0.89,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:20:27.737Z",
+        "LCP": 1536.65,
+        "TBT": 317.60499998474097,
+        "CLS": 0,
+        "FCP": 1202.984,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:21:02.992Z",
+        "LCP": 2547.348,
+        "TBT": 320.8890000000001,
+        "CLS": 0,
+        "FCP": 2230.378,
+        "performance": 0.88,
+        "seo": 1
+      }
+    ],
+    "v18-devtools-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:27:43.047Z",
+        "LCP": 1553.755,
+        "TBT": 343.058,
+        "CLS": 0,
+        "FCP": 1186.714,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:28:15.989Z",
+        "LCP": 1608.377,
+        "TBT": 255.4110000000005,
+        "CLS": 0,
+        "FCP": 1224.646,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:28:48.827Z",
+        "LCP": 1443.527,
+        "TBT": 288.48899998474144,
+        "CLS": 0,
+        "FCP": 1276.661,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:29:21.693Z",
+        "LCP": 1560.812,
+        "TBT": 334.5779999847409,
+        "CLS": 0,
+        "FCP": 1227.117,
+        "performance": 0.92,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:29:54.840Z",
+        "LCP": 1481.637,
+        "TBT": 320.34899999999993,
+        "CLS": 0,
+        "FCP": 1164.663,
+        "performance": 0.93,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:30:26.394Z",
+        "LCP": 1476.613,
+        "TBT": 221.1780000000001,
+        "CLS": 0,
+        "FCP": 1209.7,
+        "performance": 0.96,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:30:59.004Z",
+        "LCP": 1540.811,
+        "TBT": 248.93600000000015,
+        "CLS": 0,
+        "FCP": 1273.877,
+        "performance": 0.95,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:31:31.356Z",
+        "LCP": 1554.305,
+        "TBT": 286.61500000000024,
+        "CLS": 0,
+        "FCP": 1187.265,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:32:04.057Z",
+        "LCP": 1522.175,
+        "TBT": 280.7699999847414,
+        "CLS": 0,
+        "FCP": 1238.586,
+        "performance": 0.94,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "throttlingMethod": "devtools",
+        "fetchTime": "2026-10-11T11:32:44.812Z",
+        "LCP": 1966.49,
+        "TBT": 559.8180000000007,
+        "CLS": 0,
+        "FCP": 1382.562,
+        "performance": 0.85,
+        "seo": 1
+      }
+    ],
+    "v18-sim-metrics": [
+      {
+        "city": "dubai",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:33:41.459Z",
+        "LCP": 2043.3400000000001,
+        "TBT": 2.5,
+        "CLS": 0,
+        "FCP": 2015.8400000000001,
+        "performance": 0.97,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 1,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:34:02.457Z",
+        "LCP": 2316.3549999999996,
+        "TBT": 35.00000000000023,
+        "CLS": 0,
+        "FCP": 2041.0839999999996,
+        "performance": 0.96,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:34:22.752Z",
+        "LCP": 1118.2045,
+        "TBT": 18,
+        "CLS": 0,
+        "FCP": 1048.596,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 2,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:34:42.969Z",
+        "LCP": 1106.645,
+        "TBT": 43.5,
+        "CLS": 0,
+        "FCP": 982.645,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:35:03.023Z",
+        "LCP": 2320.395,
+        "TBT": 41,
+        "CLS": 0.0001152746796536774,
+        "FCP": 1947.116,
+        "performance": 0.97,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 3,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:35:22.338Z",
+        "LCP": 1104.0610000000001,
+        "TBT": 20,
+        "CLS": 0,
+        "FCP": 1045.0435,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:35:42.222Z",
+        "LCP": 1131.1779999999999,
+        "TBT": 47.5,
+        "CLS": 0,
+        "FCP": 964.678,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 4,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:36:02.132Z",
+        "LCP": 993.8005,
+        "TBT": 17,
+        "CLS": 0,
+        "FCP": 951.8005,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "dubai",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:36:22.099Z",
+        "LCP": 1142.769,
+        "TBT": 40,
+        "CLS": 0,
+        "FCP": 1060.769,
+        "performance": 1,
+        "seo": 1
+      },
+      {
+        "city": "manila",
+        "run": 5,
+        "throttlingMethod": "simulate",
+        "fetchTime": "2026-10-11T11:36:42.185Z",
+        "LCP": 2304.46,
+        "TBT": 46,
+        "CLS": 0,
+        "FCP": 1928.1680000000001,
+        "performance": 0.97,
+        "seo": 1
+      }
+    ]
+  },
+  "failed_lab_runs": [
+    {
+      "file": "dubai-paint-4.report.json",
+      "code": "NO_NAVSTART"
+    }
+  ],
+  "public_verification": [
+    {
+      "url": "https://servernet.cloud/cloud/ae-dubai",
+      "status": 200,
+      "cache_state": "BYPASS",
+      "buy_urls": 20,
+      "buy_urls_unchanged": true,
+      "existing_buy_urls_preserved": true,
+      "additional_live_buy_urls": 0,
+      "analytics_code_unchanged": true,
+      "offers_unchanged": false,
+      "existing_offers_preserved": false,
+      "schema_count": 5,
+      "inline_css_bytes": 77285,
+      "sha256": "b5072d5ad47e90abaf615bb2ae57524f68ea8229c799b4f319d74fdaf7239b69"
+    },
+    {
+      "url": "https://servernet.cloud/cloud/ph-manila",
+      "status": 200,
+      "cache_state": "BYPASS",
+      "buy_urls": 22,
+      "buy_urls_unchanged": true,
+      "existing_buy_urls_preserved": true,
+      "additional_live_buy_urls": 0,
+      "analytics_code_unchanged": true,
+      "offers_unchanged": false,
+      "existing_offers_preserved": false,
+      "schema_count": 5,
+      "inline_css_bytes": 77285,
+      "sha256": "bbed0fe8f7465c2860fcbc9ef0bb3b59f1eb632eb0fe6a3c7b10cf09acceb476"
+    },
+    {
+      "url": "https://servernet.cloud/en/cloud/ae-dubai",
+      "status": 200,
+      "cache_state": "BYPASS",
+      "buy_urls": 20,
+      "buy_urls_unchanged": true,
+      "existing_buy_urls_preserved": true,
+      "additional_live_buy_urls": 0,
+      "analytics_code_unchanged": true,
+      "offers_unchanged": false,
+      "existing_offers_preserved": false,
+      "schema_count": 5,
+      "inline_css_bytes": 77285,
+      "sha256": "23b98db4800c75965e62da3412efcc1a0252bf2184f307b068c327dad1566077"
+    },
+    {
+      "url": "https://servernet.cloud/en/cloud/ph-manila",
+      "status": 200,
+      "cache_state": "BYPASS",
+      "buy_urls": 22,
+      "buy_urls_unchanged": true,
+      "existing_buy_urls_preserved": true,
+      "additional_live_buy_urls": 0,
+      "analytics_code_unchanged": true,
+      "offers_unchanged": false,
+      "existing_offers_preserved": false,
+      "schema_count": 5,
+      "inline_css_bytes": 77285,
+      "sha256": "b373a1737b74414b8a015966ba7e435dbb926fc0d6c7ac18d9d7834010f0c7fc"
+    },
+    {
+      "url": "https://servernet.cloud/tr/cloud/ae-dubai",
+      "status": 200,
+      "cache_state": "BYPASS",
+      "buy_urls": 20,
+      "buy_urls_unchanged": true,
+      "existing_buy_urls_preserved": true,
+      "additional_live_buy_urls": 0,
+      "analytics_code_unchanged": true,
+      "offers_unchanged": false,
+      "existing_offers_preserved": false,
+      "schema_count": 5,
+      "inline_css_bytes": 77285,
+      "sha256": "eaff8857b969d6477ee5e342a7aa7d1f5688e71739eac47cf32c010947a326c2"
+    },
+    {
+      "url": "https://servernet.cloud/tr/cloud/ph-manila",
+      "status": 200,
+      "cache_state": "BYPASS",
+      "buy_urls": 22,
+      "buy_urls_unchanged": true,
+      "existing_buy_urls_preserved": true,
+      "additional_live_buy_urls": 0,
+      "analytics_code_unchanged": true,
+      "offers_unchanged": false,
+      "existing_offers_preserved": false,
+      "schema_count": 5,
+      "inline_css_bytes": 77285,
+      "sha256": "4602205da40e8d1fbce033947ff4eb8015faadcc89ac945d43fc1a4e193d1d8a"
+    }
+  ],
+  "independent_public_price_drift": [
+    {
+      "page": "en-ae-dubai.html",
+      "offers": 10,
+      "only_public_price_changed": true,
+      "price_changes": [
+        {
+          "url": "https://servernet.cloud/en/cloud/ae-dubai",
+          "old_public_price": "141.30",
+          "new_public_price": "141.40",
+          "currency": "EUR"
+        },
+        {
+          "url": "https://servernet.cloud/en/cloud/ae-dubai",
+          "old_public_price": "191.30",
+          "new_public_price": "191.40",
+          "currency": "EUR"
+        }
+      ]
+    },
+    {
+      "page": "en-ph-manila.html",
+      "offers": 11,
+      "only_public_price_changed": true,
+      "price_changes": [
+        {
+          "url": "https://servernet.cloud/en/cloud/ph-manila",
+          "old_public_price": "141.30",
+          "new_public_price": "141.40",
+          "currency": "EUR"
+        },
+        {
+          "url": "https://servernet.cloud/en/cloud/ph-manila",
+          "old_public_price": "191.30",
+          "new_public_price": "191.40",
+          "currency": "EUR"
+        }
+      ]
+    },
+    {
+      "page": "fa-ae-dubai.html",
+      "offers": 10,
+      "only_public_price_changed": true,
+      "price_changes": [
+        {
+          "url": "https://servernet.cloud/cloud/ae-dubai",
+          "old_public_price": "431100000",
+          "new_public_price": "431400000",
+          "currency": "IRR"
+        },
+        {
+          "url": "https://servernet.cloud/cloud/ae-dubai",
+          "old_public_price": "583700000",
+          "new_public_price": "583900000",
+          "currency": "IRR"
+        },
+        {
+          "url": "https://servernet.cloud/cloud/ae-dubai",
+          "old_public_price": "710900000",
+          "new_public_price": "710800000",
+          "currency": "IRR"
+        },
+        {
+          "url": "https://servernet.cloud/cloud/ae-dubai",
+          "old_public_price": "1054100000",
+          "new_public_price": "1054000000",
+          "currency": "IRR"
+        }
+      ]
+    },
+    {
+      "page": "fa-ph-manila.html",
+      "offers": 11,
+      "only_public_price_changed": true,
+      "price_changes": [
+        {
+          "url": "https://servernet.cloud/cloud/ph-manila",
+          "old_public_price": "431100000",
+          "new_public_price": "431400000",
+          "currency": "IRR"
+        },
+        {
+          "url": "https://servernet.cloud/cloud/ph-manila",
+          "old_public_price": "583700000",
+          "new_public_price": "583900000",
+          "currency": "IRR"
+        },
+        {
+          "url": "https://servernet.cloud/cloud/ph-manila",
+          "old_public_price": "710900000",
+          "new_public_price": "710800000",
+          "currency": "IRR"
+        },
+        {
+          "url": "https://servernet.cloud/cloud/ph-manila",
+          "old_public_price": "1054100000",
+          "new_public_price": "1054000000",
+          "currency": "IRR"
+        }
+      ]
+    },
+    {
+      "page": "tr-ae-dubai.html",
+      "offers": 10,
+      "only_public_price_changed": true,
+      "price_changes": [
+        {
+          "url": "https://servernet.cloud/tr/cloud/ae-dubai",
+          "old_public_price": "141.30",
+          "new_public_price": "141.40",
+          "currency": "EUR"
+        },
+        {
+          "url": "https://servernet.cloud/tr/cloud/ae-dubai",
+          "old_public_price": "191.30",
+          "new_public_price": "191.40",
+          "currency": "EUR"
+        }
+      ]
+    },
+    {
+      "page": "tr-ph-manila.html",
+      "offers": 11,
+      "only_public_price_changed": true,
+      "price_changes": [
+        {
+          "url": "https://servernet.cloud/tr/cloud/ph-manila",
+          "old_public_price": "141.30",
+          "new_public_price": "141.40",
+          "currency": "EUR"
+        },
+        {
+          "url": "https://servernet.cloud/tr/cloud/ph-manila",
+          "old_public_price": "191.30",
+          "new_public_price": "191.40",
+          "currency": "EUR"
+        }
+      ]
+    }
+  ],
+  "functional_checks": {
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "dubai": {
+      "inline_css": true,
+      "mobile_font": "Tahoma, Arial, sans-serif",
+      "overflow": false,
+      "monthly_buttons": 10,
+      "hourly_buttons": 10,
+      "monthly_buy_destination": "https://console.servernet.cloud/login",
+      "hourly_buy_destination": "https://console.servernet.cloud/login"
+    },
+    "manila": {
+      "inline_css": true,
+      "mobile_font": "Tahoma, Arial, sans-serif",
+      "overflow": false,
+      "monthly_buttons": 11,
+      "hourly_buttons": 11,
+      "hourly_buy_destination": "https://console.servernet.cloud/login",
+      "footer_rendered_after_scroll": true,
+      "footer_accordion": true,
+      "monthly_buy_destination": "https://console.servernet.cloud/login"
+    },
+    "mobile_menu": {
+      "opened": true,
+      "country_search": "امارات",
+      "filtered_country_visible": true,
+      "closed": true,
+      "svg_icons_visible": true
+    },
+    "purchase_limit": "login only; no identity, OTP, order or payment",
+    "release": "render-v18",
+    "country_guide_visible_after_scroll": true,
+    "offscreen_sections_native_auto": true
+  },
+  "scope_health": [
+    {
+      "url": "https://servernet.cloud/robots.txt",
+      "status": 200,
+      "country_lcp_css_active": false,
+      "existing_stylesheet_preserved": false
+    },
+    {
+      "url": "https://servernet.cloud/vps/hourly",
+      "status": 200,
+      "country_lcp_css_active": false,
+      "existing_stylesheet_preserved": true
+    },
+    {
+      "url": "https://servernet.cloud/gpu",
+      "status": 200,
+      "country_lcp_css_active": false,
+      "existing_stylesheet_preserved": true
+    },
+    {
+      "url": "https://servernet.cloud/cloud/de-falkenstein",
+      "status": 200,
+      "country_lcp_css_active": false,
+      "existing_stylesheet_preserved": true
+    }
+  ],
+  "release_sha256": {
+    "app/Services/Cloud/LandingPageStyles.php": "220b8d8bbcd2b76c9a79db9647159fd20a062d5c17e759b8a08842788e69f01f",
+    "resources/css/cloud-location-lcp.css": "5c01e210b24a291e04bd0ab76f57a9c73975d440fe08f5d236cccfd0d84dddef",
+    "resources/css/cloud-location-lcp.json": "bac5917d11a1aa852d7a888e30c99eb56f09e3dde1eb513efdfdcc866deda16c",
+    "resources/views/layouts/site.blade.php": "daecd5fd5077641a1e2bc0f9fbc89b1e0b3cc51e85d25fa002c402aee0794f79",
+    "resources/views/partials/server-menu.blade.php": "22c0c416110e68740c500f109aa31f539dd1ab6627c04b9c2e86d2af8072add6",
+    "public/assets/font/woff2/IRANSans-location-20261011-400.woff2": "4658e4d3368fbe8d7afbecafcc28fd5eb5320caa9e8a25760bc09359cbb1c158",
+    "public/assets/font/woff2/IRANSans-location-20261011-700.woff2": "8717ba00cdb122f7314920e6214d3194284c2ad83d6f5ef18f4003315dbc2ca3"
+  },
+  "tests": {
+    "php_tests": 64,
+    "php_assertions": 1870,
+    "final_manifest_tests": 4,
+    "final_manifest_assertions": 149,
+    "worker_paths": 18
+  },
+  "limits": [
+    "Lab samples are not field p75 or a permanent guarantee.",
+    "GA transport HTTP 204 is not GA4 attribution.",
+    "Purchase QA stopped at login; no OTP, paid order or customer write.",
+    "Simulated and DevTools TBT are not interchangeable."
+  ]
+}

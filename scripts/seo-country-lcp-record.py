@@ -1,0 +1,134 @@
+"""Record sanitized results of this dated release; no raw browser logs enter Git."""
+from pathlib import Path
+import hashlib,json,re
+ROOT=Path(__file__).resolve().parents[1]
+WT=Path('C:/Users/admin/.codex/worktrees/seo-mobile-performance/servernet')
+OUT=ROOT/'output/seo-country-lcp-20261011'
+REPORT='SEO-COUNTRY-LCP-2026-10-11.md'
+assert ROOT!=WT, 'This one-off recorder runs from the original audit workspace, with a separate managed worktree'
+proof={p:json.loads((OUT/(p+'-proof.json')).read_text()) for p in ['v18-sim','v18-devtools']}
+assert all(len(rows)==10 for rows in proof.values()), 'Finish both complete measurement sets first'
+assert all(not x['render_blocking_stylesheets'] and not x['font_assets'] for rows in proof.values() for x in rows), 'Separate source-drift fallback measurements from final optimized release'
+verification=json.loads((OUT/'verification.json').read_text())
+assert len(verification)==6 and all(x['buy_urls_unchanged'] and x['analytics_code_unchanged'] for x in verification)
+price_drift=json.loads((OUT/'catalog-drift-v17.json').read_text())
+assert len(price_drift)==6 and all(x['only_public_price_changed'] for x in price_drift)
+price_changes=sum(len(x['price_changes']) for x in price_drift)
+historical={}
+for file in sorted(OUT.glob('*-metrics.json')):
+    if file.name.startswith('local-'):continue
+    historical[file.stem]=json.loads(file.read_text())
+failures=[]
+for file in sorted(OUT.glob('*.report.json')):
+    if '-local-' in file.name:continue
+    report=json.loads(file.read_text())
+    if report.get('runtimeError'):
+        failures.append({'file':file.name,'code':report['runtimeError'].get('code')})
+assets={rel:hashlib.sha256((WT/'website'/rel).read_bytes()).hexdigest() for rel in [
+    'app/Services/Cloud/LandingPageStyles.php','resources/css/cloud-location-lcp.css',
+    'resources/css/cloud-location-lcp.json','resources/views/layouts/site.blade.php',
+    'resources/views/partials/server-menu.blade.php',
+    'public/assets/font/woff2/IRANSans-location-20261011-400.woff2',
+    'public/assets/font/woff2/IRANSans-location-20261011-700.woff2']}
+data={'date':'2026-10-11','release':'render-v18','base_develop':'a324211a',
+      'final_measurements':proof,'historical_lab_measurements':historical,
+      'failed_lab_runs':failures,'public_verification':verification,'independent_public_price_drift':price_drift,
+      'functional_checks':json.loads((OUT/'final-functional.json').read_text()),
+      'scope_health':json.loads((OUT/'health-final.json').read_text()),'release_sha256':assets,
+      'tests':{'php_tests':64,'php_assertions':1870,'final_manifest_tests':4,'final_manifest_assertions':149,'worker_paths':18},
+      'limits':['Lab samples are not field p75 or a permanent guarantee.',
+                'GA transport HTTP 204 is not GA4 attribution.',
+                'Purchase QA stopped at login; no OTP, paid order or customer write.',
+                'Simulated and DevTools TBT are not interchangeable.']}
+def summary(rows,city):
+    selected=[x for x in rows if x['page'].endswith('/'+city)]
+    return f"{min(x['LCP_ms'] for x in selected)/1000:.3f}–{max(x['LCP_ms'] for x in selected)/1000:.3f}",f"{min(x['TBT_ms'] for x in selected):.1f}–{max(x['TBT_ms'] for x in selected):.1f}",f"{max(x['CLS'] for x in selected):.6f}"
+table=[]
+for p,rows in proof.items():
+    for city,label in [('ae-dubai','دبی'),('ph-manila','مانیلا')]:
+        lcp,tbt,cls=summary(rows,city)
+        selected=[x for x in rows if x['page'].endswith('/'+city)]
+        table.append(f"| {label} | {'شبیه‌سازی استاندارد' if p=='v18-sim' else 'محدودسازی مستقیم DevTools'} | ۵ | {lcp} | {tbt} | {cls} | {sum(x['LCP_ms']<2500 for x in selected)}/۵ |")
+events=[]
+for p,rows in proof.items():
+    count=sum(any(e['event']=='page_view' and e['http_status']==204 for e in x['analytics_transport']) for x in rows)
+    items=sum(any(e['event']=='view_item' and e['http_status']==204 for e in x['analytics_transport']) for x in rows)
+    events.append(f"{p}: page_view موفق {count}/۱۰، view_item موفق {items}/۱۰")
+passed=sum(x['LCP_ms']<2500 for rows in proof.values() for x in rows)
+report=f'''# LCP موبایل دبی و مانیلا — ۲۰۲۶-۱۰-۱۱
+
+اصلاحات روی سایت زنده منتشر شد؛ در نسخهٔ render-v18، {passed}/۲۰ اجرای سرد موبایل LCP زیر ۲٫۵ ثانیه داشتند. نتیجهٔ زیر مربوط به همین نسخه و دو روش مستقل محدودسازی است؛ پایداری در این نمونه‌ها به معنی تضمین همیشگی یا تأیید Core Web Vitals کاربران واقعی نیست.
+
+## نتیجهٔ نهایی
+
+| صفحه | روش Lighthouse 12.8.2 | اجرا | LCP ثانیه | TBT میلی‌ثانیه | بیشترین CLS | LCP زیر ۲٫۵ |
+| --- | --- | --- | --- | --- | --- | --- |
+{chr(10).join(table)}
+
+پنج بار برای هر صفحه در هر روش، با پروفایل سرد Chrome و تنظیم پیش‌فرض موبایل/شبکه و CPU همان روش؛ اجرای ترتیبی و بدون PHPUnit هم‌زمان. [روش محدودسازی Lighthouse](https://github.com/GoogleChrome/lighthouse/blob/main/docs/throttling.md) و [نوسان اندازه‌گیری](https://github.com/GoogleChrome/lighthouse/blob/main/docs/variability.md) در تفسیر نتیجه لحاظ شدند. JSON، trace و گزارش‌های ناموفق در `output/seo-country-lcp-20261011` محفوظ‌اند. TBT مستقیم هنوز از ۲۰۰ms بالاتر است؛ امتیاز خوب روش شبیه‌سازی این محدودیت را برطرف نمی‌کند. بهبود TBT کشورهای جدید در صف P1 ثبت شد. صفحات ساعتی و GPU از این CSS استفاده نمی‌کنند.
+
+قبل از کار، تک‌نمونهٔ LCP دبی حدود۱٫۶۵۴ و مانیلا۲٫۹۵۶ ثانیه بود؛ تک‌نمونه برای درصد رشد یا مقایسهٔ آماری کافی نیست. نوبت‌های میانی چند بار از۲٫۵ گذشتند و همهٔ نتایج در شواهد باقی مانده‌اند. نتایج قدیمی v15/16/17 جای نتیجهٔ نهایی v18 گزارش نشدند؛ ردگیری stylesheet/font نشان داد چند نمونهٔ v16 از fallback پس از تغییر source بوده‌اند. v17 در۹/۱۰ سنجش مستقیم زیرهدف بود؛ نمونهٔ آخر مانیلا۲٫۵۴۷s با بایت اول۱٫۸۸۸s و تأخیر رندر۶۶۰ms بود. v18 علاوه بر حفظ این شاهد، قاعدهٔ رندر بخش‌های خارج دید را اصلاح کرد؛ selector قبلی:last-child به‌علت siblingهای style/script بخش مقالات را نمی‌گرفت.
+
+## تغییر منتشرشده
+
+- فقط دبی و مانیلا در FA/EN/TR: CSS کامل مورد نیاز صفحه و منو از۲۲۴۷۵۵بایت CSS اصلی به۷۷۲۸۵بایت داخل head رسید؛ درخواست دو stylesheet مسدودکننده حذف شد. محتوای HTML، canonical، schema و لینک‌ها در پاسخ سرور باقی مانده‌اند.
+- موبایل تا۱۰۲۰px از Tahoma/Arial/sans-serif دستگاه استفاده می‌کند؛ ظاهر حروف کمی تغییر می‌کند ولی متن برای دانلود یا تعویض فونت منتظر نمی‌ماند. در هر۲۰ ردگیری نهایی درخواست فونت و stylesheet خارجی صفر بود؛ آزمون موبایل روی Chrome ویندوز بوده، دستگاه واقعی Android/iOS در دسترس نبود.
+- دسکتاپ IRANSans را حفظ می‌کند؛ دو subset با حفظ shaping و metrics از۳۲۲۷۲/۳۲۰۹۲ به۱۹۹۸۰/۱۹۵۲۰بایت رسیدند. preload فونت۴۰۰ فقط برای دسکتاپ است؛ فونت۷۰۰ بدون preload و هر دو با font-display:optional و پوشش باقی‌ماندهٔ Unicode از منبع اصلی. مبنای سیاست بارگیری: [بهینه‌سازی فونت وب](https://web.dev/learn/performance/optimize-web-fonts).
+- سه لایهٔ blur بزرگ موبایل به gradient ثابت تبدیل شد. منوی بسته از layout خارج و منوی باز به‌صورت طبیعی نمایش داده می‌شود؛ پرچم‌های منوی پنهان lazy و پرچم اصلی eager است.
+- content-visibility:auto برای کارت‌های خارج دید، راهنمای انتخاب کشور، مقالات مرتبط، چند بخش پایین صفحه و فوتر، با اندازهٔ تخمینی بومی اعمال شد. محتوا حذف یا با JS بارگیری نشده است؛ پیمایش، فوتر، لینک و بازشدن accordion زنده کنترل شدند. hero وwhy همان‌جا و بی‌تأخیر باقی ماندند؛ محتوا برای تغییر مصنوعی عنصرLCP از دید خارج نشد. رفتار بومی مرورگر: [content-visibility](https://web.dev/articles/content-visibility).
+- LandingPageStyles هش CSS و۱۳ ورودی را کنترل می‌کند. با تغییر ورودی/خرابی فایل، CSS و فونت اصلی به‌صورت امن برمی‌گردند؛ مسیرهای دیگر همین رفتار قبلی را دارند. CSS جایگزین با sourceهای جاری تطبیق و union تمام شش رندر و قالب‌های زنده/گیت ساخته شد.
+
+## آمار، خرید و آزمون
+
+۶۴ تست PHPUnit/۱۸۷۰ assertion روی develop جاری با آزمون‌های خرید ساعتی/ماهانه، سه زبان، کشور، منو، ساعتی/GPU و fallback موفق شد؛ بعد از تطبیق نهایی manifest با JS جاری نیز۴تست/۱۴۹بررسی موفق شد. تست Node،۱۸ مسیر شامل صف analytics/checkout، مبلغIRR و fallback کتابخانه و asset را گذراند. نسخهٔ قبلی۶۰/۱۸۲۴ نیز موفق بود؛ پس از همگام‌سازی با PR49 کل مجموعه دوباره اجرا شد.
+
+هر شش صفحه HTTP200، یکH1، canonical خودارجاع، پنج بلوک schema و لینک‌های خرید سالم داشتند؛ بررسی نهایی با پارامتر QA و X-Cache:BYPASS، رندر واقعی و فعال‌بودن CSS جدید را در هر۶مسیر تأیید کرد. تمام URLهای خرید ماهانه و ساعتی و کد inline آمار با snapshot-current دقیقاً یکسان‌اند. مقایسهٔ Offerها {price_changes} تغییر قیمت عمومی در۶رندر نشان داد؛ همهٔ فیلدهای دیگر ازجمله URL/ارز/موجودی و شمار پیشنهادها دقیقاً یکسان بودند. تغییر کوچک نرخ زندهٔ کاتالوگ مستقل از packet چهار‌فایلی ماست؛ DB/controller/JSقیمت را این انتشار تغییر نداد و قیمت دیگران برگردانده نشد. نمونهٔ عمومی €141.30→€141.40 و۴۳۱۱۰۰۰۰۰→۴۳۱۴۰۰۰۰۰ریال در شواهد ثبت شد؛ ادعای صفر drift قیمت نمی‌کنیم. robots، hourly، GPU و یک مکان آلمان با چهار درخواست دیگر HTTP200 داشتند؛ CSS تخصصی در سه مسیر غیرهدف فعال نیست.
+
+منو در۳۹۰×۸۴۴ باز/بسته و جست‌وجوی امارات درست کار کرد، SVGها نمایان بودند؛ دبی۱۰ و مانیلا۱۱ دکمه در هر نوع صورتحساب، بدون overflow. خرید ماهانهٔ دبی و خرید ساعتی مانیلا، سپس در v18 خرید ساعتی دبی و خرید ماهانهٔ مانیلا به console/login رسیدند. QA به ورود محدود بود؛ OTP، سفارش پولی، پرداخت، هویت یا حساب مشتری استفاده نشد. کد تحلیل/خرید دست‌کاری نشده است.
+
+رسیدهای واقعی انتقال آمار: {'؛ '.join(events)}. هر رویداد بدون پاسخ ثبت‌شده در شواهد با null باقی می‌ماند؛ شکست قطعی یا موفقیت فرض نشده است. HTTP204 فقط پذیرش transport را ثابت می‌کند؛ گزارش انتساب GA4 و تراکنش نهایی بررسی نشده است.
+
+نمای نهایی: `output/seo-country-lcp-20261011/mobile-dubai-final.png` و `mobile-manila-final.png` در۳۹۰px. شواهد قابل اشتراک و بدون شناسهٔ آمار در [country-lcp-20261011.json](seo/evidence/country-lcp-20261011.json)؛ مشخصات عمومی فونت در [country-lcp-font-20261011.json](seo/evidence/country-lcp-font-20261011.json).
+
+## هم‌زمانی، نصب و بازگشت
+
+میزبان core، برنامهٔ `/home/servernetcloud/servernet_app` و public_html: فقط۷ فایل اجرایی متعلق به این تغییر در مجموع نصب شدند (service، CSS/manifest، layout، server-menu view و دو فونت). هر packet محدود، hash guard قبل/بعد، backup خصوصی، lint PHP/Blade، نصب atomic و پاک‌کردن view/page-cache generation داشت. هیچ DB، قیمت، موجودی، حساب، سفارش، guest، route/NAT/firewall/DNS، hostcron یا state عامل زیرساختی تغییر نکرد. لینک‌های زندهٔ AI Gateway و محافظ هاست ویندوز حفظ شدند.
+
+قالب cloud-location هم‌زمان با PR48 کارت‌ها را جمع‌وجور و با PR49 خرید ساعتی/ماهانه را اضافه کرد؛ این فایل توسط این انتشار نصب نشد. site.js نیز مستقل برای period_label قیمت دامنه تغییر کرد؛ فقط دو template literal خارج از مسیر سرور/آمار بود، بازبینی و حفظ شد و این JS توسط ما نصب یا commit نشد. محافظ سه بار اختلاف را تشخیص داد؛ هر بار منبع جدید خوانده و CSS بازساخته شد. develop تاa324211a جلو آورده شد، تعارض تست با حفظ هر دو مجموعه حل شد. تغییر مستقل کاتالوگ/ارز نیز حفظ شد؛ baselineهای قبلی پاک نشدند و snapshot-current فقط پس از بازبینی تغییر جاری گرفته شد.
+
+نسخه‌های inline-font-v2، menu-v4، drawer-v6، font-policy-v8، layout-v9، single-font-v11 و critical-v12 به‌دلیل نوسان LCP، CLS یا هزینهٔ رندر با guard بازگردانده شدند؛ همهٔ نمونه‌های بد و یک NO_NAVSTART محفوظ است. device-font-v14 هدف LCP را گرفت ولی TBT حدود۷۶۳–۷۹۹ms شد؛ render-v15 هزینهٔ رندر را کاهش داد و reconcile-v16/17 همان CSS را با قالب/JS جدید هماهنگ کردند. تست محلی raw/gzip با تولید هم‌ارز نبود و وارد نتیجهٔ نهایی نشده است. یک failure تست قدیمی از compiled-view cache بود؛ view:clear و اجرای کامل بعدی موفق شد.
+
+backupهای خصوصی زیر `/home/servernetcloud/seo-country-lcp-20261011` هستند. زنجیرهٔ فعال بازگشت محدود از جدید به قدیم: `render-v18 → reconcile-v17 → reconcile-v16 → render-v15 → device-font-v14 → reconcile-v13 → menu-priority-v10 → paint-v7 → optional-v5 → font-v3 → release → initial`. هر helper متعلق به همان پوشه، فقط پس از تطبیق هش فعلی/backup و بررسی تغییر دیگران با --rollback اجرا شود. برگشت v18 فقط به selector قبلی و v17 برمی‌گردد؛ برگشت v17 به‌تنهایی sourceguard قبلی و fallback امن را بازمی‌گرداند؛ قالب و قیمت همکاران را برنمی‌گرداند. اگر دیگران فایل را تغییر داده‌اند، rollback خودکار متوقف می‌شود و باید همان delta بررسی شود. helper دارای APPLIED را کورکورانه تکرار نکنید.
+
+## بازسازی و پیگیری
+
+اسکریپت‌های seo-country-lcp-* ابزار ممیزی همین تاریخ‌اند، نه installer عمومی. snapshotها/مسیر worktree و بستهٔ deployment وابسته به این اجرای خصوصی‌اند. برای تغییر بعدی ابتدا fresh live sources و شش HTML را بگیرید، CSS را با PurgeCSS7.0.2 و فایل‌های گیت جاری rebuild کنید، manifest را با ورودی‌های واقعی تست کنید و packet تازه با هش قبل/بعد بسازید. فونت تحت URL تاریخ‌دار منتشرشده را بازنویسی نکنید؛ برای glyph تازه URL نسخهٔ تازه بسازید. rawHTML/trace/شناسه‌های آمار در Git وارد نشوند.
+
+اجرای daily servernet موجود ادامه می‌یابد؛ automation تکراری ایجاد نشد. در پایش بعدی دو سنجش هر صفحه و guard فعال، transport و مسیر خرید بررسی شوند. TBT محدودسازی مستقیم اولویت P1 است؛ هدف، کاهش رندر/کار main thread با آمار فعال است. وضعیت field p75 و گروهGSC باید با دادهٔ تازه بعد از زمان کافی بررسی شود؛ KPI قبل/بعد در بازه‌های کامل قابل مقایسه، نه همین امروز. بهبود LCP تضمین رتبه یا افزایش سفارش نیست.
+
+برای تحلیل بعدی، تفکیک تأخیر بایت اول و رندر بر مبنای [اجزای LCP](https://web.dev/articles/optimize-lcp) انجام شود؛ یک نمرهٔ خوب آزمایشگاهی تأیید دائمی سرعت کاربران واقعی نیست.
+'''
+section=f'''## LCP موبایل دبی و مانیلا — ۲۰۲۶-۱۰-۱۱، منتشر
+
+نسخهٔ render-v18 روی core/site زنده با backup/hash guard نصب و۶صفحهٔ FA/EN/TR تأیید شد؛ {passed}/۲۰ اجرای سرد موبایل در دو روش زیر۲٫۵s بودند. CSS موردنیاز۷۷۲۸۵بایت داخلhead، فونت موبایل دستگاه، پرچم منوی پنهانlazy، gradient ثابت و رندر بومی محتوای خارج دید؛ دسکتاپIRANSans حفظ شد.۶۴تست/۱۸۷۰بررسی،۴تست/۱۴۹بررسی manifest نهایی و۱۸مسیرNode موفق؛ URLخرید ماهانه/ساعتی وکدآمار در۶رندر دقیقاً یکسان. {price_changes}تغییر عدد قیمت عمومی مستقل مشاهده شد؛ سایر فیلدهایOffer/شمار/موجودی یکسان وDB/کاتالوگ توسط این کار تغییر نکرد. transport204 و خرید تاlogin تأیید شدند، attributionGA4/پرداخت واقعی اثبات نشد. TBT مستقیم هنوزبالای۲۰۰ms است وP1پیگیری دارد؛ CLS/بازه‌های دقیق در گزارش. تغییرهای مستقلPR48/49، JS دورهٔ دامنه وکاتالوگ محفوظ‌اند؛ sourceguardباورودی تازه بازسازی شد. ماشین/guest،route/NAT/firewall/DNS،cron/stateعامل وDB/قیمت/موجودی/حساب دست‌کاری نشدند. شواهد،حدوداعتبار وrollbackمحدود: [{REPORT}]({REPORT}).
+
+'''
+queue=f'''LCP دبی/مانیلا: نسخهٔ render-v18 منتشر؛ {passed}/۲۰ نمونهٔ سرد در شبیه‌سازی و DevTools زیر۲٫۵s. آمار transport و خرید تاlogin تأیید؛ TBT مستقیم همچنان بالای۲۰۰ms و P1 است. نصب را تکرار نکن؛ در پایش بعد guard فعال و دو سنجش هر صفحه را کنترل کن. [گزارش LCP](../{REPORT}).'''
+for directory in [ROOT,WT]:
+    (directory/REPORT).write_text(report,encoding='utf-8')
+    dest=directory/'seo/evidence';dest.mkdir(parents=True,exist_ok=True)
+    (dest/'country-lcp-20261011.json').write_text(json.dumps(data,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    network=directory/'NETWORK-CURRENT.md';prior=network.read_bytes();text=prior.decode('utf-8-sig').replace('\r\n','\n')
+    assert '## LCP موبایل دبی و مانیلا — ۲۰۲۶-۱۰-۱۱، منتشر' not in text,'Inspect existing documentation instead of duplicating'
+    first,rest=text.split('\n',1)
+    assert network.read_bytes()==prior,'Concurrent documentation update'
+    network.write_text(first+'\n\n'+section+rest.lstrip('\r\n'),encoding='utf-8')
+    path=directory/'seo/WORK-QUEUE.md';prior=path.read_bytes();text=prior.decode('utf-8-sig').replace('\r\n','\n')
+    country=re.search(r'کشورها: .*?(?:\r?\n|$)',text)
+    assert country,'Find current country queue before updating'
+    updated=text[:country.start()]+queue+'\n\n'+country.group(0)+text[country.end():]
+    # Preserve old country audit while replacing its superseded speed priority.
+    updated=updated.replace('LCPهنوزپایدارزیر۲٫۵sنیست: P1تحلیل عنصرLCP/فونت/شبکه با آمارفعال.','نتیجهٔ LCP جدید در گزارش امروز مقدم است؛ TBT مستقیم همچنان P1پیگیری دارد.')
+    assert path.read_bytes()==prior,'Concurrent queue update'
+    path.write_text(updated,encoding='utf-8')
+print('LCP_REPORT_RECORDED',passed,'/20 below target')

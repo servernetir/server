@@ -103,6 +103,30 @@ class CloudPublicPageTest extends TestCase
         $this->get('/en/cloud/ae-dubai')->assertOk()->assertSee('€0.03');
     }
 
+    public function test_dubai_and_manila_prioritize_body_font_and_defer_hidden_menu_flags(): void
+    {
+        $this->seedCatalog();
+        CloudLocation::create(['code' => 'ph-manila', 'country' => 'PH', 'city' => 'Manila', 'is_active' => true, 'sort' => 4]);
+        foreach (['', '/en', '/tr'] as $locale) {
+            foreach (['ae-dubai', 'ph-manila'] as $city) {
+                $html = $this->get($locale.'/cloud/'.$city)->assertOk()->getContent();
+                $head = explode('</head>', $html)[0];
+                $this->assertSame(1, substr_count($head, 'id="cloud-location-lcp"'));
+                $this->assertDoesNotMatchRegularExpression('~<link rel="stylesheet"[^>]*(?:site(?:\\.min)?|server-menu)\\.css~', $head);
+                foreach ([400, 700] as $weight) {
+                    $name = 'assets/font/woff2/IRANSans-location-20261011-'.$weight.'.woff2';
+                    $this->assertSame($weight === 400 ? 1 : 0, substr_count($head, '<link rel="preload" href="'.asset($name).'" as="font"'));
+                    $this->assertStringContainsString("src:url('/".$name."')", $head);
+                }
+                $this->assertMatchesRegularExpression('~<link rel="preload"[^>]*IRANSans-location-20261011-400\\.woff2[^>]*media="\\(min-width:1021px\\)"~', $head);
+                preg_match('~<div class="server-menu".*?<img[^>]+>~s', $html, $menu);
+                $this->assertStringContainsString('loading="lazy"', $menu[0] ?? '');
+                preg_match('~<span class="cvl-flag".*?<img[^>]+>~s', $html, $flag);
+                $this->assertStringContainsString('loading="eager"', $flag[0] ?? '');
+            }
+        }
+    }
+
     public function test_manual_location_label_is_preserved_in_country_seo_copy(): void
     {
         $this->seedCatalog();

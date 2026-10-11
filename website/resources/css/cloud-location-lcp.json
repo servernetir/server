@@ -1,0 +1,48 @@
+{
+  "css_sha256": "5c01e210b24a291e04bd0ab76f57a9c73975d440fe08f5d236cccfd0d84dddef",
+  "sources": {
+    "public/assets/css/site.min.css": [
+      "8c1c953b82b27a4e08d9d78a1487570f8cd709550f878a26947b8db0eb6f78ba"
+    ],
+    "public/assets/css/server-menu.css": [
+      "c04409b8ebea266c7293e1e57e2de001e5123b5177444da48e624e2aae7008e6"
+    ],
+    "public/assets/js/site.js": [
+      "8cb4dce7017617cd4cee389eff75d084c1c4eff92d4dd35e4bbbb554cb9fe6a6",
+      "92c266c7648bf164d5f6bf378ec8a7dc10ab8a5929a1521663962f6785e5b006"
+    ],
+    "resources/views/layouts/site.blade.php": [
+      "daecd5fd5077641a1e2bc0f9fbc89b1e0b3cc51e85d25fa002c402aee0794f79",
+      "e89c5a1a67ef5f436b424f476ff9a2b0c55d7d9fca6ffb4696e042ef1fd6cc3d"
+    ],
+    "resources/views/pages/cloud-location.blade.php": [
+      "1f7216ce20c5befe9a17f848cb252eddc37d30e0059de55ac38a16f9d08e3ac2"
+    ],
+    "resources/views/partials/header.blade.php": [
+      "14e83eb9792344c5815eb47c8123d57797054e0e49801ee750e01ca4ebec586a",
+      "df3f68d106d382f328ad819e8cd6c436bee41a6cdc9f8033c1c5f3ac0d5fd771"
+    ],
+    "resources/views/partials/footer.blade.php": [
+      "e46fb87f2fb092c59247e546407d5632089d8583511411f73f4ca41e5b6e69e5"
+    ],
+    "resources/views/partials/chat.blade.php": [
+      "e3fe3418ed96bcb3d5e02d7745d7c755160e4f3e6edf80f3a709e02df1b2a112"
+    ],
+    "resources/views/partials/server-menu.blade.php": [
+      "22c0c416110e68740c500f109aa31f539dd1ab6627c04b9c2e86d2af8072add6",
+      "a120ea2d87a828c5a72360a4e9f1639c761cf344d804cd0d326acb6f418426d3"
+    ],
+    "public/assets/font/woff2/IRANSans-web.woff2": [
+      "c068a89ef837ef5834df686b8f32a8705599f1f5fa5168ae97087b2eee31955e"
+    ],
+    "public/assets/font/woff2/IRANSans-location-20261011-400.woff2": [
+      "4658e4d3368fbe8d7afbecafcc28fd5eb5320caa9e8a25760bc09359cbb1c158"
+    ],
+    "public/assets/font/woff2/IRANSans-Bold-web.woff2": [
+      "d98154def0bdb2cd7299b5a38f7dcbcd3a22cc1072271d7f4902964b5823a0c6"
+    ],
+    "public/assets/font/woff2/IRANSans-location-20261011-700.woff2": [
+      "8717ba00cdb122f7314920e6214d3194284c2ad83d6f5ef18f4003315dbc2ca3"
+    ]
+  }
+}
