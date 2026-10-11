@@ -4,7 +4,7 @@ from urllib.request import urlopen,Request
 import re,json,html,hashlib,argparse
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'output/seo-country-lcp-20261011'
-parser=argparse.ArgumentParser();parser.add_argument('--baseline',type=Path,default=OUT/'snapshot');args=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--baseline',type=Path,default=OUT/'snapshot');parser.add_argument('--bypass-cache',action='store_true');args=parser.parse_args()
 after=OUT/'live-after';after.mkdir(exist_ok=True)
 def offers(value):
     if isinstance(value,dict):
@@ -22,8 +22,11 @@ records=[]
 for locale in ['fa','en','tr']:
     for city in ['ae-dubai','ph-manila']:
         url='https://servernet.cloud'+('' if locale=='fa' else '/'+locale)+'/cloud/'+city
-        with urlopen(Request(url,headers={'User-Agent':'ServerNet-SEO-Audit/1.0'}),timeout=40) as r:
+        requested=url+'?seo_lcp_qa=20261011' if args.bypass_cache else url
+        with urlopen(Request(requested,headers={'User-Agent':'ServerNet-SEO-Audit/1.0'}),timeout=40) as r:
             assert r.status==200
+            cache_state=r.headers.get('X-Cache')
+            if args.bypass_cache:assert cache_state=='BYPASS', 'Confirm the live render rather than an old cached page'
             content=r.read()
         name=locale+'-'+city+'.html'
         (after/name).write_bytes(content)
@@ -47,6 +50,6 @@ for locale in ['fa','en','tr']:
         assert flag and 'loading="eager"' in flag[0]
         assert current['buy']==before['buy'], 'Live catalog drift; inspect before accepting new baseline: '+url
         assert current['analytics']==before['analytics'], 'Analytics code changed: '+url
-        records.append({'url':url,'status':200,'buy_urls':len(current['buy']),'buy_urls_unchanged':current['buy']==before['buy'],'existing_buy_urls_preserved':True,'additional_live_buy_urls':len(set(current['buy'])-set(before['buy'])),'analytics_code_unchanged':True,'offers_unchanged':current['offers']==before['offers'],'existing_offers_preserved':all(o in current['offers'] for o in before['offers']),'schema_count':current['schemas'],'inline_css_bytes':len(re.search(r'<style id="cloud-location-lcp">(.*?)</style>',text,re.S)[1].encode()),'sha256':hashlib.sha256(content).hexdigest()})
+        records.append({'url':url,'status':200,'cache_state':cache_state,'buy_urls':len(current['buy']),'buy_urls_unchanged':current['buy']==before['buy'],'existing_buy_urls_preserved':True,'additional_live_buy_urls':len(set(current['buy'])-set(before['buy'])),'analytics_code_unchanged':True,'offers_unchanged':current['offers']==before['offers'],'existing_offers_preserved':all(o in current['offers'] for o in before['offers']),'schema_count':current['schemas'],'inline_css_bytes':len(re.search(r'<style id="cloud-location-lcp">(.*?)</style>',text,re.S)[1].encode()),'sha256':hashlib.sha256(content).hexdigest()})
 (OUT/'verification.json').write_text(json.dumps(records,indent=2),encoding='utf-8')
 print('LIVE_VERIFICATION_OK',len(records),'pages; offers drift:',sum(not x['offers_unchanged'] for x in records))
