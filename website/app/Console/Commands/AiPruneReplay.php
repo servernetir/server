@@ -13,6 +13,14 @@ class AiPruneReplay extends Command
 
     public function handle(): int
     {
+        try {
+            $media = app(\App\Services\Ai\AiMediaRelay::class)->cleanupExpired();
+            $this->line('Expired supplier media files erased: '.$media);
+        } catch (\Throwable) {
+            // A media-directory issue must not stop the existing financial replay retention job.
+            \App\Support\ErrorTracker::noteOnce('ai-media-relay', 'Expired supplier media cleanup failed.', 900);
+            $this->warn('Expired supplier media cleanup failed.');
+        }
         if (! Schema::hasColumn('ai_calls', 'response_encrypted')) {
             return self::SUCCESS;
         }

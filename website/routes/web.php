@@ -3378,6 +3378,16 @@ Route::prefix('api/v1')
 |    سقفِ per-token در M5 جدا می‌شود؛ تا آن‌جا این سقف جلوی حلقهٔ
 |    بی‌کلیدِ پول‌خور را می‌گیرد و رزرو/TTL خودش سقفِ دوم است.
 */
+Route::get('/api/ai-media/{id}', \App\Http\Controllers\Ai\AiMediaRelayController::class)
+    ->where('id', '[a-f0-9]{64}')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \App\Http\Middleware\PageCache::class,
+    ])->name('ai.media.relay');
+
 Route::prefix('v1')
     ->withoutMiddleware([
         \Illuminate\Session\Middleware\StartSession::class,

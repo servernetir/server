@@ -1,0 +1,236 @@
+{
+  "observed_at": "2026-10-11T10:34:18.074019+00:00",
+  "source": "Live HTTPS browser DOM, no inference or payment",
+  "pages": [
+    {
+      "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6",
+      "title": "video_increase_resolution API | قیمت، محدودیت‌ها و راهنمای اتصال | ServerNet",
+      "canonical": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6",
+      "h1": [
+        "video_increase_resolution API"
+      ],
+      "taxMention": false,
+      "schema_types": [
+        "WebPage",
+        "BreadcrumbList",
+        "Service",
+        "Organization",
+        "WebSite"
+      ],
+      "offers": [
+        {
+          "@type": "Offer",
+          "availability": "https://schema.org/InStock",
+          "name": "سقف نرخ واحد، تومان",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "maxPrice": "143530",
+            "priceCurrency": "IRR",
+            "referenceQuantity": {
+              "@type": "QuantitativeValue",
+              "unitText": "مدت خروجی",
+              "value": 1
+            },
+            "valueAddedTaxIncluded": false
+          },
+          "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        }
+      ],
+      "parameterRows": [
+        "video\tstring\tبله\t\nحداکثر بایت UTF-8: 8000000\nformat: data:video/mp4;base64",
+        "desired_increase\tinteger\tخیر\t\nپیش‌فرض: 2\nمقادیر: 2, 4",
+        "preserve_audio\tboolean\tخیر\t\nپیش‌فرض: true",
+        "output_container_and_codec\tstring\tخیر\t\nحداکثر بایت UTF-8: 8000\nپیش‌فرض: mp4_h264\nمقادیر: mp4_h264"
+      ],
+      "alternates": [
+        {
+          "language": "fa",
+          "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "en",
+          "url": "https://servernet.cloud/en/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "tr",
+          "url": "https://servernet.cloud/tr/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "x-default",
+          "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        }
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/en/ai/models/di-briavideo-increase-resolution-09efadffd6",
+      "title": "video_increase_resolution API | Pricing, limits and setup | ServerNet",
+      "canonical": "https://servernet.cloud/en/ai/models/di-briavideo-increase-resolution-09efadffd6",
+      "h1": [
+        "video_increase_resolution API"
+      ],
+      "taxMention": false,
+      "schema_types": [
+        "WebPage",
+        "BreadcrumbList",
+        "Service",
+        "Organization",
+        "WebSite"
+      ],
+      "offers": [
+        {
+          "@type": "Offer",
+          "availability": "https://schema.org/InStock",
+          "name": "Unit rate ceiling, IRT",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "maxPrice": "143530",
+            "priceCurrency": "IRR",
+            "referenceQuantity": {
+              "@type": "QuantitativeValue",
+              "unitText": "Output duration",
+              "value": 1
+            },
+            "valueAddedTaxIncluded": false
+          },
+          "url": "https://servernet.cloud/en/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        }
+      ],
+      "parameterRows": [
+        "video\tstring\tYes\t\nMaximum UTF-8 bytes: 8000000\nformat: data:video/mp4;base64",
+        "desired_increase\tinteger\tNo\t\nDefault: 2\nValues: 2, 4",
+        "preserve_audio\tboolean\tNo\t\nDefault: true",
+        "output_container_and_codec\tstring\tNo\t\nMaximum UTF-8 bytes: 8000\nDefault: mp4_h264\nValues: mp4_h264"
+      ],
+      "alternates": [
+        {
+          "language": "fa",
+          "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "en",
+          "url": "https://servernet.cloud/en/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "tr",
+          "url": "https://servernet.cloud/tr/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "x-default",
+          "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        }
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/tr/ai/models/di-briavideo-increase-resolution-09efadffd6",
+      "title": "video_increase_resolution API | Fiyat, sınırlar ve kurulum | ServerNet",
+      "canonical": "https://servernet.cloud/tr/ai/models/di-briavideo-increase-resolution-09efadffd6",
+      "h1": [
+        "video_increase_resolution API"
+      ],
+      "taxMention": false,
+      "schema_types": [
+        "WebPage",
+        "BreadcrumbList",
+        "Service",
+        "Organization",
+        "WebSite"
+      ],
+      "offers": [
+        {
+          "@type": "Offer",
+          "availability": "https://schema.org/InStock",
+          "name": "Birim fiyat üst sınırı, IRT",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "maxPrice": "143530",
+            "priceCurrency": "IRR",
+            "referenceQuantity": {
+              "@type": "QuantitativeValue",
+              "unitText": "Çıktı süresi",
+              "value": 1
+            },
+            "valueAddedTaxIncluded": false
+          },
+          "url": "https://servernet.cloud/tr/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        }
+      ],
+      "parameterRows": [
+        "video\tstring\tEvet\t\nMaksimum UTF-8 baytı: 8000000\nformat: data:video/mp4;base64",
+        "desired_increase\tinteger\tHayır\t\nVarsayılan: 2\nDeğerler: 2, 4",
+        "preserve_audio\tboolean\tHayır\t\nVarsayılan: true",
+        "output_container_and_codec\tstring\tHayır\t\nMaksimum UTF-8 baytı: 8000\nVarsayılan: mp4_h264\nDeğerler: mp4_h264"
+      ],
+      "alternates": [
+        {
+          "language": "fa",
+          "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "en",
+          "url": "https://servernet.cloud/en/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "tr",
+          "url": "https://servernet.cloud/tr/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        },
+        {
+          "language": "x-default",
+          "url": "https://servernet.cloud/ai/models/di-briavideo-increase-resolution-09efadffd6"
+        }
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/ai/models/gapgpt-grok-43-5dcbcd9086",
+      "title": "grok-4.3 API | قیمت، محدودیت‌ها و راهنمای اتصال | ServerNet",
+      "canonical": "https://servernet.cloud/ai/models/gapgpt-grok-43-5dcbcd9086",
+      "h1": [
+        "grok-4.3 API"
+      ],
+      "taxMention": false,
+      "schema_types": [
+        "WebPage",
+        "BreadcrumbList",
+        "Service",
+        "Organization",
+        "WebSite"
+      ],
+      "offers": [
+        {
+          "@type": "Offer",
+          "availability": "https://schema.org/InStock",
+          "name": "ورودی · قیمت هر یک میلیون توکن، تومان",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "3588120",
+            "priceCurrency": "IRR",
+            "referenceQuantity": {
+              "@type": "QuantitativeValue",
+              "unitText": "توکن",
+              "value": 1000000
+            },
+            "valueAddedTaxIncluded": false
+          },
+          "url": "https://servernet.cloud/ai/models/gapgpt-grok-43-5dcbcd9086"
+        },
+        {
+          "@type": "Offer",
+          "availability": "https://schema.org/InStock",
+          "name": "خروجی · قیمت هر یک میلیون توکن، تومان",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "7176230",
+            "priceCurrency": "IRR",
+            "referenceQuantity": {
+              "@type": "QuantitativeValue",
+              "unitText": "توکن",
+              "value": 1000000
+            },
+            "valueAddedTaxIncluded": false
+          },
+          "url": "https://servernet.cloud/ai/models/gapgpt-grok-43-5dcbcd9086"
+        }
+      ],
+      "reasoningCapNote": true
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+# AI Gateway remaining-model release — 2026-10-11
+
+**Production installed and verified at 2026-10-11T10:31:29+00:00. 20 of the original56 models are newly available; 36 remain closed. The authenticated public API now exposes 332 ready models.** This record supersedes pending checkpoints below and the preceding native-launch count312. Supported source contracts and representative family inference remain distinguished from individually paid-tested endpoints.
+
+Read the detailed implementation notes: [DeepInfra](remaining-deepinfra-2026-10-11.md) and [GapGPT](remaining-gapgpt-2026-10-11.md). Those notes distinguish documented limits, conservative allowances and unresolved supplier metering; their final subsections record the verified production result.
+
+## Implementation and historical pre-activation observations
+
+DeepInfra gains 12 bounded native candidates: six Bria video operations, audio-driven Pruna avatar, Wan reference-to-video, two FLUX.2 models and two Seedance models. The primary manifest contains 90 supported contracts, including 87 DeepInfra and the three previously supported GapGPT image contracts. `AiGapOperations` supplies seven further GapGPT contracts for GPT Image generation, prompt-only legacy completions and Gemini speech. This describes source support; it is not an enabled-model count.
+
+`AiVideoInput` validates the complete MP4 structure and then fully decodes inline H.264 video with a trusted FFmpeg binary. Declared and decoded frame count, duration and every frame's actual dimensions must agree. Input is limited to 6 MB, roughly 10 seconds and the documented 1080p pixel boundary; model-specific limits can be lower. Decoder absence, corrupt samples, unsupported tracks and false duration or dimension headers close admission before reserving credit. Temporary input files are private and removed after validation. Remote client media URLs are not fetched.
+
+The local decoder was FFmpeg 9.0 Linux, SHA256 `4e9f3e0b5cea8b37fd5878196f37ea1e1510033d968be46a977ad01323ac9148`. The parent-captured production baseline records a present executable with that hash and mode 0700. A baseline executable entry alone is not proof that the final production request path successfully decoded an input; that outcome remains a live validation field.
+
+DeepInfra receipt parsing now accepts the documented successful `image_url`, `mask_url` and `videos` result shapes. Scientific-notation USD receipts retain their exact decimal value. Documented terminal success states are required; errors, cancellation, processing states and malformed or empty media outputs are not treated as successful billable results. The root task's first FLUX.2 sample exposed the previously omitted `image_url` shape; its final receipt/reconciliation is deliberately not inferred from the source repair.
+
+GapGPT contracts hash literal decimal input/output tariffs and reject changed or missing rates before spending. Requests use customer `POST /v1/inference` with `ai:native`; legacy completions accept a single `prompt` rather than chat messages. Speech uses one candidate. The compatibility repair supplies equal output-cap fields to the limited DeepSeek/Grok chat translator set, while earlier failed model states remain inactive until independently validated.
+
+`AiNativeResponseRecovery` retains a native successful-HTTP response that the current parser cannot settle as an encrypted exact raw string in the existing call record, with `ok=false`. Capture requires a frozen native snapshot, HTTP2xx and a nonempty response of at most 4 MiB; it does not retain the request body. Evidence can be reparsed for 24 hours against the original snapshot, without another supplier call or a float conversion of the original cost literal. Missing, malformed or contradictory metering never becomes successful usage. Result polling respects the same 24-hour retention boundary. A sanitized customer response is promoted only after a real non-cap settlement or reconciliation; encrypted call evidence remains subject to the existing retention cleanup.
+
+Recovery prioritizes `unknown_pending`, then `settle_pending`, ahead of historical charged-cap rows, so a batch of 200 unreadable old responses cannot starve fresh unresolved usage. When late real cost is below a previously charged cap, the difference is refunded once. If late real cost exceeds the previous hold/charge, recovery makes no additional customer debit: it records the explicit `uncollected_irt` difference, marks `over_bound` review and automatically suspends the affected model. A historical `unknown_charged` status is retained rather than rewriting the earlier event as a successful initial response.
+
+## Final classification of all56 previously unavailable entries
+
+| Provider | Exact supplier model | Final state and evidence |
+|---|---|---|
+| deepinfra | `Bria/video_eraser` | Active: representative protocol plus individually checked tariff/bounds; bria-bounded-video-after-relay-proof |
+| deepinfra | `Bria/video_foreground_mask` | Active: representative protocol plus individually checked tariff/bounds; bria-bounded-video-after-relay-proof |
+| deepinfra | `Bria/video_increase_resolution` | Active: direct meaningful sample; bria-bounded-video-after-relay-proof |
+| deepinfra | `Bria/video_mask_by_key_points` | Active: representative protocol plus individually checked tariff/bounds; bria-bounded-video-after-relay-proof |
+| deepinfra | `Bria/video_mask_by_prompt` | Active: representative protocol plus individually checked tariff/bounds; bria-bounded-video-after-relay-proof |
+| deepinfra | `Bria/video_remove_background` | Active: representative protocol plus individually checked tariff/bounds; bria-bounded-video-after-relay-proof |
+| deepinfra | `ByteDance/Seedance-1.5-Pro` | Active: representative protocol plus individually checked tariff/bounds; seedance |
+| deepinfra | `ByteDance/Seedance-2.0` | Active: direct meaningful sample; seedance |
+| deepinfra | `PrunaAI/p-video-avatar` | Active: direct meaningful sample; pruna-avatar |
+| deepinfra | `Wan-AI/Wan2.7-R2V` | Active: direct meaningful sample; wan-reference-video |
+| deepinfra | `XiaomiMiMo/MiMo-V2.5-tts` | Closed: temporarily free tariff; percentage-only pricing cannot produce a positive profit without a disclosed separate service fee |
+| deepinfra | `XiaomiMiMo/MiMo-V2.5-tts-voiceclone` | Closed: temporarily free tariff; percentage-only pricing cannot produce a positive profit without a disclosed separate service fee |
+| deepinfra | `XiaomiMiMo/MiMo-V2.5-tts-voicedesign` | Closed: temporarily free tariff; percentage-only pricing cannot produce a positive profit without a disclosed separate service fee |
+| deepinfra | `black-forest-labs/FLUX-2-max` | Active: representative protocol plus individually checked tariff/bounds; flux2 |
+| deepinfra | `black-forest-labs/FLUX-2-pro` | Active: direct meaningful sample; flux2 |
+| deepinfra | `openai/clip-vit-base-patch32` | Closed: runtime-priced inference lacks a documented hard runtime/cost ceiling |
+| deepinfra | `openai/clip-vit-large-patch14-336` | Closed: runtime-priced inference lacks a documented hard runtime/cost ceiling |
+| gapgpt | `babbage-002` | Closed: representative supplier429; released hold and zero charge |
+| gapgpt | `davinci-002` | Closed: current representative gateway502/upstream_error, released hold and zero charge |
+| gapgpt | `deepseek-reasoner` | Active: direct meaningful sample; deepseek-reasoner-after-direct-proof |
+| gapgpt | `deepseek-v4-flash` | Active: direct meaningful sample; deepseek-flash-direct |
+| gapgpt | `gapgpt/whisper-1` | Closed: exact endpoint, output ceiling or supplier-priced usage units unverified; binary length/other vendor tariff not substituted |
+| gapgpt | `gemini-2.5-flash-preview-tts` | Closed: representative translator returned billed tokens but no audio; known-cost synthetic refund retained missing-output review |
+| gapgpt | `gemini-2.5-pro-preview-tts` | Closed: representative translator returned billed tokens but no audio; known-cost synthetic refund retained missing-output review |
+| gapgpt | `gemini-3-pro-image-preview` | Closed: exact endpoint, output ceiling or supplier-priced usage units unverified; binary length/other vendor tariff not substituted |
+| gapgpt | `glm-3-turbo` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4-0520` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4-air` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4-airx` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4-alltools` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4-long` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4-plus` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4v` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `glm-4v-plus` | Closed: prior supplier backend authorization401; local token/transport does not grant that backend access |
+| gapgpt | `gpt-4o-mini-tts` | Closed: exact endpoint, output ceiling or supplier-priced usage units unverified; binary length/other vendor tariff not substituted |
+| gapgpt | `gpt-5.3-codex-spark` | Closed: separate prior supplier availability/input-bound failure; not covered by the repaired output-cap-only family |
+| gapgpt | `gpt-5.6-luna-compaction` | Closed: exact identifier absent from authenticated discovery; no similar-name alias substituted |
+| gapgpt | `gpt-5.6-luna-openai-compact` | Closed: exact identifier absent from authenticated discovery; no similar-name alias substituted |
+| gapgpt | `gpt-chat-latest` | Closed: exact identifier absent from authenticated discovery; no similar-name alias substituted |
+| gapgpt | `gpt-image-1` | Active: direct meaningful sample; gap-image-main-after-recovery |
+| gapgpt | `gpt-image-1-mini` | Active: direct meaningful sample; gap-image-mini-after-direct-retry |
+| gapgpt | `gpt-image-2` | Active: representative protocol plus individually checked tariff/bounds; gap-image-main-after-recovery |
+| gapgpt | `grok-4` | Closed: separate prior supplier availability/input-bound failure; not covered by the repaired output-cap-only family |
+| gapgpt | `grok-4.3` | Active: direct meaningful sample; grok-output-cap-family-after-direct-proof |
+| gapgpt | `grok-4.5` | Active: representative protocol plus individually checked tariff/bounds; grok-output-cap-family-after-direct-proof |
+| gapgpt | `grok-4.6` | Active: representative protocol plus individually checked tariff/bounds; grok-output-cap-family-after-direct-proof |
+| gapgpt | `k3` | Closed: exact identifier absent from authenticated discovery; no similar-name alias substituted |
+| gapgpt | `kimi-2.7` | Closed: exact identifier absent from authenticated discovery; no similar-name alias substituted |
+| gapgpt | `kimi-for-coding` | Closed: exact identifier absent from authenticated discovery; no similar-name alias substituted |
+| gapgpt | `qwen3-235b-a22b` | Closed: separate prior supplier availability/input-bound failure; not covered by the repaired output-cap-only family |
+| gapgpt | `qwen3-235b-a22b-instruct-2507` | Closed: separate prior supplier availability/input-bound failure; not covered by the repaired output-cap-only family |
+| gapgpt | `qwen3.6-35b-a3b` | Closed: exact identifier absent from authenticated discovery; no similar-name alias substituted |
+| gapgpt | `text-moderation-latest` | Closed: exact endpoint, output ceiling or supplier-priced usage units unverified; binary length/other vendor tariff not substituted |
+| gapgpt | `tts-1` | Closed: exact endpoint, output ceiling or supplier-priced usage units unverified; binary length/other vendor tariff not substituted |
+| gapgpt | `typesafe/jev-1.13` | Closed: exact endpoint, output ceiling or supplier-priced usage units unverified; binary length/other vendor tariff not substituted |
+| gapgpt | `whisper-1` | Closed: exact endpoint, output ceiling or supplier-priced usage units unverified; binary length/other vendor tariff not substituted |
+
+The model-specific supplier failures and undocumented metering remain explicit. Status is verified from the exact pinned baseline set, excluding deprecated catalogue entries. A representative sample verifies the shared execution/settlement path; it does not establish every sibling's generation quality or guarantee future supplier availability.
+
+## Cost policy, tax display and test budget
+
+The retained pricing policy is at least 5% markup on the **rounded recorded cost**, before customer consumption tax: `sell_irt >= ceil(cost_irt × 105 / 100)`. Whole-Toman rounding can produce a higher effective percentage. This is a cost markup, not an exact 5% net return on sales revenue. Current acquisition overhead is the owner's stated zero; undisclosed future supplier fees or over-bound uncollected usage are not insured profit.
+
+DeepInfra settles the real reported USD cost where its receipt supports it. GapGPT native token-metered operations derive cost from real returned quantities and the frozen literal supplier tariff: `usage_source=native_tariff`, `provider_cost_micro=NULL`. The bounded GapGPT chat receipts retain usage_source=provider with provider_cost_micro=NULL; their returned token quantities and frozen token prices determine known cost. No supplier invoice is fabricated. Missing or contradictory quantities preserve the unknown-outcome/reservation flow. Video/music preserve existing asynchronous receipts, scoped result polling and idempotent replay. Financial history is retained.
+
+The Gemini TTS reservation uses its published 8192-input/16384-output limits. GPT Image's low-quality square output reserve and extra input allowance are conservative inferences, not published whole-model maxima or an absolute spending guarantee. A representative successful image does not prove every future response stays within those inferred limits. Automatic review/suspension and receipt checks remain required.
+
+Public AI home, catalogue, documentation and model pages no longer render VAT rate notices or tax rows. Public worked usage examples use the existing pricing service with zero display tax. Structured price metadata truthfully retains `valueAddedTaxIncluded=false`. Settlement, tax resolution and reservation calculations are unchanged by this display work.
+
+The funding step shows the current account-specific AI consumption-tax rate only for customers with an AI project. It distinguishes full credited funding from taxable subsequent usage: top-up invoices remain zero-tax. Account usage receipts show recorded usage amount, tax and net charge. This is disclosure and billing history, not a newly invented tax on funding. No real bank or OTP checkout test is claimed by the local suite.
+
+The supplier-test budget is the owner's cumulative USD5 cap. Plan and smoke helpers use the same original `native-v1/paid-budget.json` ledger, reserve under an exclusive lock before sending, require the exact USD5 limit, and check persistence. Native and chat bounds are checked against the current tariff. Proof/customer guards prevent blind reruns; fixed idempotency keys test pending and completed replay without purchasing another successful operation. An immediate HTTP200 completed replay after HTTP202 is accepted only with the original receipt and replay header. A failed, open or unknown usage must be inspected rather than blindly retried.
+
+The original cumulative ledger was retained throughout the release, including failed and repaired samples. Commitments are deliberately not refunded when a request fails, and they are not a final supplier invoice. Final commitment and sample outcomes appear in the production section below. Synthetic wallet credit is an owner-authorized test adjustment, not a bank payment; unused credit is returned, keys revoked, project archived and customer suspended. Open usage retains its financial hold until reconciliation.
+
+The first historical FLUX.2 sample predates encrypted raw-response capture, and its discarded raw response cannot be recovered by the new helper. Root reconciled only that synthetic test usage through canonical `settleCap`, using its frozen known maximum of USD0.030. Its accounting source is `cap`, `provider_cost_micro=NULL`, and review reason remains `unknown`; this is neither a recovered actual supplier receipt nor proof of successful output. That earlier test account's keys were revoked, wallet returned to zero and open usage count returned to zero. Later v6/v8/v9 meaningful samples, cleanup and retained failed preflights are recorded in the verified production result below.
+
+## Verified local tests
+
+| Snapshot | Result | Scope |
+|---|---|---|
+| Final H2 integrated SQLite, including the actual production relay/route overlays | **346 tests, 92,794 assertions, zero errors/failures, 7 intentional MariaDB-only skips; 23.822s** | Full AI suite: native execution/bounds, real video decoder, encrypted receipt recovery, billing and cost privacy, provider isolation, relay security, billing/SEO pages |
+| Same final H2 source snapshot on disposable MariaDB 11.8 | **346 tests, 92,838 assertions, zero errors/failures/skips; 47.710s** | Full AI suite and all seven opt-in concurrency cases |
+| H3 public reasoning-note change after the merged source checkpoint | **16 tests, 726 assertions, zero errors/failures/skips; 3.413s** | `AiModelSeoTest` and `AiBillingDisplayTest`: exact supplier-controlled reasoning notes and truthful FA/EN/TR model/billing pages |
+| H4 enforced native parameter display | **19 tests, 827 assertions, zero errors/failures/skips; 4.037s** | Three-language actual fields/defaults/inline media, unsupported-field and empty-table suppression, UTF-8 byte limits, Gap and billing regressions |
+
+Runtime was PHP8.4.25 /PHPUnit12.5.31. SQLite/native and H3 focused runs had networking disabled. MariaDB ran on a disposable private internal Docker network with no published host ports; its database, containers and network were removed afterward. These tests made no paid supplier request or real payment. The native cases include the actual bundled FFmpeg decoder with the test binary path explicitly configured, rather than treating a missing decoder as successful validation.
+
+The H2 evidence records **41 source and fixture files**: 39 copied from the worktree plus the actual live `routes/web.php` and `app/Support/ErrorTracker.php` overlays. All original/fixture hashes remained unchanged after both full runs; 15 applicable release hashes were additionally verified after newline normalization. This preserves the production relay route and error-tracker context instead of substituting a different worktree route snapshot. The initial SQLite attempt with a missing decoder environment setting is retained as an unsuccessful checkpoint; the explicitly configured final rerun above supersedes it.
+
+The worktree subsequently merged `origin/develop` commit `f22af49d` at merge commit `1719d78f`. `hotfix2-final-postmerge-verification.json` confirms all 41 H2 AI source/fixture hashes remained unchanged after that merge. Unrelated upstream changes are not presented as production-deployed by this AI task. H3 then changed only the public reasoning-note condition in `AiModelPage.php`, with its focused SEO/billing test update; the 16-test result covers that later public change without claiming a second full financial-suite run on a changed implementation.
+
+Concurrency evidence includes 100 reservation attempts against a 10,000-Toman wallet: exactly ten 1,000-Toman holds succeeded, with no negative balance or orphan reservation. Mixed ordinary debits and AI holds, duplicate settle/release and settle-versus-release races also passed. Ledger totals, non-negative available balance and active-hold totals remained consistent. The intentional failed-worker case proves failed workers cannot report success; its expected red helper output is not a failed PHPUnit case.
+
+The full suite covers encrypted retained native bodies and expiry/privacy, exact numeric cost parsing, native recovery priority, one-time replay/refund, late above-cap credit risk/model suspension, normalized image usage aliases and inconsistent-count rejection, supplier-cost redaction, and the private media relay. Receipt recovery is tested without another supplier request. The raw numeric literal `0.012345000000000000000000001` rounds to 12,346 micro-USD, rather than the lower value a float roundtrip could produce. The rounded 5% floor is tested against known recorded costs; these local tests do not establish unknown future supplier fees or delivery availability.
+
+Final evidence under `output/ai-remaining-20261011/` is `hotfix2-final-ai-sqlite.log`/XML, `hotfix2-final-ai-mariadb.log`/XML, `hotfix2-final-mariadb/` stress reports, `hotfix2-final-source-hashes.json`, `hotfix2-final-source-postcheck.json` and `hotfix2-final-postmerge-verification.json`. H3 evidence is `reasoning-note-focus.log`/XML; H4 evidence is `hotfix4-storefront.log`/XML. The test configuration uses `php vendor/bin/phpunit -c phpunit-ai.xml`; the native, GapGPT operation, recovery, relay, supplier-cost privacy and billing/SEO cases are included. Earlier 319-test and 331-test integrated runs, the 39-test parser/storefront checkpoint and the 15-test merged-storefront checkpoint remain preserved in their original logs/XML/hash records, but are superseded by the final H2 and H3 results above.
+
+## Storefront and SEO review
+
+FA/EN/TR pages retain canonical/alternate URLs, one H1, sitemap/indexability rules, escaped model names and ready-only structured offers. Ready native models now describe their actual `/v1/inference` workflow, receipt-based final amount and video/music polling. Unready pages retain their future workflow and pending-example warning. GapGPT parameter tables derive from enforced gateway schema/defaults, carry a distinct gateway label and show UTF-8 byte limits. Supported DeepInfra native models now use their enforced gateway contract too; raw catalogue-only fields are distinct and empty tables are omitted. Prompt-only legacy completion examples match the real prepared body; their text-completion task and the generic request unit replace misleading classification/image wording.
+
+Source review found no promise of guaranteed search rank or unconditional model readiness. Readiness copy/structured offers depend on the availability gate; the FAQ tells customers to recheck `/v1/models` and states that provider capacity/catalogue/account state may change. Technical SEO tests establish page structure and truthful offer metadata, not ranking above competitors or model output quality.
+
+## Verified production result
+
+The existing cPanel Laravel app on `core`, `/home/servernetcloud/servernet_app`, runs PHP8.4.26. Guarded release layers installed22 files, then10 H1 files,15 H2 files, one H3 file and two H4 storefront files. These are layer counts with overlap. Every final production file matches its last reviewed manifest; refreshes returned HTTP200 and web OPcache reset true. Live route/ErrorTracker overlays preserved the pre-existing production source, including unrelated concurrent changes. No schema migration was introduced by this remaining-model release.
+
+The no-inference final verifier checked every original56 model, all provider prices and the actual authenticated public `/v1/models`: **332 ready models**, with **20 new activations** and **36 original entries still closed**. Every ready quote has500bp markup, zero declared acquisition overhead and a positive known execution price. Exact provider/type totals and all56 live gates are in [sanitized evidence](evidence/remaining-launch-2026-10-11.json).
+
+Representative production samples delivered fully decoded FLUX.2 image256×256, Gap image1024×1024, edited Bria video640×480/1second, Seedance generated video, Pruna avatar with measured speech input, Wan reference video and meaningful bounded DeepSeek/Grok text. Provider media were downloaded immediately and fully decoded; the earlier FLUX URL403 after expiry was replaced by a fresh immediate-delivery proof. Speech generation had already been sampled in the preceding native release. The new Gemini TTS route did not deliver audio and remains closed; no successful speech claim is made for it. Legacy Babbage429 and Davinci upstream error remain closed with released holds and zero customer charge.
+
+Known DeepInfra native samples settle the actual USD receipt; Gap images use reported token quantities and the exact frozen supplier tariff. Gap image1's14/272-token retained PNG was recovered without new inference at11020micro-USD; the upstream cost field10950 was not mislabelled as an invoice. Its historical charged-cap row remains `unknown_charged`, with121997IRT refund and3406IRT net charge. The billed empty Gemini TTS receipt was narrowly reconciled at554micro-USD, refunded56691IRT to172IRT net, and kept missing-output review/failed delivery. The first pre-retention FLUX cap remains an unrecoverable historical cap, with NULL provider cost and explicit unknown review. Historical financial records were not erased.
+
+The Bria sample initially stopped on a helper comparison of source5.0 against storedJSON5. Read-only canonical inspection proved all nine frozen inputs, exact original ordered request hash, known50000micro-USD receipt, ledger and decoded output. The first diagnostic's reordered request hash failed and is retained. A fresh exact-order diagnostic passed; a known cached public HTTP replay then returned200 with identical body and replay header, zero new usage/ledger/debit, no funding and no supplier inference. Original v8 false/error evidence is preserved. An earlier free preflight stopped before customer creation because the frontend omitted HEAD Content-Length and Laravel represented absent cookies as an empty string; corrected checks proved HEAD200/GET200/Range206/tampered403, no cookie, no-store/noindex and exact1903 fixture bytes. No application defect or new route change was inferred from those helper failures.
+
+The original cumulative paid guard finishes at **USD4.639 of USD5**. This is conservatively committed test allowance, not a final supplier invoice; failed-call allocations were not reset/refunded. New successful samples reproduce the frozen rate/FX/markup/tax calculation, leave no uncollected cost and replay without a second debit or usage row. No further paid inference was run after this final sample set.
+
+All exact test identities v2–v9 are closed: keys revoked, projects archived, customers suspended, wallets zero, open usage and pending reservations zero. v7 is independently proven absent because free preflight stopped before account creation. Final catalog verification used a fresh unfunded five-minute model-read-only key, obtained HTTP200 and exact ready IDs, then proved revoked-key401 and wallet/usage/ledger zero. Old usage/ledger fingerprints, model classifications, prices, production hashes and the paid budget were unchanged during this final verification. Real bank payment/OTP was not performed.
+
+The two-file H4 storefront correction is validated by19 tests/827 assertions without network or paid requests. DeepInfra native parameter tables now use the enforced gateway contract, its defaults and documented limits, label inline media, omit unsupported controls and suppress empty source tables in FA/EN/TR. Public AI pages remove VAT notices and tax rows. Payment-stage disclosure and account consumption receipts retain the separate tax; wallet funding remains fully credited with the existing zero-tax top-up invoice policy. Public examples and structured prices are before tax, `valueAddedTaxIncluded=false`. Technical SEO retains FA/EN/TR canonical/hreflang, one H1, sitemap and only truthful ready offers. Live HTTPS page observations are retained in [public QA evidence](evidence/remaining-public-pages-2026-10-11.json). Search ranking, future undisclosed supplier charges and exact percentage profit after unknown costs are not guaranteed.
+
+## Persistence and rollback
+
+Only the existing core Laravel application and model sale statuses changed. A bounded supplier-fetch route `/api/ai-media/{opaque-id}` uses a15-minute signature,0600 private media, no session cookie, no-store/noindex and range support. Existing `AiPruneReplay` hourly cleanup and next-call GC remove expired relay files; application error URLs/referers redact signatures. Hosting/CDN raw logs remain outside that application redaction. The existing encrypted replay/reconciliation retention remains24hours. Existing catalogue refresh/scheduler continues to run; no infrastructure routes, NAT/firewall/DNS, VMs/guests, host cron or country/port-forward agent sources/state changed.
+
+Private deployment receipts/backups remain under `/home/servernetcloud/ai-launch-20261011/native-v2`, including `baseline/`, `release/`, `hotfix-1/`, `hotfix-2/`, `hotfix-3/`, `hotfix-4/` and `remaining-activation-before.json`. Start rollback by closing only the IDs listed in `remaining-activation-proof.json`; inspect and preserve all calls, holds, usage, credit entries and encrypted financial evidence. Restore H4→H3→H2→H1→initial files only if their current hashes match the corresponding AFTER hashes, retaining concurrent edits. Move newly introduced files into private rollback storage rather than deleting audit evidence. Refresh compiled views/page caches and web OPcache, then check API/page availability. No migration down or full-database restore is appropriate. Rollback was documented, not executed.
+
+Current infrastructure index and the detailed change record are `NETWORK-CURRENT.md` and `AI-GATEWAY-REMAINING-2026-10-11.md`. Reseller permission remains the owner's stated assumption; no newly signed supplier agreement is asserted. No password, token, complete authenticated URL, customer identifier or raw client media is published.

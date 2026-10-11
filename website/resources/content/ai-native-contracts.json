@@ -146,11 +146,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:Bria/video_mask_by_key_points": {
-    "supported": false,
-    "pending_reasons": [
-      "required_input_contract_pending",
-      "duration_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "294925e7c6ebe8cf3c1fa32d3ff8838be03bb1c6c4d0dc59249a45587cb9ba5e",
@@ -231,7 +228,8 @@
               "x": 200,
               "y": 200
             }
-          ]
+          ],
+          "minItems": 1
         },
         "auto_trim": {
           "default": false,
@@ -243,15 +241,7 @@
           "default": "mp4_h264",
           "description": "The desired output container and codec, e.g., 'mp4/h264'.",
           "enum": [
-            "mp4_h264",
-            "mp4_h265",
-            "webm_vp9",
-            "mov_h265",
-            "mov_proresks",
-            "mkv_h264",
-            "mkv_h265",
-            "mkv_vp9",
-            "gif"
+            "mp4_h264"
           ],
           "title": "Output Container And Codec",
           "type": "string"
@@ -267,17 +257,31 @@
         }
       }
     },
-    "media_fields": [],
-    "blocked_fields": [
+    "media_fields": [
       "video"
     ],
+    "blocked_fields": [],
     "limits": {},
-    "defaults": {},
+    "defaults": {
+      "output_container_and_codec": "mp4_h264",
+      "auto_trim": false
+    },
     "default_duration": 10,
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "input_video_duration",
+    "max_input_video_seconds": "5",
+    "max_input_video_dimension": 750,
+    "requires_video_decoder": true,
+    "ceiling_basis": "validated_input_duration_rounded_up_plus_one_second",
+    "pricing_sources": [
+      "https://api.deepinfra.com/models/Bria/video_mask_by_key_points"
+    ],
+    "media_types": {
+      "video": "video"
+    }
   },
   "deepinfra:Qwen/Qwen3-TTS": {
     "supported": true,
@@ -2146,10 +2150,8 @@
     "ceiling_basis": "observed_asr_family_receipt_100x_public_tariff"
   },
   "deepinfra:ByteDance/Seedance-1.5-Pro": {
-    "supported": false,
-    "pending_reasons": [
-      "unbounded_or_missing_tariff"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "ff2a54087d567989b7defc6016d53c32883337e68158832eb6be58900cd955f3",
@@ -2162,7 +2164,7 @@
       "type": "input_tokens",
       "cents_per_input_token": 0.00012
     },
-    "ceiling_cents": "0",
+    "ceiling_cents": "0.00024",
     "schema": {
       "required": [
         "prompt"
@@ -2193,9 +2195,7 @@
         "resolution": {
           "description": "resolution of the output video",
           "enum": [
-            "480p",
-            "720p",
-            "1080p"
+            "480p"
           ],
           "title": "Resolution",
           "type": "string",
@@ -2204,13 +2204,7 @@
         "aspect_ratio": {
           "description": "aspect ratio of the output video",
           "enum": [
-            "16:9",
-            "4:3",
-            "1:1",
-            "3:4",
-            "9:16",
-            "21:9",
-            "adaptive"
+            "16:9"
           ],
           "title": "Aspect Ratio",
           "type": "string",
@@ -2220,7 +2214,9 @@
           "description": "duration of the output video in seconds (4-12, or -1 for model to decide)",
           "title": "Duration",
           "type": "integer",
-          "example": 5
+          "example": 5,
+          "minimum": 4,
+          "maximum": 10
         },
         "seed": {
           "description": "random seed for reproducible output",
@@ -2264,20 +2260,31 @@
       "duration": 10
     },
     "defaults": {
-      "duration": 5
+      "duration": 5,
+      "resolution": "480p",
+      "aspect_ratio": "16:9",
+      "generate_audio": false
     },
     "default_duration": 5,
     "fps": 24,
-    "max_native_output_tokens": 2000,
+    "max_native_output_tokens": 0,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "seedance_video_tokens",
+    "ceiling_basis": "official_480p_16x9_video_tokens_plus_one_frame_highest_rate",
+    "pricing_sources": [
+      "https://deepinfra.com/ByteDance/Seedance-1.5-Pro",
+      "https://docs.byteplus.com/en/docs/modelark/create-video-generation-task-api?redirect=1",
+      "https://docs.byteplus.com/en/docs/modelark/model-pricing?redirect=1"
+    ],
+    "media_types": {
+      "first_frame_image": "image",
+      "last_frame_image": "image"
+    }
   },
   "deepinfra:Bria/video_eraser": {
-    "supported": false,
-    "pending_reasons": [
-      "required_input_contract_pending",
-      "duration_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "e2db11b57bb004f43f7bc3cf25a3788612687f6fe555412323e3ec6fb1bb9521",
@@ -2327,15 +2334,7 @@
           "default": "mp4_h264",
           "description": "The desired output container and codec, e.g., 'mp4/h264'.",
           "enum": [
-            "mp4_h264",
-            "mp4_h265",
-            "webm_vp9",
-            "mov_h265",
-            "mov_proresks",
-            "mkv_h264",
-            "mkv_h265",
-            "mkv_vp9",
-            "gif"
+            "mp4_h264"
           ],
           "title": "Output Container And Codec",
           "type": "string"
@@ -2352,25 +2351,36 @@
       }
     },
     "media_fields": [
-      "mask"
-    ],
-    "blocked_fields": [
+      "mask",
       "video"
     ],
+    "blocked_fields": [],
     "limits": {},
-    "defaults": {},
+    "defaults": {
+      "output_container_and_codec": "mp4_h264",
+      "auto_trim": false
+    },
     "default_duration": 10,
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "input_video_duration",
+    "max_input_video_seconds": "5",
+    "max_input_video_dimension": 750,
+    "requires_video_decoder": true,
+    "ceiling_basis": "validated_input_duration_rounded_up_plus_one_second",
+    "pricing_sources": [
+      "https://api.deepinfra.com/models/Bria/video_eraser"
+    ],
+    "media_types": {
+      "mask": "video",
+      "video": "video"
+    }
   },
   "deepinfra:Bria/video_increase_resolution": {
-    "supported": false,
-    "pending_reasons": [
-      "required_input_contract_pending",
-      "duration_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "e2db11b57bb004f43f7bc3cf25a3788612687f6fe555412323e3ec6fb1bb9521",
@@ -2417,15 +2427,7 @@
           "default": "mp4_h264",
           "description": "The desired output container and codec, e.g., 'mp4/h264'.",
           "enum": [
-            "mp4_h264",
-            "mp4_h265",
-            "webm_vp9",
-            "mov_h265",
-            "mov_proresks",
-            "mkv_h264",
-            "mkv_h265",
-            "mkv_vp9",
-            "gif"
+            "mp4_h264"
           ],
           "title": "Output Container And Codec",
           "type": "string"
@@ -2441,23 +2443,34 @@
         }
       }
     },
-    "media_fields": [],
-    "blocked_fields": [
+    "media_fields": [
       "video"
     ],
+    "blocked_fields": [],
     "limits": {},
-    "defaults": {},
+    "defaults": {
+      "output_container_and_codec": "mp4_h264"
+    },
     "default_duration": 10,
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "input_video_duration",
+    "max_output_video_width": 7680,
+    "max_output_video_height": 4320,
+    "requires_video_decoder": true,
+    "ceiling_basis": "validated_input_duration_rounded_up_plus_one_second",
+    "pricing_sources": [
+      "https://api.deepinfra.com/models/Bria/video_increase_resolution"
+    ],
+    "media_types": {
+      "video": "video"
+    }
   },
   "deepinfra:PrunaAI/p-video-avatar": {
-    "supported": false,
-    "pending_reasons": [
-      "duration_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "e18704a408e887f1137fbaad39d623c6808b7ce4275a4eed70bb004e0e2e0c5b",
@@ -2473,7 +2486,8 @@
     "ceiling_cents": "4.5",
     "schema": {
       "required": [
-        "image"
+        "image",
+        "audio"
       ],
       "title": "PrunaAIVideoAvatarIn",
       "type": "object",
@@ -2606,20 +2620,32 @@
       "audio"
     ],
     "blocked_fields": [
-      "audio"
+      "voice_script",
+      "voice_prompt"
     ],
     "limits": {},
-    "defaults": {},
+    "defaults": {
+      "resolution": "720p"
+    },
     "default_duration": 10,
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "avatar_audio_duration",
+    "ceiling_basis": "audio_driven_duration_rounded_up_plus_one_second",
+    "pricing_sources": [
+      "https://deepinfra.com/PrunaAI/p-video-avatar"
+    ],
+    "media_types": {
+      "image": "image",
+      "audio": "audio"
+    }
   },
   "deepinfra:XiaomiMiMo/MiMo-V2.5-tts-voicedesign": {
     "supported": false,
     "pending_reasons": [
-      "unbounded_or_missing_tariff"
+      "published_free_tariff_requires_free_service_policy"
     ],
     "task": "text-to-speech",
     "schema_date": "2026-10-11",
@@ -2732,7 +2758,11 @@
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "pricing_sources": [
+      "https://deepinfra.com/XiaomiMiMo/MiMo-V2.5-tts-voicedesign"
+    ],
+    "ceiling_basis": "official_limited_time_free_no_paid_markup_basis"
   },
   "deepinfra:google/gemini-3-pro-image": {
     "supported": true,
@@ -3794,7 +3824,7 @@
   "deepinfra:XiaomiMiMo/MiMo-V2.5-tts": {
     "supported": false,
     "pending_reasons": [
-      "unbounded_or_missing_tariff"
+      "published_free_tariff_requires_free_service_policy"
     ],
     "task": "text-to-speech",
     "schema_date": "2026-10-11",
@@ -3940,7 +3970,11 @@
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "pricing_sources": [
+      "https://deepinfra.com/XiaomiMiMo/MiMo-V2.5-tts"
+    ],
+    "ceiling_basis": "official_limited_time_free_no_paid_markup_basis"
   },
   "deepinfra:black-forest-labs/FLUX-1.1-pro": {
     "supported": true,
@@ -5427,11 +5461,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:Bria/video_foreground_mask": {
-    "supported": false,
-    "pending_reasons": [
-      "required_input_contract_pending",
-      "duration_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "294925e7c6ebe8cf3c1fa32d3ff8838be03bb1c6c4d0dc59249a45587cb9ba5e",
@@ -5462,15 +5493,7 @@
           "default": "mp4_h264",
           "description": "The desired output container and codec, e.g., 'mp4/h264'.",
           "enum": [
-            "mp4_h264",
-            "mp4_h265",
-            "webm_vp9",
-            "mov_h265",
-            "mov_proresks",
-            "mkv_h264",
-            "mkv_h265",
-            "mkv_vp9",
-            "gif"
+            "mp4_h264"
           ],
           "title": "Output Container And Codec",
           "type": "string"
@@ -5486,17 +5509,28 @@
         }
       }
     },
-    "media_fields": [],
-    "blocked_fields": [
+    "media_fields": [
       "video"
     ],
+    "blocked_fields": [],
     "limits": {},
-    "defaults": {},
+    "defaults": {
+      "output_container_and_codec": "mp4_h264"
+    },
     "default_duration": 10,
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "input_video_duration",
+    "requires_video_decoder": true,
+    "ceiling_basis": "validated_input_duration_rounded_up_plus_one_second",
+    "pricing_sources": [
+      "https://api.deepinfra.com/models/Bria/video_foreground_mask"
+    ],
+    "media_types": {
+      "video": "video"
+    }
   },
   "deepinfra:mistralai/Voxtral-Mini-3B-2507": {
     "supported": true,
@@ -5952,10 +5986,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:black-forest-labs/FLUX-2-max": {
-    "supported": false,
-    "pending_reasons": [
-      "cost_derived_image_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-image",
     "schema_date": "2026-10-11",
     "tariff_hash": "34f8ec8639df3b0c702b2a17f813ed6a4728484a26cb7b998a8a337b7e29f115",
@@ -5973,7 +6005,7 @@
       "default_price_cents": 7.0,
       "usage_from_cost": true
     },
-    "ceiling_cents": "10.0",
+    "ceiling_cents": "7",
     "schema": {
       "required": [
         "prompt"
@@ -6115,7 +6147,24 @@
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "flux_megapixels",
+    "first_output_megapixel_cents": "7",
+    "extra_megapixel_cents": "3",
+    "ceiling_basis": "official_first_plus_additional_rounded_megapixels",
+    "pricing_sources": [
+      "https://deepinfra.com/black-forest-labs/FLUX-2-max"
+    ],
+    "media_types": {
+      "input_image": "image",
+      "input_image_2": "image",
+      "input_image_3": "image",
+      "input_image_4": "image",
+      "input_image_5": "image",
+      "input_image_6": "image",
+      "input_image_7": "image",
+      "input_image_8": "image"
+    }
   },
   "deepinfra:PrunaAI/p-image": {
     "supported": true,
@@ -6221,7 +6270,7 @@
   "deepinfra:XiaomiMiMo/MiMo-V2.5-tts-voiceclone": {
     "supported": false,
     "pending_reasons": [
-      "unbounded_or_missing_tariff"
+      "published_free_tariff_requires_free_service_policy"
     ],
     "task": "text-to-speech",
     "schema_date": "2026-10-11",
@@ -6337,7 +6386,11 @@
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "pricing_sources": [
+      "https://deepinfra.com/XiaomiMiMo/MiMo-V2.5-tts-voiceclone"
+    ],
+    "ceiling_basis": "official_limited_time_free_no_paid_markup_basis"
   },
   "deepinfra:ByteDance/Seedream-5.0-Pro": {
     "supported": true,
@@ -7006,11 +7059,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:Bria/video_remove_background": {
-    "supported": false,
-    "pending_reasons": [
-      "required_input_contract_pending",
-      "duration_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "e2db11b57bb004f43f7bc3cf25a3788612687f6fe555412323e3ec6fb1bb9521",
@@ -7065,15 +7115,7 @@
           "default": "mp4_h264",
           "description": "The desired output container and codec, e.g., 'mp4/h264'.",
           "enum": [
-            "mp4_h264",
-            "mp4_h265",
-            "webm_vp9",
-            "mov_h265",
-            "mov_proresks",
-            "mkv_h264",
-            "mkv_h265",
-            "mkv_vp9",
-            "gif"
+            "mp4_h264"
           ],
           "title": "Output Container And Codec",
           "type": "string"
@@ -7089,17 +7131,28 @@
         }
       }
     },
-    "media_fields": [],
-    "blocked_fields": [
+    "media_fields": [
       "video"
     ],
+    "blocked_fields": [],
     "limits": {},
-    "defaults": {},
+    "defaults": {
+      "output_container_and_codec": "mp4_h264"
+    },
     "default_duration": 10,
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "input_video_duration",
+    "requires_video_decoder": true,
+    "ceiling_basis": "validated_input_duration_rounded_up_plus_one_second",
+    "pricing_sources": [
+      "https://api.deepinfra.com/models/Bria/video_remove_background"
+    ],
+    "media_types": {
+      "video": "video"
+    }
   },
   "deepinfra:ByteDance/Seedream-4": {
     "supported": true,
@@ -7479,11 +7532,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:Bria/video_mask_by_prompt": {
-    "supported": false,
-    "pending_reasons": [
-      "required_input_contract_pending",
-      "duration_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "294925e7c6ebe8cf3c1fa32d3ff8838be03bb1c6c4d0dc59249a45587cb9ba5e",
@@ -7527,15 +7577,7 @@
           "default": "mp4_h264",
           "description": "The desired output container and codec, e.g., 'mp4/h264'.",
           "enum": [
-            "mp4_h264",
-            "mp4_h265",
-            "webm_vp9",
-            "mov_h265",
-            "mov_proresks",
-            "mkv_h264",
-            "mkv_h265",
-            "mkv_vp9",
-            "gif"
+            "mp4_h264"
           ],
           "title": "Output Container And Codec",
           "type": "string"
@@ -7551,17 +7593,31 @@
         }
       }
     },
-    "media_fields": [],
-    "blocked_fields": [
+    "media_fields": [
       "video"
     ],
+    "blocked_fields": [],
     "limits": {},
-    "defaults": {},
+    "defaults": {
+      "output_container_and_codec": "mp4_h264",
+      "auto_trim": false
+    },
     "default_duration": 10,
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "input_video_duration",
+    "max_input_video_seconds": "5",
+    "max_input_video_dimension": 750,
+    "requires_video_decoder": true,
+    "ceiling_basis": "validated_input_duration_rounded_up_plus_one_second",
+    "pricing_sources": [
+      "https://api.deepinfra.com/models/Bria/video_mask_by_prompt"
+    ],
+    "media_types": {
+      "video": "video"
+    }
   },
   "deepinfra:Bria/erase": {
     "supported": true,
@@ -8185,10 +8241,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:Wan-AI/Wan2.7-R2V": {
-    "supported": false,
-    "pending_reasons": [
-      "required_input_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "55666190f8de36b258c1f7d9f656ab15561e94b246dec70f749aafd51e7c7e04",
@@ -8278,7 +8332,8 @@
           },
           "minItems": 1,
           "title": "Media",
-          "type": "array"
+          "type": "array",
+          "maxItems": 6
         },
         "resolution": {
           "description": "Resolution tier of the generated video (720P or 1080P). Default 1080P",
@@ -8342,9 +8397,7 @@
       }
     },
     "media_fields": [],
-    "blocked_fields": [
-      "media"
-    ],
+    "blocked_fields": [],
     "limits": {
       "duration": 10
     },
@@ -8355,7 +8408,11 @@
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "reference_media",
+    "pricing_sources": [
+      "https://api.deepinfra.com/models/Wan-AI/Wan2.7-R2V"
+    ]
   },
   "deepinfra:Qwen/Qwen3-ASR-1.7B": {
     "supported": true,
@@ -10634,11 +10691,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:ByteDance/Seedance-2.0": {
-    "supported": false,
-    "pending_reasons": [
-      "unbounded_or_missing_tariff",
-      "tier_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-video",
     "schema_date": "2026-10-11",
     "tariff_hash": "6120b3d918e51fa90552edcee33e677ade07cc3caf051d277690e3caae47160d",
@@ -10651,7 +10705,7 @@
       "type": "input_tokens",
       "cents_per_input_token": 0.00047
     },
-    "ceiling_cents": "0",
+    "ceiling_cents": "0.00084",
     "schema": {
       "required": [
         "prompt"
@@ -10709,9 +10763,7 @@
         "resolution": {
           "description": "resolution of the output video",
           "enum": [
-            "480p",
-            "720p",
-            "1080p"
+            "480p"
           ],
           "title": "Resolution",
           "type": "string",
@@ -10720,13 +10772,7 @@
         "aspect_ratio": {
           "description": "aspect ratio of the output video",
           "enum": [
-            "16:9",
-            "4:3",
-            "1:1",
-            "3:4",
-            "9:16",
-            "21:9",
-            "adaptive"
+            "16:9"
           ],
           "title": "Aspect Ratio",
           "type": "string",
@@ -10736,7 +10782,9 @@
           "description": "duration of the output video in seconds (4-15, or -1 for model to decide)",
           "title": "Duration",
           "type": "integer",
-          "example": 5
+          "example": 5,
+          "minimum": 4,
+          "maximum": 10
         },
         "seed": {
           "description": "random seed for reproducible output",
@@ -10773,20 +10821,39 @@
     },
     "media_fields": [
       "first_frame_image",
-      "last_frame_image"
+      "last_frame_image",
+      "reference_images"
     ],
-    "blocked_fields": [],
+    "blocked_fields": [
+      "reference_videos",
+      "reference_audios"
+    ],
     "limits": {
       "duration": 10
     },
     "defaults": {
-      "duration": 5
+      "duration": 5,
+      "resolution": "480p",
+      "aspect_ratio": "16:9",
+      "generate_audio": false
     },
     "default_duration": 5,
     "fps": 24,
-    "max_native_output_tokens": 2000,
+    "max_native_output_tokens": 0,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "seedance_video_tokens",
+    "ceiling_basis": "official_480p_16x9_video_tokens_plus_one_frame_highest_rate",
+    "pricing_sources": [
+      "https://deepinfra.com/ByteDance/Seedance-2.0",
+      "https://docs.byteplus.com/en/docs/modelark/create-video-generation-task-api?redirect=1",
+      "https://docs.byteplus.com/en/docs/modelark/model-pricing?redirect=1"
+    ],
+    "media_types": {
+      "first_frame_image": "image",
+      "last_frame_image": "image",
+      "reference_images": "image"
+    }
   },
   "deepinfra:inworld-ai/realtime-tts-1.5-mini": {
     "supported": true,
@@ -11085,10 +11152,8 @@
     "protocol": "deepinfra-native"
   },
   "deepinfra:black-forest-labs/FLUX-2-pro": {
-    "supported": false,
-    "pending_reasons": [
-      "cost_derived_image_contract_pending"
-    ],
+    "supported": true,
+    "pending_reasons": [],
     "task": "text-to-image",
     "schema_date": "2026-10-11",
     "tariff_hash": "ddaf5eea7e479be63cc08b3ab83d11edc4022c8e0f7aae8f18e7a4f7d2400b78",
@@ -11106,7 +11171,7 @@
       "default_price_cents": null,
       "usage_from_cost": true
     },
-    "ceiling_cents": "1.5",
+    "ceiling_cents": "3",
     "schema": {
       "required": [
         "prompt"
@@ -11216,7 +11281,20 @@
     "fps": 24,
     "max_native_output_tokens": 2000,
     "additional_input_image_cents": "0",
-    "protocol": "deepinfra-native"
+    "protocol": "deepinfra-native",
+    "bound_strategy": "flux_megapixels",
+    "first_output_megapixel_cents": "3",
+    "extra_megapixel_cents": "1.5",
+    "ceiling_basis": "official_first_plus_additional_rounded_megapixels",
+    "pricing_sources": [
+      "https://deepinfra.com/black-forest-labs/FLUX-2-pro"
+    ],
+    "media_types": {
+      "input_image": "image",
+      "input_image_2": "image",
+      "input_image_3": "image",
+      "input_image_4": "image"
+    }
   },
   "deepinfra:ClarityAI/flux": {
     "supported": true,

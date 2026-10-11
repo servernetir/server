@@ -12,5 +12,5 @@
 @empty
 <p>{{ __('ai.empty') }}</p>
 @endforelse
-</div><div class="ai-pagination">{{ $page->links() }}</div><p class="ai-muted">{{ __('ai.tax') }}</p></section>
+</div><div class="ai-pagination">{{ $page->links() }}</div></section>
 @endsection

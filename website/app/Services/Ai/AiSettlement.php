@@ -256,14 +256,13 @@ final class AiSettlement
         $calc = $costOnly ? $this->pricing->chargeCost($u->quote(), $usage['estimated_cost'], (int) $u->vat_bp)
             : $this->pricing->charge($u->quote(), $usage['prompt'], $usage['cached'], $usage['completion'],
                 (int) $u->vat_bp, $usage['estimated_cost'] ?? null);
-        $diff = (int) $u->charged_irt - (int) $u->refunded_irt - $calc['charged'];
-
-        return DB::transaction(function () use ($u, $usage, $calc, $diff, $source, $costOnly): int {
+        [$refund, $suspend] = DB::transaction(function () use ($u, $usage, $calc, $source, $costOnly): array {
             Customer::whereKey($u->customer_id)->lockForUpdate()->first();
             $row = AiUsage::whereKey($u->id)->lockForUpdate()->first();
             if ($row->usage_source !== 'cap') {
-                return 0;                          // کسِ دیگری پیش‌تر بازپرداخت کرده
+                return [0, null];                  // کسِ دیگری پیش‌تر بازپرداخت کرده
             }
+            $diff = (int) $row->charged_irt - (int) $row->refunded_irt - $calc['charged'];
 
             if ($diff > 0) {
                 $this->wallet->credit($row->customer_id, 'IRT', $diff, 'ai_refund', $row,
@@ -271,17 +270,25 @@ final class AiSettlement
             }
 
             $row->forceFill([
-                'usage_source' => $costOnly ? 'cost_lookup' : ($source === 'provider' ? 'provider' : 'recovered'),
+                'usage_source' => $costOnly ? (($usage['tariff_cost'] ?? false) ? 'native_tariff'
+                    : ($row->operation === 'native' ? 'native_provider' : 'cost_lookup')) : ($source === 'provider' ? 'provider' : 'recovered'),
                 'prompt_tokens' => $usage['prompt'], 'cached_tokens' => $costOnly ? null : $calc['c'],
                 'completion_tokens' => $usage['completion'], 'reasoning_tokens' => $usage['reasoning'] ?? null,
-                'cost_micro' => $calc['cost_micro'], 'provider_cost_micro' => $calc['estimated_micro'], 'cost_irt' => $calc['cost_irt'],
+                'native_usage' => $usage['native_usage'] ?? null,
+                'cost_micro' => $calc['cost_micro'], 'provider_cost_micro' => ($usage['tariff_cost'] ?? false) ? null : $calc['estimated_micro'], 'cost_irt' => $calc['cost_irt'],
                 'sell_irt' => $calc['sell'], 'tax_irt' => $calc['tax'],
                 'refunded_irt' => (int) $row->refunded_irt + max(0, $diff),
-                'review_reason' => $diff > 0 ? 'recovered_refund' : 'unknown',
+                // Late evidence never authorizes another customer debit. Record any
+                // actual shortfall and close the model instead of hiding that risk.
+                'uncollected_irt' => max(0, -$diff),
+                'needs_review' => $row->needs_review || $diff < 0,
+                'review_reason' => $diff < 0 ? 'over_bound' : ($diff > 0 ? 'recovered_refund' : $row->review_reason),
             ])->save();
 
-            return max(0, $diff);
+            return [max(0, $diff), $diff < 0 ? $row : null];
         }, 3);
+        if ($suspend !== null) $this->suspendModel($suspend);
+        return $refund;
     }
 
     /* ─────────────────────────────────────────────────────────── */

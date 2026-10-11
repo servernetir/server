@@ -2,7 +2,9 @@
 
 namespace App\Console\Commands;
 
+use App\Models\AiCall;
 use App\Models\AiUsage;
+use App\Services\Ai\AiNativeResponseRecovery;
 use App\Services\Ai\AiSettlement;
 use App\Services\Ai\AiUsageParser;
 use App\Support\ErrorTracker;
@@ -30,26 +32,39 @@ class AiRecoverUsage extends Command
 
     protected $description = 'بازیابیِ مصرفِ واقعیِ تماس‌های نامعلوم؛ سپس شارژ تا سقف یا بازپرداختِ اختلاف';
 
-    public function handle(AiSettlement $settlement): int
+    public function handle(AiSettlement $settlement, AiNativeResponseRecovery $stored): int
     {
         // کد پیش از مهاجرتِ 000110 روی سرور می‌نشیند و زمان‌بند هر دقیقه صدایش می‌زند
         if (! \Illuminate\Support\Facades\Schema::hasTable('ai_usage')) {
             return self::SUCCESS;
         }
 
-        return $this->option('late') ? $this->late($settlement) : $this->pending($settlement);
+        return $this->option('late') ? $this->late($settlement, $stored) : $this->pending($settlement, $stored);
     }
 
-    private function pending(AiSettlement $settlement): int
+    private function pending(AiSettlement $settlement, AiNativeResponseRecovery $stored): int
     {
         $max = (int) config('ai.unknown_recovery_max_attempts', 3);
         $recovered = $capped = 0;
 
-        AiUsage::where('status', AiUsage::STATUS_UNKNOWN_PENDING)->with('provider')->orderBy('id')->limit(200)->get()
-            ->each(function (AiUsage $u) use ($settlement, $max, &$recovered, &$capped) {
-                $usage = $this->probe($u);
-
+        AiUsage::where(function ($q) {
+            $q->where('status', AiUsage::STATUS_UNKNOWN_PENDING)->orWhere(function ($q) {
+                // A crash after settlement must still promote its retained response later.
+                $q->where('operation', 'native')->whereIn('status', [AiUsage::STATUS_SETTLE_PENDING, ...AiUsage::CHARGED])
+                    ->whereIn('ai_reservation_id', AiCall::where('ok', false)
+                        ->where('created_at', '>=', AiNativeResponseRecovery::expiresBefore())->select('ai_reservation_id'));
+            });
+        })->with('provider')
+            ->orderByRaw("CASE status WHEN 'unknown_pending' THEN 0 WHEN 'settle_pending' THEN 1 ELSE 2 END")
+            ->orderBy('id')->limit(200)->get()
+            ->each(function (AiUsage $u) use ($settlement, $stored, $max, &$recovered, &$capped) {
                 try {
+                    if ($stored->recover($u)) {
+                        $recovered++;
+                        return;
+                    }
+                    if ($u->status !== AiUsage::STATUS_UNKNOWN_PENDING) return;
+                    $usage = $this->probe($u);
                     if ($usage !== null) {
                         $settlement->settleFromUsage($u, $usage, $u->upstream_request_id);
                         $recovered++;
@@ -72,17 +87,23 @@ class AiRecoverUsage extends Command
         return self::SUCCESS;
     }
 
-    private function late(AiSettlement $settlement): int
+    private function late(AiSettlement $settlement, AiNativeResponseRecovery $stored): int
     {
         $refunded = 0;
 
         AiUsage::where('status', AiUsage::STATUS_UNKNOWN_CHARGED)->where('usage_source', 'cap')
             ->where('settled_at', '>=', now()->subDays((int) config('ai.unknown_recovery_days', 7)))
             ->with('provider')->orderBy('id')->limit(500)->get()
-            ->each(function (AiUsage $u) use ($settlement, &$refunded) {
-                $usage = $this->probe($u);
-                if ($usage !== null) {
-                    $refunded += $settlement->refundDown($u, $usage);
+            ->each(function (AiUsage $u) use ($settlement, $stored, &$refunded) {
+                try {
+                    if ($stored->recover($u)) {
+                        $refunded += (int) $u->fresh()->refunded_irt - (int) $u->refunded_irt;
+                        return;
+                    }
+                    $usage = $this->probe($u);
+                    if ($usage !== null) $refunded += $settlement->refundDown($u, $usage);
+                } catch (\Throwable $e) {
+                    ErrorTracker::noteOnce('ai', "بازیابیِ دیرهنگامِ AI {$u->public_id} شکست خورد: ".get_class($e), 3600);
                 }
             });
 

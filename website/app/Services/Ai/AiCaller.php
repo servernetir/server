@@ -16,6 +16,7 @@ use App\Services\Finance\Wallet;
 use App\Support\ErrorTracker;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 /**
  * تنها ارکستراتورِ «یک تماسِ AI ِ پول‌خور» — موتورِ پولیِ M5 (m5-spec §4).
@@ -170,7 +171,8 @@ final class AiCaller
             ->where('ai_project_id',$auth->token->ai_project_id)->where('operation','native')->first();
         if (! $usage) return AiCallOutcome::fail('request_not_found','Request not found.',404);
         if (in_array($usage->status,[AiUsage::STATUS_RESERVED,AiUsage::STATUS_SENDING,AiUsage::STATUS_STREAMING],true)) return self::pendingNative($usage);
-        $call=AiCall::where('ai_reservation_id',$usage->ai_reservation_id)->where('ok',true)->first();
+        $call=AiCall::where('ai_reservation_id',$usage->ai_reservation_id)->where('ok',true)
+            ->where('created_at','>=',AiNativeResponseRecovery::expiresBefore())->first();
         if (is_array($call?->response_encrypted)) return new AiCallOutcome(true,'ok',response:$call->response_encrypted,
             headers:['X-Request-Id'=>$id,'X-ServerNet-Charge-Irt'=>(string)($usage->charged_irt-$usage->refunded_irt),'Cache-Control'=>'no-store'],usage:$usage);
         return AiCallOutcome::fail($usage->error_code ?: 'result_unavailable','The request result is unavailable; inspect its billing status.',409,
@@ -294,6 +296,8 @@ final class AiCaller
                             $prev->request_sha256 !== $prepared->sha256 => AiCallOutcome::fail('idempotency_key_reused',
                                 'این Idempotency-Key پیش‌تر با بدنهٔ دیگری به کار رفته است.', 422),
                             $prev->status === AiUsage::STATUS_SETTLED => ['replay' => $prev],
+                            $prepared->operation === 'native' && $prev->status === AiUsage::STATUS_UNKNOWN_CHARGED
+                                && $prev->usage_source !== 'cap' => ['replay' => $prev],
                             $prepared->operation === 'native' && in_array($prev->status,[AiUsage::STATUS_RESERVED,AiUsage::STATUS_SENDING,AiUsage::STATUS_STREAMING],true) => self::pendingNative($prev),
                             $prev->status === AiUsage::STATUS_UNKNOWN_CHARGED => AiCallOutcome::fail('upstream_outcome_unknown',
                                 'نتیجهٔ تماسِ قبلی با این کلید نامعلوم ماند و شارژ شد؛ تکرار یعنی تماسِ تازه با کلیدِ تازه.', 409,
@@ -549,6 +553,9 @@ final class AiCaller
         if ($parsed === null) {
             // ۲xx بی مصرفِ قابلِ خواندن ⇒ نامعلوم، نه صفر
             $this->settlement->markUnknown($usage, 'upstream_bad_body', $result->status);
+            if ($prepared->operation === 'native' && $key !== null) {
+                AiNativeResponseRecovery::capture($usage, $key, $result->raw, $result->status);
+            }
 
             return AiCallOutcome::fail('upstream_bad_body', 'پاسخِ ارائه‌دهنده مصرفِ توکن را گزارش نکرد.', 502,
                 $headers + ['x-should-retry' => 'false'], $usage);
@@ -589,6 +596,16 @@ final class AiCaller
             $this->settlement->release($usage, 'upstream_'.$status, $status);
 
             if (in_array($status, [401, 402, 403], true)) {
+                // GapGPT aggregates independent backends. Prove the account still works
+                // before isolating a denied backend; an unverified account remains closed.
+                if (in_array($status, [401, 403], true) && $this->gapAccountIsAuthenticated($model)) {
+                    AiModel::whereKey($model->id)->whereNull('suspended_at')->update([
+                        'suspended_at' => now(), 'suspended_reason' => "خودکار: HTTP {$status} از مسیر مدل؛ حساب GapGPT معتبر است", 'updated_at' => now(),
+                    ]);
+                    ErrorTracker::noteOnce('ai', "مسیر مدل AI {$model->slug} با HTTP {$status} بسته شد؛ سایر مسیرهای معتبر GapGPT برقرارند.", 900);
+
+                    return AiCallOutcome::fail('model_suspended', 'این مدل موقتاً در دسترس نیست.', 503, $headers);
+                }
                 // کلید/اعتبار/مجوزِ ما نزدِ ارائه‌دهنده خراب است: هر تماسِ بعدی هم همین می‌شد
                 AiProvider::whereKey($model->ai_provider_id)->whereNull('paused_at')->update([
                     'paused_at' => now(), 'paused_reason' => "خودکار: HTTP {$status} از ارائه‌دهنده", 'updated_at' => now(),
@@ -611,6 +628,24 @@ final class AiCaller
                 $headers + ['x-should-retry' => 'false'], $usage)
             : AiCallOutcome::fail('upstream_bad_body', 'پاسخِ ارائه‌دهنده قابلِ خواندن نبود.', 502,
                 $headers + ['x-should-retry' => 'false'], $usage);
+    }
+
+    private function gapAccountIsAuthenticated(AiModel $model): bool
+    {
+        $provider = $model->provider;
+        if ($provider?->slug !== 'gapgpt' || ! $provider->apiKey()) {
+            return false;
+        }
+        try {
+            $response = Http::withToken($provider->apiKey())->acceptJson()->connectTimeout(3)->timeout(5)
+                ->get('https://api.gapgpt.app/v1/models');
+            $models = $response->json('data');
+
+            return $response->status() === 200 && is_array($models) && array_is_list($models)
+                && count($models) > 0 && is_string($models[0]['id'] ?? null) && $models[0]['id'] !== '';
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /** بازپخش برای کلیدِ تکراری با همان بدنه — بی تماسِ بالادست و بی شارژ */
@@ -670,11 +705,12 @@ final class AiCaller
         return max((int) config('ai.http_timeout_min_s', 60), min((int) config('ai.http_timeout_max_s', 240), $t));
     }
 
-    private static function publicBody(array $body, AiUsage $usage): array
+    public static function publicBody(array $body, AiUsage $usage): array
     {
         $body['id'] = ($usage->operation === 'chat' ? 'chatcmpl-' : 'ai-').$usage->public_id;
         $body['model'] = $usage->model_slug;
-        unset($body['usage']['estimated_cost'], $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);
+        unset($body['usage']['estimated_cost'], $body['usage']['cost'], $body['usage']['cost_details'],
+            $body['estimated_cost'], $body['inference_status']['cost'], $body['request_id']);
         return $body;
     }
 

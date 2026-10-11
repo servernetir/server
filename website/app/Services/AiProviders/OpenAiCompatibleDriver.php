@@ -74,12 +74,24 @@ class OpenAiCompatibleDriver implements AiProviderDriver
             'model' => $model->upstream_model,
         ]);
 
-        // These GapGPT routes ignore max_tokens and otherwise forward a zero
-        // max_completion_tokens. Verified against both real upstream models.
-        if ($this->provider->slug === 'gapgpt' && in_array($model->upstream_model,
-            ['gpt-4-0613', 'gpt-4-turbo-2024-04-09'], true)) {
+        // GapGPT's compatibility translator uses the completion-token field for
+        // these routes. Keep both equal for reasoning providers until a bounded
+        // representative response validates them; this never activates a model.
+        if ($this->provider->slug === 'gapgpt' && $model->category === 'chat' && in_array($model->upstream_model,
+            ['gpt-4-0613','gpt-4-turbo-2024-04-09','deepseek-reasoner','deepseek-v4-flash',
+                'grok-4','grok-4.3','grok-4.5','grok-4.6','qwen3-235b-a22b-instruct-2507'], true)) {
             $body['max_completion_tokens'] = $payload['max_tokens'];
-            unset($body['max_tokens']);
+            if (in_array($model->upstream_model,['gpt-4-0613','gpt-4-turbo-2024-04-09'],true)) unset($body['max_tokens']);
+            if (str_starts_with($model->upstream_model,'deepseek')) $body['thinking']=['type'=>'disabled'];
+            if (preg_match('/^(deepseek|grok)/',$model->upstream_model)) $body['reasoning_effort']='none';
+        }
+
+        if (\App\Services\Ai\AiMediaRelay::requiresRelay($model)) {
+            try { $payload = app(\App\Services\Ai\AiMediaRelay::class)->preparePayload($payload); }
+            catch (\Throwable) {
+                // No supplier request has been sent: release rather than retaining an unknown charge.
+                throw new AiProviderCallException('media_relay_unavailable', 'Supplier media relay is unavailable.', sent: false);
+            }
         }
 
         $uploaded = null;
@@ -99,11 +111,10 @@ class OpenAiCompatibleDriver implements AiProviderDriver
                         : throw new AiProviderCallException('provider_unconfigured', 'Native reranking is unavailable.', sent: false),
                     'image', 'audio', 'video', 'music', 'classification' => $this->provider->slug === 'deepinfra'
                         ? 'https://api.deepinfra.com/v1/inference/'.implode('/',array_map('rawurlencode',explode('/',$model->upstream_model)))
-                        : ($this->provider->slug==='gapgpt' && (\App\Services\Ai\AiNative::definition($model)['protocol']??null)==='gap-images'
-                            ? $baseUrl.'/images/generations'
-                            : throw new AiProviderCallException('provider_unconfigured','Native provider protocol is unavailable.',sent:false)),
+                        : $this->nativeUrl($model,$baseUrl),
                     default => $baseUrl.'/chat/completions',
-                }, $model->category === 'rerank' || (\App\Services\Ai\AiNative::isNative($model) && $this->provider->slug==='deepinfra') ? $payload : $body);
+                }, $model->category === 'rerank' || (\App\Services\Ai\AiNative::isNative($model) && $this->provider->slug==='deepinfra')
+                    || (\App\Services\Ai\AiNative::definition($model)['protocol']??null)==='gap-gemini-tts' ? $payload : $body);
         } catch (ConnectionException $e) {
             $sent = $uploaded !== null ? $uploaded > 0 : self::sentFromMessage($e->getMessage());
 
@@ -136,6 +147,17 @@ class OpenAiCompatibleDriver implements AiProviderDriver
         return new DriverCallResult($response->status(), $json, $response->body(),
             $requestId ?: (is_string($json['request_id'] ?? null) ? $json['request_id']
                 : (is_string($json['id'] ?? null) ? $json['id'] : null)));
+    }
+
+    private function nativeUrl(AiModel $model,string $baseUrl): string
+    {
+        if ($this->provider->slug !== 'gapgpt') throw new AiProviderCallException('provider_unconfigured','Native provider protocol is unavailable.',sent:false);
+        return match (\App\Services\Ai\AiNative::definition($model)['protocol']??null) {
+            'gap-images','gap-token-images' => $baseUrl.'/images/generations',
+            'gap-legacy-completions' => $baseUrl.'/completions',
+            'gap-gemini-tts' => $baseUrl.'/models/'.rawurlencode($model->upstream_model).':generateContent',
+            default => throw new AiProviderCallException('provider_unconfigured','Native provider protocol is unavailable.',sent:false),
+        };
     }
 
     /**

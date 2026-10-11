@@ -26,6 +26,7 @@ class AiNativeOperationsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        if ($binary=getenv('AI_TEST_FFMPEG_BINARY')) config(['ai.media_ffmpeg_binary'=>$binary]);
         $this->sellableCatalog(['fx_fee_bp'=>0],cached:false);
         Setting::put('ai_margin_pct','5');
         $this->nativeModel();
@@ -83,6 +84,30 @@ class AiNativeOperationsTest extends TestCase
         [, $budgetKey]=$this->greenKey(projectOver:['monthly_budget_irt'=>1,'budget_period'=>'monthly'],tokenOver:['abilities'=>['ai:native']]);
         $this->infer($budgetKey)->assertStatus(402)->assertJsonPath('code','budget_exceeded');
         Http::assertNothingSent();$this->assertSame(0,AiUsage::count());
+    }
+
+    public function test_flux_image_url_receipt_settles_real_cost_and_replays_without_another_provider_call(): void
+    {
+        $this->nativeModel('black-forest-labs/FLUX-2-pro');
+        [$customer,$key]=$this->greenKey(tokenOver:['abilities'=>['ai:native']]);
+        Http::fake(['*/inference/*'=>Http::response('{"status":"ok","image_url":"https://media.example.test/generated.jpg","request_id":"example-request","inference_status":{"status":"succeeded","cost":3e-2,"runtime_ms":6950}}')]);
+        $body=['width'=>256,'height'=>256];
+        $first=$this->infer($key,$body,['Idempotency-Key'=>'flux-image-url'])->assertOk()->assertJsonPath('image_url','https://media.example.test/generated.jpg');
+        $usage=AiUsage::sole();
+        $this->assertSame('settled',$usage->status);
+        $this->assertSame('native_provider',$usage->usage_source);
+        $this->assertSame(30000,(int)$usage->provider_cost_micro);
+        $this->assertSame(3150,(int)$usage->sell_irt);
+        $this->assertNull($usage->prompt_tokens);
+        $this->assertNull($usage->completion_tokens);
+        $this->assertFalse($usage->needs_review);
+        $this->assertLessThanOrEqual((int)$usage->hold_irt,(int)$usage->charged_irt);
+        $this->assertSame(1000000-(int)$usage->charged_irt,$this->balance($customer));
+        $this->assertArrayNotHasKey('cost',$first->json('inference_status'));
+        $this->infer($key,$body,['Idempotency-Key'=>'flux-image-url'])->assertOk()->assertHeader('Idempotent-Replayed','true');
+        $this->assertSame(1,AiUsage::count());
+        $this->assertSame(1,AiCall::count());
+        Http::assertSentCount(1);
     }
 
     public function test_callbacks_remote_media_premium_tier_and_unbounded_sizes_are_rejected(): void
@@ -217,9 +242,11 @@ class AiNativeOperationsTest extends TestCase
         $image='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
         $pcm=str_repeat("\0",32000);
         $audio='data:audio/wav;base64,'.base64_encode('RIFF'.pack('V',36+strlen($pcm)).'WAVEfmt '.pack('VvvVVvv',16,1,1,16000,32000,2,16).'data'.pack('V',strlen($pcm)).$pcm);
-        $count=0;
+        $video='data:video/mp4;base64,'.base64_encode(file_get_contents(base_path('tests/Fixtures/ai/one-second-h264.mp4')));
+        $count=0;$unavailable=0;
         foreach ($contracts as $id=>$contract) {
             if (!$contract['supported']) continue;
+            if (!empty($contract['requires_video_decoder'])&&!\App\Services\Ai\AiVideoInput::available()) {$unavailable++;continue;}
             [$provider,$name]=explode(':',$id,2);$this->provider->update(['slug'=>$provider]);
             $this->nativeModel($name,match($contract['task']){'text-to-speech','automatic-speech-recognition'=>'audio','text-to-video'=>'video','text-to-music'=>'music',default=>'image'});
             $this->model->unsetRelation('provider');
@@ -231,11 +258,14 @@ class AiNativeOperationsTest extends TestCase
                     'integer','number'=>$rule['minimum']??1,'boolean'=>false,'array'=>['A blue cube.'],default=>'A blue cube.',
                 };
                 if(in_array($key,$contract['media_fields'],true)) {
-                    $value=str_contains($key,'audio')?$audio:$image;
+                    $kind=$contract['media_types'][$key]??(str_contains($key,'audio')?'audio':'image');
+                    $value=match($kind){'video'=>$video,'audio'=>$audio,default=>$image};
                     if(($rule['type']??null)==='array')$value=[$value];
                 }
                 $body[$key]=$value;
             }
+            if (($contract['bound_strategy']??'')==='reference_media') $body['media']=[['type'=>'reference_image','url'=>$image]];
+            if (isset($body['key_points'])) $body['key_points']=[['type'=>'positive','x'=>1,'y'=>1]];
             try {$prepared=app(AiNative::class)->prepare($body,$this->model);}
             catch(\Throwable $e){$this->fail($id.': '.$e->getMessage());}
             $this->assertGreaterThan(0,$prepared->native['max_cost_micro'],$id);
@@ -244,7 +274,7 @@ class AiNativeOperationsTest extends TestCase
             $this->assertGreaterThan(0,$display['sell'],$id);
             $count++;
         }
-        $this->assertSame(78,$count);
+        $this->assertSame(90,$count+$unavailable);
         Http::assertNothingSent();
     }
 }

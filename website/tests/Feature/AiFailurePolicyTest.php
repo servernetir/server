@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AiUsage;
 use App\Models\CreditEntry;
+use App\Models\Setting;
 use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
@@ -107,6 +108,49 @@ class AiFailurePolicyTest extends TestCase
             ->assertHeader('x-should-retry', 'false');
 
         $this->assertSame(AiUsage::STATUS_UNKNOWN_PENDING, AiUsage::sole()->status);
+    }
+
+    public function test_gap_backend_denial_is_isolated_only_after_authenticated_discovery(): void
+    {
+        $this->provider->update(['slug' => 'gapgpt']);
+        $this->model->update(['context_tokens' => 8192]);
+        Setting::putSecret('ai_provider_gapgpt_key', 'sk-test');
+        Setting::put('ai_provider_gapgpt_base_url', 'https://api.gapgpt.app/v1');
+        [$c, $plain] = $this->greenKey();
+        Http::fake([
+            '*/chat/completions' => Http::response(['error' => 'backend denied'], 401),
+            'https://api.gapgpt.app/v1/models' => Http::response(['data' => [['id' => 'working-model']]]),
+        ]);
+
+        $this->v1($plain, $this->chatBody())->assertStatus(503)->assertJsonPath('code', 'model_suspended');
+        $this->assertNotNull($this->model->fresh()->suspended_at);
+        $this->assertNull($this->provider->fresh()->paused_at);
+        $this->assertSame(AiUsage::STATUS_RELEASED, AiUsage::sole()->status);
+        $this->assertSame(1_000_000, $this->available($c));
+        $this->assertSame(0, CreditEntry::where('reason', 'like', 'ai_%')->count());
+        Http::assertSent(fn (HttpRequest $request) => $request->method() === 'GET'
+            && $request->url() === 'https://api.gapgpt.app/v1/models'
+            && $request->hasHeader('Authorization', 'Bearer sk-test'));
+        Http::assertSentCount(2);
+    }
+
+    public function test_gap_invalid_account_still_pauses_the_provider(): void
+    {
+        $this->provider->update(['slug' => 'gapgpt']);
+        $this->model->update(['context_tokens' => 8192]);
+        Setting::putSecret('ai_provider_gapgpt_key', 'sk-test');
+        Setting::put('ai_provider_gapgpt_base_url', 'https://api.gapgpt.app/v1');
+        [$c, $plain] = $this->greenKey();
+        Http::fake([
+            '*/chat/completions' => Http::response(['error' => 'unauthorized'], 403),
+            'https://api.gapgpt.app/v1/models' => Http::response(['error' => 'unauthorized'], 401),
+        ]);
+
+        $this->v1($plain, $this->chatBody())->assertStatus(503)->assertJsonPath('code', 'provider_paused');
+        $this->assertNotNull($this->provider->fresh()->paused_at);
+        $this->assertNull($this->model->fresh()->suspended_at);
+        $this->assertSame(1_000_000, $this->available($c));
+        Http::assertSentCount(2);
     }
 
     public function test_2xx_without_usage_is_unknown_not_zero(): void

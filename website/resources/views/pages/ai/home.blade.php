@@ -30,7 +30,7 @@ response = client.chat.completions.create(
 </div><div class="ai-actions"><a class="ai-btn" href="{{ lroute('ai.models') }}">{{ __('ai.catalog') }} · {{ number_format($count) }}</a></div></section>
 <section class="ai-section"><h2>{{ __('ai.how') }}</h2><ol class="ai-steps">@foreach([1,2,3,4] as $i)<li>{{ __('ai.step'.$i) }}</li>
 @endforeach
-</ol><a class="ai-btn" href="{{ lroute('ai.docs') }}">{{ __('ai.docs') }}</a></section><div class="ai-note">{{ __('ai.tax') }}</div>
+</ol><a class="ai-btn" href="{{ lroute('ai.docs') }}">{{ __('ai.docs') }}</a></section>
 <section class="ai-section ai-faq"><h2>{{ __('ai.faq') }}</h2>@foreach([1,2,3] as $i)<details><summary>{{ __('ai.q'.$i) }}</summary><p class="ai-muted">{{ __('ai.a'.$i) }}</p></details>
 @endforeach
 </section></main>

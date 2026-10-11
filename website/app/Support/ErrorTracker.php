@@ -204,7 +204,7 @@ class ErrorTracker
             'type'    => 'error',
             'status'  => $status,
             'method'  => $request?->method(),
-            'url'     => $request?->fullUrl(),
+            'url'     => self::requestUrl($request),
             'class'   => $e::class,
             'message' => mb_substr($e->getMessage(), 0, 500),
             'file'    => str_replace(base_path().DIRECTORY_SEPARATOR, '', $e->getFile()).':'.$e->getLine(),
@@ -219,8 +219,14 @@ class ErrorTracker
             'type'   => 'notfound',
             'status' => 404,
             'method' => $request->method(),
-            'url'    => $request->fullUrl(),
+            'url'    => self::requestUrl($request),
         ], $request);
+    }
+
+    private static function requestUrl(?Request $request): ?string
+    {
+        // These opaque IDs and signatures are temporary supplier credentials, including on 404s.
+        return $request?->is('api/ai-media/*') ? $request->getSchemeAndHttpHost().'/api/ai-media/[redacted]' : $request?->fullUrl();
     }
 
     /**
@@ -280,7 +286,8 @@ class ErrorTracker
                 'at'      => now()->toIso8601String(),
                 'ip'      => $request?->ip(),
                 'ua'      => mb_substr((string) $request?->userAgent(), 0, 120),
-                'referer' => mb_substr((string) $request?->headers->get('referer'), 0, 200) ?: null,
+                'referer' => str_contains((string) $request?->headers->get('referer'), '/api/ai-media/')
+                    ? '[redacted supplier media]' : (mb_substr((string) $request?->headers->get('referer'), 0, 200) ?: null),
                 'who'     => self::who(),
             ] + $row;
 

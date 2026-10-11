@@ -1,0 +1,689 @@
+{
+  "gpt-image-1": {
+    "supported": true,
+    "schema_date": "2026-10-11",
+    "task": "text-to-image",
+    "protocol": "gap-token-images",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "10",
+      "output_usd_per_million": "40"
+    },
+    "tariff_hash": "05ee44fc2e4dbbd896949615dccf92086bcb5efb142d4b54764cc7aeb1e24238",
+    "ceiling_cents": "40.96",
+    "ceiling_basis": "fixed_1024_square_single_image_conservative_output_reservation",
+    "output_ceiling_tokens": 8192,
+    "input_overhead_tokens": 4096,
+    "input_ceiling_tokens": 8192,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "maxBytes": 4096
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "1024x1024"
+          ]
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low"
+          ]
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg",
+            "webp"
+          ]
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    },
+    "defaults": {
+      "size": "1024x1024",
+      "n": 1,
+      "quality": "low",
+      "output_format": "png"
+    },
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://developers.openai.com/api/reference/resources/images/methods/generate",
+      "https://developers.openai.com/api/docs/guides/image-generation"
+    ]
+  },
+  "gpt-image-1-mini": {
+    "supported": true,
+    "schema_date": "2026-10-11",
+    "task": "text-to-image",
+    "protocol": "gap-token-images",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "2",
+      "output_usd_per_million": "4"
+    },
+    "tariff_hash": "babea5bb5314e793abbe2fe4b2ba0c85eb861e5ef05641312b1d49b18abc13be",
+    "ceiling_cents": "4.9152",
+    "ceiling_basis": "fixed_1024_square_single_image_conservative_output_reservation",
+    "output_ceiling_tokens": 8192,
+    "input_overhead_tokens": 4096,
+    "input_ceiling_tokens": 8192,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "maxBytes": 4096
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "1024x1024"
+          ]
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low"
+          ]
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg",
+            "webp"
+          ]
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    },
+    "defaults": {
+      "size": "1024x1024",
+      "n": 1,
+      "quality": "low",
+      "output_format": "png"
+    },
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://developers.openai.com/api/reference/resources/images/methods/generate",
+      "https://developers.openai.com/api/docs/guides/image-generation"
+    ]
+  },
+  "gpt-image-2": {
+    "supported": true,
+    "schema_date": "2026-10-11",
+    "task": "text-to-image",
+    "protocol": "gap-token-images",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "8",
+      "output_usd_per_million": "30"
+    },
+    "tariff_hash": "0073ddcc89a4672008706cd158c7d04c42a8a1bfb2e15f78309cb264fc9fc05a",
+    "ceiling_cents": "31.1296",
+    "ceiling_basis": "fixed_1024_square_single_image_conservative_output_reservation",
+    "output_ceiling_tokens": 8192,
+    "input_overhead_tokens": 4096,
+    "input_ceiling_tokens": 8192,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "maxBytes": 4096
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "1024x1024"
+          ]
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "low"
+          ]
+        },
+        "output_format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg",
+            "webp"
+          ]
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    },
+    "defaults": {
+      "size": "1024x1024",
+      "n": 1,
+      "quality": "low",
+      "output_format": "png"
+    },
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://developers.openai.com/api/reference/resources/images/methods/generate",
+      "https://developers.openai.com/api/docs/guides/image-generation"
+    ]
+  },
+  "babbage-002": {
+    "supported": true,
+    "schema_date": "2026-10-11",
+    "task": "text-generation",
+    "protocol": "gap-legacy-completions",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "0.4",
+      "output_usd_per_million": "0.4"
+    },
+    "tariff_hash": "e4d5f2c1bd41fba52c55d493d706cb34a9fe60ccca7d4f22f0b5fd8acb5efe2e",
+    "ceiling_cents": "0.21504",
+    "ceiling_basis": "single_bounded_legacy_completion",
+    "output_ceiling_tokens": 1024,
+    "input_overhead_tokens": 256,
+    "input_ceiling_tokens": 4352,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "maxBytes": 4096
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    },
+    "defaults": {
+      "max_tokens": 256
+    },
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://developers.openai.com/api/reference/resources/completions/methods/create"
+    ]
+  },
+  "davinci-002": {
+    "supported": true,
+    "schema_date": "2026-10-11",
+    "task": "text-generation",
+    "protocol": "gap-legacy-completions",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "2",
+      "output_usd_per_million": "2"
+    },
+    "tariff_hash": "93fa47e0d3b5eeee7a4899fc45d909e5757ea63ebd5ca5a6707c71cd7f256b4f",
+    "ceiling_cents": "1.0752",
+    "ceiling_basis": "single_bounded_legacy_completion",
+    "output_ceiling_tokens": 1024,
+    "input_overhead_tokens": 256,
+    "input_ceiling_tokens": 4352,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "maxBytes": 4096
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    },
+    "defaults": {
+      "max_tokens": 256
+    },
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://developers.openai.com/api/reference/resources/completions/methods/create"
+    ]
+  },
+  "gemini-2.5-flash-preview-tts": {
+    "supported": true,
+    "schema_date": "2026-10-11",
+    "task": "text-to-speech",
+    "protocol": "gap-gemini-tts",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "0.5",
+      "output_usd_per_million": "10"
+    },
+    "tariff_hash": "b87a61a2820cab9534c57eb516e5abaa9ef565b70cefdbba3db5bbfeb587804f",
+    "ceiling_cents": "16.7936",
+    "ceiling_basis": "documented_full_model_output_limit",
+    "output_ceiling_tokens": 16384,
+    "input_overhead_tokens": 1024,
+    "input_ceiling_tokens": 8192,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "maxBytes": 4096
+        },
+        "voice": {
+          "type": "string",
+          "enum": [
+            "Kore",
+            "Puck",
+            "Charon",
+            "Fenrir",
+            "Aoede",
+            "Leda",
+            "Orus",
+            "Zephyr"
+          ]
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 32,
+          "maximum": 2048
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "defaults": {
+      "voice": "Kore",
+      "max_output_tokens": 2048
+    },
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-preview-tts",
+      "https://ai.google.dev/api/generate-content"
+    ]
+  },
+  "gemini-2.5-pro-preview-tts": {
+    "supported": true,
+    "schema_date": "2026-10-11",
+    "task": "text-to-speech",
+    "protocol": "gap-gemini-tts",
+    "pricing": {
+      "type": "token_usage",
+      "input_usd_per_million": "2",
+      "output_usd_per_million": "40"
+    },
+    "tariff_hash": "f2f1be2ead8c4a68ba7741aea470c32709c2ad5a4d2fab2c95380527ac817e92",
+    "ceiling_cents": "67.1744",
+    "ceiling_basis": "documented_full_model_output_limit",
+    "output_ceiling_tokens": 16384,
+    "input_overhead_tokens": 1024,
+    "input_ceiling_tokens": 8192,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "maxBytes": 4096
+        },
+        "voice": {
+          "type": "string",
+          "enum": [
+            "Kore",
+            "Puck",
+            "Charon",
+            "Fenrir",
+            "Aoede",
+            "Leda",
+            "Orus",
+            "Zephyr"
+          ]
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 32,
+          "maximum": 2048
+        }
+      },
+      "required": [
+        "input"
+      ]
+    },
+    "defaults": {
+      "voice": "Kore",
+      "max_output_tokens": 2048
+    },
+    "limits": {},
+    "blocked_fields": [],
+    "media_fields": [],
+    "sources": [
+      "https://gapgpt.app/platform-v2/pricing",
+      "https://gapgpt.app/api/v1/pricing",
+      "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-pro-preview-tts",
+      "https://ai.google.dev/api/generate-content"
+    ]
+  },
+  "k3": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_discovery_missing"
+    ],
+    "prior_reason": "model_unavailable"
+  },
+  "deepseek-reasoner": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "gpt-chat-latest": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_discovery_missing"
+    ],
+    "prior_reason": "model_unavailable"
+  },
+  "glm-4v-plus": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "gemini-3-pro-image-preview": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_priced_usage_contract_missing"
+    ],
+    "prior_reason": "endpoint_or_metering_pending"
+  },
+  "kimi-for-coding": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_discovery_missing"
+    ],
+    "prior_reason": "model_unavailable"
+  },
+  "glm-4-airx": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "deepseek-v4-flash": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "gpt-4o-mini-tts": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_priced_usage_contract_missing"
+    ],
+    "prior_reason": "endpoint_or_metering_pending"
+  },
+  "tts-1": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_priced_usage_contract_missing"
+    ],
+    "prior_reason": "endpoint_or_metering_pending"
+  },
+  "grok-4.3": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "glm-4-long": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "glm-4-air": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "qwen3.6-35b-a3b": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_discovery_missing"
+    ],
+    "prior_reason": "model_unavailable"
+  },
+  "grok-4.5": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "text-moderation-latest": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_priced_usage_contract_missing"
+    ],
+    "prior_reason": "endpoint_or_metering_pending"
+  },
+  "kimi-2.7": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_discovery_missing"
+    ],
+    "prior_reason": "model_unavailable"
+  },
+  "typesafe/jev-1.13": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_priced_usage_contract_missing"
+    ],
+    "prior_reason": "endpoint_or_metering_pending"
+  },
+  "qwen3-235b-a22b-instruct-2507": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "grok-4": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "whisper-1": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_priced_usage_contract_missing"
+    ],
+    "prior_reason": "endpoint_or_metering_pending"
+  },
+  "gpt-5.6-luna-compaction": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_discovery_missing"
+    ],
+    "prior_reason": "model_unavailable"
+  },
+  "gpt-5.6-luna-openai-compact": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_discovery_missing"
+    ],
+    "prior_reason": "model_unavailable"
+  },
+  "qwen3-235b-a22b": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "gpt-5.3-codex-spark": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "glm-4-alltools": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "grok-4.6": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "glm-4-plus": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "gapgpt/whisper-1": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "supplier_priced_usage_contract_missing"
+    ],
+    "prior_reason": "endpoint_or_metering_pending"
+  },
+  "glm-3-turbo": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "glm-4v": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  },
+  "glm-4-0520": {
+    "supported": false,
+    "schema_date": "2026-10-11",
+    "reasons": [
+      "prior_upstream_execution_or_output_bound_failure"
+    ],
+    "prior_reason": "prior execution/billing-bound probe failed; manual inactive gate retained"
+  }
+}

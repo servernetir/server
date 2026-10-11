@@ -21,12 +21,27 @@ final class AiModelPage
         $locale = app()->getLocale();
         $words = Lang::get('ai_model', [], $locale);
         $type = $words['types'][$model->category] ?? $words['types']['classification'];
+        $nativeContract = $state['quote']?->native;
+        $readyNative = $state['ready'] && $nativeContract;
+        $legacyCompletion = ($nativeContract['protocol'] ?? null) === 'gap-legacy-completions';
+        $operationLabel = $words['tasks'][$nativeContract['task'] ?? ''] ?? __('ai.'.$model->category);
         $values = ['name' => $model->name, 'vendor' => $model->vendor ?: $words['unspecified'],
-            'type' => __('ai.'.$model->category), 'id' => $model->slug];
+            'type' => $operationLabel, 'id' => $model->slug];
         $replace = fn (string $text) => strtr($text, array_combine(
             array_map(fn ($key) => ':'.$key, array_keys($values)), array_values($values)));
         $family = $this->family($model);
-        $intro = $replace($type['intro']);
+        $intro = $replace($readyNative ? $words[$legacyCompletion ? 'native_legacy_intro_ready' : 'native_intro_ready'] : $type['intro']);
+        $workflow = $replace($readyNative ? $words['native_workflow_ready'] : $type['workflow']);
+        if ($readyNative && in_array($model->category, ['video', 'music'], true)) {
+            $workflow .= ' '.$words['native_workflow_async'];
+        }
+        if ($readyNative && ! $legacyCompletion) {
+            $workflow .= ' '.$words['native_file_download_ready'];
+        }
+        $limit = $replace($readyNative ? $words['native_limit_ready'] : $type['limit']);
+        $uses = array_map($replace, $readyNative && $legacyCompletion ? $words['native_legacy_uses'] : $type['uses']);
+        $nativeBilling = $replace($readyNative ? $words[($nativeContract['pricing']['type'] ?? '') === 'token_usage'
+            ? 'native_token_billing_ready' : 'native_billing_ready'] : $words['native_billing']);
         $summary = $replace($words['summary']);
         $label = $model->status === 'deprecated' ? __('ai.deprecated') : ($state['ready'] ? __('ai.ready') : __('ai.pending'));
         $description = $replace($words['description']).' '.$label.'.';
@@ -35,8 +50,12 @@ final class AiModelPage
         $title = $model->name.$variant.' API | '.$words['title_suffix'].' | ServerNet';
         $url = lroute('ai.model', $model->slug);
         $tokenOperation = in_array($model->category, ['chat', 'embedding', 'rerank'], true);
-        $nativeContract = $state['quote']?->native;
         $nativePrice = $nativeContract ? AiNative::unitPrice($state['quote']) : null;
+        $nativeNote = isset($words['native_formulas'][$nativeContract['bound_strategy']??''])
+            ? $words['native_formulas'][$nativeContract['bound_strategy']] : null;
+        if ($nativeNote !== null) $nativeNote = str_replace([':seconds', ':size_limit'],
+            [(string) ($nativeContract['max_input_video_seconds'] ?? '10'),
+                isset($nativeContract['max_input_video_dimension']) ? $words['native_video_size_safe'] : '1080p'], $nativeNote);
         $sourceSpec = null;
         if (! $tokenOperation && $model->provider?->slug === 'deepinfra') {
             self::$sourceSpecs ??= json_decode(file_get_contents(resource_path('content/ai-model-specs.json')), true, flags: JSON_THROW_ON_ERROR);
@@ -45,20 +64,68 @@ final class AiModelPage
                 $sourceSpec = null;
             }
         }
-        $reasoningDisabled = $model->category === 'chat' && AiPayload::requiresNonReasoning($model);
+        $gatewaySpec = null;
+        if ($nativeContract && in_array($model->provider?->slug, ['gapgpt', 'deepinfra'], true)) {
+            $deepinfra = $model->provider?->slug === 'deepinfra';
+            $schema = $nativeContract['schema'];
+            $blocked = $deepinfra ? [...($nativeContract['blocked_fields'] ?? []), 'model', 'webhook', 'service_tier', 'fail_fast', 'stream'] : [];
+            $fields = [];
+            foreach ($schema['properties'] as $name => $rule) {
+                if (in_array($name, $blocked, true)) continue;
+                if ($deepinfra) $rule = $this->nativeDisplayRule($rule, $schema);
+                $field = ['name' => $name, 'required' => in_array($name, $schema['required'] ?? [], true)] + $rule;
+                if (array_key_exists($name, $nativeContract['defaults'])) {
+                    $field['default'] = $nativeContract['defaults'][$name];
+                }
+                if ($deepinfra) {
+                    // Show the accepted gateway contract, not supplier URL examples or hidden controls.
+                    if (array_key_exists($name, $nativeContract['defaults']) || isset($rule['default'])) {
+                        $field['required'] = false;
+                    } elseif (array_key_exists('default', $field)) {
+                        unset($field['default']); // The validator does not fill a schema default of null.
+                    }
+                    $type = $rule['type'] ?? 'string';
+                    $field['type'] = $type.(($rule['nullable'] ?? false) ? ' | null' : '');
+                    if (isset($nativeContract['limits'][$name])) {
+                        $limit = $nativeContract['limits'][$name];
+                        if (! isset($field['maximum']) || \Brick\Math\BigDecimal::of((string) $limit)->isLessThan((string) $field['maximum'])) {
+                            $field['maximum'] = $limit;
+                        }
+                        if (isset($field['enum'])) $field['enum'] = array_values(array_filter($field['enum'],
+                            fn ($value) => ! is_int($value) && ! is_float($value)
+                                || \Brick\Math\BigDecimal::of((string) $value)->isLessThanOrEqualTo((string) $field['maximum'])));
+                    }
+                    if ($type === 'array') $field['maxItems'] = min(8, $rule['maxItems'] ?? 8);
+                    if ($type === 'string') $field['maxBytes'] = 8000;
+                    if (in_array($name, $nativeContract['media_fields'] ?? [], true)) {
+                        $media = $nativeContract['media_types'][$name] ?? (str_contains($name, 'audio') ? 'audio' : 'image');
+                        $field['format'] = 'data:'.match ($media) {
+                            'video' => 'video/mp4', 'audio' => 'audio/wav', default => 'image/(png|jpeg|webp)',
+                        }.';base64';
+                        if ($type === 'string') $field['maxBytes'] = 8_000_000;
+                    }
+                }
+                $fields[] = $field;
+            }
+            if ($fields !== []) $gatewaySpec = ['schema_date' => $nativeContract['schema_date'], 'fields' => $fields];
+        }
+        $reasoningSupplierUncontrolled = $model->category === 'chat' && $model->provider?->slug === 'gapgpt'
+            && in_array($model->upstream_model, ['deepseek-reasoner','deepseek-v4-flash','grok-4.3','grok-4.5','grok-4.6'],true);
+        $reasoningDisabled = $model->category === 'chat' && ! $reasoningSupplierUncontrolled
+            && AiPayload::requiresNonReasoning($model);
         $faq = [
             ['q' => $replace($words['faq_available']), 'a' => $replace($state['ready'] ? $words['available_answer'] : $words['pending_answer'])],
-            ['q' => $replace($words['faq_connect']), 'a' => $replace($tokenOperation ? $words['connect_answer'] : ($nativeContract ? $words['native_connect_ready'] : $words['native_answer']))],
-            ['q' => $replace($words['faq_price']), 'a' => $replace($tokenOperation ? $type['billing'] : ($nativeContract ? $words['native_billing_ready'] : $words['native_billing']))],
-            ['q' => $replace($words['faq_limits']), 'a' => $replace($type['limit'])],
+            ['q' => $replace($words['faq_connect']), 'a' => $replace($tokenOperation ? $words['connect_answer'] : ($readyNative ? $words['native_connect_ready'] : $words['native_answer']))],
+            ['q' => $replace($words['faq_price']), 'a' => $tokenOperation ? $replace($type['billing']) : $nativeBilling],
+            ['q' => $replace($words['faq_limits']), 'a' => $limit],
         ];
         $example = $tokenOperation || $nativeContract ? $this->example($model,$nativeContract) : null;
-        $vatBp = app(AiVat::class)->iranRateBp();
         $costExample = null;
         if ($tokenOperation && $state['quote']) {
             $completion = $model->category === 'chat' ? min(500, max(1, $model->max_output_tokens)) : 0;
-            // Use the same integer arithmetic as settlement, never a second price formula.
-            $costExample = app(AiPricing::class)->charge($state['quote'], 1000, 0, $completion, $vatBp);
+            // Public examples show the usage price. Payment uses the account's applicable tax.
+            // Keep settlement's integer arithmetic rather than a second price formula.
+            $costExample = app(AiPricing::class)->charge($state['quote'], 1000, 0, $completion, 0);
             $costExample += ['input' => 1000, 'output' => $completion];
         }
         $facts = [
@@ -113,9 +180,22 @@ final class AiModelPage
             ]], $service,
         ]];
         return compact('title', 'description', 'intro', 'summary', 'family', 'faq', 'example', 'costExample',
-            'vatBp', 'facts', 'schema', 'url', 'tokenOperation', 'reasoningDisabled', 'sourceSpec','nativePrice','nativeContract')
-            + ['uses' => array_map($replace, $type['uses']), 'workflow' => $replace($type['workflow']),
-                'limit' => $replace($type['limit']), 'indexable' => self::indexable($model)];
+            'facts', 'schema', 'url', 'tokenOperation', 'reasoningDisabled', 'reasoningSupplierUncontrolled', 'sourceSpec', 'gatewaySpec',
+            'nativePrice', 'nativeContract', 'nativeNote', 'nativeBilling', 'operationLabel', 'uses', 'workflow', 'limit')
+            + ['indexable' => self::indexable($model)];
+    }
+
+    private function nativeDisplayRule(array $rule, array $schema): array
+    {
+        // Follow the same definitions/first non-null choice used by the native input validator.
+        if (isset($rule['$ref'])) return $schema['definitions'][basename($rule['$ref'])] ?? [];
+        if (isset($rule['anyOf'])) {
+            foreach ($rule['anyOf'] as $option) if (($option['type'] ?? '') !== 'null') {
+                return $this->nativeDisplayRule($option, $schema) + $rule
+                    + ['nullable' => count(array_filter($rule['anyOf'], fn ($item) => ($item['type'] ?? '') === 'null')) > 0];
+            }
+        }
+        return $rule;
     }
 
     private function family(AiModel $model): ?string
@@ -149,11 +229,14 @@ final class AiModelPage
                     'integer','number'=>$rule['minimum']??1,'boolean'=>false,'array'=>[],default=>'Hello from ServerNet',
                 };
                 if (in_array($key,$native['media_fields'],true)) {
-                    $value='data:'.(str_contains($key,'audio')?'audio/wav':'image/png').';base64,REPLACE_WITH_YOUR_FILE';
+                    $kind=$native['media_types'][$key]??(str_contains($key,'audio')?'audio':'image');
+                    $value='data:'.match($kind){'video'=>'video/mp4','audio'=>'audio/wav',default=>'image/png'}.';base64,REPLACE_WITH_YOUR_FILE';
                     if (($rule['type']??null)==='array') $value=[$value];
                 }
                 $body[$key]=$value;
             }
+            if (($native['bound_strategy']??'')==='reference_media') $body['media']=[['type'=>'reference_image','url'=>'data:image/png;base64,REPLACE_WITH_YOUR_FILE']];
+            if (isset($body['key_points'])) $body['key_points']=[['type'=>'positive','x'=>1,'y'=>1]];
         }
         $json = json_encode($body, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         // JSON is double quoted inside a POSIX single quoted string. Escape arbitrary model IDs safely.
