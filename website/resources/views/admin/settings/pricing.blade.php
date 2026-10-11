@@ -60,7 +60,7 @@
       <label class="set-f">سربارِ LightNode (٪)
         <input type="number" name="pricing_fx_fee_pct_lightnode" dir="ltr" min="0" max="25" step="0.1"
                value="{{ $pricing['pricing_fx_fee_pct_lightnode'] }}" placeholder="خالی = پیش‌فرض">
-        <small>کارمزد پرداخت دلاری و مالیاتِ تأییدشدهٔ حساب؛ نرخ ساعتی از پنل بررسی می‌شود.</small></label>
+        <small>طبق راهنمای رسمی LightNode، تسویه دلاری است و فعلاً VAT/مالیات فروش ندارد. فقط کارمزد واقعی پرداخت را وارد کنید؛ صفر = بدون سربار، خالی = پیش‌فرض عمومی. قیمت از محاسبه‌گر رسمی دریافت می‌شود.</small></label>
       <label class="set-f">حاشیهٔ سودِ عمومی (٪)
         <input type="number" name="price_margin_pct" dir="ltr" step="0.1"
                value="{{ $pricing['price_margin_pct'] }}" placeholder="۰">
