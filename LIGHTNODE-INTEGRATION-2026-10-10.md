@@ -1,6 +1,20 @@
 # LightNode integration — acceptance and release record
 
-Date: 2026-10-10. Branch: `codex/lightnode-integration`. Status: both approved fixed-bandwidth Manila Linux/Windows acceptance tests completed and temporary guests released; broader regional package-series verification remains incomplete. Public automatic pricing is implemented. Production deployment and public sales remain disabled pending the user's separate publication approval. See the current acceptance section below; older preparation and traffic-test notes are historical.
+Updated: 2026-10-11. Branch: `codex/lightnode-integration`. Status: publication authorized; the owner accepted the common regional model without further paid regional tests. Real fixed-bandwidth Manila Linux/Windows acceptance completed and temporary guests released. Public automatic pricing is implemented. Production deployment and public sales are not yet completed because the authorized cPanel browser connection is unavailable. See the latest authorized-publication section; older approval requirements and preparation notes are historical.
+
+## Authorized publication and regional model — 2026-10-11
+
+The owner explicitly approved publication and waived paid acceptance in every region, stating the regions use the same model. This supersedes the prior pending USD 8 regional-test question; **no additional paid tests or higher spending permission are assumed**. Completed Manila Linux/Windows acceptance and release evidence remain unchanged.
+
+A separate opt-in `LIGHTNODE_ACCEPT_REGIONAL_MODEL` allows standard fixed-bandwidth Intel/AMD packages to use the owner's accepted shared s2/s3 model. The package name's CPU/RAM/bandwidth/boot/data values must match the actual OpenAPI fields exactly, and public configuration, stock, exact component prices and Windows parity must still pass. Unknown names, inconsistent specifications, traffic contracts, unavailable quotes and conflicting explicit metadata remain excluded. This is stored as **owner_assumed**, separately from **receipt_verified**; it does not claim real regional test evidence. Every actual purchase still records the expected series/specifications and holds customer delivery if the real receipt differs.
+
+Catalog configuration trees may be reused for **60 seconds** to avoid repeated regional configuration downloads across variants; **amounts are never cached**. Purchase quotes bypass the configuration cache and recheck stock/configuration and component prices. No account credential is sent to the public calculator.
+
+Validation: **412 tests / 2728 assertions** passed on develop `8f0e54dd`, including owner opt-in, AMD delivery rejection for a mismatched real series, name/spec/stock guards and fresh purchase cache bypass. A separate final administration rerun after the status badge/text change passed **15 tests / 298 assertions**; counts overlap and are not cumulative.
+
+Publication is authorized, but production deployment and sales activation are **not yet completed**. The source defaults for all three LightNode flags remain false. A credential-free 20-file runtime packet with base/incoming source pairs is prepared privately for comparison against a fresh production snapshot; this is not permission to overwrite concurrent changes. Direct SSH authentication was rejected and the supplied cPanel session requires the connected authorized browser, whose access is currently unavailable. No browser security warning was bypassed, credential changed, new access granted or unrelated production file overwritten. The owner was asked to reconnect the browser, without requesting publication approval again.
+
+Rollback must first close the two sales/pricing gates and the regional-model opt-in, deactivate only LightNode offers, and preserve encrypted operation journals. Restore only the installed files whose hashes still match this release, after retaining concurrent changes; do not blindly revert develop, drop financial/operation records or run migration down. Existing guest, customer services, global profit/fees, routing/NAT/firewall/DNS/persistence and country/port-forward sources remain unchanged at this checkpoint.
 
 ## Latest pricing and transport verification — 2026-10-10
 

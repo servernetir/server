@@ -142,12 +142,13 @@ class LightNodeClient implements CloudProvider
         }
     }
 
-    private function reviewedRate(string $ref, array $package): ?array
+    private function reviewedRate(string $ref, array $package, bool $fresh = true): ?array
     {
         if (config('lightnode.public_pricing_enabled') === true) {
             $binding = $this->manifest()['bindings'][$ref] ?? [];
-            // Package codes contain no authoritative CPU-series field. Do not
-            // infer shared/dedicated from a name, or carry manual prices over.
+            if ($binding === []) { $binding = $this->ownerAcceptedBinding($package) ?? []; }
+            // An explicit owner-accepted regional model is separate from real
+            // delivery evidence. Saved/manual prices never become authoritative.
             if (! in_array($binding['series'] ?? null, LightNodePublicPricing::SERIES, true)
                 || ! in_array($binding['cpu_kind'] ?? null, ['shared', 'dedicated'], true)
                 || ($binding['spec'] ?? null) != $this->packageSpec($package)
@@ -155,19 +156,20 @@ class LightNodeClient implements CloudProvider
                 || $binding['verified_at'] > time() || $binding['verified_at'] < time() - 30 * 86400
                 // No supported API setter for limitFlow has been verified.
                 || ($package['publicIpChargeMode'] ?? '') !== 'PayByBandwidth') { return null; }
-            $quote = app(LightNodePublicPricing::class)->quote($package, $binding['series']);
+            $quote = app(LightNodePublicPricing::class)->quote($package, $binding['series'], 'linux', $fresh);
             if (($quote['ok'] ?? false) !== true || ($quote['source'] ?? '') !== 'public_calculator'
                 || ($quote['currency'] ?? '') !== 'USD') { return null; }
             // One plan has one supplier price. Windows must have the same exact
             // quote before its images can be offered against that plan.
             if ((int) $package['cpu'] >= 2 && (int) $package['memory'] >= 4) {
-                $windows = app(LightNodePublicPricing::class)->quote($package, $binding['series'], 'windows');
+                $windows = app(LightNodePublicPricing::class)->quote($package, $binding['series'], 'windows', $fresh);
                 if (($windows['ok'] ?? false) !== true || ($windows['source'] ?? '') !== 'public_calculator'
                     || ($windows['currency'] ?? '') !== 'USD'
                     || ($windows['hour_usd'] ?? null) !== $quote['hour_usd']
                     || ($windows['month_usd'] ?? null) !== $quote['month_usd']) { return null; }
             }
             return $quote + ['cpu_kind' => $binding['cpu_kind'], 'delivery_verified' => ($binding['delivery_verified'] ?? false) === true,
+                'owner_accepted_model' => ($binding['owner_accepted_model'] ?? false) === true,
                 'spec' => $this->packageSpec($package)];
         }
         if (! $this->fixtureRatesEnabled()) { return null; }
@@ -182,6 +184,24 @@ class LightNodeClient implements CloudProvider
             return null;
         }
         return $rate;
+    }
+
+    private function ownerAcceptedBinding(array $package): ?array
+    {
+        if (config('lightnode.accept_regional_model') !== true
+            || ($package['publicIpChargeMode'] ?? '') !== 'PayByBandwidth'
+            || ! preg_match('/^(intel|amd)-c(\d+)m(\d+)-bgp-b(\d+)-s(\d+)-d(\d+)$/', (string) ($package['packageCode'] ?? ''), $parts)) {
+            return null;
+        }
+        foreach ([2 => 'cpu', 3 => 'memory', 4 => 'bandwidth', 5 => 'systemDiskSize', 6 => 'dataDiskSize'] as $index => $field) {
+            if (! isset($package[$field]) || (int) $package[$field] !== (int) $parts[$index]) { return null; }
+        }
+        // The owner's accepted model maps standard Intel/AMD packages to the
+        // public shared s2/s3 profiles. Exact public config/price must still match;
+        // the actual instanceSeries is checked before any customer delivery.
+        return ['series' => $parts[1] === 'intel' ? 's2' : 's3', 'cpu_kind' => 'shared',
+            'verified_at' => time(), 'delivery_verified' => false, 'owner_accepted_model' => true,
+            'spec' => $this->packageSpec($package)];
     }
 
     private function supplierCost(array $rate): ?array
@@ -273,7 +293,7 @@ class LightNodeClient implements CloudProvider
                         || (($p['publicIpChargeMode'] ?? '') === 'PayByBandwidth' && (int) ($p['bandwidth'] ?? 0) <= 0)
                         || (($p['publicIpChargeMode'] ?? '') === 'PayByTraffic' && (int) ($p['freeFlow'] ?? 0) <= 0)) { continue; }
                     $ref = $regionCode.'|'.$zoneCode.'|'.$p['packageCode'];
-                    $rate = $this->reviewedRate($ref, $p);
+                    $rate = $this->reviewedRate($ref, $p, false);
                     // Rates include compute, disk, IPv4 and the chosen network plan.
                     // Traffic overage must be resolved before sale, not hidden in a margin.
                     $hour = $rate['hour_usd'] ?? null;
@@ -287,13 +307,17 @@ class LightNodeClient implements CloudProvider
                         'boot_disk_gb' => (int) $p['systemDiskSize'], 'data_disk_gb' => (int) ($p['dataDiskSize'] ?? 0),
                         'traffic_gb' => (int) ($p['freeFlow'] ?? 0), 'cpu_kind' => $rate['cpu_kind'] ?? 'shared', 'arch' => 'x86',
                         'network_terms' => ['bandwidth_mbps' => isset($p['bandwidth']) ? (int) $p['bandwidth'] : null,
+                            'cpu_series' => $rate['series'] ?? null,
+                            'model_acceptance' => ($rate['owner_accepted_model'] ?? false) === true ? 'owner_assumed'
+                                : (($rate['delivery_verified'] ?? false) === true ? 'receipt_verified' : 'metadata_only'),
                             'monthly_allowance_gb' => isset($p['freeFlow']) ? (int) $p['freeFlow'] : null,
                             'hourly_prorated' => $p['publicIpChargeMode'] === 'PayByTraffic',
                             'boot_disk_gb' => (int) $p['systemDiskSize'], 'data_disk_gb' => (int) ($p['dataDiskSize'] ?? 0),
                             'charge_mode' => (string) $p['publicIpChargeMode']],
                         'cost_eur_cents' => (int) ceil($pricing->costWithFee((float) $month * $usd / $eur, $this->slug()) * 100),
                         'cost_hour_eur_micro' => (int) ceil($pricing->costWithFee((float) $hour * $usd / $eur, $this->slug()) * 1000000),
-                        'in_stock' => config('lightnode.sales_enabled') === true && ($rate['delivery_verified'] ?? false) === true,
+                        'in_stock' => config('lightnode.sales_enabled') === true
+                            && (($rate['delivery_verified'] ?? false) === true || ($rate['owner_accepted_model'] ?? false) === true),
                         'name' => $p['packageCode']];
                 }
             }
@@ -553,7 +577,7 @@ class LightNodeClient implements CloudProvider
                     $op = CloudProviderOperation::create(['operation_key' => $key, 'provider' => $this->slug(), 'action' => 'create',
                         'payload' => $payload + ['_expected_spec' => $this->packageSpec($package)]
                             + (($rate['source'] ?? '') === 'public_calculator' ? ['_expected_series' => $rate['series'],
-                                '_supplier_quote' => array_intersect_key($rate, array_flip(['source', 'currency', 'hour_usd', 'month_usd', 'verified_at']))] : [])]);
+                                '_supplier_quote' => array_intersect_key($rate, array_flip(['source', 'currency', 'hour_usd', 'month_usd', 'verified_at', 'owner_accepted_model', 'delivery_verified']))] : [])]);
                     $r = $this->request('POST', '/instance/create', $payload);
                     $task = $r['data']['asyncTaskInfo'] ?? [];
                     if (! $r['ok'] || empty($task['asyncTaskUUID']) || empty($task['ecsResourceUUID'])) {

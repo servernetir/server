@@ -190,6 +190,59 @@ class LightNodeClientTest extends TestCase
         $this->assertNotSame(19800, $cost);
     }
 
+    private function regionalModel(string $vendor = 'intel', array $changes = [], ?callable $quote = null): array
+    {
+        $package = array_replace($this->package(), ['packageCode' => $vendor.'-c2m4-bgp-b5-s50-d0',
+            'publicIpChargeMode' => 'PayByBandwidth', 'bandwidth' => 5], $changes);
+        unset($package['freeFlow']);
+        $this->publicPricing(['*/package/list*' => Http::response(['packages' => [$package]])], $quote);
+        $manifest = json_decode(Setting::get('lightnode_manifest'), true); $manifest['bindings'] = [];
+        Setting::put('lightnode_manifest', json_encode($manifest));
+        config(['lightnode.sales_enabled' => true, 'lightnode.accept_regional_model' => true]);
+        return $package;
+    }
+
+    public function test_regional_sale_requires_owner_acceptance_and_records_it_separately(): void
+    {
+        $this->regionalModel();
+        config(['lightnode.accept_regional_model' => false]);
+        $this->assertSame([], $this->client()->fetchCatalog()['plans']);
+        config(['lightnode.accept_regional_model' => true]);
+        $plan = $this->client()->fetchCatalog()['plans'][0];
+        $this->assertTrue($plan['in_stock']);
+        $this->assertSame('s2', $plan['network_terms']['cpu_series']);
+        $this->assertSame('owner_assumed', $plan['network_terms']['model_acceptance']);
+        Http::assertNotSent(fn ($r) => $r->method() === 'POST');
+    }
+
+    public function test_regional_amd_purchase_still_holds_delivery_for_the_wrong_real_cpu_series(): void
+    {
+        $package = $this->regionalModel('amd');
+        $this->assertTrue(app(CloudCatalogSync::class)->sync('lightnode')['ok']);
+        $spec = $this->spec(); $spec['plan_ref'] = 'ph-test|ph-test-a|'.$package['packageCode'];
+        $this->assertTrue($this->client()->createServer($spec)['ok']);
+        $op = CloudProviderOperation::firstOrFail();
+        $this->assertSame('s3', $op->payload['_expected_series']);
+        $this->assertTrue($op->payload['_supplier_quote']['owner_accepted_model']);
+        $this->assertFalse($op->payload['_supplier_quote']['delivery_verified']);
+        // The fake receipt is Intel s2, although the requested package is AMD s3.
+        $status = $this->client()->serverStatus('ecs-sample');
+        $this->assertFalse($status['ok']); $this->assertNull($status['ipv4']);
+        $this->assertCount(1, Http::recorded(fn ($r) => $r->method() === 'POST'));
+    }
+
+    public function test_owner_model_cannot_override_inconsistent_specs_unknown_packages_or_unavailable_quotes(): void
+    {
+        foreach ([['cpu' => 8], ['packageCode' => 'premium-c2m4-bgp-b5-s50-d0'],
+            ['packageCode' => 'intel-c2m4-bgp-t1000-s50-d0', 'publicIpChargeMode' => 'PayByTraffic']] as $changes) {
+            $this->regionalModel('intel', $changes);
+            $this->assertSame([], $this->client()->fetchCatalog()['plans']);
+        }
+        $this->regionalModel('intel', [], fn () => ['ok' => false]);
+        $this->assertSame([], $this->client()->fetchCatalog()['plans']);
+        Http::assertNotSent(fn ($r) => $r->method() === 'POST');
+    }
+
     public function test_public_prices_require_explicit_current_exact_series_binding(): void
     {
         $this->publicPricing();

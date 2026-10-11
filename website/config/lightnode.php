@@ -6,6 +6,9 @@ return [
     // Anonymous official public calculator. Keep gated until real acceptance;
     // source/schema changes fail closed and never fall back to saved prices.
     'public_pricing_enabled' => env('LIGHTNODE_PUBLIC_PRICING_ENABLED', false),
+    // Owner explicitly accepted using the tested regional model without buying
+    // a test VM in every country (2026-10-11). This is not delivery evidence.
+    'accept_regional_model' => env('LIGHTNODE_ACCEPT_REGIONAL_MODEL', false),
     // The current OpenAPI has no monetary fields. Saved rates are fixtures
     // for isolated tests only; no environment switch enables them in production.
     'allow_fixture_rates' => false,

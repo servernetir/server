@@ -12,8 +12,9 @@
   <div class="ad-panel">
     <div class="ad-panel-h"><h2>LightNode</h2>
       @if($cloud['lightnode'])<span class="ad-badge">کلید ذخیره‌شده</span>@endif
+      <span class="ad-badge">{{ config('lightnode.sales_enabled') && config('lightnode.public_pricing_enabled') ? 'فروش فعال' : 'فروش غیرفعال' }}</span>
     </div>
-    <p class="set-lead">اتصال و همگام‌سازی برای بررسی فعال می‌شود. فروش تا تأیید قیمت هر منطقه، تحویل لینوکس و ویندوز و حذف واقعی سرور بسته می‌ماند. خاموشی، هزینهٔ این زیرساخت را متوقف نمی‌کند.</p>
+    <p class="set-lead">فروش با پهنای‌باند ثابت، قیمت تازهٔ LightNode و سود فعلی سایت انجام می‌شود. استفاده از مدل مشترک مناطق با تأیید مالک، جدا از آزمون واقعی هر پلن ثبت می‌شود؛ تحویل پس از تطبیق پاسخ واقعی زیرساخت است. خاموشی، هزینه را متوقف نمی‌کند.</p>
     <div class="set-grid" style="padding:0 18px 18px">
       <label class="set-f">کلید API
         <input type="password" name="lightnode_api_token" dir="ltr" autocomplete="new-password" maxlength="1000"

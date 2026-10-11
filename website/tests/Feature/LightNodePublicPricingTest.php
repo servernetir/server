@@ -101,6 +101,20 @@ class LightNodePublicPricingTest extends TestCase
         Http::assertNotSent(fn ($r) => $r->hasHeader('x-open-token') || $r->hasHeader('Cookie'));
     }
 
+    public function test_catalog_config_is_shared_but_purchase_reloads_config_and_never_reuses_a_price(): void
+    {
+        $this->fake(); $pricing = app(LightNodePublicPricing::class);
+        $this->assertTrue($pricing->quote($this->package(), 's2', 'linux', false)['ok']);
+        $this->assertTrue($pricing->quote($this->package(), 's2', 'windows', false)['ok']);
+        $this->assertCount(1, Http::recorded(fn ($r) => str_contains($r->url(), '/getRegionAndZoneDetailInfo.do')));
+        $this->assertCount(3, Http::recorded(fn ($r) => str_contains($r->url(), '/getBuyConfigInfo.do')));
+        $this->assertCount(2, Http::recorded(fn ($r) => str_contains($r->url(), '/getBatchPrice.do')));
+        $this->assertTrue($pricing->quote($this->package(), 's2', 'linux')['ok']);
+        $this->assertCount(2, Http::recorded(fn ($r) => str_contains($r->url(), '/getRegionAndZoneDetailInfo.do')));
+        $this->assertCount(6, Http::recorded(fn ($r) => str_contains($r->url(), '/getBuyConfigInfo.do')));
+        $this->assertCount(3, Http::recorded(fn ($r) => str_contains($r->url(), '/getBatchPrice.do')));
+    }
+
     public function test_public_quote_matches_real_component_precision_without_account_authentication(): void
     {
         $this->fake();

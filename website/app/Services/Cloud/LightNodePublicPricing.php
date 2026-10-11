@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 /** Read-only public website calculator; never uses account/OpenAPI credentials. */
 class LightNodePublicPricing
 {
+    private bool $catalogSnapshot = false;
     private const ORIGIN = 'https://www.lightnode.com';
     public const SERIES = ['s2', 'g2', 's3', 'g2a'];
     // A rolling customer month can span two supplier calendar billing months;
@@ -91,6 +92,15 @@ class LightNodePublicPricing
         return $matches[0];
     }
 
+    private function configuration(string $path, array $input): array
+    {
+        if (! $this->catalogSnapshot) { return $this->read($path, $input); }
+        // Catalog variants share read-only region/spec trees for up to one
+        // minute. Amounts are never cached; purchase quotes bypass this cache.
+        return Cache::remember('lightnode-public-config:'.hash('sha256', $path.json_encode($input)), 60,
+            fn () => $this->read($path, $input));
+    }
+
     private function within(array $nodes, int $size): bool
     {
         foreach ($nodes as $node) {
@@ -104,9 +114,10 @@ class LightNodePublicPricing
         return false;
     }
 
-    /** An explicit, independently verified series binding is required by callers. */
-    public function quote(array $package, string $series, string $os = 'linux'): array
+    /** Callers supply receipt-verified or explicitly owner-accepted CPU metadata. */
+    public function quote(array $package, string $series, string $os = 'linux', bool $fresh = true): array
     {
+        $this->catalogSnapshot = ! $fresh;
         try {
             if (! in_array($series, self::SERIES, true) || ! in_array($os, ['linux', 'windows'], true)
                 || ($os === 'windows' && (($package['cpu'] ?? 0) < 2 || ($package['memory'] ?? 0) < 4))) {
@@ -114,14 +125,14 @@ class LightNodePublicPricing
             }
             $region = $package['regionCode']; $zone = $package['zoneCode'];
             $query = ['region' => $region, 'zone' => $zone, 'functionName' => 'NORMAL'];
-            $regions = $this->read('/api/site/sku/getRegionAndZoneDetailInfo.do', ['resourceType' => 'LIGHTNODE_ECS', 'functionName' => 'NORMAL']);
+            $regions = $this->configuration('/api/site/sku/getRegionAndZoneDetailInfo.do', ['resourceType' => 'LIGHTNODE_ECS', 'functionName' => 'NORMAL']);
             $location = array_values(array_filter($regions, fn ($r) => ($r['regionCode'] ?? '') === $region));
             if (count($location) !== 1 || ($location[0]['saleStatus'] ?? '') !== 'IN_SELL'
                 || count(array_filter($location[0]['zones'] ?? [], fn ($z) => ($z['zoneCode'] ?? '') === $zone
                     && ($z['saleStatus'] ?? '') === 'IN_SELL')) !== 1) {
                 throw new \RuntimeException('Calculator region unavailable');
             }
-            $compute = $this->read('/api/site/sku/getBuyConfigInfo.do', $query + ['resourceType' => 'LIGHTNODE_ECS']);
+            $compute = $this->configuration('/api/site/sku/getBuyConfigInfo.do', $query + ['resourceType' => 'LIGHTNODE_ECS']);
             $net = $this->child($compute, 'netType', 'privateNet');
             $type = $this->child($net['children'] ?? [], 'instanceType', $series);
             $sizes = array_values(array_filter($type['children'] ?? [], fn ($s) => ($s['itemName'] ?? '') === 'instanceSpec'
@@ -131,7 +142,7 @@ class LightNodePublicPricing
             $boot = $this->child($boot['children'] ?? [], 'diskCategory', 'local_ssd');
             $boot = $this->child($boot['children'] ?? [], 'image', $os);
             if (! $this->within($boot['children'] ?? [], (int) $package['systemDiskSize'])) { throw new \RuntimeException('Calculator boot disk mismatch'); }
-            $network = $this->read('/api/site/sku/getBuyConfigInfo.do', $query + ['resourceType' => 'OWN_EIP']);
+            $network = $this->configuration('/api/site/sku/getBuyConfigInfo.do', $query + ['resourceType' => 'OWN_EIP']);
             $mode = $package['publicIpChargeMode'];
             $network = $this->child($network, 'chargeMode', $mode);
             $network = $this->child($network['children'] ?? [], 'bandwidthType', 'BGP');
@@ -151,7 +162,7 @@ class LightNodePublicPricing
                     'chargeMode' => $mode, 'instanceChargeType' => 'PostPaid', 'region' => $region,
                     'bandwidth' => $mode === 'PayByTraffic' ? $defaults[0]['value'] : $networkValue] + ($mode === 'PayByTraffic' ? ['actualFlow' => $networkValue] : [])]];
             if ((int) ($package['dataDiskSize'] ?? 0) > 0) {
-                $data = $this->read('/api/site/sku/getBuyConfigInfo.do', $query + ['resourceType' => 'OWN_DISK']);
+                $data = $this->configuration('/api/site/sku/getBuyConfigInfo.do', $query + ['resourceType' => 'OWN_DISK']);
                 $data = $this->child($data, 'diskType', 'Data');
                 $data = $this->child($data['children'] ?? [], 'diskCategory', 'local_ssd');
                 if (! $this->within($data['children'] ?? [], (int) $package['dataDiskSize'])) { throw new \RuntimeException('Calculator data disk mismatch'); }
