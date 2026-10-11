@@ -2,6 +2,10 @@
 
 Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 389 valid fixed-bandwidth plans in 40 regions. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
 
+## Mobile purchase and price audit — 2026-10-11
+
+Mobile hourly/store fixes are published. Explicit zero provider overhead now overrides the global fee; live settings were not changed. Official LightNode documentation states USD settlement and no VAT/sales tax. The observed21% is inherited from ServerNet global funding overhead, not a LightNode tax. Actual funding fees remain unconfirmed. Fresh quotes and current FX match the hourly totals; fixed bandwidth and rolling-period744h reserves explain further differences from traffic-plan advertising. See HOURLY-MOBILE-PRICING-AUDIT-2026-10-11.md for tests, exact examples, publication and guarded rollback.
+
 ## Published production state — 2026-10-11
 
 The follow-up customer-copy and publication-record PR39 is merged at b4d36f6e86549aa669ba040cc73f6832fc973c3e; its runtime source matches the installed f90cee98 copy packet. Price and stock come from the official anonymous public calculator/configuration, not the account OpenAPI, which supplies instance/package specifications and lifecycle operations.
