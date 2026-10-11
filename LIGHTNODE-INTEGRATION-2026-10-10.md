@@ -1,203 +1,235 @@
-# LightNode integration — acceptance and release record
-
-Updated: 2026-10-11. Branch: `codex/lightnode-integration`. Status: publication authorized; the owner accepted the common regional model without further paid regional tests. Real fixed-bandwidth Manila Linux/Windows acceptance completed and temporary guests released. Public automatic pricing is implemented. Production deployment and public sales are not yet completed because the authorized cPanel browser connection is unavailable. See the latest authorized-publication section; older approval requirements and preparation notes are historical.
-
-## Authorized publication and regional model — 2026-10-11
-
-The owner explicitly approved publication and waived paid acceptance in every region, stating the regions use the same model. This supersedes the prior pending USD 8 regional-test question; **no additional paid tests or higher spending permission are assumed**. Completed Manila Linux/Windows acceptance and release evidence remain unchanged.
-
-A separate opt-in `LIGHTNODE_ACCEPT_REGIONAL_MODEL` allows standard fixed-bandwidth Intel/AMD packages to use the owner's accepted shared s2/s3 model. The package name's CPU/RAM/bandwidth/boot/data values must match the actual OpenAPI fields exactly, and public configuration, stock, exact component prices and Windows parity must still pass. Unknown names, inconsistent specifications, traffic contracts, unavailable quotes and conflicting explicit metadata remain excluded. This is stored as **owner_assumed**, separately from **receipt_verified**; it does not claim real regional test evidence. Every actual purchase still records the expected series/specifications and holds customer delivery if the real receipt differs.
-
-Catalog configuration trees may be reused for **60 seconds** to avoid repeated regional configuration downloads across variants; **amounts are never cached**. Purchase quotes bypass the configuration cache and recheck stock/configuration and component prices. No account credential is sent to the public calculator.
-
-Validation: **412 tests / 2728 assertions** passed on develop `8f0e54dd`, including owner opt-in, AMD delivery rejection for a mismatched real series, name/spec/stock guards and fresh purchase cache bypass. A separate final administration rerun after the status badge/text change passed **15 tests / 298 assertions**; counts overlap and are not cumulative.
-
-Publication is authorized, but production deployment and sales activation are **not yet completed**. The source defaults for all three LightNode flags remain false. A credential-free 20-file runtime packet with base/incoming source pairs is prepared privately for comparison against a fresh production snapshot; this is not permission to overwrite concurrent changes. Direct SSH authentication was rejected and the supplied cPanel session requires the connected authorized browser, whose access is currently unavailable. No browser security warning was bypassed, credential changed, new access granted or unrelated production file overwritten. The owner was asked to reconnect the browser, without requesting publication approval again.
-
-Rollback must first close the two sales/pricing gates and the regional-model opt-in, deactivate only LightNode offers, and preserve encrypted operation journals. Restore only the installed files whose hashes still match this release, after retaining concurrent changes; do not blindly revert develop, drop financial/operation records or run migration down. Existing guest, customer services, global profit/fees, routing/NAT/firewall/DNS/persistence and country/port-forward sources remain unchanged at this checkpoint.
-
-## Latest pricing and transport verification — 2026-10-10
-
-After the live guests were released, the latest regression passed **408 tests / 2701 assertions** with no failures or errors. This includes the shared store, hourly billing, catalog, provisioning, GPU and administration checks, plus bounded read retries and the LightNode period-cost floor. Previous overlapping batch counts are historical and must not be summed.
-
-The supplier's [financial billing guide](https://doc.lightnode.com/Financial/resourcebilling.html) documents a **672-hour cap per calendar month** for unchanged resources/configuration. Its [instance billing description](https://doc.lightnode.com/Instance/Billingdescription.html) describes fixed bandwidth charged by configuration and usage duration. The public calculator displays a 672-hour monthly estimate; that is not a guaranteed cost cap for an arbitrary rolling ServerNet customer month, which can span two supplier calendar months. Period pricing therefore conservatively reserves **744 hours per customer month**, using the exact hourly component quote, and disables generic period discounts for LightNode. The supplier calculator's own monthly amount is retained separately as `calculator_month_usd`; this reserve is an application safety calculation, not a new supplier monthly quote. Hourly customer pricing uses the explicit hourly supplier cost directly, retaining the existing **5%** profit, **21%** funding fee and normal FX/rounding without deriving an extra markup from the 744-hour period price. No production settings were changed.
-
-A fresh real SDK catalog read through the existing Windows proxy succeeded after cleanup: **40 regions, 1126 images, two proven Manila plans, zero enabled sale offers**. Fixed-bandwidth exact hourly USD rates remained **0.017418** and **0.058306**; the 31-day reserve is USD **12.958992** and **43.379664**, respectively. The private FX/fee snapshot produced hourly supplier costs of **18817 / 62989 EUR micro-units** and period reserves of **1400 / 4687 EUR cents**. These are snapshot evidence, not frozen sale prices.
-
-Local WSL direct connections to the public website timed out while the existing Windows proxy worked. Only the private test process reused the existing proxy; no system proxy, route, firewall or persisted network setting changed. Transient GET/catalog reads and anonymous public quote reads now retry at most three attempts, with a fresh anonymous certificate on public retries. OpenAPI lifecycle POSTs never retry automatically; authorization failures are not retried.
-
-Both temporary guests remain released, and no additional purchase was made. Verification of the other regions requires separate paid-test authorization beyond the completed two-guest USD 0.20 permission, or an explicit decision to scope the initial catalog to the two proven Manila plans. A read-only regional candidate assessment found 39 further pairs (maximum 78 guests); it is not binding or stock evidence and does not authorize purchase. All production sales gates remain false.
-
-## Current fixed-bandwidth acceptance — 2026-10-10
-
-The user explicitly approved fixed bandwidth only, two temporary Manila guests, USD 0.20 combined maximum and release within two hours. Both guests were created through actual `Service` → `CloudProvisioner` → LightNode OpenAPI in an isolated encrypted SQLite database with synthetic customer, fake mail and no real payment. This was a fresh acceptance of the public calculator revision, not a repetition of the historical traffic tests.
-
-| Check | Linux | Windows |
-| --- | --- | --- |
-| Exact package | `intel-c1m2-bgp-b2-s50-d0` | `intel-c2m4-bgp-b5-s50-d100` |
-| Actual resources | 1 vCPU / 2 GB / 50 GB boot, no data disk | 2 vCPU / 4 GB / 50 GB boot + 100 GB data disk |
-| Supplier network/CPU receipt | `PAY_BY_BAND_WIDTH`, 2 Mbps, `s2` | `PAY_BY_BAND_WIDTH`, 5 Mbps, `s2` |
-| OS/access | Ubuntu 24.04.2; root SSH authenticated | Windows Server 2022; Administrator RDP authenticated, desktop received |
-| Customer delivery | Actual private HTTP kernel rendered correct IP/username; one-time password correct; second reveal blocked | Same checks passed |
-| Power and password | Stop/start accepted and settled; reset committed atomically; new password authenticated | Same checks passed; provider reset also starts the guest |
-| Reinstall | New generated password accepted, task SUCCESS, fresh SSH login and customer delivery passed | New generated password accepted, task SUCCESS, RDP login and customer delivery passed; data disk still 100 GB |
-| Release | Task SUCCESS and absence from complete inventory | Task SUCCESS and absence from complete inventory |
-
-Fresh pre-purchase public component quotes were USD **0.017418/hour** and **0.058306/hour** respectively. Two hours of both exact rates is USD **0.151448**, below the approved USD 0.20 ceiling; the three-decimal panel display rates also remain below that ceiling for two hours. Existing site settings were read without changing production: general profit **5%**, funding fee **21%**, existing live FX source, no manual FX override. Test-time customer rates were 6,000 and 19,900 IRT/hour; these are evidence for that FX snapshot, not frozen production prices.
-
-The first purchase was 13:15:43 UTC. Windows release was accepted at 14:05:05; the reviewed Linux release was accepted around 14:11. Complete all-region/zone inventory independently returned exactly **one pre-existing guest and zero temporary guests**. Final ServerNet release reconciliation recorded both local instances deleted and cleanup complete at **14:15:33 UTC**, within one hour of the first purchase. The hidden watchdog observed completion and needs no further paid work. Stopping a guest is not counted as release.
-
-Two live incompatibilities were corrected: fixed bandwidth receipts use `PAY_BY_BAND_WIDTH` (the earlier spelling held delivery), and Linux reinstall rejected the earlier 24-character password format with explicit HTTP 400 `InvalidParameter.Password`. The replacement 20-character cryptographically random format includes uppercase, lowercase, digits and `@`, with no three repeated characters. Both OSes accepted this format during final reinstall; Windows also accepted it during password reset. The affected regression batch passed **161 tests / 706 assertions** after updating the existing password expectation.
-
-There were intermittent API connection failures from the local test environment. An uncertain Linux reinstall was manually reviewed against the exact disposable stopped guest and its unchanged image, then retried with the identical payload; its later explicit password rejection and original journal were archived encrypted before recovery. A lost Linux release response was separately reviewed against the exact owned guest with no pending operation. One identical release was sent through the official endpoint using the native Windows transport; its accepted task was imported into the original journal, preserving the previous payload encrypted. ServerNet then confirmed task SUCCESS, regional absence and complete account absence. These are documented operator recoveries, not automatic mutation retries or evidence that every network failure is self-healing. No extra purchase occurred.
-
-The provider's normal deployment UI independently exposed global metadata: `s2` = Intel / CPU Shared, `s3` = AMD / CPU Shared, `g2` = Intel / CPU Exclusive, `g2a` = AMD / CPU Exclusive. Only ordinary UI requests were observed; those private endpoints are not integration dependencies. The console showed 46 public locations while the account OpenAPI returned 40. Public location visibility alone does not establish an OpenAPI package's CPU-series binding or stock. **Only the two exact Manila package bindings have real receipt/delivery evidence.** These two exact specifications are now in the default metadata, with verification timestamp 1791641733 and the existing 30-day freshness limit. No saved supplier price is included; fresh public quotes are still mandatory. Other regional bindings are empty. Other countries remain mapped but unverified package bindings stay excluded; the two Manila receipts are not extrapolated to all regional packages.
-
-The monthly bill available during the test exported rounded two-decimal components and did not yet contain the new fixed-bandwidth guests. Exact finalized invoice charges and rounding therefore remain pending; no six-decimal invoice precision is claimed. Windows data-disk attachment/size was verified in the supplier receipt; guest formatting or volume initialization was not tested. SSH/RDP, customer HTTP delivery and lifecycle were private acceptance, not a live customer payment or production deployment.
-
-After paid cleanup, the branch was merged with `origin/develop` at **8f0e54dd** (including the separate GPU margin and billing-cycle floor changes). Related pricing/catalog/order/customer/hourly-billing/GPU/administration regression passed **404 tests / 2686 assertions**. The earlier 161-case batch overlaps this run and must not be added to it. A duplicate LightNode sale-gate example line was removed; both example/default gates remain false.
-
-Affected infrastructure: the two disposable Manila guests only. The pre-existing guest, production settings/database, NAT/firewall/DNS/routes, persistence services and country-routing/port-forward source state were preserved. `LIGHTNODE_PUBLIC_PRICING_ENABLED=false` and `LIGHTNODE_SALES_ENABLED=false` remain the production defaults. Keep the private encryption key/database and operation archives until the audit is retained; rollback starts by closing sales gates and must never substitute code rollback for releasing paid guests.
-
-## Verified provider contract
-
-The [official OpenAPI index](https://apidoc.lightnode.com/en/llms.txt) lists 18 English API documents, all read for this integration. Lifecycle requests use the fixed origin `https://openapi.lightnode.com` and `x-open-token`. Redirects and automatic mutation retries are disabled. Private console endpoints, another provider's authentication, and invented OpenAPI price fields are not used. The separate anonymous public calculator price source is described below.
-
-| Operation | Official endpoint / essential fields |
-| --- | --- |
-| Regions, packages, images | `/region/list`, `/package/list` with region/zone, `/image/list` with region and `imageType=System` |
-| Inventory, detail | `/instance/list` with region **and zone**, paginated; `/instance/detail` with resource reference |
-| Create | POST `/instance/create`, nested `packageConfig`: package, region, zone, name, regional image UUID, generated password; optional validated regional firewall UUID |
-| Power | POST `/instance/start`, `/instance/stop`, `/instance/restart` |
-| Reset password | POST `/instance/modifyInstancePassword`; fully stopped instance required |
-| Reinstall | POST `/instance/reinstallSystem`, resource, regional image, region and password; fully stopped instance required |
-| Release | POST `/instance/release`; task success and complete inventory absence required |
-| Task completion | `/asynctask/getResult`; `processResult=SUCCESS` is required, HTTP 202 alone is insufficient |
-
-The account's API key was verified active. Its value is held in a private encrypted local credential store and in the private acceptance database, never in this repository or this record. Production credentials have not been installed.
-
-New purchase journals also retain expected resources. Delivery checks CPU, RAM, boot/data disk sizes, region/zone, initial image UUID and network contract against the actual receipt. Traffic packages additionally require `limitFlow=TRUE` before delivery; an uncontrolled traffic package is held for administrative review. Customer password reveal stays blocked until delivery is confirmed.
-
-An encrypted durable operation journal is written **before** every purchase or management mutation. Lost responses cannot trigger a duplicate purchase. Conflicting operations remain blocked until reconciled. A same-named machine without a purchase journal requires an ownership review; it is not silently adopted. Completed password/reinstall tasks retain their journal until the instance password, image and service username are committed together in a database transaction.
-
-Initial purchase reconciliation and release checks use the complete recorded region/zone inventory, including all pages. General administrative inventory still traverses all regions/zones and fails on partial results. The recorded region is retained even when a region disappears from the current sales list.
-
-No documented public API was found for VNC/console URLs, metrics, resize, snapshots, uploading SSH keys, additional IPs or firewall rule creation. These capabilities are disabled. Existing regional firewall groups can be selected only after their exact UUID, region and AVAILABLE state are verified. No group or firewall rule was changed in these tests.
-
-## Regions and catalog
-
-The initial live API returned 39 regions on 2026-10-10. A later complete recheck returned 40 regions/zones, adding `mm-yangon-1` (Yangon, Myanmar), which is now explicitly mapped. Explicit country/city mappings are in `website/config/lightnode.php`, and can be supplemented by the reviewed account manifest. Provider IDs are opaque: `bg-dhaka-1` is Bangladesh, whereas `bg-sofia-1` is Bulgaria. Taiwan and Hong Kong have their own customer location entries. Multiple zones remain distinct provider plan references. A region/package listing is not a price or stock guarantee.
-
-The initial console advertised 46 locations, with seven marked Sold Out: Muscat, Johannesburg, Lima, Karachi II, Yangon, Jeddah and Almaty. Yangon subsequently appeared in the live API; no purchasable plan is invented from this change without pricing/delivery acceptance. No live API mapping is invented for the other unavailable locations. Baghdad also has a current provider internet shutdown notice spanning September 26–October 12; stock acceptance must consider that notice.
-
-Image UUIDs are region-specific. Windows requires at least **2 vCPU / 4 GB RAM**, as confirmed by the official create form; this is enforced in the catalog, customer image selection, purchase and reinstall paths. System disk requirements apply to the boot disk, not the sum of boot and data disks. Additional data storage is displayed separately; formatting/mounting an additional volume was not tested.
-
-The complete live package read returned 880 rows / 858 unique packages across 39 zones. Quito returned the same 22 packages twice; identical duplicates are removed and conflicting specifications for one package identity reject the catalog and purchase.
-
-The live package API omits bandwidth for traffic packages and traffic quota for bandwidth packages. Those omissions are preserved rather than converted into misleading zero or unlimited promises. Network/storage contracts participate in the plan slug, and offers with different contracts cannot dominate or replace one another.
-
-## Pricing and billing
-
-The [official billing guide](https://doc.lightnode.com/Financial/resourcebilling.html) rounds usage up to whole hours, continues charging stopped machines, and stops instance charges upon release. It describes a 672-hour monthly cap for unchanged configuration and prorates monthly traffic for hourly usage. Excess traffic can incur a per-GB charge; capped traffic is throttled. PayByBandwidth and PayByTraffic are different contracts. The [instance composition guide](https://doc.lightnode.com/Instance/composition.html) gives all instance components the same lifecycle; boot and data disk capacities are separate, but releasing the instance releases its components.
-
-**Current user policy: automatic supplier costs plus existing site profit.** The user stopped ticket dependency, then explicitly requested investigation of the panel's price source and a valid automatic retrieval method. The ticket heartbeat remains paused and no further message was sent. Saved manual prices and ticket replies do not authorize production sales.
-
-The complete API recheck at `2026-10-10T11:37:39Z` returned 40 regions/zones and 902 raw rows / 880 unique packages. Every response contained only `packages`; the complete set of package fields was `bandwidth`, `cpu`, `dataDiskSize`, `freeFlow`, `memory`, `packageCode`, `publicIpChargeMode`, `regionCode`, `systemDiskSize`, `zoneCode`. There was no monetary amount, currency, hourly/monthly rate or stock field. The current [official package schema](https://apidoc.lightnode.com/en/441237897e0.md) also contains no price fields or quote endpoint. Private raw responses and the audit summary are retained outside Git.
-
-Production catalog and new purchases reject saved manual prices, even with the global sales switch enabled. The driver can use the separate public calculator when explicitly enabled; it never falls back to manual prices, missing monetary fields or monthly/720 estimates. Existing management/release operations remain available. Synthetic reviewed-rate fixtures are allowed only when the application environment is `testing` **and** `lightnode.allow_fixture_rates` is explicitly true; the default is false and there is no environment switch. Global profit settings are unchanged.
-
-### Automatic public calculator source — latest revision
-
-The normal signed-in create form and the unsigned [official public calculator](https://www.lightnode.com/product) were inspected through the authorized browser. Passive network and loaded source inspection identified the quote component summation. No order was submitted, no account key was exported, and no private panel endpoint was called from the application.
-
-The public website itself loads these read-only resources on `www.lightnode.com`: `/__internal/site-info`, `/api/site/sku/getRegionAndZoneDetailInfo.do`, `/api/site/sku/getBuyConfigInfo.do`, and POST `/api/site/sku/getBatchPrice.do`. POST is a price calculation, not an order. These are published calculator endpoints observed in its normal flow, **not a documented/versioned OpenAPI pricing contract**. This distinction and maintenance risk must be retained in release review.
-
-The public calculator's certificate is generated anonymously from time, random nonce and a published application marker. `LightNodePublicPricing` retrieves and parses the official public bootstrap recipe without executing downloaded code, copying a browser credential or using the account token. It generates a fresh anonymous certificate for each request. Cookies, account IDs, OpenAPI keys, image/resource UUIDs, customer details and passwords are never sent to the calculator. Only the verified USD public site identity is accepted. Unknown source/schema, redirects, changed site identity, unavailable region/zone, wrong resources, missing/duplicate components, invalid units or promotional discounts stop quoting.
-
-Stateless server-side requests and the actual Laravel pricing service both succeeded. Read-only checks on 2026-10-10 between approximately 12:11 and 12:32 UTC returned these values; the two fixed-bandwidth quotes were rechecked at 12:32 UTC:
-
-| Exact Manila package | Contract and resources | Exact quoted USD/hour | Calculator 672-hour monthly estimate (USD) |
-| --- | --- | ---: | ---: |
-| `intel-c1m2-bgp-b2-s50-d0` | s2 candidate; Linux; 1 CPU / 2 GB; boot 50 GB; 2 Mbps | 0.017418 | 11.704896 |
-| `intel-c2m4-bgp-b5-s50-d100` | s2 candidate; Windows; 2 CPU / 4 GB; boot 50 GB + data 100 GB; 5 Mbps | 0.058306 | 39.181632 |
-| `intel-c1m2-bgp-t1000-s50-d0` | s2; Linux; 1 CPU / 2 GB; boot 50 GB; traffic 1000 GB | 0.011466095238 | 7.705216 |
-| `intel-c2m4-bgp-t2000-s50-d100` | s2; Windows; 2 CPU / 4 GB; boot 50 GB + data 100 GB; traffic 2000 GB | 0.042682190476 | 28.682432 |
-
-These are actual quote component values, not invoices or an approved catalog. The UI rounds its hourly display upward to three decimals; pricing uses component precision. Compute, boot disk, optional data disk and fixed bandwidth components are hourly. The traffic component is monthly despite its `Hour` settlement label; the published calculator explicitly divides it by 672 for hourly pricing. No other component is divided again. Invoice precision and actual test charges still require final acceptance.
-
-The application converts these exact USD quotes through existing USD/EUR exchange rates, `CloudPricing::costWithFee` and `cloud_margin_pct`. It does not impose a new profit percentage or guess funding fees. A fresh quote is required before each new purchase. Increased supplier cost, FX or fee compared with the saved local plan holds the purchase before sending an order. An encrypted purchase journal retains the safe supplier quote and expected CPU series; the actual instance receipt must match `instanceSeries` as well as the existing resource/network/image checks before customer delivery.
-
-The package API lacks CPU series. Production pricing therefore requires a current explicit `bindings` entry with exact `packageSpec`, `series` (`s2`/`g2`/`s3`/`g2a`), independently verified `cpu_kind` (`shared`/`dedicated`), `verified_at`, and `delivery_verified`; it does not guess series or sharing from `intel`/`amd`, or extend one Manila receipt to other packages/regions. Only the two exact Manila receipt-verified bindings are included as metadata; both production gates remain false, so no offer is enabled by default. Prices for Linux and eligible Windows configurations must agree exactly because the site currently has one price per plan. Different Windows price rejects the plan rather than silently using Linux cost.
-
-The public Kathmandu configuration exposes AMD series `s3` and `g2a`, whereas the inspected Manila configuration exposes `s2` and `g2`. A stateless Laravel quote for Kathmandu `amd-c16m32-bgp-b10-s50-d300` succeeded for `s3`: USD 0.273263/hour and 183.632736/month. The same package under `g2a` was rejected by exact configuration matching. This is quote evidence only, not a purchased instance or a CPU-series binding. The source explicitly supports the four observed series, requires the actual series/configuration match, and requires CPU sharing metadata separately rather than inferring it from a series name.
-
-Current automatic sales candidates are limited to fixed-bandwidth contracts. Traffic quotes are inspectable but traffic plans remain excluded: the official API exposes `limitFlow` without a verified setter, and a private read of the preserved existing server showed `FALSE`. The user approved the fixed-bandwidth model and its explicitly displayed 2/5 Mbps speeds. Source availability is checked against the exact public region/zone and configuration; it is not a guarantee of every OS's future capacity. All 40 API locations are mapped, but unverified CPU bindings and sold-out options produce no sale offer.
-
-`LIGHTNODE_PUBLIC_PRICING_ENABLED=false` and `LIGHTNODE_SALES_ENABLED=false` remain the defaults. No production configuration, account-owned VM, route, NAT/firewall, DNS, persistence service or country/port-forward agent state changed. Historical preparation note, superseded by the current acceptance section: the user was asked to approve two temporary fixed-bandwidth Manila machines, a combined maximum USD 0.20, and release within two hours, because the network model and costs differ from the earlier tests. The approval and its completed tests are now recorded above. Historical Linux/Windows acceptance below does not replace final acceptance of this revision. Public source snapshots, sanitized quote evidence and test outputs are private local artifacts outside Git.
-
-The regression batch on the merged `ba0a6e48` base passed **366 tests / 2421 assertions**. It covers the public price schema/units, fresh anonymous certificates and credential separation, existing profit/funding fees, explicit series bindings, Windows price parity, missing prices, stale/changed costs, expected series in receipts, actual ServerNet Linux/Windows provisioning paths with fake supplier HTTP, existing catalog/customer/billing/release and GPU delivery safeguards. After adding a storefront guard for a disabled public price source, the affected batch passed **246 tests / 1274 assertions**; the administrative explanatory text passed **15 settings tests / 291 assertions**. These batches overlap and must not be summed as distinct tests. This is application regression evidence, not a new real machine or invoice acceptance. A fresh complete official account inventory succeeded with exactly one preserved existing machine and zero acceptance-test names; no new paid VM was created.
-
-The test console quoted Manila CPU Shared, 1 vCPU / 2 GB, 50 GB boot, no data disk, 1000 GB traffic at $0.012/hour and approximately $7.71/month. The valid Windows test package was 2 vCPU / 4 GB, 50 GB boot plus 100 GB data and 2000 GB traffic, quoted at $0.043/hour and approximately $28.68/month. These are **observed rounded console quotes**, not a verified invoice or a complete price feed. Account billing precision, overage rates, traffic enforcement and the complete region/package price matrix remain release requirements. A read-only detail request for the account's pre-existing instance returned `limitFlow=FALSE`; it was not modified. The documented API exposes this field for reading but no setter was found. The new traffic-cap delivery guard passes automated tests but cannot yet be accepted live against a provider-capped API-created instance. Provider clarification/configuration is required before traffic plans can launch. The console temporarily stopped calculating during review, then recovered. Forty exact-spec quote candidates were collected across all 39 regions and kept in a private local price workbook; no candidate was approved for public sale. Quito duplicate rows were reconciled, Kuwait was priced as a distinct 2 Mbps bandwidth package, and larger exact API packages were selected where the console's selected 1 vCPU / 4 GB configuration had no API equivalent. The complete 858-package price matrix is still unavailable.
-
-The [Terms of Service](https://www.lightnode.com/termsService), section 3.4, addresses resale and end users; the account holder remains responsible for their end users' compliance. Free-bandwidth promotions have separate resale restrictions in section 4.6. Such promotions are not treated as a free commercial traffic allowance.
-
-## Provider clarification request
-
-This is a historical submission record. The user's later API-only instruction supersedes the ticket follow-up workflow: the automation is paused, responses are not being used for prices, and no further support messages are being sent.
-
-On 2026-10-10, the user explicitly approved sending the prepared support request. It was submitted once through the account's LightNode ticket form and the resulting ticket detail confirmed **Processing**, with the complete message and public draft PR link retained. No substantive provider reply was present. The request covers official prices/stock by region/package, CPU-series mapping, a supported way to enable `limitFlow=TRUE`, billing precision and recovery of lost tasks. The form limits messages to 250 characters, so the approved concise request links to PR #27 for the full release blockers. No key, password, attachment or private resource identifier was transmitted.
-
-The private ticket receipt and screenshot are retained outside the Git repository. Submission does not resolve any pricing, capacity, billing or traffic-policy release requirement; sales remain disabled. No production machine, route, NAT/firewall, persistence setting or reconciliation-agent state changed. Existing activation and rollback requirements still apply.
-
-The API-only revision passed **54 focused tests / 502 assertions**, including production rejection of saved manual quotes, rejection even when fixture flags and sales are enabled, and the existing fixture-based pricing, settings and lifecycle coverage. No new real instance was purchased. Historical live acceptance remains lifecycle evidence only, not acceptance of an API price feed or provider-enforced traffic restriction.
-
-## Historical real acceptance tests — earlier traffic revision
-
-After merging current develop `82931ff6`, the related integration/GPU recovery batch passed **397 tests / 2587 assertions**. The subsequent AMD-series and explicit CPU-sharing revision passed **149 affected tests / 610 assertions**. These are overlapping application tests. Latest upstream GPU cancellation/refund and closed-delivery safeguards were preserved; tests of Linux/Windows actual provisioner paths still use fake supplier HTTP, not new paid instances.
-
-Tests used only a private local Laravel database, synthetic `example.test` customer records, array mail/cache drivers and two explicitly named disposable LightNode instances. No production customer or website configuration was altered.
-
-| Test | Evidence / outcome |
-| --- | --- |
-| Ubuntu 24.04 creation | Actual driver create → asynchronous SUCCESS → running with public IPv4 |
-| Linux login/resources | Root SSH authenticated; Ubuntu 24.04.2 LTS, one CPU, about 2 GiB RAM and a 50 GiB boot disk inspected |
-| Linux power/reset/reinstall | Stop confirmed; password reset and reinstall each completed; SSH authenticated again using the newly persisted password; reinstall changed the SSH host key |
-| Linux release | Release SUCCESS and absence from complete inventory confirmed |
-| Initial Windows request | 1 vCPU / 2 GB was below the console's Windows minimum. Response was inconclusive; no instance with that test name was found in complete inventory. Its private journal remains blocked and the POST was never repeated |
-| Valid Windows creation | Separate valid 2 vCPU / 4 GB package created; asynchronous SUCCESS and running IPv4 confirmed |
-| Windows access/reset | Administrator RDP authenticated; after reset the new password authenticated and a real Server Manager desktop was received |
-| Windows reinstall/release | Reinstall SUCCESS confirmed; Administrator RDP authenticated using the newly committed password; release SUCCESS and absence from complete recorded region/zone inventory confirmed |
-
-A final complete account inventory returned exactly one instance and zero acceptance-test names: both test instances were absent and the existing account-owned Manila Windows instance was preserved. No production VM, route, NAT, country-routing state, port-forward source, host firewall, DNS record or relay configuration changed.
-
-Automated checks cover regional images, exact specification/rate matching, pagination/partial inventory, omitted live fields, network contract persistence, sale gates, duplicate/lost-response protection, conflicting lifecycle actions, task failure, Linux/Windows provisioning and atomic credential reconciliation. Initial focused validation passed **97 tests / 591 assertions**. After synchronizing with `89a59d0c`, the driver, catalog, customer pages/password, pricing, settings, billing safety, release retry and GPU delivery regression batch passed **239 tests / 1265 assertions**. Two additional LightNode power-confirmation cases passed **2 tests / 20 assertions**, totaling **241 distinct tests / 1285 assertions**. The two locale/number-format failures previously reproduced on `394da6eb` now pass with the upstream test setup. This is focused integration coverage, not a new run of the entire repository suite.
-
-Merge reconciliation preserves upstream GPU image compatibility and observed-state billing safeguards, together with LightNode's regional images, boot-disk requirements and Windows Administrator username. An accepted pending power command remains `building` and returns unconfirmed to billing; later retries observe task completion without another power POST. Both stop and start are covered through the actual adapter and provisioner with fake HTTP, without touching provider resources. The latest ticket check still showed only the automatic receipt and **Processing**; no follow-up message was warranted yet. Sales, credentials and production state were not changed.
-
-## Activation and rollback
-
-1. Review this PR and outstanding pricing/traffic limitations before any deployment. Keep `LIGHTNODE_SALES_ENABLED=false` while importing the key and running catalog checks.
-2. Run the additive database migration before catalog sync. Store the API token through the existing encrypted admin infrastructure settings. The manifest may supplement region mappings; its manual package prices cannot authorize production sales. Never put credentials in that JSON.
-3. Review the public calculator's observed, non-versioned contract and enable `LIGHTNODE_PUBLIC_PRICING_ENABLED` only with verified exact package/series bindings. Reconcile ambiguous operations and verify fresh component prices, invoice precision, funding charges, stock and OS delivery coverage. The OpenAPI still has no monetary fields. A Manila test is not proof of delivery in every region; unknown bindings stay excluded.
-4. Complete real Linux and Windows acceptance through ServerNet with the approved network contract, price/resource checks, customer delivery, SSH/RDP, password/reinstall/power and complete release evidence. Traffic plans require provider-enforced traffic limits and are currently rejected. Obtain the user's final publication approval before enabling sales. Global and provider/plan sale switches remain required; fixture flags cannot authorize production prices.
-5. Roll back sales immediately by disabling the global gate and provider switch. Preserve the encrypted journal and application key while outstanding provider machines exist. Reverting code or dropping a table does **not** release paid provider instances. Reconcile/release them before any migration rollback.
-
-Historical synthetic fixture shape (illustrative amounts and package name; **not a production price source or live catalog**):
-
-```json
-{
-  "regions": {
-    "ph-manila-1": {"country": "PH", "city": "Manila", "location_code": "ph-manila"}
-  },
-  "packages": {
-    "ph-manila-1|ph-manila-1-a|reviewed-package-code": {
-      "hour_usd": "0.050", "month_usd": "30.00", "verified_at": 1791590400,
-      "traffic_policy_verified": false, "delivery_verified": false,
-      "spec": {"cpu": 2, "memory": 4, "systemDiskSize": 50, "dataDiskSize": null,
-        "freeFlow": 1000, "bandwidth": null, "publicIpChargeMode": "PayByTraffic"}
-    }
-  }
-}
-```
-
-For isolated tests only, use exact `packageSpec()` output, including nulls for omitted fields, and a current verification timestamp. Fixture rates are ignored in production regardless of their timestamp or verification flags. Static region mappings remain available to the driver. No production activation is possible from this historical manifest shape.
+# LightNode integration — acceptance and release record
+
+Updated: 2026-10-11. LightNode is published and all three production gates are enabled after validation, with 389 valid fixed-bandwidth plans in 40 regions. PR27 is merged; real Manila Linux/Windows acceptance and guest cleanup are complete. The owner accepted the common regional model. Older pending-approval/access/closed-gate notes below are historical; the published state is authoritative.
+
+## Published production state — 2026-10-11
+
+Publication was explicitly authorized. The production host `core` now runs the merged PR27 LightNode implementation; all three flags are **true**: `LIGHTNODE_SALES_ENABLED`, `LIGHTNODE_PUBLIC_PRICING_ENABLED`, `LIGHTNODE_ACCEPT_REGIONAL_MODEL`. Activation completed at **05:46:38 UTC** after validation. Source defaults remain false for fresh installations; the existing production environment was changed only for these three authorized flags. The existing API credential is stored with `Setting::putSecret` and encrypted readback passed; no raw credential/session URL is included here.
+
+The production SDK finished a fresh 449-second read/import of **40 regions / 37 countries / 1126 images / 389 valid in-stock fixed-bandwidth plans**. All 40 regions had valid prices; invalid plan count was zero. The earlier 374-plan Windows snapshot is historical: stock/catalog quantities changed between reads. Import was limited to LightNode, performed after validation within a DB transaction, and did not run other-provider synchronization or financial notifications. Public offers are pruned by the site's existing selection logic, so 389 supplier variants do not mean every variant appears on every landing page. No manual fallback price was inserted.
+
+The exact anonymous official calculator hourly costs and official API specifications/stock were freshly matched on the production host for the two receipt-proven Manila packages: **USD0.017418/hour** (1CPU/2GB, 50GB boot, no data disk, 2Mbps) and **USD0.058306/hour** (2CPU/4GB, 50GB boot +100GB data, 5Mbps). Stored purchase quotes matched both. Windows/Linux price parity passed for the supported 2CPU/4GB package; Windows remained excluded on 1CPU/2GB. At that observation the site's **5% profit / 21% funding fee** and FX produced **5900 /19800 IRT per hour**; FX subsequently moved, so these are evidence rather than frozen rates. Existing global profit/fee settings were not changed.
+
+Six isolated empty-session renders through the actual `CloudStoreController` (two plans × FA/EN/TR) verified selected-plan retention, hourly price, compatible Linux/Windows availability and no raw provider references. There was no customer impersonation, payment or order. The first private render harness omitted the normally middleware-provided error bag; adding an isolated `ViewErrorBag` made all six pass. This was a harness repair, not a production code defect. The production connection and complete official inventory showed **one preserved original guest, zero disposable guests and zero guest mutations**. Oct10 real Linux SSH / Windows RDP delivery, power, password reset and reinstall acceptance and successful deletion evidence below still apply; no additional paid guest was created.
+
+Only fixed-bandwidth `PayByBandwidth` offers are sold. Traffic-quota/overage models remain excluded because no supported cap setter was established. Resources/CPU series/network/region/image are verified against the actual receipt before customer credentials are released. Other regions use the owner's explicitly accepted common regional model and are recorded separately from actual receipt evidence; this does not claim a real guest test in every region. Final supplier invoice precision remains unconfirmed; data-disk attachment/size is proven, not automatic guest-volume formatting. Unsupported console/resize/snapshot/upload operations remain unavailable.
+
+Final public copy was corrected in `CloudCatalogController` and the FA/EN/TR hourly language files: disk type and management/upgrade options depend on the plan; fixed bandwidth is distinguished from transfer quota; the displayed hourly rate is the billing basis rather than a universal monthly/720 formula; power-off does not end charges. The [official Iraq shutdown notice](https://www.lightnode.com/en-US/contentDetail/378), checked on Oct11, schedules the last examination interruption on **Oct12, 03:30–04:10 UTC (07:00–07:40 Tehran), approximately 40 minutes**. A localized Baghdad visitor notice stays through Oct12 and expires on Oct13 UTC, with no claim of measured recovery and no change to stock or guest/network state.
+
+The four copy runtime files from `f90cee98` were installed separately under `/home/servernetcloud/lightnode-copy-20261011` with fresh production snapshots, exact incoming/base SHA256 checks, lint before any write, before/staged hash guards and private backups. Three-way merging retained concurrent controller work. Only the three reviewed hourly keys were replaced in each live language file, retaining every other live translation change. No schema, credential, flag or lifecycle changes were made by this copy deployment. All nine public Manila/Baghdad/hourly FA/EN/TR pages returned **HTTP200** without application error output; SSD and Mbps appeared on the relevant catalog pages, NVMe was absent from generic meta promises, and only Baghdad showed the scheduled notice. Final public browser proof: private local `output/lightnode-release-20261011/lightnode-published.png`.
+
+Verification: **412 tests /2728 assertions** for the implementation, **15 /298** overlapping administration rerun, and **55 /188** final catalog/hourly/notice checks passed. The last batch includes localized notice visibility, other-location exclusion and expiry. Initial native Windows runtime lacked the project's required extensions; the established complete WSL PHP8.4.26 runtime ran the final suite successfully. Counts overlap and must not be added as distinct coverage. Live PHP lint, encrypted credential check, complete inventory, exact quotes, six shop renders and nine public HTTP checks passed.
+
+Persistence/rollback: application sources, reviewed LightNode schema/catalog, encrypted setting and the three environment flags persist through restart. No route, NAT, firewall, DNS, system proxy, cron, country-routing/port-forward source, existing guest or customer service changed. Ticket follow-up was stopped at the owner's request; the old automation is already **PAUSED**. To suspend new sales close all three LightNode flags and deactivate only its offers, retaining lifecycle management for any active customers and encrypted journals. Review active LightNode services and installed-file drift before any source restoration; undo the later four-file copy layer before the original runtime layer where appropriate. Never blindly rerun old helpers, migration-down operation history, or restore a backed-up environment over subsequent changes.
+
+## Production installation checkpoint — 2026-10-11, 05:32 UTC
+
+PR27 was marked ready and merged at `625e318c`, with incoming source `1b4a52a0` and comparison base `8f0e54dd`. A fresh read-only SDK run on the authorized existing Windows transport returned **40 regions / 37 countries / 1126 images / 374 valid fixed-bandwidth plans**, including 372 owner-accepted models and two actual receipt-verified Manila plans; zero purchases. All 40 regions had valid fresh prices. This is price/catalog evidence, not 40-region real guest acceptance.
+
+The authenticated cPanel session on `core` was used to install the 20 runtime files into `/home/servernetcloud/servernet_app`; private stages, originals, source manifest and per-file installed hashes are under `/home/servernetcloud/lightnode-release-20261011` (0700). No session URL or credential is retained in this record. The preflight stopped safely on concurrent Arvan security-group insertions and a CRLF-only delivery-file difference. Review retained all three Arvan additions and added the independent LightNode settings; normalization made delivery merging conflict-free. A common closing brace in the adjacent settings insertion was corrected in the private staged file, and all final PHP/Blade lint checks passed **before** any production write. No deployment helper was blindly rerun after an installation marker.
+
+Installation then verified every current/staged hash, backed up originals, atomically installed only these files, and ran only `2026_10_10_100000_create_cloud_provider_operations_table.php`, followed by config/view clearing. The new schema stores separate network/boot/data fields and encrypted provider-operation journals. Production settings were freshly read: **5% general VPS profit, 21% funding overhead, EUR 298000 IRT** at that observation; these settings were not changed. The previously authorized LightNode token was transferred via non-echoing terminal input, saved using `Setting::putSecret`, and encrypted readback confirmed; it was not written to shell history, source, public storage or this document.
+
+All three LightNode public flags are still false at this checkpoint. An independent background process is reading exact regional public quotes and catalog from the production host, then imports only LightNode data after successful validation. It does not make orders, modify guests or run unrelated-provider sync/financial alerts. Six public FA/EN/TR catalog/hourly pages returned HTTP200 after installation. Final catalog quantities, purchase quote checks, shop visibility and activation are **pending**, so the service is not yet claimed published.
+
+Existing original LightNode guest and customer services are preserved. Route/NAT/firewall/DNS/system proxy, cron and country-routing/port-forward state have not changed. Rollback starts by closing all three gates and disabling only new LightNode sales while preserving lifecycle support and encrypted history; restore backed-up files only after installed-hash/drift and active-LightNode-service review. Never migration-down the journal or blindly overwrite concurrent changes.
+
+## Authorized publication and regional model — 2026-10-11
+
+The owner explicitly approved publication and waived paid acceptance in every region, stating the regions use the same model. This supersedes the prior pending USD 8 regional-test question; **no additional paid tests or higher spending permission are assumed**. Completed Manila Linux/Windows acceptance and release evidence remain unchanged.
+
+A separate opt-in `LIGHTNODE_ACCEPT_REGIONAL_MODEL` allows standard fixed-bandwidth Intel/AMD packages to use the owner's accepted shared s2/s3 model. The package name's CPU/RAM/bandwidth/boot/data values must match the actual OpenAPI fields exactly, and public configuration, stock, exact component prices and Windows parity must still pass. Unknown names, inconsistent specifications, traffic contracts, unavailable quotes and conflicting explicit metadata remain excluded. This is stored as **owner_assumed**, separately from **receipt_verified**; it does not claim real regional test evidence. Every actual purchase still records the expected series/specifications and holds customer delivery if the real receipt differs.
+
+Catalog configuration trees may be reused for **60 seconds** to avoid repeated regional configuration downloads across variants; **amounts are never cached**. Purchase quotes bypass the configuration cache and recheck stock/configuration and component prices. No account credential is sent to the public calculator.
+
+Validation: **412 tests / 2728 assertions** passed on develop `8f0e54dd`, including owner opt-in, AMD delivery rejection for a mismatched real series, name/spec/stock guards and fresh purchase cache bypass. A separate final administration rerun after the status badge/text change passed **15 tests / 298 assertions**; counts overlap and are not cumulative.
+
+Publication is authorized, but production deployment and sales activation are **not yet completed**. The source defaults for all three LightNode flags remain false. A credential-free 20-file runtime packet with base/incoming source pairs is prepared privately for comparison against a fresh production snapshot; this is not permission to overwrite concurrent changes. Direct SSH authentication was rejected and the supplied cPanel session requires the connected authorized browser, whose access is currently unavailable. No browser security warning was bypassed, credential changed, new access granted or unrelated production file overwritten. The owner was asked to reconnect the browser, without requesting publication approval again.
+
+Rollback must first close the two sales/pricing gates and the regional-model opt-in, deactivate only LightNode offers, and preserve encrypted operation journals. Restore only the installed files whose hashes still match this release, after retaining concurrent changes; do not blindly revert develop, drop financial/operation records or run migration down. Existing guest, customer services, global profit/fees, routing/NAT/firewall/DNS/persistence and country/port-forward sources remain unchanged at this checkpoint.
+
+## Latest pricing and transport verification — 2026-10-10
+
+After the live guests were released, the latest regression passed **408 tests / 2701 assertions** with no failures or errors. This includes the shared store, hourly billing, catalog, provisioning, GPU and administration checks, plus bounded read retries and the LightNode period-cost floor. Previous overlapping batch counts are historical and must not be summed.
+
+The supplier's [financial billing guide](https://doc.lightnode.com/Financial/resourcebilling.html) documents a **672-hour cap per calendar month** for unchanged resources/configuration. Its [instance billing description](https://doc.lightnode.com/Instance/Billingdescription.html) describes fixed bandwidth charged by configuration and usage duration. The public calculator displays a 672-hour monthly estimate; that is not a guaranteed cost cap for an arbitrary rolling ServerNet customer month, which can span two supplier calendar months. Period pricing therefore conservatively reserves **744 hours per customer month**, using the exact hourly component quote, and disables generic period discounts for LightNode. The supplier calculator's own monthly amount is retained separately as `calculator_month_usd`; this reserve is an application safety calculation, not a new supplier monthly quote. Hourly customer pricing uses the explicit hourly supplier cost directly, retaining the existing **5%** profit, **21%** funding fee and normal FX/rounding without deriving an extra markup from the 744-hour period price. No production settings were changed.
+
+A fresh real SDK catalog read through the existing Windows proxy succeeded after cleanup: **40 regions, 1126 images, two proven Manila plans, zero enabled sale offers**. Fixed-bandwidth exact hourly USD rates remained **0.017418** and **0.058306**; the 31-day reserve is USD **12.958992** and **43.379664**, respectively. The private FX/fee snapshot produced hourly supplier costs of **18817 / 62989 EUR micro-units** and period reserves of **1400 / 4687 EUR cents**. These are snapshot evidence, not frozen sale prices.
+
+Local WSL direct connections to the public website timed out while the existing Windows proxy worked. Only the private test process reused the existing proxy; no system proxy, route, firewall or persisted network setting changed. Transient GET/catalog reads and anonymous public quote reads now retry at most three attempts, with a fresh anonymous certificate on public retries. OpenAPI lifecycle POSTs never retry automatically; authorization failures are not retried.
+
+Both temporary guests remain released, and no additional purchase was made. Verification of the other regions requires separate paid-test authorization beyond the completed two-guest USD 0.20 permission, or an explicit decision to scope the initial catalog to the two proven Manila plans. A read-only regional candidate assessment found 39 further pairs (maximum 78 guests); it is not binding or stock evidence and does not authorize purchase. All production sales gates remain false.
+
+## Current fixed-bandwidth acceptance — 2026-10-10
+
+The user explicitly approved fixed bandwidth only, two temporary Manila guests, USD 0.20 combined maximum and release within two hours. Both guests were created through actual `Service` → `CloudProvisioner` → LightNode OpenAPI in an isolated encrypted SQLite database with synthetic customer, fake mail and no real payment. This was a fresh acceptance of the public calculator revision, not a repetition of the historical traffic tests.
+
+| Check | Linux | Windows |
+| --- | --- | --- |
+| Exact package | `intel-c1m2-bgp-b2-s50-d0` | `intel-c2m4-bgp-b5-s50-d100` |
+| Actual resources | 1 vCPU / 2 GB / 50 GB boot, no data disk | 2 vCPU / 4 GB / 50 GB boot + 100 GB data disk |
+| Supplier network/CPU receipt | `PAY_BY_BAND_WIDTH`, 2 Mbps, `s2` | `PAY_BY_BAND_WIDTH`, 5 Mbps, `s2` |
+| OS/access | Ubuntu 24.04.2; root SSH authenticated | Windows Server 2022; Administrator RDP authenticated, desktop received |
+| Customer delivery | Actual private HTTP kernel rendered correct IP/username; one-time password correct; second reveal blocked | Same checks passed |
+| Power and password | Stop/start accepted and settled; reset committed atomically; new password authenticated | Same checks passed; provider reset also starts the guest |
+| Reinstall | New generated password accepted, task SUCCESS, fresh SSH login and customer delivery passed | New generated password accepted, task SUCCESS, RDP login and customer delivery passed; data disk still 100 GB |
+| Release | Task SUCCESS and absence from complete inventory | Task SUCCESS and absence from complete inventory |
+
+Fresh pre-purchase public component quotes were USD **0.017418/hour** and **0.058306/hour** respectively. Two hours of both exact rates is USD **0.151448**, below the approved USD 0.20 ceiling; the three-decimal panel display rates also remain below that ceiling for two hours. Existing site settings were read without changing production: general profit **5%**, funding fee **21%**, existing live FX source, no manual FX override. Test-time customer rates were 6,000 and 19,900 IRT/hour; these are evidence for that FX snapshot, not frozen production prices.
+
+The first purchase was 13:15:43 UTC. Windows release was accepted at 14:05:05; the reviewed Linux release was accepted around 14:11. Complete all-region/zone inventory independently returned exactly **one pre-existing guest and zero temporary guests**. Final ServerNet release reconciliation recorded both local instances deleted and cleanup complete at **14:15:33 UTC**, within one hour of the first purchase. The hidden watchdog observed completion and needs no further paid work. Stopping a guest is not counted as release.
+
+Two live incompatibilities were corrected: fixed bandwidth receipts use `PAY_BY_BAND_WIDTH` (the earlier spelling held delivery), and Linux reinstall rejected the earlier 24-character password format with explicit HTTP 400 `InvalidParameter.Password`. The replacement 20-character cryptographically random format includes uppercase, lowercase, digits and `@`, with no three repeated characters. Both OSes accepted this format during final reinstall; Windows also accepted it during password reset. The affected regression batch passed **161 tests / 706 assertions** after updating the existing password expectation.
+
+There were intermittent API connection failures from the local test environment. An uncertain Linux reinstall was manually reviewed against the exact disposable stopped guest and its unchanged image, then retried with the identical payload; its later explicit password rejection and original journal were archived encrypted before recovery. A lost Linux release response was separately reviewed against the exact owned guest with no pending operation. One identical release was sent through the official endpoint using the native Windows transport; its accepted task was imported into the original journal, preserving the previous payload encrypted. ServerNet then confirmed task SUCCESS, regional absence and complete account absence. These are documented operator recoveries, not automatic mutation retries or evidence that every network failure is self-healing. No extra purchase occurred.
+
+The provider's normal deployment UI independently exposed global metadata: `s2` = Intel / CPU Shared, `s3` = AMD / CPU Shared, `g2` = Intel / CPU Exclusive, `g2a` = AMD / CPU Exclusive. Only ordinary UI requests were observed; those private endpoints are not integration dependencies. The console showed 46 public locations while the account OpenAPI returned 40. Public location visibility alone does not establish an OpenAPI package's CPU-series binding or stock. **Only the two exact Manila package bindings have real receipt/delivery evidence.** These two exact specifications are now in the default metadata, with verification timestamp 1791641733 and the existing 30-day freshness limit. No saved supplier price is included; fresh public quotes are still mandatory. Other regional bindings are empty. Other countries remain mapped but unverified package bindings stay excluded; the two Manila receipts are not extrapolated to all regional packages.
+
+The monthly bill available during the test exported rounded two-decimal components and did not yet contain the new fixed-bandwidth guests. Exact finalized invoice charges and rounding therefore remain pending; no six-decimal invoice precision is claimed. Windows data-disk attachment/size was verified in the supplier receipt; guest formatting or volume initialization was not tested. SSH/RDP, customer HTTP delivery and lifecycle were private acceptance, not a live customer payment or production deployment.
+
+After paid cleanup, the branch was merged with `origin/develop` at **8f0e54dd** (including the separate GPU margin and billing-cycle floor changes). Related pricing/catalog/order/customer/hourly-billing/GPU/administration regression passed **404 tests / 2686 assertions**. The earlier 161-case batch overlaps this run and must not be added to it. A duplicate LightNode sale-gate example line was removed; both example/default gates remain false.
+
+Affected infrastructure: the two disposable Manila guests only. The pre-existing guest, production settings/database, NAT/firewall/DNS/routes, persistence services and country-routing/port-forward source state were preserved. `LIGHTNODE_PUBLIC_PRICING_ENABLED=false` and `LIGHTNODE_SALES_ENABLED=false` remain the production defaults. Keep the private encryption key/database and operation archives until the audit is retained; rollback starts by closing sales gates and must never substitute code rollback for releasing paid guests.
+
+## Verified provider contract
+
+The [official OpenAPI index](https://apidoc.lightnode.com/en/llms.txt) lists 18 English API documents, all read for this integration. Lifecycle requests use the fixed origin `https://openapi.lightnode.com` and `x-open-token`. Redirects and automatic mutation retries are disabled. Private console endpoints, another provider's authentication, and invented OpenAPI price fields are not used. The separate anonymous public calculator price source is described below.
+
+| Operation | Official endpoint / essential fields |
+| --- | --- |
+| Regions, packages, images | `/region/list`, `/package/list` with region/zone, `/image/list` with region and `imageType=System` |
+| Inventory, detail | `/instance/list` with region **and zone**, paginated; `/instance/detail` with resource reference |
+| Create | POST `/instance/create`, nested `packageConfig`: package, region, zone, name, regional image UUID, generated password; optional validated regional firewall UUID |
+| Power | POST `/instance/start`, `/instance/stop`, `/instance/restart` |
+| Reset password | POST `/instance/modifyInstancePassword`; fully stopped instance required |
+| Reinstall | POST `/instance/reinstallSystem`, resource, regional image, region and password; fully stopped instance required |
+| Release | POST `/instance/release`; task success and complete inventory absence required |
+| Task completion | `/asynctask/getResult`; `processResult=SUCCESS` is required, HTTP 202 alone is insufficient |
+
+The account's API key was verified active. Its value is held in a private encrypted local credential store and in the private acceptance database, never in this repository or this record. Production credentials have not been installed.
+
+New purchase journals also retain expected resources. Delivery checks CPU, RAM, boot/data disk sizes, region/zone, initial image UUID and network contract against the actual receipt. Traffic packages additionally require `limitFlow=TRUE` before delivery; an uncontrolled traffic package is held for administrative review. Customer password reveal stays blocked until delivery is confirmed.
+
+An encrypted durable operation journal is written **before** every purchase or management mutation. Lost responses cannot trigger a duplicate purchase. Conflicting operations remain blocked until reconciled. A same-named machine without a purchase journal requires an ownership review; it is not silently adopted. Completed password/reinstall tasks retain their journal until the instance password, image and service username are committed together in a database transaction.
+
+Initial purchase reconciliation and release checks use the complete recorded region/zone inventory, including all pages. General administrative inventory still traverses all regions/zones and fails on partial results. The recorded region is retained even when a region disappears from the current sales list.
+
+No documented public API was found for VNC/console URLs, metrics, resize, snapshots, uploading SSH keys, additional IPs or firewall rule creation. These capabilities are disabled. Existing regional firewall groups can be selected only after their exact UUID, region and AVAILABLE state are verified. No group or firewall rule was changed in these tests.
+
+## Regions and catalog
+
+The initial live API returned 39 regions on 2026-10-10. A later complete recheck returned 40 regions/zones, adding `mm-yangon-1` (Yangon, Myanmar), which is now explicitly mapped. Explicit country/city mappings are in `website/config/lightnode.php`, and can be supplemented by the reviewed account manifest. Provider IDs are opaque: `bg-dhaka-1` is Bangladesh, whereas `bg-sofia-1` is Bulgaria. Taiwan and Hong Kong have their own customer location entries. Multiple zones remain distinct provider plan references. A region/package listing is not a price or stock guarantee.
+
+The initial console advertised 46 locations, with seven marked Sold Out: Muscat, Johannesburg, Lima, Karachi II, Yangon, Jeddah and Almaty. Yangon subsequently appeared in the live API; no purchasable plan is invented from this change without pricing/delivery acceptance. No live API mapping is invented for the other unavailable locations. Baghdad also has a current provider internet shutdown notice spanning September 26–October 12; stock acceptance must consider that notice.
+
+Image UUIDs are region-specific. Windows requires at least **2 vCPU / 4 GB RAM**, as confirmed by the official create form; this is enforced in the catalog, customer image selection, purchase and reinstall paths. System disk requirements apply to the boot disk, not the sum of boot and data disks. Additional data storage is displayed separately; formatting/mounting an additional volume was not tested.
+
+The complete live package read returned 880 rows / 858 unique packages across 39 zones. Quito returned the same 22 packages twice; identical duplicates are removed and conflicting specifications for one package identity reject the catalog and purchase.
+
+The live package API omits bandwidth for traffic packages and traffic quota for bandwidth packages. Those omissions are preserved rather than converted into misleading zero or unlimited promises. Network/storage contracts participate in the plan slug, and offers with different contracts cannot dominate or replace one another.
+
+## Pricing and billing
+
+The [official billing guide](https://doc.lightnode.com/Financial/resourcebilling.html) rounds usage up to whole hours, continues charging stopped machines, and stops instance charges upon release. It describes a 672-hour monthly cap for unchanged configuration and prorates monthly traffic for hourly usage. Excess traffic can incur a per-GB charge; capped traffic is throttled. PayByBandwidth and PayByTraffic are different contracts. The [instance composition guide](https://doc.lightnode.com/Instance/composition.html) gives all instance components the same lifecycle; boot and data disk capacities are separate, but releasing the instance releases its components.
+
+**Current user policy: automatic supplier costs plus existing site profit.** The user stopped ticket dependency, then explicitly requested investigation of the panel's price source and a valid automatic retrieval method. The ticket heartbeat remains paused and no further message was sent. Saved manual prices and ticket replies do not authorize production sales.
+
+The complete API recheck at `2026-10-10T11:37:39Z` returned 40 regions/zones and 902 raw rows / 880 unique packages. Every response contained only `packages`; the complete set of package fields was `bandwidth`, `cpu`, `dataDiskSize`, `freeFlow`, `memory`, `packageCode`, `publicIpChargeMode`, `regionCode`, `systemDiskSize`, `zoneCode`. There was no monetary amount, currency, hourly/monthly rate or stock field. The current [official package schema](https://apidoc.lightnode.com/en/441237897e0.md) also contains no price fields or quote endpoint. Private raw responses and the audit summary are retained outside Git.
+
+Production catalog and new purchases reject saved manual prices, even with the global sales switch enabled. The driver can use the separate public calculator when explicitly enabled; it never falls back to manual prices, missing monetary fields or monthly/720 estimates. Existing management/release operations remain available. Synthetic reviewed-rate fixtures are allowed only when the application environment is `testing` **and** `lightnode.allow_fixture_rates` is explicitly true; the default is false and there is no environment switch. Global profit settings are unchanged.
+
+### Automatic public calculator source — latest revision
+
+The normal signed-in create form and the unsigned [official public calculator](https://www.lightnode.com/product) were inspected through the authorized browser. Passive network and loaded source inspection identified the quote component summation. No order was submitted, no account key was exported, and no private panel endpoint was called from the application.
+
+The public website itself loads these read-only resources on `www.lightnode.com`: `/__internal/site-info`, `/api/site/sku/getRegionAndZoneDetailInfo.do`, `/api/site/sku/getBuyConfigInfo.do`, and POST `/api/site/sku/getBatchPrice.do`. POST is a price calculation, not an order. These are published calculator endpoints observed in its normal flow, **not a documented/versioned OpenAPI pricing contract**. This distinction and maintenance risk must be retained in release review.
+
+The public calculator's certificate is generated anonymously from time, random nonce and a published application marker. `LightNodePublicPricing` retrieves and parses the official public bootstrap recipe without executing downloaded code, copying a browser credential or using the account token. It generates a fresh anonymous certificate for each request. Cookies, account IDs, OpenAPI keys, image/resource UUIDs, customer details and passwords are never sent to the calculator. Only the verified USD public site identity is accepted. Unknown source/schema, redirects, changed site identity, unavailable region/zone, wrong resources, missing/duplicate components, invalid units or promotional discounts stop quoting.
+
+Stateless server-side requests and the actual Laravel pricing service both succeeded. Read-only checks on 2026-10-10 between approximately 12:11 and 12:32 UTC returned these values; the two fixed-bandwidth quotes were rechecked at 12:32 UTC:
+
+| Exact Manila package | Contract and resources | Exact quoted USD/hour | Calculator 672-hour monthly estimate (USD) |
+| --- | --- | ---: | ---: |
+| `intel-c1m2-bgp-b2-s50-d0` | s2 candidate; Linux; 1 CPU / 2 GB; boot 50 GB; 2 Mbps | 0.017418 | 11.704896 |
+| `intel-c2m4-bgp-b5-s50-d100` | s2 candidate; Windows; 2 CPU / 4 GB; boot 50 GB + data 100 GB; 5 Mbps | 0.058306 | 39.181632 |
+| `intel-c1m2-bgp-t1000-s50-d0` | s2; Linux; 1 CPU / 2 GB; boot 50 GB; traffic 1000 GB | 0.011466095238 | 7.705216 |
+| `intel-c2m4-bgp-t2000-s50-d100` | s2; Windows; 2 CPU / 4 GB; boot 50 GB + data 100 GB; traffic 2000 GB | 0.042682190476 | 28.682432 |
+
+These are actual quote component values, not invoices or an approved catalog. The UI rounds its hourly display upward to three decimals; pricing uses component precision. Compute, boot disk, optional data disk and fixed bandwidth components are hourly. The traffic component is monthly despite its `Hour` settlement label; the published calculator explicitly divides it by 672 for hourly pricing. No other component is divided again. Invoice precision and actual test charges still require final acceptance.
+
+The application converts these exact USD quotes through existing USD/EUR exchange rates, `CloudPricing::costWithFee` and `cloud_margin_pct`. It does not impose a new profit percentage or guess funding fees. A fresh quote is required before each new purchase. Increased supplier cost, FX or fee compared with the saved local plan holds the purchase before sending an order. An encrypted purchase journal retains the safe supplier quote and expected CPU series; the actual instance receipt must match `instanceSeries` as well as the existing resource/network/image checks before customer delivery.
+
+The package API lacks CPU series. Production pricing therefore requires a current explicit `bindings` entry with exact `packageSpec`, `series` (`s2`/`g2`/`s3`/`g2a`), independently verified `cpu_kind` (`shared`/`dedicated`), `verified_at`, and `delivery_verified`; it does not guess series or sharing from `intel`/`amd`, or extend one Manila receipt to other packages/regions. Only the two exact Manila receipt-verified bindings are included as metadata; both production gates remain false, so no offer is enabled by default. Prices for Linux and eligible Windows configurations must agree exactly because the site currently has one price per plan. Different Windows price rejects the plan rather than silently using Linux cost.
+
+The public Kathmandu configuration exposes AMD series `s3` and `g2a`, whereas the inspected Manila configuration exposes `s2` and `g2`. A stateless Laravel quote for Kathmandu `amd-c16m32-bgp-b10-s50-d300` succeeded for `s3`: USD 0.273263/hour and 183.632736/month. The same package under `g2a` was rejected by exact configuration matching. This is quote evidence only, not a purchased instance or a CPU-series binding. The source explicitly supports the four observed series, requires the actual series/configuration match, and requires CPU sharing metadata separately rather than inferring it from a series name.
+
+Current automatic sales candidates are limited to fixed-bandwidth contracts. Traffic quotes are inspectable but traffic plans remain excluded: the official API exposes `limitFlow` without a verified setter, and a private read of the preserved existing server showed `FALSE`. The user approved the fixed-bandwidth model and its explicitly displayed 2/5 Mbps speeds. Source availability is checked against the exact public region/zone and configuration; it is not a guarantee of every OS's future capacity. All 40 API locations are mapped, but unverified CPU bindings and sold-out options produce no sale offer.
+
+`LIGHTNODE_PUBLIC_PRICING_ENABLED=false` and `LIGHTNODE_SALES_ENABLED=false` remain the defaults. No production configuration, account-owned VM, route, NAT/firewall, DNS, persistence service or country/port-forward agent state changed. Historical preparation note, superseded by the current acceptance section: the user was asked to approve two temporary fixed-bandwidth Manila machines, a combined maximum USD 0.20, and release within two hours, because the network model and costs differ from the earlier tests. The approval and its completed tests are now recorded above. Historical Linux/Windows acceptance below does not replace final acceptance of this revision. Public source snapshots, sanitized quote evidence and test outputs are private local artifacts outside Git.
+
+The regression batch on the merged `ba0a6e48` base passed **366 tests / 2421 assertions**. It covers the public price schema/units, fresh anonymous certificates and credential separation, existing profit/funding fees, explicit series bindings, Windows price parity, missing prices, stale/changed costs, expected series in receipts, actual ServerNet Linux/Windows provisioning paths with fake supplier HTTP, existing catalog/customer/billing/release and GPU delivery safeguards. After adding a storefront guard for a disabled public price source, the affected batch passed **246 tests / 1274 assertions**; the administrative explanatory text passed **15 settings tests / 291 assertions**. These batches overlap and must not be summed as distinct tests. This is application regression evidence, not a new real machine or invoice acceptance. A fresh complete official account inventory succeeded with exactly one preserved existing machine and zero acceptance-test names; no new paid VM was created.
+
+The test console quoted Manila CPU Shared, 1 vCPU / 2 GB, 50 GB boot, no data disk, 1000 GB traffic at $0.012/hour and approximately $7.71/month. The valid Windows test package was 2 vCPU / 4 GB, 50 GB boot plus 100 GB data and 2000 GB traffic, quoted at $0.043/hour and approximately $28.68/month. These are **observed rounded console quotes**, not a verified invoice or a complete price feed. Account billing precision, overage rates, traffic enforcement and the complete region/package price matrix remain release requirements. A read-only detail request for the account's pre-existing instance returned `limitFlow=FALSE`; it was not modified. The documented API exposes this field for reading but no setter was found. The new traffic-cap delivery guard passes automated tests but cannot yet be accepted live against a provider-capped API-created instance. Provider clarification/configuration is required before traffic plans can launch. The console temporarily stopped calculating during review, then recovered. Forty exact-spec quote candidates were collected across all 39 regions and kept in a private local price workbook; no candidate was approved for public sale. Quito duplicate rows were reconciled, Kuwait was priced as a distinct 2 Mbps bandwidth package, and larger exact API packages were selected where the console's selected 1 vCPU / 4 GB configuration had no API equivalent. The complete 858-package price matrix is still unavailable.
+
+The [Terms of Service](https://www.lightnode.com/termsService), section 3.4, addresses resale and end users; the account holder remains responsible for their end users' compliance. Free-bandwidth promotions have separate resale restrictions in section 4.6. Such promotions are not treated as a free commercial traffic allowance.
+
+## Provider clarification request
+
+This is a historical submission record. The user's later API-only instruction supersedes the ticket follow-up workflow: the automation is paused, responses are not being used for prices, and no further support messages are being sent.
+
+On 2026-10-10, the user explicitly approved sending the prepared support request. It was submitted once through the account's LightNode ticket form and the resulting ticket detail confirmed **Processing**, with the complete message and public draft PR link retained. No substantive provider reply was present. The request covers official prices/stock by region/package, CPU-series mapping, a supported way to enable `limitFlow=TRUE`, billing precision and recovery of lost tasks. The form limits messages to 250 characters, so the approved concise request links to PR #27 for the full release blockers. No key, password, attachment or private resource identifier was transmitted.
+
+The private ticket receipt and screenshot are retained outside the Git repository. Submission does not resolve any pricing, capacity, billing or traffic-policy release requirement; sales remain disabled. No production machine, route, NAT/firewall, persistence setting or reconciliation-agent state changed. Existing activation and rollback requirements still apply.
+
+The API-only revision passed **54 focused tests / 502 assertions**, including production rejection of saved manual quotes, rejection even when fixture flags and sales are enabled, and the existing fixture-based pricing, settings and lifecycle coverage. No new real instance was purchased. Historical live acceptance remains lifecycle evidence only, not acceptance of an API price feed or provider-enforced traffic restriction.
+
+## Historical real acceptance tests — earlier traffic revision
+
+After merging current develop `82931ff6`, the related integration/GPU recovery batch passed **397 tests / 2587 assertions**. The subsequent AMD-series and explicit CPU-sharing revision passed **149 affected tests / 610 assertions**. These are overlapping application tests. Latest upstream GPU cancellation/refund and closed-delivery safeguards were preserved; tests of Linux/Windows actual provisioner paths still use fake supplier HTTP, not new paid instances.
+
+Tests used only a private local Laravel database, synthetic `example.test` customer records, array mail/cache drivers and two explicitly named disposable LightNode instances. No production customer or website configuration was altered.
+
+| Test | Evidence / outcome |
+| --- | --- |
+| Ubuntu 24.04 creation | Actual driver create → asynchronous SUCCESS → running with public IPv4 |
+| Linux login/resources | Root SSH authenticated; Ubuntu 24.04.2 LTS, one CPU, about 2 GiB RAM and a 50 GiB boot disk inspected |
+| Linux power/reset/reinstall | Stop confirmed; password reset and reinstall each completed; SSH authenticated again using the newly persisted password; reinstall changed the SSH host key |
+| Linux release | Release SUCCESS and absence from complete inventory confirmed |
+| Initial Windows request | 1 vCPU / 2 GB was below the console's Windows minimum. Response was inconclusive; no instance with that test name was found in complete inventory. Its private journal remains blocked and the POST was never repeated |
+| Valid Windows creation | Separate valid 2 vCPU / 4 GB package created; asynchronous SUCCESS and running IPv4 confirmed |
+| Windows access/reset | Administrator RDP authenticated; after reset the new password authenticated and a real Server Manager desktop was received |
+| Windows reinstall/release | Reinstall SUCCESS confirmed; Administrator RDP authenticated using the newly committed password; release SUCCESS and absence from complete recorded region/zone inventory confirmed |
+
+A final complete account inventory returned exactly one instance and zero acceptance-test names: both test instances were absent and the existing account-owned Manila Windows instance was preserved. No production VM, route, NAT, country-routing state, port-forward source, host firewall, DNS record or relay configuration changed.
+
+Automated checks cover regional images, exact specification/rate matching, pagination/partial inventory, omitted live fields, network contract persistence, sale gates, duplicate/lost-response protection, conflicting lifecycle actions, task failure, Linux/Windows provisioning and atomic credential reconciliation. Initial focused validation passed **97 tests / 591 assertions**. After synchronizing with `89a59d0c`, the driver, catalog, customer pages/password, pricing, settings, billing safety, release retry and GPU delivery regression batch passed **239 tests / 1265 assertions**. Two additional LightNode power-confirmation cases passed **2 tests / 20 assertions**, totaling **241 distinct tests / 1285 assertions**. The two locale/number-format failures previously reproduced on `394da6eb` now pass with the upstream test setup. This is focused integration coverage, not a new run of the entire repository suite.
+
+Merge reconciliation preserves upstream GPU image compatibility and observed-state billing safeguards, together with LightNode's regional images, boot-disk requirements and Windows Administrator username. An accepted pending power command remains `building` and returns unconfirmed to billing; later retries observe task completion without another power POST. Both stop and start are covered through the actual adapter and provisioner with fake HTTP, without touching provider resources. The latest ticket check still showed only the automatic receipt and **Processing**; no follow-up message was warranted yet. Sales, credentials and production state were not changed.
+
+## Activation and rollback
+
+1. Review this PR and outstanding pricing/traffic limitations before any deployment. Keep `LIGHTNODE_SALES_ENABLED=false` while importing the key and running catalog checks.
+2. Run the additive database migration before catalog sync. Store the API token through the existing encrypted admin infrastructure settings. The manifest may supplement region mappings; its manual package prices cannot authorize production sales. Never put credentials in that JSON.
+3. Review the public calculator's observed, non-versioned contract and enable `LIGHTNODE_PUBLIC_PRICING_ENABLED` only with verified exact package/series bindings. Reconcile ambiguous operations and verify fresh component prices, invoice precision, funding charges, stock and OS delivery coverage. The OpenAPI still has no monetary fields. A Manila test is not proof of delivery in every region; unknown bindings stay excluded.
+4. Complete real Linux and Windows acceptance through ServerNet with the approved network contract, price/resource checks, customer delivery, SSH/RDP, password/reinstall/power and complete release evidence. Traffic plans require provider-enforced traffic limits and are currently rejected. Obtain the user's final publication approval before enabling sales. Global and provider/plan sale switches remain required; fixture flags cannot authorize production prices.
+5. Roll back sales immediately by disabling the global gate and provider switch. Preserve the encrypted journal and application key while outstanding provider machines exist. Reverting code or dropping a table does **not** release paid provider instances. Reconcile/release them before any migration rollback.
+
+Historical synthetic fixture shape (illustrative amounts and package name; **not a production price source or live catalog**):
+
+```json
+{
+  "regions": {
+    "ph-manila-1": {"country": "PH", "city": "Manila", "location_code": "ph-manila"}
+  },
+  "packages": {
+    "ph-manila-1|ph-manila-1-a|reviewed-package-code": {
+      "hour_usd": "0.050", "month_usd": "30.00", "verified_at": 1791590400,
+      "traffic_policy_verified": false, "delivery_verified": false,
+      "spec": {"cpu": 2, "memory": 4, "systemDiskSize": 50, "dataDiskSize": null,
+        "freeFlow": 1000, "bandwidth": null, "publicIpChargeMode": "PayByTraffic"}
+    }
+  }
+}
+```
+
+For isolated tests only, use exact `packageSpec()` output, including nulls for omitted fields, and a current verification timestamp. Fixture rates are ignored in production regardless of their timestamp or verification flags. Static region mappings remain available to the driver. No production activation is possible from this historical manifest shape.
