@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\UriResolver;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -18,6 +21,8 @@ use Tests\TestCase;
  */
 class StaticAssetCachingTest extends TestCase
 {
+    use RefreshDatabase;
+
     private function htaccess(): string
     {
         $path = public_path('.htaccess');
@@ -110,24 +115,48 @@ class StaticAssetCachingTest extends TestCase
     }
 
     /**
-     * 🔴 تلهٔ دو: preloadِ فونت **نباید** نسخه بگیرد.
+     * Preloads and font-face declarations must request the same URL.
      *
-     * `@font-face` داخلِ CSS فونت را با آدرسِ بی‌نسخه صدا می‌زند. اگر تگِ
-     * preload آدرسِ `?v=`دار بدهد، مرورگر دو URLِ متفاوت می‌بیند و فونت را
-     * **دو بار** دانلود می‌کند — یعنی یک بهینه‌سازی که خودش کندی می‌سازد و
-     * هیچ خطایی هم تولید نمی‌کند.
+     * External CSS uses unversioned font URLs; the inline hero subset uses a
+     * version in both places. Compare the rendered URLs, including queries,
+     * so either kind of mismatch is caught without rejecting a valid subset.
      */
     public function test_font_preloads_match_the_url_the_css_actually_requests(): void
     {
-        $layout = (string) file_get_contents(resource_path('views/layouts/site.blade.php'));
-
-        preg_match_all('~<link[^>]+rel="preload"[^>]+href="\{\{ *(asset|asset_ver)\(~i', $layout, $m);
-
-        $this->assertNotEmpty($m[1], 'هیچ preloadِ فونتی پیدا نشد — الگوی فایل عوض شده');
-
-        foreach ($m[1] as $fn) {
-            $this->assertSame('asset', $fn,
-                'preloadِ فونت با asset_ver ساخته شده؛ آدرسش با آدرسِ داخلِ CSS نمی‌خوانَد و فونت دو بار دانلود می‌شود');
+        foreach (['/', '/en', '/tr', '/contact'] as $page) {
+            $html = $this->get($page)->assertOk()->getContent();
+            $dom = new \DOMDocument;
+            @$dom->loadHTML($html);
+            $xpath = new \DOMXPath($dom);
+            $pageUrl = rtrim(config('app.url'), '/').$page;
+            $sheets = [];
+            foreach ($xpath->query('//style') as $style) {
+                $sheets[] = [$pageUrl, $style->textContent];
+            }
+            foreach ($xpath->query('//link[@rel="stylesheet"]') as $link) {
+                $href = $link->getAttribute('href');
+                $relative = ltrim(parse_url($href, PHP_URL_PATH), '/');
+                $path = public_asset_path($relative);
+                if ($path) {
+                    $sheets[] = [$href, file_get_contents($path)];
+                }
+            }
+            $fontUrls = [];
+            foreach ($sheets as [$base, $css]) {
+                preg_match_all('~@font-face\s*\{([^}]+)\}~i', $css, $faces);
+                foreach ($faces[1] as $face) {
+                    preg_match_all('~url\(\s*[\'"]?([^\'"\)\s]+)~', $face, $sources);
+                    foreach ($sources[1] as $source) {
+                        $fontUrls[] = (string) UriResolver::resolve(new Uri($base), new Uri($source));
+                    }
+                }
+            }
+            $preloads = $xpath->query('//link[@rel="preload" and @as="font"]');
+            $this->assertGreaterThanOrEqual(2, $preloads->length, $page);
+            foreach ($preloads as $preload) {
+                $url = (string) UriResolver::resolve(new Uri($pageUrl), new Uri($preload->getAttribute('href')));
+                $this->assertContains($url, $fontUrls, $page.': font preload must match its actual CSS URL');
+            }
         }
     }
 
