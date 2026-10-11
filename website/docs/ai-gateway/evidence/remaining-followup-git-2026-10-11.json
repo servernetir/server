@@ -1,0 +1,196 @@
+{
+  "head": "7de3f6279caab5ff5bd7c2fad43b354adaff88a5",
+  "merged_develop": "a5f62a550b0fb87b1977769541f07a385ea76ba1",
+  "production_verification_sha256": "910feeda7f34dff5962a91185540566462b38c330f733a7ea3f888ad44da67c7",
+  "all_30_unchanged_by_develop_merge": true,
+  "comparison_counts": {
+    "identical_bytes": 23,
+    "only_line_endings": 6,
+    "preserved_production_overlay_used_by_full_tests": 1
+  },
+  "six_hotfix5_sources_identical_to_actual_deployment": true,
+  "paid_requests": 0,
+  "production_mutations": 0,
+  "source_files": [
+    {
+      "path": "app/Console/Commands/AiPruneReplay.php",
+      "production_sha256": "739f2165af1b11f53112744cc94c2cefe602bd766dd899cf45289e530d2bf38c",
+      "worktree_sha256": "739f2165af1b11f53112744cc94c2cefe602bd766dd899cf45289e530d2bf38c",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Console/Commands/AiRecoverUsage.php",
+      "production_sha256": "4f5f96288fe20412bfc0384fd03e609ef5a708a7e6962da6c872e11a81f2e28d",
+      "worktree_sha256": "4f5f96288fe20412bfc0384fd03e609ef5a708a7e6962da6c872e11a81f2e28d",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Http/Controllers/Ai/AiMediaRelayController.php",
+      "production_sha256": "1405584cb20dc767e92b7e5b75a4578ddf168fe29d2a39710a1a4c338c8317c0",
+      "worktree_sha256": "1405584cb20dc767e92b7e5b75a4578ddf168fe29d2a39710a1a4c338c8317c0",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AdditionalProviderCatalog.php",
+      "production_sha256": "cb43a9b410a873567abc3df83a5016e36fa506a621a1d76d5a1a950af37f8e5b",
+      "worktree_sha256": "cb43a9b410a873567abc3df83a5016e36fa506a621a1d76d5a1a950af37f8e5b",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiCaller.php",
+      "production_sha256": "6ede466e54a2cc9e4b374a4be7ab2409c1e49a3931cee3a3c07b6292a8cfbd84",
+      "worktree_sha256": "6ede466e54a2cc9e4b374a4be7ab2409c1e49a3931cee3a3c07b6292a8cfbd84",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiGapOperations.php",
+      "production_sha256": "1d8a61a714ad988efaa57f63cae72d54185121cfeba96b5a9d0d63cc944113d8",
+      "worktree_sha256": "1d8a61a714ad988efaa57f63cae72d54185121cfeba96b5a9d0d63cc944113d8",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiMediaRelay.php",
+      "production_sha256": "49f8ac62076866120e20a1e04ac425d92fe805fd3f25cabeea478955df242216",
+      "worktree_sha256": "49f8ac62076866120e20a1e04ac425d92fe805fd3f25cabeea478955df242216",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiModelPage.php",
+      "production_sha256": "8d5a653eac26254ce14f247577d4c3a6d6e8a7c9562b6de5fb1a4c6479758489",
+      "worktree_sha256": "8d5a653eac26254ce14f247577d4c3a6d6e8a7c9562b6de5fb1a4c6479758489",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiNative.php",
+      "production_sha256": "6a2f6828c3d3623effc36a230eea85506e68277fbe9194ddac1aacb2aeab3177",
+      "worktree_sha256": "6a2f6828c3d3623effc36a230eea85506e68277fbe9194ddac1aacb2aeab3177",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiNativeResponseRecovery.php",
+      "production_sha256": "73e6f2929c56e30c9a4e19e88424a8390dea63c757444d451d97da15da67d104",
+      "worktree_sha256": "73e6f2929c56e30c9a4e19e88424a8390dea63c757444d451d97da15da67d104",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiPriceQuote.php",
+      "production_sha256": "9427c5df17ccfd6fd84f633d46730278b6f44e5e55bb984457d4768b40643d6f",
+      "worktree_sha256": "9427c5df17ccfd6fd84f633d46730278b6f44e5e55bb984457d4768b40643d6f",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiPricing.php",
+      "production_sha256": "56cc01176e936d400e0998e6c51ad6687f421fdb234cfbe90faaad74ae16fd10",
+      "worktree_sha256": "56cc01176e936d400e0998e6c51ad6687f421fdb234cfbe90faaad74ae16fd10",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiSettlement.php",
+      "production_sha256": "10f05e3d6e7538824c95e25582e6de1e2dfddfe24914b132a597fbce41ef931d",
+      "worktree_sha256": "10f05e3d6e7538824c95e25582e6de1e2dfddfe24914b132a597fbce41ef931d",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/Ai/AiVideoInput.php",
+      "production_sha256": "d646f0869b8502077eac8c9a80e0b63adaf86b8d78329c4e96f2721cb6084036",
+      "worktree_sha256": "d646f0869b8502077eac8c9a80e0b63adaf86b8d78329c4e96f2721cb6084036",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Services/AiProviders/OpenAiCompatibleDriver.php",
+      "production_sha256": "22024088fe34d9edf2c7371b6915629b203dfa9a5382ec10df2c695071e4cc25",
+      "worktree_sha256": "22024088fe34d9edf2c7371b6915629b203dfa9a5382ec10df2c695071e4cc25",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "app/Support/ErrorTracker.php",
+      "production_sha256": "076867a8a076a56fb8f6226b4e916e619efb5278f79429a0caab34080ea0d071",
+      "worktree_sha256": "076867a8a076a56fb8f6226b4e916e619efb5278f79429a0caab34080ea0d071",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "lang/en/ai.php",
+      "production_sha256": "df03a00138a3df05ff6704abd8b4d53ab15b6eabe1f3ae555ece91847693cb85",
+      "worktree_sha256": "bd12c709a690dbe967cdfcd1db51f7a495a4b69cc96b2dab5292c1c485191695",
+      "comparison": "only_line_endings"
+    },
+    {
+      "path": "lang/en/ai_model.php",
+      "production_sha256": "aba54ffde12fbbfc4059eeb0b59aa78cabe2a3f01ec7230689d70e0983da71d6",
+      "worktree_sha256": "aba54ffde12fbbfc4059eeb0b59aa78cabe2a3f01ec7230689d70e0983da71d6",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "lang/fa/ai.php",
+      "production_sha256": "2bc3d5c0e2827ab7d483b4f5185918a5d46a28ca3808e7d26eab557c0b21c5c6",
+      "worktree_sha256": "6724555b3b770de0a4659e589951341c7b5324025c67fec21fdf9d0a532b2ffa",
+      "comparison": "only_line_endings"
+    },
+    {
+      "path": "lang/fa/ai_model.php",
+      "production_sha256": "f65bd9dc385769736f66cb8e58dd395b0d50cd629ef280404b5d6785ad27bd8d",
+      "worktree_sha256": "f65bd9dc385769736f66cb8e58dd395b0d50cd629ef280404b5d6785ad27bd8d",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "lang/tr/ai.php",
+      "production_sha256": "3f849dbe4280dd95cc2abf4d3cee5268cf3949a2e2471ba37159120e482f7f1f",
+      "worktree_sha256": "2b3e1819a6e91fef71e1febd5b4f6b26557bd116bab27889073753797669b321",
+      "comparison": "only_line_endings"
+    },
+    {
+      "path": "lang/tr/ai_model.php",
+      "production_sha256": "c20a3e5d0108a5005a1b1483ad8f6e8cd66c4abd92173a673533220f29b77276",
+      "worktree_sha256": "c20a3e5d0108a5005a1b1483ad8f6e8cd66c4abd92173a673533220f29b77276",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "resources/content/ai-native-contracts.json",
+      "production_sha256": "90e960425c9be19b7f197510ae96b53f2e224d58988a2bebe3d36d4f438f399e",
+      "worktree_sha256": "bef1302eb6038dbe14622c28daa37816f261106b5a00dd3adeb98f6335fd4429",
+      "comparison": "only_line_endings"
+    },
+    {
+      "path": "resources/content/gapgpt-operation-contracts.json",
+      "production_sha256": "4088d77766ccdb856ca6b982808e82f8252300bb6714f55e6651f77a4043b2cc",
+      "worktree_sha256": "4088d77766ccdb856ca6b982808e82f8252300bb6714f55e6651f77a4043b2cc",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "resources/views/account/ai.blade.php",
+      "production_sha256": "6896bf6bf154119a5e464f49b8a334ced66f2188e99610b2cb29cbd42b72ba17",
+      "worktree_sha256": "3800624f3e4f5b26c5587390c30681bf3e2f2961ef2ac2990f02bcd0639ec565",
+      "comparison": "only_line_endings"
+    },
+    {
+      "path": "resources/views/account/topup.blade.php",
+      "production_sha256": "56a25063aae7e4c028c7c87d819f523a15d55b566317ff6961d5a127a6275d08",
+      "worktree_sha256": "56a25063aae7e4c028c7c87d819f523a15d55b566317ff6961d5a127a6275d08",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "resources/views/pages/ai/home.blade.php",
+      "production_sha256": "036caf0f0fd79470e6ef6bf8abf315016eed76a4ca9c9d942a473d80e9562161",
+      "worktree_sha256": "036caf0f0fd79470e6ef6bf8abf315016eed76a4ca9c9d942a473d80e9562161",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "resources/views/pages/ai/model.blade.php",
+      "production_sha256": "d0a534c67941901381d0dd3ed58a0a5708907b4068d61509d73e8ec4b5ae6fb0",
+      "worktree_sha256": "d0a534c67941901381d0dd3ed58a0a5708907b4068d61509d73e8ec4b5ae6fb0",
+      "comparison": "identical_bytes"
+    },
+    {
+      "path": "resources/views/pages/ai/models.blade.php",
+      "production_sha256": "5d3308d025acf64ee138961c181c31aae7eea9db932944d56b5d1ac39286dbbc",
+      "worktree_sha256": "b402766cde7a79e9f6cb2c1d9d95255cb666773de0c743c2951258a02280e16f",
+      "comparison": "only_line_endings"
+    },
+    {
+      "path": "routes/web.php",
+      "production_sha256": "72465c4cf1d71eb4ce1227dd61d64bd8054032cb988c5d18d9540f650d9d562a",
+      "worktree_sha256": "1ddbdb962e32b6ff88ea794323da4feeb2723c5c99d9208ce58231d65e4ddcaa",
+      "comparison": "preserved_production_overlay_used_by_full_tests"
+    }
+  ]
+}
