@@ -109,6 +109,22 @@ class AdminSettingsTabsTest extends TestCase
         $this->assertSame('tok-live-123', Setting::getSecret('hetzner_api_token'), 'توکنِ زیرساخت پاک شد');
     }
 
+    public function test_old_infra_forms_do_not_implicitly_clear_gpu_sales_holds(): void
+    {
+        $keys = ['salad_ollama_sales_paused', 'salad_comfyui_sales_paused', 'salad_jupyter_sales_paused'];
+        foreach ($keys as $key) {
+            Setting::put($key, '1');
+        }
+        $this->actingAs($this->admin())->post('/admin/settings', ['tab' => 'infra'])->assertRedirect();
+        foreach ($keys as $key) {
+            $this->assertSame('1', Setting::get($key));
+        }
+        $this->post('/admin/settings', ['tab' => 'infra', 'salad_ollama_sales_paused' => '0'])->assertRedirect();
+        $this->assertSame('0', Setting::get('salad_ollama_sales_paused'));
+        $this->assertSame('1', Setting::get('salad_comfyui_sales_paused'));
+        $this->assertSame('1', Setting::get('salad_jupyter_sales_paused'));
+    }
+
     /** …و در جهتِ عکس: ذخیرهٔ زیرساخت نباید حسابِ بانکی را پاک کند. */
     public function test_saving_infra_leaves_the_bank_account_alone(): void
     {
@@ -156,7 +172,8 @@ class AdminSettingsTabsTest extends TestCase
         $this->assertStringContainsString('زیرساختِ ۶', $html, 'بلوکِ زیرساختِ GPU در صفحه نیست');
 
         foreach (['salad_api_key', 'salad_org', 'salad_project', 'salad_image',
-            'salad_priority', 'salad_jupyter_sales_paused', 'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour'] as $f) {
+            'salad_priority', 'salad_jupyter_sales_paused', 'salad_ollama_sales_paused',
+            'salad_comfyui_sales_paused', 'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour'] as $f) {
             $this->assertStringContainsString('name="'.$f.'"', $html, "فیلدِ «{$f}» رندر نشد");
         }
 
@@ -182,6 +199,8 @@ class AdminSettingsTabsTest extends TestCase
             'salad_image'           => 'ghcr.io/servernet/gpu-ssh:1',
             'salad_priority'        => 'high',
             'salad_jupyter_sales_paused' => '1',
+            'salad_ollama_sales_paused' => '1',
+            'salad_comfyui_sales_paused' => '0',
             'salad_vcpu_usd_hour'   => '0.004',
             'salad_ram_gb_usd_hour' => '0.001',
         ])->assertRedirect();
@@ -189,6 +208,8 @@ class AdminSettingsTabsTest extends TestCase
         $this->assertSame('salad-live-key-9', Setting::getSecret('salad_api_key'));
         $this->assertSame('servernet', Setting::get('salad_org'));
         $this->assertSame('1', Setting::get('salad_jupyter_sales_paused'));
+        $this->assertSame('1', Setting::get('salad_ollama_sales_paused'));
+        $this->assertSame('0', Setting::get('salad_comfyui_sales_paused'));
         $this->assertSame('ghcr.io/servernet/gpu-ssh:1', Setting::get('salad_image'));
 
         $this->assertNotSame('salad-live-key-9', Setting::get('salad_api_key'),

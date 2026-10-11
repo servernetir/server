@@ -78,6 +78,7 @@ class CalendarController extends Controller
             'connected' => $googleToken !== null,
             'email' => $googleToken?->google_email,
             'last_error' => $googleToken?->last_error,
+            'needs_credential_repair' => GoogleCalendarClient::needsCredentialRepair($googleToken?->last_error),
             'synced_at' => $googleToken?->synced_at?->diffForHumans(),
         ];
 
@@ -584,6 +585,7 @@ class CalendarController extends Controller
             return redirect('/admin/calendar')->with('err', match ($res['error'] ?? '') {
                 'no_refresh_token' => 'گوگل توکنِ ماندگار نداد. در حسابِ گوگل، دسترسیِ این اپ را حذف کنید و دوباره وصل شوید.',
                 'network' => 'ارتباط با گوگل برقرار نشد.',
+                'deleted_client', 'invalid_client', 'no_access_token' => GoogleCalendarClient::connectionError($res['error']),
                 default => 'اتصال ناموفق: '.($res['error'] ?? 'نامشخص'),
             });
         }
@@ -597,8 +599,12 @@ class CalendarController extends Controller
                 'refresh_token' => $res['refresh_token'],
                 'expires_at' => $res['expires_at'],
                 'last_error' => null,
+                'synced_at' => null,
             ],
         );
+
+        // A reconnect can select another account; cached events must not cross that boundary.
+        $this->forgetGoogleCache((int) $request->user()->id);
 
         return redirect('/admin/calendar')->with('ok', 'تقویمِ گوگل وصل شد.');
     }

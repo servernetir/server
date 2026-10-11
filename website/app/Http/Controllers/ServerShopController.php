@@ -19,10 +19,13 @@ class ServerShopController extends Controller
     public function index(): View
     {
         $models = $this->catalog();
+        $brand = request()->query('brand', 'all');
+        $activeBrand = is_string($brand) && array_key_exists($brand, (array) config('servers.brands')) ? $brand : 'all';
 
         return view('pages.servers-index', [
             'brands' => (array) config('servers.brands'),
             'models' => $models,
+            'activeBrand' => $activeBrand,
         ]);
     }
 
@@ -41,9 +44,9 @@ class ServerShopController extends Controller
             ->take(3);
 
         return view('pages.server-detail', [
-            'slug'    => $slug,
-            'model'   => $model,
-            'brand'   => $brand,
+            'slug' => $slug,
+            'model' => $model,
+            'brand' => $brand,
             'related' => $related instanceof Collection ? $related : collect($related),
         ]);
     }

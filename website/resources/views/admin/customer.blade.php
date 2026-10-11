@@ -85,15 +85,19 @@
      نزدیک‌ترین سررسیدش کِی است — بدونِ باز کردنِ هیچ تبی. --}}
 @php
   $activeSvc  = $services->whereIn('status', ['active', 'awaiting_provision']);
-  $domains    = $services->whereIn('status', ['active', 'awaiting_provision'])
-                         ->pluck('domain')->filter()->unique();
+  /* فقط خریدهای واقعیِ رجیسترار. `services.domain` آدرسِ هاست/سرور است و
+     مالکیتِ دامنه نزدِ ServerNet را ثابت نمی‌کند. دامنهٔ مرده هم دیگر داراییِ
+     جاریِ مشتری نیست؛ pending/transferring می‌ماند چون مشتری پول داده است. */
+  $purchasedDomains = $customerDomains->whereNotIn('status', \App\Models\Domain::DEAD_STATUSES);
   $nextDue    = $activeSvc->whereNotNull('next_due_at')->sortBy('next_due_at')->first();
   $unpaidSum  = $c->invoices->whereIn('status', ['unpaid', 'partial'])->sum(fn ($i) => (int) $i->due());
   $openTickets = $c->tickets->where('status', 'open')->count();
 @endphp
 <div class="cust-kpis">
   <div class="cust-kpi"><b style="color:#22d3ee">{{ fa_num($activeSvc->count()) }}</b><span>سرویس فعال</span></div>
-  <div class="cust-kpi"><b>{{ fa_num($domains->count()) }}</b><span>دامنه</span></div>
+  @if($purchasedDomains->isNotEmpty())
+    <div class="cust-kpi" data-kpi="purchased-domains"><b>{{ fa_num($purchasedDomains->count()) }}</b><span>دامنهٔ خریداری‌شده</span></div>
+  @endif
   <div class="cust-kpi">
     <b style="color:{{ $unpaidSum > 0 ? '#fbbf24' : 'var(--text)' }}">{{ $money($unpaidSum) }}</b>
     <span>بدهی پرداخت‌نشده</span>
@@ -369,7 +373,22 @@
               // ⚠️ provision_meta ممکن است null باشد؛ null['ip'] در PHP ۸ اخطار
               // می‌دهد و لاراول اخطار را به استثنا تبدیل می‌کند → ۵۰۰.
               $meta  = is_array($s->provision_meta) ? $s->provision_meta : [];
-              $svcIp = $meta['ip'] ?? $s->server?->server_ip;
+              /* آدرسِ تحویلی مقدم است؛ برای ابری، address() پورتِ NAT را هم
+                 نگه می‌دارد. فیلدِ server_ip برای سرویس‌های دستی/قدیمی است. */
+              $svcIp = ($s->cloudInstance && ! $s->cloudInstance->isGpuApp()
+                    ? $s->cloudInstance->address()
+                    : null)
+                    ?? $meta['ip']
+                    ?? $s->server_ip
+                    ?? $s->server?->server_ip;
+              $svcDns = collect(preg_split('/\s*,\s*/', (string) ($s->server?->nameservers ?? ''), -1, PREG_SPLIT_NO_EMPTY));
+              $infraName = $s->server?->name;
+              /* در Salad، provider_ref دقیقاً name/display_name گروه است؛
+                 hostname بعداً با DNS دروازه جایگزین می‌شود و نامِ پنل نیست. */
+              $saladGpuName = $s->cloudInstance?->provider === 'salad'
+                    && $s->cloudInstance?->isGpuApp()
+                    ? $s->cloudInstance?->provider_ref
+                    : null;
             @endphp
             {{-- دامنه و IP از این‌جا به ستونِ «آدرس» رفتند تا ارتفاعِ خانهٔ
                  نام قابلِ پیش‌بینی بمانَد. --}}
@@ -424,12 +443,21 @@
           --}}
           <td style="white-space:nowrap">
             @if($s->domain)
-              <a href="http://{{ $s->domain }}" target="_blank" rel="noopener" dir="ltr" style="color:#22d3ee">{{ $s->domain }}</a>
+              <div><b style="font-size:11px;color:var(--dim)">دامنه:</b> <a href="http://{{ $s->domain }}" target="_blank" rel="noopener" dir="ltr" style="color:#22d3ee">{{ $s->domain }}</a></div>
             @endif
             @if($svcIp)
-              <div dir="ltr" style="font-size:12px;color:var(--muted);user-select:all">{{ $svcIp }}</div>
+              <div style="font-size:12px;color:var(--muted)"><b style="font-size:11px;color:var(--dim)">IP:</b> <span dir="ltr" style="user-select:all">{{ $svcIp }}</span></div>
             @endif
-            @unless($s->domain || $svcIp)<span style="color:var(--dim)">—</span>@endunless
+            @if($svcDns->isNotEmpty())
+              <div style="font-size:12px;color:var(--muted)"><b style="font-size:11px;color:var(--dim)">DNS:</b> <span dir="ltr" style="user-select:all">{{ $svcDns->implode(' · ') }}</span></div>
+            @endif
+            @if($infraName)
+              <div style="font-size:12px;color:#a78bfa"><b style="font-size:11px">زیرساخت:</b> {{ $infraName }}</div>
+            @endif
+            @if($saladGpuName)
+              <div style="font-size:12px;color:#34d399"><b style="font-size:11px">نام GPU در Salad:</b> <span dir="ltr" style="user-select:all">{{ $saladGpuName }}</span></div>
+            @endif
+            @unless($s->domain || $svcIp || $svcDns->isNotEmpty() || $infraName || $saladGpuName)<span style="color:var(--dim)">—</span>@endunless
           </td>
           <td>{{ $s->cycleLabel() }}@if($s->isInternalInfrastructure())<small> · زیرساخت داخلی؛ معاف از قطع بابت بدهی</small>@endif</td>
           {{-- ساعتی: نرخِ واقعیِ کسر، نه معادلِ ماهانه که هرگز فاکتور نمی‌شود --}}

@@ -216,6 +216,13 @@
         <input type="checkbox" name="salad_jupyter_sales_paused" value="1" @checked($cloud['sl']['jupyter_sales_paused'] ?? false)>
         <span>توقف موقت فروش جدید Jupyter تا تأیید اتصال اجرای کد؛ سرویس‌های موجود تغییر نمی‌کنند.</span>
       </label>
+      @foreach(['ollama' => 'Ollama', 'comfyui' => 'ComfyUI'] as $gpuApp => $gpuAppLabel)
+      <label class="set-f full" style="flex-direction:row;align-items:center;gap:8px">
+        <input type="hidden" name="salad_{{ $gpuApp }}_sales_paused" value="0">
+        <input type="checkbox" name="salad_{{ $gpuApp }}_sales_paused" value="1" @checked($cloud['sl'][$gpuApp.'_sales_paused'] ?? false)>
+        <span>توقف موقت فروش جدید {{ $gpuAppLabel }} تا تأیید خروجی واقعی؛ سرویس‌های موجود تغییر نمی‌کنند.</span>
+      </label>
+      @endforeach
       <label class="set-f">رازِ دروازهٔ برندشده (Gateway secret)
         <input type="password" name="salad_gateway_secret" dir="ltr" autocomplete="new-password" maxlength="200"
                placeholder="باید با GATE_SECRET در Worker یکی باشد — خالی = بدونِ تغییر">

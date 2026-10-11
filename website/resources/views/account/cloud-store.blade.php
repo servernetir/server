@@ -937,6 +937,11 @@
 
         @if($isGpuStore)
           <p class="cvb-note" data-gpu-sale-policy>{{ __('ui.cvb_gpu_sale_policy') }}</p>
+          @foreach(['gpu-ollama' => 'Ollama', 'gpu-comfyui' => 'ComfyUI'] as $gpuAppKey => $gpuAppLabel)
+            @if(\App\Services\Cloud\SaladClient::salesPaused($gpuAppKey))
+              <p class="cvb-note" data-gpu-app-sales-paused="{{ $gpuAppKey }}">{{ __('ui.gpu_app_sales_paused', ['app' => $gpuAppLabel]) }}</p>
+            @endif
+          @endforeach
           @if(\App\Models\Setting::get('salad_jupyter_sales_paused', '0') === '1')
           <p class="cvb-note" data-gpu-jupyter-sales-paused>{{ __('ui.gpu_jupyter_sales_paused') }}</p>
           @endif

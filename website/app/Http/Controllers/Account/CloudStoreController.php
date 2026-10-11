@@ -606,8 +606,8 @@ class CloudStoreController extends Controller
     private static function deliverable(CloudPlan $offer, array $slugProviders, Collection $rows): bool
     {
         foreach ($rows as $row) {
-            if ((string) $row->provider === 'salad' && (string) $row->key === 'gpu-jupyter'
-                && \App\Models\Setting::get('salad_jupyter_sales_paused', '0') === '1') {
+            if ((string) $row->provider === 'salad'
+                && \App\Services\Cloud\SaladClient::salesPaused((string) $row->key)) {
                 continue;
             }
 

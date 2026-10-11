@@ -177,6 +177,73 @@ class AdminCalendarGoogleTest extends TestCase
         $this->assertSame(0, GoogleCalendarToken::count());
     }
 
+    public function test_reconnecting_immediately_replaces_cached_events_from_the_previous_account(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff);
+        Http::preventStrayRequests();
+        Http::fake([
+            'oauth2.googleapis.com/token' => Http::response([
+                'access_token' => 'at-new', 'refresh_token' => 'rt-new', 'expires_in' => 3600,
+            ]),
+            'www.googleapis.com/*' => fn ($request) => Http::response(['items' => [[
+                'id' => $request->hasHeader('Authorization', 'Bearer at-new') ? 'new' : 'old',
+                'summary' => $request->hasHeader('Authorization', 'Bearer at-new') ? 'New account' : 'Old account',
+                'start' => ['date' => '2026-08-05'],
+            ]]]),
+        ]);
+
+        $url = '/admin/calendar/events?y=1405&m=5&layers[]=google';
+        $before = $this->actingAs($staff, 'web')->getJson($url)->assertOk()->json('events');
+        $this->assertSame(['Old account'], array_column($before, 'title'));
+        $this->withSession(['google_calendar_state' => 'reconnect'])
+            ->get('/admin/calendar/google/callback?code=abc&state=reconnect')
+            ->assertRedirect('/admin/calendar')->assertSessionHas('ok');
+        $after = $this->getJson($url)->assertOk()->json('events');
+        $this->assertSame(['New account'], array_column($after, 'title'));
+    }
+
+    public function test_a_callback_without_an_access_token_keeps_the_previous_connection(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $token = $this->connect($staff);
+        Http::fake(['oauth2.googleapis.com/token' => Http::response(['refresh_token' => 'rt-new'])]);
+
+        $this->actingAs($staff, 'web')->withSession(['google_calendar_state' => 'st-1'])
+            ->get('/admin/calendar/google/callback?code=abc&state=st-1')
+            ->assertRedirect('/admin/calendar')->assertSessionHas('err');
+
+        $this->assertSame('at-1', $token->fresh()->access_token);
+        $this->assertSame('rt-1', $token->fresh()->refresh_token);
+    }
+
+    public function test_a_refresh_without_an_access_token_does_not_report_success_or_replace_tokens(): void
+    {
+        $this->configureApp();
+        $token = $this->connect($this->staff(), ['expires_at' => Carbon::now()->subMinute()]);
+        Http::fake(['oauth2.googleapis.com/token' => Http::response(['expires_in' => 3600])]);
+
+        $this->assertFalse(app(GoogleCalendarClient::class)->refresh($token));
+        $this->assertSame('at-1', $token->fresh()->access_token);
+        $this->assertSame('rt-1', $token->fresh()->refresh_token);
+        $this->assertNotNull($token->fresh()->last_error);
+    }
+
+    public function test_a_deleted_client_points_to_configuration_instead_of_a_broken_reconnect_loop(): void
+    {
+        $this->configureApp();
+        $staff = $this->staff();
+        $this->connect($staff, ['expires_at' => Carbon::now()->subMinute()]);
+        Http::fake(['oauth2.googleapis.com/token' => Http::response(['error' => 'deleted_client'], 401)]);
+
+        $html = $this->actingAs($staff, 'web')->get('/admin/calendar')->assertOk()->getContent();
+        $this->assertStringContainsString('deleted_client', $html);
+        $this->assertStringContainsString('اصلاح تنظیمات گوگل', $html);
+        $this->assertStringNotContainsString('href="/admin/calendar/google/connect">اتصال دوباره', $html);
+    }
+
     public function test_disconnect_only_removes_the_current_users_token(): void
     {
         $this->configureApp();

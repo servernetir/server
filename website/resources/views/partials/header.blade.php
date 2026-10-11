@@ -1,6 +1,7 @@
 @php
     $loc = app()->getLocale();
     $mega = config('servernet.mega');
+    $serverMenu = app(\App\Services\ServerMenu::class)->build($mega['vps'] ?? []);
     // ⚠️ از `MenuManager` و نه مستقیم از config: رویهٔ مدیر (خاموشی، متنِ
     //    سه‌زبانه، ترتیب، لینکِ افزوده) این‌جا اعمال می‌شود. عمداً `config()`
     //    بازنویسی نمی‌شود چون `pages/knowledge` به `knowledge_menu[0..3]`
@@ -140,6 +141,9 @@
         <div class="mega-content">
           @foreach($mega as $key => $cat)
           <div class="mega-pane @if($loop->first) active @endif" data-pane="{{ $key }}">
+            @if($key === 'vps')
+              @include('partials.server-menu')
+            @else
             @foreach($cat['groups'] as $group)
             {{-- گروهِ 'wide' تمامِ عرضِ پنل را می‌گیرد و آیتم‌هایش دوردیفه می‌چینند
                  (موقعیت‌های مکانی زیاد شده‌اند و یک ستونِ کشیده بدنما بود). --}}
@@ -154,6 +158,7 @@
               @endforeach
             </div>
             @endforeach
+            @endif
           </div>
           @endforeach
         </div>
@@ -351,10 +356,14 @@
         <svg class="icon chev"><use href="#i-chev"/></svg>
       </button>
       <div class="acc-body"><div class="acc-in">
+        @if($key === 'vps')
+          @include('partials.server-menu')
+        @else
         @foreach($cat['groups'] as $group)
         <h6>{{ lc($group) }}</h6>
         @foreach($group['items'] as $item)<a href="{{ isset($item['route']) ? lroute($item['route'][0], $item['route'][1] ?? []) : (isset($item['slug']) ? ($key === 'hosting' ? lroute('hosting', $item['slug']) : lroute('catalog', ['category' => $key, 'slug' => $item['slug']])) : '#') }}">{{ lc($item) }}</a>@endforeach
         @endforeach
+        @endif
       </div></div>
     </div>
     @endforeach
