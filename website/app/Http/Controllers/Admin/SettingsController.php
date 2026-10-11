@@ -158,6 +158,7 @@ class SettingsController extends Controller
             'pricing_fx_fee_pct_hetzner' => ['nullable', 'numeric', 'min:0', 'max:25'],
             'pricing_fx_fee_pct_aeza'    => ['nullable', 'numeric', 'min:0', 'max:25'],
             'pricing_fx_fee_pct_salad'   => ['nullable', 'numeric', 'min:0', 'max:25'],
+            'pricing_fx_fee_pct_lightnode' => ['nullable', 'numeric', 'min:0', 'max:25'],
             'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_margin_pct_salad' => ['nullable', 'numeric', 'min:0', 'max:500'],
@@ -184,6 +185,9 @@ class SettingsController extends Controller
             'aeza_forget'        => ['nullable', 'boolean'],
             'arvan_api_token'    => ['nullable', 'string', 'max:400'],
             'arvan_forget'       => ['nullable', 'boolean'],
+            'lightnode_api_token' => ['nullable', 'string', 'max:1000'],
+            'lightnode_forget' => ['nullable', 'boolean'],
+            'lightnode_manifest' => ['nullable', 'json', 'max:200000'],
             'ovh_app_key'        => ['nullable', 'string', 'max:200'],
             'ovh_app_secret'     => ['nullable', 'string', 'max:200'],
             'ovh_consumer_key'   => ['nullable', 'string', 'max:200'],
@@ -259,7 +263,7 @@ class SettingsController extends Controller
     private const BANK_KEYS = ['bank_holder', 'bank_name', 'bank_account', 'bank_sheba', 'bank_card', 'bank_note'];
 
     /** توکنِ تک‌کلیدیِ زیرساخت‌ها: همه یک الگو دارند (`{p}_api_token` + `{p}_forget`). */
-    private const CLOUD_PROVIDERS = ['hetzner', 'aeza', 'arvan'];
+    private const CLOUD_PROVIDERS = ['hetzner', 'aeza', 'arvan', 'lightnode'];
 
     /** کلیدهای سادهٔ Proxmox — خالی یعنی «به پیش‌فرضِ درایور برگرد». */
     private const PROXMOX_PLAIN = [
@@ -443,6 +447,7 @@ class SettingsController extends Controller
                 'pricing_fx_fee_pct_hetzner' => $ready ? Setting::get('pricing_fx_fee_pct_hetzner') : null,
                 'pricing_fx_fee_pct_aeza'    => $ready ? Setting::get('pricing_fx_fee_pct_aeza') : null,
                 'pricing_fx_fee_pct_salad'   => $ready ? Setting::get('pricing_fx_fee_pct_salad') : null,
+                'pricing_fx_fee_pct_lightnode' => $ready ? Setting::get('pricing_fx_fee_pct_lightnode') : null,
                 'price_margin_pct'      => $ready ? Setting::get('price_margin_pct') : null,
                 'cloud_margin_pct'      => $ready ? Setting::get('cloud_margin_pct') : null,
                 'cloud_margin_pct_salad' => $ready ? Setting::get('cloud_margin_pct_salad') : null,
@@ -466,6 +471,8 @@ class SettingsController extends Controller
                 'hetzner'    => $ready && filled(Setting::getSecret('hetzner_api_token')),
                 'aeza'       => $ready && filled(Setting::getSecret('aeza_api_token')),
                 'arvan'      => $ready && filled(Setting::getSecret('arvan_api_token')),
+                'lightnode' => $ready && filled(Setting::getSecret('lightnode_api_token')),
+                'lightnode_manifest' => $ready ? Setting::get('lightnode_manifest') : null,
                 // OVH سه‌کلیدی است؛ «تنظیم‌شده» یعنی هر سه هستند، وگرنه امضا
                 // ساخته نمی‌شود و هر تماس ۴۰۳ می‌گیرد.
                 'ovh' => $ready && filled(Setting::getSecret('ovh_app_key'))
@@ -790,6 +797,10 @@ class SettingsController extends Controller
             } elseif (filled($data[$p.'_api_token'] ?? null)) {
                 Setting::putSecret($p.'_api_token', trim((string) $data[$p.'_api_token']));
             }
+        }
+
+        if (array_key_exists('lightnode_manifest', $data)) {
+            Setting::put('lightnode_manifest', filled($data['lightnode_manifest']) ? $data['lightnode_manifest'] : null);
         }
 
         // OVH سه کلیدِ جدا دارد، پس از حلقهٔ بالا (که یک `_api_token` فرض

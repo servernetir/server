@@ -9,6 +9,24 @@
   @csrf
   <input type="hidden" name="tab" value="infra">
 
+  <div class="ad-panel">
+    <div class="ad-panel-h"><h2>LightNode</h2>
+      @if($cloud['lightnode'])<span class="ad-badge">کلید ذخیره‌شده</span>@endif
+      <span class="ad-badge">{{ config('lightnode.sales_enabled') && config('lightnode.public_pricing_enabled') ? 'فروش فعال' : 'فروش غیرفعال' }}</span>
+    </div>
+    <p class="set-lead">فروش با پهنای‌باند ثابت، قیمت تازهٔ LightNode و سود فعلی سایت انجام می‌شود. استفاده از مدل مشترک مناطق با تأیید مالک، جدا از آزمون واقعی هر پلن ثبت می‌شود؛ تحویل پس از تطبیق پاسخ واقعی زیرساخت است. خاموشی، هزینه را متوقف نمی‌کند.</p>
+    <div class="set-grid" style="padding:0 18px 18px">
+      <label class="set-f">کلید API
+        <input type="password" name="lightnode_api_token" dir="ltr" autocomplete="new-password" maxlength="1000"
+          placeholder="{{ $cloud['lightnode'] ? 'ذخیره‌شده؛ خالی = بدون تغییر' : 'کلید API تأییدشدهٔ حساب' }}"></label>
+      @if($cloud['lightnode'])<label class="set-danger"><input type="checkbox" name="lightnode_forget" value="1">حذف کلید ذخیره‌شده</label>@endif
+      <label class="set-f full">نگاشت مناطق و مشخصات تأییدشدهٔ LightNode
+        <textarea name="lightnode_manifest" dir="ltr" rows="8">{{ $cloud['lightnode_manifest'] }}</textarea>
+        <span class="set-lead">قیمت از محاسبه‌گر عمومی LightNode دریافت و سود فعلی سایت اعمال می‌شود. این بخش فقط برای نگاشت مناطق و سری پردازندهٔ پلن‌های تأییدشده است؛ نرخ دستی مبنای فروش نیست. کلید API و رمز سرور را اینجا وارد نکنید.</span>
+      </label>
+    </div>
+  </div>
+
   {{-- ═══ CDN و DNS ═══ --}}
   <div class="ad-panel">
     <div class="ad-panel-h">

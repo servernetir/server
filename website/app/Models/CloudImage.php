@@ -147,6 +147,15 @@ class CloudImage extends Model
             ->get();
 
         $match = $rows->first(function (CloudImage $row) use ($plan) {
+            // LightNode image UUIDs are regional; never install another city's image.
+            if ($plan->provider === 'lightnode'
+                && explode('|', (string) $row->provider_ref)[0] !== explode('|', (string) $plan->provider_location)[0]) {
+                return false;
+            }
+            if ($plan->provider === 'lightnode' && $row->family === 'windows'
+                && ((int) $plan->vcpu < 2 || (int) $plan->ram_mb < 4096)) {
+                return false;
+            }
             $archOk = ! filled($row->arch)
                 || ! filled($plan->arch)
                 || (string) $row->arch === (string) $plan->arch;
@@ -154,7 +163,7 @@ class CloudImage extends Model
             return $archOk
                 && ((string) $plan->provider !== 'salad'
                     || \App\Services\Cloud\SaladClient::imageSupportsGpu((string) $row->provider_ref, (string) $plan->gpu_model))
-                && (int) $row->min_disk_gb <= (int) $plan->disk_gb
+                && (int) $row->min_disk_gb <= (int) ($plan->boot_disk_gb ?? $plan->disk_gb)
                 && (int) $row->min_ram_mb <= (int) $plan->ram_mb;
         });
 
