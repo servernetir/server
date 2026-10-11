@@ -200,7 +200,7 @@
 
     @if($countries)
       <div class="hv-table-wrap">
-        <table class="hv-table">
+        <table class="hv-table hv-rates">
           <thead>
             <tr>
               <th>{{ __('ui.hv_th_country') }}</th>
@@ -214,10 +214,10 @@
             @foreach($countries as $c)
               <tr>
                 <td class="hv-td-c">@include('partials.flag', ['flagSrc' => $c['flag_svg'], 'flagEmoji' => $c['flag'], 'flagSize' => 18]) <span>{{ $c['label'] }}</span></td>
-                <td class="hv-td-p"><b>{{ $c['hourly'] }}</b> <small>{{ __('ui.hv_per_hour') }}</small></td>
-                <td>{{ $c['monthly'] }} <small>{{ __('ui.mo') }}</small></td>
-                <td>{{ $isFa ? fa_num($c['plans']) : $c['plans'] }}</td>
-                <td><a class="hv-link" href="{{ $c['url'] }}">{{ $isFa ? 'سرور مجازی '.$c['label'] : $c['label'].' VPS' }}</a></td>
+                <td class="hv-td-p" data-label="{{ __('ui.hv_th_hourly') }}"><b>{{ $c['hourly'] }}</b> <small>{{ __('ui.hv_per_hour') }}</small></td>
+                <td data-label="{{ __('ui.hv_th_monthly') }}">{{ $c['monthly'] }}</td>
+                <td data-label="{{ __('ui.hv_th_plans') }}">{{ $isFa ? fa_num($c['plans']) : $c['plans'] }}</td>
+                <td class="hv-td-buy"><a class="hv-link" href="{{ $c['url'] }}">{{ $isFa ? 'سرور مجازی '.$c['label'] : $c['label'].' VPS' }}</a></td>
               </tr>
             @endforeach
           </tbody>
@@ -439,8 +439,24 @@
   border-radius:30px; padding:7px 15px; transition:.16s }
 .hv-cross a:hover{ border-color:var(--cyan); color:var(--cyan) }
 
+@media(min-width:641px) and (max-width:1000px){
+  .hv-rates .hv-link{display:inline-flex;align-items:center;min-height:44px}
+}
 @media(max-width:640px){
   .hv-sec{ padding:32px 0 }
+  .hv-table{min-width:0;table-layout:fixed}
+  .hv-table th,.hv-table td{padding:10px;font-size:12px;overflow-wrap:anywhere}
+  .hv-table-vs tbody th{white-space:normal}
+  .hv-rates,.hv-rates tbody{display:block;width:100%}
+  .hv-rates thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+  .hv-rates tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding:14px;gap:12px;border-bottom:1px solid var(--line)}
+  .hv-rates tr:last-child{border-bottom:0}
+  .hv-rates td{display:block;min-width:0;padding:0;border:0;white-space:normal}
+  .hv-rates .hv-td-c{grid-column:1/-1;font-weight:700;font-size:15px}
+  .hv-rates td[data-label]::before{content:attr(data-label);display:block;color:var(--dim);font-size:11px;margin-bottom:4px}
+  .hv-rates .hv-td-buy{display:flex;align-items:center}
+  .hv-rates .hv-link{display:flex;align-items:center;justify-content:center;min-height:44px;width:100%;border:1px solid var(--line);border-radius:10px;padding:8px;color:var(--cyan);text-decoration:none;text-align:center}
+  .hv-card,.hv-card dl div,.hv-card-meta li{min-width:0;overflow-wrap:anywhere}
 }
 </style>
 @endpush
