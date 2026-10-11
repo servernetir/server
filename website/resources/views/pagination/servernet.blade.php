@@ -10,14 +10,14 @@
     <style>
       /* Self-contained because this component is shared by admin.css, panel.css
          and site.css. No SVG is used: a global svg rule can never enlarge it. */
-      .sn-pagination{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:18px 0 6px;padding:10px 12px;border:1px solid var(--line,#dbe2ea);border-radius:12px;background:var(--surface,#fff);font-size:12.5px}
-      .sn-pagination__summary{margin:0;color:var(--muted,#64748b);white-space:nowrap}
+      .sn-pagination{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin:18px 0 6px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:12.5px}
+      .sn-pagination__summary{margin:0;color:var(--muted);white-space:nowrap}
       .sn-pagination__links{display:flex;align-items:center;justify-content:center;gap:5px;direction:ltr;min-width:0}
-      .sn-pagination__item{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid var(--line,#dbe2ea);border-radius:9px;background:var(--surface-2,var(--surface,#fff));color:var(--text,#172033);text-decoration:none;font:inherit;font-weight:600;line-height:1;white-space:nowrap;transition:border-color .15s,background .15s,color .15s}
-      a.sn-pagination__item:hover{border-color:var(--cyan,#0891b2);color:var(--cyan,#0891b2);background:var(--info-bg,rgba(8,145,178,.08))}
-      .sn-pagination__item[aria-current="page"]{border-color:var(--cyan,#0891b2);background:var(--cyan,#0891b2);color:#fff;cursor:default}
+      .sn-pagination__item{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2,var(--surface));color:var(--text);text-decoration:none;font:inherit;font-weight:600;line-height:1;white-space:nowrap;transition:border-color .15s,background .15s,color .15s}
+      a.sn-pagination__item:hover{border-color:var(--cyan);color:var(--cyan);background:var(--info-bg,rgba(8,145,178,.08))}
+      .sn-pagination__item[aria-current="page"]{border-color:var(--cyan);background:var(--cyan);color:#fff;cursor:default}
       .sn-pagination__item.is-disabled{opacity:.42;cursor:not-allowed}
-      .sn-pagination__item.is-gap{min-width:24px;padding:0;border-color:transparent;background:transparent;color:var(--muted,#64748b)}
+      .sn-pagination__item.is-gap{min-width:24px;padding:0;border-color:transparent;background:transparent;color:var(--muted)}
       .sn-pagination__arrow{font-size:19px;line-height:0;transform:translateY(-1px)}
       .sn-pagination__label{margin:0 3px}
       @media(max-width:640px){
