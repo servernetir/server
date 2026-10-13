@@ -115,10 +115,11 @@ class CloudPublicPageTest extends TestCase
                 $this->assertDoesNotMatchRegularExpression('~<link rel="stylesheet"[^>]*(?:site(?:\\.min)?|server-menu)\\.css~', $head);
                 foreach ([400, 700] as $weight) {
                     $name = 'assets/font/woff2/IRANSans-location-20261011-'.$weight.'.woff2';
-                    $this->assertSame($weight === 400 ? 1 : 0, substr_count($head, '<link rel="preload" href="'.asset($name).'" as="font"'));
+                    $this->assertSame(1, substr_count($head, '<link rel="preload" href="'.asset($name).'" as="font"'));
                     $this->assertStringContainsString("src:url('/".$name."')", $head);
                 }
-                $this->assertMatchesRegularExpression('~<link rel="preload"[^>]*IRANSans-location-20261011-400\\.woff2[^>]*media="\\(min-width:1021px\\)"~', $head);
+                $this->assertDoesNotMatchRegularExpression('~<link rel="preload"[^>]*IRANSans-location-20261011-[47]00\\.woff2[^>]*media=~', $head);
+                $this->assertStringNotContainsString('--font-body:Tahoma', $head);
                 preg_match('~<div class="server-menu".*?<img[^>]+>~s', $html, $menu);
                 $this->assertStringContainsString('loading="lazy"', $menu[0] ?? '');
                 preg_match('~<span class="cvl-flag".*?<img[^>]+>~s', $html, $flag);
