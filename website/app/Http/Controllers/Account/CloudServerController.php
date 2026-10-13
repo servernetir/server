@@ -682,6 +682,13 @@ class CloudServerController extends Controller
 
         // بلیت: تصادفی، کوتاه‌عمر، و گره‌خورده به همین سرویس تا با بلیتِ سرویسِ
         // دیگری قابلِ استفاده نباشد.
+        if ($instance->provider === 'arvan' && ($r['transport'] ?? null) === 'external') {
+            $this->log($service, __('ui.act_cloud_console'));
+            return redirect()->away($r['url'])
+                ->header('Cache-Control', 'no-store')
+                ->header('Referrer-Policy', 'no-referrer');
+        }
+
         $ticket = bin2hex(random_bytes(16));
 
         Cache::put(
