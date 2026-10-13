@@ -255,6 +255,9 @@
 <form method="POST" action="{{ lroute('account.cloud.store.place') }}" id="cvb-form" class="cvb-wrap">
   @csrf
   <input type="hidden" name="quoted_hourly_irt" id="cvb-quoted-hourly" value="{{ $hRate }}">
+  @if($isGpuStore)
+    <input type="hidden" name="gpu_request_key" value="{{ old('gpu_request_key', \Illuminate\Support\Str::random(40)) }}">
+  @endif
   <input type="hidden" name="location" value="{{ $locCode }}">
 
   {{-- ═══ تیرکِ مسیر — هم شمارهٔ مرحله، هم راهِ برگشت ═══
@@ -916,7 +919,7 @@
         {{-- خطِ پارگی: زیرش فقط یک عدد و یک دکمه --}}
         <div class="cvb-tear"></div>
 
-        <div class="cvb-totk">{{ __('ui.cvb_pay_now') }}</div>
+        <div class="cvb-totk">{{ __($isGpuStore ? 'ui.gpu_approved_price' : 'ui.cvb_pay_now') }}</div>
         <div class="cvb-tot pnl-num" id="cvb-s-first">{{ $hasPrice ? cloud_price($initFirst) : '—' }}</div>
         {{-- نوارِ ترکیبِ هزینه: مبلغ فقط «چقدر» نمی‌گوید، «از چه» را هم نشان
              می‌دهد. سه قطعه — پلن، IPِ اضافه، مالیات — همه با یک رنگ و سه
@@ -936,6 +939,8 @@
         <p class="cvb-warn" id="cvb-s-noprice" @if($hasPrice) hidden @endif>{{ __('ui.cvb_no_price') }}</p>
 
         @if($isGpuStore)
+          <p class="cvb-note" id="cvb-gpu-capacity" role="status" aria-live="polite">{{ __('ui.gpu_capacity_unknown') }}</p>
+          <p class="cvb-note">{{ __('ui.gpu_checkout_no_charge') }}</p>
           <p class="cvb-note" data-gpu-sale-policy>{{ __('ui.cvb_gpu_sale_policy') }}</p>
           @foreach(['gpu-ollama' => 'Ollama', 'gpu-comfyui' => 'ComfyUI'] as $gpuAppKey => $gpuAppLabel)
             @if(\App\Services\Cloud\SaladClient::salesPaused($gpuAppKey))
@@ -948,7 +953,7 @@
         @endif
         <button type="submit" class="pnl-btn primary cvb-go" id="cvb-submit" @disabled(count($planCards) === 0 || ! $hasPrice)>
           <svg class="icon"><use href="#i-rocket"/></svg>
-          {{ __('ui.cvb_pay') }}
+          {{ __($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay') }}
         </button>
         <p class="cvb-eta">
           <svg class="icon"><use href="#i-clock"/></svg>
@@ -962,17 +967,20 @@
        دسکتاپ display:none است. --}}
   <div class="cvb-dock">
     <span class="cvb-dock-t">
-      <small>{{ __('ui.cvb_pay_now') }}</small>
+      <small>{{ __($isGpuStore ? 'ui.gpu_approved_price' : 'ui.cvb_pay_now') }}</small>
       <b class="pnl-num" id="cvb-d-first">{{ $hasPrice ? cloud_price($initFirst) : '—' }}</b>
     </span>
     <button type="submit" class="pnl-btn primary" id="cvb-submit-2" @disabled(count($planCards) === 0 || ! $hasPrice)>
-      {{ __('ui.cvb_pay') }}
+      {{ __($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay') }}
     </button>
   </div>
 </form>
 
 @php
   $jsData = [
+    'gpu' => (bool) $isGpuStore,
+    'gpuCapacityUrl' => lroute('account.gpu.capacity'),
+    'gpuCapacityUnknown' => __('ui.gpu_capacity_unknown'),
     'prices' => $priceMap,
     'images' => $imageMap,
     'cycles' => $cycleLabels,
@@ -1124,8 +1132,26 @@
     return Math.ceil(raw / 10000) * 10000;
   };
 
+  var capacitySlug = null;
+  var capacityChecked = 0;
+  var capacitySequence = 0;
+  function checkGpuCapacity(slug){
+    if (!D.gpu || !slug || (capacitySlug === slug && Date.now() - capacityChecked < 30000)) { return; }
+    capacitySlug = slug;
+    capacityChecked = Date.now();
+    var sequence = ++capacitySequence;
+    var capacityLabel = document.getElementById('cvb-gpu-capacity');
+    if (capacityLabel) { capacityLabel.textContent = D.gpuCapacityUnknown; }
+    fetch(D.gpuCapacityUrl + '?plan=' + encodeURIComponent(slug), {headers:{'Accept':'application/json'}})
+      .then(function(r){ if(!r.ok) {throw new Error('capacity');} return r.json(); })
+      .then(function(d){ if(sequence === capacitySequence && capacityLabel) {capacityLabel.textContent = d.label || D.gpuCapacityUnknown;} })
+      .catch(function(){ if(sequence === capacitySequence && capacityLabel) {capacityLabel.textContent = D.gpuCapacityUnknown;} });
+  }
+  if(D.gpu) { setInterval(function(){checkGpuCapacity(val('plan'));}, 30000); }
+
   var render = function(){
     var slug = val('plan'), cyc = val('cycle');
+    checkGpuCapacity(slug);
     var bucket = D.prices[slug] || {};
     var h = (D.hourly || {})[slug] || { rate: 0, min: 0 };
 

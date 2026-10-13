@@ -137,6 +137,10 @@ class CloudDeliveryWatch
      */
     public static function reasonFor(Service $service): ?string
     {
+        if (GpuCapacityOrders::unpaid($service)
+            || (GpuCapacityOrders::managed($service) && $service->provision_status === GpuCapacityOrders::WAIT)) {
+            return null;
+        }
         /*
         | 🔴 «پول‌داده» را واقعاً بسنج، نه فقط «نمرده».
         |

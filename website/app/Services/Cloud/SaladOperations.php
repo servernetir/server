@@ -2,6 +2,7 @@
 
 namespace App\Services\Cloud;
 
+use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\ExchangeRate;
 
@@ -540,7 +541,7 @@ trait SaladOperations
                 },
             );
             $gpu = collect($rows)->firstWhere('id', $gpuClass);
-            if (! $gpu || (bool) ($gpu['is_high_demand'] ?? false)) {
+            if (! $gpu) {
                 return ['ok' => false, 'reason' => 'capacity'];
             }
             $rate = $this->priceFor($gpu, $this->priority());
@@ -554,6 +555,40 @@ trait SaladOperations
                 'minimum_hourly_irt' => (int) ceil($cost * (1 + $markup / 100))];
         } catch (\Throwable) {
             return ['ok' => false, 'reason' => 'unavailable'];
+        }
+    }
+
+    /** Live capacity for the exact resources and priority used by createServer. */
+    public function capacityFor(CloudPlan $plan, bool $fresh = false): array
+    {
+        $unknown = ['ok' => false, 'available' => null, 'count' => null, 'checked_at' => now()->toIso8601String()];
+        if (! $this->isConfigured() || $plan->provider !== 'salad' || blank($plan->provider_ref)
+            || $plan->vcpu < 1 || $plan->ram_mb < 1 || $plan->disk_gb < 1) {
+            return $unknown;
+        }
+        $payload = ['gpu_classes' => [(string) $plan->provider_ref], 'cpu' => (int) $plan->vcpu,
+            'memory' => (int) $plan->ram_mb, 'storage_amount' => (int) $plan->disk_gb * self::GIB];
+        $priority = $this->priority();
+        $key = 'salad-exact-capacity:'.sha1($this->org().json_encode($payload).$priority);
+        $check = function () use ($payload, $priority, $unknown): array {
+            $r = $this->req('POST', '/organizations/'.rawurlencode($this->org()).'/availability/sce-gpu-availability', $payload);
+            $count = data_get($r['body'] ?? [], 'available_gpu_'.$priority);
+            if (! ($r['ok'] ?? false) || ! is_int($count) || $count < 0) {
+                return $unknown;
+            }
+            // On-call GPUs and a different priority are not immediately allocatable.
+            return ['ok' => true, 'available' => $count > 0, 'count' => $count,
+                'checked_at' => now()->toIso8601String()];
+        };
+        try {
+            if ($fresh) {
+                $result = $check();
+                \Illuminate\Support\Facades\Cache::put($key, $result, 30);
+                return $result;
+            }
+            return \Illuminate\Support\Facades\Cache::remember($key, 30, $check);
+        } catch (\Throwable) {
+            return $unknown;
         }
     }
 
@@ -907,6 +942,16 @@ trait SaladOperations
             }
         }
 
+        if ($nodeState === null && $inst['ok']) {
+            $counts = (array) data_get($r['body'], 'current_state.instance_status_counts', []);
+            foreach (['allocating', 'downloading', 'creating', 'starting'] as $phase) {
+                if ((int) ($counts[$phase.'_count'] ?? 0) > 0) {
+                    $nodeState = $phase;
+                    break;
+                }
+            }
+        }
+
         // Group "running" only means deployment finished, not that traffic is safe.
         if ($status === 'running' && ! $ready) {
             $status = 'building';
@@ -971,7 +1016,7 @@ trait SaladOperations
             return ['phase' => $nodeState, 'pull_pct' => $nodeState === 'downloading' ? $nodePct : null];
         }
 
-        return null;
+        return ['phase' => 'checking', 'pull_pct' => null];
     }
 
     /** وضعیتِ آنها → واژگانِ ما */

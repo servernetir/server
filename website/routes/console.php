@@ -224,6 +224,10 @@ Schedule::command('cloud:recover-gpu-delivery')
     ->everyMinute()
     ->withoutOverlapping(15);
 
+Schedule::command('cloud:advance-gpu-capacity')
+    ->everyMinute()
+    ->withoutOverlapping(15);
+
 Schedule::command('provision:run')
     ->everyMinute()
     ->withoutOverlapping(15);

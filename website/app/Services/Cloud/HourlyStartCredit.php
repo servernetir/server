@@ -35,6 +35,9 @@ class HourlyStartCredit
 
     private function countsTowardMinimum(Service $service): bool
     {
+        if (GpuCapacityOrders::managed($service) && $service->provision_status === GpuCapacityOrders::WAIT) {
+            return false;
+        }
         return ! ((bool) $service->cloudPlan?->is_interruptible
             && $service->cloudInstance?->status === 'off');
     }
