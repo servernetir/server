@@ -32,3 +32,6 @@ Both authorized peer chats were informed before installation. The GPU chat confi
 Rollback is a targeted restoration of `console.install.before.php` only if the current console hash still equals the recorded after hash and the protected files are unchanged; stage on the same filesystem, syntax-check and atomically replace. If hashes drift, reconcile the newer work before restoring. Restoration removes automatic capacity advancement, so record the queue consequence and update the current-state index. Do not restore a whole database, financial state, old source archive or deleted test VM.
 
 No new paid lifecycle/Jupyter/CUDA acceptance is claimed. This change proves scheduling, isolated workflow behavior and preservation of the running application's tasks and control sources; the existing GPU runtime acceptance limits still apply.
+
+
+Git publication: [PR #56](https://github.com/servernetir/server/pull/56) merged into develop as 25a959e63fc4eb017a173fe6910bd7b914b7c380; the merged source was fetched and its ancestry verified.
