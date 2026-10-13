@@ -104,6 +104,19 @@ class CloudServerController extends Controller
         return CloudInstance::where('service_id', $service->id)->first();
     }
 
+    private function powerActions(?CloudInstance $instance): array
+    {
+        if ($instance === null || $this->manager->forInstance($instance) === null) {
+            return [];
+        }
+
+        return match ($instance->provider) {
+            'salad' => ['on', 'off'],
+            'hetzner-robot' => ['reboot'],
+            default => ['on', 'off', 'reboot'],
+        };
+    }
+
     // ───────────────────────── نمایش ─────────────────────────
 
     public function show(Service $service): View
@@ -117,8 +130,12 @@ class CloudServerController extends Controller
         // «Changing password ... is not possible»). قابلیتِ عمومیِ ارائه‌دهنده
         // برای لینوکس درست است، اما نمایشِ همان دکمه روی ویندوز مشتری را به
         // عملی می‌فرستاد که همیشه شکست می‌خورد.
-        if ($instance?->provider === 'arvan' && $instance->isWindows()) {
+        if (in_array($instance?->provider, ['arvan', 'proxmox'], true) && $instance->isWindows()) {
             $caps['reset_password'] = false;
+        }
+        // The internal clone rebuild does not yet preserve purchased hardware.
+        if ($instance?->provider === 'proxmox') {
+            $caps['rebuild'] = false;
         }
 
         // رمز فقط **یک بار** نشان داده می‌شود. دلیل: صفحهٔ همیشه‌بازِ پنل روی یک
@@ -158,6 +175,7 @@ class CloudServerController extends Controller
 
         // اکانت‌های تونلِ TCP — فقط اگر برای این سرور پروفایل تعریف شده باشد.
         $tunnel = TunnelProfile::fromInstance($instance);
+        $rebuildKeys = array_column($instance ? $this->ops->rebuildableImages($service)['images'] : [], 'key');
 
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
@@ -165,10 +183,11 @@ class CloudServerController extends Controller
             'service' => $service,
             'instance' => $instance,
             'caps' => $caps,
+            'powerActions' => $this->powerActions($instance),
             'password' => $password,
             'canReveal' => $canReveal,
-            'osList' => $instance ? CloudImage::catalog('os', $instance->provider) : collect(),
-            'appList' => $instance ? CloudImage::catalog('app', $instance->provider) : collect(),
+            'osList' => $instance ? CloudImage::catalog('os', $instance->provider)->whereIn('key', $rebuildKeys)->values() : collect(),
+            'appList' => $instance ? CloudImage::catalog('app', $instance->provider)->whereIn('key', $rebuildKeys)->values() : collect(),
             // فازِ A
             'exitCapable' => $exitCapable,
             'exitOptions' => $exitCapable ? ExitCountries::options('fa') : [],
@@ -260,8 +279,7 @@ class CloudServerController extends Controller
     public function status(Service $service): JsonResponse
     {
         $this->ownedService($service);
-        if (str_starts_with((string) $service->cloud_image_key, 'gpu-')
-            && in_array($service->status, Service::DEAD_STATUSES, true)) {
+        if (in_array($service->status, Service::DEAD_STATUSES, true)) {
             return response()->json([
                 'ok' => true, 'status' => $service->status, 'ready' => false,
                 'closed' => true, 'stage' => 'closed', 'stage_index' => null,
@@ -436,6 +454,10 @@ class CloudServerController extends Controller
             return $limited;
         }
 
+        if (! in_array($action, $this->powerActions($this->instanceOf($service)), true)) {
+            return back()->withErrors(__('ui.cx_op_na'));
+        }
+
         // خریدِ سرورِ دوم وقتی GPU قبلی خاموش است مجاز می‌ماند؛ هنگام روشن‌کردن
         // دوباره باید اعتبارِ ۲۴ ساعتِ مجموعِ سرورهای در حال مصرف موجود باشد.
         $claimedInstanceId = null;
@@ -518,9 +540,7 @@ class CloudServerController extends Controller
         // ایمیج باید واقعاً روی همین زیرساخت **و همین معماری** باشد؛ ورودیِ
         // دلخواهِ کاربر را مستقیم به API نمی‌فرستیم. معماری از پلنِ همین سرویس
         // می‌آید — نصبِ دوبارهٔ یک سرورِ arm با ایمیجِ x86 رد می‌شود.
-        $ref = $instance->provider === 'lightnode' && $service->cloudPlan
-            ? CloudImage::compatibleRefFor($service->cloudPlan, $data['image'])
-            : CloudImage::refFor($instance->provider, $data['image'], $service->cloudPlan?->arch);
+        $ref = $this->ops->rebuildImageRef($service, $data['image']);
 
         if ($ref === null) {
             return back()->withErrors(__('ui.cx_os_na'));
@@ -583,7 +603,11 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_op_na'));
         }
 
-        if ($instance->provider === 'arvan' && $instance->isWindows()) {
+        if (in_array($instance->provider, ['arvan', 'proxmox'], true) && $instance->isWindows()) {
+            return back()->withErrors(__('ui.cx_op_na'));
+        }
+
+        if (! ($this->manager->capabilitiesFor($instance)['reset_password'] ?? false)) {
             return back()->withErrors(__('ui.cx_op_na'));
         }
 

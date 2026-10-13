@@ -166,6 +166,10 @@ class CloudInstance extends Model
     /** دستورِ آمادهٔ اتصال، با `-p` فقط وقتی پورت غیرِ استاندارد است. */
     public function sshCommand(): ?string
     {
+        if ($this->isWindows() || $this->isGpuApp()) {
+            return null;
+        }
+
         $e = $this->endpoint();
 
         if ($e === null) {

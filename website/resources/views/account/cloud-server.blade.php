@@ -33,7 +33,7 @@
      VPS این‌جا دروغ است (واقعیت ۵ تا ۳۰ دقیقه). image_key در لحظهٔ ساخت روی
      نمونه هست؛ اگر هنوز نمونه نداریم از خودِ سرویس می‌خوانیم. */
   $gpuLine = str_starts_with((string) ($inst->image_key ?? $service->cloud_image_key ?? ''), 'gpu-');
-  $closed = $gpuLine && in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
+  $closed = in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
   $ready = $ready && ! $closed;
 
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
@@ -457,27 +457,31 @@
     @endif
 
     <div class="pnl-acts">
-      @if($inst->status !== 'running')
+      @if($inst->status !== 'running' && in_array('on', $powerActions ?? [], true))
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="on">
           <button class="pnl-btn"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_on') }}</button>
         </form>
-      @else
+      @elseif($inst->status === 'running')
+        @if(in_array('reboot', $powerActions ?? [], true))
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="reboot">
           <button class="pnl-btn"><svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.cs_reboot') }}</button>
         </form>
+        @endif
         {{-- ⚠️ حلِ تداخلِ merge: هر دو تغییر لازم‌اند و هیچ‌کدام جایگزینِ
              دیگری نیست. `lroute()` از develop می‌آید (پنل داخلِ closureِ
              `$site` است، پس `route()` پیشوندِ زبان را می‌انداخت و مشتریِ
              en/tr را به نسخهٔ فارسی پرت می‌کرد)، و متنِ دوشاخهٔ تأیید از
              این شاخه (خاموشیِ سرورِ ساعتی هزینه دارد و باید صریح گفته
              شود — مگر روی پلنِ interruptible که واقعاً رایگان است). --}}
+        @if(in_array('off', $powerActions ?? [], true))
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}"
               data-confirm="{{ $billsWhileOff ? __('ui.cs_confirm_off_billed') : __('ui.cs_confirm_off') }}" data-confirm-danger>
           @csrf<input type="hidden" name="action" value="off">
           <button class="pnl-btn danger"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_off') }}</button>
         </form>
+        @endif
       @endif
 
       @if($caps['console'] ?? false)
@@ -815,6 +819,15 @@
 @endif
 
 @endif {{-- پایانِ حالتِ آماده --}}
+
+@unless($closed)
+<section class="pnl-sec cs-danger" id="service-lifecycle">
+  <div class="pnl-sec-h"><h2>{{ __('ui.svc_terminate') }}</h2></div>
+  <div class="pnl-sec-b">
+    @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server'])
+  </div>
+</section>
+@endunless
 
 <style>
 .cs-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px }

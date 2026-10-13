@@ -38,7 +38,8 @@
      چاپ می‌کرد و سه مشتری پشتِ‌سرِهم دنبالِ رمزی گشتند که وجود ندارد. */
   $gpuApp = (bool) $ci?->isGpuApp();
   $gpuUrl = $gpuApp ? $ci->gatewayUrl() : null;
-  $sshCmd = ($ready && ! $gpuApp) ? $ci->sshCommand() : null;
+  $windows = (bool) $ci?->isWindows();
+  $connectCmd = ($ready && ! $gpuApp) ? ($windows ? $ci->rdpCommand() : $ci->sshCommand()) : null;
   $addr   = $gpuApp ? null : $ci?->address();
 
   $stageIdx = $ci?->stageIndex() ?? 0;
@@ -113,7 +114,12 @@
       @if($ci->ipv6)
         <div class="svc-net-r"><small>IPv6</small><code dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $ci->ipv6 }}</code></div>
       @endif
-      <div class="svc-net-r"><small>{{ __('ui.cs_ssh_label') }}</small><code dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $sshCmd }}</code></div>
+      @if($windows)
+        <div class="svc-net-r"><small>{{ __('ui.cs_user') }}</small><code dir="ltr">{{ filled($s->username) && strtolower($s->username) !== 'root' ? $s->username : 'Administrator' }}</code></div>
+      @endif
+      @if($connectCmd)
+        <div class="svc-net-r"><small>{{ __($windows ? 'ui.cs_rdp_label' : 'ui.cs_ssh_label') }}</small><code dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $connectCmd }}</code></div>
+      @endif
     </div>
   @else
     {{-- VPS/اختصاصیِ دستی: هیچ کنترلی نداریم که وانمود کنیم داریم --}}
