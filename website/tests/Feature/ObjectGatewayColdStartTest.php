@@ -41,7 +41,7 @@ class ObjectGatewayColdStartTest extends TestCase
         $this->assertStringContainsString('ACCESS-ONLY-FOR-TEST', $script);
         $this->assertStringContainsString('SECRET-ONLY-FOR-TEST', $script);
         $this->assertStringContainsString('certbot --nginx', $script);
-        $this->assertStringContainsString('versitygw_v1.8.0_Linux_arm64.tar.gz', $script);
+        $this->assertStringContainsString('versitygw_v${VGW_VERSION}_Linux_arm64.tar.gz', $script);
         $this->assertStringNotContainsString('__SOURCE_ARCHIVE_B64__', $script);
     }
 
