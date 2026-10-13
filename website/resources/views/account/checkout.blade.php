@@ -86,6 +86,10 @@
         @if($isLicense ?? false)
         @elseif(count($countries) === 0)
           <p class="co-warn">⚠️ {{ __('ui.chk_no_server_warn') }}</p>
+        @elseif($isStorageProduct ?? false)
+          <input type="hidden" name="country" value="{{ $defCountry }}">
+          <p class="co-q">{{ __('storage.location') }}</p>
+          <p class="co-note"><b>{{ __('storage.location_'.data_get($storageMeta, 'location')) }}</b> · <span dir="ltr">{{ strtoupper((string) data_get($storageMeta, 'location')) }}</span></p>
         @else
           <p class="co-q">{{ __('ui.chk_q_country') }}</p>
           <div class="co-opts co-locs">
