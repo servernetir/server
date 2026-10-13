@@ -404,6 +404,36 @@ $site = function (): void {
         Route::get('/hosting', [Account\SectionController::class, 'hosting'])->name('hosting');
         Route::get('/servers', [Account\SectionController::class, 'servers'])->name('servers');
         Route::get('/other', [Account\SectionController::class, 'other'])->name('other');
+        // [managed-dns:start]
+        /*
+        |----------------------------------------------------------------------
+        | DNSِ مدیریت‌شده — مشتری نیم‌سرور را روی ما می‌گذارد و رکوردها را این‌جا می‌سازد
+        |----------------------------------------------------------------------
+        |
+        | ⚠️ `{zone}` عمداً مدلِ بایندشده نیست: هر متد از `zoneOf()` می‌گذرد که
+        | مالکیت را می‌سنجد. بایندِ خودکار zone را **پیش از** بررسیِ مالکیت پیدا
+        | می‌کند و متدی که روزی `zoneOf()` را فراموش کند، رکوردهای مشتریِ دیگر را
+        | ویرایش‌پذیر می‌کند.
+        |
+        | ⚠️ throttle روی افزودن، ادعا و تأیید: هر سه استعلامِ DNSِ بیرونی
+        | می‌کنند و از دکمه‌ای صدا زده می‌شوند که کاربر می‌تواند پشتِ‌هم بزند.
+        */
+        Route::get('/dns', [Account\DnsController::class, 'index'])->name('dns');
+        Route::post('/dns', [Account\DnsController::class, 'store'])->middleware('throttle:12,1');
+        Route::post('/dns/claim', [Account\DnsController::class, 'claim'])->name('dns.claim')->middleware('throttle:10,1');
+        Route::get('/dns/{zone}', [Account\DnsController::class, 'show'])->name('dns.zone')->whereNumber('zone');
+        Route::get('/dns/{zone}/export', [Account\DnsController::class, 'export'])->whereNumber('zone');
+        Route::post('/dns/{zone}/verify', [Account\DnsController::class, 'verify'])->whereNumber('zone')->middleware('throttle:10,1');
+        Route::post('/dns/{zone}/import', [Account\DnsController::class, 'import'])->whereNumber('zone')->middleware('throttle:10,1');
+        Route::post('/dns/{zone}/delete', [Account\DnsController::class, 'destroy'])->whereNumber('zone')->middleware('throttle:6,1');
+        Route::post('/dns/{zone}/records', [Account\DnsController::class, 'storeRecord'])->whereNumber('zone')->middleware('throttle:60,1');
+        Route::post('/dns/{zone}/records/{record}', [Account\DnsController::class, 'updateRecord'])
+            ->whereNumber(['zone', 'record'])->middleware('throttle:60,1');
+        Route::post('/dns/{zone}/records/{record}/toggle', [Account\DnsController::class, 'toggleRecord'])
+            ->whereNumber(['zone', 'record'])->middleware('throttle:60,1');
+        Route::post('/dns/{zone}/records/{record}/delete', [Account\DnsController::class, 'deleteRecord'])
+            ->whereNumber(['zone', 'record'])->middleware('throttle:60,1');
+        // [managed-dns:end]
         // لغوِ سفارشِ تحویل‌نشده توسط خودِ مشتری (با بازگشتِ وجه به کیفِ پول).
         // بی‌این، سفارشی که تحویلش شکست خورده تا ابد «در حالِ آماده‌سازی» می‌ماند
         // و مشتری نه سرور دارد نه پولش.
@@ -3047,6 +3077,22 @@ Route::prefix('admin')->group(function () {
         | کرد، و ماشین را طبقه‌بندی کرد. هر دو می‌مانند: آن یکی برای «همین الان
         | چه می‌بینی»، این یکی برای «چه چیزی از دستمان در رفته».
         */
+        // [managed-dns-admin:start]
+        /*
+        | DNSِ مدیریت‌شده — اتصالِ PowerDNS، نیم‌سرورها و همهٔ zoneها.
+        | ⚠️ `admin` روی تک‌تک: این صفحه کلیدِ APIِ سرورِ DNSِ همهٔ مشتریان را
+        | عوض می‌کند و نباید هرگز به نقشِ پشتیبان باز شود.
+        */
+        Route::get('/dns', [\App\Http\Controllers\Admin\DnsController::class, 'index'])->name('admin.dns')->middleware('admin');
+        Route::post('/dns/settings', [\App\Http\Controllers\Admin\DnsController::class, 'settings'])->middleware('admin');
+        Route::post('/dns/test', [\App\Http\Controllers\Admin\DnsController::class, 'test'])->middleware(['admin', 'throttle:20,1']);
+        Route::post('/dns/reconcile', [\App\Http\Controllers\Admin\DnsController::class, 'reconcileAll'])->middleware(['admin', 'throttle:6,1']);
+        Route::post('/dns/zones/{zone}/verify', [\App\Http\Controllers\Admin\DnsController::class, 'verify'])->whereNumber('zone')->middleware(['admin', 'throttle:30,1']);
+        Route::post('/dns/zones/{zone}/reconcile', [\App\Http\Controllers\Admin\DnsController::class, 'reconcile'])->whereNumber('zone')->middleware('admin');
+        Route::post('/dns/zones/{zone}/status', [\App\Http\Controllers\Admin\DnsController::class, 'status'])->whereNumber('zone')->middleware('admin');
+        Route::post('/dns/zones/{zone}/delete', [\App\Http\Controllers\Admin\DnsController::class, 'destroy'])->whereNumber('zone')->middleware(['admin', 'throttle:6,1']);
+        // [managed-dns-admin:end]
+
         Route::get('/fleet', [\App\Http\Controllers\Admin\FleetController::class, 'index'])
             ->name('admin.fleet')->middleware('admin');
         Route::get('/fleet/export', [\App\Http\Controllers\Admin\FleetController::class, 'export'])->middleware('admin');

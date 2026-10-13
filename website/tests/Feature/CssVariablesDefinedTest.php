@@ -23,7 +23,7 @@ use Tests\TestCase;
  */
 class CssVariablesDefinedTest extends TestCase
 {
-    private const SHEETS = ['site.css', 'admin.css', 'panel.css'];
+    private const SHEETS = ['site.css', 'admin.css', 'panel.css', 'dns.css'];
 
     /**
      * متغیرهایی که عمداً **در HTML** ست می‌شوند (`style="--w:40%"`).

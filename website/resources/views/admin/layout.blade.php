@@ -154,6 +154,9 @@
       {{-- [ai-admin-nav:end] --}}
       <div class="ad-nav-sep">دامنه</div>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
+      {{-- [managed-dns:start] --}}
+      <a href="/admin/dns" class="@yield('nav_dns')"><svg class="icon"><use href="#i-link"/></svg>مدیریت DNS</a>
+      {{-- [managed-dns:end] --}}
 
       @if(auth()->user()->isAdmin())
       {{-- دو بخشِ **جدا**. یکی بیرون را می‌گیرد، یکی داخل را مرتب می‌کند؛
