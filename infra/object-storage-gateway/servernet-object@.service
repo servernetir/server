@@ -1,0 +1,22 @@
+[Unit]
+Description=ServerNet S3 gateway for %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=servernet-object
+Group=servernet-object
+EnvironmentFile=/etc/servernet-object-gateway/%i.env
+ExecStart=/usr/local/bin/versitygw --port 127.0.0.1:${VGW_PORT} --iam-dir ${VGW_IAM_DIR} --max-connections 2048 --max-requests 512 s3
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/servernet-object-gateway
+
+[Install]
+WantedBy=multi-user.target

@@ -203,10 +203,13 @@ class StoreController extends Controller
                 'status'        => 'pending',
                 'server_id'     => $server?->id ?? $product->server_id,
                 'plan'          => $product->plan,
-                'provision_meta' => $product->group === 'storage-box' ? [
-                    'storage_box_offer' => app(\App\Services\Provisioning\HetznerStorageCosts::class)
-                        ->metadataForPlan((string) $product->plan),
-                ] : null,
+                'provision_meta' => match ($product->group) {
+                    'storage-box' => ['storage_box_offer' => app(\App\Services\Provisioning\HetznerStorageCosts::class)
+                        ->metadataForPlan((string) $product->plan)],
+                    'object-storage' => ['object_storage_offer' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)
+                        ->metadataForPlan((string) $product->plan)],
+                    default => null,
+                },
                 // نیتِ «نمایندگی» همین‌جا قفل می‌شود و در لحظهٔ تحویل دوباره
                 // حدس زده نمی‌شود — دلیلش روی `Product::isReseller()`.
                 'is_reseller'   => $product->isReseller(),

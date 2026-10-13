@@ -60,6 +60,21 @@ class StorageOrderReadiness
             }
         }
 
+        if (str_starts_with((string) $service->plan, 'sn_object_')) {
+            $sold = $service->provision_meta['object_storage_offer'] ?? null;
+            $current = app(\App\Services\ObjectStorage\HetznerObjectCosts::class)
+                ->metadataForPlan((string) $service->plan);
+            $matches = is_array($sold) && is_array($current);
+            foreach (['capacity_tb', 'egress_tb', 'location', 'country', 'server_id', 'currency'] as $field) {
+                if (! isset($sold[$field], $current[$field]) || (string) $sold[$field] !== (string) $current[$field]) {
+                    $matches = false;
+                }
+            }
+            if (! $matches) {
+                throw ValidationException::withMessages(['storage' => 'مشخصات عرضه Object Storage با سفارش ثبت‌شده مطابقت ندارد؛ پرداخت آغاز نشد.']);
+            }
+        }
+
         $quote = $product->storageQuote();
         if (! $quote || ($quote['irt'] ?? 0) <= 0
             || (int) $service->price < (int) $quote['irt']

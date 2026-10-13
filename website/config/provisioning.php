@@ -141,4 +141,37 @@ return [
         ],
     ],
 
+    /*
+    | درگاه سفیدبرچسب S3 روی Hetzner Object Storage. کلید اصلی Hetzner فقط
+    | روی Gateway است؛ هر سرویس یک user و bucket مالکیت‌دار مستقل می‌گیرد.
+    | سهمیه در Gateway دوره‌ای سنجیده و در عبور از سقف به‌صورت خودکار بسته
+    | می‌شود؛ مقدار خام credential در config یا log نوشته نمی‌شود.
+    */
+    'object_gateway' => [
+        'termination_retention_days' => (int) env('OBJECT_GATEWAY_RETENTION_DAYS', 30),
+        'plans' => [
+            'sn_object_1tb_fsn1' => 1 * 1024 ** 4,
+            'sn_object_1tb_nbg1' => 1 * 1024 ** 4,
+            'sn_object_1tb_hel1' => 1 * 1024 ** 4,
+            'sn_object_2tb_fsn1' => 2 * 1024 ** 4,
+            'sn_object_2tb_nbg1' => 2 * 1024 ** 4,
+            'sn_object_2tb_hel1' => 2 * 1024 ** 4,
+            'sn_object_5tb_fsn1' => 5 * 1024 ** 4,
+            'sn_object_5tb_nbg1' => 5 * 1024 ** 4,
+            'sn_object_5tb_hel1' => 5 * 1024 ** 4,
+            'sn_object_10tb_fsn1' => 10 * 1024 ** 4,
+            'sn_object_10tb_nbg1' => 10 * 1024 ** 4,
+            'sn_object_10tb_hel1' => 10 * 1024 ** 4,
+            'sn_object_20tb_fsn1' => 20 * 1024 ** 4,
+            'sn_object_20tb_nbg1' => 20 * 1024 ** 4,
+            'sn_object_20tb_hel1' => 20 * 1024 ** 4,
+            'sn_object_50tb_fsn1' => 50 * 1024 ** 4,
+            'sn_object_50tb_nbg1' => 50 * 1024 ** 4,
+            'sn_object_50tb_hel1' => 50 * 1024 ** 4,
+            'sn_object_100tb_fsn1' => 100 * 1024 ** 4,
+            'sn_object_100tb_nbg1' => 100 * 1024 ** 4,
+            'sn_object_100tb_hel1' => 100 * 1024 ** 4,
+        ],
+    ],
+
 ];

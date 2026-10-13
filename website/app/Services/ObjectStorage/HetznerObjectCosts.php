@@ -66,7 +66,7 @@ class HetznerObjectCosts
         if (! $book || ! $meta) {
             return 'تعرفه معتبر و به‌روز فضای آبجکت در دسترس نیست؛ فروش موقتاً متوقف است.';
         }
-        if (! $product->server || $product->server->type !== 'hetzner_object'
+        if (! $product->server || $product->server->type !== 'hetzner_object_gateway'
             || ! $product->server->canAcceptNew()
             || (int) $product->server_id !== (int) ($book['server_id'] ?? 0)) {
             return 'پروژه تحویل این فضای آبجکت آماده نیست.';
