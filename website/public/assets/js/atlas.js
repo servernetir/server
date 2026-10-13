@@ -114,14 +114,21 @@
         for (const coastline of land.coasts) path(coastline, theme.land, .57, .75);
       } else {
         const step = narrow.matches ? 2 : 1;
+        const dots = Array.from({ length: 6 }, () => new Path2D());
         for (let i = 0; i < land.points.length; i += step) {
           const [lon, lat] = land.points[i];
           const p = project(lat, lon);
           if (p.z < .025) continue;
-          ctx.globalAlpha = .13 + p.z * .76;
-          ctx.fillStyle = p.z > .82 ? theme.light : theme.land;
-          ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(.68, radius / 190) * (.65 + p.z * .35), 0, Math.PI * 2); ctx.fill();
+          const dotRadius = Math.max(.68, radius / 190) * (.65 + p.z * .35);
+          const bucket = Math.min(5, Math.floor(p.z * 6));
+          dots[bucket].moveTo(p.x + dotRadius, p.y);
+          dots[bucket].arc(p.x, p.y, dotRadius, 0, Math.PI * 2);
         }
+        dots.forEach((path, bucket) => {
+          ctx.globalAlpha = .13 + ((bucket + .5) / 6) * .76;
+          ctx.fillStyle = bucket === 5 ? theme.light : theme.land;
+          ctx.fill(path);
+        });
         ctx.globalAlpha = 1;
         for (const coastline of land.coasts) path(coastline, theme.land, .12, .45);
       }
@@ -242,6 +249,8 @@
   // Let the static Earth and text paint before starting decorative Canvas work.
   // A first interaction starts it immediately, before the country-button click.
   const scheduleGlobes = () => {
+    // Mobile starts with the SVG; geographic Canvas is needed only when choosing a country.
+    if (narrow.matches) return;
     const host = document.querySelector('[data-sn-globe]');
     if (!host) return;
     const start = () => {
@@ -256,8 +265,7 @@
   };
   if (document.readyState === 'complete') scheduleGlobes();
   else window.addEventListener('load', scheduleGlobes, { once: true });
-  document.addEventListener('pointerdown', bootGlobes, { once: true, passive: true });
-  document.addEventListener('keydown', bootGlobes, { once: true });
+  narrow.addEventListener?.('change', () => { if (!narrow.matches && document.readyState === 'complete') scheduleGlobes(); });
 
   // Keep the floating chat shortcut from covering either of the primary forms.
   const forms = [...document.querySelectorAll('.sn-atlas #domain-form,.sn-atlas #ct-form')];
