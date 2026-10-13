@@ -8,6 +8,7 @@ use App\Models\Setting;
 use App\Services\CatalogPricing;
 use App\Services\ObjectStorage\HetznerObjectCosts;
 use App\Services\ObjectStorage\HetznerObjectPriceFeed;
+use App\Services\Provisioning\ObjectGatewayClient;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -16,11 +17,11 @@ use RuntimeException;
 class HetznerObjectCatalog extends Command
 {
     protected $signature = 'hetzner:object-catalog
-        {--sync : Persist current prices and create inactive products; never activate sales}
+        {--sync : Persist current prices and reconcile product activation with the live Gateway}
         {--server= : Object Storage delivery server ID or exact name}
         {--json : Return machine-readable public prices and synchronization result}';
 
-    protected $description = 'Synchronize public Hetzner Object Storage tariffs and inactive reseller products';
+    protected $description = 'Synchronize Hetzner Object Storage tariffs and sell only through the healthy ServerNet Gateway';
 
     public function handle(HetznerObjectPriceFeed $feed, HetznerObjectCosts $costs): int
     {
@@ -32,7 +33,11 @@ class HetznerObjectCatalog extends Command
         try {
             $server = $sync ? $this->resolveServer() : null;
             if ($sync && ! $server) {
-                throw new RuntimeException('An unambiguous hetzner_object delivery server is required.');
+                throw new RuntimeException('An unambiguous hetzner_object_gateway delivery server is required.');
+            }
+            $gatewayReady = false;
+            if ($sync && $server?->canAcceptNew()) {
+                $gatewayReady = (new ObjectGatewayClient($server))->testConnection()['ok'];
             }
             $book = $feed->fetch() + ['quoted_at' => now()->utc()->toIso8601String(), 'server_id' => $server?->id];
             $rows = [];
@@ -51,12 +56,11 @@ class HetznerObjectCatalog extends Command
                 }
             }
             if ($sync) {
-                DB::transaction(function () use ($book, $rows, $server) {
+                DB::transaction(function () use ($book, $rows, $server, $gatewayReady) {
                     foreach ($rows as $plan => $row) {
                         $slug = 'object-storage-'.$row['capacity_tb'].'tb-'.$row['location'];
                         $product = Product::query()->where('slug', $slug)->lockForUpdate()->first();
-                        if ($product && ($product->group !== 'object-storage' || $product->plan !== $plan
-                            || (int) $product->server_id !== (int) $server->id)) {
+                        if ($product && ($product->group !== 'object-storage' || $product->plan !== $plan)) {
                             throw new RuntimeException('An existing product conflicts with the Object Storage catalog.');
                         }
                         $product ??= new Product([
@@ -74,8 +78,11 @@ class HetznerObjectCatalog extends Command
                             ],
                             'description' => 'تعرفه فضای آبجکت؛ فعال‌سازی فروش پس از تأیید تحویل، ایزوله‌سازی و حسابداری مصرف.',
                         ]);
-                        // Preserve activation, metadata and manual restrictions on existing SKUs.
-                        $product->fill(['price' => $row['irt'], 'price_eur' => $row['eur_cents'], 'setup_fee' => 0])->save();
+                        $product->fill([
+                            'server_id' => $server->id,
+                            'price' => $row['irt'], 'price_eur' => $row['eur_cents'], 'setup_fee' => 0,
+                            'is_active' => $gatewayReady,
+                        ])->save();
                     }
                     Setting::put(HetznerObjectCosts::SETTING, json_encode($book, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
                     Setting::put(HetznerObjectCosts::STATUS_SETTING, json_encode([
@@ -86,7 +93,12 @@ class HetznerObjectCatalog extends Command
                 CatalogPricing::forget();
             }
 
-            return $this->result(['ok' => true, 'synced' => $sync, 'activated' => 0, 'pricebook' => $book, 'plans' => $rows], self::SUCCESS);
+            return $this->result([
+                'ok' => true, 'synced' => $sync,
+                'activated' => $sync && $gatewayReady ? count($rows) : 0,
+                'gateway_ready' => $gatewayReady,
+                'pricebook' => $book, 'plans' => $rows,
+            ], self::SUCCESS);
         } catch (\Throwable $exception) {
             if ($sync) {
                 // Keep previous success for audit, but stop its use for new sales immediately.
@@ -107,7 +119,7 @@ class HetznerObjectCatalog extends Command
 
     private function resolveServer(): ?Server
     {
-        $query = Server::query()->where('type', 'hetzner_object');
+        $query = Server::query()->where('type', 'hetzner_object_gateway');
         $option = (string) $this->option('server');
         if ($option !== '') {
             $query->where(fn ($q) => $q->where('id', $option)->orWhere('name', $option));
@@ -124,7 +136,8 @@ class HetznerObjectCatalog extends Command
         } elseif ($status === self::FAILURE) {
             $this->error($result['error']);
         } else {
-            $this->info(($result['synced'] ? 'Synchronized' : 'Previewed').' '.count($result['plans']).' Object Storage offers; no products activated.');
+            $this->info(($result['synced'] ? 'Synchronized' : 'Previewed').' '.count($result['plans'])
+                .' Object Storage offers; activated '.(int) ($result['activated'] ?? 0).'.');
             $this->table(['Plan', 'Toman/month', 'EUR/month'], array_map(
                 fn ($plan, $row) => [$plan, number_format($row['irt']), number_format($row['eur_cents'] / 100, 2)],
                 array_keys($result['plans']), array_values($result['plans']),

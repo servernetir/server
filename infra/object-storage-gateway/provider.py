@@ -1,0 +1,105 @@
+import hashlib
+import json
+import os
+import urllib.parse
+from xml.sax.saxutils import escape
+
+import boto3
+from botocore.auth import SigV4Auth
+from botocore.awsrequest import AWSRequest
+from botocore.config import Config
+from botocore.credentials import Credentials
+from botocore.httpsession import URLLib3Session
+
+
+def regions():
+    data = json.loads(os.environ.get("SN_OBJECT_REGIONS_JSON", "{}"))
+    required = {"fsn1", "nbg1", "hel1"}
+    if set(data) != required:
+        raise RuntimeError("all three object regions must be configured")
+    for value in data.values():
+        for key in ("local_endpoint", "public_endpoint", "root_access", "root_secret"):
+            if not value.get(key):
+                raise RuntimeError("incomplete region configuration")
+    return data
+
+
+def _signed(region, method, path, body=b"", headers=None, ok=(200, 201, 204)):
+    cfg = regions()[region]
+    url = cfg["local_endpoint"].rstrip("/") + path
+    request = AWSRequest(method=method, url=url, data=body, headers=headers or {})
+    request.headers["X-Amz-Content-Sha256"] = hashlib.sha256(body).hexdigest()
+    SigV4Auth(Credentials(cfg["root_access"], cfg["root_secret"]), "s3", "us-east-1").add_auth(request)
+    response = URLLib3Session().send(request.prepare())
+    if response.status_code not in ok:
+        text = response.content.decode("utf-8", "replace")[:500]
+        raise RuntimeError(f"gateway admin HTTP {response.status_code}: {text}")
+    return response
+
+
+def create_or_update_user(region, access, secret):
+    body = ("<Account><Access>%s</Access><Secret>%s</Secret><Role>user</Role></Account>"
+            % (escape(access), escape(secret))).encode()
+    try:
+        _signed(region, "PATCH", "/create-user", body, {"Content-Type": "application/xml"})
+    except RuntimeError as exc:
+        if "XAdminUserExists" not in str(exc):
+            raise
+        update_user(region, access, secret)
+
+
+def update_user(region, access, secret):
+    body = ("<MutableProps><Secret>%s</Secret></MutableProps>" % escape(secret)).encode()
+    _signed(region, "PATCH", "/update-user?access=" + urllib.parse.quote(access), body,
+            {"Content-Type": "application/xml"})
+
+
+def delete_user(region, access):
+    try:
+        _signed(region, "PATCH", "/delete-user?access=" + urllib.parse.quote(access), ok=(204,))
+    except RuntimeError as exc:
+        if "XAdminUserNotFound" not in str(exc):
+            raise
+
+
+def create_or_assign_bucket(region, bucket, access):
+    path = "/" + urllib.parse.quote(bucket) + "/create"
+    try:
+        _signed(region, "PATCH", path, headers={"x-vgw-owner": access})
+    except RuntimeError as exc:
+        if "BucketAlready" not in str(exc):
+            raise
+        owner_path = "/change-bucket-owner?bucket=%s&owner=%s" % (
+            urllib.parse.quote(bucket), urllib.parse.quote(access))
+        _signed(region, "PATCH", owner_path, ok=(204,))
+
+
+def root_client(region):
+    cfg = regions()[region]
+    return boto3.client("s3", endpoint_url=cfg["local_endpoint"],
+        aws_access_key_id=cfg["root_access"], aws_secret_access_key=cfg["root_secret"],
+        region_name="us-east-1", config=Config(signature_version="s3v4", s3={"addressing_style": "path"}))
+
+
+def used_bytes(region, bucket):
+    total = 0
+    for page in root_client(region).get_paginator("list_objects_v2").paginate(Bucket=bucket):
+        total += sum(int(item.get("Size", 0)) for item in page.get("Contents", []))
+    return total
+
+
+def purge_bucket(region, bucket):
+    client = root_client(region)
+    while True:
+        page = client.list_objects_v2(Bucket=bucket, MaxKeys=1000)
+        objects = [{"Key": item["Key"]} for item in page.get("Contents", [])]
+        if objects:
+            client.delete_objects(Bucket=bucket, Delete={"Objects": objects, "Quiet": True})
+        if not page.get("IsTruncated"):
+            break
+    client.delete_bucket(Bucket=bucket)
+
+
+def health(region):
+    _signed(region, "PATCH", "/list-users")
+    return True

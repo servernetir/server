@@ -1,0 +1,16 @@
+[Unit]
+Description=Measure and reconcile ServerNet Object Storage tenants
+After=servernet-object-api.service
+
+[Service]
+Type=oneshot
+User=servernet-object
+Group=servernet-object
+EnvironmentFile=/etc/servernet-object-gateway/control.env
+WorkingDirectory=/opt/servernet-object-gateway
+ExecStart=/opt/servernet-object-gateway/venv/bin/python /opt/servernet-object-gateway/reconcile.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/servernet-object-gateway

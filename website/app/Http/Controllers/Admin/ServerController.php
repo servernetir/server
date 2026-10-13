@@ -96,6 +96,20 @@ class ServerController extends Controller
                 : back()->withErrors('اتصال ناموفق: '.$r['message']);
         }
 
+        if ($server->type === 'hetzner_object_gateway') {
+            $r = (new \App\Services\Provisioning\ObjectGatewayClient($server))->testConnection();
+
+            return $r['ok'] ? back()->with('ok', 'اتصال موفق ✓ — '.$r['message'])
+                : back()->withErrors('اتصال ناموفق: '.$r['message']);
+        }
+
+        if ($server->type === 'rclone_storage') {
+            $r = (new \App\Services\Provisioning\RcloneStorageClient($server))->testConnection();
+
+            return $r['ok'] ? back()->with('ok', 'اتصال موفق ✓ — '.$r['message'])
+                : back()->withErrors('اتصال ناموفق: '.$r['message']);
+        }
+
         $res = (new WhmClient($server))->call('version');
 
         if ($res['ok']) {

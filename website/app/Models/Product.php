@@ -152,8 +152,7 @@ class Product extends Model
     {
         return match ($this->group) {
             'storage-box' => app(HetznerStorageCosts::class)->configurationError($this),
-            // A product flag must never bypass the failed shared-project isolation test.
-            'object-storage' => 'تحویل مستقل Object Storage هنوز تأیید نشده است.',
+            'object-storage' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->configurationError($this),
             default => null,
         };
     }
