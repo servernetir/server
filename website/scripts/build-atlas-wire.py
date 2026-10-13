@@ -13,7 +13,7 @@ def line(points,color,opacity,width):
   if z>.02:commands.append(('L' if connected else 'M')+f'{x:.1f} {y:.1f}');connected=True
   else:connected=False
  return f'<path d="{" ".join(commands)}" fill="none" stroke="{color}" opacity="{opacity}" stroke-width="{width}"/>'
-svg=['<svg xmlns="http://www.w3.org/2000/svg" width="680" height="680" viewBox="0 0 680 680"><title>Earth coastlines and geographic grid</title><circle cx="340" cy="333" r="275" fill="#102138" fill-opacity=".15" stroke="#58a4ff" stroke-opacity=".22" stroke-width=".7"/>']
+svg=['<svg xmlns="http://www.w3.org/2000/svg" width="680" height="680" viewBox="0 0 680 680"><title>Earth coastlines and geographic grid</title><circle cx="340" cy="333" r="275" fill="none" stroke="#58a4ff" stroke-opacity=".22" stroke-width=".7"/>']
 for lat in range(-60,61,30):svg.append(line([(lon,lat) for lon in range(-180,181,4)],'#72c5e6',.16,.6))
 for lon in range(-180,180,30):svg.append(line([(lon,lat) for lat in range(-90,91,4)],'#72c5e6',.16,.6))
 for coast in land['coasts']:svg.append(line(coast,'#72c5e6',.57,.75))
