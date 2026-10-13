@@ -452,6 +452,10 @@
       <p class="dm-note warn">{{ __('ui.cs_off_still_billed') }}</p>
     @endif
 
+    @if($inst->provider === 'lightnode' && $inst->status !== 'off')
+      <p class="dm-note warn">{{ __('ui.cs_lightnode_stop_first') }}</p>
+    @endif
+
     <div class="pnl-acts">
       @if($inst->status !== 'running')
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
@@ -485,7 +489,7 @@
       @if($caps['reset_password'] ?? false)
         <form method="post" action="{{ lroute('account.cloud.password', $service) }}"
               data-confirm="{{ __('ui.cs_confirm_pw') }}">
-          @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.cs_new_pw') }}</button>
+          @csrf<button class="pnl-btn" @disabled($inst->provider === 'lightnode' && $inst->status !== 'off')><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.cs_new_pw') }}</button>
         </form>
       @endif
     </div>
@@ -801,7 +805,7 @@
           <input type="text" name="confirm" required dir="ltr" autocomplete="off" placeholder="DELETE">
         </label>
 
-        <button class="pnl-btn danger" type="submit">
+        <button class="pnl-btn danger" type="submit" @disabled($inst->provider === 'lightnode' && $inst->status !== 'off')>
           <svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.cs_rebuild_submit') }}
         </button>
       </form>

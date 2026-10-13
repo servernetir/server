@@ -860,4 +860,42 @@ class LightNodeClientTest extends TestCase
             ->assertSessionHas('revealed_root_password', 'FixturePassword9!');
         $this->assertTrue($instance->fresh()->password_seen);
     }
+
+    public function test_customer_controls_require_confirmed_stop_before_reset_and_reinstall_in_all_languages(): void
+    {
+        $this->fake();
+        $customer = Customer::create(['email' => 'controls@example.test', 'password' => 'fixture-only', 'status' => 'active']);
+        $plan = CloudPlan::create(['provider' => 'lightnode', 'provider_ref' => 'ph-test|ph-test-a|sample-package',
+            'provider_location' => 'ph-test|ph-test-a', 'location_code' => 'ph-manila', 'slug' => 'controls', 'public_name' => 'CV-2-4',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 50, 'boot_disk_gb' => 50, 'data_disk_gb' => 0,
+            'price_irt' => 100000, 'is_active' => true, 'in_stock' => true]);
+        CloudImage::create(['provider' => 'lightnode', 'provider_ref' => 'ph-test|img-sample', 'key' => 'windows-2022',
+            'kind' => 'os', 'family' => 'windows', 'label' => 'Windows', 'is_active' => true]);
+        $service = Service::create(['customer_id' => $customer->id, 'cloud_plan_id' => $plan->id,
+            'name' => 'Controls', 'price' => 100000, 'cycle' => 'monthly', 'status' => 'active', 'provision_status' => 'done']);
+        $instance = CloudInstance::create(['service_id' => $service->id, 'provider' => 'lightnode',
+            'provider_ref' => 'ecs-sample', 'image_key' => 'windows-2022', 'ipv4' => '203.0.113.10',
+            'status' => 'running', 'ready_notified_at' => now()]);
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            foreach (['running', 'off'] as $status) {
+                $instance->update(['status' => $status]);
+                $response = $this->actingAs($customer, 'customer')->get($prefix.'/account/cloud/'.$service->id)->assertOk();
+                $dom = new \DOMDocument;
+                @$dom->loadHTML($response->getContent());
+                $xpath = new \DOMXPath($dom);
+                foreach (['password', 'rebuild'] as $action) {
+                    $buttons = $xpath->query('//form[contains(@action,"/'.$action.'")]/button');
+                    $this->assertSame(1, $buttons->length, $locale.' '.$action);
+                    $this->assertSame($status !== 'off', $buttons->item(0)->hasAttribute('disabled'));
+                    if ($action === 'password') {
+                        $this->assertFalse(str_contains(strtolower($buttons->item(0)->textContent), 'root'));
+                    }
+                }
+                $response->assertSee(__('ui.cs_new_pw'));
+                if ($status === 'running') {
+                    $response->assertSee(__('ui.cs_lightnode_stop_first'));
+                }
+            }
+        }
+    }
 }
