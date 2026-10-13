@@ -2,6 +2,8 @@
 
 ## Status
 
+Later owner instruction: the retained original service 412 was explicitly requested for deletion and confirmed released on October 13, along with GPU test service 416. This supersedes the earlier retention state below. See SERVER-CONTROLS-AND-TEST-CLEANUP-2026-10-13.md for verified absence, metering stop and the current control deployment.
+
 Real owner-account acceptance passed for Ubuntu 24.04 in Bulgaria/Sofia and Windows Server 2022 in Mexico/Mexico City. Both disposable hourly guests were released and confirmed absent in complete supplier inventory at 09:41:23 UTC, before the 09:42:01 watchdog deadline. No paid QA guest remains. The conservative two-hour supplier ceiling was USD 0.174, below the authorized total USD 0.20; a final supplier invoice amount was not retrieved. The historical Manila order was subsequently recovered under the owner's explicit authorization at 16500 IRT/hour. The same service 412 is now active and retained for use; no new customer order or duplicate first-hour charge was created. This permanent customer delivery is separate from the two disposable QA guests.
 
 The initial seven runtime files were installed at 08:08:37 UTC. A subsequent guarded four-file UI patch changed three already-touched language files and the server view: eight unique runtime files in total. The broad cloud/wallet/payment/customer suite passed 1772 tests / 8524 assertions. After the UI change and integration of develop's Storage Box changes, the relevant suite passed 218 tests / 1594 assertions with no failures, errors or skips. Counts overlap and must not be added as independent suites.

@@ -485,7 +485,7 @@
       @endif
 
       @if($caps['console'] ?? false)
-        <form method="post" action="{{ lroute('account.cloud.console', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.console', $service) }}" @if($inst->provider === 'arvan') target="_blank" rel="noopener noreferrer" @endif>
           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.cs_console') }}</button>
         </form>
       @endif
