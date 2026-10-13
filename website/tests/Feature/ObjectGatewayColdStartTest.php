@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Server;
 use App\Models\Setting;
+use App\Services\Cloud\HetznerClient;
 use App\Services\Provisioning\ObjectGatewayBootstrapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -40,6 +41,22 @@ class ObjectGatewayColdStartTest extends TestCase
         $this->assertStringContainsString('ACCESS-ONLY-FOR-TEST', $script);
         $this->assertStringContainsString('SECRET-ONLY-FOR-TEST', $script);
         $this->assertStringContainsString('certbot --nginx', $script);
+        $this->assertStringContainsString('versitygw_v1.8.0_Linux_arm64.tar.gz', $script);
         $this->assertStringNotContainsString('__SOURCE_ARCHIVE_B64__', $script);
+    }
+
+    public function test_lifecycle_keeps_a_fresh_gateway_while_bootstrap_is_still_running(): void
+    {
+        Server::create([
+            'name' => 'Object Gateway', 'type' => 'hetzner_object_gateway', 'status' => 'maintenance',
+            'hostname' => 'object-api.servernet.cloud',
+            'meta' => ['provider_ref' => 'new-server', 'ipv4' => '192.0.2.10', 'started_at' => now()->toIso8601String()],
+        ]);
+        $client = $this->mock(HetznerClient::class);
+        $client->shouldNotReceive('deleteServer');
+
+        $this->artisan('hetzner:object-gateway-lifecycle')->assertSuccessful();
+
+        $this->assertSame('new-server', Server::first()->meta['provider_ref']);
     }
 }

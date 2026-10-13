@@ -24,6 +24,14 @@ class ObjectGatewayLifecycle extends Command
             if ($services->contains(fn (Service $service) => ! $service->isDead())) {
                 continue;
             }
+            if ($services->isEmpty()) {
+                $startedAt = filled($meta['started_at'] ?? null)
+                    ? \Carbon\CarbonImmutable::parse((string) $meta['started_at'])
+                    : $server->updated_at;
+                if ($startedAt?->isAfter(now()->subHours(2))) {
+                    continue;
+                }
+            }
             $last = $services->max(fn (Service $service) => $service->cancelled_at?->timestamp ?? $service->updated_at?->timestamp ?? time());
             $days = max(1, (int) config('provisioning.object_gateway.termination_retention_days', 30));
             if ($services->isNotEmpty() && $last > now()->subDays($days)->timestamp) {

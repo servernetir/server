@@ -10,7 +10,7 @@ id servernet-object >/dev/null 2>&1 || useradd --system --home /var/lib/serverne
 
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl nginx python3-venv openssl certbot python3-certbot-nginx dnsutils
-curl -fsSL "https://github.com/versity/versitygw/releases/download/v${VGW_VERSION}/versitygw-v${VGW_VERSION}-linux-arm64.tar.gz" -o /tmp/versitygw.tar.gz
+curl -fsSL "https://github.com/versity/versitygw/releases/download/v${VGW_VERSION}/versitygw_v${VGW_VERSION}_Linux_arm64.tar.gz" -o /tmp/versitygw.tar.gz
 echo "${VGW_SHA256}  /tmp/versitygw.tar.gz" | sha256sum -c -
 tar -xzf /tmp/versitygw.tar.gz -C /tmp
 install -m 0755 "$(find /tmp -type f -name versitygw -print -quit)" /usr/local/bin/versitygw
