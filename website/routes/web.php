@@ -791,24 +791,21 @@ Route::get('/{loc}/{rest?}', function (string $loc, ?string $rest = null) {
 |   • کاربر ممکن است در مرورگر دیگری یا با نشستِ منقضی برگردد. پرداخت فقط
 |     از روی Authority پیدا می‌شود که ستونی یکتاست.
 */
-Route::get('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callback'])
-    ->name('payment.callback')
-    ->where('gateway', '[a-z]+')
-    ->middleware('throttle:pay');
-
-/*
-| ⚠️ اسنپ‌پی نتیجه را با **POST** برمی‌گرداند، نه GET.
-|
-| مستندات: «نتیجهٔ تراکنش کاربر به صورت POST یک فرم با پارامترهای متناظر به
-| آن آدرس ارسال گردد.» پس همان کنترلر و همان مسیر، فقط فعلِ دیگر — و بدونِ
-| CSRF (در bootstrap/app.php مستثنا شده)، چون فرستنده یک سرور است نه مرورگرِ
-| دارای نشست.
-|
-| 🔴 دامنهٔ این آدرس باید همانی باشد که نزدِ اسنپ‌پی whitelist شده؛ درخواستی
-| با returnURL ناهم‌خوان اصلاً پذیرفته نمی‌شود.
-*/
+// [snapppay-callback:start]
+// ⚠️ اسنپ‌پی نتیجه را با **POST** برمی‌گرداند، نه GET (مستندات: «نتیجهٔ تراکنش
+// به صورت POST یک فرم … به آن آدرس ارسال گردد»). همان کنترلر و همان مسیر، فقط
+// فعلِ دیگر — و بدونِ CSRF (در bootstrap/app.php مستثنا شده)، چون فرستنده یک
+// سرور است نه مرورگرِ دارای نشست.
+// 🔴 دامنهٔ این آدرس باید همانی باشد که نزدِ اسنپ‌پی whitelist شده.
+// (این بلوک نشان‌دار است و با apply-marked-block منتشر می‌شود؛ برای همین
+// **پیش از** روتِ GET نشسته: لنگرش باید دقیقاً یک خط باشد.)
 Route::post('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callback'])
     ->name('payment.callback.post')
+    ->where('gateway', '[a-z]+')
+    ->middleware('throttle:pay');
+// [snapppay-callback:end]
+Route::get('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callback'])
+    ->name('payment.callback')
     ->where('gateway', '[a-z]+')
     ->middleware('throttle:pay');
 
@@ -2763,6 +2760,7 @@ Route::prefix('admin')->group(function () {
         // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 
+        // [snapppay-admin-routes:start]
         /*
         | ═══ سفارش‌های اسنپ‌پی ═══
         |
@@ -2780,6 +2778,7 @@ Route::prefix('admin')->group(function () {
             Route::post('/snapppay/{order}/update', [\App\Http\Controllers\Admin\SnappPayController::class, 'update']);
             Route::post('/snapppay/{order}/cancel', [\App\Http\Controllers\Admin\SnappPayController::class, 'cancel']);
         });
+        // [snapppay-admin-routes:end]
 
         /*
         | ═══ تیکت پشتیبانی — مدیر **یا** پشتیبان ═══
