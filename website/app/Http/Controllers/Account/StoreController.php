@@ -58,13 +58,19 @@ class StoreController extends Controller
                 ->with('err', __('ui.stf_pkg_gone'));
         }
 
+        if ($why = $product->storageConfigurationError()) {
+            \App\Support\ErrorTracker::noteOnce('pricing', 'فروش «'.$product->name.'» بسته شد: '.$why, 3600);
+
+            return redirect(lroute('account.services'))->with('err', 'این پلن موقتاً آمادهٔ سفارش نیست.');
+        }
+
         /*
         | تحویلِ امضاشده از /order/{sku} (ممیزی ۶ — SN-ORDER-001): دوره‌ای که کاربر
         | روی سایت انتخاب کرده همین‌جا از پیش انتخاب می‌شود. امضای نامعتبر/منقضی
         | خرید را نمی‌بندد — فقط نادیده گرفته و شمرده می‌شود. هیچ قیمتی از URL.
         */
         $reason = null;
-        $handoff = OrderHandoff::verify(request()->query(), $product->slug, array_keys((array) config('billing.cycles', [])), $reason);
+        $handoff = OrderHandoff::verify(request()->query(), $product->slug, $product->orderCycles(), $reason);
 
         if ($handoff !== null) {
             session(['order_handoff' => $handoff]);
@@ -94,8 +100,9 @@ class StoreController extends Controller
                 $product->availableCountries(),
                 fn ($c) => ! \App\Services\Customer\IranSalesGate::blocks(Auth::guard('customer')->user(), $c),
             )),
-            'cycles'    => array_keys((array) config('billing.cycles', [])),
+            'cycles'    => $product->orderCycles(),
             'isLicense' => $product->isLicense(),
+            'requiresDomain' => (bool) $product->requires_domain,
         ]);
     }
 
@@ -106,6 +113,12 @@ class StoreController extends Controller
             return back()->withErrors(__('ui.stf_pkg_na'));
         }
 
+        if ($why = $product->storageConfigurationError()) {
+            \App\Support\ErrorTracker::noteOnce('pricing', 'سفارش «'.$product->name.'» پیش از دریافت پول بسته شد: '.$why, 3600);
+
+            return back()->withErrors('این پلن موقتاً آمادهٔ سفارش نیست.');
+        }
+
         if ($product->isLicense()) {
             return $this->orderLicense($request, $product);
         }
@@ -113,12 +126,12 @@ class StoreController extends Controller
         // مکان‌های واقعاً موجود در همین لحظه — مشتری نباید مکانی را بخرد که
         // سرورِ آماده ندارد، وگرنه پول داده و سرویسش روی هوا می‌ماند.
         $countries = $product->availableCountries();
-        $cycles = array_keys((array) config('billing.cycles', []));
+        $cycles = $product->orderCycles();
 
         $data = $request->validate([
             'country'     => [$countries === [] ? 'nullable' : 'required', \Illuminate\Validation\Rule::in($countries)],
             'cycle'       => ['required', \Illuminate\Validation\Rule::in($cycles)],
-            'domain_mode' => ['required', 'in:have,buy,subdomain'],
+            'domain_mode' => [$product->requires_domain ? 'required' : 'nullable', 'in:have,buy,subdomain'],
             'domain'      => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             'domain_buy'  => ['nullable', 'string', 'max:190', 'regex:/^[a-z0-9.-]+\.[a-z]{2,}$/i'],
             // زیردامنه: فقط حروف/رقم/خط‌تیره، نه در ابتدا/انتها، و نه از فهرستِ
@@ -149,8 +162,8 @@ class StoreController extends Controller
         ]);
 
         // دامنهٔ نهایی بر اساس انتخابِ کاربر
-        [$domain, $note] = $this->resolveDomain($data);
-        if ($domain === null) {
+        [$domain, $note] = $product->requires_domain ? $this->resolveDomain($data) : [null, null];
+        if ($product->requires_domain && $domain === null) {
             return back()->withInput()->withErrors(['domain' => __('ui.stf_domain_full')]);
         }
 
@@ -165,7 +178,7 @@ class StoreController extends Controller
         $cycle = $data['cycle'];
 
         // مکان → سرورِ مقصد. اگر مکانی انتخاب نشده (پکیجِ دستی)، سرورِ خودِ پکیج.
-        $server = $country ? \App\Models\Server::pickForCountry($country) : null;
+        $server = $country ? $product->pickOrderServer($country) : null;
         if ($country && $server === null) {
             return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
         }
@@ -173,6 +186,9 @@ class StoreController extends Controller
         // مبلغِ دوره در لحظهٔ سفارش قفل می‌شود؛ تغییرِ بعدیِ تخفیف‌ها یا نرخِ ارز
         // این سرویس و تمدیدهایش را عوض نمی‌کند.
         $cyclePrice = $product->priceForCycle($cycle, $country);
+        if ($product->isStorageCatalogProduct() && ($cyclePrice <= 0 || $server === null)) {
+            return back()->withErrors('قیمت یا اتصال این پلن آماده نیست؛ سفارشی ثبت نشد.');
+        }
         $locNote = $country ? 'محلِ سرور: '.trim((config('billing.locations.'.$country.'.flag') ?? '').' '.(config('billing.locations.'.$country.'.label.fa') ?? $country)) : '';
 
         $invoice = DB::transaction(function () use ($customer, $product, $domain, $note, $server, $country, $cycle, $cyclePrice, $locNote) {
@@ -187,6 +203,10 @@ class StoreController extends Controller
                 'status'        => 'pending',
                 'server_id'     => $server?->id ?? $product->server_id,
                 'plan'          => $product->plan,
+                'provision_meta' => $product->group === 'storage-box' ? [
+                    'storage_box_offer' => app(\App\Services\Provisioning\HetznerStorageCosts::class)
+                        ->metadataForPlan((string) $product->plan),
+                ] : null,
                 // نیتِ «نمایندگی» همین‌جا قفل می‌شود و در لحظهٔ تحویل دوباره
                 // حدس زده نمی‌شود — دلیلش روی `Product::isReseller()`.
                 'is_reseller'   => $product->isReseller(),

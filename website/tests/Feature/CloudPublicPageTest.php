@@ -595,7 +595,7 @@ class CloudPublicPageTest extends TestCase
     {
         $this->seedCatalog();
 
-        foreach (['iaas', 'ai-infrastructure', 'object-storage'] as $slug) {
+        foreach (['iaas', 'ai-infrastructure', 'object-storage', 'storage-box'] as $slug) {
             $res = $this->get('/cloud/'.$slug);
             $res->assertOk();
 

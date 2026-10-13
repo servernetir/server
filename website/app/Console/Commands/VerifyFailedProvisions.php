@@ -29,14 +29,15 @@ use Illuminate\Console\Command;
  *
  * 🔴 آن کرون مسیرِ **ابری** را هم می‌راند، و آن‌جا تلاشِ دوباره یعنی خریدِ یک
  * سرورِ دوم با پولِ واقعی. قاعدهٔ ثبت‌شدهٔ پروژه این است که آن صف هرگز خودکار
- * دوباره تلاش نکند. این فرمان آن قاعده را دست نمی‌زند چون **هیچ‌چیز نمی‌سازد**:
- * تنها تماسش یک `accountsummary`ِ خواندنی است. اگر حساب باشد، ردیف را به همان
+ * دوباره تلاش نکند. این فرمان آن قاعده را دست نمی‌زند چون برای WHM فقط
+ * `accountsummary` خواندنی می‌زند. درایور Storage Box نیز نام قطعی و مهرِ
+ * پیش از خرید دارد، پس فقط تلاش قبلی را می‌پذیرد یا ادامه می‌دهد. اگر حساب باشد، ردیف را به همان
  * مسیرِ موفقیتِ موجود می‌سپارد (که خودش با pre-flight می‌پذیردش)؛ اگر نباشد،
  * دست نمی‌زند.
  *
  * ═══ سه محدودیتِ عمدی ═══
  *
- * ۱) **فقط سرورِ WHM.** بی‌این قید، هر سفارشِ تحویلِ دستی (پلسک، VPS، اختصاصی)
+ * ۱) **فقط WHM یا Storage Box هتزنر.** بی‌این قید، هر سفارشِ تحویلِ دستی (پلسک، VPS، اختصاصی)
  *    که برای همیشه در `manual` می‌نشیند، هر پنج دقیقه یک درخواستِ WHM به
  *    ماشینی می‌خورد که اصلاً WHM نیست.
  * ۲) **قفلِ اتمی پیش از هر نوشتن.** دکمهٔ «تحویلِ دستی»ِ مدیر همین ردیف را
@@ -51,7 +52,7 @@ class VerifyFailedProvisions extends Command
 {
     protected $signature = 'provision:verify-failed {--limit=5 : بیشترین ردیف در هر اجرا}';
 
-    protected $description = 'سرویس‌های «تحویل ناموفق» را با خودِ سرورِ WHM تطبیق می‌دهد و اگر حساب ساخته شده باشد تحویلشان می‌کند';
+    protected $description = 'تحویل‌های ناموفق WHM و Storage Box هتزنر را با منبع واقعی تطبیق و تکمیل می‌کند';
 
     /** ردیفِ کهنه‌تر از این دیگر خودکار وارسی نمی‌شود (روز) */
     private const MAX_AGE_DAYS = 7;
@@ -60,14 +61,18 @@ class VerifyFailedProvisions extends Command
     {
         $rows = Service::query()
             ->join('servers', 'servers.id', '=', 'services.server_id')
-            // ⚠️ فقط WHM: پلسک/VPS/اختصاصی برای همیشه در `manual` می‌مانند و
-            // پرسیدنِ WHM از آن‌ها بی‌معنی و پرهزینه است.
-            ->where('servers.type', 'whm')
+            // فقط درایورهایی که بازیابی خودکار امن و idempotent دارند.
+            ->whereIn('servers.type', ['whm', 'hetzner_storage'])
             ->where('servers.status', 'active')
             ->whereIn('services.provision_status', ['failed', 'manual'])
             ->whereNotIn('services.status', Service::DEAD_STATUSES)
-            ->whereNotNull('services.username')
-            ->where('services.username', '!=', '')
+            ->where(function ($q) {
+                $q->where('servers.type', 'hetzner_storage')
+                    ->orWhere(function ($account) {
+                        $account->whereNotNull('services.username')
+                            ->where('services.username', '!=', '');
+                    });
+            })
             ->where('services.updated_at', '>', now()->subDays(self::MAX_AGE_DAYS))
             ->orderBy('services.updated_at')
             ->limit(max(1, (int) $this->option('limit')))
@@ -93,6 +98,15 @@ class VerifyFailedProvisions extends Command
 
             // سروری که همین دور یک بار جواب نداد، دوباره پرسیده نمی‌شود
             if (in_array($server->id, $unreachable, true)) {
+                continue;
+            }
+
+            if ($server->type === 'hetzner_storage') {
+                if ($provisioner->provision($service->fresh())) {
+                    $adopted++;
+                    $this->line('✅ سرویس #'.$service->id.' — Storage Box آماده و تحویل شد.');
+                }
+
                 continue;
             }
 

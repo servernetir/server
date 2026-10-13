@@ -54,7 +54,7 @@ class Server extends Model
      */
     public const AUTO_TYPES = ['whm', 'directadmin', 'hetzner_storage', 'rclone_storage'];
 
-    public const TYPES = ['whm', 'plesk', 'directadmin', 'hetzner_storage', 'rclone_storage', 'vps', 'dedicated', 'generic'];
+    public const TYPES = ['whm', 'plesk', 'directadmin', 'hetzner_storage', 'hetzner_object', 'rclone_storage', 'vps', 'dedicated', 'generic'];
 
     /** پورتِ پیش‌فرضِ هر نوع کنترل‌پنل */
     public const DEFAULT_PORTS = [
@@ -174,6 +174,7 @@ class Server extends Model
             'plesk'       => 'Plesk',
             'directadmin' => 'DirectAdmin',
             'hetzner_storage' => 'فضای بکاپ (Hetzner Storage Box)',
+            'hetzner_object' => 'Object Storage (در حال آماده‌سازی)',
             'rclone_storage' => 'ServerNet Backup Gateway',
             'vps'         => 'VPS',
             'dedicated'   => 'سرور اختصاصی',

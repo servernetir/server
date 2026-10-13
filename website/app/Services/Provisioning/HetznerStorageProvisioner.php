@@ -4,6 +4,7 @@ namespace App\Services\Provisioning;
 
 use App\Models\Service;
 use App\Support\ErrorTracker;
+use Illuminate\Support\Facades\DB;
 
 /**
  * تحویلِ خودکارِ فضای بکاپ/دانلود روی Storage Boxِ هتزنر.
@@ -37,7 +38,9 @@ class HetznerStorageProvisioner implements Provisioner
         }
 
         $plan = (string) $service->plan;
-        $type = $this->typeForPlan($plan);
+        $soldOffer = (array) ($service->provision_meta['storage_box_offer'] ?? []);
+        $type = $soldOffer['type'] ?? $this->typeForPlan($plan);
+        $location = $soldOffer['location'] ?? $this->location($plan);
 
         /*
         | 🔴 «نمی‌دانیم کدام نوع» هرگز نباید به یک نوعِ پیش‌فرض سقوط کند.
@@ -74,13 +77,35 @@ class HetznerStorageProvisioner implements Provisioner
             return $this->adopt($service, $client, $existing, reused: true);
         }
 
+        if (! empty($service->provision_meta['hetzner_create_attempted_at'])) {
+            return ProvisionResult::manual('نتیجه تلاش قبلی ساخت باکس قطعی نیست؛ پیش از خرید دوباره موجودی پروژه باید بررسی شود.');
+        }
+        if ($error = $this->validateCatalogueOffer($service, $client)) {
+            return ProvisionResult::manual($error);
+        }
+
         // ── ساخت
         $password = $this->makePassword();
+        // Persist before the paid POST. A crash, malformed reply or HTTP 5xx must
+        // not permit a second purchase on the next cron run. Password is encrypted.
+        $claimed = DB::transaction(function () use ($service, $password, $type, $location) {
+            $fresh = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+            $meta = (array) $fresh->provision_meta;
+            if (! empty($meta['hetzner_create_attempted_at'])) return false;
+            unset($meta['password']);
+            $fresh->forceFill(['password' => $password, 'provision_meta' => $meta + [
+                'hetzner_create_attempted_at' => now()->toIso8601String(),
+                'hetzner_password_known' => true, 'box_type' => $type, 'location' => $location,
+            ]])->save();
+            return true;
+        });
+        $service->refresh();
+        if (! $claimed) return ProvisionResult::manual('تلاش ساخت باکس از قبل ثبت شده؛ خرید دوباره انجام نشد.');
 
         $res = $client->createBox([
             'name'            => $name,
             'type'            => $type,
-            'location'        => $this->location(),
+            'location'        => $location,
             'password'        => $password,
             'labels'          => ['service' => (string) $service->id, 'source' => 'servernet'],
             'access_settings' => $this->accessSettings(),
@@ -92,7 +117,7 @@ class HetznerStorageProvisioner implements Provisioner
             | شکست، دوباره می‌پرسیم — همان تعمیری که برای WHM نوشته شد و
             | `create` نداشت.
             */
-            if ($res['transport']) {
+            if ($res['transport'] || $res['status'] >= 500 || $res['status'] < 400) {
                 $after = $client->boxState($name);
                 if (is_array($after)) {
                     return $this->adopt($service, $client, $after, reused: true, password: $password);
@@ -102,7 +127,20 @@ class HetznerStorageProvisioner implements Provisioner
             return ProvisionResult::fail('ساختِ فضای بکاپ ناموفق بود: '.$res['reason']);
         }
 
-        $box = $res['data']['storage_box'] ?? [];
+        $created = $res['data']['storage_box'] ?? [];
+        $box = is_array($created) ? $created : [];
+        // The API may return only the created resource reference while the box
+        // is initializing. Preserve that id so cancellation can still delete
+        // it and the recovery job can adopt it once list/get becomes complete.
+        $createdId = $box['id'] ?? (is_scalar($created) ? $created : null);
+        $action = $res['data']['action'] ?? null;
+        if (is_array($action) && ($action['status'] ?? null) !== 'success') {
+            $meta = (array) $service->provision_meta;
+            $service->forceFill(['provision_meta' => $meta + [
+                'hetzner_box_id' => $createdId, 'hetzner_pending_action' => $action['id'] ?? null,
+            ]])->save();
+            return ProvisionResult::fail('ساخت باکس هنوز به‌صورت موفق تکمیل نشده؛ نتیجه عملیات بررسی خواهد شد.');
+        }
 
         /*
         | ⚠️ باکسِ تازه ممکن است هنوز `username`/`server` نداشته باشد (اسپک هر
@@ -113,8 +151,7 @@ class HetznerStorageProvisioner implements Provisioner
         if (blank($box['username'] ?? null) || blank($box['server'] ?? null)) {
             $service->forceFill([
                 'provision_meta' => array_merge((array) $service->provision_meta, [
-                    'hetzner_box_id' => $box['id'] ?? null,
-                    'password'       => $password,
+                    'hetzner_box_id' => $createdId,
                 ]),
             ])->save();
 
@@ -133,38 +170,69 @@ class HetznerStorageProvisioner implements Provisioner
     private function adopt(Service $service, HetznerStorageClient $client, array $box, bool $reused, ?string $password = null): ProvisionResult
     {
         $meta = (array) $service->provision_meta;
-        $password ??= (string) ($meta['password'] ?? '') ?: null;
-        $password ??= (string) $service->password ?: null;
+        if (isset($meta['password'])) {
+            // Migrate only this service's legacy raw credential while handling it.
+            $legacyPassword = (string) $meta['password'];
+            unset($meta['password']);
+            if ($legacyPassword !== '') {
+                $meta['hetzner_password_known'] = true;
+                $service->password = $legacyPassword;
+            }
+            $service->forceFill(['provision_meta' => $meta])->save();
+        }
+        if (($box['status'] ?? null) !== 'active' || blank($box['id'] ?? null)
+            || blank($box['username'] ?? null) || blank($box['server'] ?? null)) {
+            return ProvisionResult::fail('باکس هنوز فعال و آماده اتصال نیست.');
+        }
+        $expectedType = $meta['box_type'] ?? $meta['storage_box_offer']['type'] ?? $this->typeForPlan((string) $service->plan);
+        $expectedLocation = $meta['location'] ?? $meta['storage_box_offer']['location'] ?? $this->location((string) $service->plan);
+        if (($box['storage_box_type']['name'] ?? null) !== $expectedType
+            || ($box['location']['name'] ?? null) !== $expectedLocation) {
+            return ProvisionResult::manual('نوع یا منطقه باکس موجود با سفارش تطابق ندارد؛ تغییری انجام نشد.');
+        }
+        if (! empty($meta['hetzner_pending_action'])) {
+            $r = $client->action($meta['hetzner_pending_action']);
+            if (! $r['ok'] || ($r['data']['action']['status'] ?? null) !== 'success') {
+                return ProvisionResult::fail('عملیات هتزنر هنوز با موفقیت تکمیل نشده است.');
+            }
+            unset($meta['hetzner_pending_action']);
+        }
+        if ($password === null && ! empty($meta['hetzner_password_known'])) {
+            $password = (string) $service->password ?: null;
+        }
 
         if ($password === null && ! blank($box['id'] ?? null)) {
             $fresh = $this->makePassword();
             $r = $client->resetPassword($box['id'], $fresh);
-            if ($r['ok']) {
-                $password = $fresh;
+            if (! $r['ok'] || ! in_array($r['data']['action']['status'] ?? null, ['running', 'success'], true)) {
+                return ProvisionResult::fail('بازیابی رمز باکس تأیید نشد؛ اطلاعات اتصال تحویل داده نشد.');
+            }
+            $password = $fresh;
+            $meta['hetzner_password_known'] = true;
+            if ($r['data']['action']['status'] === 'running') {
+                if (empty($r['data']['action']['id'])) return ProvisionResult::fail('شناسه عملیات بازیابی رمز دریافت نشد.');
+                $meta['hetzner_pending_action'] = $r['data']['action']['id'];
+                $service->forceFill(['password' => $fresh, 'provision_meta' => $meta])->save();
+                return ProvisionResult::fail('بازیابی رمز باکس در حال انجام است.');
             }
         }
 
         $host = (string) ($box['server'] ?? '');
         $user = (string) ($box['username'] ?? '');
 
-        /*
-        | 🔴 رمز همیشه در meta می‌نشیند، نه فقط روی ستونِ `password`.
-        |
-        | `ProvisioningService::ensureCredentials()` **پیش از** درایور یک رمزِ
-        | تصادفی روی سرویس می‌گذارد (WHM دامنه و رمز می‌خواهد). پس اگر مسیرِ
-        | پذیرشِ باکسِ موجود مجبور شود به `$service->password` برگردد، ممکن
-        | است همان رمزِ ساختگی را به مشتری بدهد — رمزی که روی باکس کار نمی‌کند،
-        | بی‌هیچ خطایی. با نوشتنِ رمز در meta، مرجعِ درست همیشه در دست است.
-        */
-        return ProvisionResult::success($user, $password, $host !== '' ? 'https://'.$host : null, [
+        if (blank($password)) return ProvisionResult::fail('رمز معتبر باکس در دسترس نیست.');
+        $meta['hetzner_password_known'] = true;
+        $service->forceFill(['password' => $password, 'provision_meta' => $meta])->save();
+        return ProvisionResult::success($user, $password, $host !== '' ? 'https://'.$host : null, array_merge(
+            array_intersect_key($meta, array_flip(['storage_box_offer', 'hetzner_create_attempted_at'])), [
             'reused'         => $reused,
-            'password'       => $password,
+            'hetzner_password_known' => true,
             'hetzner_box_id' => $box['id'] ?? null,
             'host'           => $host,
             'location'       => $box['location']['name'] ?? null,
             'box_type'       => $box['storage_box_type']['name'] ?? null,
             'driver'         => $this->slug(),
-        ]);
+        ]));
     }
 
     /**
@@ -200,9 +268,10 @@ class HetznerStorageProvisioner implements Provisioner
 
         $r = $client->updateAccessSettings($id, $settings);
 
-        return $r['ok']
+        $complete = $r['ok'] && ($r['data']['action']['status'] ?? null) === 'success';
+        return $complete
             ? ProvisionResult::success((string) $service->username ?: null, null, null, ['access' => $open ? 'open' : 'closed'])
-            : ProvisionResult::fail(($open ? 'بازکردن' : 'بستن').'ِ دسترسیِ باکس ناموفق بود: '.$r['reason']);
+            : ProvisionResult::fail(($open ? 'بازکردن' : 'بستن').'ِ دسترسیِ باکس هنوز تأیید نشده: '.$r['reason']);
     }
 
     /** خاتمه = حذفِ واقعی نزدِ هتزنر، وگرنه اجارهٔ باکسِ بی‌مشتری را ما می‌دهیم */
@@ -237,9 +306,10 @@ class HetznerStorageProvisioner implements Provisioner
 
         $r = $client->deleteBox((string) $id);
 
-        return $r['ok']
+        $complete = $r['ok'] && ($r['status'] === 404 || ($r['data']['action']['status'] ?? null) === 'success');
+        return $complete
             ? ProvisionResult::success(null, null, null, ['deleted' => true])
-            : ProvisionResult::fail('حذفِ باکس ناموفق بود: '.$r['reason']);
+            : ProvisionResult::fail('حذفِ باکس هنوز تأیید نشده: '.$r['reason']);
     }
 
     private function boxId(Service $service): int|string|null
@@ -252,15 +322,59 @@ class HetznerStorageProvisioner implements Provisioner
     /** نگاشتِ پلنِ ما → نوعِ هتزنر. نبودش عمداً `null` است، نه پیش‌فرض. */
     private function typeForPlan(string $plan): ?string
     {
-        $map = (array) config('provisioning.hetzner_storage.plans', []);
-        $type = $map[$plan] ?? null;
-
-        return filled($type) ? (string) $type : null;
+        return app(HetznerStorageCosts::class)->typeFor($plan);
     }
 
-    private function location(): string
+    private function location(string $plan): string
     {
+        $meta = app(HetznerStorageCosts::class)->metadataForPlan($plan);
+        if ($meta) return (string) $meta['location'];
         return (string) config('provisioning.hetzner_storage.location', 'fsn1');
+    }
+
+    /** Revalidate the exact sold offer before spending, never silently buy a substitute. */
+    private function validateCatalogueOffer(Service $service, HetznerStorageClient $client): ?string
+    {
+        $costs = app(HetznerStorageCosts::class);
+        if (! $costs->isCatalogPlan((string) $service->plan)) return null;
+        $meta = $service->provision_meta['storage_box_offer'] ?? null;
+        if (! is_array($meta) || (int) ($meta['server_id'] ?? 0) !== (int) $service->server_id
+            || ($meta['currency'] ?? null) !== 'EUR' || empty($meta['type']) || empty($meta['location'])
+            || (int) ($meta['size'] ?? 0) <= 0 || (int) ($meta['net_monthly_cents'] ?? 0) <= 0
+            || ! isset($meta['net_setup_cents']) || (int) $meta['net_setup_cents'] < 0) {
+            return 'مشخصات و بهای ثبت‌شده هنگام سفارش قابل تأیید نیست؛ بررسی دستی لازم است و خرید انجام نشد.';
+        }
+        $r = $client->types();
+        if (! $r['ok']) return 'اعتبارسنجی زنده پلن هتزنر ناموفق بود؛ خرید انجام نشد.';
+        foreach ($r['data']['storage_box_types'] as $type) {
+            if (($type['name'] ?? null) !== $meta['type']) continue;
+            if (! empty($type['deprecation']['unavailable_after'])) {
+                try {
+                    if (\Carbon\Carbon::parse($type['deprecation']['unavailable_after'])->lte(now())) {
+                        return 'عرضه نوع انتخاب‌شده متوقف شده؛ خرید انجام نشد.';
+                    }
+                } catch (\Throwable) { return 'وضعیت عرضه نوع انتخاب‌شده تأیید نشد.'; }
+            }
+            if ((int) ($type['size'] ?? 0) !== (int) $meta['size']) return 'ظرفیت پلن تغییر کرده؛ خرید انجام نشد.';
+            foreach (['subaccounts_limit', 'snapshot_limit', 'automatic_snapshot_limit'] as $limit) {
+                if (! array_key_exists($limit, $meta) || ! array_key_exists($limit, $type) || $type[$limit] !== $meta[$limit]) {
+                    return 'محدودیت‌های پلن با مشخصات ثبت‌شده سفارش تطابق ندارد؛ بررسی دستی لازم است.';
+                }
+            }
+            foreach ($type['prices'] ?? [] as $p) {
+                if (($p['location'] ?? null) !== $meta['location']) continue;
+                if (strtoupper((string) ($p['currency'] ?? 'EUR')) !== 'EUR') return 'ارز بهای زیرساخت تأیید نشد.';
+                foreach (['price_monthly' => 'net_monthly_cents', 'setup_fee' => 'net_setup_cents'] as $field => $key) {
+                    $net = $p[$field]['net'] ?? null;
+                    if (! is_string($net) || ! preg_match('/^\d+(?:\.\d+)?$/D', $net)
+                        || (int) ceil((float) $net * 100 - 0.0000001) > (int) $meta[$key]) {
+                        return 'بهای زیرساخت تغییر کرده یا نامعتبر است؛ خرید متوقف شد.';
+                    }
+                }
+                return null;
+            }
+        }
+        return 'نوع و منطقه سفارش در کاتالوگ زنده موجود نیست؛ خرید انجام نشد.';
     }
 
     private function accessSettings(): array
@@ -284,13 +398,21 @@ class HetznerStorageProvisioner implements Provisioner
      */
     private function makePassword(int $len = 24): string
     {
+        $len = max(12, $len);
         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        $specials = '!@#$%_-';
         $out = '';
 
-        for ($i = 0; $i < $len; $i++) {
+        // Hetzner requires at least one special character. Generate it
+        // explicitly instead of relying on chance, then insert it at a random
+        // position so every paid create request satisfies the current policy.
+        for ($i = 0; $i < $len - 1; $i++) {
             $out .= $alphabet[random_int(0, strlen($alphabet) - 1)];
         }
 
-        return $out;
+        $special = $specials[random_int(0, strlen($specials) - 1)];
+        $position = random_int(0, strlen($out));
+
+        return substr($out, 0, $position).$special.substr($out, $position);
     }
 }

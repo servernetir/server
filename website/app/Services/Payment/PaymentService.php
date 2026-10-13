@@ -70,6 +70,7 @@ class PaymentService
 
         try {
             app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
+            app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($invoice);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return new StartOutcome(false, error: collect($e->errors())->flatten()->first());
         }

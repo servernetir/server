@@ -41,18 +41,30 @@ class HetznerStorageCatalogTest extends TestCase
         Setting::put('cloud_margin_pct', '0');          // حاشیه صفر ⇒ فقط اثرِ سربار دیده شود
         Setting::put('pricing_fx_fee_pct_hetzner', '10');
         Setting::put('pricing_rate_override', '100000'); // ۱ € = ۱۰۰٬۰۰۰ ت
+        config()->set('provisioning.hetzner_storage.min_margin_pct', 0);
 
-        Http::fake(['api.hetzner.com/*' => Http::response([
-            'storage_box_types' => [[
+        Http::fake([
+            'api.hetzner.com/v1/storage_box_types*' => Http::response([
+                'storage_box_types' => [[
                 'name' => 'bx11',
                 'size' => 1099511627776,
                 'subaccounts_limit' => 100,
+                'snapshot_limit' => 10,
+                'automatic_snapshot_limit' => 10,
                 'prices' => [[
                     'location' => 'fsn1',
+                    'currency' => 'EUR',
                     'price_monthly' => ['net' => '10.0000', 'gross' => '11.9000'],
+                    'setup_fee' => ['net' => '0.0000', 'gross' => '0.0000'],
                 ]],
-            ]],
-        ], 200)]);
+                ]],
+                'meta' => ['pagination' => ['last_page' => 1]],
+            ], 200),
+            'api.hetzner.cloud/v1/locations*' => Http::response([
+                'locations' => [['name' => 'fsn1', 'country' => 'DE']],
+                'meta' => ['pagination' => ['last_page' => 1]],
+            ], 200),
+        ]);
 
         $this->artisan('hetzner:storage-catalog', ['--location' => 'fsn1'])
             ->assertSuccessful()
@@ -84,16 +96,26 @@ class HetznerStorageCatalogTest extends TestCase
         Setting::put('cloud_margin_pct', '0');
         Setting::put('pricing_fx_fee_pct_hetzner', '0');
         Setting::put('pricing_rate_override', '100000');
+        config()->set('provisioning.hetzner_storage.min_margin_pct', 0);
 
-        Http::fake(['api.hetzner.com/*' => Http::response([
-            'storage_box_types' => [[
+        Http::fake([
+            'api.hetzner.com/v1/storage_box_types*' => Http::response([
+                'storage_box_types' => [[
                 'name' => 'bx11', 'size' => 1099511627776, 'subaccounts_limit' => 100,
+                'snapshot_limit' => 10, 'automatic_snapshot_limit' => 10,
                 'prices' => [[
-                    'location' => 'fsn1',
+                    'location' => 'fsn1', 'currency' => 'EUR',
                     'price_monthly' => ['net' => '10.0000', 'gross' => '11.9000'],
+                    'setup_fee' => ['net' => '0.0000', 'gross' => '0.0000'],
                 ]],
-            ]],
-        ], 200)]);
+                ]],
+                'meta' => ['pagination' => ['last_page' => 1]],
+            ], 200),
+            'api.hetzner.cloud/v1/locations*' => Http::response([
+                'locations' => [['name' => 'fsn1', 'country' => 'DE']],
+                'meta' => ['pagination' => ['last_page' => 1]],
+            ], 200),
+        ]);
 
         $this->artisan('hetzner:storage-catalog', ['--location' => 'fsn1'])
             ->assertSuccessful()
