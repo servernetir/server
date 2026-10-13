@@ -246,6 +246,26 @@ class LightNodeClientTest extends TestCase
         Http::assertNotSent(fn ($r) => $r->method() === 'POST');
     }
 
+    public function test_checkout_review_reads_current_package_image_and_quote_without_any_resource_mutation(): void
+    {
+        $package = $this->regionalModel();
+        CloudImage::create(['provider' => 'lightnode', 'provider_ref' => 'ph-test|img-sample',
+            'key' => 'ubuntu-24.04', 'family' => 'ubuntu', 'kind' => 'os', 'label' => 'Ubuntu',
+            'min_disk_gb' => 50, 'min_ram_mb' => 512, 'arch' => 'x86', 'is_active' => true]);
+        $plan = new CloudPlan(['provider' => 'lightnode', 'provider_ref' => 'ph-test|ph-test-a|'.$package['packageCode'],
+            'provider_location' => 'ph-test|ph-test-a', 'vcpu' => 2, 'ram_mb' => 4096,
+            'disk_gb' => 50, 'boot_disk_gb' => 50, 'data_disk_gb' => 0, 'cpu_kind' => 'shared', 'arch' => 'x86',
+            'network_terms' => ['charge_mode' => 'PayByBandwidth', 'bandwidth_mbps' => 5]]);
+        $review = $this->client()->reviewPurchase($plan, 'ubuntu-24.04');
+        $this->assertTrue($review['ok']);
+        $this->assertGreaterThan(0, $review['cost']['cost_hour_eur_micro']);
+        $this->assertSame(0, CloudProviderOperation::count());
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+        $plan->network_terms = ['charge_mode' => 'PayByBandwidth', 'bandwidth_mbps' => 10];
+        $this->assertFalse($this->client()->reviewPurchase($plan, 'ubuntu-24.04')['ok']);
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+    }
+
     public function test_regional_amd_purchase_still_holds_delivery_for_the_wrong_real_cpu_series(): void
     {
         $package = $this->regionalModel('amd');
@@ -501,7 +521,7 @@ class LightNodeClientTest extends TestCase
             CloudImage::create(['provider' => 'lightnode', 'provider_ref' => $region.'|img', 'key' => 'windows-2022',
                 'kind' => 'os', 'label' => 'Windows Server 2022', 'family' => 'windows', 'arch' => 'x86', 'min_disk_gb' => 50, 'min_ram_mb' => 2048, 'is_active' => true]);
         }
-        $p = new CloudPlan(['provider' => 'lightnode', 'provider_location' => 'ph-test|ph-test-a', 'arch' => 'x86', 'vcpu' => 2, 'disk_gb' => 50, 'ram_mb' => 4096]);
+        $p = new CloudPlan(['provider' => 'lightnode', 'provider_ref' => 'ph-test|ph-test-a|sample-package', 'provider_location' => 'ph-test|ph-test-a', 'arch' => 'x86', 'vcpu' => 2, 'disk_gb' => 50, 'ram_mb' => 4096]);
         $this->assertSame('ph-test|img', CloudImage::compatibleRefFor($p, 'windows-2022'));
         $this->assertFalse($p->supportsHourly());
         $p->cost_hour_eur_micro = 19800;
@@ -839,5 +859,43 @@ class LightNodeClientTest extends TestCase
         $this->post('/account/cloud/'.$service->id.'/reveal-password')
             ->assertSessionHas('revealed_root_password', 'FixturePassword9!');
         $this->assertTrue($instance->fresh()->password_seen);
+    }
+
+    public function test_customer_controls_require_confirmed_stop_before_reset_and_reinstall_in_all_languages(): void
+    {
+        $this->fake();
+        $customer = Customer::create(['email' => 'controls@example.test', 'password' => 'fixture-only', 'status' => 'active']);
+        $plan = CloudPlan::create(['provider' => 'lightnode', 'provider_ref' => 'ph-test|ph-test-a|sample-package',
+            'provider_location' => 'ph-test|ph-test-a', 'location_code' => 'ph-manila', 'slug' => 'controls', 'public_name' => 'CV-2-4',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 50, 'boot_disk_gb' => 50, 'data_disk_gb' => 0,
+            'price_irt' => 100000, 'is_active' => true, 'in_stock' => true]);
+        CloudImage::create(['provider' => 'lightnode', 'provider_ref' => 'ph-test|img-sample', 'key' => 'windows-2022',
+            'kind' => 'os', 'family' => 'windows', 'label' => 'Windows', 'is_active' => true]);
+        $service = Service::create(['customer_id' => $customer->id, 'cloud_plan_id' => $plan->id,
+            'name' => 'Controls', 'price' => 100000, 'cycle' => 'monthly', 'status' => 'active', 'provision_status' => 'done']);
+        $instance = CloudInstance::create(['service_id' => $service->id, 'provider' => 'lightnode',
+            'provider_ref' => 'ecs-sample', 'image_key' => 'windows-2022', 'ipv4' => '203.0.113.10',
+            'status' => 'running', 'ready_notified_at' => now()]);
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            foreach (['running', 'off'] as $status) {
+                $instance->update(['status' => $status]);
+                $response = $this->actingAs($customer, 'customer')->get($prefix.'/account/cloud/'.$service->id)->assertOk();
+                $dom = new \DOMDocument;
+                @$dom->loadHTML($response->getContent());
+                $xpath = new \DOMXPath($dom);
+                foreach (['password', 'rebuild'] as $action) {
+                    $buttons = $xpath->query('//form[contains(@action,"/'.$action.'")]/button');
+                    $this->assertSame(1, $buttons->length, $locale.' '.$action);
+                    $this->assertSame($status !== 'off', $buttons->item(0)->hasAttribute('disabled'));
+                    if ($action === 'password') {
+                        $this->assertFalse(str_contains(strtolower($buttons->item(0)->textContent), 'root'));
+                    }
+                }
+                $response->assertSee(__('ui.cs_new_pw'));
+                if ($status === 'running') {
+                    $response->assertSee(__('ui.cs_lightnode_stop_first'));
+                }
+            }
+        }
     }
 }

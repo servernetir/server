@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'cvb_live_price_changed' => 'This plan price was updated. Nothing was charged; review the new price and confirm your purchase again.',
+    'cvb_live_review_unavailable' => 'The current price, capacity or operating system could not be verified. Nothing was charged; please check again shortly.',
+    'cvb_ssh_not_supported' => 'This plan does not install SSH keys automatically; order without a key and use password login.',
     'cloud_buy_monthly' => 'Buy monthly',
     'cloud_buy_hourly' => 'Buy hourly',
     'meta_title' => 'ServerNet Cloud — Cloud Infrastructure, Hosting & Enterprise Solutions',
@@ -2392,7 +2395,7 @@ return [
     'cs_weburl' => 'Website address',
     'cs_pw_label' => 'root password — save it somewhere safe right now',
     'cs_pw_once' => 'This password <b>will not be shown again</b>. Store it somewhere safe.',
-    'cs_pw_reveal'      => 'Show root password',
+    'cs_pw_reveal'      => 'Show login password',
     'cs_pw_show'        => 'Show password',
     'cs_pw_hide'        => 'Hide password',
     'cs_pw_copy'        => 'Copy password',
@@ -2408,7 +2411,8 @@ return [
     'cs_power_off' => 'Shut down',
     'cs_console' => 'Web console',
     'cs_confirm_pw' => 'Generate a new password? The current one will stop working.',
-    'cs_new_pw' => 'New root password',
+    'cs_new_pw' => 'New login password',
+    'cs_lightnode_stop_first' => 'Before changing the password or reinstalling, stop the server and wait until its status is confirmed as Off.',
     'cs_ctrl_note' => 'Shut down sends a graceful command so the system closes properly and no data is corrupted. The status refreshes automatically every few seconds.',
     'cs_specs_h' => 'Server specs',
     'cs_cpu' => 'CPU',

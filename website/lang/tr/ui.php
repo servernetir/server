@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'cvb_live_price_changed' => 'Bu paketin fiyatı güncellendi. Ücret alınmadı; yeni fiyatı inceleyip satın almayı tekrar onaylayın.',
+    'cvb_live_review_unavailable' => 'Güncel fiyat, kapasite veya işletim sistemi doğrulanamadı. Ücret alınmadı; lütfen kısa süre sonra tekrar kontrol edin.',
+    'cvb_ssh_not_supported' => 'Bu paket SSH anahtarlarını otomatik yüklemez; anahtar olmadan sipariş verip parola ile giriş yapın.',
     'cloud_buy_monthly' => 'Aylık satın al',
     'cloud_buy_hourly' => 'Saatlik satın al',
     'meta_title' => 'ServerNet Cloud — Bulut Altyapısı, Hosting ve Kurumsal Çözümler',
@@ -2392,7 +2395,7 @@ return [
     'cs_weburl' => 'Site adresi',
     'cs_pw_label' => 'root parolası — hemen güvenli bir yere kaydedin',
     'cs_pw_once' => 'Bu parola <b>bir daha gösterilmeyecek</b>. Güvenli bir yere kaydedin.',
-    'cs_pw_reveal'      => 'root parolasını göster',
+    'cs_pw_reveal'      => 'Giriş parolasını göster',
     'cs_pw_show'        => 'Parolayı göster',
     'cs_pw_hide'        => 'Parolayı gizle',
     'cs_pw_copy'        => 'Parolayı kopyala',
@@ -2408,7 +2411,8 @@ return [
     'cs_power_off' => 'Kapat',
     'cs_console' => 'Web konsolu',
     'cs_confirm_pw' => 'Yeni parola oluşturulsun mu? Mevcut parola geçersiz olur.',
-    'cs_new_pw' => 'Yeni root parolası',
+    'cs_new_pw' => 'Yeni giriş parolası',
+    'cs_lightnode_stop_first' => 'Parolayı değiştirmeden veya yeniden kurmadan önce sunucuyu durdurun ve Kapalı durumunun doğrulanmasını bekleyin.',
     'cs_ctrl_note' => 'Kapat, sistemin düzgün kapanması ve verilerin bozulmaması için nazik bir komut gönderir. Durum birkaç saniyede bir otomatik olarak güncellenir.',
     'cs_specs_h' => 'Sunucu özellikleri',
     'cs_cpu' => 'İşlemci',

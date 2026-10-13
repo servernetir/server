@@ -1196,6 +1196,21 @@ class CloudStoreController extends Controller
             return back()->withInput()->withErrors(['image' => __('ui.cvb_e_image')]);
         }
 
+        if ($offer->provider === 'lightnode') {
+            $review = app(\App\Services\Cloud\LightNodeOrderReview::class)->review($offer, (string) $data['image']);
+            if (! $review['ok'] || $review['changed']) {
+                return back()->withInput()->withErrors(['plan' => __($review['ok']
+                    ? 'ui.cvb_live_price_changed' : 'ui.cvb_live_review_unavailable')]);
+            }
+            if (filled($data['ssh_key_id'] ?? null) || filled($data['ssh_key_new'] ?? null)) {
+                return back()->withInput()->withErrors(['ssh_key_id' => __('ui.cvb_ssh_not_supported')]);
+            }
+            if ($wantsHourly && isset($data['quoted_hourly_irt'])
+                && (int) $data['quoted_hourly_irt'] !== $offer->hourlyIrt()) {
+                return back()->withInput()->withErrors(['plan' => __('ui.cvb_live_price_changed')]);
+            }
+        }
+
         $image = CloudImage::query()->usable()->where('key', $data['image'])->first();
         $cycle = (string) $data['cycle'];
 
