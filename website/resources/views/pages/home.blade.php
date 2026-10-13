@@ -1,35 +1,57 @@
 @extends('layouts.site')
-
+@include('partials.atlas-assets')
+@include('partials.atlas-seo')
 @section('content')
-@php $loc = app()->getLocale(); @endphp
-
-{{-- ============ HERO ============ --}}
-<section class="hero">
-  <canvas id="net" aria-hidden="true"></canvas>
-  <div class="container">
-    <div>
-      <span class="badge reveal"><span class="pulse"></span><span>{{ __('ui.hero_badge') }}</span></span>
-      <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.hero_h1a') }}<br><span class="grad">{{ __('ui.hero_h1b') }}</span></h1>
-
-      {{-- شعارِ چرخانِ دیتاسنتر — کارفرما: «ثابت نباشد، هر چند ثانیه یک شعارِ
-           کوتاه بیاید». جمله‌ها از lang می‌آیند (سه‌زبانه) و در یک آرایهٔ JS
-           برای چرخش. اولین جمله در HTML رندر می‌شود تا پیش از اجرای JS و برای
-           موتورِ جست‌وجو هم متنی باشد (no-JS و SEO). --}}
-      @php
-        $rotators = array_values(array_filter([
-          __('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'),
-          __('ui.hero_rot4'), __('ui.hero_rot5'),
-        ]));
-      @endphp
-      <div class="hero-rotator reveal" style="transition-delay:.12s" aria-live="polite">
-        <span class="dot"></span>
-        <span class="rot-txt" id="hero-rot">{{ $rotators[0] ?? '' }}</span>
-      </div>
-      <p class="lead reveal" style="transition-delay:.16s">{{ __('ui.hero_lead') }}</p>
-      <div class="hero-ctas reveal" style="transition-delay:.24s">
-        <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
+@php
+  $loc = app()->getLocale();
+  $rotators = array_values(array_filter([__('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'), __('ui.hero_rot4'), __('ui.hero_rot5')]));
+  $atlasRegions = ['iran', 'germany', 'france', 'netherlands', 'usa'];
+@endphp
+<div class="sn-atlas sn-home">
+<section class="hero sn-hero">
+  <div class="container sn-hero-grid">
+    <div class="sn-hero-copy">
+      <span class="sn-eyebrow"><span></span>{{ __('atlas.eyebrow') }}</span>
+      <h1>{{ __('ui.hero_h1a') }}<br><span class="grad">{{ __('ui.hero_h1b') }}</span></h1>
+      <p class="lead">{{ __('ui.hero_lead') }}</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
         <a class="btn btn-glass" href="#enterprise">{{ __('ui.hero_cta2') }}</a>
       </div>
+      <div class="hero-rotator"><span class="dot"></span><span class="rot-txt" id="hero-rot">{{ $rotators[0] ?? '' }}</span></div>
+      <a class="sn-discover" href="#products"><span class="sn-discover-line"></span>{{ __('atlas.scroll') }}<svg class="icon"><use href="#i-arrow"/></svg></a>
+    </div>
+    <div class="sn-atlas-display" data-sn-region-group>
+      <div class="sn-display-top" aria-hidden="true"><span>SERVERNET ATLAS</span><span>01 / GLOBAL INFRASTRUCTURE</span></div>
+      @include('partials.atlas-globe')
+      <span class="sn-orbit-label sn-orbit-label-a" aria-hidden="true">CLOUD</span>
+      <span class="sn-orbit-label sn-orbit-label-b" aria-hidden="true">GPU / AI</span>
+      <div class="sn-region-detail" aria-live="polite">
+        <div><span class="sn-region-code" aria-hidden="true">REGION</span><strong data-sn-region-label>{{ __('atlas.iran') }}</strong></div>
+        <p data-sn-region-description>{{ __('atlas.region_iran') }}</p>
+        <a data-sn-region-link href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('atlas.view_region') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
+      </div>
+      <div class="sn-region-picker" role="group" aria-label="{{ __('atlas.regions') }}">
+        @foreach($atlasRegions as $region)
+        <button type="button" data-sn-region="{{ $region }}" data-label="{{ __('atlas.'.$region) }}" data-description="{{ __('atlas.region_'.$region) }}" data-url="{{ lroute('catalog', ['category' => 'vps', 'slug' => $region]) }}" aria-pressed="{{ $loop->first ? 'true' : 'false' }}">{{ __('atlas.'.$region) }}</button>
+        @endforeach
+      </div>
+      <p class="sn-map-note">{{ __('atlas.globe_note') }}</p>
+    </div>
+  </div>
+</section>
+<div class="sn-proof-rail">
+  <div class="container sn-proof-grid">
+    <div><b>{{ fa_num('15') }}<span>+</span></b><span>{{ __('ui.stat_years') }}</span></div>
+    <div><b>{{ fa_num('2000') }}<span>+</span></b><span>{{ __('ui.stat_services') }}</span></div>
+    <div><b>{{ fa_num('11') }}<span>+</span></b><span>{{ __('ui.stat_dc') }}</span></div>
+    <div><b>{{ fa_num('99.9') }}<span>%</span></b><span>{{ __('ui.stat_uptime') }}</span></div>
+  </div>
+</div>
+<section class="sn-domain" aria-labelledby="sn-domain-title">
+  <div class="container sn-domain-layout">
+    <div class="sn-domain-intro"><span class="sn-eyebrow" dir="ltr">YOUR NEXT ADDRESS</span><h2 id="sn-domain-title">{{ __('ui.domain_title') }}</h2></div>
+    <div class="sn-domain-controls">
       <div class="domain-box reveal" style="transition-delay:.32s">
         <p class="domain-title">{{ __('ui.domain_title') }}</p>
         <form class="domain-search" id="domain-form"
@@ -63,25 +85,9 @@
           @endforeach
         </div>
       </div>
-      <div class="hero-stats reveal" style="transition-delay:.4s">
-        <div class="stat"><b class="count" data-to="15" data-suffix="+">0</b><span>{{ __('ui.stat_years') }}</span></div>
-        <div class="stat"><b class="count" data-to="2000" data-suffix="+">0</b><span>{{ __('ui.stat_services') }}</span></div>
-        <div class="stat"><b class="count" data-to="11" data-suffix="+">0</b><span>{{ __('ui.stat_dc') }}</span></div>
-        <div class="stat"><b class="count" data-to="99.9" data-suffix="%" data-dec="1">0</b><span>{{ __('ui.stat_uptime') }}</span></div>
-      </div>
-    </div>
-    <div class="terminal reveal" style="transition-delay:.2s" aria-hidden="true">
-      <div class="bar"><i class="r"></i><i class="y"></i><i class="g"></i><span>root@servernet ~ </span></div>
-      <div class="body" id="term-body"></div>
-      <div class="term-status">
-        <div><b>● ONLINE</b>Tehran · IR</div>
-        <div><b>● ONLINE</b>Frankfurt · DE</div>
-        <div><b>● ONLINE</b>Amsterdam · NL</div>
-      </div>
     </div>
   </div>
 </section>
-
 {{-- ============ MARQUEE ============
      ⚠️ تا وقتی مشتریِ واقعی با اجازهٔ کتبی نداریم، این بلوک **رندر نمی‌شود**.
      نامِ شرکت‌های واقعی زیرِ «مورد اعتماد» یک ادعای قابلِ ابطال است، و بلوکِ
@@ -103,14 +109,15 @@
 <section class="section" id="products">
   <div class="container">
     <div class="section-head reveal">
-      <span class="badge">{{ __('ui.prod_badge') }}</span>
-      <h2>{{ __('ui.prod_title') }}</h2>
-      <p>{{ __('ui.prod_sub') }}</p>
+      <span class="badge">{{ __('atlas.service_eyebrow') }}</span>
+      <h2>{{ __('atlas.service_title') }}</h2>
+      <p>{{ __('atlas.service_sub') }}</p>
     </div>
-    <div class="products-grid">
+    <div class="products-grid sn-product-grid">
       @foreach($products as $i => $p)
       @php $pHref = isset($p['link']) ? lroute($p['link'][0], $p['link'][1] ?? []) : buy_url($p['pid']); @endphp
       <a class="pcard pcard-link reveal" href="{{ $pHref }}" style="transition-delay:{{ $i * 70 }}ms">
+        @include('partials.atlas-product-art', ['type' => $p['icon']])
         <div class="picon"><svg class="icon"><use href="#i-{{ $p['icon'] }}"/></svg></div>
         <h3>{{ lc($p)['t'] }}</h3>
         <p>{{ lc($p)['d'] }}</p>
@@ -118,6 +125,26 @@
         <span class="buy">{{ __('ui.prod_view') }} <svg class="icon dir"><use href="#i-arrow"/></svg></span>
       </a>
       @endforeach
+    </div>
+  </div>
+</section>
+
+<section class="section sn-ai-section" id="intelligence">
+  <div class="container">
+    <div class="sn-section-heading"><div><span class="sn-eyebrow" dir="ltr">INTELLIGENCE / ON DEMAND</span><h2>{{ __('atlas.ai_title') }}</h2></div><p>{{ __('atlas.ai_sub') }}</p></div>
+    <div class="sn-ai-grid">
+      <article class="sn-ai-card sn-gateway-card">
+        <div class="sn-card-top"><span>AI GATEWAY</span><svg class="icon"><use href="#i-sparkles"/></svg></div>
+        <div class="sn-ai-route" aria-hidden="true"><span class="sn-route-end"><svg class="icon"><use href="#i-code"/></svg>{{ __('atlas.application') }}</span><i class="sn-route-line"></i><span class="sn-route-core">S<span>N</span></span><i class="sn-route-line"></i><span class="sn-model-stack"><b>LLM</b><b>VISION</b><b>AUDIO</b></span></div>
+        <h3>{{ __('atlas.ai_gateway') }}</h3><p>{{ __('atlas.ai_desc') }}</p>
+        <a class="sn-text-link" href="{{ lroute('ai.home') }}">{{ __('atlas.ai_cta') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
+      </article>
+      <article class="sn-ai-card sn-gpu-card">
+        <div class="sn-card-top"><span>GPU COMPUTE</span><svg class="icon"><use href="#i-cpu"/></svg></div>
+        <div class="sn-chip-stage" aria-hidden="true"><div class="sn-chip-lines"></div><div class="sn-chip"><span>SERVERNET</span><b>GPU</b><small>COMPUTE</small></div><span class="sn-chip-caption">Ollama · ComfyUI · Jupyter</span></div>
+        <h3>{{ __('atlas.gpu_title') }}</h3><p>{{ __('atlas.gpu_desc') }}</p>
+        <a class="sn-text-link" href="{{ lroute('gpu') }}">{{ __('atlas.gpu_cta') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
+      </article>
     </div>
   </div>
 </section>
@@ -164,10 +191,10 @@
   <div class="container">
     <div class="section-head reveal">
       <span class="badge">{{ __('ui.ent_badge') }}</span>
-      <h2>{{ __('ui.ent_title') }}</h2>
-      <p>{{ __('ui.ent_sub') }}</p>
+      <h2>{{ __('atlas.enterprise_title') }}</h2>
+      <p>{{ __('atlas.enterprise_sub') }}</p>
     </div>
-    <div class="bento">
+    <div class="bento sn-enterprise-grid">
       @foreach($enterprise as $i => $e)
       @php
         $solHref = null;
@@ -176,6 +203,7 @@
       @endphp
       <{{ $solHref ? 'a' : 'article' }} @if($solHref) href="{{ $solHref }}" @endif class="bcard {{ ($e['wide'] ?? false) ? 'wide' : '' }} {{ $solHref ? 'bcard-link' : '' }} reveal" style="transition-delay:{{ $i * 60 }}ms">
         <div class="glow"></div>
+        @include('partials.atlas-service-art', ['icon' => $e['icon']])
         @if($e['tag'] ?? false)<span class="tag">{{ $e['tag'] }}</span>@endif
         <div class="bicon"><svg class="icon"><use href="#i-{{ $e['icon'] }}"/></svg></div>
         <h3>{{ lc($e)['t'] }}</h3>
@@ -204,27 +232,24 @@
       @foreach($why as $i => $w)
       <div class="witem reveal" style="transition-delay:{{ $i * 50 }}ms">
         <div class="wicon"><svg class="icon"><use href="#i-{{ $w['icon'] }}"/></svg></div>
-        <div><h4>{{ lc($w)['t'] }}</h4><p>{{ lc($w)['d'] }}</p></div>
+        <div><h3>{{ lc($w)['t'] }}</h3><p>{{ lc($w)['d'] }}</p></div>
       </div>
       @endforeach
     </div>
   </div>
 </section>
 
-{{-- ============ LOCATIONS ============ --}}
-<section class="section" style="padding-top:0;padding-bottom:60px">
+<section class="section sn-network-section" id="regions">
   <div class="container">
-    <div class="section-head reveal" style="margin-bottom:36px">
-      <h2 style="font-size:27px">{{ __('ui.loc_title') }}</h2>
-    </div>
-    <div class="loc-strip reveal">
-      @foreach($locations as $l)
-      <span class="loc"><svg class="icon"><use href="#i-pin"/></svg>{{ lc($l) }}</span>
+    <div class="sn-section-heading"><div><span class="sn-eyebrow" dir="ltr">REGIONS / CONNECTED POSSIBILITIES</span><h2>{{ __('atlas.network') }}</h2></div><p>{{ __('atlas.network_sub') }}</p></div>
+    <div class="sn-region-cards">
+      @foreach($atlasRegions as $region)
+      <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => $region]) }}" class="sn-region-card"><span class="sn-region-dot" aria-hidden="true"></span><h3>{{ __('atlas.'.$region) }}</h3><p>{{ __('atlas.region_'.$region) }}</p><span class="sn-country-code" aria-hidden="true">{{ ['iran'=>'IR', 'germany'=>'DE', 'france'=>'FR', 'netherlands'=>'NL', 'usa'=>'US'][$region] }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
       @endforeach
     </div>
+    <a class="sn-text-link" href="{{ lroute('cloud.index') }}">{{ __('atlas.all_regions') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
   </div>
 </section>
-
 {{-- ============ پلِ متنی به بخشِ محلی ارومیه — فقط فارسی ============
      لینکِ **متنی** (نه منو): ممیزیِ مهاجرت نشان داد صفحاتی که فقط از منو
      لینک دارند ایندکس نمی‌شوند. مقصد، هابِ /urmia است (routes/web.php). --}}
@@ -257,18 +282,10 @@
   </div>
 </section>
 
-{{-- ============ CTA + CONTACT ============ --}}
-<section class="cta-wrap reveal" id="contact">
-  <div class="cta">
-    <h2>{{ __('ui.cta_title') }}</h2>
-    <p>{{ __('ui.cta_sub') }}</p>
-    {{-- «شروع کنید» → کنسولِ خودمان، نه WHMCSِ بیرونی --}}
-    <a class="btn btn-primary" href="{{ console_lroute('account.home') }}"><span>{{ __('ui.cta_btn') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
-    <div class="cta-contacts">
-      <a href="tel:{{ $contact['phone_link'] }}"><svg class="icon"><use href="#i-phone"/></svg>{{ $contact['phone'] }}</a>
-      <a href="mailto:{{ $contact['email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a>
-      <a href="https://wa.me/{{ $contact['whatsapp'] }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-message"/></svg>WhatsApp</a>
-    </div>
+<section class="sn-home-contact" id="contact">
+  <div class="container sn-home-contact-grid">
+    <div class="sn-home-contact-copy"><span class="sn-eyebrow">{{ __('atlas.contact_eyebrow') }}</span><h2>{{ __('atlas.contact_title') }}</h2><p>{{ __('atlas.contact_sub') }}</p><a class="btn btn-primary" href="{{ lroute('contact') }}#form">{{ __('atlas.contact_cta') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a><div class="cta-contacts"><a href="tel:{{ $contact['phone_link'] }}"><svg class="icon"><use href="#i-phone"/></svg><span dir="ltr">{{ $contact['phone'] }}</span></a><a href="mailto:{{ $contact['email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a><a href="https://wa.me/{{ $contact['whatsapp'] }}" target="_blank" rel="noopener">WhatsApp</a></div></div>
+    <div class="sn-home-contact-art" aria-hidden="true"><img src="{{ asset_ver('assets/img/atlas-earth.svg') }}" width="680" height="680" loading="lazy" decoding="async" alt=""><span>LET'S BUILD<br><b>WHAT'S NEXT.</b></span></div>
   </div>
 </section>
 {{-- چرخشِ شعارِ دیتاسنتر — سبک، بی‌کتابخانه (CSP هر منبعِ بیرونی را می‌بندد).
@@ -299,4 +316,5 @@
   }, 3500);
 })();
 </script>
+</div>
 @endsection
