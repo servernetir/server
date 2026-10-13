@@ -42,9 +42,11 @@ for(const file of fs.readdirSync(snapshot).filter(x=>x.endsWith('.html')))
    // Partition supported glyphs: absent glyphs use system fallback without fetching a full font.
    let matched=0;
    css=css.replace(/@font-face\{[^}]*\}/g,face=>{
-    if(/font-family:\s*["']?IRANSans["']?\s*;/.test(face)&&new RegExp('font-weight:\\s*'+font.weight+'\\s*;').test(face)){
-     matched++;return font.remaining_unicode_range?face.slice(0,-1)+';unicode-range:'+font.remaining_unicode_range+'}':'';
-    }return face;
+    if(!/font-family:\s*["']?IRANSans["']?\s*;/.test(face))return face;
+    const normalized=face.replace('font-display:optional','font-display:swap');
+    if(new RegExp('font-weight:\\s*'+font.weight+'\\s*;').test(normalized)){
+     matched++;return font.remaining_unicode_range?normalized.slice(0,-1)+';unicode-range:'+font.remaining_unicode_range+'}':'';
+    }return normalized;
    });
    if(matched!==1)throw new Error('Expected exactly one source font face: '+font.weight);
    const source='/'+font.asset.slice(7);
@@ -57,7 +59,7 @@ for(const file of fs.readdirSync(snapshot).filter(x=>x.endsWith('.html')))
  css+='\n@media(max-width:1020px){.aurora .blob{display:none!important}.aurora{background:radial-gradient(ellipse at 0% 0%,rgba(59,130,246,.16),transparent 55%),radial-gradient(ellipse at 100% 20%,rgba(34,211,238,.10),transparent 50%),radial-gradient(ellipse at 60% 100%,rgba(139,92,246,.08),transparent 55%),var(--bg)}}';
  // Keep IRANSans and its original shaping and weights on every viewport.
  // Closed fixed menus do not need layout. Native offscreen containment keeps SSR content available.
- css+='\n@media(max-width:1020px){.drawer:not(.open){display:none}.drawer.open{display:flex}body>svg[width="0"][height="0"]{display:none}}';
+ css+='\n\n@media(max-width:1020px){.drawer:not(.open){display:none}.drawer.open{display:flex}body>svg[width="0"][height="0"]{display:none}}';
  css+='\n@media(max-width:640px){.cvl-plan{content-visibility:auto;contain-intrinsic-block-size:auto 229px}body>footer{content-visibility:auto;contain-intrinsic-block-size:auto 764px}#main>.cvl-sec:not(#why):not(#plans){content-visibility:auto;contain-intrinsic-block-size:auto 350px}#main>.section:not(.cvl-sec):not(.cvl-top){content-visibility:auto;contain-intrinsic-block-size:auto 1100px}}';
  css+='\n@media(max-width:640px){#main>.cvl-top,#main>#why{contain:layout style}}\n';
  if(css.toLowerCase().includes('</style'))throw new Error('Unsafe style terminator');
