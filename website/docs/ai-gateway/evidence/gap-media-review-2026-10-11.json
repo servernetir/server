@@ -1,0 +1,178 @@
+{
+  "review_date": "2026-10-11",
+  "scope": "Nine remaining GapGPT media and classification entries; local implementation and public documentation review only",
+  "production_mutations_by_reviewer": 0,
+  "supplier_inference_requests_by_reviewer": 0,
+  "activation_claimed": true,
+  "final_nine_model_result": {"active": 1, "closed": 8},
+  "parent_final_verification": {
+    "finished_at_utc": "2026-10-11T11:43:44+00:00",
+    "proof_sha256": "910feeda7f34dff5962a91185540566462b38c330f733a7ea3f888ad44da67c7",
+    "ready_catalogue_models": 333,
+    "original_56_ready": 21,
+    "original_56_closed": 35,
+    "paid_budget_unchanged": true,
+    "historical_financial_audit_unchanged": true,
+    "new_supplier_inference_requests": 0,
+    "final_read_only_synthetic_account_closed": true
+  },
+  "policy": {
+    "cumulative_supplier_test_cap_usd": "5",
+    "previously_committed_micro_usd": 4639000,
+    "latest_parent_verified_committed_micro_usd": 4659000,
+    "markup_basis": "At least 5 percent on recorded rounded cost before customer consumption tax; no replacement supplier tariff is assumed",
+    "tax_display_changed": false
+  },
+  "local_verification": {
+    "tests": 47,
+    "assertions": 1210,
+    "network": "none",
+    "log": "gap-media/gap-decisions-focus.log",
+    "junit": "gap-media/gap-decisions-focus.xml",
+    "source_hash_map": "gap-media/gap-decisions-test-source-hashes.json",
+    "full_integrated_regression": {
+      "sqlite": {"tests": 355, "assertions": 93079, "skipped": 7},
+      "mariadb": {"tests": 355, "assertions": 93123, "skipped": 0},
+      "errors": 0,
+      "failures": 0,
+      "source_paths_pinned_unchanged": 1527,
+      "actual_production_route_errortracker_overlays": true,
+      "proof": "final36-full-test-proof.json",
+      "proof_sha256": "f431d21a2b98fb734faaf55a6863c39ce7e2f67e269b97bbe6033a7dde83d608"
+    }
+  },
+  "models": [
+    {
+      "upstream_model": "typesafe/jev-1.13",
+      "model_id_parent_plan": 450,
+      "state": "Active: bounded source installed, direct live delivery/metering/replay passed, one-shot status activation and final public catalogue verified",
+      "protocol": "gap-systemone",
+      "supplier_endpoint": "POST /v1/systemone",
+      "customer_endpoint": "POST /v1/inference",
+      "category": "classification",
+      "key_ability": "ai:native",
+      "tariff": {"type": "token_usage", "input_usd_per_million": "0.042", "output_usd_per_million": "0"},
+      "reservation_input_tokens": 64000,
+      "reservation_micro_usd": 2688,
+      "limits": {"state_json_utf8_bytes": 4096, "questions": 4, "instruction_json_utf8_bytes": 1024, "criteria_json_utf8_bytes": 256, "choice_or_score_levels": 8},
+      "receipt": "Exact requested answers with published noul/choice/score shapes; real complete input/output token pair, aliases and total if present must agree. Actual input is priced; output stays free.",
+      "recovery": "Freeze only question identifiers, types and option/level keys. Do not retain state or instruction text in native contract. Reject a cached answer for a different requested question set.",
+      "catalogue_policy": "Only exact Jev permits literal zero output tariff. Missing or changed price hash closes readiness. No model activation is performed by source import.",
+      "parent_live_validation": {
+        "proof_sha256": "a75e4622f314b3ccd9d9019e8b41a3d2436402e9a51e533f412a1b63838eec5b",
+        "private_response_sha256": "22dae799433309012c86b0d13ddb3aaf25eb5fc5cfd5a46c4c7b9f9438c27a97",
+        "http": 200,
+        "refund_probability": 0.99,
+        "actual_input_tokens": 293,
+        "actual_output_tokens": 20,
+        "output_token_tariff_free": true,
+        "usage_source": "native_tariff",
+        "provider_cost_micro": null,
+        "cost_micro_usd": 13,
+        "cost_irt": 4,
+        "sell_irt": 5,
+        "tax_irt": 1,
+        "charged_irt": 6,
+        "margin_basis_points": 500,
+        "actual_rounded_known_cost_markup_floor_passed": true,
+        "replay_additional_debit_irt": 0,
+        "replay_additional_usage": 0,
+        "replay_additional_ledger_entries": 0,
+        "replay_financial_audit_unchanged": true,
+        "revoked_key_http": 401,
+        "cleanup_open_usage": 0,
+        "cleanup_wallet_irt": 0,
+        "cleanup_hold_irt": 0,
+        "temporary_model_restored_disabled": true,
+        "activation_attempt_v1": "Rolled back before model backup/write because the helper incorrectly required signed status instead of the application's existing signed-or-owner_assumed gate; failed evidence is preserved",
+        "activation_attempt_v1_proof_sha256": "633455fd1b85fae1c494a625d14cbc819968b3f27678479b07a46c3ad5dc83a8",
+        "activation_attempt_v1_db_committed": false,
+        "activation_v2_guard_policy": "Use existing provider.isAgreedTo and reject paused providers; do not alter the agreement or provider flags",
+        "activation_v2_offline_guards": {"actual_proof_assertions": 25, "actual_provider_class_assertions": 6, "network": "none", "database_writes": 0},
+        "activation": "Successful parent v2 one-shot activation at 2026-10-11T11:43:15+00:00; status active, ready true, DB committed, financial audit and budget unchanged",
+        "activation_v2_proof_sha256": "41d63b340a2005f3f66ee23896b8e03929e0d9e70f18b396ef00991813279251",
+        "agreement_or_provider_flags_changed": false,
+        "coverage": "One noul response was live-tested; choice and score response validation and pricing have local regression coverage, not separate paid samples",
+        "public_page": {
+          "canonical": "https://servernet.cloud/ai/models/gapgpt-typesafejev-113-b0fe36aded",
+          "seo_proof_sha256": "d9064e3a08b8f8455c72eaea6e8d0dc607573d64d9a3021d68a5a6ca068bf57d",
+          "one_h1": true,
+          "structured_data_blocks": 3,
+          "public_vat_mention": false,
+          "classification_ready_rendered": true,
+          "search_ranking_guaranteed": false
+        }
+      },
+      "sources": ["https://gapgpt.app/platform-v2/pricing", "https://gapgpt.app/api/v1/pricing", "https://docs.typesafe.ai/models", "https://docs.typesafe.ai/api"]
+    },
+    {
+      "upstream_model": "gemini-2.5-flash-preview-tts",
+      "state": "Closed: documented beta route unavailable in parent live account check; earlier generic route returned billed usage without audio",
+      "published_model_limits": {"input_tokens": 8192, "output_tokens": 16384},
+      "existing_reservation_micro_usd": 167936,
+      "source": "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-flash-preview-tts"
+    },
+    {
+      "upstream_model": "gemini-2.5-pro-preview-tts",
+      "state": "Closed: shared documented Gemini transport is unavailable; no similar-name model substituted",
+      "published_model_limits": {"input_tokens": 8192, "output_tokens": 16384},
+      "existing_reservation_micro_usd": 671744,
+      "source": "https://ai.google.dev/gemini-api/docs/models/gemini-2.5-pro-preview-tts"
+    },
+    {
+      "upstream_model": "gemini-3-pro-image-preview",
+      "state": "Closed: exact native endpoint, usable output and complete priced receipt not established",
+      "note": "Exact Google model documentation URL returned 404 on review; a current alternative model is not a replacement for this exact GapGPT catalogue entry."
+    },
+    {
+      "upstream_model": "tts-1",
+      "state": "Closed: GapGPT prices token units but documented speech response is binary audio without a matching token receipt",
+      "limits": "Official speech input is at most 4096 characters; SSE is not supported for tts-1. Characters or audio byte count are not billed-token measurements.",
+      "source": "https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create"
+    },
+    {
+      "upstream_model": "gpt-4o-mini-tts",
+      "state": "Closed: actual GapGPT audio metering and a finite enforced or published output ceiling remain unverified",
+      "limits": "Official model page specifies at most 2000 input tokens, but no hard maximum audio-output token limit was established. Binary size is not token usage.",
+      "source": "https://developers.openai.com/api/docs/models/gpt-4o-mini-tts"
+    },
+    {
+      "upstream_model": "whisper-1",
+      "state": "Closed: official verbose JSON reports duration while GapGPT feed prices input/output token units; no validated unit conversion is available",
+      "documented_receipt": "usage.type=duration, usage.seconds; multipart audio/transcriptions",
+      "source": "https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create"
+    },
+    {
+      "upstream_model": "gapgpt/whisper-1",
+      "state": "Closed: GapGPT public minute price and literal token tariff disagree; require a correlated actual supplier receipt before changing cost policy",
+      "public_minute_price_usd": "0.006",
+      "literal_feed_usd_per_million": {"input": "24", "output": "24"},
+      "source": "https://gapgpt.app/platform-v2/pricing"
+    },
+    {
+      "upstream_model": "text-moderation-latest",
+      "state": "Closed: published results have no token usage receipt matching GapGPT's nonzero input/output tariff",
+      "note": "Direct OpenAI moderation being free does not make the billed GapGPT endpoint free.",
+      "source": "https://developers.openai.com/api/reference/resources/moderations/methods/create"
+    }
+  ],
+  "free_supplier_audit_plan": {
+    "dashboard_logs_path": "GET /api/v1/logs",
+    "dashboard_log_params": ["p", "page_size", "type", "token_name", "model_name", "group", "start_timestamp", "end_timestamp"],
+    "dashboard_fields": ["id", "created_at", "model_name", "prompt_tokens", "completion_tokens", "quota", "other"],
+    "quota_usd_display_divisor": 500000,
+    "requirements": "Dashboard authentication is used by public frontend code; API-key access is not established. Inspect correlation between exact supplier request and row before any settlement adapter. Aggregate usage stats or wallet changes cannot settle one customer request.",
+    "source_assets": ["https://gapgpt.app/assets/LogsPage-BAIllpGIq0ID.js", "https://gapgpt.app/assets/UsagePage-y5BylxoAueT9.js"]
+  },
+  "gemini_transport_checkpoint": {
+    "documented_sdk": "Google genai defaults to v1beta and x-goog-api-key; dedicated GapGPT guide sets root base_url, whereas generic model examples use /v1",
+    "parent_live_result": "Parent reports exact documented beta GET and malformed-JSON Flash generateContent POST both HTTP404, no inference or budget change",
+    "parent_proof_name": "gemini-route-validation-v1-proof.json",
+    "parent_proof_sha256": "5dd1411046d31bfe2b96a27913f56cfa021091e2edcf4a0c378b502293d92318",
+    "parent_read_proof_name": "gemini-route-read-v1-proof.json",
+    "parent_read_proof_sha256": "b8cf747c001365e10a50e2be6b841617d66ec92f14ed85ab299599a597dbea59",
+    "implementation_changed": false,
+    "limitation": "This checkpoint repeats parent live findings, not a reviewer-authenticated network test. No Gemini route is claimed operational.",
+    "sources": ["https://gapgpt.app/platform-v2/docs/models/gemini", "https://googleapis.github.io/python-genai/", "https://raw.githubusercontent.com/googleapis/python-genai/main/google/genai/_api_client.py"]
+  }
+}

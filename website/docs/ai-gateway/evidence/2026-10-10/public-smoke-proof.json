@@ -1,0 +1,81 @@
+{
+    "at": "2026-10-10T11:21:00+00:00",
+    "purpose": "Public API smoke with a synthetic, separately funded customer; no real customer funds touched.",
+    "funding_irt": 20,
+    "model_slug": "di-meta-llamameta-llama-31-8b-instruct-turbo-8ab0fdcd4d",
+    "requests": [
+        {
+            "stream": false,
+            "http": 200,
+            "wallet_debit_irt": 2,
+            "request_id": "01m4jrpztz3vv19em4mm1py2nw",
+            "settlement": {
+                "status": "settled",
+                "prompt_tokens": 13,
+                "completion_tokens": 3,
+                "cost_micro": 1,
+                "provider_cost_micro": 1,
+                "cost_irt": 1,
+                "sell_irt": 1,
+                "tax_irt": 1,
+                "charged_irt": 2,
+                "margin_bp": 500,
+                "uncollected_irt": 0,
+                "needs_review": false
+            },
+            "replay": {
+                "http": 200,
+                "replayed": "true",
+                "same_body": true,
+                "additional_debit_irt": 0
+            }
+        },
+        {
+            "stream": true,
+            "http": 200,
+            "wallet_debit_irt": 2,
+            "request_id": "01m4jrq0ze56rsdsz2avrxvds8",
+            "settlement": {
+                "status": "settled",
+                "prompt_tokens": 13,
+                "completion_tokens": 2,
+                "cost_micro": 1,
+                "provider_cost_micro": 1,
+                "cost_irt": 1,
+                "sell_irt": 1,
+                "tax_irt": 1,
+                "charged_irt": 2,
+                "margin_bp": 500,
+                "uncollected_irt": 0,
+                "needs_review": false
+            },
+            "replay": {
+                "http": 200,
+                "replayed": "true",
+                "same_body": true,
+                "additional_debit_irt": 0
+            }
+        }
+    ],
+    "models_http": 200,
+    "models_count": 87,
+    "budget_rejection": {
+        "http": 402,
+        "code": "budget_exceeded",
+        "additional_debit_irt": 0
+    },
+    "revoked_key": {
+        "http": 401,
+        "code": "token_revoked"
+    },
+    "cleanup": {
+        "customer_status": "suspended",
+        "project_status": "archived",
+        "key_revoked": true,
+        "remaining_wallet_irt": 0,
+        "open_usage": 0,
+        "usage_count": 2
+    },
+    "passed": true,
+    "finished_at": "2026-10-10T11:21:04+00:00"
+}

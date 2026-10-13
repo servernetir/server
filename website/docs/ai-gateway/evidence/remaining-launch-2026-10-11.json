@@ -1,0 +1,4009 @@
+{
+  "activation": {
+    "activated_count": 20,
+    "activated_ids": [
+      18,
+      63,
+      65,
+      86,
+      177,
+      250,
+      260,
+      282,
+      309,
+      325,
+      336,
+      359,
+      389,
+      390,
+      396,
+      416,
+      427,
+      444,
+      478,
+      498
+    ],
+    "all_new_ids_ready": true,
+    "family_financial_evidence": [
+      {
+        "activated_ids": [
+          86,
+          177
+        ],
+        "actual_provider_cost_micro": 30000,
+        "charged_irt": 9475,
+        "cost_irt": 8202,
+        "family": "flux2",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 9475,
+        "operation": "native",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 86,
+        "sell_irt": 8613,
+        "usage_source": "native_provider"
+      },
+      {
+        "activated_ids": [
+          65,
+          336
+        ],
+        "actual_provider_cost_micro": 312574,
+        "charged_irt": 96214,
+        "cost_irt": 83301,
+        "family": "seedance",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 96214,
+        "operation": "native",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 65,
+        "sell_irt": 87467,
+        "usage_source": "native_provider"
+      },
+      {
+        "activated_ids": [
+          282,
+          250,
+          309,
+          63,
+          325,
+          359
+        ],
+        "actual_provider_cost_micro": 50000,
+        "charged_irt": 15789,
+        "cost_irt": 13669,
+        "family": "bria-bounded-video-after-relay-proof",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 15789,
+        "operation": "native",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 282,
+        "sell_irt": 14353,
+        "usage_source": "native_provider"
+      },
+      {
+        "activated_ids": [
+          18
+        ],
+        "actual_provider_cost_micro": 150001,
+        "charged_irt": 46173,
+        "cost_irt": 39976,
+        "family": "pruna-avatar",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 46173,
+        "operation": "native",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 18,
+        "sell_irt": 41975,
+        "usage_source": "native_provider"
+      },
+      {
+        "activated_ids": [
+          260
+        ],
+        "actual_provider_cost_micro": 200000,
+        "charged_irt": 61562,
+        "cost_irt": 53300,
+        "family": "wan-reference-video",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 61562,
+        "operation": "native",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 260,
+        "sell_irt": 55965,
+        "usage_source": "native_provider"
+      },
+      {
+        "activated_ids": [
+          416
+        ],
+        "actual_provider_cost_micro": null,
+        "charged_irt": 6,
+        "cost_irt": 4,
+        "family": "deepseek-flash-direct",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 6,
+        "operation": "chat",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 416,
+        "sell_irt": 5,
+        "usage_source": "provider"
+      },
+      {
+        "activated_ids": [
+          390,
+          478
+        ],
+        "actual_provider_cost_micro": null,
+        "charged_irt": 125403,
+        "cost_irt": 2948,
+        "family": "gap-image-main-after-recovery",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 3406,
+        "operation": "native",
+        "refunded_irt": 121997,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 390,
+        "sell_irt": 3096,
+        "usage_source": "native_tariff"
+      },
+      {
+        "activated_ids": [
+          389
+        ],
+        "actual_provider_cost_micro": null,
+        "charged_irt": 355,
+        "cost_irt": 306,
+        "family": "gap-image-mini-after-direct-retry",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 355,
+        "operation": "native",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 389,
+        "sell_irt": 322,
+        "usage_source": "native_tariff"
+      },
+      {
+        "activated_ids": [
+          396
+        ],
+        "actual_provider_cost_micro": null,
+        "charged_irt": 7,
+        "cost_irt": 5,
+        "family": "deepseek-reasoner-after-direct-proof",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 7,
+        "operation": "chat",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 396,
+        "sell_irt": 6,
+        "usage_source": "provider"
+      },
+      {
+        "activated_ids": [
+          427,
+          444,
+          498
+        ],
+        "actual_provider_cost_micro": null,
+        "charged_irt": 157,
+        "cost_irt": 135,
+        "family": "grok-output-cap-family-after-direct-proof",
+        "fee_bp": 0,
+        "markup_bp": 500,
+        "meaningful_output": true,
+        "net_charge_irt": 157,
+        "operation": "chat",
+        "refunded_irt": 0,
+        "replay_additional_debit_irt": 0,
+        "sample_id": 427,
+        "sell_irt": 142,
+        "usage_source": "provider"
+      }
+    ],
+    "representative_siblings_not_individually_paid_tested": true
+  },
+  "bria_existing_receipt_reconciliation": {
+    "existing_cached_http_replay_passed": true,
+    "financial_audit_and_paid_budget_unchanged": true,
+    "fresh_funding_irt": 0,
+    "fresh_supplier_inference_requests": 0,
+    "original_failure_preserved": true,
+    "original_false_guard_proof_sha256": "f94683810a6909da5c9f9c3a6aa3a87d2401569654b84aef03e8dd31363670b2",
+    "persisted_json_numeric_equivalence": true,
+    "read_only_inspection_sha256": "46679a095032039179f7b059de8acfb8371740e42ec89f96c2728355bcdc2eac"
+  },
+  "budget": {
+    "authorized_limit_micro": 5000000,
+    "budget_unchanged_during_final_verification": true,
+    "committed_guard_is_reservation_ceiling_not_claimed_actual_spend": true,
+    "committed_guard_micro": 4639000,
+    "currency": "USD",
+    "uncommitted_guard_micro": 361000
+  },
+  "checkpoint": "2026-10-11-remaining-native-launch",
+  "final_catalog": {
+    "pending_count": 201,
+    "pending_models": [
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 194,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 103,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 202,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 145,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 384,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 278,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 171,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 341,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 5,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 270,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 142,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 148,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 125,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 175,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 280,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 50,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 353,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 49,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 366,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 233,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 61,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 76,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 346,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 162,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 320,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 331,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 113,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 64,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 172,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 55,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 190,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "video",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 252,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 111,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 247,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 124,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 66,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 310,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 355,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "video",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 349,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "video",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 379,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 81,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 40,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 221,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 287,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 3,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 51,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 157,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 222,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 378,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 132,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 141,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 159,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 303,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 363,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 12,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 122,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 20,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 211,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 340,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 173,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 4,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 98,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 1,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 135,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 25,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 338,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 116,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 156,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 330,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 236,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 386,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 244,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 347,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 179,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 17,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 271,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 298,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 241,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 246,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 264,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 97,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 80,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 201,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 360,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 189,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 33,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 75,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "video",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 146,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "video",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 105,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 256,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 102,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 41,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 169,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 48,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 248,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 150,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 180,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 368,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "classification",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 274,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "classification",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 163,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 242,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 19,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 265,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 126,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 35,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 137,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 205,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 26,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 224,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 234,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 38,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 118,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 272,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 289,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 216,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 93,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 22,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 232,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 196,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 297,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 39,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 213,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 27,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 165,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "embedding",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 209,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "embedding",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 225,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "embedding",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 155,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 161,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 249,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 95,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 191,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 78,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 342,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 110,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 166,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 15,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 239,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 284,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 199,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 79,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 121,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 294,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 257,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 130,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 43,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 258,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 308,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 138,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 91,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 231,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 195,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 215,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 164,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 283,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "video",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 90,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "video",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 214,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 299,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 269,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 229,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 369,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 321,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 235,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 32,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 348,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 101,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 16,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 77,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 151,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 183,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 106,
+        "provider": "deepinfra"
+      },
+      {
+        "category": "classification",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 499,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "classification",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 514,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 501,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 516,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 453,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "image",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 408,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 512,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 520,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 438,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 414,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 496,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 430,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 500,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 515,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 406,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 420,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 489,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 476,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 484,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 403,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 469,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 391,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 448,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 413,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 486,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 452,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 440,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "classification",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 445,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 425,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "chat",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 450,
+        "provider": "gapgpt"
+      },
+      {
+        "category": "audio",
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 473,
+        "provider": "gapgpt"
+      }
+    ],
+    "providers": {
+      "deepinfra": {
+        "chat": 97,
+        "embedding": 28,
+        "native": 87,
+        "pending": 170,
+        "ready": 216,
+        "rerank": 4,
+        "total": 386
+      },
+      "deepseek": {
+        "chat": 2,
+        "embedding": 0,
+        "native": 0,
+        "pending": 0,
+        "ready": 2,
+        "rerank": 0,
+        "total": 2
+      },
+      "gapgpt": {
+        "chat": 103,
+        "embedding": 5,
+        "native": 6,
+        "pending": 31,
+        "ready": 114,
+        "rerank": 0,
+        "total": 145
+      }
+    },
+    "ready_count": 332
+  },
+  "final_checks": {
+    "external_payment_requests": 0,
+    "historical_financial_mutations": 0,
+    "prior_synthetic_audits_unchanged": true,
+    "prior_synthetic_cleanup": {
+      "v2": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "closed": true,
+        "customer_status": "suspended",
+        "exists": true,
+        "open_usage": 0,
+        "pending_reservations": 0,
+        "project_count": 1,
+        "token_count": 1,
+        "usage_count": 1,
+        "wallet_irt": 0
+      },
+      "v3": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "closed": true,
+        "customer_status": "suspended",
+        "exists": true,
+        "open_usage": 0,
+        "pending_reservations": 0,
+        "project_count": 1,
+        "token_count": 1,
+        "usage_count": 6,
+        "wallet_irt": 0
+      },
+      "v4": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "closed": true,
+        "customer_status": "suspended",
+        "exists": true,
+        "open_usage": 0,
+        "pending_reservations": 0,
+        "project_count": 1,
+        "token_count": 1,
+        "usage_count": 3,
+        "wallet_irt": 0
+      },
+      "v5": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "closed": true,
+        "customer_status": "suspended",
+        "exists": true,
+        "open_usage": 0,
+        "pending_reservations": 0,
+        "project_count": 1,
+        "token_count": 2,
+        "usage_count": 1,
+        "wallet_irt": 0
+      },
+      "v6": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "closed": true,
+        "customer_status": "suspended",
+        "exists": true,
+        "open_usage": 0,
+        "pending_reservations": 0,
+        "project_count": 1,
+        "token_count": 1,
+        "usage_count": 1,
+        "wallet_irt": 0
+      },
+      "v7": {
+        "account_created": false,
+        "closed": true,
+        "exists": false,
+        "expected_absent": true,
+        "usage_count": 0
+      },
+      "v8": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "closed": true,
+        "customer_status": "suspended",
+        "exists": true,
+        "open_usage": 0,
+        "pending_reservations": 0,
+        "project_count": 1,
+        "token_count": 2,
+        "usage_count": 1,
+        "wallet_irt": 0
+      },
+      "v9": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "closed": true,
+        "customer_status": "suspended",
+        "exists": true,
+        "open_usage": 0,
+        "pending_reservations": 0,
+        "project_count": 1,
+        "token_count": 1,
+        "usage_count": 5,
+        "wallet_irt": 0
+      }
+    },
+    "public_catalog_http": 200,
+    "public_catalog_matches_ready_ids": true,
+    "revoked_read_key_http": 401,
+    "supplier_inference_requests": 0,
+    "unfunded_final_cleanup": {
+      "all_projects_archived": true,
+      "all_tokens_revoked": true,
+      "closed": true,
+      "customer_status": "suspended",
+      "exists": true,
+      "ledger_entry_count": 0,
+      "open_usage": 0,
+      "pending_reservations": 0,
+      "project_count": 1,
+      "token_count": 1,
+      "usage_count": 0,
+      "wallet_irt": 0
+    }
+  },
+  "installed": {
+    "manifests": [
+      {
+        "release": "base",
+        "sha256": "263d8850db5b615f4c27a1fca0e86b89a0f908561777f47cedfd8133b8f18fc0"
+      },
+      {
+        "release": "hotfix-1",
+        "sha256": "ec43ecb23f930e386da032f5549cfd3681e45505d1ccd4708ac08c8acf5f5d11"
+      },
+      {
+        "release": "hotfix-2",
+        "sha256": "7c540b7c30f1f684f87ce35dc3c1a264e133d9c059c7c463b7f87295b7bea1dd"
+      },
+      {
+        "release": "hotfix-3",
+        "sha256": "70e4e4d5fda44b525409c7da36e31e4862da8c9bfa35ac2324d43e77ac34eabc"
+      },
+      {
+        "release": "hotfix-4",
+        "sha256": "bb74ef8d3b320b8a6c80e895d7db76f337dc7a21456e7590fcf26b41b4aaa097"
+      }
+    ],
+    "verified_files": [
+      {
+        "path": "app/Console/Commands/AiPruneReplay.php",
+        "sha256": "739f2165af1b11f53112744cc94c2cefe602bd766dd899cf45289e530d2bf38c"
+      },
+      {
+        "path": "app/Console/Commands/AiRecoverUsage.php",
+        "sha256": "4f5f96288fe20412bfc0384fd03e609ef5a708a7e6962da6c872e11a81f2e28d"
+      },
+      {
+        "path": "app/Http/Controllers/Ai/AiMediaRelayController.php",
+        "sha256": "1405584cb20dc767e92b7e5b75a4578ddf168fe29d2a39710a1a4c338c8317c0"
+      },
+      {
+        "path": "app/Services/Ai/AdditionalProviderCatalog.php",
+        "sha256": "37bff8f07d453c6807f311b6f68c2b8109b22e4ad84ec052a172200abb1130e2"
+      },
+      {
+        "path": "app/Services/Ai/AiCaller.php",
+        "sha256": "4cabc574793f2ea0b414d9cc8e5b120307bce0f6f2d82059382bd109fc66f12c"
+      },
+      {
+        "path": "app/Services/Ai/AiGapOperations.php",
+        "sha256": "1cfb0dea7a21e4db4273f6e4f90055a82cf7a3a930b627db2f6d8a75aa9e8828"
+      },
+      {
+        "path": "app/Services/Ai/AiMediaRelay.php",
+        "sha256": "49f8ac62076866120e20a1e04ac425d92fe805fd3f25cabeea478955df242216"
+      },
+      {
+        "path": "app/Services/Ai/AiModelPage.php",
+        "sha256": "be677af11d3df02af4b989e00124dca1514c5e64f82e9c4fe0e13e889cf61e35"
+      },
+      {
+        "path": "app/Services/Ai/AiNative.php",
+        "sha256": "6a2f6828c3d3623effc36a230eea85506e68277fbe9194ddac1aacb2aeab3177"
+      },
+      {
+        "path": "app/Services/Ai/AiNativeResponseRecovery.php",
+        "sha256": "73e6f2929c56e30c9a4e19e88424a8390dea63c757444d451d97da15da67d104"
+      },
+      {
+        "path": "app/Services/Ai/AiPriceQuote.php",
+        "sha256": "9427c5df17ccfd6fd84f633d46730278b6f44e5e55bb984457d4768b40643d6f"
+      },
+      {
+        "path": "app/Services/Ai/AiPricing.php",
+        "sha256": "56cc01176e936d400e0998e6c51ad6687f421fdb234cfbe90faaad74ae16fd10"
+      },
+      {
+        "path": "app/Services/Ai/AiSettlement.php",
+        "sha256": "10f05e3d6e7538824c95e25582e6de1e2dfddfe24914b132a597fbce41ef931d"
+      },
+      {
+        "path": "app/Services/Ai/AiVideoInput.php",
+        "sha256": "d646f0869b8502077eac8c9a80e0b63adaf86b8d78329c4e96f2721cb6084036"
+      },
+      {
+        "path": "app/Services/AiProviders/OpenAiCompatibleDriver.php",
+        "sha256": "153c21be298781e33e8d7ebfe55a12cc7ae92198ee5bd675eec39ca5addfd046"
+      },
+      {
+        "path": "app/Support/ErrorTracker.php",
+        "sha256": "076867a8a076a56fb8f6226b4e916e619efb5278f79429a0caab34080ea0d071"
+      },
+      {
+        "path": "lang/en/ai.php",
+        "sha256": "df03a00138a3df05ff6704abd8b4d53ab15b6eabe1f3ae555ece91847693cb85"
+      },
+      {
+        "path": "lang/en/ai_model.php",
+        "sha256": "aba54ffde12fbbfc4059eeb0b59aa78cabe2a3f01ec7230689d70e0983da71d6"
+      },
+      {
+        "path": "lang/fa/ai.php",
+        "sha256": "2bc3d5c0e2827ab7d483b4f5185918a5d46a28ca3808e7d26eab557c0b21c5c6"
+      },
+      {
+        "path": "lang/fa/ai_model.php",
+        "sha256": "f65bd9dc385769736f66cb8e58dd395b0d50cd629ef280404b5d6785ad27bd8d"
+      },
+      {
+        "path": "lang/tr/ai.php",
+        "sha256": "3f849dbe4280dd95cc2abf4d3cee5268cf3949a2e2471ba37159120e482f7f1f"
+      },
+      {
+        "path": "lang/tr/ai_model.php",
+        "sha256": "c20a3e5d0108a5005a1b1483ad8f6e8cd66c4abd92173a673533220f29b77276"
+      },
+      {
+        "path": "resources/content/ai-native-contracts.json",
+        "sha256": "90e960425c9be19b7f197510ae96b53f2e224d58988a2bebe3d36d4f438f399e"
+      },
+      {
+        "path": "resources/content/gapgpt-operation-contracts.json",
+        "sha256": "975d2ac3004bdcb6a1c7da8ce6a5a050b8386b1b737379f32d6c4cc2baeff452"
+      },
+      {
+        "path": "resources/views/account/ai.blade.php",
+        "sha256": "6896bf6bf154119a5e464f49b8a334ced66f2188e99610b2cb29cbd42b72ba17"
+      },
+      {
+        "path": "resources/views/account/topup.blade.php",
+        "sha256": "56a25063aae7e4c028c7c87d819f523a15d55b566317ff6961d5a127a6275d08"
+      },
+      {
+        "path": "resources/views/pages/ai/home.blade.php",
+        "sha256": "036caf0f0fd79470e6ef6bf8abf315016eed76a4ca9c9d942a473d80e9562161"
+      },
+      {
+        "path": "resources/views/pages/ai/model.blade.php",
+        "sha256": "d0a534c67941901381d0dd3ed58a0a5708907b4068d61509d73e8ec4b5ae6fb0"
+      },
+      {
+        "path": "resources/views/pages/ai/models.blade.php",
+        "sha256": "5d3308d025acf64ee138961c181c31aae7eea9db932944d56b5d1ac39286dbbc"
+      },
+      {
+        "path": "routes/web.php",
+        "sha256": "72465c4cf1d71eb4ce1227dd61d64bd8054032cb988c5d18d9540f650d9d562a"
+      }
+    ]
+  },
+  "limits": [
+    "A 5% rounded markup covers the known provider cost and declared acquisition fee; undisclosed future charges are not guaranteed.",
+    "Stored replay JSON does not extend supplier media URL lifetime; download delivered media promptly.",
+    "Successful representative execution does not assert individually paid testing of every sibling or search-engine rank."
+  ],
+  "original_remaining_56": {
+    "models": [
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 18,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 63,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 65,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "image",
+        "execution_ready": true,
+        "gates": [],
+        "id": 86,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "classification",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 163,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": false
+      },
+      {
+        "category": "image",
+        "execution_ready": true,
+        "gates": [],
+        "id": 177,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "audio",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 229,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": false
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 250,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 260,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "classification",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 274,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": false
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 282,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 309,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "audio",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 321,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": false
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 325,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 336,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "video",
+        "execution_ready": true,
+        "gates": [],
+        "id": 359,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": true
+      },
+      {
+        "category": "audio",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 369,
+        "model_suspended": false,
+        "provider": "deepinfra",
+        "ready": false
+      },
+      {
+        "category": "image",
+        "execution_ready": true,
+        "gates": [],
+        "id": 389,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "image",
+        "execution_ready": true,
+        "gates": [],
+        "id": 390,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 391,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [],
+        "id": 396,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 403,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 406,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "image",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 408,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 413,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 414,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [],
+        "id": 416,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "audio",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 420,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "audio",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 425,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [],
+        "id": 427,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 430,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 438,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 440,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [],
+        "id": 444,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "classification",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 445,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 448,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 450,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 452,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "audio",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 453,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 469,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "audio",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 473,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 476,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "image",
+        "execution_ready": true,
+        "gates": [],
+        "id": 478,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "chat",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "pricing_incomplete"
+        ],
+        "id": 484,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 486,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 489,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 496,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [],
+        "id": 498,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": true
+      },
+      {
+        "category": "classification",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 499,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 500,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "audio",
+        "execution_ready": false,
+        "gates": [
+          "catalogue_unavailable",
+          "model_inactive",
+          "model_not_chat",
+          "pricing_incomplete"
+        ],
+        "id": 501,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 512,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "classification",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 514,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 515,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "audio",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 516,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      },
+      {
+        "category": "chat",
+        "execution_ready": true,
+        "gates": [
+          "model_inactive"
+        ],
+        "id": 520,
+        "model_suspended": false,
+        "provider": "gapgpt",
+        "ready": false
+      }
+    ],
+    "pending": 36,
+    "providers": {
+      "deepinfra": {
+        "original": 17,
+        "pending": 5,
+        "ready": 12
+      },
+      "gapgpt": {
+        "original": 39,
+        "pending": 31,
+        "ready": 8
+      }
+    },
+    "ready": 20,
+    "total": 56
+  },
+  "preserved_initial_verifier_attempt": {
+    "customer_created": false,
+    "funding_irt": 0,
+    "historical_financial_mutations": 0,
+    "passed": false,
+    "reason": "initial_manifest_relative_path_corrected",
+    "sha256": "b32d4bddbfecd8b945adae87404d3221cb4be59c10c8c82ccac3d87f14bedc86",
+    "supplier_inference_requests": 0
+  },
+  "remaining_documented_deepinfra_blockers": [
+    {
+      "model": "openai/clip-vit-base-patch32",
+      "provider": "deepinfra",
+      "reason": "no_documented_hard_runtime_cost_ceiling"
+    },
+    {
+      "model": "openai/clip-vit-large-patch14-336",
+      "provider": "deepinfra",
+      "reason": "no_documented_hard_runtime_cost_ceiling"
+    },
+    {
+      "model": "XiaomiMiMo/MiMo-V2.5-tts",
+      "provider": "deepinfra",
+      "reason": "temporary_zero_wholesale_tariff_no_percentage_paid_base"
+    },
+    {
+      "model": "XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+      "provider": "deepinfra",
+      "reason": "temporary_zero_wholesale_tariff_no_percentage_paid_base"
+    },
+    {
+      "model": "XiaomiMiMo/MiMo-V2.5-tts-voiceclone",
+      "provider": "deepinfra",
+      "reason": "temporary_zero_wholesale_tariff_no_percentage_paid_base"
+    }
+  ],
+  "representative_samples": [
+    {
+      "cleanup": {
+        "key_revoked": true,
+        "open_usage": 1,
+        "remaining_wallet_irt": 894551,
+        "usage_count": 6
+      },
+      "proof": "continue-smoke-proof.json",
+      "requests": [
+        {
+          "http": 200,
+          "initial_http": 200,
+          "model": "black-forest-labs/FLUX-2-pro",
+          "model_id": 86,
+          "operation": "native",
+          "passed": true,
+          "provider": "deepinfra",
+          "replay": {
+            "additional_debit_irt": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 50000,
+          "settlement": {
+            "charged_irt": 9235,
+            "completion_tokens": null,
+            "cost_irt": 7995,
+            "cost_micro": 30000,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": 30000,
+            "sell_irt": 8395,
+            "status": "settled",
+            "tax_irt": 840,
+            "uncollected_irt": 0,
+            "usage_source": "native_provider"
+          },
+          "wallet_debit_irt": 9235
+        },
+        {
+          "http": 409,
+          "initial_http": 202,
+          "model": "Bria/video_increase_resolution",
+          "model_id": 282,
+          "operation": "native",
+          "passed": false,
+          "provider": "deepinfra",
+          "reserved_micro": 400000,
+          "settlement": {
+            "charged_irt": 0,
+            "completion_tokens": null,
+            "cost_irt": null,
+            "cost_micro": null,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": null,
+            "sell_irt": null,
+            "status": "released",
+            "tax_irt": null,
+            "uncollected_irt": 0
+          },
+          "wallet_debit_irt": 0
+        },
+        {
+          "http": 200,
+          "initial_http": 202,
+          "model": "ByteDance/Seedance-2.0",
+          "model_id": 65,
+          "operation": "native",
+          "passed": true,
+          "provider": "deepinfra",
+          "replay": {
+            "additional_debit_irt": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 400000,
+          "settlement": {
+            "charged_irt": 96214,
+            "completion_tokens": null,
+            "cost_irt": 83301,
+            "cost_micro": 312574,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": 312574,
+            "sell_irt": 87467,
+            "status": "settled",
+            "tax_irt": 8747,
+            "uncollected_irt": 0,
+            "usage_source": "native_provider"
+          },
+          "wallet_debit_irt": 96214
+        },
+        {
+          "http": 502,
+          "initial_http": 502,
+          "model": "gpt-image-1-mini",
+          "model_id": 389,
+          "operation": "native",
+          "passed": false,
+          "provider": "gapgpt",
+          "reserved_micro": 60000,
+          "settlement": {
+            "charged_irt": 0,
+            "completion_tokens": null,
+            "cost_irt": null,
+            "cost_micro": null,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": null,
+            "sell_irt": null,
+            "status": "released",
+            "tax_irt": null,
+            "uncollected_irt": 0
+          },
+          "wallet_debit_irt": 0
+        },
+        {
+          "http": 502,
+          "initial_http": 502,
+          "model": "babbage-002",
+          "model_id": 499,
+          "operation": "native",
+          "passed": false,
+          "provider": "gapgpt",
+          "reserved_micro": 1000,
+          "settlement": {
+            "charged_irt": 0,
+            "completion_tokens": null,
+            "cost_irt": null,
+            "cost_micro": null,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": null,
+            "sell_irt": null,
+            "status": "released",
+            "tax_irt": null,
+            "uncollected_irt": 0
+          },
+          "wallet_debit_irt": 0
+        },
+        {
+          "http": 502,
+          "initial_http": 502,
+          "model": "gemini-2.5-flash-preview-tts",
+          "model_id": 516,
+          "operation": "native",
+          "passed": false,
+          "provider": "gapgpt",
+          "reserved_micro": 180000,
+          "settlement": {
+            "charged_irt": null,
+            "completion_tokens": null,
+            "cost_irt": null,
+            "cost_micro": null,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": null,
+            "sell_irt": null,
+            "status": "unknown_pending",
+            "tax_irt": null,
+            "uncollected_irt": 0
+          },
+          "wallet_debit_irt": 0
+        }
+      ],
+      "sha256": "eb22bf942a1a935fb9a55b413bed1e32dabaeb5dd133a063c654436f49f4024c",
+      "temporary_key_revoked": true
+    },
+    {
+      "cleanup": {
+        "key_revoked": true,
+        "open_usage": 0,
+        "remaining_wallet_irt": 0,
+        "usage_count": 3
+      },
+      "proof": "unattempted-smoke-proof.json",
+      "requests": [
+        {
+          "http": 200,
+          "initial_http": 200,
+          "model": "deepseek-v4-flash",
+          "model_id": 416,
+          "operation": "chat",
+          "passed": true,
+          "provider": "gapgpt",
+          "replay": {
+            "additional_debit_irt": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 100000,
+          "settlement": {
+            "charged_irt": 4,
+            "completion_tokens": 16,
+            "cost_irt": 2,
+            "cost_micro": 6,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": 10,
+            "provider_cost_micro": null,
+            "sell_irt": 3,
+            "status": "settled",
+            "tax_irt": 1,
+            "uncollected_irt": 0,
+            "usage_source": "provider"
+          },
+          "wallet_debit_irt": 4
+        },
+        {
+          "http": 200,
+          "initial_http": 202,
+          "model": "PrunaAI/p-video-avatar",
+          "model_id": 18,
+          "operation": "native",
+          "passed": true,
+          "provider": "deepinfra",
+          "replay": {
+            "additional_debit_irt": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 300000,
+          "settlement": {
+            "charged_irt": 46173,
+            "completion_tokens": null,
+            "cost_irt": 39976,
+            "cost_micro": 150001,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": 150001,
+            "sell_irt": 41975,
+            "status": "settled",
+            "tax_irt": 4198,
+            "uncollected_irt": 0,
+            "usage_source": "native_provider"
+          },
+          "wallet_debit_irt": 46173
+        },
+        {
+          "http": 200,
+          "initial_http": 202,
+          "model": "Wan-AI/Wan2.7-R2V",
+          "model_id": 260,
+          "operation": "native",
+          "passed": true,
+          "provider": "deepinfra",
+          "replay": {
+            "additional_debit_irt": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 350000,
+          "settlement": {
+            "charged_irt": 61562,
+            "completion_tokens": null,
+            "cost_irt": 53300,
+            "cost_micro": 200000,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": 200000,
+            "sell_irt": 55965,
+            "status": "settled",
+            "tax_irt": 5597,
+            "uncollected_irt": 0,
+            "usage_source": "native_provider"
+          },
+          "wallet_debit_irt": 61562
+        }
+      ],
+      "sha256": "1c77460d8e2eeba63e74bf0440614d2c44330d56fe1579090f4c7e194e1f77f9",
+      "temporary_key_revoked": true
+    },
+    {
+      "cleanup": {
+        "key_revoked": true,
+        "open_usage": 0,
+        "remaining_wallet_irt": 0,
+        "usage_count": 1
+      },
+      "proof": "deepseek-delivery-proof.json",
+      "requests": [
+        {
+          "delivery_ok": true,
+          "http": 200,
+          "initial_http": 200,
+          "model": "deepseek-v4-flash",
+          "model_id": 416,
+          "operation": "chat",
+          "passed": true,
+          "provider": "gapgpt",
+          "replay": {
+            "additional_debit_irt": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 1000,
+          "settlement": {
+            "charged_irt": 6,
+            "completion_tokens": 40,
+            "cost_irt": 4,
+            "cost_micro": 13,
+            "margin_bp": 500,
+            "needs_review": false,
+            "prompt_tokens": 10,
+            "provider_cost_micro": null,
+            "sell_irt": 5,
+            "status": "settled",
+            "tax_irt": 1,
+            "uncollected_irt": 0,
+            "usage_source": "provider"
+          },
+          "wallet_debit_irt": 6
+        }
+      ],
+      "sha256": "30c300c4bafc9aee8b34a37710458021d4daab5880fbc79e1cb7d5b871415fcd",
+      "temporary_key_revoked": true
+    },
+    {
+      "cleanup": {
+        "customer_status": "suspended",
+        "key_revoked": true,
+        "model_status": "disabled",
+        "open_usage": 0,
+        "project_status": "archived",
+        "remaining_wallet_irt": 0,
+        "usage_count": 1
+      },
+      "proof": "checks-v3/bria-v8-reconciled-proof.json",
+      "requests": [
+        {
+          "delivery": {
+            "bytes": 16591,
+            "curl_errno": 0,
+            "duration_within_native_reserve": true,
+            "http": 200,
+            "media": {
+              "frames": 10,
+              "height": 480,
+              "seconds": "1.000000",
+              "width": 640
+            },
+            "oversize": false,
+            "redirect_count": 0,
+            "sha256": "fb4fcbe6c76d460f60d86cfaf1fdb74ef06062fcc6e594569262f77d66eaed60",
+            "transport_error": false,
+            "valid_download": true,
+            "valid_media": true
+          },
+          "financial_ok": true,
+          "frozen_contract_ok": true,
+          "http": 200,
+          "initial_http": 202,
+          "model": "Bria/video_increase_resolution",
+          "model_id": 282,
+          "operation": "native",
+          "passed": true,
+          "provider": "deepinfra",
+          "replay": {
+            "additional_debit_irt": 0,
+            "additional_ledger_entries": 0,
+            "additional_usage": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true,
+            "same_semantic_body": true
+          },
+          "reserved_micro": 150000,
+          "settlement": {
+            "cached_tokens": null,
+            "charged_irt": 15789,
+            "completion_tokens": null,
+            "cost_irt": 13669,
+            "cost_micro": 50000,
+            "fee_bp": 0,
+            "margin_bp": 500,
+            "max_input_tokens": 0,
+            "max_output_tokens": 0,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": 50000,
+            "refunded_irt": 0,
+            "sell_irt": 14353,
+            "status": "settled",
+            "tax_irt": 1436,
+            "uncollected_irt": 0,
+            "usage_source": "native_provider"
+          },
+          "supplier_cost_redacted": true,
+          "wallet_debit_irt": 15789
+        }
+      ],
+      "sha256": "a0092c70f4949725b3568a7a3de65fec3c678e7c3053458c7fa6f4c1191bc687",
+      "temporary_key_revoked": true
+    },
+    {
+      "cleanup": {
+        "customer_status": "suspended",
+        "key_revoked": true,
+        "open_usage": 0,
+        "project_status": "archived",
+        "remaining_wallet_irt": 0,
+        "usage_count": 5
+      },
+      "proof": "final-samples-v9-proof.json",
+      "requests": [
+        {
+          "delivery": {
+            "bytes": 29269,
+            "curl_errno": 0,
+            "full_decode": true,
+            "height": 256,
+            "http": 200,
+            "mime": "image/jpeg",
+            "oversize": false,
+            "redirect_count": 0,
+            "sha256": "d77448e0c0464a5fcd48b2be13163f8f2f2df87f1a3ad4b3c42d11bf0f704d44",
+            "transport_error": false,
+            "valid_download": true,
+            "valid_media": true,
+            "width": 256
+          },
+          "financial_ok": true,
+          "frozen_contract_ok": true,
+          "http": 200,
+          "initial_http": 200,
+          "model": "black-forest-labs/FLUX-2-pro",
+          "model_id": 86,
+          "operation": "native",
+          "passed": true,
+          "provider": "deepinfra",
+          "replay": {
+            "additional_debit_irt": 0,
+            "additional_usage": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 50000,
+          "settlement": {
+            "cached_tokens": null,
+            "charged_irt": 9475,
+            "completion_tokens": null,
+            "cost_irt": 8202,
+            "cost_micro": 30000,
+            "fee_bp": 0,
+            "margin_bp": 500,
+            "max_input_tokens": 0,
+            "max_output_tokens": 0,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": 30000,
+            "refunded_irt": 0,
+            "sell_irt": 8613,
+            "status": "settled",
+            "tax_irt": 862,
+            "uncollected_irt": 0,
+            "usage_source": "native_provider"
+          },
+          "supplier_cost_redacted": true,
+          "wallet_debit_irt": 9475
+        },
+        {
+          "bounded_tokens": {
+            "input_within_allowance": true,
+            "output_within_allowance": true
+          },
+          "delivery": {
+            "bytes": 1199803,
+            "full_decode": true,
+            "height": 1024,
+            "mime": "image/png",
+            "sha256": "a5f348a63e3465fe7a7d181aa567ed8d9c37708308c428a3632b8d8973bae029",
+            "valid_media": true,
+            "width": 1024
+          },
+          "financial_ok": true,
+          "frozen_contract_ok": true,
+          "http": 200,
+          "initial_http": 200,
+          "model": "gpt-image-1-mini",
+          "model_id": 389,
+          "operation": "native",
+          "passed": true,
+          "provider": "gapgpt",
+          "replay": {
+            "additional_debit_irt": 0,
+            "additional_usage": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 60000,
+          "settlement": {
+            "cached_tokens": null,
+            "charged_irt": 355,
+            "completion_tokens": 272,
+            "cost_irt": 306,
+            "cost_micro": 1116,
+            "fee_bp": 0,
+            "margin_bp": 500,
+            "max_input_tokens": 0,
+            "max_output_tokens": 0,
+            "needs_review": false,
+            "prompt_tokens": 14,
+            "provider_cost_micro": null,
+            "refunded_irt": 0,
+            "sell_irt": 322,
+            "status": "settled",
+            "tax_irt": 33,
+            "uncollected_irt": 0,
+            "usage_source": "native_tariff"
+          },
+          "supplier_cost_redacted": true,
+          "wallet_debit_irt": 355
+        },
+        {
+          "bounded_tokens": {
+            "input_within_allowance": true,
+            "output_within_allowance": true
+          },
+          "delivery": {
+            "valid_media": false
+          },
+          "financial_ok": false,
+          "frozen_contract_ok": true,
+          "http": 502,
+          "initial_http": 502,
+          "model": "davinci-002",
+          "model_id": 514,
+          "operation": "native",
+          "passed": false,
+          "provider": "gapgpt",
+          "reserved_micro": 1000,
+          "settlement": {
+            "cached_tokens": null,
+            "charged_irt": 0,
+            "completion_tokens": null,
+            "cost_irt": null,
+            "cost_micro": null,
+            "fee_bp": 0,
+            "margin_bp": 500,
+            "max_input_tokens": 0,
+            "max_output_tokens": 0,
+            "needs_review": false,
+            "prompt_tokens": null,
+            "provider_cost_micro": null,
+            "refunded_irt": 0,
+            "sell_irt": null,
+            "status": "released",
+            "tax_irt": null,
+            "uncollected_irt": 0
+          },
+          "supplier_cost_redacted": true,
+          "wallet_debit_irt": 0
+        },
+        {
+          "bounded_tokens": {
+            "input_within_allowance": true,
+            "output_cap": 512,
+            "output_within_allowance": true
+          },
+          "delivery": {
+            "text_bytes": 2,
+            "valid_media": true
+          },
+          "financial_ok": true,
+          "frozen_contract_ok": true,
+          "http": 200,
+          "initial_http": 200,
+          "model": "deepseek-reasoner",
+          "model_id": 396,
+          "operation": "chat",
+          "passed": true,
+          "provider": "gapgpt",
+          "replay": {
+            "additional_debit_irt": 0,
+            "additional_usage": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 1000,
+          "settlement": {
+            "cached_tokens": 0,
+            "charged_irt": 7,
+            "completion_tokens": 12,
+            "cost_irt": 5,
+            "cost_micro": 16,
+            "fee_bp": 0,
+            "margin_bp": 500,
+            "max_input_tokens": 336,
+            "max_output_tokens": 512,
+            "needs_review": false,
+            "prompt_tokens": 89,
+            "provider_cost_micro": null,
+            "refunded_irt": 0,
+            "sell_irt": 6,
+            "status": "settled",
+            "tax_irt": 1,
+            "uncollected_irt": 0,
+            "usage_source": "provider"
+          },
+          "supplier_cost_redacted": true,
+          "wallet_debit_irt": 7
+        },
+        {
+          "bounded_tokens": {
+            "input_within_allowance": true,
+            "output_cap": 512,
+            "output_within_allowance": true
+          },
+          "delivery": {
+            "text_bytes": 2,
+            "valid_media": true
+          },
+          "financial_ok": true,
+          "frozen_contract_ok": true,
+          "http": 200,
+          "initial_http": 200,
+          "model": "grok-4.3",
+          "model_id": 427,
+          "operation": "chat",
+          "passed": true,
+          "provider": "gapgpt",
+          "replay": {
+            "additional_debit_irt": 0,
+            "additional_usage": 0,
+            "http": 200,
+            "replayed": true,
+            "same_body": true
+          },
+          "reserved_micro": 5000,
+          "settlement": {
+            "cached_tokens": 128,
+            "charged_irt": 157,
+            "completion_tokens": 98,
+            "cost_irt": 135,
+            "cost_micro": 493,
+            "fee_bp": 0,
+            "margin_bp": 500,
+            "max_input_tokens": 336,
+            "max_output_tokens": 512,
+            "needs_review": false,
+            "prompt_tokens": 198,
+            "provider_cost_micro": null,
+            "refunded_irt": 0,
+            "sell_irt": 142,
+            "status": "settled",
+            "tax_irt": 15,
+            "uncollected_irt": 0,
+            "usage_source": "provider"
+          },
+          "supplier_cost_redacted": true,
+          "wallet_debit_irt": 157
+        }
+      ],
+      "sha256": "6cef36a9498a30d5cba877c44e3395eef2e6544668bee61558eb9e17814ef8b2",
+      "temporary_key_revoked": true
+    }
+  ],
+  "retained_synthetic_recoveries": [
+    {
+      "charged_irt": 125403,
+      "cleanup": {
+        "all_projects_archived": true,
+        "all_tokens_revoked": true,
+        "customer_status": "suspended",
+        "model_status": "disabled",
+        "open_usage": 0,
+        "remaining_wallet_irt": 0,
+        "usage_count": 1
+      },
+      "cost_micro": 11020,
+      "delivery_retained": true,
+      "input_tokens": 14,
+      "model_id": 390,
+      "output_tokens": 272,
+      "passed": true,
+      "proof": "image-synthetic-recovery-v3-proof.json",
+      "refunded_irt": 121997,
+      "sha256": "66a1c551134a14e558c1800fadb39c6898c459c749e272f01566ef518e4a7c3b",
+      "supplier_inference_requests": 0
+    },
+    {
+      "charged_irt": 56863,
+      "cost_micro": 554,
+      "passed": true,
+      "proof": "gemini-synthetic-settlement-v3-proof.json",
+      "refunded_irt": 56691,
+      "sale_activation_inferred": false,
+      "sha256": "f1d9f1e0733a99e2b772371ee61cb72e2469cd2876558bfd8a416f052da62f66",
+      "usable_output_present": false
+    }
+  ],
+  "schema_version": 1,
+  "source_proofs": {
+    "activation_sha256": "eaf0c52557d781cd79355aceb6663dd1d0f672c305497c1360a79031940d3bd7",
+    "final_state_sha256": "aba61fe241ad9e91e685b43d33495cb16ed4bdb72b4a993f1f792903d564e2d5"
+  },
+  "tests": {
+    "h3_storefront": {
+      "assertions": 726,
+      "errors": 0,
+      "failures": 0,
+      "junit_sha256": "bf50a46a22e24f5f83d733daf77eb59bde08118e0cf524da0e9e747e1e94476c",
+      "skipped": 0,
+      "tests": 16
+    },
+    "h4_storefront": {
+      "assertions": 827,
+      "errors": 0,
+      "failures": 0,
+      "junit_sha256": "e783da5c1f5162e1372fb356ea3de106ba4e23f6b8473aa8ddcb3938913a4ae3",
+      "skipped": 0,
+      "tests": 19
+    },
+    "mariadb": {
+      "assertions": 92838,
+      "errors": 0,
+      "failures": 0,
+      "junit_sha256": "a022cb5677036cfc58ad52defd3b32423cff44714121bf0975928fb1ae29f482",
+      "skipped": 0,
+      "tests": 346
+    },
+    "sqlite": {
+      "assertions": 92794,
+      "errors": 0,
+      "failures": 0,
+      "junit_sha256": "0960bb0430f6777bb72ad858c2e514028614dbc1a8bedb8e96fb4aac82fa625e",
+      "skipped": 7,
+      "tests": 346
+    }
+  },
+  "verified_at": "2026-10-11T10:31:29+00:00"
+}

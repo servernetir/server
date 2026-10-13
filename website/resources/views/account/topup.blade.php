@@ -29,6 +29,20 @@
             style="display:flex;flex-direction:column;gap:18px;max-width:460px">
         @csrf
 
+        @php
+          $aiFundingCustomer = \Illuminate\Support\Facades\Auth::guard('customer')->user();
+          $aiFundingTax = $aiFundingCustomer
+            && \Illuminate\Support\Facades\Schema::hasTable('ai_projects')
+            && $aiFundingCustomer->aiProjects()->exists()
+              ? app(\App\Services\Ai\AiVat::class)->resolve($aiFundingCustomer) : null;
+        @endphp
+        @if($aiFundingTax !== null)
+          <p data-ai-funding-tax style="margin:0;color:var(--dim);font-size:12.5px;line-height:1.9">
+            {{ __('ai.funding_usage_tax_note', ['percent' => \App\Services\Ai\AiPricing::bpToPercent($aiFundingTax['bp'])]) }}
+            <a href="{{ lroute('account.ai') }}">{{ __('ai.history') }}</a>
+          </p>
+        @endif
+
         <div>
           <label for="amount" style="display:block;font-size:12.5px;font-weight:600;margin-bottom:8px">
             {{ __('ui.top_amount_label') }}

@@ -174,6 +174,7 @@ class SecurityController extends Controller
 
             /* ── مالِ M2 — کلیدِ AI: پروژهٔ bound + نردبانِ ai:* ── */
             'ai_project_id'=> ['nullable', 'integer', 'min:1'],
+            'daily_spend_cap_irt' => ['nullable', 'integer', 'min:1', 'max:9000000000000'],
         ], [], ['name' => __('panel.field_token')]);
 
         // سقف از مدل می‌آید چون مستنداتِ /developers هم همان را چاپ می‌کند
@@ -253,7 +254,7 @@ class SecurityController extends Controller
 
         $days = (int) ($data['expires_days'] ?? 0);
 
-        [, $plain] = CustomerApiToken::issue(
+        [$issued, $plain] = CustomerApiToken::issue(
             $c->id,
             $data['name'],
             $abilities,
@@ -261,6 +262,9 @@ class SecurityController extends Controller
             $days > 0 ? now()->addDays($days) : null,
             $aiProject?->id,
         );
+        if ($aiProject !== null) {
+            $issued->forceFill(['daily_spend_cap_irt' => $data['daily_spend_cap_irt'] ?? 0])->save();
+        }
 
         // متنِ خامِ توکن فقط همین یک‌بار نشان داده می‌شود
         return back()->with('ok', __('ui.scf_token_ok'))
@@ -325,7 +329,17 @@ class SecurityController extends Controller
         | بودجه: صفر هرگز بازمَندی نمی‌شود — «نال» یعنی بی‌سقف. دورهٔ ماهانه
         | بی‌بودجه بی‌خود نمی‌سازیم: دوره فقط با بودجه معنا دارد.
         */
-        $period = $data['budget_period'] ?? AiProject::PERIOD_NONE;
+        /*
+        | 🔴 «بودجه دادم ولی ذخیره نشد».
+        |
+        | فرمِ واقعی فیلدِ `budget_period` را نمی‌فرستد، پس پیش‌فرض `none`
+        | می‌شد و بودجهٔ تایپ‌شده بی‌صدا دور ریخته می‌شد — مشتری سقف گذاشته
+        | بود و هیچ سقفی وجود نداشت. مبلغِ مثبت **خودش** یعنی دورهٔ ماهانه.
+        */
+        $period = $data['budget_period'] ?? (($data['monthly_budget'] ?? 0) > 0
+            ? AiProject::PERIOD_MONTHLY
+            : AiProject::PERIOD_NONE);
+
         if ($period === AiProject::PERIOD_MONTHLY && ! isset($data['monthly_budget'])) {
             return back()->withErrors(['monthly_budget' => __('ui.sec_ai_budget_need')])
                 ->withFragment('sec-ai');

@@ -1,0 +1,203 @@
+{
+    "at": "2026-10-10T11:22:36+00:00",
+    "provider_driver": "OpenAI-Compatible",
+    "key_present": true,
+    "fee_bp": 0,
+    "margin_pct": "5",
+    "agreement_status": "owner_assumed",
+    "live_calls_enabled": true,
+    "catalogue_counts": {
+        "active": 92,
+        "deprecated": 165,
+        "disabled": 129
+    },
+    "representative_slug": "di-anthropicclaude-fable-5-86c0c8bf10",
+    "gates": [],
+    "pages": [
+        {
+            "url": "https:\/\/servernet.cloud\/ai",
+            "status": 200,
+            "title": "خرید API هوش مصنوعی با پرداخت تومانی | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": true
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/ai\/models",
+            "status": 200,
+            "title": "مدل‌ها و قیمت API هوش مصنوعی | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/ai\/docs",
+            "status": 200,
+            "title": "آموزش اتصال API هوش مصنوعی و ساخت کلید | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/ai\/models\/di-anthropicclaude-fable-5-86c0c8bf10",
+            "status": 200,
+            "title": "API مدل claude-fable-5 | قیمت، اتصال و وضعیت | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai",
+            "status": 200,
+            "title": "AI API with Toman billing | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": true
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai\/models",
+            "status": 200,
+            "title": "AI API models and pricing | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai\/docs",
+            "status": 200,
+            "title": "AI API setup, keys and integration guide | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai\/models\/di-anthropicclaude-fable-5-86c0c8bf10",
+            "status": 200,
+            "title": "claude-fable-5 API | Pricing and integration | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai",
+            "status": 200,
+            "title": "Toman ödemeli AI API | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": true
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai\/models",
+            "status": 200,
+            "title": "AI API modelleri ve fiyatları | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai\/docs",
+            "status": 200,
+            "title": "AI API kurulumu ve anahtar kılavuzu | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai\/models\/di-anthropicclaude-fable-5-86c0c8bf10",
+            "status": 200,
+            "title": "claude-fable-5 API | Fiyat ve bağlantı | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        }
+    ],
+    "sitemap_http": 200,
+    "sitemap_contains_ai": true,
+    "unauthenticated": {
+        "\/v1\/models": {
+            "status": 401,
+            "code": "invalid_token"
+        },
+        "\/v1\/chat\/completions": {
+            "status": 401,
+            "code": "invalid_token"
+        }
+    },
+    "manifest_drift": [],
+    "active_checks": {
+        "count": 92,
+        "ready": 87,
+        "unexpected_gates": [],
+        "wrong_margin": [],
+        "expected_suspensions": [
+            "di-qwenqwen38-flash-9b80e5fa82",
+            "di-qwenqwen38-max-8f1d280312",
+            "di-nvidianvidia-nemotron-3-super-120b-a12b-53ec3257b4",
+            "di-nvidianemotron-content-safety-35-3611bc2461",
+            "di-zai-orgglm-53-ab35037a12"
+        ]
+    },
+    "schedule": [
+        {
+            "command": "'\/opt\/cpanel\/ea-php84\/root\/usr\/bin\/php' 'artisan' ai:reconcile",
+            "expression": "* * * * *",
+            "without_overlap": true
+        },
+        {
+            "command": "'\/opt\/cpanel\/ea-php84\/root\/usr\/bin\/php' 'artisan' ai:recover-usage",
+            "expression": "*\/5 * * * *",
+            "without_overlap": true
+        },
+        {
+            "command": "'\/opt\/cpanel\/ea-php84\/root\/usr\/bin\/php' 'artisan' ai:recover-usage --late",
+            "expression": "20 1 * * *",
+            "without_overlap": true
+        },
+        {
+            "command": "'\/opt\/cpanel\/ea-php84\/root\/usr\/bin\/php' 'artisan' ai:sync-catalog",
+            "expression": "0 * * * *",
+            "without_overlap": true
+        },
+        {
+            "command": "'\/opt\/cpanel\/ea-php84\/root\/usr\/bin\/php' 'artisan' ai:prune-replay",
+            "expression": "0 * * * *",
+            "without_overlap": true
+        }
+    ],
+    "scheduler_cron_present": true,
+    "production_usage_count": 2,
+    "production_open_usage": 0,
+    "transient_key_file_absent": true,
+    "presentation": {
+        "fa": {
+            "http": 200,
+            "retry_disabled": true,
+            "model_list": true,
+            "mobile_ai_link": true
+        },
+        "\/en": {
+            "http": 200,
+            "retry_disabled": true,
+            "model_list": true,
+            "mobile_ai_link": true
+        },
+        "\/tr": {
+            "http": 200,
+            "retry_disabled": true,
+            "model_list": true,
+            "mobile_ai_link": true
+        }
+    }
+}

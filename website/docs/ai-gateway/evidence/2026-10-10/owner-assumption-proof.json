@@ -1,0 +1,18 @@
+{
+    "at": "2026-10-10T11:19:20+00:00",
+    "authorization_basis": "Explicit owner instruction: proceed assuming supplier agreement; signed evidence not supplied.",
+    "opcache_http": 200,
+    "opcache_reset": true,
+    "agreement_status": "owner_assumed",
+    "active": 92,
+    "ready": 87,
+    "suspended": [
+        "di-qwenqwen38-flash-9b80e5fa82",
+        "di-qwenqwen38-max-8f1d280312",
+        "di-nvidianvidia-nemotron-3-super-120b-a12b-53ec3257b4",
+        "di-nvidianemotron-content-safety-35-3611bc2461",
+        "di-zai-orgglm-53-ab35037a12"
+    ],
+    "unexpected": [],
+    "production_usage_count": 0
+}

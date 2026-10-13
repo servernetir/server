@@ -6,9 +6,18 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
 
+// [ai-launch-schedule:start]
+Schedule::command('ai:reconcile')->everyMinute()->withoutOverlapping(10);
+Schedule::command('ai:recover-usage')->everyFiveMinutes()->withoutOverlapping(10);
+Schedule::command('ai:recover-usage --late')->dailyAt('01:20')->withoutOverlapping(30);
+Schedule::command('ai:sync-catalog')->hourly()->withoutOverlapping(10);
+Schedule::command('ai:prune-replay')->hourly()->withoutOverlapping(10);
+// [ai-launch-schedule:end]
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
 
 /*
 |--------------------------------------------------------------------------

@@ -27,13 +27,21 @@ class AiReservation extends Model
         'customer_id', 'currency_code', 'amount_irt', 'status',
         'idempotency_key', 'purpose', 'reference',
         'expires_at', 'settled_at', 'released_at', 'expired_at',
-        'ledger_entry_id',
+        'ledger_entry_id', 'pricing_version', 'ai_project_id', 'customer_api_token_id', 'charged_irt',
     ];
+
+    /** رزروِ قدیمی (میکرو ثبت‌شده به‌جای تومان، باگِ B1) — هرگز تسویه نمی‌شود، فقط منقضی */
+    public const PRICING_LEGACY = 0;
+
+    /** رزروِ M5 — تومانِ واقعی، بی‌مهلت، با ردیفِ ai_usage */
+    public const PRICING_M5 = 1;
 
     protected function casts(): array
     {
         return [
             'amount_irt'    => 'integer',
+            'charged_irt'   => 'integer',
+            'pricing_version' => 'integer',
             'expires_at'    => 'datetime',
             'settled_at'    => 'datetime',
             'released_at'   => 'datetime',
@@ -52,10 +60,23 @@ class AiReservation extends Model
         return $this->belongsTo(CreditEntry::class, 'ledger_entry_id');
     }
 
-    /** رزروهای نگه‌دارندهٔ پول: pending و هنوز مهلت‌دار (نال = بی‌مهلت) */
+    /**
+     * رزروهای نگه‌دارندهٔ پول (m5-spec §2.9) — تنها ورودیِ `Wallet::reservedOf`.
+     *
+     * رزروِ M5 بی‌مهلت (`expires_at = NULL`) است و با `decide_by` ِ ردیفِ مصرف
+     * تصمیم می‌گیرد، نه با ساعت؛ تا تصمیم پولش نگه داشته می‌شود تا هیچ مسیرِ دیگری
+     * آن را خرج نکند و تسویه هرگز «منقضی» رد نشود. ولی **نه برای همیشه**: اگر
+     * آشتی‌دهنده ۲۴ ساعت نمرده باشد هرگز به این پشتوانه نمی‌رسیم، و اگر مرده باشد
+     * آزادکردنِ پولِ مشتری درست‌ترین شکستِ ممکن است. هشدارِ ردیفِ گیرکرده ۲۳
+     * ساعت زودتر رفته (`ai:reconcile`).
+     */
     public function scopeHolding(Builder $q): Builder
     {
+        $backstop = now()->subHours((int) config('ai.hold_backstop_h', 24));
+
         return $q->where('status', self::STATUS_PENDING)
-            ->where(fn ($w) => $w->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+            ->where(fn ($w) => $w
+                ->where(fn ($n) => $n->whereNull('expires_at')->where('created_at', '>', $backstop))
+                ->orWhere('expires_at', '>', now()));
     }
 }

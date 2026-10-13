@@ -23,6 +23,12 @@ use Illuminate\Support\Facades\Route;
 
 $site = function (): void {
     Route::get('/', [SiteController::class, 'home'])->name('home');
+    // [ai-storefront:start]
+    Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
+    Route::get('/ai/models', [\App\Http\Controllers\AiStorefrontController::class, 'models'])->name('ai.models');
+    Route::get('/ai/docs', [\App\Http\Controllers\AiStorefrontController::class, 'docs'])->name('ai.docs');
+    Route::get('/ai/models/{slug}', [\App\Http\Controllers\AiStorefrontController::class, 'model'])->name('ai.model');
+    // [ai-storefront:end]
     Route::get('/hosting/{slug}', [CatalogController::class, 'hosting'])->name('hosting')->where('slug', '[a-z-]+');
 
     /*
@@ -564,6 +570,7 @@ $site = function (): void {
         Route::post('/bank', [Account\BankAccountController::class, 'store'])->name('bank.store')->middleware('throttle:bank');
 
         // امنیت حساب — رمز (با OTP)، قوانین IP، توکن‌های API
+        Route::get('/ai', [\App\Http\Controllers\Account\AiController::class, 'index'])->name('ai');
         Route::get('/security', [Account\SecurityController::class, 'index'])->name('security');
         Route::post('/security/password/start', [Account\SecurityController::class, 'passwordStart'])->name('security.pw.start')->middleware('throttle:resend');
         Route::post('/security/password', [Account\SecurityController::class, 'passwordVerify'])->name('security.pw')->middleware('throttle:otp');
@@ -2739,6 +2746,15 @@ Route::prefix('admin')->group(function () {
             ->name('admin.ai.models.update')->middleware('admin');
         Route::post('/ai/models/{model}/status', [\App\Http\Controllers\Admin\AiGatewayController::class, 'toggleModel'])
             ->name('admin.ai.models.status')->middleware('admin');
+        // [ai-admin-routes-create:start] ─ بلوکِ نشان‌دار؛ روی سرور با scripts/apply-marked-block.php
+        // درج می‌شود نه با ادغامِ کلِ routes (سرور زیرمجموعهٔ develop است). ساختِ مدل فقط
+        // برای مدیر؛ مدلِ تازه خاموش ساخته می‌شود چون مسیرِ قدیمیِ /v1 تا M5.1b سدهای فروش
+        // را نمی‌خوانَد (نگاه کنید به AiGatewayController::createModel).
+        Route::get('/ai/models/create', [\App\Http\Controllers\Admin\AiGatewayController::class, 'createModel'])
+            ->name('admin.ai.models.create')->middleware('admin');
+        Route::post('/ai/models', [\App\Http\Controllers\Admin\AiGatewayController::class, 'storeModel'])
+            ->name('admin.ai.models.store')->middleware('admin');
+        // [ai-admin-routes-create:end]
         Route::get('/ai/pricing', [\App\Http\Controllers\Admin\AiGatewayController::class, 'pricing'])
             ->name('admin.ai.pricing');
         Route::post('/ai/pricing/supersede', [\App\Http\Controllers\Admin\AiGatewayController::class, 'supersedePrice'])
@@ -3395,6 +3411,16 @@ Route::prefix('api/v1')
 |    سقفِ per-token در M5 جدا می‌شود؛ تا آن‌جا این سقف جلوی حلقهٔ
 |    بی‌کلیدِ پول‌خور را می‌گیرد و رزرو/TTL خودش سقفِ دوم است.
 */
+Route::get('/api/ai-media/{id}', \App\Http\Controllers\Ai\AiMediaRelayController::class)
+    ->where('id', '[a-f0-9]{64}')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \App\Http\Middleware\PageCache::class,
+    ])->name('ai.media.relay');
+
 Route::prefix('v1')
     ->withoutMiddleware([
         \Illuminate\Session\Middleware\StartSession::class,
@@ -3404,8 +3430,12 @@ Route::prefix('v1')
     ])
     ->group(function () {
         Route::post('/chat/completions', [\App\Http\Controllers\Ai\V1ChatController::class, 'chat'])
-            ->name('ai.v1.chat.completions')
-            ->middleware('throttle:ai');
+            ->name('ai.v1.chat.completions');
+        Route::post('/embeddings', [\App\Http\Controllers\Ai\V1ChatController::class, 'embeddings'])->name('ai.v1.embeddings');
+        Route::post('/rerank', [\App\Http\Controllers\Ai\V1ChatController::class, 'rerank'])->name('ai.v1.rerank');
+        Route::post('/inference', [\App\Http\Controllers\Ai\V1ChatController::class, 'native'])->name('ai.v1.native');
+        Route::get('/inference/{id}', [\App\Http\Controllers\Ai\V1ChatController::class, 'nativeResult'])->where('id','[a-z0-9]{26}')->name('ai.v1.native.result');
+        Route::get('/models', [\App\Http\Controllers\Ai\V1ModelsController::class, 'index'])->name('ai.v1.models');
     });
 
 /*

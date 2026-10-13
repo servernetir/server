@@ -1,0 +1,1641 @@
+{
+    "at": "2026-10-10T10:08:58+00:00",
+    "purpose": "internal model-access probe; no customer billing",
+    "max_budget_micro_usd": 100000,
+    "max_tokens": 16,
+    "models": [
+        {
+            "slug": "di-anthropicclaude-fable-5-86c0c8bf10",
+            "upstream_model": "anthropic\/claude-fable-5",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 28,
+                "completion_tokens": 16,
+                "estimated_cost": 0.00092,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 920,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-haiku-4-5-b4c0015106",
+            "upstream_model": "anthropic\/claude-haiku-4-5",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 10,
+                "total_tokens": 15,
+                "completion_tokens": 5,
+                "estimated_cost": 3.5000000000000004e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 36,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-opus-4-7-792c5a494a",
+            "upstream_model": "anthropic\/claude-opus-4-7",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 17,
+                "total_tokens": 23,
+                "completion_tokens": 6,
+                "estimated_cost": 0.000235,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 235,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-opus-4-8-cccbc1ce30",
+            "upstream_model": "anthropic\/claude-opus-4-8",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 16,
+                "completion_tokens": 4,
+                "estimated_cost": 0.00016,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 160,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-opus-5-568e0eb3a9",
+            "upstream_model": "anthropic\/claude-opus-5",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 28,
+                "completion_tokens": 16,
+                "estimated_cost": 0.00046,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 460,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-opus-5-5-cfe0652e9d",
+            "upstream_model": "anthropic\/claude-opus-5-5",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 14,
+                "total_tokens": 30,
+                "completion_tokens": 16,
+                "estimated_cost": 0.00037600000000000003,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 377,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-sonnet-4-6-fec21a94f3",
+            "upstream_model": "anthropic\/claude-sonnet-4-6",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 10,
+                "total_tokens": 15,
+                "completion_tokens": 5,
+                "estimated_cost": 0.00010499999999999999,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 105,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-sonnet-5-2cd37409a4",
+            "upstream_model": "anthropic\/claude-sonnet-5",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 16,
+                "completion_tokens": 4,
+                "estimated_cost": 9.6e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 96,
+            "error_code": null
+        },
+        {
+            "slug": "di-anthropicclaude-sonnet-5-5-d123610543",
+            "upstream_model": "anthropic\/claude-sonnet-5-5",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 14,
+                "total_tokens": 19,
+                "completion_tokens": 5,
+                "estimated_cost": 7.8e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 78,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-r1-0528-0b98eff8ec",
+            "upstream_model": "deepseek-ai\/DeepSeek-R1-0528",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 6,
+                "total_tokens": 22,
+                "completion_tokens": 16,
+                "estimated_cost": 3.74e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 38,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v3-0452ac47f3",
+            "upstream_model": "deepseek-ai\/DeepSeek-V3",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 6,
+                "total_tokens": 21,
+                "completion_tokens": 15,
+                "estimated_cost": 1.5269999999999998e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 16,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v31-fc635a9dc2",
+            "upstream_model": "deepseek-ai\/DeepSeek-V3.1",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 9,
+                "total_tokens": 12,
+                "completion_tokens": 3,
+                "estimated_cost": 4.86e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 2,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 5,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v32-fda3b74e36",
+            "upstream_model": "deepseek-ai\/DeepSeek-V3.2",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 7,
+                "total_tokens": 23,
+                "completion_tokens": 16,
+                "estimated_cost": 7.9e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 8,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-flash-51630916db",
+            "upstream_model": "deepseek-ai\/DeepSeek-V4-Flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 7,
+                "total_tokens": 10,
+                "completion_tokens": 3,
+                "estimated_cost": 1.17e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 2,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a",
+            "upstream_model": "deepseek-ai\/DeepSeek-V4-Flash-0731",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 7,
+                "total_tokens": 10,
+                "completion_tokens": 3,
+                "estimated_cost": 9.600000000000001e-7,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 1,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef",
+            "upstream_model": "deepseek-ai\/DeepSeek-V4-Flash-Vision-Exp",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 86,
+                "total_tokens": 102,
+                "completion_tokens": 16,
+                "estimated_cost": 2.8890399999999997e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 16
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 29,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-pro-e491c52826",
+            "upstream_model": "deepseek-ai\/DeepSeek-V4-Pro",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 7,
+                "total_tokens": 10,
+                "completion_tokens": 3,
+                "estimated_cost": 1.6899999999999997e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 17,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5",
+            "upstream_model": "deepseek-ai\/DeepSeek-V4-Pro-0813",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 7,
+                "total_tokens": 10,
+                "completion_tokens": 3,
+                "estimated_cost": 1.6899999999999997e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 17,
+            "error_code": null
+        },
+        {
+            "slug": "di-deepseek-aideepseek-v41-flash-216fa1827d",
+            "upstream_model": "deepseek-ai\/DeepSeek-V4.1-Flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 7,
+                "total_tokens": 10,
+                "completion_tokens": 3,
+                "estimated_cost": 2.24e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 3,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemini-25-flash-cd62f9d5ea",
+            "upstream_model": "google\/gemini-2.5-flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 3,
+                "total_tokens": 5,
+                "completion_tokens": 2,
+                "estimated_cost": 5.9e-6,
+                "prompt_tokens_details": null,
+                "extra_properties": {
+                    "google": {
+                        "traffic_type": "ON_DEMAND"
+                    }
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemini-25-pro-962e7b87ec",
+            "upstream_model": "google\/gemini-2.5-pro",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 3,
+                "total_tokens": 15,
+                "completion_tokens": 0,
+                "estimated_cost": 0.00012375,
+                "prompt_tokens_details": null,
+                "completion_tokens_details": {
+                    "reasoning_tokens": 12
+                },
+                "extra_properties": {
+                    "google": {
+                        "traffic_type": "ON_DEMAND"
+                    }
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 124,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemini-31-flash-lite-97279ba6f4",
+            "upstream_model": "google\/gemini-3.1-flash-lite",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 3,
+                "total_tokens": 5,
+                "completion_tokens": 2,
+                "estimated_cost": 3.75e-6,
+                "prompt_tokens_details": null,
+                "extra_properties": {
+                    "google": {
+                        "traffic_type": "ON_DEMAND"
+                    }
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 4,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemini-31-pro-63b33932f2",
+            "upstream_model": "google\/gemini-3.1-pro",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 3,
+                "total_tokens": 5,
+                "completion_tokens": 2,
+                "estimated_cost": 3.0e-5,
+                "prompt_tokens_details": null,
+                "extra_properties": {
+                    "google": {
+                        "traffic_type": "ON_DEMAND"
+                    }
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 30,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemini-35-flash-8d99798a7e",
+            "upstream_model": "google\/gemini-3.5-flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 3,
+                "total_tokens": 5,
+                "completion_tokens": 2,
+                "estimated_cost": 2.2499999999999998e-5,
+                "prompt_tokens_details": null,
+                "extra_properties": {
+                    "google": {
+                        "traffic_type": "ON_DEMAND"
+                    }
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 23,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemini-37-flash-16a8dce2a6",
+            "upstream_model": "google\/gemini-3.7-flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 3,
+                "total_tokens": 4,
+                "completion_tokens": 1,
+                "estimated_cost": 6.0e-6,
+                "prompt_tokens_details": null,
+                "extra_properties": {
+                    "google": {
+                        "traffic_type": "ON_DEMAND"
+                    }
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemma-3-12b-it-4abc260aaf",
+            "upstream_model": "google\/gemma-3-12b-it",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 15,
+                "completion_tokens": 3,
+                "estimated_cost": 1.0500000000000001e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 2,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemma-3-27b-it-ff873c19a0",
+            "upstream_model": "google\/gemma-3-27b-it",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 16,
+                "completion_tokens": 4,
+                "estimated_cost": 1.6e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 2,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemma-3-4b-it-28910bff89",
+            "upstream_model": "google\/gemma-3-4b-it",
+            "http": 429,
+            "usage": null,
+            "finish_reason": null,
+            "response_present": false,
+            "cost_micro_usd": null,
+            "error_code": "engine_overloaded"
+        },
+        {
+            "slug": "di-googlegemma-4-26b-a4b-it-f516950937",
+            "upstream_model": "google\/gemma-4-26B-A4B-it",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 16,
+                "total_tokens": 19,
+                "completion_tokens": 3,
+                "estimated_cost": 2.14e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 3,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemma-4-31b-it-9c37d7121c",
+            "upstream_model": "google\/gemma-4-31B-it",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 16,
+                "total_tokens": 18,
+                "completion_tokens": 2,
+                "estimated_cost": 4.0e-6,
+                "prompt_tokens_details": null,
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 4,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemma-4-31b-it-turbo-d767c29f4b",
+            "upstream_model": "google\/gemma-4-31B-it-turbo",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 16,
+                "total_tokens": 18,
+                "completion_tokens": 2,
+                "estimated_cost": 2.12e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 3,
+            "error_code": null
+        },
+        {
+            "slug": "di-googlegemma-4-31b-it-ultra-8139ede36e",
+            "upstream_model": "google\/gemma-4-31B-it-Ultra",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 16,
+                "total_tokens": 17,
+                "completion_tokens": 1,
+                "estimated_cost": 5.08e-6,
+                "prompt_tokens_details": null,
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-zai-orgglm-46-43a70df72c",
+            "upstream_model": "zai-org\/GLM-4.6",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 8,
+                "total_tokens": 24,
+                "completion_tokens": 16,
+                "estimated_cost": 3.6e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 36,
+            "error_code": null
+        },
+        {
+            "slug": "di-zai-orgglm-47-091308d579",
+            "upstream_model": "zai-org\/GLM-4.7",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 8,
+                "total_tokens": 24,
+                "completion_tokens": 16,
+                "estimated_cost": 3.12e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 32,
+            "error_code": null
+        },
+        {
+            "slug": "di-zai-orgglm-52-f0f3c5d55c",
+            "upstream_model": "zai-org\/GLM-5.2",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 15,
+                "total_tokens": 31,
+                "completion_tokens": 16,
+                "estimated_cost": 3.72375e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 16
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 38,
+            "error_code": null
+        },
+        {
+            "slug": "di-zai-orgglm-53-ab35037a12",
+            "upstream_model": "zai-org\/GLM-5.3",
+            "exception": "Illuminate\\Http\\Client\\ConnectionException",
+            "http": null
+        },
+        {
+            "slug": "di-zai-orgglm-53-flash-bc20d93473",
+            "upstream_model": "zai-org\/GLM-5.3-Flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 15,
+                "total_tokens": 18,
+                "completion_tokens": 3,
+                "estimated_cost": 1.875e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 0
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 2,
+            "error_code": null
+        },
+        {
+            "slug": "di-openaigpt-oss-120b-298e8d39a1",
+            "upstream_model": "openai\/gpt-oss-120b",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 57,
+                "total_tokens": 73,
+                "completion_tokens": 16,
+                "estimated_cost": 4.829e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 5,
+            "error_code": null
+        },
+        {
+            "slug": "di-openaigpt-oss-120b-turbo-03de81b1a6",
+            "upstream_model": "openai\/gpt-oss-120b-Turbo",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 57,
+                "total_tokens": 73,
+                "completion_tokens": 16,
+                "estimated_cost": 1.815e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 19,
+            "error_code": null
+        },
+        {
+            "slug": "di-openaigpt-oss-120b-ultra-80f2ba6053",
+            "upstream_model": "openai\/gpt-oss-120b-Ultra",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 70,
+                "total_tokens": 86,
+                "completion_tokens": 16,
+                "estimated_cost": 2.92e-5,
+                "prompt_tokens_details": null,
+                "completion_tokens_details": {
+                    "reasoning_tokens": 11
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 30,
+            "error_code": null
+        },
+        {
+            "slug": "di-openaigpt-oss-20b-a741d960ae",
+            "upstream_model": "openai\/gpt-oss-20b",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 57,
+                "total_tokens": 73,
+                "completion_tokens": 16,
+                "estimated_cost": 3.95e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 4,
+            "error_code": null
+        },
+        {
+            "slug": "di-ibm-granitegranite-42-30b-f3730f12e4",
+            "upstream_model": "ibm-granite\/granite-4.2-30b",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 18,
+                "total_tokens": 34,
+                "completion_tokens": 16,
+                "estimated_cost": 1.328e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 14,
+            "error_code": null
+        },
+        {
+            "slug": "di-ibm-granitegranite-42-3b-af0e45b984",
+            "upstream_model": "ibm-granite\/granite-4.2-3b",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 18,
+                "total_tokens": 34,
+                "completion_tokens": 16,
+                "estimated_cost": 2.46e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 3,
+            "error_code": null
+        },
+        {
+            "slug": "di-ibm-granitegranite-42-8b-d90c16215e",
+            "upstream_model": "ibm-granite\/granite-4.2-8b",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 18,
+                "total_tokens": 34,
+                "completion_tokens": 16,
+                "estimated_cost": 5.08e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-nousresearchhermes-3-llama-31-405b-b0aaeaf676",
+            "upstream_model": "NousResearch\/Hermes-3-Llama-3.1-405B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 14,
+                "completion_tokens": 2,
+                "estimated_cost": 1.4000000000000001e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 15,
+            "error_code": null
+        },
+        {
+            "slug": "di-nousresearchhermes-3-llama-31-70b-8206482cfa",
+            "upstream_model": "NousResearch\/Hermes-3-Llama-3.1-70B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 12,
+                "total_tokens": 15,
+                "completion_tokens": 3,
+                "estimated_cost": 1.05e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 11,
+            "error_code": null
+        },
+        {
+            "slug": "di-tencenthy4-preview-ed5625f629",
+            "upstream_model": "tencent\/Hy4-preview",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 24,
+                "total_tokens": 40,
+                "completion_tokens": 16,
+                "estimated_cost": 6.0032000000000004e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 16
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 61,
+            "error_code": null
+        },
+        {
+            "slug": "di-thinkingmachinesinkling-98c4c10547",
+            "upstream_model": "thinkingmachines\/Inkling",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 17,
+                "total_tokens": 33,
+                "completion_tokens": 16,
+                "estimated_cost": 8.095e-5,
+                "prompt_tokens_details": null,
+                "reasoning_tokens": 17
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 81,
+            "error_code": null
+        },
+        {
+            "slug": "di-thinkingmachinesinkling-small-98f7df365d",
+            "upstream_model": "thinkingmachines\/Inkling-Small",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 17,
+                "total_tokens": 33,
+                "completion_tokens": 16,
+                "estimated_cost": 2.685e-5,
+                "prompt_tokens_details": null,
+                "reasoning_tokens": 16
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 27,
+            "error_code": null
+        },
+        {
+            "slug": "di-moonshotaikimi-k26-b1564785bb",
+            "upstream_model": "moonshotai\/Kimi-K2.6",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 27,
+                "completion_tokens": 16,
+                "estimated_cost": 6.425e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 65,
+            "error_code": null
+        },
+        {
+            "slug": "di-moonshotaikimi-k3-628799ffe6",
+            "upstream_model": "moonshotai\/Kimi-K3",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 91,
+                "total_tokens": 107,
+                "completion_tokens": 16,
+                "estimated_cost": 0.00048735,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 16
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 488,
+            "error_code": null
+        },
+        {
+            "slug": "di-sao10kl3-8b-lunaris-v1-turbo-71bf9665c2",
+            "upstream_model": "Sao10K\/L3-8B-Lunaris-v1-Turbo",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 14,
+                "completion_tokens": 1,
+                "estimated_cost": 5.699999999999999e-7,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 1,
+            "error_code": null
+        },
+        {
+            "slug": "di-sao10kl31-70b-euryale-v22-1711f58d59",
+            "upstream_model": "Sao10K\/L3.1-70B-Euryale-v2.2",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 16,
+                "completion_tokens": 3,
+                "estimated_cost": 1.36e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 14,
+            "error_code": null
+        },
+        {
+            "slug": "di-inclusionailing-30-flash-a8215e327e",
+            "upstream_model": "inclusionAI\/Ling-3.0-flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 23,
+                "total_tokens": 39,
+                "completion_tokens": 16,
+                "estimated_cost": 4.26e-6,
+                "prompt_tokens_details": null,
+                "reasoning_tokens": 17
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 5,
+            "error_code": null
+        },
+        {
+            "slug": "di-inclusionailing-30-flash-vl-e61f769115",
+            "upstream_model": "inclusionAI\/Ling-3.0-flash-VL",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 23,
+                "total_tokens": 39,
+                "completion_tokens": 16,
+                "estimated_cost": 4.26e-6,
+                "prompt_tokens_details": null,
+                "reasoning_tokens": 18
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 5,
+            "error_code": null
+        },
+        {
+            "slug": "di-meta-llamallama-33-70b-instruct-turbo-3c195ebcef",
+            "upstream_model": "meta-llama\/Llama-3.3-70B-Instruct-Turbo",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 16,
+                "completion_tokens": 3,
+                "estimated_cost": 2.2600000000000004e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 3,
+            "error_code": null
+        },
+        {
+            "slug": "di-meta-llamallama-4-scout-17b-16e-instruct-0c3b11af53",
+            "upstream_model": "meta-llama\/Llama-4-Scout-17B-16E-Instruct",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 15,
+                "completion_tokens": 2,
+                "estimated_cost": 1.9e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 2,
+            "error_code": null
+        },
+        {
+            "slug": "di-meta-llamallama-guard-4-12b-f588bf1320",
+            "upstream_model": "meta-llama\/Llama-Guard-4-12B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 207,
+                "total_tokens": 210,
+                "completion_tokens": 3,
+                "estimated_cost": 3.78e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 38,
+            "error_code": null
+        },
+        {
+            "slug": "di-meta-llamameta-llama-31-70b-instruct-turbo-0109d18002",
+            "upstream_model": "meta-llama\/Meta-Llama-3.1-70B-Instruct-Turbo",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 15,
+                "completion_tokens": 2,
+                "estimated_cost": 6.0e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-meta-llamameta-llama-31-8b-instruct-turbo-8ab0fdcd4d",
+            "upstream_model": "meta-llama\/Meta-Llama-3.1-8B-Instruct-Turbo",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 16,
+                "completion_tokens": 3,
+                "estimated_cost": 3.8e-7,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 1,
+            "error_code": null
+        },
+        {
+            "slug": "di-xiaomimimomimo-v26-flash-9582fe3fee",
+            "upstream_model": "XiaomiMiMo\/MiMo-V2.6-Flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 10,
+                "total_tokens": 23,
+                "completion_tokens": 13,
+                "estimated_cost": 5.04e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 9
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-xiaomimimomimo-v26-pro-14810b5543",
+            "upstream_model": "XiaomiMiMo\/MiMo-V2.6-Pro",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 10,
+                "total_tokens": 16,
+                "completion_tokens": 6,
+                "estimated_cost": 9.52e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 2
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 10,
+            "error_code": null
+        },
+        {
+            "slug": "di-minimaxaiminimax-m3-3fe8916ce3",
+            "upstream_model": "MiniMaxAI\/MiniMax-M3",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 179,
+                "total_tokens": 195,
+                "completion_tokens": 16,
+                "estimated_cost": 3.9047999999999996e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 128,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 40,
+            "error_code": null
+        },
+        {
+            "slug": "di-mistralaimistral-nemo-instruct-2407-fe44bc9a33",
+            "upstream_model": "mistralai\/Mistral-Nemo-Instruct-2407",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 7,
+                "total_tokens": 10,
+                "completion_tokens": 3,
+                "estimated_cost": 2.93e-7,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 1,
+            "error_code": null
+        },
+        {
+            "slug": "di-mistralaimistral-small-24b-instruct-2501-29c43dac0a",
+            "upstream_model": "mistralai\/Mistral-Small-24B-Instruct-2501",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 166,
+                "total_tokens": 169,
+                "completion_tokens": 3,
+                "estimated_cost": 8.540000000000001e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 9,
+            "error_code": null
+        },
+        {
+            "slug": "di-mistralaimistral-small-32-24b-instruct-2506-12c8cdfa9f",
+            "upstream_model": "mistralai\/Mistral-Small-3.2-24B-Instruct-2506",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 6,
+                "total_tokens": 22,
+                "completion_tokens": 16,
+                "estimated_cost": 3.65e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 4,
+            "error_code": null
+        },
+        {
+            "slug": "di-meta-modelsmuse-glimmer-30b-53fe9dac5b",
+            "upstream_model": "meta-models\/Muse-Glimmer-30B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 59,
+                "total_tokens": 75,
+                "completion_tokens": 16,
+                "estimated_cost": 3.69e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 37,
+            "error_code": null
+        },
+        {
+            "slug": "di-gryphemythomax-l2-13b-9af29f443b",
+            "upstream_model": "Gryphe\/MythoMax-L2-13b",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 21,
+                "total_tokens": 25,
+                "completion_tokens": 4,
+                "estimated_cost": 1.0e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 10,
+            "error_code": null
+        },
+        {
+            "slug": "di-nvidianemotron-content-safety-35-3611bc2461",
+            "upstream_model": "nvidia\/Nemotron-Content-Safety-3.5",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 469,
+                "total_tokens": 474,
+                "completion_tokens": 5,
+                "estimated_cost": 9.48e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 95,
+            "error_code": null
+        },
+        {
+            "slug": "di-nvidianvidia-nemotron-3-super-120b-a12b-53ec3257b4",
+            "upstream_model": "nvidia\/NVIDIA-Nemotron-3-Super-120B-A12B",
+            "http": 429,
+            "usage": null,
+            "finish_reason": null,
+            "response_present": false,
+            "cost_micro_usd": null,
+            "error_code": "engine_overloaded",
+            "error_detail": "Model busy, retry later"
+        },
+        {
+            "slug": "di-nvidianvidia-nemotron-3-ultra-550b-a55b-d2435ae316",
+            "upstream_model": "nvidia\/NVIDIA-Nemotron-3-Ultra-550B-A55B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 26,
+                "total_tokens": 42,
+                "completion_tokens": 16,
+                "estimated_cost": 4.8200000000000006e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 14
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 49,
+            "error_code": null
+        },
+        {
+            "slug": "di-nvidianvidia-nemotron-35-lightning-95f304f824",
+            "upstream_model": "nvidia\/NVIDIA-Nemotron-3.5-Lightning",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 19,
+                "total_tokens": 21,
+                "completion_tokens": 2,
+                "estimated_cost": 1.46e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 2,
+            "error_code": null
+        },
+        {
+            "slug": "di-microsoftphi-4-7aceaf6cdc",
+            "upstream_model": "microsoft\/phi-4",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 10,
+                "total_tokens": 26,
+                "completion_tokens": 16,
+                "estimated_cost": 2.94e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 3,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen25-72b-instruct-1a67e1afa7",
+            "upstream_model": "Qwen\/Qwen2.5-72B-Instruct",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 13,
+                "completion_tokens": 2,
+                "estimated_cost": 4.76e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 5,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-14b-376a28f247",
+            "upstream_model": "Qwen\/Qwen3-14B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 27,
+                "completion_tokens": 16,
+                "estimated_cost": 5.16e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-235b-a22b-instruct-2507-12d7a45f0c",
+            "upstream_model": "Qwen\/Qwen3-235B-A22B-Instruct-2507",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 14,
+                "completion_tokens": 3,
+                "estimated_cost": 2.64e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 3,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-30b-a3b-2aa9d92df2",
+            "upstream_model": "Qwen\/Qwen3-30B-A3B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 27,
+                "completion_tokens": 16,
+                "estimated_cost": 9.32e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 10,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-32b-45363f1dab",
+            "upstream_model": "Qwen\/Qwen3-32B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 27,
+                "completion_tokens": 16,
+                "estimated_cost": 5.36e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 6,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-coder-480b-a35b-instruct-turbo-e2d000044f",
+            "upstream_model": "Qwen\/Qwen3-Coder-480B-A35B-Instruct-Turbo",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 14,
+                "completion_tokens": 3,
+                "estimated_cost": 6.300000000000001e-6,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 7,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-next-80b-a3b-instruct-bcba91f437",
+            "upstream_model": "Qwen\/Qwen3-Next-80B-A3B-Instruct",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 13,
+                "completion_tokens": 2,
+                "estimated_cost": 3.19e-6,
+                "prompt_tokens_details": null,
+                "reasoning_tokens": 0
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 4,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-vl-235b-a22b-instruct-933018af1f",
+            "upstream_model": "Qwen\/Qwen3-VL-235B-A22B-Instruct",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 14,
+                "completion_tokens": 3,
+                "estimated_cost": 4.84e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 5,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen3-vl-30b-a3b-instruct-ed879cf821",
+            "upstream_model": "Qwen\/Qwen3-VL-30B-A3B-Instruct",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 11,
+                "total_tokens": 14,
+                "completion_tokens": 3,
+                "estimated_cost": 3.4500000000000004e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 4,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen35-27b-6c71977d97",
+            "upstream_model": "Qwen\/Qwen3.5-27B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 29,
+                "completion_tokens": 16,
+                "estimated_cost": 4.497999999999999e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 45,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen35-35b-a3b-a6105c9fef",
+            "upstream_model": "Qwen\/Qwen3.5-35B-A3B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 29,
+                "completion_tokens": 16,
+                "estimated_cost": 1.7820000000000002e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 18,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen35-397b-a17b-4865dd731c",
+            "upstream_model": "Qwen\/Qwen3.5-397B-A17B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 29,
+                "completion_tokens": 16,
+                "estimated_cost": 5.3849999999999994e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 54,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen35-9b-4c87a62360",
+            "upstream_model": "Qwen\/Qwen3.5-9B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 29,
+                "completion_tokens": 16,
+                "estimated_cost": 3.7e-6,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 4,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen36-27b-e892d23254",
+            "upstream_model": "Qwen\/Qwen3.6-27B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 13,
+                "total_tokens": 29,
+                "completion_tokens": 16,
+                "estimated_cost": 5.536e-5,
+                "prompt_tokens_details": null
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 56,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen36-35b-a3b-1bd979b4cf",
+            "upstream_model": "Qwen\/Qwen3.6-35B-A3B",
+            "exception": "Illuminate\\Http\\Client\\ConnectionException",
+            "http": null,
+            "uncertain_cost": true
+        },
+        {
+            "slug": "di-qwenqwen38-24t-a95b-27eec05942",
+            "upstream_model": "Qwen\/Qwen3.8-2.4T-A95B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 55,
+                "total_tokens": 71,
+                "completion_tokens": 16,
+                "estimated_cost": 0.000206,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 206,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen38-27b-cd680c8d5b",
+            "upstream_model": "Qwen\/Qwen3.8-27B",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 55,
+                "total_tokens": 71,
+                "completion_tokens": 16,
+                "estimated_cost": 3.825e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                }
+            },
+            "finish_reason": "length",
+            "response_present": true,
+            "cost_micro_usd": 39,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen38-flash-9b80e5fa82",
+            "upstream_model": "Qwen\/Qwen3.8-Flash",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 64,
+                "total_tokens": 138,
+                "completion_tokens": 74,
+                "estimated_cost": 3.55e-5,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 70,
+                    "text_tokens": 74
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 36,
+            "error_code": null
+        },
+        {
+            "slug": "di-qwenqwen38-max-8f1d280312",
+            "upstream_model": "Qwen\/Qwen3.8-Max",
+            "http": 200,
+            "usage": {
+                "prompt_tokens": 64,
+                "total_tokens": 85,
+                "completion_tokens": 21,
+                "estimated_cost": 0.000209571,
+                "prompt_tokens_details": {
+                    "cached_tokens": 0,
+                    "cache_write_tokens": null
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 18,
+                    "text_tokens": 21
+                }
+            },
+            "finish_reason": "stop",
+            "response_present": true,
+            "cost_micro_usd": 210,
+            "error_code": null
+        }
+    ],
+    "cost_micro_usd": 4812,
+    "stopped_for_budget": false,
+    "finished_at": "2026-10-10T10:15:07+00:00",
+    "successful": 88,
+    "attempted": 92,
+    "reserve_unknown_micro_usd": 2000,
+    "resume_started_at": "2026-10-10T10:13:07+00:00"
+}

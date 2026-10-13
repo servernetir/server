@@ -1,0 +1,1080 @@
+{
+  "schema": "servernet.ai.remaining-followup.v1",
+  "verified_at": "2026-10-11T11:43:44+00:00",
+  "scope": "Aggregate follow-up of the original56; exact supplier names only, with no customer, usage, project or model database identifiers.",
+  "historical_checkpoint": {
+    "verified_at": "2026-10-11T10:31:29+00:00",
+    "ready_catalog": 332,
+    "original_ready": 20,
+    "original_closed": 36,
+    "committed_micro": 4639000,
+    "evidence_sha256": "e45cb20653313244702742255e529541dcf122d6650519f278f2bf3fac1a6e8c"
+  },
+  "current": {
+    "ready_catalog": 333,
+    "original_total": 56,
+    "original_ready": 21,
+    "original_closed": 35,
+    "provider_original": {
+      "deepinfra": {
+        "original": 17,
+        "ready": 12,
+        "pending": 5
+      },
+      "gapgpt": {
+        "original": 39,
+        "ready": 9,
+        "pending": 30
+      }
+    },
+    "ready_kinds": {
+      "native": 94,
+      "chat": 202,
+      "embedding": 33,
+      "rerank": 4
+    },
+    "catalog_providers": {
+      "deepinfra": {
+        "total": 386,
+        "ready": 216,
+        "native": 87,
+        "chat": 97,
+        "embedding": 28,
+        "rerank": 4,
+        "pending": 170
+      },
+      "deepseek": {
+        "total": 2,
+        "ready": 2,
+        "native": 0,
+        "chat": 2,
+        "embedding": 0,
+        "rerank": 0,
+        "pending": 0
+      },
+      "gapgpt": {
+        "total": 145,
+        "ready": 115,
+        "native": 7,
+        "chat": 103,
+        "embedding": 5,
+        "rerank": 0,
+        "pending": 30
+      }
+    },
+    "new_this_step": [
+      "typesafe/jev-1.13"
+    ]
+  },
+  "budget": {
+    "limit_micro": 5000000,
+    "previous_commit_micro": 4639000,
+    "chat_allocation_micro": 10000,
+    "jev_allocation_micro": 10000,
+    "committed_micro": 4659000,
+    "remaining_micro": 341000,
+    "not_reset": true,
+    "failed_allocations_not_refunded": true,
+    "basis": "Conservative cumulative test allocations, not actual supplier invoice or spend."
+  },
+  "source_receipts": [
+    {
+      "file": "remaining36-read-v1-proof.json",
+      "sha256": "0ff5d1f841741860cf19b4d631685f41f710723f345f04034ea0a255b6a86a7a"
+    },
+    {
+      "file": "gemini-route-read-v1-proof.json",
+      "sha256": "b8cf747c001365e10a50e2be6b841617d66ec92f14ed85ab299599a597dbea59"
+    },
+    {
+      "file": "gemini-route-validation-v1-proof.json",
+      "sha256": "5dd1411046d31bfe2b96a27913f56cfa021091e2edcf4a0c378b502293d92318"
+    },
+    {
+      "file": "final36-chat-v1-proof.json",
+      "sha256": "c1c502e5879934f7e9617464c5f010a897fa800e7765bf792721623e0e673b46"
+    },
+    {
+      "file": "final36-jev-v1-proof.json",
+      "sha256": "a75e4622f314b3ccd9d9019e8b41a3d2436402e9a51e533f412a1b63838eec5b"
+    },
+    {
+      "file": "configure-jev-v1-proof.json",
+      "sha256": "3e92d58ba7eb58e33abfc426c697e02b3ff6a4820c9e3f73cc60b0b7edfe9fc0"
+    },
+    {
+      "file": "final36-full-test-proof.json",
+      "sha256": "f431d21a2b98fb734faaf55a6863c39ce7e2f67e269b97bbe6033a7dde83d608"
+    },
+    {
+      "file": "hotfix-5/manifest.json",
+      "sha256": "71a11557d57a0e614848360b650da60ed4517e078fa78b1ac46acea910d7c9bd"
+    },
+    {
+      "file": "hotfix-proof.json",
+      "sha256": "5c60c1133326d0944795c366a92152967dc8accd2efdb54dcd43067df34ea7db"
+    },
+    {
+      "file": "activate-final36-jev-v1-proof.json",
+      "sha256": "633455fd1b85fae1c494a625d14cbc819968b3f27678479b07a46c3ad5dc83a8"
+    },
+    {
+      "file": "activate-final36-jev-v2-proof.json",
+      "sha256": "41d63b340a2005f3f66ee23896b8e03929e0d9e70f18b396ef00991813279251"
+    },
+    {
+      "file": "final36-state-v2-proof.json",
+      "sha256": "910feeda7f34dff5962a91185540566462b38c330f733a7ea3f888ad44da67c7"
+    },
+    {
+      "file": "jev-public-seo-proof.json",
+      "sha256": "d9064e3a08b8f8455c72eaea6e8d0dc607573d64d9a3021d68a5a6ca068bf57d"
+    }
+  ],
+  "fresh_free_audit": {
+    "passed": true,
+    "at": "2026-10-11T10:47:41+00:00",
+    "supplier_inference_requests": 0,
+    "database_mutations": 0,
+    "budget_unchanged": true,
+    "providers": {
+      "gapgpt": {
+        "configured": true,
+        "enabled": true,
+        "commercial_enabled": true,
+        "live_calls_enabled": true
+      },
+      "deepinfra": {
+        "configured": true,
+        "enabled": true,
+        "commercial_enabled": true,
+        "live_calls_enabled": true
+      }
+    },
+    "source_reads": {
+      "gapgpt_authenticated_models": {
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "2af2034a36312b62787c43dafe9c6d26885e7705c94eb4d2a8210956f06c4d47"
+      },
+      "deepinfra_authenticated_models": {
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "140046f6e46d320730843a29b64d5566a1f8d56c76b21dbf3d74dfb02ec72c1e"
+      },
+      "deepinfra_account_config": {
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "1837e4517ac9ed790e2bffb4fd20b6f9c37b0967b6f9701e2201ae92593610e9"
+      },
+      "gapgpt_public_prices": {
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "f96b10d0fd1ffd320cfcba2215345103c05c2462461e77365d810b05e4d1bc10"
+      }
+    },
+    "deepinfra_metadata": [
+      {
+        "model": "openai/clip-vit-large-patch14-336",
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "c8f582dbd9ac151953834ca73b59ceb434f70b24b8910a7f732bf1a02b1078e9"
+      },
+      {
+        "model": "XiaomiMiMo/MiMo-V2.5-tts",
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "bd46349de17feba8de83cf784395e93bb6a15ac9db0d6a6302fa751e8474412d"
+      },
+      {
+        "model": "openai/clip-vit-base-patch32",
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "c61dd4d1d53c2801175e4827de5a6f54f793cdc66952425c92e3ff016e7114ed"
+      },
+      {
+        "model": "XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "f37f230dca7168486eb2a1c32626cdc6ea09d8de3253e9f8765126d4fb099a81"
+      },
+      {
+        "model": "XiaomiMiMo/MiMo-V2.5-tts-voiceclone",
+        "http": 200,
+        "transport_ok": true,
+        "body_sha256": "17b4c75eca278c5d7ec9a095dfed27156a164967e5b2be40a580a1c77c55fc92"
+      }
+    ],
+    "activation_discovery_sha256": "2af2034a36312b62787c43dafe9c6d26885e7705c94eb4d2a8210956f06c4d47",
+    "activation_pricing_sha256": "e6f012bc9cecb6ae20925a9f5f2a2c996f9a22f0b297ba18e684500ce33d5d32"
+  },
+  "gemini_route_checks": [
+    {
+      "proof": "gemini-route-read-v1-proof.json",
+      "supplier_inference_requests": 0,
+      "database_mutations": 0,
+      "budget_unchanged": true,
+      "request_count": 3,
+      "statuses": [
+        404,
+        404,
+        404
+      ],
+      "scope": "Documented proxy route discovery or invalid-syntax validation only; no successful media result."
+    },
+    {
+      "proof": "gemini-route-validation-v1-proof.json",
+      "supplier_inference_requests": 0,
+      "database_mutations": 0,
+      "budget_unchanged": true,
+      "request_count": 1,
+      "statuses": [
+        404
+      ],
+      "scope": "Documented proxy route discovery or invalid-syntax validation only; no successful media result."
+    }
+  ],
+  "live_samples": [
+    {
+      "model": "glm-4-air",
+      "provider": "gapgpt",
+      "operation": "chat",
+      "http": 503,
+      "seconds": 10.555,
+      "reserved_micro": 5000,
+      "prepared_bound_micro": 57,
+      "wallet_debit_irt": 0,
+      "error_code": "model_suspended",
+      "passed": false,
+      "supplier_cost_redacted": true,
+      "frozen_quote_verified": true,
+      "valid_text": false,
+      "output_cap": 64,
+      "settlement": {
+        "status": "released",
+        "error_code": "upstream_401",
+        "usage_source": null,
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "cost_micro": null,
+        "provider_cost_micro": null,
+        "cost_irt": null,
+        "sell_irt": null,
+        "tax_irt": null,
+        "charged_irt": 0,
+        "refunded_irt": 0,
+        "uncollected_irt": 0,
+        "margin_bp": 500,
+        "fee_bp": 0,
+        "vat_bp": 1000,
+        "vat_basis": "fa_locale",
+        "needs_review": false
+      },
+      "replay_tested": false
+    },
+    {
+      "model": "qwen3-235b-a22b",
+      "provider": "gapgpt",
+      "operation": "chat",
+      "http": 502,
+      "seconds": 2.313,
+      "reserved_micro": 5000,
+      "prepared_bound_micro": 303,
+      "wallet_debit_irt": 0,
+      "error_code": "upstream_error",
+      "passed": false,
+      "supplier_cost_redacted": true,
+      "frozen_quote_verified": true,
+      "valid_text": false,
+      "output_cap": 512,
+      "settlement": {
+        "status": "released",
+        "error_code": "upstream_503",
+        "usage_source": null,
+        "prompt_tokens": null,
+        "completion_tokens": null,
+        "cost_micro": null,
+        "provider_cost_micro": null,
+        "cost_irt": null,
+        "sell_irt": null,
+        "tax_irt": null,
+        "charged_irt": 0,
+        "refunded_irt": 0,
+        "uncollected_irt": 0,
+        "margin_bp": 500,
+        "fee_bp": 0,
+        "vat_bp": 1000,
+        "vat_basis": "fa_locale",
+        "needs_review": false
+      },
+      "replay_tested": false
+    },
+    {
+      "model": "typesafe/jev-1.13",
+      "provider": "gapgpt",
+      "operation": "native",
+      "http": 200,
+      "seconds": 3.354,
+      "reserved_micro": 10000,
+      "prepared_bound_micro": 2688,
+      "wallet_debit_irt": 6,
+      "error_code": null,
+      "passed": true,
+      "supplier_cost_redacted": true,
+      "financial_verified": true,
+      "ledger_verified": true,
+      "frozen_contract_verified": true,
+      "delivery": {
+        "valid_answer": true,
+        "answer_count": 1,
+        "answer_type": "noul",
+        "probability": 0.99,
+        "refund_signal_ge_half": true
+      },
+      "bound": {
+        "input_cap": 64000,
+        "output_count_required": true,
+        "output_tariff_free": true,
+        "whole_model_cost_ceiling_micro": 2688
+      },
+      "tariff": {
+        "type": "token_usage",
+        "input_usd_per_million": "0.042",
+        "output_usd_per_million": "0"
+      },
+      "tariff_sha256": "872bd5762c72c0a45862b9d25fe18e32c2b220179a2321e099910242ad30b3de",
+      "frozen_response_schema": {
+        "refund": {
+          "type": "noul"
+        }
+      },
+      "settlement": {
+        "status": "settled",
+        "error_code": null,
+        "usage_source": "native_tariff",
+        "prompt_tokens": 293,
+        "completion_tokens": 20,
+        "cost_micro": 13,
+        "provider_cost_micro": null,
+        "cost_irt": 4,
+        "sell_irt": 5,
+        "tax_irt": 1,
+        "charged_irt": 6,
+        "refunded_irt": 0,
+        "uncollected_irt": 0,
+        "margin_bp": 500,
+        "fee_bp": 0,
+        "vat_bp": 1000,
+        "vat_basis": "fa_locale",
+        "needs_review": false
+      },
+      "native_usage": {
+        "answer_count": 1,
+        "input_tokens": 293,
+        "output_tokens": 20
+      },
+      "replay": {
+        "http": 200,
+        "replayed": "true",
+        "same_body": true,
+        "additional_debit_irt": 0,
+        "additional_usage": 0,
+        "additional_ledger_entries": 0,
+        "financial_audit_unchanged": true
+      }
+    }
+  ],
+  "sample_cleanup": {
+    "chat": {
+      "key_revoked": true,
+      "revoked_http": 401,
+      "customer_suspended": true,
+      "project_archived": true,
+      "open_usage": 0,
+      "wallet_irt": 0,
+      "hold_irt": 0,
+      "usage_count": 2
+    },
+    "jev": {
+      "key_revoked": true,
+      "revoked_http": 401,
+      "customer_suspended": true,
+      "project_archived": true,
+      "open_usage": 0,
+      "wallet_irt": 0,
+      "hold_irt": 0,
+      "usage_count": 1
+    }
+  },
+  "activation": {
+    "model": "typesafe/jev-1.13",
+    "at": "2026-10-11T11:43:15+00:00",
+    "passed": true,
+    "before_status": "disabled",
+    "after_status": "active",
+    "ready": true,
+    "db_committed": true,
+    "supplier_inference_requests": 0,
+    "financial_audit_unchanged": true,
+    "budget_unchanged": true,
+    "failed_predecessor": {
+      "passed": false,
+      "db_committed": false,
+      "supplier_inference_requests": 0,
+      "reason": "Helper required literal SIGNED rather than the existing authorized isAgreedTo()/not-paused gate; distinct v2 corrected the helper without changing provider agreement."
+    }
+  },
+  "installed": {
+    "h5_completed_at": "2026-10-11T11:16:15+00:00",
+    "h5_file_count": 6,
+    "web_http": 200,
+    "opcache_reset": true,
+    "manifests": [
+      {
+        "path": "native-v2/release/manifest.json",
+        "sha256": "263d8850db5b615f4c27a1fca0e86b89a0f908561777f47cedfd8133b8f18fc0"
+      },
+      {
+        "path": "native-v2/hotfix-1/manifest.json",
+        "sha256": "ec43ecb23f930e386da032f5549cfd3681e45505d1ccd4708ac08c8acf5f5d11"
+      },
+      {
+        "path": "native-v2/hotfix-2/manifest.json",
+        "sha256": "7c540b7c30f1f684f87ce35dc3c1a264e133d9c059c7c463b7f87295b7bea1dd"
+      },
+      {
+        "path": "native-v2/hotfix-3/manifest.json",
+        "sha256": "70e4e4d5fda44b525409c7da36e31e4862da8c9bfa35ac2324d43e77ac34eabc"
+      },
+      {
+        "path": "native-v2/hotfix-4/manifest.json",
+        "sha256": "bb74ef8d3b320b8a6c80e895d7db76f337dc7a21456e7590fcf26b41b4aaa097"
+      },
+      {
+        "path": "native-v2/hotfix-5/manifest.json",
+        "sha256": "71a11557d57a0e614848360b650da60ed4517e078fa78b1ac46acea910d7c9bd"
+      }
+    ],
+    "production_files": [
+      {
+        "path": "app/Console/Commands/AiPruneReplay.php",
+        "sha256": "739f2165af1b11f53112744cc94c2cefe602bd766dd899cf45289e530d2bf38c",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Console/Commands/AiRecoverUsage.php",
+        "sha256": "4f5f96288fe20412bfc0384fd03e609ef5a708a7e6962da6c872e11a81f2e28d",
+        "last_manifest": "native-v2/hotfix-1/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Http/Controllers/Ai/AiMediaRelayController.php",
+        "sha256": "1405584cb20dc767e92b7e5b75a4578ddf168fe29d2a39710a1a4c338c8317c0",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AdditionalProviderCatalog.php",
+        "sha256": "cb43a9b410a873567abc3df83a5016e36fa506a621a1d76d5a1a950af37f8e5b",
+        "last_manifest": "native-v2/hotfix-5/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiCaller.php",
+        "sha256": "6ede466e54a2cc9e4b374a4be7ab2409c1e49a3931cee3a3c07b6292a8cfbd84",
+        "last_manifest": "native-v2/hotfix-5/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiGapOperations.php",
+        "sha256": "1d8a61a714ad988efaa57f63cae72d54185121cfeba96b5a9d0d63cc944113d8",
+        "last_manifest": "native-v2/hotfix-5/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiMediaRelay.php",
+        "sha256": "49f8ac62076866120e20a1e04ac425d92fe805fd3f25cabeea478955df242216",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiModelPage.php",
+        "sha256": "8d5a653eac26254ce14f247577d4c3a6d6e8a7c9562b6de5fb1a4c6479758489",
+        "last_manifest": "native-v2/hotfix-5/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiNative.php",
+        "sha256": "6a2f6828c3d3623effc36a230eea85506e68277fbe9194ddac1aacb2aeab3177",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiNativeResponseRecovery.php",
+        "sha256": "73e6f2929c56e30c9a4e19e88424a8390dea63c757444d451d97da15da67d104",
+        "last_manifest": "native-v2/hotfix-1/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiPriceQuote.php",
+        "sha256": "9427c5df17ccfd6fd84f633d46730278b6f44e5e55bb984457d4768b40643d6f",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiPricing.php",
+        "sha256": "56cc01176e936d400e0998e6c51ad6687f421fdb234cfbe90faaad74ae16fd10",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiSettlement.php",
+        "sha256": "10f05e3d6e7538824c95e25582e6de1e2dfddfe24914b132a597fbce41ef931d",
+        "last_manifest": "native-v2/hotfix-1/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/Ai/AiVideoInput.php",
+        "sha256": "d646f0869b8502077eac8c9a80e0b63adaf86b8d78329c4e96f2721cb6084036",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Services/AiProviders/OpenAiCompatibleDriver.php",
+        "sha256": "22024088fe34d9edf2c7371b6915629b203dfa9a5382ec10df2c695071e4cc25",
+        "last_manifest": "native-v2/hotfix-5/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "app/Support/ErrorTracker.php",
+        "sha256": "076867a8a076a56fb8f6226b4e916e619efb5278f79429a0caab34080ea0d071",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "lang/en/ai.php",
+        "sha256": "df03a00138a3df05ff6704abd8b4d53ab15b6eabe1f3ae555ece91847693cb85",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "lang/en/ai_model.php",
+        "sha256": "aba54ffde12fbbfc4059eeb0b59aa78cabe2a3f01ec7230689d70e0983da71d6",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "lang/fa/ai.php",
+        "sha256": "2bc3d5c0e2827ab7d483b4f5185918a5d46a28ca3808e7d26eab557c0b21c5c6",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "lang/fa/ai_model.php",
+        "sha256": "f65bd9dc385769736f66cb8e58dd395b0d50cd629ef280404b5d6785ad27bd8d",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "lang/tr/ai.php",
+        "sha256": "3f849dbe4280dd95cc2abf4d3cee5268cf3949a2e2471ba37159120e482f7f1f",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "lang/tr/ai_model.php",
+        "sha256": "c20a3e5d0108a5005a1b1483ad8f6e8cd66c4abd92173a673533220f29b77276",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "resources/content/ai-native-contracts.json",
+        "sha256": "90e960425c9be19b7f197510ae96b53f2e224d58988a2bebe3d36d4f438f399e",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "resources/content/gapgpt-operation-contracts.json",
+        "sha256": "4088d77766ccdb856ca6b982808e82f8252300bb6714f55e6651f77a4043b2cc",
+        "last_manifest": "native-v2/hotfix-5/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "resources/views/account/ai.blade.php",
+        "sha256": "6896bf6bf154119a5e464f49b8a334ced66f2188e99610b2cb29cbd42b72ba17",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "resources/views/account/topup.blade.php",
+        "sha256": "56a25063aae7e4c028c7c87d819f523a15d55b566317ff6961d5a127a6275d08",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "resources/views/pages/ai/home.blade.php",
+        "sha256": "036caf0f0fd79470e6ef6bf8abf315016eed76a4ca9c9d942a473d80e9562161",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "resources/views/pages/ai/model.blade.php",
+        "sha256": "d0a534c67941901381d0dd3ed58a0a5708907b4068d61509d73e8ec4b5ae6fb0",
+        "last_manifest": "native-v2/hotfix-4/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "resources/views/pages/ai/models.blade.php",
+        "sha256": "5d3308d025acf64ee138961c181c31aae7eea9db932944d56b5d1ac39286dbbc",
+        "last_manifest": "native-v2/release/manifest.json",
+        "matches": true
+      },
+      {
+        "path": "routes/web.php",
+        "sha256": "72465c4cf1d71eb4ce1227dd61d64bd8054032cb988c5d18d9540f650d9d562a",
+        "last_manifest": "native-v2/hotfix-2/manifest.json",
+        "matches": true
+      }
+    ],
+    "all_match": true
+  },
+  "tests": {
+    "passed": true,
+    "source_files_pinned": 1527,
+    "all_sources_and_fixtures_unchanged": true,
+    "suite_file_count": 35,
+    "includes_chat_and_jev": true,
+    "supplier_calls": 0,
+    "external_payments": 0,
+    "source_manifest_sha256": "4cd03ba841049ab2bea2e3a6a51d63c78d805c7141540b8f06f573c9d32dbb24",
+    "postcheck_sha256": "e858b23778cc1964f4c8f9d610d3b4ca49b60f5fa7ae2981ce973c6c30e5408f",
+    "suites": {
+      "sqlite": {
+        "tests": 355,
+        "assertions": 93079,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 7,
+        "xml_sha256": "97b8d826baebf38aa12e0f4d81687e6206b311651e8fbb0e9558f4be8a57ee4e",
+        "log_sha256": "390b3c2f9b368a892843194a241c58ff3ca768754258d76b8126d6bda1f7d9c3"
+      },
+      "mariadb": {
+        "tests": 355,
+        "assertions": 93123,
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "xml_sha256": "c5f22ae2895f7c3d6dee08f77e476c59b09de869f615b505bd09014120b4593b",
+        "log_sha256": "e7fdbf4d4cd7e47055ceab21774c097d13022dd6fa1b123fbef7f4bf18cf283e"
+      }
+    }
+  },
+  "public_page": {
+    "model": "typesafe/jev-1.13",
+    "classification_ready": true,
+    "canonical_matches_model": true,
+    "unique_h1": true,
+    "structured_data_blocks": 3,
+    "offer_available": true,
+    "public_vat_notice": false,
+    "offer_tax_included": false,
+    "title_present": true,
+    "description_present": true,
+    "rank_claim": false
+  },
+  "final_verification": {
+    "supplier_inference_requests": 0,
+    "funding_irt": 0,
+    "external_payment_requests": 0,
+    "historical_financial_mutations": 0,
+    "public_http": 200,
+    "public_count": 333,
+    "exact_ready_set_matches": true,
+    "cache_control": "no-store, private",
+    "revoked_http": 401,
+    "prior_synthetic_scopes": 11,
+    "all_prior_closed": true,
+    "prior_audit_unchanged": true,
+    "unfunded_final_closed": true,
+    "final_wallet_irt": 0,
+    "final_open_usage": 0,
+    "final_pending_reservations": 0,
+    "final_usage_count": 0,
+    "final_ledger_count": 0,
+    "paid_budget_unchanged": true
+  },
+  "remaining": [
+    {
+      "upstream": "openai/clip-vit-large-patch14-336",
+      "provider": "deepinfra",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending"
+    },
+    {
+      "upstream": "XiaomiMiMo/MiMo-V2.5-tts",
+      "provider": "deepinfra",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending"
+    },
+    {
+      "upstream": "openai/clip-vit-base-patch32",
+      "provider": "deepinfra",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending"
+    },
+    {
+      "upstream": "XiaomiMiMo/MiMo-V2.5-tts-voicedesign",
+      "provider": "deepinfra",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending"
+    },
+    {
+      "upstream": "XiaomiMiMo/MiMo-V2.5-tts-voiceclone",
+      "provider": "deepinfra",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_pending"
+    },
+    {
+      "upstream": "k3",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable"
+    },
+    {
+      "upstream": "gpt-chat-latest",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable"
+    },
+    {
+      "upstream": "glm-4v-plus",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "gemini-3-pro-image-preview",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending"
+    },
+    {
+      "upstream": "kimi-for-coding",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable"
+    },
+    {
+      "upstream": "glm-4-airx",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "gpt-4o-mini-tts",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending"
+    },
+    {
+      "upstream": "tts-1",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending"
+    },
+    {
+      "upstream": "glm-4-long",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "glm-4-air",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive",
+        "model_suspended"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "qwen3.6-35b-a3b",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable"
+    },
+    {
+      "upstream": "text-moderation-latest",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending"
+    },
+    {
+      "upstream": "kimi-2.7",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable"
+    },
+    {
+      "upstream": "qwen3-235b-a22b-instruct-2507",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "gemini-2.5-pro-preview-tts",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "grok-4",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "whisper-1",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending"
+    },
+    {
+      "upstream": "gpt-5.6-luna-compaction",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable"
+    },
+    {
+      "upstream": "gpt-5.6-luna-openai-compact",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "model_unavailable"
+    },
+    {
+      "upstream": "qwen3-235b-a22b",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "gpt-5.3-codex-spark",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "glm-4-alltools",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "babbage-002",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "glm-4-plus",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "gapgpt/whisper-1",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "catalogue_unavailable",
+        "model_inactive",
+        "model_not_chat",
+        "pricing_incomplete"
+      ],
+      "pending_reason": "endpoint_or_metering_pending"
+    },
+    {
+      "upstream": "glm-3-turbo",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "davinci-002",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "glm-4v",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "gemini-2.5-flash-preview-tts",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    },
+    {
+      "upstream": "glm-4-0520",
+      "provider": "gapgpt",
+      "status": "disabled",
+      "gates": [
+        "model_inactive"
+      ],
+      "pending_reason": null
+    }
+  ],
+  "limitations": [
+    "Representative protocol samples do not prove every sibling endpoint or future supplier availability.",
+    "Two DeepInfra CLIP models lack a documented hard billable-runtime ceiling; three MiMo tariffs remain free and do not yield positive percentage-only paid-sale profit.",
+    "Current GLM-air supplier401 and Qwen-base supplier503 released holds with no customer debit; their supplier cost is unknown, not fabricated as zero.",
+    "Other closed models retain their actual prior failures, absent exact identifiers or unresolved protocol/metering gates.",
+    "At least5% markup applies to rounded recorded cost before consumption tax; unknown future fees and exact net profit are not guaranteed.",
+    "No real bank/OTP payment or search-ranking guarantee was established."
+  ]
+}

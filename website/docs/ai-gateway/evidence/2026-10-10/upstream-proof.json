@@ -1,0 +1,15 @@
+{
+    "at": "2026-10-10T09:15:14+00:00",
+    "http_status": 200,
+    "response_received": true,
+    "usage": {
+        "prompt_tokens": 17,
+        "total_tokens": 19,
+        "completion_tokens": 2,
+        "estimated_cost": 4.2000000000000004e-6,
+        "prompt_tokens_details": null,
+        "completion_tokens_details": {
+            "reasoning_tokens": 0
+        }
+    }
+}

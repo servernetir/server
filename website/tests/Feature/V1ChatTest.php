@@ -2,328 +2,173 @@
 
 namespace Tests\Feature;
 
-use App\Models\AiModel;
-use App\Models\AiModelUnitPrice;
-use App\Models\AiProject;
-use App\Models\AiProvider;
-use App\Models\Customer;
-use App\Models\CustomerApiToken;
+use App\Models\AiReservation;
+use App\Models\AiUsage;
+use App\Models\CreditEntry;
 use App\Models\Setting;
-use App\Services\Ai\PriceBook;
-use App\Services\Finance\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Http;
+use Tests\Feature\Concerns\AiGatewayFixture;
 use Tests\TestCase;
 
 /**
- * M4-b — رابطِ عمومیِ `POST /v1/chat/completions` (سازگارِ OpenAI).
+ * قراردادِ HTTP ِ `POST /v1/chat/completions` با موتورِ پولیِ M5.1b.
  *
- * همین‌طور که AiCallerTest شفاف نوشته، SQLite هم‌زمانی را اثبات نمی‌کند —
- * این‌جا **قراردادِ HTTPِ بیرونی** سنجیده می‌شود: نگاشتِ کدِ پایدار به
- * وضعیت، چاپِ بی‌واسطهٔ کد/پیام، و اینکه هیچ تماسِ بالادستیِ دومی برای
- * کلیدِ هم‌ارزیِ تکراری نرود.
- *
- * Completed calls replay their saved M4-c response; an in-flight reservation
- * with no saved response returns duplicate_request (409). Neither charges twice.
+ * عددها همان مثالِ کارشدهٔ m5-spec §3 است: ۱۲٬۰۰۰ ورودی (۸٬۰۰۰ کش‌شده) + ۹۰۰ خروجی ⇒
+ * دقیقاً **۳۲۷ تومان** از کیف (فروش ۲۹۷ + مالیات ۳۰). نسخهٔ M4 همین تماس را به
+ * میکرودلار رزرو و کلِ رزرو را کسر می‌کرد (B1، B3) — این تست‌ها جلوی برگشتنش را می‌گیرند.
  */
 class V1ChatTest extends TestCase
 {
+    use AiGatewayFixture;
     use RefreshDatabase;
 
-    private const PRICE_INPUT_MICROS = 500_000;
-    private const PRICE_OUTPUT_MICROS = 750_000;
-
-    private function customer(): Customer
+    protected function setUp(): void
     {
-        return Customer::create([
-            'email' => 'v1chat'.random_int(1, 999999).'@example.com',
-            'phone' => '0912'.random_int(1000000, 9999999),
-            'password' => null, 'status' => 'active', 'locale' => 'fa',
-        ]);
+        parent::setUp();
+        $this->sellableCatalog();
     }
 
-    /**
-     * مشتریِ پول‌دار + کلیدِ AIِ سبز + **متنِ خامِ توکن**. مسیرِ HTTP با
-     * هدرِ Bearer کار می‌کند و `CustomerApiToken::issue` متنِ خام را فقط
-     * در لحظهٔ صدور برمی‌گرداند، پس همین‌جا مستقیم می‌سازیم و هشِ همان
-     * قراردادِ مدل (`sha256` متن) را ذخیره می‌کنیم — منطقِ جدیدی نوشته
-     * نمی‌شود، فقط همان کاری که `issue` می‌کند، با نگه‌داشتنِ متن.
-     *
-     * @return array{0:Customer,1:string,2:\App\Models\CustomerApiToken}
-     */
-    private function greenKey(int $credit = 1_000_000): array
+    public function test_worked_example_debits_exactly_328_toman_with_headers(): void
     {
-        $c = $this->customer();
+        [$c, $plain] = $this->greenKey(1_000_000);
+        $this->fakeUsage(12_000, 900, 8_000);
 
-        // کیفِ صفر: credit با مبلغِ صفر خطا می‌دهد، پس فقط مثبت‌ها شارژ می‌شوند
-        if ($credit > 0) {
-            app(Wallet::class)->credit($c->id, 'IRT', $credit, 'topup', $c, 'شارژِ آزمون');
-        }
+        $res = $this->v1($plain, $this->bigBody())->assertOk()->assertJsonPath('choices.0.message.content', 'سلام!');
 
-        $p = $c->aiProjects()->create([
-            'name' => 'proj', 'slug' => 'p'.random_int(1, 99999),
-            'status' => AiProject::STATUS_ACTIVE,
-        ]);
-        $p->refreshBudgetWindow();
+        $u = AiUsage::firstOrFail();
+        $res->assertHeader('X-Request-Id', $u->public_id)->assertHeader('X-ServerNet-Charge-Irt', '328');
 
-        $plain = 'sn_'.bin2hex(random_bytes(24));
-        $token = CustomerApiToken::create([
-            'customer_id' => $c->id,
-            'name' => 'ai-key',
-            'token_hash' => hash('sha256', $plain),
-            'abilities' => ['ai:chat'],
-            'allowed_cidrs' => [],
-            'ai_project_id' => $p->id,
-        ]);
+        $this->assertSame(AiUsage::STATUS_SETTLED, $u->status);
+        $this->assertSame([298, 30, 328, 238], [(int) $u->sell_irt, (int) $u->tax_irt, (int) $u->charged_irt, (int) $u->cost_irt]);
+        $this->assertSame(1_000_000 - 328, $this->balance($c));
+        $this->assertSame(1_000_000 - 328, $this->available($c), 'رزرو باید کامل بسته شده باشد');
 
-        return [$c, $plain, $token];
+        $row = CreditEntry::where('customer_id', $c->id)->where('reason', 'ai_usage')->sole();
+        $this->assertSame(-328, (int) $row->amount);
+        $this->assertSame(AiReservation::STATUS_SETTLED, AiReservation::sole()->status);
     }
 
-    private function catalog(): void
+    public function test_forwarded_body_forces_max_tokens_and_strips_user(): void
     {
-        $provider = AiProvider::updateOrCreate(['slug' => 'deepinfra'], [
-            'slug' => 'deepinfra', 'name' => 'DeepInfra', 'driver' => 'OpenAI-Compatible',
-            'enabled' => true, 'live_calls_enabled' => true, 'priority' => 1,
-            'agreement_status' => AiProvider::STATUS_SIGNED, 'billing_currency_code' => 'USD',
-        ]);
+        [, $plain] = $this->greenKey();
+        $this->fakeUsage(10, 5, null);
 
-        $m = AiModel::create([
-            'ai_provider_id' => $provider->id, 'slug' => 'llama-3-8b',
-            'upstream_model' => 'meta-llama/Llama-3-8B-Instruct',
-            'name' => 'Llama 3 8B', 'category' => AiModel::CATEGORY_CHAT,
-            'status' => AiModel::STATUS_ACTIVE, 'max_output_tokens' => 256,
-            'provider_priority' => 1,
-        ]);
+        $this->v1($plain, $this->chatBody(['max_tokens' => 999_999, 'user' => 'alice@example.com', 'metadata' => ['a' => 1]]))
+            ->assertOk()->assertHeader('X-ServerNet-Dropped-Params', 'user,metadata');
 
-        app(PriceBook::class)->supersede($m, AiModelUnitPrice::UNIT_INPUT, self::PRICE_INPUT_MICROS);
-        app(PriceBook::class)->supersede($m, AiModelUnitPrice::UNIT_OUTPUT, self::PRICE_OUTPUT_MICROS);
-
-        Setting::put('ai_provider_deepinfra_base_url', 'https://api.deepinfra.com/v1/openai');
-        Setting::putSecret('ai_provider_deepinfra_key', 'sk-test');
+        Http::assertSent(fn (HttpRequest $r) => $r['max_tokens'] === 4096
+            && ! isset($r['user']) && ! isset($r['metadata'])
+            && $r['model'] === 'meta-llama/Llama-3.3-70B-Instruct');
     }
 
-    private function fakeOk(): void
+    public function test_sales_closed_is_503_before_any_hold_or_call(): void
     {
-        Http::fake([
-            '*/chat/completions' => Http::response([
-                'id' => 'cmpl-1',
-                'choices' => [['message' => ['role' => 'assistant', 'content' => 'سلام!']]],
-                'usage' => ['prompt_tokens' => 10, 'completion_tokens' => 5],
-            ], 200),
-        ]);
-    }
-
-    /**
-     * @param  array<string,string>  $headers
-     */
-    private function postChat(array $payload, array $headers = [])
-    {
-        return $this->postJson('/v1/chat/completions', $payload, $headers);
-    }
-
-    // ═══════════════ مسیرِ سبز ═══════════════
-
-    public function test_happy_path_returns_upstream_body_verbatim(): void
-    {
-        [$customer, $plain, $token] = $this->greenKey();
-        $this->catalog();
-        $this->fakeOk();
-
-        $res = $this->postChat([
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام، جواب کوتاه بده.']],
-            'max_tokens' => 50,
-        ], ['Authorization' => 'Bearer '.$plain]);
-
-        $res->assertStatus(200);
-        $this->assertSame('cmpl-1', $res->json('id'));
-        $this->assertSame('سلام!', $res->json('choices.0.message.content'));
-        $this->assertSame(10, $res->json('usage.prompt_tokens'));
-
-        // پاسخِ چت هرگز کش نمی‌شود (میدل‌ورهای امنیتی ممکن است هدرهای
-        // دیگری هم بنشانند، پس عضویت سنجیده می‌شود نه تساویِ کامل)
-        $this->assertStringContainsString('no-store', (string) $res->headers->get('Cache-Control'));
-
-        // تماسِ واقعی: اسلاگِ عمومی هرگز به بالادست نمی‌رود
-        Http::assertSent(function ($req) {
-            return str_contains($req->url(), '/chat/completions')
-                && $req['model'] === 'meta-llama/Llama-3-8B-Instruct';
-        });
-    }
-
-    // ═══════════════ احراز هویت ═══════════════
-
-    public function test_unknown_token_is_401_invalid_token(): void
-    {
-        $this->catalog();
-        $this->fakeOk();
-
-        $res = $this->postChat([
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام']],
-        ], ['Authorization' => 'Bearer sn_totally-unknown']);
-
-        $res->assertStatus(401);
-        $this->assertSame('invalid_token', $res->json('code'));
-        Http::assertNothingSent();
-    }
-
-    public function test_missing_bearer_header_is_401_invalid_token(): void
-    {
-        $this->catalog();
-        $this->fakeOk();
-
-        $res = $this->postChat([
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام']],
-        ]);
-
-        $res->assertStatus(401);
-        $this->assertSame('invalid_token', $res->json('code'));
-        Http::assertNothingSent();
-    }
-
-    // ═══════════════ admission — کد بی‌واسطه ═══════════════
-
-    public function test_revoked_token_denies_admission_with_verbatim_code(): void
-    {
-        [$customer, $plain, $token] = $this->greenKey();
-        $this->catalog();
-        $this->fakeOk();
-        $token->revoke();
-
-        $res = $this->postChat([
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام']],
-        ], ['Authorization' => 'Bearer '.$plain]);
-
-        // کدِ admission بی‌واسطه چاپ می‌شود — نه یک invalid_token همه‌کاره
-        $res->assertStatus(401);
-        $this->assertSame('token_revoked', $res->json('code'));
-        Http::assertNothingSent();
-    }
-
-    public function test_non_ai_key_denies_with_not_ai_key(): void
-    {
-        $c = $this->customer();
-        app(Wallet::class)->credit($c->id, 'IRT', 1_000_000, 'topup', $c, 'شارژِ آزمون');
-        $this->catalog();
-        $this->fakeOk();
-
-        $plain = 'sn_'.bin2hex(random_bytes(24));
-        CustomerApiToken::create([
-            'customer_id' => $c->id, 'name' => 'plain-read-key',
-            'token_hash' => hash('sha256', $plain),
-            'abilities' => ['read'], 'allowed_cidrs' => [],
-        ]);
-
-        $res = $this->postChat([
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام']],
-        ], ['Authorization' => 'Bearer '.$plain]);
-
-        $res->assertStatus(403);
-        $this->assertSame('not_ai_key', $res->json('code'));
-        Http::assertNothingSent();
-    }
-
-    public function test_empty_wallet_is_402_insufficient_funds(): void
-    {
-        [$customer, $plain, $token] = $this->greenKey(credit: 0);
-        $this->catalog();
-        $this->fakeOk();
-
-        $res = $this->postChat([
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام']],
-        ], ['Authorization' => 'Bearer '.$plain]);
-
-        $res->assertStatus(402);
-        $this->assertSame('insufficient_funds', $res->json('code'));
-        Http::assertNothingSent();
-    }
-
-    // ═══════════════ بدنه ═══════════════
-
-    public function test_missing_model_field_is_422_invalid_payload(): void
-    {
-        [$customer, $plain, $token] = $this->greenKey();
-        $this->catalog();
-        $this->fakeOk();
-
-        $res = $this->postChat([
-            'messages' => [['role' => 'user', 'content' => 'بدونِ مدل']],
-        ], ['Authorization' => 'Bearer '.$plain]);
-
-        $res->assertStatus(422);
-        $this->assertSame('invalid_payload', $res->json('code'));
-        Http::assertNothingSent();
-    }
-
-    // ═══════════════ بالادست ═══════════════
-
-    public function test_upstream_5xx_maps_to_502_upstream_error(): void
-    {
-        [$customer, $plain, $token] = $this->greenKey();
-        $this->catalog();
-
-        Http::fake(['*/chat/completions' => Http::response(['error' => 'boom'], 500)]);
-
-        $res = $this->postChat([
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام']],
-        ], ['Authorization' => 'Bearer '.$plain]);
-
-        $res->assertStatus(502);
-        $this->assertSame('upstream_error', $res->json('code'));
-    }
-
-    // ═══════════════ هم‌ارزی ═══════════════
-
-    public function test_duplicate_idempotency_key_calls_upstream_once_and_replays(): void
-    {
-        [$customer, $plain, $token] = $this->greenKey();
-        $this->catalog();
-        $this->fakeOk();
-
-        $payload = [
-            'model' => 'llama-3-8b',
-            'messages' => [['role' => 'user', 'content' => 'سلام، جواب کوتاه بده.']],
-        ];
-        $headers = ['Authorization' => 'Bearer '.$plain, 'Idempotency-Key' => 'chat-key-1'];
-
-        $first = $this->postChat($payload, $headers);
-        $dup = $this->postChat($payload, $headers);
-
-        $first->assertStatus(200);
-        $this->assertSame('سلام!', $first->json('choices.0.message.content'));
-
-        $dup->assertStatus(200);
-        $this->assertSame($first->json(), $dup->json());
-        $this->assertSame(1, \App\Models\AiReservation::where('customer_id', $customer->id)->count());
-        $this->assertSame(1, \App\Models\CreditEntry::where('customer_id', $customer->id)
-            ->where('reason', 'ai_reservation')->count());
-
-        // 🔴 تماسِ دومی به بالادست نرفت
-        Http::assertSentCount(1);
-    }
-
-    public function test_in_flight_idempotency_key_returns_409_without_calling_or_charging(): void
-    {
-        [$customer, $plain] = $this->greenKey();
-        $this->catalog();
+        Setting::put('ai_sales_open', null);
+        [, $plain] = $this->greenKey();
         Http::fake();
-        app(\App\Services\Ai\AiReservations::class)->reserve(
-            $customer->id, 100, 'pending-key', now()->addMinute(), 'ai', 'llama-3-8b');
-        $before = app(Wallet::class)->balanceOf($customer->id);
 
-        $this->postChat([
-            'model' => 'llama-3-8b', 'messages' => [['role' => 'user', 'content' => 'Hello']],
-        ], ['Authorization' => 'Bearer '.$plain, 'Idempotency-Key' => 'pending-key'])
-            ->assertStatus(409)->assertJsonPath('code', 'duplicate_request');
+        $this->v1($plain, $this->chatBody())->assertStatus(503)->assertJsonPath('code', 'sales_closed');
 
+        $this->assertSame(0, AiReservation::count());
         Http::assertNothingSent();
-        $this->assertSame($before, app(Wallet::class)->balanceOf($customer->id));
-        $this->assertSame(1, \App\Models\AiReservation::where('customer_id', $customer->id)->count());
+    }
+
+    public function test_canary_customer_passes_while_sales_are_closed(): void
+    {
+        Setting::put('ai_sales_open', null);
+        [$c, $plain] = $this->greenKey();
+        Setting::put('ai_canary_customer_ids', '999,'.$c->id);
+        $this->fakeUsage(10, 5, null);
+
+        $this->v1($plain, $this->chatBody())->assertOk();
+    }
+
+    public function test_unknown_or_missing_token_is_401(): void
+    {
+        $this->v1('sn_nope', $this->chatBody())->assertStatus(401)->assertJsonPath('code', 'invalid_token');
+        $this->postJson('/v1/chat/completions', $this->chatBody())->assertStatus(401)->assertJsonPath('code', 'invalid_token');
+    }
+
+    public function test_revoked_token_is_denied_with_its_code(): void
+    {
+        [, $plain, $token] = $this->greenKey();
+        $token->update(['revoked_at' => now()]);
+
+        $this->v1($plain, $this->chatBody())->assertStatus(401)->assertJsonPath('code', 'token_revoked');
+    }
+
+    public function test_empty_wallet_is_402_and_names_the_amounts(): void
+    {
+        [, $plain] = $this->greenKey(0);
+        Http::fake();
+
+        $this->v1($plain, $this->chatBody(['max_tokens' => 4096]))
+            ->assertStatus(402)->assertJsonPath('code', 'insufficient_funds');
+
+        $this->assertSame(0, AiReservation::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_missing_model_is_422_and_unknown_model_404(): void
+    {
+        [, $plain] = $this->greenKey();
+
+        $this->v1($plain, ['messages' => [['role' => 'user', 'content' => 'x']]])->assertStatus(422)->assertJsonPath('code', 'invalid_payload');
+        $this->v1($plain, $this->chatBody(['model' => 'nope']))->assertStatus(404)->assertJsonPath('code', 'model_not_found');
+    }
+
+    public function test_invalid_stream_n_and_non_text_parts_are_400_with_no_hold(): void
+    {
+        [, $plain] = $this->greenKey();
+        Http::fake();
+
+        $this->v1($plain, $this->chatBody(['stream' => 'true']))->assertStatus(400)->assertJsonPath('code', 'invalid_request');
+        $this->v1($plain, $this->chatBody(['n' => 2]))->assertStatus(400)->assertJsonPath('code', 'unsupported_parameter');
+        $this->v1($plain, $this->chatBody(['messages' => [['role' => 'user', 'content' => [
+            ['type' => 'image_url', 'image_url' => ['url' => 'https://x/y.png']],
+        ]]]]))->assertStatus(400)->assertJsonPath('code', 'unsupported_parameter');
+
+        $this->assertSame(0, AiReservation::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_upstream_5xx_is_502_releases_and_writes_no_ledger(): void
+    {
+        [$c, $plain] = $this->greenKey();
+        Http::fake(['*/chat/completions' => Http::response(['error' => 'boom'], 503)]);
+
+        $this->v1($plain, $this->chatBody())->assertStatus(502)->assertJsonPath('code', 'upstream_error');
+
+        $this->assertSame(AiUsage::STATUS_RELEASED, AiUsage::sole()->status);
+        $this->assertSame(1_000_000, $this->available($c));
+        $this->assertSame(0, CreditEntry::where('reason', 'like', 'ai_%')->count());
+    }
+
+    public function test_same_key_same_body_replays_without_a_second_call_or_charge(): void
+    {
+        [$c, $plain] = $this->greenKey();
+        $this->fakeUsage(12_000, 900, 8_000);
+
+        $first = $this->v1($plain, $this->bigBody(), ['Idempotency-Key' => 'k-1'])->assertOk();
+        $second = $this->v1($plain, $this->bigBody(), ['Idempotency-Key' => 'k-1'])->assertOk()
+            ->assertHeader('Idempotent-Replayed', 'true');
+
+        $this->assertSame($first->json(), $second->json());
+        Http::assertSentCount(1);
+        $this->assertSame(1_000_000 - 328, $this->balance($c));
+    }
+
+    public function test_same_key_other_body_is_422_and_bad_key_is_400(): void
+    {
+        [, $plain] = $this->greenKey();
+        $this->fakeUsage(10, 5, null);
+
+        $this->v1($plain, $this->chatBody(), ['Idempotency-Key' => 'k-2'])->assertOk();
+        $this->v1($plain, $this->chatBody(['temperature' => 0.2]), ['Idempotency-Key' => 'k-2'])
+            ->assertStatus(422)->assertJsonPath('code', 'idempotency_key_reused');
+        $this->v1($plain, $this->chatBody(), ['Idempotency-Key' => str_repeat('a', 81)])
+            ->assertStatus(400)->assertJsonPath('code', 'invalid_idempotency_key');
     }
 }

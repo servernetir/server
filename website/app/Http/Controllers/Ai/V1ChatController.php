@@ -69,15 +69,53 @@ final class V1ChatController extends Controller
     |    مستقل از IP. سقف بالاتر از سطلِ IP است چون این دومین دیوارست،
     |    نه دیوارِ نخست — هر دو با رزرو/TTL معماریِ پول، سقف سوم‌اند.
     */
-    public const PER_TOKEN_PER_MINUTE = 240;
+    public const PER_TOKEN_PER_MINUTE = 60;
 
     /** قراردادِ ثابتِ بدنهٔ خطا — یک شکل برای همهٔ ردها */
     private function fail(string $code, string $message, int $status): JsonResponse
     {
-        return response()->json(['code' => $code, 'message' => $message], $status);
+        return self::error($code, $message, $status);
     }
 
-    public function chat(Request $request): JsonResponse
+    public static function error(string $code, string $message, int $status, array $headers = []): JsonResponse
+    {
+        return response()->json(['error' => ['message' => $message,
+            'type' => $status < 500 ? 'invalid_request_error' : 'server_error', 'code' => $code, 'param' => null],
+            'code' => $code, 'message' => $message], $status, $headers + ['Cache-Control' => 'no-store']);
+    }
+
+    public function chat(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $this->execute($request, 'chat');
+    }
+
+    public function embeddings(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $this->execute($request, 'embedding');
+    }
+
+    public function rerank(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $this->execute($request, 'rerank');
+    }
+
+    public function native(Request $request): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return $this->execute($request, 'native');
+    }
+
+    public function nativeResult(Request $request,string $id): JsonResponse
+    {
+        $token=CustomerApiToken::findByPlain((string)$request->bearerToken());
+        if (! $token) return $this->fail('invalid_token','API key is required.',401);
+        $auth=AiAdmission::authorize($token,'ai:native',$request->ip());
+        if (! $auth->ok) return $this->fail($auth->code,$auth->message,self::statusFor($auth->code));
+        $outcome=app(AiCaller::class)->nativeResult($auth,$id);
+        return $outcome->ok ? response()->json($outcome->response,$outcome->status,$outcome->headers)
+            : self::error($outcome->code,$outcome->message,$outcome->status,$outcome->headers);
+    }
+
+    private function execute(Request $request, string $operation): JsonResponse|\Symfony\Component\HttpFoundation\StreamedResponse
     {
         // ── گیتِ توکن: هدرِ Bearer — ناشناخته یا غایب، هر دو یک کدِ پایدار ──
         $bearer = (string) ($request->bearerToken() ?? '');
@@ -88,11 +126,7 @@ final class V1ChatController extends Controller
             if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($limiterKey, self::PER_TOKEN_PER_MINUTE)) {
                 $retry = \Illuminate\Support\Facades\RateLimiter::availableIn($limiterKey);
 
-                return response()->json([
-                    'code'    => 'rate_limited',
-                    'message' => 'شمارِ درخواست‌هایِ این کلید از حدِ مجاز گذشت؛ کمی بعد دوباره تلاش کنید.',
-                    'retry_after' => $retry,
-                ], 429, ['Retry-After' => (string) $retry]);
+                return self::error('rate_limited', 'API key rate limit exceeded.', 429, ['Retry-After' => (string) $retry]);
             }
 
             \Illuminate\Support\Facades\RateLimiter::hit($limiterKey, 60);
@@ -101,6 +135,11 @@ final class V1ChatController extends Controller
         $token = $bearer !== '' ? CustomerApiToken::findByPlain($bearer) : null;
 
         if ($token === null) {
+            $ipKey = 'ai-v1-auth|'.hash('sha256', (string) $request->ip());
+            if (\Illuminate\Support\Facades\RateLimiter::tooManyAttempts($ipKey, 30)) {
+                return self::error('rate_limited', 'Too many failed authentication attempts.', 429, ['Retry-After' => '60']);
+            }
+            \Illuminate\Support\Facades\RateLimiter::hit($ipKey, 60);
             return $this->fail('invalid_token', 'کلیدِ API شناخته نشد یا ارسال نشده است.', 401);
         }
 
@@ -108,7 +147,7 @@ final class V1ChatController extends Controller
         | admission — تنها قاضیِ «آیا این کلید اجازه دارد؟». کد و پیامِ رد
         | بی‌واسطه بالا می‌رود؛ این‌جا هیچ پیامی بازنویسی یا ترجمه نمی‌شود.
         */
-        $auth = AiAdmission::authorize($token, 'ai:chat', $request->ip());
+        $auth = AiAdmission::authorize($token, 'ai:'.$operation, $request->ip());
 
         if (! $auth->ok) {
             return $this->fail(
@@ -119,46 +158,33 @@ final class V1ChatController extends Controller
         }
 
         // ── الزامِ `model` — همان قراردادِ OpenAI، پیش از هر تماسِ پول‌خور ──
-        $payload = (array) $request->input();
-        $modelSlug = trim((string) ($payload['model'] ?? ''));
-
-        if ($modelSlug === '') {
+        $payload = (array) $request->json()->all();
+        if (! is_string($payload['model'] ?? null) || trim($payload['model']) === '') {
             return $this->fail('invalid_payload', 'فیلدِ «model» الزامی است.', 422);
         }
 
-        unset($payload['model']); // اسلاگِ عمومی هرگز به بالادست نمی‌رود؛ درایور نامِ واقعی را می‌نویسد
-
         /*
-        | کلیدِ هم‌ارزی — سربرگِ `Idempotency-Key`، اختیاری. در AiCaller
-        | همان کلیدِ رزرو است: تکرار = همان ردیف، بدونِ تماسِ دوم و
-        | بدونِ خرجِ دوباره (کدِ `duplicate_request`).
+        | کلیدِ هم‌ارزی — سربرگِ `Idempotency-Key`، اختیاری. `AiCaller` قالبش را می‌سنجد
+        | (۸۰ نویسه) و آن را به **هشِ بدنه** گره می‌زند: همان کلید + همان بدنه ⇒ بازپخشِ
+        | بی‌شارژ؛ همان کلید + بدنهٔ دیگر ⇒ ۴۲۲.
         */
         $idempotencyKey = trim((string) ($request->header('Idempotency-Key') ?? ''));
 
-        $outcome = app(AiCaller::class)->handle(
-            $auth,
-            $modelSlug,
-            $payload,
-            $idempotencyKey !== '' ? $idempotencyKey : null,
-        );
-
-        if ($outcome->ok) {
-            /*
-            | بدنهٔ ارائه‌دهنده **بی‌تفسیر** برمی‌گردد — قراردادِ سازگارِ
-            | OpenAI یعنی مشتری همان JSONای را ببیند که خودش می‌دید.
-            | no-store عمدی: پاسخِ چت هرگز نباید در کشِ واسطه بنشیند.
-            */
-            return response()->json($outcome->response, 200, [
-                'Cache-Control' => 'no-store',
-            ]);
-        }
+        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null, $operation, $operation==='native');
 
         /*
-        | مسیرِ قرمز — کدِ پایدارِ outcome مالکِ وضعیت است؛ هیچ استثنایی
-        | با ۵۰۰ِ بی‌کدی بلعیده نمی‌شود. کدِ ناشناخته (پدیدهٔ آینده) هم
-        | هرگز بی‌کد نمی‌ماند: ۵۰۰ + خودِ کد.
+        | بدنهٔ ارائه‌دهنده در M5.1b بی‌تفسیر برمی‌گردد (بازنویسیِ نام و شناسه مالِ M5.2
+        | است). وضعیت و سربرگ‌ها (`X-Request-Id`، `X-ServerNet-Charge-Irt`، و روی خطای
+        | پولی `x-should-retry: false`) عیناً از `AiCaller` می‌آیند.
         */
-        return $this->fail($outcome->code, $outcome->message, self::statusFor($outcome->code));
+        if ($outcome->ok) {
+            if ($outcome->stream !== null) {
+                return response()->stream($outcome->stream, 200, $outcome->headers + ['Content-Type' => 'text/event-stream; charset=utf-8']);
+            }
+            return response()->json($outcome->response, $outcome->status, $outcome->headers + ['Cache-Control' => 'no-store']);
+        }
+
+        return self::error($outcome->code, $outcome->message, $outcome->status, $outcome->headers);
     }
 
     /**
@@ -177,7 +203,7 @@ final class V1ChatController extends Controller
             // دامنه و پروژه — کلیدِ سالم ولی بی‌اجازه
             'not_ai_scope', 'not_ai_key', 'insufficient_scope', 'ip_not_allowed',
             'account_inactive', 'project_missing', 'project_inactive',
-            'budget_window_stale' => 403,
+            'budget_window_stale' => 403,   // دیگر صادر نمی‌شود (D12)؛ برای کلاینتِ قدیمی نگه داشته شد
 
             // مدل — شناخته‌نشده
             'model_not_found' => 404,

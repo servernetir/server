@@ -23,6 +23,7 @@ class AiCall extends Model
         'ok',
         'request_body',
         'response_body',
+        'response_encrypted',
         'upstream_status',
     ];
 
@@ -32,6 +33,7 @@ class AiCall extends Model
             'ok' => 'boolean',
             'request_body' => 'array',
             'response_body' => 'array',
+            'response_encrypted' => 'encrypted:array',
         ];
     }
 

@@ -189,6 +189,7 @@ class AccountController extends Controller
                     // «پروفایل و احراز هویت» یک صفحه است؛ آیتمِ جدای verify حذف شد
                     // چون کاربر نمی‌فهمید تفاوتش با پروفایل چیست.
                     ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],
+                    ['key' => 'ai', 'icon' => 'code', 'label' => __('ai.usage'), 'url' => lroute('account.ai')],
                     ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security'), 'url' => lroute('account.security')],
                 ]],
             ],

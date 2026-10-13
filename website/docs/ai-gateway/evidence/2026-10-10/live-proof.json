@@ -1,0 +1,141 @@
+{
+    "at": "2026-10-10T09:29:27+00:00",
+    "provider_driver": "OpenAI-Compatible",
+    "key_present": true,
+    "fee_bp": 0,
+    "margin_pct": "5",
+    "agreement_status": "none",
+    "live_calls_enabled": true,
+    "catalogue_counts": {
+        "active": 92,
+        "deprecated": 165,
+        "disabled": 129
+    },
+    "representative_slug": "di-anthropicclaude-fable-5-86c0c8bf10",
+    "gates": [
+        "agreement_unsigned"
+    ],
+    "pages": [
+        {
+            "url": "https:\/\/servernet.cloud\/ai",
+            "status": 200,
+            "title": "خرید API هوش مصنوعی با پرداخت تومانی | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": true
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/ai\/models",
+            "status": 200,
+            "title": "مدل‌ها و قیمت API هوش مصنوعی | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/ai\/docs",
+            "status": 200,
+            "title": "آموزش اتصال API هوش مصنوعی و ساخت کلید | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/ai\/models\/di-anthropicclaude-fable-5-86c0c8bf10",
+            "status": 200,
+            "title": "API مدل claude-fable-5 | قیمت، اتصال و وضعیت | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai",
+            "status": 200,
+            "title": "AI API with Toman billing | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": true
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai\/models",
+            "status": 200,
+            "title": "AI API models and pricing | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai\/docs",
+            "status": 200,
+            "title": "AI API setup, keys and integration guide | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/en\/ai\/models\/di-anthropicclaude-fable-5-86c0c8bf10",
+            "status": 200,
+            "title": "claude-fable-5 API | Pricing and integration | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai",
+            "status": 200,
+            "title": "Toman ödemeli AI API | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": true
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai\/models",
+            "status": 200,
+            "title": "AI API modelleri ve fiyatları | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai\/docs",
+            "status": 200,
+            "title": "AI API kurulumu ve anahtar kılavuzu | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        },
+        {
+            "url": "https:\/\/servernet.cloud\/tr\/ai\/models\/di-anthropicclaude-fable-5-86c0c8bf10",
+            "status": 200,
+            "title": "claude-fable-5 API | Fiyat ve bağlantı | ServerNet",
+            "canonical": true,
+            "hreflang": true,
+            "h1_count": 1,
+            "faq": false
+        }
+    ],
+    "sitemap_http": 200,
+    "sitemap_contains_ai": true,
+    "unauthenticated": {
+        "\/v1\/models": {
+            "status": 401,
+            "code": "invalid_token"
+        },
+        "\/v1\/chat\/completions": {
+            "status": 401,
+            "code": "invalid_token"
+        }
+    },
+    "manifest_drift": []
+}

@@ -197,7 +197,7 @@
 <section class="pnl-sec" id="sec-ai">
   <div class="pnl-sec-h"><h2>{{ __('ui.sec_ai_h') }}</h2></div>
   <div class="pnl-sec-b">
-    <p class="sec-note">{{ __('ui.sec_ai_note') }}</p>
+    <p class="sec-note">{{ __('ai.budget_note') }}</p>
 
     @if($aiProjects->isNotEmpty())
       <div class="sec-tokens">
@@ -339,7 +339,7 @@
       @if($aiProjects->contains('status', 'active'))
         <div class="sec-abilities">
           <span class="sec-lbl">{{ __('ui.sec_ai_scopes') }}</span>
-          @foreach(\App\Models\CustomerApiToken::AI_ABILITIES as $key => $desc)
+          @foreach(['ai:models:read' => __('ai.scope_models'), 'ai:chat' => __('ai.scope_chat'), 'ai:embedding' => __('ai.scope_embedding'), 'ai:rerank' => __('ai.scope_rerank'), 'ai:native' => __('ai.scope_native')] as $key => $desc)
             <label class="sec-chk">
               <input type="checkbox" name="abilities[]" value="{{ $key }}">
               <span><code dir="ltr">{{ $key }}</code> — {{ $desc }}</span>
@@ -355,6 +355,9 @@
             @endforeach
           </select>
           <small class="sec-note">{{ __('ui.sec_ai_project_h') }}</small>
+        </label>
+        <label>{{ __('ai.daily_cap') }}
+          <input type="number" name="daily_spend_cap_irt" min="1" max="9000000000000" dir="ltr">
         </label>
       @endif
 

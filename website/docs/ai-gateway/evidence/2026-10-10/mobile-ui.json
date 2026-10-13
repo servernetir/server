@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-10T09:43:42.505Z",
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "home": {
+    "documentWidth": 390,
+    "heroColumns": "354px"
+  },
+  "catalogue": {
+    "documentWidth": 390,
+    "gridColumns": "354px"
+  },
+  "search": {
+    "query": "Meta-Llama-3.1-8B-Instruct-Turbo",
+    "matchingModels": 1,
+    "inputPerMillionIrt": 4638,
+    "outputPerMillionIrt": 9275,
+    "salesStatus": "pending"
+  },
+  "temporaryEmulation": true
+}

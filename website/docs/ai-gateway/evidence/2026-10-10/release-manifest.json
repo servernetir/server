@@ -1,0 +1,302 @@
+[
+  {
+    "path": "config/pagecache.php",
+    "before": "a89a85d63101e0b45f227036af0e78c900172b1ec86fb25442d1d4ba5571b0ba",
+    "after": "756dbe1cee62a4009388c1ae0bf3ff0b8de49c98c95566a3a5d357eff0881240"
+  },
+  {
+    "path": "routes/console.php",
+    "before": "2525636a15c10ee4f05c8546c0bdf4fc161cae34e0ef29dff37cc0a472fa5be7",
+    "after": "929922f9d6dfa1d1b681a308ca4b682b07356960125ba21ff5d5bcab9045305c"
+  },
+  {
+    "path": "routes/web.php",
+    "before": "c9891e4e12cb06e615f46999e478cddcb42e81e7a45aeb48f7aa08f9169b1ac1",
+    "after": "22a6074d8de25ceb59820012f8e7fcd7dc3c86503b8c4dbaa7314037c04de9af"
+  },
+  {
+    "path": "app/Models/AiCall.php",
+    "before": "8a1c903dabb58ed0ac14d034d7bc6faf38490b79456d8016ce5c4c939b63389f",
+    "after": "a9000a904359669d719414aa580889935c00ccb713fa590ffca7a1fad6ee4985"
+  },
+  {
+    "path": "app/Models/AiModel.php",
+    "before": "0c90cba9a80f850b75173b0d54e88a6494dabb7371aeb144e743b14903027b30",
+    "after": "5e51316b48eb5b27330ffaf934a75f2abb75e5b1d24cbf2cf20db6ddaf1619b6"
+  },
+  {
+    "path": "app/Models/AiProvider.php",
+    "before": "5039e46a815702f6dc06184f4dd883decac5b8f3c7be385ffefe64622a192596",
+    "after": "1a4a1ad5c399f1705bbe49d977dde1814e457f93de8a7ba8fb96f90e52a7cc76"
+  },
+  {
+    "path": "app/Models/AiReservation.php",
+    "before": "9cffae991769ce85f66024d494e33835864ae1db9cda74ef08ee7a4ae164a778",
+    "after": "cc3743f74dd8fb46a087b860456bb986f1e1e2a80c5bc9e0d9779074efcce689"
+  },
+  {
+    "path": "app/Models/AiUsage.php",
+    "before": null,
+    "after": "4dd4a4eb86c6a887e79332ce1bda456443e472ffb56336755da4bb80c734f4d1"
+  },
+  {
+    "path": "app/Models/Customer.php",
+    "before": "949c0bc8c5526e30b40a98a493cbad4d32de87d23c116f7601369c0e40be1d88",
+    "after": "f87bf625b5bd9962f1d0a8ecc3a132ba7dbbed3beeb350ffb8bb86b1ab44f696"
+  },
+  {
+    "path": "app/Models/CustomerApiToken.php",
+    "before": "dd9d823bc171cf37da80c1d1254ecd42a5bb71cfc5e5645a79c1af3e327802b4",
+    "after": "fa2c3ecc6297dfebdfff034dc33a7bdbcc0a27cb7300444b85ca80cd7a472d8c"
+  },
+  {
+    "path": "app/Console/Commands/AiExplain.php",
+    "before": null,
+    "after": "257702e1c9f1631580f18bd2749d4722de5c5e881e64cfb0d31e2c392de7fa83"
+  },
+  {
+    "path": "app/Console/Commands/AiPruneReplay.php",
+    "before": null,
+    "after": "4c4d49de397984b895d124f4c51c73a47e1fb2badb7def7ee7d7f23ef60f628e"
+  },
+  {
+    "path": "app/Console/Commands/AiReconcile.php",
+    "before": null,
+    "after": "0522d25a973cb3d978eae23c55a36ff541b9bf207748b7538cacf28e7848f0b1"
+  },
+  {
+    "path": "app/Console/Commands/AiRecoverUsage.php",
+    "before": null,
+    "after": "c75b07ed9df2ff8e83ca60c9bdb3f2e52f7552060bf0e684097e08fd7d5c969d"
+  },
+  {
+    "path": "app/Console/Commands/AiSyncCatalog.php",
+    "before": null,
+    "after": "dba91a1415b27724076f3ee61f7a6017f313efe021a7ac8f26e726db195ab763"
+  },
+  {
+    "path": "app/Http/Controllers/AiStorefrontController.php",
+    "before": null,
+    "after": "696b7c567010108131dca8a8767a0cf9b6ddd036d7706623a1df446afc5a4a71"
+  },
+  {
+    "path": "app/Http/Controllers/SiteController.php",
+    "before": "65fdca3969176edb8620a55d684b4ee920d9940a35b057a42fac1eea23b258a9",
+    "after": "0b2a1decdc5f941ecdbd89240f516d584ae628e1ee1ab0c1b2a7b25d98cffda1"
+  },
+  {
+    "path": "app/Http/Controllers/Account/AccountController.php",
+    "before": "4483b0cd100cfddd7c7a160528cdf280e34617d70c92c50dfcf295a19db6dc4b",
+    "after": "e3f444a4acffb7d210c90d6ca86573794946e2b5016de7c7787312de7a50774c"
+  },
+  {
+    "path": "app/Http/Controllers/Account/AiController.php",
+    "before": null,
+    "after": "702fc311d5c98cfad04575b96b1ccd2f861a56ae149bde22aea82bef7fdac1f4"
+  },
+  {
+    "path": "app/Http/Controllers/Account/SecurityController.php",
+    "before": "7993d04a5e6388cbb4a9d7fa240e7c7373086ba22610e3ba756eb7478d607a22",
+    "after": "152c1ed17098182de573fb530b58989c033097ca9eb769aa413adfa472f41249"
+  },
+  {
+    "path": "app/Http/Controllers/Admin/AiGatewayController.php",
+    "before": "93addc2869cb68cc0b82f0897670f8c741f2661e4db15cbcdafb8d0f802e4381",
+    "after": "4b643257e80db5efe2f18f04e1e587a7bd9476e73363d07161f816aa5fc10dd8"
+  },
+  {
+    "path": "app/Http/Controllers/Ai/V1ChatController.php",
+    "before": "456e0661f81f5f21640f1cb3c7a38a94bd7b5f2e0b45087b776032fc6ac41253",
+    "after": "8e1b6aaf2a12783367927a5534202cb41b60c1c025274cb06882df3fbae28fdb"
+  },
+  {
+    "path": "app/Http/Controllers/Ai/V1ModelsController.php",
+    "before": null,
+    "after": "8a974db3b4eab1c8c285403a4f15a0b8a9a242314db29d198abff31bb40877db"
+  },
+  {
+    "path": "app/Services/Ai/AiAdmission.php",
+    "before": "c2af733cbec32c864a43057e47eff10cad64b032cff54a03a96bb7c8446610ba",
+    "after": "5545bd965b2a2fd68a58612cce977e204df82016da87f21826fb824201f12bad"
+  },
+  {
+    "path": "app/Services/Ai/AiAvailability.php",
+    "before": null,
+    "after": "ea56d77f971f2f419197a15d34d006f9376446fcd09f3c90fc155913b7bd67f1"
+  },
+  {
+    "path": "app/Services/Ai/AiCaller.php",
+    "before": "1d8fef20e12f5483b6fbcbf641e3e00193bcd7f81d0f6a2e023249362ecb6fb6",
+    "after": "e54621d312182aaa2ef654b5857715afe73e3b88c2b3e59b254af419223478e4"
+  },
+  {
+    "path": "app/Services/Ai/AiCallOutcome.php",
+    "before": "00ebde0d5407093daf1814669e8ed609bd0c68542586da6ec7e03969308c5477",
+    "after": "21d47cefb246ba37b91eb908b5a956e72e838cc82d2a911278baba031ab3532a"
+  },
+  {
+    "path": "app/Services/Ai/AiGateRefusal.php",
+    "before": null,
+    "after": "2d5dc4799f81b51bebc525b373621dd875c06a4c668405ccd648813e1ca0f8fd"
+  },
+  {
+    "path": "app/Services/Ai/AiPayload.php",
+    "before": null,
+    "after": "1b2f93a76454099e69d0495caaba6aecbe2972745a23f47e2e7a709d05096c78"
+  },
+  {
+    "path": "app/Services/Ai/AiPreparedRequest.php",
+    "before": null,
+    "after": "b17bdf8610182f9251f9fab48ad1be9f17204b3f0cbd3fcc95aecb55f1833e7b"
+  },
+  {
+    "path": "app/Services/Ai/AiPricing.php",
+    "before": "c0c09bc0811e7dbff4e93afb12dc45ef24905b561d2b6ee7532010f6f1d37884",
+    "after": "398d1f7283c789b79af9ebef46fe8112ff99d49e291a0347c63eb8adfb23139f"
+  },
+  {
+    "path": "app/Services/Ai/AiRequestException.php",
+    "before": null,
+    "after": "a450910a69b6ee50079b70e880aeae218db823697025c5efae4f7166908eca23"
+  },
+  {
+    "path": "app/Services/Ai/AiSettlement.php",
+    "before": null,
+    "after": "54fe98b061f58fa28b874f3b379699664055b9a771f7c8d008a002ead8b49a92"
+  },
+  {
+    "path": "app/Services/Ai/AiSseReader.php",
+    "before": null,
+    "after": "bb9c98378798343ace008c4ad6b6b51d1207dde27e749251d07bc088504c35b0"
+  },
+  {
+    "path": "app/Services/Ai/AiUsageParser.php",
+    "before": null,
+    "after": "745ba7ab9d31c1ddc5ed10812ba6de306299a041b6aba790cc116f1d9eb62ef3"
+  },
+  {
+    "path": "app/Services/Ai/DeepInfraCatalog.php",
+    "before": null,
+    "after": "0522949aa14c931f9a1427bcb0c0c0b56a4d80af28030a97a407414723087dbe"
+  },
+  {
+    "path": "app/Services/AiProviders/AiProviderCallException.php",
+    "before": null,
+    "after": "00d49142a5c63f775ede00c9c5081d7739fb04714aebceacfb6a6c945dbec03b"
+  },
+  {
+    "path": "app/Services/AiProviders/AiProviderDriver.php",
+    "before": null,
+    "after": "337f18989085efb98a9c9c7c79a2e75735006596643f92e4b51606a038c16070"
+  },
+  {
+    "path": "app/Services/AiProviders/DriverCallResult.php",
+    "before": null,
+    "after": "95a490b5dd869d07c51277adcdfb7a992b3c296bcab37518a27b719cd528815f"
+  },
+  {
+    "path": "app/Services/AiProviders/OpenAiCompatibleDriver.php",
+    "before": null,
+    "after": "70efe65e12471da1234b0751eb00d99f0ea54ccea8353c470d82c6673dec29a2"
+  },
+  {
+    "path": "database/migrations/2026_11_03_000110_ai_money_core.php",
+    "before": null,
+    "after": "c1648c108b48ce72b5f57ddd15763cb42f9585958f3c98bfef089fa8835ec89c"
+  },
+  {
+    "path": "database/migrations/2026_11_03_000120_deepinfra_driver_openai_compatible.php",
+    "before": null,
+    "after": "510aac6b5dccbcc0bef72c3628e9f4c19f335585fde762c3df4c1352144de288"
+  },
+  {
+    "path": "database/migrations/2026_11_03_000130_add_ai_encrypted_replay.php",
+    "before": null,
+    "after": "cbf7ca80b7b2eb64260cccb333ddf6d2cb8032b6ff79d00b5d04932d28b309b4"
+  },
+  {
+    "path": "lang/en/ai.php",
+    "before": null,
+    "after": "011d13a2b7c1b4a86093ea90e9aa0eb91d614dfbd199d1f4dbf6f8fc18f73c68"
+  },
+  {
+    "path": "lang/fa/ai.php",
+    "before": null,
+    "after": "b63e0f8cf1566c538dcfc841265aa1919b50efdddd603abcc4762e0dfe5f41ef"
+  },
+  {
+    "path": "lang/tr/ai.php",
+    "before": null,
+    "after": "1c9abce5edc5a0c50cf49d96f36337599476c3ad09693adf62d35ca91d157f70"
+  },
+  {
+    "path": "resources/views/account/ai.blade.php",
+    "before": null,
+    "after": "363782060ee6200a801dfbdb28b06c62ef2257e0db7bf0dee8221d2006abc794"
+  },
+  {
+    "path": "resources/views/account/security.blade.php",
+    "before": "ac6dfd49edc3e844c703de916a17e76923b5f9182308f8129160b40d37e3cb13",
+    "after": "96c69ea44112b1faa4b9b1a2e741633ecc8be26f351d0bff19311a3775b46b44"
+  },
+  {
+    "path": "resources/views/partials/header.blade.php",
+    "before": "ab5511339c9812b8843275b2f12fa81254578d722537dd4b44535a18adfb452f",
+    "after": "51ab94f9aaf3ed5a16b9fa11fec4e5ec43a9d84dd55c23e92cca8df74868d873"
+  },
+  {
+    "path": "resources/views/admin/ai/model-edit.blade.php",
+    "before": "addb3280cb3076776c4dececdc821e76c538ef355f85d4a89a48820969183ea0",
+    "after": "b7c1c3923a2ed1beadf101ac9381e2ac16caa41774a746e750a01539607fe770"
+  },
+  {
+    "path": "resources/views/admin/ai/provider-edit.blade.php",
+    "before": "553a51938c49bf3cfc4b1a5608418055a6214c807d7f4fe7e469d5b8c9ed6089",
+    "after": "f448bb6c62619c66f28dd82a703471785aff2e7492aa1e7a8bf5452f5c8a3956"
+  },
+  {
+    "path": "resources/views/admin/ai/_price-preview.blade.php",
+    "before": "6cd8160168aaf8445535083c8f26d4eab1e7ec5dd7225521a40aa27164d93fdd",
+    "after": "9d7ce148a2de800b356baa766ede8372acd15cba244c09b35c3c955b4ebeeccd"
+  },
+  {
+    "path": "resources/views/pages/ai/card.blade.php",
+    "before": null,
+    "after": "3e6302922ab3735fe52396f18baa49bcd9e5b4ab67c9354dd708c0b0c4f6315c"
+  },
+  {
+    "path": "resources/views/pages/ai/docs.blade.php",
+    "before": null,
+    "after": "8f283960a7b19f7b155785dbca6d75ed34bee688b80592861f484f5e4932fddf"
+  },
+  {
+    "path": "resources/views/pages/ai/home.blade.php",
+    "before": null,
+    "after": "18d83960afe7016a9005bd000ad5e714cf8a78e1cf59783d08975f1322895144"
+  },
+  {
+    "path": "resources/views/pages/ai/model.blade.php",
+    "before": null,
+    "after": "5f5ff475ac7b031bb084a5df99bedcb8a9d089394f1146fe30d6fb818bacc54e"
+  },
+  {
+    "path": "resources/views/pages/ai/models.blade.php",
+    "before": null,
+    "after": "32c729bbfdf9462b71b1ebb479c1a2260ce677f3ad616775cce740c5a4228f73"
+  },
+  {
+    "path": "resources/views/pages/ai/nav.blade.php",
+    "before": null,
+    "after": "5c19ffccafde310fa36c425fb64bb37d4dc9de5e24563dc081044acd54287d4e"
+  },
+  {
+    "path": "resources/views/pages/ai/style.blade.php",
+    "before": null,
+    "after": "7558763d2a782e92340977c7f3da875647e9c5dc3b12547bac97ae7bf7732b76"
+  },
+  {
+    "path": "resources/views/admin/ai/providers.blade.php",
+    "before": "4c16d58ba5978eb610288141467e1ee215072dedb26b08863ebfd02e1cbcd1d4",
+    "after": "4f8914ad702ad1c7bb0afa020f78b606d4ba61d7b4073920343257103b0c97c8"
+  }
+]

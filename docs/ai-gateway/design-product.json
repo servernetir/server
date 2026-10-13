@@ -1,0 +1,396 @@
+{
+ "decisions": [
+  {
+   "id": "D1",
+   "choice": "Hybrid: a stored Toman sell price per price version (new table ai_sell_prices), re-priced automatically, plus a per-call floor guard. `ai:reprice` runs hourly at :10, after fx:dollar. It creates a new version in three cases: (1) the live USD rate rises at least up_band above the version's rate, where up_band = min(3%, margin/2); (2) the rate falls at least 5% below it and the version is at least 24 h old; (3) immediately, when the margin, fee, cost row or override changes. At reserve time a floor guard checks the published price against the live rate. If the price would keep less than a quarter of the margin, it re-prices synchronously (reason fx_floor) and that call is priced at the new version. Each call snapshots the sell-version ids, S_u and R_call, and settles at the snapshotted price even if a new version appears mid-call.",
+   "why": "Growth: a Toman price per 1M tokens that stays unchanged for days in calm FX can be published on /ai, compared with competitors and cited by search. Reproducibility: resolveAt plus snapshots rebuild any charge exactly. Red line: the band limits how much margin FX can erode between hourly runs, and the floor guard catches jumps inside an hour, so no call is priced below cost."
+  },
+  {
+   "id": "D2",
+   "choice": "The rate comes from a new CloudPricing::usdToToman(), in this order: pricing_usd_rate_override (now validated to the 20k–5M range; a value more than 15% away from the last live rate needs a confirm checkbox) → ExchangeRate::current('USD') (the cache, falling back to lastKnown up to 48 h old) → null. EUR cost rows use eurToToman(). The hot path never scrapes. Up to 6 h old: normal. 6–48 h old: the floor guard and repricing assume the rate is 3% higher (stale buffer) and an admin alert fires. Unknown (null): new calls get 503 pricing_unavailable, and /ai shows 'temporarily unavailable' instead of guessed prices. Our real cost of buying USD is modelled as pricing_fx_fee_pct_deepinfra, not as a second FX source.",
+   "why": "The scraper already feeds domains and cloud pricing. When it fails, the owner can keep selling by setting an override. Selling on a rate more than 48 h old risks a sale below cost, so it is refused."
+  },
+  {
+   "id": "D3",
+   "choice": "The owner types a global ai_margin_pct: validated strictly >0 and ≤500, with no other floor, matching his cloud rule 'my margin is the number I type'. There is a per-provider FX fee, pricing_fx_fee_pct_{slug} (0–25, deepinfra added to the FIELDS whitelist), and an optional per-model margin override, ai_models.margin_bp (also >0). The order is cost × (1+fee) × (1+margin), rounding up at each step. There are no per-customer prices at launch: forCustomer stays null until B16 is fixed.",
+   "why": "The owner keeps pricing as a competitive tool: a thin margin on flagship models, more on niche ones. Margin >0 plus the real fee plus rounding up makes net revenue strictly greater than cost on every call. A margin of 0 is the only way to break the red line, so it is the only value refused."
+  },
+  {
+   "id": "D4",
+   "choice": "(a) A new AiReservations::settleActual: one transition writes one credit_ledger row = usage × the snapshotted sell prices + VAT, and the rest of the hold disappears in the same transaction. Cached tokens: DeepInfra reports prompt_tokens_details.cached_tokens, so cached input is billed as its own unit from its own cost row; without a cached cost row it is billed at the input price (never below cost). Reasoning tokens are inside completion_tokens and billed at the output price; they are recorded separately for display only. Usage missing or invalid: charge the hold as a cap (owner decision), with usage_source=cap and needs_review=1. Usage above the hold: charge the actual amount (owner: never absorb), with a bounded overdraft recorded in overdraft_irt. Output cannot exceed the hold because max_tokens is forced.",
+   "why": "The customer pays exactly what the provider's usage says at the published price, so the response `usage` matches the debit, which builds trust. One ledger row per call keeps statements clean (no refund noise). The cap and overdraft rules follow the owner's 'charge real cost, never absorb'."
+  },
+  {
+   "id": "D5",
+   "choice": "Published prices are rounded up to whole Toman per 1M tokens, then up to 3 significant digits. Each call is one ceilDiv over the whole sum, to whole Toman (minimum 1 Toman when tokens > 0). VAT is a separate ceilDiv. The µ-currency per-unit ceil (chargeMicros) is no longer used to charge, so nothing is rounded twice. There is no per-request minimum fee, and the IRT rounding_step is never applied per call. The hold uses the same formula.",
+   "why": "The bias is at most 1 Toman per call, about $0.00001, and always upward. The published number is exactly the multiplier the customer can check against their usage. Three significant digits keep the list readable and stop small recomputations from creating new versions."
+  },
+  {
+   "id": "D6",
+   "choice": "SSE ships at launch (owner decision, launch blocker). Rejecting stream would break the OpenAI Python/Node SDKs with stream=True, the Vercel AI SDK streamText, LangChain .stream(), Open WebUI, LibreChat, Cursor, Continue and most chat UIs. It would also push long answers into proxy and gateway timeouts. Design:\n- Gates and the hold are done before any header is sent, so errors before the first byte are normal JSON errors.\n- The upstream is called with stream:true and stream_options.include_usage=true, and each SSE event is relayed with model and id rewritten.\n- Usage is taken from whichever chunk carries it. DeepInfra puts it on the final finish_reason chunk before [DONE] (docs.deepinfra.com/chat/streaming); a separate usage-only chunk is also accepted.\n- If the client disconnects, ignore_user_abort(true): the upstream is drained up to the wall cap and actual usage is charged.\n- A failure mid-stream sends an SSE `data: {\"error\":{...}}` event and the cap policy applies.",
+   "why": "Most real clients stream. Streaming is also the only way long generations survive the Apache Timeout. The provider bills the full generation even when our client leaves, so draining and charging actual usage is both exact and no-loss."
+  },
+  {
+   "id": "D7",
+   "choice": "Owner policy, implemented as follows:\n- Before the request body is sent (validation, gates, connect, DNS or TLS failure): release, no charge, and the idempotency key is freed.\n- Provider answered non-2xx: release, no charge.\n- Request sent but no usable usage (read timeout, non-JSON or invalid 2xx, stream cut before usage, worker crash found by the reconciler): charge the hold (cap), flag needs_review, and respond with x-should-retry:false.\n- Settle DB failure after success: retry the transaction 3× on 1213/1205/40001; if it still fails, return 200 with the body anyway. The row becomes settle_failed and the reconciler settles it within 5 min from the stored usage.\n- A late settle past expires_at is allowed and may overdraw the wallet. The account then gets 402 until it is topped up.\n- We never return a 5xx after upstream success.",
+   "why": "SDKs retry 5xx and 409 automatically. A 500 after a successful call makes the SDK buy the same answer twice, which is the most expensive trust failure. The owner ruled out absorbing costs, and the review flag gives the admin a one-click refund path when the cap was unfair."
+  },
+  {
+   "id": "D8",
+   "choice": "The Idempotency-Key is optional, at most 80 printable ASCII characters (otherwise 400). It is bound to the sha256 of the canonical request body (JSON with sorted keys, model included):\n- Same key, same hash, completed: replay the stored answer. Non-stream gets the JSON; stream gets a synthesized single-delta SSE plus usage plus [DONE]. Header idempotent-replayed:true, no upstream call, no charge.\n- Same key, same hash, in flight: 409 request_in_progress, which SDKs retry with backoff.\n- Same key, different hash: 400 idempotency_key_reused.\n- Released or failed without charge: the key is freed. On release it is moved from ai_reservations.idempotency_key to released_key so the unique index lets a retry through.\n- Replay window 24 h. Responses are stored only for keyed requests, encrypted, pruned after 24 h.",
+   "why": "This is the standard client retry contract (Stripe/OpenAI style). It fixes B12's permanent 409 and the replay of the wrong prompt. The body is kept only as long as the replay needs it."
+  },
+  {
+   "id": "D9",
+   "choice": "One IRT wallet; € is display only, for en/tr. The price list shows € per 1M tokens = S_u ÷ cloud_eur_rate(), the same live rate that converts their € top-ups, rounded up to 3 significant digits (e.g. €0.281). History and statements use each request's eur_rate_irt snapshot. There is no EUR wallet and no € receipts; statements are in Toman with a € equivalent. If the EUR rate is missing, Toman is shown, never a guessed €.",
+   "why": "This matches the existing site pattern (cloud_price and the topup conversion), so what an en/tr customer sees is what their wallet buys. A second wallet would split balances and conflict with the owner's one-wallet requirement."
+  },
+  {
+   "id": "D10",
+   "choice": "VAT is added on top of the ex-VAT published price (owner decision). vat_bp is snapshotted per call: TaxRate::resolve('IR', null, 'ai') (a new tax_rates row, rate_bp 1000) for VAT-liable customers, 0 otherwise. The default liability rule is customers.locale='fa', matching Product::effectiveTaxPercent; the owner must confirm (question 1). Each call debits net+VAT as one credit_ledger row, reason ai_usage. BusinessLedger gets a daily rollup per provider (ai_usage_daily): revenue (category ai) = Σnet, tax_collected (category ai) = Σtax, expense (category ai_upstream) = the daily ceiling of Σcost_utoman ÷ 1e6. Cost is accrued daily from usage and reconciled monthly against the DeepInfra invoice. DeepInfra top-ups are never also booked as an expense.",
+   "why": "The daily rollup keeps the unique (source_type, source_id, kind) idempotency and avoids flooding the ledger. Accruing cost from the same rows as revenue makes margin auditable per day and per model."
+  },
+  {
+   "id": "D11",
+   "choice": "Keep it separate. M5 does not touch hourly cloud or BusinessReport's hourly side block. The ai_usage_daily plus recordAiDay pattern is written generically so a follow-up task can apply it to hourly cloud and remove the side block in the same change.",
+   "why": "Changing hourly reporting in the same per-file deploy risks double counting and adds more prod files. AI starts with zero history, so there is nothing to reconcile."
+  },
+  {
+   "id": "D12",
+   "choice": "Budgets are hard-enforced at reserve, inside the customer lock:\n- Project: Σcharged_irt settled in the window + Σ held by the project + the new hold must be ≤ monthly_budget_irt (VAT-inclusive).\n- Token: the token's own daily_spend_cap_irt, only if explicitly set. The reseller and config fallbacks of dailySpendCap() are not used for AI.\n- The Toman amount is stored for everyone. en/tr users enter €, which is converted at save and displayed as €.\n- The window is computed on read in Asia/Tehran from budget_reset_day. The budget_window_stale gate and month-end lockout are removed, and the create form infers monthly when a budget is given.\n- Exceeding it gives 402 budget_exceeded with x-should-retry:false. Email/Bale alerts go out once per window at 80% and 100%.",
+   "why": "The budget chip is a promise to the customer, and for API keys leaked into client apps it is the main protection. Hard enforcement costs one indexed SUM inside a lock we already hold."
+  },
+  {
+   "id": "D13",
+   "choice": "Cost rows stay in ai_model_unit_prices (provider list price, USD or EUR only). Sell versions in ai_sell_prices are computed by formula. An optional manual sell override per model and unit (e.g. a round marketing price) is accepted only if it is at or above the formula floor at the current FX with margin >0. If FX later makes an override below cost, the floor guard supersedes it and alerts.",
+   "why": "One margin setting moves every price automatically. Marketing keeps control of headline prices, and no manual row can break the red line."
+  },
+  {
+   "id": "D14",
+   "choice": "Prompts are never stored (only request_hash). Response bodies are kept only for keyed requests, encrypted in a new ai_calls.response_enc column (MariaDB JSON columns reject ciphertext), with a 24 h TTL. Metadata (tokens, money, snapshots) is kept 24 months as a financial record. White-labelling: `model` is rewritten to our slug, `id` becomes chatcmpl-sn<ULID>, and usage.estimated_cost and provider-only fields are stripped. Provider headers are never relayed. ToS and privacy updates disclose a US sub-processor (owner question 6).",
+   "why": "This keeps us out of GDPR and customer-confidentiality exposure, prevents customers routing around us to DeepInfra, and still makes replay possible."
+  },
+  {
+   "id": "D15",
+   "choice": "throttle:ai (12/min per IP, shared) is removed from /v1. It is replaced by:\n- per-key RPM: ai_projects.rpm_limit, or setting ai_default_rpm = 60\n- concurrency counted as holding reservations under the customer lock: per project 4, per customer 8, global ai_global_concurrency sized to the API PHP-FPM pool; excess gets 429 concurrency_limit with Retry-After\n- a per-IP limit of 30 failed authentications per minute\n\nThere is no TPM limit: wallet and budget already bound the money. In scope at launch: GET /v1/models and /v1/models/{id}, public and IP-throttled. Open WebUI, LangChain and the SDKs call them to list models. Post-launch: /v1/embeddings, then /v1/messages (Anthropic-style, for claude_code_compatible).",
+   "why": "The real scarce resource on cPanel is PHP-FPM workers held by long streams, not requests per minute. Counting pending holds reuses the lock we already take, and needs no Redis."
+  },
+  {
+   "id": "D16",
+   "choice": "A data migration, 2026_11_02_001500_fix_deepinfra_driver: set driver='OpenAI-Compatible' and seed Setting ai_provider_deepinfra_base_url = https://api.deepinfra.com/v1/openai when it is empty. The driver becomes a whitelisted select (AiCaller::DRIVERS) in AiGatewayController::updateProvider. No alias.",
+   "why": "The value is explicit and editable, a test asserts the seeded driver resolves to a class, and the driver enum stays tight."
+  },
+  {
+   "id": "P1",
+   "choice": "Dedicated API host api.servernet.cloud: a cPanel subdomain whose docroot is the same public_html, with its own PHP-FPM pool (MultiPHP Manager: its own max_children), DNS-only at Cloudflare (not proxied) and AutoSSL. The documented base_url is https://api.servernet.cloud/v1. servernet.cloud/v1 keeps working.",
+   "why": "Long streams cannot starve the website's FPM workers. Not proxying avoids Cloudflare's 100 s timeout and buffering. A clean base_url looks professional."
+  },
+  {
+   "id": "P2",
+   "choice": "A launch gate: Setting ai_sales_open (0/1) plus ai_beta_customer_ids. /v1 returns 503 service_not_open to others, and /ai shows a waitlist or top-up CTA until the gate opens.",
+   "why": "Every milestone can be deployed to the half-deployed prod while no money moves. The owner opens sales with one switch after his own live test."
+  },
+  {
+   "id": "P3",
+   "choice": "Balance-aware max_tokens: when the client omits max_tokens and the default hold exceeds the available balance, the forwarded max_tokens is lowered to what the balance affords. The minimum is 256 tokens, below which the answer is 402. The response may then end with finish_reason=length, and the docs say so.",
+   "why": "A tiny wallet otherwise gets 402 on every request because of a 4k–16k-token hold. Letting a small-balance customer try the product is the biggest conversion win."
+  },
+  {
+   "id": "P4",
+   "choice": "A customer portal at /account/ai: overview (available balance, month-to-date spend against budget, base URL, quickstart), projects and keys (the current security-page flows move here and the security page links to it), usage by day/project/model/key with tokens in, cached and out, spend net and with VAT, CSV export, and recent requests without prompts.",
+   "why": "The owner requires usage visibility. A product-grade dashboard is the retention surface, and it is where low-balance and budget alerts link."
+  },
+  {
+   "id": "P5",
+   "choice": "Transparency and SDK-friendly errors:\n- Every response has an x-request-id header. Non-stream responses also have x-servernet-charge-irt and usage.cost_irt. The final stream usage chunk carries usage.cost_irt.\n- Errors use the OpenAI envelope {error:{message (English), type, code, param}} plus a docs URL. Persian explanations live in the portal and docs.",
+   "why": "Developers can match each charge to its request. SDKs and tools parse the standard envelope, and extra fields are ignored by OpenAI SDK models."
+  }
+ ],
+ "schema_changes": [
+  "M5.0 repair — 2026_11_02_001400_repair_ai_gateway_fks.php. Every step is guarded (hasTable, hasIndex, hasForeignKey); there are no early returns and down() is a no-op.\n- Assert InnoDB.\n- Create ai_reservations with the full 001200 definition if it is missing.\n- ai_reservations: ensure UNIQUE(customer_id, idempotency_key), INDEX(customer_id,status), INDEX(status,expires_at), FK customer_id→customers CASCADE, and FK ledger_entry_id→credit_ledger SET NULL. Throw on duplicate keys, for human review.\n- ai_calls: null ai_reservation_id orphans, then add FK ai_reservation_id→ai_reservations SET NULL. For duplicate (customer_id, idempotency_key) keep MIN(id) and null the rest, then add UNIQUE(customer_id, idempotency_key) and INDEX(customer_id, created_at).",
+  "M5.0 data migration 2026_11_02_001500_fix_deepinfra_driver.php: ai_providers.driver 'DeepInfra' → 'OpenAI-Compatible' WHERE slug='deepinfra'; Setting ai_provider_deepinfra_base_url := 'https://api.deepinfra.com/v1/openai' if empty. Also replace the hasTable early returns in 001000/001200/001300 with per-step guards (they are already recorded as run, so this only protects fresh environments) and remove the duplicate index at 001100:39-41.",
+  "New table ai_sell_prices (2026_11_02_002000):\n- id BIGINT UNSIGNED PK\n- ai_model_id BIGINT UNSIGNED FK→ai_models CASCADE\n- unit VARCHAR(32), billing_unit VARCHAR(24)\n- cost_price_id BIGINT UNSIGNED FK→ai_model_unit_prices RESTRICT\n- cost_micro_units BIGINT UNSIGNED, cost_currency CHAR(3) (USD|EUR)\n- fx_rate_irt INT UNSIGNED, fx_source VARCHAR(16) (override|live|last-known), fx_at TIMESTAMP\n- fee_bp SMALLINT UNSIGNED, margin_bp INT UNSIGNED\n- formula_irt_per_unit BIGINT UNSIGNED\n- sell_irt_per_unit BIGINT UNSIGNED (published = charged, Toman per billing unit)\n- is_override TINYINT(1) DEFAULT 0\n- reason VARCHAR(16) (initial|fx_up|fx_down|fx_floor|margin|fee|cost|override)\n- version INT UNSIGNED, active TINYINT(1)\n- effective_from TIMESTAMP, superseded_at TIMESTAMP NULL\n- created_by BIGINT UNSIGNED NULL FK→users SET NULL\n- timestamps\n- UNIQUE(ai_model_id,unit,version), INDEX(ai_model_id,unit,active)",
+  "ai_models add (2026_11_02_002100):\n- margin_bp INT UNSIGNED NULL: per-model override, validated >0\n- listed TINYINT(1) DEFAULT 0: shown on /ai and /v1/models\n- sort SMALLINT UNSIGNED DEFAULT 100\n- default_max_output_tokens INT UNSIGNED NULL\n- hold_bytes_per_token TINYINT UNSIGNED DEFAULT 2: hold estimator divisor, calibrated later\n- page JSON NULL: {fa|en|tr:{title,summary,body,faq[]}} for SEO pages\n- released_on DATE NULL\n- license VARCHAR(60) NULL",
+  "ai_reservations add (2026_11_02_002200):\n- ai_project_id BIGINT UNSIGNED NULL FK→ai_projects SET NULL\n- customer_api_token_id BIGINT UNSIGNED NULL FK→customer_api_tokens SET NULL\n- ai_request_id BIGINT UNSIGNED NULL UNIQUE (FK added in 002300)\n- request_hash CHAR(64) NULL\n- released_key VARCHAR(80) NULL: the key is moved here on release so it can be reused\n- charged_irt BIGINT UNSIGNED NULL\n- overdraft_irt BIGINT UNSIGNED DEFAULT 0\n- INDEX(ai_project_id,status), INDEX(customer_api_token_id,status)\n\namount_irt keeps its column but now means the Toman hold including VAT. Pre-M5 rows are closed by the repair audit (see deploy).",
+  "New table ai_requests (2026_11_02_002300), one row per /v1 request that passed the gates (every call, keyed or not):\n- Keys: id BIGINT UNSIGNED PK; public_id CHAR(26) UNIQUE (ULID); customer_id FK→customers RESTRICT; ai_project_id NULL FK SET NULL; customer_api_token_id NULL FK SET NULL; ai_reservation_id NULL UNIQUE FK SET NULL; ai_model_id FK RESTRICT; ai_provider_id FK RESTRICT.\n- Request: model_slug VARCHAR(80), provider_slug VARCHAR(40), upstream_model VARCHAR(120), upstream_request_id VARCHAR(120) NULL, stream TINYINT(1), idempotency_key VARCHAR(80) NULL, request_hash CHAR(64).\n- Status: status VARCHAR(16) (reserved|sent|streaming|settled|released|failed|settle_failed); error_code VARCHAR(40) NULL; upstream_status SMALLINT UNSIGNED NULL.\n- Tokens: est_input_tokens INT UNSIGNED; hold_output_tokens INT UNSIGNED; prompt_tokens, cached_tokens, completion_tokens, reasoning_tokens INT UNSIGNED NULL; usage_source VARCHAR(10) NULL (provider|cap).\n- Price snapshot: sell_in_price_id, sell_out_price_id, sell_cached_price_id BIGINT UNSIGNED NULL; sell_in_irt_per_m, sell_out_irt_per_m, sell_cached_irt_per_m BIGINT UNSIGNED; cost_in_micros, cost_out_micros, cost_cached_micros BIGINT UNSIGNED; cost_currency CHAR(3); fx_rate_irt INT UNSIGNED; fx_stale TINYINT(1); fee_bp SMALLINT UNSIGNED; margin_bp INT UNSIGNED; vat_bp SMALLINT UNSIGNED; eur_rate_irt INT UNSIGNED NULL.\n- Money: reserved_irt BIGINT UNSIGNED; charged_net_irt, tax_irt, charged_irt BIGINT UNSIGNED NULL; cost_pusd BIGINT UNSIGNED NULL (exact cost in 1e-12 of cost currency); cost_utoman BIGINT UNSIGNED NULL; below_floor TINYINT(1) DEFAULT 0; overdraft_irt BIGINT UNSIGNED DEFAULT 0; needs_review TINYINT(1) DEFAULT 0; credit_ledger_id BIGINT UNSIGNED NULL FK→credit_ledger SET NULL; ledger_day DATE NULL (Tehran date of settled_at).\n- Timing: client_ip VARCHAR(45) NULL; latency_ms, ttft_ms INT UNSIGNED NULL; upstream_sent_at, finished_at, settled_at TIMESTAMP NULL; timestamps.\n- Indexes: (customer_id,created_at), (customer_id,ledger_day,ai_project_id,ai_model_id), (ai_project_id,settled_at), (customer_api_token_id,settled_at), (status,updated_at), (ledger_day,ai_provider_id,status), (needs_review,created_at).\n- Then add FK ai_reservations.ai_request_id→ai_requests SET NULL.",
+  "ai_calls, which becomes the replay store only (2026_11_02_002400), add:\n- ai_request_id BIGINT UNSIGNED NULL FK→ai_requests CASCADE\n- request_hash CHAR(64) NULL\n- response_enc LONGTEXT NULL: an encrypted:array cast, because MariaDB JSON has a json_valid CHECK that rejects ciphertext\n- expires_at TIMESTAMP NULL with an index\n\nrequest_body and response_body are no longer written; the prune nulls old values. The AiCall.php docblock that claims keyless calls are recorded is fixed.",
+  "ai_projects add (2026_11_02_002500): rpm_limit SMALLINT UNSIGNED NULL, concurrency_limit TINYINT UNSIGNED NULL, alert_80_key VARCHAR(10) NULL, alert_100_key VARCHAR(10) NULL. budget_window_* are no longer read; the window is computed on read. customer_api_tokens.last_used_at and last_used_ip already exist and are now written.",
+  "tax_rates data row (2026_11_02_002600): name='VAT IR — AI', country='IR', customer_type=NULL, product_kind='ai', rate_bp=1000, priority=10, is_active=1. Insert only if absent.",
+  "New table ai_usage_daily (2026_11_02_002700):\n- id; day DATE (Tehran); ai_provider_id FK RESTRICT\n- requests INT UNSIGNED\n- prompt_tokens, cached_tokens, completion_tokens BIGINT UNSIGNED\n- revenue_irt, tax_irt, cost_irt BIGINT UNSIGNED\n- cost_uusd BIGINT UNSIGNED (Σ ceil(cost_pusd/1e6))\n- cap_charged, below_floor, overdrafts INT UNSIGNED\n- posted_at TIMESTAMP NULL\n- timestamps\n- UNIQUE(day, ai_provider_id)",
+  "No DDL on business_ledger or credit_ledger. New value domains:\n- business_ledger.category: 'ai' (revenue and tax_collected), 'ai_upstream' (expense)\n- credit_ledger.reason: 'ai_usage' (debit), 'ai_refund' (credit); 'ai_reservation' stays as a legacy label\n\nEXPENSE_CATEGORIES and CATEGORY_LABELS gain ai_upstream.",
+  "Settings rows (settings table, no DDL):\n- ai_margin_pct\n- pricing_fx_fee_pct_deepinfra\n- ai_reprice_up_band_pct (default auto = min(3, margin/2))\n- ai_reprice_down_band_pct (5)\n- ai_fx_stale_hours (6), ai_fx_stale_buffer_pct (3)\n- ai_sales_open (0), ai_beta_customer_ids\n- ai_default_rpm (60), ai_default_project_concurrency (4), ai_customer_concurrency (8), ai_global_concurrency (16)\n- ai_low_balance_days (3)\n\npricing_usd_rate_override validation tightens to 20000..5000000."
+ ],
+ "settlement_algorithm": "All money is integer. ceilDiv(a,b) = ⌈a/b⌉ for a ≥ 0. MicroMath::mulDivCeil(a,b,d) = intdiv(a,d)·b + ceilDiv((a mod d)·b, d). It is exact, and it throws MoneyOverflow (mapped to 503 not_priced, never a TypeError; fixes B18) if (d−1)·b or intdiv(a,d)·b would exceed PHP_INT_MAX. S_u = snapshotted sell price in Toman per 1M tokens. V = vat_bp.\n\nRESERVE (AiCaller::handle, before any HTTP):\n1. Gates, in order:\n   - sales gate (ai_sales_open or beta list)\n   - admission (AiAdmission; project_missing is checked before can(); use_count, last_used_at and last_used_ip are written only after all gates)\n   - model active, isSellable(), provider.isAgreedTo() and resale_allowed, category=chat\n   - driver resolvable\n2. AiPayload::normalize:\n   - messages must be a non-empty array\n   - n ∈ {absent, 1}, else 400 unsupported_parameter\n   - image, audio and file content parts give 400 unsupported_content; text array parts are counted\n   - max_completion_tokens is mapped to max_tokens\n   - stream is a bool\n   - tools, tool_choice and response_format pass through\n3. Input estimate:\n   - T_in_hold = min(model.context_tokens ?: ∞, ceilDiv(strlen(json_encode({messages,tools,tool_choice,response_format}, UNESCAPED_UNICODE)), model.hold_bytes_per_token = 2) + 4·count(messages) + 16).\n   - Bytes/2 is deliberately conservative: it about doubles English and covers Persian and CJK.\n4. Output cap:\n   - T_out = max(1, min(requested ?? model.default_max_output_tokens ?? model_cap, model_cap)), with model_cap = max_output_tokens ?: 4096.\n   - The forwarded payload.max_tokens is forced to T_out (B6).\n5. Prices and FX:\n   - Resolve the active sell versions S_in, S_out, S_cached (S_cached := S_in when absent) and cost rows c_in, c_out, c_cached.\n   - Take FxQuote R_call (the stale buffer applies when older than 6 h; unknown gives 503 pricing_unavailable).\n   - Floor guard: if any S_u < floor_u(R_call), re-price synchronously under a lock on the ai_models row (outside the customer lock) and use the new version.\n6. Hold:\n   - hold_net = ceilDiv(S_in·T_in_hold + S_out·T_out, 1e6) (rounded up)\n   - hold = hold_net + ceilDiv(hold_net·V, 10000) (rounded up)\n   - V is snapshotted from the customer's VAT liability.\n   - Balance-aware (P3): only when the client omitted max_tokens and hold > available. Set cap_net = ⌊(available−1)·10000/(10000+V)⌋ and T_out' = ⌊(cap_net·1e6 − S_in·T_in_hold)/S_out⌋. If T_out' ≥ 256, set T_out = T_out' and recompute the hold; otherwise answer 402.\n7. One DB transaction (the existing reserve lock order: the customer row FOR UPDATE):\n   - Idempotency: same key and hash settled gives a replay; same key in flight gives 409; different hash gives 400. The key is re-checked under the lock, fixing the 402-instead-of-duplicate case.\n   - Concurrency: holding reservations must be below the project, customer and global limits (429).\n   - Budget: project Σcharged_irt with settled_at in the Tehran window + Σ project holds + hold ≤ monthly_budget_irt. Token: its explicit daily_spend_cap_irt, same rule over the Tehran day. Violation gives 402 budget_exceeded.\n   - Funds: Wallet::availableOf ≥ hold, else 402 insufficient_funds.\n   - Insert ai_reservations: amount_irt = hold (Toman), project, token, request_hash, expires_at = now + budget + 120 s (budget: 240 s non-stream, 600 s stream).\n   - Insert ai_requests with status reserved and every snapshot: S_u and their ids, c_u, R_call, fee_bp, margin_bp, V, eur_rate, T_in_hold, T_out, reserved_irt = hold.\n8. UPDATE ai_requests SET status='sent', upstream_sent_at=now() just before the request body is written (on_stats or pretransfer), so the reconciler can tell 'never sent' from 'sent'.\n\nSETTLE (after upstream, or from the reconciler):\n9. Read usage (non-stream: body.usage; stream: the chunk carrying usage):\n   - P = prompt_tokens, C = completion_tokens, K = prompt_tokens_details.cached_tokens ?? 0, Z = completion_tokens_details.reasoning_tokens ?? 0 (display only).\n   - They are valid if all are ints ≥ 0, K ≤ P and P+C > 0.\n   - Persist P/K/C/Z and upstream_request_id at once in a small UPDATE, before the money transaction, so a crash after this point still settles actual usage.\n10. Charge:\n    - With valid usage (usage_source = provider): net = max(1, ceilDiv(S_in·(P−K) + S_cached·K + S_out·C, 1e6)) (rounded up once per call); tax = ceilDiv(net·V, 10000) (rounded up); charged = net + tax.\n    - Invalid or missing usage (usage_source = cap, needs_review = 1): net = hold_net, tax = hold − hold_net, charged = hold.\n11. Cost:\n    - cost_pusd = c_in·(P−K) + c_cached·K + c_out·C (exact). For a cap charge, the token counts are T_in_hold and T_out.\n    - cost_utoman = mulDivCeil(ceilDiv(cost_pusd, 1e6)·R_call, 10000+fee_bp, 10000) (rounded up = conservative).\n    - Invariant: net·1e6 > cost_utoman. If it is violated, set below_floor = 1, raise ErrorTracker 'ai_below_floor', and queue ai:reprice for the model. The published price is still charged; it is never raised after the fact.\n12. AiReservations::settleActual(reservation, charged, request) in a transaction:\n    - Lock the customer, then the reservation. Settled already: return it, no second debit. Released: error. Pending: accepted even past expires_at, because the originating request or the reconciler owns it.\n    - Wallet::settleDebit(customer, 'IRT', charged, 'ai_usage', source = AiRequest, excludingReservationId = r.id, allowOverdraft = true) writes exactly one credit_ledger row of −charged. If balance − other holds − charged < 0 it still writes and records overdraft_irt = the shortfall.\n    - The reservation gets status settled, charged_irt and ledger_entry_id.\n    - ai_requests gets status settled, charged_net_irt, tax_irt, charged_irt, cost_pusd, cost_utoman, credit_ledger_id, settled_at, and ledger_day = the Tehran date of settled_at.\n    - The unused part of the hold vanishes in the same commit; no refund row.\n    - The transaction is retried 3× (50/150/400 ms) on MySQL 1213, 1205 or SQLSTATE 40001. After that the row becomes settle_failed and the client still gets 200.\n13. Usage greater than the hold: charged > hold is allowed (never absorb). overage = charged − hold is logged as a calibration signal. Output cannot overrun because max_tokens is forced, so an overrun only comes from input tokenization and is small.\n14. Release (no charge): used when the request body was never sent or the provider answered non-2xx. The transaction sets the reservation to released and moves idempotency_key to released_key, and sets ai_requests to status failed with error_code.\n\nRECONCILER (ai:reconcile every 5 min, withoutOverlapping). It handles ai_requests in reserved, sent, streaming or settle_failed whose reservation is pending and either past expires_at or settle_failed for more than 60 s:\n- upstream_sent_at null → release\n- usage persisted → settleActual with actual usage\n- otherwise → cap charge with needs_review\nThen expirePending runs for legacy rows. Every action is idempotent and logged.\n\nTehran-day rule: ledger_day is fixed at settlement time, so a late settle lands on the day it happened and never on a day that is already posted.",
+ "pricing_formula": "Inputs (all integers):\n- c_u = ai_model_unit_prices.price_micro_units: µ of the cost currency per 1M tokens, for u ∈ {input, cached_input, output}. The currency must be USD or EUR; IRR and IRT are refused (B17). For non-token billing units the divisor comes from the billing unit, not a fixed 1e6 (B11).\n- R = Toman per 1 unit of cost currency, from FxQuote.\n- F = 10000 + fee_bp, where fee_bp = pricing_fx_fee_pct_{provider}×100 (0–2500).\n- M = 10000 + margin_bp, where margin_bp = ai_models.margin_bp ?? ai_margin_pct×100 (1–50000).\n\nSELL PRICE VERSION (AiPricing::sellPerMillion, stored as ai_sell_prices.sell_irt_per_unit, Toman per 1M tokens; every step rounds UP):\n- a = c_u·R (µToman per 1M; guarded)\n- b = mulDivCeil(a, F, 10000) (adds the FX/transfer fee)\n- d = mulDivCeil(b, M, 10000) (adds the margin)\n- e = ceilDiv(d, 1_000_000) (whole Toman per 1M = formula_irt_per_unit)\n- S_u = ceilSig(e, 3) (published and charged; 30,891 → 30,900; 3,708 → 3,710)\n\nWorked example: c_in = 250,000 ($0.25/1M), c_out = 750,000, R = 100,000, fee 3%, margin 20%.\n- S_in = 30,900 Toman/1M; S_out = 92,700 Toman/1M.\n- A cached cost of 25,000 gives S_cached = 3,090. Without a cached cost row, S_cached = S_in.\n\nPER-CALL CHARGE (P = prompt, K = cached ≤ P, C = completion including reasoning):\n- net = max(1, ceilDiv(S_in·(P−K) + S_cached·K + S_out·C, 1_000_000))\n- tax = ceilDiv(net·vat_bp, 10000): 1000 bp for VAT-liable customers, added ON TOP per the owner\n- charged = net + tax\n- Example: P = 1000, K = 0, C = 50 gives net = ⌈35.535⌉ = 36, tax = 4, charged = 40 Toman.\n\nCOST SNAPSHOT (R_call = the rate at reserve):\n- cost_pusd = c_in·(P−K) + c_cached·K + c_out·C (exact)\n- cost_utoman = mulDivCeil(ceilDiv(cost_pusd, 1e6)·R_call, F, 10000)\n- Example: 287,500,000 pUSD → 288 µUSD → 29,664,000 µToman = 29.66 Toman, against a net of 36. The call is about 21% above cost.\n\nRED LINE:\n- Per call: net·1e6 > cost_utoman. This is guaranteed while R_call ≤ R_version·M/10000, because margin > 0 and every step rounds up.\n- Floor guard at reserve: floor_u(R) = ceilDiv(mulDivCeil(mulDivCeil(c_u·R, F, 10000), 10000+g, 10000), 1e6), where g = max(50, margin_bp/4) and R includes the stale buffer when the rate is 6–48 h old. If S_u < floor_u(R_call), re-price synchronously at R_call (reason fx_floor).\n- Manual overrides must satisfy S ≥ floor_u(R_now) when saved.\n\nREPRICE BANDS (ai:reprice hourly at :10, plus immediately on a margin, fee, cost or override change):\n- New version if R_live ≥ R_version·(10000+up_bp)/10000, with up_bp = setting or min(300, margin_bp/2).\n- Or if R_live ≤ R_version·(10000−down_bp)/10000 (down_bp 500) and the version is at least 24 h old.\n- A recomputation that gives the same S_u after 3 significant digits creates no version. That keeps the public list stable.\n\nEUR DISPLAY (en/tr only, display):\n- Price list: €/1M = ceilSig3(S_u ÷ cloud_eur_rate()) with ≥4 decimals kept (e.g. €0.281). This is the same live rate that converts € top-ups.\n- Spend history: charged_irt ÷ the row's eur_rate_irt, with cloud_hourly_price precision.\n- If the EUR rate is missing, Toman is shown.\n- /v1/models exposes IRT, with an eur_approx field.",
+ "failure_policy": "TIMEOUTS:\n- Connect: 5 s.\n- Non-stream total: 240 s. It must stay below Apache Timeout (verify it is 300 s on the server).\n- Stream: 60 s idle between chunks, 600 s wall.\n- Reservation TTL: budget + 120 s.\n- Reconciler: every 5 min.\n- set_time_limit is only called on the stream path and never under runningUnitTests(), because Windows phpunit exits mid-run.\n\nThe driver classifies each failure. Connect-phase failures (connect_timeout, cURL 6/7/35/60, TLS) are not_sent. Anything after the body was written is sent (on_stats: pretransfer > 0 and request size > 0).\n\nA) Before send: no charge. The reservation is released and the idempotency key freed.\n- 400 invalid_payload / unsupported_parameter / unsupported_content\n- 401 invalid_api_key\n- 403 permission (ip_not_allowed, insufficient_scope, project_inactive, account_inactive)\n- 402 insufficient_funds / budget_exceeded, with x-should-retry:false\n- 429 rate_limited / concurrency_limit, with Retry-After\n- 503 service_not_open / pricing_unavailable / model_unavailable / provider_not_live / not_priced\n- 502 upstream_unreachable on connect failure (retryable)\n\nB) Provider answered non-2xx: no charge (the provider does not bill failed requests), release.\n- provider 400 → 400 invalid_request_error; context_length_exceeded is detected and passed as that code\n- provider 401/403 → 503 provider_auth, plus an admin alert (our misconfiguration)\n- provider 404 → 503 model_unavailable\n- provider 429 → 503 upstream_overloaded, Retry-After 5\n- provider 5xx → 502 upstream_error (retryable)\n\nC) Sent, but no usable usage: charge the hold as the cap (owner: 'charge up to the reservation cap, never absorb'), with usage_source=cap and needs_review=1. It shows in the admin review queue with one-click refund, and to the customer as 'charged at hold'. Cases:\n- read timeout: 504 upstream_timeout\n- 2xx with a non-JSON or invalid body: 502 upstream_bad_response\n- stream cut before the usage chunk: an SSE error event, then close\n- PHP crash after send: found by the reconciler\n\nAll of these carry x-should-retry:false, because a retry would pay twice.\n\nD) Success, but the settle DB transaction fails: retry 3× on deadlock or lock wait. If that fails, still return 200 with the body. The row becomes settle_failed, the hold keeps the funds until expires_at, and the reconciler settles actual usage (a late settle is allowed and may overdraw). We never return a 5xx after upstream success, because SDKs auto-retry 5xx and 409.\n\nE) Client disconnects mid-stream: ignore_user_abort(true). Keep draining the upstream up to the wall cap, then settle actual usage. If the wall cap is hit, abort and apply C.\n\nF) Usage exceeds the hold: charge the actual amount with an overdraft. The account then gets 402 until it is topped up. overdraft_irt is recorded and alerted.\n\nG) FX older than 48 h, or the override is missing: stop new calls (503 pricing_unavailable, retryable) and raise an admin alert. Calls already in flight settle at their snapshot.\n\nKILL SWITCHES: ai_sales_open, provider.live_calls_enabled / commercial_enabled, model.status.\n\nALERTS (ErrorTracker plus Bale): below_floor > 0, cap charges > 5/hour, any overdraft, settle_failed older than 10 min, FX stale, reconcile variance > 2%.",
+ "ledger_and_reporting": "WALLET (per call):\n- Exactly one credit_ledger row: reason='ai_usage', amount = −(net+VAT), source = AiRequest, note 'AI <model> #<public_id>'.\n- A refund is a credit, reason='ai_refund', source = AiRequest, one per request.\n- The hold is never a ledger row (M3 invariant kept). Available = Σledger − Σholding; it is now shown next to the balance in the portal and API pages (CustomerApiController.php:74, PaymentController.php:47-55).\n\nBUSINESS LEDGER (daily):\n- `ai:post-daily {--day=} {--dry}` runs at 01:10 Tehran (21:40 UTC) for yesterday.\n- It builds ai_usage_daily per provider from ai_requests WHERE status='settled' AND ledger_day=D. A row with posted_at set is frozen and skipped.\n- BusinessLedger::recordAiDay(AiUsageDaily) posts, with source = the rollup row (the unique source_type, source_id, kind makes it idempotent) and occurredAt = D in Tehran:\n  - revenue, category 'ai', = Σcharged_net_irt\n  - tax_collected, category 'ai', = Σtax_irt\n  - expense, category 'ai_upstream', = ceilDiv(Σcost_utoman, 1e6); the note carries the average FX, Σcost USD and the fee %\n- Refunds: kind 'refund' with source = AiRequest, on the refund date.\n- EXPENSE_CATEGORIES and CATEGORY_LABELS gain ai_upstream ('هزینهٔ توکنِ ارائه‌دهندهٔ AI'); the revenue label for ai is 'فروش توکن AI'. summary() gains revenue_by_category.\n- Top-ups stay non-revenue. The old 'ai_reservation' rows are never summed: they are in the wrong unit (B1).\n- The DeepInfra prepayment is not an expense (owner question 3).\n- Monthly reconciliation page /admin/ai/reconcile: Σcost_uusd per provider per month against the invoice USD the owner enters. A variance above 2% alerts.\n\nADMIN:\n- /admin/ai/usage: revenue, VAT, cost and gross margin % by day, model and provider; below_floor, cap and overdraft counts; top customers.\n- /admin/ai/review: needs_review, settle_failed and stuck pending requests, with refund and settle actions.\n- /admin/ai/models: create/edit a model, cost rows (USD/EUR), a live sell preview in Toman and € at the current FX, a margin override, and a below-floor warning.\n- Provider edit gains a driver select.\n- /admin/finance and the dashboard 'fin' block show revenue by category.\n- BusinessReport::blindSpots: stale lines removed; an AI line appears only when a past day is unposted. The hourly side block is untouched (D11).\n- transactions reasonLabel gains ai_usage, ai_refund, ai_reservation (legacy) and cloud_hourly.\n- The CustomerController credit list groups ai_usage rows per Tehran day, so the last 50 rows stay useful.\n\nCUSTOMER (/account/ai):\n- Overview: available balance, month-to-date spend against budget, base URL, quickstart, prices.\n- Usage: filters by range, project, model and key, grouped by day, project, model or key. Columns: requests, input (uncached), cached, output and reasoning tokens, net, VAT, total. Money is in Toman for fa and in € for en/tr using the row snapshot.\n- CSV export (UTF-8 BOM).\n- Recent requests: time, model, key name, tokens, charge, status, and a 'charged at hold' badge. No prompts.\n- Other customers' rows are never visible (a tenant-isolation test covers this).\n- Alerts: budget 80% and 100% once per window; low balance when available < ai_low_balance_days × the 7-day average daily spend, at most once per 24 h, by email and Bale, linking to top-up.\n\nMONTHLY STATEMENT: a Toman usage statement per customer (net, VAT, total per model), shown in the portal. Whether it must also be a formal tax invoice is owner question 2.",
+ "api_changes": "POST /v1/chat/completions:\n- Controller return type becomes Symfony Response (a StreamedResponse when stream:true).\n- The OpenAI error envelope {error:{message (English), type, code, param}} replaces {code,message}, with a stable mapping (AiErrors):\n  - 400 invalid_request_error\n  - 401 authentication_error\n  - 402 insufficient_quota (insufficient_funds / budget_exceeded, x-should-retry:false; OpenRouter uses 402 the same way)\n  - 403 permission_error\n  - 404 not_found_error (model_not_found)\n  - 409 request_in_progress\n  - 429 rate_limit_error, with Retry-After\n  - 502/504 api_error (x-should-retry:false when money was charged)\n  - 503 service_unavailable\n- The settle_failed 500 is removed.\n\nRequest handling:\n- n>1 gives 400.\n- Image, audio and file parts give 400 unsupported_content (vision is post-launch).\n- max_completion_tokens is mapped to max_tokens, and the forwarded max_tokens is forced.\n- tools, tool_choice, response_format, seed, temperature, user, logprobs and other params pass through.\n- Idempotency-Key must be ≤80 printable ASCII and is bound to the body hash (D8).\n\nResponse:\n- `model` is rewritten to our slug, and `id` to chatcmpl-sn<ULID>.\n- usage.estimated_cost and provider-only fields are stripped.\n- Added: usage.cost_irt (and usage.cost_irt_net / vat), and headers x-request-id and x-servernet-charge-irt (non-stream).\n- A replay carries idempotent-replayed:true.\n- Stream: text/event-stream, Cache-Control no-cache, X-Accel-Buffering no. Each chunk is rewritten. Usage arrives on the final chunk (DeepInfra puts it on the finish chunk) and is also forwarded when the client asked for stream_options.include_usage. The stream ends with `data: [DONE]`. A mid-stream error is an SSE error object.\n\nRoutes and limits:\n- Route middleware: throttle:ai is removed from /v1. The new limiter 'ai-key' is per key RPM (project.rpm_limit ?? 60). Concurrency is enforced in reserve (429). A new limiter 'ai-auth-fail' allows 30 failed authentications per minute per IP.\n- /v1 is excluded from PageCache, so GET /v1/models is never HTML-cached.\n- New GET /v1/models and GET /v1/models/{id} (V1ModelsController): public, IP-throttled 60/min. Shape: {object:'list', data:[{id, object:'model', created, owned_by:'servernet', context_length, max_output_tokens, capabilities, pricing:{currency:'IRT', unit:'1M tokens', input, cached_input, output, vat_percent, eur_approx:{…}, updated_at, version}}]}. Only models that are sellable and listed appear.\n\nHost and admission:\n- api.servernet.cloud serves the same routes. ConsoleHost and LegacyDomain are verified never to redirect it, because a 301 on POST breaks SDKs.\n- AiAdmission: project_missing is checked before can(), the budget window is computed on read, and use_count, last_used_at and last_used_ip are written after all gates.\n\nOther pages:\n- Account routes (auth:customer group): GET /account/ai, /account/ai/usage, /account/ai/usage.csv, /account/ai/requests, and project/key CRUD moved from /account/security/ai-project*. The old POST routes are kept as aliases.\n- Admin routes: /admin/ai/usage, /admin/ai/review (+ POST refund and settle), /admin/ai/reconcile, /admin/ai/models/create, and /admin/ai/stream-probe (admin-only SSE test).\n- Public routes in the $site closure (fa, /en, /tr): /ai, /ai/models, /ai/models/{slug}, /ai/docs. They go in the sitemap, and the top-level «هوش مصنوعی» menu next to GPU is guarded with Route::has.\n\nPost-launch: /v1/embeddings, /v1/messages.",
+ "prod_repair_and_deploy": "Rule: prod is a subset of develop. Each deploy ships an exact file list through the owner's three-way-merge script. The agent only runs DRY; the owner runs the real deploy and every migration.\n\n0. REBASE AND BASELINE\n- Rebase feature/ai-gateway-money onto current origin/develop. scripts/lang-apply-keys.php exists only in wt-credit, not on ba710796, so the branch base is stale.\n- Diff against origin/develop before fixing anything.\n\n1. READ-ONLY AUDIT (the owner runs the SELECTs in phpMyAdmin):\n   - SELECT migration,batch FROM migrations WHERE migration LIKE '2026_11_02_%' ORDER BY id. If 001200 and 001300 share a batch, the root cause is proven.\n   - SELECT table_name,engine FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name IN ('ai_reservations','ai_calls','customers','credit_ledger').\n   - SELECT constraint_name,table_name,referenced_table_name FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE() AND table_name IN ('ai_reservations','ai_calls').\n   - SELECT table_name,index_name,non_unique,GROUP_CONCAT(column_name ORDER BY seq_in_index) FROM information_schema.statistics WHERE table_schema=DATABASE() AND table_name IN ('ai_reservations','ai_calls') GROUP BY 1,2,3.\n   - SELECT status,COUNT(*),SUM(amount_irt) FROM ai_reservations GROUP BY status; SELECT COUNT(*) FROM ai_calls; SELECT COUNT(*) FROM credit_ledger WHERE reason='ai_reservation'.\n   - SELECT slug,driver,enabled,live_calls_enabled,commercial_enabled,agreement_status FROM ai_providers.\n   - Expected: 0 settled reservations and 0 'ai_reservation' ledger rows (every call has been 503). If any exist, stop and list them for refund, because they were debited in µUSD-as-Toman.\n\n2. DEPLOY M5.0: the repair migration 001400, the data migration 001500, the per-step-guard rewrites of 001000/001200/001300, and the small code fixes. Include any M3/M4 file still missing on prod: diff by byte size, because prod drift may already be deployed.\n- The agent DRY-runs. The owner runs: php artisan migrate --force --path=database/migrations/2026_11_02_001400_repair_ai_gateway_fks.php, then the same for 001500.\n- Verify with /system/tables and by re-running the index and FK SELECTs.\n- The provider stays enabled=0 and live_calls_enabled=0.\n\n3. DEPLOY M5.1 → M5.5 in order, each with its migrations.\n- The owner runs each --path migration in numeric order: 002000 … 002700.\n- ai_sales_open = 0 throughout, so /v1 answers 503 service_not_open.\n- routes/console.php: count Schedule::command on prod BEFORE and AFTER each merge, because prod console.php has been clobbered before. Add ai:reprice hourly at :10, ai:reconcile every 5 min, ai:post-daily at 21:40 UTC, and ai:prune-replay daily, each withoutOverlapping.\n- lang: only through scripts/lang-apply-keys.php, key by key, never a whole ui.php.\n- Never deploy public/ root files from the repo.\n- New route names: guard them with Route::has in shared views, and reset OPcache after deploy.\n\n4. OWNER CONFIGURATION:\n- Settings: ai_margin_pct, pricing_fx_fee_pct_deepinfra, the USD override if needed, and the DeepInfra key via Setting::putSecret.\n- Provider: commercial_enabled=1, resale_allowed and agreement_status per owner question 6.\n- Create models and cost rows in /admin/ai/models.\n- Run `ai:reprice` DRY, then `ai:reprice --apply`, and check the Toman and € preview.\n\n5. INFRA (owner, one time):\n- cPanel subdomain api.servernet.cloud, with docroot = public_html, its own PHP-FPM pool (max_children sized; ai_global_concurrency set below it) and AutoSSL.\n- Cloudflare DNS-only record.\n- Hand-add one line to public_html/.htaccess: `SetEnvIf Request_URI \"^/v1/\" no-gzip dont-vary`.\n- Verify with curl -N against /admin/ai/stream-probe that 5 events arrive about 1 s apart, and check Content-Encoding. If Apache buffers, add a WHM include enabling flushpackets for mod_proxy_fcgi.\n\n6. BETA: add the owner's customer id to ai_beta_customer_ids. Run live calls: non-stream, stream, tools, client disconnect, bad key, and funds below the hold. For each, check that charged_irt equals the published price × usage + VAT, that credit_ledger has one row, and that `ai:post-daily --dry` totals match.\n- Also verify from one live response that DeepInfra returns prompt_tokens_details.cached_tokens.\n\n7. DEPLOY M5.6 and M5.7 (portal and public pages). /ai shows the waitlist state until the gate opens.\n\n8. OPEN: ai_sales_open = 1. For 48 h, watch /admin/errors, /admin/ai/review and the alerts.\n\nRollback at any step: ai_sales_open = 0, or provider live_calls_enabled = 0. Migrations are additive; down() is a no-op for the repair.",
+ "milestones": [
+  {
+   "name": "M5.0 Prod repair + green baseline",
+   "scope": "Repair migration for the half-built ai_calls and the unverified ai_reservations. DeepInfra driver data migration and a driver select in admin. Per-step migration guards. Test fixtures fixed: load the seeded provider with firstOrFail()->update; commercial, resale and agreement flags set; replay expects 200. AiAdmission returns project_missing before can(). The project-create budget infers monthly, and the budget window is computed on read in the same change.",
+   "files": [
+    "website/database/migrations/2026_11_02_001400_repair_ai_gateway_fks.php",
+    "website/database/migrations/2026_11_02_001500_fix_deepinfra_driver.php",
+    "website/database/migrations/2026_11_02_001000_create_ai_projects.php",
+    "website/database/migrations/2026_11_02_001100_extend_customer_api_tokens_ai.php",
+    "website/database/migrations/2026_11_02_001200_create_ai_reservations.php",
+    "website/database/migrations/2026_11_02_001300_create_ai_calls.php",
+    "website/app/Services/Ai/AiCaller.php",
+    "website/app/Services/Ai/AiAdmission.php",
+    "website/app/Http/Controllers/Admin/AiGatewayController.php",
+    "website/resources/views/admin/ai/provider-edit.blade.php",
+    "website/app/Http/Controllers/Account/SecurityController.php",
+    "website/app/Models/AiProject.php",
+    "website/tests/Feature/AiCallerTest.php",
+    "website/tests/Feature/V1ChatTest.php",
+    "website/tests/Feature/AiProjectsAndAdmissionTest.php",
+    "website/tests/Feature/AiRegistryTest.php",
+    "website/tests/Feature/AiRepairMigrationTest.php"
+   ],
+   "tests": [
+    "AiRepairMigrationTest: build ai_calls without the FK, unique or index, mark 001300 as ran, run 001400, and assert the FK, unique and index exist; orphans nulled; duplicate ai_calls keys keep MIN(id); duplicate ai_reservations keys throw; a second run is a no-op",
+    "AiRegistryTest::test_seeded_deepinfra_driver_resolves_to_class",
+    "AiProjectsAndAdmissionTest: project_missing reason; budget monthly inferred; window rollover across the month boundary with Carbon::setTestNow('2026-11-20') and reset_day",
+    "AiCallerTest and V1ChatTest green with seeded-provider fixtures; replay expects 200, the same body and Http::assertSentCount(1)",
+    "Full filter run php artisan test --filter='Ai|V1Chat' with 0 failures (run in the background because of the Windows set_time_limit trap)"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.1 Pricing engine: Toman sell versions, margin, fee, FX quote, reprice",
+   "scope": "MicroMath::mulDivCeil and ceilSig with overflow guards. AiPricing (formula, floor, bands) and FxQuote / CloudPricing::usdToToman (override → cache → lastKnown; stale buffer). The ai_sell_prices table and the new ai_models columns. The `ai:reprice {--apply} {--model=}` command. Settings ai_margin_pct (gt:0, max 500), pricing_fx_fee_pct_deepinfra, bands, and override bounds (20k–5M plus a delta confirm). PriceBook: currencies limited to USD/EUR, divisor per billing unit (B11), resolveAt uses the same fallbacks, and B15/B16 guards. Admin: model create, cost rows, and a sell preview in Toman and €. No customer-visible change.",
+   "files": [
+    "website/app/Support/MicroMath.php",
+    "website/app/Services/Ai/AiPricing.php",
+    "website/app/Services/Ai/FxQuote.php",
+    "website/app/Services/Cloud/CloudPricing.php",
+    "website/app/Services/Ai/PriceBook.php",
+    "website/app/Models/AiSellPrice.php",
+    "website/app/Models/AiModel.php",
+    "website/database/migrations/2026_11_02_002000_create_ai_sell_prices.php",
+    "website/database/migrations/2026_11_02_002100_extend_ai_models_catalog.php",
+    "website/app/Console/Commands/AiReprice.php",
+    "website/app/Http/Controllers/Admin/SettingsController.php",
+    "website/resources/views/admin/settings/pricing.blade.php",
+    "website/app/Http/Controllers/Admin/AiGatewayController.php",
+    "website/resources/views/admin/ai/pricing.blade.php",
+    "website/resources/views/admin/ai/model-edit.blade.php",
+    "website/routes/console.php",
+    "website/routes/web.php",
+    "website/lang/{fa,en,tr}/ui.php (via lang-apply-keys)"
+   ],
+   "tests": [
+    "MicroMathTest: mulDivCeil equals the bcmath reference on random vectors up to the bounds; overflow throws MoneyOverflow; ceilSig(30891,3)=30900 and ceilSig(3708,3)=3710",
+    "AiPricingFormulaTest: the worked vector (250,000/750,000 µUSD, R=100,000, fee 3%, margin 20%) gives 30,900 / 92,700; each step rounds up; EUR cost rows; IRR refused",
+    "AiPricingNoLossPropertyTest: 10k random (c, R within band, fee, margin>0, P, K, C) give net·1e6 > cost_utoman",
+    "AiRepriceTest: up band triggers; below band no version; down band only after 24 h; a margin change reprices at once; same S after sig-3 creates no version; --apply without it writes nothing",
+    "FxQuoteTest: override wins; stale (>6 h) applies the buffer; >48 h gives null and not priced; the hot path never calls refresh (Http::assertNothingSent)",
+    "SettingsPricingTest: margin 0 and -1 rejected; 501 rejected; the deepinfra fee key is saved; override outside 20k–5M rejected",
+    "FloorGuardTest: a live rate jump forces a synchronous reprice with reason fx_floor before reserve"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.2 Settlement core: Toman hold, usage-based settle, VAT, failure policy, idempotency, budgets",
+   "scope": "AiPayload (normalize, estimate, forced max_tokens, n/image rejection). The ai_requests table and the ai_reservations and ai_calls extensions. VAT tax_rates row. AiCaller rewrite: sales gate, sellability (B7), hold in Toman, snapshots, upstream_sent marker, settleActual, cap policy, and 200 even when settle fails. AiReservations::settleActual, release frees the key, deadlock retry, late settle. Wallet::settleDebit with allowOverdraft. Driver error classes (not_sent, sent, bad_body, http) and timeouts. The reconciler and the ai:reconcile and ai:prune-replay schedules. Budget and token-cap enforcement inside the reserve lock. Replay store encrypted with a 24 h TTL. Stays behind ai_sales_open=0.",
+   "files": [
+    "website/app/Services/Ai/AiPayload.php",
+    "website/app/Services/Ai/AiMeter.php",
+    "website/app/Services/Ai/AiCaller.php",
+    "website/app/Services/Ai/AiCallOutcome.php",
+    "website/app/Services/Ai/AiReservations.php",
+    "website/app/Services/Ai/AiBudget.php",
+    "website/app/Services/Ai/ReservationReconciler.php",
+    "website/app/Services/Finance/Wallet.php",
+    "website/app/Services/AiProviders/OpenAiCompatibleDriver.php",
+    "website/app/Models/AiRequest.php",
+    "website/app/Models/AiReservation.php",
+    "website/app/Models/AiCall.php",
+    "website/database/migrations/2026_11_02_002200_extend_ai_reservations_settlement.php",
+    "website/database/migrations/2026_11_02_002300_create_ai_requests.php",
+    "website/database/migrations/2026_11_02_002400_extend_ai_calls_replay.php",
+    "website/database/migrations/2026_11_02_002600_seed_ai_vat_rate.php",
+    "website/app/Console/Commands/AiReconcile.php",
+    "website/app/Console/Commands/AiPruneReplay.php",
+    "website/routes/console.php"
+   ],
+   "tests": [
+    "AiSettlementTest: charge = ceil((S_in·(P−K)+S_cached·K+S_out·C)/1e6) + ceil VAT; the B1 regression (Toman, not µUSD); a VAT-exempt customer pays 0 VAT; exactly one credit_ledger row; hold remainder freed; ledger_day is the Tehran date",
+    "AiSettlementTest: missing or invalid usage (K>P, negative) charges the hold with usage_source=cap and needs_review; usage above the hold charges actual with overdraft_irt>0 and the next call gets 402",
+    "AiFailurePolicyTest: connect failure releases (no charge) and the key is reusable; provider 400/429/5xx map and release; read timeout after send charges the cap with x-should-retry false; non-JSON 2xx charges the cap and no TypeError; a deadlock is retried then settles; settle failure still returns 200, the row is settle_failed, and the reconciler settles actual",
+    "AiIdempotencyTest: same key and body replays without an upstream call or charge; a different body gives 400 idempotency_key_reused; in flight gives 409; a released key can be retried; a key longer than 80 gives 400",
+    "AiPayloadTest: forwarded max_tokens clamped (Http::assertSent); max_completion_tokens mapped; n=2 gives 400; image_url part gives 400; array text parts counted; tools counted in the hold; balance-aware max_tokens and the 256 minimum",
+    "AiBudgetTest: monthly budget including holds gives 402 budget_exceeded; token daily cap applies only when explicitly set; window rolls over in Tehran time",
+    "AiReconcilerTest: not sent releases; usage persisted settles actual; sent without usage charges the cap; idempotent across runs",
+    "AiSellabilityTest: commercial_enabled=0, agreement none or a non-chat model are refused before any hold",
+    "AiReservationMariaDbStressTest extended: concurrent settleActual, release and reconcile give no double debit"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.3 OpenAI-compatible API surface",
+   "scope": "OpenAI error envelope and status map (AiErrors), x-should-retry, x-request-id and charge headers. White-label rewrite of model and id, and strip estimated_cost. GET /v1/models and /v1/models/{id} (public, throttled, pricing extension). Per-key RPM limiter, concurrency limits and failed-auth IP limiter; throttle:ai removed from /v1. /v1 excluded from PageCache. api.servernet.cloud host verified through ConsoleHost and LegacyDomain. last_used_at and last_used_ip written.",
+   "files": [
+    "website/app/Http/Controllers/Ai/V1ChatController.php",
+    "website/app/Http/Controllers/Ai/V1ModelsController.php",
+    "website/app/Services/Ai/AiErrors.php",
+    "website/app/Services/Ai/AiResponseRewriter.php",
+    "website/app/Services/Ai/AiAdmission.php",
+    "website/app/Providers/AppServiceProvider.php",
+    "website/app/Http/Middleware/PageCache.php",
+    "website/database/migrations/2026_11_02_002500_extend_ai_projects_limits.php",
+    "website/routes/web.php"
+   ],
+   "tests": [
+    "V1ErrorEnvelopeTest: every code maps to the right status, type and English message; 402 and charged errors carry x-should-retry false; no 500 after an upstream 200",
+    "V1ModelsTest: list shape; only sellable and listed models; pricing equals the active sell versions; unauthenticated allowed; the 61st request per minute gets 429; not HTML-cached",
+    "V1WhiteLabelTest: response model is our slug; id is chatcmpl-sn…; usage.estimated_cost removed; x-request-id is the ai_requests.public_id",
+    "V1RateLimitTest: per-key RPM 429 with Retry-After; 5th concurrent in a project gives 429 concurrency_limit; two keys behind one IP are not throttled together; 31 bad tokens per minute gives 429",
+    "V1HostTest: POST to the api host is served, not redirected"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.4 Streaming (SSE) — launch blocker",
+   "scope": "Driver chatStream: Guzzle stream with a 60 s idle and 600 s wall timeout, and include_usage forced. SseRelay: a line parser that tolerates split reads, CRLF and ': keep-alive' comments, rewrites model and id, captures usage from the finish or usage chunk, passes tool_call deltas through unchanged, and emits SSE errors. StreamedResponse branch: output buffering and zlib off, a flush per event, ignore_user_abort with drain on disconnect, and settle before emitting the usage chunk and [DONE]. Replay of a keyed stream as a synthesized SSE. Admin stream probe. The .htaccess no-gzip line is added by hand on prod (never deploy public/ root files).",
+   "files": [
+    "website/app/Services/AiProviders/OpenAiCompatibleDriver.php",
+    "website/app/Services/Ai/SseRelay.php",
+    "website/app/Services/Ai/AiCaller.php",
+    "website/app/Http/Controllers/Ai/V1ChatController.php",
+    "website/app/Http/Controllers/Admin/AiGatewayController.php",
+    "website/routes/web.php"
+   ],
+   "tests": [
+    "V1StreamTest: faked SSE upstream is relayed in order with model and id rewritten and ends with [DONE]; usage on the finish chunk (DeepInfra shape) settles actual; a separate usage-only chunk also works; include_usage absent still parses",
+    "V1StreamTest: a gate or funds failure before the first byte gives a JSON error with the proper status; an upstream error mid-stream gives an SSE error event and a cap charge; a stream cut before usage charges the cap; a simulated client disconnect drains and charges actual",
+    "SseRelayParserTest: data split across reads, CRLF, multi-line data, comments, non-JSON data line gives upstream_bad_response",
+    "V1StreamReplayTest: a keyed stream replay synthesizes SSE with the same content and no charge",
+    "StreamProbeTest: admin-only; non-admin gets 403/404"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.5 Finance ledger, admin usage and review",
+   "scope": "ai_usage_daily. BusinessLedger::recordAiDay with categories ai and ai_upstream, and revenue_by_category. `ai:post-daily {--day=} {--dry}` scheduled at 21:40 UTC. Refund action posting a credit and a ledger refund. Admin usage, margin, review and reconcile pages. Labels in finance, reports, transactions and the dashboard. Customer credit list grouped by day. The hourly block is not touched (D11).",
+   "files": [
+    "website/database/migrations/2026_11_02_002700_create_ai_usage_daily.php",
+    "website/app/Models/AiUsageDaily.php",
+    "website/app/Services/Finance/BusinessLedger.php",
+    "website/app/Console/Commands/AiPostDaily.php",
+    "website/app/Services/Reports/BusinessReport.php",
+    "website/app/Http/Controllers/Admin/AiGatewayController.php",
+    "website/app/Http/Controllers/Admin/FinanceController.php",
+    "website/app/Http/Controllers/Admin/CustomerController.php",
+    "website/resources/views/admin/ai/usage.blade.php",
+    "website/resources/views/admin/ai/review.blade.php",
+    "website/resources/views/admin/ai/reconcile.blade.php",
+    "website/resources/views/admin/finance.blade.php",
+    "website/resources/views/admin/reports.blade.php",
+    "website/resources/views/admin/transactions.blade.php",
+    "website/routes/web.php",
+    "website/routes/console.php"
+   ],
+   "tests": [
+    "AiPostDailyTest: revenue, tax_collected and expense equal the sums over ai_requests for day D; a rerun posts nothing new; a posted day is frozen; a late settle lands on its settlement day; --dry writes nothing; days with no rows post nothing",
+    "BusinessLedgerAiTest: categories stored; summary revenue_by_category; the legacy ai_reservation rows are never counted",
+    "AiRefundTest: refund writes one ai_refund credit and one ledger refund; a double click stays idempotent",
+    "AdminAiPagesTest: every new GET route returns 200 for an admin and every linked route exists (dead-link check)",
+    "ReconcileVarianceTest: invoice USD against Σcost_uusd; >2% alerts"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.6 Customer portal: usage dashboard, budgets UI, alerts",
+   "scope": "/account/ai with overview, projects and keys (moved from the security page, old routes aliased), usage by day, project, model and key (tokens in, cached, out and reasoning; net, VAT, total), CSV, recent requests without prompts. Available balance shown. Budget form in Toman, or € for en/tr converted at save. 80%/100% budget alerts and low-balance nudge by email and Bale. Quickstart with the base URL and code tabs (curl, Python, Node, n8n). Copy fixed at lang ui.php:3181-3188.",
+   "files": [
+    "website/app/Http/Controllers/Account/AiController.php",
+    "website/resources/views/account/ai/index.blade.php",
+    "website/resources/views/account/ai/usage.blade.php",
+    "website/resources/views/account/ai/requests.blade.php",
+    "website/resources/views/account/security.blade.php",
+    "website/app/Services/Ai/AiBudget.php",
+    "website/app/Notifications/AiBudgetAlert.php",
+    "website/app/Notifications/AiLowBalance.php",
+    "website/app/Http/Controllers/Api/CustomerApiController.php",
+    "website/app/Http/Controllers/Account/PaymentController.php",
+    "website/routes/web.php",
+    "website/lang/{fa,en,tr}/ui.php (via lang-apply-keys)"
+   ],
+   "tests": [
+    "AccountAiUsageTest: aggregates equal the ai_requests sums per day, project, model and key; cached tokens shown; fa in Toman, en and tr in € from the row snapshot; another customer's rows are invisible",
+    "AccountAiCsvTest: BOM, headers, Persian digits not mixed, totals match",
+    "BudgetAlertTest: 80% and 100% sent once per window; resent in the next window",
+    "LowBalanceNudgeTest: at most once per 24 h; not sent without AI usage",
+    "AccountAiProjectRoutesTest: old security routes still work; the budget create form sets monthly"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.7 Public /ai product page, per-model SEO pages, docs, menu",
+   "scope": "The /ai hub (fa, /en, /tr):\n- hero: Toman billing, one wallet, OpenAI-compatible, streaming\n- live price table from the active sell versions, ex-VAT with a '+۱۰٪ ارزش افزوده' note for fa and € for en/tr, plus 'last updated'\n- quickstart\n- FAQ\n- cross-links to /cloud/ai-infrastructure and /solutions/ai-agents\n\nPer-model pages at /ai/models/{slug}: unique page JSON content, context, capabilities, prices, code with the model id, related models. /ai/docs covers auth, base URL, errors, limits, streaming, idempotency, and the billing rules (hold, rounding, VAT, cap policy).\n\nJSON-LD: Product with Offer and UnitPriceSpecification (priceCurrency IRR = Toman×10 for fa, EUR for en/tr, unitText '1M tokens'), FAQPage and BreadcrumbList. hreflang and canonical. Sitemap lists only listed models.\n\nTop-level «هوش مصنوعی» menu next to GPU, guarded with Route::has. The page shows a waitlist or top-up CTA while ai_sales_open=0. Content-engine plan ai-1405 for daily posts linking to model pages. IRANSans; #main already reserves 110px, so no padding-top.",
+   "files": [
+    "website/app/Http/Controllers/AiProductController.php",
+    "website/resources/views/ai/index.blade.php",
+    "website/resources/views/ai/model.blade.php",
+    "website/resources/views/ai/docs.blade.php",
+    "website/app/helpers.php",
+    "website/resources/views/partials/header.blade.php",
+    "website/config/solutions.php",
+    "website/config/catalog/cloud.php",
+    "website/routes/web.php",
+    "website/app/Http/Controllers/SitemapController.php",
+    "website/lang/{fa,en,tr}/ui.php (via lang-apply-keys)"
+   ],
+   "tests": [
+    "AiPublicPagesTest: /ai, /en/ai and /tr/ai return 200; the fa price equals the sell version with the Toman and VAT note; en shows €; unlisted or unsellable models are hidden; unknown slug gives 404; canonical and hreflang present; JSON-LD parses with IRR = Toman×10; cross-links present; no padding-top on #main",
+    "AiPriceHelperTest: ai_price_per_m gives fa Toman, en € to 3 significant digits, and Toman when the EUR rate is missing",
+    "SitemapAiTest: listed models present in all 3 locales",
+    "MenuGuardTest: the menu renders when the route is missing (Route::has)"
+   ],
+   "deployable_alone": true
+  },
+  {
+   "name": "M5.8 Beta and launch",
+   "scope": "Configuration only:\n- infra: api subdomain, FPM pool, .htaccess no-gzip, stream probe\n- owner settings, then ai:reprice --apply\n- beta allowlist, then live checks per the deploy step 6 checklist\n- ai_sales_open=1\n- ai:status extended with prices, FX age, cap and overdraft counts and stuck rows\n- runbook\n\nPost-launch backlog, not in M5:\n- internal upstream streaming for non-stream clients (removes read-timeout cap charges)\n- /v1/embeddings\n- portal playground\n- volume and customer pricing\n- /v1/messages\n- second provider\n- hourly cloud revenue rollup (D11)",
+   "files": [
+    "website/app/Console/Commands/AiStatus.php",
+    "docs/ai-gateway-runbook.md"
+   ],
+   "tests": [
+    "Manual live checklist on prod with the owner's customer: non-stream, stream, tools, disconnect, 402, budget; for each, charged_irt equals price × usage + VAT and there is one ledger row; ai:post-daily --dry totals match /admin/ai/usage",
+    "AiStatusCommandTest: reports FX age, active versions and stuck counts"
+   ],
+   "deployable_alone": true
+  }
+ ],
+ "owner_questions": [
+  "VAT for foreign customers: should AI usage by en/tr customers (shown in €, wallet funded from € top-ups) carry 0% Iranian VAT? And what should mark a customer as non-Iranian: the portal language (my default: anything other than Persian means 0%), the phone country code, or a country the customer declares?",
+  "Tax invoices: for the مودیان system, does AI usage need a formal tax invoice, for example one consolidated invoice per customer per month? Or is a monthly usage statement enough (net, 10% VAT, total, shown in the portal)?",
+  "Accounting (please confirm with your accountant): the system will record DeepInfra cost every day, from real usage, as an 'ai_upstream' expense. That means your DeepInfra top-ups must be recorded as prepaid money, not as an expense, or the cost is counted twice. Is that right? And do payments made from your personal account need a reimbursement document?",
+  "Launch numbers: what AI margin % do you want? And what does it really cost you, in %, to put $1 into DeepInfra (exchange spread, card or transfer fee, any foreign VAT)? That figure becomes pricing_fx_fee_pct_deepinfra.",
+  "Overspend: rarely, the real cost of a request can be a little higher than the amount we held, because input token counts are estimated. Your rule says 'never absorb', so the customer would pay the real amount and their wallet could go slightly negative. AI calls would then be blocked until they top up, and the next top-up covers the gap. Do you accept this?",
+  "Resale and legal: DeepInfra is a US company and we have no signed reseller agreement. Do you accept the risk of reselling under their standard terms to Iranian customers, including possible account closure, and allow me to mark the provider 'agreement: signed / resale allowed' so sales can open? Do you also approve updating the terms of service and privacy policy to say prompts are processed by a US provider and to add AI acceptable-use rules?",
+  "Growth budget: should new AI customers get free starter credit? If yes, how much, and on what condition (e.g. verified phone or KYC)?",
+  "Price changes: are you OK with the published Toman prices changing automatically when the dollar rises 3% or more (at once) or falls 5% or more (at most once a day)? Should customers get an email when prices change?"
+ ],
+ "risks": [
+  "Single provider: DeepInfra is a US company selling to Iranian residents, so the account can be closed and every model goes dark at once. Mitigation: the driver is OpenAI-compatible, so a second provider is only data (a new provider row plus model rows). Keep the prepaid balance small and plan a second provider in the post-launch backlog.",
+  "Apache and PHP-FPM on cPanel may buffer SSE: mod_deflate or mod_proxy_fcgi can deliver all chunks at the end. The client still gets a correct answer but no live streaming. Mitigation: the stream probe gates the launch; .htaccess no-gzip; flushpackets through a WHM include if needed.",
+  "Long streams hold PHP-FPM workers and could take the website down. Mitigation: a separate FPM pool on api.servernet.cloud, a global concurrency cap below max_children, and per-customer and per-project concurrency limits.",
+  "The Iranian rial can jump sharply within an hour. The floor guard re-prices synchronously and a call in flight settles at its snapshot, so the worst case is one call priced at the pre-jump rate while still keeping a quarter of the margin. If the FX scraper is down for more than 48 h, sales stop unless the owner sets an override.",
+  "Input tokens can be underestimated (Persian, CJK or long tool schemas), which causes small overdrafts. Mitigation: the bytes/2 estimate plus overhead, an overdraft alert, and later calibrating hold_bytes_per_token per model from stored prompt_tokens.",
+  "Charging the hold when usage is missing will cause customer complaints, especially on read timeouts for non-stream calls. Mitigation: the needs_review queue with one-click refund, the usage source shown in the portal, and internal upstream streaming in the post-launch backlog.",
+  "SDK retry behaviour: OpenAI SDKs retry 409, 429 and 5xx. Any code path that returns 5xx after a charge makes the customer pay twice. Mitigation: we never return a 5xx after upstream success, and x-should-retry:false goes on every error where money was charged. Tests pin both.",
+  "Prod drift and per-file deploys: a partial file set can silently leave features unshipped or broken, as the ai_calls half-build did. Mitigation: exact file lists, the guarded repair migration, counting Schedule::command before and after, lang files key by key, Route::has guards and an OPcache reset for new route names.",
+  "MariaDB DDL is not transactional: a migration that fails midway leaves partial schema. Mitigation: every M5 migration guards each step (hasColumn, hasIndex, hasForeignKey), creates no FK before its parent table, and the owner runs them one --path at a time.",
+  "Integer overflow: PHP silently turns an int overflow into a float. Mitigation: mulDivCeil guards, explicit bounds (c ≤ 1e9 µ, R ≤ 5e6, fee ≤ 25%, margin ≤ 500%) and a property test at the bounds.",
+  "Tax exposure: collecting 10% VAT on AI adds to VAT that is collected but not filed (per the tax-posture note). The ledger makes it visible, and the owner should settle past periods with an accountant before scaling sales.",
+  "Two DeepInfra usage fields are unverified: cached_tokens is documented in DeepInfra's prompt-caching docs but not yet seen in a live response, and estimated_cost is unconfirmed. Verify both in one beta call. If cached_tokens is absent, charge cached tokens as normal input, which is still no loss.",
+  "SEO: per-model pages with templated text risk being judged thin or duplicate content. Each listed model needs unique page JSON before it is listed, and the daily content engine should link to the model pages.",
+  "PageCache or other middleware reading getContent() on /v1 GETs could cache /v1/models or break a streamed response. /v1 is excluded explicitly and a test covers it.",
+  "Tests on Windows: set_time_limit in the stream path can end a phpunit run early while it still exits 0. The stream path skips set_time_limit under runningUnitTests(), and the full suite runs in the background."
+ ]
+}

@@ -140,14 +140,18 @@
       <a href="/admin/parts" class="@yield('nav_parts')"><svg class="icon"><use href="#i-cpu"/></svg>قطعاتِ سرور</a>
       <a href="/admin/exit-infra" class="@yield('nav_exit_infra')"><svg class="icon"><use href="#i-flow"/></svg>زیرساختِ اکسیت</a>
 
+      {{-- [ai-admin-nav:start] ─ بلوکِ نشان‌دار: روی سرور با scripts/apply-marked-block.php
+           جابه‌جا می‌شود، نه با ادغامِ کلِ layout. هر آیتمِ تازهٔ دروازه (مصرف، بازبینی،
+           تطبیقِ فاکتور) داخلِ همین دو نشان اضافه شود.
+           فقط مدیر: این‌جا پولِ مشتری و قراردادِ ارائه‌دهنده تنظیم می‌شود. --}}
       @if(auth()->user()->isAdmin())
-      {{-- هوش مصنوعی — دروازه. زیرساختِ مالیِ آینده روی همین رجیستری می‌نشیند
-           (M1). صفحه‌های تکنیکی‌اند: ارائه‌دهنده · مدل · قیمت. --}}
-      <div class="ad-nav-sep">هوش مصنوعی</div>
-      <a href="/admin/ai" class="@yield('nav_ai_providers')"><svg class="icon"><use href="#i-cpu"/></svg>دروازهٔ AI</a>
-      <a href="/admin/ai/models" class="@yield('nav_ai_models')"><svg class="icon"><use href="#i-box"/></svg>مدل‌های AI</a>
-      <a href="/admin/ai/pricing" class="@yield('nav_ai_pricing')"><svg class="icon"><use href="#i-coins"/></svg>قیمت‌پردازِ AI</a>
+      <div class="ad-nav-sep">درگاه هوش مصنوعی</div>
+      <a href="/admin/ai" class="@yield('nav_ai_providers')"><svg class="icon"><use href="#i-cpu"/></svg>ارائه‌دهنده‌ها</a>
+      <a href="/admin/ai/models" class="@yield('nav_ai_models')"><svg class="icon"><use href="#i-box"/></svg>مدل‌ها</a>
+      <a href="/admin/ai/pricing" class="@yield('nav_ai_pricing')"><svg class="icon"><use href="#i-coins"/></svg>قیمت و پیش‌نمایش</a>
+      <a href="/admin/settings?tab=pricing#ai-sales" class="@yield('nav_ai_sales')"><svg class="icon"><use href="#i-gauge"/></svg>حاشیه و درِ فروش</a>
       @endif
+      {{-- [ai-admin-nav:end] --}}
       <div class="ad-nav-sep">دامنه</div>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
 

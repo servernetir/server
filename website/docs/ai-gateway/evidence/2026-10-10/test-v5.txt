@@ -1,0 +1,14 @@
+PHPUnit 12.5.31 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.26
+Configuration: /home/servernetcloud/ai-launch-20261010/test-v1/phpunit.xml
+
+...............................................................  63 / 246 ( 25%)
+............................................................... 126 / 246 ( 51%)
+............................................................... 189 / 246 ( 76%)
+...SSSSSS................................................       246 / 246 (100%)
+
+Time: 00:26.377, Memory: 111.00 MB
+
+OK, but some tests were skipped!
+Tests: 246, Assertions: 80968, Skipped: 6.

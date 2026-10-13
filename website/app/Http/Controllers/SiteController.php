@@ -515,6 +515,16 @@ class SiteController extends Controller
             $add('order.summary', $sku);
         }
 
+        $add('ai.home');
+        $add('ai.models');
+        $add('ai.docs');
+        foreach (\App\Models\AiModel::where('status', '!=', 'deprecated')->get() as $aiModel) {
+            // Informational pages can be indexed while a route is preparing. Retired models cannot.
+            if (\App\Services\Ai\AiModelPage::indexable($aiModel)) {
+                $add('ai.model', $aiModel->slug);
+            }
+        }
+
         $add('official');
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"

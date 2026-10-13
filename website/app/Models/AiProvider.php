@@ -20,12 +20,18 @@ class AiProvider extends Model
     public const STATUS_NONE = 'none';
     public const STATUS_REQUESTED = 'requested';
     public const STATUS_SIGNED = 'signed';
+    // Explicit owner instruction to proceed on an assumption; not evidence of a signed contract.
+    public const STATUS_OWNER_ASSUMED = 'owner_assumed';
 
     protected $fillable = [
         'slug', 'name', 'driver', 'enabled', 'commercial_enabled',
         'resale_allowed', 'agreement_status', 'priority',
-        'live_calls_enabled', 'billing_currency_code', 'notes',
+        'live_calls_enabled', 'billing_currency_code', 'notes', 'fx_fee_bp',
+        'daily_cost_cap_micro', 'paused_at', 'paused_reason', 'usage_lookup_url',
     ];
+
+    /** درایورهایی که `AiCaller` می‌شناسد — فرمِ مدیر فقط از همین فهرست انتخاب می‌کند (D16) */
+    public const DRIVERS = ['OpenAI-Compatible'];
 
     protected function casts(): array
     {
@@ -35,6 +41,9 @@ class AiProvider extends Model
             'resale_allowed'     => 'boolean',
             'live_calls_enabled' => 'boolean',
             'billing_currency_code' => 'string',
+            'fx_fee_bp'          => 'integer',
+            'daily_cost_cap_micro' => 'integer',
+            'paused_at'          => 'datetime',
         ];
     }
 
@@ -62,7 +71,13 @@ class AiProvider extends Model
 
     public function isAgreedTo(): bool
     {
-        return $this->agreement_status === self::STATUS_SIGNED;
+        return in_array($this->agreement_status, [self::STATUS_SIGNED, self::STATUS_OWNER_ASSUMED], true);
+    }
+
+    /** مکثِ خودکار (۴۰۱/۴۰۲/۴۰۳ ِ بالادست) یا دستیِ مدیر — تا برداشته نشود هیچ تماسی نمی‌رود */
+    public function isPaused(): bool
+    {
+        return $this->getAttribute('paused_at') !== null;
     }
 
     /** کلیدِ API از یادیدِ رمزِ سرورنت — هرگز دیتابیسِ این جدول */
