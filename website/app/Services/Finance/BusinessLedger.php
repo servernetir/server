@@ -342,6 +342,53 @@ class BusinessLedger
     }
 
     /**
+     * مصرفِ اعتبار **بدونِ فاکتور** — سرورِ ابریِ ساعتی.
+     *
+     * ═══ آخرین حفرهٔ درآمدیِ ممیزیِ شهریور ۱۴۰۵ ═══
+     *
+     * 🔴 مترِ ساعتی نه فاکتور می‌سازد نه `Payment`؛ مستقیم از `credit_ledger`
+     * کم می‌کند. `recordPayment` به پرداختِ متصل‌به‌فاکتور نیاز دارد و
+     * `recordCreditSale` به فاکتور — پس هیچ‌کدام این مسیر را نمی‌گرفتند و
+     * **کلِ درآمدِ خطِ ساعتی** از /admin/finance غایب بود، در حالی که هزینهٔ
+     * همان سرورها ثبت می‌شد. یعنی دفتر آن خط را زیان‌ده نشان می‌داد.
+     *
+     * ═══ چرا منبع، خودِ ردیفِ اعتبار است ═══
+     *
+     * کلیدِ یکتای دفتر (منبع، نوع) است. اگر منبع را `Service` بگذاریم، کسرِ
+     * ساعتِ دوم روی همان سرویس با ردیفِ اولی برخورد می‌کند و `firstOrCreate`
+     * **بی‌صدا** چیزی نمی‌نویسد — یعنی فقط ساعتِ اول درآمد می‌شد. هر ردیفِ
+     * `CreditEntry` یک رویدادِ مالیِ مستقل است، پس منبعِ درست خودِ اوست و
+     * اجرای دوبارهٔ کرون هم چیزی را دو بار ثبت نمی‌کند.
+     *
+     * ⚠️ مالیات تفکیک نمی‌شود، چون این کسرها اصلاً مالیات ندارند: مسیرِ خریدِ
+     * ساعتی `tax_percent = 0` را هاردکد کرده. پس کلِ مبلغ درآمد است — همان
+     * چیزی که واقعاً اتفاق افتاده. اگر روزی برای ساعتی فاکتورِ مالیات‌دار
+     * صادر شود، تفکیک هم باید همان‌جا اضافه شود.
+     *
+     * ⚠️ فقط دلیل‌های سفیدشده. `invoice_payment` از مسیرِ رسمیِ `Payment` رد
+     * می‌شود و اگر این‌جا هم ثبت شود، درآمد **دو برابر** می‌شود.
+     */
+    public const CREDIT_SPEND_REASONS = ['cloud_hourly', 'cloud_hourly_convert'];
+
+    public function recordCreditSpend(\App\Models\CreditEntry $entry): void
+    {
+        if (! $this->ready()) {
+            return;
+        }
+
+        // کسر است که درآمد می‌سازد، نه شارژ — علامت را همین‌جا می‌سنجیم
+        $amount = -1 * (int) $entry->amount;
+
+        if ($amount <= 0 || ! in_array($entry->reason, self::CREDIT_SPEND_REASONS, true)) {
+            return;
+        }
+
+        $this->post('revenue', $amount, occurredAt: $entry->created_at, source: $entry,
+            note: 'درآمد مصرفِ اعتبار — '.$entry->reason,
+            currency: $entry->currency_code ?: 'IRT');
+    }
+
+    /**
      * بازگشتِ وجه بر مبنای **فاکتور** — برای مسیرهایی که Payment ندارند.
      *
      * 🔴 `recordRefund()` صفر فراخوان داشت: هر سه مسیرِ بازگشتِ وجهِ دامنه
@@ -352,6 +399,28 @@ class BusinessLedger
      *
      * idempotent روی (فاکتور، refund) — کرونِ ساعتی دو بار ثبت نمی‌کند.
      */
+    /**
+     * بازگشتِ وجه با منبعِ دلخواه — برای بازگشت‌هایی که روی یک فاکتور **تکرار** می‌شوند.
+     *
+     * 🔴 `recordInvoiceRefund` روی (فاکتور، refund) یکتاست. برای بازگشتِ
+     * یک‌باره درست است، ولی اسنپ‌پی صریحاً خواسته یک سفارش بتواند **چند بار**
+     * کاهش بخورد و بعد هم لغو شود. با منبعِ فاکتور، دومین بازگشت با اولی
+     * برخورد می‌کرد و `firstOrCreate` بی‌صدا چیزی نمی‌نوشت — پولی که واقعاً
+     * برگشته، در دفتر همچنان درآمد می‌ماند.
+     *
+     * منبع باید خودِ رویداد باشد (مثلاً ردیفِ snapppay_order_events): هر عملِ
+     * ادمین یک ردیفِ مستقل است، پس هر بازگشت ردیفِ دفتریِ خودش را می‌گیرد.
+     */
+    public function recordRefundFor(\Illuminate\Database\Eloquent\Model $source, int $amount, string $currency, string $note): void
+    {
+        if (! $this->ready() || $amount <= 0) {
+            return;
+        }
+
+        $this->post('refund', $amount, occurredAt: now(), source: $source,
+            note: $note, currency: $currency);
+    }
+
     public function recordInvoiceRefund(Invoice $invoice, int $amount, ?string $note = null): void
     {
         if (! $this->ready() || $amount <= 0) {

@@ -102,7 +102,8 @@
 @if($landingPageCss === null)
 <link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-web.woff2') }}" as="font" type="font/woff2" crossorigin>
 @else
-<link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-location-20261011-400.woff2') }}" as="font" type="font/woff2" crossorigin fetchpriority="high" media="(min-width:1021px)">
+<link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-location-20261011-400.woff2') }}" as="font" type="font/woff2" crossorigin fetchpriority="high">
+<link rel="preload" href="{{ asset('assets/font/woff2/IRANSans-location-20261011-700.woff2') }}" as="font" type="font/woff2" crossorigin>
 @endif
 @php
     // A title-only font preserves the original glyphs and metrics.

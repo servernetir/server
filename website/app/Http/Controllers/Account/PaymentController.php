@@ -208,6 +208,15 @@ class PaymentController extends Controller
                     ->latest('id')->first()
                 : null,
             'gateways'     => $this->gatewaysFor($invoice->currency_code),
+            /*
+            | اسنپ‌پی — نمایش یا عدمِ نمایش، و متنی که روی دکمه می‌نشیند.
+            |
+            | 🔴 عنوان و توضیح **ساختهٔ ما نیست**؛ اسنپ‌پی صریحاً خواسته عیناً
+            | همان چیزی نشان داده شود که سرویسِ eligible برمی‌گرداند. هر متنِ
+            | ثابتِ محلی تخلف از گایدلاین است و در بازبینی رد می‌شود.
+            */
+            'snapppay'     => app(\App\Services\Payment\SnappPay\SnappPayAvailability::class)
+                ->forInvoice($invoice, Auth::guard('customer')->user()),
             'bank'         => $this->bankDetails(),
             // آخرین رسیدِ در انتظارِ همین فاکتور — تا کاربر بداند ثبت شده
             'pendingBank'  => Schema::hasTable('bank_transfer_receipts')
@@ -447,7 +456,29 @@ class PaymentController extends Controller
 
         $request->validate(['gateway' => ['required', 'string', 'max:24']]);
 
-        $outcome = $this->payments->begin($invoice, $request->string('gateway')->toString(), $request);
+        $gateway = $request->string('gateway')->toString();
+
+        /*
+        | 🔴 گاردِ اسنپ‌پی این‌جا هم لازم است، نه فقط در ویو.
+        |
+        | پنهان‌کردنِ کارت در Blade کسی را متوقف نمی‌کند که فرم را دستی POST
+        | کند. و اسنپ‌پی صریحاً خواسته وقتی `eligible=false` است این روشِ
+        | پرداخت در دسترس نباشد — «در دسترس نبودن» یعنی سرور هم قبولش نکند،
+        | نه اینکه فقط دیده نشود.
+        |
+        | همان تابعی صدا زده می‌شود که ویو با آن تصمیم گرفته، پس هیچ‌وقت این
+        | دو از هم جدا نمی‌شوند.
+        */
+        if ($gateway === 'snapppay') {
+            $offer = app(\App\Services\Payment\SnappPay\SnappPayAvailability::class)
+                ->forInvoice($invoice, Auth::guard('customer')->user());
+
+            if (! $offer['show']) {
+                return back()->withErrors(['gateway' => 'پرداخت اقساطی برای این فاکتور در دسترس نیست.']);
+            }
+        }
+
+        $outcome = $this->payments->begin($invoice, $gateway, $request);
 
         return $this->afterBegin($outcome, $invoice);
     }
@@ -477,11 +508,7 @@ class PaymentController extends Controller
      */
     public function callback(Request $request, string $gateway)
     {
-        $ref = (string) ($request->query('Authority') ?? $request->query('authority') ?? '');
-
-        $payment = $ref === ''
-            ? null
-            : Payment::where('gateway', $gateway)->where('external_ref', $ref)->first();
+        $payment = $this->findCallbackPayment($request, $gateway);
 
         if ($payment === null) {
             return view('account.payment-result', [
@@ -491,7 +518,14 @@ class PaymentController extends Controller
             ]);
         }
 
-        $outcome = $this->payments->settle($payment, $request->query());
+        /*
+        | ⚠️ `all()` و نه `query()`: اسنپ‌پی نتیجه را با **POST** برمی‌گرداند
+        | (`transactionId`، `state`، `amount` در بدنه). با `query()` آن فرم
+        | خالی می‌رسید و هر بازگشتی «انصراف» خوانده می‌شد.
+        |
+        | برای زرین‌پال تفاوتی ندارد؛ مسیرش GET است و بدنه‌ای وجود ندارد.
+        */
+        $outcome = $this->payments->settle($payment, $request->all());
 
         if ($outcome->ok && ! $outcome->alreadySettled && $outcome->payment !== null) {
             DataLayerService::flashPurchase($outcome->payment);
@@ -504,7 +538,44 @@ class PaymentController extends Controller
                 ? __('panel.payment_success')
                 : $outcome->error,
             'payment'  => $outcome->payment?->fresh('invoice'),
+            // اسنپ‌پی صریحاً خواسته شمارهٔ تراکنش پس از پرداختِ موفق به کاربر
+            // نشان داده شود — همان شماره‌ای که پشتیبانی با آن پیگیری می‌کند
+            'snapppay' => $gateway === 'snapppay'
+                ? \App\Models\SnappPayOrder::where('payment_id', $payment->id)->first()
+                : null,
         ]);
+    }
+
+    /**
+     * پرداختِ متناظر با این بازگشت.
+     *
+     * ═══ چرا هر درگاه لنگرِ خودش را دارد ═══
+     *
+     * زرین‌پال `Authority` را در کوئری برمی‌گرداند و آن همان `external_ref`
+     * است. اسنپ‌پی `paymentToken` را **برنمی‌گرداند**؛ فقط `transactionId`
+     * می‌فرستد — شناسه‌ای که خودمان ساخته‌ایم و روی `snapppay_orders` نشسته.
+     *
+     * ⚠️ این مقدار از درخواست می‌آید، پس داده است نه حکم: فقط برای **پیدا
+     * کردنِ** ردیف استفاده می‌شود. اینکه پول واقعاً آمده یا نه را همچنان
+     * تماسِ سرور-به-سرورِ verify تعیین می‌کند.
+     */
+    private function findCallbackPayment(Request $request, string $gateway): ?Payment
+    {
+        if ($gateway === 'snapppay') {
+            $tid = trim((string) $request->input('transactionId', ''));
+
+            if ($tid === '') {
+                return null;
+            }
+
+            return \App\Models\SnappPayOrder::where('transaction_id', $tid)->first()?->payment;
+        }
+
+        $ref = (string) ($request->query('Authority') ?? $request->query('authority') ?? '');
+
+        return $ref === ''
+            ? null
+            : Payment::where('gateway', $gateway)->where('external_ref', $ref)->first();
     }
 
     // ─────────────────────────── افزایش اعتبار ───────────────────────────
