@@ -22,6 +22,7 @@
    */
   $canLogin = $delivered && ! $suspended && filled($s->username);
   $isWhm    = $type === 'whm';
+  $isObject = $type === 'hetzner_object_gateway';
 @endphp
 
 <article class="svc-card {{ $suspended ? 'is-susp' : '' }}">
@@ -77,15 +78,19 @@
          مشترک آن را در هر بار بارگذاریِ صفحه چاپ می‌کرد و قاعدهٔ «فقط یک بار»
          (`CloudInstance::password_seen`) بی‌صدا دور زده می‌شد. --}}
     <div class="svc-cred">
-      <div><span>{{ __('ui.svc_cred_panel_url') }}</span>
+      <div><span>{{ __($isObject ? 'ui.svc_s3_endpoint' : 'ui.svc_cred_panel_url') }}</span>
         @if($panelUrl)<a href="{{ $panelUrl }}" target="_blank" rel="noopener" dir="ltr">{{ $panelUrl }}</a>
         @elseif($s->server?->hostname)<b dir="ltr">{{ $s->server->hostname }}</b>
         @else<b>—</b>@endif</div>
-      @if($s->username)<div><span>{{ __('ui.svc_cred_username') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $s->username }}</b></div>@endif
-      @if($s->password)<div><span>{{ __('ui.svc_cred_password') }}</span>
+      @if($s->username)<div><span>{{ __($isObject ? 'ui.svc_s3_access_key' : 'ui.svc_cred_username') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $s->username }}</b></div>@endif
+      @if($s->password)<div><span>{{ __($isObject ? 'ui.svc_s3_secret_key' : 'ui.svc_cred_password') }}</span>
         <b dir="ltr" class="svc-pw"><span class="pw-mask">••••••••••</span><span class="pw-val" hidden>{{ $s->password }}</span>
           <button type="button" class="pw-eye" data-show="{{ __('ui.svc_show') }}" data-hide="{{ __('ui.svc_hide') }}">{{ __('ui.svc_show') }}</button></b></div>@endif
       @if($s->domain)<div><span>{{ __('ui.svc_cred_domain') }}</span><b dir="ltr">{{ $s->domain }}</b></div>@endif
+      @if($isObject && filled(data_get($s->provision_meta, 'bucket')))
+        <div><span>{{ __('ui.svc_s3_bucket') }}</span><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ data_get($s->provision_meta, 'bucket') }}</b></div>
+        <div><span>{{ __('ui.svc_s3_region') }}</span><b dir="ltr">{{ data_get($s->provision_meta, 'region') }}</b></div>
+      @endif
     </div>
 
     {{-- ── دسترسیِ سریع ──

@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import urllib.parse
+import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 
 import boto3
@@ -69,9 +70,20 @@ def create_or_assign_bucket(region, bucket, access):
     except RuntimeError as exc:
         if "BucketAlready" not in str(exc):
             raise
-        owner_path = "/change-bucket-owner?bucket=%s&owner=%s" % (
-            urllib.parse.quote(bucket), urllib.parse.quote(access))
-        _signed(region, "PATCH", owner_path, ok=(204,))
+        if bucket_owner(region, bucket) != access:
+            raise RuntimeError("existing bucket has a different owner")
+
+
+def bucket_owner(region, bucket):
+    response = _signed(region, "PATCH", "/list-buckets")
+    root = ET.fromstring(response.content)
+    for item in root.iter():
+        if item.tag.rsplit("}", 1)[-1] != "Bucket":
+            continue
+        values = {child.tag.rsplit("}", 1)[-1]: child.text for child in item}
+        if values.get("Name") == bucket:
+            return values.get("Owner")
+    return None
 
 
 def root_client(region):
