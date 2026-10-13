@@ -9,7 +9,7 @@ install -d -m 0750 /opt/servernet-object-gateway /var/lib/servernet-object-gatew
 id servernet-object >/dev/null 2>&1 || useradd --system --home /var/lib/servernet-object-gateway --shell /usr/sbin/nologin servernet-object
 
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl nginx python3-venv openssl
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates curl nginx python3-venv openssl certbot python3-certbot-nginx dnsutils
 curl -fsSL "https://github.com/versity/versitygw/releases/download/v${VGW_VERSION}/versitygw-v${VGW_VERSION}-linux-arm64.tar.gz" -o /tmp/versitygw.tar.gz
 echo "${VGW_SHA256}  /tmp/versitygw.tar.gz" | sha256sum -c -
 tar -xzf /tmp/versitygw.tar.gz -C /tmp
@@ -65,17 +65,27 @@ install -m 0644 /opt/servernet-object-gateway/servernet-object-api.service /etc/
 install -m 0644 /opt/servernet-object-gateway/servernet-object-reconcile.service /etc/systemd/system/
 install -m 0644 /opt/servernet-object-gateway/servernet-object-reconcile.timer /etc/systemd/system/
 
-openssl req -x509 -newkey rsa:2048 -nodes -days 3 -subj '/CN=object-api.servernet.cloud' \
-  -keyout /etc/servernet-object-gateway/test.key -out /etc/servernet-object-gateway/test.crt
 cat >/etc/nginx/sites-available/servernet-object-gateway <<'NGINX'
-server { listen 9443 ssl; ssl_certificate /etc/servernet-object-gateway/test.crt; ssl_certificate_key /etc/servernet-object-gateway/test.key; location / { proxy_pass http://127.0.0.1:9180; } }
-server { listen 9001 ssl; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; ssl_certificate /etc/servernet-object-gateway/test.crt; ssl_certificate_key /etc/servernet-object-gateway/test.key; location / { proxy_pass http://127.0.0.1:9211; } }
-server { listen 9002 ssl; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; ssl_certificate /etc/servernet-object-gateway/test.crt; ssl_certificate_key /etc/servernet-object-gateway/test.key; location / { proxy_pass http://127.0.0.1:9212; } }
-server { listen 9003 ssl; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; ssl_certificate /etc/servernet-object-gateway/test.crt; ssl_certificate_key /etc/servernet-object-gateway/test.key; location / { proxy_pass http://127.0.0.1:9213; } }
+server { listen 80; server_name object-api.servernet.cloud; location / { proxy_pass http://127.0.0.1:9180; } }
+server { listen 80; server_name fsn1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_pass http://127.0.0.1:9211; } }
+server { listen 80; server_name nbg1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_pass http://127.0.0.1:9212; } }
+server { listen 80; server_name hel1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_pass http://127.0.0.1:9213; } }
 NGINX
 ln -sf /etc/nginx/sites-available/servernet-object-gateway /etc/nginx/sites-enabled/servernet-object-gateway
 rm -f /etc/nginx/sites-enabled/default
 nginx -t
 systemctl daemon-reload
 systemctl enable --now servernet-object@fsn1 servernet-object@nbg1 servernet-object@hel1 servernet-object-api servernet-object-reconcile.timer nginx
+PUBLIC_IP="$(curl -fsS --max-time 10 http://169.254.169.254/hetzner/v1/metadata/public-ipv4)"
+for attempt in $(seq 1 60); do
+  ready=1
+  for host in object-api.servernet.cloud fsn1.s3.servernet.cloud nbg1.s3.servernet.cloud hel1.s3.servernet.cloud; do
+    getent ahostsv4 "$host" | awk '{print $1}' | grep -Fxq "$PUBLIC_IP" || ready=0
+  done
+  [ "$ready" = 1 ] && break
+  sleep 10
+done
+[ "$ready" = 1 ]
+certbot --nginx --non-interactive --agree-tos --redirect --email support@servernet.cloud \
+  -d object-api.servernet.cloud -d fsn1.s3.servernet.cloud -d nbg1.s3.servernet.cloud -d hel1.s3.servernet.cloud
 touch /var/lib/servernet-object-gateway/cloud-init-ready

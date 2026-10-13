@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Schedule;
 // Storage tariffs refresh through the existing application scheduler; this never buys resources.
 Schedule::command('hetzner:storage-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
 Schedule::command('hetzner:object-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
+Schedule::command('hetzner:object-gateway-lifecycle')->hourly()->withoutOverlapping(20)->runInBackground();
 
 // [ai-launch-schedule:start]
 Schedule::command('ai:reconcile')->everyMinute()->withoutOverlapping(10);
