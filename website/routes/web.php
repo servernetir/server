@@ -421,6 +421,10 @@ $site = function (): void {
         // مسیر و نامِ روت‌ها را عوض نکنید. ثبتِ سفارش محدودیتِ نرخ دارد چون هر
         // سفارش یک سرویسِ pending و یک پیش‌فاکتورِ واقعی می‌سازد.
         Route::get('/cloud-store', [Account\CloudStoreController::class, 'index'])->name('cloud.store');
+        Route::get('/gpu-capacity', [Account\GpuCapacityController::class, 'check'])
+            ->name('gpu.capacity')->middleware('throttle:30,1');
+        Route::post('/cloud/{service}/gpu-price', [Account\GpuCapacityController::class, 'confirmPrice'])
+            ->name('cloud.gpu-price')->middleware('throttle:12,1');
         Route::post('/cloud-store', [Account\CloudStoreController::class, 'order'])
             ->name('cloud.store.place')->middleware('throttle:12,1');
 

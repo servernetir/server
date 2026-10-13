@@ -279,6 +279,15 @@ class CloudServerController extends Controller
     public function status(Service $service): JsonResponse
     {
         $this->ownedService($service);
+        if (($service->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT
+                || ($service->status === 'pending' && data_get($service->provision_meta, 'gpu_capacity_order.state') === 'awaiting_payment'))
+            && \App\Services\Cloud\GpuCapacityOrders::managed($service) && ! $service->isDead()) {
+            $state = (string) data_get($service->provision_meta, 'gpu_capacity_order.state', 'checking_capacity');
+            return response()->json(['ok' => true, 'status' => 'building', 'ready' => false,
+                'stage' => 'allocating', 'stage_index' => 2, 'waiting_capacity' => true,
+                'label' => __('ui.gpu_order_'.$state), 'color' => 'var(--dim)',
+                'capacity_state' => $state, 'checked_at' => data_get($service->provision_meta, 'gpu_capacity_order.checked_at')]);
+        }
         if (in_array($service->status, Service::DEAD_STATUSES, true)) {
             return response()->json([
                 'ok' => true, 'status' => $service->status, 'ready' => false,
@@ -322,6 +331,8 @@ class CloudServerController extends Controller
                 'ipv6' => $r['ipv6'] ?: $instance->ipv6,
                 'hostname' => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
                 'synced_at' => now(),
+                'meta' => array_merge($instance->meta ?? [], isset($r['build'])
+                    ? ['gpu_build' => $r['build']] : []),
             ]);
         }
 
@@ -356,9 +367,9 @@ class CloudServerController extends Controller
             | را می‌گوید نه رشتهٔ خامِ زیرساخت — وگرنه مشتری روی سرورِ در حالِ
             | ساخت کلمهٔ «نامشخص» می‌دید، که هم بی‌معنی است هم نگران‌کننده.
             */
-            'label' => $instance->isDelivered()
+            'label' => ! $ok && $instance->isGpuApp() ? __('ui.cs_gpu_phase_checking') : ($instance->isDelivered()
                 ? $instance->statusLabel()
-                : __('ui.cs_stage_'.$instance->stage()),
+                : __('ui.cs_stage_'.$instance->stage())),
             'color' => $instance->statusColor(),
             'ipv4' => $instance->ipv4,
             'ready' => $instance->isDelivered(),

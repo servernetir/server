@@ -224,6 +224,11 @@ class CloudProvisioner
             }
         }
 
+        if ($plan->provider === 'salad'
+            && ! app(GpuCapacityOrders::class)->allowAllocation($service, $plan)) {
+            return false;
+        }
+
         // ── لایهٔ ۳: ردیفِ نمونه پیش از تماس ──
         $instance = CloudInstance::firstOrNew(['service_id' => $service->id]);
         $instance->fill([
@@ -811,7 +816,8 @@ class CloudProvisioner
         $rows = CloudInstance::query()
             ->whereNull('ready_notified_at')
             ->whereIn('status', CloudInstance::LIVE_STATUSES)
-            ->whereNotNull('ipv4')
+            ->where(fn ($q) => $q->whereNotNull('ipv4')
+                ->orWhere(fn ($gpu) => $gpu->where('provider', 'salad')->where('hostname', 'like', '%.%')))
             ->orderBy('id')
             ->limit($limit)
             ->get();
@@ -992,6 +998,8 @@ class CloudProvisioner
                     // برای مشتری همین «آدرسِ سرور» است، نه IP.
                     'hostname' => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
                     'synced_at' => now(),
+                    'meta' => array_merge($instance->meta ?? [], isset($r['build'])
+                        ? ['gpu_build' => $r['build']] : []),
                 ]);
                 $out['refreshed']++;
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
+use App\Services\Cloud\GpuCapacityOrders;
 
 /**
  * سرورِ ابریِ واقعیِ یک مشتری — ۱:۱ با `services`.
@@ -304,8 +305,10 @@ class CloudInstance extends Model
      */
     public function readyForNotice(): bool
     {
-        return in_array($this->status, self::READY_STATUSES, true)
-            && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));
+        if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {
+            return false;
+        }
+        return in_array($this->status, self::READY_STATUSES, true) && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));
     }
 
     /**
@@ -379,8 +382,10 @@ class CloudInstance extends Model
 
     public function isDelivered(): bool
     {
-        return in_array($this->status, self::LIVE_STATUSES, true)
-            && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));
+        if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {
+            return false;
+        }
+        return in_array($this->status, self::LIVE_STATUSES, true) && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));
     }
 
     /** آیا ایمیلِ تحویل هنوز بدهیِ ما است؟ */
@@ -416,6 +421,19 @@ class CloudInstance extends Model
             return 'ready';
         }
 
+        if ($this->isGpuApp()) {
+            if ($this->status === 'running') {
+                return 'starting';
+            }
+            return match (data_get($this->meta, 'gpu_build.phase')) {
+                'pulling' => 'preparing',
+                'allocating' => 'allocating',
+                'downloading' => 'downloading',
+                'creating', 'starting' => 'starting',
+                default => 'ordered',
+            };
+        }
+
         if (blank($this->provider_ref)) {
             return 'ordered';
         }
@@ -432,6 +450,12 @@ class CloudInstance extends Model
     /** شمارهٔ مرحله (۰..۳) — برای «انجام‌شده / درجریان / نرسیده» در ویو */
     public function stageIndex(): int
     {
+        if ($this->isGpuApp()) {
+            return match ($this->stage()) {
+                'preparing' => 1, 'allocating' => 2, 'downloading' => 3, 'starting' => 4, 'ready' => 5,
+                default => 0,
+            };
+        }
         return match ($this->stage()) {
             'ordered'   => 0,
             'building'  => 1,
