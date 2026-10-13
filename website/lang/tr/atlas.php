@@ -40,4 +40,7 @@ return [
     'support_visual' => 'İşletmenizin yanında bir ekip',
     'message_visual' => 'Mesaj · teslim · iletişim',
     'scroll' => 'Hizmetleri keşfedin',
+    'turkey' => 'Türkiye',
+    'region_turkey' => 'Türkiye’deki kullanıcılarınız ve bölgesel pazar için',
+    'drag_globe' => 'Keşfetmek için sürükleyin. Yön tuşlarıyla da döndürebilirsiniz.',
 ];

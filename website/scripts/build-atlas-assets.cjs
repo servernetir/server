@@ -13,4 +13,10 @@ const assets = path.resolve(__dirname, '../public/assets');
   if (!js.code || !css.styles) throw new Error('Empty assets');
   fs.writeFileSync(path.join(assets,'css/atlas.min.css'),css.styles);
   fs.writeFileSync(path.join(assets,'js/atlas.min.js'),js.code);
+  const publicPath=path.join(assets,'css/atlas-public.css');
+  if(fs.existsSync(publicPath)){
+    const publicCss=new CleanCSS({level:1,rebase:false}).minify(fs.readFileSync(publicPath,'utf8'));
+    if(publicCss.errors.length||!publicCss.styles)throw new Error(publicCss.errors.join('\n'));
+    fs.writeFileSync(path.join(assets,'css/atlas-public.min.css'),publicCss.styles);
+  }
 })();

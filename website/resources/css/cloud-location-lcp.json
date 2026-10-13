@@ -13,10 +13,12 @@
     ],
     "resources/views/layouts/site.blade.php": [
       "daecd5fd5077641a1e2bc0f9fbc89b1e0b3cc51e85d25fa002c402aee0794f79",
-      "d65647e53e90f3005b47dac567fb66ef30d523c9dfd398b47347ade588f176e6"
+      "d65647e53e90f3005b47dac567fb66ef30d523c9dfd398b47347ade588f176e6",
+      "3592d983c980d573e02783e9c7df55218e236ff17cc17dfd1f402729b12ffc7e"
     ],
     "resources/views/pages/cloud-location.blade.php": [
-      "1f7216ce20c5befe9a17f848cb252eddc37d30e0059de55ac38a16f9d08e3ac2"
+      "1f7216ce20c5befe9a17f848cb252eddc37d30e0059de55ac38a16f9d08e3ac2",
+      "2132e9d2365117ae5523b74b7b64416934df692976fd333233e1b75973a23b31"
     ],
     "resources/views/partials/header.blade.php": [
       "df3f68d106d382f328ad819e8cd6c436bee41a6cdc9f8033c1c5f3ac0d5fd771",

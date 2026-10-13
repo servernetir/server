@@ -155,6 +155,7 @@
       <span>{{ $locLabel }}</span>
     </nav>
 
+    <div class="sn-product-hero">
     <div class="cvl-head">
       {{-- بالای صفحه است، پس eager: با lazy روی نخستین نقاشی جای خالی می‌ماند. --}}
       <span class="cvl-flag" aria-hidden="true">@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 34, 'flagEager' => true])</span>
@@ -189,6 +190,8 @@
       @if(strtoupper((string) $loc->country) === 'IQ' && $seo['note'])
         <p class="cvl-note">{{ $seo['note'] }}</p>
       @endif
+    </div>
+    @include('partials.atlas-product-stage', ['atlasStage'=>'vps'])
     </div>
   </div>
 </section>

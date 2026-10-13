@@ -158,6 +158,7 @@
 <section class="section">
   <div class="gpu-wrap">
 
+    <div class="sn-product-hero">
     <div class="gpu-head">
       <h1>{{ __('ui.gpu_h1') }}</h1>
       <p>{{ __('ui.gpu_lead') }}</p>
@@ -169,6 +170,8 @@
         <span class="gpu-chip"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.gpu_chip2') }}</span>
         <span class="gpu-chip"><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.gpu_chip3') }}</span>
       </div>
+    </div>
+    @include('partials.atlas-product-stage', ['atlasStage'=>'gpu'])
     </div>
 
     {{-- 🔴 پیش از پیکربند، نه بعدش: تصمیمِ خرید بعد از دیدنِ قیمت گرفته

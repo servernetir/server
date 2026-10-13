@@ -5,14 +5,13 @@
 @php
   $loc = app()->getLocale();
   $rotators = array_values(array_filter([__('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'), __('ui.hero_rot4'), __('ui.hero_rot5')]));
-  $atlasRegions = ['iran', 'germany', 'france', 'netherlands', 'usa'];
 @endphp
 <div class="sn-atlas sn-home">
 <section class="hero sn-hero">
-  <div class="container sn-hero-grid">
+  <div class="container">
+    <div class="sn-hero-heading"><span class="sn-eyebrow"><span></span>{{ __('atlas.eyebrow') }}</span><h1>{{ __('ui.hero_h1a') }} <span class="grad">{{ __('ui.hero_h1b') }}</span></h1></div>
+    <div class="sn-hero-grid">
     <div class="sn-hero-copy">
-      <span class="sn-eyebrow"><span></span>{{ __('atlas.eyebrow') }}</span>
-      <h1>{{ __('ui.hero_h1a') }}<br><span class="grad">{{ __('ui.hero_h1b') }}</span></h1>
       <p class="lead">{{ __('ui.hero_lead') }}</p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
@@ -21,22 +20,7 @@
       <div class="hero-rotator"><span class="dot"></span><span class="rot-txt" id="hero-rot">{{ $rotators[0] ?? '' }}</span></div>
       <a class="sn-discover" href="#products"><span class="sn-discover-line"></span>{{ __('atlas.scroll') }}<svg class="icon"><use href="#i-arrow"/></svg></a>
     </div>
-    <div class="sn-atlas-display" data-sn-region-group>
-      <div class="sn-display-top" aria-hidden="true"><span>SERVERNET ATLAS</span><span>01 / GLOBAL INFRASTRUCTURE</span></div>
-      @include('partials.atlas-globe')
-      <span class="sn-orbit-label sn-orbit-label-a" aria-hidden="true">CLOUD</span>
-      <span class="sn-orbit-label sn-orbit-label-b" aria-hidden="true">GPU / AI</span>
-      <div class="sn-region-detail" aria-live="polite">
-        <div><span class="sn-region-code" aria-hidden="true">REGION</span><strong data-sn-region-label>{{ __('atlas.iran') }}</strong></div>
-        <p data-sn-region-description>{{ __('atlas.region_iran') }}</p>
-        <a data-sn-region-link href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('atlas.view_region') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>
-      </div>
-      <div class="sn-region-picker" role="group" aria-label="{{ __('atlas.regions') }}">
-        @foreach($atlasRegions as $region)
-        <button type="button" data-sn-region="{{ $region }}" data-label="{{ __('atlas.'.$region) }}" data-description="{{ __('atlas.region_'.$region) }}" data-url="{{ lroute('catalog', ['category' => 'vps', 'slug' => $region]) }}" aria-pressed="{{ $loop->first ? 'true' : 'false' }}">{{ __('atlas.'.$region) }}</button>
-        @endforeach
-      </div>
-      <p class="sn-map-note">{{ __('atlas.globe_note') }}</p>
+    @include('partials.atlas-network')
     </div>
   </div>
 </section>
@@ -243,8 +227,17 @@
   <div class="container">
     <div class="sn-section-heading"><div><span class="sn-eyebrow" dir="ltr">REGIONS / CONNECTED POSSIBILITIES</span><h2>{{ __('atlas.network') }}</h2></div><p>{{ __('atlas.network_sub') }}</p></div>
     <div class="sn-region-cards">
-      @foreach($atlasRegions as $region)
-      <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => $region]) }}" class="sn-region-card"><span class="sn-region-dot" aria-hidden="true"></span><h3>{{ __('atlas.'.$region) }}</h3><p>{{ __('atlas.region_'.$region) }}</p><span class="sn-country-code" aria-hidden="true">{{ ['iran'=>'IR', 'germany'=>'DE', 'france'=>'FR', 'netherlands'=>'NL', 'usa'=>'US'][$region] }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
+      @php
+        $atlasTileDefault = match(app()->getLocale()) { 'tr'=>'TR', 'en'=>'US', default=>'IR' };
+        $atlasLabels = ['IR'=>'iran','TR'=>'turkey','US'=>'usa','DE'=>'germany','FR'=>'france','NL'=>'netherlands'];
+        $atlasTileConfig = app(\App\Services\MenuManager::class)->mega(app(\App\Services\SiteMenu::class)->mega());
+        $atlasTileMenu = app(\App\Services\ServerMenu::class)->build($atlasTileConfig['vps'] ?? []);
+        $atlasPicker = array_values(array_unique(array_merge([$atlasTileDefault], ['US','TR','DE','FR','NL','IR'])));
+        $atlasNodes = $atlasTileMenu['cloud'];
+        @endphp
+        @foreach($atlasPicker as $iso)
+        @php $region = $atlasLabels[$iso]; @endphp
+      <a href="{{ $atlasNodes[$iso]['url'] ?? lroute('cloud.index') }}" class="sn-region-card"><span class="sn-region-dot" aria-hidden="true"></span><h3>{{ __('atlas.'.$region) }}</h3><p>{{ __('atlas.region_'.$region) }}</p><span class="sn-country-code" aria-hidden="true">{{ $iso }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
       @endforeach
     </div>
     <a class="sn-text-link" href="{{ lroute('cloud.index') }}">{{ __('atlas.all_regions') }}<svg class="icon dir"><use href="#i-arrow"/></svg></a>

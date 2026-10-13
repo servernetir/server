@@ -40,4 +40,7 @@ return [
     'support_visual' => 'One team, alongside your business',
     'message_visual' => 'Message · delivery · connection',
     'scroll' => 'Explore our services',
+    'turkey' => 'Türkiye',
+    'region_turkey' => 'For users in Türkiye and the wider region',
+    'drag_globe' => 'Drag to explore. Arrow keys also rotate the globe.',
 ];
