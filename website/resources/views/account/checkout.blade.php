@@ -86,7 +86,7 @@
         @if($isLicense ?? false)
         @elseif(count($countries) === 0)
           <p class="co-warn">⚠️ {{ __('ui.chk_no_server_warn') }}</p>
-        @elseif($requiresDomain ?? true)
+        @else
           <p class="co-q">{{ __('ui.chk_q_country') }}</p>
           <div class="co-opts co-locs">
             @foreach($countries as $cc)
@@ -133,8 +133,8 @@
           </label>
           <p class="co-note">{{ __('ui.chk_ip_note') }}</p>
         </div>
-        @else
-        {{-- ۳) دامنه --}}
+        @elseif($requiresDomain ?? true)
+        {{-- ۳) دامنه — فقط محصولی که واقعاً برای تحویل به دامنه نیاز دارد --}}
         <p class="co-q">{{ __('ui.chk_q_domain') }}</p>
 
         <div class="co-opts">
