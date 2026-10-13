@@ -7,6 +7,8 @@ return [
  'location_fsn1'=>'Germany · Falkenstein','location_nbg1'=>'Germany · Nuremberg','location_hel1'=>'Finland · Helsinki',
  'per_month'=>'per month','tax_note'=>'Applicable tax is shown at checkout.','setup'=>'Setup','buy'=>'Choose and order',
  'preparing'=>'In preparation','unavailable'=>'Temporarily unavailable','price_unavailable'=>'Current price unavailable','catalog_pending'=>'A verified catalog has not been received yet.',
+ 'block-storage_title'=>'Hetzner Block Storage','block-storage_intro'=>'Independent NVMe volumes with automatic provisioning, local billing and attachment to a cloud server in the same location.',
+ 'block-storage_conditions'=>['Provisioning starts automatically after payment.','The volume remains independent of the server.','Online growth is supported; shrinking is not supported.'],
  'object_pending'=>'Prices are shown for review. Ordering will open after connection setup and customer access isolation have been verified.',
  'conditions'=>'Service conditions',
  'object-storage_conditions'=>[

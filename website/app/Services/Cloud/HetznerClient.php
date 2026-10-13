@@ -87,6 +87,70 @@ class HetznerClient implements CloudProvider
         return ['ok' => false, 'message' => $r['message'], 'ref' => null];
     }
 
+    /** Current net volume tariff in EUR per GB/month from Hetzner's project API. */
+    public function volumePrice(): array
+    {
+        $r = $this->req('GET', '/pricing');
+        $price = data_get($r['body'], 'pricing.volume.price_per_gb_month.net');
+
+        return $r['ok'] && is_numeric($price) && (float) $price > 0
+            ? ['ok' => true, 'message' => '', 'currency' => 'EUR', 'net_eur_per_gb_month' => (string) $price]
+            : ['ok' => false, 'message' => $r['message'] ?: 'Volume price is unavailable.'];
+    }
+
+    /** @return array{ok:bool,message:string,volume:?array} */
+    public function findVolumeByName(string $name): array
+    {
+        $r = $this->req('GET', '/volumes', ['name' => $name]);
+        return ['ok' => $r['ok'], 'message' => $r['message'],
+            'volume' => $r['ok'] ? (((array) ($r['body']['volumes'][0] ?? [])) ?: null) : null];
+    }
+
+    public function createVolume(array $spec): array
+    {
+        $body = [
+            'name' => $spec['name'], 'size' => (int) $spec['size'],
+            'location' => $spec['location'], 'automount' => false,
+            'labels' => $spec['labels'] ?? [],
+        ];
+        if (! empty($spec['server'])) $body['server'] = (int) $spec['server'];
+        $r = $this->req('POST', '/volumes', $body);
+        if (! $r['ok'] && str_contains($r['message'], 'uniqueness_error')) {
+            $found = $this->findVolumeByName((string) $spec['name']);
+            if ($found['ok'] && $found['volume']) {
+                return ['ok' => true, 'message' => 'Volume already existed.', 'volume' => $found['volume'], 'reused' => true];
+            }
+        }
+        return ['ok' => $r['ok'], 'message' => $r['message'],
+            'volume' => $r['ok'] ? (array) ($r['body']['volume'] ?? []) : null, 'reused' => false];
+    }
+
+    public function attachVolume(string $volumeRef, string $serverRef): array
+    {
+        $r = $this->req('POST', '/volumes/'.rawurlencode($volumeRef).'/actions/attach', [
+            'server' => (int) $serverRef, 'automount' => false,
+        ]);
+        return ['ok' => $r['ok'], 'message' => $r['message'], 'action' => $r['body']['action'] ?? null];
+    }
+
+    public function detachVolume(string $volumeRef): array
+    {
+        $r = $this->req('POST', '/volumes/'.rawurlencode($volumeRef).'/actions/detach');
+        return ['ok' => $r['ok'], 'message' => $r['message'], 'action' => $r['body']['action'] ?? null];
+    }
+
+    public function resizeVolume(string $volumeRef, int $sizeGb): array
+    {
+        $r = $this->req('POST', '/volumes/'.rawurlencode($volumeRef).'/actions/resize', ['size' => $sizeGb]);
+        return ['ok' => $r['ok'], 'message' => $r['message'], 'action' => $r['body']['action'] ?? null];
+    }
+
+    public function deleteVolume(string $volumeRef): array
+    {
+        $r = $this->req('DELETE', '/volumes/'.rawurlencode($volumeRef));
+        return ['ok' => $r['ok'] || $r['status'] === 404, 'message' => $r['message']];
+    }
+
     /** جستجوی کلید با اثرِ انگشت — چون نامش می‌تواند فرق کند */
     private function findSshKey(string $publicKey): ?string
     {

@@ -102,6 +102,13 @@ class StoreController extends Controller
             )),
             'cycles'    => $product->orderCycles(),
             'isLicense' => $product->isLicense(),
+            'isStorageProduct' => $product->isStorageCatalogProduct(),
+            'storageMeta' => match ($product->group) {
+                'storage-box' => app(\App\Services\Provisioning\HetznerStorageCosts::class)->metadataForPlan((string) $product->plan),
+                'object-storage' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->metadataForPlan((string) $product->plan),
+                'block-storage' => app(\App\Services\Provisioning\HetznerVolumeCosts::class)->metadataForPlan((string) $product->plan),
+                default => null,
+            },
             'requiresDomain' => (bool) $product->requires_domain,
         ]);
     }
@@ -207,6 +214,8 @@ class StoreController extends Controller
                     'storage-box' => ['storage_box_offer' => app(\App\Services\Provisioning\HetznerStorageCosts::class)
                         ->metadataForPlan((string) $product->plan)],
                     'object-storage' => ['object_storage_offer' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)
+                        ->metadataForPlan((string) $product->plan)],
+                    'block-storage' => ['volume_offer' => app(\App\Services\Provisioning\HetznerVolumeCosts::class)
                         ->metadataForPlan((string) $product->plan)],
                     default => null,
                 },

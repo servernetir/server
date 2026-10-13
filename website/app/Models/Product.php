@@ -136,7 +136,7 @@ class Product extends Model
 
     public function isStorageCatalogProduct(): bool
     {
-        return in_array($this->group, ['storage-box', 'object-storage'], true);
+        return in_array($this->group, ['storage-box', 'object-storage', 'block-storage'], true);
     }
 
     public function storageQuote(): ?array
@@ -144,6 +144,7 @@ class Product extends Model
         return match ($this->group) {
             'storage-box' => app(HetznerStorageCosts::class)->quoteForPlan((string) $this->plan),
             'object-storage' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->quoteForPlan((string) $this->plan),
+            'block-storage' => app(\App\Services\Provisioning\HetznerVolumeCosts::class)->quoteForPlan((string) $this->plan),
             default => null,
         };
     }
@@ -153,6 +154,7 @@ class Product extends Model
         return match ($this->group) {
             'storage-box' => app(HetznerStorageCosts::class)->configurationError($this),
             'object-storage' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->configurationError($this),
+            'block-storage' => app(\App\Services\Provisioning\HetznerVolumeCosts::class)->configurationError($this),
             default => null,
         };
     }
@@ -299,9 +301,11 @@ class Product extends Model
                 return [];
             }
 
-            $meta = $this->group === 'storage-box'
-                ? app(HetznerStorageCosts::class)->metadataForPlan((string) $this->plan)
-                : app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->metadataForPlan((string) $this->plan);
+            $meta = match ($this->group) {
+                'storage-box' => app(HetznerStorageCosts::class)->metadataForPlan((string) $this->plan),
+                'object-storage' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->metadataForPlan((string) $this->plan),
+                'block-storage' => app(\App\Services\Provisioning\HetznerVolumeCosts::class)->metadataForPlan((string) $this->plan),
+            };
             $country = strtoupper((string) ($meta['country'] ?? ''));
             $allowed = array_map('strtoupper', (array) $this->locations);
 

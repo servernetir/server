@@ -11,8 +11,12 @@ class StorageCatalogController extends Controller
 {
     public function show(string $kind): View
     {
-        abort_unless(in_array($kind, ['storage-box', 'object-storage'], true), 404);
-        $costs = $kind === 'storage-box' ? app(HetznerStorageCosts::class) : app(HetznerObjectCosts::class);
+        abort_unless(in_array($kind, ['storage-box', 'object-storage', 'block-storage'], true), 404);
+        $costs = match ($kind) {
+            'storage-box' => app(HetznerStorageCosts::class),
+            'object-storage' => app(HetznerObjectCosts::class),
+            default => app(\App\Services\Provisioning\HetznerVolumeCosts::class),
+        };
         $rows = Product::query()->with('server')->where('group', $kind)->orderBy('sort')->get()
             ->map(function (Product $product) use ($costs) {
                 $meta = $costs->metadataForPlan((string) $product->plan);

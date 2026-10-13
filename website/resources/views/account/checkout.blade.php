@@ -86,7 +86,11 @@
         @if($isLicense ?? false)
         @elseif(count($countries) === 0)
           <p class="co-warn">⚠️ {{ __('ui.chk_no_server_warn') }}</p>
-        @elseif($requiresDomain ?? true)
+        @elseif($isStorageProduct ?? false)
+          <input type="hidden" name="country" value="{{ $defCountry }}">
+          <p class="co-q">{{ __('storage.location') }}</p>
+          <p class="co-note"><b>{{ __('storage.location_'.data_get($storageMeta, 'location')) }}</b> · <span dir="ltr">{{ strtoupper((string) data_get($storageMeta, 'location')) }}</span></p>
+        @else
           <p class="co-q">{{ __('ui.chk_q_country') }}</p>
           <div class="co-opts co-locs">
             @foreach($countries as $cc)
@@ -133,8 +137,8 @@
           </label>
           <p class="co-note">{{ __('ui.chk_ip_note') }}</p>
         </div>
-        @else
-        {{-- ۳) دامنه --}}
+        @elseif($requiresDomain ?? true)
+        {{-- ۳) دامنه — فقط محصولی که واقعاً برای تحویل به دامنه نیاز دارد --}}
         <p class="co-q">{{ __('ui.chk_q_domain') }}</p>
 
         <div class="co-opts">

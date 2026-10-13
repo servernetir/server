@@ -43,6 +43,7 @@ class ProvisioningService
             'plesk' => new PleskProvisioner,
             'hetzner_storage' => new HetznerStorageProvisioner,
             'hetzner_object_gateway' => new ObjectGatewayProvisioner,
+            'hetzner_volume' => new HetznerVolumeProvisioner,
             'rclone_storage' => new RcloneStorageProvisioner,
             default => new WhmProvisioner,
         };
