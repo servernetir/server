@@ -26,6 +26,7 @@
     return landRequest;
   }
   async function bootGlobes() {
+    if (!document.querySelector('[data-sn-globe]')) return;
     if (globeBooted) return;
     globeBooted = true;
     const land = await loadLand();
@@ -241,8 +242,17 @@
   // Let the static Earth and text paint before starting decorative Canvas work.
   // A first interaction starts it immediately, before the country-button click.
   const scheduleGlobes = () => {
-    if ('requestIdleCallback' in window) window.requestIdleCallback(bootGlobes, { timeout: 1200 });
-    else window.setTimeout(bootGlobes, 80);
+    const host = document.querySelector('[data-sn-globe]');
+    if (!host) return;
+    const start = () => {
+      if ('requestIdleCallback' in window) window.requestIdleCallback(bootGlobes, { timeout: 1200 });
+      else window.setTimeout(bootGlobes, 80);
+    };
+    if (!('IntersectionObserver' in window)) { start(); return; }
+    const loader = new IntersectionObserver((entries) => {
+      if (entries.some(entry => entry.isIntersecting)) { loader.disconnect(); start(); }
+    });
+    loader.observe(host);
   };
   if (document.readyState === 'complete') scheduleGlobes();
   else window.addEventListener('load', scheduleGlobes, { once: true });

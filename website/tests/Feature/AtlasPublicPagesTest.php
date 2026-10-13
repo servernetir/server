@@ -23,6 +23,8 @@ class AtlasPublicPagesTest extends TestCase
             $this->assertSeoIdentity($home, lroute('home'));
             $contact = $this->get($prefix.'/contact')->assertOk()->getContent();
             $this->assertStringContainsString('data-wireframe="true"', $contact);
+            $this->assertStringContainsString('atlas-earth-wire.svg', $contact);
+            $this->assertStringNotContainsString('<canvas', $contact);
             $this->assertStringContainsString('id="ct-form"', $contact);
             $this->assertStringContainsString('id="ct-open-chat"', $contact);
             foreach (['name', 'phone', 'email', 'message'] as $field) {
