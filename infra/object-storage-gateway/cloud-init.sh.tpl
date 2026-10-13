@@ -36,7 +36,6 @@ VGW_S3_ACCESS_KEY=__HETZNER_S3_ACCESS__
 VGW_S3_SECRET_KEY=__HETZNER_S3_SECRET__
 VGW_S3_ENDPOINT=https://${region}.your-objectstorage.com
 VGW_S3_REGION=${region}
-VGW_S3_META_BUCKET=sn-gateway-meta-${region}
 VGW_S3_USE_PATH_STYLE=true
 EOF
   printf '%s|%s|%s\n' "$region" "$root_access" "$root_secret" >>/tmp/region-roots
@@ -53,7 +52,7 @@ for line in open(sys.argv[1]):
     rows[region]={'local_endpoint':f'http://127.0.0.1:{port}',
       'public_endpoint':f'https://{region}.s3.servernet.cloud',
       'root_access':access,'root_secret':secret}
-open(sys.argv[2],'w').write('SN_OBJECT_API_BIND=127.0.0.1\nSN_OBJECT_API_PORT=9180\nSN_OBJECT_DB=/var/lib/servernet-object-gateway/tenants.sqlite3\nSN_OBJECT_HMAC_SECRET=__CONTROL_HMAC_SECRET__\nSN_OBJECT_SECRET_SEED=__STORAGE_SEED__\nSN_OBJECT_REGIONS_JSON='+json.dumps(rows,separators=(',',':'))+'\n')
+open(sys.argv[2],'w').write('SN_OBJECT_API_BIND=127.0.0.1\nSN_OBJECT_API_PORT=9180\nSN_OBJECT_DB=/var/lib/servernet-object-gateway/tenants.sqlite3\nSN_OBJECT_HMAC_SECRET=__CONTROL_HMAC_SECRET__\nSN_OBJECT_CREDENTIAL_SEED=__STORAGE_SEED__\nSN_OBJECT_REGIONS_JSON='+json.dumps(rows,separators=(',',':'))+'\n')
 PY
 sed -i "s/__CONTROL_HMAC_SECRET__/${HMAC_SECRET}/;s/__STORAGE_SEED__/${STORAGE_SEED}/" /etc/servernet-object-gateway/control.env
 rm -f /tmp/region-roots
