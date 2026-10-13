@@ -102,6 +102,13 @@ return [
     | این‌جا تنظیم می‌شود. ۱.۰ یعنی بی‌تفاوت.
     */
     'locations' => [
+        'FI' => [
+            'multiplier' => 1.0,
+            'label' => ['fa' => 'فنلاند', 'en' => 'Finland', 'tr' => 'Finlandiya'],
+            'city' => ['fa' => 'هلسینکی', 'en' => 'Helsinki', 'tr' => 'Helsinki'],
+            'flag' => '🇫🇮',
+            'note' => ['fa' => 'فضای ذخیره‌سازی در هلسینکی.', 'en' => 'Storage in Helsinki.', 'tr' => 'Helsinki depolama.'],
+        ],
         'IR' => [
             'multiplier' => 1.0,
             'label' => ['fa' => 'ایران', 'en' => 'Iran', 'tr' => 'İran'],

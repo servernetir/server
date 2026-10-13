@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
 
+// Storage tariffs refresh through the existing application scheduler; this never buys resources.
+Schedule::command('hetzner:storage-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
+Schedule::command('hetzner:object-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
+
 // [ai-launch-schedule:start]
 Schedule::command('ai:reconcile')->everyMinute()->withoutOverlapping(10);
 Schedule::command('ai:recover-usage')->everyFiveMinutes()->withoutOverlapping(10);
@@ -234,7 +238,9 @@ Schedule::command('provision:run')
 |
 | ⚠️ عمداً `failed` به `provision:run` **اضافه نشد**. آن کرون مسیرِ ابری را هم
 | می‌راند و آن‌جا تلاشِ دوباره یعنی خریدِ سرورِ دوم با پولِ واقعی. این فرمان
-| هیچ‌چیز نمی‌سازد: تنها تماسش یک استعلامِ خواندنی است.
+| برای WHM/Plesk از استعلام خواندنی آغاز می‌کند؛ برای Storage Box نیز نام قطعی
+| و مهرِ ثبت‌شده پیش از POST اجازهٔ خرید تکراری نمی‌دهد و تلاش نیمه‌تمام را
+| می‌پذیرد یا تکمیل می‌کند.
 |
 | هر ۵ دقیقه کافی است — مشتری در این فاصله «در حالِ آماده‌سازی» می‌بیند، نه خطا.
 */

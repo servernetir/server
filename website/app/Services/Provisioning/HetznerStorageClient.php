@@ -82,9 +82,9 @@ class HetznerStorageClient
      * پولش رفته، ولی ما به مشتری «تحویل ناموفق» می‌گوییم — همان رخدادِ
      * zhina.shop در §۱۰ که برای WHM بسته شد.
      */
-    public function call(string $method, string $path, array $payload = [], array $query = []): array
+    public function call(string $method, string $path, array $payload = [], array $query = [], bool $cloud = false): array
     {
-        $url = self::BASE.$path;
+        $url = ($cloud ? 'https://api.hetzner.cloud/v1' : self::BASE).$path;
 
         /*
         | بی‌توکن اصلاً تماس نمی‌گیریم: هتزنر ۴۰۱ می‌دهد و پیامش «unauthorized»
@@ -100,6 +100,7 @@ class HetznerStorageClient
 
         try {
             $req = Http::acceptJson()
+                ->withoutRedirecting()
                 ->connectTimeout(10)
                 ->timeout($method === 'get' ? self::TIMEOUT_READ : self::TIMEOUT_WRITE)
                 // یک تلاش، صفر تکرار: ساختِ باکس پول خرج می‌کند و تلاشِ
@@ -117,12 +118,12 @@ class HetznerStorageClient
         } catch (\Throwable $e) {
             return [
                 'ok' => false, 'transport' => true, 'status' => 0,
-                'reason' => 'ارتباط با هتزنر برقرار نشد: '.mb_substr($e->getMessage(), 0, 160),
+                'reason' => 'ارتباط با هتزنر برقرار نشد: '.mb_substr($this->redact($e->getMessage(), $payload), 0, 160),
                 'data' => [],
             ];
         }
 
-        $json = $resp->json();
+        $json = $this->redact($resp->json(), $payload);
 
         /*
         | ⚠️ بدنهٔ نامعتبر عمداً `transport` نیست.
@@ -143,7 +144,7 @@ class HetznerStorageClient
             return [
                 'ok' => false, 'transport' => false, 'status' => $resp->status(),
                 'code' => (string) ($json['error']['code'] ?? ''),
-                'reason' => (string) ($json['error']['message'] ?? 'خطای ناشناخته'),
+                'reason' => mb_substr((string) ($json['error']['message'] ?? 'خطای ناشناخته'), 0, 200),
                 'data' => $json,
             ];
         }
@@ -159,19 +160,57 @@ class HetznerStorageClient
         return ['ok' => true, 'transport' => false, 'status' => $resp->status(), 'reason' => '', 'data' => $json];
     }
 
+    /** Neither exceptions nor an upstream validation echo may expose credentials. */
+    private function redact(mixed $value, array $payload): mixed
+    {
+        if (is_array($value)) {
+            foreach ($value as $key => $entry) $value[$key] = $this->redact($entry, $payload);
+            return $value;
+        }
+        if (! is_string($value)) return $value;
+        $secrets = array_filter([$this->token(), (string) ($payload['password'] ?? '')], fn ($v) => $v !== '');
+        return str_replace($secrets, '[redacted]', $value);
+    }
+
     /** کاتالوگِ نوع‌ها — اندازه، سقفِ زیرحساب و قیمتِ هر مکان */
     public function types(): array
     {
-        return $this->call('get', '/storage_box_types', [], ['per_page' => 50]);
+        return $this->allPages('/storage_box_types', 'storage_box_types');
     }
 
     /** فهرستِ باکس‌ها؛ با `name` فیلتر می‌شود (پارامترِ رسمیِ همین مسیر) */
     public function listBoxes(?string $name = null): array
     {
-        return $this->call('get', '/storage_boxes', [], array_filter([
-            'name'     => $name,
-            'per_page' => 50,
-        ]));
+        return $this->allPages('/storage_boxes', 'storage_boxes', array_filter(['name' => $name]));
+    }
+
+    /** Never treat a partial/invalid inventory as a complete list. */
+    private function allPages(string $path, string $key, array $query = [], bool $cloud = false): array
+    {
+        $rows = [];
+        for ($page = 1; $page <= 100; $page++) {
+            $r = $this->call('get', $path, [], $query + ['per_page' => 50, 'page' => $page], $cloud);
+            if (! $r['ok']) return $r;
+            if (! isset($r['data'][$key]) || ! is_array($r['data'][$key])) {
+                return ['ok' => false, 'transport' => false, 'status' => $r['status'],
+                    'reason' => 'فهرست کامل و معتبر از هتزنر دریافت نشد.', 'data' => []];
+            }
+            $rows = array_merge($rows, $r['data'][$key]);
+            $next = $r['data']['meta']['pagination']['next_page'] ?? null;
+            if ($next === null) {
+                $r['data'][$key] = $rows;
+                return $r;
+            }
+            if ((int) $next !== $page + 1) break;
+        }
+        return ['ok' => false, 'transport' => false, 'status' => 0,
+            'reason' => 'صفحه‌بندی نامعتبر یا ناقص از هتزنر دریافت شد.', 'data' => []];
+    }
+
+    /** Location metadata is on the Cloud API; Storage Box prices decide availability. */
+    public function locations(): array
+    {
+        return $this->allPages('/locations', 'locations', [], true);
     }
 
     /**
@@ -186,14 +225,19 @@ class HetznerStorageClient
         $r = $this->listBoxes($name);
 
         if (! $r['ok']) {
-            return $r['transport'] ? null : false;
+            // Authentication, rate limit and malformed replies do not prove absence.
+            return null;
         }
 
-        foreach (($r['data']['storage_boxes'] ?? []) as $box) {
+        $matches = [];
+        foreach ($r['data']['storage_boxes'] as $box) {
             if (($box['name'] ?? null) === $name) {
-                return $box;
+                $matches[] = $box;
             }
         }
+
+        if (count($matches) > 1) return null;
+        if (count($matches) === 1) return $matches[0];
 
         /*
         | ⚠️ فیلترِ `name` سمتِ هتزنر است و اگر روزی رفتارش عوض شود (مثلاً
@@ -239,6 +283,17 @@ class HetznerStorageClient
     public function resetPassword(int|string $id, string $password): array
     {
         return $this->call('post', '/storage_boxes/'.$id.'/actions/reset_password', ['password' => $password]);
+    }
+
+    public function getBox(int|string $id): array
+    {
+        return $this->call('get', '/storage_boxes/'.$id);
+    }
+
+    /** Read an asynchronous operation; accepted is not completed. */
+    public function action(int|string $id): array
+    {
+        return $this->call('get', '/storage_boxes/actions/'.$id);
     }
 
     /** روشن/خاموش کردنِ پروتکل‌ها و دسترسیِ بیرونی */

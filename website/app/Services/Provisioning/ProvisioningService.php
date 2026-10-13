@@ -434,7 +434,14 @@ class ProvisioningService
         | می‌سازد و صفِ تلاشِ دوباره و چکِ سلامت را با کارِ نکرده پر می‌کند —
         | همان «هشدارِ همیشه‌قرمز» که هشدارِ بعدی را خفه می‌کند.
         */
-        $r = ($service->server && filled($service->username))
+        // A Storage Box can already exist while Hetzner is still assigning its
+        // username. Its deterministic name/id is enough for the driver to find
+        // and delete it; skipping here would leave a paid orphan behind.
+        $remoteResourceMayExist = $service->server && (
+            filled($service->username) || $service->server->type === 'hetzner_storage'
+        );
+
+        $r = $remoteResourceMayExist
             ? $this->driverFor($service->server)->terminate($service)
             : ProvisionResult::success(null, null, null);
 

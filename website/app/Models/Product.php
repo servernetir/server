@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Provisioning\HetznerStorageCosts;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -116,13 +117,50 @@ class Product extends Model
     /** قیمتِ مؤثرِ دوره — پایهٔ تومان پس از اعمالِ ضریبِ نرخِ ارز */
     public function effectivePrice(): int
     {
+        if ($this->isStorageCatalogProduct()) {
+            return (int) ($this->storageQuote()['irt'] ?? 0);
+        }
+
         return price_toman($this->price);
     }
 
     /** هزینهٔ راه‌اندازیِ مؤثر */
     public function effectiveSetup(): int
     {
+        if ($this->isStorageCatalogProduct()) {
+            return (int) ($this->storageQuote()['setup_irt'] ?? 0);
+        }
+
         return price_toman($this->setup_fee);
+    }
+
+    public function isStorageCatalogProduct(): bool
+    {
+        return in_array($this->group, ['storage-box', 'object-storage'], true);
+    }
+
+    public function storageQuote(): ?array
+    {
+        return match ($this->group) {
+            'storage-box' => app(HetznerStorageCosts::class)->quoteForPlan((string) $this->plan),
+            'object-storage' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->quoteForPlan((string) $this->plan),
+            default => null,
+        };
+    }
+
+    public function storageConfigurationError(): ?string
+    {
+        return match ($this->group) {
+            'storage-box' => app(HetznerStorageCosts::class)->configurationError($this),
+            // A product flag must never bypass the failed shared-project isolation test.
+            'object-storage' => 'تحویل مستقل Object Storage هنوز تأیید نشده است.',
+            default => null,
+        };
+    }
+
+    public function orderCycles(): array
+    {
+        return $this->isStorageCatalogProduct() ? ['monthly'] : array_keys((array) config('billing.cycles', []));
     }
 
     /**
@@ -150,6 +188,10 @@ class Product extends Model
 
     public function priceForCycle(string $cycle, ?string $country = null): int
     {
+        if ($this->isStorageCatalogProduct()) {
+            return $cycle === 'monthly' ? $this->effectivePrice() : 0;
+        }
+
         $months = Service::monthsIn($cycle);
 
         // «یک‌بار» دوره ندارد؛ مبلغش همان قیمتِ ثابت است
@@ -253,6 +295,20 @@ class Product extends Model
      */
     public function availableCountries(): array
     {
+        if ($this->isStorageCatalogProduct()) {
+            if ($this->storageConfigurationError() !== null || ! $this->server?->canAcceptNew()) {
+                return [];
+            }
+
+            $meta = $this->group === 'storage-box'
+                ? app(HetznerStorageCosts::class)->metadataForPlan((string) $this->plan)
+                : app(\App\Services\ObjectStorage\HetznerObjectCosts::class)->metadataForPlan((string) $this->plan);
+            $country = strtoupper((string) ($meta['country'] ?? ''));
+            $allowed = array_map('strtoupper', (array) $this->locations);
+
+            return preg_match('/^[A-Z]{2}$/D', $country) && in_array($country, $allowed, true) ? [$country] : [];
+        }
+
         $available = Server::availableCountries();
         $allowed = array_filter((array) ($this->locations ?? []));
 
@@ -263,6 +319,15 @@ class Product extends Model
         $allowed = array_map('strtoupper', $allowed);
 
         return array_values(array_intersect($available, $allowed));
+    }
+
+    public function pickOrderServer(string $country): ?Server
+    {
+        if (! in_array(strtoupper($country), $this->availableCountries(), true)) {
+            return null;
+        }
+
+        return $this->isStorageCatalogProduct() ? $this->server : Server::pickForCountry($country);
     }
 
     /**

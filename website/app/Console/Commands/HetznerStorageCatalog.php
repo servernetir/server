@@ -2,181 +2,189 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Product;
 use App\Models\Server;
 use App\Services\Cloud\CloudPricing;
 use App\Services\Provisioning\HetznerStorageClient;
+use App\Services\Provisioning\HetznerStorageCosts;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
-/**
- * کاتالوگِ Storage Boxِ هتزنر با قیمتِ فروشِ ما.
- *
- * چرا این فرمان لازم است: نگاشتِ `provisioning.hetzner_storage.plans` باید با
- * نامِ **واقعیِ** نوع‌ها پر شود. نامِ نوع را از حافظه نوشتن یعنی یا تحویلِ
- * شکست‌خورده، یا باکسی با اندازه/قیمتِ اشتباه که ماه‌ها دیده نمی‌شود.
- *
- * فقط می‌خوانَد — هیچ باکسی نمی‌سازد و هیچ پولی خرج نمی‌کند.
- */
+/** Reads upstream data. Sync writes only local catalogue records, never paid resources. */
 class HetznerStorageCatalog extends Command
 {
     protected $signature = 'hetzner:storage-catalog
-                            {--server= : شناسه یا نامِ سرورِ hetzner_storage}
-                            {--location= : فقط قیمتِ این مکان (پیش‌فرض از config)}';
+        {--server= : Delivery server ID or name; its token selects the existing project}
+        {--location= : Filter read-only output to one upstream region}
+        {--json : Sanitized JSON; no database writes}
+        {--sync : Synchronize all Storage Box types and regions into local products}
+        {--activate : Activate available products; requires --sync}';
 
-    protected $description = 'نوع‌های Storage Boxِ هتزنر را با بهای تمام‌شده و قیمتِ فروشِ تومانی نشان می‌دهد';
+    protected $description = 'Read Hetzner Storage Box prices and optionally synchronize the complete local catalogue';
 
     public function handle(CloudPricing $pricing): int
     {
+        if (($this->option('activate') && ! $this->option('sync'))
+            || ($this->option('sync') && ($this->option('json') || $this->option('location')))) {
+            $this->error('--activate requires --sync; --sync cannot be filtered or combined with --json.');
+            return self::FAILURE;
+        }
         $server = $this->resolveServer();
-
         if (! $server) {
-            $this->error('سرورِ نوعِ hetzner_storage پیدا نشد. اول در /admin/servers ثبتش کنید (توکن لازم است).');
-
+            $this->error('Select one configured hetzner_storage server with --server.');
             return self::FAILURE;
         }
-
-        $location = (string) ($this->option('location') ?: config('provisioning.hetzner_storage.location', 'fsn1'));
-
-        $res = (new HetznerStorageClient($server))->types();
-
+        $client = new HetznerStorageClient($server);
+        $res = $client->types();
         if (! $res['ok']) {
-            $this->error('خواندنِ کاتالوگ ناموفق بود: '.$res['reason']);
-
+            $this->error('Storage Box catalogue unavailable: '.$res['reason']);
             return self::FAILURE;
         }
-
-        $types = $res['data']['storage_box_types'] ?? [];
-
-        if ($types === []) {
-            $this->warn('هتزنر هیچ نوعی برنگرداند.');
-
+        $locationResult = $client->locations();
+        if (! $locationResult['ok']) {
+            $this->error('Location metadata unavailable: '.$locationResult['reason']);
             return self::FAILURE;
         }
-
-        $rate = $pricing->eurToToman();
-        $feePct = $pricing->fxFeePctFor('hetzner');
-
-        $this->line('مکان: '.$location.' · حاشیهٔ سود: '.$pricing->marginPct().'٪'
-            .' · سربارِ ارزیِ هتزنر: '.$feePct.'٪ · نرخِ یورو: '
-            .($rate > 0 ? number_format($rate).' تومان' : '<نامعلوم>'));
-
-        /*
-        | ⚠️ نرخِ یورو که نباشد، ستونِ تومان صفر می‌شود. این عمدی است و همان
-        | قاعدهٔ `scopeSellable` سرورِ ابری: قیمتِ صفر بهتر از فروشِ یک باکسِ
-        | ۲۰ یورویی به قیمتِ هیچ.
-        */
-        if ($rate <= 0) {
-            $this->warn('نرخِ یورو در دسترس نیست — ستونِ تومان معنا ندارد.');
+        $locations = array_column($locationResult['data']['locations'], null, 'name');
+        try {
+            $plans = $this->normalize($res['data']['storage_box_types'], $locations);
+        } catch (\UnexpectedValueException $e) {
+            $this->error($e->getMessage());
+            return self::FAILURE;
         }
-
+        if ($plans === []) {
+            $this->error('No complete available offers; existing products were preserved.');
+            return self::FAILURE;
+        }
+        $visible = array_filter($plans, fn ($p) => ! $this->option('location') || $p['location'] === $this->option('location'));
+        if ($this->option('json')) {
+            $this->line(json_encode(['server_id' => $server->id, 'currency' => 'EUR',
+                'at' => now()->toIso8601String(), 'plans' => $visible], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+            return self::SUCCESS;
+        }
+        if ($visible === []) {
+            $this->error('No offers exist for the requested location.');
+            return self::FAILURE;
+        }
         $rows = [];
-        $costBook = [];
-
-        foreach ($types as $t) {
-            $costCents = $this->monthlyCostCents($t, $location);
-
-            if ($costCents === null) {
-                $rows[] = [$t['name'] ?? '?', $this->humanSize($t['size'] ?? 0), '—', '—', 'قیمتی برای این مکان ندارد', '', '', ''];
-
-                continue;
-            }
-
-            /*
-            | 🔴 بهای واقعی = قیمتِ هتزنر + سربارِ رساندنِ پول به او.
-            |
-            | نسخهٔ اولِ همین فرمان این را جا انداخته بود و جدولی چاپ کرد که
-            | بهای تمام‌شده را ۱۰٪ کمتر نشان می‌داد — عددی که آدم بر اساسش
-            | قیمت می‌گذارد و ضرر را تا ماه‌ها نمی‌بیند. `HetznerClient` برای
-            | سرورِ مجازی از همان اول درست می‌زدش؛ این‌جا جا افتاده بود.
-            */
-            /*
-            | بهای **خام** در کش می‌نشیند، نه بهای با سربار: درصدِ سربار در
-            | تنظیمات ویرایش‌پذیر است و اگر این‌جا پخته شود، تغییرش تا اجرای
-            | بعدیِ همین فرمان بی‌اثر می‌مانَد.
-            */
-            $costBook[(string) ($t['name'] ?? '?')] = $costCents;
-
-            $landedCents = (int) ceil($pricing->costWithFee($costCents, 'hetzner'));
-            $p = $pricing->priceFor($landedCents);
-
-            $rows[] = [
-                (string) ($t['name'] ?? '?'),
-                $this->humanSize($t['size'] ?? 0),
-                (string) ($t['subaccounts_limit'] ?? '—'),
-                $this->limit($t['snapshot_limit'] ?? null).' / '.$this->limit($t['automatic_snapshot_limit'] ?? null),
-                number_format($costCents / 100, 2).' €',
-                number_format($landedCents / 100, 2).' €',
-                number_format($p['eur_cents'] / 100, 2).' €',
-                $p['irt'] > 0 ? number_format($p['irt']).' ت' : '—',
-            ];
+        foreach ($visible as $p) {
+            $quote = app(HetznerStorageCosts::class)->quoteNetCents($p['net_monthly_cents']);
+            $rows[] = [$p['type'], $p['location'], $p['size'], $p['subaccounts_limit'],
+                $p['snapshot_limit'] ?? '∞', $p['automatic_snapshot_limit'] ?? '∞',
+                number_format($p['net_monthly_cents'] / 100, 2), number_format($p['net_setup_cents'] / 100, 2),
+                ($quote['irt'] ?? 0) > 0 ? number_format($quote['irt']) : 'unavailable'];
         }
+        $this->table(['Type', 'Region', 'Bytes', 'Subaccounts', 'Manual snapshots', 'Auto snapshots', 'Net EUR/mo', 'Setup EUR', 'Toman/mo before tax'], $rows);
 
-        $this->table(['نوع', 'اندازه', 'زیرحساب', 'اسنپ‌شات دستی/خودکار', 'بهای هتزنر', '+سربار', 'فروشِ یورویی', 'فروشِ تومانی'], $rows);
-
-        /*
-        | 🔴 بی‌این ذخیره، کفِ حاشیه در `Product::priceForCycle()` منبعی برای
-        | بهای تمام‌شده ندارد و بی‌صدا بی‌اثر می‌شود — یعنی همان ضررِ سالانه
-        | برمی‌گردد بی‌آنکه کسی متوجه شود.
-        */
-        \App\Services\Provisioning\HetznerStorageCosts::remember($costBook, $location);
-        $this->info('بهای '.count($costBook).' نوع در کش ذخیره شد — کفِ حاشیه از همین می‌خواند.');
-
-        $this->newLine();
-        $this->line('نگاشت را در config/provisioning.php → hetzner_storage.plans بگذارید، مثلاً:');
-        $this->line("    'sn_backup_1' => '".($types[0]['name'] ?? 'bx11')."',");
-
+        if ($this->option('sync')) {
+            if ($server->status !== 'active' || ! $client->isConfigured() || $pricing->eurToToman() <= 0) {
+                $this->error('Sync requires an active configured delivery server and a valid EUR conversion rate.');
+                return self::FAILURE;
+            }
+            foreach ($plans as $plan => $p) {
+                $existing = Product::where('slug', $p['slug'])->first();
+                if ($existing && ($existing->group !== 'storage-box' || $existing->plan !== $plan
+                    || (int) $existing->server_id !== (int) $server->id)) {
+                    $this->error('Existing product has different ownership: '.$p['slug']);
+                    return self::FAILURE;
+                }
+            }
+            DB::transaction(function () use ($server, $plans) {
+                HetznerStorageCosts::rememberCatalog($plans, $server->id);
+                $costs = app(HetznerStorageCosts::class);
+                foreach ($plans as $plan => $p) {
+                    $product = Product::firstOrNew(['slug' => $p['slug']]);
+                    $quote = $costs->quoteForPlan($plan);
+                    if (! $quote) throw new \RuntimeException('Storage Box price unavailable during sync.');
+                    $size = rtrim(rtrim(number_format($p['size'] / (1024 ** 4), 2, '.', ''), '0'), '.').' TiB';
+                    $product->fill([
+                        'name' => 'فضای بکاپ — '.strtoupper($p['type']).' / '.$p['location'],
+                        'name_en' => 'Backup storage — '.strtoupper($p['type']).' / '.$p['location'],
+                        'name_tr' => 'Yedekleme depolama — '.strtoupper($p['type']).' / '.$p['location'],
+                        'category' => 'other', 'group' => 'storage-box', 'server_id' => $server->id,
+                        'locations' => [$p['country']], 'plan' => $plan, 'currency_code' => 'IRT',
+                        'price' => $quote['irt'], 'price_eur' => $quote['eur_cents'],
+                        'setup_fee' => $quote['setup_irt'], 'cycle' => 'monthly',
+                        'tax_percent' => $product->exists ? $product->tax_percent : (int) config('billing.default_tax_percent', 10),
+                        'requires_domain' => false,
+                        'specs' => [
+                            ['label' => 'Storage', 'value' => $size],
+                            ['label' => 'Protocols', 'value' => 'SFTP / FTPS / WebDAV / rsync / Borg'],
+                            ['label' => 'Subaccounts', 'value' => (string) $p['subaccounts_limit']],
+                            ['label' => 'Region', 'value' => $p['location']],
+                        ],
+                        'description' => 'فضای بکاپ با احراز هویت؛ API سازگار با S3 و دانلود عمومی HTTP ندارد.',
+                        'is_active' => $this->option('activate') ? true : ($product->exists && $product->is_active),
+                    ])->save();
+                }
+                Product::where('group', 'storage-box')->where('server_id', $server->id)
+                    ->whereNotIn('plan', array_keys($plans))->update(['is_active' => false]);
+            });
+            $this->info(count($plans).' type/region products synchronized. No upstream resources were created.');
+        } else {
+            $legacyLocation = (string) config('provisioning.hetzner_storage.location', 'fsn1');
+            $book = [];
+            foreach ($plans as $p) if ($p['location'] === $legacyLocation) $book[$p['type']] = $p['net_monthly_cents'];
+            if ($book !== []) HetznerStorageCosts::remember($book, $legacyLocation);
+        }
         return self::SUCCESS;
     }
 
     private function resolveServer(): ?Server
     {
+        $q = Server::where('type', 'hetzner_storage');
         $opt = (string) $this->option('server');
-
-        if ($opt !== '') {
-            return Server::query()
-                ->where('type', 'hetzner_storage')
-                ->where(fn ($q) => $q->where('id', $opt)->orWhere('name', $opt))
-                ->first();
-        }
-
-        return Server::query()->where('type', 'hetzner_storage')->orderBy('id')->first();
+        if ($opt !== '') return $q->where(fn ($q) => $q->where('id', $opt)->orWhere('name', $opt))->first();
+        $servers = $q->get();
+        return $servers->count() === 1 ? $servers->first() : null;
     }
 
-    /** بهای ماهانهٔ **بدون** مالیات، به سنتِ یورو. `null` = این مکان قیمت ندارد. */
-    private function monthlyCostCents(array $type, string $location): ?int
+    private function normalize(array $types, array $locations): array
     {
-        foreach (($type['prices'] ?? []) as $p) {
-            if (($p['location'] ?? null) !== $location) {
-                continue;
+        $plans = [];
+        foreach ($types as $t) {
+            $name = (string) ($t['name'] ?? '');
+            if (! preg_match('/^[a-z0-9]+$/', $name) || (int) ($t['size'] ?? 0) <= 0
+                || ! isset($t['subaccounts_limit']) || ! array_key_exists('snapshot_limit', $t)
+                || ! array_key_exists('automatic_snapshot_limit', $t) || ! is_array($t['prices'] ?? null)) {
+                throw new \UnexpectedValueException('Incomplete Storage Box type; catalogue was not changed.');
             }
-
-            /*
-            | `net` می‌گیریم نه `gross`: مالیاتِ آلمان بهای ما نیست و مالیاتِ
-            | فروشِ ایران جدا و داده‌محور در `tax_rates` حساب می‌شود. جمع‌کردنِ
-            | این دو یعنی دوبار مالیات روی یک قلم.
-            */
-            $net = (string) ($p['price_monthly']['net'] ?? '');
-
-            return $net === '' ? null : (int) round(((float) $net) * 100);
+            if (! empty($t['deprecation']['unavailable_after'])) {
+                try { $expired = Carbon::parse($t['deprecation']['unavailable_after'])->lte(now()); }
+                catch (\Throwable) { throw new \UnexpectedValueException('Invalid upstream deprecation date.'); }
+                if ($expired) continue;
+            }
+            foreach ($t['prices'] as $price) {
+                $location = (string) ($price['location'] ?? '');
+                $country = strtoupper((string) ($locations[$location]['country'] ?? ''));
+                if (! preg_match('/^[a-z0-9]+$/', $location) || ! preg_match('/^[A-Z]{2}$/', $country)
+                    || strtoupper((string) ($price['currency'] ?? 'EUR')) !== 'EUR') {
+                    throw new \UnexpectedValueException('Unverified location or currency for '.$name.'.');
+                }
+                $plan = 'sn_storage_box_'.$name.'_'.$location;
+                if (isset($plans[$plan])) throw new \UnexpectedValueException('Duplicate upstream offer: '.$plan);
+                $monthly = $this->cents($price['price_monthly']['net'] ?? null);
+                $setup = $this->cents($price['setup_fee']['net'] ?? null);
+                if ($monthly <= 0) throw new \UnexpectedValueException('Non-positive monthly price for '.$plan);
+                $plans[$plan] = [
+                    'slug' => 'storage-box-'.$name.'-'.$location, 'type' => $name, 'location' => $location,
+                    'country' => $country, 'size' => (int) $t['size'],
+                    'subaccounts_limit' => (int) $t['subaccounts_limit'],
+                    'snapshot_limit' => $t['snapshot_limit'], 'automatic_snapshot_limit' => $t['automatic_snapshot_limit'],
+                    'net_monthly_cents' => $monthly, 'net_setup_cents' => $setup,
+                    'unavailable_after' => $t['deprecation']['unavailable_after'] ?? null,
+                ];
+            }
         }
-
-        return null;
+        return $plans;
     }
 
-    /** سقفِ اسنپ‌شات — «نامحدود» وقتی API چیزی نگفته، نه صفر */
-    private function limit($v): string
+    private function cents(mixed $value): int
     {
-        return $v === null ? '∞' : (string) $v;
-    }
-
-    private function humanSize(int $bytes): string
-    {
-        if ($bytes <= 0) {
-            return '—';
+        if (! is_string($value) || ! preg_match('/^\d+(?:\.\d+)?$/D', $value)) {
+            throw new \UnexpectedValueException('Invalid or missing EUR price; catalogue was not changed.');
         }
-
-        $tb = $bytes / (1024 ** 4);
-
-        return $tb >= 1 ? rtrim(rtrim(number_format($tb, 1), '0'), '.').' TB'
-            : round($bytes / (1024 ** 3)).' GB';
+        return (int) ceil((float) $value * 100 - 0.0000001);
     }
 }

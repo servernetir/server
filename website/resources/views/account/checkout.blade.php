@@ -86,7 +86,7 @@
         @if($isLicense ?? false)
         @elseif(count($countries) === 0)
           <p class="co-warn">⚠️ {{ __('ui.chk_no_server_warn') }}</p>
-        @else
+        @elseif($requiresDomain ?? true)
           <p class="co-q">{{ __('ui.chk_q_country') }}</p>
           <div class="co-opts co-locs">
             @foreach($countries as $cc)

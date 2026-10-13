@@ -3,8 +3,10 @@
 namespace App\Services\Provisioning;
 
 use App\Models\Setting;
+use App\Models\Product;
 use App\Services\Cloud\CloudPricing;
 use App\Support\ErrorTracker;
+use Carbon\Carbon;
 
 /**
  * بهای تمام‌شدهٔ فضای Storage Box، به تومان — منبعِ کفِ قیمت.
@@ -27,6 +29,92 @@ use App\Support\ErrorTracker;
 class HetznerStorageCosts
 {
     public const SETTING = 'hetzner_storage_costs';
+    public const CATALOG_SETTING = 'hetzner_storage_catalog';
+
+    /** A complete, successful upstream snapshot only; never customer credentials. */
+    public static function rememberCatalog(array $plans, int $serverId): void
+    {
+        Setting::put(self::CATALOG_SETTING, json_encode([
+            'at' => now()->toIso8601String(), 'server_id' => $serverId,
+            'currency' => 'EUR', 'plans' => $plans,
+        ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+    }
+
+    public function metadataForPlan(string $plan): ?array
+    {
+        $data = json_decode((string) Setting::get(self::CATALOG_SETTING), true);
+        $entry = $data['plans'][$plan] ?? null;
+        if (! is_array($entry)) return null;
+        return $entry + [
+            'server_id' => $data['server_id'] ?? null, 'at' => $data['at'] ?? null,
+            'currency' => $data['currency'] ?? null,
+        ];
+    }
+
+    public function isCatalogPlan(string $plan): bool
+    {
+        return str_starts_with($plan, 'sn_storage_box_');
+    }
+
+    public function configurationError(Product $product): ?string
+    {
+        if (! $this->isCatalogPlan((string) $product->plan) && $product->group !== 'storage-box') return null;
+        $meta = $this->metadataForPlan((string) $product->plan);
+        if (! $meta || ! $this->isFresh($meta)) return 'کاتالوگ فضای ذخیره‌سازی به‌روز نیست؛ فروش موقتاً متوقف است.';
+        if (($meta['currency'] ?? '') !== 'EUR' || (int) ($meta['net_monthly_cents'] ?? 0) <= 0
+            || ! isset($meta['net_setup_cents']) || (int) $meta['net_setup_cents'] < 0
+            || (int) ($meta['size'] ?? 0) <= 0 || empty($meta['type']) || empty($meta['location'])) {
+            return 'مشخصات یا بهای تأییدشده این پلن در دسترس نیست.';
+        }
+        $server = $product->server;
+        if (! $server || $server->type !== 'hetzner_storage' || $server->status !== 'active'
+            || (int) $server->id !== (int) ($meta['server_id'] ?? 0)
+            || ! (new HetznerStorageClient($server))->isConfigured()) {
+            return 'اتصال پروژه تحویل این پلن آماده نیست.';
+        }
+        if (app(CloudPricing::class)->eurToToman() <= 0) return 'نرخ تبدیل معتبر برای قیمت‌گذاری موجود نیست.';
+        return null;
+    }
+
+    public function isFresh(array $meta): bool
+    {
+        try {
+            $at = Carbon::parse($meta['at'] ?? '');
+            if (! empty($meta['unavailable_after']) && Carbon::parse($meta['unavailable_after'])->lte(now())) return false;
+            return ! empty($meta['at']) && $at->lte(now()->addMinutes(5))
+                && $at->gte(now()->subSeconds((int) config('provisioning.hetzner_storage.catalog_ttl', 86400)));
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** Current exchange rate and configured margin, with upstream setup kept separate. */
+    public function quoteForPlan(string $plan): ?array
+    {
+        $meta = $this->metadataForPlan($plan);
+        if (! $meta || ! $this->isFresh($meta) || ($meta['currency'] ?? null) !== 'EUR'
+            || (int) ($meta['net_monthly_cents'] ?? 0) <= 0 || ! isset($meta['net_setup_cents'])
+            || (int) $meta['net_setup_cents'] < 0) return null;
+        $monthly = $this->quoteNetCents((int) $meta['net_monthly_cents']);
+        $setup = $this->quoteNetCents((int) $meta['net_setup_cents']);
+        if (! $monthly || ! $setup) return null;
+        return $monthly + ['setup_irt' => $setup['irt'], 'setup_eur_cents' => $setup['eur_cents']];
+    }
+
+    public function quoteNetCents(int $net): ?array
+    {
+        $pricing = app(CloudPricing::class);
+        $rate = $pricing->eurToToman();
+        if ($rate <= 0 || $net < 0) return null;
+        // Remove machine epsilon at integer boundaries before rounding real charges.
+        $landed = (int) ceil($pricing->costWithFee($net, 'hetzner') - 0.0000001);
+        $margin = max($pricing->marginPct('hetzner'), $this->minMarginPct());
+        $eur = (int) (ceil($landed * (1 + $margin / 100) / 10 - 0.0000001) * 10);
+        if ($eur < 0 || $eur > intdiv(PHP_INT_MAX - 999999, $rate)) return null;
+        // EUR cents -> IRT, ceil to 10,000, entirely in integers. Float arithmetic
+        // otherwise turns exact 110,000 into 120,000 at some exchange rates.
+        return ['eur_cents' => $eur, 'irt' => intdiv($eur * $rate + 999999, 1000000) * 10000];
+    }
 
     /**
      * ذخیرهٔ بهای خامِ هر نوع (سنتِ یورو، **بدون** سربار و مالیات).
@@ -60,6 +148,7 @@ class HetznerStorageCosts
     /** نوعِ هتزنرِ متناظر با پلنِ ما — `null` یعنی این پلن اصلاً از هتزنر نیست */
     public function typeFor(string $plan): ?string
     {
+        if ($this->isCatalogPlan($plan)) return $this->metadataForPlan($plan)['type'] ?? null;
         $map = (array) config('provisioning.hetzner_storage.plans', []);
 
         return filled($map[$plan] ?? null) ? (string) $map[$plan] : null;
@@ -80,7 +169,9 @@ class HetznerStorageCosts
             return null;   // پلنِ غیرِ هتزنر — به این کف ربطی ندارد
         }
 
-        $net = $this->types()[$type] ?? null;
+        $meta = $this->metadataForPlan($plan);
+        if ($this->isCatalogPlan($plan) && (! $meta || ! $this->isFresh($meta))) return null;
+        $net = $meta ? ($meta['net_monthly_cents'] ?? null) : ($this->types()[$type] ?? null);
 
         if ($net === null || (int) $net <= 0) {
             ErrorTracker::noteOnce('pricing',

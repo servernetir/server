@@ -117,7 +117,7 @@ class HetznerStorageProvisioningTest extends TestCase
      * می‌شود. اگر مسیرِ پذیرش به آن رمز برگردد، مشتری رمزی می‌گیرد که روی
      * باکس کار نمی‌کند — و هیچ خطایی هیچ‌جا ثبت نمی‌شود.
      */
-    public function test_the_real_box_password_is_kept_in_meta_not_only_on_the_service(): void
+    public function test_the_real_box_password_is_kept_in_the_encrypted_service_column_without_raw_meta(): void
     {
         $this->mapPlan();
         $server = $this->server();
@@ -132,8 +132,10 @@ class HetznerStorageProvisioningTest extends TestCase
 
         $this->assertTrue($r->ok);
         $this->assertNotSame("PASSWORD-THAT-IS-NOT-THE-BOX", $r->password);
-        $this->assertSame($r->password, $r->meta["password"] ?? null,
-            "رمزِ واقعیِ باکس باید در meta بنشیند تا پذیرشِ بعدی به رمزِ ساختگی برنگردد.");
+        $this->assertSame($r->password, $service->fresh()->password);
+        $this->assertArrayNotHasKey('password', (array) $service->fresh()->provision_meta,
+            'رمز خام نباید در JSON متادیتا ذخیره شود.');
+        $this->assertTrue((bool) ($service->fresh()->provision_meta['hetzner_password_known'] ?? false));
     }
 
     /* ─────────────── اقتصادِ نگاشت: حذف‌های عمدی ─────────────── */
@@ -196,10 +198,41 @@ class HetznerStorageProvisioningTest extends TestCase
                 && ($d['name'] ?? null) === 'sn-svc-'.$service->id
                 && ($d['storage_box_type'] ?? null) === 'bx11'
                 && ($d['location'] ?? null) === 'fsn1'
-                && filled($d['password'] ?? null)
+                && strlen((string) ($d['password'] ?? '')) >= 12
+                && preg_match('/[!@#$%_-]/', (string) ($d['password'] ?? '')) === 1
                 // بی‌این، باکس فقط از داخلِ شبکهٔ هتزنر دیده می‌شود
                 && ($d['access_settings']['reachable_externally'] ?? null) === true;
         });
+    }
+
+    public function test_a_scalar_created_id_is_persisted_and_the_paid_post_is_never_repeated(): void
+    {
+        $this->mapPlan();
+        $server = $this->server();
+        $service = $this->service($server);
+        $posts = 0;
+
+        Http::fake(function ($request) use (&$posts) {
+            if ($request->method() === 'POST') {
+                $posts++;
+
+                return Http::response([
+                    'storage_box' => 672152,
+                    'action' => ['id' => 991, 'status' => 'running'],
+                ], 202);
+            }
+
+            return Http::response(['storage_boxes' => []], 200);
+        });
+
+        $first = (new HetznerStorageProvisioner())->create($service);
+        $this->assertFalse($first->ok);
+        $this->assertSame(672152, $service->fresh()->provision_meta['hetzner_box_id']);
+        $this->assertSame(991, $service->fresh()->provision_meta['hetzner_pending_action']);
+
+        $second = (new HetznerStorageProvisioner())->create($service->fresh());
+        $this->assertTrue($second->manual);
+        $this->assertSame(1, $posts, 'ابهام پاسخ ساخت نباید خرید پولی دوم بسازد.');
     }
 
     /* ─────────────── «دو بار نخر» — سه محافظ، هرکدام جدا ─────────────── */
@@ -341,6 +374,49 @@ class HetznerStorageProvisioningTest extends TestCase
         $this->assertTrue($r->ok, 'حذفِ چیزی که نیست باید موفق باشد، وگرنه تا ابد در صفِ تلاشِ دوباره می‌مانَد.');
     }
 
+    public function test_release_deletes_a_half_created_box_even_before_username_assignment(): void
+    {
+        $server = $this->server();
+        $service = $this->service($server, [
+            'username' => null,
+            'provision_meta' => ['hetzner_box_id' => 4711],
+        ]);
+
+        Http::fake(['api.hetzner.com/*' => Http::response(['action' => ['status' => 'success']], 200)]);
+
+        $result = app(ProvisioningService::class)->releaseServer($service);
+
+        $this->assertTrue($result->ok);
+        Http::assertSent(fn ($request) => $request->method() === 'DELETE'
+            && str_ends_with($request->url(), '/storage_boxes/4711'));
+    }
+
+    public function test_failed_storage_delivery_without_username_is_adopted_by_the_recovery_command(): void
+    {
+        $this->mapPlan();
+        $server = $this->server();
+        $service = $this->service($server, [
+            'username' => null,
+            'password' => 'Known-Storage-Password!9',
+            'provision_status' => 'failed',
+            'provision_meta' => [
+                'hetzner_create_attempted_at' => now()->toIso8601String(),
+                'hetzner_password_known' => true,
+                'box_type' => 'bx11',
+                'location' => 'fsn1',
+            ],
+        ]);
+
+        Http::fake(['api.hetzner.com/*' => Http::response([
+            'storage_boxes' => [$this->box(['name' => 'sn-svc-'.$service->id])],
+        ], 200)]);
+
+        $this->artisan('provision:verify-failed')->assertExitCode(0);
+
+        $this->assertSame('done', $service->fresh()->provision_status);
+        $this->assertSame('u123456', $service->fresh()->username);
+    }
+
     /* ─────────── تلهٔ `default => WhmProvisioner` در رجیستری ─────────── */
 
     public function test_the_registry_routes_this_server_type_to_its_own_driver(): void
@@ -361,7 +437,9 @@ class HetznerStorageProvisioningTest extends TestCase
      */
     public function test_every_server_type_is_selectable_in_the_admin_form(): void
     {
-        $blade = file_get_contents(resource_path('views/admin/partials/server-form.blade.php'));
+        // Read the checkout under test directly. A shared Composer dependency
+        // directory may otherwise retain the parent checkout's application path.
+        $blade = file_get_contents(__DIR__.'/../../resources/views/admin/partials/server-form.blade.php');
 
         foreach (Server::TYPES as $type) {
             $this->assertStringContainsString("'".$type."'=>", str_replace(' ', '', $blade),

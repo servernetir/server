@@ -715,6 +715,8 @@ class PaymentController extends Controller
                     return ['ok' => false, 'msg' => __('panel.invoice_not_payable')];
                 }
 
+                app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($fresh);
+
                 /*
                 | 🔴 از M3-correct این کسر از `Wallet` می‌گذرد: گاردِ حقیقت
                 | داخلِ همان قفلِ مشتری، روی «در دسترس» (منهایِ رزروهایِ
@@ -938,6 +940,7 @@ class PaymentController extends Controller
         abort_if($invoice->customer_id !== Auth::guard('customer')->id(), 404);
         if (! request()->isMethod('GET') && ! str_ends_with((string) request()->route()?->getName(), '.cancel')) {
             app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
+            app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($invoice);
         }
     }
 }

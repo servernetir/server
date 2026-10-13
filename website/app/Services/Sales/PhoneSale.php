@@ -49,8 +49,23 @@ class PhoneSale
             return $this->fail('این پکیج غیرفعال است.');
         }
 
-        if (! in_array($cycle, Service::cycles(), true)) {
+        if (! in_array($cycle, $product->orderCycles(), true)) {
             return $this->fail('دورهٔ پرداخت معتبر نیست.');
+        }
+
+        if ($product->isStorageCatalogProduct()) {
+            if ($product->storageConfigurationError() !== null) {
+                return $this->fail('تحویل این پلن فضای ذخیره‌سازی فعلاً آماده نیست.');
+            }
+            $countries = $product->availableCountries();
+            if (count($countries) !== 1) {
+                return $this->fail('مکان تأییدشده این پلن فضای ذخیره‌سازی مشخص نیست.');
+            }
+            $country = filled($country) ? strtoupper($country) : $countries[0];
+            if (! in_array($country, $countries, true)) {
+                return $this->fail('مکان انتخاب‌شده با پلن فضای ذخیره‌سازی مطابقت ندارد.');
+            }
+            $domain = null;
         }
 
         /*
@@ -92,9 +107,16 @@ class PhoneSale
                 .' '.(config('billing.locations.'.$country.'.label.fa') ?? $country))
             : '';
 
+        $storageOffer = $product->group === 'storage-box'
+            ? array_intersect_key((array) app(\App\Services\Provisioning\HetznerStorageCosts::class)
+                ->metadataForPlan((string) $product->plan), array_flip([
+                    'type', 'location', 'country', 'size', 'subaccounts_limit', 'snapshot_limit',
+                    'automatic_snapshot_limit', 'net_monthly_cents', 'net_setup_cents', 'server_id', 'at', 'currency',
+                ])) : null;
+
         try {
             $result = DB::transaction(function () use (
-                $customer, $product, $cycle, $price, $server, $domain, $locNote, $actorId
+                $customer, $product, $cycle, $price, $server, $domain, $locNote, $actorId, $storageOffer
             ) {
                 $service = Service::create([
                     'customer_id'   => $customer->id,
@@ -112,6 +134,7 @@ class PhoneSale
                     'is_reseller'   => $product->isReseller(),
                     'domain'        => $domain ?: null,
                     'created_by'    => $actorId,
+                    'provision_meta' => $storageOffer ? ['storage_box_offer' => $storageOffer] : null,
                 ]);
 
                 return [$service, app(ProductInvoiceIssuer::class)->issue($service, $product)];
