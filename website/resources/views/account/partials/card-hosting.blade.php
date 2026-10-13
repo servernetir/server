@@ -23,6 +23,8 @@
   $canLogin = $delivered && ! $suspended && filled($s->username);
   $isWhm    = $type === 'whm';
   $isObject = $type === 'hetzner_object_gateway';
+  $isVolume = $type === 'hetzner_volume';
+  if ($isVolume) $canLogin = false;
 @endphp
 
 <article class="svc-card {{ $suspended ? 'is-susp' : '' }}">
@@ -77,6 +79,14 @@
          rootِ سرور را روی همین ستونِ `services.password` می‌نویسد، پس یک قالبِ
          مشترک آن را در هر بار بارگذاریِ صفحه چاپ می‌کرد و قاعدهٔ «فقط یک بار»
          (`CloudInstance::password_seen`) بی‌صدا دور زده می‌شد. --}}
+    @if($isVolume)
+      <div class="svc-cred">
+        <div><span>Volume ID</span><b dir="ltr" class="copyable">{{ data_get($s->provision_meta, 'volume_ref', $s->username) }}</b></div>
+        <div><span>{{ __('storage.capacity') }}</span><b dir="ltr">{{ data_get($s->provision_meta, 'size_gb') }} GB</b></div>
+        <div><span>{{ __('storage.location') }}</span><b dir="ltr">{{ strtoupper((string) data_get($s->provision_meta, 'location')) }}</b></div>
+        <div><span>Linux device</span><b dir="ltr" class="copyable">{{ data_get($s->provision_meta, 'linux_device') }}</b></div>
+      </div>
+    @else
     <div class="svc-cred">
       <div><span>{{ __($isObject ? 'ui.svc_s3_endpoint' : 'ui.svc_cred_panel_url') }}</span>
         @if($panelUrl)<a href="{{ $panelUrl }}" target="_blank" rel="noopener" dir="ltr">{{ $panelUrl }}</a>
@@ -92,6 +102,7 @@
         <div><span>{{ __('ui.svc_s3_region') }}</span><b dir="ltr">{{ data_get($s->provision_meta, 'region') }}</b></div>
       @endif
     </div>
+    @endif
 
     {{-- ── دسترسیِ سریع ──
          پنج لینکِ عمیق فقط برای WHM معنا دارند؛ برای Plesk/DirectAdmin کدِ

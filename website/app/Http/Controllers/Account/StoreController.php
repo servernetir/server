@@ -208,6 +208,8 @@ class StoreController extends Controller
                         ->metadataForPlan((string) $product->plan)],
                     'object-storage' => ['object_storage_offer' => app(\App\Services\ObjectStorage\HetznerObjectCosts::class)
                         ->metadataForPlan((string) $product->plan)],
+                    'block-storage' => ['volume_offer' => app(\App\Services\Provisioning\HetznerVolumeCosts::class)
+                        ->metadataForPlan((string) $product->plan)],
                     default => null,
                 },
                 // نیتِ «نمایندگی» همین‌جا قفل می‌شود و در لحظهٔ تحویل دوباره

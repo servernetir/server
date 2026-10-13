@@ -7,6 +7,8 @@ return [
  'location_fsn1'=>'Almanya · Falkenstein','location_nbg1'=>'Almanya · Nürnberg','location_hel1'=>'Finlandiya · Helsinki',
  'per_month'=>'aylık','tax_note'=>'Geçerli vergiler ödeme adımında gösterilir.','setup'=>'Kurulum','buy'=>'Seç ve sipariş ver',
  'preparing'=>'Hazırlanıyor','unavailable'=>'Geçici olarak kullanılamıyor','price_unavailable'=>'Güncel fiyat mevcut değil','catalog_pending'=>'Doğrulanmış katalog henüz alınmadı.',
+ 'block-storage_title'=>'Hetzner Block Storage','block-storage_intro'=>'Otomatik teslimat, yerel faturalama ve aynı konumdaki bulut sunucusuna bağlantı sunan bağımsız NVMe birimleri.',
+ 'block-storage_conditions'=>['Teslimat ödemeden sonra otomatik başlar.','Birim sunucudan bağımsız kalır.','Çevrimiçi büyütme desteklenir; küçültme desteklenmez.'],
  'object_pending'=>'Fiyatlar inceleme amacıyla gösterilir. Bağlantı ve müşteriler arası erişim ayrımı doğrulandıktan sonra sipariş açılacaktır.',
  'conditions'=>'Hizmet koşulları',
  'object-storage_conditions'=>[

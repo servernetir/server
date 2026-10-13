@@ -519,7 +519,7 @@ class CloudCatalogController extends Controller
      */
     private function legacyCloudPage(string $slug): View
     {
-        if (in_array($slug, ['object-storage', 'storage-box'], true)) {
+        if (in_array($slug, ['object-storage', 'storage-box', 'block-storage'], true)) {
             return app(StorageCatalogController::class)->show($slug);
         }
         $catalog = (array) config('catalog.cloud', []);

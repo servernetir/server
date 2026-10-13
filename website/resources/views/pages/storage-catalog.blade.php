@@ -10,11 +10,12 @@
 <main class="sn-storage"><div class="container">
   <nav class="sn-storage-nav" aria-label="{{ __('storage.choose_service') }}">
     <a href="{{ lroute('cloud.location', ['location'=>'object-storage']) }}">Object Storage</a>
+    <a href="{{ lroute('cloud.location', ['location'=>'block-storage']) }}">Block Storage</a>
     <a href="{{ lroute('cloud.location', ['location'=>'storage-box']) }}">Storage Box</a>
   </nav>
   <h1>{{ __('storage.'.$kind.'_title') }}</h1>
   <p>{{ __('storage.'.$kind.'_intro') }}</p>
-  @if($kind === 'object-storage')
+  @if($kind === 'object-storage' && ! $rows->contains(fn($row) => $row['ready']))
     <div class="sn-storage-note" role="status"><strong>{{ __('storage.preparing') }}</strong><p>{{ __('storage.object_pending') }}</p></div>
   @endif
   <nav class="sn-storage-locations" aria-label="{{ __('storage.location') }}">
@@ -32,7 +33,7 @@
     <article class="sn-storage-card">
       <h2>{{ $p->displayName() }}</h2>
       <dl>
-        <div><dt>{{ __('storage.capacity') }}</dt><dd>{{ $kind === 'object-storage' ? ($meta['capacity_tb'].' TB') : (rtrim(rtrim(number_format(($meta['size']??0)/(1024**4),2,'.',''),'0'),'.').' TiB') }}</dd></div>
+        <div><dt>{{ __('storage.capacity') }}</dt><dd>{{ $kind === 'object-storage' ? ($meta['capacity_tb'].' TB') : ($kind === 'block-storage' ? ($meta['size_gb'].' GB') : (rtrim(rtrim(number_format(($meta['size']??0)/(1024**4),2,'.',''),'0'),'.').' TiB')) }}</dd></div>
         <div><dt>{{ __('storage.location') }}</dt><dd>{{ strtoupper($meta['location']) }}</dd></div>
         @if($kind === 'object-storage')<div><dt>{{ __('storage.egress') }}</dt><dd>{{ $meta['egress_tb'] }} TB</dd></div>@endif
         @if($kind === 'storage-box' && isset($meta['subaccounts_limit']))<div><dt>{{ __('storage.subaccounts') }}</dt><dd>{{ $meta['subaccounts_limit'] }}</dd></div>@endif
