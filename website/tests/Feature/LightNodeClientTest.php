@@ -246,6 +246,26 @@ class LightNodeClientTest extends TestCase
         Http::assertNotSent(fn ($r) => $r->method() === 'POST');
     }
 
+    public function test_checkout_review_reads_current_package_image_and_quote_without_any_resource_mutation(): void
+    {
+        $package = $this->regionalModel();
+        CloudImage::create(['provider' => 'lightnode', 'provider_ref' => 'ph-test|img-sample',
+            'key' => 'ubuntu-24.04', 'family' => 'ubuntu', 'kind' => 'os', 'label' => 'Ubuntu',
+            'min_disk_gb' => 50, 'min_ram_mb' => 512, 'arch' => 'x86', 'is_active' => true]);
+        $plan = new CloudPlan(['provider' => 'lightnode', 'provider_ref' => 'ph-test|ph-test-a|'.$package['packageCode'],
+            'provider_location' => 'ph-test|ph-test-a', 'vcpu' => 2, 'ram_mb' => 4096,
+            'disk_gb' => 50, 'boot_disk_gb' => 50, 'data_disk_gb' => 0, 'cpu_kind' => 'shared', 'arch' => 'x86',
+            'network_terms' => ['charge_mode' => 'PayByBandwidth', 'bandwidth_mbps' => 5]]);
+        $review = $this->client()->reviewPurchase($plan, 'ubuntu-24.04');
+        $this->assertTrue($review['ok']);
+        $this->assertGreaterThan(0, $review['cost']['cost_hour_eur_micro']);
+        $this->assertSame(0, CloudProviderOperation::count());
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+        $plan->network_terms = ['charge_mode' => 'PayByBandwidth', 'bandwidth_mbps' => 10];
+        $this->assertFalse($this->client()->reviewPurchase($plan, 'ubuntu-24.04')['ok']);
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+    }
+
     public function test_regional_amd_purchase_still_holds_delivery_for_the_wrong_real_cpu_series(): void
     {
         $package = $this->regionalModel('amd');
@@ -501,7 +521,7 @@ class LightNodeClientTest extends TestCase
             CloudImage::create(['provider' => 'lightnode', 'provider_ref' => $region.'|img', 'key' => 'windows-2022',
                 'kind' => 'os', 'label' => 'Windows Server 2022', 'family' => 'windows', 'arch' => 'x86', 'min_disk_gb' => 50, 'min_ram_mb' => 2048, 'is_active' => true]);
         }
-        $p = new CloudPlan(['provider' => 'lightnode', 'provider_location' => 'ph-test|ph-test-a', 'arch' => 'x86', 'vcpu' => 2, 'disk_gb' => 50, 'ram_mb' => 4096]);
+        $p = new CloudPlan(['provider' => 'lightnode', 'provider_ref' => 'ph-test|ph-test-a|sample-package', 'provider_location' => 'ph-test|ph-test-a', 'arch' => 'x86', 'vcpu' => 2, 'disk_gb' => 50, 'ram_mb' => 4096]);
         $this->assertSame('ph-test|img', CloudImage::compatibleRefFor($p, 'windows-2022'));
         $this->assertFalse($p->supportsHourly());
         $p->cost_hour_eur_micro = 19800;

@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'cvb_live_price_changed' => 'Bu paketin fiyatı güncellendi. Ücret alınmadı; yeni fiyatı inceleyip satın almayı tekrar onaylayın.',
+    'cvb_live_review_unavailable' => 'Güncel fiyat, kapasite veya işletim sistemi doğrulanamadı. Ücret alınmadı; lütfen kısa süre sonra tekrar kontrol edin.',
+    'cvb_ssh_not_supported' => 'Bu paket SSH anahtarlarını otomatik yüklemez; anahtar olmadan sipariş verip parola ile giriş yapın.',
     'cloud_buy_monthly' => 'Aylık satın al',
     'cloud_buy_hourly' => 'Saatlik satın al',
     'meta_title' => 'ServerNet Cloud — Bulut Altyapısı, Hosting ve Kurumsal Çözümler',

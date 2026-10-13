@@ -513,6 +513,48 @@ class LightNodeClient implements CloudProvider
         } finally { $lock->release(); }
     }
 
+    /** Read-only checkout review. Never allocates a resource or repeats a POST. */
+    public function reviewPurchase(CloudPlan $plan, string $imageKey): array
+    {
+        $fail = ['ok' => false];
+        try {
+            $parts = explode('|', (string) $plan->provider_ref);
+            $imageRef = CloudImage::compatibleRefFor($plan, $imageKey);
+            if ($plan->provider !== $this->slug() || CloudPlan::providerIsDisabled($this->slug())
+                || ! $this->isConfigured() || count($parts) !== 3 || $imageRef === null) {
+                return $fail;
+            }
+            $packages = $this->packages($parts[0], $parts[1], $parts[2]);
+            $package = collect($packages['rows'] ?? [])->firstWhere('packageCode', $parts[2]);
+            if (! ($packages['ok'] ?? false) || ! $package
+                || (int) $package['cpu'] !== (int) $plan->vcpu
+                || (int) $package['memory'] * 1024 !== (int) $plan->ram_mb
+                || (int) $package['systemDiskSize'] !== (int) $plan->boot_disk_gb
+                || (int) ($package['dataDiskSize'] ?? 0) !== (int) $plan->data_disk_gb
+                || ($plan->network_terms['charge_mode'] ?? '') !== ($package['publicIpChargeMode'] ?? '')
+                || (int) ($plan->network_terms['bandwidth_mbps'] ?? 0) !== (int) ($package['bandwidth'] ?? 0)) {
+                return $fail;
+            }
+            $images = $this->rows('/image/list', 'images', ['regionCode' => $parts[0], 'imageType' => 'System'], true);
+            $chosen = collect($images['rows'] ?? [])->firstWhere('imageResourceUUID', explode('|', $imageRef)[1]);
+            if (! ($images['ok'] ?? false) || ! $chosen || ($chosen['imageType'] ?? '') !== 'System'
+                || (isset($chosen['regionCode']) && $chosen['regionCode'] !== $parts[0])
+                || (int) ($chosen['imageSize'] ?? 50) > (int) $plan->boot_disk_gb) {
+                return $fail;
+            }
+            $rate = $this->reviewedRate((string) $plan->provider_ref, $package, true);
+            if ($rate === null || ($rate['cpu_kind'] ?? '') !== (string) $plan->cpu_kind) {
+                return $fail;
+            }
+            $cost = $this->supplierCost($rate);
+            return $cost && $cost['cost_eur_cents'] > 0 && $cost['cost_hour_eur_micro'] > 0
+                ? ['ok' => true, 'cost' => $cost] : $fail;
+        } catch (\Throwable) {
+            // Never expose headers, supplier bodies or image authentication IDs.
+            return $fail;
+        }
+    }
+
     public function createServer(array $spec): array
     {
         $fail = ['ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null, 'status' => 'unknown'];

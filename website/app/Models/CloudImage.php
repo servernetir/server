@@ -147,12 +147,21 @@ class CloudImage extends Model
             ->get();
 
         $match = $rows->first(function (CloudImage $row) use ($plan) {
-            // LightNode image UUIDs are regional; never install another city's image.
-            if ($plan->provider === 'lightnode'
-                && explode('|', (string) $row->provider_ref)[0] !== explode('|', (string) $plan->provider_location)[0]) {
+            if (! self::providerAccessIsAutomated((string) $plan->provider, $row)) {
                 return false;
             }
-            if ($plan->provider === 'lightnode' && $row->family === 'windows'
+            // LightNode image UUIDs are regional; never install another city's image.
+            if ($plan->provider === 'lightnode') {
+                $planRef = explode('|', (string) $plan->provider_ref);
+                $locationRef = explode('|', (string) $plan->provider_location);
+                $imageRef = explode('|', (string) $row->provider_ref);
+                if (count($planRef) !== 3 || count($locationRef) !== 2 || count($imageRef) !== 2
+                    || in_array('', $planRef, true) || in_array('', $imageRef, true)
+                    || array_slice($planRef, 0, 2) !== $locationRef || $imageRef[0] !== $planRef[0]) {
+                    return false;
+                }
+            }
+            if ($plan->provider === 'lightnode' && strtolower((string) $row->family) === 'windows'
                 && ((int) $plan->vcpu < 2 || (int) $plan->ram_mb < 4096)) {
                 return false;
             }
@@ -168,5 +177,20 @@ class CloudImage extends Model
         });
 
         return $match !== null ? (string) $match->provider_ref : null;
+    }
+
+    /** Preserve the live Arvan access gate alongside regional/resource checks. */
+    public static function providerAccessIsAutomated(string $provider, CloudImage $image): bool
+    {
+        if ($provider !== 'arvan' || strtolower((string) $image->family) !== 'windows') {
+            return true;
+        }
+
+        $allowed = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) (Setting::get('arvan_windows_ready_image_refs') ?? ''))
+        )));
+
+        return in_array((string) $image->provider_ref, $allowed, true);
     }
 }

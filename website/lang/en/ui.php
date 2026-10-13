@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'cvb_live_price_changed' => 'This plan price was updated. Nothing was charged; review the new price and confirm your purchase again.',
+    'cvb_live_review_unavailable' => 'The current price, capacity or operating system could not be verified. Nothing was charged; please check again shortly.',
+    'cvb_ssh_not_supported' => 'This plan does not install SSH keys automatically; order without a key and use password login.',
     'cloud_buy_monthly' => 'Buy monthly',
     'cloud_buy_hourly' => 'Buy hourly',
     'meta_title' => 'ServerNet Cloud — Cloud Infrastructure, Hosting & Enterprise Solutions',
