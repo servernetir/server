@@ -47,5 +47,10 @@
   if ($s->provision_status === 'manual' && $s->isCloud()) {
       $pill = ['warn', 'ui.cs_status_review'];
   }
+  if ($s->isCloud()
+      && $s->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT
+      && \App\Services\Cloud\GpuCapacityOrders::managed($s)) {
+      $pill = ['info', 'ui.gpu_order_waiting_capacity'];
+  }
 @endphp
 <span class="pnl-pill {{ $pill[0] }}">{{ __($pill[1]) }}</span>
