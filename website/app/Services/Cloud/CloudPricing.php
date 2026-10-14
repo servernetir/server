@@ -46,6 +46,16 @@ class CloudPricing
         return $v === null || $v === '' ? (float) self::DEFAULT_MARGIN_PCT : max(0, (float) $v);
     }
 
+    /** حاشیهٔ مستقل محصولات ذخیره‌سازی؛ خالی باشد از حاشیهٔ عمومی ابری پیروی می‌کند. */
+    public function storageMarginPct(): float
+    {
+        $v = Setting::get('cloud_storage_margin_pct');
+
+        return $v === null || trim((string) $v) === ''
+            ? $this->marginPct('hetzner')
+            : max(0, min(500, (float) $v));
+    }
+
     /**
      * 🔴 سربارِ رساندنِ پول به زیرساخت (٪) — `pricing_fx_fee_pct`.
      *

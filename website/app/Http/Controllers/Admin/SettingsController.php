@@ -161,6 +161,7 @@ class SettingsController extends Controller
             'pricing_fx_fee_pct_lightnode' => ['nullable', 'numeric', 'min:0', 'max:25'],
             'price_margin_pct'      => ['nullable', 'numeric', 'min:-50', 'max:500'],
             'cloud_margin_pct'      => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'cloud_storage_margin_pct' => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_margin_pct_salad' => ['nullable', 'numeric', 'min:0', 'max:500'],
             // صفر مجاز است: فروشِ دامنه به بهای تمام‌شده یک استراتژیِ جذب است
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
@@ -453,6 +454,7 @@ class SettingsController extends Controller
                 'pricing_fx_fee_pct_lightnode' => $ready ? Setting::get('pricing_fx_fee_pct_lightnode') : null,
                 'price_margin_pct'      => $ready ? Setting::get('price_margin_pct') : null,
                 'cloud_margin_pct'      => $ready ? Setting::get('cloud_margin_pct') : null,
+                'cloud_storage_margin_pct' => $ready ? Setting::get('cloud_storage_margin_pct') : null,
                 'cloud_margin_pct_salad' => $ready ? Setting::get('cloud_margin_pct_salad') : null,
                 'domain_margin_pct'     => $ready ? Setting::get('domain_margin_pct') : null,
                 'cloud_ipv4_eur_cents'  => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,

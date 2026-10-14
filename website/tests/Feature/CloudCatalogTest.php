@@ -126,6 +126,16 @@ class CloudCatalogTest extends TestCase
         $this->assertSame((float) CloudPricing::DEFAULT_MARGIN_PCT, (new CloudPricing())->marginPct());
     }
 
+    public function test_storage_margin_can_be_raised_without_changing_other_cloud_products(): void
+    {
+        Setting::put('cloud_margin_pct', '5');
+        Setting::put('cloud_storage_margin_pct', '20');
+
+        $pricing = new CloudPricing();
+        $this->assertSame(5.0, $pricing->marginPct());
+        $this->assertSame(20.0, $pricing->storageMarginPct());
+    }
+
     // ═══════════════════ همگام‌سازیِ هتزنر ═══════════════════
 
     private function fakeHetzner(): void

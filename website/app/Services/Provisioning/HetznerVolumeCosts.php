@@ -32,7 +32,7 @@ class HetznerVolumeCosts
         if ($rate <= 0) return null;
         $netCents = (int) ceil((float) $book['net_eur_per_gb_month'] * 100 * $meta['size_gb'] - 0.0000001);
         $landed = (int) ceil($pricing->costWithFee($netCents, 'hetzner') - 0.0000001);
-        $eur = (int) (ceil($landed * (1 + max(5, $pricing->marginPct('hetzner')) / 100) / 10 - 0.0000001) * 10);
+        $eur = (int) (ceil($landed * (1 + max(5, $pricing->storageMarginPct()) / 100) / 10 - 0.0000001) * 10);
         $irt = intdiv($eur * $rate + 999999, 1000000) * 10000;
         return $eur > 0 && $irt > 0 ? ['eur_cents' => $eur, 'irt' => $irt, 'setup_irt' => 0, 'setup_eur_cents' => 0] : null;
     }

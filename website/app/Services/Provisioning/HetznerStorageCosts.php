@@ -108,7 +108,7 @@ class HetznerStorageCosts
         if ($rate <= 0 || $net < 0) return null;
         // Remove machine epsilon at integer boundaries before rounding real charges.
         $landed = (int) ceil($pricing->costWithFee($net, 'hetzner') - 0.0000001);
-        $margin = max($pricing->marginPct('hetzner'), $this->minMarginPct());
+        $margin = max($pricing->storageMarginPct(), $this->minMarginPct());
         $eur = (int) (ceil($landed * (1 + $margin / 100) / 10 - 0.0000001) * 10);
         if ($eur < 0 || $eur > intdiv(PHP_INT_MAX - 999999, $rate)) return null;
         // EUR cents -> IRT, ceil to 10,000, entirely in integers. Float arithmetic

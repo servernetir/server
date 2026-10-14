@@ -82,6 +82,11 @@
                placeholder="{{ fa_num(\App\Services\Cloud\CloudPricing::DEFAULT_MARGIN_PCT) }} (پیش‌فرض)">
         <small>روی بهایِ یوروییِ زیرساخت اعمال و بعد با نرخِ روز به تومان می‌آید.</small></label>
 
+      <label class="set-f">ذخیره‌سازی هتزنر (٪)
+        <input type="number" name="cloud_storage_margin_pct" dir="ltr" step="1" min="0" max="500"
+               value="{{ $pricing['cloud_storage_margin_pct'] ?? '' }}" placeholder="خالی = درصد سرور ابری">
+        <small>برای Object Storage، Block Storage و Storage Box؛ پس از هزینهٔ تأمین و سربار ارزی اعمال می‌شود.</small></label>
+
       <label class="set-f">افزایش قیمت GPU نسبت به هزینه (٪)
         <input type="number" name="cloud_margin_pct_salad" dir="ltr" step="1" min="0" max="500"
                value="{{ $pricing['cloud_margin_pct_salad'] ?? '' }}" placeholder="خالی = درصد سرور ابری">
