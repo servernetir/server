@@ -68,6 +68,10 @@ class ServerPart extends Model
      * قطعه را برنده نشان می‌داد.
      */
     public const ATTR_LABELS = [
+        'reference_clock' => ['fa' => 'فرکانس در مرجع سازنده', 'en' => 'Manufacturer-listed clock', 'tr' => 'Üreticinin listelediği frekans', 'unit' => '', 'higher_better' => false],
+        'socket' => ['fa' => 'سوکت', 'en' => 'Socket', 'tr' => 'Soket', 'unit' => '', 'higher_better' => false],
+        'memory_type' => ['fa' => 'نوع حافظه', 'en' => 'Memory type', 'tr' => 'Bellek türü', 'unit' => '', 'higher_better' => false],
+        'interface' => ['fa' => 'رابط اتصال', 'en' => 'Interface', 'tr' => 'Arayüz', 'unit' => '', 'higher_better' => false],
         'cores'     => ['fa' => 'هسته',         'en' => 'Cores',          'tr' => 'Çekirdek',     'unit' => '',     'higher_better' => true],
         'threads'   => ['fa' => 'رشته',         'en' => 'Threads',        'tr' => 'İş parçacığı', 'unit' => '',     'higher_better' => true],
         'ghz'       => ['fa' => 'فرکانس پایه',  'en' => 'Base clock',     'tr' => 'Temel hız',    'unit' => 'GHz',  'higher_better' => true],

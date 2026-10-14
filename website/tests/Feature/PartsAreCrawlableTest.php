@@ -90,7 +90,7 @@ class PartsAreCrawlableTest extends TestCase
     /** صفحهٔ محصول باید دادهٔ ساختاریافتهٔ Product و مسیرِ راهنما بدهد. */
     public function test_a_product_page_carries_product_and_breadcrumb_schema(): void
     {
-        $html = $this->get('/parts/cpu/xeon-e5-2680-v4')->assertOk()->getContent();
+        $html = $this->get('/en/parts/cpu/xeon-e5-2680-v4')->assertOk()->getContent();
 
         $this->assertStringContainsString('"@type":"Product"', $html);
         $this->assertStringContainsString('"@type":"Offer"', $html);
@@ -110,7 +110,8 @@ class PartsAreCrawlableTest extends TestCase
 
         $html = $this->get('/parts/cpu/xeon-e5-2680-v4')->assertOk()->getContent();
 
-        $this->assertStringContainsString('"@type":"Product"', $html);
+        $this->assertStringNotContainsString('"@type":"Product"', $html);
+        $this->assertStringContainsString('"@type":"BreadcrumbList"', $html);
         $this->assertStringNotContainsString('"@type":"Offer"', $html);
         $this->assertStringNotContainsString('"price":"0"', $html);
     }
