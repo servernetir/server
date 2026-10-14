@@ -3,6 +3,8 @@
 namespace App\Services\Cloud;
 
 use App\Models\CloudImage;
+use App\Models\CloudInstance;
+use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\ExchangeRate;
 use Illuminate\Support\Arr;
@@ -188,13 +190,36 @@ class ArvanClient implements CloudProvider
         $r = $this->resolveRegions();
 
         if (! $r['ok']) {
-            // کنترل: یک مسیرِ منطقه‌محورِ شناخته‌شده. اگر این هم ۴۰۴/۴۰۱ بدهد،
-            // عیب از توکن/دسترسی است نه از مسیرِ فهرستِ مناطق.
-            $ctrl = $this->req('GET', self::ECC.'/regions/ir-thr-c2/sizes');
+            /*
+             * Region discovery is a catalogue contract, not the authentication
+             * or inventory contract.  Arvan has returned 500/404 for all three
+             * discovery variants while authenticated, regional endpoints kept
+             * working.  Verify the actual inventory surface against region IDs
+             * already persisted by a successful catalogue sync.  Never apply
+             * this fallback to another provider.
+             */
+            $regions = $this->knownInventoryRegions();
+            $probe = (string) ($regions[0]['code'] ?? 'ir-thr-c2');
+            $ctrl = $this->req('GET', self::ECC.'/regions/'.rawurlencode($probe).'/sizes');
             $diag = implode(' | ', $r['tried'])
                 .' | control(sizes) → '.($ctrl['status'] ?: 'ERR').' '.mb_substr((string) $ctrl['message'], 0, 40);
 
-            return ['ok' => false, 'message' => 'اتصال برقرار نشد. جزئیاتِ تلاش‌ها: '.$diag];
+            if (! $ctrl['ok'] || $regions === []) {
+                return ['ok' => false, 'message' => 'اتصال برقرار نشد. جزئیاتِ تلاش‌ها: '.$diag];
+            }
+
+            $inventory = $this->inventoryFromRegions($regions);
+
+            if (! $inventory['ok']) {
+                return ['ok' => false, 'message' => 'اتصال کنترل برقرار است، اما موجودی منطقه‌ای کامل نیست: '.$inventory['message']];
+            }
+
+            return [
+                'ok' => true,
+                'message' => 'اتصال و موجودی منطقه‌ای برقرار است؛ API کشف منطقه خراب است و از کاتالوگ محلی استفاده شد.',
+                'meta' => ['regions' => count($regions), 'servers' => count($inventory['servers']),
+                    'endpoint' => 'regional-fallback', 'catalog_degraded' => true],
+            ];
         }
 
         $regions = $this->creatableRegions($r['data']);
@@ -1084,9 +1109,44 @@ class ArvanClient implements CloudProvider
         $reg = $this->resolveRegions();
 
         if (! $reg['ok']) {
-            return ['ok' => false, 'message' => 'فهرستِ مناطقِ آروان دریافت نشد.', 'servers' => []];
+            $fallback = $this->knownInventoryRegions();
+
+            if ($fallback === []) {
+                return ['ok' => false, 'message' => 'فهرستِ مناطقِ آروان دریافت نشد و کاتالوگ محلی هم منطقه‌ای ندارد.', 'servers' => []];
+            }
+
+            return $this->inventoryFromRegions($fallback, true);
         }
 
+        return $this->inventoryFromRegions((array) $reg['data']);
+    }
+
+    /**
+     * Regions that this installation has actually sold or currently manages.
+     * These IDs came from earlier successful Arvan catalogue responses and are
+     * safer than inventing a global provider route that does not exist.
+     */
+    private function knownInventoryRegions(): array
+    {
+        $codes = CloudPlan::query()->where('provider', $this->slug())
+            ->whereNotNull('provider_location')->distinct()->pluck('provider_location')->all();
+
+        foreach (CloudInstance::query()->where('provider', $this->slug())
+            ->whereNotNull('provider_ref')->pluck('provider_ref') as $ref) {
+            [$region] = $this->split((string) $ref);
+            if ($region !== '') {
+                $codes[] = $region;
+            }
+        }
+
+        return collect($codes)->map(fn ($code) => trim((string) $code))
+            ->filter()->unique()->sort()->values()
+            ->map(fn ($code) => ['code' => $code, 'name' => $code])->all();
+    }
+
+    /** @param array<int,mixed> $regions */
+    private function inventoryFromRegions(array $regions, bool $fallback = false): array
+    {
         $servers = [];
         $failed = [];
 
@@ -1094,7 +1154,7 @@ class ArvanClient implements CloudProvider
         // منطقهٔ غیرقابلِ‌ساخت و دیتاسنترِ آلمان را کنار می‌گذارد. برای **شمردنِ**
         // سرورهای موجود، همان کنار گذاشتن یعنی سروری که هنوز پولش را می‌دهیم از
         // گزارش غیب می‌شود — و گزارشِ ناقصِ یتیم از نبودِ گزارش بدتر است.
-        foreach ((array) $reg['data'] as $region) {
+        foreach ($regions as $region) {
             $code = is_array($region) ? (string) ($region['code'] ?? '') : '';
 
             if ($code === '') {
@@ -1135,10 +1195,22 @@ class ArvanClient implements CloudProvider
             }
         }
 
+        $message = $failed === [] ? '' : 'فهرستِ این مناطق خوانده نشد: '.implode('، ', $failed);
+
         return [
-            'ok' => true,
-            'message' => $failed === [] ? '' : 'فهرستِ این مناطق خوانده نشد: '.implode('، ', $failed),
+            // A partial inventory must be atomic-failure.  FleetScanner then
+            // preserves every existing Arvan row instead of falsely declaring
+            // machines in the failed region missing/orphaned.
+            'ok' => $failed === [],
+            // CloudInventory intentionally treats every non-empty message as
+            // an incomplete snapshot.  A fully-read local-region fallback is
+            // degraded catalogue discovery, not an inventory error.
+            'message' => $message,
             'servers' => $servers,
+            'meta' => [
+                'catalog_degraded' => $fallback && $failed === [],
+                'region_source' => $fallback ? 'local-catalog' : 'provider-discovery',
+            ],
         ];
     }
 

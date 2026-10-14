@@ -2172,6 +2172,20 @@ class CloudProvisioner
         return $this->act($service, fn ($d, $ref) => $d->power($ref, 'on'), 'running');
     }
 
+    /**
+     * The provider accepted the lifecycle command, but its eventual state has
+     * not been observed yet.  Callers must retry reconciliation without
+     * turning an asynchronous success into a hard billing/infrastructure
+     * error.  A real provider rejection never sets this marker.
+     */
+    public function lifecyclePending(Service $service, string $expectStatus): bool
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        return $instance !== null
+            && data_get($instance->meta, 'lifecycle_pending.expect') === $expectStatus;
+    }
+
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
     public function terminate(Service $service, bool $reportFailure = true): bool
     {
@@ -2491,7 +2505,9 @@ class CloudProvisioner
         // A retry may find the previous asynchronous request already completed.
         $actual = $driver->serverStatus((string) $instance->provider_ref);
         if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
-            $instance->update(['status' => $expectStatus, 'last_error' => null, 'synced_at' => now()]);
+            $instance->update($this->clearLifecyclePending($instance, [
+                'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),
+            ]));
 
             return true;
         }
@@ -2501,11 +2517,41 @@ class CloudProvisioner
         if ($r['ok'] ?? false) {
             $actual = $driver->serverStatus((string) $instance->provider_ref);
             if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
-                $instance->update(['status' => $expectStatus, 'last_error' => null, 'synced_at' => now()]);
+                $instance->update($this->clearLifecyclePending($instance, [
+                    'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),
+                ]));
 
                 return true;
             }
-            $waiting = ['last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.'];
+            // LightNode may accept an asynchronous mutation and then report a
+            // definitive failed receipt during this immediate confirmation
+            // poll.  That is not an unresolved transition: keep it on the
+            // normal failure path so metering cannot silently defer the alert.
+            if (($actual['terminal_failure'] ?? false) === true) {
+                $message = (string) ($actual['message'] ?? $r['message'] ?? 'عملیات نزد زیرساخت ناموفق بود.');
+                $instance->update($this->clearLifecyclePending($instance, [
+                    'last_error' => mb_substr($message, 0, 500),
+                ]));
+                $this->shoutAboutLingeringMachine(
+                    'تغییرِ وضعیتِ سرور نزدِ زیرساخت انجام نشد',
+                    $service, $instance, $message
+                );
+
+                return false;
+            }
+            // The provider driver may have persisted an operation receipt or
+            // other metadata while issuing/polling the command.  Merge into a
+            // fresh row so the lifecycle marker never erases that state.
+            $instance->refresh();
+            $meta = (array) $instance->meta;
+            $meta['lifecycle_pending'] = [
+                'expect' => $expectStatus,
+                'accepted_at' => now()->toIso8601String(),
+            ];
+            $waiting = [
+                'last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.',
+                'meta' => $meta,
+            ];
             if ($r['pending'] ?? false) {
                 $waiting['status'] = 'building';
                 $waiting['synced_at'] = now();
@@ -2515,7 +2561,9 @@ class CloudProvisioner
             return false;
         }
 
-        $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
+        $instance->update($this->clearLifecyclePending($instance, [
+            'last_error' => mb_substr((string) $r['message'], 0, 500),
+        ]));
 
         // تعلیقِ ناموفق = ما فکر می‌کنیم خاموش است و مشتری چیزی نمی‌پردازد، ولی
         // ماشین روشن است و اجاره‌اش می‌رود. همان سکوتِ `terminate()`، ارزان‌تر
@@ -2526,5 +2574,14 @@ class CloudProvisioner
         );
 
         return false;
+    }
+
+    private function clearLifecyclePending(CloudInstance $instance, array $attributes): array
+    {
+        $instance->refresh();
+        $meta = (array) $instance->meta;
+        unset($meta['lifecycle_pending']);
+
+        return ['meta' => $meta] + $attributes;
     }
 }

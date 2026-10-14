@@ -138,7 +138,9 @@
     <div class="pnl-sec-b" style="color:var(--ok);font-size:13.5px">{{ \App\Support\PanelText::text(session('ok')) }}</div>
   </div>
 @endif
-@if($errors->any())
+{{-- ReleaseGate renders every sitemap URL in-process; keep this partial safe when
+     a caller has no web-session error bag (for example CLI audits). --}}
+@if(isset($errors) && $errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
     <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">{{ \App\Support\PanelText::text($errors->first()) }}</div>
   </div>
