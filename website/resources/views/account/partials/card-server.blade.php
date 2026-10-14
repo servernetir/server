@@ -23,6 +23,7 @@
      هیچ تماسی با زیرساخت نرفته و تا تصمیمِ یک آدم هم نمی‌رود. */
   $onHold = $s->provision_status === 'manual';
   $gpuCapacityWaiting = $cloud
+      && ! $s->isDead()
       && $s->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT
       && \App\Services\Cloud\GpuCapacityOrders::managed($s);
 

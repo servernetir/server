@@ -48,6 +48,7 @@
       $pill = ['warn', 'ui.cs_status_review'];
   }
   if ($s->isCloud()
+      && ! $s->isDead()
       && $s->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT
       && \App\Services\Cloud\GpuCapacityOrders::managed($s)) {
       $pill = ['info', 'ui.gpu_order_waiting_capacity'];
