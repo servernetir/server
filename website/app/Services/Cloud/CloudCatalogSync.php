@@ -66,7 +66,7 @@ class CloudCatalogSync
         \App\Services\SiteMenu::forget();
         \App\Services\Cloud\CloudCountry::forget();
 
-        $costAlert = $this->alertOnCostIncrease();
+        $costAlert = $this->costIncreaseSummary();
 
         if ($costAlert !== null) {
             $report['__cost'] = $costAlert;
@@ -371,7 +371,7 @@ class CloudCatalogSync
     }
 
     /**
-     * هشدارِ گران‌شدنِ بهایِ تمام‌شده — محافظِ قیمتِ تمدید.
+     * خلاصهٔ گران‌شدنِ بهایِ تمام‌شده برای گزارشِ خودِ sync.
      *
      * ═══ چرا این مهم‌ترین هشدارِ این حوزه است ═══
      *
@@ -380,14 +380,16 @@ class CloudCatalogSync
      * لحظه هر تمدید **ضررِ خالص** است — ماه‌به‌ماه، بی‌صدا، چون سرور کار می‌کند و
      * مشتری راضی است و هیچ خطایی تولید نمی‌شود.
      *
-     * پس دو چیز گزارش می‌شود: کدام پلن‌ها گران شدند، و **چند سرویسِ فعال** روی
-     * آنها نشسته است. عددِ دوم است که فوریت را می‌سازد: «۳ پلن گران شد» یعنی
-     * چیزی؛ «۳ پلن گران شد و ۴۱ سرویسِ فعال رویشان است» یعنی همین امروز.
+     * قیمتِ فروشِ سایت در همین sync از بهای تازه محاسبه و ذخیره می‌شود. نرخِ
+     * سرویس‌های ساعتیِ فعال هم با `cloud:hourly-reprice --apply` که پنج دقیقه
+     * بعد از sync زمان‌بندی شده فقط رو به بالا اصلاح می‌شود. بنابراین خودِ
+     * تغییرِ بها دیگر رخدادِ قابلِ اقدام برای مدیر نیست و نباید بله/ایمیل را
+     * پر کند؛ فقط در خروجی sync می‌ماند تا ردِ مالی قابلِ مشاهده باشد.
      *
-     * عمداً قیمتِ فروش را **خودکار بالا نمی‌بریم**: بالا بردنِ قیمتِ سرویسِ فعالِ
-     * مشتری بی‌اطلاعِ او، تصمیمی تجاری و حقوقی است نه فنی. مدیر تصمیم می‌گیرد.
+     * اگر اصلاحِ خودکار نتواند یک نرخِ واقعاً زیان‌ده را برطرف کند، تورِ ایمنیِ
+     * مستقل `cloud:hourly-audit --notify` همچنان همان ضررِ واقعی را اعلام می‌کند.
      */
-    private function alertOnCostIncrease(): ?string
+    private function costIncreaseSummary(): ?string
     {
         if (! Schema::hasTable('cloud_plans')) {
             return null;
@@ -415,32 +417,14 @@ class CloudCatalogSync
 
         $worst = $risen->sortByDesc(fn (CloudPlan $p) => $p->costChangePct())->first();
 
-        $message = sprintf(
-            '🔴 بهایِ %s پلن گران شد (بیشترین: %s٪ روی %s). %s سرویسِ فعال روی این پلن‌هاست '
-            .'و با قیمتِ قفل‌شدهٔ قدیم تمدید می‌شود — یعنی از تمدیدِ بعد ضرر. '
-            .'در /admin/cloud ببینید و تصمیم بگیرید.',
+        return sprintf(
+            'بهایِ %s پلن افزایش یافت (بیشترین: %s٪ روی %s). قیمتِ فروشِ سایت همزمان '
+            .'به‌روز شد؛ نرخِ %s سرویسِ فعالِ در معرض نیز در نوبتِ خودکارِ بعدی فقط رو به بالا اصلاح می‌شود.',
             fa_num((string) $risen->count()),
             fa_num((string) $worst->costChangePct()),
             (string) $worst->public_name,
             fa_num((string) $exposed)
         );
-
-        try {
-            app(\App\Services\Notify\AdminNotifier::class)->event(
-                'بهایِ زیرساخت گران شد',
-                [
-                    'پلن‌های گران‌شده' => fa_num((string) $risen->count()),
-                    'سرویسِ در معرض'   => fa_num((string) $exposed),
-                    'بیشترین افزایش'   => fa_num((string) $worst->costChangePct()).'٪ · '.$worst->public_name,
-                ],
-                url('/admin/cloud'),
-                '🔴'
-            );
-        } catch (\Throwable) {
-            // اعلان نباید همگام‌سازی را بشکند
-        }
-
-        return $message;
     }
 
     /**

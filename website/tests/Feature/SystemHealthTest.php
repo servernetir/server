@@ -263,6 +263,53 @@ class SystemHealthTest extends TestCase
     }
 
     /**
+     * یک هشدارِ زردِ گذرا که کنار خرابیِ شناخته‌شده خاموش و دوباره روشن می‌شود
+     * نباید هر ربع ساعت خلاصهٔ کامل سلامت را دوباره بفرستد.
+     */
+    public function test_a_flapping_warning_is_quiet_during_the_six_hour_window(): void
+    {
+        $sent = 0;
+
+        $this->mock(\App\Services\Notify\AdminNotifier::class, function ($m) use (&$sent) {
+            $m->shouldReceive('event')->andReturnUsing(function () use (&$sent) {
+                $sent++;
+            });
+        });
+
+        $this->domain('manual');                    // cron fail + domains warn
+        $this->artisan('system:health');
+        $this->assertSame(1, $sent);
+
+        Domain::query()->delete();                  // بهبودِ جزئی: cron هنوز fail
+        $this->artisan('system:health');
+        $this->assertSame(1, $sent, 'بهبودِ جزئی پیام جدا نمی‌خواهد');
+
+        $this->domain('manual');                    // همان warn دوباره برگشت
+        $this->artisan('system:health');
+        $this->assertSame(1, $sent, 'نوسانِ زرد در پنجرهٔ شش‌ساعته نباید اسپم کند');
+    }
+
+    /** deploy فرمتِ تازه نباید وضعیتِ ازقبل‌اعلام‌شده را دوباره اعلام کند. */
+    public function test_legacy_health_state_is_migrated_without_a_duplicate_alert(): void
+    {
+        File::put(storage_path('app/health-state'), 'fail|cron');
+        $sent = 0;
+
+        $this->mock(\App\Services\Notify\AdminNotifier::class, function ($m) use (&$sent) {
+            $m->shouldReceive('event')->andReturnUsing(function () use (&$sent) {
+                $sent++;
+            });
+        });
+
+        $this->artisan('system:health');
+
+        $this->assertSame(0, $sent);
+        $state = json_decode((string) File::get(storage_path('app/health-state')), true);
+        $this->assertSame(2, $state['version']);
+        $this->assertSame('fail', $state['bad']['cron']);
+    }
+
+    /**
      * 🔴 ولی تغییرِ **نوعِ** خرابی باید خبر بدهد، حتی اگر شدت یکی بماند.
      *
      * اگر امضا فقط شدت بود، «کرون درست شد ولی صفِ دامنه گیر کرد» هر دو `fail`

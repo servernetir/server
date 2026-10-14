@@ -232,6 +232,31 @@ class CloudReleaseRetryTest extends TestCase
         );
     }
 
+    /** شمارندهٔ تلاش، به‌تنهایی خبر تازه نیست؛ علتِ تازه همچنان فوری است. */
+    public function test_repeated_release_failure_is_not_announced_every_hour(): void
+    {
+        $sent = 0;
+        $this->mock(\App\Services\Notify\AdminNotifier::class, function ($m) use (&$sent) {
+            $m->shouldReceive('event')->andReturnUsing(function () use (&$sent) {
+                $sent++;
+            });
+        });
+
+        $service = $this->liveCloudService($this->customer(100_000));
+        $why = 'same provider refusal '.bin2hex(random_bytes(5));
+        $provisioner = app(CloudProvisioner::class);
+
+        $provisioner->recordReleaseFailure($service, $why); // تلاش ۱: فوری
+        $provisioner->recordReleaseFailure($service, $why); // تلاش ۲: همان علت
+        $provisioner->recordReleaseFailure($service, $why); // تلاش ۳: همان علت
+
+        $this->assertSame(1, $sent, 'همان شکست نباید هر ساعت دوباره به بله برود');
+        $this->assertSame(3, (int) data_get(
+            CloudInstance::where('service_id', $service->id)->first()->meta,
+            'release_attempts'
+        ), 'ساکت‌شدن اعلان نباید retry یا شمارنده را متوقف کند');
+    }
+
     public function test_the_health_check_goes_red_while_a_machine_is_lingering(): void
     {
         $this->fake([self::DELETE_URL => Http::response([], 500)]);
