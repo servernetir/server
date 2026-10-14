@@ -694,6 +694,13 @@ class CloudServerController extends Controller
         // بلیت: تصادفی، کوتاه‌عمر، و گره‌خورده به همین سرویس تا با بلیتِ سرویسِ
         // دیگری قابلِ استفاده نباشد.
         if ($instance->provider === 'arvan' && ($r['transport'] ?? null) === 'external') {
+            $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
+            if ($broker->enabled() && $broker->eligible($service)) {
+                $target = $broker->issue($service, $r['url']);
+                $this->log($service, __('ui.act_cloud_console'));
+                return redirect()->away($target)->header('Cache-Control', 'no-store, private')
+                    ->header('Referrer-Policy', 'no-referrer');
+            }
             $this->log($service, __('ui.act_cloud_console'));
             return redirect()->away($r['url'])
                 ->header('Cache-Control', 'no-store')

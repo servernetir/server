@@ -264,6 +264,9 @@ class ServiceController extends Controller
             app(RcloneStorageCosts::class)
                 ->floorForService($service, $months),
         );
+        if (filled($service->cloud_plan_id) || filled($service->cloud_image_key)) {
+            $floor = max($floor, app(\App\Services\Billing\CloudRenewalPrice::class)->quote($service));
+        }
 
         $old = (int) $service->price;
 
