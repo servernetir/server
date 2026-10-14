@@ -231,7 +231,7 @@ class GpuCapacityOrdersTest extends TestCase
         $response = $this->actingAs($this->customer, 'customer')->get(route('account.servers'));
 
         $response->assertOk()
-            ->assertSee(__('ui.gpu_order_waiting_capacity'), false)
+            ->assertSee(__('ui.gpu_order_awaiting_allocation'), false)
             ->assertSee(__('ui.gpu_wait_no_charge'), false)
             ->assertDontSee(__('ui.cs_stage_ordered_d'), false);
         $this->assertSame(GpuCapacityOrders::WAIT, $service->fresh()->provision_status);

@@ -51,7 +51,7 @@
       && ! $s->isDead()
       && $s->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT
       && \App\Services\Cloud\GpuCapacityOrders::managed($s)) {
-      $pill = ['info', 'ui.gpu_order_waiting_capacity'];
+      $pill = ['info', 'ui.gpu_order_'.\App\Services\Cloud\GpuCapacityOrders::displayState($s)];
   }
 @endphp
 <span class="pnl-pill {{ $pill[0] }}">{{ __($pill[1]) }}</span>
