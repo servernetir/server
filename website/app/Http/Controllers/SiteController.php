@@ -380,6 +380,15 @@ class SiteController extends Controller
         | ⚠️ پشتِ `hasTable` است تا روی سرورِ مهاجرت‌نخورده نقشه ۵۰۰ ندهد.
         */
         $add('cloud.index');
+        /*
+        | Storage Box is backed by the live object-storage product table, not
+        | config/catalog/cloud.php.  It is nevertheless a public, canonical
+        | landing page linked from Block Storage.  The generic catalogue loop
+        | below can therefore never discover it; declare the three localized
+        | URLs explicitly so site:gate does not find a public page missing from
+        | the sitemap after every deployment.
+        */
+        $add('cloud.location', 'storage-box');
         // صفحهٔ فرودِ «سرور مجازی ساعتی» — روتِ صریح، خارج از کاتالوگِ config
         $add('vps.hourly');
         // سرورِ گرافیکی — خطِ محصولِ مستقل، روتِ صریح

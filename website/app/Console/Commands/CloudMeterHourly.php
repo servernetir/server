@@ -552,6 +552,11 @@ class CloudMeterHourly extends Command
             'last_metered_at' => now(),
         ])->save();
         if (! $ok) {
+            if ($prov->lifecyclePending($service, 'off')) {
+                $this->pending++;
+
+                return false;
+            }
             $this->errors++;
             $prov->recordSuspendFailure($service);
 
@@ -759,6 +764,11 @@ class CloudMeterHourly extends Command
 
                 // Provider acceptance must precede the first-hour debit and local activation.
                 if (! $prov->unsuspend($service)) {
+                    if ($prov->lifecyclePending($service, 'running')) {
+                        $this->pending++;
+
+                        return;
+                    }
                     $this->errors++;
                     ErrorTracker::noteOnce('billing', 'فعال‌سازی مجدد سرویس ساعتی #'.$service->id.' تأیید نشد؛ هزینه ساعت شروع کسر نشد.', 3600);
 
@@ -779,7 +789,7 @@ class CloudMeterHourly extends Command
             });
         } catch (\Throwable $e) {
             // If the charge failed after power-on, restore the provider state.
-            if ($powered && ! $prov->suspend($service)) {
+            if ($powered && ! $prov->suspend($service) && ! $prov->lifecyclePending($service, 'off')) {
                 $prov->recordSuspendFailure($service);
             }
             $service->refresh();

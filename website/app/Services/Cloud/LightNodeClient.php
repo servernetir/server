@@ -483,7 +483,9 @@ class LightNodeClient implements CloudProvider
             foreach ($ops as $op) {
                 if (! $this->taskSucceeded($op)) {
                     return $op->state === 'failed'
-                        ? array_replace($pending, ['ok' => false, 'status' => 'unknown', 'message' => 'عملیات پایان یافته ولی موفق نشده است؛ بررسی مدیر لازم است.'])
+                        ? array_replace($pending, ['ok' => false, 'status' => 'unknown',
+                            'terminal_failure' => true,
+                            'message' => 'عملیات پایان یافته ولی موفق نشده است؛ بررسی مدیر لازم است.'])
                         : $pending;
                 }
                 DB::transaction(function () use ($op, $ref): void {

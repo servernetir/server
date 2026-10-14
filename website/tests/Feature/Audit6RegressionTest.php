@@ -313,6 +313,22 @@ class Audit6RegressionTest extends TestCase
         $this->assertStringContainsString('/developers', $xml);
     }
 
+    public function test_legacy_sitemap_entry_points_permanently_converge_on_the_canonical_map(): void
+    {
+        foreach (['/page-sitemap.xml', '/pages-sitemap.xml', '/post_tag-sitemap.xml',
+            '/product-sitemap.xml', '/sitemap-1.xml', '/sitemap_agentic_discovery.xml'] as $path) {
+            $this->get($path)->assertStatus(301)->assertRedirect('/sitemap.xml');
+        }
+    }
+
+    public function test_cloud_server_view_does_not_require_a_web_session_error_bag(): void
+    {
+        $view = file_get_contents(resource_path('views/account/cloud-server.blade.php'));
+
+        $this->assertIsString($view);
+        $this->assertStringContainsString('isset($errors) && $errors->any()', $view);
+    }
+
     public function test_refundability_follows_the_legal_scope(): void
     {
         foreach (['shared', 'reseller', 'vps', 'plesk', 'directadmin'] as $c) {

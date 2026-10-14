@@ -50,7 +50,10 @@ return [
     ],
 
     'page_budget' => [
-        '/cloud' => 21,
+        // ۱۴ مهر ۱۴۰۵: ۵۹ صفحه پس از گسترشِ آگاهانهٔ Atlas (محصولات + مکان‌ها).
+        // سقفِ ۲۱ مالِ قبل از این انتشار بود و هر شب هشدارِ کهنه می‌ساخت.
+        // 60 = the catalog plus the intentional Object Storage and Storage Box landings.
+        '/cloud' => 60,
         '/parts' => 107,   // منجمد — ممیزی ۷
         '/urmia' => 29,    // منجمد — ممیزی ۷
         '/webtools' => 49,    // منجمد — ممیزی ۷

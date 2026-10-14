@@ -22,6 +22,10 @@
   /* سفارشی که محافظِ سوءاستفاده نگهش داشته: نه شکست‌خورده، نه در حالِ ساخت.
      هیچ تماسی با زیرساخت نرفته و تا تصمیمِ یک آدم هم نمی‌رود. */
   $onHold = $s->provision_status === 'manual';
+  $gpuCapacityWaiting = $cloud
+      && ! $s->isDead()
+      && $s->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT
+      && \App\Services\Cloud\GpuCapacityOrders::managed($s);
 
   $loc   = $ci?->location();
   $specs = (array) ($ci->specs ?? []);
@@ -87,6 +91,8 @@
          «سفارشِ شما نزدِ زیرساخت ثبت شد» در حالی که محافظ پیش از هر تماسی
          برگشته و هیچ سفارشی نزدِ هیچ زیرساختی ثبت نشده. --}}
     <p class="cb-warn">{{ __('ui.cs_hold_p') }}</p>
+  @elseif($gpuCapacityWaiting)
+    <p class="cb-warn">{{ __('ui.gpu_wait_no_charge') }}</p>
   @elseif($cloud && ! $ready)
     {{-- ── در حالِ ساخت ──
          چهار مرحلهٔ **گسسته**، بی‌هیچ درصدِ ساختگی: مشتری‌ای که روی «۷۰٪» گیر

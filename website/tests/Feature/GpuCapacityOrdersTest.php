@@ -19,6 +19,12 @@ class GpuCapacityOrdersTest extends TestCase
     private string $state = 'deploying';
     private bool $failStock = false;
 
+    public function test_wait_state_fits_the_shared_provision_status_contract(): void
+    {
+        $this->assertSame('gpu_wait', GpuCapacityOrders::WAIT);
+        $this->assertLessThanOrEqual(16, strlen(GpuCapacityOrders::WAIT));
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -143,6 +149,16 @@ class GpuCapacityOrdersTest extends TestCase
         $this->assertDatabaseCount('cloud_instances', 0);
     }
 
+    public function test_cancelled_gpu_request_does_not_keep_the_waiting_capacity_badge(): void
+    {
+        $service = $this->register();
+        $service->update(['status' => 'cancelled']);
+
+        $badge = view('account.partials.status-pill', ['s' => $service->fresh()])->render();
+        $this->assertStringNotContainsString(__('ui.gpu_order_waiting_capacity'), $badge);
+        $this->assertStringContainsString(__('ui.st_unknown'), $badge);
+    }
+
     public function test_increased_price_requires_explicit_confirmation_and_stale_confirmation_is_rejected(): void
     {
         $this->fund(); $s = $this->register(); $approved = $s->hourly_rate_irt; $this->stock = 1;
@@ -205,6 +221,21 @@ class GpuCapacityOrdersTest extends TestCase
             ->assertOk()->assertSee('data-gpu-capacity-wait', false)->assertSee('هیچ هزینه‌ای', false);
         $this->actingAs($this->customer, 'customer')->get(route('account.cloud.status', $s))
             ->assertOk()->assertJson(['waiting_capacity' => true, 'ready' => false]);
+        $this->assertDatabaseCount('credit_ledger', 0);
+        $this->assertDatabaseCount('cloud_instances', 0);
+    }
+
+    public function test_waiting_server_list_shows_capacity_and_no_charge_instead_of_build_progress(): void
+    {
+        $service = $this->register();
+        $response = $this->actingAs($this->customer, 'customer')->get(route('account.servers'));
+
+        $response->assertOk()
+            ->assertSee(__('ui.gpu_order_waiting_capacity'), false)
+            ->assertSee(__('ui.gpu_wait_no_charge'), false)
+            ->assertDontSee(__('ui.cs_stage_ordered_d'), false);
+        $this->assertSame(GpuCapacityOrders::WAIT, $service->fresh()->provision_status);
+        $this->assertDatabaseCount('invoices', 0);
         $this->assertDatabaseCount('credit_ledger', 0);
         $this->assertDatabaseCount('cloud_instances', 0);
     }

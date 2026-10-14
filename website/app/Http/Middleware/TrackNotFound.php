@@ -47,6 +47,13 @@ class TrackNotFound
     {
         $path = '/'.ltrim($request->path(), '/');
 
+        // SSRF scanners try a family of guessed proxy/render routes with the
+        // cloud metadata address in the query.  None is a broken site link and
+        // retaining ten variants only evicts useful 404s from the bounded log.
+        if (str_contains(rawurldecode((string) $request->getQueryString()), '169.254.169.254')) {
+            return true;
+        }
+
         // پسوندهایی که این سایت اصلاً سرو نمی‌کند ⇒ همیشه اسکنر
         if (preg_match('~\.(php\d?|phtml|asp|aspx|jsp|cgi|pl)$~i', $path)) {
             return true;
@@ -74,6 +81,13 @@ class TrackNotFound
         | `/RDWeb/...` کاوشِ Remote Desktop Gateway است و روی همین نصب دیده شد.
         */
         if (preg_match('~^/(RDWeb|owa|autodiscover|ecp|_ignition|telescope|server-status)(/|$)~i', $path)) {
+            return true;
+        }
+
+        // Fingerprints for other products that this Laravel application has
+        // never exposed: Atlassian, OpenCart/Magento and Drupal.
+        if (preg_match('~^/(rest/api/|admin/controller/extension/|magento/|sites/default/)(.*)$~i', $path)
+            || $path === '/.well-known') {
             return true;
         }
 
