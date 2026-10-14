@@ -211,7 +211,7 @@ class CloudArvanTest extends TestCase
         $this->assertStringContainsString('ir-shz-b1', $inventory['message']);
     }
 
-    public function test_fallback_ignores_retired_plan_and_provider_verified_deleted_instance_regions(): void
+    public function test_fallback_scans_retired_plan_regions_but_ignores_provider_verified_deleted_instance_regions(): void
     {
         foreach ([['ir-active', true], ['ir-retired', false]] as [$region, $active]) {
             CloudPlan::create([
@@ -239,8 +239,10 @@ class CloudArvanTest extends TestCase
             if (str_contains($path, '/ir-active/servers')) {
                 return Http::response(['data' => []], 200);
             }
-            if (str_ends_with($path, '/servers')) {
-                return Http::response(['message' => 'retired region'], 503);
+            if (str_contains($path, '/ir-retired/servers')) {
+                return Http::response(['data' => [[
+                    'id' => 'srv-retired-orphan', 'name' => 'retired-region-orphan', 'status' => 'active',
+                ]]], 200);
             }
 
             return Http::response(['data' => []], 200);
@@ -249,7 +251,8 @@ class CloudArvanTest extends TestCase
         $inventory = app(ArvanClient::class)->listServers();
 
         $this->assertTrue($inventory['ok'], $inventory['message']);
-        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/ir-retired/servers'));
+        $this->assertSame(['ir-retired:srv-retired-orphan'], collect($inventory['servers'])->pluck('ref')->all());
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/ir-retired/servers'));
         Http::assertNotSent(fn ($request) => str_contains($request->url(), '/ir-deleted/servers'));
     }
 
