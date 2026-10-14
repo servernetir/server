@@ -109,7 +109,7 @@ class ArvanClient implements CloudProvider
      * را درست می‌دهد** (برخلافِ زحل/آیزا). ولی پیامِ خطا هم در بدنه است، پس
      * هم کد را می‌بینیم هم `message`.
      *
-     * @return array{ok:bool,status:int,data:mixed,message:string,json_valid?:bool,data_present?:bool}
+     * @return array{ok:bool,status:int,data:mixed,message:string,json_valid?:bool,data_present?:bool,data_is_list?:bool}
      */
     private function req(string $method, string $path, array $payload = [], array $query = []): array
     {
@@ -143,10 +143,16 @@ class ArvanClient implements CloudProvider
             return ['ok' => false, 'status' => 0, 'data' => null, 'message' => 'ارتباط با زیرساخت برقرار نشد.'];
         }
 
-        $json = $res->json();
-        $jsonValid = is_array($json);
+        // Keep the raw JSON type as well as Laravel's associative form.  With
+        // associative decoding, both [] and {} become an empty PHP array; for
+        // deletion evidence that distinction is security/billing critical.
+        $rawJson = json_decode($res->body());
+        $jsonValid = json_last_error() === JSON_ERROR_NONE
+            && (is_object($rawJson) || is_array($rawJson));
+        $json = $jsonValid ? $res->json() : null;
         $body = $jsonValid ? $json : [];
-        $dataPresent = array_key_exists('data', $body);
+        $dataPresent = is_object($rawJson) && property_exists($rawJson, 'data');
+        $dataIsList = $dataPresent && is_array($rawJson->data) && array_is_list($rawJson->data);
         $data = $dataPresent ? $body['data'] : $body;
 
         if ($res->successful()) {
@@ -154,6 +160,7 @@ class ArvanClient implements CloudProvider
                 'ok' => true, 'status' => $res->status(), 'data' => $data,
                 'message' => (string) ($body['message'] ?? ''),
                 'json_valid' => $jsonValid, 'data_present' => $dataPresent,
+                'data_is_list' => $dataIsList,
             ];
         }
 
@@ -1428,6 +1435,7 @@ class ArvanClient implements CloudProvider
                 && $inventory['status'] === 200
                 && ($inventory['json_valid'] ?? false) === true
                 && ($inventory['data_present'] ?? false) === true
+                && ($inventory['data_is_list'] ?? false) === true
                 && is_array($inventoryRows)
                 && array_is_list($inventoryRows)
                 && collect($inventoryRows)->every(fn ($server) => is_array($server)
