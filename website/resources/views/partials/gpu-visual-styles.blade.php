@@ -1,15 +1,28 @@
 /* Scoped to the GPU landing page; shared product styling remains intact. */
 .gpu-experience{--gpu-violet:#a491f7;--gpu-amber:#f2ae66}
+.sn-public #main>.gpu-experience{padding-top:28px}
 .gpu-experience .gpu-art{display:block;width:76px;flex:0 0 76px;color:var(--cyan)}
 .gpu-experience .gpu-art svg{display:block;width:100%;height:auto;overflow:visible}
 .gpu-experience .gpu-art-comfyui{color:var(--gpu-violet)}
 .gpu-experience .gpu-art-jupyter{color:var(--gpu-amber)}
-.gpu-experience .gpu-art-flow{animation:gpu-signal 1.4s ease-out 3}
-.gpu-experience .gpu-art-float{animation:gpu-float 2s ease-in-out 2;transform-box:fill-box;transform-origin:center}
-.gpu-experience .gpu-app-option:hover .gpu-art-float,.gpu-experience .gpu-app-option:focus-within .gpu-art-float{animation:gpu-lift .6s ease-out 1}
-@keyframes gpu-signal{from{stroke-dashoffset:26;opacity:.2}to{stroke-dashoffset:0;opacity:.7}}
+.gpu-experience .gpu-art-flow{--gpu-flow-distance:22;animation:gpu-signal 4s linear infinite}
+.gpu-experience .gpu-compute-svg .gpu-art-flow{--gpu-flow-distance:34;animation-duration:6s}
+.gpu-experience .gpu-art-jupyter .gpu-art-flow{--gpu-flow-distance:53;animation-duration:5s}
+.gpu-experience .gpu-art-float{animation:gpu-float 5.5s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.gpu-experience .gpu-art-comfyui .gpu-art-float{animation-delay:-1.8s}
+.gpu-experience .gpu-art-jupyter .gpu-art-float{animation-delay:-3.6s}
+.gpu-experience .gpu-art-dot{animation:gpu-dot 2.8s ease-in-out infinite}
+.gpu-experience .gpu-art-dot:nth-of-type(2){animation-delay:-.35s}.gpu-experience .gpu-art-dot:nth-of-type(3){animation-delay:-.7s}
+.gpu-experience:not([data-motion-ready]) .gpu-art-flow,.gpu-experience:not([data-motion-ready]) .gpu-art-float,.gpu-experience:not([data-motion-ready]) .gpu-art-dot,
+.gpu-experience[data-motion-paused] .gpu-art-flow,.gpu-experience[data-motion-paused] .gpu-art-float,.gpu-experience[data-motion-paused] .gpu-art-dot,
+.gpu-experience[data-motion-away] .gpu-art-flow,.gpu-experience[data-motion-away] .gpu-art-float,.gpu-experience[data-motion-away] .gpu-art-dot{animation-play-state:paused}
+@keyframes gpu-signal{from{stroke-dashoffset:var(--gpu-flow-distance)}to{stroke-dashoffset:0}}
 @keyframes gpu-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-@keyframes gpu-lift{50%{transform:translateY(-5px)}}
+@keyframes gpu-dot{0%,100%{opacity:.35}50%{opacity:1}}
+.gpu-experience .gpu-motion-toggle{display:inline-flex;align-items:center;gap:7px;background:transparent;border:0;color:var(--muted);font:inherit;font-size:11px;min-height:44px;padding:8px 0;margin-top:8px;cursor:pointer}
+.gpu-experience .gpu-motion-toggle svg{width:14px;height:14px;fill:currentColor}.gpu-experience .gpu-motion-toggle .gpu-play{display:none}
+.gpu-experience[data-motion-paused] .gpu-motion-toggle .gpu-pause{display:none}.gpu-experience[data-motion-paused] .gpu-motion-toggle .gpu-play{display:block}
+.gpu-experience .gpu-motion-toggle[hidden]{display:none}.gpu-experience .gpu-motion-toggle:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:5px}
 .gpu-experience .gpu-compute-art{position:relative;min-width:0;aspect-ratio:1.4;border:1px solid var(--line);border-radius:28px;background:radial-gradient(ellipse at 50% 54%,rgba(34,211,238,.09),transparent 65%);color:var(--cyan);isolation:isolate;overflow:hidden}
 .gpu-experience .gpu-compute-svg{position:absolute;width:100%;height:100%;inset:0}
 .gpu-experience .gpu-art-caption{position:absolute;inset:22px 24px auto;display:flex;justify-content:space-between;gap:10px;font:9px/1.5 ui-monospace,monospace;letter-spacing:1.3px;color:var(--dim);direction:ltr}
@@ -76,5 +89,6 @@
 .gpu-experience .gpu-faq details[open] summary{color:var(--cyan)}.gpu-experience .gpu-faq p{padding:0 0 22px;margin:0}
 @media(max-width:960px){.sn-public #main .gpu-experience .gpu-cfg{grid-template-columns:minmax(0,1fr)}.gpu-experience .gpu-compute-art{width:100%;max-width:570px;margin-inline:auto}.gpu-experience .gpu-cards{max-height:390px}.gpu-experience .gpu-app-option{grid-template-columns:70px minmax(0,1fr) 16px}.gpu-experience .gpu-app-option .gpu-art{width:70px}}
 @media(max-width:540px){.gpu-experience .gpu-compute-art{border-radius:18px;aspect-ratio:1.35}.gpu-experience .gpu-art-caption{font-size:7px;letter-spacing:.5px;inset:15px 16px auto}.gpu-experience .gpu-art-caption-bottom{inset:auto 16px 15px}.gpu-experience .gpu-art-satellite .gpu-art{width:58px}.gpu-experience .gpu-art-satellite{font-size:6px}.gpu-experience .gpu-art-satellite-c{left:calc(50% - 29px);bottom:8%}.gpu-experience .gpu-hero-links{gap:8px}.gpu-experience .gpu-hero-links a{font-size:12px;padding-inline:13px}.sn-public #main .gpu-experience .gpu-panel-h,.gpu-experience .gpu-side{padding:18px}.sn-public #main .gpu-experience .gpu-card{padding:16px 14px;grid-template-columns:20px minmax(0,1fr);gap:5px 9px}.gpu-experience .gpu-card .gpu-rate{grid-column:2;display:flex;gap:8px;align-items:center;text-align:start}.gpu-experience .gpu-card .gpu-rate small{font-size:10px}.gpu-experience .gpu-app-option{grid-template-columns:49px minmax(0,1fr) 15px;gap:9px;padding:12px 10px}.gpu-experience .gpu-app-option .gpu-art{width:49px}.gpu-experience .gpu-app-option b{font-size:11px}.gpu-experience .gpu-app-option small{font-size:10.5px}.gpu-experience .gpu-apps-grid{grid-template-columns:minmax(0,1fr)}.gpu-experience .gpu-faq details{padding-inline:16px}.gpu-experience .gpu-selected-card{flex-wrap:wrap}.gpu-experience .gpu-name input{font-size:16px}}
-@media(prefers-reduced-motion:reduce){.gpu-experience .gpu-art-flow,.gpu-experience .gpu-art-float,.gpu-experience .gpu-app-option:hover .gpu-art-float,.gpu-experience .gpu-app-option:focus-within .gpu-art-float{animation:none}.gpu-experience .gpu-app-option{transition:none}}
+@media(prefers-reduced-motion:reduce){.gpu-experience .gpu-art-flow,.gpu-experience .gpu-art-float,.gpu-experience .gpu-art-dot{animation:none}.gpu-experience .gpu-app-option{transition:none}.gpu-experience .gpu-motion-toggle{display:none}}
+@media(max-width:540px){.sn-public #main>.gpu-experience{padding-top:20px}}
 @media(max-width:540px){.gpu-experience .gpu-app-option b,.gpu-experience .gpu-app-option small{font-size:12px}}

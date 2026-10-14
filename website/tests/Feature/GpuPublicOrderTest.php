@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
-use App\Models\{CloudImage, CloudLocation, CloudPlan, Customer, Service, Setting};
+use App\Models\{CloudImage, CloudLocation, CloudPlan, CreditEntry, Customer, Service, Setting};
 use App\Services\Cloud\{GpuCapacityOrders, SaladClient};
+use App\Services\Finance\Wallet;
+use App\Services\Sms\SmsSender;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class GpuPublicOrderTest extends TestCase
@@ -88,6 +92,101 @@ class GpuPublicOrderTest extends TestCase
         $this->post(route('account.gpu.complete'), ['intent_key' => $key])->assertRedirect();
         $this->assertDatabaseCount('services', 1);
         $this->assertNoPurchase();
+    }
+
+    public static function checkoutLocales(): array
+    {
+        return ['Persian' => [''], 'English' => ['en.'], 'Turkish' => ['tr.']];
+    }
+
+    #[DataProvider('checkoutLocales')]
+    public function test_real_otp_login_preserves_jupyter_choices_and_funded_wallet_through_queue(string $prefix): void
+    {
+        // Exercise the real login controller and session regeneration, never actingAs().
+        Mail::fake();
+        $sms = new class implements SmsSender {
+            public ?string $code = null;
+            public function enabled(): bool { return true; }
+            public function name(): string { return 'test-only'; }
+            public function send(string $mobile, string $text): bool { return true; }
+            public function sendOtp(string $mobile, string $code): bool { $this->code = $code; return true; }
+        };
+        $this->app->instance(SmsSender::class, $sms);
+
+        // Pick a non-default card, so a silent fallback to the cheapest plan fails this test.
+        $selected = $this->plan->replicate();
+        $selected->fill(['slug' => 'gpu-selected-notebook', 'provider_ref' => 'gpu-selected-class',
+            'public_name' => 'RTX 3090 (24 GB)', 'gpu_model' => 'RTX 3090', 'gpu_vram_mb' => 24576,
+            'price_irt' => 4000000])->save();
+        $rate = $selected->hourlyIrt();
+        $wallet = app(Wallet::class);
+        $wallet->credit($this->customer->id, 'IRT', $rate * 40, 'topup', $this->customer);
+        $balance = $wallet->balanceOf($this->customer->id);
+        $assertUncharged = function () use ($wallet, $balance) {
+            $this->assertSame($balance, $wallet->balanceOf($this->customer->id));
+            $this->assertSame($balance, $wallet->availableOf($this->customer->id));
+            $this->assertDatabaseCount('credit_ledger', 1); // Only the test's initial top-up.
+            $this->assertSame(0, CreditEntry::where('amount', '<', 0)->count());
+            $this->assertDatabaseCount('invoices', 0);
+            $this->assertDatabaseCount('cloud_instances', 0);
+            Http::assertNotSent(fn ($r) => str_contains($r->url(), '/containers'));
+        };
+
+        $this->get(route($prefix.'gpu'))->assertOk()->assertSee('gpu-jupyter');
+        $this->post(route($prefix.'gpu.order'), ['plan' => $selected->slug, 'image' => 'gpu-jupyter',
+            'label' => 'my-selected-notebook', 'quotes' => [$selected->slug => $rate]])
+            ->assertRedirect(route($prefix.'account.gpu.resume'));
+        $intent = session('gpu_public_order');
+        $key = $intent['data']['gpu_request_key'];
+        $this->get(route($prefix.'account.gpu.resume'))->assertRedirect();
+        $this->assertSame(route($prefix.'account.gpu.resume'), session('url.intended'));
+        $this->get(route($prefix.'login'))->assertOk();
+        $this->post(route($prefix.'login.start'), ['method' => 'mobile', 'identifier' => $this->customer->phone])
+            ->assertRedirect(route($prefix.'login.code'));
+        $this->get(route($prefix.'login.code'))->assertOk();
+        $this->assertNotNull($sms->code);
+        $this->post(route($prefix.'login.verify'), ['code' => $sms->code === '000000' ? '111111' : '000000'])
+            ->assertSessionHasErrors('code');
+        $this->assertGuest('customer');
+        $this->assertSame($intent, session('gpu_public_order'));
+        $assertUncharged();
+
+        $sessionBeforeLogin = session()->getId();
+        $this->post(route($prefix.'login.verify'), ['code' => $sms->code])
+            ->assertSessionHasNoErrors()->assertRedirect(route($prefix.'account.gpu.resume'));
+        $this->assertAuthenticatedAs($this->customer, 'customer');
+        $this->assertNotSame($sessionBeforeLogin, session()->getId());
+        $this->assertSame($intent, session('gpu_public_order'));
+        $this->get(route($prefix.'account.gpu.resume'))->assertOk()
+            ->assertSee('my-selected-notebook')->assertSee('Jupyter')
+            ->assertSee('value="'.$key.'"', false)->assertSee('requestSubmit()', false);
+        $this->assertDatabaseCount('services', 0);
+        $assertUncharged();
+
+        // Submit the continuation form just as its browser script does.
+        $response = $this->post(route($prefix.'account.gpu.complete'), ['intent_key' => $key])->assertSessionHasNoErrors();
+        $service = Service::sole();
+        $response->assertRedirect(route($prefix.'account.cloud.show', $service));
+        $this->assertSame($selected->id, $service->cloud_plan_id);
+        $this->assertSame('gpu-jupyter', $service->cloud_image_key);
+        $this->assertSame('my-selected-notebook', data_get($service->provision_meta, 'gpu_capacity_order.label'));
+        $this->assertSame($key, data_get($service->provision_meta, 'gpu_capacity_order.request_key'));
+        $this->assertSame($rate, $service->hourly_rate_irt);
+        $this->assertSame(GpuCapacityOrders::WAIT, $service->provision_status);
+        $this->assertSame('hourly', $service->billing_mode);
+        $this->assertTrue(GpuCapacityOrders::unpaid($service));
+        $this->get(route($prefix.'account.cloud.show', $service))->assertOk()->assertSee('Jupyter');
+        $this->get(route($prefix.'account.cloud.status', $service))->assertJson(['capacity_state' => 'awaiting_allocation']);
+        $assertUncharged();
+
+        // Run the actual capacity command only against this isolated database and fake HTTP.
+        $this->travel(2)->minutes();
+        $this->artisan('cloud:advance-gpu-capacity')->expectsOutput('{"waiting":1}')->assertSuccessful();
+        $this->assertSame(GpuCapacityOrders::WAIT, $service->fresh()->provision_status);
+        $this->post(route($prefix.'account.gpu.complete'), ['intent_key' => $key])
+            ->assertRedirect(route($prefix.'account.cloud.show', $service));
+        $this->assertDatabaseCount('services', 1);
+        $assertUncharged();
     }
 
     public function test_price_change_while_logging_in_returns_to_editable_form(): void

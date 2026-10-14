@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'motion_pause' => 'Animasyonları duraklat',
+    'motion_play' => 'Animasyonları oynat',
     'delivery_auto' => 'Otomatik teslim',
     'configure' => 'GPU seç ve yapılandır',
     'explore_apps' => 'Hangi uygulama bana uygun?',

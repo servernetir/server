@@ -198,6 +198,10 @@
         <a class="btn btn-primary" href="#gpu-configure">{{ __('gpu.configure') }} <span aria-hidden="true">↓</span></a>
         <a class="gpu-secondary" href="#gpu-app-guide">{{ __('gpu.explore_apps') }}</a>
       </div>
+      <button type="button" class="gpu-motion-toggle" id="gpu-motion-toggle" hidden data-pause="{{ __('gpu.motion_pause') }}" data-play="{{ __('gpu.motion_play') }}">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path class="gpu-pause" d="M4 3h3v10H4zm5 0h3v10H9z"/><path class="gpu-play" d="m4 2 9 6-9 6z"/></svg>
+        <span>{{ __('gpu.motion_pause') }}</span>
+      </button>
     </div>
     @include('partials.gpu-compute-art')
     </div>
@@ -347,6 +351,23 @@
 
   </div>
 </section>
+
+<script>
+(function () {
+  var root = document.querySelector('.gpu-experience');
+  var toggle = document.getElementById('gpu-motion-toggle');
+  if (!root || !toggle) { return; }
+  toggle.hidden = false;
+  root.setAttribute('data-motion-ready', '');
+  toggle.addEventListener('click', function () {
+    var paused = root.toggleAttribute('data-motion-paused');
+    toggle.querySelector('span').textContent = toggle.getAttribute(paused ? 'data-play' : 'data-pause');
+  });
+  function visibility() { root.toggleAttribute('data-motion-away', document.hidden); }
+  document.addEventListener('visibilitychange', visibility);
+  visibility();
+})();
+</script>
 
 @if($cards)
 {{-- 🔴 هر مقدار از `@json()` می‌رود، نه `{{ }}`: کوتیشنِ HTML-escape‌شده کلِ
