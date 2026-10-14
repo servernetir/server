@@ -632,15 +632,18 @@
     {{-- ═══ ۴ — سیستم‌عامل یا نرم‌افزار آماده ═══ --}}
     <section class="pnl-sec cvb-step" id="cvb-step-4" data-step="4">
       <h2 class="cvb-step-hh"><button type="button" class="pnl-sec-h cvb-step-h" aria-expanded="true" aria-controls="cvb-b-4">
-        <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __('ui.cvb_s3') }}</b></span>
+        <span class="cvb-step-t"><span class="cb-dot"></span><b>{{ __($isGpuStore ? 'ui.cvb_gpu_app_title' : 'ui.cvb_s3') }}</b></span>
         <span class="cvb-step-v"><span id="cvb-v-4">{{ $jsImgLbl[$curImage] ?? '—' }}</span><em>{{ __('ui.cvb_slip_edit') }}</em></span>
       </button></h2>
       <div class="cvb-step-b" id="cvb-b-4">
         <div class="cvb-step-i"><div class="pnl-sec-b">
           <p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num($stepNo[4] ?? 4), 't' => fa_num($stepTotal)]) }}</p>
-          <h3 class="cvb-q">{{ __('ui.cvb_s3') }}</h3>
+          <h3 class="cvb-q">{{ __($isGpuStore ? 'ui.cvb_gpu_app_title' : 'ui.cvb_s3') }}</h3>
           @error('image')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
 
+          @if($isGpuStore)
+            <p class="cvb-gpu-app-lead">{{ __('ui.cvb_gpu_app_lead') }}</p>
+          @else
           {{-- تنها افشاگرِ صفحه که هیچ ARIAای نداشت. tab/tablist بومی است و
                وضعیتِ انتخاب را به صفحه‌خوان می‌گوید.
 
@@ -653,10 +656,12 @@
               <button type="button" class="cvb-seg @if($startTab === 'app') on @endif" data-tab="app" role="tab" aria-selected="{{ $startTab === 'app' ? 'true' : 'false' }}" aria-controls="cvb-pane-app" id="cvb-tab-app">{{ __('ui.cvb_app') }}</button>
             </div>
           </div>
+          @endif
 
           {{-- گزینه‌های ناسازگار با پلن انتخابی پنهان می‌شوند (سمت سرور محاسبه شده،
                جاوااسکریپت فقط با عوض شدن پلن به‌روزش می‌کند). گزینه‌ای که تحویلش
                نشدنی است هرگز نباید دیده شود. --}}
+          @unless($isGpuStore)
           <div class="cvb-imgs" data-pane="os" id="cvb-pane-os" role="tabpanel" aria-labelledby="cvb-tab-os" @if($startTab !== 'os') hidden @endif>
             @php $osByFam = $osCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($osByFam as $fam => $rows)
@@ -678,8 +683,33 @@
             @endforelse
             <p class="cvb-empty" data-empty="os" hidden>{{ __('ui.cvb_os_empty') }}</p>
           </div>
+          @endunless
 
-          <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" role="tabpanel" aria-labelledby="cvb-tab-app" @if($startTab !== 'app') hidden @endif>
+          <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" @if($isGpuStore) role="group" aria-label="{{ __('ui.cvb_gpu_app_title') }}" @else role="tabpanel" aria-labelledby="cvb-tab-app" @if($startTab !== 'app') hidden @endif @endif>
+            @if($isGpuStore)
+              @php
+                $gpuAppIcons = ['gpu-jupyter' => 'i-book', 'gpu-comfyui' => 'i-flow', 'gpu-ollama' => 'i-bot'];
+                $gpuAppDescriptions = ['gpu-jupyter' => 'ui.cvb_gpu_jupyter_desc', 'gpu-comfyui' => 'ui.cvb_gpu_comfyui_desc', 'gpu-ollama' => 'ui.cvb_gpu_ollama_desc'];
+              @endphp
+              <div class="cvb-fam cvb-gpu-app-group" data-fam="gpu">
+                <div class="cvb-opts cvb-gpu-app-grid">
+                  @foreach($appCatalog as $img)
+                    <label class="cvb-img cvb-gpu-app @if($img->key === $curImage) on @endif"
+                           data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
+                      <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                      <span class="cvb-gpu-app-top" aria-hidden="true">
+                        <span class="cvb-gpu-app-icon"><svg class="icon"><use href="#{{ $gpuAppIcons[$img->key] ?? 'i-box' }}"/></svg></span>
+                        <span class="cvb-gpu-app-check"><svg class="icon"><use href="#i-check"/></svg></span>
+                      </span>
+                      <span class="cvb-gpu-app-copy">
+                        <b dir="auto">{{ \App\Support\PanelText::text($img->label) }}</b>
+                        <small>{{ __($gpuAppDescriptions[$img->key] ?? 'ui.cvb_gpu_app_default_desc') }}</small>
+                      </span>
+                    </label>
+                  @endforeach
+                </div>
+              </div>
+            @else
             @php $appByFam = $appCatalog->groupBy(fn ($i) => (string) $i->family); @endphp
             @forelse($appByFam as $fam => $rows)
               <div class="cvb-fam" data-fam="{{ $fam }}">
@@ -698,6 +728,7 @@
             @empty
               <p class="cvb-warn">{{ __('ui.cvb_app_na') }}</p>
             @endforelse
+            @endif
             <p class="cvb-empty" data-empty="app" hidden>{{ __('ui.cvb_app_empty') }}</p>
           </div>
 
@@ -706,7 +737,7 @@
                `rebuild:false`). مشتری عیناً همین جمله را در تیکت TK-260924-8595 نقل
                کرد و حق هم داشت: سروری خریده بود تا نرم‌افزارِ خودش را نصب کند.
                وعدهٔ صفحهٔ خرید یک تعهدِ فروش است، نه متنِ تزئینی. --}}
-          <p class="cvb-note">
+          <p class="cvb-note @if($isGpuStore) cvb-gpu-app-note @endif">
             <svg class="icon"><use href="#i-key"/></svg>
             {{ __($isGpuStore ? 'ui.cvb_gpu_access_note' : 'ui.cvb_os_note') }}
           </p>

@@ -341,26 +341,29 @@ class GpuStoreSeparationTest extends TestCase
             'مکانِ GPU در پیکربندِ VPS پیشنهاد شد - دو خطِ محصول دوباره قاطی‌اند.');
     }
 
-    /**
-     * پلنِ بی‌سیستم‌عامل باید روی زبانهٔ «برنامه» باز شود؛ وگرنه مشتری زبانهٔ
-     * خالیِ «سیستم‌عامل» می‌بیند و گزینهٔ واقعی پشتِ کلیکِ دوم پنهان است.
-     */
-    public function test_an_os_less_plan_opens_on_the_app_tab(): void
+    /** خط GPU فقط انتخاب برنامه دارد؛ گزینه‌های سازگار باید مستقیم دیده شوند. */
+    public function test_gpu_apps_are_visible_without_an_empty_os_tab(): void
     {
         $this->bothLines();
+        foreach (['gpu-jupyter' => 'Jupyter', 'gpu-comfyui' => 'ComfyUI'] as $key => $label) {
+            CloudImage::create([
+                'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS[$key]['ref'],
+                'key' => $key, 'kind' => 'app', 'family' => $key,
+                'label' => $label, 'arch' => 'x86', 'is_active' => true,
+            ]);
+        }
 
         $html = (string) $this->actingAs($this->customer(), 'customer')
             ->get('/account/cloud-store?location=global-gpu&plan=cv-8c-30g-100d-global-gpu-rtx-4090')
             ->assertOk()->getContent();
 
-        preg_match('~<button[^>]*id="cvb-tab-app"[^>]*>~', $html, $m);
-        $this->assertNotEmpty($m, 'زبانهٔ برنامه اصلاً رندر نشد.');
-        $this->assertStringContainsString('aria-selected="true"', $m[0],
-            'زبانهٔ برنامه فعال نیست؛ مشتری زبانهٔ خالیِ سیستم‌عامل می‌بیند.');
-
-        // و گزینهٔ برنامه واقعاً انتخاب‌شده است
+        $this->assertStringNotContainsString('id="cvb-tab-os"', $html);
+        $this->assertStringContainsString('class="cvb-opts cvb-gpu-app-grid"', $html);
+        foreach (['gpu-ollama', 'gpu-jupyter', 'gpu-comfyui'] as $key) {
+            $this->assertMatchesRegularExpression('~class="cvb-img cvb-gpu-app[^\"]*"\s+data-key="'.$key.'"~', $html);
+        }
         $this->assertMatchesRegularExpression(
-            '~name="image" value="gpu-ollama"[^>]*checked~', $html);
+            '~name="image" value="gpu-(?:ollama|jupyter|comfyui)"[^>]*checked~', $html);
     }
 
     /**
