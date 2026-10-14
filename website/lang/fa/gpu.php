@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'motion_pause' => 'توقف حرکت تصویرها',
+    'motion_play' => 'ادامهٔ حرکت تصویرها',
     'delivery_auto' => 'تحویل خودکار',
     'configure' => 'انتخاب و پیکربندی GPU',
     'explore_apps' => 'کدام برنامه مناسب من است؟',

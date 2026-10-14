@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Setting;
+use App\Models\{CloudPlan, Setting};
 use App\Services\Cloud\{CloudPricing, SaladClient};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\{Cache, Http};
@@ -66,12 +66,32 @@ class GpuPurchaseQuoteTest extends TestCase
         Http::assertSentCount(1);
     }
 
-    public function test_high_demand_and_removed_classes_cannot_take_payment(): void
+    public function test_high_demand_can_be_quoted_but_exact_capacity_still_blocks_allocation(): void
     {
-        $this->classes(['is_high_demand' => true]);
+        // Since capacity intents were introduced, demand is not a pricing veto.
+        // A valid quote must never imply available hardware or trigger a purchase.
+        Http::fake(function ($request) {
+            if (str_ends_with($request->url(), '/gpu-classes')) {
+                return Http::response(['items' => [['id' => 'gpu-test', 'is_high_demand' => true,
+                    'prices' => [['priority' => 'high', 'price' => '0.5']]]]]);
+            }
+            if (str_contains($request->url(), '/availability/')) {
+                return Http::response(['available_gpu_high' => 0]);
+            }
+            throw new \RuntimeException('Unexpected provider call in quote test');
+        });
         $client = app(SaladClient::class);
-        $this->assertSame(['ok' => false, 'reason' => 'capacity'], $client->purchaseQuote('gpu-test'));
+        $this->assertTrue($client->purchaseQuote('gpu-test')['ok']);
+        $plan = new CloudPlan(['provider' => 'salad', 'provider_ref' => 'gpu-test',
+            'vcpu' => 8, 'ram_mb' => 30720, 'disk_gb' => 150]);
+        $capacity = $client->capacityFor($plan, true);
+        $this->assertTrue($capacity['ok']);
+        $this->assertFalse($capacity['available']);
         $this->assertSame(['ok' => false, 'reason' => 'capacity'], $client->purchaseQuote('removed'));
+        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('credit_ledger', 0);
+        $this->assertDatabaseCount('cloud_instances', 0);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/containers'));
     }
 
     public function test_provider_failure_is_not_cached_as_a_success(): void

@@ -6,7 +6,7 @@
   @if($art === 'ollama')
     <path d="M21 31h61a9 9 0 0 1 9 9v27a9 9 0 0 1-9 9H48L33 87V76H21a9 9 0 0 1-9-9V40a9 9 0 0 1 9-9Z" fill="var(--surface)" stroke="currentColor" stroke-width="1.6"/>
     <path d="M29 47h44M29 56h31" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".45"/>
-    <g class="gpu-art-float"><rect x="72" y="13" width="44" height="34" rx="11" fill="var(--surface)" stroke="currentColor" stroke-width="1.6"/><circle cx="84" cy="30" r="2.5" fill="currentColor"/><circle cx="94" cy="30" r="2.5" fill="currentColor" opacity=".65"/><circle cx="104" cy="30" r="2.5" fill="currentColor" opacity=".3"/></g>
+    <g class="gpu-art-float"><rect x="72" y="13" width="44" height="34" rx="11" fill="var(--surface)" stroke="currentColor" stroke-width="1.6"/><circle class="gpu-art-dot" cx="84" cy="30" r="2.5" fill="currentColor"/><circle class="gpu-art-dot" cx="94" cy="30" r="2.5" fill="currentColor" opacity=".65"/><circle class="gpu-art-dot" cx="104" cy="30" r="2.5" fill="currentColor" opacity=".3"/></g>
     <path class="gpu-art-flow" d="M93 61h15v25H62" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4 7" opacity=".65"/><circle cx="60" cy="86" r="4" fill="currentColor"/>
   @elseif($art === 'comfyui')
     <rect x="33" y="14" width="77" height="61" rx="10" transform="rotate(9 33 14)" fill="currentColor" opacity=".12"/>

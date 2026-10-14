@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'motion_pause' => 'Pause animations',
+    'motion_play' => 'Play animations',
     'delivery_auto' => 'Automated delivery',
     'configure' => 'Configure your GPU',
     'explore_apps' => 'Find your app',
