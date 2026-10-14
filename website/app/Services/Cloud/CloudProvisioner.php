@@ -51,7 +51,11 @@ class CloudProvisioner
      * billing/error escalation forever.  With the 15-minute reconciliation
      * cadence this allows two observations before the operation is failed.
      */
-    private const LIFECYCLE_PENDING_DEADLINE_MINUTES = 30;
+    private const LIFECYCLE_PENDING_DEADLINES = [
+        // LightNode exposes a durable async receipt.  Other providers have
+        // different lifecycle contracts and must not inherit this deadline.
+        'lightnode' => 30,
+    ];
 
     public function __construct(
         private CloudManager $manager,
@@ -2524,9 +2528,10 @@ class CloudProvisioner
         $acceptedAt = is_array($pending) && ($pending['expect'] ?? null) === $expectStatus
             ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
             : null;
-        if ($acceptedAt?->lte(now()->subMinutes(self::LIFECYCLE_PENDING_DEADLINE_MINUTES))) {
+        $deadlineMinutes = self::LIFECYCLE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
+        if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
             $message = 'فرمان پذیرفته شد، اما وضعیت نهایی تا پایان مهلت '
-                .self::LIFECYCLE_PENDING_DEADLINE_MINUTES.' دقیقه‌ای تأیید نشد.';
+                .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
             $alreadyEscalated = filled($pending['timed_out_at'] ?? null);
             $meta = (array) $instance->meta;
             $meta['lifecycle_pending'] = [
