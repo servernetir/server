@@ -60,7 +60,7 @@
 - چون پاک‌سازی application cache نشانگر آخرین اسکن را حذف می‌کند، `fleet:scan` یک بار دیگر اجرا شد. UI در07:02UTC همان ۶۲/۳۲/۲۷/۳/۰ و سه ماشین Arvan را ثبت کرد؛ این آخرین snapshot قابل مشاهده پس از فعال‌شدن کد در PHP-FPM است.
 - اصلاح بازبینی LightNode با تست تازهٔ «pending سپس failed» روی PHP8.4 گذشت: ۴ تست و ۳۳ assertion برای مجموعهٔ power confirmation، صفر failure/error. دو فایل اجرایی در07:12:02UTC با `git apply --check`، پشتیبان مستقل، lint و rollback خودکار نصب شدند. رسید نهایی PHP-FPM در07:12:20UTC دوباره HTTP200 و `opcache_reset=true` بود.
 - آخرین `fleet:scan` پس از همان reset در07:13:33UTC با exit0 تمام شد: ۶۲ دیده‌شده، ۳۲ متصل، ۲۷ بی‌صاحب، ۳ سرویس بسته، صفر ناپدید و صفر حذف از دفتر؛ UI ساعت۱۰:۴۳ تهران و سه ماشین Arvan را نشان داد.
-- چرخهٔ طبیعی پنج‌دقیقه‌ای بعدی `cloud:meter` و `services:lifecycle` بدون افزایش شمار خطا/incident تمام شد و هر دو از هشدار pending صفحهٔ سلامت خارج شدند؛ `cloud:meter` دستی اجرا نشد تا کسر مالی تکراری ایجاد نشود.
+- چرخهٔ طبیعی پنج‌دقیقه‌ای پس از آخرین reset نیز ثبت شد: `services:renew-due` در07:15:03، `services:lifecycle` در07:15:04 و `cloud:meter` در07:15:20UTC همگی `errors=0` و `pending=0` داشتند. متر طبیعی یک سرویس را شارژ کرد؛ `cloud:meter` دستی اجرا نشد تا کسر مالی تکراری ایجاد نشود.
 
 ## ماشین‌ها، شبکه و persistence
 
