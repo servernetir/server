@@ -22,9 +22,46 @@ tar -xzf /tmp/servernet-object-gateway.tar.gz -C /opt/servernet-object-gateway
 python3 -m venv /opt/servernet-object-gateway/venv
 /opt/servernet-object-gateway/venv/bin/pip install --no-cache-dir 'boto3==1.35.99'
 
+export SN_BOOTSTRAP_S3_ACCESS="__HETZNER_S3_ACCESS__"
+export SN_BOOTSTRAP_S3_SECRET="__HETZNER_S3_SECRET__"
+/opt/servernet-object-gateway/venv/bin/python - /tmp/meta-buckets <<'PY'
+import hashlib
+import os
+import sys
+
+import boto3
+from botocore.config import Config
+from botocore.exceptions import ClientError
+
+access = os.environ["SN_BOOTSTRAP_S3_ACCESS"]
+secret = os.environ["SN_BOOTSTRAP_S3_SECRET"]
+suffix = hashlib.sha256(access.encode()).hexdigest()[:12]
+rows = []
+for region in ("fsn1", "nbg1", "hel1"):
+    bucket = f"sn-vgw-meta-{region}-{suffix}"
+    client = boto3.client(
+        "s3",
+        endpoint_url=f"https://{region}.your-objectstorage.com",
+        aws_access_key_id=access,
+        aws_secret_access_key=secret,
+        region_name=region,
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    try:
+        client.create_bucket(Bucket=bucket, CreateBucketConfiguration={"LocationConstraint": region})
+    except ClientError as exc:
+        code = str(exc.response.get("Error", {}).get("Code", ""))
+        if code not in {"BucketAlreadyExists", "BucketAlreadyOwnedByYou"}:
+            raise
+    rows.append(f"{region}|{bucket}")
+open(sys.argv[1], "w").write("\n".join(rows) + "\n")
+PY
+
 for region in fsn1 nbg1 hel1; do
   case "$region" in fsn1) port=9211;; nbg1) port=9212;; hel1) port=9213;; esac
   install -d -o servernet-object -g servernet-object -m 0700 "/var/lib/servernet-object-gateway/iam-${region}"
+  meta_bucket="$(awk -F'|' -v region="$region" '$1 == region { print $2 }' /tmp/meta-buckets)"
+  [ -n "$meta_bucket" ]
   root_access="$(openssl rand -hex 16)"
   root_secret="$(openssl rand -hex 32)"
   cat >"/etc/servernet-object-gateway/${region}.env" <<EOF
@@ -36,28 +73,34 @@ VGW_S3_ACCESS_KEY=__HETZNER_S3_ACCESS__
 VGW_S3_SECRET_KEY=__HETZNER_S3_SECRET__
 VGW_S3_ENDPOINT=https://${region}.your-objectstorage.com
 VGW_S3_REGION=${region}
+VGW_S3_META_BUCKET=${meta_bucket}
 VGW_S3_USE_PATH_STYLE=true
 VGW_S3_DISABLE_DATA_INTEGRITY_CHECK=true
 AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED
 EOF
-  printf '%s|%s|%s\n' "$region" "$root_access" "$root_secret" >>/tmp/region-roots
+  printf '%s|%s|%s|%s\n' "$region" "$root_access" "$root_secret" "$meta_bucket" >>/tmp/region-roots
 done
 
 HMAC_SECRET="__CONTROL_HMAC_SECRET__"
 STORAGE_SEED="$(openssl rand -hex 32)"
 python3 - /tmp/region-roots /etc/servernet-object-gateway/control.env <<'PY'
-import json,sys
+import json,os,sys
 rows={}
 for line in open(sys.argv[1]):
-    region,access,secret=line.strip().split('|')
+    region,access,secret,meta_bucket=line.strip().split('|')
     port={'fsn1':9211,'nbg1':9212,'hel1':9213}[region]
     rows[region]={'local_endpoint':f'http://127.0.0.1:{port}',
       'public_endpoint':f'https://{region}.s3.servernet.cloud',
-      'root_access':access,'root_secret':secret}
+      'root_access':access,'root_secret':secret,
+      'upstream_endpoint':f'https://{region}.your-objectstorage.com',
+      'upstream_access':os.environ['SN_BOOTSTRAP_S3_ACCESS'],
+      'upstream_secret':os.environ['SN_BOOTSTRAP_S3_SECRET'],
+      'meta_bucket':meta_bucket}
 open(sys.argv[2],'w').write('SN_OBJECT_API_BIND=127.0.0.1\nSN_OBJECT_API_PORT=9180\nSN_OBJECT_DB=/var/lib/servernet-object-gateway/tenants.sqlite3\nSN_OBJECT_HMAC_SECRET=__CONTROL_HMAC_SECRET__\nSN_OBJECT_CREDENTIAL_SEED=__STORAGE_SEED__\nSN_OBJECT_REGIONS_JSON='+json.dumps(rows,separators=(',',':'))+'\n')
 PY
 sed -i "s/__CONTROL_HMAC_SECRET__/${HMAC_SECRET}/;s/__STORAGE_SEED__/${STORAGE_SEED}/" /etc/servernet-object-gateway/control.env
-rm -f /tmp/region-roots
+rm -f /tmp/region-roots /tmp/meta-buckets
+unset SN_BOOTSTRAP_S3_ACCESS SN_BOOTSTRAP_S3_SECRET
 chown -R servernet-object:servernet-object /opt/servernet-object-gateway /var/lib/servernet-object-gateway
 chmod 0600 /etc/servernet-object-gateway/*.env
 
