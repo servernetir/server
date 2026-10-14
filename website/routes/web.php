@@ -904,6 +904,13 @@ Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebh
     ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+// Legacy WordPress/SEO-plugin sitemap entry points still receive crawler hits.
+// One permanent hop preserves discovery without filling the 404 tracker with
+// aliases for the same canonical sitemap.
+foreach (['/page-sitemap.xml', '/pages-sitemap.xml', '/post_tag-sitemap.xml',
+    '/product-sitemap.xml', '/sitemap-1.xml', '/sitemap_agentic_discovery.xml'] as $legacySitemap) {
+    Route::redirect($legacySitemap, '/sitemap.xml', 301);
+}
 
 /*
 | /healthz — «تفکیک‌کنندهٔ قطعی»ِ ممیزی ۷ (CTO): یک پاسخِ ثابت، بدونِ دیتابیس،

@@ -19,6 +19,12 @@ class GpuCapacityOrdersTest extends TestCase
     private string $state = 'deploying';
     private bool $failStock = false;
 
+    public function test_wait_state_fits_the_shared_provision_status_contract(): void
+    {
+        $this->assertSame('gpu_wait', GpuCapacityOrders::WAIT);
+        $this->assertLessThanOrEqual(16, strlen(GpuCapacityOrders::WAIT));
+    }
+
     protected function setUp(): void
     {
         parent::setUp();

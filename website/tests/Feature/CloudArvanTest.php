@@ -128,6 +128,79 @@ class CloudArvanTest extends TestCase
         $this->assertSame('/ecc/v1/regions', $r['meta']['endpoint']);
     }
 
+    public function test_regional_inventory_survives_a_broken_region_discovery_contract(): void
+    {
+        CloudPlan::create([
+            'provider' => 'arvan', 'provider_ref' => 'g2-test', 'provider_location' => 'ir-thr-c2',
+            'location_code' => 'ir-tehran', 'slug' => 'arvan-fallback-test', 'public_name' => 'CV-2-4',
+            'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 20, 'cost_eur_cents' => 100,
+            'price_eur_cents' => 150, 'price_irt' => 1_350_000, 'is_active' => true, 'in_stock' => true,
+        ]);
+
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?? '';
+            if ($path === '/ecc/v1/regions') {
+                return Http::response(['message' => 'unknown'], 500);
+            }
+            if (in_array($path, ['/ecc/v1/details', '/ecc/v1/regions/details'], true)) {
+                return Http::response(['message' => 'not found'], 404);
+            }
+            if (str_ends_with($path, '/sizes')) {
+                return Http::response(['data' => [['id' => 'g2-test']]], 200);
+            }
+            if (str_ends_with($path, '/servers')) {
+                return Http::response(['data' => [[
+                    'id' => 'srv-fallback', 'name' => 'kept-visible', 'status' => 'active',
+                    'addresses' => ['203.0.113.20'],
+                ]]], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $health = app(ArvanClient::class)->testConnection();
+        $inventory = app(ArvanClient::class)->listServers();
+
+        $this->assertTrue($health['ok'], $health['message']);
+        $this->assertTrue($health['meta']['catalog_degraded']);
+        $this->assertSame('regional-fallback', $health['meta']['endpoint']);
+        $this->assertTrue($inventory['ok'], $inventory['message']);
+        $this->assertSame('ir-thr-c2:srv-fallback', $inventory['servers'][0]['ref']);
+    }
+
+    public function test_one_failed_arvan_region_makes_inventory_atomic_failure(): void
+    {
+        foreach (['ir-thr-c2', 'ir-shz-b1'] as $index => $region) {
+            CloudPlan::create([
+                'provider' => 'arvan', 'provider_ref' => 'g2-test-'.$index,
+                'provider_location' => $region, 'location_code' => 'ir-fallback-'.$index,
+                'slug' => 'arvan-atomic-'.$index, 'public_name' => 'CV-'.$index,
+                'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20, 'cost_eur_cents' => 100,
+                'price_eur_cents' => 150, 'price_irt' => 1_350_000, 'is_active' => true, 'in_stock' => true,
+            ]);
+        }
+
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?? '';
+            if (in_array($path, ['/ecc/v1/regions', '/ecc/v1/details', '/ecc/v1/regions/details'], true)) {
+                return Http::response(['message' => 'discovery unavailable'], 500);
+            }
+            if (str_contains($path, '/ir-shz-b1/servers')) {
+                return Http::response(['message' => 'regional failure'], 503);
+            }
+            if (str_ends_with($path, '/servers')) {
+                return Http::response(['data' => []], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $inventory = app(ArvanClient::class)->listServers();
+
+        $this->assertFalse($inventory['ok']);
+        $this->assertStringContainsString('ir-shz-b1', $inventory['message']);
+    }
+
     public function test_catalog_maps_toman_price_to_euro_cents(): void
     {
         $this->fakeArvan();

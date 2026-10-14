@@ -100,6 +100,22 @@ class TrackNotFoundTest extends TestCase
         $this->assertSame([], $this->urls());
     }
 
+    public function test_ssrf_and_foreign_cms_fingerprints_are_filtered(): void
+    {
+        foreach ([
+            '/api/fetch?url=http%3A%2F%2F169.254.169.254%2Flatest%2Fmeta-data',
+            '/rest/api/1.0/application-properties',
+            '/admin/controller/extension/extension',
+            '/magento/index.php/admin',
+            '/sites/default/files',
+            '/.well-known',
+        ] as $path) {
+            $this->get($path)->assertNotFound();
+        }
+
+        $this->assertSame([], $this->urls());
+    }
+
     /**
      * 🔴 مهم‌ترین ادعا: ۴۰۴ِ **واقعی** باید ثبت شود.
      *
