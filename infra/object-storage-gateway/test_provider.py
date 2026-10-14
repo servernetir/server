@@ -43,6 +43,15 @@ class ProviderBucketTest(unittest.TestCase):
         signed.assert_called_once_with(
             "fsn1", "PATCH", "/delete-user?access=SNACCESS", ok=(200, 204))
 
+    @patch("provider.delete_user")
+    @patch("provider.update_user")
+    def test_disable_rotates_to_discarded_secret_before_delete(self, update, delete):
+        provider.disable_user("fsn1", "SNACCESS")
+        update.assert_called_once()
+        self.assertEqual(("fsn1", "SNACCESS"), update.call_args.args[:2])
+        self.assertEqual(64, len(update.call_args.args[2]))
+        delete.assert_called_once_with("fsn1", "SNACCESS")
+
 
 if __name__ == "__main__":
     unittest.main()

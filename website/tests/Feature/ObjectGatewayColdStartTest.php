@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Services\Cloud\HetznerClient;
 use App\Services\Provisioning\ObjectGatewayBootstrapper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class ObjectGatewayColdStartTest extends TestCase
@@ -47,7 +48,6 @@ class ObjectGatewayColdStartTest extends TestCase
         $this->assertStringContainsString('AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED', $script);
         $this->assertStringContainsString('proxy_set_header Host $http_host', $script);
         $this->assertStringContainsString('VGW_S3_META_BUCKET=', $script);
-        $this->assertStringNotContainsString('VGW_S3_META_BUCKET=', $script);
         $this->assertStringNotContainsString('__SOURCE_ARCHIVE_B64__', $script);
     }
 
@@ -64,5 +64,22 @@ class ObjectGatewayColdStartTest extends TestCase
         $this->artisan('hetzner:object-gateway-lifecycle')->assertSuccessful();
 
         $this->assertSame('new-server', Server::first()->meta['provider_ref']);
+    }
+
+    public function test_lifecycle_keeps_an_old_gateway_until_retained_tenants_are_purged(): void
+    {
+        Server::create([
+            'name' => 'Object Gateway', 'type' => 'hetzner_object_gateway', 'status' => 'active',
+            'hostname' => 'https://object-api.example.test', 'api_token' => str_repeat('x', 64),
+            'verify_tls' => false,
+            'meta' => ['provider_ref' => 'old-server', 'ipv4' => '192.0.2.10', 'started_at' => now()->subDays(40)->toIso8601String()],
+        ]);
+        Http::fake(['*' => Http::response(['tenant_count' => 1, 'tenants' => ['retired' => 1]], 200)]);
+        $client = $this->mock(HetznerClient::class);
+        $client->shouldNotReceive('deleteServer');
+
+        $this->artisan('hetzner:object-gateway-lifecycle')->assertSuccessful();
+
+        $this->assertSame('old-server', Server::first()->meta['provider_ref']);
     }
 }

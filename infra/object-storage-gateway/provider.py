@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import secrets
 import urllib.parse
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
@@ -62,6 +63,18 @@ def delete_user(region, access):
     except RuntimeError as exc:
         if "XAdminUserNotFound" not in str(exc):
             raise
+
+
+def disable_user(region, access):
+    # VersityGW 1.8 can acknowledge delete-user while a cached credential remains
+    # usable. Rotate to an unrecoverable secret first so suspension is immediate.
+    try:
+        update_user(region, access, secrets.token_hex(32))
+    except RuntimeError as exc:
+        if "XAdminUserNotFound" not in str(exc):
+            raise
+        return
+    delete_user(region, access)
 
 
 def create_or_assign_bucket(region, bucket, access):

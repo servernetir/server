@@ -6,6 +6,7 @@ use App\Models\Server;
 use App\Models\Service;
 use App\Services\Cloud\HetznerClient;
 use App\Services\Dns\CloudflareDns;
+use App\Services\Provisioning\ObjectGatewayClient;
 use Illuminate\Console\Command;
 
 class ObjectGatewayLifecycle extends Command
@@ -35,6 +36,11 @@ class ObjectGatewayLifecycle extends Command
             $last = $services->max(fn (Service $service) => $service->cancelled_at?->timestamp ?? $service->updated_at?->timestamp ?? time());
             $days = max(1, (int) config('provisioning.object_gateway.termination_retention_days', 30));
             if ($services->isNotEmpty() && $last > now()->subDays($days)->timestamp) {
+                continue;
+            }
+            $gateway = (new ObjectGatewayClient($server))->gatewayStatus();
+            if (! is_array($gateway) || (int) ($gateway['tenant_count'] ?? -1) !== 0) {
+                $this->warn('Gateway '.$server->id.' still has retained tenants or its state is unavailable.');
                 continue;
             }
             $deleted = app(HetznerClient::class)->deleteServer((string) $meta['provider_ref']);

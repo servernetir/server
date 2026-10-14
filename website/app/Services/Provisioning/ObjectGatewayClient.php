@@ -96,6 +96,13 @@ class ObjectGatewayClient
         return ['ok' => true, 'message' => 'Object Storage Gateway آماده است.'];
     }
 
+    public function gatewayStatus(): ?array
+    {
+        $result = $this->call('GET', '/v1/status');
+
+        return $result['ok'] && is_array($result['data']) ? $result['data'] : null;
+    }
+
     private function baseUrl(): string
     {
         $host = trim((string) $this->server->hostname);
