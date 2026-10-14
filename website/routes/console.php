@@ -225,6 +225,7 @@ Schedule::command('cloud:recover-gpu-delivery')
     ->everyMinute()
     ->withoutOverlapping(15);
 
+// Advance unpaid GPU capacity intents independently of delivery recovery.
 Schedule::command('cloud:advance-gpu-capacity')
     ->everyMinute()
     ->withoutOverlapping(15);
