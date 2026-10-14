@@ -4,15 +4,19 @@
 @section('content')
 @php
   $loc = app()->getLocale();
+  $atlasLead = __('ui.hero_lead');
+  $atlasLeadBreak = match($loc) { 'en'=>' for enterprises', 'tr'=>' özel sunucu', default=>' برای سازمان‌ها' };
+  $atlasLeadParts = explode($atlasLeadBreak, $atlasLead, 2);
   $rotators = array_values(array_filter([__('ui.hero_rot1'), __('ui.hero_rot2'), __('ui.hero_rot3'), __('ui.hero_rot4'), __('ui.hero_rot5')]));
 @endphp
 <div class="sn-atlas sn-home">
 <section class="hero sn-hero">
   <div class="container">
-    <div class="sn-hero-heading"><span class="sn-eyebrow"><span></span>{{ __('atlas.eyebrow') }}</span><h1>{{ __('ui.hero_h1a') }} <span class="grad">{{ __('ui.hero_h1b') }}</span></h1></div>
+    <div class="sn-display-top sn-hero-topline" aria-hidden="true"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>
     <div class="sn-hero-grid">
     <div class="sn-hero-copy">
-      <p class="lead">{{ __('ui.hero_lead') }}</p>
+    <div class="sn-hero-heading"><span class="sn-eyebrow"><span></span>{{ __('atlas.eyebrow') }}</span><h1>{{ __('ui.hero_h1a') }} <span class="grad">{{ __('ui.hero_h1b') }}</span></h1></div>
+      <p class="lead">@if(count($atlasLeadParts) === 2)<span class="sn-lead-line">{{ $atlasLeadParts[0] }}</span><span class="sn-lead-line">{{ $atlasLeadBreak.$atlasLeadParts[1] }}</span>@else{{ $atlasLead }}@endif</p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir"><use href="#i-arrow"/></svg></a>
         <a class="btn btn-glass" href="#enterprise">{{ __('ui.hero_cta2') }}</a>
