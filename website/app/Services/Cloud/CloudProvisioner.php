@@ -46,6 +46,23 @@ use Illuminate\Support\Facades\Mail;
  */
 class CloudProvisioner
 {
+    /**
+     * An accepted provider mutation may be asynchronous, but it may not stop
+     * billing/error escalation forever.  With the 15-minute reconciliation
+     * cadence this allows two observations before the operation is failed.
+     */
+    private const LIFECYCLE_PENDING_DEADLINES = [
+        // LightNode exposes a durable async receipt.  Other providers have
+        // different lifecycle contracts and must not inherit this deadline.
+        'lightnode' => 30,
+    ];
+
+    /** Provider-accepted deletion may be asynchronous, but not indefinitely. */
+    private const RELEASE_PENDING_DEADLINES = [
+        // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
+        'arvan' => 15,
+    ];
+
     public function __construct(
         private CloudManager $manager,
         private CloudAddons $addons,
@@ -2183,7 +2200,19 @@ class CloudProvisioner
         $instance = CloudInstance::where('service_id', $service->id)->first();
 
         return $instance !== null
-            && data_get($instance->meta, 'lifecycle_pending.expect') === $expectStatus;
+            && data_get($instance->meta, 'lifecycle_pending.expect') === $expectStatus
+            && blank(data_get($instance->meta, 'lifecycle_pending.timed_out_at'));
+    }
+
+    /** The provider accepted deletion and exact-resource absence is still pending. */
+    public function releasePending(Service $service): bool
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        return $instance !== null
+            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])
+            && filled(data_get($instance->meta, 'release_pending.accepted_at'))
+            && blank(data_get($instance->meta, 'release_pending.timed_out_at'));
     }
 
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
@@ -2293,12 +2322,58 @@ class CloudProvisioner
         $r = $driver->deleteServer((string) $instance->provider_ref);
 
         if ($r['ok'] ?? false) {
-            $instance->update(['status' => 'deleted', 'last_error' => null]);
+            $attributes = $this->clearReleasePending($instance, [
+                'status' => 'deleted', 'last_error' => null,
+            ]);
+
+            // The Arvan driver only returns ok after GET of this exact resource
+            // is 404.  Persist that proof so fallback inventory can distinguish
+            // verified deletion from legacy rows that may only be SOFT_DELETED.
+            if ($instance->provider === 'arvan') {
+                $attributes['meta']['provider_absence_verified_at'] = now()->toIso8601String();
+            }
+
+            $instance->update($attributes);
 
             return true;
         }
 
-        $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
+        if (($r['pending'] ?? false) === true
+            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])) {
+            $pending = data_get($instance->meta, 'release_pending');
+            $acceptedAt = is_array($pending)
+                ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
+                : null;
+            $deadlineMinutes = self::RELEASE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
+
+            if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
+                $message = 'حذف اجباری پذیرفته شد، اما نبودن منبع تا پایان مهلت '
+                    .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
+                $meta = (array) $instance->meta;
+                $meta['release_pending'] = [
+                    'accepted_at' => $acceptedAt->toIso8601String(),
+                    'timed_out_at' => $pending['timed_out_at'] ?? now()->toIso8601String(),
+                ];
+                $instance->update(['last_error' => $message, 'meta' => $meta]);
+
+                return false;
+            }
+
+            $meta = (array) $instance->meta;
+            $meta['release_pending'] = [
+                // Preserve first acceptance; otherwise an hourly retry could
+                // reset the clock forever and suppress a real billing leak.
+                'accepted_at' => ($acceptedAt ?? now())->toIso8601String(),
+            ];
+            $instance->update(['last_error' => null, 'meta' => $meta]);
+
+            return false;
+        }
+
+        $failure = $this->clearReleasePending($instance, [
+            'last_error' => mb_substr((string) $r['message'], 0, 500),
+        ]);
+        $instance->update($failure);
 
         /*
         | 🔴 حذفِ ناموفق **گران‌ترین سکوتِ این حوزه** است.
@@ -2512,6 +2587,25 @@ class CloudProvisioner
             return true;
         }
 
+        $pending = data_get($instance->meta, 'lifecycle_pending');
+        $acceptedAt = is_array($pending) && ($pending['expect'] ?? null) === $expectStatus
+            ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
+            : null;
+        $deadlineMinutes = self::LIFECYCLE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
+        if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
+            $message = 'فرمان پذیرفته شد، اما وضعیت نهایی تا پایان مهلت '
+                .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
+            $meta = (array) $instance->meta;
+            $meta['lifecycle_pending'] = [
+                'expect' => $expectStatus,
+                'accepted_at' => $acceptedAt->toIso8601String(),
+                'timed_out_at' => $pending['timed_out_at'] ?? now()->toIso8601String(),
+            ];
+            $instance->update(['last_error' => $message, 'meta' => $meta]);
+
+            return false;
+        }
+
         $r = $fn($driver, (string) $instance->provider_ref);
 
         if ($r['ok'] ?? false) {
@@ -2544,9 +2638,15 @@ class CloudProvisioner
             // fresh row so the lifecycle marker never erases that state.
             $instance->refresh();
             $meta = (array) $instance->meta;
+            $previousPending = (array) ($meta['lifecycle_pending'] ?? []);
+            $previousAcceptedAt = ($previousPending['expect'] ?? null) === $expectStatus
+                ? $this->parseLifecycleAcceptedAt($previousPending['accepted_at'] ?? null)
+                : null;
             $meta['lifecycle_pending'] = [
                 'expect' => $expectStatus,
-                'accepted_at' => now()->toIso8601String(),
+                // Preserve the first acceptance time across receipt polls;
+                // otherwise a permanently pending task can never age out.
+                'accepted_at' => ($previousAcceptedAt ?? now())->toIso8601String(),
             ];
             $waiting = [
                 'last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.',
@@ -2576,11 +2676,33 @@ class CloudProvisioner
         return false;
     }
 
+    private function parseLifecycleAcceptedAt(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function clearLifecyclePending(CloudInstance $instance, array $attributes): array
     {
         $instance->refresh();
         $meta = (array) $instance->meta;
         unset($meta['lifecycle_pending']);
+
+        return ['meta' => $meta] + $attributes;
+    }
+
+    private function clearReleasePending(CloudInstance $instance, array $attributes): array
+    {
+        $instance->refresh();
+        $meta = (array) $instance->meta;
+        unset($meta['release_pending']);
 
         return ['meta' => $meta] + $attributes;
     }

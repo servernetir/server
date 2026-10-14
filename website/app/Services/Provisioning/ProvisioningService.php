@@ -407,7 +407,21 @@ class ProvisioningService
         // خاتمهٔ سرورِ ابری = حذفِ واقعی نزدِ زیرساخت. اگر نکنیم، اجارهٔ سروری را
         // می‌دهیم که هیچ‌کس پولش را نمی‌دهد.
         if (CloudProvisioner::handles($service)) {
-            if (! app(CloudProvisioner::class)->terminate($service, $reportFailure)) {
+            $cloud = app(CloudProvisioner::class);
+
+            if (! $cloud->terminate($service, $reportFailure)) {
+                // Arvan accepted force deletion, but its exact resource still
+                // exists (normally SOFT_DELETED).  Keep the retry queue open
+                // without calling it a provider failure or alerting twice; a
+                // bounded provider-specific deadline promotes a real stall to
+                // the ordinary failure path.
+                if ($cloud->releasePending($service)) {
+                    return ProvisionResult::fail(
+                        'حذف در زیرساخت پذیرفته شد؛ تأیید نهایی هنوز در انتظار است.',
+                        ['pending' => true]
+                    );
+                }
+
                 $reason = CloudInstance::where('service_id', $service->id)->value('last_error');
 
                 return ProvisionResult::fail($reason ?: 'حذفِ سرور ناموفق بود؛ دوباره تلاش کنید.');
@@ -535,6 +549,15 @@ class ProvisioningService
         } catch (\Throwable $e) {
             ErrorTracker::note('provision', $e, ['area' => 'release', 'service' => $service->id]);
             $r = ProvisionResult::fail(mb_substr($e->getMessage(), 0, 200));
+        }
+
+        if (($r->meta['pending'] ?? false) === true) {
+            // The billing status is already dead, so the customer is safe.
+            // Keep only the provider reconciliation queue open; do not count
+            // or alert an accepted asynchronous transition as a failure.
+            $service->forceFill(['provision_status' => Service::PROVISION_RELEASING])->save();
+
+            return $r;
         }
 
         if ($r->ok || $r->manual) {

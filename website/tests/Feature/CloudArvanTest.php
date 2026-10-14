@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\CloudPlan;
+use App\Models\CloudInstance;
+use App\Models\Customer;
+use App\Models\Service;
 use App\Models\Setting;
 use App\Services\Cloud\ArvanClient;
 use App\Services\Cloud\CloudCatalogSync;
@@ -206,6 +209,79 @@ class CloudArvanTest extends TestCase
 
         $this->assertFalse($inventory['ok']);
         $this->assertStringContainsString('ir-shz-b1', $inventory['message']);
+    }
+
+    public function test_fallback_scans_retired_plan_regions_but_ignores_provider_verified_deleted_instance_regions(): void
+    {
+        foreach ([['ir-active', true], ['ir-retired', false]] as [$region, $active]) {
+            CloudPlan::create([
+                'provider' => 'arvan', 'provider_ref' => 'g2-'.$region,
+                'provider_location' => $region, 'location_code' => 'loc-'.$region,
+                'slug' => 'arvan-'.$region, 'public_name' => 'CV-'.$region,
+                'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20, 'cost_eur_cents' => 100,
+                'price_eur_cents' => 150, 'price_irt' => 1_350_000,
+                'is_active' => $active, 'in_stock' => true,
+            ]);
+        }
+        $customer = Customer::create(['name' => 'Deleted Arvan', 'email' => 'deleted-arvan@example.test',
+            'password' => 'fixture-only', 'status' => 'active']);
+        $service = Service::create(['customer_id' => $customer->id, 'name' => 'Deleted Arvan',
+            'price' => 100000, 'cycle' => 'monthly', 'status' => 'cancelled']);
+        CloudInstance::create(['service_id' => $service->id, 'provider' => 'arvan',
+            'provider_ref' => 'ir-deleted:srv-old', 'status' => 'deleted',
+            'meta' => ['provider_absence_verified_at' => now()->toIso8601String()]]);
+
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?? '';
+            if (in_array($path, ['/ecc/v1/regions', '/ecc/v1/details', '/ecc/v1/regions/details'], true)) {
+                return Http::response(['message' => 'discovery unavailable'], 500);
+            }
+            if (str_contains($path, '/ir-active/servers')) {
+                return Http::response(['data' => []], 200);
+            }
+            if (str_contains($path, '/ir-retired/servers')) {
+                return Http::response(['data' => [[
+                    'id' => 'srv-retired-orphan', 'name' => 'retired-region-orphan', 'status' => 'active',
+                ]]], 200);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $inventory = app(ArvanClient::class)->listServers();
+
+        $this->assertTrue($inventory['ok'], $inventory['message']);
+        $this->assertSame(['ir-retired:srv-retired-orphan'], collect($inventory['servers'])->pluck('ref')->all());
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/ir-retired/servers'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/ir-deleted/servers'));
+    }
+
+    public function test_fallback_keeps_legacy_deleted_instance_region_until_provider_absence_is_verified(): void
+    {
+        $customer = Customer::create(['name' => 'Legacy deleted Arvan',
+            'email' => 'legacy-deleted-arvan@example.test', 'password' => 'fixture-only', 'status' => 'active']);
+        $service = Service::create(['customer_id' => $customer->id, 'name' => 'Legacy deleted Arvan',
+            'price' => 100000, 'cycle' => 'monthly', 'status' => 'cancelled']);
+        CloudInstance::create(['service_id' => $service->id, 'provider' => 'arvan',
+            'provider_ref' => 'ir-legacy:srv-soft-deleted', 'status' => 'deleted']);
+
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?? '';
+            if (in_array($path, ['/ecc/v1/regions', '/ecc/v1/details', '/ecc/v1/regions/details'], true)) {
+                return Http::response(['message' => 'discovery unavailable'], 500);
+            }
+            if (str_contains($path, '/ir-legacy/servers')) {
+                return Http::response(['message' => 'legacy region unavailable'], 503);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $inventory = app(ArvanClient::class)->listServers();
+
+        $this->assertFalse($inventory['ok']);
+        $this->assertStringContainsString('ir-legacy', $inventory['message']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), '/ir-legacy/servers'));
     }
 
     public function test_catalog_maps_toman_price_to_euro_cents(): void
@@ -634,12 +710,194 @@ class CloudArvanTest extends TestCase
         $this->assertStringContainsString('/regions/ir-thr-c2/servers/srv-9/power-off', $hit);
     }
 
-    public function test_delete_treats_404_as_success(): void
+    public function test_delete_treats_exact_404_as_success_only_when_same_region_inventory_is_readable_and_absent(): void
     {
         Setting::putSecret('arvan_api_token', 'Apikey k');
-        Http::fake(fn () => Http::response(['message' => 'not found'], 404));
+        Http::fakeSequence()
+            ->push(['message' => 'not found'], 404)
+            ->push(['message' => 'not found'], 404)
+            ->push(['data' => []], 200);
 
         $this->assertTrue(app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9')['ok']);
+        Http::assertSentCount(3);
+        Http::assertSent(fn ($request) => $request->method() === 'DELETE'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers/srv-9?forceDelete=true'));
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers/srv-9'));
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers'));
+    }
+
+    public function test_delete_force_deletes_and_waits_for_exact_resource_to_disappear(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'not found'], 404)
+            ->push(['data' => [['id' => 'another-server']]], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertTrue($r['ok']);
+        Http::assertSentCount(3);
+        Http::assertSent(fn ($request) => $request->method() === 'DELETE'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers/srv-9?forceDelete=true'));
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers/srv-9'));
+    }
+
+    public function test_delete_fails_closed_when_detail_is_404_but_same_region_inventory_is_unreadable(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push(['message' => 'region unavailable'], 503);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('فهرست همان منطقه', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_detail_is_404_but_same_id_is_still_listed(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push(['data' => [['id' => 'srv-9']]], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('هنوز در فهرست همان منطقه', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_region_inventory_is_an_associative_object(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push(['data' => ['message' => 'not a server list']], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_region_inventory_returns_204_without_a_list(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push('', 204);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_region_inventory_returns_200_with_empty_body(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push('', 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_region_inventory_data_is_an_empty_object(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push('{"data":{}}', 200, ['Content-Type' => 'application/json']);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_a_region_inventory_row_has_no_id(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push(['data' => [['name' => 'malformed-row']]], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_a_region_inventory_id_is_not_a_string(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push(['data' => [['id' => ['nested-invalid-id']]]], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
+    public function test_delete_does_not_close_release_while_arvan_reports_soft_deleted(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['data' => ['id' => 'srv-9', 'status' => 'SOFT_DELETED']], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertTrue($r['pending']);
+        $this->assertStringContainsString('هنوز نهایی نشده', $r['message']);
+    }
+
+    public function test_delete_404_keeps_soft_deleted_exact_resource_pending_instead_of_closing_release(): void
+    {
+        Http::fakeSequence()
+            ->push(['message' => 'delete target not found'], 404)
+            ->push(['data' => ['id' => 'srv-9', 'status' => 'SOFT_DELETED']], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertTrue($r['pending']);
+        $this->assertStringContainsString('هنوز نهایی نشده', $r['message']);
+        Http::assertSentCount(2);
+    }
+
+    public function test_delete_404_fails_closed_when_exact_resource_is_still_running(): void
+    {
+        Http::fakeSequence()
+            ->push(['message' => 'delete target not found'], 404)
+            ->push(['data' => ['id' => 'srv-9', 'status' => 'ACTIVE']], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertFalse($r['pending'] ?? false);
+        $this->assertStringContainsString('هنوز در جزئیات', $r['message']);
+    }
+
+    public function test_delete_does_not_poll_when_force_delete_is_rejected(): void
+    {
+        Http::fake(fn () => Http::response(['message' => 'forbidden'], 403));
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertSame('forbidden', $r['message']);
+        Http::assertSentCount(1);
     }
 
     // ═══════════════ ادغام با سیستمِ کاتالوگ ═══════════════
