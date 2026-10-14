@@ -95,10 +95,29 @@ class BusinessReport
             ->get()
             ->filter(fn (Service $s) => ! $this->hasOpenInvoice($s));
 
+        $unpriced = 0;
+        $rows = $rows->filter(function (Service $service) use (&$unpriced) {
+            if ($service->isHourly()
+                || app(\App\Services\Billing\ComplimentaryServices::class)->applies($service)) {
+                return false;
+            }
+            try {
+                $quote = app(\App\Services\Billing\CloudRenewalPrice::class)->quote($service);
+            } catch (\DomainException) {
+                $unpriced++;
+                return false;
+            }
+            $priced = clone $service;
+            $priced->price = $quote;
+            $service->setAttribute('forecast_total', $quote + $priced->taxAmount());
+            return true;
+        });
+
         return [
-            'count'  => $rows->count(),
-            'amount' => (int) $rows->sum(fn (Service $s) => (int) $s->price + $s->taxAmount()),
-            'rows'   => $rows->take(12)->values(),
+            'count' => $rows->count(),
+            'amount' => (int) $rows->sum('forecast_total'),
+            'unpriced' => $unpriced,
+            'rows' => $rows->take(12)->values(),
         ];
     }
 

@@ -1,5 +1,11 @@
 <?php
 
+// Dedicated HMAC endpoint; no customer session grants broker access.
+\Illuminate\Support\Facades\Route::post('/system/arvan-console-broker',
+    [\App\Services\Cloud\ArvanConsoleBroker::class, 'handle'])
+    ->middleware('throttle:60,1')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class]);
+
 use App\Http\Controllers\Account;
 use App\Http\Controllers\AiBuilderController;
 use App\Http\Controllers\Auth;

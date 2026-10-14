@@ -62,6 +62,23 @@ class SecurityHeaders
                 $frameSrc .= ' https://www.googletagmanager.com';
             }
 
+            // Chromium checks form-action across POST redirects. Permit only
+            // the official console host on an owned Arvan service detail page;
+            // never widen every account page, payment page or console origin.
+            $formAction = "form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com";
+            $consoleService = $request->route('service');
+            if (preg_match('~^(?:(?:en|tr)/)?account/cloud/[0-9]+$~', $request->path())
+                && $consoleService instanceof \App\Models\Service
+                && (int) $consoleService->customer_id === (int) \Illuminate\Support\Facades\Auth::guard('customer')->id()
+                && \Illuminate\Support\Facades\Auth::guard('customer')->check()
+                && $consoleService->cloudInstance?->provider === 'arvan') {
+                $formAction .= ' https://console.arvaniaas.ir';
+                $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
+                if ($broker->enabled() && $broker->eligible($consoleService)) {
+                    $formAction .= ' https://vnc.servernet.cloud';
+                }
+            }
+
             $csp = implode('; ', [
                 "default-src 'self'",
                 $scriptSrc,
@@ -92,7 +109,7 @@ class SecurityHeaders
                 // بلاک می‌شد و «هیچ اتفاقی نمی‌افتاد».
                 // + console (ممیزی ۶ — امنیت): فرمی که از سایت به پنل تحویل می‌دهد
                 //   (خلاصهٔ سفارش → پرداخت) بدونِ این بی‌صدا بلاک می‌شود.
-                "form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com",
+                $formAction,
                 'upgrade-insecure-requests',
             ]);
             /*
