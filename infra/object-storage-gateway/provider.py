@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import secrets
 import urllib.parse
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
@@ -19,7 +20,8 @@ def regions():
     if set(data) != required:
         raise RuntimeError("all three object regions must be configured")
     for value in data.values():
-        for key in ("local_endpoint", "public_endpoint", "root_access", "root_secret"):
+        for key in ("local_endpoint", "public_endpoint", "root_access", "root_secret",
+                    "upstream_endpoint", "upstream_access", "upstream_secret", "meta_bucket"):
             if not value.get(key):
                 raise RuntimeError("incomplete region configuration")
     return data
@@ -57,21 +59,56 @@ def update_user(region, access, secret):
 
 def delete_user(region, access):
     try:
-        _signed(region, "PATCH", "/delete-user?access=" + urllib.parse.quote(access), ok=(204,))
+        _signed(region, "PATCH", "/delete-user?access=" + urllib.parse.quote(access), ok=(200, 204))
     except RuntimeError as exc:
         if "XAdminUserNotFound" not in str(exc):
             raise
 
 
-def create_or_assign_bucket(region, bucket, access):
-    path = "/" + urllib.parse.quote(bucket) + "/create"
+def disable_user(region, access):
+    # VersityGW 1.8 can acknowledge delete-user while a cached credential remains
+    # usable. Rotate to an unrecoverable secret first so suspension is immediate.
     try:
-        _signed(region, "PATCH", path, headers={"x-vgw-owner": access})
+        update_user(region, access, secrets.token_hex(32))
     except RuntimeError as exc:
-        if "BucketAlready" not in str(exc):
+        if "XAdminUserNotFound" not in str(exc):
             raise
-        if bucket_owner(region, bucket) != access:
+        return
+    delete_user(region, access)
+
+
+def create_or_assign_bucket(region, bucket, access):
+    created = False
+    try:
+        upstream_client(region).create_bucket(
+            Bucket=bucket,
+            CreateBucketConfiguration={"LocationConstraint": region},
+        )
+        created = True
+    except Exception as exc:
+        code = getattr(exc, "response", {}).get("Error", {}).get("Code", "")
+        if code not in {"BucketAlreadyExists", "BucketAlreadyOwnedByYou"}:
+            raise
+        try:
+            owner = bucket_owner(region, bucket)
+        except RuntimeError:
+            owner = None
+        if owner not in {None, access}:
             raise RuntimeError("existing bucket has a different owner")
+        if owner == access:
+            return
+
+    path = "/change-bucket-owner?bucket=%s&owner=%s" % (
+        urllib.parse.quote(bucket), urllib.parse.quote(access))
+    try:
+        _signed(region, "PATCH", path)
+    except Exception:
+        if created:
+            try:
+                upstream_client(region).delete_bucket(Bucket=bucket)
+            except Exception:
+                pass
+        raise
 
 
 def bucket_owner(region, bucket):
@@ -91,6 +128,13 @@ def root_client(region):
     return boto3.client("s3", endpoint_url=cfg["local_endpoint"],
         aws_access_key_id=cfg["root_access"], aws_secret_access_key=cfg["root_secret"],
         region_name="us-east-1", config=Config(signature_version="s3v4", s3={"addressing_style": "path"}))
+
+
+def upstream_client(region):
+    cfg = regions()[region]
+    return boto3.client("s3", endpoint_url=cfg["upstream_endpoint"],
+        aws_access_key_id=cfg["upstream_access"], aws_secret_access_key=cfg["upstream_secret"],
+        region_name=region, config=Config(signature_version="s3v4", s3={"addressing_style": "path"}))
 
 
 def used_bytes(region, bucket):

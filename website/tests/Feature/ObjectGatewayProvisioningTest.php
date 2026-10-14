@@ -27,6 +27,9 @@ class ObjectGatewayProvisioningTest extends TestCase
             'server_id' => $server->id, 'plan' => 'sn_object_1tb_fsn1',
         ]);
         Http::fake(function ($request) use ($service) {
+            if (str_ends_with($request->url(), '/v1/health')) {
+                return Http::response(['ready' => true], 200);
+            }
             if ($request->method() === 'GET') {
                 return Http::response(['error' => 'not_found'], 404);
             }
@@ -69,6 +72,7 @@ class ObjectGatewayProvisioningTest extends TestCase
             'quota_bytes' => 1024 ** 4, 'used_bytes' => 0, 'status' => 'active',
         ];
         Http::fakeSequence()
+            ->push(['ready' => true], 200)
             ->push(['tenant' => $tenant], 200)
             ->push(['tenant' => $tenant, 'credentials' => [
                 'access_key' => 'SNCLIENTACCESS', 'secret_access_key' => 'rotated-secret',

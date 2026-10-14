@@ -9,6 +9,7 @@ use App\Services\CatalogPricing;
 use App\Services\ObjectStorage\HetznerObjectCosts;
 use App\Services\ObjectStorage\HetznerObjectPriceFeed;
 use App\Services\Provisioning\ObjectGatewayClient;
+use App\Services\Provisioning\ObjectGatewayBootstrapper;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,9 @@ class HetznerObjectCatalog extends Command
             $gatewayReady = false;
             if ($sync && $server?->canAcceptNew()) {
                 $gatewayReady = (new ObjectGatewayClient($server))->testConnection()['ok'];
+            }
+            if ($sync && ! $gatewayReady && $server) {
+                $gatewayReady = app(ObjectGatewayBootstrapper::class)->coldStartReady($server);
             }
             $book = $feed->fetch() + ['quoted_at' => now()->utc()->toIso8601String(), 'server_id' => $server?->id];
             $rows = [];

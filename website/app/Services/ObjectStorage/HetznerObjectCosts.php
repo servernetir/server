@@ -4,6 +4,7 @@ namespace App\Services\ObjectStorage;
 
 use App\Models\Product;
 use App\Models\Setting;
+use App\Services\Provisioning\ObjectGatewayBootstrapper;
 use App\Services\Cloud\CloudPricing;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
@@ -67,7 +68,7 @@ class HetznerObjectCosts
             return 'تعرفه معتبر و به‌روز فضای آبجکت در دسترس نیست؛ فروش موقتاً متوقف است.';
         }
         if (! $product->server || $product->server->type !== 'hetzner_object_gateway'
-            || ! $product->server->canAcceptNew()
+            || (! $product->server->canAcceptNew() && ! app(ObjectGatewayBootstrapper::class)->coldStartReady($product->server))
             || (int) $product->server_id !== (int) ($book['server_id'] ?? 0)) {
             return 'پروژه تحویل این فضای آبجکت آماده نیست.';
         }
