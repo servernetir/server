@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ServerPart;
 use App\Services\Shop\PartsCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 
 /**
@@ -64,9 +65,10 @@ class PartsShopController extends Controller
 
         // ⚠️ جستجو محدود به ۶۰ کاراکتر: رشتهٔ بلندتر جستجو نیست، تلاش برای
         //    خسته‌کردنِ LIKE است. بریدن بی‌صداست چون نتیجه‌اش عوض نمی‌شود.
-        $q = mb_substr(trim((string) $request->query('q', '')), 0, 60);
+        $q = is_string($request->query('q')) ? mb_substr(trim($request->query('q')), 0, 60) : '';
 
         $maxEur = $this->positiveInt($request->query('max'));
+        $kind = $this->pick($request->query('kind'), ['cooling', 'motherboard', 'caddy', 'rail', 'riser', 'battery', 'sfp', 'storage', 'licence', 'accessory', 'cable']);
 
         $parts = collect();
         $total = 0;
@@ -75,6 +77,9 @@ class PartsShopController extends Controller
             // ⚠️ `$b` نه `$q`: `$q` حالا رشتهٔ جستجوست و هم‌نامی‌شان یعنی
             //    یکی بی‌صدا دیگری را بازنویسی کند.
             $b = ServerPart::query()->active()->where('category', $category);
+            if ($kind !== null) {
+                $b->where('attrs->kind', $kind);
+            }
 
             if ($gen !== null) {
                 $b->forGeneration($gen);
@@ -133,7 +138,17 @@ class PartsShopController extends Controller
             };
 
             $total = $parts->count();
-            $parts = $parts->take(self::PER_PAGE);
+        }
+
+        $pageRaw = $request->query('page');
+        $page = is_scalar($pageRaw) ? max(1, (int) $pageRaw) : 1;
+        abort_if($page > max(1, (int) ceil($total / self::PER_PAGE)), 404);
+        $pagination = new LengthAwarePaginator($parts->forPage($page, self::PER_PAGE)->values(), $total, self::PER_PAGE, $page, ['path' => url()->current()]);
+        $pagination->appends(array_filter(['gen' => $gen, 'condition' => $cond, 'sort' => $sort === 'popular' ? null : $sort, 'q' => $q, 'max' => $maxEur, 'kind' => $kind], fn ($v) => $v !== null && $v !== ''));
+        $parts = $pagination->getCollection();
+        $altUrls = [];
+        foreach (\App\Providers\AppServiceProvider::LOCALES as $locale => $prefix) {
+            $altUrls[$locale] = route($prefix.'parts.category', $category).($page > 1 ? '?page='.$page : '');
         }
 
         return view('pages.parts-category', [
@@ -155,6 +170,9 @@ class PartsShopController extends Controller
             'facets'      => $facets,
             'active'      => ['gen' => $gen, 'condition' => $cond, 'sort' => $sort, 'q' => $q, 'max' => $maxEur],
             'priceSteps'  => $this->priceSteps($category),
+            'pagination'  => $pagination,
+            'kind'        => $kind,
+            'altUrls'     => $altUrls,
         ]);
     }
 
@@ -181,11 +199,12 @@ class PartsShopController extends Controller
             ->where('id', '!=', $part->id)
             ->orderBy('sort')
             ->limit(12)
-            ->get(ServerPart::CARD_COLUMNS)
+            ->get(array_unique([...ServerPart::CARD_COLUMNS, 'attrs']))
             ->sortByDesc(fn (ServerPart $p) => count(array_intersect(
                 (array) ($p->compat_gens ?? []),
                 (array) ($part->compat_gens ?? [])
-            )))
+            )) + 5 * (!empty($part->attrs['socket']) && ($p->attrs['socket'] ?? null) === $part->attrs['socket'])
+                + 3 * (!empty($part->attrs['memory_type']) && ($p->attrs['memory_type'] ?? null) === $part->attrs['memory_type']))
             ->take(4)
             ->values();
 

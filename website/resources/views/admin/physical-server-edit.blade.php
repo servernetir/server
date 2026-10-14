@@ -38,6 +38,7 @@
       </label>
       <label>وضعیت
         <select name="condition">
+          <option value="catalog" @selected(old('condition', $server->condition ?? 'new') === 'catalog')>کاتالوگ؛ وضعیت و کانفیگ با استعلام</option>
           <option value="new" @selected(old('condition', $server->condition ?? 'new') === 'new')>نو</option>
           <option value="refurb" @selected(old('condition', $server->condition ?? 'new') === 'refurb')>بازسازی‌شده</option>
         </select>

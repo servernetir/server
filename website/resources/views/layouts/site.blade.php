@@ -82,13 +82,15 @@
 <meta property="og:url" content="{{ $canonicalUrl }}">
 <meta property="og:site_name" content="{{ __('ui.brand') }}">
 <meta property="og:locale" content="{{ ['fa' => 'fa_IR', 'en' => 'en_US', 'tr' => 'tr_TR'][app()->getLocale()] ?? 'en_US' }}">
-<meta property="og:image" content="{{ asset('assets/img/og.png') }}">
+<meta property="og:image" content="@yield('image', asset('assets/img/og.png'))">
+@unless($__env->hasSection('image'))
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
+@endunless
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="@yield('title', __('ui.meta_title'))">
 <meta name="twitter:description" content="@yield('description', __('ui.meta_desc'))">
-<meta name="twitter:image" content="{{ asset('assets/img/og.png') }}">
+<meta name="twitter:image" content="@yield('image', asset('assets/img/og.png'))">
 <meta name="theme-color" content="#0A0E17">
 <link rel="icon" href="{{ asset('favicon.svg') }}" type="image/svg+xml">
 <link rel="apple-touch-icon" href="{{ asset('assets/img/og.png') }}">

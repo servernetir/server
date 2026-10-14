@@ -5,6 +5,7 @@
      آدرسِ تقریباً یکسان می‌سازد. ایندکس‌شدنشان یعنی بودجهٔ خزشِ سایت صرفِ
      جدول‌های تکراری شود به‌جای صفحاتِ محصول. --}}
 @section('noindex', true)
+@include('partials.hardware-assets')
 @section('content')
 
 @php
@@ -88,7 +89,7 @@
             <tr>
               <th>{{ __('ui.parts_filter_cond') }}</th>
               @foreach($parts as $p)
-                <td>{{ $condLbl[$p->condition] ?? $p->condition }}</td>
+                <td>{{ \App\Services\Shop\HardwarePresentation::condition($p->condition) }}</td>
               @endforeach
             </tr>
             <tr>
@@ -96,14 +97,14 @@
               @foreach($parts as $p)
                 <td>
                   @php($gens = (array) ($p->compat_gens ?? []))
-                  {{ $gens ? implode(' · ', array_map(fn ($g) => str_replace('gen', 'Gen', $g), $gens)) : __('ui.parts_compat_any') }}
+                  {{ \App\Services\Shop\HardwarePresentation::compatibility($p) }}
                 </td>
               @endforeach
             </tr>
             <tr>
               <th>{{ __('ui.parts_in_stock') }}</th>
               @foreach($parts as $p)
-                <td>{{ $p->in_stock ? __('ui.parts_yes') : __('ui.parts_no') }}</td>
+                <td>{{ \App\Services\Shop\HardwarePresentation::stock($p) }}</td>
               @endforeach
             </tr>
 

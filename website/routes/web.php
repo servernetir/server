@@ -913,6 +913,7 @@ Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebh
     ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+Route::get('/hardware-sitemap.xml', [ServerShopController::class, 'sitemap']);
 // Legacy WordPress/SEO-plugin sitemap entry points still receive crawler hits.
 // One permanent hop preserves discovery without filling the 404 tracker with
 // aliases for the same canonical sitemap.

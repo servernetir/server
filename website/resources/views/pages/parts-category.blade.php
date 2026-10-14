@@ -1,8 +1,11 @@
 @extends('layouts.site')
-@section('title', $meta[app()->getLocale()].' — '.__('ui.parts_title').' — '.__('ui.brand'))
+@section('title', $meta[app()->getLocale()].($pagination->currentPage() > 1 ? ' · '.\App\Services\Shop\HardwarePresentation::text('page').' '.fa_num($pagination->currentPage()) : '').' — '.__('ui.parts_title').' — '.__('ui.brand'))
 {{-- ⚠️ توضیحِ متا از محتوای **همین دسته** می‌آید. اگر جا افتاده باشد به متنِ
      عمومی برمی‌گردیم — که بد است ولی از توضیحِ خالی بهتر. --}}
 @section('description', lc($content['meta'] ?? []) ?: ($meta[app()->getLocale()].' — '.__('ui.parts_desc')))
+@section('canonical', url()->current().($pagination->currentPage() > 1 ? '?page='.$pagination->currentPage() : ''))
+@if($active['gen'] !== null || $active['condition'] !== null || $active['q'] !== '' || $active['sort'] !== 'popular' || $active['max'] !== null || $kind !== null) @section('noindex', true) @endif
+@include('partials.hardware-assets')
 @section('content')
 
 @php
@@ -27,13 +30,14 @@
     | «بازسازی‌شده» می‌زند، انتظار دارد هر دو اعمال شود نه اینکه دومی اولی را
     | پاک کند. ساختنِ دستیِ آدرس در هر دکمه، دقیقاً همان‌جا خراب می‌شد.
     */
-    $link = function (string $k, ?string $v) use ($base, $active) {
+    $link = function (string $k, ?string $v) use ($base, $active, $kind) {
         $q = array_filter([
             'gen'       => $active['gen'],
             'condition' => $active['condition'],
             'q'         => $active['q'] !== '' ? $active['q'] : null,
             'max'       => $active['max'],
             'sort'      => $active['sort'] === 'popular' ? null : $active['sort'],
+            'kind'      => $kind,
         ], fn ($v) => $v !== null && $v !== '');
         if ($v === null) { unset($q[$k]); } else { $q[$k] = $v; }
         if (($q['sort'] ?? null) === 'popular') { unset($q['sort']); }
@@ -41,7 +45,7 @@
         return $q ? $base.'?'.http_build_query($q) : $base;
     };
     $hasFilters = $active['gen'] !== null || $active['condition'] !== null
-        || $active['sort'] !== 'popular' || $active['q'] !== '' || $active['max'] !== null;
+        || $active['sort'] !== 'popular' || $active['q'] !== '' || $active['max'] !== null || $kind !== null;
 
     /*
     | دادهٔ ساختاریافتهٔ پرسش‌های متداول.
@@ -97,13 +101,22 @@
 
   <div class="sp-main">
 
+    @if(in_array($category, ['other', 'raid', 'nic', 'disk'], true))
+    <nav class="hw-related-links" aria-label="{{ \App\Services\Shop\HardwarePresentation::text('search') }}">
+      @foreach(config('hardware_shop.kinds', []) as $hardwareKind => $hardwareKindLabel)
+        @if(($hardwareKindLabel['category'] ?? null) === $category)
+        <a href="{{ $link('kind', $hardwareKind) }}" @if($kind === $hardwareKind) aria-current="page" @endif>{{ lc($hardwareKindLabel) }}</a>
+        @endif
+      @endforeach
+    </nav>
+    @endif
     <div class="sp-filters">
       {{-- 🔴 فرمِ GET و نه جستجوی زندهٔ جاوااسکریپتی: نتیجه یک آدرسِ واقعی
            می‌شود که کاربر می‌تواند بوکمارک کند یا بفرستد، و بی‌جاوااسکریپت هم
            کار می‌کند. فیلدهای مخفی بقیهٔ فیلترها را نگه می‌دارند، وگرنه جستجو
            انتخابِ نسل و وضعیت را بی‌صدا پاک می‌کرد. --}}
       <form method="get" action="{{ $base }}" class="sp-search" role="search">
-        @foreach(['gen' => $active['gen'], 'condition' => $active['condition'], 'max' => $active['max']] as $k => $v)
+        @foreach(['gen' => $active['gen'], 'condition' => $active['condition'], 'max' => $active['max'], 'kind' => $kind] as $k => $v)
           @if($v !== null)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
         @endforeach
         @if($active['sort'] !== 'popular')<input type="hidden" name="sort" value="{{ $active['sort'] }}">@endif
@@ -173,16 +186,13 @@
     @else
       <p class="sp-count">
         {{ __('ui.parts_count', ['count' => fa_num($total)]) }}
-        {{-- ⚠️ بریدنِ خاموش ممنوع: اگر سقف خورده، همین‌جا گفته می‌شود. --}}
-        @if($total > $parts->count())
-          <span class="sp-more">{{ __('ui.parts_more', ['count' => fa_num($total - $parts->count())]) }}</span>
-        @endif
       </p>
       <div class="sp-grid">
         @foreach($parts as $part)
           @include('partials.part-card', ['part' => $part])
         @endforeach
       </div>
+      @include('partials.hardware-pagination')
       <p class="sp-note">{{ __('ui.parts_eur_note') }}</p>
     @endif
 
