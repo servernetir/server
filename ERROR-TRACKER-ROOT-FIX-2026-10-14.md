@@ -50,11 +50,13 @@
 
 ## اعتبارسنجی
 
-- ۱۳۸ آزمون مرتبط و ۱۳۷۲ assertion پیش از انتشار موفق بود. پس از ادغام نهایی `develop`، مجموعهٔ انتخابی ۹۴ test method و ۱۲۳۷ assertion با exit0 گذشت؛ اجرای WSL روی درایو Windows هشدارهای محیطی `file_get_contents` را گزارش کرد و به‌عنوان اجرای پاکِ بدون هشدار ثبت نمی‌شود.
+- ۱۳۸ آزمون مرتبط و ۱۳۷۲ assertion پیش از انتشار موفق بود. پس از ادغام نهایی `develop`، مجموعهٔ انتخابی ۹۴ test method و ۱۲۳۷ assertion با exit0 گذشت؛ اجرای WSL روی درایو Windows هشدارهای محیطی `file_get_contents` را گزارش کرد و به‌عنوان اجرای پاکِ بدون هشدار ثبت نمی‌شود. اجرای نهایی همان source با PHP8.4 بومی، ۲۰۰ تست و ۲۱۴۵ assertion را در ۱۴۲ ثانیه با صفر failure/error/skip گذراند؛ شمارها بین suiteها همپوشانی دارند.
 - پوشش شامل GPU capacity، LightNode receipt/power، متر ساعتی، Arvan health/inventory، FleetScanner، release retry، sitemap/release-gate و فیلتر 404 است.
 - PHP8.4 lint همهٔ فایل‌های اجرایی منتشرشده موفق، cacheها پاک و `git diff --check` پاک است.
 - اجرای اول `site:gate` روی تولید فقط `RG-BUDGET /cloud 60 > 59` را یافت. پس از ثبت صفحهٔ عمدی Object Storage، اجرای کامل دوم در06:46:45UTC روی همان ۳۵۰۷ URL با exit0 و همهٔ بندها سبز پایان یافت.
-- `fleet:scan` نهایی در06:48:14UTC exit0 داد: ۶۲ دیده‌شده، ۳۲ متصل، ۲۷ بی‌صاحب، ۳ سرویس بسته و صفر ناپدید. سه ماشین آروان در UI ماندند و زمان آخرین اسکن تازه شد؛ شکست discovery منطقه‌ای دیگر snapshot را ناقص اعلام نکرد.
+- `fleet:scan` در06:48:14UTC exit0 داد: ۶۲ دیده‌شده، ۳۲ متصل، ۲۷ بی‌صاحب، ۳ سرویس بسته و صفر ناپدید. سه ماشین آروان در UI ماندند و زمان آخرین اسکن تازه شد؛ شکست discovery منطقه‌ای دیگر snapshot را ناقص اعلام نکرد.
+- PHP-FPM با `opcache.validate_timestamps=0` کار می‌کند؛ بنابراین پس از انتشار، مسیر احرازشدهٔ داخلی در07:00:22UTC با توکن فقط در حافظه فراخوانی شد. رسید خصوصی HTTP200، `opcache_reset=true` و موفقیت `config:clear`، `route:clear`، `view:clear` و `cache:clear` را ثبت کرد؛ هیچ توکن یا URL احرازشده‌ای در این سند ثبت نشده است.
+- چون پاک‌سازی application cache نشانگر آخرین اسکن را حذف می‌کند، `fleet:scan` یک بار دیگر اجرا شد. UI در07:02UTC همان ۶۲/۳۲/۲۷/۳/۰ و سه ماشین Arvan را ثبت کرد؛ این آخرین snapshot قابل مشاهده پس از فعال‌شدن کد در PHP-FPM است.
 - چرخهٔ طبیعی پنج‌دقیقه‌ای بعدی `cloud:meter` و `services:lifecycle` بدون افزایش شمار خطا/incident تمام شد و هر دو از هشدار pending صفحهٔ سلامت خارج شدند؛ `cloud:meter` دستی اجرا نشد تا کسر مالی تکراری ایجاد نشود.
 
 ## ماشین‌ها، شبکه و persistence
