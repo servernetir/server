@@ -2523,6 +2523,22 @@ class CloudProvisioner
 
                 return true;
             }
+            // LightNode may accept an asynchronous mutation and then report a
+            // definitive failed receipt during this immediate confirmation
+            // poll.  That is not an unresolved transition: keep it on the
+            // normal failure path so metering cannot silently defer the alert.
+            if (($actual['terminal_failure'] ?? false) === true) {
+                $message = (string) ($actual['message'] ?? $r['message'] ?? 'عملیات نزد زیرساخت ناموفق بود.');
+                $instance->update($this->clearLifecyclePending($instance, [
+                    'last_error' => mb_substr($message, 0, 500),
+                ]));
+                $this->shoutAboutLingeringMachine(
+                    'تغییرِ وضعیتِ سرور نزدِ زیرساخت انجام نشد',
+                    $service, $instance, $message
+                );
+
+                return false;
+            }
             // The provider driver may have persisted an operation receipt or
             // other metadata while issuing/polling the command.  Merge into a
             // fresh row so the lifecycle marker never erases that state.

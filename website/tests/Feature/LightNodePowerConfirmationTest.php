@@ -61,6 +61,37 @@ class LightNodePowerConfirmationTest extends TestCase
         $this->assertSame([], ErrorTracker::recent(50, 'error'));
     }
 
+    public function test_a_receipt_that_fails_during_confirmation_is_not_parked_as_pending(): void
+    {
+        Setting::putSecret('lightnode_api_token', 'test-token');
+        ErrorTracker::clear();
+        $customer = Customer::create(['name' => 'Failed receipt', 'email' => 'failed-receipt@example.test',
+            'password' => 'fixture-only', 'status' => 'active']);
+        $service = Service::create(['customer_id' => $customer->id, 'name' => 'Failed receipt',
+            'price' => 100000, 'cycle' => 'monthly', 'status' => 'active']);
+        $instance = CloudInstance::create(['service_id' => $service->id, 'provider' => 'lightnode',
+            'provider_ref' => 'ecs-failed-receipt', 'status' => 'running']);
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/instance/detail*' => Http::response(['instance' => ['ecsResourceUUID' => 'ecs-failed-receipt',
+                'ecsStatus' => 'STARTED', 'ecsPendingStatus' => 'NONE']]),
+            '*/instance/stop' => Http::response(['asyncTaskInfo' => ['asyncTaskUUID' => 'failed-power-task']], 202),
+            '*/asynctask/getResult*' => Http::sequence()
+                ->push(['asyncTaskInfo' => ['processResult' => 'PROCESSING', 'taskStatus' => 'RUNNING']], 200)
+                ->push(['asyncTaskInfo' => ['processResult' => 'FAILURE', 'taskStatus' => 'FINISHED']], 200),
+        ]);
+
+        $this->assertFalse(app(CloudProvisioner::class)->suspend($service));
+
+        $this->assertSame('failed', CloudProviderOperation::firstOrFail()->state);
+        $this->assertNull(data_get($instance->fresh()->meta, 'lifecycle_pending'));
+        $this->assertSame('running', $instance->fresh()->status);
+        $this->assertStringContainsString('پایان یافته ولی موفق نشده', (string) $instance->fresh()->last_error);
+        $this->assertNotSame([], ErrorTracker::recent(50, 'error'));
+    }
+
     #[DataProvider('transitions')]
     public function test_pending_power_is_not_confirmation_and_retry_does_not_repeat_the_command(
         string $method, string $action, string $initial, string $final, string $initialStatus, string $finalStatus
