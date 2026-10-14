@@ -1352,6 +1352,33 @@ html[dir="rtl"] .cvb-plan.on{box-shadow:inset -2px 0 0 0 var(--info)}
 .cvb-img.on b{color:var(--text);font-weight:500}
 .cvb-famh{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted)}
 
+/* GPU offers applications only: give every compatible app the same, full-width choice. */
+.cvb-gpu-app-lead{margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.8}
+.cvb-gpu-app-group{margin:0}
+.cvb-gpu-app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:12px}
+.cvb-img.cvb-gpu-app{min-width:0;min-height:158px;display:flex;flex-direction:column;
+  align-items:stretch;justify-content:space-between;gap:17px;padding:17px;
+  border-radius:14px;background:var(--surface);border:1px solid var(--line);
+  transition:border-color .18s,background .18s,box-shadow .18s,transform .18s}
+.cvb-img.cvb-gpu-app:hover{background:var(--surface-2);border-color:var(--info-line);transform:translateY(-2px)}
+.cvb-img.cvb-gpu-app.on{background:var(--info-bg);border-color:var(--info);
+  box-shadow:0 0 0 1px var(--info-line)}
+.cvb-img.cvb-gpu-app[hidden]{display:none}
+.cvb-gpu-app-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.cvb-gpu-app-icon{display:grid;place-items:center;width:42px;height:42px;flex:none;
+  border-radius:12px;background:var(--info-bg);color:var(--info)}
+.cvb-gpu-app-icon .icon{width:21px;height:21px}
+.cvb-gpu-app-check{display:grid;place-items:center;width:23px;height:23px;flex:none;
+  border:1.5px solid var(--line-2);border-radius:50%;color:transparent}
+.cvb-gpu-app-check .icon{width:14px;height:14px}
+.cvb-gpu-app.on .cvb-gpu-app-check{background:var(--info);border-color:var(--info);color:var(--bg)}
+.cvb-gpu-app-copy{display:grid;gap:6px;min-width:0}
+.cvb-img.cvb-gpu-app b{color:var(--text);font-size:14px;font-weight:650;line-height:1.45;overflow-wrap:anywhere}
+.cvb-gpu-app-copy small{color:var(--muted);font-size:12px;line-height:1.65}
+.cvb-gpu-app-note{margin-top:17px;padding:12px 14px;border:1px solid var(--info-line);
+  border-radius:10px;background:var(--info-bg);line-height:1.8}
+.cvb-gpu-app-note .icon{margin-top:4px;color:var(--info)}
+
 /* ── قطعه‌ها و فیلدها ─────────────────────────────────────────────────── */
 /* بازمانده‌های نردبان — اندازه‌گیری‌شده روی صفحهٔ رندرشده، نه حدس:
    ۱۰٫۵ / ۱۱٫۵ / ۱۳٫۵ سه پلهٔ خارج از رمپ بودند که هیچ‌کس انتخابشان نکرده بود. */
