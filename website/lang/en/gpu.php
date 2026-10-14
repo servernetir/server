@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'delivery_auto' => 'Automated delivery',
+    'configure' => 'Configure your GPU',
+    'explore_apps' => 'Find your app',
+    'hardware' => 'COMPUTE POWER',
+    'environment' => 'YOUR WORKSPACE',
+    'search' => 'Search GPUs, e.g. RTX 3090',
+    'search_empty' => 'No GPU matches. Try a shorter name.',
+    'selected_gpu' => 'Selected GPU',
     'name_label' => 'Service name',
     'name_help' => 'Start with a lowercase letter; up to 32 lowercase letters, digits or hyphens.',
     'continue_note' => 'Continue to submit this GPU and app at the displayed rate. Sign in first if needed; your choices are preserved. Submission and allocation waiting are free. Hourly credit usage begins after the app is ready.',
