@@ -2466,13 +2466,6 @@ class CloudProvisioner
     private function shoutAboutLingeringMachine(string $what, Service $service, ?CloudInstance $instance, string $why, ?int $attempt = null): void
     {
         try {
-            // تلاش‌های ۱ تا ۱۰ یک رخدادند، نه ده خبرِ تازه. علتِ متفاوت هنوز
-            // امضا را عوض می‌کند و فوراً اعلام می‌شود؛ ولی صرفاً زیادشدنِ شمارنده
-            // گلوگاه را باز نمی‌کند. پس تلاشِ نخست فوری است، تلاش‌های بعدی تا
-            // پایانِ پنجرهٔ شش‌ساعته ساکت‌اند.
-            $bucket = $attempt === null ? 0
-                : ($attempt <= 10 ? 1 : (1 << (int) floor(log($attempt, 2))));
-
             // ⚠️ ثبت هم زیرِ همین گلوگاه است: مدیری که ده بار «تلاشِ دوباره» را
             // می‌زند نباید پنجرهٔ ۴۰۰ خطیِ ردیاب را با یک خبر پر کند. امضا شاملِ
             // علت است، پس خطای **متفاوتِ** بعدی فوراً می‌نشیند.
@@ -2494,7 +2487,9 @@ class CloudProvisioner
                 default => 24 * 3600,                            // روزی یک بار
             };
 
-            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, $window, md5($what.'|'.$why.'|'.$bucket))) {
+            // شمارنده عمداً در امضا نیست: تلاشِ ۱۱ یا ۱۶ علتِ تازه‌ای نیست و
+            // نباید فقط با عبور از یک عدد، پنجرهٔ روزانه را دور بزند.
+            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, $window, md5($what.'|'.$why))) {
                 return;
             }
 

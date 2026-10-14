@@ -246,12 +246,12 @@ class CloudReleaseRetryTest extends TestCase
         $why = 'same provider refusal '.bin2hex(random_bytes(5));
         $provisioner = app(CloudProvisioner::class);
 
-        $provisioner->recordReleaseFailure($service, $why); // تلاش ۱: فوری
-        $provisioner->recordReleaseFailure($service, $why); // تلاش ۲: همان علت
-        $provisioner->recordReleaseFailure($service, $why); // تلاش ۳: همان علت
+        foreach (range(1, 11) as $_) {
+            $provisioner->recordReleaseFailure($service, $why);
+        }
 
-        $this->assertSame(1, $sent, 'همان شکست نباید هر ساعت دوباره به بله برود');
-        $this->assertSame(3, (int) data_get(
+        $this->assertSame(1, $sent, 'عبور از تلاش‌های ۲، ۳، ۴، ۸ یا ۱۱ نباید گلوگاه را دور بزند');
+        $this->assertSame(11, (int) data_get(
             CloudInstance::where('service_id', $service->id)->first()->meta,
             'release_attempts'
         ), 'ساکت‌شدن اعلان نباید retry یا شمارنده را متوقف کند');
