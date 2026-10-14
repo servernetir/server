@@ -64,7 +64,7 @@ class GpuController extends Controller
             | ⚠️ و فیلترِ GPU روی `gpu_model` است نه روی نامِ زیرساخت: اگر فردا
             | زیرساختِ دومی هم کارت بفروشد، همین صفحه بی‌تغییر نشانش می‌دهد.
             */
-            foreach (CloudPlan::offers() as $plan) {
+            foreach (CloudPlan::offers(SaladClient::LOCATION, true) as $plan) {
                 if (blank($plan->gpu_model)) {
                     continue;
                 }
@@ -87,6 +87,7 @@ class GpuController extends Controller
                     'hourly_raw'  => $hourly,
                     'hourly'      => cloud_price($hourly),
                     'interruptible' => (bool) $plan->is_interruptible,
+                    'apps' => \App\Http\Controllers\Account\CloudStoreController::imageKeysFor($plan, 'app'),
                 ];
 
                 if ($plan->is_interruptible) {
@@ -113,7 +114,7 @@ class GpuController extends Controller
         */
         $seen = [];
         $cards = array_values(array_filter($cards, function (array $c) use (&$seen): bool {
-            $key = $c['gpu'].'|'.$c['gpu_count'].'|'.$c['vcpu'].'|'.$c['ram_gb'].'|'.$c['disk_gb'].'|'.$c['hourly_raw'];
+            $key = $c['gpu'].'|'.$c['gpu_count'].'|'.$c['vcpu'].'|'.$c['ram_gb'].'|'.$c['disk_gb'].'|'.$c['hourly_raw'].'|'.implode(',', $c['apps']);
 
             if (isset($seen[$key])) {
                 return false;
@@ -125,6 +126,7 @@ class GpuController extends Controller
         }));
 
         return view('pages.gpu', [
+            'apps' => collect(SaladClient::APPS)->filter(fn ($app, $key) => collect($cards)->contains(fn ($card) => in_array($key, $card['apps'], true)))->all(),
             'isFa'      => $isFa,
             'cards'     => $cards,
             'maxUnits'  => self::MAX_UNITS,

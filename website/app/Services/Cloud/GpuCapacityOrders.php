@@ -32,6 +32,23 @@ class GpuCapacityOrders
         return self::managed($service) && data_get($service->provision_meta, 'gpu_capacity_order.charge_pending') === true;
     }
 
+    /** Presentation only: retain the provider's real state and all allocation/billing gates. */
+    public static function displayState(Service $service): string
+    {
+        $state = (string) data_get($service->provision_meta, 'gpu_capacity_order.state', 'checking_capacity');
+        if (in_array($state, ['waiting_capacity', 'available'], true)) {
+            try {
+                $requested = Carbon::parse(data_get($service->provision_meta, 'gpu_capacity_order.requested_at') ?? $service->created_at ?? now());
+            } catch (\Throwable) {
+                $requested = $service->created_at ?? now();
+            }
+            if ($state === 'available' || now()->lt($requested->copy()->addHour())) {
+                return 'awaiting_allocation';
+            }
+        }
+        return $state;
+    }
+
     public function replay(int $customerId, string $key): ?Service
     {
         return Service::where('customer_id', $customerId)

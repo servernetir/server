@@ -36,6 +36,7 @@
      نمونه هست؛ اگر هنوز نمونه نداریم از خودِ سرویس می‌خوانیم. */
   $gpuLine = str_starts_with((string) ($inst->image_key ?? $service->cloud_image_key ?? ''), 'gpu-');
   $capacityOrder = (array) data_get($service->provision_meta, 'gpu_capacity_order', []);
+  $capacityDisplayState = \App\Services\Cloud\GpuCapacityOrders::displayState($service);
   $capacityWaiting = ($capacityOrder['version'] ?? null) === 1
       && $service->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT;
   $gpuAwaitingInvoice = ($capacityOrder['version'] ?? null) === 1
@@ -127,7 +128,7 @@
         style="font-size:12.5px;padding:7px 15px;color:{{ $inst?->statusColor() ?? 'var(--dim)' }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
-    {{ $closed ? __('ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.($capacityOrder['state'] ?? 'checking_capacity')) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
+    {{ $closed ? __('ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
   </span>
 </div>
 
@@ -174,9 +175,10 @@
   </section>
 @elseif(! $ready && $capacityWaiting)
   <section class="pnl-sec" data-gpu-capacity-wait>
-    <div class="pnl-sec-h"><h2 id="gpu-capacity-heading">{{ __('ui.gpu_order_'.($capacityOrder['state'] ?? 'checking_capacity')) }}</h2></div>
+    <div class="pnl-sec-h"><h2 id="gpu-capacity-heading">{{ __('ui.gpu_order_'.$capacityDisplayState) }}</h2></div>
     <div class="pnl-sec-b">
       <p class="cb-lead">{{ __('ui.gpu_wait_no_charge') }}</p>
+      @if($capacityDisplayState === 'waiting_capacity')<p>{{ __('ui.gpu_wait_delayed') }}</p>@endif
       <p>{{ __($service->billing_mode === 'hourly' ? 'ui.gpu_wait_auto' : 'ui.gpu_wait_cycle') }}</p>
       <p>{{ __('ui.gpu_approved_price') }}: <b class="pnl-num">{{ cloud_price($service->billing_mode === 'hourly' ? $service->hourly_rate_irt : $service->price) }}</b>{{ $service->billing_mode === 'hourly' ? __('ui.cvb_hourly_per') : '' }}</p>
       @if(($capacityOrder['state'] ?? '') === 'price_changed' && ($capacityOrder['new_price_irt'] ?? 0) > 0)
@@ -1036,7 +1038,7 @@
   // ⚠️ ۵ ثانیه بی‌خطر است: پاسخِ وضعیت سمتِ سرور ۲۰ ثانیه کش می‌شود، پس تندتر
   // پرسیدن سهمیهٔ زیرساخت را خرج نمی‌کند.
   var capacityWaiting = {{ ($capacityWaiting || $gpuAwaitingInvoice) ? 'true' : 'false' }};
-  var capacityState = {{ Illuminate\Support\Js::from($capacityOrder['state'] ?? null) }};
+  var capacityState = {{ Illuminate\Support\Js::from($capacityDisplayState) }};
   var tick = capacityWaiting ? 60000 : (building ? 5000 : 30000);
   var tries = 0;
 

@@ -74,6 +74,7 @@ $site = function (): void {
     | «پکیجِ نمایندگی که cPanelِ ساده تحویل می‌داد».
     */
     Route::get('/gpu', [\App\Http\Controllers\GpuController::class, 'show'])->name('gpu');
+    Route::post('/gpu/order', [\App\Http\Controllers\GpuOrderController::class, 'start'])->name('gpu.order')->middleware('throttle:12,1');
     /*
     | «نشان سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها (ممیزی بک‌لینک ۲۵ اوت: لینکِ
     | واقعیِ کسب‌شده تقریباً صفر بود). صفحهٔ ایستا؛ همهٔ داده در خودِ ویو ساخته
@@ -421,6 +422,8 @@ $site = function (): void {
         // مسیر و نامِ روت‌ها را عوض نکنید. ثبتِ سفارش محدودیتِ نرخ دارد چون هر
         // سفارش یک سرویسِ pending و یک پیش‌فاکتورِ واقعی می‌سازد.
         Route::get('/cloud-store', [Account\CloudStoreController::class, 'index'])->name('cloud.store');
+        Route::get('/gpu/continue', [\App\Http\Controllers\GpuOrderController::class, 'resume'])->name('gpu.resume');
+        Route::post('/gpu/continue', [\App\Http\Controllers\GpuOrderController::class, 'complete'])->name('gpu.complete')->middleware('throttle:12,1');
         Route::get('/gpu-capacity', [Account\GpuCapacityController::class, 'check'])
             ->name('gpu.capacity')->middleware('throttle:30,1');
         Route::post('/cloud/{service}/gpu-price', [Account\GpuCapacityController::class, 'confirmPrice'])

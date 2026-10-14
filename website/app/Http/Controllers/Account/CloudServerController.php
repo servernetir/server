@@ -282,7 +282,7 @@ class CloudServerController extends Controller
         if (($service->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT
                 || ($service->status === 'pending' && data_get($service->provision_meta, 'gpu_capacity_order.state') === 'awaiting_payment'))
             && \App\Services\Cloud\GpuCapacityOrders::managed($service) && ! $service->isDead()) {
-            $state = (string) data_get($service->provision_meta, 'gpu_capacity_order.state', 'checking_capacity');
+            $state = \App\Services\Cloud\GpuCapacityOrders::displayState($service);
             return response()->json(['ok' => true, 'status' => 'building', 'ready' => false,
                 'stage' => 'allocating', 'stage_index' => 2, 'waiting_capacity' => true,
                 'label' => __('ui.gpu_order_'.$state), 'color' => 'var(--dim)',
