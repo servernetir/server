@@ -149,6 +149,16 @@ class GpuCapacityOrdersTest extends TestCase
         $this->assertDatabaseCount('cloud_instances', 0);
     }
 
+    public function test_cancelled_gpu_request_does_not_keep_the_waiting_capacity_badge(): void
+    {
+        $service = $this->register();
+        $service->update(['status' => 'cancelled']);
+
+        $badge = view('account.partials.status-pill', ['s' => $service->fresh()])->render();
+        $this->assertStringNotContainsString(__('ui.gpu_order_waiting_capacity'), $badge);
+        $this->assertStringContainsString(__('ui.st_unknown'), $badge);
+    }
+
     public function test_increased_price_requires_explicit_confirmation_and_stale_confirmation_is_rejected(): void
     {
         $this->fund(); $s = $this->register(); $approved = $s->hourly_rate_irt; $this->stock = 1;
