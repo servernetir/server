@@ -1380,12 +1380,42 @@ class ArvanClient implements CloudProvider
     {
         [$region, $id] = $this->split($ref);
 
-        $r = $this->req('DELETE', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id));
+        if ($region === '' || $id === '') {
+            return ['ok' => false, 'message' => 'شناسهٔ سرور برای حذف معتبر نیست.'];
+        }
+
+        $path = self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id);
+
+        /*
+        | Arvan documents forceDelete as a provider-specific query parameter.
+        | A plain DELETE can leave the resource in SOFT_DELETED, which is not
+        | proof that its disk stopped billing.  Do not spread this flag to the
+        | common cloud contract: the other providers have different deletion
+        | semantics and must keep their existing requests unchanged.
+        */
+        $r = $this->req('DELETE', $path.'?forceDelete=true');
 
         if (! $r['ok'] && $r['status'] === 404) {
             return ['ok' => true, 'message' => 'سرور از قبل حذف شده بود.'];
         }
 
-        return ['ok' => $r['ok'], 'message' => $r['ok'] ? '' : $r['message']];
+        if (! $r['ok']) {
+            return ['ok' => false, 'message' => $r['message']];
+        }
+
+        // Acceptance is not completion: keep cleanup pending until the exact
+        // VM disappears. SOFT_DELETED is not proof that its disk stopped billing.
+        $check = $this->req('GET', $path);
+
+        if (! $check['ok'] && $check['status'] === 404) {
+            return ['ok' => true, 'message' => ''];
+        }
+
+        return [
+            'ok' => false,
+            'message' => $check['ok']
+                ? 'حذف اجباری در زیرساخت پذیرفته شده ولی هنوز نهایی نشده است.'
+                : 'پس از درخواست حذف اجباری، نبودن سرور قابل تأیید نبود: '.$check['message'],
+        ];
     }
 }

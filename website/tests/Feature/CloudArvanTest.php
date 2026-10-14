@@ -684,6 +684,47 @@ class CloudArvanTest extends TestCase
         Http::fake(fn () => Http::response(['message' => 'not found'], 404));
 
         $this->assertTrue(app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9')['ok']);
+        Http::assertSent(fn ($request) => $request->method() === 'DELETE'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers/srv-9?forceDelete=true'));
+    }
+
+    public function test_delete_force_deletes_and_waits_for_exact_resource_to_disappear(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'not found'], 404);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertTrue($r['ok']);
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request) => $request->method() === 'DELETE'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers/srv-9?forceDelete=true'));
+        Http::assertSent(fn ($request) => $request->method() === 'GET'
+            && str_ends_with($request->url(), '/regions/ir-thr-c2/servers/srv-9'));
+    }
+
+    public function test_delete_does_not_close_release_while_arvan_reports_soft_deleted(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['data' => ['id' => 'srv-9', 'status' => 'SOFT_DELETED']], 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('هنوز نهایی نشده', $r['message']);
+    }
+
+    public function test_delete_does_not_poll_when_force_delete_is_rejected(): void
+    {
+        Http::fake(fn () => Http::response(['message' => 'forbidden'], 403));
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertSame('forbidden', $r['message']);
+        Http::assertSentCount(1);
     }
 
     // ═══════════════ ادغام با سیستمِ کاتالوگ ═══════════════
