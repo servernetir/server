@@ -1879,9 +1879,11 @@ return [
 
     // ═══ Cloud builder — üç dilli, dile göre para birimi ═══
     'cvb_title' => 'Sanal Sunucu Oluştur — ServerNet Cloud',
+    'cvb_gpu_title' => 'GPU Talebi — ServerNet Cloud',
     'cvb_crumb_panel' => 'Panel',
     // Sayfa başlığı tek yerde: hem başlık hem de içerik haritası bunu okur.
     'cvb_h1' => 'Sanal Sunucu Oluştur',
+    'cvb_gpu_h1' => 'GPU Talebi',
     'cvb_intro' => 'Ülke, özellikler, işletim sistemi ve ödeme dönemini seçin; ödemeden sonra sunucunuz otomatik oluşturulup teslim edilir.',
     'cvb_pill' => 'Otomatik teslim · iki dakikadan kısa',
     'cvb_empty_h' => 'VPS kataloğu şu anda kullanılamıyor',
@@ -2118,6 +2120,8 @@ return [
     'cvb_pay' => 'Öde ve sunucuyu kur',
     'cvb_adv' => 'Gelişmiş ayarlar',
     'cvb_adv_sub' => 'SSH anahtarı ve ek IP — isteğe bağlı',
+    'cvb_gpu_adv_sub' => 'Saatlik ödeme ayrıntıları',
+    'cvb_gpu_adv_note' => 'Saatlik ödemeyi seçtiğinizde ücret ve bakiyeniz bittiğinde ne olacağı burada gösterilir.',
     'cvb_off_stock' => 'Bu boyut stokta yok',
     'cvb_off_stock_sub' => 'Kapasite açılır açılmaz tam burada tekrar açılır.',
     'cvb_off_price' => 'Bu boyutun fiyatı şu anda kullanılamıyor',
@@ -2131,6 +2135,7 @@ return [
     'cvb_step_app' => 'Hazir uygulama',
     'cvb_step_size' => 'Boyut',
     'cvb_step_os' => 'İşletim sistemi',
+    'cvb_gpu_step_app' => 'Hazır uygulama',
     'cvb_step_name' => 'Sunucu adı',
     'cvb_cpu_all' => 'Tümü',
     'cvb_cpu_shared' => 'Paylaşımlı',

@@ -359,6 +359,10 @@ class GpuStoreSeparationTest extends TestCase
 
         $this->assertStringNotContainsString('id="cvb-tab-os"', $html);
         $this->assertStringContainsString('class="cvb-opts cvb-gpu-app-grid"', $html);
+        $this->assertStringContainsString('<h1>'.__('ui.cvb_gpu_h1').'</h1>', $html);
+        $this->assertStringContainsString(__('ui.cvb_gpu_step_app'), $html);
+        $this->assertStringContainsString(__('ui.cvb_gpu_adv_sub'), $html);
+        $this->assertStringNotContainsString(__('ui.cvb_adv_sub'), $html);
         foreach (['gpu-ollama', 'gpu-jupyter', 'gpu-comfyui'] as $key) {
             $this->assertMatchesRegularExpression('~class="cvb-img cvb-gpu-app[^\"]*"\s+data-key="'.$key.'"~', $html);
         }

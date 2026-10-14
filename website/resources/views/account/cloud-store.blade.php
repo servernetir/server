@@ -1,5 +1,5 @@
 @extends('panel.layout')
-@section('title', __('ui.cvb_title'))
+@section('title', __(($gpuMode ?? false) ? 'ui.cvb_gpu_title' : 'ui.cvb_title'))
 
 {{-- «برگهٔ سرور» — سرورساز به‌شکلِ یک رسید که خودش را پر می‌کند.
 
@@ -28,9 +28,9 @@
       {{-- عنوانِ این صفحه **یک جا** تعریف می‌شود (`ui.cvb_h1`) و مسیرِ راهنما و
            سرصفحه هر دو از همان می‌خوانند؛ `ui.cvb_title` فقط همان عنوان به‌علاوهٔ
            نامِ برند برای تگِ <title> است. --}}
-      <span>{{ __('ui.cvb_h1') }}</span>
+      <span>{{ __(($gpuMode ?? false) ? 'ui.cvb_gpu_h1' : 'ui.cvb_h1') }}</span>
     </nav>
-    <h1>{{ __('ui.cvb_h1') }}</h1>
+    <h1>{{ __(($gpuMode ?? false) ? 'ui.cvb_gpu_h1' : 'ui.cvb_h1') }}</h1>
   </div>
   <span class="pnl-pill info">{{ __(($gpuMode ?? false) ? 'ui.cvb_pill_gpu' : 'ui.cvb_pill') }}</span>
 </div>
@@ -197,7 +197,7 @@
     1 => __('ui.cvb_step_country'),
     2 => __('ui.cvb_step_city'),
     3 => __('ui.cvb_step_size'),
-    4 => __('ui.cvb_step_os'),
+    4 => __(($gpuMode ?? false) ? 'ui.cvb_gpu_step_app' : 'ui.cvb_step_os'),
     5 => __('ui.cvb_step_name'),
   ];
 
@@ -776,10 +776,14 @@
     <details class="cvb-adv" id="cvb-adv" @if($advOpen) open @endif>
       <summary>
         <svg class="icon"><use href="#i-wrench"/></svg>
-        {{ __('ui.cvb_adv') }} <small>{{ __('ui.cvb_adv_sub') }}</small>
+        {{ __('ui.cvb_adv') }} <small>{{ __(($gpuMode ?? false) ? 'ui.cvb_gpu_adv_sub' : 'ui.cvb_adv_sub') }}</small>
         <svg class="icon"><use href="#i-chev"/></svg>
       </summary>
       <div class="cvb-adv-b">
+
+        @if($gpuMode ?? false)
+          <p class="cvb-note">{{ __('ui.cvb_gpu_adv_note') }}</p>
+        @endif
 
         @unless($gpuMode ?? false)
         @error('ssh_key_id')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
@@ -919,7 +923,7 @@
 
           <button type="button" class="cvb-line is-done" data-go="4">
             <span class="cvb-line-d"></span>
-            <span class="cvb-line-k">{{ __('ui.cvb_step_os') }}</span>
+            <span class="cvb-line-k">{{ __(($gpuMode ?? false) ? 'ui.cvb_gpu_step_app' : 'ui.cvb_step_os') }}</span>
             <span class="cvb-line-v">
               @if(isset($jsImgLogo[$curImage]))
                 <img class="cvb-logo sm" id="cvb-s-img-logo" src="{{ $jsImgLogo[$curImage] }}" alt="" width="16" height="16">
