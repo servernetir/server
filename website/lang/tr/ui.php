@@ -3099,10 +3099,10 @@ return [
 
     // -- GPU servers / /gpu --
     'gpu_meta_t' => 'Saatlik GPU Sunucu Kiralama — Kullandiginiz Kadar Odeyin',
-    'gpu_meta_d' => ':price fiyatindan saatlik GPU sunucular. Karti ve uygulamayi secin, saatlik odeyin. Ozel URL ve API ile otomatik teslim.',
+    'gpu_meta_d' => ':price fiyatından saatlik GPU sunucusu. AI ve render için kart ve uygulama seçin; kapasite kontrol edilir, özel adres hazır olunca gösterilir.',
     'gpu_meta_d_nop' => 'Kullanima gore faturalanan saatlik GPU sunucular. Karti secin, adedi belirleyin ve saatlik odeyin.',
     'gpu_h1' => 'Saatlik GPU Sunucular',
-    'gpu_lead' => 'Ekran kartini ve hazir uygulamayi (Ollama, ComfyUI, Jupyter) secin, yalnizca calistigi saatler icin odeyin. Kendi sunucunuzdan cagirabileceginiz ozel HTTPS adresi ve API ile otomatik teslim.',
+    'gpu_lead' => 'Yapay zekâ ve render için ekran kartını ve hazır uygulamayı (Ollama, ComfyUI, Jupyter) seçin. Saatlik kullanım yalnızca makine çalışırken ücretlendirilir; özel HTTPS adresi ve API hazır olduğunda panelde görünür.',
     'gpu_from' => 'Saatlik :price fiyatindan',
     'gpu_pick_t' => 'Ekran kartinizi secin',
     'gpu_pick_d' => 'Fiyatlar saatliktir ve faturanizda gorecefiniz oranla aynidir.',
@@ -3120,8 +3120,8 @@ return [
     'gpu_spec_disk' => 'Depolama',
     'gpu_spec_price' => 'Saatlik ucret',
     'gpu_cards_n' => 'makine basina kart',
-    'gpu_warn_t' => 'Bu fiyat nasil mumkun?',
-    'gpu_warn_d' => 'Bu hizmet pahali bir veri merkezi yerine binlerce GPU\'dan olusan dagitik bir agda calisir - bu yuzden geleneksel GPU sunucusunun cok altinda fiyatlanir. Bir dugum devre disi kalirsa uygulamaniz otomatik olarak baska bir dugumde yeniden baslatilir ve yalnizca calistigi saatleri odersiniz. Yapay zeka, goruntu uretimi, render ve toplu isler icin cok uygundur; kisa bir tasinmaya bile tahammulu olmayan isler icin normal VPS dogru secimdir. Makine diski gecicidir - sonuclari disarida saklayin.',
+    'gpu_warn_t' => 'Kapasite ve teslim süresi hakkında',
+    'gpu_warn_d' => 'Seçtiğiniz GPU\'nun kapasitesi tahsisten önce yeniden kontrol edilir. Boş GPU yoksa isteğiniz ücret alınmadan sırada bekler; teslim süresi kapasiteye ve uygulamanın hazırlanmasına bağlıdır. Dağıtık ağdaki çalışma kesintiye uğrayabilir veya başka bir düğüme taşınabilir. Makine diski geçicidir; çıktılarınızı harici olarak saklayın.',
     'gpu_hourly_t' => 'Nasil faturalanir?',
     'gpu_hourly_d' => 'Kullandiginiz kadar odeyin, saatlik. Baslamak icin hesabinizda en az :hours saatlik bakiye gerekir; her saat bu bakiyeden dusulur ve makineyi sildiginiz anda kesinti durur.',
     'gpu_ssh_t' => 'Nasil kullanirim?',
