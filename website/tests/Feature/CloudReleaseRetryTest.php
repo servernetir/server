@@ -324,6 +324,18 @@ class CloudReleaseRetryTest extends TestCase
             ->contains(fn ($e) => str_contains((string) ($e['message'] ?? ''), 'حذفِ سرور نزدِ زیرساخت انجام نشد')));
     }
 
+    public function test_release_pending_marker_is_not_reused_by_other_provider_contracts(): void
+    {
+        $s = $this->liveCloudService($this->customer());
+        $instance = CloudInstance::where('service_id', $s->id)->first();
+        $instance->update([
+            'provider' => 'lightnode',
+            'meta' => ['release_pending' => ['accepted_at' => now()->toIso8601String()]],
+        ]);
+
+        $this->assertFalse(app(CloudProvisioner::class)->releasePending($s));
+    }
+
     /** کرونِ ساعتی پرونده را می‌بندد — بی‌یک تومان هزینهٔ اضافه برای مشتری */
     public function test_the_retry_cron_closes_a_lingering_release(): void
     {

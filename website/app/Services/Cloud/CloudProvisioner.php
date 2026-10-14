@@ -2210,6 +2210,7 @@ class CloudProvisioner
         $instance = CloudInstance::where('service_id', $service->id)->first();
 
         return $instance !== null
+            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])
             && filled(data_get($instance->meta, 'release_pending.accepted_at'))
             && blank(data_get($instance->meta, 'release_pending.timed_out_at'));
     }
@@ -2337,7 +2338,8 @@ class CloudProvisioner
             return true;
         }
 
-        if (($r['pending'] ?? false) === true) {
+        if (($r['pending'] ?? false) === true
+            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])) {
             $pending = data_get($instance->meta, 'release_pending');
             $acceptedAt = is_array($pending)
                 ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
