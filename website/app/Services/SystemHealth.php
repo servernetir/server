@@ -778,21 +778,56 @@ class SystemHealth
                 return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور', 'روی این نصب فعال نیست.');
             }
 
-            $rows = Service::query()->awaitingRelease()
-                ->orderBy('id')->limit(50)->get(['id', 'name', 'customer_id']);
+            $allRows = Service::query()->awaitingRelease()
+                ->with('cloudInstance:id,service_id,provider,meta')
+                ->orderBy('id')->get(['id', 'name', 'customer_id']);
+            // The full queue decides severity.  Limit only what is rendered as
+            // operator links so a failure after 50 fresh pending rows cannot be
+            // hidden by the display cap.
+            $rows = $allRows->take(50);
         } catch (\Throwable $e) {
             // «نتوانستم بپرسم» با «چیزی نیست» یکی نیست.
             return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
                 'صفِ آزادسازی خوانده نشد: '.mb_substr($e->getMessage(), 0, 120));
         }
 
-        if ($rows->isEmpty()) {
+        if ($allRows->isEmpty()) {
             return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور',
                 'هر سرویسِ بسته‌شده‌ای نزدِ زیرساخت هم آزاد شده.');
         }
 
+        $freshPending = $allRows->filter(function (Service $service) {
+            // release_pending is an Arvan-only contract.  A stale or foreign
+            // marker must not downgrade a potentially billable failure.
+            if ($service->cloudInstance?->provider !== 'arvan') {
+                return false;
+            }
+
+            $pending = data_get($service->cloudInstance?->meta, 'release_pending');
+
+            if (! is_array($pending) || blank($pending['accepted_at'] ?? null)
+                || filled($pending['timed_out_at'] ?? null)) {
+                return false;
+            }
+
+            try {
+                return Carbon::parse((string) ($pending['accepted_at'] ?? ''))
+                    ->gt(now()->subMinutes(15));
+            } catch (\Throwable) {
+                return false;
+            }
+        });
+
+        if ($freshPending->count() === $allRows->count()) {
+            return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
+                fa_num($allRows->count()).' حذف نزدِ زیرساخت پذیرفته شده و تأیید نهایی آن در جریان است (سرویسِ '
+                .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
+                .'). اگر بیش از ۱۵ دقیقه بماند به خطای واقعی ارتقا می‌یابد.',
+                $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
+        }
+
         return $this->row('cloud_release', false, 'fail', 'آزادسازیِ سرور',
-            fa_num($rows->count()).' سرویسِ بسته‌شده هنوز نزدِ زیرساخت آزاد نشده (سرویسِ '
+            fa_num($allRows->count()).' سرویسِ بسته‌شده هنوز نزدِ زیرساخت آزاد نشده (سرویسِ '
             .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
             .'). هزینه‌اش پای ماست: ماشین ممکن است زنده باشد و مشتری دیگر پولی نمی‌دهد. '
             .'کرونِ cloud:release-retry هر ساعت دوباره تلاش می‌کند؛ اگر ماند، در پنلِ زیرساخت دستی پاکش کنید.',

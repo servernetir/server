@@ -109,7 +109,7 @@ class ArvanClient implements CloudProvider
      * را درست می‌دهد** (برخلافِ زحل/آیزا). ولی پیامِ خطا هم در بدنه است، پس
      * هم کد را می‌بینیم هم `message`.
      *
-     * @return array{ok:bool,status:int,data:mixed,message:string}
+     * @return array{ok:bool,status:int,data:mixed,message:string,json_valid?:bool,data_present?:bool,data_is_list?:bool}
      */
     private function req(string $method, string $path, array $payload = [], array $query = []): array
     {
@@ -143,11 +143,25 @@ class ArvanClient implements CloudProvider
             return ['ok' => false, 'status' => 0, 'data' => null, 'message' => 'ارتباط با زیرساخت برقرار نشد.'];
         }
 
-        $body = (array) ($res->json() ?? []);
-        $data = $body['data'] ?? $body;
+        // Keep the raw JSON type as well as Laravel's associative form.  With
+        // associative decoding, both [] and {} become an empty PHP array; for
+        // deletion evidence that distinction is security/billing critical.
+        $rawJson = json_decode($res->body());
+        $jsonValid = json_last_error() === JSON_ERROR_NONE
+            && (is_object($rawJson) || is_array($rawJson));
+        $json = $jsonValid ? $res->json() : null;
+        $body = $jsonValid ? $json : [];
+        $dataPresent = is_object($rawJson) && property_exists($rawJson, 'data');
+        $dataIsList = $dataPresent && is_array($rawJson->data) && array_is_list($rawJson->data);
+        $data = $dataPresent ? $body['data'] : $body;
 
         if ($res->successful()) {
-            return ['ok' => true, 'status' => $res->status(), 'data' => $data, 'message' => (string) ($body['message'] ?? '')];
+            return [
+                'ok' => true, 'status' => $res->status(), 'data' => $data,
+                'message' => (string) ($body['message'] ?? ''),
+                'json_valid' => $jsonValid, 'data_present' => $dataPresent,
+                'data_is_list' => $dataIsList,
+            ];
         }
 
         /*
@@ -1129,11 +1143,23 @@ class ArvanClient implements CloudProvider
     private function knownInventoryRegions(): array
     {
         $codes = CloudPlan::query()->where('provider', $this->slug())
+            // Retired catalogue regions remain evidence that we once placed
+            // resources there.  Dropping them could hide an untracked,
+            // billable orphan.  If one cannot be read, inventoryFromRegions()
+            // fails the whole snapshot closed and preserves the asset ledger.
             ->whereNotNull('provider_location')->distinct()->pluck('provider_location')->all();
 
-        foreach (CloudInstance::query()->where('provider', $this->slug())
-            ->whereNotNull('provider_ref')->pluck('provider_ref') as $ref) {
-            [$region] = $this->split((string) $ref);
+        $instances = CloudInstance::query()->where('provider', $this->slug())
+            ->whereNotNull('provider_ref')->get(['provider_ref', 'status', 'meta']);
+
+        foreach ($instances->filter(function (CloudInstance $instance) {
+            // Legacy `deleted` rows are not proof of provider absence: the old
+            // plain DELETE could leave an Arvan VM SOFT_DELETED and billable.
+            // Only exact-resource GET 404 writes this durable verification.
+            return $instance->status !== 'deleted'
+                || blank(data_get($instance->meta, 'provider_absence_verified_at'));
+        }) as $instance) {
+            [$region] = $this->split((string) $instance->provider_ref);
             if ($region !== '') {
                 $codes[] = $region;
             }
@@ -1374,12 +1400,81 @@ class ArvanClient implements CloudProvider
     {
         [$region, $id] = $this->split($ref);
 
-        $r = $this->req('DELETE', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id));
-
-        if (! $r['ok'] && $r['status'] === 404) {
-            return ['ok' => true, 'message' => 'سرور از قبل حذف شده بود.'];
+        if ($region === '' || $id === '') {
+            return ['ok' => false, 'message' => 'شناسهٔ سرور برای حذف معتبر نیست.'];
         }
 
-        return ['ok' => $r['ok'], 'message' => $r['ok'] ? '' : $r['message']];
+        $path = self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id);
+
+        /*
+        | Arvan documents forceDelete as a provider-specific query parameter.
+        | A plain DELETE can leave the resource in SOFT_DELETED, which is not
+        | proof that its disk stopped billing.  Do not spread this flag to the
+        | common cloud contract: the other providers have different deletion
+        | semantics and must keep their existing requests unchanged.
+        */
+        $r = $this->req('DELETE', $path.'?forceDelete=true');
+
+        if (! $r['ok'] && $r['status'] !== 404) {
+            return ['ok' => false, 'message' => $r['message']];
+        }
+
+        // Neither a successful mutation nor DELETE's own 404 proves that the
+        // exact resource (and its billable disk) is gone.  Arvan can answer a
+        // retrying DELETE with 404 while the detail endpoint still exposes a
+        // SOFT_DELETED record, so every non-rejected attempt is verified here.
+        $check = $this->req('GET', $path);
+
+        if (! $check['ok'] && $check['status'] === 404) {
+            // Arvan documents this 404 as "server or region not found".  A
+            // misspelled/retired region therefore cannot prove that billing
+            // stopped.  Require a readable inventory for the same region and
+            // verify that the exact id is absent there as well.
+            $inventory = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers');
+            $inventoryRows = $inventory['data'];
+            $validInventory = $inventory['ok']
+                && $inventory['status'] === 200
+                && ($inventory['json_valid'] ?? false) === true
+                && ($inventory['data_present'] ?? false) === true
+                && ($inventory['data_is_list'] ?? false) === true
+                && is_array($inventoryRows)
+                && array_is_list($inventoryRows)
+                && collect($inventoryRows)->every(fn ($server) => is_array($server)
+                    && is_string($server['id'] ?? null)
+                    && trim($server['id']) !== '');
+
+            if (! $validInventory) {
+                return [
+                    'ok' => false,
+                    'message' => 'جزئیات سرور پیدا نشد، اما فهرست همان منطقه برای تأیید حذف قابل خواندن نبود: '
+                        .($inventory['message'] ?: 'پاسخ موجودی معتبر نبود.'),
+                ];
+            }
+
+            $stillListed = collect($inventoryRows)->contains(fn ($server) => (string) $server['id'] === $id);
+
+            if ($stillListed) {
+                return ['ok' => false, 'message' => 'جزئیات سرور 404 است، اما شناسه هنوز در فهرست همان منطقه وجود دارد.'];
+            }
+
+            return ['ok' => true, 'message' => ''];
+        }
+
+        $detailStatus = strtoupper((string) data_get($check['data'], 'status', ''));
+
+        if ($check['ok'] && ($r['ok'] || $detailStatus === 'SOFT_DELETED')) {
+            return [
+                'ok' => false,
+                'pending' => true,
+                'message' => 'حذف اجباری در زیرساخت پذیرفته شده ولی هنوز نهایی نشده است.',
+            ];
+        }
+
+        return [
+            'ok' => false,
+            'message' => $check['ok']
+                ? 'DELETE حذف قطعی را تأیید نکرد و منبع هنوز در جزئیات زیرساخت وجود دارد.'
+                : 'پس از درخواست حذف اجباری، نبودن سرور قابل تأیید نبود: '.$check['message'],
+        ];
     }
 }

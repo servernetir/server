@@ -248,6 +248,147 @@ class CloudReleaseRetryTest extends TestCase
             'شناسهٔ سرویس باید در متن باشد تا امضای وضعیت با ردیفِ تازه عوض شود');
     }
 
+    public function test_arvan_accepted_force_delete_stays_warn_pending_without_failure_alert_until_exact_404(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey test-key');
+        $c = $this->customer(100_000);
+        $s = $this->liveCloudService($c);
+        CloudInstance::where('service_id', $s->id)->update([
+            'provider' => 'arvan', 'provider_ref' => 'ir-thr-c2:srv-'.$s->id,
+        ]);
+
+        Http::swap(new Factory);
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['data' => ['id' => 'srv-'.$s->id, 'status' => 'SOFT_DELETED']], 200);
+
+        $this->terminateVia($c, $s)->assertSessionHasNoErrors();
+
+        $fresh = $s->fresh();
+        $instance = CloudInstance::where('service_id', $s->id)->first();
+        $this->assertSame('terminated', $fresh->status, 'ساعت مشتری همان لحظه باید متوقف شود');
+        $this->assertSame(Service::PROVISION_RELEASING, $fresh->provision_status);
+        $this->assertNotEmpty(data_get($instance->meta, 'release_pending.accepted_at'));
+        $this->assertSame(0, (int) data_get($instance->meta, 'release_attempts', 0));
+        $this->assertNull($instance->last_error);
+        $this->assertFalse(collect(ErrorTracker::recent(200, 'error'))
+            ->contains(fn ($e) => str_contains((string) ($e['message'] ?? ''), 'حذفِ سرور نزدِ زیرساخت انجام نشد')));
+
+        $health = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+        $this->assertSame('warn', $health['cloud_release']['level']);
+
+        // Retry sees DELETE 404, but still verifies the exact detail endpoint.
+        Http::swap(new Factory);
+        Http::fakeSequence()
+            ->push(['message' => 'not found'], 404)
+            ->push(['message' => 'not found'], 404)
+            ->push(['data' => []], 200);
+        $this->artisan('cloud:release-retry')->assertOk();
+
+        $instance->refresh();
+        $this->assertSame(Service::PROVISION_NONE, $fresh->refresh()->provision_status);
+        $this->assertSame('deleted', $instance->status);
+        $this->assertNotEmpty(data_get($instance->meta, 'provider_absence_verified_at'));
+        $this->assertNull(data_get($instance->meta, 'release_pending'));
+        $this->assertSame(100_000, $c->creditBalance('IRT'));
+    }
+
+    public function test_arvan_release_pending_is_promoted_to_real_failure_after_provider_deadline(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey test-key');
+        $c = $this->customer(100_000);
+        $s = $this->liveCloudService($c, [
+            'status' => 'terminated', 'provision_status' => Service::PROVISION_RELEASING,
+            'cancelled_at' => now()->subHour(),
+        ]);
+        $instance = CloudInstance::where('service_id', $s->id)->first();
+        $instance->update([
+            'provider' => 'arvan', 'provider_ref' => 'ir-thr-c2:srv-'.$s->id,
+            'meta' => ['release_pending' => ['accepted_at' => now()->subMinutes(16)->toIso8601String()]],
+        ]);
+
+        Http::swap(new Factory);
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['data' => ['id' => 'srv-'.$s->id, 'status' => 'SOFT_DELETED']], 200);
+
+        $this->artisan('cloud:release-retry')->assertOk();
+
+        $instance->refresh();
+        $this->assertNotEmpty(data_get($instance->meta, 'release_pending.timed_out_at'));
+        $this->assertSame(1, (int) data_get($instance->meta, 'release_attempts'));
+        $this->assertNotEmpty($instance->last_error);
+        $health = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+        $this->assertSame('fail', $health['cloud_release']['level']);
+        $this->assertTrue(collect(ErrorTracker::recent(200, 'error'))
+            ->contains(fn ($e) => str_contains((string) ($e['message'] ?? ''), 'حذفِ سرور نزدِ زیرساخت انجام نشد')));
+    }
+
+    public function test_release_pending_marker_is_not_reused_by_other_provider_contracts(): void
+    {
+        $s = $this->liveCloudService($this->customer());
+        $instance = CloudInstance::where('service_id', $s->id)->first();
+        $instance->update([
+            'provider' => 'lightnode',
+            'meta' => ['release_pending' => ['accepted_at' => now()->toIso8601String()]],
+        ]);
+
+        $this->assertFalse(app(CloudProvisioner::class)->releasePending($s));
+    }
+
+    public function test_health_checks_the_entire_release_queue_before_downgrading_to_pending_warning(): void
+    {
+        $customer = $this->customer();
+
+        for ($i = 0; $i < 51; $i++) {
+            $service = Service::create([
+                'customer_id' => $customer->id,
+                'name' => 'release-'.$i,
+                'price' => 100000,
+                'cycle' => 'monthly',
+                'status' => 'terminated',
+                'provision_status' => Service::PROVISION_RELEASING,
+            ]);
+            CloudInstance::create([
+                'service_id' => $service->id,
+                'provider' => 'arvan',
+                'provider_ref' => 'ir-thr-c2:srv-'.$i,
+                'status' => 'deleted',
+                'meta' => $i < 50
+                    ? ['release_pending' => ['accepted_at' => now()->toIso8601String()]]
+                    : [],
+            ]);
+        }
+
+        $health = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+
+        $this->assertSame('fail', $health['cloud_release']['level']);
+        $this->assertStringContainsString(fa_num(51), $health['cloud_release']['detail']);
+    }
+
+    public function test_health_does_not_trust_a_release_pending_marker_from_another_provider(): void
+    {
+        $service = Service::create([
+            'customer_id' => $this->customer()->id,
+            'name' => 'foreign release marker',
+            'price' => 100000,
+            'cycle' => 'monthly',
+            'status' => 'terminated',
+            'provision_status' => Service::PROVISION_RELEASING,
+        ]);
+        CloudInstance::create([
+            'service_id' => $service->id,
+            'provider' => 'lightnode',
+            'provider_ref' => 'ln-foreign-marker',
+            'status' => 'deleted',
+            'meta' => ['release_pending' => ['accepted_at' => now()->toIso8601String()]],
+        ]);
+
+        $health = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+
+        $this->assertSame('fail', $health['cloud_release']['level']);
+    }
+
     /** کرونِ ساعتی پرونده را می‌بندد — بی‌یک تومان هزینهٔ اضافه برای مشتری */
     public function test_the_retry_cron_closes_a_lingering_release(): void
     {
