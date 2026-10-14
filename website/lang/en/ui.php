@@ -3132,7 +3132,7 @@ return [
     'gpu_spec_price' => 'Hourly rate',
     'gpu_cards_n' => 'cards per machine',
     'gpu_warn_t' => 'About capacity and delivery time',
-    'gpu_warn_d' => 'Capacity for your selected GPU is checked again before allocation. If no GPU is free, your request waits without a charge; delivery time depends on capacity and app preparation. Work on the distributed network can be interrupted or moved between nodes. Machine disk space is temporary, so store outputs externally.',
+    'gpu_warn_d' => 'After submission, your request enters allocation and preparation; follow progress in the panel. Waiting and preparation are free. Allow around an hour to get started; delivery time is not guaranteed. Work can be interrupted or moved, and disk space is temporary. Store important outputs externally.',
     'gpu_hourly_t' => 'How is it billed?',
     'gpu_hourly_d' => 'Pay as you go, by the hour. You need at least :hours hours of credit to start; each hour is deducted from that balance, and deductions stop the moment you delete the machine.',
     'gpu_ssh_t' => 'How do I use it?',

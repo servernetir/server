@@ -3132,7 +3132,7 @@ return [
     'gpu_spec_price' => 'Saatlik ucret',
     'gpu_cards_n' => 'makine basina kart',
     'gpu_warn_t' => 'Kapasite ve teslim süresi hakkında',
-    'gpu_warn_d' => 'Seçtiğiniz GPU\'nun kapasitesi tahsisten önce yeniden kontrol edilir. Boş GPU yoksa isteğiniz ücret alınmadan sırada bekler; teslim süresi kapasiteye ve uygulamanın hazırlanmasına bağlıdır. Dağıtık ağdaki çalışma kesintiye uğrayabilir veya başka bir düğüme taşınabilir. Makine diski geçicidir; çıktılarınızı harici olarak saklayın.',
+    'gpu_warn_d' => 'İsteğiniz gönderildikten sonra tahsis ve hazırlık sürecine girer; ilerlemeyi panelden izleyin. Bekleme ve hazırlık ücretsizdir. Başlangıç için yaklaşık bir saat ayırın; teslim süresi garanti edilmez. Çalışma kesintiye uğrayabilir veya taşınabilir ve disk geçicidir. Önemli çıktıları harici olarak saklayın.',
     'gpu_hourly_t' => 'Nasil faturalanir?',
     'gpu_hourly_d' => 'Kullandiginiz kadar odeyin, saatlik. Baslamak icin hesabinizda en az :hours saatlik bakiye gerekir; her saat bu bakiyeden dusulur ve makineyi sildiginiz anda kesinti durur.',
     'gpu_ssh_t' => 'Nasil kullanirim?',
