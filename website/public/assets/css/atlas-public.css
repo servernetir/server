@@ -157,3 +157,5 @@ html[data-theme="light"] body.sn-public{--surface:#fff;--surface-2:#edf4fc;--lin
 @media(prefers-reduced-motion:reduce){.sn-public .sn-product-polish *{animation:none!important;scroll-behavior:auto}}
 /* Keep support reachable without covering the mobile product catalogue. */
 @media(max-width:540px){body.sn-public:has(#main .sn-product-polish) #header .logo{font-size:18px;gap:9px}body.sn-public:has(#main .sn-product-polish) #chat-fab{top:51px;bottom:auto;inset-inline-end:125px;width:44px;height:44px;border-radius:12px;box-shadow:0 4px 15px rgba(29,143,230,.13);transform:none}body.sn-public:has(#main .sn-product-polish) #chat-fab .icon{width:22px;height:22px}body.sn-public:has(#main .sn-product-polish) #chat-fab .dot{width:8px;height:8px;border-width:2px;top:1px;inset-inline-end:1px}body.sn-public.imp-on:has(#main .sn-product-polish) #chat-fab{top:calc(51px + var(--imp-h))}}
+@media(max-width:540px){body.sn-public:has(#main .sn-product-polish):has(#header #usr-btn) #chat-fab{inset-inline-end:180px}}
+@media(max-width:379px){body.sn-public:has(#main .sn-product-polish):has(#header #usr-btn) #header .logo{font-size:0;gap:0}}
