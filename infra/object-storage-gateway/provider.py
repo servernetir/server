@@ -58,7 +58,7 @@ def update_user(region, access, secret):
 
 def delete_user(region, access):
     try:
-        _signed(region, "PATCH", "/delete-user?access=" + urllib.parse.quote(access), ok=(204,))
+        _signed(region, "PATCH", "/delete-user?access=" + urllib.parse.quote(access), ok=(200, 204))
     except RuntimeError as exc:
         if "XAdminUserNotFound" not in str(exc):
             raise

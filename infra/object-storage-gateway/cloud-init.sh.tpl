@@ -110,10 +110,10 @@ install -m 0644 /opt/servernet-object-gateway/servernet-object-reconcile.service
 install -m 0644 /opt/servernet-object-gateway/servernet-object-reconcile.timer /etc/systemd/system/
 
 cat >/etc/nginx/sites-available/servernet-object-gateway <<'NGINX'
-server { listen 80; server_name object-api.servernet.cloud; location / { proxy_pass http://127.0.0.1:9180; } }
-server { listen 80; server_name fsn1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_pass http://127.0.0.1:9211; } }
-server { listen 80; server_name nbg1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_pass http://127.0.0.1:9212; } }
-server { listen 80; server_name hel1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_pass http://127.0.0.1:9213; } }
+server { listen 80; server_name object-api.servernet.cloud; location / { proxy_set_header Host $http_host; proxy_pass http://127.0.0.1:9180; } }
+server { listen 80; server_name fsn1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_set_header Host $http_host; proxy_pass http://127.0.0.1:9211; } }
+server { listen 80; server_name nbg1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_set_header Host $http_host; proxy_pass http://127.0.0.1:9212; } }
+server { listen 80; server_name hel1.s3.servernet.cloud; client_max_body_size 0; proxy_request_buffering off; proxy_buffering off; proxy_read_timeout 3600s; location / { proxy_set_header Host $http_host; proxy_pass http://127.0.0.1:9213; } }
 NGINX
 ln -sf /etc/nginx/sites-available/servernet-object-gateway /etc/nginx/sites-enabled/servernet-object-gateway
 rm -f /etc/nginx/sites-enabled/default

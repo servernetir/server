@@ -37,6 +37,12 @@ class ProviderBucketTest(unittest.TestCase):
             provider.create_or_assign_bucket("fsn1", "sn-fsn1-8", "SNACCESS")
         client.delete_bucket.assert_called_once_with(Bucket="sn-fsn1-8")
 
+    @patch("provider._signed")
+    def test_delete_user_accepts_current_and_legacy_success_statuses(self, signed):
+        provider.delete_user("fsn1", "SNACCESS")
+        signed.assert_called_once_with(
+            "fsn1", "PATCH", "/delete-user?access=SNACCESS", ok=(200, 204))
+
 
 if __name__ == "__main__":
     unittest.main()
