@@ -50,7 +50,7 @@
 
 ## اعتبارسنجی
 
-- ۱۳۸ آزمون مرتبط و ۱۳۷۲ assertion پیش از انتشار موفق بود. پس از ادغام تازه‌ترین `develop`، مجموعهٔ انتخابی ۹۳ test method و ۱۲۲۸ assertion با exit0 گذشت؛ اجرای WSL روی درایو Windows هشدارهای محیطی `file_get_contents` را گزارش کرد و به‌عنوان اجرای پاکِ بدون هشدار ثبت نمی‌شود.
+- ۱۳۸ آزمون مرتبط و ۱۳۷۲ assertion پیش از انتشار موفق بود. پس از ادغام نهایی `develop`، مجموعهٔ انتخابی ۹۴ test method و ۱۲۳۷ assertion با exit0 گذشت؛ اجرای WSL روی درایو Windows هشدارهای محیطی `file_get_contents` را گزارش کرد و به‌عنوان اجرای پاکِ بدون هشدار ثبت نمی‌شود.
 - پوشش شامل GPU capacity، LightNode receipt/power، متر ساعتی، Arvan health/inventory، FleetScanner، release retry، sitemap/release-gate و فیلتر 404 است.
 - PHP8.4 lint همهٔ فایل‌های اجرایی منتشرشده موفق، cacheها پاک و `git diff --check` پاک است.
 - اجرای اول `site:gate` روی تولید فقط `RG-BUDGET /cloud 60 > 59` را یافت. پس از ثبت صفحهٔ عمدی Object Storage، اجرای کامل دوم در06:46:45UTC روی همان ۳۵۰۷ URL با exit0 و همهٔ بندها سبز پایان یافت.
