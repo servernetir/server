@@ -146,6 +146,7 @@
       <span>{{ __('ui.hv_badge') }}</span>
     </nav>
 
+    <div class="sn-product-hero">
     <div class="hv-head">
       <span class="badge reveal"><span class="pulse"></span><span>{{ __('ui.hv_badge') }}</span></span>
       <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.hv_h1') }} <span class="grad">{{ __('ui.hv_h1_g') }}</span></h1>
@@ -167,6 +168,8 @@
         <a class="btn btn-primary" href="{{ $storeUrl }}" rel="nofollow"><span>{{ __('ui.hv_cta_order') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
         <a class="btn btn-glass" href="#rates">{{ __('ui.hv_cta_rates') }}</a>
       </div>
+    </div>
+    @include('partials.atlas-product-stage', ['atlasStage'=>'vps'])
     </div>
   </div>
 </section>

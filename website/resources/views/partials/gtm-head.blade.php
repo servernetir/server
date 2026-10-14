@@ -83,8 +83,9 @@
       var workerPath=w.location.pathname.replace(/^\/(en|tr)(?=\/|$)/,'')||'/';
       var countryLanding=/^\/cloud\/(ae|ar|bd|bg|bh|br|ca|cl|co|de|ec|eg|fi|fr|gb|gr|hk|id|iq|jp|kh|kr|kw|mm|mx|my|np|ph|qa|ro|ru|sa|sg|th|tr|tw|us|vn)-[a-z0-9-]+$/.test(workerPath)
         ||/^\/vps\/(iran|germany|finland|france|usa|russia|singapore|sweden|netherlands|austria|england)$/.test(workerPath);
-      var useWorker=(workerPath==='/gpu'||workerPath==='/vps/hourly'||countryLanding)
-        &&w.matchMedia('(max-width:1020px)').matches&&w.isSecureContext
+      var atlasMarketingPage=@json($atlasPublic ?? false);
+      var useWorker=(atlasMarketingPage||((workerPath==='/gpu'||workerPath==='/vps/hourly'||countryLanding)
+        &&w.matchMedia('(max-width:1020px)').matches))&&w.isSecureContext
         &&typeof w.Worker==='function'&&'serviceWorker'in w.navigator;
       var s=d.createElement('script');s.id='snet-gtm';s.async=true;
       s.src='https://www.googletagmanager.com/gtm.js?id='+encodeURIComponent(id);

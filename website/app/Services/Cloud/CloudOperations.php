@@ -701,20 +701,15 @@ class CloudOperations
         /** @var CloudInstance $instance */
         $instance = $g['instance'];
 
-        $plan = $service->cloudPlan;
-        $disk = (int) ($instance->specs['disk_gb'] ?? $plan?->disk_gb ?? 0);
-        $arch = (string) ($instance->specs['arch'] ?? $plan?->arch ?? '');
-
         $images = CloudImage::query()
             ->usable()
             ->where('provider', $instance->provider)
-            ->when($arch !== '', fn ($q) => $q->where('arch', $arch))
             ->orderBy('kind')
             ->orderBy('family')
             ->orderByDesc('version')
             ->get()
-            ->filter(fn (CloudImage $i) => $disk <= 0 || (int) $i->min_disk_gb <= $disk)
             ->unique('key')
+            ->filter(fn (CloudImage $i) => $this->rebuildImageRef($service, (string) $i->key) !== null)
             ->values()
             ->map(fn (CloudImage $i) => [
                 'key'     => (string) $i->key,
@@ -728,6 +723,27 @@ class CloudOperations
             ->all();
 
         return ['ok' => true, 'message' => '', 'images' => $images, 'count' => count($images)];
+    }
+
+    /** Use the same region/resource/capability guard for the picker and POST. */
+    public function rebuildImageRef(Service $service, string $key): ?string
+    {
+        $g = $this->gate($service, 'rebuild');
+        $plan = $service->cloudPlan;
+        if (! $g['ok'] || $plan === null || $plan->provider !== $g['instance']->provider
+            || $g['instance']->provider === 'proxmox') {
+            return null;
+        }
+
+        $effective = clone $plan;
+        $specs = (array) ($g['instance']->specs ?? []);
+        foreach (['vcpu', 'ram_mb', 'disk_gb', 'boot_disk_gb', 'arch'] as $field) {
+            if (isset($specs[$field])) {
+                $effective->setAttribute($field, $specs[$field]);
+            }
+        }
+
+        return CloudImage::compatibleRefFor($effective, $key);
     }
 
     // ═══════════════════════ زیرساختِ درونی ═══════════════════════

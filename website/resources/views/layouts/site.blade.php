@@ -14,6 +14,7 @@
         ? auth('customer')->user()
         : null;
     $impBar = $impCust !== null;
+    $atlasPublic = !preg_match('~^(?:en/|tr/)?(?:account|admin|login|register|password|checkout|cart|order|payment|oauth|system|api)(?:/|$)~', request()->path());
 @endphp
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}" dir="{{ $isFa ? 'rtl' : 'ltr' }}">
@@ -132,6 +133,9 @@
 @endif
 {{-- صفحه‌هایی مثل پنل که CSS اختصاصی دارند، از اینجا تزریق می‌کنند --}}
 @stack('head')
+@if($atlasPublic)
+@include('partials.atlas-public-assets')
+@endif
 @php
 /*
 | دادهٔ ساختاریافتهٔ سازمان — این‌جاست که نشانه‌های اعتماد واقعاً کار می‌کنند.
@@ -218,7 +222,7 @@ if ($ids) {
 {{-- imp-on: به بدنه به اندازهٔ ارتفاعِ نوار padding-top می‌دهد تا نوار هیچ
      محتوایی را نپوشاند و padding-topهای موجود (hero ۱۷۰، pnl-wrap ۱۱۸، …)
      دست‌نخورده بمانند. قاعده‌هایش انتهای site.css است. --}}
-<body @class(['imp-on' => $impBar])>
+<body @class(['imp-on' => $impBar, 'sn-public' => $atlasPublic])>
 @include('partials.gtm-body')
 
 <a class="skip-link" href="#main">{{ __('ui.skip') }}</a>

@@ -15,6 +15,8 @@
   $loc   = $inst?->location();
   $osLbl = $osList->firstWhere('key', $inst?->image_key)?->label
            ?? $appList->firstWhere('key', $inst?->image_key)?->label
+           ?? ($inst === null && str_starts_with((string) $service->cloud_image_key, 'gpu-')
+               ? \App\Models\CloudImage::where('provider', 'salad')->where('key', $service->cloud_image_key)->value('label') : null)
            ?? ($inst->image_key ?? '—');
 
   /* ═══ 🔴 «آماده» یک تعریف دارد و از مدل می‌آید ═══
@@ -33,7 +35,13 @@
      VPS این‌جا دروغ است (واقعیت ۵ تا ۳۰ دقیقه). image_key در لحظهٔ ساخت روی
      نمونه هست؛ اگر هنوز نمونه نداریم از خودِ سرویس می‌خوانیم. */
   $gpuLine = str_starts_with((string) ($inst->image_key ?? $service->cloud_image_key ?? ''), 'gpu-');
-  $closed = $gpuLine && in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
+  $capacityOrder = (array) data_get($service->provision_meta, 'gpu_capacity_order', []);
+  $capacityWaiting = ($capacityOrder['version'] ?? null) === 1
+      && $service->provision_status === \App\Services\Cloud\GpuCapacityOrders::WAIT;
+  $gpuAwaitingInvoice = ($capacityOrder['version'] ?? null) === 1
+      && ($capacityOrder['state'] ?? '') === 'awaiting_payment' && $service->status === 'pending';
+  if ($capacityWaiting) { $stage = 'allocating'; $stageIdx = 2; }
+  $closed = in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
   $ready = $ready && ! $closed;
 
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
@@ -46,6 +54,10 @@
     ['k' => 'finishing', 't' => __('ui.cs_stage_finishing'), 'd' => __('ui.cs_stage_finishing_d')],
     ['k' => 'ready',     't' => __('ui.cs_stage_ready'),     'd' => __('ui.cs_stage_ready_d')],
   ];
+  if ($gpuLine) {
+    $steps = collect(['ordered', 'preparing', 'allocating', 'downloading', 'starting', 'ready'])
+      ->map(fn($step) => ['k' => $step, 't' => __('ui.cs_stage_'.$step), 'd' => __('ui.cs_gpu_step_'.$step)])->all();
+  }
 @endphp
 
 {{-- ═══ رشته‌های JS سه‌زبانه ═══
@@ -68,6 +80,8 @@
      نگهبانش: tests/Feature/CloudServerPageLayoutTest.php --}}
 @php
   $T = [
+    'gpu_phase_checking' => __('ui.cs_gpu_phase_checking'),
+    'gpu_phase_pulling_no_pct' => __('ui.cs_gpu_phase_pulling_no_pct'),
     'copied'            => __('ui.cs_js_copied'),
     'pw_show'           => __('ui.cs_pw_show'),
     'pw_hide'           => __('ui.cs_pw_hide'),
@@ -84,7 +98,7 @@
     'gpu_phase_downloading' => __('ui.cs_gpu_phase_downloading'),
     'gpu_phase_downloading_pct' => __('ui.cs_gpu_phase_downloading_pct'),
     'gpu_phase_creating'    => __('ui.cs_gpu_phase_creating'),
-    'gpu_phase_starting'    => __('ui.cs_gpu_phase_creating'),
+    'gpu_phase_starting'    => __('ui.cs_gpu_phase_starting'),
     'gpu_elapsed'           => __('ui.cs_gpu_elapsed'),
   ];
 @endphp
@@ -113,7 +127,7 @@
         style="font-size:12.5px;padding:7px 15px;color:{{ $inst?->statusColor() ?? 'var(--dim)' }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
-    {{ $closed ? __('ui.cs_closed_h') : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing'))) }}
+    {{ $closed ? __('ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.($capacityOrder['state'] ?? 'checking_capacity')) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
   </span>
 </div>
 
@@ -145,6 +159,40 @@
       <a class="pnl-btn" href="{{ lroute('account.services') }}">{{ __('ui.svc_page_title') }}</a>
     </div>
   </section>
+@elseif(! $ready && $gpuAwaitingInvoice)
+  <section class="pnl-sec" data-gpu-payment-wait>
+    <div class="pnl-sec-h"><h2>{{ __('ui.gpu_order_awaiting_payment') }}</h2></div>
+    <div class="pnl-sec-b">
+      <p>{{ __('ui.gpu_wait_cycle') }}</p>
+      @php $capacityInvoice = $service->invoices()->whereIn('status', \App\Models\Invoice::OPEN_STATUSES)->latest()->first(); @endphp
+      @if($capacityInvoice)
+        <a class="pnl-btn" href="{{ lroute('account.invoice', $capacityInvoice) }}">{{ __('ui.gpu_pay_invoice') }}</a>
+      @endif
+    </div>
+  </section>
+@elseif(! $ready && $capacityWaiting)
+  <section class="pnl-sec" data-gpu-capacity-wait>
+    <div class="pnl-sec-h"><h2 id="gpu-capacity-heading">{{ __('ui.gpu_order_'.($capacityOrder['state'] ?? 'checking_capacity')) }}</h2></div>
+    <div class="pnl-sec-b">
+      <p class="cb-lead">{{ __('ui.gpu_wait_no_charge') }}</p>
+      <p>{{ __($service->billing_mode === 'hourly' ? 'ui.gpu_wait_auto' : 'ui.gpu_wait_cycle') }}</p>
+      <p>{{ __('ui.gpu_approved_price') }}: <b class="pnl-num">{{ cloud_price($service->billing_mode === 'hourly' ? $service->hourly_rate_irt : $service->price) }}</b>{{ $service->billing_mode === 'hourly' ? __('ui.cvb_hourly_per') : '' }}</p>
+      @if(($capacityOrder['state'] ?? '') === 'price_changed' && ($capacityOrder['new_price_irt'] ?? 0) > 0)
+        <p>{{ __('ui.gpu_price_change_note') }}</p>
+        <form method="post" action="{{ lroute('account.cloud.gpu-price', $service) }}">
+          @csrf
+          <input type="hidden" name="quoted_price_irt" value="{{ (int) $capacityOrder['new_price_irt'] }}">
+          <p class="pnl-num">{{ cloud_price($capacityOrder['new_price_irt']) }}{{ $service->billing_mode === 'hourly' ? __('ui.cvb_hourly_per') : '' }}</p>
+          <button class="pnl-btn" type="submit">{{ __('ui.gpu_confirm_price') }}</button>
+        </form>
+      @endif
+      @if(($capacityOrder['state'] ?? '') === 'insufficient_credit')
+        <p>{{ __('ui.gpu_min_credit', ['amount' => cloud_price($capacityOrder['minimum_credit_irt'] ?? 0)]) }}</p>
+        <a class="pnl-btn" href="{{ lroute('account.topup') }}">{{ __('ui.gpu_topup') }}</a>
+      @endif
+      <p class="cb-foot">{{ __('ui.gpu_wait_leave') }}</p>
+    </div>
+  </section>
 @elseif(! $ready && $service->provision_status === 'manual')
   {{-- ═══ 🔴 نگه‌داشته‌شده برای بازبینی ═══
 
@@ -171,7 +219,7 @@
       <span class="cb-live"><i></i>{{ __('ui.cs_build_live') }}</span>
     </div>
     <div class="pnl-sec-b">
-      <p class="cb-lead">{!! __($gpuLine ? 'ui.cs_building_gpu_p' : 'ui.cs_building_p') !!}</p>
+      <p class="cb-lead">{!! __($gpuLine ? (\App\Services\Cloud\GpuCapacityOrders::unpaid($service) ? 'ui.gpu_building_unpaid' : 'ui.cs_building_gpu_p') : 'ui.cs_building_p') !!}</p>
 
       <ol class="cb-steps" id="cb-steps" data-stage="{{ $stageIdx }}"
           data-status-url="{{ lroute('account.cloud.status', $service) }}">
@@ -192,20 +240,28 @@
       </ol>
 
       @if($gpuLine)
+        @php
+          $initialBuild = (array) data_get($inst?->meta, 'gpu_build', []);
+          $initialPhase = $initialBuild['phase'] ?? 'checking';
+          $initialPct = $initialBuild['pull_pct'] ?? null;
+          $initialKey = 'ui.cs_gpu_phase_'.$initialPhase;
+          if ($initialPhase === 'pulling' && !is_int($initialPct)) { $initialKey = 'ui.cs_gpu_phase_pulling_no_pct'; }
+          if ($initialPhase === 'downloading' && is_int($initialPct)) { $initialKey .= '_pct'; }
+        @endphp
         {{-- ═══ پیشرفتِ زندهٔ ساختِ GPU ═══
-             نوار و برچسب را فقط JS پر می‌کند و فقط از دادهٔ واقعیِ وضعیت
+             نوار و برچسب فقط از دادهٔ واقعیِ وضعیت پر می‌شوند
              (فیلدِ `build` پاسخِ status): درصدِ pulling عیناً از زیرساخت
              می‌آید و فازهای گره از state خودِ نمونه. تا دادهٔ تازه نرسد،
              چیزی جز زمانِ سپری‌شده نشان داده نمی‌شود — نه درصدِ حدسی. --}}
         <div id="gpu-prog" data-started="{{ $inst?->created_at?->timestamp ?? '' }}"
              style="margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px">
           <div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:8px">
-            <span id="gpu-prog-label" style="color:var(--muted)">{{ __('ui.cs_gpu_phase_waiting') }}</span>
+            <span id="gpu-prog-label" style="color:var(--muted)">{{ __($initialKey, ['pct' => $initialPct]) }}</span>
             <span id="gpu-prog-elapsed" dir="auto" style="color:var(--dim);white-space:nowrap"></span>
           </div>
           <div style="height:8px;border-radius:6px;background:var(--line);overflow:hidden" role="progressbar"
-               aria-label="{{ __('ui.cs_building_h') }}" aria-valuemin="0" aria-valuemax="100" id="gpu-prog-track">
-            <i id="gpu-prog-bar" style="display:block;height:100%;width:3%;border-radius:6px;background:linear-gradient(90deg,#22d3ee,#34d399);transition:width .8s ease"></i>
+               aria-label="{{ __('ui.cs_building_h') }}" aria-valuemin="0" aria-valuemax="100" id="gpu-prog-track" hidden>
+            <i id="gpu-prog-bar" style="display:block;height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,#22d3ee,#34d399);transition:width .8s ease"></i>
           </div>
         </div>
       @endif
@@ -457,31 +513,35 @@
     @endif
 
     <div class="pnl-acts">
-      @if($inst->status !== 'running')
+      @if($inst->status !== 'running' && in_array('on', $powerActions ?? [], true))
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="on">
           <button class="pnl-btn"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_on') }}</button>
         </form>
-      @else
+      @elseif($inst->status === 'running')
+        @if(in_array('reboot', $powerActions ?? [], true))
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}">
           @csrf<input type="hidden" name="action" value="reboot">
           <button class="pnl-btn"><svg class="icon"><use href="#i-restore"/></svg>{{ __('ui.cs_reboot') }}</button>
         </form>
+        @endif
         {{-- ⚠️ حلِ تداخلِ merge: هر دو تغییر لازم‌اند و هیچ‌کدام جایگزینِ
              دیگری نیست. `lroute()` از develop می‌آید (پنل داخلِ closureِ
              `$site` است، پس `route()` پیشوندِ زبان را می‌انداخت و مشتریِ
              en/tr را به نسخهٔ فارسی پرت می‌کرد)، و متنِ دوشاخهٔ تأیید از
              این شاخه (خاموشیِ سرورِ ساعتی هزینه دارد و باید صریح گفته
              شود — مگر روی پلنِ interruptible که واقعاً رایگان است). --}}
+        @if(in_array('off', $powerActions ?? [], true))
         <form method="post" action="{{ lroute('account.cloud.power', $service) }}"
               data-confirm="{{ $billsWhileOff ? __('ui.cs_confirm_off_billed') : __('ui.cs_confirm_off') }}" data-confirm-danger>
           @csrf<input type="hidden" name="action" value="off">
           <button class="pnl-btn danger"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.cs_power_off') }}</button>
         </form>
+        @endif
       @endif
 
       @if($caps['console'] ?? false)
-        <form method="post" action="{{ lroute('account.cloud.console', $service) }}">
+        <form method="post" action="{{ lroute('account.cloud.console', $service) }}" @if($inst->provider === 'arvan') target="_blank" rel="noopener noreferrer" @endif>
           @csrf<button class="pnl-btn"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.cs_console') }}</button>
         </form>
       @endif
@@ -816,6 +876,15 @@
 
 @endif {{-- پایانِ حالتِ آماده --}}
 
+@unless($closed)
+<section class="pnl-sec cs-danger" id="service-lifecycle">
+  <div class="pnl-sec-h"><h2>{{ __('ui.svc_terminate') }}</h2></div>
+  <div class="pnl-sec-b">
+    @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server'])
+  </div>
+</section>
+@endunless
+
 <style>
 .cs-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px }
 .cs-kv{ background:var(--bg2); border:1px solid var(--line); border-radius:12px; padding:12px 14px }
@@ -924,7 +993,7 @@
   var progTrack  = document.getElementById('gpu-prog-track');
   var progTime   = document.getElementById('gpu-prog-elapsed');
   var startedAt  = prog ? parseInt(prog.dataset.started || '0', 10) : 0;
-  var lastPct    = 3;
+  var lastPct    = 0;
 
   function paintElapsed(){
     if (!progTime || !startedAt) { return; }
@@ -938,23 +1007,17 @@
 
     if (!b || !b.phase) { return; }
 
-    /* جایگاهِ فازها روی نوار = ترتیبِ واقعیِ تحویل:
-       pulling (رجیستری) ۰..۳۵ → تخصیصِ گره ۴۰ → دانلودِ گره ۴۰..۹۰ → راه‌اندازی ۹۵.
-       درصدِ داخلِ هر دو فازِ دانلود **واقعی** است (از خودِ زیرساخت). */
+    // Only the current download's measured percentage belongs on the bar.
     var pct = null;
     var hasPct = typeof b.pull_pct === 'number';
-    if (b.phase === 'pulling')          { pct = Math.round((b.pull_pct || 0) * 0.35); }
-    else if (b.phase === 'allocating')  { pct = 40; }
-    else if (b.phase === 'downloading') { pct = hasPct ? 40 + Math.round(b.pull_pct * 0.5) : 55; }
-    else                                { pct = 95; }   // creating / starting
-
-    // نوار هرگز عقب نمی‌رود — پرشِ عقب‌گرد مشتری را می‌ترساند
-    if (pct !== null && pct > lastPct) { lastPct = pct; }
+    if ((b.phase === 'pulling' || b.phase === 'downloading') && hasPct) { pct = b.pull_pct; }
+    // Each download has its own real percentage. A reallocation may reset it.
+    lastPct = pct === null ? 0 : Math.max(0, Math.min(100, pct));
 
     if (progBar)   { progBar.style.width = lastPct + '%'; }
-    if (progTrack) { progTrack.setAttribute('aria-valuenow', String(lastPct)); }
+    if (progTrack) { progTrack.hidden = pct === null; progTrack.setAttribute('aria-valuenow', String(lastPct)); }
 
-    var key = 'gpu_phase_' + b.phase;
+    var key = b.phase === 'pulling' && !hasPct ? 'gpu_phase_pulling_no_pct' : 'gpu_phase_' + b.phase;
     if (b.phase === 'downloading' && hasPct && T[key + '_pct']) { key += '_pct'; }
 
     var label = T[key] || '';
@@ -963,12 +1026,16 @@
     }
   }
 
+  paintBuild(@json((array) data_get($inst?->meta, 'gpu_build', [])));
+
   // ── وضعیتِ زنده ──
   // در حالتِ «در حالِ ساخت» تندتر می‌پرسیم، چون مشتری منتظرِ همان است؛ بعد از
   // آماده شدن، آرام‌تر تا سهمیهٔ API زیرساخت بی‌دلیل خرج نشود.
   // ⚠️ ۵ ثانیه بی‌خطر است: پاسخِ وضعیت سمتِ سرور ۲۰ ثانیه کش می‌شود، پس تندتر
   // پرسیدن سهمیهٔ زیرساخت را خرج نمی‌کند.
-  var tick = building ? 5000 : 30000;
+  var capacityWaiting = {{ ($capacityWaiting || $gpuAwaitingInvoice) ? 'true' : 'false' }};
+  var capacityState = {{ Illuminate\Support\Js::from($capacityOrder['state'] ?? null) }};
+  var tick = capacityWaiting ? 60000 : (building ? 5000 : 30000);
   var tries = 0;
 
   function poll(){
@@ -982,6 +1049,10 @@
           window.location.reload();
           return;
         }
+        if (capacityWaiting && (d.waiting_capacity !== true || d.capacity_state !== capacityState)) {
+          window.location.reload();
+          return;
+        }
 
         if (d.label) { pill.textContent = d.label; }
         if (d.color) { pill.style.color = d.color; }
@@ -990,7 +1061,7 @@
         if (seen) { seen.textContent = T.last_check_now; }
 
         paintStage(d.stage_index);
-        paintBuild(d.build);
+        paintBuild(d.ok === false ? {phase:'checking', pull_pct:null} : d.build);
 
         /* تازه آماده شد → یک بار بازخوانی تا رمز (که فقط یک بار نشان داده
            می‌شود) و مشخصاتِ کامل بیاید.

@@ -1107,6 +1107,12 @@ class CloudStoreController extends Controller
             abort(403);
         }
 
+        $gpuKey = (string) $request->input('gpu_request_key', '');
+        if (preg_match('/^[A-Za-z0-9]{40}$/D', $gpuKey)
+            && ($existing = app(\App\Services\Cloud\GpuCapacityOrders::class)->replay((int) $customer->id, $gpuKey))) {
+            return redirect(lroute('account.cloud.show', $existing));
+        }
+
         // محدودیتِ نرخ روی **مشتری** (نه IP): سفارشِ سرور یک عملِ سنگین است و
         // هر ردیفِ pending یک پیش‌فاکتورِ واقعی می‌سازد. IP به‌تنهایی هم کاربرِ
         // موبایل/وای‌فای را بی‌دلیل می‌بندد و هم جلوی سیل را نمی‌گیرد.
@@ -1136,6 +1142,7 @@ class CloudStoreController extends Controller
             'billing_mode' => ['nullable', 'string', Rule::in(['cycle', 'hourly'])],
             'on_credit_out' => ['nullable', 'string', Rule::in(['suspend', 'convert', 'terminate'])],
             'quoted_hourly_irt' => ['nullable', 'integer', 'min:0'],
+            'gpu_request_key' => ['nullable', 'string', 'regex:/^[A-Za-z0-9]{40}$/D'],
         ], [], [
             'location' => __('ui.cvb_a_location'), 'plan' => __('ui.cvb_a_plan'),
             'image' => __('ui.cvb_a_image'), 'cycle' => __('ui.cvb_a_cycle'),
@@ -1244,17 +1251,22 @@ class CloudStoreController extends Controller
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_price')]);
         }
 
+        $gpuCapacity = null;
         if ($offer->provider === 'salad') {
+            if (empty($data['gpu_request_key'])) {
+                return back()->withInput()->withErrors(['plan' => __('ui.gpu_request_refresh')]);
+            }
+            $gpuCapacity = app(\App\Services\Cloud\SaladClient::class)->capacityFor($offer, true);
             $quote = app(\App\Services\Cloud\SaladClient::class)->purchaseQuote((string) $offer->provider_ref);
-            if (! ($quote['ok'] ?? false)) {
+            if (! ($quote['ok'] ?? false) && ($gpuCapacity['available'] ?? false) === true) {
                 $key = ($quote['reason'] ?? '') === 'capacity' ? 'cvb_gpu_capacity_changed' : 'cvb_gpu_price_unverified';
                 return back()->withInput()->withErrors(['plan' => __('ui.'.$key)]);
             }
             $effectiveRate = $wantsHourly ? $offer->hourlyIrt()
                 : $price / max(1, Service::monthsIn($cycle)) / \App\Services\Cloud\SaladClient::HOURS_PER_MONTH;
-            if ($effectiveRate < $quote['minimum_hourly_irt']
+            if (($quote['ok'] ?? false) && ($effectiveRate < $quote['minimum_hourly_irt']
                 || ($wantsHourly && isset($data['quoted_hourly_irt'])
-                    && (int) $data['quoted_hourly_irt'] !== $offer->hourlyIrt())) {
+                    && (int) $data['quoted_hourly_irt'] !== $offer->hourlyIrt()))) {
                 return back()->withInput()->withErrors(['plan' => __('ui.cvb_gpu_price_changed')]);
             }
         }
@@ -1289,6 +1301,14 @@ class CloudStoreController extends Controller
                 : null,
             $sshKey !== null ? __('ui.svd_ssh', ['key' => $sshKey->label()]) : null,
         ]));
+
+        if ($gpuCapacity !== null) {
+            // Intent only. The scheduler rechecks capacity, approved price and credit;
+            // hourly first payment is deferred until the provider proves readiness.
+            $service = app(\App\Services\Cloud\GpuCapacityOrders::class)
+                ->register($customer, $offer, $data, $label, $description, $gpuCapacity);
+            return redirect(lroute('account.cloud.show', $service))->with('ok', __('ui.gpu_request_registered'));
+        }
 
         // ── مسیرِ ساعتی: پیش‌پرداخت از کیفِ پول، بی‌فاکتور ──
         // 🔴 برمتال ساعتی فروخته نمی‌شود: سرورِ فیزیکی را **ماهانه** می‌خریم و
@@ -1576,7 +1596,7 @@ class CloudStoreController extends Controller
      * الگو دقیقاً همان `StoreController::issueOrderInvoice` است تا صفحهٔ فاکتور،
      * پرینت A4، پرداخت و `PaymentService` هیچ حالتِ تازه‌ای نبینند.
      */
-    private function issueOrderInvoice(Service $service, CloudPlan $offer, string $label): Invoice
+    public function issueOrderInvoice(Service $service, CloudPlan $offer, string $label): Invoice
     {
         $unitPrice = (int) $service->price;
 

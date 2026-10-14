@@ -37,10 +37,13 @@
       <span>{{ $t['cloud_badge'] }}</span>
     </nav>
 
+    <div class="sn-product-hero">
     <div class="cvps-head">
       <span class="badge">{{ $t['cloud_badge'] }}</span>
       <h1>{{ $t['cloud_h1'] }}</h1>
       <p>{{ $t['cloud_lead'] }}</p>
+    </div>
+    @include('partials.atlas-product-stage', ['atlasStage'=>'vps'])
     </div>
 
     @if($rows)
