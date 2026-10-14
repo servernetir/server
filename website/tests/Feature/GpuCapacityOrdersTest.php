@@ -215,6 +215,21 @@ class GpuCapacityOrdersTest extends TestCase
         $this->assertDatabaseCount('cloud_instances', 0);
     }
 
+    public function test_waiting_server_list_shows_capacity_and_no_charge_instead_of_build_progress(): void
+    {
+        $service = $this->register();
+        $response = $this->actingAs($this->customer, 'customer')->get(route('account.servers'));
+
+        $response->assertOk()
+            ->assertSee(__('ui.gpu_order_waiting_capacity'), false)
+            ->assertSee(__('ui.gpu_wait_no_charge'), false)
+            ->assertDontSee(__('ui.cs_stage_ordered_d'), false);
+        $this->assertSame(GpuCapacityOrders::WAIT, $service->fresh()->provision_status);
+        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('credit_ledger', 0);
+        $this->assertDatabaseCount('cloud_instances', 0);
+    }
+
     public function test_checkout_registers_unpaid_intent_and_replays_without_api_or_invoice(): void
     {
         $body = ['location' => 'global-gpu', 'plan' => $this->plan->slug, 'image' => 'gpu-jupyter',
