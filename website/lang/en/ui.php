@@ -3099,10 +3099,10 @@ return [
 
     // -- GPU servers / /gpu --
     'gpu_meta_t' => 'Hourly GPU Server Rental — Pay for What You Use',
-    'gpu_meta_d' => 'Hourly GPU servers from :price. Pick a card and an app, pay by the hour. Automatic delivery with a dedicated URL and API.',
+    'gpu_meta_d' => 'Hourly GPU servers from :price for AI and rendering. Pick a GPU and app; capacity is checked before allocation and your endpoint appears when ready.',
     'gpu_meta_d_nop' => 'Hourly GPU servers billed by usage. Pick a card, choose how many, and pay by the hour.',
     'gpu_h1' => 'Hourly GPU Servers',
-    'gpu_lead' => 'Choose a graphics card and a ready-made app (Ollama, ComfyUI, Jupyter), and pay only for the hours it runs. Automatic delivery with a dedicated HTTPS endpoint and API you can call from your own server or app.',
+    'gpu_lead' => 'Choose a GPU and a ready-made app (Ollama, ComfyUI, Jupyter) for AI and rendering. Hourly usage is billed while the machine runs; your dedicated HTTPS endpoint and API appear in the panel when it is ready.',
     'gpu_from' => 'From :price per hour',
     'gpu_pick_t' => 'Choose your graphics card',
     'gpu_pick_d' => 'Prices are hourly and come from the same rate that appears on your invoice.',
@@ -3120,8 +3120,8 @@ return [
     'gpu_spec_disk' => 'Storage',
     'gpu_spec_price' => 'Hourly rate',
     'gpu_cards_n' => 'cards per machine',
-    'gpu_warn_t' => 'How is this price possible?',
-    'gpu_warn_d' => 'This service runs on a distributed network of thousands of GPUs instead of an expensive datacenter - which is why it costs a fraction of a traditional GPU server. If a node drops out, your app is automatically brought back up on another node, and you only pay for the hours it runs. A great fit for AI inference, image generation, rendering and batch jobs; if your workload cannot tolerate even a short relocation, our regular VPS is the right choice. Machine disk space is ephemeral - store your results externally.',
+    'gpu_warn_t' => 'About capacity and delivery time',
+    'gpu_warn_d' => 'Capacity for your selected GPU is checked again before allocation. If no GPU is free, your request waits without a charge; delivery time depends on capacity and app preparation. Work on the distributed network can be interrupted or moved between nodes. Machine disk space is temporary, so store outputs externally.',
     'gpu_hourly_t' => 'How is it billed?',
     'gpu_hourly_d' => 'Pay as you go, by the hour. You need at least :hours hours of credit to start; each hour is deducted from that balance, and deductions stop the moment you delete the machine.',
     'gpu_ssh_t' => 'How do I use it?',
