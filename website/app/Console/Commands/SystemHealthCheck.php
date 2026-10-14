@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\Notify\AdminNotifier;
 use App\Services\SystemHealth;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 
 /**
@@ -35,6 +36,9 @@ class SystemHealthCheck extends Command
     /** آخرین وضعیتِ اعلام‌شده. ⚠️ فایل، نه کش: کش خودش ممکن است بیمار باشد. */
     private const STATE = 'health-state';
 
+    /** تغییرِ گذرای هشدارهای زرد نباید هر ربع ساعت یک خلاصهٔ تازه بسازد. */
+    private const WARN_REPEAT_SECONDS = 6 * 3600;
+
     public function handle(SystemHealth $health, AdminNotifier $notifier): int
     {
         $checks = $health->checks();
@@ -49,17 +53,44 @@ class SystemHealthCheck extends Command
             }.$c['title'].' — '.$c['detail']);
         }
 
-        // امضا شاملِ **کدام** چک‌ها خرابند، نه فقط شدت. وگرنه وقتی مشکلِ کرون
-        // برطرف شود و هم‌زمان صفِ دامنه گیر کند، هر دو `fail`اند و هیچ خبری
-        // نمی‌رود — یعنی دقیقاً همان کوریِ که این ابزار برایش ساخته شده.
-        $signature = $worst.'|'.implode(',', array_column($bad, 'key'));
-        $changed = $this->lastSignature() !== $signature;
+        $current = collect($bad)->mapWithKeys(fn ($c) => [(string) $c['key'] => (string) $c['level']])->all();
+        $state = $this->lastState($current);
+        $previous = (array) ($state['bad'] ?? []);
+        $toAnnounce = [];
+        $announceRecovery = $current === [] && $previous !== [];
 
-        if ($changed || $this->option('notify')) {
-            $this->announce($notifier, $worst, $bad);
+        if ($this->option('notify')) {
+            $toAnnounce = $bad;
+            $announceRecovery = $current === [];
+        } elseif ($state === null) {
+            // نصبِ سالم بی‌دلیل پیام نمی‌دهد؛ اولین خرابیِ واقعی چرا.
+            $toAnnounce = $bad;
+        } elseif (! $announceRecovery) {
+            $candidates = array_values(array_filter($bad, function ($check) use ($previous) {
+                $key = (string) $check['key'];
+
+                return ! isset($previous[$key])
+                    || $this->severity((string) $check['level']) > $this->severity((string) $previous[$key]);
+            }));
+
+            // خرابیِ قرمزِ تازه فوراً می‌رود. تغییرِ زردِ گذرا فقط اگر از آخرین
+            // خلاصه شش ساعت گذشته باشد؛ بهبودِ جزئی اصلاً پیام جدا نمی‌سازد.
+            $hasFreshFailure = collect($candidates)->contains(fn ($c) => $c['level'] === 'fail');
+            if ($hasFreshFailure || ($candidates !== [] && $this->warningWindowPassed($state))) {
+                $toAnnounce = $candidates;
+            }
         }
 
-        $this->remember($signature);
+        $announced = false;
+        if ($announceRecovery) {
+            $this->announce($notifier, 'ok', []);
+            $announced = true;
+        } elseif ($toAnnounce !== []) {
+            $this->announce($notifier, SystemHealth::worst($toAnnounce), $toAnnounce);
+            $announced = true;
+        }
+
+        $this->remember($current, $announced ? now()->toIso8601String() : ($state['last_announced_at'] ?? null));
 
         // ⚠️ کدِ خروجِ غیرِ صفر عمداً **نه**: `schedule:run` آن را شکستِ فرمان
         // می‌شمارد و در لاگِ کرون سروصدا می‌کند، در حالی که این فرمان کارش را
@@ -95,19 +126,70 @@ class SystemHealthCheck extends Command
         }
     }
 
-    private function lastSignature(): ?string
+    /** @return array{bad:array<string,string>,last_announced_at:?string}|null */
+    private function lastState(array $current): ?array
     {
         $path = storage_path('app/'.self::STATE);
 
-        return File::exists($path) ? trim(File::get($path)) : null;
+        if (! File::exists($path)) {
+            return null;
+        }
+
+        $raw = trim((string) File::get($path));
+        $json = json_decode($raw, true);
+
+        if (is_array($json) && is_array($json['bad'] ?? null)) {
+            return [
+                'bad' => array_map('strval', $json['bad']),
+                'last_announced_at' => filled($json['last_announced_at'] ?? null)
+                    ? (string) $json['last_announced_at'] : null,
+            ];
+        }
+
+        // مهاجرتِ بی‌صدا از فرمتِ قدیمی `fail|db,errors,...`: همان وضعیت قبلاً
+        // اعلام شده، پس deploy نباید خودش یک موجِ تازهٔ بله بسازد.
+        [, $keys] = array_pad(explode('|', $raw, 2), 2, '');
+        $bad = [];
+        foreach (array_filter(explode(',', $keys)) as $key) {
+            $bad[$key] = $current[$key] ?? 'fail';
+        }
+
+        return ['bad' => $bad, 'last_announced_at' => now()->toIso8601String()];
     }
 
-    private function remember(string $signature): void
+    /** @param array<string,string> $bad */
+    private function remember(array $bad, ?string $lastAnnouncedAt): void
     {
         try {
-            File::put(storage_path('app/'.self::STATE), $signature);
+            File::put(storage_path('app/'.self::STATE), json_encode([
+                'version' => 2,
+                'bad' => $bad,
+                'last_announced_at' => $lastAnnouncedAt,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         } catch (\Throwable) {
             // بی‌حافظه یعنی هشدارِ تکراری — آزاردهنده، ولی بی‌خطر
         }
+    }
+
+    /** @param array{last_announced_at:?string} $state */
+    private function warningWindowPassed(array $state): bool
+    {
+        try {
+            $at = filled($state['last_announced_at'] ?? null)
+                ? Carbon::parse((string) $state['last_announced_at']) : null;
+
+            return $at === null || $at->lte(now()->subSeconds(self::WARN_REPEAT_SECONDS));
+        } catch (\Throwable) {
+            return true;
+        }
+    }
+
+    private function severity(string $level): int
+    {
+        return match ($level) {
+            'fail' => 2,
+            'warn' => 1,
+            default => 0,
+        };
     }
 }

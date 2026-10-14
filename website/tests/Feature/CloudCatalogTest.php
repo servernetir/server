@@ -273,6 +273,33 @@ class CloudCatalogTest extends TestCase
     }
 
     /**
+     * افزایشِ عادیِ بها خودش خطا نیست: sync قیمتِ فروشِ سایت را همان لحظه
+     * می‌نویسد و reprice نرخِ ساعتی را دنبال می‌کند. پس گزارش بماند، ولی بله
+     * نباید برای نوسان‌های ریز (حتی ۰٪ گرد‌شده) مدیر را صدا کند.
+     */
+    public function test_cost_increase_is_reported_in_sync_without_admin_notification(): void
+    {
+        $this->fakeHetzner();
+        app(CloudCatalogSync::class)->sync();
+
+        $plan = CloudPlan::firstOrFail();
+        $plan->forceFill([
+            'previous_cost_eur_cents' => (int) $plan->cost_eur_cents - 1,
+            'cost_changed_at' => now(),
+        ])->save();
+
+        $this->mock(\App\Services\Notify\AdminNotifier::class, function ($m) {
+            $m->shouldNotReceive('event');
+        });
+
+        $method = new \ReflectionMethod(CloudCatalogSync::class, 'costIncreaseSummary');
+        $summary = $method->invoke(app(CloudCatalogSync::class));
+
+        $this->assertIsString($summary);
+        $this->assertStringContainsString('قیمتِ فروشِ سایت همزمان به‌روز شد', $summary);
+    }
+
+    /**
      * ظرفیتِ تمام‌شده باید ثبت شود، وگرنه پلنی را می‌فروشیم که ساخته نمی‌شود و
      * پولِ مشتری را گرفته‌ایم بی‌آنکه بتوانیم تحویل دهیم.
      */
