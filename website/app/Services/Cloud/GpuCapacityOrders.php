@@ -17,7 +17,8 @@ use Illuminate\Validation\ValidationException;
 /** Unpaid GPU intent. Capacity, approved price and wallet are rechecked before allocation. */
 class GpuCapacityOrders
 {
-    public const WAIT = 'gpu_capacity_wait';
+    // services.provision_status is VARCHAR(16), also on existing installations.
+    public const WAIT = 'gpu_wait';
 
     public function __construct(private SaladClient $provider, private Wallet $wallet, private HourlyStartCredit $credit) {}
 

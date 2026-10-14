@@ -106,18 +106,32 @@ class ServerControlsCompatibilityTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_existing_arvan_external_console_transport_is_preserved(): void
+    public function test_external_console_transport_uses_a_new_tab_when_the_provider_supports_it(): void
     {
         $s = $this->server();
         $s->cloudPlan->update(['provider' => 'arvan']);
         $s->cloudInstance->update(['provider' => 'arvan']);
         $url = 'https://console.example.com/fixture';
         $driver = \Mockery::mock(\App\Services\Cloud\ArvanClient::class)->makePartial();
+        $driver->shouldReceive('capabilities')->andReturn(array_replace($driver->capabilities(), ['console' => true]));
         $driver->shouldReceive('console')->once()->with('fixture-server')->andReturn(['ok' => true, 'url' => $url, 'transport' => 'external']);
         app()->instance(\App\Services\Cloud\ArvanClient::class, $driver);
         $this->actingAs($s->customer, 'customer')->post('/account/cloud/'.$s->id.'/console')
             ->assertRedirect($url)->assertHeader('Cache-Control', 'no-store, private')->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $this->get('/account/cloud/'.$s->id)->assertOk()->assertSee('target="_blank" rel="noopener noreferrer"', false);
+        Http::assertNothingSent();
+    }
+
+    public function test_provider_without_console_capability_does_not_advertise_a_console_form(): void
+    {
+        $s = $this->server();
+        $s->cloudPlan->update(['provider' => 'arvan']);
+        $s->cloudInstance->update(['provider' => 'arvan']);
+        $driver = \Mockery::mock(\App\Services\Cloud\ArvanClient::class)->makePartial();
+        $driver->shouldReceive('capabilities')->andReturn(array_replace($driver->capabilities(), ['console' => false]));
+        app()->instance(\App\Services\Cloud\ArvanClient::class, $driver);
+        $this->actingAs($s->customer, 'customer')->get('/account/cloud/'.$s->id)->assertOk()
+            ->assertDontSee('action="'.lroute('account.cloud.console', $s).'"', false);
         Http::assertNothingSent();
     }
 

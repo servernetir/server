@@ -1,5 +1,7 @@
 # GPU capacity scheduler repair — 13 October 2026
 
+Current-state follow-up: [14 October log audit](GPU-QUEUE-LOG-AUDIT-2026-10-14.md) records the intervening scheduler overwrite, safe restoration, production status-column correction and natural cron proof. The rollback instructions below are historical; preserve the newer marker and source guards.
+
 ## Published state
 
 With the owner's explicit instruction to repair, test and publish without new paid servers, the live application on `core` was updated at **13:47:30 UTC**. Independent verification at **13:48:37 UTC** confirmed exactly one `cloud:advance-gpu-capacity` event, every minute, with a 15-minute non-overlap lock. All **60 pre-existing scheduled events** retained their commands, cadence, overlap settings and background behavior. The existing host cron already invokes Laravel `schedule:run` each minute with PHP 8.4 and was unchanged.
