@@ -98,6 +98,41 @@ class HetznerClient implements CloudProvider
             : ['ok' => false, 'message' => $r['message'] ?: 'Volume price is unavailable.'];
     }
 
+    /** Current net monthly server tariff, including its Primary IPv4. */
+    public function serverMonthlyNetPrice(string $type, string $location): array
+    {
+        if (! preg_match('/\A[a-z0-9-]+\z/', $type) || ! preg_match('/\A[a-z0-9-]+\z/', $location)) {
+            return ['ok' => false, 'message' => 'Server type or location is invalid.'];
+        }
+
+        $r = $this->req('GET', '/server_types', ['name' => $type]);
+        if (! $r['ok']) {
+            return ['ok' => false, 'message' => $r['message'] ?: 'Server price is unavailable.'];
+        }
+        $serverType = collect((array) ($r['body']['server_types'] ?? []))
+            ->first(fn ($row) => (string) ($row['name'] ?? '') === $type);
+        $price = collect((array) ($serverType['prices'] ?? []))
+            ->first(fn ($row) => (string) ($row['location'] ?? '') === $location);
+        $monthly = data_get($price, 'price_monthly.net');
+        if (! is_numeric($monthly) || (float) $monthly <= 0) {
+            return ['ok' => false, 'message' => 'Server price is unavailable for the requested location.'];
+        }
+
+        $serverCents = (int) ceil((float) $monthly * 100 - 0.0000001);
+        $ipv4Cents = $this->ipv4MonthlyCents();
+
+        return [
+            'ok' => true,
+            'message' => '',
+            'currency' => 'EUR',
+            'server_type' => $type,
+            'location' => $location,
+            'server_net_eur_cents' => $serverCents,
+            'ipv4_net_eur_cents' => $ipv4Cents,
+            'net_eur_cents' => $serverCents + $ipv4Cents,
+        ];
+    }
+
     /** @return array{ok:bool,message:string,volume:?array} */
     public function findVolumeByName(string $name): array
     {
