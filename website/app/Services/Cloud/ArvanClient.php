@@ -1134,12 +1134,17 @@ class ArvanClient implements CloudProvider
             ->where('is_active', true)
             ->whereNotNull('provider_location')->distinct()->pluck('provider_location')->all();
 
-        foreach (CloudInstance::query()->where('provider', $this->slug())
-            // Deleted rows are retained for audit/billing history, but no
-            // longer prove that the provider region is queryable today.
-            ->where('status', '!=', 'deleted')
-            ->whereNotNull('provider_ref')->pluck('provider_ref') as $ref) {
-            [$region] = $this->split((string) $ref);
+        $instances = CloudInstance::query()->where('provider', $this->slug())
+            ->whereNotNull('provider_ref')->get(['provider_ref', 'status', 'meta']);
+
+        foreach ($instances->filter(function (CloudInstance $instance) {
+            // Legacy `deleted` rows are not proof of provider absence: the old
+            // plain DELETE could leave an Arvan VM SOFT_DELETED and billable.
+            // Only exact-resource GET 404 writes this durable verification.
+            return $instance->status !== 'deleted'
+                || blank(data_get($instance->meta, 'provider_absence_verified_at'));
+        }) as $instance) {
+            [$region] = $this->split((string) $instance->provider_ref);
             if ($region !== '') {
                 $codes[] = $region;
             }
@@ -1395,26 +1400,61 @@ class ArvanClient implements CloudProvider
         */
         $r = $this->req('DELETE', $path.'?forceDelete=true');
 
-        if (! $r['ok'] && $r['status'] === 404) {
-            return ['ok' => true, 'message' => 'سرور از قبل حذف شده بود.'];
-        }
-
-        if (! $r['ok']) {
+        if (! $r['ok'] && $r['status'] !== 404) {
             return ['ok' => false, 'message' => $r['message']];
         }
 
-        // Acceptance is not completion: keep cleanup pending until the exact
-        // VM disappears. SOFT_DELETED is not proof that its disk stopped billing.
+        // Neither a successful mutation nor DELETE's own 404 proves that the
+        // exact resource (and its billable disk) is gone.  Arvan can answer a
+        // retrying DELETE with 404 while the detail endpoint still exposes a
+        // SOFT_DELETED record, so every non-rejected attempt is verified here.
         $check = $this->req('GET', $path);
 
         if (! $check['ok'] && $check['status'] === 404) {
+            // Arvan documents this 404 as "server or region not found".  A
+            // misspelled/retired region therefore cannot prove that billing
+            // stopped.  Require a readable inventory for the same region and
+            // verify that the exact id is absent there as well.
+            $inventory = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers');
+            $inventoryRows = $inventory['data'];
+            $validInventory = $inventory['ok']
+                && is_array($inventoryRows)
+                && array_is_list($inventoryRows)
+                && collect($inventoryRows)->every(fn ($server) => is_array($server)
+                    && is_string($server['id'] ?? null)
+                    && trim($server['id']) !== '');
+
+            if (! $validInventory) {
+                return [
+                    'ok' => false,
+                    'message' => 'جزئیات سرور پیدا نشد، اما فهرست همان منطقه برای تأیید حذف قابل خواندن نبود: '
+                        .($inventory['message'] ?: 'پاسخ موجودی معتبر نبود.'),
+                ];
+            }
+
+            $stillListed = collect($inventoryRows)->contains(fn ($server) => (string) $server['id'] === $id);
+
+            if ($stillListed) {
+                return ['ok' => false, 'message' => 'جزئیات سرور 404 است، اما شناسه هنوز در فهرست همان منطقه وجود دارد.'];
+            }
+
             return ['ok' => true, 'message' => ''];
+        }
+
+        $detailStatus = strtoupper((string) data_get($check['data'], 'status', ''));
+
+        if ($check['ok'] && ($r['ok'] || $detailStatus === 'SOFT_DELETED')) {
+            return [
+                'ok' => false,
+                'pending' => true,
+                'message' => 'حذف اجباری در زیرساخت پذیرفته شده ولی هنوز نهایی نشده است.',
+            ];
         }
 
         return [
             'ok' => false,
             'message' => $check['ok']
-                ? 'حذف اجباری در زیرساخت پذیرفته شده ولی هنوز نهایی نشده است.'
+                ? 'DELETE حذف قطعی را تأیید نکرد و منبع هنوز در جزئیات زیرساخت وجود دارد.'
                 : 'پس از درخواست حذف اجباری، نبودن سرور قابل تأیید نبود: '.$check['message'],
         ];
     }

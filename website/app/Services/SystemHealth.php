@@ -779,6 +779,7 @@ class SystemHealth
             }
 
             $rows = Service::query()->awaitingRelease()
+                ->with('cloudInstance:id,service_id,meta')
                 ->orderBy('id')->limit(50)->get(['id', 'name', 'customer_id']);
         } catch (\Throwable $e) {
             // «نتوانستم بپرسم» با «چیزی نیست» یکی نیست.
@@ -789,6 +790,30 @@ class SystemHealth
         if ($rows->isEmpty()) {
             return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور',
                 'هر سرویسِ بسته‌شده‌ای نزدِ زیرساخت هم آزاد شده.');
+        }
+
+        $freshPending = $rows->filter(function (Service $service) {
+            $pending = data_get($service->cloudInstance?->meta, 'release_pending');
+
+            if (! is_array($pending) || blank($pending['accepted_at'] ?? null)
+                || filled($pending['timed_out_at'] ?? null)) {
+                return false;
+            }
+
+            try {
+                return Carbon::parse((string) ($pending['accepted_at'] ?? ''))
+                    ->gt(now()->subMinutes(15));
+            } catch (\Throwable) {
+                return false;
+            }
+        });
+
+        if ($freshPending->count() === $rows->count()) {
+            return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
+                fa_num($rows->count()).' حذف نزدِ زیرساخت پذیرفته شده و تأیید نهایی آن در جریان است (سرویسِ '
+                .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
+                .'). اگر بیش از ۱۵ دقیقه بماند به خطای واقعی ارتقا می‌یابد.',
+                $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
         }
 
         return $this->row('cloud_release', false, 'fail', 'آزادسازیِ سرور',
