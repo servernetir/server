@@ -1386,33 +1386,6 @@ class ArvanClient implements CloudProvider
             return ['ok' => true, 'message' => 'سرور از قبل حذف شده بود.'];
         }
 
-        /*
-        | Arvan sometimes answers DELETE for an already-absent server with a
-        | generic 400 "Instance is not ready" instead of 404.  Treating that
-        | sentence itself as success would be dangerous: the same response can
-        | describe a real server that is still building.  Verify absence on
-        | Arvan's region-scoped inventory surface instead.  A failed inventory
-        | read, or a list that still contains the id, preserves the original
-        | failure so the release queue remains fail-closed.
-        |
-        | This reconciliation intentionally lives in the Arvan driver.  Other
-        | providers have different delete/list consistency contracts and must
-        | not inherit Arvan's exceptional response handling.
-        */
-        if (! $r['ok'] && $region !== '' && $id !== '') {
-            $list = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers');
-
-            if ($list['ok']) {
-                $present = collect((array) $list['data'])
-                    ->contains(fn ($server) => is_array($server)
-                        && (string) ($server['id'] ?? '') === $id);
-
-                if (! $present) {
-                    return ['ok' => true, 'message' => 'سرور در فهرستِ کاملِ منطقه وجود ندارد و از قبل حذف شده است.'];
-                }
-            }
-        }
-
         return ['ok' => $r['ok'], 'message' => $r['ok'] ? '' : $r['message']];
     }
 }

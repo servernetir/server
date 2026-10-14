@@ -686,54 +686,6 @@ class CloudArvanTest extends TestCase
         $this->assertTrue(app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9')['ok']);
     }
 
-    public function test_delete_reconciles_arvan_not_ready_response_when_region_inventory_confirms_absence(): void
-    {
-        Http::fake(function ($request) {
-            if ($request->method() === 'DELETE') {
-                return Http::response(['message' => 'Instance is not ready for your requested action'], 400);
-            }
-
-            return Http::response(['data' => [['id' => 'another-server']]], 200);
-        });
-
-        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
-
-        $this->assertTrue($r['ok']);
-        Http::assertSentCount(2);
-    }
-
-    public function test_delete_keeps_arvan_failure_when_region_inventory_still_contains_server(): void
-    {
-        Http::fake(function ($request) {
-            if ($request->method() === 'DELETE') {
-                return Http::response(['message' => 'Instance is not ready for your requested action'], 400);
-            }
-
-            return Http::response(['data' => [['id' => 'srv-9']]], 200);
-        });
-
-        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
-
-        $this->assertFalse($r['ok']);
-        $this->assertSame('Instance is not ready for your requested action', $r['message']);
-    }
-
-    public function test_delete_keeps_arvan_failure_when_region_inventory_cannot_be_verified(): void
-    {
-        Http::fake(function ($request) {
-            if ($request->method() === 'DELETE') {
-                return Http::response(['message' => 'Instance is not ready for your requested action'], 400);
-            }
-
-            return Http::response(['message' => 'inventory unavailable'], 503);
-        });
-
-        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
-
-        $this->assertFalse($r['ok']);
-        $this->assertSame('Instance is not ready for your requested action', $r['message']);
-    }
-
     // ═══════════════ ادغام با سیستمِ کاتالوگ ═══════════════
 
     public function test_arvan_is_a_registered_driver(): void
