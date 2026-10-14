@@ -2532,7 +2532,6 @@ class CloudProvisioner
         if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
             $message = 'فرمان پذیرفته شد، اما وضعیت نهایی تا پایان مهلت '
                 .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
-            $alreadyEscalated = filled($pending['timed_out_at'] ?? null);
             $meta = (array) $instance->meta;
             $meta['lifecycle_pending'] = [
                 'expect' => $expectStatus,
@@ -2540,12 +2539,6 @@ class CloudProvisioner
                 'timed_out_at' => $pending['timed_out_at'] ?? now()->toIso8601String(),
             ];
             $instance->update(['last_error' => $message, 'meta' => $meta]);
-            if (! $alreadyEscalated) {
-                $this->shoutAboutLingeringMachine(
-                    'تغییرِ وضعیتِ سرور نزدِ زیرساخت در مهلت مقرر تأیید نشد',
-                    $service, $instance, $message
-                );
-            }
 
             return false;
         }

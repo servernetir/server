@@ -60,6 +60,19 @@ class LightNodePowerConfirmationTest extends TestCase
         $this->assertSame('off', data_get($instance->fresh()->meta, 'lifecycle_pending.expect'));
         $this->assertNotNull(data_get($service->fresh()->provision_meta, 'hourly_suspend.retry_at'));
         $this->assertSame([], ErrorTracker::recent(50, 'error'));
+
+        Carbon::setTestNow(now()->addMinutes(31));
+        $this->artisan('cloud:meter')->assertFailed();
+
+        $this->assertNotNull(data_get($instance->fresh()->meta, 'lifecycle_pending.timed_out_at'));
+        $this->assertFalse(app(CloudProvisioner::class)->lifecyclePending($service, 'off'));
+        $errors = ErrorTracker::recent(50, 'error');
+        $timeoutAlerts = array_filter($errors, fn ($row) => str_contains(
+            (string) ($row['message'] ?? ''), 'خاموش‌کردنِ سرور نزدِ زیرساخت انجام نشد'
+        ));
+        $this->assertCount(1, $timeoutAlerts, json_encode(array_column($errors, 'message'), JSON_UNESCAPED_UNICODE));
+        $this->assertCount(1, Http::recorded(fn ($request) => $request->method() === 'POST'));
+        Carbon::setTestNow();
     }
 
     public function test_a_receipt_that_fails_during_confirmation_is_not_parked_as_pending(): void
@@ -171,7 +184,7 @@ class LightNodePowerConfirmationTest extends TestCase
         $this->assertFalse($provisioner->lifecyclePending($service, 'off'));
         $this->assertStringContainsString('30 دقیقه', (string) $instance->fresh()->last_error);
         $this->assertCount(1, Http::recorded(fn ($request) => $request->method() === 'POST'));
-        $this->assertNotSame([], ErrorTracker::recent(50, 'error'));
+        $this->assertSame([], ErrorTracker::recent(50, 'error'));
         Carbon::setTestNow();
     }
 }
