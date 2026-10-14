@@ -11,6 +11,7 @@ use App\Services\Cloud\CloudProvisioner;
 use App\Support\ErrorTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -117,8 +118,10 @@ class LightNodePowerConfirmationTest extends TestCase
         $this->assertFalse($provisioner->{$method}($service));
         $this->assertSame('building', $instance->fresh()->status);
         $this->assertSame('pending', CloudProviderOperation::firstOrFail()->state);
+        $acceptedAt = data_get($instance->fresh()->meta, 'lifecycle_pending.accepted_at');
         $this->assertFalse($provisioner->{$method}($service));
         $this->assertSame('building', $instance->fresh()->status);
+        $this->assertSame($acceptedAt, data_get($instance->fresh()->meta, 'lifecycle_pending.accepted_at'));
         $this->assertCount(1, Http::recorded(fn ($request) => $request->method() === 'POST'));
 
         Http::swap(new Factory);
@@ -132,5 +135,43 @@ class LightNodePowerConfirmationTest extends TestCase
         $this->assertSame($finalStatus, $instance->fresh()->status);
         $this->assertSame(0, CloudProviderOperation::count());
         Http::assertNotSent(fn ($request) => $request->method() === 'POST');
+    }
+
+    public function test_a_power_transition_that_never_finishes_times_out_and_alerts(): void
+    {
+        Carbon::setTestNow('2026-10-14 10:00:00');
+        Setting::putSecret('lightnode_api_token', 'test-token');
+        ErrorTracker::clear();
+        $customer = Customer::create(['name' => 'Timeout fixture', 'email' => 'timeout@example.test',
+            'password' => 'fixture-only', 'status' => 'active']);
+        $service = Service::create(['customer_id' => $customer->id, 'name' => 'Timeout LightNode',
+            'price' => 100000, 'cycle' => 'monthly', 'status' => 'active']);
+        $instance = CloudInstance::create(['service_id' => $service->id, 'provider' => 'lightnode',
+            'provider_ref' => 'ecs-timeout-fixture', 'status' => 'running']);
+
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake([
+            '*/instance/detail*' => Http::response(['instance' => ['ecsResourceUUID' => 'ecs-timeout-fixture',
+                'ecsStatus' => 'STARTED', 'ecsPendingStatus' => 'NONE']]),
+            '*/instance/stop' => Http::response(['asyncTaskInfo' => ['asyncTaskUUID' => 'timeout-task']], 202),
+            '*/asynctask/getResult*' => Http::response(['asyncTaskInfo' => ['processResult' => 'PROCESSING', 'taskStatus' => 'RUNNING']]),
+        ]);
+
+        $provisioner = app(CloudProvisioner::class);
+        $this->assertFalse($provisioner->suspend($service));
+        $acceptedAt = data_get($instance->fresh()->meta, 'lifecycle_pending.accepted_at');
+
+        Carbon::setTestNow(now()->addMinutes(31));
+        $this->assertFalse($provisioner->suspend($service));
+
+        $this->assertTrue(Carbon::parse($acceptedAt)->equalTo(Carbon::parse('2026-10-14 10:00:00')));
+        $this->assertSame($acceptedAt, data_get($instance->fresh()->meta, 'lifecycle_pending.accepted_at'));
+        $this->assertNotNull(data_get($instance->fresh()->meta, 'lifecycle_pending.timed_out_at'));
+        $this->assertFalse($provisioner->lifecyclePending($service, 'off'));
+        $this->assertStringContainsString('30 دقیقه', (string) $instance->fresh()->last_error);
+        $this->assertCount(1, Http::recorded(fn ($request) => $request->method() === 'POST'));
+        $this->assertNotSame([], ErrorTracker::recent(50, 'error'));
+        Carbon::setTestNow();
     }
 }

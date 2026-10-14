@@ -1129,9 +1129,15 @@ class ArvanClient implements CloudProvider
     private function knownInventoryRegions(): array
     {
         $codes = CloudPlan::query()->where('provider', $this->slug())
+            // Inactive plans are retained as catalogue history.  A retired
+            // region from that history must not poison every fallback scan.
+            ->where('is_active', true)
             ->whereNotNull('provider_location')->distinct()->pluck('provider_location')->all();
 
         foreach (CloudInstance::query()->where('provider', $this->slug())
+            // Deleted rows are retained for audit/billing history, but no
+            // longer prove that the provider region is queryable today.
+            ->where('status', '!=', 'deleted')
             ->whereNotNull('provider_ref')->pluck('provider_ref') as $ref) {
             [$region] = $this->split((string) $ref);
             if ($region !== '') {

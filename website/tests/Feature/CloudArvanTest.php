@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\CloudPlan;
+use App\Models\CloudInstance;
+use App\Models\Customer;
+use App\Models\Service;
 use App\Models\Setting;
 use App\Services\Cloud\ArvanClient;
 use App\Services\Cloud\CloudCatalogSync;
@@ -206,6 +209,47 @@ class CloudArvanTest extends TestCase
 
         $this->assertFalse($inventory['ok']);
         $this->assertStringContainsString('ir-shz-b1', $inventory['message']);
+    }
+
+    public function test_fallback_ignores_retired_plan_and_deleted_instance_regions(): void
+    {
+        foreach ([['ir-active', true], ['ir-retired', false]] as [$region, $active]) {
+            CloudPlan::create([
+                'provider' => 'arvan', 'provider_ref' => 'g2-'.$region,
+                'provider_location' => $region, 'location_code' => 'loc-'.$region,
+                'slug' => 'arvan-'.$region, 'public_name' => 'CV-'.$region,
+                'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20, 'cost_eur_cents' => 100,
+                'price_eur_cents' => 150, 'price_irt' => 1_350_000,
+                'is_active' => $active, 'in_stock' => true,
+            ]);
+        }
+        $customer = Customer::create(['name' => 'Deleted Arvan', 'email' => 'deleted-arvan@example.test',
+            'password' => 'fixture-only', 'status' => 'active']);
+        $service = Service::create(['customer_id' => $customer->id, 'name' => 'Deleted Arvan',
+            'price' => 100000, 'cycle' => 'monthly', 'status' => 'cancelled']);
+        CloudInstance::create(['service_id' => $service->id, 'provider' => 'arvan',
+            'provider_ref' => 'ir-deleted:srv-old', 'status' => 'deleted']);
+
+        Http::fake(function ($request) {
+            $path = parse_url($request->url(), PHP_URL_PATH) ?? '';
+            if (in_array($path, ['/ecc/v1/regions', '/ecc/v1/details', '/ecc/v1/regions/details'], true)) {
+                return Http::response(['message' => 'discovery unavailable'], 500);
+            }
+            if (str_contains($path, '/ir-active/servers')) {
+                return Http::response(['data' => []], 200);
+            }
+            if (str_ends_with($path, '/servers')) {
+                return Http::response(['message' => 'retired region'], 503);
+            }
+
+            return Http::response(['data' => []], 200);
+        });
+
+        $inventory = app(ArvanClient::class)->listServers();
+
+        $this->assertTrue($inventory['ok'], $inventory['message']);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/ir-retired/servers'));
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/ir-deleted/servers'));
     }
 
     public function test_catalog_maps_toman_price_to_euro_cents(): void

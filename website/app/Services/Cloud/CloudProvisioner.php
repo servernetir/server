@@ -46,6 +46,13 @@ use Illuminate\Support\Facades\Mail;
  */
 class CloudProvisioner
 {
+    /**
+     * An accepted provider mutation may be asynchronous, but it may not stop
+     * billing/error escalation forever.  With the 15-minute reconciliation
+     * cadence this allows two observations before the operation is failed.
+     */
+    private const LIFECYCLE_PENDING_DEADLINE_MINUTES = 30;
+
     public function __construct(
         private CloudManager $manager,
         private CloudAddons $addons,
@@ -2183,7 +2190,8 @@ class CloudProvisioner
         $instance = CloudInstance::where('service_id', $service->id)->first();
 
         return $instance !== null
-            && data_get($instance->meta, 'lifecycle_pending.expect') === $expectStatus;
+            && data_get($instance->meta, 'lifecycle_pending.expect') === $expectStatus
+            && blank(data_get($instance->meta, 'lifecycle_pending.timed_out_at'));
     }
 
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
@@ -2512,6 +2520,31 @@ class CloudProvisioner
             return true;
         }
 
+        $pending = data_get($instance->meta, 'lifecycle_pending');
+        $acceptedAt = is_array($pending) && ($pending['expect'] ?? null) === $expectStatus
+            ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
+            : null;
+        if ($acceptedAt?->lte(now()->subMinutes(self::LIFECYCLE_PENDING_DEADLINE_MINUTES))) {
+            $message = 'فرمان پذیرفته شد، اما وضعیت نهایی تا پایان مهلت '
+                .self::LIFECYCLE_PENDING_DEADLINE_MINUTES.' دقیقه‌ای تأیید نشد.';
+            $alreadyEscalated = filled($pending['timed_out_at'] ?? null);
+            $meta = (array) $instance->meta;
+            $meta['lifecycle_pending'] = [
+                'expect' => $expectStatus,
+                'accepted_at' => $acceptedAt->toIso8601String(),
+                'timed_out_at' => $pending['timed_out_at'] ?? now()->toIso8601String(),
+            ];
+            $instance->update(['last_error' => $message, 'meta' => $meta]);
+            if (! $alreadyEscalated) {
+                $this->shoutAboutLingeringMachine(
+                    'تغییرِ وضعیتِ سرور نزدِ زیرساخت در مهلت مقرر تأیید نشد',
+                    $service, $instance, $message
+                );
+            }
+
+            return false;
+        }
+
         $r = $fn($driver, (string) $instance->provider_ref);
 
         if ($r['ok'] ?? false) {
@@ -2544,9 +2577,15 @@ class CloudProvisioner
             // fresh row so the lifecycle marker never erases that state.
             $instance->refresh();
             $meta = (array) $instance->meta;
+            $previousPending = (array) ($meta['lifecycle_pending'] ?? []);
+            $previousAcceptedAt = ($previousPending['expect'] ?? null) === $expectStatus
+                ? $this->parseLifecycleAcceptedAt($previousPending['accepted_at'] ?? null)
+                : null;
             $meta['lifecycle_pending'] = [
                 'expect' => $expectStatus,
-                'accepted_at' => now()->toIso8601String(),
+                // Preserve the first acceptance time across receipt polls;
+                // otherwise a permanently pending task can never age out.
+                'accepted_at' => ($previousAcceptedAt ?? now())->toIso8601String(),
             ];
             $waiting = [
                 'last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.',
@@ -2574,6 +2613,19 @@ class CloudProvisioner
         );
 
         return false;
+    }
+
+    private function parseLifecycleAcceptedAt(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function clearLifecyclePending(CloudInstance $instance, array $attributes): array
