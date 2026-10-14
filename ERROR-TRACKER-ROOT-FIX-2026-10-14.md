@@ -63,7 +63,8 @@
 - آخرین `fleet:scan` پس از همان reset در07:13:33UTC با exit0 تمام شد: ۶۲ دیده‌شده، ۳۲ متصل، ۲۷ بی‌صاحب، ۳ سرویس بسته، صفر ناپدید و صفر حذف از دفتر؛ UI ساعت۱۰:۴۳ تهران و سه ماشین Arvan را نشان داد.
 - اصلاح کانال پیام Arvan با ۲۹ تست و ۸۵ assertion، شامل assertion مستقیمِ نبودن Arvan در `CloudInventory.errors`، با صفر failure/error گذشت. فایل اجرایی در07:22:00UTC با guard و پشتیبان مستقل نصب شد؛ reset نهایی PHP-FPM در07:22:14UTC HTTP200 و `opcache_reset=true` داد.
 - اسکن نهایی پس از همان reset در07:23:29UTC با exit0 همان ۶۲/۳۲/۲۷/۳/۰، صفر حذف از دفتر و حفظ سه ماشین Arvan را ثبت کرد.
-- چرخهٔ طبیعی پنج‌دقیقه‌ای پس از آخرین reset نیز ثبت شد: `services:renew-due` در07:15:03، `services:lifecycle` در07:15:04 و `cloud:meter` در07:15:20UTC همگی `errors=0` و `pending=0` داشتند. متر طبیعی یک سرویس را شارژ کرد؛ `cloud:meter` دستی اجرا نشد تا کسر مالی تکراری ایجاد نشود.
+- چرخه‌های طبیعی پس از reset نهایی نیز ثبت شدند: `cloud:meter` در07:25:18، `services:lifecycle` و `services:renew-due` در07:30:04UTC همگی `errors=0` و `pending=0` داشتند. متر طبیعی یک سرویس را شارژ کرد و چهار مورد را بی‌نیاز از کسر دانست؛ `cloud:meter` دستی اجرا نشد تا کسر مالی تکراری ایجاد نشود.
+- مجموعهٔ تجمیعی نهایی روی source نهایی و PHP8.4 بومی، شامل اصلاح‌های receipt لایت‌نود و قرارداد پیام Arvan/CloudInventory، با ۲۲۰ تست و ۲۲۰۶ assertion در ۹۵ ثانیه و صفر failure/error/skip گذشت.
 
 ## ماشین‌ها، شبکه و persistence
 
