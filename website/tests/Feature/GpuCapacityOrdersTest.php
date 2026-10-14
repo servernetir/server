@@ -103,6 +103,30 @@ class GpuCapacityOrdersTest extends TestCase
         $this->assertSame(0, app(HourlyStartCredit::class)->existingRate($this->customer->id));
     }
 
+    public function test_waiting_checkout_respects_the_existing_sixteen_character_status_column(): void
+    {
+        // SQLite does not enforce VARCHAR length; reproduce the production constraint.
+        if (\Illuminate\Support\Facades\DB::getDriverName() === 'sqlite') {
+            \Illuminate\Support\Facades\DB::unprepared("CREATE TRIGGER gpu_wait_status_length BEFORE INSERT ON services
+                WHEN length(NEW.provision_status) > 16 BEGIN SELECT RAISE(ABORT, 'provision_status exceeds VARCHAR(16)'); END");
+        }
+        $response = $this->actingAs($this->customer, 'customer')->post(route('account.cloud.store.place'), [
+            'location' => 'global-gpu', 'plan' => $this->plan->slug, 'image' => 'gpu-jupyter',
+            'cycle' => 'monthly', 'billing_mode' => 'hourly', 'label' => 'bounded-wait',
+            'gpu_request_key' => str_repeat('b', 40), 'quoted_hourly_irt' => $this->plan->hourlyIrt(),
+        ]);
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('services', 1);
+        $service = Service::sole();
+        $this->assertSame(GpuCapacityOrders::WAIT, $service->provision_status);
+        $this->assertLessThanOrEqual(16, strlen($service->provision_status));
+        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('credit_ledger', 0);
+        $this->assertDatabaseCount('cloud_instances', 0);
+        Http::assertNotSent(fn ($r) => $r->method() === 'POST' && str_contains($r->url(), '/containers'));
+    }
+
     public function test_replaying_even_an_allocated_request_never_creates_a_second_intent(): void
     {
         $s = $this->register();

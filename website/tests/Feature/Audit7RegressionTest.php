@@ -105,10 +105,13 @@ class Audit7RegressionTest extends TestCase
     {
         $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
 
-        foreach (['/cloud/storage-box', '/en/cloud/storage-box', '/tr/cloud/storage-box'] as $path) {
+        foreach (['/cloud/storage-box', '/en/cloud/storage-box', '/tr/cloud/storage-box',
+            '/cloud/object-storage', '/en/cloud/object-storage', '/tr/cloud/object-storage'] as $path) {
             $this->assertStringContainsString($path, $xml);
             $this->get($path)->assertOk();
         }
+
+        $this->assertSame(60, config('seo.page_budget')['/cloud']);
     }
 
     public function test_catalog_sync_refuses_to_create_new_legacy_location_rows(): void

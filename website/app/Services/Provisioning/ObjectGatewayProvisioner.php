@@ -31,6 +31,13 @@ class ObjectGatewayProvisioner implements Provisioner
             return ProvisionResult::manual('پلن یا منطقهٔ Object Storage در Gateway تعریف نشده است.');
         }
 
+        $gateway = app(ObjectGatewayBootstrapper::class)->ensureReady($service->server);
+        if (! $gateway['ok']) {
+            return $gateway['pending']
+                ? ProvisionResult::manual($gateway['message'])
+                : ProvisionResult::fail($gateway['message']);
+        }
+
         $client = new ObjectGatewayClient($service->server);
         $tenantId = self::tenantId($service);
         $existing = $client->tenantState($tenantId);

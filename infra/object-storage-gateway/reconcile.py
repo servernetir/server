@@ -21,7 +21,7 @@ def main():
             used = provider.used_bytes(item["region"], item["bucket"])
             status = item["status"]
             if status == "active" and used >= item["quota_bytes"]:
-                provider.delete_user(item["region"], item["access_key"])
+                provider.disable_user(item["region"], item["access_key"])
                 status = "overquota"
             with storage.connection() as conn:
                 conn.execute("UPDATE tenants SET used_bytes=?,status=?,updated_at=? WHERE id=?",

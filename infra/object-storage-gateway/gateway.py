@@ -67,6 +67,12 @@ class Api(BaseHTTPRequestHandler):
                     states[region] = False
             return self.reply(200, {"ok": True, "ready": all(states.values()), "regions": states})
 
+        if self.path == "/v1/status" and self.command == "GET":
+            with storage.connection() as conn:
+                rows = conn.execute("SELECT status, COUNT(*) AS total FROM tenants GROUP BY status").fetchall()
+            counts = {row["status"]: int(row["total"]) for row in rows}
+            return self.reply(200, {"ok": True, "tenant_count": sum(counts.values()), "tenants": counts})
+
         match = TENANT_PATH.fullmatch(self.path)
         if not match:
             return self.reply(404, {"error": "not_found"})
@@ -125,7 +131,7 @@ class Api(BaseHTTPRequestHandler):
             now = int(time.time())
             try:
                 if self.command == "POST" and action == "suspend":
-                    provider.delete_user(row["region"], row["access_key"])
+                    provider.disable_user(row["region"], row["access_key"])
                     conn.execute("UPDATE tenants SET status='suspended',updated_at=? WHERE id=?", (now, tenant_id))
                 elif self.command == "POST" and action == "unsuspend":
                     if row["status"] == "retired" or row["used_bytes"] >= row["quota_bytes"]:
@@ -145,7 +151,7 @@ class Api(BaseHTTPRequestHandler):
                         "credentials": {"access_key": row["access_key"], "secret_access_key": secret}})
                 elif self.command == "DELETE" and action is None:
                     days = min(90, max(1, int(payload.get("retention_days", 30))))
-                    provider.delete_user(row["region"], row["access_key"])
+                    provider.disable_user(row["region"], row["access_key"])
                     conn.execute("UPDATE tenants SET status='retired',retire_after=?,updated_at=? WHERE id=?", (now + days * 86400, now, tenant_id))
                 else:
                     return self.reply(405, {"error": "method_not_allowed"})

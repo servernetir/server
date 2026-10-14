@@ -321,6 +321,14 @@ class Audit6RegressionTest extends TestCase
         }
     }
 
+    public function test_cloud_server_view_does_not_require_a_web_session_error_bag(): void
+    {
+        $view = file_get_contents(resource_path('views/account/cloud-server.blade.php'));
+
+        $this->assertIsString($view);
+        $this->assertStringContainsString('isset($errors) && $errors->any()', $view);
+    }
+
     public function test_refundability_follows_the_legal_scope(): void
     {
         foreach (['shared', 'reseller', 'vps', 'plesk', 'directadmin'] as $c) {

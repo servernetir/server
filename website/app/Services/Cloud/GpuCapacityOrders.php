@@ -17,13 +17,7 @@ use Illuminate\Validation\ValidationException;
 /** Unpaid GPU intent. Capacity, approved price and wallet are rechecked before allocation. */
 class GpuCapacityOrders
 {
-    /*
-     * `services.provision_status` is VARCHAR(16) on MariaDB.  The old value
-     * `gpu_capacity_wait` is 17 bytes and therefore every capacity miss failed
-     * before the waiting intent could be persisted.  Keep this provider-only
-     * state inside the shared column's published contract instead of widening
-     * a hot, cross-provider column for one workflow.
-     */
+    // services.provision_status is VARCHAR(16), also on existing installations.
     public const WAIT = 'gpu_wait';
 
     public function __construct(private SaladClient $provider, private Wallet $wallet, private HourlyStartCredit $credit) {}
