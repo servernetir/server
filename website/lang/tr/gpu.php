@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'delivery_auto' => 'Otomatik teslim',
+    'configure' => 'GPU seç ve yapılandır',
+    'explore_apps' => 'Hangi uygulama bana uygun?',
+    'hardware' => 'İŞLEM GÜCÜ',
+    'environment' => 'ÇALIŞMA ALANINIZ',
+    'search' => 'GPU ara, ör. RTX 3090',
+    'search_empty' => 'Eşleşen GPU yok. Daha kısa bir ad deneyin.',
+    'selected_gpu' => 'Seçilen GPU',
     'name_label' => 'Hizmet adı',
     'name_help' => 'Küçük Latin harfiyle başlayın; en fazla 32 küçük harf, rakam veya tire.',
     'continue_note' => 'Devam ederek bu GPU ve uygulamayı gösterilen ücretle talep edersiniz. Gerekirse önce giriş yapın; seçimleriniz korunur. Talep ve tahsis bekleme ücretsizdir. Saatlik ücret, uygulama hazır olduktan sonra bakiyeden düşülür.',

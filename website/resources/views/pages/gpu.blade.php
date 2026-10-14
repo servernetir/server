@@ -175,9 +175,10 @@
   .gpu-faq p{color:var(--muted);font-size:14px;line-height:2;margin:12px 0 0}
   .gpu-errors{padding:16px;border:1px solid var(--line);border-radius:12px;margin-bottom:20px}
   .gpu-side button:disabled{opacity:.5;cursor:not-allowed}
+  @include('partials.gpu-visual-styles')
 </style>
 
-<section class="section">
+<section class="section gpu-experience">
   <div class="gpu-wrap">
 
     <div class="sn-product-hero sn-product-polish">
@@ -190,11 +191,15 @@
       @endif
       <div class="gpu-chips">
         <span class="gpu-chip"><svg class="icon"><use href="#i-coins"/></svg>{{ __('ui.gpu_chip1') }}</span>
-        <span class="gpu-chip"><svg class="icon"><use href="#i-zap"/></svg>{{ __('ui.gpu_chip2') }}</span>
+        <span class="gpu-chip"><svg class="icon"><use href="#i-zap"/></svg>{{ __('gpu.delivery_auto') }}</span>
         <span class="gpu-chip"><svg class="icon"><use href="#i-key"/></svg>{{ __('ui.gpu_chip3') }}</span>
       </div>
+      <div class="gpu-hero-links">
+        <a class="btn btn-primary" href="#gpu-configure">{{ __('gpu.configure') }} <span aria-hidden="true">↓</span></a>
+        <a class="gpu-secondary" href="#gpu-app-guide">{{ __('gpu.explore_apps') }}</a>
+      </div>
     </div>
-    @include('partials.atlas-product-stage', ['atlasStage'=>'gpu'])
+    @include('partials.gpu-compute-art')
     </div>
 
     {{-- 🔴 پیش از پیکربند، نه بعدش: تصمیمِ خرید بعد از دیدنِ قیمت گرفته
@@ -210,19 +215,24 @@
       @if($errors->any())
         <div class="gpu-errors" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>
       @endif
-      <form class="gpu-cfg" method="post" action="{{ lroute('gpu.order') }}">
+      <form class="gpu-cfg" id="gpu-configure" method="post" action="{{ lroute('gpu.order') }}">
         @csrf
 
         <div class="gpu-panel">
           <div class="gpu-panel-h">
+            <div class="gpu-section-kicker"><span aria-hidden="true">01</span>{{ __('gpu.hardware') }}</div>
             <h2>{{ __('ui.gpu_pick_t') }}</h2>
             <span>{{ __('ui.gpu_pick_d') }}</span>
+            <label class="gpu-search" hidden id="gpu-search-wrap">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="m16 16 5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              <input type="search" id="gpu-search" placeholder="{{ __('gpu.search') }}" aria-label="{{ __('gpu.search') }}" autocomplete="off">
+            </label>
           </div>
           <div class="gpu-cards" id="gpu-cards">
             @foreach($cards as $i => $c)
               <label class="gpu-card{{ $c['slug'] === $selectedCard['slug'] ? ' on' : '' }}">
                 <input type="radio" name="plan" value="{{ $c['slug'] }}"
-                       data-rate="{{ $c['hourly_raw'] }}" @checked($c['slug'] === $selectedCard['slug']) required>
+                       data-rate="{{ $c['hourly_raw'] }}" data-gpu="{{ $c['gpu'] }}" @checked($c['slug'] === $selectedCard['slug']) required>
                 <input type="hidden" name="quotes[{{ $c['slug'] }}]" value="{{ $c['hourly_raw'] }}">
                 <span>
                   <b>{{ $c['gpu'] }}@if($c['gpu_count'] > 1)<span class="gpu-badge">{{ $isFa ? fa_num((string) $c['gpu_count']) : $c['gpu_count'] }} {{ __('ui.gpu_cards_n') }}</span>@endif</b>
@@ -236,21 +246,25 @@
               </label>
             @endforeach
           </div>
+          <p class="gpu-search-empty" id="gpu-search-empty" role="status" hidden>{{ __('gpu.search_empty') }}</p>
         </div>
 
         <div class="gpu-side">
+          <div class="gpu-section-kicker"><span aria-hidden="true">02</span>{{ __('gpu.environment') }}</div>
           <h2>{{ __('ui.cvb_gpu_app_title') }}</h2>
           <p class="gpu-hint">{{ __('ui.gpu_units_d') }}</p>
+          <div class="gpu-selected-card"><span>{{ __('gpu.selected_gpu') }}</span><b id="gpu-selected-name" dir="ltr">{{ $selectedCard['gpu'] }}</b></div>
           <div class="gpu-app-options">
             @foreach($apps as $key => $app)
               <label class="gpu-app-option" data-app="{{ $key }}">
                 <input type="radio" name="image" value="{{ $key }}" @checked($selectedApp === $key) required>
+                @include('partials.gpu-app-art', ['art'=>str_replace('gpu-', '', $key)])
                 <span><b dir="ltr">{{ $app['label'] }}</b><small>{{ __('ui.'.$appDescriptions[$key]) }}</small></span>
               </label>
             @endforeach
           </div>
           <p id="gpu-app-empty" class="gpu-hint" @if($selectedCard['apps']) hidden @endif>{{ __('gpu.apps_unavailable') }}</p>
-          <label class="gpu-name">{{ __('gpu.name_label') }}
+          <label class="gpu-name"><span class="gpu-section-kicker"><span aria-hidden="true">03</span>{{ __('gpu.name_label') }}</span>
             <input name="label" type="text" maxlength="32" pattern="[a-z][a-z0-9\-]*" required autocomplete="off" dir="ltr" value="{{ old('label') }}" placeholder="my-gpu-project" aria-describedby="gpu-name-help">
             <small id="gpu-name-help" class="gpu-hint">{{ __('gpu.name_help') }}</small>
           </label>
@@ -269,7 +283,7 @@
           <p class="gpu-hint">{{ __('gpu.continue_note') }}</p>
           <p class="gpu-hint" id="gpu-start-credit">{{ __('ui.gpu_min_credit', ['amount' => cloud_price($selectedCard['hourly_raw'] * $minHours)]) }}</p>
           <button class="btn btn-primary" id="gpu-cta" type="submit" @disabled(! $selectedCard['apps'])>
-            {{ __('ui.gpu_cta') }}
+            {{ __('ui.gpu_cta') }} <span aria-hidden="true">{{ $isFa ? '←' : '→' }}</span>
           </button>
         </div>
 
@@ -294,13 +308,13 @@
       </div>
     </div>
 
-    <div class="gpu-apps">
+    <div class="gpu-apps" id="gpu-app-guide">
       <h2>{{ __('ui.gpu_apps_t') }}</h2>
       <p>{{ __('ui.gpu_apps_d') }}</p>
       <div class="gpu-apps-grid">
-        <div class="gpu-app"><b>Ollama <small>OpenAI API</small></b><p>{{ ($ollamaSalesPaused ?? false) ? __('ui.gpu_app_sales_paused', ['app' => 'Ollama']) : __('gpu.app_llm_details') }}</p></div>
-        <div class="gpu-app"><b>ComfyUI <small>Stable Diffusion</small></b><p>{{ ($comfyuiSalesPaused ?? false) ? __('ui.gpu_app_sales_paused', ['app' => 'ComfyUI']) : __('gpu.app_img_details') }}</p></div>
-        <div class="gpu-app"><b>Jupyter <small>PyTorch</small></b><p>{{ ($jupyterSalesPaused ?? false) ? __('ui.gpu_jupyter_sales_paused') : __('gpu.app_nb_details') }}</p></div>
+        <div class="gpu-app" data-art="ollama"><div class="gpu-app-visual">@include('partials.gpu-app-art', ['art'=>'ollama'])</div><span class="gpu-app-tag">01 / LANGUAGE</span><b>Ollama <small>OpenAI API</small></b><p>{{ ($ollamaSalesPaused ?? false) ? __('ui.gpu_app_sales_paused', ['app' => 'Ollama']) : __('gpu.app_llm_details') }}</p></div>
+        <div class="gpu-app" data-art="comfyui"><div class="gpu-app-visual">@include('partials.gpu-app-art', ['art'=>'comfyui'])</div><span class="gpu-app-tag">02 / VISION</span><b>ComfyUI <small>Stable Diffusion</small></b><p>{{ ($comfyuiSalesPaused ?? false) ? __('ui.gpu_app_sales_paused', ['app' => 'ComfyUI']) : __('gpu.app_img_details') }}</p></div>
+        <div class="gpu-app" data-art="jupyter"><div class="gpu-app-visual">@include('partials.gpu-app-art', ['art'=>'jupyter'])</div><span class="gpu-app-tag">03 / NOTEBOOKS</span><b>Jupyter <small>PyTorch</small></b><p>{{ ($jupyterSalesPaused ?? false) ? __('ui.gpu_jupyter_sales_paused') : __('gpu.app_nb_details') }}</p></div>
       </div>
     </div>
 
@@ -381,6 +395,7 @@
     var rate = parseInt(p.getAttribute('data-rate'), 10) || 0;
 
     total.textContent = money(rate);
+    document.getElementById('gpu-selected-name').textContent = p.getAttribute('data-gpu');
     daily.textContent = money(rate * 24);
     document.getElementById('gpu-start-credit').textContent = CFG.minCredit.replace('{amount}', money(rate * CFG.minHours));
     var allowed = CFG.apps[p.value] || [];
@@ -405,6 +420,22 @@
   }
 
   cards.addEventListener('change', paint);
+
+  var search = document.getElementById('gpu-search');
+  document.getElementById('gpu-search-wrap').hidden = false;
+  search.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') { event.preventDefault(); }
+  });
+  search.addEventListener('input', function () {
+    var query = search.value.trim().toLowerCase();
+    var matches = 0;
+    Array.prototype.forEach.call(cards.querySelectorAll('.gpu-card'), function (card) {
+      var match = card.querySelector('input[name="plan"]').getAttribute('data-gpu').toLowerCase().indexOf(query) !== -1;
+      card.hidden = !match;
+      if (match) { matches++; }
+    });
+    document.getElementById('gpu-search-empty').hidden = matches !== 0;
+  });
 
   paint();
 })();
