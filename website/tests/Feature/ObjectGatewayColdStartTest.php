@@ -43,6 +43,8 @@ class ObjectGatewayColdStartTest extends TestCase
         $this->assertStringContainsString('certbot --nginx', $script);
         $this->assertStringContainsString('versitygw_v${VGW_VERSION}_Linux_arm64.tar.gz', $script);
         $this->assertStringContainsString('SN_OBJECT_CREDENTIAL_SEED=', $script);
+        $this->assertStringContainsString('VGW_S3_DISABLE_DATA_INTEGRITY_CHECK=true', $script);
+        $this->assertStringContainsString('AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED', $script);
         $this->assertStringNotContainsString('VGW_S3_META_BUCKET=', $script);
         $this->assertStringNotContainsString('__SOURCE_ARCHIVE_B64__', $script);
     }

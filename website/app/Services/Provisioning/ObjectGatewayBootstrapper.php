@@ -54,7 +54,7 @@ class ObjectGatewayBootstrapper
             if (blank($server->api_token)) {
                 $server->api_token = bin2hex(random_bytes(32));
             }
-            if (blank($meta['provider_ref'])) {
+            if (blank($meta['provider_ref'] ?? null)) {
                 $created = app(HetznerClient::class)->createServer([
                     'name' => 'servernet-object-gateway',
                     'plan_ref' => 'cax11',

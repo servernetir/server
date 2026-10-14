@@ -37,6 +37,8 @@ VGW_S3_SECRET_KEY=__HETZNER_S3_SECRET__
 VGW_S3_ENDPOINT=https://${region}.your-objectstorage.com
 VGW_S3_REGION=${region}
 VGW_S3_USE_PATH_STYLE=true
+VGW_S3_DISABLE_DATA_INTEGRITY_CHECK=true
+AWS_REQUEST_CHECKSUM_CALCULATION=WHEN_REQUIRED
 EOF
   printf '%s|%s|%s\n' "$region" "$root_access" "$root_secret" >>/tmp/region-roots
 done
