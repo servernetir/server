@@ -7,14 +7,20 @@
 </style>
 @endpush
 @section('content')
-<main class="sn-storage"><div class="container">
+<section class="section sn-storage"><div class="container">
+  <div class="sn-product-hero sn-product-polish">
+    @include('partials.atlas-product-horizon')
+    <div class="hero-sub-inner sn-storage-intro">
   <nav class="sn-storage-nav" aria-label="{{ __('storage.choose_service') }}">
-    <a href="{{ lroute('cloud.location', ['location'=>'object-storage']) }}">Object Storage</a>
-    <a href="{{ lroute('cloud.location', ['location'=>'block-storage']) }}">Block Storage</a>
-    <a href="{{ lroute('cloud.location', ['location'=>'storage-box']) }}">Storage Box</a>
+    <a href="{{ lroute('cloud.location', ['location'=>'object-storage']) }}" @if($kind === 'object-storage') aria-current="page" @endif>Object Storage</a>
+    <a href="{{ lroute('cloud.location', ['location'=>'block-storage']) }}" @if($kind === 'block-storage') aria-current="page" @endif>Block Storage</a>
+    <a href="{{ lroute('cloud.location', ['location'=>'storage-box']) }}" @if($kind === 'storage-box') aria-current="page" @endif>Storage Box</a>
   </nav>
   <h1>{{ __('storage.'.$kind.'_title') }}</h1>
-  <p>{{ __('storage.'.$kind.'_intro') }}</p>
+  <p class="lead">{{ __('storage.'.$kind.'_intro') }}</p>
+    </div>
+    @include('partials.atlas-product-stage', ['atlasStage'=>'storage', 'storageKind'=>$kind])
+  </div>
   @if($kind === 'object-storage' && ! $rows->contains(fn($row) => $row['ready']))
     <div class="sn-storage-note" role="status"><strong>{{ __('storage.preparing') }}</strong><p>{{ __('storage.object_pending') }}</p></div>
   @endif
@@ -60,5 +66,5 @@
     <h2>{{ __('storage.conditions') }}</h2>
     <ul>@foreach(__('storage.'.$kind.'_conditions') as $condition)<li>{{ $condition }}</li>@endforeach</ul>
   </section>
-</div></main>
+</div></section>
 @endsection

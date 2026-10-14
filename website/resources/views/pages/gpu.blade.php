@@ -158,7 +158,8 @@
 <section class="section">
   <div class="gpu-wrap">
 
-    <div class="sn-product-hero">
+    <div class="sn-product-hero sn-product-polish">
+    @include('partials.atlas-product-horizon')
     <div class="gpu-head">
       <h1>{{ __('ui.gpu_h1') }}</h1>
       <p>{{ __('ui.gpu_lead') }}</p>
