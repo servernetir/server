@@ -1202,8 +1202,15 @@ class ArvanClient implements CloudProvider
             // preserves every existing Arvan row instead of falsely declaring
             // machines in the failed region missing/orphaned.
             'ok' => $failed === [],
-            'message' => $message.($fallback && $failed === [] ? ' (کشف منطقه از کاتالوگ محلی)' : ''),
+            // CloudInventory intentionally treats every non-empty message as
+            // an incomplete snapshot.  A fully-read local-region fallback is
+            // degraded catalogue discovery, not an inventory error.
+            'message' => $message,
             'servers' => $servers,
+            'meta' => [
+                'catalog_degraded' => $fallback && $failed === [],
+                'region_source' => $fallback ? 'local-catalog' : 'provider-discovery',
+            ],
         ];
     }
 

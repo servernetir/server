@@ -6,6 +6,7 @@ use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\Cloud\ArvanClient;
 use App\Services\Cloud\CloudCatalogSync;
+use App\Services\Cloud\CloudInventory;
 use App\Services\Cloud\CloudManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -165,7 +166,13 @@ class CloudArvanTest extends TestCase
         $this->assertTrue($health['meta']['catalog_degraded']);
         $this->assertSame('regional-fallback', $health['meta']['endpoint']);
         $this->assertTrue($inventory['ok'], $inventory['message']);
+        $this->assertSame('', $inventory['message']);
+        $this->assertTrue($inventory['meta']['catalog_degraded']);
+        $this->assertSame('local-catalog', $inventory['meta']['region_source']);
         $this->assertSame('ir-thr-c2:srv-fallback', $inventory['servers'][0]['ref']);
+
+        $report = app(CloudInventory::class)->reconcile(['arvan']);
+        $this->assertArrayNotHasKey('arvan', $report['errors']);
     }
 
     public function test_one_failed_arvan_region_makes_inventory_atomic_failure(): void
