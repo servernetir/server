@@ -17,11 +17,15 @@ The configurator has three numbered steps, a searchable GPU list and a persisten
 
 Prepared patch SHA-256: `1f26b346e7e3f4dfc2fb3f13627f22d6a575f4df86f2a542cb079e51fa8d17ae`.
 
-Production publication is pending a valid cPanel Terminal session. The first session expired; the replacement dashboard opened but navigating to Terminal returned to login. No production file has been changed by this release yet.
+Published at **11:53:55 UTC** after the owner renewed the cPanel Terminal session. The seven-file install passed patch dry-run, translation lint, original-file checksum guards, reverse-patch verification and Blade compilation. The existing authenticated OPcache endpoint returned HTTP 200/reset=true at **11:54:09 UTC**, clearing config/route/view/application caches. No credentials were printed or recorded.
 
 Target host: the existing ServerNet cPanel host. Application root: `/home/servernetcloud/servernet_app`. All changes are templates/translations within that root; no separate public asset upload is needed. No route, NAT/firewall, DNS, VPN, guest, host cron or routing-agent desired state changes are involved. The existing web OPcache reset mechanism must be used after deployment because FPM timestamp validation is disabled.
 
-The prepared one-shot deployment stages the patch against live copies, requires the three new partials to be absent, checks original-file hashes immediately before installation, and makes a private backup. It refuses to reuse staging/backup paths. Intended backup: `/home/servernetcloud/gpu-visual-before-20261014.tar.gz`; stage: `/home/servernetcloud/gpu-visual-stage-20261014`; post-install manifest: `/home/servernetcloud/gpu-visual-after-20261014.sha256`.
+The one-shot deployment staged the patch against live copies, required the three new partials to be absent, checked original-file hashes immediately before installation, and made a private backup. It refuses to reuse staging/backup paths. Backup: `/home/servernetcloud/gpu-visual-before-20261014.tar.gz`; stage: `/home/servernetcloud/gpu-visual-stage-20261014`; post-install manifest: `/home/servernetcloud/gpu-visual-after-20261014.sha256`; log: `/home/servernetcloud/gpu-visual-deploy-20261014.log`.
+
+Live Persian, English and Turkish pages all rendered the configurator, nine decorative app illustrations and twelve FAQ entries. English/Turkish delivery chips use the new automatic-delivery text. Searching 3090 returned the two matching live cards without changing the selected GTX 1650. The three compatible app choices and selected Jupyter rendered correctly at 390px with no horizontal overflow; desktop also had no overflow. The live visual proof is saved locally as `output/gpu-visual-live.png`, cropped to the public application-guide content to omit the customer impersonation header. No live submit action was used.
+
+Source merged into `develop` through [PR67](https://github.com/servernetir/server/pull/67), merge `d679158b17431b5e92bafdf631f4837f02d7874f`; this deployment record follows that merge. No GitHub status checks were reported; the test evidence is from local isolated execution.
 
 ## Rollback
 
