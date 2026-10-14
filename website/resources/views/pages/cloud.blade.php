@@ -37,7 +37,8 @@
       <span>{{ $t['cloud_badge'] }}</span>
     </nav>
 
-    <div class="sn-product-hero">
+    <div class="sn-product-hero sn-product-polish">
+    @include('partials.atlas-product-horizon')
     <div class="cvps-head">
       <span class="badge">{{ $t['cloud_badge'] }}</span>
       <h1>{{ $t['cloud_h1'] }}</h1>

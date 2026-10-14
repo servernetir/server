@@ -18,7 +18,8 @@
     ],
     "resources/views/pages/cloud-location.blade.php": [
       "1f7216ce20c5befe9a17f848cb252eddc37d30e0059de55ac38a16f9d08e3ac2",
-      "2132e9d2365117ae5523b74b7b64416934df692976fd333233e1b75973a23b31"
+      "2132e9d2365117ae5523b74b7b64416934df692976fd333233e1b75973a23b31",
+      "28e343b4b75852124d04d7cdf6e5fc2e64e6d39ba098b3eb21674c0c2debcd29"
     ],
     "resources/views/partials/header.blade.php": [
       "df3f68d106d382f328ad819e8cd6c436bee41a6cdc9f8033c1c5f3ac0d5fd771",

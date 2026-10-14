@@ -146,7 +146,8 @@
       <span>{{ __('ui.hv_badge') }}</span>
     </nav>
 
-    <div class="sn-product-hero">
+    <div class="sn-product-hero sn-product-polish">
+    @include('partials.atlas-product-horizon')
     <div class="hv-head">
       <span class="badge reveal"><span class="pulse"></span><span>{{ __('ui.hv_badge') }}</span></span>
       <h1 class="reveal" style="transition-delay:.08s">{{ __('ui.hv_h1') }} <span class="grad">{{ __('ui.hv_h1_g') }}</span></h1>

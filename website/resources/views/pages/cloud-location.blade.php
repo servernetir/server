@@ -155,7 +155,8 @@
       <span>{{ $locLabel }}</span>
     </nav>
 
-    <div class="sn-product-hero">
+    <div class="sn-product-hero sn-product-polish">
+    @include('partials.atlas-product-horizon')
     <div class="cvl-head">
       {{-- بالای صفحه است، پس eager: با lazy روی نخستین نقاشی جای خالی می‌ماند. --}}
       <span class="cvl-flag" aria-hidden="true">@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 34, 'flagEager' => true])</span>

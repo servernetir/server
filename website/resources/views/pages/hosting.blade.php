@@ -140,7 +140,10 @@
 <script type="application/ld+json">{!! schema_ld($sdCrumbs, 'BreadcrumbList') !!}</script>
 {{-- ============ HERO ============ --}}
 <section class="hero hero-sub">
-  <div class="container sn-product-hero">
+  <div class="container sn-product-hero{{ in_array($category, ['hosting','vps']) ? ' sn-product-polish' : '' }}">
+    @if(in_array($category, ['hosting','vps']))
+      @include('partials.atlas-product-horizon')
+    @endif
     <div class="hero-sub-inner">
       <span class="badge reveal"><span class="pulse"></span><span>{{ lc($product)['tag'] }}</span></span>
       <h1 class="reveal" style="transition-delay:.08s">{{ lc($product)['hero_t'] }} <span class="grad">{{ lc($product)['hero_g'] }}</span></h1>
