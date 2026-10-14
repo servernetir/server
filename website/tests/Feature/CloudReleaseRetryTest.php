@@ -366,6 +366,29 @@ class CloudReleaseRetryTest extends TestCase
         $this->assertStringContainsString(fa_num(51), $health['cloud_release']['detail']);
     }
 
+    public function test_health_does_not_trust_a_release_pending_marker_from_another_provider(): void
+    {
+        $service = Service::create([
+            'customer_id' => $this->customer()->id,
+            'name' => 'foreign release marker',
+            'price' => 100000,
+            'cycle' => 'monthly',
+            'status' => 'terminated',
+            'provision_status' => Service::PROVISION_RELEASING,
+        ]);
+        CloudInstance::create([
+            'service_id' => $service->id,
+            'provider' => 'lightnode',
+            'provider_ref' => 'ln-foreign-marker',
+            'status' => 'deleted',
+            'meta' => ['release_pending' => ['accepted_at' => now()->toIso8601String()]],
+        ]);
+
+        $health = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+
+        $this->assertSame('fail', $health['cloud_release']['level']);
+    }
+
     /** کرونِ ساعتی پرونده را می‌بندد — بی‌یک تومان هزینهٔ اضافه برای مشتری */
     public function test_the_retry_cron_closes_a_lingering_release(): void
     {
