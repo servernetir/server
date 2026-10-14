@@ -126,7 +126,7 @@ class HetznerObjectCosts
             // Read the existing settings, but keep step rounding exact. Binary
             // floating point turns EUR 1.10 × 100,000 / 10,000 into
             // 11.000000000000002 and would charge a spurious extra 10,000 toman.
-            $margin = BigDecimal::of((string) $this->pricing->marginPct('hetzner'))->multipliedBy('0.01');
+            $margin = BigDecimal::of((string) $this->pricing->storageMarginPct())->multipliedBy('0.01');
             $eur = BigDecimal::of($landedCents)->multipliedBy(BigDecimal::of(1)->plus($margin))
                 ->multipliedBy('0.1')->toScale(0, self::up())->toInt() * 10;
             $toman = BigDecimal::of($eur)->multipliedBy($this->pricing->eurToToman())
