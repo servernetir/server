@@ -102,7 +102,9 @@ class HetznerObjectCosts
      * Reseller budget, not an upstream fixed-capacity plan or a quota promise.
      * Provider free allowance is account-wide: do not subtract it for each sale.
      * Use a full 31-day (744-hour) incremental storage budget plus egress, with
-     * the upstream monthly base as a floor; customer VAT is separate.
+     * the upstream monthly base as a floor. Every sale also carries the complete
+     * shared Gateway + IPv4 monthly cost, so even the first tenant is profitable;
+     * customer VAT is separate.
      */
     public function quoteFromBook(array $book, int $capacity, int $egress = 1, int $months = 1): ?array
     {
@@ -115,7 +117,9 @@ class HetznerObjectCosts
             $incremental = BigDecimal::of($book['storage_tb_hour_eur'])->multipliedBy(744 * $capacity)
                 ->plus(BigDecimal::of($book['egress_tb_eur'])->multipliedBy($egress));
             $base = BigDecimal::of($book['base_monthly_eur']);
-            $net = ($incremental->isGreaterThan($base) ? $incremental : $base)->multipliedBy($months);
+            $objectNet = ($incremental->isGreaterThan($base) ? $incremental : $base)->multipliedBy($months);
+            $gatewayNet = BigDecimal::of($book['gateway_monthly_net_eur'])->multipliedBy($months);
+            $net = $objectNet->plus($gatewayNet);
             $fee = BigDecimal::of((string) $this->pricing->fxFeePctFor('hetzner'))->multipliedBy('0.01');
             $landedCents = $net->multipliedBy(BigDecimal::of(1)->plus($fee))->multipliedBy(100)
                 ->toScale(0, self::up())->toInt();
@@ -135,6 +139,8 @@ class HetznerObjectCosts
             return $quote + [
                 'setup_irt' => 0, 'setup_eur_cents' => 0,
                 'net_budget_eur' => (string) $net,
+                'object_budget_eur' => (string) $objectNet,
+                'gateway_budget_eur' => (string) $gatewayNet,
                 'landed_cost_eur_cents' => $landedCents,
                 'budget_hours' => 744 * $months,
                 'capacity_tb' => $capacity, 'egress_tb' => $egress,
@@ -150,7 +156,7 @@ class HetznerObjectCosts
             || ($book['source_url'] ?? null) !== HetznerObjectPriceFeed::SOURCE_URL) {
             return false;
         }
-        foreach (['base_monthly_eur', 'base_hourly_eur', 'storage_tb_hour_eur', 'egress_tb_eur'] as $key) {
+        foreach (['base_monthly_eur', 'base_hourly_eur', 'storage_tb_hour_eur', 'egress_tb_eur', 'gateway_monthly_net_eur'] as $key) {
             $value = $book[$key] ?? null;
             if (! is_string($value) || ! preg_match('/\A(?:0|[1-9][0-9]{0,7})(?:\.[0-9]{1,8})?\z/', $value)
                 || trim(str_replace('.', '', $value), '0') === '') {

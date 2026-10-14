@@ -28,10 +28,7 @@
   }
 @endphp
 <div class="sn-atlas-display" data-sn-region-group data-sn-selected="{{ $atlasDefault }}" data-sn-nodes="{{ json_encode($atlasNodes, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) }}">
-  <div class="sn-display-top" aria-hidden="true"><span>SERVERNET ATLAS</span><span>GLOBAL INFRASTRUCTURE</span></div>
   @include('partials.atlas-globe')
-  <span class="sn-orbit-label sn-orbit-label-a" aria-hidden="true">CLOUD</span>
-  <span class="sn-orbit-label sn-orbit-label-b" aria-hidden="true">GPU / AI</span>
   <div class="sn-region-detail" aria-live="polite">
     <div><span class="sn-region-code" aria-hidden="true">REGION</span><strong data-sn-region-label>{{ $atlasNodes[$atlasDefault]['label'] }}</strong></div>
     <p data-sn-region-description>{{ __('atlas.region_'.$atlasLabels[$atlasDefault]) }}</p>

@@ -30,6 +30,10 @@ The owner authorized coordination with six active chats: GPU support, homepage r
 
 ## Evidence, source hashes and rollback
 
+Git publication: [PR #59](https://github.com/servernetir/server/pull/59) merged into develop as `3744a83af555811b334eb0adb56cb8553406a2c2`; the merge was fetched and its ancestry verified. A subsequent comment-only console alignment makes its checkout bytes match the production hash below. It changes no scheduled behavior.
+
+Post-merge readback at **06:35:54 UTC** confirmed **16 natural successful runs**, one per minute from 06:20 through 06:35, with 16 distinct process IDs, no failed GPU run, all three release hashes intact, exact metadata for all 61 events, zero candidates, mode 0600 and unchanged deleted tests. Six other source files had coordinated changes (the three UI translations, CloudProvisioner, web routes and server detail view), and were recorded as drift rather than reverted. The full-site gate running in the root-error chat exposed an additional template error (one new Laravel error/two tracker records by this checkpoint); it is under that chat's repair. The earlier zero-new-error observation is limited to 06:24:53 and is not extended over this later finding.
+
 Private journal: `/home/servernetcloud/gpu-log-audit-20261014` (0700), outside webroot. Local sanitized receipts: `output/gpu-audit-20261014/receipts-0625/`, plus `develop-synced-tests.xml`. Baseline, original baseline, semantic drift, before sources, after manifest, applied/verified receipts, register proof, observation and test XML are retained. The installer refuses repeated apply. Do not rerun a completed deployment helper.
 
 | Production file | SHA256 after release |

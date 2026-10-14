@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\Server;
 use App\Models\Setting;
+use App\Services\Cloud\HetznerClient;
 use App\Services\ObjectStorage\HetznerObjectPriceFeed;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -13,6 +14,30 @@ use Tests\TestCase;
 class StorageSalesSafetyTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_gateway_monthly_tariff_includes_live_server_and_ipv4_costs(): void
+    {
+        Setting::putSecret('hetzner_api_token', 'provider-token');
+        Setting::put('cloud_ipv4_eur_cents', '50');
+        Http::fake([
+            'api.hetzner.cloud/v1/server_types*' => Http::response([
+                'server_types' => [[
+                    'name' => 'cax11',
+                    'prices' => [[
+                        'location' => 'fsn1',
+                        'price_monthly' => ['net' => '5.9900000000'],
+                    ]],
+                ]],
+            ]),
+        ]);
+
+        $quote = app(HetznerClient::class)->serverMonthlyNetPrice('cax11', 'fsn1');
+
+        $this->assertTrue($quote['ok']);
+        $this->assertSame(599, $quote['server_net_eur_cents']);
+        $this->assertSame(50, $quote['ipv4_net_eur_cents']);
+        $this->assertSame(649, $quote['net_eur_cents']);
+    }
 
     public function test_object_storage_cannot_be_sold_without_the_dedicated_gateway(): void
     {
@@ -48,6 +73,11 @@ class StorageSalesSafetyTest extends TestCase
         Setting::put('pricing_rate_override', '300000');
         Setting::put('pricing_fx_fee_pct_hetzner', '17');
         Setting::put('cloud_margin_pct', '5');
+        $this->mock(HetznerClient::class, function ($mock): void {
+            $mock->shouldReceive('serverMonthlyNetPrice')->once()->with('cax11', 'fsn1')->andReturn([
+                'ok' => true, 'net_eur_cents' => 649,
+            ]);
+        });
 
         $this->mock(HetznerObjectPriceFeed::class, function ($mock): void {
             $mock->shouldReceive('fetch')->once()->andReturn([
@@ -74,6 +104,11 @@ class StorageSalesSafetyTest extends TestCase
         $this->assertSame(21, Product::where('group', 'object-storage')->count());
         $this->assertSame(21, Product::where('group', 'object-storage')->where('is_active', true)->count());
         $this->assertSame(21, Product::where('group', 'object-storage')->where('server_id', $server->id)->count());
+        $oneTb = Product::where('slug', 'object-storage-1tb-fsn1')->firstOrFail();
+        $this->assertSame(4620000, (int) $oneTb->price);
+        $this->assertSame(1540, (int) $oneTb->price_eur);
+        $book = json_decode((string) Setting::get('hetzner_object_pricebook'), true);
+        $this->assertSame('6.49', $book['gateway_monthly_net_eur']);
     }
 
     public function test_catalog_stays_closed_when_any_gateway_region_is_not_ready(): void
@@ -85,6 +120,11 @@ class StorageSalesSafetyTest extends TestCase
         Setting::put('pricing_rate_override', '300000');
         Setting::put('pricing_fx_fee_pct_hetzner', '17');
         Setting::put('cloud_margin_pct', '5');
+        $this->mock(HetznerClient::class, function ($mock): void {
+            $mock->shouldReceive('serverMonthlyNetPrice')->once()->with('cax11', 'fsn1')->andReturn([
+                'ok' => true, 'net_eur_cents' => 649,
+            ]);
+        });
         $this->mock(HetznerObjectPriceFeed::class, function ($mock): void {
             $mock->shouldReceive('fetch')->once()->andReturn([
                 'currency' => 'EUR', 'tax_included' => false,

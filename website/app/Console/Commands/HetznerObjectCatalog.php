@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Server;
 use App\Models\Setting;
 use App\Services\CatalogPricing;
+use App\Services\Cloud\HetznerClient;
 use App\Services\ObjectStorage\HetznerObjectCosts;
 use App\Services\ObjectStorage\HetznerObjectPriceFeed;
 use App\Services\Provisioning\ObjectGatewayClient;
@@ -24,7 +25,7 @@ class HetznerObjectCatalog extends Command
 
     protected $description = 'Synchronize Hetzner Object Storage tariffs and sell only through the healthy ServerNet Gateway';
 
-    public function handle(HetznerObjectPriceFeed $feed, HetznerObjectCosts $costs): int
+    public function handle(HetznerObjectPriceFeed $feed, HetznerObjectCosts $costs, HetznerClient $hetzner): int
     {
         $sync = (bool) $this->option('sync');
         $lock = $sync ? Cache::lock('hetzner.object.catalog.sync', 180) : null;
@@ -43,7 +44,17 @@ class HetznerObjectCatalog extends Command
             if ($sync && ! $gatewayReady && $server) {
                 $gatewayReady = app(ObjectGatewayBootstrapper::class)->coldStartReady($server);
             }
-            $book = $feed->fetch() + ['quoted_at' => now()->utc()->toIso8601String(), 'server_id' => $server?->id];
+            $gateway = $hetzner->serverMonthlyNetPrice('cax11', 'fsn1');
+            if (! ($gateway['ok'] ?? false) || (int) ($gateway['net_eur_cents'] ?? 0) <= 0) {
+                throw new RuntimeException('The live Object Gateway monthly price is unavailable.');
+            }
+            $book = $feed->fetch() + [
+                'gateway_server_type' => 'cax11',
+                'gateway_location' => 'fsn1',
+                'gateway_monthly_net_eur' => number_format((int) $gateway['net_eur_cents'] / 100, 2, '.', ''),
+                'quoted_at' => now()->utc()->toIso8601String(),
+                'server_id' => $server?->id,
+            ];
             $rows = [];
             foreach (HetznerObjectCosts::CAPACITIES as $capacity) {
                 $quote = $costs->quoteFromBook($book, $capacity);
