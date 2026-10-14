@@ -109,7 +109,7 @@ class ArvanClient implements CloudProvider
      * را درست می‌دهد** (برخلافِ زحل/آیزا). ولی پیامِ خطا هم در بدنه است، پس
      * هم کد را می‌بینیم هم `message`.
      *
-     * @return array{ok:bool,status:int,data:mixed,message:string}
+     * @return array{ok:bool,status:int,data:mixed,message:string,json_valid?:bool,data_present?:bool}
      */
     private function req(string $method, string $path, array $payload = [], array $query = []): array
     {
@@ -143,11 +143,18 @@ class ArvanClient implements CloudProvider
             return ['ok' => false, 'status' => 0, 'data' => null, 'message' => 'ارتباط با زیرساخت برقرار نشد.'];
         }
 
-        $body = (array) ($res->json() ?? []);
-        $data = $body['data'] ?? $body;
+        $json = $res->json();
+        $jsonValid = is_array($json);
+        $body = $jsonValid ? $json : [];
+        $dataPresent = array_key_exists('data', $body);
+        $data = $dataPresent ? $body['data'] : $body;
 
         if ($res->successful()) {
-            return ['ok' => true, 'status' => $res->status(), 'data' => $data, 'message' => (string) ($body['message'] ?? '')];
+            return [
+                'ok' => true, 'status' => $res->status(), 'data' => $data,
+                'message' => (string) ($body['message'] ?? ''),
+                'json_valid' => $jsonValid, 'data_present' => $dataPresent,
+            ];
         }
 
         /*
@@ -1418,6 +1425,9 @@ class ArvanClient implements CloudProvider
             $inventory = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers');
             $inventoryRows = $inventory['data'];
             $validInventory = $inventory['ok']
+                && $inventory['status'] === 200
+                && ($inventory['json_valid'] ?? false) === true
+                && ($inventory['data_present'] ?? false) === true
                 && is_array($inventoryRows)
                 && array_is_list($inventoryRows)
                 && collect($inventoryRows)->every(fn ($server) => is_array($server)

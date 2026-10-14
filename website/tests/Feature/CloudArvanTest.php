@@ -781,6 +781,32 @@ class CloudArvanTest extends TestCase
         $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
     }
 
+    public function test_delete_fails_closed_when_region_inventory_returns_204_without_a_list(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push('', 204);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
+    public function test_delete_fails_closed_when_region_inventory_returns_200_with_empty_body(): void
+    {
+        Http::fakeSequence()
+            ->push(['data' => []], 202)
+            ->push(['message' => 'server or region not found'], 404)
+            ->push('', 200);
+
+        $r = app(ArvanClient::class)->deleteServer('ir-thr-c2:srv-9');
+
+        $this->assertFalse($r['ok']);
+        $this->assertStringContainsString('پاسخ موجودی معتبر نبود', $r['message']);
+    }
+
     public function test_delete_fails_closed_when_a_region_inventory_row_has_no_id(): void
     {
         Http::fakeSequence()

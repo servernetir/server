@@ -336,6 +336,36 @@ class CloudReleaseRetryTest extends TestCase
         $this->assertFalse(app(CloudProvisioner::class)->releasePending($s));
     }
 
+    public function test_health_checks_the_entire_release_queue_before_downgrading_to_pending_warning(): void
+    {
+        $customer = $this->customer();
+
+        for ($i = 0; $i < 51; $i++) {
+            $service = Service::create([
+                'customer_id' => $customer->id,
+                'name' => 'release-'.$i,
+                'price' => 100000,
+                'cycle' => 'monthly',
+                'status' => 'terminated',
+                'provision_status' => Service::PROVISION_RELEASING,
+            ]);
+            CloudInstance::create([
+                'service_id' => $service->id,
+                'provider' => 'arvan',
+                'provider_ref' => 'ir-thr-c2:srv-'.$i,
+                'status' => 'deleted',
+                'meta' => $i < 50
+                    ? ['release_pending' => ['accepted_at' => now()->toIso8601String()]]
+                    : [],
+            ]);
+        }
+
+        $health = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+
+        $this->assertSame('fail', $health['cloud_release']['level']);
+        $this->assertStringContainsString(fa_num(51), $health['cloud_release']['detail']);
+    }
+
     /** کرونِ ساعتی پرونده را می‌بندد — بی‌یک تومان هزینهٔ اضافه برای مشتری */
     public function test_the_retry_cron_closes_a_lingering_release(): void
     {
