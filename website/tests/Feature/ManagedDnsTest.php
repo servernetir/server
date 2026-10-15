@@ -523,6 +523,35 @@ class ManagedDnsTest extends TestCase
         ])->assertSessionHasErrors('dns_nameservers');
     }
 
+    /**
+     * 🔴 تا سرورِ DNS وصل نشده، نیم‌سرورها به wildcardِ Cloudflare می‌رسند. مشتری
+     * که در این حالت نیم‌سرور عوض کند سایتش می‌میرد — پس سرویس اصلاً عرضه نمی‌شود.
+     */
+    public function test_the_service_is_hidden_until_powerdns_is_connected(): void
+    {
+        Setting::putSecret('pdns_api_key', null);
+        $c = $this->customer();
+
+        $this->assertFalse(CdnZone::serviceOpen());
+        $this->actingAs($c, 'customer')->get('/account')->assertDontSee('مدیریت DNS');
+        $this->actingAs($c, 'customer')->get('/account/dns')->assertOk()->assertSee('به‌زودی فعال')->assertDontSee('name="domain"', false);
+        $this->actingAs($c, 'customer')->post('/account/dns', ['domain' => 'early.com'])->assertNotFound();
+        $this->assertSame(0, CdnZone::count());
+
+        Setting::putSecret('pdns_api_key', 'k');
+        $this->assertTrue(CdnZone::serviceOpen());
+        $this->actingAs($c, 'customer')->get('/account')->assertSee('مدیریت DNS');
+    }
+
+    public function test_default_nameservers_are_the_new_dedicated_pair(): void
+    {
+        Setting::put('dns_nameservers', null);
+
+        $this->assertSame(['derek.servernet.cloud', 'linda.servernet.cloud'], CdnZone::ourNameservers());
+        $this->assertEmpty(array_intersect(CdnZone::ourNameservers(), ['ns1.servernet.cloud', 'ns2.servernet.cloud']),
+            'نیم‌سرورهای DNSِ مدیریت‌شده نباید همان BINDِ سرورِ هاست باشند');
+    }
+
     public function test_pages_survive_an_unmigrated_install(): void
     {
         \Illuminate\Support\Facades\Schema::drop('cdn_records');

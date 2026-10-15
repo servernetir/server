@@ -32,7 +32,8 @@ class DnsController extends Controller
     public function index(): View
     {
         $customer = Auth::guard('customer')->user();
-        $ready = Schema::hasTable('cdn_zones');
+        // «آماده» یعنی هم جدول هست و هم سرورِ DNS واقعاً وصل است — CdnZone::serviceOpen()
+        $ready = Schema::hasTable('cdn_zones') && CdnZone::serviceOpen();
 
         // 🔴 روی سرورِ مهاجرت‌نخورده صفحه باید بالا بیاید و علت را بگوید، نه ۵۰۰.
         $list = $ready
@@ -51,6 +52,8 @@ class DnsController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless(CdnZone::serviceOpen(), 404);
+
         $request->validate(['domain' => ['required', 'string', 'max:253']]);
 
         $res = $this->zones->create(Auth::guard('customer')->user(), (string) $request->input('domain'));
@@ -75,6 +78,8 @@ class DnsController extends Controller
 
     public function claim(Request $request): RedirectResponse
     {
+        abort_unless(CdnZone::serviceOpen(), 404);
+
         $request->validate(['domain' => ['required', 'string', 'max:253']]);
         $domain = (string) $request->input('domain');
 

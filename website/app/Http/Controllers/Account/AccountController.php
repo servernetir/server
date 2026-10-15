@@ -168,7 +168,7 @@ class AccountController extends Controller
                     // شرط و برچسبِ خام با هم بروند (کلیدِ `ui.nav_dns` در سه زبان).
                     // `Route::has` چون این فایل روی سرور ممکن است پیش از
                     // routes/web.php برسد (opcache).
-                    ...(app()->getLocale() === 'fa' && \Illuminate\Support\Facades\Route::has('account.dns')
+                    ...(app()->getLocale() === 'fa' && \Illuminate\Support\Facades\Route::has('account.dns') && \App\Models\CdnZone::serviceOpen()
                         ? [['key' => 'dns', 'icon' => 'link', 'label' => 'مدیریت DNS', 'url' => lroute('account.dns')]]
                         : []),
                     // [managed-dns:end]

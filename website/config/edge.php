@@ -33,8 +33,8 @@ return [
     | خاموشیِ آن ماشین = خاموشیِ DNSِ همهٔ مشتریان.
     */
     'nameservers' => array_values(array_filter([
-        env('DNS_NS1', 'dns1.servernet.cloud'),
-        env('DNS_NS2', 'dns2.servernet.cloud'),
+        env('DNS_NS1', 'derek.servernet.cloud'),
+        env('DNS_NS2', 'linda.servernet.cloud'),
     ])),
 
     /*

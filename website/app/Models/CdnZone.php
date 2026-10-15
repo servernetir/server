@@ -131,6 +131,24 @@ class CdnZone extends Model
         return $list !== [] ? $list : array_map('strtolower', (array) config('edge.nameservers', []));
     }
 
+    /**
+     * آیا سرویس برای مشتری باز است؟ — یعنی سرورِ DNS واقعاً پشتِ نیم‌سرورهاست.
+     *
+     * 🔴 تا وقتی PowerDNS در `/admin/dns` وصل نشده، نیم‌سرورها فقط نام‌اند: روی
+     * `servernet.cloud` رکوردِ wildcardِ پروکسی‌شدهٔ Cloudflare هست، پس
+     * `derek.servernet.cloud` به IPِ Cloudflare می‌رسد که روی پورتِ ۵۳ جواب
+     * نمی‌دهد. مشتری‌ای که در این حالت نیم‌سرورش را عوض کند، سایت و ایمیلش
+     * **همان لحظه** می‌میرد. پس نه منو نشان داده می‌شود، نه افزودنِ دامنه.
+     *
+     * ⚠️ کلید رمزگشایی نمی‌شود (فقط وجودش): این از `shell()`ِ هر صفحهٔ پنل
+     * صدا زده می‌شود و Setting از قبل در حافظه است.
+     */
+    public static function serviceOpen(): bool
+    {
+        return filled(Setting::get('pdns_api_key'))
+            && filled(Setting::get('pdns_api_url') ?: config('edge.pdns.url'));
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';

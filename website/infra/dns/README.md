@@ -5,12 +5,12 @@
 با تکثیرِ دیتابیس همیشه همان داده را دارد.
 
 ```
-پنل سرورنت ──HTTPS/API──►  dns1  (PowerDNS + MariaDB primary)
+پنل سرورنت ──HTTPS/API──►  derek  (PowerDNS + MariaDB primary)
                               │  MariaDB replication (TLS)
                               ▼
-                            dns2  (PowerDNS + MariaDB replica, فقط‌خواندنی)
+                            linda  (PowerDNS + MariaDB replica, فقط‌خواندنی)
 
-اینترنت ──UDP/TCP 53──► dns1 و dns2
+اینترنت ──UDP/TCP 53──► derek و linda
 ```
 
 ## پیش‌نیازها — تصمیم‌هایی که بعداً نمی‌شود ارزان عوضشان کرد
@@ -18,7 +18,7 @@
 | مورد | چرا |
 |---|---|
 | **دو سرور روی دو شبکهٔ جدا** (مثلاً یکی ایران، یکی Hetzner) | هر دو روی یک ماشین/دیتاسنتر = با افتادنِ آن، DNSِ **همهٔ** مشتریان می‌افتد. |
-| **نامِ نیم‌سرورها** (پیش‌فرض: `dns1/dns2.servernet.cloud`) | بعد از اولین مشتری، عوض‌کردنِ نام یعنی همهٔ مشتری‌ها باید نیم‌سرورِ دامنه‌شان را دوباره عوض کنند. |
+| **نامِ نیم‌سرورها** (پیش‌فرض: `derek.servernet.cloud` و `linda.servernet.cloud`) | بعد از اولین مشتری، عوض‌کردنِ نام یعنی همهٔ مشتری‌ها باید نیم‌سرورِ دامنه‌شان را دوباره عوض کنند. |
 | نام‌ها **نباید** `ns1/ns2.servernet.cloud` باشند | آن دو به BINDِ سرورِ cPanel اشاره می‌کنند و zoneِ هاست‌ها را سرو می‌کنند. |
 | ۱ هسته / ۱ گیگ رم / ۲۰ گیگ دیسک برای هر سرور | برای ده‌ها هزار zone کافی است؛ DNS سبک است. |
 
@@ -35,7 +35,7 @@ systemctl disable --now systemd-resolved 2>/dev/null || true   # پورت ۵۳ �
 rm -f /etc/powerdns/pdns.d/bind.conf                            # بک‌اندِ پیش‌فرضِ bind لازم نیست
 ```
 
-دیتابیس و اسکیما (روی **dns1**؛ dns2 آن را از تکثیر می‌گیرد):
+دیتابیس و اسکیما (روی **derek**؛ linda آن را از تکثیر می‌گیرد):
 
 ```bash
 mysql -e "CREATE DATABASE pdns CHARACTER SET latin1;
@@ -46,7 +46,7 @@ mysql pdns < /usr/share/pdns-backend-mysql/schema/schema.mysql.sql
 
 ## ۲) پیکربندیِ PowerDNS
 
-`/etc/powerdns/pdns.conf` روی **dns1**:
+`/etc/powerdns/pdns.conf` روی **derek**:
 
 ```ini
 launch=gmysql
@@ -57,7 +57,7 @@ gmysql-password=یک-رمز-قوی
 gmysql-dnssec=yes
 
 local-address=0.0.0.0, ::
-default-soa-content=dns1.servernet.cloud hostmaster.servernet.cloud 0 3600 600 604800 3600
+default-soa-content=derek.servernet.cloud hostmaster.servernet.cloud 0 3600 600 604800 3600
 
 # API — فقط برای پنل
 api=yes
@@ -73,23 +73,23 @@ disable-axfr=yes
 max-tcp-connections=200
 ```
 
-روی **dns2** همان فایل، با این تفاوت‌ها:
+روی **linda** همان فایل، با این تفاوت‌ها:
 
 ```ini
 api=no
 webserver=no
-default-soa-content=dns1.servernet.cloud hostmaster.servernet.cloud 0 3600 600 604800 3600
+default-soa-content=derek.servernet.cloud hostmaster.servernet.cloud 0 3600 600 604800 3600
 ```
 
 > 🔴 `webserver-allow-from` تنها قفلِ API نیست و نباید باشد: فایروالِ سرور هم باید
 > پورتِ ۸۰۸۱ را **فقط** برای IPِ سایت باز کند. هر کس به این API برسد، DNSِ همهٔ
 > مشتری‌ها را در دست دارد. اگر ترافیک از اینترنتِ عمومی می‌گذرد، API را پشتِ
-> nginx با TLS بگذارید (یا WireGuard بینِ سایت و dns1) — کلیدِ API در HTTPِ ساده
+> nginx با TLS بگذارید (یا WireGuard بینِ سایت و derek) — کلیدِ API در HTTPِ ساده
 > خوانا می‌رود.
 
-## ۳) تکثیرِ دیتابیس dns1 → dns2
+## ۳) تکثیرِ دیتابیس derek → linda
 
-روی **dns1** (`/etc/mysql/mariadb.conf.d/60-repl.cnf`):
+روی **derek** (`/etc/mysql/mariadb.conf.d/60-repl.cnf`):
 
 ```ini
 [mysqld]
@@ -104,10 +104,10 @@ bind-address=0.0.0.0
 systemctl restart mariadb
 mysql -e "CREATE USER 'repl'@'IP_DNS2' IDENTIFIED BY 'رمز-تکثیر' REQUIRE SSL;
           GRANT REPLICATION SLAVE ON *.* TO 'repl'@'IP_DNS2';"
-mysqldump --single-transaction --master-data=1 pdns > /root/pdns.sql   # به dns2 منتقل شود
+mysqldump --single-transaction --master-data=1 pdns > /root/pdns.sql   # به linda منتقل شود
 ```
 
-روی **dns2**:
+روی **linda**:
 
 ```ini
 [mysqld]
@@ -131,15 +131,15 @@ mysql -e "START SLAVE; SHOW SLAVE STATUS\G" | grep -E "Running|Behind"
 
 > چرا تکثیرِ دیتابیس و نه AXFR/NOTIFY: پنل zoneها را با نوعِ `Native` می‌سازد
 > (`PowerDnsClient::createZone`). با تکثیرِ دیتابیس، zoneِ تازه **بدونِ هیچ کارِ
-> اضافه** روی dns2 هم هست؛ با AXFR باید برای هر zone نیم‌سرورِ دوم را هم خبر کرد
-> و یک NOTIFYِ گم‌شده یعنی dns2 جوابِ کهنه می‌دهد — خرابیِ متناوب و سخت‌یاب.
+> اضافه** روی linda هم هست؛ با AXFR باید برای هر zone نیم‌سرورِ دوم را هم خبر کرد
+> و یک NOTIFYِ گم‌شده یعنی linda جوابِ کهنه می‌دهد — خرابیِ متناوب و سخت‌یاب.
 
 ## ۴) فایروال (هر دو سرور)
 
 ```bash
 ufw allow 53/udp && ufw allow 53/tcp
-ufw allow from 65.109.176.14 to any port 8081 proto tcp     # فقط dns1
-ufw allow from IP_DNS2 to any port 3306 proto tcp            # فقط dns1
+ufw allow from 65.109.176.14 to any port 8081 proto tcp     # فقط derek
+ufw allow from IP_DNS2 to any port 3306 proto tcp            # فقط derek
 ufw enable
 ```
 
@@ -151,9 +151,15 @@ ufw enable
 روی zoneِ `servernet.cloud` (Cloudflare، ابرِ خاکستری):
 
 ```
-dns1   A      IP_DNS1
-dns2   A      IP_DNS2
+derek  A      IP_DNS1
+linda  A      IP_DNS2
 ```
+
+> 🔴 `servernet.cloud` یک رکوردِ **wildcardِ پروکسی‌شده** دارد؛ تا این دو رکورد ساخته
+> نشوند، `derek` و `linda` به IPِ Cloudflare می‌رسند که روی پورتِ ۵۳ جواب نمی‌دهد.
+> رکوردِ صریح بر wildcard مقدم است، ولی **باید ابرِ خاکستری (DNS only)** باشد.
+> پنل تا وقتی کلیدِ API در `/admin/dns` وارد نشده، بخشِ DNS را به مشتری نشان نمی‌دهد
+> (`CdnZone::serviceOpen()`) — پس ترتیب این است: سرورها ← این رکوردها ← آزمونِ بخشِ ۷ ← کلیدِ API.
 
 ## ۶) وصل‌کردن به پنل
 
@@ -161,7 +167,7 @@ dns2   A      IP_DNS2
 
 1. **آدرسِ API**: `http://IP_DNS1:8081`
 2. **کلیدِ API**: همان `api-key`
-3. **نیم‌سرورها**: `dns1.servernet.cloud` و `dns2.servernet.cloud`
+3. **نیم‌سرورها**: `derek.servernet.cloud` و `linda.servernet.cloud`
 4. «آزمایشِ اتصال» → باید نسخهٔ PowerDNS را نشان دهد.
 
 ## ۷) آزمونِ پذیرش — پیش از اعلام به مشتری
@@ -172,7 +178,7 @@ dns2   A      IP_DNS2
 dig +short A test.example.com @IP_DNS1      # باید همان IP را بدهد
 dig +short A test.example.com @IP_DNS2      # 🔴 این هم — وگرنه تکثیر کار نمی‌کند
 dig +tcp +short TXT example.com @IP_DNS1    # TCP/53 باز است؟
-dig +short NS example.com @IP_DNS1          # باید dns1 و dns2 باشد
+dig +short NS example.com @IP_DNS1          # باید derek و linda باشد
 ```
 
 رکورد را در پنل **حذف** کنید و دوباره `dig` بزنید: باید خالی برگردد. (نسخهٔ اولِ
@@ -185,7 +191,7 @@ dig +short NS example.com @IP_DNS1          # باید dns1 و dns2 باشد
 | فرستادنِ دوبارهٔ zoneهای همگام‌نشده | `php artisan dns:reconcile` (کرون: هر ۱۰ دقیقه) |
 | بازسازیِ کاملِ سرورِ DNS از روی پنل | `php artisan dns:reconcile --all` |
 | سنجشِ تفویض + پاک‌کردنِ zoneهای رهاشده | `php artisan dns:verify-pending` (کرون: هر ساعت) |
-| وضعیتِ تکثیر | روی dns2: `mysql -e "SHOW SLAVE STATUS\G"` |
+| وضعیتِ تکثیر | روی linda: `mysql -e "SHOW SLAVE STATUS\G"` |
 
 چون پنل منبعِ حقیقت است، **بکاپِ دیتابیسِ PowerDNS حیاتی نیست**: اگر هر دو سرور از
 دست بروند، سرورِ تازه + `dns:reconcile --all` همه‌چیز را برمی‌گرداند.
