@@ -2,6 +2,14 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+### Client resilience patch published — 14:14 UTC
+
+With the owner's action-time approval, created an Individual Workers Editor token scoped only to `servernet-vnc`, expiring 17 October 2026 at 23:59 Iran time. No DNS, route, other Worker or account-wide permissions were added. The fixed-target release helper backed up live settings/source, checked for concurrent changes and published the previously committed `c0994dd8` patch. Cloudflare deployment `6856bee8-f1b5-42d4-aefb-5bb4f76fd553` reports version `b1732b2f-91bf-48ee-9f96-181a84e9d910` at 100%, created 2026-10-17T14:14:17Z. Exact normalized source comparison passed and all three existing bindings were preserved. Local source SHA256: `9b2bb68917e370333cbbb3b2f906889ecb96225a2271766595a61c3ffcd902fe`.
+
+Both Node suites passed 16/16. Public unauthenticated `/console.js` contains the new 15-second abort deadline and history handling. These checks do not establish an authenticated WebSocket101 or guest image/input. The browser's prior denial of authority to inspect the actual console destination was not bypassed with raw requests, another surface or guest-ticket replay. Service501 image, harmless input and reconnect remain unaccepted; the original blank-page root cause is not proven by this resilience fix.
+
+Private release backup/receipt directory: `C:/Users/admin/AppData/Local/Temp/servernet-vnc-bootstrap-P6x7bI`. The temporary local token file is removed after verification; server-side expiry remains scheduled, not a claim of token revocation. Persistence is the deployed Worker version; rollback only this Worker to `9e0c0174-56ad-4af4-a7de-31d6657d1cc1`, preserving bindings and unchanged route. No portal Worker, DNS, sales setting, VM, firewall/NAT, country-routing agent or provider resource was modified. Earlier "Git-only/awaiting authorization" statements are historical and superseded by this release.
+
 ### Provider handshake contract checked (read-only)
 
 Fetched only the public provider vnc_lite.html without a token. Its script sets the token cookie and computes the default path by removing vnc_auto.html (not vnc_lite.html), yielding /ir-tbz-sh1/vnc_lite.html/websockify. Production read-only settings returned that exact socket path and enabled=1. The Worker sends the token cookie to the fixed provider host and this allowlisted path; no path mismatch was demonstrated. This verifies configuration/HTML contract, NOT an authenticated WebSocket101 or guest input. Initial plain php CLI was8.2 and failed the platform check before bootstrap; the documented explicit ea-php84 binary completed the read. No production setting changed. Scoped Worker publication credential approval remains pending; c0994dd8 is Git-only.
