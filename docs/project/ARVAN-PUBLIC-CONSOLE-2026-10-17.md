@@ -2,6 +2,8 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+Fresh-tab retest after owner closed the previous stuck tab: IAB inventory confirms a distinct new console tab6 on vnc.servernet.cloud, still titled New tab. Attaching timed out after15seconds waiting for initial navigation. Thus closing/reopening did not resolve the observation blocker; do not ask the owner to repeat this same recovery loop. No desktop pixels, keyboard or pointer control were available, and no successful guest test is claimed. A screenshot of the user's visible destination (without credential URL) or repair of browser tooling is needed before proceeding. No production/network/sales/resource changes in this retest.
+
 ### Workstation DNS/proxy inspection after explicit authorization
 
 Existing system proxy is enabled on loopback10808 with private/local-network bypasses; its listener is xray.exe. xray_tun and Ethernet are up; no proxy, route, DNS or adapter was changed. Tunnel DNS lists1.1.1.1/8.8.8.8; Ethernet has router192.168.132.1 followed by public resolvers. Read-only query to the router resolved the console domain promptly. Subsequent direct HTTPS returned200 (DNS0.008s,total0.251s); existing proxy returned200 in0.146s. Therefore earlier direct DNS timeout was transient and cannot justify replacing global resolvers or disabling the tunnel. Shell is not elevated. No application-connection preservation guarantee is inferred from these limited checks.
