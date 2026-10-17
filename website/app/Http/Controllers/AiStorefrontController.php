@@ -12,7 +12,8 @@ class AiStorefrontController extends Controller
     public function home()
     {
         $models = AiModel::with('provider')->where('category', 'chat')->where('status', 'active')->orderByDesc('context_tokens')->limit(6)->get();
-        return view('pages.ai.home', ['models' => $this->cards($models), 'count' => AiModel::count()]);
+        return view('pages.ai.home', ['models' => $this->cards($models), 'count' => AiModel::count(),
+            'categories' => $this->categories()]);
     }
 
     public function models(Request $request)
@@ -28,14 +29,20 @@ class AiStorefrontController extends Controller
             $query->where('category', $category);
         }
         $page = $query->paginate(24)->withQueryString();
-        $canonicalParams = $page->currentPage() > 1 ? ['page' => $page->currentPage()] : [];
+        $categories = $this->categories();
+        $categoryPage = $search === '' && in_array($category, $categories, true) && $page->isNotEmpty();
+        $canonicalParams = $categoryPage ? ['type' => $category] : [];
+        if ($page->currentPage() > 1) {
+            $canonicalParams['page'] = $page->currentPage();
+        }
         $altUrls = [];
         foreach (\App\Providers\AppServiceProvider::LOCALES as $locale => $prefix) {
             $altUrls[$locale] = route($prefix.'ai.models', $canonicalParams);
         }
         return view('pages.ai.models', ['models' => $this->cards($page->getCollection()), 'page' => $page,
             'search' => $search, 'category' => $category, 'altUrls' => $altUrls,
-            'canonical' => lroute('ai.models', $canonicalParams)]);
+            'canonical' => lroute('ai.models', $canonicalParams), 'categoryPage' => $categoryPage,
+            'categories' => $categories]);
     }
 
     public function model(string $slug)
@@ -57,5 +64,12 @@ class AiStorefrontController extends Controller
     private function cards($models)
     {
         return $models->map(fn ($m) => ['model' => $m, 'state' => app(AiAvailability::class)->inspect($m)]);
+    }
+
+    private function categories(): array
+    {
+        $present = AiModel::where('status', 'active')->distinct()->pluck('category')->all();
+
+        return array_values(array_intersect(AiModel::CATEGORIES, $present));
     }
 }

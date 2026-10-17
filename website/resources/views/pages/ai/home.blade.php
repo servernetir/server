@@ -25,7 +25,7 @@ response = client.chat.completions.create(
 <div class="ai-note">{{ __('ai.status_note') }}</div><section class="ai-grid">@foreach([1,2,3] as $i)<article class="ai-card"><span class="ai-label">0{{ $i }}</span><h2>{{ __('ai.feature'.$i) }}</h2><p>{{ __('ai.feature'.$i.'text') }}</p></article>
 @endforeach
 </section>
-<section class="ai-section"><h2>{{ __('ai.catalog') }}</h2><div class="ai-grid">@foreach($models as $card)@include('pages.ai.card')
+<section class="ai-section"><h2>{{ __('ai.catalog') }}</h2>@include('pages.ai.categories')<div class="ai-grid">@foreach($models as $card)@include('pages.ai.card')
 @endforeach
 </div><div class="ai-actions"><a class="ai-btn" href="{{ lroute('ai.models') }}">{{ __('ai.catalog') }} · {{ number_format($count) }}</a></div></section>
 <section class="ai-section"><h2>{{ __('ai.how') }}</h2><ol class="ai-steps">@foreach([1,2,3,4] as $i)<li>{{ __('ai.step'.$i) }}</li>

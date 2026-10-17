@@ -177,7 +177,9 @@ final class AiModelPage
             ['@type' => 'BreadcrumbList', '@id' => $url.'#breadcrumbs', 'itemListElement' => [
                 ['@type' => 'ListItem', 'position' => 1, 'name' => 'AI Gateway', 'item' => lroute('ai.home')],
                 ['@type' => 'ListItem', 'position' => 2, 'name' => __('ai.catalog'), 'item' => lroute('ai.models')],
-                ['@type' => 'ListItem', 'position' => 3, 'name' => $model->name, 'item' => $url],
+                ['@type' => 'ListItem', 'position' => 3, 'name' => __('ai.'.$model->category),
+                    'item' => lroute('ai.models', ['type' => $model->category])],
+                ['@type' => 'ListItem', 'position' => 4, 'name' => $model->name, 'item' => $url],
             ]], $service,
         ]];
         return compact('title', 'description', 'intro', 'summary', 'family', 'faq', 'example', 'costExample',

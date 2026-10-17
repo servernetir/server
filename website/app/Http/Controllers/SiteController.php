@@ -573,6 +573,14 @@ class SiteController extends Controller
         $add('ai.home');
         $add('ai.models');
         $add('ai.docs');
+        // Category listings have distinct guidance and crawlable links to their models.
+        // Only advertise categories with an active model; search-result filters stay out.
+        $activeAiCategories = \App\Models\AiModel::where('status', 'active')->distinct()->pluck('category')->all();
+        foreach (\App\Models\AiModel::CATEGORIES as $category) {
+            if (in_array($category, $activeAiCategories, true)) {
+                $add('ai.models', ['type' => $category]);
+            }
+        }
         foreach (\App\Models\AiModel::where('status', '!=', 'deprecated')->get() as $aiModel) {
             // Informational pages can be indexed while a route is preparing. Retired models cannot.
             if (\App\Services\Ai\AiModelPage::indexable($aiModel)) {
