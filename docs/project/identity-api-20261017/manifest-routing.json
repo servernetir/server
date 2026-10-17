@@ -1,0 +1,28 @@
+{
+  "release": "identity-api-20261017-routing",
+  "source_sha": "b41c172d43d906d6eb6423418d3b5d79b6453181",
+  "base_sha": "530bf4c754149013e137c72bc3ee4d22159a7975",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "app/Http/Middleware/ConsoleHost.php",
+      "before": "226bb6a118c0e82385ed423fedf905d3b6fe3d804ea26b7559732cef1915871c",
+      "after": "7c3faf5b8d9a2c4b8bc1682483ab562a4aabf5647615b09225a3e6c0f517e1fd"
+    },
+    {
+      "path": "bootstrap/app.php",
+      "before": "2b21ca5fa1f16d02a1b2789044ead3b9f83b0fa227728c25146efe16d81efbc8",
+      "after": "49a45654faad3db2cf49f643abec304bf5443fdf6fd1628a9f0a866d174c8566"
+    },
+    {
+      "path": "routes/web.php",
+      "before": "328b195da879ed3ecf87d8f1b270d222d51140b8e4f9d787d5bf45b49b3f5e72",
+      "after": "f9707009c03a0719c4f86a1e7a7338cd92f316c4c8217d68390576035bf1bb90"
+    },
+    {
+      "path": "routes/identity-api.php",
+      "before": "63a4d886b3841ee100bdd1df4b1e2e2e697ad7ffa6b6afbbbae12e3f6854b1db",
+      "after": "9608e42606bcee6bb697a291bf3e6a22bd24e58d5478242534c42d39cf13fb83"
+    }
+  ]
+}

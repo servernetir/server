@@ -1,0 +1,38 @@
+{
+  "release": "identity-api-20261017-runtime",
+  "source_sha": "e8a63b29da7fb2db60cb7cf75d9e034265458d94",
+  "base_sha": "530bf4c754149013e137c72bc3ee4d22159a7975",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "app/Services/IdentityApi/Controls.php",
+      "before": "9202ec704b2bd7bab4233b4c916103d6499311d2f384d61507d14b7b51a782b2",
+      "after": "f73e7d7de2a251ae971996cf3256458e736be4fb9e893e18b8851ffeefb921d5"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/IdentityController.php",
+      "before": "b6f7c16b13405bf082d2a53f0087a908d0dec459014606586c4161ecd276f381",
+      "after": "c365f3d6865b1dc1cac47f85d5740420f6f010cb6fcd40620e4d3c4c447e7c57"
+    },
+    {
+      "path": "resources/views/admin/identity.blade.php",
+      "before": "2a7c40d39f89e2e8283005138ad5c62ed0251614defb39bab7228ea0c8de217a",
+      "after": "46db0fdc47986f92de1eea11f2809e8f84a43d1616d9998f5ab2982ac1137c22"
+    },
+    {
+      "path": "lang/fa/identity.php",
+      "before": "a2901611a731be5c827bc0249ce5389724cbe029ac62c58a0ea228810d161ccf",
+      "after": "da2ea56810197ef708efc14383686e15881910aaff4e1c68470d988ec5637278"
+    },
+    {
+      "path": "lang/en/identity.php",
+      "before": "5f253b18efa210b91b22d63418087564104cf2d32e31ab60c1640793b8eb9bea",
+      "after": "534cb155d854fc1a3ea1c30667e8de487d81d82dc847f9ad1b402becd61e1786"
+    },
+    {
+      "path": "lang/tr/identity.php",
+      "before": "24e0de3db8146960d16f6ec83a330eb1572c38ae3fa4f7b5396f0ee21e2390af",
+      "after": "7e1049e05683a5c8a6767d7803b2cc12a0b403e9c823baff8f6259af4146e093"
+    }
+  ]
+}

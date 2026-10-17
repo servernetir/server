@@ -1,0 +1,248 @@
+{
+  "release": "identity-api-20261017",
+  "source_sha": "7856637a8ebaaece2765c53dbed21d9bd397214a",
+  "base_sha": "530bf4c754149013e137c72bc3ee4d22159a7975",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "app/Console/Commands/IdentityReconcile.php",
+      "before": null,
+      "after": "75084f6b97abd91ac14e21eb262cacc4d1a05c7266eed32e03c773cb1fcdbcec"
+    },
+    {
+      "path": "app/Console/Commands/IdentitySyncCatalog.php",
+      "before": null,
+      "after": "05947ae5d393620d9022b3967e8f501bd2d2b0d3694e64ef172878d4f0b23d02"
+    },
+    {
+      "path": "app/Http/Controllers/Account/AccountController.php",
+      "before": "ed082c9ec1494be0d869216a2c5dbcd20f9cc9074d0a91e29eebc281d33a7954",
+      "after": "c28a7d204ba2cc59b656f8a5ed19e37f64307dd6c570447cf66a8b0f8f050e7c"
+    },
+    {
+      "path": "app/Http/Controllers/Account/IdentityController.php",
+      "before": null,
+      "after": "28bf503737ae77b5e16a9def3dbf14623fcc44489da30b53d67ceda106522b3b"
+    },
+    {
+      "path": "app/Http/Controllers/Account/SecurityController.php",
+      "before": "5a9fc14bdb774528c263798b1ff17606f319c88b5f6523cd0829e16a6aab4b8d",
+      "after": "f5e3a99adc1eac87d7c5ce72232af7289fd93d55bac23dfb0f5ce5cea8301139"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/IdentityController.php",
+      "before": null,
+      "after": "b6f7c16b13405bf082d2a53f0087a908d0dec459014606586c4161ecd276f381"
+    },
+    {
+      "path": "app/Http/Controllers/Api/IdentityController.php",
+      "before": null,
+      "after": "f897f2acec3e0c46a170e7d5dbad97c4cd96938550fcc9286e0e21cfdaef5a09"
+    },
+    {
+      "path": "app/Http/Controllers/IdentityStorefrontController.php",
+      "before": null,
+      "after": "277e9791416ff707b3f28e77ed9a3500c270ea26a04fc6be358805e4190c8173"
+    },
+    {
+      "path": "app/Http/Controllers/SiteController.php",
+      "before": "d74909ddb88dc47428a0db8ed1ae7ed99c9c87b3777a6c48b22dcf79548366f9",
+      "after": "43d0366ffe4112ced1b892e12df0d644019a95ebdaeb389911dbb81f6353bba4"
+    },
+    {
+      "path": "app/Http/Middleware/IdentityPrivacy.php",
+      "before": null,
+      "after": "32223f2893fd384dd4e10bc821b8a431d67bd74e8d5ee1b5b3cf44eae3f0086d"
+    },
+    {
+      "path": "app/Models/CustomerApiToken.php",
+      "before": "7c6b7aa4c46b149d4400b0755be74694e6a016a380237e982d018b4c703f4b6a",
+      "after": "fbf269f457e655b92e688bbcd6c173d327b057aae26a5a81a97539c1ab40b11f"
+    },
+    {
+      "path": "app/Models/IdentityApplication.php",
+      "before": null,
+      "after": "e246cfcfd4db6685463091135b94a52019c3978f4345f3a127b55eb04fac33ec"
+    },
+    {
+      "path": "app/Models/IdentityPrice.php",
+      "before": null,
+      "after": "3cc39cc67a8cfb34ea862eda78da0ce43f1fc7b64462c5c733fbdf99ead9d75a"
+    },
+    {
+      "path": "app/Models/IdentityRequest.php",
+      "before": null,
+      "after": "d95de5f139d84deffe5b8e90a05311a7e16ae21d035826cd12c44d8185db038f"
+    },
+    {
+      "path": "app/Services/Finance/BusinessLedger.php",
+      "before": "6c9203c5bf11e9183928b0cffd8698de3a76e07df2c63e1635b8079f65210d8a",
+      "after": "34bb2777851cfd717cbbfa9053b48de263522c9271292f4a24644497e71dda4d"
+    },
+    {
+      "path": "app/Services/Finance/Wallet.php",
+      "before": "ed611c02d41e0a18e00faed8c2a4446a228ed185ad212f1d5368edc713c31d4d",
+      "after": "e29cd7a13d475feb9b73d8b706def5d1d67acbc4e6633151e0d8ff28bd9aac9a"
+    },
+    {
+      "path": "app/Services/IdentityApi/Catalog.php",
+      "before": null,
+      "after": "bccc851d7d205aa31932adcc5d861b8dc7917e932d69ff3bf7a53b7ae0708af6"
+    },
+    {
+      "path": "app/Services/IdentityApi/Contract.php",
+      "before": null,
+      "after": "c1faa83b4764ac32ce6b318c8dd94bbf03d90ca0c2bc0fbc43d7d877a95f0fdf"
+    },
+    {
+      "path": "app/Services/IdentityApi/Controls.php",
+      "before": null,
+      "after": "9202ec704b2bd7bab4233b4c916103d6499311d2f384d61507d14b7b51a782b2"
+    },
+    {
+      "path": "app/Services/IdentityApi/Engine.php",
+      "before": null,
+      "after": "f871cead666cc61910da17fbeca5072f37a669538b9529ce4628ad7a2fc21b21"
+    },
+    {
+      "path": "app/Services/IdentityApi/IdentityError.php",
+      "before": null,
+      "after": "3c221f815786cafee96be22c24dae9158ffd0899d90e38ecac11ed0dc3e9b259"
+    },
+    {
+      "path": "app/Services/IdentityApi/Pricing.php",
+      "before": null,
+      "after": "e653065f50862c4ac3f69d2a1bd840585cc157dc071a14256c133a3a928d036c"
+    },
+    {
+      "path": "app/Services/IdentityApi/Provider.php",
+      "before": null,
+      "after": "46eb89e78753055daf15b1c0379b5f2ce4e7f873564432ce2bcc19d6dfb29779"
+    },
+    {
+      "path": "app/Support/ErrorTracker.php",
+      "before": "076867a8a076a56fb8f6226b4e916e619efb5278f79429a0caab34080ea0d071",
+      "after": "a6c8c2b0dbc2a8637890a748983d36c9f8a9c574dc08ffc7378b65137308c112"
+    },
+    {
+      "path": "bootstrap/app.php",
+      "before": "7806ae338d7fa7bb41abb88a496f6d061906631fae21c87978ce10ae40cc2e76",
+      "after": "2b21ca5fa1f16d02a1b2789044ead3b9f83b0fa227728c25146efe16d81efbc8"
+    },
+    {
+      "path": "config/identity_api.php",
+      "before": null,
+      "after": "27792e0e1a0dea0d0a1bb0bde14a4460bc59ffb74ac1b76c65ec9cf0a49a3d42"
+    },
+    {
+      "path": "config/pagecache.php",
+      "before": "eea670a48fc115f4a4866732af171f9d40dfcc069be93d723742777b662b4598",
+      "after": "3896e4b5b0a49e6b8bfabb661a7612c5c5dc9bbd5cc50337b2fb85e27f261828"
+    },
+    {
+      "path": "config/servernet.php",
+      "before": "c2446903621ec4b36ed90dca4b08c9d8e0a883aba2a921449e8b1559997bd831",
+      "after": "4ef1e731e2fe427979d74b89fdf5abbb8f5eb7c975385ee5928e97fa960e3f41"
+    },
+    {
+      "path": "database/migrations/2026_10_17_190000_create_identity_api_tables.php",
+      "before": null,
+      "after": "34c6b284fa887ed44516e27e3186840367c13f622b67026fddba60f1096e9fd5"
+    },
+    {
+      "path": "lang/en/identity.php",
+      "before": null,
+      "after": "5f253b18efa210b91b22d63418087564104cf2d32e31ab60c1640793b8eb9bea"
+    },
+    {
+      "path": "lang/fa/identity.php",
+      "before": null,
+      "after": "a2901611a731be5c827bc0249ce5389724cbe029ac62c58a0ea228810d161ccf"
+    },
+    {
+      "path": "lang/tr/identity.php",
+      "before": null,
+      "after": "24e0de3db8146960d16f6ec83a330eb1572c38ae3fa4f7b5396f0ee21e2390af"
+    },
+    {
+      "path": "resources/identity/catalog.json",
+      "before": null,
+      "after": "0109c30a18a1ead412410f1c7bf0150f14580828256c0275f57b7cb80e18c01c"
+    },
+    {
+      "path": "resources/identity/openapi.json",
+      "before": null,
+      "after": "33e6e5fdb9486988c282fd5af3216aac451bf99bbaafb3c88bf71e8941b12e3d"
+    },
+    {
+      "path": "resources/views/account/identity.blade.php",
+      "before": null,
+      "after": "777da45572f15f89ee84939307a175cd481c72e7bc0af41c37af6c420ed2eb13"
+    },
+    {
+      "path": "resources/views/account/partials/identity-token-fields.blade.php",
+      "before": null,
+      "after": "2f9051fe4befd35070f31f209d1ed9f785b25ccd92268c1f720d4954b943589d"
+    },
+    {
+      "path": "resources/views/account/security.blade.php",
+      "before": "779dc6b9b401c7965fe9c246ab334a0726564e206848cdd429cb4c16cd0fb764",
+      "after": "68d6a90adac43b0b0c842c5efebbf7be9c0cba02c136a9b7280a53983f4db292"
+    },
+    {
+      "path": "resources/views/admin/identity.blade.php",
+      "before": null,
+      "after": "2a7c40d39f89e2e8283005138ad5c62ed0251614defb39bab7228ea0c8de217a"
+    },
+    {
+      "path": "resources/views/admin/layout.blade.php",
+      "before": "12d01e1d957ca99e145ea9325442ed591245311f46d5fd6cbf74b034842dbf2d",
+      "after": "3b2f6aa98f472db5be0c3c78fca2cf556b899c0cafe20b16539958bcee75b4ac"
+    },
+    {
+      "path": "resources/views/pages/identity/docs.blade.php",
+      "before": null,
+      "after": "30ea6cfdc7d3643e7b0a55509c8f611c5a23fa2d3cbdc3269b54f4dd2e0abe9b"
+    },
+    {
+      "path": "resources/views/pages/identity/home.blade.php",
+      "before": null,
+      "after": "9b9e25344ef22072ed6a90d356195f11a0f7c9f109c530360631e6bde8a32824"
+    },
+    {
+      "path": "resources/views/pages/identity/nav.blade.php",
+      "before": null,
+      "after": "5251f95cc7ce848c17ad1c0cc1d5e0005e060818812e86406b61f9b0d0265a26"
+    },
+    {
+      "path": "resources/views/pages/identity/style.blade.php",
+      "before": null,
+      "after": "67b15c0cffd0e7a0b63a05dd9d2fcf4b09449e61dea724d343944b71ce5613a8"
+    },
+    {
+      "path": "resources/views/pages/identity/terms.blade.php",
+      "before": null,
+      "after": "bd654711aa0af1c9d040d71653aaf63a605a886996fb83f1bba88bbf426c7be3"
+    },
+    {
+      "path": "routes/console.php",
+      "before": "f185c0d36b8c44700e8a096b16a0440c235b9ffe99d37a71fc543e9658ad50e7",
+      "after": "453042a83f628ef3c155ef5b47b7ae4858818f9924c6760dc8f5ffbb9fc3ba9a"
+    },
+    {
+      "path": "routes/identity-api.php",
+      "before": null,
+      "after": "63a4d886b3841ee100bdd1df4b1e2e2e697ad7ffa6b6afbbbae12e3f6854b1db"
+    },
+    {
+      "path": "routes/identity-site.php",
+      "before": null,
+      "after": "b759a5e80867da72ed6f279e1571748e40b54b8d2c59fdaae8f14996ea15eccf"
+    },
+    {
+      "path": "routes/web.php",
+      "before": "c8593804fa3aec489c66c32436265b5deae92737d414d0e1055db0dd8aee381c",
+      "after": "328b195da879ed3ecf87d8f1b270d222d51140b8e4f9d787d5bf45b49b3f5e72"
+    }
+  ]
+}

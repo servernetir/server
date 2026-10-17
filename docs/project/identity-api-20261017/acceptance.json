@@ -1,0 +1,34 @@
+{
+  "schema_ready": true,
+  "runtime_ready": true,
+  "dispatch_enabled": false,
+  "requests": 0,
+  "prices": 0,
+  "applications": 0,
+  "bound_keys": 0,
+  "reconcile_heartbeat": "2026-10-17T15:18:04+00:00",
+  "catalog_observed": 34,
+  "new_products": 0,
+  "migration_recorded": true,
+  "hashes_verified": 49,
+  "backup_integrity": [
+    {
+      "backup": "identity-api-20261017-backup",
+      "gzip_crc": "passed",
+      "sha256": "101896be78d131df89f9fd7ae7ff30a2f5e8198e8d28ea4274eca690acb0a2f3",
+      "mode": "0o600"
+    },
+    {
+      "backup": "identity-api-20261017-runtime-backup",
+      "gzip_crc": "passed",
+      "sha256": "a5fe7b3ad96bbf749825af5fb1821b33519db48050776b300c8bcc505d8463e0",
+      "mode": "0o600"
+    },
+    {
+      "backup": "identity-api-20261017-routing-backup",
+      "gzip_crc": "passed",
+      "sha256": "f83dc602cb34570657047f7417dcd77704dcf22edf352b7d620c5fb4c3e78783",
+      "mode": "0o600"
+    }
+  ]
+}

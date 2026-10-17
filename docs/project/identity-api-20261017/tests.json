@@ -1,0 +1,90 @@
+{
+  "sqlite_related": {
+    "totals": {
+      "tests": "152",
+      "assertions": "615",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    "failures": []
+  },
+  "mariadb_identity": {
+    "totals": {
+      "tests": "39",
+      "assertions": "283",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    "failures": []
+  },
+  "mariadb_stress": {
+    "totals": {
+      "tests": "3",
+      "assertions": "59",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "0"
+    },
+    "failures": []
+  },
+  "baseline_credit_reseller": {
+    "totals": {
+      "tests": "26",
+      "assertions": "54",
+      "errors": "0",
+      "failures": "15",
+      "skipped": "0"
+    },
+    "failures": [
+      "Tests.Feature.CreditInvoicePaymentTest::test_credit_pays_the_invoice_through_the_official_settle_path",
+      "Tests.Feature.CreditInvoicePaymentTest::test_spending_credit_recognizes_revenue_in_the_ledger",
+      "Tests.Feature.CreditInvoicePaymentTest::test_double_posting_debits_exactly_once",
+      "Tests.Feature.ResellerDomainApiTest::test_the_same_idempotency_key_never_buys_a_second_domain",
+      "Tests.Feature.ResellerDomainApiTest::test_an_order_without_enough_credit_touches_nothing",
+      "Tests.Feature.ResellerDomainApiTest::test_the_level_discount_can_never_price_below_cost",
+      "Tests.Feature.ResellerDomainApiTest::test_the_discount_really_applies_when_the_margin_allows_it",
+      "Tests.Feature.ResellerDomainApiTest::test_our_cost_and_registrar_ids_never_reach_the_reseller",
+      "Tests.Feature.ResellerDomainApiTest::test_the_api_never_puts_a_domain_in_both_queues",
+      "Tests.Feature.ResellerDomainApiTest::test_registering_an_already_active_domain_is_refused",
+      "Tests.Feature.ResellerDomainApiTest::test_a_purchase_promotes_the_level_immediately",
+      "Tests.Feature.ResellerDomainApiTest::test_a_failed_request_releases_its_idempotency_key",
+      "Tests.Feature.ResellerDomainApiTest::test_a_currency_jump_never_lets_a_renewal_sell_below_cost",
+      "Tests.Feature.ResellerDomainApiTest::test_a_stable_rate_leaves_the_stored_renewal_price_alone",
+      "Tests.Feature.ResellerDomainApiTest::test_a_tld_we_do_sell_is_untouched_by_that_gate"
+    ]
+  },
+  "baseline_ai_seo": {
+    "totals": {
+      "tests": "18",
+      "assertions": "331",
+      "errors": "2",
+      "failures": "3",
+      "skipped": "1"
+    },
+    "failures": [
+      "Tests.Feature.AiModelSeoTest::test_all_service_types_have_localized_facts_and_honest_offers",
+      "Tests.Feature.AiModelSeoTest::test_offer_currency_and_worked_cost_match_the_billing_engine",
+      "Tests.Feature.AiModelSeoTest::test_gap_legacy_page_describes_ready_execution_and_keeps_pending_copy",
+      "Tests.Feature.AiModelSeoTest::test_gap_parameter_table_matches_enforced_request_limits_and_defaults",
+      "Tests.Feature.AiModelSeoTest::test_deepinfra_ref_and_anyof_display_match_the_enforced_voice_contract"
+    ]
+  },
+  "feature_with_ai_seo": {
+    "totals": {
+      "tests": "150",
+      "assertions": "898",
+      "errors": "2",
+      "failures": "3",
+      "skipped": "1"
+    },
+    "failures": [
+      "Tests.Feature.AiModelSeoTest::test_all_service_types_have_localized_facts_and_honest_offers",
+      "Tests.Feature.AiModelSeoTest::test_offer_currency_and_worked_cost_match_the_billing_engine",
+      "Tests.Feature.AiModelSeoTest::test_gap_legacy_page_describes_ready_execution_and_keeps_pending_copy",
+      "Tests.Feature.AiModelSeoTest::test_gap_parameter_table_matches_enforced_request_limits_and_defaults",
+      "Tests.Feature.AiModelSeoTest::test_deepinfra_ref_and_anyof_display_match_the_enforced_voice_contract"
+    ]
+  }
+}

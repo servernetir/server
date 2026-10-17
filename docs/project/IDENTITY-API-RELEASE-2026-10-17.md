@@ -1,6 +1,6 @@
 # رکورد اجرای Identity & Inquiry API — ۱۷ اکتبر ۲۰۲۶
 
-وضعیت این رکورد: آزموده در محیط ایزوله؛ نصب تولید هنوز ثبت نشده است. به‌روزرسانی پس از پذیرش لازم است.
+وضعیت تا حدود ۱۵:۱۹ UTC: **نصب فنی و پذیرش مسیرهای وب انجام شد؛ فروش تجاری و آزمون پولی فعال نشده‌اند.**
 
 ## مجوز و محدوده
 
@@ -11,20 +11,43 @@ checkout اصلی دارای تغییر دیگران بود و دست‌نخور
 ## شواهد آزمون
 
 - PHP 8.4، وابستگی‌های دقیق composer.lock با SHA-256 برابر `e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd` در checkout ایزوله؛ هیچ .env یا دادهٔ تولید به تست منتقل نشد.
-- ۱۳۲ آزمون مرتبط / ۵۶۷ assertion موفق روی SQLite: قابلیت جدید، AI reservation، Wallet، BusinessLedger، IranianKyc، ZohalProvider و صفحهٔ امنیت.
-- مجموعهٔ IdentityApiTest روی MariaDB 11.8 در شبکهٔ داخلی Docker، بدون پورت منتشرشده، موفق شد؛ stress مستقل شامل ۱۰۰ تلاش مختلط کیف پول/AI/هویت، claim پانزده dispatcher و رقابت capture/release: ۳ آزمون / ۵۹ assertion موفق.
+- ۱۵۲ آزمون مرتبط / ۶۱۵ assertion موفق روی SQLite: قابلیت جدید، AI reservation، Wallet، BusinessLedger، IranianKyc، ZohalProvider، صفحهٔ امنیت و ConsoleHost. مسیرهای واقعی میزبان پنل، ورود مهمان و جهت/زبان مدیریت نیز پوشش دارند.
+- IdentityApiTest روی MariaDB 11.8: ۳۹ آزمون / ۲۸۳ assertion موفق در شبکهٔ داخلی Docker، بدون پورت منتشرشده. stress مستقل شامل ۱۰۰ تلاش مختلط کیف پول/AI/هویت، claim پانزده dispatcher و رقابت capture/release: ۳ آزمون / ۵۹ assertion موفق. روش dump/restore روی دو ردیف مصنوعی همان دیتابیس دورریختنی آزموده شد. تولید 10.11 است؛ دریافت image دقیق 10.11 به‌دلیل DNS ناموفق بود و آزمون هم‌نسخه ادعا نمی‌شود.
 - برای همهٔ ۳۱ سرویس JSON، ورودی/پاسخ مصنوعی طبق schema، URL/method/Bearer و یک برداشت آزموده شد؛ این آزمون زنده upstream نیست. result=1/matched=false، timeout بدون retry، شکست تسویه پس از پاسخ، پاسخ دیرهنگام، tombstone، انقضا، tenant/scope/IP، سقف‌ها، قیمت صفر، مالیات و سه زبان نیز پوشش دارند.
-- اجرای گسترده‌تر ۱۵ شکست در CreditInvoicePaymentTest و ResellerDomainApiTest داشت. همان ۱۵ شکست در checkout تمیز develop بدون این تغییر بازتولید شد؛ حفاظت‌ها برای سبزشدن تست کنار گذاشته نشده‌اند. وضعیت baseline و SHA هر اجرای بعدی باید همراه نتیجه حفظ شود.
+- اجرای گسترده‌تر ۱۵ شکست در CreditInvoicePaymentTest و ResellerDomainApiTest داشت؛ همان ۱۵ شکست روی develop تمیز مبنای `df47fdd8` بازتولید شد. پس از ادغام تغییرهای هم‌زمان سئوی AI، پنج خطای AiModelSeoTest هم روی develop تمیز `530bf4c7` و شاخهٔ قابلیت یکسان بودند؛ یک skip آن مجموعه نیز حفظ شد. حفاظت‌ها برای سبزشدن تست کنار گذاشته نشده‌اند. [شمارش و نام شکست‌ها](identity-api-20261017/tests.json) ثبت شده است.
 - OpenAPI از registry، بدون شبکه، بازتولید و با `--check` تطبیق شد؛ ۶۲ schema ورودی/نتیجه. قالب PHP فایل‌های جدید با Pint بررسی شد.
 
 ## پیش‌بررسی تولید (فقط خواندنی)
 
 cPanel Terminal با نشست موجود حساب؛ PHP 8.4.26 و MariaDB 10.11.19. `customer_api_tokens`، `credit_ledger` و `business_ledger` همگی InnoDB. توکن upstream و احراز انتشار فقط از نظر موجودبودن بررسی شدند و مقدارشان نمایش/ذخیره نشد. config/route cache موجود نبود؛ یک cron schedule:run موجود است. پیش از تغییر، جدول‌های identity وجود نداشتند.
 
-۱۴ فایل runtime مرتبط در محل خصوصی خارج webroot پشتیبان خواندنی شدند. سه تفاوت زنده با مبنای Git دیده شد: حذف بلوک‌های managed DNS در AccountController، admin layout و routes/web و اضافه‌شدن hardware-sitemap.xml. این تغییرها باید در overlay انتشار حفظ شوند؛ نصب کور فایل‌های Git مجاز نیست. شاهد اولیهٔ آرشیو منبع SHA-256: `b5bb227db692c1f4d548167a7407c97d4121e16b277b4aa4b23d23bde96e0287`. تغییرهای هم‌زمان بعدی نیز بلافاصله پیش از نصب با hash guard کنترل می‌شوند.
+۱۴ فایل runtime مرتبط در محل خصوصی خارج webroot پشتیبان خواندنی شدند. سه تفاوت زنده با مبنای Git دیده شد: حذف بلوک‌های managed DNS در AccountController، admin layout و routes/web و اضافه‌شدن hardware-sitemap.xml. این تغییرها در overlay انتشار حفظ و همان overlay آزموده شد. با رسیدن سئوی AI، snapshot دوباره گرفته شد؛ SHA-256 آرشیو دوم `8912b261378961a19d5db339f9af8e10740940371f5aaf7b276f3b089a0731fe` است. همهٔ مقصدها دوباره بلافاصله پیش از نوشتن بررسی شدند؛ هیچ فایلِ متفاوتِ همکار بازنویسی نشد.
 
 ## پذیرش انتشار و محدودیت‌ها
 
-این بخش پس از عمل واقعی تکمیل می‌شود: SHA نهایی develop، manifest/hash بسته و مقصد، پشتیبان خصوصی داده، migration افزایشی محدود، OPcache وب، صفحه‌های سه‌زبان، خطای 401/no-store، cron طبیعی و hash نهایی. push به Git یا پاسخ 200 عمومی به‌تنهایی شاهد نصب/تسویه واقعی نیست.
+کد اصلی با [PR #79](https://github.com/servernetir/server/pull/79) در `develop` ادغام شد: `8511a3ec13c689202b9c6c4d95d67f105605a0c0`. کنترل سازگاری کد فعال در `e8a63b29da7fb2db6cb7cf75d9e034265458d94` و اصلاح مسیر/ورود در `6a8afda8` ثبت شد؛ آخرین مبنای سورس نصب `b41c172d43906d66be6423418d3b5d79b6453181` است. تغییرهای هم‌زمان آروان نیز بدون بازنویسی در شاخه ادغام شدند.
+
+سه بستهٔ محدود نصب شد: ۴۸ فایل اولیه، ۶ فایل کنترل کد فعال و ۴ فایل اصلاح مسیر؛ در مجموع **۴۹ مقصد یکتا**. manifestهای [اولیه](identity-api-20261017/manifest-initial.json)، [کنترل اجرا](identity-api-20261017/manifest-runtime.json)، [مسیریابی](identity-api-20261017/manifest-routing.json) و [هش‌های نهایی](identity-api-20261017/final-hashes.json) مرجع دقیق‌اند. SHA-256 بسته‌ها به‌ترتیب:
+
+```text
+81fe4a203b24abc3e49702301b3bedf9a864a5d62b2bf4bab6881b55a849cbed
+2125305ab9be04c14d136874e8a7f464d89da133166c3b92da2d8f51d40c5be7
+3f3d36ac979f4d3cd79c46578501b200640f2b5bcdedf4930a719cd1f0df755b
+```
+
+مقصد اپ `/home/servernetcloud/servernet_app`؛ webroot، `.env`، vendor، upload و storage زنده کپی/تعویض نشدند. نصب با قفل اختصاصی و hash guard، پشتیبان منبع و dump کامل خصوصی دیتابیس انجام شد. پوشه‌های پشتیبان زیر home: `identity-api-20261017-backup`، `identity-api-20261017-runtime-backup` و `identity-api-20261017-routing-backup`، مجوز 0700؛ dumpها 0600. CRC کامل gzip پشتیبان‌ها بررسی شد؛ دادهٔ تولید برای تست یا Git دانلود نشد. [پذیرش پاک‌سازی‌شده](identity-api-20261017/acceptance.json) فقط وضعیت و شمارش دارد؛ نسخهٔ سرور در `acceptance-sanitized.json` آخرین پوشه نگهداری می‌شود.
+
+فقط `2026_10_17_190000_create_identity_api_tables` با `--path` اجرا و در migrations ثبت شد؛ هیچ migrate عمومی، seeder یا rollback مخرب اجرا نشد. مرحله‌های بعد schema تازه نداشتند. config/route cache از قبل نبود؛ فقط Blade cache پاک شد. endpoint موجود OPcache به‌دلیل پاک‌کردن cache مشترک فراخوانی نشد. رندر تازه، ورود صحیح مهمان و کنترل زندهٔ Wallet/ledger/token در وب، اجرای کد جدید را تأیید کردند؛ ریست CLI به‌عنوان ریست وب گزارش نشده است.
+
+پذیرش مشاهده‌شده:
+
+- صفحهٔ محصول و راهنما در fa/en/tr، شرایط، OpenAPI با ۶۲ schema و هش دقیق `33e6e5fdb9486988c282fd5af3216aac451bf99bbaafb3c88bf71e8941b12e3d`: HTTP 200؛ `/up` و hardware-sitemap.xml نیز سالم.
+- API بدون کلید: 401 و `no-store, private`. مهمان پنل به ورود فعلی مشتری/مدیر هدایت می‌شود. پنل مشتری و مدیریت با نشست موجود دیده شدند؛ شرایط تازه، کلید یا قیمت واقعی برای مشتری ایجاد نشد.
+- در آزمون زنده، مسیر مدیریت انگلیسی ابتدا توسط ConsoleHost و catch-all زبان سایه می‌خورد؛ ترتیب ثبت، تشخیص میزبان و locale اصلاح و با ۵۸ آزمون هدفمند محافظت شد. مدیریت انگلیسی/ترکی با `lang` درست، LTR و کد فعال تأیید شد. هدایت 301 قدیمی در مرورگر آزمون برای URL انگلیسی مانده بود؛ URL تازه با پارامتر release و درخواست مستقلِ بدون cache پاسخ صحیح داشتند. کوکی/نشست کاربر پاک نشد.
+- sandbox از فرم واقعی پنل، پاسخ صریح مصنوعی و `charged_irt=0` داد؛ هیچ IdentityRequest، برنامه، کلید محصول، قیمت یا برداشت واقعی ساخته نشد.
+- cron موجود به‌طور طبیعی `identity:reconcile` را اجرا کرد؛ heartbeatهای چند دقیقهٔ متوالی تا پس از اصلاح مسیر دیده شدند. scheduler عمومی دستی اجرا نشد و cron دوم ساخته نشد. اجرای دستیِ کم‌خطر `identity:sync-catalog` از سرور، ۳۴ محصول عمومی و صفر محصول جدید گزارش داد؛ قیمت/مسیر اجرا را تغییر نداد.
+- `schema_ready=true`، `runtime_ready=true`، `dispatch_enabled=false`؛ hashهای نهایی با مقصد تطبیق داده شدند. این پذیرش، موفقیت درخواست پولی/هویتی upstream نیست.
+
+ماشین‌ها، DNS، route، NAT/firewall، VPN و state عامل‌های شبکه تغییر نکردند. ماندگاری قابلیت در فایل‌های manifest، migration و زمان‌بندی موجود Laravel است. بازگشت عملی انجام نشد؛ روش محدود و حفظ رزرو/دفتر مالی در [راهنمای عملیات](IDENTITY-API.md) ثبت است. کلید توقف پذیرش جدید است؛ جدول‌ها و تسویهٔ درخواست‌های قبلی باید باقی بمانند.
 
 فروش به‌صورت پیش‌فرض بسته است: مجوز بازفروش، تعرفهٔ جاری اختصاصی، IP خروجی allowlist، سقف و ماندهٔ معتبر هنوز تأیید نشده‌اند. OCR، ویدیو، اعتبارسنجی و سرویس اختصاصی حساب ۴۴ قرارداد کافی ندارند. شارژ خودکار upstream و proxy فایل اجرا نشده‌اند. [راهنمای عملیات و بازگشت](IDENTITY-API.md) و [ماتریس تک‌محصول](IDENTITY-API-COVERAGE-2026-10-17.md) مرجع جزئیات هستند.
