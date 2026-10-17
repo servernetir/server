@@ -55,7 +55,8 @@
       ⚠️ نسخهٔ تصویری، نه اسکریپتی: CSP این پروژه اسکریپت و آی‌فریمِ بیرونی را
       بی‌هیچ خطایی بلاک می‌کند ولی `img-src` هر https را می‌پذیرد.
     --}}
-    @php($seals = trust_seals())
+    {{-- نمادِ اعتماد (enamad) به‌خواستهٔ کارفرما از فوتر برداشته شد؛ ساماندهی می‌ماند. --}}
+    @php($seals = array_values(array_filter(trust_seals(), fn ($s) => $s['key'] !== 'enamad')))
     @if($seals)
     <div class="f-seals">
       @foreach($seals as $s)

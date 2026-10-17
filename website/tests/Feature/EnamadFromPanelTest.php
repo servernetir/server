@@ -40,7 +40,8 @@ class EnamadFromPanelTest extends TestCase
         $this->assertStringNotContainsString('FROM-ENV', $seals[0]['href'],
             'مقدارِ .env بر مقدارِ پنل چربید');
 
-        $this->assertStringContainsString('trustseal.enamad.ir',
+        // نماد به‌خواستهٔ کارفرما از فوتر برداشته شده؛ مقدار هنوز ذخیره می‌شود.
+        $this->assertStringNotContainsString('trustseal.enamad.ir',
             $this->get('/')->assertOk()->getContent());
     }
 

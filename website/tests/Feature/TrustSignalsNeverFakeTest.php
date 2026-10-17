@@ -87,7 +87,7 @@ class TrustSignalsNeverFakeTest extends TestCase
 
         $home = $this->get('/')->assertOk()->getContent();
 
-        $this->assertStringContainsString('trustseal.enamad.ir', $home, 'مهرِ نماد نیامد');
+        $this->assertStringNotContainsString('trustseal.enamad.ir', $home, 'نماد باید از فوتر برداشته باشد');
 
         /*
         | ⚠️ این ادعا **دو بار** جهت عوض کرده و هر دو بار یک تصمیمِ بیرونی
