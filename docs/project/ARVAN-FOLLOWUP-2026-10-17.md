@@ -1,5 +1,11 @@
 # Arvan VPS follow-up — 2026-10-17
 
+## Font production acceptance — 06:57 UTC
+
+Supersedes font-pending notes below. Owner created the explicitly scoped temporary Individual Workers Editor token for servernet-vnc only, expiring 17 October 23:59 Tehran. Official Worker upload API deployed version `85f6f3ed-e733-4f47-8752-f160bd28f55c` at 100%. Live-source diff was only font CSP, font-face CSS and two fixed font routes. Existing bindings (including secret binding) and compatibility date compared equal after upload. No routes, DNS, portal/RustDesk Worker, sales setting, broker enablement or paid resource changed.
+
+Both same-origin WOFF2 endpoints returned 200/font/woff2, 32272 and 32092 bytes. Browser computed header font is IRANSans; CDP CSS.getPlatformFontsForNode confirmed custom IRANSans-Bold glyphs on the brand. This is live header acceptance without a console session; the fixture is deleted, and automatic Windows password/RDP/console provisioning acceptance is still unresolved. Rollback target is previous Worker version `5f23f7e6-b380-4182-88dd-4121a9d74ba6`, preserving bindings/routes. No credentials or private inventory are included here.
+
 ## Scope and evidence
 
 Documentation-only handoff based on develop `b880e2dc` and this task's recorded observations. Implementation commit: `6e159909ad89cd75657d3901748ddbabdba86d5c`. No production deployment, financial operation, new resource, credential, DNS change or sales-setting change is part of this update. Private operational inventory and console authentication URLs are deliberately omitted.
