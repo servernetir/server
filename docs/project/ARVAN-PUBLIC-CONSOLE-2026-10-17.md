@@ -2,6 +2,8 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+Follow-up after owner supplied `/account/cloud/501/console`: no tab at that URL was available in IAB. Its three visible tabs were cPanel and admin pages; Chrome exposed the service501 detail pages but no vnc.servernet.cloud console tab. Read-only DOM on the authenticated owner page confirms the console control is a POST form with target=_blank, not a directly navigable GET console link. The service remains visually running; no recent warning/error was returned by that page's browser-log reader. No new submit or alternate blocked-tab access was attempted. Ask the owner for the actual resulting console tab or a screenshot/error; do not report guest image/input acceptance. No production changes in this follow-up.
+
 ### Regional Worker published — 17 October 2026, 13:19:26 UTC
 
 Owner explicitly authorized only servernet-vnc deployment access. The legacy user-token form offered account-level Workers Admin and was abandoned without creating access. Account-owned-token UI supports Specified Workers: exactly servernet-vnc / Individual Workers Editor was selected, with expiration 2026-10-17 23:59 Tehran. No DNS, route-write, other Worker, global key or OAuth scope was granted. The credential was kept temporarily outside Git and never printed; local credential copy removed after verification, cloud credential expires automatically tonight.
