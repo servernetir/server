@@ -1,5 +1,9 @@
 # Arvan VPS developer handoff — 2026-10-14
 
+## Update — 2026-10-17
+
+The sections below are historical evidence from 14 October, not fresh production acceptance. See [current follow-up](docs/project/ARVAN-FOLLOWUP-2026-10-17.md) for unresolved delivery/font work and overdue test cleanup. The earlier implementation was pushed as `6e159909ad89cd75657d3901748ddbabdba86d5c`; this update is documentation only.
+
 ## Scope and production state
 
 - Renewal pricing deployed at 11:58:27 UTC: shared read-only CloudRenewalPrice, fail-closed missing catalogue, forecast tax without saving a service, retained Hetzner/Rclone floors and existing monitored scheduler. See ARVAN-RENEWAL-FIX-2026-10-14.md.
