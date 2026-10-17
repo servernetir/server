@@ -146,7 +146,7 @@ class SnappPayGateway implements PaymentGateway
             'amount'         => (int) $payment->amount,
             'mobile'         => $mobile,
             'cart'           => $body,
-        ])->note('token', true, 'توکنِ پرداخت گرفته شد');
+        ])->note('token', true, 'توکنِ پرداخت گرفته شد — صفحه: '.(parse_url((string) $res['url'], PHP_URL_HOST) ?: '?'));
 
         return StartResult::redirect($res['url'], $res['token']);
     }

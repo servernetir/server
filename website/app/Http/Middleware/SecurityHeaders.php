@@ -66,6 +66,10 @@ class SecurityHeaders
             // the official console host on an owned Arvan service detail page;
             // never widen every account page, payment page or console origin.
             $formAction = "form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com";
+            // اسنپ‌پی: همان تلهٔ زرین‌پال — ۳۰۲ ِ بعد از submit به صفحهٔ پرداختش
+            if (config('snapppay.enabled')) {
+                $formAction .= $this->snappPayHosts();
+            }
             $consoleService = $request->route('service');
             if (preg_match('~^(?:(?:en|tr)/)?account/cloud/[0-9]+$~', $request->path())
                 && $consoleService instanceof \App\Models\Service
@@ -136,6 +140,28 @@ class SecurityHeaders
      * اضافه شد، آگاهانه این‌جا هم اضافه شود؛ باز کردنِ `wss:` روی کلِ `/account`
      * یعنی هر صفحهٔ پنل بتواند به هر جایی سوکت بزند.
      */
+    /**
+     * میزبان‌های صفحهٔ پرداختِ اسنپ‌پی، با پیشوندِ فاصله؛ خالی اگر هیچ.
+     *
+     * میزبانِ API (`base_url`) همیشه هست، چون صفحهٔ استیجینگ کنارِ همان است.
+     * هر مقدارِ غیرِ https یا دارای کاراکترِ جداکنندهٔ CSP دور ریخته می‌شود تا
+     * یک خطِ بدِ .env نتواند سیاست را بشکند یا باز کند.
+     */
+    private function snappPayHosts(): string
+    {
+        $hosts = (array) config('snapppay.page_hosts', []);
+        $api = parse_url((string) config('snapppay.base_url'));
+
+        if (! empty($api['host'])) {
+            $hosts[] = 'https://'.$api['host'];
+        }
+
+        $hosts = array_filter($hosts, fn ($h) => is_string($h)
+            && preg_match('~^https://(\*\.)?[a-z0-9.-]+$~i', $h) === 1);
+
+        return $hosts === [] ? '' : ' '.implode(' ', array_unique($hosts));
+    }
+
     private function isCloudConsole(Request $request): bool
     {
         return $request->is('account/cloud/*/console/view')
