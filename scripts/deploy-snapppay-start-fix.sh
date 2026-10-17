@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# رفعِ ۵۰۰ هنگامِ شروعِ پرداختِ اسنپ‌پی — سه فایل، فقط دلتای همین کار.
+# رفعِ ۵۰۰ هنگامِ شروعِ پرداختِ اسنپ‌پی + موبایل در قالبِ +98 — چهار فایل، فقط دلتای همین کار.
 # از ترمینالِ cPanel با کاربرِ servernetcloud:
 #
 #   ۱) DRY=1 bash <(curl -fsSL https://raw.githubusercontent.com/servernetir/server/<SHA>/scripts/deploy-snapppay-start-fix.sh) <SHA>
@@ -46,6 +46,7 @@ echo "── هدف: $(git -C "$WORK/repo" log -1 --format='%h %s' "$MINE")"
 echo "── پایه: $(git -C "$WORK/repo" log -1 --format='%h %s' "$BASE")"
 
 DELTA_FILES="
+app/Services/Payment/SnappPay/SnappPayCart.php
 app/Services/Payment/SnappPay/SnappPayClient.php
 app/Services/Payment/SnappPay/SnappPayGateway.php
 app/Services/Payment/PaymentService.php
@@ -81,6 +82,7 @@ for rel in $DELTA_FILES; do
   # نشانهٔ اینکه ادغام واقعاً تغییرِ این کار را دارد
   case "$rel" in
     *PaymentService.php) grep -q 'private static function clip' "$STAGE/$rel" || { echo "FATAL: clip در نتیجهٔ ادغام نیست"; exit 3; } ;;
+    *SnappPayCart.php) grep -q 'function forSnappPay' "$STAGE/$rel" || { echo "FATAL: forSnappPay در نتیجه نیست"; exit 3; } ;;
     *SnappPayGateway.php) grep -q 'token-too-long' "$STAGE/$rel" || { echo "FATAL: گاردِ طولِ توکن در نتیجه نیست"; exit 3; } ;;
   esac
   echo "MG   $rel ($how)"; STAGED="$STAGED $rel"; UPD=$((UPD+1))
@@ -116,6 +118,7 @@ done
 # اثبات از مقصد، نه از چاپِ موفقیت
 grep -c "self::clip(" "$APP/app/Services/Payment/PaymentService.php" | sed 's/^/clip-calls (باید 4): /'
 grep -c "token-too-long" "$APP/app/Services/Payment/SnappPay/SnappPayGateway.php" | sed 's/^/token-guard (باید 1): /'
+grep -c "forSnappPay(\$mobile)" "$APP/app/Services/Payment/SnappPay/SnappPayCart.php" | sed 's/^/plus98 (باید 1): /'
 
 echo; echo "DONE — $UPD فایل. پشتیبان: $BK"
 echo "حالا opcache را از /system/opcache ریست کنید."

@@ -68,7 +68,7 @@ class SnappPayCart
     public function forToken(Invoice $invoice, Payment $payment, string $mobile, string $returnUrl): array
     {
         return $this->body($invoice, [
-            'mobile'        => $this->normalizeMobile($mobile),
+            'mobile'        => $this->forSnappPay($mobile),
             'returnURL'     => $returnUrl,
             'transactionId' => $this->transactionId($payment),
         ]);
@@ -187,7 +187,19 @@ class SnappPayCart
     }
 
     /**
-     * موبایل در قالبی که اسنپ‌پی می‌شناسد.
+     * شکلی که خودِ API می‌خواهد: `+98` و ده رقم.
+     *
+     * 🔴 روی استیجینگ، `09…` با پیامِ «مقدار با الگوی "\+98\d{10}" همخوانی
+     * ندارد» رد شد. مستندات فقط می‌گوید `string`. شکلِ داخلیِ ما (`09…`،
+     * ۱۱ رقم) برای گارد و نمایش می‌ماند؛ فقط بدنهٔ درخواست این را می‌گیرد.
+     */
+    public function forSnappPay(string $mobile): string
+    {
+        return '+98'.substr($this->normalizeMobile($mobile), 1);
+    }
+
+    /**
+     * موبایل در یک شکلِ واحدِ داخلی: `09…`، ۱۱ رقم.
      *
      * ⚠️ ارقامِ فارسی/عربی و پیش‌شماره‌های گوناگون (۰۹۱۲…، ۹۸۹۱۲…، +۹۸۹۱۲…)
      * همگی در فرم‌های ما دیده می‌شوند. یک شکلِ واحد بیرون می‌دهیم تا خطای

@@ -136,7 +136,9 @@ class SnappPayFlowTest extends TestCase
                 return false;
             }
 
-            return $request['amount'] === 5_000_000;   // ۵۰۰٬۰۰۰ تومان
+            // موبایل در شکلی که API پذیرفت؛ `09…` با الگوی +98\d{10} رد شده بود
+            return $request['amount'] === 5_000_000   // ۵۰۰٬۰۰۰ تومان
+                && preg_match('/^\+98\d{10}$/', (string) $request['mobile']) === 1;
         });
     }
 
