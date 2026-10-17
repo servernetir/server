@@ -2,6 +2,10 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+### Follow-up logs at approximately 14:21 UTC
+
+Current origin access log has eight service501 console POSTs, all302 (latest13:58:03UTC), and zero broker-path entries, verified with literal path matching. Laravel log mtime11:12:19UTC, 3,502,976 bytes, zero matches for broker/console identifiers. Filtered Cloudflare Compute Observability for exactly servernet-vnc over the last hour shows17 successful invocations and zero runtime errors: only root/static GETs, no launch or socket. Latest console.js event14:14:38UTC corresponds to our public release check. Free-plan sampling and log coverage mean absence is not definitive proof of no traffic. No evidence yet implicates the authenticated Worker-to-Arvan handshake: the observed failure is before any recorded launch/broker exchange. Do not invent an upstream repair from these logs. Actual browser Document status/error and Console failure are needed; current browser observation gate remains a blocker and must not be bypassed. No production, DNS, portal Worker, sales, guest or network changes in this follow-up.
+
 ### Client resilience patch published — 14:14 UTC
 
 With the owner's action-time approval, created an Individual Workers Editor token scoped only to `servernet-vnc`, expiring 17 October 2026 at 23:59 Iran time. No DNS, route, other Worker or account-wide permissions were added. The fixed-target release helper backed up live settings/source, checked for concurrent changes and published the previously committed `c0994dd8` patch. Cloudflare deployment `6856bee8-f1b5-42d4-aefb-5bb4f76fd553` reports version `b1732b2f-91bf-48ee-9f96-181a84e9d910` at 100%, created 2026-10-17T14:14:17Z. Exact normalized source comparison passed and all three existing bindings were preserved. Local source SHA256: `9b2bb68917e370333cbbb3b2f906889ecb96225a2271766595a61c3ffcd902fe`.
