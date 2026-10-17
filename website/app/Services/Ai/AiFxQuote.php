@@ -12,9 +12,9 @@ final class AiFxQuote
         public readonly string $currency,
         /** تومان به ازای یک واحدِ ارز */
         public readonly int $rate,
-        /** scraped | override | ratchet | scraped+stale */
+        /** scraped (نوسان) | ratchet | scraped+stale؛ override فقط در ردیف‌های تاریخی ممکن است */
         public readonly string $source,
-        /** زمانِ نرخِ بازار؛ برای نرخِ دستی null */
+        /** زمانِ نرخِ ذخیره‌شدهٔ نوسان؛ در ردیف‌های تاریخی ممکن است null باشد */
         public readonly ?string $at,
         /** نشانِ بالاترین نرخ پیش از این قیمت‌گذاری (برای نمایشِ ضامنِ افت) */
         public readonly ?int $highWater = null,
