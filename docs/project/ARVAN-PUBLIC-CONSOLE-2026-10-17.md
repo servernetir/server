@@ -2,6 +2,10 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+### Provider handshake contract checked (read-only)
+
+Fetched only the public provider vnc_lite.html without a token. Its script sets the token cookie and computes the default path by removing vnc_auto.html (not vnc_lite.html), yielding /ir-tbz-sh1/vnc_lite.html/websockify. Production read-only settings returned that exact socket path and enabled=1. The Worker sends the token cookie to the fixed provider host and this allowlisted path; no path mismatch was demonstrated. This verifies configuration/HTML contract, NOT an authenticated WebSocket101 or guest input. Initial plain php CLI was8.2 and failed the platform check before bootstrap; the documented explicit ea-php84 binary completed the read. No production setting changed. Scoped Worker publication credential approval remains pending; c0994dd8 is Git-only.
+
 ### Client failure handling patch — Git only, not deployed
 
 Base7b291696. Added executable Node VM tests against the actual legacy client response (synthetic DOM, ticket, fetch and RFB; no browser or provider access). Valid-ticket execution reached /launch and then the fake RFB connection. Two failure cases were red before the patch: history.replaceState throwing before the try block rejected the whole bootstrap without a visible error; a stalled /launch had no abort deadline. Both client variants now perform history cleanup inside the protected block, failing closed if it fails, and use a15s AbortSignal deadline for /launch. No authentication, ticket lifetime, cookie, upstream or sales rules changed. These are demonstrated failure-handling defects, NOT confirmed causes of the reported fully blank browser.
