@@ -2,6 +2,12 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+### Workstation DNS/proxy inspection after explicit authorization
+
+Existing system proxy is enabled on loopback10808 with private/local-network bypasses; its listener is xray.exe. xray_tun and Ethernet are up; no proxy, route, DNS or adapter was changed. Tunnel DNS lists1.1.1.1/8.8.8.8; Ethernet has router192.168.132.1 followed by public resolvers. Read-only query to the router resolved the console domain promptly. Subsequent direct HTTPS returned200 (DNS0.008s,total0.251s); existing proxy returned200 in0.146s. Therefore earlier direct DNS timeout was transient and cannot justify replacing global resolvers or disabling the tunnel. Shell is not elevated. No application-connection preservation guarantee is inferred from these limited checks.
+
+Despite restored public connectivity, the existing IAB tab remained New tab and attachment again timed out waiting for initial navigation. The automation tool cannot issue reload/input through that unattached tab. Console ticket from the earlier click is short-lived and now stale. Real desktop/control testing remains incomplete. Ask owner to close only the stuck console tab and launch a fresh console from501 after connectivity recovered; no alternate browser/raw session workaround. This is a browser-navigation/attachment blocker, not proven Windows or Worker failure.
+
 ### Actual IAB click reproduced — 17 October
 
 At owner's explicit request, clicked the service501 console button once in IAB. The tab inventory immediately showed a new vnc.servernet.cloud tab with a launch fragment; do not retain the fragment in documentation. Thus the button did open a destination tab, contrary to the earlier unverified popup hypothesis. That tab detached/replaced while observing it; the resulting tab remained titled New tab and initial navigation timed out twice. No guest image or input was accessible. No page warning/error was captured on the source service page. Do not infer successful launch redemption/WebSocket from the URL alone.
