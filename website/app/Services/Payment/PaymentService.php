@@ -102,8 +102,8 @@ class PaymentService
         if (! $result->ok) {
             $payment->forceFill([
                 'status' => 'failed',
-                'error_code' => $result->errorCode,
-                'error_message' => $result->error,
+                'error_code' => self::clip($result->errorCode, 24),
+                'error_message' => self::clip($result->error, 255),
             ])->save();
 
             return new StartOutcome(false, error: $result->error);
@@ -145,8 +145,8 @@ class PaymentService
         if (! $result->paid) {
             $payment->forceFill([
                 'status' => $result->canceled ? 'canceled' : 'failed',
-                'error_code' => $result->errorCode,
-                'error_message' => $result->error,
+                'error_code' => self::clip($result->errorCode, 24),
+                'error_message' => self::clip($result->error, 255),
             ])->save();
 
             return new SettleOutcome(false, $payment, error: $result->error, canceled: $result->canceled);
@@ -675,6 +675,19 @@ class PaymentService
             'source_id' => $source->id,
             'note' => $note,
         ]);
+    }
+
+    /**
+     * متنِ خطای درگاه را به اندازهٔ ستون ببُر.
+     *
+     * 🔴 `error_code` ۲۴ و `error_message` ۲۵۵ نویسه است و MariaDB در حالتِ
+     * strict به‌جای بریدن، خطای «Data too long» می‌دهد. یعنی پیامِ ردِ کمی
+     * بلندِ یک درگاه (اسنپ‌پی متنِ فارسی برمی‌گرداند) به‌جای «پرداخت انجام
+     * نشد» صفحهٔ ۵۰۰ می‌شد. SQLite طول را چک نمی‌کند، پس تست‌ها این را نمی‌دیدند.
+     */
+    private static function clip(?string $text, int $max): ?string
+    {
+        return $text === null ? null : mb_substr($text, 0, $max);
     }
 }
 

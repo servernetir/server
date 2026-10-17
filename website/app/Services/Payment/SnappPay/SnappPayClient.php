@@ -177,6 +177,7 @@ class SnappPayClient
             'token' => data_get($json, 'response.paymentToken'),
             'url'   => data_get($json, 'response.paymentPageUrl'),
             'error' => $this->errorOf($json),
+            'code'  => data_get($json, 'errorData.errorCode'),
         ];
     }
 

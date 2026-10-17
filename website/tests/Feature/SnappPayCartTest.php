@@ -250,4 +250,12 @@ class SnappPayCartTest extends TestCase
             $this->assertSame('09121110000', $this->cart()->normalizeMobile($raw), "ورودی: {$raw}");
         }
     }
+
+    /** 🔴 اسنپ‌پی `09…` را رد کرد: «الگوی \+98\d{10}». بدنه باید `+98` بفرستد. */
+    public function test_the_api_gets_the_plus98_shape(): void
+    {
+        foreach (['09121110000', '+98 912 111 0000', '۰۹۱۲۱۱۱۰۰۰۰'] as $raw) {
+            $this->assertMatchesRegularExpression('/^\+98\d{10}$/', $this->cart()->forSnappPay($raw), "ورودی: {$raw}");
+        }
+    }
 }

@@ -21,6 +21,22 @@ return [
 
     'base_url' => rtrim((string) env('SNAPPPAY_BASE_URL', ''), '/'),
 
+    /*
+    | میزبان‌های صفحهٔ پرداختِ اسنپ‌پی برای CSP `form-action`.
+    |
+    | 🔴 بعد از submitِ فرمِ پرداخت، سرور به `paymentPageUrl` ۳۰۲ می‌دهد و
+    |    کروم form-action را روی همان ریدایرکت هم اعمال می‌کند. بی‌این، هدایت
+    |    **بی‌صدا** بلاک می‌شد: پرداخت `redirected` می‌شد و کاربر هیچ تغییری
+    |    نمی‌دید (۱۴۰۵/۰۷/۲۵، اولین تستِ واقعی).
+    |
+    | مستندات میزبانِ صفحه را نمی‌گوید. پیش‌فرض: میزبانِ خودِ API + دامنهٔ
+    | اسنپ‌پی. میزبانِ واقعی در رویدادِ `token` ِ هر سفارش ثبت می‌شود؛ اگر جای
+    | دیگری بود، بی‌انتشار با SNAPPPAY_PAGE_HOSTS (با کاما) اضافه کنید.
+    */
+    'page_hosts' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+        'SNAPPPAY_PAGE_HOSTS', 'https://*.snapppay.ir,https://snapppay.ir'
+    ))))),
+
     'client_id'     => env('SNAPPPAY_CLIENT_ID'),
     'client_secret' => env('SNAPPPAY_CLIENT_SECRET'),
     'username'      => env('SNAPPPAY_USERNAME'),

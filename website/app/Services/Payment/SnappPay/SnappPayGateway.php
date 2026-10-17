@@ -111,7 +111,23 @@ class SnappPayGateway implements PaymentGateway
         $res = $this->client->paymentToken($body);
 
         if (blank($res['token']) || blank($res['url'])) {
-            return StartResult::fail($this->explain($res['error']), $res['error']);
+            // کدِ عددیِ اسنپ‌پی به ستونِ کد می‌رود؛ متنِ فارسیِ پیام جایش نیست
+            $code = filled($res['code'] ?? null) ? (string) $res['code'] : $res['error'];
+
+            return StartResult::fail($this->explain($res['error']), $code);
+        }
+
+        /*
+        | 🔴 توکن در `payments.external_ref` (۱۲۸ نویسه) می‌نشیند. توکنِ بلندتر
+        | در MariaDB خطای ۵۰۰ می‌داد — و بدتر، بعد از اینکه اسنپ‌پی توکن را
+        | ساخته بود. این‌جا با پیامِ روشن رد می‌کنیم تا در لاگ دیده شود.
+        */
+        if (strlen((string) $res['token']) > 128) {
+            Log::error('توکنِ اسنپ‌پی از ستونِ external_ref بلندتر است', [
+                'payment' => $payment->id, 'length' => strlen((string) $res['token']),
+            ]);
+
+            return StartResult::fail('شروع پرداخت اقساطی انجام نشد. با پشتیبانی تماس بگیرید.', 'token-too-long');
         }
 
         /*
@@ -130,7 +146,7 @@ class SnappPayGateway implements PaymentGateway
             'amount'         => (int) $payment->amount,
             'mobile'         => $mobile,
             'cart'           => $body,
-        ])->note('token', true, 'توکنِ پرداخت گرفته شد');
+        ])->note('token', true, 'توکنِ پرداخت گرفته شد — صفحه: '.(parse_url((string) $res['url'], PHP_URL_HOST) ?: '?'));
 
         return StartResult::redirect($res['url'], $res['token']);
     }
