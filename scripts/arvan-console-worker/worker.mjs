@@ -49,14 +49,15 @@ const HTML = `<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><me
 const CSS = `:root{color-scheme:dark;font-family:Tahoma,Arial,sans-serif;background:#0b1220;color:#e2e8f0}*{box-sizing:border-box}body{margin:0}header{min-height:72px;display:flex;align-items:center;gap:18px;padding:12px 24px;background:#111d30;border-bottom:1px solid #25415a;flex-wrap:wrap}a{color:#22d3ee;text-decoration:none}.brand{font-weight:700;font-size:23px;display:flex;align-items:center;gap:10px}.brand svg{width:35px;height:35px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}button{font:inherit;background:#123747;border:1px solid #22d3ee;border-radius:8px;color:#e2e8f0;padding:8px 12px;cursor:pointer}button:disabled{opacity:.4;cursor:default}#status{margin-inline-start:auto;font-size:13px}#screen{height:calc(100dvh - 96px);direction:ltr}#screen:fullscreen{height:100dvh;background:#000}#message{text-align:center;padding:12px;color:#fbbf24}body.failed #screen{display:none}`;
 const JS = `import RFB from '/novnc/core/rfb.js';
 const status=document.getElementById('status'),screen=document.getElementById('screen'),message=document.getElementById('message');
-const ticket=location.hash.slice(1);history.replaceState(null,'',location.pathname);
+const ticket=location.hash.slice(1);
 function fail(){status.textContent='اتصال برقرار نشد';message.textContent='مهلت اتصال پایان یافته یا سرویس در دسترس نیست. از صفحهٔ سرویس، کنسول تازه باز کنید.';document.body.classList.add('failed');document.getElementById('cad').disabled=true;}
 let rfb;
 document.getElementById('full').onclick=()=>screen.requestFullscreen().catch(()=>{});
 document.getElementById('cad').onclick=()=>rfb?.sendCtrlAltDel();
 try{
+ history.replaceState(null,'',location.pathname);
  if(!/^[a-f0-9]{64}$/.test(ticket))throw Error('expired');
- const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket})});
+ const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw Error('expired');
  rfb=new RFB(screen,'wss://'+location.host+'/socket',{wsProtocols:['binary']});rfb.scaleViewport=true;rfb.resizeSession=false;
  rfb.addEventListener('connect',()=>{status.textContent='متصل';document.getElementById('cad').disabled=false;});
@@ -129,13 +130,14 @@ const LEGACY_HTML = HTML.replace('<main id="screen"></main>', '<main id="screen"
   .replace('<script type="module" src="/console.js"></script>', ['util','webutil','base64','websock','des','input','display','jsunzip','rfb'].map(x=>'<script src="/legacy/'+x+'.js"></script>').join('')+'<script src="/console.js"></script>');
 const LEGACY_JS = `(async()=>{
 const status=document.getElementById('status'),screen=document.getElementById('screen'),message=document.getElementById('message'),cad=document.getElementById('cad');
-const ticket=location.hash.slice(1);history.replaceState(null,'',location.pathname);let rfb;
+const ticket=location.hash.slice(1);let rfb;
 function fail(){status.textContent='اتصال برقرار نشد';message.textContent='از صفحهٔ سرویس، کنسول تازه باز کنید.';cad.disabled=true;}
 document.getElementById('full').onclick=()=>screen.requestFullscreen().catch(()=>{});
 cad.onclick=()=>rfb?.sendCtrlAltDel();
 try{
+ history.replaceState(null,'',location.pathname);
  if(!/^[a-f0-9]{64}$/.test(ticket))throw Error('expired');
- const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket})});
+ const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw Error('expired');
  WebUtil.init_logging('error');
  rfb=new RFB({target:document.getElementById('legacy-canvas'),encrypt:true,repeaterID:'',true_color:true,local_cursor:true,shared:true,view_only:false,
