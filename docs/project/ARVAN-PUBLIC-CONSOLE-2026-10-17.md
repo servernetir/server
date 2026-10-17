@@ -1,6 +1,20 @@
 # Arvan customer console generalization — 17 October 2026
 
-## Current status: app installed/enabled; real guest acceptance blocked
+## Current status: customer console disabled; sales unchanged/open
+
+Owner requested temporary provider-wide console shutdown on 17 October. Production `arvan_console_worker_enabled=0` and the missing console button on service 501 were verified. Real connection/control acceptance is still incomplete. Keep the console disabled until repair and real testing succeed and the owner approves reopening. Sales remain open; do not couple this switch to hourly or Windows sales. See [shutdown evidence and rollback](ARVAN-CONSOLE-PAUSED-2026-10-17.md). Entries below are historical diagnostics, not permission to re-enable.
+
+### Approved Chrome socket-pool reset
+
+Owner explicitly approved resetting open Chrome connections while retaining tabs/login. Clicked only Flush socket pools in chrome://net-internals/#sockets through the Computer Use skill. No DNS cache flush, proxy change, cookie/history deletion, browser restart or security-setting change. Existing tabs remained present. Reloaded the existing token-free public-root tab; subsequent observation still showed the old ERR_HTTP2_PING_FAILED page with a loading indicator, so neither recovery nor a newly completed failure is asserted. No authenticated guest connection/input was achieved. This reset is transient browser transport state, not a persistent network configuration; no rollback of settings is needed. No DNS, Worker, sales, provider resource or guest changes.
+
+### Chrome error finally observed (17 October)
+
+Using the Computer Use skill on the expressly authorized token-free public page, a visible Chrome tab reached `ERR_HTTP2_PING_FAILED`. Chromium's net_error_list defines this as the HTTP/2 peer not responding to a PING. Another public-root tab remained Loading with empty Network and Console even after reload. A fresh standalone Node HTTP/2 connection to the public root returned ALPN h2, HTTP200,1699 bytes in11.409s. Earlier curl binary lacks HTTP2 support, so its HTTP200 alone did not validate H2; this new probe does. A browser-specific pooled connection/proxy path is a hypothesis, not established root cause. No authenticated guest token or input was used, no observation gate bypassed. No DNS, proxy, portal Worker, console Worker, sales or VM changes. Browser socket-pool flushing/restart has not been performed because it can interrupt unrelated browser connections; obtain approval before that broader diagnostic. Guest501 acceptance remains open.
+
+### Owner-provided public-page Network evidence
+
+Owner screenshot of the token-free root shows a Document request with provisional request headers, zero response headers and zero transferred bytes; no HTTP status/error is visible. A separately authorized Chrome public-root navigation timed out at the browser tool's 10-second Page.navigate deadline. Independent unauthenticated curl probes from the same computer returned HTTP200 and1332 bytes: direct11.512s, DNS11.259s; existing HTTP proxy0.147s. Existing system proxy remains enabled at127.0.0.1:10808. This establishes successful public HTTP delivery on those probes, not browser rendering or an authenticated guest connection. Slow direct DNS is observed but is not proven to cause the persistent Chrome stall. No DNS/proxy/Worker/portal/sales/VM changes; next missing evidence is the browser Document Timing stage. No guest tokens were used or browser observation gate bypassed.
 
 ### Follow-up logs at approximately 14:21 UTC
 
