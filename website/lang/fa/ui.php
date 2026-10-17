@@ -99,6 +99,7 @@ return [
     'domain_suggest' => 'این پسوندها برای ثبت آزادند:',
     'domain_cart' => 'افزودن به سبد خرید',
     'domain_year' => '/ سالانه',
+    'domain_period_years' => ':years ساله',
     'domain_error' => 'استعلام دامنه ممکن نشد؛ لطفاً دوباره تلاش کنید.',
 
     'bill_monthly' => 'ماهانه',

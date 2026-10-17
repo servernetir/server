@@ -8,6 +8,7 @@
 |---|---|
 | نقشهٔ پروژه و اجزای بیرون از سایت | [نمایهٔ پروژه](../docs/project/README.md) |
 | نصب محلی، تست و قراردادهای کد | [ONBOARDING](docs/ONBOARDING.md) |
+| نرخ ارز نوسان و قیمت‌گذاری محصولات | [راهنمای قیمت‌گذاری نوسان](docs/pricing/navasan.md) |
 | همکاری و بازبینی | [TEAM](../docs/project/TEAM.md) |
 | انتشار و بازگشت cPanel | [DEPLOYMENT](../docs/project/DEPLOYMENT.md) |
 | تله‌ها و تاریخچهٔ فنی | [CLAUDE.md](CLAUDE.md) |

@@ -69,7 +69,7 @@
         <div class="domain-result" id="domain-result" hidden></div>
         <div class="tld-strip" id="tld-strip">
           @foreach($tlds as $t)
-          <button type="button" class="tld-chip" data-tld="{{ $t['tld'] }}"><b>{{ $t['tld'] }}</b><i>{{ $t['display'] ?? site_price($t) }}</i></button>
+          <button type="button" class="tld-chip" data-tld="{{ $t['tld'] }}"><b>{{ $t['tld'] }}</b><i>{{ site_price($t) }}@if(($t['min_years'] ?? 1) > 1) <small>· {{ __('ui.domain_period_years', ['years' => fa_num((string) $t['min_years'])]) }}</small>@endif</i></button>
           @endforeach
         </div>
       </div>

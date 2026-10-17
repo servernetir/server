@@ -76,13 +76,13 @@
       | نداشتنِ قیمتِ ارزی ⇒ اصلاً `Offer` نساز. نشانه‌گذاریِ نبود، از
       | نشانه‌گذاریِ غلط بهتر است.
       */
-      $sdPrice = $sdIsFa
-          ? schema_price_irr($isLiveCloudCatalog
-              ? (int) $sdP['irt']
-              : price_toman((int) $sdP['irt']))
-          : (isset($sdP['eur']) && (float) $sdP['eur'] > 0 ? $sdP['eur'] : null);
+      $sdToman = site_price_toman($sdP);
+      $sdRate = cloud_eur_rate();
+      $sdPrice = $sdToman === null ? null : ($sdIsFa
+          ? schema_price_irr($sdToman)
+          : ($sdRate > 0 ? round($sdToman / $sdRate, 2) : null));
 
-      if ($sdPrice === null) {
+      if ($sdPrice === null || (float) $sdPrice <= 0) {
           continue;
       }
 
@@ -450,7 +450,7 @@
           @elseif($isContact)
           <span class="pr"><b style="font-size:23px">{{ __('ui.hp_contact_price') }}</b></span>
           @elseif($yearlyOnly)
-          <span class="pr"><b>{{ site_price($p) }}</b><span>{{ $priceUnit }}</span></span>
+          <span class="pr"><b>{{ site_price($p) }}</b><span>{{ ($p['min_years'] ?? 1) > 1 ? __('ui.domain_period_years', ['years' => fa_num((string) $p['min_years'])]) : $priceUnit }}</span></span>
           @else
           <span class="pr pr-m"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></span>
           <span class="pr pr-y"><s>{{ site_price($p) }}</s><b>{{ site_price_yearly($p) }}</b><span>{{ __('ui.bill_yearly_note') }}</span></span>

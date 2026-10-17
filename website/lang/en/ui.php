@@ -99,6 +99,7 @@ return [
     'domain_suggest' => 'These extensions are available:',
     'domain_cart' => 'Add to cart',
     'domain_year' => '/ year',
+    'domain_period_years' => ':years years',
     'domain_error' => 'Domain lookup failed; please try again.',
 
     'bill_monthly' => 'Monthly',

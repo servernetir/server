@@ -55,26 +55,9 @@ trait SaladOperations
         return true;
     }
 
-    /**
-     * تومانِ هر دلار — با راهِ فرارِ دستی، مثلِ یورو.
-     *
-     * 🔴 چرا لازم شد: `CloudPricing::eurToToman()` تنظیمِ
-     * `pricing_rate_override` را دارد ولی دلار هیچ معادلی نداشت. یعنی اگر
-     * منبعِ نرخِ زنده بخوابد، بهایِ **همهٔ** پلن‌های این زیرساخت صفر می‌شود و
-     * `scopeSellable` همه را از فروشگاه بیرون می‌گذارد — کلِ محصول بی‌صدا غیب
-     * می‌شود و هیچ خطایی هم ثبت نمی‌شود.
-     *
-     * صفر عمداً نگه داشته شده (بهتر از فروشِ کارتِ گران به قیمتِ هیچ)، ولی
-     * حالا مدیر می‌تواند نرخ را دستی بگذارد و فروش را برگردانَد.
-     */
+    /** تومان هر دلار از آخرین نرخ معتبر ذخیره‌شده نوسان. */
     private function usdToman(): int
     {
-        $override = (int) Setting::get('pricing_usd_rate_override', '0');
-
-        if ($override > 0) {
-            return $override;
-        }
-
         try {
             return (int) (app(ExchangeRate::class)->toToman('USD') ?: 0);
         } catch (\Throwable) {

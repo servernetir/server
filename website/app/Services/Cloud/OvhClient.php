@@ -663,14 +663,10 @@ class OvhClient implements CloudProvider
 
         $eur = (int) app(CloudPricing::class)->eurToToman();
 
-        $own = (int) Setting::get('pricing_'.strtolower($currency).'_rate_override', '0');
-
-        if ($own <= 0) {
-            try {
-                $own = (int) (app(\App\Services\ExchangeRate::class)->toToman($currency) ?? 0);
-            } catch (\Throwable) {
-                $own = 0;
-            }
+        try {
+            $own = (int) (app(\App\Services\ExchangeRate::class)->toToman($currency) ?? 0);
+        } catch (\Throwable) {
+            $own = 0;
         }
 
         return $eur > 0 && $own > 0 ? $own / $eur : null;

@@ -2,24 +2,70 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CloudPlan;
+use App\Services\CatalogPricing;
 use App\Services\Domain\DomainSearch;
 use App\Services\Domain\TldPriceBook;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class SiteController extends Controller
 {
     public function home(): View
     {
+        $tlds = $this->tlds();
+        $offers = CloudPlan::offers()->values();
+        $products = (array) config('servernet.products', []);
+        $catalog = app(CatalogPricing::class);
+        $quotes = [
+            $catalog->minimumQuote('linux'),
+            $catalog->minimumQuote('wordpress'),
+            $this->cloudQuote($offers->first(fn (CloudPlan $plan) => ! $plan->isMetal())),
+            $this->cloudQuote($offers->first(fn (CloudPlan $plan) => $plan->isMetal())),
+            $this->cloudQuote($offers->first()),
+            $tlds[0] ?? ['contact' => true, 'quote' => true],
+        ];
+        foreach ($products as $index => $product) {
+            unset($product['irt'], $product['eur'], $product['base_eur'], $product['yearly_irt']);
+            $products[$index] = $product + ($quotes[$index] ?? ['contact' => true, 'quote' => true]);
+        }
+
         return view('pages.home', [
-            'products'   => config('servernet.products'),
-            'plans'      => config('servernet.plans'),
+            'products'   => $products,
+            'plans'      => $this->homeCloudPlans($offers),
             'enterprise' => config('servernet.enterprise'),
             'why'        => config('servernet.why'),
             'locations'  => config('servernet.locations'),
             'faqs'       => config('servernet.faqs'),
             'brands'     => config('servernet.brands'),
-            'tlds'       => $this->tlds(),
+            'tlds'       => $tlds,
         ]);
+    }
+
+    private function cloudQuote(?CloudPlan $plan): array
+    {
+        if (! $plan || (int) $plan->price_irt <= 0) {
+            return ['contact' => true, 'quote' => true];
+        }
+        $factor = 1 - ((int) config('billing.cycles.yearly.discount_pct', 0) / 100);
+        $yearly = (int) (ceil(((int) $plan->price_irt * $factor) / 10_000) * 10_000);
+        return ['irt' => (int) $plan->price_irt, 'yearly_irt' => $yearly, 'final_irt' => true];
+    }
+
+    private function homeCloudPlans(Collection $offers): array
+    {
+        return $offers->take(4)->values()->map(function (CloudPlan $plan, int $index) {
+            $name = trim((string) $plan->public_name) ?: 'Cloud '.($index + 1);
+            return $this->cloudQuote($plan) + [
+                'pid' => $plan->id,
+                'cpu' => $plan->vcpu.' vCPU',
+                'ram' => $plan->ramLabel(),
+                'ssd' => $plan->diskLabel(),
+                'tb' => $plan->trafficLabel(),
+                'en' => $name, 'fa' => $name, 'tr' => $name,
+                'popular' => $index === 1,
+            ];
+        })->all();
     }
 
     public function contact(): View
@@ -552,82 +598,23 @@ class SiteController extends Controller
         return response($xml, 200, ['Content-Type' => 'application/xml']);
     }
 
-    /**
-     * چیپ‌های قیمتِ زیرِ جعبهٔ جست‌وجوی صفحهٔ اول.
-     *
-     * 🔴 پیش از این از **WHMCS** می‌خواند. WHMCS سامانهٔ قدیمی است که داریم از
-     * آن مهاجرت می‌کنیم؛ فروشِ واقعی از OpenProvider می‌آید. نتیجه این بود که
-     * صفحهٔ اول قیمتی نشان می‌داد که دیگر قیمتِ فروشِ ما نبود — و چون WHMCS
-     * پاسخ می‌داد، هیچ‌جا خطایی هم دیده نمی‌شد.
-     *
-     * ⚠️ فهرست عمداً `DomainCheckController::SUGGEST` است، نه `featured_tlds`.
-     *
-     * کلیدِ کشِ `TldPriceBook` از **فهرستِ پسوندها** ساخته می‌شود و کرونِ
-     * `domains:price-book` همان `SUGGEST` را گرم می‌کند. با فهرستِ دیگر، کلید
-     * فرق می‌کرد، کش همیشه خالی می‌مانْد، و **هر بازدیدکننده به یک تماسِ
-     * زندهٔ OpenProvider تبدیل می‌شد**. حسابِ ما یک بار به‌خاطرِ تماسِ زیاد از
-     * آی‌پیِ ایران علامت خورده.
-     *
-     * ⚠️ و `cachedForTlds()` نه `forTlds()`: دومی روی کشِ سرد استعلامِ زنده
-     * می‌زند، و این تابع در رندرِ صفحهٔ اول است — جایی که نه انتظارِ شبکه
-     * قابل‌قبول است نه تماسِ ناخواسته.
-     *
-     * 🔴 پسوندی که **نمی‌فروشیم** اصلاً تبلیغ نمی‌شود.
-     *
-     * صافی `DomainSearch::sells()` است، نه فهرستی جدا. `.ir` امروز در
-     * `UNSOLD_TLDS` است (به‌خواستِ کارفرما فعلاً فروخته نمی‌شود) و همان یک جا
-     * تصمیم می‌گیرد: هم جلوی ساختِ پیش‌فاکتور را می‌گیرد، هم چیپِ صفحهٔ اول
-     * را برمی‌دارد.
-     *
-     * ⚠️ فهرستِ موازی نساختم و `featured_tlds` را هم دست نزدم. اگر روزی `.ir`
-     * فروخته شود، برداشتنش از `UNSOLD_TLDS` کافی است تا همه‌جا با هم برگردد —
-     * وگرنه روزی یکی از دو فهرست کهنه می‌شود و پسوندی تبلیغ می‌شود که سبدِ
-     * خرید قبولش نمی‌کند. همان نقصی که یک بار رخ داد.
-     *
-     * ⚠️ پسوندِ بی‌قیمت **اصلاً نشان داده نمی‌شود** — نه صفر، نه «—». همان
-     * قاعدهٔ `site_price()`: صفر یعنی «نمی‌دانم»، نه «رایگان».
-     *
-     * ⚠️ `irt` برمی‌گردد نه `display`: `site_price()` خودش برای en/tr با نرخِ
-     * زنده به یورو تبدیل می‌کند. رشتهٔ آمادهٔ تومانی آن دو زبان را می‌شکست.
-     */
+    /** Cached real registration totals for each TLD's minimum term. */
     private function tlds(): array
     {
-        $prices = app(TldPriceBook::class)->cachedForTlds(DomainCheckController::SUGGEST);
-        $manual = collect(config('servernet.tlds', []))->keyBy('tld');
-
+        $featured = (array) config('servernet.featured_tlds', []);
+        $prices = app(TldPriceBook::class)->cachedFullForTlds($featured);
         $out = [];
-
-        foreach (config('servernet.featured_tlds', []) as $tld) {
+        foreach ($featured as $tld) {
             if (! DomainSearch::sells($tld)) {
                 continue;
             }
-
-            $key = ltrim($tld, '.');
-
-            if ((int) ($prices[$key] ?? 0) > 0) {
-                $out[] = ['tld' => $tld, 'irt' => (int) $prices[$key]];
-
+            $row = $prices[strtolower(ltrim($tld, '.'))] ?? [];
+            if ((int) ($row['register'] ?? 0) <= 0 || (int) ($row['min_years'] ?? 0) < 1) {
                 continue;
             }
-
-            // دفترچه هنوز این پسوند را نگرفته — قیمتِ دستی، اگر واقعی باشد
-            $row = $manual->get($tld);
-
-            if ($row && (int) ($row['irt'] ?? 0) > 0) {
-                $out[] = ['tld' => $tld, 'irt' => (int) $row['irt']];
-            }
+            $out[] = ['tld' => $tld, 'irt' => (int) $row['register'],
+                'final_irt' => true, 'min_years' => (int) $row['min_years']];
         }
-
-        /*
-        | کشِ کاملاً سرد (اولین بازدید پس از دیپلوی، پیش از کرون) ⇒ فهرستِ دستی.
-        |
-        | ⚠️ این‌جا هم صافیِ «می‌فروشیم؟» اعمال می‌شود. بی‌آن، همان مسیرِ
-        | اضطراری پسوندِ نافروشی را از درِ پشتی برمی‌گرداند — و چون فقط روی
-        | کشِ سرد رخ می‌دهد، ماه‌ها دیده نمی‌شود.
-        */
-        return $out !== [] ? $out : array_values(array_filter(
-            config('servernet.tlds', []),
-            fn ($r) => DomainSearch::sells((string) ($r['tld'] ?? ''))
-        ));
+        return $out;
     }
 }

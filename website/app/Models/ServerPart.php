@@ -160,10 +160,6 @@ class ServerPart extends Model
             return null;
         }
 
-        if (app()->getLocale() === 'fa' && (int) $this->price_irt > 0) {
-            return site_price(['irt' => (int) $this->price_irt]);
-        }
-
         return part_price($this->price_eur === null ? null : (int) $this->price_eur);
     }
 

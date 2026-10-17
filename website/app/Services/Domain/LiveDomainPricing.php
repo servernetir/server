@@ -37,16 +37,33 @@ class LiveDomainPricing
         return (1 + (float) $vat / 100) * (1 + (float) $fee / 100);
     }
 
-    public function fromAmount(float $net, string $currency, string $tld): array
+    /** Share a verified account tax rate across one catalogue batch, without network reads. */
+    public function withSupplierVat(float $vat): self
     {
-        $rate = app(DomainSearch::class)->rateFor($currency);
+        $reserve = Setting::get('domain_supplier_vat_pct') ?? config('domain_pricing.supplier_vat_pct');
+        foreach ([$vat, $reserve ?? 0] as $value) {
+            if (! is_numeric($value) || ! is_finite((float) $value) || $value < 0 || $value > 100) {
+                $this->unavailable();
+            }
+        }
+        $this->verifiedVat = max($vat, (float) ($reserve ?? 0));
+        $this->supplierMultiplier();
+        return $this;
+    }
+
+    public function fromAmount(float $net, string $currency, string $tld, ?int $rate = null, ?int $roundingStep = null): array
+    {
+        $rate ??= app(DomainSearch::class)->rateFor($currency);
         if (! is_finite($net) || $net <= 0 || ! $rate || $rate <= 0) {
             $this->unavailable();
         }
         $gross = $net * $this->supplierMultiplier();
         $wholesale = (int) ceil($gross * $rate);
         $margin = max(0, (float) config('domain_reseller.min_margin_pct', 8));
-        $step = max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
+        $step = $roundingStep ?? max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
+        if ($step < 1) {
+            $this->unavailable();
+        }
         $floor = (int) (ceil($wholesale * (1 + $margin / 100) / $step) * $step);
         $sellMargin = max($margin, app(DomainSearch::class)->marginFor($tld));
 

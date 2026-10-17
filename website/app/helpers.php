@@ -304,72 +304,59 @@ if (! function_exists('sdate_full')) {
     }
 }
 
-if (! function_exists('site_price')) {
-    /** قیمت نمایشی بر اساس زبان جاری: تومان برای fa، یورو برای en */
-    function site_price(array $item): string
+if (! function_exists('site_price_toman')) {
+    /** Resolve only native/stored-rate quotes; legacy parallel IRT defaults are ignored. */
+    function site_price_toman(array $item): ?int
     {
-        /*
-        | ⚠️ «قیمتِ نبود» در **هر سه** زبان یک‌جور رفتار می‌کند.
-        |
-        | شاخهٔ یورویی محافظ گرفت ولی شاخهٔ فارسی `?? 0` ماند و بی‌سروصدا
-        | «۰ تومان» چاپ می‌کرد — یعنی «رایگان». همان چیزی که چند خط پایین‌تر
-        | صریح ممنوع شده، فقط با ارزِ دیگر. (هیچ پلنی در config قیمتِ صفر
-        | ندارد؛ صفر یعنی «نمی‌دانیم»، نه «مجانی».)
-        */
-        $irt = (int) ($item['irt'] ?? 0);
-
-        if (app()->getLocale() === 'fa') {
-            if ($irt <= 0) {
-                return '—';
-            }
-
-            // قیمتِ تومانی با نرخِ زندهٔ یورو مقیاس می‌شود (پیش‌فرض: بدونِ تغییر)
-            return fa_num(number_format(price_toman($irt))).' تومان';
+        if (($item['contact'] ?? false) || ($item['quote'] ?? false)) {
+            return null;
         }
-
-        /*
-        | 🔴 `eur` ممکن است **نباشد**.
-        |
-        | قیمتِ دامنه زنده از رجیسترار می‌آید و فقط تومانی است، پس
-        | `CatalogController` عمداً `unset($p['eur'])` می‌کند. نسخهٔ قبلی
-        | مستقیم `$item['eur']` را می‌خواند و صفحهٔ ثبتِ دامنه روی `/en` و
-        | `/tr` می‌شکست — ۵۳ خطا در ردیاب، در حالی که نسخهٔ فارسی سالم بود و
-        | کسی متوجه نمی‌شد.
-        |
-        | ⚠️ عددِ صفر برنمی‌گردانیم: «€۰» یعنی رایگان، و آن از خطا بدتر است.
-        | وقتی قیمتِ تومانی هست، با نرخِ زنده تبدیلش می‌کنیم — همان کاری که
-        | `cloud_price()` می‌کند. نرخ که نبود، «—» صادقانه‌تر از عددِ ساختگی است.
-        */
-        if (! array_key_exists('eur', $item) || $item['eur'] === null) {
+        if (($item['final_irt'] ?? false) === true) {
             $irt = (int) ($item['irt'] ?? 0);
 
-            if ($irt <= 0) {
-                return '—';
-            }
+            return $irt > 0 ? $irt : null;
+        }
+        if (isset($item['base_eur']) && (float) $item['base_eur'] > 0) {
+            $irt = app(\App\Services\ProductPricing::class)->toman($item['base_eur']);
 
-            return cloud_price($irt);
+            return $irt > 0 ? $irt : null;
+        }
+        // Existing config `eur` values are final foreign sale prices. Convert
+        // with Navasan without adding the product margin for a second time.
+        if (isset($item['eur']) && is_numeric($item['eur']) && (float) $item['eur'] > 0) {
+            $rate = cloud_eur_rate();
+            if ($rate > 0) {
+                return max(1, (int) round((float) $item['eur'] * $rate, -4));
+            }
         }
 
-        $eur = $item['eur'];
+        return null;
+    }
+}
 
-        return '€'.($eur == (int) $eur ? number_format($eur) : number_format($eur, 2));
+if (! function_exists('site_price')) {
+    function site_price(array $item): string
+    {
+        $irt = site_price_toman($item);
+
+        return $irt !== null ? cloud_price($irt) : '—';
     }
 }
 
 if (! function_exists('site_price_yearly')) {
-    /** قیمت ماهانه‌ی معادل با تخفیف پرداخت سالانه */
     function site_price_yearly(array $item): string
     {
-        $factor = 1 - config('servernet.yearly_discount', 0) / 100;
+        $irt = isset($item['yearly_irt']) ? (int) $item['yearly_irt'] : 0;
+        if ($irt > 0) {
+            return cloud_price($irt);
+        }
+        if (isset($item['eur']) && is_numeric($item['eur']) && (float) $item['eur'] > 0) {
+            $factor = 1 - config('servernet.yearly_discount', 0) / 100;
 
-        // ⚠️ همان محافظ: آیتمی که `eur` ندارد نباید این‌جا بشکند
-        $out = ['irt' => (int) round((int) ($item['irt'] ?? 0) * $factor, -4)];
-
-        if (isset($item['eur'])) {
-            $out['eur'] = round($item['eur'] * $factor, 2);
+            return site_price(['eur' => (float) $item['eur'] * $factor]);
         }
 
-        return site_price($out);
+        return '—';
     }
 }
 
@@ -783,49 +770,6 @@ if (! function_exists('word_count_fa')) {
     function word_count_fa(string $text): int
     {
         return (int) preg_match_all('/[\p{L}\p{N}]+/u', strip_tags($text));
-    }
-}
-
-if (! function_exists('price_factor')) {
-    /**
-     * ضریبِ قیمت‌گذاری — قیمتِ پایهٔ تومانی را با نرخِ زندهٔ یورو مقیاس می‌کند.
-     *
-     * قیمت‌های پایه (تومان) لنگرند؛ وقتی مدیر «نرخِ مبنا» را تنظیم کند
-     * (pricing_baseline_rate = نرخِ یورویی که این قیمت‌ها با آن درست‌اند)، همهٔ
-     * قیمت‌ها خودکار با نرخِ روزِ یورو بالا/پایین می‌روند. تا وقتی مبنا تنظیم
-     * نشده، ضریب = ۱ است و هیچ قیمتی عوض نمی‌شود (پیش‌فرضِ امن). محاسبه یک‌بار
-     * در هر درخواست کش می‌شود.
-     */
-    function price_factor(): float
-    {
-        static $f = null;
-        if ($f !== null) {
-            return $f;
-        }
-
-        $baseline = (int) \App\Models\Setting::get('pricing_baseline_rate', '0');
-        if ($baseline <= 0) {
-            return $f = 1.0;
-        }
-
-        $override = (int) \App\Models\Setting::get('pricing_rate_override', '0');
-        $rate = $override > 0
-            ? $override
-            : (app(\App\Services\ExchangeRate::class)->toToman('EUR') ?: $baseline);
-
-        $margin = (float) \App\Models\Setting::get('price_margin_pct', '0');
-
-        return $f = ($rate / $baseline) * (1 + $margin / 100);
-    }
-}
-
-if (! function_exists('price_toman')) {
-    /** قیمتِ پایهٔ تومان → قیمتِ نهاییِ گردشده (به نزدیک‌ترین ۱۰٬۰۰۰ تومان) */
-    function price_toman(int|float $baseToman): int
-    {
-        $v = (int) round($baseToman * price_factor(), -4);
-
-        return $v > 0 ? $v : (int) $baseToman;   // اگر گرد شدن صفر داد، خودِ پایه
     }
 }
 

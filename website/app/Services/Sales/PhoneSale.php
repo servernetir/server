@@ -48,6 +48,9 @@ class PhoneSale
         if (! $product->is_active) {
             return $this->fail('این پکیج غیرفعال است.');
         }
+        if (! app(\App\Services\ProductPricing::class)->available()) {
+            return $this->fail('قیمت به‌روز موقتاً در دسترس نیست؛ فروش انجام نشد.');
+        }
 
         if (! in_array($cycle, $product->orderCycles(), true)) {
             return $this->fail('دورهٔ پرداخت معتبر نیست.');

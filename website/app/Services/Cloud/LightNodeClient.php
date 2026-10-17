@@ -260,8 +260,7 @@ class LightNodeClient implements CloudProvider
 
     private function usdToToman(): int
     {
-        $override = (int) Setting::get('pricing_usd_rate_override', '0');
-        return $override > 0 ? $override : (int) app(ExchangeRate::class)->toToman('USD');
+        return (int) app(ExchangeRate::class)->toToman('USD');
     }
     private function supplierCost(array $rate): ?array
     {

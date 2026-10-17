@@ -99,6 +99,7 @@ return [
     'domain_suggest' => 'Bu uzantılar kayıt için uygun:',
     'domain_cart' => 'Sepete ekle',
     'domain_year' => '/ yıl',
+    'domain_period_years' => ':years yıl',
     'domain_error' => 'Sorgu başarısız oldu; lütfen tekrar deneyin.',
 
     'bill_monthly' => 'Aylık',

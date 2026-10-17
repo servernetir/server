@@ -60,8 +60,8 @@ class FetchDollar extends Command
             $failed = true;
         }
 
-        // Domain prices have their own FX-sensitive cache. Warm the storefront
-        // list even when a cloud supplier is temporarily unavailable.
+        // Refresh every sellable registrar extension after the same Navasan batch,
+        // even when a cloud supplier is temporarily unavailable.
         try {
             if ($this->call('domains:price-book', ['--strict' => true]) !== self::SUCCESS) {
                 throw new \RuntimeException('Domain price refresh was incomplete.');

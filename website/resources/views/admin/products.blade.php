@@ -31,7 +31,7 @@
         <tr>
           <td><b>{{ $p->name }}</b>@if($p->plan)<small dir="ltr" style="color:var(--dim);display:block">plan: {{ $p->plan }}</small>@endif</td>
           <td>{{ $p->categoryLabel() }}</td>
-          <td dir="ltr">{{ number_format($p->price) }}@if($p->setup_fee)<small style="color:var(--dim)"> +{{ number_format($p->setup_fee) }}</small>@endif</td>
+          <td dir="ltr">{{ $p->effectivePrice() > 0 ? number_format($p->effectivePrice()).' تومان' : 'قیمت موقتاً در دسترس نیست' }}@if((float) $p->base_setup_eur > 0 && $p->effectivePrice() > 0)<small style="color:var(--dim)"> +{{ number_format($p->effectiveSetup()) }}</small>@endif</td>
           <td>{{ $p->cycleLabel() }}</td>
           <td>@if($p->server)<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">{{ $p->server->name }}</span>@else<span style="color:var(--dim)">دستی</span>@endif</td>
           <td>@if($p->is_active)<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">فعال</span>@else<span class="ad-badge" style="background:rgba(148,163,184,.12);color:var(--muted)">غیرفعال</span>@endif</td>
@@ -64,14 +64,14 @@
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>تغییرِ قیمتِ گروهی</h3></div>
   <p style="padding:0 18px;color:var(--muted);font-size:13.5px;line-height:1.9">
-    قیمتِ <b>همهٔ پکیج‌های یک گروه</b> را با هم عوض کنید. نتیجه همیشه <b>رو به بالا</b> گرد
-    می‌شود تا عددها تمیز بمانند (۲۴۰٬۰۰۰ نه ۲۳۷٬۴۵۰).
-    <br>این قیمتِ <b>پایه</b> است؛ ضریبِ نرخِ یورو و تخفیفِ دوره‌ها سرِ جای خود می‌مانند.
+    قیمت پایهٔ یورویی <b>همهٔ پکیج‌های یک گروه</b> را با هم عوض کنید. مبلغ یورویی به پلهٔ انتخابی رو به بالا گرد می‌شود.
+    <br>قیمت فروش با نرخ ذخیره‌شدهٔ نوسان، سود فعلی و تخفیف دوره محاسبه می‌شود.
     تغییر بلافاصله در <b>سایت اصلی</b> هم دیده می‌شود.
   </p>
   <form method="post" action="/admin/products-reprice" class="rp-f"
         data-confirm="قیمتِ همهٔ پکیج‌های این گروه عوض شود؟" data-confirm-title="تغییرِ قیمتِ گروهی">
     @csrf
+    <input type="hidden" name="pricing_mode" value="native_eur">
     <label>گروه
       <select name="group" required>
         @foreach($groups as $items)
@@ -84,8 +84,8 @@
     <label>نوعِ تغییر
       <select name="mode">
         <option value="percent">درصدی (۱۰ یا ۵-)</option>
-        <option value="amount">مبلغِ ثابت (تومان)</option>
-        <option value="set">قیمتِ یکسان برای همه</option>
+        <option value="amount">افزودن مبلغ ثابت (یورو)</option>
+        <option value="set">قیمت پایهٔ یکسان (یورو)</option>
       </select>
     </label>
     <label>مقدار
@@ -93,13 +93,11 @@
     </label>
     <label>گردکردن به
       <select name="round">
-        <option value="10000">۱۰٬۰۰۰ تومان</option>
-        <option value="50000">۵۰٬۰۰۰ تومان</option>
-        <option value="100000">۱۰۰٬۰۰۰ تومان</option>
-        <option value="1000">۱٬۰۰۰ تومان</option>
+        <option value="0.01">۰٫۰۱ یورو</option>
+        <option value="0.10">۰٫۱۰ یورو</option>
+        <option value="1.00">۱ یورو</option>
       </select>
     </label>
-    <label class="chk"><input type="checkbox" name="also_eur" value="1" checked> یورو هم به همان نسبت</label>
     <div><button class="btn btn-primary" type="submit"><svg class="icon"><use href="#i-coins"/></svg>اعمال روی گروه</button></div>
   </form>
 </div>
@@ -114,17 +112,17 @@
         <span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee">{{ fa_num($items->count()) }}</span>
         <small dir="ltr" style="color:var(--dim)">{{ $items->first()->group ?: '—' }}</small>
         <small style="color:var(--muted);margin-inline-start:auto">
-          {{ fa_num(number_format($items->min('price'))) }} – {{ fa_num(number_format($items->max('price'))) }} تومان
+          €{{ number_format((float) $items->min('base_price_eur'), 4) }} – €{{ number_format((float) $items->max('base_price_eur'), 4) }} پایه
         </small>
       </summary>
       <table class="ad-table">
-        <thead><tr><th>پکیج</th><th>تومان</th><th>یورو</th><th>package در WHM</th><th>وضعیت</th></tr></thead>
+        <thead><tr><th>پکیج</th><th>فروش فعلی (تومان)</th><th>پایهٔ یورو</th><th>package در WHM</th><th>وضعیت</th></tr></thead>
         <tbody>
           @foreach($items as $p)
           <tr>
             <td>{{ $p->name }}</td>
-            <td dir="ltr">{{ fa_num(number_format($p->price)) }}</td>
-            <td dir="ltr">{{ $p->price_eur !== null ? '€'.number_format($p->price_eur / 100, 2) : '—' }}</td>
+            <td dir="ltr">{{ $p->effectivePrice() > 0 ? fa_num(number_format($p->effectivePrice())) : '—' }}</td>
+            <td dir="ltr">{{ $p->base_price_eur !== null ? '€'.number_format((float) $p->base_price_eur, 6) : '—' }}</td>
             <td dir="ltr" style="color:var(--muted);font-size:12px">{{ $p->plan ?: '—' }}</td>
             <td>@if($p->is_active)<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">فعال</span>@else<span class="ad-badge" style="background:rgba(148,163,184,.12);color:var(--muted)">غیرفعال</span>@endif</td>
           </tr>

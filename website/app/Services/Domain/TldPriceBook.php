@@ -2,262 +2,335 @@
 
 namespace App\Services\Domain;
 
+use App\Models\Currency;
 use App\Models\Setting;
 use App\Services\ExchangeRate;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
-/**
- * قیمتِ **نمونهٔ زندهٔ** هر پسوند — برای صفحاتِ بازاریابی.
- *
- * صفحهٔ `/domain/popular-tlds` باید عددِ واقعی نشان دهد، نه «استعلام لحظه‌ای».
- * ولی قیمتِ دامنه به نامِ خودِ دامنه هم بستگی دارد (پرمیوم)، پس «قیمتِ .com»
- * به‌تنهایی وجود ندارد. راهِ درست: یک نامِ **بلند و قطعاً آزاد** استعلام
- * می‌شود و قیمتش به‌عنوانِ «قیمتِ پایهٔ این پسوند» نشان داده می‌شود.
- *
- * ⚠️ نامِ نمونه عمداً بلند و بی‌معناست: نامِ کوتاه یا معنادار ممکن است پرمیوم
- * باشد و قیمتِ پرمیوم را به‌جای قیمتِ پایه روی صفحه بنشاند — یعنی دقیقاً
- * همان «قیمتی که مشتری نمی‌تواند بخرد».
- *
- * 🔴 کش اجباری است. بی‌آن، هر بازدیدِ صفحهٔ بازاریابی یک تماسِ واقعی به
- * رجیسترار می‌شود؛ یک ربات یا یک موجِ ترافیک، حسابِ ما را نرخ‌محدود می‌کند —
- * همان اتفاقی که یک بار افتاد.
- */
+/** Complete registrar catalogue. Public readers never contact the registrar. */
 class TldPriceBook
 {
-    private const TTL_HOURS = 6;
+    public const SNAPSHOT_PATH = 'pricing/openprovider-tld-catalog-v1.json';
+    private const MAX_AGE_HOURS = 24;
+    private const PAGE_SIZE = 1000;
+    private const MAX_ROWS = 10000;
 
-    /** نامِ نمونه: بلند، بی‌معنا، و قطعاً ثبت‌نشده */
-    private const PROBE = 'sn7price9check4base';
+    public function __construct(private OpenProviderClient $op) {}
 
-    /**
-     * 🔴 پسوندهای ایرانی هرگز از رسیلرِ اروپایی قیمت نمی‌گیرند.
-     *
-     * `DomainSearch::SUGGEST_TLDS` این را از اول می‌دانست و `.ir` را عمداً از
-     * پیشنهادها بیرون گذاشته بود — ولی آن محافظ فقط در **جستجو** بود، نه در
-     * صفحهٔ کاتالوگ. نتیجه‌اش روی سایتِ زنده این بود:
-     *
-     *     /domain/ir  →  «.ir سالانه ۱۳٬۴۵۰٬۰۰۰ تومان»
-     *
-     * در برابرِ قیمتِ واقعیِ ایرنیک که حدودِ ۱۷۰٬۰۰۰ تومان است — تقریباً ۸۰
-     * برابر. و بدتر از خودِ عدد: صفحه‌ای که این را نشان می‌دهد، به بازدیدکننده
-     * می‌گوید «قیمت‌های این سایت بی‌ربط است» و اعتبارِ قیمتیِ کلِ کاتالوگ را
-     * می‌بَرد. `.ir` هم ارزان‌ترین محصولِ سبد است، یعنی معمولاً **اولین**
-     * تراکنشِ یک کسب‌وکارِ کوچک — همان دری که بعداً هاست و سرور از آن می‌آید.
-     *
-     * ⚠️ تا وقتی اتصالِ مستقیمِ ایرنیک ساخته نشده، این پسوندها باید به شاخهٔ
-     * «استعلام» بیفتند، نه اینکه عددی نشان دهند که نه واقعی است نه فروختنی.
-     *
-     * @var array<int,string>
-     */
-    private const NEVER_QUOTE = DomainSearch::UNSOLD_TLDS;
-
-    public function __construct(private DomainSearch $search) {}
-
-    /**
-     * قیمتِ پایهٔ چند پسوند.
-     *
-     * @param  array<int,string>  $tlds
-     * @return array<string,int> پسوند → تومان (فقط آن‌هایی که قیمت دارند)
-     */
+    /** Compatibility reader; refreshing is exclusively an explicit background job. */
     public function forTlds(array $tlds): array
     {
-        /*
-        | ⚠️ نرمال‌سازی **مشترک** با `cachedForTlds()` است و باید بمانَد.
-        |
-        | اگر این دو مسیر فهرست را جور دیگری تمیز کنند، کلیدِ کششان فرق می‌کند
-        | و خواننده هرگز به چیزی که کرون گرم کرده نمی‌رسد — یعنی بی‌صدا به
-        | استعلامِ زنده می‌افتد. همان چیزی که همهٔ این کلاس برای جلوگیری از آن
-        | نوشته شده.
-        |
-        | ⚠️ پسوندِ ایرانی همان‌جا حذف می‌شود: نه استعلام، نه کش، نه بازگشت.
-        */
-        $tlds = $this->normalise($tlds);
-
-        if ($tlds === []) {
-            return [];
-        }
-
-        return Cache::remember($this->cacheKey($tlds), now()->addHours(self::TTL_HOURS),
-            fn () => $this->quote($tlds));
+        return $this->cachedForTlds($tlds);
     }
 
-    /**
-     * همان دفترچه، ولی **فقط از کش** — هرگز به رجیسترار تماس نمی‌گیرد.
-     *
-     * 🔴 برای مصرف‌کننده‌هایی که وسطِ رندرِ یک صفحهٔ عمومی‌اند.
-     *
-     * `forTlds()` روی کشِ سرد استعلامِ زنده می‌زند. آن رفتار برای کرون درست
-     * است ولی روی یک درخواستِ وب دو فاجعه دارد: صفحه پشتِ شبکهٔ رجیسترار
-     * می‌مانَد (همان TTFB که رویش کار کردیم)، و مهم‌تر — **بازدیدکننده** به
-     * تماسِ API تبدیل می‌شود. حسابِ ما یک بار به‌خاطرِ تماسِ زیاد از آی‌پیِ
-     * ایران علامت خورده؛ صفحهٔ اولی که خزنده هم می‌بیند نباید آن را تکرار کند.
-     *
-     * ⚠️ آرایهٔ خالی یعنی «هنوز نمی‌دانم»، نه «رایگان». فراخوان باید خودش
-     * تصمیم بگیرد چه نشان دهد — این‌جا عمداً هیچ حدسی زده نمی‌شود.
-     *
-     * @param  array<int,string>  $tlds  باید **دقیقاً** همان فهرستی باشد که کرون گرم می‌کند
-     * @return array<string,int>
-     */
     public function cachedForTlds(array $tlds): array
     {
-        $tlds = $this->normalise($tlds);
-
-        if ($tlds === []) {
-            return [];
-        }
-
-        return (array) Cache::get($this->cacheKey($tlds), []);
+        return array_map(fn ($row) => $row['register'], $this->cachedFullForTlds($tlds));
     }
 
-    /**
-     * 🔴 حاشیهٔ سود و نرخِ ارز در **کلیدِ کش**اند.
-     *
-     * بی‌این، مدیر حاشیه را در تنظیمات صفر می‌کند و صفحه تا شش ساعت همان
-     * قیمتِ قدیم را نشان می‌دهد — و او فکر می‌کند تنظیمات کار نمی‌کند.
-     * همان‌طور برای جهشِ نرخِ ارز: قیمتِ کهنه یعنی فروش زیرِ قیمتِ خرید.
-     *
-     * ⚠️ کلید از **فهرستِ پسوندها** هم ساخته می‌شود، پس دو فراخوان با دو
-     * فهرستِ متفاوت هرگز به کشِ هم نمی‌رسند. `cachedForTlds()` بی‌فایده است
-     * مگر با همان فهرستی صدا زده شود که کرون گرم می‌کند.
-     *
-     * @param  array<int,string>  $tlds  نرمال‌شده
-     */
-    private function cacheKey(array $tlds): string
-    {
-        return 'tld.prices.v2.'.md5(implode('|', [
-            (string) Setting::get('domain_supplier_vat_pct', (string) config('domain_pricing.supplier_vat_pct')),
-            (string) Setting::get('domain_supplier_fee_pct', (string) config('domain_pricing.supplier_fee_pct')),
-            (string) config('domain_reseller.min_margin_pct', 8),
-            (string) Setting::get('domain_margin_pct'),
-            (string) Setting::get('pricing_rate_override'),
-            $this->exchangeStamp(),
-            implode(',', $tlds),
-        ]));
-    }
-
-    /** Converted prices expire logically as soon as the effective FX changes.
-     * Cache-only reads keep public page rendering free of provider requests.
-     */
-    private function exchangeStamp(): string
-    {
-        $fx = app(ExchangeRate::class);
-        $euroOverride = (int) Setting::get('pricing_rate_override', '0');
-
-        return implode(':', [
-            $euroOverride > 0 ? $euroOverride : ($fx->current('EUR')['rate_toman'] ?? 0),
-            $fx->current('USD')['rate_toman'] ?? 0,
-            $fx->current('USDT')['rate_toman'] ?? 0,
-        ]);
-    }
-
-    /** پاک‌سازیِ مشترکِ فهرستِ پسوندها — نقطه‌ها، تکراری‌ها، و پسوندهای نافروشی. */
-    private function normalise(array $tlds): array
-    {
-        $tlds = array_values(array_unique(array_filter(array_map(
-            fn ($t) => strtolower(ltrim(trim((string) $t), '.')),
-            $tlds
-        ))));
-
-        return array_values(array_diff($tlds, self::NEVER_QUOTE));
-    }
-
-    /**
-     * همان دفترچه، ولی با **هر سه** قیمت: ثبت، تمدید، انتقال.
-     *
-     * ═══ 🔴 چرا این متد لازم شد و چرا «تمدید = ثبت» یک باگِ مالی است ═══
-     *
-     * APIِ نمایندگی و `GetTldPricing` ماژولِ WHMCS هر سه عدد را می‌خواهند.
-     * ساده‌ترین کار این بود که همان `forTlds()` را بدهیم و هر سه را برابر
-     * بگذاریم — و دقیقاً همان اشتباهی است که `Account\DomainController::order()`
-     * یک بار خورده و مستندش کرده: قیمتِ سالِ اولِ بیشترِ پسوندها **تبلیغاتی**
-     * است و رجیسترار برای سال‌های بعد نرخِ تمدید می‌گیرد.
-     *
-     * نمونهٔ واقعیِ همین کاتالوگ (`.shop`): ثبت ۱۹۰٬۰۰۰ و تمدید ۱٬۴۹۰٬۰۰۰
-     * تومان — تقریباً هشت برابر. یعنی نماینده‌ای که با «تمدید = ثبت» قیمت
-     * می‌گیرد، هر تمدید را با ~۱٫۳ میلیون تومان ضرر از ما می‌خرد، و چون
-     * تمدید سالانه تکرار می‌شود، ضرر **انباشته** است نه یک‌باره.
-     *
-     * ⚠️ منطقِ دسته‌بندی، کش و ردِ پرمیوم عیناً همان `quote()` است و عمداً
-     * تکرار نشده — دو پیاده‌سازیِ موازی یعنی روزی یکی‌شان اصلاح می‌شود.
-     *
-     * @param  array<int,string>  $tlds
-     * @return array<string,array{register:int, renew:int, transfer:int}>
-     */
     public function fullForTlds(array $tlds): array
     {
-        $tlds = array_values(array_diff(
-            array_values(array_unique(array_filter(array_map(
-                fn ($t) => strtolower(ltrim(trim((string) $t), '.')),
-                $tlds
-            )))),
-            self::NEVER_QUOTE
-        ));
-
-        if ($tlds === []) {
-            return [];
-        }
-
-        $stamp = md5(implode('|', [
-            'full-v2',
-            (string) Setting::get('domain_supplier_vat_pct', (string) config('domain_pricing.supplier_vat_pct')),
-            (string) Setting::get('domain_supplier_fee_pct', (string) config('domain_pricing.supplier_fee_pct')),
-            (string) config('domain_reseller.min_margin_pct', 8),
-            (string) Setting::get('domain_margin_pct'),
-            (string) Setting::get('pricing_rate_override'),
-            $this->exchangeStamp(),
-            implode(',', $tlds),
-        ]));
-
-        return Cache::remember('tld.prices.full.'.$stamp, now()->addHours(self::TTL_HOURS),
-            fn () => $this->quote($tlds, full: true));
+        return $this->cachedFullForTlds($tlds);
     }
 
-    /**
-     * @return array<string,mixed> در حالتِ عادی tld→int، در حالتِ full ساختارِ سه‌تایی
-     */
-    private function quote(array $tlds, bool $full = false): array
+    /** Amounts are for the documented minimum term, not an invented annual rate. */
+    public function cachedFullForTlds(array $tlds): array
     {
-        $out = [];
+        try {
+            $snapshot = $this->snapshot();
+            return $snapshot === [] ? [] : $this->convert($snapshot, $this->normalise($tlds));
+        } catch (\Throwable) {
+            return []; // Missing/corrupt data or invalid pricing settings never become a public 500 or a guessed price.
+        }
+    }
 
-        // دسته‌دسته، چون رسیلری درخواستِ بی‌اندازه را رد می‌کند
-        foreach (array_chunk($tlds, DomainSearch::BATCH) as $chunk) {
-            try {
-                foreach ($this->search->search(self::PROBE, $chunk) as $r) {
-                    // فقط قیمتِ **پایه**: اگر همین نامِ بلند هم پرمیوم درآمد،
-                    // عددش نمایندهٔ پسوند نیست و باید کنار گذاشته شود.
-                    if (($r['orderable'] ?? false) && ! ($r['is_premium'] ?? false) && ($r['price_toman'] ?? 0) > 0) {
-                        if (! $full) {
-                            $out[$r['tld']] = (int) $r['price_toman'];
+    public function catalogTlds(): array
+    {
+        try {
+            $snapshot = $this->snapshot();
+            return $snapshot === [] ? [] : array_keys($this->convert($snapshot));
+        } catch (\Throwable) {
+            return [];
+        }
+    }
 
-                            continue;
-                        }
+    public function metadata(): array
+    {
+        $snapshot = $this->snapshot();
+        if ($snapshot === []) {
+            return [];
+        }
+        return array_intersect_key($snapshot, array_flip(['fetched_at', 'total', 'excluded', 'supplier_vat_pct']))
+            + ['count' => count($snapshot['rows'])];
+    }
 
-                        $register = (int) $r['price_toman'];
-
-                        // Catalogue samples are cached; actual orders always quote the real name.
-                        $pricing = app(LiveDomainPricing::class);
-                        try {
-                            $renew = $pricing->quote(self::PROBE, $r['tld'], 'renew')['sell_toman'];
-                            $transfer = $pricing->quote(self::PROBE, $r['tld'], 'transfer')['sell_toman'];
-                        } catch (ValidationException) {
-                            continue;
-                        }
-                        $out[$r['tld']] = [
-                            'register' => $register,
-                            'renew' => $renew,
-                            'transfer' => $transfer,
-                        ];
-                    }
+    /** Publish only after every catalogue page, tax rate and conversion validates. */
+    public function refreshAll(): array
+    {
+        $lock = Cache::lock('tld.catalog.refresh', 900);
+        if (! $lock->get()) {
+            throw new RuntimeException('A domain catalogue refresh is already running.');
+        }
+        try {
+            $started = now()->toIso8601String();
+            $total = null;
+            $seen = [];
+            $rows = [];
+            $excluded = [];
+            $offset = 0;
+            do {
+                $page = $this->op->listTlds(self::PAGE_SIZE, $offset, true);
+                if (! ($page['ok'] ?? false) || ! is_array($page['results'] ?? null)) {
+                    throw new RuntimeException('Openprovider catalogue page failed (code '.(int) ($page['code'] ?? -1).').');
                 }
+                $pageTotal = $page['total'] ?? null;
+                if (! is_int($pageTotal) || $pageTotal < 1 || $pageTotal > self::MAX_ROWS
+                    || ($total !== null && $pageTotal !== $total)) {
+                    throw new RuntimeException('Openprovider catalogue total changed or is invalid.');
+                }
+                $total = $pageTotal;
+                $count = count($page['results']);
+                if ($count === 0 || $count > self::PAGE_SIZE || $offset + $count > $total) {
+                    throw new RuntimeException('Openprovider catalogue pagination is incomplete.');
+                }
+                foreach ($page['results'] as $source) {
+                    if (! is_array($source)) {
+                        throw new RuntimeException('Invalid Openprovider catalogue row.');
+                    }
+                    $name = strtolower(trim((string) ($source['name'] ?? ''), " \t."));
+                    if ($name === '' || strlen($name) > 253 || preg_match('/[\s\/\\\\]/u', $name) || isset($seen[$name])) {
+                        throw new RuntimeException('Openprovider catalogue has an invalid or repeated extension.');
+                    }
+                    $seen[$name] = true;
+                    if (($source['status'] ?? null) !== 'ACT') {
+                        $excluded[$name] = 'inactive';
+                        continue;
+                    }
+                    if (! DomainSearch::sells($name)) {
+                        $excluded[$name] = 'not_sold_here';
+                        continue;
+                    }
+                    $rows[$name] = $this->normaliseRow($source);
+                }
+                $offset += $count;
+            } while ($offset < $total);
+            if (count($seen) !== $total || $rows === []) {
+                throw new RuntimeException('Openprovider catalogue coverage is incomplete.');
+            }
+            $account = $this->op->resellerInfo();
+            $vat = data_get($account, 'data.vatperc');
+            if (! ($account['ok'] ?? false) || ! is_numeric($vat) || ! is_finite((float) $vat) || $vat < 0 || $vat > 100) {
+                throw new RuntimeException('Openprovider supplier VAT could not be verified.');
+            }
+            ksort($rows);
+            $snapshot = ['version' => 1, 'fetched_at' => $started, 'total' => $total,
+                'supplier_vat_pct' => (float) $vat, 'excluded' => $excluded, 'rows' => $rows];
+            if (count($this->convert($snapshot)) !== count($rows)) {
+                throw new RuntimeException('Some active Openprovider extensions have no valid current price.');
+            }
+            $json = json_encode($snapshot, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $path = Storage::disk('local')->path(self::SNAPSHOT_PATH);
+            File::ensureDirectoryExists(dirname($path), 0700, true);
+            // Same-directory atomic replacement; failed/incomplete fetches never replace the last good catalogue.
+            $this->publish($path, $json);
+            return ['total' => $total, 'count' => count($rows), 'excluded' => count($excluded),
+                'fetched_at' => $started];
+        } finally {
+            try {
+                $lock->release();
             } catch (\Throwable $e) {
-                // صفحهٔ بازاریابی نباید به‌خاطر رجیسترار بخوابد؛ عددِ نبود
-                // یعنی همان دکمهٔ «بررسی و ثبت» نشان داده می‌شود.
-                Log::info('tld price probe failed', ['err' => $e->getMessage()]);
+                report($e); // Expiry still releases the lock; do not misreport a completed publication.
             }
         }
+    }
 
+    private function publish(string $path, string $json): void
+    {
+        $temp = tempnam(dirname($path), '.op-tlds-');
+        if ($temp === false) {
+            throw new RuntimeException('Could not prepare domain catalogue publication.');
+        }
+        try {
+            if (! chmod($temp, 0600) || file_put_contents($temp, $json, LOCK_EX) !== strlen($json)
+                || hash_file('sha256', $temp) !== hash('sha256', $json)) {
+                throw new RuntimeException('Could not write a complete domain catalogue.');
+            }
+            if (! rename($temp, $path)) {
+                throw new RuntimeException('Could not publish the domain catalogue.');
+            }
+        } finally {
+            if (is_file($temp)) {
+                unlink($temp);
+            }
+        }
+    }
+
+    private function snapshot(): array
+    {
+        try {
+            $raw = Storage::disk('local')->get(self::SNAPSHOT_PATH);
+            $snapshot = json_decode((string) $raw, true, 512, JSON_THROW_ON_ERROR);
+            if (! is_array($snapshot) || ($snapshot['version'] ?? null) !== 1
+                || ! is_array($snapshot['rows'] ?? null) || ! is_numeric($snapshot['supplier_vat_pct'] ?? null)) {
+                return [];
+            }
+            if (! is_int($snapshot['total'] ?? null) || $snapshot['total'] < 1 || $snapshot['total'] > self::MAX_ROWS
+                || ! is_array($snapshot['excluded'] ?? null)
+                || count($snapshot['rows']) + count($snapshot['excluded']) !== $snapshot['total']
+                || array_intersect_key($snapshot['rows'], $snapshot['excluded']) !== []) {
+                return [];
+            }
+            $timestamp = $snapshot['fetched_at'] ?? null;
+            if (! is_string($timestamp) || ! preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/D', $timestamp)) {
+                return [];
+            }
+            $at = Carbon::createFromFormat('!Y-m-d\TH:i:sP', $timestamp);
+            if ($at->format('Y-m-d\TH:i:sP') !== $timestamp) {
+                return [];
+            }
+            if ($at->isBefore(now()->subHours(self::MAX_AGE_HOURS)) || $at->isAfter(now()->addMinutes(5))) {
+                return [];
+            }
+            foreach ($snapshot['rows'] as $tld => $row) {
+                if (! is_string($tld) || ! $this->validStoredRow($row)) {
+                    return [];
+                }
+            }
+            return $snapshot;
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    private function validStoredRow(mixed $row): bool
+    {
+        if (! is_array($row) || ! is_int($row['min_years'] ?? null) || ! is_int($row['max_years'] ?? null)
+            || $row['min_years'] < 1 || $row['max_years'] < $row['min_years'] || $row['max_years'] > 10) {
+            return false;
+        }
+        foreach (['register', 'renew', 'transfer'] as $operation) {
+            if (! array_key_exists($operation, $row)) {
+                return false;
+            }
+            if ($row[$operation] === null && $operation !== 'register') {
+                continue;
+            }
+            if (! $this->validStoredAmount($row[$operation]) || ($operation === 'register' && $row[$operation]['amount'] <= 0)) {
+                return false;
+            }
+        }
+        $promotion = $row['promotion'] ?? null;
+        return $promotion === null || (is_array($promotion)
+            && is_int($promotion['start'] ?? null) && is_int($promotion['end'] ?? null)
+            && $promotion['start'] < $promotion['end'] && $this->validStoredAmount($promotion['regular'] ?? null)
+            && $promotion['regular']['amount'] > 0);
+    }
+
+    private function validStoredAmount(mixed $amount): bool
+    {
+        return is_array($amount) && is_numeric($amount['amount'] ?? null)
+            && is_finite((float) $amount['amount']) && $amount['amount'] >= 0
+            && in_array($amount['currency'] ?? null, ['EUR', 'USD', 'USDT'], true);
+    }
+
+    private function normalise(array $tlds): array
+    {
+        return array_values(array_unique(array_filter(array_map(
+            fn ($tld) => strtolower(trim((string) $tld, " \t.")), $tlds
+        ), fn ($tld) => $tld !== '' && DomainSearch::sells($tld))));
+    }
+
+    private function normaliseRow(array $row): array
+    {
+        $min = $row['min_period'] ?? null;
+        $max = $row['max_period'] ?? null;
+        if (! is_int($min) || ! is_int($max) || $min < 1 || $max < $min || $max > 10) {
+            throw new RuntimeException('Invalid Openprovider registration period: '.$row['name']);
+        }
+        $prices = $row['prices'] ?? [];
+        $create = $prices['reseller_price'] ?? $prices['create_price'] ?? null;
+        $register = $this->amount(data_get($create, 'reseller'));
+        if ($register === null || $register['amount'] <= 0) {
+            throw new RuntimeException('Missing Openprovider registration price: '.$row['name']);
+        }
+        $promotion = data_get($create, 'promotion_details');
+        if (is_array($promotion) && $promotion !== []) {
+            $start = $this->promotionTime($promotion['start_date'] ?? null);
+            $end = $this->promotionTime($promotion['end_date'] ?? null);
+            $regular = $this->amount(data_get($promotion, 'non_promo_price.reseller'));
+            if ($start === null || $end === null || $end <= $start || $regular === null || $regular['amount'] <= 0) {
+                throw new RuntimeException('Invalid Openprovider promotion period: '.$row['name']);
+            }
+            $promotion = ['start' => $start, 'end' => $end, 'regular' => $regular];
+        } else {
+            $promotion = null;
+        }
+        return ['min_years' => $min, 'max_years' => $max, 'register' => $register,
+            'renew' => ($row['renew_available'] ?? false) === true ? $this->amount(data_get($prices, 'renew_price.reseller')) : null,
+            'transfer' => ($row['transfer_available'] ?? false) === true ? $this->amount(data_get($prices, 'transfer_price.reseller')) : null,
+            'promotion' => $promotion];
+    }
+
+    private function amount(mixed $value): ?array
+    {
+        if (! is_array($value) || ! is_numeric($value['price'] ?? null)
+            || ! is_finite((float) $value['price']) || $value['price'] < 0
+            || ! in_array(strtoupper((string) ($value['currency'] ?? '')), ['USD', 'EUR', 'USDT'], true)) {
+            return null;
+        }
+        return ['amount' => (float) $value['price'], 'currency' => strtoupper($value['currency'])];
+    }
+
+    private function promotionTime(mixed $value): ?int
+    {
+        try {
+            if (is_numeric($value)) {
+                $seconds = (int) $value;
+                return $seconds >= 1000000000 && $seconds < 10000000000 ? $seconds : null;
+            }
+            return is_string($value) && $value !== '' ? Carbon::parse($value, 'UTC')->timestamp : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function convert(array $snapshot, ?array $tlds = null): array
+    {
+        $rows = $tlds === null ? $snapshot['rows'] : array_intersect_key($snapshot['rows'], array_flip($tlds));
+        if ($rows === []) {
+            return [];
+        }
+        $rates = [];
+        $fx = app(ExchangeRate::class);
+        foreach (['USD', 'EUR', 'USDT'] as $currency) {
+            $rates[$currency] = (int) ($fx->current($currency)['rate_toman'] ?? 0);
+        }
+        $step = max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
+        $pricing = app(LiveDomainPricing::class)->withSupplierVat((float) $snapshot['supplier_vat_pct']);
+        $out = [];
+        foreach ($rows as $tld => $row) {
+            if (! DomainSearch::sells($tld)) {
+                continue;
+            }
+            $promotion = $row['promotion'] ?? null;
+            if (is_array($promotion) && (now()->timestamp < $promotion['start'] || now()->timestamp >= $promotion['end'])) {
+                $row['register'] = $promotion['regular'];
+            }
+            $converted = ['min_years' => $row['min_years'], 'max_years' => $row['max_years']];
+            foreach (['register', 'renew', 'transfer'] as $operation) {
+                $amount = $row[$operation] ?? null;
+                $converted[$operation] = $amount === null || $rates[$amount['currency']] <= 0 ? null : ($amount['amount'] == 0 ? 0 :
+                    $pricing->fromAmount($amount['amount'], $amount['currency'], $tld,
+                        $rates[$amount['currency']], $step)['sell_toman']);
+            }
+            if ($converted['register'] > 0) {
+                $out[$tld] = $converted;
+            }
+        }
         return $out;
     }
 }

@@ -292,12 +292,6 @@ class FleetController extends Controller
      */
     private function eurRate(): int
     {
-        $override = (int) \App\Models\Setting::get('pricing_rate_override', '0');
-
-        if ($override > 0) {
-            return $override;
-        }
-
         try {
             return (int) (app(\App\Services\ExchangeRate::class)->current('EUR')['rate_toman'] ?? 0);
         } catch (\Throwable) {

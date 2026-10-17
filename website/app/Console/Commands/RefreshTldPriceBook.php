@@ -2,68 +2,29 @@
 
 namespace App\Console\Commands;
 
-use App\Http\Controllers\DomainCheckController;
+use App\Http\Middleware\PageCache;
 use App\Services\Domain\TldPriceBook;
 use Illuminate\Console\Command;
 
-/**
- * گرم نگه‌داشتنِ دفترچهٔ قیمتِ پسوندها.
- *
- * ═══ چرا کرون، وقتی خودِ کش تنبل است ═══
- *
- * `TldPriceBook` با `Cache::remember` کار می‌کند، پس **اولین** درخواستِ بعد از
- * انقضای کش هزینهٔ استعلام را می‌دهد. آن یک نفر معمولاً یک بازدیدکنندهٔ واقعی
- * است که در جعبهٔ صفحهٔ اول دنبالِ دامنه می‌گردد — یعنی بدترین لحظهٔ ممکن برای
- * چند ثانیه انتظار.
- *
- * ⚠️ فاصله عمداً از TTL **کمتر** است (۳ ساعت در برابرِ ۶). با فاصلهٔ برابر،
- * هر بار مسابقه‌ای بین انقضا و کرون بود و گاهی بازدیدکننده برنده می‌شد.
- *
- * ⚠️ این فرمان خودش هیچ کشی را باطل نمی‌کند: فقط `forTlds()` را صدا می‌زند.
- * اگر کش هنوز زنده باشد، همان را برمی‌گرداند و **هیچ** تماسی با رجیسترار
- * نمی‌شود. پس اجرای مکررش بی‌خطر است.
- */
+/** Explicit complete refresh. Public pages only read the published catalogue. */
 class RefreshTldPriceBook extends Command
 {
-    protected $signature = 'domains:price-book {--strict : خروج ناموفق اگر قیمت همهٔ پسوندها دریافت نشود}';
-
-    protected $description = 'تازه‌سازیِ قیمتِ پایهٔ پسوندهای دامنه (کشِ ۶ ساعته)';
+    // Retain --strict for existing operational callers; incomplete refreshes always fail.
+    protected $signature = 'domains:price-book {--strict : فقط انتشار دفترچهٔ کامل}';
+    protected $description = 'همگام‌سازی قیمت واقعی تمام پسوندهای قابل‌فروش Openprovider';
 
     public function handle(TldPriceBook $book): int
     {
-        // ⚠️ از **همان** فهرستی که جعبهٔ صفحهٔ اول مصرف می‌کند. فهرستِ موازی
-        //    یعنی روزی یکی کهنه شود و آن پسوند بی‌قیمت بمانَد.
-        $tlds = DomainCheckController::SUGGEST;
-
         try {
-            $prices = $book->forTlds($tlds);
+            $summary = $book->refreshAll();
         } catch (\Throwable $e) {
-            $this->warn('استعلام نشد: '.mb_substr($e->getMessage(), 0, 140));
-
-            if ($this->option('strict')) {
-                return self::FAILURE;
-            }
-
-            // ⚠️ کدِ خروجِ صفر: `schedule:run` غیرِ صفر را شکستِ فرمان می‌شمارد و
-            //    در لاگِ کرون سروصدا می‌کند، در حالی که خوابیدنِ موقتِ رجیسترار
-            //    خرابیِ ما نیست — دفعهٔ بعد دوباره تلاش می‌شود.
-            return self::SUCCESS;
+            report($e);
+            $this->error('همگام‌سازی کامل پسوندها انجام نشد؛ دفترچهٔ معتبر قبلی حفظ شد.');
+            return self::FAILURE;
         }
-
-        $missing = array_values(array_diff($tlds, array_keys($prices)));
-
-        $this->info(sprintf('%d از %d پسوند قیمت دارد.', count($prices), count($tlds)));
-
-        if ($missing !== []) {
-            // بی‌صدا ردنشدن: پسوندِ بی‌قیمت یعنی پیشنهادی که روی صفحهٔ اول
-            // بدونِ عدد نشان داده می‌شود.
-            $this->warn('بی‌قیمت: '.implode('، ', $missing));
-
-            if ($this->option('strict')) {
-                return self::FAILURE;
-            }
-        }
-
+        PageCache::purge();
+        $this->info(sprintf('%d پسوند قابل‌فروش از %d ردیف رجیسترار همگام شد؛ %d ردیف غیرفعال یا خارج از فروش سایت.',
+            $summary['count'], $summary['total'], $summary['excluded']));
         return self::SUCCESS;
     }
 }

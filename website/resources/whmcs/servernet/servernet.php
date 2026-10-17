@@ -540,18 +540,28 @@ function servernet_GetTldPricing(array $params)
 
     foreach ((array) $res['data'] as $row) {
         $tld = (string) ($row['tld'] ?? '');
+        $minYears = filter_var($row['min_years'] ?? null, FILTER_VALIDATE_INT);
+        $maxYears = filter_var($row['max_years'] ?? null, FILTER_VALIDATE_INT);
+        $register = filter_var($row['register'] ?? null, FILTER_VALIDATE_INT);
+        $renew = isset($row['renew']) ? filter_var($row['renew'], FILTER_VALIDATE_INT) : null;
+        $transfer = isset($row['transfer']) ? filter_var($row['transfer'], FILTER_VALIDATE_INT) : null;
 
-        if ($tld === '' || (int) ($row['register'] ?? 0) <= 0) {
+        if ($tld === '' || $minYears === false || $maxYears === false
+            || $minYears < 1 || $maxYears < $minYears
+            || $register === false || $register <= 0 || $renew === false || ($renew !== null && $renew < 0)
+            || $transfer === false || ($transfer !== null && $transfer < 0)) {
             continue;
         }
 
         $item = (new \WHMCS\Domain\TopLevel\ImportItem)
             ->setExtension('.'.$tld)
-            ->setMinYears(1)
-            ->setMaxYears(10)
-            ->setRegisterPrice((int) $row['register'])
-            ->setRenewPrice((int) ($row['renew'] ?? $row['register']))
-            ->setTransferPrice((int) ($row['transfer'] ?? $row['register']))
+            ->setMinYears($minYears)
+            ->setMaxYears($maxYears)
+            // WHMCS expects totals for the minimum term, as supplied by our API.
+            ->setRegisterPrice($register)
+            // Unsupported operations stay null; never substitute registration.
+            ->setRenewPrice($renew)
+            ->setTransferPrice($transfer)
             ->setEppRequired(true);
 
         if (isset($params['currency'])) {

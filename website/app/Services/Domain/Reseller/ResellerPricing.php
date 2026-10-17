@@ -31,6 +31,8 @@ use App\Services\Domain\LiveDomainPricing;
  */
 class ResellerPricing
 {
+    private ?int $roundingStep = null;
+
     public function __construct(
         private ResellerProgram $program,
         private DomainSearch $search,
@@ -118,7 +120,7 @@ class ResellerPricing
         | نقضش می‌کند. اختلافش ناچیز است، ولی «ناچیز» ضربدرِ هر تراکنشِ
         | نماینده می‌شود.
         */
-        $step = Currency::find('IRT')?->rounding_step ?: 1000;
+        $step = $this->roundingStep ??= (int) (Currency::find('IRT')?->rounding_step ?: 1000);
         $final = (int) (ceil($final / $step) * $step);
 
         // پس از گردکردن ممکن است از خرده‌فروشی بالاتر بزند؛ آن‌وقت تخفیف بی‌معناست

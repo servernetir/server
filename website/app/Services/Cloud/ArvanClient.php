@@ -697,12 +697,6 @@ class ArvanClient implements CloudProvider
      */
     private function eurToman(): int
     {
-        $override = (int) Setting::get('pricing_rate_override', '0');
-
-        if ($override > 0) {
-            return $override;
-        }
-
         try {
             return (int) (app(ExchangeRate::class)->toToman('EUR') ?: 0);
         } catch (\Throwable) {

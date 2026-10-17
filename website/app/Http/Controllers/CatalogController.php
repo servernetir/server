@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Domain\DomainSearch;
+use App\Services\Domain\TldPriceBook;
 use App\Services\Whmcs;
 use Illuminate\View\View;
 
@@ -167,25 +169,21 @@ class CatalogController extends Controller
                 | نسخهٔ قبلی `forTlds()` می‌زد که روی کشِ سرد استعلامِ **زنده**
                 | است: هر بازدید/خزندهٔ صفحهٔ /domain/* یک تماسِ API به حسابی
                 | که یک بار به‌خاطرِ تماسِ زیاد علامت خورده. کرونِ
-                | `domains:price-book` فهرستِ SUGGEST را هر ۳ ساعت گرم می‌کند؛
-                | همان را می‌خوانیم و پسوندِ خواسته‌شده را از تویش برمی‌داریم.
-                | پسوندِ خارج از آن فهرست بی‌قیمت می‌مانَد — دکمهٔ «بررسی و
-                | ثبت» هست و قیمتِ دقیق را جستجو می‌گوید.
+                | `domains:price-book` کلِ کاتالوگ را گرم می‌کند؛ همین پسوندهای
+                | صفحه را از آن می‌خوانیم. قیمتِ غایب فقط دکمهٔ استعلام دارد.
                 */
                 $live = $ask === []
                     ? []
-                    : array_intersect_key(
-                        app(\App\Services\Domain\TldPriceBook::class)
-                            ->cachedForTlds(\App\Http\Controllers\DomainCheckController::SUGGEST),
-                        array_flip($ask),
-                    );
+                    : app(TldPriceBook::class)->cachedFullForTlds($ask);
             } catch (\Throwable) {
                 // بی‌قیمت بهتر از قیمتِ غلط است؛ دکمهٔ «بررسی و ثبت» می‌مانَد
             }
 
             $product['plans'] = array_map(function ($p) use ($tldOf, $live) {
                 $tld = $tldOf($p);
-                $price = $tld === '' ? null : ($live[$tld] ?? null);
+                $row = $tld === '' ? [] : ($live[$tld] ?? []);
+                $price = (int) ($row['register'] ?? 0);
+                $years = (int) ($row['min_years'] ?? 0);
 
                 unset($p['tld']);
 
@@ -227,9 +225,11 @@ class CatalogController extends Controller
 
                 $p['search_btn'] = true;
 
-                if ($price !== null) {
+                if ($price > 0 && $years > 0 && DomainSearch::sells($tld)) {
                     // قیمتِ **واقعیِ امروز** — نه عددِ سخت‌کدِ config
                     $p['irt'] = $price;
+                    $p['final_irt'] = true;
+                    $p['min_years'] = $years;
                     $p['contact'] = false;
                     $p['quote'] = false;
                     $p['live'] = true;
@@ -238,7 +238,7 @@ class CatalogController extends Controller
                 }
 
                 // رجیسترار جواب نداد یا این پسوند را نمی‌فروشد
-                unset($p['irt']);
+                unset($p['irt'], $p['final_irt'], $p['min_years']);
                 $p['contact'] = true;
                 $p['quote'] = true;
 
@@ -270,13 +270,15 @@ class CatalogController extends Controller
 
                 $db = $rows[$slug] ?? null;
                 if ($db) {
-                    // ⚠️ قیمتِ **خام**، نه effectivePrice: ویو خودش site_price →
-                    // price_toman می‌زند. اگر این‌جا هم اعمال شود، صفحه ضریبِ
-                    // نرخ را دو بار می‌خورد ولی تسویه یک بار — دو قیمتِ متفاوت.
-                    $p['irt'] = (int) $db->price;
-                    if ((int) $db->price_eur > 0) {
-                        $p['eur'] = $db->price_eur / 100;
+                    $price = $db->effectivePrice();
+                    if ($price <= 0) {
+                        unset($p['irt'], $p['eur'], $p['base_eur']);
+                        $p['contact'] = true;
+                        return $p;
                     }
+                    $p['irt'] = $price;
+                    $p['final_irt'] = true;
+                    $p['contact'] = false;
                     // ممیزی ۴: اول خلاصهٔ سفارشِ بی‌نشست، بعد console (فقط در پرداخت)
                     $p['order_url'] = lroute('order.summary', $db->slug);
                 } else {
@@ -741,28 +743,23 @@ class CatalogController extends Controller
         return lroute('account.cloud.store').($code ? '?location='.urlencode((string) $code) : '');
     }
 
-    /** قیمت زنده TLD از WHMCS با fallback به config — همان منطق صفحه اصلی */
+    /** Cached real registration totals for each TLD's minimum term. */
     private function tlds(): array
     {
-        $pricing = Whmcs::forLocale()->tldPricing();
-
-        if ($pricing === null) {
-            return config('servernet.tlds');
-        }
-
+        $featured = (array) config('servernet.featured_tlds', []);
+        $prices = app(TldPriceBook::class)->cachedFullForTlds($featured);
         $out = [];
-        foreach (config('servernet.featured_tlds') as $tld) {
-            if (isset($pricing['prices'][$tld])) {
-                $out[] = ['tld' => $tld, 'display' => whmcs_price($pricing['prices'][$tld], $pricing['currency'])];
+        foreach ($featured as $tld) {
+            if (! DomainSearch::sells($tld)) {
+                continue;
             }
-        }
-
-        if ($out === []) {
-            foreach (array_slice($pricing['prices'], 0, 10, true) as $tld => $price) {
-                $out[] = ['tld' => $tld, 'display' => whmcs_price($price, $pricing['currency'])];
+            $row = $prices[strtolower(ltrim($tld, '.'))] ?? [];
+            if ((int) ($row['register'] ?? 0) <= 0 || (int) ($row['min_years'] ?? 0) < 1) {
+                continue;
             }
+            $out[] = ['tld' => $tld, 'irt' => (int) $row['register'],
+                'final_irt' => true, 'min_years' => (int) $row['min_years']];
         }
-
         return $out;
     }
 }

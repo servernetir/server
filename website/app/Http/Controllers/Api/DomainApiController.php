@@ -88,7 +88,7 @@ class DomainApiController extends Controller
     /**
      * فهرستِ پسوندها با قیمتِ نماینده.
      *
-     * ⚠️ عمداً از `TldPriceBook` می‌خواند (کشِ روزانه) و نه استعلامِ زنده:
+     * ⚠️ عمداً از دفترچهٔ کاملِ کش‌شده می‌خواند و نه استعلامِ زنده:
      * ماژولِ WHMCS این را برای «Import Pricing» صدا می‌زند و آن دکمه ممکن
      * است ده‌ها بار زده شود. استعلامِ زنده یعنی سیلی از تماس با حسابی که
      * یک‌بار به‌خاطرِ تماسِ زیاد علامت خورده.
@@ -103,35 +103,39 @@ class DomainApiController extends Controller
         )));
 
         if ($tlds === []) {
-            $tlds = DomainSearch::firstBatch();
+            $tlds = $book->catalogTlds();
         }
 
-        $tlds = array_slice($tlds, 0, 60);
         $rows = [];
 
-        foreach ($book->fullForTlds($tlds) as $tld => $info) {
+        foreach ($book->cachedFullForTlds($tlds) as $tld => $info) {
             if (! DomainSearch::sells($tld)) {
                 continue;
             }
 
             $register = (int) ($info['register'] ?? 0);
-            $renew = (int) ($info['renew'] ?? $register);
-            $transfer = (int) ($info['transfer'] ?? $register);
+            $renew = $info['renew'] ?? null;
+            $transfer = $info['transfer'] ?? null;
+            $minYears = (int) ($info['min_years'] ?? 0);
+            $maxYears = (int) ($info['max_years'] ?? 0);
 
-            if ($register <= 0) {
+            if ($register <= 0 || ($renew !== null && $renew < 0)
+                || ($transfer !== null && $transfer < 0) || $minYears < 1 || $maxYears < $minYears) {
                 continue;
             }
 
             $r = $this->pricing->price($register, null, $c);
-            $n = $this->pricing->price($renew, null, $c);
-            $t = $this->pricing->price($transfer, null, $c);
+            $n = $renew === null ? null : $this->pricing->price((int) $renew, null, $c);
+            $t = $transfer === null ? null : $this->pricing->price((int) $transfer, null, $c);
 
             $rows[] = [
                 'tld'      => $tld,
                 'currency' => 'IRT',
+                'min_years' => $minYears,
+                'max_years' => $maxYears,
                 'register' => $r['price'],
-                'renew'    => $n['price'],
-                'transfer' => $t['price'],
+                'renew'    => $n['price'] ?? null,
+                'transfer' => $t['price'] ?? null,
                 'retail'   => ['register' => $register, 'renew' => $renew, 'transfer' => $transfer],
                 'discount_pct' => $r['applied_pct'],
             ];

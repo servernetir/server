@@ -36,9 +36,7 @@ class DomainCheckController extends Controller
     /**
      * برای پیشنهاد فقط چند پسوندِ پرتقاضا — نه هر ۶۴ تا.
      *
-     * ⚠️ `public` است تا `domains:price-book` از **همین** فهرست کش را گرم کند.
-     * دو فهرستِ موازی یعنی روزی یکی‌شان کهنه می‌شود و آن پسوند قیمتش را از
-     * دست می‌دهد، بی‌آنکه کسی بفهمد.
+     * دفترچهٔ قیمت همهٔ پسوندها را دارد؛ این فهرست فقط تعداد پیشنهادهاست.
      */
     public const SUGGEST = ['com', 'net', 'org', 'io', 'co', 'dev', 'shop', 'online'];
 
@@ -107,8 +105,8 @@ class DomainCheckController extends Controller
         /*
         | 🔴 قیمتِ پیشنهادها از **کش** می‌آید، نه از پاسخِ زنده.
         |
-        | `TldPriceBook` هر ۶ ساعت یک نامِ بلندِ قطعاً-آزاد استعلام می‌گیرد و
-        | قیمتِ پایهٔ هر پسوند را نگه می‌دارد. سه سود:
+        | `TldPriceBook` هر ۶ ساعت کاتالوگِ واقعیِ پسوندها را می‌خواند و
+        | قیمتِ دورهٔ کمینهٔ هر پسوند را نگه می‌دارد. سه سود:
         |
         |  ۱) **یکسانی** — همان عددی که در `/domain/popular-tlds` نشان می‌دهیم
         |     این‌جا هم می‌آید. دو قیمتِ متفاوت برای یک پسوند در یک سایت،
@@ -122,10 +120,14 @@ class DomainCheckController extends Controller
         | پرمیوم باشد، قیمتش ده‌ها برابرِ قیمتِ پایه است و نشان‌دادنِ عددِ پایه
         | یعنی قیمتی که مشتری نمی‌تواند بخرد.
         */
-        $book = $this->priceBook($book);
+        $book = $this->priceBook($book, $tlds);
 
         if ($result['price'] === null && ! ($primary['is_premium'] ?? false)) {
-            $result['price'] = isset($book[$primaryTld]) ? cloud_price($book[$primaryTld]) : null;
+            $cached = $book[$primaryTld] ?? null;
+            if ($cached !== null) {
+                $result['price'] = cloud_price($cached['register']);
+                $result['period_label'] = $this->periodLabel($cached);
+            }
         }
 
         $suggestions = [];
@@ -147,12 +149,14 @@ class DomainCheckController extends Controller
                 }
 
                 $tld = (string) ($r['tld'] ?? '');
+                $cached = $book[$tld] ?? null;
 
                 $suggestions[] = [
                     'domain'    => $r['domain'],
                     'available' => true,
                     // کش اول، پاسخِ زنده به‌عنوانِ پشتیبان
-                    'price'     => isset($book[$tld]) ? cloud_price($book[$tld]) : $this->priceLabel($r),
+                    'price'     => $cached !== null ? cloud_price($cached['register']) : $this->priceLabel($r),
+                    'period_label' => $cached !== null ? $this->periodLabel($cached) : null,
                     'cart_url'  => $this->buyUrl((string) $r['domain']),
                 ];
             }
@@ -234,16 +238,23 @@ class DomainCheckController extends Controller
      * تماسِ زیاد علامت خورده. گرم‌کردنِ کش کارِ کرونِ `domains:price-book`
      * است؛ اگر هنوز گرم نشده، بی‌قیمت نشان می‌دهیم — نتیجهٔ زنده سرِ جایش است.
      *
-     * @return array<string,int>
+     * @return array<string,array>
      */
-    private function priceBook(TldPriceBook $book): array
+    private function priceBook(TldPriceBook $book, array $tlds): array
     {
         try {
-            return $book->cachedForTlds(self::SUGGEST);
+            return array_filter($book->cachedFullForTlds($tlds), fn (array $row) =>
+                (int) ($row['register'] ?? 0) > 0 && (int) ($row['min_years'] ?? 0) > 0);
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('domain', $e, ['area' => 'price-book']);
 
             return [];
         }
+    }
+
+    private function periodLabel(array $row): ?string
+    {
+        $years = (int) $row['min_years'];
+        return $years > 1 ? __('ui.domain_period_years', ['years' => fa_num((string) $years)]) : null;
     }
 }

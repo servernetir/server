@@ -26,6 +26,10 @@ class ProductInvoiceIssuer
 {
     public function issue(Service $service, Product $product): Invoice
     {
+        app(\App\Services\ProductPricing::class)->assertAvailable();
+        if ((int) $service->price <= 0 || $product->effectivePrice() <= 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['product' => __('ui.cvb_e_price')]);
+        }
         $lineTax = fn (int $amount) => (int) round($amount * $service->tax_percent / 100);
 
         $unitPrice = (int) $service->price;

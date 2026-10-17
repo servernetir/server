@@ -440,14 +440,14 @@
           `<div class="dr-row">
              <span class="dr-domain">${esc(r.domain)}</span>
              <span class="dr-msg">${t.i18nFree}</span>
-             ${r.price ? `<span class="dr-price">${faDigits(esc(r.price))} <small>${t.i18nYear}</small></span>` : ''}
+             ${r.price ? `<span class="dr-price">${faDigits(esc(r.price))} <small>${esc(r.period_label || t.i18nYear)}</small></span>` : ''}
              <a class="btn btn-primary" href="${esc(r.cart_url)}" target="_blank" rel="noopener">${t.i18nCart}</a>
            </div>`;
         return;
       }
 
       let alts = (data.suggestions || []).slice(0, 3).map((s) =>
-        `<a class="dr-alt" href="${esc(s.cart_url)}" target="_blank" rel="noopener"><b>${esc(s.domain)}</b>${s.price ? `<i>${esc(s.price)}</i>` : ''}</a>`).join('');
+        `<a class="dr-alt" href="${esc(s.cart_url)}" target="_blank" rel="noopener"><b>${esc(s.domain)}</b>${s.price ? `<i>${esc(s.price)}${s.period_label ? ` <small>${esc(s.period_label)}</small>` : ''}</i>` : ''}</a>`).join('');
       if (alts && data.more_url) {
         alts += `<a class="dr-alt dr-more" href="${esc(data.more_url)}" target="_blank" rel="noopener" aria-label="more">…</a>`;
       }

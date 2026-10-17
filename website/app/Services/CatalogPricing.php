@@ -6,82 +6,70 @@ use App\Models\Product;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
-/**
- * یک منبعِ حقیقت برای قیمت‌های کاتالوگ.
- *
- * ═══ مشکلی که حل می‌کند ═══
- *
- * قیمت در دو جا بود:
- *   • config/hosting.php  → صفحاتِ بازاریابی (چیزی که مشتری هنگام گشتن می‌بیند)
- *   • جدولِ products      → تسویه و فاکتور (چیزی که واقعاً پرداخت می‌کند)
- *
- * یعنی تغییرِ قیمت در پنلِ مدیریت، صفحهٔ محصول را عوض نمی‌کرد و برعکس. همان
- * کلاسِ خطایی که یک‌بار باعث شد سایت ۲۰٪ تخفیف تبلیغ کند و تسویه ۱۵٪ بگیرد.
- *
- * حالا اگر پکیجی در جدول باشد، قیمتش **همان** است که نمایش داده می‌شود؛ config
- * فقط پشتیبان است (برای پکیجی که هنوز در دیتابیس نیست یا سروری که مهاجرت
- * نکرده). پس تغییرِ گروهیِ قیمت در پنل، بلافاصله در کلِ سایت دیده می‌شود.
- */
+/** Public catalog prices derived only from native product prices and Navasan. */
 class CatalogPricing
 {
-    /** ۵ دقیقه کافی است: تغییرِ قیمت باید زود دیده شود، ولی هر بازدید پرس‌وجو نزند */
     private const TTL = 300;
 
-    /**
-     * نگاشتِ اسلاگ → ['irt' => تومان, 'eur' => یورو(عدد اعشاری)]
-     *
-     * @return array<string, array{irt:int, eur:float|null}>
-     */
+    /** @return array<string, array<string, mixed>> */
     public function map(): array
     {
-        if (! Schema::hasTable('products')) {
+        if (! Schema::hasTable('products') || ! Schema::hasColumn('products', 'base_price_eur')) {
             return [];
         }
 
         return Cache::remember('catalog.prices', self::TTL, function () {
-            return Product::query()
-                ->where('is_active', true)
-                ->get(['slug', 'price', 'price_eur'])
-                ->mapWithKeys(fn (Product $p) => [$p->slug => [
-                    'irt' => (int) $p->price,
-                    // سنت → یورو، فقط برای نمایش
-                    'eur' => $p->price_eur !== null ? $p->price_eur / 100 : null,
-                ]])
+            return Product::query()->where('is_active', true)->get()
+                ->mapWithKeys(fn (Product $product) => [$product->slug => $this->quote($product)])
                 ->all();
         });
     }
 
-    /**
-     * قیمت‌های دیتابیس را روی پلن‌های config سوار می‌کند.
-     *
-     * اسلاگِ هر پلن «<گروه>-<شمارهٔ ردیف+۱>» است — همان قراردادی که seeder
-     * ساخته. اگر پکیجی در دیتابیس نبود، مقدارِ config دست‌نخورده می‌ماند.
-     *
-     * @param  array<int, array<string, mixed>>  $plans
-     * @return array<int, array<string, mixed>>
-     */
+    /** A price that can be passed directly to site_price(). */
+    public function quote(Product $product): array
+    {
+        $monthly = $product->monthlyEquivalent((string) $product->cycle);
+        $yearly = $product->monthlyEquivalent('yearly');
+
+        if ($monthly <= 0 || $yearly <= 0) {
+            return ['contact' => true, 'quote' => true];
+        }
+
+        return [
+            'irt' => $monthly,
+            'yearly_irt' => $yearly,
+            'final_irt' => true,
+        ];
+    }
+
+    /** Cheapest live monthly equivalent in a product group. */
+    public function minimumQuote(string $group): array
+    {
+        if (! Schema::hasTable('products') || ! Schema::hasColumn('products', 'base_price_eur')) {
+            return ['contact' => true, 'quote' => true];
+        }
+
+        $quotes = Product::query()->where('is_active', true)->where('group', $group)->get()
+            ->map(fn (Product $product) => $this->quote($product))
+            ->filter(fn (array $quote) => (int) ($quote['irt'] ?? 0) > 0);
+
+        return $quotes->sortBy('irt')->first() ?? ['contact' => true, 'quote' => true];
+    }
+
+    /** Replace config placeholders. Missing database products become unavailable. */
     public function applyToPlans(string $group, array $plans): array
     {
         $map = $this->map();
 
         foreach ($plans as $i => $plan) {
             $slug = $group.'-'.($i + 1);
-
-            if (! isset($map[$slug])) {
-                continue;
-            }
-
-            $plans[$i]['irt'] = $map[$slug]['irt'];
-
-            if ($map[$slug]['eur'] !== null) {
-                $plans[$i]['eur'] = $map[$slug]['eur'];
-            }
+            unset($plans[$i]['irt'], $plans[$i]['eur'], $plans[$i]['base_eur'], $plans[$i]['yearly_irt']);
+            $plans[$i] += $map[$slug] ?? ['contact' => true, 'quote' => true];
         }
 
         return $plans;
     }
 
-    /** بعد از هر تغییرِ قیمت صدا زده می‌شود تا سایت فوراً عددِ تازه را نشان دهد */
     public static function forget(): void
     {
         Cache::forget('catalog.prices');

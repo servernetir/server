@@ -401,9 +401,12 @@ class OpenProviderClient
     public function listTlds(int $limit = 500, int $offset = 0, bool $withPrice = true): array
     {
         $res = $this->call('GET', '/tlds', array_filter([
-            'limit'      => $limit,
-            'offset'     => $offset,
-            'with_price' => $withPrice ?: null,
+            'limit' => $limit,
+            'offset' => $offset,
+            // Official SDK serializes query booleans as text; `1` is rejected with code 80.
+            'with_price' => $withPrice ? 'true' : null,
+            'order_by' => 'name',
+            'order' => 'asc',
         ], fn ($v) => $v !== null));
 
         return $this->result($res, [

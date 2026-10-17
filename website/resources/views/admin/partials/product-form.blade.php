@@ -28,11 +28,11 @@
   <label>پکیج WHM (plan)
     <input type="text" name="plan" dir="ltr" value="{{ old('plan', $product->plan ?? '') }}" maxlength="80" placeholder="خالی = خودکار (sn_…)">
   </label>
-  <label>قیمت دوره‌ای (تومان)
-    <input type="number" name="price" dir="ltr" value="{{ old('price', $product->price ?? 0) }}" required min="0" step="1000">
+  <label>قیمت پایهٔ دوره (یورو، پیش از سود)
+    <input type="number" name="base_price_eur" dir="ltr" value="{{ old('base_price_eur', $product->base_price_eur ?? 0) }}" required min="0" max="1000000" step="0.000000000001">
   </label>
-  <label>هزینهٔ راه‌اندازی (تومان، اختیاری)
-    <input type="number" name="setup_fee" dir="ltr" value="{{ old('setup_fee', $product->setup_fee ?? 0) }}" min="0" step="1000">
+  <label>پایهٔ راه‌اندازی (یورو؛ بدون هزینه = صفر)
+    <input type="number" name="base_setup_eur" dir="ltr" value="{{ old('base_setup_eur', $product->base_setup_eur ?? 0) }}" required min="0" max="1000000" step="0.000000000001">
   </label>
   <label>دوره
     <select name="cycle">

@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\Server;
 use App\Services\Provisioning\WhmClient;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -49,15 +51,15 @@ class ProductController extends Controller
         $data = $request->validate([
             'group'     => ['required', 'string', 'max:60'],
             'mode'      => ['required', 'in:percent,amount,set'],
-            'value'     => ['required', 'numeric'],
-            'round'     => ['nullable', 'integer', 'min:1000', 'max:1000000'],
-            'also_eur'  => ['nullable', 'boolean'],
+            'value'     => ['required', 'numeric', 'min:-1000000', 'max:1000000', 'regex:/^-?\d+(\.\d{1,12})?$/'],
+            'round'     => ['required', 'in:0.01,0.10,1.00'],
+            'pricing_mode' => ['required', 'in:native_eur'],
             'confirm'   => ['nullable', 'boolean'],
         ], [], [
             'group' => 'گروه', 'mode' => 'نوعِ تغییر', 'value' => 'مقدار',
         ]);
 
-        $step = (int) ($data['round'] ?? 10000);
+        $step = (string) $data['round'];
         $items = Product::where('group', $data['group'])->get();
 
         if ($items->isEmpty()) {
@@ -67,30 +69,29 @@ class ProductController extends Controller
         $changed = 0;
         $preview = [];
 
-        foreach ($items as $p) {
-            $old = (int) $p->price;
-
-            $new = match ($data['mode']) {
-                'percent' => $old * (1 + ((float) $data['value'] / 100)),
-                'amount'  => $old + (float) $data['value'],
-                'set'     => (float) $data['value'],
-            };
-
-            $new = Product::roundUpToman(max(0, $new), $step);
-
-            // یورو هم به همان نسبت (فقط در حالتِ درصدی معنا دارد)
-            $newEur = $p->price_eur;
-            if (! empty($data['also_eur']) && $p->price_eur !== null && $data['mode'] === 'percent') {
-                $newEur = Product::roundUpEur($p->price_eur * (1 + ((float) $data['value'] / 100)));
+        \Illuminate\Support\Facades\DB::transaction(function () use ($items, $data, $step, &$changed, &$preview) {
+            foreach (Product::whereIn('id', $items->modelKeys())->lockForUpdate()->get() as $p) {
+                if ($p->base_price_eur === null) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['value' => 'قیمت ارزی این گروه کامل نیست.']);
+                }
+                $old = BigDecimal::of((string) $p->base_price_eur);
+                $value = BigDecimal::of((string) $data['value']);
+                $new = match ($data['mode']) {
+                    'percent' => $old->multipliedBy($value->plus(100))->dividedBy(100, 12, RoundingMode::HalfUp),
+                    'amount' => $old->plus($value),
+                    'set' => $value,
+                };
+                if ($new->isLessThan(0) || $new->isGreaterThan(1_000_000)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['value' => 'قیمت پایه باید بین صفر و یک میلیون یورو باشد.']);
+                }
+                $new = $new->dividedBy($step, 0, RoundingMode::Ceiling)->multipliedBy($step)->toScale(12);
+                $preview[] = $p->name.': €'.$old.' → €'.$new;
+                if (! $new->isEqualTo($old)) {
+                    $p->forceFill(['base_price_eur' => (string) $new])->save();
+                    $changed++;
+                }
             }
-
-            $preview[] = $p->name.': '.number_format($old).' → '.number_format($new);
-
-            if ($new !== $old || $newEur !== $p->price_eur) {
-                $p->forceFill(['price' => $new, 'price_eur' => $newEur])->save();
-                $changed++;
-            }
-        }
+        });
 
         // کشِ قیمتِ کاتالوگ را بریز تا سایت فوراً عددِ تازه را نشان دهد
         \App\Services\CatalogPricing::forget();
@@ -408,10 +409,8 @@ class ProductController extends Controller
             'group'           => ['nullable', 'string', 'max:60', 'regex:/^[a-z0-9-]*$/'],
             'server_id'       => ['nullable', 'integer', 'exists:servers,id'],
             'plan'            => ['nullable', 'string', 'max:80'],
-            'price'           => ['required', 'integer', 'min:0', 'max:100000000000'],
-            // یورو به سنت — نسخهٔ انگلیسی/ترکی همین را نشان می‌دهد
-            'price_eur'       => ['nullable', 'integer', 'min:0', 'max:100000000'],
-            'setup_fee'       => ['nullable', 'integer', 'min:0', 'max:100000000000'],
+            'base_price_eur'  => ['required', 'numeric', 'min:0', 'max:1000000', 'regex:/^\d+(\.\d{1,12})?$/'],
+            'base_setup_eur'  => ['required', 'numeric', 'min:0', 'max:1000000', 'regex:/^\d+(\.\d{1,12})?$/'],
             'cycle'           => ['required', \Illuminate\Validation\Rule::in(\App\Models\Service::cycles())],
             'tax_percent'     => ['nullable', 'integer', 'min:0', 'max:100'],
             'description'     => ['nullable', 'string', 'max:2000'],
@@ -419,7 +418,7 @@ class ProductController extends Controller
             'is_active'       => ['nullable', 'boolean'],
             'sort'            => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]) + [
-            'setup_fee'       => (int) $request->input('setup_fee', 0),
+            'base_setup_eur'  => '0',
             'tax_percent'     => (int) $request->input('tax_percent', 10),
             'requires_domain' => $request->boolean('requires_domain'),
             'is_active'       => $request->boolean('is_active'),

@@ -103,7 +103,9 @@ class PhysicalServer extends Model
             'tr'         => $tr,
             'price_from' => $this->price_contact
                 ? ['contact' => true]
-                : array_filter(['irt' => $this->price_irt, 'eur' => $this->price_eur], fn ($v) => $v !== null),
+                : ((int) $this->price_eur > 0
+                    ? ['eur' => round((int) $this->price_eur / 100, 2)]
+                    : ['contact' => true]),
             'specs'      => array_values((array) ($this->specs ?? [])),
             'gallery'    => array_values((array) ($this->gallery ?? [])),
         ];

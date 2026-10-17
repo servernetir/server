@@ -161,9 +161,14 @@ class CloudPlan extends Model
      */
     public function scopeSellable(Builder $q): Builder
     {
-        $off = self::disabledProviders();
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        if (! $snapshot->current()) {
+            return $q->whereRaw('1 = 0');
+        }
+        $off = array_unique([...self::disabledProviders(), ...$snapshot->excludedProviders()]);
 
         return $q->where('is_active', true)
+            ->where('cost_eur_cents', '>', 0)
             ->where('in_stock', true)
             ->where('price_irt', '>', 0)
             ->where('admin_disabled', false)
@@ -258,7 +263,8 @@ class CloudPlan extends Model
             return 'stock';
         }
 
-        if ((int) $this->price_irt <= 0) {
+        if ((int) $this->price_irt <= 0 || (int) $this->cost_eur_cents <= 0
+            || ! app(\App\Services\Cloud\CloudPricingSnapshot::class)->current((string) $this->provider)) {
             return 'price';
         }
 
@@ -491,6 +497,9 @@ class CloudPlan extends Model
     /** نرخِ ساعتی به تومان (گردِ رو به بالا به نزدیک‌ترین ۱۰۰ تومان برای ظاهرِ تمیز). */
     public function hourlyIrt(): int
     {
+        if (! app(\App\Services\Cloud\CloudPricingSnapshot::class)->current((string) $this->provider)) {
+            return 0;
+        }
         $monthly = (int) $this->price_irt;
 
         // LightNode's period cost reserves a 31-day month. Its actual hourly

@@ -70,17 +70,13 @@ final class AiFx
 
     public const MAX_RATE = 5_000_000;
 
-    /** کلیدِ نرخِ دستیِ هر ارز — همان کلیدهایی که ابری و رمزارز می‌خوانند */
-    private const OVERRIDE_KEYS = [
-        'USD' => 'pricing_usd_rate_override',
-        'EUR' => 'pricing_rate_override',
-    ];
+    private const SUPPORTED = ['USD', 'EUR'];
 
     public function __construct(private readonly ExchangeRate $rates) {}
 
     public static function supports(string $currency): bool
     {
-        return array_key_exists(strtoupper($currency), self::OVERRIDE_KEYS);
+        return in_array(strtoupper($currency), self::SUPPORTED, true);
     }
 
     /**
@@ -94,25 +90,11 @@ final class AiFx
             return null;
         }
 
-        $candidates = [];
-
-        $override = $this->override($currency);
-        if ($override !== null) {
-            $candidates[] = ['rate' => $override, 'source' => 'override', 'at' => null];
-        }
-
         $scraped = $this->scraped($currency);
-        if ($scraped !== null) {
-            $candidates[] = $scraped;
-        }
-
-        if ($candidates === []) {
+        if ($scraped === null) {
             return null;
         }
-
-        // بزرگ‌ترین برنده است؛ در تساوی، نرخِ دستی (تصمیمِ آگاهانهٔ مالک) نامیده می‌شود
-        usort($candidates, fn ($a, $b) => $b['rate'] <=> $a['rate'] ?: ($a['source'] === 'override' ? -1 : 1));
-        $best = $candidates[0];
+        $best = $scraped;
 
         $buckets = $this->buckets($currency);
 
@@ -157,7 +139,7 @@ final class AiFx
         $currency = strtoupper($currency);
 
         // نرخِ خام، بی‌سربارِ کهنگی: سربار حاشیهٔ امنِ فروش است، نه نرخِ تبدیلِ شارژ
-        return $this->override($currency) ?? $this->scraped($currency)['raw'] ?? null;
+        return $this->scraped($currency)['raw'] ?? null;
     }
 
     /** پاک‌کردنِ دستیِ نشانِ بالاترین نرخ — فقط از فرمانِ مدیر */
@@ -182,21 +164,6 @@ final class AiFx
     }
 
     /* ─────────────────────────────────────────────────────────── */
-
-    private function override(string $currency): ?int
-    {
-        $v = trim((string) Setting::get(self::OVERRIDE_KEYS[$currency] ?? '', ''));
-
-        if ($v === '' || preg_match('/^\d+$/', $v) !== 1) {
-            return null;
-        }
-
-        $n = (int) $v;
-
-        // بیرون از بازه = «خاموش»، نه «به نزدیک‌ترین مرز بچسبان». عددِ دستیِ
-        // با یک صفرِ کم یا زیاد نباید مبنای هیچ فروشی شود.
-        return $n >= self::MIN_RATE && $n <= self::MAX_RATE ? $n : null;
-    }
 
     /** @return array{rate:int,source:string,at:?string,raw:int}|null */
     private function scraped(string $currency): ?array

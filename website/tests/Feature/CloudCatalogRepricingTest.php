@@ -25,7 +25,7 @@ class CloudCatalogRepricingTest extends TestCase
         parent::setUp();
         Http::preventStrayRequests();
         NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
-        Setting::put('pricing_rate_override', null);
+        Setting::put('pricing_rate_override', '4000000');
         Setting::put('cloud_margin_pct', '50');
     }
 

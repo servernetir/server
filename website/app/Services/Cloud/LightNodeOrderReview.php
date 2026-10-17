@@ -15,7 +15,7 @@ class LightNodeOrderReview
     {
         return DB::table('settings')->whereIn('key', [
             'cloud_margin_pct', 'pricing_fx_fee_pct', 'pricing_fx_fee_pct_lightnode',
-            'pricing_rate_override', 'pricing_usd_rate_override', 'cloud_disabled_providers',
+            'cloud_disabled_providers',
             'fx_last_usd', 'fx_last_eur',
         ])->orderBy('key')->when($lock, fn ($q) => $q->lockForUpdate())->pluck('value', 'key')->all();
     }
@@ -25,7 +25,7 @@ class LightNodeOrderReview
         $fail = ['ok' => false, 'changed' => false];
         try {
             $snapshot = $this->settings();
-            foreach (['cloud_margin_pct', 'pricing_fx_fee_pct', 'pricing_fx_fee_pct_lightnode', 'pricing_rate_override', 'pricing_usd_rate_override', 'cloud_disabled_providers'] as $key) {
+            foreach (['cloud_margin_pct', 'pricing_fx_fee_pct', 'pricing_fx_fee_pct_lightnode', 'cloud_disabled_providers'] as $key) {
                 if (($snapshot[$key] ?? null) !== Setting::get($key)) {
                     return $fail;
                 }

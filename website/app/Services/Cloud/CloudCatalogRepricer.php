@@ -15,7 +15,7 @@ class CloudCatalogRepricer
     private const NORMALIZED_PROVIDERS = ['lightnode', 'salad', 'ovh', 'arvan'];
 
     private const SETTING_KEYS = [
-        'pricing_rate_override', 'cloud_margin_pct', 'cloud_margin_pct_salad',
+        'cloud_margin_pct', 'cloud_margin_pct_salad',
         'pricing_fx_fee_pct', 'cloud_disabled_providers',
         'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour', 'salad_priority', 'salad_org',
         'ovh_region', 'lightnode_manifest', 'arvan_exclude_promo',
@@ -31,7 +31,7 @@ class CloudCatalogRepricer
         $settings = $this->settings();
         $memo = array_filter(Setting::cached(), fn (string $key) =>
             in_array($key, self::SETTING_KEYS, true)
-            || preg_match('/^pricing_[a-z0-9_-]+_rate_override$|^pricing_fx_fee_pct_[a-z0-9_-]+$/', $key), ARRAY_FILTER_USE_KEY);
+            || preg_match('/^pricing_fx_fee_pct_[a-z0-9_-]+$/', $key), ARRAY_FILTER_USE_KEY);
         ksort($memo);
         if ($settings !== $memo) {
             throw new \RuntimeException('Pricing settings changed before price refresh; retry with a fresh snapshot.');
@@ -174,6 +174,9 @@ class CloudCatalogRepricer
             }
             $this->assertRates($rates);
             $this->assertSettings($settings, $persist);
+            if ($persist) {
+                app(CloudPricingSnapshot::class)->publish($rates, $skip);
+            }
             return $count;
         };
 
@@ -184,10 +187,9 @@ class CloudCatalogRepricer
     {
         // Setting::get/cached keeps a request memo: an admin edit in another
         // request must be detected without mixing new settings into old quotes.
-        // The two key families cover dynamic currency overrides/provider fees.
+        // The dynamic key family covers provider-specific transfer fees.
         return DB::table('settings')->where(function ($query) {
-            $query->whereIn('key', self::SETTING_KEYS)->orWhere('key', 'like', 'pricing_%_rate_override')
-                ->orWhere('key', 'like', 'pricing_fx_fee_pct_%');
+            $query->whereIn('key', self::SETTING_KEYS)->orWhere('key', 'like', 'pricing_fx_fee_pct_%');
         })->orderBy('key')->when($lock, fn ($query) => $query->lockForUpdate())
             ->pluck('value', 'key')->all();
     }

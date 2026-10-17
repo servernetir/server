@@ -393,20 +393,8 @@ Schedule::command('invoices:expire')
     ->hourlyAt(25)
     ->withoutOverlapping(20);
 
-/*
-| دفترچهٔ قیمتِ پسوندها را گرم نگه دار.
-|
-| کشِ `TldPriceBook` شش‌ساعته و **تنبل** است، پس اولین درخواستِ بعد از انقضا
-| هزینهٔ استعلام را می‌دهد — و آن یک نفر معمولاً بازدیدکننده‌ای است که در جعبهٔ
-| صفحهٔ اول دنبالِ دامنه می‌گردد.
-|
-| ⚠️ هر ۳ ساعت، یعنی **کمتر** از TTL؛ با فاصلهٔ برابر گاهی بازدیدکننده زودتر
-| از کرون می‌رسید. اجرای زودهنگام بی‌خطر است: تا کش زنده باشد هیچ تماسی با
-| رجیسترار نمی‌شود.
-*/
-Schedule::command('domains:price-book')
-    ->everyThreeHours()
-    ->withoutOverlapping(60);
+// The six-hour fx:dollar job refreshes the complete domain catalogue after Navasan.
+// Avoid a separate three-hour run with a different FX snapshot.
 
 /*
 | هرسِ استعلام‌های منقضی — هر جستجو تا ۶۴ ردیف با JSONِ خامِ رجیسترار

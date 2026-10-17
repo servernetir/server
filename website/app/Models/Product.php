@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Services\Provisioning\HetznerStorageCosts;
+use App\Services\ProductPricing;
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -14,7 +17,7 @@ class Product extends Model
 {
     protected $fillable = [
         'name', 'name_en', 'name_tr', 'slug', 'category', 'group', 'server_id', 'locations', 'plan', 'currency_code',
-        'price', 'price_eur', 'setup_fee', 'cycle', 'tax_percent', 'specs', 'description',
+        'price', 'price_eur', 'setup_fee', 'base_price_eur', 'base_setup_eur', 'cycle', 'tax_percent', 'specs', 'description',
         'requires_domain', 'is_active', 'sort',
     ];
 
@@ -24,6 +27,8 @@ class Product extends Model
             'price'           => 'integer',
             'price_eur'       => 'integer',   // سنت — یورو exponent=2
             'setup_fee'       => 'integer',
+            'base_price_eur'  => 'decimal:12',
+            'base_setup_eur'  => 'decimal:12',
             'tax_percent'     => 'integer',
             'specs'           => 'array',
             'locations'       => 'array',
@@ -114,14 +119,14 @@ class Product extends Model
         return $this->belongsTo(Server::class);
     }
 
-    /** قیمتِ مؤثرِ دوره — پایهٔ تومان پس از اعمالِ ضریبِ نرخِ ارز */
+    /** قیمت مؤثر دوره از مبلغ بومی یورو و نرخ ذخیره‌شده نوسان. */
     public function effectivePrice(): int
     {
         if ($this->isStorageCatalogProduct()) {
             return (int) ($this->storageQuote()['irt'] ?? 0);
         }
 
-        return price_toman($this->price);
+        return app(ProductPricing::class)->toman((string) ($this->base_price_eur ?? '0'));
     }
 
     /** هزینهٔ راه‌اندازیِ مؤثر */
@@ -131,7 +136,7 @@ class Product extends Model
             return (int) ($this->storageQuote()['setup_irt'] ?? 0);
         }
 
-        return price_toman($this->setup_fee);
+        return app(ProductPricing::class)->toman((string) ($this->base_setup_eur ?? '0'));
     }
 
     public function isStorageCatalogProduct(): bool
@@ -180,17 +185,23 @@ class Product extends Model
      * پکیجی با cycle=yearly و قیمتِ سالانه بسازد و ما آن را ماهانه فرض کنیم،
      * دورهٔ سالانه ۱۲ برابر قیمت می‌خورد. پس اول به ماه تقسیم می‌کنیم.
      */
-    private function monthlyBase(): float
+    private function monthlyBase(): BigDecimal
     {
         $own = Service::monthsIn((string) $this->cycle);
 
-        return $own > 1 ? $this->price / $own : (float) $this->price;
+        return BigDecimal::of((string) ($this->base_price_eur ?? '0'))
+            ->dividedBy(max(1, $own), 16, RoundingMode::HalfUp);
     }
 
     public function priceForCycle(string $cycle, ?string $country = null): int
     {
         if ($this->isStorageCatalogProduct()) {
             return $cycle === 'monthly' ? $this->effectivePrice() : 0;
+        }
+
+        $pricing = app(ProductPricing::class);
+        if (! $pricing->available() || (float) $this->base_price_eur <= 0) {
+            return 0;
         }
 
         $months = Service::monthsIn($cycle);
@@ -205,9 +216,12 @@ class Product extends Model
             ? (float) (config('billing.locations.'.strtoupper($country).'.multiplier') ?? 1.0)
             : 1.0;
 
-        $raw = $this->monthlyBase() * $months * (100 - $discount) / 100 * $mult;
-
-        $price = price_toman((int) round($raw));
+        $raw = $this->monthlyBase()->multipliedBy($months)->multipliedBy(100 - $discount)
+            ->dividedBy(100, 16, RoundingMode::HalfUp)->multipliedBy((string) $mult);
+        $price = $pricing->toman((string) $raw);
+        if ($price <= 0) {
+            return 0;
+        }
 
         /*
         | 🔴 کفِ حاشیه — «هرگز زیرِ قیمتِ خرید نفروش».
