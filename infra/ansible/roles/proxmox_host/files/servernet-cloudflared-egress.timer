@@ -1,0 +1,10 @@
+[Unit]
+Description=Reconcile only Cloudflare Tunnel egress after relay restarts
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=60s
+Unit=servernet-cloudflared-egress.service
+
+[Install]
+WantedBy=timers.target

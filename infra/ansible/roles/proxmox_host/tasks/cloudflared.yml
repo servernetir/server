@@ -1,0 +1,110 @@
+---
+# Tokens are restored separately from the root-only host backup. Never fetch
+# them into Ansible output, Git, rendered documentation, or a process argv.
+- name: Create private Cloudflare configuration directory
+  ansible.builtin.file:
+    path: /etc/cloudflared
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Check restored tunnel token files
+  ansible.builtin.stat:
+    path: "/etc/cloudflared/{{ item.name }}.token"
+  loop: "{{ pve_cloudflared_tunnels }}"
+  register: _cloudflared_tokens
+
+- name: Require private existing credentials before starting connectors
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.isreg | default(false)
+      - item.stat.mode | default('') in ['0600', '0400']
+    fail_msg: Restore this tunnel's root-only token file from the protected host backup first.
+  loop: "{{ _cloudflared_tokens.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+
+- name: Download verified Cloudflare package
+  ansible.builtin.get_url:
+    url: "https://github.com/cloudflare/cloudflared/releases/download/{{ pve_cloudflared_version }}/cloudflared-linux-amd64.deb"
+    dest: "/root/cloudflared-{{ pve_cloudflared_version }}-amd64.deb"
+    checksum: "sha256:{{ pve_cloudflared_sha256 }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Install the pinned Cloudflare package
+  ansible.builtin.apt:
+    deb: "/root/cloudflared-{{ pve_cloudflared_version }}-amd64.deb"
+    allow_downgrade: false
+  notify: Restart Cloudflare connectors
+
+- name: Install scoped Cloudflare relay policy
+  ansible.builtin.copy:
+    src: servernet-cloudflared-egress.py
+    dest: /usr/local/sbin/servernet-cloudflared-egress
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Cloudflare units
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - cloudflared.service
+    - cloudflared@.service
+    - servernet-cloudflared-egress.service
+    - servernet-cloudflared-egress.timer
+  notify: Restart Cloudflare connectors
+
+- name: Create primary connector drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/cloudflared.service.d
+    state: directory
+    mode: "0755"
+
+- name: Install primary connector settings
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/etc/systemd/system/cloudflared.service.d/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - {src: cloudflared-remote-override.conf, dest: override.conf}
+    - {src: cloudflared-timeout.conf, dest: timeout.conf}
+  notify: Restart Cloudflare connectors
+
+- name: Configure transport without replacing Cloudflare ingress
+  ansible.builtin.template:
+    src: cloudflared-remote.yml.j2
+    dest: "/etc/cloudflared/{{ item.config }}.yml"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ pve_cloudflared_tunnels }}"
+  notify: Restart Cloudflare connectors
+
+- name: Enable Cloudflare egress reconciliation
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - servernet-cloudflared-egress.service
+    - servernet-cloudflared-egress.timer
+
+- name: Enable Cloudflare connectors
+  ansible.builtin.systemd:
+    name: "{{ item.unit }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop: "{{ pve_cloudflared_tunnels }}"

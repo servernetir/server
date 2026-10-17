@@ -1,0 +1,15 @@
+[Unit]
+Description=Cloudflare Tunnel (%i), configured in Cloudflare
+Wants=network-online.target servernet-cloudflared-egress.service
+After=network-online.target servernet-cloudflared-egress.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cloudflared --no-autoupdate --config /etc/cloudflared/%i.yml tunnel run --token-file /etc/cloudflared/%i.token
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

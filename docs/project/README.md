@@ -15,6 +15,7 @@
 | شواهد و شکاف‌های این بررسی | [AUDIT-2026-10-14](AUDIT-2026-10-14.md) |
 | جزئیات و تله‌های فنی | [CLAUDE](../../website/CLAUDE.md) |
 | گزارش تغییرهای تولید و شبکه | [NETWORK-CURRENT](../../NETWORK-CURRENT.md) |
+| بازیابی Cloudflare Tunnel و ماندگاری پس از مهاجرت root | [گزارش ۱۷ اکتبر](../../CLOUDFLARED-AUDIT-2026-10-17.md) |
 | طراحی صورتحساب | [website/docs/billing](../../website/docs/billing/) |
 | AI Gateway و Exit | [docs/ai-gateway](../ai-gateway/) · [docs/exit-platform.md](../exit-platform.md) |
 

@@ -37,6 +37,11 @@
     state: directory
     mode: "0755"
 
+# Explicitly enabled only for the Iran host with restored tunnel credentials.
+- name: Maintain existing Cloudflare connectors and their scoped relay
+  ansible.builtin.include_tasks: cloudflared.yml
+  when: pve_cloudflared_manage | bool
+
 # --- Least-privilege role ----------------------------------------------------
 - name: List existing Proxmox roles
   ansible.builtin.command: pveum role list --output-format json

@@ -1,0 +1,7 @@
+---
+- name: Restart Cloudflare connectors
+  ansible.builtin.systemd:
+    name: "{{ item.unit }}"
+    state: restarted
+    daemon_reload: true
+  loop: "{{ pve_cloudflared_tunnels }}"

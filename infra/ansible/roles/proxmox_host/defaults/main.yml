@@ -9,3 +9,13 @@ iso_storage_content: "iso,vztmpl,snippets"
 # Comments stamped onto created objects.
 pve_pool_comment: "ServerNet platform-sold guests (managed by IaC)"
 pve_user_comment: "ServerNet provisioning controller — API token only"
+
+# Remote ingress is authoritative in Cloudflare. This role maintains only the
+# connector, credentials' locations, and its narrowly scoped existing exit path.
+pve_cloudflared_manage: false
+pve_cloudflared_version: "2026.10.1"
+pve_cloudflared_sha256: "200573c872174ab449965655febadef8edfbb144ebcaa391b700b2dedbadb3cd"
+pve_cloudflared_tunnels:
+  - {name: pve-tunnel, config: config, unit: cloudflared.service, port: 20241}
+  - {name: oyaz, config: oyaz, unit: cloudflared@oyaz.service, port: 20243}
+  - {name: adak, config: adak, unit: cloudflared@adak.service, port: 20244}

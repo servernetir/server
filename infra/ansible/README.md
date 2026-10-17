@@ -220,6 +220,24 @@ in the `dedicated_exits` list (SSH keys via vault) instead of running the comman
 
 ## 7. Reconcile with the live system
 
+### Cloudflare connectors restored on 2026-10-17
+
+The Iran inventory enables `pve_cloudflared_manage`. The `proxmox_host` role now
+maintains the pinned, checksum-verified cloudflared package, the primary
+`pve-tunnel` connector and `cloudflared@oyaz` / `cloudflared@adak` instances.
+Ingress remains authoritative in Cloudflare. Restore each token under
+`/etc/cloudflared/<name>.token` as root:root 0600 before applying; the role
+deliberately refuses missing or public credential files. Never put tokens in Git.
+
+Only IPv4 TCP/7844 from host address 10.10.10.1 to the two existing Cloudflare
+edge subnets is sent through CT113's existing tun119 Germany exit. The dedicated
+egress helper/timer owns priority900 policies, host table7844, and two commented
+CT113 NAT rules; it does not own customer assignments, table50, or SERVERNET-PF.
+Preserve `/etc/cloudflared`, its units, this helper and the actual installed
+package across a root-disk migration: the historical `/usr/local/bin/cloudflared`
+symlink alone cannot restore the executable. See the root-level
+`CLOUDFLARED-AUDIT-2026-10-17.md` for exact evidence, limitations and rollback.
+
 Some things are environment-specific or hand-built; the roles are written to be
 correct from scratch, so for the *existing* box confirm/provide:
 

@@ -1,3 +1,4 @@
 graphify-out/graph.json merge=graphify
 *.sh text eol=lf
+infra/ansible/roles/proxmox_host/files/* text eol=lf
 scripts/seo-analytics-health-wrapper.js text eol=lf

@@ -1,0 +1,5 @@
+# Ingress remains managed in Cloudflare; this file only configures transport.
+protocol: http2
+edge-ip-version: "4"
+edge-bind-address: 10.10.10.1
+metrics: 127.0.0.1:{{ item.port }}
