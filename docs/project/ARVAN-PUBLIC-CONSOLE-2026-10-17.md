@@ -2,6 +2,8 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+Owner confirmed destination is completely blank. Public, unauthenticated checks at13:40UTC retrieved nonempty HTML1332bytes, console.js1427bytes, CSS1194bytes, and all9 legacy scripts with HTTP200. Static HTML includes the branded header and status even before ticket redemption, so ticket expiry alone does not explain complete blankness. A materially safer control test opened only the public root without any ticket or guest access in the same IAB; navigation itself timed out (Page.navigate,20seconds). This supports a browser/navigation-path problem rather than proving a guest/relay fault. It does not prove why IAB fails, nor real WebSocket functionality. No credential link was replayed; no production change made. Avoid additional speculative DNS or guest changes and repeated screenshot requests for the known blank page.
+
 Fresh-tab retest after owner closed the previous stuck tab: IAB inventory confirms a distinct new console tab6 on vnc.servernet.cloud, still titled New tab. Attaching timed out after15seconds waiting for initial navigation. Thus closing/reopening did not resolve the observation blocker; do not ask the owner to repeat this same recovery loop. No desktop pixels, keyboard or pointer control were available, and no successful guest test is claimed. A screenshot of the user's visible destination (without credential URL) or repair of browser tooling is needed before proceeding. No production/network/sales/resource changes in this retest.
 
 ### Workstation DNS/proxy inspection after explicit authorization
