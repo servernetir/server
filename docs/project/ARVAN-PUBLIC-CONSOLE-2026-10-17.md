@@ -2,6 +2,8 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+Second owner handoff check: IAB now shows the actual authenticated service501 detail page (running, console button present, password warning still present), alongside cPanel and admin/cloud. Neither IAB nor the scoped Chrome tab inventory exposes a vnc.servernet.cloud tab. The IAB page's warning/error log is empty. This does not establish whether the popup is blocked, closed or simply unavailable to automation. Request a screenshot of the user's resulting tab rather than repeatedly asking for clicks. No control input was sent to the guest and no production changes were made.
+
 Follow-up after owner supplied `/account/cloud/501/console`: no tab at that URL was available in IAB. Its three visible tabs were cPanel and admin pages; Chrome exposed the service501 detail pages but no vnc.servernet.cloud console tab. Read-only DOM on the authenticated owner page confirms the console control is a POST form with target=_blank, not a directly navigable GET console link. The service remains visually running; no recent warning/error was returned by that page's browser-log reader. No new submit or alternate blocked-tab access was attempted. Ask the owner for the actual resulting console tab or a screenshot/error; do not report guest image/input acceptance. No production changes in this follow-up.
 
 ### Regional Worker published — 17 October 2026, 13:19:26 UTC
