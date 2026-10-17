@@ -3566,4 +3566,3 @@ Route::prefix('agent')->group(function () {
     // تأییدِ اعمال. 🔴 ضربان می‌گوید «زنده‌ام»؛ این می‌گوید «کارت را کردم».
     Route::post('guestpolicy/ack', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicyAck']);
 });
-
