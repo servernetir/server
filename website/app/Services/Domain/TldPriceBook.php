@@ -3,6 +3,7 @@
 namespace App\Services\Domain;
 
 use App\Models\Setting;
+use App\Services\ExchangeRate;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -131,8 +132,24 @@ class TldPriceBook
             (string) config('domain_reseller.min_margin_pct', 8),
             (string) Setting::get('domain_margin_pct'),
             (string) Setting::get('pricing_rate_override'),
+            $this->exchangeStamp(),
             implode(',', $tlds),
         ]));
+    }
+
+    /** Converted prices expire logically as soon as the effective FX changes.
+     * Cache-only reads keep public page rendering free of provider requests.
+     */
+    private function exchangeStamp(): string
+    {
+        $fx = app(ExchangeRate::class);
+        $euroOverride = (int) Setting::get('pricing_rate_override', '0');
+
+        return implode(':', [
+            $euroOverride > 0 ? $euroOverride : ($fx->current('EUR')['rate_toman'] ?? 0),
+            $fx->current('USD')['rate_toman'] ?? 0,
+            $fx->current('USDT')['rate_toman'] ?? 0,
+        ]);
     }
 
     /** پاک‌سازیِ مشترکِ فهرستِ پسوندها — نقطه‌ها، تکراری‌ها، و پسوندهای نافروشی. */
@@ -189,6 +206,7 @@ class TldPriceBook
             (string) config('domain_reseller.min_margin_pct', 8),
             (string) Setting::get('domain_margin_pct'),
             (string) Setting::get('pricing_rate_override'),
+            $this->exchangeStamp(),
             implode(',', $tlds),
         ]));
 

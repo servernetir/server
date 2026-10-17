@@ -2,114 +2,155 @@
 
 namespace Tests\Feature;
 
+use App\Models\CloudPlan;
+use App\Models\Setting;
+use App\Services\Cloud\CloudCatalogSync;
+use App\Services\Domain\TldPriceBook;
 use App\Services\ExchangeRate;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
-/**
- * `fx:dollar` — نرخِ دلار.
- *
- * 🔴 چرا این تست‌ها نوشته شدند: روی سرورِ زنده این فرمان **هر ساعت** با
- * `Undefined array key "usd_irt"` می‌ترکید و زمان‌بندِ لاراول یک خطای ۵۰۰ ثبت
- * می‌کرد. علتش یک ناهم‌خوانیِ نامِ کلید بود — سرویس `rate_toman` می‌دهد و فرمان
- * `usd_irt` می‌خواست.
- *
- * ⚠️ ظرافتی که تشخیص را سخت کرده بود: نرخ **درست ذخیره می‌شد**، چون `Cache::put`
- * پیش از انفجار اجرا می‌شود. پس قیمت‌گذاری سالم بود و تنها نشانه، سیلِ خطای
- * ساعتی بود.
- */
 class FetchDollarTest extends TestCase
 {
     use RefreshDatabase;
-    /**
-     * ⚠️ این کلاس عمداً **مسیرِ دریافتِ زنده** را می‌سنجد (با transportِ فِیک)،
-     * پس کلیدِ خاموشیِ سراسریِ تست را صریح روشن می‌کند.
-     *
-     * `phpunit.xml` آن را خاموش می‌گذارد تا هیچ تستی ناخواسته به اینترنت وصل
-     * نشود — دلیلش در PricingNeverPhonesHomeTest. روشن‌کردنِ صریح این‌جا یعنی
-     * «می‌دانم دارم چه می‌کنم»، نه یک نشتِ تصادفی.
-     */
+
     protected function setUp(): void
     {
         parent::setUp();
-
-        config()->set('services.exchange.enabled', true);
+        Http::preventStrayRequests();
+        $this->mock(TldPriceBook::class)->shouldReceive('forTlds')->byDefault()
+            ->andReturn(array_fill_keys(\App\Http\Controllers\DomainCheckController::SUGGEST, 1000000));
     }
 
-
-    private function fakeRate(int $toman): void
+    private function rates(): array
     {
-        Http::swap(new \Illuminate\Http\Client\Factory);
-        Http::fake(['*alanchand.com*' => Http::response(
-            '<div>قیمت دلار: '.number_format($toman).' تومان</div>'
-            .'<span>'.number_format($toman).'</span><b>'.number_format($toman).'</b>'
-        )]);
+        $rows = [];
+        foreach (['USD' => 92500, 'EUR' => 110000, 'USDT' => 94000] as $currency => $rate) {
+            $rows[$currency] = ['currency' => $currency, 'rate_toman' => $rate,
+                'source' => 'navasan.net', 'source_item' => ExchangeRate::SOURCE_ITEMS[$currency], 'source_at' => now()->toIso8601String(), 'at' => now()->toIso8601String()];
+        }
+
+        return $rows;
     }
 
-    public function test_it_succeeds_and_reports_the_rate(): void
+    public function test_success_refreshes_all_three_currencies_then_reprices_the_catalog(): void
     {
-        $this->fakeRate(92500);
+        Setting::put('cloud_margin_pct', '50');
+        \App\Models\CloudLocation::create([
+            'code' => 'de-falkenstein', 'country' => 'DE', 'city' => 'Falkenstein', 'is_active' => true,
+        ]);
+        $plan = CloudPlan::create([
+            'provider' => 'hetzner', 'provider_ref' => 'fx-test',
+            'location_code' => 'de-falkenstein', 'public_name' => 'FX Test',
+            'slug' => 'fx-test', 'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20,
+            'cost_eur_cents' => 1000, 'price_eur_cents' => 1500, 'price_irt' => 1000000,
+            'is_active' => true, 'in_stock' => true,
+        ]);
+        $this->assertSame(1000000, \App\Services\Cloud\CloudCountry::served()['DE']['cheapest_irt']);
+        $rows = $this->rates();
+        $this->partialMock(ExchangeRate::class, function ($mock) use ($rows) {
+            $mock->shouldReceive('refreshAll')->once()->andReturnUsing(function () use ($rows) {
+                foreach ($rows as $currency => $row) {
+                    Cache::put('fx.'.strtolower($currency).'_irt', $row, now()->addHours(6));
+                }
+                return $rows;
+            });
+        });
+        Cache::put('page:gen', 10);
 
-        $this->artisan('fx:dollar')->assertSuccessful();
+        $this->artisan('fx:dollar')
+            ->expectsOutputToContain('USD: 92,500 تومان · EUR: 110,000 تومان · USDT: 94,000 تومان')
+            ->assertSuccessful();
+
+        $this->assertSame(1650000, (int) $plan->fresh()->price_irt);
+        $this->assertSame(1650000, \App\Services\Cloud\CloudCountry::served()['DE']['cheapest_irt']);
+        $this->assertGreaterThan(10, Cache::get('page:gen'));
+        Http::assertNothingSent();
     }
 
-    /** 🔴 خروجِ ناموفق یعنی خطای ساعتی در ردیابِ خطا */
-    public function test_it_does_not_crash_on_the_success_path(): void
+    public function test_show_reads_all_three_cached_rates_without_refreshing_or_repricing(): void
     {
-        $this->fakeRate(92500);
-
-        $code = $this->artisan('fx:dollar')->run();
-
-        $this->assertSame(0, $code, 'خروج با کدِ غیرصفر یعنی زمان‌بند خطا ثبت می‌کند');
-    }
-
-    /**
-     * ⚠️ کلیدِ کش `fx.usd_irt` است — و منشأِ همان اشتباه: نامِ **کلیدِ کش** با
-     * نامِ **کلیدِ آرایه** قاطی شده بود. این تست عمداً از کلیدِ واقعی استفاده
-     * می‌کند، وگرنه با کشِ خالی هم سبز می‌شد و چیزی را نمی‌سنجید.
-     */
-    public function test_show_mode_reads_the_cached_rate(): void
-    {
-        Cache::put('fx.usd_irt', [
-            'currency' => 'USD', 'rate_toman' => 91000,
-            'source' => 'test', 'at' => now()->toIso8601String(),
-        ], now()->addHour());
+        foreach ($this->rates() as $currency => $row) {
+            Cache::put('fx.'.strtolower($currency).'_irt', $row, now()->addHour());
+        }
+        $this->mock(CloudCatalogSync::class)->shouldNotReceive('reprice');
+        $this->mock(TldPriceBook::class)->shouldNotReceive('forTlds');
 
         $this->artisan('fx:dollar --show')
-            ->expectsOutputToContain('91,000')
+            ->expectsOutputToContain('USD: 92,500')
+            ->expectsOutputToContain('EUR: 110,000')
+            ->expectsOutputToContain('USDT: 94,000')
             ->assertSuccessful();
+        Http::assertNothingSent();
     }
 
-    public function test_show_mode_is_fine_with_no_cached_rate(): void
+    public function test_show_mode_handles_empty_cache(): void
     {
-        Cache::flush();
-
-        $this->artisan('fx:dollar --show')->assertSuccessful();
+        $this->artisan('fx:dollar --show')
+            ->expectsOutputToContain('هنوز نرخی ذخیره نشده')
+            ->assertSuccessful();
+        Http::assertNothingSent();
     }
 
-    /** شکستِ واقعیِ شبکه باید FAILURE بدهد ولی **نترکد** */
-    public function test_a_fetch_failure_fails_cleanly(): void
+    public function test_failed_batch_does_not_reprice_or_purge_previous_prices(): void
     {
-        Http::swap(new \Illuminate\Http\Client\Factory);
-        Http::fake(['*alanchand.com*' => Http::response('no numbers here', 200)]);
+        $this->mock(ExchangeRate::class)->shouldReceive('refreshAll')->once()->andReturnNull();
+        $this->mock(CloudCatalogSync::class)->shouldNotReceive('reprice');
+        $this->mock(TldPriceBook::class)->shouldNotReceive('forTlds');
+        Cache::put('page:gen', 10);
 
-        $code = $this->artisan('fx:dollar')->run();
+        $this->artisan('fx:dollar')->assertFailed();
 
-        $this->assertSame(1, $code);
+        $this->assertSame(10, Cache::get('page:gen'));
+        Http::assertNothingSent();
     }
 
-    /** کلیدی که فرمان می‌خواند باید همانی باشد که سرویس می‌دهد */
-    public function test_the_service_and_the_command_agree_on_the_key(): void
+    public function test_repricing_failure_is_reported_as_failure(): void
     {
-        $this->fakeRate(92500);
+        $this->mock(ExchangeRate::class)->shouldReceive('refreshAll')->once()->andReturn($this->rates());
+        $this->mock(CloudCatalogSync::class)->shouldReceive('reprice')->once()
+            ->andThrow(new \RuntimeException('Synthetic repricing failure'));
+        $this->mock(TldPriceBook::class)->shouldReceive('forTlds')->once()
+            ->andReturn(array_fill_keys(\App\Http\Controllers\DomainCheckController::SUGGEST, 1000000));
 
-        $row = app(ExchangeRate::class)->refresh('USD');
+        $this->artisan('fx:dollar')->assertFailed();
+    }
 
-        $this->assertIsArray($row);
-        $this->assertArrayHasKey('rate_toman', $row);
-        $this->assertArrayNotHasKey('usd_irt', $row,
-            'اگر روزی این کلید برگردد، فرمان هم باید با آن هماهنگ شود');
+    public function test_incomplete_domain_prices_make_the_sync_fail(): void
+    {
+        $this->mock(ExchangeRate::class)->shouldReceive('refreshAll')->once()->andReturn($this->rates());
+        $this->mock(CloudCatalogSync::class)->shouldReceive('reprice')->once()->andReturn(0);
+        $this->mock(TldPriceBook::class)->shouldReceive('forTlds')->once()
+            ->andThrow(new \RuntimeException('Openprovider catalogue pagination is incomplete.'));
+
+        $this->artisan('fx:dollar')->assertFailed();
+    }
+
+    public function test_rates_and_product_sync_run_every_six_hours_with_overlap_protection(): void
+    {
+        $events = collect(app(Schedule::class)->events())
+            ->filter(fn ($event) => str_contains((string) $event->command, 'fx:dollar'));
+
+        $this->assertCount(1, $events);
+        $event = $events->first();
+        $this->assertSame('0 */6 * * *', $event->expression);
+        $this->assertTrue($event->runInBackground);
+        $this->assertTrue($event->withoutOverlapping);
+        // Existing domain warm-up cadence is preserved by this recovery.
+    }
+
+    public function test_daily_price_sync_runs_in_background_without_delaying_other_scheduled_work(): void
+    {
+        $events = collect(app(Schedule::class)->events())
+            ->filter(fn ($event) => str_contains((string) $event->command, 'cloud:sync --prices'));
+
+        $this->assertCount(1, $events);
+        $event = $events->first();
+        $this->assertSame('40 5 * * *', $event->expression);
+        $this->assertTrue($event->runInBackground);
+        $this->assertTrue($event->withoutOverlapping);
     }
 }

@@ -25,7 +25,7 @@ use Illuminate\Console\Command;
  */
 class RefreshTldPriceBook extends Command
 {
-    protected $signature = 'domains:price-book';
+    protected $signature = 'domains:price-book {--strict : خروج ناموفق اگر قیمت همهٔ پسوندها دریافت نشود}';
 
     protected $description = 'تازه‌سازیِ قیمتِ پایهٔ پسوندهای دامنه (کشِ ۶ ساعته)';
 
@@ -39,6 +39,10 @@ class RefreshTldPriceBook extends Command
             $prices = $book->forTlds($tlds);
         } catch (\Throwable $e) {
             $this->warn('استعلام نشد: '.mb_substr($e->getMessage(), 0, 140));
+
+            if ($this->option('strict')) {
+                return self::FAILURE;
+            }
 
             // ⚠️ کدِ خروجِ صفر: `schedule:run` غیرِ صفر را شکستِ فرمان می‌شمارد و
             //    در لاگِ کرون سروصدا می‌کند، در حالی که خوابیدنِ موقتِ رجیسترار
@@ -54,6 +58,10 @@ class RefreshTldPriceBook extends Command
             // بی‌صدا ردنشدن: پسوندِ بی‌قیمت یعنی پیشنهادی که روی صفحهٔ اول
             // بدونِ عدد نشان داده می‌شود.
             $this->warn('بی‌قیمت: '.implode('، ', $missing));
+
+            if ($this->option('strict')) {
+                return self::FAILURE;
+            }
         }
 
         return self::SUCCESS;

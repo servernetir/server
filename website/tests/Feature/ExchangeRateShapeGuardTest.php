@@ -85,7 +85,7 @@ class ExchangeRateShapeGuardTest extends TestCase
         Cache::put('fx.eur_irt', ['currency' => 'EUR', 'rate_toman' => 7], now()->addHour());
 
         Http::swap(new Factory);
-        Http::fake(['*alanchand.com*' => Http::response('nothing parseable here', 200)]);
+        Http::fake([\App\Services\ExchangeRate::SOURCE_URL.'*' => Http::response('nothing parseable here', 200)]);
 
         $this->assertNull(app(ExchangeRate::class)->current('EUR'));
         $this->assertNull(app(ExchangeRate::class)->toToman('EUR'),
@@ -99,12 +99,10 @@ class ExchangeRateShapeGuardTest extends TestCase
     /** صفحهٔ غیرقابل‌تجزیه: مقدارِ قبلی دست‌نخورده می‌مانَد و چیزی جعل نمی‌شود */
     public function test_an_unparseable_page_keeps_the_previous_value(): void
     {
-        Cache::put('fx.usd_irt', [
-            'currency' => 'USD', 'rate_toman' => 91000, 'at' => now()->toIso8601String(),
-        ], now()->addHour());
+        \Tests\Support\NavasanRates::store(['USD' => 91000]);
 
         Http::swap(new Factory);
-        Http::fake(['*alanchand.com*' => Http::response('<div>no prices at all</div>', 200)]);
+        Http::fake([\App\Services\ExchangeRate::SOURCE_URL.'*' => Http::response('<div>no prices at all</div>', 200)]);
 
         $this->assertNull(app(ExchangeRate::class)->refresh('USD'));
         $this->assertSame(91000, app(ExchangeRate::class)->current('USD')['rate_toman']);

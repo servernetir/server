@@ -494,8 +494,8 @@ class CloudCatalogSync
     }
 
     /**
-     * بازمحاسبهٔ قیمت بی‌تماس با API — برای وقتی نرخِ یورو عوض شده ولی
-     * بهایِ تمام‌شده همان است. سریع و بی‌هزینه.
+     * بازمحاسبهٔ قیمت با نرخ تازه؛ بهای غیرِیورویی دوباره از کاتالوگ خوانده می‌شود.
+     * فقط قیمت پلن‌های موجود تغییر می‌کند؛ موجودی و سرویس‌ها دست‌نخورده می‌مانند.
      */
     public function reprice(): int
     {
@@ -523,22 +523,12 @@ class CloudCatalogSync
             return 0;
         }
 
-        $n = 0;
+        $count = (new CloudCatalogRepricer($this->manager, $this->pricing))->run();
+        if ($count > 0) {
+            // Country summaries also cache their lowest displayed prices.
+            \App\Services\SiteMenu::forget();
+        }
 
-        CloudPlan::query()->where('cost_eur_cents', '>', 0)->chunkById(200, function ($plans) use (&$n) {
-            foreach ($plans as $plan) {
-                $price = $this->pricing->priceFor((int) $plan->cost_eur_cents, $plan->provider);
-
-                if ($price['eur_cents'] !== (int) $plan->price_eur_cents || $price['irt'] !== (int) $plan->price_irt) {
-                    $plan->update([
-                        'price_eur_cents' => $price['eur_cents'],
-                        'price_irt'       => $price['irt'],
-                    ]);
-                    $n++;
-                }
-            }
-        });
-
-        return $n;
+        return $count;
     }
 }

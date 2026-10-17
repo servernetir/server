@@ -144,16 +144,7 @@ class SettingsController extends Controller
             'birthday_min_invoice' => ['nullable', 'integer', 'min:0', 'max:500000000'],
         ],
         'pricing' => [
-            'pricing_baseline_rate' => ['nullable', 'integer', 'min:0', 'max:100000000'],
-            /*
-            | 🔴 نرخِ دستی: صفر (= خاموش) یا ۲۰٬۰۰۰ تا ۵٬۰۰۰٬۰۰۰ تومان — همان بازهٔ
-            | اسکرپر. قبلاً تا ۱۰۰ میلیون پذیرفته می‌شد؛ یک صفرِ اضافه یا کم در این
-            | فیلد کلِ کاتالوگ (و از M5 شارژِ هر تماسِ AI) را ده برابر جابه‌جا
-            | می‌کرد بی‌آنکه هیچ هشداری بدهد (B19). regex چون FIELDS ثابت است و
-            | قاعدهٔ closure نمی‌پذیرد.
-            */
-            'pricing_rate_override' => ['nullable', 'integer', 'min:0', 'max:5000000', 'regex:/^(0|[2-9]\d{4}|[1-9]\d{5}|[1-4]\d{6}|5000000)$/'],
-            'pricing_usd_rate_override' => ['nullable', 'integer', 'min:0', 'max:5000000', 'regex:/^(0|[2-9]\d{4}|[1-9]\d{5}|[1-4]\d{6}|5000000)$/'],
+            // Live exchange rates and the internal price anchor are not editable form fields.
             'pricing_fx_fee_pct'        => ['nullable', 'numeric', 'min:0', 'max:25'],
             'pricing_fx_fee_pct_hetzner' => ['nullable', 'numeric', 'min:0', 'max:25'],
             'pricing_fx_fee_pct_aeza'    => ['nullable', 'numeric', 'min:0', 'max:25'],
@@ -442,11 +433,14 @@ class SettingsController extends Controller
 
     private function pricingData(bool $ready): array
     {
+        $fx = app(\App\Services\ExchangeRate::class);
+        $liveRates = [];
+        foreach (['USD', 'EUR', 'USDT'] as $currency) {
+            $liveRates[$currency] = $fx->current($currency);
+        }
+
         return [
             'pricing' => [
-                'pricing_baseline_rate' => $ready ? Setting::get('pricing_baseline_rate') : null,
-                'pricing_rate_override' => $ready ? Setting::get('pricing_rate_override') : null,
-                'pricing_usd_rate_override' => $ready ? Setting::get('pricing_usd_rate_override') : null,
                 'pricing_fx_fee_pct'        => $ready ? Setting::get('pricing_fx_fee_pct') : null,
                 'pricing_fx_fee_pct_hetzner' => $ready ? Setting::get('pricing_fx_fee_pct_hetzner') : null,
                 'pricing_fx_fee_pct_aeza'    => $ready ? Setting::get('pricing_fx_fee_pct_aeza') : null,
@@ -462,8 +456,7 @@ class SettingsController extends Controller
                 'ai_sales_open'          => $ready ? Setting::get('ai_sales_open') : null,
                 'ai_canary_customer_ids' => $ready ? Setting::get('ai_canary_customer_ids') : null,
             ],
-            'liveRate'    => app(\App\Services\ExchangeRate::class)->toToman('EUR'),
-            'priceFactor' => $ready ? price_factor() : 1.0,
+            'liveRates'   => $liveRates,
         ];
     }
 

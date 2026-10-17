@@ -142,6 +142,60 @@ class LightNodeClient implements CloudProvider
         }
     }
 
+    /** Read fresh costs only for existing products omitted by a catalog read. */
+    public function fetchExistingPlanCosts(array $plans): array
+    {
+        if (! $this->fixtureRatesEnabled() && config('lightnode.public_pricing_enabled') !== true) {
+            return ['ok' => false, 'plans' => []];
+        }
+        $rows = [];
+        foreach ($plans as $plan) {
+            if (! $plan instanceof CloudPlan || $plan->provider !== $this->slug()) {
+                return ['ok' => false, 'plans' => []];
+            }
+            $parts = explode('|', $plan->provider_ref);
+            if (count($parts) !== 3 || in_array('', $parts, true)
+                || ($this->manifest()['regions'][$parts[0]]['location_code'] ?? null) !== $plan->location_code) {
+                continue;
+            }
+            [$region, $zone, $code] = $parts;
+            // Two bounded attempts for transient public-calculator omissions.
+            // No catalog traversal, image read, inventory update or purchase.
+            for ($attempt = 0; $attempt < 2; $attempt++) {
+                $packages = $this->packages($region, $zone, $code);
+                if (($packages['ok'] ?? false) !== true) { continue; }
+                $package = collect($packages['rows'])->firstWhere('packageCode', $code);
+                if (! is_array($package)) { continue; }
+                $rate = $this->reviewedRate($plan->provider_ref, $package, true);
+                if ($rate === null) { continue; }
+                // A reused reference with changed specs cannot reprice the old product.
+                if (! $this->existingPlanMatches($plan, $package, $rate)) { break; }
+                $cost = $this->supplierCost($rate);
+                if ($cost === null) { continue; }
+                $rows[] = $cost + ['provider_ref' => $plan->provider_ref,
+                    'location_code' => $plan->location_code];
+                break;
+            }
+        }
+        return ['ok' => true, 'plans' => $rows];
+    }
+
+    private function existingPlanMatches(CloudPlan $plan, array $package, array $rate): bool
+    {
+        $network = $plan->network_terms ?? [];
+        return (int) $plan->vcpu === (int) ($package['cpu'] ?? 0)
+            && (int) $plan->ram_mb === (int) ($package['memory'] ?? 0) * 1024
+            && (int) $plan->boot_disk_gb === (int) ($package['systemDiskSize'] ?? 0)
+            && (int) $plan->data_disk_gb === (int) ($package['dataDiskSize'] ?? 0)
+            && (int) $plan->disk_gb === (int) ($package['systemDiskSize'] ?? 0) + (int) ($package['dataDiskSize'] ?? 0)
+            && (int) $plan->traffic_gb === (int) ($package['freeFlow'] ?? 0)
+            && $plan->cpu_kind === ($rate['cpu_kind'] ?? null)
+            && ($network['cpu_series'] ?? null) === ($rate['series'] ?? null)
+            && ($network['charge_mode'] ?? null) === ($package['publicIpChargeMode'] ?? null)
+            && (int) ($network['bandwidth_mbps'] ?? 0) === (int) ($package['bandwidth'] ?? 0)
+            && (int) ($network['monthly_allowance_gb'] ?? 0) === (int) ($package['freeFlow'] ?? 0);
+    }
+
     private function reviewedRate(string $ref, array $package, bool $fresh = true): ?array
     {
         if (config('lightnode.public_pricing_enabled') === true) {
@@ -204,9 +258,14 @@ class LightNodeClient implements CloudProvider
             'spec' => $this->packageSpec($package)];
     }
 
+    private function usdToToman(): int
+    {
+        $override = (int) Setting::get('pricing_usd_rate_override', '0');
+        return $override > 0 ? $override : (int) app(ExchangeRate::class)->toToman('USD');
+    }
     private function supplierCost(array $rate): ?array
     {
-        $usd = (int) app(ExchangeRate::class)->toToman('USD');
+        $usd = $this->usdToToman();
         $pricing = app(CloudPricing::class); $eur = $pricing->eurToToman();
         if ($usd <= 0 || $eur <= 0) { return null; }
         return ['cost_eur_cents' => (int) ceil($pricing->costWithFee((float) $rate['month_usd'] * $usd / $eur, $this->slug()) * 100),
@@ -243,7 +302,7 @@ class LightNodeClient implements CloudProvider
         $regions = $this->rows('/region/list', 'regions');
         if (! $regions['ok']) { return $regions + $empty; }
         $manifest = $this->manifest();
-        $usd = (int) app(ExchangeRate::class)->toToman('USD');
+        $usd = $this->usdToToman();
         $eur = app(CloudPricing::class)->eurToToman();
         if ($usd <= 0 || $eur <= 0) {
             return ['ok' => false, 'message' => 'نرخ معتبر دلار و یورو برای قیمت‌گذاری در دسترس نیست.'] + $empty;

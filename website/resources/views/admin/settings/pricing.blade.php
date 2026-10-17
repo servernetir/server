@@ -10,34 +10,29 @@
   <input type="hidden" name="tab" value="pricing">
 
   <div class="ad-panel">
-    <div class="ad-panel-h"><h2>نرخِ یورو — لنگرِ همهٔ قیمت‌های سایت</h2></div>
+    <div class="ad-panel-h"><h2>نرخِ دلار، یورو و تتر</h2></div>
     <p class="set-lead">
-      قیمت‌های پایه (تومان) لنگرند. اگر «نرخِ مبنا» را برابرِ نرخِ فعلیِ یورو بگذارید،
-      از این پس همهٔ قیمت‌های سایت و فروشگاه خودکار با نرخِ روزِ یورو بالا/پایین
-      می‌روند. برای تغییرِ کلی هم فقط همین یک عدد را عوض کنید.
-      <br><b>تا وقتی «نرخِ مبنا» خالی باشد، هیچ قیمتی تغییر نمی‌کند</b> (حالتِ امن).
+      منبع نرخ‌ها: <a href="https://www.navasan.net/" target="_blank" rel="noopener noreferrer">نوسان</a>،
+      جدول «نرخ فروش حواله و ارز دیجیتال»؛ دلار آمریکا (شخص)، یورو حواله و تتر.
+      نرخ‌ها هر <b>۶ ساعت</b> دریافت می‌شوند و پس از دریافت موفق، قیمت محصولات همگام می‌شود.
     </p>
-
-    @if($liveRate)
-      <div class="set-rate">
-        <div><small>نرخِ زندهٔ یورو</small><b dir="ltr">{{ fa_num(number_format($liveRate)) }} <span>تومان</span></b></div>
-        <div><small>ضریبِ فعلیِ قیمت‌ها</small><b dir="ltr">{{ fa_num(number_format($priceFactor, 3)) }}<span>×</span></b></div>
-      </div>
-    @endif
-
+    <div class="set-rate" style="flex-wrap:wrap;gap:18px">
+      @foreach(['USD' => 'دلار آمریکا (شخص)', 'EUR' => 'یورو حواله', 'USDT' => 'تتر'] as $currency => $label)
+        @php($rateRow = $liveRates[$currency] ?? null)
+        <div>
+          <small>{{ $label }} ({{ $currency }})</small>
+          @if($rateRow)
+            <b dir="ltr">{{ fa_num(number_format($rateRow['rate_toman'])) }} <span>تومان</span></b>
+            <small>دریافت: <time dir="ltr">{{ $rateRow['at'] ?? 'نامشخص' }}</time></small>
+            <small>زمان اعلام منبع: <time dir="ltr">{{ $rateRow['source_at'] ?? 'نامشخص' }}</time></small>
+            <small>منبع: {{ $rateRow['source'] ?? 'نامشخص' }}{{ !empty($rateRow['stale']) ? ' — آخرین نرخ معتبر؛ دریافت تازه انجام نشده' : '' }}</small>
+          @else
+            <b>نرخ در دسترس نیست</b>
+          @endif
+        </div>
+      @endforeach
+    </div>
     <div class="set-grid three" style="padding:0 18px 18px">
-      <label class="set-f">نرخِ مبنای یورو (تومان)
-        <input type="number" name="pricing_baseline_rate" dir="ltr" min="0"
-               value="{{ $pricing['pricing_baseline_rate'] }}" placeholder="خالی = خاموش">
-        <small>لنگر. تا پر نشود هیچ قیمتی خودکار جابه‌جا نمی‌شود.</small></label>
-      <label class="set-f">نرخِ دستی (به‌جای نرخِ زنده)
-        <input type="number" name="pricing_rate_override" dir="ltr" min="0" max="5000000"
-               value="{{ $pricing['pricing_rate_override'] }}" placeholder="خالی = نرخِ زنده">
-        <small>۲۰٬۰۰۰ تا ۵٬۰۰۰٬۰۰۰ تومان، یا خالی.</small></label>
-      <label class="set-f">نرخِ دستیِ دلار (تومان)
-        <span style="color:var(--dim);font-size:11.5px">زیرساختِ GPU به دلار می‌فروشد؛ بی‌نرخ، پلن‌هایش صفر و نافروختنی می‌شوند.</span>
-        <input type="number" name="pricing_usd_rate_override" dir="ltr" min="0" max="5000000"
-               value="{{ $pricing['pricing_usd_rate_override'] }}" placeholder="خالی = نرخِ زنده"></label>
       <label class="set-f">کارمزد انتقال ارز — پیش‌فرض (٪)
         <span style="color:var(--dim);font-size:11.5px">روی بهای زیرساخت (ماهانه و ساعتی) پیش از حاشیه می‌نشیند — کارمزد حواله/اسپرد و VAT. این عدد <b>پشتیبانِ</b> زیرساخت‌هایی است که پایین عددِ اختصاصی ندارند.</span>
         <input type="number" name="pricing_fx_fee_pct" dir="ltr" min="0" max="25" step="0.1"

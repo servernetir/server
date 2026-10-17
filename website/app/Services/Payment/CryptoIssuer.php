@@ -196,8 +196,8 @@ class CryptoIssuer
      *
      * ═══ چرا همه‌چیز از تومان رد می‌شود ═══
      *
-     * تنها ارزی که برایش نرخِ **زنده و بازارِ آزاد** داریم، تومان است
-     * (`ExchangeRate` هم USD و هم EUR را به تومان می‌دهد). پس یک قیف داریم:
+     * نرخِ حوالهٔ دلار و یورو و نرخِ مستقل تتر از نوسان به تومان می‌آیند.
+     * پس یک مسیر تبدیل داریم:
      *
      *     دارایی → تومان → ارزِ فاکتور
      *
@@ -205,8 +205,7 @@ class CryptoIssuer
      * وابستگیِ اضافه به `CloudPricing`) و برای TRX هیچ مسیری. حالا هر دو
      * ارز و هر دو دارایی از یک راه می‌آیند.
      *
-     * ⚠️ USDT را ۱ دلار **فرض نمی‌کنیم** به تومان: مشتریِ ایرانی با نرخِ آزادِ
-     * دلار حساب می‌کند، نه نرخِ رسمی.
+     * تتر با نرخِ خودش تبدیل می‌شود؛ اختلافِ آن با حوالهٔ دلار حفظ می‌شود.
      *
      * @param  bool  $live  اجازهٔ تماسِ شبکه‌ای. مسیرِ رندرِ صفحه `false` می‌دهد
      *                      تا یک منبعِ کُند صفحهٔ فاکتور را معلق نکند.
@@ -238,19 +237,19 @@ class CryptoIssuer
     /**
      * قیمتِ یک واحدِ دارایی به تومان.
      *
-     * 🔴 استیبل‌کوین لنگرِ تعریفی دارد (۱ تتر ≈ ۱ دلار) ولی TRX ندارد؛ قیمتش
-     * باید از بازار بیاید و اگر نیامد **هیچ عددی جایش نمی‌گذاریم**.
+     * تتر نرخِ مستقلِ تومان دارد. قیمتِ دلاریِ TRX باید از بازار بیاید؛
+     * برای هیچ‌کدام نرخِ داراییِ دیگر را جایگزین نمی‌کنیم.
      */
     private function tomanPerUnit(string $asset, bool $live): float
     {
+        if ($asset === 'USDT') {
+            return $this->tomanPerCurrency('USDT', $live);
+        }
+
         $usd = $this->tomanPerCurrency('USD', $live);
 
         if ($usd <= 0) {
             return 0.0;
-        }
-
-        if ($asset === 'USDT') {
-            return $usd;
         }
 
         $inUsd = (float) (($live ? $this->prices->usd($asset) : $this->prices->cachedUsd($asset)) ?? 0);
@@ -261,9 +260,8 @@ class CryptoIssuer
     /**
      * نرخِ یک ارز به تومان.
      *
-     * ⚠️ در حالتِ غیرزنده فقط کش خوانده می‌شود. کرونِ ساعتیِ `fx:dollar` تنها
-     * نویسندهٔ آن کش است، پس در پروداکشن همیشه گرم است؛ و اگر روزی نبود،
-     * نتیجه «عرضه نکن» است نه «حدس بزن».
+     * در حالتِ غیرزنده فقط نرخِ ذخیره‌شده خوانده می‌شود. همگام‌سازی هر شش
+     * ساعت نرخ را تازه می‌کند؛ اگر نرخِ معتبر نبود پرداخت صادر نمی‌شود.
      */
     private function tomanPerCurrency(string $currency, bool $live): float
     {
@@ -279,6 +277,7 @@ class CryptoIssuer
         $override = (int) \App\Models\Setting::get(match (strtoupper($currency)) {
             'USD' => 'pricing_usd_rate_override',
             'EUR' => 'pricing_rate_override',
+            'USDT' => 'pricing_usdt_rate_override',
             default => '',
         }, '0');
 

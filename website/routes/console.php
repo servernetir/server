@@ -104,9 +104,10 @@ Schedule::command('crypto:audit --days=60 --notify')
     ->weeklyOn(6, '05:30')
     ->withoutOverlapping(60);
 
-// نرخ دلار آزاد — هر ساعت، مبنای قیمت‌گذاری دامنه
+// دلار آمریکا (شخص)، یورو حواله و تتر از نوسان، سپس قیمت محصولات — هر ۶ ساعت.
 Schedule::command('fx:dollar')
-    ->hourly()
+    ->everySixHours()
+    ->runInBackground()
     ->withoutOverlapping(45);
 
 // پایگاه دانش ۱۴۰۵ — راهنمای عملیاتیِ مشتری
@@ -476,12 +477,13 @@ Schedule::command('cloud:sync')
     ->cron('30 22 */2 * *')
     ->withoutOverlapping(60);
 
-// بازمحاسبهٔ قیمتِ تومانی با نرخِ روزِ یورو — روزانه و بی‌تماسِ API.
+// بازمحاسبهٔ پشتیبانِ قیمت محصولات — روزانه با بهای تازه برای زیرساخت غیرِیورویی.
 // جدا از سینکِ کامل است چون نرخِ ارز روزانه می‌جنبد ولی مشخصاتِ پلن‌ها ماه‌ها
 // ثابت می‌مانند؛ بی‌این، قیمتِ تومانی تا سینکِ بعدی کهنه می‌ماند.
-// fx:dollar ساعتی می‌دود، پس نرخ همیشه تازه است.
+// fx:dollar هر ۶ ساعت نرخ‌ها و قیمت‌ها را همگام می‌کند؛ این اجرا پشتیبان روزانه است.
 Schedule::command('cloud:sync --prices')
     ->dailyAt('05:40')
+    ->runInBackground()
     ->withoutOverlapping(45);
 
 // GPU tariffs are in USD. Refresh their currency conversion and availability

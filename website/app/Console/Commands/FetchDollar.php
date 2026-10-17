@@ -2,97 +2,81 @@
 
 namespace App\Console\Commands;
 
+use App\Http\Middleware\PageCache;
+use App\Services\Cloud\CloudCatalogSync;
 use App\Services\ExchangeRate;
+use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 
-/**
- * دریافت ساعتی نرخ دلار آزاد و ذخیره در کش.
- * پنل مدیریت فقط از کش می‌خواند؛ این کامند تنها نویسندهٔ آن است.
- *
- * 🔴 باگی که این‌جا بود و **هر ساعت** روی سرورِ زنده تکرار می‌شد:
- * `ExchangeRate` کلیدِ `rate_toman` برمی‌گرداند، ولی این فرمان `usd_irt`
- * می‌خواند — کلیدی که وجود ندارد. نتیجه `Undefined array key` و خروج با کدِ ۱،
- * پس زمان‌بندِ لاراول هر ساعت یک خطای ۵۰۰ ثبت می‌کرد.
- *
- * ⚠️ نکتهٔ ظریف: نرخ **درست ذخیره می‌شد**. `Cache::put` پیش از `return` است و
- * انفجار فقط در خطِ پیامِ موفقیت رخ می‌داد. یعنی قیمت‌گذاری سالم بود و تنها
- * نشانه‌اش سیلِ خطای ساعتی بود — دقیقاً همان چیزی که وقتی ۴۰۴ها لاگ را پر
- * می‌کنند دیده نمی‌شود.
- */
+/** Refresh the procurement currencies together, then apply them to the catalog. */
 class FetchDollar extends Command
 {
+    // Keep the existing command name for operational compatibility.
     protected $signature = 'fx:dollar {--show : فقط نمایش مقدار فعلی بدون دریافت}';
-    protected $description = 'دریافت نرخ دلار از alanchand.com و ذخیره برای قیمت‌گذاری';
 
-    public function handle(ExchangeRate $fx): int
+    protected $description = 'دریافت دلار، یورو و تتر از نوسان و همگام‌سازی قیمت محصولات';
+
+    public function handle(ExchangeRate $fx, CloudCatalogSync $catalog): int
     {
         if ($this->option('show')) {
-            /*
-            | ⚠️ `$c['rate_toman']` را **مستقیم نخوان**.
-            |
-            | این دقیقاً همان خطی است که یک‌بار `usd_irt` را می‌خواند: کلیدی که
-            | وجود نداشت، `Undefined array key`، خروج با کدِ ۱، و هر ساعت یک
-            | ردیفِ خطا روی سرورِ زنده. عوض‌کردنِ نامِ کلید آن باگ را برد ولی
-            | **شکلِ** آن را نگه داشت — هر تغییرِ آیندهٔ ساختارِ ردیفِ کش همان
-            | انفجار را برمی‌گرداند. حالا ساختار یک بار اعتبارسنجی می‌شود.
-            */
-            $c = $fx->current();
-            $rate = is_array($c) ? ($c['rate_toman'] ?? null) : null;
+            foreach (['USD', 'EUR', 'USDT'] as $currency) {
+                $row = $fx->current($currency);
+                $rate = is_array($row) ? ($row['rate_toman'] ?? null) : null;
 
-            $this->info(is_numeric($rate)
-                ? number_format((int) $rate).' تومان — '.($c['at'] ?? '؟')
-                : 'هنوز نرخی ذخیره نشده');
+                $this->info($currency.': '.(is_numeric($rate)
+                    ? number_format((int) $rate).' تومان — '.($row['at'] ?? '؟')
+                    : 'هنوز نرخی ذخیره نشده'));
+            }
 
             return self::SUCCESS;
         }
 
-        /*
-        | 🔴 **یورو هم** تازه می‌شود، نه فقط دلار.
-        |
-        | `refresh()` بی‌آرگومان یعنی `USD`. پس این کرونِ ساعتی هرگز EUR را
-        | تازه نمی‌کرد، و کشِ یورو فقط ۶ ساعت عمر دارد. زنجیرهٔ خرابی:
-        |
-        |   کشِ EUR منقضی → `CloudPricing::eurToToman()` صفر می‌دهد
-        |     → `CloudCatalogSync::reprice()` روی **همهٔ** پلن‌ها `price_irt=0`
-        |     → `scopeSellable` شرطِ `price_irt > 0` دارد
-        |     → **همهٔ سرورهای مجازی از فروشگاه و صفحاتِ کشور غیب می‌شوند**
-        |
-        | با کدِ ۲۰۰، بی‌استثنا، تا اجرای موفقِ بعدی. قیمتِ دامنه هم روی همین
-        | نرخ سوار است.
-        */
-        $ok = [];
-        $bad = [];
+        // A single validated source snapshot prevents mixing a fresh currency
+        // with a failed currency during repricing.
+        $rates = $fx->refreshAll();
 
-        foreach (['USD', 'EUR'] as $cur) {
-            $r = $fx->refresh($cur);
+        if ($rates === null) {
+            ErrorTracker::note('pricing', 'دریافت نرخ دلار، یورو و تتر از نوسان ناموفق بود؛ همگام‌سازی قیمت محصولات انجام نشد.');
+            $this->error('نرخ ارز تازه نشد — نرخ‌ها و قیمت‌های قبلی حفظ شدند.');
 
-            if ($r === null) {
-                $bad[] = $cur;
+            return self::FAILURE;
+        }
 
-                continue;
+        $labels = [];
+        foreach (['USD', 'EUR', 'USDT'] as $currency) {
+            $labels[] = $currency.': '.number_format($rates[$currency]['rate_toman']).' تومان';
+        }
+        $this->info('نرخ به‌روز شد — '.implode(' · ', $labels));
+
+        $failed = false;
+        try {
+            $count = $catalog->reprice();
+            $this->info("قیمتِ {$count} پلن بازمحاسبه شد.");
+        } catch (\Throwable $e) {
+            report($e);
+            ErrorTracker::note('pricing', 'نرخ نوسان دریافت شد، اما همگام‌سازی قیمت محصولات ناموفق بود.');
+            $this->error('نرخ ارز به‌روز شد، اما همگام‌سازی قیمت محصولات ناموفق بود.');
+
+            $failed = true;
+        }
+
+        // Domain prices have their own FX-sensitive cache. Warm the storefront
+        // list even when a cloud supplier is temporarily unavailable.
+        try {
+            if ($this->call('domains:price-book', ['--strict' => true]) !== self::SUCCESS) {
+                throw new \RuntimeException('Domain price refresh was incomplete.');
             }
-
-            $ok[] = $cur.': '.number_format($r['rate_toman']).' تومان';
+        } catch (\Throwable $e) {
+            report($e);
+            ErrorTracker::note('pricing', 'نرخ نوسان دریافت شد، اما همگام‌سازی قیمت دامنه‌ها کامل نشد.');
+            $this->error('همگام‌سازی قیمت دامنه‌ها کامل نشد.');
+            $failed = true;
+        } finally {
+            // Hosting and domain prices are calculated at read time, so their
+            // public page caches also need to follow the new exchange rates.
+            PageCache::purge();
         }
 
-        if ($bad !== []) {
-            // ⚠️ ردیاب، نه فقط لاگ: لاگِ لاراول روی cPanel عملاً خوانده نمی‌شود،
-            //    و این خرابی مستقیم به «کاتالوگِ خالی» می‌رسد.
-            \App\Support\ErrorTracker::note('pricing', 'نرخِ ارز تازه نشد: '.implode('، ', $bad));
-            $this->error('ناموفق: '.implode('، ', $bad).' — مقدارِ قبلی حفظ شد.');
-        }
-
-        if ($ok !== []) {
-            $this->info('نرخ به‌روز شد — '.implode(' · ', $ok));
-        }
-
-        /*
-        | شکستِ **کامل** ⇒ FAILURE · شکستِ جزئی ⇒ SUCCESS.
-        |
-        | ⚠️ این تفکیک عمدی است. اگر یکی از دو ارز گرفته شود، کار عملاً انجام
-        | شده و کدِ غیرِ صفر فقط لاگِ کرون را پر می‌کند. ولی وقتی **هیچ‌کدام**
-        | نیامد، سکوت خطرناک است: قیمتِ کلِ کاتالوگ روی همین نرخ سوار است.
-        */
-        return $ok === [] ? self::FAILURE : self::SUCCESS;
+        return $failed ? self::FAILURE : self::SUCCESS;
     }
 }
