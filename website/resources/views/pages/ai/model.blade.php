@@ -16,6 +16,7 @@
     <nav class="ai-breadcrumb" aria-label="Breadcrumb">
         <a href="{{ lroute('ai.home') }}">AI Gateway</a><span aria-hidden="true"> / </span>
         <a href="{{ lroute('ai.models') }}">{{ __('ai.catalog') }}</a><span aria-hidden="true"> / </span>
+        <a href="{{ lroute('ai.models', ['type' => $model->category]) }}">{{ __('ai.'.$model->category) }}</a><span aria-hidden="true"> / </span>
         <span>{{ $model->name }}</span>
     </nav>
     <div class="ai-label">{{ $model->vendor }} · {{ $seo['operationLabel'] }}</div>

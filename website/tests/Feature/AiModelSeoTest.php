@@ -156,6 +156,40 @@ class AiModelSeoTest extends TestCase
         $this->get('/ai/models?type=embedding')->assertOk()->assertSee('noindex,follow', false);
     }
 
+    public function test_active_model_categories_have_localized_indexable_landing_pages_and_sitemap_links(): void
+    {
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            $copy = require lang_path($locale.'/ai.php');
+            foreach (AiModel::CATEGORIES as $category) {
+                $this->assertNotEmpty($copy['category_titles'][$category] ?? null);
+                $this->assertNotEmpty($copy['category_headings'][$category] ?? null);
+                $this->assertNotEmpty($copy['category_descriptions'][$category] ?? null);
+                $this->assertCount(3, $copy['category_guides'][$category] ?? []);
+            }
+        }
+        $embedding = AiModel::create(['ai_provider_id' => $this->provider->id,
+            'slug' => 'search-embedding', 'upstream_model' => 'vendor/search-embedding',
+            'name' => 'Search Embedding', 'vendor' => 'Example', 'category' => 'embedding',
+            'status' => 'active', 'context_tokens' => 4096, 'max_output_tokens' => 0]);
+
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $html = $this->get($prefix.'/ai/models?type=embedding')->assertOk()->getContent();
+            $this->assertStringContainsString('rel="canonical" href="http://localhost'.$prefix.'/ai/models?type=embedding"', $html);
+            $this->assertStringContainsString('hreflang="'.$locale.'" href="http://localhost'.$prefix.'/ai/models?type=embedding"', $html);
+            $this->assertStringContainsString('href="http://localhost'.$prefix.'/ai/models/'.$embedding->slug.'"', $html);
+            $this->assertStringNotContainsString('noindex,follow', $html);
+            $this->assertStringNotContainsString('ai.category_', $html);
+            $this->assertSame(1, preg_match_all('~<h1(?:\s|>)~', $html));
+            $this->get($prefix.'/ai')->assertOk()->assertSee($prefix.'/ai/models?type=embedding', false);
+        }
+
+        $sitemap = $this->get('/sitemap.xml')->assertOk()->getContent();
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->assertStringContainsString($prefix.'/ai/models?type=embedding</loc>', $sitemap);
+        }
+        $this->get('/ai/models?q=Search&type=embedding')->assertOk()->assertSee('noindex,follow', false);
+    }
+
     public function test_examples_use_the_public_model_and_the_correct_operation(): void
     {
         foreach (['chat' => ['chat/completions', 'ai:chat'], 'embedding' => ['embeddings', 'ai:embedding'], 'rerank' => ['rerank', 'ai:rerank']] as $type => [$path, $scope]) {
