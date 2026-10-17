@@ -389,6 +389,25 @@ class IdentityApiTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_localized_admin_identity_routes_stay_on_console_and_main_redirects_there(): void
+    {
+        $u = User::factory()->create(['role' => 'admin']);
+        foreach (['en', 'tr'] as $locale) {
+            $path = '/'.$locale.'/admin/identity-api';
+            $this->actingAs($u, 'web')->get('https://console.servernet.cloud'.$path)->assertOk()->assertSee('lang="'.$locale.'"', false)->assertSee('dir="ltr"', false);
+            $this->get('https://servernet.cloud'.$path)->assertRedirect('https://console.servernet.cloud'.$path);
+        }
+    }
+
+    public function test_identity_web_guests_use_existing_login_while_api_guests_receive_401(): void
+    {
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get('https://console.servernet.cloud'.$prefix.'/account/identity-api')->assertRedirect();
+            $this->get('https://console.servernet.cloud'.$prefix.'/admin/identity-api')->assertRedirect('https://console.servernet.cloud/admin/login');
+        }
+        $this->get('/api/v1/identity/services')->assertUnauthorized();
+    }
+
     public function test_customer_budget_is_shared_across_applications(): void
     {
         app(Controls::class)->put('customer_cap:'.$this->customer->id, 2000, 1);

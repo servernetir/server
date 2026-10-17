@@ -130,7 +130,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // دو ورود مستقل داریم: مدیر (/admin) و مشتری (/login با نسخهٔ زبانی).
         // بدون این تفکیک، مشتریِ وارد نشده به صفحهٔ ورود مدیر پرتاب می‌شود.
         $middleware->redirectGuestsTo(function (Request $request) {
-            if ($request->is('admin', 'admin/*')) {
+            if ($request->is('admin', 'admin/*', 'en/admin/identity-api*', 'tr/admin/identity-api*')) {
                 return route('admin.login');
             }
 
@@ -149,6 +149,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Throwable $e, Request $request) {
             if (!\App\Http\Middleware\IdentityPrivacy::sensitive($request)) return null;
+            if ($e instanceof \Illuminate\Auth\AuthenticationException && !$request->is('api/v1/identity*') && !$request->expectsJson()) return null;
             $status=match(true) {
                 $e instanceof \App\Services\IdentityApi\IdentityError=>$e->httpStatus,
                 $e instanceof \Illuminate\Validation\ValidationException=>422,

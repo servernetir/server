@@ -24,7 +24,8 @@ Route::prefix('api/v1/identity')->withoutMiddleware([
 });
 
 foreach (['' => '', 'en/' => 'en.', 'tr/' => 'tr.'] as $prefix => $name) {
-    Route::prefix($prefix.'admin/identity-api')->name($name.'admin.identity.')->middleware(['locale', 'auth:web', 'admin', IdentityPrivacy::class])->group(function () {
+    $locale = $prefix === '' ? 'fa' : rtrim($prefix, '/');
+    Route::prefix($prefix.'admin/identity-api')->name($name.'admin.identity.')->middleware(['locale:'.$locale, 'auth:web', 'admin', IdentityPrivacy::class])->group(function () {
         $c = App\Http\Controllers\Admin\IdentityController::class;
         Route::get('/', [$c, 'index'])->name('index');
         Route::get('export', [$c, 'export'])->name('export');

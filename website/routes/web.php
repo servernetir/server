@@ -27,6 +27,9 @@ use Illuminate\Support\Facades\Route;
 | صفحات جدید را فقط داخل $site اضافه کنید تا خودکار در هر دو زبان ساخته شوند.
 */
 
+// Register private identity routes before the broad uppercase-locale redirect below.
+require __DIR__.'/identity-api.php';
+
 $site = function (): void {
     require __DIR__.'/identity-site.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
@@ -3564,4 +3567,3 @@ Route::prefix('agent')->group(function () {
     Route::post('guestpolicy/ack', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicyAck']);
 });
 
-require __DIR__.'/identity-api.php';
