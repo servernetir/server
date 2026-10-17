@@ -166,6 +166,45 @@ class SnappPayFlowTest extends TestCase
         $this->assertStringContainsString('کلِ فاکتور', (string) $out->error);
     }
 
+    /**
+     * 🔴 ردِ توکن با پیامِ فارسیِ بلند روی پروداکشن ۵۰۰ می‌داد: پیام در
+     * `error_code` (۲۴ نویسه) می‌نشست و MariaDB خطای Data too long می‌داد.
+     * SQLite طول را چک نمی‌کند، پس این‌جا طول را مستقیم می‌سنجیم.
+     */
+    public function test_a_rejected_token_fits_the_payment_error_columns(): void
+    {
+        $long = 'مبلغ سفارش با جمع اقلام سبد خرید همخوانی ندارد و درخواست قابل پردازش نیست '.str_repeat('ـ', 250);
+
+        $this->fake(['*payment/v1/token' => Http::response([
+            'successful' => false,
+            'errorData'  => ['errorCode' => 1004, 'message' => $long],
+        ], 400)]);
+
+        $out = $this->begin($this->invoice());
+
+        $this->assertFalse($out->ok);
+        $p = $out->payment ?? \App\Models\Payment::latest('id')->firstOrFail();
+        $p->refresh();
+        $this->assertSame('failed', $p->status);
+        $this->assertSame('1004', $p->error_code, 'کدِ عددی، نه متنِ پیام');
+        $this->assertLessThanOrEqual(255, mb_strlen((string) $p->error_message));
+        $this->assertSame(0, SnappPayOrder::count());
+    }
+
+    /** توکنی که در external_ref (۱۲۸) جا نشود، به‌جای ۵۰۰ با پیامِ روشن رد می‌شود. */
+    public function test_a_token_longer_than_the_column_is_refused_cleanly(): void
+    {
+        $this->fake(['*payment/v1/token' => Http::response([
+            'successful' => true,
+            'response'   => ['paymentToken' => str_repeat('a', 129), 'paymentPageUrl' => 'https://snapppay.test/pay/x'],
+        ])]);
+
+        $out = $this->begin($this->invoice());
+
+        $this->assertFalse($out->ok);
+        $this->assertSame('token-too-long', \App\Models\Payment::latest('id')->firstOrFail()->error_code);
+    }
+
     // ──────────────────────── کالبک و نهایی‌سازی ────────────────────────
 
     public function test_the_callback_verifies_settles_and_pays_the_invoice(): void
