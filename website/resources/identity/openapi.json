@@ -1,0 +1,2847 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ServerNet Identity & Inquiry API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://servernet.cloud/api/v1/identity"
+    }
+  ],
+  "security": [
+    {
+      "ServerNetBearer": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ServerNetBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "shahkar-inquiry": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          },
+          "national_code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 10
+          }
+        },
+        "required": [
+          "mobile",
+          "national_code"
+        ],
+        "additionalProperties": false
+      },
+      "shahkar-inquiry.result": {
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "matched"
+        ],
+        "type": "object"
+      },
+      "convert-card-to-iban": {
+        "type": "object",
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          }
+        },
+        "required": [
+          "card_number"
+        ],
+        "additionalProperties": false
+      },
+      "convert-card-to-iban.result": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "IBAN": {
+            "type": "string"
+          },
+          "bank_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "IBAN",
+          "bank_name"
+        ],
+        "type": "object"
+      },
+      "iban-inquiry": {
+        "type": "object",
+        "properties": {
+          "iban": {
+            "type": "string",
+            "maxLength": 26,
+            "minLength": 26
+          },
+          "separated": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "iban"
+        ],
+        "additionalProperties": false
+      },
+      "iban-inquiry.result": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bank_name": {
+            "type": "string"
+          },
+          "is_transferable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "bank_name",
+          "is_transferable"
+        ],
+        "type": "object"
+      },
+      "company-inquiry": {
+        "type": "object",
+        "properties": {
+          "national_id": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          }
+        },
+        "required": [
+          "national_id"
+        ],
+        "additionalProperties": false
+      },
+      "company-inquiry.result": {
+        "properties": {
+          "activity_end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "company_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fax_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phone_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issuance_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "national_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "postal_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "register_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "register_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "activity_end_date",
+          "address",
+          "company_type",
+          "created_at",
+          "email_address",
+          "fax_number",
+          "phone_number",
+          "issuance_date",
+          "name",
+          "national_id",
+          "postal_code",
+          "register_date",
+          "register_number"
+        ],
+        "type": "object"
+      },
+      "postal-code-inquiry": {
+        "type": "object",
+        "properties": {
+          "postal_code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 10
+          }
+        },
+        "required": [
+          "postal_code"
+        ],
+        "additionalProperties": false
+      },
+      "postal-code-inquiry.result": {
+        "properties": {
+          "address": {
+            "properties": {
+              "province": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "city": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "town": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "district": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "street": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "street2": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "number": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "floor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "side_floor": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "building_name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "province",
+              "city",
+              "town",
+              "district",
+              "street",
+              "street2",
+              "number",
+              "floor",
+              "side_floor",
+              "building_name",
+              "description"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "type": "object"
+      },
+      "vehicle-inquiry-total-violations": {
+        "type": "object",
+        "properties": {
+          "national_code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 10
+          },
+          "mobile": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          },
+          "region_code": {
+            "type": "string",
+            "maxLength": 2,
+            "minLength": 2
+          },
+          "plate_number": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mobile",
+          "national_code",
+          "plate_number",
+          "region_code"
+        ],
+        "additionalProperties": false
+      },
+      "vehicle-inquiry-total-violations.result": {
+        "properties": {
+          "plate": {
+            "type": "string"
+          },
+          "price_status": {
+            "type": "string"
+          },
+          "page_count": {
+            "type": "integer"
+          },
+          "paper_id": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "warning_price": {
+            "type": "string"
+          },
+          "inquire_price": {
+            "type": "string"
+          },
+          "ejr_inquire_no": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "plate",
+          "price_status",
+          "page_count",
+          "paper_id",
+          "payment_id",
+          "warning_price",
+          "inquire_price",
+          "ejr_inquire_no"
+        ],
+        "type": "object"
+      },
+      "vehicle-inquiry-violations-details": {
+        "type": "object",
+        "properties": {
+          "national_code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 10
+          },
+          "mobile": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          },
+          "region_code": {
+            "type": "string",
+            "maxLength": 2,
+            "minLength": 2
+          },
+          "plate_number": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mobile",
+          "national_code",
+          "plate_number",
+          "region_code"
+        ],
+        "additionalProperties": false
+      },
+      "vehicle-inquiry-violations-details.result": {
+        "properties": {
+          "warnings": {
+            "items": {
+              "properties": {
+                "serial_no": {
+                  "type": "string"
+                },
+                "violation_occure_date": {
+                  "type": "string"
+                },
+                "violation_occure_time": {
+                  "type": "string"
+                },
+                "violation_delivery_type": {
+                  "properties": {
+                    "violation_delivery_type": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "type": "object"
+                },
+                "violation_type": {
+                  "properties": {
+                    "violation_type_id": {
+                      "type": "string"
+                    },
+                    "violation_type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "violation_type_id",
+                    "violation_type"
+                  ],
+                  "type": "object"
+                },
+                "final_price": {
+                  "type": "string"
+                },
+                "paper_id": {
+                  "type": "string"
+                },
+                "payment_id": {
+                  "type": "string"
+                },
+                "has_image": {
+                  "type": "boolean"
+                },
+                "warning_id": {
+                  "type": "string"
+                },
+                "investigation_ability": {
+                  "type": "boolean"
+                },
+                "violatoin_address": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "serial_no",
+                "violation_occure_date",
+                "violation_occure_time",
+                "violation_delivery_type",
+                "violation_type",
+                "final_price",
+                "paper_id",
+                "payment_id",
+                "has_image",
+                "warning_id",
+                "investigation_ability"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "match-payment-card-number-and-id-number": {
+        "type": "object",
+        "properties": {
+          "national_code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 10
+          },
+          "birth_date": {
+            "type": "string",
+            "description": "Jalali date; YYYY/MM/DD. Not a Gregorian ISO date.",
+            "x-calendar": "persian"
+          },
+          "card_number": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          }
+        },
+        "required": [
+          "birth_date",
+          "card_number",
+          "national_code"
+        ],
+        "additionalProperties": false
+      },
+      "match-payment-card-number-and-id-number.result": {
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "matched"
+        ],
+        "type": "object"
+      },
+      "match-iban-and-id-number": {
+        "type": "object",
+        "properties": {
+          "national_code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 10
+          },
+          "birth_date": {
+            "type": "string",
+            "description": "Jalali date; YYYY/MM/DD. Not a Gregorian ISO date.",
+            "x-calendar": "persian"
+          },
+          "IBAN": {
+            "type": "string",
+            "maxLength": 26,
+            "minLength": 26
+          }
+        },
+        "required": [
+          "IBAN",
+          "birth_date",
+          "national_code"
+        ],
+        "additionalProperties": false
+      },
+      "match-iban-and-id-number.result": {
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "matched"
+        ],
+        "type": "object"
+      },
+      "enamad-inquiry": {
+        "type": "object",
+        "properties": {
+          "website": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "website"
+        ],
+        "additionalProperties": false
+      },
+      "enamad-inquiry.result": {
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "expired": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "srv_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "state_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "city_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "approve_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "expiry_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "company-inquiry-board-members": {
+        "type": "object",
+        "properties": {
+          "national_id": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          }
+        },
+        "required": [
+          "national_id"
+        ],
+        "additionalProperties": false
+      },
+      "company-inquiry-board-members.result": {
+        "properties": {
+          "company_title": {
+            "type": "string"
+          },
+          "board_members": {
+            "items": {
+              "properties": {
+                "position": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "start_date": {
+                  "type": "string"
+                },
+                "duration": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "position",
+                "name",
+                "start_date"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "company_title",
+          "board_members"
+        ],
+        "type": "object"
+      },
+      "company-inquiry-board-members-history": {
+        "type": "object",
+        "properties": {
+          "national_id": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          }
+        },
+        "required": [
+          "national_id"
+        ],
+        "additionalProperties": false
+      },
+      "company-inquiry-board-members-history.result": {
+        "properties": {
+          "company_title": {
+            "type": "string"
+          },
+          "board_members": {
+            "items": {
+              "properties": {
+                "position": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "start_date": {
+                  "type": "string"
+                },
+                "duration": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "end_date": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "position",
+                "name",
+                "start_date",
+                "duration",
+                "end_date"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "company_title",
+          "board_members"
+        ],
+        "type": "object"
+      },
+      "card-inquiry": {
+        "type": "object",
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          }
+        },
+        "required": [
+          "card_number"
+        ],
+        "additionalProperties": false
+      },
+      "card-inquiry.result": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "convert-account-number-to-iban": {
+        "type": "object",
+        "properties": {
+          "bank_account": {
+            "type": "string"
+          },
+          "bank_code": {
+            "enum": [
+              "066",
+              "015",
+              "061",
+              "012",
+              "017",
+              "013",
+              "059",
+              "014",
+              "062",
+              "063",
+              "018",
+              "070",
+              "056",
+              "010",
+              "058",
+              "019",
+              "052",
+              "054",
+              "016",
+              "064",
+              "021",
+              "057",
+              "053",
+              "078",
+              "069",
+              "079",
+              "011",
+              "055",
+              "022",
+              "020",
+              "095",
+              "065",
+              "060",
+              "075",
+              "080",
+              "073",
+              "051"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "bank_account",
+          "bank_code"
+        ],
+        "additionalProperties": false
+      },
+      "convert-account-number-to-iban.result": {
+        "properties": {
+          "iban": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "iban"
+        ],
+        "type": "object"
+      },
+      "match-name-and-payment-card": {
+        "type": "object",
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "card_number",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "match-name-and-payment-card.result": {
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "matched"
+        ],
+        "type": "object"
+      },
+      "match-iban-and-name": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "IBAN": {
+            "type": "string",
+            "maxLength": 26,
+            "minLength": 26
+          }
+        },
+        "required": [
+          "IBAN",
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "match-iban-and-name.result": {
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "matched"
+        ],
+        "type": "object"
+      },
+      "convert-card-to-account-number": {
+        "type": "object",
+        "properties": {
+          "card_number": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          }
+        },
+        "required": [
+          "card_number"
+        ],
+        "additionalProperties": false
+      },
+      "convert-card-to-account-number.result": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bank_account": {
+            "type": "string"
+          },
+          "bank_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "bank_account",
+          "bank_name"
+        ],
+        "type": "object"
+      },
+      "convert-persian-name-to-english": {
+        "type": "object",
+        "properties": {
+          "persian_text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "persian_text"
+        ],
+        "additionalProperties": false
+      },
+      "convert-persian-name-to-english.result": {
+        "properties": {
+          "finglish_text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "finglish_text"
+        ],
+        "type": "object"
+      },
+      "id-inquiry": {
+        "type": "object",
+        "properties": {
+          "birth_date": {
+            "type": "string",
+            "description": "Jalali date; YYYY/MM/DD. Not a Gregorian ISO date.",
+            "x-calendar": "persian"
+          },
+          "national_code": {
+            "type": "string",
+            "maxLength": 10,
+            "minLength": 10
+          },
+          "gender": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "birth_date",
+          "national_code"
+        ],
+        "additionalProperties": false
+      },
+      "id-inquiry.result": {
+        "properties": {
+          "matched": {
+            "type": "boolean"
+          },
+          "first_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "national_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "father_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "alive": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "is_dead": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "matched"
+        ],
+        "type": "object"
+      },
+      "check-sayad-inquiry": {
+        "type": "object",
+        "properties": {
+          "sayad_id": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          }
+        },
+        "required": [
+          "sayad_id"
+        ],
+        "additionalProperties": false
+      },
+      "check-sayad-inquiry.result": {
+        "properties": {
+          "sayad_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "iban": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "issue_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expiration_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "serial_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "check_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "branch_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "returned_cheques": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "sayad_id",
+          "iban",
+          "issue_date",
+          "expiration_date",
+          "serial_no",
+          "series_no",
+          "check_type",
+          "branch_code",
+          "name"
+        ],
+        "type": "object"
+      },
+      "bounced-cheque-inquiry": {
+        "type": "object",
+        "properties": {
+          "national_code": {
+            "type": "string"
+          },
+          "nationality_type": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "national_code",
+          "nationality_type"
+        ],
+        "additionalProperties": false
+      },
+      "bounced-cheque-inquiry.result": {
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "type": "object"
+      },
+      "voice-otp": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "mobile"
+        ],
+        "additionalProperties": false
+      },
+      "voice-otp.result": {
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "type": "object"
+      },
+      "water-bill-inquiry": {
+        "type": "object",
+        "properties": {
+          "bill_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bill_id"
+        ],
+        "additionalProperties": false
+      },
+      "water-bill-inquiry.result": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "bill_id": {
+            "type": "string"
+          },
+          "current_date": {
+            "type": "string"
+          },
+          "previous_date": {
+            "type": "string"
+          },
+          "payment_id": {
+            "type": "string"
+          },
+          "payment_date": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "account_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "amount",
+          "bill_id",
+          "current_date",
+          "previous_date",
+          "payment_id",
+          "payment_date",
+          "full_name",
+          "account_type"
+        ],
+        "type": "object"
+      },
+      "electricity-bill-inquiry": {
+        "type": "object",
+        "properties": {
+          "bill_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bill_id"
+        ],
+        "additionalProperties": false
+      },
+      "electricity-bill-inquiry.result": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "bill_id": {
+            "type": "string"
+          },
+          "current_date": {
+            "type": "string"
+          },
+          "previous_date": {
+            "type": "string"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "payment_date": {
+            "type": "string"
+          },
+          "account_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "address",
+          "amount",
+          "full_name",
+          "bill_id",
+          "current_date",
+          "previous_date",
+          "payment_date",
+          "account_type"
+        ],
+        "type": "object"
+      },
+      "rightel-bill-inquiry": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          }
+        },
+        "required": [
+          "mobile"
+        ],
+        "additionalProperties": false
+      },
+      "rightel-bill-inquiry.result": {
+        "properties": {
+          "final_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mid_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "type": "object"
+      },
+      "irancell-bill-inquiry": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          }
+        },
+        "required": [
+          "mobile"
+        ],
+        "additionalProperties": false
+      },
+      "irancell-bill-inquiry.result": {
+        "properties": {
+          "final_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mid_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "type": "object"
+      },
+      "mci-bill-inquiry": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11
+          }
+        },
+        "required": [
+          "mobile"
+        ],
+        "additionalProperties": false
+      },
+      "mci-bill-inquiry.result": {
+        "properties": {
+          "final_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mid_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "type": "object"
+      },
+      "fixed-line-bill-inquiry": {
+        "type": "object",
+        "properties": {
+          "phone_number": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone_number"
+        ],
+        "additionalProperties": false
+      },
+      "fixed-line-bill-inquiry.result": {
+        "properties": {
+          "final_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "mid_term": {
+            "anyOf": [
+              {
+                "properties": {
+                  "amount": {
+                    "type": "integer"
+                  },
+                  "bill_id": {
+                    "type": "string"
+                  },
+                  "payment_id": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "bill_id",
+                  "payment_id"
+                ],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "type": "object"
+      },
+      "gas-bill-inquiry": {
+        "type": "object",
+        "properties": {
+          "bill_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "bill_id"
+        ],
+        "additionalProperties": false
+      },
+      "gas-bill-inquiry.result": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "integer"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "bill_id": {
+            "type": "string"
+          },
+          "current_reading_date": {
+            "type": "string"
+          },
+          "previous_reading_date": {
+            "type": "string"
+          },
+          "payment_date": {
+            "type": "string"
+          },
+          "consumption_type": {
+            "type": "string"
+          },
+          "payment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "previous_counter_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "current_counter_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "subscription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "taxes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "insurance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "address",
+          "amount",
+          "full_name",
+          "bill_id",
+          "current_reading_date",
+          "previous_reading_date",
+          "payment_date",
+          "consumption_type"
+        ],
+        "type": "object"
+      },
+      "sayad-transfers-chain-inquiry": {
+        "type": "object",
+        "properties": {
+          "sayad_id": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          },
+          "cheque_type": {
+            "type": "string"
+          },
+          "national_code": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 10
+          }
+        },
+        "required": [
+          "cheque_type",
+          "national_code",
+          "sayad_id"
+        ],
+        "additionalProperties": false
+      },
+      "sayad-transfers-chain-inquiry.result": {
+        "properties": {
+          "chain": {
+            "items": {
+              "properties": {
+                "customers": {
+                  "default": [],
+                  "items": {
+                    "properties": {
+                      "name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null
+                      },
+                      "national_code": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null
+                      },
+                      "customer_type": {
+                        "anyOf": [
+                          {
+                            "type": "integer"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "default": null
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": "array"
+                },
+                "role_type": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "chain"
+        ],
+        "type": "object"
+      },
+      "cheque-submitted-inquiry": {
+        "type": "object",
+        "properties": {
+          "sayad_id": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 16
+          },
+          "national_code": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 10
+          }
+        },
+        "required": [
+          "national_code",
+          "sayad_id"
+        ],
+        "additionalProperties": false
+      },
+      "cheque-submitted-inquiry.result": {
+        "properties": {
+          "status": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "paths": {
+    "/services": {
+      "get": {
+        "summary": "Available catalog, accepted input schemas and current price versions",
+        "x-required-scopes": [
+          "identity:services:read"
+        ],
+        "responses": {
+          "200": {
+            "description": "Prices are integer IRT including output tax; unavailable prices and price versions are null."
+          },
+          "401": {
+            "description": "Invalid key"
+          },
+          "403": {
+            "description": "Explicit scope and owned active application required"
+          }
+        }
+      }
+    },
+    "/pricing": {
+      "get": {
+        "summary": "Available catalog, accepted input schemas and current price versions",
+        "x-required-scopes": [
+          "identity:services:read"
+        ],
+        "responses": {
+          "200": {
+            "description": "Prices are integer IRT including output tax; unavailable prices and price versions are null."
+          },
+          "401": {
+            "description": "Invalid key"
+          },
+          "403": {
+            "description": "Explicit scope and owned active application required"
+          }
+        }
+      }
+    },
+    "/inquiries/{service}": {
+      "post": {
+        "summary": "Execute a paid inquiry with an accepted maximum fee",
+        "x-required-scopes": [
+          "identity:execute",
+          "identity:<service category>"
+        ],
+        "x-service-inputs": {
+          "shahkar-inquiry": "#/components/schemas/shahkar-inquiry",
+          "convert-card-to-iban": "#/components/schemas/convert-card-to-iban",
+          "iban-inquiry": "#/components/schemas/iban-inquiry",
+          "company-inquiry": "#/components/schemas/company-inquiry",
+          "postal-code-inquiry": "#/components/schemas/postal-code-inquiry",
+          "vehicle-inquiry-total-violations": "#/components/schemas/vehicle-inquiry-total-violations",
+          "vehicle-inquiry-violations-details": "#/components/schemas/vehicle-inquiry-violations-details",
+          "match-payment-card-number-and-id-number": "#/components/schemas/match-payment-card-number-and-id-number",
+          "match-iban-and-id-number": "#/components/schemas/match-iban-and-id-number",
+          "enamad-inquiry": "#/components/schemas/enamad-inquiry",
+          "company-inquiry-board-members": "#/components/schemas/company-inquiry-board-members",
+          "company-inquiry-board-members-history": "#/components/schemas/company-inquiry-board-members-history",
+          "card-inquiry": "#/components/schemas/card-inquiry",
+          "convert-account-number-to-iban": "#/components/schemas/convert-account-number-to-iban",
+          "match-name-and-payment-card": "#/components/schemas/match-name-and-payment-card",
+          "match-iban-and-name": "#/components/schemas/match-iban-and-name",
+          "convert-card-to-account-number": "#/components/schemas/convert-card-to-account-number",
+          "convert-persian-name-to-english": "#/components/schemas/convert-persian-name-to-english",
+          "id-inquiry": "#/components/schemas/id-inquiry",
+          "check-sayad-inquiry": "#/components/schemas/check-sayad-inquiry",
+          "bounced-cheque-inquiry": "#/components/schemas/bounced-cheque-inquiry",
+          "voice-otp": "#/components/schemas/voice-otp",
+          "water-bill-inquiry": "#/components/schemas/water-bill-inquiry",
+          "electricity-bill-inquiry": "#/components/schemas/electricity-bill-inquiry",
+          "rightel-bill-inquiry": "#/components/schemas/rightel-bill-inquiry",
+          "irancell-bill-inquiry": "#/components/schemas/irancell-bill-inquiry",
+          "mci-bill-inquiry": "#/components/schemas/mci-bill-inquiry",
+          "fixed-line-bill-inquiry": "#/components/schemas/fixed-line-bill-inquiry",
+          "gas-bill-inquiry": "#/components/schemas/gas-bill-inquiry",
+          "sayad-transfers-chain-inquiry": "#/components/schemas/sayad-transfers-chain-inquiry",
+          "cheque-submitted-inquiry": "#/components/schemas/cheque-submitted-inquiry"
+        },
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "shahkar-inquiry",
+                "convert-card-to-iban",
+                "iban-inquiry",
+                "company-inquiry",
+                "postal-code-inquiry",
+                "vehicle-inquiry-total-violations",
+                "vehicle-inquiry-violations-details",
+                "match-payment-card-number-and-id-number",
+                "match-iban-and-id-number",
+                "enamad-inquiry",
+                "company-inquiry-board-members",
+                "company-inquiry-board-members-history",
+                "card-inquiry",
+                "convert-account-number-to-iban",
+                "match-name-and-payment-card",
+                "match-iban-and-name",
+                "convert-card-to-account-number",
+                "convert-persian-name-to-english",
+                "id-inquiry",
+                "check-sayad-inquiry",
+                "bounced-cheque-inquiry",
+                "voice-otp",
+                "water-bill-inquiry",
+                "electricity-bill-inquiry",
+                "rightel-bill-inquiry",
+                "irancell-bill-inquiry",
+                "mci-bill-inquiry",
+                "fixed-line-bill-inquiry",
+                "gas-bill-inquiry",
+                "sayad-transfers-chain-inquiry",
+                "cheque-submitted-inquiry"
+              ]
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_.:-]{16,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "input",
+                  "max_charge_irt"
+                ],
+                "properties": {
+                  "input": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/shahkar-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/convert-card-to-iban"
+                      },
+                      {
+                        "$ref": "#/components/schemas/iban-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/company-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/postal-code-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/vehicle-inquiry-total-violations"
+                      },
+                      {
+                        "$ref": "#/components/schemas/vehicle-inquiry-violations-details"
+                      },
+                      {
+                        "$ref": "#/components/schemas/match-payment-card-number-and-id-number"
+                      },
+                      {
+                        "$ref": "#/components/schemas/match-iban-and-id-number"
+                      },
+                      {
+                        "$ref": "#/components/schemas/enamad-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/company-inquiry-board-members"
+                      },
+                      {
+                        "$ref": "#/components/schemas/company-inquiry-board-members-history"
+                      },
+                      {
+                        "$ref": "#/components/schemas/card-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/convert-account-number-to-iban"
+                      },
+                      {
+                        "$ref": "#/components/schemas/match-name-and-payment-card"
+                      },
+                      {
+                        "$ref": "#/components/schemas/match-iban-and-name"
+                      },
+                      {
+                        "$ref": "#/components/schemas/convert-card-to-account-number"
+                      },
+                      {
+                        "$ref": "#/components/schemas/convert-persian-name-to-english"
+                      },
+                      {
+                        "$ref": "#/components/schemas/id-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/check-sayad-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/bounced-cheque-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/voice-otp"
+                      },
+                      {
+                        "$ref": "#/components/schemas/water-bill-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/electricity-bill-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/rightel-bill-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/irancell-bill-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/mci-bill-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/fixed-line-bill-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/gas-bill-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/sayad-transfers-chain-inquiry"
+                      },
+                      {
+                        "$ref": "#/components/schemas/cheque-submitted-inquiry"
+                      }
+                    ]
+                  },
+                  "max_charge_irt": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "price_version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ServerNet receipt. Result expires after 24 hours; the used key remains a tombstone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "request_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "processing_status": {
+                      "enum": [
+                        "accepted",
+                        "processing",
+                        "completed",
+                        "failed",
+                        "unknown"
+                      ]
+                    },
+                    "inquiry_outcome": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "financial_status": {
+                      "enum": [
+                        "reserved",
+                        "captured",
+                        "released",
+                        "pending_reconciliation",
+                        "refunded"
+                      ]
+                    },
+                    "charged": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "reserved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "const": "IRT"
+                    },
+                    "price_version": {
+                      "type": "integer"
+                    },
+                    "result": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/shahkar-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-card-to-iban.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/iban-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/postal-code-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/vehicle-inquiry-total-violations.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/vehicle-inquiry-violations-details.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-payment-card-number-and-id-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-iban-and-id-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/enamad-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry-board-members.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry-board-members-history.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/card-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-account-number-to-iban.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-name-and-payment-card.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-iban-and-name.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-card-to-account-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-persian-name-to-english.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/id-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/check-sayad-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/bounced-cheque-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/voice-otp.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/water-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/electricity-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/rightel-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/irancell-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/mci-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/fixed-line-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/gas-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/sayad-transfers-chain-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/cheque-submitted-inquiry.result"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "ServerNet receipt. Result expires after 24 hours; the used key remains a tombstone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "request_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "processing_status": {
+                      "enum": [
+                        "accepted",
+                        "processing",
+                        "completed",
+                        "failed",
+                        "unknown"
+                      ]
+                    },
+                    "inquiry_outcome": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "financial_status": {
+                      "enum": [
+                        "reserved",
+                        "captured",
+                        "released",
+                        "pending_reconciliation",
+                        "refunded"
+                      ]
+                    },
+                    "charged": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "reserved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "const": "IRT"
+                    },
+                    "price_version": {
+                      "type": "integer"
+                    },
+                    "result": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/shahkar-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-card-to-iban.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/iban-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/postal-code-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/vehicle-inquiry-total-violations.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/vehicle-inquiry-violations-details.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-payment-card-number-and-id-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-iban-and-id-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/enamad-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry-board-members.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry-board-members-history.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/card-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-account-number-to-iban.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-name-and-payment-card.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-iban-and-name.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-card-to-account-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-persian-name-to-english.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/id-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/check-sayad-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/bounced-cheque-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/voice-otp.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/water-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/electricity-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/rightel-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/irancell-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/mci-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/fixed-line-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/gas-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/sayad-transfers-chain-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/cheque-submitted-inquiry.result"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired key"
+          },
+          "402": {
+            "description": "Insufficient available funds or budget"
+          },
+          "403": {
+            "description": "Explicit scopes and owned eligible application required"
+          },
+          "409": {
+            "description": "Idempotency payload or quote conflict"
+          },
+          "422": {
+            "description": "Invalid input; identifiers must be strings"
+          },
+          "429": {
+            "description": "Rate, quota or concurrency limit"
+          },
+          "503": {
+            "description": "Service, pricing, funding or contract prerequisites unavailable"
+          }
+        }
+      }
+    },
+    "/requests/{id}": {
+      "get": {
+        "x-required-scopes": [
+          "identity:requests:read"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ServerNet receipt. Result expires after 24 hours; the used key remains a tombstone.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "request_id": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "service": {
+                      "type": "string"
+                    },
+                    "processing_status": {
+                      "enum": [
+                        "accepted",
+                        "processing",
+                        "completed",
+                        "failed",
+                        "unknown"
+                      ]
+                    },
+                    "inquiry_outcome": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "financial_status": {
+                      "enum": [
+                        "reserved",
+                        "captured",
+                        "released",
+                        "pending_reconciliation",
+                        "refunded"
+                      ]
+                    },
+                    "charged": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "reserved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "currency": {
+                      "const": "IRT"
+                    },
+                    "price_version": {
+                      "type": "integer"
+                    },
+                    "result": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/components/schemas/shahkar-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-card-to-iban.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/iban-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/postal-code-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/vehicle-inquiry-total-violations.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/vehicle-inquiry-violations-details.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-payment-card-number-and-id-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-iban-and-id-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/enamad-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry-board-members.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/company-inquiry-board-members-history.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/card-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-account-number-to-iban.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-name-and-payment-card.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/match-iban-and-name.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-card-to-account-number.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/convert-persian-name-to-english.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/id-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/check-sayad-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/bounced-cheque-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/voice-otp.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/water-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/electricity-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/rightel-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/irancell-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/mci-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/fixed-line-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/gas-bill-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/sayad-transfers-chain-inquiry.result"
+                        },
+                        {
+                          "$ref": "#/components/schemas/cheque-submitted-inquiry.result"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Explicit scope required"
+          },
+          "404": {
+            "description": "No owned request"
+          }
+        }
+      }
+    }
+  }
+}

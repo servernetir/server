@@ -1,0 +1,4601 @@
+[
+  {
+    "slug": "shahkar-inquiry",
+    "provider_service_id": "ShahkarMatchPhoneNumberNationalId",
+    "catalog_id": "1",
+    "title": "استعلام شاهکار(تطابق کد ملی و شماره موبایل)",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/shahkar",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "mobile": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            },
+            "national_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            }
+          },
+          "required": [
+            "mobile",
+            "national_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "matched"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 13000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Shahkar.postman_collection_qpgbs0R.json"
+  },
+  {
+    "slug": "convert-card-to-iban",
+    "provider_service_id": "CardToIban",
+    "catalog_id": "5",
+    "title": "تبدیل کارت به شبا",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/card_to_iban",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "card_number": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            }
+          },
+          "required": [
+            "card_number"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "IBAN": {
+                      "type": "string"
+                    },
+                    "bank_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "IBAN",
+                    "bank_name"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 6000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Card_To_Iban.postman_collection.json"
+  },
+  {
+    "slug": "iban-inquiry",
+    "provider_service_id": "IBAN",
+    "catalog_id": "12",
+    "title": "استعلام شبا",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/iban",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "iban": {
+              "type": "string",
+              "maxLength": 26,
+              "minLength": 26
+            },
+            "separated": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "iban"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "bank_name": {
+                      "type": "string"
+                    },
+                    "is_transferable": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "bank_name",
+                    "is_transferable"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 4000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Iban.postman_collection.json"
+  },
+  {
+    "slug": "ocr-for-id-card",
+    "provider_service_id": "NationalCardOCR",
+    "catalog_id": "9",
+    "title": "OCR کارت ملی",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/national_card_ocr",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_card_back": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "binary"
+                },
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "national_card_front": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "binary"
+                },
+                {
+                  "type": "string",
+                  "format": "uri"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "front": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "last_name": {
+                              "type": "string"
+                            },
+                            "birth_date": {
+                              "type": "string"
+                            },
+                            "first_name": {
+                              "type": "string"
+                            },
+                            "father_name": {
+                              "type": "string"
+                            },
+                            "national_code": {
+                              "type": "string"
+                            },
+                            "expiration_date": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null
+                            },
+                            "city": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null
+                            },
+                            "province": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null
+                            },
+                            "face_photo": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null
+                            }
+                          },
+                          "required": [
+                            "last_name",
+                            "birth_date",
+                            "first_name",
+                            "father_name",
+                            "national_code"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "back": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "serial_card": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "default": null
+                            }
+                          },
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "multipart/form-data",
+          "application/x-www-form-urlencoded",
+          "application/json"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": "media_contract_conflict",
+    "catalog_price_unverified": 27000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/National_Card_Ocr.postman_collection.json"
+  },
+  {
+    "slug": "company-inquiry",
+    "provider_service_id": "CompanyInquery",
+    "catalog_id": "19",
+    "title": "استعلام اطلاعات شرکت",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/company_inquiry",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_id": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            }
+          },
+          "required": [
+            "national_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "activity_end_date": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "address": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "company_type": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "created_at": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "email_address": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "fax_number": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "phone_number": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "issuance_date": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "national_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "postal_code": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "register_date": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "register_number": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "activity_end_date",
+                    "address",
+                    "company_type",
+                    "created_at",
+                    "email_address",
+                    "fax_number",
+                    "phone_number",
+                    "issuance_date",
+                    "name",
+                    "national_id",
+                    "postal_code",
+                    "register_date",
+                    "register_number"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 65000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/CompanyInfoV1.postman_collection.json"
+  },
+  {
+    "slug": "postal-code-inquiry",
+    "provider_service_id": "PostalCodeInquery",
+    "catalog_id": "14",
+    "title": "استعلام کد پستی",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/postal_code_inquiry",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "postal_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            }
+          },
+          "required": [
+            "postal_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "address": {
+                      "properties": {
+                        "province": {
+                          "anyOf": [
+                            {
+                              "type": "null"
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "city": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "town": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "district": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "street": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "street2": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "number": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "floor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "side_floor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "building_name": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "province",
+                        "city",
+                        "town",
+                        "district",
+                        "street",
+                        "street2",
+                        "number",
+                        "floor",
+                        "side_floor",
+                        "building_name",
+                        "description"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "address"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 33000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Postal_Code.postman_collection.json"
+  },
+  {
+    "slug": "vehicle-inquiry-total-violations",
+    "provider_service_id": "VehicleTotalViolations",
+    "catalog_id": "22",
+    "title": "استعلام خلافی خودرو",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/vehicle_inquiry/total_violations",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            },
+            "mobile": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            },
+            "region_code": {
+              "type": "string",
+              "maxLength": 2,
+              "minLength": 2
+            },
+            "plate_number": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mobile",
+            "national_code",
+            "plate_number",
+            "region_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "plate": {
+                      "type": "string"
+                    },
+                    "price_status": {
+                      "type": "string"
+                    },
+                    "page_count": {
+                      "type": "integer"
+                    },
+                    "paper_id": {
+                      "type": "string"
+                    },
+                    "payment_id": {
+                      "type": "string"
+                    },
+                    "warning_price": {
+                      "type": "string"
+                    },
+                    "inquire_price": {
+                      "type": "string"
+                    },
+                    "ejr_inquire_no": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "plate",
+                    "price_status",
+                    "page_count",
+                    "paper_id",
+                    "payment_id",
+                    "warning_price",
+                    "inquire_price",
+                    "ejr_inquire_no"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 300000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "vehicle-inquiry-violations-details",
+    "provider_service_id": "VehicleViolationsDetails",
+    "catalog_id": "23",
+    "title": "استعلام خلافی خودرو با جزئیات",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/vehicle_inquiry/violations_details",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            },
+            "mobile": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            },
+            "region_code": {
+              "type": "string",
+              "maxLength": 2,
+              "minLength": 2
+            },
+            "plate_number": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "mobile",
+            "national_code",
+            "plate_number",
+            "region_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "warnings": {
+                      "items": {
+                        "properties": {
+                          "serial_no": {
+                            "type": "string"
+                          },
+                          "violation_occure_date": {
+                            "type": "string"
+                          },
+                          "violation_occure_time": {
+                            "type": "string"
+                          },
+                          "violation_delivery_type": {
+                            "properties": {
+                              "violation_delivery_type": {
+                                "anyOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "default": null
+                              }
+                            },
+                            "type": "object"
+                          },
+                          "violation_type": {
+                            "properties": {
+                              "violation_type_id": {
+                                "type": "string"
+                              },
+                              "violation_type": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "violation_type_id",
+                              "violation_type"
+                            ],
+                            "type": "object"
+                          },
+                          "final_price": {
+                            "type": "string"
+                          },
+                          "paper_id": {
+                            "type": "string"
+                          },
+                          "payment_id": {
+                            "type": "string"
+                          },
+                          "has_image": {
+                            "type": "boolean"
+                          },
+                          "warning_id": {
+                            "type": "string"
+                          },
+                          "investigation_ability": {
+                            "type": "boolean"
+                          },
+                          "violatoin_address": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          }
+                        },
+                        "required": [
+                          "serial_no",
+                          "violation_occure_date",
+                          "violation_occure_time",
+                          "violation_delivery_type",
+                          "violation_type",
+                          "final_price",
+                          "paper_id",
+                          "payment_id",
+                          "has_image",
+                          "warning_id",
+                          "investigation_ability"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "warnings"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 300000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "match-payment-card-number-and-id-number",
+    "provider_service_id": "CheckCardWithNationalCode",
+    "catalog_id": "7",
+    "title": "تطابق شماره کارت و کد ملی",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/check_card_with_national_code",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            },
+            "birth_date": {
+              "type": "string",
+              "format": "date"
+            },
+            "card_number": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            }
+          },
+          "required": [
+            "birth_date",
+            "card_number",
+            "national_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "matched"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 29000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Check_Card_With_National_Code.postman_collection.json"
+  },
+  {
+    "slug": "match-iban-and-id-number",
+    "provider_service_id": "CheckIBANWithNationalCode",
+    "catalog_id": "8",
+    "title": "تطابق کد ملی و شماره شبا",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/check_iban_with_national_code",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            },
+            "birth_date": {
+              "type": "string",
+              "format": "date"
+            },
+            "IBAN": {
+              "type": "string",
+              "maxLength": 26,
+              "minLength": 26
+            }
+          },
+          "required": [
+            "IBAN",
+            "birth_date",
+            "national_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "matched"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 29000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Check_Iban_With_National_Code.postman_collection.json"
+  },
+  {
+    "slug": "enamad-inquiry",
+    "provider_service_id": "EnamadInquiry",
+    "catalog_id": "18",
+    "title": "استعلام اینماد Enamad",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/enamad_inquiry",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "website": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "website"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    },
+                    "expired": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "srv_text": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "state_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "city_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "approve_date": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "expiry_date": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 40000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Enamad_Inquiry.postman_collection.json"
+  },
+  {
+    "slug": "company-inquiry-board-members",
+    "provider_service_id": "CompanyBoardMembers",
+    "catalog_id": "20",
+    "title": "استعلام اعضای هیئت‌مدیره شرکت",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/company_inquiry/board_members",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_id": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            }
+          },
+          "required": [
+            "national_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "company_title": {
+                      "type": "string"
+                    },
+                    "board_members": {
+                      "items": {
+                        "properties": {
+                          "position": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "type": "string"
+                          },
+                          "duration": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          }
+                        },
+                        "required": [
+                          "position",
+                          "name",
+                          "start_date"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "company_title",
+                    "board_members"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 81000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Company_Board_Members_Inquiry.postman_collection_kVdlu8V.json"
+  },
+  {
+    "slug": "company-inquiry-board-members-history",
+    "provider_service_id": "CompanyBoardMembersHistory",
+    "catalog_id": "21",
+    "title": "استعلام تاریخچه اعضای هیئت‌مدیره شرکت",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/company_inquiry/board_members/history",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_id": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            }
+          },
+          "required": [
+            "national_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "company_title": {
+                      "type": "string"
+                    },
+                    "board_members": {
+                      "items": {
+                        "properties": {
+                          "position": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "start_date": {
+                            "type": "string"
+                          },
+                          "duration": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "end_date": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "position",
+                          "name",
+                          "start_date",
+                          "duration",
+                          "end_date"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "company_title",
+                    "board_members"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 91000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Company_Board_Members_History_Inquiry.postman_collection.json"
+  },
+  {
+    "slug": "card-inquiry",
+    "provider_service_id": "CardInquery",
+    "catalog_id": "3",
+    "title": "استعلام نام صاحب کارت",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/card_inquiry",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "card_number": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            }
+          },
+          "required": [
+            "card_number"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 4000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Card_Inquiry.postman_collection.json"
+  },
+  {
+    "slug": "convert-account-number-to-iban",
+    "provider_service_id": "AccountToIBAN",
+    "catalog_id": "2",
+    "title": "تبدیل حساب به شبا",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/account_to_iban",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "bank_account": {
+              "type": "string"
+            },
+            "bank_code": {
+              "enum": [
+                "066",
+                "015",
+                "061",
+                "012",
+                "017",
+                "013",
+                "059",
+                "014",
+                "062",
+                "063",
+                "018",
+                "070",
+                "056",
+                "010",
+                "058",
+                "019",
+                "052",
+                "054",
+                "016",
+                "064",
+                "021",
+                "057",
+                "053",
+                "078",
+                "069",
+                "079",
+                "011",
+                "055",
+                "022",
+                "020",
+                "095",
+                "065",
+                "060",
+                "075",
+                "080",
+                "073",
+                "051"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "bank_account",
+            "bank_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "iban": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "iban"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 6000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Account_To_Iban.postman_collection.json"
+  },
+  {
+    "slug": "match-name-and-payment-card",
+    "provider_service_id": "CheckCardWithName",
+    "catalog_id": "6",
+    "title": "تطابق کارت و نام صاحب کارت",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/check_card_with_name",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "card_number": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "card_number",
+            "name"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "matched"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 4000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Check_Card_With_Name.postman_collection.json"
+  },
+  {
+    "slug": "match-iban-and-name",
+    "provider_service_id": "CheckIBANWithName",
+    "catalog_id": "10",
+    "title": "تطابق شبا و نام صاحب شبا",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/check_iban_with_name",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "IBAN": {
+              "type": "string",
+              "maxLength": 26,
+              "minLength": 26
+            }
+          },
+          "required": [
+            "IBAN",
+            "name"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "matched"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 4000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Check_Iban_With_Name.postman_collection.json"
+  },
+  {
+    "slug": "convert-card-to-account-number",
+    "provider_service_id": "CardToAccount",
+    "catalog_id": "4",
+    "title": "تبدیل کارت به حساب",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/card_to_account",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "card_number": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            }
+          },
+          "required": [
+            "card_number"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "bank_account": {
+                      "type": "string"
+                    },
+                    "bank_name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "bank_account",
+                    "bank_name"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 6000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Card_To_Account.postman_collection.json"
+  },
+  {
+    "slug": "convert-persian-name-to-english",
+    "provider_service_id": "PersianToEnglish",
+    "catalog_id": "13",
+    "title": "تبدیل نام فارسی به فینگلیش",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/persian_to_finglish",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "persian_text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "persian_text"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "finglish_text": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "finglish_text"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 5000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/Persian_to_Finglish.postman_collection.json"
+  },
+  {
+    "slug": "id-inquiry",
+    "provider_service_id": "NationalIdentity",
+    "catalog_id": "11",
+    "title": "استعلام اطلاعات هویتی",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/national_identity_inquiry",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "birth_date": {
+              "type": "string",
+              "format": "date"
+            },
+            "national_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            },
+            "gender": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "birth_date",
+            "national_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "matched": {
+                      "type": "boolean"
+                    },
+                    "first_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "national_code": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "last_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "father_name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "alive": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "is_dead": {
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "matched"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 68000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": "https://statics.zohal.io/webservice/postman/collections/National_Identitiy_Inquiry.postman_collection_kmj5bX3.json"
+  },
+  {
+    "slug": "liveness-check",
+    "provider_service_id": "BiometricCheckLiveNess",
+    "catalog_id": "25",
+    "title": "احراز هویت ویدیویی",
+    "category": "authentication",
+    "operations": [
+      {
+        "name": "media",
+        "path": "/api/v0/services/biometric/media/",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "selfie_video"
+              ],
+              "type": "string"
+            },
+            "file": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": [
+            "file",
+            "type"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type",
+                "id"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "multipart/form-data"
+        ],
+        "parameters": []
+      },
+      {
+        "name": "session",
+        "path": "/api/v0/services/biometric/session/liveness/",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "media": {
+              "type": "object",
+              "properties": {
+                "selfie_video": {
+                  "type": "string"
+                }
+              }
+            },
+            "callback_url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "birth_date": {
+              "type": "string",
+              "format": "date"
+            },
+            "national_code": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            },
+            "national_card_serial": {
+              "type": "string",
+              "maxLength": 10,
+              "minLength": 10
+            },
+            "gender": {
+              "enum": [
+                0,
+                1
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "birth_date",
+            "media",
+            "national_card_serial",
+            "national_code"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "session_id": {
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "pending",
+                    "waiting",
+                    "processing",
+                    "completed",
+                    "failed"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "session_id",
+                "status"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      },
+      {
+        "name": "result",
+        "path": "/api/v0/services/biometric/session/{session_id}/result/",
+        "method": "GET",
+        "input": {},
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "result": {
+                  "type": "string"
+                },
+                "reason": {
+                  "enum": [
+                    "ACCEPT",
+                    "REJECT_INPUT_DATA_INVALID",
+                    "REJECT_SERIAL_NATIONAL_CARD_WRONG",
+                    "REJECT_NATIONAL_CARD_EXPIRED",
+                    "REJECT_INFO_NOT_MATCHED",
+                    "REJECT_FACE_NOT_MATCH_ID",
+                    "REJECT_VIDEO_NOT_LIVE",
+                    "REJECT_VIDEO_BAD_LIGHT",
+                    "REJECT_VIDEO_BAD_QUALITY",
+                    "REJECT_PERSON_TOO_FAR_AWAY",
+                    "REJECT_MORE_THAN_ONE_PERSON",
+                    "REJECT_NO_PERSON_DETECTED",
+                    "REJECT_INCOMPATIBLE_HEJAB",
+                    "REJECT_INCOMPATIBLE_ANGLE_CAMERA",
+                    "REJECT_INCOMPATIBLE_BACKGROUND",
+                    "REJECT_INCOMPATIBLE_LOOK_CAMERA",
+                    "REJECT_FAKE_VIDEO",
+                    "REJECT_INVALID_SIGNATURE",
+                    "REJECT_USER_DID_NOT_SPEAK_REQUIRED_TEXT",
+                    "SERVICE_UNAVAILABLE",
+                    "UNDEFINED",
+                    "UNKNOWN"
+                  ],
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "status": {
+                  "enum": [
+                    "pending",
+                    "waiting",
+                    "processing",
+                    "completed",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                "completed_at": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "result",
+                "reason",
+                "type",
+                "status"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ]
+      }
+    ],
+    "contract_blocker": "media_and_stage_billing_unverified",
+    "catalog_price_unverified": 250000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "check-sayad-inquiry",
+    "provider_service_id": "CheckSayadInquiry",
+    "catalog_id": "26",
+    "title": "استعلام شناسه چک صیادی",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/check_sayad_inquiry",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "sayad_id": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            }
+          },
+          "required": [
+            "sayad_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "sayad_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "iban": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "issue_date": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "expiration_date": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "serial_no": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "series_no": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "check_type": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "branch_code": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "name": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "returned_cheques": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "sayad_id",
+                    "iban",
+                    "issue_date",
+                    "expiration_date",
+                    "serial_no",
+                    "series_no",
+                    "check_type",
+                    "branch_code",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 67000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "bounced-cheque-inquiry",
+    "provider_service_id": "BouncedCheque",
+    "catalog_id": "28",
+    "title": "استعلام چک برگشتی",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bounced_cheque",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "national_code": {
+              "type": "string"
+            },
+            "nationality_type": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "national_code",
+            "nationality_type"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "count"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 91000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "voice-otp",
+    "provider_service_id": "VoiceOTP",
+    "catalog_id": "30",
+    "title": "وب سرویس OTP صوتی (رمز یکبار مصرف)",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/voice_otp",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "mobile": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            },
+            "code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "mobile"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 3500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "credit-inquiry",
+    "provider_service_id": "CreditInquiry",
+    "catalog_id": "31",
+    "title": "استعلام اعتبارسنجی",
+    "category": "bank",
+    "operations": [],
+    "contract_blocker": "missing_official_method_payload_and_stage_billing",
+    "catalog_price_unverified": 140000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "water-bill-inquiry",
+    "provider_service_id": "WaterBillInquiry",
+    "catalog_id": "33",
+    "title": "استعلام قبض آب",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bill/water",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "bill_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "bill_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "integer"
+                    },
+                    "bill_id": {
+                      "type": "string"
+                    },
+                    "current_date": {
+                      "type": "string"
+                    },
+                    "previous_date": {
+                      "type": "string"
+                    },
+                    "payment_id": {
+                      "type": "string"
+                    },
+                    "payment_date": {
+                      "type": "string"
+                    },
+                    "full_name": {
+                      "type": "string"
+                    },
+                    "account_type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "amount",
+                    "bill_id",
+                    "current_date",
+                    "previous_date",
+                    "payment_id",
+                    "payment_date",
+                    "full_name",
+                    "account_type"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 2500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "electricity-bill-inquiry",
+    "provider_service_id": "ElectricityBillInquiry",
+    "catalog_id": "34",
+    "title": "استعلام قبض برق",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bill/electricity",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "bill_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "bill_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "integer"
+                    },
+                    "full_name": {
+                      "type": "string"
+                    },
+                    "bill_id": {
+                      "type": "string"
+                    },
+                    "current_date": {
+                      "type": "string"
+                    },
+                    "previous_date": {
+                      "type": "string"
+                    },
+                    "payment_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "payment_date": {
+                      "type": "string"
+                    },
+                    "account_type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "amount",
+                    "full_name",
+                    "bill_id",
+                    "current_date",
+                    "previous_date",
+                    "payment_date",
+                    "account_type"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 2500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "rightel-bill-inquiry",
+    "provider_service_id": "RightelBillInquiry",
+    "catalog_id": "36",
+    "title": "استعلام قبض رایتل",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bill/rightel",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "mobile": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            }
+          },
+          "required": [
+            "mobile"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "final_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "mid_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 2500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "irancell-bill-inquiry",
+    "provider_service_id": "IrancellBillInquiry",
+    "catalog_id": "37",
+    "title": "استعلام قبض ایرانسل",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bill/irancell",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "mobile": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            }
+          },
+          "required": [
+            "mobile"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "final_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "mid_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 2500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "mci-bill-inquiry",
+    "provider_service_id": "MCIBillInquiry",
+    "catalog_id": "38",
+    "title": "استعلام قبض همراه اول",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bill/mci",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "mobile": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 11
+            }
+          },
+          "required": [
+            "mobile"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "final_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "mid_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 2500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "fixed-line-bill-inquiry",
+    "provider_service_id": "FixedLineBillInquiry",
+    "catalog_id": "39",
+    "title": "استعلام قبض تلفن ثابت",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bill/fixed_line",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "phone_number": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "phone_number"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "final_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "mid_term": {
+                      "anyOf": [
+                        {
+                          "properties": {
+                            "amount": {
+                              "type": "integer"
+                            },
+                            "bill_id": {
+                              "type": "string"
+                            },
+                            "payment_id": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "amount",
+                            "bill_id",
+                            "payment_id"
+                          ],
+                          "type": "object"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 2500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "gas-bill-inquiry",
+    "provider_service_id": "GasBillInquiry",
+    "catalog_id": "40",
+    "title": "استعلام قبض گاز",
+    "category": "utility",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/bill/gas",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "bill_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "bill_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "address": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "integer"
+                    },
+                    "full_name": {
+                      "type": "string"
+                    },
+                    "bill_id": {
+                      "type": "string"
+                    },
+                    "current_reading_date": {
+                      "type": "string"
+                    },
+                    "previous_reading_date": {
+                      "type": "string"
+                    },
+                    "payment_date": {
+                      "type": "string"
+                    },
+                    "consumption_type": {
+                      "type": "string"
+                    },
+                    "payment_id": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "previous_counter_value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "current_counter_value": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "subscription": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "taxes": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    },
+                    "insurance": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "default": null
+                    }
+                  },
+                  "required": [
+                    "address",
+                    "amount",
+                    "full_name",
+                    "bill_id",
+                    "current_reading_date",
+                    "previous_reading_date",
+                    "payment_date",
+                    "consumption_type"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 2500,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "sayad-transfers-chain-inquiry",
+    "provider_service_id": "SayadTransfersChainInquiry",
+    "catalog_id": "46",
+    "title": "استعلام زنجیره انتقالات چک صیادی",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/check_sayad_inquiry/chain",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "sayad_id": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            },
+            "cheque_type": {
+              "type": "string"
+            },
+            "national_code": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 10
+            }
+          },
+          "required": [
+            "cheque_type",
+            "national_code",
+            "sayad_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "chain": {
+                      "items": {
+                        "properties": {
+                          "customers": {
+                            "default": [],
+                            "items": {
+                              "properties": {
+                                "name": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null
+                                },
+                                "national_code": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null
+                                },
+                                "customer_type": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "default": null
+                                }
+                              },
+                              "type": "object"
+                            },
+                            "type": "array"
+                          },
+                          "role_type": {
+                            "anyOf": [
+                              {
+                                "type": "integer"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "default": null
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  },
+                  "required": [
+                    "chain"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 30000,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "cheque-submitted-inquiry",
+    "provider_service_id": "ChequeSubmittedInquiry",
+    "catalog_id": "48",
+    "title": "استعلام وضعیت ثبت چک صیادی",
+    "category": "bank",
+    "operations": [
+      {
+        "name": "execute",
+        "path": "/api/v0/services/inquiry/check_sayad_inquiry/submitted",
+        "method": "POST",
+        "input": {
+          "type": "object",
+          "properties": {
+            "sayad_id": {
+              "type": "string",
+              "maxLength": 16,
+              "minLength": 16
+            },
+            "national_code": {
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 10
+            }
+          },
+          "required": [
+            "national_code",
+            "sayad_id"
+          ]
+        },
+        "output": {
+          "properties": {
+            "response_body": {
+              "properties": {
+                "data": {
+                  "properties": {
+                    "status": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "message": {
+                  "type": "string"
+                },
+                "error_code": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "default": null
+                }
+              },
+              "required": [
+                "data",
+                "message"
+              ],
+              "type": "object"
+            },
+            "result": {
+              "enum": [
+                1,
+                4,
+                5,
+                6
+              ],
+              "type": "integer"
+            }
+          },
+          "required": [
+            "response_body",
+            "result"
+          ],
+          "type": "object"
+        },
+        "content_types": [
+          "application/json",
+          "application/x-www-form-urlencoded",
+          "multipart/form-data"
+        ],
+        "parameters": []
+      }
+    ],
+    "contract_blocker": null,
+    "catalog_price_unverified": 0,
+    "source": "https://service.zohal.io/api/v0/services/openapi/",
+    "checked_at": "2026-10-17",
+    "account_access": "not_listed_active_in_dashboard_2026-10-17",
+    "postman_source": null
+  },
+  {
+    "slug": "iban-detailed-inquiry",
+    "provider_service_id": null,
+    "catalog_id": "44",
+    "title": "استعلام شبا با جزئیات",
+    "category": "bank",
+    "operations": [],
+    "contract_blocker": "account_only_product_no_public_schema",
+    "catalog_price_unverified": null,
+    "source": "https://dashboard.zohal.io/services",
+    "checked_at": "2026-10-17",
+    "account_access": "active_in_dashboard_2026-10-17",
+    "postman_source": null
+  }
+]

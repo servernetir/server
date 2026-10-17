@@ -225,6 +225,7 @@ class ErrorTracker
 
     private static function requestUrl(?Request $request): ?string
     {
+        if ($request && \App\Http\Middleware\IdentityPrivacy::sensitive($request)) return $request->getSchemeAndHttpHost().'/identity-api/[redacted]';
         // These opaque IDs and signatures are temporary supplier credentials, including on 404s.
         return $request?->is('api/ai-media/*') ? $request->getSchemeAndHttpHost().'/api/ai-media/[redacted]' : $request?->fullUrl();
     }

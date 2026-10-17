@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 $site = function (): void {
+    require __DIR__.'/identity-site.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
     // [ai-storefront:start]
     Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
@@ -614,7 +615,17 @@ $site = function (): void {
 
         // امنیت حساب — رمز (با OTP)، قوانین IP، توکن‌های API
         Route::get('/ai', [\App\Http\Controllers\Account\AiController::class, 'index'])->name('ai');
-        Route::get('/security', [Account\SecurityController::class, 'index'])->name('security');
+        Route::get('/security', [Account\SecurityController::class, 'index'])->name('security')->middleware(\App\Http\Middleware\IdentityPrivacy::class);
+        Route::middleware(\App\Http\Middleware\IdentityPrivacy::class)->group(function () {
+            $identity=\App\Http\Controllers\Account\IdentityController::class;
+            Route::get('/identity-api',[$identity,'index'])->name('identity');
+            Route::post('/identity-api/applications',[$identity,'activate'])->name('identity.activate')->middleware('throttle:10,1');
+            Route::post('/identity-api/applications/{application}',[$identity,'update'])->name('identity.application')->middleware('throttle:20,1');
+            Route::post('/identity-api/inquire',[$identity,'inquire'])->name('identity.inquire')->middleware('throttle:10,1');
+            Route::post('/identity-api/sandbox',[$identity,'sandbox'])->name('identity.sandbox')->middleware('throttle:20,1');
+            Route::post('/identity-api/keys/{token}',[Account\SecurityController::class,'identityTokenUpdate'])->name('identity.key-update')->middleware('throttle:20,1');
+            Route::get('/identity-api/requests/{id}',[$identity,'result'])->name('identity.result')->middleware('throttle:60,1');
+        });
         Route::post('/security/password/start', [Account\SecurityController::class, 'passwordStart'])->name('security.pw.start')->middleware('throttle:resend');
         Route::post('/security/password', [Account\SecurityController::class, 'passwordVerify'])->name('security.pw')->middleware('throttle:otp');
         Route::post('/security/ip', [Account\SecurityController::class, 'ipStore'])->name('security.ip')->middleware('throttle:forms');
@@ -3552,3 +3563,5 @@ Route::prefix('agent')->group(function () {
     // تأییدِ اعمال. 🔴 ضربان می‌گوید «زنده‌ام»؛ این می‌گوید «کارت را کردم».
     Route::post('guestpolicy/ack', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicyAck']);
 });
+
+require __DIR__.'/identity-api.php';

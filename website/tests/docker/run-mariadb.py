@@ -14,6 +14,8 @@ def main():
     parser.add_argument('--checkout', type=Path, required=True, help='Isolated repository with installed website/vendor')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--image', default='servernet-tests:php84')
+    parser.add_argument('--database-image', choices=['mariadb:11.8', 'mariadb:10.11'], default='mariadb:11.8')
+    parser.add_argument('--suite', choices=['AiReservationMariaDbStressTest','IdentityMariaDbStressTest','IdentityApiTest'], default='AiReservationMariaDbStressTest')
     args = parser.parse_args()
     checkout = args.checkout.resolve(strict=True)
     app = checkout / 'website'
@@ -42,7 +44,7 @@ def main():
             db_env.chmod(0o600)
             docker('create', '--name', database, '--network', name, '--network-alias', 'db',
                    '--tmpfs', '/var/lib/mysql:rw,size=512m', '--env-file', str(db_env),
-                   'mariadb:11.8', capture_output=True)
+                   args.database_image, capture_output=True)
             created.append(('container', database))
             docker('start', database, capture_output=True)
             for attempt in range(60):
@@ -53,6 +55,19 @@ def main():
                 time.sleep(1)
             else:
                 raise RuntimeError('Disposable MariaDB did not become ready')
+
+            # Exercise the release backup strategy on synthetic data, never production data.
+            # The password stays inside the container and is absent from argv and logs.
+            docker('exec', database, 'sh', '-ec', r'''
+umask 077
+trap 'rm -f /tmp/identity-backup.cnf /tmp/identity-backup.sql' EXIT
+printf '[client]\nuser=stress\npassword=%s\n' "$MARIADB_PASSWORD" > /tmp/identity-backup.cnf
+mariadb --defaults-extra-file=/tmp/identity-backup.cnf servernet_stress -e "CREATE TABLE identity_backup_probe (id INT PRIMARY KEY, value VARCHAR(40)) ENGINE=InnoDB; INSERT INTO identity_backup_probe VALUES (1,'synthetic'),(2,'restore');"
+mariadb-dump --defaults-extra-file=/tmp/identity-backup.cnf --single-transaction --skip-lock-tables --no-tablespaces --hex-blob --default-character-set=utf8mb4 servernet_stress identity_backup_probe > /tmp/identity-backup.sql
+mariadb --defaults-extra-file=/tmp/identity-backup.cnf servernet_stress -e 'DROP TABLE identity_backup_probe'
+mariadb --defaults-extra-file=/tmp/identity-backup.cnf servernet_stress < /tmp/identity-backup.sql
+test "$(mariadb --defaults-extra-file=/tmp/identity-backup.cnf -N servernet_stress -e 'SELECT COUNT(*) FROM identity_backup_probe')" = 2
+''', capture_output=True)
 
             app_env = Path(tmp) / 'app.env'
             app_env.write_text('\n'.join([
@@ -70,7 +85,7 @@ def main():
                    '--workdir', '/workspace/website', args.image, 'sh', '-c',
                    'mkdir -p storage/framework/views storage/framework/sessions storage/framework/cache/data storage/logs storage/app bootstrap/cache && '
                    'php -v && php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit '
-                   '--do-not-cache-result --log-junit /results/mariadb.xml tests/Feature/AiReservationMariaDbStressTest.php',
+                   '--do-not-cache-result --log-junit /results/mariadb.xml tests/Feature/'+args.suite+'.php',
                    capture_output=True)
             created.append(('container', client))
             with (output / 'mariadb.log').open('w') as log:
@@ -78,7 +93,7 @@ def main():
             state = json.loads(docker('inspect', client, capture_output=True).stdout)[0]
             exit_code = state['State']['ExitCode']
             print(json.dumps({'exit': exit_code, 'network_internal': True, 'published_ports': False,
-                              'database': 'servernet_stress', 'results': str(output)}))
+                              'database': 'servernet_stress', 'backup_restore_synthetic': True, 'results': str(output)}))
             return exit_code
     finally:
         for kind, resource in reversed(created):

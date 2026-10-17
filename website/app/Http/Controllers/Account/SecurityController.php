@@ -45,6 +45,8 @@ class SecurityController extends Controller
             // سرِ کوچکِ M2 — پروژه‌های AIِ همین حساب، مرتبِ تازه‌ترین
             'aiProjects'  => $c->aiProjects()->orderByDesc('id')->get(),
             'currentIp'   => $request->ip(),
+            'identityApplications' => app(\App\Services\IdentityApi\Controls::class)->ready()
+                ? \App\Models\IdentityApplication::where('customer_id',$c->id)->where('status','active')->get() : collect(),
             'hasPassword' => ! empty($c->password),
             'pwReady'     => $request->session()->has('pw_change_ctx'),
 
@@ -168,7 +170,8 @@ class SecurityController extends Controller
         $data = $request->validate([
             'name'        => ['required', 'string', 'max:80'],
             'abilities'   => ['nullable', 'array'],
-            'abilities.*' => ['string', Rule::in([...array_keys(CustomerApiToken::ABILITIES), ...array_keys(CustomerApiToken::AI_ABILITIES)])],
+            'abilities.*' => ['string', Rule::in([...array_keys(CustomerApiToken::ABILITIES), ...array_keys(CustomerApiToken::AI_ABILITIES), ...array_keys(CustomerApiToken::IDENTITY_ABILITIES)])],
+            'identity_application_id'=>['nullable','integer','min:1'],
             'cidrs'       => ['nullable', 'string', 'max:500'],
             'expires_days'=> ['nullable', 'integer', 'min:1', 'max:1825'],
 
@@ -187,6 +190,12 @@ class SecurityController extends Controller
         // ⚠️ پیش‌فرضِ `read` می‌مانَد: فرمی که تیک نخورده نباید ناخواسته توکنِ
         //    نوشتنی بسازد. دسترسیِ خطرناک باید **انتخاب** شود، نه پیش‌فرض باشد.
         $abilities = array_values(array_unique($data['abilities'] ?? [])) ?: ['read'];
+        $identityApplication=null;
+        if (array_intersect($abilities,array_keys(CustomerApiToken::IDENTITY_ABILITIES))) {
+            abort_unless(app(\App\Services\IdentityApi\Controls::class)->ready(),503);
+            $identityApplication=\App\Models\IdentityApplication::where('customer_id',$c->id)->where('status','active')->find($data['identity_application_id']??0);
+            if (!$identityApplication || empty($data['daily_spend_cap_irt'])) return back()->withErrors(['identity_application_id'=>__('identity.error_product_not_active')])->withFragment('sec-api');
+        }
 
         /*
         | 🔴 کلیدِ AI — دو قاعده، در هر دو جهت:
@@ -261,8 +270,9 @@ class SecurityController extends Controller
             $cidrs,
             $days > 0 ? now()->addDays($days) : null,
             $aiProject?->id,
+            $identityApplication?->id,
         );
-        if ($aiProject !== null) {
+        if ($aiProject !== null || $identityApplication !== null) {
             $issued->forceFill(['daily_spend_cap_irt' => $data['daily_spend_cap_irt'] ?? 0])->save();
         }
 
@@ -285,6 +295,23 @@ class SecurityController extends Controller
         $token->revoke();
 
         return back()->with('ok', __('ui.scf_token_revoked'))->withFragment('sec-api');
+    }
+
+    public function identityTokenUpdate(Request $request,CustomerApiToken $token): RedirectResponse
+    {
+        abort_unless($token->customer_id===$this->customer()->id && $token->identity_application_id!==null,404);
+        $d=$request->validate(['daily_spend_cap_irt'=>['required','integer','min:1','max:9000000000000'],
+            'cidrs'=>['nullable','string','max:500'],'expires_days'=>['nullable','integer','min:1','max:1825']]);
+        $cidrs=[];
+        foreach(preg_split('/[\s,]+/',(string)($d['cidrs']??''),-1,PREG_SPLIT_NO_EMPTY) as $raw) {
+            $cidr=$this->normalizeCidr($raw);
+            if ($cidr===null) return back()->withErrors(['cidrs'=>__('identity.error_invalid_input')]);
+            $cidrs[]=$cidr;
+        }
+        $update=['daily_spend_cap_irt'=>(int)$d['daily_spend_cap_irt'],'allowed_cidrs'=>$cidrs];
+        if (!empty($d['expires_days'])) $update['expires_at']=now()->addDays((int)$d['expires_days']);
+        $token->update($update);
+        return back()->with('ok',__('identity.saved'));
     }
 
     // ───────────────────────── پروژهٔ AI (M2) ─────────────────────────

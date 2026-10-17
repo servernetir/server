@@ -49,6 +49,14 @@ class CustomerApiToken extends Model
      * و مهاجرتِ M2 حق ندارد ناگهان به‌شان دَرِ AI باز کند.
      */
     public const AI_PREFIX = 'ai:';
+    public const IDENTITY_ABILITIES = [
+        'identity:services:read'=>'identity.scope_catalog',
+        'identity:requests:read'=>'identity.scope_requests',
+        'identity:execute'=>'identity.scope_execute',
+        'identity:authentication'=>'identity.scope_authentication',
+        'identity:bank'=>'identity.scope_bank',
+        'identity:utility'=>'identity.scope_utility',
+    ];
 
     /**
      * نردبانِ دامنه‌های AI — با خانوادهٔ یونیت‌های مصرفِ M1 هم‌خانواده است و
@@ -81,7 +89,7 @@ class CustomerApiToken extends Model
     protected $fillable = [
         'customer_id', 'name', 'token_hash', 'abilities', 'allowed_cidrs',
         'expires_at', 'revoked_at', 'daily_spend_cap_irt', 'ai_project_id',
-        'last_used_at', 'last_used_ip',
+        'last_used_at', 'last_used_ip', 'identity_application_id',
     ];
 
     /**
@@ -169,6 +177,12 @@ class CustomerApiToken extends Model
             $a = (array) ($this->abilities ?? []);
 
             return in_array($ability, $a, true) && $this->ai_project_id !== null;
+        }
+
+        // A legacy wildcard must never acquire access to paid personal-data inquiries.
+        if (str_starts_with($ability, 'identity:') || str_starts_with($ability, 'inquiry:')) {
+            return isset(self::IDENTITY_ABILITIES[$ability]) && $this->identity_application_id !== null
+                && in_array($ability, (array) $this->abilities, true);
         }
 
         $a = (array) ($this->abilities ?? []);
@@ -274,6 +288,7 @@ class CustomerApiToken extends Model
         array $cidrs = [],
         ?\DateTimeInterface $expiresAt = null,
         ?int $aiProjectId = null,
+        ?int $identityApplicationId = null,
     ): array {
         $plain = 'sn_'.bin2hex(random_bytes(24));   // پیشوندِ برند + ۴۸ رقمِ hex
 
@@ -286,6 +301,9 @@ class CustomerApiToken extends Model
             'expires_at'    => $expiresAt,
             'ai_project_id' => $aiProjectId,
         ]);
+        if ($identityApplicationId !== null) {
+            $token->forceFill(['identity_application_id'=>$identityApplicationId])->save();
+        }
 
         return [$token, $plain];
     }

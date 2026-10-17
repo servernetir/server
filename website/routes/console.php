@@ -13,6 +13,8 @@ Schedule::command('hetzner:object-gateway-lifecycle')->hourly()->withoutOverlapp
 
 // [ai-launch-schedule:start]
 Schedule::command('ai:reconcile')->everyMinute()->withoutOverlapping(10);
+Schedule::command('identity:reconcile')->everyMinute()->withoutOverlapping(5);
+Schedule::command('identity:sync-catalog')->everySixHours()->withoutOverlapping(10);
 Schedule::command('ai:recover-usage')->everyFiveMinutes()->withoutOverlapping(10);
 Schedule::command('ai:recover-usage --late')->dailyAt('01:20')->withoutOverlapping(30);
 Schedule::command('ai:sync-catalog')->hourly()->withoutOverlapping(10);

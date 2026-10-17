@@ -361,6 +361,7 @@
         </label>
       @endif
 
+      @include('account.partials.identity-token-fields')
       <label>{{ __('ui.sec_api_cidrs') }}
         <input type="text" name="cidrs" dir="ltr" placeholder="185.10.20.30, 2001:db8::/64" maxlength="500">
         <small class="sec-note">{{ __('ui.sec_api_cidrs_h') }}</small>

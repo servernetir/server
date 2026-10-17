@@ -490,6 +490,7 @@ return [
     |----------------------------------------------------------------------
     */
     'services_menu' => [
+        ['icon'=>'shield','route'=>['identity.home'],'fa'=>['t'=>'وب‌سرویس احراز هویت','d'=>'احراز هویت و استعلام با اعتبار مشترک سرورنت'],'en'=>['t'=>'Identity & Inquiry API','d'=>'Iranian identity, banking and utility inquiries'],'tr'=>['t'=>'Kimlik ve Sorgulama API','d'=>'İran kimlik, banka ve hizmet sorgulamaları']],
         ['icon' => 'rocket',   'slug' => 'site-builder', 'fa' => ['t' => 'سایت‌ساز', 'd' => 'سریع‌ترین راه برای راه‌اندازی کسب‌وکار آنلاین'],      'en' => ['t' => 'Site Builder', 'd' => 'The fastest way to launch your business online'],   'tr' => ['t' => 'Site Oluşturucu', 'd' => 'Online işinizi başlatmanın en hızlı yolu']],
         ['icon' => 'umbrella', 'slug' => 'premium-support', 'fa' => ['t' => 'پشتیبانی چتر آبی', 'd' => 'خدمات پشتیبانی باکیفیت و حرفه‌ای ۲۴ ساعته'],   'en' => ['t' => 'Premium Support', 'd' => 'Professional 24/7 support services'],            'tr' => ['t' => 'Premium Destek', 'd' => '7/24 profesyonel ve kaliteli destek']],
         ['icon' => 'flow',     'slug' => 'devops', 'fa' => ['t' => 'خدمات دواپس', 'd' => 'مدیریت چالش‌های فناوری با رویکردی چابک و هوشمند'],  'en' => ['t' => 'DevOps Services', 'd' => 'Agile, intelligent technology management'],      'tr' => ['t' => 'DevOps Hizmetleri', 'd' => 'Teknoloji süreçlerinin çevik ve akıllı yönetimi']],
@@ -568,6 +569,7 @@ return [
             'items' => [
                 ['key' => 'infra',   'label' => 'ui.f_s1', 'route' => ['solution', 'infrastructure']],
                 ['key' => 'ai',      'label' => 'ui.f_s2', 'route' => ['solution', 'ai-agents']],
+                ['key' => 'identity', 'label'=>'identity.menu','route'=>['identity.home']],
                 ['key' => 'bpmn',    'label' => 'ui.f_s3', 'route' => ['solution', 'bpmn-erp']],
                 ['key' => 'web',     'label' => 'ui.f_s4', 'route' => ['solution', 'web-design']],
                 ['key' => 'seo',     'label' => 'ui.f_s5', 'route' => ['solution', 'seo-services']],

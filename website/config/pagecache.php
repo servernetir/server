@@ -62,6 +62,7 @@ return [
 
     // پیشوندِ نامِ روت — گروه‌های کاملاً خصوصی/تعاملی
     'exclude_prefixes' => [
+        'identity.',
         'ai.',
         'account.', 'admin.', 'api.', 'auth.', 'login', 'register', 'password.',
         'system.', 'bale.', 'cloud-phone.', 'agent.', 'sms.',
