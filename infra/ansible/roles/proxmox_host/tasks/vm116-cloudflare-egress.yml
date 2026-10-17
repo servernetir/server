@@ -1,0 +1,30 @@
+---
+# No guest credentials, Cloudflare account access, or guest configuration changes.
+- name: Install VM116 scoped relay reconciler
+  ansible.builtin.copy:
+    src: servernet-vm116-cloudflare-egress.py
+    dest: /usr/local/sbin/servernet-vm116-cloudflare-egress
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install VM116 relay units
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - servernet-vm116-cloudflare-egress.service
+    - servernet-vm116-cloudflare-egress.timer
+
+- name: Enable VM116 relay persistence and reconciliation
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - servernet-vm116-cloudflare-egress.service
+    - servernet-vm116-cloudflare-egress.timer

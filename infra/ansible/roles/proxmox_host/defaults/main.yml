@@ -13,6 +13,7 @@ pve_user_comment: "ServerNet provisioning controller — API token only"
 # Remote ingress is authoritative in Cloudflare. This role maintains only the
 # connector, credentials' locations, and its narrowly scoped existing exit path.
 pve_cloudflared_manage: false
+pve_vm116_cloudflare_egress_manage: false
 pve_cloudflared_version: "2026.10.1"
 pve_cloudflared_sha256: "200573c872174ab449965655febadef8edfbb144ebcaa391b700b2dedbadb3cd"
 pve_cloudflared_tunnels:

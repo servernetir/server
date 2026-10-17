@@ -162,3 +162,7 @@
       - "Token: {{ pve_svc_user }}!{{ pve_svc_token_id }} (privsep, scoped to /pool/{{ pve_customer_pool }})"
       - "Snippets: {{ linux_vendor_snippet }}"
       - "Root is used ONLY for this bootstrap; the panel uses the scoped token."
+
+- name: Manage the scoped existing PEETA relay path
+  ansible.builtin.include_tasks: vm116-cloudflare-egress.yml
+  when: pve_vm116_cloudflare_egress_manage | bool

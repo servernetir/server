@@ -1,0 +1,11 @@
+[Unit]
+Description=Reconcile only PEETA VM116 Cloudflare forwarding after relay restarts
+
+[Timer]
+OnBootSec=30s
+OnUnitInactiveSec=60s
+AccuracySec=1s
+Unit=servernet-vm116-cloudflare-egress.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=PEETA VM116 Cloudflare TCP7844 via existing CT113 Germany relay
+Wants=network-online.target
+After=network-online.target pve-guests.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/servernet-vm116-cloudflare-egress apply
+ExecStartPost=/usr/local/sbin/servernet-vm116-cloudflare-egress verify
+TimeoutStartSec=120
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
