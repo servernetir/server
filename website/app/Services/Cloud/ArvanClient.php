@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Services\ExchangeRate;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -79,12 +80,16 @@ class ArvanClient implements CloudProvider
             'console' => app(ArvanConsoleBroker::class)->enabled(), // Relay activation is independent of sales.
             'rebuild' => true,
             'resize' => true,           // change-flavor
-            'snapshot' => true,
+            // CloudOperations requires create/list/restore/delete methods;
+            // this driver does not implement that family yet.
+            'snapshot' => false,
             'metrics' => false,
             'reset_password' => true,
             'ipv6' => false,
             'rescue' => false,
-            'ssh_key' => true,
+            // uploadSshKey is intentionally unavailable because Arvan stores
+            // keys per region; claiming support would silently drop a choice.
+            'ssh_key' => false,
             'extra_ip' => false,         // floating IP جدا API دارد؛ فعلاً نه
         ];
     }
@@ -109,7 +114,7 @@ class ArvanClient implements CloudProvider
      * را درست می‌دهد** (برخلافِ زحل/آیزا). ولی پیامِ خطا هم در بدنه است، پس
      * هم کد را می‌بینیم هم `message`.
      *
-     * @return array{ok:bool,status:int,data:mixed,message:string,json_valid?:bool,data_present?:bool,data_is_list?:bool}
+     * @return array{ok:bool,status:int,data:mixed,message:string}
      */
     private function req(string $method, string $path, array $payload = [], array $query = []): array
     {
@@ -986,7 +991,11 @@ class ArvanClient implements CloudProvider
         }
 
         // idempotency: نامِ قطعی. اگر از قبل ساخته شده، همان را برگردان.
-        $existing = $this->findByName($region, $spec['name']);
+        try {
+            $existing = $this->findByName($region, $spec['name']);
+        } catch (\UnexpectedValueException $e) {
+            return ['ok' => false, 'transient' => true, 'message' => $e->getMessage()] + $fail;
+        }
 
         if ($existing !== null) {
             return $this->serverToResult($existing, $region);
@@ -1007,7 +1016,7 @@ class ArvanClient implements CloudProvider
                     .'از این حساب خوانده نمی‌شود.'] + $fail;
         }
 
-        $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', [
+        $payload = [
             'name' => $spec['name'],
             'flavor_id' => $flavorId,
             // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
@@ -1022,7 +1031,26 @@ class ArvanClient implements CloudProvider
             'disk_size' => (int) ($spec['disk_gb'] ?? 25),
             'count' => 1,
             'ha_enabled' => false,
+        ];
+
+        // A deterministic name is NOT an idempotency key at Arvan: duplicate
+        // names are accepted. Persist intent before the network call. Never
+        // expire it or clear it on a timeout, 5xx, malformed success or crash.
+        // A unique DB insert also serializes concurrent callers. Database
+        // failure deliberately propagates before any billable request.
+        $claimed = DB::table('arvan_create_attempts')->insertOrIgnore([
+            'operation_key' => hash('sha256', $region.'\0'.(string) $spec['name']),
+            'region' => $region,
+            'hostname' => (string) $spec['name'],
+            'created_at' => now(),
         ]);
+
+        if ($claimed !== 1) {
+            return ['ok' => false, 'transient' => true,
+                'message' => 'درخواست ساخت قبلاً ثبت شده؛ فقط تطبیق ادامه دارد. تا تعیین تکلیف درخواست قبلی سرور دیگری ساخته نمی‌شود.'] + $fail;
+        }
+
+        $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers', $payload);
 
         if (! $r['ok']) {
             return ['ok' => false, 'message' => $r['message'],
@@ -1041,6 +1069,11 @@ class ArvanClient implements CloudProvider
 
         // پاسخ ممکن است تکِ سرور یا آرایه (count) باشد
         $server = is_array($r['data'][0] ?? null) ? $r['data'][0] : (array) $r['data'];
+
+        if (empty($server['id'])) {
+            return ['ok' => false, 'transient' => true,
+                'message' => 'پاسخ ساخت فاقد شناسه است؛ فقط تطبیق درخواست قبلی ادامه دارد.'] + $fail;
+        }
 
         $out = $this->serverToResult($server, $region);
         // رمزِ root فقط لحظهٔ ساخت برمی‌گردد
@@ -1113,16 +1146,28 @@ class ArvanClient implements CloudProvider
         $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers');
 
         if (! $r['ok']) {
-            return null;
+            throw new \UnexpectedValueException('فهرست سرورها خوانده نشد؛ برای جلوگیری از خرید تکراری ساخت متوقف شد.');
         }
 
-        foreach ((array) $r['data'] as $s) {
+        if (! is_array($r['data']) || ! array_is_list($r['data'])) {
+            throw new \UnexpectedValueException('ساختار فهرست سرورها معتبر نیست؛ ساخت متوقف شد.');
+        }
+
+        $matches = [];
+        foreach ($r['data'] as $s) {
+            if (! is_array($s) || empty($s['id']) || ! isset($s['name'])) {
+                throw new \UnexpectedValueException('فهرست سرورها ناقص است؛ ساخت متوقف شد.');
+            }
             if (is_array($s) && (string) ($s['name'] ?? '') === $name) {
-                return $s;
+                $matches[] = $s;
             }
         }
 
-        return null;
+        if (count($matches) > 1) {
+            throw new \UnexpectedValueException('چند سرور هم‌نام پیدا شد؛ برای تعیین مالکیت و جلوگیری از هزینهٔ اضافه، ساخت متوقف شد.');
+        }
+
+        return $matches[0] ?? null;
     }
 
     /** @return array{ok:bool,message:string,ref:?string,ipv4:?string,ipv6:?string,root_password:?string,status:string} */
@@ -1402,16 +1447,15 @@ class ArvanClient implements CloudProvider
         }
 
         // API رسمی IaaS یک نشانیِ کوتاه‌عمرِ noVNC می‌دهد. خود URL مانند رمز
-        // دسترسی است و فقط از مسیر بلیت یک‌بارمصرف CloudServerController عبور
-        // می‌کند؛ هیچ‌وقت در لاگ یا HTML اولیه ثبت نمی‌شود.
+        // دسترسی است؛ تنها پس از بررسی مالکیت، در redirect خصوصی استفاده
+        // می‌شود و نباید در لاگ یا HTML اولیه ثبت شود.
         $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id).'/vnc');
         $url = $r['ok'] ? (string) data_get($r['data'], 'url', '') : '';
         $parts = parse_url($url);
         $host = strtolower((string) ($parts['host'] ?? ''));
 
         // پاسخ API نباید بتواند مشتری را به یک میزبان دلخواه بفرستد. کنسول
-        // فعلی آروان روی arvaniaas.ir است؛ زیردامنه‌های رسمی arvancloud.ir نیز
-        // برای مهاجرت احتمالی مجازند، ولی تطبیق حتماً روی مرز دامنه است.
+        // فعلی آروان فقط روی همین host و مسیر همان منطقه مجاز است.
         $allowed = $host === 'console.arvaniaas.ir'
             && ! isset($parts['user']) && ! isset($parts['pass'])
             && ! isset($parts['port'])

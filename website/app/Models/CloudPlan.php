@@ -92,13 +92,12 @@ class CloudPlan extends Model
      */
     public function supportsHourly(): bool
     {
-        // Enabled only after the supplier's hourly billing terms are verified.
         if ($this->provider === 'arvan') {
             return Setting::get('arvan_hourly_sales_enabled') === '1'
                 && (int) ($this->cost_hour_eur_micro ?? 0) > 0;
         }
 
-        if (! $this->isTermBased() && $this->provider !== 'lightnode') {
+        if (! $this->isTermBased()) {
             return true;
         }
 
@@ -131,10 +130,13 @@ class CloudPlan extends Model
         $arvanEnabled = Setting::get('arvan_hourly_sales_enabled') === '1';
 
         return $q->where(function (Builder $qq) use ($arvanEnabled) {
-            $rateRequired = [...self::TERM_BASED_PROVIDERS, 'lightnode', 'arvan'];
-            $available = $arvanEnabled ? $rateRequired : array_values(array_diff($rateRequired, ['arvan']));
-            $qq->whereNotIn('provider', $rateRequired)
-                ->orWhere(fn (Builder $q3) => $q3->whereIn('provider', $available)
+            $qq->whereNotIn('provider', [...self::TERM_BASED_PROVIDERS, 'arvan'])
+                ->when($arvanEnabled, fn (Builder $q2) => $q2->orWhere(
+                    fn (Builder $q3) => $q3->where('provider', 'arvan')
+                        ->whereNotNull('cost_hour_eur_micro')
+                        ->where('cost_hour_eur_micro', '>', 0)
+                ))
+                ->orWhere(fn (Builder $q3) => $q3->whereIn('provider', self::TERM_BASED_PROVIDERS)
                     ->whereNotNull('cost_hour_eur_micro')
                     ->where('cost_hour_eur_micro', '>', 0));
         });
