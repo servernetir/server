@@ -1,5 +1,15 @@
 # Arvan customer console temporarily disabled — 2026-10-17
 
+## Owner-approved private acceptance attempt
+
+Added service-aware guard in broker, customer controller and CSP middleware. Public capability stays disabled. Only service 501/customer 1/exact existing provider reference may use a configured future `arvan_console_501_test_until` within one hour. Existing ownership/status/rate limits, signatures, single-use grants and reassignment checks remain enforced. Redeem/claim also recheck service scope and expiry.
+
+Local broker tests: 17 passed/40 assertions; Worker tests:16 passed. Production three-file PHP lint passed. Deployment used before-hash guards, a private backup at `/home/servernetcloud/arvan501-scope-8aezr2gf` (0 broker,1 controller,2 middleware; `.before.php` and `.after.php`), and per-file atomic replacement. Existing live middleware differs from Git; only the exact guard expression was replaced, preserving unrelated edits. First malformed terminal input was abandoned by reconnecting; only the subsequent base64-encoded deployment returned successful lint/hashes.
+
+Live 30-minute acceptance configuration returned public=false,test501=true,other_enabled=0. Reloaded customer501 displayed console button; actual click created a fresh VNC tab but observing initial navigation timed out. Broker access count remained0 in the inspected origin log. Real desktop/control NOT accepted. Test expiry was then set to0; public switch remains0. No Worker/DNS/proxy/sales/VM changes.
+
+Rollback: keep both settings0. Restore only the three backed-up files after matching current after-hashes and checking for intervening edits; do not overwrite newer work. This patch enables isolated future testing, not a repair of the browser transport failure.
+
 Owner explicitly requested disabling/hiding Arvan consoles for all customers until repaired and tested.
 
 ## Production change and validation

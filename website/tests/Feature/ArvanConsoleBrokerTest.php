@@ -54,6 +54,33 @@ class ArvanConsoleBrokerTest extends TestCase
         return parse_url($this->broker->issue($this->fixture, $this->url), PHP_URL_FRAGMENT);
     }
 
+    public function test_private_window_never_enables_public_capability_and_is_bound_to_owner_and_vm(): void
+    {
+        Setting::put('arvan_console_worker_enabled', '0');
+        Setting::put('arvan_console_501_test_until', (string) now()->addMinutes(30)->timestamp);
+        $service = Service::forceCreate(['id' => 501, 'customer_id' => 1, 'name' => 'private-test', 'status' => 'active', 'price' => 0, 'cycle' => 'monthly']);
+        $instance = CloudInstance::forceCreate(['service_id' => 501, 'provider' => 'arvan', 'provider_ref' => 'ir-tbz-sh1:29daf8cf-77c2-4f95-a6f5-c365020fdaad', 'status' => 'running']);
+        $this->assertFalse($this->broker->enabled());
+        $this->assertFalse($this->broker->enabledFor($this->fixture));
+        $this->assertTrue($this->broker->enabledFor($service));
+        $service->customer_id = 2;
+        $this->assertFalse($this->broker->enabledFor($service));
+        $service->customer_id = 1;
+        $instance->update(['provider_ref' => 'ir-tbz-sh1:00000000-0000-0000-0000-000000000001']);
+        $service->unsetRelation('cloudInstance');
+        $this->assertFalse($this->broker->enabledFor($service));
+    }
+
+    public function test_private_window_expires_and_does_not_redeem_other_service_grants(): void
+    {
+        $ticket = $this->ticket();
+        Setting::put('arvan_console_worker_enabled', '0');
+        Setting::put('arvan_console_501_test_until', (string) now()->addMinutes(30)->timestamp);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        $this->travel(31)->minutes();
+        $this->assertSame(403, $this->callBroker('redeem', $ticket)->status());
+    }
+
     public function test_redeem_and_claim_are_single_use_and_only_claim_returns_upstream(): void
     {
         $ticket = $this->ticket();
