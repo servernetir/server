@@ -13,7 +13,13 @@ Documentation-only handoff based on develop `b880e2dc` and this task's recorded 
 - Automatic initial Windows password delivery, image licensing and console session longevity remain unresolved. The last support response observed requested telephone clarification, not a technical resolution.
 - Required sales posture remains Linux monthly available, Windows gated until acceptance. No fresh live sales-setting verification is claimed by this documentation update.
 
-## Overdue cleanup — action still required
+## Cleanup completed — 17 October update
+
+After fresh explicit owner confirmation, the exact test VM was permanently deleted. Independent provider views showed no remaining regional VM, volume, or public IP for this fixture. The live backend was then reconciled in a transaction with row locks and exact owner/service/provider identity and zero-price guards: service 456 is `terminated`, instance 293 is `deleted`, and a staff `terminate` activity event was recorded. A separate post-read verified these states. The fixture broker setting is now disabled and the cleanup monitor is paused. No invoice, wallet, sales setting, other service, network route, firewall, or DNS was changed. Deletion is not reversible by restoring database statuses; do not reactivate the fixture or buy a replacement under the exhausted budget. Actual final provider charges remain unverified.
+
+The Cloudflare editor was checked again in an authenticated Chrome session: code pane remained blank and Deploy disabled; active version remained `5f23f7e6`. No font publication or new credential is claimed. A written technical follow-up was submitted to the existing provider ticket requesting the supported Windows password initialization contract and console expiry/renewal contract, explicitly forbidding new resources or charges.
+
+### Historical overdue observation (superseded by completion above)
 
 The sole owner acceptance fixture (internal service 456 / instance 293) was last observed running at 2026-10-17 05:35 UTC. Provider UI creation time was 14 October 09:08 Tehran, to minute precision; the 48-hour cleanup deadline was 16 October 05:38 UTC. Cleanup has **not** been verified.
 
@@ -23,9 +29,9 @@ Before acting, verify the exact fixture identity and owner against the private o
 
 ## Next acceptance and validation
 
-1. Complete cleanup first; do not create a replacement paid resource under the exhausted budget.
+1. Cleanup is complete; do not create a replacement paid resource under the exhausted budget.
 2. Obtain the provider's supported Windows initialization contract and resolve licensing; do not treat manual initialization as automatic delivery.
 3. Publish the reviewed font change only through an authorized path, preserving existing Worker variables/secrets and routes. Verify font assets and rendered header on a real authorized console session.
 4. Keep Windows sales gated until end-to-end password delivery, actual RDP and customer-console acceptance are evidenced.
 
-This update changes documentation only. Diff/links are checked; no application tests or live acceptance tests are rerun. Historical test counts remain in the original handoff and must not be represented as current results. Reverting this documentation commit has no infrastructure rollback effect and cannot undo accrued provider charges.
+This Git update changes documentation only. `git diff --check` passed. `node --test scripts/arvan-console-worker/worker.test.mjs` was rerun against base `8f9e6333`: 12 passed, zero failures/skips, with no paid provider calls. No PHP suite or new live Windows acceptance test was run. Historical PHP test counts remain in the original handoff. Reverting this documentation commit has no infrastructure rollback effect and cannot undo deletion or accrued provider charges.

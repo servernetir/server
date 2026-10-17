@@ -2,7 +2,7 @@
 
 ## Update — 2026-10-17
 
-The sections below are historical evidence from 14 October, not fresh production acceptance. See [current follow-up](docs/project/ARVAN-FOLLOWUP-2026-10-17.md) for unresolved delivery/font work and overdue test cleanup. The earlier implementation was pushed as `6e159909ad89cd75657d3901748ddbabdba86d5c`; this update is documentation only.
+The sections below are historical evidence from 14 October, not fresh production acceptance. See [current follow-up](docs/project/ARVAN-FOLLOWUP-2026-10-17.md) for completed test cleanup/backend reconciliation and unresolved delivery/font work. The cleanup monitor is paused and fixture broker disabled. The earlier implementation was pushed as `6e159909ad89cd75657d3901748ddbabdba86d5c`; this Git update is documentation only.
 
 ## Scope and production state
 
