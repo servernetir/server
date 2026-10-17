@@ -18,6 +18,7 @@
 | بازیابی Cloudflare Tunnel و ماندگاری پس از مهاجرت root | [گزارش ۱۷ اکتبر](../../CLOUDFLARED-AUDIT-2026-10-17.md) |
 | تونل‌های PEETA / VM116، مسیر محدود CT113 و بازگشت | [بازیابی ۱۷ اکتبر](../../VM116-CLOUDFLARE-RELAY-2026-10-17.md) |
 | طراحی صورتحساب | [website/docs/billing](../../website/docs/billing/) |
+| درگاه اقساطی اسنپ‌پی (وضعیت، تله‌ها، دمو) | [SNAPPPAY-STATUS-2026-10-17](SNAPPPAY-STATUS-2026-10-17.md) |
 | AI Gateway و Exit | [docs/ai-gateway](../ai-gateway/) · [docs/exit-platform.md](../exit-platform.md) |
 
 ### قاعدهٔ حل اختلاف اسناد
