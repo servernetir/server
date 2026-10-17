@@ -2,6 +2,12 @@
 
 ## Current status: app installed/enabled; real guest acceptance blocked
 
+### Client failure handling patch — Git only, not deployed
+
+Base7b291696. Added executable Node VM tests against the actual legacy client response (synthetic DOM, ticket, fetch and RFB; no browser or provider access). Valid-ticket execution reached /launch and then the fake RFB connection. Two failure cases were red before the patch: history.replaceState throwing before the try block rejected the whole bootstrap without a visible error; a stalled /launch had no abort deadline. Both client variants now perform history cleanup inside the protected block, failing closed if it fails, and use a15s AbortSignal deadline for /launch. No authentication, ticket lifetime, cookie, upstream or sales rules changed. These are demonstrated failure-handling defects, NOT confirmed causes of the reported fully blank browser.
+
+Command: node --test scripts/arvan-console-worker/worker.test.mjs scripts/arvan-console-worker/client.test.mjs;16passed/0failed. Runtime regression coverage is for the legacy client; modern browser acceptance remains pending. No real guest connection is implied by the RFB mock. Deployment requires a fresh scoped publication credential (previous local token was removed), requested from owner; no new credential created yet. Production remains version9e0c0174. Rollback after a future deployment must use that prior Worker version, with existing bindings/routes retained. No VM creation/deletion, sales, DNS, portal Worker or machine network changes.
+
 ### Server and Worker log audit (17 October, about13:54–14:00UTC)
 
 Read-only production audit: the available Laravel log contained zero matches for ArvanConsoleBroker, arvan-console-broker, arvan_console or CloudController; its latest dated error was11:12:19. This is not proof of success (normal broker rejects are not logged). The real readable portal access log showed seven POSTs to /account/cloud/501/console, all302, from13:10:58 through13:52:33UTC, and no matching /system/arvan-console-broker entries in that available file. The legacy home access-logs symlink did not expose the current files; the current account domlogs directory did. Only timestamps, allowlisted paths and status codes were emitted, not customer addresses or authentication headers.
