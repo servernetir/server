@@ -28,7 +28,7 @@ class ArvanConsoleBrokerTest extends TestCase
         $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-14 09:00:00 UTC'));
         Customer::forceCreate(['id' => 1, 'email' => 'owner@example.test', 'phone' => '09120000001', 'password' => 'test-only', 'status' => 'active']);
         $this->fixture = Service::forceCreate(['id' => 456, 'customer_id' => 1, 'name' => 'test-only', 'status' => 'active', 'price' => 0, 'cycle' => 'monthly']);
-        CloudInstance::forceCreate(['id' => 293, 'service_id' => 456, 'provider' => 'arvan', 'provider_ref' => ArvanConsoleBroker::REF,
+        CloudInstance::forceCreate(['id' => 293, 'service_id' => 456, 'provider' => 'arvan', 'provider_ref' => 'ir-tbz-sh1:00000000-0000-0000-0000-000000000001',
             'status' => 'running', 'meta' => ['acceptance_test' => true]]);
         $this->secret = str_repeat('a', 64);
         Setting::putSecret('arvan_console_worker_key', $this->secret);
@@ -104,18 +104,87 @@ class ArvanConsoleBrokerTest extends TestCase
         $this->assertSame(200, $this->callBroker('redeem', $ticket)->status());
     }
 
-    public function test_test_expiry_and_disabled_setting_fail_closed(): void
+    public function test_disabled_setting_fails_closed_but_fixture_deadline_no_longer_applies(): void
     {
         $ticket = $this->ticket();
         Setting::put('arvan_console_worker_enabled', '0');
         $this->assertSame(403, $this->callBroker('redeem', $ticket)->status());
         $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-16 05:38:00 UTC'));
-        $this->assertFalse($this->broker->eligible($this->fixture));
+        $this->assertTrue($this->broker->eligible($this->fixture));
     }
 
     public function test_arbitrary_upstream_is_rejected_before_ticket_is_issued(): void
     {
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
         $this->broker->issue($this->fixture, 'https://evil.invalid/?token=stolen');
+    }
+
+    public function test_new_customer_service_works_without_test_metadata(): void
+    {
+        Customer::forceCreate(['id' => 2, 'email' => 'second@example.test', 'phone' => '09120000002', 'password' => 'test-only', 'status' => 'active']);
+        $service = Service::forceCreate(['id' => 501, 'customer_id' => 2, 'name' => 'customer', 'status' => 'active', 'price' => 100, 'cycle' => 'monthly']);
+        CloudInstance::forceCreate(['id' => 310, 'service_id' => 501, 'provider' => 'arvan', 'provider_ref' => 'ir-thr-c2:00000000-0000-0000-0000-000000000002', 'status' => 'running', 'meta' => []]);
+        $ticket = parse_url($this->broker->issue($service, str_replace('ir-tbz-sh1', 'ir-thr-c2', $this->url)), PHP_URL_FRAGMENT);
+        $session = $this->callBroker('redeem', $ticket)->getData(true)['session'];
+        $claim = $this->callBroker('claim', $session);
+        $this->assertSame(200, $claim->status());
+        $this->assertSame('/ir-thr-c2/websockify', $claim->getData(true)['path']);
+    }
+
+    public function test_owner_change_between_redeem_and_claim_revokes_access(): void
+    {
+        $session = $this->callBroker('redeem', $this->ticket())->getData(true)['session'];
+        Customer::forceCreate(['id' => 2, 'email' => 'second@example.test', 'phone' => '09120000002', 'password' => 'test-only', 'status' => 'active']);
+        $this->fixture->update(['customer_id' => 2]);
+        $this->assertSame(410, $this->callBroker('claim', $session)->status());
+    }
+
+    public function test_instance_replacement_revokes_existing_grant(): void
+    {
+        $ticket = $this->ticket();
+        CloudInstance::whereKey(293)->update(['provider_ref' => 'ir-tbz-sh1:00000000-0000-0000-0000-000000000002']);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+    }
+
+    public function test_provider_region_must_match_the_owned_instance(): void
+    {
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->broker->issue($this->fixture, str_replace('ir-tbz-sh1', 'ir-thr-c2', $this->url));
+    }
+
+    public function test_other_customer_cannot_request_console_ticket(): void
+    {
+        $other = Customer::forceCreate(['id' => 2, 'email' => 'second@example.test', 'phone' => '09120000002', 'password' => 'test-only', 'status' => 'active']);
+        \Illuminate\Support\Facades\Http::preventStrayRequests();
+        $this->actingAs($other, 'customer')->post(route('account.cloud.console', $this->fixture))->assertNotFound();
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
+
+    public function test_owner_route_uses_real_driver_contract_and_private_relay_ticket(): void
+    {
+        Setting::putSecret('arvan_api_token', 'fake-not-live');
+        \Illuminate\Support\Facades\Http::fake(['napi.arvancloud.ir/*' => \Illuminate\Support\Facades\Http::response(['data' => ['url' => $this->url]])]);
+        $response = $this->actingAs($this->fixture->customer, 'customer')->post(route('account.cloud.console', $this->fixture));
+        $response->assertRedirect();
+        $this->assertStringStartsWith('https://vnc.servernet.cloud/#', $response->headers->get('Location'));
+        $this->assertStringNotContainsString('arvaniaas', $response->headers->get('Location'));
+        $this->assertSame('no-referrer', $response->headers->get('Referrer-Policy'));
+        \Illuminate\Support\Facades\Http::assertSentCount(1);
+    }
+
+    public function test_disabled_broker_never_requests_provider_console(): void
+    {
+        Setting::putSecret('arvan_api_token', 'fake-not-live');
+        Setting::put('arvan_console_worker_enabled', '0');
+        \Illuminate\Support\Facades\Http::preventStrayRequests();
+        $this->actingAs($this->fixture->customer, 'customer')->post(route('account.cloud.console', $this->fixture))->assertRedirect();
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
+
+    public function test_deleted_instance_cannot_redeem_an_existing_ticket(): void
+    {
+        $ticket = $this->ticket();
+        CloudInstance::whereKey(293)->update(['status' => 'deleted']);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
     }
 }

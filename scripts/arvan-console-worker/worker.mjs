@@ -40,9 +40,9 @@ async function broker(action, token, env, fetcher) {
   return JSON.parse(text);
 }
 export function upstream(data) {
-  if (!data || data.region !== 'ir-tbz-sh1' || !/^[a-f0-9-]{36}$/i.test(data.token || '')) return null;
+  if (!data || !/^ir-[a-z0-9]+-[a-z0-9]+$/.test(data.region || '') || !/^[a-f0-9-]{36}$/i.test(data.token || '')) return null;
   // Path must be independently observed in the provider's WebSocket handshake.
-  if (!['/ir-tbz-sh1/websockify', '/ir-tbz-sh1/vnc_lite.html/websockify'].includes(data.path)) return null;
+  if (!['/' + data.region + '/websockify', '/' + data.region + '/vnc_lite.html/websockify'].includes(data.path)) return null;
   return 'https://console.arvaniaas.ir' + data.path;
 }
 const HTML = `<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>کنسول سرور | سرورنت</title><link rel="stylesheet" href="/console.css"><header><a class="brand" href="https://console.servernet.cloud/account/servers"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>سرورنت</a><span>کنسول امن سرور</span><span id="status" role="status">در حال بررسی اتصال…</span><button id="cad" disabled>Ctrl+Alt+Del</button><button id="full">تمام‌صفحه</button><a href="https://console.servernet.cloud/account/servers">بازگشت به سرویس‌ها</a></header><main id="screen"></main><section id="message" role="alert"></section><script type="module" src="/console.js"></script></html>`;

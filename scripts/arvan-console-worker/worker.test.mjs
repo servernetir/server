@@ -49,6 +49,11 @@ test('expired claim and duplicate cookie never contact provider',async()=>{
 test('no arbitrary upstream, cookie injection or region escape',()=>{
  for(const data of [{region:'evil',token:'a'.repeat(36),path:'/ir-tbz-sh1/websockify'}, {region:'ir-tbz-sh1',token:'x; admin=true',path:'/ir-tbz-sh1/websockify'}, {region:'ir-tbz-sh1',token:'a'.repeat(36),path:'//evil.invalid'}])assert.equal(upstream(data),null);
 });
+test('regional grants stay on the fixed console host and matching regional path',()=>{
+ assert.equal(upstream({region:'ir-thr-c2',token:'a'.repeat(36),path:'/ir-thr-c2/websockify'}),'https://console.arvaniaas.ir/ir-thr-c2/websockify');
+ assert.equal(upstream({region:'ir-thr-c2',token:'a'.repeat(36),path:'/ir-tbz-sh1/websockify'}),null);
+ assert.equal(upstream({region:'ir-../evil-x',token:'a'.repeat(36),path:'/ir-../evil-x/websockify'}),null);
+});
 test('branded shell has no third-party code and forbids framing',async()=>{
  const r=await handle(req('/'));assert.match(r.headers.get('Content-Security-Policy'),/frame-ancestors 'none'/);assert.match(await r.text(),/سرورنت/);
 });

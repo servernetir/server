@@ -920,7 +920,8 @@ class CloudArvanTest extends TestCase
         $r = app(ArvanClient::class)->console('ir-thr-c2:srv-9');
 
         $this->assertTrue($r['ok']);
-        $this->assertSame('wss://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html/websockify?token=short-lived', $r['url']);
+        $this->assertSame('https://console.arvaniaas.ir/ir-thr-c2/vnc_lite.html?token=short-lived', $r['url']);
+        $this->assertSame('external', $r['transport']);
         Http::assertSent(fn ($request) => $request->method() === 'GET'
             && str_ends_with($request->url(), '/ecc/v1/regions/ir-thr-c2/servers/srv-9/vnc'));
     }

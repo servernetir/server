@@ -76,7 +76,7 @@ class ArvanClient implements CloudProvider
     public function capabilities(): array
     {
         return [
-            'console' => true,           // GET /regions/{region}/servers/{id}/vnc
+            'console' => app(ArvanConsoleBroker::class)->enabled(), // Relay activation is independent of sales.
             'rebuild' => true,
             'resize' => true,           // change-flavor
             'snapshot' => true,
@@ -1428,12 +1428,11 @@ class ArvanClient implements CloudProvider
             ];
         }
 
-        // مسیر از کلاینت noVNC زندهٔ ارائه‌دهنده استخراج شده است. token در
-        // query همان نشست کوتاه‌عمر است؛ هیچ cookie مدیریتی ارسال نمی‌شود.
-        $socketUrl = 'wss://'.$host.$parts['path'].'/websockify?'
+        // The broker, not the browser, exchanges this short-lived provider token.
+        $consoleUrl = 'https://'.$host.$parts['path'].'?'
             .http_build_query(['token' => $token], '', '&', PHP_QUERY_RFC3986);
 
-        return ['ok' => true, 'message' => '', 'url' => $socketUrl, 'password' => null];
+        return ['ok' => true, 'message' => '', 'url' => $consoleUrl, 'password' => null, 'transport' => 'external'];
     }
 
     public function metrics(string $ref, string $window = '24h'): array

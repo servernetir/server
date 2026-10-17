@@ -10,22 +10,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 
-/** Acceptance-only broker. Explicit flag and exact owner fixture required; expires after 48 hours. */
+/** Short-lived, single-use grants bound to the current service owner and instance. */
 class ArvanConsoleBroker
 {
-    public const REF = 'ir-tbz-sh1:0f0a4265-f1fb-4545-bd6e-99ac1157e72b';
-
     public function eligible(Service $service): bool
     {
         $instance = CloudInstance::where('service_id', $service->id)->first();
 
-        return (int) $service->id === 456 && (int) $service->customer_id === 1
-            && $service->status === 'active'
-            && $instance && (int) $instance->id === 293
-            && $instance->provider === 'arvan' && $instance->provider_ref === self::REF
-            && ($instance->meta['acceptance_test'] ?? false) === true
-            && ! in_array($instance->status, ['deleted', 'deleting', 'terminated'], true)
-            && now()->lt('2026-10-16 05:38:00 UTC');
+        return $service->status === 'active' && (int) $service->customer_id > 0
+            && $instance && $instance->provider === 'arvan'
+            && preg_match('/\Air-[a-z0-9]+-[a-z0-9]+:[a-f0-9-]{36}\z/i', (string) $instance->provider_ref) === 1
+            && in_array($instance->status, ['running', 'off', 'stopped'], true);
     }
 
     public function enabled(): bool
@@ -38,10 +33,12 @@ class ArvanConsoleBroker
     public function issue(Service $service, string $url): string
     {
         abort_unless($this->enabled() && $this->eligible($service), 403);
-        $this->validateUrl($url);
+        $instance = CloudInstance::where('service_id', $service->id)->firstOrFail();
+        $this->validateUrl($url, explode(':', $instance->provider_ref, 2)[0]);
         $ticket = bin2hex(random_bytes(32));
         Cache::put($this->key('ticket', $ticket), [
-            'service' => 456, 'customer' => 1, 'ref' => self::REF,
+            'service' => (int) $service->id, 'customer' => (int) $service->customer_id,
+            'instance' => (int) $instance->id, 'ref' => $instance->provider_ref,
             'url' => Crypt::encryptString($url), 'expires' => now()->addSeconds(90)->timestamp,
         ], 90);
 
@@ -75,10 +72,13 @@ class ArvanConsoleBroker
         }
         try {
             $grant = Cache::pull($key);
-            $service = Service::find(456);
+            $service = is_array($grant) ? Service::find($grant['service'] ?? 0) : null;
+            $instance = $service ? CloudInstance::where('service_id', $service->id)->first() : null;
             if (! is_array($grant) || ($grant['expires'] ?? 0) <= now()->timestamp
-                || ($grant['service'] ?? null) !== 456 || ($grant['customer'] ?? null) !== 1
-                || ($grant['ref'] ?? null) !== self::REF || ! $service || ! $this->eligible($service)) {
+                || ! $service || ! $instance || ! $this->eligible($service)
+                || ($grant['customer'] ?? null) !== (int) $service->customer_id
+                || ($grant['instance'] ?? null) !== (int) $instance->id
+                || ($grant['ref'] ?? null) !== $instance->provider_ref) {
                 return $this->response(['ok' => false], 410);
             }
             if ($action === 'redeem') {
@@ -87,31 +87,32 @@ class ArvanConsoleBroker
 
                 return $this->response(['session' => $session]);
             }
-            $upstream = $this->validateUrl(Crypt::decryptString($grant['url']));
+            $upstream = $this->validateUrl(Crypt::decryptString($grant['url']), explode(':', $instance->provider_ref, 2)[0]);
             // Set only after the exact path is observed in a successful provider handshake.
             $path = Setting::get('arvan_console_worker_socket_path');
             if (! in_array($path, ['/ir-tbz-sh1/websockify', '/ir-tbz-sh1/vnc_lite.html/websockify'], true)) {
                 return $this->response(['ok' => false], 503);
             }
 
-            return $this->response($upstream + ['path' => $path]);
+            return $this->response($upstream + ['path' => str_replace('/ir-tbz-sh1/', '/'.$upstream['region'].'/', $path)]);
         } finally {
             $lock->release();
         }
     }
 
-    private function validateUrl(string $url): array
+    private function validateUrl(string $url, string $region): array
     {
         $parts = parse_url($url);
         parse_str((string) ($parts['query'] ?? ''), $query);
         $token = $query['token'] ?? null;
         abort_unless(($parts['scheme'] ?? '') === 'https' && ($parts['host'] ?? '') === 'console.arvaniaas.ir'
-            && ($parts['path'] ?? '') === '/ir-tbz-sh1/vnc_lite.html'
+            && preg_match('/\Air-[a-z0-9]+-[a-z0-9]+\z/', $region) === 1
+            && ($parts['path'] ?? '') === '/'.$region.'/vnc_lite.html'
             && ! isset($parts['user']) && ! isset($parts['pass']) && ! isset($parts['port'])
             && ! isset($parts['fragment']) && count($query) === 1
             && is_string($token) && preg_match('/\A[a-f0-9-]{36}\z/i', $token), 422);
 
-        return ['region' => 'ir-tbz-sh1', 'token' => $token];
+        return ['region' => $region, 'token' => $token];
     }
 
     private function key(string $phase, string $token): string

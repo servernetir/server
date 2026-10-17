@@ -125,6 +125,8 @@ class CloudServiceRowTest extends TestCase
 
     public function test_windows_server_shows_rdp_administrator_and_no_fake_ssh(): void
     {
+        \App\Models\Setting::putSecret('arvan_console_worker_key', str_repeat('a', 64));
+        \App\Models\Setting::put('arvan_console_worker_enabled', '1');
         $c = $this->customer();
         $plan = $this->plan();
         $plan->update(['provider' => 'arvan', 'provider_ref' => 'g2-2-4-40']);

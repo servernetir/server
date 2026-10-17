@@ -25,7 +25,10 @@ class SecurityHeaders
         // همیشه‌فعال‌ها
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        // Console grants intentionally opt into a stricter policy.
+        if ($response->headers->get('Referrer-Policy') !== 'no-referrer') {
+            $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        }
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()');
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 
