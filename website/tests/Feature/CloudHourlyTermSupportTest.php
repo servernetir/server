@@ -8,6 +8,7 @@ use App\Models\CloudPlan;
 use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudProvider;
 use App\Services\Cloud\CloudProvisioner;
@@ -244,12 +245,25 @@ class CloudHourlyTermSupportTest extends TestCase
     /** زیرساختِ بی‌ترم (هتزنر/پراکسموکس/آروان) همیشه ساعتی‌فروش است. */
     public function test_providers_without_a_billing_term_stay_hourly_capable(): void
     {
-        foreach (['hetzner', 'proxmox', 'arvan'] as $i => $p) {
+        foreach (['hetzner', 'proxmox'] as $i => $p) {
             $this->assertTrue(
                 $this->plan($p, ['slug' => 'cv-x-'.$i, 'cost_hour_eur_micro' => null])->supportsHourly(),
                 $p.' سفارشش اصلاً فیلدِ ترم ندارد؛ نباید از فروشِ ساعتی حذف شود'
             );
         }
+    }
+
+    public function test_arvan_hourly_sale_requires_an_explicit_gate_and_real_tariff(): void
+    {
+        $plan = $this->plan('arvan', ['slug' => 'arvan-test', 'cost_hour_eur_micro' => 4200]);
+        $this->assertFalse($plan->supportsHourly());
+        $this->assertFalse(CloudPlan::query()->hourlyCapable()->whereKey($plan->id)->exists());
+        Setting::put('arvan_hourly_sales_enabled', '1');
+        $this->assertTrue($plan->fresh()->supportsHourly());
+        $this->assertTrue(CloudPlan::query()->hourlyCapable()->whereKey($plan->id)->exists());
+        $plan->update(['cost_hour_eur_micro' => 0]);
+        $this->assertFalse($plan->fresh()->supportsHourly());
+        $this->assertFalse(CloudPlan::query()->hourlyCapable()->whereKey($plan->id)->exists());
     }
 
     /**
@@ -454,4 +468,38 @@ class CloudHourlyTermSupportTest extends TestCase
         $this->assertFalse((bool) $other->fresh()->admin_disabled,
             '🔴 کلِ زیرساخت قرنطینه شد — یک تعرفهٔ نبوده نباید همهٔ پلن‌های سالم را ببندد');
     }
+    public function test_all_iran_locations_follow_the_same_real_tariff_gate(): void
+    {
+        $valid = [];
+        foreach (['ir-shiraz', 'ir-tehran', 'ir-isfahan', 'ir-urmia', 'ir-ahvaz'] as $location) {
+            foreach ([null, 0, 4200] as $index => $tariff) {
+                $plan = $this->plan('arvan', ['location_code' => $location,
+                    'slug' => $location.'-'.$index, 'cost_hour_eur_micro' => $tariff]);
+                $this->assertFalse($plan->supportsHourly());
+                if ($tariff > 0) { $valid[] = $plan->id; }
+            }
+        }
+        $this->assertSame([], CloudPlan::query()->hourlyCapable()->pluck('id')->all());
+        \App\Models\Setting::put('arvan_hourly_sales_enabled', '1');
+        $this->assertSame($valid, CloudPlan::query()->hourlyCapable()->orderBy('id')->pluck('id')->all());
+        foreach (CloudPlan::all() as $plan) {
+            $this->assertSame(in_array($plan->id, $valid, true), $plan->supportsHourly());
+        }
+        \App\Models\Setting::put('arvan_hourly_sales_enabled', '0');
+        $this->assertSame([], CloudPlan::query()->hourlyCapable()->pluck('id')->all());
+    }
+
+    public function test_arvan_policy_keeps_other_providers_and_internal_costs_protected(): void
+    {
+        foreach (['arvan', 'lightnode', 'aeza', 'hetzner'] as $provider) {
+            $plan = $this->plan($provider, ['slug' => $provider, 'cost_hour_eur_micro' => null]);
+            $this->assertSame($provider === 'hetzner', $plan->supportsHourly());
+        }
+        \App\Models\Setting::put('arvan_hourly_sales_enabled', '1');
+        $this->assertSame(CloudPlan::all()->filter->supportsHourly()->pluck('id')->all(),
+            CloudPlan::query()->hourlyCapable()->pluck('id')->all());
+        $plan = $this->plan('arvan', ['slug' => 'priced-arvan', 'cost_hour_eur_micro' => 4200]);
+        $this->assertArrayNotHasKey('cost_hour_eur_micro', $plan->toArray());
+    }
+
 }
