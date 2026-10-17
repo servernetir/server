@@ -1,6 +1,16 @@
 # Arvan customer console generalization — 17 October 2026
 
-## Status: implementation prepared; NOT installed or accepted in production
+## Current status: app installed/enabled; real guest acceptance blocked
+
+17 October, approximately 13:05–13:11 UTC: owner restored cPanel. Hash-guarded installer from `e60603fd` installed only broker, controller and SecurityHeaders. The production driver already had the compatible enabled-capability/HTTPS-external contract after concurrent Navasan deployment; it was checked, not overwritten. Private backups and receipt: `/home/servernetcloud/servernet_app/storage/app/private/arvan-console-public-20261017/` (`*.before`, `receipt.json`). Installer uses a release lock, exact old hashes, staged PHP lint and per-file rename; do not rerun it after receipt exists.
+
+Broker activation was observed at 0 and changed to 1; enabled() returned true. Existing authenticated `/system/opcache` returned HTTP200 and `opcache_reset=true`. This endpoint also clears shared application cache, not merely bytecode; no migrations, cron, scheduler, financial or guest operation was run. The customer's actual service501 page now shows the web-console button instead of the no-console warning. Clicking it opened a new tab; browser security policy refused authority to observe the new tab (invalid/blocked URL), and no alternate surface or workaround was attempted. Owner was asked to report the visible result. **Image, harmless input, fresh-ticket reconnect and live expired-ticket rejection remain unaccepted.** Local screenshot of the service button is in the task output, not committed.
+
+Existing Cloudflare credential returned403 for exact Worker read; editor remained Loading/Deploy disabled. Worker version85f6f3ed and route were preserved, no credential/DNS change. Existing Worker supports the observed service501 region; the committed regional Worker generalization is NOT published. Do not claim every Arvan region works. Remaining Windows-password warning is still visible and is not resolved by this console release.
+
+Post-release read-only check: hourly sales=1; Windows ready refs=20; service501/customer1 active; instance315 running. No VM created, deleted, rebooted or rebuilt. No route/NAT/firewall, port-forward/country-agent source, invoice or sales setting changed. App changes persist as production source and broker DB setting. Roll back new sessions by setting only `arvan_console_worker_enabled` to its previous0, then restore the three exact private backups with concurrent-change checks and web OPcache refresh; do not revert the production driver or unrelated Navasan release. Open WebSockets need separate closure; the flag alone does not revoke established connections.
+
+## Historical preparation (superseded by the deployment status above)
 
 Owner authorized repair for all Arvan customers, testing only the already purchased owner service, keeping sales open, and committing/pushing develop. No new VM, deletion, reboot, password change, financial change or sales-setting change is authorized by this release.
 
