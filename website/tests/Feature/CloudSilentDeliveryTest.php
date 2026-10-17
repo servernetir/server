@@ -16,6 +16,7 @@ use App\Services\SystemHealth;
 use App\Support\ErrorTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Sleep;
@@ -653,6 +654,51 @@ class CloudSilentDeliveryTest extends TestCase
 
         $this->assertFalse($r['ok']);
         Http::assertNothingSent();
+    }
+
+    /** قراردادِ زندهٔ Aeza v2: برای هر فرمان مسیر جدا و پاسخ موفق 204 است. */
+    public function test_power_uses_the_documented_aeza_control_actions(): void
+    {
+        Http::swap(new Factory);
+        Http::fake(fn () => Http::response([], 204));
+
+        $this->assertTrue($this->aeza()->power('90210', 'off')['ok']);
+        $this->assertTrue($this->aeza()->power('90210', 'on')['ok']);
+        $this->assertTrue($this->aeza()->power('90210', 'reboot')['ok']);
+
+        Http::assertSentCount(3);
+        Http::assertSent(fn ($request) => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/api/v2/services/90210/ctl/suspend')
+            && $request['force'] === false);
+        Http::assertSent(fn ($request) => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/api/v2/services/90210/ctl/resume')
+            && $request->data() === []);
+        Http::assertSent(fn ($request) => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/api/v2/services/90210/ctl/restart')
+            && $request['force'] === false);
+    }
+
+    public function test_aeza_control_transport_error_is_visible_in_admin_tracker_without_retrying_action(): void
+    {
+        Http::swap(new Factory);
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+            throw new ConnectionException('aeza-control-probe-'.bin2hex(random_bytes(4)));
+        });
+
+        $r = $this->aeza()->power('90210', 'reboot');
+
+        $this->assertFalse($r['ok']);
+        $this->assertSame('ارتباط با ارائه‌دهنده برقرار نشد.', $r['message']);
+        $this->assertSame(1, $attempts);
+
+        $rows = ErrorTracker::recent(10, 'error');
+        $this->assertCount(1, $rows);
+        $this->assertSame('cloud.aeza.transport', $rows[0]['area']);
+        $this->assertSame('POST', $rows[0]['ctx']['method']);
+        $this->assertSame('v2', $rows[0]['ctx']['api']);
+        $this->assertSame('/services/90210/ctl/restart', $rows[0]['ctx']['path']);
     }
 
     /** نامِ `sn-svc-4` نباید `sn-svc-42` را برگرداند — سرورِ مشتریِ دیگر */

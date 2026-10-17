@@ -77,6 +77,7 @@ class SystemHealth
             ['unbilled', 'سررسیدِ سرویس‌ها', 'unbilledServices'],
             ['billing_jobs', 'اجرای تمدید و تعلیق', 'billingJobs'],
             ['cloud_delivery', 'تحویلِ سرورِ ابری', 'undeliveredCloud'],
+            ['aeza_control', 'کنترل Aeza', 'aezaControlContract'],
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
             ['mailboxes', 'صندوق‌های ایمیل', 'mailboxes'],
@@ -97,6 +98,35 @@ class SystemHealth
         }
 
         return $checks;
+    }
+
+    /** از بازنویسیِ درایور کنترل Aeza با مسیر قدیمی پس از انتشار خبر می‌دهد. */
+    private function aezaControlContract(): array
+    {
+        $expected = ['on' => 'resume', 'off' => 'suspend', 'shutdown' => 'suspend', 'reboot' => 'restart'];
+        $title = 'کنترل Aeza';
+        $client = \App\Services\Cloud\AezaClient::class;
+
+        if (! defined($client.'::CONTROL_API_VERSION') || constant($client.'::CONTROL_API_VERSION') !== 2) {
+            return $this->row('aeza_control', false, 'fail', $title,
+                'مسیر کنترل Aeza باید از API نسخهٔ ۲ استفاده کند.');
+        }
+
+        if (! defined($client.'::CONTROL_ACTIONS')) {
+            return $this->row('aeza_control', false, 'fail', $title,
+                'نسخهٔ قدیمی درایور Aeza منتشر شده؛ نگاشت فرمان‌ها قابل تأیید نیست.');
+        }
+
+        $actual = constant($client.'::CONTROL_ACTIONS');
+        foreach ($expected as $action => $providerAction) {
+            if (($actual[$action] ?? null) !== $providerAction) {
+                return $this->row('aeza_control', false, 'fail', $title,
+                    "فرمان {$action} با قرارداد Aeza سازگار نیست؛ انتشار درایور را بررسی کنید.");
+            }
+        }
+
+        return $this->row('aeza_control', true, 'ok', $title,
+            'مسیر و فرمان‌های روشن، خاموش و راه‌اندازی مجدد با API نسخهٔ ۲ Aeza سازگارند.');
     }
 
     /**

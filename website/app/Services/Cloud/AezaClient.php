@@ -3,6 +3,7 @@
 namespace App\Services\Cloud;
 
 use App\Models\Setting;
+use App\Support\ErrorTracker;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -68,6 +69,18 @@ use Illuminate\Support\Facades\Log;
 class AezaClient implements CloudProvider
 {
     private const BASE = 'https://my.aeza.net/api';
+    private const BASE_V2 = 'https://my.aeza.net/api/v2';
+
+    public const CONTROL_API_VERSION = 2;
+
+    /** قراردادِ کنترلِ Aeza؛ سلامتِ سامانه این نگاشت را پس از هر انتشار می‌سنجد. */
+    public const CONTROL_ACTIONS = [
+        'on' => 'resume',
+        'off' => 'suspend',
+        'shutdown' => 'suspend',
+        'reboot' => 'restart',
+        'reset' => 'restart',
+    ];
 
     /**
      * ⚠️ چرا «نامزدِ مسیر» و نه مسیرِ ثابت.
@@ -168,7 +181,7 @@ class AezaClient implements CloudProvider
     // ───────────────────────── لایهٔ تماس ─────────────────────────
 
     /** @return array{ok:bool,status:int,body:array,message:string} */
-    private function req(string $method, string $path, array $payload = []): array
+    private function req(string $method, string $path, array $payload = [], string $base = self::BASE): array
     {
         $token = $this->token();
 
@@ -182,7 +195,7 @@ class AezaClient implements CloudProvider
                 ->timeout(25)
                 ->connectTimeout(10);
 
-            $url = self::BASE.'/'.ltrim($path, '/');
+            $url = $base.'/'.ltrim($path, '/');
 
             $res = match (strtoupper($method)) {
                 'GET'    => $http->get($url, $payload),
@@ -193,6 +206,13 @@ class AezaClient implements CloudProvider
             };
         } catch (\Throwable $e) {
             Log::warning('aeza.transport', ['path' => $path, 'err' => $e->getMessage()]);
+            // خطای کنترلِ مشتری تا امروز فقط در laravel.log بود و ردیابِ ادمین
+            // آن را نمی‌دید. در قطعیِ مکرر، هر علت را با سقف زمانی ثبت کن.
+            ErrorTracker::noteOnce('cloud.aeza.transport', $e, 300, [
+                'method' => strtoupper($method),
+                'api' => $base === self::BASE_V2 ? 'v2' : 'v1',
+                'path' => $path,
+            ]);
 
             return ['ok' => false, 'status' => 0, 'body' => [], 'message' => 'ارتباط با ارائه‌دهنده برقرار نشد.'];
         }
@@ -2261,15 +2281,7 @@ class AezaClient implements CloudProvider
 
     public function power(string $ref, string $action): array
     {
-        $map = [
-            'on'       => 'start',
-            'off'      => 'stop',
-            'shutdown' => 'stop',
-            'reboot'   => 'reboot',
-            'reset'    => 'reboot',
-        ];
-
-        if (! isset($map[$action])) {
+        if (! isset(self::CONTROL_ACTIONS[$action])) {
             return ['ok' => false, 'message' => 'عملیاتِ ناشناخته.'];
         }
 
@@ -2282,7 +2294,12 @@ class AezaClient implements CloudProvider
             return ['ok' => false, 'message' => 'سفارش هنوز به سرور تبدیل نشده؛ روشن/خاموش ممکن نیست.'];
         }
 
-        $r = $this->req('POST', '/services/'.rawurlencode($ref).'/ctl', ['action' => $map[$action]]);
+        $providerAction = self::CONTROL_ACTIONS[$action];
+        // در API فعلی، کنترلْ مسیر جدا دارد و پاسخ موفق آن 204 بی‌بدنه است.
+        // force=false خاموش‌سازی/راه‌اندازی نرم را درخواست می‌کند.
+        $payload = $providerAction === 'resume' ? [] : ['force' => false];
+        $r = $this->req('POST', '/services/'.rawurlencode($ref).'/ctl/'.$providerAction,
+            $payload, self::BASE_V2);
 
         return ['ok' => $r['ok'], 'message' => $r['ok'] ? '' : $r['message']];
     }
