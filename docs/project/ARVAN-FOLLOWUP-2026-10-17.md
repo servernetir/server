@@ -1,5 +1,7 @@
 # Arvan VPS follow-up — 2026-10-17
 
+> Current sales and second-test cleanup/cost status: [17 October sales handoff](ARVAN-SALES-STATUS-2026-10-17.md). Public Windows and hourly sales were explicitly enabled by the owner despite unresolved automatic-password acceptance and final billing. Older gate-closed and font-pending statements below are historical, not current operating instructions.
+
 ## Font production acceptance — 06:57 UTC
 
 Supersedes font-pending notes below. Owner created the explicitly scoped temporary Individual Workers Editor token for servernet-vnc only, expiring 17 October 23:59 Tehran. Official Worker upload API deployed version `85f6f3ed-e733-4f47-8752-f160bd28f55c` at 100%. Live-source diff was only font CSP, font-face CSS and two fixed font routes. Existing bindings (including secret binding) and compatibility date compared equal after upload. No routes, DNS, portal/RustDesk Worker, sales setting, broker enablement or paid resource changed.
