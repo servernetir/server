@@ -7,7 +7,7 @@ use App\Models\Setting;
 use App\Services\ExchangeRate;
 use Illuminate\Support\Facades\DB;
 
-/** Reprice existing products without changing catalog membership or availability. */
+/** Reprice existing products; retire only regionally verified unavailable Arvan offers. */
 class CloudCatalogRepricer
 {
     // These drivers normalize a non-EUR supplier quote to EUR. Reusing their
@@ -41,6 +41,7 @@ class CloudCatalogRepricer
             ->whereNotIn('provider', CloudPlan::disabledProviders())->get();
         $nativeCosts = [];
         $skip = [];
+        $unavailable = [];
 
         foreach ($plans->whereIn('provider', self::NORMALIZED_PROVIDERS)->groupBy('provider') as $provider => $group) {
             $active = $group->filter(fn (CloudPlan $plan) => $plan->is_active && ! $plan->admin_disabled);
@@ -53,12 +54,32 @@ class CloudCatalogRepricer
 
             // fetchCatalog only reads supplier catalogs/quotes. Do not call
             // syncOne: price refresh must not enable plans or alter inventory.
-            $catalog = $driver->fetchCatalog();
+            $regionalArvan = $provider === 'arvan' && $driver instanceof ArvanClient;
+            $catalog = $regionalArvan
+                ? $driver->fetchExistingPlanCosts($active->values()->all())
+                : $driver->fetchCatalog();
             if (($catalog['ok'] ?? false) !== true || ! is_array($catalog['plans'] ?? null)) {
                 throw new \RuntimeException('Price refresh could not read supplier costs: '.$provider);
             }
 
             $quotes = $this->indexQuotes($catalog['plans'], $provider);
+            if ($regionalArvan) {
+                if (! is_array($catalog['unavailable'] ?? null)) {
+                    throw new \RuntimeException('Arvan regional availability evidence is missing.');
+                }
+                foreach ($catalog['unavailable'] as $identity) {
+                    if (! is_array($identity)) {
+                        throw new \RuntimeException('Invalid unavailable Arvan product identity.');
+                    }
+                    $key = $this->key((string) ($identity['provider_ref'] ?? ''), (string) ($identity['location_code'] ?? ''));
+                    $matches = $active->filter(fn (CloudPlan $plan) => $this->key($plan->provider_ref, $plan->location_code) === $key
+                        && $plan->provider_location === ($identity['provider_location'] ?? null));
+                    if ($matches->count() !== 1 || isset($quotes[$key]) || isset($unavailable[$matches->first()->id])) {
+                        throw new \RuntimeException('Unverified or conflicting unavailable Arvan product.');
+                    }
+                    $unavailable[$matches->first()->id] = true;
+                }
+            }
             if ($provider === 'lightnode' && $driver instanceof LightNodeClient) {
                 $missing = $active->filter(fn (CloudPlan $plan) =>
                     ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
@@ -74,9 +95,15 @@ class CloudCatalogRepricer
             }
 
             foreach ($active as $plan) {
+                if (isset($unavailable[$plan->id])) {
+                    continue;
+                }
                 $row = $quotes[$this->key($plan->provider_ref, $plan->location_code)] ?? null;
                 if (! is_array($row)) {
                     throw new \RuntimeException('Price refresh is missing an existing supplier plan: '.$provider);
+                }
+                if ($regionalArvan && ($row['provider_location'] ?? null) !== $plan->provider_location) {
+                    throw new \RuntimeException('Arvan price belongs to a different region.');
                 }
                 $cost = $this->amount($row['cost_eur_cents'] ?? null, false, $provider);
                 $hourly = $row['cost_hour_eur_micro'] ?? null;
@@ -99,7 +126,7 @@ class CloudCatalogRepricer
         // Any database failure rolls back the complete product-price batch.
         $this->assertRates($rates);
         $this->assertSettings($settings);
-        $apply = function () use ($plans, $nativeCosts, $skip, $persist, $rates, $settings): int {
+        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings): int {
             // Current reads avoid a MariaDB repeatable-read snapshot; locks last
             // only for product writes, never for slow supplier requests.
             $this->assertSettings($settings, $persist);
@@ -115,6 +142,17 @@ class CloudCatalogRepricer
                 $old = $plans->firstWhere('id', $plan->id);
                 if ($plan->getRawOriginal() !== $old->getRawOriginal()) {
                     throw new \RuntimeException('Catalog changed during price refresh; retry with a fresh snapshot.');
+                }
+                if (isset($unavailable[$plan->id])) {
+                    // Keep the row, its last price and all existing services.
+                    // The exact flavor is absent from its original region;
+                    // another region's quote must never make it sellable here.
+                    $plan->in_stock = false;
+                    if ($plan->isDirty()) {
+                        if ($persist) { $plan->save(); }
+                        $count++;
+                    }
+                    continue;
                 }
                 $costs = $nativeCosts[$plan->id] ?? [];
                 $cost = $costs['cost_eur_cents'] ?? (int) $plan->cost_eur_cents;

@@ -409,6 +409,64 @@ class ArvanClient implements CloudProvider
         ];
     }
 
+    /**
+     * Quote existing products in their recorded region, without scanning images
+     * or substituting a flavor offered in another region. A complete, nonempty
+     * regional list can prove that an old flavor is no longer offered there.
+     */
+    public function fetchExistingPlanCosts(array $plans): array
+    {
+        $fail = static fn (string $reason) => ['ok' => false, 'plans' => [], 'unavailable' => [], 'message' => $reason];
+        $eur = $this->eurToman();
+        if (! $this->isConfigured() || $eur <= 0) {
+            return $fail('Arvan pricing is not configured with a valid exchange rate.');
+        }
+        $groups = [];
+        foreach ($plans as $plan) {
+            if (! $plan instanceof CloudPlan || $plan->provider !== 'arvan'
+                || ! is_string($plan->provider_location) || $plan->provider_location === ''
+                || $plan->provider_ref === '' || $plan->location_code === '') {
+                return $fail('Invalid existing Arvan product identity.');
+            }
+            $groups[$plan->provider_location][] = $plan;
+        }
+        $quotes = [];
+        $unavailable = [];
+        foreach ($groups as $region => $products) {
+            $response = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/sizes');
+            if (! ($response['ok'] ?? false) || ! ($response['json_valid'] ?? false)
+                || ! ($response['data_present'] ?? false) || ! ($response['data_is_list'] ?? false)
+                || ! is_array($response['data']) || $response['data'] === []) {
+                return $fail('A complete nonempty Arvan regional price list was not received.');
+            }
+            $sizes = [];
+            foreach ($response['data'] as $size) {
+                $id = is_array($size) ? ($size['id'] ?? null) : null;
+                if (! is_string($id) || $id === '' || isset($sizes[$id])) {
+                    return $fail('Arvan regional prices contain invalid or duplicate identities.');
+                }
+                $sizes[$id] = $size;
+            }
+            foreach ($products as $plan) {
+                if (! isset($sizes[$plan->provider_ref])) {
+                    $unavailable[] = ['provider_ref' => $plan->provider_ref,
+                        'provider_location' => $region, 'location_code' => $plan->location_code];
+                    continue;
+                }
+                $quote = $this->mapSize($sizes[$plan->provider_ref], $region, $plan->location_code, $eur);
+                if ($quote === null || (int) $quote['vcpu'] !== (int) $plan->vcpu
+                    || (int) $quote['ram_mb'] !== (int) $plan->ram_mb
+                    || (int) $quote['disk_gb'] !== (int) $plan->disk_gb
+                    || $quote['cpu_kind'] !== $plan->cpu_kind) {
+                    return $fail('An existing Arvan flavor has invalid prices or changed specifications.');
+                }
+                $quotes[] = $quote;
+            }
+        }
+
+        return ['ok' => true, 'plans' => $quotes, 'unavailable' => $unavailable, 'message' => ''];
+    }
+
     /** فقط مناطقی که واقعاً می‌شود در آنها سرور ساخت */
     private function creatableRegions(mixed $data): array
     {
@@ -545,6 +603,9 @@ class ArvanClient implements CloudProvider
 
         // بهایِ تمام‌شده به سنتِ یورو: تومان ÷ (تومانِ هر یورو) × ۱۰۰
         $costEurCents = (int) round(($priceToman / $eurToman) * 100);
+        $costHourEurMicro = $rialHour > 0
+            ? (int) ceil((($rialHour / 10) / $eurToman) * 1_000_000)
+            : null;
 
         if ($costEurCents <= 0) {
             return null;
@@ -567,6 +628,7 @@ class ArvanClient implements CloudProvider
             'cpu_kind' => $cpuKind,
             'arch' => 'x86',
             'cost_eur_cents' => $costEurCents,
+            'cost_hour_eur_micro' => $costHourEurMicro,
             'in_stock' => true,
         ];
     }
