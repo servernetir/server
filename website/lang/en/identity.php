@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'runtime_health' => 'Active web code consistency',
+    'runtime_ready' => 'Verified',
+    'runtime_stale' => 'Complete deployment before enabling sales',
     'revoke' => 'Revoke key',
     'last_used' => 'Last used',
     'title' => 'ServerNet Identity & Inquiry API',

@@ -25,7 +25,7 @@ def main():
     stage = args.stage.resolve(strict=True)
     manifest = json.loads((stage / 'manifest.json').read_text())
     release = manifest['release']
-    if release != 'identity-api-20261017' or not stage.is_relative_to(root.parent):
+    if release not in {'identity-api-20261017', 'identity-api-20261017-runtime'} or not stage.is_relative_to(root.parent):
         raise RuntimeError('Unexpected release or staging destination')
     lock = (root.parent / 'identity-api-deploy.lock').open('a')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -83,9 +83,12 @@ def main():
             installed.append(row['path'])
             (backup / 'installed.json').write_text(json.dumps(installed))
         migration = 'database/migrations/2026_10_17_190000_create_identity_api_tables.php'
-        with (backup / 'migration.private.log').open('w') as log:
-            subprocess.run([php, 'artisan', 'migrate', '--force', '--path=' + migration],
-                           cwd=root, stdout=log, stderr=subprocess.STDOUT, check=True)
+        if any(row['path'] == migration for row in rows):
+            with (backup / 'migration.private.log').open('w') as log:
+                subprocess.run([php, 'artisan', 'migrate', '--force', '--path=' + migration],
+                               cwd=root, stdout=log, stderr=subprocess.STDOUT, check=True)
+        else:
+            migration = None
         for row in rows:
             if digest(root / row['path']) != row['after']:
                 raise RuntimeError('Post-install hash mismatch: ' + row['path'])

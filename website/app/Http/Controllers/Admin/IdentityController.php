@@ -20,7 +20,7 @@ class IdentityController extends Controller
 {
     public function index(Controls $controls, Catalog $catalog)
     {
-        return view('admin.identity', ['ready' => $controls->ready(), 'controls' => $controls, 'catalog' => $catalog->all(),
+        return view('admin.identity', ['ready' => $controls->ready(), 'runtimeReady' => $controls->runtimeReady(), 'controls' => $controls, 'catalog' => $catalog->all(),
             'prices' => $controls->ready() ? IdentityPrice::orderByDesc('id')->limit(100)->get() : collect(),
             'history' => $controls->ready() ? IdentityRequest::orderByDesc('id')->paginate(40) : null,
             'heartbeat' => Cache::get('identity:reconcile:heartbeat')]);

@@ -507,18 +507,23 @@ class IdentityApiTest extends TestCase
         $key = CustomerApiToken::orderByDesc('id')->first();
         $this->assertSame(hash('sha256', $plain), $key->token_hash);
         $this->assertSame($this->application->id, $key->identity_application_id);
-        $this->get('/account/security')->assertOk()->assertHeader('Cache-Control','no-store, private');
+        $this->get('/account/security')->assertOk()->assertHeader('Cache-Control', 'no-store, private');
         $before = CustomerApiToken::count();
-        $this->post('/account/security/api-token',['name' => 'Unbound', 'abilities' => ['identity:execute'], 'daily_spend_cap_irt' => 1000])->assertRedirect()->assertSessionHasErrors();
-        $this->assertSame($before,CustomerApiToken::count());
+        $this->post('/account/security/api-token', ['name' => 'Unbound', 'abilities' => ['identity:execute'], 'daily_spend_cap_irt' => 1000])->assertRedirect()->assertSessionHasErrors();
+        $this->assertSame($before, CustomerApiToken::count());
+    }
+
+    public function test_runtime_requires_wallet_hold_exclusion_and_explicit_identity_scopes(): void
+    {
+        $this->assertTrue(app(Controls::class)->runtimeReady());
     }
 
     public function test_identity_token_limit_update_is_owned_and_does_not_reveal_the_key(): void
     {
-        $this->actingAs($this->customer,'customer')->post('/account/identity-api/keys/'.$this->token->id,[
+        $this->actingAs($this->customer, 'customer')->post('/account/identity-api/keys/'.$this->token->id, [
             'daily_spend_cap_irt' => 500, 'cidrs' => '192.0.2.1', 'expires_days' => 1,
         ])->assertRedirect();
-        $this->assertSame(500,(int) $this->token->fresh()->daily_spend_cap_irt);
+        $this->assertSame(500, (int) $this->token->fresh()->daily_spend_cap_irt);
         $this->assertFalse($this->token->fresh()->allowsIp('198.51.100.1'));
         $this->assertFalse(session()->has('new_token'));
     }

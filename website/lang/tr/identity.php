@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'runtime_health' => 'Etkin web kodu tutarlılığı',
+    'runtime_ready' => 'Doğrulandı',
+    'runtime_stale' => 'Satıştan önce dağıtımı tamamlayın',
     'revoke' => 'Anahtarı iptal et',
     'last_used' => 'Son kullanım',
     'title' => 'ServerNet Kimlik ve Sorgulama API',

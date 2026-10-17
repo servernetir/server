@@ -2,6 +2,9 @@
 
 namespace App\Services\IdentityApi;
 
+use App\Models\CustomerApiToken;
+use App\Services\Finance\BusinessLedger;
+use App\Services\Finance\Wallet;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -43,7 +46,19 @@ class Controls
 
     public function dispatchEnabled(): bool
     {
-        return $this->ready() && $this->get('enabled', false) === true && filled($this->get('resale_evidence'))
+        return $this->ready() && $this->runtimeReady() && $this->get('enabled', false) === true && filled($this->get('resale_evidence'))
             && $this->get('egress_verified', false) === true;
+    }
+
+    /** Guard partial deployments or stale web bytecode before any paid request. */
+    public function runtimeReady(): bool
+    {
+        $parameters = array_map(fn ($p) => $p->getName(), (new \ReflectionMethod(Wallet::class, 'debit'))->getParameters());
+        $legacy = new CustomerApiToken(['abilities' => ['*'], 'identity_application_id' => 1]);
+
+        return in_array('excludingIdentityRequestId', $parameters, true)
+            && method_exists(BusinessLedger::class, 'recordIdentitySale')
+            && defined(CustomerApiToken::class.'::IDENTITY_ABILITIES')
+            && ! $legacy->can('identity:execute');
     }
 }
