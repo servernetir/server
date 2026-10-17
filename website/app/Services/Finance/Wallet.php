@@ -58,8 +58,15 @@ class Wallet
      * `$excludingReservationId` برای تسویه است: رزروی که در همین تراکنش
      * مصرف می‌شود نباید هم «نگه‌داشته» حساب شود هم خرج — دوبار کسر نشود.
      */
-    public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null): int
+    public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null, ?int $excludingIdentityRequestId = null): int
     {
+        $identity = 0;
+        if (self::$identityTable ??= Schema::hasTable('identity_requests')) {
+            $identity = (int) \App\Models\IdentityRequest::where('customer_id', $customerId)
+                ->where('currency_code', $currency)->holding()
+                ->when($excludingIdentityRequestId !== null, fn ($q) => $q->where('id', '!=', $excludingIdentityRequestId))
+                ->sum('hold_irt');
+        }
         /*
         | 🔴 روی نصبی که جدولِ رزروِ AI را ندارد بی‌صدا رد شو — نه ۵۰۰.
         |
@@ -70,7 +77,7 @@ class Wallet
         | بی‌صدا برمی‌گردد.
         */
         if (! self::aiReservationsTable()) {
-            return $currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0;
+            return $identity + ($currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0);
         }
 
         $q = AiReservation::where('customer_id', $customerId)
@@ -89,11 +96,12 @@ class Wallet
         */
         $hold = $currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0;
 
-        return (int) $q->sum('amount_irt') + $hold;
+        return (int) $q->sum('amount_irt') + $hold + $identity;
     }
 
     /** جدولِ رزروِ AI یک بار در هر پروسه پرسیده می‌شود (سرِ راهِ هر کسر است) */
     private static ?bool $aiTable = null;
+    private static ?bool $identityTable = null;
 
     private static function aiReservationsTable(): bool
     {
@@ -104,6 +112,7 @@ class Wallet
     public static function flushSchemaCache(): void
     {
         self::$aiTable = null;
+        self::$identityTable = null;
     }
 
     /** در دسترس = دفتر − نگه‌دارنده‌ها */
@@ -145,13 +154,14 @@ class Wallet
         ?string $note = null,
         bool $requireAvailable = true,
         ?int $excludingReservationId = null,
+        ?int $excludingIdentityRequestId = null,
     ): CreditEntry {
         if ($amount <= 0) {
             throw new WalletException('invalid_amount', 'مبلغِ برداشت باید مثبت باشد.');
         }
 
         return $this->entry($customerId, $currency, -$amount, $reason, $source, $note,
-            requireAvailable: $requireAvailable, excludingReservationId: $excludingReservationId);
+            requireAvailable: $requireAvailable, excludingReservationId: $excludingReservationId, excludingIdentityRequestId: $excludingIdentityRequestId);
     }
 
     /** ردیفِ دفتر + گاردِ در دسترس + `balance_after`ِ مشاوره‌ای */
@@ -164,9 +174,10 @@ class Wallet
         ?string $note,
         bool $requireAvailable = false,
         ?int $excludingReservationId = null,
+        ?int $excludingIdentityRequestId = null,
     ): CreditEntry {
         $write = function () use (
-            $customerId, $currency, $signed, $reason, $source, $note, $requireAvailable, $excludingReservationId
+            $customerId, $currency, $signed, $reason, $source, $note, $requireAvailable, $excludingReservationId, $excludingIdentityRequestId
         ): CreditEntry {
             /*
             | قفلِ ردیفِ مشتری — سرِ هر نوشتنِ پولی و اولین قفلِ هر مسیر.
@@ -183,7 +194,7 @@ class Wallet
                 ->where('currency_code', $currency)
                 ->sum('amount');
 
-            $reserved = $this->reservedOf($customerId, $currency, $excludingReservationId);
+            $reserved = $this->reservedOf($customerId, $currency, $excludingReservationId, $excludingIdentityRequestId);
 
             if ($requireAvailable && ($balance + $signed - $reserved) < 0) {
                 throw new WalletException('insufficient_funds',

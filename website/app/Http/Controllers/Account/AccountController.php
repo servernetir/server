@@ -201,6 +201,7 @@ class AccountController extends Controller
                     // چون کاربر نمی‌فهمید تفاوتش با پروفایل چیست.
                     ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],
                     ['key' => 'ai', 'icon' => 'code', 'label' => __('ai.usage'), 'url' => lroute('account.ai')],
+                    ['key' => 'identity', 'icon' => 'shield', 'label' => __('identity.menu'), 'url' => lroute('account.identity')],
                     ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security'), 'url' => lroute('account.security')],
                 ]],
             ],

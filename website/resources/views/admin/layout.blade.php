@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="{{ app()->getLocale() }}" dir="{{ app()->getLocale()==='fa'?'rtl':'ltr' }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -146,6 +146,7 @@
            فقط مدیر: این‌جا پولِ مشتری و قراردادِ ارائه‌دهنده تنظیم می‌شود. --}}
       @if(auth()->user()->isAdmin())
       <div class="ad-nav-sep">درگاه هوش مصنوعی</div>
+      <a href="{{ lroute('admin.identity.index') }}" class="@yield('nav_identity')"><svg class="icon"><use href="#i-shield"/></svg>{{ __('identity.menu') }}</a>
       <a href="/admin/ai" class="@yield('nav_ai_providers')"><svg class="icon"><use href="#i-cpu"/></svg>ارائه‌دهنده‌ها</a>
       <a href="/admin/ai/models" class="@yield('nav_ai_models')"><svg class="icon"><use href="#i-box"/></svg>مدل‌ها</a>
       <a href="/admin/ai/pricing" class="@yield('nav_ai_pricing')"><svg class="icon"><use href="#i-coins"/></svg>قیمت و پیش‌نمایش</a>

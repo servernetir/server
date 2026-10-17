@@ -147,6 +147,21 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if (!\App\Http\Middleware\IdentityPrivacy::sensitive($request)) return null;
+            $status=match(true) {
+                $e instanceof \App\Services\IdentityApi\IdentityError=>$e->httpStatus,
+                $e instanceof \Illuminate\Validation\ValidationException=>422,
+                $e instanceof \Illuminate\Auth\AuthenticationException=>401,
+                $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface=>$e->getStatusCode(),
+                default=>503,
+            };
+            $code=$e instanceof \App\Services\IdentityApi\IdentityError ? $e->errorCode : match($status) {
+                422=>'invalid_input',401=>'insufficient_scope',403=>'insufficient_scope',404=>'request_not_found',429=>'quota_exceeded',default=>'temporarily_unavailable',
+            };
+            return response()->json(['ok'=>false,'error'=>$code,'message'=>__('identity.error_'.$code)],$status,
+                ['Cache-Control'=>'private, no-store','Referrer-Policy'=>'no-referrer','X-Robots-Tag'=>'noindex, nofollow']);
+        });
         /*
         | پاسخِ JSON برای مسیرهایِ API — `api/*` میراث و `v1/*` دروازهٔ AI
         | (M4-c): 429ِ `throttle:ai` و هر استثنایِ فریم‌ورک دیگر باید JSON
@@ -179,6 +194,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // خودِ دیتابیس است هم گرفته شود. جزئیات (کلاس، پیام، فایل:خط، اولین
         // قاب در کد خودمان) نوشته می‌شود تا بشود مستقیم رفت سراغ رفعش.
         $exceptions->report(function (\Throwable $e) {
+            if (\App\Http\Middleware\IdentityPrivacy::sensitive(request())) {
+                \App\Support\ErrorTracker::noteOnce('identity_api','Inquiry failure requires review',300,['exception_class'=>$e::class]);
+                return false; // Never log raw SQL bindings, HTTP messages or identity request context.
+            }
             \App\Support\ErrorTracker::exception($e, request());
         });
     })->create();

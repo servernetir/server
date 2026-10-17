@@ -571,6 +571,9 @@ class SiteController extends Controller
         }
 
         $add('ai.home');
+        $add('identity.home');
+        $add('identity.docs');
+        $add('identity.terms');
         $add('ai.models');
         $add('ai.docs');
         foreach (\App\Models\AiModel::where('status', '!=', 'deprecated')->get() as $aiModel) {

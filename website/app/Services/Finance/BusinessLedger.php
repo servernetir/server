@@ -26,6 +26,8 @@ class BusinessLedger
         'tax_paid'      => 'out',
         'withdrawal'    => 'out',
         'refund'        => 'out',
+        'identity_refund' => 'out',
+        'id_tax_refund' => 'out',
     ];
 
     /** دسته‌های هزینه — کلید ثابت، برچسب در زبان */
@@ -370,6 +372,25 @@ class BusinessLedger
      */
     public const CREDIT_SPEND_REASONS = ['cloud_hourly', 'cloud_hourly_convert'];
 
+    /** Same outer transaction as wallet capture. Source/kind uniqueness supplies dedup. */
+    public function recordIdentitySale(\App\Models\IdentityRequest $request): void
+    {
+        if (!$this->ready()) throw new \RuntimeException('Business ledger unavailable');
+        $q=$request->quote;
+        // Supplier tax is already in the cost basis; no unapproved tax-recovery credit.
+        foreach (['revenue'=>$q['sell_irt'],'tax_collected'=>$q['tax_irt'],'expense'=>$q['cost_irt']] as $kind=>$amount) {
+            if ($amount>0) $this->post($kind,$amount,category:'identity_api',source:$request,note:'Identity API '.$request->public_id);
+        }
+    }
+
+    public function recordIdentityRefund(\App\Models\IdentityRequest $request): void
+    {
+        if (!$this->ready()) throw new \RuntimeException('Business ledger unavailable');
+        foreach (['identity_refund'=>$request->quote['sell_irt'],'id_tax_refund'=>$request->quote['tax_irt']] as $kind=>$amount) {
+            if ($amount>0) $this->post($kind,$amount,category:'identity_api',source:$request,note:'Identity correction '.$request->public_id);
+        }
+    }
+
     public function recordCreditSpend(\App\Models\CreditEntry $entry): void
     {
         if (! $this->ready()) {
@@ -588,8 +609,8 @@ class BusinessLedger
 
         $capital       = $sum('capital');
         $withdrawal    = $sum('withdrawal');
-        $revenue       = $sum('revenue');
-        $taxCollected  = $sum('tax_collected');
+        $revenue       = $sum('revenue') - $sum('identity_refund');
+        $taxCollected  = $sum('tax_collected') - $sum('id_tax_refund');
         $taxPaid       = $sum('tax_paid');
         $expense       = $sum('expense');
         $refund        = $sum('refund');
@@ -666,7 +687,7 @@ class BusinessLedger
 
         $rows = BusinessEntry::query()
             ->where('currency_code', 'IRT')
-            ->whereIn('kind', ['revenue', 'expense'])
+            ->whereIn('kind', ['revenue', 'expense', 'identity_refund'])
             ->whereDate('occurred_at', '>=', now()->subMonthsNoOverflow($months - 1)->startOfMonth()->toDateString())
             ->selectRaw("{$ymExpr} as ym, kind, sum(amount) as s")
             ->groupBy('ym', 'kind')
@@ -681,7 +702,7 @@ class BusinessLedger
         for ($i = $months - 1; $i >= 0; $i--) {
             $m   = now()->subMonthsNoOverflow($i);
             $ym  = $m->format('Y-m');
-            $rev = $map[$ym]['revenue'] ?? 0;
+            $rev = ($map[$ym]['revenue'] ?? 0) - ($map[$ym]['identity_refund'] ?? 0);
             $exp = $map[$ym]['expense'] ?? 0;
             $out[] = [
                 'label'   => $m->format('Y/m'),

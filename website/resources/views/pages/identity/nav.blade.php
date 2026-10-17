@@ -1,0 +1,1 @@
+<nav class="id-nav" aria-label="{{ __('identity.menu') }}"><a href="{{ lroute('identity.home') }}">{{ __('identity.menu') }}</a><a href="{{ lroute('identity.docs') }}">{{ __('identity.docs') }}</a><a href="{{ lroute('identity.terms') }}">{{ __('identity.terms') }}</a><a href="{{ lroute('account.identity') }}">{{ __('identity.dashboard') }}</a></nav>

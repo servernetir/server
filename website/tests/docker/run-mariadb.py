@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--checkout', type=Path, required=True, help='Isolated repository with installed website/vendor')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--image', default='servernet-tests:php84')
+    parser.add_argument('--suite', choices=['AiReservationMariaDbStressTest','IdentityMariaDbStressTest','IdentityApiTest'], default='AiReservationMariaDbStressTest')
     args = parser.parse_args()
     checkout = args.checkout.resolve(strict=True)
     app = checkout / 'website'
@@ -70,7 +71,7 @@ def main():
                    '--workdir', '/workspace/website', args.image, 'sh', '-c',
                    'mkdir -p storage/framework/views storage/framework/sessions storage/framework/cache/data storage/logs storage/app bootstrap/cache && '
                    'php -v && php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit '
-                   '--do-not-cache-result --log-junit /results/mariadb.xml tests/Feature/AiReservationMariaDbStressTest.php',
+                   '--do-not-cache-result --log-junit /results/mariadb.xml tests/Feature/'+args.suite+'.php',
                    capture_output=True)
             created.append(('container', client))
             with (output / 'mariadb.log').open('w') as log:
