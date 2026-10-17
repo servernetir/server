@@ -125,6 +125,9 @@ class CloudServerController extends Controller
 
         $instance = $this->instanceOf($service);
         $caps = $instance ? $this->manager->capabilitiesFor($instance) : [];
+        if ($instance?->provider === 'arvan') {
+            $caps['console'] = app(\App\Services\Cloud\ArvanConsoleBroker::class)->enabledFor($service);
+        }
 
         // آروان برای ایمیج‌های ویندوز API تغییر رمز ندارد (پاسخ زندهٔ API:
         // «Changing password ... is not possible»). قابلیتِ عمومیِ ارائه‌دهنده
@@ -685,7 +688,7 @@ class CloudServerController extends Controller
 
         if ($instance->provider === 'arvan') {
             $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
-            if (! $broker->enabled() || ! $broker->eligible($service)) {
+            if (! $broker->enabledFor($service) || ! $broker->eligible($service)) {
                 return back()->withErrors(__('ui.cx_console_na'));
             }
         }
@@ -702,7 +705,7 @@ class CloudServerController extends Controller
         // دیگری قابلِ استفاده نباشد.
         if ($instance->provider === 'arvan') {
             $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
-            if ($broker->enabled() && $broker->eligible($service)) {
+            if ($broker->enabledFor($service) && $broker->eligible($service)) {
                 $target = $broker->issue($service, $r['url']);
                 $this->log($service, __('ui.act_cloud_console'));
                 return redirect()->away($target)->header('Cache-Control', 'no-store, private')

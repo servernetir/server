@@ -81,7 +81,7 @@ class SecurityHeaders
                 && $consoleService->cloudInstance?->provider === 'arvan') {
                 $formAction .= ' https://console.arvaniaas.ir';
                 $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
-                if ($broker->enabled() && $broker->eligible($consoleService)) {
+                if ($broker->enabledFor($consoleService) && $broker->eligible($consoleService)) {
                     $formAction .= ' https://vnc.servernet.cloud';
                 }
             }
