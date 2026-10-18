@@ -637,6 +637,10 @@ class CloudStoreController extends Controller
                 }
             }
 
+            if (! CloudImage::providerAccessIsAutomated((string) $row->provider, $row)) {
+                continue;
+            }
+
             if ((int) $row->min_disk_gb > (int) ($offer->boot_disk_gb ?? $offer->disk_gb)) {
                 continue;                                 // روی این دیسک جا نمی‌شود
             }

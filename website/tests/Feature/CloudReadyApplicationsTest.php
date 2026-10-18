@@ -81,10 +81,13 @@ class CloudReadyApplicationsTest extends TestCase
             'kind' => 'os', 'family' => 'windows', 'label' => 'Windows Server', 'arch' => 'x86', 'is_active' => true,
         ]);
         $this->assertNull(CloudImage::compatibleRefFor($plan, $image->key));
+        $this->assertNotContains($image->key, CloudStoreController::imageKeysFor($plan));
         Setting::put('arvan_windows_ready_image_refs', 'different-image');
         $this->assertNull(CloudImage::compatibleRefFor($plan, $image->key));
+        $this->assertNotContains($image->key, CloudStoreController::imageKeysFor($plan));
         Setting::put('arvan_windows_ready_image_refs', $image->provider_ref);
         $this->assertSame($image->provider_ref, CloudImage::compatibleRefFor($plan, $image->key));
+        $this->assertContains($image->key, CloudStoreController::imageKeysFor($plan));
         Http::assertNothingSent();
     }
 }

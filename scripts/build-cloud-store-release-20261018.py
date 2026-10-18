@@ -1,5 +1,9 @@
 """Build and guard the limited cloud-store/Shahkar release; never runs remotely itself.
 
+Release v2 supersedes the abandoned cloud-store-experience-20261018-v1 staging.
+V1 was inventoried and unlocked without any target writes. Its inventory exposed
+published provider filtering/alert changes that must be preserved in this packet.
+
 Local: python scripts/build-cloud-store-release-20261018.py --build
 Upload the resulting directory OUTSIDE public_html, with directory mode 0700 and
 files 0600. On the server use its copied release.py, in this order:
@@ -30,7 +34,7 @@ import sys
 import tarfile
 import uuid
 
-RELEASE = 'cloud-store-experience-20261018-v1'
+RELEASE = 'cloud-store-experience-20261018-v2'
 LOCK = '.cloud-store-experience-deploy.lock'
 PHP = '/opt/cpanel/ea-php84/root/usr/bin/php'
 SOURCES = '''app/Http/Controllers/Account/BuilderCheckoutController.php
@@ -165,6 +169,8 @@ def build(args):
     require(len(SOURCES) == 49 and len(entries()) == 53, 'Unexpected scope')
     verifier = repo / 'scripts/verify-cloud-store-release-20261018.php'
     require(verifier.is_file(), 'Acceptance verifier is not ready')
+    activator = repo / 'scripts/activate-cloud-store-release-20261018.php'
+    require(activator.is_file(), 'Activation helper is not ready')
     out.mkdir(parents=True, mode=0o700)
     for source in SOURCES:
         path = repo / 'website' / source
@@ -190,6 +196,7 @@ def build(args):
                'head': head, 'origin_develop': base, 'modified_sources': modified, 'entries': rows})
     write_private(out / 'release.py', Path(__file__).read_bytes())
     write_private(out / verifier.name, verifier.read_bytes())
+    write_private(out / activator.name, activator.read_bytes())
     write_private(out / 'README.txt', __doc__ + '\nReviewed-before format: {"candidate_sha256":"<hash of candidate-manifest.json>",'
                   '"entries":[{"path":"servernet_app/...","before":"<inventory hash or null>"}, ...]}\n'
                   'Review ALL 53 observed targets against source and published baseline before signing this file.\n'
