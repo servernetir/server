@@ -551,6 +551,34 @@ class CloudProvisioner
                 $service->refresh();
                 return;
             }
+            if ($instance->provider === 'arvan' && $instance->isWindows()) {
+                // Only the credential supplied by this create call is eligible.
+                // A retained instance secret has no generation proof: same-image
+                // rebuild/restore can leave it unchanged. Never recover it on
+                // retry or replace existing service ciphertext (even unreadable).
+                $credentialFields = [];
+                if (filled($password) && blank($current->getRawOriginal('password'))
+                    && $current->provision_status === 'running'
+                    && $current->provisioned_at === null && $current->activated_at === null
+                    && (int) $current->customer_id === (int) $service->customer_id
+                    && (string) $current->cloud_image_key === (string) $instance->image_key) {
+                    $captured = CloudInstance::whereKey($instance->id)->lockForUpdate()->first();
+                    if ($captured !== null && (int) $captured->service_id === (int) $current->id
+                        && $captured->provider === 'arvan'
+                        && filled($captured->provider_ref)
+                        && $captured->provider_ref === $instance->provider_ref
+                        && $captured->image_key === $instance->image_key
+                        && $captured->status !== 'deleted'
+                        && ! $captured->password_seen && $captured->ready_notified_at === null) {
+                        $capturedPassword = $captured->password();
+                        if (is_string($capturedPassword) && hash_equals($password, $capturedPassword)) {
+                            $credentialFields['password'] = $password;
+                        }
+                    }
+                }
+            } else {
+                $credentialFields = ['password' => $password ?: $current->password];
+            }
             $service->setRawAttributes($current->getAttributes(), true);
             $service->forceFill([
                 'cloud_plan_id' => $plan->id,      // زیرساختِ واقعیِ تحویل
@@ -561,7 +589,7 @@ class CloudProvisioner
                 */
                 'username' => $instance->isGpuApp() ? null
                     : (in_array($instance->provider, ['arvan', 'lightnode'], true) && $instance->isWindows() ? 'Administrator' : 'root'),
-                'password' => $password ?: $service->password,
+                ...$credentialFields,
                 'domain' => $service->domain ?: ($instance->isGpuApp()
                     ? ($instance->accessHost() ?: null)
                     : ($instance->ipv4 ?: null)),

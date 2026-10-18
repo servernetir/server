@@ -693,7 +693,12 @@ class CloudServerController extends Controller
             }
         }
 
-        $r = $driver->console((string) $instance->provider_ref);
+        $consoleSnapshot = [
+            'customer' => (int) $service->customer_id,
+            'instance' => (int) $instance->id,
+            'ref' => (string) $instance->provider_ref,
+        ];
+        $r = $driver->console($consoleSnapshot['ref']);
 
         if (! ($r['ok'] ?? false) || blank($r['url'] ?? null)) {
             return back()->withErrors($this->safeMessage(
@@ -706,7 +711,7 @@ class CloudServerController extends Controller
         if ($instance->provider === 'arvan') {
             $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
             if ($broker->enabledFor($service) && $broker->eligible($service)) {
-                $target = $broker->issue($service, $r['url']);
+                $target = $broker->issue($service, $r['url'], $consoleSnapshot);
                 $this->log($service, __('ui.act_cloud_console'));
                 return redirect()->away($target)->header('Cache-Control', 'no-store, private')
                     ->header('Referrer-Policy', 'no-referrer');

@@ -77,6 +77,15 @@ Worker source SHA256:
 Local screenshots are retained outside Git under the task output directory;
 they are previews and must not be presented as live remote desktops.
 
+## Superseding owner-only request
+
+The later owner-only request closes public console access while retaining sales.
+See [the current owner-only record](ARVAN-OWNER-CONSOLE-2026-10-18.md). Earlier
+public1 snapshots below are historical, not the present policy. A later fresh
+token-free IAB navigation rendered the real shell and correct guidance with no
+captured errors, but no active owner guest exists for a new control test and
+intermittent pre-HTML failures are not declared permanently fixed.
+
 ## Transport observations, not a network change
 
 The workstation still had an enabled loopback HTTP proxy and xray_tun adapter.

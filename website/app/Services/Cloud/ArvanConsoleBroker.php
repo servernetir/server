@@ -3,6 +3,7 @@
 namespace App\Services\Cloud;
 
 use App\Models\CloudInstance;
+use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
@@ -29,12 +30,10 @@ class ArvanConsoleBroker
             && preg_match('/\A[a-f0-9]{64}\z/', (string) Setting::getSecret('arvan_console_worker_key')) === 1;
     }
 
-    /** Private acceptance window; never changes provider-wide capabilities. */
-    private function acceptanceWindow(): bool
+    /** Owner-only pilot is separate from the public capability and defaults off. */
+    private function ownerPilotEnabled(): bool
     {
-        $until = (string) Setting::get('arvan_console_501_test_until', '');
-        return ctype_digit($until) && (int) $until > now()->timestamp
-            && (int) $until <= now()->addHour()->timestamp
+        return Setting::get('arvan_console_owner_pilot_enabled', '0') === '1'
             && preg_match('/\A[a-f0-9]{64}\z/', (string) Setting::getSecret('arvan_console_worker_key')) === 1;
     }
 
@@ -43,20 +42,34 @@ class ArvanConsoleBroker
         if ($this->enabled()) {
             return true;
         }
-        return $this->acceptanceWindow() && (int) $service->id === 501
-            && (int) $service->customer_id === 1
-            && $service->cloudInstance?->provider_ref === 'ir-tbz-sh1:29daf8cf-77c2-4f95-a6f5-c365020fdaad';
+        // Check persisted identity/ownership, not a cached relationship, display
+        // name or staff login. The old deleted-service501 bypass is not reused.
+        return $this->ownerPilotEnabled() && (int) $service->customer_id === 1
+            && Customer::whereKey(1)->where('code', 'SN-457136')->where('status', 'active')->exists()
+            && Service::whereKey($service->getKey())->where('customer_id', 1)->where('status', 'active')->exists();
     }
 
-    /** Caller must first enforce customer ownership, writable state and rate limit. */
-    public function issue(Service $service, string $url): string
+    /**
+     * Caller enforces ownership/writable state/rate limit, then captures this
+     * snapshot BEFORE obtaining the provider URL. Never bind an old URL to a
+     * replacement instance or new owner, even when the region stays the same.
+     *
+     * @param array{customer: int, instance: int, ref: string} $expected
+     */
+    public function issue(Service $service, string $url, array $expected = []): string
     {
-        abort_unless($this->enabledFor($service) && $this->eligible($service), 403);
-        $instance = CloudInstance::where('service_id', $service->id)->firstOrFail();
+        $current = Service::find($service->getKey());
+        $instance = $current ? CloudInstance::where('service_id', $current->id)->first() : null;
+        abort_unless($current && $instance
+            && ($expected['customer'] ?? null) === (int) $current->customer_id
+            && ($expected['customer'] ?? null) === (int) $service->customer_id
+            && ($expected['instance'] ?? null) === (int) $instance->id
+            && ($expected['ref'] ?? null) === $instance->provider_ref
+            && $this->enabledFor($current) && $this->eligible($current), 403);
         $this->validateUrl($url, explode(':', $instance->provider_ref, 2)[0]);
         $ticket = bin2hex(random_bytes(32));
         Cache::put($this->key('ticket', $ticket), [
-            'service' => (int) $service->id, 'customer' => (int) $service->customer_id,
+            'service' => (int) $current->id, 'customer' => (int) $current->customer_id,
             'instance' => (int) $instance->id, 'ref' => $instance->provider_ref,
             'url' => Crypt::encryptString($url), 'expires' => now()->addSeconds(90)->timestamp,
         ], 90);
@@ -71,7 +84,7 @@ class ArvanConsoleBroker
         $ts = (string) $request->header('X-SN-Time', '');
         $signature = (string) $request->header('X-SN-Signature', '');
         $secret = (string) Setting::getSecret('arvan_console_worker_key');
-        if ((! $this->enabled() && ! $this->acceptanceWindow()) || strlen($body) > 256 || ! preg_match('/\A[0-9]{10}\z/', $ts)
+        if ((! $this->enabled() && ! $this->ownerPilotEnabled()) || strlen($body) > 256 || ! preg_match('/\A[0-9]{10}\z/', $ts)
             || abs(now()->timestamp - (int) $ts) > 30 || ! preg_match('/\A[a-f0-9]{64}\z/', $signature)
             || ! hash_equals(hash_hmac('sha256', $ts."\n".$body, $secret), $signature)) {
             return $this->response(['ok' => false], 403);
