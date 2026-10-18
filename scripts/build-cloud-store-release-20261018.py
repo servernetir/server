@@ -1,6 +1,6 @@
 """Build and guard the limited cloud-store/Shahkar release; never runs remotely itself.
 
-Release v3 follows the installed cloud-store-experience-20261018-v2 release.
+Release v4 follows the installed cloud-store-experience-20261018-v2 release.
 It adds the requested fixed globe network, readable unnamed locations, console
 header width and the cost-floor correction discovered by production acceptance.
 V1 was inventoried and unlocked without any target writes. Its inventory exposed
@@ -36,7 +36,7 @@ import sys
 import tarfile
 import uuid
 
-RELEASE = 'cloud-store-experience-20261018-v3'
+RELEASE = 'cloud-store-experience-20261018-v4'
 LOCK = '.cloud-store-experience-deploy.lock'
 PHP = '/opt/cpanel/ea-php84/root/usr/bin/php'
 SOURCES = '''app/Http/Controllers/Account/BuilderCheckoutController.php

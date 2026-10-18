@@ -5,7 +5,7 @@ declare(strict_types=1);
 // The existing route clears config, route, view AND application cache. It is
 // deliberately called once after all file hashes pass, never via a public helper.
 if (PHP_SAPI !== 'cli' || !function_exists('posix_geteuid')
-    || __DIR__ !== '/home/servernetcloud/cloud-store-experience-20261018-v3'
+    || __DIR__ !== '/home/servernetcloud/cloud-store-experience-20261018-v4'
     || is_link(__DIR__) || (fileperms(__DIR__) & 0777) !== 0700
     || fileowner(__DIR__) !== posix_geteuid() || file_exists(__DIR__.'/ACTIVATED.json')
     || !is_file(__DIR__.'/APPLIED.json')) {

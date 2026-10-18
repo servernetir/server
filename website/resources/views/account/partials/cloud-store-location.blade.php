@@ -47,7 +47,7 @@
                     @endphp
                     <a class="cvb-city @if(! $mOpen) is-shut @endif @if($mCode === (string) $locCode) on @endif" data-city="{{ $mCode }}" data-label="{{ $g['label'].' — '.$mLabel }}" data-city-label="{{ $c['generic'] ? '' : $m->city }}" data-approximate="{{ $c['generic'] ? 'true' : 'false' }}" href="{{ $cityHref($mCode) }}" @if($mCode === (string) $locCode) aria-current="true" @endif>
                       <span class="cvx-city-dot" aria-hidden="true"></span><span class="cvb-city-t"><b>{{ $c['generic'] ? $g['label'].' · '.$mLabel : $mLabel }}</b>
-                        @if(! $mOpen)<em class="cvb-outb">{{ __('ui.cvb_c_soldout') }}</em>@elseif($mLow > 0)<small class="cvx-city-price">{{ __('ui.cvb_from', ['amount' => cloud_price($mLow)]) }} {{ __('ui.mo') }}</small>@endif
+                        @if(! $mOpen)<em class="cvb-outb">{{ __('ui.cvb_c_soldout') }}</em>@elseif($mLow > 0)<small>{{ __('ui.cvb_from', ['amount' => cloud_price($mLow)]) }} {{ __('ui.mo') }}</small>@endif
                       </span><svg class="icon cvx-city-check" aria-hidden="true"><use href="#i-check"/></svg>
                     </a>
                   @endforeach

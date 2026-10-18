@@ -142,12 +142,12 @@ class CloudStoreExperienceTest extends TestCase
                 $this->assertSame('', $link->getAttribute('data-city-label'));
                 $this->assertSame('true', $link->getAttribute('data-approximate'));
                 if ($code === 'ru-ref') {
-                    $this->assertSame(0, $xpath->query('.//small[@class="cvx-city-price"]', $link)->length);
+                    $this->assertSame(0, $xpath->query('.//small', $link)->length);
                     $this->assertStringContainsString(__('ui.cvb_c_soldout'), $link->textContent);
                 } else {
                     $amount = cloud_price($anchors[$code]['irt']);
                     $this->assertStringNotContainsString($amount, $name);
-                    $priceNode = $xpath->query('.//small[@class="cvx-city-price"]', $link)->item(0);
+                    $priceNode = $xpath->query('.//small', $link)->item(0);
                     $this->assertStringContainsString($amount, $priceNode->textContent);
                 }
             }
