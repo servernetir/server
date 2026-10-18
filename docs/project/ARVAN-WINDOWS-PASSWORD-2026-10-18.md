@@ -1,5 +1,7 @@
 # Arvan Windows password handling — 18 October 2026
 
+Next step: [unattended bootstrap investigation and new spending gate](ARVAN-WINDOWS-BOOTSTRAP-2026-10-18.md). The preparation described there does not supersede or expand the production acceptance below.
+
 ## Production release accepted — 18 October, 10:23:57 UTC
 
 The owner explicitly approved the brief shared-cache refresh. Fresh10:17:36UTC preflight confirmed unchanged live source hashes and sales/console settings. The prepared surgical release installed exactly two application files at10:20:00UTC; installed hashes and private before-file hashes matched the manifest. No full-file copy from the newer Git checkout was used, so unrelated live code was preserved.
