@@ -735,8 +735,8 @@ if (! function_exists('schema_offer_extras')) {
      * shippingDetails (ممیزی ۲۴ اوت ۲۰۲۶ — ۶۷ آیتم، سه هشدار در هر آیتم).
      *
      * سرویس‌ها دیجیتال‌اند و کالایی پست نمی‌شود؛ ارسال = صفر-هزینه/آنی، و
-     * ضمانتِ بازگشتِ وجه همان وعدهٔ ۱۴ روزه‌ای است که FAQ و صفحهٔ terms به
-     * مشتری می‌دهند — این‌جا فقط نشانه‌گذاری می‌شود، نه وعدهٔ تازه.
+     * ضمانت تجاری باید فقط پس از احراز نوع هاست و محل تحویل ایران اضافه شود.
+     * این کمک‌تابع عمومی اطلاعات تحویل ندارد و هیچ مهلت استردادی اعلام نمی‌کند.
      */
     function schema_offer_extras(string $currency): array
     {
@@ -744,13 +744,6 @@ if (! function_exists('schema_offer_extras')) {
             // اولِ ماه، نه now(): اسکیما نباید هر روز عوض شود (pagecache و
             // خزشِ مجدد بی‌دلیل).
             'validFrom' => now()->startOfMonth()->toDateString(),
-            'hasMerchantReturnPolicy' => [
-                '@type' => 'MerchantReturnPolicy',
-                'applicableCountry' => 'IR',
-                'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
-                'merchantReturnDays' => 14,
-                'returnFees' => 'https://schema.org/FreeReturn',
-            ],
             'shippingDetails' => [
                 '@type' => 'OfferShippingDetails',
                 'shippingRate' => ['@type' => 'MonetaryAmount', 'value' => 0, 'currency' => $currency],

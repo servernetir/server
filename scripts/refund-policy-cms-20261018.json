@@ -1,0 +1,14 @@
+[
+  {"slug":"choosing-web-hosting-for-business","type":"blog","locale":"fa","replacements":[
+    ["تا در دورهٔ بازگشت وجه، عملکرد واقعی را ببینید.","تا عملکرد واقعی را بسنجید. ضمانت تجاری ۱۴ روزهٔ سرورنت فقط برای هاست‌های مشمول روی زیرساخت خود مجموعه در ایران است؛ خرید سرور و هاست خارج از ایران مشمول نیست."],
+    ["از دورهٔ بازگشت وجه به‌عنوان دورهٔ آزمایش واقعی استفاده کنید.","پیش از خرید، شرایط لغو را در قوانین بررسی کنید؛ ضمانت تجاری ۱۴ روزه فقط برای هاست‌های مشمول سرورنت در ایران است و خرید سرور را شامل نمی‌شود."]]},
+  {"slug":"choosing-web-hosting-for-business","type":"blog","locale":"en","replacements":[
+    ["so you can see the actual performance during the money-back period.","so you can measure actual performance. ServerNet's voluntary 14-day guarantee applies only to eligible hosting on its own infrastructure in Iran; server purchases and hosting outside Iran are excluded."],
+    ["Use the money-back period as a real trial period.","Check cancellation eligibility in the terms before ordering. ServerNet's voluntary 14-day guarantee is limited to eligible Iran hosting and does not cover server purchases."]]},
+  {"slug":"choosing-between-services","type":"kb","locale":"fa","replacements":[
+    ["قبل از خرید نهایی، از سرویس‌دهنده بخواهید یک دوره آزمایشی یا ضمانت بازگشت وجه ارائه دهد.","قبل از خرید نهایی، شرایط لغو سرویس‌دهنده را مطالعه کنید. در سرورنت، ضمانت تجاری ۱۴ روزه فقط برای هاست‌های مشمول روی زیرساخت خود مجموعه در ایران است؛ خرید سرور پس از تخصیص زیرساخت، استرداد نقدی یا اعتباری ندارد."]]},
+  {"slug":"choosing-between-services","type":"kb","locale":"en","replacements":[
+    ["Before making a final purchase, ask the provider for a trial period or money-back guarantee.","Read the provider's cancellation terms before ordering. At ServerNet, the voluntary 14-day guarantee is limited to eligible hosting on its own infrastructure in Iran; server purchases are not refunded in cash or account credit after infrastructure allocation."]]},
+  {"slug":"choosing-between-services","type":"kb","locale":"tr","replacements":[
+    ["Nihai satın alma işleminden önce, sağlayıcıdan bir deneme süresi veya para iade garantisi isteyin.","Sipariş vermeden önce sağlayıcının iptal şartlarını okuyun. ServerNet'in ticari 14 günlük garantisi yalnızca kendi altyapısında İran içindeki uygun hosting için geçerlidir; altyapı tahsisinden sonra sunucu alımları nakit veya hesap kredisi olarak iade edilmez."]]}
+]
