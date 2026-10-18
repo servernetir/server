@@ -643,7 +643,7 @@ class ArvanClient implements CloudProvider
         $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).'/images', [], ['type' => 'distributions']);
 
         if (! $r['ok']) {
-            return [];
+            throw new \UnexpectedValueException('Regional image catalog unavailable.');
         }
 
         $out = [];
@@ -684,7 +684,18 @@ class ArvanClient implements CloudProvider
             }
         }
 
-        return $out;
+        return array_merge($out, $this->regionApplications($regionCode));
+    }
+
+    /** Provider-native free applications; incomplete catalogs fail closed. */
+    private function regionApplications(string $regionCode): array
+    {
+        $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).'/images/marketplace');
+        if (! ($r['ok'] ?? false)) {
+            throw new \UnexpectedValueException('Regional application catalog unavailable.');
+        }
+
+        return ArvanApplicationImages::normalize($regionCode, (array) $r['data']);
     }
 
     /** «Ubuntu 22.04» → ['ubuntu', '22.04'] */
@@ -890,8 +901,24 @@ class ArvanClient implements CloudProvider
      *
      * @return string شناسهٔ معتبر در همین منطقه، یا همان ورودی اگر تطبیقی نبود
      */
-    private function imageForRegion(string $regionCode, string $imageRef): string
+    private function imageForRegion(string $regionCode, string $imageRef, array $spec = []): string
     {
+        if (str_starts_with($imageRef, 'app:')) {
+            $id = ArvanApplicationImages::imageId($regionCode, $imageRef);
+            if ($id !== null) {
+                foreach ($this->regionApplications($regionCode) as $image) {
+                    if ($image['provider_ref'] === $imageRef) {
+                        if ($spec !== [] && ((int) ($spec['vcpu'] ?? 0) < ArvanApplicationImages::minCpu($image['family'])
+                            || (int) ($spec['ram_mb'] ?? 0) < $image['min_ram_mb']
+                            || (int) ($spec['disk_gb'] ?? 0) < $image['min_disk_gb'])) {
+                            throw new \UnexpectedValueException('Selected application now requires a larger plan.');
+                        }
+                        return $id;
+                    }
+                }
+            }
+            throw new \UnexpectedValueException('Selected application is unavailable in this region.');
+        }
         $images = $this->regionImageIndex($regionCode);
 
         if ($images === []) {
@@ -1016,11 +1043,17 @@ class ArvanClient implements CloudProvider
                     .'از این حساب خوانده نمی‌شود.'] + $fail;
         }
 
+        try {
+            $resolvedImage = $this->imageForRegion($region, (string) $spec['image_ref'], $spec);
+        } catch (\UnexpectedValueException $e) {
+            return ['ok' => false, 'transient' => true, 'message' => $e->getMessage()] + $fail;
+        }
+
         $payload = [
             'name' => $spec['name'],
             'flavor_id' => $flavorId,
             // 🔴 ایمیج per-region است — شناسهٔ منطقهٔ دیگر «firewall not found» می‌دهد
-            'image_id' => $this->imageForRegion($region, (string) $spec['image_ref']),
+            'image_id' => $resolvedImage,
             'network_ids' => [$networkId],
             /*
             | ⚠️ آرایه‌ای از آبجکت‌هاست، نه رشته. نامِ فیلد طبق قرارداد آروان

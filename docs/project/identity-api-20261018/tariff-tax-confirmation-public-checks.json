@@ -1,0 +1,45 @@
+{
+  "checked_at_utc": "2026-10-18T09:47:20Z",
+  "evidence": "Fresh public GET checks after owner confirmed 10 percent purchase tax on the listed base tariffs; no production writes",
+  "purchase_tax_bps": 1000,
+  "source": "owner reply in current conversation",
+  "price_versions_changed": false,
+  "price_validity_extended": false,
+  "balance_calls": 0,
+  "paid_calls": 0,
+  "pages": [
+    {
+      "path": "/identity-api",
+      "http": 200,
+      "active": 30,
+      "inactive": 5,
+      "all_30_net_rates_match": true,
+      "unknown_prices_not_zero": true,
+      "funding_policy": "owner_managed_v1",
+      "usage_policy": "available_wallet_v1",
+      "raw_translation": false
+    },
+    {
+      "path": "/en/identity-api",
+      "http": 200,
+      "active": 30,
+      "inactive": 5,
+      "all_30_net_rates_match": true,
+      "unknown_prices_not_zero": true,
+      "funding_policy": "owner_managed_v1",
+      "usage_policy": "available_wallet_v1",
+      "raw_translation": false
+    },
+    {
+      "path": "/tr/identity-api",
+      "http": 200,
+      "active": 30,
+      "inactive": 5,
+      "all_30_net_rates_match": true,
+      "unknown_prices_not_zero": true,
+      "funding_policy": "owner_managed_v1",
+      "usage_policy": "available_wallet_v1",
+      "raw_translation": false
+    }
+  ]
+}

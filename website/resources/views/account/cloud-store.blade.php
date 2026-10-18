@@ -688,7 +688,6 @@
           <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" @if($isGpuStore) role="group" aria-label="{{ __('ui.cvb_gpu_app_title') }}" @else role="tabpanel" aria-labelledby="cvb-tab-app" @if($startTab !== 'app') hidden @endif @endif>
             @if($isGpuStore)
               @php
-                $gpuAppIcons = ['gpu-jupyter' => 'i-book', 'gpu-comfyui' => 'i-flow', 'gpu-ollama' => 'i-bot'];
                 $gpuAppDescriptions = ['gpu-jupyter' => 'ui.cvb_gpu_jupyter_desc', 'gpu-comfyui' => 'ui.cvb_gpu_comfyui_desc', 'gpu-ollama' => 'ui.cvb_gpu_ollama_desc'];
               @endphp
               <div class="cvb-fam cvb-gpu-app-group" data-fam="gpu">
@@ -698,7 +697,7 @@
                            data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
                       <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
                       <span class="cvb-gpu-app-top" aria-hidden="true">
-                        <span class="cvb-gpu-app-icon"><svg class="icon"><use href="#{{ $gpuAppIcons[$img->key] ?? 'i-box' }}"/></svg></span>
+                        <span class="cvb-gpu-app-icon"><img src="{{ $img->logo() }}" alt="" width="30" height="30" loading="lazy"></span>
                         <span class="cvb-gpu-app-check"><svg class="icon"><use href="#i-check"/></svg></span>
                       </span>
                       <span class="cvb-gpu-app-copy">
@@ -1024,6 +1023,9 @@
     'specs'  => $jsSpecs,
     'imgLbl' => $jsImgLbl,
     'imgLogo' => $jsImgLogo,
+    'imageCardWords' => ['os' => __('ui.cvb_os'), 'app' => __('ui.cvb_app'),
+      'version' => __('ui.cvb_image_version'), 'selected' => __('ui.cvb_image_selected'),
+      'ready' => __('ui.cvb_image_ready'), 'continue' => __('ui.cvb_image_continue')],
     'addon'  => $addonMap,
     // برمتال: فروشِ ساعتی ندارد — کلیدِ ساعتی برایش پنهان می‌شود
     'metal'  => collect($planCards)->mapWithKeys(fn ($c) => [$c['slug'] => (bool) ($c['metal'] ?? false)])->all(),
@@ -1049,6 +1051,7 @@
     'sDesc'  => __('ui.cvb_sort_desc'),
   ];
 @endphp
+<script src="{{ asset_ver('assets/js/cloud-image-cards.js') }}"></script>
 <script>
 (function(){
   'use strict';
@@ -1056,6 +1059,11 @@
   var D = @json($jsData);
   var form = document.getElementById('cvb-form');
   if (!form) { return; }
+  var imageCards = window.ServerNetImageCards ? window.ServerNetImageCards.mount(form, D.imageCardWords) : null;
+  if (imageCards) {
+    Object.assign(D.imgLbl, imageCards.labels);
+    Object.assign(D.imgLogo, imageCards.logos);
+  }
 
   var faN = function(x){ return String(x).replace(/[0-9]/g, function(g){ return '۰۱۲۳۴۵۶۷۸۹'[g]; }); };
   var comma = function(n){ return Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
@@ -1146,6 +1154,7 @@
       // ساخته می‌شد و کسی نمی‌دیدش. پنلِ میزبان هم بالا می‌آید.
       showPane(firstKind);
     }
+    if (imageCards) imageCards.refresh();
   };
 
   var hChk = document.getElementById('cvb-hourly');
@@ -1487,9 +1496,18 @@
   form.querySelectorAll('.cvb-img input').forEach(function(r){
     r.addEventListener('change', function(){
       mark('.cvb-img', r.closest('.cvb-img'));
+      if (imageCards) imageCards.refresh();
       render();
       stamp();
-      advance('4', '5');
+      if (!r.closest('.cvb-card-source')) advance('4', '5');
+    });
+  });
+
+  form.querySelectorAll('[data-image-continue]').forEach(function(button){
+    button.addEventListener('click', function(){
+      openStep('5');
+      var target = document.getElementById('cvb-step-5');
+      if (target) target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
   });
 
@@ -1643,6 +1661,7 @@
      transform/contain روی `.cvb-wrap` یا بالاترش، داکِ موبایل را از قابِ دید
      می‌کَنَد و با اسکرول پایین می‌بَرَد — خرابی‌ای که ۲۰۰ می‌دهد و هیچ خطایی
      نمی‌سازد. سرصفحهٔ مرحله هرگز محو نمی‌شود، پس راهِ برگشتن خوانا می‌مانَد. */
+  var hoverOK = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
   var main = form.querySelector('.cvb-main');
   var dimT = null, dimWant = null;
 

@@ -399,18 +399,30 @@ class Product extends Model
     }
 
     /**
-     * آیا ضمانتِ ۱۴روزهٔ بازگشتِ وجه شاملِ این پکیج می‌شود؟ — ممیزی ۶ (حقوقی)
-     *
-     * ضمانت روی ۶۴ صفحهٔ /order تعمیم داده شده بود، از جمله دامنه/SSL/لایسنس/
-     * سرورِ اختصاصی که **عملاً غیرقابلِ بازگشت**اند: «ادعای عمومی گسترده‌تر از
-     * چیزی که می‌توان اجرا کرد». شمول از پیش‌نویسِ بندِ بازگشتِ وجه: هاست،
-     * نمایندگی، سرور مجازی/ابری، پنل‌ها. مستثنیات صریح: لایسنس پس از تحویلِ
-     * کلید، سرورِ اختصاصی/سخت‌افزارِ سفارشی، «سایر». دامنه/SSL اصلاً از این
-     * مسیر فروخته نمی‌شوند.
+     * آیا این پکیج می‌تواند ضمانت تجاری ۱۴ روزه هاست ایران را نمایش دهد؟
+     * فقط هاست/نمایندگی با سرور تحویل احرازشده در ایران؛ سرورها و محل تحویل
+     * نامعلوم یا مختلط مشمول نیستند. این متد مجوز اجرای بازپرداخت مالی نیست.
      */
     public function isRefundable(): bool
     {
-        return in_array($this->category, ['shared', 'reseller', 'vps', 'plesk', 'directadmin'], true);
+        if (! in_array($this->category, ['shared', 'reseller', 'plesk', 'directadmin'], true)) {
+            return false;
+        }
+
+        $server = $this->server;
+        if (! $server || strtoupper((string) $server->country) !== 'IR'
+            || ! in_array($server->type, ['whm', 'plesk', 'directadmin'], true)) {
+            return false;
+        }
+
+        // Do not promise the guarantee when the order can select a foreign location.
+        foreach ((array) $this->locations as $country) {
+            if (strtoupper((string) $country) !== 'IR') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

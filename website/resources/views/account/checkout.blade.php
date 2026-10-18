@@ -79,6 +79,9 @@
   <section class="pnl-sec co-form">
     <div class="pnl-sec-h"><h2>{{ __('ui.chk_service_settings') }}</h2></div>
     <div class="pnl-sec-b">
+      @if(in_array($product->category, ['vps', 'dedicated'], true))
+      <p class="co-note" data-server-refund-policy role="note">{{ __('ui.server_no_refund_notice') }} <a href="{{ lroute('terms') }}">{{ __('ui.os_refund_policy') }}</a></p>
+      @endif
       <form method="POST" action="{{ lroute('account.order.place', $product->slug) }}" id="co-form">
         @csrf
 

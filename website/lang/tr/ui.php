@@ -119,7 +119,7 @@ return [
     'hp_inc2' => 'Günlük yedekleme',
     'hp_inc3' => 'Anında aktivasyon',
     'hp_inc4' => 'Ücretsiz taşıma',
-    'hp_inc5' => '14 gün para iade garantisi',
+    'hp_inc5' => '14 gün garanti yalnızca uygun İran hosting için',
     'hp_inc6' => '7/24 destek',
     'hp_feat_badge' => 'Özellikler',
     'hp_feat_title' => 'Neden ServerNet :name?',
@@ -2015,6 +2015,10 @@ return [
     'cvb_os_group' => 'Ne kurulacak',
     'cvb_app' => 'Hazır uygulama',
     'cvb_other' => 'Diğer',
+    'cvb_image_version' => 'Sürüm',
+    'cvb_image_selected' => 'Seçili',
+    'cvb_image_ready' => 'Kuruluma hazır',
+    'cvb_image_continue' => 'Devam',
     'cvb_os_na' => 'İşletim sistemi listesi şu anda kullanılamıyor.',
     'cvb_os_empty' => 'Bu plan için işletim sistemi yok; lütfen başka bir plan seçin.',
     'cvb_app_na' => 'Otomatik kurulum için kayıtlı hazır uygulama yok.',
@@ -2918,7 +2922,7 @@ return [
     'hv_vs_r2_m' => 'Bir ay',
     'hv_vs_r3' => 'İptal',
     'hv_vs_r3_h' => 'Her an; kalan bakiye durur',
-    'hv_vs_r3_m' => 'Dönem sonu; iade şartlara göre',
+    'hv_vs_r3_m' => 'Dönem sonuna kadar; sunucu alımlarında ticari iade yok',
     'hv_vs_r4' => 'Donanım ve paket',
     'hv_vs_r4_h' => 'Aynı',
     'hv_vs_r4_m' => 'Aynı',
@@ -2988,7 +2992,7 @@ return [
     'ab_sla' => 'Yanıt taahhüdü: otomatik alındı bilgisi · en geç 2 iş günü içinde inceleme başlangıcı · aktif phishing/zararlı yazılım: 4 iş saati hedefi.',
 
     /* SLA ağ mücbir sebebi (denetim r4 — hukuk taslağı) */
-    'sla_fm5' => 'Ülke altyapı ağının veya uluslararası rotaların kesintisi, kısıtlanması veya bant genişliği düşürülmesi — yetkili makam kararları dahil her nedenle; durum durum sayfasında duyurulur ve bu madde 14 günlük para iade garantisini engellemez.',
+    'sla_fm5' => 'Ülke altyapı ağı veya uluslararası rotalarda yetkili makam kararları dahil kesinti, kısıtlama veya bant genişliği azalması; durum, durum sayfasında duyurulur. Ticari 14 günlük garanti yalnızca şartlardaki uygun İran hosting için geçerlidir; emredici yasal haklar saklıdır.',
 
     /* Hakkında sayfasında şirket kayıt kimlikleri (denetim r4) */
     'about_reg_t' => 'Şirket kayıt kimlikleri',
@@ -3078,7 +3082,8 @@ return [
     'os_tax_none' => 'Bu fiyata İran KDV\'si uygulanmaz.',
     'os_tax_neutral' => 'Bu, ödenecek nihai tutardır; yasal vergi ve harçlar dahildir.',
     'os_refund_policy' => 'İade koşulları',
-    'os_no_refund' => 'Bu hizmet teslimattan sonra iade edilemez',
+    'os_no_refund' => 'Bu hizmet ticari para iade garantisi kapsamında değildir',
+    'server_no_refund_notice' => 'Altyapı tahsisinden sonra sunucu alımları iade edilmez. Altyapı maliyeti satın alma sırasında kaynak para birimiyle ödenir; iptal, silme veya kullanmama, ödenen tutarın nakit ya da hesap kredisi olarak iadesini sağlamaz. Ticari 14 günlük garanti yalnızca ServerNet altyapısında İran içindeki uygun hosting içindir; emredici yasal haklar saklıdır.',
     'os_total_label' => 'Toplam',
     'os_cta_quote' => 'Teklif isteyin',
     'eu_data_title' => 'Verileriniz nerede tutuluyor',

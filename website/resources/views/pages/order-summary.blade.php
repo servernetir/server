@@ -102,6 +102,9 @@
         <li>{{ __('ui.hp_inc5') }} — <a href="{{ lroute('terms') }}">{{ __('ui.os_refund_policy') }}</a></li>
         @else
         <li>{{ __('ui.os_no_refund') }} — <a href="{{ lroute('terms') }}">{{ __('ui.os_refund_policy') }}</a></li>
+        @if(in_array($product->category, ['vps', 'dedicated'], true))
+        <li data-server-refund-policy>{{ __('ui.server_no_refund_notice') }}</li>
+        @endif
         @endif
       </ul>
 @unless($sells ?? true)

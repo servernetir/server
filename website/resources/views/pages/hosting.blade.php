@@ -507,7 +507,7 @@
       <b>{{ __('ui.hp_inc_title') }}</b>
       <div class="inc-items">
         {{-- hp_inc5 (ضمانتِ ۱۴روزه) فقط برای دسته‌های مشمول — حقوقی/شورا: سرور اختصاصی و لایسنس مشمول نیستند --}}
-        @php $incKeys = in_array($category, ['dedicated', 'license'], true) ? ['hp_inc1', 'hp_inc2', 'hp_inc3', 'hp_inc4', 'hp_inc6'] : ['hp_inc1', 'hp_inc2', 'hp_inc3', 'hp_inc4', 'hp_inc5', 'hp_inc6']; @endphp
+        @php $incKeys = in_array($category, ['hosting', 'reseller'], true) ? ['hp_inc1', 'hp_inc2', 'hp_inc3', 'hp_inc4', 'hp_inc5', 'hp_inc6'] : ['hp_inc1', 'hp_inc2', 'hp_inc3', 'hp_inc4', 'hp_inc6']; @endphp
         @foreach($incKeys as $inc)
         <span><svg class="icon"><use href="#i-check"/></svg>{{ __('ui.'.$inc) }}</span>
         @endforeach
