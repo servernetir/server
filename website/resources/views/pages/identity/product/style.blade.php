@@ -235,8 +235,10 @@ html[data-theme="light"] .ip {
     font-weight:400;
     opacity:.75}
 .ip-core-label {
+    position:absolute;
+    top:10px;
+    right:12px;
     font-size:9px;
-    margin-top:7px;
     opacity:.7}
 .ip-result-card {
     position:absolute;
@@ -906,7 +908,8 @@ to {
     font-size:9px}
 .ip-core-label {
     font-size:8px;
-    margin-top:4px}
+    top:6px;
+    right:8px}
 .ip-result-card {
     bottom:13%;
     right:0;
