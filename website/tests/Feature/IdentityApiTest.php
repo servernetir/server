@@ -17,6 +17,7 @@ use App\Services\Finance\BusinessLedger;
 use App\Services\Finance\Wallet;
 use App\Services\Finance\WalletException;
 use App\Services\IdentityApi\Catalog;
+use App\Services\IdentityApi\BalanceSync;
 use App\Services\IdentityApi\Contract;
 use App\Services\IdentityApi\Controls;
 use App\Services\IdentityApi\Engine;
@@ -672,5 +673,222 @@ class IdentityApiTest extends TestCase
         $this->assertSame(500, (int) $this->token->fresh()->daily_spend_cap_irt);
         $this->assertFalse($this->token->fresh()->allowsIp('198.51.100.1'));
         $this->assertFalse(session()->has('new_token'));
+    }
+
+    private function enableBalanceSync(): Controls
+    {
+        config(['identity_api.balance_token' => 'synthetic-read-only-financial-key']);
+        $controls = app(Controls::class);
+        $controls->put('balance_sync_enabled', true, 1);
+
+        return $controls;
+    }
+
+    public function test_balance_sync_reads_real_endpoint_in_rials_and_preserves_all_budgets_and_customer_records(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        foreach (['provider_daily_cap_irt' => 100000, 'internal_kyc_reserve_irt' => 200000, 'provider_concurrency' => 1, 'default_customer_cap_irt' => 25000] as $key => $value) {
+            $c->put($key, $value, 1);
+        }
+        $c->put('upstream_balance_verified_at', now()->subMinutes(50)->toIso8601String(), 1);
+        $counts = [IdentityRequest::count(), IdentityApplication::count(), CustomerApiToken::count(), CreditEntry::count(), BusinessEntry::count()];
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 4757809], 200)]);
+        $this->artisan('identity:sync-balance')->expectsOutput('balance_sync=updated')->assertSuccessful();
+        $this->assertSame(475780, $c->get('upstream_balance_irt'));
+        $this->assertSame(now()->startOfSecond()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+        $this->assertSame('ok', $c->get('balance_sync_state')['status']);
+        $this->assertTrue($c->fundingReady());
+        foreach (['provider_daily_cap_irt' => 100000, 'internal_kyc_reserve_irt' => 200000, 'provider_concurrency' => 1, 'default_customer_cap_irt' => 25000] as $key => $value) {
+            $this->assertSame($value, $c->get($key));
+        }
+        $this->assertSame($counts, [IdentityRequest::count(), IdentityApplication::count(), CustomerApiToken::count(), CreditEntry::count(), BusinessEntry::count()]);
+        Http::assertSent(fn ($r) => $r->method() === 'GET' && $r->url() === 'https://service.zohal.io/api/v0/financial/wallet/'
+            && $r->hasHeader('Authorization', 'Bearer synthetic-read-only-financial-key') && $r->data() === []);
+        $this->assertSame('not_due', app(BalanceSync::class)->refreshIfDue());
+        Http::assertSentCount(1);
+        $this->travel(6)->minutes();
+        $this->artisan('identity:reconcile')->assertSuccessful();
+        $this->assertSame(now()->startOfSecond()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+        Http::assertSentCount(2);
+        for ($i = 0; $i < 12; $i++) {
+            $this->travel(6)->minutes();
+            $this->artisan('identity:reconcile')->assertSuccessful();
+            $this->assertTrue($c->fundingReady());
+        }
+        Http::assertSentCount(14);
+        $this->assertSame(100000, $c->get('provider_daily_cap_irt'));
+        $this->assertSame(200000, $c->get('internal_kyc_reserve_irt'));
+    }
+
+    public static function invalidBalanceResponses(): array
+    {
+        return [
+            'unauthorized' => [401, '{"detail":"Unauthorized"}', 'application/json'],
+            'rate limited' => [429, '{"balance":4757800}', 'application/json'],
+            'server failure' => [500, '{"balance":4757800}', 'application/json'],
+            'redirect' => [302, '{"balance":4757800}', 'application/json'],
+            'HTML login' => [200, '<html>Login</html>', 'text/html'],
+            'missing balance' => [200, '{}', 'application/json'],
+            'negative' => [200, '{"balance":-1}', 'application/json'],
+            'float' => [200, '{"balance":4757800.0}', 'application/json'],
+            'exponent string' => [200, '{"balance":"4e6"}', 'application/json'],
+            'boolean' => [200, '{"balance":true}', 'application/json'],
+            'unbounded' => [200, '{"balance":1000000000001}', 'application/json'],
+            'wrong unit' => [200, '{"balance":4757800,"currency":"IRT"}', 'application/json'],
+            'error envelope' => [200, '{"balance":4757800,"result":5}', 'application/json'],
+            'error details' => [200, '{"balance":4757800,"detail":"invalid"}', 'application/json'],
+        ];
+    }
+
+    #[DataProvider('invalidBalanceResponses')]
+    public function test_failed_balance_observation_never_extends_the_previous_evidence(int $status, string $body, string $type): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $at = now()->subMinutes(61)->toIso8601String();
+        $c->put('upstream_balance_verified_at', $at, 1);
+        $before = $c->get('upstream_balance_irt');
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response($body, $status, ['Content-Type' => $type])]);
+        $this->artisan('identity:sync-balance')->expectsOutput('balance_sync=failed')->assertFailed();
+        $this->assertSame($at, $c->get('upstream_balance_verified_at'));
+        $this->assertSame($before, $c->get('upstream_balance_irt'));
+        $this->assertFalse($c->fundingReady());
+        $this->assertSame('failed', $c->get('balance_sync_state')['status']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_balance_sync_keeps_zero_as_a_real_observation_and_closes_admission(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 0], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->assertSame(0, $c->get('upstream_balance_irt'));
+        $this->assertSame(now()->startOfSecond()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+        $this->assertFalse($c->fundingReady());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept();
+    }
+
+    public function test_balance_sync_requires_separate_financial_access_and_never_uses_the_inquiry_key(): void
+    {
+        app(Controls::class)->put('balance_sync_enabled', true, 1);
+        config(['identity_api.balance_token' => null]);
+        $this->assertSame('not_configured', app(BalanceSync::class)->refreshIfDue());
+        Http::assertNothingSent();
+        $this->assertNull(app(Controls::class)->get('balance_sync_state'));
+    }
+
+    public function test_balance_sync_is_opt_in_and_network_failure_retains_the_previous_snapshot(): void
+    {
+        $this->freezeTime();
+        config(['identity_api.balance_token' => 'synthetic-read-only-financial-key']);
+        $this->assertSame('disabled', app(BalanceSync::class)->refreshIfDue());
+        Http::assertNothingSent();
+        $c = $this->enableBalanceSync();
+        $before = [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')];
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Synthetic private exception must not be logged');
+        }]);
+        $this->assertSame('failed', app(BalanceSync::class)->refreshIfDue());
+        $this->assertSame($before, [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')]);
+        $this->assertSame('request_failed', $c->get('balance_sync_state')['error']);
+    }
+
+    public function test_admin_balance_status_is_localized_and_cannot_enable_without_financial_access(): void
+    {
+        config(['identity_api.balance_token' => null]);
+        $u = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($u, 'web')->postJson('/admin/identity-api/control', ['key' => 'balance_sync_enabled', 'value' => 'true'])->assertStatus(503);
+        $this->assertFalse(app(Controls::class)->get('balance_sync_enabled', false));
+        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
+            $this->get('/'.$prefix.'admin/identity-api')->assertOk()
+                ->assertSee(__('identity.balance_sync_access_missing', [], $locale))
+                ->assertDontSee('identity.balance_sync_access_missing')
+                ->assertDontSee('synthetic-provider-key');
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_balance_sync_does_not_overlap_or_override_a_newer_observation(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $lock = \Illuminate\Support\Facades\Cache::lock('identity:balance-sync', 45);
+        $this->assertTrue($lock->get());
+        $this->assertSame('busy', app(BalanceSync::class)->refreshIfDue(true));
+        Http::assertNothingSent();
+        $lock->release();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => function () use ($c) {
+            $this->travel(1)->seconds();
+            $c->put('upstream_balance_verified_at', now()->toIso8601String(), 1);
+            $c->put('upstream_balance_irt', 450000, 1);
+
+            return Http::response(['balance' => 9999999], 200);
+        }]);
+        $this->assertSame('superseded', app(BalanceSync::class)->refreshIfDue(true));
+        $this->assertSame(450000, $c->get('upstream_balance_irt'));
+        $this->assertSame(now()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+    }
+
+    public function test_refresh_cannot_discard_an_old_request_still_waiting_for_dispatch(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(10)])->save();
+        $this->travel(6)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 15000], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept('synthetic-second-old-hold');
+    }
+
+    public function test_settlement_racing_a_balance_read_remains_part_of_provider_exposure(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(10), 'dispatch_at' => now()->subMinute()])->save();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => function () use ($first) {
+            $this->travel(1)->seconds();
+            $first->forceFill(['financial_status' => 'captured', 'settled_at' => now()])->save();
+
+            return Http::response(['balance' => 15000], 200);
+        }]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept('synthetic-second-racing-charge');
+    }
+
+    public function test_an_expired_dispatched_request_is_retained_until_reconciliation_records_its_settlement(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(20), 'dispatch_at' => now()->subMinutes(19),
+            'decide_by' => now()->subSecond(), 'financial_status' => 'pending_reconciliation', 'settled_at' => null])->save();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 15000], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept('synthetic-second-expired-unknown');
+    }
+
+    public function test_an_old_settled_charge_already_in_the_provider_snapshot_is_not_reserved_twice(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(10), 'dispatch_at' => now()->subMinutes(5),
+            'financial_status' => 'captured', 'settled_at' => now()->subMinute()])->save();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 15000], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->assertSame('reserved', $this->accept('synthetic-second-accounted-charge')->fresh()->financial_status);
+        Http::assertSentCount(1);
     }
 }

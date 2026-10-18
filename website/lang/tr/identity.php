@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'balance_sync_title' => 'Otomatik Zohal bakiye kontrolü',
+    'balance_sync_help' => 'Gerçek bakiye her beş dakikada bir okunur. Harcama sınırları ve rezerv değişmez. Başarısız kontroller önceki doğrulama zamanını yenilemez.',
+    'balance_sync_access' => 'Bakiye okuma erişimi',
+    'balance_sync_access_ready' => 'Yapılandırıldı; bağlantının durumu son kontrolde görülür',
+    'balance_sync_access_missing' => 'Zohal finans API için salt okunur erişim bekleniyor',
+    'balance_sync_enabled' => 'Açık',
+    'balance_sync_disabled' => 'Kapalı',
+    'balance_sync_last_success' => 'Son başarılı bakiye kontrolü',
+    'balance_sync_state_ok' => 'Son kontrol başarılı',
+    'balance_sync_state_failed' => 'Son kontrol başarısız; önceki doğrulama korundu',
+    'balance_sync_state_checking' => 'Kontrol ediliyor',
+    'balance_sync_state_not_started' => 'Henüz başarılı otomatik kontrol kaydedilmedi',
+    'control_balance_sync_enabled' => 'Otomatik Zohal bakiye kontrolü',
     'checkout_summary' => 'Bu sorgunun tutarını onaylayın',
     'control_default_customer_cap_irt' => 'Varsayılan müşteri günlük sınırı, IRT',
     'price_draft_help' => 'Ücretlendirme belgesi onaylanmadan nihai fiyatı hesaplamak için taslak kaydedin. Taslaklar satın alınamaz. Belge alındıktan sonra yeni bir onaylı sürüm oluşturun.',

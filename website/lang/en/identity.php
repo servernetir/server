@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'balance_sync_title' => 'Automatic Zohal balance checks',
+    'balance_sync_help' => 'The actual balance is read every five minutes. Spending limits and reserves stay unchanged. Failed checks never renew previous evidence.',
+    'balance_sync_access' => 'Balance read access',
+    'balance_sync_access_ready' => 'Configured; the last check shows whether the connection works',
+    'balance_sync_access_missing' => 'Waiting for read-only Zohal financial API access',
+    'balance_sync_enabled' => 'Enabled',
+    'balance_sync_disabled' => 'Disabled',
+    'balance_sync_last_success' => 'Last successful balance observation',
+    'balance_sync_state_ok' => 'Last check succeeded',
+    'balance_sync_state_failed' => 'Last check failed; previous evidence retained',
+    'balance_sync_state_checking' => 'Checking',
+    'balance_sync_state_not_started' => 'No successful automatic observation recorded yet',
+    'control_balance_sync_enabled' => 'Automatic Zohal balance checks',
     'checkout_summary' => 'Confirm this inquiry amount',
     'control_default_customer_cap_irt' => 'Default customer daily cap, IRT',
     'price_draft_help' => 'Without billing evidence confirmation, save a draft to calculate the final price. Drafts cannot be purchased. Create a new confirmed version after obtaining the evidence.',

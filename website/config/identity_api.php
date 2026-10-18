@@ -5,6 +5,7 @@ return [
     'resale_evidence' => env('IDENTITY_RESALE_EVIDENCE'),
     'egress_verified' => (bool) env('IDENTITY_EGRESS_VERIFIED', false),
     'token' => env('IDENTITY_ZOHAL_TOKEN', env('ZOHAL_TOKEN')),
+    'balance_token' => env('IDENTITY_ZOHAL_BALANCE_TOKEN'), // Separate read-only financial access; never a dashboard session.
     'base_url' => env('ZOHAL_BASE_URL', 'https://service.zohal.io'),
     'markup_bps' => 500,
     'terms_version' => '2026-10-17',

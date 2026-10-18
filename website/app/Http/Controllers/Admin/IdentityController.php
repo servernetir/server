@@ -42,7 +42,7 @@ class IdentityController extends Controller
         $d = $request->validate(['key' => ['required', 'string', 'max:100'], 'value' => ['nullable', 'string', 'max:200']]);
         $key = $d['key'];
         $value = $d['value'] ?? '';
-        if (in_array($key, ['enabled', 'egress_verified', 'notifications_enabled'], true) || str_starts_with($key, 'service:')) {
+        if (in_array($key, ['enabled', 'egress_verified', 'notifications_enabled', 'balance_sync_enabled'], true) || str_starts_with($key, 'service:')) {
             if (str_starts_with($key, 'service:')) {
                 $catalog->find(substr($key, 8));
             }
@@ -50,6 +50,9 @@ class IdentityController extends Controller
                 throw new IdentityError('invalid_input', 422);
             }
             $value = $value === 'true';
+            if ($key === 'balance_sync_enabled' && $value && ! filled(config('identity_api.balance_token'))) {
+                throw new IdentityError('provider_unavailable', 503);
+            }
         } elseif (in_array($key, ['markup_bps', 'provider_concurrency', 'provider_daily_cap_irt', 'default_customer_cap_irt', 'upstream_balance_irt', 'internal_kyc_reserve_irt'], true) || preg_match('/^customer_cap:[0-9]+$/D', $key)) {
             if (! ctype_digit($value) || strlen($value) > 12 || $key === 'markup_bps' && (int) $value > 10000) {
                 throw new IdentityError('invalid_input', 422);

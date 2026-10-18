@@ -1,6 +1,19 @@
 <?php
 
 return [
+    'balance_sync_title' => 'بررسی خودکار موجودی زحل',
+    'balance_sync_help' => 'هر پنج دقیقه موجودی واقعی خوانده می‌شود؛ سقف مصرف و ذخیره تغییر نمی‌کنند. هنگام خطا زمان تأیید قبلی تمدید نمی‌شود.',
+    'balance_sync_access' => 'دسترسی خواندن موجودی',
+    'balance_sync_access_ready' => 'پیکربندی شده؛ صحت اتصال با آخرین بررسی مشخص می‌شود',
+    'balance_sync_access_missing' => 'منتظر دسترسی خواندنی API مالی زحل',
+    'balance_sync_enabled' => 'روشن',
+    'balance_sync_disabled' => 'خاموش',
+    'balance_sync_last_success' => 'آخرین دریافت موفق موجودی',
+    'balance_sync_state_ok' => 'آخرین بررسی موفق بود',
+    'balance_sync_state_failed' => 'آخرین بررسی ناموفق بود؛ شاهد قبلی حفظ شد',
+    'balance_sync_state_checking' => 'در حال بررسی',
+    'balance_sync_state_not_started' => 'هنوز بررسی خودکار موفقی ثبت نشده است',
+    'control_balance_sync_enabled' => 'بررسی خودکار موجودی زحل',
     'checkout_summary' => 'تأیید مبلغ این استعلام',
     'control_default_customer_cap_irt' => 'سقف روزانه پیش‌فرض مشتری، تومان',
     'price_draft_help' => 'بدون تأیید سند هزینه‌گذاری، تعرفه به‌صورت پیش‌نویس ثبت و قیمت نهایی محاسبه می‌شود؛ برای خرید قابل استفاده نیست. پس از دریافت سند، نسخهٔ تازهٔ تأییدشده بسازید.',

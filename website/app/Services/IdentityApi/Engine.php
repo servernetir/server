@@ -113,12 +113,20 @@ class Engine
             if ($providerToday + $quote['total_irt'] > (int) $this->controls->get('provider_daily_cap_irt', 0)) {
                 throw new IdentityError('provider_unavailable', 503);
             }
-            $balanceAt = $this->controls->get('upstream_balance_verified_at');
-            if (! $balanceAt || Carbon::parse($balanceAt)->lt(now()->subMinutes((int) $this->controls->get('balance_max_age_minutes', 60)))) {
+            if (! $this->controls->fundingReady()) {
                 throw new IdentityError('provider_unavailable', 503);
             }
-            $used = (int) IdentityRequest::where('created_at', '>=', $balanceAt)->where(function ($q) {
-                $q->holding()->orWhereNotNull('dispatch_at');
+            $balanceAt = Carbon::parse($this->controls->get('upstream_balance_verified_at'));
+            $used = (int) IdentityRequest::where(function ($q) use ($balanceAt) {
+                // A new snapshot must not discard old requests still awaiting dispatch
+                // or settlement. Include charges racing the start of the balance read.
+                $q->holding()->orWhere('dispatch_at', '>=', $balanceAt)
+                    ->orWhere(function ($q) {
+                        $q->whereNotNull('dispatch_at')->whereNull('settled_at');
+                    })
+                    ->orWhere(function ($q) use ($balanceAt) {
+                        $q->whereNotNull('dispatch_at')->where('settled_at', '>=', $balanceAt);
+                    });
             })->sum('hold_irt');
             if ($used + $quote['cost_irt'] + (int) $this->controls->get('internal_kyc_reserve_irt', 0) > (int) $this->controls->get('upstream_balance_irt', 0)) {
                 throw new IdentityError('provider_unavailable', 503);
