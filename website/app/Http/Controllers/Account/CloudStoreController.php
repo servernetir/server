@@ -1042,13 +1042,11 @@ class CloudStoreController extends Controller
 
         // پلنِ پیش‌انتخاب‌شده (لینکِ «خرید» صفحات عمومی: ?location=…&plan=…)
         $selectedSlug = $wantedPlan;
-        $planMoved = false;
 
         if (! isset($imageMap[$selectedSlug])) {
-            // ⚠️ جابه‌جاییِ بی‌صدا ممنوع: اگر لینک/انتخابِ قبلی به اسلاگی اشاره دارد
-            // که این‌جا نیست، صفحه باید بگوید — نه اینکه چیزِ دیگری را انتخاب کند و
-            // مشتری فکر کند خودش اشتباه کرده.
-            $planMoved = $selectedSlug !== '' && $planCards !== [];
+            // Location browsing starts a fresh resource choice. Old bookmarks
+            // may still contain a slug from another city; render only valid
+            // local options, just as on a first visit. POST validation stays strict.
             $selectedSlug = (string) ($planCards[0]['slug'] ?? '');
         }
 
@@ -1071,7 +1069,6 @@ class CloudStoreController extends Controller
             'locCode' => $code,
             'planCards' => $planCards,
             'blockedCards' => $blockedCards,
-            'planMoved' => $planMoved,
             // خطِ GPU: فرم ساده‌تر — کلیدِ SSH و IPِ اضافه برای کانتینر بی‌معناست
             'gpuMode' => $gpuMode,
             'selectedSlug' => $selectedSlug,
@@ -1084,12 +1081,9 @@ class CloudStoreController extends Controller
             // ماه‌های هر دوره — جاوااسکریپت با همین، بهایِ IP اضافه را به مبلغِ
             // دوره اضافه می‌کند؛ وگرنه دکمه یک عدد نشان می‌دهد و فاکتور عددِ دیگر.
             'cycleMonths' => collect($cycles)->mapWithKeys(fn ($c) => [$c => Service::monthsIn($c)])->all(),
-            /*
-            | دوره و سیستم‌عاملِ آمده در آدرس هم مثلِ `plan` احترام می‌شوند.
-            | چیپِ شهر این سه را روی لینکِ خودش سوار می‌کند، پس عوض‌کردنِ شهر
-            | دیگر بی‌صدا انتخاب‌های قبلی را دور نمی‌ریزد (GET است و `old()`
-            | خالی است، پس بدونِ این، هر تعویضِ مکان یعنی شروع از صفر).
-            */
+            // Explicit incoming image/cycle preferences are validated against
+            // this location. Cross-location links transfer only the valid cycle;
+            // dependent resource/software choices start from this catalogue.
             'defCycle' => (function () use ($request, $cycles) {
                 $q = $request->query('cycle');
 

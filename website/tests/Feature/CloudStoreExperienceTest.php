@@ -70,7 +70,12 @@ class CloudStoreExperienceTest extends TestCase
         $this->assertSame(3, $xpath->query('//div[@class="cvb-step-b"]')->length);
         foreach (CloudLocation::pluck('country', 'code') as $code => $country) {
             $links = $xpath->query('//*[@id="cvb-step-1"]//details[@data-country="'.$country.'"]//a[@data-city="'.$code.'"]');
-            $this->assertSame(1, $links->length, $code.' must remain individually reachable');
+            $this->assertSame(1, $links->length, $code.' must remain individually visible');
+            if ($code === 'fi-helsinki') {
+                $this->assertSame('true', $links->item(0)->getAttribute('aria-disabled'));
+                $this->assertFalse($links->item(0)->hasAttribute('href'));
+                continue;
+            }
             parse_str((string) parse_url($links->item(0)->getAttribute('href'), PHP_URL_QUERY), $query);
             $this->assertSame($code, $query['location']);
         }
@@ -193,17 +198,28 @@ class CloudStoreExperienceTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_every_location_link_preserves_explicit_hourly_billing_without_javascript(): void
+    public function test_new_location_links_reset_dependent_choices_and_closed_locations_have_no_target(): void
     {
         $html = $this->get('/account/cloud-store?location=de-frankfurt&billing_mode=hourly&cycle=quarterly&image=ubuntu-24.04')->assertOk()->getContent();
         $xpath = $this->xpath($html);
         foreach ($xpath->query('//a[@data-city]') as $link) {
+            if ($link->getAttribute('data-city') === 'fi-helsinki') {
+                $this->assertSame('true', $link->getAttribute('aria-disabled'));
+                $this->assertFalse($link->hasAttribute('href'));
+                continue;
+            }
             parse_str((string) parse_url($link->getAttribute('href'), PHP_URL_QUERY), $query);
             $this->assertSame($link->getAttribute('data-city'), $query['location']);
-            $this->assertSame('hourly', $query['billing_mode'] ?? null);
             $this->assertSame('quarterly', $query['cycle']);
-            $this->assertSame('ubuntu-24.04', $query['image']);
+            if ($query['location'] === 'de-frankfurt') {
+                $this->assertSame('hourly', $query['billing_mode'] ?? null);
+                $this->assertSame('ubuntu-24.04', $query['image']);
+                $this->assertSame('plan-de-frankfurt', $query['plan']);
+            } else {
+                $this->assertEquals(['location' => $link->getAttribute('data-city'), 'cycle' => 'quarterly'], $query);
+            }
         }
+        Http::assertNothingSent();
     }
 
     public function test_server_name_is_one_order_field_above_checkout_without_a_separate_stage(): void

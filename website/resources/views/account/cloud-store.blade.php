@@ -200,18 +200,18 @@
   foreach (array_keys($stepNames) as $k) { $stepNo[$k] = ++$i; }
   $stepTotal = count($stepNames);
 
-  /*
-  | لینکِ شهر/دیتاسنتر — **یک** سازنده برای هر دو سطح.
-  | دو جای تولیدِ لینک یعنی روزی ترتیبِ پارامترها در یکی عوض شود و تست که فقط
-  | یکی را می‌بیند سبز بماند. ترتیب قفل است: location, plan, cycle, image —
-  | و image آخرین است (CloudStoreSlipTest).
-  | `&` خام نوشته می‌شود چون {{ }} خودش به `&amp;` تبدیلش می‌کند.
-  */
-  $cityHref = fn (string $code) => lroute('account.cloud.store')
-    .'?location='.urlencode($code)
-    .'&plan='.urlencode($curSlug)
-    .'&cycle='.urlencode($curCycle)
-    .($hRequested ? '&billing_mode=hourly' : '').'&image='.urlencode($curImage);
+  // A new location starts a new resource/software choice. Only the current
+  // location can safely keep its selected plan, image and hourly contract.
+  $cityHref = function (string $code) use ($locCode, $curSlug, $curCycle, $curImage, $hOn) {
+    $query = ['location' => $code];
+    if ($code === (string) $locCode && $curSlug !== '') { $query['plan'] = $curSlug; }
+    $query['cycle'] = $curCycle;
+    if ($code === (string) $locCode) {
+      if ($hOn) { $query['billing_mode'] = 'hourly'; }
+      if ($curImage !== '') { $query['image'] = $curImage; }
+    }
+    return lroute('account.cloud.store').'?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+  };
 
   /*
   | «برگهٔ مقایسه» — ستونی که در کلِ این مکان **یک مقدار** دارد، ستون نیست؛ نویز
@@ -298,7 +298,6 @@
           @error('plan')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
           @error('cycle')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
           @error('billing_mode')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
-          @if($planMoved)<div class="dm-note warn">{{ __('ui.cvb_plan_moved') }}</div>@endif
 
           <div class="cvb-billrow">
             <div class="cvb-segs cvb-bill @if($hOn) is-hourly @endif" id="cvb-bill">
@@ -1464,16 +1463,20 @@
   if (lab) { lab.addEventListener('input', function(){ render(); stamp(); }); }
   if (ipSel) { ipSel.addEventListener('change', render); }
 
-  // مکان یک لینکِ واقعی است (کاتالوگ سمتِ سرور عوض می‌شود). سرِ کلیک، انتخابِ
-  // فعلی روی آدرس سوار می‌شود تا عوض‌کردنِ شهر بقیه را دور نریزد.
-  form.querySelectorAll('.cvb-city').forEach(function(a){
+  // Transfer a valid period to the destination, but never a city-specific
+  // plan/image/hourly choice. Same-city links keep the user's latest choices.
+  form.querySelectorAll('.cvb-city[href]:not([aria-disabled="true"])').forEach(function(a){
     a.addEventListener('click', function(){
       var u = new URL(a.href, window.location.href);
-      u.searchParams.set('plan', val('plan'));
       u.searchParams.set('cycle', val('cycle'));
-      if (hChk && hChk.checked) { u.searchParams.set('billing_mode', 'hourly'); }
-      else { u.searchParams.delete('billing_mode'); }
-      u.searchParams.set('image', val('image'));
+      var source = form.querySelector('input[name="location"]');
+      var sameLocation = source && a.getAttribute('data-city') === source.value;
+      ['plan', 'image', 'billing_mode'].forEach(function(key){ u.searchParams.delete(key); });
+      if (sameLocation) {
+        if (val('plan')) { u.searchParams.set('plan', val('plan')); }
+        if (val('image')) { u.searchParams.set('image', val('image')); }
+        if (hChk && hChk.checked) { u.searchParams.set('billing_mode', 'hourly'); }
+      }
       a.href = u.toString();
     });
   });

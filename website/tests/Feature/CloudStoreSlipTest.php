@@ -117,6 +117,53 @@ class CloudStoreSlipTest extends TestCase
         return (string) preg_replace('~<script\b[^>]*>.*?</script>~is', '', $html);
     }
 
+    private function xpath(string $html): \DOMXPath
+    {
+        $document = new \DOMDocument;
+        $previous = libxml_use_internal_errors(true);
+        try {
+            $document->loadHTML('<?xml encoding="utf-8" ?>'.$html, LIBXML_NONET);
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+        }
+
+        return new \DOMXPath($document);
+    }
+
+    private function city(string $html, string $code): \DOMElement
+    {
+        $nodes = $this->xpath($html)->query('//*[@id="cvx-results"]//*[@data-city="'.$code.'"]');
+        $this->assertCount(1, $nodes, 'هر مکان باید دقیقاً یک ردیف در انتخابگر داشته باشد');
+        $node = $nodes->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $node);
+
+        return $node;
+    }
+
+    private function assertSelectedLocationAndPlan(string $html, string $location, string $slug): void
+    {
+        $xpath = $this->xpath($html);
+        $locations = $xpath->query('//*[@id="cvb-form"]//input[@name="location"]');
+        $this->assertCount(1, $locations);
+        $this->assertSame($location, $locations->item(0)->getAttribute('value'));
+
+        $plans = $xpath->query('//*[@id="cvb-form"]//input[@name="plan" and @checked]');
+        $this->assertCount(1, $plans, 'مقصد باید دقیقاً یک اندازهٔ قابل خرید انتخاب کرده باشد');
+        $this->assertSame($slug, $plans->item(0)->getAttribute('value'));
+
+        $offer = CloudPlan::query()->where('slug', $slug)->firstOrFail();
+        $this->assertSame($location, $offer->location_code);
+        $images = $xpath->query('//*[@id="cvb-form"]//input[@name="image" and @checked]');
+        $this->assertCount(1, $images, 'مقصد باید یک تصویر واقعاً سازگار انتخاب کرده باشد');
+        $this->assertContains($images->item(0)->getAttribute('value'), array_merge(
+            CloudStoreController::imageKeysFor($offer, 'os'),
+            CloudStoreController::imageKeysFor($offer, 'app'),
+        ));
+        $this->assertStringNotContainsString(__('ui.cvb_plan_moved'), $this->visible($html));
+        $this->assertStringNotContainsString('data-plan-moved', $html);
+    }
+
     // ═══════════════════ ناموجودیِ صادقانه ═══════════════════
 
     /**
@@ -326,31 +373,117 @@ class CloudStoreSlipTest extends TestCase
         $this->assertStringContainsString('<details class="cvb-adv"', $html);
     }
 
-    /**
-     * ردیفِ شهر انتخاب‌های فعلی را با خودش می‌برد.
-     *
-     * ⚠️ همسایه عمداً در **همان کشور** است. از وقتی شهر مرحلهٔ خودش شد، مرحلهٔ ۲
-     * فقط شهرهای کشورِ انتخاب‌شده را رندر می‌کند؛ رفتن به کشورِ دیگر کارِ ردیفِ
-     * مرحلهٔ ۱ است و آن عمداً `plan` را حمل نمی‌کند (اسلاگ مکان‌محور است، پس
-     * حملش فقط اخطارِ «پلن جابه‌جا شد» می‌ساخت).
-     */
-    public function test_the_location_chip_carries_the_current_choices(): void
+    /** اسلاگ و تصویر مکان‌محورند؛ لینک واقعی شهر تازه نباید انتخاب نامعتبر بسازد. */
+    public function test_city_and_country_navigation_only_carry_the_cycle_and_arrive_with_valid_choices(): void
     {
         $this->base();
-        CloudLocation::create(['code' => 'de-falkenstein', 'country' => 'DE', 'city' => 'Falkenstein', 'is_active' => true]);
-        $this->plan(['location_code' => 'de-falkenstein', 'provider_location' => 'fsn1',
-            'slug' => 'cv-2c-4g-40d-de-falkenstein']);
+        $this->image(['provider_ref' => 'debian-12', 'key' => 'debian-12',
+            'family' => 'debian', 'version' => '12', 'label' => 'Debian 12']);
+        $this->image(['provider_ref' => 'ubuntu-arm', 'key' => 'ubuntu-24.04-arm',
+            'arch' => 'arm', 'label' => 'Ubuntu 24.04 ARM']);
+        foreach ([['de-falkenstein', 'DE', 'Falkenstein'], ['fi-helsinki', 'FI', 'Helsinki']] as [$code, $country, $city]) {
+            CloudLocation::create(compact('code', 'country', 'city') + ['is_active' => true]);
+            $this->plan(['location_code' => $code, 'provider_location' => $code,
+                'slug' => 'cv-2c-4g-40d-'.$code, 'arch' => 'arm']);
+        }
+        $customer = $this->customer();
 
-        $html = $this->page(null, '?location=de-frankfurt&plan=cv-4c-8g-80d-de-frankfurt&cycle=yearly');
+        foreach (['account.cloud.store', 'en.account.cloud.store', 'tr.account.cloud.store'] as $routeName) {
+            $html = $this->actingAs($customer, 'customer')->get(route($routeName, [], false)
+                .'?location=de-frankfurt&plan=cv-4c-8g-80d-de-frankfurt&cycle=yearly&image=debian-12&billing_mode=hourly')
+                ->assertOk()->getContent();
 
-        $this->assertMatchesRegularExpression(
-            '~href="[^"]*location=de-falkenstein&amp;plan=cv-4c-8g-80d-de-frankfurt&amp;cycle=yearly&amp;image=ubuntu-24\.04"~',
-            $html,
-            'عوض‌کردنِ شهر نباید پلن و دوره و سیستم‌عامل را دور بریزد'
-        );
+            foreach (['de-falkenstein', 'fi-helsinki'] as $code) {
+                $link = $this->city($html, $code);
+                $this->assertSame('a', $link->tagName, 'مکان باز باید لینک واقعیِ بی‌جاوااسکریپت داشته باشد');
+                $this->assertTrue($link->hasAttribute('href'));
+                $href = $link->getAttribute('href');
+                parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
+                $this->assertEquals(['location' => $code, 'cycle' => 'yearly'], $query,
+                    'انتخاب شهر یا کشور تازه نباید پلن، تصویر یا حالت ساعتیِ مبدأ را حمل کند');
+                $this->assertSame(parse_url(route($routeName, [], false), PHP_URL_PATH), parse_url($href, PHP_URL_PATH));
 
-        // و خودِ دوره از آدرس خوانده شده باشد
-        $this->assertStringContainsString('value="yearly" checked', $html);
+                // خودِ href رندرشده دنبال می‌شود؛ صرفاً شکل لینک را نمی‌سنجیم.
+                $destination = $this->actingAs($customer, 'customer')->get($href)->assertOk()->getContent();
+                $this->assertSelectedLocationAndPlan($destination, $code, 'cv-2c-4g-40d-'.$code);
+                $xpath = $this->xpath($destination);
+                $this->assertCount(1, $xpath->query('//input[@name="cycle" and @value="yearly" and @checked]'));
+                $this->assertCount(0, $xpath->query('//input[@name="billing_mode" and @checked]'));
+                $this->assertSame('ubuntu-24.04-arm', $xpath->query('//input[@name="image" and @checked]')->item(0)->getAttribute('value'));
+            }
+        }
+
+        Http::assertNothingSent();
+    }
+
+    /** بازکردن همان شهر، انتخاب‌های سازگار موجود را حفظ می‌کند. */
+    public function test_the_current_city_link_preserves_its_valid_plan_image_and_hourly_preference(): void
+    {
+        $this->base();
+        $this->image(['provider_ref' => 'debian-12', 'key' => 'debian-12',
+            'family' => 'debian', 'version' => '12', 'label' => 'Debian 12']);
+        $customer = $this->customer();
+
+        foreach (['account.cloud.store', 'en.account.cloud.store', 'tr.account.cloud.store'] as $routeName) {
+            $html = $this->actingAs($customer, 'customer')->get(route($routeName, [], false)
+                .'?location=de-frankfurt&plan=cv-4c-8g-80d-de-frankfurt&cycle=yearly&image=debian-12&billing_mode=hourly')
+                ->assertOk()->getContent();
+            $href = $this->city($html, 'de-frankfurt')->getAttribute('href');
+            parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
+            $this->assertEquals(['location' => 'de-frankfurt', 'plan' => 'cv-4c-8g-80d-de-frankfurt',
+                'cycle' => 'yearly', 'image' => 'debian-12', 'billing_mode' => 'hourly'], $query);
+
+            $destination = $this->actingAs($customer, 'customer')->get($href)->assertOk()->getContent();
+            $this->assertSelectedLocationAndPlan($destination, 'de-frankfurt', 'cv-4c-8g-80d-de-frankfurt');
+            $xpath = $this->xpath($destination);
+            $this->assertCount(1, $xpath->query('//input[@name="billing_mode" and @checked]'));
+            $this->assertSame('debian-12', $xpath->query('//input[@name="image" and @checked]')->item(0)->getAttribute('value'));
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_the_current_city_link_does_not_preserve_an_unsupported_hourly_request(): void
+    {
+        $this->base();
+        // This supplier's monthly-only tariff has no hourly term to carry.
+        CloudPlan::query()->update(['provider' => 'aeza', 'cost_hour_eur_micro' => null]);
+        CloudImage::query()->update(['provider' => 'aeza']);
+        $html = $this->page(null, '?location=de-frankfurt&plan=cv-4c-8g-80d-de-frankfurt&cycle=yearly&billing_mode=hourly');
+        $href = $this->city($html, 'de-frankfurt')->getAttribute('href');
+        parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
+
+        $this->assertSame('cv-4c-8g-80d-de-frankfurt', $query['plan']);
+        $this->assertSame('ubuntu-24.04', $query['image']);
+        $this->assertArrayNotHasKey('billing_mode', $query);
+        $this->assertCount(0, $this->xpath($html)->query('//input[@name="billing_mode" and @checked]'));
+        Http::assertNothingSent();
+    }
+
+    /** ظرفیت یا قیمتِ ناموجود، قابل دیدن است ولی هیچ مقصد قابل کلیکی ندارد. */
+    public function test_unavailable_cities_stay_visible_without_navigation_targets(): void
+    {
+        $this->base();
+        foreach ([['fi-helsinki', 'Helsinki', false, 570000], ['fi-oulu', 'Oulu', true, 0]] as [$code, $city, $inStock, $price]) {
+            CloudLocation::create(['code' => $code, 'country' => 'FI', 'city' => $city, 'is_active' => true]);
+            $this->plan(['location_code' => $code, 'provider_location' => $code,
+                'slug' => 'cv-2c-4g-40d-'.$code, 'in_stock' => $inStock, 'price_irt' => $price]);
+        }
+
+        foreach (['account.cloud.store', 'en.account.cloud.store', 'tr.account.cloud.store'] as $routeName) {
+            $html = $this->actingAs($this->customer(), 'customer')
+                ->get(route($routeName, [], false).'?location=de-frankfurt')->assertOk()->getContent();
+            foreach (['fi-helsinki', 'fi-oulu'] as $code) {
+                $city = $this->city($html, $code);
+                $this->assertSame('true', $city->getAttribute('aria-disabled'));
+                $this->assertFalse($city->hasAttribute('href'), 'مکان بسته نباید کاربر را به انتخاب ناممکن هدایت کند');
+                $this->assertStringContainsString('is-shut', $city->getAttribute('class'));
+                $this->assertNotSame('', trim($city->textContent), 'مکان بسته باید همچنان قابل مشاهده باشد');
+            }
+            $this->assertTrue($this->city($html, 'de-frankfurt')->hasAttribute('href'));
+        }
+
+        Http::assertNothingSent();
     }
 
     // ═══════════════════ فیلترِ پارتو و لینکِ ورودی ═══════════════════
@@ -384,14 +517,24 @@ class CloudStoreSlipTest extends TestCase
             '~class="cvb-plan\s+on\s*"\s+data-slug="cv-1c-4g-40d-de-frankfurt"~', $linked);
     }
 
-    /** اسلاگی که اصلاً وجود ندارد، بی‌صدا جایگزین نمی‌شود — صفحه می‌گوید */
-    public function test_a_missing_plan_in_the_link_is_announced_not_silently_swapped(): void
+    /** لینک قدیمی فقط به گزینهٔ خریدنی می‌رسد؛ اخطار داخلیِ جابه‌جایی چاپ نمی‌شود. */
+    public function test_stale_or_foreign_get_plan_preferences_arrive_with_valid_choices_without_a_warning(): void
     {
         $this->base();
+        CloudLocation::create(['code' => 'fi-helsinki', 'country' => 'FI', 'city' => 'Helsinki', 'is_active' => true]);
+        $this->plan(['location_code' => 'fi-helsinki', 'provider_location' => 'hel1',
+            'slug' => 'cv-2c-4g-40d-fi-helsinki']);
 
-        $html = $this->page(null, '?plan=cv-99c-999g-9999d-de-frankfurt');
+        foreach (['account.cloud.store', 'en.account.cloud.store', 'tr.account.cloud.store'] as $routeName) {
+            foreach (['cv-99c-999g-9999d-de-frankfurt', 'cv-4c-8g-80d-de-frankfurt'] as $staleSlug) {
+                $html = $this->actingAs($this->customer(), 'customer')->get(route($routeName, [], false)
+                    .'?location=fi-helsinki&plan='.$staleSlug.'&image=nonexistent-image&cycle=yearly')
+                    ->assertOk()->getContent();
+                $this->assertSelectedLocationAndPlan($html, 'fi-helsinki', 'cv-2c-4g-40d-fi-helsinki');
+            }
+        }
 
-        $this->assertStringContainsString(__('ui.cvb_plan_moved'), $html);
+        Http::assertNothingSent();
     }
 
     // ═══════════════════ استایل و ترجمه ═══════════════════

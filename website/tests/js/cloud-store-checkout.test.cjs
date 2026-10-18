@@ -44,12 +44,19 @@ function fixture(t, options = {}) {
     data.saveSuffix = '% saving';
     if (options.missingAddonQuote) delete data.addonTotals.semiannual[2];
   }
+  if (options.locationLinks) {
+    data.hourly = { plan: { rate: 100, min: 2400 }, empty: { rate: 200, min: 4800 } };
+  }
   const runtimeErrors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', error => runtimeErrors.push(error));
   const dom = new JSDOM(`<!doctype html><html lang="en"><body>
     <form id="cvb-form" class="cvx-store">
       <input type="hidden" name="location" value="${options.noLocation ? '' : 'de-frankfurt'}">
+      ${options.locationLinks ? `<label class="cvb-seg cvb-seg-h"><input id="cvb-hourly" type="checkbox" name="billing_mode" value="hourly"></label>
+        <a id="same-city" class="cvb-city" data-city="de-frankfurt" href="?location=de-frankfurt&plan=old&cycle=monthly&image=old&billing_mode=hourly">Current city</a>
+        <a id="next-city" class="cvb-city" data-city="fi-helsinki" href="?location=fi-helsinki&plan=old&cycle=monthly&image=old&billing_mode=hourly">New city</a>
+        <a id="closed-city" class="cvb-city" data-city="de-closed" aria-disabled="true" tabindex="-1">Unavailable city</a>` : ''}
       <input id="cvb-quoted-hourly" type="hidden" name="quoted_hourly_irt" value="0">
       ${Object.keys(data.cycles).map(cycle => `<label class="cvb-seg cvb-seg-c"><input type="radio" name="cycle" value="${cycle}" ${cycle === 'monthly' ? 'checked' : ''}><em data-cycle-saving="${cycle}" hidden></em></label>`).join('')}
       ${options.pricing ? '<div id="cvb-ip-box"><select id="cvb-extra-ip" name="extra_ipv4"><option value="2" selected>Two additional IPs</option></select></div>' : ''}
@@ -234,4 +241,37 @@ test('a nonzero IP selection with no public quote cannot become a free add-on or
   assert.equal(page.document.getElementById('cvb-d-first').textContent, '—');
   assert.equal(page.primary.disabled, true);
   assert.equal(page.dock.disabled, true);
+});
+
+test('a new location never carries the source plan, image or hourly contract after live form changes', t => {
+  const page = fixture(t, { pricing: true, locationLinks: true });
+  for (const [name, value] of [['plan', 'empty'], ['cycle', 'yearly'], ['image', 'u22']]) {
+    const input = page.document.querySelector(`input[name="${name}"][value="${value}"]`);
+    input.checked = true;
+    input.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  }
+  page.document.getElementById('cvb-hourly').checked = true;
+  const link = page.document.getElementById('next-city');
+  link.addEventListener('click', event => event.preventDefault());
+  link.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert.deepEqual([...new URL(link.href).searchParams], [['location', 'fi-helsinki'], ['cycle', 'yearly']]);
+  assert.equal(page.form.elements.location.value, 'de-frankfurt', 'Browsing must not mutate the current order payload');
+});
+
+test('same-location navigation keeps the latest valid choices while closed rows never gain a purchase URL', t => {
+  const page = fixture(t, { pricing: true, locationLinks: true });
+  const plan = page.document.querySelector('input[name="plan"][value="empty"]');
+  plan.checked = true;
+  plan.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  page.document.getElementById('cvb-hourly').checked = true;
+  const same = page.document.getElementById('same-city');
+  same.addEventListener('click', event => event.preventDefault());
+  same.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  const query = new URL(same.href).searchParams;
+  assert.equal(query.get('plan'), 'empty');
+  assert.equal(query.get('image'), 'u24');
+  assert.equal(query.get('billing_mode'), 'hourly');
+  const closed = page.document.getElementById('closed-city');
+  closed.dispatchEvent(new page.window.MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert.equal(closed.hasAttribute('href'), false);
 });

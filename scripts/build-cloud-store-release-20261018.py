@@ -1,12 +1,12 @@
 """Build and guard the limited cloud-store/Shahkar release; never runs remotely itself.
 
-Release v6 follows the installed cloud-store-experience-20261018-v5 release.
-It aligns public storefront quotes with checkout supplier-cost floors and keeps
-dedicated-server links in their product family when Iran is unavailable.
+Release v7 follows the installed cloud-store-experience-20261018-v6 release.
+It clears stale cross-location GET selections and keeps sold-out city rows
+informational while preserving valid same-city choices.
 V1 was inventoried and unlocked without any target writes. Its inventory exposed
 published provider filtering/alert changes that must be preserved in this packet.
 V3 and V4 were staged privately only, without inventory or application writes.
-V2 and V5 were installed and activated before this candidate.
+V2, V5 and V6 were installed and activated before this candidate.
 
 Local: python scripts/build-cloud-store-release-20261018.py --build
 Upload the resulting directory OUTSIDE public_html, with directory mode 0700 and
@@ -38,7 +38,7 @@ import sys
 import tarfile
 import uuid
 
-RELEASE = 'cloud-store-experience-20261018-v6'
+RELEASE = 'cloud-store-experience-20261018-v7'
 LOCK = '.cloud-store-experience-deploy.lock'
 PHP = '/opt/cpanel/ea-php84/root/usr/bin/php'
 SOURCES = '''app/Http/Controllers/Account/BuilderCheckoutController.php

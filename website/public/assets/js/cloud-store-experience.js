@@ -77,7 +77,7 @@
     });
   });
   function targets() {
-    return [...form.querySelectorAll('#cvx-results summary, #cvx-results [data-city]')].filter(element => !element.closest('[hidden]') && (element.tagName === 'SUMMARY' || element.closest('details').open));
+    return [...form.querySelectorAll('#cvx-results summary, #cvx-results a[data-city][href]:not([aria-disabled="true"])')].filter(element => !element.closest('[hidden]') && (element.tagName === 'SUMMARY' || element.closest('details').open));
   }
   input.addEventListener('keydown', event => {
     if (event.key === 'ArrowDown') { event.preventDefault(); targets()[0]?.focus(); }

@@ -37,10 +37,37 @@ class GpuStoreSeparationTest extends TestCase
         $this->bothLines();
         $html = $this->actingAs($this->customer(), 'customer')
             ->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
-        $discountBadge = '~<em>[^<]*'.preg_quote(__('ui.cvb_save_suf'), '~').'</em>~';
-        $this->assertDoesNotMatchRegularExpression($discountBadge, $html);
+        $badges = static function (string $html): \DOMNodeList {
+            $document = new \DOMDocument;
+            $previous = libxml_use_internal_errors(true);
+            try {
+                $document->loadHTML('<?xml encoding="utf-8" ?>'.$html, LIBXML_NONET);
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+            }
+
+            return (new \DOMXPath($document))->query('//*[@id="cvb-bill"]//em[@data-cycle-saving]');
+        };
+        $gpuBadges = $badges($html);
+        $this->assertCount(count(CloudStoreController::cycles()), $gpuBadges);
+        foreach ($gpuBadges as $badge) {
+            $this->assertTrue($badge->hasAttribute('hidden'), 'GPU نباید تخفیفِ دوره‌ایِ VPS را تبلیغ کند');
+            $this->assertSame('', trim($badge->textContent));
+        }
+
         $vps = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
-        $this->assertMatchesRegularExpression($discountBadge, $vps);
+        $vpsBadges = $badges($vps);
+        $this->assertCount(count(CloudStoreController::cycles()), $vpsBadges);
+        $visible = 0;
+        foreach ($vpsBadges as $badge) {
+            if (! $badge->hasAttribute('hidden')) {
+                $visible++;
+                $this->assertStringEndsWith(__('ui.cvb_save_suf'), trim($badge->textContent));
+            }
+        }
+        $this->assertGreaterThan(0, $visible, 'پلنِ VPS دارای تخفیف باید نشانِ دیداریِ واقعی داشته باشد');
+        Http::assertNothingSent();
     }
 
     public function test_jupyter_sales_pause_blocks_new_checkout_without_changing_runtime_compatibility(): void

@@ -6,7 +6,7 @@ const { JSDOM, VirtualConsole } = require('jsdom');
 
 const source = fs.readFileSync(path.join(__dirname, '../../public/assets/js/cloud-store-experience.js'), 'utf8');
 
-function fixture(t) {
+function fixture(t, { withUnavailable = false } = {}) {
   const runtimeErrors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', error => runtimeErrors.push(error));
@@ -24,6 +24,7 @@ function fixture(t) {
       <div id="cvx-results" tabindex="0">
         <details class="cvx-country" data-region="eu" data-country="DE">
           <summary data-label="آلمان">آلمان</summary>
+          ${withUnavailable ? '<a data-city="de-unavailable" data-city-label="Berlin" data-label="آلمان — برلین" data-approximate="false" role="link" aria-disabled="true" tabindex="-1">برلین — موجودی این پلن تمام شده</a>' : ''}
           <a href="?location=de-fsn" data-city="de-fsn" data-city-label="Falkenstein" data-label="آلمان — فالکن‌اشتاین" data-approximate="false">فالکن‌اشتاین</a>
           <a href="?location=de-ref" data-city="de-ref" data-city-label="" data-label="آلمان — سایر مکان‌ها" data-approximate="true">سایر مکان‌ها</a>
         </details>
@@ -40,6 +41,7 @@ function fixture(t) {
           <summary data-label="ترکیه">ترکیه</summary>
           <a href="?location=tr-ist" data-city="tr-ist" data-city-label="Istanbul" data-label="ترکیه — استانبول" data-approximate="false">استانبول</a>
         </details>
+        ${withUnavailable ? '<details class="cvx-country" data-region="eu" data-country="AT"><summary data-label="اتریش">اتریش</summary><a data-city="at-innsbruck" data-city-label="Innsbruck" data-label="اتریش — اینسبروک" data-approximate="false" role="link" aria-disabled="true" tabindex="-1">اینسبروک — موجودی این پلن تمام شده</a></details>' : ''}
         <div id="cvx-empty" hidden>No destinations found</div>
       </div>
     </form>
@@ -215,6 +217,54 @@ test('Enter in destination search reviews a matching city without advancing or c
   page.input.dispatchEvent(emptyEnter);
   assert.equal(emptyEnter.defaultPrevented, true);
   assert.equal(page.document.activeElement, page.input);
+});
+
+test('destination keyboard navigation skips visible unavailable cities and reviews an available city', t => {
+  const page = fixture(t, { withUnavailable: true });
+  page.search('آلمان');
+  const unavailable = page.city('de-unavailable');
+  assert.equal(unavailable.hidden, false, 'Unavailable capacity remains visible for context');
+  assert.equal(unavailable.hasAttribute('href'), false);
+  assert.equal(unavailable.getAttribute('aria-disabled'), 'true');
+  assert.equal(unavailable.tabIndex, -1);
+  const press = (element, key) => element.dispatchEvent(new page.window.KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+  page.input.focus();
+  press(page.input, 'Enter');
+  assert.equal(page.document.activeElement, page.city('de-fsn'));
+  press(page.document.activeElement, 'Home');
+  assert.equal(page.document.activeElement, page.country('DE').querySelector('summary'));
+  press(page.document.activeElement, 'ArrowDown');
+  assert.equal(page.document.activeElement, page.city('de-fsn'));
+  press(page.document.activeElement, 'ArrowUp');
+  assert.equal(page.document.activeElement, page.country('DE').querySelector('summary'));
+  press(page.document.activeElement, 'End');
+  assert.equal(page.document.activeElement, page.city('de-ref'));
+  assert.equal(page.document.querySelector('input[name="location"]').value, 'ir-shiraz');
+  assert.equal(page.window.location.search, '');
+});
+
+test('an unavailable-only country remains searchable and previews on the globe without offering a purchase link', t => {
+  const page = fixture(t, { withUnavailable: true });
+  const country = page.country('AT');
+  const unavailable = page.city('at-innsbruck');
+  for (const query of ['Austria', 'Innsbruck']) {
+    page.search(query);
+    assert.deepEqual(page.visibleCountries(), ['AT']);
+    assert.equal(country.open, true);
+    assert.equal(unavailable.hidden, false);
+    page.input.focus();
+    page.input.dispatchEvent(new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    assert.equal(page.document.activeElement, country.querySelector('summary'));
+  }
+  unavailable.dispatchEvent(new page.window.Event('pointerenter'));
+  assert.equal(page.previews.at(-1).country, 'AT');
+  assert.equal(page.previews.at(-1).city, 'Innsbruck');
+  page.document.dispatchEvent(new page.window.CustomEvent('cvx:country-select', { detail: { country: 'AT' } }));
+  assert.equal(page.input.value, 'اتریش');
+  assert.equal(country.hidden, false);
+  assert.equal(unavailable.hasAttribute('href'), false);
+  assert.equal(page.document.querySelector('input[name="location"]').value, 'ir-shiraz');
+  assert.equal(page.window.location.search, '');
 });
 
 test('Ctrl K leaves focus in search after the navigation helper schedules its own heading focus', t => {
