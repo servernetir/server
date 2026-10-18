@@ -146,7 +146,7 @@
   const chatBody = document.getElementById('chat-body');
   const chatForm = document.getElementById('chat-form');
   const chatText = document.getElementById('chat-text');
-  if (fab && panel && chatBody && chatForm) {
+  if (fab && panel && chatBody && chatForm && !panel.dataset.morphReady) {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
     let greeted = false, busy = false;
 
@@ -197,6 +197,7 @@
     };
 
     function open() {
+      panel.removeAttribute('inert');
       panel.classList.add('open');
       requestAnimationFrame(() => panel.classList.add('in'));
       fab.setAttribute('aria-expanded', 'true');
@@ -204,6 +205,7 @@
       chatText.focus();
     }
     function close() {
+      panel.setAttribute('inert', '');
       panel.classList.remove('in');
       fab.setAttribute('aria-expanded', 'false');
       setTimeout(() => panel.classList.remove('open'), 280);
