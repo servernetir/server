@@ -6,7 +6,9 @@ declare(strict_types=1);
  *
  * Copy beside its installed manifest in an owner-controlled 0700 release dir:
  * php verify-cloud-store-release-20261018.php --manifest=/private/manifest.json
- * Optional: --home=/home/servernetcloud --report=verify-cli-2.json
+ * Optional: --home=/home/servernetcloud --report=verify-cli-2.json --public-only
+ * Public-only checks the follow-up public quotes without repeating the full
+ * location/image render sweep; retain the preceding full acceptance separately.
  *
  * No HTTP kernel, purchase success path, identity edit, quote refresh, provider
  * lifecycle call, migration or queue/scheduler execution is permitted here.
@@ -48,6 +50,18 @@ function probeJson(string $path, array $value): void
     chmod($path, 0600);
 }
 
+/** CLI liveness only: fixed aggregate counters, never identities or prices. */
+function probeProgress(string $stage, array $counts, float $startedAt): void
+{
+    $progress = ['probe' => 'cloud_store_acceptance', 'stage' => $stage,
+        'elapsed_seconds' => (int) (microtime(true) - $startedAt)];
+    foreach (['locations', 'target_foreign_locations', 'public_slugs', 'cycle_entries', 'hourly_entries', 'rendered_pages'] as $key) {
+        $progress[$key] = (int) ($counts[$key] ?? 0);
+    }
+    fwrite(STDERR, json_encode($progress, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).PHP_EOL);
+    fflush(STDERR);
+}
+
 ini_set('display_errors', '0');
 umask(0077);
 $stage = 'private_context';
@@ -59,8 +73,12 @@ $effects = ['http_attempts' => 0, 'notifier_attempts' => 0, 'sms_attempts' => 0,
 
 try {
     probeCheck(PHP_SAPI === 'cli' && DIRECTORY_SEPARATOR === '/' && function_exists('posix_geteuid'), 'cli_linux_required');
-    $options = getopt('', ['manifest:', 'home:', 'report:']);
+    $options = getopt('', ['manifest:', 'home:', 'report:', 'public-only']);
     probeCheck(is_array($options) && isset($options['manifest']) && is_string($options['manifest']), 'manifest_argument_required');
+    $publicOnly = array_key_exists('public-only', $options);
+    $result['acceptance_mode'] = $publicOnly ? 'public_only' : 'full_catalogue';
+    $result['full_catalogue_render_sweep_executed'] = ! $publicOnly;
+    if ($publicOnly) $result['scope'] = 'installed_code_and_read_only_public_quote_acceptance';
     $home = realpath((string) ($options['home'] ?? '/home/servernetcloud'));
     $here = realpath(__DIR__);
     $manifestPath = realpath($options['manifest']);
@@ -101,6 +119,12 @@ try {
         'resources/views/account/cloud-store.blade.php', 'public/assets/js/cloud-store-experience.js',
         'public/assets/js/cloud-store-globe.js'] as $required) {
         probeCheck(isset($installed['servernet_app/'.$required]), 'required_release_file_missing_from_manifest');
+    }
+    if ($publicOnly) {
+        foreach (['app/Services/Cloud/CloudPublicQuote.php', 'app/Http/Controllers/SiteController.php',
+            'app/Http/Controllers/CatalogController.php', 'resources/views/pages/home.blade.php'] as $required) {
+            probeCheck(isset($installed['servernet_app/'.$required]), 'required_public_release_file_missing_from_manifest');
+        }
     }
     $result['installed_files_verified'] = count($installed);
     $result['manifest_sha256'] = hash_file('sha256', $manifestPath);
@@ -181,6 +205,7 @@ try {
     $result['database_read_only_enforced'] = true;
 
     $stage = 'schema_and_baseline';
+    $probeStartedAt = microtime(true);
     $requiredColumns = [
         'identity_verifications' => ['customer_id', 'status', 'shahkar_matched'],
         'services' => ['customer_id', 'provision_status', 'provisioned_at', 'provision_meta', 'cloud_plan_id'],
@@ -219,19 +244,23 @@ try {
     $session->start();
     $app->instance('session.store', $session);
     $app['view']->share('errors', new Illuminate\Support\ViewErrorBag());
-    $requestFor = function (?App\Models\Customer $customer, string $locale, string $method = 'GET', array $inputs = []) use ($app, $session): Illuminate\Http\Request {
+    $requestFor = function (?App\Models\Customer $customer, string $locale, string $method = 'GET', array $inputs = [],
+        ?string $publicRoute = null, array $routeParameters = []) use ($app, $session): Illuminate\Http\Request {
         $session->flush();
         $session->regenerateToken();
         $app->setLocale($locale);
-        $path = ($locale === 'fa' ? '' : '/'.$locale).'/account/cloud-store';
-        $request = Illuminate\Http\Request::create('https://console.servernet.cloud'.$path, $method, $inputs,
-            server: ['HTTP_REFERER' => 'https://console.servernet.cloud'.$path]);
+        $routeName = ($locale === 'fa' ? '' : $locale.'.').($publicRoute
+            ?? 'account.cloud.store'.($method === 'POST' ? '.place' : ''));
+        $path = $publicRoute === null ? ($locale === 'fa' ? '' : '/'.$locale).'/account/cloud-store'
+            : route($routeName, $routeParameters, false);
+        $host = $publicRoute === null ? 'console.servernet.cloud' : 'servernet.cloud';
+        $request = Illuminate\Http\Request::create('https://'.$host.$path, $method, $inputs,
+            server: ['HTTP_REFERER' => 'https://'.$host.$path]);
         $request->setLaravelSession($session);
         $app->instance('request', $request);
         Illuminate\Support\Facades\Request::clearResolvedInstance('request');
         $app['url']->setRequest($request);
-        $route = $app['router']->getRoutes()->getByName(($locale === 'fa' ? '' : $locale.'.')
-            .'account.cloud.store'.($method === 'POST' ? '.place' : ''));
+        $route = $app['router']->getRoutes()->getByName($routeName);
         probeCheck($route !== null, 'cloud_store_route_missing');
         $route->bind($request);
         $request->setRouteResolver(fn () => $route);
@@ -372,12 +401,20 @@ try {
     }
     $result['quote_checks'] = ['locations' => 0, 'public_slugs' => 0, 'cycle_entries' => 0, 'hourly_entries' => 0,
         'image_keys' => 0, 'duplicate_public_slugs' => 0, 'rendered_pages' => 0];
+    $hourlyOffersByLocation = [];
+    $imageKeysByOffer = [];
 
-    $checkView = function (Illuminate\View\View $view, bool $render) use ($controller, $eurRate, $expectedAddonTotals, &$result): void {
+    $checkView = function (Illuminate\View\View $view, bool $render) use ($controller, $eurRate, $expectedAddonTotals,
+        $probeStartedAt, &$hourlyOffersByLocation, &$imageKeysByOffer, &$result): void {
         $data = $view->getData();
         probeCheck(($data['addonTotals'] ?? null) === $expectedAddonTotals, 'public_addon_total_map_mismatch');
         $code = (string) ($data['locCode'] ?? '');
         $offers = App\Models\CloudPlan::offers($code);
+        // This entire probe holds one READ ONLY transaction. These catalogue
+        // results cannot change between slugs, locales or identity cohorts.
+        if (! array_key_exists($code, $hourlyOffersByLocation)) {
+            $hourlyOffersByLocation[$code] = App\Models\CloudPlan::offers($code, true);
+        }
         $slugs = array_column($data['planCards'], 'slug');
         probeCheck(count($slugs) === count(array_unique($slugs)), 'duplicate_public_slug_rendered');
         $result['quote_checks']['locations']++;
@@ -419,7 +456,7 @@ try {
                 $result['quote_checks']['cycle_entries']++;
             }
             $hourly = $data['hourlyMap'][$slug] ?? [];
-            $hourlyOffer = App\Models\CloudPlan::offers($code, true)->get($slug);
+            $hourlyOffer = $hourlyOffersByLocation[$code]->get($slug);
             $expectedRate = $hourlyOffer?->hourlyIrt() ?? 0;
             probeCheck((int) ($hourly['rate'] ?? -1) === $expectedRate, 'displayed_hourly_quote_mismatch');
             if ($hourlyOffer !== null) {
@@ -433,10 +470,17 @@ try {
                 $result['quote_checks']['hourly_entries']++;
             }
             foreach (['os', 'app'] as $kind) {
-                $allowed = $controller::imageKeysFor($offer, $kind);
+                $offerId = (int) $offer->getKey();
+                if (! isset($imageKeysByOffer[$offerId][$kind])) {
+                    $imageKeysByOffer[$offerId][$kind] = $controller::imageKeysFor($offer, $kind);
+                }
+                $allowed = $imageKeysByOffer[$offerId][$kind];
                 $shown = $data['imageMap'][$slug][$kind] ?? [];
                 probeCheck(array_diff($shown, $allowed) === [] && array_diff($allowed, $shown) === [], 'image_compatibility_map_mismatch');
                 $result['quote_checks']['image_keys'] += count($shown);
+            }
+            if ($result['quote_checks']['public_slugs'] % 50 === 0) {
+                probeProgress('quotes_checked', $result['quote_checks'], $probeStartedAt);
             }
         }
         if (! $render || $slugs === []) return;
@@ -470,30 +514,219 @@ try {
         $result['quote_checks']['rendered_pages']++;
     };
 
+    if (! ($publicOnly ?? false)) {
     $allCodes = [];
     foreach ($controller->locationGroups() as $group) foreach ($group['locations'] as $location) $allCodes[] = (string) $location->code;
     probeCheck($allCodes !== [], 'no_live_foreign_locations');
-    foreach (array_unique($allCodes) as $code) {
+    $allCodes = array_values(array_unique($allCodes));
+    $result['quote_checks']['target_foreign_locations'] = count($allCodes);
+    foreach ($allCodes as $code) {
+        probeProgress('foreign_location_start', $result['quote_checks'], $probeStartedAt);
         $request = $requestFor($customers['unverified'], 'fa', inputs: ['location' => $code]);
         $checkView($controller->index($request), false);
+        probeProgress('foreign_location_checked', $result['quote_checks'], $probeStartedAt);
     }
     // Render actual Blade in three languages, for real permitted cohorts. No HTML is retained.
     foreach (['unverified', 'manual_profile_only', 'shahkar'] as $name) {
         if ($customers[$name] === null) continue;
         foreach (['fa', 'en', 'tr'] as $locale) {
+            probeProgress('cohort_render_start', $result['quote_checks'], $probeStartedAt);
             $request = $requestFor($customers[$name], $locale, inputs: ['location' => $allCodes[0]]);
             $checkView($controller->index($request), true);
+            probeProgress('cohort_render_checked', $result['quote_checks'], $probeStartedAt);
         }
     }
     if ($customers['shahkar'] !== null) {
         foreach ($rawIranCodes as $code) {
             if (App\Models\CloudPlan::offers($code)->isEmpty()) continue;
+            probeProgress('iran_location_start', $result['quote_checks'], $probeStartedAt);
             $request = $requestFor($customers['shahkar'], 'fa', inputs: ['location' => $code]);
             $checkView($controller->index($request), true);
+            probeProgress('iran_location_checked', $result['quote_checks'], $probeStartedAt);
         }
     }
     probeCheck($result['quote_checks']['public_slugs'] > 0 && $result['quote_checks']['cycle_entries'] > 0
         && $result['quote_checks']['rendered_pages'] >= 3, 'insufficient_live_quote_coverage');
+    } else {
+        $stage = 'public_quote_followup';
+        $result['acceptance_mode'] = 'public_only';
+        $result['full_catalogue_render_sweep_executed'] = false;
+        $result['public_quote_checks'] = ['foreign_offers' => 0, 'cycle_entries' => 0,
+            'home_pages' => 0, 'home_plan_quotes' => 0, 'product_quotes' => 0,
+            'catalogue_pages' => 0, 'catalogue_plan_quotes' => 0, 'product_destinations' => 0];
+        $allOffers = App\Models\CloudPlan::offers();
+        $offersById = $allOffers->keyBy(fn ($offer) => (int) $offer->getKey());
+        $locationCountries = App\Models\CloudLocation::pluck('country', 'code');
+        $isIranOffer = fn ($offer) => App\Services\Customer\IranSalesGate::isIranTarget(
+            (string) ($locationCountries->get($offer->location_code) ?: $offer->location_code))
+            || App\Services\Customer\IranSalesGate::isIranTarget((string) $offer->location_code);
+        $foreignOffers = $allOffers->reject($isIranOffer);
+        probeCheck($foreignOffers->isNotEmpty(), 'no_live_foreign_public_offers');
+        // These are complete-cycle checkout quotes, not reconstructed discounts.
+        $expectedPublicQuote = function (?App\Models\CloudPlan $offer) use ($controller): array {
+            if ($offer === null) return ['contact' => true, 'quote' => true];
+            $monthly = $controller::priceForCycle($offer, 'monthly');
+            $annual = $controller::priceForCycle($offer, 'yearly');
+            $months = App\Models\Service::monthsIn('yearly');
+            if ($monthly <= 0 || $annual <= 0 || $months <= 0) return ['contact' => true, 'quote' => true];
+            $undiscounted = $monthly * $months;
+            return ['irt' => $monthly, 'yearly_irt' => (int) ceil($annual / $months),
+                'yearly_savings_pct' => $undiscounted > $annual
+                    ? (int) floor(($undiscounted - $annual) * 100 / $undiscounted) : 0,
+                'final_irt' => true];
+        };
+        $checkPublicQuote = function (array $shown, ?App\Models\CloudPlan $offer) use ($expectedPublicQuote): void {
+            $expected = $expectedPublicQuote($offer);
+            foreach ($expected as $key => $value) {
+                probeCheck(array_key_exists($key, $shown) && $shown[$key] === $value, 'public_checkout_quote_mismatch');
+            }
+            if ($offer === null) probeCheck(! array_key_exists('irt', $shown) && ! array_key_exists('yearly_irt', $shown),
+                'unavailable_public_quote_has_price');
+        };
+        foreach ($foreignOffers as $offer) {
+            $checkPublicQuote(app(App\Services\Cloud\CloudPublicQuote::class)->quote($offer), $offer);
+            foreach ($controller::cycles() as $cycle) {
+                $price = $controller::priceForCycle($offer, $cycle);
+                $months = App\Models\Service::monthsIn($cycle);
+                $cost = (int) $offer->cost_eur_cents / 100 * $eurRate * $months;
+                probeCheck($price > 0 && $price + 1 >= $cost, 'public_cycle_below_stored_supplier_cost', [
+                    'public_slug' => (string) $offer->slug, 'provider' => (string) $offer->provider,
+                    'cycle' => $cycle, 'computed_cycle_price_irt' => $price, 'stored_supplier_cycle_cost_irt' => $cost]);
+                if (in_array($offer->provider, ['salad', 'lightnode'], true)) {
+                    $hours = $offer->provider === 'lightnode'
+                        ? App\Services\Cloud\LightNodePublicPricing::CALENDAR_MONTH_RESERVE_HOURS
+                        : App\Services\Cloud\SaladClient::HOURS_PER_MONTH;
+                    $floor = $offer->hourlyCostFloorEurMicro() / 1000000 * $eurRate * $hours * $months;
+                    probeCheck($price + 1 >= $floor, 'public_cycle_below_hourly_reserve_floor');
+                }
+                $result['public_quote_checks']['cycle_entries']++;
+            }
+            $result['public_quote_checks']['foreign_offers']++;
+        }
+        probeProgress('public_foreign_quotes_checked', [
+            'public_slugs' => $result['public_quote_checks']['foreign_offers'],
+            'cycle_entries' => $result['public_quote_checks']['cycle_entries']], $probeStartedAt);
+        $parseDom = function (string $html): DOMXPath {
+            $dom = new DOMDocument();
+            $previousErrors = libxml_use_internal_errors(true);
+            try { probeCheck($dom->loadHTML('<?xml encoding="UTF-8">'.$html,
+                LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING), 'public_rendered_dom_invalid'); }
+            finally { libxml_clear_errors(); libxml_use_internal_errors($previousErrors); }
+            return new DOMXPath($dom);
+        };
+        // Real configured pages, rendered with each actual available identity cohort.
+        // No cloud-store index, image catalogue hydration or outbound quote occurs.
+        foreach (['guest', 'unverified', 'shahkar'] as $name) {
+            $customer = $customers[$name];
+            if ($name !== 'guest' && $customer === null) continue;
+            foreach (['fa', 'en', 'tr'] as $locale) {
+                $requestFor($customer, $locale, publicRoute: 'home');
+                $permitted = App\Services\Customer\IranSalesVisibility::restricted() ? $foreignOffers : $allOffers;
+                $homeView = app(App\Http\Controllers\SiteController::class)->home();
+                $homeData = $homeView->getData();
+                $homePlans = (array) ($homeData['plans'] ?? []);
+                probeCheck(array_column($homePlans, 'pid') === $permitted->values()->take(4)->pluck('id')->all(),
+                    'home_public_offer_identity_or_eligibility_mismatch');
+                foreach ($homePlans as $shown) {
+                    $offer = $offersById->get((int) ($shown['pid'] ?? 0));
+                    probeCheck($offer !== null && (! App\Services\Customer\IranSalesVisibility::restricted()
+                        || ! $isIranOffer($offer)), 'home_iran_offer_leaked');
+                    $checkPublicQuote($shown, $offer);
+                    $result['public_quote_checks']['home_plan_quotes']++;
+                }
+                $sorted = $permitted->sortBy(fn ($offer) => $controller::priceForCycle($offer, 'monthly'));
+                foreach ([2 => $sorted->first(fn ($offer) => ! $offer->isMetal()),
+                    3 => $sorted->first(fn ($offer) => $offer->isMetal()), 4 => $sorted->first()] as $index => $offer) {
+                    probeCheck(isset($homeData['products'][$index]), 'home_product_quote_missing');
+                    $checkPublicQuote($homeData['products'][$index], $offer);
+                    $result['public_quote_checks']['product_quotes']++;
+                }
+                $xpath = $parseDom($homeView->render());
+                $links = $xpath->query('//*[@id="products"]//a[contains(concat(" ",normalize-space(@class)," ")," pcard-link ")]');
+                probeCheck($links->length === count($homeData['products']), 'home_product_destination_count_mismatch');
+                foreach ($homeData['products'] as $index => $product) {
+                    $configured = isset($product['link']) ? lroute($product['link'][0], $product['link'][1] ?? [])
+                        : buy_url($product['pid']);
+                    $expectedHref = $configured;
+                    if (! App\Services\Customer\IranSalesVisibility::allowsUrl($configured)) {
+                        $routeName = $product['link'][0] ?? '';
+                        $params = $product['link'][1] ?? [];
+                        $category = $routeName === 'hosting' ? 'hosting'
+                            : ($routeName === 'catalog' && is_array($params) ? ($params['category'] ?? '') : '');
+                        $expectedHref = match ($category) {
+                            'dedicated' => lroute('catalog', ['category' => 'dedicated', 'slug' => 'germany']),
+                            'hosting' => lroute('hosting', 'linux'),
+                            default => lroute('cloud.index'),
+                        };
+                    }
+                    $href = $links->item($index)->getAttribute('href');
+                    probeCheck($href === $expectedHref && App\Services\Customer\IranSalesVisibility::allowsUrl($href),
+                        'home_product_destination_invalid_or_wrong_category');
+                    $result['public_quote_checks']['product_destinations']++;
+                }
+                $savings = (int) (collect($homePlans)->filter(fn ($row) => (int) ($row['irt'] ?? 0) > 0)
+                    ->min('yearly_savings_pct') ?? 0);
+                $badge = $xpath->query('//*[@id="pricing"]//button[@data-bill="yearly"]//span[contains(concat(" ",normalize-space(@class)," ")," save ")]');
+                probeCheck($badge->length === ($savings > 0 ? 1 : 0), 'home_annual_saving_badge_overpromises');
+                if ($savings > 0) probeCheck(trim($badge->item(0)->textContent) === __('ui.bill_save',
+                    ['percent' => $locale === 'fa' ? fa_num($savings) : $savings]), 'home_annual_saving_badge_mismatch');
+                $annualRows = $xpath->query('//*[@id="plans"]//span[contains(concat(" ",normalize-space(@class)," ")," pr-y ")]');
+                probeCheck($annualRows->length === count($homePlans), 'home_annual_price_count_mismatch');
+                foreach ($homePlans as $index => $shown) {
+                    $row = $annualRows->item($index);
+                    probeCheck($xpath->query('./s', $row)->length === ((int) $shown['yearly_savings_pct'] > 0 ? 1 : 0),
+                        'home_annual_strikeout_without_saving');
+                    probeCheck(trim($xpath->query('./b', $row)->item(0)->textContent) === site_price_yearly($shown),
+                        'home_annual_rendered_price_mismatch');
+                }
+                $monthlyRows = $xpath->query('//*[@id="plans"]//span[contains(concat(" ",normalize-space(@class)," ")," pr-m ")]/b');
+                probeCheck($monthlyRows->length === count($homePlans), 'home_monthly_price_count_mismatch');
+                foreach ($homePlans as $index => $shown) probeCheck(trim($monthlyRows->item($index)->textContent) === site_price($shown),
+                    'home_monthly_rendered_price_mismatch');
+                $result['public_quote_checks']['home_pages']++;
+                foreach (['vps', 'dedicated'] as $category) {
+                    $requestFor($customer, $locale, publicRoute: 'catalog',
+                        routeParameters: ['category' => $category, 'slug' => 'germany']);
+                    $catalogueView = app(App\Http\Controllers\CatalogController::class)->show($category, 'germany');
+                    probeCheck($catalogueView instanceof Illuminate\View\View, 'public_catalogue_not_view');
+                    $data = $catalogueView->getData();
+                    foreach ((array) ($data['product']['plans'] ?? []) as $index => $shown) {
+                        if (! ($data['liveStock'] ?? false)) {
+                            probeCheck(($shown['contact'] ?? false) === true && ! isset($shown['irt']),
+                                'unavailable_catalogue_has_numeric_price');
+                            continue;
+                        }
+                        $href = (string) ($data['planHrefs'][$index] ?? '');
+                        $query = [];
+                        parse_str((string) parse_url($href, PHP_URL_QUERY), $query);
+                        $offer = $allOffers->get((string) ($query['plan'] ?? ''));
+                        probeCheck($offer !== null && ! $isIranOffer($offer)
+                            && strtoupper((string) $locationCountries->get($offer->location_code)) === 'DE'
+                            && (string) ($query['location'] ?? '') === (string) $offer->location_code
+                            && (string) ($shown['row']['loc_code'] ?? '') === (string) $offer->location_code
+                            && App\Services\Customer\IranSalesVisibility::allowsUrl($href),
+                            'public_catalogue_offer_or_purchase_destination_mismatch');
+                        $checkPublicQuote($shown, $offer);
+                        $monthly = $controller::priceForCycle($offer, 'monthly');
+                        probeCheck(($shown['row']['price_n'] ?? null) === $monthly
+                            && count($shown['row']['picker'] ?? []) === 1
+                            && ($shown['row']['picker'][0]['irt'] ?? null) === $monthly
+                            && ($shown['row']['picker'][0]['href'] ?? null) === $href,
+                            'public_catalogue_picker_price_or_destination_mismatch');
+                        $result['public_quote_checks']['catalogue_plan_quotes']++;
+                    }
+                    probeCheck($catalogueView->render() !== '', 'public_catalogue_render_empty');
+                    $result['public_quote_checks']['catalogue_pages']++;
+                }
+                probeProgress('public_cohort_pages_checked', ['rendered_pages' => $result['public_quote_checks']['home_pages']
+                    + $result['public_quote_checks']['catalogue_pages']], $probeStartedAt);
+            }
+        }
+        probeCheck($result['public_quote_checks']['home_pages'] >= 6
+            && $result['public_quote_checks']['catalogue_pages'] >= 12
+            && $result['public_quote_checks']['home_plan_quotes'] > 0
+            && $result['public_quote_checks']['catalogue_plan_quotes'] > 0, 'insufficient_public_quote_coverage');
+    }
 
     $stage = 'unchanged_state_and_effects';
     $after = $fingerprint();
@@ -514,6 +747,7 @@ try {
         'No gateway initiation, real payment, provider live quote or VM delivery was executed.',
         'Cost floors use the current stored catalog and Navasan snapshot; provider freshness beyond stored quote guards is not independently fetched.',
         'Before/after state is measured in one consistent READ ONLY transaction; concurrent genuine customer orders are outside this probe.'];
+    if ($publicOnly ?? false) $result['limitations'][] = 'Public-only follow-up does not repeat the full cloud-store location/image render sweep; retain the preceding full report for unchanged installed checkout and identity-policy hashes.';
     $connection->rollBack();
     probeJson($reportPath, $result);
     echo json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).PHP_EOL;
