@@ -24,12 +24,14 @@ class SiteController extends Controller
         }
         $products = (array) config('servernet.products', []);
         $catalog = app(CatalogPricing::class);
+        $pricedOffers = $offers->sortBy(fn (CloudPlan $plan) =>
+            app(\App\Services\Cloud\CloudPublicQuote::class)->monthlyPrice($plan));
         $quotes = [
             $catalog->minimumQuote('linux'),
             $catalog->minimumQuote('wordpress'),
-            $this->cloudQuote($offers->first(fn (CloudPlan $plan) => ! $plan->isMetal())),
-            $this->cloudQuote($offers->first(fn (CloudPlan $plan) => $plan->isMetal())),
-            $this->cloudQuote($offers->first()),
+            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => ! $plan->isMetal())),
+            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => $plan->isMetal())),
+            $this->cloudQuote($pricedOffers->first()),
             $tlds[0] ?? ['contact' => true, 'quote' => true],
         ];
         foreach ($products as $index => $product) {
@@ -51,12 +53,7 @@ class SiteController extends Controller
 
     private function cloudQuote(?CloudPlan $plan): array
     {
-        if (! $plan || (int) $plan->price_irt <= 0) {
-            return ['contact' => true, 'quote' => true];
-        }
-        $factor = 1 - ((int) config('billing.cycles.yearly.discount_pct', 0) / 100);
-        $yearly = (int) (ceil(((int) $plan->price_irt * $factor) / 10_000) * 10_000);
-        return ['irt' => (int) $plan->price_irt, 'yearly_irt' => $yearly, 'final_irt' => true];
+        return app(\App\Services\Cloud\CloudPublicQuote::class)->quote($plan);
     }
 
     private function homeCloudPlans(Collection $offers): array

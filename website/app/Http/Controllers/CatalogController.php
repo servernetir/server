@@ -588,6 +588,8 @@ class CatalogController extends Controller
 
         foreach ($groups as $g) {
             $p = $g['rep'];
+            $quote = app(\App\Services\Cloud\CloudPublicQuote::class)->quote($p);
+            $monthly = (int) ($quote['irt'] ?? 0);
 
             /*
             | 🔴 هر ردیف دقیقاً **یک** شهر دارد. در کشورهای خارجی آن شهر
@@ -634,16 +636,15 @@ class CatalogController extends Controller
                 'label'   => $cityLabels[$code] ?? $code,
                 'ok'      => true,
                 'reason'  => null,
-                'irt'     => (int) $p->price_irt,
+                'irt'     => $monthly,
                 // price_irt قیمت نهایی CloudPlan است؛ site_price() ضریب عمومی
                 // محصولات ثابت را دوباره اعمال می‌کند و با تسویه مغایر می‌شود.
-                'price_f' => cloud_price((int) $p->price_irt),
+                'price_f' => cloud_price($monthly),
                 'href'    => $base.'?location='.urlencode($code).'&plan='.urlencode((string) $p->slug),
             ]];
 
-            $plans[] = [
+            $plans[] = $quote + [
                 'name'    => (string) $p->public_name,
-                'irt'     => (int) $p->price_irt,
                 'eur'     => round(((int) $p->price_eur_cents) / 100, 2),
                 'popular' => $i === 1,          // دومی معمولاً نقطهٔ شیرینِ قیمت است
                 'specs'   => [
@@ -671,7 +672,7 @@ class CatalogController extends Controller
                     // ایران همان شهر مستقلی است که در کلید گروه آمده است.
                     'city'      => $cityLabels[(string) $p->location_code] ?? (string) $p->location_code,
                     'loc_code'  => (string) $p->location_code,
-                    'price_n'   => (int) $p->price_irt,
+                    'price_n'   => $monthly,
                     // همیشه یک عضو: شهرِ ارزان‌ترین. (بالای همین حلقه چرا)
                     'picker'    => $picker,
                     /*

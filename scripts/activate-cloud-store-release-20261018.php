@@ -5,7 +5,7 @@ declare(strict_types=1);
 // The existing route clears config, route, view AND application cache. It is
 // deliberately called once after all file hashes pass, never via a public helper.
 if (PHP_SAPI !== 'cli' || !function_exists('posix_geteuid')
-    || __DIR__ !== '/home/servernetcloud/cloud-store-experience-20261018-v5'
+    || __DIR__ !== '/home/servernetcloud/cloud-store-experience-20261018-v6'
     || is_link(__DIR__) || (fileperms(__DIR__) & 0777) !== 0700
     || fileowner(__DIR__) !== posix_geteuid() || file_exists(__DIR__.'/ACTIVATED.json')
     || !is_file(__DIR__.'/APPLIED.json')) {
@@ -16,7 +16,7 @@ $home = dirname(__DIR__);
 $owner = json_decode(file_get_contents($home.'/.cloud-store-experience-deploy.lock/owner.json'), true, 32, JSON_THROW_ON_ERROR);
 if (($owner['bundle'] ?? null) !== __DIR__) throw new RuntimeException('Release lock missing');
 $manifest = json_decode(file_get_contents(__DIR__.'/manifest.json'), true, 64, JSON_THROW_ON_ERROR);
-if (count($manifest) !== 54) throw new RuntimeException('Wrong manifest');
+if (count($manifest) !== 55) throw new RuntimeException('Wrong manifest');
 foreach ($manifest as $entry) {
     $path = $home.'/'.$entry['path'];
     if (is_link($path) || hash_file('sha256', $path) !== $entry['after']) {

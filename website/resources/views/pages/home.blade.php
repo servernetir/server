@@ -106,7 +106,15 @@
        @php
          $pHref = isset($p['link']) ? lroute($p['link'][0], $p['link'][1] ?? []) : buy_url($p['pid']);
          if (! \App\Services\Customer\IranSalesVisibility::allowsUrl($pHref)) {
-             $pHref = lroute('cloud.index');
+             $pRoute = $p['link'][0] ?? '';
+             $pParams = $p['link'][1] ?? [];
+             $pCategory = $pRoute === 'hosting' ? 'hosting'
+                 : ($pRoute === 'catalog' && is_array($pParams) ? ($pParams['category'] ?? '') : '');
+             $pHref = match ($pCategory) {
+                 'dedicated' => lroute('catalog', ['category' => 'dedicated', 'slug' => 'germany']),
+                 'hosting' => lroute('hosting', 'linux'),
+                 default => lroute('cloud.index'),
+             };
          }
        @endphp
       <a class="pcard pcard-link reveal" href="{{ $pHref }}" style="transition-delay:{{ $i * 70 }}ms">
@@ -150,9 +158,12 @@
       <h2>{{ __('ui.vps_title') }}</h2>
       <p>{{ __('ui.vps_sub') }}</p>
     </div>
+    @php
+      $yearlySavings = (int) (collect($plans)->filter(fn ($plan) => (int) ($plan['irt'] ?? 0) > 0)->min('yearly_savings_pct') ?? 0);
+    @endphp
     <div class="bill-toggle reveal" role="group" aria-label="Billing cycle">
       <button type="button" class="active" data-bill="monthly">{{ __('ui.bill_monthly') }}</button>
-      <button type="button" data-bill="yearly">{{ __('ui.bill_yearly') }}<span class="save">{{ __('ui.bill_save', ['percent' => $isFa ? fa_num(config('billing.cycles.yearly.discount_pct')) : config('billing.cycles.yearly.discount_pct')]) }}</span></button>
+      <button type="button" data-bill="yearly">{{ __('ui.bill_yearly') }}@if($yearlySavings > 0)<span class="save">{{ __('ui.bill_save', ['percent' => $isFa ? fa_num($yearlySavings) : $yearlySavings]) }}</span>@endif</button>
     </div>
     <div class="plans" id="plans">
       @foreach($plans as $i => $p)
@@ -161,7 +172,7 @@
         <h3>{{ lc($p) }}</h3>
         <div class="p-price">
           <span class="pr pr-m"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></span>
-          <span class="pr pr-y"><s>{{ site_price($p) }}</s><b>{{ site_price_yearly($p) }}</b><span>{{ __('ui.bill_yearly_note') }}</span></span>
+          <span class="pr pr-y">@if(($p['yearly_savings_pct'] ?? 0) > 0)<s>{{ site_price($p) }}</s>@endif<b>{{ site_price_yearly($p) }}</b><span>{{ __('ui.bill_yearly_note') }}</span></span>
         </div>
         <ul>
           <li><svg class="icon"><use href="#i-check"/></svg>{{ $p['cpu'] }}</li>

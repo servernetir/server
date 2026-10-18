@@ -1,12 +1,12 @@
 """Build and guard the limited cloud-store/Shahkar release; never runs remotely itself.
 
-Release v5 follows the installed cloud-store-experience-20261018-v2 release.
-It adds the requested fixed globe network, readable unnamed locations, console
-header width and the plan/IP cost-floor corrections discovered by acceptance.
+Release v6 follows the installed cloud-store-experience-20261018-v5 release.
+It aligns public storefront quotes with checkout supplier-cost floors and keeps
+dedicated-server links in their product family when Iran is unavailable.
 V1 was inventoried and unlocked without any target writes. Its inventory exposed
 published provider filtering/alert changes that must be preserved in this packet.
 V3 and V4 were staged privately only, without inventory or application writes.
-V2 is the only release installed and activated before this candidate.
+V2 and V5 were installed and activated before this candidate.
 
 Local: python scripts/build-cloud-store-release-20261018.py --build
 Upload the resulting directory OUTSIDE public_html, with directory mode 0700 and
@@ -38,7 +38,7 @@ import sys
 import tarfile
 import uuid
 
-RELEASE = 'cloud-store-experience-20261018-v5'
+RELEASE = 'cloud-store-experience-20261018-v6'
 LOCK = '.cloud-store-experience-deploy.lock'
 PHP = '/opt/cpanel/ea-php84/root/usr/bin/php'
 SOURCES = '''app/Http/Controllers/Account/BuilderCheckoutController.php
@@ -55,6 +55,7 @@ app/Http/Controllers/SiteController.php
 app/Services/CatalogPricing.php
 app/Services/Cloud/CloudAddons.php
 app/Services/Cloud/CloudProvisioner.php
+app/Services/Cloud/CloudPublicQuote.php
 app/Services/Customer/IranPurchaseReadiness.php
 app/Services/Customer/IranSalesGate.php
 app/Services/Customer/IranSalesVisibility.php
@@ -140,6 +141,7 @@ def rank(source):
     if source.startswith('app/Services/Customer/Iran'):
         return 31
     if source in ['app/Services/Cloud/CloudAddons.php',
+                  'app/Services/Cloud/CloudPublicQuote.php',
                   'app/Services/Payment/PaymentService.php',
                   'app/Services/Provisioning/ProvisioningService.php',
                   'app/Services/Cloud/CloudProvisioner.php']:
@@ -172,7 +174,7 @@ def build(args):
                                       'website/app', 'website/lang', 'website/resources', 'website/public'],
                                      cwd=repo, text=True).splitlines()
     require(set(changed) == {'website/' + source for source in SOURCES}, 'Runtime diff changed: review fixed allowlist')
-    require(len(SOURCES) == 50 and len(entries()) == 54, 'Unexpected scope')
+    require(len(SOURCES) == 51 and len(entries()) == 55, 'Unexpected scope')
     verifier = repo / 'scripts/verify-cloud-store-release-20261018.php'
     require(verifier.is_file(), 'Acceptance verifier is not ready')
     activator = repo / 'scripts/activate-cloud-store-release-20261018.php'
@@ -205,7 +207,7 @@ def build(args):
     write_private(out / activator.name, activator.read_bytes())
     write_private(out / 'README.txt', __doc__ + '\nReviewed-before format: {"candidate_sha256":"<hash of candidate-manifest.json>",'
                   '"entries":[{"path":"servernet_app/...","before":"<inventory hash or null>"}, ...]}\n'
-                  'Review ALL 54 observed targets against source and published baseline before signing this file.\n'
+                  'Review ALL 55 observed targets against source and published baseline before signing this file.\n'
                   'Use inventory.json candidate_sha256 and entries. Do not auto-approve observed drift.\n')
     def archive_mode(info):
         info.uid = info.gid = 0
@@ -217,7 +219,7 @@ def build(args):
     with tarfile.open(archive, 'x:gz') as stream:
         stream.add(out, arcname=RELEASE, filter=archive_mode)
     os.chmod(archive, 0o600)
-    print(json.dumps({'built': str(out), 'source_files': 50, 'target_files': 54,
+    print(json.dumps({'built': str(out), 'source_files': 51, 'target_files': 55,
                       'candidate_sha256': sha(out / 'candidate-manifest.json'),
                       'archive': str(archive), 'archive_sha256': sha(archive)}))
 
@@ -237,7 +239,7 @@ def candidate(bundle):
     packet = read_json(bundle / 'candidate-manifest.json')
     expected = entries()
     rows = packet['entries']
-    require(packet.get('release') == RELEASE and len(rows) == 54, 'Wrong release packet')
+    require(packet.get('release') == RELEASE and len(rows) == 55, 'Wrong release packet')
     require([{k: row[k] for k in ['source', 'path', 'order']} for row in rows] == expected,
             'Candidate allowlist/order changed')
     for row in rows:
@@ -314,7 +316,7 @@ def inventory_rows(home, bundle):
     observed = read_json(bundle / 'inventory.json')
     require(observed['candidate_sha256'] == sha(bundle / 'candidate-manifest.json'), 'Candidate changed after inventory')
     rows = observed['entries']
-    require(len(rows) == 54 and [row['path'] for row in rows] == [row['path'] for row in entries()], 'Invalid inventory')
+    require(len(rows) == 55 and [row['path'] for row in rows] == [row['path'] for row in entries()], 'Invalid inventory')
     for item in rows:
         live = target(home, item['path'])
         require(sha(live) == item['before'], 'Live drift: ' + item['path'])
@@ -358,7 +360,7 @@ def prepare(args, home, bundle):
     require(review['candidate_sha256'] == sha(bundle / 'candidate-manifest.json'), 'Review is for another candidate')
     rows = inventory_rows(home, bundle)
     approved = review['entries']
-    require(len(approved) == 54 and len({row['path'] for row in approved}) == 54, 'Review must cover 54 unique targets')
+    require(len(approved) == 55 and len({row['path'] for row in approved}) == 55, 'Review must cover 55 unique targets')
     require({row['path']: row['before'] for row in approved} == {row['path']: row['before'] for row in rows},
             'Reviewed before hashes do not match inventory')
     lint(home, bundle, args.php)
@@ -369,7 +371,7 @@ def prepare(args, home, bundle):
     write_json(bundle / 'manifest.json', rows)
     write_json(bundle / 'PREPARED.json', {'utc': now(), 'target_writes': 0, 'manifest_sha256': sha(bundle / 'manifest.json'),
                'review_sha256': sha(review_path), 'php_lint': True, 'blade_compile_lint': True})
-    print(json.dumps({'prepared': 54, 'target_writes': 0, 'lock_held': True}))
+    print(json.dumps({'prepared': 55, 'target_writes': 0, 'lock_held': True}))
 
 
 def apply(home, bundle):
@@ -470,7 +472,7 @@ def main():
         unlock(home, bundle)
     elif args.check_live:
         inventory_rows(home, bundle)
-        print(json.dumps({'before_hashes_match': 54, 'target_writes': 0, 'lock_held': True}))
+        print(json.dumps({'before_hashes_match': 55, 'target_writes': 0, 'lock_held': True}))
 
 
 if __name__ == '__main__':

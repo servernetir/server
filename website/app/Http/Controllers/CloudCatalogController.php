@@ -481,8 +481,6 @@ class CloudCatalogController extends Controller
 
         $t = $this->strings();
         $offers = CloudPlan::offers($loc->code);
-        $cheapest = $offers->sortBy('price_irt')->first();
-
         $locLabel = $loc->label();
         $cityLabel = $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel();
 
@@ -497,7 +495,7 @@ class CloudCatalogController extends Controller
             'rows' => $rows,
             'seo' => $this->locationSeo($loc),
             'nearby' => $this->nearby($loc),
-            'fromLabel' => $cheapest?->priceLabel(),
+            'fromLabel' => $rows[0]['price'] ?? null,
             'faq' => $this->faq($t),
             'ld' => $this->locationLd($t, $locLabel, $rows),
         ]);
@@ -565,7 +563,10 @@ class CloudCatalogController extends Controller
 
             $country = strtoupper((string) $loc->country);
             $cont = self::CONTINENT_OF[$country] ?? 'xx';
-            $cheapest = $plans->sortBy('price_irt')->first();
+            $quotes = app(\App\Services\Cloud\CloudPublicQuote::class);
+            $cheapest = $plans->sortBy(fn (CloudPlan $plan) => $quotes->monthlyPrice($plan))->first();
+            $monthly = $quotes->monthlyPrice($cheapest);
+            $from = cloud_price($monthly);
 
             $tree[$cont] ??= ['key' => $cont, 'label' => $this->pick(self::CONTINENTS[$cont] ?? self::CONTINENTS['xx']), 'countries' => [], 'plans' => 0, 'cities' => 0, 'min' => PHP_INT_MAX, 'from' => null];
             $tree[$cont]['countries'][$country] ??= [
@@ -593,8 +594,8 @@ class CloudCatalogController extends Controller
                 'flag' => $loc->flagEmoji(),
                 'flag_svg' => $loc->flagSvg(),
                 'plans' => $plans->count(),
-                'min' => (int) $cheapest->price_irt,
-                'from' => $cheapest->priceLabel(),
+                'min' => $monthly,
+                'from' => $from,
                 'url' => $this->locUrl($code),
             ];
 
@@ -607,13 +608,13 @@ class CloudCatalogController extends Controller
             $tree[$cont]['cities']++;
             $tree[$cont]['countries'][$country]['plans'] += $plans->count();
 
-            if ((int) $cheapest->price_irt < $tree[$cont]['min']) {
-                $tree[$cont]['min'] = (int) $cheapest->price_irt;
-                $tree[$cont]['from'] = $cheapest->priceLabel();
+            if ($monthly < $tree[$cont]['min']) {
+                $tree[$cont]['min'] = $monthly;
+                $tree[$cont]['from'] = $from;
             }
-            if ((int) $cheapest->price_irt < $tree[$cont]['countries'][$country]['min']) {
-                $tree[$cont]['countries'][$country]['min'] = (int) $cheapest->price_irt;
-                $tree[$cont]['countries'][$country]['from'] = $cheapest->priceLabel();
+            if ($monthly < $tree[$cont]['countries'][$country]['min']) {
+                $tree[$cont]['countries'][$country]['min'] = $monthly;
+                $tree[$cont]['countries'][$country]['from'] = $from;
             }
         }
 
@@ -661,6 +662,8 @@ class CloudCatalogController extends Controller
             if ($loc === null) {
                 continue;
             }
+            $monthly = app(\App\Services\Cloud\CloudPublicQuote::class)->monthlyPrice($p);
+            $rate = cloud_eur_rate();
 
             // Resolve hourly offers separately: the cheapest monthly alias may
             // have no hourly contract. Use the same sellable selection as checkout.
@@ -681,9 +684,9 @@ class CloudCatalogController extends Controller
                 'disk' => $p->diskLabel(),
                 'traffic' => $p->trafficLabel(),
                 'cpu_kind' => $p->cpuKindLabel(),
-                'price' => $p->priceLabel(),
-                'price_n' => (int) $p->price_irt,
-                'eur' => (int) $p->price_eur_cents,
+                'price' => cloud_price($monthly),
+                'price_n' => $monthly,
+                'eur' => $rate > 0 ? (int) round($monthly * 100 / $rate) : 0,
                 'loc_code' => (string) $p->location_code,
                 'loc' => $loc->label(),
                 'city' => $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel(),
