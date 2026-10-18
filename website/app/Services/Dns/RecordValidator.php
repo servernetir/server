@@ -2,52 +2,73 @@
 
 namespace App\Services\Dns;
 
-use App\Models\CdnRecord;
-
 /**
- * اعتبارسنجی و نرمال‌سازیِ یک رکوردِ DNS، به ازای هر نوع.
+ * اعتبارسنجی و نرمال‌سازیِ یک رکوردِ DNS — قرارداد §6.2/§6.3.
  *
- * ═══ چرا یک کلاسِ جدا و نه قاعده‌های `validate()` در کنترلر ═══
+ * سه مسیر رکورد می‌سازند (فرم، واردکردنِ فایلِ zone، و بعداً API) و هر سه از
+ * همین کلاس رد می‌شوند. دلیلِ سخت‌گیری: PowerDNS کلِ PATCHِ zone را با یک
+ * رکوردِ خراب رد می‌کند، پس یک رکوردِ بد جلوی همهٔ تغییراتِ بعدیِ همان zone را
+ * می‌گیرد.
  *
- * سه مسیر رکورد می‌سازند: فرمِ پنل، واردکردنِ رکوردهای فعلی، و (بعداً) API.
- * اگر قاعده‌ها در کنترلر باشند، واردکننده بی‌اعتبارسنجی می‌نویسد — و PowerDNS
- * کلِ PATCHِ zone را با ۴۲۲ رد می‌کند، یعنی **یک** رکوردِ خراب همهٔ تغییراتِ
- * بعدیِ همان zone را هم متوقف می‌کند. خطا باید پیش از دیتابیس گرفته شود.
+ * خروجیِ خطا همیشه **کد** است (`dns.err.<code>`)، نه متن؛ ترجمه کارِ کنترلر است.
  *
- * ═══ قالبِ ذخیره ═══
- *
- *   MX   → content = میزبانِ مقصد          · prio = اولویت
- *   SRV  → content = "weight port target"  · prio = اولویت
- *   CAA  → content = 'flags tag "value"'
- *   TXT  → content = متنِ خام، بی‌گیومه (تکه‌کردن کارِ PowerDnsClient است)
- *   بقیه → content = مقدار، بی‌نقطهٔ پایانی
- *
- * خروجیِ `validate()` همیشه `['ok'=>bool, 'errors'=>[field=>پیام], 'data'=>[...]]`.
+ * قالبِ ذخیره (§6.1):
+ *   A/AAAA → IP کانونی · CNAME/NS → FQDN بی‌نقطه · MX → exchange + prio
+ *   SRV → "weight port target" + prio · CAA → 'flags tag "value"' · TXT → presentationِ کانونی
  */
 class RecordValidator
 {
-    /** @return array{ok:bool, errors:array<string,string>, data:array<string,mixed>} */
+    public const TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'CAA', 'NS'];
+
+    /** نوع‌هایی که نامِ مالکشان نامِ میزبان است و زیرخط نمی‌پذیرند */
+    private const HOST_OWNER_TYPES = ['A', 'AAAA', 'MX', 'NS'];
+
+    public const TTL_MIN = 60;
+    public const TTL_MAX = 86400;
+
+    /** همهٔ کدهای خطای این کلاس (کلیدِ ترجمه: dns.err.<code>) */
+    public const ERROR_CODES = [
+        'type_unsupported', 'name_invalid', 'name_outside_zone', 'name_too_long', 'name_wildcard_position',
+        'name_underscore', 'ttl_range', 'comment_too_long',
+        'a_invalid', 'a_not_public', 'aaaa_invalid', 'aaaa_not_public',
+        'cname_apex', 'cname_self', 'target_invalid', 'target_is_ip',
+        'mx_prio', 'srv_name', 'srv_prio', 'srv_weight', 'srv_port',
+        'caa_flags', 'caa_tag', 'caa_value',
+        'ns_apex',
+        'txt_empty', 'txt_too_long', 'txt_backslash', 'txt_control', 'txt_encoding', 'txt_syntax',
+        // conflicts()
+        'duplicate', 'cname_conflict', 'cname_exists', 'ns_occludes', 'delegated_name',
+    ];
+
+    /**
+     * @param  string  $zone  apexِ zone (ASCII، بی‌نقطه)
+     * @param  array<string,mixed>  $in  type,name,content,ttl,prio,weight,port,target,flags,tag,value,comment
+     * @return array{ok:bool, errors:array<string,array{code:string,params:array}>, data:array<string,mixed>}
+     */
     public function validate(string $zone, array $in): array
     {
+        $zone = strtolower(rtrim(trim($zone), '.'));
         $errors = [];
+
         $type = strtoupper(trim((string) ($in['type'] ?? '')));
-
-        if (! in_array($type, (array) config('edge.record_types', []), true)) {
-            return $this->fail(['type' => 'نوعِ رکورد پشتیبانی نمی‌شود.']);
+        if (! in_array($type, self::TYPES, true)) {
+            return $this->fail(['type' => $this->err('type_unsupported')]);
         }
 
-        $name = CdnRecord::fqdn((string) ($in['name'] ?? '@'), $zone);
-
-        if (($e = $this->nameError($name, $zone, $type)) !== null) {
-            $errors['name'] = $e;
+        [$name, $nameErr] = $this->ownerName((string) ($in['name'] ?? ''), $zone, $type);
+        if ($nameErr !== null) {
+            $errors['name'] = $nameErr;
         }
 
-        $ttl = (int) ($in['ttl'] ?? 0);
-        if ($ttl === 0) {
-            $ttl = (int) config('edge.default_ttl', 3600);
+        $ttlRaw = $in['ttl'] ?? null;
+        $ttl = ($ttlRaw === null || $ttlRaw === '') ? (int) config('edge.default_ttl', 3600) : $this->int($ttlRaw);
+        if ($ttl === null || $ttl < self::TTL_MIN || $ttl > self::TTL_MAX) {
+            $errors['ttl'] = $this->err('ttl_range', ['min' => self::TTL_MIN, 'max' => self::TTL_MAX]);
         }
-        if ($ttl < 60 || $ttl > 86400) {
-            $errors['ttl'] = 'TTL باید بین ۶۰ ثانیه و ۲۴ ساعت باشد.';
+
+        $comment = trim((string) ($in['comment'] ?? ''));
+        if (mb_strlen($comment) > 120) {
+            $errors['comment'] = $this->err('comment_too_long', ['max' => 120]);
         }
 
         $prio = null;
@@ -57,127 +78,102 @@ class RecordValidator
             case 'A':
                 $content = trim((string) ($in['content'] ?? ''));
                 if (! filter_var($content, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
-                    $errors['content'] = 'یک آدرسِ IPv4 معتبر وارد کنید (مثل 185.10.20.30).';
-                } elseif ($this->unroutable($content)) {
-                    $errors['content'] = 'این آدرس در اینترنت قابلِ دسترسی نیست (آدرسِ خصوصی یا رزرو).';
+                    $errors['content'] = $this->err('a_invalid');
+                } elseif (! $this->publicIpv4($content)) {
+                    $errors['content'] = $this->err('a_not_public');
                 }
                 break;
 
             case 'AAAA':
-                $content = strtolower(trim((string) ($in['content'] ?? '')));
-                if (! filter_var($content, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-                    $errors['content'] = 'یک آدرسِ IPv6 معتبر وارد کنید.';
+                $raw = trim((string) ($in['content'] ?? ''));
+                if (! filter_var($raw, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+                    $errors['content'] = $this->err('aaaa_invalid');
+                } else {
+                    $content = (string) inet_ntop(inet_pton($raw));
+                    if (! $this->publicIpv6($content)) {
+                        $errors['content'] = $this->err('aaaa_not_public');
+                    }
                 }
                 break;
 
             case 'CNAME':
-                $content = $this->host((string) ($in['content'] ?? ''));
+                [$content, $e] = $this->target((string) ($in['content'] ?? ''), allowUnderscore: true);
                 if ($name === $zone) {
-                    /*
-                     * 🔴 CNAME روی apex ممنوعِ پروتکل است (RFC 1034): apex همیشه
-                     * SOA و NS دارد و CNAME نمی‌تواند کنارِ هیچ رکوردِ دیگری
-                     * بنشیند. PowerDNS قبولش نمی‌کند و اگر هم می‌کرد، ایمیل و
-                     * تفویضِ کلِ دامنه می‌شکست.
-                     */
-                    $errors['name'] = 'رکوردِ CNAME روی خودِ دامنه (@) مجاز نیست. برای دامنهٔ اصلی از رکوردِ A استفاده کنید.';
-                } elseif (! $this->validHost($content)) {
-                    $errors['content'] = 'مقصد باید یک نامِ میزبانِ معتبر باشد (مثل example.net).';
+                    $errors['name'] = $this->err('cname_apex');
+                } elseif ($e !== null) {
+                    $errors['content'] = $e;
                 } elseif ($content === $name) {
-                    $errors['content'] = 'رکورد نمی‌تواند به خودش اشاره کند.';
-                }
-                break;
-
-            case 'MX':
-                $content = $this->host((string) ($in['content'] ?? ''));
-                $prio = $this->int($in['prio'] ?? 10, 0, 65535);
-                if (filter_var($content, FILTER_VALIDATE_IP)) {
-                    // رایج‌ترین خطای واقعی: IP به‌جای نامِ میزبان. RFC 5321 اجازه
-                    // نمی‌دهد و سرورهای ایمیلِ فرستنده بی‌صدا ردش می‌کنند.
-                    $errors['content'] = 'مقصدِ MX باید نامِ میزبان باشد، نه IP. اول یک رکوردِ A (مثلاً mail) بسازید.';
-                } elseif (! $this->validHost($content)) {
-                    $errors['content'] = 'نامِ میزبانِ سرورِ ایمیل معتبر نیست.';
-                }
-                if ($prio === null) {
-                    $errors['prio'] = 'اولویت باید عددی بین ۰ و ۶۵۵۳۵ باشد.';
-                }
-                break;
-
-            case 'TXT':
-                $content = $this->txt((string) ($in['content'] ?? ''));
-                $max = (int) config('edge.txt_max', 2048);
-                if ($content === '') {
-                    $errors['content'] = 'مقدارِ TXT خالی است.';
-                } elseif (mb_strlen($content) > $max) {
-                    $errors['content'] = 'مقدارِ TXT بیش از '.fa_num($max).' نویسه است.';
-                } elseif (! mb_check_encoding($content, 'ASCII')) {
-                    // DNS بایت است نه متن؛ فارسی در TXT به‌شکلِ escapeِ عددی
-                    // منتشر می‌شود و هیچ سرویسی (SPF، DKIM، تأییدِ گوگل) نمی‌خواندش.
-                    $errors['content'] = 'مقدارِ TXT فقط می‌تواند نویسه‌های لاتین داشته باشد.';
+                    $errors['content'] = $this->err('cname_self');
                 }
                 break;
 
             case 'NS':
-                $content = $this->host((string) ($in['content'] ?? ''));
+                [$content, $e] = $this->target((string) ($in['content'] ?? ''), allowUnderscore: false);
                 if ($name === $zone) {
-                    /*
-                     * 🔴 NSِ apex مالِ ماست. اگر مشتری بتواند عوضش کند، zone به
-                     * نیم‌سرورِ دیگری اشاره می‌کند در حالی که رجیستری هنوز به ما
-                     * — حلقه‌ای که resolverها را سردرگم می‌کند و عیب‌یابی‌اش ساعت‌ها.
-                     * NS فقط برای **واگذاریِ یک زیردامنه** مجاز است.
-                     */
-                    $errors['name'] = 'نیم‌سرورهای خودِ دامنه را سرورنت مدیریت می‌کند. رکوردِ NS فقط برای واگذاریِ یک زیردامنه است.';
-                } elseif (! $this->validHost($content)) {
-                    $errors['content'] = 'نامِ نیم‌سرور معتبر نیست.';
+                    $errors['name'] = $this->err('ns_apex');
+                } elseif ($e !== null) {
+                    $errors['content'] = $e;
+                }
+                break;
+
+            case 'MX':
+                $prio = $this->int($in['prio'] ?? 10);
+                if ($prio === null || $prio < 0 || $prio > 65535) {
+                    $errors['prio'] = $this->err('mx_prio');
+                }
+                [$content, $e] = $this->target((string) ($in['content'] ?? ''), allowUnderscore: false, allowRoot: true);
+                if ($e !== null) {
+                    $errors['content'] = $e;
+                }
+                break;
+
+            case 'TXT':
+                $r = TxtCodec::fromUserInput((string) ($in['content'] ?? ''));
+                if (! $r['ok']) {
+                    $errors['content'] = $this->err($r['code'], $r['params'] ?? []);
+                } else {
+                    $content = $r['value'];
                 }
                 break;
 
             case 'SRV':
-                $prio = $this->int($in['prio'] ?? null, 0, 65535);
-                $weight = $this->int($in['weight'] ?? null, 0, 65535);
-                $port = $this->int($in['port'] ?? null, 0, 65535);
-                $target = $this->host((string) ($in['target'] ?? $in['content'] ?? ''));
-
-                // «_sip._tcp» — بدونِ این دو برچسب، هیچ کلاینتی رکورد را نمی‌پرسد
-                $first = explode('.', $name);
-                if (count($first) < 3 || ! str_starts_with($first[0], '_') || ! in_array($first[1], ['_tcp', '_udp', '_tls'], true)) {
-                    $errors['name'] = 'نامِ SRV باید به شکلِ ‎_service._tcp‎ یا ‎_service._udp‎ باشد (مثل ‎_sip._tcp‎).';
+                if (! $this->srvOwner($name, $zone)) {
+                    $errors['name'] = $this->err('srv_name');
                 }
-                if ($prio === null) {
-                    $errors['prio'] = 'اولویت باید عددی بین ۰ و ۶۵۵۳۵ باشد.';
+                $prio = $this->int($in['prio'] ?? null);
+                $weight = $this->int($in['weight'] ?? null);
+                $port = $this->int($in['port'] ?? null);
+                if ($prio === null || $prio < 0 || $prio > 65535) {
+                    $errors['prio'] = $this->err('srv_prio');
                 }
-                if ($weight === null) {
-                    $errors['weight'] = 'وزن باید عددی بین ۰ و ۶۵۵۳۵ باشد.';
+                if ($weight === null || $weight < 0 || $weight > 65535) {
+                    $errors['weight'] = $this->err('srv_weight');
                 }
-                if ($port === null) {
-                    $errors['port'] = 'پورت باید عددی بین ۰ و ۶۵۵۳۵ باشد.';
+                if ($port === null || $port < 0 || $port > 65535) {
+                    $errors['port'] = $this->err('srv_port');
                 }
-                if ($target !== '.' && ! $this->validHost($target)) {
-                    $errors['target'] = 'مقصدِ SRV باید نامِ میزبان باشد.';
+                [$target, $e] = $this->target((string) ($in['target'] ?? $in['content'] ?? ''), allowUnderscore: false, allowRoot: true);
+                if ($e !== null) {
+                    $errors['target'] = $e;
                 }
                 $content = ($weight ?? 0).' '.($port ?? 0).' '.$target;
                 break;
 
             case 'CAA':
-                $flags = $this->int($in['flags'] ?? 0, 0, 255);
+                $flags = $this->int($in['flags'] ?? 0);
                 $tag = strtolower(trim((string) ($in['tag'] ?? 'issue')));
-                $value = trim((string) ($in['value'] ?? $in['content'] ?? ''), " \t\"");
-
-                if (! in_array($flags, [0, 128], true)) {
-                    $errors['flags'] = 'پرچمِ CAA فقط ۰ یا ۱۲۸ است.';
+                $value = trim((string) ($in['value'] ?? ''), " \t");
+                if ($flags !== 0 && $flags !== 128) {
+                    $errors['flags'] = $this->err('caa_flags');
                 }
                 if (! in_array($tag, ['issue', 'issuewild', 'iodef'], true)) {
-                    $errors['tag'] = 'برچسبِ CAA باید issue، issuewild یا iodef باشد.';
-                }
-                if ($tag === 'iodef' && ! preg_match('~^(mailto:|https?://)\S+$~i', $value)) {
-                    $errors['value'] = 'مقدارِ iodef باید mailto: یا یک آدرسِ http(s) باشد.';
-                } elseif ($tag !== 'iodef' && $value !== ';' && ! preg_match('~^[a-z0-9.-]+(;.*)?$~i', $value)) {
-                    $errors['value'] = 'نامِ صادرکنندهٔ گواهی معتبر نیست (مثل letsencrypt.org).';
+                    $errors['tag'] = $this->err('caa_tag');
+                } elseif (! $this->caaValue($tag, $value)) {
+                    $errors['value'] = $this->err('caa_value');
                 }
                 $content = ($flags ?? 0).' '.$tag.' "'.$value.'"';
                 break;
         }
-
-        $comment = trim((string) ($in['comment'] ?? ''));
 
         if ($errors !== []) {
             return $this->fail($errors);
@@ -192,136 +188,303 @@ class RecordValidator
                 'content' => $content,
                 'ttl'     => $ttl,
                 'prio'    => in_array($type, ['MX', 'SRV'], true) ? $prio : null,
-                'comment' => $comment !== '' ? mb_substr($comment, 0, 120) : null,
+                'comment' => $comment !== '' ? $comment : null,
             ],
         ];
     }
 
     /**
-     * قاعده‌هایی که فقط با دیدنِ **بقیهٔ رکوردها** معنا دارند.
+     * قاعده‌هایی که فقط با دیدنِ بقیهٔ رکوردهای zone معنا دارند.
      *
-     * @param  iterable<CdnRecord>  $existing  رکوردهای فعلیِ zone (به‌جز خودِ رکوردِ در حالِ ویرایش)
+     * @param  array<string,mixed>  $data  خروجیِ validate()['data']
+     * @param  iterable<object|array>  $existing  رکوردهای فعلی (id,type,name,content,prio,ttl)
+     * @return array{code:string,params:array}|null
      */
-    public function conflict(array $data, iterable $existing): ?string
+    public function conflicts(array $data, iterable $existing, ?int $ignoreId = null): ?array
     {
-        foreach ($existing as $r) {
-            if ($r->name !== $data['name']) {
+        $rows = $this->rows($existing, $ignoreId);
+        $name = $data['name'];
+        $type = $data['type'];
+
+        foreach ($rows as $r) {
+            if ($r['name'] !== $name) {
                 continue;
             }
-
-            if ($r->type === $data['type'] && $this->same($r, $data)) {
-                return 'همین رکورد از قبل وجود دارد.';
+            if ($r['type'] === $type && $this->sameRdata($type, $r, $data)) {
+                return $this->err('duplicate');
             }
-
-            /*
-             * 🔴 CNAME تنهاست. کنارِ هر نوعِ دیگری با همان نام، رفتارِ
-             * resolverها تعریف‌نشده است و PowerDNS کلِ PATCH را رد می‌کند —
-             * یعنی رکوردِ خراب جلوی **همهٔ** تغییراتِ بعدیِ zone را می‌گیرد.
-             */
-            if ($data['type'] === 'CNAME' || $r->type === 'CNAME') {
-                return 'نامِ «'.$this->label($data['name']).'» '
-                    .($data['type'] === 'CNAME' ? 'رکوردِ دیگری دارد' : 'یک CNAME دارد')
-                    .'. CNAME نمی‌تواند با رکوردِ دیگری هم‌نام باشد.';
+            if ($type === 'CNAME') {
+                return $this->err('cname_conflict', ['name' => $name]);
             }
-
-            // PowerDNS هر (نام، نوع) را یک rrset با **یک** TTL می‌داند
-            if ($r->type === $data['type'] && (int) $r->ttl !== (int) $data['ttl']) {
-                return 'رکوردهای هم‌نام و هم‌نوع باید TTL یکسان داشته باشند (فعلی: '.fa_num($r->ttl).' ثانیه).';
+            if ($r['type'] === 'CNAME') {
+                return $this->err('cname_exists', ['name' => $name]);
             }
         }
 
-        return null;
-    }
-
-    /* ───────────────────────── داخلی ───────────────────────── */
-
-    private function nameError(string $name, string $zone, string $type): ?string
-    {
-        if ($name !== $zone && ! str_ends_with($name, '.'.$zone)) {
-            return 'نام باید زیرِ همین دامنه باشد.';
-        }
-
-        if (strlen($name) > 253) {
-            return 'نام بیش از حدِ مجاز طولانی است.';
-        }
-
-        $rel = $name === $zone ? '' : substr($name, 0, -strlen($zone) - 1);
-
-        foreach ($rel === '' ? [] : explode('.', $rel) as $i => $label) {
-            if ($label === '*' && $i === 0) {
-                continue;   // wildcard فقط چپ‌ترین برچسب
-            }
-            if ($label === '' || strlen($label) > 63 || ! preg_match('~^[a-z0-9_]([a-z0-9_-]*[a-z0-9_])?$~', $label)) {
-                return 'نامِ «'.$label.'» معتبر نیست: فقط حروفِ لاتین، عدد، خط تیره و زیرخط؛ حداکثر ۶۳ نویسه.';
+        // ── برشِ تفویض (NS زیرِ apex) ──
+        $delegations = [];
+        foreach ($rows as $r) {
+            if ($r['type'] === 'NS') {
+                $delegations[$r['name']][] = $r['content'];
             }
         }
 
-        if ($type !== 'SRV' && $type !== 'TXT' && $rel !== '' && str_contains($rel, '_') && ! in_array($type, ['CNAME'], true)) {
-            // زیرخط در نامِ میزبان مجاز نیست؛ فقط در برچسب‌های سرویسی (TXT/SRV و CNAMEِ DKIM)
-            return 'زیرخط (_) فقط در نامِ رکوردهای TXT، SRV و CNAME مجاز است.';
-        }
+        if ($type === 'NS') {
+            $targets = array_merge($delegations[$name] ?? [], [$data['content']]);
+            foreach ($rows as $r) {
+                if ($r['type'] === 'NS' && $r['name'] === $name) {
+                    continue;
+                }
+                $atCut = $r['name'] === $name;
+                $below = str_ends_with($r['name'], '.'.$name);
+                $isGlue = $below && in_array($r['type'], ['A', 'AAAA'], true) && in_array($r['name'], $targets, true);
+                if ($atCut || ($below && ! $isGlue)) {
+                    return $this->err('ns_occludes', ['name' => $name, 'record' => $r['name']]);
+                }
+            }
 
-        return null;
-    }
-
-    private function same(CdnRecord $r, array $d): bool
-    {
-        return mb_strtolower(trim($r->content)) === mb_strtolower(trim($d['content']))
-            && (int) $r->prio === (int) ($d['prio'] ?? 0);
-    }
-
-    private function label(string $fqdn): string
-    {
-        return $fqdn;
-    }
-
-    private function host(string $raw): string
-    {
-        $h = mb_strtolower(trim($raw));
-        $h = preg_replace('~^https?://~', '', $h) ?? $h;
-
-        return rtrim(explode('/', $h)[0], '.');
-    }
-
-    private function validHost(string $h): bool
-    {
-        return strlen($h) <= 253
-            && (bool) preg_match('~^([a-z0-9_]([a-z0-9_-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$~', $h)
-            && ! filter_var($h, FILTER_VALIDATE_IP);
-    }
-
-    /** گیومه‌های دورِ کلِ مقدار و بینِ تکه‌های چسبانده‌شده (کپی از پنلِ دیگر) برداشته می‌شود */
-    private function txt(string $raw): string
-    {
-        $v = trim($raw);
-
-        // «"v=DKIM1; k=rsa; " "p=MIIB..."» — قالبِ تکه‌تکه‌ای که پنل‌های دیگر نشان می‌دهند
-        if (preg_match('~^"(.*)"$~s', $v)) {
-            $v = preg_replace('~"\s*"~', '', $v) ?? $v;
-            $v = trim($v, '"');
-        }
-
-        return str_replace(["\r", "\n"], '', $v);
-    }
-
-    private function int(mixed $v, int $min, int $max): ?int
-    {
-        if ($v === null || $v === '' || ! is_numeric($v) || (int) $v != $v) {
             return null;
         }
 
-        $v = (int) $v;
+        foreach ($delegations as $cut => $targets) {
+            if ($name === $cut) {
+                return $this->err('delegated_name', ['name' => $cut]);
+            }
+            if (str_ends_with($name, '.'.$cut)) {
+                $isGlue = in_array($type, ['A', 'AAAA'], true) && in_array($name, $targets, true);
+                if (! $isGlue) {
+                    return $this->err('delegated_name', ['name' => $cut]);
+                }
+            }
+        }
 
-        return $v >= $min && $v <= $max ? $v : null;
+        return null;
     }
 
     /**
-     * آدرس‌هایی که از اینترنت نمی‌رسند. رکوردِ A به 192.168.x.x همیشه
-     * اشتباهِ کاربر است (کپی از پنلِ مودم) و سایتِ منتشرشده هرگز باز نمی‌شود.
+     * idِ رکوردهای هم‌نام و هم‌نوع که TTLشان باید با رکوردِ تازه یکی شود.
+     * TTL مالِ RRset است، نه تک‌رکورد (RFC 2181 §5.2) و PowerDNS هم یک TTL می‌گیرد.
+     *
+     * @return array<int,int>
      */
-    private function unroutable(string $ip): bool
+    public function ttlSiblings(array $data, iterable $existing, ?int $ignoreId = null): array
     {
-        return ! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
+        $ids = [];
+        foreach ($this->rows($existing, $ignoreId) as $r) {
+            if ($r['name'] === $data['name'] && $r['type'] === $data['type'] && (int) $r['ttl'] !== (int) $data['ttl'] && $r['id'] !== null) {
+                $ids[] = (int) $r['id'];
+            }
+        }
+
+        return $ids;
+    }
+
+    /* ───────────────────────── نام ───────────────────────── */
+
+    /** @return array{0:string,1:?array} */
+    private function ownerName(string $raw, string $zone, string $type): array
+    {
+        $raw = trim($raw);
+
+        if ($raw === '' || $raw === '@') {
+            return [$zone, null];
+        }
+
+        $absolute = str_ends_with($raw, '.');
+        $raw = rtrim($raw, '.');
+
+        $labels = explode('.', $raw);
+        $ascii = [];
+        foreach ($labels as $l) {
+            $a = $l === '*' ? '*' : DomainName::labelToAscii($l);
+            if ($a === null) {
+                return [$zone, $this->err('name_invalid', ['label' => $l])];
+            }
+            $ascii[] = $a;
+        }
+        $name = implode('.', $ascii);
+
+        if ($absolute) {
+            if ($name !== $zone && ! str_ends_with($name, '.'.$zone)) {
+                return [$zone, $this->err('name_outside_zone')];
+            }
+        } elseif ($name !== $zone && ! str_ends_with($name, '.'.$zone)) {
+            // نسبی؛ «www.example.com» بی‌نقطه هم اگر به zone ختم شود همان FQDN است
+            $name .= '.'.$zone;
+        }
+
+        if (strlen($name) > 253) {
+            return [$zone, $this->err('name_too_long')];
+        }
+
+        $rel = $name === $zone ? [] : explode('.', substr($name, 0, -strlen($zone) - 1));
+        foreach ($rel as $i => $label) {
+            if ($label === '*') {
+                if ($i !== 0) {
+                    return [$zone, $this->err('name_wildcard_position')];
+                }
+                continue;
+            }
+            if (strlen($label) > 63 || ! preg_match('~^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$~', $label)) {
+                return [$zone, $this->err('name_invalid', ['label' => $label])];
+            }
+            if (! DomainName::isValidALabel($label)) {
+                return [$zone, $this->err('name_invalid', ['label' => $label])];
+            }
+            if (str_contains($label, '_') && in_array($type, self::HOST_OWNER_TYPES, true)) {
+                return [$zone, $this->err('name_underscore')];
+            }
+        }
+
+        return [$name, null];
+    }
+
+    /**
+     * نامِ مقصد (CNAME/NS/MX/SRV). URL و IP رد می‌شوند — رایج‌ترین اشتباه.
+     *
+     * @return array{0:string,1:?array}
+     */
+    private function target(string $raw, bool $allowUnderscore, bool $allowRoot = false): array
+    {
+        $t = strtolower(trim($raw));
+
+        if ($allowRoot && ($t === '.' || $t === '')) {
+            return $t === '.' ? ['.', null] : ['', $this->err('target_invalid')];
+        }
+        if (preg_match('~^[a-z][a-z0-9+.-]*://~', $t)) {
+            return ['', $this->err('target_invalid')];
+        }
+        $t = rtrim($t, '.');
+        if (filter_var($t, FILTER_VALIDATE_IP)) {
+            return ['', $this->err('target_is_ip')];
+        }
+
+        $labels = $t === '' ? [] : explode('.', $t);
+        if (count($labels) < 2 || strlen($t) > 253) {
+            return ['', $this->err('target_invalid')];
+        }
+
+        $out = [];
+        foreach ($labels as $l) {
+            $a = DomainName::labelToAscii($l);
+            $re = $allowUnderscore ? '~^[a-z0-9_](?:[a-z0-9_-]*[a-z0-9_])?$~' : '~^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$~';
+            if ($a === null || strlen($a) > 63 || ! preg_match($re, $a) || ! DomainName::isValidALabel($a)) {
+                return ['', $this->err('target_invalid')];
+            }
+            $out[] = $a;
+        }
+
+        return [implode('.', $out), null];
+    }
+
+    private function srvOwner(string $name, string $zone): bool
+    {
+        if ($name === $zone) {
+            return false;
+        }
+        $labels = explode('.', substr($name, 0, -strlen($zone) - 1));
+
+        return count($labels) >= 2
+            && preg_match('~^_[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$~', $labels[0])
+            && in_array($labels[1], ['_tcp', '_udp', '_tls', '_sctp'], true);
+    }
+
+    private function caaValue(string $tag, string $value): bool
+    {
+        if ($value === '' || preg_match('~["\\\\\x00-\x1F\x7F]~', $value) || strlen($value) > 255) {
+            return false;
+        }
+        if ($tag === 'iodef') {
+            return (bool) preg_match('~^(mailto:[^\s@]+@[^\s@]+|https?://\S+)$~i', $value);
+        }
+        if ($value === ';') {
+            return true;     // «هیچ صادرکننده‌ای مجاز نیست»
+        }
+        [$issuer] = explode(';', $value, 2);
+        $issuer = trim($issuer);
+
+        return $issuer === '' || (bool) preg_match('~^([a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,63}$~i', $issuer);
+    }
+
+    /* ───────────────────────── IP ───────────────────────── */
+
+    /** IPv4ِ قابلِ رسیدن از اینترنت — 192.168.x رایج‌ترین کپیِ اشتباه از پنلِ مودم است */
+    private function publicIpv4(string $ip): bool
+    {
+        if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return false;
+        }
+        $first = (int) explode('.', $ip)[0];
+        $long = ip2long($ip);
+
+        // multicast، و CGNAT ‏100.64/10 که فیلترِ PHP نمی‌گیرد
+        return $first < 224 && ! ($long >= ip2long('100.64.0.0') && $long <= ip2long('100.127.255.255'));
+    }
+
+    private function publicIpv6(string $ip): bool
+    {
+        if (! filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+            return false;
+        }
+        $bin = inet_pton($ip);
+
+        // multicast (ff00::/8) و link-local (fe80::/10)
+        return ord($bin[0]) !== 0xFF && ! (ord($bin[0]) === 0xFE && (ord($bin[1]) & 0xC0) === 0x80);
+    }
+
+    /* ───────────────────────── کمکی ───────────────────────── */
+
+    /** @return array<int,array{id:?int,type:string,name:string,content:string,prio:?int,ttl:int}> */
+    private function rows(iterable $existing, ?int $ignoreId): array
+    {
+        $out = [];
+        foreach ($existing as $r) {
+            $r = is_array($r) ? $r : (method_exists($r, 'toArray') ? $r->toArray() : (array) $r);
+            $id = isset($r['id']) ? (int) $r['id'] : null;
+            if ($ignoreId !== null && $id === $ignoreId) {
+                continue;
+            }
+            $out[] = [
+                'id'      => $id,
+                'type'    => strtoupper((string) ($r['type'] ?? '')),
+                'name'    => strtolower(rtrim((string) ($r['name'] ?? ''), '.')),
+                'content' => (string) ($r['content'] ?? ''),
+                'prio'    => isset($r['prio']) ? (int) $r['prio'] : null,
+                'ttl'     => (int) ($r['ttl'] ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
+    private function sameRdata(string $type, array $r, array $d): bool
+    {
+        if ((int) ($r['prio'] ?? 0) !== (int) ($d['prio'] ?? 0)) {
+            return false;
+        }
+        if ($type === 'TXT') {
+            return TxtCodec::equals($r['content'], $d['content']);
+        }
+
+        return strtolower(trim($r['content'])) === strtolower(trim($d['content']));
+    }
+
+    private function int(mixed $v): ?int
+    {
+        if (is_int($v)) {
+            return $v;
+        }
+        if (is_string($v) && preg_match('~^\s*\d{1,10}\s*$~', $v)) {
+            return (int) $v;
+        }
+
+        return null;
+    }
+
+    /** @return array{code:string,params:array} */
+    private function err(string $code, array $params = []): array
+    {
+        return ['code' => $code, 'params' => $params];
     }
 
     private function fail(array $errors): array

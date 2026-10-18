@@ -1,0 +1,17 @@
+[Unit]
+Description=ServerNet: apply TSIG to catalog member zones and request transfer
+After=pdns.service
+Requires=pdns.service
+
+[Service]
+Type=oneshot
+Environment=PDNS_XFR_TSIG_KEY=xfr-servernet
+Environment=PDNS_SQLITE_DB=/var/lib/powerdns/pdns.sqlite3
+ExecStart=/usr/local/sbin/pdns-tsig-reconcile
+# فقط خواندنِ دیتابیس و فرمانِ pdnsutil/pdns_control؛ هیچ دسترسیِ شبکه‌ای لازم نیست
+User=pdns
+Group=pdns
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/powerdns /run/pdns
+PrivateTmp=yes

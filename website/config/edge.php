@@ -28,6 +28,11 @@ return [
     | مقدارِ واقعی را مدیر در `/admin/dns` تنظیم می‌کند (`Setting: dns_nameservers`)؛
     | این فقط پیش‌فرض است. خواندن همیشه از `CdnZone::nameservers()`.
     |
+    | 🔴 v2: این کلید دیگر منبعِ حقیقت **نیست** و هیچ کدی آن را نمی‌خواند؛ فقط
+    | برای سازگاری مانده. منبعِ یگانه `dns.nameservers` پایین‌تر است که فقط
+    | `App\Services\Dns\DnsConfig` می‌خواندش. نام‌های این‌جا هرگز به‌عنوانِ
+    | پیش‌فرض به مشتری نشان داده نمی‌شوند.
+    |
     | ⚠️ **تعداد** مهم است: رجیسترارها دست‌کم دو نیم‌سرور می‌خواهند. و دو
     | نیم‌سرور باید روی دو **شبکهٔ** جدا باشند — هر دو روی یک ماشین یعنی
     | خاموشیِ آن ماشین = خاموشیِ DNSِ همهٔ مشتریان.
@@ -157,6 +162,76 @@ return [
             'retry'   => 600,
             'expire'  => 604800,
             'ttl'     => 3600,
+        ],
+    ],
+
+    /*
+    | DNSِ مدیریت‌شده v2 — قراردادِ `docs/dns/MANAGED-DNS-DESIGN.md` §2.
+    |
+    | 🔴 فقط `App\Services\Dns\DnsConfig` این بخش را می‌خواند و تنظیمِ مدیر
+    | (`Setting`) بر آن مقدم است. دو خواننده یعنی روزی پنل یک نیم‌سرور بگوید و
+    | تأییدِ تفویض نامِ دیگری بخواهد.
+    |
+    | ⚠️ هیچ نامِ نیم‌سروری این‌جا ساخته نشده: تا مدیر فهرست را با IP تنظیم
+    | نکند سرویس بسته می‌ماند (`DnsConfig::serviceOpen`). پیش‌فرضِ «حدسی» یعنی
+    | مشتری نیم‌سرورش را به نامی بدهد که هیچ سروری پشتش نیست.
+    */
+    'dns' => [
+        // پرچمِ ویژگی؛ Setting `dns_managed_enabled` ('1'/'0') بر این مقدم است
+        'enabled'   => (bool) env('DNS_MANAGED_ENABLED', false),
+
+        // Setting `pdns_api_url` مقدم است. پیش‌فرضِ ساختگی نداریم.
+        'api_url'   => env('PDNS_API_URL'),
+        'server_id' => env('PDNS_API_SERVER', 'localhost'),
+
+        /*
+        | http بی‌رمز فقط برای آزمایشگاه/توسعه و فقط روی loopback/RFC1918/
+        | link-local. عمداً Setting ندارد: پنلِ مدیر نباید بتواند کلیدِ API را
+        | روی شبکهٔ عمومی بی‌رمز بفرستد.
+        */
+        'allow_insecure_api' => (bool) env('DNS_ALLOW_INSECURE_API', false),
+
+        // zoneِ catalogِ تولیدکننده روی primary (Setting `dns_catalog_zone`)
+        'catalog'  => 'catalog.servernet.invalid',
+
+        // فقط **نام**ِ کلیدِ TSIG (Setting `dns_xfr_tsig_key`)؛ رازش روی سرورهاست
+        'tsig_key' => 'xfr-servernet',
+
+        // [{host, ipv4, ipv6, port}] — Setting `dns_nameservers` (JSON) مقدم است
+        'nameservers' => [],
+
+        /*
+        | expire = ۲۸ روز: نودِ عمومی تا این مدت بی‌primary جواب می‌دهد، بعد
+        | SERVFAIL. کوتاه‌کردنش یعنی قطعیِ کوتاهِ لینکِ بین‌المللی همهٔ zoneها را
+        | زودتر می‌کشد.
+        */
+        'soa' => [
+            'email'   => 'hostmaster.servernet.cloud',
+            'refresh' => 3600,
+            'retry'   => 600,
+            'expire'  => 2419200,
+            'minimum' => 300,
+        ],
+
+        // سهمیه‌ها و نرخ‌ها — همه از `DnsConfig::limit()` خوانده می‌شوند
+        'limits' => [
+            'zones_per_customer'          => 50,
+            'records_per_zone'            => 500,
+            'pending_claims_per_customer' => 20,
+            'claim_ttl_days'              => 7,
+            'import_max_lines'            => 5000,
+            'import_max_bytes'            => 1048576,
+            'txt_max_bytes'               => 4096,
+            'add_per_minute'              => 10,   // افزودن/ادعا/تأیید
+            'record_writes_per_minute'    => 60,
+            'imports_per_minute'          => 6,
+            'checks_per_minute'           => 10,
+        ],
+
+        // پاسخِ HTTP هرگز بیش از این منتظرِ PowerDNS نمی‌ماند (§4.2)
+        'http' => [
+            'connect_timeout' => 4,
+            'timeout'         => 8,
         ],
     ],
 

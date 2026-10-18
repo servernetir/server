@@ -1,0 +1,42 @@
+# =============================================================================
+# PowerDNS Authoritative — HIDDEN PRIMARY (ServerNet Managed DNS)
+# مقصد: /etc/powerdns/pdns.conf   (نسخهٔ آزموده: 5.0.2)
+#
+# پنهان = در NSِ هیچ zoneی نیست و به اینترنت پاسخِ عمومی نمی‌دهد. فقط:
+#   • API برای برنامهٔ لاراول (پشتِ TLS — api-tls-proxy.Caddyfile.example)
+#   • NOTIFY + AXFRِ امضاشده با TSIG برای دو secondaryِ عمومی
+# =============================================================================
+launch=gsqlite3
+gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+gsqlite3-dnssec=yes
+
+# فقط authoritative؛ recursor یا forward وجود ندارد
+version-string=anonymous
+# پورتِ ۵۳۰۰ و فقط آدرسی که secondaryها به آن می‌رسند — فایروال هم آن را فقط برای IPِ دو secondary باز می‌کند
+local-address=0.0.0.0:5300
+
+primary=yes
+# serialِ catalog در این چرخه بالا می‌رود؛ zoneِ تازه حداکثر به همین اندازه دیر به secondaryها می‌رسد
+xfr-cycle-interval=60
+send-signed-notify=yes
+# AXFR فقط با TSIG (متادیتای TSIG-ALLOW-AXFR که برنامه روی هر zone می‌گذارد)؛ هیچ IPی بی‌امضا مجاز نیست
+allow-axfr-ips=
+disable-axfr=no
+# NOTIFY به دو secondary — آدرسِ عمومیِ آنها (برای ایران: IPِ عمومیِ میزبان که DNAT می‌شود)
+also-notify=SECONDARY_A_IP:53,SECONDARY_B_IP:53
+only-notify=
+
+# serial: expire = ۲۸ روز. secondaryِ جدامانده تا این مدت پاسخِ آخرین داده را می‌دهد، بعد SERVFAIL.
+default-soa-content=NS_A_HOST. hostmaster.servernet.cloud. 0 3600 600 2419200 300
+default-soa-edit-api=DEFAULT
+
+# API — فقط روی loopback؛ دسترسیِ بیرونی فقط از پروکسیِ TLS
+api=yes
+api-key=REPLACE_WITH_RANDOM_64_HEX            # openssl rand -hex 32 — در مخزن و مستندات ثبت نشود
+webserver=yes
+webserver-address=127.0.0.1
+webserver-port=8081
+webserver-allow-from=127.0.0.1/32
+default-catalog-zone=catalog.servernet.invalid.
+
+loglevel=4
