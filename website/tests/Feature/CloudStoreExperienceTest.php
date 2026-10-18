@@ -11,8 +11,6 @@ use DOMElement;
 use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\MessageBag;
-use Illuminate\Support\ViewErrorBag;
 use Tests\Support\NavasanRates;
 use Tests\TestCase;
 
@@ -127,13 +125,23 @@ class CloudStoreExperienceTest extends TestCase
 
     public function test_advanced_field_errors_open_the_review_step_and_the_advanced_controls(): void
     {
-        foreach (['ssh_key_new', 'ssh_key_id', 'extra_ipv4'] as $field) {
-            $errors = (new ViewErrorBag)->put('default', new MessageBag([$field => 'Invalid fixture value']));
-            $html = $this->withSession(['errors' => $errors])->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
+        foreach (['ssh_key_new' => str_repeat('a', 6001), 'ssh_key_id' => 'invalid-id', 'extra_ipv4' => -1] as $field => $invalid) {
+            // Follow real validation and JSON session serialization. Injecting a
+            // ViewErrorBag object directly is not the application's session format.
+            $redirect = $this->from('/account/cloud-store?location=de-frankfurt')->post('/account/cloud-store', [
+                'location' => 'de-frankfurt', 'plan' => 'plan-de-frankfurt',
+                'image' => 'ubuntu-24.04', 'cycle' => 'monthly', $field => $invalid,
+            ])->assertRedirect('/account/cloud-store?location=de-frankfurt')->assertSessionHasErrors($field);
+            $cookieName = (string) config('session.cookie');
+            $this->withCookie($cookieName, $redirect->getCookie($cookieName)->getValue());
+            $html = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
             $this->assertMatchesRegularExpression('~"openStep"\s*:\s*5\b~', $html, $field.' error must be reachable');
             $xpath = $this->xpath($html);
             $this->assertSame(1, $xpath->query('//details[contains(concat(" ", normalize-space(@class), " "), " cvb-adv ") and @open]')->length);
         }
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        Http::assertNothingSent();
     }
 
     public function test_every_location_link_preserves_explicit_hourly_billing_without_javascript(): void

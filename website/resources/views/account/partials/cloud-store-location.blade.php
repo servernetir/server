@@ -15,7 +15,7 @@
     <div class="cvx-explorer">
       <div class="cvx-picker">
         <label class="cvx-search" for="cvx-search"><svg class="icon"><use href="#i-search"/></svg>
-          <input type="search" id="cvx-search" placeholder="{{ __('cloud-store.search') }}" autocomplete="off" aria-controls="cvx-results">
+          <input type="search" id="cvx-search" placeholder="{{ __('cloud-store.search') }}" aria-label="{{ __('cloud-store.search') }}" autocomplete="off" aria-controls="cvx-results">
           <kbd aria-hidden="true">Ctrl K</kbd>
         </label>
         <div class="cvx-regions" role="group" aria-label="{{ __('cloud-store.regions') }}">

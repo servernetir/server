@@ -91,4 +91,6 @@
     const current = form.querySelector('[data-city][aria-current="true"]');
     if (current) showGlobe(current);
   });
+  const initial = form.querySelector('[data-city][aria-current="true"]');
+  if (initial) showGlobe(initial);
 })();
