@@ -62,10 +62,54 @@ function probeProgress(string $stage, array $counts, float $startedAt): void
     fflush(STDERR);
 }
 
+/** Restrict only this probe's compiled Blade tree; never traverse a link. */
+function probePrivateBladePermissions(string $privateDir, int $uid): array
+{
+    $root = $privateDir.'/blade-cache';
+    clearstatcache(true);
+    probeCheck(realpath($privateDir) === $privateDir && ! is_link($privateDir)
+        && fileowner($privateDir) === $uid && (fileperms($privateDir) & 0777) === 0700,
+        'unsafe_private_blade_parent');
+    $inspect = function (string $path) use ($root, $uid): array {
+        clearstatcache(true, $path);
+        $stat = lstat($path);
+        probeCheck($stat !== false && probeWithin($path, $root) && ! is_link($path)
+            && realpath($path) === $path && (int) $stat['uid'] === $uid, 'unsafe_private_blade_entry');
+        $kind = $stat['mode'] & 0170000;
+        // Hard-linked files could otherwise alter permissions outside this tree.
+        probeCheck($kind === 0040000 || ($kind === 0100000 && (int) $stat['nlink'] === 1),
+            'unsafe_private_blade_entry_type');
+        return $stat;
+    };
+    $rootStat = $inspect($root);
+    probeCheck(($rootStat['mode'] & 0170000) === 0040000, 'private_blade_cache_not_directory');
+    $entries = [$root => $rootStat];
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST);
+    // Validate the entire tree before changing any mode. FOLLOW_SYMLINKS is absent.
+    foreach ($iterator as $entry) $entries[$entry->getPathname()] = $inspect($entry->getPathname());
+    $counts = ['files' => 0, 'directories' => 0, 'files_restricted' => 0, 'directories_restricted' => 0];
+    foreach ($entries as $path => $before) {
+        $current = $inspect($path);
+        probeCheck($current['dev'] === $before['dev'] && $current['ino'] === $before['ino']
+            && ($current['mode'] & 0170000) === ($before['mode'] & 0170000), 'private_blade_entry_changed');
+        $isDirectory = ($current['mode'] & 0170000) === 0040000;
+        $mode = $isDirectory ? 0700 : 0600;
+        $key = $isDirectory ? 'directories' : 'files';
+        $counts[$key]++;
+        if (($current['mode'] & 0777) !== $mode) $counts[$key.'_restricted']++;
+        probeCheck(chmod($path, $mode), 'private_blade_permissions_failed');
+        clearstatcache(true, $path);
+        probeCheck((fileperms($path) & 0777) === $mode, 'private_blade_permissions_not_applied');
+    }
+    return $counts;
+}
+
 ini_set('display_errors', '0');
 umask(0077);
 $stage = 'private_context';
 $reportPath = null;
+$privateBladeCacheInitialized = false;
 $connection = null;
 $result = ['utc' => gmdate('c'), 'scope' => 'installed_code_and_read_only_production_acceptance',
     'paid_transaction_tested' => false, 'vm_creation_tested' => false, 'csrf_middleware_tested' => false];
@@ -133,7 +177,7 @@ try {
     $app = require $appPath.'/bootstrap/app.php';
     $stage = 'protected_bootstrap';
     $app->afterBootstrapping(Illuminate\Foundation\Bootstrap\RegisterProviders::class,
-        function ($app) use ($here, &$connection, &$effects): void {
+        function ($app) use ($here, &$connection, &$effects, &$privateBladeCacheInitialized): void {
             $connection = Illuminate\Support\Facades\DB::connection();
             probeCheck(in_array($connection->getDriverName(), ['mysql', 'mariadb'], true)
                 && $connection->transactionLevel() === 0, 'live_mariadb_connection_required');
@@ -165,6 +209,7 @@ try {
             if (! is_dir($here.'/blade-cache')) {
                 probeCheck(mkdir($here.'/blade-cache', 0700), 'private_blade_cache_create_failed');
             }
+            $privateBladeCacheInitialized = true;
             Illuminate\Support\Facades\Cache::setDefaultDriver('array');
             foreach ($cached as $key => $value) {
                 if ($value !== null) Illuminate\Support\Facades\Cache::store('array')->forever($key, $value);
@@ -748,6 +793,8 @@ try {
         'Cost floors use the current stored catalog and Navasan snapshot; provider freshness beyond stored quote guards is not independently fetched.',
         'Before/after state is measured in one consistent READ ONLY transaction; concurrent genuine customer orders are outside this probe.'];
     if ($publicOnly ?? false) $result['limitations'][] = 'Public-only follow-up does not repeat the full cloud-store location/image render sweep; retain the preceding full report for unchanged installed checkout and identity-policy hashes.';
+    $stage = 'private_blade_cache_permissions';
+    $result['private_blade_cache_permissions'] = probePrivateBladePermissions($here, posix_geteuid());
     $connection->rollBack();
     probeJson($reportPath, $result);
     echo json_encode($result, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES).PHP_EOL;
@@ -763,6 +810,10 @@ try {
     if ($error instanceof CloudStoreProbeFailure && $error->context !== []) {
         $privateFailure['diagnostic_context'] = $error->context;
         $failure['private_diagnostic_context_available'] = true;
+    }
+    if ($privateBladeCacheInitialized) {
+        try { $privateFailure['private_blade_cache_permissions'] = probePrivateBladePermissions($here, posix_geteuid()); }
+        catch (Throwable) { $privateFailure['private_blade_cache_permissions_failed'] = true; }
     }
     if ($reportPath !== null && ! file_exists($reportPath) && ! is_link($reportPath)) {
         try { probeJson($reportPath, $privateFailure); } catch (Throwable) { /* Preserve failure without exposing diagnostics. */ }
