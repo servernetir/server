@@ -67,28 +67,37 @@ export async function connectUpstream(destination, headers, fetcher) {
     clearTimeout(timer);
   }
 }
-const HTML = `<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>کنسول سرور | سرورنت</title><link rel="stylesheet" href="/console.css"><header><a class="brand" href="https://console.servernet.cloud/account/servers"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>سرورنت</a><span>کنسول امن سرور</span><span id="status" role="status">در حال بررسی اتصال…</span><button id="cad" disabled>Ctrl+Alt+Del</button><button id="full">تمام‌صفحه</button><a href="https://console.servernet.cloud/account/servers">بازگشت به سرویس‌ها</a></header><main id="screen"></main><section id="message" role="alert"></section><script type="module" src="/console.js"></script></html>`;
 const CSS = `:root{color-scheme:dark;font-family:Tahoma,Arial,sans-serif;background:#0b1220;color:#e2e8f0}*{box-sizing:border-box}body{margin:0}header{min-height:72px;display:flex;align-items:center;gap:18px;padding:12px 24px;background:#111d30;border-bottom:1px solid #25415a;flex-wrap:wrap}a{color:#22d3ee;text-decoration:none}.brand{font-weight:700;font-size:23px;display:flex;align-items:center;gap:10px}.brand svg{width:35px;height:35px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}button{font:inherit;background:#123747;border:1px solid #22d3ee;border-radius:8px;color:#e2e8f0;padding:8px 12px;cursor:pointer}button:disabled{opacity:.4;cursor:default}#status{margin-inline-start:auto;font-size:13px}#screen{height:calc(100dvh - 96px);direction:ltr}#screen:fullscreen{height:100dvh;background:#000}#message{text-align:center;padding:12px;color:#fbbf24}body.failed #screen{display:none}`;
-const JS = `import RFB from '/novnc/core/rfb.js';
+const FONT_CSS = `@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-web.woff2') format('woff2');font-weight:400;font-display:swap}@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-Bold-web.woff2') format('woff2');font-weight:700;font-display:swap}:root{font-family:IRANSans,Tahoma,Arial,sans-serif}`;
+// Render the usable shell without a stylesheet or VNC dependency blocking boot.
+// The fixed same-origin bootstrap is the only script requested by this document.
+const HTML = `<!doctype html><html lang="fa" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>کنسول سرور | سرورنت</title><style>${CSS + FONT_CSS}</style><header><a class="brand" href="https://console.servernet.cloud/account/servers"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>سرورنت</a><span>کنسول امن سرور</span><span id="status" role="status">در انتظار اتصال</span><button id="cad" disabled>Ctrl+Alt+Del</button><button id="full">تمام‌صفحه</button><a href="https://console.servernet.cloud/account/servers">بازگشت به سرویس‌ها</a></header><section id="message" role="alert">برای اتصال، کنسول را از صفحهٔ سرویس باز کنید. اگر صفحه پیش نمی‌رود، به سرویس‌ها برگردید و دوباره تلاش کنید.</section><main id="screen"></main><noscript>برای استفاده از کنسول، جاوااسکریپت مرورگر باید فعال باشد.</noscript><script defer src="/console.js"></script></html>`;
+const LOAD_DEADLINE = `async function withinLoadDeadline(work){let timer;try{return await Promise.race([work,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('client unavailable')),15000);})]);}finally{clearTimeout(timer);}}`;
+const JS = `(async()=>{
 const status=document.getElementById('status'),screen=document.getElementById('screen'),message=document.getElementById('message');
 const ticket=location.hash.slice(1);
 let rfb,connectTimer,failed=false;
 function fail(){if(failed)return;failed=true;clearTimeout(connectTimer);status.textContent='اتصال برقرار نشد';message.textContent='مهلت اتصال پایان یافته یا سرویس در دسترس نیست. از صفحهٔ سرویس، کنسول تازه باز کنید.';document.body.classList.add('failed');document.getElementById('cad').disabled=true;try{rfb?.disconnect();}catch{}}
+${LOAD_DEADLINE}
 document.getElementById('full').onclick=()=>screen.requestFullscreen().catch(()=>{});
 document.getElementById('cad').onclick=()=>rfb?.sendCtrlAltDel();
 try{
  history.replaceState(null,'',location.pathname);
  if(!/^[a-f0-9]{64}$/.test(ticket))throw Error('expired');
+ status.textContent='در حال آماده‌سازی کنسول…';message.textContent='';
+ const {default:RFB}=await withinLoadDeadline(import('/novnc/core/rfb.js'));
+ if(typeof RFB!=='function')throw Error('client unavailable');
  const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw Error('expired');
  const grant=await r.json();if(!/^[a-f0-9]{64}$/.test(grant.binding||''))throw Error('expired');
  rfb=new RFB(screen,'wss://'+location.host+'/socket?binding='+grant.binding,{wsProtocols:['binary']});rfb.scaleViewport=true;rfb.resizeSession=false;
- rfb.addEventListener('connect',()=>{if(failed)return;clearTimeout(connectTimer);status.textContent='متصل';document.getElementById('cad').disabled=false;});
+ rfb.addEventListener('connect',()=>{if(failed)return;clearTimeout(connectTimer);status.textContent='متصل';message.textContent='';document.getElementById('cad').disabled=false;});
  rfb.addEventListener('disconnect',fail);rfb.addEventListener('securityfailure',fail);
  // A provider VNC password is never a Windows Administrator password.
  rfb.addEventListener('credentialsrequired',fail);
  connectTimer=setTimeout(fail,20000);
-}catch{fail();}`;
+}catch{fail();}
+})();`;
 export async function handle(request, env = {}, fetcher = fetch) {
   try {
     const url = new URL(request.url);
@@ -96,7 +105,7 @@ export async function handle(request, env = {}, fetcher = fetch) {
       || [...url.searchParams.keys()].length !== 1 || !ID.test(url.searchParams.get('binding') || '')))) return reply('Not found', 404);
     if (request.method === 'GET' && url.pathname === '/') return reply(env.CLIENT_LEGACY === '1' ? LEGACY_HTML : HTML, 200, {'Content-Type': 'text/html; charset=utf-8'});
     if (request.method === 'GET' && url.pathname === '/favicon.ico') return reply(null, 204);
-    if (request.method === 'GET' && url.pathname === '/console.css') return reply(CSS + `@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-web.woff2') format('woff2');font-weight:400;font-display:swap}@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-Bold-web.woff2') format('woff2');font-weight:700;font-display:swap}:root{font-family:IRANSans,Tahoma,Arial,sans-serif}`, 200, {'Content-Type': 'text/css; charset=utf-8'});
+    if (request.method === 'GET' && url.pathname === '/console.css') return reply(CSS + FONT_CSS, 200, {'Content-Type': 'text/css; charset=utf-8'});
     if (request.method === 'GET' && ['/fonts/IRANSans-web.woff2', '/fonts/IRANSans-Bold-web.woff2'].includes(url.pathname)) {
       const r = await fetcher(PORTAL + '/assets/font/woff2/' + url.pathname.split('/').pop(), {redirect: 'manual', signal: AbortSignal.timeout(10000)});
       if (r.status !== 200) return reply('Font unavailable', 502);
@@ -159,17 +168,23 @@ export async function handle(request, env = {}, fetcher = fetch) {
 export default {fetch(request, env) { return handle(request, env); }};
 
 // Provider-compatible client for an isolated A/B acceptance test. The relay remains identical.
-const LEGACY_HTML = HTML.replace('<main id="screen"></main>', '<main id="screen"><canvas id="legacy-canvas" tabindex="0"></canvas></main>')
-  .replace('<script type="module" src="/console.js"></script>', ['util','webutil','base64','websock','des','input','display','jsunzip','rfb'].map(x=>'<script src="/legacy/'+x+'.js"></script>').join('')+'<script src="/console.js"></script>');
+const LEGACY_HTML = HTML.replace('<main id="screen"></main>', '<main id="screen"><canvas id="legacy-canvas" tabindex="0"></canvas></main>');
 const LEGACY_JS = `(async()=>{
 const status=document.getElementById('status'),screen=document.getElementById('screen'),message=document.getElementById('message'),cad=document.getElementById('cad');
-const ticket=location.hash.slice(1);let rfb,connectTimer,failed=false;
-function fail(){if(failed)return;failed=true;clearTimeout(connectTimer);status.textContent='اتصال برقرار نشد';message.textContent='از صفحهٔ سرویس، کنسول تازه باز کنید.';cad.disabled=true;try{rfb?.disconnect();}catch{}}
+const ticket=location.hash.slice(1);let rfb,connectTimer,failed=false;const pendingScripts=new Set();
+function fail(){if(failed)return;failed=true;clearTimeout(connectTimer);for(const script of pendingScripts){script.onload=script.onerror=null;script.remove();}pendingScripts.clear();status.textContent='اتصال برقرار نشد';message.textContent='از صفحهٔ سرویس، کنسول تازه باز کنید.';document.body.classList.add('failed');cad.disabled=true;try{rfb?.disconnect();}catch{}}
+${LOAD_DEADLINE}
+// async=false before insertion starts downloads together but preserves classic
+// script execution order. No eval, blob URL or third-party script origin.
+function loadClient(){return Promise.all(['util','webutil','base64','websock','des','input','display','jsunzip','rfb'].map(name=>new Promise((resolve,reject)=>{const script=document.createElement('script');script.async=false;script.src='/legacy/'+name+'.js';pendingScripts.add(script);script.onload=()=>{script.onload=script.onerror=null;pendingScripts.delete(script);resolve();};script.onerror=()=>{script.onload=script.onerror=null;pendingScripts.delete(script);script.remove();reject(Error('client unavailable'));};document.head.appendChild(script);})));}
 document.getElementById('full').onclick=()=>screen.requestFullscreen().catch(()=>{});
 cad.onclick=()=>rfb?.sendCtrlAltDel();
 try{
  history.replaceState(null,'',location.pathname);
  if(!/^[a-f0-9]{64}$/.test(ticket))throw Error('expired');
+ status.textContent='در حال آماده‌سازی کنسول…';message.textContent='';
+ await withinLoadDeadline(loadClient());
+ if(typeof RFB!=='function'||typeof WebUtil==='undefined'||typeof WebUtil.init_logging!=='function')throw Error('client unavailable');
  const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw Error('expired');
  const grant=await r.json();if(!/^[a-f0-9]{64}$/.test(grant.binding||''))throw Error('expired');

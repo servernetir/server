@@ -119,6 +119,16 @@ test('public root does not wait on broker or provider',async()=>{
  assert.equal(r.status,200);assert.match(await r.text(),/id="status"/);
 });
 
+test('both shells render guidance and inline styles before any VNC dependency',async()=>{
+ for(const CLIENT_LEGACY of ['0','1']){
+  const html=await(await handle(req('/'),{...env,CLIENT_LEGACY},()=>{throw Error('unexpected network');})).text();
+  assert.match(html,/<style>/);assert.match(html,/font-display:swap/);assert.match(html,/id="message" role="alert">[^<]+/);
+  assert.match(html,/<noscript>[^<]+<\/noscript>/);assert.match(html,/<script defer src="\/console.js"><\/script>/);
+  assert.equal((html.match(/<script/g)||[]).length,1);assert.ok(!html.includes('<link'));
+  assert.ok(!html.includes('src="/legacy/'));assert.ok(!html.includes('src="/novnc/'));
+ }
+});
+
 test('upstream upgrade is aborted after ten seconds',async t=>{
  t.mock.timers.enable({apis:['setTimeout']});
  let signal;
@@ -145,7 +155,7 @@ test('asset requests cannot forward portal cookies or follow redirects',async()=
 });
 test('legacy test client stays on own origin with fixed allowlisted assets',async()=>{
  const page=await handle(req('/'),{...env,CLIENT_LEGACY:'1'});
- const html=await page.text();assert.match(html,/legacy-canvas/);assert.match(html,/src="\/legacy\/rfb.js"/);
+ const html=await page.text();assert.match(html,/legacy-canvas/);assert.match(html,/src="\/console.js"/);assert.ok(!html.includes('src="/legacy/'));
  const r=await handle(req('/legacy/rfb.js',{headers:{Cookie:'portal=private'}}),env,async(url,opts)=>{
   assert.equal(url,'https://console.arvaniaas.ir/ir-tbz-sh1/include/rfb.js');
   assert.equal(opts.headers,undefined);assert.equal(opts.redirect,'manual');return new Response('/* fixture */');
