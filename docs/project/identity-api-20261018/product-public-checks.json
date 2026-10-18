@@ -1,0 +1,62 @@
+[
+  {
+    "path": "/identity-api",
+    "status": 200,
+    "usage_policy": "available_wallet_v1",
+    "product_ui": true,
+    "services": 35,
+    "active": 0,
+    "raw_translation": false,
+    "provider_leaked": false
+  },
+  {
+    "path": "/identity-api/docs",
+    "status": 200,
+    "usage_policy": null
+  },
+  {
+    "path": "/identity-api/terms",
+    "status": 200,
+    "usage_policy": null
+  },
+  {
+    "path": "/en/identity-api",
+    "status": 200,
+    "usage_policy": "available_wallet_v1",
+    "product_ui": true,
+    "services": 35,
+    "active": 0,
+    "raw_translation": false,
+    "provider_leaked": false
+  },
+  {
+    "path": "/en/identity-api/docs",
+    "status": 200,
+    "usage_policy": null
+  },
+  {
+    "path": "/en/identity-api/terms",
+    "status": 200,
+    "usage_policy": null
+  },
+  {
+    "path": "/tr/identity-api",
+    "status": 200,
+    "usage_policy": "available_wallet_v1",
+    "product_ui": true,
+    "services": 35,
+    "active": 0,
+    "raw_translation": false,
+    "provider_leaked": false
+  },
+  {
+    "path": "/tr/identity-api/docs",
+    "status": 200,
+    "usage_policy": null
+  },
+  {
+    "path": "/tr/identity-api/terms",
+    "status": 200,
+    "usage_policy": null
+  }
+]
