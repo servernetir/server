@@ -1,5 +1,29 @@
 # Arvan Windows password handling — 18 October 2026
 
+## Fresh-session preflight: staged, activation approval pending
+
+This supersedes the earlier expired-session blocker below. The owner supplied a fresh cPanel Terminal. At09:49:48UTC the two live application hashes still matched the original baseline. Preparation succeeded at10:05:26UTC in the private owner-only release directory `/home/servernetcloud/servernet_app/storage/app/arvan-password-guard-20261018-Xqq99a`; **no --apply was run and no application source was installed**.
+
+The live provisioner already contained older Windows exclusions in create/adoption. The first preparation stopped safely on this context difference. The revised surgical helper preserves the live create exclusion and strengthens adoption to the explicit, unambiguous Linux-family guard. Both prepared diffs were inspected. An independent offline check reproduced a7fda484 from the corresponding legacy adoption context with both LF/CRLF (four file comparisons passed); it is not a claim that the whole live file equals Git.
+
+Scoped PHP-FPM inspection through the owner-accessible sockets returned primary-script ENOENT before executing the helper. The host configuration contains a forced document root, but the exact visibility cause was not proven. Two harmless public probe directories contained only a deny-all .htaccess and probe.txt; origin requests returned404, not a proven Apache403. No public PHP entry was created. At10:09:35UTC both exact probe directories were verified and moved into the private release directory as recoverable archives; none remains in public_html.
+
+At10:10:01UTC, the application files still had the original hashes, public console=1, hourly sales=1, and the Windows image allowlist remained nonempty with SHA-256 `cc9e1285e69a6a37cde1b11b419c860293fae75e3f311bce3ac146744206b845`. Effective CLI configuration reported file cache and file sessions. No flags were rewritten.
+
+The existing authenticated POST /system/opcache also clears shared application cache. An explicit owner approval is pending before using it: pending console tickets/grants can expire and require a fresh launch, and rate-limit/status caches are affected. Its returned cleared-list does not independently prove successful exit status for every clear command. Do not call it or claim web activation until approval and a fresh acceptance check. The unsuccessful FPM prototype is not a deployed/tested activation mechanism.
+
+The15 targeted tests/91 assertions passed again locally; the adapted deployment helper passes PHP lint. Known Linux-family aliases are defensive parser compatibility, not proof that every alias exists in the live Arvan catalog. No provider/support call, paid test, guest/credential modification, VM/disk/IP change, DNS/Worker/sales change or routing/NAT/firewall/persistence-agent change occurred. The source patch is already in develop as a7fda484; this follow-up is preparation/documentation only. Before resuming, recheck source hashes and flags, obtain activation approval, inspect the prepared manifest, then apply only the two files and verify. Keep the private before-files for exact rollback; never overwrite a concurrent change.
+
+## Follow-up: production deployment authorized, blocked before installation
+
+The owner subsequently authorized publishing the defensive patch while preserving open sales/consoles, forbidding new test servers and further Arvan contact. At09:04:30UTC, production PHP8.4.26, the application root and both expected source hashes were verified. At09:06:08UTC, public console=1 and hourly sales=1 were read; the Windows allowlist was nonempty and unchanged. No provider endpoint or support channel was contacted.
+
+The 15 targeted tests / 91 assertions passed again locally. A two-file surgical deployment helper was reviewed; its transformation exactly reproduces a7fda484 from its Git parent with both LF and CRLF. Production differs from that parent, so the prepared live diff and hashes still require inspection before apply. The helper has private backups, hash guards, lint, a lock and guarded partial-install rollback.
+
+The existing web `/system/opcache` route also clears shared application cache and could discard console grants. It was not called. Apache/PHP-FPM and owner-accessible local sockets were observed; a private, same-owner Unix-socket checker is prepared to inspect the actual site pool and invalidate only the two files, but it has not been uploaded or executed. No new public endpoint or credential was created.
+
+Before any live file writes, the terminal stopped responding. Reload explicitly returned **“Your IP address has changed. Please log in again.”** A fresh owner-authenticated cPanel Terminal was requested. Status: **not installed; no production changes made in this follow-up**. The next step is fresh login, repeat source/flag checks, prove the scoped FPM path, then prepare/review/apply/activate/verify. Do not treat the prepared maintenance helpers as production acceptance or run them blindly.
+
 ## Current decision and limits
 
 The owner requested automatic Windows password delivery, a price quote before any new paid test, and a push to develop while leaving sales and customer consoles open. Later in this same turn the owner said not to pursue Arvan further because the current service works. No further support message, new VM, paid resource, password change or production deployment was performed. Existing customer resources were not used as test fixtures.
