@@ -1,0 +1,32 @@
+[
+  {
+    "path": "/identity-api",
+    "status": 200,
+    "funding_policy": "owner_managed_v1",
+    "usage_policy": "available_wallet_v1",
+    "active": 2,
+    "net_rates": true,
+    "menu_link": true,
+    "raw_translation": false
+  },
+  {
+    "path": "/en/identity-api",
+    "status": 200,
+    "funding_policy": "owner_managed_v1",
+    "usage_policy": "available_wallet_v1",
+    "active": 2,
+    "net_rates": true,
+    "menu_link": true,
+    "raw_translation": false
+  },
+  {
+    "path": "/tr/identity-api",
+    "status": 200,
+    "funding_policy": "owner_managed_v1",
+    "usage_policy": "available_wallet_v1",
+    "active": 2,
+    "net_rates": true,
+    "menu_link": true,
+    "raw_translation": false
+  }
+]
