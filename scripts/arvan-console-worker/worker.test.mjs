@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHmac} from 'node:crypto';
-import {handle, signature, upstream} from './worker.mjs';
+import {handle, signature, upstream, connectUpstream} from './worker.mjs';
 const base='https://vnc.servernet.cloud';
 const key='a'.repeat(64), ticket='b'.repeat(64), session='c'.repeat(64);
 const env={ENABLED:'1',BROKER_KEY:key};
@@ -56,6 +56,31 @@ test('regional grants stay on the fixed console host and matching regional path'
 });
 test('branded shell has no third-party code and forbids framing',async()=>{
  const r=await handle(req('/'));assert.match(r.headers.get('Content-Security-Policy'),/frame-ancestors 'none'/);assert.match(await r.text(),/سرورنت/);
+});
+
+test('public root does not wait on broker or provider',async()=>{
+ const r=await handle(req('/'),{...env,CLIENT_LEGACY:'1'},()=>{throw Error('unexpected network');});
+ assert.equal(r.status,200);assert.match(await r.text(),/id="status"/);
+});
+
+test('upstream upgrade is aborted after ten seconds',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ let signal;
+ const pending=connectUpstream('https://console.arvaniaas.ir/ir-tbz-sh1/websockify',{},async(url,options)=>{
+  signal=options.signal;
+  return new Promise((resolve,reject)=>signal.addEventListener('abort',()=>reject(Error('upgrade timeout'))));
+ });
+ assert.equal(signal.aborted,false);t.mock.timers.tick(10000);
+ await assert.rejects(pending,/upgrade timeout/);assert.equal(signal.aborted,true);
+});
+
+test('successful upgrade clears its timer and does not abort an established socket',async t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ let signal;const socket={};
+ const result=await connectUpstream('https://console.arvaniaas.ir/ir-tbz-sh1/websockify',{},async(url,options)=>{
+  signal=options.signal;return {status:101,webSocket:socket};
+ });
+ assert.equal(result.webSocket,socket);t.mock.timers.tick(60000);assert.equal(signal.aborted,false);
 });
 test('asset requests cannot forward portal cookies or follow redirects',async()=>{
  const r=await handle(req('/novnc/core/rfb.js',{headers:{Cookie:'portal=private'}}),env,async(url,opts)=>{
