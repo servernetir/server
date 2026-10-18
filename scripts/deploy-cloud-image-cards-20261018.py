@@ -1,4 +1,8 @@
-"""Guarded, one-use UI patch packet. Prepare before applying; retain private backups."""
+"""Application-side UI patch. Also publish assets to the separate cPanel document root.
+
+Prepare before applying and retain private backups. The public-asset follow-up lives in
+publish-cloud-image-card-assets-20261018.py; app/public alone is not the served directory.
+"""
 from pathlib import Path
 import hashlib,json,os,shutil,subprocess,sys
 

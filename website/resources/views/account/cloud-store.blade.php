@@ -1662,6 +1662,7 @@
      transform/contain روی `.cvb-wrap` یا بالاترش، داکِ موبایل را از قابِ دید
      می‌کَنَد و با اسکرول پایین می‌بَرَد — خرابی‌ای که ۲۰۰ می‌دهد و هیچ خطایی
      نمی‌سازد. سرصفحهٔ مرحله هرگز محو نمی‌شود، پس راهِ برگشتن خوانا می‌مانَد. */
+  var hoverOK = !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
   var main = form.querySelector('.cvb-main');
   var dimT = null, dimWant = null;
 
