@@ -137,6 +137,65 @@ test('city and generic previews emit geography events without changing the serve
   assert.equal(page.document.querySelectorAll('input[name="location"]').length, 1);
 });
 
+test('choosing a catalogue country on the globe reveals its cities and resets search filters without changing the order', t => {
+  const page = fixture(t);
+  page.region('me');
+  page.search('شيراز');
+  const results = page.document.getElementById('cvx-results');
+  results.scrollTop = 180;
+  const originalUrl = page.window.location.href;
+  const location = page.document.querySelector('input[name="location"]');
+  let followedLinks = 0;
+  page.document.querySelectorAll('[data-city]').forEach(link => link.addEventListener('click', () => followedLinks++));
+
+  page.document.dispatchEvent(new page.window.CustomEvent('cvx:country-select', { detail: { country: 'de' } }));
+
+  assert.equal(page.input.value, 'آلمان');
+  assert.deepEqual(page.visibleCountries(), ['DE']);
+  assert.equal(page.country('DE').open, true);
+  assert.equal(page.city('de-fsn').hidden, false);
+  assert.equal(page.city('de-ref').hidden, false);
+  assert.equal(page.document.getElementById('cvx-empty').hidden, true);
+  assert.equal(results.scrollTop, 0);
+  for (const control of page.document.querySelectorAll('[data-cvx-region]')) {
+    assert.equal(control.getAttribute('aria-pressed'), String(control.dataset.cvxRegion === 'all'));
+  }
+  assert.deepEqual(page.previews.at(-1), { country: 'DE', code: '', city: '', label: 'آلمان', approximate: true });
+  assert.equal(location.value, 'ir-shiraz');
+  assert.equal(page.document.querySelector('[data-city][aria-current="true"]'), page.city('ir-shiraz'));
+  assert.equal(page.document.querySelectorAll('input[name="location"]').length, 1);
+  assert.equal(followedLinks, 0);
+  assert.equal(page.window.location.href, originalUrl);
+});
+
+test('globe country browsing ignores countries outside the actual catalogue and missing country details', t => {
+  const page = fixture(t);
+  page.region('me');
+  page.search('شيراز');
+  const results = page.document.getElementById('cvx-results');
+  results.scrollTop = 90;
+  const before = {
+    query: page.input.value,
+    countries: page.visibleCountries(),
+    controls: [...page.document.querySelectorAll('[data-cvx-region]')].map(control => control.getAttribute('aria-pressed')),
+    disclosures: [...page.document.querySelectorAll('.cvx-country')].map(country => country.open),
+    previews: page.previews.length,
+    location: page.document.querySelector('input[name="location"]').value,
+    url: page.window.location.href,
+  };
+  // US is a real country but has no server location in this catalogue.
+  page.document.dispatchEvent(new page.window.CustomEvent('cvx:country-select', { detail: { country: 'US' } }));
+  page.document.dispatchEvent(new page.window.CustomEvent('cvx:country-select'));
+  assert.equal(page.input.value, before.query);
+  assert.deepEqual(page.visibleCountries(), before.countries);
+  assert.deepEqual([...page.document.querySelectorAll('[data-cvx-region]')].map(control => control.getAttribute('aria-pressed')), before.controls);
+  assert.deepEqual([...page.document.querySelectorAll('.cvx-country')].map(country => country.open), before.disclosures);
+  assert.equal(page.previews.length, before.previews);
+  assert.equal(results.scrollTop, 90);
+  assert.equal(page.document.querySelector('input[name="location"]').value, before.location);
+  assert.equal(page.window.location.href, before.url);
+});
+
 test('Ctrl K leaves focus in search after the navigation helper schedules its own heading focus', t => {
   const page = fixture(t);
   const heading = page.document.getElementById('location-heading');

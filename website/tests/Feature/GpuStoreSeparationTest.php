@@ -231,13 +231,13 @@ class GpuStoreSeparationTest extends TestCase
     }
 
     /**
-     * 🔴 ویزاردِ GPU سه مرحله دارد، نه پنج (گزارشِ کارفرما: «مرحلهٔ تکراری»).
+     * 🔴 ویزاردِ GPU دو تصمیم دارد؛ نام کنار درخواست نهایی قرار می‌گیرد.
      *
      * خطِ GPU یک مکان بیشتر ندارد؛ «کدام کشور؟ کدام شهر؟» دو مرحلهٔ بی‌جواب
      * بودند که هر دو یک مقدارِ ثابت را نشان می‌دادند. مکان از فیلدِ پنهانِ
      * فرم می‌رود و هیچ انتخابی گم نمی‌شود.
      */
-    public function test_the_gpu_wizard_has_three_steps_not_five(): void
+    public function test_the_gpu_wizard_has_two_steps_with_the_name_at_checkout(): void
     {
         $this->bothLines();
 
@@ -246,9 +246,11 @@ class GpuStoreSeparationTest extends TestCase
 
         $this->assertStringNotContainsString('id="cvb-step-1"', $html, 'مرحلهٔ «کشور» برای GPU بی‌معنی است.');
         $this->assertStringNotContainsString('id="cvb-step-2"', $html, 'مرحلهٔ «شهر» برای GPU بی‌معنی است.');
+        $this->assertStringNotContainsString('id="cvb-step-5"', $html);
+        $this->assertSame(2, substr_count($html, 'class="cvb-step-b"'));
         $this->assertStringContainsString(__('ui.cvb_step_gpu'), $html);
         // شمارهٔ نمایشی از ۱ شروع می‌شود، نه از ۳
-        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(1), 't' => fa_num(3)]), $html);
+        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(1), 't' => fa_num(2)]), $html);
         // و فرم هنوز مکان را حمل می‌کند
         $this->assertStringContainsString('name="location" value="global-gpu"', $html);
     }
@@ -267,8 +269,8 @@ class GpuStoreSeparationTest extends TestCase
         $this->assertStringNotContainsString(__('ui.cvb_eta'), $html);
     }
 
-    /** کشور و شهر در فروشگاهِ VPS یک مرحلهٔ مکان شده‌اند. */
-    public function test_the_vps_wizard_has_four_visible_steps(): void
+    /** کشور و شهر یک مرحله‌اند؛ نام بالای پرداخت است. */
+    public function test_the_vps_wizard_has_three_visible_steps(): void
     {
         $this->bothLines();
 
@@ -277,8 +279,9 @@ class GpuStoreSeparationTest extends TestCase
 
         $this->assertStringContainsString('id="cvb-step-1"', $html);
         $this->assertStringNotContainsString('id="cvb-step-2"', $html);
-        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'));
-        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(4), 't' => fa_num(4)]), $html);
+        $this->assertStringNotContainsString('id="cvb-step-5"', $html);
+        $this->assertSame(3, substr_count($html, 'class="cvb-step-b"'));
+        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(3), 't' => fa_num(3)]), $html);
     }
 
     /**

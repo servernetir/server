@@ -147,7 +147,8 @@ class CloudStoreSlipTest extends TestCase
         // نامش و دلیلِ صادقش روی صفحه است
         $this->assertStringContainsString('CV-8-16', $html);
         $this->assertStringContainsString(__('ui.cvb_off_stock'), $html);
-        $this->assertStringContainsString(__('ui.cvb_off_stock_sub'), $html);
+        $this->assertStringNotContainsString(__('ui.cvb_off_stock_sub'), $this->visible($html));
+        $this->assertStringNotContainsString(__('ui.cvb_off_badge'), $this->visible($html));
 
         // و هیچ‌جا قیمتی برایش چاپ نشده
         $this->assertStringNotContainsString(fa_num(number_format(2000000)), $html,
@@ -188,8 +189,9 @@ class CloudStoreSlipTest extends TestCase
         | آن‌وقت این تست **سبز می‌مانْد و هیچ‌چیز را نگه نمی‌داشت**. پس اول ثابت
         | می‌کنیم پنجره تا انتهای کارت رسیده است.
         */
-        $this->assertStringContainsString(__('ui.cvb_off_price_sub'), $m[0],
+        $this->assertStringContainsString(__('ui.cvb_off_price'), $m[0],
             'پنجرهٔ رجکس باید تا انتهای کارت برسد، وگرنه ادعاهای پولیِ زیر پوچ‌اند');
+        $this->assertStringNotContainsString(__('ui.cvb_off_price_sub'), $m[0]);
         $this->assertStringNotContainsString('<div', substr($m[0], strpos($m[0], '>') + 1),
             'هیچ فرزندِ <div> در ردیفِ ناموجود نباشد — پنجرهٔ این نگهبان را می‌بُرد');
 
@@ -307,8 +309,8 @@ class CloudStoreSlipTest extends TestCase
         $this->base();
         $html = $this->page();
 
-        // کشور و شهر یک مرحله‌اند؛ مشخصات، تصویر و نام سه مرحلهٔ بعدی‌اند.
-        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'), 'چهار مرحله باید بدنه داشته باشند');
+        // کشور و شهر یک مرحله‌اند؛ مشخصات و تصویر دو تصمیم بعدی و نام کنار پرداخت است.
+        $this->assertSame(3, substr_count($html, 'class="cvb-step-b"'), 'سه مرحله باید بدنه داشته باشند');
         $this->assertStringNotContainsString('cvb-step is-shut', $html, 'سرور نباید مرحله‌ای را بسته بفرستد');
 
         // مکان لینکِ واقعی است، نه دکمهٔ جاوااسکریپتی

@@ -386,8 +386,8 @@ class CloudStoreLocationTest extends TestCase
         $this->assertStringNotContainsString('<details class="cvb-cnat', $html);
         $this->assertMatchesRegularExpression('~<details class="cvx-country"[^>]*>\s*<summary class="cvb-nat[^"]*"[^>]*data-nat="~', $html);
 
-        // چهار بدنه؛ کشور و شهر یک مرحلهٔ مشترک دارند.
-        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'));
+        // سه بدنه؛ کشور و شهر یک مرحلهٔ مشترک و نام کنار پرداخت است.
+        $this->assertSame(3, substr_count($html, 'class="cvb-step-b"'));
         $this->assertStringNotContainsString('cvb-step is-shut', $html);
 
         // کشورِ انتخابی سرور-رندر علامت خورده است

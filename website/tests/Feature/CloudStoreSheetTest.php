@@ -439,9 +439,11 @@ class CloudStoreSheetTest extends TestCase
         $row = $m[0];
 
         // 🔴 پنجرهٔ رجکس واقعاً کلِ ردیف را گرفته — وگرنه ادعاهای پولیِ زیر پوچ‌اند
-        $this->assertStringContainsString(__('ui.cvb_off_stock_sub'), $row,
+        $this->assertStringContainsString(__('ui.cvb_off_stock'), $row,
             'پنجره باید تا انتهای ردیف برسد؛ یک <div> تودرتو آن را می‌بُرد و '
             .'ادعاهای «نه تومان، نه €» را بی‌صدا پوچ می‌کند');
+        $this->assertStringNotContainsString(__('ui.cvb_off_stock_sub'), $row);
+        $this->assertStringNotContainsString(__('ui.cvb_off_badge'), $row);
 
         // فرزندان (یعنی همه‌چیز پس از تگِ بازِ خودِ ردیف) هیچ <div>ی ندارند
         $inner = substr($row, strpos($row, '>') + 1);

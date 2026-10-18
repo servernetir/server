@@ -6,14 +6,14 @@
   </button></h2>
   <div class="cvb-step-b" id="cvb-b-1"><div class="cvb-step-i"><div class="pnl-sec-b">
     @error('location')<div class="dm-note danger">{{ \App\Support\PanelText::text($message) }}</div>@enderror
+    <div class="cvx-explorer">
+      <div class="cvx-picker">
     <div class="cvx-section-head">
       <div><p class="cvb-eyebrow">{{ __('ui.cvb_step_idx', ['n' => fa_num(1), 't' => fa_num($stepTotal)]) }}</p>
         <h3 class="cvb-q" tabindex="-1">{{ __('cloud-store.location_title') }}</h3>
         <p class="cvb-lede">{{ __('cloud-store.location_hint') }}</p></div>
-      <span class="cvx-global-tag"><svg class="icon"><use href="#i-globe"/></svg> GLOBAL</span>
     </div>
-    <div class="cvx-explorer">
-      <div class="cvx-picker">
+
         <label class="cvx-search" for="cvx-search"><svg class="icon"><use href="#i-search"/></svg>
           <input type="search" id="cvx-search" placeholder="{{ __('cloud-store.search') }}" aria-label="{{ __('cloud-store.search') }}" autocomplete="off" aria-controls="cvx-results">
           <kbd aria-hidden="true">Ctrl K</kbd>
@@ -57,18 +57,18 @@
           @endforeach
           <div class="cvx-empty" id="cvx-empty" hidden><svg class="icon"><use href="#i-search"/></svg><b>{{ __('cloud-store.no_results') }}</b><p>{{ __('cloud-store.try_search') }}</p></div>
         </div>
+        <p class="cvx-lock-note">{{ __('ui.cvb_loc_note') }}</p>
         <p class="cvx-price-note">{{ __('cloud-store.price_note') }}</p>
       </div>
       <div class="cvx-globe-panel">
         <div class="cvx-orbit-label"><span class="cvx-status-dot"></span> SERVERNET <span>/</span> GLOBAL CLOUD</div>
-        <div id="cvx-globe" class="cvx-globe" data-land-src="{{ asset_ver('assets/js/atlas-land.js') }}" data-country="{{ $curCountry }}" data-approximate-label="{{ __('cloud-store.country_pin') }}" data-exact-label="{{ __('cloud-store.city_pin') }}">
+        <div id="cvx-globe" class="cvx-globe" tabindex="0" role="img" aria-label="{{ __('cloud-store.globe_controls') }}" data-land-src="{{ asset_ver('assets/js/atlas-land.js') }}" data-country="{{ $curCountry }}" data-approximate-label="{{ __('cloud-store.country_pin') }}" data-exact-label="{{ __('cloud-store.city_pin') }}">
           <img class="cvx-globe-fallback" src="{{ asset_ver('assets/img/atlas-earth.svg') }}" alt="{{ __('cloud-store.globe_alt') }}" width="680" height="680">
           <canvas aria-hidden="true"></canvas>
         </div>
         <div class="cvx-globe-caption"><span class="cvx-caption-k">{{ __('cloud-store.exploring') }}</span><strong id="cvx-globe-name">{{ $locLabel }}</strong><span id="cvx-globe-detail">{{ __('cloud-store.country_pin') }}</span><span id="cvx-globe-coordinates" dir="ltr"></span></div>
-        <div class="cvx-globe-footer"><span><svg class="icon"><use href="#i-pin"/></svg>{{ __('cloud-store.globe_hint') }}</span><span dir="ltr">01 / GLOBAL</span></div>
+        <div class="cvx-globe-footer"><span><svg class="icon"><use href="#i-pin"/></svg>{{ __('cloud-store.globe_drag_hint') }}</span><span dir="ltr">01 / GLOBAL</span></div>
       </div>
     </div>
-    <div class="cvx-step-actions"><p><svg class="icon"><use href="#i-info"/></svg>{{ __('ui.cvb_loc_note') }}</p>@if($hasLoc)<button type="button" class="btn btn-primary cvx-next" data-go="3">{{ __('cloud-store.continue_resources') }} <span aria-hidden="true">←</span></button>@endif</div>
   </div></div></div>
 </section>

@@ -6,6 +6,7 @@ use App\Models\CloudImage;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Customer;
+use App\Services\Cloud\SaladClient;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
@@ -66,7 +67,7 @@ class CloudStoreExperienceTest extends TestCase
         $response = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk();
         $xpath = $this->xpath($response->getContent());
         $this->assertSame(0, $xpath->query('//*[@id="cvb-step-2"]')->length);
-        $this->assertSame(4, $xpath->query('//div[@class="cvb-step-b"]')->length);
+        $this->assertSame(3, $xpath->query('//div[@class="cvb-step-b"]')->length);
         foreach (CloudLocation::pluck('country', 'code') as $code => $country) {
             $links = $xpath->query('//*[@id="cvb-step-1"]//details[@data-country="'.$country.'"]//a[@data-city="'.$code.'"]');
             $this->assertSame(1, $links->length, $code.' must remain individually reachable');
@@ -123,7 +124,7 @@ class CloudStoreExperienceTest extends TestCase
         $this->assertSame(1, $xpath->query('//form[@id="cvb-form"]//input[@name="plan" and @value="plan-ch-z-rich" and @checked]')->length);
     }
 
-    public function test_advanced_field_errors_open_the_review_step_and_the_advanced_controls(): void
+    public function test_advanced_field_errors_open_the_final_software_step_and_the_advanced_controls(): void
     {
         foreach (['ssh_key_new' => str_repeat('a', 6001), 'ssh_key_id' => 'invalid-id', 'extra_ipv4' => -1] as $field => $invalid) {
             // Follow real validation and JSON session serialization. Injecting a
@@ -135,7 +136,7 @@ class CloudStoreExperienceTest extends TestCase
             $cookieName = (string) config('session.cookie');
             $this->withCookie($cookieName, $redirect->getCookie($cookieName)->getValue());
             $html = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
-            $this->assertMatchesRegularExpression('~"openStep"\s*:\s*5\b~', $html, $field.' error must be reachable');
+            $this->assertMatchesRegularExpression('~"openStep"\s*:\s*4\b~', $html, $field.' error must be reachable');
             $xpath = $this->xpath($html);
             $this->assertSame(1, $xpath->query('//details[contains(concat(" ", normalize-space(@class), " "), " cvb-adv ") and @open]')->length);
         }
@@ -155,5 +156,74 @@ class CloudStoreExperienceTest extends TestCase
             $this->assertSame('quarterly', $query['cycle']);
             $this->assertSame('ubuntu-24.04', $query['image']);
         }
+    }
+
+    public function test_server_name_is_one_order_field_above_checkout_without_a_separate_stage(): void
+    {
+        $html = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
+        $xpath = $this->xpath($html);
+        $this->assertSame(1, $xpath->query('//form[@id="cvb-form"]//input[@name="label"]')->length);
+        $this->assertSame(1, $xpath->query('//*[@id="cvx-name-home"]//*[@id="cvx-name-fields"]//input[@id="cvb-label" and @name="label"]')->length);
+        $this->assertSame(1, $xpath->query('//*[@id="cvx-name-home"]/following-sibling::button[@id="cvb-submit"]')->length);
+        $this->assertSame(1, $xpath->query('//*[@id="cvx-mobile-name"]')->length);
+        $this->assertSame(0, $xpath->query('//*[@data-step="5" or @data-go="5" or @data-spine="5"]')->length);
+        $this->assertSame(0, $xpath->query('//button[contains(concat(" ", normalize-space(@class), " "), " cvx-next ")]')->length);
+        // Without JavaScript all stages remain visible and native checkout still works.
+        $this->assertSame(2, $xpath->query('//button[(@id="cvb-submit" or @id="cvb-submit-2") and @type="submit"]')->length);
+        Http::assertNothingSent();
+    }
+
+    public function test_invalid_server_name_returns_to_final_checkout_with_its_original_value(): void
+    {
+        $invalid = str_repeat('a', 65);
+        $redirect = $this->from('/account/cloud-store?location=de-frankfurt')->post('/account/cloud-store', [
+            'location' => 'de-frankfurt', 'plan' => 'plan-de-frankfurt',
+            'image' => 'ubuntu-24.04', 'cycle' => 'monthly', 'label' => $invalid,
+        ])->assertRedirect('/account/cloud-store?location=de-frankfurt')->assertSessionHasErrors('label');
+        $cookieName = (string) config('session.cookie');
+        $this->withCookie($cookieName, $redirect->getCookie($cookieName)->getValue());
+        $html = $this->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
+        $this->assertMatchesRegularExpression('~"openStep"\s*:\s*4\b~', $html);
+        $xpath = $this->xpath($html);
+        $field = $xpath->query('//*[@id="cvx-name-fields"]//input[@name="label"]');
+        $this->assertSame(1, $field->length);
+        $this->assertSame($invalid, $field->item(0)->getAttribute('value'));
+        $this->assertSame(1, $xpath->query('//*[@id="cvx-name-fields"]//div[contains(concat(" ", normalize-space(@class), " "), " danger ")]')->length);
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_gpu_store_has_two_decisions_and_keeps_its_request_action(): void
+    {
+        CloudLocation::create(['code' => 'global-gpu', 'country' => 'XX', 'city' => '', 'is_active' => true]);
+        CloudPlan::create([
+            'provider' => 'salad', 'provider_ref' => 'fixture-gpu', 'provider_location' => 'global',
+            'location_code' => 'global-gpu', 'slug' => 'fixture-gpu', 'public_name' => 'RTX 4090',
+            'vcpu' => 8, 'ram_mb' => 30720, 'disk_gb' => 150, 'arch' => 'x86',
+            'traffic_gb' => 20480, 'cpu_kind' => 'shared', 'gpu_model' => 'RTX 4090',
+            'gpu_vram_mb' => 24576, 'gpu_count' => 1, 'is_interruptible' => true,
+            'cost_eur_cents' => 8640, 'price_eur_cents' => 15750, 'price_irt' => 18900000,
+            'cost_hour_eur_micro' => 120000, 'is_active' => true, 'in_stock' => true,
+        ]);
+        CloudImage::create([
+            'provider' => 'salad', 'provider_ref' => SaladClient::APPS['gpu-jupyter']['ref'],
+            'key' => 'gpu-jupyter', 'kind' => 'app', 'family' => 'gpu-jupyter',
+            'label' => 'Jupyter', 'arch' => 'x86', 'is_active' => true,
+        ]);
+        $html = $this->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
+        $xpath = $this->xpath($html);
+        $this->assertSame(2, $xpath->query('//section[@data-step]')->length);
+        foreach ([3, 4] as $step) {
+            $this->assertSame(1, $xpath->query('//*[@id="cvb-step-'.$step.'"]')->length);
+        }
+        $this->assertSame(0, $xpath->query('//*[@id="cvb-step-1" or @id="cvb-step-5"]')->length);
+        foreach (['cvb-submit', 'cvb-submit-2'] as $id) {
+            $button = $xpath->query('//*[@id="'.$id.'"]')->item(0);
+            $this->assertStringContainsString(__('ui.gpu_request_submit'), $button->textContent);
+            $this->assertStringNotContainsString(__('ui.cvb_pay'), $button->textContent);
+        }
+        $this->assertSame(1, $xpath->query('//form[@id="cvb-form"]//input[@name="label"]')->length);
+        Http::assertNothingSent();
     }
 }

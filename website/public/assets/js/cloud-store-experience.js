@@ -54,6 +54,16 @@
     if (firstMatch) showGlobe(firstMatch);
   }
   input.addEventListener('input', filter);
+  document.addEventListener('cvx:country-select', event => {
+    const country = countries.find(item => item.dataset.country === String(event.detail?.country || '').toUpperCase());
+    if (!country) return;
+    region = 'all';
+    controls.forEach(control => control.setAttribute('aria-pressed', String(control.dataset.cvxRegion === region)));
+    input.value = country.querySelector('summary').dataset.label;
+    filter();
+    country.open = true;
+    document.getElementById('cvx-results').scrollTop = 0;
+  });
   controls.forEach(button => button.addEventListener('click', () => {
     region = button.dataset.cvxRegion;
     controls.forEach(control => control.setAttribute('aria-pressed', String(control === button)));

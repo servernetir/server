@@ -307,20 +307,22 @@ class CloudStoreCityStepTest extends TestCase
 
     // ═══════════════ ۳ — کشور و شهر، یک مرحلهٔ مکان ═══════════════
 
-    public function test_the_flow_has_four_steps_with_country_and_city_together(): void
+    public function test_the_flow_has_three_steps_with_country_and_city_together_and_name_at_checkout(): void
     {
         $this->sickCatalog();
         $html = $this->page();
 
-        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'),
-            'مسیر باید چهار مرحله داشته باشد: مکان ← مشخصات ← سیستم‌عامل ← نام');
+        $this->assertSame(3, substr_count($html, 'class="cvb-step-b"'),
+            'مسیر باید سه مرحله داشته باشد: مکان ← مشخصات ← سیستم‌عامل؛ نام کنار اقدام نهایی است');
 
-        foreach ([1, 3, 4, 5] as $n) {
+        foreach ([1, 3, 4] as $n) {
             $this->assertStringContainsString('id="cvb-step-'.$n.'"', $html);
             $this->assertStringContainsString('id="cvb-b-'.$n.'"', $html);
         }
 
         $this->assertStringNotContainsString('id="cvb-step-2"', $html);
+        $this->assertStringNotContainsString('id="cvb-step-5"', $html);
+        $this->assertStringNotContainsString('id="cvb-b-5"', $html);
         // همهٔ شهرها در همان مرحلهٔ مکان قرار دارند.
         $s1 = substr($html, (int) strpos($html, 'id="cvb-step-1"'),
             (int) strpos($html, 'id="cvb-step-3"') - (int) strpos($html, 'id="cvb-step-1"'));
@@ -328,8 +330,8 @@ class CloudStoreCityStepTest extends TestCase
         $this->assertStringContainsString('class="cvb-city', $s1);
         $this->assertStringContainsString(__('cloud-store.location'), $html);
 
-        // و تیرک مسیر چهار گره دارد.
-        $this->assertSame(4, substr_count($html, 'class="cvb-sp '), 'تیرکِ مسیر باید چهار گره داشته باشد');
+        // و تیرک مسیر همان سه تصمیم را نشان می‌دهد.
+        $this->assertSame(3, substr_count($html, 'class="cvb-sp '), 'تیرکِ مسیر باید سه گره داشته باشد');
     }
 
     /** انتخابِ خالی باید انتخابگرِ کامل داشته باشد، بدون فعال‌شدنِ پرداخت. */
