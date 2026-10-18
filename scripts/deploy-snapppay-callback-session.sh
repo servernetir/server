@@ -53,7 +53,7 @@ for c in "$MINE" "$BASE"; do
 done
 # 🔴 وجودِ شیء در کلونِ قبلی کافی نیست؛ هدف باید واقعاً روی همین شاخه باشد
 #    (سرور زیرمجموعهٔ develop است — یک بار کامیتِ ادغام‌نشده از همین راه رفت).
-git -C "$WORK/repo" merge-base --is-ancestor "$MINE" FETCH_HEAD || {
+git -C "$WORK/repo" merge-base --is-ancestor "$MINE" "origin/$BRANCH" || {
   echo "FATAL: $MINE روی $BRANCH نیست — اول ادغام، بعد انتشار."; exit 1;
 }
 echo "── هدف: $(git -C "$WORK/repo" log -1 --format='%h %s' "$MINE")"
