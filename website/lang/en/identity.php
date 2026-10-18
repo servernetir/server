@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'price_draft_help' => 'Without billing evidence confirmation, save a draft to calculate the final price. Drafts cannot be purchased. Create a new confirmed version after obtaining the evidence.',
+    'price_preview' => 'Calculated sale prices',
+    'preview_net' => 'Sale before tax',
+    'preview_tax' => 'Sale tax',
+    'preview_total' => 'Final customer price',
+    'price_billing_pending' => 'Draft; billing evidence pending',
+    'price_billing_confirmed' => 'Billing confirmed; other sale requirements apply',
     'runtime_health' => 'Active web code consistency',
     'runtime_ready' => 'Verified',
     'runtime_stale' => 'Complete deployment before enabling sales',

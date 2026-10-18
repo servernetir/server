@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'price_draft_help' => 'Ücretlendirme belgesi onaylanmadan nihai fiyatı hesaplamak için taslak kaydedin. Taslaklar satın alınamaz. Belge alındıktan sonra yeni bir onaylı sürüm oluşturun.',
+    'price_preview' => 'Hesaplanan satış fiyatları',
+    'preview_net' => 'Vergi öncesi satış',
+    'preview_tax' => 'Satış vergisi',
+    'preview_total' => 'Müşterinin nihai fiyatı',
+    'price_billing_pending' => 'Taslak; ücretlendirme belgesi bekleniyor',
+    'price_billing_confirmed' => 'Ücretlendirme onaylı; diğer satış koşulları geçerlidir',
     'runtime_health' => 'Etkin web kodu tutarlılığı',
     'runtime_ready' => 'Doğrulandı',
     'runtime_stale' => 'Satıştan önce dağıtımı tamamlayın',

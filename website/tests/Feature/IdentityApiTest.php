@@ -457,6 +457,65 @@ class IdentityApiTest extends TestCase
         $this->assertSame(0, (int) BusinessEntry::where('source_type', IdentityRequest::class)->where('kind', 'tax_paid')->sum('amount'));
     }
 
+    public function test_draft_price_can_be_calculated_but_cannot_be_offered_or_admitted(): void
+    {
+        $p = $this->price(['source_amount' => 14300, 'source_currency' => 'IRR', 'purchase_tax_amount' => 1300,
+            'billing_policy' => 'pending_billing_evidence_v1']);
+        $q = app(Pricing::class)->preview($p);
+        $this->assertSame(1430, $q['cost_irt']);
+        $this->assertSame(1502, $q['sell_irt']);
+        $this->assertSame(151, $q['tax_irt']);
+        $this->assertSame(1653, $q['total_irt']);
+        $service = collect(app(Catalog::class)->publicList())->firstWhere('slug', 'shahkar-inquiry');
+        $this->assertFalse($service['active']);
+        $this->assertNull($service['price']);
+        try {
+            $this->accept();
+            $this->fail('A draft must never reserve money or reach dispatch.');
+        } catch (\App\Services\IdentityApi\IdentityError $e) {
+            $this->assertSame('price_unavailable', $e->getMessage());
+        }
+        $this->assertSame(0, IdentityRequest::count());
+        $this->assertSame(100000, app(Wallet::class)->availableOf($this->customer->id));
+        Http::assertNothingSent();
+    }
+
+    public function test_admin_can_save_an_unconfirmed_price_and_see_final_prices_in_all_three_languages(): void
+    {
+        $u = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($u, 'web')->post('/admin/identity-api/prices', [
+            'service' => 'shahkar-inquiry', 'source_amount' => 14300, 'source_currency' => 'IRR',
+            'purchase_tax_amount' => 1300, 'purchase_tax_included' => '1', 'markup_bps' => 500,
+            'daily_quota' => 20, 'evidence' => 'synthetic-fee-observation', 'access_evidence' => 'synthetic-service-access',
+            'effective_at' => now()->subMinute()->format('Y-m-d H:i:s'), 'valid_until' => now()->addDay()->format('Y-m-d H:i:s'),
+        ])->assertRedirect()->assertSessionHasNoErrors();
+        $p = IdentityPrice::latest('id')->firstOrFail();
+        $this->assertSame('pending_billing_evidence_v1', $p->billing_policy);
+        $this->assertDatabaseHas('identity_audits', ['action' => 'price_version']);
+        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
+            $this->get('/'.$prefix.'admin/identity-api')->assertOk()
+                ->assertSee('1,653')->assertSee(__('identity.price_billing_pending', [], $locale))
+                ->assertDontSee('identity.price_billing_pending');
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_identity_fee_preview_uses_the_current_tax_table_and_cannot_bypass_expiry(): void
+    {
+        $p = $this->price(['service' => 'id-inquiry', 'source_amount' => 74800, 'source_currency' => 'IRR',
+            'purchase_tax_amount' => 6800, 'billing_policy' => 'pending_billing_evidence_v1']);
+        $q = app(Pricing::class)->preview($p);
+        $this->assertSame(7480, $q['cost_irt']);
+        $this->assertSame(7854, $q['sell_irt']);
+        $this->assertSame(786, $q['tax_irt']);
+        $this->assertSame(8640, $q['total_irt']);
+        TaxRate::create(['country' => 'IR', 'product_kind' => 'identity', 'name' => 'Synthetic new tax', 'rate_bp' => 900, 'priority' => 2, 'is_active' => true]);
+        $this->assertSame(8561, app(Pricing::class)->preview($p)['total_irt']);
+        $this->travel(2)->days();
+        $this->expectExceptionMessage('price_unavailable');
+        app(Pricing::class)->preview($p);
+    }
+
     public function test_all_thirty_one_json_services_use_their_registered_wire_contract_and_settle_synthetic_responses(): void
     {
         $fixture = function (array $s) use (&$fixture) {
