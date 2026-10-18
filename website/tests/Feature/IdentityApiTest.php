@@ -17,6 +17,7 @@ use App\Services\Finance\BusinessLedger;
 use App\Services\Finance\Wallet;
 use App\Services\Finance\WalletException;
 use App\Services\IdentityApi\Catalog;
+use App\Services\IdentityApi\BalanceSync;
 use App\Services\IdentityApi\Contract;
 use App\Services\IdentityApi\Controls;
 use App\Services\IdentityApi\Engine;
@@ -408,14 +409,20 @@ class IdentityApiTest extends TestCase
         $this->get('/api/v1/identity/services')->assertUnauthorized();
     }
 
-    public function test_customer_budget_is_shared_across_applications(): void
+    public function test_available_wallet_funds_and_holds_are_shared_across_applications_without_customer_budgets(): void
     {
-        app(Controls::class)->put('customer_cap:'.$this->customer->id, 2000, 1);
+        app(Controls::class)->put('customer_cap:'.$this->customer->id, 0, 1);
+        $this->application->update(['daily_cap_irt' => 0]);
+        $this->token->update(['daily_spend_cap_irt' => 0]);
+        app(Wallet::class)->debit($this->customer->id, 'IRT', 97000, 'invoice_payment', $this->customer);
         $this->accept();
-        $other = IdentityApplication::create(['customer_id' => $this->customer->id, 'name' => 'second', 'terms_version' => '2026-10-17', 'accepted_at' => now(), 'daily_cap_irt' => 10000]);
-        $this->expectExceptionMessage('budget_exceeded');
+        $other = IdentityApplication::create(['customer_id' => $this->customer->id, 'name' => 'second', 'terms_version' => '2026-10-17', 'accepted_at' => now(), 'daily_cap_irt' => 0]);
         app(Engine::class)->accept($other, null, 'shahkar-inquiry', $this->payload(), 'synthetic-other-app-key', 2000);
+        $this->assertSame(690, app(Wallet::class)->availableOf($this->customer->id));
+        $this->expectExceptionMessage('insufficient_funds');
+        app(Engine::class)->accept($other, null, 'shahkar-inquiry', $this->payload(), 'synthetic-third-app-key', 2000);
     }
+
 
     public function test_wrong_customer_bound_token_cannot_read_another_customers_result(): void
     {
@@ -455,6 +462,183 @@ class IdentityApiTest extends TestCase
         $this->assertSame(136, $r->quote['tax_irt']);
         $this->assertSame(1430, (int) BusinessEntry::where('source_type', IdentityRequest::class)->where('kind', 'expense')->sum('amount'));
         $this->assertSame(0, (int) BusinessEntry::where('source_type', IdentityRequest::class)->where('kind', 'tax_paid')->sum('amount'));
+    }
+
+    public function test_draft_price_can_be_calculated_but_cannot_be_offered_or_admitted(): void
+    {
+        $p = $this->price(['source_amount' => 14300, 'source_currency' => 'IRR', 'purchase_tax_amount' => 1300,
+            'billing_policy' => 'pending_billing_evidence_v1']);
+        $q = app(Pricing::class)->preview($p);
+        $this->assertSame(1430, $q['cost_irt']);
+        $this->assertSame(1502, $q['sell_irt']);
+        $this->assertSame(151, $q['tax_irt']);
+        $this->assertSame(1653, $q['total_irt']);
+        $service = collect(app(Catalog::class)->publicList())->firstWhere('slug', 'shahkar-inquiry');
+        $this->assertFalse($service['active']);
+        $this->assertNull($service['price']);
+        try {
+            $this->accept();
+            $this->fail('A draft must never reserve money or reach dispatch.');
+        } catch (\App\Services\IdentityApi\IdentityError $e) {
+            $this->assertSame('price_unavailable', $e->getMessage());
+        }
+        $this->assertSame(0, IdentityRequest::count());
+        $this->assertSame(100000, app(Wallet::class)->availableOf($this->customer->id));
+        Http::assertNothingSent();
+    }
+
+    public function test_admin_can_save_an_unconfirmed_price_and_see_final_prices_in_all_three_languages(): void
+    {
+        $u = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($u, 'web')->post('/admin/identity-api/prices', [
+            'service' => 'shahkar-inquiry', 'source_amount' => 14300, 'source_currency' => 'IRR',
+            'purchase_tax_amount' => 1300, 'purchase_tax_included' => '1', 'markup_bps' => 500,
+            'daily_quota' => 20, 'evidence' => 'synthetic-fee-observation', 'access_evidence' => 'synthetic-service-access',
+            'effective_at' => now()->subMinute()->format('Y-m-d H:i:s'), 'valid_until' => now()->addDay()->format('Y-m-d H:i:s'),
+        ])->assertRedirect()->assertSessionHasNoErrors();
+        $p = IdentityPrice::latest('id')->firstOrFail();
+        $this->assertSame('pending_billing_evidence_v1', $p->billing_policy);
+        $this->assertDatabaseHas('identity_audits', ['action' => 'price_version']);
+        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
+            $this->get('/'.$prefix.'admin/identity-api')->assertOk()
+                ->assertSee('1,502')->assertSee(__('identity.price_billing_pending', [], $locale))
+                ->assertDontSee('identity.price_billing_pending');
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_identity_fee_preview_uses_the_current_tax_table_and_cannot_bypass_expiry(): void
+    {
+        $p = $this->price(['service' => 'id-inquiry', 'source_amount' => 74800, 'source_currency' => 'IRR',
+            'purchase_tax_amount' => 6800, 'billing_policy' => 'pending_billing_evidence_v1']);
+        $q = app(Pricing::class)->preview($p);
+        $this->assertSame(7480, $q['cost_irt']);
+        $this->assertSame(7854, $q['sell_irt']);
+        $this->assertSame(786, $q['tax_irt']);
+        $this->assertSame(8640, $q['total_irt']);
+        TaxRate::create(['country' => 'IR', 'product_kind' => 'identity', 'name' => 'Synthetic new tax', 'rate_bp' => 900, 'priority' => 2, 'is_active' => true]);
+        $this->assertSame(8561, app(Pricing::class)->preview($p)['total_irt']);
+        $this->travel(2)->days();
+        $this->expectExceptionMessage('price_unavailable');
+        app(Pricing::class)->preview($p);
+    }
+
+    public function test_catalog_excludes_tax_and_read_only_purchase_quote_exposes_no_wholesale_details(): void
+    {
+        $this->token->update(['abilities' => ['identity:services:read']]);
+        $catalog = $this->withToken($this->plain)->getJson('/api/v1/identity/services')->assertOk();
+        $service = collect($catalog->json('services'))->firstWhere('slug', 'shahkar-inquiry');
+        $this->assertSame(1050, $service['price']);
+        $this->assertArrayNotHasKey('tax_irt', $service);
+        $this->assertArrayNotHasKey('total_irt', $service);
+        $quote = $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertOk()
+            ->assertJsonPath('subtotal_irt', 1050)->assertJsonPath('tax_irt', 105)->assertJsonPath('total_irt', 1155)
+            ->assertJsonPath('currency', 'IRT')->assertHeader('Cache-Control', 'no-store, private');
+        foreach (['source_amount', 'cost_irt', 'evidence', 'access_evidence', 'markup_bps'] as $field) {
+            $this->assertArrayNotHasKey($field, $quote->json());
+        }
+        $this->assertSame(0, IdentityRequest::count());
+        $this->token->update(['abilities' => ['*']]);
+        $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertForbidden();
+        Http::assertNothingSent();
+    }
+
+    public function test_tax_is_shown_in_the_purchase_confirmation_in_all_languages_and_not_the_public_rate_list(): void
+    {
+        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
+            $this->get('/'.$prefix.'identity-api')->assertOk()->assertSee('1,050')->assertDontSee('1,155');
+            $response = $this->actingAs($this->customer, 'customer')->get('/'.$prefix.'account/identity-api?service=shahkar-inquiry')->assertOk();
+            $this->assertSame(1, preg_match('/<div class="identity-checkout".*?<\/div>/s', $response->getContent(), $matches));
+            $this->assertStringContainsString(__('identity.preview_tax', [], $locale), $matches[0]);
+            $this->assertStringContainsString('1,155', $matches[0]);
+            $this->assertStringContainsString('105', $matches[0]);
+            $response->assertSee('name="max_charge_irt" value="1155"', false)->assertSee('name="price_version"', false);
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_absent_default_and_explicit_zero_historical_customer_caps_do_not_limit_wallet_usage(): void
+    {
+        DB::table('identity_controls')->where('key', 'customer_cap:'.$this->customer->id)->delete();
+        app(Controls::class)->put('default_customer_cap_irt', 0, 1);
+        $this->assertSame(1155, $this->accept('synthetic-default-cap-0001')->hold_irt);
+        app(Controls::class)->put('customer_cap:'.$this->customer->id, 0, 1);
+        $this->assertSame(1155, $this->accept('synthetic-default-cap-0002')->hold_irt);
+        Http::assertNothingSent();
+    }
+
+
+    public function test_account_checkout_rejects_a_changed_price_version_before_any_dispatch(): void
+    {
+        $quote = app(Catalog::class)->checkoutQuote('shahkar-inquiry', $this->customer);
+        $this->price(['source_amount' => 2000]);
+        $this->actingAs($this->customer, 'customer')->postJson('/account/identity-api/inquire', [
+            'application_id' => $this->application->id, 'service' => 'shahkar-inquiry', 'input' => $this->payload(),
+            'idempotency_key' => 'synthetic-account-quote-0001', 'max_charge_irt' => 10000,
+            'price_version' => $quote['price_version'], 'real_charge' => '1',
+        ])->assertStatus(409)->assertJsonPath('error', 'quote_changed');
+        $this->assertSame(0, IdentityRequest::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_stale_funding_removes_purchase_prices_and_prevents_quotes_without_an_upstream_call(): void
+    {
+        app(Controls::class)->put('upstream_balance_verified_at', now()->subMinutes(61)->toIso8601String(), 1);
+        $service = collect(app(Catalog::class)->publicList())->firstWhere('slug', 'shahkar-inquiry');
+        $this->assertFalse($service['active']);
+        $this->assertNull($service['price']);
+        $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertStatus(503);
+        $this->assertSame(0, IdentityRequest::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_owner_managed_funding_accepts_without_a_balance_observation_and_keeps_wallet_accounting(): void
+    {
+        $c = app(Controls::class);
+        $c->put('funding_mode', 'owner_managed_v1', 1);
+        $c->put('upstream_balance_irt', 0, 1);
+        $c->put('upstream_balance_verified_at', 'no-observation', 1);
+        $this->assertTrue($c->fundingReady());
+        $this->assertTrue(collect(app(Catalog::class)->publicList())->firstWhere('slug', 'shahkar-inquiry')['active']);
+        $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertOk();
+        Http::assertNothingSent();
+        $this->fake(['matched' => true]);
+        $r = app(Engine::class)->dispatch($this->accept());
+        $this->assertSame('captured', $r->financial_status);
+        $this->assertSame(98845, app(Wallet::class)->availableOf($this->customer->id));
+        $this->assertSame('no-observation', $c->get('upstream_balance_verified_at'));
+        $this->assertSame(0, $c->get('upstream_balance_irt'));
+        $this->assertSame($r->id, $this->accept()->id);
+        Http::assertSentCount(1);
+    }
+
+    public function test_owner_managed_funding_keeps_provider_daily_budget_and_customer_available_funds(): void
+    {
+        $c = app(Controls::class);
+        $c->put('funding_mode', 'owner_managed_v1', 1);
+        $c->put('provider_daily_cap_irt', 1000, 1);
+        try { $this->accept(); $this->fail('Provider budget must remain enforced.'); }
+        catch (\App\Services\IdentityApi\IdentityError $e) { $this->assertSame('provider_unavailable', $e->getMessage()); }
+        $c->put('provider_daily_cap_irt', 1000000, 1);
+        $this->price(['source_amount' => 200000]);
+        try { app(Engine::class)->accept($this->application, $this->token, 'shahkar-inquiry', $this->payload(), 'synthetic-owner-funded-0002', 500000); $this->fail('Available customer funds must remain enforced.'); }
+        catch (\App\Services\IdentityApi\IdentityError $e) { $this->assertSame('insufficient_funds', $e->getMessage()); }
+        $this->assertSame(0, IdentityRequest::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_owner_managed_mode_never_reads_a_balance_even_when_prepared_sync_is_forced(): void
+    {
+        $c = app(Controls::class);
+        $c->put('funding_mode', 'owner_managed_v1', 1);
+        $c->put('balance_sync_enabled', true, 1);
+        config(['identity_api.balance_token' => 'synthetic-read-only-key']);
+        $before = [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')];
+        $this->assertSame('disabled', app(BalanceSync::class)->refreshIfDue(true));
+        $this->assertSame($before, [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')]);
+        $c->put('funding_mode', 'invalid-policy', 1);
+        $this->assertFalse($c->fundingReady());
+        Http::assertNothingSent();
     }
 
     public function test_all_thirty_one_json_services_use_their_registered_wire_contract_and_settle_synthetic_responses(): void
@@ -505,22 +689,23 @@ class IdentityApiTest extends TestCase
         $this->assertSame(31, CreditEntry::where('reason', 'identity_inquiry')->count());
     }
 
-    public function test_confirmed_zero_cost_still_has_a_daily_quota(): void
+    public function test_legacy_daily_count_metadata_does_not_limit_customer_usage(): void
     {
         $this->price(['source_amount' => 0, 'confirmed_zero_cost' => true, 'daily_quota' => 1]);
         $this->fake();
-        $r = app(Engine::class)->dispatch($this->accept());
-        $this->assertSame('captured', $r->financial_status);
-        $this->assertSame(0, $r->charged_irt);
-        $this->expectExceptionMessage('quota_exceeded');
-        $this->accept('synthetic-second-zero-key');
+        $first = app(Engine::class)->dispatch($this->accept());
+        $second = app(Engine::class)->dispatch($this->accept('synthetic-second-zero-key'));
+        $this->assertSame('captured', $second->financial_status);
+        $this->assertSame(0, $first->charged_irt + $second->charged_irt);
+        Http::assertSentCount(2);
     }
+
 
     public function test_identity_token_issuance_is_bound_hashed_and_requires_an_owned_application(): void
     {
         $this->actingAs($this->customer, 'customer')->post('/account/security/api-token', [
             'name' => 'New identity key', 'abilities' => ['identity:execute', 'identity:authentication'],
-            'identity_application_id' => $this->application->id, 'daily_spend_cap_irt' => 1000, 'expires_days' => 1, 'cidrs' => '192.0.2.0/24',
+            'identity_application_id' => $this->application->id, 'expires_days' => 1, 'cidrs' => '192.0.2.0/24',
         ])->assertRedirect()->assertSessionHas('new_token');
         $plain = session('new_token');
         $key = CustomerApiToken::orderByDesc('id')->first();
@@ -542,8 +727,264 @@ class IdentityApiTest extends TestCase
         $this->actingAs($this->customer, 'customer')->post('/account/identity-api/keys/'.$this->token->id, [
             'daily_spend_cap_irt' => 500, 'cidrs' => '192.0.2.1', 'expires_days' => 1,
         ])->assertRedirect();
-        $this->assertSame(500, (int) $this->token->fresh()->daily_spend_cap_irt);
+        $this->assertSame(100000, (int) $this->token->fresh()->daily_spend_cap_irt); // Shared non-identity budget is not rewritten.
         $this->assertFalse($this->token->fresh()->allowsIp('198.51.100.1'));
         $this->assertFalse(session()->has('new_token'));
+    }
+
+    private function enableBalanceSync(): Controls
+    {
+        config(['identity_api.balance_token' => 'synthetic-read-only-financial-key']);
+        $controls = app(Controls::class);
+        $controls->put('balance_sync_enabled', true, 1);
+
+        return $controls;
+    }
+
+    public function test_balance_sync_reads_real_endpoint_in_rials_and_preserves_all_budgets_and_customer_records(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        foreach (['provider_daily_cap_irt' => 100000, 'internal_kyc_reserve_irt' => 200000, 'provider_concurrency' => 1, 'default_customer_cap_irt' => 25000] as $key => $value) {
+            $c->put($key, $value, 1);
+        }
+        $c->put('upstream_balance_verified_at', now()->subMinutes(50)->toIso8601String(), 1);
+        $counts = [IdentityRequest::count(), IdentityApplication::count(), CustomerApiToken::count(), CreditEntry::count(), BusinessEntry::count()];
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 4757809], 200)]);
+        $this->artisan('identity:sync-balance')->expectsOutput('balance_sync=updated')->assertSuccessful();
+        $this->assertSame(475780, $c->get('upstream_balance_irt'));
+        $this->assertSame(now()->startOfSecond()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+        $this->assertSame('ok', $c->get('balance_sync_state')['status']);
+        $this->assertTrue($c->fundingReady());
+        foreach (['provider_daily_cap_irt' => 100000, 'internal_kyc_reserve_irt' => 200000, 'provider_concurrency' => 1, 'default_customer_cap_irt' => 25000] as $key => $value) {
+            $this->assertSame($value, $c->get($key));
+        }
+        $this->assertSame($counts, [IdentityRequest::count(), IdentityApplication::count(), CustomerApiToken::count(), CreditEntry::count(), BusinessEntry::count()]);
+        Http::assertSent(fn ($r) => $r->method() === 'GET' && $r->url() === 'https://service.zohal.io/api/v0/financial/wallet/'
+            && $r->hasHeader('Authorization', 'Bearer synthetic-read-only-financial-key') && $r->data() === []);
+        $this->assertSame('not_due', app(BalanceSync::class)->refreshIfDue());
+        Http::assertSentCount(1);
+        $this->travel(6)->minutes();
+        $this->artisan('identity:reconcile')->assertSuccessful();
+        $this->assertSame(now()->startOfSecond()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+        Http::assertSentCount(2);
+        for ($i = 0; $i < 12; $i++) {
+            $this->travel(6)->minutes();
+            $this->artisan('identity:reconcile')->assertSuccessful();
+            $this->assertTrue($c->fundingReady());
+        }
+        Http::assertSentCount(14);
+        $this->assertSame(100000, $c->get('provider_daily_cap_irt'));
+        $this->assertSame(200000, $c->get('internal_kyc_reserve_irt'));
+    }
+
+    public static function invalidBalanceResponses(): array
+    {
+        return [
+            'unauthorized' => [401, '{"detail":"Unauthorized"}', 'application/json'],
+            'rate limited' => [429, '{"balance":4757800}', 'application/json'],
+            'server failure' => [500, '{"balance":4757800}', 'application/json'],
+            'redirect' => [302, '{"balance":4757800}', 'application/json'],
+            'HTML login' => [200, '<html>Login</html>', 'text/html'],
+            'missing balance' => [200, '{}', 'application/json'],
+            'negative' => [200, '{"balance":-1}', 'application/json'],
+            'float' => [200, '{"balance":4757800.0}', 'application/json'],
+            'exponent string' => [200, '{"balance":"4e6"}', 'application/json'],
+            'boolean' => [200, '{"balance":true}', 'application/json'],
+            'unbounded' => [200, '{"balance":1000000000001}', 'application/json'],
+            'wrong unit' => [200, '{"balance":4757800,"currency":"IRT"}', 'application/json'],
+            'error envelope' => [200, '{"balance":4757800,"result":5}', 'application/json'],
+            'error details' => [200, '{"balance":4757800,"detail":"invalid"}', 'application/json'],
+        ];
+    }
+
+    #[DataProvider('invalidBalanceResponses')]
+    public function test_failed_balance_observation_never_extends_the_previous_evidence(int $status, string $body, string $type): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $at = now()->subMinutes(61)->toIso8601String();
+        $c->put('upstream_balance_verified_at', $at, 1);
+        $before = $c->get('upstream_balance_irt');
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response($body, $status, ['Content-Type' => $type])]);
+        $this->artisan('identity:sync-balance')->expectsOutput('balance_sync=failed')->assertFailed();
+        $this->assertSame($at, $c->get('upstream_balance_verified_at'));
+        $this->assertSame($before, $c->get('upstream_balance_irt'));
+        $this->assertFalse($c->fundingReady());
+        $this->assertSame('failed', $c->get('balance_sync_state')['status']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_balance_sync_keeps_zero_as_a_real_observation_and_closes_admission(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 0], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->assertSame(0, $c->get('upstream_balance_irt'));
+        $this->assertSame(now()->startOfSecond()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+        $this->assertFalse($c->fundingReady());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept();
+    }
+
+    public function test_balance_sync_requires_separate_financial_access_and_never_uses_the_inquiry_key(): void
+    {
+        app(Controls::class)->put('balance_sync_enabled', true, 1);
+        config(['identity_api.balance_token' => null]);
+        $this->assertSame('not_configured', app(BalanceSync::class)->refreshIfDue());
+        Http::assertNothingSent();
+        $this->assertNull(app(Controls::class)->get('balance_sync_state'));
+    }
+
+    public function test_balance_sync_is_opt_in_and_network_failure_retains_the_previous_snapshot(): void
+    {
+        $this->freezeTime();
+        config(['identity_api.balance_token' => 'synthetic-read-only-financial-key']);
+        $this->assertSame('disabled', app(BalanceSync::class)->refreshIfDue());
+        Http::assertNothingSent();
+        $c = $this->enableBalanceSync();
+        $before = [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')];
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Synthetic private exception must not be logged');
+        }]);
+        $this->assertSame('failed', app(BalanceSync::class)->refreshIfDue());
+        $this->assertSame($before, [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')]);
+        $this->assertSame('request_failed', $c->get('balance_sync_state')['error']);
+    }
+
+    public function test_admin_cannot_reintroduce_customer_daily_spending_caps(): void
+    {
+        $u = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($u, 'web')->postJson('/admin/identity-api/control', ['key' => 'default_customer_cap_irt', 'value' => '100'])->assertStatus(422);
+        $this->postJson('/admin/identity-api/control', ['key' => 'customer_cap:'.$this->customer->id, 'value' => '100'])->assertStatus(422);
+        $this->postJson('/admin/identity-api/customers', ['customer_id' => $this->customer->id, 'cap_irt' => 100])->assertStatus(410);
+        foreach (['', 'en/', 'tr/'] as $prefix) {
+            $this->get('/'.$prefix.'admin/identity-api')->assertOk()->assertDontSee('default_customer_cap_irt')->assertDontSee('customer_cap:')->assertDontSee('name="daily_quota"', false);
+        }
+        Http::assertNothingSent();
+    }
+
+
+    public function test_balance_sync_does_not_overlap_or_override_a_newer_observation(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $lock = \Illuminate\Support\Facades\Cache::lock('identity:balance-sync', 45);
+        $this->assertTrue($lock->get());
+        $this->assertSame('busy', app(BalanceSync::class)->refreshIfDue(true));
+        Http::assertNothingSent();
+        $lock->release();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => function () use ($c) {
+            $this->travel(1)->seconds();
+            $c->put('upstream_balance_verified_at', now()->toIso8601String(), 1);
+            $c->put('upstream_balance_irt', 450000, 1);
+
+            return Http::response(['balance' => 9999999], 200);
+        }]);
+        $this->assertSame('superseded', app(BalanceSync::class)->refreshIfDue(true));
+        $this->assertSame(450000, $c->get('upstream_balance_irt'));
+        $this->assertSame(now()->toIso8601String(), $c->get('upstream_balance_verified_at'));
+    }
+
+    public function test_refresh_cannot_discard_an_old_request_still_waiting_for_dispatch(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(10)])->save();
+        $this->travel(6)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 15000], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept('synthetic-second-old-hold');
+    }
+
+    public function test_settlement_racing_a_balance_read_remains_part_of_provider_exposure(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(10), 'dispatch_at' => now()->subMinute()])->save();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => function () use ($first) {
+            $this->travel(1)->seconds();
+            $first->forceFill(['financial_status' => 'captured', 'settled_at' => now()])->save();
+
+            return Http::response(['balance' => 15000], 200);
+        }]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept('synthetic-second-racing-charge');
+    }
+
+    public function test_an_expired_dispatched_request_is_retained_until_reconciliation_records_its_settlement(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(20), 'dispatch_at' => now()->subMinutes(19),
+            'decide_by' => now()->subSecond(), 'financial_status' => 'pending_reconciliation', 'settled_at' => null])->save();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 15000], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept('synthetic-second-expired-unknown');
+    }
+
+    public function test_an_old_settled_charge_already_in_the_provider_snapshot_is_not_reserved_twice(): void
+    {
+        $this->freezeTime();
+        $c = $this->enableBalanceSync();
+        $first = $this->accept();
+        $first->forceFill(['created_at' => now()->subMinutes(10), 'dispatch_at' => now()->subMinutes(5),
+            'financial_status' => 'captured', 'settled_at' => now()->subMinute()])->save();
+        $this->travel(1)->minutes();
+        Http::fake(['service.zohal.io/api/v0/financial/wallet/' => Http::response(['balance' => 15000], 200)]);
+        $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
+        $this->assertSame('reserved', $this->accept('synthetic-second-accounted-charge')->fresh()->financial_status);
+        Http::assertSentCount(1);
+    }
+
+    public function test_a_funded_customer_can_spend_beyond_all_legacy_daily_caps_and_count_limits(): void
+    {
+        $c = app(Controls::class);
+        $c->put('default_customer_cap_irt', 25000, 1);
+        $c->put('customer_cap:'.$this->customer->id, 0, 1);
+        $this->application->update(['daily_cap_irt' => 1]);
+        $this->token->update(['daily_spend_cap_irt' => 1]);
+        $this->price(['daily_quota' => 1]);
+        $this->fake();
+        for ($i = 0; $i < 30; $i++) {
+            $r = app(Engine::class)->dispatch($this->accept('synthetic-wallet-only-'.str_pad((string)$i, 4, '0', STR_PAD_LEFT)));
+            $this->assertSame('captured', $r->financial_status);
+            $this->travel(4)->seconds();
+        }
+        $this->assertSame(34650, (int) IdentityRequest::sum('charged_irt'));
+        $this->assertSame(65350, app(Wallet::class)->availableOf($this->customer->id));
+        Http::assertSentCount(30);
+    }
+
+    public function test_wallet_only_policy_still_honors_provider_funding_and_abuse_protections(): void
+    {
+        app(Controls::class)->put('provider_daily_cap_irt', 1000, 1);
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept();
+    }
+
+    public function test_identity_applications_and_keys_need_no_spending_budget_in_all_customer_forms(): void
+    {
+        $this->actingAs($this->customer, 'customer')->post('/account/identity-api/applications', ['name' => 'Wallet funded', 'accept' => '1'])->assertRedirect()->assertSessionHasNoErrors();
+        $a = IdentityApplication::latest('id')->firstOrFail();
+        $this->assertSame(0, $a->daily_cap_irt);
+        $this->post('/account/identity-api/applications/'.$a->id, ['status' => 'disabled'])->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('disabled', $a->fresh()->status);
+        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
+            $this->get('/'.$prefix.'account/identity-api')->assertOk()->assertSee(__('identity.wallet_only', [], $locale))
+                ->assertDontSee('name="daily_cap_irt"', false)->assertDontSee('name="daily_spend_cap_irt"', false);
+            $this->get('/'.$prefix.'account/security')->assertOk()->assertDontSee('name="daily_spend_cap_irt"', false);
+        }
+        Http::assertNothingSent();
     }
 }

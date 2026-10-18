@@ -17,6 +17,9 @@ use Illuminate\Support\Str;
 
 class Engine
 {
+    public const USAGE_POLICY = 'available_wallet_v1';
+    public const FUNDING_POLICY = 'owner_managed_v1';
+
     public function __construct(private Controls $controls, private Catalog $catalog, private Contract $contract, private Pricing $pricing, private Wallet $wallet) {}
 
     public function authorize(IdentityApplication $a, ?CustomerApiToken $token = null, ?string $category = null): void
@@ -79,7 +82,6 @@ class Engine
             if ($this->wallet->availableOf($a->customer_id) < $quote['total_irt']) {
                 throw new IdentityError('insufficient_funds', 402);
             }
-            $today = IdentityRequest::where('customer_id', $a->customer_id)->where('created_at', '>=', now()->startOfDay());
             $recent = IdentityRequest::where('customer_id', $a->customer_id)->where('created_at', '>=', now()->subMinute());
             if ((clone $recent)->count() >= 60 || $freshToken && (clone $recent)->where('token_id', $freshToken->id)->count() >= 20) {
                 throw new IdentityError('quota_exceeded', 429);
@@ -87,22 +89,10 @@ class Engine
             $exposure = fn ($q) => (int) $q->where(function ($q) {
                 $q->holding()->orWhere('financial_status', 'captured');
             })->sum('hold_irt');
-            $appSpent = $exposure((clone $today)->where('application_id', $a->id));
-            $customerCap = (int) $this->controls->get('customer_cap:'.$a->customer_id, 0);
-            if ($customerCap <= 0 || $exposure(clone $today) + $quote['total_irt'] > $customerCap) {
-                throw new IdentityError('budget_exceeded', 402);
-            }
-            if ($freshApp->daily_cap_irt <= 0 || $appSpent + $quote['total_irt'] > $freshApp->daily_cap_irt) {
-                throw new IdentityError('budget_exceeded', 402);
-            }
-            if ($freshToken && ((int) $freshToken->daily_spend_cap_irt <= 0 || $exposure((clone $today)->where('token_id', $freshToken->id)) + $quote['total_irt'] > (int) $freshToken->daily_spend_cap_irt)) {
-                throw new IdentityError('budget_exceeded', 402);
-            }
+            // Identity inquiries spend available wallet funds. Historical customer,
+            // application and token daily budgets no longer restrict this product.
             if (IdentityRequest::where('application_id', $a->id)->holding()->count() >= $freshApp->concurrency) {
                 throw new IdentityError('concurrency_limit', 429);
-            }
-            if ((clone $today)->where('service', $slug)->count() >= $price->daily_quota) {
-                throw new IdentityError('quota_exceeded', 429);
             }
             // Global provider funding/concurrency serialized across all tenants. No network under this lock.
             DB::table('identity_controls')->where('key', 'provider_mutex')->lockForUpdate()->firstOrFail();
@@ -113,15 +103,25 @@ class Engine
             if ($providerToday + $quote['total_irt'] > (int) $this->controls->get('provider_daily_cap_irt', 0)) {
                 throw new IdentityError('provider_unavailable', 503);
             }
-            $balanceAt = $this->controls->get('upstream_balance_verified_at');
-            if (! $balanceAt || Carbon::parse($balanceAt)->lt(now()->subMinutes((int) $this->controls->get('balance_max_age_minutes', 60)))) {
+            if (! $this->controls->fundingReady()) {
                 throw new IdentityError('provider_unavailable', 503);
             }
-            $used = (int) IdentityRequest::where('created_at', '>=', $balanceAt)->where(function ($q) {
-                $q->holding()->orWhereNotNull('dispatch_at');
-            })->sum('hold_irt');
-            if ($used + $quote['cost_irt'] + (int) $this->controls->get('internal_kyc_reserve_irt', 0) > (int) $this->controls->get('upstream_balance_irt', 0)) {
-                throw new IdentityError('provider_unavailable', 503);
+            if (! $this->controls->ownerManagedFunding()) {
+                $balanceAt = Carbon::parse($this->controls->get('upstream_balance_verified_at'));
+                $used = (int) IdentityRequest::where(function ($q) use ($balanceAt) {
+                    // A new snapshot must not discard old requests still awaiting dispatch
+                    // or settlement. Include charges racing the start of the balance read.
+                    $q->holding()->orWhere('dispatch_at', '>=', $balanceAt)
+                        ->orWhere(function ($q) {
+                            $q->whereNotNull('dispatch_at')->whereNull('settled_at');
+                        })
+                        ->orWhere(function ($q) use ($balanceAt) {
+                            $q->whereNotNull('dispatch_at')->where('settled_at', '>=', $balanceAt);
+                        });
+                })->sum('hold_irt');
+                if ($used + $quote['cost_irt'] + (int) $this->controls->get('internal_kyc_reserve_irt', 0) > (int) $this->controls->get('upstream_balance_irt', 0)) {
+                    throw new IdentityError('provider_unavailable', 503);
+                }
             }
 
             return IdentityRequest::create(['public_id' => (string) Str::uuid(), 'customer_id' => $a->customer_id, 'application_id' => $a->id, 'token_id' => $token?->id,

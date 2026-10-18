@@ -24,18 +24,28 @@ receipt = {'type': 'object', 'properties': {
     'inquiry_outcome': {'type': ['string', 'null']},
     'financial_status': {'enum': ['reserved', 'captured', 'released', 'pending_reconciliation', 'refunded']},
     'charged': {'type': 'integer', 'minimum': 0}, 'reserved': {'type': 'integer', 'minimum': 0},
+    'subtotal': {'type': 'integer', 'minimum': 0}, 'tax': {'type': 'integer', 'minimum': 0},
     'currency': {'const': 'IRT'}, 'price_version': {'type': 'integer'},
     'result': {'anyOf': [{'$ref': '#/components/schemas/' + s['slug'] + '.result'} for s in services] + [{'type': 'null'}]},
 }}
 response = {'description': 'ServerNet receipt. Result expires after 24 hours; the used key remains a tombstone.',
             'content': {'application/json': {'schema': receipt}}}
-spec = {'openapi': '3.1.0', 'info': {'title': 'ServerNet Identity & Inquiry API', 'version': '1.0.0'},
+spec = {'openapi': '3.1.0', 'info': {'title': 'ServerNet Identity & Inquiry API', 'version': '1.2.0', 'description': 'Identity requests spend available wallet funds without customer, application, key or daily-count budgets. Per-request price acceptance and provider funding, rate and concurrency protections remain.'},
         'servers': [{'url': 'https://servernet.cloud/api/v1/identity'}], 'security': [{'ServerNetBearer': []}],
         'components': {'securitySchemes': {'ServerNetBearer': {'type': 'http', 'scheme': 'bearer'}}, 'schemas': schemas}, 'paths': {}}
 for path in ['/services', '/pricing']:
     spec['paths'][path] = {'get': {'summary': 'Available catalog, accepted input schemas and current price versions',
-        'x-required-scopes': ['identity:services:read'], 'responses': {'200': {'description': 'Prices are integer IRT including output tax; unavailable prices and price versions are null.'},
+        'x-required-scopes': ['identity:services:read'], 'responses': {'200': {'description': 'Catalog price is integer IRT before output tax. Obtain a purchase quote before accepting the total. Unavailable prices and price versions are null.'},
         '401': {'description': 'Invalid key'}, '403': {'description': 'Explicit scope and owned active application required'}}}}
+spec['paths']['/quotes/{service}'] = {'get': {'summary': 'Review service amount, tax and total before a paid inquiry; no charge or upstream call',
+    'x-required-scopes': ['identity:services:read'], 'parameters': [{'name': 'service', 'in': 'path', 'required': True,
+        'schema': {'type': 'string', 'enum': [s['slug'] for s in services]}}], 'responses': {
+        '200': {'description': 'Use total_irt as max_charge_irt and retain price_version for execution.', 'content': {'application/json': {'schema': {
+            'type': 'object', 'properties': {'service': {'type': 'string'}, 'currency': {'const': 'IRT'},
+                'price_version': {'type': 'integer'}, 'subtotal_irt': {'type': 'integer'}, 'tax_bps': {'type': 'integer'},
+                'tax_irt': {'type': 'integer'}, 'total_irt': {'type': 'integer'}, 'quoted_at': {'type': 'string', 'format': 'date-time'}}}}}},
+        '401': {'description': 'Invalid key'}, '403': {'description': 'Owned eligible application and explicit read scope required'},
+        '503': {'description': 'Current price, service or funding unavailable'}}}}
 spec['paths']['/inquiries/{service}'] = {'post': {
     'summary': 'Execute a paid inquiry with an accepted maximum fee',
     'x-required-scopes': ['identity:execute', 'identity:<service category>'],
@@ -46,7 +56,7 @@ spec['paths']['/inquiries/{service}'] = {'post': {
         'properties': {'input': {'anyOf': [{'$ref': '#/components/schemas/' + s['slug']} for s in services]},
                        'max_charge_irt': {'type': 'integer', 'minimum': 0}, 'price_version': {'type': 'integer', 'minimum': 1}}}}}},
     'responses': {'200': response, '202': response, **{str(code): {'description': text} for code, text in {
-        401: 'Invalid or expired key', 402: 'Insufficient available funds or budget', 403: 'Explicit scopes and owned eligible application required',
+        401: 'Invalid or expired key', 402: 'Insufficient available wallet funds', 403: 'Explicit scopes and owned eligible application required',
         409: 'Idempotency payload or quote conflict', 422: 'Invalid input; identifiers must be strings', 429: 'Rate, quota or concurrency limit',
         503: 'Service, pricing, funding or contract prerequisites unavailable'}.items()}}}}
 spec['paths']['/requests/{id}'] = {'get': {'x-required-scopes': ['identity:requests:read'], 'parameters': [

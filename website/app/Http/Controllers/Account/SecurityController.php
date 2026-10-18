@@ -194,7 +194,7 @@ class SecurityController extends Controller
         if (array_intersect($abilities,array_keys(CustomerApiToken::IDENTITY_ABILITIES))) {
             abort_unless(app(\App\Services\IdentityApi\Controls::class)->ready(),503);
             $identityApplication=\App\Models\IdentityApplication::where('customer_id',$c->id)->where('status','active')->find($data['identity_application_id']??0);
-            if (!$identityApplication || empty($data['daily_spend_cap_irt'])) return back()->withErrors(['identity_application_id'=>__('identity.error_product_not_active')])->withFragment('sec-api');
+            if (!$identityApplication) return back()->withErrors(['identity_application_id'=>__('identity.error_product_not_active')])->withFragment('sec-api');
         }
 
         /*
@@ -272,7 +272,7 @@ class SecurityController extends Controller
             $aiProject?->id,
             $identityApplication?->id,
         );
-        if ($aiProject !== null || $identityApplication !== null) {
+        if ($aiProject !== null) {
             $issued->forceFill(['daily_spend_cap_irt' => $data['daily_spend_cap_irt'] ?? 0])->save();
         }
 
@@ -300,15 +300,15 @@ class SecurityController extends Controller
     public function identityTokenUpdate(Request $request,CustomerApiToken $token): RedirectResponse
     {
         abort_unless($token->customer_id===$this->customer()->id && $token->identity_application_id!==null,404);
-        $d=$request->validate(['daily_spend_cap_irt'=>['required','integer','min:1','max:9000000000000'],
-            'cidrs'=>['nullable','string','max:500'],'expires_days'=>['nullable','integer','min:1','max:1825']]);
+        $d=$request->validate(['cidrs'=>['nullable','string','max:500'],'expires_days'=>['nullable','integer','min:1','max:1825']]);
         $cidrs=[];
         foreach(preg_split('/[\s,]+/',(string)($d['cidrs']??''),-1,PREG_SPLIT_NO_EMPTY) as $raw) {
             $cidr=$this->normalizeCidr($raw);
             if ($cidr===null) return back()->withErrors(['cidrs'=>__('identity.error_invalid_input')]);
             $cidrs[]=$cidr;
         }
-        $update=['daily_spend_cap_irt'=>(int)$d['daily_spend_cap_irt'],'allowed_cidrs'=>$cidrs];
+        // This form changes identity access only; any shared AI budget stays intact.
+        $update=['allowed_cidrs'=>$cidrs];
         if (!empty($d['expires_days'])) $update['expires_at']=now()->addDays((int)$d['expires_days']);
         $token->update($update);
         return back()->with('ok',__('identity.saved'));

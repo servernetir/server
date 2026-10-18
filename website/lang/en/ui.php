@@ -2700,6 +2700,18 @@ return [
     'cy_not_payable' => 'This invoice is not payable.',
     'cy_busy' => 'Temporarily unavailable',
     'cy_busy_hint' => 'All receiving addresses are in use right now — please try again in a few minutes.',
+    'cy_choose_coin' => 'Payment currency and network',
+    'cy_invoice_amount' => 'Invoice amount',
+    'cy_approx_label' => 'Approximate equivalent',
+    'cy_scan' => 'Scan with your wallet',
+    'cy_copy' => 'Copy',
+    'cy_for_invoice' => 'For invoice :amount — rate locked until the timer ends',
+    'cy_network_only' => 'Send exactly this amount, on the :net network only. Transfers on any other network cannot be recovered.',
+    'cy_step_wait' => 'Awaiting payment',
+    'cy_step_seen' => 'Transaction detected',
+    'cy_step_done' => 'Confirmed and paid',
+    'cy_expired_title' => 'Payment window expired',
+    'cy_new_address' => 'Get a new address',
 
     // ── Comparison sheet: the cloud plan list rendered as a table ──
     'cvb_disk' => 'Disk',

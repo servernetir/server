@@ -1,0 +1,58 @@
+{
+  "release": "identity-api-20261018-funding",
+  "source_sha": "03af20f9832607bf01ebf1ef95b61de015613332",
+  "base_sha": "99841407cbb51e2e940c8cdb44265431ba9e848b",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "app/Services/IdentityApi/BalanceSync.php",
+      "before": null,
+      "after": "7dcfc53967a129a70423da132481e7fec74a86308463c43963127faa70161f2b"
+    },
+    {
+      "path": "app/Services/IdentityApi/Engine.php",
+      "before": "233856ff9dbd733e61c364effdc7b6e6b33ee26c415155e594e6f23db452ae42",
+      "after": "c1d018ea6ecf295d347b7b42dfbe8227361d3ecac5f84b417858dcdc6203c125"
+    },
+    {
+      "path": "config/identity_api.php",
+      "before": "27792e0e1a0dea0d0a1bb0bde14a4460bc59ffb74ac1b76c65ec9cf0a49a3d42",
+      "after": "9b7b536c36ee2366cd2a148caa8a93cd4f03c2478b44c1452fc88f407cf34dd1"
+    },
+    {
+      "path": "app/Console/Commands/IdentitySyncBalance.php",
+      "before": null,
+      "after": "aa77bf2286b68ca9a3e0b5d81e986f5a093487944a8a429405680eff27404923"
+    },
+    {
+      "path": "app/Console/Commands/IdentityReconcile.php",
+      "before": "75084f6b97abd91ac14e21eb262cacc4d1a05c7266eed32e03c773cb1fcdbcec",
+      "after": "d726798613a3fb5c0ed243d0a848c69b80a1369fab05e4bcf5f5c5c606c2e0f6"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/IdentityController.php",
+      "before": "366f175179c7d2d404c1aeb667d3222d787a687450e103e24ac85cb8a00722a5",
+      "after": "2a429c544e8743d0707457d0493c84b169e6d970337ec1907078d123d9d6b82a"
+    },
+    {
+      "path": "lang/fa/identity.php",
+      "before": "d102f912e8c58a7ee1c2b0ec49d91fab1b9b4599ce61f710c854a6e4d4b1ba42",
+      "after": "e124ec157e8a37ff411b21f792c0a114b7a90d88f689e9141ef7e0dddfe5b656"
+    },
+    {
+      "path": "lang/en/identity.php",
+      "before": "96d2f4abaac72b077dfbb8e68fb7ed5bdd552754759fb3a6aacd634196291450",
+      "after": "351d0a7ae16b3b4eef62fc8acd60266e3faa4dc806bb56ca8ab2e2bddcbc7ba9"
+    },
+    {
+      "path": "lang/tr/identity.php",
+      "before": "d7a491de94c0724dbd95f400ea2495d679be4193d50f80776acf55aa362cbf31",
+      "after": "1410a1fca8c28d29d702b1422ad1c08477af8b3e0780465d08a3fc8d4fc6a4f7"
+    },
+    {
+      "path": "resources/views/admin/identity.blade.php",
+      "before": "3ca43b700a491223f8bd7e63d034cae85ff4f4c38f2e0469f2023dfbf2c02612",
+      "after": "84a5f70031d3d16f2f035fc8158f9fc358856143de6e34274d4ffa4755f33a1a"
+    }
+  ]
+}

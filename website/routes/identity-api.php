@@ -19,6 +19,7 @@ Route::prefix('api/v1/identity')->withoutMiddleware([
     $auth = CustomerApiToken::class;
     Route::get('services', [$c, 'services'])->middleware($auth.':identity:services:read');
     Route::get('pricing', [$c, 'services'])->middleware($auth.':identity:services:read');
+    Route::get('quotes/{service}', [$c, 'quote'])->middleware($auth.':identity:services:read');
     Route::post('inquiries/{service}', [$c, 'inquire'])->middleware([$auth.':identity:execute', 'throttle:20,1']);
     Route::get('requests/{id}', [$c, 'show'])->middleware($auth.':identity:requests:read');
 });

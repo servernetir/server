@@ -10,8 +10,18 @@ class Pricing
 {
     public function quote(IdentityPrice $p, ?Customer $customer = null): array
     {
+        if ($p->billing_policy !== 'valid_data_v1') {
+            throw new IdentityError('price_unavailable', 503);
+        }
+
+        return $this->preview($p, $customer);
+    }
+
+    /** Operator-only calculation; a preview does not approve billing or enable a service. */
+    public function preview(IdentityPrice $p, ?Customer $customer = null): array
+    {
         if ($p->valid_until->isPast() || $p->effective_at->isFuture() || ! in_array($p->source_currency, ['IRR', 'IRT'], true)
-            || $p->billing_policy !== 'valid_data_v1' || ! $p->evidence || ! $p->access_evidence
+            || ! in_array($p->billing_policy, ['valid_data_v1', 'pending_billing_evidence_v1'], true) || ! $p->evidence || ! $p->access_evidence
             || ($p->source_amount === 0 && ! $p->confirmed_zero_cost) || $p->daily_quota < 1
             || ! $p->purchase_tax_included || $p->purchase_tax_amount > $p->source_amount
             || $p->source_amount > 1000000000000 || $p->markup_bps > 10000) {

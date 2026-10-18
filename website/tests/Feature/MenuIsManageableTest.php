@@ -147,6 +147,7 @@ class MenuIsManageableTest extends TestCase
             lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']),
             lroute('solution', 'infrastructure'),
             lroute('solution', 'ai-agents'),
+            lroute('identity.home'),
             lroute('solution', 'bpmn-erp'),
             lroute('solution', 'web-design'),
             lroute('solution', 'seo-services'),

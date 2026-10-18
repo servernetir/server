@@ -1,0 +1,13 @@
+{
+  "source_sha": "5fdaf765f33aa3a086e1901d6a2081c76410e17e",
+  "suite": "IdentityApiTest",
+  "php": "8.4.26",
+  "database": "isolated SQLite in-memory",
+  "tests": 49,
+  "assertions": 397,
+  "errors": 0,
+  "failures": 0,
+  "skipped": 0,
+  "synthetic_http": true,
+  "paid_calls": 0
+}

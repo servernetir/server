@@ -50,4 +50,23 @@ class SitemapUrlPolicyTest extends TestCase
             $this->assertFalse(SitemapUrlPolicy::allowsQuery($path, $query), $path.'?'.$query);
         }
     }
+
+    public function test_only_known_ai_model_categories_are_allowed(): void
+    {
+        foreach (['/ai/models', '/en/ai/models', '/tr/ai/models'] as $path) {
+            foreach (\App\Models\AiModel::CATEGORIES as $category) {
+                $this->assertTrue(SitemapUrlPolicy::allowsQuery($path, 'type='.$category));
+            }
+        }
+
+        foreach ([
+            ['/ai/models', 'type=unknown'],
+            ['/ai/models', 'type=chat&page=2'],
+            ['/ai/models', 'type=chat%20'],
+            ['/ai/models', 'cat=chat'],
+            ['/ai/model', 'type=chat'],
+        ] as [$path, $query]) {
+            $this->assertFalse(SitemapUrlPolicy::allowsQuery($path, $query), $path.'?'.$query);
+        }
+    }
 }

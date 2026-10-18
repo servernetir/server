@@ -43,6 +43,14 @@ class IdentityController extends Controller
         return response()->json($r->receipt(), in_array($r->processing_status, ['accepted', 'processing', 'unknown'], true) ? 202 : 200);
     }
 
+    public function quote(Request $request, string $service, Catalog $catalog, Engine $engine)
+    {
+        $a = $this->application($request);
+        $engine->authorize($a);
+
+        return response()->json($catalog->checkoutQuote($service, $request->attributes->get('api_customer')));
+    }
+
     public function show(Request $request, string $id)
     {
         $a = $this->application($request);

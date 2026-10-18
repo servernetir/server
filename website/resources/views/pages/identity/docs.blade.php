@@ -4,7 +4,10 @@
 @include('pages.identity.style')
 @section('content')<div class="id-wrap">@include('pages.identity.nav')<h1>{{ __('identity.docs') }}</h1><p class="id-lead">{{ __('identity.docs_intro') }}</p>
 <a href="{{ lroute('identity.openapi') }}">OpenAPI 3.1 JSON</a><div class="id-note">{{ __('identity.key_help') }} {{ __('identity.retry_help') }}</div>
-<h2>curl</h2><pre class="id-code">curl https://servernet.cloud/api/v1/identity/services \
+<p>{{ __('identity.wallet_only') }}</p><h2>curl</h2><pre class="id-code">curl https://servernet.cloud/api/v1/identity/services \
+  -H "Authorization: Bearer $SERVERNET_API_KEY"
+
+curl https://servernet.cloud/api/v1/identity/quotes/shahkar-inquiry \
   -H "Authorization: Bearer $SERVERNET_API_KEY"
 
 curl -X POST https://servernet.cloud/api/v1/identity/inquiries/shahkar-inquiry \

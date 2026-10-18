@@ -29,15 +29,17 @@ class IdentityController extends Controller
             }
         }
         $selected = null;
+        $checkout = null;
         if ($request->query('service')) {
             try {
                 $selected = $catalog->find((string) $request->query('service'));
+                $checkout = $catalog->checkoutQuote($selected['slug'], $c);
             } catch (IdentityError) {
             }
         }
 
         return view('account.identity', AccountController::shell('identity') + [
-            'ready' => $ready, 'services' => $catalog->publicList(), 'selected' => $selected,
+            'ready' => $ready, 'services' => $catalog->publicList(), 'selected' => $selected, 'checkout' => $checkout,
             'applications' => $ready ? IdentityApplication::where('customer_id', $c->id)->get() : collect(),
             'history' => $query ? $query->orderByDesc('id')->paginate(20) : null,
             'balance' => $wallet->balanceOf($c->id), 'reserved' => $wallet->reservedOf($c->id),
@@ -55,13 +57,13 @@ class IdentityController extends Controller
         if (! IdentityVerification::where('customer_id', $c->id)->where('status', 'verified')->exists()) {
             throw new IdentityError('product_not_active', 403);
         }
-        $d = $request->validate(['name' => ['required', 'string', 'max:80'], 'daily_cap_irt' => ['required', 'integer', 'min:1', 'max:9000000000000'], 'accept' => ['accepted']]);
+        $d = $request->validate(['name' => ['required', 'string', 'max:80'], 'accept' => ['accepted']]);
         DB::transaction(function () use ($c, $d) {
             Customer::whereKey($c->id)->lockForUpdate()->firstOrFail();
             if (IdentityApplication::where('customer_id', $c->id)->count() >= 10) {
                 throw new IdentityError('quota_exceeded', 429);
             }
-            IdentityApplication::create(['customer_id' => $c->id, 'name' => $d['name'], 'daily_cap_irt' => $d['daily_cap_irt'],
+            IdentityApplication::create(['customer_id' => $c->id, 'name' => $d['name'], 'daily_cap_irt' => 0,
                 'terms_version' => config('identity_api.terms_version'), 'accepted_at' => now()]);
         });
 
@@ -71,7 +73,7 @@ class IdentityController extends Controller
     public function update(Request $request, IdentityApplication $application)
     {
         abort_unless($application->customer_id === Auth::guard('customer')->id(), 404);
-        $d = $request->validate(['status' => ['required', 'in:active,disabled'], 'daily_cap_irt' => ['required', 'integer', 'min:1', 'max:9000000000000']]);
+        $d = $request->validate(['status' => ['required', 'in:active,disabled']]);
         $application->update($d);
 
         return back()->with('ok', __('identity.saved'));
@@ -80,7 +82,7 @@ class IdentityController extends Controller
     public function inquire(Request $request, Engine $engine, Catalog $catalog)
     {
         $d = $request->validate(['application_id' => ['required', 'integer'], 'service' => ['required', 'string', 'max:100'], 'input' => ['required', 'array'],
-            'idempotency_key' => ['required', 'string', 'max:128'], 'max_charge_irt' => ['required', 'integer', 'min:0'], 'real_charge' => ['accepted']]);
+            'idempotency_key' => ['required', 'string', 'max:128'], 'max_charge_irt' => ['required', 'integer', 'min:0'], 'price_version' => ['nullable', 'integer', 'min:1'], 'real_charge' => ['accepted']]);
         $a = IdentityApplication::where('customer_id', Auth::guard('customer')->id())->findOrFail($d['application_id']);
         $s = $catalog->find($d['service']);
         // HTML controls submit strings; public API retains strict native JSON types.
@@ -92,7 +94,7 @@ class IdentityController extends Controller
                 $d['input'][$k] = $d['input'][$k] === 'true';
             }
         }
-        $r = $engine->accept($a, null, $d['service'], $d['input'], $d['idempotency_key'], (int) $d['max_charge_irt']);
+        $r = $engine->accept($a, null, $d['service'], $d['input'], $d['idempotency_key'], (int) $d['max_charge_irt'], isset($d['price_version']) ? (int) $d['price_version'] : null);
         $r = $engine->dispatch($r);
 
         return response()->json($r->receipt(), $r->financial_status === 'captured' ? 200 : 202);

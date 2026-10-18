@@ -7,6 +7,7 @@ use App\Services\Finance\BusinessLedger;
 use App\Services\Finance\Wallet;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Carbon;
 
 class Controls
 {
@@ -50,6 +51,33 @@ class Controls
             && $this->get('egress_verified', false) === true;
     }
 
+    public function fundingReady(): bool
+    {
+        if ($this->ownerManagedFunding()) {
+            return (int) $this->get('provider_daily_cap_irt', 0) > 0;
+        }
+        if ($this->get('funding_mode', 'verified_balance_v1') !== 'verified_balance_v1') {
+            return false;
+        }
+        $at = $this->get('upstream_balance_verified_at');
+        try {
+            $date = $at ? Carbon::parse($at) : null;
+
+            return $date && ! $date->isFuture()
+                && $date->gte(now()->subMinutes((int) $this->get('balance_max_age_minutes', 60)))
+                && (int) $this->get('provider_daily_cap_irt', 0) > 0
+                && (int) $this->get('upstream_balance_irt', 0) > (int) $this->get('internal_kyc_reserve_irt', 0);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** An explicit owner policy, never a fabricated balance observation. */
+    public function ownerManagedFunding(): bool
+    {
+        return $this->get('funding_mode', 'verified_balance_v1') === 'owner_managed_v1';
+    }
+
     /** Guard partial deployments or stale web bytecode before any paid request. */
     public function runtimeReady(): bool
     {
@@ -57,6 +85,8 @@ class Controls
         $legacy = new CustomerApiToken(['abilities' => ['*'], 'identity_application_id' => 1]);
 
         return in_array('excludingIdentityRequestId', $parameters, true)
+            && defined(Engine::class.'::USAGE_POLICY') && Engine::USAGE_POLICY === 'available_wallet_v1'
+            && defined(Engine::class.'::FUNDING_POLICY') && Engine::FUNDING_POLICY === 'owner_managed_v1'
             && method_exists(BusinessLedger::class, 'recordIdentitySale')
             && defined(CustomerApiToken::class.'::IDENTITY_ABILITIES')
             && ! $legacy->can('identity:execute');

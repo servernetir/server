@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Services\IdentityApi\Catalog;
+use App\Services\IdentityApi\Engine;
 
 class IdentityStorefrontController extends Controller
 {
     public function home(Catalog $catalog)
     {
-        return view('pages.identity.home', ['services' => $catalog->publicList()]);
+        return response()->view('pages.identity.home', ['services' => $catalog->publicList()])
+            ->header('X-Identity-Usage-Policy', defined(Engine::class.'::USAGE_POLICY') ? Engine::USAGE_POLICY : 'pending')
+            ->header('X-Identity-Funding-Policy', defined(Engine::class.'::FUNDING_POLICY') ? Engine::FUNDING_POLICY : 'pending');
     }
 
     public function docs()

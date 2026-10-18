@@ -109,6 +109,10 @@ class CryptoIssuer
     {
         $out = $this->offers($invoice->currency_code);
 
+        foreach ($out as $code => $spec) {
+            $out[$code]['estimate'] = $spec['state'] === self::READY ? $this->estimate($invoice, $code) : null;
+        }
+
         if ($open !== null && isset(self::ASSETS[$open->asset])) {
             $out[$open->asset] = self::ASSETS[$open->asset] + ['state' => self::OPEN];
         }
@@ -316,6 +320,26 @@ class CryptoIssuer
 
         // عملاً نشدنی؛ ولی اگر شد، مبلغِ اصلی از نساختنِ پرداخت بهتر است
         return $atomic;
+    }
+
+    /**
+     * مبلغِ تقریبی برای فهرستِ انتخابِ ارز — «≈ 0.0381».
+     *
+     * ⚠️ فقط نمایش است: از نرخِ کش‌شده (بی‌تماسِ شبکه) و بدونِ اثرِ انگشت
+     * ساخته می‌شود. مبلغِ **قطعی** همانی است که `issue()` قفل می‌کند؛ صفحه
+     * این عدد را با «≈» نشان می‌دهد تا کسی آن را برای فرستادن کپی نکند.
+     */
+    private function estimate(Invoice $invoice, string $asset): ?string
+    {
+        $decimals = self::ASSETS[$asset]['decimals'];
+        $atomic = $this->atomicFor((int) $invoice->due(), $invoice->currency_code,
+            $this->rateMicro($asset, $invoice->currency_code, live: false), $decimals);
+
+        if ($atomic <= 0) {
+            return null;
+        }
+
+        return rtrim(rtrim(number_format($atomic / (10 ** $decimals), min(4, $decimals), '.', ''), '0'), '.') ?: null;
     }
 
     private function atomicFor(int $due, string $currency, int $rateMicro, int $decimals): int

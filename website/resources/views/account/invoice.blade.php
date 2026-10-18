@@ -244,29 +244,32 @@
         </label>
       @endif
 
-      {{-- رمزارز — درگاهِ خودمان.
-           ⚠️ دارایی‌ای که **قیمتش را نداریم** اصلاً این‌جا نیست؛ حدس زدنِ نرخ
+      {{-- رمزارز — درگاهِ خودمان، **یک** کارت؛ انتخابِ ارز/شبکه داخلِ پنل است.
+           ⚠️ دارایی‌ای که **قیمتش را نداریم** اصلاً در فهرست نیست؛ حدس زدنِ نرخ
            ممنوع است. ولی «همهٔ آدرس‌ها مشغول‌اند» فرق دارد و باید **گفته** شود،
            نه اینکه روش پرداخت بی‌صدا غیب شود — کارفرما دقیقاً همان سکوت را دید
            و فکر کرد قابلیت اصلاً کار نمی‌کند. --}}
-      @foreach($cryptoAssets as $code => $spec)
-        @if($spec['state'] === \App\Services\Payment\CryptoIssuer::BUSY)
-          <label class="pm-card is-off" data-m="cy{{ $code }}" title="{{ __('ui.cy_busy_hint') }}">
-            <input type="radio" name="pm" value="cy{{ $code }}" hidden disabled>
+      @if(! empty($cryptoAssets))
+        @php
+          $cyAllBusy = collect($cryptoAssets)->every(fn ($s) => $s['state'] === \App\Services\Payment\CryptoIssuer::BUSY);
+          $cyCodes = implode(' · ', array_keys($cryptoAssets));
+        @endphp
+        @if($cyAllBusy && ! $cryptoOpen)
+          <label class="pm-card is-off" data-m="crypto" title="{{ __('ui.cy_busy_hint') }}">
+            <input type="radio" name="pm" value="crypto" hidden disabled>
             <span class="pm-badge cr"><svg class="icon"><use href="#i-coins"/></svg></span>
             <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small>{{ __('ui.cy_busy_hint') }}</small></span>
             <span class="pm-soon">{{ __('ui.cy_busy') }}</span>
           </label>
         @else
-          <label class="pm-card" data-m="cy{{ $code }}">
-            <input type="radio" name="pm" value="cy{{ $code }}" hidden
-                   @if($cryptoOpen && $cryptoOpen->asset === $code) checked @endif>
+          <label class="pm-card" data-m="crypto">
+            <input type="radio" name="pm" value="crypto" hidden @if($cryptoOpen) checked @endif>
             <span class="pm-badge cy"><svg class="icon"><use href="#i-coins"/></svg></span>
-            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $spec['label'] }}</small></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $cyCodes }} · TRC20</small></span>
             <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
           </label>
         @endif
-      @endforeach
+      @endif
     </div>
 
     {{-- گام ۲: جزئیاتِ روشِ انتخاب‌شده (پیش‌فرض پنهان) --}}
@@ -438,101 +441,17 @@
       </div>
     @endforeach
 
-    {{-- ═══ رمزارز: دستور پرداخت ═══
-         ⚠️ دارایی «مشغول» پنل ندارد، چون کارتش هم غیرفعال است و چیزی برای
-            انجام‌دادن نیست؛ توضیحش روی خودِ کارت است. --}}
-    @foreach($cryptoAssets as $code => $spec)
-      @continue($spec['state'] === \App\Services\Payment\CryptoIssuer::BUSY)
-      @php $cyIsOpen = $cryptoOpen && $cryptoOpen->asset === $code; @endphp
-      {{-- ⚠️ پنلِ پرداختِ باز **باز** باز می‌شود. بعد از «دریافت آدرس» مشتری به
-           همین صفحه برمی‌گردد؛ اگر باز هم باید روی کارت کلیک کند تا آدرس را
-           ببیند، از دیدِ او هیچ اتفاقی نیفتاده است. --}}
-      <div class="pm-pane" id="pane-cy{{ $code }}" @unless($cyIsOpen) hidden @endunless>
-        <div class="pm-pane-h"><b>{{ __('ui.inv_crypto_pane') }} — <span dir="ltr">{{ $spec['label'] }}</span></b></div>
-
-        @if($cyIsOpen)
-          @php $cy = $cryptoOpen; @endphp
-          <div class="cy-box" id="cy-{{ $cy->id }}"
-               data-status-url="{{ lroute('account.invoice.crypto.status', $invoice) }}"
-               data-left="{{ $cy->secondsLeft() }}">
-
-            {{-- ⚠️ شبکه **بالای** آدرس و برجسته: انتقال روی شبکهٔ اشتباه
-                 برگشت‌ناپذیر است و کاربر معمولاً آدرس را کپی می‌کند و می‌رود. --}}
-            <div class="cy-row"><span>{{ __('ui.inv_cy_network') }}</span><b dir="ltr">{{ $cy->network }}</b></div>
-            <div class="cy-row"><span>{{ __('ui.cy_send_exactly') }}</span>
-              <b dir="ltr" class="copyable cy-amt">{{ $cy->amountHuman() }} {{ $cy->asset }}</b></div>
-            <div class="cy-row cy-addr"><span>{{ __('ui.inv_cy_address') }}</span>
-              <b dir="ltr" class="copyable">{{ $cy->address }}</b></div>
-
-            <p class="cy-timer">{{ __('ui.cy_time_left') }} <b id="cy-clock">—</b></p>
-            <p class="cy-state" id="cy-state">{{ __('ui.cy_waiting') }}</p>
-            <p class="pm-note" style="color:var(--warn);margin-top:12px">{{ __('ui.inv_cy_warn') }}</p>
-            <p class="pm-note">{{ __('ui.cy_verify_tail') }}</p>
-          </div>
-        @else
-          <p class="pm-note">{{ __('ui.cy_intro', ['min' => fa_num($spec['window'])]) }}</p>
-          <form method="POST" action="{{ lroute('account.invoice.crypto', $invoice) }}">
-            @csrf<input type="hidden" name="asset" value="{{ $code }}">
-            <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.cy_get_address') }}</button>
-          </form>
-        @endif
-      </div>
-    @endforeach
+    {{-- ═══ رمزارز: انتخابِ ارز و صفحهٔ پرداخت ═══ --}}
+    {{-- همه مشغول و پرداختِ بازی هم نیست ⇒ پنل نه؛ کاری برای انجام‌دادن نیست --}}
+    @if(! empty($cryptoAssets) && ($cryptoOpen || ! $cyAllBusy))
+      @include('account.partials.crypto-pane')
+    @endif
 
   </div>
 </section>
 
-@if($cryptoOpen)
-<script>
-/* شمارش معکوس + تشخیصِ خودکارِ واریز.
-   ⚠️ صفحه **خودش تصمیم نمی‌گیرد** پول رسیده یا نه — فقط وضعیتی را که سرور
-      می‌گوید نشان می‌دهد. حکم مالِ کرونی است که زنجیره را می‌خواند. */
-(function () {
-  var box = document.querySelector('.cy-box');
-  if (!box) return;
-
-  var left = parseInt(box.dataset.left, 10) || 0;
-  var clock = document.getElementById('cy-clock');
-  var state = document.getElementById('cy-state');
-
-  function paint() {
-    var m = Math.floor(left / 60), s = left % 60;
-    clock.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-  }
-
-  var tick = setInterval(function () {
-    if (left > 0) { left--; paint(); }
-    else { clearInterval(tick); clearInterval(poll); state.textContent = clock.dataset.expired || 'expired'; }
-  }, 1000);
-  paint();
-
-  var poll = setInterval(function () {
-    fetch(box.dataset.statusUrl, {headers: {'Accept': 'application/json'}})
-      .then(function (r) { return r.json(); })
-      .then(function (j) {
-        if (j.status === 'seen') { state.textContent = state.dataset.seen || state.textContent; }
-        if (j.invoice_paid || j.status === 'confirmed') {
-          clearInterval(poll); clearInterval(tick);
-          location.reload();
-        }
-      })
-      .catch(function () { /* قطعیِ شبکه نباید صفحه را بشکند */ });
-  }, 7000);
-})();
-</script>
-@endif
 
 <style>
-.cy-box{ border:1px solid var(--line); border-radius:14px; padding:16px; background:var(--surface-2); }
-.cy-row{ display:flex; justify-content:space-between; gap:14px; padding:9px 0; border-bottom:1px dashed var(--line); font-size:13px; }
-.cy-row:last-of-type{ border-bottom:0; }
-.cy-row span{ color:var(--muted); flex:none; }
-.cy-row b{ overflow-wrap:anywhere; text-align:end; }
-.cy-addr b{ font-family:ui-monospace,monospace; font-size:13.5px; }
-.cy-amt{ font-size:16px; }
-.cy-timer{ margin:14px 0 4px; font-size:13px; color:var(--muted); }
-.cy-timer b{ font-size:17px; color:var(--text); font-variant-numeric:tabular-nums; }
-.cy-state{ margin:0; font-size:12.5px; color:var(--muted); }
 .pm-lead{ font-size:13px; color:var(--muted); margin-bottom:12px; }
 .pm-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
 .pm-card{ position:relative; display:flex; align-items:center; gap:12px; cursor:pointer;
@@ -565,6 +484,7 @@
   border-radius:20px; padding:3px 9px; flex:none; }
 .pm-hint{ display:flex; align-items:center; gap:8px; margin-top:16px; padding:13px 15px;
   border:1px dashed var(--line); border-radius:12px; color:var(--muted); font-size:12.5px; }
+.pm-hint[hidden]{ display:none; }
 .pm-hint .icon{ width:16px; height:16px; flex:none; }
 .pm-pane{ margin-top:16px; border:1px solid var(--line); border-radius:15px; padding:16px; background:var(--surface-2);
   animation:pmIn .22s ease; }

@@ -1,0 +1,13 @@
+{
+  "release": "identity-api-20261018-product-layout",
+  "source_sha": "e7d39c4b3277633977227732471f509521921cc4",
+  "base_sha": "e540c434",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "resources/views/pages/identity/product/style.blade.php",
+      "before": "7429899d2a0085539e9d6b273f08b712e29407a8d095dbb11b286549d9a3aea0",
+      "after": "1dd3f6460172f455f64f428c83f3969b8724475ac7e9b33022105072417b647d"
+    }
+  ]
+}

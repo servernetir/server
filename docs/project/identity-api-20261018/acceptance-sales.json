@@ -1,0 +1,54 @@
+{
+  "checked_at": "2026-10-18T06:40:17+00:00",
+  "source_sha": "5fdaf765f33aa3a086e1901d6a2081c76410e17e",
+  "installed_hashes": 14,
+  "gzip_full_crc": true,
+  "backup_mode": "0700",
+  "dump_mode": "0600",
+  "enabled": true,
+  "dispatch_enabled": true,
+  "funding_ready": true,
+  "funding_verified_at": "2026-10-18T06:38:59+00:00",
+  "funding_expires_at": "2026-10-18T07:38:59+00:00",
+  "reconcile_heartbeat": "2026-10-18T06:40:03+00:00",
+  "openapi_version": "1.1.0",
+  "approval_source": "owner_explicit_instruction",
+  "provider_resale_contract_verified": false,
+  "upstream_negative_billing_verified": false,
+  "retail_billing_policy": "valid_data_v1",
+  "provider_daily_cap_irt": 100000,
+  "internal_kyc_reserve_irt": 200000,
+  "default_customer_daily_cap_irt": 25000,
+  "provider_concurrency": 1,
+  "paid_calls_added": 0,
+  "wallet_unchanged": true,
+  "requests_unchanged": true,
+  "applications_unchanged": true,
+  "keys_unchanged": true,
+  "services": {
+    "shahkar-inquiry": {
+      "version": 3,
+      "subtotal_irt": 1502,
+      "tax_irt": 151,
+      "total_irt": 1653,
+      "valid_until": "2026-10-19T05:06:47+00:00"
+    },
+    "id-inquiry": {
+      "version": 4,
+      "subtotal_irt": 7854,
+      "tax_irt": 786,
+      "total_irt": 8640,
+      "valid_until": "2026-10-19T05:07:08+00:00"
+    }
+  },
+  "http_checks": {
+    "fa": 200,
+    "en": 200,
+    "tr": 200,
+    "catalog_net_prices": true,
+    "catalog_gross_amounts_absent": true,
+    "openapi": 200,
+    "unauthenticated_quote": 401,
+    "quote_cache_control": "no-store, private"
+  }
+}

@@ -10,6 +10,7 @@ use App\Services\IdentityApi\Catalog;
 use App\Services\IdentityApi\Controls;
 use App\Services\IdentityApi\Engine;
 use App\Services\IdentityApi\IdentityError;
+use App\Services\IdentityApi\Pricing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -20,8 +21,18 @@ class IdentityController extends Controller
 {
     public function index(Controls $controls, Catalog $catalog)
     {
+        $prices = $controls->ready() ? IdentityPrice::orderByDesc('id')->limit(100)->get() : collect();
+        $previews = [];
+        foreach ($prices as $price) {
+            try {
+                $previews[$price->id] = app(Pricing::class)->preview($price);
+            } catch (IdentityError) {
+                $previews[$price->id] = null;
+            }
+        }
+
         return view('admin.identity', ['ready' => $controls->ready(), 'runtimeReady' => $controls->runtimeReady(), 'controls' => $controls, 'catalog' => $catalog->all(),
-            'prices' => $controls->ready() ? IdentityPrice::orderByDesc('id')->limit(100)->get() : collect(),
+            'prices' => $prices, 'previews' => $previews,
             'history' => $controls->ready() ? IdentityRequest::orderByDesc('id')->paginate(40) : null,
             'heartbeat' => Cache::get('identity:reconcile:heartbeat')]);
     }
@@ -39,7 +50,7 @@ class IdentityController extends Controller
                 throw new IdentityError('invalid_input', 422);
             }
             $value = $value === 'true';
-        } elseif (in_array($key, ['markup_bps', 'provider_concurrency', 'provider_daily_cap_irt', 'upstream_balance_irt', 'internal_kyc_reserve_irt'], true) || preg_match('/^customer_cap:[0-9]+$/D', $key)) {
+        } elseif (in_array($key, ['markup_bps', 'provider_concurrency', 'provider_daily_cap_irt', 'upstream_balance_irt', 'internal_kyc_reserve_irt'], true)) {
             if (! ctype_digit($value) || strlen($value) > 12 || $key === 'markup_bps' && (int) $value > 10000) {
                 throw new IdentityError('invalid_input', 422);
             }
@@ -63,8 +74,8 @@ class IdentityController extends Controller
         $d = $request->validate(['service' => ['required', 'string', 'max:100'], 'source_amount' => ['required', 'integer', 'min:0', 'max:1000000000000'],
             'source_currency' => ['required', 'in:IRR,IRT'], 'purchase_tax_amount' => ['required', 'integer', 'min:0', 'lte:source_amount'],
             'purchase_tax_included' => ['accepted'], 'markup_bps' => ['nullable', 'integer', 'min:0', 'max:10000'],
-            'confirmed_zero_cost' => ['nullable', 'boolean'], 'daily_quota' => ['required', 'integer', 'min:1', 'max:100000'],
-            'billing_policy' => ['required', 'in:valid_data_v1'], 'evidence' => ['required', 'string', 'max:200'],
+            'confirmed_zero_cost' => ['nullable', 'boolean'], 'daily_quota' => ['nullable', 'integer', 'min:1', 'max:100000'],
+            'billing_policy' => ['nullable', 'in:valid_data_v1'], 'evidence' => ['required', 'string', 'max:200'],
             'access_evidence' => ['required', 'string', 'max:200'], 'effective_at' => ['required', 'date'],
             'valid_until' => ['required', 'date', 'after:effective_at']]);
         $s = $catalog->find($d['service']);
@@ -72,7 +83,9 @@ class IdentityController extends Controller
             throw new IdentityError('service_unavailable', 503);
         }
         $d['purchase_tax_included'] = true;
+        $d['billing_policy'] ??= 'pending_billing_evidence_v1';
         $d['markup_bps'] ??= (int) $controls->get('markup_bps', 500);
+        $d['daily_quota'] = 1; // Retained schema metadata; no customer daily count limit.
         $d['created_by'] = Auth::id();
         DB::transaction(function () use ($d, $controls) {
             $p = IdentityPrice::create($d);
@@ -84,11 +97,7 @@ class IdentityController extends Controller
 
     public function customerCap(Request $request, Controls $controls)
     {
-        $d = $request->validate(['customer_id' => ['required', 'integer', 'min:1'], 'cap_irt' => ['required', 'integer', 'min:0', 'max:9000000000000']]);
-        Customer::findOrFail($d['customer_id']);
-        $controls->put('customer_cap:'.$d['customer_id'], (int) $d['cap_irt'], Auth::id());
-
-        return back()->with('ok', __('identity.saved'));
+        abort(410); // Historical customer budget controls are retired.
     }
 
     public function refund(Request $request, string $id, Engine $engine)

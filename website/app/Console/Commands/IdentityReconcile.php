@@ -3,12 +3,12 @@
 namespace App\Console\Commands;
 
 use App\Models\IdentityRequest;
+use App\Services\IdentityApi\BalanceSync;
 use App\Services\IdentityApi\Controls;
 use App\Services\IdentityApi\Engine;
 use App\Services\Notify\AdminNotifier;
 use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 
 class IdentityReconcile extends Command
@@ -45,8 +45,12 @@ class IdentityReconcile extends Command
         if ($unknown || $failed) {
             ErrorTracker::noteOnce('identity_api', 'Inquiry reconciliation requires administrator review', 900, ['discrepancies' => $unknown, 'failed' => $failed]);
         }
-        $fundingAt = $controls->get('upstream_balance_verified_at');
-        $fundingStale = $controls->dispatchEnabled() && (! $fundingAt || Carbon::parse($fundingAt)->lt(now()->subMinutes(60)));
+        try {
+            app(BalanceSync::class)->refreshIfDue();
+        } catch (\Throwable) {
+            ErrorTracker::noteOnce('identity_api', 'Provider balance observation failed; previous funding evidence retained', 900);
+        }
+        $fundingStale = $controls->dispatchEnabled() && ! $controls->fundingReady();
         if (($unknown || $failed || $fundingStale) && $controls->get('notifications_enabled', false) === true && Cache::add('identity:admin-alert', true, now()->addMinutes(15))) {
             app(AdminNotifier::class)->event(__('identity.menu'), [
                 'discrepancies' => $unknown, 'settlement_failures' => $failed, 'funding_evidence_stale' => (int) $fundingStale,
