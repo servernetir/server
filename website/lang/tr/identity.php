@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'owner_managed_funding' => 'Üst hizmet bakiyesi işletme sahibi tarafından yönetilir. Bakiye ve doğrulama tarihi kontrol edilmez. Genel günlük bütçe geçerlidir; kayıtlı rezerv korunur ancak bakiyeye göre kontrol edilmez.',
     'wallet_only' => 'Kimlik hizmetleri kullanılabilir cüzdan bakiyenizden ödenir. Müşteri, uygulama veya anahtar için günlük harcama veya sorgu sayısı sınırı yoktur.',
     'balance_sync_title' => 'Otomatik Zohal bakiye kontrolü',
     'balance_sync_help' => 'Gerçek bakiye her beş dakikada bir okunur. Harcama sınırları ve rezerv değişmez. Başarısız kontroller önceki doğrulama zamanını yenilemez.',

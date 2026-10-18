@@ -10,7 +10,8 @@ class IdentityStorefrontController extends Controller
     public function home(Catalog $catalog)
     {
         return response()->view('pages.identity.home', ['services' => $catalog->publicList()])
-            ->header('X-Identity-Usage-Policy', defined(Engine::class.'::USAGE_POLICY') ? Engine::USAGE_POLICY : 'pending');
+            ->header('X-Identity-Usage-Policy', defined(Engine::class.'::USAGE_POLICY') ? Engine::USAGE_POLICY : 'pending')
+            ->header('X-Identity-Funding-Policy', defined(Engine::class.'::FUNDING_POLICY') ? Engine::FUNDING_POLICY : 'pending');
     }
 
     public function docs()

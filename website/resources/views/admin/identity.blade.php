@@ -9,6 +9,7 @@
 <p data-identity-usage-policy="{{ defined(\App\Services\IdentityApi\Engine::class.'::USAGE_POLICY') ? \App\Services\IdentityApi\Engine::USAGE_POLICY : 'pending' }}">{{ __('identity.wallet_only') }}</p>
 <h1>{{ __('identity.title') }}</h1><p>{{ __('identity.admin_notice') }}</p><p>{{ __('identity.heartbeat') }}: {{ $heartbeat??'—' }}</p>
 <p>{{ __('identity.runtime_health') }}: <strong>{{ $runtimeReady ? __('identity.runtime_ready') : __('identity.runtime_stale') }}</strong></p>
+@if($controls->ownerManagedFunding())<p data-identity-funding-mode="owner_managed_v1">{{ __('identity.owner_managed_funding') }}</p>@endif
 @if(!$ready)<p>{{ __('identity.schema_required') }}</p>@else
 <section class="ad-panel" style="padding:24px"><h2>{{ __('identity.controls') }}</h2><p>{{ __('identity.control_help') }}</p>
 <form method="post" action="{{ lroute('admin.identity.control') }}">@csrf<label>{{ __('identity.setting') }}<select name="key">@foreach(['enabled','notifications_enabled','resale_evidence','egress_verified','markup_bps','provider_concurrency','provider_daily_cap_irt','upstream_balance_irt','upstream_balance_verified_at','internal_kyc_reserve_irt'] as $k)<option value="{{ $k }}">{{ __('identity.control_'.$k) }} ({{ $k }})</option>@endforeach</select></label><label>{{ __('identity.value') }}<input name="value" maxlength="200" required></label><button class="btn">{{ __('identity.save') }}</button></form>

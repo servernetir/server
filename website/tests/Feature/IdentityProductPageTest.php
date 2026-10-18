@@ -39,6 +39,11 @@ class IdentityProductPageTest extends TestCase
             $this->assertStringContainsString('aria-controls="ip-panel-python"', $html);
             $this->assertStringContainsString('max_charge_irt', $html);
             $this->assertStringContainsString('prefers-reduced-motion', $html);
+            $dom = new \DOMDocument();
+            @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+            $xpath = new \DOMXPath($dom);
+            $this->assertSame(1, $xpath->query('//*[@id="menu-services"]//a[contains(@href,"'.$prefix.'/identity-api")]')->length);
+            $this->assertGreaterThanOrEqual(2, $xpath->query('//a[contains(@href,"'.$prefix.'/identity-api") and .//b]')->length);
             if ($out = getenv('IDENTITY_UI_PREVIEW_DIR')) {
                 if (!is_dir($out.$prefix)) mkdir($out.$prefix, 0755, true);
                 file_put_contents($out.$prefix.'/identity-api.html', $html);

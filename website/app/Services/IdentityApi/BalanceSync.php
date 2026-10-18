@@ -16,7 +16,7 @@ class BalanceSync
     /** Refresh actual provider evidence; never buys credit or changes spending limits. */
     public function refreshIfDue(bool $force = false): string
     {
-        if (! $this->controls->ready() || $this->controls->get('balance_sync_enabled', false) !== true) {
+        if (! $this->controls->ready() || $this->controls->ownerManagedFunding() || $this->controls->get('balance_sync_enabled', false) !== true) {
             return 'disabled';
         }
         if (! $this->provider->configured() || ! filled(config('identity_api.balance_token'))) {

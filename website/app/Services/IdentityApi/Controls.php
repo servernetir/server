@@ -53,6 +53,12 @@ class Controls
 
     public function fundingReady(): bool
     {
+        if ($this->ownerManagedFunding()) {
+            return (int) $this->get('provider_daily_cap_irt', 0) > 0;
+        }
+        if ($this->get('funding_mode', 'verified_balance_v1') !== 'verified_balance_v1') {
+            return false;
+        }
         $at = $this->get('upstream_balance_verified_at');
         try {
             $date = $at ? Carbon::parse($at) : null;
@@ -66,6 +72,12 @@ class Controls
         }
     }
 
+    /** An explicit owner policy, never a fabricated balance observation. */
+    public function ownerManagedFunding(): bool
+    {
+        return $this->get('funding_mode', 'verified_balance_v1') === 'owner_managed_v1';
+    }
+
     /** Guard partial deployments or stale web bytecode before any paid request. */
     public function runtimeReady(): bool
     {
@@ -74,6 +86,7 @@ class Controls
 
         return in_array('excludingIdentityRequestId', $parameters, true)
             && defined(Engine::class.'::USAGE_POLICY') && Engine::USAGE_POLICY === 'available_wallet_v1'
+            && defined(Engine::class.'::FUNDING_POLICY') && Engine::FUNDING_POLICY === 'owner_managed_v1'
             && method_exists(BusinessLedger::class, 'recordIdentitySale')
             && defined(CustomerApiToken::class.'::IDENTITY_ABILITIES')
             && ! $legacy->can('identity:execute');

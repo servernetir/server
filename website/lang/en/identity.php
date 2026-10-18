@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'owner_managed_funding' => 'Upstream funding is managed by the owner. Balance and observation freshness are not checked. The global daily budget remains; the stored reserve is retained but is not checked against a balance.',
     'wallet_only' => 'Identity services use your available wallet funds. There is no customer, application or key daily spending or request-count cap.',
     'balance_sync_title' => 'Automatic Zohal balance checks',
     'balance_sync_help' => 'The actual balance is read every five minutes. Spending limits and reserves stay unchanged. Failed checks never renew previous evidence.',

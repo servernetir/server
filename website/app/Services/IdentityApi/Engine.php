@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
 class Engine
 {
     public const USAGE_POLICY = 'available_wallet_v1';
+    public const FUNDING_POLICY = 'owner_managed_v1';
 
     public function __construct(private Controls $controls, private Catalog $catalog, private Contract $contract, private Pricing $pricing, private Wallet $wallet) {}
 
@@ -105,20 +106,22 @@ class Engine
             if (! $this->controls->fundingReady()) {
                 throw new IdentityError('provider_unavailable', 503);
             }
-            $balanceAt = Carbon::parse($this->controls->get('upstream_balance_verified_at'));
-            $used = (int) IdentityRequest::where(function ($q) use ($balanceAt) {
-                // A new snapshot must not discard old requests still awaiting dispatch
-                // or settlement. Include charges racing the start of the balance read.
-                $q->holding()->orWhere('dispatch_at', '>=', $balanceAt)
-                    ->orWhere(function ($q) {
-                        $q->whereNotNull('dispatch_at')->whereNull('settled_at');
-                    })
-                    ->orWhere(function ($q) use ($balanceAt) {
-                        $q->whereNotNull('dispatch_at')->where('settled_at', '>=', $balanceAt);
-                    });
-            })->sum('hold_irt');
-            if ($used + $quote['cost_irt'] + (int) $this->controls->get('internal_kyc_reserve_irt', 0) > (int) $this->controls->get('upstream_balance_irt', 0)) {
-                throw new IdentityError('provider_unavailable', 503);
+            if (! $this->controls->ownerManagedFunding()) {
+                $balanceAt = Carbon::parse($this->controls->get('upstream_balance_verified_at'));
+                $used = (int) IdentityRequest::where(function ($q) use ($balanceAt) {
+                    // A new snapshot must not discard old requests still awaiting dispatch
+                    // or settlement. Include charges racing the start of the balance read.
+                    $q->holding()->orWhere('dispatch_at', '>=', $balanceAt)
+                        ->orWhere(function ($q) {
+                            $q->whereNotNull('dispatch_at')->whereNull('settled_at');
+                        })
+                        ->orWhere(function ($q) use ($balanceAt) {
+                            $q->whereNotNull('dispatch_at')->where('settled_at', '>=', $balanceAt);
+                        });
+                })->sum('hold_irt');
+                if ($used + $quote['cost_irt'] + (int) $this->controls->get('internal_kyc_reserve_irt', 0) > (int) $this->controls->get('upstream_balance_irt', 0)) {
+                    throw new IdentityError('provider_unavailable', 503);
+                }
             }
 
             return IdentityRequest::create(['public_id' => (string) Str::uuid(), 'customer_id' => $a->customer_id, 'application_id' => $a->id, 'token_id' => $token?->id,

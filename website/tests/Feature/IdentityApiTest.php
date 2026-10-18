@@ -592,6 +592,55 @@ class IdentityApiTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_owner_managed_funding_accepts_without_a_balance_observation_and_keeps_wallet_accounting(): void
+    {
+        $c = app(Controls::class);
+        $c->put('funding_mode', 'owner_managed_v1', 1);
+        $c->put('upstream_balance_irt', 0, 1);
+        $c->put('upstream_balance_verified_at', 'no-observation', 1);
+        $this->assertTrue($c->fundingReady());
+        $this->assertTrue(collect(app(Catalog::class)->publicList())->firstWhere('slug', 'shahkar-inquiry')['active']);
+        $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertOk();
+        Http::assertNothingSent();
+        $this->fake(['matched' => true]);
+        $r = app(Engine::class)->dispatch($this->accept());
+        $this->assertSame('captured', $r->financial_status);
+        $this->assertSame(98845, app(Wallet::class)->availableOf($this->customer->id));
+        $this->assertSame('no-observation', $c->get('upstream_balance_verified_at'));
+        $this->assertSame(0, $c->get('upstream_balance_irt'));
+        $this->assertSame($r->id, $this->accept()->id);
+        Http::assertSentCount(1);
+    }
+
+    public function test_owner_managed_funding_keeps_provider_daily_budget_and_customer_available_funds(): void
+    {
+        $c = app(Controls::class);
+        $c->put('funding_mode', 'owner_managed_v1', 1);
+        $c->put('provider_daily_cap_irt', 1000, 1);
+        try { $this->accept(); $this->fail('Provider budget must remain enforced.'); }
+        catch (\App\Services\IdentityApi\IdentityError $e) { $this->assertSame('provider_unavailable', $e->getMessage()); }
+        $c->put('provider_daily_cap_irt', 1000000, 1);
+        $this->price(['source_amount' => 200000]);
+        try { app(Engine::class)->accept($this->application, $this->token, 'shahkar-inquiry', $this->payload(), 'synthetic-owner-funded-0002', 500000); $this->fail('Available customer funds must remain enforced.'); }
+        catch (\App\Services\IdentityApi\IdentityError $e) { $this->assertSame('insufficient_funds', $e->getMessage()); }
+        $this->assertSame(0, IdentityRequest::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_owner_managed_mode_never_reads_a_balance_even_when_prepared_sync_is_forced(): void
+    {
+        $c = app(Controls::class);
+        $c->put('funding_mode', 'owner_managed_v1', 1);
+        $c->put('balance_sync_enabled', true, 1);
+        config(['identity_api.balance_token' => 'synthetic-read-only-key']);
+        $before = [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')];
+        $this->assertSame('disabled', app(BalanceSync::class)->refreshIfDue(true));
+        $this->assertSame($before, [$c->get('upstream_balance_irt'), $c->get('upstream_balance_verified_at')]);
+        $c->put('funding_mode', 'invalid-policy', 1);
+        $this->assertFalse($c->fundingReady());
+        Http::assertNothingSent();
+    }
+
     public function test_all_thirty_one_json_services_use_their_registered_wire_contract_and_settle_synthetic_responses(): void
     {
         $fixture = function (array $s) use (&$fixture) {
