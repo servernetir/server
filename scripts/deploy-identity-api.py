@@ -25,7 +25,7 @@ def main():
     stage = args.stage.resolve(strict=True)
     manifest = json.loads((stage / 'manifest.json').read_text())
     release = manifest['release']
-    if release not in {'identity-api-20261017', 'identity-api-20261017-runtime', 'identity-api-20261017-routing', 'identity-api-20261018-readiness', 'identity-api-20261018-sales', 'identity-api-20261018-funding', 'identity-api-20261018-wallet'} or not stage.is_relative_to(root.parent):
+    if release not in {'identity-api-20261017', 'identity-api-20261017-runtime', 'identity-api-20261017-routing', 'identity-api-20261018-readiness', 'identity-api-20261018-sales', 'identity-api-20261018-funding', 'identity-api-20261018-wallet', 'identity-api-20261018-product'} or not stage.is_relative_to(root.parent):
         raise RuntimeError('Unexpected release or staging destination')
     lock = (root.parent / 'identity-api-deploy.lock').open('a')
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

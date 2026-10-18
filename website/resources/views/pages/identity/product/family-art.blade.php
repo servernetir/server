@@ -1,0 +1,7 @@
+<svg class="ip-family-art" viewBox="0 0 180 120" fill="none" aria-hidden="true">
+<ellipse cx="92" cy="103" rx="65" ry="10" fill="#2186d5" opacity=".08"/><rect x="40" y="20" width="100" height="76" rx="12" transform="rotate(-9 40 20)" fill="#daf5fc" stroke="#75cadf"/><rect x="30" y="28" width="116" height="76" rx="12" fill="#eff9ff" stroke="#85bce3" stroke-width="1.5"/>
+@if($kind==='authentication')<circle cx="63" cy="58" r="14" fill="#d2e9ff"/><circle cx="63" cy="54" r="5" stroke="#2e73c0" stroke-width="2"/><path d="M53 69a10 10 0 0 1 20 0M89 50h36m-36 12h25m-66 24h56" stroke="#4b8cc6" stroke-width="2" stroke-linecap="round"/>
+@elseif($kind==='bank')<rect x="45" y="44" width="84" height="45" rx="6" fill="#d2e9ff" stroke="#4b8cc6"/><path d="M46 57h82M56 77h18m8 0h12" stroke="#4b8cc6" stroke-width="3" stroke-linecap="round"/><rect x="110" y="66" width="9" height="8" rx="2" fill="#66bcda"/>
+@else<path d="M70 49a14 14 0 0 0-14 14c0 10 14 24 14 24s14-14 14-24a14 14 0 0 0-14-14Z" fill="#d2e9ff" stroke="#4b8cc6" stroke-width="2"/><circle cx="70" cy="62" r="5" stroke="#4b8cc6" stroke-width="2"/><path d="M99 51h27m-27 12h21m-21 12h14" stroke="#4b8cc6" stroke-width="2" stroke-linecap="round"/>@endif
+<circle cx="139" cy="92" r="17" fill="#19acb1" stroke="#eff9ff" stroke-width="4"/><path d="m132 92 5 5 9-10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
