@@ -305,10 +305,11 @@ class CloudStoreController extends Controller
             ]));
         }
 
-        // مشتریِ احرازنشده مکان‌های ایران را نمی‌بیند (گیتِ سختِ سفارش جداست)
+        // بدون تأیید واقعی شاهکار، هیچ مقصد ایران در خرید نمایش داده نمی‌شود.
         if (\App\Services\Customer\IranSalesGate::blocksIranFor(Auth::guard('customer')->user())) {
             $usable = $usable->reject(
-                fn (CloudLocation $l) => strtoupper((string) $l->country) === 'IR'
+                fn (CloudLocation $l) => \App\Services\Customer\IranSalesGate::isIranTarget($l->country)
+                    || \App\Services\Customer\IranSalesGate::isIranTarget($l->code)
             )->values();
         }
 

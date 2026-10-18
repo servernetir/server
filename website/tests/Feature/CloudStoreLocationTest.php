@@ -83,6 +83,7 @@ class CloudStoreLocationTest extends TestCase
             'customer_id' => $c->id, 'is_default' => true, 'type' => 'individual',
             'status' => 'verified', 'email' => $c->email, 'mobile' => $c->phone,
         ]);
+        \Tests\Support\ShahkarFixture::verify($c);
 
         return $c;
     }

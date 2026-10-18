@@ -22,7 +22,7 @@
 
     var rad = Math.PI / 180, circle = Math.PI * 2;
     var motion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
-    var width = 0, height = 0, ratio = 1, radius = 0, cx = 0, cy = 0;
+    var width = 0, height = 0, ratio = 1, radius = 0, cx = 0, cy = 0, padding = 0;
     var yaw = 45, pitch = 25, camera = null, velocityYaw = 0, velocityPitch = 0;
     var point = null, location = {}, frame = 0, lastTick = 0;
     var visible = !('IntersectionObserver' in window), active = true, ready = false;
@@ -82,6 +82,37 @@
         return position ? { country: code, position: position, vector: vector(position.latitude, position.longitude) } : null;
       }).filter(Boolean);
     }
+    function orbitalVisibility(p) {
+      var distance = Math.hypot(p.x - cx, p.y - cy) / radius;
+      // Elevated far-side routes remain visible beyond the globe's silhouette,
+      // while the solid sphere occludes portions passing behind its face.
+      var limb = p.z >= 0 ? 1 : clamp((distance - 1) / .065, 0, 1);
+      var depth = p.z >= 0 ? .75 + clamp(p.z, 0, 1.5) / 6 : .46;
+      var edge = Math.min(p.x + padding, p.y + padding, width + padding - p.x, height + padding - p.y);
+      return limb * depth * clamp(edge / Math.max(18, radius * .09), 0, 1);
+    }
+    function orbitalPaths() {
+      // Cache six opacity buckets with the terrain. The animated packets below
+      // reuse these exact elevated samples, including occlusion and edge fade.
+      var buckets = [[], [], [], [], [], []];
+      routeLines.forEach(function (line) {
+        var previous = null;
+        line.forEach(function (v) {
+          var p = project(v), alpha = orbitalVisibility(p);
+          if (previous && previous.alpha > .01 && alpha > .01) {
+            var bucket = Math.min(5, Math.floor((previous.alpha + alpha) * 3));
+            buckets[bucket].push(previous.x, previous.y, p.x, p.y);
+          }
+          previous = { x: p.x, y: p.y, alpha: alpha };
+        });
+      });
+      buckets.forEach(function (segments, bucket) {
+        terrainContext.beginPath();
+        for (var i = 0; i < segments.length; i += 4) { terrainContext.moveTo(segments[i], segments[i + 1]); terrainContext.lineTo(segments[i + 2], segments[i + 3]); }
+        terrainContext.strokeStyle = colors.cyan; terrainContext.globalAlpha = .27 * (bucket + .5) / 6; terrainContext.lineWidth = .8; terrainContext.stroke();
+      });
+      terrainContext.globalAlpha = 1;
+    }
     function buildConnections() {
       var pairs = {}, links = [];
       function add(a, b) {
@@ -106,8 +137,11 @@
         var a = link[0].vector, b = link[1].vector;
         var angle = Math.acos(clamp(a[0] * b[0] + a[1] * b[1] + a[2] * b[2], -1, 1));
         var sine = Math.sin(angle), vertices = [];
+        // Varied satellite-like arches, with higher orbits on longer routes.
+        // Endpoints remain attached to their actual surface locations.
+        var elevation = .18 + Math.sin(angle / 2) * .25 + (index % 5) * .025;
         for (var i = 0; i <= 40; i++) {
-          var t = i / 40, scale = 1 + Math.sin(t * Math.PI) * .095;
+          var t = i / 40, scale = 1 + Math.sin(t * Math.PI) * elevation;
           var start = sine > .001 ? Math.sin((1 - t) * angle) / sine : 1 - t;
           var end = sine > .001 ? Math.sin(t * angle) / sine : t;
           vertices.push([(a[0] * start + b[0] * end) * scale, (a[1] * start + b[1] * end) * scale, (a[2] * start + b[2] * end) * scale]);
@@ -118,7 +152,7 @@
       host.dataset.globeRoutes = String(routes.length); baseDirty = true;
     }
     function drawTerrain() {
-      terrainContext.clearRect(0, 0, width, height);
+      terrainContext.clearRect(-padding, -padding, width + padding * 2, height + padding * 2);
       terrainContext.beginPath(); terrainContext.arc(cx, cy, radius, 0, circle);
       terrainContext.fillStyle = colors.earth; terrainContext.globalAlpha = .72; terrainContext.fill();
       terrainContext.strokeStyle = colors.blue; terrainContext.globalAlpha = .18; terrainContext.lineWidth = .65; terrainContext.stroke(); terrainContext.globalAlpha = 1;
@@ -136,7 +170,7 @@
         terrainContext.globalAlpha = .11 + ((bucket + .5) / 6) * .64;
         terrainContext.fillStyle = bucket === 5 ? colors.light : colors.land; terrainContext.fill();
       }
-      terrainContext.globalAlpha = 1; paths(terrainContext, routeLines, colors.cyan, .2, .7);
+      terrainContext.globalAlpha = 1; orbitalPaths();
       terrainContext.save(); terrainContext.translate(cx, cy); terrainContext.rotate(-.36);
       terrainContext.beginPath(); terrainContext.ellipse(0, 0, radius * 1.075, radius * .3, 0, 0, circle);
       terrainContext.strokeStyle = colors.blue; terrainContext.globalAlpha = .12; terrainContext.lineWidth = .5; terrainContext.stroke(); terrainContext.restore();
@@ -149,7 +183,8 @@
       projectCosPitch = Math.cos(pitch * rad); projectSinPitch = Math.sin(pitch * rad);
       var terrainChanged = baseDirty || yaw !== baseYaw || pitch !== basePitch;
       if (terrainChanged) drawTerrain();
-      context.clearRect(0, 0, width, height); context.drawImage(terrain, 0, 0, width, height);
+      context.clearRect(-padding, -padding, width + padding * 2, height + padding * 2);
+      context.drawImage(terrain, -padding, -padding, width + padding * 2, height + padding * 2);
       for (var i = 0; i < routes.length; i++) {
         var route = routes[i];
         for (var packet = 0; packet < 2; packet++) {
@@ -157,9 +192,9 @@
           var offset = progress * 40, index = Math.min(39, Math.floor(offset)), mix = offset - index;
           var a = route.vertices[index], b = route.vertices[index + 1];
           for (var axis = 0; axis < 3; axis++) packetVector[axis] = a[axis] + (b[axis] - a[axis]) * mix;
-          var p = project(packetVector); if (p.z <= .05) continue;
+          var p = project(packetVector), alpha = orbitalVisibility(p); if (alpha <= .01) continue;
           context.beginPath(); context.arc(p.x, p.y, Math.max(1.15, radius / 200), 0, circle);
-          context.fillStyle = colors.cyan; context.globalAlpha = packet ? .5 : .86; context.fill();
+          context.fillStyle = colors.cyan; context.globalAlpha = (packet ? .58 : .94) * alpha; context.fill();
         }
       }
       context.globalAlpha = 1; markerTargets = [];
@@ -233,10 +268,19 @@
       var nextRatio = Math.min(window.devicePixelRatio || 1, 1.5);
       if (width !== rect.width || height !== rect.height || ratio !== nextRatio) {
         width = rect.width; height = rect.height; ratio = nextRatio;
-        canvas.width = terrain.width = Math.max(1, Math.round(width * ratio)); canvas.height = terrain.height = Math.max(1, Math.round(height * ratio));
-        context.setTransform(ratio, 0, 0, ratio, 0, 0); terrainContext.setTransform(ratio, 0, 0, ratio, 0, 0);
         radius = Math.min(width * .452, height * .455);
-        cx = width / 2; cy = Math.min(height / 2, radius + 24); refreshColors();
+        cx = width / 2; cy = Math.min(height / 2, radius + 24);
+        padding = Math.ceil(radius * .5 + 16);
+        var drawingWidth = width + padding * 2, drawingHeight = height + padding * 2;
+        canvas.width = terrain.width = Math.max(1, Math.round(drawingWidth * ratio)); canvas.height = terrain.height = Math.max(1, Math.round(drawingHeight * ratio));
+        // Expand the drawing surface without enlarging the pointer target or
+        // moving geographic hit boxes. Routes may travel beneath adjacent text.
+        canvas.style.left = -padding + 'px'; canvas.style.top = -padding + 'px';
+        canvas.style.right = 'auto'; canvas.style.bottom = 'auto';
+        canvas.style.width = drawingWidth + 'px'; canvas.style.height = drawingHeight + 'px';
+        context.setTransform(ratio, 0, 0, ratio, padding * ratio, padding * ratio);
+        terrainContext.setTransform(ratio, 0, 0, ratio, padding * ratio, padding * ratio);
+        refreshColors();
       }
       wake();
     }

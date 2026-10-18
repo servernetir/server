@@ -55,6 +55,9 @@ class OrderSummaryController extends Controller
         abort_unless(Schema::hasTable('products'), 404);
 
         $product = Product::where('slug', $slug)->where('is_active', true)->firstOrFail();
+        $iranPurchaseRestricted = \App\Services\Customer\IranSalesGate::blocksProduct(
+            \Illuminate\Support\Facades\Auth::guard('customer')->user(), $product);
+        $displayCountry = app(\App\Services\CatalogPricing::class)->displayCountry($product, checkoutDefault: true);
 
         $setup = $product->setup_fee > 0 ? $product->effectiveSetup() : 0;
         $setupTax = (int) round($setup * $product->effectiveTaxPercent() / 100);
@@ -69,7 +72,7 @@ class OrderSummaryController extends Controller
                 continue;
             }
 
-            $total = $product->priceForCycle($cycle);
+            $total = $product->priceForCycle($cycle, $displayCountry);
             $tax = (int) round($total * $product->effectiveTaxPercent() / 100);
             $grand = $total + $tax;
 
@@ -81,7 +84,7 @@ class OrderSummaryController extends Controller
                 'cycle'   => $cycle,
                 'label'   => Service::labelFor($cycle),
                 'months'  => $months,
-                'monthly' => $product->monthlyEquivalent($cycle),
+                'monthly' => $product->monthlyEquivalent($cycle, $displayCountry),
                 'saving'  => $product->savingPct($cycle),
                 'total'   => $total,
                 'grand'   => $grand,
@@ -90,9 +93,9 @@ class OrderSummaryController extends Controller
                 // console — هر کلیک در اکسس‌لاگ و Funnel شمرده می‌شود و امضا در
                 // لحظهٔ کلیک ساخته می‌شود نه در لحظهٔ رندرِ صفحهٔ کش‌شده.
                 // lroute تا صفحهٔ en/tr به /en/go/pay برود و locale در تحویل بماند.
-                'href'    => $this->sellsInCurrentLocale()
+                'href'    => $iranPurchaseRestricted ? null : ($this->sellsInCurrentLocale()
                     ? lroute('go.pay', ['sku' => $product->slug, 'cycle' => $cycle, 'src' => 'order'])
-                    : lroute('contact'),
+                    : lroute('contact')),
             ];
         }
 
@@ -109,9 +112,9 @@ class OrderSummaryController extends Controller
                 'total'   => $total,
                 'grand'   => $total + $tax,
                 'first'   => $total + $tax + $setup + $setupTax,
-                'href'    => $this->sellsInCurrentLocale()
+                'href'    => $iranPurchaseRestricted ? null : ($this->sellsInCurrentLocale()
                     ? lroute('go.pay', ['sku' => $product->slug, 'cycle' => 'once', 'src' => 'order'])
-                    : lroute('contact'),
+                    : lroute('contact')),
             ];
         }
 
@@ -139,6 +142,7 @@ class OrderSummaryController extends Controller
 
         return view('pages.order-summary', [
             'product'     => $product,
+            'iranPurchaseRestricted' => $iranPurchaseRestricted,
             'rows'        => $rows,
             'default'     => $default,
             'defaultRow'  => $defaultRow,
@@ -192,6 +196,14 @@ class OrderSummaryController extends Controller
         $sku = strtolower((string) $request->query('sku', ''));
 
         abort_unless(preg_match('/^[a-z0-9][a-z0-9-]{0,63}$/', $sku) === 1, 404);
+
+        $product = Schema::hasTable('products') ? Product::where('slug', $sku)->first() : null;
+        if ($product && \App\Services\Customer\IranSalesGate::blocksProduct(
+            \Illuminate\Support\Facades\Auth::guard('customer')->user(), $product)) {
+            return redirect()->to(lroute('order.summary', $sku), 302, [
+                'Cache-Control' => 'no-store', 'X-Robots-Tag' => 'noindex',
+            ]);
+        }
 
         $cycles = array_keys((array) config('billing.cycles', []));
         $cycle = (string) $request->query('cycle', '');

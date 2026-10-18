@@ -16,6 +16,7 @@
   $ld['faq'] = $countrySeo['faq_ld'];
   $metaT = $countrySeo['title'];
   $metaD = $countrySeo['description'];
+  $iranPurchaseRestricted = ! \App\Services\Customer\IranSalesVisibility::allowsCountry((string) $loc->country);
 @endphp
 
 @section('title', $metaT)
@@ -234,12 +235,14 @@
             <footer>
               <div class="cvl-billing">
                 <span class="cvl-price"><b>{{ $r['price'] }}</b>{{ __('ui.mo') }}</span>
+                @if($iranPurchaseRestricted)<small>{{ __('iran-sales.required') }}</small>@else
                 <a class="cvl-buy cvl-buy-monthly" href="{{ $r['buy_url'] }}" rel="nofollow">{{ __('ui.cloud_buy_monthly') }}</a>
+                @endif
               </div>
               @if($r['hourly_buy_url'])
                 <div class="cvl-billing cvl-billing-hourly">
                   <span class="cvl-price"><b>{{ $r['hourly_price'] }}</b>{{ __('ui.hv_per_hour') }}</span>
-                  <a class="cvl-buy" href="{{ $r['hourly_buy_url'] }}" rel="nofollow">{{ __('ui.cloud_buy_hourly') }}</a>
+                  @unless($iranPurchaseRestricted)<a class="cvl-buy" href="{{ $r['hourly_buy_url'] }}" rel="nofollow">{{ __('ui.cloud_buy_hourly') }}</a>@endunless
                 </div>
               @endif
             </footer>
@@ -260,6 +263,7 @@
       </div>
       <div class="cvl-near">
         @foreach($nearby as $n)
+          @continue(! \App\Services\Customer\IranSalesVisibility::allowsUrl($n['url']))
           <a href="{{ $n['url'] }}">@include('partials.flag', ['flagSrc' => $n['flag_svg'] ?? null, 'flagEmoji' => $n['flag'], 'flagSize' => 18]) {{ $n['label'] }}</a>
         @endforeach
         <a class="cvl-near-all" href="{{ $cloudUrl }}">{{ $t['cloud_loc_all'] }}</a>
@@ -295,7 +299,7 @@
       <a href="{{ $cloudUrl }}">{{ $t['cloud_badge'] }}</a>
       <a href="{{ lroute('solutions.index') }}">{{ __('ui.sol_h1') }}</a>
       <a href="{{ lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']) }}">{{ __('ui.f_p5') }}</a>
-      <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.f_p2') }}</a>
+      @if(\App\Services\Customer\IranSalesVisibility::allowsCountry('IR'))<a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.f_p2') }}</a>@endif
       <a href="{{ lroute('hosting', 'linux') }}">{{ __('ui.f_p1') }}</a>
       <a href="{{ lroute('knowledge') }}">{{ __('ui.nav_knowledge') }}</a>
       <a href="{{ lroute('contact') }}">{{ __('ui.nav_contact') }}</a>

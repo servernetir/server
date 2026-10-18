@@ -69,6 +69,10 @@ class StoreController extends Controller
         | روی سایت انتخاب کرده همین‌جا از پیش انتخاب می‌شود. امضای نامعتبر/منقضی
         | خرید را نمی‌بندد — فقط نادیده گرفته و شمرده می‌شود. هیچ قیمتی از URL.
         */
+        if (\App\Services\Customer\IranSalesGate::blocksProduct(Auth::guard('customer')->user(), $product)) {
+            return redirect(lroute('account.services'))->with('err', \App\Services\Customer\IranSalesGate::message());
+        }
+
         $reason = null;
         $handoff = OrderHandoff::verify(request()->query(), $product->slug, $product->orderCycles(), $reason);
 
@@ -184,10 +188,13 @@ class StoreController extends Controller
         }
         $cycle = $data['cycle'];
 
-        // مکان → سرورِ مقصد. اگر مکانی انتخاب نشده (پکیجِ دستی)، سرورِ خودِ پکیج.
-        $server = $country ? $product->pickOrderServer($country) : null;
+        // حذف country نباید جغرافیای سرور پیش‌فرض را از بررسی خرید پنهان کند.
+        $server = $country ? $product->pickOrderServer($country) : $product->server;
         if ($country && $server === null) {
             return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
+        }
+        if (\App\Services\Customer\IranSalesGate::blocksProduct($customer, $product, $country, $server)) {
+            return back()->withInput()->withErrors(['country' => \App\Services\Customer\IranSalesGate::message()]);
         }
 
         // مبلغِ دوره در لحظهٔ سفارش قفل می‌شود؛ تغییرِ بعدیِ تخفیف‌ها یا نرخِ ارز

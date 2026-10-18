@@ -177,7 +177,7 @@ html[dir="ltr"] .cvx-panel-back .icon{transform:scaleX(-1)}
 .cvx-store .cvb-main>.pnl-sec>.cvb-step-b>.cvb-step-i>.pnl-sec-b{padding:0}
 .cvx-store .cvb-slip{padding-top:0;min-height:0}
 .cvx-explorer{grid-template-columns:minmax(320px,.78fr) minmax(360px,1.22fr);min-height:610px;border-block:0}
-.cvx-picker{padding:10px 24px 0 0;padding-inline:0 24px;min-height:0}
+.cvx-picker{padding:10px 24px 0 0;padding-inline:0 24px;min-height:0;position:relative;z-index:1}
 .cvx-section-head{display:block;padding:0 4px}
 .cvx-section-head .cvb-q{font-size:clamp(22px,1.65vw,29px)}
 .cvx-section-head .cvb-lede{font-size:11px;line-height:1.9;margin:9px 0 20px}
@@ -187,12 +187,15 @@ html[dir="ltr"] .cvx-panel-back .icon{transform:scaleX(-1)}
 .cvx-results{flex:1;min-height:200px;height:340px}
 .cvx-lock-note{font-size:9px;color:var(--muted);line-height:1.9;padding:12px 5px 0}
 .cvx-price-note{margin:0;padding:5px 5px 8px;font-size:9px}
-.cvx-globe-panel{min-height:610px;border:0;background:none;align-self:stretch}
-.cvx-globe{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;margin:0;transform:none!important;cursor:grab;touch-action:pan-y;outline-offset:-8px}
+.cvx-globe-panel{min-height:610px;border:0;background:none;align-self:stretch;overflow:visible}
+.cvx-globe{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;margin:0;transform:none!important;cursor:grab;touch-action:pan-y;outline-offset:-8px;overflow:visible}
 .cvx-globe.is-dragging{cursor:grabbing}
 .cvx-globe.is-marker-hover{cursor:pointer}
 .cvx-globe::before{display:none}
-.cvx-globe canvas{filter:none}
+.cvx-globe canvas{filter:none;pointer-events:none}
+.cvx-globe-caption,.cvx-orbit-label,.cvx-globe-footer{z-index:2}
+.cvx-workspace-header{position:relative;z-index:2}
+body:has(.cvx-store){overflow-x:clip}
 .cvx-globe-caption{bottom:30px;inset-inline:26px;align-items:start;text-align:start;gap:4px;pointer-events:none}
 .cvx-globe-caption strong{font-size:17px;max-width:80%}
 .cvx-caption-k{font-size:8px}
@@ -230,6 +233,8 @@ body:has(.cvx-store) footer{display:none}
   .cvb-wrap.cvx-store.cvx-enhanced{height:calc(100dvh - var(--header-h) - 28px);grid-template-rows:auto minmax(0,1fr);align-items:stretch}
   body.imp-on .cvb-wrap.cvx-store.cvx-enhanced{height:calc(100dvh - var(--header-h) - var(--imp-h) - 28px)}
   .cvx-store.cvx-enhanced .cvb-main{overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+  .cvx-store.cvx-enhanced[data-active-step="1"]{overflow:hidden}
+  .cvx-store.cvx-enhanced[data-active-step="1"] .cvb-main{overflow:visible}
   .cvx-store.cvx-enhanced .cvb-main>.cvb-step{flex:1;min-height:0}
   .cvx-store.cvx-enhanced .cvb-step-b,.cvx-store.cvx-enhanced .cvb-step-i{height:100%;min-height:0}
   .cvx-store.cvx-enhanced .cvb-main>.pnl-sec>.cvb-step-b>.cvb-step-i>.pnl-sec-b{height:100%;min-height:0;display:flex;flex-direction:column}

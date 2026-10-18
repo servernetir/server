@@ -716,6 +716,7 @@ class PaymentController extends Controller
                 }
 
                 app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($fresh);
+                app(\App\Services\Customer\IranPurchaseReadiness::class)->assertInvoice($fresh);
 
                 /*
                 | 🔴 از M3-correct این کسر از `Wallet` می‌گذرد: گاردِ حقیقت
@@ -836,6 +837,7 @@ class PaymentController extends Controller
                 if (! in_array($fresh->status, ['unpaid', 'partial'], true) || $due <= 0) {
                     return ['ok' => false, 'msg' => __('ui.iv_cp_state')];
                 }
+                app(\App\Services\Customer\IranPurchaseReadiness::class)->assertInvoice($fresh);
 
                 /*
                 | 🔴 `customer_id` در خودِ پرس‌وجوست، نه یک `if` بعدی.
@@ -939,6 +941,7 @@ class PaymentController extends Controller
     {
         abort_if($invoice->customer_id !== Auth::guard('customer')->id(), 404);
         if (! request()->isMethod('GET') && ! str_ends_with((string) request()->route()?->getName(), '.cancel')) {
+            app(\App\Services\Customer\IranPurchaseReadiness::class)->assertInvoice($invoice);
             app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
             app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($invoice);
         }

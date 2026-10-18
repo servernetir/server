@@ -7,6 +7,7 @@ use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Customer;
 use App\Models\CustomerProfile;
+use App\Models\IdentityVerification;
 use App\Models\Product;
 use App\Models\Server;
 use App\Models\Setting;
@@ -14,14 +15,16 @@ use App\Services\Customer\IranSalesGate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
+use Tests\Support\NavasanRates;
+use Tests\Support\ShahkarFixture;
 
 /**
  * دروازهٔ فروشِ محصولاتِ ایران به مشتریِ احرازنشده.
  *
  * ═══ چرا (۶ شهریور ۱۴۰۵) ═══
  *
- * کارفرما: «فعلاً هاست/سرورِ ایران فقط به ایرانی‌ها — خارجی‌ها KYC ندارند.»
- * معیار «احراز» است نه زبان؛ پیش‌فرض بسته؛ بازکردن فقط با تیکِ صریحِ تنظیمات.
+ * خرید ایران فقط با نتیجهٔ verified و matched شاهکار؛ تأیید پروفایل یا
+ * تنظیم قدیمی هیچ استثنایی ایجاد نمی‌کند. تابعیت و زبان معیار نیستند.
  */
 class IranSalesGateTest extends TestCase
 {
@@ -30,6 +33,7 @@ class IranSalesGateTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        NavasanRates::cloudSnapshot();
         Http::fake();
     }
 
@@ -46,6 +50,9 @@ class IranSalesGateTest extends TestCase
             'status' => $verified ? 'verified' : 'draft',
             'email' => $c->email, 'mobile' => $c->phone,
         ]);
+        if ($verified) {
+            ShahkarFixture::verify($c);
+        }
 
         return $c;
     }
@@ -59,7 +66,7 @@ class IranSalesGateTest extends TestCase
 
         return Product::create([
             'name' => 'هاست لینوکس L-1', 'slug' => 'linux-1', 'category' => 'shared',
-            'price' => 200000, 'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
+            'price' => 200000, 'base_price_eur' => 2, 'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
         ]);
     }
 
@@ -108,12 +115,13 @@ class IranSalesGateTest extends TestCase
         $this->assertFalse(IranSalesGate::blocks($this->customer(false), 'gb-birmingham'));
     }
 
-    /** تیکِ صریحِ مدیر بازش می‌کند */
-    public function test_the_admin_toggle_opens_it(): void
+    /** تنظیم قدیمی مجوز دورزدن الزام شاهکار نیست. */
+    public function test_the_legacy_admin_toggle_cannot_bypass_shahkar(): void
     {
         Setting::put(IranSalesGate::SETTING, '1');
 
-        $this->assertFalse(IranSalesGate::blocks($this->customer(false), 'IR'));
+        $this->assertFalse(IranSalesGate::openToUnverified());
+        $this->assertTrue(IranSalesGate::blocks($this->customer(false), 'IR'));
     }
 
     // ═══════════ سیم‌کشیِ فروشگاه‌ها ═══════════
@@ -174,5 +182,137 @@ class IranSalesGateTest extends TestCase
             ->get('/account/cloud-store')->assertOk()->getContent();
 
         $this->assertStringContainsString('ir-tehran', $html);
+    }
+
+    public function test_profile_approval_alone_never_substitutes_for_verified_matching_shahkar(): void
+    {
+        $customer = $this->customer(false);
+        $customer->profiles()->update(['status' => 'verified']);
+        $this->assertTrue($customer->isVerified());
+        $this->assertTrue(IranSalesGate::blocksIranFor($customer));
+
+        foreach ([['pending', true], ['failed', true], ['verified', false]] as [$status, $matched]) {
+            ShahkarFixture::verify($customer)->forceFill(['status' => $status, 'shahkar_matched' => $matched])->save();
+            $this->assertTrue(IranSalesGate::blocksIranFor($customer), $status.' / '.(int) $matched);
+        }
+        ShahkarFixture::verify($customer);
+        $customer->profiles()->update(['status' => 'draft']);
+        $this->assertFalse($customer->isVerified());
+        $this->assertFalse(IranSalesGate::blocksIranFor($customer));
+        $this->assertTrue(IranSalesGate::blocksIranFor(null));
+        Http::assertNothingSent();
+    }
+
+    public function test_eligibility_reads_current_evidence_after_a_cached_relation_is_revoked(): void
+    {
+        $customer = $this->customer(true);
+        $customer->load('identityVerification');
+        $this->assertFalse(IranSalesGate::blocksIranFor($customer));
+        IdentityVerification::where('customer_id', $customer->id)->update(['shahkar_matched' => false]);
+        $this->assertTrue($customer->identityVerification->shahkar_matched, 'Fixture intentionally retains a stale loaded relation');
+        $this->assertTrue(IranSalesGate::blocksIranFor($customer));
+        Http::assertNothingSent();
+    }
+
+    public function test_forged_iran_cloud_orders_and_country_metadata_aliases_have_no_financial_or_provider_effect(): void
+    {
+        $this->gpuFreeCloud();
+        CloudLocation::create(['code' => 'custom-local', 'country' => 'IR', 'city' => 'Tehran', 'is_active' => true]);
+        $alias = CloudPlan::where('location_code', 'ir-tehran')->firstOrFail()->replicate();
+        $alias->forceFill(['provider_ref' => 'alias-ir', 'location_code' => 'custom-local', 'slug' => 'alias-iran-plan'])->save();
+        $customer = $this->customer(false);
+        $customer->profiles()->update(['status' => 'verified']);
+        $this->credit($customer);
+
+        $html = $this->actingAs($customer, 'customer')->get('/en/account/cloud-store?location=custom-local')->assertOk()->getContent();
+        $this->assertStringNotContainsString('data-city="custom-local"', $html);
+        $this->assertStringNotContainsString('data-city="ir-tehran"', $html);
+        foreach ([['ir-tehran', 'cv-2c-4g-40d-ir-tehran', 'cycle'], ['ir-tehran', 'cv-2c-4g-40d-ir-tehran', 'hourly'], ['custom-local', 'alias-iran-plan', 'hourly']] as [$location, $plan, $billing]) {
+            $this->post('/en/account/cloud-store', [
+                'location' => $location, 'plan' => $plan, 'image' => 'ubuntu-24.04',
+                'cycle' => 'monthly', 'billing_mode' => $billing,
+            ])->assertSessionHasErrors('location');
+        }
+        $this->assertNoPurchaseEffects($customer);
+    }
+
+    public function test_omitting_country_cannot_purchase_a_default_iran_server_in_any_product_category(): void
+    {
+        $server = Server::create(['name' => 'Private Iran delivery', 'type' => 'generic', 'country' => 'IR',
+            'hostname' => 'local.test', 'status' => 'active']);
+        $customer = $this->customer(false);
+        $customer->profiles()->update(['status' => 'verified']);
+        $this->credit($customer);
+        $this->actingAs($customer, 'customer');
+
+        foreach (['shared', 'reseller', 'vps', 'dedicated', 'plesk', 'directadmin', 'other'] as $category) {
+            $product = Product::create(['name' => 'Synthetic '.$category, 'slug' => 'iran-'.$category,
+                'category' => $category, 'server_id' => $server->id, 'price' => 200000,
+                'cycle' => 'monthly', 'requires_domain' => false, 'is_active' => true]);
+            $this->assertSame([], $product->availableCountries());
+            $this->get('/account/order/'.$product->slug)->assertRedirect('/account/services');
+            $this->post('/account/order/'.$product->slug, ['country' => '', 'cycle' => 'monthly'])
+                ->assertSessionHasErrors('country');
+        }
+        $this->assertNoPurchaseEffects($customer);
+    }
+
+    public function test_iran_only_declared_locations_without_a_server_are_still_restricted(): void
+    {
+        $customer = $this->customer(false);
+        $this->credit($customer);
+        $product = Product::create(['name' => 'Manual domestic delivery', 'slug' => 'manual-domestic',
+            'category' => 'dedicated', 'locations' => ['IR'], 'price' => 200000,
+            'cycle' => 'monthly', 'requires_domain' => false, 'is_active' => true]);
+        $this->actingAs($customer, 'customer')->post('/account/order/'.$product->slug, ['cycle' => 'monthly'])
+            ->assertSessionHasErrors('country');
+        $this->assertNoPurchaseEffects($customer);
+    }
+
+    public function test_builder_iran_default_is_rejected_before_domain_lookup_or_invoice_creation(): void
+    {
+        $server = Server::create(['name' => 'Iran builder', 'type' => 'generic', 'country' => 'IR',
+            'hostname' => 'builder.test', 'status' => 'active']);
+        $product = Product::create(['name' => 'Domestic builder', 'slug' => 'domestic-builder',
+            'category' => 'shared', 'group' => 'site-builder', 'server_id' => $server->id,
+            'price' => 200000, 'cycle' => 'monthly', 'requires_domain' => false, 'is_active' => true]);
+        $customer = $this->customer(false);
+        $this->credit($customer);
+        $this->actingAs($customer, 'customer')->get('/account/builder-checkout?'.http_build_query([
+            'ref' => 'SB-BLOCK1', 'plan' => $product->slug, 'domain' => 'synthetic.example.com',
+        ]))->assertRedirect('/account/services');
+        $this->post('/account/builder-checkout', ['ref' => 'SB-BLOCK1', 'plan' => $product->slug, 'quote_id' => 1])
+            ->assertSessionHasErrors('country');
+        $this->assertDatabaseCount('domains', 0);
+        $this->assertDatabaseCount('domain_quotes', 0);
+        $this->assertNoPurchaseEffects($customer);
+    }
+
+    public function test_foreign_default_delivery_stays_purchasable_without_shahkar(): void
+    {
+        $server = Server::create(['name' => 'Foreign manual delivery', 'type' => 'generic', 'country' => 'DE',
+            'hostname' => 'foreign.test', 'status' => 'active']);
+        $product = Product::create(['name' => 'Foreign service', 'slug' => 'foreign-service', 'category' => 'dedicated',
+            'server_id' => $server->id, 'price' => 200000, 'base_price_eur' => 2, 'cycle' => 'monthly', 'requires_domain' => false, 'is_active' => true]);
+        $customer = $this->customer(false);
+        $this->actingAs($customer, 'customer')->post('/account/order/'.$product->slug, ['country' => '', 'cycle' => 'monthly'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame($server->id, \App\Models\Service::firstOrFail()->server_id);
+        $this->assertDatabaseCount('invoices', 1);
+    }
+
+    private function credit(Customer $customer): void
+    {
+        app(\App\Services\Finance\Wallet::class)->credit($customer->id, 'IRT', 5000000, 'synthetic-policy-test', $customer);
+    }
+
+    private function assertNoPurchaseEffects(Customer $customer): void
+    {
+        $this->assertDatabaseCount('services', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('cloud_instances', 0);
+        $this->assertDatabaseCount('credit_ledger', 1);
+        $this->assertSame(5000000, $customer->creditBalance('IRT'));
+        Http::assertNothingSent();
     }
 }

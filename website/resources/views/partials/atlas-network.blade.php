@@ -20,9 +20,10 @@
       $atlasNodes[$iso] = ['position'=>$atlasCoordinates[$iso], 'label'=>$country['name'], 'url'=>$country['url']];
     }
   }
-  $atlasDefault = match(app()->getLocale()) { 'tr'=>'TR', 'en'=>'US', default=>'IR' };
+  $atlasDefault = match(app()->getLocale()) { 'tr'=>'TR', 'en'=>'US', default=>\App\Services\Customer\IranSalesVisibility::allowsCountry('IR') ? 'IR' : 'DE' };
   $atlasLabels = ['IR'=>'iran','TR'=>'turkey','US'=>'usa','DE'=>'germany','FR'=>'france','NL'=>'netherlands'];
   $atlasPicker = array_values(array_unique(array_merge([$atlasDefault], ['US','TR','DE','FR','NL','IR'])));
+  $atlasPicker = array_values(array_filter($atlasPicker, fn ($iso) => \App\Services\Customer\IranSalesVisibility::allowsCountry($iso)));
   foreach ($atlasPicker as $iso) {
     $atlasNodes[$iso] ??= ['position'=>$atlasCoordinates[$iso], 'label'=>__('atlas.'.$atlasLabels[$iso]), 'url'=>lroute('cloud.index')];
   }

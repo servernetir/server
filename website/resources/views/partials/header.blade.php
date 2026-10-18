@@ -1,6 +1,6 @@
 @php
     $loc = app()->getLocale();
-    $mega = config('servernet.mega');
+    $mega = \App\Services\Customer\IranSalesVisibility::menu((array) config('servernet.mega'));
     $serverMenu = app(\App\Services\ServerMenu::class)->build($mega['vps'] ?? []);
     // ⚠️ از `MenuManager` و نه مستقیم از config: رویهٔ مدیر (خاموشی، متنِ
     //    سه‌زبانه، ترتیب، لینکِ افزوده) این‌جا اعمال می‌شود. عمداً `config()`

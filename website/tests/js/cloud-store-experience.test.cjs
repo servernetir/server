@@ -196,6 +196,27 @@ test('globe country browsing ignores countries outside the actual catalogue and 
   assert.equal(page.window.location.href, before.url);
 });
 
+test('Enter in destination search reviews a matching city without advancing or changing the order', t => {
+  const page = fixture(t);
+  let submitted = 0;
+  page.document.querySelector('form').addEventListener('submit', event => { submitted++; event.preventDefault(); });
+  page.search('Zurich');
+  page.input.focus();
+  const enter = new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+  page.input.dispatchEvent(enter);
+  assert.equal(enter.defaultPrevented, true);
+  assert.equal(page.document.activeElement, page.city('ch-z-rich'));
+  assert.equal(page.document.querySelector('input[name="location"]').value, 'ir-shiraz');
+  assert.equal(page.window.location.search, '');
+  assert.equal(submitted, 0);
+  page.search('NoSuchCity');
+  page.input.focus();
+  const emptyEnter = new page.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+  page.input.dispatchEvent(emptyEnter);
+  assert.equal(emptyEnter.defaultPrevented, true);
+  assert.equal(page.document.activeElement, page.input);
+});
+
 test('Ctrl K leaves focus in search after the navigation helper schedules its own heading focus', t => {
   const page = fixture(t);
   const heading = page.document.getElementById('location-heading');

@@ -21,8 +21,7 @@ use Tests\TestCase;
  *
  * کارفرما: «زیرساخت KYC برای خارجی‌ها — اطلاعاتشان را بفرستند، خودمان تأیید
  * کنیم؛ قبض و پاسپورت و…». خارجی = فردی بدونِ استعلامِ هویتِ ایرانی. تأییدِ
- * مدیر همان پرچمِ verified را می‌زند که IranSalesGate می‌خوانَد — پس دروازهٔ
- * محصولاتِ ایران خودکار برای تأییدشده باز می‌شود.
+ * مدیر پروفایل را verified می‌کند. خرید ایران همچنان نتیجهٔ مستقل شاهکار می‌خواهد.
  */
 class ForeignKycTest extends TestCase
 {
@@ -102,8 +101,8 @@ class ForeignKycTest extends TestCase
         }
     }
 
-    /** 🔴 تأییدِ مدیر ⇒ پروفایل verified ⇒ دروازهٔ ایران برای همین مشتری باز */
-    public function test_admin_approval_verifies_and_opens_the_iran_gate(): void
+    /** تأیید مدارک معتبر است؛ جای نتیجهٔ شاهکار برای خرید ایران را نمی‌گیرد. */
+    public function test_admin_approval_verifies_the_profile_without_opening_the_iran_gate(): void
     {
         $c = $this->foreigner();
 
@@ -119,7 +118,8 @@ class ForeignKycTest extends TestCase
 
         $this->assertSame('verified', $p->fresh()->status);
         $this->assertSame('approved', CustomerDocument::where('customer_profile_id', $p->id)->first()->status);
-        $this->assertFalse(IranSalesGate::blocks($c->fresh(), 'IR'), 'تأییدِ مدیر باید دروازه را باز کند.');
+        $this->assertTrue($c->fresh()->isVerified());
+        $this->assertTrue(IranSalesGate::blocks($c->fresh(), 'IR'), 'تأیید مدارک بدون شاهکار خرید ایران را مجاز نمی‌کند.');
     }
 
     /** فردِ ایرانی (با استعلامِ ثبتِ احوال) پاسپورت لازم ندارد */

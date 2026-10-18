@@ -26,10 +26,10 @@ class CatalogPricing
     }
 
     /** A price that can be passed directly to site_price(). */
-    public function quote(Product $product): array
+    public function quote(Product $product, ?string $country = null): array
     {
-        $monthly = $product->monthlyEquivalent((string) $product->cycle);
-        $yearly = $product->monthlyEquivalent('yearly');
+        $monthly = $product->monthlyEquivalent((string) $product->cycle, $country);
+        $yearly = $product->monthlyEquivalent('yearly', $country);
 
         if ($monthly <= 0 || $yearly <= 0) {
             return ['contact' => true, 'quote' => true];
@@ -42,6 +42,34 @@ class CatalogPricing
         ];
     }
 
+    /** Customer display prices use only destinations the customer can purchase. */
+    public function eligibleQuote(Product $product): array
+    {
+        if (! \App\Services\Customer\IranSalesVisibility::restricted() || $product->isLicense()) {
+            return $this->quote($product);
+        }
+        $customer = \Illuminate\Support\Facades\Auth::guard('customer')->user();
+        if (\App\Services\Customer\IranSalesGate::blocksProduct($customer, $product)) {
+            return ['contact' => true, 'quote' => true];
+        }
+        return $this->quote($product, $this->displayCountry($product));
+    }
+
+    /** Destination used for an eligible public quote; all arithmetic stays in Product. */
+    public function displayCountry(Product $product, bool $checkoutDefault = false): ?string
+    {
+        if (! \App\Services\Customer\IranSalesVisibility::restricted() || $product->isLicense()) {
+            return null;
+        }
+        $countries = collect($product->availableCountries())
+            ->filter(fn ($country) => \App\Services\Customer\IranSalesVisibility::allowsCountry((string) $country));
+        if (! $checkoutDefault) {
+            $countries = $countries->sortBy(fn ($country) => $product->monthlyEquivalent((string) $product->cycle, (string) $country));
+        }
+
+        return $countries->first();
+    }
+
     /** Cheapest live monthly equivalent in a product group. */
     public function minimumQuote(string $group): array
     {
@@ -50,7 +78,7 @@ class CatalogPricing
         }
 
         $quotes = Product::query()->where('is_active', true)->where('group', $group)->get()
-            ->map(fn (Product $product) => $this->quote($product))
+            ->map(fn (Product $product) => $this->eligibleQuote($product))
             ->filter(fn (array $quote) => (int) ($quote['irt'] ?? 0) > 0);
 
         return $quotes->sortBy('irt')->first() ?? ['contact' => true, 'quote' => true];
@@ -60,6 +88,12 @@ class CatalogPricing
     public function applyToPlans(string $group, array $plans): array
     {
         $map = $this->map();
+        if (\App\Services\Customer\IranSalesVisibility::restricted() && Schema::hasTable('products')) {
+            // Never put customer-specific eligibility or regional prices in catalog.prices.
+            foreach (Product::where('is_active', true)->where('group', $group)->get() as $product) {
+                $map[$product->slug] = $this->eligibleQuote($product);
+            }
+        }
 
         foreach ($plans as $i => $plan) {
             $slug = $group.'-'.($i + 1);

@@ -17,6 +17,14 @@ class StoreOrderTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
+        \Illuminate\Support\Facades\Http::fake();
+        \Illuminate\Support\Facades\Mail::fake();
+    }
+
     private function customer(): Customer
     {
         return Customer::create([
@@ -27,10 +35,14 @@ class StoreOrderTest extends TestCase
 
     private function product(array $over = []): Product
     {
-        return Product::create(array_merge([
+        $attributes = array_merge([
             'name' => 'هاست لینوکس', 'category' => 'shared', 'price' => 250000,
             'setup_fee' => 0, 'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
-        ], $over));
+        ], $over);
+        $attributes['base_price_eur'] = $attributes['price'] / 100000;
+        $attributes['base_setup_eur'] = $attributes['setup_fee'] / 100000;
+
+        return Product::create($attributes);
     }
 
     public function test_customer_can_order_a_package_and_gets_a_proforma(): void
@@ -169,6 +181,7 @@ class StoreOrderTest extends TestCase
             'customer_id' => $customer->id, 'is_default' => true, 'type' => 'individual',
             'status' => 'verified', 'email' => $customer->email, 'mobile' => $customer->phone,
         ]);
+        \Tests\Support\ShahkarFixture::verify($customer);
 
         $this->actingAs($customer, 'customer')
             ->post("/account/order/{$product->slug}", [
@@ -195,7 +208,7 @@ class StoreOrderTest extends TestCase
         $advertised = (int) config('billing.cycles.yearly.discount_pct');
         $product = $this->product(['price' => 1000000]);
 
-        $expected = price_toman((int) round(1000000 * 12 * (100 - $advertised) / 100));
+        $expected = (int) (round((1000000 * 12 * (100 - $advertised) / 100) / 10000) * 10000);
 
         $this->assertSame($expected, $product->priceForCycle('yearly'));
         $this->assertGreaterThan(0, $advertised);

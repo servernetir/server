@@ -208,8 +208,9 @@ class BaleKycReviewTest extends TestCase
             $this->assertSame('verified', $p->status);
             $this->assertSame('approved',
                 CustomerDocument::where('customer_profile_id', $p->id)->first()->status);
-            $this->assertFalse(IranSalesGate::blocks($p->customer->fresh(), 'IR'),
-                'تأیید باید دروازهٔ ایران را باز کند — از هر دو مسیر.');
+            $this->assertTrue($p->customer->fresh()->isVerified());
+            $this->assertTrue(IranSalesGate::blocks($p->customer->fresh(), 'IR'),
+                'تأیید مدارک از هر دو مسیر، جای شاهکار را برای خرید ایران نمی‌گیرد.');
         }
     }
 

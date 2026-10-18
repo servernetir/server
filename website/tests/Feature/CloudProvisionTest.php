@@ -29,6 +29,7 @@ class CloudProvisionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
 
         Setting::put('pricing_rate_override', '100000');
         Setting::putSecret('hetzner_api_token', 'test-token');

@@ -16,6 +16,11 @@ class ServerMenuLayoutTest extends TestCase
 
     public function test_every_catalog_country_is_rendered_with_a_flag_in_both_menus(): void
     {
+        \Tests\Support\NavasanRates::cloudSnapshot();
+        $customer = \App\Models\Customer::create(['email' => 'server-menu@example.test',
+            'phone' => '09123334444', 'password' => 'isolated-password', 'status' => 'active']);
+        \Tests\Support\ShahkarFixture::verify($customer);
+        $this->actingAs($customer, 'customer');
         $countries = array_diff(array_keys(CloudLocation::COUNTRIES), ['XX']);
         foreach ($countries as $iso) {
             $code = strtolower($iso).'-menu-test';

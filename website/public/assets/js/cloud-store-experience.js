@@ -81,6 +81,11 @@
   }
   input.addEventListener('keydown', event => {
     if (event.key === 'ArrowDown') { event.preventDefault(); targets()[0]?.focus(); }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const items = targets();
+      (items.find(element => element.hasAttribute('data-city')) || items[0])?.focus();
+    }
     if (event.key === 'Escape' && input.value) { event.preventDefault(); input.value = ''; filter(); }
   });
   document.getElementById('cvx-results').addEventListener('keydown', event => {

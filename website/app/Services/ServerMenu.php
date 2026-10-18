@@ -18,12 +18,18 @@ class ServerMenu
                 $out['hardware'] = ! empty($group['items']);
                 // Model-specific and administrator-added links remain discoverable.
                 foreach ($group['items'] as $item) {
+                    if (! \App\Services\Customer\IranSalesVisibility::allowsItem($item, 'vps')) {
+                        continue;
+                    }
                     $out['guidance'][] = $this->link($item);
                 }
 
                 continue;
             }
             foreach ($group['items'] ?? [] as $item) {
+                if (! \App\Services\Customer\IranSalesVisibility::allowsItem($item, 'vps')) {
+                    continue;
+                }
                 $link = $this->link($item);
                 $slug = $item['slug'] ?? ($item['route'][1]['slug'] ?? null);
                 $iso = strtoupper($item['iso'] ?? CloudCountry::isoForSlug($slug ?? '') ?? '');

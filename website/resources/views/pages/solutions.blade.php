@@ -71,8 +71,10 @@
       <h2>{{ __('ui.sol_cross_t') }}</h2>
       <div class="sol-cross-links">
         <a href="{{ lroute('hosting', 'linux') }}">{{ __('ui.f_p1') }}</a>
+        @if(\App\Services\Customer\IranSalesVisibility::allowsCountry('IR'))
         <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.f_p2') }}</a>
         <a href="{{ lroute('catalog', ['category' => 'dedicated', 'slug' => 'iran']) }}">{{ __('ui.f_p3') }}</a>
+        @endif
         <a href="{{ lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']) }}">{{ __('ui.f_p5') }}</a>
         <a href="{{ lroute('knowledge') }}">{{ __('ui.nav_knowledge') }}</a>
         <a href="{{ lroute('contact') }}">{{ __('ui.nav_contact') }}</a>

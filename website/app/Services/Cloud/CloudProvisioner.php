@@ -277,6 +277,9 @@ class CloudProvisioner
         if (filled($instance->provider_ref)) {
             return $this->adoptExisting($service, $instance, $plan, $driver);
         }
+        if (app(\App\Services\Customer\IranPurchaseReadiness::class)->holdDeliveryIfBlocked($service, $plan)) {
+            return false;
+        }
 
         // ── کلیدِ SSH ──
         // باید **پیش** از ساختِ سرور در حسابِ ما نزدِ زیرساخت باشد، چون سرِ ساخت

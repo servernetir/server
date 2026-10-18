@@ -411,7 +411,8 @@ class CloudCatalogController extends Controller
     {
         $t = $this->strings();
         $offers = CloudPlan::offers();
-        $locations = $this->activeLocations();
+        $locations = $this->activeLocations()->filter(fn ($location) =>
+            \App\Services\Customer\IranSalesVisibility::allowsCountry((string) $location->country));
 
         $tree = $this->continentTree($offers, $locations);
         $rows = $this->planRows($offers, $locations);

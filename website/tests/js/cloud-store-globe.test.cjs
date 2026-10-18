@@ -19,8 +19,8 @@ function fixture(options = {}) {
   function canvas() {
     const calls = [];
     const methods = ['beginPath', 'arc', 'ellipse', 'fill', 'stroke', 'clearRect', 'drawImage', 'setTransform', 'lineTo', 'moveTo', 'save', 'restore', 'translate', 'rotate', 'fillText'];
-    const ctx = Object.fromEntries(methods.map(name => [name, (...args) => calls.push({ name, args })]));
-    const node = { calls, ctx, getContext: () => ctx }; canvases.push(node); return node;
+    const ctx = Object.fromEntries(methods.map(name => [name, (...args) => calls.push({ name, args, alpha: ctx.globalAlpha, color: ctx.strokeStyle, lineWidth: ctx.lineWidth })]));
+    const node = { calls, ctx, style: {}, getContext: () => ctx }; canvases.push(node); return node;
   }
   const displayedCanvas = canvas(), fallback = { hidden: false }, classes = new Set();
   const countryCodes = options.countries || ['IR', 'DE', 'TR', 'SG', 'US', 'GB', 'FR', 'NL', 'AU', 'AE', 'FI', 'CH', 'JP', 'CA', 'BR', 'ZA'];
@@ -28,7 +28,7 @@ function fixture(options = {}) {
   const host = target({
     dataset: { country: 'IR', city: 'Tehran', code: 'ir-thr', label: 'Tehran', ...(options.dataset || {}) },
     classList: { add: name => classes.add(name), remove: name => classes.delete(name), toggle(name, value) { if (value) classes.add(name); else classes.delete(name); } },
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 500, height: 500 }),
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 500, height: 500, ...(options.rect || {}) }),
     querySelector: selector => selector === 'canvas' ? displayedCanvas : fallback,
     setPointerCapture() {}, hasPointerCapture: () => true, releasePointerCapture() {}
   });
@@ -71,7 +71,7 @@ test('Atlas renders a large local globe, a rich catalogue network and animated p
   const page = fixture(); page.step(0);
   assert.equal(page.host.dataset.globeState, 'ready');
   assert.ok(Number(page.host.dataset.globeRoutes) > 25, 'more links than the homepage network');
-  assert.ok(page.canvases[0].width <= 750, 'DPR is capped at 1.5');
+  assert.ok(page.canvases[0].width / parseFloat(page.canvases[0].style.width) <= 1.5, 'DPR is capped at 1.5 on the padded drawing surface');
   const sphere = page.canvases[1].calls.find(call => call.name === 'arc');
   assert.ok(sphere.args[2] >= 220 && sphere.args[2] <= 250, 'globe fills approximately 90% of the panel');
   const firstPackets = page.canvases[0].calls.filter(call => call.name === 'arc' && call.args[2] < 2).map(call => call.args);
@@ -80,6 +80,58 @@ test('Atlas renders a large local globe, a rich catalogue network and animated p
   const nextPackets = page.canvases[0].calls.filter(call => call.name === 'arc' && call.args[2] < 2).map(call => call.args);
   assert.notDeepEqual(firstPackets, nextPackets, 'packets move smoothly between frames');
   assert.equal(page.canvases[1].calls.filter(call => call.name === 'clearRect').length, terrainPaints, 'stationary land is reused');
+});
+
+function orbitalSegments(calls) {
+  let path = [];
+  const segments = [];
+  for (const call of calls) {
+    if (call.name === 'beginPath') path = [];
+    else if (call.name === 'moveTo' || call.name === 'lineTo') path.push(call);
+    else if (call.name === 'stroke' && call.color === '#5de5ed' && call.lineWidth === .8) {
+      for (let i = 1; i < path.length; i++) if (path[i].name === 'lineTo') segments.push({ a: path[i - 1].args, b: path[i].args, alpha: call.alpha });
+    }
+  }
+  return segments;
+}
+
+test('raised orbital arches extend beyond the sphere and original panel without moving marker hit targets', () => {
+  const page = fixture(); page.step(0);
+  const sphere = page.canvases[1].calls.find(call => call.name === 'arc').args;
+  const segments = orbitalSegments(page.canvases[1].calls);
+  const vertices = segments.flatMap(segment => [segment.a, segment.b]);
+  const furthest = Math.max(...vertices.map(([x, y]) => Math.hypot(x - sphere[0], y - sphere[1])));
+  assert.ok(furthest > sphere[2] * 1.3, 'high satellite arches visibly stand off the surface');
+  assert.ok(vertices.some(([x, y]) => x < 0 || x > 500 || y < 0 || y > 500), 'the extended canvas preserves off-panel route geometry');
+  assert.ok(parseFloat(page.canvases[0].style.left) < 0);
+  assert.ok(parseFloat(page.canvases[0].style.width) > 500);
+  assert.ok(new Set(segments.map(segment => segment.alpha)).size > 1, 'back-side or horizon routes use quieter opacity');
+  page.pointer('pointerdown', 250, 250); page.pointer('pointerup', 250, 250);
+  assert.deepEqual(page.selections, [{ country: 'IR' }], 'drawing padding does not shift the catalogue marker hit box');
+});
+
+test('a narrow tall globe keeps its 24px top inset and accurate city hit target with orbital overscan', () => {
+  const page = fixture({ rect: { width: 350, height: 650 } }); page.step(0);
+  const sphere = page.canvases[1].calls.find(call => call.name === 'arc').args;
+  assert.ok(Math.abs(sphere[1] - sphere[2] - 24) < .001, 'the large globe does not return to the empty vertical centre');
+  page.pointer('pointerdown', sphere[0], sphere[1]); page.pointer('pointerup', sphere[0], sphere[1]);
+  assert.deepEqual(page.selections, [{ country: 'IR' }]);
+});
+
+test('animated packets follow the rendered elevated segments rather than the old surface routes', () => {
+  const page = fixture(); page.step(0);
+  const segments = orbitalSegments(page.canvases[1].calls);
+  page.canvases[0].calls.length = 0; page.step(1300);
+  const packets = page.canvases[0].calls.filter(call => call.name === 'arc' && call.args[2] < 2);
+  function distanceToSegment([x, y], { a, b }) {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+    return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy);
+  }
+  assert.ok(packets.length > 10);
+  const aligned = packets.filter(packet => Math.min(...segments.map(segment => distanceToSegment(packet.args, segment))) < .25);
+  assert.ok(aligned.length / packets.length > .95, 'packets share the exact cached orbital geometry, allowing a soft limb crossing');
+  assert.ok(packets.some(packet => Math.hypot(packet.args[0] - 250, packet.args[1] - 250) > 226 * 1.2), 'packets also travel above the limb');
 });
 
 test('a country tap emits only browsing intent and preserves the current city preview', () => {

@@ -873,9 +873,8 @@ class SettingsController extends Controller
         }
 
         /*
-        | دروازهٔ فروشِ ایران — ذخیرهٔ صریحِ '1' یعنی باز؛ هر چیزِ دیگر (از
-        | جمله نبودِ ردیف) یعنی بسته. پیش‌فرضِ بسته عمدی است: تنظیمی که گم
-        | شود نباید بازار را به روی احرازنشده باز کند.
+        | کلید قدیمی صرفاً برای سازگاری ذخیره می‌شود؛ IranSalesGate آن را
+        | مجوز خرید نمی‌داند. الزام نتیجهٔ موفق شاهکار از تنظیمات باز نمی‌شود.
         */
         Setting::put(\App\Services\Customer\IranSalesGate::SETTING,
             $request->boolean('iran_sales_open_to_unverified') ? '1' : null);
