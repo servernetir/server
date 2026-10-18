@@ -2696,6 +2696,18 @@ return [
     'cy_not_payable' => 'Bu fatura ödenebilir değil.',
     'cy_busy' => 'Geçici olarak kullanılamıyor',
     'cy_busy_hint' => 'Tüm alım adresleri şu anda kullanımda — lütfen birkaç dakika sonra tekrar deneyin.',
+    'cy_choose_coin' => 'Ödeme para birimi ve ağı',
+    'cy_invoice_amount' => 'Fatura tutarı',
+    'cy_approx_label' => 'Yaklaşık karşılığı',
+    'cy_scan' => 'Cüzdanınızla tarayın',
+    'cy_copy' => 'Kopyala',
+    'cy_for_invoice' => ':amount tutarındaki fatura için — kur süre bitene kadar sabittir',
+    'cy_network_only' => 'Tam olarak bu tutarı yalnızca :net ağı üzerinden gönderin. Başka ağdaki transferler geri alınamaz.',
+    'cy_step_wait' => 'Ödeme bekleniyor',
+    'cy_step_seen' => 'İşlem görüldü',
+    'cy_step_done' => 'Onaylandı ve ödendi',
+    'cy_expired_title' => 'Ödeme süresi doldu',
+    'cy_new_address' => 'Yeni adres al',
 
     // ── Karşılaştırma sayfası: bulut plan listesi tablo olarak ──
     'cvb_disk' => 'Disk',
