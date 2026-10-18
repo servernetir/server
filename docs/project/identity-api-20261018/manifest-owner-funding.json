@@ -1,0 +1,48 @@
+{
+  "release": "identity-api-20261018-owner-funding",
+  "source_sha": "cab7c90eb81a900859c97c6ca8ded420b39cd6ca",
+  "base_sha": "98835188f2753da8dac847f1d8f222b38c5a217f",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "app/Services/IdentityApi/Engine.php",
+      "before": "cd63a4dbd5c8dbf582d2be216d93e0b0f9ed43f27102c1fd2d9e7cb440e2b3f7",
+      "after": "e572a6327c657b5fecdf8480b8c3ee635562b714cd914db03b010180bda73fc8"
+    },
+    {
+      "path": "app/Services/IdentityApi/Controls.php",
+      "before": "d6d506530ffbb3a26c960651371548e19ec72c136fd76f46e01aa93ff0eff87a",
+      "after": "72f720170c459b7dd79b360cddcf7aab5052ad1ddb4a68a119dd076c9e84c7e7"
+    },
+    {
+      "path": "app/Http/Controllers/IdentityStorefrontController.php",
+      "before": "670e19b79263e11ee155479523b118d18d22042855a330686fc1fd7de562efb5",
+      "after": "cecf3582d8c0aa1a6519129d83aae44be65e632a559e9f54e63ef8b5053f7ff7"
+    },
+    {
+      "path": "lang/fa/identity.php",
+      "before": "cb64446c5397b0aa923a694960f212d76e2d5dc8f3b7986627d4c60c85563017",
+      "after": "e9d2c1f92c8a2602f8d93edcc4fdd08ed4f748d18bea0721f2ac98bc0473ff4f"
+    },
+    {
+      "path": "lang/en/identity.php",
+      "before": "01851820bc30335cddeb9636636e61fc9219ead6c6b63d36ffa35b2b92eb2d1a",
+      "after": "ddab523c6d05940999ef542778470291239ea5c11b4b4ab1dce0ec4ec165d320"
+    },
+    {
+      "path": "lang/tr/identity.php",
+      "before": "af06ad3aa09b61e10ee860557e2187a73b64dd61746930728e67bb9e89777bcf",
+      "after": "5d8bc8950a2ac740ccc4c1782df8cceaab0ae126fc14add2630d1bf71b3714ad"
+    },
+    {
+      "path": "resources/views/admin/identity.blade.php",
+      "before": "b92d84b5f262be6b127321dffc138784dad5c23de61b203d30e7f09f6e6a44ff",
+      "after": "fbe2a47c234ed1b9adb2d25197a21431148b73e2f4f79a9051efea98f5d88cfa"
+    },
+    {
+      "path": "resources/views/partials/header.blade.php",
+      "before": "df3f68d106d382f328ad819e8cd6c436bee41a6cdc9f8033c1c5f3ac0d5fd771",
+      "after": "990ee49c96a64f184ff84aa4b67221fc010732dfa562d5fb5864d725f63a7985"
+    }
+  ]
+}
