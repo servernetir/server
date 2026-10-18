@@ -129,7 +129,7 @@ class Audit6RegressionTest extends TestCase
 
         $this->assertStringContainsString('"AggregateOffer"', $html);
         $this->assertStringContainsString('"priceCurrency":"IRR"', $html);
-        $this->assertStringContainsString('"merchantReturnDays":14', $html, 'هاستِ اشتراکی قابلِ بازگشت است');
+        $this->assertStringNotContainsString('merchantReturnDays', $html, 'بدون احراز زیرساخت ایران نباید ضمانت منتشر شود');
         $this->assertStringContainsString('#cy-yearly', $html, 'Offer.url لنگرِ همین صفحه است');
 
         /*
@@ -331,11 +331,13 @@ class Audit6RegressionTest extends TestCase
 
     public function test_refundability_follows_the_legal_scope(): void
     {
-        foreach (['shared', 'reseller', 'vps', 'plesk', 'directadmin'] as $c) {
-            $this->assertTrue((new Product(['category' => $c]))->isRefundable(), $c);
+        foreach (['shared', 'reseller', 'plesk', 'directadmin'] as $c) {
+            $product = new Product(['category' => $c]);
+            $product->setRelation('server', new \App\Models\Server(['country' => 'IR', 'type' => 'whm']));
+            $this->assertTrue($product->isRefundable(), $c);
         }
 
-        foreach (['dedicated', 'license', 'other'] as $c) {
+        foreach (['vps', 'dedicated', 'license', 'other'] as $c) {
             $this->assertFalse((new Product(['category' => $c]))->isRefundable(), $c);
         }
     }

@@ -119,7 +119,7 @@ return [
     'hp_inc2' => 'Daily backups',
     'hp_inc3' => 'Instant activation',
     'hp_inc4' => 'Free migration',
-    'hp_inc5' => '14-day money-back guarantee',
+    'hp_inc5' => '14-day guarantee for eligible Iran hosting only',
     'hp_inc6' => '24/7 support',
     'hp_feat_badge' => 'Features',
     'hp_feat_title' => 'Why :name by ServerNet?',
@@ -2906,7 +2906,7 @@ return [
     'hv_vs_r2_m' => 'One month',
     'hv_vs_r3' => 'Cancellation',
     'hv_vs_r3_h' => 'Any time; unused balance stays',
-    'hv_vs_r3_m' => 'End of cycle; refund per our terms',
+    'hv_vs_r3_m' => 'End of cycle; server purchases have no voluntary refund',
     'hv_vs_r4' => 'Hardware and plan',
     'hv_vs_r4_h' => 'Identical',
     'hv_vs_r4_m' => 'Identical',
@@ -2976,7 +2976,7 @@ return [
     'ab_sla' => 'Response commitment: automatic acknowledgement · handling starts within 2 business days · active phishing/malware: 4 business hours target.',
 
     /* Network force majeure in SLA (audit r4 — legal draft) */
-    'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network infrastructure or international routes, for any reason including decisions of competent authorities; status is announced on the status page, and this clause does not block the 14-day money-back guarantee.',
+    'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network or international routes, including decisions of competent authorities; status is announced on the status page. The voluntary 14-day guarantee applies only to eligible Iran hosting under the terms; mandatory statutory rights remain unaffected.',
 
     /* Company registration identifiers on About (audit r4) */
     'about_reg_t' => 'Company registration identifiers',
@@ -3066,7 +3066,8 @@ return [
     'os_tax_none' => 'Iranian VAT does not apply to this price.',
     'os_tax_neutral' => 'This is the final amount payable; statutory taxes and duties are included.',
     'os_refund_policy' => 'Refund policy',
-    'os_no_refund' => 'This service is non-refundable after delivery',
+    'os_no_refund' => 'This service is outside the voluntary money-back guarantee',
+    'server_no_refund_notice' => 'Server purchases are non-refundable after infrastructure allocation. The infrastructure cost is settled in its original currency at purchase; cancellation, deletion or non-use does not refund the amount paid in cash or account credit. The voluntary 14-day guarantee is only for eligible hosting on ServerNet infrastructure in Iran; mandatory statutory rights remain unaffected.',
     'os_total_label' => 'Total',
     'os_cta_quote' => 'Request a quote',
     'eu_data_title' => 'Where your data is held',
