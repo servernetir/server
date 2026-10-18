@@ -1,0 +1,13 @@
+{
+  "tests": 44,
+  "assertions": 336,
+  "errors": 0,
+  "failures": 0,
+  "skipped": 0,
+  "runtime": "PHP 8.4.26",
+  "database": "SQLite in-memory",
+  "network": "stray HTTP prevented; no paid API",
+  "suite": "tests/Feature/IdentityApiTest.php",
+  "mariadb_rerun": false,
+  "command": "php vendor/bin/phpunit tests/Feature/IdentityApiTest.php"
+}

@@ -1,0 +1,66 @@
+{
+  "observed_via": [
+    "private production CLI sanitized summary",
+    "authenticated admin DOM in fa/en/tr",
+    "Zohal developer IP column after reload and edit form permissions comparison"
+  ],
+  "checked_at": "2026-10-18T06:04:07+00:00",
+  "source_sha": "f4f98c88311c7d6faa58821f1a1b81c4c663a890",
+  "installed_hashes_match": true,
+  "changed_app_paths": 6,
+  "database_backup_crc_valid": true,
+  "private_backup_permissions_valid": true,
+  "runtime_ready": true,
+  "enabled": false,
+  "dispatch_enabled": false,
+  "resale_evidence_present": false,
+  "egress_verified": true,
+  "php_source_ip_to_provider": "65.109.176.14",
+  "provider_allowlist": [
+    "65.109.176.14"
+  ],
+  "existing_token_service_permissions_preserved": true,
+  "existing_token_service_count": 19,
+  "paid_retest_after_allowlist": false,
+  "provider_daily_cap_irt": 100000,
+  "internal_kyc_reserve_irt": 200000,
+  "owner_daily_cap_irt": 100000,
+  "concurrency": 1,
+  "balance_witness_at": "2026-10-18T05:57:50+00:00",
+  "balance_witness_fresh_at_acceptance": true,
+  "balance_value_omitted": true,
+  "active_public_services": 0,
+  "retail_requests": 0,
+  "applications": 0,
+  "keys": 0,
+  "auto_topup_enabled": false,
+  "wallet_unchanged_by_preparation": true,
+  "price_versions": {
+    "shahkar-inquiry": {
+      "version": 1,
+      "cost_irt": 1430,
+      "sell_irt": 1502,
+      "tax_irt": 151,
+      "total_irt": 1653,
+      "markup_bps": 500,
+      "tax_bps": 1000,
+      "billing_pending": true,
+      "quote_rejected": true,
+      "daily_quota": 20,
+      "valid_until": "2026-10-19T05:06:47+00:00"
+    },
+    "id-inquiry": {
+      "version": 2,
+      "cost_irt": 7480,
+      "sell_irt": 7854,
+      "tax_irt": 786,
+      "total_irt": 8640,
+      "markup_bps": 500,
+      "tax_bps": 1000,
+      "billing_pending": true,
+      "quote_rejected": true,
+      "daily_quota": 20,
+      "valid_until": "2026-10-19T05:07:08+00:00"
+    }
+  }
+}

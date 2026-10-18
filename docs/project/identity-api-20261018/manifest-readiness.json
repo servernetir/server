@@ -1,0 +1,38 @@
+{
+  "release": "identity-api-20261018-readiness",
+  "source_sha": "f4f98c88311c7d6faa58821f1a1b81c4c663a890",
+  "base_sha": "25997acf1134bc247b0b8388795beeb3469ddc69",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "app/Services/IdentityApi/Pricing.php",
+      "before": "e653065f50862c4ac3f69d2a1bd840585cc157dc071a14256c133a3a928d036c",
+      "after": "c284588133085a6521701a06add972f3f5d61880944af2409e64c54262906350"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/IdentityController.php",
+      "before": "c365f3d6865b1dc1cac47f85d5740420f6f010cb6fcd40620e4d3c4c447e7c57",
+      "after": "ca44ba308b8d35da2b517b0d775d6291489ff01a54f35d02e1dbaeb5d65664b5"
+    },
+    {
+      "path": "resources/views/admin/identity.blade.php",
+      "before": "46db0fdc47986f92de1eea11f2809e8f84a43d1616d9998f5ab2982ac1137c22",
+      "after": "79e13cf4f5364290b502546cbb255fed37c3d5fa9705dc8f5bb555c5477885a3"
+    },
+    {
+      "path": "lang/fa/identity.php",
+      "before": "da2ea56810197ef708efc14383686e15881910aaff4e1c68470d988ec5637278",
+      "after": "d58fe5a4dbbb2048a500bdf27245a2ed61dd71a39e5ce6a13860458cfa688323"
+    },
+    {
+      "path": "lang/en/identity.php",
+      "before": "534cb155d854fc1a3ea1c30667e8de487d81d82dc847f9ad1b402becd61e1786",
+      "after": "3a9e12c2921d52d6fc03001640414b2fc95a6e45c628a9ee358b8c033fbe7128"
+    },
+    {
+      "path": "lang/tr/identity.php",
+      "before": "7e1049e05683a5c8a6767d7803b2cc12a0b403e9c823baff8f6259af4146e093",
+      "after": "f49f8243840a75f2274ea1f9f11ab8addc82e089c14c5203bbfba6479c6338cc"
+    }
+  ]
+}
