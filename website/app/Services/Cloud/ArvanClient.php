@@ -1077,7 +1077,7 @@ class ArvanClient implements CloudProvider
 
         $out = $this->serverToResult($server, $region);
         // رمزِ root فقط لحظهٔ ساخت برمی‌گردد
-        $out['root_password'] = $server['password'] ?? null;
+        $out['root_password'] = $this->responsePassword($server);
 
         return $out;
     }
@@ -1387,6 +1387,14 @@ class ArvanClient implements CloudProvider
             'ipv6' => null,
             'traffic_used_gb' => null,
         ];
+    }
+
+    private function responsePassword(array $server): ?string
+    {
+        $password = $server['password'] ?? null;
+
+        return is_string($password) && trim($password) !== '' && strlen($password) <= 4096
+            && ! preg_match('/[\x00-\x1f\x7f]/', $password) ? $password : null;
     }
 
     public function power(string $ref, string $action): array

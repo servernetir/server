@@ -419,7 +419,8 @@ class CloudProvisioner
         // انتخابِ کلید خواسته بود پس می‌گیرد (ورودِ رمزی باز می‌مانَد).
         $keyOnly = $sshRefs !== [];
 
-        if (! $keyOnly && blank($password) && filled($result['ref'] ?? null)
+        if (! $keyOnly && $this->supportsAutomaticPasswordReset($instance)
+            && blank($password) && filled($result['ref'] ?? null)
             && ! str_starts_with((string) $result['ref'], 'order:')) {
             $pw = $driver->resetPassword((string) $result['ref']);
             $password = $pw['root_password'] ?? null;
@@ -559,7 +560,7 @@ class CloudProvisioner
                 | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
                 */
                 'username' => $instance->isGpuApp() ? null
-                    : ($instance->provider === 'lightnode' && $instance->isWindows() ? 'Administrator' : 'root'),
+                    : (in_array($instance->provider, ['arvan', 'lightnode'], true) && $instance->isWindows() ? 'Administrator' : 'root'),
                 'password' => $password ?: $service->password,
                 'domain' => $service->domain ?: ($instance->isGpuApp()
                     ? ($instance->accessHost() ?: null)
@@ -1244,7 +1245,7 @@ class CloudProvisioner
         // به داخلش ندارد.
         $password = null;
 
-        if (! $instance->hasPassword()) {
+        if (! $instance->hasPassword() && $this->supportsAutomaticPasswordReset($instance)) {
             $pw = $driver->resetPassword($ref);
             $password = $pw['root_password'] ?? null;
 
@@ -1267,6 +1268,25 @@ class CloudProvisioner
         Log::info('cloud.provision.adopted', ['service' => $service->id, 'ref' => $ref]);
 
         return true;
+    }
+
+    private function supportsAutomaticPasswordReset(CloudInstance $instance): bool
+    {
+        if ($instance->provider !== 'arvan') {
+            return true;
+        }
+
+        // The provider endpoint is Linux-only. Missing/ambiguous catalogue
+        // metadata must not be interpreted as permission to reset Windows.
+        $families = CloudImage::where('provider', 'arvan')->where('key', $instance->image_key)
+            ->pluck('family')->map(fn ($family) => strtolower((string) $family))->unique();
+
+        return $families->count() === 1 && in_array($families->first(), [
+            'ubuntu', 'debian', 'centos', 'centos-stream', 'rocky', 'rocky-linux',
+            'almalinux', 'alma-linux', 'fedora', 'alpine', 'arch', 'arch-linux',
+            'opensuse', 'opensuse-leap', 'opensuse-tumbleweed', 'rhel',
+            'red-hat-enterprise-linux', 'oracle-linux', 'linux',
+        ], true);
     }
 
     /** پلنِ هم‌اسلاگ روی زیرساختی که این سیستم‌عامل را دارد */
