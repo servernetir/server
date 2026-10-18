@@ -27,30 +27,31 @@ final class SitemapUrlPolicy
             && $urlPort === $canonicalPort;
     }
 
-    /**
-     * The sitemap has one intentional query landing-page shape: blog category.
-     * Pagination is crawlable through links but deliberately absent from XML;
-     * search, tags, tracking, sorting and arbitrary filters never belong there.
-     */
+    /** Only canonical category landing pages may carry a sitemap query. */
     public static function allowsQuery(string $path, ?string $query): bool
     {
         if ($query === null || $query === '') {
             return true;
         }
 
-        if (preg_match('~^/(?:en/|tr/)?blog$~', $path) !== 1) {
+        $blog = preg_match('~^/(?:en/|tr/)?blog$~', $path) === 1;
+        $aiModels = preg_match('~^/(?:en/|tr/)?ai/models$~', $path) === 1;
+        if (! $blog && ! $aiModels) {
             return false;
         }
 
+        $key = $blog ? 'cat' : 'type';
         parse_str($query, $parameters);
-        if (array_keys($parameters) !== ['cat'] || ! is_string($parameters['cat'])) {
+        if (array_keys($parameters) !== [$key] || ! is_string($parameters[$key])) {
             return false;
         }
 
-        $category = $parameters['cat'];
-        $canonicalQuery = http_build_query(['cat' => $category], '', '&', PHP_QUERY_RFC3986);
+        $category = $parameters[$key];
+        $canonicalQuery = http_build_query([$key => $category], '', '&', PHP_QUERY_RFC3986);
 
         return hash_equals($canonicalQuery, $query)
-            && array_key_exists($category, (array) config('blog.categories', []));
+            && ($blog
+                ? array_key_exists($category, (array) config('blog.categories', []))
+                : in_array($category, \App\Models\AiModel::CATEGORIES, true));
     }
 }

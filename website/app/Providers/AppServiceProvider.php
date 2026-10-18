@@ -536,6 +536,24 @@ class AppServiceProvider extends ServiceProvider
 
         foreach ($models as $model) {
             if (class_exists($model)) {
+                if ($model === \App\Models\Setting::class) {
+                    $model::saved(function (\App\Models\Setting $setting) use ($purge): void {
+                        // Agent heartbeats and mailbox sync state never appear on public pages.
+                        // Purging the whole page cache for each heartbeat keeps hot pages at MISS.
+                        $key = (string) $setting->key;
+                        if (str_starts_with($key, 'agent_seen_') || $key === 'mailbox_sync_state') {
+                            return;
+                        }
+
+                        if ($setting->wasRecentlyCreated || $setting->wasChanged('value')) {
+                            $purge();
+                        }
+                    });
+                    $model::deleted($purge);
+
+                    continue;
+                }
+
                 $model::saved($purge);
                 $model::deleted($purge);
             }

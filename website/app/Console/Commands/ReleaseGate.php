@@ -150,6 +150,14 @@ class ReleaseGate extends Command
         | سقف را فقط با ویرایشِ آگاهانهٔ همان config می‌شود بالا برد.
         */
         foreach ((array) config('seo.page_budget', []) as $prefix => $cap) {
+            if ($prefix === '/parts' && $cap === 'catalog') {
+                // The approved active catalog is allowed to grow; any extra page still fails.
+                $cap = 1 + count(\App\Models\ServerPart::CATEGORIES)
+                    + (\Illuminate\Support\Facades\Schema::hasTable('server_parts')
+                        ? \App\Models\ServerPart::active()->count()
+                        : 0);
+            }
+
             $n = count(array_filter(
                 array_keys($inSitemap),
                 fn ($p) => $p === $prefix || str_starts_with($p, rtrim($prefix, '/').'/')
