@@ -1,0 +1,78 @@
+{
+  "release": "identity-api-20261018-sales",
+  "source_sha": "5fdaf765f33aa3a086e1901d6a2081c76410e17e",
+  "base_sha": "f0cccc1066486419536d1a784d28dab4c1366521",
+  "composer_lock_sha256": "e9c126bf8854dced9d305bbe3f8541fe7d2083f05547023501c004fe108092cd",
+  "files": [
+    {
+      "path": "app/Http/Controllers/Account/IdentityController.php",
+      "before": "28bf503737ae77b5e16a9def3dbf14623fcc44489da30b53d67ceda106522b3b",
+      "after": "b4a86e598a959357902dcbfd6af96ab002a4d1ebe60be199e23329e6f8de6ef9"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/IdentityController.php",
+      "before": "ca44ba308b8d35da2b517b0d775d6291489ff01a54f35d02e1dbaeb5d65664b5",
+      "after": "366f175179c7d2d404c1aeb667d3222d787a687450e103e24ac85cb8a00722a5"
+    },
+    {
+      "path": "app/Http/Controllers/Api/IdentityController.php",
+      "before": "f897f2acec3e0c46a170e7d5dbad97c4cd96938550fcc9286e0e21cfdaef5a09",
+      "after": "21dbc4ce5010915015df6f687bdb309ece58f5837009adec5d7da3ed16bfd6b6"
+    },
+    {
+      "path": "app/Services/IdentityApi/Catalog.php",
+      "before": "bccc851d7d205aa31932adcc5d861b8dc7917e932d69ff3bf7a53b7ae0708af6",
+      "after": "83f533bfeeb54962c203308b9e945a3005b28ee61611971b3f9634f074be5afc"
+    },
+    {
+      "path": "app/Services/IdentityApi/Controls.php",
+      "before": "f73e7d7de2a251ae971996cf3256458e736be4fb9e893e18b8851ffeefb921d5",
+      "after": "a48a7f189be6dfef52f7eca35497ee0eff9687739fe07bcbb4b0b80383d1555f"
+    },
+    {
+      "path": "app/Services/IdentityApi/Engine.php",
+      "before": "f871cead666cc61910da17fbeca5072f37a669538b9529ce4628ad7a2fc21b21",
+      "after": "233856ff9dbd733e61c364effdc7b6e6b33ee26c415155e594e6f23db452ae42"
+    },
+    {
+      "path": "lang/en/identity.php",
+      "before": "3a9e12c2921d52d6fc03001640414b2fc95a6e45c628a9ee358b8c033fbe7128",
+      "after": "96d2f4abaac72b077dfbb8e68fb7ed5bdd552754759fb3a6aacd634196291450"
+    },
+    {
+      "path": "lang/fa/identity.php",
+      "before": "d58fe5a4dbbb2048a500bdf27245a2ed61dd71a39e5ce6a13860458cfa688323",
+      "after": "d102f912e8c58a7ee1c2b0ec49d91fab1b9b4599ce61f710c854a6e4d4b1ba42"
+    },
+    {
+      "path": "lang/tr/identity.php",
+      "before": "f49f8243840a75f2274ea1f9f11ab8addc82e089c14c5203bbfba6479c6338cc",
+      "after": "d7a491de94c0724dbd95f400ea2495d679be4193d50f80776acf55aa362cbf31"
+    },
+    {
+      "path": "resources/identity/openapi.json",
+      "before": "33e6e5fdb9486988c282fd5af3216aac451bf99bbaafb3c88bf71e8941b12e3d",
+      "after": "bc2e39f519bb901a96814618884578e6c210df52aed6375e57cbb2b96eb5f4c5"
+    },
+    {
+      "path": "resources/views/account/identity.blade.php",
+      "before": "777da45572f15f89ee84939307a175cd481c72e7bc0af41c37af6c420ed2eb13",
+      "after": "5694eb8755e4d7a5fadd47c61dbe035331379dd8f5d15d519af67f1e9f53f583"
+    },
+    {
+      "path": "resources/views/admin/identity.blade.php",
+      "before": "79e13cf4f5364290b502546cbb255fed37c3d5fa9705dc8f5bb555c5477885a3",
+      "after": "3ca43b700a491223f8bd7e63d034cae85ff4f4c38f2e0469f2023dfbf2c02612"
+    },
+    {
+      "path": "resources/views/pages/identity/docs.blade.php",
+      "before": "30ea6cfdc7d3643e7b0a55509c8f611c5a23fa2d3cbdc3269b54f4dd2e0abe9b",
+      "after": "64eabfec71ba412642b879f5a3f5e903c35b2a229742d91670aeeaca44948b84"
+    },
+    {
+      "path": "routes/identity-api.php",
+      "before": "9608e42606bcee6bb697a291bf3e6a22bd24e58d5478242534c42d39cf13fb83",
+      "after": "cd1da48bed4171602b74342fbe28ffe60b20314b368416ead0c3208367353711"
+    }
+  ]
+}
