@@ -243,7 +243,7 @@ html[data-theme="light"] .ip {
 .ip-result-card {
     position:absolute;
     right:1%;
-    bottom:14%;
+    bottom:10%;
     display:flex;
     align-items:center;
     gap:12px;
@@ -802,6 +802,8 @@ to {
 }
 
 @media(max-width:1000px) {
+    .ip-visual { aspect-ratio:1.05 }
+    .ip-result-card strong { font-size:10px }
     .ip-shell {
     padding-inline:26px}
 .ip-hero {
@@ -883,7 +885,7 @@ to {
     max-width:440px;
     width:100%;
     margin:auto;
-    aspect-ratio:1.35}
+    aspect-ratio:1.05}
 .ip-art-card-head strong,.ip-result-card strong {
     font-size:10px}
 .ip-art-card-head small,.ip-result-card small {
