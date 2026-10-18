@@ -144,9 +144,12 @@ class CloudStoreController extends Controller
                 * \App\Services\Cloud\LightNodePublicPricing::CALENDAR_MONTH_RESERVE_HOURS * $months);
         }
 
-        // Add-ons retain their own configured cycle discount, independently of
-        // a server discount reduced by its procurement-cost guard.
+        // CloudAddons applies its own cost guard and rounding; add that exact
+        // independent public quote once, after the server procurement floor.
         $extra = $addons === [] ? 0 : app(CloudAddons::class)->forCycle($addons, $cycle);
+        if ($addons !== [] && ! app(CloudAddons::class)->isEmpty($addons) && $extra <= 0) {
+            return 0;
+        }
 
         return Product::roundUpToman($raw) + $extra;
     }
@@ -907,6 +910,12 @@ class CloudStoreController extends Controller
         $addonMap = [];     // slug => bool  (آیا IP اضافه روی این اسلاگ شدنی است)
 
         $cycles = self::cycles();
+        $addonTotals = [];
+        foreach ($cycles as $cy) {
+            foreach (range(0, CloudAddons::MAX_EXTRA_IP) as $count) {
+                $addonTotals[$cy][$count] = $addonSvc->forCycle(['extra_ipv4' => $count], $cy);
+            }
+        }
         $taxPct = self::taxPercent();
         $customerId = (int) Auth::guard('customer')->id();
         $existingHourlyMinimum = app(HourlyStartCredit::class)->existingRate($customerId)
@@ -947,7 +956,6 @@ class CloudStoreController extends Controller
                     'setup' => $setupIrt,
                     'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
                     'save' => $saving,
-                    'addonDiscount' => max(0, min(90, (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0))),
                 ];
             }
 
@@ -1101,6 +1109,7 @@ class CloudStoreController extends Controller
             // به‌ازای هر اسلاگ، نه یک بولینِ سراسری: گزینه‌ای که سرِ ثبتِ سفارش رد
             // می‌شود، بدترین نوعِ رابطِ کاربری است.
             'addonMap' => $addonMap,
+            'addonTotals' => $addonTotals,
             'addonOk' => (bool) ($addonMap[$selectedSlug] ?? false),
             'extraIpPrice' => $addonSvc->extraIpMonthlyToman(),
             'maxExtraIp' => CloudAddons::MAX_EXTRA_IP,

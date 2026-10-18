@@ -81,7 +81,7 @@ class CloudStoreCycleCostFloorTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_rendered_actual_savings_and_addon_discount_are_independent_per_plan(): void
+    public function test_rendered_actual_savings_and_exact_public_addon_totals_are_independent_per_plan(): void
     {
         [$low, $normal, $customer] = $this->catalogue();
         $html = $this->actingAs($customer, 'customer')->get('/account/cloud-store?'.http_build_query([
@@ -91,7 +91,14 @@ class CloudStoreCycleCostFloorTest extends TestCase
         $data = json_decode($match[1], true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame(12720000, $data['prices'][$low->slug]['semiannual']['cycle']);
         $this->assertSame(5, $data['prices'][$low->slug]['semiannual']['save']);
-        $this->assertSame(10, $data['prices'][$low->slug]['semiannual']['addonDiscount']);
+        $this->assertArrayNotHasKey('addonDiscount', $data['prices'][$low->slug]['semiannual']);
+        $this->assertSame(4360000, $data['addonTotals']['semiannual'][2]);
+        $this->assertSame(8710000, $data['addonTotals']['yearly'][2]);
+        foreach ($data['addonTotals'] as $cycle => $counts) {
+            foreach ($counts as $count => $total) {
+                $this->assertSame(app(CloudAddons::class)->forCycle(['extra_ipv4' => $count], $cycle), $total);
+            }
+        }
         $this->assertSame(10, $data['prices'][$normal->slug]['semiannual']['save']);
         $this->assertSame(20, $data['prices'][$normal->slug]['yearly']['save']);
         $this->assertStringContainsString('<em data-cycle-saving="semiannual" >'.fa_num(5).__('ui.cvb_save_suf').'</em>', $html);
@@ -109,7 +116,7 @@ class CloudStoreCycleCostFloorTest extends TestCase
             ->assertSessionHasErrors('label');
         $html = $this->get('/account/cloud-store?location=de-falkenstein')->assertOk()->getContent();
         $addon = app(CloudAddons::class)->forCycle(['extra_ipv4' => 2], 'semiannual');
-        $this->assertSame(4320000, $addon, 'IP keeps its configured ten percent discount');
+        $this->assertSame(4360000, $addon, 'IP discount also stops at its own procurement cost');
         $price = 12720000 + $addon;
         $first = $price + (int) round($price * CloudStoreController::taxPercent() / 100);
         $this->assertStringContainsString('<div class="cvb-tot pnl-num" id="cvb-s-first">'.cloud_price($first).'</div>', $html);
@@ -123,6 +130,63 @@ class CloudStoreCycleCostFloorTest extends TestCase
         $this->assertNotSame('pending', $service->provision_status);
         $this->assertSame(0, CloudInstance::count());
         $this->assertDatabaseCount('credit_ledger', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_all_public_ip_counts_and_cycles_stop_at_aggregate_cost_and_share_the_invoice_line_total(): void
+    {
+        $addons = app(CloudAddons::class);
+        foreach (CloudStoreController::cycles() as $cycle) {
+            foreach (range(0, CloudAddons::MAX_EXTRA_IP) as $count) {
+                $selection = ['extra_ipv4' => $count];
+                $total = $addons->forCycle($selection, $cycle);
+                $lines = $addons->lines($selection, $cycle);
+                if ($count === 0) {
+                    $this->assertSame(0, $total);
+                    $this->assertSame([], $lines);
+                    continue;
+                }
+                $months = Service::monthsIn($cycle);
+                $rawCost = 120 / 100 * 302350 * $months * $count;
+                $discount = (int) config('billing.cycles.'.$cycle.'.discount_pct');
+                $discountedSale = 400000 * $months * $count * (100 - $discount) / 100;
+                $this->assertSame(Product::roundUpToman(max($rawCost, $discountedSale)), $total);
+                $this->assertGreaterThanOrEqual($rawCost, $total);
+                $this->assertCount(1, $lines);
+                $this->assertSame($count, $lines[0]['qty']);
+                $this->assertSame($total, $lines[0]['total']);
+            }
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_ip_quotes_fail_closed_without_a_rate_or_valid_unit_price_and_do_not_revive_empty_orders(): void
+    {
+        $this->partialMock(\App\Services\Cloud\CloudPricing::class, function ($mock) {
+            $mock->shouldReceive('eurToToman')->andReturn(0);
+        });
+        $addons = app(CloudAddons::class);
+        $this->assertSame(0, $addons->forCycle(['extra_ipv4' => 1], 'yearly'));
+        $this->assertSame([], $addons->lines(['extra_ipv4' => 1], 'yearly'));
+        $this->assertSame(0, $addons->forCycle(['extra_ipv4' => 0], 'yearly'));
+        $this->assertSame(0, $addons->forCycle(['extra_ipv4' => 2], 'unknown-cycle'));
+        $plan = new CloudPlan(['provider' => 'hetzner', 'cost_eur_cents' => 701, 'price_irt' => 2240000]);
+        $this->assertSame(0, CloudStoreController::priceForCycle($plan, 'yearly', ['extra_ipv4' => 1]));
+        Http::assertNothingSent();
+    }
+
+    public function test_a_profitable_ip_discount_and_an_unpriced_ip_are_preserved(): void
+    {
+        NavasanRates::cloudSnapshot();
+        Setting::put('cloud_margin_pct', '50');
+        Setting::put('cloud_extra_ip_eur_cents', '100');
+        $addons = app(CloudAddons::class);
+        $this->assertSame(1440000, $addons->forCycle(['extra_ipv4' => 1], 'yearly'));
+        Setting::put('cloud_extra_ip_eur_cents', '0');
+        $this->assertSame(0, $addons->forCycle(['extra_ipv4' => 1], 'yearly'));
+        $this->assertSame([], $addons->lines(['extra_ipv4' => 1], 'yearly'));
+        $plan = new CloudPlan(['provider' => 'hetzner', 'cost_eur_cents' => 701, 'price_irt' => 2240000]);
+        $this->assertSame(0, CloudStoreController::priceForCycle($plan, 'yearly', ['extra_ipv4' => 1]));
         Http::assertNothingSent();
     }
 }

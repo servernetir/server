@@ -834,6 +834,7 @@
       'version' => __('ui.cvb_image_version'), 'selected' => __('ui.cvb_image_selected'),
       'ready' => __('ui.cvb_image_ready'), 'continue' => __('ui.cvb_image_continue')],
     'addon'  => $addonMap,
+    'addonTotals' => $addonTotals,
     // برمتال: فروشِ ساعتی ندارد — کلیدِ ساعتی برایش پنهان می‌شود
     'metal'  => collect($planCards)->mapWithKeys(fn ($c) => [$c['slug'] => (bool) ($c['metal'] ?? false)])->all(),
     'extraIp' => (int) $extraIpPrice,
@@ -1002,15 +1003,14 @@
     syncPrimaryAction();
   };
 
-  // مبلغِ افزودنی سمتِ سرور با CloudAddons ساخته می‌شود؛ همان فرمول این‌جا
-  // بازسازی می‌شود (ماه × تخفیفِ دوره، گردِ رو به **بالا** به ۱۰٬۰۰۰ تومان) تا
-  // عددِ دکمه با مبلغِ فاکتور یکی باشد. تستِ CloudStoreSlipTest همین را می‌سنجد.
-  var addonForCycle = function(cyc, discount){
+  // Exact public totals come from CloudAddons, including its cost guard and
+  // aggregate rounding. Procurement cost never goes into the browser.
+  var addonForCycle = function(cyc){
     var n = ipSel ? parseInt(ipSel.value, 10) || 0 : 0;
     if (n < 1) { return 0; }
-    var months = D.months[cyc] || 1;
-    var raw = D.extraIp * n * months * (100 - (discount || 0)) / 100;
-    return Math.ceil(raw / 10000) * 10000;
+    var totals = (D.addonTotals || {})[cyc] || {};
+    var total = totals[n];
+    return typeof total === 'number' && total > 0 ? total : null;
   };
 
   var capacitySlug = null;
@@ -1052,8 +1052,7 @@
 
     var hourly = !!(hChk && hChk.checked);
 
-    // Server savings follow the selected plan's real cost-capped quote. The
-    // configured add-on discount is a separate value used only for IP pricing.
+    // Server savings follow the selected plan's real cost-capped quote.
     form.querySelectorAll('[data-cycle-saving]').forEach(function(badge){
       var quote = bucket[badge.getAttribute('data-cycle-saving')];
       var saving = quote ? quote.save || 0 : 0;
@@ -1159,7 +1158,15 @@
     }
 
     if (warn) warn.hidden = true;
-    var addon = addonForCycle(cyc, row.addonDiscount);
+    var addon = addonForCycle(cyc);
+    if (addon === null) {
+      set('cvb-s-first', '—');
+      set('cvb-d-first', '—');
+      if (warn) warn.hidden = false;
+      bar(0, 0, 0);
+      lockSubmit(true);
+      return;
+    }
     var setup = row.setup || 0;
     var total = row.cycle + addon + setup;
     var vat = Math.round(total * D.tax / 100);

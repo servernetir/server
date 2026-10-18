@@ -29,16 +29,20 @@ function fixture(t, options = {}) {
   if (options.unpriced) data.prices.plan = {};
   if (options.pricing) {
     data.prices = {
-      plan: { monthly: { cycle: 2240000, setup: 0, save: 0, addonDiscount: 0 }, semiannual: { cycle: 12720000, setup: 0, save: 5, addonDiscount: 10 }, yearly: { cycle: 25440000, setup: 0, save: 5, addonDiscount: 20 } },
-      empty: { monthly: { cycle: 4000000, setup: 0, save: 0, addonDiscount: 0 }, semiannual: { cycle: 21600000, setup: 0, save: 10, addonDiscount: 10 }, yearly: { cycle: 38400000, setup: 0, save: 20, addonDiscount: 20 } },
+      plan: { monthly: { cycle: 2240000, setup: 0, save: 0 }, semiannual: { cycle: 12720000, setup: 0, save: 5 }, yearly: { cycle: 25440000, setup: 0, save: 5 } },
+      empty: { monthly: { cycle: 4000000, setup: 0, save: 0 }, semiannual: { cycle: 21600000, setup: 0, save: 10 }, yearly: { cycle: 38400000, setup: 0, save: 20 } },
     };
     data.images.empty = data.images.plan;
     data.cycles = { monthly: 'Monthly', semiannual: 'Six months', yearly: 'Yearly' };
     data.months = { monthly: 1, semiannual: 6, yearly: 12 };
     data.addon = { plan: true, empty: true };
     data.extraIp = 400000;
+    data.addonTotals = { monthly: [0, 400000, 800000, 1200000, 1600000, 2000000],
+      semiannual: [0, 2180000, 4360000, 6540000, 8710000, 10890000],
+      yearly: [0, 4360000, 8710000, 13070000, 17420000, 21770000] };
     data.rate = 1;
     data.saveSuffix = '% saving';
+    if (options.missingAddonQuote) delete data.addonTotals.semiannual[2];
   }
   const runtimeErrors = [];
   const virtualConsole = new VirtualConsole();
@@ -195,7 +199,7 @@ test('a priced plan with no compatible image cannot expose an enabled final chec
   assert.equal(page.dock.disabled, true);
 });
 
-test('real cycle savings refresh per selected plan while IP pricing keeps its separate configured discount', t => {
+test('real cycle savings refresh per selected plan and exact server-owned IP totals reach both checkout prices', t => {
   const page = fixture(t, { openStep: 4, pricing: true });
   const badge = cycle => page.document.querySelector(`[data-cycle-saving="${cycle}"]`);
   const choose = (name, value) => {
@@ -207,16 +211,27 @@ test('real cycle savings refresh per selected plan while IP pricing keeps its se
   assert.equal(badge('semiannual').textContent, '5% saving');
   assert.equal(badge('yearly').textContent, '5% saving');
   choose('cycle', 'semiannual');
-  // Server 12.72m + two IPs at their own 10% discount (4.32m) + 10% tax.
-  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€18744000.00');
-  assert.equal(page.document.getElementById('cvb-d-first').textContent, '€18744000.00');
+  // Server 12.72m + two IPs at their independent cost cap (4.36m) + 10% tax.
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€18788000.00');
+  assert.equal(page.document.getElementById('cvb-d-first').textContent, '€18788000.00');
   choose('plan', 'empty');
   assert.equal(badge('semiannual').textContent, '10% saving');
   assert.equal(badge('yearly').textContent, '20% saving');
-  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€28512000.00');
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€28556000.00');
   choose('cycle', 'yearly');
-  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€50688000.00');
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€51821000.00');
   choose('plan', 'plan');
   assert.equal(badge('yearly').textContent, '5% saving');
-  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€36432000.00');
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€37565000.00');
+});
+
+test('a nonzero IP selection with no public quote cannot become a free add-on or an enabled checkout', t => {
+  const page = fixture(t, { openStep: 4, pricing: true, missingAddonQuote: true });
+  const cycle = page.document.querySelector('input[name="cycle"][value="semiannual"]');
+  cycle.checked = true;
+  cycle.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '—');
+  assert.equal(page.document.getElementById('cvb-d-first').textContent, '—');
+  assert.equal(page.primary.disabled, true);
+  assert.equal(page.dock.disabled, true);
 });

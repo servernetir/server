@@ -96,7 +96,8 @@ try {
         $installed[$relative] = $after;
     }
     foreach (['app/Services/Customer/IranSalesGate.php', 'app/Services/Customer/IranSalesVisibility.php',
-        'app/Services/Customer/IranPurchaseReadiness.php', 'app/Http/Controllers/Account/CloudStoreController.php',
+        'app/Services/Customer/IranPurchaseReadiness.php', 'app/Services/Cloud/CloudAddons.php',
+        'app/Http/Controllers/Account/CloudStoreController.php',
         'resources/views/account/cloud-store.blade.php', 'public/assets/js/cloud-store-experience.js',
         'public/assets/js/cloud-store-globe.js'] as $required) {
         probeCheck(isset($installed['servernet_app/'.$required]), 'required_release_file_missing_from_manifest');
@@ -345,11 +346,36 @@ try {
     }
     probeCheck(app(App\Services\Cloud\CloudPricingSnapshot::class)->current(), 'cloud_quote_snapshot_not_current');
     $eurRate = app(App\Services\Cloud\CloudPricing::class)->eurToToman();
+    $addonSvc = app(App\Services\Cloud\CloudAddons::class);
+    $expectedAddonTotals = [];
+    $result['addon_quote_checks'] = ['cycles' => 0, 'quantities' => 0, 'available' => $addonSvc->extraIpMonthlyToman() > 0];
+    foreach ($controller::cycles() as $cycle) {
+        $result['addon_quote_checks']['cycles']++;
+        foreach (range(0, App\Services\Cloud\CloudAddons::MAX_EXTRA_IP) as $count) {
+            $selection = ['extra_ipv4' => $count];
+            $total = $addonSvc->forCycle($selection, $cycle);
+            $lines = $addonSvc->lines($selection, $cycle);
+            $expectedAddonTotals[$cycle][$count] = $total;
+            if ($count === 0 || ! $result['addon_quote_checks']['available']) {
+                probeCheck($total === 0 && $lines === [], 'unavailable_or_empty_addon_quote_revived');
+            } else {
+                $floor = $addonSvc->extraIpCostCents() / 100 * $eurRate * App\Models\Service::monthsIn($cycle) * $count;
+                probeCheck($total > 0 && $total + 1 >= $floor, 'addon_quote_below_stored_supplier_cost', [
+                    'cycle' => $cycle, 'quantity' => $count, 'computed_addon_total_irt' => $total,
+                    'stored_unit_cost_eur_cents' => $addonSvc->extraIpCostCents(),
+                    'current_eur_toman' => $eurRate, 'stored_supplier_addon_cycle_cost_irt' => $floor]);
+                probeCheck(count($lines) === 1 && $lines[0]['total'] === $total && $lines[0]['qty'] === $count,
+                    'addon_invoice_line_total_mismatch');
+            }
+            $result['addon_quote_checks']['quantities']++;
+        }
+    }
     $result['quote_checks'] = ['locations' => 0, 'public_slugs' => 0, 'cycle_entries' => 0, 'hourly_entries' => 0,
         'image_keys' => 0, 'duplicate_public_slugs' => 0, 'rendered_pages' => 0];
 
-    $checkView = function (Illuminate\View\View $view, bool $render) use ($controller, $eurRate, &$result): void {
+    $checkView = function (Illuminate\View\View $view, bool $render) use ($controller, $eurRate, $expectedAddonTotals, &$result): void {
         $data = $view->getData();
+        probeCheck(($data['addonTotals'] ?? null) === $expectedAddonTotals, 'public_addon_total_map_mismatch');
         $code = (string) ($data['locCode'] ?? '');
         $offers = App\Models\CloudPlan::offers($code);
         $slugs = array_column($data['planCards'], 'slug');
@@ -418,6 +444,7 @@ try {
         probeCheck(preg_match('/\bvar D = (\{[^\r\n]*\});/', $html, $match) === 1, 'rendered_inline_data_missing');
         $inline = json_decode($match[1], true, 64, JSON_THROW_ON_ERROR);
         probeCheck($inline['prices'] === $data['priceMap'] && $inline['images'] === $data['imageMap']
+            && ($inline['addonTotals'] ?? null) === $data['addonTotals']
             && $inline['hourly'] === $data['hourlyMap'], 'rendered_inline_quote_or_image_map_mismatch');
         $dom = new DOMDocument();
         $previousErrors = libxml_use_internal_errors(true);
