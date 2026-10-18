@@ -36,6 +36,7 @@
 
   function mount(form, words) {
     var doc = form.ownerDocument, cards = [], labels = {}, imageLogos = {};
+    var activeMenu = null, menuSequence = 0;
     function el(tag, className, text) {
       var node = doc.createElement(tag);
       if (className) node.className = className;
@@ -48,6 +49,96 @@
       var use = doc.createElementNS('http://www.w3.org/2000/svg', 'use');
       use.setAttribute('href', '#i-' + id); svg.appendChild(use); return svg;
     }
+    // Animated version menu, adapted to the existing non-React form. The native
+    // select remains the source of truth; only the original radio is submitted.
+    function closeVersionMenu(restoreFocus) {
+      if (!activeMenu) return;
+      var old=activeMenu; activeMenu=null;
+      old.picker.button.setAttribute('aria-expanded','false');
+      old.picker.button.classList.remove('is-open');
+      old.popup.remove();
+      if (restoreFocus) old.picker.button.focus();
+    }
+    function versionPicker(select) {
+      var button=el('button','cvb-version-trigger'), text=el('span','cvb-version-value');
+      var arrow=el('span','cvb-version-arrow'); arrow.setAttribute('aria-hidden','true');
+      arrow.appendChild(el('i')); arrow.appendChild(el('i'));
+      button.type='button'; button.appendChild(text); button.appendChild(arrow);
+      var id='cvb-version-menu-'+(++menuSequence);
+      button.setAttribute('aria-haspopup','listbox'); button.setAttribute('aria-expanded','false');
+      button.setAttribute('aria-controls',id);
+      select.hidden=true; select.insertAdjacentElement('afterend',button);
+      var picker={button:button};
+      function options() { return Array.from(select.options).filter(function(o){return !o.disabled&&!o.hidden;}); }
+      function open(first) {
+        if (button.disabled) return;
+        if (activeMenu && activeMenu.picker===picker) { closeVersionMenu(true); return; }
+        closeVersionMenu(false);
+        var popup=el('div','cvb-version-menu'); popup.id=id; popup.dir='ltr';
+        popup.setAttribute('role','listbox'); popup.setAttribute('aria-label',select.getAttribute('aria-label'));
+        var items=[];
+        options().forEach(function(option){
+          var item=el('button','cvb-version-option'); item.type='button'; item.tabIndex=-1;
+          item.setAttribute('role','option'); item.setAttribute('aria-selected',option.value===select.value?'true':'false');
+          item.appendChild(icon('check','cvb-version-option-check'));
+          item.appendChild(el('span','',option.text));
+          item.addEventListener('click',function(){
+            closeVersionMenu(false);
+            // An old popup must not bypass a plan change that disabled its option.
+            if (option.disabled||option.hidden||select.disabled) return;
+            select.value=option.value;
+            select.dispatchEvent(new doc.defaultView.Event('change',{bubbles:true}));
+            button.focus();
+          });
+          popup.appendChild(item); items.push(item);
+        });
+        if (!items.length) return;
+        // A body-level popup escapes card overflow and inline-size containment.
+        doc.body.appendChild(popup);
+        var rect=button.getBoundingClientRect(), win=doc.defaultView;
+        var width=Math.min(rect.width,win.innerWidth-16), below=win.innerHeight-rect.bottom-12, above=rect.top-12;
+        popup.style.width=width+'px';
+        popup.style.left=Math.max(8,Math.min(rect.left,win.innerWidth-width-8))+'px';
+        popup.style.maxHeight=Math.max(48,Math.min(320,Math.max(below,above)))+'px';
+        if (below>=Math.min(popup.scrollHeight,320)||below>=above) popup.style.top=(rect.bottom+5)+'px';
+        else { popup.style.bottom=(win.innerHeight-rect.top+5)+'px'; popup.classList.add('opens-up'); }
+        activeMenu={picker:picker,popup:popup}; button.classList.add('is-open');
+        button.setAttribute('aria-expanded','true');
+        var current=items.findIndex(function(item){return item.getAttribute('aria-selected')==='true';});
+        items[first==='last'?items.length-1:(first==='first'?0:Math.max(0,current))].focus();
+        popup.addEventListener('keydown',function(event){
+          var index=items.indexOf(doc.activeElement), next=index;
+          if (event.key==='ArrowDown') next=(index+1)%items.length;
+          else if (event.key==='ArrowUp') next=(index-1+items.length)%items.length;
+          else if (event.key==='Home') next=0;
+          else if (event.key==='End') next=items.length-1;
+          else if (event.key==='Escape') {event.preventDefault();closeVersionMenu(true);return;}
+          else if (event.key==='Tab') {closeVersionMenu(true);return;}
+          else return;
+          event.preventDefault(); items[next].focus();
+        });
+      }
+      button.addEventListener('click',function(){open();});
+      button.addEventListener('keydown',function(event){
+        if (event.key==='ArrowDown'||event.key==='ArrowUp') {event.preventDefault();open(event.key==='ArrowUp'?'last':'first');}
+        if (event.key==='Escape') closeVersionMenu(true);
+      });
+      picker.refresh=function(){
+        if (activeMenu&&activeMenu.picker===picker) closeVersionMenu(false);
+        var selected=select.options[select.selectedIndex];
+        text.textContent=selected?selected.text:words.version;
+        button.disabled=select.disabled;
+        button.setAttribute('aria-label',select.getAttribute('aria-label')+' — '+text.textContent);
+      };
+      return picker;
+    }
+    doc.addEventListener('pointerdown',function(event){
+      if (activeMenu&&!activeMenu.popup.contains(event.target)&&!activeMenu.picker.button.contains(event.target)) closeVersionMenu(false);
+    });
+    doc.defaultView.addEventListener('resize',function(){closeVersionMenu(false);});
+    doc.addEventListener('scroll',function(event){
+      if (activeMenu&&!activeMenu.popup.contains(event.target)) closeVersionMenu(false);
+    },true);
     function choose(card) {
       var item = card.items.find(function (item) { return !item.source.hidden && item.input.value === card.select.value; });
       if (!item) return;
@@ -95,7 +186,7 @@
         var single=el('span','cvb-image-single'); single.dir='auto';
         bottom.appendChild(select); bottom.appendChild(single); bottom.appendChild(icon('chev','cvb-image-chevron'));
         box.appendChild(bottom); grid.appendChild(box);
-        var card={box:box,button:button,select:select,single:single,bottom:bottom,items:group.items};
+        var card={box:box,button:button,select:select,single:single,bottom:bottom,items:group.items,picker:versionPicker(select)};
         button.addEventListener('click',function(){choose(card);});
         select.addEventListener('change',function(){choose(card);});
         single.addEventListener('click',function(){choose(card);});
@@ -125,6 +216,7 @@
         }
         card.select.disabled=available.length===0;
         card.bottom.classList.toggle('is-single',available.length<2);
+        card.picker.refresh();
       });
       form.querySelectorAll('[data-image-continue]').forEach(function(button){
         button.hidden=!button.parentNode.querySelector('.cvb-image-card:not([hidden])');

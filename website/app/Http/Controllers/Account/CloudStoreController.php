@@ -615,6 +615,16 @@ class CloudStoreController extends Controller
                 continue;                                 // این زیرساخت این اسلاگ را نمی‌فروشد
             }
 
+            if ($row->provider === 'arvan' && $row->kind === 'app') {
+                $region = explode(':', (string) $row->provider_ref)[1] ?? '';
+                if (\App\Services\Cloud\ArvanApplicationImages::imageId($region, (string) $row->provider_ref) === null
+                    || (int) $offer->vcpu < \App\Services\Cloud\ArvanApplicationImages::minCpu((string) $row->family)
+                    || ! CloudPlan::query()->sellable()->where('slug', $offer->slug)
+                        ->where('provider', 'arvan')->where('provider_location', $region)->exists()) {
+                    continue;
+                }
+            }
+
             if ($row->provider === 'lightnode') {
                 if ($row->family === 'windows' && ((int) $offer->vcpu < 2 || (int) $offer->ram_mb < 4096)) {
                     continue;

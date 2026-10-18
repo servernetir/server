@@ -150,6 +150,12 @@ class CloudImage extends Model
             if (! self::providerAccessIsAutomated((string) $plan->provider, $row)) {
                 return false;
             }
+            if ($plan->provider === 'arvan' && $row->kind === 'app') {
+                if (\App\Services\Cloud\ArvanApplicationImages::imageId((string) $plan->provider_location, (string) $row->provider_ref) === null
+                    || (int) $plan->vcpu < \App\Services\Cloud\ArvanApplicationImages::minCpu((string) $row->family)) {
+                    return false;
+                }
+            }
             // LightNode image UUIDs are regional; never install another city's image.
             if ($plan->provider === 'lightnode') {
                 $planRef = explode('|', (string) $plan->provider_ref);

@@ -87,3 +87,42 @@ test('existing GPU app cards are preserved',()=>{
   assert.equal(pane.classList.contains('cvb-images-enhanced'),false);
   assert.equal(pane.querySelector('.cvb-gpu-app').hidden,false);
 });
+
+test('animated popup exposes only compatible versions and submits the original image key',()=>{
+  const {dom,form}=setup();
+  const trigger=form.querySelector('.cvb-version-trigger');
+  assert.equal(trigger.type,'button');
+  trigger.click();
+  const menu=dom.window.document.querySelector('[role="listbox"]');
+  assert.equal(menu.parentElement,dom.window.document.body);
+  assert.equal(trigger.getAttribute('aria-expanded'),'true');
+  assert.deepEqual([...menu.querySelectorAll('[role="option"]')].map(n=>n.textContent),['24.04','22.04']);
+  menu.querySelectorAll('[role="option"]')[1].click();
+  assert.equal(dom.window.document.querySelector('[role="listbox"]'),null);
+  assert.equal(trigger.getAttribute('aria-expanded'),'false');
+  assert.deepEqual(new dom.window.FormData(form).getAll('image'),['u22']);
+  assert.equal(dom.window.document.activeElement,trigger);
+});
+
+test('keyboard navigation, Escape, outside click and plan refresh close the popup safely',()=>{
+  const {dom,form,cards}=setup();
+  const doc=dom.window.document, trigger=form.querySelector('.cvb-version-trigger');
+  const key=(target,value)=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true}));
+  key(trigger,'ArrowDown');
+  assert.equal(doc.activeElement.textContent,'24.04');
+  key(doc.activeElement,'End');
+  assert.equal(doc.activeElement.textContent,'22.04');
+  key(doc.activeElement,'Escape');
+  assert.equal(doc.activeElement,trigger);
+  assert.equal(doc.querySelector('[role="listbox"]'),null);
+  trigger.click();
+  doc.body.dispatchEvent(new dom.window.Event('pointerdown',{bubbles:true}));
+  assert.equal(doc.querySelector('[role="listbox"]'),null);
+  trigger.click();
+  const stale=doc.querySelectorAll('[role="option"]')[1];
+  form.querySelector('[data-key="u22"]').hidden=true;
+  cards.refresh();
+  stale.click();
+  assert.deepEqual(new dom.window.FormData(form).getAll('image'),['u24']);
+  assert.equal(doc.querySelector('[role="listbox"]'),null);
+});
