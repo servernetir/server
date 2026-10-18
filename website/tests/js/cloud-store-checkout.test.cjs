@@ -27,6 +27,19 @@ function fixture(t, options = {}) {
     extraIp: 0, tax: 10, credit: 10000000, rate: 120000, fa: false, auto: 'server', hPer: '/hour', hLbl: 'Hourly', amtLbl: 'Amount',
   };
   if (options.unpriced) data.prices.plan = {};
+  if (options.pricing) {
+    data.prices = {
+      plan: { monthly: { cycle: 2240000, setup: 0, save: 0, addonDiscount: 0 }, semiannual: { cycle: 12720000, setup: 0, save: 5, addonDiscount: 10 }, yearly: { cycle: 25440000, setup: 0, save: 5, addonDiscount: 20 } },
+      empty: { monthly: { cycle: 4000000, setup: 0, save: 0, addonDiscount: 0 }, semiannual: { cycle: 21600000, setup: 0, save: 10, addonDiscount: 10 }, yearly: { cycle: 38400000, setup: 0, save: 20, addonDiscount: 20 } },
+    };
+    data.images.empty = data.images.plan;
+    data.cycles = { monthly: 'Monthly', semiannual: 'Six months', yearly: 'Yearly' };
+    data.months = { monthly: 1, semiannual: 6, yearly: 12 };
+    data.addon = { plan: true, empty: true };
+    data.extraIp = 400000;
+    data.rate = 1;
+    data.saveSuffix = '% saving';
+  }
   const runtimeErrors = [];
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('jsdomError', error => runtimeErrors.push(error));
@@ -34,7 +47,8 @@ function fixture(t, options = {}) {
     <form id="cvb-form" class="cvx-store">
       <input type="hidden" name="location" value="${options.noLocation ? '' : 'de-frankfurt'}">
       <input id="cvb-quoted-hourly" type="hidden" name="quoted_hourly_irt" value="0">
-      <input type="radio" name="cycle" value="monthly" checked>
+      ${Object.keys(data.cycles).map(cycle => `<label class="cvb-seg cvb-seg-c"><input type="radio" name="cycle" value="${cycle}" ${cycle === 'monthly' ? 'checked' : ''}><em data-cycle-saving="${cycle}" hidden></em></label>`).join('')}
+      ${options.pricing ? '<div id="cvb-ip-box"><select id="cvb-extra-ip" name="extra_ipv4"><option value="2" selected>Two additional IPs</option></select></div>' : ''}
       <div class="cvx-workspace-header"><nav class="cvb-spine">${steps.map(step => `<button type="button" class="cvb-sp" data-go="${step}" data-spine="${step}"><span data-sp-v="${step}"></span>${step}</button>`).join('')}</nav></div>
       <main class="cvb-main">${steps.map(step => `<section class="cvb-step" id="cvb-step-${step}" data-step="${step}"><button type="button" class="cvb-step-h">Stage ${step}</button><div class="cvb-step-i"><h3 class="cvb-q">Stage ${step} heading</h3></div></section>`).join('')}
         <div id="cvb-plans"><label class="cvb-plan" data-slug="plan"><input type="radio" name="plan" value="plan" checked><span data-pp></span></label><label class="cvb-plan" data-slug="empty"><input type="radio" name="plan" value="empty"><span data-pp></span></label></div>
@@ -43,8 +57,8 @@ function fixture(t, options = {}) {
         <select id="cvb-ssh-pick" name="ssh_key_id"><option value="__new" selected>New SSH key</option><option value="">Password</option></select>
         <div id="cvb-ssh-new" hidden><textarea name="ssh_key_new">synthetic-public-key</textarea></div>
       </main>
-      <aside class="cvb-slip"><div id="cvx-name-home"><div id="cvx-name-fields"><label for="cvb-label">Server name</label><input id="cvb-label" name="label" value="my-server"></div></div><button id="cvb-submit" type="submit"><span data-cvx-action-label>${words.pay}</span></button></aside>
-      <div class="cvb-dock"><div id="cvx-mobile-name"></div><button id="cvb-submit-2" type="submit"><span data-cvx-action-label>${words.pay}</span></button></div>
+      <aside class="cvb-slip"><div id="cvb-s-first"></div><div id="cvx-name-home"><div id="cvx-name-fields"><label for="cvb-label">Server name</label><input id="cvb-label" name="label" value="my-server"></div></div><button id="cvb-submit" type="submit"><span data-cvx-action-label>${words.pay}</span></button></aside>
+      <div class="cvb-dock"><div id="cvb-d-first"></div><div id="cvx-mobile-name"></div><button id="cvb-submit-2" type="submit"><span data-cvx-action-label>${words.pay}</span></button></div>
     </form></body></html>`, { runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole, url: 'https://console.servernet.cloud/account/cloud-store' });
   const { window } = dom;
   const { document } = window;
@@ -179,4 +193,30 @@ test('a priced plan with no compatible image cannot expose an enabled final chec
   unavailable.dispatchEvent(new page.window.Event('change', { bubbles: true }));
   assert.equal(page.primary.disabled, true);
   assert.equal(page.dock.disabled, true);
+});
+
+test('real cycle savings refresh per selected plan while IP pricing keeps its separate configured discount', t => {
+  const page = fixture(t, { openStep: 4, pricing: true });
+  const badge = cycle => page.document.querySelector(`[data-cycle-saving="${cycle}"]`);
+  const choose = (name, value) => {
+    const input = page.document.querySelector(`input[name="${name}"][value="${value}"]`);
+    input.checked = true;
+    input.dispatchEvent(new page.window.Event('change', { bubbles: true }));
+  };
+  assert.equal(badge('monthly').hidden, true);
+  assert.equal(badge('semiannual').textContent, '5% saving');
+  assert.equal(badge('yearly').textContent, '5% saving');
+  choose('cycle', 'semiannual');
+  // Server 12.72m + two IPs at their own 10% discount (4.32m) + 10% tax.
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€18744000.00');
+  assert.equal(page.document.getElementById('cvb-d-first').textContent, '€18744000.00');
+  choose('plan', 'empty');
+  assert.equal(badge('semiannual').textContent, '10% saving');
+  assert.equal(badge('yearly').textContent, '20% saving');
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€28512000.00');
+  choose('cycle', 'yearly');
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€50688000.00');
+  choose('plan', 'plan');
+  assert.equal(badge('yearly').textContent, '5% saving');
+  assert.equal(page.document.getElementById('cvb-s-first').textContent, '€36432000.00');
 });

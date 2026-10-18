@@ -17,16 +17,16 @@ declare(strict_types=1);
 
 final class CloudStoreProbeFailure extends RuntimeException
 {
-    public function __construct(public readonly string $check)
+    public function __construct(public readonly string $check, public readonly array $context = [])
     {
         parent::__construct($check);
     }
 }
 
-function probeCheck(bool $condition, string $check): void
+function probeCheck(bool $condition, string $check, array $context = []): void
 {
     if (! $condition) {
-        throw new CloudStoreProbeFailure($check);
+        throw new CloudStoreProbeFailure($check, $context);
     }
 }
 
@@ -202,6 +202,17 @@ try {
         return ['counts' => $counts, 'financial_sha256' => hash('sha256', json_encode($financial, JSON_THROW_ON_ERROR))];
     };
     $before = $fingerprint();
+    $arvanFlags = $connection->table('settings')->whereIn('key', ['arvan_console_worker_enabled',
+        'arvan_hourly_sales_enabled', 'arvan_windows_ready_image_refs'])->pluck('value', 'key');
+    $windowsAllowlist = (string) ($arvanFlags['arvan_windows_ready_image_refs'] ?? '');
+    $result['preserved_arvan_baseline'] = [
+        'public_console' => $arvanFlags['arvan_console_worker_enabled'] ?? null,
+        'hourly_sales' => $arvanFlags['arvan_hourly_sales_enabled'] ?? null,
+        'windows_allowlist_nonempty' => trim($windowsAllowlist) !== '',
+        'windows_allowlist_sha256' => hash('sha256', $windowsAllowlist),
+        'windows_allowlist_matches_previous_baseline' => hash('sha256', $windowsAllowlist)
+            === 'cc9e1285e69a6a37cde1b114b19c860293fae75e3f311bce3ac146744206b845',
+    ];
     $session = $app['session']->driver('array');
     probeCheck($session->getHandler() instanceof Illuminate\Session\ArraySessionHandler, 'array_session_not_enforced');
     $session->start();
@@ -357,14 +368,27 @@ try {
                     && (int) $quote['first'] === $first, 'displayed_cycle_quote_mismatch');
                 $months = App\Models\Service::monthsIn($cycle);
                 $cost = (int) $offer->cost_eur_cents / 100 * $eurRate * $months;
-                probeCheck($price + 1 >= $cost, 'cycle_quote_below_stored_supplier_cost');
+                // Public product identity and procurement arithmetic only. This
+                // diagnostic is written to the private report, never stdout.
+                $pricingContext = ['public_slug' => (string) $slug, 'location_code' => $code,
+                    'provider' => (string) $offer->provider, 'cycle' => (string) $cycle, 'months' => $months,
+                    'configured_cycle_discount_pct' => (int) config('billing.cycles.'.$cycle.'.discount_pct', 0),
+                    'effective_cycle_discount_pct' => (int) $quote['save'],
+                    'configured_margin_pct' => app(App\Services\Cloud\CloudPricing::class)->marginPct($offer->provider),
+                    'stored_monthly_price_irt' => (int) $offer->price_irt, 'computed_cycle_price_irt' => $price,
+                    'stored_monthly_cost_eur_cents' => (int) $offer->cost_eur_cents,
+                    'current_eur_toman' => $eurRate, 'stored_supplier_cycle_cost_irt' => $cost,
+                    'computed_cycle_shortfall_irt' => max(0, $cost - $price)];
+                probeCheck($price + 1 >= $cost, 'cycle_quote_below_stored_supplier_cost', $pricingContext);
                 if (in_array($offer->provider, ['salad', 'lightnode'], true)) {
                     probeCheck((int) $quote['save'] === 0, 'unsupported_provider_cycle_discount');
                     $hours = $offer->provider === 'lightnode'
                         ? App\Services\Cloud\LightNodePublicPricing::CALENDAR_MONTH_RESERVE_HOURS
                         : App\Services\Cloud\SaladClient::HOURS_PER_MONTH;
                     $floor = $offer->hourlyCostFloorEurMicro() / 1000000 * $eurRate * $hours * $months;
-                    probeCheck($price + 1 >= $floor, 'cycle_quote_below_hourly_reserve_floor');
+                    probeCheck($price + 1 >= $floor, 'cycle_quote_below_hourly_reserve_floor', $pricingContext + [
+                        'reserve_hours_per_month' => $hours, 'hourly_reserve_floor_irt' => $floor,
+                        'hourly_margin_floor_eur_micro' => $offer->hourlyCostFloorEurMicro()]);
                 }
                 $result['quote_checks']['cycle_entries']++;
             }
@@ -374,7 +398,10 @@ try {
             probeCheck((int) ($hourly['rate'] ?? -1) === $expectedRate, 'displayed_hourly_quote_mismatch');
             if ($hourlyOffer !== null) {
                 $floor = $hourlyOffer->hourlyCostEurMicro() / 1000000 * $eurRate;
-                probeCheck($expectedRate > 0 && $expectedRate + 1 >= $floor, 'hourly_quote_below_stored_supplier_cost');
+                probeCheck($expectedRate > 0 && $expectedRate + 1 >= $floor, 'hourly_quote_below_stored_supplier_cost', [
+                    'public_slug' => (string) $slug, 'location_code' => $code, 'provider' => (string) $hourlyOffer->provider,
+                    'computed_hourly_price_irt' => $expectedRate, 'stored_hourly_cost_eur_micro' => $hourlyOffer->hourlyCostEurMicro(),
+                    'current_eur_toman' => $eurRate, 'stored_supplier_hourly_cost_irt' => $floor]);
                 probeCheck((int) $hourly['min'] === $hourlyOffer->hourlyStartMinIrt() + (int) $hourly['existing'],
                     'displayed_hourly_start_minimum_mismatch');
                 $result['quote_checks']['hourly_entries']++;
@@ -471,8 +498,13 @@ try {
     $failure = ['utc' => gmdate('c'), 'status' => 'failed', 'stage' => $stage,
         'check' => $error instanceof CloudStoreProbeFailure ? $error->check : 'unexpected_exception',
         'exception_class' => $error::class, 'effects' => $effects, 'paid_transaction_tested' => false, 'vm_creation_tested' => false];
+    $privateFailure = $failure;
+    if ($error instanceof CloudStoreProbeFailure && $error->context !== []) {
+        $privateFailure['diagnostic_context'] = $error->context;
+        $failure['private_diagnostic_context_available'] = true;
+    }
     if ($reportPath !== null && ! file_exists($reportPath) && ! is_link($reportPath)) {
-        try { probeJson($reportPath, $failure); } catch (Throwable) { /* Preserve failure without exposing diagnostics. */ }
+        try { probeJson($reportPath, $privateFailure); } catch (Throwable) { /* Preserve failure without exposing diagnostics. */ }
     }
     echo json_encode($failure, JSON_UNESCAPED_SLASHES).PHP_EOL;
     exit(1);

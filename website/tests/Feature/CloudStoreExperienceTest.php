@@ -112,6 +112,54 @@ class CloudStoreExperienceTest extends TestCase
         }
     }
 
+    public function test_unknown_cities_have_location_names_and_separate_real_prices_in_all_languages(): void
+    {
+        foreach ([['ru-amd', 'AMD', 2570000, true], ['ru-shared', 'Shared', 2810000, true], ['ru-ref', null, 2900000, false]] as [$code, $city, $price, $stock]) {
+            CloudLocation::create(['code' => $code, 'country' => 'RU', 'city' => $city, 'is_active' => true]);
+            $plan = CloudPlan::where('location_code', 'de-ref')->firstOrFail()->replicate();
+            $plan->forceFill(['provider_ref' => 'fixture-'.$code, 'location_code' => $code,
+                'slug' => 'plan-'.$code, 'price_irt' => $price, 'in_stock' => $stock])->save();
+        }
+
+        foreach (['' => 'fa', '/en' => 'en', '/tr' => 'tr'] as $prefix => $locale) {
+            $response = $this->get($prefix.'/account/cloud-store?location=ru-amd')->assertOk();
+            $xpath = $this->xpath($response->getContent());
+            $anchors = $response->viewData('anchors');
+            $group = collect($response->viewData('groups'))->firstWhere('country', 'RU');
+            $this->assertNotNull($group);
+            $this->assertSame(min($anchors['ru-amd']['irt'], $anchors['ru-shared']['irt']), $group['fromIrt']);
+            $countryPrice = $xpath->query('//details[@data-country="RU"]/summary//span[@class="cvb-nat-p"]/b')->item(0);
+            $this->assertStringContainsString(cloud_price($group['fromIrt']), $countryPrice->textContent);
+
+            $names = [];
+            foreach (['ru-amd', 'ru-shared', 'ru-ref'] as $code) {
+                $link = $xpath->query('//a[@data-city="'.$code.'"]')->item(0);
+                $name = trim($xpath->query('.//span[@class="cvb-city-t"]/b', $link)->item(0)->textContent);
+                $names[] = $name;
+                $this->assertStringContainsString($group['label'], $name, $locale);
+                $this->assertTrue(collect([1, 2, 3])->contains(fn ($n) => str_contains($name, __('ui.cvb_dc_n', ['n' => fa_num($n)]))), $name);
+                $this->assertStringNotContainsString(__('ui.cvb_upto_cores', ['n' => fa_num(2)]), $name);
+                $this->assertSame('', $link->getAttribute('data-city-label'));
+                $this->assertSame('true', $link->getAttribute('data-approximate'));
+                if ($code === 'ru-ref') {
+                    $this->assertSame(0, $xpath->query('.//small[@class="cvx-city-price"]', $link)->length);
+                    $this->assertStringContainsString(__('ui.cvb_c_soldout'), $link->textContent);
+                } else {
+                    $amount = cloud_price($anchors[$code]['irt']);
+                    $this->assertStringNotContainsString($amount, $name);
+                    $priceNode = $xpath->query('.//small[@class="cvx-city-price"]', $link)->item(0);
+                    $this->assertStringContainsString($amount, $priceNode->textContent);
+                }
+            }
+            $this->assertCount(3, array_unique($names));
+            $selectedLabel = $xpath->query('//*[@id="cvx-globe-name"]')->item(0)->textContent;
+            $this->assertStringNotContainsString(cloud_price($anchors['ru-amd']['irt']), $selectedLabel);
+            $this->assertStringNotContainsString('Moscow', $selectedLabel);
+            $this->assertStringNotContainsString('مسکو', $selectedLabel);
+        }
+        Http::assertNothingSent();
+    }
+
     public function test_combined_picker_keeps_one_server_owned_location_field_and_no_client_price_fields(): void
     {
         $html = $this->get('/account/cloud-store?location=ch-z-rich&plan=plan-ch-z-rich')->assertOk()->getContent();

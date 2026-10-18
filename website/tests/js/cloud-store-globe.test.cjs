@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, '../../public/assets/js/clou
 const geography = fs.readFileSync(path.join(__dirname, '../../public/assets/js/cloud-store-geography.js'), 'utf8');
 
 function fixture(options = {}) {
-  let now = 0, frameId = 0, intersection;
+  let now = 0, frameId = 0, intersection, themeChange;
   const frames = new Map(), canvases = [];
   const target = extra => Object.assign({
     listeners: {},
@@ -43,7 +43,7 @@ function fixture(options = {}) {
   const motion = target({ matches: !!options.reduced });
   const requestAnimationFrame = callback => { const id = ++frameId; frames.set(id, callback); return id; };
   const cancelAnimationFrame = id => frames.delete(id);
-  class MutationObserver { observe() {} }
+  class MutationObserver { constructor(callback) { themeChange = callback; } observe() {} }
   class IntersectionObserver { constructor(callback) { intersection = callback; } observe() {} }
   const window = target({
     devicePixelRatio: 3, matchMedia: () => motion, requestAnimationFrame, cancelAnimationFrame,
@@ -62,6 +62,7 @@ function fixture(options = {}) {
   vm.runInContext(geography, context); vm.runInContext(source, context);
   return { host, document, window, motion, frames, canvases, selections, labels,
     step(time) { now = time; const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(time)); },
+    repaint() { themeChange(); },
     intersect(value) { intersection([{ isIntersecting: value }]); },
     pointer(type, x, y, props = {}) { return host.emit(type, { pointerId: 1, pointerType: 'mouse', button: 0, clientX: x, clientY: y, ...props }); }
   };
@@ -133,6 +134,48 @@ test('animated packets follow the rendered elevated segments rather than the old
   const aligned = packets.filter(packet => Math.min(...segments.map(segment => distanceToSegment(packet.args, segment))) < .25);
   assert.ok(aligned.length / packets.length > .95, 'packets share the exact cached orbital geometry, allowing a soft limb crossing');
   assert.ok(packets.some(packet => Math.hypot(packet.args[0] - 250, packet.args[1] - 250) > 226 * 1.08), 'packets also travel above the limb on the lower arches');
+});
+
+test('country and city focus changes preserve the same drawn network topology at the same camera angle', () => {
+  const page = fixture(); page.step(0);
+  const initialNetwork = orbitalSegments(page.canvases[1].calls);
+  const routeCount = page.host.dataset.globeRoutes;
+  assert.ok(initialNetwork.length > 0);
+  // Holding a pointer pauses the camera while real selection events update the
+  // city. Repaint through the normal theme hook, then compare world geometry.
+  page.pointer('pointerdown', 5, 5);
+  for (const location of [
+    { country: 'DE', city: 'Frankfurt', code: 'de-frankfurt' },
+    { country: 'DE', city: 'Berlin', code: 'de-berlin' },
+    { country: 'US', city: 'New York', code: 'us-new-york' }
+  ]) {
+    page.canvases[1].calls.length = 0;
+    page.document.emit('cvx:location', { detail: location }); page.repaint(); page.step(300);
+    assert.equal(page.host.dataset.locationCode, location.code, 'selection still updates the precise location');
+    assert.equal(page.host.dataset.globeRoutes, routeCount);
+    assert.deepEqual(orbitalSegments(page.canvases[1].calls), initialNetwork,
+      'country endpoints, arches and opacity remain fixed while the selected marker changes');
+  }
+  page.pointer('pointercancel', 5, 5); page.step(1500);
+  assert.equal(page.host.dataset.rotation, '-74.006', 'the selected city still rotates to the centre after pointer release');
+  assert.equal(page.host.dataset.globeSettled, 'true');
+});
+
+test('every connection carries two packets travelling in opposite directions on the same arc', () => {
+  // A short, fully visible pair isolates one connection without occlusion.
+  const page = fixture({ countries: ['IR', 'TR'] }); page.step(0);
+  assert.equal(page.host.dataset.globeRoutes, '1');
+  function packetsAt(time) {
+    page.canvases[0].calls.length = 0; page.step(time);
+    const packets = page.canvases[0].calls.filter(call => call.name === 'arc' && call.args[2] < 2).map(call => call.args);
+    assert.equal(packets.length, 2, 'both directions are present on the connection');
+    return packets;
+  }
+  const earlier = packetsAt(1000), later = packetsAt(1100);
+  const velocities = later.map((point, index) => [point[0] - earlier[index][0], point[1] - earlier[index][1]]);
+  assert.ok(velocities.every(([x, y]) => Math.hypot(x, y) > .1), 'both packets advance');
+  assert.ok(velocities[0][0] * velocities[1][0] + velocities[0][1] * velocities[1][1] < 0,
+    'packet movement points in opposite directions along the visible connection');
 });
 
 test('a country tap emits only browsing intent and preserves the current city preview', () => {

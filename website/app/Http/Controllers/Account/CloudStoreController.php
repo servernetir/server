@@ -112,7 +112,7 @@ class CloudStoreController extends Controller
     {
         $months = Service::monthsIn($cycle);
 
-        if ($months <= 0) {
+        if ($months <= 0 || (int) $plan->price_irt <= 0) {
             return 0;
         }
 
@@ -121,6 +121,15 @@ class CloudStoreController extends Controller
         $discount = max(0, min(90, $discount));
 
         $raw = (int) $plan->price_irt * $months * (100 - $discount) / 100;
+
+        // A configured long-cycle discount may exceed a deliberately small
+        // sales margin. Preserve that discount only down to procurement cost;
+        // stored cost already includes supplier/FX fees, so add no profit floor.
+        // Offer selection separately requires a current stored FX snapshot.
+        $eurRate = app(\App\Services\Cloud\CloudPricing::class)->eurToToman();
+        if ((int) $plan->cost_eur_cents > 0 && $eurRate > 0) {
+            $raw = max($raw, (int) $plan->cost_eur_cents / 100 * $eurRate * $months);
+        }
 
         if ($plan->provider === 'salad' && ($floor = $plan->hourlyCostFloorEurMicro()) > 0) {
             $minimumHour = (int) (ceil($floor / 1_000_000
@@ -135,8 +144,8 @@ class CloudStoreController extends Controller
                 * \App\Services\Cloud\LightNodePublicPricing::CALENDAR_MONTH_RESERVE_HOURS * $months);
         }
 
-        // افزودنی‌های پولی (IP اضافه) از یک منبعِ واحد قیمت می‌خورند و همان
-        // تخفیفِ دوره را می‌گیرند — تا مشتری در صورت‌حساب دو نرخِ متفاوت نبیند.
+        // Add-ons retain their own configured cycle discount, independently of
+        // a server discount reduced by its procurement-cost guard.
         $extra = $addons === [] ? 0 : app(CloudAddons::class)->forCycle($addons, $cycle);
 
         return Product::roundUpToman($raw) + $extra;
@@ -479,8 +488,8 @@ class CloudStoreController extends Controller
      * ⚠️ هیچ سطلی ادغام نمی‌شود. هر سطل لینکِ خودش را نگه می‌دارد، پس
      * «دسترس‌پذیری» ساختاری است نه وابسته به درستیِ یک هش. نردبانِ تفکیک:
      *   ۱) شهرِ شناخته‌شده → نامِ خودش.
-     *   ۲) شهرِ ناشناخته → نامِ جا نمی‌گیرد؛ فقط تفاوت‌های واقعی: «از X تومان ·
-     *      تا N هسته». عنوانِ صادقانه‌شان یک بار بالای گروه می‌آید.
+     *   ۲) شهرِ ناشناخته → «مکان N»، بدون حدس‌زدن نام شهر. قیمت/مشخصات
+     *      توضیح مستقل‌اند و هرگز جای نام در برگهٔ سفارش نمی‌نشینند.
      *   ۳) اگر باز هم متن‌ها یکی شد، شمارهٔ ترتیبیِ پایدار.
      *
      * @param  array<int,array<string,mixed>>  $rows
@@ -488,8 +497,7 @@ class CloudStoreController extends Controller
      */
     private static function disambiguate(array $rows): array
     {
-        // شهرهای شناخته‌شده اول، «سایر مکان‌ها» آخر — تا عنوانِ گروه یک بار و
-        // در یک جا بنشیند و فهرست تکراری به نظر نرسد.
+        // شهرهای شناخته‌شده اول؛ هر مکان ناشناخته شمارهٔ مستقل خود را دارد.
         usort($rows, fn ($a, $b) => ((int) $a['generic']) <=> ((int) $b['generic']));
 
         foreach ($rows as $i => $r) {
@@ -499,19 +507,7 @@ class CloudStoreController extends Controller
                 continue;
             }
 
-            $bits = [];
-
-            if ((int) $r['irt'] > 0) {
-                $bits[] = __('ui.cvb_from', ['amount' => cloud_price((int) $r['irt'])]);
-            }
-
-            if ((int) $r['cores'] > 0) {
-                $bits[] = __('ui.cvb_upto_cores', ['n' => fa_num((int) $r['cores'])]);
-            }
-
-            $rows[$i]['label'] = $bits === []
-                ? __('ui.cvb_city_other_n', ['n' => fa_num($i + 1)])
-                : implode(' · ', $bits);
+            $rows[$i]['label'] = __('ui.cvb_dc_n', ['n' => fa_num($i + 1)]);
         }
 
         // پلهٔ آخر: هر متنی که هنوز تکراری است، شمارهٔ ترتیبیِ پایدار می‌گیرد.
@@ -936,15 +932,22 @@ class CloudStoreController extends Controller
             // 🔴 عددِ روی دکمه باید با فاکتور یکی باشد، پس setup همین‌جا در
             // first می‌نشیند نه فقط در لحظهٔ صدورِ فاکتور.
             $setupIrt = $offer->setupIrt();
+            $monthlyQuote = self::priceForCycle($offer, 'monthly');
 
             foreach ($cycles as $cy) {
                 $price = self::priceForCycle($offer, $cy);
+                $undiscounted = $monthlyQuote * Service::monthsIn($cy);
+                // Whole percentages round down: never promise more saving
+                // than the actual charged/rounded server quote provides.
+                $saving = $undiscounted > $price && ! in_array($offer->provider, ['salad', 'lightnode'], true)
+                    ? (int) floor(($undiscounted - $price) * 100 / $undiscounted) : 0;
                 $priceMap[$slug][$cy] = [
                     'cycle' => $price,
                     'per' => self::monthlyEquivalent($offer, $cy),
                     'setup' => $setupIrt,
                     'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
-                    'save' => in_array($offer->provider, ['salad', 'lightnode'], true) ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
+                    'save' => $saving,
+                    'addonDiscount' => max(0, min(90, (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0))),
                 ];
             }
 

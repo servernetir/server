@@ -307,7 +307,7 @@
                 <label class="cvb-seg cvb-seg-c @if($cy === $curCycle) on @endif" data-cyc="{{ $cy }}">
                   <input type="radio" name="cycle" value="{{ $cy }}" @checked($cy === $curCycle)>
                   <span>{{ $cycleLabels[$cy] ?? $cy }}</span>
-                  @if(($row['save'] ?? 0) > 0)<em>{{ fa_num($row['save']) }}{{ __('ui.cvb_save_suf') }}</em>@endif
+                  <em data-cycle-saving="{{ $cy }}" @if(($row['save'] ?? 0) <= 0) hidden @endif>{{ ($row['save'] ?? 0) > 0 ? fa_num($row['save']).__('ui.cvb_save_suf') : '' }}</em>
                 </label>
               @endforeach
 
@@ -837,6 +837,7 @@
     // برمتال: فروشِ ساعتی ندارد — کلیدِ ساعتی برایش پنهان می‌شود
     'metal'  => collect($planCards)->mapWithKeys(fn ($c) => [$c['slug'] => (bool) ($c['metal'] ?? false)])->all(),
     'extraIp' => (int) $extraIpPrice,
+    'saveSuffix' => __('ui.cvb_save_suf'),
     'tax'    => (int) $taxPct,
     'auto'   => (string) $autoLabel,
     // ارز: فارسی تومان، بقیه یورو با نرخِ زندهٔ همان کلاسی که قیمت‌ها را ساخته.
@@ -1004,11 +1005,11 @@
   // مبلغِ افزودنی سمتِ سرور با CloudAddons ساخته می‌شود؛ همان فرمول این‌جا
   // بازسازی می‌شود (ماه × تخفیفِ دوره، گردِ رو به **بالا** به ۱۰٬۰۰۰ تومان) تا
   // عددِ دکمه با مبلغِ فاکتور یکی باشد. تستِ CloudStoreSlipTest همین را می‌سنجد.
-  var addonForCycle = function(cyc, save){
+  var addonForCycle = function(cyc, discount){
     var n = ipSel ? parseInt(ipSel.value, 10) || 0 : 0;
     if (n < 1) { return 0; }
     var months = D.months[cyc] || 1;
-    var raw = D.extraIp * n * months * (100 - (save || 0)) / 100;
+    var raw = D.extraIp * n * months * (100 - (discount || 0)) / 100;
     return Math.ceil(raw / 10000) * 10000;
   };
 
@@ -1050,6 +1051,15 @@
     if (hOff && hChk && hChk.checked) { hChk.checked = false; }
 
     var hourly = !!(hChk && hChk.checked);
+
+    // Server savings follow the selected plan's real cost-capped quote. The
+    // configured add-on discount is a separate value used only for IP pricing.
+    form.querySelectorAll('[data-cycle-saving]').forEach(function(badge){
+      var quote = bucket[badge.getAttribute('data-cycle-saving')];
+      var saving = quote ? quote.save || 0 : 0;
+      badge.hidden = hourly || saving <= 0;
+      badge.textContent = saving > 0 ? (D.fa ? faN(String(saving)) : String(saving)) + D.saveSuffix : '';
+    });
 
     // مبلغِ ستونِ هر ردیف = همان دورهٔ انتخابی.
     // ⚠️ این حلقه عمداً **پیش از** بازگشتِ زودهنگامِ ساعتی است، و تا وقتی
@@ -1149,7 +1159,7 @@
     }
 
     if (warn) warn.hidden = true;
-    var addon = addonForCycle(cyc, row.save);
+    var addon = addonForCycle(cyc, row.addonDiscount);
     var setup = row.setup || 0;
     var total = row.cycle + addon + setup;
     var vat = Math.round(total * D.tax / 100);

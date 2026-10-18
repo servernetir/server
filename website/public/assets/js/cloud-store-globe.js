@@ -80,7 +80,7 @@
         var position = /^[A-Z]{2}$/.test(code) && !seen[code] ? geography.resolve({ country: code, approximate: true }) : null;
         seen[code] = true;
         return position ? { country: code, position: position, vector: vector(position.latitude, position.longitude) } : null;
-      }).filter(Boolean);
+      }).filter(Boolean).sort(function (a, b) { return a.country < b.country ? -1 : a.country > b.country ? 1 : 0; });
     }
     function orbitalVisibility(p) {
       var distance = Math.hypot(p.x - cx, p.y - cy) / radius;
@@ -120,13 +120,10 @@
         var key = [a.country, b.country].sort().join(':');
         if (!pairs[key]) { pairs[key] = true; links.push([a, b]); }
       }
-      var hub = countries.find(function (node) { return point && node.country === point.country; });
-      if (hub) {
-        var displayHub = { country: hub.country, vector: vector(point.latitude, point.longitude) };
-        countries.forEach(function (node) { add(displayHub, node); });
-      }
-      // A richer web than the homepage: three nearby links per catalogue node,
-      // plus its current hub. These routes are decorative, not live connectivity.
+      // A fixed, restrained web: three nearby catalogue countries per node.
+      // Country-centre endpoints never follow the selected country or city;
+      // selection moves only the camera and location marker. Decorative routes
+      // are not live connectivity or exact datacentre locations.
       countries.forEach(function (origin) {
         countries.filter(function (node) { return node !== origin; }).sort(function (a, b) {
           function distance(node) { return 1 - origin.vector.reduce(function (sum, value, axis) { return sum + value * node.vector[axis]; }, 0); }
@@ -189,7 +186,8 @@
       for (var i = 0; i < routes.length; i++) {
         var route = routes[i];
         for (var packet = 0; packet < 2; packet++) {
-          var progress = motion.matches ? .3 + packet * .4 : (timestamp / route.duration + route.phase + packet * .5) % 1;
+          var travel = motion.matches ? .3 : (timestamp / route.duration + route.phase) % 1;
+          var progress = packet ? 1 - travel : travel;
           var offset = progress * 40, index = Math.min(39, Math.floor(offset)), mix = offset - index;
           var a = route.vertices[index], b = route.vertices[index + 1];
           for (var axis = 0; axis < 3; axis++) packetVector[axis] = a[axis] + (b[axis] - a[axis]) * mix;
@@ -298,7 +296,7 @@
       host.dataset.locationCode = String(location.code || '');
       if (point) { host.dataset.latitude = point.latitude; host.dataset.longitude = point.longitude; }
       else { delete host.dataset.latitude; delete host.dataset.longitude; }
-      describe(); buildConnections(); if (point) focus(point.longitude, point.latitude); else wake();
+      describe(); if (point) focus(point.longitude, point.latitude); else wake();
     };
     function hitTest(event) {
       var rect = host.getBoundingClientRect(), x = event.clientX - rect.left, y = event.clientY - rect.top;
@@ -384,7 +382,7 @@
         resize();
       } catch (error) { landVectors = []; host.dataset.globeState = 'unavailable'; }
     }
-    catalogue();
+    catalogue(); buildConnections();
     selectLocation(pendingLocation || { country: host.dataset.country || '', city: host.dataset.city || '', code: host.dataset.code || '', label: host.dataset.label || '', approximate: host.dataset.approximate === 'true' });
     var resizeObserver = 'ResizeObserver' in window ? new ResizeObserver(resize) : null;
     if (resizeObserver) resizeObserver.observe(host); else window.addEventListener('resize', resize, { passive: true });
