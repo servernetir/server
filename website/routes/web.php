@@ -863,10 +863,22 @@ Route::get('/{loc}/{rest?}', function (string $loc, ?string $rest = null) {
 // 🔴 دامنهٔ این آدرس باید همانی باشد که نزدِ اسنپ‌پی whitelist شده.
 // (این بلوک نشان‌دار است و با apply-marked-block منتشر می‌شود؛ برای همین
 // **پیش از** روتِ GET نشسته: لنگرش باید دقیقاً یک خط باشد.)
-Route::post('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callback'])
+// 🔴 بدونِ نشست: این POST از دامنهٔ اسنپ‌پی می‌آید و کوکیِ SameSite=Lax ِ ورود
+// همراهش نیست. با نشست، لاراول یک نشستِ خالیِ تازه می‌ساخت و کوکی‌اش جای
+// کوکیِ ورود می‌نشست ⇒ مشتری بعد از پرداخت از حسابش بیرون می‌افتاد.
+// این‌جا فقط ۳۰۳ به همان آدرس با GET؛ verify/settle آن‌جا، با نشستِ خودِ مشتری.
+Route::post('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callbackPost'])
     ->name('payment.callback.post')
     ->where('gateway', '[a-z]+')
-    ->middleware('throttle:pay');
+    ->middleware('throttle:pay')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        // لاراول ۱۳ نامِ میان‌افزارِ CSRF را عوض کرده؛ هر دو، تا با هر نسخه بی‌نشست بماند
+        \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+        \App\Http\Middleware\PageCache::class,
+    ]);
 // [snapppay-callback:end]
 Route::get('/payment/callback/{gateway}', [\App\Http\Controllers\Account\PaymentController::class, 'callback'])
     ->name('payment.callback')

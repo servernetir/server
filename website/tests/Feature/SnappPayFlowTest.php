@@ -209,6 +209,49 @@ class SnappPayFlowTest extends TestCase
 
     // ──────────────────────── کالبک و نهایی‌سازی ────────────────────────
 
+    /**
+     * 🔴 مشتری بعد از بازگشت از اسنپ‌پی از حسابش بیرون می‌افتاد (۲۰۲۶-۱۰-۱۸).
+     *
+     * POST از دامنهٔ اسنپ‌پی کوکیِ Lax ِ ورود را ندارد؛ نشستِ تازه‌اش کوکیِ
+     * ورود را بازنویسی می‌کرد. حالا POST بی‌نشست است و فقط ۳۰۳ می‌دهد.
+     */
+    public function test_the_post_return_does_not_touch_the_session_and_keeps_the_customer_logged_in(): void
+    {
+        $this->fake();
+        $inv = $this->invoice();
+        $out = $this->begin($inv);
+        $order = SnappPayOrder::where('payment_id', $out->payment->id)->firstOrFail();
+
+        $res = $this->post('/payment/callback/snapppay', [
+            'transactionId' => $order->transaction_id,
+            'state'         => 'OK',
+            'amount'        => $inv->total * 10,
+        ]);
+
+        $res->assertStatus(303);
+        $res->assertCookieMissing(config('session.cookie'));
+        $to = (string) $res->headers->get('Location');
+        $this->assertStringContainsString('/payment/callback/snapppay?', $to);
+        $this->assertStringContainsString('transactionId='.$order->transaction_id, $to);
+        $this->assertStringContainsString('state=OK', $to);
+        $this->assertSame('pending', $order->fresh()->state, 'POST نباید verify کند؛ verify فقط یک بار، در GET');
+
+        $customer = $inv->customer;
+        $this->actingAs($customer, 'customer')->get($to)->assertOk();
+
+        $this->assertSame('settled', $order->fresh()->state);
+        $this->assertSame('paid', $inv->fresh()->status);
+        $this->assertAuthenticatedAs($customer, 'customer');
+    }
+
+    /** گواهِ اینکه بررسیِ کوکیِ بالا دندان دارد: مسیرِ GET نشست می‌سازد. */
+    public function test_the_get_return_still_runs_with_a_session(): void
+    {
+        $this->get('/payment/callback/snapppay?transactionId=NOPE')
+            ->assertOk()
+            ->assertCookie(config('session.cookie'));
+    }
+
     public function test_the_callback_verifies_settles_and_pays_the_invoice(): void
     {
         $this->fake();
@@ -216,7 +259,7 @@ class SnappPayFlowTest extends TestCase
         $out = $this->begin($inv);
         $order = SnappPayOrder::where('payment_id', $out->payment->id)->firstOrFail();
 
-        $this->post('/payment/callback/snapppay', [
+        $this->followingRedirects()->post('/payment/callback/snapppay', [
             'transactionId' => $order->transaction_id,
             'state'         => 'OK',
             'amount'        => $inv->total * 10,
@@ -268,7 +311,7 @@ class SnappPayFlowTest extends TestCase
         $out = $this->begin($inv);
         $order = SnappPayOrder::where('payment_id', $out->payment->id)->firstOrFail();
 
-        $this->post('/payment/callback/snapppay', [
+        $this->followingRedirects()->post('/payment/callback/snapppay', [
             'transactionId' => $order->transaction_id, 'state' => 'OK',
         ])->assertOk();
 
@@ -294,7 +337,7 @@ class SnappPayFlowTest extends TestCase
         $out = $this->begin($inv);
         $order = SnappPayOrder::where('payment_id', $out->payment->id)->firstOrFail();
 
-        $this->post('/payment/callback/snapppay', [
+        $this->followingRedirects()->post('/payment/callback/snapppay', [
             'transactionId' => $order->transaction_id, 'state' => 'OK',
         ])->assertOk();
 
@@ -310,7 +353,7 @@ class SnappPayFlowTest extends TestCase
         $out = $this->begin($inv);
         $order = SnappPayOrder::where('payment_id', $out->payment->id)->firstOrFail();
 
-        $this->post('/payment/callback/snapppay', [
+        $this->followingRedirects()->post('/payment/callback/snapppay', [
             'transactionId' => $order->transaction_id, 'state' => 'FAILED',
         ])->assertOk();
 
@@ -326,7 +369,7 @@ class SnappPayFlowTest extends TestCase
         $inv = $this->invoice();
         $this->begin($inv);
 
-        $this->post('/payment/callback/snapppay', [
+        $this->followingRedirects()->post('/payment/callback/snapppay', [
             'transactionId' => 'NOPE9', 'state' => 'OK',
         ])->assertOk();
 
@@ -343,8 +386,8 @@ class SnappPayFlowTest extends TestCase
 
         $body = ['transactionId' => $order->transaction_id, 'state' => 'OK'];
 
-        $this->post('/payment/callback/snapppay', $body)->assertOk();
-        $this->post('/payment/callback/snapppay', $body)->assertOk();
+        $this->followingRedirects()->post('/payment/callback/snapppay', $body)->assertOk();
+        $this->followingRedirects()->post('/payment/callback/snapppay', $body)->assertOk();
 
         $verifies = 0;
         Http::assertSent(function ($r) use (&$verifies) {
