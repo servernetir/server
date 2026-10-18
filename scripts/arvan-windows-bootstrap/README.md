@@ -1,6 +1,13 @@
-# Windows bootstrap evidence preparation (not deployment)
+# Windows bootstrap evidence preparation
 
-This folder prepares a future investigation. It does not implement automatic
+The evidence collector below remains read-only preparation. A **separate**
+owner-approved, one-VM lifecycle helper was subsequently prepared in this folder;
+see [OWNER-TEST-README.md](OWNER-TEST-README.md). That helper can create/delete its
+exact diagnostic VM only after private installation and explicit modes. It is
+not part of the collector, not an automatic-password implementation, and has not
+been executed by its offline tests.
+
+The evidence tooling prepares a future investigation. It does not implement automatic
 Windows passwords, enroll a guest, upload an image, call Arvan, enable RDP,
 change NLA/firewalls, or establish production readiness. Sales and console
 settings are not read or changed. There is no deploy entry point.
