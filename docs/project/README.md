@@ -22,6 +22,7 @@
 | آزمون واقعی هویت مالک و پیش‌نیازهای جاری فروش | [آزمون۱۸اکتبر](IDENTITY-API-OWNER-SMOKE-2026-10-18.md) |
 | قیمت‌های ثبت‌شده، allowlist و سقف مصرف هویت | [آماده‌سازی۱۸اکتبر](IDENTITY-API-READINESS-2026-10-18.md) |
 | فروش فعال دو خدمت، نرخ خالص و مالیات هنگام خرید، اعتبار موجودی و rollback | [انتشار فروش۱۸اکتبر](IDENTITY-API-SALES-2026-10-18.md) |
+| موجودی زحل، رد توکن فعلی و تعویق خودکار به انتخاب مالک؛ کد آماده و نصب‌نشده | [همگام‌سازی موجودی۱۸اکتبر](IDENTITY-API-FUNDING-2026-10-18.md) |
 | درگاه اقساطی اسنپ‌پی (وضعیت، تله‌ها، دمو) | [SNAPPPAY-STATUS-2026-10-17](SNAPPPAY-STATUS-2026-10-17.md) |
 | AI Gateway و Exit | [docs/ai-gateway](../ai-gateway/) · [docs/exit-platform.md](../exit-platform.md) |
 

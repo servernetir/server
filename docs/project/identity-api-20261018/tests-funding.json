@@ -1,0 +1,15 @@
+{
+  "source_sha": "03af20f9832607bf01ebf1ef95b61de015613332",
+  "suite": "IdentityApiTest",
+  "php": "8.4.26",
+  "database": "isolated SQLite in-memory",
+  "tests": 73,
+  "assertions": 582,
+  "errors": 0,
+  "failures": 0,
+  "skipped": 0,
+  "synthetic_http": true,
+  "paid_calls": 0,
+  "new_mariadb_run": false,
+  "production_automatic_sync_accepted": false
+}
