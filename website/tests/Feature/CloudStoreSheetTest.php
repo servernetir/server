@@ -39,6 +39,8 @@ class CloudStoreSheetTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
+        Http::preventStrayRequests();
 
         // همان بازسازیِ ترتیبِ روت‌ها که دو تستِ خواهر دارند.
         if (! Route::has('account.cloud.store')) {
@@ -125,7 +127,8 @@ class CloudStoreSheetTest extends TestCase
 
     private function viewSrc(): string
     {
-        return (string) file_get_contents(resource_path('views/account/cloud-store.blade.php'));
+        return (string) file_get_contents(resource_path('views/account/cloud-store.blade.php'))
+            .file_get_contents(resource_path('views/account/partials/cloud-store-location.blade.php'));
     }
 
     private function css(): string

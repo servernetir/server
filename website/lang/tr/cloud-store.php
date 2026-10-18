@@ -1,0 +1,27 @@
+<?php
+
+return [
+    'location' => 'Ülke ve şehir',
+    'location_title' => 'Sunucunuz dünyanın neresinde olsun?',
+    'location_hint' => 'Ülke ve şehri birlikte seçin, fiyatları aynı anda görün.',
+    'search' => 'Ülke veya şehir arayın…',
+    'regions' => 'Coğrafi bölge',
+    'everywhere' => 'Tüm dünya',
+    'available_locations' => 'Sunucu konumları',
+    'countries' => 'ülke',
+    'no_results' => 'Konum bulunamadı',
+    'try_search' => 'Başka bir ülke veya şehir arayın.',
+    'price_note' => 'Başlangıç fiyatlarına vergi ve ek hizmetler dahil değildir. Toplamı sipariş özetinde görün.',
+    'country_pin' => 'Yaklaşık ülke konumu. Veri merkezi şehri belirtilmemiştir.',
+    'city_pin' => 'Yaklaşık şehir konumu, veri merkezinin tam adresi değildir.',
+    'globe_alt' => 'Sunucunuzun coğrafi konumunu gösteren dünya küresi',
+    'exploring' => 'Keşfediliyor',
+    'globe_hint' => 'Konumu arayın, dünya üzerinde görün.',
+    'continue_resources' => 'Devam · Kaynaklar',
+    'continue_image' => 'Devam · İşletim sistemi',
+    'continue_review' => 'Devam · Siparişi incele',
+    'back' => 'Önceki adım',
+    'workspace' => 'Sunucu çalışma alanı',
+    'workspace_hint' => 'Konum seçiminden ilk bağlantıya kadar tek akış.',
+    'review_hint' => 'Seçimlerinizi ve toplam fiyatı inceleyip sunucunuzu oluşturun.',
+];

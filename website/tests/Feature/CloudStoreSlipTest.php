@@ -35,6 +35,8 @@ class CloudStoreSlipTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
+        Http::preventStrayRequests();
 
         // همان بازسازیِ ترتیبِ روت‌ها که CloudStoreTest دارد: در routes/web.php
         // این دو روت **پیش از** روتِ همه‌گیرِ /{loc}/{rest?} ثبت می‌شوند.
@@ -209,7 +211,7 @@ class CloudStoreSlipTest extends TestCase
         $html = $this->page(null, '?location=fi-helsinki');
 
         $this->assertStringContainsString('هلسینکی', $html, 'کشورِ تمام‌شده باید همچنان دیده شود');
-        $this->assertStringContainsString(__('ui.cvb_loc_off'), $html);
+        $this->assertStringContainsString(__('ui.cvb_c_soldout'), $html);
         $this->assertStringContainsString(__('ui.cvb_off_stock'), $html);
 
         // و دکمهٔ پرداخت بسته است — فرمِ بی‌پلن نباید ارسال‌شدنی باشد
@@ -305,9 +307,8 @@ class CloudStoreSlipTest extends TestCase
         $this->base();
         $html = $this->page();
 
-        // ⚠️ پنج، نه چهار: شهر از داخلِ کارتِ کشور بیرون آمد و مرحلهٔ خودش شد
-        // (خواستهٔ صریحِ کارفرما). نگهبانِ ساختارِ تازه CloudStoreCityStepTest است.
-        $this->assertSame(5, substr_count($html, 'class="cvb-step-b"'), 'پنج مرحله باید بدنه داشته باشند');
+        // کشور و شهر یک مرحله‌اند؛ مشخصات، تصویر و نام سه مرحلهٔ بعدی‌اند.
+        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'), 'چهار مرحله باید بدنه داشته باشند');
         $this->assertStringNotContainsString('cvb-step is-shut', $html, 'سرور نباید مرحله‌ای را بسته بفرستد');
 
         // مکان لینکِ واقعی است، نه دکمهٔ جاوااسکریپتی
@@ -401,7 +402,8 @@ class CloudStoreSlipTest extends TestCase
      */
     public function test_the_view_carries_no_css_and_the_vocabulary_lives_in_panel_css(): void
     {
-        $blade = file_get_contents(resource_path('views/account/cloud-store.blade.php'));
+        $blade = file_get_contents(resource_path('views/account/cloud-store.blade.php'))
+            .file_get_contents(resource_path('views/account/partials/cloud-store-location.blade.php'));
 
         $this->assertStringNotContainsString('<style', $blade, 'استایل باید در panel.css باشد');
         $this->assertStringNotContainsString('style="', $blade, 'استایلِ درون‌خطی ممنوع');
@@ -434,7 +436,7 @@ class CloudStoreSlipTest extends TestCase
         $this->base();
         $html = $this->page();
 
-        $start = strpos($html, 'class="cvb-wrap"');
+        $start = strpos($html, 'id="cvb-form"');
         $end = strpos($html, '</form>');
         $this->assertNotFalse($start, 'فرم باید رندر شود');
         $frag = substr($html, $start, $end - $start);
@@ -451,7 +453,7 @@ class CloudStoreSlipTest extends TestCase
         }
 
         $css = '';
-        foreach (['site.css', 'admin.css', 'panel.css'] as $f) {
+        foreach (['site.css', 'admin.css', 'panel.css', 'cloud-store-experience.css'] as $f) {
             $css .= file_get_contents(public_path('assets/css/'.$f));
         }
 

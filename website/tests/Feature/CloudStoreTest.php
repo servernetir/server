@@ -51,7 +51,7 @@ class CloudStoreTest extends TestCase
     {
         parent::setUp();
         // Checkout validates the cost floor; fixtures need a deterministic FX rate.
-        Setting::put('pricing_rate_override', '100000');
+        \Tests\Support\NavasanRates::cloudSnapshot();
 
         // روت‌ها هنوز ممکن است در routes/web.php نباشند (هماهنگ‌کننده اعمالشان
         // می‌کند). تست باید هر دو حالت را بپوشاند، پس اگر نبودند ثبتشان می‌کنیم.

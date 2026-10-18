@@ -43,6 +43,7 @@ class CloudStoreLocationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
         Http::fake();
 
         // همان بازسازیِ ترتیبِ روت‌ها که بقیهٔ تست‌های فروشگاه دارند
@@ -319,7 +320,7 @@ class CloudStoreLocationTest extends TestCase
 
         $this->assertStringContainsString('data-nat="FI"', $html, 'کشورِ تمام‌شده باید دیده شود');
         $this->assertStringContainsString(__('ui.cvb_c_soldout'), $html);
-        $this->assertMatchesRegularExpression('~<a class="cvb-nat\s+is-shut~', $html,
+        $this->assertMatchesRegularExpression('~<summary class="cvb-nat\s+is-shut~', $html,
             'کشورِ بی‌موجودی باید علامتِ دیداریِ خودش را داشته باشد');
 
         // …و شهرش هم صادقانه ناموجود علامت خورده باشد، در مرحلهٔ خودش
@@ -348,18 +349,19 @@ class CloudStoreLocationTest extends TestCase
         preg_match('~data-nat="DE".*?<small>([^<]*)</small>~su', $html, $m);
         $this->assertNotEmpty($m, 'ردیفِ آلمان شمارِ شهر ندارد');
 
-        $de = $this->page('?location=de-frankfurt');
+        preg_match('~<details class="cvx-country"[^>]*data-country="DE"[^>]*>.*?</details>~su', $html, $country);
+        $de = $country[0] ?? '';
         preg_match_all('~<a class="cvb-city[^"]*"[^>]*data-city="~', $de, $rows);
         $shown = count($rows[0]);
 
         $this->assertSame(3, $shown, 'آلمان سه کد دارد: de-frankfurt + de-ref + de-amd');
-        $this->assertSame(trans_choice('ui.cvb_c_cities', $shown, ['n' => fa_num($shown)]), trim($m[1]),
+        $this->assertStringContainsString(trans_choice('ui.cvb_c_cities', $shown, ['n' => fa_num($shown)]), trim($m[1]),
             'عددِ روی کارتِ کشور باید همان چیزی باشد که روی صفحه دیده می‌شود');
 
         // و شهرِ دو-دیتاسنتری، اعضایش را با شمارهٔ ترتیبی نشان می‌دهد
         $ch = $this->page('?location=ch-zurich');
-        $this->assertStringContainsString(__('ui.cvb_dc_multi', ['count' => fa_num(2)]), $ch);
         $this->assertStringContainsString(__('ui.cvb_dc_n', ['n' => fa_num(1)]), $ch);
+        $this->assertStringContainsString(__('ui.cvb_dc_n', ['n' => fa_num(2)]), $ch);
     }
 
     // ═══════════════════ ۳ — پنلِ پایدار، بی‌جاوااسکریپت ═══════════════════
@@ -382,10 +384,10 @@ class CloudStoreLocationTest extends TestCase
         | `<details>` هم بی‌جاوااسکریپت‌تر است، نه کمتر.
         */
         $this->assertStringNotContainsString('<details class="cvb-cnat', $html);
-        $this->assertMatchesRegularExpression('~<a class="cvb-nat[^"]*"[^>]*data-nat="~', $html);
+        $this->assertMatchesRegularExpression('~<details class="cvx-country"[^>]*>\s*<summary class="cvb-nat[^"]*"[^>]*data-nat="~', $html);
 
-        // پنج بدنه — شهر مرحلهٔ خودش شد
-        $this->assertSame(5, substr_count($html, 'class="cvb-step-b"'));
+        // چهار بدنه؛ کشور و شهر یک مرحلهٔ مشترک دارند.
+        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'));
         $this->assertStringNotContainsString('cvb-step is-shut', $html);
 
         // کشورِ انتخابی سرور-رندر علامت خورده است

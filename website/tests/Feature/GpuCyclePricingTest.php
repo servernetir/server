@@ -17,8 +17,7 @@ class GpuCyclePricingTest extends TestCase
 
     public function test_all_gpu_cycles_cover_current_supplier_cost_and_markup_without_vps_discounts(): void
     {
-        Setting::put('pricing_rate_override', '299900');
-        Setting::put('pricing_usd_rate_override', '267700');
+        \Tests\Support\NavasanRates::cloudSnapshot(['USD' => 267700, 'EUR' => 299900, 'USDT' => 267700]);
         Setting::put('cloud_margin_pct_salad', '30');
         Setting::put('pricing_fx_fee_pct_salad', '10');
         Setting::put('salad_org', 'pricing-fixture');

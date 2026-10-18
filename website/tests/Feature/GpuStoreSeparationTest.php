@@ -164,6 +164,7 @@ class GpuStoreSeparationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
         Http::fake();
 
         if (! Route::has('account.cloud.store')) {
@@ -266,8 +267,8 @@ class GpuStoreSeparationTest extends TestCase
         $this->assertStringNotContainsString(__('ui.cvb_eta'), $html);
     }
 
-    /** فروشگاهِ VPS دست‌نخورده پنج‌مرحله‌ای می‌مانَد */
-    public function test_the_vps_wizard_keeps_all_five_steps(): void
+    /** کشور و شهر در فروشگاهِ VPS یک مرحلهٔ مکان شده‌اند. */
+    public function test_the_vps_wizard_has_four_visible_steps(): void
     {
         $this->bothLines();
 
@@ -275,8 +276,9 @@ class GpuStoreSeparationTest extends TestCase
             ->get('/account/cloud-store?location=de-frankfurt')->assertOk()->getContent();
 
         $this->assertStringContainsString('id="cvb-step-1"', $html);
-        $this->assertStringContainsString('id="cvb-step-2"', $html);
-        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(5), 't' => fa_num(5)]), $html);
+        $this->assertStringNotContainsString('id="cvb-step-2"', $html);
+        $this->assertSame(4, substr_count($html, 'class="cvb-step-b"'));
+        $this->assertStringContainsString(__('ui.cvb_step_idx', ['n' => fa_num(4), 't' => fa_num(4)]), $html);
     }
 
     /**
@@ -359,7 +361,7 @@ class GpuStoreSeparationTest extends TestCase
 
         $this->assertStringNotContainsString('id="cvb-tab-os"', $html);
         $this->assertStringContainsString('class="cvb-opts cvb-gpu-app-grid"', $html);
-        $this->assertStringContainsString('<h1>'.__('ui.cvb_gpu_h1').'</h1>', $html);
+        $this->assertMatchesRegularExpression('~<h1[^>]*>'.preg_quote(__('ui.cvb_gpu_h1'), '~').'</h1>~', $html);
         $this->assertStringContainsString(__('ui.cvb_gpu_step_app'), $html);
         $this->assertStringContainsString(__('ui.cvb_gpu_adv_sub'), $html);
         $this->assertStringNotContainsString(__('ui.cvb_adv_sub'), $html);
