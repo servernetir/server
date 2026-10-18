@@ -62,6 +62,19 @@ class CloudImage extends Model
         'docker', 'wordpress', 'nginx', 'gitlab', 'nextcloud', 'n8n',
     ];
 
+    /** Brand assets for the current application catalog, self-hosted. */
+    public const APP_LOGOS = [
+        'ansible', 'asterisk', 'bigbluebutton', 'bun', 'cal-com', 'chroma', 'coolify', 'cpanel',
+        'django', 'docker', 'dokku', 'dokploy', 'emby', 'fastpanel', 'flowise', 'forgejo',
+        'ghost', 'gitea', 'gitlab', 'gpu-comfyui', 'gpu-jupyter', 'gpu-ollama', 'grafana', 'hestiacp',
+        'hikka', 'hoppscotch', 'ispmanager', 'java', 'jellyfin', 'jenkins', 'jitsi', 'k3s',
+        'keitaro-io', 'lamp', 'langflow', 'lemp', 'librechat', 'mailcow', 'mariadb', 'matrix',
+        'mattermost', 'metabase', 'minio', 'mysql', 'n8n', 'navidrome', 'nextcloud', 'nginx',
+        'nodejs', 'odoo', 'openclaw', 'owncast', 'pgadmin', 'photoprism', 'pihole', 'plane',
+        'plesk', 'postgresql', 'prestashop', 'pterodactyl', 'rustdesk', 'steamcmd', 'teamspeak', 'tinycp',
+        'tomcat', 'torrserver', 'uptime', 'vaultwarden', 'vikunja', 'vscode', 'wireguard', 'wordpress',
+    ];
+
     /**
      * نشانیِ لوگوی تصویریِ این ایمیج — همیشه هم‌اندازه، خودمیزبان.
      *
@@ -72,6 +85,10 @@ class CloudImage extends Model
     public function logo(): string
     {
         $fam = (string) $this->family;
+
+        if ($this->kind === 'app' && in_array($fam, self::APP_LOGOS, true)) {
+            return "/assets/apps/{$fam}.svg";
+        }
 
         if (in_array($fam, self::LOGOS, true)) {
             return "/assets/os/{$fam}.svg";

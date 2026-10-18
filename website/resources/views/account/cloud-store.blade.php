@@ -688,7 +688,6 @@
           <div class="cvb-imgs" data-pane="app" id="cvb-pane-app" @if($isGpuStore) role="group" aria-label="{{ __('ui.cvb_gpu_app_title') }}" @else role="tabpanel" aria-labelledby="cvb-tab-app" @if($startTab !== 'app') hidden @endif @endif>
             @if($isGpuStore)
               @php
-                $gpuAppIcons = ['gpu-jupyter' => 'i-book', 'gpu-comfyui' => 'i-flow', 'gpu-ollama' => 'i-bot'];
                 $gpuAppDescriptions = ['gpu-jupyter' => 'ui.cvb_gpu_jupyter_desc', 'gpu-comfyui' => 'ui.cvb_gpu_comfyui_desc', 'gpu-ollama' => 'ui.cvb_gpu_ollama_desc'];
               @endphp
               <div class="cvb-fam cvb-gpu-app-group" data-fam="gpu">
@@ -698,7 +697,7 @@
                            data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
                       <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
                       <span class="cvb-gpu-app-top" aria-hidden="true">
-                        <span class="cvb-gpu-app-icon"><svg class="icon"><use href="#{{ $gpuAppIcons[$img->key] ?? 'i-box' }}"/></svg></span>
+                        <span class="cvb-gpu-app-icon"><img src="{{ $img->logo() }}" alt="" width="30" height="30" loading="lazy"></span>
                         <span class="cvb-gpu-app-check"><svg class="icon"><use href="#i-check"/></svg></span>
                       </span>
                       <span class="cvb-gpu-app-copy">

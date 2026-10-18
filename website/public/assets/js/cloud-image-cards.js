@@ -31,7 +31,8 @@
     });
     return {id:id || name.toLowerCase(),name:name,version:version,
       label:/^\d/.test(label) ? name + ' ' + label : label,
-      logo:logos.indexOf(id) !== -1 ? '/assets/os/' + id + '.svg' : logo};
+      logo:logo && logo.indexOf('/assets/apps/') === 0 ? logo :
+        (logos.indexOf(id) !== -1 ? '/assets/os/' + id + '.svg' : logo)};
   }
 
   function mount(form, words) {
@@ -171,7 +172,7 @@
         var box=el('div','cvb-image-card'), button=el('button','cvb-image-pick');
         button.type='button'; button.setAttribute('aria-pressed','false');
         var top=el('span','cvb-image-top'), brand=el('span','cvb-image-brand');
-        var image=el('img'); image.src=group.info.logo; image.alt=''; image.width=30; image.height=30;
+        var image=el('img'); image.loading='lazy'; image.src=group.info.logo; image.alt=''; image.width=30; image.height=30;
         brand.appendChild(image); top.appendChild(brand); top.appendChild(icon('check','cvb-image-check'));
         button.appendChild(top);
         var title=el('b','cvb-image-name',group.info.name); title.dir='auto'; button.appendChild(title);

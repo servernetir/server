@@ -1,0 +1,416 @@
+[
+  {
+    "family": "ansible",
+    "bytes": 445,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/ansible.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "asterisk",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/asterisk.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "bigbluebutton",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/bigbluebutton.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "bun",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/bun.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "cal-com",
+    "bytes": 774,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/cal-com.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "chroma",
+    "bytes": 1424,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/chroma.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "coolify",
+    "bytes": 574,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/coolify.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "cpanel",
+    "bytes": 1119,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/cpanel.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "django",
+    "bytes": 596,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/django.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "docker",
+    "bytes": 608,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/docker.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "dokku",
+    "source": "https://github.com/dokku/dokku/blob/master/docs/assets/dokku-logo.svg",
+    "license": "Project brand asset; identification only"
+  },
+  {
+    "family": "dokploy",
+    "bytes": 6633,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/dokploy.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "emby",
+    "bytes": 345,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/emby.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "fastpanel",
+    "source": "https://kb.fastpanel.direct/img/FASTPANEL_favicon.svg",
+    "license": "Project brand asset; identification only"
+  },
+  {
+    "family": "flowise",
+    "bytes": 3980,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/flowise.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "forgejo",
+    "bytes": 585,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/forgejo.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "ghost",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/ghost.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "gitea",
+    "bytes": 2174,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/gitea.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "gitlab",
+    "bytes": 1020,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/gitlab.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "gpu-comfyui",
+    "bytes": 1435,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/comfyui.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "gpu-jupyter",
+    "bytes": 5598,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/jupyter.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "gpu-ollama",
+    "bytes": 8811,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/ollama.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "grafana",
+    "bytes": 4233,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/grafana.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "hestiacp",
+    "bytes": 10380,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/hestia.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "hikka",
+    "source": "https://github.com/hikariatama/hikka/blob/master/assets/hikka_pfp.png",
+    "license": "Project brand asset; identification only"
+  },
+  {
+    "family": "hoppscotch",
+    "bytes": 4956,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/hoppscotch.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "ispmanager",
+    "source": "https://www.ispmanager.com/n/assets/img/favicon.svg",
+    "license": "Project brand asset; identification only"
+  },
+  {
+    "family": "java",
+    "bytes": 3164,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/java.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "jellyfin",
+    "bytes": 896,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/jellyfin.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "jenkins",
+    "bytes": 16163,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/jenkins.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "jitsi",
+    "bytes": 17605,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/jitsi.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "k3s",
+    "bytes": 645,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/k3s.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "keitaro-io",
+    "source": "https://framerusercontent.com/images/qhrL03rEjxn0PKBQHfthT21flc.png",
+    "license": "Project brand asset; identification only"
+  },
+  {
+    "family": "lamp",
+    "source": "Composite of Linux, Apache, MySQL and PHP marks from Simple Icons 16.35.0",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "langflow",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/langflow.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "lemp",
+    "source": "Composite of Linux, NGINX, MySQL and PHP marks from Simple Icons 16.35.0",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "librechat",
+    "bytes": 5756,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/librechat.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "mailcow",
+    "bytes": 6732,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/mailcow.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "mariadb",
+    "bytes": 2387,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/mariadb.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "matrix",
+    "bytes": 924,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/matrix.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "mattermost",
+    "bytes": 819,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/mattermost.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "metabase",
+    "bytes": 1590,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/metabase.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "minio",
+    "bytes": 774,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/minio.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "mysql",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/mysql.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "n8n",
+    "bytes": 1248,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/n8n.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "navidrome",
+    "bytes": 1141,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/navidrome.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "nextcloud",
+    "bytes": 739,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/nextcloud.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "nginx",
+    "bytes": 877,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/nginx.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "nodejs",
+    "bytes": 1697,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/nodejs.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "odoo",
+    "bytes": 572,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/odoo.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "openclaw",
+    "bytes": 12943,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/openclaw.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "owncast",
+    "bytes": 5296,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/owncast.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "pgadmin",
+    "bytes": 3944,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/pgadmin.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "photoprism",
+    "bytes": 773,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/photoprism.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "pihole",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/pihole.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "plane",
+    "bytes": 330,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/plane.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "plesk",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/plesk.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "postgresql",
+    "bytes": 2888,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/postgresql.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "prestashop",
+    "source": "https://github.com/simple-icons/simple-icons/blob/16.35.0/icons/prestashop.svg",
+    "license": "CC0-1.0"
+  },
+  {
+    "family": "pterodactyl",
+    "bytes": 9692,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/pterodactyl.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "rustdesk",
+    "bytes": 1270,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/rustdesk.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "steamcmd",
+    "bytes": 1537,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/steam.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "teamspeak",
+    "bytes": 6641,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/teamspeak.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "tinycp",
+    "source": "https://tinycp.com/app/templates/default/assets/images/favicon.ico",
+    "license": "Project brand asset; identification only"
+  },
+  {
+    "family": "tomcat",
+    "bytes": 3773,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/apache-tomcat.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "torrserver",
+    "source": "https://github.com/YouROK/TorrServer/blob/master/web/public/icon.png",
+    "license": "Project brand asset; identification only"
+  },
+  {
+    "family": "uptime",
+    "bytes": 630,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/uptime-kuma.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "vaultwarden",
+    "bytes": 5364,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/vaultwarden.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "vikunja",
+    "bytes": 4002,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/vikunja.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "vscode",
+    "bytes": 3275,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/vscode.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "wireguard",
+    "bytes": 4328,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/wireguard.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  },
+  {
+    "family": "wordpress",
+    "bytes": 1120,
+    "source": "https://raw.githubusercontent.com/homarr-labs/dashboard-icons/6d31345986eba2067a63eb41c1a5a87d4e8e850a/svg/wordpress.svg",
+    "license": "Apache-2.0 collection; third-party brand rights remain"
+  }
+]
