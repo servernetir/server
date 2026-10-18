@@ -39,6 +39,8 @@ class CloudStoreSheetTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
+        Http::preventStrayRequests();
 
         // همان بازسازیِ ترتیبِ روت‌ها که دو تستِ خواهر دارند.
         if (! Route::has('account.cloud.store')) {
@@ -125,7 +127,8 @@ class CloudStoreSheetTest extends TestCase
 
     private function viewSrc(): string
     {
-        return (string) file_get_contents(resource_path('views/account/cloud-store.blade.php'));
+        return (string) file_get_contents(resource_path('views/account/cloud-store.blade.php'))
+            .file_get_contents(resource_path('views/account/partials/cloud-store-location.blade.php'));
     }
 
     private function css(): string
@@ -436,9 +439,11 @@ class CloudStoreSheetTest extends TestCase
         $row = $m[0];
 
         // 🔴 پنجرهٔ رجکس واقعاً کلِ ردیف را گرفته — وگرنه ادعاهای پولیِ زیر پوچ‌اند
-        $this->assertStringContainsString(__('ui.cvb_off_stock_sub'), $row,
+        $this->assertStringContainsString(__('ui.cvb_off_stock'), $row,
             'پنجره باید تا انتهای ردیف برسد؛ یک <div> تودرتو آن را می‌بُرد و '
             .'ادعاهای «نه تومان، نه €» را بی‌صدا پوچ می‌کند');
+        $this->assertStringNotContainsString(__('ui.cvb_off_stock_sub'), $row);
+        $this->assertStringNotContainsString(__('ui.cvb_off_badge'), $row);
 
         // فرزندان (یعنی همه‌چیز پس از تگِ بازِ خودِ ردیف) هیچ <div>ی ندارند
         $inner = substr($row, strpos($row, '>') + 1);

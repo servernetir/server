@@ -2,6 +2,8 @@
 
 @php
   $countryIso = ($category ?? '') === 'vps' ? \App\Services\Cloud\CloudCountry::isoForSlug($slug ?? '') : null;
+  $iranPurchaseRestricted = in_array($category ?? '', ['vps', 'dedicated', 'cloud'], true)
+      && strtolower($slug ?? '') === 'iran' && \App\Services\Customer\IranSalesVisibility::restricted();
   $countrySeo = $countryIso ? app(\App\Services\Cloud\CountryLandingSeo::class)->content($countryIso) : null;
   if ($countrySeo) {
       $countryLocale = app()->getLocale();
@@ -359,7 +361,7 @@
                      می‌کند. عمداً `<details>` نیست: ظرفِ جدول اسکرولِ افقی دارد و
                      هر پاپ‌آورِ مطلق داخلش بریده می‌شود. --}}
                 <td class="pt-loc">
-                  @if(count($picker) > 1)
+                  @if(count($picker) > 1 && ! $iranPurchaseRestricted)
                   <div class="pt-cities" role="group" aria-label="{{ __('ui.pt_pick_city') }}">
                     @foreach($picker as $pc)
                       @if(! empty($pc['ok']))
@@ -385,7 +387,11 @@
                   <b class="pt-price-v">{{ cloud_price((int) ($p['irt'] ?? 0)) }}</b><span>{{ __('ui.mo') }}</span>
                 </td>
                 <td class="pt-buy">
+                  @if($iranPurchaseRestricted)
+                  <small>{{ __('iran-sales.required') }}</small>
+                  @else
                   <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}">{{ __('ui.choose') }}</a>
+                  @endif
                 </td>
               </tr>
               @endforeach
@@ -428,6 +434,7 @@
         // ⚠️ فقط اگر پکیج واقعاً در کاتالوگ و فعال باشد. وگرنه دکمهٔ خرید
         //    کاربر را بی‌پیام به صفحهٔ اول پرت می‌کرد.
         $orderSlug = $slug.'-'.($i + 1);
+        $purchaseRestricted = $iranPurchaseRestricted || ($p['iran_restricted'] ?? false) || isset($restrictedProducts[$orderSlug]);
 
         // پلنِ وصل‌شده به پکیجِ واقعی (لایسنس‌ها) لینکِ خریدِ خودش را از
         // کنترلر می‌آورد؛ بقیه همان دو مسیرِ قبلی.
@@ -461,7 +468,9 @@
           <li @if($j === 0) class="hl" @endif><svg class="icon"><use href="#i-check"/></svg>@if(is_array($spec)){{ lc($spec) }}@else<span dir="ltr">{{ $spec }}</span>@endif</li>
           @endforeach
         </ul>
-        @if($p['search_btn'] ?? false)
+        @if($purchaseRestricted)
+        <p>{{ __('iran-sales.required') }}</p>
+        @elseif($p['search_btn'] ?? false)
         {{-- دامنه → جستجو. «‎.com» را نمی‌شود خرید، یک **نام** را می‌شود. --}}
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ lroute('domain.search') }}">
           <svg class="icon" style="width:15px;height:15px"><use href="#i-search"/></svg>{{ __('ui.dsr_check_btn') }}
@@ -690,6 +699,7 @@
       <a class="loc" href="{{ lroute('vps.hourly') }}"><svg class="icon"><use href="#i-clock"/></svg>{{ __('ui.hv_badge') }}</a>
       @endif
       @foreach($related as $rSlug => $r)
+      @continue(! \App\Services\Customer\IranSalesVisibility::allowsItem(['slug' => $rSlug], $category))
       <a class="loc" href="{{ $category === 'hosting' ? lroute('hosting', $rSlug) : lroute('catalog', ['category' => $category, 'slug' => $rSlug]) }}"><svg class="icon"><use href="#i-{{ $r['icon'] }}"/></svg>{{ lc($r)['t'] }}</a>
       @endforeach
     </div>

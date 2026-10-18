@@ -124,9 +124,13 @@
           <small>{{ $setup > 0 ? __('ui.os_first_label') : __('ui.os_total_label') }} · <span id="os-cycle-name">{{ $defaultRow['label'] }}</span></small>
           <b id="os-total" {!! $ltr !!}>{{ cloud_price($setup > 0 ? $defaultRow['first'] : $defaultRow['grand']) }}</b>
         </div>
+        @if($iranPurchaseRestricted ?? false)
+        <p class="os-login" id="os-iran-note">{{ __('iran-sales.required') }}</p>
+        @else
         <a class="btn btn-primary" id="os-cta" href="{{ $defaultRow['href'] }}" rel="nofollow">
           <span id="os-cta-text">@if($sells ?? true){{ __('ui.os_cta_dynamic', ['cycle' => $defaultRow['label'], 'total' => cloud_price($setup > 0 ? $defaultRow['first'] : $defaultRow['grand'])]) }}@else{{ __('ui.os_cta_quote') }}@endif</span><svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg>
         </a>
+        @endif
       </div>
       <p class="os-login">{{ __('ui.os_saved_note') }}</p>
     </form>
@@ -226,12 +230,12 @@ html[data-theme="light"] .os-total{background:#fff}
   function apply(r, fromUser) {
     radios.forEach(function (x) { x.closest('.os-opt').classList.toggle('on', x === r); });
     var amount = cfg.first ? r.dataset.first : r.dataset.total;
-    cta.href = r.dataset.href + '&sid=' + sid + '&ref=' + ref;
+    if (cta) cta.href = r.dataset.href + '&sid=' + sid + '&ref=' + ref;
     // ⚠️ در زبانِ بی‌فروش، مقصد فرمِ استعلام است و پارامترهای سبد بی‌معنی
-    if (!SELLS) cta.href = r.dataset.href;
+    if (cta && !SELLS) cta.href = r.dataset.href;
     total.textContent = amount;
     name.textContent = r.dataset.label;
-    ctaText.textContent = SELLS
+    if (ctaText) ctaText.textContent = SELLS
       ? cfg.cta.replace(':cycle', r.dataset.label).replace(':total', amount)
       : QUOTE_TEXT;
     if (fromUser) {
@@ -247,7 +251,7 @@ html[data-theme="light"] .os-total{background:#fff}
 
   beacon('order_summary_view', {});
   var t0 = Date.now();
-  cta.addEventListener('click', function () {
+  if (cta) cta.addEventListener('click', function () {
     var r = document.querySelector('#os-form input[name="cycle"]:checked');
     beacon('checkout_click', { cycle_at_click: r ? r.value : '', time_on_page: Math.round((Date.now() - t0) / 1000) });
   });

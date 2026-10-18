@@ -54,6 +54,11 @@ class PaymentService
      */
     public function begin(Invoice $invoice, string $gatewayKey, Request $request): StartOutcome
     {
+        try {
+            app(\App\Services\Customer\IranPurchaseReadiness::class)->assertInvoice($invoice);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return new StartOutcome(false, error: collect($e->errors())->flatten()->first());
+        }
         $gateway = $this->gateways->get($gatewayKey);
 
         if ($gateway === null || ! $gateway->enabled()) {
@@ -310,7 +315,12 @@ class PaymentService
                         | `server_ip` نشانهٔ درست است: فقط پکیجی آن را دارد که
                         | `requires_server_ip` داشته و مشتری در فرمِ سفارش پرش کرده.
                         */
-                        $needsDelivery = $service->provision_status !== 'done'
+                        // Legacy Iranian hosting renewals retain their existing
+                        // delivery state; this payment must not queue a new account.
+                        $iranReadiness = app(\App\Services\Customer\IranPurchaseReadiness::class);
+                        $legacyIranRenewal = $iranReadiness->isLegacyDeliveredHosting($service, $invoice->id)
+                            && $iranReadiness->targetsIran($service);
+                        $needsDelivery = ! $legacyIranRenewal && $service->provision_status !== 'done'
                             && ($autoDelivered || filled($service->domain) || filled($service->server_ip));
                         if ($service->status === 'suspended') {
                             // Settlement extends the period; only verified restoration activates it.

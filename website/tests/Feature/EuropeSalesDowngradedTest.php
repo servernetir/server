@@ -30,7 +30,7 @@ class EuropeSalesDowngradedTest extends TestCase
     {
         parent::setUp();
 
-        \App\Models\Setting::put('pricing_rate_override', '100000');
+        \Tests\Support\NavasanRates::cloudSnapshot();
     }
 
     private function product(): Product
@@ -39,7 +39,7 @@ class EuropeSalesDowngradedTest extends TestCase
             'name' => 'هاست وردپرس — WP-25', 'name_en' => 'WordPress Hosting WP-25',
             'name_tr' => 'WordPress Hosting WP-25', 'slug' => 'wordpress-3',
             'category' => 'shared', 'group' => 'wordpress',
-            'price' => 950000, 'price_eur' => 231, 'setup_fee' => 0,
+            'price' => 950000, 'price_eur' => 231, 'base_price_eur' => 9.5, 'setup_fee' => 0,
             'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
         ]);
     }

@@ -270,6 +270,8 @@ class CatalogController extends Controller
 
                 $db = $rows[$slug] ?? null;
                 if ($db) {
+                    $p['iran_restricted'] = \App\Services\Customer\IranSalesGate::blocksProduct(
+                        \Illuminate\Support\Facades\Auth::guard('customer')->user(), $db);
                     $price = $db->effectivePrice();
                     if ($price <= 0) {
                         unset($p['irt'], $p['eur'], $p['base_eur']);
@@ -311,9 +313,18 @@ class CatalogController extends Controller
         // چیپ‌های TLD فقط برای امضای «جستجوی دامنه» لازم‌اند
         $tlds = ($product['signature']['type'] ?? null) === 'domainsearch' ? $this->tlds() : [];
 
+        $orderSlugs = array_values(array_unique(array_merge($linked,
+            array_map(fn ($i) => $slug.'-'.($i + 1), array_keys($product['plans'])))));
+        $orderProducts = \Illuminate\Support\Facades\Schema::hasTable('products')
+            ? \App\Models\Product::with('server')->where('is_active', true)->whereIn('slug', $orderSlugs)->get() : collect();
+        $restrictedProducts = $orderProducts->filter(fn ($p) =>
+            \App\Services\Customer\IranSalesGate::blocksProduct(
+                \Illuminate\Support\Facades\Auth::guard('customer')->user(), $p))->pluck('slug')->flip()->all();
+
         return view('pages.hosting', [
             'category' => $category,
             'slug'     => $slug,
+            'restrictedProducts' => $restrictedProducts,
             'product'  => $product,
             'features' => $features,
             'faqs'     => $faqs,
@@ -336,9 +347,7 @@ class CatalogController extends Controller
             | ⚠️ همان منبعی خوانده می‌شود که قیمت را هم می‌دهد، پس نمی‌تواند از
             | آن جدا بیفتد.
             */
-            'orderable' => \Illuminate\Support\Facades\Schema::hasTable('products')
-                ? \App\Models\Product::where('is_active', true)->pluck('slug')->flip()->all()
-                : [],
+            'orderable' => $orderProducts->pluck('slug')->flip()->all(),
         ]);
     }
 

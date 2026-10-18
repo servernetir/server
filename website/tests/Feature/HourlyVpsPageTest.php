@@ -31,11 +31,16 @@ class HourlyVpsPageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
         Cache::flush();
     }
 
     private function seedIranAndGermany(): void
     {
+        $customer = \App\Models\Customer::create(['email' => 'hourly-page@example.test',
+            'phone' => '09123334444', 'password' => 'isolated-password', 'status' => 'active']);
+        \Tests\Support\ShahkarFixture::verify($customer);
+        $this->actingAs($customer, 'customer');
         CloudLocation::create(['code' => 'ir-tehran', 'country' => 'IR', 'city' => 'Tehran', 'is_active' => true, 'sort' => 1]);
         CloudLocation::create(['code' => 'de-frankfurt', 'country' => 'DE', 'city' => 'Frankfurt', 'is_active' => true, 'sort' => 2]);
 

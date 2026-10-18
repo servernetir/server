@@ -41,6 +41,7 @@ class CloudStoreCityStepTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
         Http::fake();
 
         if (! Route::has('account.cloud.store')) {
@@ -102,6 +103,7 @@ class CloudStoreCityStepTest extends TestCase
             'customer_id' => $c->id, 'is_default' => true, 'type' => 'individual',
             'status' => 'verified', 'email' => $c->email, 'mobile' => $c->phone,
         ]);
+        \Tests\Support\ShahkarFixture::verify($c);
 
         return $c;
     }
@@ -161,8 +163,12 @@ class CloudStoreCityStepTest extends TestCase
      *
      * @return array<string,string> code => label
      */
-    private function cityControls(string $html): array
+    private function cityControls(string $html, ?string $country = null): array
     {
+        if ($country !== null) {
+            preg_match('~<details class="cvx-country"[^>]*data-country="'.preg_quote($country, '~').'"[^>]*>.*?</details>~su', $html, $group);
+            $html = $group[0] ?? '';
+        }
         preg_match_all(
             '~<a class="cvb-city[^"]*"[^>]*data-city="([^"]+)"[^>]*>.*?<b>(.*?)</b>~su',
             $html, $m, PREG_SET_ORDER);
@@ -191,7 +197,7 @@ class CloudStoreCityStepTest extends TestCase
         $seen = 0;
 
         foreach ($codes as $code) {
-            $labels = array_values($this->cityControls($this->page('?location='.$code, $c)));
+            $labels = array_values($this->cityControls($this->page('?location='.$code, $c), strtoupper(explode('-', $code)[0])));
 
             $this->assertNotSame([], $labels, "مرحلهٔ شهر برای «{$code}» خالی رندر شد");
             $this->assertSame(
@@ -277,7 +283,7 @@ class CloudStoreCityStepTest extends TestCase
         $this->sickCatalog();
         $html = $this->page();
 
-        preg_match_all('~<a class="cvb-nat[^"]*"[^>]*data-nat="([^"]+)"[^>]*href="[^"]*location=([^"&]+)"~u',
+        preg_match_all('~<summary class="cvb-nat[^"]*"[^>]*data-nat="([^"]+)"~u',
             $html, $m, PREG_SET_ORDER);
 
         $isos = array_column($m, 1);
@@ -290,77 +296,74 @@ class CloudStoreCityStepTest extends TestCase
             'ردیفِ کشور یا جا افتاده یا ترتیبِ ناحیه‌ای به‌هم خورده');
         $this->assertSame($isos, array_unique($isos));
 
-        // مقصدِ هر ردیف واقعاً در همان کشور است
+        // هر کنترلِ مکان زیرِ همان کشور است؛ افشای کشور انتخابِ فرم را عوض نمی‌کند.
         foreach ($m as $row) {
-            $this->assertSame($row[1], strtoupper(explode('-', $row[2])[0]),
-                "ردیفِ «{$row[1]}» به کشورِ دیگری لینک می‌دهد");
+            $cities = $this->cityControls($html, $row[1]);
+            $this->assertNotEmpty($cities);
+            foreach (array_keys($cities) as $code) {
+                $this->assertSame($row[1], strtoupper(explode('-', $code)[0]));
+            }
         }
     }
 
-    // ═══════════════ ۳ — شهر، مرحلهٔ خودش ═══════════════
+    // ═══════════════ ۳ — کشور و شهر، یک مرحلهٔ مکان ═══════════════
 
-    public function test_the_flow_is_five_steps_and_city_is_the_second(): void
+    public function test_the_flow_has_three_steps_with_country_and_city_together_and_name_at_checkout(): void
     {
         $this->sickCatalog();
         $html = $this->page();
 
-        $this->assertSame(5, substr_count($html, 'class="cvb-step-b"'),
-            'مسیر باید پنج مرحله داشته باشد: کشور ← شهر ← مشخصات ← سیستم‌عامل ← نام');
+        $this->assertSame(3, substr_count($html, 'class="cvb-step-b"'),
+            'مسیر باید سه مرحله داشته باشد: مکان ← مشخصات ← سیستم‌عامل؛ نام کنار اقدام نهایی است');
 
-        foreach ([1, 2, 3, 4, 5] as $n) {
+        foreach ([1, 3, 4] as $n) {
             $this->assertStringContainsString('id="cvb-step-'.$n.'"', $html);
             $this->assertStringContainsString('id="cvb-b-'.$n.'"', $html);
         }
 
-        // مرحلهٔ ۲ واقعاً پرسشِ شهر است، و شهرها **بیرونِ** مرحلهٔ ۱ رندر می‌شوند
+        $this->assertStringNotContainsString('id="cvb-step-2"', $html);
+        $this->assertStringNotContainsString('id="cvb-step-5"', $html);
+        $this->assertStringNotContainsString('id="cvb-b-5"', $html);
+        // همهٔ شهرها در همان مرحلهٔ مکان قرار دارند.
         $s1 = substr($html, (int) strpos($html, 'id="cvb-step-1"'),
-            (int) strpos($html, 'id="cvb-step-2"') - (int) strpos($html, 'id="cvb-step-1"'));
+            (int) strpos($html, 'id="cvb-step-3"') - (int) strpos($html, 'id="cvb-step-1"'));
 
-        $this->assertStringNotContainsString('class="cvb-city', $s1,
-            'شهر نباید داخلِ کارتِ کشور باشد — همان چیزی که کارفرما خواست بیرون بیاید');
-        $this->assertStringContainsString(__('ui.cvb_s_city'), $html);
+        $this->assertStringContainsString('class="cvb-city', $s1);
+        $this->assertStringContainsString(__('cloud-store.location'), $html);
 
-        // و تیرکِ پنج‌گره‌ای هست
-        $this->assertSame(5, substr_count($html, 'class="cvb-sp '), 'تیرکِ مسیر باید پنج گره داشته باشد');
+        // و تیرک مسیر همان سه تصمیم را نشان می‌دهد.
+        $this->assertSame(3, substr_count($html, 'class="cvb-sp '), 'تیرکِ مسیر باید سه گره داشته باشد');
     }
 
-    /**
-     * پیش از انتخابِ کشور، مرحلهٔ شهر **جمله می‌گوید**، کنترلِ خالی نمی‌سازد.
-     *
-     * 🔴 و این شاخه رسیدنی است، نه تزئینی: `?location=` (خالی و صریح) دقیقاً
-     * همین وضع را می‌سازد و لینکِ «تغییر کشور» روی همان صفحه همین آدرس است.
-     */
-    public function test_the_city_step_says_what_it_needs_before_a_country_is_chosen(): void
+    /** انتخابِ خالی باید انتخابگرِ کامل داشته باشد، بدون فعال‌شدنِ پرداخت. */
+    public function test_an_empty_selection_keeps_all_locations_reachable_and_checkout_disabled(): void
     {
         $this->sickCatalog();
         $html = $this->page('?location=');
 
-        $this->assertStringContainsString(__('ui.cvb_city_none_t'), $html);
-        $this->assertStringContainsString(__('ui.cvb_city_none_p'), $html);
-        $this->assertStringContainsString('class="cvb-void-go" data-go="1"', $html,
-            'حالتِ خالی باید راهِ برگشت داشته باشد');
-
-        // هیچ شهری رندر نشده، هیچ کشوری تیک نخورده، و دکمهٔ پرداخت بسته است
-        $this->assertSame([], $this->cityControls($html));
+        $this->assertStringContainsString(__('cloud-store.location_hint'), $html);
+        // بدون انتخاب، مکان‌ها همچنان قابل رسیدن‌اند و هیچ انتخابِ ضمنی نداریم.
+        $this->assertCount(count(self::SICK) + 1, $this->cityControls($html));
         $this->assertDoesNotMatchRegularExpression('~class="cvb-nat[^"]*\bon\b~', $html);
+        $this->assertDoesNotMatchRegularExpression('~class="cvb-city[^"]*\bon\b~', $html);
         $this->assertMatchesRegularExpression('~id="cvb-submit"[^>]*disabled~', $html);
 
         // ولی ردیف‌های کشور سرِ جایشان‌اند تا بشود ادامه داد
-        $this->assertMatchesRegularExpression('~<a class="cvb-nat~', $html);
+        $this->assertMatchesRegularExpression('~<summary class="cvb-nat~', $html);
 
         // و بدونِ پارامتر، رفتارِ دیروز عوض نشده: یک مکان از پیش انتخاب است
         $this->assertMatchesRegularExpression('~name="location" value="[a-z0-9-]+"~', $this->page());
     }
 
-    /** لینکِ «تغییر کشور» همان آدرسی را می‌سازد که حالتِ خالی به آن بند است. */
-    public function test_the_change_country_link_produces_the_empty_state_url(): void
+    /** افشای کشور بدون جاوااسکریپت، انتخاب یا قیمت را عوض نمی‌کند. */
+    public function test_country_disclosure_is_native_and_does_not_clear_the_current_order(): void
     {
         $this->sickCatalog();
         $html = $this->page();
 
-        $this->assertMatchesRegularExpression(
-            '~<a class="cvb-textlink" href="[^"]*\?location="~', $html,
-            'راهِ رسیدن به حالتِ خالی باید روی خودِ صفحه باشد، وگرنه شاخهٔ مرده است');
+        $this->assertMatchesRegularExpression('~<details class="cvx-country"[^>]*>\s*<summary class="cvb-nat~', $html);
+        $this->assertDoesNotMatchRegularExpression('~<summary[^>]*href=~', $html);
+        $this->assertStringContainsString('data-city="nl-amsterdam"', $html);
     }
 
     // ═══════════════ ۴ — قلّاب‌های پولی ═══════════════

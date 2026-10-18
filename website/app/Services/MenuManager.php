@@ -109,7 +109,8 @@ class MenuManager
     {
         $items = (array) config('servernet.'.$menu.'_menu', []);
 
-        return $this->apply($menu, '', $items);
+        return array_values(array_filter($this->apply($menu, '', $items),
+            fn ($item) => \App\Services\Customer\IranSalesVisibility::allowsItem($item)));
     }
 
     // ═══════════════════════ مگا-منو ═══════════════════════
@@ -129,7 +130,7 @@ class MenuManager
         $ov = $this->overrides();
 
         if ($ov === []) {
-            return $mega;
+            return \App\Services\Customer\IranSalesVisibility::menu($mega);
         }
 
         $out = [];
@@ -193,7 +194,7 @@ class MenuManager
         $out = $this->sorted($out, keyed: true);
 
         // 🔴 هرگز منوی خالی: اگر همه‌چیز خاموش شد، پیش‌فرض برگردد.
-        return $out === [] ? $mega : $out;
+        return \App\Services\Customer\IranSalesVisibility::menu($out === [] ? $mega : $out);
     }
 
     // ═══════════════════════ فوتر ═══════════════════════
@@ -244,7 +245,7 @@ class MenuManager
                 $href = $this->hrefFor($it, $iRow);
 
                 // 🔴 مقصدِ ناساختنی ⇒ رد، نه استثنا. فوتر روی هر صفحه است.
-                if ($href === null) {
+                if ($href === null || ! \App\Services\Customer\IranSalesVisibility::allowsUrl($href)) {
                     continue;
                 }
 
@@ -269,7 +270,7 @@ class MenuManager
 
                 $href = $this->customHref($r);
 
-                if ($href === null) {
+                if ($href === null || ! \App\Services\Customer\IranSalesVisibility::allowsUrl($href)) {
                     continue;
                 }
 

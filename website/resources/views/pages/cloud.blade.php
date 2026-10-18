@@ -292,7 +292,7 @@
     <div class="cvps-cross">
       <a href="{{ lroute('solutions.index') }}">{{ __('ui.sol_h1') }}</a>
       <a href="{{ lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']) }}">{{ __('ui.f_p5') }}</a>
-      <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.hv_cross_iran') }}</a>
+      @if(\App\Services\Customer\IranSalesVisibility::allowsCountry('IR'))<a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'iran']) }}">{{ __('ui.hv_cross_iran') }}</a>@endif
       <a href="{{ lroute('vps.hourly') }}">{{ __('ui.hv_badge') }}</a>
       <a href="{{ lroute('hosting', 'linux') }}">{{ __('ui.f_p1') }}</a>
       <a href="{{ lroute('domain.search') }}">{{ __('ui.nav_domains') }}</a>

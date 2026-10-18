@@ -83,24 +83,32 @@ class CloudAddons
     }
 
     /**
-     * جمعِ افزودنی‌ها برای یک دورهٔ کامل — با **همان** تخفیفِ دورهٔ پلن.
-     *
-     * چرا همان تخفیف: اگر پلن سالانه ۱۵٪ تخفیف بخورد و افزودنی نخورد، مشتری در
-     * صورت‌حساب دو نرخِ متفاوت می‌بیند و حق دارد بپرسد چرا. یکسان‌بودن هم
-     * توضیحش ساده‌تر است هم محاسبه‌اش.
+     * جمعِ افزودنی‌ها با تخفیفِ دوره، محدود به بهایِ واقعی همان تعداد IP.
+     * کفِ بها روی جمع اعمال می‌شود؛ حاشیه یا کارمزد حدسی اضافه نمی‌شود.
      */
     public function forCycle(array $addons, string $cycle): int
     {
         $months = Service::monthsIn($cycle);
 
-        if ($months <= 0) {
+        $count = max(0, (int) ($addons['extra_ipv4'] ?? 0));
+        if ($months <= 0 || $count === 0) {
+            return 0;
+        }
+
+        $unit = $this->extraIpMonthlyToman();
+        $eurRate = $this->pricing->eurToToman();
+        if ($unit <= 0 || $eurRate <= 0) {
             return 0;
         }
 
         $discount = (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
         $discount = max(0, min(90, $discount));
 
-        $raw = $this->monthlyToman($addons) * $months * (100 - $discount) / 100;
+        $raw = $unit * $count * $months * (100 - $discount) / 100;
+        // Cap only the loss-making part of a discount against recorded
+        // procurement cost, with one rounding on the aggregate amount.
+        $cost = $this->extraIpCostCents() / 100 * $eurRate * $months * $count;
+        $raw = max($raw, $cost);
 
         return $raw > 0 ? Product::roundUpToman($raw) : 0;
     }
@@ -118,15 +126,17 @@ class CloudAddons
             return [];
         }
 
-        $months = max(1, Service::monthsIn($cycle));
-        $discount = max(0, min(90, (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0)));
         $unit = $this->extraIpMonthlyToman();
+        $total = $this->forCycle($addons, $cycle);
+        if ($total <= 0) {
+            return [];
+        }
 
         return [[
             'label'   => 'IP اضافه (IPv4)',
             'qty'     => $count,
             'monthly' => $unit,
-            'total'   => Product::roundUpToman($unit * $count * $months * (100 - $discount) / 100),
+            'total'   => $total,
         ]];
     }
 

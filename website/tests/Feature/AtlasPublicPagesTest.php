@@ -17,7 +17,8 @@ class AtlasPublicPagesTest extends TestCase
             $this->assertStringContainsString('id="domain-form"', $home);
             $this->assertStringContainsString('name="q"', $home);
             $this->assertStringContainsString('action="'.lroute('domain.search').'" method="get"', $home);
-            $this->assertStringContainsString($prefix.'/vps/iran', $home);
+            $this->assertStringNotContainsString('data-sn-region="IR"', $home);
+            $this->assertStringContainsString($prefix.'/cloud', $home);
             $this->assertStringNotContainsString('>atlas.', $home);
             $this->assertStringContainsString('href="'.lroute('ai.home').'"', $home);
             $this->assertSeoIdentity($home, lroute('home'));

@@ -31,7 +31,7 @@ class GpuCapacityOrdersTest extends TestCase
         Setting::putSecret('salad_api_key', 'test-only');
         Setting::put('salad_org', 'test-org'); Setting::put('salad_project', 'test-project');
         Setting::put('salad_priority', 'high');
-        Setting::put('pricing_rate_override', '100000'); Setting::put('pricing_usd_rate_override', '90000');
+        \Tests\Support\NavasanRates::cloudSnapshot(['USD' => 90000, 'EUR' => 100000, 'USDT' => 90000]);
         CloudLocation::updateOrCreate(['code' => 'global-gpu'], ['country' => 'XX', 'is_active' => true]);
         $this->plan = CloudPlan::create(['provider' => 'salad', 'provider_ref' => 'gpu-class-test', 'provider_location' => 'global',
             'location_code' => 'global-gpu', 'slug' => 'gpu-capacity-test', 'public_name' => 'GTX 1650 (4 GB)',

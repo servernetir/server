@@ -103,7 +103,12 @@
     </div>
     <div class="products-grid sn-product-grid">
       @foreach($products as $i => $p)
-      @php $pHref = isset($p['link']) ? lroute($p['link'][0], $p['link'][1] ?? []) : buy_url($p['pid']); @endphp
+       @php
+         $pHref = isset($p['link']) ? lroute($p['link'][0], $p['link'][1] ?? []) : buy_url($p['pid']);
+         if (! \App\Services\Customer\IranSalesVisibility::allowsUrl($pHref)) {
+             $pHref = lroute('cloud.index');
+         }
+       @endphp
       <a class="pcard pcard-link reveal" href="{{ $pHref }}" style="transition-delay:{{ $i * 70 }}ms">
         @include('partials.atlas-product-art', ['type' => $p['icon']])
         <div class="picon"><svg class="icon"><use href="#i-{{ $p['icon'] }}"/></svg></div>
@@ -232,11 +237,12 @@
     <div class="sn-section-heading"><div><span class="sn-eyebrow" dir="ltr">REGIONS / CONNECTED POSSIBILITIES</span><h2>{{ __('atlas.network') }}</h2></div><p>{{ __('atlas.network_sub') }}</p></div>
     <div class="sn-region-cards">
       @php
-        $atlasTileDefault = match(app()->getLocale()) { 'tr'=>'TR', 'en'=>'US', default=>'IR' };
+        $atlasTileDefault = match(app()->getLocale()) { 'tr'=>'TR', 'en'=>'US', default=>\App\Services\Customer\IranSalesVisibility::allowsCountry('IR') ? 'IR' : 'DE' };
         $atlasLabels = ['IR'=>'iran','TR'=>'turkey','US'=>'usa','DE'=>'germany','FR'=>'france','NL'=>'netherlands'];
         $atlasTileConfig = app(\App\Services\MenuManager::class)->mega(app(\App\Services\SiteMenu::class)->mega());
         $atlasTileMenu = app(\App\Services\ServerMenu::class)->build($atlasTileConfig['vps'] ?? []);
         $atlasPicker = array_values(array_unique(array_merge([$atlasTileDefault], ['US','TR','DE','FR','NL','IR'])));
+        $atlasPicker = array_values(array_filter($atlasPicker, fn ($iso) => \App\Services\Customer\IranSalesVisibility::allowsCountry($iso)));
         $atlasNodes = $atlasTileMenu['cloud'];
         @endphp
         @foreach($atlasPicker as $iso)

@@ -37,6 +37,7 @@ class CreditInvoicePaymentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
         $this->configureSupplierPrices();
         config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
 

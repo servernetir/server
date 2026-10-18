@@ -35,6 +35,8 @@ class CloudStoreSlipTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::cloudSnapshot();
+        Http::preventStrayRequests();
 
         // همان بازسازیِ ترتیبِ روت‌ها که CloudStoreTest دارد: در routes/web.php
         // این دو روت **پیش از** روتِ همه‌گیرِ /{loc}/{rest?} ثبت می‌شوند.
@@ -145,7 +147,8 @@ class CloudStoreSlipTest extends TestCase
         // نامش و دلیلِ صادقش روی صفحه است
         $this->assertStringContainsString('CV-8-16', $html);
         $this->assertStringContainsString(__('ui.cvb_off_stock'), $html);
-        $this->assertStringContainsString(__('ui.cvb_off_stock_sub'), $html);
+        $this->assertStringNotContainsString(__('ui.cvb_off_stock_sub'), $this->visible($html));
+        $this->assertStringNotContainsString(__('ui.cvb_off_badge'), $this->visible($html));
 
         // و هیچ‌جا قیمتی برایش چاپ نشده
         $this->assertStringNotContainsString(fa_num(number_format(2000000)), $html,
@@ -186,8 +189,9 @@ class CloudStoreSlipTest extends TestCase
         | آن‌وقت این تست **سبز می‌مانْد و هیچ‌چیز را نگه نمی‌داشت**. پس اول ثابت
         | می‌کنیم پنجره تا انتهای کارت رسیده است.
         */
-        $this->assertStringContainsString(__('ui.cvb_off_price_sub'), $m[0],
+        $this->assertStringContainsString(__('ui.cvb_off_price'), $m[0],
             'پنجرهٔ رجکس باید تا انتهای کارت برسد، وگرنه ادعاهای پولیِ زیر پوچ‌اند');
+        $this->assertStringNotContainsString(__('ui.cvb_off_price_sub'), $m[0]);
         $this->assertStringNotContainsString('<div', substr($m[0], strpos($m[0], '>') + 1),
             'هیچ فرزندِ <div> در ردیفِ ناموجود نباشد — پنجرهٔ این نگهبان را می‌بُرد');
 
@@ -209,7 +213,7 @@ class CloudStoreSlipTest extends TestCase
         $html = $this->page(null, '?location=fi-helsinki');
 
         $this->assertStringContainsString('هلسینکی', $html, 'کشورِ تمام‌شده باید همچنان دیده شود');
-        $this->assertStringContainsString(__('ui.cvb_loc_off'), $html);
+        $this->assertStringContainsString(__('ui.cvb_c_soldout'), $html);
         $this->assertStringContainsString(__('ui.cvb_off_stock'), $html);
 
         // و دکمهٔ پرداخت بسته است — فرمِ بی‌پلن نباید ارسال‌شدنی باشد
@@ -305,9 +309,8 @@ class CloudStoreSlipTest extends TestCase
         $this->base();
         $html = $this->page();
 
-        // ⚠️ پنج، نه چهار: شهر از داخلِ کارتِ کشور بیرون آمد و مرحلهٔ خودش شد
-        // (خواستهٔ صریحِ کارفرما). نگهبانِ ساختارِ تازه CloudStoreCityStepTest است.
-        $this->assertSame(5, substr_count($html, 'class="cvb-step-b"'), 'پنج مرحله باید بدنه داشته باشند');
+        // کشور و شهر یک مرحله‌اند؛ مشخصات و تصویر دو تصمیم بعدی و نام کنار پرداخت است.
+        $this->assertSame(3, substr_count($html, 'class="cvb-step-b"'), 'سه مرحله باید بدنه داشته باشند');
         $this->assertStringNotContainsString('cvb-step is-shut', $html, 'سرور نباید مرحله‌ای را بسته بفرستد');
 
         // مکان لینکِ واقعی است، نه دکمهٔ جاوااسکریپتی
@@ -401,7 +404,8 @@ class CloudStoreSlipTest extends TestCase
      */
     public function test_the_view_carries_no_css_and_the_vocabulary_lives_in_panel_css(): void
     {
-        $blade = file_get_contents(resource_path('views/account/cloud-store.blade.php'));
+        $blade = file_get_contents(resource_path('views/account/cloud-store.blade.php'))
+            .file_get_contents(resource_path('views/account/partials/cloud-store-location.blade.php'));
 
         $this->assertStringNotContainsString('<style', $blade, 'استایل باید در panel.css باشد');
         $this->assertStringNotContainsString('style="', $blade, 'استایلِ درون‌خطی ممنوع');
@@ -434,7 +438,7 @@ class CloudStoreSlipTest extends TestCase
         $this->base();
         $html = $this->page();
 
-        $start = strpos($html, 'class="cvb-wrap"');
+        $start = strpos($html, 'id="cvb-form"');
         $end = strpos($html, '</form>');
         $this->assertNotFalse($start, 'فرم باید رندر شود');
         $frag = substr($html, $start, $end - $start);
@@ -451,7 +455,7 @@ class CloudStoreSlipTest extends TestCase
         }
 
         $css = '';
-        foreach (['site.css', 'admin.css', 'panel.css'] as $f) {
+        foreach (['site.css', 'admin.css', 'panel.css', 'cloud-store-experience.css'] as $f) {
             $css .= file_get_contents(public_path('assets/css/'.$f));
         }
 

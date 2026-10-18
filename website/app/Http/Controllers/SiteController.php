@@ -14,7 +14,14 @@ class SiteController extends Controller
     public function home(): View
     {
         $tlds = $this->tlds();
-        $offers = CloudPlan::offers()->values();
+        $offers = \Illuminate\Support\Facades\Schema::hasTable('cloud_plans') ? CloudPlan::offers()->values() : collect();
+        if (\App\Services\Customer\IranSalesVisibility::restricted()) {
+            $countries = \Illuminate\Support\Facades\Schema::hasTable('cloud_locations')
+                ? \App\Models\CloudLocation::pluck('country', 'code') : collect();
+            $offers = $offers->filter(fn (CloudPlan $plan) =>
+                \App\Services\Customer\IranSalesVisibility::allowsCountry(
+                    (string) ($countries->get($plan->location_code) ?: $plan->location_code)))->values();
+        }
         $products = (array) config('servernet.products', []);
         $catalog = app(CatalogPricing::class);
         $quotes = [

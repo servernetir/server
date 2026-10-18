@@ -21,7 +21,7 @@ class ArvanRegionalPricingTest extends TestCase
     {
         parent::setUp();
         Http::preventStrayRequests();
-        NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
+        NavasanRates::cloudSnapshot();
         Setting::putSecret('arvan_api_token', 'Apikey test-only');
         Setting::put('cloud_margin_pct', '50');
     }

@@ -7,6 +7,7 @@
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/panel.css') }}">
+@stack('panel-head')
 @endpush
 
 @section('content')

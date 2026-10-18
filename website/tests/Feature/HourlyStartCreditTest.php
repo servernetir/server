@@ -27,7 +27,7 @@ class HourlyStartCreditTest extends TestCase
         parent::setUp();
         Http::fake();
         Mail::fake();
-        Setting::put('pricing_rate_override', '120000');
+        \Tests\Support\NavasanRates::cloudSnapshot(['USD' => 120000, 'EUR' => 120000, 'USDT' => 120000]);
 
         $this->customer = Customer::create([
             'email' => 'hourly-start@example.test', 'phone' => '09121112222',

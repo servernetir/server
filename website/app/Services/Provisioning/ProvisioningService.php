@@ -90,6 +90,9 @@ class ProvisioningService
 
             return false;
         }
+        if (app(\App\Services\Customer\IranPurchaseReadiness::class)->holdDeliveryIfBlocked($service)) {
+            return false;
+        }
 
         // ظرفیت/وضعیت را همین‌جا (نه فقط سرِ سفارش) دوباره بسنج: بین ثبتِ سفارش و
         // پرداخت ممکن است سرور به «تعمیر» رفته یا پر شده باشد. اگر بسازیم، حسابِ

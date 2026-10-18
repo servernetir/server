@@ -46,6 +46,11 @@ use Illuminate\Support\Facades\Mail;
  */
 class CloudProvisioner
 {
+    private const RELEASE_PENDING_DEADLINES = [
+        // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
+        'arvan' => 15,
+    ];
+
     /**
      * An accepted provider mutation may be asynchronous, but it may not stop
      * billing/error escalation forever.  With the 15-minute reconciliation
@@ -55,12 +60,6 @@ class CloudProvisioner
         // LightNode exposes a durable async receipt.  Other providers have
         // different lifecycle contracts and must not inherit this deadline.
         'lightnode' => 30,
-    ];
-
-    /** Provider-accepted deletion may be asynchronous, but not indefinitely. */
-    private const RELEASE_PENDING_DEADLINES = [
-        // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
-        'arvan' => 15,
     ];
 
     public function __construct(
@@ -277,6 +276,9 @@ class CloudProvisioner
         if (filled($instance->provider_ref)) {
             return $this->adoptExisting($service, $instance, $plan, $driver);
         }
+        if (app(\App\Services\Customer\IranPurchaseReadiness::class)->holdDeliveryIfBlocked($service, $plan)) {
+            return false;
+        }
 
         // ── کلیدِ SSH ──
         // باید **پیش** از ساختِ سرور در حسابِ ما نزدِ زیرساخت باشد، چون سرِ ساخت
@@ -421,6 +423,7 @@ class CloudProvisioner
 
         if (! $keyOnly && $this->supportsAutomaticPasswordReset($instance)
             && blank($password) && filled($result['ref'] ?? null)
+            && ! ($plan->provider === 'arvan' && $instance->isWindows())
             && ! str_starts_with((string) $result['ref'], 'order:')) {
             $pw = $driver->resetPassword((string) $result['ref']);
             $password = $pw['root_password'] ?? null;
@@ -2224,17 +2227,6 @@ class CloudProvisioner
             && blank(data_get($instance->meta, 'lifecycle_pending.timed_out_at'));
     }
 
-    /** The provider accepted deletion and exact-resource absence is still pending. */
-    public function releasePending(Service $service): bool
-    {
-        $instance = CloudInstance::where('service_id', $service->id)->first();
-
-        return $instance !== null
-            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])
-            && filled(data_get($instance->meta, 'release_pending.accepted_at'))
-            && blank(data_get($instance->meta, 'release_pending.timed_out_at'));
-    }
-
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
     public function terminate(Service $service, bool $reportFailure = true): bool
     {
@@ -2486,6 +2478,7 @@ class CloudProvisioner
     private function shoutAboutLingeringMachine(string $what, Service $service, ?CloudInstance $instance, string $why, ?int $attempt = null): void
     {
         try {
+
             // ⚠️ ثبت هم زیرِ همین گلوگاه است: مدیری که ده بار «تلاشِ دوباره» را
             // می‌زند نباید پنجرهٔ ۴۰۰ خطیِ ردیاب را با یک خبر پر کند. امضا شاملِ
             // علت است، پس خطای **متفاوتِ** بعدی فوراً می‌نشیند.
@@ -2497,13 +2490,13 @@ class CloudProvisioner
             | هشداری که برای دیده‌شدن ساخته شده، دقیقاً چیزی می‌شود که
             | دیده‌نشدن را یاد می‌دهد. همان درسی که در `SystemHealth` ثبت است.
             |
-            | خبرِ واقعی همان شکستِ نخست است؛ تکرارِ همان علت در تلاشِ دوم خبر
-            | تازه نیست. تا تلاشِ دهم یادآوری هر شش ساعت و پس از آن روزی یک بار
-            | کافی است. علتِ تازه به‌خاطر امضای جدا فوراً اعلام می‌شود.
+            | خبرِ واقعی سه بارِ اول است؛ بقیه یادآوری‌اند و یادآوری روزی یک بار
+            | کافی است. مشکل با کم‌شدنِ هشدار از بین نمی‌رود — با زدنِ دکمهٔ
+            | «آزادسازی دستی انجام شد» از بین می‌رود.
             */
             $window = match (true) {
-                $attempt === null => 3600,                       // تعلیقِ بی‌شمارنده
-                $attempt <= 10 => 6 * 3600,                      // تلاشِ نخست فوری، سپس هر ۶ ساعت
+                $attempt === null, $attempt <= 3 => 3600,        // ساعتی
+                $attempt <= 10 => 6 * 3600,                      // هر ۶ ساعت
                 default => 24 * 3600,                            // روزی یک بار
             };
 
@@ -2715,6 +2708,16 @@ class CloudProvisioner
         unset($meta['lifecycle_pending']);
 
         return ['meta' => $meta] + $attributes;
+    }
+
+    public function releasePending(Service $service): bool
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        return $instance !== null
+            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])
+            && filled(data_get($instance->meta, 'release_pending.accepted_at'))
+            && blank(data_get($instance->meta, 'release_pending.timed_out_at'));
     }
 
     private function clearReleasePending(CloudInstance $instance, array $attributes): array

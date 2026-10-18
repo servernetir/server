@@ -8,6 +8,15 @@ use Illuminate\Support\Facades\Cache;
 
 final class NavasanRates
 {
+    /** A synthetic, internally consistent catalogue quote; never fetches live FX. */
+    public static function cloudSnapshot(array $rates = ['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]): void
+    {
+        self::store($rates);
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([
+            $rates['USD'], $rates['EUR'], $rates['USDT'],
+        ]);
+    }
+
     public static function rows(array $rates = ['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000], ?string $at = null): array
     {
         $rows = [];

@@ -63,6 +63,9 @@ class HourlyVpsController extends Controller
                 ->orderBy('sort')
                 ->get()
                 ->keyBy('code');
+            // Apply customer eligibility after loading the shared catalogue.
+            $locations = $locations->filter(fn ($location) =>
+                \App\Services\Customer\IranSalesVisibility::allowsCountry((string) $location->country));
 
             $cheapestAll = null;
 

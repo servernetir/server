@@ -24,6 +24,8 @@ class SubdomainDnsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
+        Http::preventStrayRequests();
         Mail::fake();
     }
 
@@ -42,6 +44,7 @@ class SubdomainDnsTest extends TestCase
             'customer_id' => $c->id, 'is_default' => true, 'type' => 'individual',
             'status' => 'verified', 'email' => $c->email, 'mobile' => $c->phone,
         ]);
+        \Tests\Support\ShahkarFixture::verify($c);
 
         return $c;
     }
@@ -58,8 +61,8 @@ class SubdomainDnsTest extends TestCase
     private function product(array $over = []): Product
     {
         return Product::create(array_merge([
-            'name' => 'هاست', 'category' => 'shared', 'price' => 250000,
-            'cycle' => 'monthly', 'tax_percent' => 10, 'is_active' => true,
+            'name' => 'هاست', 'category' => 'shared', 'price' => 250000, 'base_price_eur' => 2.5,
+            'cycle' => 'monthly', 'tax_percent' => 10, 'requires_domain' => true, 'is_active' => true,
         ], $over));
     }
 

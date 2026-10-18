@@ -43,6 +43,7 @@ class ArvanWindowsPasswordTest extends TestCase
     {
         $customer = Customer::create(['email' => 'windows@example.test', 'phone' => '09120000000',
             'password' => 'synthetic-only', 'status' => 'active', 'locale' => 'fa']);
+        \Tests\Support\ShahkarFixture::verify($customer);
         $plan = CloudPlan::create([
             'provider' => 'arvan', 'provider_ref' => 'test-flavor', 'provider_location' => 'ir-test-1',
             'location_code' => 'ir-test', 'public_name' => 'Synthetic VPS', 'slug' => 'synthetic-windows',

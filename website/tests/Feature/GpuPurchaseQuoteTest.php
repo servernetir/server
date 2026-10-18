@@ -19,8 +19,7 @@ class GpuPurchaseQuoteTest extends TestCase
         Http::preventStrayRequests();
         Setting::putSecret('salad_api_key', 'test-only');
         Setting::put('salad_org', 'quote-test');
-        Setting::put('pricing_usd_rate_override', '100000');
-        Setting::put('pricing_rate_override', '110000');
+        \Tests\Support\NavasanRates::cloudSnapshot(['USD' => 100000, 'EUR' => 110000, 'USDT' => 100000]);
         Setting::put('cloud_margin_pct', '5');
         Setting::put('cloud_margin_pct_salad', '30');
         Setting::put('pricing_fx_fee_pct_salad', '10');
@@ -60,7 +59,7 @@ class GpuPurchaseQuoteTest extends TestCase
         $this->classes();
         $client = app(SaladClient::class);
         $this->assertTrue($client->purchaseQuote('gpu-test')['ok']);
-        Setting::put('pricing_usd_rate_override', '200000');
+        \Tests\Support\NavasanRates::cloudSnapshot(['USD' => 200000, 'EUR' => 110000, 'USDT' => 100000]);
         Setting::put('salad_priority', 'low');
         $this->assertEqualsWithDelta(28600, $client->purchaseQuote('gpu-test')['minimum_hourly_irt'], 1);
         Http::assertSentCount(1);

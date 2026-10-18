@@ -3,56 +3,30 @@
 namespace App\Services\Customer;
 
 use App\Models\Customer;
-use App\Models\Setting;
+use App\Models\Product;
+use App\Models\Server;
 
 /**
- * دروازهٔ فروشِ محصولاتِ مستقر در ایران به مشتریِ احرازنشده.
- *
- * ═══ چرا (تصمیمِ کارفرما — ۶ شهریور ۱۴۰۵) ═══
- *
- * «فعلاً هاست/سرورِ ایران فقط به ایرانی‌ها فروخته شود.» مشتریِ ایرانی از
- * شاهکار و کدِ ملی رد شده (پروفایلِ verified دارد)؛ مشتریِ خارجی فقط ایمیل
- * و موبایلِ تأییدشده دارد و هنوز KYCِ سندی (پاسپورت/قبض) برایش نساخته‌ایم.
- * زیرساختِ داخلِ ایران نباید بی‌احراز دستِ ناشناس بیفتد.
- *
- * ═══ قواعد ═══
- *
- * - معیار «احراز» است نه «زبان»: `Customer::isVerified()` — ایرانیِ KYCشده
- *   از /en هم بخرد آزاد است؛ خارجیِ بی‌احراز از /fa هم بسته. زبان جعل‌شدنی
- *   است، احراز نه. (وقتی KYCِ خارجی ساخته شد، تأییدِ دستیِ مدارک همین پرچم
- *   را روشن می‌کند و دروازه خودبه‌خود برایش باز می‌شود.)
- * - پیش‌فرض **بسته** است: نبودِ ردیفِ تنظیم = بسته. کلیدِ اضطراری که فراموش
- *   شود نباید بازار را باز بگذارد. بازکردن فقط با مقدارِ صریحِ '1'
- *   (تنظیمات → عمومی → «فروشِ محصولاتِ ایران به مشتریِ احرازنشده»).
- * - هدفِ ایرانی: کشورِ IR (هاستِ اشتراکی) یا کدِ مکانِ `ir-*` (سرورِ ابری).
- *   دامنه‌های ir. از قبل برای **همه** بسته‌اند (DomainSearch::UNSOLD_TLDS) و
- *   به این دروازه نیازی ندارند.
- * - دو لایه: فهرستِ مکان‌ها برای مشتریِ بسته اصلاً «ایران» را نشان نمی‌دهد
- *   (UX)، و لحظهٔ ثبتِ سفارش هم سخت‌گیرانه رد می‌شود (امنیت) — نمایش قابلِ
- *   دورزدن است، سفارش نه.
+ * خرید مقصد ایران فقط با نتیجهٔ ثبت‌شدهٔ شاهکار مجاز است: status=verified
+ * و shahkar_matched=true. تأیید مدارک، پروفایل، زبان و تابعیت جای آن نیستند.
+ * پرس‌وجوی تازه مانع اتکا به رابطهٔ بارگذاری‌شده پس از لغو تأیید است.
+ * این قاعده فقط خرید جدید را محدود می‌کند؛ KYC عمومی و خدمات موجود مستقل‌اند.
  */
 class IranSalesGate
 {
     public const SETTING = 'iran_sales_open_to_unverified';
 
-    /** آیا مدیر صریحاً فروش به احرازنشده را باز کرده؟ */
+    /** @deprecated تنظیم قدیمی مجوز دورزدن الزام شاهکار نیست. */
     public static function openToUnverified(): bool
     {
-        try {
-            return (string) Setting::get(self::SETTING) === '1';
-        } catch (\Throwable) {
-            return false;      // دیتابیسِ لنگ = بسته، نه باز
-        }
+        return false;
     }
 
     /** آیا برای این مشتری، کلِ محصولاتِ ایران بسته است؟ */
     public static function blocksIranFor(?Customer $customer): bool
     {
-        if (self::openToUnverified()) {
-            return false;
-        }
-
-        return $customer === null || ! $customer->isVerified();
+        return $customer === null || ! $customer->identityVerification()
+            ->where('status', 'verified')->where('shahkar_matched', true)->exists();
     }
 
     /** آیا این سفارشِ مشخص (با این مقصد) باید رد شود؟ */
@@ -69,8 +43,31 @@ class IranSalesGate
         return $t === 'ir' || str_starts_with($t, 'ir-');
     }
 
+    /**
+     * مقصد واقعی سفارش بر محل پیش‌فرض محصول مقدم است. در فهرست خرید، وجود
+     * یک مقصد خارجی مجاز، محصول چندمکانه را قابل انتخاب نگه می‌دارد.
+     */
+    public static function blocksProduct(?Customer $customer, Product $product, ?string $selectedCountry = null, ?Server $resolvedServer = null): bool
+    {
+        if ($product->isLicense() || ! self::blocksIranFor($customer)) {
+            return false;
+        }
+        if (filled($selectedCountry) || $resolvedServer !== null) {
+            return self::isIranTarget($selectedCountry) || self::isIranTarget($resolvedServer?->country);
+        }
+        $countries = $product->availableCountries();
+        if ($countries !== []) {
+            return collect($countries)->every(fn ($country) => self::isIranTarget($country));
+        }
+        if (filled($product->server?->country)) {
+            return self::isIranTarget($product->server->country);
+        }
+
+        return collect((array) $product->locations)->contains(fn ($country) => self::isIranTarget($country));
+    }
+
     public static function message(): string
     {
-        return __('ui.iran_gate_blocked');
+        return __('iran-sales.required');
     }
 }

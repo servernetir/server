@@ -1,6 +1,8 @@
 @php
     $loc = app()->getLocale();
-    $mega = config('servernet.mega');
+    $consoleHeader = strtolower((string) request()->getHost()) === 'console.servernet.cloud';
+    $headerContainerStyle = $consoleHeader ? 'width:100%;max-width:none;padding-inline:clamp(18px,2vw,38px)' : '';
+    $mega = \App\Services\Customer\IranSalesVisibility::menu((array) config('servernet.mega'));
     $serverMenu = app(\App\Services\ServerMenu::class)->build($mega['vps'] ?? []);
     // ⚠️ از `MenuManager` و نه مستقیم از config: رویهٔ مدیر (خاموشی، متنِ
     //    سه‌زبانه، ترتیب، لینکِ افزوده) این‌جا اعمال می‌شود. عمداً `config()`
@@ -30,7 +32,7 @@
        بنشیند. --}}
   @if($impBar ?? false)
   <div class="imp-bar" dir="{{ app()->getLocale() === 'fa' ? 'rtl' : 'ltr' }}">
-    <div class="container imp-in">
+    <div class="container imp-in" @if($consoleHeader) style="{{ $headerContainerStyle }}" @endif>
       <span class="imp-tx">
         <svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg>
         <span class="imp-lb">{{ __('activity.customer_view') }}</span>
@@ -54,7 +56,7 @@
 
   {{-- نوار اعتماد: تلفن، ایمیل، وضعیت + زبان --}}
   <div class="topbar">
-    <div class="container">
+    <div class="container" @if($consoleHeader) style="{{ $headerContainerStyle }}" @endif>
       <div class="topbar-contacts">
         <a href="tel:{{ $contact['phone_link'] }}"><svg class="icon"><use href="#i-phone"/></svg>{{ $contact['phone'] }}</a>
         <a href="mailto:{{ $contact['email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a>
@@ -74,7 +76,7 @@
   </div>
 
   <header id="header">
-    <div class="container">
+    <div class="container" @if($consoleHeader) style="{{ $headerContainerStyle }}" @endif>
       <a href="{{ $homeUrl }}" class="logo"><span class="logo-mark"><svg class="icon"><use href="#i-server"/></svg></span> {{ $isFa ? 'سرورنت' : 'ServerNet' }}</a>
 
       <nav class="desktop" id="desktop-nav" aria-label="Main">

@@ -49,6 +49,10 @@ class BuilderCheckoutController extends Controller
                 ->with('err', __('ui.bcf_pkg_missing'));
         }
 
+        if (\App\Services\Customer\IranSalesGate::blocksProduct(Auth::guard('customer')->user(), $product)) {
+            return redirect(lroute('account.services'))->with('err', \App\Services\Customer\IranSalesGate::message());
+        }
+
         // سایتِ ساخته‌شده باید واقعاً موجود باشد — وگرنه بعد از پرداخت چیزی
         // برای انتشار نیست. پیش از پول، نه بعدش.
         if (BuilderSitePublisher::htmlFor($ref) === null) {
@@ -82,6 +86,10 @@ class BuilderCheckoutController extends Controller
 
         if ($product === null) {
             return back()->withErrors(__('ui.stf_pkg_na'));
+        }
+        $customer = Auth::guard('customer')->user();
+        if (\App\Services\Customer\IranSalesGate::blocksProduct($customer, $product)) {
+            return back()->withErrors(['country' => \App\Services\Customer\IranSalesGate::message()]);
         }
 
         if (BuilderSitePublisher::htmlFor($ref) === null) {
@@ -124,13 +132,13 @@ class BuilderCheckoutController extends Controller
             return back()->withErrors(__('ui.dm_already'));
         }
 
-        $customer = Auth::guard('customer')->user();
-
         // سرورِ تحویل: پکیج اگر مکان دارد از ظرفیتِ زنده، وگرنه سرورِ خودِ پکیج
-        $countries = $product->availableCountries();
-        $server = null;
+        $countries = array_values(array_filter($product->availableCountries(),
+            fn ($country) => ! \App\Services\Customer\IranSalesGate::blocks($customer, $country)));
+        $server = $product->server;
 
         if ($countries !== []) {
+            $server = null;
             foreach ($countries as $c) {
                 if ($server = \App\Models\Server::pickForCountry($c)) {
                     break;
@@ -140,6 +148,10 @@ class BuilderCheckoutController extends Controller
             if ($server === null) {
                 return back()->withErrors(__('ui.bcf_cap_full'));
             }
+        }
+
+        if (\App\Services\Customer\IranSalesGate::blocksProduct($customer, $product, null, $server)) {
+            return back()->withErrors(['country' => \App\Services\Customer\IranSalesGate::message()]);
         }
 
         $cyclePrice = $product->priceForCycle('monthly');

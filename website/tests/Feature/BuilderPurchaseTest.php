@@ -33,6 +33,8 @@ class BuilderPurchaseTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
+        Http::preventStrayRequests();
         \Illuminate\Support\Facades\Mail::fake();
         // دیسکِ واقعیِ storage/app آلوده نشود؛ Publisher هم از همین می‌خوانَد
         Storage::fake('local');
@@ -62,6 +64,8 @@ class BuilderPurchaseTest extends TestCase
         $p = Product::where('slug', 'site-builder-2')->first();
         $this->assertNotNull($p, 'seeder باید پکیج‌های site-builder-* را بسازد');
         $this->assertSame('site-builder', $p->group);
+        // Synthetic native price for the current validated-FX pricing contract.
+        $p->update(['base_price_eur' => $p->price / 100000, 'base_setup_eur' => 0]);
 
         return $p;
     }
@@ -127,6 +131,30 @@ class BuilderPurchaseTest extends TestCase
 
         // نیم‌سرورها همان پیش‌فرضِ شرکت‌اند
         $this->assertSame(Domain::defaultNameServers(), $domain->name_servers);
+    }
+
+    public function test_builder_without_shahkar_uses_foreign_capacity_when_iran_is_the_first_available_country(): void
+    {
+        $this->configureSupplierPrices();
+        Http::fake($this->supplierPriceStubs());
+        $iran = $this->whmServer();
+        $iran->update(['country' => 'IR']);
+        $foreign = $this->whmServer();
+        $foreign->update(['country' => 'DE']);
+        $product = $this->seedProducts();
+        $quote = $this->freshQuote();
+        $this->storeSite('SB-FOREIGN');
+        $customer = $this->customer();
+        $this->assertFalse($customer->identityVerification()->exists());
+
+        $this->actingAs($customer, 'customer')->post('/account/builder-checkout', [
+            'ref' => 'SB-FOREIGN', 'plan' => $product->slug, 'quote_id' => $quote->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame($foreign->id, Service::firstOrFail()->server_id);
+        $this->assertNotSame($iran->id, Service::firstOrFail()->server_id);
+        $this->assertDatabaseCount('invoices', 1);
+        $this->assertDatabaseCount('domains', 1);
     }
 
     public function test_expired_quote_and_unsold_tld_are_rejected_before_any_row_is_written(): void

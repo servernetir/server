@@ -135,14 +135,12 @@ class MenuIsManageableTest extends TestCase
      * تکرار می‌کند و همیشه سبز است. این‌ها از نسخهٔ **قبل از تغییر** برداشته
      * شده‌اند، یعنی از رفتاری که واقعاً روی سایت بود.
      */
-    public function test_the_default_footer_is_unchanged(): void
+    public function test_the_default_footer_preserves_non_iran_links_for_guests(): void
     {
         app()->setLocale('fa');
 
         $expect = [
             lroute('hosting', 'linux'),
-            lroute('catalog', ['category' => 'vps', 'slug' => 'iran']),
-            lroute('catalog', ['category' => 'dedicated', 'slug' => 'iran']),
             lroute('catalog', ['category' => 'domain', 'slug' => 'popular-tlds']),
             lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']),
             lroute('solution', 'infrastructure'),
