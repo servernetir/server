@@ -1,6 +1,28 @@
 # Arvan Windows password handling — 18 October 2026
 
-## Fresh-session preflight: staged, activation approval pending
+## Production release accepted — 18 October, 10:23:57 UTC
+
+The owner explicitly approved the brief shared-cache refresh. Fresh10:17:36UTC preflight confirmed unchanged live source hashes and sales/console settings. The prepared surgical release installed exactly two application files at10:20:00UTC; installed hashes and private before-file hashes matched the manifest. No full-file copy from the newer Git checkout was used, so unrelated live code was preserved.
+
+The existing authenticated POST /system/opcache was called once at10:20:35UTC. It returned HTTP200, curl_errno0 and opcache_reset=true. Its reported config/route/view/cache clear list is recorded, but individual Artisan exit statuses are not independently proven. The configured file-session path is separate from the file-cache directory. No sales/console flag was toggled and no new credential or public endpoint was created. Pending console links may need a fresh launch after the approved cache refresh.
+
+Final acceptance:
+- Both production PHP files pass lint; both installed/backup hash pairs match the private manifest.
+- A separate fresh /up request returned200 after activation, repeated successfully in the10:23:57UTC final receipt.
+- The CLI-only private verification exercised10 synthetic password inputs without a provider request; all passed.
+- Read-only catalog checks blocked automatic reset for4 distinct Windows image keys and permitted15 known Linux keys. Unknown metadata was denied and non-Arvan behavior preserved. There were no ambiguous live groups; conflicting metadata is covered by local tests, not claimed as a live fixture.
+- Public console=1, hourly sales=1, Windows allowlist unchanged against the saved preflight evidence. No customer credential or database record was rewritten by the release or acceptance.
+- Independently reran15 targeted tests/91 assertions at merged develop65832f6a: passed. Verification-helper lint and diff whitespace checks passed.
+
+Two acceptance-tool issues were diagnosed, not suppressed: PHP groupBy converts numeric string keys to integers, so the unsaved synthetic model initially bound numeric7 and MySQL matched both CentOS/MikroTik prefixes. Restoring the original catalog string made the query equivalent to the stored varchar key. A separate manually transcribed baseline hash had two characters transposed; comparison against the saved10:10 preflight screenshot corrected the verifier/documentation only. Production flags were not changed to make the test pass. These initial verification exceptions are not application guest failures.
+
+Affected machine/path: core, /home/servernetcloud/servernet_app, only app/Services/Cloud/ArvanClient.php and CloudProvisioner.php. Source patch a7fda484; release/verification helpers and receipts are in the owner-only storage/app/arvan-password-guard-20261018-Xqq99a directory. receipt.json records installed/activation/acceptance times; activation-result.json, verify-cli.json and final-acceptance.json retain sanitized evidence. No Arvan API/support, VM/disk/IP, guest password, DNS, Worker, route/NAT/firewall, scheduler or routing-agent source was changed/contacted. No new paid test was created.
+
+This accepts **the defensive patch**, not automatic Windows first-boot setup or real RDP. Existing stock Windows may still require the owner/customer to choose the password in the console; the patch does not fabricate or claim to apply a password.
+
+Rollback is limited to the two manifest paths: first verify current hashes still equal the recorded after-hashes, verify the private before-files, then restore those exact files atomically with original permissions and refresh web OPcache through the approved operational path. Stop on concurrent drift; do not restore entire folders, sales flags or console settings. No rollback was needed/performed. Local visual evidence: C:/Users/admin/Desktop/servernet/output/arvan-password-protection-live-20261018.png.
+
+## Historical preflight — superseded by production acceptance above
 
 This supersedes the earlier expired-session blocker below. The owner supplied a fresh cPanel Terminal. At09:49:48UTC the two live application hashes still matched the original baseline. Preparation succeeded at10:05:26UTC in the private owner-only release directory `/home/servernetcloud/servernet_app/storage/app/arvan-password-guard-20261018-Xqq99a`; **no --apply was run and no application source was installed**.
 
@@ -8,13 +30,13 @@ The live provisioner already contained older Windows exclusions in create/adopti
 
 Scoped PHP-FPM inspection through the owner-accessible sockets returned primary-script ENOENT before executing the helper. The host configuration contains a forced document root, but the exact visibility cause was not proven. Two harmless public probe directories contained only a deny-all .htaccess and probe.txt; origin requests returned404, not a proven Apache403. No public PHP entry was created. At10:09:35UTC both exact probe directories were verified and moved into the private release directory as recoverable archives; none remains in public_html.
 
-At10:10:01UTC, the application files still had the original hashes, public console=1, hourly sales=1, and the Windows image allowlist remained nonempty with SHA-256 `cc9e1285e69a6a37cde1b11b419c860293fae75e3f311bce3ac146744206b845`. Effective CLI configuration reported file cache and file sessions. No flags were rewritten.
+At10:10:01UTC, the application files still had the original hashes, public console=1, hourly sales=1, and the Windows image allowlist remained nonempty with SHA-256 `cc9e1285e69a6a37cde1b114b19c860293fae75e3f311bce3ac146744206b845`. Effective CLI configuration reported file cache and file sessions. No flags were rewritten. The hash transcription was corrected against the saved preflight screenshot during final acceptance; the production value did not change.
 
 The existing authenticated POST /system/opcache also clears shared application cache. An explicit owner approval is pending before using it: pending console tickets/grants can expire and require a fresh launch, and rate-limit/status caches are affected. Its returned cleared-list does not independently prove successful exit status for every clear command. Do not call it or claim web activation until approval and a fresh acceptance check. The unsuccessful FPM prototype is not a deployed/tested activation mechanism.
 
 The15 targeted tests/91 assertions passed again locally; the adapted deployment helper passes PHP lint. Known Linux-family aliases are defensive parser compatibility, not proof that every alias exists in the live Arvan catalog. No provider/support call, paid test, guest/credential modification, VM/disk/IP change, DNS/Worker/sales change or routing/NAT/firewall/persistence-agent change occurred. The source patch is already in develop as a7fda484; this follow-up is preparation/documentation only. Before resuming, recheck source hashes and flags, obtain activation approval, inspect the prepared manifest, then apply only the two files and verify. Keep the private before-files for exact rollback; never overwrite a concurrent change.
 
-## Follow-up: production deployment authorized, blocked before installation
+## Historical first attempt — expired-session blocker, since resolved
 
 The owner subsequently authorized publishing the defensive patch while preserving open sales/consoles, forbidding new test servers and further Arvan contact. At09:04:30UTC, production PHP8.4.26, the application root and both expected source hashes were verified. At09:06:08UTC, public console=1 and hourly sales=1 were read; the Windows allowlist was nonempty and unchanged. No provider endpoint or support channel was contacted.
 
@@ -24,7 +46,7 @@ The existing web `/system/opcache` route also clears shared application cache an
 
 Before any live file writes, the terminal stopped responding. Reload explicitly returned **“Your IP address has changed. Please log in again.”** A fresh owner-authenticated cPanel Terminal was requested. Status: **not installed; no production changes made in this follow-up**. The next step is fresh login, repeat source/flag checks, prove the scoped FPM path, then prepare/review/apply/activate/verify. Do not treat the prepared maintenance helpers as production acceptance or run them blindly.
 
-## Current decision and limits
+## Original request and limits (before production authorization)
 
 The owner requested automatic Windows password delivery, a price quote before any new paid test, and a push to develop while leaving sales and customer consoles open. Later in this same turn the owner said not to pursue Arvan further because the current service works. No further support message, new VM, paid resource, password change or production deployment was performed. Existing customer resources were not used as test fixtures.
 
@@ -54,7 +76,7 @@ No automatic guest-password generator, Windows init-script integration, new cust
 
 At08:40:57UTC, regional sizes GET returned200. At08:46:12UTC the images GET also returned200, with stock2025/2022/2019/2016 Windows images advertising2048MB minimum RAM. Public console=1, hourly sales=1 and the existing Windows image allowlist was nonempty. These settings were observed, not rewritten.
 
-Production source SHA-256 observed (not replaced):
+Baseline production source SHA-256 observed before installation:
 - `app/Services/Cloud/ArvanClient.php`: `3c887daabc8ed845bf2c80bb40560f77eab9bee62b1bd631e005196ae396b73e`
 - `app/Services/Cloud/CloudProvisioner.php`: `1477ba7a7006d4540ae0b3b8635eab48b2edcfb609570e1995c75565c4f159c7`
 
@@ -82,7 +104,7 @@ Acceptance must demonstrate untouched first boot, a unique credential actually a
 
 ## Release and rollback
 
-Base: `f8e578c41098f4b42a49f49bc08e296174092f70` on origin/develop, incorporating concurrent documentation changes without force. Status: **Git-only; not installed, not production-accepted as automatic password delivery**.
+Source base: `f8e578c41098f4b42a49f49bc08e296174092f70` on origin/develop. Patch `a7fda484` was later surgically installed and accepted as described above; it is **not production acceptance of automatic Windows password setup**. Concurrent develop changes were merged without force.
 
 Validation with local PHP 8.4, synthetic credentials and mocked provider calls:
 
@@ -91,4 +113,4 @@ Validation with local PHP 8.4, synthetic credentials and mocked provider calls:
 - Broader `CloudArvanTest` + `CloudProvisionTest`: 79 tests, 62 passed, 11 failures and 6 errors, 213 assertions. Temporarily restored only these two locally edited production files to exact base (verified empty diff), reran the same suites, and observed the same 17 failing/error test names and outcomes. Restored the reviewed patch afterward. Existing issues include missing exchange-rate fixtures, the absent `arvan_create_attempts` test table and two provider-fallback expectations. They were not repaired in this narrow password patch; no claim that the whole suite is green.
 - No real first-boot password, RDP, guest reboot or new-console acceptance was performed in this turn. Public console acceptance remains the separately recorded earlier service501 test.
 
-Affected production machine conceptually: core application only, but no installation occurred. No route, NAT/firewall, DNS, local proxy, Worker, scheduler or routing-agent source changed; no new persistence or migration. Production rollback is unnecessary because nothing was installed. A later release must use fresh hashes, private backups and its own acceptance record. Code rollback, if requested, is a normal reviewed revert of this patch only; do not revert public console activation or sales.
+Affected production machine: core application only, with exactly two application files installed. No route, NAT/firewall, DNS, local proxy, Worker, scheduler or routing-agent source changed; no new persistence or migration. Use the scoped production rollback procedure and retained manifest/backups above if needed. Git rollback, if requested, is a normal reviewed revert of this patch only; do not revert public console activation or sales.
