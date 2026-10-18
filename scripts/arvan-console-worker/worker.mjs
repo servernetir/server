@@ -27,6 +27,18 @@ export async function signature(secret, message) {
   return Array.from(new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(message))))
     .map(x => x.toString(16).padStart(2, '0')).join('');
 }
+export async function sessionBinding(token) {
+  // Public per-tab fingerprint, not an authorization token. The random session
+  // remains HttpOnly; this digest cannot redeem a grant without that cookie.
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('servernet-vnc-tab-v1\n' + token));
+  return Array.from(new Uint8Array(digest)).map(x => x.toString(16).padStart(2, '0')).join('');
+}
+function bindingMatches(expected, actual) {
+  // Both values are fixed-width hex before this comparison.
+  let mismatch = 0;
+  for (let i = 0; i < 64; i++) mismatch |= expected.charCodeAt(i) ^ actual.charCodeAt(i);
+  return mismatch === 0;
+}
 async function broker(action, token, env, fetcher) {
   const body = JSON.stringify({action, token});
   const ts = String(Math.floor(Date.now() / 1000));
@@ -69,7 +81,8 @@ try{
  if(!/^[a-f0-9]{64}$/.test(ticket))throw Error('expired');
  const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw Error('expired');
- rfb=new RFB(screen,'wss://'+location.host+'/socket',{wsProtocols:['binary']});rfb.scaleViewport=true;rfb.resizeSession=false;
+ const grant=await r.json();if(!/^[a-f0-9]{64}$/.test(grant.binding||''))throw Error('expired');
+ rfb=new RFB(screen,'wss://'+location.host+'/socket?binding='+grant.binding,{wsProtocols:['binary']});rfb.scaleViewport=true;rfb.resizeSession=false;
  rfb.addEventListener('connect',()=>{if(failed)return;clearTimeout(connectTimer);status.textContent='متصل';document.getElementById('cad').disabled=false;});
  rfb.addEventListener('disconnect',fail);rfb.addEventListener('securityfailure',fail);
  // A provider VNC password is never a Windows Administrator password.
@@ -79,7 +92,8 @@ try{
 export async function handle(request, env = {}, fetcher = fetch) {
   try {
     const url = new URL(request.url);
-    if (url.origin !== ORIGIN || url.search) return reply('Not found', 404);
+    if (url.origin !== ORIGIN || (url.search && (url.pathname !== '/socket'
+      || [...url.searchParams.keys()].length !== 1 || !ID.test(url.searchParams.get('binding') || '')))) return reply('Not found', 404);
     if (request.method === 'GET' && url.pathname === '/') return reply(env.CLIENT_LEGACY === '1' ? LEGACY_HTML : HTML, 200, {'Content-Type': 'text/html; charset=utf-8'});
     if (request.method === 'GET' && url.pathname === '/favicon.ico') return reply(null, 204);
     if (request.method === 'GET' && url.pathname === '/console.css') return reply(CSS + `@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-web.woff2') format('woff2');font-weight:400;font-display:swap}@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-Bold-web.woff2') format('woff2');font-weight:700;font-display:swap}:root{font-family:IRANSans,Tahoma,Arial,sans-serif}`, 200, {'Content-Type': 'text/css; charset=utf-8'});
@@ -109,11 +123,19 @@ export async function handle(request, env = {}, fetcher = fetch) {
       if (typeof token !== 'string' || !ID.test(token)) return reply('Invalid request', 400);
       const result = await broker('redeem', token, env, fetcher);
       if (!result || !ID.test(result.session || '')) return reply('Expired', 410);
-      return reply(null, 204, {'Set-Cookie': COOKIE + '=' + result.session + '; Path=/; Max-Age=90; Secure; HttpOnly; SameSite=Strict'});
+      return reply(JSON.stringify({binding: await sessionBinding(result.session)}), 200, {
+        'Content-Type': 'application/json',
+        'Set-Cookie': COOKIE + '=' + result.session + '; Path=/; Max-Age=90; Secure; HttpOnly; SameSite=Strict',
+      });
     }
     if (request.method === 'GET' && url.pathname === '/socket') {
       const token = session(request);
       if (!token || request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return reply('Forbidden', 403);
+      const binding = url.searchParams.get('binding');
+      if (!binding || !ID.test(binding)) return reply('Forbidden', 403);
+      // A later tab may have overwritten the shared cookie. Fail BEFORE claim:
+      // never let the earlier tab consume or control that other tab's server.
+      if (!bindingMatches(await sessionBinding(token), binding)) return reply('Launch changed; reopen console', 409);
       const grant = await broker('claim', token, env, fetcher);
       const destination = upstream(grant);
       if (!destination) return reply('Expired', 410);
@@ -150,12 +172,13 @@ try{
  if(!/^[a-f0-9]{64}$/.test(ticket))throw Error('expired');
  const r=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(15000)});
  if(!r.ok)throw Error('expired');
+ const grant=await r.json();if(!/^[a-f0-9]{64}$/.test(grant.binding||''))throw Error('expired');
  WebUtil.init_logging('error');
  rfb=new RFB({target:document.getElementById('legacy-canvas'),encrypt:true,repeaterID:'',true_color:true,local_cursor:true,shared:true,view_only:false,connectTimeout:20,
 updateState:(r,state)=>{if(failed)return;if(['failed','fatal','disconnect','disconnected'].includes(state)){fail();return;}if(state==='normal'){clearTimeout(connectTimer);status.textContent='متصل';cad.disabled=false;message.textContent='';}else if(!message.textContent){status.textContent='در حال اتصال…';cad.disabled=true;}},
  onPasswordRequired:fail});
  if(failed){rfb.disconnect();return;}
  connectTimer=setTimeout(fail,20000);
- rfb.connect(location.hostname,443,'','socket');
+ rfb.connect(location.hostname,443,'','socket?binding='+grant.binding);
 }catch{fail();}
 })();`;
