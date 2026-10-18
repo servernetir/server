@@ -504,6 +504,28 @@ class PaymentController extends Controller
     }
 
     /**
+     * بازگشتِ POST (اسنپ‌پی) — بدونِ نشست، فقط ۳۰۳ به همان آدرس با GET.
+     *
+     * 🔴 این درخواست از دامنهٔ درگاه می‌آید؛ کوکیِ SameSite=Lax ِ ورود همراهش
+     * نیست. اگر این‌جا نشست ساخته می‌شد، کوکیِ نشستِ خالی جای کوکیِ ورود
+     * می‌نشست و مشتری بعد از پرداخت از حسابش بیرون می‌افتاد. GET ِ بعدی یک
+     * ناوبریِ سطح‌بالاست و مرورگر کوکیِ Lax را همراهش می‌فرستد.
+     *
+     * ⚠️ هیچ verify ای این‌جا نیست: verify فقط یک بار و فقط در `callback()`.
+     * فقط فیلدهایی که آن مسیر لازم دارد منتقل می‌شوند.
+     */
+    public function callbackPost(Request $request, string $gateway): RedirectResponse
+    {
+        $query = array_filter([
+            'transactionId' => mb_substr(trim((string) $request->input('transactionId', '')), 0, 64),
+            'state'         => mb_substr(trim((string) $request->input('state', '')), 0, 16),
+            'amount'        => mb_substr(trim((string) $request->input('amount', '')), 0, 20),
+        ], fn ($v) => $v !== '');
+
+        return new RedirectResponse(route('payment.callback', ['gateway' => $gateway] + $query), 303);
+    }
+
+    /**
      * بازگشت از درگاه — بدون احراز هویت، عمداً.
      */
     public function callback(Request $request, string $gateway)
