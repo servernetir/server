@@ -20,14 +20,16 @@
 <h3>{{ __('identity.service_'.$selected['slug']) }}</h3>
 @php $card=collect($services)->firstWhere('slug',$selected['slug']); @endphp
 <p>{{ $card['price']===null ? __('identity.price_pending') : number_format($card['price']).' '.__('identity.irt') }}</p>
-@if($card['active'] && $applications->isNotEmpty())
+@if($card['active'] && $checkout && $applications->where('status','active')->isNotEmpty())
 <form method="post" action="{{ lroute('account.identity.inquire') }}" autocomplete="off">@csrf
 <input type="hidden" name="service" value="{{ $selected['slug'] }}"><input type="hidden" name="idempotency_key" value="{{ (string)\Illuminate\Support\Str::uuid() }}">
+<input type="hidden" name="price_version" value="{{ $checkout['price_version'] }}">
 <label>{{ __('identity.application') }}<select name="application_id">@foreach($applications->where('status','active') as $a)<option value="{{ $a->id }}">{{ $a->name }}</option>@endforeach</select></label>
 @foreach($selected['operations'][0]['input']['properties'] as $field=>$spec)
 <p><label><code dir="ltr">{{ $field }}</code> @if(($spec['type']??'string')==='boolean')<select name="input[{{ $field }}]"><option value="false">false</option><option value="true">true</option></select>@else<input type="text" name="input[{{ $field }}]" dir="auto" maxlength="{{ $spec['maxLength']??256 }}" @required(in_array($field,$selected['operations'][0]['input']['required']??[],true))>@endif</label></p>
 @endforeach
-<label>{{ __('identity.max_charge') }} <input type="number" min="0" name="max_charge_irt" value="{{ $card['price'] }}" required></label><p><label><input type="checkbox" name="real_charge" value="1" required> {{ __('identity.real_charge') }}</label></p><button class="pnl-btn primary">{{ __('identity.execute') }}</button></form>
+<div class="identity-checkout" aria-label="{{ __('identity.checkout_summary') }}"><h4>{{ __('identity.checkout_summary') }}</h4><p>{{ __('identity.preview_net') }}: {{ number_format($checkout['subtotal_irt']) }} {{ __('identity.irt') }}</p><p>{{ __('identity.preview_tax') }}: {{ number_format($checkout['tax_irt']) }} {{ __('identity.irt') }}</p><p><strong>{{ __('identity.preview_total') }}: {{ number_format($checkout['total_irt']) }} {{ __('identity.irt') }}</strong></p></div>
+<label>{{ __('identity.max_charge') }} <input type="number" min="0" name="max_charge_irt" value="{{ $checkout['total_irt'] }}" required></label><p><label><input type="checkbox" name="real_charge" value="1" required> {{ __('identity.real_charge') }}</label></p><button class="pnl-btn primary">{{ __('identity.execute') }}</button></form>
 @endif @endif
 <p>{{ __('identity.sandbox_help') }}</p><form method="post" action="{{ lroute('account.identity.sandbox') }}">@csrf<button class="pnl-btn">{{ __('identity.sandbox') }}</button></form>
 </div></section>

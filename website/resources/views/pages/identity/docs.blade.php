@@ -7,6 +7,9 @@
 <h2>curl</h2><pre class="id-code">curl https://servernet.cloud/api/v1/identity/services \
   -H "Authorization: Bearer $SERVERNET_API_KEY"
 
+curl https://servernet.cloud/api/v1/identity/quotes/shahkar-inquiry \
+  -H "Authorization: Bearer $SERVERNET_API_KEY"
+
 curl -X POST https://servernet.cloud/api/v1/identity/inquiries/shahkar-inquiry \
   -H "Authorization: Bearer $SERVERNET_API_KEY" \
   -H "Idempotency-Key: $REQUEST_KEY" \

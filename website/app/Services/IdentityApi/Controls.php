@@ -7,6 +7,7 @@ use App\Services\Finance\BusinessLedger;
 use App\Services\Finance\Wallet;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Carbon;
 
 class Controls
 {
@@ -48,6 +49,21 @@ class Controls
     {
         return $this->ready() && $this->runtimeReady() && $this->get('enabled', false) === true && filled($this->get('resale_evidence'))
             && $this->get('egress_verified', false) === true;
+    }
+
+    public function fundingReady(): bool
+    {
+        $at = $this->get('upstream_balance_verified_at');
+        try {
+            $date = $at ? Carbon::parse($at) : null;
+
+            return $date && ! $date->isFuture()
+                && $date->gte(now()->subMinutes((int) $this->get('balance_max_age_minutes', 60)))
+                && (int) $this->get('provider_daily_cap_irt', 0) > 0
+                && (int) $this->get('upstream_balance_irt', 0) > (int) $this->get('internal_kyc_reserve_irt', 0);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /** Guard partial deployments or stale web bytecode before any paid request. */

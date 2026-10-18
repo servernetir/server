@@ -494,7 +494,7 @@ class IdentityApiTest extends TestCase
         $this->assertDatabaseHas('identity_audits', ['action' => 'price_version']);
         foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
             $this->get('/'.$prefix.'admin/identity-api')->assertOk()
-                ->assertSee('1,653')->assertSee(__('identity.price_billing_pending', [], $locale))
+                ->assertSee('1,502')->assertSee(__('identity.price_billing_pending', [], $locale))
                 ->assertDontSee('identity.price_billing_pending');
         }
         Http::assertNothingSent();
@@ -514,6 +514,74 @@ class IdentityApiTest extends TestCase
         $this->travel(2)->days();
         $this->expectExceptionMessage('price_unavailable');
         app(Pricing::class)->preview($p);
+    }
+
+    public function test_catalog_excludes_tax_and_read_only_purchase_quote_exposes_no_wholesale_details(): void
+    {
+        $this->token->update(['abilities' => ['identity:services:read']]);
+        $catalog = $this->withToken($this->plain)->getJson('/api/v1/identity/services')->assertOk();
+        $service = collect($catalog->json('services'))->firstWhere('slug', 'shahkar-inquiry');
+        $this->assertSame(1050, $service['price']);
+        $this->assertArrayNotHasKey('tax_irt', $service);
+        $this->assertArrayNotHasKey('total_irt', $service);
+        $quote = $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertOk()
+            ->assertJsonPath('subtotal_irt', 1050)->assertJsonPath('tax_irt', 105)->assertJsonPath('total_irt', 1155)
+            ->assertJsonPath('currency', 'IRT')->assertHeader('Cache-Control', 'no-store, private');
+        foreach (['source_amount', 'cost_irt', 'evidence', 'access_evidence', 'markup_bps'] as $field) {
+            $this->assertArrayNotHasKey($field, $quote->json());
+        }
+        $this->assertSame(0, IdentityRequest::count());
+        $this->token->update(['abilities' => ['*']]);
+        $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertForbidden();
+        Http::assertNothingSent();
+    }
+
+    public function test_tax_is_shown_in_the_purchase_confirmation_in_all_languages_and_not_the_public_rate_list(): void
+    {
+        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
+            $this->get('/'.$prefix.'identity-api')->assertOk()->assertSee('1,050')->assertDontSee('1,155');
+            $response = $this->actingAs($this->customer, 'customer')->get('/'.$prefix.'account/identity-api?service=shahkar-inquiry')->assertOk();
+            $this->assertSame(1, preg_match('/<div class="identity-checkout".*?<\/div>/s', $response->getContent(), $matches));
+            $this->assertStringContainsString(__('identity.preview_tax', [], $locale), $matches[0]);
+            $this->assertStringContainsString('1,155', $matches[0]);
+            $this->assertStringContainsString('105', $matches[0]);
+            $response->assertSee('name="max_charge_irt" value="1155"', false)->assertSee('name="price_version"', false);
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_a_new_customer_can_use_the_configured_default_cap_but_an_explicit_zero_override_still_blocks(): void
+    {
+        DB::table('identity_controls')->where('key', 'customer_cap:'.$this->customer->id)->delete();
+        app(Controls::class)->put('default_customer_cap_irt', 25000, 1);
+        $this->assertSame(1155, $this->accept('synthetic-default-cap-0001')->hold_irt);
+        app(Controls::class)->put('customer_cap:'.$this->customer->id, 0, 1);
+        $this->expectExceptionMessage('budget_exceeded');
+        $this->accept('synthetic-default-cap-0002');
+    }
+
+    public function test_account_checkout_rejects_a_changed_price_version_before_any_dispatch(): void
+    {
+        $quote = app(Catalog::class)->checkoutQuote('shahkar-inquiry', $this->customer);
+        $this->price(['source_amount' => 2000]);
+        $this->actingAs($this->customer, 'customer')->postJson('/account/identity-api/inquire', [
+            'application_id' => $this->application->id, 'service' => 'shahkar-inquiry', 'input' => $this->payload(),
+            'idempotency_key' => 'synthetic-account-quote-0001', 'max_charge_irt' => 10000,
+            'price_version' => $quote['price_version'], 'real_charge' => '1',
+        ])->assertStatus(409)->assertJsonPath('error', 'quote_changed');
+        $this->assertSame(0, IdentityRequest::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_stale_funding_removes_purchase_prices_and_prevents_quotes_without_an_upstream_call(): void
+    {
+        app(Controls::class)->put('upstream_balance_verified_at', now()->subMinutes(61)->toIso8601String(), 1);
+        $service = collect(app(Catalog::class)->publicList())->firstWhere('slug', 'shahkar-inquiry');
+        $this->assertFalse($service['active']);
+        $this->assertNull($service['price']);
+        $this->withToken($this->plain)->getJson('/api/v1/identity/quotes/shahkar-inquiry')->assertStatus(503);
+        $this->assertSame(0, IdentityRequest::count());
+        Http::assertNothingSent();
     }
 
     public function test_all_thirty_one_json_services_use_their_registered_wire_contract_and_settle_synthetic_responses(): void

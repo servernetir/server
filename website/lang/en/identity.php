@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'checkout_summary' => 'Confirm this inquiry amount',
+    'control_default_customer_cap_irt' => 'Default customer daily cap, IRT',
     'price_draft_help' => 'Without billing evidence confirmation, save a draft to calculate the final price. Drafts cannot be purchased. Create a new confirmed version after obtaining the evidence.',
     'price_preview' => 'Calculated sale prices',
     'preview_net' => 'Sale before tax',
@@ -60,7 +62,7 @@ return [
     'docs_intro' => 'Connect from your application server. Never embed a key in a browser. The service and pricing lists show actual purchasable availability.',
     'key_help' => 'Execution and service-group scopes must be explicit. Keys are bound to your application, allowed IPs, expiry and spending cap.',
     'retry_help' => 'After a connection failure, reuse the same request key to recover status. Do not create a new key for an uncertain attempt.',
-    'quote_help' => 'Replace the example zeros with your accepted cap and a real price version from the catalog. These are not real prices.',
+    'quote_help' => 'Catalog rates exclude tax. Before purchase, GET /quotes/{service} returns the service amount, tax and total. Use its total_irt and price_version as your accepted cap and version. Example zeros are not real prices.',
     'states' => 'States',
     'states_help' => 'Processing, inquiry outcome and financial status are independent. HTTP 202 may indicate processing or reconciliation. HTTP 402 means funds/budget, 403 authorization, 409 key/quote conflict and 429 rate or concurrency limit.',
     'idempotency_help' => 'A request key is unique within an application and operation. Identical input replays the same receipt; different input conflicts. A used key never becomes a new purchase after result deletion.',
@@ -110,7 +112,7 @@ return [
     'price_help' => 'Record a verified account tariff with explicit units. Public catalog numbers are not approved sale prices. Default markup is 5% on purchase cost; output tax is separate. Dates are UTC.',
     'purchase_tax_included' => 'Recorded cost includes purchase tax (enter zero tax share if exempt).',
     'confirm_zero' => 'Actual zero cost has been contractually confirmed.',
-    'billing_policy_accept' => 'Contract evidence confirms: valid data responses, including mismatches, are billable; uncertain errors require reconciliation.',
+    'billing_policy_accept' => 'An approved retail billing policy is referenced: valid data responses, including mismatches, are billable; uncertain errors require reconciliation.',
     'currency' => 'Currency, whole units',
     'field_source_amount' => 'Purchase amount, whole currency units',
     'field_purchase_tax_amount' => 'Purchase tax share, same currency',

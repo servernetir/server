@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'checkout_summary' => 'Bu sorgunun tutarını onaylayın',
+    'control_default_customer_cap_irt' => 'Varsayılan müşteri günlük sınırı, IRT',
     'price_draft_help' => 'Ücretlendirme belgesi onaylanmadan nihai fiyatı hesaplamak için taslak kaydedin. Taslaklar satın alınamaz. Belge alındıktan sonra yeni bir onaylı sürüm oluşturun.',
     'price_preview' => 'Hesaplanan satış fiyatları',
     'preview_net' => 'Vergi öncesi satış',
@@ -60,7 +62,7 @@ return [
     'docs_intro' => 'Bağlantıyı uygulama sunucunuzdan yapın. Anahtarı tarayıcıya koymayın. Hizmet ve fiyat listeleri gerçek satın alma durumunu gösterir.',
     'key_help' => 'İşlem ve hizmet grubu izinleri açıkça seçilmelidir. Anahtar uygulamanız, izinli IP, süre sonu ve harcama limitiyle sınırlıdır.',
     'retry_help' => 'Bağlantı kesilirse durumu aynı istek anahtarıyla alın. Belirsiz deneme için yeni anahtar oluşturmayın.',
-    'quote_help' => 'Örnekteki sıfırları kabul ettiğiniz sınır ve katalogdaki gerçek fiyat sürümüyle değiştirin. Bunlar gerçek fiyat değildir.',
+    'quote_help' => 'Katalog fiyatları vergisizdir. Satın almadan önce GET /quotes/{service} hizmet tutarını, vergiyi ve toplamı döndürür. Kabul edilen sınır ve sürüm için total_irt ve price_version kullanın. Örnekteki sıfırlar gerçek fiyat değildir.',
     'states' => 'Durumlar',
     'states_help' => 'İşleme, sorgu sonucu ve mali durum bağımsızdır. HTTP 202 işleme veya mutabakat gerektirebilir. 402 bakiye/bütçe, 403 izin, 409 anahtar/fiyat çakışması, 429 hız veya eşzamanlılık sınırıdır.',
     'idempotency_help' => 'İstek anahtarı uygulama ve işlem kapsamında benzersizdir. Aynı girdi aynı makbuzu döndürür; farklı girdi çakışır. Sonuç silindikten sonra kullanılmış anahtar yeni satın almaya dönüşmez.',
@@ -110,7 +112,7 @@ return [
     'price_help' => 'Doğrulanmış hesap tarifesini açık birimle kaydedin. Genel katalog sayıları onaylı satış fiyatı değildir. Varsayılan artış alış maliyetinin %5\'idir; satış vergisi ayrıdır. Tarihler UTC\'dir.',
     'purchase_tax_included' => 'Kayıtlı maliyet alış vergisini içerir (muafsa vergi payını sıfır girin).',
     'confirm_zero' => 'Gerçek sıfır maliyet sözleşmeyle doğrulandı.',
-    'billing_policy_accept' => 'Sözleşme kanıtı şunu doğrular: eşleşmeme dahil geçerli veri yanıtı ücretlidir; belirsiz hata mutabakat gerektirir.',
+    'billing_policy_accept' => 'Onaylı satış ücretlendirme politikasına başvurulmuştur: eşleşmeme dahil geçerli veri yanıtı ücretlidir; belirsiz hata mutabakat gerektirir.',
     'currency' => 'Para birimi, tam birim',
     'field_source_amount' => 'Alış tutarı, tam para birimi',
     'field_purchase_tax_amount' => 'Alış vergisi payı, aynı para birimi',

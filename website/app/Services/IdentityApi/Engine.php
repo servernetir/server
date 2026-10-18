@@ -88,7 +88,7 @@ class Engine
                 $q->holding()->orWhere('financial_status', 'captured');
             })->sum('hold_irt');
             $appSpent = $exposure((clone $today)->where('application_id', $a->id));
-            $customerCap = (int) $this->controls->get('customer_cap:'.$a->customer_id, 0);
+            $customerCap = (int) $this->controls->get('customer_cap:'.$a->customer_id, $this->controls->get('default_customer_cap_irt', 0));
             if ($customerCap <= 0 || $exposure(clone $today) + $quote['total_irt'] > $customerCap) {
                 throw new IdentityError('budget_exceeded', 402);
             }

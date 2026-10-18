@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ServerNet Identity & Inquiry API",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "servers": [
     {
@@ -2078,7 +2078,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Prices are integer IRT including output tax; unavailable prices and price versions are null."
+            "description": "Catalog price is integer IRT before output tax. Obtain a purchase quote before accepting the total. Unavailable prices and price versions are null."
           },
           "401": {
             "description": "Invalid key"
@@ -2097,13 +2097,112 @@
         ],
         "responses": {
           "200": {
-            "description": "Prices are integer IRT including output tax; unavailable prices and price versions are null."
+            "description": "Catalog price is integer IRT before output tax. Obtain a purchase quote before accepting the total. Unavailable prices and price versions are null."
           },
           "401": {
             "description": "Invalid key"
           },
           "403": {
             "description": "Explicit scope and owned active application required"
+          }
+        }
+      }
+    },
+    "/quotes/{service}": {
+      "get": {
+        "summary": "Review service amount, tax and total before a paid inquiry; no charge or upstream call",
+        "x-required-scopes": [
+          "identity:services:read"
+        ],
+        "parameters": [
+          {
+            "name": "service",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "shahkar-inquiry",
+                "convert-card-to-iban",
+                "iban-inquiry",
+                "company-inquiry",
+                "postal-code-inquiry",
+                "vehicle-inquiry-total-violations",
+                "vehicle-inquiry-violations-details",
+                "match-payment-card-number-and-id-number",
+                "match-iban-and-id-number",
+                "enamad-inquiry",
+                "company-inquiry-board-members",
+                "company-inquiry-board-members-history",
+                "card-inquiry",
+                "convert-account-number-to-iban",
+                "match-name-and-payment-card",
+                "match-iban-and-name",
+                "convert-card-to-account-number",
+                "convert-persian-name-to-english",
+                "id-inquiry",
+                "check-sayad-inquiry",
+                "bounced-cheque-inquiry",
+                "voice-otp",
+                "water-bill-inquiry",
+                "electricity-bill-inquiry",
+                "rightel-bill-inquiry",
+                "irancell-bill-inquiry",
+                "mci-bill-inquiry",
+                "fixed-line-bill-inquiry",
+                "gas-bill-inquiry",
+                "sayad-transfers-chain-inquiry",
+                "cheque-submitted-inquiry"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Use total_irt as max_charge_irt and retain price_version for execution.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "const": "IRT"
+                    },
+                    "price_version": {
+                      "type": "integer"
+                    },
+                    "subtotal_irt": {
+                      "type": "integer"
+                    },
+                    "tax_bps": {
+                      "type": "integer"
+                    },
+                    "tax_irt": {
+                      "type": "integer"
+                    },
+                    "total_irt": {
+                      "type": "integer"
+                    },
+                    "quoted_at": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid key"
+          },
+          "403": {
+            "description": "Owned eligible application and explicit read scope required"
+          },
+          "503": {
+            "description": "Current price, service or funding unavailable"
           }
         }
       }
@@ -2368,6 +2467,14 @@
                       "type": "integer",
                       "minimum": 0
                     },
+                    "subtotal": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "tax": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
                     "currency": {
                       "const": "IRT"
                     },
@@ -2522,6 +2629,14 @@
                       "minimum": 0
                     },
                     "reserved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "subtotal": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "tax": {
                       "type": "integer",
                       "minimum": 0
                     },
@@ -2720,6 +2835,14 @@
                       "minimum": 0
                     },
                     "reserved": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "subtotal": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "tax": {
                       "type": "integer",
                       "minimum": 0
                     },
