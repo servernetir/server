@@ -1,7 +1,8 @@
 # Console loading follow-up — 18 October 2026
 
 Base: `ec4d83eecc0ff3c1806b8b0185056965cd616677`, branch target `develop`.
-Status: **locally tested code, not yet published to Cloudflare; no new guest acceptance**.
+Status: **published to Cloudflare at12:24:36UTC; exact public code verified;
+browser navigation and automatic Windows-password acceptance remain open**.
 
 The owner requests a complete Windows-password/white-label-console repair,
 approval before another paid test, continued sales/public consoles, no Arvan
@@ -126,15 +127,70 @@ Before another paid test, recheck the full quote and obtain a new ceiling.
 
 ## Publication and rollback
 
-Git and production are separate. Until a scoped credential/editor is available,
-leave the deployed Worker unchanged. On later authorization, inspect/back up
-its exact source/settings, refuse concurrent drift, upload only servernet-vnc,
-preserve all existing bindings and route, then verify exact source/version.
-Do not edit DNS, the portal Worker or sales switches. Public HTML/asset tests
-must precede any authorized guest acceptance test.
+### Completed scoped release,18October12:24–12:30UTC
+
+After the owner's action-time approval, an account-owned token was created with
+exactly one Individual Workers Editor policy for `servernet-vnc`, no account-wide,
+DNS, portal or other Worker permission. The reviewed UTC window was
+12:22:00–13:22:00 (creation was later than its start, so usable lifetime was less
+than one hour). Its local copy was kept outside Git in a current-user-only Windows
+ACL directory, then removed after verification. Server-side expiry is13:22UTC;
+local deletion is not a claim of server-side revocation. No credential value is
+recorded here.
+
+The fixed-target release helper backed up source/settings, refused concurrent
+drift and uploaded the exact47-test-reviewed source. Independent API readback
+confirmed the module equals local code and **all API-visible settings keys and
+values and binding descriptors are unchanged**, including observability, compatibility, placement, tags,
+usage model and upload annotation. Secret-value preservation relies on
+`keep_bindings`; the API does not reveal the secret for an independent comparison.
+Three binding descriptors remain: BROKER_KEY(secret),
+CLIENT_LEGACY(plain), ENABLED(plain). The deployment API and dashboard both show:
+
+- Version `c2ab2dc2-eb0e-41ff-8d2e-534c232e8dad`,100%,Ready.
+- Deployment `85f69f41-5144-4ff4-ae53-e7ee2333e8ce` at12:24:36.703571UTC.
+- Existing route `vnc.servernet.cloud/*` unchanged; no route/DNS mutation call.
+- Raw local Worker hash remains `5c8dfbd825ff422dd65f331a76cfa3f5153518b15abd5957bbcd2a0f56d5ae31`.
+
+Public direct HTTPS/HTTP1 reads returned200 for the root and console.js, with
+exact equality to locally generated legacy responses; IranSans regular returned
+200, and an unauthenticated socket returned403. Public text hashes:
+
+- Root: `86e30d2c9fece614be8119cbecab145da06976ec994d3e86bd30239463ac28f8`.
+- console.js: `6bd04770295c43e4a463687c643a43a442c842de707b9018fa982a7e0e395232`.
+
+At12:26:40UTC, production read-only PHP again confirmed public console1,
+hourly sales1 and the identical Windows allowlist hash above. No PHP deployment,
+cache flush, application setting, customer guest, financial record, NAT/firewall,
+route, DNS, proxy or periodic-agent source was changed. No provider support
+contact, creation or deletion occurred.
+
+**Remaining browser failure:** two fresh token-free IAB navigations after this
+release returned `ERR_CONNECTION_RESET` before HTML was available. Their error
+documents were not accessed via an alternate mechanism. Direct HTTP1 returned
+200 in335ms and an independent direct HTTP2 probe returned200/ALPN h2 in298ms;
+the existing loopback proxy timed out. A fresh workstation inspection found
+ProxyEnable0, no PAC, WinHTTP Direct, no TUN or half-default route, although
+v2rayN/xray were running. This supersedes the earlier enabled-proxy/TUN snapshot.
+It does not prove that the disabled proxy caused IAB's failure. The browser's
+actual failing connection path remains unknown; do not call this a complete
+loading fix or guest acceptance. No current disposable guest was available:
+516 remains deleted, and other customer guests were not substituted.
+
+Private source/settings snapshots and release receipt remain under the unique
+`servernet-vnc-loader-6d5df23349e44a2f8f8c7c41d63c64da` task directory in the
+operator's local Temp. Token file absence was verified. Dashboard evidence is
+outside Git in `output/arvan-console-loading-20261018/deployed-version.png`.
+Code commit `e58860e7` is on develop; this release record is committed separately.
+
+Git and production remain separate. A future guest test needs a newly checked
+quote and explicit approval before creating any paid resource. It must prove
+image, mouse/key control, reconnect and ownership isolation, not merely HTTP200.
 
 If publication regresses loading, restore only the recorded previous dedicated
-Worker version122a4414, preserving bindings/routes. Do not roll back public
+Worker version122a4414-14f1-4aac-9e80-a736ca3c78ab, preserving bindings/routes
+and all current settings after checking for concurrent changes. No rollback was
+needed or performed in this release. Do not roll back public
 console activation or password guards. The marker preparation has no production
 persistence or operational rollback; a scoped Git revert removes only those
 new preparation files. Stop the loopback preview processes after verification.
