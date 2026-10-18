@@ -82,7 +82,7 @@ done
 for ic in i-copy i-chev i-info i-coins; do
   grep -q "id=\"$ic\"" "$APP/resources/views/partials/icons.blade.php" 2>/dev/null || MISSING="$MISSING icon:$ic"
 done
-grep -q "account.invoice.crypto.status" "$APP/routes/web.php" 2>/dev/null || MISSING="$MISSING route:account.invoice.crypto.status"
+grep -qF "name('invoice.crypto.status')" "$APP/routes/web.php" 2>/dev/null || MISSING="$MISSING route:account.invoice.crypto.status"
 grep -q 'function svg' "$APP/app/Services/Security/QrCode.php" 2>/dev/null || MISSING="$MISSING QrCode::svg"
 grep -q 'function secondsLeft' "$APP/app/Models/CryptoPayment.php" 2>/dev/null || MISSING="$MISSING CryptoPayment::secondsLeft"
 if [ -n "$MISSING" ]; then
