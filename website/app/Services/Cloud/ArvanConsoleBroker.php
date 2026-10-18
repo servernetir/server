@@ -141,6 +141,11 @@ class ArvanConsoleBroker
 
     private function response(array $data, int $status = 200): JsonResponse
     {
+        // Deliberately exclude request bodies, tokens, URLs, signatures and guest data.
+        \Illuminate\Support\Facades\Log::build([
+            'driver' => 'daily', 'path' => storage_path('logs/arvan-console-diagnostics.log'),
+            'level' => 'info', 'days' => 3, 'permission' => 0640, 'locking' => true,
+        ])->info('arvan_console_broker_result', ['status' => $status]);
         return response()->json($data, $status)->header('Cache-Control', 'no-store, private')
             ->header('Referrer-Policy', 'no-referrer');
     }

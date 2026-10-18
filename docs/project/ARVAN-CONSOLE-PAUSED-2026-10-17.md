@@ -1,5 +1,17 @@
 # Arvan customer console temporarily disabled — 2026-10-17
 
+## 18 October: broker reachability established, browser acceptance still fails
+
+Public root returned200 both direct and via existing local proxy. Synthetic all-zero ticket POST to Worker /launch returned410. Previous Apache log counts stayed0 even for a direct known broker request, so those counts are NOT evidence of non-arrival. Production default logging level is error, explaining absent info events.
+
+Installed dedicated daily status-only broker logging, permission0640, retention3days; no body, token, signature, URL, customer or guest input logged. Global logging settings unchanged. Backup of broker before instrumentation: `/home/servernetcloud/arvan-broker-log-0oc3rqgm/before.php`. PHP lint passed;17 local broker tests/40 assertions passed. Live formatting is compact but semantically equivalent to Git's multiline logger configuration.
+
+Dedicated log recorded403 at04:59:53UTC with public/private gates off and410 at05:01:14UTC during owner-approved private501 window for the all-zero ticket. The latter passes HMAC validation and fails the nonexistent-grant check: Worker→broker transport and shared signing contract work. No guest authorization was used in synthetic probes.
+
+The real customer501 console button was clicked during a15-minute private window. A new VNC tab was created, but initial navigation observation timed out and no corresponding valid ticket redemption was logged. No real image/control success claimed. Private expiry then set back to0; global flag remains0. No DNS, Worker, proxy, sales or VM mutation. Remaining blocker is browser document/asset loading before launch; exact transport cause remains unproven.
+
+Rollback instrumentation by removing only the added logger block after checking current changes, or guarded restore from backup if unchanged. Do not re-enable public console as part of rollback.
+
 ## Owner-approved private acceptance attempt
 
 Added service-aware guard in broker, customer controller and CSP middleware. Public capability stays disabled. Only service 501/customer 1/exact existing provider reference may use a configured future `arvan_console_501_test_until` within one hour. Existing ownership/status/rate limits, signatures, single-use grants and reassignment checks remain enforced. Redeem/claim also recheck service scope and expiry.
