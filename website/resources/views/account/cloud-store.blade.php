@@ -986,7 +986,6 @@
           <p class="cvb-note" data-gpu-jupyter-sales-paused>{{ __('ui.gpu_jupyter_sales_paused') }}</p>
           @endif
         @endif
-        <p class="cvb-note" data-server-refund-policy role="note"><span>{{ __('ui.server_no_refund_notice') }} <a href="{{ lroute('terms') }}">{{ __('ui.os_refund_policy') }}</a></span></p>
         <button type="submit" class="pnl-btn primary cvb-go" id="cvb-submit" @disabled(count($planCards) === 0 || ! $hasPrice)>
           <svg class="icon"><use href="#i-rocket"/></svg>
           {{ __($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay') }}
