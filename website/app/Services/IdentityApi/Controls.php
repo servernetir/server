@@ -73,6 +73,7 @@ class Controls
         $legacy = new CustomerApiToken(['abilities' => ['*'], 'identity_application_id' => 1]);
 
         return in_array('excludingIdentityRequestId', $parameters, true)
+            && defined(Engine::class.'::USAGE_POLICY') && Engine::USAGE_POLICY === 'available_wallet_v1'
             && method_exists(BusinessLedger::class, 'recordIdentitySale')
             && defined(CustomerApiToken::class.'::IDENTITY_ABILITIES')
             && ! $legacy->can('identity:execute');

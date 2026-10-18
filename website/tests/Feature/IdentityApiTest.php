@@ -409,14 +409,20 @@ class IdentityApiTest extends TestCase
         $this->get('/api/v1/identity/services')->assertUnauthorized();
     }
 
-    public function test_customer_budget_is_shared_across_applications(): void
+    public function test_available_wallet_funds_and_holds_are_shared_across_applications_without_customer_budgets(): void
     {
-        app(Controls::class)->put('customer_cap:'.$this->customer->id, 2000, 1);
+        app(Controls::class)->put('customer_cap:'.$this->customer->id, 0, 1);
+        $this->application->update(['daily_cap_irt' => 0]);
+        $this->token->update(['daily_spend_cap_irt' => 0]);
+        app(Wallet::class)->debit($this->customer->id, 'IRT', 97000, 'invoice_payment', $this->customer);
         $this->accept();
-        $other = IdentityApplication::create(['customer_id' => $this->customer->id, 'name' => 'second', 'terms_version' => '2026-10-17', 'accepted_at' => now(), 'daily_cap_irt' => 10000]);
-        $this->expectExceptionMessage('budget_exceeded');
+        $other = IdentityApplication::create(['customer_id' => $this->customer->id, 'name' => 'second', 'terms_version' => '2026-10-17', 'accepted_at' => now(), 'daily_cap_irt' => 0]);
         app(Engine::class)->accept($other, null, 'shahkar-inquiry', $this->payload(), 'synthetic-other-app-key', 2000);
+        $this->assertSame(690, app(Wallet::class)->availableOf($this->customer->id));
+        $this->expectExceptionMessage('insufficient_funds');
+        app(Engine::class)->accept($other, null, 'shahkar-inquiry', $this->payload(), 'synthetic-third-app-key', 2000);
     }
+
 
     public function test_wrong_customer_bound_token_cannot_read_another_customers_result(): void
     {
@@ -551,15 +557,16 @@ class IdentityApiTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_a_new_customer_can_use_the_configured_default_cap_but_an_explicit_zero_override_still_blocks(): void
+    public function test_absent_default_and_explicit_zero_historical_customer_caps_do_not_limit_wallet_usage(): void
     {
         DB::table('identity_controls')->where('key', 'customer_cap:'.$this->customer->id)->delete();
-        app(Controls::class)->put('default_customer_cap_irt', 25000, 1);
+        app(Controls::class)->put('default_customer_cap_irt', 0, 1);
         $this->assertSame(1155, $this->accept('synthetic-default-cap-0001')->hold_irt);
         app(Controls::class)->put('customer_cap:'.$this->customer->id, 0, 1);
-        $this->expectExceptionMessage('budget_exceeded');
-        $this->accept('synthetic-default-cap-0002');
+        $this->assertSame(1155, $this->accept('synthetic-default-cap-0002')->hold_irt);
+        Http::assertNothingSent();
     }
+
 
     public function test_account_checkout_rejects_a_changed_price_version_before_any_dispatch(): void
     {
@@ -633,22 +640,23 @@ class IdentityApiTest extends TestCase
         $this->assertSame(31, CreditEntry::where('reason', 'identity_inquiry')->count());
     }
 
-    public function test_confirmed_zero_cost_still_has_a_daily_quota(): void
+    public function test_legacy_daily_count_metadata_does_not_limit_customer_usage(): void
     {
         $this->price(['source_amount' => 0, 'confirmed_zero_cost' => true, 'daily_quota' => 1]);
         $this->fake();
-        $r = app(Engine::class)->dispatch($this->accept());
-        $this->assertSame('captured', $r->financial_status);
-        $this->assertSame(0, $r->charged_irt);
-        $this->expectExceptionMessage('quota_exceeded');
-        $this->accept('synthetic-second-zero-key');
+        $first = app(Engine::class)->dispatch($this->accept());
+        $second = app(Engine::class)->dispatch($this->accept('synthetic-second-zero-key'));
+        $this->assertSame('captured', $second->financial_status);
+        $this->assertSame(0, $first->charged_irt + $second->charged_irt);
+        Http::assertSentCount(2);
     }
+
 
     public function test_identity_token_issuance_is_bound_hashed_and_requires_an_owned_application(): void
     {
         $this->actingAs($this->customer, 'customer')->post('/account/security/api-token', [
             'name' => 'New identity key', 'abilities' => ['identity:execute', 'identity:authentication'],
-            'identity_application_id' => $this->application->id, 'daily_spend_cap_irt' => 1000, 'expires_days' => 1, 'cidrs' => '192.0.2.0/24',
+            'identity_application_id' => $this->application->id, 'expires_days' => 1, 'cidrs' => '192.0.2.0/24',
         ])->assertRedirect()->assertSessionHas('new_token');
         $plain = session('new_token');
         $key = CustomerApiToken::orderByDesc('id')->first();
@@ -670,7 +678,7 @@ class IdentityApiTest extends TestCase
         $this->actingAs($this->customer, 'customer')->post('/account/identity-api/keys/'.$this->token->id, [
             'daily_spend_cap_irt' => 500, 'cidrs' => '192.0.2.1', 'expires_days' => 1,
         ])->assertRedirect();
-        $this->assertSame(500, (int) $this->token->fresh()->daily_spend_cap_irt);
+        $this->assertSame(100000, (int) $this->token->fresh()->daily_spend_cap_irt); // Shared non-identity budget is not rewritten.
         $this->assertFalse($this->token->fresh()->allowsIp('198.51.100.1'));
         $this->assertFalse(session()->has('new_token'));
     }
@@ -797,20 +805,18 @@ class IdentityApiTest extends TestCase
         $this->assertSame('request_failed', $c->get('balance_sync_state')['error']);
     }
 
-    public function test_admin_balance_status_is_localized_and_cannot_enable_without_financial_access(): void
+    public function test_admin_cannot_reintroduce_customer_daily_spending_caps(): void
     {
-        config(['identity_api.balance_token' => null]);
         $u = User::factory()->create(['role' => 'admin']);
-        $this->actingAs($u, 'web')->postJson('/admin/identity-api/control', ['key' => 'balance_sync_enabled', 'value' => 'true'])->assertStatus(503);
-        $this->assertFalse(app(Controls::class)->get('balance_sync_enabled', false));
-        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
-            $this->get('/'.$prefix.'admin/identity-api')->assertOk()
-                ->assertSee(__('identity.balance_sync_access_missing', [], $locale))
-                ->assertDontSee('identity.balance_sync_access_missing')
-                ->assertDontSee('synthetic-provider-key');
+        $this->actingAs($u, 'web')->postJson('/admin/identity-api/control', ['key' => 'default_customer_cap_irt', 'value' => '100'])->assertStatus(422);
+        $this->postJson('/admin/identity-api/control', ['key' => 'customer_cap:'.$this->customer->id, 'value' => '100'])->assertStatus(422);
+        $this->postJson('/admin/identity-api/customers', ['customer_id' => $this->customer->id, 'cap_irt' => 100])->assertStatus(410);
+        foreach (['', 'en/', 'tr/'] as $prefix) {
+            $this->get('/'.$prefix.'admin/identity-api')->assertOk()->assertDontSee('default_customer_cap_irt')->assertDontSee('customer_cap:')->assertDontSee('name="daily_quota"', false);
         }
         Http::assertNothingSent();
     }
+
 
     public function test_balance_sync_does_not_overlap_or_override_a_newer_observation(): void
     {
@@ -890,5 +896,46 @@ class IdentityApiTest extends TestCase
         $this->assertSame('updated', app(BalanceSync::class)->refreshIfDue());
         $this->assertSame('reserved', $this->accept('synthetic-second-accounted-charge')->fresh()->financial_status);
         Http::assertSentCount(1);
+    }
+
+    public function test_a_funded_customer_can_spend_beyond_all_legacy_daily_caps_and_count_limits(): void
+    {
+        $c = app(Controls::class);
+        $c->put('default_customer_cap_irt', 25000, 1);
+        $c->put('customer_cap:'.$this->customer->id, 0, 1);
+        $this->application->update(['daily_cap_irt' => 1]);
+        $this->token->update(['daily_spend_cap_irt' => 1]);
+        $this->price(['daily_quota' => 1]);
+        $this->fake();
+        for ($i = 0; $i < 30; $i++) {
+            $r = app(Engine::class)->dispatch($this->accept('synthetic-wallet-only-'.str_pad((string)$i, 4, '0', STR_PAD_LEFT)));
+            $this->assertSame('captured', $r->financial_status);
+            $this->travel(4)->seconds();
+        }
+        $this->assertSame(34650, (int) IdentityRequest::sum('charged_irt'));
+        $this->assertSame(65350, app(Wallet::class)->availableOf($this->customer->id));
+        Http::assertSentCount(30);
+    }
+
+    public function test_wallet_only_policy_still_honors_provider_funding_and_abuse_protections(): void
+    {
+        app(Controls::class)->put('provider_daily_cap_irt', 1000, 1);
+        $this->expectExceptionMessage('provider_unavailable');
+        $this->accept();
+    }
+
+    public function test_identity_applications_and_keys_need_no_spending_budget_in_all_customer_forms(): void
+    {
+        $this->actingAs($this->customer, 'customer')->post('/account/identity-api/applications', ['name' => 'Wallet funded', 'accept' => '1'])->assertRedirect()->assertSessionHasNoErrors();
+        $a = IdentityApplication::latest('id')->firstOrFail();
+        $this->assertSame(0, $a->daily_cap_irt);
+        $this->post('/account/identity-api/applications/'.$a->id, ['status' => 'disabled'])->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('disabled', $a->fresh()->status);
+        foreach (['' => 'fa', 'en/' => 'en', 'tr/' => 'tr'] as $prefix => $locale) {
+            $this->get('/'.$prefix.'account/identity-api')->assertOk()->assertSee(__('identity.wallet_only', [], $locale))
+                ->assertDontSee('name="daily_cap_irt"', false)->assertDontSee('name="daily_spend_cap_irt"', false);
+            $this->get('/'.$prefix.'account/security')->assertOk()->assertDontSee('name="daily_spend_cap_irt"', false);
+        }
+        Http::assertNothingSent();
     }
 }

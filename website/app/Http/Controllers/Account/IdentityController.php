@@ -57,13 +57,13 @@ class IdentityController extends Controller
         if (! IdentityVerification::where('customer_id', $c->id)->where('status', 'verified')->exists()) {
             throw new IdentityError('product_not_active', 403);
         }
-        $d = $request->validate(['name' => ['required', 'string', 'max:80'], 'daily_cap_irt' => ['required', 'integer', 'min:1', 'max:9000000000000'], 'accept' => ['accepted']]);
+        $d = $request->validate(['name' => ['required', 'string', 'max:80'], 'accept' => ['accepted']]);
         DB::transaction(function () use ($c, $d) {
             Customer::whereKey($c->id)->lockForUpdate()->firstOrFail();
             if (IdentityApplication::where('customer_id', $c->id)->count() >= 10) {
                 throw new IdentityError('quota_exceeded', 429);
             }
-            IdentityApplication::create(['customer_id' => $c->id, 'name' => $d['name'], 'daily_cap_irt' => $d['daily_cap_irt'],
+            IdentityApplication::create(['customer_id' => $c->id, 'name' => $d['name'], 'daily_cap_irt' => 0,
                 'terms_version' => config('identity_api.terms_version'), 'accepted_at' => now()]);
         });
 
@@ -73,7 +73,7 @@ class IdentityController extends Controller
     public function update(Request $request, IdentityApplication $application)
     {
         abort_unless($application->customer_id === Auth::guard('customer')->id(), 404);
-        $d = $request->validate(['status' => ['required', 'in:active,disabled'], 'daily_cap_irt' => ['required', 'integer', 'min:1', 'max:9000000000000']]);
+        $d = $request->validate(['status' => ['required', 'in:active,disabled']]);
         $application->update($d);
 
         return back()->with('ok', __('identity.saved'));

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'wallet_only' => 'Identity services use your available wallet funds. There is no customer, application or key daily spending or request-count cap.',
     'balance_sync_title' => 'Automatic Zohal balance checks',
     'balance_sync_help' => 'The actual balance is read every five minutes. Spending limits and reserves stay unchanged. Failed checks never renew previous evidence.',
     'balance_sync_access' => 'Balance read access',
@@ -50,7 +51,7 @@ return [
     'category_utility_description' => 'Iranian bill, address and utility information.',
     'how' => 'Getting started',
     'step_1' => 'Sign in with your existing account, complete identity verification, accept product terms and create an application.',
-    'step_2' => 'Create a key with explicit scopes, an application, allowed IPs, expiry and a spending cap.',
+    'step_2' => 'Create a key with explicit scopes, an application, allowed IPs and expiry.',
     'step_3' => 'Retrieve pricing, accept a charge limit and send an inquiry with an idempotency key.',
     'faq' => 'Frequently asked questions',
     'faq_1_q' => 'Do I need a separate wallet?',
@@ -73,11 +74,11 @@ return [
     'terms_limits_title' => 'Access and limits',
     'terms_limits' => 'Service access, limits and availability depend on actual readiness. Outages, funding shortages or unresolved contractual conditions can pause new requests. Data is queried from relevant sources; ownership of those databases is not claimed.',
     'docs_intro' => 'Connect from your application server. Never embed a key in a browser. The service and pricing lists show actual purchasable availability.',
-    'key_help' => 'Execution and service-group scopes must be explicit. Keys are bound to your application, allowed IPs, expiry and spending cap.',
+    'key_help' => 'Execution and service-group scopes must be explicit. Keys are bound to your application, allowed IPs and expiry. Identity usage spends available wallet funds.',
     'retry_help' => 'After a connection failure, reuse the same request key to recover status. Do not create a new key for an uncertain attempt.',
     'quote_help' => 'Catalog rates exclude tax. Before purchase, GET /quotes/{service} returns the service amount, tax and total. Use its total_irt and price_version as your accepted cap and version. Example zeros are not real prices.',
     'states' => 'States',
-    'states_help' => 'Processing, inquiry outcome and financial status are independent. HTTP 202 may indicate processing or reconciliation. HTTP 402 means funds/budget, 403 authorization, 409 key/quote conflict and 429 rate or concurrency limit.',
+    'states_help' => 'Processing, inquiry outcome and financial status are independent. HTTP 202 may indicate processing or reconciliation. HTTP 402 means insufficient available funds, 403 authorization, 409 key/quote conflict and 429 rate or concurrency limit.',
     'idempotency_help' => 'A request key is unique within an application and operation. Identical input replays the same receipt; different input conflicts. A used key never becomes a new purchase after result deletion.',
     'saved' => 'Saved',
     'save' => 'Save',

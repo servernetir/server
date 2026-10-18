@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'wallet_only' => 'Kimlik hizmetleri kullanılabilir cüzdan bakiyenizden ödenir. Müşteri, uygulama veya anahtar için günlük harcama veya sorgu sayısı sınırı yoktur.',
     'balance_sync_title' => 'Otomatik Zohal bakiye kontrolü',
     'balance_sync_help' => 'Gerçek bakiye her beş dakikada bir okunur. Harcama sınırları ve rezerv değişmez. Başarısız kontroller önceki doğrulama zamanını yenilemez.',
     'balance_sync_access' => 'Bakiye okuma erişimi',
@@ -50,7 +51,7 @@ return [
     'category_utility_description' => 'İran fatura, adres ve hizmet bilgileri.',
     'how' => 'Başlangıç',
     'step_1' => 'Mevcut hesabınızla giriş yapın, kimliğinizi doğrulayın, ürün koşullarını kabul edip uygulama oluşturun.',
-    'step_2' => 'Açık izinler, uygulama, izinli IP, süre sonu ve harcama limitiyle anahtar oluşturun.',
+    'step_2' => 'Açık izinler, uygulama, izinli IP ve süre sonuyla anahtar oluşturun.',
     'step_3' => 'Fiyatı alın, ücret sınırını kabul edin ve benzersiz istek anahtarıyla sorgulayın.',
     'faq' => 'Sık sorulan sorular',
     'faq_1_q' => 'Ayrı bir cüzdan gerekli mi?',
@@ -73,11 +74,11 @@ return [
     'terms_limits_title' => 'Erişim ve sınırlar',
     'terms_limits' => 'Erişim, sınırlar ve kullanılabilirlik gerçek hazırlığa bağlıdır. Kesinti, bakiye yetersizliği veya çözülmemiş sözleşme koşulları yeni istekleri durdurabilir. Veriler ilgili kaynaklardan sorgulanır; bu veri tabanlarının mülkiyeti iddia edilmez.',
     'docs_intro' => 'Bağlantıyı uygulama sunucunuzdan yapın. Anahtarı tarayıcıya koymayın. Hizmet ve fiyat listeleri gerçek satın alma durumunu gösterir.',
-    'key_help' => 'İşlem ve hizmet grubu izinleri açıkça seçilmelidir. Anahtar uygulamanız, izinli IP, süre sonu ve harcama limitiyle sınırlıdır.',
+    'key_help' => 'İşlem ve hizmet grubu izinleri açıkça seçilmelidir. Anahtar uygulamanıza, izinli IP ve süre sonuna bağlıdır. Kimlik sorguları kullanılabilir cüzdan bakiyenizden ödenir.',
     'retry_help' => 'Bağlantı kesilirse durumu aynı istek anahtarıyla alın. Belirsiz deneme için yeni anahtar oluşturmayın.',
     'quote_help' => 'Katalog fiyatları vergisizdir. Satın almadan önce GET /quotes/{service} hizmet tutarını, vergiyi ve toplamı döndürür. Kabul edilen sınır ve sürüm için total_irt ve price_version kullanın. Örnekteki sıfırlar gerçek fiyat değildir.',
     'states' => 'Durumlar',
-    'states_help' => 'İşleme, sorgu sonucu ve mali durum bağımsızdır. HTTP 202 işleme veya mutabakat gerektirebilir. 402 bakiye/bütçe, 403 izin, 409 anahtar/fiyat çakışması, 429 hız veya eşzamanlılık sınırıdır.',
+    'states_help' => 'İşleme, sorgu sonucu ve mali durum bağımsızdır. HTTP 202 işleme veya mutabakat gerektirebilir. 402 kullanılabilir bakiye yetersizliği, 403 izin, 409 anahtar/fiyat çakışması, 429 hız veya eşzamanlılık sınırıdır.',
     'idempotency_help' => 'İstek anahtarı uygulama ve işlem kapsamında benzersizdir. Aynı girdi aynı makbuzu döndürür; farklı girdi çakışır. Sonuç silindikten sonra kullanılmış anahtar yeni satın almaya dönüşmez.',
     'saved' => 'Kaydedildi',
     'save' => 'Kaydet',

@@ -2,7 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ServerNet Identity & Inquiry API",
-    "version": "1.1.0"
+    "version": "1.2.0",
+    "description": "Identity requests spend available wallet funds without customer, application, key or daily-count budgets. Per-request price acceptance and provider funding, rate and concurrency protections remain."
   },
   "servers": [
     {
@@ -2755,7 +2756,7 @@
             "description": "Invalid or expired key"
           },
           "402": {
-            "description": "Insufficient available funds or budget"
+            "description": "Insufficient available wallet funds"
           },
           "403": {
             "description": "Explicit scopes and owned eligible application required"

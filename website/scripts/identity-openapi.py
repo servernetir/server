@@ -30,7 +30,7 @@ receipt = {'type': 'object', 'properties': {
 }}
 response = {'description': 'ServerNet receipt. Result expires after 24 hours; the used key remains a tombstone.',
             'content': {'application/json': {'schema': receipt}}}
-spec = {'openapi': '3.1.0', 'info': {'title': 'ServerNet Identity & Inquiry API', 'version': '1.1.0'},
+spec = {'openapi': '3.1.0', 'info': {'title': 'ServerNet Identity & Inquiry API', 'version': '1.2.0', 'description': 'Identity requests spend available wallet funds without customer, application, key or daily-count budgets. Per-request price acceptance and provider funding, rate and concurrency protections remain.'},
         'servers': [{'url': 'https://servernet.cloud/api/v1/identity'}], 'security': [{'ServerNetBearer': []}],
         'components': {'securitySchemes': {'ServerNetBearer': {'type': 'http', 'scheme': 'bearer'}}, 'schemas': schemas}, 'paths': {}}
 for path in ['/services', '/pricing']:
@@ -56,7 +56,7 @@ spec['paths']['/inquiries/{service}'] = {'post': {
         'properties': {'input': {'anyOf': [{'$ref': '#/components/schemas/' + s['slug']} for s in services]},
                        'max_charge_irt': {'type': 'integer', 'minimum': 0}, 'price_version': {'type': 'integer', 'minimum': 1}}}}}},
     'responses': {'200': response, '202': response, **{str(code): {'description': text} for code, text in {
-        401: 'Invalid or expired key', 402: 'Insufficient available funds or budget', 403: 'Explicit scopes and owned eligible application required',
+        401: 'Invalid or expired key', 402: 'Insufficient available wallet funds', 403: 'Explicit scopes and owned eligible application required',
         409: 'Idempotency payload or quote conflict', 422: 'Invalid input; identifiers must be strings', 429: 'Rate, quota or concurrency limit',
         503: 'Service, pricing, funding or contract prerequisites unavailable'}.items()}}}}
 spec['paths']['/requests/{id}'] = {'get': {'x-required-scopes': ['identity:requests:read'], 'parameters': [
