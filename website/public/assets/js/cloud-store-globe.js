@@ -137,9 +137,10 @@
         var a = link[0].vector, b = link[1].vector;
         var angle = Math.acos(clamp(a[0] * b[0] + a[1] * b[1] + a[2] * b[2], -1, 1));
         var sine = Math.sin(angle), vertices = [];
-        // Varied satellite-like arches, with higher orbits on longer routes.
+        // Balanced arches, with higher orbits on longer routes. Their 9–26.5%
+        // lift is halfway between the surface routes and the taller orbit style.
         // Endpoints remain attached to their actual surface locations.
-        var elevation = .18 + Math.sin(angle / 2) * .25 + (index % 5) * .025;
+        var elevation = .09 + Math.sin(angle / 2) * .125 + (index % 5) * .0125;
         for (var i = 0; i <= 40; i++) {
           var t = i / 40, scale = 1 + Math.sin(t * Math.PI) * elevation;
           var start = sine > .001 ? Math.sin((1 - t) * angle) / sine : 1 - t;

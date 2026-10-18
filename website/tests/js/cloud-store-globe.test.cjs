@@ -95,13 +95,14 @@ function orbitalSegments(calls) {
   return segments;
 }
 
-test('raised orbital arches extend beyond the sphere and original panel without moving marker hit targets', () => {
+test('balanced orbital arches remain raised with bounded height and preserve overscan and marker hit targets', () => {
   const page = fixture(); page.step(0);
   const sphere = page.canvases[1].calls.find(call => call.name === 'arc').args;
   const segments = orbitalSegments(page.canvases[1].calls);
   const vertices = segments.flatMap(segment => [segment.a, segment.b]);
   const furthest = Math.max(...vertices.map(([x, y]) => Math.hypot(x - sphere[0], y - sphere[1])));
-  assert.ok(furthest > sphere[2] * 1.3, 'high satellite arches visibly stand off the surface');
+  assert.ok(furthest > sphere[2] * 1.1, 'balanced arches still visibly stand off the surface');
+  assert.ok(furthest <= sphere[2] * 1.265, 'arches stay within the new 26.5% maximum radial lift');
   assert.ok(vertices.some(([x, y]) => x < 0 || x > 500 || y < 0 || y > 500), 'the extended canvas preserves off-panel route geometry');
   assert.ok(parseFloat(page.canvases[0].style.left) < 0);
   assert.ok(parseFloat(page.canvases[0].style.width) > 500);
@@ -131,7 +132,7 @@ test('animated packets follow the rendered elevated segments rather than the old
   assert.ok(packets.length > 10);
   const aligned = packets.filter(packet => Math.min(...segments.map(segment => distanceToSegment(packet.args, segment))) < .25);
   assert.ok(aligned.length / packets.length > .95, 'packets share the exact cached orbital geometry, allowing a soft limb crossing');
-  assert.ok(packets.some(packet => Math.hypot(packet.args[0] - 250, packet.args[1] - 250) > 226 * 1.2), 'packets also travel above the limb');
+  assert.ok(packets.some(packet => Math.hypot(packet.args[0] - 250, packet.args[1] - 250) > 226 * 1.08), 'packets also travel above the limb on the lower arches');
 });
 
 test('a country tap emits only browsing intent and preserves the current city preview', () => {
