@@ -74,13 +74,27 @@ class CryptoCheckoutVisibilityTest extends TestCase
         return CryptoWallet::create(['chain' => 'tron', 'address' => $address, 'is_active' => true]);
     }
 
-    /** نرخِ ارز — بدونِ آن صدور عمداً شکست می‌خورد (fail-closed) */
+    /**
+     * نرخِ ارز — بدونِ آن صدور عمداً شکست می‌خورد (fail-closed).
+     *
+     * ⚠️ از وقتی نرخ‌ها از نوسان می‌آیند (`3acf65f9`)، `ExchangeRate` فقط ردیفِ
+     * با منشأ و زمانِ معتبر را می‌پذیرد، و تتر نرخِ **مستقلِ** `USDT` دارد. این
+     * فایل هنوز کلیدِ قدیمیِ `fx.usd_irt` را بی‌منشأ می‌گذاشت و چهار تستش روی
+     * develop قرمز بود. حالا دلار و تتر هر دو با همان شکلِ واقعی ثبت می‌شوند.
+     */
     private function fx(string $currency = 'USD', int $toman = 100_000): void
     {
-        Cache::put('fx.'.strtolower($currency).'_irt', [
-            'currency' => $currency, 'rate_toman' => $toman,
-            'source' => 'test', 'at' => now()->toIso8601String(),
-        ], now()->addHour());
+        $row = fn (string $cur, int $rate) => [
+            'currency' => $cur, 'rate_toman' => $rate,
+            'source' => 'navasan.net', 'source_item' => \App\Services\ExchangeRate::SOURCE_ITEMS[$cur],
+            'at' => now()->toIso8601String(), 'source_at' => now()->toIso8601String(),
+        ];
+
+        $snapshot = (array) Cache::get('fx.navasan.rates', []);
+        $snapshot[$currency] = $row($currency, $toman);
+        $snapshot['USDT'] ??= $row('USDT', $toman);
+
+        Cache::put('fx.navasan.rates', $snapshot, now()->addHour());
     }
 
     // ───────────────────────── دیده‌شدن ─────────────────────────
@@ -99,8 +113,9 @@ class CryptoCheckoutVisibilityTest extends TestCase
         $html = $this->actingAs($c, 'customer')->get('/account/invoices/'.$inv->id)
             ->assertOk()->getContent();
 
-        $this->assertStringContainsString('data-m="cyUSDT"', $html, 'کارتِ USDT باید باشد');
-        $this->assertStringContainsString('pane-cyUSDT', $html, 'پنلِ USDT باید ساخته شود');
+        $this->assertStringContainsString('data-m="crypto"', $html, 'کارتِ رمزارز باید باشد');
+        $this->assertStringContainsString('id="pane-crypto"', $html, 'پنلِ رمزارز باید ساخته شود');
+        $this->assertStringContainsString('<option value="USDT"', $html, 'USDT باید در فهرستِ انتخاب باشد');
         $this->assertStringNotContainsString(__('ui.cy_busy'), $html,
             'آدرس آزاد است؛ نباید «موقتاً در دسترس نیست» بگوید');
     }
@@ -134,8 +149,8 @@ class CryptoCheckoutVisibilityTest extends TestCase
         $this->assertStringContainsString($cp->address, $html,
             'آدرسی که مشتری باید به آن پول بفرستد باید روی صفحه باشد');
         $this->assertStringContainsString($cp->amountHuman(), $html, 'مبلغِ دقیق باید دیده شود');
-        $this->assertStringContainsString('pane-cyUSDT', $html, 'پنلِ پرداختِ باز نباید ناپدید شود');
-        $this->assertStringContainsString('data-m="cyUSDT"', $html, 'کارتِ رمزارز نباید ناپدید شود');
+        $this->assertStringContainsString('id="pane-crypto"', $html, 'پنلِ پرداختِ باز نباید ناپدید شود');
+        $this->assertStringContainsString('data-m="crypto"', $html, 'کارتِ رمزارز نباید ناپدید شود');
     }
 
     /** و پنلِ پرداختِ باز باید **باز** باشد، نه پشتِ یک کلیکِ دیگر */
@@ -153,7 +168,7 @@ class CryptoCheckoutVisibilityTest extends TestCase
             ->assertOk()->getContent();
 
         $this->assertMatchesRegularExpression(
-            '~<div class="pm-pane" id="pane-cyUSDT"\s*>~', $html,
+            '~<div class="pm-pane cyx" id="pane-crypto"\s*>~', $html,
             'پنلِ پرداختِ باز نباید hidden باشد'
         );
     }
@@ -181,8 +196,8 @@ class CryptoCheckoutVisibilityTest extends TestCase
 
         $this->assertStringContainsString(__('ui.cy_busy'), $html,
             'وقتی همهٔ آدرس‌ها مشغول‌اند باید گفته شود، نه اینکه روش پرداخت غیب شود');
-        $this->assertStringContainsString('data-m="cyUSDT"', $html, 'کارت باید بماند');
-        $this->assertStringNotContainsString('pane-cyUSDT', $html,
+        $this->assertStringContainsString('data-m="crypto"', $html, 'کارت باید بماند');
+        $this->assertStringNotContainsString('id="pane-crypto"', $html,
             'کارتِ مشغول پنل ندارد — کاری برای انجام‌دادن نیست');
         $this->assertStringNotContainsString($firstInv->number, $html,
             'هیچ‌چیزی از فاکتورِ مشتریِ دیگر نباید نشت کند');
@@ -199,7 +214,7 @@ class CryptoCheckoutVisibilityTest extends TestCase
         $html = $this->actingAs($c, 'customer')->get('/account/invoices/'.$inv->id)
             ->assertOk()->getContent();
 
-        $this->assertStringNotContainsString('data-m="cyUSDT"', $html);
+        $this->assertStringNotContainsString('data-m="crypto"', $html);
         $this->assertStringNotContainsString(__('ui.cy_busy'), $html,
             '«کمی بعد برگرد» وقتی هیچ آدرسی نیست، یک وعدهٔ دروغ است');
     }
@@ -212,6 +227,7 @@ class CryptoCheckoutVisibilityTest extends TestCase
     public function test_a_cold_exchange_rate_downgrades_the_option_but_never_prices_a_guess(): void
     {
         $this->wallet();
+        Cache::forget('fx.navasan.rates');
         Cache::forget('fx.usd_irt');
 
         $c = $this->customer();
@@ -221,7 +237,7 @@ class CryptoCheckoutVisibilityTest extends TestCase
             ->assertOk()->getContent();
 
         $this->assertStringContainsString(__('ui.cy_busy'), $html);
-        $this->assertStringNotContainsString('pane-cyUSDT', $html);
+        $this->assertStringNotContainsString('id="pane-crypto"', $html);
 
         // و اگر با همان حال زور بزند، هیچ آدرسی صادر نمی‌شود
         $this->actingAs($c, 'customer')
@@ -266,7 +282,7 @@ class CryptoCheckoutVisibilityTest extends TestCase
         $html = $this->actingAs($c, 'customer')->get('/account/invoices/'.$inv->id)
             ->assertOk()->getContent();
 
-        $this->assertStringContainsString('data-m="cyTRX"', $html);
+        $this->assertMatchesRegularExpression('~<option value="TRX"(?![^>]*disabled)~', $html, 'TRX باید قابلِ انتخاب باشد');
 
         $this->actingAs($c, 'customer')
             ->post('/account/invoices/'.$inv->id.'/crypto', ['asset' => 'TRX'])
@@ -279,5 +295,51 @@ class CryptoCheckoutVisibilityTest extends TestCase
         $this->assertSame(25_000 * 1_000_000, $cp->rate_micro);
         $this->assertSame(60_000_000, $cp->amount_atomic);
         $this->assertSame('TRX', $cp->asset);
+    }
+
+    // ───────────────────────── طراحیِ تازه (یک کارت) ─────────────────────────
+
+    /** دو دارایی، **یک** کارت؛ انتخابِ ارز داخلِ پنل با مبلغِ تقریبی */
+    public function test_two_assets_render_one_card_and_a_coin_picker_with_estimates(): void
+    {
+        $this->wallet();
+        $this->fx('USD', 100_000);
+        Cache::put('cyprice.trx_usd', 0.25, now()->addHour());
+
+        $c = $this->customer();
+        $inv = $this->invoice($c, 'IRT');   // ۱٬۵۰۰٬۰۰۰ تومان
+
+        $html = $this->actingAs($c, 'customer')->get('/account/invoices/'.$inv->id)
+            ->assertOk()->getContent();
+
+        $this->assertSame(1, substr_count($html, 'data-m="crypto"'), 'فقط یک کارتِ رمزارز');
+        $this->assertStringContainsString('data-value="USDT"', $html);
+        $this->assertStringContainsString('data-value="TRX"', $html);
+        // ۱٬۵۰۰٬۰۰۰ ÷ ۱۰۰٬۰۰۰ = ۱۵ USDT ؛ ÷ ۲۵٬۰۰۰ = ۶۰ TRX
+        $this->assertStringContainsString('data-est="15"', $html);
+        $this->assertStringContainsString('data-est="60"', $html);
+    }
+
+    /** صفحهٔ پرداختِ باز: QRِ آدرس، دکمه‌های کپی و شمارشِ معکوسِ حلقه‌ای */
+    public function test_the_open_payment_shows_a_qr_copy_buttons_and_a_ring_timer(): void
+    {
+        $this->wallet();
+        $this->fx();
+
+        $c = $this->customer();
+        $inv = $this->invoice($c, 'IRT');
+        $this->actingAs($c, 'customer')->post('/account/invoices/'.$inv->id.'/crypto', ['asset' => 'USDT']);
+        $cp = CryptoPayment::where('invoice_id', $inv->id)->latest('id')->firstOrFail();
+
+        $html = $this->actingAs($c, 'customer')->get('/account/invoices/'.$inv->id)
+            ->assertOk()->getContent();
+
+        $this->assertStringContainsString('<svg xmlns="http://www.w3.org/2000/svg"', $html, 'QR درون‌خطی (بی‌منبعِ بیرونی)');
+        $this->assertStringContainsString('data-copy="'.$cp->address.'"', $html);
+        $this->assertStringContainsString('data-copy="'.$cp->amountHuman().'"', $html);
+        $this->assertStringContainsString('id="cy-ring"', $html);
+        $this->assertMatchesRegularExpression('~data-total="\d+"~', $html);
+        $this->assertStringNotContainsString('id="cy-pick"', $html,
+            'با پرداختِ باز، انتخابِ ارزِ دیگر پیشنهاد نمی‌شود (آدرسِ دیگری قفل می‌کرد)');
     }
 }
