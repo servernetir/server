@@ -162,14 +162,11 @@ class AccountController extends Controller
                     // یک لینکِ مرده در منوی اصلی که هیچ خطایی هم نمی‌داد.
                     ['key' => 'domains', 'icon' => 'globe', 'label' => __('ui.nav_domains'), 'url' => lroute('account.domains')],
                     // [managed-dns:start]
-                    // ⚠️ فقط در پنلِ فارسی: صفحه‌های DNS هنوز ترجمه نشده‌اند و آیتمِ
-                    // فارسی در منوی انگلیسی/ترکی همان چیزی است که
-                    // `ForeignPanelAndMailSweepTest` می‌گیرد. با ترجمهٔ صفحه‌ها، این
-                    // شرط و برچسبِ خام با هم بروند (کلیدِ `ui.nav_dns` در سه زبان).
+                    // فقط وقتی سرویس واقعاً باز است (پرچمِ عرضه + primary + دو نیم‌سرور).
                     // `Route::has` چون این فایل روی سرور ممکن است پیش از
                     // routes/web.php برسد (opcache).
-                    ...(app()->getLocale() === 'fa' && \Illuminate\Support\Facades\Route::has('account.dns') && \App\Models\CdnZone::serviceOpen()
-                        ? [['key' => 'dns', 'icon' => 'link', 'label' => 'مدیریت DNS', 'url' => lroute('account.dns')]]
+                    ...(\Illuminate\Support\Facades\Route::has('account.dns') && \App\Services\Dns\DnsConfig::serviceOpen()
+                        ? [['key' => 'dns', 'icon' => 'link', 'label' => __('dns.nav'), 'url' => lroute('account.dns')]]
                         : []),
                     // [managed-dns:end]
                     ['key' => 'other', 'icon' => 'wrench', 'label' => __('ui.nav_other_services'), 'url' => lroute('account.other')],

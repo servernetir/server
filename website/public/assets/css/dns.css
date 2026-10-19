@@ -83,7 +83,7 @@
 /* ── سرصفحهٔ zone ──────────────────────────────────────────────────────── */
 
 .dns-hero { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
-.dns-hero h1 { font-family: var(--font-disp); font-size: clamp(20px, 2.4vw, 26px); direction: ltr; text-align: right; }
+.dns-hero h1 { font-family: var(--font-disp); font-size: clamp(20px, 2.4vw, 26px); unicode-bidi: isolate; text-align: start; }
 .dns-hero-m { color: var(--muted); font-size: 12.5px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
 .dns-back { font-size: 12.5px; color: var(--info); text-decoration: none; }
 
@@ -123,7 +123,7 @@
 .dns-tbl .c-name, .dns-tbl .c-val { direction: ltr; text-align: left; unicode-bidi: isolate; }
 .dns-tbl .c-val { max-width: 420px; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
 .dns-tbl .c-act { white-space: nowrap; text-align: end; }
-.dns-tbl .c-note { display: block; color: var(--muted); font-family: var(--font-body); font-size: 11.5px; margin-top: 3px; direction: rtl; text-align: right; }
+.dns-tbl .c-note { display: block; color: var(--muted); font-family: var(--font-body); font-size: 11.5px; margin-top: 3px; text-align: start; unicode-bidi: plaintext; }
 
 .dns-type { display: inline-block; min-width: 50px; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .3px;
   padding: 3px 8px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line-2); direction: ltr; }
@@ -204,3 +204,56 @@
   .dns-tbl.dns-imp { min-width: 560px; }
   .dns-hero h1 { overflow-wrap: anywhere; }
 }
+
+/* ── v2: اجزای تازه ─────────────────────────────────────────────────────── */
+
+.dns-small { font-size: 12.5px; line-height: 1.9; margin: 8px 0 0; }
+.dns-row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+.dns-row-actions form { margin: 0; }
+.dns-zone.is-muted { opacity: .6; cursor: default; }
+.dns-zone.is-muted:hover { border-color: var(--line-2); }
+
+/* کلید/مقدارِ رکوردِ تأییدِ مالکیت */
+.dns-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; align-items: center; margin: 10px 0; }
+.dns-kv > span { color: var(--muted); font-size: 12.5px; }
+@media (max-width: 560px) { .dns-kv { grid-template-columns: 1fr; } }
+
+/* مسیرِ راه‌اندازی */
+.dns-stepper { list-style: none; margin: 0 0 16px; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; counter-reset: none; }
+.dns-stepper li { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 99px;
+  border: 1px solid var(--line-2); background: var(--surface-2); font-size: 12.5px; color: var(--muted); }
+.dns-stepper li i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal;
+  font-weight: 800; font-size: 11.5px; background: var(--surface); border: 1px solid var(--line-2); }
+.dns-stepper li.done { color: var(--ok); border-color: var(--ok-line); background: var(--ok-bg); }
+.dns-stepper li.done i { color: var(--ok); border-color: var(--ok-line); }
+
+/* چک‌لیستِ مهاجرت */
+.dns-check { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.dns-check li { display: grid; grid-template-columns: minmax(110px, max-content) 1fr; gap: 10px; padding: 9px 12px;
+  border-radius: var(--r-sm, 10px); border: 1px solid var(--line-2); background: var(--surface-2); font-size: 12.5px; }
+.dns-check li b { font-weight: 700; }
+.dns-check li.is-ok    { border-color: var(--ok-line); }
+.dns-check li.is-ok b  { color: var(--ok); }
+.dns-check li.is-warn, .dns-check li.is-todo { border-color: var(--warn-line); }
+.dns-check li.is-warn b, .dns-check li.is-todo b { color: var(--warn); }
+.dns-check li.is-block { border-color: var(--danger-line); background: var(--danger-bg); }
+.dns-check li.is-block b { color: var(--danger); }
+@media (max-width: 560px) { .dns-check li { grid-template-columns: 1fr; gap: 2px; } }
+
+.dns-ns-guide { margin-top: 12px; padding: 14px; border: 1px solid var(--info-line); border-radius: var(--r-sm, 10px); background: var(--info-bg); }
+.dns-ns-guide h3 { font-size: 14px; margin: 0 0 4px; }
+
+/* وضعیتِ نیم‌سرورها */
+.dns-nodes { display: grid; gap: 8px; }
+.dns-node { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line-2);
+  border-radius: var(--r-sm, 10px); background: var(--surface-2); }
+.dns-node code { font-weight: 600; unicode-bidi: isolate; }
+.dns-node .dns-small { margin: 0 auto 0 0; }
+[dir="rtl"] .dns-node .dns-small { margin: 0 0 0 auto; }
+
+.dns-tbl tr.is-new td { background: var(--ok-bg); }
+.dns-zonefile { min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.dns-form-wrap { border-bottom: 1px solid var(--line); }
+.dns-stats { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+
+.dns-actions .dns-hint { font-size: 11.5px; color: var(--dim); line-height: 1.7; }

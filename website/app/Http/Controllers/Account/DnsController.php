@@ -4,8 +4,12 @@ namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
 use App\Models\CdnEvent;
+use App\Models\CdnRecord;
 use App\Models\CdnZone;
-use App\Services\Dns\DelegationCheck;
+use App\Models\DnsOwnershipClaim;
+use App\Services\Dns\DnsConfig;
+use App\Services\Dns\OwnershipService;
+use App\Services\Dns\TxtCodec;
 use App\Services\Dns\ZoneImporter;
 use App\Services\Dns\ZoneService;
 use Illuminate\Http\RedirectResponse;
@@ -16,272 +20,323 @@ use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * پنلِ مشتری — DNSِ مدیریت‌شده.
+ * پنلِ مشتری — DNSِ مدیریت‌شده (قرارداد §8، §10).
  *
- * ⚠️ هر متدی که به یک zone دست می‌زند از `zoneOf()` می‌گذرد. شرطِ مالکیت
- * **یک جا** است؛ تکرارش در ده متد یعنی روزی یکی جا می‌مانَد و آن یکی
- * رکوردهای DNSِ مشتریِ دیگر را ویرایش‌پذیر می‌کند.
- *
- * ⚠️ کنترلر نازک است: همهٔ قاعده‌ها در `ZoneService` و `RecordValidator`اند
- * تا پنلِ مدیریت، کرون و (بعداً) API یک رفتار داشته باشند.
+ * ⚠️ مالکیت در یک جا (`zoneOf`/`claimOf`/`recordOf`) و دوباره در ZoneService سنجیده
+ * می‌شود. هیچ دادهٔ PowerDNS (نشانی، کلید، نامِ primary، خطای خام) به این صفحه‌ها
+ * نمی‌رسد؛ پیام‌ها فقط از کلیدهای `dns.*` ساخته می‌شوند.
  */
 class DnsController extends Controller
 {
-    public function __construct(private readonly ZoneService $zones) {}
+    public function __construct(
+        private readonly ZoneService $zones,
+        private readonly OwnershipService $ownership,
+    ) {}
+
+    /* ═════════════ فهرست و افزودن ═════════════ */
 
     public function index(): View
     {
-        $customer = Auth::guard('customer')->user();
-        // «آماده» یعنی هم جدول هست و هم سرورِ DNS واقعاً وصل است — CdnZone::serviceOpen()
-        $ready = Schema::hasTable('cdn_zones') && CdnZone::serviceOpen();
+        $c = $this->customer();
+        $ready = $this->ready();
 
-        // 🔴 روی سرورِ مهاجرت‌نخورده صفحه باید بالا بیاید و علت را بگوید، نه ۵۰۰.
-        $list = $ready
-            ? CdnZone::forCustomer($customer->id)->withCount('records')->orderByDesc('id')->get()
-            : collect();
-
-        $claim = session('dns_claim');
-
-        return view('account.dns', AccountController::shell('dns') + [
-            'zones'       => $list,
+        return view('account.dns.index', AccountController::shell('dns') + [
             'ready'       => $ready,
-            'nameservers' => CdnZone::ourNameservers(),
-            'claim'       => $claim ? $this->zones->claimRecord($customer, $claim) + ['domain' => $claim] : null,
+            'zones'       => $ready ? CdnZone::forCustomer($c->id)->where('mode', 'ns')->withCount('records')->orderByDesc('id')->get() : collect(),
+            'claims'      => $ready ? DnsOwnershipClaim::query()->pending()->forCustomer($c->id)->orderByDesc('id')->get() : collect(),
+            'nameservers' => DnsConfig::nameserverHosts(),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless(CdnZone::serviceOpen(), 404);
+        $this->open();
+        $request->validate(['domain' => ['required', 'string', 'max:300']]);
 
-        $request->validate(['domain' => ['required', 'string', 'max:253']]);
+        $r = $this->ownership->start($this->customer(), (string) $request->input('domain'), $request->ip());
 
-        $res = $this->zones->create(Auth::guard('customer')->user(), (string) $request->input('domain'));
-
-        if ($res['claim']) {
-            /*
-             * دامنه در انتظارِ حسابِ دیگری است (بی‌اثباتِ مالکیت). به‌جای
-             * «ثبت شده»ِ بن‌بست، راهِ اثبات را نشان می‌دهیم: TXT روی DNSِ فعلی.
-             */
-            return redirect()->to(lroute('account.dns'))
-                ->with('dns_claim', CdnZone::normalizeDomain((string) $request->input('domain')))
-                ->withInput();
-        }
-
-        if (! $res['ok']) {
-            return back()->withErrors(['domain' => $res['error']])->withInput();
-        }
-
-        return redirect()->to(lroute('account.dns.zone', $res['zone']->id).'?import=1')
-            ->with('ok', 'دامنه اضافه شد. رکوردهای فعلی‌اش را بررسی و وارد کنید، سپس نیم‌سرورها را عوض کنید.');
+        return match ($r['code']) {
+            'zone_exists', 'zone_created' => redirect()->to(lroute('account.dns.zone', $r['zone']->id))
+                ->with('ok', __('dns.start.'.$r['code'])),
+            'claim_pending' => redirect()->to(lroute('account.dns.claim', $r['claim']->id)),
+            default => back()->withInput()->withErrors(['domain' => __('dns.start.'.$r['code'], $r['params'])]),
+        };
     }
 
-    public function claim(Request $request): RedirectResponse
+    /* ═════════════ اثباتِ مالکیت ═════════════ */
+
+    public function claim(int $claim): View
     {
-        abort_unless(CdnZone::serviceOpen(), 404);
+        $c = $this->claimOf($claim);
 
-        $request->validate(['domain' => ['required', 'string', 'max:253']]);
-        $domain = (string) $request->input('domain');
-
-        $res = $this->zones->claim(Auth::guard('customer')->user(), $domain);
-
-        if (! $res['ok']) {
-            return redirect()->to(lroute('account.dns'))
-                ->with('dns_claim', CdnZone::normalizeDomain($domain))
-                ->withErrors(['claim' => $res['error']]);
-        }
-
-        return redirect()->to(lroute('account.dns.zone', $res['zone']->id).'?import=1')
-            ->with('ok', 'مالکیت تأیید شد و دامنه به حسابِ شما منتقل شد.');
-    }
-
-    public function show(Request $request, int $zone): View
-    {
-        $z = $this->zoneOf($zone);
-        $records = $z->records()->orderByRaw("CASE type WHEN 'A' THEN 1 WHEN 'AAAA' THEN 2 WHEN 'CNAME' THEN 3 WHEN 'MX' THEN 4 WHEN 'TXT' THEN 5 WHEN 'SRV' THEN 6 WHEN 'CAA' THEN 7 ELSE 8 END")
-            ->orderBy('name')->orderBy('prio')->get();
-
-        /*
-         * پیش‌نمایشِ واردکردن فقط وقتی کاربر خواسته (`?import=1`). گرفتنِ
-         * خودکارش روی هر بازدید یعنی ۳۰+ استعلامِ DNS در هر رفرش — صفحه‌ای
-         * که چند ثانیه می‌ایستد بی‌آنکه کاربر کاری خواسته باشد.
-         */
-        $import = null;
-        if ($request->boolean('import') && ! $z->verified_at) {
-            $import = app(ZoneImporter::class)->preview($z->domain);
-
-            // آنچه از قبل هست پیشنهاد نمی‌شود
-            $have = $records->map(fn ($r) => $r->type.'|'.$r->shortName($z->domain).'|'.mb_strtolower($r->content))->all();
-            $import['records'] = array_values(array_filter(
-                $import['records'] ?? [],
-                fn ($r) => ! in_array($r['type'].'|'.$r['name'].'|'.mb_strtolower((string) $r['content']), $have, true)
-            ));
-        }
-
-        return view('account.dns-zone', AccountController::shell('dns') + [
-            'zone'    => $z,
-            'records' => $records,
-            'import'  => $import,
-            'events'  => CdnEvent::where('cdn_zone_id', $z->id)->orderByDesc('id')->limit(15)->get(),
-            'types'   => (array) config('edge.record_types', []),
-            'ttls'    => (array) config('edge.ttl_choices', []),
+        return view('account.dns.claim', AccountController::shell('dns') + [
+            'claim'     => $c,
+            'challenge' => $this->ownership->challenge($c),
         ]);
     }
 
-    /* ───────────────────────── تأیید و ورود ───────────────────────── */
-
-    public function verify(int $zone): RedirectResponse
+    public function verifyClaim(Request $request, int $claim): RedirectResponse
     {
-        $z = $this->zoneOf($zone);
-        $res = $this->zones->verify($z);
+        $c = $this->claimOf($claim);
+        $r = $this->ownership->verify($c, $request->ip());
 
-        if ($res['ok']) {
-            return back()->with('ok', 'نیم‌سرورها درست تنظیم شده‌اند. دامنه فعال است و از سرورهای DNSِ سرورنت پاسخ می‌گیرد.');
+        if ($r['ok']) {
+            return redirect()->to(lroute('account.dns.import', $r['zone']->id))->with('ok', __('dns.claim.verified'));
         }
 
-        return back()->withErrors(['verify' => DelegationCheck::explain($res['reason'])]);
+        return back()->withErrors(['claim' => __('dns.claim.'.$r['code'])]);
     }
 
-    public function import(Request $request, int $zone): RedirectResponse
+    public function cancelClaim(int $claim): RedirectResponse
+    {
+        $this->ownership->cancel($this->claimOf($claim));
+
+        return redirect()->to(lroute('account.dns'))->with('ok', __('dns.claim.cancelled'));
+    }
+
+    /* ═════════════ zone ═════════════ */
+
+    public function show(int $zone): View
     {
         $z = $this->zoneOf($zone);
+        $records = $z->records()->orderByRaw("CASE type WHEN 'A' THEN 1 WHEN 'AAAA' THEN 2 WHEN 'CNAME' THEN 3 WHEN 'MX' THEN 4 WHEN 'TXT' THEN 5 WHEN 'SRV' THEN 6 WHEN 'CAA' THEN 7 ELSE 8 END")
+            ->orderBy('name')->orderBy('prio')->orderBy('id')->get();
 
-        // فقط ردیف‌های تیک‌خورده؛ `pick` کلیدِ ردیف است و `rows` دادهٔ دیده‌شده
-        $rows = (array) $request->input('rows', []);
-        $picked = array_intersect_key($rows, array_flip((array) $request->input('pick', [])));
-
-        if ($picked === []) {
-            return redirect()->to(lroute('account.dns.zone', $z->id))->withErrors(['import' => 'هیچ رکوردی انتخاب نشده بود.']);
-        }
-
-        $res = $this->zones->import($z, array_values($picked));
-
-        $msg = fa_num($res['added']).' رکورد وارد شد.';
-        if ($res['skipped'] !== []) {
-            $msg .= ' '.fa_num(count($res['skipped'])).' ردیف نامعتبر یا تکراری بود و وارد نشد.';
-        }
-
-        return redirect()->to(lroute('account.dns.zone', $z->id))->with('ok', $msg);
+        return view('account.dns.zone', AccountController::shell('dns') + [
+            'zone'      => $z,
+            'records'   => $records,
+            'nodes'     => $this->zones->nodeStates($z),
+            'published' => $z->isPublishedEverywhere(),
+            'checklist' => $this->zones->checklist($z, probeCurrent: false),
+            'hosting'   => $this->zones->hostingContext($z),
+            'events'    => CdnEvent::query()->audits()->where('cdn_zone_id', $z->id)->orderByDesc('id')->limit(20)->get(),
+            'types'     => \App\Services\Dns\RecordValidator::TYPES,
+            'ttls'      => [60, 300, 600, 1800, 3600, 7200, 14400, 43200, 86400],
+            'nameservers' => DnsConfig::nameserverHosts(),
+        ]);
     }
 
-    /* ───────────────────────── رکوردها ───────────────────────── */
-
-    public function storeRecord(Request $request, int $zone): RedirectResponse
+    /** بررسیِ فوریِ تفویض و نودها (محدودشده با throttle) */
+    public function check(int $zone): RedirectResponse
     {
         $z = $this->zoneOf($zone);
-        $res = $this->zones->addRecord($z, $this->recordInput($request));
+        $r = $this->zones->checkDelegation($z);
 
-        if (! $res['ok']) {
-            return back()->withErrors($res['errors'])->withInput()->with('dns_form', 'new');
-        }
-
-        return back()->with('ok', $this->savedMessage('رکورد اضافه شد.', $res['sync']));
+        return back()->with('ok', __('dns.delegation.result_'.$r['state']));
     }
 
-    public function updateRecord(Request $request, int $zone, int $record): RedirectResponse
+    public function reviewed(Request $request, int $zone): RedirectResponse
     {
-        $z = $this->zoneOf($zone);
-        $rec = $z->records()->whereKey($record)->firstOrFail();
+        $this->zones->markReviewed($this->zoneOf($zone), $this->actor(), $request->ip());
 
-        $res = $this->zones->updateRecord($z, $rec, $this->recordInput($request, $rec->type));
-
-        if (! $res['ok']) {
-            return back()->withErrors($res['errors'])->withInput()->with('dns_form', 'edit-'.$rec->id);
-        }
-
-        return back()->with('ok', $this->savedMessage('رکورد به‌روز شد.', $res['sync']));
+        return back()->with('ok', __('dns.ui.reviewed_saved'));
     }
-
-    public function deleteRecord(int $zone, int $record): RedirectResponse
-    {
-        $z = $this->zoneOf($zone);
-        $rec = $z->records()->whereKey($record)->firstOrFail();
-
-        $res = $this->zones->deleteRecord($z, $rec);
-
-        return back()->with('ok', $this->savedMessage('رکورد حذف شد.', $res['sync']));
-    }
-
-    public function toggleRecord(int $zone, int $record): RedirectResponse
-    {
-        $z = $this->zoneOf($zone);
-        $rec = $z->records()->whereKey($record)->firstOrFail();
-
-        $res = $this->zones->toggleRecord($z, $rec);
-
-        return back()->with('ok', $this->savedMessage($rec->disabled ? 'رکورد غیرفعال شد.' : 'رکورد فعال شد.', $res['sync']));
-    }
-
-    /* ───────────────────────── خروجی و حذف ───────────────────────── */
 
     public function export(int $zone): Response
     {
         $z = $this->zoneOf($zone);
 
-        return response($this->zones->exportBind($z), 200, [
-            'Content-Type'        => 'text/plain; charset=utf-8',
-            'Content-Disposition' => 'attachment; filename="'.$z->domain.'.zone"',
-            'Cache-Control'       => 'no-store',
+        return response($this->zones->exportZoneFile($z), 200, [
+            'Content-Type'           => 'text/plain; charset=utf-8',
+            'Content-Disposition'    => 'attachment; filename="'.$z->domain.'.zone"',
+            'Cache-Control'          => 'no-store',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
     public function destroy(Request $request, int $zone): RedirectResponse
     {
         $z = $this->zoneOf($zone);
-
-        /*
-         * 🔴 تأییدِ تایپی، نه فقط confirm()ِ جاوااسکریپت. حذفِ zoneِ فعال یعنی
-         * سایت و ایمیلِ مشتری همان لحظه SERVFAIL می‌گیرند — اگر نیم‌سرورها
-         * هنوز به ما اشاره کنند. یک کلیکِ اشتباه نباید بتواند این کار را بکند.
-         */
-        if (CdnZone::normalizeDomain((string) $request->input('confirm')) !== $z->domain) {
-            return back()->withErrors(['delete' => 'برای حذف، نامِ دامنه را دقیقاً وارد کنید.']);
+        if (strtolower(rtrim(trim((string) $request->input('confirm')), '.')) !== $z->domain) {
+            return back()->withErrors(['delete' => __('dns.ui.delete_confirm_mismatch')]);
         }
+        $this->zones->requestDelete($z, $this->actor(), $request->ip());
 
-        $res = $this->zones->remove($z);
-
-        if (! $res['ok']) {
-            return back()->withErrors(['delete' => $res['reason']]);
-        }
-
-        return redirect()->to(lroute('account.dns'))->with('ok', 'دامنهٔ '.$z->domain.' و همهٔ رکوردهایش حذف شد.');
+        return redirect()->to(lroute('account.dns'))->with('ok', __('dns.ui.delete_requested', ['domain' => $z->domain]));
     }
 
-    /* ───────────────────────── داخلی ───────────────────────── */
+    /* ═════════════ رکوردها ═════════════ */
 
-    /** مالکیت — تنها جایی که این شرط نوشته می‌شود */
+    public function storeRecord(Request $request, int $zone): RedirectResponse
+    {
+        $z = $this->zoneOf($zone);
+        $r = $this->zones->addRecord($z, $this->recordInput($request), $this->actor(), $request->ip());
+
+        return $this->recordResponse($r, 'new', 'dns.ui.record_added');
+    }
+
+    public function updateRecord(Request $request, int $zone, int $record): RedirectResponse
+    {
+        $z = $this->zoneOf($zone);
+        $rec = $this->recordOf($z, $record);
+        $r = $this->zones->updateRecord($z, $rec, $this->recordInput($request), $this->actor(), $request->ip());
+
+        return $this->recordResponse($r, 'edit-'.$rec->id, 'dns.ui.record_updated');
+    }
+
+    public function deleteRecord(Request $request, int $zone, int $record): RedirectResponse
+    {
+        $z = $this->zoneOf($zone);
+        $this->zones->deleteRecord($z, $this->recordOf($z, $record), $this->actor(), $request->ip());
+
+        return back()->with('ok', __('dns.ui.record_deleted'));
+    }
+
+    public function toggleRecord(Request $request, int $zone, int $record): RedirectResponse
+    {
+        $z = $this->zoneOf($zone);
+        $r = $this->zones->toggleRecord($z, $this->recordOf($z, $record), $this->actor(), $request->ip());
+
+        return $r['ok']
+            ? back()->with('ok', __('dns.ui.record_toggled'))
+            : back()->withErrors(['record' => __('dns.err.'.$r['code'])]);
+    }
+
+    /* ═════════════ واردکردن ═════════════ */
+
+    public function import(Request $request, int $zone): View
+    {
+        $z = $this->zoneOf($zone);
+
+        return view('account.dns.import', AccountController::shell('dns') + [
+            'zone'    => $z,
+            'preview' => null,
+            'source'  => null,
+            'text'    => '',
+        ]);
+    }
+
+    /** پیش‌نمایش: فایل (متن یا آپلود) یا اسکنِ کمکی */
+    public function importPreview(Request $request, int $zone): View|RedirectResponse
+    {
+        $z = $this->zoneOf($zone);
+        $source = $request->input('source') === 'scan' ? 'scan' : 'file';
+        $text = '';
+        $scan = null;
+
+        if ($source === 'scan') {
+            $s = app(ZoneImporter::class)->scan($z->domain);
+            if (! $s['ok']) {
+                return back()->withErrors(['import' => __('dns.import.scan_failed')]);
+            }
+            $scan = $s['rows'];
+            // ردیف‌های اسکن روی سرور می‌مانند؛ اعمال هرگز دادهٔ آماده‌ای از مرورگر نمی‌پذیرد
+            session(['dns_scan.'.$z->id => $scan]);
+        } else {
+            $request->validate([
+                'zonefile' => ['nullable', 'file', 'max:'.(int) ceil(DnsConfig::limit('import_max_bytes') / 1024)],
+                'text'     => ['nullable', 'string', 'max:'.DnsConfig::limit('import_max_bytes')],
+            ]);
+            $text = $request->hasFile('zonefile') ? (string) file_get_contents($request->file('zonefile')->getRealPath()) : (string) $request->input('text', '');
+            if (trim($text) === '') {
+                return back()->withErrors(['import' => __('dns.import.empty')]);
+            }
+        }
+
+        return view('account.dns.import', AccountController::shell('dns') + [
+            'zone'    => $z,
+            'preview' => $this->zones->importPreview($z, $source === 'file' ? $text : null, $scan),
+            'source'  => $source,
+            'text'    => $text,
+        ]);
+    }
+
+    public function importApply(Request $request, int $zone): RedirectResponse
+    {
+        $z = $this->zoneOf($zone);
+        $request->validate(['lines' => ['array'], 'lines.*' => ['integer'], 'text' => ['nullable', 'string', 'max:'.DnsConfig::limit('import_max_bytes')]]);
+        $lines = array_map('intval', (array) $request->input('lines', []));
+        if ($lines === []) {
+            return redirect()->to(lroute('account.dns.import', $z->id))->withErrors(['import' => __('dns.import.none_selected')]);
+        }
+
+        $scan = $request->input('source') === 'scan' ? session('dns_scan.'.$z->id) : null;
+        if ($request->input('source') === 'scan' && ! is_array($scan)) {
+            return redirect()->to(lroute('account.dns.import', $z->id))->withErrors(['import' => __('dns.import.scan_expired')]);
+        }
+
+        $r = $this->zones->importApply($z, $scan === null ? (string) $request->input('text', '') : null, $lines, $this->actor(), $request->ip(), $scan);
+        session()->forget('dns_scan.'.$z->id);
+
+        return redirect()->to(lroute('account.dns.zone', $z->id))
+            ->with('ok', __('dns.import.applied', ['added' => $r['added'], 'skipped' => $r['skipped']]));
+    }
+
+    /* ═════════════ داخلی ═════════════ */
+
+    private function customer()
+    {
+        return Auth::guard('customer')->user();
+    }
+
+    private function actor(): string
+    {
+        return 'customer:'.Auth::guard('customer')->id();
+    }
+
+    private function ready(): bool
+    {
+        return Schema::hasTable('cdn_zones') && Schema::hasTable('dns_ownership_claims') && DnsConfig::serviceOpen();
+    }
+
+    private function open(): void
+    {
+        abort_unless($this->ready(), 404);
+    }
+
+    /** مالکیت — zone */
     private function zoneOf(int $id): CdnZone
     {
         abort_unless(Schema::hasTable('cdn_zones'), 404);
 
-        return CdnZone::forCustomer(Auth::guard('customer')->id())->where('mode', 'ns')->findOrFail($id);
+        return CdnZone::forCustomer(Auth::guard('customer')->id())->where('mode', 'ns')->where('status', '!=', 'deleting')->findOrFail($id);
     }
 
-    private function recordInput(Request $request, ?string $type = null): array
+    private function claimOf(int $id): DnsOwnershipClaim
+    {
+        abort_unless(Schema::hasTable('dns_ownership_claims'), 404);
+
+        return DnsOwnershipClaim::query()->forCustomer(Auth::guard('customer')->id())->findOrFail($id);
+    }
+
+    private function recordOf(CdnZone $zone, int $id): CdnRecord
+    {
+        return $zone->records()->whereKey($id)->firstOrFail();
+    }
+
+    private function recordInput(Request $request): array
     {
         $in = $request->only(['type', 'name', 'content', 'ttl', 'prio', 'weight', 'port', 'target', 'flags', 'tag', 'value', 'comment']);
-
-        // TXT فیلدِ جدای خودش را دارد (textarea) — partialِ فرم را ببین
-        if (strtoupper((string) ($type ?? $in['type'] ?? '')) === 'TXT') {
+        // TXT فیلدِ جدای خودش را دارد (textarea)؛ دو فیلدِ هم‌نام یعنی PHP آخری را می‌گیرد
+        if (strtoupper((string) ($in['type'] ?? '')) === 'TXT') {
             $in['content'] = (string) $request->input('content_txt', $in['content'] ?? '');
         }
 
         return $in;
     }
 
-    /**
-     * پیامِ ذخیره — صادق دربارهٔ همگام‌سازی.
-     *
-     * ⚠️ «ذخیره شد» وقتی سرورِ DNS نگرفته دروغ است. رکورد در دیتابیس هست و
-     * `dns:reconcile` بعداً می‌رساندش، ولی مشتری باید بداند چرا `dig` هنوز
-     * مقدارِ قبلی را می‌دهد.
-     */
-    private function savedMessage(string $base, ?array $sync): string
+    private function recordResponse(array $r, string $formKey, string $okKey): RedirectResponse
     {
-        if ($sync !== null && ! $sync['ok']) {
-            return $base.' (انتشار روی سرورهای DNS با تأخیر انجام می‌شود؛ تا چند دقیقهٔ دیگر خودکار دوباره تلاش می‌کنیم.)';
+        if ($r['ok']) {
+            $msg = __($okKey);
+            if (($r['ttl_aligned'] ?? 0) > 0) {
+                $msg .= ' '.__('dns.ui.ttl_aligned', ['count' => $r['ttl_aligned']]);
+            }
+
+            return back()->with('ok', $msg)->with('dns_highlight', $r['record']?->id);
         }
 
-        return $base;
+        $errors = [];
+        foreach ($r['errors'] as $field => $e) {
+            $errors[$field] = __('dns.err.'.$e['code'], array_map(fn ($v) => is_scalar($v) ? (string) $v : '', $e['params'] ?? []));
+        }
+
+        return back()->withInput()->withErrors($errors)->with('dns_form', $formKey);
+    }
+
+    /** برای Blade: متنِ TXT برای ویرایش (بی‌گیومه وقتی یک رشته است) */
+    public static function txtForEdit(string $presentation): string
+    {
+        return TxtCodec::forEdit($presentation);
     }
 }
