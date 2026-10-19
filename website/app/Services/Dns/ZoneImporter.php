@@ -2,173 +2,105 @@
 
 namespace App\Services\Dns;
 
-use App\Models\CdnZone;
-use App\Services\NetworkTools;
-
 /**
- * واردکردنِ رکوردهای فعلیِ یک دامنه، پیش از تعویضِ نیم‌سرور.
+ * اسکنِ کمکیِ رکوردهای فعلیِ یک دامنه — قرارداد §7.
  *
- * ═══ 🔴 محدودیتی که باید همه‌جا صریح گفته شود ═══
+ * ═══ 🔴 محدودیتی که رابط باید صریح بگوید ═══
+ * DNS راهی برای فهرست‌کردنِ کاملِ یک zone ندارد. این‌جا فقط apex و فهرستی از نام‌های
+ * رایج و selectorهای متداولِ DKIM پرسیده می‌شود. رکوردِ دلخواه، selectorِ دیگر یا
+ * زیردامنهٔ ناشناخته **پیدا نمی‌شود**. مسیرِ قابلِ اتکا فایلِ zone است (ZoneFileParser).
  *
- * DNS راهی برای **فهرست‌کردنِ** یک zone ندارد (AXFR روی هیچ سرورِ سالمی برای
- * عموم باز نیست). پس این واردکننده فقط می‌تواند بپرسد «آیا این نامِ مشخص
- * وجود دارد؟» — یعنی apex به‌علاوهٔ فهرستی از زیردامنه‌های متعارف.
+ * پرس‌وجوها مستقیم به نیم‌سرورهای **فعلیِ** دامنه (یافته از والد) و بی‌RD است؛
+ * کشِ resolverِ عمومی می‌تواند دادهٔ کهنه بدهد و ما همان را به‌جای حقیقت وارد می‌کردیم.
  *
- * نتیجه: خروجی **کامل نیست و نمی‌تواند باشد.** اگر این جمله در پنل به مشتری
- * گفته نشود، او نیم‌سرور را عوض می‌کند و زیردامنه‌ای که ما ندیده‌ایم بی‌صدا
- * ناپدید می‌شود — دقیقاً همان خرابیِ خاموشی که در این پروژه گران‌ترین‌ها
- * بوده‌اند. تأییدِ آگاهانهٔ مشتری روی همین فهرست، بخشی از طراحی است نه تشریفات.
- *
- * ⚠️ رکوردهای MX/TXT/NS در `config('edge.critical_types')` علامت‌دار
- * برمی‌گردند تا رابط بتواند جداگانه نشانشان دهد: نبودنشان یعنی قطعِ ایمیل.
+ * خروجی: ردیف‌هایی با همان شکلِ ورودیِ RecordValidator؛ تصمیمِ «تازه/تکراری/تعارض»
+ * با ZoneService::importPreview است، مثلِ فایلِ zone.
  */
 class ZoneImporter
 {
-    /**
-     * زیردامنه‌هایی که واقعاً پرسیده می‌شوند.
-     *
-     * فهرست عمداً کوتاه است: هر نام یک پرس‌وجوی جداست و این تابع در مسیرِ
-     * تعاملیِ کاربر اجرا می‌شود. اینها پوششِ عملیِ هاستِ اشتراکی و ایمیلِ
-     * شرکتی‌اند — همان‌هایی که نبودشان بیشترین درد را می‌سازد.
-     */
-    private const PROBES = [
-        'www', 'mail', 'webmail', 'ftp', 'cpanel', 'autodiscover',
-        'autoconfig', 'smtp', 'imap', 'pop', 'blog', 'shop', 'api', 'panel', 'm',
-    ];
+    public const HOST_PROBES = ['www', 'mail', 'webmail', 'ftp', 'autodiscover', 'autoconfig', 'smtp', 'imap', 'pop',
+        'cpanel', 'blog', 'shop', 'api', 'm', 'app', 'portal', 'vpn'];
+
+    public const DKIM_SELECTORS = ['default', 'google', 'selector1', 'selector2', 'k1', 'mail', 'dkim', 's1', 's2'];
+
+    public function __construct(private readonly DelegationInspector $inspector) {}
 
     /**
-     * نام‌های TXTِ ایمیل. 🔴 DMARC و DKIM زیرِ نام‌های ثابت‌اند و نبودشان پس
-     * از تعویضِ نیم‌سرور یعنی ایمیلِ شرکت بی‌صدا به اسپم می‌رود — هیچ خطایی،
-     * فقط «مشتری‌ها می‌گویند ایمیلتان نمی‌رسد».
+     * @return array{ok:bool, error:?string, rows:list<array>, queried:int}
      */
-    private const TXT_PROBES = [
-        '_dmarc', 'default._domainkey', 'google._domainkey',
-        'selector1._domainkey', 'selector2._domainkey', 'k1._domainkey', 'mail._domainkey',
-    ];
-
-    public function __construct(private readonly NetworkTools $net = new NetworkTools) {}
-
-    /**
-     * @return array{ok:bool, records:array<int,array<string,mixed>>, partial:bool}
-     */
-    public function preview(string $domain): array
+    public function scan(string $domain): array
     {
-        $domain = CdnZone::normalizeDomain($domain);
-        $out = [];
-
-        $apex = $this->net->allDns($domain);
-
-        if (($apex['ok'] ?? false) !== true) {
-            return ['ok' => false, 'records' => [], 'partial' => true];
+        $delegation = $this->inspector->parentDelegation($domain);
+        if (! $delegation['ok'] && ($delegation['servers'] ?? []) === []) {
+            return ['ok' => false, 'error' => (string) ($delegation['error'] ?? 'lookup_failed'), 'rows' => [], 'queried' => 0];
         }
 
-        foreach ($apex['groups'] ?? [] as $group) {
-            $type = (string) ($group['type'] ?? '');
+        $plan = [];
+        foreach (['A', 'AAAA', 'MX', 'TXT', 'CAA'] as $t) {
+            $plan[] = [$domain, $t];
+        }
+        foreach (self::HOST_PROBES as $h) {
+            $plan[] = [$h.'.'.$domain, 'CNAME'];
+            $plan[] = [$h.'.'.$domain, 'A'];
+            $plan[] = [$h.'.'.$domain, 'AAAA'];
+        }
+        $plan[] = ['_dmarc.'.$domain, 'TXT'];
+        foreach (self::DKIM_SELECTORS as $s) {
+            $plan[] = [$s.'._domainkey.'.$domain, 'TXT'];
+            $plan[] = [$s.'._domainkey.'.$domain, 'CNAME'];
+        }
 
-            /*
-             * SOA و NS ِ فعلی وارد نمی‌شوند.
-             *
-             * SOA را PowerDNS خودش می‌سازد، و NSِ قدیمی اگر وارد شود، zoneِ
-             * تازه به نیم‌سرورهای **قبلی** اشاره می‌کند — یعنی حلقه‌ای که
-             * تفویض را می‌شکند و عیب‌یابی‌اش بسیار سخت است.
-             */
-            if (in_array($type, ['SOA', 'NS'], true)) {
+        $rows = [];
+        $seen = [];
+        $cnamed = [];
+        $queried = 0;
+        foreach ($plan as [$name, $type]) {
+            if (isset($cnamed[$name]) && $type !== 'CNAME') {
+                continue;                       // نامِ مستعار رکوردِ دیگری ندارد
+            }
+            $r = $this->inspector->queryAuthoritative($domain, $name, $type, $delegation);
+            $queried++;
+            if (! $r['ok']) {
                 continue;
             }
-
-            foreach ($group['records'] ?? [] as $rec) {
-                $out[] = $this->normalize($domain, $type, $rec);
-            }
-        }
-
-        foreach (self::PROBES as $label) {
-            $host = $label.'.'.$domain;
-
-            foreach (['A', 'CNAME'] as $type) {
-                $res = $this->net->dns($host, $type);
-
-                if (($res['ok'] ?? false) !== true) {
+            foreach ($r['records'] as $rr) {
+                if ($rr['type'] === 'CNAME' && $type !== 'CNAME') {
                     continue;
                 }
-
-                foreach ($res['records'] ?? [] as $rec) {
-                    // DoH برای CNAME هم رکوردِ A مقصد را برمی‌گرداند؛ فقط
-                    // ردیفی را می‌گیریم که نامش دقیقاً همین میزبان است،
-                    // وگرنه رکوردِ مقصد به نامِ مشتری ثبت می‌شود.
-                    if (mb_strtolower(rtrim((string) ($rec['name'] ?? ''), '.')) !== $host) {
-                        continue;
-                    }
-
-                    $out[] = $this->normalize($domain, $type, $rec);
+                if ($rr['type'] !== $type) {
+                    continue;
                 }
-
-                // اگر CNAME دارد، رکوردِ A بی‌معناست (و هم‌زمان نامعتبر است)
-                if ($type === 'CNAME' && $res['count'] > 0) {
-                    break;
+                if ($type === 'CNAME') {
+                    $cnamed[$name] = true;
                 }
-            }
-        }
-
-        foreach (self::TXT_PROBES as $label) {
-            $host = $label.'.'.$domain;
-            $res = $this->net->dns($host, 'TXT');
-
-            foreach (($res['ok'] ?? false) ? ($res['records'] ?? []) : [] as $rec) {
-                if (mb_strtolower(rtrim((string) ($rec['name'] ?? ''), '.')) === $host) {
-                    $out[] = $this->normalize($domain, 'TXT', $rec);
+                $row = $this->row($name, $type, $rr);
+                if ($row === null) {
+                    continue;
+                }
+                $key = json_encode($row);
+                if (! isset($seen[$key])) {
+                    $seen[$key] = true;
+                    $rows[] = $row;
                 }
             }
         }
 
-        return ['ok' => true, 'records' => $this->dedupe($out), 'partial' => true];
+        return ['ok' => true, 'error' => null, 'rows' => $rows, 'queried' => $queried];
     }
 
-    /* ───────────────────────── داخلی ───────────────────────── */
-
-    private function normalize(string $domain, string $type, array $rec): array
+    /** رکوردِ wire → ورودیِ RecordValidator */
+    private function row(string $name, string $type, array $rr): ?array
     {
-        // گیومه‌های TXT دست نمی‌خورند: «"a" "b"» (رکوردِ تکه‌تکه) را
-        // `RecordValidator` درست به‌هم می‌چسباند؛ trimِ این‌جا وسطش را می‌شکست
-        $data = $type === 'TXT'
-            ? trim((string) ($rec['data'] ?? ''))
-            : trim((string) ($rec['data'] ?? ''), " \t\"");
-        $prio = null;
+        $base = ['type' => $type, 'name' => $name.'.', 'ttl' => max(60, min(86400, (int) ($rr['ttl'] ?? 3600)))];
+        $d = $rr['data'];
 
-        // MX از DoH به شکلِ «10 mail.example.com.» می‌آید؛ اولویت را جدا می‌کنیم
-        if ($type === 'MX' && preg_match('~^(\d+)\s+(.+)$~', $data, $m)) {
-            $prio = (int) $m[1];
-            $data = rtrim($m[2], '.');
-        }
-
-        $name = rtrim((string) ($rec['name'] ?? $domain), '.');
-
-        return [
-            'type'     => $type,
-            'name'     => $name === $domain ? '@' : preg_replace('~\.'.preg_quote($domain, '~').'$~', '', $name),
-            'content'  => rtrim($data, '.') !== '' && in_array($type, ['CNAME', 'MX', 'NS'], true) ? rtrim($data, '.') : $data,
-            'ttl'      => (int) ($rec['ttl'] ?? config('edge.default_ttl', 3600)),
-            'prio'     => $prio,
-            'critical' => in_array($type, (array) config('edge.critical_types', []), true),
-        ];
-    }
-
-    /** @param array<int,array<string,mixed>> $rows */
-    private function dedupe(array $rows): array
-    {
-        $seen = [];
-        $out = [];
-
-        foreach ($rows as $r) {
-            $key = $r['type'].'|'.$r['name'].'|'.$r['content'];
-
-            if (isset($seen[$key])) {
-                continue;
-            }
-
-            $seen[$key] = true;
-            $out[] = $r;
-        }
-
-        return $out;
+        return match ($type) {
+            'A', 'AAAA' => $base + ['content' => (string) $d],
+            'CNAME'     => $base + ['content' => rtrim((string) $d, '.').'.'],
+            'MX'        => $base + ['prio' => (int) $d['preference'], 'content' => $d['exchange'] === '' ? '.' : rtrim($d['exchange'], '.').'.'],
+            'TXT'       => $base + ['content' => implode(' ', array_map(fn ($s) => '"'.str_replace('"', '\"', $s).'"', (array) $d))],
+            'CAA'       => $base + ['flags' => (int) $d['flags'], 'tag' => (string) $d['tag'], 'value' => (string) $d['value']],
+            default     => null,
+        };
     }
 }

@@ -2,67 +2,81 @@
 
 namespace App\Console\Commands;
 
+use App\Models\CdnEvent;
+use App\Models\CdnRecord;
 use App\Models\CdnZone;
+use App\Services\Dns\DnsConfig;
 use App\Services\Dns\PowerDnsClient;
-use App\Services\Dns\ZoneService;
+use App\Services\Dns\ZonePublisher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * آشتیِ دیتابیس ↔ PowerDNS.
+ * تشخیصِ drift میانِ دیتابیس (حقیقت) و primary — قرارداد §4.5. ساعتی.
  *
- * هر ویرایشِ رکورد بلافاصله فشار داده می‌شود، ولی آن فشار می‌تواند شکست
- * بخورد (سرورِ DNS لحظه‌ای در دسترس نبود) و تنها نشانه‌اش «سایتِ مشتری
- * بالا نمی‌آید» است. این فرمان zoneهای `dirty` را دوباره می‌فرستد.
- *
- * `--all` همه را می‌فرستد — برای بعد از بازسازیِ سرورِ DNS یا عوض‌کردنِ
- * نیم‌سرورها در تنظیمات (NSِ apex و SOAِ همهٔ zoneها باید عوض شوند).
- * چون `syncZone` فقط تفاوت را می‌فرستد، `--all` روی zoneِ سالم بی‌هزینه است.
+ * zoneِ منتشرشده‌ای که روی primary با وضعیتِ مطلوب نمی‌خوانَد (کسی دستی تغییر
+ * داده، بازگردانیِ پشتیبانِ کهنه، …) ثبت و دوباره منتشر می‌شود. zoneی که روی
+ * primary هست و در دیتابیس نیست «یتیم» است: فقط گزارش می‌شود، **هرگز** خودکار
+ * پاک نمی‌شود — شاید zoneِ کسی است که هنوز به ما تفویض شده.
  */
 class DnsReconcile extends Command
 {
-    protected $signature = 'dns:reconcile {--all : همهٔ zoneها، نه فقط تغییرکرده‌ها} {--zone= : فقط یک دامنه}';
+    protected $signature = 'dns:reconcile {--zone= : فقط یک دامنه}';
 
-    protected $description = 'zoneهای DNSِ مدیریت‌شده را با سرورِ PowerDNS همگام می‌کند';
+    protected $description = 'Managed DNS: detect drift between DB and the PowerDNS primary; report orphans';
 
-    public function handle(ZoneService $zones, PowerDnsClient $pdns): int
+    public function handle(PowerDnsClient $pdns, ZonePublisher $publisher): int
     {
-        if (! Schema::hasTable('cdn_zones')) {
+        if (! Schema::hasTable('cdn_zones') || ! Schema::hasColumn('cdn_zones', 'desired_version')) {
             return self::SUCCESS;
         }
-
         if (! $pdns->isConfigured()) {
-            // «هنوز راه نیفتاده» خرابی نیست؛ SystemHealth جای دیگری گزارشش می‌دهد
-            $this->warn('سرورِ DNS پیکربندی نشده؛ چیزی فرستاده نشد.');
+            $this->line('not configured');
 
             return self::SUCCESS;
         }
 
-        $q = CdnZone::query()->where('mode', 'ns');
-
+        $q = CdnZone::query()->where('mode', 'ns')->where('publish_state', 'published')->whereIn('status', ['pending', 'active']);
         if ($only = $this->option('zone')) {
-            $q->where('domain', CdnZone::normalizeDomain($only));
-        } elseif (! $this->option('all')) {
-            $q->where('dirty', true);
+            $q->where('domain', strtolower(rtrim((string) $only, '.')));
         }
 
-        $ok = 0;
-        $fail = 0;
+        $drift = 0;
+        $failed = 0;
+        $q->orderBy('id')->each(function (CdnZone $zone) use ($pdns, $publisher, &$drift, &$failed) {
+            $live = $pdns->getZone($zone->domain);
+            if (! $live['ok']) {
+                $failed++;
+                $this->line("✗ {$zone->domain}: ".($live['status'] === 404 ? 'missing on primary' : $live['error']));
+                if ($live['status'] === 404) {
+                    $zone->bumpVersion();       // دوباره ساخته می‌شود
+                    $drift++;
+                }
 
-        $q->orderBy('id')->each(function (CdnZone $zone) use ($zones, &$ok, &$fail) {
-            $res = $zones->sync($zone);
-
-            if ($res['ok']) {
-                $ok++;
-            } else {
-                $fail++;
-                $this->line("✗ {$zone->domain}: {$res['reason']}");
+                return;
+            }
+            $records = CdnRecord::query()->where('cdn_zone_id', $zone->id)->where('disabled', false)->orderBy('id')->get();
+            $diff = $publisher->diff($publisher->desired($zone->domain, $records), (array) ($live['data']['rrsets'] ?? []));
+            if ($diff !== []) {
+                $drift++;
+                CdnEvent::audit('drift_detected', $zone, ['changes' => count($diff)], 'system');
+                $zone->bumpVersion();
+                $this->line("~ {$zone->domain}: ".count($diff).' rrset(s) differ — republish queued');
             }
         });
 
-        $this->info("همگام: {$ok} · ناموفق: {$fail}");
+        $orphans = [];
+        $list = $pdns->listZones();
+        if ($list['ok']) {
+            $known = CdnZone::query()->pluck('domain')->all();
+            $orphans = array_values(array_diff($list['names'], $known, [rtrim(DnsConfig::catalog(), '.')]));
+            foreach ($orphans as $o) {
+                $this->line("? orphan on primary: $o");
+            }
+        }
 
-        // ناموفق = کدِ خطا، تا `schedule:run` و SystemHealth ببینندش
-        return $fail > 0 ? self::FAILURE : self::SUCCESS;
+        $this->info("drift: {$drift} · read failures: {$failed} · orphans: ".count($orphans));
+
+        return $failed > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

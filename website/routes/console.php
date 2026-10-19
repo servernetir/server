@@ -686,3 +686,34 @@ Schedule::command('links:content --scheduled')
 Schedule::command('site:gate')
     ->dailyAt('03:00')
     ->withoutOverlapping(60);
+
+// [managed-dns:start]
+/*
+|--------------------------------------------------------------------------
+| DNSِ مدیریت‌شده v2 — docs/dns/MANAGED-DNS-DESIGN.md §4–§5
+|--------------------------------------------------------------------------
+|
+| پروژه worker صف ندارد؛ این‌ها همان صف‌اند. همه روی نصبی که جدول‌ها/کلیدِ API
+| را ندارد بی‌صدا و **موفق** برمی‌گردند (مهاجرتِ تولید دستی است).
+*/
+
+// انتشارِ zoneهای در انتظار/ناموفق/در حالِ حذف، با backoffِ هر zone و قفلِ zone
+Schedule::command('dns:publish')
+    ->everyMinute()
+    ->withoutOverlapping(5);
+
+// «منتشر شد» فقط وقتی است که هر دو نیم‌سرور serialِ تازه را با AA بدهند
+Schedule::command('dns:check-nodes')
+    ->everyTwoMinutes()
+    ->withoutOverlapping(5);
+
+// تفویض از دیدِ والد → فعال‌سازی؛ انقضای ادعاهای مالکیتِ کهنه. هرگز چیزی را حذف نمی‌کند.
+Schedule::command('dns:check-delegation')
+    ->hourly()
+    ->withoutOverlapping(30);
+
+// drift میانِ دیتابیس و primary؛ zoneهای یتیم فقط گزارش می‌شوند
+Schedule::command('dns:reconcile')
+    ->hourlyAt(17)
+    ->withoutOverlapping(30);
+// [managed-dns:end]
