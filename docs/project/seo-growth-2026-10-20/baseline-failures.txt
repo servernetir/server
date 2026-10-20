@@ -1,3 +1,5 @@
+Historical baseline only. All 19 listed failures were resolved by the fixture/expectation corrections in this PR; final related suite: 134 tests, 1512 assertions, zero failures/errors/skips.
+
 Unchanged baseline: 70711ba3db2638417d6cd1df3eb4801e78e9ebd4
 Tested local runtime: b8c08a54a78097cc977475f2f27953a7b03d7ae3
 Identical GitHub runtime tree: 17f06356ddffd4cc84833bd9c4beb870dceb2e56

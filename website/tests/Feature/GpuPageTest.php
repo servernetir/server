@@ -6,6 +6,7 @@ use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\SeedsCatalogPricing;
 use Tests\TestCase;
 
 /**
@@ -17,6 +18,13 @@ use Tests\TestCase;
 class GpuPageTest extends TestCase
 {
     use RefreshDatabase;
+    use SeedsCatalogPricing;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seedCatalogPricing();
+    }
 
     public function test_jupyter_pause_is_explained_in_each_public_locale(): void
     {
@@ -36,28 +44,28 @@ class GpuPageTest extends TestCase
         );
 
         return CloudPlan::create(array_merge([
-            'provider'          => 'salad',
-            'provider_ref'      => 'gc-4090',
+            'provider' => 'salad',
+            'provider_ref' => 'gc-4090',
             'provider_location' => 'global',
-            'location_code'     => 'global-gpu',
-            'public_name'       => 'RTX 4090',
-            'slug'              => 'cv-8c-30g-100d-global-gpu-rtx-4090',
-            'vcpu'              => 8,
-            'ram_mb'            => 30720,
-            'disk_gb'           => 100,
-            'disk_type'         => 'ssd',
-            'traffic_gb'        => 0,
-            'cpu_kind'          => 'shared',
-            'arch'              => 'x86',
-            'cost_eur_cents'    => 4000,
-            'price_eur_cents'   => 6000,
-            'price_irt'         => 7_200_000,
-            'is_active'         => true,
-            'in_stock'          => true,
-            'admin_disabled'    => false,
-            'gpu_model'         => 'RTX 4090',
-            'gpu_count'         => 1,
-            'is_interruptible'  => true,
+            'location_code' => 'global-gpu',
+            'public_name' => 'RTX 4090',
+            'slug' => 'cv-8c-30g-100d-global-gpu-rtx-4090',
+            'vcpu' => 8,
+            'ram_mb' => 30720,
+            'disk_gb' => 100,
+            'disk_type' => 'ssd',
+            'traffic_gb' => 0,
+            'cpu_kind' => 'shared',
+            'arch' => 'x86',
+            'cost_eur_cents' => 4000,
+            'price_eur_cents' => 6000,
+            'price_irt' => 7_200_000,
+            'is_active' => true,
+            'in_stock' => true,
+            'admin_disabled' => false,
+            'gpu_model' => 'RTX 4090',
+            'gpu_count' => 1,
+            'is_interruptible' => true,
         ], $over));
     }
 
@@ -79,7 +87,7 @@ class GpuPageTest extends TestCase
 
         $html = (string) $this->get('/gpu')->assertOk()->getContent();
 
-        $this->assertSame(1, $this->testCardOfferCount($html),
+        $this->assertSame(1, $this->countTestCardOffers($html),
             'کارتِ تکراریِ هم‌نام و هم‌مشخصات باید یکی شود.');
     }
 
@@ -98,11 +106,11 @@ class GpuPageTest extends TestCase
 
         $html = (string) $this->get('/gpu')->assertOk()->getContent();
 
-        $this->assertSame(2, $this->testCardOfferCount($html),
+        $this->assertSame(2, $this->countTestCardOffers($html),
             'قیمتِ متفاوت یعنی دو عرضهٔ واقعاً متفاوت — هیچ‌کدام نباید غیب شود.');
     }
 
-    private function testCardOfferCount(string $html): int
+    private function countTestCardOffers(string $html): int
     {
         preg_match_all('/<label class="gpu-card[^"]*">.*?<\/label>/s', $html, $matches);
 
@@ -186,10 +194,10 @@ class GpuPageTest extends TestCase
         $this->seedGpuPlan();
         $this->seedGpuPlan([
             'provider_ref' => 'plain-1',
-            'slug'         => 'cv-2c-4g-40d-global-gpu',
-            'public_name'  => 'پلنِ ساده',
-            'gpu_model'    => null,
-            'gpu_count'    => null,
+            'slug' => 'cv-2c-4g-40d-global-gpu',
+            'public_name' => 'پلنِ ساده',
+            'gpu_model' => null,
+            'gpu_count' => null,
         ]);
 
         $html = (string) $this->get('/gpu')->assertOk()->getContent();

@@ -8,12 +8,16 @@ use App\Models\CloudPlan;
 use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Setting;
+use App\Services\Cloud\CloudAddons;
+use App\Services\Cloud\CloudManager;
+use App\Services\Cloud\CloudProvider;
 use App\Services\Cloud\CloudProvisioner;
 use App\Services\Provisioning\ProvisioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Mockery;
+use Tests\Support\SeedsCatalogPricing;
 use Tests\TestCase;
 
 /**
@@ -25,10 +29,12 @@ use Tests\TestCase;
 class CloudProvisionTest extends TestCase
 {
     use RefreshDatabase;
+    use SeedsCatalogPricing;
 
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seedCatalogPricing();
 
         Setting::put('pricing_rate_override', '100000');
         Setting::putSecret('hetzner_api_token', 'test-token');
@@ -293,7 +299,7 @@ class CloudProvisionTest extends TestCase
         $this->image();
         $service = $this->service($plan);
 
-        $driver = Mockery::mock(\App\Services\Cloud\CloudProvider::class);
+        $driver = Mockery::mock(CloudProvider::class);
         $driver->shouldReceive('isConfigured')->andReturnTrue();
         $driver->shouldReceive('capabilities')->andReturn([]);
         $driver->shouldReceive('createServer')->once()->andReturn([
@@ -303,12 +309,12 @@ class CloudProvisionTest extends TestCase
             'raw' => ['status' => 0],
         ]);
 
-        $manager = Mockery::mock(\App\Services\Cloud\CloudManager::class);
+        $manager = Mockery::mock(CloudManager::class);
         $manager->shouldReceive('forPlan')->andReturn($driver);
 
         $provisioner = new CloudProvisioner(
             $manager,
-            app(\App\Services\Cloud\CloudAddons::class),
+            app(CloudAddons::class),
         );
 
         $this->assertFalse($provisioner->provision($service));
@@ -445,20 +451,20 @@ class CloudProvisionTest extends TestCase
         $service = $this->service($plan);
 
         $inst = new CloudInstance([
-            'service_id'    => $service->id,
-            'provider'      => $plan->provider,
-            'provider_ref'  => '999',
+            'service_id' => $service->id,
+            'provider' => $plan->provider,
+            'provider_ref' => '999',
             'location_code' => $plan->location_code,
-            'image_key'     => 'ubuntu-24.04',
-            'hostname'      => 'sn-svc-'.$service->id,
-            'ipv4'          => '203.0.113.7',
-            'ipv6'          => '2a01:4f8::1',
-            'status'        => 'running',
+            'image_key' => 'ubuntu-24.04',
+            'hostname' => 'sn-svc-'.$service->id,
+            'ipv4' => '203.0.113.7',
+            'ipv6' => '2a01:4f8::1',
+            'status' => 'running',
             // این سرویس **قبلاً** تحویل شده، پس ایمیلش هم رفته است. بی‌این مهر،
             // گذرِ «ایمیل‌های بدهی‌مانده» هر تستِ چرخهٔ عمر را با یک ایمیلِ
             // تکراری آلوده می‌کرد — و همان چیزی را می‌سنجید که نباید.
             'ready_notified_at' => now(),
-            'specs'         => [
+            'specs' => [
                 'vcpu' => $plan->vcpu, 'ram_mb' => $plan->ram_mb,
                 'disk_gb' => $plan->disk_gb, 'disk_type' => $plan->disk_type,
                 'traffic_gb' => $plan->traffic_gb, 'cpu_kind' => $plan->cpu_kind,
@@ -495,6 +501,7 @@ class CloudProvisionTest extends TestCase
             if ($request->method() === 'GET') {
                 return Http::response(['server' => ['status' => $off ? 'off' : 'running']]);
             }
+
             return Http::response(['action' => ['status' => 'running']], 201);
         });
 
@@ -520,6 +527,7 @@ class CloudProvisionTest extends TestCase
             if ($request->method() === 'GET') {
                 return Http::response(['server' => ['status' => $on ? 'running' : 'off']]);
             }
+
             return Http::response(['action' => ['status' => 'running']], 201);
         });
 

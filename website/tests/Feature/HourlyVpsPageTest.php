@@ -7,6 +7,7 @@ use App\Models\CloudPlan;
 use App\Services\Cloud\CountryLandingSeo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Tests\Support\SeedsCatalogPricing;
 use Tests\TestCase;
 
 /**
@@ -27,11 +28,13 @@ use Tests\TestCase;
 class HourlyVpsPageTest extends TestCase
 {
     use RefreshDatabase;
+    use SeedsCatalogPricing;
 
     protected function setUp(): void
     {
         parent::setUp();
         Cache::flush();
+        $this->seedCatalogPricing();
     }
 
     private function seedIranAndGermany(): void
