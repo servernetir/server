@@ -50,6 +50,7 @@ class CloudReleaseRetryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Illuminate\Support\Facades\Mail::fake();
 
         Setting::putSecret('aeza_api_token', 'aeza-key');
         Setting::put('pricing_rate_override', '100000');
@@ -147,10 +148,8 @@ class CloudReleaseRetryTest extends TestCase
     {
         $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
 
-        $this->assertNotEmpty($this->codes, 'هیچ کدی فرستاده نشد');
-
         return $this->actingAs($c, 'customer')
-            ->post("/account/services/{$s->id}/terminate", ['code' => (string) end($this->codes)]);
+            ->post("/account/services/{$s->id}/terminate", ['confirmation_phrase' => session('svc_terminate_ctx.phrase'), 'confirmation_token' => session('svc_terminate_ctx.token')]);
     }
 
     // ═══════════════ حذفِ موفق ═══════════════

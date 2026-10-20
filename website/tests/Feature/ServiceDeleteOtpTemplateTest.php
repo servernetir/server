@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
+ * Legacy OTP pattern compatibility. The current deletion UI uses typed consent.
  * کدِ یک‌بارمصرفِ **حذفِ سرور** الگوی اختصاصیِ خودش را دارد.
  *
  * ═══ 🔴 خرابیِ واقعی که این فایل برای تکرارنشدنش نوشته شد ═══
@@ -44,6 +45,7 @@ class ServiceDeleteOtpTemplateTest extends TestCase
     {
         parent::setUp();
         Http::fake();
+        \Illuminate\Support\Facades\Mail::fake();
 
         $this->app->instance(SmsSender::class, $this->patternDriver());
     }
@@ -130,7 +132,7 @@ class ServiceDeleteOtpTemplateTest extends TestCase
         $c = $this->customer();
         $s = $this->activeService($c);
 
-        $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
+        $this->assertTrue(app(OtpService::class)->issue('sms', $c->phone, 'service_terminate', null)->ok);
 
         $sms = $this->lastSms();
 
@@ -151,7 +153,7 @@ class ServiceDeleteOtpTemplateTest extends TestCase
         $c = $this->customer();
         $s = $this->activeService($c);
 
-        $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
+        $this->assertTrue(app(OtpService::class)->issue('sms', $c->phone, 'service_terminate', null)->ok);
 
         $params = $this->lastSms()['params'];
 
@@ -206,7 +208,7 @@ class ServiceDeleteOtpTemplateTest extends TestCase
         $c = $this->customer();
         $s = $this->activeService($c);
 
-        $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
+        $this->assertTrue(app(OtpService::class)->issue('sms', $c->phone, 'service_terminate', null)->ok);
         $deleteCode = $this->lastCode();
 
         Auth::guard('customer')->logout();
@@ -250,7 +252,7 @@ class ServiceDeleteOtpTemplateTest extends TestCase
      * نمی‌تواند سرورِ خودش را حذف کند و مجبور است تیکت بزند. و بی‌خطر است: همان
      * کد جز برای همین هدف تأیید نمی‌شود (تستِ بالا).
      */
-    public function test_a_driver_without_the_pattern_falls_back_instead_of_locking_the_customer_out(): void
+    public function test_legacy_deletion_otp_without_a_pattern_still_verifies_without_deleting(): void
     {
         $this->app->instance(SmsSender::class, new class($this) implements SmsSender
         {
@@ -273,14 +275,8 @@ class ServiceDeleteOtpTemplateTest extends TestCase
         $c = $this->customer();
         $s = $this->activeService($c);
 
-        $this->actingAs($c, 'customer')
-            ->post("/account/services/{$s->id}/terminate/start")
-            ->assertSessionHasNoErrors();
-
-        $this->actingAs($c, 'customer')
-            ->post("/account/services/{$s->id}/terminate", ['code' => $this->lastCode()])
-            ->assertRedirect();
-
-        $this->assertSame('terminated', $s->fresh()->status);
+        $this->assertTrue(app(OtpService::class)->issue('sms', $c->phone, 'service_terminate', null)->ok);
+        $this->assertTrue(app(OtpService::class)->verify('sms', $c->phone, 'service_terminate', $this->lastCode())->ok);
+        $this->assertSame('active', $s->fresh()->status);
     }
 }

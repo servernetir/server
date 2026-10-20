@@ -36,6 +36,7 @@ class ServiceDeleteReasonTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Illuminate\Support\Facades\Mail::fake();
         Http::fake();
 
         $this->app->instance(SmsSender::class, new class($this) implements SmsSender
@@ -57,13 +58,6 @@ class ServiceDeleteReasonTest extends TestCase
         });
     }
 
-    private function sentCode(): string
-    {
-        $this->assertNotEmpty($this->codes, 'هیچ کدی فرستاده نشد');
-
-        return (string) end($this->codes);
-    }
-
     private function customer(): Customer
     {
         return Customer::create([
@@ -82,14 +76,14 @@ class ServiceDeleteReasonTest extends TestCase
         ], $over));
     }
 
-    /** حذفِ کامل با پستِ دلخواه (کد خودکار برداشته می‌شود) */
+    /** حذفِ کامل با پستِ دلخواه (عبارت و شناسهٔ فرم از نشست برداشته می‌شوند) */
     private function deleteWith(Customer $c, Service $s, array $payload = []): \Illuminate\Testing\TestResponse
     {
         $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
 
         return $this->actingAs($c, 'customer')->post(
             "/account/services/{$s->id}/terminate",
-            $payload + ['code' => $this->sentCode()],
+            $payload + ['confirmation_phrase' => session('svc_terminate_ctx.phrase'), 'confirmation_token' => session('svc_terminate_ctx.token')],
         );
     }
 
@@ -282,8 +276,8 @@ class ServiceDeleteReasonTest extends TestCase
         }
     }
 
-    /** پیش از گرفتنِ کد، پرسش نباید دیده شود (فرمِ حذف اصلاً باز نیست) */
-    public function test_the_picker_is_hidden_until_a_code_was_requested(): void
+    /** پیش از باز کردن فرم، پرسش نباید دیده شود (فرمِ حذف اصلاً باز نیست) */
+    public function test_the_picker_is_hidden_until_deletion_is_requested(): void
     {
         $c = $this->customer();
         $this->activeService($c);

@@ -14,16 +14,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
-/**
- * حذفِ سرویسِ تحویل‌شده توسط مشتری، با تأییدِ کدِ یک‌بارمصرف.
- *
- * چرا این تست‌ها سخت‌گیرند: این مسیر **سرور را واقعاً نزدِ زیرساخت پاک می‌کند**
- * و داده برنمی‌گردد. سه چیز باید غیرممکن باشد:
- *   ۱) حذف بدونِ کد
- *   ۲) حذفِ سرویسِ شخصِ دیگر
- *   ۳) گرفتنِ کد برای سرویسِ ارزان و حذفِ سرویسِ دیگر با همان کد
- */
-class ServiceTerminateOtpTest extends TestCase
+/** Session-bound typed consent; provider release and billing regressions remain covered. */
+class ServiceTerminateConfirmationTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -34,11 +26,12 @@ class ServiceTerminateOtpTest extends TestCase
     {
         parent::setUp();
         Http::fake();
+        \Illuminate\Support\Facades\Mail::fake();
 
         // کد هش‌شده ذخیره می‌شود و متنِ خام فقط از درِ پیامک بیرون می‌رود؛
         // پس فرستنده را می‌گیریم تا مسیرِ موفق هم واقعاً سنجیده شود.
         $this->app->instance(SmsSender::class, new class($this) implements SmsSender {
-            public function __construct(private ServiceTerminateOtpTest $t) {}
+            public function __construct(private ServiceTerminateConfirmationTest $t) {}
 
             public function enabled(): bool { return true; }
 
@@ -55,11 +48,11 @@ class ServiceTerminateOtpTest extends TestCase
         });
     }
 
-    private function sentCode(): string
+    private function consent(): array
     {
-        $this->assertNotEmpty($this->codes, 'هیچ کدی فرستاده نشد');
+        $ctx = session('svc_terminate_ctx');
 
-        return (string) end($this->codes);
+        return ['confirmation_phrase' => $ctx['phrase'], 'confirmation_token' => $ctx['token']];
     }
 
     private function customer(): Customer
@@ -114,7 +107,7 @@ class ServiceTerminateOtpTest extends TestCase
         $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
 
         return $this->actingAs($c, 'customer')
-            ->post("/account/services/{$s->id}/terminate", ['code' => $this->sentCode()]);
+            ->post("/account/services/{$s->id}/terminate", $this->consent());
     }
 
     /**
@@ -265,7 +258,7 @@ class ServiceTerminateOtpTest extends TestCase
             'نباید دوباره وارد صفِ تحویل شود');
     }
     /** ✅ مسیرِ موفق — بی‌این، فقط ثابت کرده‌ایم که حذف *نمی‌کند* */
-    public function test_correct_code_terminates_the_service(): void
+    public function test_correct_phrase_terminates_the_service(): void
     {
         $c = $this->customer();
         $s = $this->activeService($c);
@@ -273,7 +266,7 @@ class ServiceTerminateOtpTest extends TestCase
         $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
 
         $this->actingAs($c, 'customer')
-            ->post("/account/services/{$s->id}/terminate", ['code' => $this->sentCode()])
+            ->post("/account/services/{$s->id}/terminate", $this->consent())
             ->assertRedirect();
 
         $this->assertSame('terminated', $s->fresh()->status);
@@ -295,7 +288,7 @@ class ServiceTerminateOtpTest extends TestCase
 
         $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/terminate/start");
         $this->actingAs($c, 'customer')
-            ->post("/account/services/{$s->id}/terminate", ['code' => $this->sentCode()]);
+            ->post("/account/services/{$s->id}/terminate", $this->consent());
 
         $this->assertSame('terminated', $s->fresh()->status);
 
@@ -331,28 +324,28 @@ class ServiceTerminateOtpTest extends TestCase
     }
 
     /** 🔴 کدِ مصرف‌شده نباید بارِ دوم روی سرویسِ دیگری کار کند */
-    public function test_a_used_code_cannot_be_replayed(): void
+    public function test_used_consent_cannot_be_replayed(): void
     {
         $c = $this->customer();
         $first = $this->activeService($c, ['name' => 'اولی']);
         $second = $this->activeService($c, ['name' => 'دومی']);
 
         $this->actingAs($c, 'customer')->post("/account/services/{$first->id}/terminate/start");
-        $code = $this->sentCode();
+        $consent = $this->consent();
 
         $this->actingAs($c, 'customer')
-            ->post("/account/services/{$first->id}/terminate", ['code' => $code]);
+            ->post("/account/services/{$first->id}/terminate", $consent);
 
         $this->assertSame('terminated', $first->fresh()->status);
 
         $this->actingAs($c, 'customer')
-            ->post("/account/services/{$second->id}/terminate", ['code' => $code])
+            ->post("/account/services/{$second->id}/terminate", $consent)
             ->assertSessionHasErrors();
 
         $this->assertSame('active', $second->fresh()->status);
     }
 
-    public function test_terminate_without_a_code_does_nothing(): void
+    public function test_terminate_without_a_dialog_context_does_nothing(): void
     {
         $c = $this->customer();
         $s = $this->activeService($c);
@@ -380,7 +373,7 @@ class ServiceTerminateOtpTest extends TestCase
         $this->assertSame('active', $s->fresh()->status);
     }
 
-    public function test_start_issues_a_challenge_and_remembers_the_service(): void
+    public function test_start_remembers_service_without_issuing_otp(): void
     {
         $c = $this->customer();
         $s = $this->activeService($c);
@@ -390,15 +383,16 @@ class ServiceTerminateOtpTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('svc_terminate_ctx.service_id', $s->id);
 
-        $this->assertDatabaseHas('otp_challenges', ['purpose' => 'service_terminate']);
-        $this->assertSame('active', $s->fresh()->status, 'صدورِ کد به‌تنهایی نباید چیزی را حذف کند');
+        $this->assertDatabaseMissing('otp_challenges', ['purpose' => 'service_terminate']);
+        $this->assertSame([], $this->codes);
+        $this->assertSame('active', $s->fresh()->status, 'باز کردن فرم به‌تنهایی نباید چیزی را حذف کند');
     }
 
     /**
      * 🔴 مهم‌ترین محافظ: کدِ صادرشده برای سرویسِ الف نباید سرویسِ ب را حذف کند.
      * بی‌این قید، «کدِ حذف» می‌شد یک کلیدِ عمومیِ حذف برای همهٔ سرویس‌ها.
      */
-    public function test_a_code_issued_for_one_service_cannot_delete_another(): void
+    public function test_consent_for_one_service_cannot_delete_another(): void
     {
         $c = $this->customer();
         $cheap = $this->activeService($c, ['name' => 'سرویس ارزان']);
@@ -435,8 +429,8 @@ class ServiceTerminateOtpTest extends TestCase
             ->assertSessionHasErrors();
     }
 
-    /** کدِ غلط نباید حذف کند */
-    public function test_wrong_code_does_not_delete(): void
+    /** کد قدیمی جای عبارت متنی را نمی‌گیرد */
+    public function test_legacy_code_cannot_replace_typed_consent(): void
     {
         $c = $this->customer();
         $s = $this->activeService($c);
@@ -472,5 +466,130 @@ class ServiceTerminateOtpTest extends TestCase
         $s = $this->activeService($c, ['status' => 'terminated']);
 
         $this->assertSame('حذف شده', $s->statusBadge()[0]);
+    }
+
+    public function test_foreign_customers_can_confirm_in_each_language_without_otp(): void
+    {
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $c = $this->customer();
+            $c->update(['phone' => '+49151'.random_int(10000000, 99999999), 'locale' => $locale]);
+            $s = $this->activeService($c);
+            $this->actingAs($c, 'customer')->post($prefix.'/account/services/'.$s->id.'/terminate/start')
+                ->assertSessionHasNoErrors();
+            $ctx = session('svc_terminate_ctx');
+            $this->assertSame(__('ui.svc_terminate_phrase', [], $locale), $ctx['phrase']);
+            $this->actingAs($c, 'customer')->post($prefix.'/account/services/'.$s->id.'/terminate', $this->consent())
+                ->assertSessionHasNoErrors();
+            $this->assertSame('terminated', $s->fresh()->status);
+        }
+        $this->assertSame([], $this->codes);
+        $this->assertDatabaseCount('otp_challenges', 0);
+    }
+
+    public function test_a_missing_phone_does_not_block_deletion(): void
+    {
+        $c = $this->customer();
+        $c->update(['phone' => null]);
+        $s = $this->activeService($c);
+        $this->terminateVia($c, $s)->assertSessionHasNoErrors();
+        $this->assertSame('terminated', $s->fresh()->status);
+        $this->assertDatabaseCount('otp_challenges', 0);
+    }
+
+    public function test_wrong_or_missing_phrase_cannot_release_resources(): void
+    {
+        $c = $this->customer();
+        $s = $this->activeService($c);
+        $this->actingAs($c, 'customer')->post('/account/services/'.$s->id.'/terminate/start');
+        $consent = $this->consent();
+        $this->post('/account/services/'.$s->id.'/terminate', array_replace($consent, ['confirmation_phrase' => 'delete']))
+            ->assertSessionHasErrors('confirmation_phrase');
+        $this->post('/account/services/'.$s->id.'/terminate', ['confirmation_token' => $consent['confirmation_token']])
+            ->assertSessionHasErrors('confirmation_phrase');
+        $this->assertSame('active', $s->fresh()->status);
+        Http::assertNothingSent();
+    }
+
+    public function test_expired_or_superseded_dialogs_are_rejected(): void
+    {
+        $c = $this->customer();
+        $s = $this->activeService($c);
+        $this->actingAs($c, 'customer')->post('/account/services/'.$s->id.'/terminate/start');
+        $oldConsent = $this->consent();
+        $this->post('/account/services/'.$s->id.'/terminate/start');
+        $this->post('/account/services/'.$s->id.'/terminate', $oldConsent)
+            ->assertSessionHasErrors('confirmation_token');
+        $consent = $this->consent();
+        $this->travel(16)->minutes();
+        $this->post('/account/services/'.$s->id.'/terminate', $consent)->assertSessionHasErrors();
+        $this->assertSame('active', $s->fresh()->status);
+        Http::assertNothingSent();
+    }
+
+    public function test_legacy_otp_context_cannot_authorize_deletion(): void
+    {
+        $c = $this->customer();
+        $s = $this->activeService($c);
+        $this->actingAs($c, 'customer')->withSession(['svc_terminate_ctx' => [
+            'service_id' => $s->id, 'channel' => 'sms', 'destination' => $c->phone,
+        ]])->post('/account/services/'.$s->id.'/terminate', ['code' => '123456'])->assertSessionHasErrors();
+        $this->assertSame('active', $s->fresh()->status);
+    }
+
+    public function test_the_dialog_shows_escaped_service_and_localized_consent_in_all_languages(): void
+    {
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $c = $this->customer();
+            $s = $this->activeService($c, ['name' => '<img src=x onerror=alert(1)>']);
+            $url = $prefix.'/account/services';
+            $this->actingAs($c, 'customer')->from($url)->post($url.'/'.$s->id.'/terminate/start');
+            $html = $this->get($url)->assertOk()->getContent();
+            $this->assertStringContainsString('data-service-delete', $html);
+            $this->assertStringContainsString(e(__('ui.svc_terminate_phrase', [], $locale)), $html);
+            $this->assertStringContainsString('&lt;img src=x onerror=alert(1)&gt;', $html);
+            $this->assertStringNotContainsString('<img src=x onerror=alert(1)>', $html);
+            $this->assertStringContainsString('name="confirmation_phrase"', $html);
+            $this->assertStringNotContainsString('autocomplete="one-time-code"', $html);
+            $this->assertStringNotContainsString('ui.svc_terminate_', $html);
+        }
+    }
+
+    public function test_validation_reopens_only_the_submitted_service_dialog(): void
+    {
+        $c = $this->customer();
+        $s = $this->activeService($c);
+        $other = $this->activeService($c);
+        $this->actingAs($c, 'customer')->from('/account/services')->post('/account/services/'.$s->id.'/terminate/start');
+        $consent = $this->consent();
+        $this->from('/account/services')->post('/account/services/'.$s->id.'/terminate', array_replace($consent, [
+            'confirmation_phrase' => 'wrong', 'termination_service_id' => $s->id,
+        ]))->assertSessionHasErrors('confirmation_phrase');
+        $html = $this->get('/account/services')->assertOk()->getContent();
+        $this->assertStringContainsString('id="svc-delete-title-'.$s->id.'"', $html);
+        $this->assertStringNotContainsString('id="svc-delete-title-'.$other->id.'"', $html);
+        $this->assertSame('active', $s->fresh()->status);
+    }
+
+    public function test_a_duplicate_submission_does_not_release_the_same_resource_twice(): void
+    {
+        $this->fakeWhm(['*/json-api/removeacct*' => Http::response(['metadata' => ['result' => 1]])]);
+        $c = $this->customer();
+        $s = $this->hostingService($c);
+        $this->actingAs($c, 'customer')->post('/account/services/'.$s->id.'/terminate/start');
+        $consent = $this->consent();
+        $this->post('/account/services/'.$s->id.'/terminate', $consent)->assertSessionHasNoErrors();
+        $this->post('/account/services/'.$s->id.'/terminate', $consent)->assertSessionHasErrors();
+        Http::assertSentCount(1);
+        $this->assertSame(2, (int) Server::firstOrFail()->active_accounts);
+    }
+
+    public function test_guests_cannot_open_or_submit_deletion(): void
+    {
+        $c = $this->customer();
+        $s = $this->activeService($c);
+        $this->post('/account/services/'.$s->id.'/terminate/start')->assertRedirect('/login');
+        $this->post('/account/services/'.$s->id.'/terminate', ['confirmation_phrase' => 'confirm'])->assertRedirect('/login');
+        $this->assertSame('active', $s->fresh()->status);
+        Http::assertNothingSent();
     }
 }
