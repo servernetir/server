@@ -308,6 +308,8 @@ return [
                 'hero_t' => 'Python Hosting', 'hero_g' => 'made for developers.',
                 'hero_d' => 'A ready environment for Django, Flask and FastAPI with full SSH access, Git deploys and free pip installs — minus the server-management pain.'],
             'tr' => ['t' => 'Python Hosting', 'tag' => 'Django · Flask · FastAPI',
+                'seo_t' => 'Python Hosting Satın Al: Django, Flask ve FastAPI',
+                'seo_d' => 'Python hosting paketlerini karşılaştırın: Django ve Flask için WSGI, FastAPI için köprü; SSH, pip ve MySQL/MariaDB. VPS gerektiren iş yüklerini de öğrenin.',
                 'hero_t' => 'Geliştiriciler için', 'hero_g' => 'Python Hosting.',
                 'hero_d' => 'Django, Flask ve FastAPI için hazır ortam; tam SSH erişimi, Git ile dağıtım ve pip ile özgür paket kurulumu — sunucu yönetimi derdi olmadan.'],
             'chips' => ['Python 3.11 / 3.12', 'Django / Flask / FastAPI', 'SSH + pip + venv', 'Git Deploy', 'MySQL / MariaDB'],

@@ -346,6 +346,7 @@
       <a href="{{ lroute('catalog', ['category' => 'vps', 'slug' => 'trading']) }}">{{ __('ui.hv_cross_trading') }}</a>
       <a href="{{ lroute('catalog', ['category' => 'cloud', 'slug' => 'iaas']) }}">{{ __('ui.hv_cross_iaas') }}</a>
       <a href="{{ lroute('domain.search') }}">{{ __('ui.hv_cross_domains') }}</a>
+      <a href="{{ lroute('hosting', 'python') }}">{{ lc(['fa' => 'هاست پایتون برای Django و Flask', 'en' => 'Python hosting for Django and Flask', 'tr' => 'Django ve Flask için Python hosting']) }}</a>
       <a href="{{ lroute('contact') }}">{{ __('ui.nav_contact') }}</a>
     </div>
   </div>
