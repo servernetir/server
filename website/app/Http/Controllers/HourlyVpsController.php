@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Services\Cloud\CloudCountry;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -54,6 +55,7 @@ class HourlyVpsController extends Controller
         $fromHourly = null;  // ارزان‌ترین نرخِ ساعتیِ کلِ کاتالوگ (برچسب)
         $fromHourlyRaw = 0;
         $minStart = null;    // کفِ اعتبارِ شروع برای ارزان‌ترین پلن (برچسب)
+        $costExamples = [];
         $irCities = [];      // شهرهای ایران — برای پاسخِ «سرور ساعتی ایران دارید؟»
 
         if (Schema::hasTable('cloud_plans') && Schema::hasTable('cloud_locations')) {
@@ -99,15 +101,15 @@ class HourlyVpsController extends Controller
 
                 if (! isset($countries[$iso])) {
                     $countries[$iso] = [
-                        'iso'        => $iso,
-                        'label'      => $loc->countryLabel(),
-                        'flag'       => $loc->flagEmoji(),
-                        'flag_svg'   => $loc->flagSvg(),
-                        'url'        => CloudCountry::url($iso),
-                        'plans'      => 0,
+                        'iso' => $iso,
+                        'label' => $loc->countryLabel(),
+                        'flag' => $loc->flagEmoji(),
+                        'flag_svg' => $loc->flagSvg(),
+                        'url' => CloudCountry::url($iso),
+                        'plans' => 0,
                         'hourly_raw' => PHP_INT_MAX,
-                        'hourly'     => '',
-                        'monthly'    => '',
+                        'hourly' => '',
+                        'monthly' => '',
                     ];
                 }
 
@@ -126,6 +128,14 @@ class HourlyVpsController extends Controller
                 $minStart = $isFa
                     ? fa_num(number_format($cheapestAll->hourlyStartMinIrt())).' تومان'
                     : '€'.number_format($cheapestAll->hourlyEurCents() * CloudPlan::HOURLY_START_MIN_HOURS / 100, 2);
+
+                // Use the displayed plan quote in the current currency. Converting
+                // the IRT total again can disagree with the rounded EUR hourly quote.
+                foreach ([6, 24, 72] as $hours) {
+                    $costExamples[$hours] = $isFa
+                        ? fa_num(number_format($cheapestAll->hourlyIrt() * $hours)).' تومان'
+                        : '€'.number_format($cheapestAll->hourlyEurCents() * $hours / 100, 2, '.', '');
+                }
             }
 
             // ایران اول (کاربرِ فارسی بیشتر همین را می‌خواهد)، بعد ارزان‌ترین‌ها
@@ -146,15 +156,16 @@ class HourlyVpsController extends Controller
         $countries = array_values($countries);
 
         return view('pages.vps-hourly', [
-            'countries'     => $countries,
-            'featured'      => $featured,
-            'fromHourly'    => $fromHourly,
+            'costExamples' => $costExamples,
+            'countries' => $countries,
+            'featured' => $featured,
+            'fromHourly' => $fromHourly,
             'fromHourlyRaw' => $fromHourlyRaw,
-            'minStart'      => $minStart,
-            'minHours'      => CloudPlan::HOURLY_START_MIN_HOURS,
-            'irCities'      => $irCities,
-            'storeUrl'      => lroute('account.cloud.store').'?billing_mode=hourly',
-            'cloudUrl'      => lroute('cloud.index'),
+            'minStart' => $minStart,
+            'minHours' => CloudPlan::HOURLY_START_MIN_HOURS,
+            'irCities' => $irCities,
+            'storeUrl' => lroute('account.cloud.store').'?billing_mode=hourly',
+            'cloudUrl' => lroute('cloud.index'),
         ]);
     }
 
@@ -162,8 +173,8 @@ class HourlyVpsController extends Controller
      * کارت‌های نمونه: از هر کشورِ اولویت‌دار که پلنِ زنده دارد، چند پلنِ ارزان
      * (از کوچک به بزرگ) با نرخِ ساعتی و لینکِ خریدِ ساعتی.
      *
-     * @param  \Illuminate\Support\Collection<string, CloudPlan>  $offers
-     * @param  \Illuminate\Support\Collection<string, CloudLocation>  $locations
+     * @param  Collection<string, CloudPlan>  $offers
+     * @param  Collection<string, CloudLocation>  $locations
      * @return array<int, array<string, mixed>>
      */
     private function featured($offers, $locations, string $locale): array
@@ -203,27 +214,27 @@ class HourlyVpsController extends Controller
                 [$offer, $loc] = $pair;
 
                 $out[] = [
-                    'country'   => $loc->countryLabel(),
-                    'flag'      => $loc->flagEmoji(),
-                    'flag_svg'  => $loc->flagSvg(),
-                    'city'      => $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel(),
-                    'name'      => (string) $offer->public_name,
-                    'vcpu'      => (int) $offer->vcpu,
-                    'ram'       => $offer->ramLabel(),
-                    'disk'      => $offer->diskLabel(),
-                    'traffic'   => $offer->trafficLabel($locale),
-                    'cpu_kind'  => $offer->cpuKindLabel($locale),
-                    'hourly'    => $this->hourlyLabel($offer, $locale),
+                    'country' => $loc->countryLabel(),
+                    'flag' => $loc->flagEmoji(),
+                    'flag_svg' => $loc->flagSvg(),
+                    'city' => $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel(),
+                    'name' => (string) $offer->public_name,
+                    'vcpu' => (int) $offer->vcpu,
+                    'ram' => $offer->ramLabel(),
+                    'disk' => $offer->diskLabel(),
+                    'traffic' => $offer->trafficLabel($locale),
+                    'cpu_kind' => $offer->cpuKindLabel($locale),
+                    'hourly' => $this->hourlyLabel($offer, $locale),
                     // عددِ خامِ نشانه‌گذاری: ریال برای fa (IRR = ریال، نه تومان)، یورو
                     // برای بقیه؛ نبودِ قیمتِ ارزی یعنی null و ویو Offer نمی‌سازد.
-                    'ld_price'  => $isFa
+                    'ld_price' => $isFa
                         ? (int) schema_price_irr($offer->hourlyIrt())
                         : ($offer->hourlyEurCents() > 0 ? $offer->hourlyEurCents() / 100 : null),
-                    'monthly'   => $offer->priceLabel($locale),
+                    'monthly' => $offer->priceLabel($locale),
                     'min_start' => $isFa
                         ? fa_num(number_format($offer->hourlyStartMinIrt())).' تومان'
                         : '€'.number_format($offer->hourlyEurCents() * CloudPlan::HOURLY_START_MIN_HOURS / 100, 2),
-                    'buy_url'   => lroute('account.cloud.store')
+                    'buy_url' => lroute('account.cloud.store')
                         .'?location='.urlencode((string) $loc->code)
                         .'&plan='.urlencode((string) $offer->slug)
                         .'&billing_mode=hourly',

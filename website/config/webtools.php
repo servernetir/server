@@ -330,7 +330,7 @@ return [
                 ],
                 'image-cropper' => [
                     'icon' => 'layout',
-                    'fa' => ['t' => 'برش تصویر آنلاین', 'd' => 'برش عکس با کادر کشیدنی و نسبت‌های آماده، بدون آپلود روی سرور'],
+                    'fa' => ['t' => 'برش عکس آنلاین', 'd' => 'برش عکس با کادر کشیدنی و نسبت دلخواه؛ خروجی PNG یا JPEG، با پردازش داخل مرورگر و بدون آپلود فایل'],
                     'en' => ['t' => 'Image Cropper', 'd' => 'Crop images with a draggable frame and aspect presets, in your browser.'],
                     'tr' => ['t' => 'Görsel Kırpma Aracı', 'd' => 'Sürüklenebilir çerçeve ve hazır oranlarla görselleri tarayıcıda kırpın.'],
                 ],
