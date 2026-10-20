@@ -154,9 +154,11 @@ export async function handle(request, env = {}, fetcher = fetch) {
         'Sec-WebSocket-Protocol': 'binary',
       }, fetcher);
       if (r.status !== 101 || !r.webSocket) return reply('Connection unavailable', 502);
+      // The claim is already single-use. Do not clear the shared cookie here:
+      // a newer tab may have replaced it while this upgrade was pending.
+      // Its original 90-second expiry still bounds the browser credential.
       return new Response(null, {status: 101, webSocket: r.webSocket, headers: {
         'Sec-WebSocket-Protocol': 'binary', 'Cache-Control': 'no-store',
-        'Set-Cookie': COOKIE + '=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Strict',
       }});
     }
     return reply('Not found', 404);
