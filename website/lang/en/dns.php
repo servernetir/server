@@ -13,6 +13,7 @@ return [
         'domain' => 'Domain name',
         'submit' => 'Add',
         'hint'   => 'Enter the registered domain only (e.g. example.com). You first prove ownership with a TXT record; nothing is published until then.',
+        'paused' => 'Adding new domains is temporarily unavailable. Your existing domains keep working and can still be edited.',
     ],
 
     'list' => [
@@ -59,6 +60,7 @@ return [
         'expired'       => 'This request has expired. Add the domain again.',
         'not_pending'   => 'This request is no longer active.',
         'zone_limit'    => 'You have reached the domain limit.',
+        'zone_deleting' => 'A previous copy of this domain is still being removed. Check again in a few minutes; the same TXT record stays valid.',
     ],
 
     'zone' => [
@@ -126,6 +128,9 @@ return [
         'current_dmarc'        => 'DMARC',
         'current_dmarc_warn'   => 'Your current DNS has a DMARC record that is missing here.',
         'current_dmarc_unknown' => 'Current records could not be read.',
+        'current_dkim'         => 'Email signing (DKIM)',
+        'current_dkim_warn'    => 'Your current DNS has :count DKIM key(s) that are missing here; without them your email may land in spam.',
+        'current_dkim_unknown' => 'Current records could not be read.',
         'current_caa'          => 'CAA',
         'current_caa_warn'     => 'Your current DNS has a CAA record that is missing here.',
         'current_caa_unknown'  => 'Current records could not be read.',
@@ -238,6 +243,7 @@ return [
     ],
 
     'import' => [
+        'ttl_aligned' => 'TTL changed from :from to :ttl seconds to match the other records with this name.',
         'title'          => 'Import records',
         'why'            => 'Your current records must be here before you change the nameservers; otherwise the website and email stop working immediately.',
         'file_title'     => 'Zone file (recommended)',

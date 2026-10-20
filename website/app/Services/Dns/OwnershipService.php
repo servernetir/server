@@ -30,7 +30,7 @@ class OwnershipService
     public const TXT_PREFIX = 'servernet-domain-verification=';
 
     /** نتیجه‌های verify (کلیدِ dns.claim.<code>) */
-    public const RESULTS = ['verified', 'txt_missing', 'txt_mismatch', 'lookup_failed', 'expired', 'not_pending'];
+    public const RESULTS = ['verified', 'txt_missing', 'txt_mismatch', 'lookup_failed', 'expired', 'not_pending', 'zone_limit', 'zone_deleting'];
 
     public function __construct(
         private readonly DelegationInspector $inspector,
@@ -61,13 +61,14 @@ class OwnershipService
             return $this->out(false, 'domain_reserved');
         }
 
+        // پیش از «zoneِ خودت»: zoneِ در حالِ حذفِ خودِ مشتری صفحه‌ای ندارد (۴۰۴)
+        if ($this->zones->busy($domain)) {
+            return $this->out(false, 'zone_deleting');
+        }
+
         $mine = CdnZone::query()->where('domain', $domain)->where('customer_id', $customer->id)->first();
         if ($mine) {
             return $this->out(true, 'zone_exists', [], $mine);
-        }
-
-        if ($this->zones->busy($domain)) {
-            return $this->out(false, 'zone_deleting');
         }
 
         if ($this->registeredHere($customer, $domain)) {
@@ -82,11 +83,13 @@ class OwnershipService
 
                     return [$this->zones->adoptVerified($customer, $domain, $claim, 'registered', $ip), $claim];
                 });
+            } catch (AdoptRefused $e) {
+                return $this->out(false, $e->reason);
             } finally {
                 $lock->release();
             }
 
-            return $zone ? $this->out(true, 'zone_created', [], $zone, $claim) : $this->out(false, 'zone_limit');
+            return $this->out(true, 'zone_created', [], $zone, $claim);
         }
 
         $pending = DnsOwnershipClaim::query()->pending()->forCustomer($customer->id)->where('domain', $domain)->latest('id')->first();
@@ -159,18 +162,20 @@ class OwnershipService
             return $this->out(false, 'lookup_failed', [], null, $claim);
         }
 
+        $attempts = (int) $claim->attempts;
         try {
             $zone = DB::transaction(function () use ($claim, $customer, $ip) {
                 $claim->forceFill(['status' => DnsOwnershipClaim::VERIFIED, 'verified_at' => now(), 'verified_via' => 'txt', 'last_result' => 'verified'])->save();
 
                 return $this->zones->adoptVerified($customer, $claim->domain, $claim, 'txt', $ip);
             });
+        } catch (AdoptRefused $e) {
+            // تراکنش برگشت: ادعا «در انتظار» می‌مانَد و همان TXT بعداً هنوز کار می‌کند
+            $claim->refresh()->forceFill(['attempts' => $attempts, 'last_checked_at' => now(), 'last_result' => $e->reason])->save();
+
+            return $this->out(false, $e->reason, [], null, $claim);
         } finally {
             $lock->release();
-        }
-
-        if ($zone === null) {
-            return $this->out(false, 'zone_limit', [], null, $claim);
         }
 
         return $this->out(true, 'verified', [], $zone, $claim);

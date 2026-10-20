@@ -98,6 +98,18 @@
   </div>
 
   <div class="ad-panel">
+    @if($reconcile)
+      <div style="font-size:12.5px;line-height:1.9;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--line)">
+        <b>آخرین تطبیق</b> <span style="color:var(--dim)">{{ sdate(\Illuminate\Support\Carbon::parse($reconcile['at']), true) }}</span>
+        — اختلاف: {{ $reconcile['drift'] }} · خطای خواندن: <span style="color:{{ $reconcile['failed'] ? 'var(--red)' : 'inherit' }}">{{ $reconcile['failed'] }}</span>
+        · یتیم روی primary: <span style="color:{{ $reconcile['orphan_count'] ? 'var(--amber)' : 'inherit' }}">{{ $reconcile['orphan_count'] }}</span>
+        @unless($reconcile['listed'])<span style="color:var(--amber)">(فهرستِ primary خوانده نشد)</span>@endunless
+        @if($reconcile['orphans'])
+          <div dir="ltr" style="text-align:left;font-family:ui-monospace,monospace;font-size:11.5px">{{ implode(' · ', $reconcile['orphans']) }}</div>
+          <div style="color:var(--dim);font-size:11.5px">zoneهایی که روی primary هستند ولی در پنل نیستند. خودکار حذف نمی‌شوند؛ پیش از حذفِ دستی بررسی کنید که دامنه به ما تفویض نشده باشد.</div>
+        @endif
+      </div>
+    @endif
     <div class="ad-panel-h"><h3>رویدادها</h3></div>
     <div style="max-height:420px;overflow:auto">
       @forelse($events as $e)

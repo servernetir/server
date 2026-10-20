@@ -69,10 +69,12 @@ class ZonePublisher
                 return PublishResult::fail('skipped');
             }
 
-            return match ($zone->status) {
-                'deleting'  => $this->deleteRemote($zone, final: true),
-                'suspended' => $this->deleteRemote($zone, final: false),
-                default     => $this->publishNow($zone),
+            return match (true) {
+                $zone->status === 'deleting'  => $this->deleteRemote($zone, final: true),
+                $zone->status === 'suspended' => $this->deleteRemote($zone, final: false),
+                // ردیفِ v1 بی‌اثباتِ v2: هرگز روی نیم‌سرورهای ما نمی‌رود (ضدِ تصاحب)
+                ! $zone->ownershipProven()    => PublishResult::fail('unproven'),
+                default                       => $this->publishNow($zone),
             };
         } catch (\Throwable $e) {
             return $this->failed($zone, 'internal: '.mb_substr($e->getMessage(), 0, 180));
@@ -320,15 +322,20 @@ class ZonePublisher
      */
     private function deleteRemote(CdnZone $zone, bool $final): PublishResult
     {
+        $version = (int) $zone->desired_version;
         $r = $this->pdns->deleteZone($zone->domain);
         if (! $r['ok']) {
             return $this->failed($zone, 'delete: '.$r['error']);
         }
 
         if (! $final) {
-            CdnZone::query()->whereKey($zone->getKey())->update([
+            // ⚠️ applied_version هم باید جلو برود: وگرنه انتخابگرِ dns:publish
+            // (`applied_version < desired_version`) هر دقیقه دوباره DELETE می‌فرستد و
+            // zoneهای معلق کلِ سهمیهٔ هر اجرا را می‌خورند. شرطی، مثلِ گامِ پایانیِ انتشار.
+            CdnZone::query()->whereKey($zone->getKey())->where('status', 'suspended')->update([
                 'publish_state' => 'deleted', 'publish_attempts' => 0, 'next_publish_at' => null,
                 'last_publish_error' => null, 'primary_serial' => null,
+                'applied_version' => DB::raw('CASE WHEN applied_version < '.$version.' THEN '.$version.' ELSE applied_version END'),
             ]);
 
             return new PublishResult(true, 'suspended');

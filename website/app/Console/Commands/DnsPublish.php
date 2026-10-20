@@ -38,6 +38,9 @@ class DnsPublish extends Command
             })->where(fn ($w) => $w->whereNull('next_publish_at')->orWhere('next_publish_at', '<=', now()));
         }
 
+        // بی‌اثبات (ردیفِ v1) فقط برای حذف/تعلیق برداشته می‌شود — وگرنه هر دقیقه سهمیه می‌خورد
+        $q->where(fn ($w) => $w->whereIn('ownership', CdnZone::PROVEN)->orWhereIn('status', ['deleting', 'suspended']));
+
         $done = ['ok' => 0, 'fail' => 0];
         $q->orderByRaw('next_publish_at IS NOT NULL, next_publish_at')->orderBy('id')
             ->limit(max(1, (int) $this->option('limit')))->get()

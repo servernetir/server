@@ -96,7 +96,8 @@
                   <td class="c-name" dir="ltr">{{ $row['name'] ? \App\Services\Dns\DomainName::relative($row['name'], $zone->domain) : '' }}</td>
                   <td class="c-val" dir="ltr">{{ $val }}</td>
                   <td><span class="dns-pill {{ $pill }}">{{ __('dns.import.status_'.$row['status']) }}</span>
-                    @if($codeKey)<span class="c-note" dir="auto">{{ __($codeKey) }}</span>@endif</td>
+                    @if($codeKey)<span class="c-note" dir="auto">{{ __($codeKey, $row['params'] ?? []) }}</span>@endif
+                    @if($row['ttl_from'] ?? null)<span class="c-note" dir="auto">{{ __('dns.import.ttl_aligned', ['from' => $row['ttl_from'], 'ttl' => $d['ttl']]) }}</span>@endif</td>
                 </tr>
               @endforeach
             </tbody>

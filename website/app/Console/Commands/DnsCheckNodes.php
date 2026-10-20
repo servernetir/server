@@ -22,7 +22,8 @@ class DnsCheckNodes extends Command
 
     public function handle(NodeVerifier $verifier): int
     {
-        if (! Schema::hasTable('dns_zone_nodes')) {
+        // مهاجرتِ نیمه‌کاره روی MariaDB (DDL تراکنشی نیست): جدولِ نودها هست ولی ستون‌های cdn_zones نه
+        if (! Schema::hasTable('dns_zone_nodes') || ! Schema::hasTable('cdn_zones') || ! Schema::hasColumn('cdn_zones', 'primary_serial')) {
             return self::SUCCESS;
         }
 
@@ -40,7 +41,10 @@ class DnsCheckNodes extends Command
         }
 
         $n = 0;
-        $q->orderBy('id')->limit(max(1, (int) $this->option('limit')))->get()
+        // قدیمی‌ترین بررسی اول (بی‌بررسی‌ها پیش از همه)، تا با سقفِ limit هیچ zoneی همیشه جا نماند
+        $oldest = '(select min(n.checked_at) from dns_zone_nodes n where n.cdn_zone_id = cdn_zones.id)';
+        $q->orderByRaw("$oldest is not null")->orderByRaw($oldest)->orderBy('id')
+            ->limit(max(1, (int) $this->option('limit')))->get()
             ->each(function (CdnZone $z) use ($verifier, &$n) {
                 $verifier->check($z);
                 $n++;

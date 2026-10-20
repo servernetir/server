@@ -51,6 +51,14 @@ class DnsCheckDelegation extends Command
                 if ($was === 'pending' && $r['active']) {
                     $activated++;
                 }
+                // هشدارهای ایمیل/DKIMِ چک‌لیست (§7) — فقط پیش از تفویض و حداکثر هر ۱۲ ساعت
+                if ($r['state'] !== 'delegated' && $zones->cachedEmailGaps($z) === null) {
+                    try {
+                        $zones->probeEmailGaps($z->fresh() ?? $z);
+                    } catch (\Throwable) {
+                        // بهترین تلاش؛ چک‌لیست بی‌آن هم کار می‌کند
+                    }
+                }
             });
 
         $this->info("checked: $checked · activated: $activated · claims expired: $expired");

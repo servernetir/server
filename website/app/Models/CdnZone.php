@@ -303,10 +303,16 @@ class CdnZone extends Model
         return $this->status === 'pending';
     }
 
+    /**
+     * راه‌های اثباتِ v2 (§5.2). ⚠️ `delegated`ِ v1 («NS را به ما داده») عمداً نیست:
+     * اثباتِ مالکیت نیست (§5.1) — ردیفِ v1 با آن یا با NULL هرگز منتشر نمی‌شود.
+     */
+    public const PROVEN = ['registered', 'txt', 'transfer'];
+
     /** مالکیت اثبات شده؟ (نه فقط ادعا) */
     public function ownershipProven(): bool
     {
-        return in_array($this->ownership, ['registered', 'txt', 'delegated'], true);
+        return in_array($this->ownership, self::PROVEN, true);
     }
 
     /** تاریخی که zoneِ در انتظار، اگر تفویض نشود، پاک می‌شود */

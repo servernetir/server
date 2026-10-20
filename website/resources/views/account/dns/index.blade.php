@@ -25,6 +25,9 @@
   <section class="pnl-sec">
     <div class="pnl-sec-h"><h2>{{ __('dns.add.title') }}</h2></div>
     <div class="pnl-sec-b">
+      @unless($canAdd)
+      <div class="dns-note warn" role="status">{{ __('dns.add.paused') }}</div>
+      @else
       <form method="POST" action="{{ lroute('account.dns') }}" class="dns-add">
         @csrf
         <input class="dns-input dns-ltr" name="domain" dir="ltr" autocomplete="off" spellcheck="false" inputmode="url"
@@ -32,6 +35,7 @@
         <button class="pnl-btn primary" type="submit"><svg class="icon"><use href="#i-plus"/></svg>{{ __('dns.add.submit') }}</button>
       </form>
       <p class="dns-t-dim dns-small">{{ __('dns.add.hint') }}</p>
+      @endunless
     </div>
   </section>
 

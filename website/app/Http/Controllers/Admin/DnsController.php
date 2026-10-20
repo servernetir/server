@@ -9,6 +9,7 @@ use App\Models\DnsZoneNode;
 use App\Models\Setting;
 use App\Services\Dns\DelegationInspector;
 use App\Services\Dns\DnsConfig;
+use App\Services\Dns\DomainName;
 use App\Services\Dns\PowerDnsClient;
 use App\Services\Dns\ZoneService;
 use Illuminate\Http\RedirectResponse;
@@ -65,6 +66,7 @@ class DnsController extends Controller
             'nameservers' => DnsConfig::nameservers(),
             'nsErrors'    => DnsConfig::nameserverErrors(),
             'health'      => session('dns_health'),
+            'reconcile'   => json_decode((string) Setting::get(\App\Console\Commands\DnsReconcile::REPORT_KEY), true) ?: null,
             'events'      => $ready ? CdnEvent::query()->audits()->orderByDesc('id')->limit(25)->get() : collect(),
         ]);
     }
@@ -185,7 +187,7 @@ class DnsController extends Controller
     public function destroy(Request $request, int $zone): RedirectResponse
     {
         $z = $this->zone($zone);
-        if (strtolower(rtrim(trim((string) $request->input('confirm')), '.')) !== $z->domain) {
+        if (DomainName::normalize((string) $request->input('confirm')) !== $z->domain) {
             return back()->withErrors(['dns' => 'برای حذف، نامِ دامنه را دقیقاً وارد کنید.']);
         }
         $this->zones->requestDelete($z, 'admin:'.auth()->id(), $request->ip());

@@ -13,6 +13,7 @@ return [
         'domain' => 'Alan adı',
         'submit' => 'Ekle',
         'hint'   => 'Yalnızca kayıtlı alan adını girin (ör. example.com). Önce bir TXT kaydıyla sahipliğinizi kanıtlarsınız; o zamana kadar hiçbir şey yayınlanmaz.',
+        'paused' => 'Yeni alan adı ekleme geçici olarak kullanılamıyor. Mevcut alan adlarınız çalışmaya devam eder ve düzenlenebilir.',
     ],
 
     'list' => [
@@ -59,6 +60,7 @@ return [
         'expired'       => 'Bu isteğin süresi doldu. Alan adını yeniden ekleyin.',
         'not_pending'   => 'Bu istek artık etkin değil.',
         'zone_limit'    => 'Alan adı sınırına ulaştınız.',
+        'zone_deleting' => 'Bu alan adının önceki bir kopyası hâlâ kaldırılıyor. Birkaç dakika sonra yeniden kontrol edin; aynı TXT kaydı geçerliliğini korur.',
     ],
 
     'zone' => [
@@ -126,6 +128,9 @@ return [
         'current_dmarc'        => 'DMARC',
         'current_dmarc_warn'   => 'Mevcut DNS\'inizde burada olmayan bir DMARC kaydı var.',
         'current_dmarc_unknown' => 'Mevcut kayıtlar okunamadı.',
+        'current_dkim'         => 'E-posta imzası (DKIM)',
+        'current_dkim_warn'    => 'Mevcut DNS kayıtlarınızda burada bulunmayan :count DKIM anahtarı var; bunlar olmadan e-postalarınız spama düşebilir.',
+        'current_dkim_unknown' => 'Mevcut kayıtlar okunamadı.',
         'current_caa'          => 'CAA',
         'current_caa_warn'     => 'Mevcut DNS\'inizde burada olmayan bir CAA kaydı var.',
         'current_caa_unknown'  => 'Mevcut kayıtlar okunamadı.',
@@ -238,6 +243,7 @@ return [
     ],
 
     'import' => [
+        'ttl_aligned' => 'TTL, bu addaki diğer kayıtlarla aynı olması için :from saniyeden :ttl saniyeye değiştirildi.',
         'title'          => 'Kayıtları içe aktar',
         'why'            => 'Ad sunucularını değiştirmeden önce mevcut kayıtlarınız burada olmalıdır; aksi halde web sitesi ve e-posta hemen çalışmayı durdurur.',
         'file_title'     => 'Zone dosyası (önerilir)',

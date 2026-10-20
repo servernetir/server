@@ -11,6 +11,7 @@ use App\Models\DnsZoneNode;
 use App\Models\Service;
 use App\Services\Dns\ZoneFile\ZoneFileParser;
 use App\Services\Dns\ZoneFile\ZoneFileWriter;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -41,14 +42,16 @@ class ZoneService
     }
 
     /**
-     * zone برای مالکِ اثبات‌شده: ساخت، یا انتقال از حسابِ دیگر (§5.2). null = سقف یا حذفِ در جریان.
+     * zone برای مالکِ اثبات‌شده: ساخت، یا انتقال از حسابِ دیگر (§5.2).
+     *
+     * @throws AdoptRefused zone_deleting|zone_limit — فراخوان باید تراکنش را برگرداند
      */
-    public function adoptVerified(Customer $customer, string $domain, DnsOwnershipClaim $claim, string $via, ?string $ip = null): ?CdnZone
+    public function adoptVerified(Customer $customer, string $domain, DnsOwnershipClaim $claim, string $via, ?string $ip = null): CdnZone
     {
         $existing = CdnZone::query()->where('domain', $domain)->lockForUpdate()->first();
 
         if ($existing && $existing->status === 'deleting') {
-            return null;
+            throw new AdoptRefused('zone_deleting');
         }
 
         if ($existing && (int) $existing->customer_id === (int) $customer->id) {
@@ -72,8 +75,9 @@ class ZoneService
             return $existing;
         }
 
-        if (CdnZone::query()->where('customer_id', $customer->id)->count() >= DnsConfig::limit('zones_per_customer')) {
-            return null;
+        // zoneِ در حالِ حذف سهمیه نمی‌خورد
+        if (CdnZone::query()->where('customer_id', $customer->id)->where('status', '!=', 'deleting')->count() >= DnsConfig::limit('zones_per_customer')) {
+            throw new AdoptRefused('zone_limit');
         }
 
         $zone = CdnZone::create([
@@ -304,13 +308,20 @@ class ZoneService
             $truncated = $pz->truncated;
         }
 
-        $existing = $zone->records()->get()->map(fn ($r) => $r->only(['id', 'type', 'name', 'content', 'prio', 'ttl']))->all();
+        $existing = $zone->records()->orderBy('id')->get()->map(fn ($r) => $r->only(['id', 'type', 'name', 'content', 'prio', 'ttl']))->all();
         $accepted = [];
         $rows = [];
         $counts = ['new' => 0, 'duplicate' => 0, 'conflict' => 0, 'invalid' => 0, 'skipped' => 0, 'unsupported' => 0];
 
+        // TTL مالِ RRset است (§6.2): ردیفِ تازه TTLِ RRsetِ موجود (یا اولین ردیفِ پذیرفته‌شدهٔ
+        // همین فایل) را می‌گیرد؛ رکوردِ موجود هرگز عوض نمی‌شود. همان ترتیبِ id که desired() می‌خواند.
+        $rrsetTtl = [];
+        foreach ($existing as $e) {
+            $rrsetTtl[$e['type'].'|'.$e['name']] ??= (int) $e['ttl'];
+        }
+
         foreach ($parsed as $row) {
-            $out = ['line' => $row['line'], 'type' => $row['type'], 'name' => $row['name'], 'status' => $row['status'], 'code' => $row['code'], 'data' => null];
+            $out = ['line' => $row['line'], 'type' => $row['type'], 'name' => $row['name'], 'status' => $row['status'], 'code' => $row['code'], 'params' => [], 'data' => null, 'ttl_from' => null];
 
             if ($row['status'] === 'parsed') {
                 $v = $this->validator->validate($zone->domain, $row['input']);
@@ -318,16 +329,24 @@ class ZoneService
                     $first = reset($v['errors']);
                     $out['status'] = 'invalid';
                     $out['code'] = $first['code'];
+                    $out['params'] = $this->scalarParams($first['params'] ?? []);
                 } else {
                     $out['data'] = $v['data'];
                     $out['name'] = $v['data']['name'];
                     $c = $this->validator->conflicts($v['data'], array_merge($existing, $accepted));
                     if ($c === null) {
+                        $key = $v['data']['type'].'|'.$v['data']['name'];
+                        if (isset($rrsetTtl[$key]) && $rrsetTtl[$key] !== (int) $v['data']['ttl']) {
+                            $out['ttl_from'] = (int) $v['data']['ttl'];
+                            $out['data']['ttl'] = $rrsetTtl[$key];
+                        }
+                        $rrsetTtl[$key] ??= (int) $out['data']['ttl'];
                         $out['status'] = 'new';
-                        $accepted[] = $v['data'] + ['id' => null];
+                        $accepted[] = $out['data'] + ['id' => null];
                     } else {
                         $out['status'] = $c['code'] === 'duplicate' ? 'duplicate' : 'conflict';
                         $out['code'] = $c['code'];
+                        $out['params'] = $this->scalarParams($c['params'] ?? []);
                     }
                 }
             }
@@ -388,6 +407,12 @@ class ZoneService
         return ['added' => $added, 'counts' => $counts, 'skipped' => $skipped];
     }
 
+    /** پارامترهای پیام برای __() — فقط مقدارهای ساده (پیش‌نمایش در session هم می‌ماند) */
+    private function scalarParams(array $params): array
+    {
+        return array_map(fn ($v) => is_scalar($v) ? (string) $v : '', $params);
+    }
+
     public function exportZoneFile(CdnZone $zone): string
     {
         return (new ZoneFileWriter)->write(
@@ -440,8 +465,12 @@ class ZoneService
         $ds = (array) ($zone->parent_ds ?? []);
         $items[] = ['key' => 'dnssec', 'state' => $ds !== [] ? 'block' : ($zone->delegation_checked_at ? 'ok' : 'unknown'), 'params' => ['count' => count($ds)]];
 
-        if ($probeCurrent && $zone->delegation_state !== 'delegated') {
-            foreach ($this->emailGaps($zone) as $gap) {
+        // پیش از تفویض: رکوردهای ایمیل/گواهیِ DNSِ فعلی که این‌جا نیست (§7).
+        // $probeCurrent=false (بارگذاریِ صفحه) فقط نتیجهٔ ذخیره‌شده را می‌خواند؛
+        // پرس‌وجوی تازه با دکمهٔ «بررسی» (throttle) و کرونِ dns:check-delegation است.
+        if ($zone->delegation_state !== 'delegated') {
+            $gaps = $probeCurrent ? $this->probeEmailGaps($zone) : ($this->cachedEmailGaps($zone) ?? []);
+            foreach ($gaps as $gap) {
                 $items[] = $gap;
             }
         }
@@ -451,15 +480,49 @@ class ZoneService
         return ['items' => $items, 'blocking' => $blocking];
     }
 
+    public const GAPS_CACHE = 'dns:email-gaps:';
+
+    /** پرس‌وجوی تازه + ذخیره برای ۱۲ ساعت. پس از تفویض چیزی برای مقایسه نیست. */
+    public function probeEmailGaps(CdnZone $zone): array
+    {
+        $items = $zone->delegation_state === 'delegated' ? [] : $this->emailGaps($zone);
+        Cache::put(self::GAPS_CACHE.$zone->getKey(), ['at' => now()->toIso8601String(), 'items' => $items], now()->addHours(12));
+
+        return $items;
+    }
+
+    /** @return ?list<array> null = هنوز سنجیده نشده */
+    public function cachedEmailGaps(CdnZone $zone): ?array
+    {
+        $c = Cache::get(self::GAPS_CACHE.$zone->getKey());
+
+        return is_array($c) && is_array($c['items'] ?? null) ? $c['items'] : null;
+    }
+
     /**
      * رکوردهای ایمیل/گواهی که الان در DNSِ فعلیِ دامنه هست و این‌جا نیست.
+     *
+     * تفویضِ والد یک بار خوانده می‌شود و همهٔ پرس‌وجوها مستقیم به همان
+     * نیم‌سرورهای authoritative می‌روند (نه resolver). خطای خواندن = «نامعلوم»، نه «نیست».
      *
      * @return list<array{key:string, state:string, params:array}>
      */
     private function emailGaps(CdnZone $zone): array
     {
+        return $this->inspector->batch(fn (): array => $this->emailGapsNow($zone));
+    }
+
+    private function emailGapsNow(CdnZone $zone): array
+    {
         $have = $zone->records()->get();
         $d = $zone->domain;
+        $keys = ['mx', 'spf', 'dmarc', 'dkim', 'caa'];
+
+        $del = $this->inspector->parentDelegation($d);
+        if (($del['servers'] ?? []) === []) {
+            return array_map(fn ($k) => ['key' => 'current_'.$k, 'state' => 'unknown', 'params' => []], $keys);
+        }
+
         $checks = [
             'mx'    => [$d, 'MX', fn () => $have->where('type', 'MX')->where('name', $d)->isNotEmpty()],
             'spf'   => [$d, 'TXT', fn () => $have->where('type', 'TXT')->where('name', $d)->contains(fn ($r) => str_contains(strtolower($r->content), 'v=spf1'))],
@@ -469,9 +532,9 @@ class ZoneService
 
         $out = [];
         foreach ($checks as $key => [$name, $type, $present]) {
-            $r = $this->inspector->queryAuthoritative($d, $name, $type);
+            $r = $this->inspector->queryAuthoritative($d, $name, $type, $del);
             if (! $r['ok']) {
-                $out[] = ['key' => 'current_'.$key, 'state' => 'unknown', 'params' => []];
+                $out[$key] = ['key' => 'current_'.$key, 'state' => 'unknown', 'params' => []];
 
                 continue;
             }
@@ -483,11 +546,38 @@ class ZoneService
                 return $key !== 'spf' || str_contains(strtolower(implode('', (array) $rr['data'])), 'v=spf1');
             });
             if ($records !== [] && ! $present()) {
-                $out[] = ['key' => 'current_'.$key, 'state' => 'warn', 'params' => ['count' => count($records)]];
+                $out[$key] = ['key' => 'current_'.$key, 'state' => 'warn', 'params' => ['count' => count($records)]];
             }
         }
 
-        return $out;
+        // DKIM: selectorهای رایج (همان فهرستِ اسکن). TXT یا CNAME در DNSِ فعلی،
+        // بی‌هیچ‌کدام این‌جا ⇒ امضای ایمیل پس از تغییرِ NS می‌شکند.
+        $missing = 0;
+        $unknown = false;
+        foreach (ZoneImporter::DKIM_SELECTORS as $sel) {
+            $name = $sel.'._domainkey.'.$d;
+            $here = $have->whereIn('type', ['TXT', 'CNAME'])->where('name', $name)->isNotEmpty();
+            foreach (['TXT', 'CNAME'] as $type) {
+                $r = $this->inspector->queryAuthoritative($d, $name, $type, $del);
+                if (! $r['ok']) {
+                    $unknown = true;
+
+                    continue;
+                }
+                if (collect($r['records'])->contains(fn ($rr) => $rr['type'] === $type)) {
+                    $missing += $here ? 0 : 1;
+
+                    break;
+                }
+            }
+        }
+        if ($missing > 0) {
+            $out['dkim'] = ['key' => 'current_dkim', 'state' => 'warn', 'params' => ['count' => $missing]];
+        } elseif ($unknown) {
+            $out['dkim'] = ['key' => 'current_dkim', 'state' => 'unknown', 'params' => []];
+        }
+
+        return array_values(array_intersect_key(array_merge(array_flip($keys), $out), $out));
     }
 
     /* ═════════════════════ کمکی ═════════════════════ */

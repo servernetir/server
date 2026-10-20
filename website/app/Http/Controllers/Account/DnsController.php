@@ -8,6 +8,7 @@ use App\Models\CdnRecord;
 use App\Models\CdnZone;
 use App\Models\DnsOwnershipClaim;
 use App\Services\Dns\DnsConfig;
+use App\Services\Dns\DomainName;
 use App\Services\Dns\OwnershipService;
 use App\Services\Dns\TxtCodec;
 use App\Services\Dns\ZoneImporter;
@@ -16,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -38,10 +40,11 @@ class DnsController extends Controller
     public function index(): View
     {
         $c = $this->customer();
-        $ready = $this->ready();
+        $ready = $this->visible();
 
         return view('account.dns.index', AccountController::shell('dns') + [
             'ready'       => $ready,
+            'canAdd'      => $ready && DnsConfig::serviceOpen(),
             'zones'       => $ready ? CdnZone::forCustomer($c->id)->where('mode', 'ns')->withCount('records')->orderByDesc('id')->get() : collect(),
             'claims'      => $ready ? DnsOwnershipClaim::query()->pending()->forCustomer($c->id)->orderByDesc('id')->get() : collect(),
             'nameservers' => DnsConfig::nameserverHosts(),
@@ -77,6 +80,7 @@ class DnsController extends Controller
 
     public function verifyClaim(Request $request, int $claim): RedirectResponse
     {
+        $this->open();
         $c = $this->claimOf($claim);
         $r = $this->ownership->verify($c, $request->ip());
 
@@ -121,6 +125,9 @@ class DnsController extends Controller
     {
         $z = $this->zoneOf($zone);
         $r = $this->zones->checkDelegation($z);
+        if ($r['state'] !== 'delegated') {
+            $this->zones->probeEmailGaps($z->fresh() ?? $z);
+        }
 
         return back()->with('ok', __('dns.delegation.result_'.$r['state']));
     }
@@ -147,7 +154,8 @@ class DnsController extends Controller
     public function destroy(Request $request, int $zone): RedirectResponse
     {
         $z = $this->zoneOf($zone);
-        if (strtolower(rtrim(trim((string) $request->input('confirm')), '.')) !== $z->domain) {
+        // نامِ یونیکدیِ دامنه (همان که عنوانِ صفحه نشان می‌دهد) هم پذیرفته است
+        if (DomainName::normalize((string) $request->input('confirm')) !== $z->domain) {
             return back()->withErrors(['delete' => __('dns.ui.delete_confirm_mismatch')]);
         }
         $this->zones->requestDelete($z, $this->actor(), $request->ip());
@@ -223,10 +231,16 @@ class DnsController extends Controller
             // ردیف‌های اسکن روی سرور می‌مانند؛ اعمال هرگز دادهٔ آماده‌ای از مرورگر نمی‌پذیرد
             session(['dns_scan.'.$z->id => $scan]);
         } else {
-            $request->validate([
+            // خطا زیرِ کلیدِ `import` — صفحه فقط همان را نشان می‌دهد؛ با validate()ِ معمولی
+            // خطای `zonefile`/`text` جایی دیده نمی‌شد و فرم بی‌پیام برمی‌گشت.
+            $v = Validator::make($request->all(), [
                 'zonefile' => ['nullable', 'file', 'max:'.(int) ceil(DnsConfig::limit('import_max_bytes') / 1024)],
                 'text'     => ['nullable', 'string', 'max:'.DnsConfig::limit('import_max_bytes')],
             ]);
+            if ($v->fails()) {
+                // تنها خطای واقعیِ این دو قاعده اندازه است (سقفِ ما یا upload_max_filesizeِ PHP)
+                return back()->withErrors(['import' => __('dns.import.file_too_large')]);
+            }
             $text = $request->hasFile('zonefile') ? (string) file_get_contents($request->file('zonefile')->getRealPath()) : (string) $request->input('text', '');
             if (trim($text) === '') {
                 return back()->withErrors(['import' => __('dns.import.empty')]);
@@ -274,9 +288,22 @@ class DnsController extends Controller
         return 'customer:'.Auth::guard('customer')->id();
     }
 
+    /**
+     * دو دروازه:
+     * - `visible()` = جدول‌ها + پرچمِ عرضه. پرچم خاموش ⇒ **همهٔ** مسیرهای مشتری ۴۰۴
+     *   (کلیدِ قطعِ اضطراری؛ zoneهای تفویض‌شده روی نیم‌سرورها می‌مانند و حذف نمی‌شوند).
+     * - `ready()` = visible + اتصالِ کامل (API و دو نیم‌سرور). فقط پذیرشِ دامنهٔ تازه
+     *   (افزودن و اثباتِ مالکیت) به آن نیاز دارد؛ اگر اتصال موقتاً ناقص شد، مشتریِ
+     *   موجود هنوز رکوردهایش را می‌بیند و ویرایش می‌کند و ناشر با backoff می‌فرستد.
+     */
+    private function visible(): bool
+    {
+        return Schema::hasTable('cdn_zones') && Schema::hasTable('dns_ownership_claims') && DnsConfig::enabled();
+    }
+
     private function ready(): bool
     {
-        return Schema::hasTable('cdn_zones') && Schema::hasTable('dns_ownership_claims') && DnsConfig::serviceOpen();
+        return $this->visible() && DnsConfig::serviceOpen();
     }
 
     private function open(): void
@@ -287,14 +314,14 @@ class DnsController extends Controller
     /** مالکیت — zone */
     private function zoneOf(int $id): CdnZone
     {
-        abort_unless(Schema::hasTable('cdn_zones'), 404);
+        abort_unless($this->visible(), 404);
 
         return CdnZone::forCustomer(Auth::guard('customer')->id())->where('mode', 'ns')->where('status', '!=', 'deleting')->findOrFail($id);
     }
 
     private function claimOf(int $id): DnsOwnershipClaim
     {
-        abort_unless(Schema::hasTable('dns_ownership_claims'), 404);
+        abort_unless($this->visible(), 404);
 
         return DnsOwnershipClaim::query()->forCustomer(Auth::guard('customer')->id())->findOrFail($id);
     }

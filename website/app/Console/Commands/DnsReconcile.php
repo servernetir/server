@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\CdnEvent;
 use App\Models\CdnRecord;
 use App\Models\CdnZone;
+use App\Models\Setting;
 use App\Services\Dns\DnsConfig;
 use App\Services\Dns\PowerDnsClient;
 use App\Services\Dns\ZonePublisher;
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Schema;
 class DnsReconcile extends Command
 {
     protected $signature = 'dns:reconcile {--zone= : فقط یک دامنه}';
+
+    public const REPORT_KEY = 'dns_reconcile_report';
 
     protected $description = 'Managed DNS: detect drift between DB and the PowerDNS primary; report orphans';
 
@@ -45,13 +48,18 @@ class DnsReconcile extends Command
         $failed = 0;
         $q->orderBy('id')->each(function (CdnZone $zone) use ($pdns, $publisher, &$drift, &$failed) {
             $live = $pdns->getZone($zone->domain);
+            if (! $live['ok'] && $live['status'] === 404) {
+                // drift است، نه شکست: دوباره ساخته می‌شود
+                $drift++;
+                CdnEvent::audit('drift_detected', $zone, ['changes' => 'missing_on_primary'], 'system');
+                $zone->bumpVersion();
+                $this->line("~ {$zone->domain}: missing on primary — republish queued");
+
+                return;
+            }
             if (! $live['ok']) {
                 $failed++;
-                $this->line("✗ {$zone->domain}: ".($live['status'] === 404 ? 'missing on primary' : $live['error']));
-                if ($live['status'] === 404) {
-                    $zone->bumpVersion();       // دوباره ساخته می‌شود
-                    $drift++;
-                }
+                $this->line("✗ {$zone->domain}: ".$live['error']);
 
                 return;
             }
@@ -77,6 +85,18 @@ class DnsReconcile extends Command
 
         $this->info("drift: {$drift} · read failures: {$failed} · orphans: ".count($orphans));
 
-        return $failed > 0 ? self::FAILURE : self::SUCCESS;
+        // گزارش برای /admin/dns — خروجیِ کرون را کسی نمی‌خواند (§4.5).
+        // ⚠️ یتیم‌ها فقط گزارش می‌شوند و هرگز خودکار حذف نمی‌شوند.
+        if ($this->option('zone') === null) {
+            Setting::put(self::REPORT_KEY, json_encode([
+                'at' => now()->toIso8601String(), 'drift' => $drift, 'failed' => $failed,
+                'orphans' => array_slice($orphans, 0, 100), 'orphan_count' => count($orphans),
+                'listed' => $list['ok'],
+            ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        }
+
+        // یافته شکستِ فرمان نیست (ScheduledFindingIsNotAFailureTest): خطای خواندن
+        // backoff ندارد ولی در گزارشِ بالا و در /admin/dns دیده می‌شود.
+        return self::SUCCESS;
     }
 }

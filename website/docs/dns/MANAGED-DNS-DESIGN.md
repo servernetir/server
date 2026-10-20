@@ -62,7 +62,7 @@ nameserver endpoints `{host, ipv4, ipv6, port}` used for direct verification que
 
 | Key | Source (Setting overrides config) | Notes |
 |---|---|---|
-| `enabled` | Setting `dns_managed_enabled` ('1'/'0'), default off | **feature flag**; customer UI/menu hidden when off |
+| `enabled` | Setting `dns_managed_enabled` ('1'/'0'), default off | **feature flag / kill switch**: off ⇒ menu hidden and **every** customer DNS route 404s (zones already delegated keep being served; nothing is deleted). On but connection incomplete (no API key/URL or fewer than two nameservers) ⇒ menu hidden, existing zones still viewable and editable (the publisher retries with backoff), adding domains and verifying claims closed |
 | `api_url` | Setting `pdns_api_url` | must be `https://` unless host is loopback/private **and** `DNS_ALLOW_INSECURE_API=true` (lab/dev only) |
 | `api_key` | `Setting::getSecret('pdns_api_key')` | never rendered, logged or returned |
 | `server_id` | config `localhost` | |
@@ -144,17 +144,20 @@ HTTP: `connectTimeout 4s`, `timeout 8s`, no automatic retries inside a run.
 
 ### 4.3 Node verification — `NodeVerifier::check(CdnZone $zone): array`
 For each configured nameserver: direct, non-recursive SOA query (UDP, TCP on truncation) to `ipv4:port` (and `ipv6` if configured). Result per node into `dns_zone_nodes`:
-`in_sync` (AA set, serial ≥ `primary_serial` per RFC 1982), `lagging` (AA, lower serial), `missing` (REFUSED/NOTAUTH/NXDOMAIN or no AA), `unreachable` (timeout/socket error). `dns:check-nodes` runs every 2 minutes for zones published in the last 24 h or not fully in sync, and hourly for the rest; customer/admin "check now" buttons call it for one zone (throttled).
+`in_sync` (AA set, serial ≥ `primary_serial` per RFC 1982), `lagging` (AA, lower serial), `missing` (REFUSED/NOTAUTH/NXDOMAIN or no AA), `unreachable` (timeout/socket error **and SERVFAIL or any other rcode**, so a node whose backend is temporarily broken can never confirm a deletion). `dns:check-nodes` runs every 2 minutes for zones published in the last 24 h or not fully in sync, and hourly for the rest; customer/admin "check now" buttons call it for one zone (throttled).
 "Published" shown to the customer **only** when `publish_state=published` and every node `in_sync` for the current `primary_serial`.
 
 ### 4.4 Deletion
 Customer/admin delete ⇒ `status=deleting`, `publish_state=deleting`, bump version, audit. Publisher: `DELETE /zones/{z}` (404 = done) ⇒ then verifies nodes (`missing` on all ⇒ hard-delete zone, records, node rows; audit `zone_deleted`). Until confirmed the row stays (`deleting`) so the zone cannot silently come back and the domain cannot be re-added by someone else in between. A code rollback never deletes zones: deletion only happens through these explicit paths.
 
 ### 4.5 Reconciliation / drift — `dns:reconcile` (hourly)
-For every zone with `publish_state=published`: GET live rrsets from primary, diff with desired; non-empty diff ⇒ audit `drift_detected` (count) + bump version (republish). Zones present in the catalog/primary but not in DB ⇒ listed as **orphans** for admin (never auto-deleted). Failures are counted, never crash the run; exit code non-zero if any zone failed.
+For every zone with `publish_state=published`: GET live rrsets from primary, diff with desired; non-empty diff ⇒ audit `drift_detected` (count) + bump version (republish). A zone missing on the primary (404) is drift too: it is re-queued, not counted as a failure. Zones present on the primary but not in the DB ⇒ **orphans**. The last run's report (time, drift, read failures, up to 100 orphans) is stored in Setting `dns_reconcile_report` and shown on `/admin/dns`. Orphans are never auto-deleted. Findings never make the scheduled command fail: exit 0 (project rule `ScheduledFindingIsNotAFailureTest`), and read failures are visible in the report.
 
 ### 4.6 Suspension
-`suspended` ⇒ removed from primary (same as delete on the server side, row kept). Unsuspend ⇒ `pending` publish.
+`suspended` ⇒ removed from primary (same as delete on the server side, row kept). The removal sets `applied_version` to the snapshot version, so the per-minute publisher does not send DELETE again. Unsuspend ⇒ `pending` publish.
+
+### 4.7 Legacy v1 rows
+Only zones with v2 proof (`ownership ∈ registered|txt|transfer`, `CdnZone::PROVEN`) are ever published. v1 rows with `ownership` NULL or `delegated` (NS pointing to us is not proof, §5.1) are skipped by `dns:publish` and return `unproven`. They can still be suspended or deleted. Production has no v1 rows (§0); this only protects dev and staging databases.
 
 ---
 
@@ -167,7 +170,7 @@ Trim, strip scheme/path/port, lowercase, strip one trailing dot, IDNA UTS#46 →
 - `start(Customer, raw)`: normalize; reject reserved/our own infrastructure domains (`servernet.cloud`, `servernet.ir`, configured NS hosts' parents); if this customer already owns the zone ⇒ return it; if `Domain` row (status `active`) belongs to this customer ⇒ verified via `registered` immediately; else create or reuse this customer's pending claim (new random token, 7-day expiry).
 - `challenge(claim)`: `{name: "_servernet-challenge.<domain>", type: "TXT", value: "servernet-domain-verification=<token>"}`.
 - `verify(claim)`: `DelegationInspector::parentDelegation(domain)` → current NS set **from the parent**; query each of those servers **directly** (RD=0) for the challenge TXT; success iff at least one authoritative answer (AA) contains the exact value. If the domain's parent NS are **our** nameservers, the TXT can only come from a zone already served by us (owned by someone) — that is the intended semantics; zones of unverified claims are never published, so a claim can never prove itself.
-  Result codes: `verified`, `txt_missing`, `txt_mismatch`, `lookup_failed` (timeout/SERVFAIL/no parent answer — **never** treated as failure of ownership), `expired`.
+  Result codes: `verified`, `txt_missing`, `txt_mismatch`, `lookup_failed` (timeout/SERVFAIL/no parent answer — **never** treated as failure of ownership), `expired`, `zone_deleting` (a previous zone for the domain is still being removed), `zone_limit`. For the last two the transaction is rolled back and the claim **stays pending**, so the published TXT keeps working on the next check. Zones in `deleting` do not count toward the quota.
 - On `verified` (under `Cache::lock("dns:domain:{domain}")` + transaction): if a zone exists for another customer ⇒ **transfer** (customer_id changes, records kept, `ownership=transfer`, audit for both accounts); else create zone (`status=pending`, version 1, `ownership=txt|registered`) and publish. Other customers' claims stay pending (they would need to prove control again).
 - `dns:expire-claims` daily marks old pending claims `expired`.
 
@@ -202,7 +205,7 @@ Out of scope for this phase (we do not sign). If `parent_ds` is non-empty: the m
 Name: `@`/empty ⇒ apex; relative ⇒ appended; FQDN accepted only inside zone; wildcard only leftmost; labels LDH plus `_` (underscore not allowed in A/AAAA/MX owner names except under `_`-prefixed parents); ≤253.
 Types A, AAAA (global unicast; private/reserved rejected for A), CNAME, MX, TXT, SRV (`_service._proto` owner), CAA (`issue|issuewild|iodef`, flags 0/128), NS (only below apex). TTL 60–86400.
 Conflicts: exact duplicate; CNAME with any other type at same name (and two CNAMEs); apex CNAME; apex NS; **delegation occlusion**: no non-NS record at a delegated name and no record below it except glue A/AAAA whose name is an NS target inside that subtree; adding NS where non-glue records exist ⇒ error.
-**RRset TTL:** TTL belongs to the RRset. Add/update with a different TTL updates the TTL of all siblings in the same transaction; the UI says so.
+**RRset TTL:** TTL belongs to the RRset. Add/update with a different TTL updates the TTL of all siblings in the same transaction; the UI says so. Import never changes existing records, so an imported row takes the TTL of the existing RRset, or of the first accepted row of the same name and type in the file. The preview shows this as "TTL changed from X to Y".
 Edit may change name, type, value, TTL; full-state publishing removes the old RRset member and adds the new one without touching siblings.
 
 ### 6.3 Errors are codes
@@ -216,7 +219,7 @@ Validator and services return `['field' => 'dns.err.<code>']` + params; controll
 - Preview statuses: `new`, `duplicate` (identical exists), `conflict` (validator conflict with existing or earlier row), `invalid`, `skipped`, `unsupported`. Apply = only selected `new` rows, all in **one** transaction with one version bump; returns counts per status. Never overwrites existing records.
 - `ZoneFileWriter::write(CdnZone): string` — `$ORIGIN`, `$TTL`, apex NS (configured), records in deterministic order, TXT in presentation format. Round-trip property: `parse(write(z))` yields the same record set.
 - Scan (auxiliary): common names queried **directly at the domain's current authoritative servers** (from `parentDelegation`), A/AAAA/CNAME/MX/TXT/CAA at apex, `www mail webmail ftp autodiscover autoconfig smtp imap pop cpanel webmail blog shop api m`, TXT `_dmarc`, DKIM selectors `default google selector1 selector2 k1 mail dkim s1 s2`. UI states clearly that scanning cannot find arbitrary names and recommends exporting a zone file from the current provider.
-- Migration checklist (shown before NS change): ownership ✓, published & all nodes in sync ✓, records reviewed ✓ (button), MX/SPF/DMARC/DKIM/CAA present at current provider but missing here ⇒ warnings, parent DS ⇒ blocking.
+- Migration checklist (shown before NS change): ownership ✓, published & all nodes in sync ✓, records reviewed ✓ (button), MX/SPF/DMARC/DKIM/CAA present at current provider but missing here ⇒ warnings, parent DS ⇒ blocking. The email/CAA probe runs only before delegation: on the customer's throttled "Check nameservers" button, and hourly in `dns:check-delegation` when no result is cached. All of its queries share one budget (20 s / 80 queries, `DelegationInspector::batch`). The result is cached for 12 h, and page loads only read the cache, never DNS. DKIM uses the scan's selector list (TXT or CNAME). A read failure shows as "could not be read", never as "missing".
 
 ---
 

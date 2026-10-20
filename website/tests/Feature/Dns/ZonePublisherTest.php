@@ -64,6 +64,10 @@ class ZonePublisherTest extends TestCase
                 return Http::response($this->server[$z], 201);
             }
 
+            if ($r->method() === 'GET' && str_ends_with($path, '/zones')) {
+                return Http::response(array_map(fn ($z) => ['name' => $z], array_keys($this->server)), 200);
+            }
+
             return Http::response(['version' => '5.0.2'], 200);
         }
         $z = urldecode($m[1]);
@@ -106,11 +110,87 @@ class ZonePublisherTest extends TestCase
         };
     }
 
+    /* ═════════════ یافته‌های بازبینی ═════════════ */
+
+    public function test_a_zone_without_v2_proof_is_never_published(): void
+    {
+        foreach ([null, 'delegated'] as $i => $o) {
+            $z = $this->zone(['domain' => "legacy$i.example", 'ownership' => $o]);
+            $z->records()->create(['type' => 'A', 'name' => "legacy$i.example", 'content' => '185.10.20.30', 'ttl' => 300]);
+            $this->assertSame('unproven', app(ZonePublisher::class)->publish($z)->code);
+        }
+
+        $this->artisan('dns:publish')->assertSuccessful();
+        $this->assertSame([], $this->server, 'nothing reached the primary');
+    }
+
+    public function test_a_suspended_zone_is_removed_once_not_every_minute(): void
+    {
+        $z = $this->zone();
+        $z->records()->create(['type' => 'A', 'name' => 'shop.example', 'content' => '185.10.20.30', 'ttl' => 300]);
+        app(ZonePublisher::class)->publish($z);
+        $this->assertArrayHasKey('shop.example.', $this->server);
+
+        app(\App\Services\Dns\ZoneService::class)->setSuspended($z->fresh(), true, 'admin:1');
+        foreach (range(1, 3) as $_) {
+            $this->artisan('dns:publish')->assertSuccessful();
+        }
+
+        $deletes = collect(Http::recorded())->filter(fn ($pair) => $pair[0]->method() === 'DELETE')->count();
+        $this->assertSame(1, $deletes);
+        $f = $z->fresh();
+        $this->assertSame('deleted', $f->publish_state);
+        $this->assertSame($f->desired_version, $f->applied_version);
+        $this->assertArrayNotHasKey('shop.example.', $this->server);
+
+        // برگشت از تعلیق دوباره منتشر می‌کند
+        app(\App\Services\Dns\ZoneService::class)->setSuspended($f, false, 'admin:1');
+        $this->artisan('dns:publish')->assertSuccessful();
+        $this->assertArrayHasKey('shop.example.', $this->server);
+    }
+
+    public function test_servfail_is_no_response_and_never_confirms_a_deletion(): void
+    {
+        $inspector = new class extends \App\Services\Dns\DelegationInspector {
+            public array $answers = [];
+
+            public function soaAt(string $ip, int $port, string $zone, bool $tcpOnly = false, ?float $timeout = null): array
+            {
+                return $this->answers[$ip];
+            }
+        };
+        $inspector->answers = [
+            '203.0.113.10' => ['state' => 'error', 'error' => 'rcode_servfail', 'aa' => false],
+            '203.0.113.20' => ['state' => 'refused', 'error' => null, 'aa' => false],
+        ];
+
+        $s = (new NodeVerifier($inspector))->check($this->zone(['primary_serial' => 7]), expectAbsent: true);
+
+        $this->assertSame(\App\Models\DnsZoneNode::UNREACHABLE, $s['dns-a.example.net']['state']);
+        $this->assertSame(\App\Models\DnsZoneNode::MISSING, $s['dns-b.example.net']['state']);
+    }
+
+    public function test_reconcile_requeues_a_zone_missing_on_the_primary_succeeds_and_reports_orphans(): void
+    {
+        $z = $this->zone(['domain' => 'lost.example']);
+        $z->forceFill(['publish_state' => 'published', 'applied_version' => 1, 'desired_version' => 1])->save();
+        $this->server['stray.example.'] = ['name' => 'stray.example.', 'serial' => 1, 'rrsets' => [], 'meta' => []];
+
+        $this->artisan('dns:reconcile')->assertSuccessful();
+
+        $this->assertGreaterThan(1, (int) $z->fresh()->desired_version, 'missing on primary = drift, republish queued');
+        $report = json_decode((string) Setting::get(\App\Console\Commands\DnsReconcile::REPORT_KEY), true);
+        $this->assertSame(['stray.example'], $report['orphans']);
+        $this->assertSame(1, $report['drift']);
+        $this->assertSame(0, $report['failed']);
+        $this->assertArrayHasKey('stray.example.', $this->server, 'orphans are reported, never deleted');
+    }
+
     private function zone(array $attrs = []): CdnZone
     {
         $c = Customer::create(['email' => 'p'.random_int(1, 1e9).'@x.test', 'phone' => '0912'.random_int(1000000, 9999999), 'password' => bcrypt('x'), 'status' => 'active', 'locale' => 'fa']);
 
-        return CdnZone::create($attrs + ['customer_id' => $c->id, 'domain' => 'shop.example', 'mode' => 'ns', 'status' => 'pending', 'verify_token' => 'x']);
+        return CdnZone::create($attrs + ['customer_id' => $c->id, 'domain' => 'shop.example', 'mode' => 'ns', 'status' => 'pending', 'verify_token' => 'x', 'ownership' => 'txt']);
     }
 
     private function live(string $zone = 'shop.example.'): array

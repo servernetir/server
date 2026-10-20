@@ -60,6 +60,11 @@ class ManagedDnsHttpTest extends TestCase
             {
                 return ['ok' => false, 'rcode' => null, 'records' => [], 'server' => null, 'error' => 'x'];
             }
+
+            public function parentDelegation(string $domain): array
+            {
+                return ['ok' => false, 'ns' => [], 'ds' => [], 'servers' => [], 'error' => 'x', 'parent' => null, 'status' => 'error'];
+            }
         });
     }
 
@@ -232,6 +237,97 @@ class ManagedDnsHttpTest extends TestCase
         $this->assertSame('deleting', $z->fresh()->status);
     }
 
+    public function test_delete_accepts_the_unicode_spelling_of_an_idn(): void
+    {
+        $c = $this->customer();
+        $z = $this->zone($c, ['domain' => 'xn--bcher-kva.example']);
+
+        $this->actingAs($c, 'customer')->post('/account/dns/'.$z->id.'/delete', ['confirm' => 'Bücher.example'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame('deleting', $z->fresh()->status);
+    }
+
+    public function test_record_table_shows_odd_ttls_in_seconds(): void
+    {
+        $c = $this->customer('en');
+        $z = $this->zone($c, ['domain' => 'odd.example']);
+        $z->records()->create(['type' => 'A', 'name' => 'odd.example', 'content' => '185.10.20.30', 'ttl' => 90]);
+        $z->records()->create(['type' => 'A', 'name' => 'www.odd.example', 'content' => '185.10.20.31', 'ttl' => 5400]);
+
+        $text = $this->visible($this->actingAs($c, 'customer')->get('/en/account/dns/'.$z->id)->assertOk()->getContent());
+
+        $this->assertStringContainsString(__('dns.ui.seconds', ['n' => 90], 'en'), $text);
+        $this->assertStringContainsString(__('dns.ui.minutes', ['n' => 90], 'en'), $text, '5400 s = 90 min, not "1 h"');
+    }
+
+    /* ═════════════ پرچم و حذفِ در جریان ═════════════ */
+
+    public function test_flag_off_closes_every_route_and_a_broken_connection_only_stops_new_domains(): void
+    {
+        $c = $this->customer();
+        $z = $this->zone($c, ['domain' => 'off.example']);
+        $rec = ['type' => 'A', 'name' => 'www', 'content' => '185.10.20.30', 'ttl' => 300];
+
+        Setting::put('dns_managed_enabled', '0');
+        foreach (['/account/dns/'.$z->id, '/account/dns/'.$z->id.'/export', '/account/dns/'.$z->id.'/import'] as $url) {
+            $this->actingAs($c, 'customer')->get($url)->assertNotFound();
+        }
+        $this->actingAs($c, 'customer')->post('/account/dns/'.$z->id.'/records', $rec)->assertNotFound();
+        $this->actingAs($c, 'customer')->post('/account/dns/'.$z->id.'/import/preview', ['source' => 'scan'])->assertNotFound();
+        $this->assertSame(0, $z->records()->count());
+
+        // پرچم روشن ولی اتصال ناقص (یک نیم‌سرور): zoneِ موجود قابلِ ویرایش، افزودن بسته
+        Setting::put('dns_managed_enabled', '1');
+        Setting::put('dns_nameservers', json_encode([['host' => 'dns-a.example.net', 'ipv4' => '203.0.113.10', 'port' => 53]]));
+        $this->actingAs($c, 'customer')->get('/account/dns')->assertOk()->assertSee(__('dns.add.paused'))->assertSee('off.example');
+        $this->actingAs($c, 'customer')->post('/account/dns', ['domain' => 'new.example'])->assertNotFound();
+        $this->actingAs($c, 'customer')->get('/account/dns/'.$z->id)->assertOk();
+        $this->actingAs($c, 'customer')->post('/account/dns/'.$z->id.'/records', $rec)->assertRedirect();
+        $this->assertSame(1, $z->records()->count());
+    }
+
+    public function test_re_adding_my_own_domain_while_it_is_being_deleted_says_so(): void
+    {
+        $c = $this->customer();
+        $this->zone($c, ['domain' => 'gone.example', 'status' => 'deleting']);
+
+        $this->actingAs($c, 'customer')->post('/account/dns', ['domain' => 'gone.example'])
+            ->assertSessionHasErrors(['domain' => __('dns.start.zone_deleting')]);
+    }
+
+    /* ═════════════ واردکردن ═════════════ */
+
+    public function test_import_preview_fills_message_params_and_aligns_ttl_to_the_rrset(): void
+    {
+        $c = $this->customer('en');
+        $z = $this->zone($c, ['domain' => 'ttl.example']);
+        $z->records()->create(['type' => 'A', 'name' => 'www.ttl.example', 'content' => '185.10.20.30', 'ttl' => 3600]);
+        $file = "www 30 IN A 185.10.20.29\nwww 300 IN A 185.10.20.31\nnew 120 IN A 185.10.20.40\nnew 600 IN A 185.10.20.41\n";
+
+        $text = $this->visible($this->actingAs($c, 'customer')->post('/en/account/dns/'.$z->id.'/import/preview', ['source' => 'file', 'text' => $file])->assertOk()->getContent());
+
+        $this->assertStringNotContainsString(':min', $text);
+        $this->assertStringNotContainsString(':max', $text);
+        $this->assertStringContainsString(__('dns.import.ttl_aligned', ['from' => 300, 'ttl' => 3600], 'en'), $text);
+        $this->assertStringContainsString(__('dns.import.ttl_aligned', ['from' => 600, 'ttl' => 120], 'en'), $text, 'first accepted row sets a new RRset TTL');
+
+        $this->actingAs($c, 'customer')->post('/en/account/dns/'.$z->id.'/import/apply', ['source' => 'file', 'text' => $file, 'lines' => [2, 3, 4]])->assertRedirect();
+        $this->assertSame([3600], $z->records()->where('name', 'www.ttl.example')->pluck('ttl')->unique()->values()->all());
+        $this->assertSame([120], $z->records()->where('name', 'new.ttl.example')->pluck('ttl')->unique()->values()->all());
+    }
+
+    public function test_an_oversized_upload_is_reported_on_the_import_page(): void
+    {
+        $c = $this->customer();
+        $z = $this->zone($c);
+        $file = \Illuminate\Http\UploadedFile::fake()->create('big.zone', 2048, 'text/plain');
+
+        $this->actingAs($c, 'customer')->from('/account/dns/'.$z->id.'/import')
+            ->post('/account/dns/'.$z->id.'/import/preview', ['source' => 'file', 'zonefile' => $file])
+            ->assertRedirect('/account/dns/'.$z->id.'/import')
+            ->assertSessionHasErrors(['import' => __('dns.import.file_too_large')]);
+    }
+
     public function test_export_is_plain_text_and_not_cached(): void
     {
         $c = $this->customer();
@@ -274,6 +370,23 @@ class ManagedDnsHttpTest extends TestCase
         $this->actingAs($a)->post('/admin/dns/settings', $base + ['pdns_api_key' => ''])->assertSessionHasNoErrors();
         $this->assertSame('TOP-SECRET-KEY', Setting::getSecret('pdns_api_key'), 'empty key = unchanged');
         $this->assertSame(['dns-a.example.net', 'dns-b.example.net'], \App\Services\Dns\DnsConfig::nameserverHosts());
+    }
+
+    public function test_admin_sees_the_last_reconcile_report_with_orphans(): void
+    {
+        Setting::put(\App\Console\Commands\DnsReconcile::REPORT_KEY, json_encode([
+            'at' => now()->toIso8601String(), 'drift' => 1, 'failed' => 0, 'orphans' => ['stray.example'], 'orphan_count' => 1, 'listed' => true,
+        ]));
+
+        $this->actingAs($this->admin())->get('/admin/dns')->assertOk()->assertSee('stray.example');
+    }
+
+    public function test_admin_delete_accepts_the_unicode_spelling(): void
+    {
+        $z = $this->zone($this->customer(), ['domain' => 'xn--bcher-kva.example']);
+
+        $this->actingAs($this->admin())->post('/admin/dns/zones/'.$z->id.'/delete', ['confirm' => 'bücher.example'])->assertSessionHasNoErrors();
+        $this->assertSame('deleting', $z->fresh()->status);
     }
 
     public function test_admin_actions_on_a_zone(): void

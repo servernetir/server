@@ -185,7 +185,7 @@
                   @if($r->comment)<span class="c-note" dir="auto">{{ $r->comment }}</span>@endif
                   @if($r->disabled)<span class="c-note dns-t-warn" dir="auto">{{ __('dns.zone.disabled_note') }}</span>@endif
                 </td>
-                <td class="c-ttl">{{ $r->ttl < 3600 ? __('dns.ui.minutes', ['n' => intdiv($r->ttl, 60)]) : __('dns.ui.hours', ['n' => intdiv($r->ttl, 3600)]) }}</td>
+                <td class="c-ttl">{{ $r->ttl % 3600 === 0 ? __('dns.ui.hours', ['n' => intdiv($r->ttl, 3600)]) : ($r->ttl % 60 === 0 ? __('dns.ui.minutes', ['n' => intdiv($r->ttl, 60)]) : __('dns.ui.seconds', ['n' => $r->ttl])) }}</td>
                 <td class="c-act">
                   <button class="dns-ic-btn" type="button" data-dns-open="edit-{{ $r->id }}" title="{{ __('dns.ui.edit') }}" aria-label="{{ __('dns.ui.edit') }}"
                           aria-expanded="{{ $editOpen === $r->id ? 'true' : 'false' }}"><svg class="icon"><use href="#i-wrench"/></svg></button>

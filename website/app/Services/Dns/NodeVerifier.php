@@ -72,9 +72,11 @@ class NodeVerifier
             return ['state' => $ok ? DnsZoneNode::IN_SYNC : DnsZoneNode::LAGGING, 'serial' => $serial, 'error' => null];
         }
 
-        $answeredWithError = $state === 'error' && str_starts_with((string) ($soa['error'] ?? ''), 'rcode_');
-        if ($answeredWithError || in_array($state, ['refused', 'notauth', 'nxdomain', 'no_aa', 'answer'], true)) {
-            // سرور جواب داد ولی این zone را authoritative ندارد (هنوز نرسیده یا حذف شده)
+        // فقط این چهار پاسخ یعنی «zone این‌جا نیست» (هنوز نرسیده یا حذف شده).
+        // ⚠️ SERVFAIL و دیگر rcodeها «نیست» نیستند — نود شاید zone را دارد و
+        // backendش موقتاً خراب است؛ اگر MISSING حساب شوند، تأییدِ حذف (همه MISSING)
+        // ردیف‌های zoneی را پاک می‌کند که هنوز روی نیم‌سرور زنده است.
+        if (in_array($state, ['refused', 'notauth', 'nxdomain', 'no_aa', 'answer'], true)) {
             return ['state' => DnsZoneNode::MISSING, 'serial' => null, 'error' => $state];
         }
 

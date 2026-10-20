@@ -33,6 +33,9 @@ class DomainServicesTest extends TestCase
 
     public static int $publishRequests = 0;
 
+    /** @var array<string, list<array>> "name|TYPE" => رکوردهای DNSِ فعلی */
+    public static array $current = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -40,6 +43,7 @@ class DomainServicesTest extends TestCase
         self::$lookupFails = false;
         self::$parent = ['state' => 'not_delegated', 'ns' => [], 'ds' => []];
         self::$publishRequests = 0;
+        self::$current = [];
         Setting::put('dns_nameservers', json_encode([
             ['host' => 'dns-a.example.net', 'ipv4' => '203.0.113.10', 'port' => 53],
             ['host' => 'dns-b.example.net', 'ipv4' => '203.0.113.20', 'port' => 53],
@@ -65,7 +69,14 @@ class DomainServicesTest extends TestCase
 
             public function queryAuthoritative(string $domain, string $name, string $type, ?array $delegation = null): array
             {
-                return ['ok' => true, 'rcode' => 'NOERROR', 'records' => $type === 'MX' ? [['type' => 'MX', 'name' => $name, 'data' => ['preference' => 10, 'exchange' => 'mx.old.net']]] : [], 'server' => 'x', 'error' => null];
+                $default = $type === 'MX' ? [['type' => 'MX', 'name' => $name, 'data' => ['preference' => 10, 'exchange' => 'mx.old.net']]] : [];
+
+                return ['ok' => true, 'rcode' => 'NOERROR', 'records' => DomainServicesTest::$current[$name.'|'.$type] ?? $default, 'server' => 'x', 'error' => null];
+            }
+
+            public function parentDelegation(string $domain): array
+            {
+                return ['ok' => true, 'ns' => ['ns.old.net'], 'ds' => [], 'servers' => [['host' => 'ns.old.net', 'ip' => '198.51.100.1', 'port' => 53]], 'error' => null, 'parent' => 'example', 'status' => 'delegated'];
             }
         });
         $this->app->instance(ZonePublisher::class, new class extends ZonePublisher {
@@ -355,6 +366,63 @@ class DomainServicesTest extends TestCase
 
         $this->assertSame('active', $z->fresh()->status);
         $this->assertSame('not_delegated', $z->fresh()->delegation_state);
+    }
+
+    public function test_proof_during_the_previous_owners_deletion_keeps_the_claim(): void
+    {
+        $a = $this->customer();
+        $b = $this->customer();
+        $old = CdnZone::create(['customer_id' => $a->id, 'domain' => 'busy.example', 'mode' => 'ns', 'status' => 'active', 'verify_token' => 'x', 'ownership' => 'txt']);
+        $claim = $this->own()->start($b, 'busy.example')['claim'];
+        $old->forceFill(['status' => 'deleting'])->save();
+        $this->proveTxt($claim);
+
+        $r = $this->own()->verify($claim->fresh());
+
+        $this->assertSame('zone_deleting', $r['code']);
+        $this->assertSame(DnsOwnershipClaim::PENDING, $claim->fresh()->status, 'the published TXT stays usable');
+        $this->assertSame('zone_deleting', $claim->fresh()->last_result);
+
+        $old->delete();
+        $r = $this->own()->verify($claim->fresh());
+        $this->assertTrue($r['ok']);
+        $this->assertSame($b->id, (int) $r['zone']->customer_id);
+    }
+
+    public function test_a_zone_being_deleted_does_not_count_toward_the_quota(): void
+    {
+        config(['edge.dns.limits.zones_per_customer' => 1]);
+        $c = $this->customer();
+        CdnZone::create(['customer_id' => $c->id, 'domain' => 'leaving.example', 'mode' => 'ns', 'status' => 'deleting', 'verify_token' => 'x', 'ownership' => 'txt']);
+        $claim = $this->own()->start($c, 'next.example')['claim'];
+        $this->proveTxt($claim);
+
+        $this->assertTrue($this->own()->verify($claim->fresh())['ok']);
+
+        $claim2 = $this->own()->start($c, 'third.example')['claim'];
+        $this->proveTxt($claim2);
+        $r = $this->own()->verify($claim2->fresh());
+        $this->assertSame('zone_limit', $r['code']);
+        $this->assertSame(DnsOwnershipClaim::PENDING, $claim2->fresh()->status);
+    }
+
+    public function test_email_gaps_are_cached_probed_on_demand_and_include_dkim(): void
+    {
+        $z = $this->zone();
+        $keys = fn (array $c) => array_values(array_filter(array_column($c['items'], 'key'), fn ($k) => str_starts_with($k, 'current_')));
+
+        $this->assertSame([], $keys($this->zones()->checklist($z, probeCurrent: false)), 'page load never queries DNS');
+
+        self::$current['google._domainkey.rec.example|TXT'] = [['type' => 'TXT', 'name' => 'google._domainkey.rec.example', 'data' => ['v=DKIM1; k=rsa; p=MIIB']]];
+        $this->zones()->probeEmailGaps($z);
+
+        $cached = $this->zones()->checklist($z->fresh(), probeCurrent: false);
+        $this->assertSame(['current_mx', 'current_dkim'], $keys($cached));
+        $dkim = collect($cached['items'])->firstWhere('key', 'current_dkim');
+        $this->assertSame(['warn', ['count' => 1]], [$dkim['state'], $dkim['params']]);
+
+        $z->records()->create(['type' => 'TXT', 'name' => 'google._domainkey.rec.example', 'content' => '"v=DKIM1; k=rsa; p=MIIB"', 'ttl' => 300]);
+        $this->assertSame(['current_mx'], $keys($this->zones()->checklist($z->fresh())));
     }
 
     public function test_parent_ds_blocks_the_checklist(): void

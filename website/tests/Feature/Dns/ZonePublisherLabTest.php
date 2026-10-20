@@ -72,7 +72,7 @@ class ZonePublisherLabTest extends TestCase
     {
         $c = Customer::create(['email' => 'lab'.random_int(1, 1e9).'@x.test', 'phone' => '0912'.random_int(1000000, 9999999), 'password' => bcrypt('x'), 'status' => 'active', 'locale' => 'fa']);
         $domain = 'lab-'.bin2hex(random_bytes(3)).'.test';
-        $z = CdnZone::create(['customer_id' => $c->id, 'domain' => $domain, 'mode' => 'ns', 'status' => 'pending', 'verify_token' => 'x']);
+        $z = CdnZone::create(['customer_id' => $c->id, 'domain' => $domain, 'mode' => 'ns', 'status' => 'pending', 'verify_token' => 'x', 'ownership' => 'txt']);
         foreach (['185.10.20.30', '185.10.20.31'] as $a) {
             $z->records()->create(['type' => 'A', 'name' => 'www.'.$domain, 'content' => $a, 'ttl' => 300]);
         }
