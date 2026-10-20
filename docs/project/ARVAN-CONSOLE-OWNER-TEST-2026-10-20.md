@@ -1,5 +1,10 @@
 # Single owner console diagnostic — 20 October 2026
 
+Subsequent state: at08:03:27UTC the owner explicitly approved
+[public reopening](ARVAN-CONSOLE-PUBLIC-2026-10-20.md): public1/pilot0, sales
+unchanged. Public0/pilot1 below is the historical test checkpoint, not current
+production. Test cleanup and unresolved password/cost boundaries remain valid.
+
 Completed: the sole VM was attached to service535/instance338 for owner1.
 Real customer-button sessions passed live guest image, mouse/keyboard, concurrent
 tabs and fresh reconnect. Exact early cleanup was independently verified at
