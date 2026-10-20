@@ -342,6 +342,8 @@
       @endforeach
     </div>
 
+    @include('partials.growth-guides', ['growthPage' => 'gpu'])
+
     <section class="gpu-faq" aria-labelledby="gpu-faq-title">
       <h2 id="gpu-faq-title">{{ __('gpu.faq_title') }}</h2>
       @foreach(range(1, 12) as $n)
@@ -462,4 +464,5 @@
 })();
 </script>
 @endif
+@include('partials.growth-cta')
 @endsection

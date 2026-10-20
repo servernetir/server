@@ -95,6 +95,8 @@
   </div>
 </div>
 
+@include('partials.growth-guides', ['growthPage' => 'image-cropper'])
+
 <script>
 (function () {
   const $ = id => document.getElementById(id);

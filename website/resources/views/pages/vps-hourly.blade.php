@@ -352,6 +352,8 @@
   </div>
 </section>
 
+@include('partials.growth-guides', ['growthPage' => 'hourly'])
+
 {{-- راهنماهای بلاگ (پل محصول→بلاگ) --}}
 @include('partials.product-guides', ['guidesCat' => config('blog.product_guides.cloud')])
 
@@ -465,4 +467,5 @@
 }
 </style>
 @endpush
+@include('partials.growth-cta')
 @endsection

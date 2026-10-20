@@ -58,6 +58,13 @@
           <span><svg class="icon"><use href="#i-clock"/></svg>{{ __('ui.bl_updated') }} {{ blog_date($doc['date']) }}</span>
         </div>
 
+        @if($doc['slug'] === 'gpu-server-setup-for-ai')
+        <aside class="blog-note">
+          <strong>{{ lc(['fa' => 'دامنه دستورهای نصب این راهنما', 'en' => 'Scope of the installation commands', 'tr' => 'Kurulum komutlarının kapsamı']) }}</strong>
+          <p>{{ lc(['fa' => 'دستورهای نصب درایور و سیستم‌عامل زیر فقط برای ماشین لینوکسی است که اجازه مدیریت آن را دارید. در سرویس GPU ساعتی برنامه‌محور سرورنت، برنامه سازگار را از پیکربند انتخاب می‌کنید و دسترسی HTTPS دریافت می‌کنید؛ root، SSH و نصب درایور میزبان در اختیار این سرویس نیست. برای شروع کار با محیط تحویل‌شده، راهنمای برنامه خود را بخوانید.', 'en' => 'The driver and operating-system commands below apply to a Linux machine you are authorized to administer. ServerNet’s app-based hourly GPU service provides a compatible selected app over HTTPS, without root, SSH or host-driver installation access. Use the guide for your delivered application to get started.', 'tr' => 'Aşağıdaki sürücü ve sistem komutları yönetme yetkiniz olan Linux makine içindir. ServerNet uygulama tabanlı saatlik GPU hizmetinde uyumlu uygulama seçilir ve HTTPS erişimi verilir; root, SSH veya ana makine sürücü kurulumu erişimi sunulmaz. Başlamak için teslim edilen uygulamanın rehberini kullanın.']) }}</p>
+        </aside>
+        @include('partials.growth-guides', ['growthPage' => 'article-gpu-servers-for-ai'])
+        @endif
         <article class="blog-prose docs-prose" id="bp-article">{!! $doc['content'] !!}</article>
 
         @if(!empty($doc['tags']))

@@ -58,7 +58,7 @@
 
   $sdOffers = [];
   foreach ($product['plans'] as $sdP) {
-      if (($sdP['contact'] ?? false) || ! isset($sdP['irt'])) {
+      if (! ($product['offer_schema'] ?? true) || ($sdP['contact'] ?? false) || ! isset($sdP['irt'])) {
           continue;                      // «تماس بگیرید» قیمت نیست
       }
 
@@ -173,7 +173,7 @@
     <div class="section-head reveal">
       <span class="badge">{{ __('ui.hp_plans_badge') }}</span>
       <h2>{{ __('ui.hp_plans_title') }}</h2>
-      <p>{{ __('ui.hp_plans_sub') }}</p>
+      <p>{{ isset($product['plan_note']) ? lc($product['plan_note']) : __('ui.hp_plans_sub') }}</p>
     </div>
     @php
       // سرورِ مجازی/اختصاصی با پلنِ زنده = **جدولِ کامل**، نه کارت.
@@ -633,6 +633,7 @@
 
 @if(! $countrySeo)
 {{-- ============ INFRASTRUCTURE ============ --}}
+@if($product['show_infra'] ?? true)
 <section class="section" style="padding-top:30px;padding-bottom:40px">
   <div class="container">
     <div class="infra-panel reveal">
@@ -650,6 +651,7 @@
     </div>
   </div>
 </section>
+@endif
 
 @endif
 
@@ -678,6 +680,12 @@
 @endif
 
 {{-- ============ راهنماهای بلاگ (پل محصول→بلاگ — ممیزی ۳) ============ --}}
+@if(($category === 'cloud' && $slug === 'n8n') || ($category === 'hosting' && $slug === 'python'))
+@include('partials.growth-guides', ['growthPage' => $slug])
+@endif
+@if($category === 'vps' && $slug === 'gpu')
+@include('partials.growth-guides', ['growthPage' => 'gpu-vps'])
+@endif
 @include('partials.product-guides', ['guidesCat' => config('blog.product_guides.'.$category), 'guidesSeed' => $category.'/'.$slug])
 
 {{-- ============ RELATED ============ --}}
@@ -730,4 +738,7 @@
   } catch (e) {}
 })();
 </script>
+@if(($category === 'hosting' && $slug === 'python') || ($category === 'cloud' && $slug === 'n8n') || ($category === 'vps' && $slug === 'gpu'))
+@include('partials.growth-cta')
+@endif
 @endsection

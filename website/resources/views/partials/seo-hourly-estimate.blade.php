@@ -14,8 +14,8 @@
       <table class="hv-table">
         <thead><tr><th scope="col">{{ $seoEstimate['duration'] }}</th><th scope="col">{{ $seoEstimate['cost'] }}</th></tr></thead>
         <tbody>
-        @foreach([6, 24, 72] as $seoHours)
-          <tr><th scope="row">{{ $isFa ? fa_num($seoHours) : $seoHours }} {{ $seoEstimate['hour'] }}</th><td>{{ cloud_price($fromHourlyRaw * $seoHours) }}</td></tr>
+        @foreach(($costExamples ?? []) as $seoHours => $seoAmount)
+          <tr><th scope="row">{{ $isFa ? fa_num($seoHours) : $seoHours }} {{ $seoEstimate['hour'] }}</th><td>{{ $seoAmount }}</td></tr>
         @endforeach
         </tbody>
       </table>

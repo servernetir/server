@@ -295,44 +295,132 @@ return [
     ],
 
     'n8n' => [
-        'icon' => 'flow', 'group' => 'apps',
-        'fa' => ['t' => 'پلتفرم اتوماسیون n8n', 'tag' => 'Managed n8n · آماده در ۶۰ ثانیه',
-            'hero_t' => 'اتوماسیون n8n،', 'hero_g' => 'بدون دغدغه سرور.',
-            'hero_d' => 'n8n اختصاصی شما با دامنه دلخواه، SSL، بکاپ و آپدیت خودکار — ورک‌فلوهایتان را بسازید؛ نگهداری زیرساخت کار ماست.'],
-        'en' => ['t' => 'n8n Automation', 'tag' => 'Managed n8n · Ready in 60s',
-            'hero_t' => 'n8n automation,', 'hero_g' => 'minus the server chores.',
-            'hero_d' => 'Your dedicated n8n with custom domain, SSL, backups and auto-updates — you build workflows; we keep the infrastructure alive.'],
-        'tr' => ['t' => 'n8n Otomasyon', 'tag' => 'Yönetilen n8n · 60 saniyede hazır',
-            'hero_t' => 'n8n otomasyonu,', 'hero_g' => 'sunucu derdi olmadan.',
-            'hero_d' => 'Özel alan adı, SSL, yedek ve otomatik güncellemeyle size özel n8n — siz iş akışı kurun, altyapı bizde.'],
-        'chips' => ['Dedicated Instance', 'Custom Domain + SSL', 'Auto Updates', 'Daily Backups', 'Webhook Ready'],
-        'signature' => ['type' => 'term',
-            'fa' => ['t' => 'وب‌هوک شما، زنده در ۶۰ ثانیه', 'd' => 'n8n اختصاصی + دامنه شما + SSL — بدون داکر، بدون کانفیگ'],
-            'en' => ['t' => 'Your webhook, live in 60 seconds', 'd' => 'Dedicated n8n + your domain + SSL — no Docker, no config'],
-            'tr' => ['t' => 'Webhook\'unuz 60 saniyede canlı', 'd' => 'Özel n8n + alan adınız + SSL'],
-            'lines' => [
-                ['p', '$ snet n8n create --name acme --domain flow.acme.ir'],
-                ['ok', '✔ n8n 1.9x deployed → https://flow.acme.ir (SSL active)'],
-                ['p', '$ curl -X POST https://flow.acme.ir/webhook/lead \\'],
-                ['w', "    -d '{\"name\":\"Sara\",\"phone\":\"0912…\"}'"],
-                ['ok', '{"ok":true,"workflow":"lead-capture","executed_in":"312ms"}'],
-            ]],
+        'icon' => 'flow',
+        'group' => 'apps',
+        'fa' => [
+            't' => 'هاست و راه‌اندازی n8n',
+            'seo_t' => 'هاست n8n و راه‌اندازی اتوماسیون | منابع و بکاپ',
+            'seo_d' => 'مقایسه گزینه‌های میزبانی n8n، منابع، دامنه وب‌هوک و مسئولیت بکاپ و مدیریت؛ دامنه خدمات را پیش از سفارش با سرورنت مشخص کنید.',
+            'tag' => 'n8n · میزبانی و اتوماسیون',
+            'hero_t' => 'راه‌اندازی n8n،',
+            'hero_g' => 'با دامنه خدمات روشن.',
+            'hero_d' => 'برای اجرای ورک‌فلوها، منابع، دامنه HTTPS و دسترسی لازم را انتخاب کنید. مدیریت نسخه، بکاپ، بازیابی و انتقال را پیش از شروع در سفارش مشخص کنید؛ اگر کنترل کامل سیستم‌عامل می‌خواهید، نصب مستقل روی VPS را هم مقایسه کنید.'
+        ],
+        'en' => [
+            't' => 'n8n Hosting and Setup',
+            'seo_t' => 'n8n Hosting | Resources, Backups and Setup',
+            'seo_d' => 'Compare n8n hosting resources, webhook domains and maintenance responsibilities. Confirm the management, backup and restore scope before ordering.',
+            'tag' => 'n8n · Hosting and automation',
+            'hero_t' => 'Set up n8n',
+            'hero_g' => 'with a clear service scope.',
+            'hero_d' => 'Choose resources, an HTTPS domain and the access your workflows need. Define upgrades, backups, restores and migration before starting. Compare a self-managed VPS if you need full operating-system control.'
+        ],
+        'tr' => [
+            't' => 'n8n Hosting ve Kurulum',
+            'seo_t' => 'n8n Hosting | Kaynaklar, Yedekleme ve Kurulum',
+            'seo_d' => 'n8n hosting kaynaklarını, webhook alan adını ve bakım sorumluluklarını karşılaştırın; yönetim ve geri yükleme kapsamını siparişten önce netleştirin.',
+            'tag' => 'n8n · Hosting ve otomasyon',
+            'hero_t' => 'n8n kurulumu,',
+            'hero_g' => 'açık hizmet kapsamıyla.',
+            'hero_d' => 'İş akışınıza uygun kaynak, HTTPS alan adı ve erişimleri seçin. Güncelleme, yedekleme, geri yükleme ve taşıma kapsamını başlamadan belirleyin. Tam sistem kontrolü için kendi VPS kurulumunuzu da karşılaştırın.'
+        ],
+        'chips' => ['n8n', 'Workflows', 'HTTPS Webhooks', 'Backup Planning'],
+        'inc_strip' => false,
+        'show_infra' => false,
+        'offer_schema' => false,
+        'plan_note' => [
+            'fa' => 'محدودیت اجرا، منابع، نسخه، دسترسی worker، بکاپ و افزونه‌های پولی هر پلن را در پیشنهاد نهایی بررسی کنید؛ زمان تحویل و انتقال پس از بررسی محیط مشخص می‌شود.',
+            'en' => 'Confirm execution limits, resources, version, worker access, backups and paid extensions in the final quote. Delivery and migration timing require an environment review.',
+            'tr' => 'Çalıştırma sınırı, kaynak, sürüm, worker erişimi, yedekleme ve ücretli eklentileri son teklifte doğrulayın. Teslimat ve taşıma süresi ortam incelemesinden sonra belirlenir.'
+        ]
+    ,
         'plans' => [
             $mk('N8N-START', 202, 490000, 4.90, [['fa' => '۵ هزار اجرا در ماه', 'en' => '5k executions / mo', 'tr' => 'Ayda 5 bin çalıştırma'], '1 vCPU / 2 GB RAM', ['fa' => 'دامنه دلخواه + SSL', 'en' => 'Custom domain + SSL', 'tr' => 'Özel alan adı + SSL'], ['fa' => 'بکاپ روزانه', 'en' => 'Daily backups', 'tr' => 'Günlük yedek'], ['fa' => 'آپدیت خودکار', 'en' => 'Auto updates', 'tr' => 'Otomatik güncelleme']]),
             $mk('N8N-PRO', 203, 990000, 9.90, [['fa' => '۵۰ هزار اجرا در ماه', 'en' => '50k executions / mo', 'tr' => 'Ayda 50 bin çalıştırma'], '2 vCPU / 4 GB RAM', ['fa' => 'دامنه دلخواه + SSL', 'en' => 'Custom domain + SSL', 'tr' => 'Özel alan adı + SSL'], ['fa' => 'بکاپ ۶ ساعته', 'en' => '6-hour backups', 'tr' => '6 saatlik yedek'], ['fa' => 'دسترسی به کیو و ورکر', 'en' => 'Queue mode + worker', 'tr' => 'Kuyruk modu + worker']], true),
             $mk('N8N-BIZ', 204, 1990000, 19.90, [['fa' => 'اجرای نامحدود', 'en' => 'Unlimited executions', 'tr' => 'Sınırsız çalıştırma'], '4 vCPU / 8 GB RAM', ['fa' => 'ورکرهای اختصاصی جدا', 'en' => 'Dedicated separate workers', 'tr' => 'Özel ayrık worker\'lar'], ['fa' => 'SSO و کنترل دسترسی', 'en' => 'SSO & access control', 'tr' => 'SSO ve erişim kontrolü'], ['fa' => 'پشتیبانی ساخت ورک‌فلو', 'en' => 'Workflow-building support', 'tr' => 'İş akışı kurma desteği']]),
         ],
-        'features' => ['instant', 'backup', 'ssl', 'uptime', 'support',
-            ['icon' => 'bot',
-                'fa' => ['t' => 'ورک‌فلوهای آماده فارسی', 'd' => 'قالب‌های آماده برای پیامک ایرانی، درگاه‌های پرداخت، دیجی‌کالا و CRMهای داخلی — از روز اول اتوماسیون واقعی داشته باشید.'],
-                'en' => ['t' => 'Ready Local Workflow Templates', 'd' => 'Pre-built templates for local SMS, payment gateways and CRMs — real automation from day one.'],
-                'tr' => ['t' => 'Hazır Yerel Şablonlar', 'd' => 'Yerel SMS, ödeme ağ geçitleri ve CRM\'ler için hazır şablonlar.']],
-        ],
-        'faqs' => ['activation', 'upgrade',
-            ['fa' => ['q' => 'از نسخه self-hosted فعلی‌ام منتقل می‌شوید؟', 'a' => 'بله — ورک‌فلوها، کردنشیال‌ها و تاریخچه اجرا را رایگان و بدون قطعی منتقل می‌کنیم؛ فقط دسترسی n8n فعلی را بدهید.'],
-             'en' => ['q' => 'Can you migrate my current self-hosted n8n?', 'a' => 'Yes — we migrate workflows, credentials and execution history free of charge with zero downtime; just share access to your current instance.'],
-             'tr' => ['q' => 'Mevcut self-hosted n8n\'imi taşır mısınız?', 'a' => 'Evet — iş akışlarını, kimlik bilgilerini ve geçmişi ücretsiz ve kesintisiz taşırız.']],
-            'refund',
-        ],
+        'features' => [[
+                'icon' => 'server',
+                'fa' => [
+                    't' => 'منابع متناسب با ورک‌فلو',
+                    'd' => 'تعداد اجرای هم‌زمان، حجم داده و نیاز worker را مشخص کنید تا منابع و محدودیت مناسب در پیشنهاد ثبت شوند.'
+                ],
+                'en' => [
+                    't' => 'Size for your workflows',
+                    'd' => 'Define concurrency, data size and worker needs so the quote can state the relevant resources and limits.'
+                ],
+                'tr' => [
+                    't' => 'Workflow için kaynak seçimi',
+                    'd' => 'Eşzamanlılık, veri ve worker ihtiyacını belirleyin; kaynak ve sınırlar teklifte yazılsın.'
+                ]
+            ], [
+                'icon' => 'shield',
+                'fa' => [
+                    't' => 'دامنه و اتصال امن',
+                    'd' => 'مسیر HTTPS، دسترسی به پنل و شیوه نگهداری اعتبارنامه‌های سرویس‌های متصل را پیش از اتصال واقعی بررسی کنید.'
+                ],
+                'en' => [
+                    't' => 'HTTPS and access scope',
+                    'd' => 'Confirm the HTTPS route, panel access and connected-service credential handling before connecting live workflows.'
+                ],
+                'tr' => [
+                    't' => 'HTTPS ve erişim kapsamı',
+                    'd' => 'Canlı iş akışlarından önce HTTPS, panel erişimi ve kimlik bilgisi yönetimini doğrulayın.'
+                ]
+            ], [
+                'icon' => 'database',
+                'fa' => [
+                    't' => 'بکاپ قابل بازیابی',
+                    'd' => 'دوره، محل، مدت نگهداری و مسئول بازیابی باید مشخص باشند؛ فایل workflow به‌تنهایی بکاپ کامل نیست.'
+                ],
+                'en' => [
+                    't' => 'A restorable backup',
+                    'd' => 'Agree on backup schedule, location, retention and restore ownership. Workflow files alone are not a full backup.'
+                ],
+                'tr' => [
+                    't' => 'Geri yüklenebilir yedek',
+                    'd' => 'Sıklık, konum, saklama ve geri yükleme sorumlusunu belirleyin. Workflow dosyası tek başına tam yedek değildir.'
+                ]
+            ]],
+        'faqs' => [[
+                'fa' => [
+                    'q' => 'چه چیزی با نصب مستقل روی VPS فرق دارد؟',
+                    'a' => 'روی VPS نگهداری سیستم‌عامل و برنامه با مدیر سرور است. در گزینه مدیریت‌شده، دقیقاً مشخص کنید کدام کارهای نسخه، امنیت، بکاپ و بازیابی در قرارداد سرورنت قرار می‌گیرد.'
+                ],
+                'en' => [
+                    'q' => 'How does this differ from installing n8n on a VPS?',
+                    'a' => 'On a VPS, its administrator maintains the OS and application. For a managed option, specify which upgrades, security, backup and restore tasks are included in the ServerNet order.'
+                ],
+                'tr' => [
+                    'q' => 'VPS kurulumundan farkı nedir?',
+                    'a' => 'VPS’de sistem ve uygulamayı sunucu yöneticisi yönetir. Yönetilen seçenekte güncelleme, güvenlik, yedekleme ve geri yükleme kapsamını siparişte belirleyin.'
+                ]
+            ], [
+                'fa' => [
+                    'q' => 'انتقال از n8n فعلی چگونه است؟',
+                    'a' => 'ابتدا نسخه، دیتابیس، ورک‌فلوها، اعتبارنامه‌ها و کلید رمزنگاری بررسی می‌شوند. برنامه انتقال، توقف احتمالی و بازگشت باید مشخص شود؛ بدون بررسی، انتقال بدون قطعی را تضمین نمی‌کنیم.'
+                ],
+                'en' => [
+                    'q' => 'Can an existing n8n instance be migrated?',
+                    'a' => 'Review the version, database, workflows, credentials and encryption key first. Define the migration window, possible downtime and rollback rather than assuming a zero-downtime move.'
+                ],
+                'tr' => [
+                    'q' => 'Mevcut n8n taşınabilir mi?',
+                    'a' => 'Önce sürüm, veritabanı, workflow, kimlik bilgileri ve anahtar incelenir. Taşıma zamanı, olası kesinti ve geri dönüş planlanmalıdır.'
+                ]
+            ], [
+                'fa' => [
+                    'q' => 'بکاپ چه چیزهایی را پوشش می‌دهد؟',
+                    'a' => 'محتوای بکاپ و مدت نگهداری باید در سفارش همان سرویس مشخص شود. برای بازیابی کامل، فقط خروجی workflow کافی نیست و داده و کلید لازم باید به‌صورت امن نگهداری شوند.'
+                ],
+                'en' => [
+                    'q' => 'What does the backup include?',
+                    'a' => 'The service order must define contents and retention. Workflow exports alone do not provide a full restore; the required data and key must be secured.'
+                ],
+                'tr' => [
+                    'q' => 'Yedek neleri kapsar?',
+                    'a' => 'İçerik ve saklama süresi hizmet siparişinde belirtilmelidir. Workflow çıktısı tek başına tam geri yükleme sağlamaz; gerekli veri ve anahtar güvenli saklanmalıdır.'
+                ]
+            ]],
     ],
 ];

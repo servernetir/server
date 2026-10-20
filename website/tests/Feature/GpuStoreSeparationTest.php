@@ -6,11 +6,15 @@ use App\Http\Controllers\Account\CloudStoreController;
 use App\Models\CloudImage;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\CreditEntry;
 use App\Models\Customer;
+use App\Models\Setting;
+use App\Services\Cloud\SaladClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use Tests\Support\SeedsCatalogPricing;
 use Tests\TestCase;
 
 /**
@@ -31,6 +35,7 @@ use Tests\TestCase;
 class GpuStoreSeparationTest extends TestCase
 {
     use RefreshDatabase;
+    use SeedsCatalogPricing;
 
     public function test_gpu_cycle_prices_do_not_advertise_vps_discounts(): void
     {
@@ -48,15 +53,15 @@ class GpuStoreSeparationTest extends TestCase
         $this->bothLines();
         $plan = CloudPlan::where('provider', 'salad')->firstOrFail();
         CloudImage::create([
-            'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS['gpu-jupyter']['ref'],
+            'provider' => 'salad', 'provider_ref' => SaladClient::APPS['gpu-jupyter']['ref'],
             'key' => 'gpu-jupyter', 'kind' => 'app', 'family' => 'gpu-jupyter',
             'label' => 'Jupyter', 'arch' => 'x86', 'is_active' => true,
         ]);
-        \App\Models\Setting::put('salad_jupyter_sales_paused', '1');
+        Setting::put('salad_jupyter_sales_paused', '1');
         $customer = $this->customer();
-        \App\Models\CreditEntry::create([
+        CreditEntry::create([
             'customer_id' => $customer->id, 'currency_code' => 'IRT', 'amount' => 500000,
-            'balance_after' => 500000, 'reason' => 'topup', 'source_type' => \App\Models\Customer::class,
+            'balance_after' => 500000, 'reason' => 'topup', 'source_type' => Customer::class,
             'source_id' => $customer->id, 'note' => 'isolated Jupyter sales pause fixture',
         ]);
         $this->assertNotContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
@@ -72,7 +77,7 @@ class GpuStoreSeparationTest extends TestCase
         Http::assertNothingSent();
         $html = $this->get('/account/cloud-store?location=global-gpu')->assertOk()->getContent();
         $this->assertStringContainsString(__('ui.gpu_jupyter_sales_paused'), $html);
-        \App\Models\Setting::put('salad_jupyter_sales_paused', '0');
+        Setting::put('salad_jupyter_sales_paused', '0');
         $this->assertContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
     }
 
@@ -83,20 +88,20 @@ class GpuStoreSeparationTest extends TestCase
         $plan->update(['gpu_model' => 'RTX 3090 (24 GB)']);
         foreach (['gpu-comfyui' => 'ComfyUI', 'gpu-jupyter' => 'Jupyter'] as $key => $label) {
             CloudImage::create([
-                'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS[$key]['ref'],
+                'provider' => 'salad', 'provider_ref' => SaladClient::APPS[$key]['ref'],
                 'key' => $key, 'kind' => 'app', 'family' => $key,
                 'label' => $label, 'arch' => 'x86', 'is_active' => true,
             ]);
         }
         $customer = $this->customer();
-        \App\Models\CreditEntry::create([
+        CreditEntry::create([
             'customer_id' => $customer->id, 'currency_code' => 'IRT', 'amount' => 500000,
             'balance_after' => 500000, 'reason' => 'topup', 'source_type' => Customer::class,
             'source_id' => $customer->id, 'note' => 'isolated GPU application pause fixture',
         ]);
         $this->actingAs($customer, 'customer');
         foreach (['gpu-ollama' => ['salad_ollama_sales_paused', 'Ollama'], 'gpu-comfyui' => ['salad_comfyui_sales_paused', 'ComfyUI']] as $key => [$setting, $label]) {
-            \App\Models\Setting::put($setting, '1');
+            Setting::put($setting, '1');
             $this->assertNotContains($key, CloudStoreController::imageKeysFor($plan, 'app'));
             $this->assertContains('gpu-jupyter', CloudStoreController::imageKeysFor($plan, 'app'));
             $other = $key === 'gpu-ollama' ? 'gpu-comfyui' : 'gpu-ollama';
@@ -116,7 +121,7 @@ class GpuStoreSeparationTest extends TestCase
                 ->assertSee(__('ui.gpu_app_sales_paused', ['app' => $label]));
             $this->get('/gpu')->assertOk()
                 ->assertSee(__('ui.gpu_app_sales_paused', ['app' => $label]));
-            \App\Models\Setting::put($setting, '0');
+            Setting::put($setting, '0');
             $this->assertContains($key, CloudStoreController::imageKeysFor($plan, 'app'));
         }
     }
@@ -127,12 +132,12 @@ class GpuStoreSeparationTest extends TestCase
         $plan = CloudPlan::where('provider', 'salad')->firstOrFail();
         $plan->update(['gpu_model' => 'GTX 1060 (6 GB)']);
         CloudImage::create([
-            'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS['gpu-comfyui']['ref'],
+            'provider' => 'salad', 'provider_ref' => SaladClient::APPS['gpu-comfyui']['ref'],
             'key' => 'gpu-comfyui', 'kind' => 'app', 'family' => 'gpu-comfyui',
             'label' => 'ComfyUI', 'arch' => 'x86', 'is_active' => true,
         ]);
         CloudImage::create([
-            'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS['gpu-jupyter']['ref'],
+            'provider' => 'salad', 'provider_ref' => SaladClient::APPS['gpu-jupyter']['ref'],
             'key' => 'gpu-jupyter', 'kind' => 'app', 'family' => 'gpu-jupyter',
             'label' => 'Jupyter', 'arch' => 'x86', 'is_active' => true,
         ]);
@@ -164,6 +169,7 @@ class GpuStoreSeparationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->seedCatalogPricing();
         Http::fake();
 
         if (! Route::has('account.cloud.store')) {
@@ -347,7 +353,7 @@ class GpuStoreSeparationTest extends TestCase
         $this->bothLines();
         foreach (['gpu-jupyter' => 'Jupyter', 'gpu-comfyui' => 'ComfyUI'] as $key => $label) {
             CloudImage::create([
-                'provider' => 'salad', 'provider_ref' => \App\Services\Cloud\SaladClient::APPS[$key]['ref'],
+                'provider' => 'salad', 'provider_ref' => SaladClient::APPS[$key]['ref'],
                 'key' => $key, 'kind' => 'app', 'family' => $key,
                 'label' => $label, 'arch' => 'x86', 'is_active' => true,
             ]);

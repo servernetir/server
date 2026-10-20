@@ -3,24 +3,27 @@
 namespace Tests\Feature;
 
 use App\Services\Analytics\DataLayerService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class AnalyticsDataLayerCatalogTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_datalayer_service_flashes_signup_and_login_events(): void
     {
         $mockCustomer = (object) ['id' => 9999];
 
         DataLayerService::flashSignUp($mockCustomer, 'mobile_otp');
         $this->assertEquals([
-            'event'   => 'sign_up',
-            'method'  => 'mobile_otp',
+            'event' => 'sign_up',
+            'method' => 'mobile_otp',
         ], session(DataLayerService::SESSION_AUTH_KEY));
 
         DataLayerService::flashLogin($mockCustomer, 'mobile_otp');
         $this->assertEquals([
-            'event'   => 'login',
-            'method'  => 'mobile_otp',
+            'event' => 'login',
+            'method' => 'mobile_otp',
         ], session(DataLayerService::SESSION_AUTH_KEY));
     }
 

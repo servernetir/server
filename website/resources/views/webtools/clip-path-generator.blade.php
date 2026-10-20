@@ -105,6 +105,18 @@
   </div>
 </div>
 
+<section class="wt-pane" style="margin-top:20px">
+  <h2>{{ lc(['fa' => 'استفاده از کد در سایت', 'en' => 'Use the generated CSS on your website', 'tr' => 'Üretilen CSS kodunu sitenizde kullanın']) }}</h2>
+  <p>{{ lc(['fa' => 'خروجی بالا را در استایل عنصر جایگزین clip-path نمونه زیر کنید. عنصر باید ابعاد و پس‌زمینه یا تصویر داشته باشد؛ این ابزار فایل عکس بریده‌شده تولید نمی‌کند.', 'en' => 'Replace the example clip-path declaration below with the output above. Give the element dimensions and a background or image. This tool generates CSS; it does not export a cropped image file.', 'tr' => 'Aşağıdaki örnek clip-path tanımını yukarıdaki çıktıyla değiştirin. Öğeye boyut ve arka plan veya görsel verin. Araç CSS üretir; kırpılmış görsel dosyası dışa aktarmaz.']) }}</p>
+  <pre dir="ltr" style="overflow:auto"><code>.badge-shape {
+  width: 12rem;
+  aspect-ratio: 1;
+  background: linear-gradient(135deg, #0891b2, #7c3aed);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}</code></pre>
+</section>
+@include('partials.growth-guides', ['growthPage' => 'clip-path-generator'])
+
 <script>
 (function () {
   const $ = id => document.getElementById(id);

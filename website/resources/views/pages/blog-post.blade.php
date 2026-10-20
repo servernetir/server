@@ -102,6 +102,9 @@
 
       <div class="bp-col">
         <article class="blog-prose reveal" id="bp-article">{!! $post['content'] ?? '' !!}</article>
+        @if(in_array($post['slug'], ['how-to-choose-a-vps', 'gpu-servers-for-ai'], true))
+        @include('partials.growth-guides', ['growthPage' => 'article-'.$post['slug']])
+        @endif
 
         @if(!empty($post['tags']))
         <div class="blog-post-tags reveal">

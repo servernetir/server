@@ -494,40 +494,120 @@ return [
     ],
 
     'gpu' => [
-        'icon' => 'monitor', 'group' => 'use',
-        'fa' => ['t' => 'سرور مجازی گرافیکی',
-            'seo_t' => 'اجاره سرور مجازی گرافیکی (GPU) | NVIDIA، CUDA 12',
-            'seo_d' => 'اجاره سرور مجازی گرافیکی با کارت NVIDIA و درایور آمادهٔ CUDA 12 برای رندر، آموزش مدل و پردازش سنگین؛ ایمیج‌های آمادهٔ PyTorch و TensorFlow و پشتیبانی فارسی.',
-            'tag' => 'NVIDIA · CUDA 12',
-            'hero_t' => 'قدرت گرافیکی NVIDIA،', 'hero_g' => 'بدون خرید سخت‌افزار.',
-            'hero_d' => 'GPUهای حرفه‌ای برای رندر، هوش مصنوعی و پردازش سنگین — با درایورهای آماده CUDA و ایمیج‌های از پیش پیکربندی‌شده PyTorch و TensorFlow.'],
-        'en' => ['t' => 'GPU VPS',
-            'seo_t' => 'Rent a GPU VPS | NVIDIA, CUDA 12',
-            'seo_d' => 'Rent a GPU VPS with NVIDIA cards and ready CUDA 12 drivers for rendering, model training and heavy compute; pre-built PyTorch and TensorFlow images.',
-            'tag' => 'NVIDIA · CUDA 12',
-            'hero_t' => 'NVIDIA GPU power,', 'hero_g' => 'without buying hardware.',
-            'hero_d' => 'Professional GPUs for rendering, AI and heavy compute — with ready CUDA drivers and pre-configured PyTorch and TensorFlow images.'],
-        'tr' => ['t' => 'GPU VPS', 'tag' => 'NVIDIA · CUDA 12',
-            'hero_t' => 'Donanım almadan', 'hero_g' => 'NVIDIA GPU gücü.',
-            'hero_d' => 'Render, yapay zeka ve ağır işlem için profesyonel GPU\'lar — hazır CUDA sürücüleri ve önceden yapılandırılmış PyTorch/TensorFlow imajları.'],
-        'chips' => ['CUDA 12', 'PyTorch / TensorFlow', 'NVMe RAID-10', 'Dedicated vGPU', 'Jupyter Ready'],
+        'icon' => 'monitor',
+        'group' => 'use',
+        'fa' => [
+            't' => 'سرور مجازی گرافیکی',
+            'seo_t' => 'سرور مجازی GPU | بررسی منابع و دسترسی پیش از سفارش',
+            'seo_d' => 'برای GPU VPS، نوع مجازی‌سازی، کارت، سیستم‌عامل و ماندگاری داده را پیش از سفارش بررسی کنید؛ تفاوت با محیط برنامه GPU ساعتی سرورنت.',
+            'tag' => 'GPU VPS · بررسی منابع و دسترسی',
+            'hero_t' => 'سرور مجازی GPU،',
+            'hero_g' => 'متناسب با محیط اجرای شما.',
+            'hero_d' => 'اگر ماشین مجازی با سیستم‌عامل و دسترسی مدیریتی لازم دارید، کارت، نحوه تخصیص GPU، منابع و ماندگاری داده باید در پیشنهاد همان سرویس تأیید شوند. برای محیط آماده ComfyUI یا Jupyter، صفحه مستقل GPU ساعتی را ببینید.'
+        ],
+        'en' => [
+            't' => 'GPU VPS',
+            'seo_t' => 'GPU VPS | Confirm Hardware, Access and Storage',
+            'seo_d' => 'Assess GPU VPS hardware, virtualization, operating system and persistent storage before ordering. Compare it with ServerNet’s app-based hourly GPU service.',
+            'tag' => 'GPU VPS · Hardware and access review',
+            'hero_t' => 'A GPU VPS',
+            'hero_g' => 'for your runtime needs.',
+            'hero_d' => 'If you need a virtual machine with an operating system and administrative access, confirm its GPU allocation, resources and data persistence in the service quote. For ready-to-use ComfyUI or Jupyter environments, see the separate hourly GPU page.'
+        ],
+        'tr' => [
+            't' => 'GPU VPS',
+            'seo_t' => 'GPU VPS | Donanım, Erişim ve Depolamayı Doğrulayın',
+            'seo_d' => 'GPU VPS için donanım, sanallaştırma, işletim sistemi ve veri kalıcılığını siparişten önce doğrulayın; uygulama tabanlı saatlik GPU hizmetiyle karşılaştırın.',
+            'tag' => 'GPU VPS · Donanım ve erişim incelemesi',
+            'hero_t' => 'GPU VPS,',
+            'hero_g' => 'çalışma ortamınıza uygun.',
+            'hero_d' => 'İşletim sistemi ve yönetici erişimli sanal makine gerekiyorsa GPU tahsisini, kaynakları ve veri kalıcılığını hizmet teklifinde doğrulayın. Hazır ComfyUI veya Jupyter için ayrı saatlik GPU sayfasını inceleyin.'
+        ],
+        'chips' => ['GPU VPS', 'VRAM', 'OS & Access', 'Storage Scope'],
+        'inc_strip' => false,
+        'show_infra' => false,
+        'offer_schema' => false,
+        'plan_note' => [
+            'fa' => 'نام‌ها و مشخصات این بخش، جای تأیید موجودی و قرارداد نیستند. قیمت و امکان سفارش باید از پلن قابل تحویل همان پیشنهاد مشخص شود؛ وجود این صفحه به معنی عرضه همه کارت‌های نام‌برده نیست.',
+            'en' => 'These resource classes do not confirm stock or a service contract. Confirm price and orderability for the deliverable plan in the quote; this page does not establish availability of every named card.',
+            'tr' => 'Bu kaynak sınıfları stok veya sözleşme onayı değildir. Teslim edilebilir planın fiyat ve sipariş durumunu teklifte doğrulayın; sayfa her kartın mevcut olduğunu göstermez.'
+        ]
+    ,
         'plans' => [
             $mk('G-4000', 93, 4900000, 49.00, ['RTX 4000 Ada · 20 GB', '8 vCPU / 32 GB RAM', '250 GB NVMe', ['fa' => 'درایور و CUDA آماده', 'en' => 'Drivers & CUDA ready', 'tr' => 'Sürücüler ve CUDA hazır'], $traffic]),
             $mk('G-A5000', 94, 7900000, 79.00, ['RTX A5000 · 24 GB', '12 vCPU / 64 GB RAM', '500 GB NVMe', ['fa' => 'درایور و CUDA آماده', 'en' => 'Drivers & CUDA ready', 'tr' => 'Sürücüler ve CUDA hazır'], $traffic], true),
             $mk('G-A100', 95, 14900000, 149.00, ['A100 · 40 GB HBM2e', '16 vCPU / 128 GB RAM', '1 TB NVMe', ['fa' => 'درایور و CUDA آماده', 'en' => 'Drivers & CUDA ready', 'tr' => 'Sürücüler ve CUDA hazır'], $traffic]),
         ],
-        'features' => ['instant', 'root', 'scale', 'support', 'uptime',
-            ['icon' => 'bot',
-                'fa' => ['t' => 'ایمیج‌های آماده AI', 'd' => 'PyTorch، TensorFlow، ComfyUI و Jupyter از پیش نصب — از دقیقه اول آموزش مدل را شروع کنید.'],
-                'en' => ['t' => 'Ready AI Images', 'd' => 'PyTorch, TensorFlow, ComfyUI and Jupyter pre-installed — start training from minute one.'],
-                'tr' => ['t' => 'Hazır AI İmajları', 'd' => 'PyTorch, TensorFlow, ComfyUI ve Jupyter kurulu — ilk dakikadan eğitime başlayın.']],
-        ],
-        'faqs' => ['activation', 'os',
-            ['fa' => ['q' => 'برای رندر مناسب است یا فقط AI؟', 'a' => 'هر دو — RTX 4000/A5000 برای رندر Blender و 3ds Max و DaVinci عالی‌اند؛ A100 برای آموزش و اجرای مدل‌های بزرگ زبان و تصویری طراحی شده.'],
-             'en' => ['q' => 'Is it good for rendering or only AI?', 'a' => 'Both — RTX 4000/A5000 excel at Blender, 3ds Max and DaVinci rendering; the A100 is built for training and serving large language/vision models.'],
-             'tr' => ['q' => 'Render için mi uygun, sadece AI mı?', 'a' => 'İkisi de — RTX 4000/A5000 Blender ve DaVinci render\'da mükemmel; A100 büyük modellerin eğitimi için tasarlandı.']],
-            'refund',
-        ],
+        'features' => [[
+                'icon' => 'key',
+                'fa' => [
+                    't' => 'دسترسی موردنیاز را مشخص کنید',
+                    'd' => 'SSH، root، دسکتاپ و پورت عمومی را جداگانه در پیشنهاد بررسی کنید؛ دسترسی HTTPS یک برنامه جای این امکانات نیست.'
+                ],
+                'en' => [
+                    't' => 'Specify required access',
+                    'd' => 'Check SSH, root, desktop and public ports separately in the quote. An app HTTPS endpoint does not provide those capabilities.'
+                ],
+                'tr' => [
+                    't' => 'Gerekli erişimi belirtin',
+                    'd' => 'SSH, root, masaüstü ve genel portları teklifte ayrı kontrol edin; uygulama HTTPS adresi bunların yerine geçmez.'
+                ]
+            ], [
+                'icon' => 'cpu',
+                'fa' => [
+                    't' => 'نوع تخصیص و حافظه GPU',
+                    'd' => 'مدل کارت، VRAM و اشتراکی یا اختصاصی بودن تخصیص باید روشن باشد؛ تعداد سرویس مستقل را با تعداد کارت در یک ماشین اشتباه نگیرید.'
+                ],
+                'en' => [
+                    't' => 'GPU allocation and memory',
+                    'd' => 'Confirm the card, VRAM and whether allocation is shared or dedicated. Multiple services do not imply multiple cards in one machine.'
+                ],
+                'tr' => [
+                    't' => 'GPU tahsisi ve bellek',
+                    'd' => 'Kart, VRAM ve paylaşımlı veya özel tahsisi doğrulayın. Birden fazla hizmet, aynı makinede birden fazla kart demek değildir.'
+                ]
+            ], [
+                'icon' => 'database',
+                'fa' => [
+                    't' => 'دیسک و تداوم کار',
+                    'd' => 'ماندگاری داده، بکاپ، امکان قطع و روش بازیابی را با نیاز واقعی کارتان تطبیق دهید.'
+                ],
+                'en' => [
+                    't' => 'Storage and continuity',
+                    'd' => 'Match data persistence, backups, interruption behavior and recovery to the workload.'
+                ],
+                'tr' => [
+                    't' => 'Depolama ve süreklilik',
+                    'd' => 'Veri kalıcılığı, yedekleme, kesinti ve kurtarmayı iş yükünüze göre değerlendirin.'
+                ]
+            ]],
+        'faqs' => [[
+                'fa' => [
+                    'q' => 'این صفحه با GPU ساعتی چه تفاوتی دارد؟',
+                    'a' => 'این صفحه برای بررسی نیاز ماشین مجازی GPU است. سرویس /gpu یک محیط برنامه‌محور برای برنامه‌های سازگار است و SSH، root یا سیستم‌عامل دلخواه VPS را ارائه نمی‌کند.'
+                ],
+                'en' => [
+                    'q' => 'How does this differ from hourly GPU?',
+                    'a' => 'This page is for assessing GPU virtual-machine needs. The /gpu service provides compatible application environments, without VPS SSH, root or a custom operating system.'
+                ],
+                'tr' => [
+                    'q' => 'Saatlik GPU’dan farkı nedir?',
+                    'a' => 'Bu sayfa GPU sanal makine ihtiyacını değerlendirmek içindir. /gpu uyumlu uygulama ortamı sunar; VPS SSH, root veya özel işletim sistemi sağlamaz.'
+                ]
+            ], [
+                'fa' => [
+                    'q' => 'کارت و نرم‌افزار دلخواه قابل ارائه است؟',
+                    'a' => 'نام کارت یا نرم‌افزار در صفحه به‌تنهایی تأیید تحویل نیست. مدل، VRAM، مجوز نرم‌افزار، روش نصب و موجودی را برای درخواست مشخص با پشتیبانی بررسی کنید.'
+                ],
+                'en' => [
+                    'q' => 'Is my preferred card or software available?',
+                    'a' => 'A card or software name on a page does not confirm delivery. Review the model, VRAM, software license, installation method and stock for your specific request.'
+                ],
+                'tr' => [
+                    'q' => 'İstediğim kart veya yazılım mevcut mu?',
+                    'a' => 'Sayfada isim geçmesi teslimat onayı değildir. Model, VRAM, yazılım lisansı, kurulum ve stoku talebiniz için destekle doğrulayın.'
+                ]
+            ]],
     ],
 
     'cloud' => [

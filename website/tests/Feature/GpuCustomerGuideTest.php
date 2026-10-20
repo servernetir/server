@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\CloudInstance;
+use App\Models\CloudLocation;
 use App\Models\Setting;
-use Illuminate\Support\Facades\Http;
 
 /**
  * راهنمای استفادهٔ مشتری + دامنهٔ برندشده — خطِ GPU در پنل.
@@ -20,7 +20,7 @@ class GpuCustomerGuideTest extends CloudProvisionTest
 {
     private function gpuService(string $imageKey = 'gpu-ollama', array $inst = []): array
     {
-        \App\Models\CloudLocation::firstOrCreate(['code' => 'global-gpu'],
+        CloudLocation::firstOrCreate(['code' => 'global-gpu'],
             ['country' => 'XX', 'is_active' => true, 'sort' => 1]);
 
         $plan = $this->plan('salad', [
@@ -201,7 +201,8 @@ class GpuCustomerGuideTest extends CloudProvisionTest
             ->get(route('account.cloud.show', $service))->assertOk()->getContent();
 
         $this->assertFalse($service->fresh()->cloudInstance->isDelivered());
-        $this->assertStringContainsString(__('ui.cs_stage_finishing'), $html);
+        $this->assertSame('starting', $service->fresh()->cloudInstance->stage());
+        $this->assertStringContainsString(__('ui.cs_stage_starting'), $html);
         $this->assertFalse($service->fresh()->cloudInstance->readyForNotice());
     }
 }

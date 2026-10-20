@@ -1110,7 +1110,7 @@ return [
 
     'clip-path-generator' => [
         'fa' => [
-            'intro' => 'خصوصیت clip-path فقط ناحیهٔ نمایش یک عنصر را می‌بُرد و در چیدمان صفحه هیچ فضایی آزاد نمی‌کند؛ پس بخش‌های بریده‌شده همچنان کلیک و هاور را دریافت می‌کنند مگر آنکه pointer-events را مدیریت کنید. با این ابزار رأس‌های چندضلعی را مستقیم روی پیش‌نمایش می‌کشید و کد دقیق clip-path را برای پالیگون، دایره، بیضی و inset می‌گیرید. مقادیر بر حسب درصدِ خودِ عنصر خروجی می‌شوند تا شکل واکنش‌گرا بماند.',
+            'intro' => 'خصوصیت clip-path ناحیه قابل نمایش یک عنصر را می‌بُرد، اما فضای آن را در چیدمان تغییر نمی‌دهد. بخش‌های خارج از ناحیه برش به‌طور پیش‌فرض رویداد اشاره‌گر دریافت نمی‌کنند. با این ابزار رأس‌های چندضلعی را مستقیم روی پیش‌نمایش می‌کشید و کد دقیق clip-path را برای پالیگون، دایره، بیضی و inset می‌گیرید. مقادیر بر حسب درصدِ خودِ عنصر خروجی می‌شوند تا شکل واکنش‌گرا بماند.',
             'steps' => [
                 'حالت را انتخاب کنید: چندضلعی، دایره، بیضی یا inset؛ یا شکل آماده‌ای مثل ستاره و حباب گفتار را بارگذاری کنید.',
                 'دستگیره‌ها را روی پیش‌نمایش بکشید تا شکل دلخواه ساخته شود.',
@@ -1126,7 +1126,7 @@ return [
             ],
         ],
         'en' => [
-            'intro' => 'The clip-path property only trims where an element paints; it never frees up layout space, so clipped-away regions still capture clicks and hovers unless you also set pointer-events. This generator lets you drag polygon vertices straight over the preview and copy exact clip-path code for polygon, circle, ellipse and inset. All values are emitted as percentages of the element itself, so the shape stays responsive.',
+            'intro' => 'The clip-path property changes the visible region without changing the element’s layout box. Clipped-out regions do not receive pointer events by default. This generator lets you drag polygon vertices straight over the preview and copy exact clip-path code for polygon, circle, ellipse and inset. All values are emitted as percentages of the element itself, so the shape stays responsive.',
             'steps' => [
                 'Pick a mode — polygon, circle, ellipse or inset — or load a preset such as star or speech bubble.',
                 'Drag the handles over the preview until the shape looks right.',
@@ -1142,7 +1142,7 @@ return [
             ],
         ],
         'tr' => [
-            'intro' => 'clip-path ozelligi bir ogenin yalnizca boyandigi alani kirpar ve sayfa yerlesiminde hic bosluk birakmaz; bu yuzden kirpilan bolgeler pointer-events ayarlanmadikca tiklama ve hover almaya devam eder. Bu arac ile cokgen noktalarini dogrudan onizleme uzerinde surukler ve cokgen, daire, elips ve inset icin tam clip-path kodunu alirsiniz. Tum degerler ogenin kendi boyutuna gore yuzde olarak uretilir, boylece sekil duyarli kalir.',
+            'intro' => 'clip-path bir öğenin görünen alanını kırpar, ancak yerleşimde kapladığı kutuyu değiştirmez. Kırpılan alanlar varsayılan olarak işaretçi olaylarını almaz. Bu arac ile cokgen noktalarini dogrudan onizleme uzerinde surukler ve cokgen, daire, elips ve inset icin tam clip-path kodunu alirsiniz. Tum degerler ogenin kendi boyutuna gore yuzde olarak uretilir, boylece sekil duyarli kalir.',
             'steps' => [
                 'Bir mod secin: cokgen, daire, elips veya inset; ya da yildiz veya konusma balonu gibi hazir bir sekil yukleyin.',
                 'Sekli istediginiz gibi ayarlamak icin tutamaklari onizleme uzerinde surukleyin.',
