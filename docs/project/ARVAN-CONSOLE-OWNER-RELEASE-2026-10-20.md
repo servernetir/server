@@ -1,5 +1,9 @@
 # Arvan console: owner-only activation and tab-race release — 20 October 2026
 
+Later state supersedes public-closed statements below: the owner approved
+[public reopening at08:03:27UTC](ARVAN-CONSOLE-PUBLIC-2026-10-20.md), public1/pilot0
+with sales unchanged. This document preserves the earlier release checkpoint.
+
 Follow-up: the owner subsequently authorized a single new diagnostic. Live image,
 mouse/keyboard, concurrent sessions and reconnect passed; that exact VM and its
 dedicated resources were then removed and independently verified absent. See the
