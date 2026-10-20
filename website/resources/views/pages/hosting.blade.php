@@ -539,6 +539,11 @@
   </div>
 </section>
 
+{{-- ============ راهنمای انتخاب برای محصول پایتون ============ --}}
+@if($category === 'hosting' && $slug === 'python')
+@include('partials.seo-python-fit')
+@endif
+
 {{-- ============ BAND (پیشنهاد مرتبط، مثل ایمیل تراکنشی) ============ --}}
 @isset($product['band'])
 @php $band = $product['band']; $bl = lc($band); @endphp
