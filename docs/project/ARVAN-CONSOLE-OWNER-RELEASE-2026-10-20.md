@@ -1,5 +1,12 @@
 # Arvan console: owner-only activation and tab-race release — 20 October 2026
 
+Follow-up: the owner subsequently authorized a single new diagnostic. Live image,
+mouse/keyboard, concurrent sessions and reconnect passed; that exact VM and its
+dedicated resources were then removed and independently verified absent. See the
+[completed owner test](ARVAN-CONSOLE-OWNER-TEST-2026-10-20.md). The no-active-VM
+constraint below describes this release's original checkpoint; automatic Windows
+password delivery remains unverified and public consoles stay closed.
+
 ## Current result and acceptance boundary
 
 The owner approved the two-file website activation with a short shared-cache
