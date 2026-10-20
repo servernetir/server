@@ -1,5 +1,12 @@
 # Arvan owner-only console and initial credential retry —18October2026
 
+Publication update: the prepared two-file console package was installed and
+activated on20October, with public0/pilot1 and sales preserved. The dedicated
+Worker's cross-tab race was also fixed and published. See the
+[20October release and acceptance limits](ARVAN-CONSOLE-OWNER-RELEASE-2026-10-20.md).
+The pending-publication passages below describe the original18October checkpoint,
+not current production. Windows automatic password delivery remains unresolved.
+
 ## Requested boundary and live restriction
 
 The owner superseded the earlier public-console approval: keep sales open,

@@ -102,6 +102,69 @@ test('concurrent tab cookie overwrite fails closed without consuming or controll
  assert.equal((await socket(a.binding,a.cookie)).status,502);
  assert.deepEqual(providerCookies,['token='+providerB,'token='+providerA]);
 });
+test('a delayed successful upgrade cannot erase a newer tab cookie or permit replay',async t=>{
+ // Cloudflare supports Response101; Node's standard Response does not.
+ const NativeResponse=globalThis.Response;
+ globalThis.Response=class extends NativeResponse{
+  constructor(body,init={}){
+   if(init.status!==101){super(body,init);return;}
+   super(null,{status:200,headers:init.headers});
+   Object.defineProperty(this,'status',{value:101});this.webSocket=init.webSocket;
+  }
+ };
+ t.after(()=>{globalThis.Response=NativeResponse;});
+ const ticketA='1'.repeat(64),ticketB='2'.repeat(64),sessionA='3'.repeat(64),sessionB='4'.repeat(64);
+ const providerA='00000000-0000-0000-0000-000000000001',providerB='00000000-0000-0000-0000-000000000002';
+ const tickets=new Map([[ticketA,sessionA],[ticketB,sessionB]]);
+ const sessions=new Map([[sessionA,providerA],[sessionB,providerB]]);
+ let startedA,finishA,cookie='';
+ const waitingA=new Promise(resolve=>{startedA=resolve;});
+ const claims=[],providerCookies=[];
+ const network=async(url,options)=>{
+  if(url==='https://console.servernet.cloud/system/arvan-console-broker'){
+   const {action,token}=JSON.parse(options.body);
+   if(action==='redeem'){
+    const value=tickets.get(token);tickets.delete(token);
+    return value?NativeResponse.json({session:value}):new NativeResponse('',{status:410});
+   }
+   claims.push(token);const value=sessions.get(token);sessions.delete(token);
+   return value?NativeResponse.json({region:'ir-tbz-sh1',token:value,path:'/ir-tbz-sh1/websockify'}):new NativeResponse('',{status:410});
+  }
+  assert.equal(url,'https://console.arvaniaas.ir/ir-tbz-sh1/websockify');
+  providerCookies.push(options.headers.Cookie);
+  if(options.headers.Cookie==='token='+providerA){
+   startedA();
+   return new Promise(resolve=>{finishA=()=>resolve({status:101,webSocket:{fixture:'A'}});});
+  }
+  return {status:101,webSocket:{fixture:'B'}};
+ };
+ const applyCookie=response=>{
+  const value=response.headers.get('set-cookie');
+  if(value!==null)cookie=value.includes('Max-Age=0')?'':value.split(';')[0];
+ };
+ const launch=async token=>{
+  const response=await handle(req('/launch',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({ticket:token})}),env,network);
+  assert.equal(response.status,200);
+  assert.match(response.headers.get('set-cookie'),/Max-Age=90; Secure; HttpOnly; SameSite=Strict/);
+  applyCookie(response);return (await response.json()).binding;
+ };
+ const socket=binding=>handle(req('/socket?binding='+binding,{headers:{Origin:base,Upgrade:'websocket',Cookie:cookie}}),env,network);
+ const bindingA=await launch(ticketA),pendingA=socket(bindingA);
+ await waitingA;
+ const bindingB=await launch(ticketB),newerCookie=cookie;
+ finishA();const connectedA=await pendingA;
+ assert.equal(connectedA.status,101);assert.equal(connectedA.headers.get('set-cookie'),null);
+ applyCookie(connectedA);assert.equal(cookie,newerCookie);
+ const connectedB=await socket(bindingB);assert.equal(connectedB.status,101);
+ assert.equal(connectedB.headers.get('set-cookie'),null);
+ assert.deepEqual(claims,[sessionA,sessionB]);
+ assert.deepEqual(providerCookies,['token='+providerA,'token='+providerB]);
+ assert.equal(sessions.size,0);assert.equal(tickets.size,0);
+ // Keeping the short-lived cookie must not make the consumed grant reusable.
+ assert.equal((await socket(bindingB)).status,410);
+ assert.equal((await socket(bindingA)).status,409);
+ assert.equal(providerCookies.length,2);
+});
 test('no arbitrary upstream, cookie injection or region escape',()=>{
  for(const data of [{region:'evil',token:'a'.repeat(36),path:'/ir-tbz-sh1/websockify'}, {region:'ir-tbz-sh1',token:'x; admin=true',path:'/ir-tbz-sh1/websockify'}, {region:'ir-tbz-sh1',token:'a'.repeat(36),path:'//evil.invalid'}])assert.equal(upstream(data),null);
 });
