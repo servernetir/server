@@ -110,23 +110,27 @@ class ServiceController extends Controller
         | ⚠️ ساعتِ جاری که پیش‌تر پرداخت شده برنمی‌گردد — خُرد نمی‌کنیم، نه در این
         | جهت و نه در آن. متنِ تأیید همین را می‌گوید.
         */
-        DB::transaction(function () use ($service, $reasonCols) {
+        $transitioned = DB::transaction(function () use ($service, $reasonCols): bool {
             $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
 
-            // ریفاندِ خودکارِ تحویل‌نشده — پیش از قفلِ وضعیت، بر پایهٔ provision_status
-            if ($fresh !== null) {
-                app(\App\Services\Billing\UndeliveredRefund::class)->maybeRefund($fresh, 'customer');
+            if ($fresh === null || ! $this->terminable($fresh)) {
+                return false; // Another request already closed or changed this service.
             }
 
-            if ($fresh === null || in_array($fresh->status, ['terminated', 'cancelled'], true)) {
-                return;                          // قبلاً بسته شده
-            }
+            app(\App\Services\Billing\UndeliveredRefund::class)->maybeRefund($fresh, 'customer');
 
             $fresh->update($reasonCols + [
                 'status'       => 'terminated',
                 'cancelled_at' => now(),
             ]);
+
+            return true;
         });
+
+        // Only the request that changed the locked row may release capacity or log deletion.
+        if (! $transitioned) {
+            return redirect()->to(lroute('account.services'))->withErrors(__('ui.svf_state'));
+        }
 
         /*
         | گامِ ۲ و ۳ — آزادسازی نزدِ زیرساخت، و ثبتِ نتیجه.

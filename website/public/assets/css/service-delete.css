@@ -15,3 +15,5 @@
 .svc-delete-footer{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:20px;margin-top:22px}
 .svc-delete-footer button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:480px){.svc-delete-dialog{padding:20px;width:calc(100vw - 20px);max-height:calc(100dvh - 20px)}.svc-delete-footer .pnl-btn{flex:1;justify-content:center}}
+
+.svc-delete-dialog[hidden]{display:none}

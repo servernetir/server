@@ -7,13 +7,13 @@
     var phrase = dialog.querySelector('[data-delete-phrase]').textContent.trim();
     var submit = dialog.querySelector('[data-delete-submit]');
     var submitting = false;
-    function matches() { return input.value.trim() === phrase; }
+    function matches() { return input.value === phrase; }
     function update() { submit.disabled = submitting || !matches(); }
     function cancel() {
       input.value = '';
       update();
       if (typeof dialog.close === 'function') dialog.close();
-      else dialog.removeAttribute('open');
+      else { dialog.removeAttribute('open'); dialog.hidden = true; }
     }
     dialog.querySelectorAll('[data-delete-cancel]').forEach(function (button) {
       button.addEventListener('click', function (event) { event.preventDefault(); cancel(); });

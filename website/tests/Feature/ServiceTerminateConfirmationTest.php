@@ -592,4 +592,22 @@ class ServiceTerminateConfirmationTest extends TestCase
         $this->assertSame('active', $s->fresh()->status);
         Http::assertNothingSent();
     }
+    public function test_stale_bound_model_cannot_release_an_already_closed_service(): void
+    {
+        foreach (['terminated', 'cancelled'] as $status) {
+            $c = $this->customer();
+            $s = $this->hostingService($c);
+            $this->actingAs($c, 'customer')->post('/account/services/'.$s->id.'/terminate/start');
+            $consent = $this->consent();
+            // Simulate another request committing after route binding but before our row lock.
+            Service::whereKey($s->id)->update(['status' => $status]);
+            $request = \Illuminate\Http\Request::create('/account/services/'.$s->id.'/terminate', 'POST', $consent);
+            $request->setLaravelSession(app('session.store'));
+            app(\App\Http\Controllers\Account\ServiceController::class)->terminate($request, $s);
+            $this->assertSame($status, $s->fresh()->status);
+            $this->assertSame(3, (int) $s->server->fresh()->active_accounts);
+        }
+        Http::assertNothingSent();
+    }
+
 }

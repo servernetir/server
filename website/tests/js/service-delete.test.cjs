@@ -25,6 +25,7 @@ for (const phrase of ['I understand that the money spent on this service will be
   test('exact consent gates submit: '+phrase, () => {
     const w = widget(phrase); assert.equal(w.submit.disabled, true); assert.equal(w.dialog.modal, true);
     w.set(phrase.slice(0, -1)); assert.equal(w.submit.disabled, true); assert.equal(w.send().prevented, true);
+    w.set(' '+phrase+' '); assert.equal(w.submit.disabled, true); assert.equal(w.send().prevented, true);
     w.set(phrase); assert.equal(w.submit.disabled, false); assert.equal(w.send().prevented, false);
     assert.equal(w.submit.disabled, true); assert.equal(w.send().prevented, true);
     w.pageEvents.pageshow(); assert.equal(w.submit.disabled, false);
@@ -38,5 +39,5 @@ test('cancel clears consent and closes; Escape uses the same behavior', () => {
 });
 test('fallback keeps form usable and closes without the dialog API', () => {
   const w = widget('confirm', false); assert.equal(w.dialog.open, true); w.set('confirm'); assert.equal(w.submit.disabled, false);
-  w.events.click({ preventDefault() {} }); assert.equal(w.dialog.open, false);
+  w.events.click({ preventDefault() {} }); assert.equal(w.dialog.open, false); assert.equal(w.dialog.hidden, true);
 });
