@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CreditEntry;
 use App\Models\Service;
-use App\Services\Otp\OtpService;
 use App\Services\Provisioning\WhmClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -24,58 +23,38 @@ use Illuminate\View\View;
  */
 class ServiceController extends Controller
 {
-    public function __construct(private OtpService $otp) {}
-
-    // ═════════════ حذفِ سرویسِ تحویل‌شده — دومرحله‌ای با کدِ یک‌بارمصرف ═════════════
-
-    /**
-     * چرا OTP: این کار **سرور را واقعاً نزدِ زیرساخت حذف می‌کند** و داده‌ها
-     * برنمی‌گردند. یک نشستِ دزدیده‌شده یا لپ‌تاپِ بازمانده نباید بتواند با یک
-     * کلیک کلِ سرورِ مشتری را پاک کند. کد به موبایل/ایمیلِ خودِ صاحبِ حساب
-     * می‌رود، پس مهاجم علاوه بر نشست باید به آن هم دسترسی داشته باشد.
-     *
-     * ⚠️ کد به **همین سرویس** گره می‌خورد. اگر فقط «کدِ حذف» صادر می‌کردیم،
-     * مشتری می‌توانست کد را برای سرویسِ ارزان بگیرد و با همان، سرویسِ دیگری را
-     * حذف کند — و مهم‌تر، یک باگِ ساده در فرم همین کار را ناخواسته می‌کرد.
-     */
+    // Deletion consent is local to this customer session and this service.
+    // No SMS/email destination or OTP delivery is needed.
     public function terminateStart(Request $request, Service $service): RedirectResponse
     {
-        $customer = $this->ownedOr404($service);
+        $this->ownedOr404($service);
 
         if (! $this->terminable($service)) {
             return back()->withErrors(__('ui.svf_state'));
         }
 
-        $channel = $customer->phone ? 'sms' : 'email';
-        $destination = $channel === 'sms' ? $customer->phone : $customer->email;
-
-        if (! $destination) {
-            return back()->withErrors(__('ui.scf_no_dest'));
-        }
-
-        $issue = $this->otp->issue($channel, $destination, 'service_terminate', $request->ip());
-
-        if (! $issue->ok && $issue->retryAfter === null) {
-            return back()->withErrors($issue->error);
-        }
-
         $request->session()->put('svc_terminate_ctx', [
-            'service_id'  => (int) $service->id,
-            'channel'     => $channel,
-            'destination' => $destination,
+            'service_id' => (int) $service->id,
+            'phrase' => __('ui.svc_terminate_phrase'),
+            'token' => bin2hex(random_bytes(32)),
+            'expires_at' => now()->addMinutes(15)->timestamp,
         ]);
 
-        return back()->with('ok', __('ui.svf_code_sent'));
+        return back()->with('svc_terminate_open', (int) $service->id);
     }
 
-    /** مرحلهٔ دوم: بررسیِ کد و حذفِ واقعیِ سرور نزدِ زیرساخت */
     public function terminate(Request $request, Service $service): RedirectResponse
     {
-        $customer = $this->ownedOr404($service);
+        $this->ownedOr404($service);
         $ctx = $request->session()->get('svc_terminate_ctx');
 
-        if (! is_array($ctx) || (int) ($ctx['service_id'] ?? 0) !== (int) $service->id) {
-            return back()->withErrors(__('ui.svf_ask_code'));
+        // Reject legacy OTP contexts, expired dialogs and confirmation of a different service.
+        if (! is_array($ctx)
+            || (int) ($ctx['service_id'] ?? 0) !== (int) $service->id
+            || ! is_string($ctx['phrase'] ?? null)
+            || ! is_string($ctx['token'] ?? null)
+            || (int) ($ctx['expires_at'] ?? 0) <= now()->timestamp) {
+            return back()->withErrors(__('ui.svc_terminate_restart'));
         }
 
         if (! $this->terminable($service)) {
@@ -84,28 +63,20 @@ class ServiceController extends Controller
             return back()->withErrors(__('ui.svf_state'));
         }
 
-        /*
-        | 🔴 دلیلِ حذف **اختیاری** است و باید بمانَد.
-        |
-        | مشتری در این لحظه از ما ناراضی است؛ فیلدِ اجباری یک دیوار است و
-        | نتیجه‌اش دادهٔ بهتر نیست، تیکتِ عصبانی است. پس `nullable`، و اگر خالی
-        | باشد حذف بی‌هیچ مانعی انجام می‌شود.
-        |
-        | ⚠️ کد باید از فهرستِ بسته بیاید. با `string`ِ آزاد، هر مقداری از
-        | مرورگر به ستون می‌رسید و گزارشِ مدیر پر از کدهای بی‌معنی می‌شد — یعنی
-        | همان «دادهٔ غیرقابلِ شمارش» که این ستون برای رفعش ساخته شد.
-        */
         $data = $request->validate([
-            'code'        => ['required', 'string', 'max:12'],
-            'reason'      => ['nullable', 'string', Rule::in(Service::terminateReasonCodes())],
+            'confirmation_phrase' => ['required', 'string', 'max:400', Rule::in([$ctx['phrase']])],
+            'confirmation_token' => ['required', 'string', Rule::in([$ctx['token']])],
+            'reason' => ['nullable', 'string', Rule::in(Service::terminateReasonCodes())],
             'reason_note' => ['nullable', 'string', 'max:500'],
-        ], [], ['code' => __('panel.field_code'), 'reason' => __('panel.field_reason'), 'reason_note' => __('panel.field_note')]);
-
-        $check = $this->otp->verify($ctx['channel'], $ctx['destination'], 'service_terminate', $data['code']);
-
-        if (! $check->ok) {
-            return back()->withErrors(['code' => $check->error]);
-        }
+        ], [
+            'confirmation_phrase.required' => __('ui.svc_terminate_phrase_error'),
+            'confirmation_phrase.in' => __('ui.svc_terminate_phrase_error'),
+            'confirmation_token.*' => __('ui.svc_terminate_restart'),
+        ], [
+            'confirmation_phrase' => __('ui.svc_terminate_phrase_label'),
+            'reason' => __('panel.field_reason'),
+            'reason_note' => __('panel.field_note'),
+        ]);
 
         $request->session()->forget('svc_terminate_ctx');
 
@@ -139,23 +110,27 @@ class ServiceController extends Controller
         | ⚠️ ساعتِ جاری که پیش‌تر پرداخت شده برنمی‌گردد — خُرد نمی‌کنیم، نه در این
         | جهت و نه در آن. متنِ تأیید همین را می‌گوید.
         */
-        DB::transaction(function () use ($service, $reasonCols) {
+        $transitioned = DB::transaction(function () use ($service, $reasonCols): bool {
             $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
 
-            // ریفاندِ خودکارِ تحویل‌نشده — پیش از قفلِ وضعیت، بر پایهٔ provision_status
-            if ($fresh !== null) {
-                app(\App\Services\Billing\UndeliveredRefund::class)->maybeRefund($fresh, 'customer');
+            if ($fresh === null || ! $this->terminable($fresh)) {
+                return false; // Another request already closed or changed this service.
             }
 
-            if ($fresh === null || in_array($fresh->status, ['terminated', 'cancelled'], true)) {
-                return;                          // قبلاً بسته شده
-            }
+            app(\App\Services\Billing\UndeliveredRefund::class)->maybeRefund($fresh, 'customer');
 
             $fresh->update($reasonCols + [
                 'status'       => 'terminated',
                 'cancelled_at' => now(),
             ]);
+
+            return true;
         });
+
+        // Only the request that changed the locked row may release capacity or log deletion.
+        if (! $transitioned) {
+            return redirect()->to(lroute('account.services'))->withErrors(__('ui.svf_state'));
+        }
 
         /*
         | گامِ ۲ و ۳ — آزادسازی نزدِ زیرساخت، و ثبتِ نتیجه.

@@ -1,0 +1,19 @@
+/* Service deletion consent: inherits the panel theme and document direction. */
+.svc-delete-dialog{position:fixed;inset:0;box-sizing:border-box;width:min(600px,calc(100vw - 32px));max-height:calc(100dvh - 32px);margin:auto;overflow:auto;padding:26px;border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--text);font:inherit;box-shadow:0 24px 80px #0005;z-index:10000}
+.svc-delete-dialog::backdrop{background:#0009;backdrop-filter:blur(4px)}
+.svc-delete-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.svc-delete-header h2{font-size:21px;line-height:1.5;margin:0}
+.svc-delete-close{border:0;background:transparent;color:var(--dim);font:inherit;font-size:28px;line-height:1;cursor:pointer;padding:6px}
+.svc-delete-intro{font-size:14px;line-height:1.8;overflow-wrap:anywhere}
+.svc-delete-warning{padding:12px 16px;margin:16px 0;border-inline-start:3px solid var(--danger);border-radius:8px;background:var(--bg2);font-size:13px;line-height:1.8}
+.svc-delete-warning p{margin:0 0 6px}.svc-delete-warning p:last-child{margin:0}
+.svc-delete-label{display:block;font-size:13px;font-weight:600;margin:16px 0 8px}
+.svc-delete-phrase{padding:12px 14px;background:var(--bg2);border:1px solid var(--line);border-radius:10px;font-size:14px;line-height:1.9;user-select:text;overflow-wrap:anywhere}
+.svc-delete-dialog textarea{box-sizing:border-box;resize:vertical;line-height:1.8}
+.svc-delete-help{font-size:12px;line-height:1.7;color:var(--dim);margin:8px 0}
+.svc-delete-reason{margin:20px 0 0;font-size:13px}.svc-delete-reason summary{cursor:pointer;color:var(--dim)}
+.svc-delete-footer{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:20px;margin-top:22px}
+.svc-delete-footer button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:480px){.svc-delete-dialog{padding:20px;width:calc(100vw - 20px);max-height:calc(100dvh - 20px)}.svc-delete-footer .pnl-btn{flex:1;justify-content:center}}
+
+.svc-delete-dialog[hidden]{display:none}
