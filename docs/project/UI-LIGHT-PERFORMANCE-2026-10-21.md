@@ -17,7 +17,7 @@ Base: `3e7bd7355e0cbe86702225c824fecf98ad257843`. The source/compact asset pairs
 
 The test fixture in `website/tests/js/atlas-render-budget.test.cjs` was executed against BOTH complete changed JavaScript assets in the tool's JavaScript isolate. All **38 behavioral assertions passed**. It uses a deterministic DOM/Canvas/event/animation-frame fixture; it is not a browser performance measurement.
 
-The same fixture against the original source failed its render-budget assertion (61 paints in the simulated second), demonstrating that the test detects the original behavior. The changed assets draw within the 25–32 simulated-paints acceptance range. Tests also cover latest-click-wins labels/links/aria state, deferred geometry allocation, one animation loop, hiding, offscreen pause, back/forward restore, mobile settling, reduced motion and keyboard input. Both assets parsed successfully.
+The same fixture against the original source failed its render-budget assertion (61 paints in the simulated second), demonstrating that the test detects the original behavior. The changed assets draw within the 25–32 simulated-paints acceptance range. Tests also cover latest-click-wins labels/links/aria state, deferred geometry allocation, one animation loop, hiding, offscreen pause, back/forward restore, mobile settling, reduced motion and keyboard input. Both assets parsed successfully. An independent review found no blocking source/compact semantic or lifecycle issues and additionally exercised dragging, viewport changes and reduced-motion toggles with the deterministic fixture.
 
 The portable Node entry point is:
 

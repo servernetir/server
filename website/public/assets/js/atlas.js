@@ -145,7 +145,7 @@
           rendered++;
           const paintCost=performance.now()-started;
           paintAverage=paintAverage?paintAverage*.95+paintCost*.05:paintCost;
-          // Reduce only decorative dot density on slower CPUs; routes and input stay at display cadence.
+          // Reduce decorative dot density on slower CPUs; pointer input remains independent of painting.
           if(rendered>30&&paintAverage>4)detailStep=2;
           if(timestamp-lastReport>250||motion.matches){
             host.dataset.rotation=yaw.toFixed(2);host.dataset.snFrames=String(rendered);
