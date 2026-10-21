@@ -1,0 +1,37 @@
+{
+  "schema": 1,
+  "source": "infra/cloudflare/servernet-ir-worker.mjs",
+  "worker_name": "blue-heart-fbf3",
+  "observed_before_active_version_prefix": "f6558fed",
+  "before_version_full_id_verified": false,
+  "before_source_sha256": "b650382905ed1ea3407d52f6b32b1089024b05e544c3d0edad0ae21d71a8f28a",
+  "prepared_preview_source_sha256": "2c835d26c2212b3baa59bd327a56249194be331ef6ef7aff9a02ddb39a003c4d",
+  "after_source_sha256": "e14da80f203acd094c434924cbd728aedfc014a5a1f4c8ef6bcd1e5b32f90f89",
+  "after_normalized_lf_sha256": "5a1b6825aad61746a185623f9a139fbc52f3a1e50175bdf5092543f0d636c33a",
+  "observed_after_active_version_prefix": "d4b5e0f8",
+  "after_version_full_id_verified": false,
+  "preview_to_deployed_difference": "line-ending serialization only; normalized source identical",
+  "deployment_status": "deployed_ui_verified",
+  "public_new_paths_accepted": true,
+  "acceptance": {
+    "font_get_200_font_woff2_woff2_magic": ["regular", "medium", "bold"],
+    "unsigned_errors": {"status": 403, "response": "application JSON owner denial"},
+    "unsigned_automation": {"status": 403, "response": "application JSON owner denial"},
+    "signed_owner_panel": {"enabled": true, "sent_replies": 0, "last_review_display_tehran": "17:56:19", "no_errors_before_unsigned_probes": true},
+    "owner_chat_reply_inside_panel": true,
+    "owner_chat_history_retained_after_reopen": true
+  },
+  "isolated_tests": {"node_behavioral_passed": 17, "failed": 0, "syntax_check_exit_code": 0},
+  "added_exact_methods": {
+    "/bale/hermes/assets/fonts/IRANSans-regular.woff2": ["GET", "HEAD"],
+    "/bale/hermes/assets/fonts/IRANSans-medium.woff2": ["GET", "HEAD"],
+    "/bale/hermes/assets/fonts/IRANSans-bold.woff2": ["GET", "HEAD"],
+    "/bale/hermes/errors": ["GET"],
+    "/bale/hermes/automation": ["GET"],
+    "/bale/hermes/client-errors": ["POST"]
+  },
+  "fixed_upstream_and_existing_guards_preserved": true,
+  "original_worker_route_count": 4,
+  "temporary_diagnostic_exceptions_remaining": 0,
+  "vm_ingress_n8n_restarted": false
+}
