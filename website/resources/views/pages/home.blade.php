@@ -109,7 +109,7 @@
         <div class="picon"><svg class="icon"><use href="#i-{{ $p['icon'] }}"/></svg></div>
         <h3>{{ lc($p)['t'] }}</h3>
         <p>{{ lc($p)['d'] }}</p>
-        <div class="price">{{ __('ui.from') }}<b>{{ site_price($p) }}</b>{{ __('ui.mo') }}</div>
+        <div class="price">{{ __('ui.from') }}<b>{{ site_price($p) }}</b>{{ __(($p['billing_period'] ?? 'monthly') === 'yearly' ? 'ui.domain_year' : 'ui.mo') }}</div>
         <span class="buy">{{ __('ui.prod_view') }} <svg class="icon dir"><use href="#i-arrow"/></svg></span>
       </a>
       @endforeach

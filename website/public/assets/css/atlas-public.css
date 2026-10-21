@@ -1,6 +1,6 @@
 /* ServerNet public presentation. Account, authentication and checkout keep their own layout. */
 body.sn-public{--surface:#0b1523;--surface-2:#111f31;--line:rgba(139,173,209,.17);--line-2:rgba(139,173,209,.28);--muted:#a4b1c5;--dim:#7e91ab;--r:13px;--r-lg:17px}
-html[data-theme="light"] body.sn-public{--surface:#fff;--surface-2:#edf4fc;--line:rgba(38,80,117,.18);--line-2:rgba(38,80,117,.28);--muted:#52647a;--dim:#637a94;--cyan:#00869b}
+html[data-theme="light"] body.sn-public{--surface:#fff;--surface-2:#edf4fc;--line:rgba(38,80,117,.18);--line-2:rgba(38,80,117,.28);--muted:#52647a;--dim:#5b6e84;--cyan:#00788b}
 .sn-public .container,.sn-public .sn-atlas .container,.sn-public .gpu-wrap{max-width:none;width:100%;padding-inline:clamp(20px,3vw,56px)}
 .sn-public .aurora .blob{display:none}.sn-public .aurora{background:radial-gradient(ellipse at 8% 0%,rgba(51,111,200,.12),transparent 60%),var(--bg)}
 .sn-public .grid-overlay{opacity:.18}.sn-public main>.section:first-child{padding-top:42px}

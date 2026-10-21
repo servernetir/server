@@ -62,6 +62,7 @@
         let selected=group?.dataset.snSelected||'IR';
         let yaw=regions[selected]?.[1]??45,targetYaw=yaw,pitch=22;
         let width=0,height=0,radius=0,centerX=0,centerY=0,halo;
+        let lastPaint=-Infinity,connectionsDirty=false;
         let frame=0,lastTick=0,visible=!('IntersectionObserver' in window),active=true;
         let dragging=false,pointerX=0,pointerY=0,pausedUntil=0;
         let theme={},connections=[],connectionLines=[],rendered=0,lastReport=0;
@@ -107,6 +108,7 @@
         }
         function draw(timestamp){
           if(!width||!height)return;
+          if(connectionsDirty){buildConnections();connectionsDirty=false;}
           const started=performance.now();
           cy=Math.cos(yaw*radians);sy=Math.sin(yaw*radians);cp=Math.cos(pitch*radians);sp=Math.sin(pitch*radians);
           ctx.clearRect(0,0,width,height);ctx.fillStyle=halo;ctx.fillRect(0,0,width,height);
@@ -152,16 +154,22 @@
           }
         }
         function tick(timestamp){
-          frame=0;if(!active||!visible||document.hidden){lastTick=0;return;}
+          frame=0;if(!active||!visible||document.hidden){lastTick=0;lastPaint=-Infinity;return;}
+          // Bound decorative painting; keep the main thread available for clicks and scrolling.
+          const interval=dragging?1000/60:1000/30;
+          if(timestamp-lastPaint<interval-.5){frame=requestAnimationFrame(tick);return;}
           const elapsed=lastTick?Math.min(timestamp-lastTick,80):0;lastTick=timestamp;
           const delta=normalize(targetYaw-yaw);
           if(!dragging&&Math.abs(delta)>.025)yaw+=delta*(1-Math.exp(-elapsed*.009));
-          else if(!dragging&&!motion.matches&&timestamp>pausedUntil){yaw=normalize(yaw+elapsed*.0009);targetYaw=yaw;}
-          draw(timestamp);
-          if(!motion.matches)frame=requestAnimationFrame(tick);
+          else if(!dragging&&!motion.matches&&!narrow.matches&&timestamp>pausedUntil){yaw=normalize(yaw+elapsed*.0009);targetYaw=yaw;}
+          draw(timestamp);lastPaint=timestamp;
+          const turning=Math.abs(normalize(targetYaw-yaw))>.025;
+          // On mobile, settle on the selected country instead of painting forever.
+          if(!motion.matches&&(!narrow.matches||dragging||turning))frame=requestAnimationFrame(tick);
+          else lastTick=0;
         }
         function wake(){
-          if(!active||!visible||document.hidden){if(frame)cancelAnimationFrame(frame);frame=0;lastTick=0;return;}
+          if(!active||!visible||document.hidden){if(frame)cancelAnimationFrame(frame);frame=0;lastTick=0;lastPaint=-Infinity;return;}
           if(motion.matches){if(frame)cancelAnimationFrame(frame);frame=0;draw(performance.now());return;}
           // Coalesce resize, pointer and observer events into the same display frame.
           if(!frame)frame=requestAnimationFrame(tick);
@@ -178,7 +186,7 @@
         }
         group?.addEventListener('sn-atlas-region',event=>{
           if(!regions[event.detail])return;selected=event.detail;targetYaw=regions[selected][1];
-          pausedUntil=performance.now()+2400;if(motion.matches)yaw=targetYaw;buildConnections();wake();
+          pausedUntil=performance.now()+2400;if(motion.matches)yaw=targetYaw;connectionsDirty=true;wake();
         });
         const startDrag=event=>{
           if(event.button!==undefined&&event.button!==0)return;
