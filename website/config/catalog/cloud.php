@@ -335,9 +335,27 @@ return [
         ]
     ,
         'plans' => [
-            $mk('N8N-START', 202, 490000, 4.90, [['fa' => '۵ هزار اجرا در ماه', 'en' => '5k executions / mo', 'tr' => 'Ayda 5 bin çalıştırma'], '1 vCPU / 2 GB RAM', ['fa' => 'دامنه دلخواه + SSL', 'en' => 'Custom domain + SSL', 'tr' => 'Özel alan adı + SSL'], ['fa' => 'بکاپ روزانه', 'en' => 'Daily backups', 'tr' => 'Günlük yedek'], ['fa' => 'آپدیت خودکار', 'en' => 'Auto updates', 'tr' => 'Otomatik güncelleme']]),
-            $mk('N8N-PRO', 203, 990000, 9.90, [['fa' => '۵۰ هزار اجرا در ماه', 'en' => '50k executions / mo', 'tr' => 'Ayda 50 bin çalıştırma'], '2 vCPU / 4 GB RAM', ['fa' => 'دامنه دلخواه + SSL', 'en' => 'Custom domain + SSL', 'tr' => 'Özel alan adı + SSL'], ['fa' => 'بکاپ ۶ ساعته', 'en' => '6-hour backups', 'tr' => '6 saatlik yedek'], ['fa' => 'دسترسی به کیو و ورکر', 'en' => 'Queue mode + worker', 'tr' => 'Kuyruk modu + worker']], true),
-            $mk('N8N-BIZ', 204, 1990000, 19.90, [['fa' => 'اجرای نامحدود', 'en' => 'Unlimited executions', 'tr' => 'Sınırsız çalıştırma'], '4 vCPU / 8 GB RAM', ['fa' => 'ورکرهای اختصاصی جدا', 'en' => 'Dedicated separate workers', 'tr' => 'Özel ayrık worker\'lar'], ['fa' => 'SSO و کنترل دسترسی', 'en' => 'SSO & access control', 'tr' => 'SSO ve erişim kontrolü'], ['fa' => 'پشتیبانی ساخت ورک‌فلو', 'en' => 'Workflow-building support', 'tr' => 'İş akışı kurma desteği']]),
+            $mk('N8N-START', 202, 490000, 4.90, [
+                ['fa' => 'سقف اجرا طبق پیشنهاد نهایی', 'en' => 'Execution limits agreed in the quote', 'tr' => 'Çalıştırma sınırı son teklife göre'],
+                '1 vCPU / 2 GB RAM',
+                ['fa' => 'دامنه و HTTPS طبق سفارش', 'en' => 'Domain and HTTPS scope agreed in the order', 'tr' => 'Alan adı ve HTTPS kapsamı siparişe göre'],
+                ['fa' => 'برنامه بکاپ و بازیابی طبق سفارش', 'en' => 'Backup and restore schedule agreed in the order', 'tr' => 'Yedekleme ve geri yükleme planı siparişe göre'],
+                ['fa' => 'روش به‌روزرسانی طبق سفارش', 'en' => 'Upgrade process agreed in the order', 'tr' => 'Güncelleme süreci siparişe göre'],
+            ]),
+            $mk('N8N-PRO', 203, 990000, 9.90, [
+                ['fa' => 'سقف اجرا طبق پیشنهاد نهایی', 'en' => 'Execution limits agreed in the quote', 'tr' => 'Çalıştırma sınırı son teklife göre'],
+                '2 vCPU / 4 GB RAM',
+                ['fa' => 'دامنه و HTTPS طبق سفارش', 'en' => 'Domain and HTTPS scope agreed in the order', 'tr' => 'Alan adı ve HTTPS kapsamı siparişe göre'],
+                ['fa' => 'فاصله و نگهداری بکاپ طبق سفارش', 'en' => 'Backup frequency and retention agreed in the order', 'tr' => 'Yedekleme sıklığı ve saklama süresi siparişe göre'],
+                ['fa' => 'کیو و worker پس از بررسی نیاز', 'en' => 'Queue and worker access reviewed for your workload', 'tr' => 'Kuyruk ve worker erişimi iş yüküne göre değerlendirilir'],
+            ], true),
+            $mk('N8N-BIZ', 204, 1990000, 19.90, [
+                ['fa' => 'سقف اجرا طبق پیشنهاد نهایی', 'en' => 'Execution limits agreed in the quote', 'tr' => 'Çalıştırma sınırı son teklife göre'],
+                '4 vCPU / 8 GB RAM',
+                ['fa' => 'منابع worker طبق پیشنهاد نهایی', 'en' => 'Worker resources agreed in the quote', 'tr' => 'Worker kaynakları son teklife göre'],
+                ['fa' => 'SSO پس از بررسی نسخه و لایسنس', 'en' => 'SSO subject to edition and license review', 'tr' => 'SSO için sürüm ve lisans değerlendirmesi gerekir'],
+                ['fa' => 'دامنه پشتیبانی ورک‌فلو طبق سفارش', 'en' => 'Workflow support scope agreed in the order', 'tr' => 'İş akışı desteğinin kapsamı siparişe göre'],
+            ]),
         ],
         'features' => [[
                 'icon' => 'server',
