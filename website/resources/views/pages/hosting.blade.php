@@ -150,7 +150,7 @@
       <p class="lead reveal" style="transition-delay:.16s">{{ lc($product)['hero_d'] }}</p>
       <div class="hero-ctas reveal" style="transition-delay:.24s">
         <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
-        <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon" style="width:16px;height:16px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
+        <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}" data-growth-cta="consultation" data-growth-placement="hero"><svg class="icon" style="width:16px;height:16px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
       </div>
       <div class="chip-row reveal" style="transition-delay:.32s">
         @foreach($product['chips'] as $chip)
@@ -467,7 +467,7 @@
           <svg class="icon" style="width:15px;height:15px"><use href="#i-search"/></svg>{{ __('ui.dsr_check_btn') }}
         </a>
         @elseif($isContact)
-        <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
+        <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}" data-growth-cta="consultation" data-growth-placement="plans"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
         @elseif(isset($p['route']))
         {{--
           پلنی که مقصدش **داخلِ خودِ سایت** است.
@@ -492,7 +492,7 @@
              کلاسِ خطاست، پس پلنی که مسیرِ خریدِ داخلی ندارد صادقانه «مشاوره»
              می‌گیرد — همان رفتارِ شاخهٔ `contact`. مسیرِ برگشت: اتصالِ پلن به
              پکیجِ واقعی با کلیدِ `product` (نه احیای WHMCS). --}}
-        <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
+        <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}" data-growth-cta="consultation" data-growth-placement="plans"><svg class="icon" style="width:15px;height:15px"><use href="#i-phone"/></svg>{{ __('ui.hp_consult') }}</a>
         @endif
       </article>
       @endforeach
@@ -716,9 +716,9 @@
     <p>{{ __('ui.cta_sub') }}</p>
     <a class="btn btn-primary" href="#pricing"><span>{{ __('ui.hero_cta1') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
     <div class="cta-contacts">
-      <a href="tel:{{ $contact['phone_link'] }}"><svg class="icon"><use href="#i-phone"/></svg>{{ $contact['phone'] }}</a>
-      <a href="mailto:{{ $contact['email'] }}"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a>
-      <a href="https://wa.me/{{ $contact['whatsapp'] }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-message"/></svg>WhatsApp</a>
+      <a href="tel:{{ $contact['phone_link'] }}" data-growth-cta="consultation" data-growth-placement="contact"><svg class="icon"><use href="#i-phone"/></svg>{{ $contact['phone'] }}</a>
+      <a href="mailto:{{ $contact['email'] }}" data-growth-cta="consultation" data-growth-placement="contact"><svg class="icon"><use href="#i-mail"/></svg>{{ $contact['email'] }}</a>
+      <a href="https://wa.me/{{ $contact['whatsapp'] }}" target="_blank" rel="noopener" data-growth-cta="consultation" data-growth-placement="contact"><svg class="icon"><use href="#i-message"/></svg>WhatsApp</a>
     </div>
   </div>
 </section>

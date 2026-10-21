@@ -24,6 +24,15 @@
     if (!link) return;
     var destination;
     try { destination = new URL(link.href, w.location.href); } catch (_) { return; }
+    // Only explicit product contact CTAs count. Never include their phone,
+    // email, destination URL or user-provided query in the event payload.
+    if (link.getAttribute('data-growth-cta') === 'consultation') {
+      var contactProtocol = destination.protocol;
+      if (contactProtocol !== 'tel:' && contactProtocol !== 'mailto:' && contactProtocol !== 'http:' && contactProtocol !== 'https:') return;
+      var contactPlacement = link.getAttribute('data-growth-placement');
+      send('consultation', /^(hero|plans|contact)$/.test(contactPlacement) ? contactPlacement : 'page');
+      return;
+    }
     if (destination.protocol !== 'http:' && destination.protocol !== 'https:') return;
     if (destination.host !== w.location.host && destination.hostname !== 'console.servernet.cloud') return;
     var destPath = destination.pathname.replace(/^\/(en|tr)(?=\/|$)/, '');
