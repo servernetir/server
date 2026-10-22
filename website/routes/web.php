@@ -495,6 +495,11 @@ $site = function (): void {
         Route::post('/cloud/{service}/rebuild', [Account\CloudServerController::class, 'rebuild'])->name('cloud.rebuild');
         Route::post('/cloud/{service}/password', [Account\CloudServerController::class, 'resetPassword'])->name('cloud.password');
         Route::post('/cloud/{service}/console', [Account\CloudServerController::class, 'console'])->name('cloud.console');
+        // سرورِ ساعتی → دوره‌ای، و «وقتی اعتبار تمام شد» پس از خرید (TK-261018-5379)
+        Route::post('/cloud/{service}/convert-cycle', [Account\CloudServerController::class, 'convertCycle'])
+            ->name('cloud.convert-cycle')->middleware('throttle:10,1');
+        Route::post('/cloud/{service}/credit-out', [Account\CloudServerController::class, 'setCreditOut'])
+            ->name('cloud.credit-out')->middleware('throttle:10,1');
         // سوییچِ کشورِ خروج توسطِ خودِ مشتری (فازِ A) — فقط برای سرورهای دارای اکسیت
         Route::post('/cloud/{service}/exit-country', [Account\CloudServerController::class, 'setExitCountry'])
             ->name('cloud.exit-country')->middleware('throttle:12,1');

@@ -8,11 +8,13 @@ use App\Models\CloudImage;
 use App\Models\CloudInstance;
 use App\Models\CloudPlan;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Service;
 use App\Models\TunnelAgent;
 use App\Models\TunnelJob;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudOperations;
+use App\Services\Cloud\HourlyCycleConverter;
 use App\Services\Cloud\HourlyStartCredit;
 use App\Services\Cloud\InterruptibleBillingClock;
 use App\Services\Finance\Wallet;
@@ -216,7 +218,105 @@ class CloudServerController extends Controller
                 ->map(fn (string $st): string => $st === 'pending' ? 'pending' : 'failed')
                 ->mapWithKeys(fn (string $st, string $n): array => [mb_strtolower($n) => $st])
                 ->all(),
+            // پرداختِ ساعتی: تبدیل به دوره‌ای + «وقتی اعتبار تمام شد»
+            'cycleConvert' => $this->cycleConvertView($service),
+            'creditOut' => $service->billing_mode === 'hourly' && ! $service->isDead()
+                ? ((string) $service->on_credit_out ?: 'suspend') : null,
         ]);
+    }
+
+    /**
+     * دادهٔ بخشِ «تبدیل به پرداختِ دوره‌ای» — `null` یعنی بخش نشان داده نشود.
+     *
+     * ⚠️ فقط وقتی همه‌چیز آماده است (`blocker() === null`). دکمه‌ای که روی زیرساختِ
+     *    سنجیده‌نشده یا سرورِ تحویل‌نشده نشان داده شود و بعد خطا بدهد، همان تیکتی را
+     *    می‌سازد که این قابلیت برای حذفش ساخته شد.
+     */
+    private function cycleConvertView(Service $service): ?array
+    {
+        $converter = app(HourlyCycleConverter::class);
+
+        if ($service->billing_mode !== 'hourly' || $converter->blocker($service) !== null) {
+            return null;
+        }
+
+        $quotes = $converter->quotes($service);
+
+        if ($quotes === []) {
+            return null;
+        }
+
+        $pending = $converter->pending($service);
+        $invoice = $pending !== null ? Invoice::find($pending['invoice_id'] ?? 0) : null;
+
+        return [
+            'quotes' => $quotes,
+            'spendable' => $converter->spendable($service),
+            'pending' => $invoice !== null && in_array($invoice->status, ['unpaid', 'partial'], true) ? $pending : null,
+            'pendingInvoice' => $invoice,
+        ];
+    }
+
+    /**
+     * مشتری سرورِ ساعتی را خودش دوره‌ای می‌کند (TK-261018-5379).
+     *
+     * کیف کافی ⇒ همین حالا؛ وگرنه فاکتورِ افزایشِ اعتبار و تبدیل پس از پرداخت.
+     * منطقِ کامل و دلیلِ هر تصمیم در `HourlyCycleConverter`.
+     */
+    public function convertCycle(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        if ($resp = $this->denyIfNotWritable($service)) {
+            return $resp;
+        }
+
+        $key = 'cloud-cycle:'.$service->id;
+
+        if (RateLimiter::tooManyAttempts($key, 6)) {
+            return back()->withErrors(__('panel.cycle_convert_throttle'));
+        }
+
+        RateLimiter::hit($key, 60);
+
+        $cycle = (string) $request->input('cycle');
+        $r = app(HourlyCycleConverter::class)->request($service, $cycle);
+
+        if ($r['status'] === 'converted') {
+            // لاگِ فعالیت را خودِ `convert()` می‌نویسد — یک رخداد، یک ردیف
+            return back()->with('ok', __('panel.cycle_convert_done', ['cycle' => Service::labelFor($cycle)]));
+        }
+
+        if ($r['status'] === 'invoice') {
+            return redirect()->to(lroute('account.invoice', $r['invoice']))
+                ->with('ok', __('panel.cycle_convert_invoice', ['hours' => fa_num((string) HourlyCycleConverter::QUOTE_TTL_HOURS)]));
+        }
+
+        return back()->withErrors(__(match ($r['reason'] ?? '') {
+            'not_active' => 'panel.cycle_convert_e_not_active',
+            'no_price' => 'panel.cycle_convert_e_no_price',
+            default => 'panel.cycle_convert_e_unavailable',
+        }));
+    }
+
+    /** «وقتی اعتبار تمام شد» — تا امروز فقط لحظهٔ خرید انتخاب‌شدنی بود */
+    public function setCreditOut(Request $request, Service $service): RedirectResponse
+    {
+        $this->ownedService($service);
+
+        $mode = (string) $request->input('on_credit_out');
+
+        if ($service->billing_mode !== 'hourly' || $service->isDead()
+            || ! in_array($mode, ['suspend', 'convert', 'terminate'], true)) {
+            return back()->withErrors(__('panel.credit_out_na'));
+        }
+
+        $service->forceFill(['on_credit_out' => $mode])->save();
+
+        ActivityLog::forService($service, 'settings',
+            __('panel.credit_out_log', ['mode' => __('ui.cvb_hourly_end_'.$mode)]), 'customer', $request);
+
+        return back()->with('ok', __('panel.credit_out_saved'));
     }
 
     /**

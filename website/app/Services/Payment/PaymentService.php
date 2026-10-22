@@ -588,6 +588,20 @@ class PaymentService
                 LicenseOrderTicket::openFor($svcForTicket);
             }
 
+            /*
+            | «تبدیلِ سرورِ ساعتی به دوره‌ای» که منتظرِ همین افزایشِ اعتبار بود.
+            |
+            | بیرونِ تراکنش، مثلِ دفترِ مالی: پول تا این‌جا در کیفِ مشتری نشسته و
+            | هر شکستِ تبدیل فقط یعنی پول در کیف می‌مانَد — نه برگشتِ تسویه.
+            | خودش هرگز throw نمی‌کند و idempotent است (سرویسِ تبدیل‌شده دیگر
+            | ساعتی نیست). چرا فاکتورِ افزایشِ اعتبار و نه فاکتورِ سرویس:
+            | docblockِ `HourlyCycleConverter`.
+            */
+            if ($outcome->payment->invoice?->kind === 'topup') {
+                app(\App\Services\Cloud\HourlyCycleConverter::class)
+                    ->runPending((int) $outcome->payment->customer_id);
+            }
+
             // اعلان تأیید پرداخت — پیامک و بله. فقط تسویهٔ واقعی، نه تکرار
             // (رفرش صفحه یا رویداد دوبارهٔ بله) — alreadySettled این را می‌گیرد.
             if (! $outcome->alreadySettled && ($customer = $outcome->payment->customer) !== null) {

@@ -568,6 +568,74 @@
   </div>
 </section>
 
+{{-- ═══ نحوهٔ پرداخت: ساعتی → دوره‌ای (TK-261018-5379) ═══
+     دکمه فقط وقتی دیده می‌شود که تبدیل واقعاً شدنی است (HourlyCycleConverter::blocker)؛
+     دکمه‌ای که بعد از کلیک خطا بدهد همان تیکتی را می‌سازد که این بخش برای حذفش است. --}}
+@if(! empty($cycleConvert) || ! empty($creditOut))
+<section class="pnl-sec" id="billing-mode">
+  <div class="pnl-sec-h"><h2>{{ __('panel.cycle_convert_h') }}</h2></div>
+  <div class="pnl-sec-b">
+    @if(! empty($cycleConvert))
+      @if($cycleConvert['pending'] && $cycleConvert['pendingInvoice'])
+        @php
+          $ccPending = $cycleConvert['pending'];
+          $ccUntil = sdate(\Illuminate\Support\Carbon::parse($ccPending['expires_at']));
+        @endphp
+        <p class="dm-note warn" data-cycle-pending>
+          {{ __('panel.cycle_convert_pending', [
+              'cycle' => \App\Models\Service::labelFor((string) $ccPending['cycle']),
+              'amount' => cloud_price((int) $ccPending['price']),
+              'until' => $ccUntil,
+          ]) }}
+          <a href="{{ lroute('account.invoice', $cycleConvert['pendingInvoice']) }}">{{ __('panel.cycle_convert_pay_invoice') }}</a>
+        </p>
+      @endif
+
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.9">{{ __('panel.cycle_convert_intro') }}</p>
+
+      <form method="post" action="{{ lroute('account.cloud.convert-cycle', $service) }}"
+            data-confirm="{{ __('panel.cycle_convert_confirm') }}">
+        @csrf
+        <div class="pnl-acts" style="align-items:center">
+          <select name="cycle" aria-label="{{ __('panel.cycle_convert_choose') }}">
+            @foreach($cycleConvert['quotes'] as $ccCycle => $ccQuote)
+              @php
+                $ccLabel = \App\Models\Service::labelFor($ccCycle).' — '.cloud_price($ccQuote['price']);
+                if ($ccQuote['discount'] > 0) {
+                    $ccLabel .= ' ('.__('panel.cycle_convert_save', ['pct' => fa_num((string) $ccQuote['discount'])])
+                        .' · '.__('panel.cycle_convert_per_month', ['amount' => cloud_price($ccQuote['monthly'])]).')';
+                }
+              @endphp
+              <option value="{{ $ccCycle }}" data-price="{{ $ccQuote['price'] }}">{{ $ccLabel }}</option>
+            @endforeach
+          </select>
+          <button class="pnl-btn">{{ __('panel.cycle_convert_btn') }}</button>
+        </div>
+      </form>
+
+      <p class="dm-note" style="margin-top:12px">
+        {{ __('panel.cycle_convert_wallet', ['amount' => cloud_price((int) $cycleConvert['spendable'])]) }}
+      </p>
+    @endif
+
+    @if(! empty($creditOut))
+      <form method="post" action="{{ lroute('account.cloud.credit-out', $service) }}" style="margin-top:16px">
+        @csrf
+        <div class="pnl-acts" style="align-items:center">
+          <label for="credit-out-mode" style="font-size:13px">{{ __('panel.credit_out_label') }}</label>
+          <select name="on_credit_out" id="credit-out-mode">
+            @foreach(['suspend', 'convert', 'terminate'] as $coMode)
+              <option value="{{ $coMode }}" @selected($creditOut === $coMode)>{{ __('ui.cvb_hourly_end_'.$coMode) }}</option>
+            @endforeach
+          </select>
+          <button class="pnl-btn">{{ __('panel.credit_out_save') }}</button>
+        </div>
+      </form>
+    @endif
+  </div>
+</section>
+@endif
+
 {{-- ═══ کشورِ خروج (فازِ A) — فقط اگر سرور اکسیتِ کشوری داشته باشد ═══ --}}
 @if($exitCapable ?? false)
 <section class="pnl-sec">

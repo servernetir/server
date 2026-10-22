@@ -14,6 +14,7 @@ use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudPricing;
 use App\Services\Cloud\CloudProvisioner;
 use App\Services\Cloud\HourlyHold;
+use App\Services\Cloud\HourlyCycleConverter;
 use App\Services\Cloud\InterruptibleBillingClock;
 use App\Services\Finance\Wallet;
 use App\Services\Finance\WalletException;
@@ -58,7 +59,8 @@ class CloudMeterHourly extends Command
     protected $description = 'کسرِ ساعتیِ سرورهای ابریِ ساعتی از کیفِ پول';
 
     /** سقفِ جبران در یک اجرا — اگر کرون خوابیده بود، بی‌نهایت کسر نکن. */
-    private const CATCHUP_CAP = 48;
+    /** عمومی چون `HourlyCycleConverter::unmeteredHours()` هم همین سقف را می‌خوانَد — یک منبع */
+    public const CATCHUP_CAP = 48;
 
     /**
      * مهلتِ نگه‌داشتنِ سرورِ تعلیق‌شده (نبودِ اعتبار) پیش از حذف — ساعت.
@@ -121,6 +123,10 @@ class CloudMeterHourly extends Command
 
         // ۲) سرویس‌های تعلیق‌شدهٔ ساعتی: اگر شارژ کردند دوباره روشن، وگرنه پس از مهلت حذف
         $this->handleSuspended($prov);
+
+        // ۳) درخواست‌های «تبدیل به دوره‌ای» که پولشان از مسیری جز درگاه نشسته
+        //    (مثلاً واریزِ دستیِ تأییدشده). مسیرِ درگاه خودش همان لحظه اجرا می‌کند.
+        app(HourlyCycleConverter::class)->runPending();
 
         $this->info("متر شد: {$charged} کسر، {$stopped} متوقف/تعلیق، {$skipped} بی‌هزینه (تحویل‌نشده یا کم‌تر از یک ساعت).");
 
@@ -258,6 +264,20 @@ class CloudMeterHourly extends Command
         CloudManager $manager,
         InterruptibleBillingClock $billingClock,
     ): string {
+        /*
+        | 🔴 فهرستِ متر یک بار اولِ اجرا خوانده می‌شود و هر سرویس بعد از تماسِ
+        | شبکه‌ایِ سرویس‌های قبلی نوبت می‌گیرد. مشتری می‌تواند در همین فاصله
+        | سرور را دوره‌ای کند (`HourlyCycleConverter`). با شیءِ کهنه، `syncRunning`
+        | ذخیرهٔ نگهداری را دوباره روی سرویسِ دوره‌ای می‌گذاشت (پولِ قفل‌شدهٔ
+        | ابدی)، کسرِ ساعتی دوباره می‌رفت و «اعتبار تمام شد» سرورِ تازه‌پرداخت‌شده
+        | را خاموش می‌کرد. claim و `creditOut` هم جداگانه محافظ دارند.
+        */
+        $service->refresh();
+
+        if ($service->billing_mode !== 'hourly' || $service->status !== 'active') {
+            return 'skipped';
+        }
+
         if (app(ComplimentaryServices::class)->applies($service)) {
             $service->update(['last_metered_at' => now()]);
 
@@ -408,7 +428,11 @@ class CloudMeterHourly extends Command
 
                 // claimِ اتمی — دو اجرا هم‌زمان نتوانند یک ساعت را دوبار کسر کنند.
                 // ⚠️ شرط روی مقدارِ **ذخیره‌شدهٔ قدیم** است، نه روی `$prev`ِ جلوبرده‌شده.
-                $q = Service::where('id', $service->id);
+                // 🔴 و روی `billing_mode`: فهرستِ متر یک بار اولِ اجرا خوانده
+                //    می‌شود؛ اگر مشتری در این فاصله سرور را دوره‌ای کرده باشد
+                //    (`HourlyCycleConverter`)، `last_metered_at` عوض نشده و claim
+                //    بی‌این شرط می‌گرفت ⇒ کلِ دوره **و** ساعت‌ها کسر می‌شد.
+                $q = Service::where('id', $service->id)->where('billing_mode', 'hourly');
                 $service->last_metered_at === null
                     ? $q->whereNull('last_metered_at')
                     : $q->where('last_metered_at', $service->last_metered_at);
@@ -510,6 +534,18 @@ class CloudMeterHourly extends Command
         if ($service->isInternalInfrastructure()) {
             return;
         }
+
+        /*
+        | 🔴 شیءِ `$service` از فهرستِ اولِ اجراست و ممکن است کهنه باشد: اگر مشتری
+        | در این فاصله سرور را دوره‌ای کرده، کسرِ همان تبدیل کیف را خالی کرده و
+        | «اعتبار تمام شد» دروغ است. بی‌این بازخوانی، سرورِ تازه‌پرداخت‌شده تعلیق
+        | یا حتی (on_credit_out=terminate) **حذف** می‌شد.
+        */
+        $service = $service->fresh(['customer', 'cloudInstance', 'cloudPlan']);
+
+        if ($service === null || $service->billing_mode !== 'hourly' || $service->status !== 'active') {
+            return;
+        }
         $mode = (string) ($service->on_credit_out ?: 'suspend');
 
         if ($mode === 'convert' && $this->tryConvertToMonthly($service)) {
@@ -594,50 +630,41 @@ class CloudMeterHourly extends Command
         app(ProvisioningService::class)->releaseAndTrack($service->fresh() ?? $service);
     }
 
-    /** اگر اعتبارِ یک ماه باشد، به چرخهٔ ماهانه سوییچ کن (کسرِ یک ماه از کیف). */
+    /**
+     * اگر اعتبارِ یک ماه باشد، به چرخهٔ ماهانه سوییچ کن (کسرِ یک ماه از کیف).
+     *
+     * 🔴 کارِ واقعی در `HourlyCycleConverter::convert()` است — همان تعریفی که دکمهٔ
+     *    «تبدیل به دوره‌ای»ِ مشتری صدا می‌زند. دو پیاده‌سازی یعنی روزی دو قیمت یا
+     *    دو سررسید برای یک کار.
+     *
+     * قیمت: **امروزِ** پلن (تصمیمِ کارفرما، مهر ۱۴۰۵). اگر پلن یا نرخ نباشد،
+     * همان قیمتِ قفل‌شدهٔ خرید — رفتارِ پیشین — تا نبودِ نرخ، سرور را به تعلیق نبرد.
+     * ⚠️ گیتِ زیرساخت این‌جا **عمداً نیست**: این انتخابِ لحظهٔ خریدِ خودِ مشتری است
+     *    و پیش از این قابلیت هم روی همهٔ زیرساخت‌ها کار می‌کرد.
+     */
     private function tryConvertToMonthly(Service $service): bool
     {
-        $monthly = (int) $service->price;               // قیمتِ ماهانهٔ قفل‌شده در خرید
+        $converter = app(HourlyCycleConverter::class);
+
+        $monthly = $service->isCloud() ? $converter->quote($service, 'monthly') : 0;
+
+        if ($monthly <= 0) {
+            $monthly = (int) $service->price;           // قیمتِ ماهانهٔ قفل‌شده در خرید
+        }
+
         $customer = $service->customer;
 
-        // 🔴 گارد روی «در دسترس» (رزرو-آگاه) و کسر از Wallet — داخلِ قفلِ مشتری
-        $wallet = app(Wallet::class);
-
-        /*
-        | ذخیرهٔ نگهداریِ **همین** سرور با تبدیل آزاد می‌شود (ماهانه مهلتِ
-        | ساعتی ندارد)، پس جزوِ پولِ قابلِ خرجِ تبدیل است.
-        */
-        $ownReserve = HourlyHold::enabled() ? (int) $service->hold_reserve_irt : 0;
-
-        if ($monthly <= 0 || $customer === null || $wallet->availableOf($customer->id) + $ownReserve < $monthly) {
+        if ($monthly <= 0 || $customer === null) {
             return false;
         }
 
-        try {
-            DB::transaction(function () use ($wallet, $customer, $service, $monthly): void {
-                Customer::whereKey($customer->id)->lockForUpdate()->first();
-
-                // اول ذخیره آزاد، بعد کسر — هر دو در یک تراکنش؛ ردِ کسر ذخیره را برمی‌گرداند
-                $service->update([
-                    'billing_mode' => 'cycle',
-                    'cycle' => 'monthly',
-                    'next_due_at' => now()->addMonth(),
-                    'status' => 'active',
-                ] + (HourlyHold::enabled() ? ['hold_rate_irt' => 0, 'hold_reserve_irt' => 0] : []));
-
-                $wallet->debit($customer->id, 'IRT', $monthly, 'cloud_hourly_convert', $service,
-                    'تبدیلِ سرورِ ساعتی به ماهانه — کسرِ یک ماه');
-            });
-        } catch (WalletException) {
-            $service->refresh();
-
-            return false;   // بینِ چک و کسر، در دسترس عوض شد — این دوره رد می‌شود
-        }
-
-        $this->asCustomer($customer, fn () => ActivityLog::forService(
-            $service, 'renew', __('ui.act_hourly_convert', ['amount' => invoice_money($monthly)]), 'system'));
-
-        return true;
+        // settleHours=false: این مسیر درست بعد از آن صدا زده می‌شود که خودِ متر
+        // نتوانست همان ساعت‌ها را کسر کند — رفتارِ پیشینِ تبدیلِ خودکار دست‌نخورده.
+        return $this->asCustomer($customer, fn () => $converter->convert(
+            $service, 'monthly', $monthly, 'system',
+            __('ui.act_hourly_convert', ['amount' => invoice_money($monthly)]),
+            false,
+        ));
     }
 
     /** تعلیق‌شده‌های ساعتی: شارژ کرد → روشن؛ مهلت گذشت و هنوز خالی → حذف. */
