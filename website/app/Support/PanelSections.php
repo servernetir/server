@@ -131,13 +131,23 @@ final class PanelSections
     }
 
     /** موجودیِ اعتبار — فقط اگر واقعاً سرویسِ ساعتی‌ای در کار باشد */
+    /**
+     * پولی که مترِ ساعتی **واقعاً** می‌تواند خرج کند — نه موجودیِ خام.
+     *
+     * 🔴 رخداد (مهر ۱۴۰۵، TK-261017-9453 و TK-261021-5248): کارتِ سرور «~۵۰
+     * ساعت اعتبار» نشان می‌داد و سرور حدودِ نصفِ آن زمان معلق شد. علت: این تابع
+     * `creditBalance()`ِ خام را می‌خواند، در حالی که متر از `Wallet::availableOf()`
+     * می‌خوانَد — یعنی منهای ذخیرهٔ نگهداریِ ۲۴ ساعته (`HourlyHold`) و رزروها.
+     * مشتری موجودیِ کیف را می‌دید، پیامِ «اعتبار تمام شد» می‌گرفت و تیکت می‌زد.
+     * `Service::hoursLeft()` از قبل درست بود؛ فقط این مسیرِ بهینه‌شده جا مانده بود.
+     */
     private static function creditBalance($customer, Collection $services): int
     {
         if ($customer === null || ! $services->contains(fn (Service $s) => $s->isHourly())) {
             return 0;
         }
 
-        return max(0, $customer->creditBalance('IRT'));
+        return max(0, app(\App\Services\Finance\Wallet::class)->availableOf((int) $customer->id));
     }
 
     /** «~N ساعت اعتبار» بدونِ پرس‌وجوی تازه به ازای هر ردیف */
