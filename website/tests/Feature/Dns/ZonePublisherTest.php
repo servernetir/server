@@ -246,7 +246,7 @@ class ZonePublisherTest extends TestCase
         $live = $this->live();
         $this->assertSame(['185.10.20.30'], array_column($live['www.shop.example.|A']['records'], 'content'));
         $this->assertArrayNotHasKey('old.shop.example.|CNAME', $live);
-        $this->assertArrayHasKey('_acme-challenge.shop.example.|TXT', $live, 'ACME challenges are never touched');
+        $this->assertArrayNotHasKey('_acme-challenge.shop.example.|TXT', $live, 'the DB is the only source: a stray ACME rrset is removed too');
         $this->assertArrayHasKey('shop.example.|SOA', $live);
     }
 

@@ -106,6 +106,14 @@ class DnsController extends Controller
             return back()->withInput()->withErrors(['pdns_api_url' => 'نشانیِ API باید https باشد (یا نشانیِ خصوصی فقط وقتی DNS_ALLOW_INSECURE_API در محیطِ آزمایشگاه روشن است). کلید روی HTTPِ عمومی فرستاده نمی‌شود.']);
         }
 
+        // کلیدِ ذخیره‌شده هرگز به میزبانِ تازه‌ای نمی‌رود که کلید برایش دوباره وارد نشده:
+        // وگرنه نشستِ مدیرِ ربوده‌شده با عوض‌کردنِ نشانی، کلید را بی‌دیدنش بیرون می‌کشید
+        $oldHost = strtolower((string) parse_url((string) DnsConfig::apiUrl(), PHP_URL_HOST));
+        $newHost = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($oldHost !== '' && $oldHost !== $newHost && filled(DnsConfig::apiKey()) && blank($data['pdns_api_key'] ?? null)) {
+            return back()->withInput()->withErrors(['pdns_api_key' => 'میزبانِ API عوض شده است؛ کلیدِ API را دوباره وارد کنید. کلیدِ ذخیره‌شده به میزبانِ تازه فرستاده نمی‌شود.']);
+        }
+
         $rows = array_values(array_filter((array) ($data['ns'] ?? []), fn ($r) => filled($r['host'] ?? null)));
         $v = DnsConfig::validateNameservers($rows);
         if ($v['errors'] !== []) {
@@ -131,7 +139,12 @@ class DnsController extends Controller
             CdnZone::query()->where('mode', 'ns')->whereIn('status', ['pending', 'active'])->each(fn (CdnZone $z) => $z->bumpVersion());
             $msg .= ' نامِ نیم‌سرورها عوض شد؛ همهٔ zoneها برای انتشارِ دوباره علامت خوردند. مشتریانِ فعال باید NSِ دامنه‌شان را هم عوض کنند.';
         }
-        CdnEvent::audit('settings_changed', null, ['enabled' => $request->boolean('enabled')], 'admin:'.auth()->id(), $request->ip());
+        CdnEvent::audit('settings_changed', null, [
+            'enabled'     => $request->boolean('enabled'),
+            'api_host'    => $newHost,
+            'api_host_was' => $oldHost !== $newHost ? $oldHost : null,
+            'key_changed' => filled($data['pdns_api_key'] ?? null),
+        ], 'admin:'.auth()->id(), $request->ip());
 
         return back()->with('ok', $msg);
     }

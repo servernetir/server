@@ -38,6 +38,8 @@ class RecordValidator
         'txt_empty', 'txt_too_long', 'txt_backslash', 'txt_control', 'txt_encoding', 'txt_syntax',
         // conflicts()
         'duplicate', 'cname_conflict', 'cname_exists', 'ns_occludes', 'delegated_name',
+        // وضعیتِ zone (ZoneService)
+        'zone_deleting', 'zone_suspended', 'record_not_found', 'record_limit',
     ];
 
     /**

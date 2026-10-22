@@ -61,6 +61,11 @@ class ZoneService
             return $existing;
         }
 
+        if ($existing && $via !== 'txt') {
+            // انتقالِ zoneِ زندهٔ دیگری فقط با اثباتِ DNS؛ ردیفِ Domainِ محلی کافی نیست
+            throw new AdoptRefused('needs_txt');
+        }
+
         if ($existing) {
             // انتقال: کنترلِ فعلیِ DNS برنده است؛ رکوردها می‌مانند تا سایت قطع نشود
             $from = $existing->customer_id;
@@ -189,6 +194,10 @@ class ZoneService
             if (in_array($z->status, ['deleting'], true)) {
                 return $this->recFail('zone', 'zone_deleting');
             }
+            // تعلیقِ مدیر قفلِ ویرایش هم هست — وگرنه مشتری رکوردها را عوض می‌کرد و پس از رفعِ تعلیق منتشر می‌شد
+            if ($z->status === 'suspended') {
+                return $this->recFail('zone', 'zone_suspended');
+            }
             if ($record !== null && (int) $record->cdn_zone_id !== (int) $z->id) {
                 return $this->recFail('record', 'record_not_found');
             }
@@ -234,7 +243,7 @@ class ZoneService
     {
         $done = DB::transaction(function () use ($zone, $record, $actor, $ip) {
             $z = CdnZone::query()->whereKey($zone->getKey())->lockForUpdate()->firstOrFail();
-            if ((int) $record->cdn_zone_id !== (int) $z->id || $z->status === 'deleting') {
+            if ((int) $record->cdn_zone_id !== (int) $z->id || in_array($z->status, ['deleting', 'suspended'], true)) {
                 return false;
             }
             $snapshot = $record->only(['type', 'name', 'content', 'ttl', 'prio']);
@@ -259,6 +268,9 @@ class ZoneService
             $z = CdnZone::query()->whereKey($zone->getKey())->lockForUpdate()->firstOrFail();
             if ((int) $record->cdn_zone_id !== (int) $z->id || $z->status === 'deleting') {
                 return ['ok' => false, 'code' => 'record_not_found'];
+            }
+            if ($z->status === 'suspended') {
+                return ['ok' => false, 'code' => 'zone_suspended'];
             }
             $enable = (bool) $record->disabled;
             if ($enable) {
@@ -309,7 +321,10 @@ class ZoneService
         }
 
         $existing = $zone->records()->orderBy('id')->get()->map(fn ($r) => $r->only(['id', 'type', 'name', 'content', 'prio', 'ttl']))->all();
-        $accepted = [];
+        // نمایه به‌جای conflicts() روی همهٔ ردیف‌ها — پیش‌نمایش خطی است (RecordSetIndex)
+        $index = new RecordSetIndex($existing);
+        $capacity = max(0, DnsConfig::limit('records_per_zone') - count($existing));
+        $accepted = 0;
         $rows = [];
         $counts = ['new' => 0, 'duplicate' => 0, 'conflict' => 0, 'invalid' => 0, 'skipped' => 0, 'unsupported' => 0];
 
@@ -333,7 +348,11 @@ class ZoneService
                 } else {
                     $out['data'] = $v['data'];
                     $out['name'] = $v['data']['name'];
-                    $c = $this->validator->conflicts($v['data'], array_merge($existing, $accepted));
+                    $c = $index->conflict($v['data']);
+                    if ($c === null && $accepted >= $capacity) {
+                        // پس از پرشدنِ سقف، ردیفِ تازه پذیرفته نمی‌شود (و کارِ بیشتری هم نمی‌سازد)
+                        $c = ['code' => 'record_limit', 'params' => ['max' => DnsConfig::limit('records_per_zone')]];
+                    }
                     if ($c === null) {
                         $key = $v['data']['type'].'|'.$v['data']['name'];
                         if (isset($rrsetTtl[$key]) && $rrsetTtl[$key] !== (int) $v['data']['ttl']) {
@@ -342,9 +361,10 @@ class ZoneService
                         }
                         $rrsetTtl[$key] ??= (int) $out['data']['ttl'];
                         $out['status'] = 'new';
-                        $accepted[] = $out['data'] + ['id' => null];
+                        $index->add($out['data']);
+                        $accepted++;
                     } else {
-                        $out['status'] = $c['code'] === 'duplicate' ? 'duplicate' : 'conflict';
+                        $out['status'] = match ($c['code']) { 'duplicate' => 'duplicate', 'record_limit' => 'invalid', default => 'conflict' };
                         $out['code'] = $c['code'];
                         $out['params'] = $this->scalarParams($c['params'] ?? []);
                     }
@@ -372,7 +392,7 @@ class ZoneService
 
         $counts = DB::transaction(function () use ($zone, $text, $lines, $actor, $ip, $scanRows, &$added, &$skipped) {
             $z = CdnZone::query()->whereKey($zone->getKey())->lockForUpdate()->firstOrFail();
-            if ($z->status === 'deleting') {
+            if (in_array($z->status, ['deleting', 'suspended'], true)) {
                 return [];
             }
             $preview = $this->importPreview($z, $text, $scanRows);

@@ -263,7 +263,10 @@ class ZonePublisher
 
         foreach ($have as $key => $set) {
             $type = (string) ($set['type'] ?? '');
-            if (isset($desired[$key]) || $type === 'SOA' || str_starts_with($key, '_acme-challenge.')) {
+            // ⚠️ هیچ استثنایی جز SOA: پیش‌تر `_acme-challenge.*` هرگز حذف نمی‌شد، ولی مشتری
+            // همین نام‌ها را خودش می‌سازد — رکوردِ حذف‌شده (یا CNAMEِ acme-dnsِ مالکِ قبلی
+            // پس از انتقال) زنده می‌ماند و گواهی می‌گرفت. صادرکنندهٔ آینده هم باید از دیتابیس بنویسد.
+            if (isset($desired[$key]) || $type === 'SOA') {
                 continue;
             }
             $patch[] = ['name' => $set['name'], 'type' => $type, 'changetype' => 'DELETE'];

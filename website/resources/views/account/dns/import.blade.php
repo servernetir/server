@@ -63,6 +63,7 @@
     @endif
     @if($source === 'scan')
       <div class="dns-note warn">{{ __('dns.import.scan_limit') }}</div>
+      @if($partial ?? false)<div class="dns-note warn" role="status">{{ __('dns.import.scan_partial') }}</div>@endif
     @endif
 
     <div class="dns-stats">

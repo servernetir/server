@@ -62,6 +62,18 @@ class DelegationInspectorTest extends TestCase
         );
     }
 
+    public function test_import_scan_shares_one_query_budget_against_silent_nameservers(): void
+    {
+        // نیم‌سرورهای دامنه را مشتری تعیین می‌کند؛ هر دو ساکت‌اند (timeoutِ فوری)
+        $f = $this->world(['auth1' => ['down' => true], 'auth2' => ['down' => true]]);
+
+        $r = (new \App\Services\Dns\ZoneImporter($this->inspector($f)))->scan('example.com');
+
+        $this->assertTrue($r['partial'], 'stopped at the budget');
+        $this->assertLessThanOrEqual(80, count($f->log), 'one 80-query budget for the whole scan, not one per query');
+        $this->assertSame([], $r['rows']);
+    }
+
     public function test_walks_from_root_to_the_parent_referral(): void
     {
         $r = $this->inspector($this->world())->parentDelegation('Example.COM.');

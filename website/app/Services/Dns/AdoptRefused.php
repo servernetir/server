@@ -11,7 +11,8 @@ namespace App\Services\Dns;
  */
 final class AdoptRefused extends \RuntimeException
 {
-    public const REASONS = ['zone_deleting', 'zone_limit'];
+    /** needs_txt: انتقالِ zoneِ حسابِ دیگر فقط با TXT (نه با ردیفِ Domainِ محلی) */
+    public const REASONS = ['zone_deleting', 'zone_limit', 'needs_txt'];
 
     public function __construct(public readonly string $reason)
     {

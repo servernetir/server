@@ -154,6 +154,9 @@ class DnsController extends Controller
     public function destroy(Request $request, int $zone): RedirectResponse
     {
         $z = $this->zoneOf($zone);
+        if ($blocked = $this->suspended($z)) {
+            return $blocked;
+        }
         // نامِ یونیکدیِ دامنه (همان که عنوانِ صفحه نشان می‌دهد) هم پذیرفته است
         if (DomainName::normalize((string) $request->input('confirm')) !== $z->domain) {
             return back()->withErrors(['delete' => __('dns.ui.delete_confirm_mismatch')]);
@@ -168,6 +171,9 @@ class DnsController extends Controller
     public function storeRecord(Request $request, int $zone): RedirectResponse
     {
         $z = $this->zoneOf($zone);
+        if ($blocked = $this->suspended($z)) {
+            return $blocked;
+        }
         $r = $this->zones->addRecord($z, $this->recordInput($request), $this->actor(), $request->ip());
 
         return $this->recordResponse($r, 'new', 'dns.ui.record_added');
@@ -176,6 +182,9 @@ class DnsController extends Controller
     public function updateRecord(Request $request, int $zone, int $record): RedirectResponse
     {
         $z = $this->zoneOf($zone);
+        if ($blocked = $this->suspended($z)) {
+            return $blocked;
+        }
         $rec = $this->recordOf($z, $record);
         $r = $this->zones->updateRecord($z, $rec, $this->recordInput($request), $this->actor(), $request->ip());
 
@@ -185,14 +194,21 @@ class DnsController extends Controller
     public function deleteRecord(Request $request, int $zone, int $record): RedirectResponse
     {
         $z = $this->zoneOf($zone);
-        $this->zones->deleteRecord($z, $this->recordOf($z, $record), $this->actor(), $request->ip());
+        if ($blocked = $this->suspended($z)) {
+            return $blocked;
+        }
 
-        return back()->with('ok', __('dns.ui.record_deleted'));
+        return $this->zones->deleteRecord($z, $this->recordOf($z, $record), $this->actor(), $request->ip())
+            ? back()->with('ok', __('dns.ui.record_deleted'))
+            : back()->withErrors(['record' => __('dns.err.record_not_found')]);
     }
 
     public function toggleRecord(Request $request, int $zone, int $record): RedirectResponse
     {
         $z = $this->zoneOf($zone);
+        if ($blocked = $this->suspended($z)) {
+            return $blocked;
+        }
         $r = $this->zones->toggleRecord($z, $this->recordOf($z, $record), $this->actor(), $request->ip());
 
         return $r['ok']
@@ -202,9 +218,12 @@ class DnsController extends Controller
 
     /* ═════════════ واردکردن ═════════════ */
 
-    public function import(Request $request, int $zone): View
+    public function import(Request $request, int $zone): View|RedirectResponse
     {
         $z = $this->zoneOf($zone);
+        if ($blocked = $this->suspended($z, toZone: true)) {
+            return $blocked;
+        }
 
         return view('account.dns.import', AccountController::shell('dns') + [
             'zone'    => $z,
@@ -218,9 +237,13 @@ class DnsController extends Controller
     public function importPreview(Request $request, int $zone): View|RedirectResponse
     {
         $z = $this->zoneOf($zone);
+        if ($blocked = $this->suspended($z, toZone: true)) {
+            return $blocked;
+        }
         $source = $request->input('source') === 'scan' ? 'scan' : 'file';
         $text = '';
         $scan = null;
+        $partial = false;
 
         if ($source === 'scan') {
             $s = app(ZoneImporter::class)->scan($z->domain);
@@ -228,6 +251,7 @@ class DnsController extends Controller
                 return back()->withErrors(['import' => __('dns.import.scan_failed')]);
             }
             $scan = $s['rows'];
+            $partial = (bool) ($s['partial'] ?? false);
             // ردیف‌های اسکن روی سرور می‌مانند؛ اعمال هرگز دادهٔ آماده‌ای از مرورگر نمی‌پذیرد
             session(['dns_scan.'.$z->id => $scan]);
         } else {
@@ -252,12 +276,16 @@ class DnsController extends Controller
             'preview' => $this->zones->importPreview($z, $source === 'file' ? $text : null, $scan),
             'source'  => $source,
             'text'    => $text,
+            'partial' => $partial,
         ]);
     }
 
     public function importApply(Request $request, int $zone): RedirectResponse
     {
         $z = $this->zoneOf($zone);
+        if ($blocked = $this->suspended($z, toZone: true)) {
+            return $blocked;
+        }
         $request->validate(['lines' => ['array'], 'lines.*' => ['integer'], 'text' => ['nullable', 'string', 'max:'.DnsConfig::limit('import_max_bytes')]]);
         $lines = array_map('intval', (array) $request->input('lines', []));
         if ($lines === []) {
@@ -324,6 +352,23 @@ class DnsController extends Controller
         abort_unless($this->visible(), 404);
 
         return DnsOwnershipClaim::query()->forCustomer(Auth::guard('customer')->id())->findOrFail($id);
+    }
+
+    /**
+     * تعلیقِ مدیر = قفلِ ویرایش و حذف برای مشتری (دیدن و دریافتِ فایل آزاد است).
+     *
+     * 🔴 پیش‌تر مشتری zoneِ معلق را حذف می‌کرد — حذف تقریباً فوری کامل می‌شد چون zone
+     * از قبل روی نودها نبود — و همان دامنه را دوباره می‌افزود: zoneِ تازه و بی‌تعلیق
+     * (برای دامنهٔ ثبت‌شده نزدِ ما حتی بی‌TXT). کلیدِ قطعِ سوءاستفاده بی‌اثر می‌شد.
+     */
+    private function suspended(CdnZone $z, bool $toZone = false): ?RedirectResponse
+    {
+        if ($z->status !== 'suspended') {
+            return null;
+        }
+        $to = $toZone ? redirect()->to(lroute('account.dns.zone', $z->id)) : back();
+
+        return $to->withErrors(['zone' => __('dns.err.zone_suspended')]);
     }
 
     private function recordOf(CdnZone $zone, int $id): CdnRecord

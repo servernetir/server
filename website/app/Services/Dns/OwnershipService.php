@@ -71,11 +71,15 @@ class OwnershipService
             return $this->out(true, 'zone_exists', [], $mine);
         }
 
-        if ($this->registeredHere($customer, $domain)) {
+        // 🔴 «ثبت‌شده نزدِ ما» فقط zoneِ **تازه** می‌سازد. ردیفِ Domain هرگز دوباره سنجیده
+        // نمی‌شود (دامنهٔ منتقل‌شده به رجیسترارِ دیگر تا انقضا `active` می‌مانَد)، پس
+        // zoneِ زندهٔ حسابِ دیگر را فقط کنترلِ واقعیِ DNS (TXT) منتقل می‌کند.
+        if ($this->registeredHere($customer, $domain) && ! CdnZone::query()->where('domain', $domain)->exists()) {
             $lock = Cache::lock('dns:domain:'.$domain, 30);
             if (! $lock->block(10)) {
                 return $this->out(false, 'lookup_failed');
             }
+            $refused = null;
             try {
                 [$zone, $claim] = DB::transaction(function () use ($customer, $domain, $ip) {
                     $claim = $this->newClaim($customer, $domain);
@@ -83,13 +87,17 @@ class OwnershipService
 
                     return [$this->zones->adoptVerified($customer, $domain, $claim, 'registered', $ip), $claim];
                 });
+
+                return $this->out(true, 'zone_created', [], $zone, $claim);
             } catch (AdoptRefused $e) {
-                return $this->out(false, $e->reason);
+                $refused = $e->reason;
             } finally {
                 $lock->release();
             }
-
-            return $this->out(true, 'zone_created', [], $zone, $claim);
+            // هم‌زمان کسِ دیگری zone ساخت: مثلِ هر مشتریِ دیگر ادعای TXT
+            if ($refused !== 'needs_txt') {
+                return $this->out(false, $refused);
+            }
         }
 
         $pending = DnsOwnershipClaim::query()->pending()->forCustomer($customer->id)->where('domain', $domain)->latest('id')->first();

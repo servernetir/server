@@ -26,13 +26,23 @@ class ZoneImporter
     public function __construct(private readonly DelegationInspector $inspector) {}
 
     /**
-     * @return array{ok:bool, error:?string, rows:list<array>, queried:int}
+     * 🔴 کلِ اسکن زیرِ **یک** بودجه (۲۰ ثانیه / ۸۰ پرس‌وجو، `DelegationInspector::batch`).
+     * پیش‌تر هر پرس‌وجو بودجهٔ تازه می‌گرفت: نیم‌سرورهای این دامنه را مشتری تعیین
+     * می‌کند و با ۸ IPِ ساکت، یک درخواست ۶۰۰ پرس‌وجو و حدودِ ۲۰ دقیقه worker می‌گرفت.
+     * پس از تمام‌شدنِ بودجه اسکن متوقف می‌شود و `partial=true` برمی‌گردد.
+     *
+     * @return array{ok:bool, error:?string, rows:list<array>, queried:int, partial:bool}
      */
     public function scan(string $domain): array
     {
+        return $this->inspector->batch(fn (): array => $this->scanNow($domain));
+    }
+
+    private function scanNow(string $domain): array
+    {
         $delegation = $this->inspector->parentDelegation($domain);
         if (! $delegation['ok'] && ($delegation['servers'] ?? []) === []) {
-            return ['ok' => false, 'error' => (string) ($delegation['error'] ?? 'lookup_failed'), 'rows' => [], 'queried' => 0];
+            return ['ok' => false, 'error' => (string) ($delegation['error'] ?? 'lookup_failed'), 'rows' => [], 'queried' => 0, 'partial' => false];
         }
 
         $plan = [];
@@ -54,12 +64,18 @@ class ZoneImporter
         $seen = [];
         $cnamed = [];
         $queried = 0;
+        $partial = false;
         foreach ($plan as [$name, $type]) {
             if (isset($cnamed[$name]) && $type !== 'CNAME') {
                 continue;                       // نامِ مستعار رکوردِ دیگری ندارد
             }
             $r = $this->inspector->queryAuthoritative($domain, $name, $type, $delegation);
             $queried++;
+            if (! $r['ok'] && $r['error'] === 'budget_exhausted') {
+                $partial = true;
+
+                break;
+            }
             if (! $r['ok']) {
                 continue;
             }
@@ -85,7 +101,7 @@ class ZoneImporter
             }
         }
 
-        return ['ok' => true, 'error' => null, 'rows' => $rows, 'queried' => $queried];
+        return ['ok' => true, 'error' => null, 'rows' => $rows, 'queried' => $queried, 'partial' => $partial];
     }
 
     /** رکوردِ wire → ورودیِ RecordValidator */

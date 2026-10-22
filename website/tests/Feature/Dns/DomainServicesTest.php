@@ -242,6 +242,66 @@ class DomainServicesTest extends TestCase
         $this->assertSame('registered', $r['zone']->ownership);
     }
 
+    public function test_a_local_domain_row_never_takes_over_another_accounts_zone(): void
+    {
+        $a = $this->customer();
+        $b = $this->customer();
+        $zone = CdnZone::create(['customer_id' => $a->id, 'domain' => 'sold.example', 'mode' => 'ns', 'status' => 'active', 'verify_token' => 'x', 'ownership' => 'txt', 'delegation_state' => 'delegated']);
+        // ردیفِ کهنه: دامنه منتقل شده ولی این‌جا هنوز active است
+        \App\Models\Domain::create(['customer_id' => $b->id, 'domain' => 'sold.example', 'sld' => 'sold', 'tld' => 'example', 'status' => 'active', 'registrar' => 'test']);
+
+        $r = $this->own()->start($b, 'sold.example');
+
+        $this->assertSame('claim_pending', $r['code'], 'B must prove control of the live DNS like anyone else');
+        $this->assertSame($a->id, (int) $zone->fresh()->customer_id);
+        $this->assertSame('txt', $zone->fresh()->ownership);
+
+        // و درونِ قفل هم: حتی اگر فراخوانِ دیگری مستقیم بخواهد
+        $claim = DnsOwnershipClaim::create(['customer_id' => $b->id, 'domain' => 'sold.example', 'token' => DnsOwnershipClaim::freshToken(), 'status' => DnsOwnershipClaim::VERIFIED, 'expires_at' => now()->addDay()]);
+        $this->expectException(\App\Services\Dns\AdoptRefused::class);
+        $this->zones()->adoptVerified($b, 'sold.example', $claim, 'registered');
+    }
+
+    public function test_a_suspended_zone_refuses_every_customer_write(): void
+    {
+        $z = $this->zone();
+        $rec = $z->records()->create(['type' => 'A', 'name' => 'rec.example', 'content' => '185.10.20.30', 'ttl' => 300]);
+        $z->forceFill(['status' => 'suspended'])->save();
+        $before = (int) $z->fresh()->desired_version;
+
+        $this->assertSame('zone_suspended', $this->zones()->addRecord($z, ['type' => 'A', 'name' => 'www', 'content' => '185.10.20.31', 'ttl' => 300], 'customer:1')['errors']['zone']['code']);
+        $this->assertFalse($this->zones()->deleteRecord($z, $rec, 'customer:1'));
+        $this->assertSame('zone_suspended', $this->zones()->toggleRecord($z, $rec, 'customer:1')['code']);
+        $this->assertSame(0, $this->zones()->importApply($z, "www 300 IN A 185.10.20.32\n", [1], 'customer:1')['added']);
+
+        $this->assertSame(1, $z->records()->count());
+        $this->assertSame($before, (int) $z->fresh()->desired_version);
+    }
+
+    public function test_import_preview_is_linear_and_stops_at_the_record_capacity(): void
+    {
+        $z = $this->zone();
+        $file = '';
+        foreach (range(1, 3000) as $i) {
+            $file .= 't 300 IN TXT "'.str_repeat('a', 150).$i."\"\n";
+        }
+
+        config(['edge.dns.limits.records_per_zone' => 5000]);
+        $t = microtime(true);
+        $p = $this->zones()->importPreview($z, $file);
+        $elapsed = microtime(true) - $t;
+        $this->assertSame(3000, $p['counts']['new']);
+        // پیش‌تر درجهٔ دو: ۸۰۰ ردیف ۲۷ ثانیه؛ ۳۰۰۰ ردیف چند دقیقه
+        $this->assertLessThan(20.0, $elapsed, "3000 rows took {$elapsed}s");
+
+        config(['edge.dns.limits.records_per_zone' => 500]);
+        $p = $this->zones()->importPreview($z, $file);
+        $this->assertSame(500, $p['counts']['new']);
+        $this->assertSame(2500, $p['counts']['invalid']);
+        $this->assertSame('record_limit', $p['rows'][500]['code']);
+        $this->assertSame(['max' => '500'], $p['rows'][500]['params']);
+    }
+
     /* ═════════════ رکوردها ═════════════ */
 
     private function zone(?Customer $c = null): CdnZone

@@ -286,6 +286,34 @@ class ManagedDnsHttpTest extends TestCase
         $this->assertSame(1, $z->records()->count());
     }
 
+    public function test_a_suspended_zone_cannot_be_edited_deleted_or_re_added_fresh(): void
+    {
+        $c = $this->customer();
+        $z = $this->zone($c, ['domain' => 'phish.example', 'status' => 'suspended']);
+        $rec = $z->records()->create(['type' => 'A', 'name' => 'phish.example', 'content' => '185.10.20.30', 'ttl' => 300]);
+        $msg = __('dns.err.zone_suspended');
+        $as = fn () => $this->actingAs($c, 'customer');
+
+        $as()->get('/account/dns/'.$z->id)->assertOk()->assertSee(__('dns.zone.suspended_title'));
+        $as()->get('/account/dns/'.$z->id.'/export')->assertOk();
+
+        $as()->post('/account/dns/'.$z->id.'/records', ['type' => 'A', 'name' => 'www', 'content' => '185.10.20.31', 'ttl' => 300])->assertSessionHasErrors(['zone' => $msg]);
+        $as()->post('/account/dns/'.$z->id.'/records/'.$rec->id, ['type' => 'A', 'name' => '@', 'content' => '185.10.20.32', 'ttl' => 300])->assertSessionHasErrors(['zone' => $msg]);
+        $as()->post('/account/dns/'.$z->id.'/records/'.$rec->id.'/toggle')->assertSessionHasErrors(['zone' => $msg]);
+        $as()->post('/account/dns/'.$z->id.'/records/'.$rec->id.'/delete')->assertSessionHasErrors(['zone' => $msg]);
+        $as()->get('/account/dns/'.$z->id.'/import')->assertRedirect(lroute('account.dns.zone', $z->id));
+        $as()->post('/account/dns/'.$z->id.'/import/preview', ['source' => 'file', 'text' => "www 300 IN A 185.10.20.33\n"])->assertRedirect(lroute('account.dns.zone', $z->id));
+        $as()->post('/account/dns/'.$z->id.'/import/apply', ['source' => 'file', 'text' => "www 300 IN A 185.10.20.33\n", 'lines' => [1]])->assertRedirect(lroute('account.dns.zone', $z->id));
+        $as()->post('/account/dns/'.$z->id.'/delete', ['confirm' => 'phish.example'])->assertSessionHasErrors(['zone' => $msg]);
+
+        $this->assertSame('suspended', $z->fresh()->status);
+        $this->assertSame(['185.10.20.30'], $z->records()->pluck('content')->all());
+
+        // افزودنِ دوباره به همان zoneِ معلق می‌رسد، نه zoneِ تازه
+        $as()->post('/account/dns', ['domain' => 'phish.example'])->assertRedirect(lroute('account.dns.zone', $z->id));
+        $this->assertSame(1, CdnZone::where('domain', 'phish.example')->count());
+    }
+
     public function test_re_adding_my_own_domain_while_it_is_being_deleted_says_so(): void
     {
         $c = $this->customer();
@@ -387,6 +415,23 @@ class ManagedDnsHttpTest extends TestCase
 
         $this->actingAs($this->admin())->post('/admin/dns/zones/'.$z->id.'/delete', ['confirm' => 'bücher.example'])->assertSessionHasNoErrors();
         $this->assertSame('deleting', $z->fresh()->status);
+    }
+
+    public function test_changing_the_api_host_requires_the_key_again(): void
+    {
+        $a = $this->admin();
+        $ns = [['host' => 'dns-a.example.net', 'ipv4' => '203.0.113.10', 'port' => '53'], ['host' => 'dns-b.example.net', 'ipv4' => '203.0.113.20', 'port' => '53']];
+        $base = ['tsig_key' => 'xfr-servernet', 'catalog' => 'catalog.servernet.invalid', 'ns' => $ns, 'enabled' => '1', 'pdns_api_key' => ''];
+
+        $this->actingAs($a)->post('/admin/dns/settings', ['pdns_api_url' => 'https://attacker.example.org'] + $base)->assertSessionHasErrors('pdns_api_key');
+        $this->assertSame('https://dns-api.example.net', \App\Services\Dns\DnsConfig::apiUrl(), 'stored key never pointed at the new host');
+
+        // همان میزبان با مسیرِ دیگر: کلید لازم نیست
+        $this->actingAs($a)->post('/admin/dns/settings', ['pdns_api_url' => 'https://dns-api.example.net/'] + $base)->assertSessionHasNoErrors();
+
+        $this->actingAs($a)->post('/admin/dns/settings', ['pdns_api_url' => 'https://dns2.example.net', 'pdns_api_key' => 'NEW-KEY'] + $base)->assertSessionHasNoErrors();
+        $this->assertSame('https://dns2.example.net', \App\Services\Dns\DnsConfig::apiUrl());
+        $this->assertSame('NEW-KEY', Setting::getSecret('pdns_api_key'));
     }
 
     public function test_admin_actions_on_a_zone(): void

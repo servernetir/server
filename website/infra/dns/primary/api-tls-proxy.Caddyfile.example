@@ -18,8 +18,19 @@ DNS_API_HOSTNAME {
 	handle {
 		respond 404
 	}
-	log {
-		output file /var/log/caddy/pdns-api.log
-		format json
-	}
+	# 🔴 عمداً بی access log: لاگِ JSONِ Caddy همهٔ هدرهای درخواست را می‌نویسد و به‌طورِ
+	# پیش‌فرض فقط Cookie/Authorization را پنهان می‌کند — `X-API-Key` (کلیدِ کاملِ همهٔ zoneها)
+	# هر دقیقه با dns:publish روی دیسک می‌نشست. ممیزی در خودِ برنامه است (cdn_events).
+	# اگر لاگ لازم شد، فقط با حذفِ هدر، و پس از یک درخواستِ آزمایشی با
+	# `grep -ci x-api-key /var/log/caddy/pdns-api.log` (باید ۰ باشد):
+	#   log {
+	#       output file /var/log/caddy/pdns-api.log
+	#       format filter {
+	#           wrap json
+	#           fields {
+	#               request>headers>X-Api-Key delete
+	#           }
+	#       }
+	#   }
+	# اگر پیش‌تر لاگی با کلید نوشته شده، کلیدِ API را عوض و لاگ را پاک کنید.
 }
