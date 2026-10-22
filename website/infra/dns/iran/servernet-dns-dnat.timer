@@ -1,0 +1,11 @@
+[Unit]
+Description=ServerNet managed DNS: re-assert the DNAT chains every minute (survives reboot and rule rebuilds)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=servernet-dns-dnat.service
+
+[Install]
+WantedBy=timers.target

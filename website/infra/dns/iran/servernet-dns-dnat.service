@@ -1,0 +1,12 @@
+[Unit]
+Description=ServerNet managed DNS: DNAT public :53 to the DNS VM (own chains only, idempotent)
+# پس از شبکه و پس از عامل‌های موجود، تا زنجیره‌های آنها دست نخورد؛ این واحد هیچ flush/restoreِ سراسری ندارد
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# DNS_VM_IP=10.10.10.N (و در صورتِ نیاز PUBLIC_IP، RATE، BURST) — فایلِ محلیِ میزبان، نه Git
+EnvironmentFile=/etc/servernet/dns-dnat.env
+Environment=APPLY=1
+ExecStart=/usr/local/sbin/servernet-dns-dnat.sh

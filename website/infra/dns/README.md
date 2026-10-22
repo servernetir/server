@@ -29,7 +29,7 @@
 | `primary/api-tls-proxy.Caddyfile.example` | TLS + محدودیتِ مبدأ و مسیر برای API |
 | `secondary/pdns.conf.example` | نیم‌سرورِ عمومی |
 | `secondary/pdns-tsig-reconcile.sh` + `.service` + `.timer` | 🔴 الزامی — بخشِ «یافته‌های آزمایشگاه» |
-| `iran/servernet-dns-dnat.sh` | هدایتِ 53 از `85.9.108.118` به VMِ داخلی (پیش‌فرض DRY-RUN) |
+| `iran/servernet-dns-dnat.sh` + `.service` + `.timer` | هدایتِ 53 از `85.9.108.118` به VMِ داخلی (پیش‌فرض DRY-RUN)؛ timer ماندگاری پس از reboot |
 | `precheck/iran-host-readonly.sh` | بررسیِ فقط‌خواندنیِ میزبانِ ایران پیش از هر تصمیم |
 | `precheck/de-whm-readonly.sh` | بررسیِ فقط‌خواندنیِ WHMِ آلمان (پورتِ ۵۳ و آدرس‌ها) |
 | `lab/lab-up.sh`, `lab/lab-acceptance.sh`, `lab/netns-dnat-test.sh` | آزمایشگاهِ محلی و آزمون‌های پذیرش |
@@ -83,8 +83,12 @@ systemctl daemon-reload && systemctl enable --now pdns pdns-tsig-reconcile.timer
 2. VM (Debian، ۱ هسته، ۱GB، ۱۰GB) فقط روی storageِ سالمِ تأییدشده (`vmstoreid` — ZFS، ONLINE)؛ SSDِ تازه (`local-lvm`) تا تأییدِ
    وضعیتِ پارتیشن/ZFS استفاده نشود. IP روی vmbr1 از فهرستِ آزادِ تأییدشده.
 3. VMِ DNS نباید در `/etc/servernet/split.state` یا هیچ `ip rule` باشد (اسکریپت می‌سنجد).
-4. `APPLY=0 DNS_VM_IP=10.10.10.N iran/servernet-dns-dnat.sh` (DRY-RUN) → بازبینی → `APPLY=1 …` → واحدِ systemd + timer مثلِ
-   عامل‌های موجود. IPv6 منتشر نمی‌شود: `split-boot` فورواردِ IPv6 روی vmbr1 را DROP می‌کند.
+4. `APPLY=0 DNS_VM_IP=10.10.10.N iran/servernet-dns-dnat.sh` (DRY-RUN) → بازبینی → `APPLY=1 …` → ماندگاری:
+   اسکریپت در `/usr/local/sbin/servernet-dns-dnat.sh`، `DNS_VM_IP=10.10.10.N` در `/etc/servernet/dns-dnat.env` (۶۰۰ root)،
+   `iran/servernet-dns-dnat.service` و `.timer` در `/etc/systemd/system/`، سپس `systemctl enable --now servernet-dns-dnat.timer`.
+   timer هر دقیقه و ۳۰ ثانیه پس از boot زنجیره‌ها را (idempotent) دوباره برقرار می‌کند. ماندگاری پس از reboot فقط در پنجرهٔ
+   نگهداریِ تأییدشدهٔ مالک آزموده شود — reboot برای اثبات مجاز نیست.
+   IPv6 منتشر نمی‌شود: `split-boot` فورواردِ IPv6 روی vmbr1 را DROP می‌کند.
 5. خطرِ شناخته‌شده: جدولِ conntrackِ میزبان مشترکِ همهٔ مهمان‌هاست؛ سقفِ نرخِ raw (پیش‌فرض ۶۰ پرس‌وجو/ثانیه برای هر /24) آن را
    محافظت می‌کند — در آزمونِ netns، سیلِ ۴۰۰ پرس‌وجو به ۸۵ پاسخ و conntrackِ محدود رسید. این وعدهٔ ضدِ DDoS نیست.
 
@@ -108,5 +112,6 @@ curl -sk https://DNS_API_HOSTNAME/api/v1/servers  # از مبدأیی غیر ا�
 - با این حال روزانه: `sqlite3 /var/lib/powerdns/pdns.sqlite3 ".backup /var/backups/pdns-$(date +%F).sqlite3"` با دسترسیِ
   `600 root` (شاملِ کلیدهای TSIG است).
 - **بازگشتِ نسخهٔ برنامه هرگز DNSِ دامنه‌های تفویض‌شده را پاک نمی‌کند**: حذف فقط از مسیرِ صریحِ حذف/تعلیق انجام می‌شود و
-  نودها با دادهٔ موجود ادامه می‌دهند. خاموش‌کردنِ feature flag فقط افزودن/ویرایش را می‌بندد.
-- بازگشتِ DNAT: `iran/servernet-dns-dnat.sh remove` — فقط زنجیره‌های خودش.
+  نودها با دادهٔ موجود ادامه می‌دهند. خاموش‌کردنِ feature flag همهٔ صفحه‌های مشتری (دیدن و ویرایش) را می‌بندد؛ zoneهای
+  تفویض‌شده روی نودها پاسخ می‌دهند و هیچ‌چیز حذف نمی‌شود. اتصالِ ناقص (بی‌کلید یا کمتر از دو نیم‌سرور) فقط افزودنِ دامنهٔ تازه را می‌بندد.
+- بازگشتِ DNAT: `systemctl disable --now servernet-dns-dnat.timer` و سپس `iran/servernet-dns-dnat.sh remove` — فقط زنجیره‌های خودش.
