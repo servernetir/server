@@ -90,7 +90,7 @@ class ReopenCloudPlans extends Command
             $q->where('admin_note', 'like', CloudProvisioner::QUARANTINE_PREFIX.'%');
         }
 
-        $rows = $q->get(['id', 'provider', 'public_name', 'location_code', 'admin_note']);
+        $rows = $q->get(['id', 'provider', 'provider_location', 'public_name', 'location_code', 'admin_note']);
 
         if ($rows->isEmpty()) {
             $this->info($all
