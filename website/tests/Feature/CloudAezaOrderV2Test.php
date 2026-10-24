@@ -435,6 +435,38 @@ class CloudAezaOrderV2Test extends TestCase
         $this->assertTrue($hetzner->fresh()->admin_disabled, 'زیرساختِ دیگر نباید باز شود');
     }
 
+    /** یک تست واقعی فقط همان API منطقه‌ای را ثابت می‌کند، نه همهٔ مناطق همان زیرساخت را. */
+    public function test_reopen_can_be_limited_to_one_provider_location(): void
+    {
+        $tested = $this->plan('arvan-tested', CloudProvisioner::QUARANTINE_PREFIX.' چیزی', 'arvan');
+        $tested->update(['provider_location' => 'ir-tbz-sh1']);
+        $untested = $this->plan('arvan-untested', CloudProvisioner::QUARANTINE_PREFIX.' چیزی', 'arvan');
+        $untested->update(['provider_location' => 'ir-thr-si1']);
+        $other = $this->plan('aeza-same-location', CloudProvisioner::QUARANTINE_PREFIX.' چیزی', 'aeza');
+        $other->update(['provider_location' => 'ir-tbz-sh1']);
+
+        $this->artisan('cloud:reopen', [
+            'provider' => 'arvan',
+            '--location' => 'ir-tbz-sh1',
+            '--force' => true,
+        ])->assertExitCode(0);
+
+        $this->assertFalse($tested->fresh()->admin_disabled);
+        $this->assertTrue($untested->fresh()->admin_disabled, 'منطقهٔ آزمایش‌نشده نباید باز شود');
+        $this->assertTrue($other->fresh()->admin_disabled, 'زیرساختِ دیگر نباید باز شود');
+    }
+
+    public function test_reopen_rejects_location_without_an_explicit_provider(): void
+    {
+        $plan = $this->plan('region-only', CloudProvisioner::QUARANTINE_PREFIX.' چیزی', 'arvan');
+        $plan->update(['provider_location' => 'ir-tbz-sh1']);
+
+        $this->artisan('cloud:reopen', ['--location' => 'ir-tbz-sh1', '--force' => true])
+            ->assertExitCode(2);
+
+        $this->assertTrue($plan->fresh()->admin_disabled);
+    }
+
     /**
      * ⚠️ محافظِ ساده ولی حیاتی: هیچ‌کدام از این تست‌ها نباید تماسِ واقعی بزند.
      * سندباکسی وجود ندارد؛ یک `Http::fake` جاافتاده یعنی سفارشِ واقعی و پولِ

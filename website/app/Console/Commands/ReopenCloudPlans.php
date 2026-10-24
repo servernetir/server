@@ -46,6 +46,7 @@ class ReopenCloudPlans extends Command
 {
     protected $signature = 'cloud:reopen
                             {provider? : اسلاگِ زیرساخت (hetzner|aeza|arvan|ovh) — خالی یعنی همه}
+                            {--location= : فقط شناسهٔ بومی همین منطقه؛ همراه provider استفاده شود}
                             {--dry-run : فقط گزارش بده، چیزی را عوض نکن}
                             {--all : بسته‌های دستیِ مدیر را هم باز کن (پیش‌فرض: فقط قرنطینهٔ خودکار)}
                             {--force : بی‌پرسش اجرا کن}';
@@ -61,12 +62,26 @@ class ReopenCloudPlans extends Command
         }
 
         $provider = $this->argument('provider');
+        $location = trim((string) $this->option('location'));
         $all = (bool) $this->option('all');
+
+        if ($location !== '' && blank($provider)) {
+            $this->error('برای بازکردن منطقه‌ای، provider را هم صریح وارد کنید.');
+
+            return self::INVALID;
+        }
 
         $q = CloudPlan::query()->where('admin_disabled', true);
 
         if (filled($provider)) {
             $q->where('provider', $provider);
+        }
+
+        if ($location !== '') {
+            // Provider locations are intentionally not shared across drivers.
+            // A proven Arvan region must never reopen another provider or even
+            // another Arvan region whose network/image/firewall APIs differ.
+            $q->where('provider_location', $location);
         }
 
         if (! $all) {
@@ -88,8 +103,8 @@ class ReopenCloudPlans extends Command
         // گزارشِ تفکیکی: مدیر باید **پیش از** بازکردن ببیند چه چیزی باز می‌شود
         $this->line('');
 
-        foreach ($rows->groupBy('provider') as $slug => $group) {
-            $this->line(sprintf('  %-10s %d پلن', $slug, $group->count()));
+        foreach ($rows->groupBy(fn ($row) => $row->provider.' / '.($row->provider_location ?: '—')) as $scope => $group) {
+            $this->line(sprintf('  %-28s %d پلن', $scope, $group->count()));
         }
 
         $this->line('');
@@ -121,7 +136,9 @@ class ReopenCloudPlans extends Command
 
         \App\Support\ErrorTracker::note('cloud',
             'بازکردنِ دستیِ '.$n.' پلنِ قرنطینه‌شده با فرمانِ cloud:reopen'
-            .(filled($provider) ? ' (زیرساخت: '.$provider.')' : ''));
+            .(filled($provider) ? ' (زیرساخت: '.$provider : '')
+            .($location !== '' ? '، منطقه: '.$location : '')
+            .(filled($provider) ? ')' : ''));
 
         return self::SUCCESS;
     }
