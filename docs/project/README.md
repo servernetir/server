@@ -44,6 +44,7 @@
 | رمز ویندوز آروان: محافظ قبلی در تولید؛ فروش باز، کنسول فقط مالک؛ تنظیم خودکار مهمان هنوز پذیرفته نیست و تست تازه نیازمند تأیید هزینه است | [انتشار محافظ](ARVAN-WINDOWS-PASSWORD-2026-10-18.md) · [آماده‌سازی رمز خودکار و هزینه](ARVAN-WINDOWS-BOOTSTRAP-2026-10-18.md) · [وضعیت کنسول۲۰اکتبر](ARVAN-CONSOLE-OWNER-RELEASE-2026-10-20.md) |
 | بازیابی Cloudflare Tunnel و ماندگاری پس از مهاجرت root | [گزارش ۱۷ اکتبر](../../CLOUDFLARED-AUDIT-2026-10-17.md) |
 | تونل‌های PEETA / VM116، مسیر محدود CT113 و بازگشت | [بازیابی ۱۷ اکتبر](../../VM116-CLOUDFLARE-RELAY-2026-10-17.md) |
+| VM116: رفع فشار Ballooning و بازیابی سه Tunnel بدون ریبوت | [تعمیر ۲۴ اکتبر](../../VM116-REPAIR-2026-10-24.md) |
 | طراحی صورتحساب | [website/docs/billing](../../website/docs/billing/) |
 | نرخ نوسان، همگام‌سازی محصولات و همهٔ پسوندهای Openprovider | [راهنمای توسعه](../../website/docs/pricing/navasan.md) · [پذیرش تولید ۲۱ اکتبر](NAVASAN-PRICING-2026-10-21.md) |
 | وب‌سرویس احراز هویت و استعلام، پوشش و عملیات | [IDENTITY-API](IDENTITY-API.md) · [رکورد اجرا](IDENTITY-API-RELEASE-2026-10-17.md) |
