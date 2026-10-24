@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ServerPart;
 use App\Services\Shop\PartsCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\View\View;
 
 /**
@@ -19,18 +20,7 @@ class PartsShopController extends Controller
     /** سقفِ مقایسه. بیش از این، جدول روی موبایل ناخوانا می‌شود. */
     public const COMPARE_MAX = 4;
 
-    /**
-     * سقفِ نمایشِ یک دسته.
-     *
-     * ⚠️ وقتی سقف می‌خورد، قالب **می‌گوید** چند تا نشان داده نشده.
-     * بریدنِ خاموشِ فهرست بدترین حالت است: کاربر «۲۴ قطعه» می‌بیند و نتیجه
-     * می‌گیرد همینقدر داریم، در حالی‌که ۹ تای دیگر هم هست.
-     *
-     * ⚠️ عدد از بزرگ‌ترین دستهٔ امروز (۳۳ پردازنده) بالاتر گرفته شده تا در
-     * عمل هیچ‌چیز بریده نشود؛ سقف فقط تورِ ایمنیِ رشدِ آینده است. صفحه‌بندیِ
-     * واقعی وقتی ارزش دارد که کاتالوگ از این بگذرد — تا آن‌وقت، یک شبکهٔ
-     * کامل بهتر از دو صفحه است.
-     */
+    /** تعداد کارت در هر صفحه؛ همهٔ قطعات با لینک صفحه‌بندی قابل‌پیمایش‌اند. */
     private const PER_PAGE = 48;
 
     public function __construct(private readonly PartsCatalog $catalog) {}
@@ -67,6 +57,7 @@ class PartsShopController extends Controller
         $q = mb_substr(trim((string) $request->query('q', '')), 0, 60);
 
         $maxEur = $this->positiveInt($request->query('max'));
+        $requestedPage = $this->positiveInt($request->query('page')) ?? 1;
 
         $parts = collect();
         $total = 0;
@@ -133,8 +124,34 @@ class PartsShopController extends Controller
             };
 
             $total = $parts->count();
-            $parts = $parts->take(self::PER_PAGE);
         }
+
+        $page = min($requestedPage, max(1, (int) ceil($total / self::PER_PAGE)));
+        $parts = new LengthAwarePaginator(
+            $parts->forPage($page, self::PER_PAGE)->values(),
+            $total,
+            self::PER_PAGE,
+            $page,
+            ['path' => lroute('parts.category', $category)]
+        );
+        $filters = array_filter([
+            'gen' => $gen,
+            'condition' => $cond,
+            'q' => $q !== '' ? $q : null,
+            'max' => $maxEur,
+            'sort' => $sort !== 'popular' ? $sort : null,
+        ], fn ($value) => $value !== null && $value !== '');
+        $parts->appends($filters);
+
+        // Unfiltered pages each expose a unique slice. Faceted/search pages are
+        // useful to buyers but create unbounded URL combinations for crawlers.
+        $listingNoindex = $filters !== [];
+        $suffix = $page > 1 ? '?page='.$page : '';
+        $altUrls = [
+            'fa' => url('/parts/'.$category).$suffix,
+            'en' => url('/en/parts/'.$category).$suffix,
+            'tr' => url('/tr/parts/'.$category).$suffix,
+        ];
 
         return view('pages.parts-category', [
             'categories'  => $this->catalog->categories(),
@@ -152,6 +169,10 @@ class PartsShopController extends Controller
             'content'     => (array) config('parts_content.'.$category, []),
             'parts'       => $parts,
             'total'       => $total,
+            'page'        => $page,
+            'canonical'   => lroute('parts.category', $category).$suffix,
+            'altUrls'     => $altUrls,
+            'listingNoindex' => $listingNoindex,
             'facets'      => $facets,
             'active'      => ['gen' => $gen, 'condition' => $cond, 'sort' => $sort, 'q' => $q, 'max' => $maxEur],
             'priceSteps'  => $this->priceSteps($category),

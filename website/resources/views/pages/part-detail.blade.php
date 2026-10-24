@@ -1,5 +1,5 @@
 @extends('layouts.site')
-@section('title', $part->label().' — '.__('ui.brand'))
+@section('title', __('shop_seo.part_title', ['name' => $part->label()]))
 @section('description', $part->summary[app()->getLocale()] ?? $part->summary['fa'] ?? __('ui.parts_desc'))
 @section('content')
 
@@ -14,6 +14,8 @@
         'refurb' => __('ui.parts_cond_refurb'),
         'used'   => __('ui.parts_cond_used'),
     ];
+    $checks = (array) trans('shop_seo.checks.'.$part->category);
+    $comparison = $related->first();
 
     /*
     | دادهٔ ساختاریافتهٔ محصول.
@@ -72,7 +74,10 @@
 @endphp
 
 @push('head')
+{{-- Product without a real offer/review/rating is invalid for Product snippets. --}}
+@if(isset($ld['offers']))
 <script type="application/ld+json">{!! json_encode($ld, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endif
 <script type="application/ld+json">{!! json_encode($crumbs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 @endpush
 
@@ -184,6 +189,31 @@
            می‌کند. --}}
       <div class="sp-body">{{ $body }}</div>
     @endif
+
+    <section class="sp-guide" aria-labelledby="part-check-title" style="margin-top:32px">
+      <h2 class="sp-h2" id="part-check-title">{{ __('shop_seo.part_check_title', ['name' => $part->label()]) }}</h2>
+      <p class="sp-detail-sum" style="margin-bottom:14px">{{ __('shop_seo.part_check_intro') }}</p>
+      <div class="sp-pros">
+        <div class="sp-pro good">
+          <h3>{{ __('ui.parts_compat') }}</h3>
+          <ul class="sp-pro-list">
+            @foreach($checks as $check)<li>{{ $check }}</li>@endforeach
+            <li>{{ __('shop_seo.part_compat_note') }}</li>
+          </ul>
+        </div>
+        <div class="sp-pro warn">
+          <h3>{{ __('ui.parts_compare') }}</h3>
+          <p>{{ __('shop_seo.part_compare_note') }}</p>
+          <div class="sp-compat">
+            @if($comparison)
+              <a class="sp-chip sm" href="{{ lroute('parts.compare').'?parts='.rawurlencode($part->slug.','.$comparison->slug) }}">{{ __('shop_seo.part_compare', ['name' => $part->label(), 'other' => $comparison->label()]) }}</a>
+            @endif
+            <a class="sp-chip sm" href="{{ lroute('parts.category', $part->category) }}">{{ __('shop_seo.part_family', ['category' => $label]) }}</a>
+            <a class="sp-chip sm" href="{{ lroute('servers.index') }}">{{ __('shop_seo.part_servers') }}</a>
+          </div>
+        </div>
+      </div>
+    </section>
 
     @if($related->isNotEmpty())
       <h2 class="sp-h2">{{ __('ui.parts_related') }}</h2>

@@ -99,7 +99,7 @@ class PartsAreCrawlableTest extends TestCase
     }
 
     /**
-     * ⚠️ قطعهٔ استعلامی نباید `offers` بگیرد.
+     * ⚠️ قطعهٔ استعلامی نباید Product ناقص یا `offers` بگیرد.
      *
      * `price: 0` یعنی «رایگان» و برای گوگل ادعای قیمتی است که در صفحه نیست —
      * دقیقاً همان چیزی که rich result را رد می‌کند.
@@ -110,7 +110,8 @@ class PartsAreCrawlableTest extends TestCase
 
         $html = $this->get('/parts/cpu/xeon-e5-2680-v4')->assertOk()->getContent();
 
-        $this->assertStringContainsString('"@type":"Product"', $html);
+        $this->assertStringNotContainsString('"@type":"Product"', $html);
+        $this->assertStringContainsString('"@type":"BreadcrumbList"', $html);
         $this->assertStringNotContainsString('"@type":"Offer"', $html);
         $this->assertStringNotContainsString('"price":"0"', $html);
     }

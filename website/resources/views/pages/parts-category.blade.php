@@ -1,8 +1,13 @@
 @extends('layouts.site')
-@section('title', $meta[app()->getLocale()].' — '.__('ui.parts_title').' — '.__('ui.brand'))
+@section('title', $meta[app()->getLocale()].' — '.__('ui.parts_title').($page > 1 ? ' — '.__('shop_seo.category_page', ['page' => $page]) : '').' — '.__('ui.brand'))
 {{-- ⚠️ توضیحِ متا از محتوای **همین دسته** می‌آید. اگر جا افتاده باشد به متنِ
      عمومی برمی‌گردیم — که بد است ولی از توضیحِ خالی بهتر. --}}
 @section('description', lc($content['meta'] ?? []) ?: ($meta[app()->getLocale()].' — '.__('ui.parts_desc')))
+@if($listingNoindex)
+@section('noindex', '1')
+@else
+@section('canonical', $canonical)
+@endif
 @section('content')
 
 @php
@@ -173,20 +178,33 @@
     @else
       <p class="sp-count">
         {{ __('ui.parts_count', ['count' => fa_num($total)]) }}
-        {{-- ⚠️ بریدنِ خاموش ممنوع: اگر سقف خورده، همین‌جا گفته می‌شود. --}}
-        @if($total > $parts->count())
-          <span class="sp-more">{{ __('ui.parts_more', ['count' => fa_num($total - $parts->count())]) }}</span>
-        @endif
       </p>
       <div class="sp-grid">
         @foreach($parts as $part)
           @include('partials.part-card', ['part' => $part])
         @endforeach
       </div>
+      @if($parts->hasPages())
+        <nav class="sp-filter-row" aria-label="{{ __('shop_seo.pages_label') }}" style="margin-top:22px;gap:9px">
+          @if($parts->onFirstPage())
+            <span class="sp-chip sm" aria-disabled="true">{{ __('ui.bl_prev') }}</span>
+          @else
+            <a class="sp-chip sm" href="{{ $parts->previousPageUrl() }}" rel="prev">{{ __('ui.bl_prev') }}</a>
+          @endif
+          @foreach($parts->getUrlRange(1, $parts->lastPage()) as $number => $url)
+            <a class="sp-chip sm {{ $number === $page ? 'on' : '' }}" href="{{ $url }}" @if($number === $page) aria-current="page" @endif>{{ fa_num($number) }}</a>
+          @endforeach
+          @if($parts->hasMorePages())
+            <a class="sp-chip sm" href="{{ $parts->nextPageUrl() }}" rel="next">{{ __('ui.bl_next') }}</a>
+          @else
+            <span class="sp-chip sm" aria-disabled="true">{{ __('ui.bl_next') }}</span>
+          @endif
+        </nav>
+      @endif
       <p class="sp-note">{{ __('ui.parts_eur_note') }}</p>
     @endif
 
-    @if($guide = ($content['guide'] ?? []))
+    @if($page === 1 && ($guide = ($content['guide'] ?? [])))
       <h2 class="sp-h2">{{ __('ui.parts_guide') }}</h2>
       <div class="sp-guide">
         @foreach($guide as $g)
@@ -198,7 +216,7 @@
       </div>
     @endif
 
-    @if($faq = ($content['faq'] ?? []))
+    @if($page === 1 && ($faq = ($content['faq'] ?? [])))
       <h2 class="sp-h2">{{ __('ui.parts_faq') }}</h2>
       {{-- ⚠️ `<details>` و نه آکاردئونِ جاوااسکریپتی: بی‌اسکریپت هم باز و بسته
            می‌شود، و مهم‌تر اینکه متنِ پاسخ همیشه در DOM هست تا خزنده ببیندش. --}}
