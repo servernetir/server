@@ -3091,6 +3091,12 @@ Route::prefix('admin')->group(function () {
         Route::post('/menus/{override}/toggle', [\App\Http\Controllers\Admin\MenuController::class, 'toggle'])->middleware('admin');
         Route::delete('/menus/{override}', [\App\Http\Controllers\Admin\MenuController::class, 'destroy'])->middleware('admin');
 
+        // [vpstc-readonly-admin:start]
+        Route::get('/cloud/vpstc', [\App\Http\Controllers\Admin\VpsTcController::class, 'index'])->middleware('admin')->name('admin.cloud.vpstc');
+        Route::post('/cloud/vpstc', [\App\Http\Controllers\Admin\VpsTcController::class, 'save'])->middleware(['admin', 'throttle:6,1'])->name('admin.cloud.vpstc.save');
+        Route::post('/cloud/vpstc/preflight', [\App\Http\Controllers\Admin\VpsTcController::class, 'preflight'])->middleware(['admin', 'throttle:3,1'])->name('admin.cloud.vpstc.preflight');
+        // [vpstc-readonly-admin:end]
+
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
         Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');
         Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync'])->middleware('admin');
