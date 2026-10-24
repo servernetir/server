@@ -20,6 +20,8 @@ class HardwareSeoOverlayTest extends TestCase
             foreach (['cpu', 'ram', 'disk', 'raid'] as $category) {
                 $this->assertStringContainsString($prefix.'/parts/'.$category.'?gen=gen10', $html);
             }
+            $this->assertStringContainsString('Gen10', $html);
+            $this->assertStringNotContainsString('GEN10', $html);
             $this->assertStringNotContainsString('shop_seo.', $html);
         }
 
