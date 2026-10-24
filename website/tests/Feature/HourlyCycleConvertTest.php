@@ -386,4 +386,20 @@ class HourlyCycleConvertTest extends TestCase
             ->assertSessionHasErrors();
         $this->assertSame('convert', $s->fresh()->on_credit_out);
     }
+
+    public function test_discount_label_respects_procurement_floor_instead_of_promising_configured_twenty_percent(): void
+    {
+        $pricing = \Mockery::mock(\App\Services\Cloud\CloudPricing::class);
+        $pricing->shouldReceive('eurToToman')->andReturn(100_000);
+        $this->app->instance(\App\Services\Cloud\CloudPricing::class, $pricing);
+        $s = $this->hourlyServer($this->customer(0));
+        $s->cloudPlan->forceFill(['cost_eur_cents' => 990])->save();
+        $quotes = app(HourlyCycleConverter::class)->quotes($s);
+        $this->assertSame(1_000_000, $quotes['monthly']['price']);
+        $this->assertSame(11_880_000, $quotes['yearly']['price']);
+        $this->assertSame(1, $quotes['yearly']['discount']);
+        $this->assertSame(1, $quotes['quarterly']['discount']);
+        $this->assertSame(1, $quotes['semiannual']['discount']);
+        $this->assertSame(0, $quotes['monthly']['discount']);
+    }
 }
