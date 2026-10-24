@@ -136,7 +136,13 @@ class DnsController extends Controller
         $after = array_column($v['nameservers'], 'host');
         if ($before !== [] && $before !== $after && Schema::hasTable('cdn_zones')) {
             // NSِ apexِ همهٔ zoneها باید عوض شود؛ ناشر در کرون می‌فرستد
-            CdnZone::query()->where('mode', 'ns')->whereIn('status', ['pending', 'active'])->each(fn (CdnZone $z) => $z->bumpVersion());
+            CdnZone::query()->where('mode', 'ns')->whereIn('status', ['pending', 'active'])->each(function (CdnZone $z) {
+                try {
+                    $z->bumpVersion();
+                } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+                    // zone همین وسط حذف شد — چیزی برای انتشارِ دوباره نیست
+                }
+            });
             $msg .= ' نامِ نیم‌سرورها عوض شد؛ همهٔ zoneها برای انتشارِ دوباره علامت خوردند. مشتریانِ فعال باید NSِ دامنه‌شان را هم عوض کنند.';
         }
         CdnEvent::audit('settings_changed', null, [

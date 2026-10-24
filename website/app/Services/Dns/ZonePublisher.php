@@ -253,14 +253,20 @@ class ZonePublisher
             $have[strtolower((string) ($set['name'] ?? '')).'|'.($set['type'] ?? '')] = $set;
         }
 
-        $patch = [];
+        // 🔴 ترتیب مهم است: PowerDNS هر RRset را به ترتیب اعمال می‌کند و تعارضِ CNAME را با
+        // وضعیتِ همان لحظه می‌سنجد. REPLACEِ `www CNAME` پیش از DELETEِ `www A` با ۴۲۲ رد
+        // می‌شد و چون هر تلاش همان patch را می‌ساخت، انتشارِ آن zone برای همیشه گیر می‌کرد
+        // (آزمایشگاهِ 5.0.2: این ترتیب ۴۲۲، ترتیبِ برعکس ۲۰۴). پس اول همهٔ DELETEها.
+        // کلِ patch یک تراکنشِ PowerDNS است؛ حالتِ میانی بیرون دیده نمی‌شود.
+        $replace = [];
         foreach ($desired as $key => $set) {
             if (isset($have[$key]) && $this->same($have[$key], $set)) {
                 continue;
             }
-            $patch[] = $set + ['changetype' => 'REPLACE'];
+            $replace[] = $set + ['changetype' => 'REPLACE'];
         }
 
+        $patch = [];
         foreach ($have as $key => $set) {
             $type = (string) ($set['type'] ?? '');
             // ⚠️ هیچ استثنایی جز SOA: پیش‌تر `_acme-challenge.*` هرگز حذف نمی‌شد، ولی مشتری
@@ -272,7 +278,7 @@ class ZonePublisher
             $patch[] = ['name' => $set['name'], 'type' => $type, 'changetype' => 'DELETE'];
         }
 
-        return $patch;
+        return array_merge($patch, $replace);
     }
 
     private function same(array $live, array $want): bool

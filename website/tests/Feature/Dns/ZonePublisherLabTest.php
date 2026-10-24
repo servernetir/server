@@ -97,6 +97,24 @@ class ZonePublisherLabTest extends TestCase
         $this->assertSame('185.10.20.30', $this->dig(5302, 'www.'.$domain, 'A'));
         $this->assertSame('10 mail.'.$domain.'.', $this->dig(5302, $domain, 'MX'));
 
+        // A → CNAME و برعکس روی همان نام: پیش‌تر REPLACE پیش از DELETE بود و PowerDNS با ۴۲۲
+        // («Conflicts with pre-existing RRset») رد می‌کرد — انتشارِ zone برای همیشه گیر می‌کرد
+        $z->records()->where('name', 'www.'.$domain)->delete();
+        $z->records()->create(['type' => 'CNAME', 'name' => 'www.'.$domain, 'content' => 'edge.example.net', 'ttl' => 300]);
+        $z->bumpVersion();
+        $r = $pub->publish($z->fresh());
+        $this->assertTrue($r->ok, 'A→CNAME: '.$r->error);
+        $this->waitInSync($z);
+        $this->assertSame('edge.example.net.', $this->dig(5301, 'www.'.$domain, 'CNAME'));
+
+        $z->records()->where('name', 'www.'.$domain)->delete();
+        $z->records()->create(['type' => 'A', 'name' => 'www.'.$domain, 'content' => '185.10.20.32', 'ttl' => 300]);
+        $z->bumpVersion();
+        $r = $pub->publish($z->fresh());
+        $this->assertTrue($r->ok, 'CNAME→A: '.$r->error);
+        $this->waitInSync($z);
+        $this->assertSame('185.10.20.32', $this->dig(5302, 'www.'.$domain, 'A'));
+
         // حذفِ zone
         $z = $z->fresh();
         $z->status = 'deleting';

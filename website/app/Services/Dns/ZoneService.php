@@ -165,8 +165,15 @@ class ZoneService
         $zone->refresh();
 
         if ($zone->status === 'pending' && $d['state'] === 'delegated' && $zone->isPublishedEverywhere()) {
-            $zone->forceFill(['status' => 'active', 'verified_at' => $zone->verified_at ?? now()])->save();
-            CdnEvent::audit('zone_activated', $zone, [], 'system');
+            // 🔴 شرطی روی همان وضعیت: save()ِ بی‌شرط می‌توانست حذف یا تعلیقی را که میانِ
+            // refresh و این خط ثبت شده بود با `active` بازنویسی کند — حذف بی‌صدا گم می‌شد
+            $affected = CdnZone::query()->whereKey($zone->getKey())
+                ->where('status', 'pending')->where('publish_state', 'published')
+                ->update(['status' => 'active', 'verified_at' => $zone->verified_at ?? now(), 'updated_at' => now()]);
+            $zone->refresh();
+            if ($affected === 1) {
+                CdnEvent::audit('zone_activated', $zone, [], 'system');
+            }
         }
 
         return ['state' => $d['state'], 'active' => $zone->status === 'active', 'nodes' => $nodes, 'error' => $d['error']];

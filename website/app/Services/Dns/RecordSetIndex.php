@@ -92,6 +92,11 @@ final class RecordSetIndex
                     return self::err('ns_occludes', ['name' => $name, 'record' => $n]);
                 }
             }
+            foreach (array_keys($this->cuts) as $cut) {
+                if ($cut !== $name && str_ends_with($name, '.'.$cut)) {
+                    return self::err('delegated_name', ['name' => $cut]);
+                }
+            }
 
             return null;
         }

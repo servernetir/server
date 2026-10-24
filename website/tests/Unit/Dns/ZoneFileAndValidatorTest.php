@@ -51,6 +51,10 @@ class ZoneFileAndValidatorTest extends TestCase
             'TXT backslash'      => [['type' => 'TXT', 'name' => '@', 'content' => 'a\\b'], 'content', null],
             'NS apex'            => [['type' => 'NS', 'name' => '@', 'content' => 'ns.x.net'], 'name', null],
             'NS sub'             => [['type' => 'NS', 'name' => 'lab', 'content' => 'ns.x.net'], null, ['name' => 'lab.example.com']],
+            'NS acme delegation' => [['type' => 'NS', 'name' => '_acme-challenge', 'content' => 'ns.acme-dns.example.net'], null, ['name' => '_acme-challenge.example.com']],
+            'A under _ parent'   => [['type' => 'A', 'name' => 'host._sub', 'content' => '185.10.20.30'], null, ['name' => 'host._sub.example.com']],
+            'A at _ label'       => [['type' => 'A', 'name' => '_sub', 'content' => '185.10.20.30'], 'name', null],
+            'A under a_b parent' => [['type' => 'A', 'name' => 'x.a_b', 'content' => '185.10.20.30'], 'name', null],
             'SRV ok'             => [['type' => 'SRV', 'name' => '_sip._tcp', 'prio' => 10, 'weight' => 5, 'port' => 5060, 'target' => 'sip.example.com'], null, ['content' => '5 5060 sip.example.com', 'prio' => 10]],
             'SRV bad owner'      => [['type' => 'SRV', 'name' => 'sip', 'prio' => 10, 'weight' => 5, 'port' => 5060, 'target' => 'a.b.com'], 'name', null],
             'SRV dot target'     => [['type' => 'SRV', 'name' => '_x._udp', 'prio' => 0, 'weight' => 0, 'port' => 0, 'target' => '.'], null, ['content' => '0 0 .']],
@@ -138,6 +142,47 @@ class ZoneFileAndValidatorTest extends TestCase
     private function parse(string $text, string $origin = 'example.com')
     {
         return (new ZoneFileParser)->parse($text, $origin);
+    }
+
+    public function test_invalid_name_is_reported_as_such_not_as_apex(): void
+    {
+        foreach (['NS' => 'ns_apex', 'CNAME' => 'cname_apex'] as $type => $misleading) {
+            $r = $this->v->validate('example.com', ['type' => $type, 'name' => 'bad..name', 'content' => 'x.example.net']);
+            $this->assertFalse($r['ok']);
+            $this->assertNotSame($misleading, $r['errors']['name']['code'], "$type: a broken name is not «at the apex»");
+        }
+    }
+
+    public function test_ns_below_an_existing_delegation_is_hidden_and_rejected(): void
+    {
+        $existing = [['id' => 1, 'type' => 'NS', 'name' => 'sub.example.com', 'content' => 'ns1.other.net']];
+        $ns = ['type' => 'NS', 'name' => 'a.sub.example.com', 'content' => 'ns2.other.net', 'prio' => null];
+
+        $this->assertSame('delegated_name', $this->v->conflicts($ns, $existing)['code'] ?? null);
+        $this->assertSame('delegated_name', (new \App\Services\Dns\RecordSetIndex($existing))->conflict($ns)['code'] ?? null);
+    }
+
+    public function test_rejected_origin_poisons_following_relative_names_until_a_valid_one(): void
+    {
+        $rows = $this->parse("\$ORIGIN example.com.\nwww 300 IN A 185.10.20.30\n\$ORIGIN other.net.\nwww 300 IN A 198.51.100.7\nmail 300 IN MX 10 mx\n\$ORIGIN example.com.\napi 300 IN A 185.10.20.31\n")->rows;
+        $by = [];
+        foreach ($rows as $r) {
+            $by[$r['line']] = [$r['status'], $r['code']];
+        }
+
+        $this->assertSame('parsed', $by[2][0]);
+        $this->assertSame(['invalid', 'origin_outside_zone'], $by[3]);
+        $this->assertSame(['invalid', 'origin_outside_zone'], $by[4], 'not silently www.example.com');
+        $this->assertSame(['invalid', 'origin_outside_zone'], $by[5]);
+        $this->assertSame('parsed', $by[7][0], 'a valid $ORIGIN clears it');
+    }
+
+    public function test_omitted_ttl_inherits_the_last_explicit_one_without_dollar_ttl(): void
+    {
+        $rows = $this->parse("a 7200 IN A 185.10.20.30\nb IN A 185.10.20.31\n")->rows;
+
+        $this->assertSame(7200, $rows[1]['ttl']);
+        $this->assertSame(600, $this->parse("\$TTL 600\na 7200 IN A 185.10.20.30\nb IN A 185.10.20.31\n")->rows[1]['ttl'], '$TTL wins when present');
     }
 
     public function test_parses_a_realistic_provider_export(): void

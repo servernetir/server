@@ -46,6 +46,7 @@ class RecordSetIndexTest extends TestCase
             'NS over existing A'          => $r('NS', 'www.ex.com', 'ns.other.net'),
             'NS over records below'       => $r('NS', 'blog2.ex.com', 'ns.other.net'),
             'NS on a fresh name'          => $r('NS', 'fresh.ex.com', 'ns.other.net'),
+            'NS below an existing cut'    => $r('NS', 'deep.sub.ex.com', 'ns.other.net'),
             'unrelated name'              => $r('AAAA', 'v6.ex.com', '2a01:4f8::1'),
         ];
     }

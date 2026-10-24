@@ -29,6 +29,9 @@ class ZonePublisherTest extends TestCase
 
     private int $patches = 0;
 
+    /** پیش از پاسخِ GETِ یک zone اجرا می‌شود (شبیه‌سازیِ اتفاقِ هم‌زمان) */
+    private ?\Closure $beforeGet = null;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -72,6 +75,9 @@ class ZonePublisherTest extends TestCase
         }
         $z = urldecode($m[1]);
         $sub = $m[3] ?? null;
+        if ($r->method() === 'GET' && $sub === null && $this->beforeGet !== null) {
+            ($this->beforeGet)($z);
+        }
         if (! isset($this->server[$z])) {
             return Http::response(['error' => 'Could not find domain'], 404);
         }
@@ -184,6 +190,38 @@ class ZonePublisherTest extends TestCase
         $this->assertSame(1, $report['drift']);
         $this->assertSame(0, $report['failed']);
         $this->assertArrayHasKey('stray.example.', $this->server, 'orphans are reported, never deleted');
+    }
+
+    public function test_reconcile_survives_a_zone_whose_deletion_completes_mid_run(): void
+    {
+        $gone = $this->zone(['domain' => 'gone.example']);
+        $kept = $this->zone(['domain' => 'kept.example']);
+        foreach ([$gone, $kept] as $z) {
+            $z->forceFill(['publish_state' => 'published', 'applied_version' => 1, 'desired_version' => 1])->save();
+        }
+        // حذفِ gone درست وقتی reconcile سراغش می‌آید کامل می‌شود
+        $this->beforeGet = function (string $name) use ($gone) {
+            if ($name === 'gone.example.') {
+                CdnZone::whereKey($gone->id)->delete();
+            }
+        };
+
+        $this->artisan('dns:reconcile')->assertSuccessful();
+
+        $this->assertNull(CdnZone::find($gone->id));
+        $this->assertGreaterThan(1, (int) $kept->fresh()->desired_version, 'the run continued past the vanished zone');
+        $this->assertNotNull(Setting::get(\App\Console\Commands\DnsReconcile::REPORT_KEY), 'report still written');
+        $this->assertSame(0, \App\Models\CdnEvent::query()->where('cdn_zone_id', $gone->id)->where('message', 'drift_detected')->count());
+    }
+
+    public function test_diff_sends_every_delete_before_any_replace(): void
+    {
+        $patch = app(ZonePublisher::class)->diff(
+            ['www.shop.example.|CNAME' => ['name' => 'www.shop.example.', 'type' => 'CNAME', 'ttl' => 300, 'records' => [['content' => 'edge.example.net.', 'disabled' => false]]]],
+            [['name' => 'www.shop.example.', 'type' => 'A', 'ttl' => 300, 'records' => [['content' => '185.10.20.30', 'disabled' => false]]]],
+        );
+
+        $this->assertSame([['DELETE', 'A'], ['REPLACE', 'CNAME']], array_map(fn ($p) => [$p['changetype'], $p['type']], $patch));
     }
 
     private function zone(array $attrs = []): CdnZone

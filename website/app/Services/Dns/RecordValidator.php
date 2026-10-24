@@ -20,8 +20,11 @@ class RecordValidator
 {
     public const TYPES = ['A', 'AAAA', 'CNAME', 'MX', 'TXT', 'SRV', 'CAA', 'NS'];
 
-    /** نوع‌هایی که نامِ مالکشان نامِ میزبان است و زیرخط نمی‌پذیرند */
-    private const HOST_OWNER_TYPES = ['A', 'AAAA', 'MX', 'NS'];
+    /**
+     * نوع‌هایی که نامِ مالکشان نامِ میزبان است و زیرخط نمی‌پذیرند — مگر زیرِ والدِ «_»دار
+     * (§6.2؛ RFC 8552). NS عمداً این‌جا نیست: تفویضِ `_acme-challenge` (acme-dns) رایج است.
+     */
+    private const HOST_OWNER_TYPES = ['A', 'AAAA', 'MX'];
 
     public const TTL_MIN = 60;
     public const TTL_MAX = 86400;
@@ -100,7 +103,8 @@ class RecordValidator
 
             case 'CNAME':
                 [$content, $e] = $this->target((string) ($in['content'] ?? ''), allowUnderscore: true);
-                if ($name === $zone) {
+                // نامِ نامعتبر به apex برمی‌گردد؛ آن‌وقت «CNAME در apex» پیامِ دروغ است
+                if ($nameErr === null && $name === $zone) {
                     $errors['name'] = $this->err('cname_apex');
                 } elseif ($e !== null) {
                     $errors['content'] = $e;
@@ -111,7 +115,7 @@ class RecordValidator
 
             case 'NS':
                 [$content, $e] = $this->target((string) ($in['content'] ?? ''), allowUnderscore: false);
-                if ($name === $zone) {
+                if ($nameErr === null && $name === $zone) {
                     $errors['name'] = $this->err('ns_apex');
                 } elseif ($e !== null) {
                     $errors['content'] = $e;
@@ -244,6 +248,12 @@ class RecordValidator
                     return $this->err('ns_occludes', ['name' => $name, 'record' => $r['name']]);
                 }
             }
+            // NS زیرِ برشِ دیگری هم پشتِ آن تفویض پنهان است (§6.2: «جز glue هیچ‌چیز زیرِ برش»)
+            foreach (array_keys($delegations) as $cut) {
+                if ($cut !== $name && str_ends_with($name, '.'.$cut)) {
+                    return $this->err('delegated_name', ['name' => $cut]);
+                }
+            }
 
             return null;
         }
@@ -333,8 +343,21 @@ class RecordValidator
             if (! DomainName::isValidALabel($label)) {
                 return [$zone, $this->err('name_invalid', ['label' => $label])];
             }
-            if (str_contains($label, '_') && in_array($type, self::HOST_OWNER_TYPES, true)) {
-                return [$zone, $this->err('name_underscore')];
+        }
+
+        if (in_array($type, self::HOST_OWNER_TYPES, true)) {
+            // `host._sub` مجاز است (زیرِ گرهٔ صفتیِ «_»دار)؛ `_x` و `a_b` و `x.a_b` نه
+            $underParent = false;
+            foreach (array_slice($rel, 1) as $parent) {
+                if (str_starts_with($parent, '_')) {
+                    $underParent = true;
+                    break;
+                }
+            }
+            foreach ($rel as $label) {
+                if (str_contains($label, '_') && ! $underParent) {
+                    return [$zone, $this->err('name_underscore')];
+                }
             }
         }
 

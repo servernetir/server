@@ -10,6 +10,7 @@ use App\Services\Dns\DnsConfig;
 use App\Services\Dns\PowerDnsClient;
 use App\Services\Dns\ZonePublisher;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -46,14 +47,36 @@ class DnsReconcile extends Command
 
         $drift = 0;
         $failed = 0;
-        $q->orderBy('id')->each(function (CdnZone $zone) use ($pdns, $publisher, &$drift, &$failed) {
+
+        /*
+         * 🔴 فهرست از پیش (تکه‌تکه) خوانده شده؛ zone می‌تواند همین وسط حذفش تأیید شود،
+         * معلق شود یا انتشارِ تازه بگیرد. پیش از audit و bump دوباره سنجیده می‌شود، وگرنه
+         * bumpVersion روی ردیفِ پاک‌شده استثنا می‌داد و کلِ اجرا (و گزارش) می‌شکست.
+         */
+        $requeue = function (CdnZone $zone, array $params) use (&$drift): bool {
+            $still = CdnZone::query()->whereKey($zone->getKey())
+                ->where('publish_state', 'published')->whereIn('status', ['pending', 'active'])->exists();
+            if (! $still) {
+                return false;
+            }
+            try {
+                $zone->bumpVersion();
+            } catch (ModelNotFoundException) {
+                return false;
+            }
+            $drift++;
+            CdnEvent::audit('drift_detected', $zone, $params, 'system');
+
+            return true;
+        };
+
+        $q->orderBy('id')->each(function (CdnZone $zone) use ($pdns, $publisher, $requeue, &$failed) {
             $live = $pdns->getZone($zone->domain);
             if (! $live['ok'] && $live['status'] === 404) {
                 // drift است، نه شکست: دوباره ساخته می‌شود
-                $drift++;
-                CdnEvent::audit('drift_detected', $zone, ['changes' => 'missing_on_primary'], 'system');
-                $zone->bumpVersion();
-                $this->line("~ {$zone->domain}: missing on primary — republish queued");
+                if ($requeue($zone, ['changes' => 'missing_on_primary'])) {
+                    $this->line("~ {$zone->domain}: missing on primary — republish queued");
+                }
 
                 return;
             }
@@ -65,10 +88,7 @@ class DnsReconcile extends Command
             }
             $records = CdnRecord::query()->where('cdn_zone_id', $zone->id)->where('disabled', false)->orderBy('id')->get();
             $diff = $publisher->diff($publisher->desired($zone->domain, $records), (array) ($live['data']['rrsets'] ?? []));
-            if ($diff !== []) {
-                $drift++;
-                CdnEvent::audit('drift_detected', $zone, ['changes' => count($diff)], 'system');
-                $zone->bumpVersion();
+            if ($diff !== [] && $requeue($zone, ['changes' => count($diff)])) {
                 $this->line("~ {$zone->domain}: ".count($diff).' rrset(s) differ — republish queued');
             }
         });

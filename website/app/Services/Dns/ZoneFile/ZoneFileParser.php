@@ -53,7 +53,9 @@ class ZoneFileParser
 
         $rows = [];
         $currentOrigin = $zone;
+        $originBad = false;          // پس از $ORIGINِ ردشده، نام‌های نسبی مقصدِ معلومی ندارند
         $defaultTtl = null;
+        $lastTtl = null;             // RFC 1035 §5.1: بی‌$TTL، آخرین TTLِ صریح
         $lastOwner = $zone;
 
         foreach ($this->logicalLines($lines) as [$lineNo, $tokens, $blankOwner, $syntaxError]) {
@@ -76,8 +78,12 @@ class ZoneFileParser
                     $abs = $this->absolute($o, $currentOrigin);
                     if ($abs === null || ($abs !== $zone && ! str_ends_with($abs, '.'.$zone))) {
                         $rows[] = $this->row($lineNo, null, null, null, [], 'invalid', 'origin_outside_zone');
+                        // ⚠️ پیش‌تر origin عوض نمی‌شد و ردیف‌های بعدی (نوشته‌شده برای دامنهٔ دیگر)
+                        // بی‌صدا به originِ قبلی می‌چسبیدند و «تازه» وارد می‌شدند
+                        $originBad = true;
                     } else {
                         $currentOrigin = $abs;
+                        $originBad = false;
                     }
                 } elseif ($dir === '$TTL') {
                     $t = $this->ttl($tokens[1]['v'] ?? '');
@@ -89,6 +95,12 @@ class ZoneFileParser
                 } else {
                     $rows[] = $this->row($lineNo, null, null, null, [], 'unsupported', 'directive_unsupported');
                 }
+
+                continue;
+            }
+
+            if ($originBad) {
+                $rows[] = $this->row($lineNo, null, null, null, [], 'invalid', 'origin_outside_zone');
 
                 continue;
             }
@@ -116,6 +128,7 @@ class ZoneFileParser
                 $v = strtoupper($tokens[$i]['v']);
                 if ($ttl === null && ! $tokens[$i]['q'] && ($t = $this->ttl($v)) !== null) {
                     $ttl = $t;
+                    $lastTtl = $t;
                     $i++;
                 } elseif ($class === null && in_array($v, self::CLASSES, true)) {
                     $class = $v;
@@ -127,7 +140,7 @@ class ZoneFileParser
             $type = isset($tokens[$i]) ? strtoupper($tokens[$i]['v']) : null;
             $i++;
             $rdata = array_slice($tokens, $i);
-            $ttl ??= $defaultTtl;
+            $ttl ??= $defaultTtl ?? $lastTtl;
 
             if ($type === null || (! in_array($type, self::KNOWN, true) && ! preg_match('~^TYPE\d+$~', $type))) {
                 $rows[] = $this->row($lineNo, $owner, $type, $ttl, [], 'invalid', 'type_syntax');
