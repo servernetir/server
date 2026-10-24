@@ -686,3 +686,10 @@ Schedule::command('links:content --scheduled')
 Schedule::command('site:gate')
     ->dailyAt('03:00')
     ->withoutOverlapping(60);
+
+
+// Hermes owner support review; existing scheduler, bounded overlap lock.
+\Illuminate\Support\Facades\Schedule::command('hermes:support-review')
+    ->hourly()
+    ->withoutOverlapping(45)
+    ->name('hermes:support-review');

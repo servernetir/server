@@ -423,6 +423,12 @@ class AdminBaleRouter
                 return;
             }
 
+            if (HermesBaleRelay::isCommand($text) || HermesBaleRelay::isReply($update)) {
+                app(HermesBaleRelay::class)->handle($update);
+
+                return;
+            }
+
             $this->dispatch($text, $m);
         } catch (\Throwable $e) {
             ErrorTracker::note('bale-admin', $e, ['step' => 'handle']);
