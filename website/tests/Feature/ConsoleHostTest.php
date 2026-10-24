@@ -69,6 +69,30 @@ class ConsoleHostTest extends TestCase
     {
         $this->on('servernet.cloud', '/blog')->assertOk();
     }
+
+    public function test_mail_host_public_pages_redirect_to_the_primary_host(): void
+    {
+        foreach (['/', '/en', '/about', '/official-channels', '/tr/blog/php-version-upgrade-guide', '/en/cloud/jp-tokyo', '/docs/file-permission-values'] as $path) {
+            $this->on('mail.servernet.cloud', $path)
+                ->assertRedirect('https://servernet.cloud'.$path);
+        }
+
+        $this->on('mail.servernet.cloud', '/en/blog?page=3')
+            ->assertRedirect('https://servernet.cloud/en/blog?page=3');
+        $this->on('mail.servernet.cloud', '/en/vps/hourly', 'HEAD')
+            ->assertRedirect('https://servernet.cloud/en/vps/hourly');
+    }
+
+    public function test_mail_host_keeps_nonmarketing_routes_and_unsafe_methods(): void
+    {
+        foreach (['/robots.txt', '/identity-api', '/order/python-1', '/en/account', '/api/status', '/autodiscover/autodiscover.xml'] as $path) {
+            $this->assertNotSame(301, $this->on('mail.servernet.cloud', $path)->getStatusCode(), $path);
+        }
+
+        $this->assertNotSame(301, $this->on('mail.servernet.cloud', '/blog', 'POST')->getStatusCode());
+        $this->assertNotSame(301, $this->on('mail.servernet.cloud', '/blog', 'OPTIONS')->getStatusCode());
+        $this->assertNotSame(301, $this->on('mail.servernet.cloud', '/blog', 'TRACE')->getStatusCode());
+    }
     // ── دامنهٔ اصلی: مسیر پنلی به کنسول می‌رود ──
 
     public function test_main_host_redirects_login_to_console(): void
