@@ -54,10 +54,10 @@
             </td>
             <td>{{ $categories[$p->category]['fa'] ?? $p->category }}</td>
             <td dir="ltr" style="font-size:12px;color:var(--muted)">
-              {{ $p->compat_gens ? implode(' ', array_map(fn ($g) => str_replace('gen', 'Gen', $g), $p->compat_gens)) : 'همه' }}
+              {{ \App\Services\Shop\HardwarePresentation::compatibility($p) }}
             </td>
             <td>
-              {{ ['new' => 'نو', 'refurb' => 'بازسازی‌شده', 'used' => 'کارکرده'][$p->condition] ?? $p->condition }}
+              {{ ['new' => 'نو', 'refurb' => 'بازسازی‌شده', 'used' => 'کارکرده', 'catalog' => 'کاتالوگ؛ با استعلام'][$p->condition] ?? $p->condition }}
               @if($p->popular)<span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24;margin-inline-start:6px">پرفروش</span>@endif
             </td>
             <td dir="ltr">
@@ -73,7 +73,8 @@
               @endif
             </td>
             <td>
-              @if($p->in_stock)<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">موجود</span>
+              @if($p->condition === 'catalog')<span class="ad-badge" style="background:rgba(34,211,238,.12);color:#22d3ee">استعلام موجودی</span>
+              @elseif($p->in_stock)<span class="ad-badge" style="background:rgba(52,211,153,.12);color:#34d399">موجود</span>
               @else<span class="ad-badge" style="background:rgba(148,163,184,.12);color:var(--muted)">ناموجود</span>@endif
             </td>
             <td>

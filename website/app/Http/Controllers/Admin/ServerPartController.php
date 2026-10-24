@@ -187,7 +187,7 @@ class ServerPartController extends Controller
                 Rule::unique('server_parts', 'slug')->ignore($part?->id)],
             'category'  => ['required', Rule::in(array_keys(ServerPart::CATEGORIES))],
             'brand'     => ['required', 'string', 'max:40'],
-            'condition' => ['required', 'in:new,refurb,used'],
+            'condition' => ['required', 'in:new,refurb,used,catalog'],
             'sort'      => ['nullable', 'integer', 'min:0', 'max:99999'],
             // ⚠️ یورو به **سنت** ذخیره می‌شود؛ فرم هم همان را می‌گیرد تا هیچ
             //    گردکردنِ پنهانی بینِ فرم و دیتابیس نباشد.
@@ -213,7 +213,8 @@ class ServerPartController extends Controller
         ]);
 
         /*
-        | ⚠️ فهرستِ **خالی** ⇒ `null` نه `[]`.
+        | Empty generation selection retains the legacy universal/null behavior,
+        | except catalog-only entries: [] means compatibility is unverified.
         |
         | `scopeForGeneration()` می‌گوید «قطعهٔ بدونِ فهرست عمومی است و در همهٔ
         | نسل‌ها دیده می‌شود» و این را با `orWhereNull` پیاده کرده. آرایهٔ خالی
@@ -221,13 +222,17 @@ class ServerPartController extends Controller
         | بی‌خطا، فقط نبودن.
         */
         $gens = array_values(array_filter((array) ($v['gens'] ?? [])));
+        $attrs = $this->buildAttrs($request);
+        if ($part && $part->category === $v['category'] && isset($part->attrs['kind'])) {
+            $attrs['kind'] = $part->attrs['kind'];
+        }
 
         return [
             'slug'          => $v['slug'],
             'category'      => $v['category'],
             'brand'         => $v['brand'],
             'condition'     => $v['condition'],
-            'compat_gens'   => $gens ?: null,
+            'compat_gens'   => $gens ?: ($v['condition'] === 'catalog' ? [] : null),
             'in_stock'      => $request->boolean('in_stock'),
             'popular'       => $request->boolean('popular'),
             'active'        => $request->boolean('active'),
@@ -240,7 +245,7 @@ class ServerPartController extends Controller
             'summary'       => ['fa' => $v['sum_fa'] ?? '', 'en' => $v['sum_en'] ?? '', 'tr' => $v['sum_tr'] ?? ''],
             'body'          => ['fa' => $v['body_fa'] ?? '', 'en' => $v['body_en'] ?? '', 'tr' => $v['body_tr'] ?? ''],
             'specs'         => $this->buildSpecs($request),
-            'attrs'         => $this->buildAttrs($request),
+            'attrs'         => $attrs,
         ];
     }
 

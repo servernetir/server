@@ -80,7 +80,7 @@ class PhysicalShopSeoTest extends TestCase
         $this->assertStringNotContainsString('test-cpu-20', $first);
         $this->assertStringNotContainsString('utm_source=test', $second);
         $this->assertStringContainsString('hreflang="tr" href="'.url('/tr/parts/cpu').'?page=2"', $second);
-        $this->assertStringContainsString('href="'.url('/parts/cpu').'?page=2"', $this->get('/parts/cpu?page=999')->assertOk()->getContent());
+        $this->get('/parts/cpu?page=999')->assertNotFound();
 
         $filtered = $this->get('/parts/cpu?sort=name&page=2')->assertOk()->getContent();
         $this->assertStringContainsString('name="robots" content="noindex,follow"', $filtered);

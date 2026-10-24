@@ -1,6 +1,7 @@
 @extends('layouts.site')
 @section('title', __('ui.parts_title').' — '.__('ui.brand'))
 @section('description', __('ui.parts_desc'))
+@include('partials.hardware-assets')
 @section('content')
 
 <section class="sp-hero">

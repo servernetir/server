@@ -24,13 +24,13 @@
         {{-- ⚠️ `img_url()` و نه `!empty()`: ردیفی که رشتهٔ «null» دارد از
              `!empty()` رد می‌شود و `src="null"` می‌سازد — یعنی یک ۴۰۴ به‌ازای
              هر کارت. همان تلهٔ فروشگاهِ سرورِ فیزیکی. --}}
-        @if($thumb = img_url(((array) ($part->gallery ?? []))[0] ?? null))
-            <span class="sp-thumb"><img src="{{ $thumb }}" alt="{{ $part->label() }}" loading="lazy"></span>
+        @if($thumb = img_url(\App\Services\Shop\HardwarePresentation::metadata($part->slug)['thumbnail'] ?? null) ?? img_url(((array) ($part->gallery ?? []))[0] ?? null))
+            <span class="sp-thumb"><img src="{{ $thumb }}" alt="{{ \App\Services\Shop\HardwarePresentation::imageAlt($part->slug, $part->label(), $thumb) }}" width="640" height="480" loading="lazy" decoding="async"></span>
         @endif
 
         <div class="sp-card-head">
             <span class="sp-cat">{{ $part->categoryLabel() }}</span>
-            <span class="sp-cond {{ $part->condition }}">{{ $condLbl[$part->condition] ?? $part->condition }}</span>
+            <span class="sp-cond {{ $part->condition }}">{{ \App\Services\Shop\HardwarePresentation::condition($part->condition) }}</span>
         </div>
 
         <h3>{{ $part->label() }}</h3>
@@ -59,7 +59,7 @@
             {{-- ناموجودی پنهان نمی‌شود: خریدارِ فنی که راه افتاده و بعد می‌فهمد
                  نیست، دیگر برنمی‌گردد. --}}
             <span @class(['sp-stock', 'out' => ! $part->in_stock])>
-                {{ $part->in_stock ? __('ui.parts_in_stock') : __('ui.parts_out_stock') }}
+                {{ \App\Services\Shop\HardwarePresentation::stock($part) }}
             </span>
         </div>
     </a>

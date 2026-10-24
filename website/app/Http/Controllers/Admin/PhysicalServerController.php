@@ -113,7 +113,7 @@ class PhysicalServerController extends Controller
             'slug'          => ['required', 'string', 'max:80', 'regex:/^[a-z0-9-]+$/',
                 \Illuminate\Validation\Rule::unique('physical_servers', 'slug')->ignore($id)],
             'brand'         => ['required', \Illuminate\Validation\Rule::in($brands)],
-            'condition'     => ['required', 'in:new,refurb'],
+            'condition'     => ['required', 'in:new,refurb,catalog'],
             'sort'          => ['nullable', 'integer', 'min:0', 'max:99999'],
             'price_irt'     => ['nullable', 'integer', 'min:0', 'max:100000000000'],
             'price_eur'     => ['nullable', 'integer', 'min:0', 'max:100000000'],

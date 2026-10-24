@@ -108,20 +108,14 @@ class PartPriceFollowsEurRateTest extends TestCase
         }
     }
 
-    /**
-     * override تومانی **فقط** روی فارسی اثر دارد.
-     *
-     * ⚠️ بعضی قطعه‌ها را از بازارِ داخلی می‌خریم و قیمتشان به نرخِ ارز وصل
-     * نیست. ولی صفحهٔ en/tr باید همچنان یورو ببیند، وگرنه بازدیدکنندهٔ خارجی
-     * عددِ تومانی می‌دید که برایش بی‌معناست.
-     */
-    public function test_the_toman_override_applies_only_to_persian(): void
+    /** Legacy toman values must not silently replace the public EUR-based price. */
+    public function test_legacy_toman_value_does_not_override_displayed_price(): void
     {
         $part = $this->part(3400, 9_000_000);
         $this->rate(200_000);
 
         $this->app->setLocale('fa');
-        $this->assertSame(fa_num(number_format(9_000_000)).' تومان', $part->displayPrice());
+        $this->assertSame(fa_num(number_format(6_800_000)).' تومان', $part->displayPrice());
 
         $this->app->setLocale('en');
         $this->assertSame('€34.00', $part->displayPrice());
@@ -154,14 +148,8 @@ class PartPriceFollowsEurRateTest extends TestCase
         $this->assertNull($this->part(null)->displayPrice());
     }
 
-    /**
-     * قیمتِ خامِ یورو برای schema.org — همیشه یورو، حتی در صفحهٔ فارسی.
-     *
-     * 🔴 اگر عددِ تومانیِ ساخته‌شده از نرخِ لحظه‌ای در schema می‌رفت، گوگل
-     * قیمتی را کش می‌کرد که فردا با قیمتِ صفحه نمی‌خواند — یکی از دلایلِ رایجِ
-     * ردشدنِ rich result.
-     */
-    public function test_schema_price_is_the_euro_amount_in_every_locale(): void
+    /** The structured Offer must use the same currency and amount as the page. */
+    public function test_schema_offer_matches_the_visible_localized_price(): void
     {
         $part = $this->part(16806);
         $this->rate(200_000);
@@ -174,7 +162,12 @@ class PartPriceFollowsEurRateTest extends TestCase
         $this->app->setLocale('fa');
         $html = $this->get('/parts/cpu/'.$part->slug)->assertOk()->getContent();
 
-        $this->assertStringContainsString('"priceCurrency":"EUR"', $html);
-        $this->assertStringContainsString('"price":"168.06"', $html);
+        $this->assertStringContainsString('"priceCurrency":"IRR"', $html);
+        $this->assertStringContainsString('"price":"336100000"', $html);
+
+        $this->app->setLocale('en');
+        $english = $this->get('/en/parts/cpu/'.$part->slug)->assertOk()->getContent();
+        $this->assertStringContainsString('"priceCurrency":"EUR"', $english);
+        $this->assertStringContainsString('"price":"168.06"', $english);
     }
 }

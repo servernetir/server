@@ -20,7 +20,18 @@ class PartsShopController extends Controller
     /** سقفِ مقایسه. بیش از این، جدول روی موبایل ناخوانا می‌شود. */
     public const COMPARE_MAX = 4;
 
-    /** تعداد کارت در هر صفحه؛ همهٔ قطعات با لینک صفحه‌بندی قابل‌پیمایش‌اند. */
+    /**
+     * سقفِ نمایشِ یک دسته.
+     *
+     * ⚠️ وقتی سقف می‌خورد، قالب **می‌گوید** چند تا نشان داده نشده.
+     * بریدنِ خاموشِ فهرست بدترین حالت است: کاربر «۲۴ قطعه» می‌بیند و نتیجه
+     * می‌گیرد همینقدر داریم، در حالی‌که ۹ تای دیگر هم هست.
+     *
+     * ⚠️ عدد از بزرگ‌ترین دستهٔ امروز (۳۳ پردازنده) بالاتر گرفته شده تا در
+     * عمل هیچ‌چیز بریده نشود؛ سقف فقط تورِ ایمنیِ رشدِ آینده است. صفحه‌بندیِ
+     * واقعی وقتی ارزش دارد که کاتالوگ از این بگذرد — تا آن‌وقت، یک شبکهٔ
+     * کامل بهتر از دو صفحه است.
+     */
     private const PER_PAGE = 48;
 
     public function __construct(private readonly PartsCatalog $catalog) {}
@@ -54,10 +65,10 @@ class PartsShopController extends Controller
 
         // ⚠️ جستجو محدود به ۶۰ کاراکتر: رشتهٔ بلندتر جستجو نیست، تلاش برای
         //    خسته‌کردنِ LIKE است. بریدن بی‌صداست چون نتیجه‌اش عوض نمی‌شود.
-        $q = mb_substr(trim((string) $request->query('q', '')), 0, 60);
+        $q = is_string($request->query('q')) ? mb_substr(trim($request->query('q')), 0, 60) : '';
 
         $maxEur = $this->positiveInt($request->query('max'));
-        $requestedPage = $this->positiveInt($request->query('page')) ?? 1;
+        $kind = $this->pick($request->query('kind'), ['cooling', 'motherboard', 'caddy', 'rail', 'riser', 'battery', 'sfp', 'storage', 'licence', 'accessory', 'cable']);
 
         $parts = collect();
         $total = 0;
@@ -66,6 +77,9 @@ class PartsShopController extends Controller
             // ⚠️ `$b` نه `$q`: `$q` حالا رشتهٔ جستجوست و هم‌نامی‌شان یعنی
             //    یکی بی‌صدا دیگری را بازنویسی کند.
             $b = ServerPart::query()->active()->where('category', $category);
+            if ($kind !== null) {
+                $b->where('attrs->kind', $kind);
+            }
 
             if ($gen !== null) {
                 $b->forGeneration($gen);
@@ -126,32 +140,16 @@ class PartsShopController extends Controller
             $total = $parts->count();
         }
 
-        $page = min($requestedPage, max(1, (int) ceil($total / self::PER_PAGE)));
-        $parts = new LengthAwarePaginator(
-            $parts->forPage($page, self::PER_PAGE)->values(),
-            $total,
-            self::PER_PAGE,
-            $page,
-            ['path' => lroute('parts.category', $category)]
-        );
-        $filters = array_filter([
-            'gen' => $gen,
-            'condition' => $cond,
-            'q' => $q !== '' ? $q : null,
-            'max' => $maxEur,
-            'sort' => $sort !== 'popular' ? $sort : null,
-        ], fn ($value) => $value !== null && $value !== '');
-        $parts->appends($filters);
-
-        // Unfiltered pages each expose a unique slice. Faceted/search pages are
-        // useful to buyers but create unbounded URL combinations for crawlers.
-        $listingNoindex = $filters !== [];
-        $suffix = $page > 1 ? '?page='.$page : '';
-        $altUrls = [
-            'fa' => url('/parts/'.$category).$suffix,
-            'en' => url('/en/parts/'.$category).$suffix,
-            'tr' => url('/tr/parts/'.$category).$suffix,
-        ];
+        $pageRaw = $request->query('page');
+        $page = is_scalar($pageRaw) ? max(1, (int) $pageRaw) : 1;
+        abort_if($page > max(1, (int) ceil($total / self::PER_PAGE)), 404);
+        $pagination = new LengthAwarePaginator($parts->forPage($page, self::PER_PAGE)->values(), $total, self::PER_PAGE, $page, ['path' => url()->current()]);
+        $pagination->appends(array_filter(['gen' => $gen, 'condition' => $cond, 'sort' => $sort === 'popular' ? null : $sort, 'q' => $q, 'max' => $maxEur, 'kind' => $kind], fn ($v) => $v !== null && $v !== ''));
+        $parts = $pagination->getCollection();
+        $altUrls = [];
+        foreach (\App\Providers\AppServiceProvider::LOCALES as $locale => $prefix) {
+            $altUrls[$locale] = route($prefix.'parts.category', $category).($page > 1 ? '?page='.$page : '');
+        }
 
         return view('pages.parts-category', [
             'categories'  => $this->catalog->categories(),
@@ -169,13 +167,12 @@ class PartsShopController extends Controller
             'content'     => (array) config('parts_content.'.$category, []),
             'parts'       => $parts,
             'total'       => $total,
-            'page'        => $page,
-            'canonical'   => lroute('parts.category', $category).$suffix,
-            'altUrls'     => $altUrls,
-            'listingNoindex' => $listingNoindex,
             'facets'      => $facets,
             'active'      => ['gen' => $gen, 'condition' => $cond, 'sort' => $sort, 'q' => $q, 'max' => $maxEur],
             'priceSteps'  => $this->priceSteps($category),
+            'pagination'  => $pagination,
+            'kind'        => $kind,
+            'altUrls'     => $altUrls,
         ]);
     }
 
@@ -202,11 +199,12 @@ class PartsShopController extends Controller
             ->where('id', '!=', $part->id)
             ->orderBy('sort')
             ->limit(12)
-            ->get(ServerPart::CARD_COLUMNS)
+            ->get(array_unique([...ServerPart::CARD_COLUMNS, 'attrs']))
             ->sortByDesc(fn (ServerPart $p) => count(array_intersect(
                 (array) ($p->compat_gens ?? []),
                 (array) ($part->compat_gens ?? [])
-            )))
+            )) + 5 * (!empty($part->attrs['socket']) && ($p->attrs['socket'] ?? null) === $part->attrs['socket'])
+                + 3 * (!empty($part->attrs['memory_type']) && ($p->attrs['memory_type'] ?? null) === $part->attrs['memory_type']))
             ->take(4)
             ->values();
 

@@ -1,6 +1,7 @@
 @extends('layouts.site')
 @section('title', lc($data['name']).' — '.__('ui.parts_title').' — '.__('ui.brand'))
 @section('description', lc($data['summary']))
+@include('partials.hardware-assets')
 @section('content')
 
 @php

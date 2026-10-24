@@ -1,6 +1,9 @@
 @extends('layouts.site')
 @section('title', __('shop_seo.part_title', ['name' => $part->label()]))
-@section('description', $part->summary[app()->getLocale()] ?? $part->summary['fa'] ?? __('ui.parts_desc'))
+@section('description', \App\Services\Shop\HardwarePresentation::productDescription($part->label(), $part->summary[app()->getLocale()] ?? $part->summary['fa'] ?? __('ui.parts_desc')))
+@php $hardwareShots = array_values(array_filter(array_map('img_url', (array) ($part->gallery ?? [])))); @endphp
+@if($hardwareShots) @section('image', url($hardwareShots[0])) @endif
+@include('partials.hardware-assets')
 @section('content')
 
 @php
@@ -14,21 +17,8 @@
         'refurb' => __('ui.parts_cond_refurb'),
         'used'   => __('ui.parts_cond_used'),
     ];
-    $checks = (array) trans('shop_seo.checks.'.$part->category);
-    $comparison = $related->first();
 
-    /*
-    | دادهٔ ساختاریافتهٔ محصول.
-    |
-    | 🔴 قیمت **همیشه یورو** اعلام می‌شود، حتی در صفحهٔ فارسی که تومان نشان
-    | می‌دهد. عددِ تومانی از نرخِ لحظه‌ای ساخته می‌شود و فردا عوض است؛ اگر آن
-    | را در schema می‌گذاشتیم، گوگل قیمتی را کش می‌کرد که در نتایج جستجو با
-    | قیمتِ صفحه نمی‌خواند — و همین یکی از دلایلِ رایجِ رد شدنِ rich result است.
-    |
-    | ⚠️ بی‌قیمت، کلِ `offers` حذف می‌شود نه اینکه صفر بگیرد. `price: 0` یعنی
-    | «رایگان»، و برای قطعهٔ سرور دقیقاً همان اشتباهی است که در این پروژه یک
-    | بار گران تمام شده.
-    */
+    // Product rich results are emitted only with a real displayed Offer.
     $ld = [
         '@'.'context' => 'https://schema.org',
         '@type' => 'Product',
@@ -47,20 +37,13 @@
     if ($desc = ($part->summary[$loc] ?? $part->summary['fa'] ?? null)) {
         $ld['description'] = $desc;
     }
-    if ($part->condition !== 'new') {
-        $ld['itemCondition'] = 'https://schema.org/RefurbishedCondition';
+    if (in_array($part->condition, ['new', 'refurb', 'used'], true)) {
+        $ld['itemCondition'] = 'https://schema.org/'.(['new' => 'NewCondition', 'refurb' => 'RefurbishedCondition', 'used' => 'UsedCondition'][$part->condition]);
     }
-    if ($eur !== null) {
-        $ld['offers'] = [
-            '@type' => 'Offer',
-            'price' => (string) $eur,
-            'priceCurrency' => 'EUR',
-            'availability' => $part->in_stock
-                ? 'https://schema.org/InStock'
-                : 'https://schema.org/OutOfStock',
-            'seller' => ['@type' => 'Organization', 'name' => 'ServerNet'],
-        ];
+    if ($offer = \App\Services\Shop\HardwarePresentation::offer($part)) {
+        $ld['offers'] = $offer;
     }
+    $ld['sku'] = $part->slug;
 
     $crumbs = [
         '@'.'context' => 'https://schema.org',
@@ -74,11 +57,10 @@
 @endphp
 
 @push('head')
-{{-- Product without a real offer/review/rating is invalid for Product snippets. --}}
 @if(isset($ld['offers']))
-<script type="application/ld+json">{!! json_encode($ld, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+<script type="application/ld+json">{!! json_encode($ld, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 @endif
-<script type="application/ld+json">{!! json_encode($crumbs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+<script type="application/ld+json">{!! json_encode($crumbs, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 @endpush
 
 <section class="sp-hero">
@@ -105,18 +87,19 @@
                صفحه است و lazy‌کردنش فقط LCP را بدتر می‌کند. --}}
           <div class="sp-shots">
             @foreach($shots as $i => $shot)
-              <img src="{{ $shot }}" alt="{{ $part->label() }}"
-                   loading="{{ $i === 0 ? 'eager' : 'lazy' }}"
+              <img src="{{ $shot }}" alt="{{ \App\Services\Shop\HardwarePresentation::imageAlt($part->slug, $part->label(), $shot) }}"
+                   width="960" height="720" decoding="async" @if($i === 0) fetchpriority="high" @endif loading="{{ $i === 0 ? 'eager' : 'lazy' }}"
                    @class(['on' => $i === 0])>
             @endforeach
           </div>
+          @if(!empty(\App\Services\Shop\HardwarePresentation::metadata($part->slug)['credit']))<p class="hw-note">{{ \App\Services\Shop\HardwarePresentation::text('reference_image') }}: {{ \App\Services\Shop\HardwarePresentation::metadata($part->slug)['credit']['title'] }}</p>@endif
         @endif
 
         <div class="sp-card-head">
           <span class="sp-cat">{{ $part->brand }}</span>
-          <span class="sp-cond {{ $part->condition }}">{{ $condLbl[$part->condition] ?? $part->condition }}</span>
+          <span class="sp-cond {{ $part->condition }}">{{ \App\Services\Shop\HardwarePresentation::condition($part->condition) }}</span>
           <span @class(['sp-stock', 'out' => ! $part->in_stock])>
-            {{ $part->in_stock ? __('ui.parts_in_stock') : __('ui.parts_out_stock') }}
+            {{ \App\Services\Shop\HardwarePresentation::stock($part) }}
           </span>
         </div>
 
@@ -154,6 +137,7 @@
           <svg class="icon"><use href="#i-headset"/></svg>{{ __('ui.srv_cta_btn') }}
         </a>
 
+        <a class="hw-compare-link" href="{{ lroute('parts.compare').'?parts='.urlencode(collect([$part->slug])->merge($related->pluck('slug')->take(3))->implode(',')) }}">{{ __('ui.parts_compare') }}</a>
         <label class="sp-cmp standalone">
           <input type="checkbox" class="sp-cmp-box" value="{{ $part->slug }}">
           <span>{{ __('ui.parts_compare_add') }}</span>
@@ -190,30 +174,7 @@
       <div class="sp-body">{{ $body }}</div>
     @endif
 
-    <section class="sp-guide" aria-labelledby="part-check-title" style="margin-top:32px">
-      <h2 class="sp-h2" id="part-check-title">{{ __('shop_seo.part_check_title', ['name' => $part->label()]) }}</h2>
-      <p class="sp-detail-sum" style="margin-bottom:14px">{{ __('shop_seo.part_check_intro') }}</p>
-      <div class="sp-pros">
-        <div class="sp-pro good">
-          <h3>{{ __('ui.parts_compat') }}</h3>
-          <ul class="sp-pro-list">
-            @foreach($checks as $check)<li>{{ $check }}</li>@endforeach
-            <li>{{ __('shop_seo.part_compat_note') }}</li>
-          </ul>
-        </div>
-        <div class="sp-pro warn">
-          <h3>{{ __('ui.parts_compare') }}</h3>
-          <p>{{ __('shop_seo.part_compare_note') }}</p>
-          <div class="sp-compat">
-            @if($comparison)
-              <a class="sp-chip sm" href="{{ lroute('parts.compare').'?parts='.rawurlencode($part->slug.','.$comparison->slug) }}">{{ __('shop_seo.part_compare', ['name' => $part->label(), 'other' => $comparison->label()]) }}</a>
-            @endif
-            <a class="sp-chip sm" href="{{ lroute('parts.category', $part->category) }}">{{ __('shop_seo.part_family', ['category' => $label]) }}</a>
-            <a class="sp-chip sm" href="{{ lroute('servers.index') }}">{{ __('shop_seo.part_servers') }}</a>
-          </div>
-        </div>
-      </div>
-    </section>
+    @include('partials.hardware-guide', ['hardwareCategory' => $part->category, 'hardwareSlug' => $part->slug])
 
     @if($related->isNotEmpty())
       <h2 class="sp-h2">{{ __('ui.parts_related') }}</h2>

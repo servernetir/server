@@ -56,6 +56,7 @@
       <label>وضعیت
         @php $cond = old('condition', $part->condition ?? 'refurb'); @endphp
         <select name="condition">
+          <option value="catalog" @selected($cond === 'catalog')>کاتالوگ؛ وضعیت و موجودی با استعلام</option>
           <option value="new" @selected($cond === 'new')>نو</option>
           <option value="refurb" @selected($cond === 'refurb')>بازسازی‌شده</option>
           <option value="used" @selected($cond === 'used')>کارکرده</option>
