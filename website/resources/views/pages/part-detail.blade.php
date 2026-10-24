@@ -1,5 +1,5 @@
 @extends('layouts.site')
-@section('title', $part->label().' — '.__('ui.brand'))
+@section('title', __('shop_seo.part_title', ['name' => $part->label()]))
 @section('description', \App\Services\Shop\HardwarePresentation::productDescription($part->label(), $part->summary[app()->getLocale()] ?? $part->summary['fa'] ?? __('ui.parts_desc')))
 @php $hardwareShots = array_values(array_filter(array_map('img_url', (array) ($part->gallery ?? [])))); @endphp
 @if($hardwareShots) @section('image', url($hardwareShots[0])) @endif
