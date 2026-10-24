@@ -1,6 +1,6 @@
 # Customer account moderation
 
-Status: implementation validated; production publication pending.
+Status: published and active on 24 October 2026, 13:43:49 UTC / 17:13:49 Tehran.
 
 Administrators can block or reopen a customer from **Customers → customer profile → Block / unblock account**. Every status change requires a reason (3–2,000 characters) and records the previous/new status, administrator identity and time in an append-only history. Staff can read that history; only administrators can change account access. The last 25 entries are displayed and older entries remain stored.
 
@@ -23,3 +23,11 @@ The status and full audit record are saved in one database transaction. If the a
 Apply only migration `2026_10_24_180000_add_customer_account_moderation.php` before switching runtime files. It adds `customers.session_version` and `customer_status_changes`. Preserve existing production changes using a fresh exact-byte snapshot, expected-hash guards and a private backup. New model/middleware files must exist before the provider/routes are switched. Invalidate changed opcodes and clear route/view caches.
 
 Rollback only the files from this release while checking their installed hashes. Preserve moderation audit records and session versions. Do not automatically roll back the schema or erase moderation history. If any account has already been blocked, assess how reverting continuous session enforcement affects that account before rollback.
+
+## Production acceptance
+
+Feature commit: `40e91c0b9ed9f50a38f77739d8a9ace2068bf5f6` on develop. Fourteen runtime files were installed from production-merged candidates with expected-hash guards, private backups and a per-file journal. The targeted migration completed successfully. A separate request confirmed every installed hash, the new schema and all 270 customer account routes protected by the new middleware. The moderation history remained empty during acceptance.
+
+A read-only authenticated server render of an existing customer profile returned HTTP 200 and confirmed the ban navigation, required reason, concurrency guard, history section, scope explanation and tab handler. The main site and FA/EN/TR login pages returned HTTP 200. Temporary release and acceptance helpers were removed and returned HTTP 404. Interactive browser inspection was unavailable because the browser runtime failed before initialization; visual appearance was not independently checked.
+
+This release changed application code and its database schema only. No guests, service states, routing, NAT/firewall, DNS, host cron or reconciliation-agent source state were changed.
