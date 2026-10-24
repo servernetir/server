@@ -6,6 +6,7 @@ use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Collection;
 
 /**
  * پلِ بینِ «کشور» و کاتالوگِ زندهٔ سرورِ ابری.
@@ -203,8 +204,12 @@ class CloudCountry
      * اولویت با صفحهٔ بازاریابیِ **موجود** است (سئو دارد). اگر کشور صفحه‌ای
      * ندارد، به صفحهٔ اولین مکانش می‌رود — بهتر از لینکِ ۴۰۴، و در
      * `withoutMarketingPage()` هم گزارش می‌شود تا صفحه‌اش ساخته شود.
+     *
+     * @param  Collection<string, CloudLocation>|null  $activeLocations Already-loaded active
+     *         locations, sorted by sort/code. Catalogue pages can pass this to avoid one
+     *         extra database round trip for every country without a legacy VPS slug.
      */
-    public static function url(string $iso): string
+    public static function url(string $iso, ?Collection $activeLocations = null): string
     {
         $slug = self::marketingSlug($iso);
 
@@ -215,10 +220,16 @@ class CloudCountry
         // کدهای legacy (گروهِ محصول به‌جای شهر) صفحهٔ مکان ندارند — ۳۰۱اند
         // (ممیزی ۷)؛ مقصدِ بازگشتی باید یک صفحهٔ واقعی باشد وگرنه حلقهٔ
         // «۳۰۱ به ۳۰۱ به خودش» ساخته می‌شد.
-        $first = CloudLocation::where('country', strtoupper(trim($iso)))
-            ->where('is_active', true)->orderBy('sort')->orderBy('code')->pluck('code')
-            ->first(fn ($code) => ! CloudLocation::isLegacyCode((string) $code)
-                && ! CloudLocation::isGpuCode((string) $code));
+        $country = strtoupper(trim($iso));
+        $first = $activeLocations !== null
+            ? $activeLocations->first(fn (CloudLocation $location) => $location->is_active
+                && strtoupper((string) $location->country) === $country
+                && ! CloudLocation::isLegacyCode((string) $location->code)
+                && ! CloudLocation::isGpuCode((string) $location->code))?->code
+            : CloudLocation::where('country', $country)
+                ->where('is_active', true)->orderBy('sort')->orderBy('code')->pluck('code')
+                ->first(fn ($code) => ! CloudLocation::isLegacyCode((string) $code)
+                    && ! CloudLocation::isGpuCode((string) $code));
 
         return $first
             ? lroute('cloud.location', ['location' => $first])

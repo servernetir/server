@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\HourlyVpsController;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Services\Cloud\CountryLandingSeo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\SeedsCatalogPricing;
 use Tests\TestCase;
 
@@ -131,6 +133,40 @@ class HourlyVpsPageTest extends TestCase
         $this->assertStringContainsString('billing_mode=hourly', $html);
         $this->assertStringContainsString('location=ir-tehran', $html);
         $this->assertStringContainsString('plan=cv-1c-2g-25d-ir', $html);
+    }
+
+    public function test_new_country_links_reuse_the_loaded_locations_without_one_query_per_country(): void
+    {
+        foreach (['PH' => 'ph-manila', 'BG' => 'bg-sofia', 'MX' => 'mx-mexico-city'] as $iso => $code) {
+            CloudLocation::create([
+                'code' => $code, 'country' => $iso, 'city' => $code,
+                'is_active' => true, 'sort' => 10,
+            ]);
+            CloudPlan::create([
+                'provider' => 'hetzner', 'provider_ref' => 'country-'.$code,
+                'location_code' => $code, 'public_name' => 'CV-1-2',
+                'slug' => 'country-'.$code, 'vcpu' => 1, 'ram_mb' => 2048,
+                'disk_gb' => 50, 'disk_type' => 'ssd', 'cost_eur_cents' => 300,
+                'price_eur_cents' => 490, 'price_irt' => 720000,
+                'is_active' => true, 'in_stock' => true,
+            ]);
+        }
+
+        $locationReads = [];
+        DB::listen(function ($query) use (&$locationReads): void {
+            if (str_contains(strtolower($query->sql), 'cloud_locations')) {
+                $locationReads[] = $query->sql;
+            }
+        });
+
+        $countries = collect(app(HourlyVpsController::class)->show()->getData()['countries'])
+            ->keyBy('iso');
+
+        foreach (['PH' => 'ph-manila', 'BG' => 'bg-sofia', 'MX' => 'mx-mexico-city'] as $iso => $code) {
+            $this->assertSame(url('/cloud/'.$code), $countries[$iso]['url']);
+        }
+        // One table-existence check and one active-location read; no per-country reads.
+        $this->assertCount(2, $locationReads, 'Country links should share the active-location query.');
     }
 
     // ═══════════════ راه‌های رسیدن ═══════════════

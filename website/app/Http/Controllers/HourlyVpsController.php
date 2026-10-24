@@ -63,6 +63,7 @@ class HourlyVpsController extends Controller
             $locations = CloudLocation::query()
                 ->where('is_active', true)
                 ->orderBy('sort')
+                ->orderBy('code')
                 ->get()
                 ->keyBy('code');
 
@@ -105,7 +106,7 @@ class HourlyVpsController extends Controller
                         'label' => $loc->countryLabel(),
                         'flag' => $loc->flagEmoji(),
                         'flag_svg' => $loc->flagSvg(),
-                        'url' => CloudCountry::url($iso),
+                        'url' => CloudCountry::url($iso, $locations),
                         'plans' => 0,
                         'hourly_raw' => PHP_INT_MAX,
                         'hourly' => '',
