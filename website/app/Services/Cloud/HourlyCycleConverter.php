@@ -146,6 +146,7 @@ final class HourlyCycleConverter
     public function quotes(Service $service): array
     {
         $out = [];
+        $monthlyQuote = $this->quote($service, 'monthly');
 
         foreach ($this->cycles() as $cycle) {
             $price = $this->quote($service, $cycle);
@@ -155,10 +156,16 @@ final class HourlyCycleConverter
             }
 
             $months = Service::monthsIn($cycle);
+            // Procurement floors and rounding may reduce the configured discount.
+            // Advertise only whole percentage points covered by the actual quote.
+            $reference = $monthlyQuote * $months;
+            $actualDiscount = $reference > 0
+                ? intdiv(max(0, $reference - $price) * 100, $reference) : 0;
+            $configuredDiscount = max(0, (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0));
             $out[$cycle] = [
                 'price' => $price,
                 'months' => $months,
-                'discount' => (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0),
+                'discount' => min($configuredDiscount, $actualDiscount),
                 'monthly' => (int) ceil($price / max(1, $months)),
             ];
         }
