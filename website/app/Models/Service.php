@@ -185,6 +185,28 @@ class Service extends Model
     }
 
     /**
+     * توقفِ عملیاتیِ صورتحساب ساعتی برای **همین سرویس**.
+     *
+     * این پرچم با تعلیق ماشین فرق دارد: ماشین/شبکه را دست نمی‌زند و فقط متر را
+     * fail-closed می‌کند. داده داخل provision_meta است تا برای یک رخداد فوری
+     * migration سراسری و اثر روی زیرساخت‌های دیگر لازم نباشد.
+     */
+    public function hourlyBillingHeld(): bool
+    {
+        $state = (array) (($this->provision_meta ?? [])['hourly_billing_hold'] ?? []);
+
+        return ($state['active'] ?? false) === true;
+    }
+
+    /** @return array<string,mixed>|null */
+    public function hourlyBillingHoldState(): ?array
+    {
+        $state = ($this->provision_meta ?? [])['hourly_billing_hold'] ?? null;
+
+        return is_array($state) ? $state : null;
+    }
+
+    /**
      * ساعتِ باقی‌مانده بر اساس اعتبارِ فعلیِ مشتری (کفِ عدد).
      * برای نمایشِ «~۴۸ ساعت مانده» در پنل.
      */

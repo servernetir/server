@@ -278,6 +278,17 @@ class CloudMeterHourly extends Command
             return 'skipped';
         }
 
+        /*
+        | توقفِ صریحِ صورتحساب، فقط روی همان سرویس. لنگر را جلو می‌بریم تا
+        | پس از رفع رخداد، ساعت‌های دورهٔ توقف یک‌جا از مشتری کسر نشوند.
+        | بازبینی دوم داخل تراکنش پایین، رقابتِ هم‌زمان با فرمان hold را می‌بندد.
+        */
+        if ($service->hourlyBillingHeld()) {
+            Service::whereKey($service->id)->update(['last_metered_at' => now()]);
+
+            return 'skipped';
+        }
+
         if (app(ComplimentaryServices::class)->applies($service)) {
             $service->update(['last_metered_at' => now()]);
 
@@ -412,6 +423,17 @@ class CloudMeterHourly extends Command
         try {
             DB::transaction(function () use ($wallet, $customer, $service, $rate, $elapsed, $prev, &$charged, &$creditBound): void {
                 Customer::whereKey($customer->id)->lockForUpdate()->first();
+
+                $locked = Service::whereKey($service->id)->lockForUpdate()->first();
+
+                if ($locked === null || $locked->hourlyBillingHeld()) {
+                    if ($locked !== null) {
+                        $locked->forceFill(['last_metered_at' => now()])->save();
+                    }
+                    $charged = -1;
+
+                    return;
+                }
 
                 $available = $wallet->availableOf($customer->id);
                 $affordable = intdiv(max(0, $available), $rate);

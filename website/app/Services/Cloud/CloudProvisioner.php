@@ -1683,28 +1683,46 @@ class CloudProvisioner
             return;
         }
 
-        $already = CreditEntry::where('customer_id', $service->customer_id)
-            ->where('reason', 'cloud_hourly_refund')
-            ->where('note', 'like', '%#'.$service->id.'%')
-            ->exists();
-
-        if ($already || $service->customer === null) {
+        if ($service->customer === null) {
             return;
         }
 
         try {
-            $amount = (int) $service->hourly_rate_irt;
+            DB::transaction(function () use ($service): void {
+                $customer = \App\Models\Customer::whereKey($service->customer_id)->lockForUpdate()->first();
+                $locked = Service::whereKey($service->id)->lockForUpdate()->first();
 
-            CreditEntry::create([
-                'customer_id' => $service->customer_id,
-                'currency_code' => 'IRT',
-                'amount' => $amount,
-                'balance_after' => $service->customer->creditBalance('IRT') + $amount,
-                'reason' => 'cloud_hourly_refund',
-                'source_type' => Service::class,
-                'source_id' => $service->id,
-                'note' => 'بازگشتِ ساعتِ اول — تحویل انجام نشد (سرویس #'.$service->id.')',
-            ]);
+                if ($customer === null || $locked === null) {
+                    return;
+                }
+
+                $debits = abs((int) CreditEntry::where('source_type', Service::class)
+                    ->where('source_id', $locked->id)
+                    ->whereIn('reason', ['cloud_hourly', 'cloud_hourly_convert'])
+                    ->where('amount', '<', 0)
+                    ->sum('amount'));
+                $already = (int) CreditEntry::where('source_type', Service::class)
+                    ->where('source_id', $locked->id)
+                    ->whereIn('reason', ['cloud_hourly_refund', 'refund'])
+                    ->where('amount', '>', 0)
+                    ->sum('amount');
+                $amount = max(0, $debits - $already);
+
+                if ($amount < 1) {
+                    return;
+                }
+
+                CreditEntry::create([
+                    'customer_id' => $locked->customer_id,
+                    'currency_code' => 'IRT',
+                    'amount' => $amount,
+                    'balance_after' => $customer->creditBalance('IRT') + $amount,
+                    'reason' => 'cloud_hourly_refund',
+                    'source_type' => Service::class,
+                    'source_id' => $locked->id,
+                    'note' => 'بازگشتِ کسر ساعتی — تحویل انجام نشد (سرویس #'.$locked->id.')',
+                ]);
+            });
         } catch (\Throwable $e) {
             ErrorTracker::note('cloud', $e, ['area' => 'hourly-refund', 'service' => $service->id]);
         }

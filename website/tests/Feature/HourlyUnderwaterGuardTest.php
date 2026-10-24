@@ -129,6 +129,20 @@ class HourlyUnderwaterGuardTest extends TestCase
         $this->assertSame(99_999, (int) $s->fresh()->hourly_rate_irt, 'reprice هرگز نرخ را پایین نمی‌آورد.');
     }
 
+    /** افزایشِ عادیِ خودکار فقط در تاریخچه می‌نشیند و پیامک/بله/ایمیل تولید نمی‌کند. */
+    public function test_automatic_reprice_does_not_emit_customer_notifications(): void
+    {
+        $plan = $this->plan('arvan', 3600, 5_220_000, 5220);
+        $this->hourlyService($this->customer(), $plan, 1500, 2);
+
+        $this->mock(\App\Services\Notify\CustomerNotifier::class, function ($mock) {
+            $mock->shouldNotReceive('templated');
+            $mock->shouldNotReceive('event');
+        });
+
+        $this->artisan('cloud:hourly-reprice --apply')->assertSuccessful();
+    }
+
     /**
      * 🔴 بازتولیدِ دقیقِ sn-svc-76: زیرساخت نرخِ ساعتیِ جدا دارد (aeza LND-1:
      * ماهانه €12.18 ولی ساعتی €0.05) و تحویلِ ساعتی با term=hour از همان
