@@ -62,7 +62,7 @@ IDs above are illustrative. The command prints a sanitized report and succeeds o
 
 ## Validation and deployment state
 
-The initial isolated local run passed 29 tests / 253 assertions under PHP 8.4.26. A further account-details schema guard and test were added afterward; the final local run was started but its result could not be retrieved when the execution environment became unavailable. The draft now contains 30 focused tests. Preserve the distinction between mock protocol tests and real provider acceptance.
+The initial isolated local run passed 29 tests / 253 assertions under PHP 8.4.26. After the account-details schema guard was added, the committed source at 9c0cf249bffdc76b50abf77f17d1cb71ad06a08b passed all 30 tests / 257 assertions in GitHub Actions on PHP 8.4.27 using locked Composer dependencies. Evidence: https://github.com/servernetir/server/actions/runs/40102892630 (job 120898496906). The final local run was unavailable after the execution environment disconnected. These are mocked protocol and isolated administrator tests; real account and paid lifecycle acceptance remain outstanding.
 
 An unrelated pre-change LightNode baseline returned 8 errors and 13 failures across 54 tests; it is not corrected or represented as passing by this change.
 
