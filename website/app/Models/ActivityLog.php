@@ -52,7 +52,7 @@ class ActivityLog extends Model
      * ببیند کم نیست — «مدیر رسیدِ واریزت را تأیید کرد» دقیقاً همان چیزی است که
      * باید ببیند. حذفِ کلِ `actor='staff'` آن‌ها را هم می‌بلعید.
      */
-    public const STAFF_ONLY_ACTIONS = ['impersonate'];
+    public const STAFF_ONLY_ACTIONS = ['impersonate', 'account_status'];
 
     /**
      * لاگِ قابلِ نمایش به **خودِ مشتری**.
@@ -187,6 +187,7 @@ class ActivityLog extends Model
             'terminate'    => 'خاتمه',
             'provision'    => 'تحویل',
             'impersonate'  => 'ورود پشتیبانی به پنل',
+            'account_status' => 'تغییر وضعیت حساب',
             'bank_receipt' => 'ثبت رسید بانکی',
             'bank_approved' => 'تأیید رسید بانکی',
             'profile'      => 'ویرایش پروفایل',

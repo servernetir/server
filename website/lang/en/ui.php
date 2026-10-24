@@ -1733,6 +1733,7 @@ return [
     'auth_pw_hide' => 'Hide password',
     'auth_logout' => 'Sign out',
     'auth_no_account_signup' => 'No account matches these details — let’s create one for you.',
+    'auth_session_revoked' => 'Your previous session was revoked. Please sign in again.',
     'auth_account_blocked' => 'This account is not active. Please contact support.',
     'nav_store' => 'Buy a service',
     'sec_h' => 'Account security',

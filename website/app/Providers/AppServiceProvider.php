@@ -254,6 +254,17 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Every real customer login (OTP, Google, 2FA, registration, remember-me,
+        // impersonation) binds its session to the current moderation version.
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Login::class, function ($event) {
+            if ($event->guard === 'customer' && request()->hasSession()) {
+                request()->session()->put(
+                    \App\Http\Middleware\EnsureCustomerActive::SESSION_KEY,
+                    (int) $event->user->session_version,
+                );
+            }
+        });
+
         // Laravel's default paginator is Tailwind-based. Neither the admin nor
         // the customer panel ships Tailwind, so its utility classes are inert
         // and the arrow SVGs inherit broad site rules and stretch across the

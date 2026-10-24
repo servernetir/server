@@ -107,7 +107,7 @@ class AdminCustomerTest extends TestCase
         $c = $this->customer(['status' => 'active']);
 
         $this->actingAs($this->staff(), 'web')
-            ->post("/admin/customers/{$c->id}/status", ['status' => 'suspended'])
+            ->post("/admin/customers/{$c->id}/status", ['status' => 'suspended', 'expected_status' => 'active', 'reason' => 'تخلف تأییدشده'])
             ->assertRedirect();
 
         $this->assertSame('suspended', $c->fresh()->status);

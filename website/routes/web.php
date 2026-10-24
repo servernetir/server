@@ -390,7 +390,7 @@ $site = function (): void {
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
-    Route::middleware(['auth:customer', \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
+    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         // «همه» — این نشانی هرگز عوض نمی‌شود: هشت ارجاعِ ورودی رویش نشسته‌اند،
         // از جمله اعلانِ بازگشتِ وجه که واقعاً برای مشتری فرستاده می‌شود

@@ -34,7 +34,7 @@ class ImpersonateController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        if ($customer->status === 'closed') {
+        if (! $customer->isActive()) {
             return back()->withErrors('حسابِ این مشتری بسته است و ورود به پنلش ممکن نیست.');
         }
 

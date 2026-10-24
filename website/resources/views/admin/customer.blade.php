@@ -5,7 +5,7 @@
 
 @php
   $iv = $c->identityVerification;
-  $stMap = ['active'=>['فعال','#34d399'],'pending'=>['در انتظار','#fbbf24'],'suspended'=>['معلق','#ff6b6b'],'closed'=>['بسته','var(--dim)']];
+  $stMap = ['active'=>['فعال','#34d399'],'pending'=>['در انتظار','#fbbf24'],'suspended'=>['مسدود','#ff6b6b'],'closed'=>['بسته','var(--dim)']];
   $st = $stMap[$c->status] ?? [$c->status,'var(--muted)'];
   $money = fn($v) => fa_num(number_format((int)$v)).' ت';
 @endphp
@@ -31,7 +31,7 @@
          همان لاگ — فقط جایی که واقعاً لازم می‌شود.
          ⚠️ هر دو شرطِ فهرست عیناً تکرار شده‌اند: فقط مدیر (نه نویسنده) و فقط
          حسابِ بسته‌نشده. کنترلر هم خودش دوباره می‌سنجد. --}}
-    @if(auth()->user()->isAdmin() && $c->status !== 'closed')
+    @if(auth()->user()->isAdmin() && $c->isActive())
       <form method="post" action="/admin/customers/{{ $c->id }}/impersonate" style="display:inline"
             data-confirm="وارد پنلِ «{{ $c->displayName() }}» می‌شوید. این کار در لاگ ثبت می‌شود.">
         @csrf
@@ -40,6 +40,7 @@
         </button>
       </form>
     @endif
+    <a class="btn btn-glass" href="#account-moderation" data-open-account-moderation>مسدودسازی / رفع مسدودی</a>
     <a class="btn btn-glass" href="/admin/broadcasts?customer={{ $c->id }}"><svg class="icon"><use href="#i-message"/></svg>ارسال اعلان</a>
 
     {{-- ══ تماس با مشتری ══
@@ -1127,19 +1128,50 @@
 </div>
 
 {{-- ══ مدیریت حساب: وضعیت + رمز عبور ══ --}}
-<div class="ad-grid2">
+<div class="ad-grid2" id="account-moderation" style="scroll-margin-top:90px">
   <div class="ad-panel" style="margin:0">
-    <div class="ad-panel-h"><h3>وضعیت حساب</h3></div>
-    <form method="post" action="/admin/customers/{{ $c->id }}/status" style="padding:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div class="ad-panel-h"><h3>مسدودسازی و رفع مسدودی حساب</h3></div>
+    @if(auth()->user()->isAdmin())
+    <form method="post" action="/admin/customers/{{ $c->id }}/status" style="padding:16px;display:grid;gap:12px"
+          data-confirm="تغییر وضعیت حساب {{ $c->code }} با دلیل ثبت‌شده اعمال شود؟ نشست‌های قبلی کاربر باطل می‌شوند."
+          data-confirm-title="تغییر دسترسی حساب">
       @csrf
-      <select name="status" style="background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;font:inherit">
-        <option value="active"    @selected($c->status==='active')>فعال</option>
-        <option value="pending"   @selected($c->status==='pending')>در انتظار</option>
-        <option value="suspended" @selected($c->status==='suspended')>معلق (بستن ورود و خرید)</option>
-        <option value="closed"    @selected($c->status==='closed')>بسته</option>
-      </select>
-      <button class="btn btn-primary" type="submit">ثبت</button>
+      <input type="hidden" name="expected_status" value="{{ $c->status }}">
+      <label>وضعیت جدید
+        <select name="status" style="display:block;width:100%;margin-top:6px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:8px 12px;font:inherit">
+          <option value="active"    @selected(old('status', $c->status)==='active')>فعال / رفع مسدودی</option>
+          <option value="pending"   @selected(old('status', $c->status)==='pending')>در انتظار</option>
+          <option value="suspended" @selected(old('status', $c->status)==='suspended')>مسدود (تعلیق حساب)</option>
+          <option value="closed"    @selected(old('status', $c->status)==='closed')>بسته (مسدودی نامحدود)</option>
+        </select>
+      </label>
+      <label for="account-status-reason">دلیل مسدودی یا رفع مسدودی <span style="color:#ff6b6b">*</span></label>
+      <textarea id="account-status-reason" name="reason" required minlength="3" maxlength="2000" rows="3"
+                placeholder="شرح تخلف، نتیجه بررسی یا دلیل رفع مسدودی"
+                style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--text);padding:10px;font:inherit;resize:vertical">{{ old('reason') }}</textarea>
+      @error('reason')<p role="alert" style="margin:0;color:#ff6b6b">{{ $message }}</p>@enderror
+      <button class="btn btn-primary" type="submit">ثبت وضعیت و دلیل</button>
     </form>
+    @else
+      <p style="padding:16px;margin:0;color:var(--muted)">تغییر وضعیت حساب فقط توسط مدیر انجام می‌شود.</p>
+    @endif
+    <p style="padding:0 16px 16px;margin:0;font-size:12px;color:var(--dim);line-height:2">
+      مسدودی، ورود، نشست‌های قبلی، خرید و دسترسی API را می‌بندد. دلیل و نام مدیر در تاریخچه داخلی ثبت می‌شود.
+      سرویس‌های در حال اجرا خودکار متوقف نمی‌شوند؛ برای توقف آن‌ها از مدیریت سرویس استفاده کنید.
+    </p>
+    <details style="padding:0 16px 16px" @if(in_array($c->status, ['suspended', 'closed'])) open @endif>
+      <summary style="cursor:pointer;font-weight:700">تاریخچه مسدودی و تغییر وضعیت</summary>
+      @forelse($statusChanges as $change)
+        <div style="padding:12px 0;border-bottom:1px solid var(--line)">
+          <b>{{ $stMap[$change->from_status][0] ?? $change->from_status }} ← {{ $stMap[$change->to_status][0] ?? $change->to_status }}</b>
+          <small style="display:block;color:var(--dim);margin-top:4px">{{ $change->actor_name }} · {{ sdate($change->created_at) }}</small>
+          <p style="margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere">{{ $change->reason }}</p>
+        </div>
+      @empty
+        <p style="color:var(--dim)">تغییر وضعیت ثبت‌شده‌ای وجود ندارد.</p>
+      @endforelse
+      <small style="color:var(--dim)">۲۵ تغییر آخر؛ سوابق قبلی نیز نگهداری می‌شوند.</small>
+    </details>
   </div>
 
   <div class="ad-panel" style="margin:0">
@@ -1255,6 +1287,12 @@
 
   tabs.forEach(function (t) {
     t.addEventListener('click', function () { show(t.dataset.tab); });
+  });
+
+  document.querySelector('[data-open-account-moderation]').addEventListener('click', function(e) {
+    e.preventDefault();
+    show('account');
+    document.getElementById('account-moderation').scrollIntoView({behavior:'smooth', block:'start'});
   });
 
   // با لینکِ #finance یا رفرش، همان تب باز بماند

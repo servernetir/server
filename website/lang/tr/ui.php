@@ -1733,6 +1733,7 @@ return [
     'auth_pw_hide' => 'Parolayı gizle',
     'auth_logout' => 'Çıkış yap',
     'auth_no_account_signup' => 'Bu bilgilerle bir hesap bulunamadı — hemen bir tane oluşturalım.',
+    'auth_session_revoked' => 'Önceki oturumunuz iptal edildi. Lütfen tekrar giriş yapın.',
     'auth_account_blocked' => 'Bu hesap aktif değil. Lütfen destek ile iletişime geçin.',
     'nav_store' => 'Hizmet satın al',
     'sec_h' => 'Hesap güvenliği',

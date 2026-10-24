@@ -24,7 +24,7 @@ class Customer extends Authenticatable
     ];
 
     protected $hidden = [
-        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery', 'notes',
+        'password', 'remember_token', 'two_factor_secret', 'two_factor_recovery', 'notes', 'session_version',
     ];
 
     protected function casts(): array
@@ -35,6 +35,7 @@ class Customer extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
             'last_login_at'           => 'datetime',
             'locked_until'            => 'datetime',
+            'session_version'         => 'integer',
             'password'                => 'hashed',
 
             /*
@@ -69,6 +70,11 @@ class Customer extends Authenticatable
                 $c->code = 'SN-'.str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
             }
         });
+    }
+
+    public function statusChanges(): HasMany
+    {
+        return $this->hasMany(CustomerStatusChange::class)->latest('id');
     }
 
     public function profiles(): HasMany

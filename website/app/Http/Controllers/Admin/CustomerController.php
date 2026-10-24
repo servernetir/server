@@ -357,6 +357,7 @@ class CustomerController extends Controller
 
         return view('admin.customer', [
             'c' => $customer,
+            'statusChanges' => $customer->statusChanges()->limit(25)->get(),
             'creditBalance' => $customer->creditBalance(),
             'services' => $customer->relationLoaded('services') ? $customer->services : collect(),
             /*
@@ -446,12 +447,51 @@ class CustomerController extends Controller
      */
     public function status(Request $request, Customer $customer): RedirectResponse
     {
+        abort_unless($request->user()?->isAdmin(), 403);
+
         $data = $request->validate([
             'status' => ['required', 'in:active,pending,suspended,closed'],
+            'expected_status' => ['required', 'in:active,pending,suspended,closed'],
+            'reason' => ['required', 'string', 'min:3', 'max:2000'],
+        ], [
+            'reason.required' => 'دلیل تغییر وضعیت حساب را وارد کنید.',
+            'reason.min' => 'دلیل باید حداقل ۳ نویسه باشد.',
+            'reason.max' => 'دلیل نباید بیشتر از ۲۰۰۰ نویسه باشد.',
         ]);
 
-        $customer->status = $data['status'];
-        $customer->save();
+        DB::transaction(function () use ($request, $customer, $data) {
+            $locked = Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== $data['expected_status']) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'status' => 'وضعیت حساب هم‌زمان تغییر کرده است؛ صفحه را تازه کنید و دوباره بررسی کنید.',
+                ]);
+            }
+            if ($locked->status === $data['status']) {
+                return;
+            }
+
+            \App\Models\CustomerStatusChange::create([
+                'customer_id' => $locked->id,
+                'actor_id' => $request->user()->id,
+                'actor_name' => $request->user()->name,
+                'from_status' => $locked->status,
+                'to_status' => $data['status'],
+                'reason' => $data['reason'],
+            ]);
+
+            $locked->forceFill([
+                'status' => $data['status'],
+                'session_version' => (int) $locked->session_version + 1,
+                // Old remember-me cookies must not revive after an unban.
+                'remember_token' => \Illuminate\Support\Str::random(60),
+            ])->save();
+
+            ActivityLog::record($locked->id, 'account_status',
+                'تغییر وضعیت حساب از '.$data['expected_status'].' به '.$data['status']
+                    .' توسط '.$request->user()->name.' — '.$data['reason'],
+                $request, 'staff');
+        });
 
         $labels = [
             'active' => 'فعال', 'pending' => 'در انتظار',

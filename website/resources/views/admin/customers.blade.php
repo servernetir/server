@@ -8,7 +8,7 @@
     <a href="/admin/customers?status=all"       class="{{ $status === 'all' ? 'on' : '' }}">همه ({{ fa_num($counts['all']) }})</a>
     <a href="/admin/customers?status=active"    class="{{ $status === 'active' ? 'on' : '' }}">فعال ({{ fa_num($counts['active']) }})</a>
     <a href="/admin/customers?status=pending"   class="{{ $status === 'pending' ? 'on' : '' }}">در انتظار ({{ fa_num($counts['pending']) }})</a>
-    <a href="/admin/customers?status=suspended" class="{{ $status === 'suspended' ? 'on' : '' }}">معلق ({{ fa_num($counts['suspended']) }})</a>
+    <a href="/admin/customers?status=suspended" class="{{ $status === 'suspended' ? 'on' : '' }}">مسدود ({{ fa_num($counts['suspended']) }})</a>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
     {{-- ══ احراز هویت ══
@@ -142,14 +142,14 @@
             <td>{{ fa_num($c->invoices_count) }}</td>
             <td>{{ fa_num($c->tickets_count) }}</td>
             <td>
-              @php $st = ['active'=>['فعال','#34d399'],'pending'=>['در انتظار','#fbbf24'],'suspended'=>['معلق','#ff6b6b'],'closed'=>['بسته','var(--dim)']][$c->status] ?? [$c->status,'var(--muted)']; @endphp
+              @php $st = ['active'=>['فعال','#34d399'],'pending'=>['در انتظار','#fbbf24'],'suspended'=>['مسدود','#ff6b6b'],'closed'=>['بسته','var(--dim)']][$c->status] ?? [$c->status,'var(--muted)']; @endphp
               <span class="ad-badge" style="background:{{ $st[1] }}22;color:{{ $st[1] }}">{{ $st[0] }}</span>
             </td>
             <td dir="ltr" style="color:var(--muted)">{{ sdate($c->created_at) }}</td>
             {{-- عملیات: onclick ردیف نباید فعال شود، پس جلوی انتشارش گرفته می‌شود --}}
             <td class="cust-act" onclick="event.stopPropagation()" style="white-space:nowrap;text-align:left">
               <a class="cust-a" href="/admin/customers/{{ $c->id }}" title="پرونده"><svg class="icon"><use href="#i-list"/></svg></a>
-              @if(auth()->user()->isAdmin() && $c->status !== 'closed')
+              @if(auth()->user()->isAdmin() && $c->isActive())
                 <form method="post" action="/admin/customers/{{ $c->id }}/impersonate" style="display:inline"
                       data-confirm="وارد پنلِ «{{ $c->displayName() }}» می‌شوید. این کار در لاگ ثبت می‌شود.">
                   @csrf<button class="cust-a" type="submit" title="ورود به پنل کاربری"><svg class="icon"><use href="#i-key"/></svg></button>
