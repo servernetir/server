@@ -33,6 +33,14 @@ class ConsoleHost
     private const CONSOLE = 'https://console.servernet.cloud/';
     private const MAIN    = 'https://servernet.cloud/';
 
+    /** Public content accidentally served by the mail hostname must have one URL. */
+    private const MAIL_PUBLIC_PATHS = [
+        'about', 'ai', 'blog', 'cloud', 'dedicated', 'docs', 'domain',
+        'domains', 'gpu', 'hosting', 'knowledge', 'official-channels',
+        'parts', 'servers', 'services', 'solutions', 'tools', 'urmia',
+        'vps', 'webtools',
+    ];
+
     /** مسیرهای پنلی — روی کنسول مجازند، روی دامنهٔ اصلی به کنسول می‌روند */
     private const PANEL = [
         'login', 'login/*', 'logout', 'register', 'register/*',
@@ -135,8 +143,17 @@ class ConsoleHost
         // می‌زند، `www.servernet.cloud/…` را منبعی زندهٔ ۲۰۰ ثبت می‌کرد
         // درحالی‌که مرورگر ۳۰۱ می‌گرفت — یعنی همان دو-نسخه‌ایِ سئویی که این
         // ریدایرکت برای رفعش نوشته شد، فقط برای خزنده‌ها باقی می‌ماند.
-        if ($request->isMethodSafe() && ! $request->isMethod('OPTIONS')
+        if (($request->isMethod('GET') || $request->isMethod('HEAD'))
             && strtolower($request->getHost()) === 'www.servernet.cloud') {
+            return redirect()->away(self::MAIN.ltrim($request->getRequestUri(), '/'), 301);
+        }
+
+        // mail.servernet.cloud also reaches this Laravel app. Search Console
+        // found public pages there with self-canonicals. Consolidate only the
+        // marketing routes; mail endpoints, account/order flows and POST remain
+        // on their existing host.
+        if (($request->isMethod('GET') || $request->isMethod('HEAD'))
+            && $this->isMailPublicPage($request)) {
             return redirect()->away(self::MAIN.ltrim($request->getRequestUri(), '/'), 301);
         }
 
@@ -175,6 +192,28 @@ class ConsoleHost
     private function isConsole(Request $request): bool
     {
         return str_starts_with(strtolower($request->getHost()), 'console.');
+    }
+
+    private function isMailPublicPage(Request $request): bool
+    {
+        if (rtrim(strtolower($request->getHost()), '.') !== 'mail.servernet.cloud') {
+            return false;
+        }
+
+        $path = trim($request->path(), '/');
+        $path = preg_replace('~^(?:en|tr)(?:/|$)~', '', $path) ?? $path;
+
+        if ($path === '') {
+            return true;
+        }
+
+        foreach (self::MAIL_PUBLIC_PATHS as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** فقط دامنهٔ واقعی تولید — localhost و تست مستثنا */
