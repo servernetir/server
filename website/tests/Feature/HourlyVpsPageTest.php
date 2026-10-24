@@ -6,6 +6,7 @@ use App\Http\Controllers\HourlyVpsController;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Services\Cloud\CountryLandingSeo;
+use App\Services\Cloud\CloudPricingSnapshot;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -167,6 +168,29 @@ class HourlyVpsPageTest extends TestCase
         }
         // One table-existence check and one active-location read; no per-country reads.
         $this->assertCount(2, $locationReads, 'Country links should share the active-location query.');
+    }
+
+    public function test_hourly_rates_are_checked_once_per_displayed_offer(): void
+    {
+        $this->seedIranAndGermany();
+
+        $snapshot = new class extends CloudPricingSnapshot {
+            public int $checks = 0;
+
+            public function current(?string $provider = null): bool
+            {
+                $this->checks++;
+
+                return parent::current($provider);
+            }
+        };
+        app()->instance(CloudPricingSnapshot::class, $snapshot);
+
+        $data = app(HourlyVpsController::class)->show()->getData();
+
+        $this->assertCount(2, $data['countries']);
+        // The catalog checks once; each displayed offer checks once before its rate is reused.
+        $this->assertSame(3, $snapshot->checks);
     }
 
     // ═══════════════ راه‌های رسیدن ═══════════════

@@ -68,6 +68,8 @@ class HourlyVpsController extends Controller
                 ->keyBy('code');
 
             $cheapestAll = null;
+            $cheapestHourly = 0;
+            $hourlyRates = [];
 
             foreach ($offers as $offer) {
                 $loc = $locations->get($offer->location_code);
@@ -77,6 +79,7 @@ class HourlyVpsController extends Controller
                 }
 
                 $hourly = $offer->hourlyIrt();
+                $hourlyRates[(int) $offer->getKey()] = $hourly;
 
                 if ($hourly <= 0) {
                     continue;
@@ -88,8 +91,9 @@ class HourlyVpsController extends Controller
                     continue;
                 }
 
-                if ($cheapestAll === null || $hourly < $cheapestAll->hourlyIrt()) {
+                if ($cheapestAll === null || $hourly < $cheapestHourly) {
                     $cheapestAll = $offer;
+                    $cheapestHourly = $hourly;
                 }
 
                 if ($iso === 'IR') {
@@ -118,23 +122,23 @@ class HourlyVpsController extends Controller
 
                 if ($hourly < $countries[$iso]['hourly_raw']) {
                     $countries[$iso]['hourly_raw'] = $hourly;
-                    $countries[$iso]['hourly'] = $this->hourlyLabel($offer, $locale);
+                    $countries[$iso]['hourly'] = $this->hourlyLabel($offer, $locale, $hourly);
                     $countries[$iso]['monthly'] = $offer->priceLabel($locale);
                 }
             }
 
             if ($cheapestAll !== null) {
-                $fromHourly = $this->hourlyLabel($cheapestAll, $locale);
-                $fromHourlyRaw = $cheapestAll->hourlyIrt();
+                $fromHourly = $this->hourlyLabel($cheapestAll, $locale, $cheapestHourly);
+                $fromHourlyRaw = $cheapestHourly;
                 $minStart = $isFa
-                    ? fa_num(number_format($cheapestAll->hourlyStartMinIrt())).' تومان'
+                    ? fa_num(number_format($cheapestHourly * CloudPlan::HOURLY_START_MIN_HOURS)).' تومان'
                     : '€'.number_format($cheapestAll->hourlyEurCents() * CloudPlan::HOURLY_START_MIN_HOURS / 100, 2);
 
                 // Use the displayed plan quote in the current currency. Converting
                 // the IRT total again can disagree with the rounded EUR hourly quote.
                 foreach ([6, 24, 72] as $hours) {
                     $costExamples[$hours] = $isFa
-                        ? fa_num(number_format($cheapestAll->hourlyIrt() * $hours)).' تومان'
+                        ? fa_num(number_format($cheapestHourly * $hours)).' تومان'
                         : '€'.number_format($cheapestAll->hourlyEurCents() * $hours / 100, 2, '.', '');
                 }
             }
@@ -151,7 +155,7 @@ class HourlyVpsController extends Controller
                 return $a['hourly_raw'] <=> $b['hourly_raw'];
             });
 
-            $featured = $this->featured($offers, $locations, $locale);
+            $featured = $this->featured($offers, $locations, $locale, $hourlyRates);
         }
 
         $countries = array_values($countries);
@@ -176,9 +180,10 @@ class HourlyVpsController extends Controller
      *
      * @param  Collection<string, CloudPlan>  $offers
      * @param  Collection<string, CloudLocation>  $locations
+     * @param  array<int, int>  $hourlyRates Rates computed once from CloudPlan::hourlyIrt().
      * @return array<int, array<string, mixed>>
      */
-    private function featured($offers, $locations, string $locale): array
+    private function featured($offers, $locations, string $locale, array $hourlyRates): array
     {
         $isFa = $locale === 'fa';
         $byCountry = [];
@@ -186,12 +191,14 @@ class HourlyVpsController extends Controller
         foreach ($offers as $offer) {
             $loc = $locations->get($offer->location_code);
 
-            if ($loc === null || $offer->hourlyIrt() <= 0) {
+            $hourly = $hourlyRates[(int) $offer->getKey()] ?? 0;
+
+            if ($loc === null || $hourly <= 0) {
                 continue;
             }
 
             $iso = strtoupper((string) $loc->country);
-            $byCountry[$iso][] = [$offer, $loc];
+            $byCountry[$iso][] = [$offer, $loc, $hourly];
         }
 
         $out = [];
@@ -212,7 +219,7 @@ class HourlyVpsController extends Controller
 
             foreach ($rows as $pair) {
                 /** @var CloudPlan $offer */
-                [$offer, $loc] = $pair;
+                [$offer, $loc, $hourly] = $pair;
 
                 $out[] = [
                     'country' => $loc->countryLabel(),
@@ -225,15 +232,15 @@ class HourlyVpsController extends Controller
                     'disk' => $offer->diskLabel(),
                     'traffic' => $offer->trafficLabel($locale),
                     'cpu_kind' => $offer->cpuKindLabel($locale),
-                    'hourly' => $this->hourlyLabel($offer, $locale),
+                    'hourly' => $this->hourlyLabel($offer, $locale, $hourly),
                     // عددِ خامِ نشانه‌گذاری: ریال برای fa (IRR = ریال، نه تومان)، یورو
                     // برای بقیه؛ نبودِ قیمتِ ارزی یعنی null و ویو Offer نمی‌سازد.
                     'ld_price' => $isFa
-                        ? (int) schema_price_irr($offer->hourlyIrt())
+                        ? (int) schema_price_irr($hourly)
                         : ($offer->hourlyEurCents() > 0 ? $offer->hourlyEurCents() / 100 : null),
                     'monthly' => $offer->priceLabel($locale),
                     'min_start' => $isFa
-                        ? fa_num(number_format($offer->hourlyStartMinIrt())).' تومان'
+                        ? fa_num(number_format($hourly * CloudPlan::HOURLY_START_MIN_HOURS)).' تومان'
                         : '€'.number_format($offer->hourlyEurCents() * CloudPlan::HOURLY_START_MIN_HOURS / 100, 2),
                     'buy_url' => lroute('account.cloud.store')
                         .'?location='.urlencode((string) $loc->code)
@@ -247,10 +254,10 @@ class HourlyVpsController extends Controller
     }
 
     /** برچسبِ نرخِ ساعتی در ارزِ زبانِ جاری — همان منطقِ `priceLabel()` ولی برای ساعت */
-    private function hourlyLabel(CloudPlan $offer, string $locale): string
+    private function hourlyLabel(CloudPlan $offer, string $locale, int $hourlyIrt): string
     {
         if ($locale === 'fa') {
-            return fa_num(number_format($offer->hourlyIrt())).' تومان';
+            return fa_num(number_format($hourlyIrt)).' تومان';
         }
 
         $cents = $offer->hourlyEurCents();
