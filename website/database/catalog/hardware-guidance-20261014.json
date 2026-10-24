@@ -1,0 +1,796 @@
+{
+  "copy": {
+    "decision_guide": {
+      "fa": "کاربرد، مقایسه و راهنمای انتخاب",
+      "en": "Applications, trade-offs and selection guide",
+      "tr": "Kullanım, karşılaştırma ve seçim rehberi"
+    },
+    "configuration": {
+      "fa": "کانفیگ و وضعیت کالا با استعلام",
+      "en": "Configuration and condition on request",
+      "tr": "Yapılandırma ve durum için bilgi alın"
+    },
+    "stock_check": {
+      "fa": "استعلام موجودی",
+      "en": "Check availability",
+      "tr": "Stok bilgisi alın"
+    },
+    "compat_check": {
+      "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+      "en": "Check the model and part number",
+      "tr": "Model ve parça numarasını doğrulayın"
+    },
+    "photo_reference": {
+      "fa": "تصویر، مرجع شناسایی این مدل یا خانواده است؛ عکس کالای قابل تحویل و شماره‌قطعه را هنگام استعلام دریافت کنید.",
+      "en": "The image identifies the model or family. Request a photo and part number of the actual unit when enquiring.",
+      "tr": "Görsel model veya aile için referanstır. Teklif alırken teslim edilecek ürünün fotoğrafını ve parça numarasını isteyin."
+    },
+    "manufacturer_docs": {
+      "fa": "مستندات و ابزار بررسی سازنده",
+      "en": "Manufacturer documentation and lookup",
+      "tr": "Üretici belgeleri ve sorgulama"
+    },
+    "next_steps": {
+      "fa": "قطعات مرتبط و قدم بعدی",
+      "en": "Related components and next steps",
+      "tr": "İlgili parçalar ve sonraki adımlar"
+    },
+    "pagination": {
+      "fa": "صفحه‌های کاتالوگ",
+      "en": "Catalog pages",
+      "tr": "Katalog sayfaları"
+    },
+    "previous": {
+      "fa": "قبلی",
+      "en": "Previous",
+      "tr": "Önceki"
+    },
+    "next": {
+      "fa": "بعدی",
+      "en": "Next",
+      "tr": "Sonraki"
+    },
+    "search": {
+      "fa": "جستجوی مدل یا شماره‌قطعه",
+      "en": "Search a model or part number",
+      "tr": "Model veya parça numarası arayın"
+    },
+    "compare_servers": {
+      "fa": "مقایسه سرورها",
+      "en": "Compare servers",
+      "tr": "Sunucuları karşılaştırın"
+    },
+    "choose_server": {
+      "fa": "انتخاب مدل",
+      "en": "Choose a model",
+      "tr": "Model seçin"
+    },
+    "compare_note": {
+      "fa": "حداکثر چهار مدل را مقایسه کنید. ظرفیت نهایی به پردازنده، شاسی، بک‌پلین و قطعات سفارش بستگی دارد؛ مشخصات پلتفرم، مشخصات کانفیگ تحویلی نیست.",
+      "en": "Compare up to four models. Final capacity depends on CPUs, chassis, backplane and ordered components. Platform limits do not describe the supplied configuration.",
+      "tr": "En fazla dört modeli karşılaştırın. Son kapasite işlemci, kasa, backplane ve sipariş edilen parçalara bağlıdır. Platform sınırları teslim edilecek yapılandırmayı göstermez."
+    },
+    "catalog_intro": {
+      "fa": "مدل را با نیاز واقعی انتخاب کنید: نوع شاسی، مسیر ارتقا، مدیریت از راه دور و قطعات سازگار را کنار هم ببینید. قیمت، وضعیت نو یا کارکرده و زمان تحویل برای کانفیگ دقیق استعلام می‌شود.",
+      "en": "Choose a model by chassis, upgrade path, remote management and compatible components. Request pricing, condition and delivery time for your exact configuration.",
+      "tr": "Kasa, yükseltme yolu, uzaktan yönetim ve uyumlu parçalara göre seçim yapın. Fiyat, ürün durumu ve teslimat süresini tam yapılandırma için sorgulayın."
+    },
+    "model": {
+      "fa": "مدل / شناسه",
+      "en": "Model / identifier",
+      "tr": "Model / tanımlayıcı"
+    },
+    "page": {
+      "fa": "صفحه",
+      "en": "Page",
+      "tr": "Sayfa"
+    },
+    "schematic": {
+      "fa": "نمای شماتیک برای شناسایی ردهٔ قطعه؛ عکس کالای انبار نیست.",
+      "en": "Schematic identifying the component class; not a stock-unit photograph.",
+      "tr": "Parça sınıfını gösteren şema; stoktaki ürünün fotoğrafı değildir."
+    },
+    "compare_ready": {
+      "fa": "مشخصات قطعی با کانفیگ",
+      "en": "Confirm against the configuration",
+      "tr": "Yapılandırmayla doğrulayın"
+    },
+    "overview": {
+      "fa": "شناخت محصول و تصمیم خرید",
+      "en": "Product identity and purchase decision",
+      "tr": "Ürün bilgisi ve satın alma kararı"
+    },
+    "server_count": {
+      "fa": "مدل سرور",
+      "en": "server models",
+      "tr": "sunucu modeli"
+    },
+    "reference_image": {
+      "fa": "تصویر مرجع خانواده، عکس مدل تحویلی نیست",
+      "en": "Family reference image, not the supplied model",
+      "tr": "Aile referans görseli; teslim edilen model değildir"
+    },
+    "schematic_label": {
+      "fa": "نمای شماتیک",
+      "en": "Schematic illustration",
+      "tr": "Şematik görsel"
+    }
+  },
+  "guides": {
+    "cpu": [
+      {
+        "title": {
+          "fa": "مجازی‌سازی یا نرم‌افزار تک‌هسته‌ای؟",
+          "en": "Virtual machines or single-thread workloads?",
+          "tr": "Sanal makineler mi, tek iş parçacığı mı?"
+        },
+        "body": {
+          "fa": "برای چند ماشین مجازی، تعداد هسته و ظرفیت RAM را با هم بسنجید. برای نرم‌افزارهای حساس به یک هسته، فرکانس و عملکرد همان هسته مهم‌تر می‌شود. نسل پردازنده و قیمت لایسنس به‌ازای هسته می‌تواند انتخاب پردازندهٔ پرهسته‌تر را تغییر دهد.",
+          "en": "For multiple VMs, evaluate CPU cores alongside RAM capacity. Single-thread-sensitive applications need strong performance per core. CPU generation and per-core software licensing can change the economics of a higher-core-count processor.",
+          "tr": "Birden çok VM için çekirdek sayısını RAM kapasitesiyle birlikte değerlendirin. Tek iş parçacığına duyarlı uygulamalarda çekirdek başına performans önemlidir. İşlemci nesli ve çekirdek başına lisans maliyeti seçimi değiştirebilir."
+        }
+      },
+      {
+        "title": {
+          "fa": "تطبیق قبل از ارتقا",
+          "en": "Before upgrading",
+          "tr": "Yükseltmeden önce"
+        },
+        "body": {
+          "fa": "یکسان بودن سوکت، سازگاری قطعی نیست. مدل دقیق سرور، فهرست پردازنده‌های پشتیبانی‌شده، نسخه BIOS، هیت‌سینک و توان پاور باید کنترل شود. در کانفیگ دوپردازنده‌ای، قواعد جفت‌کردن CPU و فعال‌شدن اسلات‌های حافظه را از مستندات همان سرور بررسی کنید.",
+          "en": "A matching socket does not guarantee support. Check the exact server, supported CPU list, BIOS, heatsink and power budget. For dual-CPU configurations, verify CPU pairing and memory-slot rules in the server documentation.",
+          "tr": "Soketin eşleşmesi uyumluluğu garanti etmez. Tam sunucu modeli, desteklenen işlemci listesi, BIOS, soğutucu ve güç bütçesini kontrol edin. Çift işlemcili sistemlerde eşleştirme ve bellek yuvası kurallarını üretici belgelerinden doğrulayın."
+        }
+      },
+      {
+        "title": {
+          "fa": "چه چیزهایی را مقایسه کنیم؟",
+          "en": "What to compare",
+          "tr": "Neleri karşılaştırmalı?"
+        },
+        "body": {
+          "fa": "مدل و پسوند نسخه، تعداد هسته و رشته، فرکانس پایه و توربو، حافظهٔ پشتیبانی‌شده و TDP را کنار هم بگذارید. فرکانس توربو، سرعت دائمی تمام هسته‌ها نیست و هستهٔ بیشتر به‌تنهایی تضمین‌کنندهٔ سرعت نرم‌افزار شما نیست.",
+          "en": "Compare model suffix, cores, threads, base and turbo clock, supported memory and TDP. Turbo clock is not a sustained all-core speed, and more cores alone do not guarantee a faster application.",
+          "tr": "Model eki, çekirdek, iş parçacığı, temel ve turbo frekansı, bellek desteği ve TDP değerini karşılaştırın. Turbo frekansı sürekli tüm çekirdek hızı değildir; daha çok çekirdek tek başına uygulamayı hızlandırmaz."
+        }
+      }
+    ],
+    "ram": [
+      {
+        "title": {
+          "fa": "ظرفیت کافی پیش از فرکانس بالاتر",
+          "en": "Capacity before frequency",
+          "tr": "Frekans öncesinde kapasite"
+        },
+        "body": {
+          "fa": "برای مجازی‌سازی، حافظهٔ ماشین‌ها و سیستم میزبان را جمع کنید و فضای رشد را جدا در نظر بگیرید. در دیتابیس، حجم دادهٔ فعال و کش مهم است. افزودن RAM وقتی سیستم درگیر swap است معمولاً از تغییر سرعت حافظه مفیدتر است؛ نتیجه به بار واقعی وابسته است.",
+          "en": "Budget memory for VMs and the host, then reserve growth capacity. Databases depend on the active dataset and cache. Adding capacity to a system that swaps can be more useful than a faster memory bin; the actual benefit depends on workload.",
+          "tr": "VM ve ana sistem belleğini toplayıp büyüme payı ayırın. Veritabanlarında etkin veri ve önbellek boyutu önemlidir. Swap kullanan sistemlerde kapasite artışı daha yüksek bellek frekansından yararlı olabilir; sonuç iş yüküne bağlıdır."
+        }
+      },
+      {
+        "title": {
+          "fa": "ECC کافی نیست",
+          "en": "ECC alone is not enough",
+          "tr": "Yalnızca ECC yeterli değildir"
+        },
+        "body": {
+          "fa": "DDR3، DDR4 و DDR5 قابل جایگزینی مستقیم نیستند. RDIMM، LRDIMM و UDIMM نیز یک نوع نیستند؛ مجازبودن ترکیب، ظرفیت، Rank و چیدمان کانال‌ها را برای مدل دقیق سرور بررسی کنید. ماژول‌های یکسان را هم بدون کنترل قواعد سازنده در اسلات دلخواه نصب نکنید.",
+          "en": "DDR3, DDR4 and DDR5 are not directly interchangeable. RDIMM, LRDIMM and UDIMM are distinct. Check allowed combinations, capacity, ranks and channel population for the exact server. Even identical modules must follow its population rules.",
+          "tr": "DDR3, DDR4 ve DDR5 doğrudan değiştirilemez. RDIMM, LRDIMM ve UDIMM farklıdır. Tam model için karıştırma, kapasite, rank ve kanal yerleşimini kontrol edin. Aynı modüller bile üreticinin yerleşim kurallarına uymalıdır."
+        }
+      },
+      {
+        "title": {
+          "fa": "شماره‌قطعه را همراه ظرفیت بخوانید",
+          "en": "Read the part number as well as capacity",
+          "tr": "Kapasiteyle birlikte parça numarasını okuyun"
+        },
+        "body": {
+          "fa": "دو رم با ظرفیت و سرعت یکسان ممکن است نوع ماژول، Rank یا چیدمان تراشه متفاوت داشته باشند. عکس برچسب رم فعلی، پارت‌نامبر و مدل پردازنده را برای تطبیق بفرستید. سرعت نهایی حافظه به CPU و نحوه پرکردن اسلات‌ها نیز وابسته است.",
+          "en": "Equal capacity and speed can hide different module types, ranks or chip organizations. Supply the current module label, part number and CPU model. Operating speed also depends on CPU support and slot population.",
+          "tr": "Aynı kapasite ve hız farklı modül tipi, rank veya yonga düzenini gizleyebilir. Mevcut modül etiketi, parça numarası ve işlemci modelini paylaşın. Çalışma hızı işlemciye ve yuva yerleşimine de bağlıdır."
+        }
+      }
+    ],
+    "disk": [
+      {
+        "title": {
+          "fa": "ذخیره‌سازی اصلی یا آرشیو؟",
+          "en": "Primary storage or archive?",
+          "tr": "Birincil depolama mı, arşiv mi?"
+        },
+        "body": {
+          "fa": "برای دیتابیس و ماشین مجازی، تأخیر، IOPS و توان نوشتن را بررسی کنید. برای بکاپ و آرشیو، ظرفیت قابل‌استفاده، هزینهٔ هر ترابایت و زمان بازیابی اهمیت بیشتری دارد. نام SSD به‌تنهایی بیانگر endurance، محافظت هنگام قطع برق یا مناسب‌بودن برای نوشتن مداوم نیست.",
+          "en": "For databases and VMs, assess latency, IOPS and write endurance. Backup and archive decisions emphasize usable capacity, cost per TB and recovery time. The SSD label alone does not establish endurance, power-loss protection or continuous-write suitability.",
+          "tr": "Veritabanı ve VM için gecikme, IOPS ve yazma dayanıklılığını değerlendirin. Yedek ve arşivde kullanılabilir kapasite, TB maliyeti ve geri yükleme süresi önemlidir. SSD adı tek başına dayanıklılığı veya güç kaybı korumasını göstermez."
+        }
+      },
+      {
+        "title": {
+          "fa": "رابط و شاسی باید هم‌خوان باشند",
+          "en": "Match interface and chassis",
+          "tr": "Arayüz ve kasayı eşleştirin"
+        },
+        "body": {
+          "fa": "SAS، SATA و NVMe مسیر اتصال یکسانی ندارند. SFF و LFF، نوع کدی، بک‌پلین، کابل و کنترلر را کنترل کنید. حتی اگر دیسک در جایگاه جا شود، ممکن است مسیر الکتریکی یا firmware پشتیبانی نشود.",
+          "en": "SAS, SATA and NVMe use different connection paths. Verify SFF/LFF, carrier, backplane, cables and controller. Physical fit alone does not establish electrical or firmware support.",
+          "tr": "SAS, SATA ve NVMe farklı bağlantı yolları kullanır. SFF/LFF, taşıyıcı, backplane, kablo ve denetleyiciyi doğrulayın. Fiziksel olarak sığması elektriksel veya firmware desteğini garanti etmez."
+        }
+      },
+      {
+        "title": {
+          "fa": "سلامت دیسک و حفاظت از داده",
+          "en": "Drive health and data protection",
+          "tr": "Disk sağlığı ve veri koruması"
+        },
+        "body": {
+          "fa": "برای دیسک کارکرده، گزارش سلامت، خطاهای ثبت‌شده و ساعات کار یا مقدار نوشتن را بخواهید. ظرفیت آرایهٔ RAID با جمع ظرفیت خام دیسک‌ها برابر نیست. RAID جای بکاپ مستقل و آزمون بازیابی را نمی‌گیرد.",
+          "en": "For used drives, request health, error history and power-on hours or total writes. RAID usable capacity differs from the sum of raw drive capacity. RAID does not replace independent backups and restore testing.",
+          "tr": "Kullanılmış disklerde sağlık, hata geçmişi ve çalışma saati veya yazılan veri miktarını isteyin. RAID kullanılabilir kapasitesi ham kapasite toplamından farklıdır. RAID bağımsız yedek ve geri yükleme testinin yerini tutmaz."
+        }
+      }
+    ],
+    "raid": [
+      {
+        "title": {
+          "fa": "کنترلر متناسب با روش ذخیره‌سازی",
+          "en": "Controller for your storage design",
+          "tr": "Depolama tasarımına uygun denetleyici"
+        },
+        "body": {
+          "fa": "قبل از انتخاب، مشخص کنید RAID سخت‌افزاری می‌خواهید یا سیستم‌عامل باید دیسک‌ها را مستقیم ببیند. حالت HBA یا passthrough باید برای همان مدل و firmware تأیید شود. نام Smart Array یا تعداد پورت، این قابلیت را برای تمام کنترلرها ثابت نمی‌کند.",
+          "en": "Decide whether you need hardware RAID or direct OS access to disks. Verify HBA or passthrough behavior for the exact model and firmware. A family name or port count does not establish that capability for every controller.",
+          "tr": "Donanımsal RAID mi yoksa işletim sisteminin disklere doğrudan erişimi mi gerektiğini belirleyin. HBA veya passthrough davranışını tam model ve firmware için doğrulayın. Aile adı veya port sayısı tek başına bu özelliği göstermez."
+        }
+      },
+      {
+        "title": {
+          "fa": "کش، کابل و باتری بخشی از انتخاب‌اند",
+          "en": "Cache, cables and battery matter",
+          "tr": "Önbellek, kablo ve pil önemlidir"
+        },
+        "body": {
+          "fa": "پورت داخلی یا خارجی، شکل کارت و رایزر باید با سرور هم‌خوان باشد. اگر کش نوشتن استفاده می‌شود، نوع حفاظت کش، باتری یا خازن لازم و سلامت آن را بررسی کنید. کنترلر بدون کابل و بک‌پلین سازگار، کانفیگ کامل نیست.",
+          "en": "Verify internal/external ports, card form and riser support. If write cache is used, check its protection method and required battery or capacitor. A controller without the right cables and backplane is not a complete configuration.",
+          "tr": "İç/dış portları, kart biçimini ve riser desteğini doğrulayın. Yazma önbelleğinde koruma yöntemi, gerekli pil veya kapasitörü kontrol edin. Uyumlu kablo ve backplane olmadan denetleyici tam bir yapılandırma değildir."
+        }
+      }
+    ],
+    "nic": [
+      {
+        "title": {
+          "fa": "سرعت شبکهٔ واقعی",
+          "en": "End-to-end network speed",
+          "tr": "Uçtan uca ağ hızı"
+        },
+        "body": {
+          "fa": "برای مجازی‌سازی، انتقال بکاپ و استوریج شبکه، سرعت NIC را همراه سوئیچ، کابل و پورت مقصد بسنجید. نصب کارت سریع‌تر، لینک کندترِ مسیر را سریع نمی‌کند. تعداد پورت و نیاز به تفکیک ترافیک مدیریت، سرویس و استوریج را نیز مشخص کنید.",
+          "en": "For VMs, backups and network storage, size the NIC together with switches, cabling and destination ports. A faster NIC does not accelerate slower links elsewhere. Plan port count and management, service and storage separation.",
+          "tr": "VM, yedek ve ağ depolamasında NIC hızını anahtar, kablo ve hedef portla birlikte değerlendirin. Daha hızlı NIC diğer yavaş bağlantıları hızlandırmaz. Port sayısını ve yönetim, servis ve depolama ayrımını planlayın."
+        }
+      },
+      {
+        "title": {
+          "fa": "استاندارد کانکتور و درایور",
+          "en": "Connector and driver support",
+          "tr": "Bağlantı ve sürücü desteği"
+        },
+        "body": {
+          "fa": "PCIe، FLR و FlexibleLOM قابل جایگزینی ظاهری نیستند. نوع RJ45 یا SFP/SFP+/SFP28، ماژول نوری یا DAC، ارتفاع براکت و پشتیبانی سیستم‌عامل یا Hypervisor را کنترل کنید. کارت HBA فیبرچنل را با Ethernet اشتباه نگیرید.",
+          "en": "PCIe, FLR and FlexibleLOM are not physically interchangeable. Check RJ45/SFP-family connectors, optics or DAC, bracket height and OS/hypervisor support. Fibre Channel HBAs are not Ethernet NICs.",
+          "tr": "PCIe, FLR ve FlexibleLOM fiziksel olarak değiştirilemez. RJ45/SFP bağlantısını, optik veya DAC, braket ve OS/hypervisor desteğini doğrulayın. Fibre Channel HBA ile Ethernet NIC aynı değildir."
+        }
+      }
+    ],
+    "psu": [
+      {
+        "title": {
+          "fa": "توان مناسب و ورودی برق",
+          "en": "Power budget and input",
+          "tr": "Güç bütçesi ve giriş"
+        },
+        "body": {
+          "fa": "توان پاور را بر اساس CPU، دیسک، GPU و قطعات توسعه انتخاب کنید. AC و DC، ولتاژ ورودی، نوع اسلات و پارت‌نامبر اهمیت دارند؛ دو پاور با وات یکسان الزاماً جایگزین هم نیستند. مشخصات ورودی را از برچسب خود قطعه کنترل کنید.",
+          "en": "Size the PSU for CPUs, drives, GPUs and expansion cards. Check AC/DC, input voltage, slot family and part number. Equal wattage does not guarantee interchangeability; verify the physical unit label.",
+          "tr": "PSU gücünü işlemci, disk, GPU ve genişletme kartlarına göre seçin. AC/DC, giriş gerilimi, yuva ailesi ve parça numarasını kontrol edin. Aynı watt değeri değiştirilebilirliği garanti etmez; ürün etiketini doğrulayın."
+        }
+      },
+      {
+        "title": {
+          "fa": "افزونگی به برق مستقل هم نیاز دارد",
+          "en": "Redundancy also needs independent power",
+          "tr": "Yedeklilik bağımsız besleme de gerektirir"
+        },
+        "body": {
+          "fa": "برای کانفیگ افزونه، مدل‌های مجاز و قواعد جفت‌کردن پاورها را بررسی کنید. دو پاور روی یک مسیر برق، خرابی همان مسیر را پوشش نمی‌دهند. کابل، PDU و ظرفیت UPS باید با مصرف و طراحی برق رک هماهنگ باشد.",
+          "en": "For redundant configurations, verify supported PSU pairing. Two PSUs on one feed do not protect against failure of that feed. Coordinate cables, PDUs and UPS capacity with rack power design.",
+          "tr": "Yedekli yapılandırmada desteklenen PSU eşleştirmesini doğrulayın. Tek hatta bağlı iki PSU o hattın arızasını karşılamaz. Kablo, PDU ve UPS kapasitesini raf güç tasarımıyla eşleştirin."
+        }
+      }
+    ],
+    "server": [
+      {
+        "title": {
+          "fa": "سرور را برای بار کاری انتخاب کنید",
+          "en": "Choose the platform for the workload",
+          "tr": "Platformu iş yüküne göre seçin"
+        },
+        "body": {
+          "fa": "در مجازی‌سازی، تعداد VM، RAM موردنیاز، نرخ رشد و ذخیره‌سازی تعیین‌کننده‌اند. برای دیتابیس و حسابداری، رفتار نرم‌افزار، تأخیر دیسک و هزینهٔ لایسنس را هم حساب کنید. مدل پایهٔ یکسان با CPU و دیسک متفاوت، کارایی و قیمت یکسانی ندارد.",
+          "en": "For virtualization, start with VM count, RAM, growth and storage needs. Databases and business software also depend on disk latency, application behavior and licensing. The same platform with different CPUs and drives can have very different performance and cost.",
+          "tr": "Sanallaştırmada VM sayısı, RAM, büyüme ve depolama ihtiyacıyla başlayın. Veritabanı ve iş yazılımında disk gecikmesi, uygulama davranışı ve lisans maliyeti de önemlidir. Aynı platform farklı işlemci ve disklerle farklı performans ve maliyet sunar."
+        }
+      },
+      {
+        "title": {
+          "fa": "شاسی، ارتقا و محل نصب",
+          "en": "Chassis, expansion and installation",
+          "tr": "Kasa, genişletme ve kurulum"
+        },
+        "body": {
+          "fa": "پیش از خرید SFF یا LFF، تعداد جایگاه دیسک و بک‌پلین را مشخص کنید. شاسی رک‌مونت، تاور و بلید نیازهای نصب متفاوت دارند. عمق رک، ریل، برق، تهویه و صدای دستگاه را در محل واقعی نصب بسنجید؛ سرور بلید به شاسی و تجهیزات مشترک سازگار نیاز دارد.",
+          "en": "Choose SFF/LFF bays and backplane before ordering. Rack, tower and blade platforms have different installation needs. Check rack depth, rails, power, airflow and noise at the installation site. Blade servers also need a compatible enclosure and shared infrastructure.",
+          "tr": "Sipariş öncesinde SFF/LFF yuvalarını ve backplane seçimini belirleyin. Raf, tower ve blade sistemlerin kurulum ihtiyaçları farklıdır. Raf derinliği, ray, güç, hava akışı ve gürültüyü kontrol edin. Blade sunucular uyumlu kasa ve ortak altyapı gerektirir."
+        }
+      },
+      {
+        "title": {
+          "fa": "پیش‌فاکتور دقیق چگونه باشد؟",
+          "en": "What an exact quotation should contain",
+          "tr": "Tam teklifte neler olmalı?"
+        },
+        "body": {
+          "fa": "مدل و نسل دقیق، تعداد و مدل CPU، ظرفیت و نوع RAM، دیسک‌ها و کدی، RAID، کارت شبکه، پاورها و لایسنس مدیریت را جدا بنویسید. وضعیت نو یا کارکرده، تست سلامت، قطعات همراه، شرایط گارانتی و زمان تحویل باید برای همان کانفیگ مشخص شود.",
+          "en": "List the exact model, CPUs, RAM type/capacity, drives/carriers, RAID, NICs, PSUs and management licences. Specify condition, health testing, included accessories, warranty terms and delivery time for that exact configuration.",
+          "tr": "Tam model, işlemciler, RAM türü/kapasitesi, disk/taşıyıcı, RAID, NIC, PSU ve yönetim lisanslarını ayrı yazın. Durum, sağlık testi, aksesuarlar, garanti koşulları ve teslimat süresi bu yapılandırma için belirtilmelidir."
+        }
+      }
+    ],
+    "gpu": [
+      {
+        "title": {
+          "fa": "سازگاری فیزیکی و برق",
+          "en": "Physical and power compatibility",
+          "tr": "Fiziksel ve güç uyumluluğu"
+        },
+        "body": {
+          "fa": "توان پاور، کابل برق GPU، فضای اسلات، رایزر و خنک‌کاری باید برای مدل دقیق کارت و سرور تأیید شوند. صرف وجود PCIe، نصب موفق GPU را تضمین نمی‌کند.",
+          "en": "Verify PSU capacity, GPU power cables, slot clearance, riser and cooling for the exact GPU and server. A PCIe slot alone does not guarantee successful installation.",
+          "tr": "PSU kapasitesi, GPU güç kablosu, yuva alanı, riser ve soğutmayı tam kart ve sunucu için doğrulayın. PCIe yuvası tek başına kurulum uyumluluğunu garanti etmez."
+        }
+      },
+      {
+        "title": {
+          "fa": "حافظه و نرم‌افزار",
+          "en": "Memory and software",
+          "tr": "Bellek ve yazılım"
+        },
+        "body": {
+          "fa": "برای هوش مصنوعی، حجم مدل و VRAM، نسخهٔ CUDA و درایور و نیاز به پردازش هم‌زمان را بررسی کنید. شتاب‌دهندهٔ دیتاسنتری ممکن است خروجی تصویر یا فن مستقل نداشته باشد؛ کاربرد محاسباتی را از کارت دسکتاپ جدا بسنجید.",
+          "en": "For AI, assess model size, VRAM, CUDA/driver versions and concurrency. Datacenter accelerators may lack display outputs or standalone fans. Evaluate their compute role separately from desktop graphics.",
+          "tr": "AI için model boyutu, VRAM, CUDA/sürücü sürümü ve eşzamanlılığı değerlendirin. Veri merkezi hızlandırıcılarında görüntü çıkışı veya bağımsız fan olmayabilir. Hesaplama rolünü masaüstü grafikten ayrı değerlendirin."
+        }
+      }
+    ],
+    "cooling": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "فن و هیت‌سینک را با مدل دقیق سرور، شماره‌قطعه، سوکت، کانکتور و ردهٔ توان CPU تطبیق دهید. فن هم‌اندازه یا هم‌نسل الزاماً جایگزین نیست. برای کانفیگ پرتراکم یا GPU، الزامات کیت خنک‌کاری سازنده را جدا بررسی کنید.",
+          "en": "Match fans and heatsinks to the exact server, part number, socket, connector and CPU power class. Equal size or generation does not guarantee interchangeability. Check separate cooling-kit requirements for dense or GPU configurations.",
+          "tr": "Fan ve soğutucuyu tam model, parça numarası, soket, bağlantı ve CPU güç sınıfıyla eşleştirin. Aynı boyut veya nesil değiştirilebilirliği garanti etmez. Yoğun veya GPU yapılandırmaları için özel soğutma gereksinimini kontrol edin."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "motherboard": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "برای مادربرد، مدل سرور و شمارهٔ assembly یا spare را از برچسب قطعه کنترل کنید. سازگاری CPU، حافظه، firmware، اتصالات بک‌پلین و تنظیمات مدیریت به خود برد وابسته است؛ پیش از تعویض از تنظیمات و داده‌ها نسخهٔ پشتیبان بگیرید.",
+          "en": "For system boards, check server model and assembly/spare numbers on the label. CPU, memory, firmware, backplane connections and management settings depend on the board. Back up settings and data before replacement.",
+          "tr": "Sistem kartında sunucu modeli ve etiketteki assembly/spare numarasını kontrol edin. İşlemci, bellek, firmware, backplane ve yönetim desteği karta bağlıdır. Değişim öncesinde ayar ve verileri yedekleyin."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "caddy": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "کدی باید با اندازهٔ دیسک، نسل حامل و جایگاه شاسی هم‌خوان باشد. SFF و LFF یا Smart Carrier و Basic Carrier را با ظاهر مشابه جایگزین نکنید. عکس برچسب، قفل و جلوی کدی فعلی به تطبیق دقیق کمک می‌کند.",
+          "en": "Match carriers to drive size, carrier generation and chassis bay. Similar-looking SFF/LFF or Smart/Basic Carriers are not interchangeable. Photos of the current label, latch and front help identify the exact replacement.",
+          "tr": "Taşıyıcıyı disk boyutu, taşıyıcı nesli ve kasa yuvasıyla eşleştirin. Benzer SFF/LFF veya Smart/Basic Carrier parçaları birbirinin yerine kullanmayın. Etiket, mandal ve ön yüz fotoğrafı doğru eşleştirmeye yardımcı olur."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "rail": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "ریل و بازوی کابل را با مدل شاسی، عمق رک، نوع ستون و سوراخ رک تطبیق دهید. یکسان بودن ارتفاع U کافی نیست. بستهٔ کامل، براکت، قفل‌ها و نیاز به ابزار نصب را هنگام استعلام مشخص کنید.",
+          "en": "Match rails and cable arms to chassis, rack depth, posts and hole types. Equal U height is not sufficient. Confirm brackets, latches, installation tools and the complete kit when requesting a quote.",
+          "tr": "Ray ve kablo kolunu kasa, raf derinliği, kolon ve delik türüyle eşleştirin. Aynı U yüksekliği yeterli değildir. Braket, mandal, kurulum aracı ve kit içeriğini teklif sırasında doğrulayın."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "riser": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "رایزر باید با شماره‌قطعه، برد اصلی و آرایش اسلات‌های همان سرور تطبیق داشته باشد. تعداد lane، ارتفاع کارت و وابستگی به CPU دوم را کنترل کنید. رایزر نسل مشابه با کانکتور مشابه الزاماً کار نمی‌کند.",
+          "en": "Match the riser part number to the system board and slot layout. Check PCIe lanes, card height and dependencies on a second CPU. A similar connector or generation does not guarantee operation.",
+          "tr": "Riser parça numarasını sistem kartı ve yuva düzeniyle eşleştirin. PCIe lane, kart yüksekliği ve ikinci işlemci bağımlılığını kontrol edin. Benzer bağlantı veya nesil çalışmayı garanti etmez."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "battery": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "باتری یا خازن حفاظت کش را با کنترلر و شماره‌قطعهٔ پشتیبانی‌شده تطبیق دهید. سلامت، کابل و وضعیت گزارش‌شده در ابزار مدیریت باید بررسی شود. فعال‌کردن اجباری write cache با باتری خراب، جایگزین تعویض قطعه نیست.",
+          "en": "Match cache-protection batteries/capacitors to the controller and supported part number. Check health, cabling and management status. Forcing write cache with a failed battery is not a replacement for repair.",
+          "tr": "Önbellek koruma pili/kapasitörünü denetleyici ve desteklenen parça numarasıyla eşleştirin. Sağlık, kablo ve yönetim durumunu kontrol edin. Arızalı pille yazma önbelleğini zorlamak onarımın yerini tutmaz."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "sfp": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "ماژول نوری را بر اساس سرعت، فرم SFP، طول موج، نوع فیبر، فاصله و پشتیبانی دستگاه دو سر لینک انتخاب کنید. تعداد پورت یا ظاهر کانکتور به‌تنهایی سازگاری را ثابت نمی‌کند.",
+          "en": "Choose optics by speed, SFP form, wavelength, fibre type, distance and support at both ends. Port count or connector appearance alone does not establish compatibility.",
+          "tr": "Optiği hız, SFP biçimi, dalga boyu, fiber türü, mesafe ve iki uçtaki cihaz desteğine göre seçin. Port sayısı veya bağlantı görünümü tek başına uyumluluğu göstermez."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "licence": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "پیش از سفارش، نسخه، دستگاه مقصد، شیوهٔ فعال‌سازی و شرایط انتقال یا تمدید لایسنس را مشخص کنید. امکانات کنسول از راه دور یا مدیریت، به سطح لایسنس و نسخهٔ firmware وابسته‌اند.",
+          "en": "Specify licence edition, target device, activation and transfer/renewal conditions. Remote-console and management features depend on the licence tier and firmware.",
+          "tr": "Lisans sürümü, hedef cihaz, etkinleştirme ve aktarım/yenileme şartlarını belirtin. Uzaktan konsol ve yönetim özellikleri lisans seviyesine ve firmware sürümüne bağlıdır."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "accessory": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "برای قطعهٔ جانبی، شماره‌قطعه و مدل دقیق شاسی را همراه عکس محل نصب تطبیق دهید. کابل، براکت، قفل، پیچ و لوازم همراه ممکن است جداگانه لازم باشد؛ محتوای بسته را در پیش‌فاکتور روشن کنید.",
+          "en": "Match accessory part number and exact chassis with a photo of its installation point. Cables, brackets, latches and screws may be separate. State the package contents in the quotation.",
+          "tr": "Aksesuar parça numarası ve tam kasayı montaj noktası fotoğrafıyla eşleştirin. Kablo, braket, mandal ve vidalar ayrı olabilir. Paket içeriğini teklifte belirtin."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "cable": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "طول، کانکتور دو سر، جهت اتصال و استاندارد رابط کابل را بررسی کنید. کابل مشابه از نظر ظاهری ممکن است pinout متفاوت داشته باشد؛ برای اتصال داخل سرور، شماره‌قطعهٔ توصیه‌شدهٔ سازنده را مبنا بگیرید.",
+          "en": "Check cable length, both connectors, connection direction and interface standard. Similar cables can have different pinouts. For internal server wiring, use the manufacturer-recommended part number.",
+          "tr": "Kablo uzunluğu, iki uçtaki bağlantı, yön ve arayüz standardını kontrol edin. Benzer kablolar farklı pinout kullanabilir. Sunucu içi kablolamada üreticinin önerdiği parça numarasını esas alın."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "other": [
+      {
+        "title": {
+          "fa": "نیازمند تطبیق مدل و پارت‌نامبر",
+          "en": "Check the model and part number",
+          "tr": "Model ve parça numarasını doğrulayın"
+        },
+        "body": {
+          "fa": "برای قطعهٔ جانبی، شماره‌قطعه و مدل دقیق شاسی را همراه عکس محل نصب تطبیق دهید. کابل، براکت، قفل، پیچ و لوازم همراه ممکن است جداگانه لازم باشد؛ محتوای بسته را در پیش‌فاکتور روشن کنید.",
+          "en": "Match accessory part number and exact chassis with a photo of its installation point. Cables, brackets, latches and screws may be separate. State the package contents in the quotation.",
+          "tr": "Aksesuar parça numarası ve tam kasayı montaj noktası fotoğrafıyla eşleştirin. Kablo, braket, mandal ve vidalar ayrı olabilir. Paket içeriğini teklifte belirtin."
+        }
+      },
+      {
+        "title": {
+          "fa": "قطعات مرتبط و قدم بعدی",
+          "en": "Related components and next steps",
+          "tr": "İlgili parçalar ve sonraki adımlar"
+        },
+        "body": {
+          "fa": "مدل و شماره‌قطعهٔ قطعهٔ فعلی، وضعیت نو یا کارکرده، اقلام همراه و زمان تحویل را هنگام استعلام مشخص کنید. پس از نصب، سلامت و شناسایی قطعه در ابزار مدیریت و سیستم‌عامل بررسی شود.",
+          "en": "Include the current model/part number, requested condition, included accessories and delivery time in your enquiry. After installation, verify health and detection in management tools and the OS.",
+          "tr": "Talebinizde mevcut model/parça numarası, istenen durum, aksesuarlar ve teslimat süresini belirtin. Kurulumdan sonra yönetim araçlarında ve işletim sisteminde sağlık ve algılamayı doğrulayın."
+        }
+      }
+    ],
+    "chassis": [
+      {
+        "title": {
+          "fa": "سرور را برای بار کاری انتخاب کنید",
+          "en": "Choose the platform for the workload",
+          "tr": "Platformu iş yüküne göre seçin"
+        },
+        "body": {
+          "fa": "در مجازی‌سازی، تعداد VM، RAM موردنیاز، نرخ رشد و ذخیره‌سازی تعیین‌کننده‌اند. برای دیتابیس و حسابداری، رفتار نرم‌افزار، تأخیر دیسک و هزینهٔ لایسنس را هم حساب کنید. مدل پایهٔ یکسان با CPU و دیسک متفاوت، کارایی و قیمت یکسانی ندارد.",
+          "en": "For virtualization, start with VM count, RAM, growth and storage needs. Databases and business software also depend on disk latency, application behavior and licensing. The same platform with different CPUs and drives can have very different performance and cost.",
+          "tr": "Sanallaştırmada VM sayısı, RAM, büyüme ve depolama ihtiyacıyla başlayın. Veritabanı ve iş yazılımında disk gecikmesi, uygulama davranışı ve lisans maliyeti de önemlidir. Aynı platform farklı işlemci ve disklerle farklı performans ve maliyet sunar."
+        }
+      },
+      {
+        "title": {
+          "fa": "شاسی، ارتقا و محل نصب",
+          "en": "Chassis, expansion and installation",
+          "tr": "Kasa, genişletme ve kurulum"
+        },
+        "body": {
+          "fa": "پیش از خرید SFF یا LFF، تعداد جایگاه دیسک و بک‌پلین را مشخص کنید. شاسی رک‌مونت، تاور و بلید نیازهای نصب متفاوت دارند. عمق رک، ریل، برق، تهویه و صدای دستگاه را در محل واقعی نصب بسنجید؛ سرور بلید به شاسی و تجهیزات مشترک سازگار نیاز دارد.",
+          "en": "Choose SFF/LFF bays and backplane before ordering. Rack, tower and blade platforms have different installation needs. Check rack depth, rails, power, airflow and noise at the installation site. Blade servers also need a compatible enclosure and shared infrastructure.",
+          "tr": "Sipariş öncesinde SFF/LFF yuvalarını ve backplane seçimini belirleyin. Raf, tower ve blade sistemlerin kurulum ihtiyaçları farklıdır. Raf derinliği, ray, güç, hava akışı ve gürültüyü kontrol edin. Blade sunucular uyumlu kasa ve ortak altyapı gerektirir."
+        }
+      },
+      {
+        "title": {
+          "fa": "پیش‌فاکتور دقیق چگونه باشد؟",
+          "en": "What an exact quotation should contain",
+          "tr": "Tam teklifte neler olmalı?"
+        },
+        "body": {
+          "fa": "مدل و نسل دقیق، تعداد و مدل CPU، ظرفیت و نوع RAM، دیسک‌ها و کدی، RAID، کارت شبکه، پاورها و لایسنس مدیریت را جدا بنویسید. وضعیت نو یا کارکرده، تست سلامت، قطعات همراه، شرایط گارانتی و زمان تحویل باید برای همان کانفیگ مشخص شود.",
+          "en": "List the exact model, CPUs, RAM type/capacity, drives/carriers, RAID, NICs, PSUs and management licences. Specify condition, health testing, included accessories, warranty terms and delivery time for that exact configuration.",
+          "tr": "Tam model, işlemciler, RAM türü/kapasitesi, disk/taşıyıcı, RAID, NIC, PSU ve yönetim lisanslarını ayrı yazın. Durum, sağlık testi, aksesuarlar, garanti koşulları ve teslimat süresi bu yapılandırma için belirtilmelidir."
+        }
+      }
+    ],
+    "storage": [
+      {
+        "title": {
+          "fa": "ذخیره‌سازی اصلی یا آرشیو؟",
+          "en": "Primary storage or archive?",
+          "tr": "Birincil depolama mı, arşiv mi?"
+        },
+        "body": {
+          "fa": "برای دیتابیس و ماشین مجازی، تأخیر، IOPS و توان نوشتن را بررسی کنید. برای بکاپ و آرشیو، ظرفیت قابل‌استفاده، هزینهٔ هر ترابایت و زمان بازیابی اهمیت بیشتری دارد. نام SSD به‌تنهایی بیانگر endurance، محافظت هنگام قطع برق یا مناسب‌بودن برای نوشتن مداوم نیست.",
+          "en": "For databases and VMs, assess latency, IOPS and write endurance. Backup and archive decisions emphasize usable capacity, cost per TB and recovery time. The SSD label alone does not establish endurance, power-loss protection or continuous-write suitability.",
+          "tr": "Veritabanı ve VM için gecikme, IOPS ve yazma dayanıklılığını değerlendirin. Yedek ve arşivde kullanılabilir kapasite, TB maliyeti ve geri yükleme süresi önemlidir. SSD adı tek başına dayanıklılığı veya güç kaybı korumasını göstermez."
+        }
+      },
+      {
+        "title": {
+          "fa": "رابط و شاسی باید هم‌خوان باشند",
+          "en": "Match interface and chassis",
+          "tr": "Arayüz ve kasayı eşleştirin"
+        },
+        "body": {
+          "fa": "SAS، SATA و NVMe مسیر اتصال یکسانی ندارند. SFF و LFF، نوع کدی، بک‌پلین، کابل و کنترلر را کنترل کنید. حتی اگر دیسک در جایگاه جا شود، ممکن است مسیر الکتریکی یا firmware پشتیبانی نشود.",
+          "en": "SAS, SATA and NVMe use different connection paths. Verify SFF/LFF, carrier, backplane, cables and controller. Physical fit alone does not establish electrical or firmware support.",
+          "tr": "SAS, SATA ve NVMe farklı bağlantı yolları kullanır. SFF/LFF, taşıyıcı, backplane, kablo ve denetleyiciyi doğrulayın. Fiziksel olarak sığması elektriksel veya firmware desteğini garanti etmez."
+        }
+      },
+      {
+        "title": {
+          "fa": "سلامت دیسک و حفاظت از داده",
+          "en": "Drive health and data protection",
+          "tr": "Disk sağlığı ve veri koruması"
+        },
+        "body": {
+          "fa": "برای دیسک کارکرده، گزارش سلامت، خطاهای ثبت‌شده و ساعات کار یا مقدار نوشتن را بخواهید. ظرفیت آرایهٔ RAID با جمع ظرفیت خام دیسک‌ها برابر نیست. RAID جای بکاپ مستقل و آزمون بازیابی را نمی‌گیرد.",
+          "en": "For used drives, request health, error history and power-on hours or total writes. RAID usable capacity differs from the sum of raw drive capacity. RAID does not replace independent backups and restore testing.",
+          "tr": "Kullanılmış disklerde sağlık, hata geçmişi ve çalışma saati veya yazılan veri miktarını isteyin. RAID kullanılabilir kapasitesi ham kapasite toplamından farklıdır. RAID bağımsız yedek ve geri yükleme testinin yerini tutmaz."
+        }
+      }
+    ]
+  },
+  "kinds": {
+    "cooling": {
+      "fa": "فن و خنک‌کننده",
+      "en": "Fans and cooling",
+      "tr": "Fan ve soğutma"
+    },
+    "motherboard": {
+      "fa": "مادربرد",
+      "en": "Motherboards",
+      "tr": "Anakartlar"
+    },
+    "caddy": {
+      "fa": "کدی دیسک",
+      "en": "Drive caddies",
+      "tr": "Disk kızakları"
+    },
+    "rail": {
+      "fa": "ریل و نصب رک",
+      "en": "Rack rails",
+      "tr": "Rack rayları"
+    },
+    "riser": {
+      "fa": "رایزر",
+      "en": "Risers",
+      "tr": "Riser kartları"
+    },
+    "battery": {
+      "fa": "باتری و کش",
+      "en": "Batteries and cache",
+      "tr": "Batarya ve önbellek"
+    },
+    "sfp": {
+      "fa": "ماژول و ترنسیور",
+      "en": "Transceivers",
+      "tr": "Alıcı vericiler"
+    },
+    "storage": {
+      "fa": "استوریج",
+      "en": "Storage systems",
+      "tr": "Depolama sistemleri"
+    },
+    "licence": {
+      "fa": "لایسنس",
+      "en": "Licences",
+      "tr": "Lisanslar"
+    },
+    "accessory": {
+      "fa": "لوازم جانبی",
+      "en": "Accessories",
+      "tr": "Aksesuarlar"
+    },
+    "cable": {
+      "fa": "کابل",
+      "en": "Cables",
+      "tr": "Kablolar"
+    }
+  }
+}

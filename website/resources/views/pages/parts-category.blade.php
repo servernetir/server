@@ -1,13 +1,11 @@
 @extends('layouts.site')
-@section('title', $meta[app()->getLocale()].' — '.__('ui.parts_title').($page > 1 ? ' — '.__('shop_seo.category_page', ['page' => $page]) : '').' — '.__('ui.brand'))
+@section('title', $meta[app()->getLocale()].($pagination->currentPage() > 1 ? ' · '.\App\Services\Shop\HardwarePresentation::text('page').' '.fa_num($pagination->currentPage()) : '').' — '.__('ui.parts_title').' — '.__('ui.brand'))
 {{-- ⚠️ توضیحِ متا از محتوای **همین دسته** می‌آید. اگر جا افتاده باشد به متنِ
      عمومی برمی‌گردیم — که بد است ولی از توضیحِ خالی بهتر. --}}
 @section('description', lc($content['meta'] ?? []) ?: ($meta[app()->getLocale()].' — '.__('ui.parts_desc')))
-@if($listingNoindex)
-@section('noindex', '1')
-@else
-@section('canonical', $canonical)
-@endif
+@section('canonical', url()->current().($pagination->currentPage() > 1 ? '?page='.$pagination->currentPage() : ''))
+@if($active['gen'] !== null || $active['condition'] !== null || $active['q'] !== '' || $active['sort'] !== 'popular' || $active['max'] !== null || $kind !== null) @section('noindex', true) @endif
+@include('partials.hardware-assets')
 @section('content')
 
 @php
@@ -32,13 +30,14 @@
     | «بازسازی‌شده» می‌زند، انتظار دارد هر دو اعمال شود نه اینکه دومی اولی را
     | پاک کند. ساختنِ دستیِ آدرس در هر دکمه، دقیقاً همان‌جا خراب می‌شد.
     */
-    $link = function (string $k, ?string $v) use ($base, $active) {
+    $link = function (string $k, ?string $v) use ($base, $active, $kind) {
         $q = array_filter([
             'gen'       => $active['gen'],
             'condition' => $active['condition'],
             'q'         => $active['q'] !== '' ? $active['q'] : null,
             'max'       => $active['max'],
             'sort'      => $active['sort'] === 'popular' ? null : $active['sort'],
+            'kind'      => $kind,
         ], fn ($v) => $v !== null && $v !== '');
         if ($v === null) { unset($q[$k]); } else { $q[$k] = $v; }
         if (($q['sort'] ?? null) === 'popular') { unset($q['sort']); }
@@ -46,7 +45,7 @@
         return $q ? $base.'?'.http_build_query($q) : $base;
     };
     $hasFilters = $active['gen'] !== null || $active['condition'] !== null
-        || $active['sort'] !== 'popular' || $active['q'] !== '' || $active['max'] !== null;
+        || $active['sort'] !== 'popular' || $active['q'] !== '' || $active['max'] !== null || $kind !== null;
 
     /*
     | دادهٔ ساختاریافتهٔ پرسش‌های متداول.
@@ -102,13 +101,22 @@
 
   <div class="sp-main">
 
+    @if(in_array($category, ['other', 'raid', 'nic', 'disk'], true))
+    <nav class="hw-related-links" aria-label="{{ \App\Services\Shop\HardwarePresentation::text('search') }}">
+      @foreach(config('hardware_shop.kinds', []) as $hardwareKind => $hardwareKindLabel)
+        @if(($hardwareKindLabel['category'] ?? null) === $category)
+        <a href="{{ $link('kind', $hardwareKind) }}" @if($kind === $hardwareKind) aria-current="page" @endif>{{ lc($hardwareKindLabel) }}</a>
+        @endif
+      @endforeach
+    </nav>
+    @endif
     <div class="sp-filters">
       {{-- 🔴 فرمِ GET و نه جستجوی زندهٔ جاوااسکریپتی: نتیجه یک آدرسِ واقعی
            می‌شود که کاربر می‌تواند بوکمارک کند یا بفرستد، و بی‌جاوااسکریپت هم
            کار می‌کند. فیلدهای مخفی بقیهٔ فیلترها را نگه می‌دارند، وگرنه جستجو
            انتخابِ نسل و وضعیت را بی‌صدا پاک می‌کرد. --}}
       <form method="get" action="{{ $base }}" class="sp-search" role="search">
-        @foreach(['gen' => $active['gen'], 'condition' => $active['condition'], 'max' => $active['max']] as $k => $v)
+        @foreach(['gen' => $active['gen'], 'condition' => $active['condition'], 'max' => $active['max'], 'kind' => $kind] as $k => $v)
           @if($v !== null)<input type="hidden" name="{{ $k }}" value="{{ $v }}">@endif
         @endforeach
         @if($active['sort'] !== 'popular')<input type="hidden" name="sort" value="{{ $active['sort'] }}">@endif
@@ -184,27 +192,11 @@
           @include('partials.part-card', ['part' => $part])
         @endforeach
       </div>
-      @if($parts->hasPages())
-        <nav class="sp-filter-row" aria-label="{{ __('shop_seo.pages_label') }}" style="margin-top:22px;gap:9px">
-          @if($parts->onFirstPage())
-            <span class="sp-chip sm" aria-disabled="true">{{ __('ui.bl_prev') }}</span>
-          @else
-            <a class="sp-chip sm" href="{{ $parts->previousPageUrl() }}" rel="prev">{{ __('ui.bl_prev') }}</a>
-          @endif
-          @foreach($parts->getUrlRange(1, $parts->lastPage()) as $number => $url)
-            <a class="sp-chip sm {{ $number === $page ? 'on' : '' }}" href="{{ $url }}" @if($number === $page) aria-current="page" @endif>{{ fa_num($number) }}</a>
-          @endforeach
-          @if($parts->hasMorePages())
-            <a class="sp-chip sm" href="{{ $parts->nextPageUrl() }}" rel="next">{{ __('ui.bl_next') }}</a>
-          @else
-            <span class="sp-chip sm" aria-disabled="true">{{ __('ui.bl_next') }}</span>
-          @endif
-        </nav>
-      @endif
+      @include('partials.hardware-pagination')
       <p class="sp-note">{{ __('ui.parts_eur_note') }}</p>
     @endif
 
-    @if($page === 1 && ($guide = ($content['guide'] ?? [])))
+    @if($guide = ($content['guide'] ?? []))
       <h2 class="sp-h2">{{ __('ui.parts_guide') }}</h2>
       <div class="sp-guide">
         @foreach($guide as $g)
@@ -216,7 +208,7 @@
       </div>
     @endif
 
-    @if($page === 1 && ($faq = ($content['faq'] ?? [])))
+    @if($faq = ($content['faq'] ?? []))
       <h2 class="sp-h2">{{ __('ui.parts_faq') }}</h2>
       {{-- ⚠️ `<details>` و نه آکاردئونِ جاوااسکریپتی: بی‌اسکریپت هم باز و بسته
            می‌شود، و مهم‌تر اینکه متنِ پاسخ همیشه در DOM هست تا خزنده ببیندش. --}}

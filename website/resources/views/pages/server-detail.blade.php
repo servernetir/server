@@ -1,15 +1,18 @@
 @extends('layouts.site')
 @php $lm = lc($model); @endphp
 @section('title', __('shop_seo.server_title', ['name' => $lm['name']]))
-@section('description', $lm['tag'].' — '.$lm['hero_d'])
+@section('description', \App\Services\Shop\HardwarePresentation::productDescription($lm['name'], $lm['hero_d']))
+@php $hardwareShots = array_values(array_filter(array_map('img_url', \App\Services\Shop\HardwarePresentation::images($slug, (array) ($model['gallery'] ?? []))))); @endphp
+@if($hardwareShots) @section('image', url($hardwareShots[0])) @endif
+@include('partials.hardware-assets')
 @section('content')
 
 @php
   /* ⚠️ هر قابِ گالری از صافیِ `img_url()` رد می‌شود: یک ردیفِ خرابِ رشتهٔ
      «null» در گالری، `src="null"` می‌ساخت که مرورگر نسبی حل می‌کرد و از
      `/servers/<slug>` یک ۴۰۴ روی `/servers/null` درمی‌آمد. */
-  $imgs = array_values(array_filter(array_map('img_url', (array) ($model['gallery'] ?? []))));
-  $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb')];
+  $imgs = array_values(array_filter(array_map('img_url', \App\Services\Shop\HardwarePresentation::images($slug, (array) ($model['gallery'] ?? [])))));
+  $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb'), 'catalog' => \App\Services\Shop\HardwarePresentation::text('configuration')];
   $bc = $brand['color'] ?? 'var(--cyan)';
   $partGen = null;
   if (str_starts_with($slug, 'hpe-proliant-') && preg_match('/-gen(8|9|10|11|12)(?:-|$)/', $slug, $genMatch)) {
@@ -70,7 +73,7 @@
     <div class="sd-gallery">
       @if($imgs !== [])
         <div class="sd-main" id="sd-main" role="button" tabindex="0" aria-label="{{ __('ui.srv_zoom') }}">
-          <img id="sd-main-img" src="{{ $imgs[0] }}" alt="{{ $lm['name'] }}">
+          <img id="sd-main-img" src="{{ $imgs[0] }}" alt="{{ \App\Services\Shop\HardwarePresentation::imageAlt($slug, $lm['name'], $imgs[0]) }}" width="960" height="720" loading="eager" decoding="async" fetchpriority="high">
           <span class="sd-zoom"><svg class="icon"><use href="#i-search"/></svg></span>
         </div>
         @if(count($imgs) > 1)
@@ -112,9 +115,12 @@
           <a class="btn btn-glass" href="tel:{{ $contact['phone_link'] }}"><svg class="icon"><use href="#i-phone"/></svg>{{ __('ui.srv_call') }}</a>
         @endif
       </div>
+      <p><a class="hw-compare-link" href="{{ lroute('servers.index').'?compare='.urlencode(collect([$slug])->merge($related->keys())->take(4)->implode(',')) }}">{{ \App\Services\Shop\HardwarePresentation::text('compare_servers') }}</a></p>
       <p class="sd-deliver"><svg class="icon"><use href="#i-info"/></svg>{{ __('ui.srv_deliver') }}</p>
     </div>
   </div>
+
+  @include('partials.hardware-guide', ['hardwareCategory' => 'server', 'hardwareSlug' => $slug])
 
   {{-- مشخصات --}}
   <div class="sd-specs">
@@ -160,26 +166,14 @@
   </div>
   @endif
 
-  <section class="sd-analysis" aria-labelledby="server-config-title">
-    <h2 id="server-config-title">{{ __('shop_seo.server_config_title', ['name' => $lm['name']]) }}</h2>
-    <div class="sp-pro good">
-      <p>{{ __('shop_seo.server_config_intro') }}</p>
-      <ul class="sp-pro-list">
-        <li>{{ __('shop_seo.server_check_workload') }}</li>
-        <li>{{ __('shop_seo.server_check_hardware') }}</li>
-        <li>{{ __('shop_seo.server_check_delivery') }}</li>
-      </ul>
-    </div>
-  </section>
-
   @if($partGen)
   <section class="sd-analysis" aria-labelledby="server-parts-title">
     <h2 id="server-parts-title">{{ __('shop_seo.server_parts_title') }}</h2>
     <div class="sp-pro warn">
-        <p>{{ __('shop_seo.server_parts_note', ['gen' => ucfirst($partGen), 'name' => $lm['name']]) }}</p>
+      <p>{{ __('shop_seo.server_parts_note', ['gen' => ucfirst($partGen), 'name' => $lm['name']]) }}</p>
       <div class="sp-compat">
         @foreach(['cpu', 'ram', 'disk', 'raid'] as $partCategory)
-            <a class="sp-chip sm" href="{{ lroute('parts.category', $partCategory).'?gen='.$partGen }}">{{ __('shop_seo.server_part_'.$partCategory, ['gen' => ucfirst($partGen)]) }}</a>
+          <a class="sp-chip sm" href="{{ lroute('parts.category', $partCategory).'?gen='.$partGen }}">{{ __('shop_seo.server_part_'.$partCategory, ['gen' => ucfirst($partGen)]) }}</a>
         @endforeach
       </div>
     </div>

@@ -1,29 +1,39 @@
 @extends('layouts.site')
-@section('title', __('ui.srv_title').' — '.__('ui.brand'))
-@section('description', __('ui.srv_sub'))
+@section('title', __('ui.srv_title').($pagination->currentPage() > 1 ? ' · '.\App\Services\Shop\HardwarePresentation::text('page').' '.fa_num($pagination->currentPage()) : '').' — '.__('ui.brand'))
+@section('description', \App\Services\Shop\HardwarePresentation::text('catalog_intro'))
+@section('canonical', url()->current().($pagination->currentPage() > 1 ? '?page='.$pagination->currentPage() : ''))
+@if($search !== '' || $activeBrand !== 'all' || $comparison->isNotEmpty()) @section('noindex', true) @endif
+@include('partials.hardware-assets')
 @section('content')
 
 @php
-  $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb')];
+  $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb'), 'catalog' => \App\Services\Shop\HardwarePresentation::text('configuration')];
 @endphp
 
 <section class="srv-hero">
   <div class="container">
     <nav class="blog-crumbs"><a href="{{ lroute('home') }}">{{ __('ui.brand') }}</a><span>/</span><span>{{ __('ui.srv_title') }}</span></nav>
     <h1>{{ __('ui.srv_h1') }}</h1>
-    <p class="srv-lead">{{ __('ui.srv_lead') }}</p>
+    <p class="srv-lead">{{ \App\Services\Shop\HardwarePresentation::text('catalog_intro') }}</p>
   </div>
 </section>
 
 <section class="container srv-wrap">
 
-  <div class="srv-filter" id="srv-filter">
-    <button class="srv-chip {{ $activeBrand === 'all' ? 'on' : '' }}" data-brand="all">{{ __('ui.srv_all') }}</button>
+  <form class="hw-search" method="get" action="{{ lroute('servers.index') }}" role="search">
+    <label for="hw-server-search">{{ \App\Services\Shop\HardwarePresentation::text('search') }}</label>
+    <input id="hw-server-search" type="search" name="q" value="{{ $search }}" maxlength="60">
+    @if($activeBrand !== 'all')<input type="hidden" name="brand" value="{{ $activeBrand }}">@endif
+    <button class="btn btn-primary" type="submit">{{ __('ui.parts_search') }}</button>
+  </form>
+  <nav class="srv-filter" aria-label="{{ __('ui.srv_all') }}">
+    <a class="srv-chip {{ $activeBrand === 'all' ? 'on' : '' }}" href="{{ lroute('servers.index') }}">{{ __('ui.srv_all') }}</a>
     @foreach($brands as $key => $b)
-      <button class="srv-chip {{ $activeBrand === $key ? 'on' : '' }}" data-brand="{{ $key }}"><span class="srv-dot" style="background:{{ $b['color'] }}"></span>{{ $b['label'] }}</button>
+      <a class="srv-chip {{ $activeBrand === $key ? 'on' : '' }}" href="{{ lroute('servers.index').'?brand='.$key }}"><span class="srv-dot" style="background:{{ $b['color'] }}"></span>{{ $b['label'] }}</a>
     @endforeach
-  </div>
-
+  </nav>
+  @include('partials.server-comparison')
+  <p class="hw-note">{{ __('ui.parts_count', ['count' => fa_num($pagination->total())]) }}</p>
   <div class="srv-grid" id="srv-grid">
     @foreach($models as $slug => $m)
       {{-- ⚠️ `img_url()` و نه `!empty()`: ردیفی که رشتهٔ «null» دارد از
@@ -31,12 +41,12 @@
       @php
         $b = $brands[$m['brand']] ?? ['label' => $m['brand'], 'color' => 'var(--cyan)'];
         $lm = lc($m);
-        $thumb = img_url(((array) ($m['gallery'] ?? []))[0] ?? null);
+        $thumb = img_url(\App\Services\Shop\HardwarePresentation::metadata($slug)['thumbnail'] ?? null) ?? img_url(((array) ($m['gallery'] ?? []))[0] ?? null);
       @endphp
       <a class="srv-card" @if($activeBrand !== 'all' && $activeBrand !== $m['brand']) hidden @endif data-brand="{{ $m['brand'] }}" href="{{ lroute('servers.show', $slug) }}">
         <div class="srv-thumb">
           @if($thumb)
-            <img src="{{ $thumb }}" alt="{{ $lm['name'] }}" loading="lazy">
+            <img src="{{ $thumb }}" alt="{{ $lm['name'] }}" width="640" height="480" loading="lazy" decoding="async">
           @else
             <div class="srv-ph"><svg class="icon"><use href="#i-server"/></svg></div>
           @endif
@@ -67,6 +77,9 @@
 
   <p class="srv-empty" id="srv-empty" @if($activeBrand === 'all' ? count($models) > 0 : collect($models)->contains(fn ($model) => $model['brand'] === $activeBrand)) hidden @endif>{{ __('ui.srv_none') }}</p>
 
+  @include('partials.hardware-pagination')
+  @include('partials.hardware-guide', ['hardwareCategory' => 'server'])
+
   <div class="srv-cta">
     <div>
       <h2>{{ __('ui.srv_cta_h') }}</h2>
@@ -77,21 +90,5 @@
 
 </section>
 
-<script>
-(function(){
-  var f = document.getElementById('srv-filter'), grid = document.getElementById('srv-grid'), empty = document.getElementById('srv-empty');
-  if (!f || !grid) return;
-  f.addEventListener('click', function(e){
-    var btn = e.target.closest('.srv-chip'); if (!btn) return;
-    var brand = btn.getAttribute('data-brand');
-    f.querySelectorAll('.srv-chip').forEach(function(c){ c.classList.toggle('on', c === btn); });
-    var shown = 0;
-    grid.querySelectorAll('.srv-card').forEach(function(card){
-      var ok = brand === 'all' || card.getAttribute('data-brand') === brand;
-      card.hidden = !ok; if (ok) shown++;
-    });
-    if (empty) empty.hidden = shown > 0;
-  });
-})();
-</script>
+
 @endsection

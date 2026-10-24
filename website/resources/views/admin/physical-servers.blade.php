@@ -29,7 +29,7 @@
             <small dir="ltr" style="color:var(--dim);display:block">{{ $s->slug }}</small>
           </td>
           <td><span class="ad-badge" style="background:{{ $b['color'] }}1f;color:{{ $b['color'] }}">{{ $b['label'] }}</span></td>
-          <td>{{ $s->condition === 'refurb' ? 'بازسازی‌شده' : 'نو' }}@if($s->popular)<span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24;margin-inline-start:6px">پرفروش</span>@endif</td>
+          <td>{{ $s->condition === 'catalog' ? 'کاتالوگ؛ با استعلام' : ($s->condition === 'refurb' ? 'بازسازی‌شده' : 'نو') }}@if($s->popular)<span class="ad-badge" style="background:rgba(251,191,36,.14);color:#fbbf24;margin-inline-start:6px">پرفروش</span>@endif</td>
           <td>{{ count($s->gallery ?? []) }}</td>
           <td dir="ltr">
             @if($s->price_contact)<span style="color:var(--dim)">استعلام</span>
