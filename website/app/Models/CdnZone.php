@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Services\Dns\DnsConfig;
+use App\Support\Rfc1982;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
@@ -20,14 +23,31 @@ use Illuminate\Support\Str;
  */
 class CdnZone extends Model
 {
+    /** وضعیت‌های انتشار روی primary (§3.2) */
+    public const PUBLISH_STATES = ['pending', 'published', 'failed', 'deleting', 'deleted'];
+
+    /** وضعیت‌های تفویض در parent (§5.3) */
+    public const DELEGATION_STATES = ['unknown', 'not_delegated', 'partial', 'delegated', 'lookup_failed'];
+
     protected $fillable = [
         'customer_id', 'service_id', 'domain', 'mode', 'status',
         'verify_token', 'verified_at', 'verify_error', 'checked_at', 'ownership',
         'synced_at', 'sync_error', 'dirty', 'edge_epoch',
         'cache_enabled', 'default_ttl', 'waf_level', 'waf_action',
         'dnssec', 'always_https', 'plan', 'quota_gb', 'meta',
+        // v2 — انتشار، تفویض، مالکیت (مهاجرتِ 000200)
+        'desired_version', 'applied_version', 'publish_state', 'publish_attempts',
+        'next_publish_at', 'last_publish_error', 'primary_serial', 'published_at',
+        'delegation_state', 'delegation_checked_at', 'delegation_ns', 'parent_ds',
+        'records_reviewed_at', 'claim_id',
     ];
 
+    /*
+    | ⚠️ عمداً `$attributes` پیش‌فرض برای ستون‌های v2 نداریم: پیش‌فرض‌ها در
+    | دیتابیس‌اند. مقدارِ پیش‌فرض در مدل یعنی INSERT آن ستون‌ها را هم می‌فرستد و
+    | روی نصبی که 000200 هنوز اجرا نشده، ساختنِ هر zone (حتی از مسیرِ v1) می‌شکند.
+    | پس از create اگر مقدارشان لازم است `refresh()` کنید.
+    */
     protected $casts = [
         'verified_at'   => 'datetime',
         'checked_at'    => 'datetime',
@@ -37,6 +57,18 @@ class CdnZone extends Model
         'dnssec'        => 'bool',
         'always_https'  => 'bool',
         'meta'          => 'array',
+        // v2
+        'desired_version'       => 'int',
+        'applied_version'       => 'int',
+        'publish_attempts'      => 'int',
+        'primary_serial'        => 'int',
+        'claim_id'              => 'int',
+        'next_publish_at'       => 'datetime',
+        'published_at'          => 'datetime',
+        'delegation_checked_at' => 'datetime',
+        'records_reviewed_at'   => 'datetime',
+        'delegation_ns'         => 'array',
+        'parent_ds'             => 'array',
     ];
 
     /* ───────────────────────── روابط ───────────────────────── */
@@ -81,6 +113,18 @@ class CdnZone extends Model
         return $this->hasMany(CdnUsage::class);
     }
 
+    /** وضعیتِ این zone روی هر نیم‌سرورِ عمومی */
+    public function nodes(): HasMany
+    {
+        return $this->hasMany(DnsZoneNode::class, 'cdn_zone_id');
+    }
+
+    /** ادعایی که مالکیت را ثابت کرد (اگر از مسیرِ TXT/ثبت آمده) */
+    public function claim(): BelongsTo
+    {
+        return $this->belongsTo(DnsOwnershipClaim::class, 'claim_id');
+    }
+
     /* ───────────────────────── اسکوپ ───────────────────────── */
 
     /**
@@ -114,39 +158,144 @@ class CdnZone extends Model
     }
 
     /**
-     * منبعِ یگانهٔ نیم‌سرورها: تنظیمِ مدیر، وگرنه پیش‌فرضِ config.
+     * نام‌های نیم‌سرورها (کوچک، بی‌نقطهٔ پایانی).
      *
-     * ⚠️ static و بی‌نیاز به نمونه، چون صفحهٔ فهرست (پیش از ساختِ هر zone)،
-     * SOA در `PowerDnsClient` و `DelegationCheck` همه باید **یک** فهرست را
-     * ببینند. دو منبع یعنی روزی پنل یک نام بگوید و تأیید نامِ دیگری بخواهد.
+     * ⚠️ v2: فقط واگذاری به `DnsConfig` — همان یک منبعی که انتشار، تأییدِ
+     * تفویض و پنل می‌خوانند. دیگر `config('edge.nameservers')` خوانده نمی‌شود و
+     * تا مدیر فهرست را تنظیم نکند خالی است (نامِ حدسی به مشتری داده نمی‌شود).
+     *
+     * @return array<int,string>
      */
     public static function ourNameservers(): array
     {
-        $raw = (string) (Setting::get('dns_nameservers') ?? '');
-        $list = array_values(array_filter(array_map(
-            fn ($n) => mb_strtolower(rtrim(trim($n), '.')),
-            preg_split('~[\s,]+~', $raw) ?: []
-        )));
-
-        return $list !== [] ? $list : array_map('strtolower', (array) config('edge.nameservers', []));
+        return DnsConfig::nameserverHosts();
     }
 
     /**
      * آیا سرویس برای مشتری باز است؟ — یعنی سرورِ DNS واقعاً پشتِ نیم‌سرورهاست.
      *
-     * 🔴 تا وقتی PowerDNS در `/admin/dns` وصل نشده، نیم‌سرورها فقط نام‌اند: روی
-     * `servernet.cloud` رکوردِ wildcardِ پروکسی‌شدهٔ Cloudflare هست، پس
-     * `derek.servernet.cloud` به IPِ Cloudflare می‌رسد که روی پورتِ ۵۳ جواب
-     * نمی‌دهد. مشتری‌ای که در این حالت نیم‌سرورش را عوض کند، سایت و ایمیلش
-     * **همان لحظه** می‌میرد. پس نه منو نشان داده می‌شود، نه افزودنِ دامنه.
-     *
-     * ⚠️ کلید رمزگشایی نمی‌شود (فقط وجودش): این از `shell()`ِ هر صفحهٔ پنل
-     * صدا زده می‌شود و Setting از قبل در حافظه است.
+     * 🔴 تا وقتی PowerDNS وصل نشده، نیم‌سرورها فقط نام‌اند: روی `servernet.cloud`
+     * رکوردِ wildcardِ پروکسی‌شدهٔ Cloudflare هست، پس هر نامِ زیرش به IPِ
+     * Cloudflare می‌رسد که روی پورتِ ۵۳ جواب نمی‌دهد. مشتری‌ای که در این حالت
+     * نیم‌سرورش را عوض کند، سایت و ایمیلش **همان لحظه** می‌میرد. پس نه منو
+     * نشان داده می‌شود، نه افزودنِ دامنه. شرط‌ها در `DnsConfig::serviceOpen`.
      */
     public static function serviceOpen(): bool
     {
-        return filled(Setting::get('pdns_api_key'))
-            && filled(Setting::get('pdns_api_url') ?: config('edge.pdns.url'));
+        return DnsConfig::serviceOpen();
+    }
+
+    /**
+     * نسخهٔ مطلوب را یک پله بالا می‌برد و zone را «در انتظارِ انتشار» می‌کند.
+     *
+     * 🔴 `UPDATE … SET desired_version = desired_version + 1` روی خودِ ردیف، نه
+     * `$this->desired_version + 1`: دو درخواستِ هم‌زمان با دو نمونهٔ کهنه باید
+     * +۲ بسازند. با جمعِ درون‌حافظه هر دو «۲» می‌نوشتند و ناشر نسخهٔ دوم را
+     * «قبلاً منتشرشده» می‌دید — تغییرِ مشتری بی‌صدا هرگز به DNS نمی‌رسید.
+     *
+     * عددِ برگشتی دوباره از دیتابیس خوانده می‌شود (نه حدس از حافظه). داخلِ
+     * تراکنش (قراردادِ §4.1) قفلِ ردیف تا commit می‌مانَد، پس این دقیقاً نسخهٔ
+     * همین تغییر است.
+     *
+     * ⚠️ zoneِ `status=deleting` همان `publish_state=deleting` می‌ماند (§4.4).
+     * CASE وضعیتِ **ذخیره‌شده** را می‌بیند؛ پس ترتیبِ درست «وضعیت را save کن،
+     * بعد bump» یا «bump، بعد وضعیت و save» است.
+     *
+     * 🔴 تغییرِ ذخیره‌نشده روی ستون‌هایی که این متد بازنویسی می‌کند استثنا
+     * می‌دهد: ترتیبِ «در حافظه deleting ← bump ← save» قبلاً `publish_state`
+     * را بی‌صدا `pending` می‌کرد و zoneِ در حالِ حذف دوباره منتشر می‌شد.
+     *
+     * 🔴 ردیفِ ناموجود (حذفِ هم‌زمان در §4.4) استثنا می‌دهد، نه «۰»: فراخوان
+     * داخلِ `DB::transaction` است و فقط استثنا آن را برمی‌گرداند؛ وگرنه
+     * رکوردهای یتیمِ zoneی پاک‌شده commit می‌شدند.
+     *
+     * ⚠️ `dirty` (پرچمِ v1) عمداً نوشته **نمی‌شود**: `dns:reconcile`ِ v1 هنوز
+     * zoneهای dirty را با کلاینتِ v1 می‌سازد (Native، بی‌catalog، expireِ ۷روزه)
+     * و تنها کدِ v2 که آن را می‌نوشت همین‌جا بود.
+     */
+    public function bumpVersion(): int
+    {
+        if (! $this->exists) {
+            throw new \LogicException('bumpVersion() on an unsaved zone');
+        }
+
+        $unsaved = array_values(array_intersect(
+            array_keys($this->getDirty()),
+            ['status', 'publish_state', 'desired_version', 'next_publish_at']
+        ));
+
+        if ($unsaved !== []) {
+            throw new \LogicException('bumpVersion() would discard unsaved ['.implode(', ', $unsaved).']; save() first');
+        }
+
+        $q = static::query()->whereKey($this->getKey());
+
+        $affected = $q->increment('desired_version', 1, [
+            'publish_state'   => $q->getQuery()->raw("CASE WHEN status = 'deleting' THEN 'deleting' ELSE 'pending' END"),
+            'next_publish_at' => null,
+        ]);
+
+        $row = $affected > 0
+            ? static::query()->whereKey($this->getKey())->toBase()->first(['desired_version', 'publish_state'])
+            : null;
+
+        if ($row === null) {
+            throw (new ModelNotFoundException)->setModel(static::class, [$this->getKey()]);
+        }
+
+        $v = (int) $row->desired_version;
+
+        $this->forceFill([
+            'desired_version' => $v,
+            'publish_state'   => (string) $row->publish_state,
+            'next_publish_at' => null,
+        ])->syncOriginalAttributes(['desired_version', 'publish_state', 'next_publish_at']);
+
+        return $v;
+    }
+
+    /**
+     * آیا آخرین نسخه روی **همهٔ** نیم‌سرورهای پیکربندی‌شده دیده می‌شود؟
+     *
+     * 🔴 این تنها مبنای نمایشِ «منتشر شد» به مشتری است (§4.3). شرط‌ها:
+     * `publish_state=published`، سریالِ primary معلوم، و برای **هر** نامِ
+     * `DnsConfig::nameserverHosts()` یک ردیفِ `in_sync` با سریالِ ≥ سریالِ
+     * primary طبقِ RFC 1982 (سریال پس از 2^32−1 به صفر می‌پیچد). ردیفِ نودی که
+     * دیگر در فهرست نیست حساب نمی‌شود؛ فهرستِ خالی ⇒ نه.
+     */
+    public function isPublishedEverywhere(): bool
+    {
+        if ($this->publish_state !== 'published' || $this->primary_serial === null) {
+            return false;
+        }
+
+        $hosts = DnsConfig::nameserverHosts();
+
+        if ($hosts === []) {
+            return false;
+        }
+
+        try {
+            $rows = $this->relationLoaded('nodes') ? $this->nodes : $this->nodes()->get();
+        } catch (\Throwable) {
+            return false;                       // جدولِ نودها هنوز نیست ⇒ ادعای انتشار نه
+        }
+
+        $byNode = [];
+        foreach ($rows as $r) {
+            $byNode[rtrim(strtolower((string) $r->node), '.')] = $r;
+        }
+
+        foreach ($hosts as $h) {
+            $r = $byNode[$h] ?? null;
+
+            if ($r === null || $r->state !== DnsZoneNode::IN_SYNC || $r->serial === null
+                || ! Rfc1982::atLeast((int) $r->serial, (int) $this->primary_serial)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function isPending(): bool
@@ -154,10 +303,16 @@ class CdnZone extends Model
         return $this->status === 'pending';
     }
 
+    /**
+     * راه‌های اثباتِ v2 (§5.2). ⚠️ `delegated`ِ v1 («NS را به ما داده») عمداً نیست:
+     * اثباتِ مالکیت نیست (§5.1) — ردیفِ v1 با آن یا با NULL هرگز منتشر نمی‌شود.
+     */
+    public const PROVEN = ['registered', 'txt', 'transfer'];
+
     /** مالکیت اثبات شده؟ (نه فقط ادعا) */
     public function ownershipProven(): bool
     {
-        return in_array($this->ownership, ['registered', 'txt', 'delegated'], true);
+        return in_array($this->ownership, self::PROVEN, true);
     }
 
     /** تاریخی که zoneِ در انتظار، اگر تفویض نشود، پاک می‌شود */

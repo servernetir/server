@@ -1,0 +1,33 @@
+# =============================================================================
+# PowerDNS Authoritative — PUBLIC SECONDARY (ServerNet Managed DNS)
+# مقصد: /etc/powerdns/pdns.conf   (نسخهٔ آزموده: 5.0.2)
+#
+# پاسخ‌گوی عمومی روی TCP و UDP 53. دادهٔ محلیِ خودش را دارد (gsqlite3) و برای
+# پاسخ‌گویی به primary، برنامه یا نودِ دیگر نیاز ندارد. zoneها از catalog می‌آیند.
+# =============================================================================
+launch=gsqlite3
+gsqlite3-database=/var/lib/powerdns/pdns.sqlite3
+gsqlite3-dnssec=yes
+
+version-string=anonymous
+local-address=0.0.0.0:53
+# IPv6 فقط وقتی دسترسیِ واقعی دارد و آزموده شده؛ تا آن موقع خاموش
+# local-address=0.0.0.0:53, [::]:53
+
+secondary=yes
+xfr-cycle-interval=60
+allow-notify-from=PRIMARY_IP/32
+# 🔴 لازم برای pdns-tsig-reconcile: بدونِ آن، کلیدِ TSIGِ تازه تا ۶۰ ثانیه از کش دیده نمی‌شود
+zone-metadata-cache-ttl=0
+# secondaryِ عمومی به هیچ‌کس zone نمی‌دهد
+allow-axfr-ips=
+disable-axfr=yes
+
+# API و webserver لازم نیست؛ عمداً خاموش
+api=no
+webserver=no
+
+# مقاومتِ پایه — وعدهٔ ضدِ DDoS نیست
+max-tcp-connections=200
+max-queue-length=5000
+loglevel=4

@@ -15,7 +15,7 @@
       var done = function () {
         var old = btn.innerHTML;
         btn.classList.add('done');
-        btn.textContent = 'کپی شد';
+        btn.textContent = btn.getAttribute('data-copied') || 'OK';
         setTimeout(function () { btn.classList.remove('done'); btn.innerHTML = old; }, 1400);
       };
       if (navigator.clipboard && window.isSecureContext) {

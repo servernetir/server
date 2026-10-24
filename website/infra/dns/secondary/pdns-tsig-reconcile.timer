@@ -1,0 +1,11 @@
+[Unit]
+Description=ServerNet: TSIG reconcile for catalog member zones every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=pdns-tsig-reconcile.service
+
+[Install]
+WantedBy=timers.target
