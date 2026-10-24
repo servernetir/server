@@ -449,7 +449,8 @@ class CloudAezaOrderV2Test extends TestCase
             'provider' => 'arvan',
             '--location' => 'ir-tbz-sh1',
             '--force' => true,
-        ])->assertExitCode(0);
+        ])->expectsOutputToContain('arvan / ir-tbz-sh1')
+            ->assertExitCode(0);
 
         $this->assertFalse($tested->fresh()->admin_disabled);
         $this->assertTrue($untested->fresh()->admin_disabled, 'منطقهٔ آزمایش‌نشده نباید باز شود');
