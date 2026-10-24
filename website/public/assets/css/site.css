@@ -826,9 +826,10 @@ html[data-theme="light"] .theme-toggle .tt-moon{opacity:1;transform:none}
 html[data-theme="light"]{
   --bg:#F3F5FB; --bg2:#FFFFFF; --surface:rgba(15,23,42,.035); --surface-2:rgba(15,23,42,.06);
   --line:rgba(15,23,42,.1); --line-2:rgba(15,23,42,.17);
-  --text:#0B1220; --muted:#45506B; --dim:#828CA6;
+  --text:#0B1220; --muted:#45506B; --dim:#5b6e84;
+  --cyan:#00788b; --green:#047857;
   --grad-txt:linear-gradient(100deg,#2563EB 0%,#0891B2 55%,#7C3AED 100%);
-  --info:#0891B2;   --info-bg:rgba(8,145,178,.09);   --info-line:rgba(8,145,178,.30);
+  --info:#0E7490;   --info-bg:rgba(8,145,178,.09);   --info-line:rgba(8,145,178,.30);
   --danger:#DC2626; --danger-bg:rgba(220,38,38,.08); --danger-line:rgba(220,38,38,.28);
 }
 html[data-theme="light"] body{background:var(--bg)}
@@ -865,7 +866,8 @@ html[data-theme="light"] .bill-toggle{background:#FFFFFF}
 html[data-theme="light"] .inc-strip,html[data-theme="light"] .faq,html[data-theme="light"] .witem,
 html[data-theme="light"] .pcard,html[data-theme="light"] .plan,html[data-theme="light"] .bcard{background:#FFFFFF}
 html[data-theme="light"] .pcard:hover,html[data-theme="light"] .bcard:hover{background:#FBFCFF}
-html[data-theme="light"] .terminal{background:#0B1220;border-color:rgba(15,23,42,.5)}
+html[data-theme="light"] .terminal{--text:#E6EAF3;--muted:#8A94AC;--dim:#8A94AC;--cyan:#22D3EE;--green:#34D399;background:#0B1220;border-color:rgba(15,23,42,.5)}
+html[data-theme="light"] .ipr-coords{background:rgba(255,255,255,.94)}
 html[data-theme="light"] .mega-foot{background:rgba(15,23,42,.025)}
 html[data-theme="light"] .stat b{filter:saturate(1.2)}
 

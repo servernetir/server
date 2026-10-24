@@ -171,7 +171,7 @@ return [
          'en' => ['t' => 'Cloud Services', 'd' => 'Scalable cloud servers, object storage and load balancers — pay as you grow.'],
          'fa' => ['t' => 'خدمات ابری', 'd' => 'سرور ابری مقیاس‌پذیر، فضای ذخیره‌سازی و لودبالانسر — پرداخت به‌اندازه مصرف.'],
          'tr' => ['t' => 'Bulut Hizmetleri', 'd' => 'Ölçeklenebilir bulut sunucular, depolama ve yük dengeleyici — kullandıkça öde.']],
-        ['icon' => 'db',     'pid' => 6, 'eur' => 9.99, 'irt' => 250000, 'link' => ['catalog', ['category' => 'domain', 'slug' => 'popular-tlds']],
+        ['icon' => 'db',     'pid' => 6, 'billing_period' => 'yearly', 'eur' => 9.99, 'irt' => 250000, 'link' => ['catalog', ['category' => 'domain', 'slug' => 'popular-tlds']],
          'en' => ['t' => 'Domains', 'd' => 'Register .com, .net, .io, .ir and 100+ TLDs with free DNS management.'],
          'fa' => ['t' => 'ثبت دامنه', 'd' => 'ثبت .com و .ir و بیش از ۱۰۰ پسوند دیگر با مدیریت DNS رایگان.'],
          'tr' => ['t' => 'Alan Adları', 'd' => '.com, .net, .io ve 100+ uzantıyı ücretsiz DNS yönetimiyle kaydedin.']],
