@@ -176,10 +176,10 @@
   <section class="sd-analysis" aria-labelledby="server-parts-title">
     <h2 id="server-parts-title">{{ __('shop_seo.server_parts_title') }}</h2>
     <div class="sp-pro warn">
-      <p>{{ __('shop_seo.server_parts_note', ['gen' => strtoupper($partGen), 'name' => $lm['name']]) }}</p>
+        <p>{{ __('shop_seo.server_parts_note', ['gen' => ucfirst($partGen), 'name' => $lm['name']]) }}</p>
       <div class="sp-compat">
         @foreach(['cpu', 'ram', 'disk', 'raid'] as $partCategory)
-          <a class="sp-chip sm" href="{{ lroute('parts.category', $partCategory).'?gen='.$partGen }}">{{ __('shop_seo.server_part_'.$partCategory, ['gen' => strtoupper($partGen)]) }}</a>
+            <a class="sp-chip sm" href="{{ lroute('parts.category', $partCategory).'?gen='.$partGen }}">{{ __('shop_seo.server_part_'.$partCategory, ['gen' => ucfirst($partGen)]) }}</a>
         @endforeach
       </div>
     </div>
