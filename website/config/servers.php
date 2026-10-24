@@ -47,15 +47,15 @@ return [
 
         'hpe-proliant-dl380-gen10' => [
             'brand' => 'hp', 'condition' => 'new', 'popular' => true,
-            'fa' => ['name' => 'HPE ProLiant DL380 Gen10', 'tag' => 'رَک ۲U · دو سوکته · پرفروش‌ترین سرورِ دنیا',
+            'fa' => ['name' => 'HPE ProLiant DL380 Gen10', 'tag' => 'رَک ۲U · دو سوکته · مناسب مجازی‌سازی',
                 'hero_d' => 'اسبِ کاریِ دیتاسنتر — انعطاف بالا برای مجازی‌سازی، دیتابیس و بارِ کاریِ سنگین. تا ۲ پردازندهٔ Xeon نسل دوم و ۳ ترابایت رم.',
-                'desc' => 'DL380 Gen10 محبوب‌ترین سرورِ رَکیِ جهان است؛ ترکیبِ کارایی، قابلیتِ اطمینان و توسعه‌پذیری برای هر بارِ کاری، از مجازی‌سازی تا پایگاه‌دادهٔ حجیم.'],
-            'en' => ['name' => 'HPE ProLiant DL380 Gen10', 'tag' => '2U rack · dual-socket · the world\'s best-seller',
+                'desc' => 'DL380 Gen10 یک سرور رَکی ۲U برای بررسی کانفیگ مجازی‌سازی و پایگاه‌داده است. تعداد پردازنده، حافظه، جایگاه دیسک و قطعات همراه را برای همان دستگاه پیش از سفارش مشخص کنید.'],
+            'en' => ['name' => 'HPE ProLiant DL380 Gen10', 'tag' => '2U rack · dual-socket · virtualization',
                 'hero_d' => 'The datacenter workhorse — flexible for virtualization, databases and heavy workloads. Up to 2 Xeon Scalable CPUs and 3 TB of RAM.',
-                'desc' => 'The DL380 Gen10 is the world\'s most popular rack server — performance, reliability and expandability for any workload, from virtualization to large databases.'],
-            'tr' => ['name' => 'HPE ProLiant DL380 Gen10', 'tag' => '2U raf · çift soket · dünyanın en çok satanı',
+                'desc' => 'The DL380 Gen10 is a 2U rack server to configure for virtualization and database workloads. Confirm the CPUs, memory, drive bays and included components for the exact unit before ordering.'],
+            'tr' => ['name' => 'HPE ProLiant DL380 Gen10', 'tag' => '2U raf · çift soket · sanallaştırma',
                 'hero_d' => 'Veri merkezinin beygiri — sanallaştırma, veritabanı ve ağır iş yükleri için esnek. 2 Xeon Scalable CPU ve 3 TB RAM\'e kadar.',
-                'desc' => 'DL380 Gen10, dünyanın en popüler raf sunucusudur — sanallaştırmadan büyük veritabanlarına her iş yükü için performans ve güvenilirlik.'],
+                'desc' => 'DL380 Gen10, sanallaştırma ve veritabanı iş yükleri için yapılandırılabilen bir 2U raf sunucusudur. Siparişten önce ilgili cihazın CPU, bellek, disk yuvaları ve dahil parçalarını doğrulayın.'],
             'price_from' => ['contact' => true],
             'specs' => [
                 $row($L['cpu'], 'تا ۲× Intel Xeon Scalable نسل ۱/۲ (تا ۵۶ هسته)', 'Up to 2× Intel Xeon Scalable Gen 1/2 (up to 56 cores)', '2× Intel Xeon Scalable\'e kadar (56 çekirdeğe kadar)'),
@@ -98,14 +98,14 @@ return [
 
         'hpe-proliant-dl380-gen9' => [
             'brand' => 'hp', 'condition' => 'refurb', 'popular' => true,
-            'fa' => ['name' => 'HPE ProLiant DL380 Gen9', 'tag' => 'رَک ۲U · دو سوکته · پرفروش‌ترین سرورِ بازسازی‌شده',
-                'hero_d' => 'محبوب‌ترین انتخابِ بازارِ کارکرده — پردازندهٔ Xeon E5 v3/v4، تا ۴۴ هسته و ۳ ترابایت رمِ DDR4، با گارانتیِ ما و قیمتی به‌صرفه.',
+            'fa' => ['name' => 'HPE ProLiant DL380 Gen9', 'tag' => 'رَک ۲U · دو سوکته · بازسازی‌شده',
+                'hero_d' => 'گزینهٔ رَکیِ بازسازی‌شده با پردازندهٔ Xeon E5 v3/v4، تا ۴۴ هسته و ۳ ترابایت رم DDR4؛ کانفیگ، وضعیت قطعات و گارانتی همان دستگاه را استعلام کنید.',
                 'desc' => 'DL380 Gen9 نقطهٔ طلاییِ «قدرت به قیمت» است؛ همان معماریِ اثبات‌شدهٔ DL380 با پردازنده‌های DDR4 که هنوز برای مجازی‌سازی، دیتابیس و بارِ کاریِ تولیدی بیش از کافی است.'],
-            'en' => ['name' => 'HPE ProLiant DL380 Gen9', 'tag' => '2U rack · dual-socket · the best-selling refurbished server',
-                'hero_d' => 'The market\'s favourite used server — Xeon E5 v3/v4, up to 44 cores and 3 TB of DDR4 RAM, with our warranty at a friendly price.',
+            'en' => ['name' => 'HPE ProLiant DL380 Gen9', 'tag' => '2U rack · dual-socket · refurbished',
+                'hero_d' => 'A refurbished rack server with Xeon E5 v3/v4, up to 44 cores and 3 TB DDR4 RAM. Ask for the exact configuration, component condition and warranty.',
                 'desc' => 'The DL380 Gen9 is the sweet spot of power-for-price; the same proven DL380 architecture with DDR4 CPUs that is still more than enough for virtualization, databases and production workloads.'],
-            'tr' => ['name' => 'HPE ProLiant DL380 Gen9', 'tag' => '2U raf · çift soket · en çok satan yenilenmiş sunucu',
-                'hero_d' => 'Pazarın favori ikinci el sunucusu — Xeon E5 v3/v4, 44 çekirdeğe ve 3 TB DDR4 RAM\'e kadar, garantimizle uygun fiyata.',
+            'tr' => ['name' => 'HPE ProLiant DL380 Gen9', 'tag' => '2U raf · çift soket · yenilenmiş',
+                'hero_d' => 'Xeon E5 v3/v4, 44 çekirdeğe ve 3 TB DDR4 RAM\'e kadar destekleyen yenilenmiş raf sunucusu. Kesin yapılandırmayı, parça durumunu ve garantiyi sorun.',
                 'desc' => 'DL380 Gen9, güç/fiyat dengesinin altın noktasıdır; sanallaştırma, veritabanı ve üretim iş yükleri için hâlâ fazlasıyla yeterli olan DDR4 işlemcili kanıtlanmış DL380 mimarisi.'],
             'price_from' => ['contact' => true],
             'body' => [
@@ -369,14 +369,14 @@ return [
 
         'lenovo-thinksystem-sr650' => [
             'brand' => 'lenovo', 'condition' => 'new', 'popular' => false,
-            'fa' => ['name' => 'Lenovo ThinkSystem SR650', 'tag' => 'رَک ۲U · رکورددارِ کارایی',
-                'hero_d' => 'سرورِ ۲U لنوو با ده‌ها رکوردِ جهانیِ بنچمارک — تعادلِ عالیِ کارایی، ذخیره‌سازی و مصرفِ انرژی.',
+            'fa' => ['name' => 'Lenovo ThinkSystem SR650', 'tag' => 'رَک ۲U · مناسب مجازی‌سازی',
+                'hero_d' => 'سرور رَکی ۲U لنوو برای مقایسهٔ گزینه‌های پردازنده، حافظه و ذخیره‌سازی؛ کانفیگ و توان مصرفی همان دستگاه را بررسی کنید.',
                 'desc' => 'SR650 با طراحیِ حرارتیِ پیشرفتهٔ لنوو، کاراییِ پایدار و مصرفِ بهینه را برای مجازی‌سازی و تحلیلِ داده فراهم می‌کند.'],
-            'en' => ['name' => 'Lenovo ThinkSystem SR650', 'tag' => '2U rack · benchmark record-holder',
-                'hero_d' => 'Lenovo\'s 2U server holding dozens of world benchmark records — an excellent balance of performance, storage and efficiency.',
+            'en' => ['name' => 'Lenovo ThinkSystem SR650', 'tag' => '2U rack · virtualization',
+                'hero_d' => 'A 2U Lenovo rack server for comparing CPU, memory and storage options. Check the exact unit\'s configuration and power requirements.',
                 'desc' => 'With Lenovo\'s advanced thermal design, the SR650 delivers steady performance and efficiency for virtualization and analytics.'],
-            'tr' => ['name' => 'Lenovo ThinkSystem SR650', 'tag' => '2U raf · benchmark rekortmeni',
-                'hero_d' => 'Onlarca dünya benchmark rekoruna sahip Lenovo\'nun 2U sunucusu — performans, depolama ve verimlilik dengesi.',
+            'tr' => ['name' => 'Lenovo ThinkSystem SR650', 'tag' => '2U raf · sanallaştırma',
+                'hero_d' => 'CPU, bellek ve depolama seçeneklerini karşılaştırmak için 2U Lenovo raf sunucusu. İlgili cihazın yapılandırmasını ve güç gereksinimini doğrulayın.',
                 'desc' => 'Lenovo\'nun gelişmiş termal tasarımıyla SR650, sanallaştırma ve analiz için istikrarlı performans sunar.'],
             'price_from' => ['contact' => true],
             'specs' => [
