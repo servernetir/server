@@ -1,6 +1,6 @@
 @extends('layouts.site')
 @php $lm = lc($model); @endphp
-@section('title', $lm['name'].' — '.__('ui.srv_title').' — '.__('ui.brand'))
+@section('title', __('shop_seo.server_title', ['name' => $lm['name']]))
 @section('description', $lm['tag'].' — '.$lm['hero_d'])
 @section('content')
 
@@ -11,6 +11,10 @@
   $imgs = array_values(array_filter(array_map('img_url', (array) ($model['gallery'] ?? []))));
   $condLbl = ['new' => __('ui.srv_new'), 'refurb' => __('ui.srv_refurb')];
   $bc = $brand['color'] ?? 'var(--cyan)';
+  $partGen = null;
+  if (str_starts_with($slug, 'hpe-proliant-') && preg_match('/-gen(8|9|10|11|12)(?:-|$)/', $slug, $genMatch)) {
+    $partGen = 'gen'.$genMatch[1];
+  }
   // اسکیمای Product برای سئو — schema_ld خودش @context/@type را می‌گذارد.
   $ld = [
     'name' => $lm['name'], 'description' => $lm['hero_d'],
@@ -154,6 +158,32 @@
       @endif
     </div>
   </div>
+  @endif
+
+  <section class="sd-analysis" aria-labelledby="server-config-title">
+    <h2 id="server-config-title">{{ __('shop_seo.server_config_title', ['name' => $lm['name']]) }}</h2>
+    <div class="sp-pro good">
+      <p>{{ __('shop_seo.server_config_intro') }}</p>
+      <ul class="sp-pro-list">
+        <li>{{ __('shop_seo.server_check_workload') }}</li>
+        <li>{{ __('shop_seo.server_check_hardware') }}</li>
+        <li>{{ __('shop_seo.server_check_delivery') }}</li>
+      </ul>
+    </div>
+  </section>
+
+  @if($partGen)
+  <section class="sd-analysis" aria-labelledby="server-parts-title">
+    <h2 id="server-parts-title">{{ __('shop_seo.server_parts_title') }}</h2>
+    <div class="sp-pro warn">
+      <p>{{ __('shop_seo.server_parts_note', ['gen' => strtoupper($partGen), 'name' => $lm['name']]) }}</p>
+      <div class="sp-compat">
+        @foreach(['cpu', 'ram', 'disk', 'raid'] as $partCategory)
+          <a class="sp-chip sm" href="{{ lroute('parts.category', $partCategory).'?gen='.$partGen }}">{{ __('shop_seo.server_part_'.$partCategory, ['gen' => strtoupper($partGen)]) }}</a>
+        @endforeach
+      </div>
+    </div>
+  </section>
   @endif
 
   {{-- مرتبط --}}
