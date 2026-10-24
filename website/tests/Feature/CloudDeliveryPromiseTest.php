@@ -196,12 +196,23 @@ class CloudDeliveryPromiseTest extends TestCase
 
     private function hourlyService(Customer $c, int $rate): Service
     {
-        return Service::create([
+        $service = Service::create([
             'customer_id' => $c->id, 'name' => 'ساعتی', 'currency_code' => 'IRT',
             'price' => 1000000, 'cycle' => 'monthly', 'status' => 'awaiting_provision',
             'billing_mode' => 'hourly', 'hourly_rate_irt' => $rate,
             'cloud_plan_id' => $this->plan('aeza')->id,
         ]);
+
+        // همان پیش‌پرداخت واقعیِ مسیر سفارش؛ refund نباید پولی را که در دفتر
+        // کسر نشده از روی نرخ حدس بزند.
+        CreditEntry::create([
+            'customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => -$rate,
+            'balance_after' => -$rate, 'reason' => 'cloud_hourly',
+            'source_type' => Service::class, 'source_id' => $service->id,
+            'note' => 'ساعت اول',
+        ]);
+
+        return $service;
     }
 
     private function invokePrivate(string $method, array $args): void

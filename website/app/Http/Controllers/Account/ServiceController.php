@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Account;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\CreditEntry;
+use App\Models\Customer;
 use App\Models\Service;
 use App\Services\Provisioning\WhmClient;
 use Illuminate\Http\JsonResponse;
@@ -232,6 +233,8 @@ class ServiceController extends Controller
         $refund = 0;
 
         DB::transaction(function () use ($service, $customer, &$refund) {
+            // ترتیب قفل مالی در کل سامانه: مشتری، سپس سرویس (همان ترتیب متر).
+            $lockedCustomer = Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
             $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
 
             if ($fresh === null || $fresh->status === 'cancelled') {
@@ -248,17 +251,30 @@ class ServiceController extends Controller
                     ->sum('amount'))
                 : 0;
 
-            $refund = $paidInvoices + $hourlySpent;
+            $gross = $paidInvoices + $hourlySpent;
 
-            // ⚠️ محافظِ پرداختِ دوباره: اگر قبلاً برای همین سرویس بازگشت خورده،
-            // دوباره نده. (دکمه دوبار زده شود یا دو تب باز باشد.)
-            $already = Schema::hasTable('credit_ledger')
-                && CreditEntry::where('source_type', Service::class)
+            /*
+            | 🔴 بازپرداخت فقط «ماندهٔ واقعی»، نه یک عنوان خاص.
+            |
+            | شکستِ تحویلِ ساعتی با reason=cloud_hourly_refund ساعتِ اول را
+            | برمی‌گرداند. مسیر قدیمی فقط reason=refund را می‌دید؛ بنابراین
+            | مشتری بعداً با لغو سفارش همان ساعت را بار دوم می‌گرفت. جمعِ همهٔ
+            | بازپرداخت‌های سرویس هم تفاوت providerها و هم دوبارکلیک را می‌بندد.
+            */
+            $alreadyRefunded = Schema::hasTable('credit_ledger')
+                ? (int) CreditEntry::where('source_type', Service::class)
                     ->where('source_id', $fresh->id)
-                    ->where('reason', 'refund')->exists();
+                    ->whereIn('reason', ['refund', 'cloud_hourly_refund'])
+                    ->where('amount', '>', 0)
+                    ->sum('amount')
+                : 0;
 
-            if ($refund > 0 && ! $already) {
-                $balance = $customer->creditBalance('IRT');
+            $refund = max(0, $gross - $alreadyRefunded);
+
+            if ($refund > 0) {
+                // balance_after هم زیر همان قفل مشتری محاسبه شود؛ تراکنش مالی
+                // هم‌زمان نباید ماندهٔ نمایشیِ این ردیف را کهنه کند.
+                $balance = $lockedCustomer->creditBalance('IRT');
 
                 CreditEntry::create([
                     'customer_id'   => $customer->id,
@@ -270,8 +286,6 @@ class ServiceController extends Controller
                     'source_id'     => $fresh->id,
                     'note'          => 'بازگشتِ وجه — لغوِ سفارشِ تحویل‌نشدهٔ «'.mb_substr((string) $fresh->name, 0, 60).'»',
                 ]);
-            } else {
-                $refund = 0;
             }
 
             /*

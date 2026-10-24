@@ -140,4 +140,54 @@ class ServiceCancelTest extends TestCase
         $this->assertSame(50000, $c->creditBalance('IRT'));
         $this->assertSame('cancelled', $s->fresh()->status);
     }
+
+    /** شکستِ تحویل ساعتِ اول را برگردانده؛ لغو مشتری نباید همان پول را دوباره بدهد. */
+    public function test_cancel_does_not_repeat_the_provisioning_hourly_refund(): void
+    {
+        $c = $this->customer();
+        $s = Service::create([
+            'customer_id' => $c->id, 'name' => 'سرور ساعتی ناموفق', 'currency_code' => 'IRT',
+            'price' => 720000, 'tax_percent' => 0, 'cycle' => 'monthly',
+            'billing_mode' => 'hourly', 'hourly_rate_irt' => 1800,
+            'status' => 'awaiting_provision', 'provision_status' => 'failed', 'activated_at' => now(),
+        ]);
+
+        CreditEntry::create(['customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => -1800,
+            'balance_after' => -1800, 'reason' => 'cloud_hourly', 'source_type' => Service::class,
+            'source_id' => $s->id, 'note' => 'ساعت اول']);
+        CreditEntry::create(['customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => 1800,
+            'balance_after' => 0, 'reason' => 'cloud_hourly_refund', 'source_type' => Service::class,
+            'source_id' => $s->id, 'note' => 'بازگشت ساعت اول']);
+
+        $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/cancel")->assertRedirect();
+
+        $this->assertSame(0, $c->creditBalance('IRT'));
+        $this->assertSame(0, CreditEntry::where('source_type', Service::class)
+            ->where('source_id', $s->id)->where('reason', 'refund')->sum('amount'));
+    }
+
+    /** اگر بخشی قبلاً برگشته باشد، فقط مانده برگردد؛ نه همه یا هیچ. */
+    public function test_cancel_refunds_only_the_outstanding_hourly_amount(): void
+    {
+        $c = $this->customer();
+        $s = Service::create([
+            'customer_id' => $c->id, 'name' => 'سرور ساعتی نیمه‌بازگشت', 'currency_code' => 'IRT',
+            'price' => 720000, 'tax_percent' => 0, 'cycle' => 'monthly',
+            'billing_mode' => 'hourly', 'hourly_rate_irt' => 1000,
+            'status' => 'awaiting_provision', 'provision_status' => 'failed', 'activated_at' => now(),
+        ]);
+
+        CreditEntry::create(['customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => -3000,
+            'balance_after' => -3000, 'reason' => 'cloud_hourly', 'source_type' => Service::class,
+            'source_id' => $s->id, 'note' => 'سه ساعت']);
+        CreditEntry::create(['customer_id' => $c->id, 'currency_code' => 'IRT', 'amount' => 1000,
+            'balance_after' => -2000, 'reason' => 'cloud_hourly_refund', 'source_type' => Service::class,
+            'source_id' => $s->id, 'note' => 'بازگشت بخشی']);
+
+        $this->actingAs($c, 'customer')->post("/account/services/{$s->id}/cancel")->assertRedirect();
+
+        $this->assertSame(0, $c->creditBalance('IRT'));
+        $this->assertSame(2000, (int) CreditEntry::where('source_type', Service::class)
+            ->where('source_id', $s->id)->where('reason', 'refund')->sum('amount'));
+    }
 }

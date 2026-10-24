@@ -8,8 +8,6 @@ use App\Models\CloudPlan;
 use App\Models\Service;
 use App\Services\Billing\ComplimentaryServices;
 use App\Services\Cloud\CloudPricing;
-use App\Services\Notify\CustomerNotifier;
-use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 
 /**
@@ -22,8 +20,8 @@ use Illuminate\Console\Command;
  * · فقط **بالا** می‌بریم. پایین‌آوردنِ خودکار تصمیمِ تجاری است، نه کارِ کد
  *   (همان قاعدهٔ renewFloor نمایندگی: «قیمت فقط بالا می‌رود»).
  * · بدونِ --apply هیچ‌چیز نوشته نمی‌شود — پیش‌نمایشِ بی‌عارضه (قاعدهٔ --dry).
- * · با --apply: نرخِ IRT و EUR هر دو، لاگِ فعالیت به زبانِ مشتری، و اعلان به
- *   مشتری — تغییرِ قیمتِ بی‌خبر اعتماد را می‌سوزاند.
+ * · با --apply: نرخِ IRT و EUR هر دو و لاگِ فعالیت به زبانِ مشتری. افزایشِ
+ *   عادیِ خودکار اعلانِ بیرونی ندارد؛ نرخ و علت در تاریخچهٔ سرویس می‌ماند.
  */
 class CloudHourlyReprice extends Command
 {
@@ -97,26 +95,6 @@ class CloudHourlyReprice extends Command
             } catch (\Throwable) {
             }
 
-            try {
-                if ($s->customer !== null) {
-                    app(CustomerNotifier::class)->templated($s->customer, 'hourly_reprice', [
-                        'service' => (string) $s->name,
-                        'rate' => $this->money($newIrt, $newEur, $loc),
-                    ], __('ui.ntf_hourly_reprice_b', [
-                        'service' => (string) $s->name,
-                        'rate' => $this->money($newIrt, $newEur, $loc),
-                    ], $loc));
-                }
-            } catch (\Throwable $e) {
-                /*
-                | 🔴 نرخِ مشتری **همین حالا** بالا رفت و در دیتابیس نشست. اگر خبرش
-                | نرسد، اولین نشانه‌اش برای مشتری کسرِ بیشتر از کیفِ پول است —
-                | یعنی همان تغییرِ قیمتی که آگاهانه و باخبر انجام دادیم، از دیدِ او
-                | یک کسرِ بی‌توضیح می‌شود.
-                */
-                ErrorTracker::noteOnce('billing',
-                    'خبرِ تغییرِ نرخِ ساعتی به مشتریِ سرویسِ #'.$s->id.' نرفت: '.$e->getMessage(), 3600);
-            }
         }
 
         $this->newLine();
