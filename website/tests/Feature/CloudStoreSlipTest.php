@@ -552,6 +552,43 @@ class CloudStoreSlipTest extends TestCase
         );
     }
 
+    public function test_sub_cent_hourly_rates_keep_their_precision_in_the_slip_and_plan_payload(): void
+    {
+        Http::fake();
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 500000, 'USDT' => 150000]);
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $snapshot->publish($snapshot->rates());
+        CloudLocation::create(['code' => 'de-frankfurt', 'country' => 'DE', 'city' => 'Frankfurt', 'is_active' => true]);
+        $plan = $this->plan(['cost_eur_cents' => 1, 'price_eur_cents' => 10, 'price_irt' => 72000]);
+        $this->image();
+        $customer = $this->customer();
+
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $html = $this->actingAs($customer, 'customer')
+                ->get($prefix.'/account/cloud-store?billing_mode=hourly')->assertOk()->getContent();
+            preg_match('~var D = (\{[^\n]*\});~', $html, $match);
+            $data = json_decode($match[1], true, flags: JSON_THROW_ON_ERROR);
+            $this->assertArrayHasKey($plan->slug, $data['hourly']);
+            $hourly = $data['hourly'][$plan->slug];
+            $this->assertGreaterThan(0, $hourly['rate']);
+            if ($locale !== 'fa') {
+                $this->assertLessThan(0.005, $hourly['rate'] / $data['rate']);
+                $this->assertNotSame('€0', $hourly['display_rate']);
+                $this->assertNotSame('€0.00', $hourly['display_rate']);
+            }
+            $expected = cloud_hourly_price($hourly['rate']);
+            $this->assertSame($expected, $hourly['display_rate']);
+            $dom = new \DOMDocument;
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+            $xpath = new \DOMXPath($dom);
+            foreach (['cvb-s-first', 'cvb-d-first'] as $id) {
+                $this->assertSame($expected.__('ui.cvb_hourly_per'), $xpath->query('//*[@id="'.$id.'"]')->item(0)->textContent);
+            }
+            $this->assertSame($expected, $xpath->query('//*[@id="cvb-h-rate"]')->item(0)->textContent);
+        }
+        Http::assertNothingSent();
+    }
+
     /**
      * ⚠️ ظرفیتِ افزودنی به‌ازای **هر اسلاگ** فرستاده می‌شود، نه یک بولینِ واحد.
      * قبلاً عوض‌کردنِ پلن انتخابگرِ IP را روی پلنی جا می‌گذاشت که سرِ ثبتِ سفارش
