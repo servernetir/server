@@ -1,0 +1,26 @@
+{
+  "checked_at_utc": "2026-10-25T09:38:34.093Z",
+  "github_develop_before_check": "bd9c4f88d752e4a87d096333e6619ccf30f48901",
+  "feature_commit": "39b4b949",
+  "feature_commit_is_ancestor_of_develop": true,
+  "live": {
+    "health": 200,
+    "anonymous_inbox": 302,
+    "unauthorized_callback": 401,
+    "processor_active": true,
+    "reconciliation_active": true,
+    "latest_success": {
+      "execution_id": "68363",
+      "status": "success",
+      "acknowledged": 85,
+      "created": 0
+    },
+    "unchanged_source_text_sha256_count": 14,
+    "byte_comparison_unconfirmed": [
+      "config/services.php",
+      "routes/web.php"
+    ],
+    "chat_dispatch_and_token_config_present": true
+  },
+  "scope": "read-only publication verification; no runtime, credential, database, workflow or network mutation"
+}
