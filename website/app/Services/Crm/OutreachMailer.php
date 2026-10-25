@@ -92,7 +92,7 @@ class OutreachMailer
     {
         $lead = $message->lead;
 
-        if (! $lead || CrmSuppression::blocks($lead->email)) {
+        if (! $lead || $lead->source === 'site-chat' || CrmSuppression::blocks($lead->email)) {
             $message->update(['status' => 'skipped', 'error' => 'suppressed_at_send']);
             $this->stats['skipped']++;
             Log::info('crm.send.skip.suppressed', ['message' => $message->id]);

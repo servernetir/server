@@ -22,6 +22,7 @@ class CrmEnrich extends Command
     public function handle(OutreachComposer $composer): int
     {
         $leads = CrmLead::whereNull('observation')
+            ->where('source', '!=', 'site-chat')
             ->whereNotIn('stage', ['won', 'lost'])
             ->whereNotNull('website')
             ->orderBy('id')

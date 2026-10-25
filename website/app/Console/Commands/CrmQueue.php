@@ -25,6 +25,7 @@ class CrmQueue extends Command
         $limit = max(1, (int) $this->option('limit'));
 
         $leads = CrmLead::query()
+            ->where('source', '!=', 'site-chat')
             ->whereNotNull('email')
             ->whereNotNull('observation')
             ->whereNotIn('stage', ['won', 'lost', 'replied'])
