@@ -1,0 +1,680 @@
+{
+  "checked_at_utc": "2026-10-25T16:17:01.226259+00:00",
+  "summary": {
+    "pages": 24,
+    "passed": 24,
+    "sitemap_passed": 6,
+    "sitemap_urls": 6
+  },
+  "pages": [
+    {
+      "url": "https://servernet.cloud/hosting/python",
+      "language": "fa",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/hosting/python?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:19.685034+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/hosting/python?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/blog/diagnosing-slow-website",
+        "https://servernet.cloud/blog/configuring-dns-for-new-site",
+        "https://servernet.cloud/blog/measuring-real-user-performance"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/hosting/linux",
+      "language": "fa",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/hosting/linux?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:19.685939+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/hosting/linux?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/blog/php-version-upgrade-guide",
+        "https://servernet.cloud/blog/cpanel-vs-directadmin",
+        "https://servernet.cloud/blog/diagnosing-slow-website"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/hosting/wordpress",
+      "language": "fa",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/hosting/wordpress?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:19.686565+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/hosting/wordpress?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/blog/php-version-upgrade-guide",
+        "https://servernet.cloud/blog/cpanel-vs-directadmin",
+        "https://servernet.cloud/blog/diagnosing-slow-website"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/cloud/object-storage",
+      "language": "fa",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/cloud/object-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:19.687027+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/cloud/object-storage?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/blog/object-storage-vs-block-storage"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/cloud/block-storage",
+      "language": "fa",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/cloud/block-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:21.151674+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/cloud/block-storage?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/blog/object-storage-vs-block-storage"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/blog/object-storage-vs-block-storage",
+      "language": "fa",
+      "kind": "article",
+      "requested_url": "https://servernet.cloud/blog/object-storage-vs-block-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:21.276462+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/blog/object-storage-vs-block-storage?seo_cycle=growth-20261025-accepted",
+      "body_sha256": "8f92932cb105750de033a33ff8f317c9ff799b2c7dd22370be7fbc8659739204",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "exact_reviewed_body": true,
+        "original_title": true,
+        "description": true,
+        "product_placements": true,
+        "published_date_preserved": true,
+        "real_modified_date": true,
+        "localized_product_body_links": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/blog/php-version-upgrade-guide",
+      "language": "fa",
+      "kind": "article",
+      "requested_url": "https://servernet.cloud/blog/php-version-upgrade-guide?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:21.277819+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/blog/php-version-upgrade-guide?seo_cycle=growth-20261025-accepted",
+      "body_sha256": "e3f859ed7d4e4393b613b47bf263c82ce0514548ea29a4622cb74f8b2a16cd80",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "exact_reviewed_body": true,
+        "original_title": true,
+        "description": true,
+        "product_placements": true,
+        "published_date_preserved": true,
+        "real_modified_date": true,
+        "localized_product_body_links": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/",
+      "language": "fa",
+      "kind": "home",
+      "requested_url": "https://servernet.cloud/?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:21.319709+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/?seo_cycle=growth-20261025-accepted",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true
+      },
+      "pass": true,
+      "initial_checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": false,
+        "jsonld": true
+      },
+      "canonical": [
+        "https://servernet.cloud"
+      ],
+      "verified_again_utc": "2026-10-25T16:17:01.226233+00:00",
+      "note": "Initial checker compared root URLs literally; https://servernet.cloud and https://servernet.cloud/ normalize to the same root URL. Fresh canonical confirmed; no site change required."
+    },
+    {
+      "url": "https://servernet.cloud/en/hosting/python",
+      "language": "en",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/en/hosting/python?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:21.607162+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en/hosting/python?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/en/blog/diagnosing-slow-website",
+        "https://servernet.cloud/en/blog/configuring-dns-for-new-site",
+        "https://servernet.cloud/en/blog/measuring-real-user-performance"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/hosting/linux",
+      "language": "en",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/en/hosting/linux?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:21.873793+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en/hosting/linux?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "https://servernet.cloud/en/blog/cpanel-vs-directadmin",
+        "https://servernet.cloud/en/blog/diagnosing-slow-website"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/hosting/wordpress",
+      "language": "en",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/en/hosting/wordpress?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:21.894722+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en/hosting/wordpress?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "https://servernet.cloud/en/blog/cpanel-vs-directadmin",
+        "https://servernet.cloud/en/blog/diagnosing-slow-website"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/cloud/object-storage",
+      "language": "en",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/en/cloud/object-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:22.533267+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en/cloud/object-storage?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/en/blog/object-storage-vs-block-storage"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/cloud/block-storage",
+      "language": "en",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/en/cloud/block-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:22.666880+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en/cloud/block-storage?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/en/blog/object-storage-vs-block-storage"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/object-storage-vs-block-storage",
+      "language": "en",
+      "kind": "article",
+      "requested_url": "https://servernet.cloud/en/blog/object-storage-vs-block-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:22.696106+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en/blog/object-storage-vs-block-storage?seo_cycle=growth-20261025-accepted",
+      "body_sha256": "08a21a0abe63c4b7165c2cbbf60603892f917c64b9908bb79bd72dc6be49e7cd",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "exact_reviewed_body": true,
+        "original_title": true,
+        "description": true,
+        "product_placements": true,
+        "published_date_preserved": true,
+        "real_modified_date": true,
+        "localized_product_body_links": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "language": "en",
+      "kind": "article",
+      "requested_url": "https://servernet.cloud/en/blog/php-version-upgrade-guide?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.057081+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en/blog/php-version-upgrade-guide?seo_cycle=growth-20261025-accepted",
+      "body_sha256": "2aa01ef5fc086ba42df348bdc58315dcbf4a274ea1a5446f062e4023f0d94e64",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "exact_reviewed_body": true,
+        "original_title": true,
+        "description": true,
+        "product_placements": true,
+        "published_date_preserved": true,
+        "real_modified_date": true,
+        "localized_product_body_links": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en",
+      "language": "en",
+      "kind": "home",
+      "requested_url": "https://servernet.cloud/en?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.101091+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/en?seo_cycle=growth-20261025-accepted",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/hosting/python",
+      "language": "tr",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/tr/hosting/python?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.160638+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr/hosting/python?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/tr/blog/diagnosing-slow-website",
+        "https://servernet.cloud/tr/blog/configuring-dns-for-new-site",
+        "https://servernet.cloud/tr/blog/measuring-real-user-performance"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/hosting/linux",
+      "language": "tr",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/tr/hosting/linux?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.167096+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr/hosting/linux?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+        "https://servernet.cloud/tr/blog/cpanel-vs-directadmin",
+        "https://servernet.cloud/tr/blog/diagnosing-slow-website"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/hosting/wordpress",
+      "language": "tr",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/tr/hosting/wordpress?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.558535+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr/hosting/wordpress?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+        "https://servernet.cloud/tr/blog/cpanel-vs-directadmin",
+        "https://servernet.cloud/tr/blog/diagnosing-slow-website"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/cloud/object-storage",
+      "language": "tr",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/tr/cloud/object-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.700644+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr/cloud/object-storage?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/tr/blog/object-storage-vs-block-storage"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/cloud/block-storage",
+      "language": "tr",
+      "kind": "product",
+      "requested_url": "https://servernet.cloud/tr/cloud/block-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.734537+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr/cloud/block-storage?seo_cycle=growth-20261025-accepted",
+      "related_guides": [
+        "https://servernet.cloud/tr/blog/object-storage-vs-block-storage"
+      ],
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "related_guides": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/object-storage-vs-block-storage",
+      "language": "tr",
+      "kind": "article",
+      "requested_url": "https://servernet.cloud/tr/blog/object-storage-vs-block-storage?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:23.998496+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr/blog/object-storage-vs-block-storage?seo_cycle=growth-20261025-accepted",
+      "body_sha256": "3e1878fdf2f2f53ed499a9ea647efdf3dff783c63b05a2669a096949a1b0ceac",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "exact_reviewed_body": true,
+        "original_title": true,
+        "description": true,
+        "product_placements": true,
+        "published_date_preserved": true,
+        "real_modified_date": true,
+        "localized_product_body_links": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+      "language": "tr",
+      "kind": "article",
+      "requested_url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:24.099232+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide?seo_cycle=growth-20261025-accepted",
+      "body_sha256": "c850dcc2a90ad42487c444a53c800e1164543c05f0baa0964feae6d258c75f15",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true,
+        "exact_reviewed_body": true,
+        "original_title": true,
+        "description": true,
+        "product_placements": true,
+        "published_date_preserved": true,
+        "real_modified_date": true,
+        "localized_product_body_links": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr",
+      "language": "tr",
+      "kind": "home",
+      "requested_url": "https://servernet.cloud/tr?seo_cycle=growth-20261025-accepted",
+      "utc": "2026-10-25T16:16:24.378483+00:00",
+      "http_status": 200,
+      "cache": "BYPASS",
+      "final_url": "https://servernet.cloud/tr?seo_cycle=growth-20261025-accepted",
+      "checks": {
+        "status": true,
+        "fresh": true,
+        "same_url": true,
+        "one_h1": true,
+        "language": true,
+        "canonical": true,
+        "jsonld": true
+      },
+      "pass": true
+    }
+  ],
+  "sitemap": {
+    "http_status": 200,
+    "sha256": "4a7b3883a2ba406a29c99fa25fe73cdae8dd08ccd86bbd32b545bc5f0a952a05",
+    "urls": [
+      {
+        "url": "https://servernet.cloud/blog/object-storage-vs-block-storage",
+        "lastmod": [
+          "2026-10-25"
+        ],
+        "pass": true
+      },
+      {
+        "url": "https://servernet.cloud/blog/php-version-upgrade-guide",
+        "lastmod": [
+          "2026-10-25"
+        ],
+        "pass": true
+      },
+      {
+        "url": "https://servernet.cloud/en/blog/object-storage-vs-block-storage",
+        "lastmod": [
+          "2026-10-25"
+        ],
+        "pass": true
+      },
+      {
+        "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "lastmod": [
+          "2026-10-25"
+        ],
+        "pass": true
+      },
+      {
+        "url": "https://servernet.cloud/tr/blog/object-storage-vs-block-storage",
+        "lastmod": [
+          "2026-10-25"
+        ],
+        "pass": true
+      },
+      {
+        "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+        "lastmod": [
+          "2026-10-25"
+        ],
+        "pass": true
+      }
+    ]
+  },
+  "scope": "current public HTML, reviewed content, internal guide/product links and sitemap dates; not Google indexing, mobile or conversion proof"
+}

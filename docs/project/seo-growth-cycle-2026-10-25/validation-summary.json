@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "run_id": "growth-cycle-20261025-initial",
+  "recorded_at_utc": "2026-10-25T16:24:33.603756+00:00",
+  "status": {
+    "git": "merged",
+    "production_files": "verified",
+    "production_cms": "verified",
+    "public_acceptance": "passed",
+    "temporary_gateway": "removed_and_404_verified",
+    "active_run": "released"
+  },
+  "git": {
+    "repository": "servernetir/server",
+    "branch": "develop",
+    "base_sha": "f396d1ebf7116df11000deeecaf9ebd83560bd71",
+    "implementation_sha": "c16ae0df8e672ae06dbe0676299f764d200c1c34",
+    "implementation_merge_sha": "7c4982435df650ceef91760ec0da86da744904c7",
+    "pull_request_url": "https://github.com/servernetir/server/pull/131"
+  },
+  "production": {
+    "installed_at_utc": "2026-10-25T16:15:40.029945+00:00",
+    "installed_at_tehran": "2026-10-25T19:45:40.029945+03:30",
+    "installed_files": 6,
+    "verified_files": 6,
+    "applied_articles": 2,
+    "verified_translations": 6,
+    "original_post_metadata_preserved": true,
+    "private_backup_id": "20261025T161539997086Z",
+    "private_release_directory_name": "seo-growth-cycle-20261025-37c21facdfa2",
+    "manifest": "release-manifest.csv",
+    "production_controller_overlay_preserved": true,
+    "activation": {
+      "targeted_views_invalidated": 1,
+      "page_generation_advanced": true,
+      "runtime_storage_mapping_verified": true
+    },
+    "rollback_required": false,
+    "cleanup": {
+      "gateway_removed": true,
+      "unauthenticated_http_status": 404,
+      "local_credential_files_removed": true
+    }
+  },
+  "verification": {
+    "php": {
+      "runs": [
+        {
+          "scope": "product guide and related regressions",
+          "tests": 13,
+          "assertions": 158
+        },
+        {
+          "scope": "existing growth publication regression",
+          "tests": 13,
+          "assertions": 437
+        },
+        {
+          "scope": "private scoped CMS safety",
+          "tests": 7,
+          "assertions": 35
+        },
+        {
+          "scope": "actual prior CMS article integration",
+          "tests": 1,
+          "assertions": 123
+        },
+        {
+          "scope": "per-translation sitemap lastmod",
+          "tests": 4,
+          "assertions": 27
+        }
+      ],
+      "total_tests": 38,
+      "total_assertions": 780,
+      "all_passed": true
+    },
+    "python_checker_behavior": {
+      "tests": 10,
+      "all_passed": true
+    },
+    "installer_rollback_fixture": {
+      "checks": 6,
+      "all_passed": true,
+      "receipt": "installer-rollback-acceptance.json"
+    },
+    "article_shell_blocks": {
+      "bash_syntax_passed": 9,
+      "operational_execution": false
+    },
+    "public_html": {
+      "generic_passed": 33,
+      "generic_total": 33,
+      "targeted_passed": 24,
+      "targeted_total": 24,
+      "targeted_products": 15,
+      "targeted_articles": 6,
+      "targeted_home_controls": 3,
+      "overlapping_urls": 15,
+      "unique_urls": 42,
+      "all_cache_bypass": true,
+      "generic_receipt": "public-health-after.json",
+      "targeted_receipt": "publication-acceptance.json"
+    },
+    "sitemap": {
+      "passed": 6,
+      "total": 6,
+      "expected_lastmod": "2026-10-25"
+    },
+    "desktop_browser": {
+      "checked_urls": [
+        "https://servernet.cloud/cloud/object-storage",
+        "https://servernet.cloud/blog/object-storage-vs-block-storage",
+        "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+      ],
+      "viewport_width": 1363,
+      "viewport_height": 936,
+      "document_scroll_width": 1348,
+      "no_horizontal_overflow_in_observed_views": true,
+      "product_to_article_click_verified": true,
+      "mobile_tested": false,
+      "screenshot": "live-storage-article-desktop.jpg",
+      "screenshot_sha256": "a508cf651c5b2204b870cd766b44c626a30a499a62bc261d5787affa43420347"
+    },
+    "independent_reviews": [
+      "technical mapping and production-overlay review",
+      "article source and locale review",
+      "private CMS and installer/rollback review",
+      "final publication receipt/count review"
+    ]
+  },
+  "measurement": {
+    "source": "existing read-only Windsor Google Search Console connection",
+    "baseline": "gsc-baseline.json",
+    "period_current": [
+      "2026-09-25",
+      "2026-10-22"
+    ],
+    "period_prior": [
+      "2026-08-28",
+      "2026-09-24"
+    ],
+    "english_php_clicks_prior": 8,
+    "english_php_clicks_current": 37,
+    "baseline_precedes_this_release": true,
+    "traffic_impact_of_release": "not_yet_measured"
+  },
+  "automation": {
+    "status": "enabled_confirmed_by_final_peek",
+    "timezone": "Asia/Tehran",
+    "dtstart_local": "2026-10-26T02:00:00",
+    "rrule": "FREQ=HOURLY;INTERVAL=6",
+    "scheduled_local_hours": [
+      2,
+      8,
+      14,
+      20
+    ],
+    "next_run_time_tool_value": null,
+    "scheduled_run_success_claimed": false
+  },
+  "limits": [
+    "Public HTML and observed desktop rendering do not prove Google indexation or ranking gains.",
+    "No mobile viewport, real storage upload, customer PHP upgrade or conversion delivery acceptance performed.",
+    "Google interactive login remains deferred by owner; GTM/GA4 and URL Inspection are pending.",
+    "Homepage root canonical comparison was normalized after a fresh request; original result retained in targeted receipt.",
+    "No changes to price, provisioning, payments, infrastructure, authentication, customer data or host cron."
+  ],
+  "follow_up_observations": [
+    {
+      "task_id": "storage-purchase-conditions-copy",
+      "status": "unverified_copy_readiness_mismatch",
+      "no_order_attempted": true
+    }
+  ]
+}

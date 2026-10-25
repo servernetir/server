@@ -20,18 +20,40 @@
       14,
       20
     ],
-    "verified_by": "Successful Automations create result reported by root on2026-10-25; no run success claimed."
+    "verified_by": "Successful Automations create and final peek on2026-10-25; is_enabled=true and exact6-hour schedule confirmed. No scheduled-run success claimed.",
+    "next_run_time_reported": null,
+    "next_run_note": "Tool next_run_time is null; first scheduled occurrence is derived from the recorded DTSTART, not a recorded run.",
+    "last_state_verified_date_tehran": "2026-10-25"
   },
-  "active_run": {
+  "active_run": null,
+  "last_run": {
     "run_id": "growth-cycle-20261025-initial",
     "task_id": "initial-editorial-and-link-release",
     "base_sha": "f396d1ebf7116df11000deeecaf9ebd83560bd71",
     "started_at_utc": "2026-10-25T16:11:56.194515+00:00",
-    "lease_expires_at_utc": "2026-10-25T18:11:56.194515+00:00",
-    "phase": "ready_for_deploy"
+    "phase": "completed",
+    "outcome": "production_verified",
+    "completed_at_utc": "2026-10-25T16:24:33.603756+00:00",
+    "installed_at_utc": "2026-10-25T16:15:40.029945+00:00",
+    "implementation_merge_sha": "7c4982435df650ceef91760ec0da86da744904c7",
+    "pull_request": 131,
+    "receipt": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json",
+    "completed_task_ids": [
+      "refresh-object-block",
+      "refresh-php-upgrade",
+      "curated-product-reading-paths",
+      "per-translation-sitemap-lastmod"
+    ],
+    "traffic_impact": "not_yet_measured"
   },
-  "last_run": null,
-  "run_receipts": [],
+  "run_receipts": [
+    {
+      "run_id": "growth-cycle-20261025-initial",
+      "completed_at_utc": "2026-10-25T16:24:33.603756+00:00",
+      "path": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json",
+      "outcome": "production_verified"
+    }
+  ],
   "measurement": {
     "gsc_max_fetches_per_day": 1,
     "comparison_days": 28,
@@ -68,13 +90,29 @@
       "state": "observe",
       "evidence": "docs/project/SEO-GOOGLE-GROWTH-PUBLICATION-2026-10-25.md",
       "rule": "Do not rewrite again without a concrete defect; collect full-window evidence."
+    },
+    {
+      "id": "curated-product-reading-paths",
+      "state": "production_verified",
+      "evidence": "docs/project/SEO-GROWTH-CYCLE-2026-10-25.md",
+      "published_at_utc": "2026-10-25T16:15:40.029945+00:00",
+      "implementation_merge_sha": "7c4982435df650ceef91760ec0da86da744904c7",
+      "acceptance_receipt": "docs/project/seo-growth-cycle-2026-10-25/publication-acceptance.json"
+    },
+    {
+      "id": "per-translation-sitemap-lastmod",
+      "state": "production_verified",
+      "evidence": "docs/project/SEO-GROWTH-CYCLE-2026-10-25.md",
+      "published_at_utc": "2026-10-25T16:15:40.029945+00:00",
+      "implementation_merge_sha": "7c4982435df650ceef91760ec0da86da744904c7",
+      "acceptance_receipt": "docs/project/seo-growth-cycle-2026-10-25/publication-acceptance.json"
     }
   ],
   "tasks": [
     {
       "id": "refresh-object-block",
       "priority": "P1",
-      "state": "current_session_preparation",
+      "state": "production_verified",
       "urls": [
         "/blog/object-storage-vs-block-storage",
         "/en/blog/object-storage-vs-block-storage",
@@ -87,12 +125,16 @@
         "Original publication date and URLs preserved; exact CMS revision snapshot and guard.",
         "Three-language bodies, relevant internal links and public output verified."
       ],
-      "owner_note": "Article package is being prepared in this initial session; future runs must inspect actual release receipt before picking it."
+      "owner_note": "Published and verified in three languages. Preserve this accepted revision unless a concrete defect or later full-window evidence warrants a new change; traffic impact has not yet been measured.",
+      "published_at_utc": "2026-10-25T16:15:40.029945+00:00",
+      "implementation_merge_sha": "7c4982435df650ceef91760ec0da86da744904c7",
+      "acceptance_receipt": "docs/project/seo-growth-cycle-2026-10-25/publication-acceptance.json",
+      "source_sha256": "ee0cb60e302b965e088584817cea90d8f4efb9118938b03a1453f908c74603c5"
     },
     {
       "id": "refresh-php-upgrade",
       "priority": "P1",
-      "state": "current_session_preparation",
+      "state": "production_verified",
       "urls": [
         "/blog/php-version-upgrade-guide",
         "/en/blog/php-version-upgrade-guide",
@@ -105,7 +147,11 @@
         "Staging, dependencies, restore/rollback and real relevant hosting links covered without availability promises.",
         "Original publication date and URLs preserved; guarded CMS refresh and live verification."
       ],
-      "owner_note": "Article package is being prepared in this initial session; do not duplicate."
+      "owner_note": "Published and verified in three languages. Preserve this accepted revision unless a concrete defect or later full-window evidence warrants a new change; traffic impact has not yet been measured.",
+      "published_at_utc": "2026-10-25T16:15:40.029945+00:00",
+      "implementation_merge_sha": "7c4982435df650ceef91760ec0da86da744904c7",
+      "acceptance_receipt": "docs/project/seo-growth-cycle-2026-10-25/publication-acceptance.json",
+      "source_sha256": "e79e3dff0a6c57dc4b63ed4b19a23de6e3b75f18139292cc9d918f5e6173d48e"
     },
     {
       "id": "rdp-endpoint-guide",
@@ -321,6 +367,22 @@
         "Separate authentication, crawl control and indexing directives accurately with official Google guidance.",
         "Remove unsupported service claims; explain only verified ServerNet capabilities and local/user-managed alternatives.",
         "Preserve URLs/date and inspect fa/tr before scope selection; no new production staging environment, credential or paid service is created by this editorial refresh."
+      ]
+    },
+    {
+      "id": "storage-purchase-conditions-copy",
+      "priority": "P2",
+      "state": "ready_for_observation",
+      "urls": [
+        "/cloud/object-storage",
+        "/cloud/block-storage"
+      ],
+      "reason": "Desktop QA observed Object Storage plan purchase buttons alongside service-conditions text referring to a future purchase activation. This is an apparent copy/readiness inconsistency, not proof of payment or provisioning behavior.",
+      "evidence": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json",
+      "acceptance": [
+        "Read actual catalog/readiness state and localized conditions before proposing wording.",
+        "If a mismatch is confirmed, align copy only with current supported behavior; keep prices, sales gates, payments and provisioning unchanged.",
+        "Verify all affected locales and the existing sales-safety tests; do not place a real order."
       ]
     }
   ]
