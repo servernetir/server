@@ -65,10 +65,18 @@ class HourlyVpsPageTest extends TestCase
 
     public function test_it_renders_in_all_three_languages_with_an_empty_catalogue(): void
     {
-        foreach (['/vps/hourly', '/en/vps/hourly', '/tr/vps/hourly'] as $path) {
-            $res = $this->get($path);
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $res = $this->get($prefix.'/vps/hourly');
             $res->assertOk();
             $res->assertDontSee('ui.hv_', false);                     // کلیدِ خامِ ترجمه
+
+            // The guide remains useful without catalog rows, and its contextual
+            // links must retain the page's language instead of dropping to Persian.
+            $this->assertSame(1, preg_match('~<section[^>]+id="linux-hourly-guide"[^>]*>(.*?)</section>~s', $res->getContent(), $guide));
+            foreach (['/vps/linux', '/docs/connecting-to-linux-server-ssh', '/hosting/python'] as $target) {
+                $this->assertStringContainsString('href="'.url($prefix.$target).'"', $guide[1]);
+            }
+            $this->assertStringContainsString('billing_mode=hourly', $guide[1]);
         }
 
         $this->get('/vps/hourly')->assertSee('سرور مجازی ساعتی');

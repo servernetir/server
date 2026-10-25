@@ -34,7 +34,7 @@ return [
     | آن‌ها را از configِ خودِ محصول می‌خواند تا دو منبعِ حقیقت نسازیم.
     |
     | kind: hosting (config/hosting.php) · catalog (config/catalog/*) ·
-    |       solution (config/solutions.php)
+    |       solution (config/solutions.php) · gpu (متن صفحهٔ مستقل GPU)
     */
     'category_products' => [
         'hosting'  => ['kind' => 'hosting',  'slug' => 'linux'],
@@ -44,6 +44,14 @@ return [
         'tutorial' => ['kind' => 'hosting',  'slug' => 'wordpress'],
         'tech'     => ['kind' => 'catalog',  'category' => 'vps', 'slug' => 'iran'],
         'business' => ['kind' => 'solution', 'slug' => 'infrastructure'],
+    ],
+
+    // راهنمای محصول مشخص، از نگاشت عمومی دسته (مثلاً آموزش ← وردپرس) مقدم است.
+    // عنوان/توضیح همچنان از همان محصول خوانده می‌شود؛ مقالات دیگر تغییر نمی‌کنند.
+    'post_products' => [
+        'comfyui-hourly-gpu-guide' => ['kind' => 'gpu'],
+        'jupyter-hourly-gpu-guide' => ['kind' => 'gpu'],
+        'n8n-backup-migration-guide' => ['kind' => 'catalog', 'category' => 'cloud', 'slug' => 'n8n'],
     ],
 
     /*

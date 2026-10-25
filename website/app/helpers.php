@@ -502,7 +502,7 @@ if (! function_exists('img_url')) {
 
 if (! function_exists('blog_related_product')) {
     /**
-     * محصولِ فروختنیِ متناظر با یک دستهٔ بلاگ — پلِ بلاگ→محصول (ممیزی ۳).
+     * محصولِ متناظر با یک راهنما یا دستهٔ بلاگ — پلِ بلاگ→محصول (ممیزی ۳).
      *
      * ═══ چرا این تابع وجود دارد ═══
      *
@@ -513,20 +513,27 @@ if (! function_exists('blog_related_product')) {
      * **قالب** است نه در متنِ پست‌ها، هر ۱۰۷ پستِ موجود و هر پستِ آینده
      * خودبه‌خود می‌گیرندش — هیچ ویرایشِ دستی‌ای در کار نیست.
      *
-     * ⚠️ عنوان/توضیح از configِ **خودِ محصول** خوانده می‌شود (نه کپی در
+     * نگاشت اختصاصی slug بر دسته مقدم است؛ فراخوانی بدون slug رفتار قبلی را دارد.
+     * ⚠️ عنوان/توضیح از config یا ترجمهٔ **خودِ محصول** خوانده می‌شود (نه کپی در
      * config/blog.php) تا با تغییرِ نامِ محصول، انکرِ لینک خودش به‌روز شود —
      * انکرِ توصیفی همان چیزی است که ممیزی صریح خواست.
      *
      * ⚠️ نگاشتِ ناقص یا محصولِ حذف‌شده ⇒ `null` و بلاک اصلاً رندر نمی‌شود.
      * لینکِ مرده بدتر از نبودِ لینک است (قاعدهٔ ثبت‌شدهٔ همین پروژه).
      *
-     * @return array{href:string,title:string,desc:string}|null
+     * @return array{href:string,title:string,desc:string,quote_only?:bool}|null
      */
-    function blog_related_product(?string $blogCategory): ?array
+    function blog_related_product(?string $blogCategory, ?string $postSlug = null): ?array
     {
-        $map = $blogCategory !== null && $blogCategory !== ''
-            ? (array) config('blog.category_products.'.$blogCategory)
+        $map = $postSlug !== null && $postSlug !== ''
+            ? (array) config('blog.post_products.'.$postSlug)
             : [];
+
+        if ($map === []) {
+            $map = $blogCategory !== null && $blogCategory !== ''
+                ? (array) config('blog.category_products.'.$blogCategory)
+                : [];
+        }
 
         /*
         | زنجیرهٔ fallback (ممیزی ۴): دستهٔ بی‌نگاشت/ناشناخته ⇒ hubِ خطِ
@@ -543,6 +550,14 @@ if (! function_exists('blog_related_product')) {
 
         $kind = (string) ($map['kind'] ?? '');
         $slug = (string) ($map['slug'] ?? '');
+
+        if ($kind === 'gpu') {
+            return [
+                'href'  => lroute('gpu'),
+                'title' => __('ui.gpu_h1'),
+                'desc'  => __('ui.gpu_lead'),
+            ];
+        }
 
         if ($kind === 'hosting') {
             $p = config('hosting.products.'.$slug);
@@ -562,6 +577,7 @@ if (! function_exists('blog_related_product')) {
                 'href'  => lroute('catalog', ['category' => $cat, 'slug' => $slug]),
                 'title' => (string) (lc($p)['t'] ?? $slug),
                 'desc'  => (string) (lc($p)['hero_d'] ?? ''),
+                'quote_only' => (bool) ($p['quote_only'] ?? false),
             ] : null;
         }
 
