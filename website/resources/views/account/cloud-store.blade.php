@@ -856,7 +856,7 @@
             <p class="cvb-note">
               <svg class="icon"><use href="#i-clock"/></svg>
               <span>
-                <b>{{ __('ui.cvb_hourly_t') }}</b> — <span id="cvb-h-rate">{{ cloud_price($hRate) }}</span>{{ __('ui.cvb_hourly_per') }}<br>
+                <b>{{ __('ui.cvb_hourly_t') }}</b> — <span id="cvb-h-rate">{{ cloud_hourly_price($hRate) }}</span>{{ __('ui.cvb_hourly_per') }}<br>
                 {{ __('ui.cvb_hourly_min_pre') }}<b id="cvb-h-min">{{ cloud_price($hMin) }}</b>{{ __('ui.cvb_hourly_min_suf') }}
                 — {{ __('ui.cvb_hourly_credit') }}<b>{{ cloud_price($creditIrt) }}</b><br>
                 <span id="cvb-h-existing-note" @if($hExisting === 0) hidden @endif>
@@ -954,7 +954,7 @@
         <div class="cvb-tear"></div>
 
         <div class="cvb-totk">{{ __($isGpuStore ? 'ui.gpu_approved_price' : 'ui.cvb_pay_now') }}</div>
-        <div class="cvb-tot pnl-num" id="cvb-s-first">{{ $hasPrice ? cloud_price($initFirst) : '—' }}</div>
+        <div class="cvb-tot pnl-num" id="cvb-s-first">{{ $hOn ? cloud_hourly_price($hRate).__('ui.cvb_hourly_per') : ($hasPrice ? cloud_price($initFirst) : '—') }}</div>
         {{-- نوارِ ترکیبِ هزینه: مبلغ فقط «چقدر» نمی‌گوید، «از چه» را هم نشان
              می‌دهد. سه قطعه — پلن، IPِ اضافه، مالیات — همه با یک رنگ و سه
              شفافیت، پس هیچ رنگِ تازه‌ای وارد پالت نمی‌شود.
@@ -1002,7 +1002,7 @@
   <div class="cvb-dock">
     <span class="cvb-dock-t">
       <small>{{ __($isGpuStore ? 'ui.gpu_approved_price' : 'ui.cvb_pay_now') }}</small>
-      <b class="pnl-num" id="cvb-d-first">{{ $hasPrice ? cloud_price($initFirst) : '—' }}</b>
+      <b class="pnl-num" id="cvb-d-first">{{ $hOn ? cloud_hourly_price($hRate).__('ui.cvb_hourly_per') : ($hasPrice ? cloud_price($initFirst) : '—') }}</b>
     </span>
     <button type="submit" class="pnl-btn primary" id="cvb-submit-2" @disabled(count($planCards) === 0 || ! $hasPrice)>
       {{ __($isGpuStore ? 'ui.gpu_request_submit' : 'ui.cvb_pay') }}
@@ -1038,7 +1038,11 @@
     'noPrice' => __('ui.cvb_no_price'),
     'todo' => __('ui.cvb_slip_todo'),
     // فروشِ ساعتی
-    'hourly' => $hourlyMap ?? [],
+    // Keep sub-cent hourly rates consistent with the server's existing formatter.
+    // The numeric rate remains unchanged for quoting and credit checks.
+    'hourly' => collect($hourlyMap ?? [])->map(fn ($row) => $row + [
+      'display_rate' => cloud_hourly_price((int) ($row['rate'] ?? 0)),
+    ])->all(),
     'credit' => $creditIrt ?? 0,
     'hPer'   => __('ui.cvb_hourly_per'),
     'hLbl'   => __('ui.cvb_hourly_t'),
@@ -1226,7 +1230,7 @@
       if (!el) return;
       if (hourly) {
         var hr = (D.hourly || {})[s] || { rate: 0 };
-        el.textContent = hr.rate > 0 ? money(hr.rate) + D.hPer : '—';
+        el.textContent = hr.rate > 0 ? hr.display_rate + D.hPer : '—';
         return;
       }
       var r = (D.prices[s] || {})[cyc];
@@ -1278,7 +1282,7 @@
     }
 
     // ── نرخِ ساعتی ──
-    set('cvb-h-rate', money(h.rate));
+    set('cvb-h-rate', h.display_rate || '—');
     document.getElementById('cvb-quoted-hourly').value = h.rate || 0;
     set('cvb-h-min', money(h.min));
     set('cvb-h-existing', money(h.existing || 0));
@@ -1297,8 +1301,8 @@
 
     if (hourly) {
       set('cvb-s-cyc', D.hLbl);
-      set('cvb-s-first', money(h.rate) + D.hPer);
-      set('cvb-d-first', money(h.rate) + D.hPer);
+      set('cvb-s-first', h.display_rate + D.hPer);
+      set('cvb-d-first', h.display_rate + D.hPer);
       if (warn) warn.hidden = true;
       if (taxLine) taxLine.hidden = true;
       bar(0, 0, 0);
