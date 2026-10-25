@@ -129,7 +129,7 @@ No payment-language visibility rule was removed or bypassed.
 
 ## Validation
 
-Recorded before the final synchronization with develop:
+Recorded validation:
 - 94 tests, 440 assertions PASS. Filter: MarketingCampaignEngineTest|MarketingDiscountMathTest|MarketingCampaignConcurrencyTest|GiftCouponOnInvoiceTest|BirthdayGiftTest|InvoiceDiscountTest|PaymentCallbackTest|PaymentLanguageVisibilityTest.
 - 43 of those are new engine/math/concurrency tests, including the full birthday scenario with simulated time and mock SMS.
 - JavaScript wizard test PASS: navigation, required validation and reopening an invalid hidden step.
@@ -138,6 +138,15 @@ Recorded before the final synchronization with develop:
 
 CreditInvoicePaymentTest has three legacy failures concerning the domain-renewal fixture's supplier-price availability. The same three failures were reproduced with unchanged HEAD versions of PaymentController, PaymentService, Invoice, BusinessLedger and AccountingReport. They are not counted as passing and were not weakened. The new discounted-invoice wallet path has its own passing integration test.
 The full repository test suite and live provider tests were not run.
+
+Final synchronization and verification:
+- Rebased the implementation onto develop 3f73018b. Concurrent traffic-description, reviewed traffic-settlement and AI Growth changes were retained.
+- The scheduler conflict was resolved by retaining BOTH growth:run and marketing:tick.
+- Final merged validation: 99 tests, 513 assertions PASS (the preceding filter plus InvoiceTrafficDescriptionTest).
+- Wizard JavaScript test, Blade compilation and git diff --check PASS after the rebase.
+- Implementation is recorded in develop under the commit titled feat(marketing): add budgeted campaign discounts and birthday automation; the following documentation commit records final verification.
+- The last incoming change at 6f547b77 updates only existing Growth/network documentation; it does not alter the validated application code.
+- Production remains unchanged; new campaign data and migrations exist only in development until an authorized deployment.
 
 ## Safe first activation after a separately authorized deployment
 
