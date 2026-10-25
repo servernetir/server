@@ -5,13 +5,14 @@ namespace App\Console\Commands;
 use App\Models\AiUsage;
 use App\Models\BusinessEntry;
 use App\Services\Finance\BusinessLedger;
+use App\Services\Finance\DocumentedAccounting;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /** Preview only by default. Historical recovery needs approved dates and private source evidence. */
 final class FinanceReconcileAi extends Command
 {
-    protected $signature = 'finance:reconcile-ai {--from=} {--to=} {--apply : Explicitly post missing snapshots}';
+    protected $signature = 'finance:reconcile-ai {--from=} {--to=} {--apply : Explicitly post missing snapshots} {--plan-hash=}';
 
     protected $description = 'Preview missing AI financial entries; never calls providers or charges customers';
 
@@ -22,35 +23,47 @@ final class FinanceReconcileAi extends Command
 
             return self::FAILURE;
         }
-        $from = $this->option('from');
-        $to = $this->option('to');
-        if (! $from || ! $to || ! preg_match('/^\d{4}-\d{2}-\d{2}$/D', $from) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/D', $to) || $from > $to) {
-            $this->error('Explicit --from and --to (YYYY-MM-DD) are required.');
-
-            return self::FAILURE;
-        }
-        $q = AiUsage::whereIn('status', AiUsage::CHARGED)->whereBetween('day', [$from, $to])
+        $dates = validator(['from' => $this->option('from'), 'to' => $this->option('to')], [
+            'from' => ['required', 'date_format:Y-m-d'], 'to' => ['required', 'date_format:Y-m-d', 'after_or_equal:from'],
+        ])->validate();
+        $q = AiUsage::whereIn('status', AiUsage::CHARGED)->whereDate('day', '>=', $dates['from'])->whereDate('day', '<=', $dates['to'])
             ->whereNotIn('id', BusinessEntry::where('source_type', (new AiUsage)->getMorphClass())->where('kind', 'revenue')->select('source_id'));
-        $count = 0;
+        $plan = [];
         $review = 0;
-        foreach ($q->lazyById(200) as $u) {
-            $count++;
-            // A refund or uncertain cap has no immutable historical cost/tax timeline; require manual reconciliation.
+        $snapshot = fn (AiUsage $u) => collect($u->getAttributes())->only(['id', 'status', 'needs_review', 'charged_irt', 'refunded_irt', 'uncollected_irt', 'sell_irt', 'tax_irt', 'cost_irt', 'day', 'settled_at'])->all();
+        foreach ($q->orderBy('id')->lazyById(200) as $u) {
             if ($u->needs_review || $u->refunded_irt > 0 || $u->status === AiUsage::STATUS_UNKNOWN_CHARGED || ! $u->settled_at) {
                 $review++;
 
                 continue;
             }
-            if ($this->option('apply')) {
-                DB::transaction(function () use ($u, $ledger) {
-                    $locked = AiUsage::whereKey($u->id)->lockForUpdate()->firstOrFail();
-                    if (! $locked->needs_review && ! $locked->refunded_irt) {
-                        $ledger->recordAiUsage($locked);
+            $plan[] = $snapshot($u);
+        }
+        $hash = hash('sha256', json_encode($plan, JSON_THROW_ON_ERROR));
+        if ($this->option('apply') && (! is_string($this->option('plan-hash')) || ! hash_equals($hash, $this->option('plan-hash')))) {
+            $this->error('Plan changed or no expected plan hash supplied; preview again.');
+
+            return self::FAILURE;
+        }
+        $created = 0;
+        if ($this->option('apply')) {
+            foreach ($plan as $item) {
+                DB::transaction(function () use ($item, $snapshot, $ledger, &$created) {
+                    $u = AiUsage::whereKey($item['id'])->lockForUpdate()->firstOrFail();
+                    if ($snapshot($u) !== $item) {
+                        throw new \RuntimeException('AI snapshot changed; remaining batch stopped.');
                     }
+                    $query = BusinessEntry::where('source_type', $u->getMorphClass())->where('source_id', $u->id);
+                    $before = (clone $query)->count();
+                    $ledger->recordAiUsage($u);
+                    $created += $query->count() - $before;
                 }, 3);
             }
+            if (app(DocumentedAccounting::class)->ready()) {
+                app(DocumentedAccounting::class)->audit('ai_reconciled', 0, null, ['plan_hash' => $hash, 'from' => $dates['from'], 'to' => $dates['to'], 'created' => $created]);
+            }
         }
-        $this->table(['mode', 'missing rows', 'manual review required'], [[$this->option('apply') ? 'apply' : 'preview', $count, $review]]);
+        $this->line(json_encode(['mode' => $this->option('apply') ? 'apply' : 'preview', 'eligible_snapshots' => count($plan), 'review_required' => $review, 'created_rows' => $created, 'plan_hash' => $hash], JSON_THROW_ON_ERROR));
 
         return self::SUCCESS;
     }
