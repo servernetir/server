@@ -559,6 +559,15 @@ if (! function_exists('blog_related_product')) {
             ];
         }
 
+        if ($kind === 'storage' && in_array($slug, ['object-storage', 'block-storage', 'storage-box'], true)) {
+            // These pages use StorageCatalogController, not the legacy catalog hero copy.
+            return [
+                'href'  => lroute('cloud.location', ['location' => $slug]),
+                'title' => __('storage.'.$slug.'_title'),
+                'desc'  => __('storage.'.$slug.'_intro'),
+            ];
+        }
+
         if ($kind === 'hosting') {
             $p = config('hosting.products.'.$slug);
 
@@ -615,10 +624,12 @@ if (! function_exists('blog_related_product')) {
 
 if (! function_exists('blog_guides')) {
     /**
-     * ۳ پستِ تازهٔ یک دستهٔ بلاگ برای بلاکِ «راهنماها»ی صفحاتِ محصول —
+     * راهنماهای منتخب محصول یا چرخش قطعی یک دستهٔ بلاگ برای صفحاتِ محصول —
      * پلِ محصول→بلاگ (ممیزی ۳). جهتِ معکوس بدونِ هیچ ویرایشِ دستی بسته می‌شود.
      *
-     * ⚠️ اگر دسته پستِ کافی نداشت، تازه‌ترین‌های کلِ بلاگ پُر می‌کنند — همان
+     * محصول نگاشته فقط راهنماهای موجودِ همان زبان را می‌گیرد؛ کمبود ترجمه
+     * با مقالهٔ نامرتبط پُر نمی‌شود. برای دیگر صفحات، اگر دسته کافی نبود،
+     * تازه‌ترین‌های کلِ بلاگ پُر می‌کنند — همان
      * قاعدهٔ `BlogRepository::related()`: بلاکِ خالی از بلاکِ نه‌چندان‌مرتبط
      * بدتر است. و اگر بلاگ کلاً خالی بود (نصبِ تازه)، آرایهٔ خالی برمی‌گردد و
      * قالب بخش را اصلاً رندر نمی‌کند.
@@ -627,8 +638,32 @@ if (! function_exists('blog_guides')) {
      */
     function blog_guides(?string $blogCategory, int $n = 3, ?string $seed = null): array
     {
+        if ($n <= 0) {
+            return [];
+        }
+
         try {
             $repo = app(\App\Services\BlogRepository::class);
+
+            $guideMap = (array) config('blog.product_guide_posts', []);
+            $guideKey = preg_replace('~^(?:en|tr)/~', '', trim($seed ?? '', '/'));
+
+            if (isset($guideMap[$guideKey]) && is_array($guideMap[$guideKey])) {
+                $available = array_column($repo->index(), null, 'slug');
+                $selected = [];
+
+                foreach (array_unique($guideMap[$guideKey]) as $slug) {
+                    if (isset($available[$slug]) && empty($available[$slug]['untranslated'])) {
+                        $selected[] = $available[$slug];
+                    }
+
+                    if (count($selected) >= $n) {
+                        break;
+                    }
+                }
+
+                return $selected;
+            }
 
             /*
             | پخشِ لینک (ممیزی ۶): «۳۶ پست یتیم» چون هر ۱۳۳ صفحهٔ محصول همان

@@ -34,7 +34,8 @@ return [
     | آن‌ها را از configِ خودِ محصول می‌خواند تا دو منبعِ حقیقت نسازیم.
     |
     | kind: hosting (config/hosting.php) · catalog (config/catalog/*) ·
-    |       solution (config/solutions.php) · gpu (متن صفحهٔ مستقل GPU)
+    |       solution (config/solutions.php) · gpu (متن صفحهٔ مستقل GPU) ·
+    |       storage (متن کاتالوگ فعال فضای ذخیره‌سازی)
     */
     'category_products' => [
         'hosting'  => ['kind' => 'hosting',  'slug' => 'linux'],
@@ -52,6 +53,18 @@ return [
         'comfyui-hourly-gpu-guide' => ['kind' => 'gpu'],
         'jupyter-hourly-gpu-guide' => ['kind' => 'gpu'],
         'n8n-backup-migration-guide' => ['kind' => 'catalog', 'category' => 'cloud', 'slug' => 'n8n'],
+        'object-storage-vs-block-storage' => ['kind' => 'storage', 'slug' => 'object-storage'],
+        'php-version-upgrade-guide' => ['kind' => 'hosting', 'slug' => 'linux'],
+    ],
+
+    // مسیرهای مطالعهٔ منتخب: فقط نوشتهٔ منتشرشده و ترجمهٔ همان زبان نمایش داده می‌شود.
+    // این صفحات با مقالهٔ نامرتبط پُر نمی‌شوند؛ صفحات دیگر چرخش دستهٔ قبلی را دارند.
+    'product_guide_posts' => [
+        'hosting/python' => ['diagnosing-slow-website', 'configuring-dns-for-new-site', 'measuring-real-user-performance'],
+        'hosting/linux' => ['php-version-upgrade-guide', 'cpanel-vs-directadmin', 'diagnosing-slow-website'],
+        'hosting/wordpress' => ['php-version-upgrade-guide', 'cpanel-vs-directadmin', 'diagnosing-slow-website'],
+        'cloud/object-storage' => ['object-storage-vs-block-storage'],
+        'cloud/block-storage' => ['object-storage-vs-block-storage'],
     ],
 
     /*

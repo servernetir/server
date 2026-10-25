@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "targets": [
+    {
+      "path": "/vps/hourly",
+      "language": "fa",
+      "alternates": {
+        "fa": "/vps/hourly",
+        "en": "/en/vps/hourly",
+        "tr": "/tr/vps/hourly",
+        "x-default": "/vps/hourly"
+      },
+      "required_ids": [
+        "linux-hourly-guide"
+      ]
+    },
+    {
+      "path": "/en/vps/hourly",
+      "language": "en",
+      "alternates": {
+        "fa": "/vps/hourly",
+        "en": "/en/vps/hourly",
+        "tr": "/tr/vps/hourly",
+        "x-default": "/vps/hourly"
+      },
+      "required_ids": [
+        "linux-hourly-guide"
+      ]
+    },
+    {
+      "path": "/tr/vps/hourly",
+      "language": "tr",
+      "alternates": {
+        "fa": "/vps/hourly",
+        "en": "/en/vps/hourly",
+        "tr": "/tr/vps/hourly",
+        "x-default": "/vps/hourly"
+      },
+      "required_ids": [
+        "linux-hourly-guide"
+      ]
+    },
+    {
+      "path": "/gpu",
+      "language": "fa",
+      "alternates": {
+        "fa": "/gpu",
+        "en": "/en/gpu",
+        "tr": "/tr/gpu",
+        "x-default": "/gpu"
+      }
+    },
+    {
+      "path": "/en/gpu",
+      "language": "en",
+      "alternates": {
+        "fa": "/gpu",
+        "en": "/en/gpu",
+        "tr": "/tr/gpu",
+        "x-default": "/gpu"
+      }
+    },
+    {
+      "path": "/tr/gpu",
+      "language": "tr",
+      "alternates": {
+        "fa": "/gpu",
+        "en": "/en/gpu",
+        "tr": "/tr/gpu",
+        "x-default": "/gpu"
+      }
+    },
+    {
+      "path": "/cloud/n8n",
+      "language": "fa",
+      "alternates": {
+        "fa": "/cloud/n8n",
+        "en": "/en/cloud/n8n",
+        "tr": "/tr/cloud/n8n",
+        "x-default": "/cloud/n8n"
+      }
+    },
+    {
+      "path": "/en/cloud/n8n",
+      "language": "en",
+      "alternates": {
+        "fa": "/cloud/n8n",
+        "en": "/en/cloud/n8n",
+        "tr": "/tr/cloud/n8n",
+        "x-default": "/cloud/n8n"
+      }
+    },
+    {
+      "path": "/tr/cloud/n8n",
+      "language": "tr",
+      "alternates": {
+        "fa": "/cloud/n8n",
+        "en": "/en/cloud/n8n",
+        "tr": "/tr/cloud/n8n",
+        "x-default": "/cloud/n8n"
+      }
+    },
+    {
+      "path": "/blog/comfyui-hourly-gpu-guide",
+      "language": "fa",
+      "alternates": {
+        "fa": "/blog/comfyui-hourly-gpu-guide",
+        "en": "/en/blog/comfyui-hourly-gpu-guide",
+        "tr": "/tr/blog/comfyui-hourly-gpu-guide",
+        "x-default": "/blog/comfyui-hourly-gpu-guide"
+      }
+    },
+    {
+      "path": "/en/blog/comfyui-hourly-gpu-guide",
+      "language": "en",
+      "alternates": {
+        "fa": "/blog/comfyui-hourly-gpu-guide",
+        "en": "/en/blog/comfyui-hourly-gpu-guide",
+        "tr": "/tr/blog/comfyui-hourly-gpu-guide",
+        "x-default": "/blog/comfyui-hourly-gpu-guide"
+      }
+    },
+    {
+      "path": "/tr/blog/comfyui-hourly-gpu-guide",
+      "language": "tr",
+      "alternates": {
+        "fa": "/blog/comfyui-hourly-gpu-guide",
+        "en": "/en/blog/comfyui-hourly-gpu-guide",
+        "tr": "/tr/blog/comfyui-hourly-gpu-guide",
+        "x-default": "/blog/comfyui-hourly-gpu-guide"
+      }
+    },
+    {
+      "path": "/blog/jupyter-hourly-gpu-guide",
+      "language": "fa",
+      "alternates": {
+        "fa": "/blog/jupyter-hourly-gpu-guide",
+        "en": "/en/blog/jupyter-hourly-gpu-guide",
+        "tr": "/tr/blog/jupyter-hourly-gpu-guide",
+        "x-default": "/blog/jupyter-hourly-gpu-guide"
+      }
+    },
+    {
+      "path": "/en/blog/jupyter-hourly-gpu-guide",
+      "language": "en",
+      "alternates": {
+        "fa": "/blog/jupyter-hourly-gpu-guide",
+        "en": "/en/blog/jupyter-hourly-gpu-guide",
+        "tr": "/tr/blog/jupyter-hourly-gpu-guide",
+        "x-default": "/blog/jupyter-hourly-gpu-guide"
+      }
+    },
+    {
+      "path": "/tr/blog/jupyter-hourly-gpu-guide",
+      "language": "tr",
+      "alternates": {
+        "fa": "/blog/jupyter-hourly-gpu-guide",
+        "en": "/en/blog/jupyter-hourly-gpu-guide",
+        "tr": "/tr/blog/jupyter-hourly-gpu-guide",
+        "x-default": "/blog/jupyter-hourly-gpu-guide"
+      }
+    },
+    {
+      "path": "/blog/n8n-backup-migration-guide",
+      "language": "fa",
+      "alternates": {
+        "fa": "/blog/n8n-backup-migration-guide",
+        "en": "/en/blog/n8n-backup-migration-guide",
+        "tr": "/tr/blog/n8n-backup-migration-guide",
+        "x-default": "/blog/n8n-backup-migration-guide"
+      }
+    },
+    {
+      "path": "/en/blog/n8n-backup-migration-guide",
+      "language": "en",
+      "alternates": {
+        "fa": "/blog/n8n-backup-migration-guide",
+        "en": "/en/blog/n8n-backup-migration-guide",
+        "tr": "/tr/blog/n8n-backup-migration-guide",
+        "x-default": "/blog/n8n-backup-migration-guide"
+      }
+    },
+    {
+      "path": "/tr/blog/n8n-backup-migration-guide",
+      "language": "tr",
+      "alternates": {
+        "fa": "/blog/n8n-backup-migration-guide",
+        "en": "/en/blog/n8n-backup-migration-guide",
+        "tr": "/tr/blog/n8n-backup-migration-guide",
+        "x-default": "/blog/n8n-backup-migration-guide"
+      }
+    },
+    {
+      "path": "/blog/object-storage-vs-block-storage",
+      "language": "fa",
+      "alternates": {
+        "fa": "/blog/object-storage-vs-block-storage",
+        "en": "/en/blog/object-storage-vs-block-storage",
+        "tr": "/tr/blog/object-storage-vs-block-storage",
+        "x-default": "/blog/object-storage-vs-block-storage"
+      }
+    },
+    {
+      "path": "/en/blog/object-storage-vs-block-storage",
+      "language": "en",
+      "alternates": {
+        "fa": "/blog/object-storage-vs-block-storage",
+        "en": "/en/blog/object-storage-vs-block-storage",
+        "tr": "/tr/blog/object-storage-vs-block-storage",
+        "x-default": "/blog/object-storage-vs-block-storage"
+      }
+    },
+    {
+      "path": "/tr/blog/object-storage-vs-block-storage",
+      "language": "tr",
+      "alternates": {
+        "fa": "/blog/object-storage-vs-block-storage",
+        "en": "/en/blog/object-storage-vs-block-storage",
+        "tr": "/tr/blog/object-storage-vs-block-storage",
+        "x-default": "/blog/object-storage-vs-block-storage"
+      }
+    },
+    {
+      "path": "/blog/php-version-upgrade-guide",
+      "language": "fa",
+      "alternates": {
+        "fa": "/blog/php-version-upgrade-guide",
+        "en": "/en/blog/php-version-upgrade-guide",
+        "tr": "/tr/blog/php-version-upgrade-guide",
+        "x-default": "/blog/php-version-upgrade-guide"
+      }
+    },
+    {
+      "path": "/en/blog/php-version-upgrade-guide",
+      "language": "en",
+      "alternates": {
+        "fa": "/blog/php-version-upgrade-guide",
+        "en": "/en/blog/php-version-upgrade-guide",
+        "tr": "/tr/blog/php-version-upgrade-guide",
+        "x-default": "/blog/php-version-upgrade-guide"
+      }
+    },
+    {
+      "path": "/tr/blog/php-version-upgrade-guide",
+      "language": "tr",
+      "alternates": {
+        "fa": "/blog/php-version-upgrade-guide",
+        "en": "/en/blog/php-version-upgrade-guide",
+        "tr": "/tr/blog/php-version-upgrade-guide",
+        "x-default": "/blog/php-version-upgrade-guide"
+      }
+    },
+    {
+      "path": "/hosting/python",
+      "language": "fa",
+      "alternates": {
+        "fa": "/hosting/python",
+        "en": "/en/hosting/python",
+        "tr": "/tr/hosting/python",
+        "x-default": "/hosting/python"
+      }
+    },
+    {
+      "path": "/en/hosting/python",
+      "language": "en",
+      "alternates": {
+        "fa": "/hosting/python",
+        "en": "/en/hosting/python",
+        "tr": "/tr/hosting/python",
+        "x-default": "/hosting/python"
+      }
+    },
+    {
+      "path": "/tr/hosting/python",
+      "language": "tr",
+      "alternates": {
+        "fa": "/hosting/python",
+        "en": "/en/hosting/python",
+        "tr": "/tr/hosting/python",
+        "x-default": "/hosting/python"
+      }
+    },
+    {
+      "path": "/cloud/object-storage",
+      "language": "fa",
+      "alternates": {
+        "fa": "/cloud/object-storage",
+        "en": "/en/cloud/object-storage",
+        "tr": "/tr/cloud/object-storage",
+        "x-default": "/cloud/object-storage"
+      }
+    },
+    {
+      "path": "/en/cloud/object-storage",
+      "language": "en",
+      "alternates": {
+        "fa": "/cloud/object-storage",
+        "en": "/en/cloud/object-storage",
+        "tr": "/tr/cloud/object-storage",
+        "x-default": "/cloud/object-storage"
+      }
+    },
+    {
+      "path": "/tr/cloud/object-storage",
+      "language": "tr",
+      "alternates": {
+        "fa": "/cloud/object-storage",
+        "en": "/en/cloud/object-storage",
+        "tr": "/tr/cloud/object-storage",
+        "x-default": "/cloud/object-storage"
+      }
+    },
+    {
+      "path": "/cloud/block-storage",
+      "language": "fa",
+      "alternates": {
+        "fa": "/cloud/block-storage",
+        "en": "/en/cloud/block-storage",
+        "tr": "/tr/cloud/block-storage",
+        "x-default": "/cloud/block-storage"
+      }
+    },
+    {
+      "path": "/en/cloud/block-storage",
+      "language": "en",
+      "alternates": {
+        "fa": "/cloud/block-storage",
+        "en": "/en/cloud/block-storage",
+        "tr": "/tr/cloud/block-storage",
+        "x-default": "/cloud/block-storage"
+      }
+    },
+    {
+      "path": "/tr/cloud/block-storage",
+      "language": "tr",
+      "alternates": {
+        "fa": "/cloud/block-storage",
+        "en": "/en/cloud/block-storage",
+        "tr": "/tr/cloud/block-storage",
+        "x-default": "/cloud/block-storage"
+      }
+    }
+  ]
+}

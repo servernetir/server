@@ -519,10 +519,15 @@ class SiteController extends Controller
                 ->with('translations')
                 ->orderByDesc('published_at')->orderByDesc('id')->get();
             foreach ($blogPosts as $p) {
-                $date = optional($p->published_at ?? $p->created_at)->toDateString();
+                $published = $p->published_at ?? $p->created_at;
                 foreach (\App\Providers\AppServiceProvider::LOCALES as $code => $prefix) {
                     if ($code === 'fa' || $p->translations->contains('locale', $code)) {
-                        $urls[] = ['loc' => route($prefix.'blog', $p->slug), 'lastmod' => $date];
+                        // A translated article's real edit updates only that URL. Post metadata
+                        // timestamps must not make every language look freshly rewritten.
+                        $edited = $p->translations->firstWhere('locale', $code)?->updated_at;
+                        $modified = $edited && (! $published || $edited->greaterThan($published))
+                            ? $edited : $published;
+                        $urls[] = ['loc' => route($prefix.'blog', $p->slug), 'lastmod' => $modified?->toDateString()];
                     }
                 }
             }

@@ -1,0 +1,105 @@
+{
+  "checked_at": "2026-10-25T16:02:20.217298+00:00",
+  "scope": "Public GET only; no authenticated actions, rank or conversion measurement.",
+  "rows": [
+    {
+      "url": "https://servernet.cloud/blog/diagnosing-slow-website",
+      "status": 200,
+      "lang": "fa",
+      "canonical": [
+        "https://servernet.cloud/blog/diagnosing-slow-website"
+      ],
+      "title": [
+        "عیب‌یابی سایت کند: تشخیص مشکل سرور، شبکه و مرورگر"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/blog/configuring-dns-for-new-site",
+      "status": 200,
+      "lang": "fa",
+      "canonical": [
+        "https://servernet.cloud/blog/configuring-dns-for-new-site"
+      ],
+      "title": [
+        "تنظیم DNS سایت جدید: وب، ایمیل و آزمون اتصال"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/blog/measuring-real-user-performance",
+      "status": 200,
+      "lang": "fa",
+      "canonical": [
+        "https://servernet.cloud/blog/measuring-real-user-performance"
+      ],
+      "title": [
+        "سنجش سرعت واقعی کاربران: CrUX و Core Web Vitals"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/diagnosing-slow-website",
+      "status": 200,
+      "lang": "en",
+      "canonical": [
+        "https://servernet.cloud/en/blog/diagnosing-slow-website"
+      ],
+      "title": [
+        "Diagnosing a slow website: server, network and browser"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/configuring-dns-for-new-site",
+      "status": 200,
+      "lang": "en",
+      "canonical": [
+        "https://servernet.cloud/en/blog/configuring-dns-for-new-site"
+      ],
+      "title": [
+        "DNS setup for a new website: web, email and verification"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/measuring-real-user-performance",
+      "status": 200,
+      "lang": "en",
+      "canonical": [
+        "https://servernet.cloud/en/blog/measuring-real-user-performance"
+      ],
+      "title": [
+        "Real-user performance: CrUX and Core Web Vitals"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/diagnosing-slow-website",
+      "status": 200,
+      "lang": "tr",
+      "canonical": [
+        "https://servernet.cloud/tr/blog/diagnosing-slow-website"
+      ],
+      "title": [
+        "Yavaş site teşhisi: sunucu, ağ ve tarayıcı"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/configuring-dns-for-new-site",
+      "status": 200,
+      "lang": "tr",
+      "canonical": [
+        "https://servernet.cloud/tr/blog/configuring-dns-for-new-site"
+      ],
+      "title": [
+        "Yeni site için DNS: web, e-posta ve doğrulama"
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/measuring-real-user-performance",
+      "status": 200,
+      "lang": "tr",
+      "canonical": [
+        "https://servernet.cloud/tr/blog/measuring-real-user-performance"
+      ],
+      "title": [
+        "Gerçek kullanıcı performansı: CrUX ve Core Web Vitals"
+      ]
+    }
+  ]
+}
