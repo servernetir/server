@@ -49,7 +49,7 @@ class PaymentController extends Controller
         $customer = Auth::guard('customer')->user();
 
         return view('account.invoices', AccountController::shell('invoices') + [
-            'invoices' => $customer->invoices()->latest('id')->paginate(15),
+            'invoices' => $customer->invoices()->with('items')->latest('id')->paginate(15),
             'balance'  => $this->balance($customer->id),
         ]);
     }

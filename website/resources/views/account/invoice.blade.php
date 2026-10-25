@@ -66,7 +66,12 @@
         <tbody>
           @foreach($invoice->items as $item)
             <tr>
-              <td>{{ \App\Support\PanelText::text($item->title) }}</td>
+              <td>
+                <div>{{ \App\Support\InvoiceText::title($item) }}</div>
+                @if($item->description)
+                  <div style="font-size:12px;color:var(--muted);line-height:1.9;margin-top:5px;white-space:pre-line;overflow-wrap:anywhere">{{ \App\Support\InvoiceText::description($item) }}</div>
+                @endif
+              </td>
               <td class="num pnl-num">{{ fa_num($item->quantity) }}</td>
               <td class="num pnl-num">{{ invoice_money($item->unit_price, $invoice->currency_code) }}</td>
               <td class="num pnl-num">{{ invoice_money($item->line_total, $invoice->currency_code) }}</td>

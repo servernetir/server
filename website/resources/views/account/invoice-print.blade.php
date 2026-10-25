@@ -201,7 +201,7 @@ tbody tr:last-child td{ border-bottom:0 }
     <tbody>
       @foreach($invoice->items as $item)
         <tr>
-          <td>{{ \App\Support\PanelText::text($item->title) }}@if($item->description)<div class="desc">{{ \App\Support\PanelText::text($item->description) }}</div>@endif</td>
+          <td>{{ \App\Support\InvoiceText::title($item) }}@if($item->description)<div class="desc">{{ \App\Support\InvoiceText::description($item) }}</div>@endif</td>
           <td class="num">{{ fa_num($item->quantity) }}</td>
           <td class="num">{{ invoice_money($item->unit_price, $invoice->currency_code) }}</td>
           <td class="num">{{ invoice_money($item->line_total, $invoice->currency_code) }}</td>
