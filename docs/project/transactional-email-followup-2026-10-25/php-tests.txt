@@ -1,0 +1,10 @@
+PHPUnit 12.5.31 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.26
+Configuration: C:\workspace\servernet-email-followup-20261025\website\phpunit.xml
+
+.................                                                 17 / 17 (100%)
+
+Time: 00:03.829, Memory: 174.00 MB
+
+OK (17 tests, 251 assertions)
