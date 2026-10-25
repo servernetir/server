@@ -67,4 +67,7 @@
     <ul>@foreach(__('storage.'.$kind.'_conditions') as $condition)<li>{{ $condition }}</li>@endforeach</ul>
   </section>
 </div></section>
+@if(in_array($kind, ['object-storage', 'block-storage'], true))
+  @include('partials.product-guides', ['guidesCat' => 'cloud', 'guidesSeed' => 'cloud/'.$kind])
+@endif
 @endsection

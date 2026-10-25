@@ -1,0 +1,623 @@
+{
+  "fetched_at": "2026-10-25",
+  "source": "Windsor.ai Google Search Console",
+  "params": {
+    "connector": "searchconsole",
+    "accounts": [
+      "sc-domain:servernet.cloud"
+    ],
+    "fields": [
+      "page",
+      "clicks",
+      "impressions",
+      "ctr",
+      "position",
+      "search_type"
+    ],
+    "filters": [
+      [
+        "page",
+        "in",
+        "[\"https://servernet.cloud/blog/object-storage-vs-block-storage\",\"https://servernet.cloud/en/blog/object-storage-vs-block-storage\",\"https://servernet.cloud/tr/blog/object-storage-vs-block-storage\",\"https://servernet.cloud/blog/php-version-upgrade-guide\",\"https://servernet.cloud/en/blog/php-version-upgrade-guide\",\"https://servernet.cloud/tr/blog/php-version-upgrade-guide\"]"
+      ],
+      "and",
+      [
+        "search_type",
+        "eq",
+        "web"
+      ]
+    ],
+    "options": {
+      "include_fresh_data": false
+    },
+    "periods": [
+      {
+        "date_from": "2026-09-25",
+        "date_to": "2026-10-22"
+      },
+      {
+        "date_from": "2026-08-28",
+        "date_to": "2026-09-24"
+      }
+    ]
+  },
+  "current": {
+    "status": "done",
+    "data": [
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "clicks": 37,
+        "impressions": 1738,
+        "ctr": 0.0213,
+        "position": 8.6473,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/blog/php-version-upgrade-guide",
+        "clicks": 2,
+        "impressions": 32,
+        "ctr": 0.0625,
+        "position": 18.9375,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/blog/object-storage-vs-block-storage",
+        "clicks": 1,
+        "impressions": 191,
+        "ctr": 0.0052,
+        "position": 28.0576,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+        "clicks": 1,
+        "impressions": 61,
+        "ctr": 0.0164,
+        "position": 6.1803,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/object-storage-vs-block-storage",
+        "clicks": 0,
+        "impressions": 5,
+        "ctr": 0,
+        "position": 22.6,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/tr/blog/object-storage-vs-block-storage",
+        "clicks": 0,
+        "impressions": 7,
+        "ctr": 0,
+        "position": 23,
+        "search_type": "web"
+      }
+    ],
+    "total_rows": 6
+  },
+  "previous": {
+    "status": "done",
+    "data": [
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "clicks": 8,
+        "impressions": 297,
+        "ctr": 0.0269,
+        "position": 18.5522,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/blog/object-storage-vs-block-storage",
+        "clicks": 3,
+        "impressions": 163,
+        "ctr": 0.0184,
+        "position": 31.816,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/blog/php-version-upgrade-guide",
+        "clicks": 2,
+        "impressions": 13,
+        "ctr": 0.1538,
+        "position": 8.0769,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+        "clicks": 1,
+        "impressions": 13,
+        "ctr": 0.0769,
+        "position": 6.3077,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/object-storage-vs-block-storage",
+        "clicks": 0,
+        "impressions": 8,
+        "ctr": 0,
+        "position": 28.25,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/tr/blog/object-storage-vs-block-storage",
+        "clicks": 0,
+        "impressions": 20,
+        "ctr": 0,
+        "position": 20.05,
+        "search_type": "web"
+      }
+    ],
+    "total_rows": 6
+  },
+  "query_params": {
+    "connector": "searchconsole",
+    "accounts": [
+      "sc-domain:servernet.cloud"
+    ],
+    "fields": [
+      "page",
+      "query",
+      "clicks",
+      "impressions",
+      "ctr",
+      "position",
+      "search_type"
+    ],
+    "date_from": "2026-09-25",
+    "date_to": "2026-10-22",
+    "filters": [
+      [
+        "page",
+        "eq",
+        "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+      ],
+      "and",
+      [
+        "search_type",
+        "eq",
+        "web"
+      ]
+    ],
+    "options": {
+      "include_fresh_data": false
+    }
+  },
+  "query_result": {
+    "status": "done",
+    "data": [
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "7.0.22",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "7.2",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 9.5,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "7.2.24",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 3,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "7.3",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 5,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "8.0",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "?",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 12,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "como puedo hacerlo",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "gmo",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 12,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "hosting php 7",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 44,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how can i update it",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 1,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how do i update my php",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 3,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how to patch php",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 11,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how to update php",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how to update php on server",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 16,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how to upgrade it?",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how to upgrade php",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 1,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "how to upgrade php version",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 74,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "laravel y php",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 8,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "oude php applicatie upgraden",
+        "clicks": 0,
+        "impressions": 5,
+        "ctr": 0,
+        "position": 40.2,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php 7.4",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php 8 upgrade",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 77,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php 8.1 upgrade",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 74.5,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php update command",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 3,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php upgrade",
+        "clicks": 0,
+        "impressions": 10,
+        "ctr": 0,
+        "position": 38.6,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php upgrade guide",
+        "clicks": 0,
+        "impressions": 8,
+        "ctr": 0,
+        "position": 10.25,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php upgrade version",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 11,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php upgrade windows",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 54,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "php version upgrade",
+        "clicks": 0,
+        "impressions": 17,
+        "ctr": 0,
+        "position": 73.1765,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "shared server",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "update php on server",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 1,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "update php version",
+        "clicks": 0,
+        "impressions": 18,
+        "ctr": 0,
+        "position": 82.8333,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "update php version linux",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 45,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "update php version windows",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 79.5,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "update php windows",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 48,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "updating php",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 75,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "upgrade paths",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "upgrade php",
+        "clicks": 0,
+        "impressions": 9,
+        "ctr": 0,
+        "position": 51,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "upgrade php 7.2 to 8.2",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "upgrade php version",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 54.3333,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "upgrade php version windows",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 55,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "upgrade php windows",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 41,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "upgrading php",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 3.75,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "wordpress",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 11,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "yes",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "نعم",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 11,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "シンフリーサーバー",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 13,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "具体的な方法",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 13,
+        "search_type": "web"
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+        "query": "그누보드",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6,
+        "search_type": "web"
+      }
+    ],
+    "total_rows": 48
+  }
+}

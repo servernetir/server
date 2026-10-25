@@ -1,0 +1,327 @@
+{
+  "schema_version": 1,
+  "repository": "servernetir/server",
+  "branch": "develop",
+  "timezone": "Asia/Tehran",
+  "created_at_utc": "2026-10-25T16:01:59.341781+00:00",
+  "baseline_commit": "f396d1ebf7116df11000deeecaf9ebd83560bd71",
+  "purpose": "One coherent evidence-backed improvement per recurring run; latest production evidence controls completion.",
+  "automation": {
+    "status": "enabled",
+    "id": "6ade284014c48191b3059ee52a624345",
+    "cadence_hours": 6,
+    "source_of_truth": "Automation tool receipt; documentation does not activate scheduling.",
+    "timezone": "Asia/Tehran",
+    "dtstart_local": "2026-10-26T02:00:00",
+    "rrule": "FREQ=HOURLY;INTERVAL=6",
+    "local_hours": [
+      2,
+      8,
+      14,
+      20
+    ],
+    "verified_by": "Successful Automations create result reported by root on2026-10-25; no run success claimed."
+  },
+  "active_run": {
+    "run_id": "growth-cycle-20261025-initial",
+    "task_id": "initial-editorial-and-link-release",
+    "base_sha": "f396d1ebf7116df11000deeecaf9ebd83560bd71",
+    "started_at_utc": "2026-10-25T16:11:56.194515+00:00",
+    "lease_expires_at_utc": "2026-10-25T18:11:56.194515+00:00",
+    "phase": "ready_for_deploy"
+  },
+  "last_run": null,
+  "run_receipts": [],
+  "measurement": {
+    "gsc_max_fetches_per_day": 1,
+    "comparison_days": 28,
+    "google_login": "deferred_by_owner",
+    "repeat_google_login_requests": false,
+    "latest_known_report": "docs/project/seo-growth-cycle-2026-10-25/gsc-baseline.json",
+    "latest_known_complete_end_date": "2026-10-22",
+    "triage_end_date": "2026-10-17",
+    "do_not_mix_baseline_windows": true,
+    "last_gsc_fetch_date_tehran": "2026-10-25",
+    "latest_targeted_baseline": "docs/project/seo-growth-cycle-2026-10-25/gsc-baseline.json"
+  },
+  "completed_baseline": [
+    {
+      "id": "hourly-linux-guide",
+      "state": "production_verified",
+      "evidence": "docs/project/SEO-GROWTH-FOLLOWUP-2026-10-25.md",
+      "published_at_utc": "2026-10-25T15:25:32Z"
+    },
+    {
+      "id": "guide-product-mapping",
+      "state": "production_verified",
+      "evidence": "docs/project/SEO-GROWTH-FOLLOWUP-2026-10-25.md",
+      "published_at_utc": "2026-10-25T15:25:32Z"
+    },
+    {
+      "id": "quote-only-billing-copy",
+      "state": "production_verified",
+      "evidence": "docs/project/SEO-GROWTH-FOLLOWUP-2026-10-25.md",
+      "published_at_utc": "2026-10-25T15:25:32Z"
+    },
+    {
+      "id": "cpanel-directadmin-refresh",
+      "state": "observe",
+      "evidence": "docs/project/SEO-GOOGLE-GROWTH-PUBLICATION-2026-10-25.md",
+      "rule": "Do not rewrite again without a concrete defect; collect full-window evidence."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "refresh-object-block",
+      "priority": "P1",
+      "state": "current_session_preparation",
+      "urls": [
+        "/blog/object-storage-vs-block-storage",
+        "/en/blog/object-storage-vs-block-storage",
+        "/tr/blog/object-storage-vs-block-storage"
+      ],
+      "reason": "Existing technical intent; unsafe public-read shortcut, unqualified claims and missing contextual sources/links. FA206 impressions in triage window.",
+      "evidence": "docs/project/SEO-BLOG-TRIAGE-2026-10-25.md",
+      "acceptance": [
+        "Official sources verified; guidance fits supported service rather than assumed S3 parity.",
+        "Original publication date and URLs preserved; exact CMS revision snapshot and guard.",
+        "Three-language bodies, relevant internal links and public output verified."
+      ],
+      "owner_note": "Article package is being prepared in this initial session; future runs must inspect actual release receipt before picking it."
+    },
+    {
+      "id": "refresh-php-upgrade",
+      "priority": "P1",
+      "state": "current_session_preparation",
+      "urls": [
+        "/blog/php-version-upgrade-guide",
+        "/en/blog/php-version-upgrade-guide",
+        "/tr/blog/php-version-upgrade-guide"
+      ],
+      "reason": "Latest matched GSC page window2026-09-25–2026-10-22 shows37clicks/1738impressions vs8/297 prior; article is growing. Refresh corrects obsolete/unsafe guidance while retaining all original titles and intent; no traffic-recovery claim.",
+      "evidence": "docs/project/seo-growth-cycle-2026-10-25/content-sources.md",
+      "acceptance": [
+        "Current official support and migration documentation checked.",
+        "Staging, dependencies, restore/rollback and real relevant hosting links covered without availability promises.",
+        "Original publication date and URLs preserved; guarded CMS refresh and live verification."
+      ],
+      "owner_note": "Article package is being prepared in this initial session; do not duplicate."
+    },
+    {
+      "id": "rdp-endpoint-guide",
+      "priority": "P1",
+      "state": "ready_for_research",
+      "urls": [
+        "/en/blog/connecting-windows-server-rdp"
+      ],
+      "reason": "131 impressions and position7.93 in triage window; fixed port/IP and certificate-warning guidance need review.",
+      "evidence": "docs/project/SEO-BLOG-TRIAGE-2026-10-25.md",
+      "acceptance": [
+        "Official Microsoft client/platform guidance verified.",
+        "Use actual endpoint and certificate identity; preserve a recovery path.",
+        "Do not imply all plans have Windows/root/RDP; link only to real suitable services.",
+        "Inspect other language variants before deciding scope; no automatic mass replacement."
+      ]
+    },
+    {
+      "id": "discord-community-links",
+      "priority": "P1",
+      "state": "ready_for_research",
+      "urls": [
+        "/blog/iranian-discord-servers"
+      ],
+      "reason": "59→18 clicks in triage window; listing lacks official joining links and repeats unsupported membership claims.",
+      "evidence": "docs/project/SEO-BLOG-TRIAGE-2026-10-25.md",
+      "acceptance": [
+        "Each recommended community has a verified official public joining/reference path and check date.",
+        "Unverified counts/rankings removed; keep community-discovery intent.",
+        "No redirect to a VPS product; preserve growing English variant unless its own evidence warrants edits."
+      ]
+    },
+    {
+      "id": "vpn-editorial-review",
+      "priority": "P2",
+      "state": "ready_for_research",
+      "urls": [
+        "/blog/what-is-vpn",
+        "/en/blog/what-is-vpn",
+        "/tr/blog/what-is-vpn"
+      ],
+      "reason": "Live copy has old dated statistics and unsupported generic claims; content review can proceed without Google login.",
+      "evidence": "docs/project/SEO-BLOG-TRIAGE-2026-10-25.md",
+      "acceptance": [
+        "Verify technical claims with current primary sources.",
+        "Review each language independently and keep user intent/URLs.",
+        "Do not conflate editorial refresh with resolving Google language selection."
+      ]
+    },
+    {
+      "id": "vpn-google-language-selection",
+      "priority": "P1",
+      "state": "blocked_google",
+      "urls": [
+        "/blog/what-is-vpn",
+        "/en/blog/what-is-vpn",
+        "/tr/blog/what-is-vpn"
+      ],
+      "reason": "50/56 prior clicks to TR VPN came from two Persian queries; selected canonical/index evidence absent.",
+      "evidence": "docs/project/SEO-BLOG-TRIAGE-2026-10-25.md",
+      "acceptance": [
+        "Authorized URL Inspection and matched query/country/device data.",
+        "Do not invent noindex/redirect/canonical fixes from low-volume blended positions."
+      ],
+      "resume_condition": "Owner confirms Google session/access; do not repeatedly prompt while deferred."
+    },
+    {
+      "id": "mobile-product-usability",
+      "priority": "P1",
+      "state": "ready_for_observation",
+      "urls": [
+        "/vps/hourly",
+        "/gpu",
+        "/en/vps/hourly",
+        "/tr/gpu"
+      ],
+      "reason": "Latest report has mobile CWV group needing improvement; existing follow-up only checked desktop layout.",
+      "evidence": "SEO-DAILY-2026-10-25.md",
+      "acceptance": [
+        "Real narrow viewport, keyboard/touch interactions and no horizontal overflow on changed pages.",
+        "Measure same-page lab baseline before any performance change; distinguish lab from field data.",
+        "Preserve worker analytics, consent, current prices and catalog availability."
+      ]
+    },
+    {
+      "id": "image-cropper-acceptance",
+      "priority": "P2",
+      "state": "ready_for_observation",
+      "urls": [
+        "/webtools/image-cropper"
+      ],
+      "reason": "SEO copy is live; current upload/crop/download acceptance is not recorded.",
+      "evidence": "docs/project/seo-growth-2026-10-20/action-register.csv",
+      "acceptance": [
+        "Use a synthetic non-personal image in the real UI.",
+        "Verify crop interaction, output format/dimensions and successful download; no server upload promise without evidence.",
+        "Repair only a reproduced defect, then retest."
+      ]
+    },
+    {
+      "id": "clip-path-copy-acceptance",
+      "priority": "P2",
+      "state": "ready_for_observation",
+      "urls": [
+        "/en/webtools/clip-path-generator"
+      ],
+      "reason": "Copy workflow still lacks fresh clipboard acceptance.",
+      "evidence": "docs/project/seo-growth-2026-10-20/action-register.csv",
+      "acceptance": [
+        "Use UI in a supported browser and verify clipboard output matches selected shape.",
+        "If browser clipboard is unavailable, record not tested; do not claim an app defect."
+      ]
+    },
+    {
+      "id": "growth-event-delivery",
+      "priority": "P1",
+      "state": "blocked_google",
+      "urls": [
+        "/vps/hourly",
+        "/gpu",
+        "/cloud/n8n"
+      ],
+      "reason": "Website emits events; current GTM/GA4 routing and receipt remain unaccepted.",
+      "evidence": "docs/project/SEO-GROWTH-ANALYTICS-2026-10-25.md",
+      "acceptance": [
+        "Fresh authorized export; exact additive10-entity GTM changes reviewed.",
+        "Preview event uniqueness and parameters; correct-property GA4 DebugView receipt.",
+        "Publication verified separately from dataLayer emission; do not alter payment measurement casually."
+      ],
+      "resume_condition": "Owner confirms Google session/access; do not repeatedly prompt while deferred."
+    },
+    {
+      "id": "weekly-qualified-search-review",
+      "priority": "P2",
+      "state": "observe",
+      "urls": [
+        "/",
+        "/vps/hourly",
+        "/gpu",
+        "/en/vps/hourly"
+      ],
+      "reason": "Latest28-day report shows brand/home decline alongside hourly/GPU growth; not attributable to today's release.",
+      "evidence": "SEO-DAILY-2026-10-25.md",
+      "acceptance": [
+        "Fetch GSC no more than daily if read-only Windsor still works; explicit complete equal-length windows and filters.",
+        "Review grouped URL/query/country/device once a week before choosing the next content work.",
+        "Clicks are not unique visitors or revenue; no fabricated Ahrefs volumes."
+      ]
+    },
+    {
+      "id": "commercial-discovery-sample",
+      "priority": "P2",
+      "state": "ready_for_observation",
+      "urls": [
+        "/gpu",
+        "/vps/hourly",
+        "/transactional-email"
+      ],
+      "reason": "Historical indexing snapshot reports discovered-not-indexed URLs; individual current commercial candidates need evidence.",
+      "evidence": "SEO-DAILY-2026-10-25.md",
+      "acceptance": [
+        "Inspect a bounded set of actual valuable pages for distinct content and internal discovery links.",
+        "Avoid mass index requests, doorway pages and blanket noindex/redirect changes.",
+        "Google-selected indexing state remains unknown without authorized inspection."
+      ]
+    },
+    {
+      "id": "backup-guide-safe-example",
+      "priority": "P1",
+      "state": "ready_for_research",
+      "urls": [
+        "/en/blog/website-backup-strategy"
+      ],
+      "reason": "Fresh public body reviewed2026-10-25: command-line root/password example; retention find-delete runs without proving a new successful backup; incomplete lftp example; single-transaction framed around DB size rather than consistency and engine requirements.",
+      "evidence": "docs/project/seo-growth-cycle-2026-10-25/content-sources.md",
+      "acceptance": [
+        "Read current official MySQL/MariaDB backup and client credential guidance before replacing examples.",
+        "Use least-privilege example credentials outside command-line arguments; explicit pipeline/error checks.",
+        "No retention deletion unless a new backup and independent recovery verification satisfy documented policy; work only on disposable fixtures.",
+        "Cover engine/consistency constraints and tested restore, not a DB-size threshold or guaranteed recovery time.",
+        "Inspect fa/tr bodies before deciding scope; preserve original publication dates and URLs."
+      ],
+      "owner_note": "Observed by content reviewer in this initial session; article is not modified or accepted yet."
+    },
+    {
+      "id": "git-deployment-guide-safe-example",
+      "priority": "P1",
+      "state": "ready_for_research",
+      "urls": [
+        "/en/blog/git-basics-for-deployment"
+      ],
+      "reason": "Fresh article-body review found a public deploy.php example with an unenforced IP allowlist, unconditional shell_exec git-pull, and query-token fallback. This is a defect in published guidance, not proof that such an endpoint is deployed on ServerNet.",
+      "evidence": "docs/project/seo-growth-cycle-2026-10-25/technical-links.md",
+      "acceptance": [
+        "Replace executable public deployment examples with an authenticated, least-privilege, auditable workflow supported by current primary Git/hosting documentation.",
+        "No secrets in URLs or shell commands; no generic public shell endpoint.",
+        "Explain reviewed commit/release, allowed paths, atomicity limits, backup and rollback.",
+        "Inspect all three language bodies and preserve their URLs/publication dates; test any example only in a disposable local fixture."
+      ]
+    },
+    {
+      "id": "staging-guide-accurate-workflow",
+      "priority": "P1",
+      "state": "ready_for_research",
+      "urls": [
+        "/en/blog/staging-environment-setup"
+      ],
+      "reason": "Fresh body review found outdated action examples, overbroad source-dot application copy, robots.txt represented as an index prohibition, and an unverified built-in ServerNet staging-service claim.",
+      "evidence": "docs/project/seo-growth-cycle-2026-10-25/technical-links.md",
+      "acceptance": [
+        "Check current official action/documentation and pin reviewed versions or commit SHAs as appropriate.",
+        "Use a bounded artifact/file list; keep secrets, customer data and production configuration out of staging uploads.",
+        "Separate authentication, crawl control and indexing directives accurately with official Google guidance.",
+        "Remove unsupported service claims; explain only verified ServerNet capabilities and local/user-managed alternatives.",
+        "Preserve URLs/date and inspect fa/tr before scope selection; no new production staging environment, credential or paid service is created by this editorial refresh."
+      ]
+    }
+  ]
+}
