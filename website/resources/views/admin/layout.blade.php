@@ -32,6 +32,7 @@
 <div class="ad-scrim" id="ad-scrim" hidden></div>
 <div class="ad-shell">
   <aside class="ad-side" id="ad-side">
+    @can('marketing.manage')<a class="ad-link" href="/admin/marketing/campaigns">کمپین‌ها و تخفیف‌ها</a>@endcan
     <a class="ad-logo" href="/admin"><span class="ad-logo-m"><svg class="icon"><use href="#i-server"/></svg></span> سرورنت <b>مدیریت</b></a>
     {{--
       ═══ منو بر اساسِ نقش ═══

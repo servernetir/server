@@ -52,7 +52,7 @@ class ProductInvoiceIssuer
             'note'          => $product->name,
         ]);
 
-        InvoiceItem::create([
+        InvoiceItem::create(app(\App\Services\Marketing\InvoiceContext::class)->attributes($service, 'purchase', $product) + [
             'invoice_id'  => $invoice->id,
             'title'       => $product->name.' ('.$service->cycleLabel().')',
             'description' => $service->domain,

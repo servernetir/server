@@ -36,7 +36,16 @@ final class AccountingReport
             $total = 0;
             $topup = 0;
             $wallet = 0;
+            $campaignCredited = Schema::hasTable('marketing_payment_reconciliations')
+                ? DB::table('marketing_payment_reconciliations')->pluck('payment_id')->flip() : collect();
             foreach ($p->lazyById(500) as $pay) {
+                if ($campaignCredited->has($pay->id)) {
+                    if (! in_array($pay->gateway, ['credit', 'gift'], true)) {
+                        $total += $pay->amount;
+                        $topup += $pay->amount;
+                    }
+                    continue;
+                }
                 if (in_array($pay->gateway, ['credit', 'gift'], true)) {
                     $wallet += $pay->amount;
                 } else {

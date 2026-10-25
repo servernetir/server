@@ -113,7 +113,8 @@ class BusinessLedger
 
         // افزایش اعتبار درآمد نیست — بدهی است تا وقتی مشتری خرجش کند. درآمد
         // موقع مصرف اعتبار روی فاکتور خدمت شناسایی می‌شود، نه اینجا.
-        if ($invoice->kind === 'topup') {
+        if ($invoice->kind === 'topup' || (Schema::hasTable('marketing_payment_reconciliations') &&
+            DB::table('marketing_payment_reconciliations')->where('payment_id', $payment->id)->exists())) {
             return;
         }
 

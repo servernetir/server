@@ -21,6 +21,7 @@
       <h2>بازاریابی هوشمند</h2>
       <p>پیدا کردنِ کسب‌وکارهایی که به سایت نیاز دارند، نوشتنِ پیامی که ارزشِ خواندن دارد، و پی‌گیریِ منظم. هیچ ایمیلی بدونِ عبور از این صفحه بیرون نمی‌رود.</p>
     </div>
+    <a class="mk-btn" href="/admin/marketing/campaigns">کمپین‌ها و تخفیف‌ها</a>
     <a class="mk-btn" href="/admin/marketing?tab=chat">سرنخ‌های گفتگو</a>
     <a class="mk-btn" href="/admin/marketing?tab=email">درخواست‌های ایمیل تراکنشی</a>
     <a class="btn btn-primary" href="/admin/marketing/growth"><svg class="icon"><use href="#i-trend"/></svg>رشد و دیده‌شدن</a>

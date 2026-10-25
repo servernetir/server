@@ -77,6 +77,12 @@ class Invoice extends Model
 
     protected static function booted(): void
     {
+        static::updated(function (self $invoice) {
+            if ($invoice->wasChanged('status') &&
+                \Illuminate\Support\Facades\Schema::hasTable('marketing_redemptions')) {
+                app(\App\Services\Marketing\DiscountEngine::class)->sync($invoice);
+            }
+        });
         static::creating(function (self $i) {
             if (blank($i->number)) {
                 $i->number = self::nextNumber();

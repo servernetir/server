@@ -7,14 +7,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class InvoiceItem extends Model
 {
+    protected $hidden = ['marketing_context'];
+
     protected $fillable = [
         'invoice_id', 'title', 'description', 'quantity',
-        'unit_price', 'line_total', 'discount', 'tax_rate_bp', 'tax_amount',
+        'unit_price', 'line_total', 'discount', 'tax_rate_bp', 'tax_amount', 'marketing_context',
     ];
 
     protected function casts(): array
     {
         return [
+            'marketing_context' => 'array',
             'quantity'    => 'integer',
             'unit_price'  => 'integer',
             'line_total'  => 'integer',

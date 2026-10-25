@@ -1637,7 +1637,7 @@ class CloudStoreController extends Controller
 
         $unitTax = (int) round($unitPrice * $service->tax_percent / 100);
 
-        InvoiceItem::create([
+        InvoiceItem::create(app(\App\Services\Marketing\InvoiceContext::class)->attributes($service, 'purchase', cloud: $offer) + [
             'invoice_id' => $invoice->id,
             'title' => __('ui.svc_name_vps', ['label' => $offer->public_name]).' ('.$service->cycleLabel().')',
             'description' => $label,

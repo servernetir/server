@@ -720,3 +720,6 @@ Schedule::command('dns:reconcile')
 
 // Growth has its own durable jobs, approval gates and pause switch; safe before migration.
 \Illuminate\Support\Facades\Schedule::command('growth:run --limit=3')->everyMinute()->withoutOverlapping(15);
+
+Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
+    ->appendOutputTo(storage_path('logs/marketing-scheduler.log'));

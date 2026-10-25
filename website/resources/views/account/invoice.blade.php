@@ -48,6 +48,7 @@
   </div>
 @endif
 
+@include('account.partials.campaign-discount')
 <section class="pnl-sec">
   <div class="pnl-sec-h">
     <h2>{{ __('ui.inv_items') }}</h2>

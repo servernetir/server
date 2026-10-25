@@ -224,7 +224,7 @@ $site = function (): void {
 
     // صفحهٔ فرودِ شخصیِ «طراحی سایت و زیرساخت» — مقصدِ لینکِ لینکدین/اینستاگرام.
     // ⚠️ عمداً در منوی اصلی نیست، ولی در نقشهٔ سایت **هست**: کلِ هدفش ورودیِ
-    //    ارگانیک از «طراحی سایت در ارومیه» است و صفحهٔ بی‌نقشه دیرتر ایندکس می‌شود.
+    //    ارگانیک از «طراحی سایت در ارومیه» است و صفحهٔ بی‌نقشه د��رتر ایندکس می‌شود.
     Route::get('/webdesign', fn () => view('pages.webdesign'))->name('webdesign');
 
     Route::get('/tools/{slug}', [ToolController::class, 'show'])->name('tools')->where('slug', '[a-z-]+');
@@ -401,6 +401,12 @@ $site = function (): void {
 
     Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
+        Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
+        Route::post('/offers/preferences', [Account\OfferController::class, 'preferences'])->name('offers.preferences')->middleware('throttle:10,1');
+        Route::get('/offers/{grant}/open', [Account\OfferController::class, 'open'])->name('offers.open');
+        Route::post('/invoices/{invoice}/offer', [Account\OfferController::class, 'apply'])->name('invoice.offer')->middleware('throttle:10,1');
+        Route::post('/invoices/{invoice}/offer/free', [Account\OfferController::class, 'free'])->name('invoice.offer.free')->middleware('throttle:10,1');
+
         // «همه» — این نشانی هرگز عوض نمی‌شود: هشت ارجاعِ ورودی رویش نشسته‌اند،
         // از جمله اعلانِ بازگشتِ وجه که واقعاً برای مشتری فرستاده می‌شود
         // (ProvisioningService) و لینکِ مطلقِ کنسول در هدرِ سایت.
@@ -1349,7 +1355,7 @@ Route::middleware('throttle:tools')->get('/system/crypto-status', function () {
 /*
 | در دسترس بودن سرویس‌های بیرونی — از دید خود سرور.
 |
-| لازم است چون هر سه سرویس ایرانی‌اند و گاهی قطع می‌شوند، و ماشین توسعه
+| لازم اس�� چون هر سه سرویس ایرانی‌اند و گاهی قطع می‌شوند، و ماشین توسعه
 | شبکهٔ قابل اتکایی ندارد (به هر پورتی «وصل» می‌شود). بدون این، «کار نکرد»
 | را نمی‌شود از «سرویس پایین است» تفکیک کرد.
 |
@@ -3351,6 +3357,22 @@ Route::prefix('admin')->group(function () {
         | بیرون می‌فرستد از نشانیِ ceo@servernet.cloud. نویسندهٔ بلاگ نباید
         | بتواند به نامِ مدیرعامل برای یک کلینیکِ خارجی نامه بفرستد.
         */
+        Route::prefix('marketing/campaigns')->withoutMiddleware('admin')->group(function () {
+            $controller = \App\Http\Controllers\Admin\CampaignController::class;
+            Route::get('/', [$controller, 'index'])->name('admin.marketing.campaigns');
+            Route::get('/create', [$controller, 'create']);
+            Route::post('/', [$controller, 'store']);
+            Route::post('/sms-policy', [$controller, 'policy']);
+            Route::post('/permissions', [$controller, 'permissions']);
+            Route::post('/redemptions/{redemption}/reconcile', [$controller, 'reconcile']);
+            Route::post('/grants/{grant}/revoke', [$controller, 'revoke']);
+            Route::get('/{campaign}', [$controller, 'show'])->whereNumber('campaign');
+            Route::get('/{campaign}/edit', [$controller, 'edit'])->whereNumber('campaign');
+            Route::post('/{campaign}', [$controller, 'update'])->whereNumber('campaign');
+            Route::post('/{campaign}/transition', [$controller, 'transition'])->whereNumber('campaign');
+            Route::post('/{campaign}/issue', [$controller, 'issue'])->whereNumber('campaign')->middleware('throttle:20,1');
+            Route::get('/{campaign}/export', [$controller, 'export'])->whereNumber('campaign');
+        });
         Route::get('/marketing', [\App\Http\Controllers\Admin\MarketingController::class, 'index'])->name('admin.marketing')->middleware('admin');
         Route::post('/marketing', [\App\Http\Controllers\Admin\MarketingController::class, 'store'])->middleware('admin');
         Route::get('/marketing/growth', [\App\Http\Controllers\Admin\MarketingController::class, 'growth'])->name('admin.marketing.growth')->middleware('admin');
@@ -3621,3 +3643,8 @@ Route::prefix('agent')->group(function () {
     // تأییدِ اعمال. 🔴 ضربان می‌گوید «زنده‌ام»؛ این می‌گوید «کارت را کردم».
     Route::post('guestpolicy/ack', [\App\Http\Controllers\Agent\PullController::class, 'guestPolicyAck']);
 });
+
+
+// Tracking stores no public PII and never redeems a grant.
+Route::get('/m/{token}', [\App\Http\Controllers\Account\OfferController::class, 'track'])
+    ->where('token', '[a-f0-9]{48}')->middleware('throttle:60,1');

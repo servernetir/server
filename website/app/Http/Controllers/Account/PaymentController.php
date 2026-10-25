@@ -283,7 +283,7 @@ class PaymentController extends Controller
     /**
      * وضعیتِ زندهٔ پرداخت — صفحهٔ مشتری هر چند ثانیه می‌پرسد.
      *
-     * ⚠️ عمداً فقط چیزی برمی‌گرداند که خودِ مشتری از قبل می‌بیند: وضعیت، ثانیهٔ
+     * ⚠️ عمد��ً فقط چیزی برمی‌گرداند که خودِ مشتری از قبل می‌بیند: وضعیت، ثانیهٔ
      * باقی‌مانده و مبلغِ رسیده. نه شناسهٔ داخلی، نه کیفِ ما، نه چیزی از
      * فاکتورِ دیگران.
      */
@@ -739,6 +739,7 @@ class PaymentController extends Controller
 
                 /** @var Invoice $fresh */
                 $fresh = Invoice::whereKey($invoice->id)->lockForUpdate()->first();
+                app(\App\Services\Marketing\DiscountEngine::class)->assertPayable($fresh);
                 $due = $fresh->due();
 
                 if (! in_array($fresh->status, ['unpaid', 'partial'], true) || $due <= 0) {
@@ -831,6 +832,13 @@ class PaymentController extends Controller
 
         $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
         $code = \App\Models\GiftCoupon::normalize($data['code']);
+        if (\Illuminate\Support\Facades\Schema::hasTable('marketing_grants') && str_starts_with($code, 'SN-')) {
+            return app(OfferController::class)->apply($request, $invoice, app(\App\Services\Marketing\DiscountEngine::class));
+        }
+        if (\Illuminate\Support\Facades\Schema::hasTable('marketing_redemptions') &&
+            \App\Models\MarketingRedemption::where('invoice_id', $invoice->id)->where('status', '!=', 'released')->exists()) {
+            return back()->withErrors(__('marketing.stacking'));
+        }
 
         if ($invoice->currency_code !== 'IRT') {
             return back()->withErrors(__('ui.iv_cp_irt_only'));
@@ -861,6 +869,7 @@ class PaymentController extends Controller
             $outcome = DB::transaction(function () use ($invoice, $customerId, $code) {
                 /** @var Invoice $fresh */
                 $fresh = Invoice::whereKey($invoice->id)->lockForUpdate()->first();
+                app(\App\Services\Marketing\DiscountEngine::class)->assertPayable($fresh);
                 $due = $fresh->due();
 
                 if (! in_array($fresh->status, ['unpaid', 'partial'], true) || $due <= 0) {
@@ -969,6 +978,7 @@ class PaymentController extends Controller
     {
         abort_if($invoice->customer_id !== Auth::guard('customer')->id(), 404);
         if (! request()->isMethod('GET') && ! str_ends_with((string) request()->route()?->getName(), '.cancel')) {
+            app(\App\Services\Marketing\DiscountEngine::class)->assertPayable($invoice);
             app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
             app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($invoice);
         }

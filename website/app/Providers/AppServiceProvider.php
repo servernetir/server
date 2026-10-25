@@ -254,6 +254,14 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        foreach (['manage', 'publish', 'send', 'finance'] as $ability) {
+            \Illuminate\Support\Facades\Gate::define('marketing.'.$ability,
+                fn (\App\Models\User $user) => $user->isAdmin() ||
+                    ($user->isSupport() && \Illuminate\Support\Facades\Schema::hasTable('marketing_permissions') &&
+                        \Illuminate\Support\Facades\DB::table('marketing_permissions')->where('user_id', $user->id)
+                            ->where('ability', $ability)->exists()));
+        }
+
         // Every real customer login (OTP, Google, 2FA, registration, remember-me,
         // impersonation) binds its session to the current moderation version.
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Login::class, function ($event) {

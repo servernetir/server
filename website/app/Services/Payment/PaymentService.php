@@ -74,28 +74,37 @@ class PaymentService
         } catch (\Illuminate\Validation\ValidationException $e) {
             return new StartOutcome(false, error: collect($e->errors())->flatten()->first());
         }
-        $amount = $invoice->due();
+        $prepared = DB::transaction(function () use ($invoice, $gateway, $request) {
+            $invoice = Invoice::whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            app(\App\Services\Marketing\DiscountEngine::class)->assertPayable($invoice);
+            $amount = $invoice->due();
 
-        if ($amount < $gateway->minimum()) {
-            return new StartOutcome(false, error: 'کمترین مبلغ قابل پرداخت '.number_format($gateway->minimum()).' تومان است.');
+            if ($amount < $gateway->minimum()) {
+                return new StartOutcome(false, error: 'کمترین مبلغ قابل پرداخت '.number_format($gateway->minimum()).' تومان است.');
+            }
+
+            // تلاش‌های باز قبلی را ببند
+            Payment::where('invoice_id', $invoice->id)
+                ->whereIn('status', ['pending', 'redirected'])
+                ->update(['status' => 'canceled', 'updated_at' => now()]);
+
+            return Payment::create([
+                'invoice_id' => $invoice->id,
+                'customer_id' => $invoice->customer_id,
+                'gateway' => $gateway->key(),
+                'currency_code' => $invoice->currency_code,
+                'amount' => $amount,
+                'status' => 'pending',
+                'expires_at' => now()->addMinutes(self::WINDOW_MINUTES),
+                'ip' => $request->ip(),
+                'user_agent' => substr((string) $request->userAgent(), 0, 255),
+            ]);
+
+        }, 5);
+        if ($prepared instanceof StartOutcome) {
+            return $prepared;
         }
-
-        // تلاش‌های باز قبلی را ببند
-        Payment::where('invoice_id', $invoice->id)
-            ->whereIn('status', ['pending', 'redirected'])
-            ->update(['status' => 'canceled', 'updated_at' => now()]);
-
-        $payment = Payment::create([
-            'invoice_id' => $invoice->id,
-            'customer_id' => $invoice->customer_id,
-            'gateway' => $gateway->key(),
-            'currency_code' => $invoice->currency_code,
-            'amount' => $amount,
-            'status' => 'pending',
-            'expires_at' => now()->addMinutes(self::WINDOW_MINUTES),
-            'ip' => $request->ip(),
-            'user_agent' => substr((string) $request->userAgent(), 0, 255),
-        ]);
+        $payment = $prepared;
 
         $result = $gateway->start($payment, route('payment.callback', ['gateway' => $gateway->key()]));
 
@@ -213,6 +222,23 @@ class PaymentService
             /** @var Invoice $invoice */
             $invoice = Invoice::whereKey($fresh->invoice_id)->lockForUpdate()->first();
 
+            if (Schema::hasTable('marketing_redemptions') &&
+                app(\App\Services\Marketing\DiscountEngine::class)->lateSettlement($invoice)) {
+                if ($fresh->amount > 0) {
+                    $this->credit($invoice->customer_id, $invoice->currency_code, $fresh->amount,
+                        'adjustment', $fresh, 'پرداخت دیرهنگام پیشنهاد — مبلغ واقعی به اعتبار رفت؛ سفارش نیازمند تطبیق است');
+                }
+                DB::table('marketing_payment_reconciliations')->insertOrIgnore([
+                    'payment_id' => $fresh->id, 'invoice_id' => $invoice->id,
+                    'credited_amount' => $fresh->amount, 'currency_code' => $fresh->currency_code,
+                    'created_at' => now(),
+                ]);
+                ErrorTracker::noteOnce('billing', 'Campaign payment requires reconciliation; actual funds credited.', 3600,
+                    ['invoice' => $invoice->id, 'payment' => $fresh->id]);
+
+                return new SettleOutcome(true, $fresh);
+            }
+
             /*
             | 🔴 پول روی فاکتورِ **لغوشده** نباید بی‌صدا بخارد.
             |
@@ -304,7 +330,7 @@ class PaymentService
                         | چون روی IP فعال می‌شود. با شرطِ قبلی مستقیم `active`
                         | می‌شد: نه صفی، نه کاری برای اپراتور، نه هیچ ردی. مشتری
                         | پول می‌داد، پنلِ خودش می‌گفت «فعال»، و **هیچ‌کس نمی‌فهمید
-                        | که باید لایسنسی ثبت شود**. دقیقاً همان خرابیِ سرورِ ابری،
+                        | که باید لایسنسی ث��ت شود**. دقیقاً همان خرابیِ سرورِ ابری،
                         | از درِ چهارم.
                         |
                         | `server_ip` نشانهٔ درست است: فقط پکیجی آن را دارد که

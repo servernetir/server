@@ -344,7 +344,7 @@ class ServiceController extends Controller
             'note' => $service->name,
         ]);
 
-        InvoiceItem::create([
+        InvoiceItem::create(app(\App\Services\Marketing\InvoiceContext::class)->attributes($service, in_array($service->status, ['active', 'suspended'], true) ? 'renewal' : 'purchase') + [
             'invoice_id' => $invoice->id,
             'title' => $service->name.' ('.$service->cycleLabel().')',
             /*

@@ -1,0 +1,39 @@
+@extends('admin.layout')
+@section('title',$campaign->name)
+@section('nav_marketing','on')
+@section('head')<link rel="stylesheet" href="{{ asset_ver('assets/css/campaigns.css') }}">@endsection
+@section('content')
+<div class="cmp"><div class="cmp-head"><div><span class="cmp-status">{{ $campaign->status }} · v{{ $campaign->version }}</span><h1>{{ $campaign->name }}</h1><p>پیش‌نمایش، فعال‌سازی و پیگیری تعهدهای صادرشده</p></div><div class="cmp-links"><a href="/admin/marketing/campaigns">همه کمپین‌ها</a>@if($grants->isEmpty())<a href="/admin/marketing/campaigns/{{ $campaign->id }}/edit">ویرایش پیش‌نویس</a>@endif @can('marketing.finance')<a href="/admin/marketing/campaigns/{{ $campaign->id }}/export">خروجی CSV</a>@endcan</div></div>
+@if(session('ok'))<p class="cmp-notice" role="status">{{ session('ok') }}</p>@endif
+@if($errors->any())<div class="cmp-error" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+<div class="cmp-grid">
+<div class="cmp-card"><h2>مخاطبان واجد شرایط فعلی</h2><p class="cmp-value">{{ number_format($preview['audience']) }}</p><p>فیلتر مخاطب؛ الزاماً تعداد تولدهای امروز یا گیرندگان دارای رضایت نیست.</p><p dir="ltr">{{ implode(' · ',$preview['sample']) }}</p></div>
+<div class="cmp-card"><h2>حداکثر تعهد صدور شخصی</h2><p class="cmp-value">{{ number_format($preview['maximum_commitment']) }}</p><p>{{ $campaign->currency_code }} · رزرو واقعی به سقف بودجه محدود می‌شود.</p></div>
+<div class="cmp-card"><h2>نمونه پیامک</h2><p>{{ $preview['estimate']['segments'] }} بخش برای هر پیام</p><p>هزینه هر پیام: {{ $preview['estimate']['cost'] === null ? 'نامشخص' : number_format($preview['estimate']['cost']).' تومان' }}</p><p>حداکثر {{ $campaign->message['limit'] }} پیام و {{ number_format($campaign->message['budget']) }} تومان بودجه پیامک</p></div>
+</div>
+<section class="cmp-card"><h2>متن پیش‌نمایش</h2><p class="cmp-preview">{{ $preview['text'] ?: 'پیامک برای این کمپین غیرفعال است.' }}</p><p>نام، کد و زمان در این پیش‌نمایش نمونه‌اند. صدور کد مستقل از موفقیت ارسال است.</p></section>
+<div class="cmp-notice">{{ $campaign->rule['subsidy_approved'] ? 'مجوز یارانه محدود ثبت شده: '.$campaign->rule['subsidy_reason'] : 'هزینه تأمین باید مشخص و حداقل حاشیه سود برقرار باشد؛ هزینه نامشخص باعث رد تخفیف می‌شود.' }}<br>توقف صدور، کدهای معتبر قبلی را باطل نمی‌کند. انقضا در زمان استفاده کنترل می‌شود و خودکار تمدید نمی‌شود.</div>
+@can('marketing.publish')
+<section class="cmp-card"><h2>فعال‌سازی یا توقف صدور</h2><form method="post" action="/admin/marketing/campaigns/{{ $campaign->id }}/transition" class="cmp-form">@csrf
+<label>عملیات<select name="action"><option value="activate">فعال‌سازی در چارچوب شرایط و بودجه</option><option value="pause">توقف صدور کد جدید</option></select></label><label>دلیل<input name="reason" required maxlength="190"></label><button class="ad-btn" type="submit">ثبت تصمیم مدیر</button></form></section>
+<section class="cmp-card"><h2>صدور کد شخصی یا عمومی</h2><form method="post" action="/admin/marketing/campaigns/{{ $campaign->id }}/issue" class="cmp-form">@csrf<input type="hidden" name="request_key" value="{{ \Illuminate\Support\Str::uuid() }}">
+<div class="cmp-grid"><label>نوع کد<select name="public"><option value="0">شخصی، یک‌بارمصرف و تضمین‌شده</option><option value="1">عمومی، تا تکمیل ظرفیت</option></select></label><label>شناسه مشتری (برای کد شخصی)<input type="number" name="customer_id" min="1"></label></div><label>دلیل صدور<input name="reason" required maxlength="190"></label><button class="ad-btn" type="submit">صدور کد</button></form></section>
+@endcan
+@can('marketing.send')
+<section class="cmp-card"><h2>کنترل پیام‌های کمپین</h2><p>وضعیت فعلی: {{ $campaign->messages_paused ? 'متوقف' : 'مجاز با رعایت سیاست ارسال' }}</p><form method="post" action="/admin/marketing/campaigns/{{ $campaign->id }}/transition" class="cmp-form">@csrf<input type="hidden" name="action" value="{{ $campaign->messages_paused ? 'resume_messages' : 'pause_messages' }}"><label>دلیل<input name="reason" required maxlength="190"></label><button class="ad-btn" type="submit">{{ $campaign->messages_paused ? 'رفع توقف پیام‌ها' : 'توقف پیام‌ها' }}</button></form></section>
+@endcan
+@if($report)
+<section class="cmp-card"><h2>عملکرد کمپین</h2><div class="cmp-grid">
+@foreach(['issued'=>'کد صادرشده','expired'=>'کد منقضی استفاده‌نشده','revoked'=>'کد باطل‌شده','paid_orders'=>'خرید پرداخت‌شده','sales_before'=>'مبلغ فروش پیش از تخفیف','sales_after'=>'مبلغ واقعاً پرداخت‌شده','discount_used'=>'تخفیف مصرف‌شده','held'=>'بودجه متعهد','available'=>'بودجه قابل تخصیص','clicks'=>'بازدید صفحه مقصد','checkout_starts'=>'شروع خرید با تخفیف','unknown_supplier_cost_orders'=>'فروش با هزینه تأمین نامشخص'] as $key=>$label)
+<div><p>{{ $label }}</p><b>{{ number_format($report[$key]) }}</b></div>@endforeach
+</div><p>واحد مبالغ فروش و تخفیف: {{ $report['currency'] }}. هزینه پیامک تخمینی (تومان): {{ $report['sms_estimate_irt'] === null ? 'نامشخص' : number_format($report['sms_estimate_irt']) }}</p><p>سود تخمینی: {{ $report['estimated_profit'] === null ? 'به‌علت هزینه تأمین نامشخص یا تفاوت ارز قابل محاسبه نیست' : number_format($report['estimated_profit']).' تومان' }}</p><p>بازدید، ورود احرازشده به صفحه مقصد است و برای هر کد/حساب/روز UTC یک‌بار شمرده می‌شود. درآمد هر فاکتور فقط به یک کمپین منتسب است. فروش منتسب، فروش افزوده قطعی نیست. هزینه پیامک برآورد است؛ «پذیرفته‌شده» به معنی تحویل به گوشی نیست.</p></section>
+@endif
+<section class="cmp-card cmp-table"><h2>آخرین کدها</h2><table><thead><tr><th>کد</th><th>مشتری</th><th>پایان اعتبار ({{ $campaign->timezone }})</th><th>تعهد بودجه</th><th></th></tr></thead><tbody>
+@forelse($grants as $grant)<tr><td dir="ltr">{{ $grant->code }}</td><td>{{ $grant->customer_id ?: 'عمومی · تا تکمیل ظرفیت' }}</td><td>{{ \App\Support\FinanceDates::display($grant->expires_at->setTimezone($campaign->timezone)->toDateString()) }} {{ $grant->expires_at->format('H:i') }}</td><td>{{ $grant->budget_held ? number_format($grant->liability) : '—' }}</td><td>
+@if(!$grant->revoked_at)@can('marketing.publish')<form method="post" action="/admin/marketing/campaigns/grants/{{ $grant->id }}/revoke" class="cmp-form">@csrf<input name="reason" required maxlength="190" placeholder="دلیل ابطال"><button class="ad-btn" type="submit">ابطال صریح</button></form>@endcan @else {{ $grant->revoke_reason }} @endif
+</td></tr>@empty<tr><td colspan="5">هنوز کدی صادر نشده است.</td></tr>@endforelse</tbody></table></section>
+<section class="cmp-card cmp-table"><h2>صف و تاریخچه پیامک</h2><table><thead><tr><th>شناسه</th><th>نوع</th><th>وضعیت</th><th>زمان برنامه‌ریزی</th><th>علت توقف / نتیجه</th></tr></thead><tbody>
+@forelse($deliveries as $delivery)<tr><td>{{ $delivery->id }}</td><td>{{ $delivery->kind }}</td><td>{{ $delivery->status }}</td><td>{{ $delivery->scheduled_at->setTimezone($campaign->timezone)->format('Y-m-d H:i') }}</td><td>{{ $delivery->reason ?: '—' }}</td></tr>@empty<tr><td colspan="5">پیامی ثبت نشده است.</td></tr>@endforelse</tbody></table><p>پردازش قطع‌شده یا نتیجه نامشخص، خودکار دوباره ارسال نمی‌شود.</p></section>
+<section class="cmp-card cmp-table"><h2>مصرف و تطبیق سفارش</h2><table><thead><tr><th>فاکتور</th><th>وضعیت</th><th>تخفیف</th><th>مهلت رزرو UTC</th></tr></thead><tbody>@forelse($redemptions as $redemption)<tr><td>{{ $redemption->invoice_id }}</td><td>{{ $redemption->status }}@if($redemption->status === 'reconciliation')@can('marketing.publish')@can('marketing.finance')<form class="cmp-form" method="post" action="/admin/marketing/campaigns/redemptions/{{ $redemption->id }}/reconcile">@csrf<input name="reason" required maxlength="190" placeholder="دلیل تطبیق"><button class="ad-btn" type="submit">آزادسازی پس از تطبیق</button></form>@endcan @endcan @endif</td><td>{{ number_format($redemption->amount) }} {{ $campaign->currency_code }}</td><td>{{ $redemption->expires_at->format('Y-m-d H:i') }}</td></tr>@empty<tr><td colspan="4">هنوز تخفیفی رزرو نشده است.</td></tr>@endforelse</tbody></table></section>
+</div>
+@endsection
