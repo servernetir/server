@@ -1,0 +1,164 @@
+{
+  "method": "Chrome PerformanceObserver, lab samples; not Lighthouse or CrUX",
+  "before": {
+    "conditions": {
+      "width": 390,
+      "cpu": 4,
+      "latency_ms": 150,
+      "download_Bps": 200000,
+      "cache": false
+    },
+    "rows": [
+      {
+        "url": "https://servernet.cloud/ai",
+        "lcp": 2196,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "dom": 2208.5,
+        "ttfb": 610.3999999994412,
+        "h1": "یک API برای هوش مصنوعیِ محصول شما"
+      },
+      {
+        "url": "https://servernet.cloud/ai/models",
+        "lcp": 2016,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "dom": 2101.7999999998137,
+        "ttfb": 419.40000000037253,
+        "h1": "مقایسهٔ مدل‌ها"
+      },
+      {
+        "url": "https://servernet.cloud/ai/models/di-googleveo-31-d15da1d3b0",
+        "lcp": 1624,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "dom": 1951.2000000001863,
+        "ttfb": 351.70000000018626,
+        "h1": "veo-3.1 API"
+      }
+    ]
+  },
+  "initialAfter": {
+    "conditions": {
+      "width": 390,
+      "cpu": 4,
+      "latency_ms": 150,
+      "download_Bps": 200000,
+      "cache": false
+    },
+    "rows": [
+      {
+        "url": "https://servernet.cloud/ai",
+        "lcp": 2524,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "dom": 2641.2000000001863,
+        "ttfb": 629.5,
+        "h1": "API هوش مصنوعی؛\nمدل مناسب پروژهٔ شما."
+      },
+      {
+        "url": "https://servernet.cloud/ai/models",
+        "lcp": 2092,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "dom": 2359,
+        "ttfb": 447.59999999962747,
+        "h1": "مقایسهٔ مدل‌ها"
+      },
+      {
+        "url": "https://servernet.cloud/ai/models/di-googleveo-31-d15da1d3b0",
+        "lcp": 2120,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "dom": 2252.7000000001863,
+        "ttfb": 372.20000000018626,
+        "h1": "veo-3.1 API"
+      }
+    ]
+  },
+  "final": {
+    "conditions": {
+      "width": 390,
+      "cpu": 4,
+      "latency_ms": 150,
+      "download_Bps": 200000,
+      "cache": false,
+      "wait_ms": 3300
+    },
+    "rows": [
+      {
+        "round": 1,
+        "url": "https://servernet.cloud/ai",
+        "lcp": 2612,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "ttfb": 604,
+        "workspaceInline": true,
+        "cssRequests": 0
+      },
+      {
+        "round": 1,
+        "url": "https://servernet.cloud/ai/models",
+        "lcp": 2228,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "ttfb": 420.79999999981374,
+        "workspaceInline": true,
+        "cssRequests": 0
+      },
+      {
+        "round": 1,
+        "url": "https://servernet.cloud/ai/models/di-googleveo-31-d15da1d3b0",
+        "lcp": 2096,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "ttfb": 349.5,
+        "workspaceInline": true,
+        "cssRequests": 0
+      },
+      {
+        "round": 2,
+        "url": "https://servernet.cloud/ai",
+        "lcp": 2392,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "ttfb": 447.59999999962747,
+        "workspaceInline": true,
+        "cssRequests": 0
+      },
+      {
+        "round": 2,
+        "url": "https://servernet.cloud/ai/models",
+        "lcp": 2444,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "ttfb": 474.29999999981374,
+        "workspaceInline": true,
+        "cssRequests": 0
+      },
+      {
+        "round": 2,
+        "url": "https://servernet.cloud/ai/models/di-googleveo-31-d15da1d3b0",
+        "lcp": 1908,
+        "cls": 0,
+        "width": 390,
+        "scrollWidth": 390,
+        "ttfb": 357.5,
+        "workspaceInline": true,
+        "cssRequests": 0
+      }
+    ]
+  },
+  "note": "No claim of a speed improvement or superiority. Only a few URLs and runs were measured. Final layout-only width guards do not change metadata; these performance runs precede that small CSS adjustment."
+}

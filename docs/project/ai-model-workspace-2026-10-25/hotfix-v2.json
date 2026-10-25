@@ -1,0 +1,37 @@
+{
+  "reason": "MariaDB unsigned subtraction in related model sorting; cast context to DECIMAL",
+  "manifest": [
+    {
+      "source": "website/app/Http/Controllers/AiStorefrontController.php",
+      "path": "servernet_app/app/Http/Controllers/AiStorefrontController.php",
+      "before": "ab2a18711ccaa323351eed3e0a25afbb178666c46a339f79118170fd7b927a0b",
+      "after": "7f4c03a97c7709ecf4a00d8785c03486708d426da434eb3e614cab446c13b061"
+    }
+  ],
+  "activation": {
+    "status": "activated",
+    "php": "8.4.27",
+    "sapi": "fpm-fcgi",
+    "files": 1,
+    "invalidated": 1,
+    "compiled_views_cleared": 0,
+    "route_cache": false
+  },
+  "checks": [
+    {
+      "slug": "di-qwenqwen3-embedding-06b-caa978c0b3",
+      "status": 200,
+      "hasEstimator": true
+    },
+    {
+      "slug": "di-qwenqwen3-reranker-4b-0a38233d59",
+      "status": 200,
+      "hasEstimator": true
+    },
+    {
+      "slug": "gapgpt-gpt-6-astra-576a599a64",
+      "status": 200,
+      "hasEstimator": true
+    }
+  ]
+}

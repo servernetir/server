@@ -1,0 +1,194 @@
+{
+  "status": "accepted with documented limitations",
+  "checked_at": "2026-10-25T08:24:46.361Z",
+  "files": 18,
+  "hashes_match": true,
+  "registered_models": 554,
+  "rendered_model_pages": 1662,
+  "metadata_issues": 0,
+  "examples_syntax": {
+    "models": 554,
+    "pages": 1662,
+    "statuses": {
+      "200": 1662
+    },
+    "indexablePages": 1152,
+    "noindexPages": 510,
+    "metadataIssues": 0,
+    "pythonSyntax": {
+      "checked": 495,
+      "errors": [],
+      "method": "Python ast.parse; code was not executed"
+    },
+    "javascriptSyntax": {
+      "checked": 495,
+      "errors": [],
+      "method": "vm.SourceTextModule parse only; code was not executed"
+    }
+  },
+  "public_http": [
+    {
+      "url": "/ai",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai"
+    },
+    {
+      "url": "/en/ai",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/en/ai"
+    },
+    {
+      "url": "/tr/ai",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/tr/ai"
+    },
+    {
+      "url": "/ai/models",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/models"
+    },
+    {
+      "url": "/en/ai/models",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/en/ai/models"
+    },
+    {
+      "url": "/tr/ai/models",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/tr/ai/models"
+    },
+    {
+      "url": "/ai/compare",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/compare"
+    },
+    {
+      "url": "/en/ai/compare",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/en/ai/compare"
+    },
+    {
+      "url": "/tr/ai/compare",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/tr/ai/compare"
+    },
+    {
+      "url": "/ai/docs",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/docs"
+    },
+    {
+      "url": "/en/ai/docs",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/en/ai/docs"
+    },
+    {
+      "url": "/tr/ai/docs",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/tr/ai/docs"
+    },
+    {
+      "url": "/ai/models/gapgpt-gpt-6-astra-576a599a64",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/models/gapgpt-gpt-6-astra-576a599a64"
+    },
+    {
+      "url": "/ai/models/gapgpt-gpt-image-1-68199b4ce3",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/models/gapgpt-gpt-image-1-68199b4ce3"
+    },
+    {
+      "url": "/ai/models/di-googleveo-31-d15da1d3b0",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/models/di-googleveo-31-d15da1d3b0"
+    },
+    {
+      "url": "/ai/models/di-qwenqwen3-embedding-06b-caa978c0b3",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/models/di-qwenqwen3-embedding-06b-caa978c0b3"
+    },
+    {
+      "url": "/ai/models/di-qwenqwen3-reranker-4b-0a38233d59",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/models/di-qwenqwen3-reranker-4b-0a38233d59"
+    },
+    {
+      "url": "/ai/models/di-qwenqwen3-tts-voicedesign-4429b76e50",
+      "status": 200,
+      "h1_count": 1,
+      "inlineWorkspaceStyle": true,
+      "workspaceScript": true,
+      "canonical": "https://servernet.cloud/ai/models/di-qwenqwen3-tts-voicedesign-4429b76e50"
+    }
+  ],
+  "php_tests": {
+    "total": 87,
+    "passed": 81,
+    "skipped": 6,
+    "assertions": 1950,
+    "skip_reason": "Trusted FFmpeg unavailable in local test environment"
+  },
+  "javascript_tests": 4,
+  "access_cleanup": {
+    "temporary_key_deauthorized": true,
+    "temporary_public_key_absent": true,
+    "own_key_absent_from_authorized_keys": true,
+    "local_private_key_deleted": true,
+    "gateways_absent": true,
+    "prior_key_set_equal": false,
+    "prior_key_differences": 1,
+    "note": "One pre-existing public key line was absent at the end of concurrent work; its cause was not established. It was not restored or edited. Cleanup targeted only this release named key."
+  },
+  "note": "All model pages were checked through the production Laravel HTTP kernel in a private CLI process, not external HTTP for every URL. No paid model requests or account purchases were executed."
+}

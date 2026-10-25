@@ -1,0 +1,17 @@
+{
+  "calculatorAndTabs": {
+    "estimate": "۱۰٬۰۹۹٬۰۰۰",
+    "expected": "۱۰٬۰۹۹٬۰۰۰",
+    "pythonVisible": true,
+    "comparisonUrl": "https://servernet.cloud/ai/compare?models=gapgpt-gpt-6-astra-576a599a64%2Cgapgpt-cursor-o3-4d0141f293%2Cgapgpt-gpt-35-turbo-744814b5b3",
+    "width": 390,
+    "scrollWidth": 390
+  },
+  "comparison": {
+    "columns": 3,
+    "robots": "noindex,follow",
+    "width": 390,
+    "scrollWidth": 390,
+    "tableOverflow": true
+  }
+}

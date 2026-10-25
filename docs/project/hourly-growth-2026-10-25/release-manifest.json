@@ -1,0 +1,61 @@
+{
+  "commit": "9b1c07fb2895028ae4f067cb2fe3278fb4ea9ccb",
+  "stage": "/home/servernetcloud/hourly-growth-20261025-c20160e82904",
+  "status": "deployed",
+  "productionMerge": [
+    "Keep the pre-existing IranSalesVisibility location filter",
+    "Keep the pre-existing Iran link visibility condition"
+  ],
+  "files": [
+    {
+      "path": "public/assets/css/hourly-explorer.css",
+      "before": null,
+      "after": "d968a01ea1b40d1236d7df7a2103a4a9b655657ba7ddc9859b2d7f00e90fdea8"
+    },
+    {
+      "path": "public/assets/js/hourly-explorer.js",
+      "before": null,
+      "after": "c5ca8835fda27f2ad4cc3fb519105d80ed34575befafbc0514e39ce21539ba10"
+    },
+    {
+      "path": "lang/fa/hourly.php",
+      "before": null,
+      "after": "f877b684ccce3f2e94931c356df4dd911363a9b4a7cd0f400bc97960de9bc563"
+    },
+    {
+      "path": "lang/en/hourly.php",
+      "before": null,
+      "after": "6a1fd780528c00acd67a250e163e47bc6af83ab3331561be977a913eb90ed0be"
+    },
+    {
+      "path": "lang/tr/hourly.php",
+      "before": null,
+      "after": "7ed7fa9c9ed566c042c82808aae8d8c0b004a3d9551b8cb931d732d27c2041c4"
+    },
+    {
+      "path": "resources/views/partials/hourly-calculator.blade.php",
+      "before": null,
+      "after": "deebf83cc895a072084bb2c97a5c3361ac07401e6f85a32b5e550ddfccac59f1"
+    },
+    {
+      "path": "resources/views/partials/hourly-comparison.blade.php",
+      "before": null,
+      "after": "5021cf57468e9672b9447b1aaf252f4dcd792b47ca62090ccd49700e58c486ce"
+    },
+    {
+      "path": "resources/views/partials/hourly-guide.blade.php",
+      "before": null,
+      "after": "4198da8d12d9b574b8efad88be0a3303da8bc45a2a201ac0695e0403eea25dd3"
+    },
+    {
+      "path": "app/Http/Controllers/HourlyVpsController.php",
+      "before": "abf2593009c964e48097ff4c228c578eff753a4556ca48495c90e10431f7a9e9",
+      "after": "1f6cd7524afa5fad5aea1cea48e51bb659ae9981a1a00aecd4838a5e4649e424"
+    },
+    {
+      "path": "resources/views/pages/vps-hourly.blade.php",
+      "before": "e10beb0a0571d4b17133a4d2756b2f10951717396d0782bbcc1f8770e6620de4",
+      "after": "ec0032774a79484059428c23d6beeb332a22884e5b5add6569c0caf3ab9e326f"
+    }
+  ]
+}

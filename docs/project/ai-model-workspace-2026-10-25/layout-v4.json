@@ -1,0 +1,24 @@
+{
+  "manifest": [
+    {
+      "source": "website/public/assets/css/ai-workspace.css",
+      "path": "public_html/assets/css/ai-workspace.css",
+      "before": "bfb565fa49f59add2e8f8bc38acc94824a6f8ece8c485c91c0ddb7cd794cccc8",
+      "after": "90dc4a4dcf42d5477329ca4bb3ba19ce8811e6449885cd43153eee1f675ec513"
+    }
+  ],
+  "checks": [
+    {
+      "width": 390,
+      "client": 390,
+      "scroll": 390,
+      "total": "100,990,000,000"
+    },
+    {
+      "width": 1440,
+      "client": 1425,
+      "scroll": 1425,
+      "total": "100,990,000,000"
+    }
+  ]
+}

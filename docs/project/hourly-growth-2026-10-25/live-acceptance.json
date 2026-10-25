@@ -1,0 +1,72 @@
+{
+  "pages": [
+    {
+      "locale": "fa",
+      "status": 200,
+      "cache": "BYPASS",
+      "appTiming": "app;dur=991, cache;desc=\"BYPASS\"",
+      "canonical": "https://servernet.cloud/vps/hourly",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "samplePlans": 9,
+      "firstHourly": 3600,
+      "sixHourTotal": "۲۱٬۶۰۰ تومان",
+      "faqQuestions": 11,
+      "h1": 1
+    },
+    {
+      "locale": "en",
+      "status": 200,
+      "cache": "BYPASS",
+      "appTiming": "app;dur=1085, cache;desc=\"BYPASS\"",
+      "canonical": "https://servernet.cloud/en/vps/hourly",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "samplePlans": 9,
+      "firstHourly": 2,
+      "sixHourTotal": "€0.12",
+      "faqQuestions": 11,
+      "h1": 1
+    },
+    {
+      "locale": "tr",
+      "status": 200,
+      "cache": "BYPASS",
+      "appTiming": "app;dur=941, cache;desc=\"BYPASS\"",
+      "canonical": "https://servernet.cloud/tr/vps/hourly",
+      "hreflang": [
+        "fa",
+        "en",
+        "tr",
+        "x-default"
+      ],
+      "samplePlans": 9,
+      "firstHourly": 2,
+      "sixHourTotal": "€0,12",
+      "faqQuestions": 11,
+      "h1": 1
+    }
+  ],
+  "assets": [
+    {
+      "asset": "css/hourly-explorer.css",
+      "status": 200,
+      "bytes": 6923,
+      "hashMatch": true
+    },
+    {
+      "asset": "js/hourly-explorer.js",
+      "status": 200,
+      "bytes": 9219,
+      "hashMatch": true
+    }
+  ]
+}

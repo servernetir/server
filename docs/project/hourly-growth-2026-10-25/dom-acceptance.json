@@ -1,0 +1,32 @@
+[
+  {
+    "locale": "fa",
+    "total6": "۶٬۰۰۰ تومان",
+    "scenarioRam": 8192,
+    "comparisonLimit": true,
+    "invalidDuration": true,
+    "countrySearch": true,
+    "events": 8,
+    "h1": 1
+  },
+  {
+    "locale": "en",
+    "total6": "€0.06",
+    "scenarioRam": 8192,
+    "comparisonLimit": true,
+    "invalidDuration": true,
+    "countrySearch": true,
+    "events": 8,
+    "h1": 1
+  },
+  {
+    "locale": "tr",
+    "total6": "€0,06",
+    "scenarioRam": 8192,
+    "comparisonLimit": true,
+    "invalidDuration": true,
+    "countrySearch": true,
+    "events": 8,
+    "h1": 1
+  }
+]

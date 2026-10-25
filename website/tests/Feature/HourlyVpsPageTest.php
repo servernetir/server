@@ -237,4 +237,44 @@ class HourlyVpsPageTest extends TestCase
         $description = app(CountryLandingSeo::class)->content('IR')['description'];
         $this->assertStringContainsString('<meta name="description" content="'.e($description).'">', $html);
     }
+    public function test_calculator_uses_the_same_plan_quotes_and_preserves_localized_order_links(): void
+    {
+        $this->seedIranAndGermany();
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $html = $this->get($prefix.'/vps/hourly')->assertOk()->getContent();
+            $this->assertSame(1, preg_match('~<script type="application/json" id="hourly-explorer-config">(.*?)</script>~s', $html, $match));
+            $config = json_decode($match[1], true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame($locale, $config['locale']);
+            $this->assertSame($locale === 'fa' ? 1 : 100, $config['minor']);
+            $plan = CloudPlan::where('slug', 'cv-1c-2g-25d-ir')->firstOrFail();
+            $quote = collect($config['plans'])->firstWhere('country', 'IR');
+            $this->assertNotNull($quote);
+            $this->assertSame($locale === 'fa' ? $plan->hourlyIrt() : $plan->hourlyEurCents(), $quote['hourly']);
+            $this->assertSame($locale === 'fa' ? (int) $plan->price_irt : (int) $plan->price_eur_cents, $quote['monthly']);
+            $this->assertSame(2048, $quote['ram']);
+            $this->assertStringContainsString('plan=cv-1c-2g-25d-ir', $quote['url']);
+            $this->assertStringContainsString('billing_mode=hourly', $quote['url']);
+            $this->assertStringNotContainsString('provider', $match[1]);
+            $this->assertStringNotContainsString('hourly.title', $html);
+            $this->assertStringContainsString('id="buying-guide"', $html);
+            $this->assertStringContainsString('data-hourly-compare=', $html);
+        }
+    }
+
+    public function test_extended_faq_schema_matches_the_visible_questions(): void
+    {
+        $this->seedIranAndGermany();
+        $html = $this->get('/vps/hourly')->assertOk()->getContent();
+        preg_match_all('~<script type="application/ld\+json">(.*?)</script>~s', $html, $blocks);
+        foreach ($blocks[1] as $block) {
+            $schema = json_decode($block, true, flags: JSON_THROW_ON_ERROR);
+            if (($schema['@type'] ?? '') !== 'FAQPage') continue;
+            $this->assertCount(11, $schema['mainEntity']);
+            foreach ($schema['mainEntity'] as $item) {
+                $this->assertStringContainsString(e($item['name']), $html);
+                $this->assertStringContainsString(e($item['acceptedAnswer']['text']), $html);
+            }
+        }
+    }
+
 }

@@ -1,0 +1,1927 @@
+{
+  "source": "Windsor.ai Google Search Console (read-only)",
+  "property": "sc-domain:servernet.cloud",
+  "date_from": "2026-09-25",
+  "date_to": "2026-10-22",
+  "requested_filter": [
+    [
+      "page",
+      "contains",
+      "/ai"
+    ]
+  ],
+  "page_data": {
+    "status": "done",
+    "data": [
+      {
+        "page": "https://servernet.cloud/ai",
+        "clicks": 5,
+        "impressions": 62,
+        "ctr": 0.0806,
+        "position": 12.4677
+      },
+      {
+        "page": "https://servernet.cloud/solutions/ai-agents",
+        "clicks": 3,
+        "impressions": 156,
+        "ctr": 0.0192,
+        "position": 47.4038
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models/gapgpt-gpt-image-25-flare-033fed5b20",
+        "clicks": 1,
+        "impressions": 1,
+        "ctr": 1,
+        "position": 3
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "clicks": 1,
+        "impressions": 16,
+        "ctr": 0.0625,
+        "position": 10.3125
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/di-googlegemma-4-31b-it-ultra-8139ede36e",
+        "clicks": 1,
+        "impressions": 2,
+        "ctr": 0.5,
+        "position": 6.5
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/di-googleveo-31-d15da1d3b0",
+        "clicks": 1,
+        "impressions": 2,
+        "ctr": 0.5,
+        "position": 4
+      },
+      {
+        "page": "https://servernet.cloud/blog/ai-agents-for-business",
+        "clicks": 1,
+        "impressions": 62,
+        "ctr": 0.0161,
+        "position": 35.6935
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ai-infrastructure",
+        "clicks": 1,
+        "impressions": 16,
+        "ctr": 0.0625,
+        "position": 15.375
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-glm-52-bb43a640f0",
+        "clicks": 1,
+        "impressions": 20,
+        "ctr": 0.05,
+        "position": 6.25
+      },
+      {
+        "page": "https://servernet.cloud/en/cloud/ai-infrastructure",
+        "clicks": 1,
+        "impressions": 6,
+        "ctr": 0.1667,
+        "position": 8.6667
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 127
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models/deepseek-deepseek-v4-pro-052e4fc0bc",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 84
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models/di-briafibo-8842d2b068",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models/di-inclusionaiming-image-01-design-layer-161122dedd",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 68
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models/di-qwenqwen3-embedding-06b-caa978c0b3",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 47
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models/gapgpt-gapgptqwen-image-21-818ac4a2e0",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models?type=image",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 8
+      },
+      {
+        "page": "https://mail.servernet.cloud/blog/ai-agents-for-business",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 58.6667
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/docs",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-anthropicclaude-sonnet-5-5-d123610543",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-black-forest-labsflux-2-klein-4b-562a5fd411",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 25
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-bytedanceseed-20-mini-dc7a5a2aee",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 17
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-cloudflareclef-flash-5253e3667a",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 60
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-googleembeddinggemma-300m-ee101833d2",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 55
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-googlegemma-3-27b-it-ff873c19a0",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 48
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-ibm-granitegranite-42-8b-d90c16215e",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 77
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-meta-llamallama-33-70b-instruct-turbo-3c195ebcef",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-mistralaimistral-small-32-24b-instruct-2506-12c8cdfa9f",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 35
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-nvidianemotron-3-embed-1b-nvfp4-101c426771",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-nvidianemotron-35-asr-streaming-multilingual-06b-0085923645",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 16.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-asr-06b-5fdf5a3c45",
+        "clicks": 0,
+        "impressions": 9,
+        "ctr": 0,
+        "position": 23
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-reranker-06b-b848663c50",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-reranker-4b-0a38233d59",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 48
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-tts-voicedesign-4429b76e50",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen35-35b-a3b-a6105c9fef",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 29.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-sentence-transformersclip-vit-b-32-e3cb5b6492",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 43
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-claude-opus-4-8-47a46a22f0",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 2
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-agent-5c9b063faa",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 8.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-gemma-26b-a4b-4f8f3a50a1",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-qwen-36-thinking-49ef3e42e1",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgptwhisper-1-3e7fe255d3",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 3.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-4-1b1ae70697",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-41-5c51a66b0a",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 48
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-4o-a2a69af70d",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-55-ffc50c7066",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 88
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-56-terra-deda3dc02a",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 45
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-61-sol-dedfefd511",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 6.6667
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-image-2-9ba2827204",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-image-25-sunburst-525c8a572f",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 1
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-typesafejev-113-b0fe36aded",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 7.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models?type=audio",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models?type=image&page=2",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 2.6667
+      },
+      {
+        "page": "https://mail.servernet.cloud/tr/ai/models/gapgpt-gapgptqwen-image-21-818ac4a2e0",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 1.5
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/di-intfloatmultilingual-e5-large-instruct-3df3bb8364",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 77
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/di-openaigpt-oss-120b-ultra-80f2ba6053",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 8
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/di-qwenqwen3-reranker-4b-0a38233d59",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 76
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/gapgpt-claude-sonnet-5-4b07d9a517",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 8
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/gapgpt-gemini-25-flash-de40dabae3",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/gapgpt-gemma-3-27b-it-db16c37b7e",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 3
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/gapgpt-gpt-35-turbo-1106-cab1e8918f",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 65
+      },
+      {
+        "page": "https://servernet.cloud/en/ai",
+        "clicks": 0,
+        "impressions": 16,
+        "ctr": 0,
+        "position": 28.1875
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-anthropicclaude-sonnet-5-2cd37409a4",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 5.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-briavideo-remove-background-249f962a32",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 1
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-bytedanceseedream-50-pro-9ad6943f53",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 8.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-intfloatmultilingual-e5-large-instruct-3df3bb8364",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 25.1667
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-meta-llamameta-llama-31-70b-instruct-turbo-0109d18002",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 5.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-nace-aidrex-max-5fc0ef4d55",
+        "clicks": 0,
+        "impressions": 9,
+        "ctr": 0,
+        "position": 9.4444
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-nousresearchhermes-3-llama-31-405b-b0aaeaf676",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-nousresearchhermes-3-llama-31-70b-8206482cfa",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-nvidianemotron-content-safety-35-3611bc2461",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-openaigpt-oss-120b-298e8d39a1",
+        "clicks": 0,
+        "impressions": 8,
+        "ctr": 0,
+        "position": 14.375
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-qwenqwen3-embedding-06b-caa978c0b3",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 7.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-tencenthy4-preview-ed5625f629",
+        "clicks": 0,
+        "impressions": 11,
+        "ctr": 0,
+        "position": 9.4545
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-deepseek-reasoner-2524619d26",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 5.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-deepseek-v41-flash-eb1394ac7f",
+        "clicks": 0,
+        "impressions": 5,
+        "ctr": 0,
+        "position": 9.2
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gemini-35-flash-855faba1d9",
+        "clicks": 0,
+        "impressions": 11,
+        "ctr": 0,
+        "position": 6.7273
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-glm-53-9691a990ed",
+        "clicks": 0,
+        "impressions": 5,
+        "ctr": 0,
+        "position": 6.2
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-35-turbo-1106-cab1e8918f",
+        "clicks": 0,
+        "impressions": 5,
+        "ctr": 0,
+        "position": 13.4
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-4o-mini-2024-07-18-27bebe765c",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-chat-latest-7742908602",
+        "clicks": 0,
+        "impressions": 9,
+        "ctr": 0,
+        "position": 5.4444
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-image-1-68199b4ce3",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 13.6667
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-qwen-plus-83a2f822e6",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 4.25
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-qwen3-235b-a22b-instruct-2507-b19a6f6a12",
+        "clicks": 0,
+        "impressions": 8,
+        "ctr": 0,
+        "position": 5.875
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/ai-agents-for-business",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 5
+      },
+      {
+        "page": "https://servernet.cloud/en/solutions/ai-agents",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-googlegemma-3-12b-it-4abc260aaf",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 15.6667
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-googlenano-banana-2-9f12e48f37",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-intfloate5-large-v2-e91a43dd6c",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 17.3333
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-intfloatmultilingual-e5-large-instruct-3df3bb8364",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-meta-llamallama-4-scout-17b-16e-instruct-0c3b11af53",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-nace-aidrex-max-5fc0ef4d55",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 5.25
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-nace-aidrex-v20-1629d02ec3",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 5.25
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-openaigpt-oss-20b-a741d960ae",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 9.5
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-tencenthy4-preview-ed5625f629",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v25-tts-41b5ad7d7c",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-deepseek-v41-flash-eb1394ac7f",
+        "clicks": 0,
+        "impressions": 17,
+        "ctr": 0,
+        "position": 8.5882
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gapgpt-agent-5c9b063faa",
+        "clicks": 0,
+        "impressions": 9,
+        "ctr": 0,
+        "position": 3.5556
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gemini-25-flash-de40dabae3",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 7.75
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gemini-38-flash-319034f3e2",
+        "clicks": 0,
+        "impressions": 11,
+        "ctr": 0,
+        "position": 7.8182
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-glm-53-9691a990ed",
+        "clicks": 0,
+        "impressions": 8,
+        "ctr": 0,
+        "position": 5.875
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gpt-4-1b1ae70697",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 11
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gpt-6-astra-576a599a64",
+        "clicks": 0,
+        "impressions": 11,
+        "ctr": 0,
+        "position": 11.6364
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-qwen-plus-83a2f822e6",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 10.5
+      },
+      {
+        "page": "https://servernet.cloud/tr/cloud/ai-infrastructure",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 15
+      }
+    ],
+    "total_rows": 105
+  },
+  "gateway_rows": [
+    {
+      "page": "https://servernet.cloud/ai",
+      "clicks": 5,
+      "impressions": 62,
+      "ctr": 0.0806,
+      "position": 12.4677
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai/models/gapgpt-gpt-image-25-flare-033fed5b20",
+      "clicks": 1,
+      "impressions": 1,
+      "ctr": 1,
+      "position": 3
+    },
+    {
+      "page": "https://servernet.cloud/ai/models",
+      "clicks": 1,
+      "impressions": 16,
+      "ctr": 0.0625,
+      "position": 10.3125
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/di-googlegemma-4-31b-it-ultra-8139ede36e",
+      "clicks": 1,
+      "impressions": 2,
+      "ctr": 0.5,
+      "position": 6.5
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/di-googleveo-31-d15da1d3b0",
+      "clicks": 1,
+      "impressions": 2,
+      "ctr": 0.5,
+      "position": 4
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-glm-52-bb43a640f0",
+      "clicks": 1,
+      "impressions": 20,
+      "ctr": 0.05,
+      "position": 6.25
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 127
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai/models/deepseek-deepseek-v4-pro-052e4fc0bc",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 84
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai/models/di-briafibo-8842d2b068",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 9
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai/models/di-inclusionaiming-image-01-design-layer-161122dedd",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 68
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai/models/di-qwenqwen3-embedding-06b-caa978c0b3",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 47
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai/models/gapgpt-gapgptqwen-image-21-818ac4a2e0",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 4
+    },
+    {
+      "page": "https://mail.servernet.cloud/ai/models?type=image",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 8
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/docs",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 10
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-anthropicclaude-sonnet-5-5-d123610543",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 7
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-black-forest-labsflux-2-klein-4b-562a5fd411",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 25
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-bytedanceseed-20-mini-dc7a5a2aee",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 17
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-cloudflareclef-flash-5253e3667a",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 60
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-googleembeddinggemma-300m-ee101833d2",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 55
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-googlegemma-3-27b-it-ff873c19a0",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 48
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-ibm-granitegranite-42-8b-d90c16215e",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 77
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-meta-llamallama-33-70b-instruct-turbo-3c195ebcef",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 4
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-mistralaimistral-small-32-24b-instruct-2506-12c8cdfa9f",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 35
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-nvidianemotron-3-embed-1b-nvfp4-101c426771",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 9
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-nvidianemotron-35-asr-streaming-multilingual-06b-0085923645",
+      "clicks": 0,
+      "impressions": 6,
+      "ctr": 0,
+      "position": 16.5
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-asr-06b-5fdf5a3c45",
+      "clicks": 0,
+      "impressions": 9,
+      "ctr": 0,
+      "position": 23
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-reranker-06b-b848663c50",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 4
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-reranker-4b-0a38233d59",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 48
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen3-tts-voicedesign-4429b76e50",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 4
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-qwenqwen35-35b-a3b-a6105c9fef",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 29.5
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/di-sentence-transformersclip-vit-b-32-e3cb5b6492",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 43
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-claude-opus-4-8-47a46a22f0",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 2
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-agent-5c9b063faa",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 8.5
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-gemma-26b-a4b-4f8f3a50a1",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 7
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-qwen-36-thinking-49ef3e42e1",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 9
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgptwhisper-1-3e7fe255d3",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 3.5
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-4-1b1ae70697",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 10
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-41-5c51a66b0a",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 48
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-4o-a2a69af70d",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 9
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-55-ffc50c7066",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 88
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-56-terra-deda3dc02a",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 45
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-61-sol-dedfefd511",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "position": 6.6667
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-image-2-9ba2827204",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 6
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gpt-image-25-sunburst-525c8a572f",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 1
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-typesafejev-113-b0fe36aded",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 7.5
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models?type=audio",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 4
+    },
+    {
+      "page": "https://mail.servernet.cloud/en/ai/models?type=image&page=2",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "position": 2.6667
+    },
+    {
+      "page": "https://mail.servernet.cloud/tr/ai/models/gapgpt-gapgptqwen-image-21-818ac4a2e0",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 1.5
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/di-intfloatmultilingual-e5-large-instruct-3df3bb8364",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 77
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/di-openaigpt-oss-120b-ultra-80f2ba6053",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 8
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/di-qwenqwen3-reranker-4b-0a38233d59",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 76
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/gapgpt-claude-sonnet-5-4b07d9a517",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "position": 8
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/gapgpt-gemini-25-flash-de40dabae3",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 10
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/gapgpt-gemma-3-27b-it-db16c37b7e",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 3
+    },
+    {
+      "page": "https://servernet.cloud/ai/models/gapgpt-gpt-35-turbo-1106-cab1e8918f",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 65
+    },
+    {
+      "page": "https://servernet.cloud/en/ai",
+      "clicks": 0,
+      "impressions": 16,
+      "ctr": 0,
+      "position": 28.1875
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-anthropicclaude-sonnet-5-2cd37409a4",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 5.5
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-briavideo-remove-background-249f962a32",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 1
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-bytedanceseedream-50-pro-9ad6943f53",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "position": 8.5
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-intfloatmultilingual-e5-large-instruct-3df3bb8364",
+      "clicks": 0,
+      "impressions": 6,
+      "ctr": 0,
+      "position": 25.1667
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-meta-llamameta-llama-31-70b-instruct-turbo-0109d18002",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 5.5
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-nace-aidrex-max-5fc0ef4d55",
+      "clicks": 0,
+      "impressions": 9,
+      "ctr": 0,
+      "position": 9.4444
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-nousresearchhermes-3-llama-31-405b-b0aaeaf676",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 7
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-nousresearchhermes-3-llama-31-70b-8206482cfa",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 7
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-nvidianemotron-content-safety-35-3611bc2461",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 9
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-openaigpt-oss-120b-298e8d39a1",
+      "clicks": 0,
+      "impressions": 8,
+      "ctr": 0,
+      "position": 14.375
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-qwenqwen3-embedding-06b-caa978c0b3",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "position": 7.5
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/di-tencenthy4-preview-ed5625f629",
+      "clicks": 0,
+      "impressions": 11,
+      "ctr": 0,
+      "position": 9.4545
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-deepseek-reasoner-2524619d26",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 5.5
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-deepseek-v41-flash-eb1394ac7f",
+      "clicks": 0,
+      "impressions": 5,
+      "ctr": 0,
+      "position": 9.2
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-gemini-35-flash-855faba1d9",
+      "clicks": 0,
+      "impressions": 11,
+      "ctr": 0,
+      "position": 6.7273
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-glm-53-9691a990ed",
+      "clicks": 0,
+      "impressions": 5,
+      "ctr": 0,
+      "position": 6.2
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-35-turbo-1106-cab1e8918f",
+      "clicks": 0,
+      "impressions": 5,
+      "ctr": 0,
+      "position": 13.4
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-4o-mini-2024-07-18-27bebe765c",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 6
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-chat-latest-7742908602",
+      "clicks": 0,
+      "impressions": 9,
+      "ctr": 0,
+      "position": 5.4444
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-image-1-68199b4ce3",
+      "clicks": 0,
+      "impressions": 6,
+      "ctr": 0,
+      "position": 13.6667
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-qwen-plus-83a2f822e6",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "position": 4.25
+    },
+    {
+      "page": "https://servernet.cloud/en/ai/models/gapgpt-qwen3-235b-a22b-instruct-2507-b19a6f6a12",
+      "clicks": 0,
+      "impressions": 8,
+      "ctr": 0,
+      "position": 5.875
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 7
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-googlegemma-3-12b-it-4abc260aaf",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "position": 15.6667
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-googlenano-banana-2-9f12e48f37",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 4
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-intfloate5-large-v2-e91a43dd6c",
+      "clicks": 0,
+      "impressions": 3,
+      "ctr": 0,
+      "position": 17.3333
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-intfloatmultilingual-e5-large-instruct-3df3bb8364",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 6
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-meta-llamallama-4-scout-17b-16e-instruct-0c3b11af53",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 10
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-nace-aidrex-max-5fc0ef4d55",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "position": 5.25
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-nace-aidrex-v20-1629d02ec3",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "position": 5.25
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-openaigpt-oss-20b-a741d960ae",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 9.5
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-tencenthy4-preview-ed5625f629",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 6
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v25-tts-41b5ad7d7c",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 7
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-deepseek-v41-flash-eb1394ac7f",
+      "clicks": 0,
+      "impressions": 17,
+      "ctr": 0,
+      "position": 8.5882
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-gapgpt-agent-5c9b063faa",
+      "clicks": 0,
+      "impressions": 9,
+      "ctr": 0,
+      "position": 3.5556
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-gemini-25-flash-de40dabae3",
+      "clicks": 0,
+      "impressions": 4,
+      "ctr": 0,
+      "position": 7.75
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-gemini-38-flash-319034f3e2",
+      "clicks": 0,
+      "impressions": 11,
+      "ctr": 0,
+      "position": 7.8182
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-glm-53-9691a990ed",
+      "clicks": 0,
+      "impressions": 8,
+      "ctr": 0,
+      "position": 5.875
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-gpt-4-1b1ae70697",
+      "clicks": 0,
+      "impressions": 1,
+      "ctr": 0,
+      "position": 11
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-gpt-6-astra-576a599a64",
+      "clicks": 0,
+      "impressions": 11,
+      "ctr": 0,
+      "position": 11.6364
+    },
+    {
+      "page": "https://servernet.cloud/tr/ai/models/gapgpt-qwen-plus-83a2f822e6",
+      "clicks": 0,
+      "impressions": 2,
+      "ctr": 0,
+      "position": 10.5
+    }
+  ],
+  "query_data": {
+    "status": "done",
+    "data": [
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "فروش api هوش مصنوعی",
+        "clicks": 2,
+        "impressions": 3,
+        "ctr": 0.6667,
+        "position": 16
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "خرید api key",
+        "clicks": 1,
+        "impressions": 1,
+        "ctr": 1,
+        "position": 30
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ai-infrastructure",
+        "query": "زیرساخت هوش مصنوعی",
+        "clicks": 1,
+        "impressions": 3,
+        "ctr": 0.3333,
+        "position": 15.6667
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-glm-52-bb43a640f0",
+        "query": "gapgpt api",
+        "clicks": 1,
+        "impressions": 10,
+        "ctr": 0.1,
+        "position": 6.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai",
+        "query": "خرید api هوش مصنوعی",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 127
+      },
+      {
+        "page": "https://mail.servernet.cloud/ai/models/deepseek-deepseek-v4-pro-052e4fc0bc",
+        "query": "سرور برمتال چیست",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 84
+      },
+      {
+        "page": "https://mail.servernet.cloud/blog/ai-agents-for-business",
+        "query": "ایجنت فروش",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 68.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/di-nvidianemotron-35-asr-streaming-multilingual-06b-0085923645",
+        "query": "nvidia nemotron 3.5 asr streaming 0.6b",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-agent-5c9b063faa",
+        "query": "gapgpt api",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-gemma-26b-a4b-4f8f3a50a1",
+        "query": "gapgpt developer",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/ai/models/gapgpt-gapgpt-qwen-36-thinking-49ef3e42e1",
+        "query": "gapgpt developer",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "api ارزان هوش مصنوعی",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 75
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "api هوش مصنوعی",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 57
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "خرید api",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 17
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "خرید api ai",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 7.5
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "خرید api هوش مصنوعی",
+        "clicks": 0,
+        "impressions": 5,
+        "ctr": 0,
+        "position": 19.8
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "خرید ای پی آی هوش مصنوعی",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://servernet.cloud/ai",
+        "query": "فروش api",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 17
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "acestep",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 38
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai23472",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai56856",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai58089",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai59698",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 5
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai62408",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 5
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai65458",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai65508",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai96456",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://servernet.cloud/ai/models",
+        "query": "ai96526",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/di-qwenqwen3-reranker-4b-0a38233d59",
+        "query": "سرور برمتال",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 71
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/di-qwenqwen3-reranker-4b-0a38233d59",
+        "query": "سرور برمتال چیست",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 81
+      },
+      {
+        "page": "https://servernet.cloud/ai/models/gapgpt-gpt-35-turbo-1106-cab1e8918f",
+        "query": "سرور برمتال",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 65
+      },
+      {
+        "page": "https://servernet.cloud/blog/ai-agents-for-business",
+        "query": "ایجنت",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 3
+      },
+      {
+        "page": "https://servernet.cloud/blog/ai-agents-for-business",
+        "query": "ایجنت بازاریابی",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 25
+      },
+      {
+        "page": "https://servernet.cloud/blog/ai-agents-for-business",
+        "query": "ایجنت فروش",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 8.1667
+      },
+      {
+        "page": "https://servernet.cloud/blog/ai-agents-for-business",
+        "query": "ایجنت هوش مصنوعی برای کسب و کار",
+        "clicks": 0,
+        "impressions": 21,
+        "ctr": 0,
+        "position": 82.0476
+      },
+      {
+        "page": "https://servernet.cloud/blog/ai-agents-for-business",
+        "query": "سرور برمتال",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 88
+      },
+      {
+        "page": "https://servernet.cloud/cloud/ai-infrastructure",
+        "query": "ورود hp به سرویس ابری ai",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 63
+      },
+      {
+        "page": "https://servernet.cloud/en/ai",
+        "query": "server ai",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 84.6667
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-nace-aidrex-max-5fc0ef4d55",
+        "query": "drex max",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 18
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-openaigpt-oss-120b-298e8d39a1",
+        "query": "gpt-oss:120b vps",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 17.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-tencenthy4-preview-ed5625f629",
+        "query": "hy4 chat",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/di-tencenthy4-preview-ed5625f629",
+        "query": "hy4 preview pricing",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 5.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-deepseek-v41-flash-eb1394ac7f",
+        "query": "gapgpt.ir",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 19
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gemini-35-flash-855faba1d9",
+        "query": "gapgpt api",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 4.5
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-glm-52-bb43a640f0",
+        "query": "gapgpt developer",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-chat-latest-7742908602",
+        "query": "gap gpt api",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-gpt-chat-latest-7742908602",
+        "query": "gapgpt api",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 3
+      },
+      {
+        "page": "https://servernet.cloud/en/ai/models/gapgpt-qwen3-235b-a22b-instruct-2507-b19a6f6a12",
+        "query": "gapgpt api",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 8
+      },
+      {
+        "page": "https://servernet.cloud/solutions/ai-agents",
+        "query": "اتوماسیون با ایجنت هوش مصنوعی",
+        "clicks": 0,
+        "impressions": 60,
+        "ctr": 0,
+        "position": 58.3833
+      },
+      {
+        "page": "https://servernet.cloud/solutions/ai-agents",
+        "query": "ایجنت بازاریابی",
+        "clicks": 0,
+        "impressions": 26,
+        "ctr": 0,
+        "position": 65.7692
+      },
+      {
+        "page": "https://servernet.cloud/solutions/ai-agents",
+        "query": "ایجنت هوش مصنوعی برای کسب و کار",
+        "clicks": 0,
+        "impressions": 39,
+        "ctr": 0,
+        "position": 39.7436
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5",
+        "query": "deepseek satın al",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-googlegemma-3-12b-it-4abc260aaf",
+        "query": "gemma nedir",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 29
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-intfloate5-large-v2-e91a43dd6c",
+        "query": "e5-large-v2",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 8
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-nace-aidrex-max-5fc0ef4d55",
+        "query": "drex max",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/di-nace-aidrex-v20-1629d02ec3",
+        "query": "drex 2.0",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 4.6667
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gapgpt-agent-5c9b063faa",
+        "query": "gapgpt api",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 2.75
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gpt-6-astra-576a599a64",
+        "query": "gpt astra fiyat",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 29
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gpt-6-astra-576a599a64",
+        "query": "gpt astra linux",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 11
+      },
+      {
+        "page": "https://servernet.cloud/tr/ai/models/gapgpt-gpt-6-astra-576a599a64",
+        "query": "gpt astra satın al",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 8
+      }
+    ],
+    "total_rows": 60
+  },
+  "notes": [
+    "The broad /ai substring also includes AI-agent and infrastructure URLs. gateway_rows restricts to /ai, /en/ai and /tr/ai paths.",
+    "CTR is a fraction in this connector.",
+    "Query rows omit hidden queries; their sum is not page totals.",
+    "This is a pre-release baseline, not evidence of traffic growth from this release."
+  ]
+}

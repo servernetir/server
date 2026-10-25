@@ -17,6 +17,7 @@
 @extends('layouts.site')
 
 @php
+  $hvUx = trans('hourly');
   $hvN = count($countries);
   $hvNLabel = $isFa ? fa_num($hvN) : (string) $hvN;
   $hvHours = $isFa ? fa_num($minHours) : (string) $minHours;
@@ -41,6 +42,8 @@
       ['q' => __('ui.hv_faq7_q'), 'a' => __('ui.hv_faq7_a')],
       ['q' => __('ui.hv_faq8_q'), 'a' => __('ui.hv_faq8_a')],
   ];
+
+  $hvFaq = array_merge($hvFaq, $hvUx['faq']);
 
   $hvSteps = [
       ['t' => __('ui.hv_step1_t'), 'd' => $hvStep1],
@@ -167,13 +170,22 @@
 
       <div class="hero-ctas reveal" style="transition-delay:.28s">
         <a class="btn btn-primary" href="{{ $storeUrl }}" rel="nofollow"><span>{{ __('ui.hv_cta_order') }}</span><svg class="icon dir" style="width:17px;height:17px"><use href="#i-arrow"/></svg></a>
-        <a class="btn btn-glass" href="#rates">{{ __('ui.hv_cta_rates') }}</a>
+        <a class="btn btn-glass" href="#hourly-calculator">{{ $hvUx['jump_calc'] }}</a>
       </div>
     </div>
     @include('partials.atlas-product-stage', ['atlasStage'=>'vps'])
     </div>
   </div>
 </section>
+
+<nav class="hv-jump container" aria-label="{{ $hvUx['jump'] }}">
+  <a href="#hourly-calculator">{{ $hvUx['jump_calc'] }}</a>
+  <a href="#plans">{{ $hvUx['jump_plans'] }}</a>
+  <a href="#rates">{{ $hvUx['jump_rates'] }}</a>
+  <a href="#buying-guide">{{ $hvUx['jump_guide'] }}</a>
+  <a href="#faq">{{ $hvUx['jump_faq'] }}</a>
+</nav>
+@include('partials.hourly-calculator')
 
 {{-- ═══════════ چطور کار می‌کند ═══════════ --}}
 <section class="section hv-sec" id="how">
@@ -194,6 +206,52 @@
   </div>
 </section>
 
+{{-- ═══════════ نمونه پلن‌ها ═══════════ --}}
+@if($featured)
+<section class="section hv-sec" id="plans">
+  <div class="container">
+    <div class="hv-sec-h">
+      <h2>{{ __('ui.hv_featured_t') }}</h2>
+      <p>{{ __('ui.hv_featured_d') }}</p>
+    </div>
+    <div class="hv-filter" data-hourly-enhance hidden>
+      <label for="hourly-country">{{ $hvUx['country'] }}<select id="hourly-country"><option value="">{{ $hvUx['all'] }}</option>@foreach(collect($featured)->unique('iso') as $f)<option value="{{ $f['iso'] }}">{{ $f['country'] }}</option>@endforeach</select></label>
+      <label for="hourly-ram">{{ $hvUx['ram'] }}<select id="hourly-ram"><option value="0">{{ $hvUx['all'] }}</option>@foreach([2, 4, 8] as $ram)<option value="{{ $ram * 1024 }}">{{ $isFa ? fa_num($ram) : $ram }} {{ $hvUx['gb'] }}</option>@endforeach</select></label>
+      <button type="button" class="hv-reset" id="hourly-reset">{{ $hvUx['reset'] }}</button>
+      <p id="hourly-plan-status" role="status" aria-live="polite"></p>
+    </div>
+    <div class="hv-cards">
+      @foreach($featured as $i => $f)
+        <article class="hv-card reveal" data-hourly-plan="{{ $i }}" style="transition-delay:{{ ($i % 4) * 50 }}ms">
+          <header>
+            <span class="hv-card-loc">@include('partials.flag', ['flagSrc' => $f['flag_svg'], 'flagEmoji' => $f['flag'], 'flagSize' => 16]) {{ $f['city'] }}</span>
+            <b>{{ $f['name'] }}</b>
+            <small>{{ $f['cpu_kind'] }}</small>
+          </header>
+          <dl>
+            <div><dt>vCPU</dt><dd dir="ltr">{{ $isFa ? fa_num($f['vcpu']) : $f['vcpu'] }}</dd></div>
+            <div><dt>RAM</dt><dd dir="ltr">{{ $f['ram'] }}</dd></div>
+            <div><dt>{{ $f['disk_type'] ?: 'Disk' }}</dt><dd dir="ltr">{{ $f['disk'] }}</dd></div>
+            <div><dt>{{ __('ui.traffic') }}</dt><dd dir="ltr">{{ $f['traffic'] }}</dd></div>
+          </dl>
+          <div class="hv-card-price">
+            <b>{{ $f['hourly'] }}</b><span>{{ __('ui.hv_per_hour') }}</span>
+          </div>
+          <ul class="hv-card-meta">
+            <li><span>{{ __('ui.hv_card_monthly') }}</span><b>{{ $f['monthly'] }}</b></li>
+            <li><span>{{ __('ui.hv_card_min') }}</span><b>{{ $f['min_start'] }}</b></li>
+          </ul>
+          <label class="hv-compare-check" data-hourly-enhance hidden><input type="checkbox" data-hourly-compare="{{ $i }}">{{ $hvUx['compare'] }}</label>
+          <a class="hv-buy" href="{{ $f['buy_url'] }}" rel="nofollow">{{ __('ui.hv_card_buy') }}</a>
+        </article>
+      @endforeach
+    </div>
+  </div>
+</section>
+@endif
+
+@include('partials.hourly-comparison')
+
 {{-- ═══════════ نرخ‌ها به تفکیک کشور ═══════════ --}}
 <section class="section hv-sec" id="rates">
   <div class="container">
@@ -203,6 +261,10 @@
     </div>
 
     @if($countries)
+      <div class="hv-filter" data-hourly-enhance hidden>
+        <label for="hourly-country-search">{{ $hvUx['search'] }}<input id="hourly-country-search" type="search" autocomplete="off" aria-controls="hourly-rates-body"></label>
+        <p id="hourly-country-status" role="status" aria-live="polite"></p>
+      </div>
       <div class="hv-table-wrap">
         <table class="hv-table hv-rates">
           <thead>
@@ -214,9 +276,9 @@
               <th>{{ __('ui.hv_th_link') }}</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="hourly-rates-body">
             @foreach($countries as $c)
-              <tr>
+              <tr data-hourly-country="{{ $c['label'] }} {{ $c['iso'] }}">
                 <td class="hv-td-c">@include('partials.flag', ['flagSrc' => $c['flag_svg'], 'flagEmoji' => $c['flag'], 'flagSize' => 18]) <span>{{ $c['label'] }}</span></td>
                 <td class="hv-td-p" data-label="{{ __('ui.hv_th_hourly') }}"><b>{{ $c['hourly'] }}</b> <small>{{ __('ui.hv_per_hour') }}</small></td>
                 <td data-label="{{ __('ui.hv_th_monthly') }}">{{ $c['monthly'] }}</td>
@@ -236,43 +298,7 @@
   </div>
 </section>
 
-{{-- ═══════════ نمونه پلن‌ها ═══════════ --}}
-@if($featured)
-<section class="section hv-sec" id="plans">
-  <div class="container">
-    <div class="hv-sec-h">
-      <h2>{{ __('ui.hv_featured_t') }}</h2>
-      <p>{{ __('ui.hv_featured_d') }}</p>
-    </div>
-    <div class="hv-cards">
-      @foreach($featured as $i => $f)
-        <article class="hv-card reveal" style="transition-delay:{{ ($i % 4) * 50 }}ms">
-          <header>
-            <span class="hv-card-loc">@include('partials.flag', ['flagSrc' => $f['flag_svg'], 'flagEmoji' => $f['flag'], 'flagSize' => 16]) {{ $f['city'] }}</span>
-            <b>{{ $f['name'] }}</b>
-            <small>{{ $f['cpu_kind'] }}</small>
-          </header>
-          <dl>
-            <div><dt>vCPU</dt><dd dir="ltr">{{ $isFa ? fa_num($f['vcpu']) : $f['vcpu'] }}</dd></div>
-            <div><dt>RAM</dt><dd dir="ltr">{{ $f['ram'] }}</dd></div>
-            <div><dt>NVMe</dt><dd dir="ltr">{{ $f['disk'] }}</dd></div>
-            <div><dt>{{ __('ui.traffic') }}</dt><dd dir="ltr">{{ $f['traffic'] }}</dd></div>
-          </dl>
-          <div class="hv-card-price">
-            <b>{{ $f['hourly'] }}</b><span>{{ __('ui.hv_per_hour') }}</span>
-          </div>
-          <ul class="hv-card-meta">
-            <li><span>{{ __('ui.hv_card_monthly') }}</span><b>{{ $f['monthly'] }}</b></li>
-            <li><span>{{ __('ui.hv_card_min') }}</span><b>{{ $f['min_start'] }}</b></li>
-          </ul>
-          <a class="hv-buy" href="{{ $f['buy_url'] }}" rel="nofollow">{{ __('ui.hv_card_buy') }}</a>
-        </article>
-      @endforeach
-    </div>
-  </div>
-</section>
-@endif
-
+@include('partials.hourly-guide')
 @include('partials.seo-hourly-estimate')
 
 {{-- ═══════════ ساعتی یا ماهانه ═══════════ --}}
@@ -358,6 +384,7 @@
 @include('partials.product-guides', ['guidesCat' => config('blog.product_guides.cloud')])
 
 @push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/hourly-explorer.css') }}">
 <style>
 /* صفحهٔ سرور ساعتی — استایلِ درجا با پیشوندِ hv- */
 .hv-top{ padding-bottom:30px }
@@ -467,5 +494,6 @@
 }
 </style>
 @endpush
+<script src="{{ asset_ver('assets/js/hourly-explorer.js') }}" defer></script>
 @include('partials.growth-cta')
 @endsection

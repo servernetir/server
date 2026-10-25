@@ -1,0 +1,10 @@
+{
+  "temporary_key_deauthorized": true,
+  "temporary_public_key_absent": true,
+  "own_key_absent_from_authorized_keys": true,
+  "local_private_key_deleted": true,
+  "gateways_absent": true,
+  "prior_key_set_equal": false,
+  "prior_key_differences": 1,
+  "note": "One pre-existing public key line was absent at the end of concurrent work; its cause was not established. It was not restored or edited. Cleanup targeted only this release named key."
+}

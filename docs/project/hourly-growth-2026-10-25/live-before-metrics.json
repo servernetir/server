@@ -1,0 +1,23 @@
+[
+  {
+    "status": 200,
+    "cache": "BYPASS",
+    "timing": "app;dur=949, cache;desc=\"BYPASS\"",
+    "elapsedMs": 1365,
+    "bytes": 231661
+  },
+  {
+    "status": 200,
+    "cache": "BYPASS",
+    "timing": "app;dur=960, cache;desc=\"BYPASS\"",
+    "elapsedMs": 1175,
+    "bytes": 231661
+  },
+  {
+    "status": 200,
+    "cache": "BYPASS",
+    "timing": "app;dur=960, cache;desc=\"BYPASS\"",
+    "elapsedMs": 1167,
+    "bytes": 231661
+  }
+]

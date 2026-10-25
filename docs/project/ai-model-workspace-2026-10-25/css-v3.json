@@ -1,0 +1,19 @@
+{
+  "manifest": [
+    {
+      "source": "website/resources/views/pages/ai/style.blade.php",
+      "path": "servernet_app/resources/views/pages/ai/style.blade.php",
+      "before": "fc76fce6101cb473dccb63d854ce9fed06a313ae7e248699b6d9918ae09f1b5f",
+      "after": "dad164544bd3cb12a80c8e2336b9d4c9afddff8163bcfd12eecc11e59680a587"
+    }
+  ],
+  "activation": {
+    "status": "activated",
+    "php": "8.4.27",
+    "sapi": "fpm-fcgi",
+    "files": 1,
+    "invalidated": 1,
+    "compiled_views_cleared": 1,
+    "route_cache": false
+  }
+}
