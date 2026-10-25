@@ -1,0 +1,170 @@
+{
+  "date": "2026-10-25",
+  "implementation_commit": "63ce0a7b410aee5f0cf6edf744a81293a7f8daaf",
+  "base_develop": "dfae3fb3",
+  "files": [
+    {
+      "path": "app/Console/Commands/FinanceReconcileAi.php",
+      "sha256": "211cb211ecce3fcad0a25dfaad9445727e7c316e07106e30c6bc8036e2d4cc01"
+    },
+    {
+      "path": "app/Console/Commands/FinanceReconcileLedger.php",
+      "sha256": "fdfb14dde3c98c78bfc98b45e2e9fd7f752c390b4e6478773a1095d5715c3fd8"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/AccountingController.php",
+      "sha256": "e6514cd12b66f3dd87ca1242dd7b7a1b16225d823aa403e339367ac0bf5f30c9"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/BankReconciliationController.php",
+      "sha256": "4da89ad578285990ed0b6c3b8be8e05c2fb2adf2f941012d7a8ae22eb6ea9ea4"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/FinanceController.php",
+      "sha256": "3a73e5f888eb7b7ba559df201b95a70fb7be30e3b7b6d686f028f5af81e77a81"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/TransactionController.php",
+      "sha256": "917e00e61a1ba617488284f8bf8b300bc8d8dc25f98c578cf80e0494cea22b17"
+    },
+    {
+      "path": "app/Models/CreditEntry.php",
+      "sha256": "f799b5f62490037e9aa246297f2b0c1268d9b602b459815f0ffc63a4333237b1"
+    },
+    {
+      "path": "app/Models/FinanceAccount.php",
+      "sha256": "99161453f947f6291f5134ddab6371955c7baf0aa92f4c61eee1283ba9b6ce2f"
+    },
+    {
+      "path": "app/Models/FinanceAsset.php",
+      "sha256": "b7dafb9c6e9ebc8c25f2235e088412524597aa6881f825633aa5eeee739d864a"
+    },
+    {
+      "path": "app/Models/FinanceDocument.php",
+      "sha256": "1c5b850e1af8271f14302c5f87b0d57df169634fb98d6f3189a5c343899774d6"
+    },
+    {
+      "path": "app/Models/FinanceLine.php",
+      "sha256": "b480acd1a6f5dbd21c736507fb6389011da388dd9b4f3d8edc1a5f89341835d6"
+    },
+    {
+      "path": "app/Models/FinanceTaxProfile.php",
+      "sha256": "ea402428509283f5a12c1e7563e6d378c4dbf360e22172122b1301b2f0d59cff"
+    },
+    {
+      "path": "app/Models/FinanceVoucher.php",
+      "sha256": "2a08ea3b41859ca2b483f96f8a0eaf70a0427fea39751c15671c39faf51177cf"
+    },
+    {
+      "path": "app/Services/Ai/AiSettlement.php",
+      "sha256": "9300693a1496cf00263b0295630c9a680107a72e5214ff884a9397bcad3c1477"
+    },
+    {
+      "path": "app/Services/Finance/AccountingMoney.php",
+      "sha256": "daed83957554f5f40fdf3934920675493fa43617947143572002b21cb6d06be7"
+    },
+    {
+      "path": "app/Services/Finance/AccountingReport.php",
+      "sha256": "d461b24d1e4aeac1cce3871b273b34c82e7db7ccc4430aabb075f18982a8d615"
+    },
+    {
+      "path": "app/Services/Finance/BankReconciliation.php",
+      "sha256": "8c1e850414c8f91f0dce1f4cef243041d38aa1b0d523ae257a3690da050efc00"
+    },
+    {
+      "path": "app/Services/Finance/BusinessLedger.php",
+      "sha256": "c3b2af4065ac2a7b8b521b9f667363ef9b63ac2711680adf76c5fddd30831b0b"
+    },
+    {
+      "path": "app/Services/Finance/DocumentedAccounting.php",
+      "sha256": "68cf6acf5de8bc553e3cad75d86eb5d245a7e8c30bc94fda8eca9cedef997426"
+    },
+    {
+      "path": "app/Services/Finance/FinanceAudit.php",
+      "sha256": "43f8fcd2cbcd6a0a4bc25b0f574c119b5de44555c7339d42527db0673ace7068"
+    },
+    {
+      "path": "app/Services/Finance/FinanceFilter.php",
+      "sha256": "155685b5258c709392662d1a084463b6e809846f464286e3a96e2a0f05b0978b"
+    },
+    {
+      "path": "app/Services/Finance/FiscalPeriods.php",
+      "sha256": "72d8c2c2d23187e7ed9e8510421e305f9f70f4bf12f7dce12bed766828485b4e"
+    },
+    {
+      "path": "app/Services/Finance/InvestmentAnalysis.php",
+      "sha256": "de260f721b3e842cbc4d41366aa459f4b2ddfdb64dca074e28d14a1cc96a458b"
+    },
+    {
+      "path": "app/Services/Finance/ServiceProfitability.php",
+      "sha256": "0da04068407579a7f5c4701c755ad3bb7a4c7d6b1a22fcb65e7a9b1f0484d65d"
+    },
+    {
+      "path": "app/Services/Finance/TaxEvidenceBundle.php",
+      "sha256": "ce1647133f1642d4032f103f6c3dfbf7c624df4276e0722bdea73b637703c9a9"
+    },
+    {
+      "path": "database/migrations/2026_10_25_120000_create_documented_accounting_tables.php",
+      "sha256": "4dc019f0ff3640217d7ebc6f918a66a63fa43cfaf513290be07aa87f2db58676"
+    },
+    {
+      "path": "lang/en/finance.php",
+      "sha256": "18c3a230d5fada226f2a78d4d8a2529baafc51fb171d5e17c187809a06dad643"
+    },
+    {
+      "path": "lang/fa/finance.php",
+      "sha256": "e8c6842d0fffa8e568088cdea9d1f11d0d51e39542091cae941fb6e46fa93c79"
+    },
+    {
+      "path": "lang/tr/finance.php",
+      "sha256": "50431a8a4b6a577ce60b78901b4db256c645f8a5e3a893a05ec8d6bb865d4725"
+    },
+    {
+      "path": "resources/views/admin/accounting-voucher.blade.php",
+      "sha256": "48c712ad35f2b7d59d97b6bca461796c69c7e50e4e97717a3f8e1729d00bb6c7"
+    },
+    {
+      "path": "resources/views/admin/accounting.blade.php",
+      "sha256": "4c67eea68dc42dfcf6af61cb663133b5ca1a173d22faa5f96f0770835dffa345"
+    },
+    {
+      "path": "resources/views/admin/bank-reconciliation.blade.php",
+      "sha256": "2be6862f51acf1ab8d9e882f0d779ab215795c0fb4792e3c2f0fc6372ba95837"
+    },
+    {
+      "path": "resources/views/admin/finance.blade.php",
+      "sha256": "2a713821ddbae17485728a00496b270badefd8a556be7d208fde0fa5fa7bd967"
+    },
+    {
+      "path": "resources/views/admin/partials/finance-periods.blade.php",
+      "sha256": "b7a0bef337c8b7cae3a352822451b2f223a605c417312f34588bf161fde15e9c"
+    },
+    {
+      "path": "resources/views/admin/transactions.blade.php",
+      "sha256": "d33130c776a00cee15410cbe870f324d3fea7adf3b19aecb2261a775704419cc"
+    },
+    {
+      "path": "routes/web.php",
+      "sha256": "c424b3368c397afeeaa9a01711f2b20eb1a183622e64d8eae8d9bb9e0f2270bc"
+    },
+    {
+      "path": "database/migrations/2026_10_25_130000_add_assessed_vat_to_finance_tax_profiles.php",
+      "sha256": "3a1b5d613413de4cd360ecd169511482ba61e730e6070adb3d6f63ffaf63b0a1"
+    }
+  ],
+  "validation": {
+    "selected_tests": 82,
+    "assertions": 398,
+    "local_runtime": "PHP 8.4.26 / SQLite",
+    "production_runtime": "PHP 8.4.27 / MariaDB",
+    "php_lint": true,
+    "hashes": true,
+    "additive_migrations": 2,
+    "live_kernel_pages": 4,
+    "anonymous_admin_access": "redirect_to_login",
+    "evidence_archive_hashes": true,
+    "customer_source_snapshot_unchanged": true,
+    "visual_browser_verified": false,
+    "independent_review": false
+  }
+}
