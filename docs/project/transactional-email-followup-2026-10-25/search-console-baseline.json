@@ -1,0 +1,472 @@
+{
+  "property": "sc-domain:servernet.cloud",
+  "source": "Windsor.ai read-only Google Search Console connector",
+  "retrieved_at": "2026-10-25T06:49:57.444Z",
+  "period": {
+    "from": "2026-09-25",
+    "to": "2026-10-22"
+  },
+  "filter": [
+    [
+      "page",
+      "contains",
+      "email"
+    ]
+  ],
+  "page_rows": {
+    "status": "done",
+    "data": [
+      {
+        "page": "https://servernet.cloud/hosting/email",
+        "clicks": 1,
+        "impressions": 3,
+        "ctr": 0.3333,
+        "position": 23.3333
+      },
+      {
+        "page": "https://mail.servernet.cloud/blog/email-hosting-vs-web-hosting",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 91.8333
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "clicks": 0,
+        "impressions": 22,
+        "ctr": 0,
+        "position": 76.1818
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/docs/email-client-configuration",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 52
+      },
+      {
+        "page": "https://mail.servernet.cloud/order/email-2",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 94
+      },
+      {
+        "page": "https://mail.servernet.cloud/tr/docs/reading-your-welcome-email",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 73
+      },
+      {
+        "page": "https://servernet.cloud/blog/email-hosting-vs-web-hosting",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 10
+      },
+      {
+        "page": "https://servernet.cloud/docs/email-forwarding-and-aliases",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 9
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "clicks": 0,
+        "impressions": 44,
+        "ctr": 0,
+        "position": 64.1818
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/setting-up-email-client",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 5
+      },
+      {
+        "page": "https://servernet.cloud/en/docs/email-backup-and-migration",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 1
+      },
+      {
+        "page": "https://servernet.cloud/en/docs/email-forwarding-and-aliases",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 28
+      },
+      {
+        "page": "https://servernet.cloud/en/docs/email-storage-quota-management",
+        "clicks": 0,
+        "impressions": 10,
+        "ctr": 0,
+        "position": 27.5
+      },
+      {
+        "page": "https://servernet.cloud/en/docs/transactional-email-setup",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 9.75
+      },
+      {
+        "page": "https://servernet.cloud/en/hosting/email",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 4.8333
+      },
+      {
+        "page": "https://servernet.cloud/en/order/email-2",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 8.5
+      },
+      {
+        "page": "https://servernet.cloud/lookup/email",
+        "clicks": 0,
+        "impressions": 31,
+        "ctr": 0,
+        "position": 44.2258
+      },
+      {
+        "page": "https://servernet.cloud/order/email-3",
+        "clicks": 0,
+        "impressions": 56,
+        "ctr": 0,
+        "position": 75.25
+      },
+      {
+        "page": "https://servernet.cloud/tr/blog/email-hosting-vs-web-hosting",
+        "clicks": 0,
+        "impressions": 17,
+        "ctr": 0,
+        "position": 4.4706
+      },
+      {
+        "page": "https://servernet.cloud/tr/docs/email-forwarding-and-aliases",
+        "clicks": 0,
+        "impressions": 12,
+        "ctr": 0,
+        "position": 18.6667
+      },
+      {
+        "page": "https://servernet.cloud/tr/docs/email-storage-quota-management",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 4.3333
+      },
+      {
+        "page": "https://servernet.cloud/tr/docs/transactional-email-setup",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 4
+      },
+      {
+        "page": "https://servernet.cloud/tr/lookup/email",
+        "clicks": 0,
+        "impressions": 31,
+        "ctr": 0,
+        "position": 6.1613
+      },
+      {
+        "page": "https://servernet.cloud/tr/order/email-4",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      }
+    ],
+    "total_rows": 24
+  },
+  "query_rows": {
+    "status": "done",
+    "data": [
+      {
+        "page": "https://mail.servernet.cloud/blog/email-hosting-vs-web-hosting",
+        "query": "هاست ایمیل",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 98.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/blog/email-hosting-vs-web-hosting",
+        "query": "کاربرد هاست ایمیل",
+        "clicks": 0,
+        "impressions": 4,
+        "ctr": 0,
+        "position": 88.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "query": "email and web hosting",
+        "clicks": 0,
+        "impressions": 6,
+        "ctr": 0,
+        "position": 78
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "query": "email hosting vs web hosting",
+        "clicks": 0,
+        "impressions": 7,
+        "ctr": 0,
+        "position": 67.1429
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "query": "web hosting and e mail",
+        "clicks": 0,
+        "impressions": 7,
+        "ctr": 0,
+        "position": 90.5714
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "query": "web hosting vs email hosting",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 67
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "query": "what is mail hosting",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 37
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/docs/email-client-configuration",
+        "query": "glocalnet inställningar mail",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 52
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/docs/email-client-configuration",
+        "query": "hostnet mail instellen outlook",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 55.5
+      },
+      {
+        "page": "https://mail.servernet.cloud/en/docs/email-client-configuration",
+        "query": "pop incoming mail server",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 73
+      },
+      {
+        "page": "https://mail.servernet.cloud/order/email-2",
+        "query": "خرید هاست ایمیل",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 94
+      },
+      {
+        "page": "https://mail.servernet.cloud/tr/docs/reading-your-welcome-email",
+        "query": "hosting satın aldım email nasıl açacağım",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 73
+      },
+      {
+        "page": "https://servernet.cloud/blog/email-hosting-vs-web-hosting",
+        "query": "تست ایمیل با mail-tester",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 20
+      },
+      {
+        "page": "https://servernet.cloud/en/blog/email-hosting-vs-web-hosting",
+        "query": "web hosting and e mail",
+        "clicks": 0,
+        "impressions": 42,
+        "ctr": 0,
+        "position": 66.7857
+      },
+      {
+        "page": "https://servernet.cloud/en/docs/transactional-email-setup",
+        "query": "transactional email server",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 22
+      },
+      {
+        "page": "https://servernet.cloud/en/order/email-2",
+        "query": "servernet",
+        "clicks": 0,
+        "impressions": 3,
+        "ctr": 0,
+        "position": 6.6667
+      },
+      {
+        "page": "https://servernet.cloud/hosting/email",
+        "query": "هاست برای ایمیل",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 64
+      },
+      {
+        "page": "https://servernet.cloud/lookup/email",
+        "query": "dkim record چیست",
+        "clicks": 0,
+        "impressions": 12,
+        "ctr": 0,
+        "position": 61.3333
+      },
+      {
+        "page": "https://servernet.cloud/lookup/email",
+        "query": "رکورد dmarc ایمیل چیست",
+        "clicks": 0,
+        "impressions": 11,
+        "ctr": 0,
+        "position": 53
+      },
+      {
+        "page": "https://servernet.cloud/order/email-3",
+        "query": "خرید ایمیل سازمانی",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 27
+      },
+      {
+        "page": "https://servernet.cloud/order/email-3",
+        "query": "خرید هاست ایمیل",
+        "clicks": 0,
+        "impressions": 55,
+        "ctr": 0,
+        "position": 76.1273
+      },
+      {
+        "page": "https://servernet.cloud/tr/blog/email-hosting-vs-web-hosting",
+        "query": "kurumsal e-posta hizmetinde imap/pop3 desteği neden önemlidir, hangi sağlayıcılar sunar?",
+        "clicks": 0,
+        "impressions": 2,
+        "ctr": 0,
+        "position": 2
+      },
+      {
+        "page": "https://servernet.cloud/tr/docs/email-forwarding-and-aliases",
+        "query": "cpanel",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      },
+      {
+        "page": "https://servernet.cloud/tr/docs/email-forwarding-and-aliases",
+        "query": "mail uzantıları",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 99
+      },
+      {
+        "page": "https://servernet.cloud/tr/docs/email-forwarding-and-aliases",
+        "query": "mail yönlendirme",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 61
+      },
+      {
+        "page": "https://servernet.cloud/tr/lookup/email",
+        "query": "e posta sağlık",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 7
+      },
+      {
+        "page": "https://servernet.cloud/tr/lookup/email",
+        "query": "epostasağlık",
+        "clicks": 0,
+        "impressions": 27,
+        "ctr": 0,
+        "position": 5.2222
+      },
+      {
+        "page": "https://servernet.cloud/tr/lookup/email",
+        "query": "posta sağlık",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 11
+      },
+      {
+        "page": "https://servernet.cloud/tr/order/email-4",
+        "query": "servernet",
+        "clicks": 0,
+        "impressions": 1,
+        "ctr": 0,
+        "position": 6
+      }
+    ],
+    "total_rows": 29
+  },
+  "sitemaps": {
+    "status": "done",
+    "data": [
+      {
+        "path": null,
+        "last_submitted": null,
+        "last_downloaded": null,
+        "errors": 0,
+        "warnings": 0,
+        "submitted": 0,
+        "is_sitemaps_index": null
+      },
+      {
+        "path": "https://servernet.cloud/hardware-sitemap.xml",
+        "last_submitted": "2026-10-14T10:41:09.811Z",
+        "last_downloaded": "2026-10-19T18:40:45.612Z",
+        "errors": 0,
+        "warnings": 0,
+        "submitted": 4434,
+        "is_sitemaps_index": "False"
+      },
+      {
+        "path": "https://servernet.cloud/sitemap.xml",
+        "last_submitted": "2026-10-18T06:04:38.297Z",
+        "last_downloaded": "2026-10-24T00:22:29.007Z",
+        "errors": 0,
+        "warnings": 0,
+        "submitted": 5400,
+        "is_sitemaps_index": "False"
+      }
+    ],
+    "total_rows": 3
+  },
+  "sitemap_request_period": {
+    "from": "2026-09-25",
+    "to": "2026-10-25"
+  },
+  "limitations": [
+    "Email URL subset, not total site performance.",
+    "Page aggregation differs from query rows; anonymized/hidden queries are absent.",
+    "Windsor returns CTR fractions; 0.3333 means 33.33%.",
+    "Prelaunch data cannot measure impact of the 2026-10-25 changes.",
+    "Sitemap fetch is not proof of URL indexing."
+  ]
+}

@@ -11,7 +11,7 @@ function mount(currency, success = false) {
   const form = {elements:{volume:{value:50000}},checkValidity:()=>true,addEventListener:(e,f)=>events.set('form:'+e,f),querySelector:()=>button};
   const plan = {dataset:{emailPlan:'10000'},addEventListener:(e,f)=>events.set('plan:'+e,f)};
   const estimate = {addEventListener:(e,f)=>events.set('estimate:'+e,f)};
-  const root = {querySelector(s){return {'[data-email-estimator]':{dataset:{emailEstimator:JSON.stringify({plans:[{volume:10000,usd_cents:490},{volume:50000,usd_cents:1490},{volume:100000,usd_cents:2490}],extra:25,currency,usdRate:165000,eurRate:180000,locale:'en',unit:currency})}},'#email-volume':select,'#email-estimate':output,'.tx-form':form,'[data-email-estimate-cta]':estimate,'.tx-success':success?{}:null}[s]||null},querySelectorAll(s){return s==='[data-email-plan]'?[plan]:[]}};
+  const root = {querySelector(s){return {'[data-email-estimator]':{dataset:{emailEstimator:JSON.stringify({plans:[{volume:10000,usd_cents:490},{volume:50000,usd_cents:1490},{volume:100000,usd_cents:2490}],extra:25,currency,usdRate:165000,eurRate:180000,locale:'en',unit:currency})}},'#email-volume':select,'#email-estimate':output,'.tx-form':form,'[data-email-estimate-cta]':estimate,'.tx-success':success?{dataset:{emailLeadCreated:success==='retry'?'0':'1'}}:null}[s]||null},querySelectorAll(s){return s==='[data-email-plan]'?[plan]:[]}};
   const window = {location:{pathname:'/en/transactional-email'},ServerNetAnalytics:{track:(...a)=>tracks.push(a)},addEventListener:(e,f)=>events.set('window:'+e,f)};
   vm.runInNewContext(source,{document:{querySelector:()=>root},window,Intl,JSON,Math,Number});
   return {events,tracks,select,output,form,plan,button};
@@ -31,4 +31,14 @@ test('only a confirmed server receipt emits a lead event, without contact data',
 test('submit protects against double clicks and browser back re-enables the form',()=>{
   const app=mount('USD');app.events.get('form:submit')();assert.equal(app.button.disabled,true);
   app.events.get('window:pageshow')();assert.equal(app.button.disabled,false);
+});
+
+test('a replayed receipt does not count as a new lead and package views contain no estimated revenue',()=>{
+  const app=mount('USD','retry');assert.equal(app.tracks.length,0);
+  app.select.value='250000';app.events.get('select:change')();
+  assert.equal(app.tracks[0][0],'view_item');
+  const ecommerce=app.tracks[0][1].ecommerce;
+  assert.equal(ecommerce.items[0].item_id,'transactional-email-250000');
+  assert.equal(ecommerce.items[0].item_category,'transactional_email');
+  for(const key of ['price','value','currency'])assert.equal(key in ecommerce||key in ecommerce.items[0],false);
 });

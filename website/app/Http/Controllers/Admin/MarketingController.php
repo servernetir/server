@@ -30,6 +30,10 @@ class MarketingController extends Controller
             return view('admin.marketing.funnel', ['notReady' => true]);
         }
 
+        if ($request->query('tab') === 'email') {
+            return $this->emailInbox($request);
+        }
+
         $counts = CrmLead::selectRaw('stage, count(*) as c')->groupBy('stage')->pluck('c', 'stage')->all();
         $stage = (string) $request->query('stage', '');
         $tab = (string) $request->query('tab', 'funnel');
@@ -72,6 +76,32 @@ class MarketingController extends Controller
         ]);
     }
 
+    /** Read-only inbox; submitted requests never enter an outreach queue. */
+    private function emailInbox(Request $request): View
+    {
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:190'],
+            'stage' => ['nullable', 'in:'.implode(',', array_keys(CrmLead::STAGES))],
+        ]);
+        $q = trim((string) ($filters['q'] ?? ''));
+        $stage = (string) ($filters['stage'] ?? '');
+        $query = CrmMessage::query()->with('lead')
+            ->where('direction', 'in')->where('channel', 'web')
+            ->whereHas('lead', fn ($lead) => $lead->where('source', 'transactional-web')
+                ->when($stage !== '', fn ($lead) => $lead->where('stage', $stage)))
+            ->when($q !== '', fn ($messages) => $messages->where(function ($search) use ($q) {
+                $search->where('body', 'like', '%'.$q.'%')
+                    ->orWhereHas('lead', fn ($lead) => $lead->where('company', 'like', '%'.$q.'%')
+                        ->orWhere('email', 'like', '%'.$q.'%')->orWhere('phone', 'like', '%'.$q.'%'));
+            }));
+        return view('admin.marketing.email', [
+            'requests' => (clone $query)->orderByDesc('id')->paginate(30, ['*'], 'email_page')->withQueryString(),
+            'requestCount' => (clone $query)->count(),
+            'contactCount' => (clone $query)->distinct()->count('lead_id'),
+            'q' => $q, 'stage' => $stage,
+        ]);
+    }
+
     /**
      * رشد و دیده‌شدن — سئوی خودمان و جاهایی که باید در آن‌ها باشیم.
      *
@@ -97,7 +127,7 @@ class MarketingController extends Controller
 
     public function show(CrmLead $lead): View
     {
-        return view('admin.marketing.lead', [
+        return view($lead->source === 'transactional-web' ? 'admin.marketing.email-lead' : 'admin.marketing.lead', [
             'lead'     => $lead,
             'messages' => $lead->messages()->orderBy('id')->get(),
             'blocked'  => CrmSuppression::blocks($lead->email),

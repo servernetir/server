@@ -42,7 +42,7 @@ class TransactionalEmailController extends Controller
             'website_url' => 'prohibited', // honeypot, not the customer's domain
         ]);
         $email = mb_strtolower(trim($data['email']));
-        $reference = DB::transaction(function () use ($data, $email) {
+        [$reference, $created] = DB::transaction(function () use ($data, $email) {
             // A product+email namespace avoids overwriting discovered companies,
             // shared mailbox providers or an existing customer's contact details.
             $lead = CrmLead::firstOrCreate([
@@ -70,10 +70,11 @@ class TransactionalEmailController extends Controller
                 'channel' => 'web', 'direction' => 'in', 'status' => 'received',
                 'subject' => 'Transactional email quote request', 'body' => $body,
             ]);
-            return 'TE-'.$message->id;
+            return ['TE-'.$message->id, $message->wasRecentlyCreated];
         });
 
         return redirect(lroute('email.transactional').'#request')
-            ->with('email_quote_reference', $reference);
+            ->with('email_quote_reference', $reference)
+            ->with('email_quote_created', $created);
     }
 }
