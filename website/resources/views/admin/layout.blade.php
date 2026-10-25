@@ -13,6 +13,7 @@
 {{-- تم پیش از رنگ‌آمیزی ست می‌شود تا «فلاشِ» تمِ اشتباه نبینیم. همان کوکیِ
      snet-theme سایت اصلی، پس تمِ مدیر بین سایت و کنسول یکی می‌ماند. --}}
 <script>(function(){try{var m=document.cookie.match(/(?:^|;\s*)snet-theme=(light|dark)/);var t=m?m[1]:localStorage.getItem('snet-theme');if(t==='light')document.documentElement.dataset.theme='light';}catch(e){}})();</script>
+<link rel="stylesheet" href="{{ asset_ver('assets/css/jdate.css') }}">
 </head>
 <body>
 @include('partials.icons')

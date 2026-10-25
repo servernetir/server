@@ -224,4 +224,8 @@ return [
     'cloud_phone' => 'Cloud phone',
     'vat_output_reviewed' => 'Reviewed output VAT and import obligations',
     'vat_output_help' => 'Enter assessed output VAT for this exact period after reviewing taxable supplies, exemptions and imported services. Customer VAT collections alone do not establish all VAT due. Leave blank when unknown; zero requires a documented basis.',
+    'invalid_jalali_date' => 'Enter a valid Jalali date, for example 1405/08/03.',
+    'depreciation_date_help' => 'Select a Jalali day within the desired book month. Existing depreciation months and month-end posting dates remain unchanged.',
+    'flow_amount' => 'Cash flow amount; negative for outflows',
+    'add_flow' => 'Add cash flow',
 ];

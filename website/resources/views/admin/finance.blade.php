@@ -50,8 +50,8 @@
 </div>
 <form method="get" action="{{ route('admin.finance') }}" class="fin-filter ad-panel" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:16px">
   <label>{{ __('finance.search') }}<input class="ad-input" name="q" value="{{ $filters['q'] ?? '' }}" maxlength="150"></label>
-  <label>{{ __('finance.from') }}<input class="ad-input" type="date" name="from" value="{{ $filters['from'] ?? '' }}"></label>
-  <label>{{ __('finance.to') }}<input class="ad-input" type="date" name="to" value="{{ $filters['to'] ?? '' }}"></label>
+  <label>{{ __('finance.from') }}<x-admin-jdate class="ad-input" name="from" :value="$filters['from'] ?? ''" /></label>
+  <label>{{ __('finance.to') }}<x-admin-jdate class="ad-input" name="to" :value="$filters['to'] ?? ''" /></label>
   <label>{{ __('finance.range') }}<select class="ad-input" name="range">@foreach(['all','month','year','custom'] as $r)<option value="{{ $r }}" @selected($range===$r)>{{ __('finance.range_'.$r) }}</option>@endforeach</select></label>
   <label>{{ __('finance.kind') }}<select name="kind" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach($kindLabel as $k=>$label)<option value="{{ $k }}" @selected(($filters['kind']??'')===$k)>{{ $label }}</option>@endforeach</select></label>
   <label>{{ __('finance.category') }}<select name="category" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach($filterCategories as $c)<option value="{{ $c }}" @selected(($filters['category']??'')===$c)>{{ $catLabels[$c]??$c }}</option>@endforeach</select></label>
@@ -225,7 +225,7 @@
         <input type="hidden" name="amount" disabled>
 
         <label>تاریخ</label>
-        <input type="date" name="occurred_at" class="ad-input" value="{{ now()->format('Y-m-d') }}">
+        <x-admin-jdate name="occurred_at" class="ad-input" :value="now('Asia/Tehran')->toDateString()" />
 
         <label>توضیح (اختیاری)</label>
         <input type="text" name="note" class="ad-input" maxlength="255" placeholder="مثلاً: شارژ سرور هتزنر">

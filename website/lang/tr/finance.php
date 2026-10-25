@@ -224,4 +224,8 @@ return [
     'cloud_phone' => 'Bulut telefonu',
     'vat_output_reviewed' => 'İncelenmiş satış KDV’si ve ithalat yükümlülükleri',
     'vat_output_help' => 'Vergiye tabi satışlar, istisnalar ve ithal hizmetler incelendikten sonra bu dönem için hesaplanan KDV’yi girin. Müşteriden tahsil edilen KDV tüm borcu göstermeyebilir. Bilinmiyorsa boş bırakın; sıfır için belge gerekir.',
+    'invalid_jalali_date' => 'Geçerli bir Şemsi tarih girin, örneğin 1405/08/03.',
+    'depreciation_date_help' => 'İstenen muhasebe ayı içinde bir Şemsi gün seçin. Mevcut amortisman ayları ve ay sonu kayıt tarihleri korunur.',
+    'flow_amount' => 'Nakit akışı tutarı; çıkışlar negatif',
+    'add_flow' => 'Nakit akışı ekle',
 ];

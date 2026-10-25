@@ -15,6 +15,7 @@ use App\Services\Finance\DocumentedAccounting;
 use App\Services\Finance\FinanceFilter;
 use App\Services\Finance\InvestmentAnalysis;
 use App\Services\Finance\TaxEvidenceBundle;
+use App\Support\FinanceDates;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -70,6 +71,7 @@ final class AccountingController extends Controller
 
     public function store(Request $request)
     {
+        FinanceDates::normalize($request, ['occurred_at', 'in_service_at']);
         $d = $request->validate([
             'idempotency_key' => ['required', 'uuid'], 'type' => ['required', Rule::in(DocumentedAccounting::TYPES)],
             'occurred_at' => ['required', 'date_format:Y-m-d'], 'service_line' => ['required', Rule::in(DocumentedAccounting::SERVICES)],
@@ -109,6 +111,7 @@ final class AccountingController extends Controller
 
     public function reverse(Request $request, FinanceVoucher $voucher)
     {
+        FinanceDates::normalize($request, ['occurred_at']);
         $d = $request->validate(['occurred_at' => ['required', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:5', 'max:2000']]);
         $r = $this->journal->reverse($voucher, $d['occurred_at'], $d['reason'], $request->user()->id);
 
@@ -145,6 +148,11 @@ final class AccountingController extends Controller
 
     public function depreciate(Request $request, FinanceAsset $asset)
     {
+        if ($request->exists('period_date')) {
+            FinanceDates::normalize($request, ['period_date']);
+            $date = $request->validate(['period_date' => ['required', 'date_format:Y-m-d']]);
+            $request->merge(['period' => substr($date['period_date'], 0, 7)]);
+        }
         $d = $request->validate(['period' => ['required', 'date_format:Y-m']]);
         $v = $this->journal->depreciate($asset, $d['period'], $request->user()->id);
 
@@ -153,6 +161,7 @@ final class AccountingController extends Controller
 
     public function taxProfile(Request $request)
     {
+        FinanceDates::normalize($request, ['from_date', 'to_date']);
         abort_unless($this->journal->ready(), 409);
         $d = $request->validate(['from_date' => ['required', 'date_format:Y-m-d'], 'to_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:from_date'],
             'legal_name' => ['required', 'string', 'max:150'], 'entity_type' => ['required', 'in:corporate,individual'],
@@ -184,6 +193,7 @@ final class AccountingController extends Controller
 
     public function closePeriod(Request $request)
     {
+        FinanceDates::normalize($request, ['through']);
         abort_unless($this->journal->ready(), 409);
         $d = $request->validate(['through' => ['required', 'date_format:Y-m-d'], 'reason' => ['required', 'string', 'min:5', 'max:255']]);
         $this->journal->closeThrough($d['through'], $d['reason'], $request->user()->id);
@@ -203,7 +213,7 @@ final class AccountingController extends Controller
             }
             $raw = trim($parts[1]);
             $sign = str_starts_with($raw, '-') ? -1 : 1;
-            $flows[] = ['date' => trim($parts[0]), 'amount' => $sign * AccountingMoney::minor(ltrim($raw, '-+'), $d['currency'], 'cash_flows')];
+            $flows[] = ['date' => FinanceDates::iso(trim($parts[0]), 'cash_flows'), 'amount' => $sign * AccountingMoney::minor(ltrim($raw, '-+'), $d['currency'], 'cash_flows')];
         }
 
         return back()->withInput()->with('investment', app(InvestmentAnalysis::class)->calculate($flows, (float) $d['discount_rate'] / 100) + ['currency' => $d['currency']]);
