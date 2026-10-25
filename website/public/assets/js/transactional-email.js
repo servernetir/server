@@ -17,7 +17,19 @@
   root.querySelectorAll('a[href="#request"]').forEach(link => link.addEventListener('click', function () {
     track('product_cta_click', 'request_quote', this.hasAttribute('data-email-plan') ? 'plans' : 'page');
   }));
-  if (root.querySelector('.tx-success')) track('generate_lead');
+  // A retry shows the same receipt without counting another acquisition.
+  const receipt = root.querySelector('.tx-success');
+  if (receipt && receipt.dataset.emailLeadCreated === '1') track('generate_lead');
+  function packageView(volume) {
+    if (!window.ServerNetAnalytics || typeof window.ServerNetAnalytics.track !== 'function') return;
+    // The currently published GTM container accepts view_item. Estimates are
+    // not revenue: deliberately omit price, value and currency.
+    window.ServerNetAnalytics.track('view_item', {ecommerce: {items: [{
+      item_id: 'transactional-email-' + volume,
+      item_name: 'Managed transactional email', item_category: 'transactional_email',
+      item_variant: volume + '_recipients_monthly', quantity: 1
+    }]}});
+  }
   function quote(volume) {
     const plan = config.plans.find(item => volume <= item.volume);
     const last = config.plans[config.plans.length - 1];
@@ -34,10 +46,11 @@
     }).format(quote(volume)) + ' ' + config.unit;
     form.elements.volume.value = volume;
   }
-  select.addEventListener('change', update);
+  select.addEventListener('change', function () { update(); packageView(Number(select.value)); });
   root.querySelectorAll('[data-email-plan]').forEach(link => link.addEventListener('click', function () {
     select.value = this.dataset.emailPlan;
     update();
+    packageView(Number(select.value));
   }));
   root.querySelector('[data-email-estimate-cta]').addEventListener('click', update);
   // Server-rendered values preserve validation errors and work without JS.

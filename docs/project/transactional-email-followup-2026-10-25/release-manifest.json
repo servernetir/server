@@ -1,0 +1,44 @@
+[
+  {
+    "source": "website/app/Http/Controllers/TransactionalEmailController.php",
+    "path": "servernet_app/app/Http/Controllers/TransactionalEmailController.php",
+    "before": "9e694d6cffcec8f9cc179780ae3fc940c98a82766f0c2abf7372a6aa33706d9a",
+    "after": "f23d9123e4a830c5501a628fb2c8a997d032e9426e93b38992dff10e3c0ec0ad"
+  },
+  {
+    "source": "website/app/Http/Controllers/Admin/MarketingController.php",
+    "path": "servernet_app/app/Http/Controllers/Admin/MarketingController.php",
+    "before": "9693b65761574facec2bd44dfe8bf221930e6cfa4054a22a7579c534b59f80bb",
+    "after": "c697f1ab5c0428f5dfb2dbd9f830d732bf96a5d161a592cf2e764c57d0c47df9"
+  },
+  {
+    "source": "website/resources/views/pages/transactional-email.blade.php",
+    "path": "servernet_app/resources/views/pages/transactional-email.blade.php",
+    "before": "bbea223b4eadbde27903ceb081281f30de472e7443d978727872402e547af743",
+    "after": "cce5df5324a28fe32cf654209a60fb3643b17f97bd3d90378d44c99a963fa4eb"
+  },
+  {
+    "source": "website/resources/views/admin/marketing/funnel.blade.php",
+    "path": "servernet_app/resources/views/admin/marketing/funnel.blade.php",
+    "before": "3c3c02a6c036324c800ba7af786d7afd81212523ee42aefb0f0e6c96a16c2822",
+    "after": "2eb184b4546c4c460c615cb5a236931109bb2d4da2401e3c2f24cce30578806d"
+  },
+  {
+    "source": "website/resources/views/admin/marketing/email.blade.php",
+    "path": "servernet_app/resources/views/admin/marketing/email.blade.php",
+    "before": null,
+    "after": "bccf14f78f86060e1fc5fb462dc558a28373d301302d4d65c8c98d311b089c30"
+  },
+  {
+    "source": "website/resources/views/admin/marketing/email-lead.blade.php",
+    "path": "servernet_app/resources/views/admin/marketing/email-lead.blade.php",
+    "before": null,
+    "after": "93a894b9738bc2c7f807ba3f0fbb890d6b8073dff9c13560c8f8f77af5c21aef"
+  },
+  {
+    "source": "website/public/assets/js/transactional-email.js",
+    "path": "public_html/assets/js/transactional-email.js",
+    "before": "c3c041234dad1f438d30b9a14b41cfa9706506d6d489884673cc2c202e3c9e8c",
+    "after": "7967298951e09ac8a96f56d6c453247c6f3fb846a6878f8ce5196349828f5de5"
+  }
+]

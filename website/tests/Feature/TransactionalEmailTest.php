@@ -80,7 +80,8 @@ class TransactionalEmailTest extends TestCase
         foreach ([1, 2] as $attempt) {
             $this->post('/en/transactional-email/quote', $payload)
                 ->assertRedirect('http://localhost/en/transactional-email#request')
-                ->assertSessionHas('email_quote_reference');
+                ->assertSessionHas('email_quote_reference')
+                ->assertSessionHas('email_quote_created', $attempt === 1);
         }
         $this->assertDatabaseCount('crm_leads', 1);
         $this->assertDatabaseCount('crm_messages', 1);
@@ -132,5 +133,15 @@ class TransactionalEmailTest extends TestCase
         foreach (['', '/en', '/tr'] as $prefix) $this->assertStringContainsString('<loc>http://localhost'.$prefix.'/transactional-email</loc>', $sitemap);
         $this->assertStringNotContainsString('/solutions/email</loc>', $sitemap);
         $this->get('/llms.txt')->assertOk()->assertSee('/transactional-email');
+    }
+
+    public function test_real_receipt_markup_distinguishes_a_new_request_from_a_retry(): void
+    {
+        $payload = $this->payload();
+        $this->post('/transactional-email/quote', $payload)->assertRedirect();
+        $this->get('/transactional-email')->assertOk()->assertSee('data-email-lead-created="1"', false);
+        $this->post('/transactional-email/quote', $payload)->assertRedirect();
+        $this->get('/transactional-email')->assertOk()->assertSee('data-email-lead-created="0"', false);
+        $this->assertDatabaseCount('crm_messages', 1);
     }
 }
