@@ -396,6 +396,7 @@ class SettingsController extends Controller
         $hasPayments = $cwReady && Schema::hasTable('crypto_payments');
 
         return [
+            'paymentVisibility' => app(\App\Services\Payment\PaymentVisibility::class)->matrix(),
             'bank'         => $bank,
             'accounts'     => $paReady ? PaymentAccount::ordered()->get() : collect(),
             'paNotReady'   => ! $paReady,
@@ -605,6 +606,29 @@ class SettingsController extends Controller
     }
 
     // ══════════════════════════ ذخیره ══════════════════════════
+
+    /** Separate form: saving the language checklist must not clear bank credentials. */
+    public function paymentVisibility(Request $request): RedirectResponse
+    {
+        $policy = \App\Services\Payment\PaymentVisibility::class;
+        $rules = ['visibility' => ['required', 'array:'.implode(',', array_keys($policy::LOCALES))]];
+        foreach ($policy::LOCALES as $locale => $_) {
+            $rules['visibility.'.$locale] = ['required', 'array:'.implode(',', array_keys($policy::METHODS))];
+            foreach ($policy::METHODS as $method => $label) {
+                $rules['visibility.'.$locale.'.'.$method] = ['required', 'boolean'];
+            }
+        }
+        $data = $request->validate($rules);
+        $matrix = [];
+        foreach ($policy::LOCALES as $locale => $_) {
+            foreach ($policy::METHODS as $method => $label) {
+                $matrix[$locale][$method] = (bool) $data['visibility'][$locale][$method];
+            }
+        }
+        Setting::put($policy::SETTING, json_encode($matrix, JSON_THROW_ON_ERROR));
+        return redirect('/admin/settings?tab=accounts#payment-languages')
+            ->with('ok', 'نمایش روش‌های پرداخت برای هر زبان ذخیره شد.');
+    }
 
     public function update(Request $request): RedirectResponse
     {

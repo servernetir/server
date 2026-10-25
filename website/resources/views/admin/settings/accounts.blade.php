@@ -9,6 +9,8 @@
   نیستند و نباید بشوند.
 --}}
 
+@include('admin.settings.payment-visibility')
+
 {{-- ═══ ۱) حسابِ بانکیِ ایران — تنها بخشی که به /admin/settings می‌رود ═══ --}}
 <form method="post" action="/admin/settings">
   @csrf

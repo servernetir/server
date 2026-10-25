@@ -56,8 +56,8 @@ class PaymentService
     {
         $gateway = $this->gateways->get($gatewayKey);
 
-        if ($gateway === null || ! $gateway->enabled()) {
-            return new StartOutcome(false, error: 'این روش پرداخت در دسترس نیست.');
+        if ($gateway === null || ! $gateway->enabled() || ! app(PaymentVisibility::class)->allows($gatewayKey)) {
+            return new StartOutcome(false, error: __('ui.iv_gw_unavailable'));
         }
 
         if (! $invoice->isPayable()) {
