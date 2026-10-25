@@ -33,6 +33,7 @@
 | `precheck/iran-host-readonly.sh` | بررسیِ فقط‌خواندنیِ میزبانِ ایران پیش از هر تصمیم |
 | `precheck/de-whm-readonly.sh` | بررسیِ فقط‌خواندنیِ WHMِ آلمان (پورتِ ۵۳ و آدرس‌ها) |
 | `lab/lab-up.sh`, `lab/lab-acceptance.sh`, `lab/netns-dnat-test.sh` | آزمایشگاهِ محلی و آزمون‌های پذیرش |
+| `lab/interop-pdns49.sh` | primaryِ 5.0 → secondaryِ Debian 13 (4.9.17، همان نسخهٔ VMِ ایران) در کانتینر؛ ۱۰ از ۱۰ (۲۵ اکتبر) |
 
 ## یافته‌های آزمایشگاه (PowerDNS 5.0.2) که طراحی را شکل دادند
 
