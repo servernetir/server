@@ -228,4 +228,28 @@ class ArvanTrafficMeterTest extends TestCase
         $this->assertSame(0, $meter->run($snapshot, true)['total_irt']);
         $this->assertCount(2, $meter->state()['checkpoints']);
     }
+
+    public function test_changing_supplier_report_is_refetched_in_full_without_mixing_attempts(): void
+    {
+        [, , , $snapshot] = $this->fixture();
+        $new = $this->growth($snapshot);
+        Setting::putSecret('arvan_api_token', 'synthetic-token');
+        $metadataCalls = $usageCalls = 0;
+        Http::fake(function ($request) use ($snapshot, $new, &$metadataCalls, &$usageCalls) {
+            if (str_contains($request->url(), 'usage-items')) {
+                $selected = ++$usageCalls === 1 ? $snapshot : $new;
+
+                return Http::response(['data' => $selected['reports'][0]['rows'],
+                    'meta' => ['pagination' => ['current' => 1, 'totalPages' => 1, 'totalItems' => 1]]]);
+            }
+            $selected = $metadataCalls++ < 2 ? $snapshot : $new;
+
+            return Http::response(['data' => $selected['reports'][0]['cycle']]);
+        });
+        $source = app(ArvanTrafficSource::class);
+        $result = $source->validate($source->fetch());
+        $this->assertCount(1, $result['reports'][0]['rows']);
+        $this->assertSame('36000', $result['reports'][0]['rows'][0]['items'][0]['price']);
+        $this->assertSame(1, CreditEntry::count());
+    }
 }

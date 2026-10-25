@@ -29,6 +29,23 @@ final class ArvanTrafficSource
 
     public function fetch(array $knownCycles = []): array
     {
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                return $this->fetchStable($knownCycles);
+            } catch (RuntimeException $e) {
+                if ($attempt === 2 || ! in_array($e->getMessage(), [
+                    'Supplier bill changed during pagination; retry later',
+                    'Incomplete or changing traffic pagination',
+                ], true)) {
+                    throw $e;
+                }
+            }
+        }
+        throw new RuntimeException('Stable supplier traffic snapshot unavailable');
+    }
+
+    private function fetchStable(array $knownCycles): array
+    {
         $current = $this->get('current-billing-cycle')['data'];
         $ids = [$current['id']];
         foreach ($knownCycles as $id => $cycle) {
