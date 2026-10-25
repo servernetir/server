@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\FinanceDates;
 use App\Support\Jalali;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 /**
  * شبکهٔ یک ماهِ شمسی برای دیت‌پیکر — **همهٔ ریاضی این‌جا**.
@@ -47,20 +49,39 @@ class JalaliDateController extends Controller
         // ⚠️ لیست برمی‌گرداند نه آرایهٔ کلیددار: [jy, jm, jd]
         [$ty, $tm, $td] = Jalali::ofMoment(now(), (string) config('calendar.display_timezone', 'Asia/Tehran'));
 
-        $jy = (int) ($request->query('y') ?: $ty);
-        $jm = (int) ($request->query('m') ?: $tm);
-
-        // نرمال‌سازیِ سرریزِ ماه: ۱۳ → فروردینِ سالِ بعد، ۰ → اسفندِ سالِ قبل
-        while ($jm > 12) {
-            $jm -= 12;
+        $selected = null;
+        $selectedJalali = null;
+        if ($request->query('date') !== null || $request->query('jalali') !== null) {
+            try {
+                $selected = FinanceDates::iso($request->query('jalali', $request->query('date')));
+            } catch (ValidationException) {
+                return response()->json(['ok' => false, 'error' => 'invalid_date'], 422);
+            }
+            if ($selected) {
+                [$gy, $gm, $gd] = array_map('intval', explode('-', $selected));
+                $selectedJalali = Jalali::fromGregorian($gy, $gm, $gd);
+            }
+        }
+        $year = $request->query('y', $selectedJalali[0] ?? $ty);
+        $month = $request->query('m', $selectedJalali[1] ?? $tm);
+        if (! is_scalar($year) || ! is_scalar($month) || ! preg_match('/^\\d{4}$/D', (string) $year)
+            || ! preg_match('/^-?\\d{1,2}$/D', (string) $month)) {
+            return response()->json(['ok' => false, 'error' => 'out_of_range'], 422);
+        }
+        $jy = (int) $year;
+        $jm = (int) $month;
+        // Only one adjacent-month rollover is accepted; never loop on untrusted input.
+        if ($jm < 0 || $jm > 13) {
+            return response()->json(['ok' => false, 'error' => 'out_of_range'], 422);
+        }
+        if ($jm === 13) {
             $jy++;
+            $jm = 1;
         }
-
-        while ($jm < 1) {
-            $jm += 12;
+        if ($jm === 0) {
             $jy--;
+            $jm = 12;
         }
-
         if ($jy < self::MIN_YEAR || $jy > self::MAX_YEAR) {
             return response()->json(['ok' => false, 'error' => 'out_of_range'], 422);
         }
@@ -78,22 +99,30 @@ class JalaliDateController extends Controller
             $moment = Jalali::startOfDay($jy, $jm, $d, $tz);
 
             $cells[] = [
-                'd'     => $d,
+                'd' => $d,
+                'jalali' => Jalali::format($jy, $jm, $d),
                 'label' => fa_num((string) $d),
                 // 🔴 تاریخِ میلادیِ آماده — مرورگر هیچ تبدیلی نمی‌کند
-                'iso'   => $moment->toDateString(),
+                'iso' => $moment->toDateString(),
                 'today' => $jy === $ty && $jm === $tm && $d === $td,
             ];
         }
 
         return response()->json([
-            'ok'    => true,
-            'jy'    => $jy,
-            'jm'    => $jm,
+            'ok' => true,
+            'selected_iso' => $selected,
+            'selected_jalali' => $selectedJalali ? Jalali::format(...$selectedJalali) : null,
+            'selected_label' => $selected ? FinanceDates::display($selected) : null,
+            'today_iso' => Jalali::startOfDay($ty, $tm, $td, $tz)->toDateString(),
+            'today_jalali' => Jalali::format($ty, $tm, $td),
+            'month_names' => Jalali::MONTH_NAMES,
+            'min_year' => self::MIN_YEAR, 'max_year' => self::MAX_YEAR,
+            'jy' => $jy,
+            'jm' => $jm,
             'title' => Jalali::monthName($jm).' '.fa_num((string) $jy),
-            'lead'  => $lead,
+            'lead' => $lead,
             'cells' => $cells,
-            'dows'  => ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+            'dows' => ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
         ]);
     }
 }

@@ -24,7 +24,7 @@
 <p class="ad-note">{{ __('finance.receipt_scope') }}</p>
 <form method="get" action="{{ route('admin.transactions') }}" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;align-items:end">
 <label>{{ __('finance.search') }}<input class="ad-input" name="q" value="{{ $q??'' }}" maxlength="150"></label>
-<label>{{ __('finance.from') }}<input type="date" name="from" class="ad-input" value="{{ $filters['from']??'' }}"></label><label>{{ __('finance.to') }}<input type="date" name="to" class="ad-input" value="{{ $filters['to']??'' }}"></label>
+<label>{{ __('finance.from') }}<x-admin-jdate name="from" class="ad-input" :value="$filters['from']??''" /></label><label>{{ __('finance.to') }}<x-admin-jdate name="to" class="ad-input" :value="$filters['to']??''" /></label>
 <label>{{ __('finance.gateway') }}<select name="gateway" class="ad-input"><option value="all">{{ __('finance.all') }}</option>@foreach($gateways as $g)<option value="{{ $g }}" @selected($gateway===$g)>{{ $g }}</option>@endforeach</select></label>
 <label>{{ __('finance.currency') }}<select name="currency" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach(array_keys(\App\Services\Finance\AccountingMoney::EXPONENTS) as $c)<option @selected(($filters['currency']??'')===$c)>{{ $c }}</option>@endforeach</select></label>
 <input type="hidden" name="status" value="{{ $status }}"><button class="ad-btn">{{ __('finance.apply') }}</button><a href="{{ route('admin.transactions.export',request()->query()) }}">{{ __('finance.export') }}</a><a href="{{ route('admin.transactions') }}">{{ __('finance.reset') }}</a></form>

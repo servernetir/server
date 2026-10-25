@@ -8,6 +8,7 @@ use App\Models\FinanceVoucher;
 use App\Models\Service;
 use App\Services\Finance\BusinessLedger;
 use App\Services\Finance\FinanceFilter;
+use App\Support\FinanceDates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -137,6 +138,7 @@ class FinanceController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        FinanceDates::normalize($request, ['occurred_at']);
         $data = $request->validate([
             'kind' => ['required', 'in:capital,expense,withdrawal,tax_paid'],
             'amount' => ['required', 'integer', 'min:1'],

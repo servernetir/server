@@ -1,0 +1,191 @@
+{
+  "date": "2026-10-25",
+  "implementation_commit": "0b76c13b",
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/Admin/AccountingController.php",
+      "public_mirror": false,
+      "before": "e6514cd12b66f3dd87ca1242dd7b7a1b16225d823aa403e339367ac0bf5f30c9",
+      "after": "73b82c985bb7846117667b358ee64c490cd3e052e064949535bf39e83c1674d7"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/FinanceController.php",
+      "public_mirror": false,
+      "before": "3a73e5f888eb7b7ba559df201b95a70fb7be30e3b7b6d686f028f5af81e77a81",
+      "after": "67e37ca3dacd8df248a680f08d5c0a92359b0360cb79519d0ac080137cd3e786"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/JalaliDateController.php",
+      "public_mirror": false,
+      "before": "4b167265b2f62154f10024b3e4e9eb6420978e36e94d8016cd1dec2beb0f1c53",
+      "after": "c5612d7517cb74395ee744454d268ddfcb34cedadb27f897996f235e00c0b413"
+    },
+    {
+      "source": "website/app/Services/Finance/FinanceFilter.php",
+      "public_mirror": false,
+      "before": "155685b5258c709392662d1a084463b6e809846f464286e3a96e2a0f05b0978b",
+      "after": "ec78da874b1f454e5d23d8182dc76f0f2a1d1a80cf0a217e67ffb68c9f1db97c"
+    },
+    {
+      "source": "website/lang/en/finance.php",
+      "public_mirror": false,
+      "before": "18c3a230d5fada226f2a78d4d8a2529baafc51fb171d5e17c187809a06dad643",
+      "after": "1bcf5473622df346fe73924adfe73bef45ef75690d79d9379520c1f48e19b8ee"
+    },
+    {
+      "source": "website/lang/fa/finance.php",
+      "public_mirror": false,
+      "before": "e8c6842d0fffa8e568088cdea9d1f11d0d51e39542091cae941fb6e46fa93c79",
+      "after": "b68aea4be6ea7ddd4c4489cab7ea1bc97df1ec715ebbd442a4a9160c7bbeab1a"
+    },
+    {
+      "source": "website/lang/tr/finance.php",
+      "public_mirror": false,
+      "before": "50431a8a4b6a577ce60b78901b4db256c645f8a5e3a893a05ec8d6bb865d4725",
+      "after": "3d20a4bfa2b2505e0d94cd7adc21533cef14d458fd67c241c9d302e55bbc57e9"
+    },
+    {
+      "source": "website/public/assets/js/jdate.js",
+      "public_mirror": false,
+      "before": "ebdc0f62c549a4c8f369844e7676ef64c75f7fce14038c6e5c74d41abb640e77",
+      "after": "f0884e18500e3d0423bc3a47214b2fb985ed251e9c94463692320edea6a6151d"
+    },
+    {
+      "source": "website/resources/views/admin/accounting-voucher.blade.php",
+      "public_mirror": false,
+      "before": "48c712ad35f2b7d59d97b6bca461796c69c7e50e4e97717a3f8e1729d00bb6c7",
+      "after": "debafe8e3a86e1b6ecd57e6918994a417f8c0db30262e588284fea8285a13b77"
+    },
+    {
+      "source": "website/resources/views/admin/accounting.blade.php",
+      "public_mirror": false,
+      "before": "4c67eea68dc42dfcf6af61cb663133b5ca1a173d22faa5f96f0770835dffa345",
+      "after": "1c7f845d2d9717937eeb47c485df0436872c112830fde83e1c00a87be5123372"
+    },
+    {
+      "source": "website/resources/views/admin/bank-reconciliation.blade.php",
+      "public_mirror": false,
+      "before": "2be6862f51acf1ab8d9e882f0d779ab215795c0fb4792e3c2f0fc6372ba95837",
+      "after": "e3ea91cddab3774fd9676249e82f6ef6bab2e3fede31a30c87ab7898ec9affdd"
+    },
+    {
+      "source": "website/resources/views/admin/finance.blade.php",
+      "public_mirror": false,
+      "before": "2a713821ddbae17485728a00496b270badefd8a556be7d208fde0fa5fa7bd967",
+      "after": "db56b906ed4be20dc69e024c882b1279093f72e1b528086efd5b9026662ee469"
+    },
+    {
+      "source": "website/resources/views/admin/layout.blade.php",
+      "public_mirror": false,
+      "before": "3b2f6aa98f472db5be0c3c78fca2cf556b899c0cafe20b16539958bcee75b4ac",
+      "after": "92251c8da25f9299aa78a9a2be3cbaf2bad4446972ae3de1a66370d1cf862e5c"
+    },
+    {
+      "source": "website/resources/views/admin/transactions.blade.php",
+      "public_mirror": false,
+      "before": "d33130c776a00cee15410cbe870f324d3fea7adf3b19aecb2261a775704419cc",
+      "after": "cb16875f0983dc79bc30ebc8ba34e1ccdeccddfae64dd1ec0ce70a25d2e5312a"
+    },
+    {
+      "source": "website/app/Support/FinanceDates.php",
+      "public_mirror": false,
+      "before": null,
+      "after": "47605bbaf329333fd7efafde62e18f6314f001b18c9faa186f22293068762b2e"
+    },
+    {
+      "source": "website/public/assets/css/jdate.css",
+      "public_mirror": false,
+      "before": null,
+      "after": "f730bd99d400302d2d37a8180ad52ada0116678fea3860d0ca7fd19176cfdbeb"
+    },
+    {
+      "source": "website/public/assets/js/finance-dates.js",
+      "public_mirror": false,
+      "before": null,
+      "after": "03eb64b8c9f3e67b4490411d45d794bddc823b793839c4e77d7e8a10c4b533a2"
+    },
+    {
+      "source": "website/resources/views/components/admin-jdate.blade.php",
+      "public_mirror": false,
+      "before": null,
+      "after": "4126d94bfaac74b6c066a2ad5e99eb20a83e64a9cfba8b64b5530233bfddaa58"
+    },
+    {
+      "source": "website/public/assets/css/jdate.css",
+      "public_mirror": true,
+      "before": null,
+      "after": "f730bd99d400302d2d37a8180ad52ada0116678fea3860d0ca7fd19176cfdbeb"
+    },
+    {
+      "source": "website/public/assets/js/finance-dates.js",
+      "public_mirror": true,
+      "before": null,
+      "after": "03eb64b8c9f3e67b4490411d45d794bddc823b793839c4e77d7e8a10c4b533a2"
+    },
+    {
+      "source": "website/public/assets/js/jdate.js",
+      "public_mirror": true,
+      "before": "ebdc0f62c549a4c8f369844e7676ef64c75f7fce14038c6e5c74d41abb640e77",
+      "after": "f0884e18500e3d0423bc3a47214b2fb985ed251e9c94463692320edea6a6151d"
+    }
+  ],
+  "validation": {
+    "pages": [
+      {
+        "uri": "/admin/finance",
+        "status": 200,
+        "picker_count": 3,
+        "canonical_from": true,
+        "native_date": false,
+        "native_month": false
+      },
+      {
+        "uri": "/admin/finance/accounting",
+        "status": 200,
+        "picker_count": 8,
+        "canonical_from": true,
+        "native_date": false,
+        "native_month": false
+      },
+      {
+        "uri": "/admin/transactions",
+        "status": 200,
+        "picker_count": 2,
+        "canonical_from": true,
+        "native_date": false,
+        "native_month": false
+      },
+      {
+        "uri": "/admin/finance/bank-reconciliation",
+        "status": 200,
+        "picker_count": 2,
+        "canonical_from": true,
+        "native_date": false,
+        "native_month": false
+      }
+    ],
+    "selected": "1405-08-03",
+    "days": 30
+  },
+  "public_assets": [
+    {
+      "path": "assets/css/jdate.css",
+      "status": 200,
+      "sha_match": true
+    },
+    {
+      "path": "assets/js/finance-dates.js",
+      "status": 200,
+      "sha_match": true
+    },
+    {
+      "path": "assets/js/jdate.js",
+      "status": 200,
+      "sha_match": true
+    }
+  ],
+  "financial_state_unchanged": true,
+  "php_tests": 114,
+  "php_assertions": 593,
+  "isolated_chrome_scenarios": 2
+}

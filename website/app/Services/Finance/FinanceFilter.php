@@ -2,6 +2,8 @@
 
 namespace App\Services\Finance;
 
+use App\Support\FinanceDates;
+use App\Support\Jalali;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -12,6 +14,7 @@ final class FinanceFilter
 
     public static function fromRequest(Request $request): self
     {
+        FinanceDates::normalize($request, ['from', 'to']);
         $v = $request->validate([
             'fiscal_year' => ['nullable', 'integer', 'min:1300', 'max:1600'],
             'quarter' => ['nullable', 'integer', 'min:0', 'max:4'],
@@ -26,9 +29,10 @@ final class FinanceFilter
         ]);
         $range = $v['range'] ?? 'all';
         $now = now('Asia/Tehran');
+        [$jy, $jm] = Jalali::ofMoment($now, 'Asia/Tehran');
         [$from, $to] = match ($range) {
-            'month' => [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()],
-            'year' => [$now->copy()->startOfYear(), $now->copy()->endOfYear()],
+            'month' => [Jalali::startOfDay($jy, $jm, 1, 'Asia/Tehran'), Jalali::startOfDay($jy, $jm, Jalali::daysInMonth($jy, $jm), 'Asia/Tehran')->endOfDay()],
+            'year' => FiscalPeriods::window($jy),
             default => [null, null],
         };
         if (! empty($v['from']) || ! empty($v['to'])) {
