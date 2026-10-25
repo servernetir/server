@@ -1,8 +1,8 @@
 {
   "date": "2026-10-25",
   "base": "bfb6d058803a9a894c6d6d2f17d86744b5437c5d",
-  "integrationBase": "b4948180",
-  "sourceSha": "9156c78dccb7638004df9260330cedc5d9b0bd42",
+  "integrationBase": "e337004f",
+  "sourceSha": "8a1f4730f280930e7ef1dd7f6291c26f53f25ff9",
   "runtimeFiles": 16,
   "tests": {
     "php": {
@@ -84,5 +84,9 @@
     "created": 0
   },
   "productionBackup": "/home/servernetcloud/chat-leads-20261025-1792917493166",
-  "n8nBackup": "/var/lib/servernet-hermes-ops/chat-leads-20261025-1792917576464"
+  "n8nBackup": "/var/lib/servernet-hermes-ops/chat-leads-20261025-1792917576464",
+  "codeCommits": [
+    "d7df7482",
+    "8a1f4730"
+  ]
 }
