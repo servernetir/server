@@ -182,9 +182,9 @@
       $asTable = $isLiveCloudCatalog;
     @endphp
 
-    {{-- در نمای جدولی فقط قیمتِ ماهانه ستون دارد، پس کلیدِ ماهانه/سالانه
-         چیزی را عوض نمی‌کند و فقط کاربر را گمراه می‌کند. --}}
-    @unless($yearlyOnly || $asTable)
+    {{-- در نمای جدولی فقط قیمتِ ماهانه ستون دارد. محصول استعلامی هم دوره و
+         تخفیف قطعی ندارد؛ انتخاب ماهانه/سالانه برای این حالت‌ها گمراه‌کننده است. --}}
+    @unless($yearlyOnly || $asTable || ($product['quote_only'] ?? false))
     <div class="bill-toggle reveal" role="group" aria-label="Billing cycle">
       <button type="button" class="active" data-bill="monthly">{{ __('ui.bill_monthly') }}</button>
       <button type="button" data-bill="yearly">{{ __('ui.bill_yearly') }}<span class="save">{{ __('ui.bill_save', ['percent' => $isFa ? fa_num(config('billing.cycles.yearly.discount_pct')) : config('billing.cycles.yearly.discount_pct')]) }}</span></button>

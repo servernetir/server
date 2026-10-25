@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "containerPublicId": "GTM-MRSC7BF7",
+  "measurementId": "G-W90N0G8Y2M",
+  "namePrefix": "SEO Growth - ",
+  "events": [
+    {
+      "name": "product_cta_click",
+      "parameters": [
+        "product_line",
+        "cta_action",
+        "cta_placement",
+        "source_page",
+        "content_language"
+      ]
+    },
+    {
+      "name": "hourly_vps_interaction",
+      "parameters": [
+        "interaction_type",
+        "content_language",
+        "product_line"
+      ]
+    }
+  ]
+}

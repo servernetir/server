@@ -6,12 +6,14 @@ use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Post;
 use App\Models\PostTranslation;
+use App\Models\Product;
 use App\Models\Setting;
 use App\Services\Cloud\CloudPricingSnapshot;
 use App\Services\ExchangeRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\NavasanRates;
 use Tests\TestCase;
 
 class GrowthArticlePublishingTest extends TestCase
@@ -65,6 +67,41 @@ class GrowthArticlePublishingTest extends TestCase
         $this->assertSame(1, Post::count());
     }
 
+    public function test_reviewed_guides_link_both_product_cards_to_their_actual_product_in_each_language(): void
+    {
+        foreach ([
+            'comfyui-hourly-gpu-guide' => '/gpu',
+            'jupyter-hourly-gpu-guide' => '/gpu',
+            'n8n-backup-migration-guide' => '/cloud/n8n',
+        ] as $slug => $productPath) {
+            $this->artisan('content:apply-growth', ['slug' => $slug, '--apply' => true, '--expect' => 'absent'])->assertSuccessful();
+
+            foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+                $html = $this->get($prefix.'/blog/'.$slug)->assertOk()->getContent();
+                $title = $productPath === '/gpu' ? __('ui.gpu_h1') : config('catalog.cloud.n8n.'.$locale.'.t');
+                $description = $productPath === '/gpu' ? __('ui.gpu_lead') : config('catalog.cloud.n8n.'.$locale.'.hero_d');
+
+                $this->assertRelatedProductCards($html, url($prefix.$productPath), $title, $description, $productPath === '/cloud/n8n');
+            }
+        }
+    }
+
+    public function test_post_product_overrides_preserve_ordinary_tutorial_and_unknown_category_fallbacks(): void
+    {
+        foreach (['tutorial' => 'wordpress', 'legacy-category' => 'linux'] as $category => $productSlug) {
+            $post = Post::create(['slug' => 'ordinary-'.$category, 'type' => 'blog', 'category' => $category, 'status' => 'published', 'published_at' => now()]);
+            foreach (['fa', 'en', 'tr'] as $locale) {
+                PostTranslation::create(['post_id' => $post->id, 'locale' => $locale, 'title' => 'Ordinary tutorial', 'excerpt' => 'Synthetic article', 'content' => '<p>Existing content.</p>']);
+            }
+
+            foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+                $html = $this->get($prefix.'/blog/'.$post->slug)->assertOk()->getContent();
+                $product = config('hosting.products.'.$productSlug.'.'.$locale);
+                $this->assertRelatedProductCards($html, url($prefix.'/hosting/'.$productSlug), $product['t'], $product['hero_d']);
+            }
+        }
+    }
+
     public function test_missing_or_untranslated_guides_do_not_create_dead_or_cross_language_links(): void
     {
         $slug = 'comfyui-hourly-gpu-guide';
@@ -104,7 +141,31 @@ class GrowthArticlePublishingTest extends TestCase
                 $response->assertSee('href="tel:', false);
                 $response->assertDontSee('"@type":"Offer"', false);
                 $response->assertDontSee(__('ui.hp_stock_out'));
+                $response->assertDontSee('data-bill="monthly"', false);
+                $response->assertDontSee('data-bill="yearly"', false);
+                $response->assertDontSee('class="save"', false);
+                $response->assertSee('data-growth-cta="consultation"', false);
             }
+        }
+    }
+
+    public function test_orderable_hosting_keeps_monthly_and_yearly_choices_with_its_purchase_link(): void
+    {
+        NavasanRates::store(['EUR' => 200000]);
+        Product::create([
+            'name' => 'Synthetic Python plan', 'slug' => 'python-1', 'category' => 'shared',
+            'group' => 'python', 'base_price_eur' => '1.00',
+            'cycle' => 'monthly', 'is_active' => true,
+        ]);
+
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $response = $this->get($prefix.'/hosting/python')->assertOk();
+            $response->assertSee('data-bill="monthly"', false);
+            $response->assertSee('data-bill="yearly"', false);
+            $response->assertSee('class="save"', false);
+            $response->assertSee('class="pr pr-m"', false);
+            $response->assertSee('class="pr pr-y"', false);
+            $response->assertSee('href="'.url($prefix.'/order/python-1').'"', false);
         }
     }
 
@@ -181,5 +242,28 @@ class GrowthArticlePublishingTest extends TestCase
         foreach (array_unique($targets) as $target) {
             $this->get($target)->assertOk();
         }
+    }
+
+    private function assertRelatedProductCards(string $html, string $href, string $title, string $description, bool $quoteOnly = false): void
+    {
+        $document = new \DOMDocument;
+        @$document->loadHTML($html);
+        $xpath = new \DOMXPath($document);
+
+        $authorLinks = $xpath->query('//a[contains(concat(" ", normalize-space(@class), " "), " bp-author-cta ")]');
+        $this->assertSame(1, $authorLinks->length);
+        $this->assertSame($href, $authorLinks->item(0)->getAttribute('href'));
+        $this->assertSame($title, trim($authorLinks->item(0)->textContent));
+
+        $cards = $xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " sol-cta ")]');
+        $this->assertSame(1, $cards->length);
+        $card = $cards->item(0);
+        $this->assertSame($title, trim($xpath->query('.//h2', $card)->item(0)->textContent));
+        $this->assertSame($description, trim($xpath->query('./p', $card)->item(0)->textContent));
+        $links = $xpath->query('.//div[contains(concat(" ", normalize-space(@class), " "), " sol-cta-btns ")]/a', $card);
+        $this->assertSame(1, $links->length);
+        $this->assertSame($href, $links->item(0)->getAttribute('href'));
+        $cta = $quoteOnly ? __('ui.hp_contact_price') : __('ui.bl_product_cta');
+        $this->assertSame($title.' — '.$cta, trim($links->item(0)->textContent));
     }
 }

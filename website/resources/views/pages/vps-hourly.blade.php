@@ -183,6 +183,7 @@
   <a href="#plans">{{ $hvUx['jump_plans'] }}</a>
   <a href="#rates">{{ $hvUx['jump_rates'] }}</a>
   <a href="#buying-guide">{{ $hvUx['jump_guide'] }}</a>
+  <a href="#linux-hourly-guide">{{ lc(['fa' => 'راهنمای لینوکس و SSH', 'en' => 'Linux and SSH guide', 'tr' => 'Linux ve SSH rehberi']) }}</a>
   <a href="#faq">{{ $hvUx['jump_faq'] }}</a>
 </nav>
 @include('partials.hourly-calculator')
@@ -299,6 +300,7 @@
 </section>
 
 @include('partials.hourly-guide')
+@include('partials.hourly-linux-guide')
 @include('partials.seo-hourly-estimate')
 
 {{-- ═══════════ ساعتی یا ماهانه ═══════════ --}}

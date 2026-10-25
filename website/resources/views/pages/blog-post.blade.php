@@ -21,9 +21,9 @@
     $author = $post['author'] ?? __('ui.brand');
     $initial = mb_strtoupper(mb_substr(trim($author), 0, 1));
     $reading = $isFa ? fa_num($post['reading']) : $post['reading'];
-    /* پلِ بلاگ→محصول (ممیزی ۳): سرویسِ فروختنیِ متناظر با دستهٔ همین پست.
+    /* پلِ بلاگ→محصول: نگاشت اختصاصی همین راهنما، سپس دستهٔ پست.
        null یعنی نگاشت/محصول نیست و بلاک اصلاً رندر نمی‌شود — لینکِ مرده ممنوع. */
-    $relProduct = blog_related_product($post['category'] ?? null);
+    $relProduct = blog_related_product($post['category'] ?? null, $post['slug'] ?? null);
 @endphp
 
 @section('title', $post['title'].' — '.__('ui.brand'))
@@ -218,7 +218,7 @@
       <h2 style="margin-top:12px">{{ $relProduct['title'] }}</h2>
       @if($relProduct['desc'] !== '')<p>{{ $relProduct['desc'] }}</p>@endif
       <div class="sol-cta-btns">
-        <a class="btn btn-primary" href="{{ $relProduct['href'] }}">{{ $relProduct['title'] }} — {{ __('ui.bl_product_cta') }}<svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-primary" href="{{ $relProduct['href'] }}">{{ $relProduct['title'] }} — {{ __(! empty($relProduct['quote_only']) ? 'ui.hp_contact_price' : 'ui.bl_product_cta') }}<svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg></a>
       </div>
     </div>
   </div>
