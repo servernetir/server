@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-25",
+  "implementation_commit": "d4967b74",
+  "deployment_complete": true,
+  "runtime": {
+    "php": "8.4.27",
+    "laravel": "13.19.0",
+    "database": "MariaDB"
+  },
+  "source_files_verified": 45,
+  "existing_files": 16,
+  "new_files": 29,
+  "server_php_lint": 43,
+  "migration": "2026_10_25_180000_create_marketing_campaign_engine",
+  "new_tables": 11,
+  "invoice_items_marketing_context": true,
+  "development_tests": {
+    "tests": 99,
+    "assertions": 513
+  },
+  "isolated_mariadb": {
+    "assertions": 45,
+    "rendered_views": 6,
+    "simulated_sms": true,
+    "migration_down_up": true,
+    "concurrency_race_test": false
+  },
+  "production_render": {
+    "views": {
+      "admin_index": 34023,
+      "admin_create": 47274,
+      "offers_fa": 142428,
+      "offers_en": 135162,
+      "offers_tr": 135883
+    },
+    "queries": 89,
+    "sql_writes": 0,
+    "read_only_transaction": true
+  },
+  "http": {
+    "main": 200,
+    "admin_index": 302,
+    "admin_create": 302,
+    "offers_fa": 302,
+    "offers_en": 302,
+    "offers_tr": 302,
+    "css": 200,
+    "js": 200
+  },
+  "campaign_count": 0,
+  "real_sms_sent": 0,
+  "real_customer_wallet_changes": 0,
+  "sms_enabled": false,
+  "sms_country_reviewed": false,
+  "sms_driver": "n8n-relay",
+  "scheduler": {
+    "natural_heartbeat": "2026-10-25T13:43:13+00:00",
+    "dry_run": {
+      "eligible": 0,
+      "issued": 0,
+      "blocked": 0
+    },
+    "host_cron_entries": 19,
+    "host_cron_changed": false
+  },
+  "cleanup": {
+    "synthetic_staff_removed": 1,
+    "synthetic_customer_removed": 1,
+    "synthetic_dependencies": 0,
+    "remaining_synthetic_staff": 0,
+    "remaining_synthetic_customer": 0,
+    "qa_database_removed": true,
+    "qa_only_db_user_removed": true,
+    "qa_credentials_removed": true,
+    "opcache_helpers_remaining": 0,
+    "temporary_ssh_key_cleanup_confirmed": false,
+    "local_temporary_key_deletion_confirmed": false,
+    "temporary_key_configured_expiry": "2026-10-25T15:19:34Z",
+    "reason": "Workstation transport closed before cleanup command returned; inspect receipt/current state after reconnecting."
+  },
+  "private_rollback_stage": "/home/servernetcloud/marketing-campaigns-20261025-1792934369354",
+  "rollback_code_dry_run": {
+    "restore_existing": 16,
+    "remove_new": 28,
+    "schema_retained": true
+  }
+}

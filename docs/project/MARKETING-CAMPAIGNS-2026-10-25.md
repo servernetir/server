@@ -2,8 +2,8 @@
 
 ## Delivery status
 
-This is a development implementation, not a production deployment or authorization to send messages.
-No production migration, customer wallet change, live campaign activation, or real SMS was performed.
+Production publication was explicitly authorized by the owner and completed on 2026-10-25.
+The additive migration and 45 source files were installed and verified. No real campaign was created or activated, no real SMS was sent, and no real customer's wallet or invoice was changed. Promotional sending remains disabled. Final temporary SSH-key cleanup was interrupted by the workstation disconnect and is NOT confirmed; see the deployment record below.
 Development is based on the current repository's Laravel application in website/, not the abandoned app/ tree.
 
 Previously: GiftCoupon and birthday:gift issued fixed, customer-bound, short-lived gifts. Applying those gifts posted a gift payment immediately. Those historical semantics and records are preserved.
@@ -102,7 +102,7 @@ CSV contains aggregate metrics, not raw customer contact details.
 - No provider delivery-receipt/query integration or real administrator test-SMS endpoint. Unknown results require manual provider reconciliation.
 - Global time/frequency limits are configuration defaults; this UI exposes the emergency switch, review flag, tariff, daily budget/count and campaign-specific budget/count.
 - No automatic extension of issued offers. To change issued rule promises, create another audited campaign/code rather than edit the original snapshot.
-- Live SMS and production deployment remain unvalidated.
+- Real promotional SMS remains unvalidated and disabled. Production code/schema publication was accepted as recorded below.
 
 ## Schema and main files
 
@@ -146,11 +146,11 @@ Final synchronization and verification:
 - Wizard JavaScript test, Blade compilation and git diff --check PASS after the rebase.
 - Implementation is recorded in develop under the commit titled feat(marketing): add budgeted campaign discounts and birthday automation; the following documentation commit records final verification.
 - The last incoming change at 6f547b77 updates only existing Growth/network documentation; it does not alter the validated application code.
-- Production remains unchanged; new campaign data and migrations exist only in development until an authorized deployment.
+- The development-only state was superseded by the owner-authorized production publication recorded below.
 
-## Safe first activation after a separately authorized deployment
+## Safe first campaign activation
 
-1. Back up the application database; deploy matching code and migrate before exposing these pages.
+1. Code/schema publication and a private consistent database backup are complete. Recheck current live state before creating a real campaign.
 2. Keep the global promotional sender OFF, campaign messages paused and the old birthday program OFF while reviewing a new birthday campaign.
 3. Run marketing:tick --dry-run and review recipients, service eligibility, dates, maximum discount commitments and unknown supplier-cost handling.
 4. Configure/verify a lawful, supported promotional route using the existing account infrastructure; record actual tariff and country review. Do not change OTP delivery to work around a promotional limitation.
@@ -159,8 +159,38 @@ Final synchronization and verification:
 
 These example test percentages/budgets are not a request to activate a real campaign.
 
+## Authorized production publication — 2026-10-25
+
+This section supersedes earlier development-only status. Implementation d4967b74 and verification 6e3dcc3e were already in develop; the deployment used narrow three-way merges with current production files, rather than replacing the application with a repository snapshot.
+
+Affected machine: core.servernet.cloud (65.109.176.14), cPanel account servernetcloud. App: /home/servernetcloud/servernet_app. Public assets: /home/servernetcloud/public_html/assets. Verified runtime: PHP 8.4.27, Laravel 13.19.0, MariaDB.
+
+- Installed 45 source files: 16 existing and 29 new. Server-side syntax checks passed for all 43 PHP/Blade source files. All 45 installed file SHA-256 values matched the reviewed manifest.
+- Ran only database/migrations/2026_10_25_180000_create_marketing_campaign_engine.php with --force. Eleven new tables and nullable invoice_items.marketing_context were verified. The dispatch-lock singleton was the only initial campaign-table row.
+- Preserved live IranPurchaseReadiness payment checks, payment-language visibility, Hermes routes/jobs, the two-hour Arvan traffic meter and the concurrently deployed Growth Center. Three shared files changed during acceptance: admin/layout.blade.php and web/console routes. They were refreshed and merged, and the full isolated MariaDB acceptance was repeated successfully.
+- Compiled production Blade views. Config/route caches remain off. Web OPcache reset succeeded on both main site and console through authenticated, expiring, self-deleting helpers. SSH subsequently verified zero remaining opcode helper files.
+- The existing 19-entry host crontab was not edited. marketing:tick was added to the existing Laravel minute schedule with a ten-minute overlap lock. A natural scheduler heartbeat was observed at 2026-10-25T13:43:13+00:00. Dry-run returned eligible=0, issued=0, blocked=0.
+- The production campaign, preference, grant, redemption, delivery, audit, event, run, permission and payment-reconciliation tables were empty at the final check. Global SMS enabled=false, country-review=false; driver n8n-relay remains unsupported for campaign free text. Existing transactional SMS configuration was preserved.
+- Main site returned 200. Anonymous admin index/create requests returned 302 to admin login. Offers in fa/en/tr returned 302 to customer login. CSS and wizard JavaScript returned 200.
+- Deployed admin index/create and three customer-language pages rendered inside a MariaDB read-only transaction: 89 queries and zero SQL writes.
+- Isolated schema-only MariaDB acceptance passed 45 assertions and rendered six views. It covered birthday idempotency, personal guarantees, mixed-cart service-only discount and tax, private ownership, duplicate checkout, official settlement/replay, budget release, reminders, reports, expiry and migration down/up. SMS was mocked. Real provider sending, browser visual inspection and MariaDB race testing are not claimed; two-worker concurrency was validated on SQLite during development.
+
+Acceptance harness incident: the first attempt retained a connection name when switching databases. It created one synthetic staff account and one synthetic customer in production, then failed at the first marketing-preference insert. No dependent rows or financial actions existed. Both exact synthetic rows were locked, verified by ID/test-only email/time and deleted in a transaction; final synthetic counts were zero. The harness was corrected to redirect named connections and use a new user with access ONLY to the temporary QA database. Subsequent acceptance used that restricted user. No real customer's account, wallet or invoice was changed.
+
+Confirmed cleanup before disconnection: temporary QA database and QA-only user deleted; independent cPanel lists confirmed both absent and the production DB user present. Local/remote QA credential files and the transient dump credential file were absent. Web opcode helpers were absent.
+
+Final SSH cleanup remains UNCONFIRMED. A command was submitted to remove only this release's unique restricted key/public file, preserve other authorized lines including the main key, verify a rejected login and delete the local private/public files. The workstation transport closed before any result was received. Do not record that command as successful or blindly rerun it. The key had been limited to no forwarding/PTY and configured to expire at 2026-10-25 15:19:34 UTC. After reconnection, inspect the private stage cleanup.json receipt, current authorized_keys/public file, and local key existence; finish only the remaining exact cleanup. Preserve unrelated keys and never copy key contents into documentation.
+
+Private persistence and rollback materials: /home/servernetcloud/marketing-campaigns-20261025-1792934369354 contains consistent database.sql (44,412,582 bytes, SHA-256 6c7883498959d21da4ccde6d8eb6415442556a0adaa2e98929fd7099f0428bd6), schema.sql (156,257 bytes, SHA-256 d9f9e4c2f449b178cea00593c709133193b10f5f589672b90c92587e09a08571), before snapshots, the final 45-file manifest, QA/deployed acceptance receipts, and rollback-code.py. Directory 0700; SQL/snapshots 0600, outside the webroot. No full database restore occurred. A richer local documentation/manifest draft exists in the isolated workstation clone but could not be committed before disconnection; this connected-GitHub record preserves the verified outcome.
+
+Rollback-code.py was syntax checked and dry-run on production: 16 existing files would be restored and 28 new files removed; the additive migration/schema stay present. Its default mode makes no changes. It refuses hash drift, damaged snapshots and nonempty campaign state; the execution flag is --execute-reviewed-code-rollback. Pause issuance/messages, review valid promises and in-flight payments, and use a brief maintenance window before any separately reviewed rollback. Reset web OPcache and recompile views before leaving maintenance. Never restore the full release dump over newer live orders. Isolated migration down/up is not authorization for live schema deletion.
+
+Source/schema changes are persistent. No VM lifecycle, network route, NAT, firewall, DNS, country-routing source or port-forward state was changed. The new Laravel schedule uses existing host cron.
+
+Machine-readable acceptance: [production-acceptance.json](marketing-campaigns-deployment-20261025/production-acceptance.json).
+
 ## Rollback
 
-Before any live deployment, pause new issuance and promotional messages independently. Preserve valid issued promises and reconcile in-flight payments.
-The migration has a down() method for an empty/test installation. It removes the new tables and invoice context, so it is not a safe production rollback after real offers or financial commitments exist. Export/retain the records and restore a reviewed database backup if a schema rollback is necessary.
+Before a production rollback, pause new issuance and promotional messages independently. Preserve valid issued promises and reconcile in-flight payments.
+The migration has a down() method for an empty/test installation. It removes the new tables and invoice context, so it is not a safe production rollback after real offers or financial commitments exist. Export/retain the records and plan a targeted reviewed schema reversal if necessary; never overwrite newer orders with the release-time full dump.
 Revert application code only with matching schema and retained audit/commitment data. No network/route/firewall configuration was changed in this task.
