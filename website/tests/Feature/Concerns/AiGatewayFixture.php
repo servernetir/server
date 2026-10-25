@@ -34,7 +34,8 @@ trait AiGatewayFixture
     protected function sellableCatalog(array $providerOver = [], array $modelOver = [], bool $cached = true): void
     {
         Cache::flush();
-        Setting::put('pricing_usd_rate_override', '100000');
+        // Match the production stored-rate contract; manual overrides are intentionally ignored.
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 120000]);
         Setting::put('ai_margin_pct', '25');
         Setting::put('ai_sales_open', '1');
         Setting::put('ai_provider_deepinfra_base_url', 'https://api.deepinfra.com/v1/openai');

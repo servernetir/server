@@ -204,6 +204,10 @@ class SiteController extends Controller
             '/about'         => 'About ServerNet',
             '/contact'       => 'Contact and support',
             '/transactional-email' => 'Managed transactional email on Amazon SES — SMTP, API, domain setup and quotation',
+            '/ai' => 'AI Gateway: model discovery, API access and integration',
+            '/ai/models' => 'AI model catalogue with published gateway limits and usage rates',
+            '/ai/compare' => 'Compare up to three AI models by operation, limits and rates',
+            '/ai/docs' => 'AI Gateway API documentation, scopes and request contracts',
             '/domains'       => 'Domain search and registration',
             '/vps/hourly'    => 'Hourly-billed cloud VPS (pay per hour from wallet, Iran and abroad)',
             '/gpu'           => 'Hourly GPU servers for AI inference, rendering and training (interruptible, SSH access)',
@@ -577,6 +581,7 @@ class SiteController extends Controller
         $add('identity.docs');
         $add('identity.terms');
         $add('ai.models');
+        $add('ai.compare');
         $add('ai.docs');
         // Category listings have distinct guidance and crawlable links to their models.
         // Only advertise categories with an active model; search-result filters stay out.

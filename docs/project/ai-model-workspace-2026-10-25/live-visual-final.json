@@ -1,0 +1,39 @@
+{
+  "rows": [
+    {
+      "name": "ai-model-desktop",
+      "client": 1425,
+      "scroll": 1425,
+      "bodyFont": "IRANSans, system-ui, \"Segoe UI\", sans-serif"
+    },
+    {
+      "name": "ai-compare-tr-mobile",
+      "client": 390,
+      "inner": 390,
+      "scroll": 390,
+      "bodyFont": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+      "h1": "Farkları yan yana görün."
+    },
+    {
+      "name": "ai-home-mobile-light",
+      "client": 390,
+      "inner": 390,
+      "scroll": 390,
+      "bodyFont": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+      "h1": "API هوش مصنوعی؛\nمدل مناسب پروژهٔ شما."
+    },
+    {
+      "name": "ai-home-desktop",
+      "client": 1425,
+      "inner": 1440,
+      "scroll": 1425,
+      "bodyFont": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+      "h1": "API هوش مصنوعی؛\nمدل مناسب پروژهٔ شما."
+    }
+  ],
+  "note": "Fresh isolated Chrome profile; document, fonts and resources allowed to settle. Earlier browser profile had aborted resource loads during rapid navigation.",
+  "reducedMotion": {
+    "reduced": true,
+    "animation": "none"
+  }
+}

@@ -36,6 +36,7 @@ $site = function (): void {
     // [ai-storefront:start]
     Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
     Route::get('/ai/models', [\App\Http\Controllers\AiStorefrontController::class, 'models'])->name('ai.models');
+    Route::get('/ai/compare', [\App\Http\Controllers\AiStorefrontController::class, 'compare'])->name('ai.compare');
     Route::get('/ai/docs', [\App\Http\Controllers\AiStorefrontController::class, 'docs'])->name('ai.docs');
     Route::get('/ai/models/{slug}', [\App\Http\Controllers\AiStorefrontController::class, 'model'])->name('ai.model');
     // [ai-storefront:end]

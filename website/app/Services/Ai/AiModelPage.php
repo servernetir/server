@@ -30,6 +30,14 @@ final class AiModelPage
         $replace = fn (string $text) => strtr($text, array_combine(
             array_map(fn ($key) => ':'.$key, array_keys($values)), array_values($values)));
         $family = $this->family($model);
+        $catalogueText = preg_replace('~<(script|style)\b[^>]*>.*?</\1>~is', '', (string) $model->description);
+        $sourceDescription = trim(preg_replace('/\s+/u', ' ', strip_tags($catalogueText)));
+        // Catalogue prose stays plain text; never expose embedded credentials or raw supplier URLs.
+        if (preg_match('/(?:sk-[A-Za-z0-9]{8,}|Bearer\s+|api[_-]?key\s*[:=])/i', $sourceDescription)) $sourceDescription = '';
+        $sourceDescription = preg_replace('~https?://\S+~u', '', $sourceDescription);
+        $sourceDescription = \Illuminate\Support\Str::limit($sourceDescription, 4000);
+        $evaluation = __($model->category === 'chat' && $model->context_tokens > 0 ? 'ai_experience.fact_context' : 'ai_experience.fact_input',
+            ['name' => $model->name, 'context' => number_format($model->context_tokens), 'output' => number_format($model->max_output_tokens)]);
         $intro = $replace($readyNative ? $words[$legacyCompletion ? 'native_legacy_intro_ready' : 'native_intro_ready'] : $type['intro']);
         $workflow = $replace($readyNative ? $words['native_workflow_ready'] : $type['workflow']);
         if ($readyNative && in_array($model->category, ['video', 'music'], true)) {
@@ -181,8 +189,10 @@ final class AiModelPage
                     'item' => lroute('ai.models', ['type' => $model->category])],
                 ['@type' => 'ListItem', 'position' => 4, 'name' => $model->name, 'item' => $url],
             ]], $service,
+            ['@type' => 'FAQPage', '@id' => $url.'#faq', 'mainEntity' => array_map(fn ($item) =>
+                ['@type' => 'Question', 'name' => $item['q'], 'acceptedAnswer' => ['@type' => 'Answer', 'text' => $item['a']]], $faq)],
         ]];
-        return compact('title', 'description', 'intro', 'summary', 'family', 'faq', 'example', 'costExample',
+        return compact('title', 'description', 'intro', 'summary', 'family', 'faq', 'example', 'costExample', 'sourceDescription', 'evaluation',
             'facts', 'schema', 'url', 'tokenOperation', 'reasoningDisabled', 'reasoningSupplierUncontrolled', 'sourceSpec', 'gatewaySpec',
             'nativePrice', 'nativeContract', 'nativeNote', 'nativeBilling', 'operationLabel', 'uses', 'workflow', 'limit')
             + ['indexable' => self::indexable($model)];
@@ -245,6 +255,9 @@ final class AiModelPage
         // JSON is double quoted inside a POSIX single quoted string. Escape arbitrary model IDs safely.
         $quoted = str_replace("'", "'\"'\"'", $json);
         $curl = "curl https://servernet.cloud/v1/{$path} \\\n  -H \"Authorization: Bearer \$SERVERNET_API_KEY\" \\\n  -H 'Content-Type: application/json' \\\n  -H 'Idempotency-Key: CHANGE_FOR_EACH_NEW_REQUEST' \\\n  -d '{$quoted}'";
-        return compact('path', 'scope', 'body', 'curl');
+        $pythonJson = json_encode($json, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_APOS);
+        $python = "import json, os, urllib.request\nfrom uuid import uuid4\n\nbody = json.loads(".$pythonJson.")\nrequest = urllib.request.Request(\n    \"https://servernet.cloud/v1/{$path}\",\n    data=json.dumps(body).encode(),\n    headers={\n        \"Authorization\": \"Bearer \" + os.environ[\"SERVERNET_API_KEY\"],\n        \"Content-Type\": \"application/json\",\n        \"Idempotency-Key\": str(uuid4()),\n    },\n    method=\"POST\",\n)\nwith urllib.request.urlopen(request) as response:\n    print(json.load(response))";
+        $javascript = "import { randomUUID } from 'node:crypto';\n\nconst response = await fetch('https://servernet.cloud/v1/{$path}', {\n  method: 'POST',\n  headers: {\n    Authorization: 'Bearer ' + process.env.SERVERNET_API_KEY,\n    'Content-Type': 'application/json',\n    'Idempotency-Key': randomUUID(),\n  },\n  body: JSON.stringify(".$json."),\n});\nif (!response.ok) throw new Error('HTTP ' + response.status);\nconsole.log(await response.json());";
+        return compact('path', 'scope', 'body', 'curl', 'python', 'javascript');
     }
 }
