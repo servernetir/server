@@ -1,0 +1,45 @@
+/* Only the hourly landing page loads this stylesheet. */
+.hv-sec[data-hourly-enhance][hidden],.hv-explorer [hidden],.hv-sec [data-hourly-enhance][hidden],.hv-sec [data-hourly-plan][hidden],.hv-sec [data-hourly-country][hidden]{display:none!important}
+.hv-sec[id],#hourly-comparison{scroll-margin-top:calc(var(--header-h,112px) + 20px)}
+.hv-jump{display:flex;flex-wrap:wrap;gap:8px;padding-block:12px;border-block:1px solid var(--line)}
+.hv-jump a{display:flex;align-items:center;min-height:44px;padding:8px 16px;border:1px solid var(--line);border-radius:100px;color:var(--muted);font-size:13px;background:var(--surface)}
+.hv-jump a:hover{border-color:var(--cyan);color:var(--text)}
+.hv-eyebrow{display:block;color:var(--muted);font-size:12px;font-weight:700;margin-bottom:10px;letter-spacing:.03em}
+.hv-estimator{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);border:1px solid var(--line-2,var(--line));border-radius:24px;background:var(--surface);overflow:hidden}
+.hv-estimator-controls,.hv-estimator-result{padding:30px;min-width:0}
+.hv-estimator-controls>label,.hv-hours-heading label,.hv-filter label{font-weight:600;font-size:13px;color:var(--text)}
+.hv-estimator select,.hv-filter select,.hv-filter input,.hv-hours-heading input{font:inherit;color:var(--text);background:var(--surface-2);border:1px solid var(--line-2,var(--line));border-radius:12px;min-height:46px;padding:10px 12px;max-width:100%;min-width:0}
+.hv-estimator select{width:100%;margin:10px 0 25px;font-size:13px}
+.hv-estimator-result{border-inline-start:1px solid var(--line);background:linear-gradient(145deg,rgba(34,211,238,.08),transparent 80%)}
+.hv-hours-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hv-hours-heading>div{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.hv-hours-heading input{width:88px;text-align:center;direction:ltr}
+#hourly-range{width:100%;min-height:44px;margin:10px 0;accent-color:var(--cyan);cursor:pointer;direction:ltr}
+.hv-presets{display:flex;flex-wrap:wrap;gap:8px}
+.hv-presets button,.hv-reset{min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font:inherit;font-size:12px;color:var(--text);background:var(--surface-2);cursor:pointer}
+.hv-presets button[aria-pressed=true]{border-color:var(--cyan);box-shadow:inset 0 0 0 1px var(--cyan)}
+.hv-small{font-size:12px;color:var(--muted);line-height:1.9;margin-top:14px}
+.hv-small a{text-decoration:underline;text-underline-offset:3px;color:var(--text)}
+.hv-estimate-label{font-size:13px;color:var(--muted)}
+#hourly-total{display:block;font-size:clamp(27px,3.2vw,38px);font-weight:800;line-height:1.65;margin:6px 0 15px;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.hv-quote-details{display:grid;gap:12px;margin-bottom:16px}
+.hv-quote-details>div{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid var(--line);padding-bottom:10px;font-size:12px}
+.hv-quote-details dt{color:var(--muted)}.hv-quote-details dd{font-weight:700;text-align:end;flex-shrink:0;max-width:55%;overflow-wrap:anywhere}
+.hv-billing-notes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.hv-billing-notes p,.hv-note{border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:12px;line-height:1.9;color:var(--muted);background:var(--surface)}
+.hv-scenario-wrap{margin-top:28px}.hv-scenario-wrap h3{font-size:17px}.hv-scenario-wrap>.hv-small{margin-top:7px}
+.hv-scenarios{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}
+.hv-scenarios button{display:flex;flex-direction:column;align-items:flex-start;text-align:start;gap:9px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--text);padding:20px;font:inherit;cursor:pointer;transition:border-color .15s,transform .15s}
+.hv-scenarios button:hover{transform:translateY(-2px);border-color:var(--cyan)}.hv-scenarios button[aria-pressed=true]{border-color:var(--cyan)}
+.hv-scenarios strong{font-size:14px}.hv-scenarios span{font-size:12px;color:var(--muted);line-height:1.9}.hv-scenarios small{font-size:11px;color:var(--muted);margin-top:auto}
+#hourly-suggestion,#hourly-plan-status,#hourly-country-status,#hourly-compare-status{font-size:12px;line-height:1.9;color:var(--muted);margin-top:10px}
+.hv-filter{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin-bottom:20px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.hv-filter label{display:flex;flex-direction:column;gap:8px;min-width:150px;flex:1}.hv-filter p{flex-basis:100%}
+.hv-compare-check{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--muted);min-height:44px;margin-bottom:8px;cursor:pointer}.hv-compare-check input{width:18px;height:18px;accent-color:var(--cyan)}
+.hv-compare-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px;margin-top:16px}
+.hv-compare-cards article{border:1px solid var(--line);border-radius:18px;padding:20px;background:var(--surface);min-width:0}.hv-compare-cards h3{font-size:16px}.hv-compare-cards p{font-size:12px;color:var(--muted);line-height:1.9;margin:10px 0}.hv-compare-cards dl{display:grid;gap:10px;margin:15px 0}.hv-compare-cards dl div{display:flex;justify-content:space-between;gap:12px;font-size:12px;flex-wrap:wrap}.hv-compare-cards dt{color:var(--muted)}.hv-compare-cards dd{font-weight:700}.hv-compare-cards button{margin-top:12px;min-height:44px;background:transparent;border:0;text-decoration:underline;font:inherit;font-size:12px;color:var(--muted);cursor:pointer}
+.hv-guide-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.hv-guide-grid article{border:1px solid var(--line);border-radius:18px;padding:24px;background:var(--surface)}.hv-guide-n{font-size:13px;color:var(--muted)}.hv-guide-grid h3{font-size:16px;margin:10px 0}.hv-guide-grid p{font-size:13px;line-height:2;color:var(--muted)}
+.hv-field-error{font-size:12px;color:var(--text);margin-bottom:10px}#hourly-order[aria-disabled=true]{opacity:.55;pointer-events:none}
+.hv-explorer :focus-visible,.hv-filter :focus-visible,.hv-compare-check input:focus-visible,.hv-jump a:focus-visible,.hv-compare-cards :focus-visible{outline:2px solid var(--text);outline-offset:4px}
+@media(max-width:760px){.hv-estimator{grid-template-columns:minmax(0,1fr)}.hv-estimator-result{border-inline-start:0;border-top:1px solid var(--line)}.hv-estimator-controls,.hv-estimator-result{padding:22px}.hv-billing-notes,.hv-guide-grid{grid-template-columns:minmax(0,1fr)}.hv-scenarios{grid-template-columns:minmax(0,1fr)}.hv-scenarios button{padding:16px}.hv-filter label{min-width:120px}.hv-jump{flex-wrap:nowrap;overflow:auto}.hv-jump a{flex-shrink:0;font-size:12px;padding:8px 12px}}
+@media(prefers-reduced-motion:reduce){.hv-scenarios button{transition:none}.hv-scenarios button:hover{transform:none}}

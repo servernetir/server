@@ -222,6 +222,11 @@ class HourlyVpsController extends Controller
                 [$offer, $loc, $hourly] = $pair;
 
                 $out[] = [
+                    'iso' => strtoupper((string) $loc->country),
+                    'ram_mb' => (int) $offer->ram_mb,
+                    'disk_type' => strtoupper((string) $offer->disk_type),
+                    'hourly_minor' => $isFa ? $hourly : $offer->hourlyEurCents(),
+                    'monthly_minor' => $isFa ? (int) $offer->price_irt : (int) $offer->price_eur_cents,
                     'country' => $loc->countryLabel(),
                     'flag' => $loc->flagEmoji(),
                     'flag_svg' => $loc->flagSvg(),
