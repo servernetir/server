@@ -17,7 +17,7 @@ use Illuminate\Validation\ValidationException;
 /** Supplemental double entry journal. No historical backfill or fabricated opening balances. */
 final class DocumentedAccounting
 {
-    public const SERVICES = ['shared_hosting', 'reseller_hosting', 'cloud_vps', 'dedicated', 'gpu', 'domain', 'ai', 'identity_api', 'storage', 'sms', 'network', 'other'];
+    public const SERVICES = ['shared_hosting', 'reseller_hosting', 'cloud_vps', 'dedicated', 'gpu', 'domain', 'ai', 'identity_api', 'storage', 'sms', 'network', 'email_hosting', 'transactional_email', 'physical_sales', 'remote_access', 'automation', 'bpmn_erp', 'managed_services', 'seo_services', 'web_design', 'cloud_phone', 'other'];
 
     public const TYPES = ['expense', 'cost_adjustment', 'vendor_topup', 'asset_purchase', 'partner_funding', 'partner_repayment', 'opening_balance', 'vat_payment', 'income_tax_payment', 'bank_collection'];
 
