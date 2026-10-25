@@ -1,0 +1,181 @@
+{
+  "tested_at": "2026-10-25T06:50:22.337Z",
+  "form": {
+    "first": {
+      "created": "1",
+      "reference": "TE-2",
+      "events": 1,
+      "piiLeaked": false
+    },
+    "retry": {
+      "created": "0",
+      "reference": "TE-2",
+      "events": 0,
+      "piiLeaked": false
+    },
+    "javascript_error_count_at_end_of_form_test": 0
+  },
+  "analytics": {
+    "event": "view_item",
+    "item_id": "transactional-email-250000",
+    "item_category": "transactional_email",
+    "item_variant": "250000_recipients_monthly",
+    "quantity": 1,
+    "omitted": [
+      "price",
+      "value",
+      "currency",
+      "email",
+      "phone",
+      "name",
+      "domain",
+      "request_id"
+    ],
+    "transport_health_first": [
+      {
+        "events": [
+          "page_view"
+        ],
+        "status": 0,
+        "type": "opaque"
+      }
+    ],
+    "transport_health_retry": [],
+    "note": "Health wrapper captures opaque no-cors responses; status 0 is not a verified HTTP acceptance. Package view_item was observed in dataLayer. DebugView remains unverified."
+  },
+  "inbox": {
+    "inbox_view": "admin.marketing.email",
+    "request_count": 1,
+    "contact_count": 1,
+    "profile_view": "admin.marketing.email-lead",
+    "lead_count": 1,
+    "message_count": 1,
+    "outbound_count": 0,
+    "stage": "replied",
+    "observation_empty": true,
+    "next_action_empty": true,
+    "inbox_contains_synthetic_request": true,
+    "profile_has_unrelated_actions": false
+  },
+  "synthetic_cleanup": {
+    "removed_test_leads": 1,
+    "removed_test_messages": 1,
+    "test_lead_absent": true,
+    "test_message_absent": true
+  },
+  "admin_render_checks": [
+    {
+      "name": "inbox-mobile",
+      "width": 390,
+      "scrollWidth": 390,
+      "heading": "درخواست‌های ایمیل تراکنشی",
+      "headDisplay": "flex"
+    },
+    {
+      "name": "inbox-desktop",
+      "width": 1440,
+      "scrollWidth": 1440,
+      "heading": "درخواست‌های ایمیل تراکنشی",
+      "headDisplay": "flex"
+    },
+    {
+      "name": "profile-mobile-light",
+      "width": 390,
+      "scrollWidth": 390,
+      "heading": "INTERNAL EMAIL FOLLOWUP QA",
+      "headDisplay": "flex"
+    },
+    {
+      "name": "profile-desktop",
+      "width": 1440,
+      "scrollWidth": 1425,
+      "heading": "INTERNAL EMAIL FOLLOWUP QA",
+      "headDisplay": "flex"
+    }
+  ],
+  "note_admin_render": "Production-generated Blade rendered in isolated headless Chrome using public production CSS. Unsaved synthetic admin user was used only inside a private CLI process; no admin login or session was created.",
+  "http": [
+    {
+      "path": "/transactional-email",
+      "status": 200,
+      "redirect": null,
+      "canonical": "https://servernet.cloud/transactional-email",
+      "bodyPresent": true
+    },
+    {
+      "path": "/en/transactional-email",
+      "status": 200,
+      "redirect": null,
+      "canonical": "https://servernet.cloud/en/transactional-email",
+      "bodyPresent": true
+    },
+    {
+      "path": "/tr/transactional-email",
+      "status": 200,
+      "redirect": null,
+      "canonical": "https://servernet.cloud/tr/transactional-email",
+      "bodyPresent": true
+    },
+    {
+      "path": "/solutions/email",
+      "status": 301,
+      "redirect": "https://servernet.cloud/transactional-email",
+      "canonical": null,
+      "bodyPresent": false
+    }
+  ],
+  "anonymous_admin": {
+    "status": 302,
+    "redirect": "https://console.servernet.cloud/admin/login",
+    "leakedSynthetic": false
+  },
+  "runtime": {
+    "files": [
+      {
+        "source": "website/app/Http/Controllers/TransactionalEmailController.php",
+        "matches": true
+      },
+      {
+        "source": "website/app/Http/Controllers/Admin/MarketingController.php",
+        "matches": true
+      },
+      {
+        "source": "website/resources/views/pages/transactional-email.blade.php",
+        "matches": true
+      },
+      {
+        "source": "website/resources/views/admin/marketing/funnel.blade.php",
+        "matches": true
+      },
+      {
+        "source": "website/resources/views/admin/marketing/email.blade.php",
+        "matches": true
+      },
+      {
+        "source": "website/resources/views/admin/marketing/email-lead.blade.php",
+        "matches": true
+      },
+      {
+        "source": "website/public/assets/js/transactional-email.js",
+        "matches": true
+      }
+    ],
+    "activation": {
+      "status": "activated",
+      "php": "8.4.27",
+      "sapi": "fpm-fcgi",
+      "files": 7,
+      "invalidated": 6,
+      "compiled_views_cleared": 1
+    },
+    "applied_receipt": true,
+    "gateway_absent": true
+  },
+  "temporary_access_cleanup": {
+    "temporary_key_deauthorized": true,
+    "temporary_public_key_deleted": true,
+    "prior_authorized_keys_preserved": true,
+    "local_private_key_deleted": true,
+    "gateway_absent": true
+  }
+}
