@@ -1,0 +1,14 @@
+{
+  "http_paths_success": 63,
+  "hreflang_pairs_checked": 235,
+  "all_html_one_h1": true,
+  "jsonld_valid": true,
+  "sitemap_asset": {
+    "new_guide_urls": 9,
+    "present": 9,
+    "total_urls": 5421,
+    "missing": [],
+    "asset_sha256": "0ead0ecf4c91e4e71cad6b4643f50df9239f76e98b8a3789de8e90def33e24d3",
+    "asset_matches": true
+  }
+}
