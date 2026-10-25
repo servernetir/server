@@ -4,7 +4,7 @@
 
 This is an implemented, tested first release in the Laravel source tree. It is **not installed or verified in production**. No Google account, social account or live Hermes instance was connected during this work. No paid supplier request, customer message, infrastructure operation or production migration was executed. Test provider responses and customer wallets were isolated fixtures.
 
-Base: develop at 7329008b. Work was isolated in codex/growth-center-20261025; unrelated worktrees and existing production services were preserved. The final publication commit identifies the exact delivered revision.
+Base: develop at 7329008b. Work was isolated in codex/growth-center-20261025; unrelated worktrees and existing production services were preserved. After reconciliation with develop at 537c43f3, the implementation commit is 5bd2e013ba3ef16250d490228a0091a9da4872f9. The final publication commit also contains the operational index update.
 
 The supplied specification spans four phases. This release implements the core content workflow and local knowledge workflow; the table below explicitly identifies remaining work. The 13 navigation sections are not a claim that all 16 specification stages are complete.
 
