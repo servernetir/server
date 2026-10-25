@@ -53,6 +53,13 @@
 
         <h1 class="docs-h1">{{ $doc['title'] }}</h1>
         @if($doc['excerpt'])<p class="docs-lead">{{ $doc['excerpt'] }}</p>@endif
+        @if($doc['category'] === 'email')
+        <aside class="blog-note">
+          <strong>{{ __('transactional-email.badge') }}</strong>
+          <p>{{ __('transactional-email.price_lead') }}</p>
+          <a href="{{ lroute('email.transactional') }}">{{ __('transactional-email.cta') }}</a>
+        </aside>
+        @endif
         <div class="docs-meta">
           <span><svg class="icon"><use href="#i-book"/></svg>{{ $isFa ? fa_num($doc['reading']) : $doc['reading'] }} {{ __('ui.bl_min') }}</span>
           <span><svg class="icon"><use href="#i-clock"/></svg>{{ __('ui.bl_updated') }} {{ blog_date($doc['date']) }}</span>

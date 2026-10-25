@@ -100,7 +100,7 @@ class SolutionBpmnPlatformTest extends TestCase
      */
     public function test_other_solution_pages_are_untouched(): void
     {
-        $others = array_diff(array_keys(config('solutions')), ['bpmn-designer']);
+        $others = array_diff(array_keys(config('solutions')), ['bpmn-designer', 'email']); // email has its own product page and coverage
         $this->assertGreaterThanOrEqual(5, count($others), 'راهکارهای دیگر باید وجود داشته باشند');
 
         foreach ($others as $slug) {

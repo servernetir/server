@@ -54,7 +54,7 @@
 
     <div class="sol-grid">
       @foreach($solutions as $i => $s)
-        <a class="sol-card reveal" href="{{ lroute('solution', $s['slug']) }}"
+        <a class="sol-card reveal" href="{{ lroute($s['route'], $s['route'] === 'solution' ? $s['slug'] : []) }}"
            style="transition-delay:{{ $i * 50 }}ms">
           <span class="sol-ic sol-{{ $s['accent'] }}"><svg class="icon"><use href="#i-{{ $s['icon'] }}"/></svg></span>
           @if($s['badge'])<span class="sol-tag">{{ $s['badge'] }}</span>@endif

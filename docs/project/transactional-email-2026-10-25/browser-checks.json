@@ -1,0 +1,37 @@
+[
+  {
+    "lang": "fa",
+    "width": 390,
+    "scroll": 390,
+    "theme": "dark",
+    "errors": []
+  },
+  {
+    "lang": "fa",
+    "width": 1440,
+    "scroll": 1425,
+    "theme": "dark",
+    "errors": []
+  },
+  {
+    "lang": "fa",
+    "width": 390,
+    "scroll": 390,
+    "theme": "light",
+    "errors": []
+  },
+  {
+    "lang": "en",
+    "width": 390,
+    "scroll": 390,
+    "theme": "dark",
+    "errors": []
+  },
+  {
+    "lang": "tr",
+    "width": 1440,
+    "scroll": 1425,
+    "theme": "light",
+    "errors": []
+  }
+]

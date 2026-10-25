@@ -186,7 +186,8 @@
       @foreach($enterprise as $i => $e)
       @php
         $solHref = null;
-        if (!empty($e['hosting'])) $solHref = lroute('hosting', $e['hosting']);
+        if (!empty($e['route'])) $solHref = lroute($e['route'][0], $e['route'][1] ?? []);
+        elseif (!empty($e['hosting'])) $solHref = lroute('hosting', $e['hosting']);
         elseif (isset($e['slug']) && config('solutions.'.$e['slug'])) $solHref = lroute('solution', $e['slug']);
       @endphp
       <{{ $solHref ? 'a' : 'article' }} @if($solHref) href="{{ $solHref }}" @endif class="bcard {{ ($e['wide'] ?? false) ? 'wide' : '' }} {{ $solHref ? 'bcard-link' : '' }} reveal" style="transition-delay:{{ $i * 60 }}ms">
