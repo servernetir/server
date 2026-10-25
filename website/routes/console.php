@@ -720,3 +720,10 @@ Schedule::command('dns:reconcile')
 
 // Growth has its own durable jobs, approval gates and pause switch; safe before migration.
 \Illuminate\Support\Facades\Schedule::command('growth:run --limit=3')->everyMinute()->withoutOverlapping(15);
+
+// Owner-authorized incremental traffic settlement. Paid baseline is mandatory; no lifecycle actions.
+Schedule::command('finance:meter-arvan-traffic --apply')
+    ->cron('0 */2 * * *')
+    ->timezone('Asia/Tehran')
+    ->withoutOverlapping(45)
+    ->runInBackground();
