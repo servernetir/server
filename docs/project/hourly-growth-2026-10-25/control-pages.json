@@ -1,0 +1,26 @@
+[
+  {
+    "path": "/vps/hourly",
+    "status": 200,
+    "cache": "MISS",
+    "hasHourlyAssets": true
+  },
+  {
+    "path": "/vps/hourly",
+    "status": 200,
+    "cache": "HIT",
+    "hasHourlyAssets": true
+  },
+  {
+    "path": "/gpu",
+    "status": 200,
+    "cache": "MISS",
+    "hasHourlyAssets": false
+  },
+  {
+    "path": "/cloud",
+    "status": 200,
+    "cache": "MISS",
+    "hasHourlyAssets": false
+  }
+]

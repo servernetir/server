@@ -1,0 +1,17 @@
+{
+  "status": "cleaned",
+  "temporaryEndpoints": [
+    {
+      "status": 404,
+      "removed": true
+    },
+    {
+      "status": 404,
+      "removed": true
+    },
+    {
+      "status": 404,
+      "removed": true
+    }
+  ]
+}

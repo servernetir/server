@@ -1,0 +1,12 @@
+[
+  {
+    "asset": "css/hourly-explorer.css",
+    "bytes": 6923,
+    "gzipBytes": 1826
+  },
+  {
+    "asset": "js/hourly-explorer.js",
+    "bytes": 9219,
+    "gzipBytes": 2833
+  }
+]

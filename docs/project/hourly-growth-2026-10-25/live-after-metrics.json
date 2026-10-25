@@ -1,0 +1,23 @@
+[
+  {
+    "status": 200,
+    "cache": "BYPASS",
+    "timing": "app;dur=881, cache;desc=\"BYPASS\"",
+    "bytes": 251862,
+    "calculator": true
+  },
+  {
+    "status": 200,
+    "cache": "BYPASS",
+    "timing": "app;dur=1193, cache;desc=\"BYPASS\"",
+    "bytes": 251862,
+    "calculator": true
+  },
+  {
+    "status": 200,
+    "cache": "BYPASS",
+    "timing": "app;dur=933, cache;desc=\"BYPASS\"",
+    "bytes": 251862,
+    "calculator": true
+  }
+]
