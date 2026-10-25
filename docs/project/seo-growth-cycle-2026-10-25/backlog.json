@@ -25,7 +25,15 @@
     "next_run_note": "Tool next_run_time is null; first scheduled occurrence is derived from the recorded DTSTART, not a recorded run.",
     "last_state_verified_date_tehran": "2026-10-25"
   },
-  "active_run": null,
+  "active_run": {
+    "run_id": "growth-cycle-20261026-0202-git-guide",
+    "task_id": "git-deployment-guide-safe-example",
+    "base_sha": "ddeb5bdc9c6767f12a877fb620597f6a299d3fd8",
+    "started_at_utc": "2026-10-25T22:37:40.848Z",
+    "lease_expires_at_utc": "2026-10-26T00:37:40.848Z",
+    "phase": "researching",
+    "note": "One existing article, three verified locales; no live CMS write without snapshot/production lock."
+  },
   "last_run": {
     "run_id": "growth-cycle-20261025-initial",
     "task_id": "initial-editorial-and-link-release",
