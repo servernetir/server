@@ -222,4 +222,6 @@ return [
     'seo_services' => 'SEO services',
     'web_design' => 'Web design',
     'cloud_phone' => 'Cloud phone',
+    'vat_output_reviewed' => 'Reviewed output VAT and import obligations',
+    'vat_output_help' => 'Enter assessed output VAT for this exact period after reviewing taxable supplies, exemptions and imported services. Customer VAT collections alone do not establish all VAT due. Leave blank when unknown; zero requires a documented basis.',
 ];

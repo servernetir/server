@@ -8,6 +8,7 @@ use App\Services\Ai\AiSettlement;
 use App\Services\ExchangeRate;
 use App\Services\Finance\BusinessLedger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Tests\Feature\Concerns\AiGatewayFixture;
 use Tests\TestCase;
 
@@ -69,6 +70,7 @@ class AiFinanceIntegrationTest extends TestCase
         $this->assertSame((int) $u->cost_irt, $s['expense']);
         $this->assertSame(1_000_000 - ((int) $u->charged_irt - (int) $u->refunded_irt), $this->balance($c));
     }
+
     public function test_ai_historical_recovery_requires_unchanged_preview_and_never_charges_wallet(): void
     {
         [$c, $key] = $this->greenKey();
@@ -79,18 +81,17 @@ class AiFinanceIntegrationTest extends TestCase
         $wallet = $this->balance($c);
         $args = ['--from' => $u->day->toDateString(), '--to' => $u->day->toDateString()];
         $u->forceFill(['needs_review' => false])->save();
-        \Illuminate\Support\Facades\Artisan::call('finance:reconcile-ai', $args);
-        $plan = json_decode(\Illuminate\Support\Facades\Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        Artisan::call('finance:reconcile-ai', $args);
+        $plan = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
         $this->assertSame(1, $plan['eligible_snapshots']);
         $this->assertSame(0, BusinessEntry::count());
         $u->increment('cost_irt');
-        $this->assertSame(1, \Illuminate\Support\Facades\Artisan::call('finance:reconcile-ai', $args + ['--apply' => true, '--plan-hash' => $plan['plan_hash']]));
+        $this->assertSame(1, Artisan::call('finance:reconcile-ai', $args + ['--apply' => true, '--plan-hash' => $plan['plan_hash']]));
         $this->assertSame(0, BusinessEntry::count());
-        \Illuminate\Support\Facades\Artisan::call('finance:reconcile-ai', $args);
-        $plan = json_decode(\Illuminate\Support\Facades\Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
-        $this->assertSame(0, \Illuminate\Support\Facades\Artisan::call('finance:reconcile-ai', $args + ['--apply' => true, '--plan-hash' => $plan['plan_hash']]));
+        Artisan::call('finance:reconcile-ai', $args);
+        $plan = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame(0, Artisan::call('finance:reconcile-ai', $args + ['--apply' => true, '--plan-hash' => $plan['plan_hash']]));
         $this->assertSame(3, BusinessEntry::count());
         $this->assertSame($wallet, $this->balance($c));
     }
-
 }

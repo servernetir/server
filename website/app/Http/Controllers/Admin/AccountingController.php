@@ -158,9 +158,11 @@ final class AccountingController extends Controller
             'legal_name' => ['required', 'string', 'max:150'], 'entity_type' => ['required', 'in:corporate,individual'],
             'income_rate' => ['required', 'numeric', 'min:0', 'max:100'], 'loss_relief_irt' => ['required', 'string', 'max:24'],
             'other_addbacks_irt' => ['required', 'string', 'max:24'], 'vat_carry_irt' => ['required', 'string', 'max:24'],
+            'vat_output_irt' => ['nullable', 'string', 'max:24'],
             'legal_basis' => ['required', 'string', 'min:10', 'max:255'], 'reviewed' => ['nullable', 'boolean']]);
         $d['income_rate_bp'] = AccountingMoney::minor((string) $d['income_rate'], 'USD', 'income_rate');
         unset($d['income_rate']);
+        $d['vat_output_irt'] = isset($d['vat_output_irt']) && $d['vat_output_irt'] !== '' ? AccountingMoney::minor($d['vat_output_irt'], 'IRT', 'vat_output_irt') : null;
         foreach (['loss_relief_irt', 'other_addbacks_irt', 'vat_carry_irt'] as $f) {
             $d[$f] = AccountingMoney::minor($d[$f], 'IRT', $f);
         }

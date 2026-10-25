@@ -194,7 +194,7 @@ class DocumentedAccountingTest extends TestCase
         BusinessEntry::create(['currency_code' => 'IRT', 'direction' => 'in', 'kind' => 'revenue', 'amount' => 11_000_000, 'occurred_at' => '2026-10-05']);
         BusinessEntry::create(['currency_code' => 'IRT', 'direction' => 'in', 'kind' => 'tax_collected', 'amount' => 1_100_000, 'occurred_at' => '2026-10-05']);
         $p = FinanceTaxProfile::create(['from_date' => '2026-10-01', 'to_date' => '2026-10-31', 'legal_name' => 'Test Company',
-            'entity_type' => 'corporate', 'income_rate_bp' => 2500, 'legal_basis' => 'Reviewed period and rate', 'reviewed' => true, 'created_by' => 1]);
+            'entity_type' => 'corporate', 'income_rate_bp' => 2500, 'vat_output_irt' => 1_100_000, 'legal_basis' => 'Reviewed period and rate', 'reviewed' => true, 'created_by' => 1]);
         $r = app(AccountingReport::class)->report($this->scope());
         $this->assertSame(1_000_000, $r['summary']['net_profit']);
         $this->assertSame(10_000_000, $r['eligible_costs']);
@@ -388,5 +388,16 @@ class DocumentedAccountingTest extends TestCase
         $this->assertSame(1, $r['coverage']['cross_period_reversals']);
         $this->assertNull($r['income_tax_due']);
         $this->assertNull($r['vat_due']);
+    }
+
+    public function test_customer_vat_collections_alone_do_not_establish_all_vat_due(): void
+    {
+        BusinessEntry::create(['currency_code' => 'IRT', 'direction' => 'in', 'kind' => 'tax_collected', 'amount' => 100, 'occurred_at' => '2026-10-05']);
+        $profile = FinanceTaxProfile::create(['from_date' => '2026-10-01', 'to_date' => '2026-10-31', 'legal_name' => 'Test', 'entity_type' => 'corporate', 'income_rate_bp' => 2500, 'legal_basis' => 'Reviewed fiscal obligations', 'reviewed' => true, 'created_by' => 1]);
+        $this->assertNull(app(AccountingReport::class)->report($this->scope())['vat_due']);
+        $profile->forceFill(['vat_output_irt' => 150])->save();
+        $r = app(AccountingReport::class)->report($this->scope());
+        $this->assertSame(100, $r['vat_movement']);
+        $this->assertSame(150, $r['vat_due']);
     }
 }

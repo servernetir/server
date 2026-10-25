@@ -222,4 +222,6 @@ return [
     'seo_services' => 'SEO hizmetleri',
     'web_design' => 'Web tasarımı',
     'cloud_phone' => 'Bulut telefonu',
+    'vat_output_reviewed' => 'İncelenmiş satış KDV’si ve ithalat yükümlülükleri',
+    'vat_output_help' => 'Vergiye tabi satışlar, istisnalar ve ithal hizmetler incelendikten sonra bu dönem için hesaplanan KDV’yi girin. Müşteriden tahsil edilen KDV tüm borcu göstermeyebilir. Bilinmiyorsa boş bırakın; sıfır için belge gerekir.',
 ];

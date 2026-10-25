@@ -22,7 +22,7 @@ final class AccountingReport
         $s = $this->ledger->summary(filter: $scope);
         $result = ['summary' => $s, 'profile' => null, 'eligible_costs' => 0, 'pending_costs' => $s['expense'], 'input_vat' => 0,
             'vat_paid' => 0, 'income_tax_paid' => 0, 'taxable_income' => null, 'income_tax_estimate' => null, 'income_tax_due' => null,
-            'vat_movement' => $s['tax_liability'], 'vat_due' => null, 'vat_credit' => null, 'accounts' => collect(),
+            'vat_output_reviewed' => null, 'vat_movement' => $s['tax_liability'], 'vat_due' => null, 'vat_credit' => null, 'accounts' => collect(),
             'payments' => [], 'coverage' => app(FinanceAudit::class)->inspect($scope), 'unconverted' => $s['by_currency'], 'services' => app(ServiceProfitability::class)->calculate($scope)];
         if (Schema::hasTable('payments')) {
             $p = Payment::where('status', 'paid')->where('currency_code', 'IRT')->with('invoice');
@@ -111,8 +111,13 @@ final class AccountingReport
             $profile = FinanceTaxProfile::whereDate('from_date', $scope->from->toDateString())->whereDate('to_date', $scope->to->toDateString())->latest('id')->first();
             $result['profile'] = $profile;
             if ($profile && $profile->reviewed && $crossPeriodReversals === 0) {
-                $result['vat_due'] = max(0, $result['vat_movement'] - (int) $profile->vat_carry_irt);
-                $result['vat_credit'] = max(0, (int) $profile->vat_carry_irt - $result['vat_movement']);
+                // Collected VAT is not necessarily all VAT due on supplies or imported services.
+                if ($profile->vat_output_irt !== null) {
+                    $result['vat_output_reviewed'] = (int) $profile->vat_output_irt;
+                    $reviewedMovement = $result['vat_output_reviewed'] - $s['tax_paid'] - $input - $vatPaid;
+                    $result['vat_due'] = max(0, $reviewedMovement - (int) $profile->vat_carry_irt);
+                    $result['vat_credit'] = max(0, (int) $profile->vat_carry_irt - $reviewedMovement);
+                }
                 if ($profile->entity_type === 'corporate') {
                     $result['taxable_income'] = max(0, $s['revenue'] + ($s['other_income'] ?? 0) - $eligible + (int) $profile->other_addbacks_irt - (int) $profile->loss_relief_irt);
                     $result['income_tax_estimate'] = AccountingMoney::percent($result['taxable_income'], (int) $profile->income_rate_bp);
