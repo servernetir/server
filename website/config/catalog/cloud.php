@@ -12,6 +12,10 @@ $api = ['fa' => 'API و CLI کامل', 'en' => 'Full API & CLI', 'tr' => 'Tam AP
 $mk = fn (string $name, int $pid, int $irt, float $eur, array $specs, bool $pop = false) =>
     array_filter(['name' => $name, 'pid' => $pid, 'irt' => $irt, 'eur' => $eur, 'specs' => $specs, 'popular' => $pop]);
 
+// Bespoke setup has no orderable SKU: publish scope, not a fixed checkout price.
+$quote = fn (string $name, array $specs, bool $pop = false) =>
+    ['name' => $name, 'specs' => $specs, 'popular' => $pop, 'contact' => true];
+
 return [
 
     'iaas' => [
@@ -295,6 +299,7 @@ return [
     ],
 
     'n8n' => [
+        'quote_only' => true,
         'icon' => 'flow',
         'group' => 'apps',
         'fa' => [
@@ -329,27 +334,27 @@ return [
         'show_infra' => false,
         'offer_schema' => false,
         'plan_note' => [
-            'fa' => 'محدودیت اجرا، منابع، نسخه، دسترسی worker، بکاپ و افزونه‌های پولی هر پلن را در پیشنهاد نهایی بررسی کنید؛ زمان تحویل و انتقال پس از بررسی محیط مشخص می‌شود.',
-            'en' => 'Confirm execution limits, resources, version, worker access, backups and paid extensions in the final quote. Delivery and migration timing require an environment review.',
-            'tr' => 'Çalıştırma sınırı, kaynak, sürüm, worker erişimi, yedekleme ve ücretli eklentileri son teklifte doğrulayın. Teslimat ve taşıma süresi ortam incelemesinden sonra belirlenir.'
+            'fa' => 'این خدمت با پیشنهاد اختصاصی ارائه می‌شود و قیمت ثابت خرید آنلاین ندارد. منابع، سقف اجرا، نسخه، worker، بکاپ، بازیابی و افزونه‌های پولی در همان پیشنهاد تعیین می‌شوند.',
+            'en' => 'This is a quoted setup service with no fixed online checkout price. Resources, execution limits, version, workers, backups, restores and paid extensions are defined in the individual quote.',
+            'tr' => 'Bu hizmete özel teklif hazırlanır; sabit çevrim içi satın alma fiyatı yoktur. Kaynak, çalıştırma sınırı, sürüm, worker, yedekleme, geri yükleme ve ücretli eklentiler teklifte belirlenir.'
         ]
     ,
         'plans' => [
-            $mk('N8N-START', 202, 490000, 4.90, [
+            $quote('N8N-START', [
                 ['fa' => 'سقف اجرا طبق پیشنهاد نهایی', 'en' => 'Execution limits agreed in the quote', 'tr' => 'Çalıştırma sınırı son teklife göre'],
                 '1 vCPU / 2 GB RAM',
                 ['fa' => 'دامنه و HTTPS طبق سفارش', 'en' => 'Domain and HTTPS scope agreed in the order', 'tr' => 'Alan adı ve HTTPS kapsamı siparişe göre'],
                 ['fa' => 'برنامه بکاپ و بازیابی طبق سفارش', 'en' => 'Backup and restore schedule agreed in the order', 'tr' => 'Yedekleme ve geri yükleme planı siparişe göre'],
                 ['fa' => 'روش به‌روزرسانی طبق سفارش', 'en' => 'Upgrade process agreed in the order', 'tr' => 'Güncelleme süreci siparişe göre'],
             ]),
-            $mk('N8N-PRO', 203, 990000, 9.90, [
+            $quote('N8N-PRO', [
                 ['fa' => 'سقف اجرا طبق پیشنهاد نهایی', 'en' => 'Execution limits agreed in the quote', 'tr' => 'Çalıştırma sınırı son teklife göre'],
                 '2 vCPU / 4 GB RAM',
                 ['fa' => 'دامنه و HTTPS طبق سفارش', 'en' => 'Domain and HTTPS scope agreed in the order', 'tr' => 'Alan adı ve HTTPS kapsamı siparişe göre'],
                 ['fa' => 'فاصله و نگهداری بکاپ طبق سفارش', 'en' => 'Backup frequency and retention agreed in the order', 'tr' => 'Yedekleme sıklığı ve saklama süresi siparişe göre'],
                 ['fa' => 'کیو و worker پس از بررسی نیاز', 'en' => 'Queue and worker access reviewed for your workload', 'tr' => 'Kuyruk ve worker erişimi iş yüküne göre değerlendirilir'],
             ], true),
-            $mk('N8N-BIZ', 204, 1990000, 19.90, [
+            $quote('N8N-BIZ', [
                 ['fa' => 'سقف اجرا طبق پیشنهاد نهایی', 'en' => 'Execution limits agreed in the quote', 'tr' => 'Çalıştırma sınırı son teklife göre'],
                 '4 vCPU / 8 GB RAM',
                 ['fa' => 'منابع worker طبق پیشنهاد نهایی', 'en' => 'Worker resources agreed in the quote', 'tr' => 'Worker kaynakları son teklife göre'],

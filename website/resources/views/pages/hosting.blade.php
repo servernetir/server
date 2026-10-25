@@ -413,7 +413,7 @@
     {{-- کشور صفحه دارد ولی کاتالوگِ زنده‌اش همین حالا چیزی برای فروش ندارد
          (رایج‌ترین علت: نرخِ روزِ یورو نیامده ⇒ `price_irt = 0` ⇒ ناموجود).
          مشخصات برای مقایسه می‌مانَد، ولی قیمتِ ساختگی نمی‌گذاریم. --}}
-    @if(($liveStock ?? null) === false)
+    @if(($liveStock ?? null) === false && ! ($product['quote_only'] ?? false))
     <p class="pt-empty reveal">{{ __('ui.hp_stock_out') }}</p>
     @endif
     <div class="plans {{ count($product['plans']) === 3 ? 'plans-3' : '' }} {{ count($product['plans']) >= 5 ? 'plans-many' : '' }}" id="plans">
