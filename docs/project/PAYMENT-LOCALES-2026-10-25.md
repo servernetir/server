@@ -24,8 +24,12 @@ PaymentVisibility یک ماتریس JSON در کلید payment_visibility_by_loc
 
 ۱۴ فایل در /home/servernetcloud/servernet_app در 08:49:05 UTC با guard هش همهٔ فایل‌ها و backup خصوصی نصب شدند. تغییرات قبلی زنده در کنترلرهای حساب/تنظیمات، PaymentService، زبان‌ها و routes با وصلهٔ محدود حفظ شدند؛ IranPurchaseReadiness قبلی حذف نشد. نسخهٔ زنده دقیقاً برابر HEAD کد عمومی ادعا نمی‌شود. view cache تازه و opcache وب PHP8.4.27/FPM واقعاً reset شد؛ helper HTTP احرازشده پس از استفاده حذف شد. route cache پیش از کار موجود نبود و ایجاد نشد.
 
-رکورد خصوصی انتشار: /home/servernetcloud/payment-locales-20261025-1792918094606 شامل manifest، backup، validation و رندرهای مصنوعی فاقد اطلاعات واقعی مشتری است. تغییر VM/guest/service، route شبکه/NAT/firewall/DNS/cron یا state عامل‌ها انجام نشد. کلیدهای موقت انتشار باید پس از پایان حذف و کلید قبلی حساب حفظ شوند.
+رکورد خصوصی انتشار: /home/servernetcloud/payment-locales-20261025-1792918094606 شامل manifest، backup، validation و رندرهای مصنوعی فاقد اطلاعات واقعی مشتری است. تغییر VM/guest/service، route شبکه/NAT/firewall/DNS/cron یا state عامل‌ها انجام نشد. کلیدهای موقت ممیزی و انتشار deauthorize و حذف شدند؛ بازخوانی API حذف هر دو و authorized ماندن کلید اصلی حساب را تأیید کرد. شواهد پاک‌سازی در payment-locales-2026-10-25/access-cleanup.json است.
 
 ## بازگشت
 
 ابتدا هش جاری هر فایل با manifest.after تطبیق داده شود؛ تنها فایل‌های بدون تغییر بعدی از backup همان انتشار بازگردند و دو فایل جدید فقط با تطبیق هش حذف شوند. در صورت تغییر بعدی، معکوس وصله با حفظ drift لازم است. سپس view cache و opcache وب تازه شوند. ماتریس ذخیره‌شده با کد قبلی مصرف نمی‌شود؛ برای بازگشت تنظیم پس از بازگشت کد، فقط همان کلید پس از backup قابل حذف است. callbackهای پرداخت موجود در هیچ مرحله بسته نشوند.
+
+## ثبت در develop
+
+PR #127 با squash commit 7aa9e7831dd00d87d2d3ef75a7a9dae8fc6e28c4 در develop ادغام شد. پس از دریافت تغییرات هم‌زمان، ۱۳ تست جدید/۱۲۱ بررسی دوباره موفق شدند. ریزتغییرات عمومی شامل دادهٔ مالی مشتری نیست.
