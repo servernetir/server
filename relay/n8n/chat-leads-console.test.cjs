@@ -7,8 +7,9 @@ test('callback serializes arbitrary customer strings safely and uses stable row 
  assert.equal(JSON.parse(vm.runInNewContext(raw,{$json:{id:74,locale:'invalid'}})).locale,'fa');
 });
 test('processor preserves every original node and downstream email/SMS/result edge',()=>{
- const before={name:'processor',nodes:[{name:'Save Lead'},{name:'Internal Lead Email'},{name:'Result'}],connections:{'Save Lead':{main:[[{node:'Internal Lead Email',type:'main',index:0}]]},'Internal Lead Email':{main:[[{node:'Result',type:'main',index:0}]]}},settings:{executionOrder:'v1'}};
+ const before={name:'processor',nodes:[{name:'Save Lead'},{name:'Internal Lead Email'},{name:'Result'}],connections:{'Save Lead':{main:[[{node:'Internal Lead Email',type:'main',index:0}]]},'Internal Lead Email':{main:[[{node:'Result',type:'main',index:0}]]}},settings:{executionOrder:'v1',binaryMode:'separate',availableInMCP:true}};
  const result=patchProcessor(before,'credential-ref');assert.deepEqual(result.nodes.slice(0,-1),before.nodes);assert.deepEqual(result.connections['Internal Lead Email'],before.connections['Internal Lead Email']);assert.deepEqual(result.connections['Sync Console Lead'],before.connections['Save Lead']);assert.equal(result.nodes.at(-1).onError,'continueRegularOutput');assert.equal(before.nodes.length,3);
+ assert.equal(result.settings.binaryMode,undefined);assert.equal(result.settings.availableInMCP,true);assert.equal(result.nodes.at(-1).parameters.options.redirect.redirect.followRedirects,false);
  assert.throws(()=>patchProcessor(result,'ref'),/Already installed/);assert.throws(()=>patchProcessor({...before,connections:{}},'ref'),/Unexpected/);
 });
 test('reconciliation reads durable rows and uses credential-backed callback without customer messages',()=>{

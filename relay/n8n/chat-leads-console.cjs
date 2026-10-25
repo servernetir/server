@@ -9,8 +9,9 @@ function callback(credentialId) {
     retryOnFail: true, maxTries: 2, waitBetweenTries: 1000,
     parameters: {
       method: 'POST', url: endpoint, authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+      sendHeaders: true, headerParameters: {parameters: [{name: 'Accept', value: 'application/json'}]},
       sendBody: true, specifyBody: 'json', jsonBody: payloadExpression,
-      options: {timeout: 6000},
+      options: {timeout: 10000, redirect: {redirect: {followRedirects: false}}, batching: {batch: {batchSize: 1, batchInterval: 1000}}},
     },
     credentials: {httpHeaderAuth: {id: credentialId, name: 'ServerNet Console Chat Leads'}},
   };
@@ -26,7 +27,9 @@ function patchProcessor(workflow, credentialId) {
   copy.nodes.push(node);
   copy.connections['Save Lead'].main = [[{node:node.name,type:'main',index:0}]];
   copy.connections[node.name] = {main:edges};
-  return {name:copy.name,nodes:copy.nodes,connections:copy.connections,settings:copy.settings || {}};
+  const settings = {...(copy.settings || {})};
+  delete settings.binaryMode; // Runtime metadata is read-only in the public API.
+  return {name:copy.name,nodes:copy.nodes,connections:copy.connections,settings};
 }
 function reconciliation(credentialId) {
   return {
