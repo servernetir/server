@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'wallet_refund_payout' => 'Bank refunds of wallet balance; liability settlement',
+    'wallet_refunds_paid_irt' => 'Bank refunds of wallet balance; liability settlement',
+    'net_external_receipts_irt' => 'Net external receipts after wallet payouts',
+    'wallet_refund_no_reverse' => 'An actual refund payout cannot be reversed through the general voucher form. Corrections require a separate bank reconciliation review.',
     'accounting' => 'Accounting and evidence',
     'export' => 'Export CSV',
     'search' => 'Search',

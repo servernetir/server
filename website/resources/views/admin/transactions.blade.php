@@ -12,7 +12,7 @@
   };
   $payStatus = ['paid'=>['موفق','#34d399'],'pending'=>['در انتظار','#fbbf24'],'redirected'=>['هدایت‌شده','#22d3ee'],'failed'=>['ناموفق','#ff6b6b'],'canceled'=>['لغو','var(--dim)'],'expired'=>['منقضی','var(--dim)']];
   $gwLabel = ['zarinpal'=>'زرین‌پال','bale'=>'بله','bank_transfer'=>'واریز به حساب'];
-  $reasonLabel = ['topup'=>'افزایش اعتبار','invoice'=>'پرداخت فاکتور','refund'=>'بازگشت وجه','adjustment'=>'اصلاح دستی'];
+  $reasonLabel = ['topup'=>'افزایش اعتبار','invoice'=>'پرداخت فاکتور','refund'=>'بازگشت وجه','adjustment'=>'اصلاح دستی','wallet_refund_payout'=>'عودت بانکی موجودی کیف پول'];
 @endphp
 
 @unless($ready)

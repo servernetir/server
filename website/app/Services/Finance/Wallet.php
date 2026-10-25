@@ -60,6 +60,9 @@ class Wallet
      */
     public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null, ?int $excludingIdentityRequestId = null): int
     {
+        $refunds = Schema::hasTable('wallet_refund_requests')
+            ? (int) \App\Models\WalletRefundRequest::where('customer_id', $customerId)->where('currency_code', $currency)
+                ->whereIn('status', \App\Models\WalletRefundRequest::OPEN)->sum('amount_irt') : 0;
         $identity = 0;
         if (self::$identityTable ??= Schema::hasTable('identity_requests')) {
             $identity = (int) \App\Models\IdentityRequest::where('customer_id', $customerId)
@@ -77,7 +80,7 @@ class Wallet
         | بی‌صدا برمی‌گردد.
         */
         if (! self::aiReservationsTable()) {
-            return $identity + ($currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0);
+            return $identity + $refunds + ($currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0);
         }
 
         $q = AiReservation::where('customer_id', $customerId)
@@ -96,7 +99,7 @@ class Wallet
         */
         $hold = $currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0;
 
-        return (int) $q->sum('amount_irt') + $hold + $identity;
+        return (int) $q->sum('amount_irt') + $hold + $identity + $refunds;
     }
 
     /** جدولِ رزروِ AI یک بار در هر پروسه پرسیده می‌شود (سرِ راهِ هر کسر است) */

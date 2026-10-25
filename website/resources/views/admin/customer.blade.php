@@ -780,6 +780,7 @@
 
 {{-- ─────────── تبِ مالی ─────────── --}}
 <div class="ct-pane" data-pane="finance">
+@include('admin.partials.customer-wallet-refunds')
 {{-- ══ فاکتورها ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>فاکتورها</h3></div>
@@ -1191,7 +1192,7 @@
 <div class="ad-panel" style="border-color:rgba(255,107,107,.28)">
   <div class="ad-panel-h"><h3 style="color:#ff6b6b">حذف مشتری</h3></div>
   <div style="padding:16px">
-    @if($invoiceTotals['paid'] > 0 || $creditBalance != 0)
+    @if($invoiceTotals['paid'] > 0 || $creditBalance != 0 || ($walletRefundHistory ?? false))
       <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.9">
         این مشتری سابقهٔ مالی دارد (فاکتور پرداخت‌شده یا ماندهٔ اعتبار) و برای حفظِ سوابقِ حسابداری قابلِ حذف نیست.
         برای مسدودسازی، از بخشِ «وضعیت حساب» گزینهٔ «بسته» را انتخاب کنید.
@@ -1297,6 +1298,7 @@
 
   // با لینکِ #finance یا رفرش، همان تب باز بماند
   var initial = (location.hash || '').replace('#', '');
+  @if(old('_wallet_refund_permission')) initial = 'finance'; @endif
   if (initial && document.querySelector('.ct-pane[data-pane="' + initial + '"]')) show(initial);
 })();
 </script>

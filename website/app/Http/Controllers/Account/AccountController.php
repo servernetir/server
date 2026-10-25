@@ -189,6 +189,9 @@ class AccountController extends Controller
                 ['label' => __('ui.nav_finance'), 'items' => [
                     ['key' => 'invoices', 'icon' => 'coins', 'label' => __('ui.nav_invoices'), 'url' => lroute('account.invoices')],
                     ['key' => 'bank', 'icon' => 'db', 'label' => __('ui.nav_bank'), 'url' => lroute('account.bank')],
+                    ...(\Illuminate\Support\Facades\Route::has('account.wallet-refunds') && $customer
+                        && app(\App\Services\Finance\WalletRefunds::class)->visible($customer->id)
+                        ? [['key' => 'wallet-refunds', 'icon' => 'coins', 'label' => __('refund.title'), 'url' => lroute('account.wallet-refunds')]] : []),
                 ]],
                 ['label' => __('ui.tk_title'), 'items' => [
                     ['key' => 'tickets', 'icon' => 'lifebuoy', 'label' => __('ui.tk_title'), 'url' => lroute('account.tickets')],

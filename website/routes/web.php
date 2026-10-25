@@ -708,6 +708,12 @@ $site = function (): void {
         Route::post('/topup', [Account\PaymentController::class, 'topup'])
             ->name('topup.start')->middleware('throttle:pay');
 
+        // Wallet balance refunds: disabled per customer unless an administrator enables access.
+        Route::get('/wallet-refunds', [Account\WalletRefundController::class, 'index'])->name('wallet-refunds');
+        Route::post('/wallet-refunds', [Account\WalletRefundController::class, 'store'])->name('wallet-refunds.store')->middleware('throttle:forms');
+        Route::post('/wallet-refunds/{refund}/cancel', [Account\WalletRefundController::class, 'cancel'])->whereUuid('refund')->name('wallet-refunds.cancel')->middleware('throttle:forms');
+        Route::get('/wallet-refunds/{refund}/receipt', [Account\WalletRefundController::class, 'receipt'])->whereUuid('refund')->name('wallet-refunds.receipt');
+
         // تیکت پشتیبانی
         Route::get('/tickets', [Account\TicketController::class, 'index'])->name('tickets');
         Route::get('/tickets/new', [Account\TicketController::class, 'create'])->name('ticket.new');
@@ -2848,6 +2854,18 @@ Route::prefix('admin')->group(function () {
         // ردیاب خطای سرور و ۴۰۴
         Route::get('/errors', [\App\Http\Controllers\Admin\ErrorLogController::class, 'index'])->name('admin.errors');
         Route::post('/errors/clear', [\App\Http\Controllers\Admin\ErrorLogController::class, 'clear']);
+
+        Route::prefix('wallet-refunds')->middleware('admin')->group(function () {
+            $c = \App\Http\Controllers\Admin\WalletRefundController::class;
+            Route::get('/', [$c, 'index'])->name('admin.wallet-refunds');
+            Route::get('/export', [$c, 'export'])->name('admin.wallet-refunds.export');
+            Route::get('/{refund}', [$c, 'show'])->whereUuid('refund')->name('admin.wallet-refunds.show');
+            Route::post('/{refund}/approve', [$c, 'approve'])->whereUuid('refund')->name('admin.wallet-refunds.approve')->middleware('throttle:forms');
+            Route::post('/{refund}/reject', [$c, 'reject'])->whereUuid('refund')->name('admin.wallet-refunds.reject')->middleware('throttle:forms');
+            Route::post('/{refund}/paid', [$c, 'paid'])->whereUuid('refund')->name('admin.wallet-refunds.paid')->middleware('throttle:forms');
+        });
+        Route::post('/customers/{customer}/wallet-refund-permission', [\App\Http\Controllers\Admin\WalletRefundController::class, 'permission'])
+            ->whereNumber('customer')->name('admin.wallet-refunds.permission')->middleware(['admin', 'throttle:forms']);
 
         // داشبورد مالی کسب‌وکار — سرمایه، سود، مالیات
         Route::prefix('finance/bank-reconciliation')->middleware('admin')->group(function () {

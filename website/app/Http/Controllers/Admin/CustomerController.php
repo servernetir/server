@@ -357,6 +357,7 @@ class CustomerController extends Controller
 
         return view('admin.customer', [
             'c' => $customer,
+            'walletRefundHistory' => app(\App\Services\Finance\WalletRefunds::class)->hasHistory($customer->id),
             'statusChanges' => $customer->statusChanges()->limit(25)->get(),
             'creditBalance' => $customer->creditBalance(),
             'services' => $customer->relationLoaded('services') ? $customer->services : collect(),
@@ -751,7 +752,8 @@ class CustomerController extends Controller
         // اعتبار در هر ارزی (نه فقط تومان) — برای اطمینان از نبودِ سابقهٔ مالی
         $anyCredit = (int) CreditEntry::where('customer_id', $customer->id)->sum('amount');
 
-        if ($hasPaid || $anyCredit !== 0) {
+        $hasRefundHistory = app(\App\Services\Finance\WalletRefunds::class)->hasHistory($customer->id);
+        if ($hasPaid || $anyCredit !== 0 || $hasRefundHistory) {
             return back()->withErrors(
                 'این مشتری سابقهٔ مالی (فاکتور پرداخت‌شده یا ماندهٔ اعتبار) دارد و حذف نمی‌شود. '
                 .'برای مسدودسازی، وضعیت حساب را روی «بسته» بگذارید.'

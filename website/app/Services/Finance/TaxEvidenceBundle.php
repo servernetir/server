@@ -79,6 +79,41 @@ final class TaxEvidenceBundle
                 FinanceLine::whereIn('voucher_id', $ids)->orderBy('id')->get()->map(fn ($l) => [$l->voucher_id, $l->code, $l->account_id, $l->debit_irt, $l->credit_irt, $l->native_debit, $l->native_credit])));
             $add('tax-review-history.csv', $csv(['Voucher', 'Status', 'Reference', 'Reviewer ID', 'Reviewed UTC'],
                 DB::table('finance_tax_reviews')->whereIn('voucher_id', $ids)->orderBy('id')->get()->map(fn ($r) => [$r->voucher_id, $r->status, $r->reference, $r->created_by, $r->created_at])));
+            if (\Illuminate\Support\Facades\Schema::hasTable('wallet_refund_requests')) {
+                $refunds = \App\Models\WalletRefundRequest::where(function ($q) use ($ids, $scope) {
+                    $q->whereIn('voucher_id', $ids)->orWhereBetween('created_at', [
+                        $scope->from->copy()->startOfDay()->utc(), $scope->to->copy()->endOfDay()->utc()]);
+                })->orderBy('id')->get();
+                foreach ($refunds as $refund) {
+                    $source = $refund->source_payment_id ? \App\Models\Payment::find($refund->source_payment_id) : null;
+                    $add('wallet-refunds/'.$refund->public_id.'.json', json_encode([
+                        'request' => $refund->public_id, 'customer' => $refund->customer->code, 'amount_irt' => $refund->amount_irt,
+                        'status' => $refund->status, 'requested_utc' => $refund->created_at->toIso8601String(),
+                        'bank_destination_at_request' => $refund->bank_snapshot, 'customer_note' => $refund->customer_note,
+                        'review_note' => $refund->review_note, 'source_note' => $refund->source_note,
+                        'reviewed_by' => $refund->reviewed_by, 'reviewed_utc' => $refund->reviewed_at?->toIso8601String(),
+                        'payout_date_tehran' => $refund->payout_date?->toDateString(), 'bank_reference' => $refund->bank_reference,
+                        'paid_by' => $refund->paid_by, 'paid_utc' => $refund->paid_at?->toIso8601String(),
+                        'voucher' => $refund->voucher_id, 'receipt_document' => $refund->document_id, 'wallet_entry' => $refund->credit_entry_id,
+                        'source_payment' => $source?->only(['id', 'invoice_id', 'gateway', 'currency_code', 'amount', 'status', 'ref_id', 'paid_at']),
+                        'accounting_treatment' => 'wallet_liability_settlement_no_additional_revenue_or_vat_deduction',
+                    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+                }
+                $relatedVoucherIds = $refunds->pluck('voucher_id')->filter()->unique();
+                $add('wallet-refund-related-journal.json', json_encode([
+                    'vouchers' => FinanceVoucher::whereIn('id', $relatedVoucherIds)->get(),
+                    'lines' => FinanceLine::whereIn('voucher_id', $relatedVoucherIds)->get(),
+                    'note' => 'Related records may fall outside the selected period; they support refund audit history.',
+                ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+                $ids = $ids->merge($relatedVoucherIds)->unique();
+                $events = DB::table('wallet_refund_events')->where(function ($q) use ($refunds) {
+                    $q->whereIn('request_id', $refunds->pluck('id'))->orWhere(function ($q) use ($refunds) {
+                        $q->whereNull('request_id')->whereIn('customer_id', $refunds->pluck('customer_id'));
+                    });
+                })->orderBy('id')->get();
+                $add('wallet-refund-audit.csv', $csv(['ID', 'Customer ID', 'Request ID', 'Actor type', 'Actor ID', 'Actor name at action', 'Action', 'Details', 'UTC'],
+                    $events->map(fn ($e) => [$e->id, $e->customer_id, $e->request_id, $e->actor_type, $e->actor_id, $e->actor_name, $e->action, $e->details, $e->created_at])));
+            }
             $documents = FinanceDocument::whereIn('voucher_id', $ids)->orderBy('id')->get();
             foreach ($documents as $doc) {
                 if (! $disk->exists($doc->path) || ! hash_equals($doc->sha256, hash_file('sha256', $disk->path($doc->path)))) {
@@ -113,7 +148,7 @@ final class TaxEvidenceBundle
                 $zip->addFile($disk->path($i->path), $name);
                 $manifest[] = ['file' => $name, 'sha256' => $i->sha256, 'bytes' => $bytes];
             }
-            $add('README.txt', "ServerNet financial evidence package\nManagement estimates only: not filed with the tax authority.\nDates are Gregorian calendar days in Asia/Tehran.\nIRT is toman; IRR equals IRT x 10. Foreign amounts are minor units with explicit currencies.\nSales, external collections and wallet liabilities are distinct. Supplier topups and fixed-asset purchases are not immediate expenses.\nThe supplemental double-entry journal covers documented transactions, not a certified full balance sheet.\nTax eligibility proposals require review of current law, electronic invoices, foreign service/import tax and the actual taxpayer file.\nProof files can contain an entire statement, including dates outside the selected window. Keep this archive private.\nMissing costs, refunds or untranslated foreign receipts must be reconciled before filing.\n");
+            $add('README.txt', "ServerNet financial evidence package\nManagement estimates only: not filed with the tax authority.\nDates are Gregorian calendar days in Asia/Tehran.\nIRT is toman; IRR equals IRT x 10. Foreign amounts are minor units with explicit currencies.\nSales, external collections and wallet liabilities are distinct. Wallet payouts settle customer liabilities and are not an additional expense, sales reversal or automatic VAT deduction. Related refund evidence can include supporting vouchers outside the selected period; period report totals remain date-scoped. Supplier topups and fixed-asset purchases are not immediate expenses.\nThe supplemental double-entry journal covers documented transactions, not a certified full balance sheet.\nTax eligibility proposals require review of current law, electronic invoices, foreign service/import tax and the actual taxpayer file.\nProof files can contain an entire statement, including dates outside the selected window. Keep this archive private.\nMissing costs, refunds or untranslated foreign receipts must be reconciled before filing.\n");
             $zip->addFromString('manifest-sha256.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
             if (! $zip->close()) {
                 throw new \RuntimeException('Evidence archive finalization failed');
