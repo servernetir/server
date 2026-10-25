@@ -34,9 +34,11 @@ class SolutionController extends Controller
         // ترتیب عمداً از config می‌آید نه الفبایی: مهم‌ترین‌ها بالا بمانند.
         // راهکارهای ادغام‌شده (email) این‌جا نمی‌آیند چون صفحهٔ خودشان ۳۰۱ می‌شود.
         $solutions = collect(config('solutions'))
-            ->except(array_keys(self::MERGED))
+            ->except(array_diff(array_keys(self::MERGED), ['email']))
             ->map(function (array $s, string $slug) {
-                $t = lc($s);
+                $t = $slug === 'email'
+                    ? ['meta_t' => __('transactional-email.meta_title'), 'meta_d' => __('transactional-email.meta_description'), 'badge' => 'Amazon SES']
+                    : lc($s);
 
                 // عنوانِ کارت از meta_t گرفته می‌شود ولی تا نخستین «—» بریده
                 // می‌شود: «تلفن ابری سرورنت — منشی گویا و…» → «تلفن ابری سرورنت».
@@ -45,6 +47,7 @@ class SolutionController extends Controller
 
                 return [
                     'slug'   => $slug,
+                    'route'  => $slug === 'email' ? 'email.transactional' : 'solution',
                     'icon'   => $s['icon'] ?? 'box',
                     'accent' => $s['accent'] ?? 'cyan',
                     'title'  => $title !== '' ? $title : $slug,
@@ -59,6 +62,9 @@ class SolutionController extends Controller
 
     public function show(string $slug): View|RedirectResponse
     {
+        if ($slug === 'email') {
+            return redirect(lroute('email.transactional'), 301);
+        }
         if (isset(self::MERGED[$slug])) {
             return redirect(lroute('hosting', self::MERGED[$slug]), 301);
         }

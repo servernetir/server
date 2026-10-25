@@ -88,6 +88,26 @@ class GrowthArticlePublishingTest extends TestCase
         }
     }
 
+    public function test_quote_only_services_never_display_unorderable_prices_or_country_stock_warnings(): void
+    {
+        foreach (['', '/en', '/tr'] as $prefix) {
+            foreach (['/cloud/n8n', '/vps/gpu'] as $path) {
+                $response = $this->get($prefix.$path)->assertOk();
+                $plans = $response->viewData('product')['plans'];
+                $this->assertCount(3, $plans);
+                foreach ($plans as $plan) {
+                    $this->assertTrue($plan['contact']);
+                    $this->assertArrayNotHasKey('irt', $plan);
+                    $this->assertArrayNotHasKey('eur', $plan);
+                    $this->assertArrayNotHasKey('pid', $plan);
+                }
+                $response->assertSee('href="tel:', false);
+                $response->assertDontSee('"@type":"Offer"', false);
+                $response->assertDontSee(__('ui.hp_stock_out'));
+            }
+        }
+    }
+
     public function test_reviewed_snapshot_updates_only_article_translations_and_preserves_publication_state(): void
     {
         $post = Post::create(['slug' => 'cpanel-vs-directadmin', 'type' => 'blog', 'category' => 'hosting', 'status' => 'draft', 'published_at' => '2026-07-22 12:00:00']);

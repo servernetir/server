@@ -1,0 +1,149 @@
+[
+  {
+    "url": "https://servernet.cloud/transactional-email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/solutions",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/hosting/email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/docs/transactional-email-setup",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/docs/spf-dkim-dmarc-setup",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/docs/email-client-configuration",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/lookup/email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/en/transactional-email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/en/solutions",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/en/hosting/email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/en/docs/transactional-email-setup",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/en/docs/spf-dkim-dmarc-setup",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/en/docs/email-client-configuration",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/en/lookup/email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/tr/transactional-email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/tr/solutions",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/tr/hosting/email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/tr/docs/transactional-email-setup",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/tr/docs/spf-dkim-dmarc-setup",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/tr/docs/email-client-configuration",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  },
+  {
+    "url": "https://servernet.cloud/tr/lookup/email",
+    "status": 200,
+    "h1": 1,
+    "backlink": true,
+    "brokenTranslation": false
+  }
+]

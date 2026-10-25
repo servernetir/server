@@ -203,6 +203,7 @@ class SiteController extends Controller
         foreach ([
             '/about'         => 'About ServerNet',
             '/contact'       => 'Contact and support',
+            '/transactional-email' => 'Managed transactional email on Amazon SES — SMTP, API, domain setup and quotation',
             '/domains'       => 'Domain search and registration',
             '/vps/hourly'    => 'Hourly-billed cloud VPS (pay per hour from wallet, Iran and abroad)',
             '/gpu'           => 'Hourly GPU servers for AI inference, rendering and training (interruptible, SSH access)',
@@ -537,6 +538,7 @@ class SiteController extends Controller
         foreach (array_keys(config('lookup.types')) as $type) {
             $add('lookup', $type);
         }
+        $add('email.transactional');
         $add('solutions.index');                 // هابِ راهکارها — والدِ این دسته
         foreach (array_keys(config('solutions')) as $slug) {
             if ($slug === 'email') {

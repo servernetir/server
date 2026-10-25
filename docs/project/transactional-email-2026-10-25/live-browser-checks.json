@@ -1,0 +1,38 @@
+[
+  {
+    "url": "/transactional-email",
+    "lang": "fa",
+    "width": 390,
+    "scrollWidth": 390,
+    "estimator": true,
+    "selectedVolume": "10000",
+    "estimate": "۱٬۳۴۷٬۰۰۰ تومان",
+    "analyticsApi": "function",
+    "hiddenBotField": "inset(50%)",
+    "requestSectionTop": 8108
+  },
+  {
+    "url": "/en/transactional-email",
+    "lang": "en",
+    "width": 1440,
+    "scrollWidth": 1425,
+    "estimator": true,
+    "selectedVolume": "10000",
+    "estimate": "4.40 EUR",
+    "analyticsApi": "function",
+    "hiddenBotField": "inset(50%)",
+    "requestSectionTop": 5047
+  },
+  {
+    "url": "/tr/transactional-email",
+    "lang": "tr",
+    "width": 390,
+    "scrollWidth": 390,
+    "estimator": true,
+    "selectedVolume": "10000",
+    "estimate": "4,40 EUR",
+    "analyticsApi": "function",
+    "hiddenBotField": "inset(50%)",
+    "requestSectionTop": 8189
+  }
+]

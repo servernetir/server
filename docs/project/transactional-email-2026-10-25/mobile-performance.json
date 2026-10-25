@@ -1,0 +1,41 @@
+{
+  "method": "Chrome 155, isolated profile, width 390 CSS px, CPU 4x, 150 ms latency, 200000 B/s download, cache disabled. PerformanceObserver LCP/CLS; laboratory measurements, not Lighthouse scores or CrUX field data.",
+  "results": [
+    {
+      "url": "https://servernet.cloud/hosting/email?qa=email-baseline",
+      "title": "هاست ایمیل — سرورنت کلاود",
+      "width": 390,
+      "scroll": 390,
+      "lcpMs": 2592,
+      "cls": 0,
+      "ttfbMs": 504.10000000009313,
+      "transferKB": 172.3076171875,
+      "ready": "complete",
+      "hasProduct": false
+    },
+    {
+      "url": "https://servernet.cloud/transactional-email?qa=email-speed-1",
+      "title": "خرید ایمیل تراکنشی و SMTP سازمانی | Amazon SES | سرورنت",
+      "width": 390,
+      "scroll": 390,
+      "lcpMs": 1732,
+      "cls": 0,
+      "ttfbMs": 340.10000000009313,
+      "transferKB": 175.154296875,
+      "ready": "complete",
+      "hasProduct": true
+    },
+    {
+      "url": "https://servernet.cloud/transactional-email?qa=email-speed-2",
+      "title": "خرید ایمیل تراکنشی و SMTP سازمانی | Amazon SES | سرورنت",
+      "width": 390,
+      "scroll": 390,
+      "lcpMs": 1840,
+      "cls": 0,
+      "ttfbMs": 313.10000000009313,
+      "transferKB": 175.1552734375,
+      "ready": "complete",
+      "hasProduct": true
+    }
+  ]
+}
