@@ -16,15 +16,8 @@ use Illuminate\Support\Facades\Log;
  * بگوید کجا غلط بوده، پس فرمولش دقیقاً از داکیومنت و کلاینتِ رسمیِ خودشان
  * برداشته شده و در `sign()` مستند است.
  *
- * ⚠️ **سفارشِ سرورِ تازه عمداً پیاده نشده.** خریدِ VPS در OVH از سبدِ
- * `/order/cart` می‌گذرد: ساختِ سبد، افزودنِ آیتم، اعتبارسنجی، و بعد
- * `checkout` — چند مرحله، برگشت‌ناپذیر، و مستقیماً پول. آن مسیر را نمی‌شود
- * بدونِ یک حسابِ واقعی و یک سفارشِ آزمایشی درست کرد؛ حدس‌زدنش یعنی یا سفارشِ
- * ناقص یا پولِ خرج‌شدهٔ بی‌سرور. تا آن روز `createServer()` صریح می‌گوید
- * «دستی» و سرویس به صفِ تحویلِ دستیِ مدیر می‌رود — نه اینکه بی‌صدا شکست بخورد.
- *
- * پس امروز این درایور برای **مدیریتِ سرورهای موجود** و **همگام‌سازیِ کاتالوگ**
- * کامل است، و برای خریدِ خودکار نیمه‌کاره و صادق.
+ * خرید تازه توسط OvhOrders و دفتر پایدار سبد/سفارش اجرا می‌شود.
+ * فعال‌سازی مالی پیش‌فرض خاموش است؛ Timeout باعث تکرار Checkout نمی‌شود.
  *
  * @see https://docs.ovhcloud.com/en/guides/manage-and-operate/api/first-steps
  */
@@ -91,7 +84,7 @@ class OvhClient implements CloudProvider
     {
         return [
             'console'        => false,   // OVH کنسولِ وب از راهِ API نمی‌دهد
-            'rebuild'        => true,
+            'rebuild'        => false,  // Customer rebuild needs its own credential-preserving workflow.
             'resize'         => false,   // تغییرِ پلن از مسیرِ سفارش می‌گذرد
             'metrics'        => false,
             'reset_password' => false,   // فقط با نصبِ دوباره
@@ -414,12 +407,54 @@ class OvhClient implements CloudProvider
      */
     public function createServer(array $spec): array
     {
-        return [
-            'ok' => false, 'manual' => true,
-            'message' => 'خریدِ خودکار برای این زیرساخت هنوز فعال نیست؛ سفارش به صفِ تحویلِ دستی رفت.',
-            'ref' => null, 'ipv4' => null, 'ipv6' => null, 'root_password' => null,
-            'status' => 'building',
-        ];
+        return app(OvhOrders::class)->provision($this, $spec);
+    }
+
+    /** The signed transport is shared by inventory and the durable order workflow. */
+    public function orderApi(string $method, string $path, array $payload = []): array
+    {
+        return $this->req($method, $path, $payload);
+    }
+
+    public function accountRegion(): string { return $this->region(); }
+
+    public function accountFingerprint(): string
+    {
+        return hash('sha256', $this->region().'|'.$this->appKey().'|'.$this->consumerKey());
+    }
+
+    /** Live, exact public-catalogue validation before touching a payable order. */
+    public function purchasePlan(array $spec): array
+    {
+        $bad = static fn (string $code, string $message, bool $transient = false): array => compact('code', 'message', 'transient') + ['ok' => false];
+        $me = $this->req('GET', '/me');
+        if (! $me['ok']) { return $bad('account_unavailable', 'حساب زیرساخت خوانده نشد.', $me['status'] === 0 || $me['status'] >= 500 || $me['status'] === 429); }
+        $sub = (string) data_get($me, 'body.ovhSubsidiary', '');
+        $currency = strtoupper((string) data_get($me, 'body.currency.code', ''));
+        if ($sub === '' || ! in_array($currency, ['EUR', 'USD'], true)) { return $bad('account_currency', 'زیرمجموعه یا ارز حساب قابل تأیید نیست.'); }
+        $r = $this->req('GET', '/order/catalog/public/vps', ['ovhSubsidiary' => $sub]);
+        if (! $r['ok']) { return $bad('catalogue_unavailable', 'کاتالوگ زندهٔ حساب در دسترس نیست.', $r['status'] === 0 || $r['status'] >= 500 || $r['status'] === 429); }
+        $plans = collect(data_get($r, 'body.plans', []))->where('planCode', $spec['plan_ref'])->values();
+        if ($plans->count() !== 1) { return $bad('plan_unavailable', 'پلن با شناسهٔ دقیق در کاتالوگ زنده یکتا نیست.'); }
+        $plan = $plans->first();
+        if (! in_array($spec['location_ref'], $this->configValues($plan, 'vps_datacenter'), true)
+            || ! in_array($spec['image_ref'], $this->configValues($plan, 'vps_os'), true)) {
+            return $bad('configuration_unavailable', 'ترکیب دقیق دیتاسنتر و سیستم‌عامل در پلن عرضه نمی‌شود.');
+        }
+        $product = collect(data_get($r, 'body.products', []))->firstWhere('name', $plan['product'] ?? '') ?? [];
+        $fallback = self::MODEL_SPECS[$this->baseCode($spec['plan_ref'])] ?? null;
+        $fallback = $fallback ? ['vcpu' => $fallback[0], 'ram_mb' => $fallback[1], 'disk_gb' => $fallback[2]] : null;
+        $hardware = $this->publicSpecs($plan, $product, $fallback);
+        if (! $hardware || $hardware['vcpu'] !== $spec['vcpu'] || $hardware['ram_mb'] !== $spec['ram_mb'] || $hardware['disk_gb'] !== $spec['disk_gb']) {
+            return $bad('hardware_mismatch', 'منابع زندهٔ پلن با مشخصات فروخته‌شده مطابقت ندارند.');
+        }
+        $renewal = $this->monthlyPrice($plan);
+        if ($renewal === null || $renewal <= 0) { return $bad('renewal_price_missing', 'نرخ تمدید ماهانهٔ بدون تعهد تأیید نشد.'); }
+        $configs = ['vps_datacenter' => $spec['location_ref'], 'vps_os' => $spec['image_ref']];
+        $regions = $this->configValues($plan, 'region');
+        if (count($regions) === 1) { $configs['region'] = $regions[0]; }
+        return ['ok' => true, 'subsidiary' => $sub, 'currency' => $currency, 'configuration' => $configs,
+            'renewal' => ['value' => $renewal, 'currencyCode' => $currency]];
     }
 
     /**
@@ -534,6 +569,7 @@ class OvhClient implements CloudProvider
         }
 
         $specs = $this->technicalSpecs($sub);
+        $products = collect(data_get($cat, 'body.products', []))->keyBy('name');
 
         $outPlans = [];
         $locations = [];
@@ -565,7 +601,8 @@ class OvhClient implements CloudProvider
                 continue;   // پلنِ بی‌قیمتِ ماهانه (فقط تعهدی) — فروختنی نیست
             }
 
-            $spec = $specs[$this->baseCode($code)] ?? $specs[$code] ?? null;
+            $spec = $this->publicSpecs($plan, (array) $products->get($plan['product'] ?? '', []),
+                $specs[$this->baseCode($code)] ?? $specs[$code] ?? null);
 
             if ($spec === null) {
                 $noSpecs[] = $code;
@@ -738,6 +775,24 @@ class OvhClient implements CloudProvider
      *
      * @return array{vcpu:int,ram_mb:int,disk_gb:int}|null
      */
+    /** Explicit public hardware takes precedence; malformed explicit data never falls back. */
+    private function publicSpecs(array $plan, array $product, ?array $fallback): ?array
+    {
+        foreach ([$plan, $product] as $source) {
+            $technical = data_get($source, 'blobs.technical');
+            if (! is_array($technical)) { continue; }
+            $cpu = data_get($technical, 'cpu.cores');
+            $ram = data_get($technical, 'memory.size');
+            $disks = data_get($technical, 'storage.disks');
+            if (! is_numeric($cpu) || ! is_numeric($ram) || ! is_array($disks) || count($disks) !== 1
+                || ! is_numeric($disks[0]['capacity'] ?? null)
+                || (float) $cpu !== (float) (int) $cpu
+                || (float) $disks[0]['capacity'] !== (float) (int) $disks[0]['capacity']) { return null; }
+            return $this->validSpecs((int) $cpu, (int) ((float) $ram * 1024), (int) $disks[0]['capacity']);
+        }
+        return $this->parseSpecs((string) ($product['description'] ?? '')) ?? $fallback;
+    }
+
     private function validSpecs(int $vcpu, int $ramMb, int $diskGb): ?array
     {
         if ($vcpu < 1 || $vcpu > 256 || $ramMb < 256 || $ramMb > 1048576

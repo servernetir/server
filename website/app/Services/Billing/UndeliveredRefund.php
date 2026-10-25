@@ -44,6 +44,10 @@ class UndeliveredRefund
     /** آیا این سرویس مشمولِ بازگشتِ خودکار است؟ (بدونِ هیچ نوشتنی) */
     public function eligible(Service $service): bool
     {
+        $ovh = \App\Models\OvhOrder::forService((int) $service->id);
+        if ($ovh && $ovh->hasExposure()) {
+            return false; // An ambiguous supplier payment is never proof of no machine.
+        }
         if ($service->billing_mode === 'hourly') {
             return false;
         }

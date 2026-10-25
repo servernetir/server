@@ -100,6 +100,9 @@ class CloudCatalogSync
         $locations = $this->syncLocations((array) $cat['locations']);
         $images    = $this->syncImages($provider, (array) $cat['images']);
         $plans     = $this->syncPlans($provider, (array) $cat['plans']);
+        if ($provider === 'ovh' && $plans > 0) {
+            \App\Models\Setting::put('ovh_catalogue_pricing_hash', OvhOrders::cataloguePricingHash());
+        }
 
         return [
             // پیامِ توضیحیِ درایور را نگه می‌داریم: «۴۰ محصول خوانده شد ولی هیچ

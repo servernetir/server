@@ -35,6 +35,7 @@ class OvhClientTest extends TestCase
     private function fake(array $stubs): void
     {
         Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::preventStrayRequests();
         Http::fake(['*/1.0/auth/time' => Http::response((string) time())] + $stubs);
     }
 
@@ -205,6 +206,7 @@ class OvhClientTest extends TestCase
     {
         $this->configure();
 
+        $this->fake(['*/1.0/me' => Http::response(['message' => 'Access denied'], 403)]);
         $r = $this->client()->fetchCatalog();
 
         $this->assertFalse($r['ok']);

@@ -43,9 +43,15 @@ class OvhCatalogTest extends TestCase
         Setting::putSecret('ovh_app_secret', self::AS);
         Setting::putSecret('ovh_consumer_key', self::CK);
 
-        // نرخ‌ها صریح، تا ادعای بها عددِ **قطعی** باشد نه تقریبی
-        Setting::put('pricing_rate_override', '2000000');      // ۱ یورو
-        Setting::put('pricing_usd_rate_override', '1000000');  // ۱ دلار ⇒ ضریب ۰٫۵
+        // Stored Navasan provenance replaces retired manual override fixtures.
+        foreach (['USD' => 1000000, 'EUR' => 2000000, 'USDT' => 1000000] as $currency => $rate) {
+            Setting::put('fx_last_'.strtolower($currency), json_encode([
+                'rate_toman' => $rate, 'currency' => $currency, 'at' => now()->toIso8601String(),
+                'source' => 'navasan.net', 'source_item' => \App\Services\ExchangeRate::SOURCE_ITEMS[$currency],
+                'source_at' => now()->toIso8601String(),
+            ]));
+        }
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([1000000, 2000000, 1000000]);
         Setting::put('pricing_fx_fee_pct', '0');
     }
 
@@ -256,8 +262,9 @@ class OvhCatalogTest extends TestCase
      */
     public function test_without_a_conversion_rate_nothing_is_built(): void
     {
-        Setting::put('pricing_usd_rate_override', '0');
-        Setting::put('pricing_rate_override', '0');
+        Setting::put('fx_last_usd', '');
+        Setting::put('fx_last_eur', '');
+        \Illuminate\Support\Facades\Cache::forget('fx.navasan.rates');
 
         $this->fake([$this->vpsPlan()]);
 

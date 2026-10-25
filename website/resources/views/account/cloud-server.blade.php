@@ -44,6 +44,7 @@
   if ($capacityWaiting) { $stage = 'allocating'; $stageIdx = 2; }
   $closed = in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
   $ready = $ready && ! $closed;
+  $managedState = isset($managedOrder) && $managedOrder ? $managedOrder->customerState() : null;
 
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
      🔴 عمداً هیچ درصدی نیست. مشتری‌ای که روی «۷۰٪» گیر کند نتیجه می‌گیرد سایت
@@ -128,7 +129,7 @@
         style="font-size:12.5px;padding:7px 15px;color:{{ $inst?->statusColor() ?? 'var(--dim)' }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
-    {{ $closed ? __('ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
+    {{ $closed ? __('ui.cs_closed_h') : ($managedState ? __('ui.cloud_order_'.$managedState) : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing'))))) }}
   </span>
 </div>
 
@@ -223,7 +224,7 @@
       <span class="cb-live"><i></i>{{ __('ui.cs_build_live') }}</span>
     </div>
     <div class="pnl-sec-b">
-      <p class="cb-lead">{!! __($gpuLine ? (\App\Services\Cloud\GpuCapacityOrders::unpaid($service) ? 'ui.gpu_building_unpaid' : 'ui.cs_building_gpu_p') : 'ui.cs_building_p') !!}</p>
+      <p class="cb-lead">{!! __($managedState ? 'ui.cloud_order_wait' : ($gpuLine ? (\App\Services\Cloud\GpuCapacityOrders::unpaid($service) ? 'ui.gpu_building_unpaid' : 'ui.cs_building_gpu_p') : 'ui.cs_building_p')) !!}</p>
 
       <ol class="cb-steps" id="cb-steps" data-stage="{{ $stageIdx }}"
           data-status-url="{{ lroute('account.cloud.status', $service) }}">
@@ -365,7 +366,7 @@
              یکی‌گرفتنشان همان سردرگمیِ تیکتِ «پورت ۸۰» بود. --}}
         <div class="cs-kv"><small>{{ __('ui.cs_weburl') }}</small><b dir="ltr" class="cs-copy" data-copy="{{ $inst->webUrl() }}">{{ $inst->webUrl() }}</b></div>
       @endif
-      <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">{{ $windows ? 'Administrator' : 'root' }}</b></div>
+      <div class="cs-kv"><small>{{ __('ui.cs_user') }}</small><b dir="ltr">{{ $service->username ?: ($windows ? 'Administrator' : 'root') }}</b></div>
       <div class="cs-kv"><small>{{ __('ui.cs_location') }}</small><b>@if($loc)@include('partials.flag', ['flagSrc' => $loc->flagSvg(), 'flagEmoji' => $loc->flagEmoji(), 'flagSize' => 18]) @endif{{ $loc?->label() ?? '—' }}</b></div>
     </div>
     @endif
@@ -380,6 +381,15 @@
         <small>{{ __($windows ? 'ui.cs_rdp_label' : 'ui.cs_ssh_label') }}</small>
         <code dir="ltr" class="cs-copy" data-copy="{{ $connectCmd }}">{{ $connectCmd }}</code>
       </div>
+    @endif
+
+    @if($managedState === 'ready')
+      <p>{{ __('ui.cloud_access_key_help') }}</p>
+      @if(! $managedOrder->key_downloaded_at && filled($managedOrder->getRawOriginal('private_key')))
+      <form method="post" action="{{ lroute('account.cloud.access-key', $service) }}">@csrf
+        <button class="pnl-btn" type="submit">{{ __('ui.cloud_access_key_download') }}</button>
+      </form>
+      @endif
     @endif
 
     {{-- رمز فقط **یک بار** نشان داده می‌شود. صفحهٔ همیشه‌بازِ پنل روی لپ‌تاپِ

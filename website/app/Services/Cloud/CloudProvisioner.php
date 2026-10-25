@@ -162,6 +162,11 @@ class CloudProvisioner
             return false;
         }
 
+        // OVH is order-based: pin the paid specification and its durable journal.
+        if ($ordered->provider === 'ovh' || \App\Models\OvhOrder::forService((int) $service->id)) {
+            return $this->deliverOvh($service, $ordered);
+        }
+
         // انتخابِ دیرهنگامِ زیرساخت — با دو قید: موجودی، و توانِ تحویلِ
         // **افزودنی‌های خریده‌شده**. اگر مشتری IP اضافه خریده و ارزان‌ترین
         // زیرساخت آن را نمی‌دهد، سراغِ بعدی می‌رویم؛ وگرنه پولِ چیزی را گرفته‌ایم
@@ -353,6 +358,11 @@ class CloudProvisioner
             'term' => $service->isHourly() ? 'hour' : 'month',
         ]);
 
+        if (($result['manual'] ?? false) === true) {
+            $this->needsReview($service, (string) ($result['message'] ?? 'تحویل نیازمند بررسی است.'));
+            return false;
+        }
+
         if (! ($result['ok'] ?? false)) {
             /*
             | 🔴 علتِ واقعی در `raw.detail` است، نه فقط در `message`.
@@ -458,6 +468,53 @@ class CloudProvisioner
      *
      * @return array<int,string>
      */
+    private function deliverOvh(Service $service, CloudPlan $plan): bool
+    {
+        $driver = $this->manager->driver('ovh');
+        if (! $driver instanceof OvhClient) {
+            $this->needsReview($service, 'درایور سفارش زیرساخت چهارم در دسترس نیست.');
+            return false;
+        }
+        $instance = CloudInstance::firstOrCreate(['service_id' => $service->id], [
+            'provider' => 'ovh', 'location_code' => $plan->location_code,
+            'image_key' => $service->cloud_image_key, 'hostname' => $this->serverName($service),
+            'status' => 'building', 'specs' => ['vcpu' => $plan->vcpu, 'ram_mb' => $plan->ram_mb,
+                'disk_gb' => $plan->disk_gb, 'plan_name' => $plan->public_name],
+            'meta' => ['ovh_order_managed' => true, 'access_ready' => false],
+        ]);
+        if ($instance->provider !== 'ovh' || (filled($instance->provider_ref) && ! \App\Models\OvhOrder::forService($service->id))) {
+            $this->needsReview($service, 'نمونهٔ موجود باید پیش از هر خرید با دفتر سفارش تطبیق داده شود.');
+            return false;
+        }
+        $r = $driver->createServer(['service_id' => (int) $service->id]);
+        if (($r['code'] ?? null) === 'busy') { return false; }
+        $order = \App\Models\OvhOrder::forService((int) $service->id);
+        if ($service->fresh()->isDead()) { return false; }
+        if ($order) {
+            $instance->forceFill(['provider_ref' => $r['ref'] ?? $instance->provider_ref,
+                'meta' => array_merge($instance->meta ?? [], ['ovh_order_managed' => true,
+                    'order_state' => $order->customerState(), 'access_ready' => $order->phase === 'ready',
+                    'ssh_username' => $order->spec['username'] ?? null,
+                    'credential_generated' => (int) ($order->spec['ssh_key_id'] ?? 0) === 0]),
+                'last_error' => $order->error_code ? 'سفارش #'.$order->id.' / '.$order->error_code : null,
+            ])->save();
+        }
+        if (($r['manual'] ?? false) || ! ($r['ok'] ?? false)) {
+            $this->needsReview($service, (string) ($r['message'] ?? 'دفتر سفارش نیازمند بررسی است.'));
+            return false;
+        }
+        if (($r['pending'] ?? true) || blank($r['ipv4'] ?? null)) {
+            Service::whereKey($service->id)->whereNotIn('status', Service::DEAD_STATUSES)
+                ->where('provision_status', '!=', 'done')->update(['status' => 'awaiting_provision',
+                    'provision_status' => 'pending', 'provision_error' => null]);
+            return false;
+        }
+        $instance->forceFill(['provider_ref' => $r['ref'], 'ipv4' => $r['ipv4'], 'ipv6' => $r['ipv6'],
+            'status' => 'running', 'last_error' => null, 'synced_at' => now()])->save();
+        $this->finalize($service, $instance, $plan, null);
+        return true;
+    }
+
     private function sshKeyRefs(Service $service, CloudPlan $plan): array
     {
         if (blank($service->cloud_ssh_key_id)) {
@@ -587,8 +644,8 @@ class CloudProvisioner
                 | ذخیرهٔ این دو یعنی پنلِ مدیریت «کاربر: root» نشان دهد و هر سطحی
                 | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
                 */
-                'username' => $instance->isGpuApp() ? null
-                    : (in_array($instance->provider, ['arvan', 'lightnode'], true) && $instance->isWindows() ? 'Administrator' : 'root'),
+                'username' => $instance->provider === 'ovh' ? data_get($instance->meta, 'ssh_username', 'root') : ($instance->isGpuApp() ? null
+                    : (in_array($instance->provider, ['arvan', 'lightnode'], true) && $instance->isWindows() ? 'Administrator' : 'root')),
                 ...$credentialFields,
                 'domain' => $service->domain ?: ($instance->isGpuApp()
                     ? ($instance->accessHost() ?: null)
@@ -973,6 +1030,14 @@ class CloudProvisioner
             ->get();
 
         foreach ($rows as $instance) {
+            if ($instance->provider === 'ovh' && ($order = \App\Models\OvhOrder::forService((int) $instance->service_id))) {
+                if ($instance->service && $instance->service->provision_status === 'pending'
+                    && (! $order->next_attempt_at || $order->next_attempt_at->isPast())) {
+                    $this->provision($instance->service);
+                }
+                $out['refreshed']++;
+                continue;
+            }
             $driver = $this->manager->forInstance($instance);
 
             if ($driver === null) {

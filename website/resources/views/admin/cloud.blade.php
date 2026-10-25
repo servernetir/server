@@ -17,6 +17,7 @@
   @else
 
   <div style="padding:2px 18px 14px;display:flex;gap:10px;flex-wrap:wrap">
+    <a class="btn btn-glass" href="/admin/cloud/ovh">سفارش و تحویل OVHcloud</a>
     <form method="post" action="/admin/cloud/test" style="display:inline">
       @csrf<button class="btn btn-glass" style="font-size:12.5px"><svg class="icon"><use href="#i-server"/></svg>آزمونِ اتصال</button>
     </form>

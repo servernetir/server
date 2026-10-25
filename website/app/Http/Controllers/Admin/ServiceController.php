@@ -596,6 +596,9 @@ class ServiceController extends Controller
         // ادمین هم با پیامِ «اول یک سرورِ تحویل انتخاب کنید» بیرون می‌زد. یعنی
         // مشتری پول داده، سرور ندارد، و تنها راه ویرایشِ دستیِ دیتابیس بود.
         $isCloud = CloudProvisioner::handles($service);
+        if ($isCloud && ($service->cloudPlan?->provider === 'ovh' || \App\Models\OvhOrder::forService((int) $service->id))) {
+            return redirect('/admin/cloud/ovh')->withErrors('برای این سرویس از پیگیری سفارش یا Retry ایمن دفتر زیرساخت استفاده کنید.');
+        }
 
         /*
         | 🔴 روی سرویسِ ابری هیچ‌کدام از این سه ستون **نوشته نمی‌شود**.

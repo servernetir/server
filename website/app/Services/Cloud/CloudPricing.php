@@ -33,6 +33,9 @@ class CloudPricing
      */
     public function marginPct(?string $provider = null): float
     {
+        if ($provider === 'ovh' && is_numeric(Setting::get('cloud_margin_pct_ovh'))) {
+            return max(0, min(500, (float) Setting::get('cloud_margin_pct_ovh')));
+        }
         if ($provider === 'salad') {
             $gpu = Setting::get('cloud_margin_pct_salad');
             if ($gpu !== null && $gpu !== '') {

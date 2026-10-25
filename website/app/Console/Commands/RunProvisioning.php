@@ -67,6 +67,8 @@ class RunProvisioning extends Command
                     $q->orWhereNotNull('cloud_plan_id');
                 }
             })
+            ->when(Schema::hasTable('ovh_orders'), fn ($q) => $q->whereNotIn('services.id',
+                \App\Models\OvhOrder::where('next_attempt_at', '>', now())->select('service_id')))
             ->orderBy('id')
             ->limit((int) $this->option('limit'))
             ->get();

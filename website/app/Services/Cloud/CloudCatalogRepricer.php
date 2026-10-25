@@ -15,7 +15,8 @@ class CloudCatalogRepricer
     private const NORMALIZED_PROVIDERS = ['lightnode', 'salad', 'ovh', 'arvan'];
 
     private const SETTING_KEYS = [
-        'cloud_margin_pct', 'cloud_margin_pct_salad',
+        'cloud_margin_pct', 'cloud_margin_pct_salad', 'cloud_margin_pct_ovh',
+        'ovh_purchase_enabled', 'ovh_previous_order_checked', 'ovh_catalogue_pricing_hash',
         'pricing_fx_fee_pct', 'cloud_disabled_providers',
         'salad_vcpu_usd_hour', 'salad_ram_gb_usd_hour', 'salad_priority', 'salad_org',
         'ovh_region', 'lightnode_manifest', 'arvan_exclude_promo',

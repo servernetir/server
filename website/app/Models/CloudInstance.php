@@ -179,7 +179,9 @@ class CloudInstance extends Model
 
         // ⚠️ رشته در PHP ساخته می‌شود نه در Blade: «root» چسبیده به آکولاد با
         //    یک @ برای Blade دستورِ فرار است و به‌جای آدرس، خودِ عبارت چاپ می‌شود.
-        $cmd = 'ssh root'.'@'.$e['host'];
+        $user = $this->provider === 'ovh' ? data_get($this->meta, 'ssh_username', 'root') : 'root';
+        $identity = $this->provider === 'ovh' && data_get($this->meta, 'credential_generated') ? ' -i servernet-'.(int) $this->service_id.'.pem' : '';
+        $cmd = 'ssh'.$identity.' '.(preg_match('/^[a-z_][a-z0-9_-]*$/i', (string) $user) ? $user : 'root').'@'.$e['host'];
 
         return $e['port'] === 22 ? $cmd : $cmd.' -p '.$e['port'];
     }
@@ -305,6 +307,8 @@ class CloudInstance extends Model
      */
     public function readyForNotice(): bool
     {
+        if ($this->provider === 'ovh' && data_get($this->meta, 'ovh_order_managed')
+            && ! data_get($this->meta, 'access_ready')) { return false; }
         if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {
             return false;
         }
@@ -382,6 +386,8 @@ class CloudInstance extends Model
 
     public function isDelivered(): bool
     {
+        if ($this->provider === 'ovh' && data_get($this->meta, 'ovh_order_managed')
+            && ! data_get($this->meta, 'access_ready')) { return false; }
         if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {
             return false;
         }

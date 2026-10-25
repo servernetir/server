@@ -205,6 +205,9 @@ class CloudImage extends Model
     /** Preserve the live Arvan access gate alongside regional/resource checks. */
     public static function providerAccessIsAutomated(string $provider, CloudImage $image): bool
     {
+        if ($provider === 'ovh') {
+            return $image->kind === 'os' && in_array($image->family, ['ubuntu', 'debian', 'alma', 'rocky'], true);
+        }
         if ($provider !== 'arvan' || strtolower((string) $image->family) !== 'windows') {
             return true;
         }

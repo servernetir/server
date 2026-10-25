@@ -483,6 +483,7 @@ $site = function (): void {
             ->name('cloud.status')->middleware('throttle:60,1');
         Route::get('/cloud/{service}/metrics', [Account\CloudServerController::class, 'metrics'])
             ->name('cloud.metrics')->middleware('throttle:30,1');
+        Route::post('/cloud/{service}/download-access-key', [Account\CloudServerController::class, 'downloadProvisioningKey'])->middleware('throttle:5,1')->name('cloud.access-key');
         Route::post('/cloud/{service}/power', [Account\CloudServerController::class, 'power'])->name('cloud.power');
 
         /*
@@ -3122,6 +3123,11 @@ Route::prefix('admin')->group(function () {
         Route::delete('/menus/{override}', [\App\Http\Controllers\Admin\MenuController::class, 'destroy'])->middleware('admin');
 
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
+        Route::get('/cloud/ovh', [\App\Http\Controllers\Admin\OvhOrderController::class, 'index'])->middleware('admin')->name('admin.cloud.ovh');
+        Route::post('/cloud/ovh/check', [\App\Http\Controllers\Admin\OvhOrderController::class, 'check'])->middleware('admin');
+        Route::post('/cloud/ovh/catalogue', [\App\Http\Controllers\Admin\OvhOrderController::class, 'catalogue'])->middleware('admin');
+        Route::post('/cloud/ovh/settings', [\App\Http\Controllers\Admin\OvhOrderController::class, 'settings'])->middleware('admin');
+        Route::post('/cloud/ovh/orders/{order}', [\App\Http\Controllers\Admin\OvhOrderController::class, 'action'])->middleware('admin');
         Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');
         Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync'])->middleware('admin');
         // ابزارِ عیب‌یابیِ ساختارِ پاسخ — نگاشتِ فیلدهای زیرساختِ ۲ کاملاً قطعی نیست

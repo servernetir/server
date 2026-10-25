@@ -186,6 +186,7 @@ class CloudServerController extends Controller
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
         return view('account.cloud-server', AccountController::shell('servers') + [
             'service' => $service,
+            'managedOrder' => \App\Models\OvhOrder::forService((int) $service->id),
             'instance' => $instance,
             'caps' => $caps,
             'powerActions' => $this->powerActions($instance),
@@ -399,6 +400,15 @@ class CloudServerController extends Controller
             ]);
         }
         $instance = $this->instanceOf($service);
+        if ($order = \App\Models\OvhOrder::forService((int) $service->id)) {
+            $state = $order->customerState();
+            $ready = $state === 'ready' && $service->status === 'active' && $instance?->isDelivered();
+            return response()->json(['ok' => true, 'status' => $ready ? $instance->status : 'building',
+                'ready' => (bool) $ready, 'stage' => $ready ? 'ready' : ($state === 'preparing' ? 'finishing' : 'ordered'),
+                'stage_index' => $ready ? 3 : ($state === 'preparing' ? 2 : 0),
+                'order_state' => $state, 'label' => __('ui.cloud_order_'.$state),
+                'color' => $ready ? '#34d399' : 'var(--dim)']);
+        }
 
         // ⚠️ هنوز شناسهٔ سرور نداریم (سفارشِ دومرحله‌ای تازه ثبت شده). صفحه باید
         // «سفارش ثبت شد» ببیند، نه «نامشخص» — و مطلقاً نه «آماده».
@@ -548,6 +558,27 @@ class CloudServerController extends Controller
         $instance->update(['password_seen' => true]);
 
         return back()->with('revealed_root_password', $password);
+    }
+
+    /** Explicit owner-only POST; a private key never appears in a page, event or JSON. */
+    public function downloadProvisioningKey(Service $service): \Illuminate\Http\Response
+    {
+        $this->ownedService($service);
+        abort_if($service->isDead(), 404);
+        $private = \Illuminate\Support\Facades\DB::transaction(function () use ($service): string {
+            $freshService = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+            abort_unless((int) $freshService->customer_id === (int) Auth::guard('customer')->id() && ! $freshService->isDead(), 404);
+            $order = \App\Models\OvhOrder::where('service_id', $service->id)->lockForUpdate()->first();
+            abort_unless($order && $order->phase === 'ready' && ! $order->key_downloaded_at && $order->private_key, 404);
+            $key = $order->private_key;
+            $order->forceFill(['private_key' => null, 'key_downloaded_at' => now()])->save();
+            $order->events()->create(['event' => 'credential_downloaded', 'phase' => 'ready',
+                'message' => 'Owner explicitly downloaded and consumed the encrypted credential.', 'created_at' => now()]);
+            return $key;
+        });
+        return response($private, 200, ['Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="servernet-'.(int) $service->id.'.pem"',
+            'Cache-Control' => 'no-store, private, max-age=0', 'Pragma' => 'no-cache', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     public function power(Request $request, Service $service): RedirectResponse

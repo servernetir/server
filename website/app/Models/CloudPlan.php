@@ -192,6 +192,10 @@ class CloudPlan extends Model
         if (config('lightnode.sales_enabled') !== true || ! $lightnodePriceSource) {
             $off[] = 'lightnode';
         }
+        if (! \App\Services\Cloud\OvhOrders::enabled()
+            || Setting::get('ovh_catalogue_pricing_hash') !== \App\Services\Cloud\OvhOrders::cataloguePricingHash()) {
+            $off[] = 'ovh';
+        }
         return array_values(array_unique($off));
     }
 

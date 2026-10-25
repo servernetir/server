@@ -1213,6 +1213,24 @@ class CloudStoreController extends Controller
             return back()->withInput()->withErrors(['image' => __('ui.cvb_e_image')]);
         }
 
+        if ($offer->provider === 'ovh') {
+            $imageRef = CloudImage::compatibleRefFor($offer, (string) $data['image']);
+            $check = $imageRef ? app(\App\Services\Cloud\OvhClient::class)->purchasePlan([
+                'plan_ref' => (string) $offer->provider_ref,
+                'location_ref' => (string) ($offer->provider_location ?: $offer->location_code),
+                'image_ref' => $imageRef, 'vcpu' => (int) $offer->vcpu,
+                'ram_mb' => (int) $offer->ram_mb, 'disk_gb' => (int) $offer->disk_gb,
+            ]) : ['ok' => false];
+            if (! $check['ok']) { return back()->withInput()->withErrors(['plan' => __('ui.cvb_live_review_unavailable')]); }
+            $pricing = app(\App\Services\Cloud\CloudPricing::class);
+            $fx = app(\App\Services\ExchangeRate::class);
+            $eurRate = $fx->toToman('EUR'); $ownRate = $fx->toToman($check['currency']);
+            $freshCost = $eurRate && $ownRate ? (int) ceil($pricing->costWithFee((float) $check['renewal']['value'] * $ownRate / $eurRate, 'ovh') * 100) : 0;
+            if ($freshCost < 1 || $freshCost !== (int) $offer->cost_eur_cents) {
+                return back()->withInput()->withErrors(['plan' => __('ui.cvb_live_price_changed')]);
+            }
+        }
+
         if ($offer->provider === 'lightnode') {
             $review = app(\App\Services\Cloud\LightNodeOrderReview::class)->review($offer, (string) $data['image']);
             if (! $review['ok'] || $review['changed']) {
@@ -1230,6 +1248,9 @@ class CloudStoreController extends Controller
 
         $image = CloudImage::query()->usable()->where('key', $data['image'])->first();
         $cycle = (string) $data['cycle'];
+        if ($offer->provider === 'ovh' && ($cycle !== 'monthly' || $wantsHourly)) {
+            return back()->withInput()->withErrors(['cycle' => __('ui.cloud_order_monthly_only')]);
+        }
 
         // ── افزودنی‌ها ──
         // ⚠️ تعداد از ورودی می‌آید ولی **قیمت هرگز**؛ قیمت را CloudAddons از
