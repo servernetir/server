@@ -1,0 +1,225 @@
+{
+  "release": "wallet-refunds-2026-10-25",
+  "status": "source-only-not-installed",
+  "base_sha": "9b1c07fb2895028ae4f067cb2fe3278fb4ea9ccb",
+  "implementation_sha": "e21bdfc037167f5d52abbd7995f96ac34463bac5",
+  "ready_for_install": false,
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/Account/AccountController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Account/AccountController.php",
+      "operation": "replace",
+      "base_git_sha256": "afac58261ef4c9164c809f98ada554f9dd5f26580736e48bf802c072b8d0fb3f",
+      "source_sha256": "edd1bbb67de331609dd856c6d0060b90cb3b2cd3e705301d09c0e82537ca2772",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/WalletRefundController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Account/WalletRefundController.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "363248aaae2d950a2e9c1103e31db9e5440b113403033213bc67aa98d0847a0d",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/CustomerController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Admin/CustomerController.php",
+      "operation": "replace",
+      "base_git_sha256": "7a6428e7179904154222091d94793e919a33c5c4405989915b9f24b0a35c9c3e",
+      "source_sha256": "59ab6df3acdc10b1820098672a7104f7691178361610a12f0391b59615772191",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/WalletRefundController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Admin/WalletRefundController.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "a8d7b98e70828c08c5272001a3a083baca5c370972a95e47549cc2e427276baf",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Models/WalletRefundRequest.php",
+      "destination_relative_to_home": "servernet_app/app/Models/WalletRefundRequest.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "35bc5288f3e281f92d4ce448e1e29c5604e86f1ed6dd8daef513f0f81d9f4dff",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Services/Finance/AccountingReport.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Finance/AccountingReport.php",
+      "operation": "replace",
+      "base_git_sha256": "d461b24d1e4aeac1cce3871b273b34c82e7db7ccc4430aabb075f18982a8d615",
+      "source_sha256": "7747592a8bab585fec183098040fdf3a683e8313c8097fd152e0eb79403090fb",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Services/Finance/DocumentedAccounting.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Finance/DocumentedAccounting.php",
+      "operation": "replace",
+      "base_git_sha256": "68cf6acf5de8bc553e3cad75d86eb5d245a7e8c30bc94fda8eca9cedef997426",
+      "source_sha256": "f759ff738524b996a8bf28db60688ef6a4c09f9afa0247adc29e651efa4c153b",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Services/Finance/TaxEvidenceBundle.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Finance/TaxEvidenceBundle.php",
+      "operation": "replace",
+      "base_git_sha256": "ce1647133f1642d4032f103f6c3dfbf7c624df4276e0722bdea73b637703c9a9",
+      "source_sha256": "4066a9dbd0de96cf1fa47ba0f529c10bb4ca5b03028bb0c0dc3c8addd72fa18f",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Services/Finance/Wallet.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Finance/Wallet.php",
+      "operation": "replace",
+      "base_git_sha256": "e29cd7a13d475feb9b73d8b706def5d1d67acbc4e6633151e0d8ff28bd9aac9a",
+      "source_sha256": "5326ccbb0a069a5c05c4307e05dbf456c3c975663087e1faf73b437a70ec8387",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Services/Finance/WalletRefundNotifications.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Finance/WalletRefundNotifications.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "25254e7d590668ed3642b0b38d9b7b73e827866f5cfbe3685c12b14f58aa8da3",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/app/Services/Finance/WalletRefunds.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Finance/WalletRefunds.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "02bb7b8e9e870a6c53f5198c51716a028b9d1c6d14e0c9d33eed740ae2c7cc72",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/database/migrations/2026_10_25_150000_create_wallet_refund_workflow.php",
+      "destination_relative_to_home": "servernet_app/database/migrations/2026_10_25_150000_create_wallet_refund_workflow.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "7753ed497eed1ad252c385ac17bdf99d4bfd220741194cf21a446f6b6397d70e",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/lang/en/finance.php",
+      "destination_relative_to_home": "servernet_app/lang/en/finance.php",
+      "operation": "replace",
+      "base_git_sha256": "1bcf5473622df346fe73924adfe73bef45ef75690d79d9379520c1f48e19b8ee",
+      "source_sha256": "56bfea6dcdaaa03cd3554e03ce150b36a5bcb14687e5ba4064cbf75e4f2928be",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/lang/en/refund.php",
+      "destination_relative_to_home": "servernet_app/lang/en/refund.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "dc16366ab51afa696c0a395fdbbd9fda1b393120fe0f58d1c52808ff8010c51b",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/lang/fa/finance.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/finance.php",
+      "operation": "replace",
+      "base_git_sha256": "b68aea4be6ea7ddd4c4489cab7ea1bc97df1ec715ebbd442a4a9160c7bbeab1a",
+      "source_sha256": "fa4fec8937244fba9386f8b92cb708a9dff35118f859cd37d1cc8fd664d95575",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/lang/fa/refund.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/refund.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "a3329c8580a9634706a01d3a0c0f9d068d67d7e983bc1b7ba40dc116b1925e82",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/lang/tr/finance.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/finance.php",
+      "operation": "replace",
+      "base_git_sha256": "3d20a4bfa2b2505e0d94cd7adc21533cef14d458fd67c241c9d302e55bbc57e9",
+      "source_sha256": "2af443fbb4ab1f5390c82338e7ad4665f36a7ac25eb0ec4f999055a6f7fde0b4",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/lang/tr/refund.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/refund.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "fba6953ad42e7c185e0a5e4dae2d617e9d2ec77ae130dac98eaafd5b67b28193",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/account/wallet-refunds.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/account/wallet-refunds.blade.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "1b8bf656a62cdc7089f56f93ed7ad23aeff1ee7c157c2717e8e8012c95b86860",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/admin/accounting-voucher.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/accounting-voucher.blade.php",
+      "operation": "replace",
+      "base_git_sha256": "debafe8e3a86e1b6ecd57e6918994a417f8c0db30262e588284fea8285a13b77",
+      "source_sha256": "e0bd2fac7ddbf26f1189d1fdfbb524d6ef60e508798afca815cbd378a562df01",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/admin/customer.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/customer.blade.php",
+      "operation": "replace",
+      "base_git_sha256": "caa3ab8cca7e4b6fd42088d4cf086be3f1e08b0f800243676cba67b3d779d592",
+      "source_sha256": "277c5a3691b3429e209d598c3729eb61ec9329c8e2791352e11bec1361096d58",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/admin/layout.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/layout.blade.php",
+      "operation": "replace",
+      "base_git_sha256": "595f21045c7b023bb87fcc6164a0d9ba32171f4c4757fd4bac7fd2fd95aaabf5",
+      "source_sha256": "3c8c095793589ae66302f7f78e63758229471698498af225c31e936757c69067",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/admin/partials/customer-wallet-refunds.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/partials/customer-wallet-refunds.blade.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "03c7ed16e967f79f36b2ff583002e656883f74c540b86e64c8ad4e19c2f08e0c",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/admin/transactions.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/transactions.blade.php",
+      "operation": "replace",
+      "base_git_sha256": "cb16875f0983dc79bc30ebc8ba34e1ccdeccddfae64dd1ec0ce70a25d2e5312a",
+      "source_sha256": "737e282e9b2c9981ac77466041061f8b1a06de7ab15e65bfd0cdaa21372eefee",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/admin/wallet-refund.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/wallet-refund.blade.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "1067b4efdf9ce023085cd1d165d16b22b432b150064708fcd47191aae90f2bcd",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/resources/views/admin/wallet-refunds.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/wallet-refunds.blade.php",
+      "operation": "add",
+      "base_git_sha256": null,
+      "source_sha256": "a32144f069fb75abc26930e4e084809889ed603bf194c346baf585283c7b735a",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination_relative_to_home": "servernet_app/routes/web.php",
+      "operation": "replace",
+      "base_git_sha256": "9cc26a44ff3a52ee97ba435de80b7561e9b6ab121be7b30307a238a3b80fadf4",
+      "source_sha256": "42642ba758738315ba630b0e8acb669edbd54589ca20d99d55a58198ef2f00d6",
+      "expected_live_sha256": "REQUIRES_FRESH_INSPECTION"
+    }
+  ]
+}

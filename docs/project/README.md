@@ -121,6 +121,7 @@ AI Gateway،۲۵اکتبر: [مقایسه، محاسبه‌گر و ممیزی ص
 | روت، میزبان و دسترسی | `website/bootstrap/app.php`، `website/routes/`، `website/app/Http/` | تفکیک site/console، admin/staff/API، نشست و CSRF |
 | کاتالوگ و فروش | `website/config/`، `website/app/Services/Shop/`، `Sales/` | قابلیت قابل‌فروش باید با شرایط واقعی تحویل و قیمت سازگار باشد |
 | مالی | `Services/Payment/`، `Billing/`، `Finance/`، `ExchangeRate.php` | واحد پول صریح، ثبت یکتا، reconciliation، عدم دوباره‌برداشت |
+| عودت موردی موجودی کیف پول | [فرایند، رزرو، رسید و حدود انتشار](CUSTOMER-WALLET-REFUNDS-2026-10-25.md) | پیش‌فرض غیرفعال؛ نصب‌نشده، بدون انتقال بانکی خودکار |
 | تحویل | `Services/Provisioning/`، `Services/Cloud/` | تماس هزینه‌دار فقط بعد از کنترل‌ها؛ پذیرش نتیجهٔ مبهم ممنوع |
 | دامنه و DNS | `Services/Domain/`، `Services/Dns/` | ثبت/تمدید مستقل و قابل پیگیری؛ خطا به معنی موفقیت نیست |
 | GPU | `Services/Cloud/`، زمان‌بندی GPU، `relay/cloudflare/` | درخواست ظرفیت، ماشین واقعی، آمادگی برنامه و وضعیت مالی یکسان نیستند |
