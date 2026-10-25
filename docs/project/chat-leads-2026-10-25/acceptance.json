@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-25",
+  "base": "bfb6d058803a9a894c6d6d2f17d86744b5437c5d",
+  "integrationBase": "b4948180",
+  "sourceSha": "9156c78dccb7638004df9260330cedc5d9b0bd42",
+  "runtimeFiles": 16,
+  "tests": {
+    "php": {
+      "tests": 45,
+      "assertions": 246
+    },
+    "node": {
+      "tests": 3
+    },
+    "syntax": {
+      "php": 13,
+      "blade": 3,
+      "short_open_tag": true
+    }
+  },
+  "import": {
+    "rows": 85,
+    "created": 85,
+    "bulkAlerts": false,
+    "transientFailure": {
+      "row": 84,
+      "status": 405,
+      "retryStatus": 201
+    }
+  },
+  "acceptance": {
+    "native_status": 201,
+    "reference": "CHAT-89",
+    "bale_delivery": [
+      {
+        "http": 200,
+        "accepted": true
+      },
+      {
+        "http": 200,
+        "accepted": true
+      }
+    ],
+    "stage": "reviewed",
+    "history_rows": 1,
+    "outbound_rows": 0,
+    "pending_outbox": 0,
+    "rendered": true
+  },
+  "cleanup": {
+    "test_leads_removed": 2,
+    "test_messages_removed": 3,
+    "test_leads_remaining": 0,
+    "chat_leads_remaining": 85
+  },
+  "responsive": [
+    {
+      "page": "inbox",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "page": "inbox",
+      "width": 1440,
+      "scroll": 1440
+    },
+    {
+      "page": "profile",
+      "width": 390,
+      "scroll": 390
+    },
+    {
+      "page": "profile",
+      "width": 1440,
+      "scroll": 1425
+    }
+  ],
+  "reconciliation": {
+    "workflowId": "SJ5y9TXFybxdagPn",
+    "version": "6e0c5c1a-d885-4a49-8659-9a85ca220eb8",
+    "executionId": "68251",
+    "status": "success",
+    "acknowledged": 85,
+    "created": 0
+  },
+  "productionBackup": "/home/servernetcloud/chat-leads-20261025-1792917493166",
+  "n8nBackup": "/var/lib/servernet-hermes-ops/chat-leads-20261025-1792917576464"
+}

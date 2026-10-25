@@ -1,0 +1,14 @@
+{
+  "unchangedFiles": 15,
+  "concurrentChange": {
+    "file": "routes/web.php",
+    "sha256": "26308cd60e1545416f75bc5c4ada50bd5c4a4e40ed1a9013db474cf0638a8cf6",
+    "change": "Added independent admin settings/payment-visibility route; chat callback is unchanged and preserved"
+  },
+  "temporaryActivationRemoved": true,
+  "temporaryAcceptanceRemoved": true,
+  "callbackCredentialMode": "0600",
+  "publicHealth": 200,
+  "anonymousInbox": 302,
+  "removedActivation": 404
+}

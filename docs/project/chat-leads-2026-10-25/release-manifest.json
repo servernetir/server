@@ -1,0 +1,82 @@
+[
+  {
+    "file": "app/Console/Commands/CrmEnrich.php",
+    "before": "56e564714653f20e9b30c9f2dbf90aaffe2c62f0a9d41734b7567899aa7298db",
+    "after": "b962ec3c695752b020f0e13603f6c78e3ae61ae914e501d9f2107476201326c6"
+  },
+  {
+    "file": "app/Console/Commands/CrmQueue.php",
+    "before": "1ae83f559907eccb8fd48ee14c05e40e8e584ae092da3c913af18af36f734109",
+    "after": "6f5221040e17228cae43147782404186fdc347ab37863e730f9829e18e8c8a45"
+  },
+  {
+    "file": "app/Http/Controllers/Admin/ChatLeadController.php",
+    "before": null,
+    "after": "08c968274357337fa7d59507391772143140262477e2e2ca62fd87f0b2c7070e"
+  },
+  {
+    "file": "app/Http/Controllers/Admin/MarketingController.php",
+    "before": "c697f1ab5c0428f5dfb2dbd9f830d732bf96a5d161a592cf2e764c57d0c47df9",
+    "after": "70cb46379af5c661349adf82c17168c77b54ac2cbfc91722a8a55ab527c488db"
+  },
+  {
+    "file": "app/Http/Controllers/ChatLeadIngestController.php",
+    "before": null,
+    "after": "9b1905eaf6347f194441322582d2c0c0f72be81c19151d0cd2bc4b95048e95a5"
+  },
+  {
+    "file": "app/Http/Middleware/ChatLeadToken.php",
+    "before": null,
+    "after": "3bfd0328097b3ce59612663d7e53ce80ffd947ff32f9054fa9d498a3ca90a5b4"
+  },
+  {
+    "file": "app/Models/CrmLead.php",
+    "before": "d286349bee9d5b379f278dfe3c5e3b8aaab2bbc84786a5d6c8928c0643936159",
+    "after": "c9f428120f9e95512bf79cd9f8505577947ef3852d2aff74bcc142eb5e8b58b9"
+  },
+  {
+    "file": "app/Services/Crm/ChatLeadCapture.php",
+    "before": null,
+    "after": "6c6f9e5cb04f1fbb059f2baebd01f6a892fa592c283b9e333cdc181d28dd6855"
+  },
+  {
+    "file": "app/Services/Crm/OutreachComposer.php",
+    "before": "c275dae3ade96ebe33f0e33354850e2d488da8b63a5c5bfdd60515dc83f77426",
+    "after": "c6448ccf63a2fbca2dd1db61c946b53bbd0c5381e9b634f05b30d2e06967e1f0"
+  },
+  {
+    "file": "app/Services/Crm/OutreachMailer.php",
+    "before": "babf91abcc56e34bbf8fe98cc24cae39fb44d9f8915f0d1970f4ce2f2e9073a6",
+    "after": "371c5fa00bf1a3974a03920295a3e314f4ce737300a0ead8f90ff566f2e57dae"
+  },
+  {
+    "file": "app/Services/Notify/AdminNotifier.php",
+    "before": "a283a46b0829f7755e1c1d942af134d5ab1974774c61da271e8c352927225d56",
+    "after": "430d0573d409108a1c2baa6554fec578302aeaf57bf0165e90a8231235a03203"
+  },
+  {
+    "file": "config/services.php",
+    "before": "678c187fb59cd1c0f8f8da8273b41502a8b692d9a81c4bb56a21a784663f1ae7",
+    "after": "2c513c9493625e68d8cd204cc9544161b4b25103102ee6b4abcaebf49289172e"
+  },
+  {
+    "file": "resources/views/admin/marketing/chat-lead.blade.php",
+    "before": null,
+    "after": "ddde6fa8fef6aff5e848320ff48a9c88e9ed1834e82605eef6113eb6f3b6d876"
+  },
+  {
+    "file": "resources/views/admin/marketing/chat.blade.php",
+    "before": null,
+    "after": "644d501bd9669c031014293257d11de073e619f26be7bbe9c1508f3239de4320"
+  },
+  {
+    "file": "resources/views/admin/marketing/funnel.blade.php",
+    "before": "2eb184b4546c4c460c615cb5a236931109bb2d4da2401e3c2f24cce30578806d",
+    "after": "770984da291edd5f20bc62ae6910079563232ab2ef4b8d51dbc2aef1ec58d3e1"
+  },
+  {
+    "file": "routes/web.php",
+    "before": "ce88847c9cb58b468bc65cfbafa5ccf3f17e3f3b9f3f2331285e9a6afca4d199",
+    "after": "7d42246ae450e3355bc5921ddd2c0813030bedc320a6decbcdcb8149daa4a89d"
+  }
+]
