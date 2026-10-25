@@ -717,3 +717,6 @@ Schedule::command('dns:reconcile')
     ->hourlyAt(17)
     ->withoutOverlapping(30);
 // [managed-dns:end]
+
+// Growth has its own durable jobs, approval gates and pause switch; safe before migration.
+\Illuminate\Support\Facades\Schedule::command('growth:run --limit=3')->everyMinute()->withoutOverlapping(15);

@@ -1,0 +1,22 @@
+PHPUnit 12.5.31 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.26
+Configuration: C:\workspace\servernet-growth-center-20261025\website\phpunit.xml
+
+...............................................................  63 / 201 ( 31%)
+...........................................F................... 126 / 201 ( 62%)
+............................................................... 189 / 201 ( 94%)
+............                                                    201 / 201 (100%)
+
+Time: 00:22.330, Memory: 204.00 MB
+
+There was 1 failure:
+
+1) Tests\Feature\ContentPipelineTest::test_the_queue_actually_reaches_the_end_of_the_year
+تقویم بعد از 611 مطلب پر شد ولی صف تمام نشده — بقیه به سالِ بعد می‌افتند.
+Failed asserting that null is not null.
+
+C:\workspace\servernet-growth-center-20261025\website\tests\Feature\ContentPipelineTest.php:137
+
+FAILURES!
+Tests: 201, Assertions: 4833, Failures: 1.
