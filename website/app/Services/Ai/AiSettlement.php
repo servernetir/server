@@ -225,6 +225,8 @@ final class AiSettlement
                 'day' => now()->setTimezone('Asia/Tehran')->toDateString(),
             ])->save();
 
+            app(\App\Services\Finance\BusinessLedger::class)->recordAiUsage($u);
+
             return [$u, true];
         }, 3);
 
@@ -284,6 +286,8 @@ final class AiSettlement
                 'needs_review' => $row->needs_review || $diff < 0,
                 'review_reason' => $diff < 0 ? 'over_bound' : ($diff > 0 ? 'recovered_refund' : $row->review_reason),
             ])->save();
+
+            app(\App\Services\Finance\BusinessLedger::class)->recordAiUsage($row, true);
 
             return [max(0, $diff), $diff < 0 ? $row : null];
         }, 3);

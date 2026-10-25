@@ -2,6 +2,7 @@
 @section('title', 'تراکنش‌ها و اعتبار')
 @section('nav_transactions', 'on')
 @section('content')
+@include('admin.partials.finance-periods')
 
 @php
   $money = function ($amount, $cur = 'IRT') {
@@ -20,6 +21,13 @@
   </div>
 @endunless
 
+<p class="ad-note">{{ __('finance.receipt_scope') }}</p>
+<form method="get" action="{{ route('admin.transactions') }}" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;align-items:end">
+<label>{{ __('finance.search') }}<input class="ad-input" name="q" value="{{ $q??'' }}" maxlength="150"></label>
+<label>{{ __('finance.from') }}<input type="date" name="from" class="ad-input" value="{{ $filters['from']??'' }}"></label><label>{{ __('finance.to') }}<input type="date" name="to" class="ad-input" value="{{ $filters['to']??'' }}"></label>
+<label>{{ __('finance.gateway') }}<select name="gateway" class="ad-input"><option value="all">{{ __('finance.all') }}</option>@foreach($gateways as $g)<option value="{{ $g }}" @selected($gateway===$g)>{{ $g }}</option>@endforeach</select></label>
+<label>{{ __('finance.currency') }}<select name="currency" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach(array_keys(\App\Services\Finance\AccountingMoney::EXPONENTS) as $c)<option @selected(($filters['currency']??'')===$c)>{{ $c }}</option>@endforeach</select></label>
+<input type="hidden" name="status" value="{{ $status }}"><button class="ad-btn">{{ __('finance.apply') }}</button><a href="{{ route('admin.transactions.export',request()->query()) }}">{{ __('finance.export') }}</a><a href="{{ route('admin.transactions') }}">{{ __('finance.reset') }}</a></form>
 {{-- ══ آمار کلیدی ══ --}}
 <div class="tx-kpis">
   <div class="tx-kpi accent">
@@ -30,17 +38,17 @@
   <div class="tx-kpi">
     <span class="tx-kpi-l">مجموع افزایش اعتبار</span>
     <b class="tx-kpi-v">{{ $money($kpis['topups']) }}</b>
-    <small>کلِ شارژهای موفقِ کیف پول تا امروز</small>
+    <small>وصول شارژهای تومان در فیلتر انتخابی؛ درآمد فروش نیست</small>
   </div>
   <div class="tx-kpi">
     <span class="tx-kpi-l">مجموع پرداخت‌های موفق</span>
     <b class="tx-kpi-v">{{ $money($kpis['paidSum']) }}</b>
-    <small>همهٔ تراکنش‌های موفق (درگاه + واریز)</small>
+    <small>وصول بیرونی در فیلتر انتخابی؛ تسویه اعتبار و هدیه جداست</small>
   </div>
   <div class="tx-kpi">
     <span class="tx-kpi-l">مشتریانِ دارای اعتبار</span>
     <b class="tx-kpi-v">{{ fa_num($kpis['creditCustomers']) }}</b>
-    <small>تعداد مشتریانی که همین حالا اعتبار دارند</small>
+    <small>تعداد مشتریان با مانده مثبت در حداقل یک ارز تا انتهای بازه</small>
   </div>
 </div>
 
@@ -53,12 +61,12 @@
   </div>
 @endif
 
-{{-- ══ درآمد به تفکیک ارز (گزارشِ چندارزی) ══ --}}
+{{-- ══ وصول به تفکیک ارز (گزارشِ چندارزی) ══ --}}
 @if($revenueByCurrency->isNotEmpty())
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>درآمد به تفکیک ارز</h3></div>
   <table class="ad-table">
-    <thead><tr><th>ارز</th><th>درآمد (پرداختِ موفق)</th><th>تعداد تراکنش</th></tr></thead>
+    <thead><tr><th>ارز</th><th>وصول بیرونی (پرداخت موفق)</th><th>تعداد تراکنش</th></tr></thead>
     <tbody>
       @foreach($revenueByCurrency as $row)
       <tr>
@@ -69,7 +77,7 @@
       @endforeach
     </tbody>
   </table>
-  <p style="padding:10px 16px 14px;margin:0;font-size:12px;color:var(--dim)">تومان و یورو جدا نمایش داده می‌شوند؛ چون واحدشان هم‌مقیاس نیست، جمعِ خام معنا ندارد. این «درآمدِ واقعی» است (بدونِ افزایش اعتبار).</p>
+  <p style="padding:10px 16px 14px;margin:0;font-size:12px;color:var(--dim)">تومان و یورو جدا نمایش داده می‌شوند؛ چون واحدشان هم‌مقیاس نیست، جمعِ خام معنا ندارد. این وصول نقدی ثبت‌شده است؛ افزایش اعتبار را هم شامل می‌شود و برابر درآمد فروش نیست.</p>
 </div>
 @endif
 
@@ -98,16 +106,11 @@
 <div class="ad-panel">
   @php
     $txTab = fn ($st) => '/admin/transactions?'.http_build_query(array_filter(
-        ['status' => $st, 'q' => $q ?? ''], fn ($v) => $v !== ''));
+        array_replace(request()->except(['page','credit_page']), ['status' => $st]), fn ($v) => $v !== ''));
     $txInp = 'background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:7px 10px;font:inherit;font-size:12.5px';
   @endphp
   <div class="ad-panel-h" style="flex-wrap:wrap;gap:10px"><h3>تراکنش‌های پرداخت</h3>
-    <form method="get" action="/admin/transactions" style="display:flex;gap:8px;align-items:center;margin-inline-start:auto;flex-wrap:wrap">
-      <input type="hidden" name="status" value="{{ $status }}">
-      <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="پیگیری، کد/ایمیل/موبایل مشتری" style="{{ $txInp }};min-width:210px">
-      <button type="submit" style="{{ $txInp }};cursor:pointer;color:var(--cyan);border-color:var(--cyan)">جستجو</button>
-      @if(($q ?? '') !== '')<a href="{{ $txTab($status) }}" style="font-size:12px;color:var(--dim)">پاک</a>@endif
-    </form>
+
     <div class="ad-tabs">
       <a href="{{ $txTab('all') }}" class="{{ $status === 'all' ? 'on' : '' }}">همه</a>
       <a href="{{ $txTab('paid') }}" class="{{ $status === 'paid' ? 'on' : '' }}">موفق</a>
@@ -171,6 +174,7 @@
       </tbody>
     </table>
     </div>
+    @if($credit instanceof \Illuminate\Contracts\Pagination\Paginator){{ $credit->links() }}@endif
   @endif
 </div>
 

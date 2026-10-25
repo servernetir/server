@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessEntry;
+use App\Models\FinanceVoucher;
 use App\Models\Service;
 use App\Services\Finance\BusinessLedger;
+use App\Services\Finance\FinanceFilter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * داشبورد مالی کسب‌وکار — سمت صاحب.
@@ -24,21 +28,41 @@ class FinanceController extends Controller
 
     public function index(Request $request): View
     {
-        // بازهٔ زمانی — پیش‌فرض «از ابتدا». دکمه‌های ماه/سال/کل داشبورد را عوض می‌کنند
-        $range = $request->string('range', 'all')->toString();
-        [$from, $to] = $this->range($range);
+        $filter = FinanceFilter::fromRequest($request);
+        $entries = $this->ledger->ready() ? $filter->apply(BusinessEntry::query()) : null;
 
         return view('admin.finance', [
-            'ready'   => $this->ledger->ready(),
-            'range'   => $range,
-            'summary' => $this->ledger->summary($from, $to),
-            'trend'   => $this->ledger->monthlyTrend(6),
-            'recent'  => $this->ledger->ready()
-                ? BusinessEntry::orderByDesc('occurred_at')->orderByDesc('id')->limit(20)->get()
-                : collect(),
+            'ready' => $this->ledger->ready(),
+            'range' => $filter->values['range'],
+            'filters' => $filter->values,
+            'summary' => $this->ledger->summary(filter: $filter),
+            'trend' => $this->ledger->monthlyTrend(6, $filter),
+            'recent' => $entries?->orderByDesc('occurred_at')->orderByDesc('id')->paginate(50)->withQueryString() ?? collect(),
             'categories' => BusinessLedger::EXPENSE_CATEGORIES,
-            'churn'      => $this->churnReasons(),
+            'filterCategories' => collect(BusinessLedger::EXPENSE_CATEGORIES)->merge($this->ledger->ready() ? BusinessEntry::whereNotNull('category')->distinct()->pluck('category') : [])->unique()->sort()->values()->all(),
+            'churn' => $this->churnReasons(),
         ]);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $filter = FinanceFilter::fromRequest($request);
+
+        return response()->streamDownload(function () use ($filter) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['ID', 'Date (Tehran)', 'Kind', 'Category', 'Currency', 'Amount (minor units)', 'Direction', 'Source type', 'Source ID', 'Note'], escape: '');
+            if ($this->ledger->ready()) {
+                foreach ($filter->apply(BusinessEntry::query())->orderBy('id')->lazyById(500) as $e) {
+                    $note = (string) $e->note;
+                    if (preg_match('/^[\s]*[=+@\-]/u', $note)) {
+                        $note = "'".$note;
+                    }
+                    fputcsv($out, [$e->id, $e->occurred_at->toDateString(), $e->kind, $e->category, $e->currency_code, $e->amount, $e->direction, $e->source_type, $e->source_id, $note], escape: '');
+                }
+            }
+            fclose($out);
+        }, 'servernet-ledger-'.now('Asia/Tehran')->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv; charset=UTF-8', 'Cache-Control' => 'private, no-store']);
     }
 
     /**
@@ -56,7 +80,7 @@ class FinanceController extends Controller
      * ⚠️ «بی‌پاسخ» جدا شمرده می‌شود و در نمودار پنهان نمی‌ماند: اگر نودوپنج
      * درصد چیزی نگویند، درصدهای بقیه بی‌معنی‌اند و مدیر باید همین را ببیند.
      *
-     * @return array{total:int,answered:int,silent:int,rows:array<int,array{code:string,label:string,count:int,pct:int}>,notes:\Illuminate\Support\Collection<int,\App\Models\Service>}|array{}
+     * @return array{total:int,answered:int,silent:int,rows:array<int,array{code:string,label:string,count:int,pct:int}>,notes:Collection<int,Service>}|array{}
      */
     private function churnReasons(): array
     {
@@ -86,21 +110,21 @@ class FinanceController extends Controller
             }
 
             $rows[] = [
-                'code'  => $code,
+                'code' => $code,
                 'label' => $label,
                 'count' => $n,
-                'pct'   => $answered > 0 ? (int) round($n * 100 / $answered) : 0,
+                'pct' => $answered > 0 ? (int) round($n * 100 / $answered) : 0,
             ];
         }
 
         return [
-            'total'    => $total,
+            'total' => $total,
             'answered' => $answered,
-            'silent'   => max(0, $total - $answered),
-            'rows'     => $rows,
+            'silent' => max(0, $total - $answered),
+            'rows' => $rows,
             // متنِ آزاد جداست و عمداً فقط چند تای آخر: این ستون برای شمارش نیست،
             // برای خواندنِ حرفِ مشتری است.
-            'notes'    => (clone $terminated)->whereNotNull('terminate_reason_note')
+            'notes' => (clone $terminated)->whereNotNull('terminate_reason_note')
                 ->orderByDesc('cancelled_at')->orderByDesc('id')->limit(8)->get(),
         ];
     }
@@ -114,14 +138,14 @@ class FinanceController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'kind'        => ['required', 'in:capital,expense,withdrawal,tax_paid'],
-            'amount'      => ['required', 'integer', 'min:1'],
-            'category'    => ['nullable', 'in:'.implode(',', BusinessLedger::EXPENSE_CATEGORIES)],
+            'kind' => ['required', 'in:capital,expense,withdrawal,tax_paid'],
+            'amount' => ['required', 'integer', 'min:1'],
+            'category' => ['nullable', 'in:'.implode(',', BusinessLedger::EXPENSE_CATEGORIES)],
             'occurred_at' => ['nullable', 'date'],
-            'note'        => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:255'],
         ], [], [
             'amount' => 'مبلغ',
-            'kind'   => 'نوع',
+            'kind' => 'نوع',
         ]);
 
         // دسته فقط برای هزینه معنی دارد
@@ -148,7 +172,7 @@ class FinanceController extends Controller
     {
         return match ($range) {
             'month' => [now()->startOfMonth(), now()->endOfMonth()],
-            'year'  => [now()->startOfYear(), now()->endOfYear()],
+            'year' => [now()->startOfYear(), now()->endOfYear()],
             default => [null, null],   // کل تاریخچه
         };
     }
@@ -171,7 +195,7 @@ class FinanceController extends Controller
         | حذفِ ردیفِ اجاره بی‌خطر است: اجرای بعدیِ همان کرون، همان ماه را با
         | مبلغِ اصلاح‌شده دوباره می‌نشاند.
         */
-        if ($entry->source_id !== null) {
+        if ($entry->source_id !== null || (Schema::hasTable('finance_vouchers') && FinanceVoucher::where(fn ($q) => $q->where('business_entry_id', $entry->id)->orWhere('adjusts_entry_id', $entry->id))->exists())) {
             return back()->withErrors(['entry' => 'ردیف خودکار (درآمد/مالیات) حذف نمی‌شود؛ به پرداخت واقعی وصل است.']);
         }
 
