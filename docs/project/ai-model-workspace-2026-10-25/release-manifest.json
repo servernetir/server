@@ -1,0 +1,110 @@
+[
+  {
+    "source": "website/app/Http/Controllers/AiStorefrontController.php",
+    "path": "servernet_app/app/Http/Controllers/AiStorefrontController.php",
+    "before": "555150daa998fef9af8d97248a012feae3d759c10dafe4729fdd4f06ef1f5cd1",
+    "after": "7f4c03a97c7709ecf4a00d8785c03486708d426da434eb3e614cab446c13b061"
+  },
+  {
+    "source": "website/app/Http/Controllers/SiteController.php",
+    "path": "servernet_app/app/Http/Controllers/SiteController.php",
+    "before": "afaa0bdc6e50fff2e63bc58ad664f91aa2b42b042805764750d663a3aa00c356",
+    "after": "d14552c373f220d84465cf78bd1df00210bc56b7f9336cfbef1efcd2a0724694"
+  },
+  {
+    "source": "website/app/Services/Ai/AiModelPage.php",
+    "path": "servernet_app/app/Services/Ai/AiModelPage.php",
+    "before": "fc603903829de61c9abc471ce154594a1710f5a38ac69e395c47b2a0e80bc5b5",
+    "after": "8e38f2cd778adc742ad4d0c28744255525b2dfb46dd7a5ef867caa4811a69c7d"
+  },
+  {
+    "source": "website/routes/web.php",
+    "path": "servernet_app/routes/web.php",
+    "before": "c424b3368c397afeeaa9a01711f2b20eb1a183622e64d8eae8d9bb9e0f2270bc",
+    "after": "ce88847c9cb58b468bc65cfbafa5ccf3f17e3f3b9f3f2331285e9a6afca4d199"
+  },
+  {
+    "source": "website/lang/fa/ai_experience.php",
+    "path": "servernet_app/lang/fa/ai_experience.php",
+    "before": null,
+    "after": "2beb8c9412813088a42f8828926845e2ae0199465741d363c1a93141f769f6ef"
+  },
+  {
+    "source": "website/lang/en/ai_experience.php",
+    "path": "servernet_app/lang/en/ai_experience.php",
+    "before": null,
+    "after": "96281c4e945e3650bca1fe2d3913f0db431c40cdb2d1d6c36b4e24e44753fd1f"
+  },
+  {
+    "source": "website/lang/tr/ai_experience.php",
+    "path": "servernet_app/lang/tr/ai_experience.php",
+    "before": null,
+    "after": "2677ff16a93520c71df382f394c7151eadca4deb910456923178949ac9e1560d"
+  },
+  {
+    "source": "website/public/assets/css/ai-workspace.css",
+    "path": "public_html/assets/css/ai-workspace.css",
+    "before": null,
+    "after": "90dc4a4dcf42d5477329ca4bb3ba19ce8811e6449885cd43153eee1f675ec513"
+  },
+  {
+    "source": "website/public/assets/js/ai-workspace.js",
+    "path": "public_html/assets/js/ai-workspace.js",
+    "before": null,
+    "after": "63f027a8eff72f2f72f8a2d46d1b1d91035d3effdc160c7831ed23cf1db8dec8"
+  },
+  {
+    "source": "website/resources/views/pages/ai/card.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/card.blade.php",
+    "before": "29f83b4235a64faba128a5bd74de528e2db2fc0da518f3d2e79359685daa6732",
+    "after": "d5382d1c84685ecbb732902b8f39de5b4b5e5decd7fc5522a303d43fc79274fc"
+  },
+  {
+    "source": "website/resources/views/pages/ai/home.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/home.blade.php",
+    "before": "49e37cb40ae5ea74477bd5909f849b88a409c36e69fe390cd0c62446e4a61bc4",
+    "after": "fc150d7bb195ba3f7cdd3860aca6d70c41dc0cc5e60c4dc8a61b35dca82d9594"
+  },
+  {
+    "source": "website/resources/views/pages/ai/model.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/model.blade.php",
+    "before": "cc6e68320e64cead095bc909a709f74873212b1c390c85a43ae7c5f93301ddc1",
+    "after": "15f92c99462829df1c411b0ba9b11627f3d689ad280b30757d12ecbedc674f66"
+  },
+  {
+    "source": "website/resources/views/pages/ai/models.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/models.blade.php",
+    "before": "12dad2a1674b09684e0be7de6819b5c008aee1432bf19c0950d46b65d3f6d23e",
+    "after": "734c2039653cd287384ca5918ba86eed6380c1ea395bf62169211fd290f81146"
+  },
+  {
+    "source": "website/resources/views/pages/ai/nav.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/nav.blade.php",
+    "before": "4a5e4ca338e1fc8cd0a28a1a671060f5cc3c88d589a2462b0651ec328ad67a3c",
+    "after": "5655c23041ae77223039e1671e27f4c861e7e8e5ad76279fdb5a2a4b22eb4369"
+  },
+  {
+    "source": "website/resources/views/pages/ai/style.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/style.blade.php",
+    "before": "3d84fe90dabb629f0c5c5aa51e13c8d5193b77f99ade39c926887c1c5bbc57dc",
+    "after": "dad164544bd3cb12a80c8e2336b9d4c9afddff8163bcfd12eecc11e59680a587"
+  },
+  {
+    "source": "website/resources/views/pages/ai/compare.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/compare.blade.php",
+    "before": null,
+    "after": "9c8bb850d5776a5358ac434d2f4790e79ad5cda813b830e91dba7f9c24fec5da"
+  },
+  {
+    "source": "website/resources/views/pages/ai/compare-tray.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/compare-tray.blade.php",
+    "before": null,
+    "after": "e200f256196df4701700e925f81862d8d2dfb0f06c9dea6d001fbe37552706f7"
+  },
+  {
+    "source": "website/resources/views/pages/ai/estimator.blade.php",
+    "path": "servernet_app/resources/views/pages/ai/estimator.blade.php",
+    "before": null,
+    "after": "8add1d5c844ccb97b096956c5d5641936496dff05e3cd8c37278e82284f9e43a"
+  }
+]

@@ -1,0 +1,32 @@
+PHPUnit 12.5.31 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.26
+Configuration: C:\workspace\servernet-ai-growth-20261025\website\phpunit.xml
+
+......................................S..................S.S..... 65 / 87 ( 74%)
+.SSS..................                                            87 / 87 (100%)
+
+Time: 00:18.027, Memory: 174.00 MB
+
+There were 6 skipped tests:
+
+1) Tests\Feature\AiModelSeoTest::test_bria_gateway_table_has_actual_inputs_defaults_and_no_empty_catalogue_table_in_all_locales
+The Bria public ready contract requires the trusted video decoder.
+
+2) Tests\Feature\AiNativeRemainingTest::test_real_full_decode_is_required_and_temporary_media_is_removed
+Trusted FFmpeg binary is not configured in this test environment.
+
+3) Tests\Feature\AiNativeRemainingTest::test_coded_dimensions_must_match_movie_track_dimensions
+Trusted FFmpeg binary is not configured in this test environment.
+
+4) Tests\Feature\AiNativeRemainingTest::test_bria_duration_and_mask_points_use_fully_decoded_video
+Trusted FFmpeg binary is not configured in this test environment.
+
+5) Tests\Feature\AiNativeRemainingTest::test_bria_five_second_editing_limits_reject_longer_fully_decoded_input
+Trusted FFmpeg binary is required.
+
+6) Tests\Feature\AiNativeRemainingTest::test_bria_mask_resolution_and_upscale_output_geometry_are_validated_before_spending
+Trusted FFmpeg binary is required.
+
+OK, but some tests were skipped!
+Tests: 87, Assertions: 1950, Skipped: 6.

@@ -1,0 +1,9 @@
+{
+  "status": "activated",
+  "php": "8.4.27",
+  "sapi": "fpm-fcgi",
+  "files": 18,
+  "invalidated": 16,
+  "compiled_views_cleared": 6,
+  "route_cache": false
+}

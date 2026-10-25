@@ -1,0 +1,17 @@
+{
+  "compareSitemap": [
+    {
+      "path": "/ai/compare",
+      "present": true
+    },
+    {
+      "path": "/en/ai/compare",
+      "present": true
+    },
+    {
+      "path": "/tr/ai/compare",
+      "present": true
+    }
+  ],
+  "llmsCompare": true
+}
