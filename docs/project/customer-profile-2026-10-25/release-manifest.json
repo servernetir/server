@@ -1,0 +1,31 @@
+{
+  "release": "customer-profile-2026-10-25",
+  "status": "not-installed",
+  "base_sha": "f86af2162c4ad0ba2a66716de5249a17d1399a94",
+  "files": [
+    {
+      "source": "website/app/Support/AdminServiceInfrastructure.php",
+      "destination": "servernet_app/app/Support/AdminServiceInfrastructure.php",
+      "expected_before_sha256": null,
+      "after_sha256": "d76665f47d70eda71b82ba5962df2d95874ad7880bb498ea24cc70c64e8c3944"
+    },
+    {
+      "source": "website/resources/views/admin/partials/customer-ticket-compose.blade.php",
+      "destination": "servernet_app/resources/views/admin/partials/customer-ticket-compose.blade.php",
+      "expected_before_sha256": null,
+      "after_sha256": "a3180b7cc3a12c5a001e9184562562c2e672e1f3ed27c7be8f47bb02cf3b23e0"
+    },
+    {
+      "source": "website/resources/views/admin/partials/service-infrastructure.blade.php",
+      "destination": "servernet_app/resources/views/admin/partials/service-infrastructure.blade.php",
+      "expected_before_sha256": null,
+      "after_sha256": "63ef5d320444be0d5aff38c6b6661f2d672cb8356d7d67e92924d2a5d3a1e52d"
+    },
+    {
+      "source": "website/resources/views/admin/customer.blade.php",
+      "destination": "servernet_app/resources/views/admin/customer.blade.php",
+      "expected_before_sha256": "caa3ab8cca7e4b6fd42088d4cf086be3f1e08b0f800243676cba67b3d779d592",
+      "after_sha256": "844586472e2bcc87bffc9263d2f27a8486f64d96e36c1396a4211b550dae40e1"
+    }
+  ]
+}
