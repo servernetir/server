@@ -1,0 +1,42 @@
+{
+  "base_sha": "f3c74b4c93da6cf5fb020696dee5c8e85e6be1f7",
+  "implementation_commit": "0e5676a947d27df9b163153c8496430f6170caa1",
+  "merge_commit": "3999bf8f5dcd283b4aff7c131e3ad0f9f6b56a09",
+  "pr": 130,
+  "installed_utc": "2026-10-25T15:25:32.523642+00:00",
+  "files": 6,
+  "backup": "/home/servernetcloud/seo-growth-followup-20261025-c0276072daf8/backups/20261025T152532485450Z",
+  "activation": {
+    "targeted_views_invalidated": 3,
+    "page_generation_advanced": true,
+    "blog_mapping": "gpu",
+    "php_version": "8.4.27",
+    "opcache_validate_timestamps": "1"
+  },
+  "public_acceptance": {
+    "passed": 25,
+    "total": 25,
+    "checked_utc": "2026-10-25T15:26:37.766326+00:00"
+  },
+  "gateway_removed": true,
+  "gateway_unauthenticated_status_after_removal": 404,
+  "php_tests": {
+    "passed": 32,
+    "assertions": 609
+  },
+  "node_tests": {
+    "passed": 20
+  },
+  "known_baseline": {
+    "suite": "CloudPlanTableTest",
+    "failed": 9,
+    "total": 12,
+    "reproduced_on_untouched_base": true
+  },
+  "google_tag_manager": {
+    "published": false,
+    "reason": "Google sign-in required",
+    "public_version_observed": 8
+  },
+  "gpu_paid_test_performed": false
+}

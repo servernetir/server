@@ -1,0 +1,579 @@
+{
+  "checked_utc": "2026-10-25T15:26:37.766326+00:00",
+  "pages": [
+    {
+      "url": "https://servernet.cloud/vps/hourly",
+      "utc": "2026-10-25T15:26:31.022777+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/vps/hourly",
+      "canonical": [
+        "https://servernet.cloud/vps/hourly"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "guide_links": [
+        "https://servernet.cloud/hosting/python",
+        "https://servernet.cloud/vps/linux",
+        "https://servernet.cloud/docs/connecting-to-linux-server-ssh",
+        "https://servernet.cloud/account/cloud-store?billing_mode=hourly"
+      ],
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "linux_section": true,
+        "localized_guide_links": true,
+        "hourly_store": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/cloud/n8n",
+      "utc": "2026-10-25T15:26:31.023620+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/cloud/n8n",
+      "canonical": [
+        "https://servernet.cloud/cloud/n8n"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "no_billing_toggle": true,
+        "consultation_cta": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/vps/gpu",
+      "utc": "2026-10-25T15:26:31.026155+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/vps/gpu",
+      "canonical": [
+        "https://servernet.cloud/vps/gpu"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "no_billing_toggle": true,
+        "consultation_cta": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/hosting/python",
+      "utc": "2026-10-25T15:26:32.237867+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/hosting/python",
+      "canonical": [
+        "https://servernet.cloud/hosting/python"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "billing_toggle_kept": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/gpu",
+      "utc": "2026-10-25T15:26:32.283079+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/gpu",
+      "canonical": [
+        "https://servernet.cloud/gpu"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/blog/comfyui-hourly-gpu-guide",
+      "utc": "2026-10-25T15:26:32.815712+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/blog/comfyui-hourly-gpu-guide",
+      "canonical": [
+        "https://servernet.cloud/blog/comfyui-hourly-gpu-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "related_cta": "سرور گرافیکی ساعتی — مشاهده‌ی پلن‌ها و قیمت‌ها",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/blog/jupyter-hourly-gpu-guide",
+      "utc": "2026-10-25T15:26:32.875534+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/blog/jupyter-hourly-gpu-guide",
+      "canonical": [
+        "https://servernet.cloud/blog/jupyter-hourly-gpu-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "related_cta": "سرور گرافیکی ساعتی — مشاهده‌ی پلن‌ها و قیمت‌ها",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/blog/n8n-backup-migration-guide",
+      "utc": "2026-10-25T15:26:33.256186+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/blog/n8n-backup-migration-guide",
+      "canonical": [
+        "https://servernet.cloud/blog/n8n-backup-migration-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "fa",
+      "related_cta": "هاست و راه‌اندازی n8n — استعلام از واحد فروش",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true,
+        "quote_label": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/vps/hourly",
+      "utc": "2026-10-25T15:26:33.256495+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/vps/hourly",
+      "canonical": [
+        "https://servernet.cloud/en/vps/hourly"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "guide_links": [
+        "https://servernet.cloud/en/hosting/python",
+        "https://servernet.cloud/en/vps/linux",
+        "https://servernet.cloud/en/docs/connecting-to-linux-server-ssh",
+        "https://servernet.cloud/en/account/cloud-store?billing_mode=hourly"
+      ],
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "linux_section": true,
+        "localized_guide_links": true,
+        "hourly_store": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/cloud/n8n",
+      "utc": "2026-10-25T15:26:33.581297+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/cloud/n8n",
+      "canonical": [
+        "https://servernet.cloud/en/cloud/n8n"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "no_billing_toggle": true,
+        "consultation_cta": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/vps/gpu",
+      "utc": "2026-10-25T15:26:33.981821+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/vps/gpu",
+      "canonical": [
+        "https://servernet.cloud/en/vps/gpu"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "no_billing_toggle": true,
+        "consultation_cta": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/hosting/python",
+      "utc": "2026-10-25T15:26:33.987800+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/hosting/python",
+      "canonical": [
+        "https://servernet.cloud/en/hosting/python"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "billing_toggle_kept": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/gpu",
+      "utc": "2026-10-25T15:26:34.350423+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/gpu",
+      "canonical": [
+        "https://servernet.cloud/en/gpu"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/comfyui-hourly-gpu-guide",
+      "utc": "2026-10-25T15:26:34.353181+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/blog/comfyui-hourly-gpu-guide",
+      "canonical": [
+        "https://servernet.cloud/en/blog/comfyui-hourly-gpu-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "related_cta": "Hourly GPU Servers — View plans & pricing",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/jupyter-hourly-gpu-guide",
+      "utc": "2026-10-25T15:26:34.520122+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/blog/jupyter-hourly-gpu-guide",
+      "canonical": [
+        "https://servernet.cloud/en/blog/jupyter-hourly-gpu-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "related_cta": "Hourly GPU Servers — View plans & pricing",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/n8n-backup-migration-guide",
+      "utc": "2026-10-25T15:26:34.679452+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/blog/n8n-backup-migration-guide",
+      "canonical": [
+        "https://servernet.cloud/en/blog/n8n-backup-migration-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "related_cta": "n8n Hosting and Setup — Contact sales",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true,
+        "quote_label": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/vps/hourly",
+      "utc": "2026-10-25T15:26:34.872859+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/vps/hourly",
+      "canonical": [
+        "https://servernet.cloud/tr/vps/hourly"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "guide_links": [
+        "https://servernet.cloud/tr/hosting/python",
+        "https://servernet.cloud/tr/vps/linux",
+        "https://servernet.cloud/tr/docs/connecting-to-linux-server-ssh",
+        "https://servernet.cloud/tr/account/cloud-store?billing_mode=hourly"
+      ],
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "linux_section": true,
+        "localized_guide_links": true,
+        "hourly_store": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/cloud/n8n",
+      "utc": "2026-10-25T15:26:35.036670+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/cloud/n8n",
+      "canonical": [
+        "https://servernet.cloud/tr/cloud/n8n"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "no_billing_toggle": true,
+        "consultation_cta": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/vps/gpu",
+      "utc": "2026-10-25T15:26:35.711099+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/vps/gpu",
+      "canonical": [
+        "https://servernet.cloud/tr/vps/gpu"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "no_billing_toggle": true,
+        "consultation_cta": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/hosting/python",
+      "utc": "2026-10-25T15:26:35.814534+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/hosting/python",
+      "canonical": [
+        "https://servernet.cloud/tr/hosting/python"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "billing_toggle_kept": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/gpu",
+      "utc": "2026-10-25T15:26:36.098588+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/gpu",
+      "canonical": [
+        "https://servernet.cloud/tr/gpu"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/comfyui-hourly-gpu-guide",
+      "utc": "2026-10-25T15:26:36.200452+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/blog/comfyui-hourly-gpu-guide",
+      "canonical": [
+        "https://servernet.cloud/tr/blog/comfyui-hourly-gpu-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "related_cta": "Saatlik GPU Sunucular — Planları ve fiyatları gör",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/jupyter-hourly-gpu-guide",
+      "utc": "2026-10-25T15:26:36.277813+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/blog/jupyter-hourly-gpu-guide",
+      "canonical": [
+        "https://servernet.cloud/tr/blog/jupyter-hourly-gpu-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "related_cta": "Saatlik GPU Sunucular — Planları ve fiyatları gör",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/n8n-backup-migration-guide",
+      "utc": "2026-10-25T15:26:36.543077+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/blog/n8n-backup-migration-guide",
+      "canonical": [
+        "https://servernet.cloud/tr/blog/n8n-backup-migration-guide"
+      ],
+      "h1_count": 1,
+      "html_lang": "tr",
+      "related_cta": "n8n Hosting ve Kurulum — Satışla iletişime geçin",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true,
+        "author_product": true,
+        "related_product": true,
+        "quote_label": true
+      },
+      "pass": true
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/cpanel-vs-directadmin",
+      "utc": "2026-10-25T15:26:36.647409+00:00",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/blog/cpanel-vs-directadmin",
+      "canonical": [
+        "https://servernet.cloud/en/blog/cpanel-vs-directadmin"
+      ],
+      "h1_count": 1,
+      "html_lang": "en",
+      "checks": {
+        "http200": true,
+        "same_url": true,
+        "one_h1": true,
+        "lang": true,
+        "canonical": true,
+        "jsonld": true
+      },
+      "pass": true
+    }
+  ],
+  "passed": 25,
+  "total": 25
+}
