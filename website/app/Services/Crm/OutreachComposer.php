@@ -35,7 +35,7 @@ class OutreachComposer
      */
     public function enrich(CrmLead $lead): bool
     {
-        if (blank($lead->website)) {
+        if ($lead->source === 'site-chat' || blank($lead->website)) {
             return false;
         }
 
@@ -139,7 +139,7 @@ class OutreachComposer
      */
     public function draftSocial(CrmLead $lead, string $channel, string $kind = 'dm'): ?CrmMessage
     {
-        if (! in_array($channel, ['linkedin', 'instagram'], true)) {
+        if ($lead->source === 'site-chat' || ! in_array($channel, ['linkedin', 'instagram'], true)) {
             return null;
         }
 

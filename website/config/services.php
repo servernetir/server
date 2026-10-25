@@ -24,6 +24,7 @@ return [
     // وب‌هوک دستیار هوشمند در n8n (flow.servernet.cloud)
     'n8n' => [
         'chat_webhook' => env('N8N_CHAT_WEBHOOK_URL'),
+        'chat_leads_token' => env('N8N_CHAT_LEADS_TOKEN'),
     ],
 
     'resend' => [

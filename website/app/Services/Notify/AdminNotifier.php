@@ -149,6 +149,19 @@ class AdminNotifier
         return $out;
     }
 
+    /** Internal chat lead alert; existing n8n email delivery remains independent. */
+    public function baleEvent(string $title, array $rows, string $url): void
+    {
+        $lines = ['🔔 '.$title];
+        foreach ($rows as $label => $value) {
+            if ($value !== null && $value !== '') {
+                $lines[] = $label.': '.$value;
+            }
+        }
+        $lines[] = $url;
+        $this->sendBale(implode("\n", $lines));
+    }
+
     private function sendBale(string $text, array $buttons = []): void
     {
         try {

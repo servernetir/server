@@ -40,6 +40,7 @@ class CrmLead extends Model
     /** مراحل به ترتیبِ قیف. کلید در دیتابیس، برچسب برای نمایش. */
     public const STAGES = [
         'new'      => 'سرنخ جدید',
+        'reviewed' => 'بررسی شده',
         'contacted'=> 'تماس گرفته شد',
         'fu1'      => 'فالوآپ ۱',
         'replied'  => 'جواب داد',
@@ -102,7 +103,8 @@ class CrmLead extends Model
     /** آیا این سرنخ آمادهٔ ارسالِ پیام است؟ */
     public function isContactable(): bool
     {
-        return filled($this->email)
+        return $this->source !== 'site-chat'
+            && filled($this->email)
             && filled($this->observation)          // قانونِ ۶۰ ثانیه
             && ! in_array($this->stage, ['won', 'lost'], true);
     }

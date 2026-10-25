@@ -30,6 +30,10 @@ class MarketingController extends Controller
             return view('admin.marketing.funnel', ['notReady' => true]);
         }
 
+        if ($request->query('tab') === 'chat') {
+            return app(ChatLeadController::class)->index($request);
+        }
+
         if ($request->query('tab') === 'email') {
             return $this->emailInbox($request);
         }
@@ -127,6 +131,10 @@ class MarketingController extends Controller
 
     public function show(CrmLead $lead): View
     {
+        if ($lead->source === 'site-chat') {
+            return app(ChatLeadController::class)->show($lead);
+        }
+
         return view($lead->source === 'transactional-web' ? 'admin.marketing.email-lead' : 'admin.marketing.lead', [
             'lead'     => $lead,
             'messages' => $lead->messages()->orderBy('id')->get(),
@@ -265,6 +273,10 @@ class MarketingController extends Controller
     /** تغییرِ دستیِ مرحله — مثلاً وقتی جواب تلفنی آمده */
     public function stage(Request $request, CrmLead $lead): RedirectResponse
     {
+        if ($lead->source === 'site-chat') {
+            return app(ChatLeadController::class)->update($request, $lead);
+        }
+
         $data = $request->validate([
             'stage'  => ['required', 'string', 'in:'.implode(',', array_keys(CrmLead::STAGES))],
             'offer'  => ['nullable', 'string', 'max:60'],

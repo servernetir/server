@@ -30,6 +30,11 @@ use Illuminate\Support\Facades\Route;
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
 
+// Private n8n registration callback: dedicated Bearer credential, no browser session.
+Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestController::class)
+    ->middleware([\App\Http\Middleware\ChatLeadToken::class, 'throttle:120,1'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class]);
+
 $site = function (): void {
     require __DIR__.'/identity-site.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
