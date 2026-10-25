@@ -792,7 +792,15 @@
         @foreach($c->invoices as $inv)
         <tr>
           <td dir="ltr">{{ $inv->number }}</td>
-          <td>{{ ['service'=>'خدمت','topup'=>'افزایش اعتبار','domain'=>'دامنه'][$inv->kind] ?? $inv->kind }}</td>
+          <td>
+            <span>{{ ['service'=>'خدمت','topup'=>'افزایش اعتبار','domain'=>'دامنه'][$inv->kind] ?? $inv->kind }}</span>
+            @foreach($inv->items as $item)
+              <div style="font-size:12px;line-height:1.8;margin-top:5px">{{ \App\Support\InvoiceText::title($item) }}</div>
+              @if($item->description)
+                <div style="font-size:11px;color:var(--muted);line-height:1.9;white-space:pre-line;overflow-wrap:anywhere">{{ \App\Support\InvoiceText::description($item) }}</div>
+              @endif
+            @endforeach
+          </td>
           <td>{{ $money($inv->total) }}</td>
           <td>{{ $money($inv->paid) }}</td>
           <td>

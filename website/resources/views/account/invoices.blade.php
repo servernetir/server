@@ -38,7 +38,12 @@
             @foreach($invoices as $inv)
               <tr>
                 <td dir="ltr">{{ $inv->number }}</td>
-                <td>{{ $inv->kind === 'topup' ? __('ui.invl_kind_topup') : __('ui.invl_kind_service') }}</td>
+                <td>
+                  <span>{{ $inv->kind === 'topup' ? __('ui.invl_kind_topup') : __('ui.invl_kind_service') }}</span>
+                  @foreach($inv->items as $item)
+                    <div style="font-size:12px;line-height:1.8;margin-top:4px">{{ \App\Support\InvoiceText::title($item) }}</div>
+                  @endforeach
+                </td>
                 <td>{{ sdate($inv->issued_at ?? $inv->created_at) }}</td>
                 <td>
                   @if($inv->status === 'paid')

@@ -335,7 +335,7 @@ class CustomerController extends Controller
             'bankAccounts',
             'profiles',
             'ipRules',
-            'invoices' => fn ($q) => $q->orderByDesc('id')->limit(50),
+            'invoices' => fn ($q) => $q->with('items')->orderByDesc('id')->limit(50),
             'payments' => fn ($q) => $q->orderByDesc('id')->limit(50),
             'creditEntries' => fn ($q) => $q->orderByDesc('id')->limit(50),
             'tickets' => fn ($q) => $q->orderByDesc('last_reply_at')->limit(50),
