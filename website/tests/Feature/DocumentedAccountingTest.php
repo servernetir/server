@@ -400,4 +400,31 @@ class DocumentedAccountingTest extends TestCase
         $this->assertSame(100, $r['vat_movement']);
         $this->assertSame(150, $r['vat_due']);
     }
+
+    public function test_jalali_asset_dates_depreciation_reversal_and_close_preserve_book_periods(): void
+    {
+        $this->actingAs($this->admin());
+        $a = $this->account('partner', 'IRT');
+        $d = $this->data($a, ['type' => 'asset_purchase', 'occurred_at' => '۱۴۰۵/۰۷/۱۳', 'original_currency' => 'IRT',
+            'original_amount' => '1000000', 'settlement_currency' => 'IRT', 'settlement_amount' => '1000000',
+            'amount_irt' => '1000000', 'input_vat_irt' => '0', 'asset_name' => 'Test server', 'in_service_at' => '۱۴۰۵/۰۷/۱۳',
+            'useful_life_months' => 10, 'residual_irt' => '0']);
+        unset($d['original_minor'], $d['settlement_minor']);
+        $this->post('/admin/finance/accounting/vouchers', $d)->assertSessionHasNoErrors()->assertRedirect();
+        $asset = FinanceAsset::sole();
+        $this->assertSame('2026-10-05', $asset->in_service_at->toDateString());
+        Carbon::setTestNow(Carbon::parse('2026-11-05', 'UTC'));
+        $this->post(route('admin.accounting.depreciate', $asset), ['period_date' => '۱۴۰۵/۰۷/۱۵'])
+            ->assertSessionHasNoErrors()->assertRedirect();
+        $dep = FinanceVoucher::where('type', 'depreciation')->sole();
+        $this->assertSame('asset-'.$asset->id.'-2026-10', $dep->asset_period);
+        $this->assertSame('2026-10-31', $dep->occurred_at->toDateString());
+        $this->get('/admin/finance/accounting/vouchers/'.$dep->id)->assertOk()->assertSee('data-jdate', false)->assertDontSee('type="date"', false);
+        $this->post('/admin/finance/accounting/vouchers/'.$dep->id.'/reverse', ['occurred_at' => '۱۴۰۵/۰۸/۱۴', 'reason' => 'Test dated reversal'])
+            ->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame('2026-11-05', FinanceVoucher::where('reversal_of', $dep->id)->sole()->occurred_at->toDateString());
+        $this->post('/admin/finance/accounting/close-period', ['through' => '۱۴۰۵/۰۸/۱۴', 'reason' => 'Test reviewed close date'])
+            ->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertSame('2026-11-05', DB::table('finance_controls')->where('id', 1)->value('locked_through'));
+    }
 }
