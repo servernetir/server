@@ -66,6 +66,10 @@ class CryptoIssuer
      */
     public function offers(string $currency): array
     {
+        if (! app(PaymentVisibility::class)->allows('crypto')) {
+            return [];
+        }
+
         $out = [];
 
         foreach (self::ASSETS as $code => $spec) {
@@ -135,6 +139,10 @@ class CryptoIssuer
 
         if ($open !== null) {
             return $open;
+        }
+
+        if (! app(PaymentVisibility::class)->allows('crypto')) {
+            return null;
         }
 
         $spec = self::ASSETS[$asset] ?? null;

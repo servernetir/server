@@ -142,10 +142,12 @@
       </form>
     @endif
 
+    @if($pendingBank)
+      <p class="pm-note" style="color:var(--warn)">{!! __('ui.inv_bank_pending', ['ref' => '<b dir="ltr">'.e($pendingBank->reference).'</b>']) !!}</p>
+    @endif
     {{-- گام ۱: انتخاب روش (کارتی) --}}
     <p class="pm-lead">{{ __('ui.inv_choose_method') }}</p>
     <div class="pm-grid">
-      @if(app()->getLocale() === 'fa')
         @if(isset($gateways['zarinpal']))
           <label class="pm-card" data-m="zarinpal">
             <input type="radio" name="pm" value="zarinpal" hidden>
@@ -181,6 +183,7 @@
             <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
           </label>
         @endif
+        @if($bank !== null)
         <label class="pm-card" data-m="bank">
           <input type="radio" name="pm" value="bank" hidden>
           <span class="pm-badge bk"><svg class="icon"><use href="#i-db"/></svg></span>
@@ -273,11 +276,13 @@
     </div>
 
     {{-- گام ۲: جزئیاتِ روشِ انتخاب‌شده (پیش‌فرض پنهان) --}}
+    @if(! isset($gateways['zarinpal']) && ! isset($gateways['bale']) && ! $snapppay['show'] && $bank === null && $offline->isEmpty() && empty($cryptoAssets))
+      <p class="pm-note">{{ __('ui.iv_no_payment_methods') }}</p>
+    @endif
     <div class="pm-hint" id="pm-hint" @if($cryptoOpen) hidden @endif>
       <svg class="icon"><use href="#i-info"/></svg> {{ __('ui.inv_pm_hint') }}
     </div>
 
-    @if(app()->getLocale() === 'fa')
       @if(isset($gateways['zarinpal']))
         <form class="pm-pane" id="pane-zarinpal" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
           @csrf<input type="hidden" name="gateway" value="zarinpal">
@@ -315,6 +320,7 @@
         </form>
       @endif
 
+      @if($bank !== null)
       <div class="pm-pane" id="pane-bank" hidden>
         <div class="pm-pane-h"><b>{{ __('ui.inv_bank_pane_title') }}</b></div>
         @if($pendingBank)

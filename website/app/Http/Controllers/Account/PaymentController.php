@@ -231,7 +231,7 @@ class PaymentController extends Controller
             |    داشت که هیچ راهی برای پرداختش نبود. بدترین حالتِ ممکن: پول
             |    نمی‌گرفتیم و مشتری هم فکر می‌کرد سایت خراب است.
             */
-            'offline'      => \App\Models\PaymentAccount::forInvoiceCurrency($invoice->currency_code),
+            'offline'      => $this->offlineAccounts($invoice->currency_code),
 
             /*
             | رمزارز: هر دارایی با **وضعیتِ خودش** —
@@ -310,7 +310,8 @@ class PaymentController extends Controller
     /** مشخصات حساب شرکت برای «واریز به حساب» — از تنظیماتِ قابل‌ویرایشِ مدیر */
     private function bankDetails(): ?array
     {
-        if (! Schema::hasTable('settings') || ! Setting::bankReady()) {
+        if (! app(\App\Services\Payment\PaymentVisibility::class)->allows('bank_iran')
+            || ! Schema::hasTable('settings') || ! Setting::bankReady()) {
             return null;
         }
 
@@ -357,7 +358,7 @@ class PaymentController extends Controller
         $account = null;
 
         if (! empty($data['payment_account_id'])) {
-            $account = \App\Models\PaymentAccount::forInvoiceCurrency($invoice->currency_code)
+            $account = $this->offlineAccounts($invoice->currency_code)
                 ->firstWhere('id', (int) $data['payment_account_id']);
 
             if ($account === null) {
@@ -440,6 +441,13 @@ class PaymentController extends Controller
      * می‌بیند که با انتخابش خطای «اول بله را وصل کنید» می‌گیرد. بهتر است اصلاً
      * نبیندش تا وقتی آماده است.
      */
+    private function offlineAccounts(string $currency): \Illuminate\Support\Collection
+    {
+        return \App\Models\PaymentAccount::forInvoiceCurrency($currency)
+            ->filter(fn ($a) => app(\App\Services\Payment\PaymentVisibility::class)->allowsAccount($a))
+            ->values();
+    }
+
     private function gatewaysFor(string $currency): array
     {
         // بله هم نشان داده می‌شود حتی اگر کاربر هنوز وصل نکرده باشد — کارفرما

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'iv_no_payment_methods' => 'Bu dil için şu anda etkin bir ödeme yöntemi yok. Ödeme için destek ekibiyle iletişime geçin.',
     'f_email_transactional' => 'İşlemsel E-posta ve SMTP',
     'cvb_live_price_changed' => 'Bu paketin fiyatı güncellendi. Ücret alınmadı; yeni fiyatı inceleyip satın almayı tekrar onaylayın.',
     'cvb_live_review_unavailable' => 'Güncel fiyat, kapasite veya işletim sistemi doğrulanamadı. Ücret alınmadı; lütfen kısa süre sonra tekrar kontrol edin.',

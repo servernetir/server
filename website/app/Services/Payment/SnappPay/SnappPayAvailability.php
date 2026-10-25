@@ -103,8 +103,8 @@ class SnappPayAvailability
             return 'disabled';
         }
 
-        // تصمیمِ کارفرما: «تمام خریدهایی که با زبان فارسی انجام می‌شود»
-        if (! in_array(app()->getLocale(), (array) config('snapppay.locales', ['fa']), true)) {
+        // زبان مجاز از چک‌لیست مدیر می‌آید؛ پیش‌فرض فقط فارسی است.
+        if (! app(\App\Services\Payment\PaymentVisibility::class)->allows('snapppay')) {
             return 'locale';
         }
 

@@ -3407,6 +3407,7 @@ Route::prefix('admin')->group(function () {
         // تنظیمات — مشخصات حساب بانکی شرکت
         Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings')->middleware('admin');
         Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->middleware('admin');
+        Route::post('/settings/payment-visibility', [\App\Http\Controllers\Admin\SettingsController::class, 'paymentVisibility'])->middleware('admin');
     });
 });
 

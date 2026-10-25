@@ -34,7 +34,8 @@ class GatewayRegistry
     {
         return array_filter(
             $this->gateways,
-            fn (PaymentGateway $g) => $g->enabled() && $g->currency() === $currency,
+            fn (PaymentGateway $g) => $g->enabled() && $g->currency() === $currency
+                && app(PaymentVisibility::class)->allows($g->key()),
         );
     }
 

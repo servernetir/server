@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'iv_no_payment_methods' => 'No payment method is currently enabled for this language. Please contact support to arrange payment.',
     'f_email_transactional' => 'Transactional Email & SMTP',
     'cvb_live_price_changed' => 'This plan price was updated. Nothing was charged; review the new price and confirm your purchase again.',
     'cvb_live_review_unavailable' => 'The current price, capacity or operating system could not be verified. Nothing was charged; please check again shortly.',
