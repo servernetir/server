@@ -14,6 +14,10 @@ $snap = ['fa' => 'بکاپ + اسنپ‌شات', 'en' => 'Backups + snapshots', 
 $mk = fn (string $name, int $pid, int $irt, float $eur, array $specs, bool $pop = false) =>
     array_filter(['name' => $name, 'pid' => $pid, 'irt' => $irt, 'eur' => $eur, 'specs' => $specs, 'popular' => $pop]);
 
+// GPU VM resource classes require a reviewed quote; they are not checkout SKUs.
+$quote = fn (string $name, array $specs, bool $pop = false) =>
+    ['name' => $name, 'specs' => $specs, 'popular' => $pop, 'contact' => true];
+
 return [
 
     'iran' => [
@@ -494,6 +498,7 @@ return [
     ],
 
     'gpu' => [
+        'quote_only' => true,
         'icon' => 'monitor',
         'group' => 'use',
         'fa' => [
@@ -534,9 +539,9 @@ return [
         ]
     ,
         'plans' => [
-            $mk('G-4000', 93, 4900000, 49.00, ['RTX 4000 Ada · 20 GB', '8 vCPU / 32 GB RAM', '250 GB NVMe', ['fa' => 'درایور و CUDA آماده', 'en' => 'Drivers & CUDA ready', 'tr' => 'Sürücüler ve CUDA hazır'], $traffic]),
-            $mk('G-A5000', 94, 7900000, 79.00, ['RTX A5000 · 24 GB', '12 vCPU / 64 GB RAM', '500 GB NVMe', ['fa' => 'درایور و CUDA آماده', 'en' => 'Drivers & CUDA ready', 'tr' => 'Sürücüler ve CUDA hazır'], $traffic], true),
-            $mk('G-A100', 95, 14900000, 149.00, ['A100 · 40 GB HBM2e', '16 vCPU / 128 GB RAM', '1 TB NVMe', ['fa' => 'درایور و CUDA آماده', 'en' => 'Drivers & CUDA ready', 'tr' => 'Sürücüler ve CUDA hazır'], $traffic]),
+            $quote('G-4000', ['RTX 4000 Ada · 20 GB', '8 vCPU / 32 GB RAM', '250 GB NVMe', ['fa' => 'سازگاری درایور و CUDA طبق پیشنهاد', 'en' => 'Driver and CUDA compatibility confirmed in the quote', 'tr' => 'Sürücü ve CUDA uyumluluğu teklifte doğrulanır'], ['fa' => 'ترافیک و ماندگاری دیسک طبق پیشنهاد', 'en' => 'Traffic and disk persistence defined in the quote', 'tr' => 'Trafik ve disk kalıcılığı teklifte belirlenir']]),
+            $quote('G-A5000', ['RTX A5000 · 24 GB', '12 vCPU / 64 GB RAM', '500 GB NVMe', ['fa' => 'سازگاری درایور و CUDA طبق پیشنهاد', 'en' => 'Driver and CUDA compatibility confirmed in the quote', 'tr' => 'Sürücü ve CUDA uyumluluğu teklifte doğrulanır'], ['fa' => 'ترافیک و ماندگاری دیسک طبق پیشنهاد', 'en' => 'Traffic and disk persistence defined in the quote', 'tr' => 'Trafik ve disk kalıcılığı teklifte belirlenir']], true),
+            $quote('G-A100', ['A100 · 40 GB HBM2e', '16 vCPU / 128 GB RAM', '1 TB NVMe', ['fa' => 'سازگاری درایور و CUDA طبق پیشنهاد', 'en' => 'Driver and CUDA compatibility confirmed in the quote', 'tr' => 'Sürücü ve CUDA uyumluluğu teklifte doğrulanır'], ['fa' => 'ترافیک و ماندگاری دیسک طبق پیشنهاد', 'en' => 'Traffic and disk persistence defined in the quote', 'tr' => 'Trafik ve disk kalıcılığı teklifte belirlenir']]),
         ],
         'features' => [[
                 'icon' => 'key',
