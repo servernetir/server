@@ -155,7 +155,7 @@ return [
     'no_records' => 'Bu dönemde kayıt yok.',
     'view' => 'Görüntüle',
     'date' => 'Tarih',
-    'tax_paid' => 'Ödenen gelir vergisi',
+    'tax_paid' => 'Sınıflandırılması gereken eski vergi ödemesi',
     'shared_hosting' => 'Paylaşımlı hosting',
     'reseller_hosting' => 'Bayi hosting',
     'cloud_vps' => 'Bulut / VPS',

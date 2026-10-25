@@ -39,6 +39,7 @@ class FinanceController extends Controller
             'trend' => $this->ledger->monthlyTrend(6, $filter),
             'recent' => $entries?->orderByDesc('occurred_at')->orderByDesc('id')->paginate(50)->withQueryString() ?? collect(),
             'categories' => BusinessLedger::EXPENSE_CATEGORIES,
+            'filterCategories' => collect(BusinessLedger::EXPENSE_CATEGORIES)->merge($this->ledger->ready() ? BusinessEntry::whereNotNull('category')->distinct()->pluck('category') : [])->unique()->sort()->values()->all(),
             'churn' => $this->churnReasons(),
         ]);
     }

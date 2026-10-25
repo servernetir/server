@@ -24,6 +24,12 @@
       'capital' => 'سرمایه', 'revenue' => 'درآمد', 'tax_collected' => 'مالیات گرفته',
       'expense' => 'هزینه', 'tax_paid' => 'مالیات داده', 'withdrawal' => 'برداشت',
       'refund' => 'بازگشت وجه',
+      'expense_reversal' => 'برگشت هزینه', 'ai_rev_adjust' => 'اصلاح درآمد AI',
+      'ai_tax_adjust' => 'اصلاح مالیات AI', 'ai_cost_adjust' => 'اصلاح هزینه AI',
+      'hourly_refund' => 'برگشت مصرف ساعتی', 'fx_gain' => 'سود تسعیر تحقق‌یافته',
+      'fx_loss' => 'زیان تسعیر تحقق‌یافته', 'fx_gain_rev' => 'برگشت سود تسعیر',
+      'fx_loss_rev' => 'برگشت زیان تسعیر', 'identity_refund' => 'برگشت درآمد احراز هویت',
+      'id_tax_refund' => 'برگشت مالیات احراز هویت',
   ];
 @endphp
 
@@ -48,12 +54,12 @@
   <label>{{ __('finance.to') }}<input class="ad-input" type="date" name="to" value="{{ $filters['to'] ?? '' }}"></label>
   <label>{{ __('finance.range') }}<select class="ad-input" name="range">@foreach(['all','month','year','custom'] as $r)<option value="{{ $r }}" @selected($range===$r)>{{ __('finance.range_'.$r) }}</option>@endforeach</select></label>
   <label>{{ __('finance.kind') }}<select name="kind" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach($kindLabel as $k=>$label)<option value="{{ $k }}" @selected(($filters['kind']??'')===$k)>{{ $label }}</option>@endforeach</select></label>
-  <label>{{ __('finance.category') }}<select name="category" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach($categories as $c)<option value="{{ $c }}" @selected(($filters['category']??'')===$c)>{{ $catLabels[$c]??$c }}</option>@endforeach</select></label>
+  <label>{{ __('finance.category') }}<select name="category" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach($filterCategories as $c)<option value="{{ $c }}" @selected(($filters['category']??'')===$c)>{{ $catLabels[$c]??$c }}</option>@endforeach</select></label>
   <label>{{ __('finance.currency') }}<select name="currency" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach(['IRT','USD','EUR','TRY','USDT','IRR','GBP'] as $c)<option @selected(($filters['currency']??'')===$c)>{{ $c }}</option>@endforeach</select></label>
   <label>{{ __('finance.origin') }}<select name="origin" class="ad-input">@foreach(['all','auto','manual'] as $o)<option value="{{ $o }}" @selected(($filters['origin']??'all')===$o)>{{ __('finance.'.$o) }}</option>@endforeach</select></label>
   <button class="ad-btn" type="submit">{{ __('finance.apply') }}</button><a href="{{ route('admin.finance') }}">{{ __('finance.reset') }}</a>
 </form>
-<p class="ad-note">{{ __('finance.filtered_note') }}</p>
+<p class="ad-note">{{ __('finance.filtered_note') }}<br>{{ __('finance.report_limits') }}</p>
 
 {{-- ══ چهار عدد اصلی ══ --}}
 <div class="fin-kpis">
@@ -63,7 +69,7 @@
     <small>موجودی بانک نیست؛ شارژ کیف پول و تسویه درگاه نیازمند تطبیق‌اند</small>
   </div>
   <div class="fin-kpi">
-    <span class="fin-kpi-l">سود خالص</span>
+    <span class="fin-kpi-l">سود دفتری ثبت‌شده</span>
     <b class="fin-kpi-v" style="color:{{ $s['net_profit'] >= 0 ? '#34d399' : '#ff6b6b' }}">{{ $t($s['net_profit']) }}</b>
     <small>درآمد منهای هزینه · حاشیه {{ fa_num($s['margin']) }}٪</small>
   </div>
@@ -75,7 +81,7 @@
   <div class="fin-kpi">
     <span class="fin-kpi-l">مانده ارزش افزوده ثبت‌شده</span>
     <b class="fin-kpi-v" style="color:#fbbf24">{{ $t($s['tax_liability']) }}</b>
-    <small>بدون اعتبار خرید و مانده انتقالی</small>
+    <small>وصول‌شده منهای پرداخت قدیمی؛ بدهی قطعی مالیاتی نیست</small>
   </div>
 </div>
 
@@ -202,7 +208,7 @@
           <option value="capital">سرمایه‌گذاری (پول گذاشتم)</option>
           <option value="expense">هزینه</option>
           <option value="withdrawal">برداشت (پول برداشتم)</option>
-          <option value="tax_paid">پرداخت مالیات به دولت</option>
+          <option value="tax_paid">پرداخت مالیات قدیمی (فعلاً ارزش افزوده)</option>
         </select>
 
         <div id="fin-cat-wrap" style="display:none">

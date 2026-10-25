@@ -155,7 +155,7 @@ return [
     'no_records' => 'No records in this period.',
     'view' => 'View',
     'date' => 'Date',
-    'tax_paid' => 'Income tax remitted',
+    'tax_paid' => 'Legacy tax payment requiring classification',
     'shared_hosting' => 'Shared hosting',
     'reseller_hosting' => 'Reseller hosting',
     'cloud_vps' => 'Cloud / VPS',
