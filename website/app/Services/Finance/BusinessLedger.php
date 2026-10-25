@@ -2,10 +2,22 @@
 
 namespace App\Services\Finance;
 
+use App\Models\AiUsage;
 use App\Models\BusinessEntry;
+use App\Models\CreditEntry;
+use App\Models\Domain;
+use App\Models\FinanceVoucher;
+use App\Models\IdentityRequest;
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\Service;
+use App\Models\ServiceCost;
+use App\Models\SnappPayOrderEvent;
+use App\Services\Domain\DomainCostFloor;
+use App\Support\ErrorTracker;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -19,13 +31,15 @@ class BusinessLedger
 {
     /** جهتِ هر نوع — تا کنترلر مجبور نباشد یادش باشد */
     private const DIRECTION = [
-        'capital'       => 'in',
-        'revenue'       => 'in',
+        'capital' => 'in',
+        'revenue' => 'in',
         'tax_collected' => 'in',
-        'expense'       => 'out',
-        'tax_paid'      => 'out',
-        'withdrawal'    => 'out',
-        'refund'        => 'out',
+        'expense' => 'out',
+        'expense_reversal' => 'in',
+        'ai_rev_adjust' => 'out', 'ai_tax_adjust' => 'out', 'ai_cost_adjust' => 'out', 'hourly_refund' => 'out', 'fx_gain' => 'in', 'fx_loss' => 'out', 'fx_gain_rev' => 'out', 'fx_loss_rev' => 'in',
+        'tax_paid' => 'out',
+        'withdrawal' => 'out',
+        'refund' => 'out',
         'identity_refund' => 'out',
         'id_tax_refund' => 'out',
     ];
@@ -44,14 +58,14 @@ class BusinessLedger
      * عوض کند و پنل و ربات دو نام برای یک چیز بگویند.
      */
     public const CATEGORY_LABELS = [
-        'server'           => 'سرور و زیرساخت',
-        'api_kyc'          => 'احراز هویت (زحل)',
-        'api_sms'          => 'پیامک',
+        'server' => 'سرور و زیرساخت',
+        'api_kyc' => 'احراز هویت (زحل)',
+        'api_sms' => 'پیامک',
         'domain_wholesale' => 'خرید عمده دامنه',
-        'payment_fee'      => 'کارمزد درگاه',
-        'salary'           => 'حقوق',
-        'marketing'        => 'بازاریابی',
-        'other'            => 'سایر',
+        'payment_fee' => 'کارمزد درگاه',
+        'salary' => 'حقوق',
+        'marketing' => 'بازاریابی',
+        'other' => 'سایر',
     ];
 
     /** برچسبِ یک دسته، یا خودِ کلید اگر ناشناخته بود. */
@@ -104,11 +118,11 @@ class BusinessLedger
         }
 
         // سهم این پرداخت از فاکتور (ممکن است پرداخت جزئی باشد)
-        $paid  = $payment->amount;
+        $paid = $payment->amount;
         $total = max(1, $invoice->total);
 
         // نسبت مالیات همان نسبت فاکتور است
-        $taxPortion     = intdiv($invoice->tax * $paid, $total);
+        $taxPortion = intdiv($invoice->tax * $paid, $total);
         $revenuePortion = $paid - $taxPortion;
 
         if ($revenuePortion > 0) {
@@ -156,7 +170,7 @@ class BusinessLedger
 
         if ($bearer !== 'merchant') {
             if ($bearer !== 'payer') {
-                \App\Support\ErrorTracker::noteOnce('finance',
+                ErrorTracker::noteOnce('finance',
                     'کارمزد درگاه ثبت نشد — معلوم نیست پرداخت‌کننده‌اش کیست', 3600,
                     ['payment' => $payment->id, 'fee_type' => $payment->fee_type ?: '(خالی)']);
             }
@@ -191,7 +205,7 @@ class BusinessLedger
             return;
         }
 
-        $amount = \App\Models\ServiceCost::amountFor($service);
+        $amount = ServiceCost::amountFor($service);
 
         if ($amount <= 0) {
             return;
@@ -229,7 +243,7 @@ class BusinessLedger
      * است که نرخِ تاریخی در این پروژه ذخیره نمی‌شود؛ فراخوان باید بداند با
      * نرخِ چه روزی حساب کرده و در `note` بنویسد.
      *
-     * @return BusinessEntry|null  ردیفِ تازه یا موجود؛ null اگر ثبت‌شدنی نبود
+     * @return BusinessEntry|null ردیفِ تازه یا موجود؛ null اگر ثبت‌شدنی نبود
      */
     public function recordServerRent(int $serverId, string $period, int $amountToman, Carbon $occurredAt, string $note): ?BusinessEntry
     {
@@ -250,11 +264,11 @@ class BusinessLedger
                 ['kind' => 'expense', 'category' => 'server', 'period' => $period, 'ref_id' => $serverId],
                 [
                     'currency_code' => 'IRT',
-                    'direction'     => self::DIRECTION['expense'],
-                    'amount'        => $amountToman,
-                    'occurred_at'   => $occurredAt->toDateString(),
-                    'note'          => mb_substr($note, 0, 255),
-                    'created_by'    => null,          // خودکار، نه دستی
+                    'direction' => self::DIRECTION['expense'],
+                    'amount' => $amountToman,
+                    'occurred_at' => $occurredAt->toDateString(),
+                    'note' => mb_substr($note, 0, 255),
+                    'created_by' => null,          // خودکار، نه دستی
                 ],
             );
         } catch (\Throwable $e) {
@@ -278,7 +292,7 @@ class BusinessLedger
                     ->where('period', $period)->where('ref_id', $serverId)->first();
             }
 
-            \App\Support\ErrorTracker::note('finance', $e, ['step' => 'server-rent', 'server' => $serverId]);
+            ErrorTracker::note('finance', $e, ['step' => 'server-rent', 'server' => $serverId]);
 
             return null;
         }
@@ -326,10 +340,10 @@ class BusinessLedger
             return;
         }
 
-        $paid  = (int) $invoice->paid;
+        $paid = (int) $invoice->paid;
         $total = max(1, (int) $invoice->total);
 
-        $taxPortion     = intdiv((int) $invoice->tax * $paid, $total);
+        $taxPortion = intdiv((int) $invoice->tax * $paid, $total);
         $revenuePortion = $paid - $taxPortion;
 
         if ($revenuePortion > 0) {
@@ -370,29 +384,44 @@ class BusinessLedger
      * ⚠️ فقط دلیل‌های سفیدشده. `invoice_payment` از مسیرِ رسمیِ `Payment` رد
      * می‌شود و اگر این‌جا هم ثبت شود، درآمد **دو برابر** می‌شود.
      */
-    public const CREDIT_SPEND_REASONS = ['cloud_hourly', 'cloud_hourly_convert'];
+    public const CREDIT_SPEND_REASONS = ['cloud_hourly', 'cloud_hourly_hold', 'cloud_hourly_convert'];
 
     /** Same outer transaction as wallet capture. Source/kind uniqueness supplies dedup. */
-    public function recordIdentitySale(\App\Models\IdentityRequest $request): void
+    public function recordIdentitySale(IdentityRequest $request): void
     {
-        if (!$this->ready()) throw new \RuntimeException('Business ledger unavailable');
-        $q=$request->quote;
+        if (! $this->ready()) {
+            throw new \RuntimeException('Business ledger unavailable');
+        }
+        $q = $request->quote;
         // Supplier tax is already in the cost basis; no unapproved tax-recovery credit.
-        foreach (['revenue'=>$q['sell_irt'],'tax_collected'=>$q['tax_irt'],'expense'=>$q['cost_irt']] as $kind=>$amount) {
-            if ($amount>0) $this->post($kind,$amount,category:'identity_api',source:$request,note:'Identity API '.$request->public_id);
+        foreach (['revenue' => $q['sell_irt'], 'tax_collected' => $q['tax_irt'], 'expense' => $q['cost_irt']] as $kind => $amount) {
+            if ($amount > 0) {
+                $this->post($kind, $amount, category: 'identity_api', source: $request, note: 'Identity API '.$request->public_id);
+            }
         }
     }
 
-    public function recordIdentityRefund(\App\Models\IdentityRequest $request): void
+    public function recordIdentityRefund(IdentityRequest $request): void
     {
-        if (!$this->ready()) throw new \RuntimeException('Business ledger unavailable');
-        foreach (['identity_refund'=>$request->quote['sell_irt'],'id_tax_refund'=>$request->quote['tax_irt']] as $kind=>$amount) {
-            if ($amount>0) $this->post($kind,$amount,category:'identity_api',source:$request,note:'Identity correction '.$request->public_id);
+        if (! $this->ready()) {
+            throw new \RuntimeException('Business ledger unavailable');
+        }
+        foreach (['identity_refund' => $request->quote['sell_irt'], 'id_tax_refund' => $request->quote['tax_irt']] as $kind => $amount) {
+            if ($amount > 0) {
+                $this->post($kind, $amount, category: 'identity_api', source: $request, note: 'Identity correction '.$request->public_id);
+            }
         }
     }
 
-    public function recordCreditSpend(\App\Models\CreditEntry $entry): void
+    public const CREDIT_REFUND_REASONS = ['cloud_hourly_refund', 'ln_price_adjustment', 'refund'];
+
+    public function recordCreditSpend(CreditEntry $entry): void
     {
+        if ((int) $entry->amount > 0) {
+            $this->recordHourlyRefund($entry);
+
+            return;
+        }
         if (! $this->ready()) {
             return;
         }
@@ -407,6 +436,36 @@ class BusinessLedger
         $this->post('revenue', $amount, occurredAt: $entry->created_at, source: $entry,
             note: 'درآمد مصرفِ اعتبار — '.$entry->reason,
             currency: $entry->currency_code ?: 'IRT');
+    }
+
+    public function isHourlyRefund(CreditEntry $entry): bool
+    {
+        if ((int) $entry->amount <= 0 || ! in_array($entry->reason, self::CREDIT_REFUND_REASONS, true)
+            || $entry->source_type !== (new Service)->getMorphClass()) {
+            return false;
+        }
+        $service = Service::find($entry->source_id);
+        if (! $service) {
+            return false;
+        }
+        if ($entry->reason === 'cloud_hourly_refund') {
+            return true;
+        }
+        if (Invoice::where('service_id', $service->id)->where('paid', '>', 0)->exists()) {
+            return false;
+        }
+
+        return CreditEntry::where('source_type', $entry->source_type)->where('source_id', $entry->source_id)
+            ->where('amount', '<', 0)->whereIn('reason', self::CREDIT_SPEND_REASONS)->exists();
+    }
+
+    private function recordHourlyRefund(CreditEntry $entry): void
+    {
+        if (! $this->ready() || ! $this->isHourlyRefund($entry)) {
+            return;
+        }
+        $this->post('hourly_refund', (int) $entry->amount, occurredAt: $entry->created_at, source: $entry,
+            note: 'Hourly refund / '.$entry->reason, currency: $entry->currency_code ?: 'IRT');
     }
 
     /**
@@ -432,7 +491,7 @@ class BusinessLedger
      * منبع باید خودِ رویداد باشد (مثلاً ردیفِ snapppay_order_events): هر عملِ
      * ادمین یک ردیفِ مستقل است، پس هر بازگشت ردیفِ دفتریِ خودش را می‌گیرد.
      */
-    public function recordRefundFor(\Illuminate\Database\Eloquent\Model $source, int $amount, string $currency, string $note): void
+    public function recordRefundFor(Model $source, int $amount, string $currency, string $note): void
     {
         if (! $this->ready() || $amount <= 0) {
             return;
@@ -468,19 +527,19 @@ class BusinessLedger
      * — حدسِ ساختگی وارد دفتر نمی‌شود (همان قاعدهٔ `recordApiCost`) ولی در
      * ردیاب دیده می‌شود تا «هزینهٔ گمشده» بی‌صدا نماند.
      */
-    public function recordDomainWholesale(\App\Models\Domain $domain, string $stage, int $years = 1): void
+    public function recordDomainWholesale(Domain $domain, string $stage, int $years = 1): void
     {
         if (! $this->ready()) {
             return;
         }
 
         try {
-            $amount = app(\App\Services\Domain\DomainCostFloor::class)
+            $amount = app(DomainCostFloor::class)
                 ->wholesaleToman($domain, $stage, $years);
 
             if ($amount <= 0) {
                 if ((int) $domain->cost_amount > 0) {
-                    \App\Support\ErrorTracker::noteOnce('domain',
+                    ErrorTracker::noteOnce('domain',
                         'هزینهٔ عمدهٔ دامنه ثبت نشد — نرخِ ارز در دسترس نیست', 3600,
                         ['domain' => $domain->domain, 'stage' => $stage]);
                 }
@@ -505,7 +564,7 @@ class BusinessLedger
                 note: 'خرید عمده — '.($labels[$stage] ?? $stage).' '.$domain->domain);
         } catch (\Throwable $e) {
             // دفتر هرگز مسیرِ ثبت/تمدید را نمی‌شکند
-            \App\Support\ErrorTracker::note('finance', $e, ['area' => 'domain-wholesale', 'domain' => $domain->domain]);
+            ErrorTracker::note('finance', $e, ['area' => 'domain-wholesale', 'domain' => $domain->domain]);
         }
     }
 
@@ -520,6 +579,67 @@ class BusinessLedger
 
         return $this->post($kind, $amount, category: $category, occurredAt: $occurredAt,
             note: $note, userId: $userId);
+    }
+
+    /** Called inside the existing customer/reservation/usage transaction; never touches the wallet. */
+    public function recordAiUsage(AiUsage $usage, bool $correction = false): void
+    {
+        if (! $this->ready() || ! in_array($usage->status, AiUsage::CHARGED, true)) {
+            return;
+        }
+        $gross = max(0, (int) $usage->charged_irt - (int) $usage->refunded_irt - (int) $usage->uncollected_irt);
+        $quotedGross = max(1, (int) $usage->sell_irt + (int) $usage->tax_irt);
+        $tax = (int) bcdiv(bcmul((string) $gross, (string) $usage->tax_irt, 0), (string) $quotedGross, 0);
+        $net = $gross - $tax;
+        $cost = max(0, (int) $usage->cost_irt);
+        $when = $correction ? now() : ($usage->settled_at ?? now());
+        $before = BusinessEntry::where('source_type', $usage->getMorphClass())->where('source_id', $usage->id)
+            ->get()->keyBy('kind');
+        if (! $correction) {
+            foreach (['revenue' => $net, 'tax_collected' => $tax, 'expense' => $cost] as $kind => $amount) {
+                if ($amount > 0) {
+                    $this->post($kind, $amount, category: 'ai', occurredAt: $when, source: $usage, note: 'AI '.$usage->public_id);
+                }
+            }
+
+            return;
+        }
+        // A historical row without the original snapshot cannot be corrected retrospectively at today's date.
+        if (! $before->has('revenue') && ! $before->has('expense')) {
+            ErrorTracker::noteOnce('finance', 'AI correction needs dated ledger reconciliation', 3600, ['usage' => $usage->public_id]);
+
+            return;
+        }
+        $revenueBefore = (int) ($before['revenue']->amount ?? 0);
+        $taxBefore = (int) ($before['tax_collected']->amount ?? 0);
+        $costBefore = (int) ($before['expense']->amount ?? 0);
+        foreach (['ai_rev_adjust' => max(0, $revenueBefore - $net), 'ai_tax_adjust' => max(0, $taxBefore - $tax),
+            'expense_reversal' => max(0, $costBefore - $cost), 'ai_cost_adjust' => max(0, $cost - $costBefore)] as $kind => $amount) {
+            if ($amount > 0) {
+                $this->post($kind, $amount, category: 'ai', occurredAt: $when, source: $usage, note: 'AI correction '.$usage->public_id);
+            }
+        }
+    }
+
+    public function recordForex(FinanceVoucher $voucher, int $gain, bool $reversing = false): void
+    {
+        if ($gain === 0 || ! $this->ready()) {
+            return;
+        }
+        $kind = $reversing ? ($gain > 0 ? 'fx_loss_rev' : 'fx_gain_rev') : ($gain > 0 ? 'fx_gain' : 'fx_loss');
+        $this->post($kind, abs($gain), category: 'fx', occurredAt: Carbon::parse($voucher->occurred_at->toDateString(), 'Asia/Tehran'),
+            source: $voucher, note: 'Realized FX / voucher '.$voucher->id, userId: $voucher->created_by);
+    }
+
+    public function recordDocumentedCost(FinanceVoucher $voucher, int $amount, bool $reversal = false): ?BusinessEntry
+    {
+        if (! $this->ready() || $amount <= 0) {
+            return null;
+        }
+
+        return $this->post($reversal ? 'expense_reversal' : 'expense', $amount, category: $voucher->category,
+            occurredAt: Carbon::parse($voucher->occurred_at->toDateString(), 'Asia/Tehran'), source: $voucher,
+            note: 'Voucher #'.$voucher->id.' '.$voucher->note, userId: (int) $voucher->created_by);
     }
 
     private function post(
@@ -549,12 +669,12 @@ class BusinessLedger
 
         $values = [
             'currency_code' => $currency,
-            'direction'     => self::DIRECTION[$kind],
-            'category'      => $category,
-            'amount'        => $amount,
-            'occurred_at'   => $when->toDateString(),
-            'note'          => $note,
-            'created_by'    => $userId,
+            'direction' => self::DIRECTION[$kind],
+            'category' => $category,
+            'amount' => $amount,
+            'occurred_at' => $when->toDateString(),
+            'note' => $note,
+            'created_by' => $userId,
         ];
 
         // ردیفِ وصل به یک منبع (پرداخت) باید idempotent باشد: settle دوباره
@@ -579,7 +699,7 @@ class BusinessLedger
      *
      * @return array<string,int|float|array>
      */
-    public function summary(?Carbon $from = null, ?Carbon $to = null): array
+    public function summary(?Carbon $from = null, ?Carbon $to = null, ?FinanceFilter $filter = null): array
     {
         if (! $this->ready()) {
             return $this->empty();
@@ -587,7 +707,10 @@ class BusinessLedger
 
         // بازهٔ زمانی یک بار تعریف می‌شود و روی هر دو پرس‌وجو (پایه و ارزی)
         // می‌نشیند — وگرنه روزی یکی‌شان فیلتر می‌گیرد و دیگری نه.
-        $window = function ($query) use ($from, $to) {
+        $window = function ($query) use ($from, $to, $filter) {
+            if ($filter) {
+                return $filter->apply($query);
+            }
             if ($from) {
                 $query->whereDate('occurred_at', '>=', $from->toDateString());
             }
@@ -607,23 +730,33 @@ class BusinessLedger
         $sum = fn (string $k) => (int) ($byKind[$k]->s ?? 0);
         $cnt = fn (string $k) => (int) ($byKind[$k]->n ?? 0);
 
-        $capital       = $sum('capital');
-        $withdrawal    = $sum('withdrawal');
-        $revenue       = $sum('revenue') - $sum('identity_refund');
-        $taxCollected  = $sum('tax_collected') - $sum('id_tax_refund');
-        $taxPaid       = $sum('tax_paid');
-        $expense       = $sum('expense');
-        $refund        = $sum('refund');
+        $capital = $sum('capital');
+        $withdrawal = $sum('withdrawal');
+        $revenue = $sum('revenue') - $sum('identity_refund') - $sum('ai_rev_adjust');
+        $taxCollected = $sum('tax_collected') - $sum('id_tax_refund') - $sum('ai_tax_adjust');
+        $taxPaid = $sum('tax_paid');
+        $expense = $sum('expense') + $sum('ai_cost_adjust') + $sum('fx_loss') - $sum('expense_reversal') - $sum('fx_loss_rev');
+        $otherIncome = $sum('fx_gain') - $sum('fx_gain_rev');
+        $refund = $sum('refund') + $sum('hourly_refund');
 
-        $netCapital   = $capital - $withdrawal;
-        $netProfit    = $revenue - $expense;              // مالیات پاس‌ترو است، در سود نمی‌آید
+        $netCapital = $capital - $withdrawal;
+        $capitalQuery = BusinessEntry::where('currency_code', 'IRT')->where('kind', 'capital');
+        if ($to ?? $filter?->to) {
+            $capitalQuery->whereDate('occurred_at', '<=', ($to ?? $filter->to)->toDateString());
+        }
+        $roiBasis = (int) $capitalQuery->sum('amount');
+        $isSubset = $filter && collect($filter->values)->only(['q', 'kind', 'category', 'currency', 'origin'])->filter(fn ($v) => $v !== null && $v !== '' && $v !== 'all')->isNotEmpty();
+        $refundTax = $this->refundTax((clone $q)->where('kind', 'refund')->get());
+        $revenue -= $refund - $refundTax;
+        $taxCollected -= $refundTax;
+        $netProfit = $revenue + $otherIncome - $expense;              // مالیات پاس‌ترو است، در سود نمی‌آید
         $taxLiability = $taxCollected - $taxPaid;          // بدهی مالیاتی به دولت
         // نقدینگی = هر چه وارد شد منهای هر چه خارج شد
-        $cash = $capital + $revenue + $taxCollected - $expense - $taxPaid - $withdrawal - $refund;
+        $cash = $capital + $revenue + $otherIncome + $taxCollected - $expense - $taxPaid - $withdrawal;
 
         // هزینه به تفکیک دسته
-        $byCategory = (clone $q)->where('kind', 'expense')
-            ->selectRaw('category, sum(amount) as s')
+        $byCategory = (clone $q)->whereIn('kind', ['expense', 'expense_reversal', 'ai_cost_adjust', 'fx_loss', 'fx_loss_rev'])
+            ->selectRaw("category, sum(case when kind in ('expense_reversal','fx_loss_rev') then -amount else amount end) as s")
             ->groupBy('category')->pluck('s', 'category')
             ->map(fn ($v) => (int) $v)->toArray();
 
@@ -648,23 +781,25 @@ class BusinessLedger
         }
 
         return [
-            'capital'        => $capital,
-            'withdrawal'     => $withdrawal,
-            'net_capital'    => $netCapital,
-            'revenue'        => $revenue,
-            'revenue_count'  => $cnt('revenue'),
-            'expense'        => $expense,
-            'expense_count'  => $cnt('expense'),
-            'net_profit'     => $netProfit,
-            'margin'         => $revenue > 0 ? round($netProfit / $revenue * 100, 1) : 0.0,
-            'roi'            => $netCapital > 0 ? round($netProfit / $netCapital * 100, 1) : 0.0,
-            'tax_collected'  => $taxCollected,
-            'tax_paid'       => $taxPaid,
-            'tax_liability'  => $taxLiability,
-            'refund'         => $refund,
-            'cash'           => $cash,
-            'by_category'    => $byCategory,
-            'by_currency'    => $byCurrency,
+            'capital' => $capital,
+            'withdrawal' => $withdrawal,
+            'net_capital' => $netCapital,
+            'revenue' => $revenue,
+            'other_income' => $otherIncome,
+            'revenue_count' => $cnt('revenue'),
+            'expense' => $expense,
+            'expense_count' => $cnt('expense'),
+            'net_profit' => $netProfit,
+            'margin' => $revenue > 0 ? round($netProfit / $revenue * 100, 1) : 0.0,
+            'roi' => ! $isSubset && $roiBasis > 0 ? round($netProfit / $roiBasis * 100, 1) : null,
+            'roi_capital_basis' => $roiBasis,
+            'tax_collected' => $taxCollected,
+            'tax_paid' => $taxPaid,
+            'tax_liability' => $taxLiability,
+            'refund' => $refund,
+            'cash' => $cash,
+            'by_category' => $byCategory,
+            'by_currency' => $byCurrency,
         ];
     }
 
@@ -673,7 +808,7 @@ class BusinessLedger
      *
      * @return array<int,array{label:string,revenue:int,expense:int,profit:int}>
      */
-    public function monthlyTrend(int $months = 6): array
+    public function monthlyTrend(int $months = 6, ?FinanceFilter $filter = null): array
     {
         if (! $this->ready()) {
             return [];
@@ -685,10 +820,12 @@ class BusinessLedger
             ? "date_format(occurred_at, '%Y-%m')"
             : "strftime('%Y-%m', occurred_at)";
 
-        $rows = BusinessEntry::query()
+        $trendQuery = $filter ? $filter->apply(BusinessEntry::query()) : BusinessEntry::query();
+        $anchor = $filter?->to?->copy() ?? now('Asia/Tehran');
+        $rows = $trendQuery
             ->where('currency_code', 'IRT')
-            ->whereIn('kind', ['revenue', 'expense', 'identity_refund'])
-            ->whereDate('occurred_at', '>=', now()->subMonthsNoOverflow($months - 1)->startOfMonth()->toDateString())
+            ->whereIn('kind', ['revenue', 'expense', 'expense_reversal', 'ai_cost_adjust', 'ai_rev_adjust', 'identity_refund', 'refund', 'hourly_refund', 'fx_gain', 'fx_gain_rev', 'fx_loss', 'fx_loss_rev'])
+            ->whereDate('occurred_at', '>=', $anchor->copy()->subMonthsNoOverflow($months - 1)->startOfMonth()->toDateString())
             ->selectRaw("{$ymExpr} as ym, kind, sum(amount) as s")
             ->groupBy('ym', 'kind')
             ->get();
@@ -700,19 +837,42 @@ class BusinessLedger
 
         $out = [];
         for ($i = $months - 1; $i >= 0; $i--) {
-            $m   = now()->subMonthsNoOverflow($i);
-            $ym  = $m->format('Y-m');
-            $rev = ($map[$ym]['revenue'] ?? 0) - ($map[$ym]['identity_refund'] ?? 0);
-            $exp = $map[$ym]['expense'] ?? 0;
+            $m = $anchor->copy()->subMonthsNoOverflow($i);
+            $ym = $m->format('Y-m');
+            $rev = ($map[$ym]['revenue'] ?? 0) - ($map[$ym]['identity_refund'] ?? 0) - ($map[$ym]['ai_rev_adjust'] ?? 0);
+            $refundRows = ($filter ? $filter->apply(BusinessEntry::query()) : BusinessEntry::query())
+                ->where('currency_code', 'IRT')->where('kind', 'refund')
+                ->whereBetween('occurred_at', [$m->copy()->startOfMonth()->toDateString(), $m->copy()->endOfMonth()->toDateString()])->get();
+            $rev -= ($map[$ym]['refund'] ?? 0) + ($map[$ym]['hourly_refund'] ?? 0) - $this->refundTax($refundRows);
+            $exp = ($map[$ym]['expense'] ?? 0) + ($map[$ym]['ai_cost_adjust'] ?? 0) - ($map[$ym]['expense_reversal'] ?? 0) + ($map[$ym]['fx_loss'] ?? 0) - ($map[$ym]['fx_loss_rev'] ?? 0);
             $out[] = [
-                'label'   => $m->format('Y/m'),
+                'label' => $m->format('Y/m'),
                 'revenue' => $rev,
                 'expense' => $exp,
-                'profit'  => $rev - $exp,
+                'profit' => $rev + ($map[$ym]['fx_gain'] ?? 0) - ($map[$ym]['fx_gain_rev'] ?? 0) - $exp,
             ];
         }
 
         return $out;
+    }
+
+    /** Existing refund rows contain gross refunds. Resolve only known, allowlisted sources. */
+    public function refundTax(Collection $rows): int
+    {
+        $tax = 0;
+        foreach ($rows as $row) {
+            $invoice = match ($row->source_type) {
+                (new Invoice)->getMorphClass() => Invoice::find($row->source_id),
+                (new Payment)->getMorphClass() => Payment::find($row->source_id)?->invoice,
+                (new SnappPayOrderEvent)->getMorphClass() => SnappPayOrderEvent::find($row->source_id)?->order?->invoice,
+                default => null,
+            };
+            if ($invoice && $invoice->total > 0) {
+                $tax += (int) bcdiv(bcmul((string) $row->amount, (string) $invoice->tax, 0), (string) $invoice->total, 0);
+            }
+        }
+
+        return $tax;
     }
 
     private function isMysql(): bool
@@ -725,9 +885,9 @@ class BusinessLedger
         return [
             'capital' => 0, 'withdrawal' => 0, 'net_capital' => 0,
             'revenue' => 0, 'revenue_count' => 0, 'expense' => 0, 'expense_count' => 0,
-            'net_profit' => 0, 'margin' => 0.0, 'roi' => 0.0,
+            'net_profit' => 0, 'margin' => 0.0, 'roi' => null, 'roi_capital_basis' => 0,
             'tax_collected' => 0, 'tax_paid' => 0, 'tax_liability' => 0,
-            'refund' => 0, 'cash' => 0, 'by_category' => [], 'by_currency' => [],
+            'refund' => 0, 'cash' => 0, 'other_income' => 0, 'by_category' => [], 'by_currency' => [],
         ];
     }
 }

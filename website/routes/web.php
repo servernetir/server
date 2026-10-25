@@ -2847,6 +2847,33 @@ Route::prefix('admin')->group(function () {
         Route::post('/errors/clear', [\App\Http\Controllers\Admin\ErrorLogController::class, 'clear']);
 
         // داشبورد مالی کسب‌وکار — سرمایه، سود، مالیات
+        Route::prefix('finance/bank-reconciliation')->middleware('admin')->group(function () {
+            $c = \App\Http\Controllers\Admin\BankReconciliationController::class;
+            Route::get('/', [$c, 'index'])->name('admin.bank-reconciliation');
+            Route::get('/imports/{import}', [$c, 'download'])->whereNumber('import')->name('admin.bank-reconciliation.download');
+            Route::post('/import', [$c, 'import'])->name('admin.bank-reconciliation.import');
+            Route::post('/post-collection', [$c, 'postCollection'])->name('admin.bank-reconciliation.post-collection');
+            Route::post('/match', [$c, 'match'])->name('admin.bank-reconciliation.match');
+            Route::post('/matches/{match}/void', [$c, 'void'])->whereNumber('match')->name('admin.bank-reconciliation.void');
+        });
+        Route::prefix('finance/accounting')->middleware('admin')->group(function () {
+            $c = \App\Http\Controllers\Admin\AccountingController::class;
+            Route::get('/', [$c, 'index'])->name('admin.accounting');
+            Route::get('/export', [$c, 'export'])->name('admin.accounting.export');
+            Route::get('/evidence-bundle', [$c, 'bundle'])->name('admin.accounting.bundle');
+            Route::post('/accounts', [$c, 'account'])->name('admin.accounting.accounts');
+            Route::post('/vouchers', [$c, 'store'])->name('admin.accounting.store');
+            Route::get('/vouchers/{voucher}', [$c, 'show'])->whereNumber('voucher')->name('admin.accounting.voucher');
+            Route::post('/vouchers/{voucher}/reverse', [$c, 'reverse'])->whereNumber('voucher')->name('admin.accounting.reverse');
+            Route::post('/vouchers/{voucher}/tax-review', [$c, 'reviewTax'])->whereNumber('voucher')->name('admin.accounting.tax-review');
+            Route::post('/vouchers/{voucher}/evidence', [$c, 'evidence'])->whereNumber('voucher')->name('admin.accounting.evidence');
+            Route::get('/evidence/{document}', [$c, 'download'])->whereNumber('document')->name('admin.accounting.download');
+            Route::post('/assets/{asset}/depreciation', [$c, 'depreciate'])->whereNumber('asset')->name('admin.accounting.depreciate');
+            Route::post('/tax-profile', [$c, 'taxProfile'])->name('admin.accounting.tax-profile');
+            Route::post('/close-period', [$c, 'closePeriod'])->name('admin.accounting.close-period');
+            Route::post('/investment', [$c, 'investment'])->name('admin.accounting.investment');
+        });
+        Route::get('/finance/export', [\App\Http\Controllers\Admin\FinanceController::class, 'export'])->name('admin.finance.export')->middleware('admin');
         Route::get('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'index'])->name('admin.finance')->middleware('admin');
         Route::post('/finance', [\App\Http\Controllers\Admin\FinanceController::class, 'store'])->middleware('admin');
         Route::post('/finance/{entry}/delete', [\App\Http\Controllers\Admin\FinanceController::class, 'destroy'])->middleware('admin');
@@ -2856,6 +2883,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/reports', [\App\Http\Controllers\Admin\ReportController::class, 'index'])->name('admin.reports')->middleware('admin');
 
         // تراکنش‌ها و اعتبار — پرداخت‌های ریز + دفتر اعتبار + بدهیِ اعتبارِ مشتریان
+        Route::get('/transactions/export', [\App\Http\Controllers\Admin\TransactionController::class, 'export'])->name('admin.transactions.export')->middleware('admin');
         Route::get('/transactions', [\App\Http\Controllers\Admin\TransactionController::class, 'index'])->name('admin.transactions')->middleware('admin');
 
         // [snapppay-admin-routes:start]

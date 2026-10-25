@@ -2,6 +2,7 @@
 @section('title', 'مالی و سود')
 @section('nav_finance', 'on')
 @section('content')
+@include('admin.partials.finance-periods')
 
 @php
   $s = $summary;
@@ -38,19 +39,28 @@
 
 {{-- ══ بازهٔ زمانی ══ --}}
 <div class="ad-toolbar">
-  <div class="ad-tabs">
-    <a href="/admin/finance?range=all"   class="{{ $range === 'all' ? 'on' : '' }}">کل تاریخچه</a>
-    <a href="/admin/finance?range=year"  class="{{ $range === 'year' ? 'on' : '' }}">امسال</a>
-    <a href="/admin/finance?range=month" class="{{ $range === 'month' ? 'on' : '' }}">این ماه</a>
-  </div>
+  <a class="ad-btn" href="{{ route('admin.accounting') }}">{{ __('finance.accounting') }}</a>
+  <a class="ad-btn" href="{{ route('admin.finance.export', request()->query()) }}">{{ __('finance.export') }}</a>
 </div>
+<form method="get" action="{{ route('admin.finance') }}" class="fin-filter ad-panel" style="padding:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:16px">
+  <label>{{ __('finance.search') }}<input class="ad-input" name="q" value="{{ $filters['q'] ?? '' }}" maxlength="150"></label>
+  <label>{{ __('finance.from') }}<input class="ad-input" type="date" name="from" value="{{ $filters['from'] ?? '' }}"></label>
+  <label>{{ __('finance.to') }}<input class="ad-input" type="date" name="to" value="{{ $filters['to'] ?? '' }}"></label>
+  <label>{{ __('finance.range') }}<select class="ad-input" name="range">@foreach(['all','month','year','custom'] as $r)<option value="{{ $r }}" @selected($range===$r)>{{ __('finance.range_'.$r) }}</option>@endforeach</select></label>
+  <label>{{ __('finance.kind') }}<select name="kind" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach($kindLabel as $k=>$label)<option value="{{ $k }}" @selected(($filters['kind']??'')===$k)>{{ $label }}</option>@endforeach</select></label>
+  <label>{{ __('finance.category') }}<select name="category" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach($categories as $c)<option value="{{ $c }}" @selected(($filters['category']??'')===$c)>{{ $catLabels[$c]??$c }}</option>@endforeach</select></label>
+  <label>{{ __('finance.currency') }}<select name="currency" class="ad-input"><option value="">{{ __('finance.all') }}</option>@foreach(['IRT','USD','EUR','TRY','USDT','IRR','GBP'] as $c)<option @selected(($filters['currency']??'')===$c)>{{ $c }}</option>@endforeach</select></label>
+  <label>{{ __('finance.origin') }}<select name="origin" class="ad-input">@foreach(['all','auto','manual'] as $o)<option value="{{ $o }}" @selected(($filters['origin']??'all')===$o)>{{ __('finance.'.$o) }}</option>@endforeach</select></label>
+  <button class="ad-btn" type="submit">{{ __('finance.apply') }}</button><a href="{{ route('admin.finance') }}">{{ __('finance.reset') }}</a>
+</form>
+<p class="ad-note">{{ __('finance.filtered_note') }}</p>
 
 {{-- ══ چهار عدد اصلی ══ --}}
 <div class="fin-kpis">
   <div class="fin-kpi">
-    <span class="fin-kpi-l">نقدینگی فعلی</span>
+    <span class="fin-kpi-l">خالص ثبت‌های دفتر</span>
     <b class="fin-kpi-v" style="color:{{ $s['cash'] >= 0 ? '#34d399' : '#ff6b6b' }}">{{ $t($s['cash']) }}</b>
-    <small>هر چه وارد شد منهای هر چه خارج شد</small>
+    <small>موجودی بانک نیست؛ شارژ کیف پول و تسویه درگاه نیازمند تطبیق‌اند</small>
   </div>
   <div class="fin-kpi">
     <span class="fin-kpi-l">سود خالص</span>
@@ -59,13 +69,13 @@
   </div>
   <div class="fin-kpi">
     <span class="fin-kpi-l">بازده سرمایه (ROI)</span>
-    <b class="fin-kpi-v" style="color:{{ $s['roi'] >= 0 ? '#22d3ee' : '#ff6b6b' }}">{{ fa_num($s['roi']) }}٪</b>
-    <small>سود نسبت به سرمایهٔ خالص</small>
+    <b class="fin-kpi-v" style="color:{{ $s['roi'] >= 0 ? '#22d3ee' : '#ff6b6b' }}">{{ $s['roi']===null?__('finance.undefined'):fa_num($s['roi']).'٪' }}</b>
+    <small>سود دوره بر کل آورده ثبت‌شده تا پایان بازه؛ سالانه‌شده نیست</small>
   </div>
   <div class="fin-kpi">
-    <span class="fin-kpi-l">بدهی مالیاتی</span>
+    <span class="fin-kpi-l">مانده ارزش افزوده ثبت‌شده</span>
     <b class="fin-kpi-v" style="color:#fbbf24">{{ $t($s['tax_liability']) }}</b>
-    <small>مالیات گرفته منهای پرداخت‌شده</small>
+    <small>بدون اعتبار خرید و مانده انتقالی</small>
   </div>
 </div>
 
@@ -87,6 +97,7 @@
           <td class="fin-num" style="color:#ff6b6b">− {{ $t($s['expense']) }}</td>
           <td class="fin-src">{{ fa_num($s['expense_count']) }} ردیف</td>
         </tr>
+        @if(($s['other_income']??0)!==0)<tr><td>{{ __('finance.other_income') }}</td><td class="fin-num">{{ $t($s['other_income']) }}</td><td></td></tr>@endif
         <tr class="fin-total">
           <td>سود خالص</td>
           <td class="fin-num" style="color:{{ $s['net_profit'] >= 0 ? '#34d399' : '#ff6b6b' }}">{{ $t($s['net_profit']) }}</td>
@@ -124,7 +135,7 @@
               <div class="fin-cat-row">
                 <span>{{ $kindLabel[$kind] ?? $kind }}</span>
                 <span class="fin-cat-bar"></span>
-                <span class="fin-num">{{ fa_num(number_format($amt)) }} {{ $code }}</span>
+                <span class="fin-num">{{ \App\Services\Finance\AccountingMoney::display($amt,$code) }}</span>
               </div>
             @endforeach
           @endforeach
@@ -291,7 +302,7 @@
             <td>{{ $e->note ?: '—' }}</td>
             <td>{{ $e->isAuto() ? 'خودکار' : 'دستی' }}</td>
             <td class="fin-num" style="color:{{ $e->direction === 'in' ? '#34d399' : '#ff6b6b' }}">
-              {{ $e->direction === 'in' ? '+' : '−' }} {{ $t($e->amount) }}
+              {{ $e->direction === 'in' ? '+' : '−' }} {{ \App\Services\Finance\AccountingMoney::display($e->amount, $e->currency_code) }}
             </td>
             <td>
               @unless($e->isAuto())
@@ -307,6 +318,7 @@
   @endif
 </div>
 
+@if($recent instanceof \Illuminate\Contracts\Pagination\Paginator)<div style="padding:16px">{{ $recent->links() }}</div>@endif
 @include('admin.partials.finance-styles')
 
 <script>
