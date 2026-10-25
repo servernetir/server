@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Route;
 
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
+require __DIR__.'/ai-growth.php';
 
 // Private n8n registration callback: dedicated Bearer credential, no browser session.
 Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestController::class)

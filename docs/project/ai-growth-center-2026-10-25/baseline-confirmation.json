@@ -1,0 +1,9 @@
+{
+  "base": "7329008b",
+  "isolatedCheckout": true,
+  "test": "ContentPipelineTest::test_the_queue_actually_reaches_the_end_of_the_year",
+  "result": "failed",
+  "assertions": 612,
+  "exhaustedAfter": 611,
+  "changedByThisWork": false
+}

@@ -1,0 +1,82 @@
+@extends('admin.layout')
+@section('title', __('growth.center'))
+@section('nav_growth','on')
+@section('head')<link rel="stylesheet" href="{{ asset_ver('assets/css/growth-center.css') }}">@endsection
+@section('content')
+@php $tabs=['overview','sociality','calendar','creative','seo','knowledge','hermes','research','analytics','integrations','automation','costs','settings']; @endphp
+<div class="gc">
+  <nav class="gc-tabs" aria-label="AI Growth">
+    @foreach($tabs as $key)<a class="{{ $tab===$key?'on':'' }}" href="/admin/ai-growth?tab={{ $key }}">{{ __('growth.'.$key) }}</a>@endforeach
+  </nav>
+  <section class="gc-hero">
+    <div><span class="gc-eyebrow">SERVERNET / GROWTH & KNOWLEDGE</span><h2>{{ __('growth.'.$tab) }}</h2><p>{{ __('growth.launch_note') }}</p></div>
+    <span class="gc-state {{ $control->enabled?'good':'muted' }}">{{ __('growth.'.($control->enabled?'active':'paused')) }}</span>
+  </section>
+  <div class="gc-stats">
+    @foreach(['draft','review','approved','scheduled','published'] as $key)<a href="/admin/ai-growth?tab=sociality&status={{ $key }}"><b>{{ number_format($stats[$key]??0) }}</b><span>{{ __('growth.'.$key) }}</span></a>@endforeach
+  </div>
+
+  @if($tab==='calendar')@include('admin.growth.calendar')@endif
+  @if(in_array($tab,['overview','sociality','calendar','creative','seo'],true))
+    @if($tab==='creative')<p class="gc-notice">{{ __('growth.media_note') }}</p>@endif
+    @if($tab==='seo')<p class="gc-notice">{{ __('growth.seo_note') }} <a href="/admin/posts?type=blog">CMS</a></p>@endif
+    <div class="gc-grid">
+      <section class="gc-card gc-wide">
+        <h3>{{ __('growth.'.($tab==='calendar'?'calendar':'sociality')) }}</h3>
+        <form method="get" class="gc-filters"><input type="hidden" name="tab" value="{{ $tab }}"><input name="q" value="{{ request('q') }}" aria-label="{{ __('growth.search') }}" placeholder="{{ __('growth.search') }}"><select name="status" aria-label="{{ __('growth.status') }}"><option value="">{{ __('growth.all') }}</option>@foreach(\App\Services\Growth\ContentWorkflow::STATUSES as $state)<option value="{{ $state }}" @selected(request('status')===$state)>{{ __('growth.'.$state) }}</option>@endforeach</select><button>{{ __('growth.search') }}</button></form>
+        <div class="gc-list">
+          @forelse($items as $item)<a class="gc-content-row" href="/admin/ai-growth/content/{{ $item->id }}"><span><strong>{{ $item->title }}</strong><small>{{ $item->locale }} / {{ $item->channel }} / {{ $item->format }} · v{{ $item->version }}</small>@if($item->scheduled_at)<small>{{ $item->scheduled_at->setTimezone($item->timezone)->format('Y-m-d H:i') }} · {{ $item->timezone }}</small>@endif</span><span class="gc-state">{{ __('growth.'.$item->status) }}</span></a>@empty<p class="gc-empty">{{ __('growth.empty') }}</p>@endforelse
+        </div>{{ $items->links() }}
+        <p class="gc-muted">{{ __('growth.manual_note') }}</p>
+      </section>
+      <section class="gc-card" id="new-content"><h3>{{ __('growth.new') }}</h3>
+        <form method="post" action="/admin/ai-growth/content" class="gc-form">@csrf
+          <label>{{ __('growth.title') }}<input name="title" maxlength="200" required value="{{ old('title') }}"></label>
+          <label>{{ __('growth.brief') }}<textarea name="brief" rows="5" maxlength="16000" required>{{ old('brief') }}</textarea></label>
+          <div class="gc-pair"><label>{{ __('growth.locale') }}<select name="locale"><option value="fa">فارسی</option><option value="en">English</option><option value="tr">Türkçe</option></select></label><label>{{ __('growth.channel') }}<select name="channel">@foreach(\App\Services\Growth\ContentWorkflow::CHANNELS as $channel)<option value="{{ $channel }}">{{ $channel }}</option>@endforeach</select></label></div>
+          <div class="gc-pair"><label>{{ __('growth.format') }}<select name="format">@foreach(\App\Services\Growth\ContentWorkflow::FORMATS as $format)<option value="{{ $format }}">{{ $format }}</option>@endforeach</select></label><label>{{ __('growth.objective') }}<select name="objective">@foreach(['education','awareness','signup','consultation','purchase'] as $objective)<option value="{{ $objective }}">{{ $objective }}</option>@endforeach</select></label></div>
+          <label>{{ __('growth.target') }}<input name="target_url" type="url" maxlength="500" placeholder="https://servernet.cloud/…" dir="ltr"></label>
+          <label>{{ __('growth.campaign') }}<input name="campaign_name" maxlength="180" list="gc-campaigns"></label><datalist id="gc-campaigns">@foreach($campaigns as $campaign)<option value="{{ $campaign->name }}">@endforeach</datalist>
+          <button class="gc-primary">{{ __('growth.create') }}</button>
+        </form>
+      </section>
+    </div>
+  @endif
+
+  @if(in_array($tab,['knowledge','hermes'],true))
+    <p class="gc-notice">{{ __('growth.knowledge_note') }}</p>
+    <section class="gc-card"><h3>{{ __('growth.local_search') }}</h3><form method="get" class="gc-filters"><input type="hidden" name="tab" value="{{ $tab }}"><input name="q" value="{{ request('q') }}" placeholder="{{ __('growth.search') }}" required><input name="scope" value="{{ request('scope','general') }}" aria-label="{{ __('growth.scope') }}"><button>{{ __('growth.search') }}</button></form>
+      @forelse($matches as $match)<article class="gc-source"><b>{{ $match['title'] }}</b><p>{{ $match['excerpt'] }}</p><code>{{ $match['citation'] }}</code><small>{{ $match['source'] }}</small></article>@empty<p class="gc-muted">{{ __('growth.empty') }}</p>@endforelse
+    </section>
+    @if($tab==='hermes')<section class="gc-card"><h3>Hermes API</h3><p>{{ __('growth.'.($hasHermes?'ready':'needs_setup')) }}</p><p>{{ __('growth.knowledge_note') }}</p><code dir="ltr">POST /api/internal/growth/knowledge/{search|solution|suggest|candidate|feedback|products|changes}</code><p class="gc-muted">HMAC-SHA256 · timestamp ±120s · one-use nonce · no tool execution</p></section>@endif
+    <div class="gc-grid">
+      <section class="gc-card gc-wide"><h3>{{ __('growth.knowledge') }}</h3>
+        @forelse($documents as $doc)<article class="gc-document"><div class="gc-card-top"><strong>{{ $doc->title }}</strong><span class="gc-state">{{ __('growth.'.$doc->status) }}</span></div><small>{{ $doc->classification }} · {{ $doc->scope }} · v{{ $doc->version }} · {{ $doc->source }}</small><details><summary>{{ __('growth.preview') }}</summary><pre class="gc-prose">{{ $doc->body }}</pre></details>
+          <form method="post" action="/admin/ai-growth/knowledge/{{ $doc->id }}/review" class="gc-form gc-review">@csrf<label>{{ __('growth.review_date') }}<x-admin-jdate name="review_date" :value="$doc->review_at?->format('Y-m-d')" /></label><label>{{ __('growth.note') }}<input name="review_note" maxlength="1000"></label><label class="gc-check"><input type="checkbox" name="confirmed" value="1" required>{{ __('growth.review_confirm') }}</label><div class="gc-actions"><button name="status" value="verified">{{ __('growth.verify') }}</button><button name="status" value="outdated">{{ __('growth.outdated') }}</button><button name="status" value="rejected">{{ __('growth.rejected') }}</button></div></form>
+          <details><summary>{{ __('growth.delete') }}</summary><form method="post" action="/admin/ai-growth/knowledge/{{ $doc->id }}/delete" class="gc-form">@csrf<label class="gc-check"><input name="confirmed" type="checkbox" value="1" required>{{ __('growth.delete') }}</label><button>{{ __('growth.delete') }}</button></form></details>
+        </article>@empty<p class="gc-empty">{{ __('growth.empty') }}</p>@endforelse
+        <form method="get" action="/admin/ai-growth/knowledge/export" class="gc-form"><h4>{{ __('growth.notebook_export') }}</h4>@foreach($documents->where('classification','public')->where('status','verified') as $doc)<label class="gc-check"><input type="checkbox" name="ids[]" value="{{ $doc->id }}">{{ $doc->title }}</label>@endforeach<button>{{ __('growth.export') }}</button></form>
+      </section>
+      <section class="gc-card"><h3>{{ __('growth.add_knowledge') }}</h3><form method="post" action="/admin/ai-growth/knowledge" class="gc-form">@csrf
+        <label>{{ __('growth.title') }}<input name="title" required maxlength="200"></label><label>{{ __('growth.source') }}<input name="source" required maxlength="500"></label><label>{{ __('growth.body') }}<textarea name="body" required rows="8" maxlength="100000"></textarea></label>
+        <label>{{ __('growth.kind') }}<select name="kind">@foreach(['runbook','product','change','ticket','research','conversation'] as $kind)<option>{{ $kind }}</option>@endforeach</select></label>
+        <label>{{ __('growth.classification') }}<select name="classification">@foreach(['internal','public','restricted'] as $classification)<option value="{{ $classification }}">{{ __('growth.'.$classification) }}</option>@endforeach</select></label>
+        <label>{{ __('growth.scope') }}<input name="scope" value="general" required maxlength="160"></label><label>{{ __('growth.locale') }}<select name="locale"><option value="fa">فارسی</option><option value="en">English</option><option value="tr">Türkçe</option></select></label>
+        <label>{{ __('growth.review_date') }}<x-admin-jdate name="review_date" required /></label><label>Supersedes ID<input name="supersedes_id" type="number" min="1"></label><button class="gc-primary">{{ __('growth.add_knowledge') }}</button>
+      </form></section>
+    </div>
+    <section class="gc-card"><h3>{{ __('growth.import') }}</h3><form method="post" action="/admin/ai-growth/knowledge/import/preview" enctype="multipart/form-data" class="gc-form">@csrf<input type="file" name="export" accept=".json,application/json" required><button>{{ __('growth.import_preview') }}</button></form>
+      @if($importPreview)<form method="post" action="/admin/ai-growth/knowledge/import/commit" class="gc-form">@csrf @foreach($importPreview as $conversation)<details><summary><label class="gc-check"><input type="checkbox" name="selected[]" value="{{ $conversation['index'] }}">{{ $conversation['title'] }}</label></summary><pre class="gc-prose">{{ $conversation['body'] }}</pre></details>@endforeach<label class="gc-check"><input type="checkbox" name="confirmed" value="1" required>{{ __('growth.import_confirm') }}</label><button>{{ __('growth.import_selected') }}</button></form>@endif
+    </section>
+  @endif
+
+  @if($tab==='research')<section class="gc-card"><h3>{{ __('growth.research') }}</h3><p>{{ __('growth.research_note') }}</p><div class="gc-links">@foreach(config('ai_growth.research_sources') as $label=>$url)<a href="{{ $url }}" target="_blank" rel="noopener noreferrer">{{ $label }} ↗</a>@endforeach</div><a class="gc-link" href="/admin/ai-growth?tab=knowledge">{{ __('growth.add_knowledge') }}</a></section>@endif
+  @if($tab==='analytics')<section class="gc-card"><h3>{{ __('growth.analytics') }}</h3><p class="gc-notice">{{ __('growth.no_analytics') }}</p>@forelse($campaigns as $campaign)<p><strong>{{ $campaign->name }}</strong> · {{ $campaign->objective }} · <code>{{ $campaign->utm_campaign }}</code></p>@empty<p>{{ __('growth.empty') }}</p>@endforelse</section>@endif
+  @if($tab==='integrations')<div class="gc-grid"><section class="gc-card"><h3>Google Drive</h3><p class="gc-state">{{ __('growth.'.($drive->connected()?'ready':'needs_setup')) }}</p><p>{{ __('growth.google_note') }}</p><code>openid email drive.file</code><p>{{ \App\Models\Setting::get('growth_drive_email') }}</p><form method="post" action="/admin/ai-growth/google/connect">@csrf<button class="gc-primary">{{ __('growth.connect') }}</button></form>@if($drive->connected())<form method="post" action="/admin/ai-growth/google/disconnect">@csrf<button>{{ __('growth.disconnect') }}</button></form>@endif<a href="/admin/settings">Google OAuth Client ↗</a></section><section class="gc-card"><h3>AI Gateway / Hermes</h3><p>Gateway: {{ __('growth.'.($hasGateway?'ready':'needs_setup')) }}</p><p>Hermes: {{ __('growth.'.($hasHermes?'ready':'needs_setup')) }}</p><a href="/admin/ai-growth?tab=settings">{{ __('growth.settings') }}</a><p class="gc-muted">{{ __('growth.manual_note') }}</p><div class="gc-links"><a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer">AI Studio ↗</a><a href="https://labs.google/fx/tools/flow" target="_blank" rel="noopener noreferrer">Flow ↗</a><a href="https://notebooklm.google.com/" target="_blank" rel="noopener noreferrer">Notebook ↗</a></div></section></div>@endif
+  @if($tab==='automation')<section class="gc-card"><h3>{{ __('growth.automation') }}</h3><p>{{ __('growth.automation_note') }}</p><p>{{ __('growth.manual_note') }}</p><a href="/admin/ai-growth?tab=settings">{{ __('growth.settings') }}</a></section>@endif
+  @if(in_array($tab,['costs','overview','settings'],true))<div class="gc-budget"><div><span>{{ __('growth.day') }}</span><b>{{ number_format($daySpend) }} / {{ number_format($control->daily_irt) }}</b></div><div><span>{{ __('growth.month') }}</span><b>{{ number_format($monthSpend) }} / {{ number_format($control->monthly_irt) }}</b></div><div><span>{{ __('growth.remaining') }}</span><b>{{ number_format(max(0,$control->monthly_irt-$monthSpend)) }}</b></div></div><p class="gc-muted">{{ __('growth.budget_note') }}</p>@endif
+  @if($tab==='settings')<section class="gc-card"><h3>{{ __('growth.settings') }}</h3><form method="post" action="/admin/ai-growth/settings" class="gc-form">@csrf<label class="gc-check"><input type="checkbox" name="enabled" value="1" @checked($control->enabled)>{{ __('growth.enabled') }}</label><label class="gc-check"><input type="checkbox" name="daily_tasks" value="1" @checked($control->daily_tasks)>{{ __('growth.daily_tasks') }}</label><label class="gc-check"><input type="checkbox" name="notify" value="1" @checked($control->notify)>{{ __('growth.notify') }}</label><div class="gc-pair"><label>{{ __('growth.daily_limit') }}<input type="number" min="0" max="1000000000" name="daily_irt" value="{{ $control->daily_irt }}" required></label><label>{{ __('growth.monthly_limit') }}<input type="number" min="0" max="10000000000" name="monthly_irt" value="{{ $control->monthly_irt }}" required></label></div><label>{{ __('growth.gateway_key') }}<input type="password" name="gateway_key" autocomplete="new-password"></label><label>{{ __('growth.hermes_key') }}<input type="password" name="hermes_key" minlength="32" autocomplete="new-password"></label><button class="gc-primary">{{ __('growth.save') }}</button></form></section>@endif
+  @if(in_array($tab,['overview','costs','automation'],true))@include('admin.growth.jobs')<section class="gc-card"><h3>{{ __('growth.history') }}</h3>@foreach($audits as $audit)<p><code>{{ $audit->action }}</code> · {{ $audit->subject }} · {{ $audit->created_at }}</p>@endforeach</section>@endif
+</div>
+@endsection
+@section('scripts')<script src="{{ asset_ver('assets/js/growth-center.js') }}" defer></script>@endsection
