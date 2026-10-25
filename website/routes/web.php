@@ -310,6 +310,8 @@ $site = function (): void {
     // صفحات راهکار سازمانی
     // هابِ راهکارها — والدِ موضوعیِ صفحات راهکار. پیش از روتِ {slug} ثبت می‌شود
     // تا «/solutions» را خودش بگیرد نه الگوی slug.
+    Route::get('/transactional-email', [\App\Http\Controllers\TransactionalEmailController::class, 'show'])->name('email.transactional');
+    Route::post('/transactional-email/quote', [\App\Http\Controllers\TransactionalEmailController::class, 'store'])->name('email.quote')->middleware('throttle:forms');
     Route::get('/solutions', [SolutionController::class, 'index'])->name('solutions.index');
     Route::get('/solutions/{slug}', [SolutionController::class, 'show'])->name('solution')->where('slug', '[a-z-]+');
 

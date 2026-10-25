@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'f_email_transactional' => 'İşlemsel E-posta ve SMTP',
     'cvb_live_price_changed' => 'Bu paketin fiyatı güncellendi. Ücret alınmadı; yeni fiyatı inceleyip satın almayı tekrar onaylayın.',
     'cvb_live_review_unavailable' => 'Güncel fiyat, kapasite veya işletim sistemi doğrulanamadı. Ücret alınmadı; lütfen kısa süre sonra tekrar kontrol edin.',
     'cvb_ssh_not_supported' => 'Bu paket SSH anahtarlarını otomatik yüklemez; anahtar olmadan sipariş verip parola ile giriş yapın.',

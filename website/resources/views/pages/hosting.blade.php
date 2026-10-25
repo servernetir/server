@@ -562,7 +562,7 @@
       <ul class="hp-band-points">
         @foreach($bl['points'] as $pt)<li><svg class="icon"><use href="#i-check"/></svg>{{ $pt }}</li>@endforeach
       </ul>
-      <a class="btn btn-primary" href="{{ lroute('contact') }}"><span>{{ $bl['cta'] }}</span><svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg></a>
+      <a class="btn btn-primary" href="{{ isset($band['route']) ? lroute($band['route'][0], $band['route'][1] ?? []) : lroute('contact') }}"><span>{{ $bl['cta'] }}</span><svg class="icon dir" style="width:16px;height:16px"><use href="#i-arrow"/></svg></a>
     </div>
   </div>
 </section>

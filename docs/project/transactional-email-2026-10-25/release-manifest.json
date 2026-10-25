@@ -1,0 +1,156 @@
+[
+  {
+    "source": "website/app/Http/Controllers/SiteController.php",
+    "path": "servernet_app/app/Http/Controllers/SiteController.php",
+    "before": "4d5766ac2dd207f83e20a993758d60f75b42834c7231a9ad981e10b5867c55c3",
+    "after": "afaa0bdc6e50fff2e63bc58ad664f91aa2b42b042805764750d663a3aa00c356",
+    "merged": true
+  },
+  {
+    "source": "website/app/Http/Controllers/SolutionController.php",
+    "path": "servernet_app/app/Http/Controllers/SolutionController.php",
+    "before": "1427f2e4bc3688387a25c27e66180a50455da336965e7d77276a6f74236841cc",
+    "after": "8b88d1a1ea7d103698cc1e8a7fa365c2a72d57b02544fd653b355fd24e8a3531",
+    "merged": false
+  },
+  {
+    "source": "website/config/hosting.php",
+    "path": "servernet_app/config/hosting.php",
+    "before": "e67fb076a172438f6b363779ba7032dbbd0d3ee52998d71ce0a72c8eaa068ed9",
+    "after": "8518a16c0d3d6cff6302eb7869026efd3d72f61a05712e5f8bf3c694f6feffd8",
+    "merged": false
+  },
+  {
+    "source": "website/config/servernet.php",
+    "path": "servernet_app/config/servernet.php",
+    "before": "8142bd5696518a9c465c6b08184e904aa23da7666639d4f69df6951fac63745a",
+    "after": "3fcd1dc9ecbebb670a71fad9b749b4f0cf788b6d9f01530566c9a2d271850955",
+    "merged": false
+  },
+  {
+    "source": "website/config/solutions.php",
+    "path": "servernet_app/config/solutions.php",
+    "before": "18a6ed7a1b4cf69c0168a9a20ba13b713b4b02d6359061e7806040c5f96a366a",
+    "after": "478c01aa7846196e8a4b68e0892e1daae68278cc12b43d0909c10f13030f84f1",
+    "merged": false
+  },
+  {
+    "source": "website/lang/en/ui.php",
+    "path": "servernet_app/lang/en/ui.php",
+    "before": "74285a4a6ec2834a72628b04a134c90edffef5af9a3d4b86bd96436a979b9348",
+    "after": "18dfef11d6e8ae75b619c807c31b496a7fee8217e3ac3475cddb1ccb502ce8ed",
+    "merged": true
+  },
+  {
+    "source": "website/lang/fa/ui.php",
+    "path": "servernet_app/lang/fa/ui.php",
+    "before": "439ee18e008cf41718839031533028b37006bb1aef10ef6c6e792f66252a3c80",
+    "after": "673619fe80ffdd2e10f8c3854d8ef20638993a232ce6ea8e73ee4c1b2466f217",
+    "merged": true
+  },
+  {
+    "source": "website/lang/tr/ui.php",
+    "path": "servernet_app/lang/tr/ui.php",
+    "before": "548eea32afd90f5ac5a9d88b1a275de541fad2438a20555ce77f42d105b92e44",
+    "after": "6a24bc4d8e0df7e57fc7a57d0e571f8c898a6967ee121f18a5546bd5a0d3c12f",
+    "merged": true
+  },
+  {
+    "source": "website/resources/views/pages/docs-article.blade.php",
+    "path": "servernet_app/resources/views/pages/docs-article.blade.php",
+    "before": "8d1ee676eed68ad1f2cfb164225d174092d758aa85ddf10cab2ba4233ee68fda",
+    "after": "943b60e9825d639a6a1e300d512146e6787114f7d9a6ad181575e14ed0c29f6e",
+    "merged": false
+  },
+  {
+    "source": "website/resources/views/pages/home.blade.php",
+    "path": "servernet_app/resources/views/pages/home.blade.php",
+    "before": "623e6e40e156f1286453ace4c3d57b6c7ea830da468f8f7837763a8eafaaf25b",
+    "after": "1708192bf0b52a3a2324cbcaff98edae34b9ea1fd6f5ef81289b3863792b9ab1",
+    "merged": true
+  },
+  {
+    "source": "website/resources/views/pages/hosting.blade.php",
+    "path": "servernet_app/resources/views/pages/hosting.blade.php",
+    "before": "bf81f9cec1462c5e5577a8d086679f86eae06d86a104140088f6253a5b5ff55e",
+    "after": "9e6114e28727973484ec30e1735f197d6bfc04dd7c4cb1c3e18dd6443d630f6a",
+    "merged": true
+  },
+  {
+    "source": "website/resources/views/pages/solutions.blade.php",
+    "path": "servernet_app/resources/views/pages/solutions.blade.php",
+    "before": "fdd35cc67b9b9e83e203ff3a6bdd03b6d4f514cf78c5dd0cbad0d9f1fa4473c2",
+    "after": "f05e929d4b279b7c2a6e2e205e1517caf6e826a06757916d845378dafb89cc85",
+    "merged": true
+  },
+  {
+    "source": "website/routes/web.php",
+    "path": "servernet_app/routes/web.php",
+    "before": "dc07d8b3a6f04112623a74ee4169628c1c94fb48bc34492e8f4fa25964f7536a",
+    "after": "eb8c715b8428157fbf913757aa52953606a5d263e731c502fc95fa7bd868306f",
+    "merged": true
+  },
+  {
+    "source": "website/app/Http/Controllers/TransactionalEmailController.php",
+    "path": "servernet_app/app/Http/Controllers/TransactionalEmailController.php",
+    "before": null,
+    "after": "9e694d6cffcec8f9cc179780ae3fc940c98a82766f0c2abf7372a6aa33706d9a",
+    "merged": false
+  },
+  {
+    "source": "website/app/Services/TransactionalEmailQuote.php",
+    "path": "servernet_app/app/Services/TransactionalEmailQuote.php",
+    "before": null,
+    "after": "29085f62c1314a313af0dc991417b5ae52bba1f04f886e825454245fcf576b38",
+    "merged": false
+  },
+  {
+    "source": "website/config/transactional_email.php",
+    "path": "servernet_app/config/transactional_email.php",
+    "before": null,
+    "after": "a4d6cf6fdf0cdbc8f3bf05dcb28ba8fd9245f31570c5a4361b92a5add8ec0f12",
+    "merged": false
+  },
+  {
+    "source": "website/lang/en/transactional-email.php",
+    "path": "servernet_app/lang/en/transactional-email.php",
+    "before": null,
+    "after": "3536ab4219a90711374fae44e7c0f15d9b67db04c1b66da352c9ce392112d0d2",
+    "merged": false
+  },
+  {
+    "source": "website/lang/fa/transactional-email.php",
+    "path": "servernet_app/lang/fa/transactional-email.php",
+    "before": null,
+    "after": "656ad6e55eac902aa6f9e835efc006120424f68fb8fefd867e2664d31e9f38a0",
+    "merged": false
+  },
+  {
+    "source": "website/lang/tr/transactional-email.php",
+    "path": "servernet_app/lang/tr/transactional-email.php",
+    "before": null,
+    "after": "6f1fe190910f93581ace418be30e4fb618207087f0a3d3a059dc641e2fe5ca97",
+    "merged": false
+  },
+  {
+    "source": "website/public/assets/css/transactional-email.css",
+    "path": "public_html/assets/css/transactional-email.css",
+    "before": null,
+    "after": "4ce3c79fdd6c3eb0319c2374eb5ef3a25ac4b29f213d78b45101c9fa1545e875",
+    "merged": false
+  },
+  {
+    "source": "website/public/assets/js/transactional-email.js",
+    "path": "public_html/assets/js/transactional-email.js",
+    "before": null,
+    "after": "c3c041234dad1f438d30b9a14b41cfa9706506d6d489884673cc2c202e3c9e8c",
+    "merged": false
+  },
+  {
+    "source": "website/resources/views/pages/transactional-email.blade.php",
+    "path": "servernet_app/resources/views/pages/transactional-email.blade.php",
+    "before": null,
+    "after": "bbea223b4eadbde27903ceb081281f30de472e7443d978727872402e547af743",
+    "merged": false
+  }
+]
