@@ -1,0 +1,915 @@
+{
+  "release_id": "growth-20261025-1792934155938",
+  "code_sha": "5bd2e013ba3ef16250d490228a0091a9da4872f9",
+  "installed_utc": "2026-10-25T13:20:56+00:00",
+  "manifest": [
+    {
+      "source": "website/app/Console/Commands/RunGrowthCenter.php",
+      "rel": "app/Console/Commands/RunGrowthCenter.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Console/Commands/RunGrowthCenter.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "f99396293bf4b46e0104678798c38ac55d15d3df2324ccf2539cd0efd73fabd7"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/GrowthController.php",
+      "rel": "app/Http/Controllers/Admin/GrowthController.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Http/Controllers/Admin/GrowthController.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "c56acd34b38d958de8bbd05f69db41ceee8a08385ee6be51858329038a1e5c86"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/GrowthKnowledgeController.php",
+      "rel": "app/Http/Controllers/Admin/GrowthKnowledgeController.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Http/Controllers/Admin/GrowthKnowledgeController.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "e22cc17686ee42641913c3d1d6158cc63b8999409d9d5cfdeac24ea4d5ebee43"
+    },
+    {
+      "source": "website/app/Http/Controllers/HermesKnowledgeController.php",
+      "rel": "app/Http/Controllers/HermesKnowledgeController.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Http/Controllers/HermesKnowledgeController.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "54edbf49749895ab4ca05b06d9830059678fb261b752a66aea96dd9d3776bc82"
+    },
+    {
+      "source": "website/app/Models/GrowthAsset.php",
+      "rel": "app/Models/GrowthAsset.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Models/GrowthAsset.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "c25181e43f470342a1126968b838261508c5ff7f91d8e20a3ea95415e80286fd"
+    },
+    {
+      "source": "website/app/Models/GrowthCampaign.php",
+      "rel": "app/Models/GrowthCampaign.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Models/GrowthCampaign.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "7b593ec9d16331e49c052265bf84de7c7a6c91356186e6ec9444823e98789558"
+    },
+    {
+      "source": "website/app/Models/GrowthContent.php",
+      "rel": "app/Models/GrowthContent.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Models/GrowthContent.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "2a09d99eecc72a91e51db9233dea9925af51780e6a121ae782d4d84bcedd6862"
+    },
+    {
+      "source": "website/app/Models/GrowthDocument.php",
+      "rel": "app/Models/GrowthDocument.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Models/GrowthDocument.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "59e869d546448260c285bde0c04d21bf67539fe6d20d79aec975877fc95f4578"
+    },
+    {
+      "source": "website/app/Models/GrowthJob.php",
+      "rel": "app/Models/GrowthJob.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Models/GrowthJob.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "03c18d440a0acfb90a3d1a97d4917705f8a48018011ae877f5e25a09c27ed2f5"
+    },
+    {
+      "source": "website/app/Services/Growth/ContentWorkflow.php",
+      "rel": "app/Services/Growth/ContentWorkflow.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/ContentWorkflow.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "7d7de45aa8bdf5f522e6539e383d891497020b1c353658ec0fc6a94770ace483"
+    },
+    {
+      "source": "website/app/Services/Growth/ConversationImport.php",
+      "rel": "app/Services/Growth/ConversationImport.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/ConversationImport.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "5f0aae59adaee6d3c645ac6327a2f00e98d1fb1a1724cf8632490b75806bb370"
+    },
+    {
+      "source": "website/app/Services/Growth/GrowthAudit.php",
+      "rel": "app/Services/Growth/GrowthAudit.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/GrowthAudit.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "084b2a128200bb365056b101d51fa2b0cb98507dadc9cd9439adbcdc7e153f67"
+    },
+    {
+      "source": "website/app/Services/Growth/GrowthCalendar.php",
+      "rel": "app/Services/Growth/GrowthCalendar.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/GrowthCalendar.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "882d81f023f5e684dfcf41441211e2e1d2866acdbe8b47baa1da21d97d0380f9"
+    },
+    {
+      "source": "website/app/Services/Growth/GrowthDrive.php",
+      "rel": "app/Services/Growth/GrowthDrive.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/GrowthDrive.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "d6b75021ae240eb5ca477c72124132f808aad6009000447e51a164119c28397f"
+    },
+    {
+      "source": "website/app/Services/Growth/GrowthGateway.php",
+      "rel": "app/Services/Growth/GrowthGateway.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/GrowthGateway.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "c1d9379038ede1a8e672f4f3112a3c1382c750ca5776fcddb1a98813e5e44010"
+    },
+    {
+      "source": "website/app/Services/Growth/GrowthJobs.php",
+      "rel": "app/Services/Growth/GrowthJobs.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/GrowthJobs.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "67e0afa4db02764180cf4d7dbd7da93245b51275ba6c0650ac21a5a387e24a14"
+    },
+    {
+      "source": "website/app/Services/Growth/GrowthNotifications.php",
+      "rel": "app/Services/Growth/GrowthNotifications.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/GrowthNotifications.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "7341ae0851e089ed6d0e055b60e2372f4e0666b00ec1c53fcb1775e1890cb1e7"
+    },
+    {
+      "source": "website/app/Services/Growth/HermesSignature.php",
+      "rel": "app/Services/Growth/HermesSignature.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/HermesSignature.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "5b3d78c41789ed647369a88aca1cd3be57167b80e6b4f9fe0d6c47a8a84e973f"
+    },
+    {
+      "source": "website/app/Services/Growth/KnowledgeBrain.php",
+      "rel": "app/Services/Growth/KnowledgeBrain.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/KnowledgeBrain.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "33a801ccd5c19daacfe14e4bbf2e2c03a443fbcac7c22f59897081b3dd52b418"
+    },
+    {
+      "source": "website/app/Services/Growth/MediaArchive.php",
+      "rel": "app/Services/Growth/MediaArchive.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/MediaArchive.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "a053201e410d3c6db5b90a6d575d6896e4798dc2097cb082a958442e97b0c552"
+    },
+    {
+      "source": "website/app/Services/Growth/Redactor.php",
+      "rel": "app/Services/Growth/Redactor.php",
+      "dest": "/home/servernetcloud/servernet_app/app/Services/Growth/Redactor.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "7cb83aa256cf8cbc22c28d30db5699bd7570126a3d35224c722cbc9217bba159"
+    },
+    {
+      "source": "website/config/ai_growth.php",
+      "rel": "config/ai_growth.php",
+      "dest": "/home/servernetcloud/servernet_app/config/ai_growth.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "e10c8128f9fe8b934fbe046ddfcccdb92d2ef905195b056504e52d07a4d47e9d"
+    },
+    {
+      "source": "website/database/migrations/2026_10_25_160000_create_growth_center_tables.php",
+      "rel": "database/migrations/2026_10_25_160000_create_growth_center_tables.php",
+      "dest": "/home/servernetcloud/servernet_app/database/migrations/2026_10_25_160000_create_growth_center_tables.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "e354ae614744e82f65c623148bf407eb1319ecb8eb60d4d9f6545c36d2655258"
+    },
+    {
+      "source": "website/lang/en/growth.php",
+      "rel": "lang/en/growth.php",
+      "dest": "/home/servernetcloud/servernet_app/lang/en/growth.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "de6d15f51ce95f9a446cef3b5cc7444ae0c1d86303cd88384cb66c5b6470070a"
+    },
+    {
+      "source": "website/lang/fa/growth.php",
+      "rel": "lang/fa/growth.php",
+      "dest": "/home/servernetcloud/servernet_app/lang/fa/growth.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "23e81553fab4398b5fcc3e0663352298b62a7ec6371df7bf81a1655976019a12"
+    },
+    {
+      "source": "website/lang/tr/growth.php",
+      "rel": "lang/tr/growth.php",
+      "dest": "/home/servernetcloud/servernet_app/lang/tr/growth.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "b0433ac60123db713b421d8fa29f2111858cfd663e98bde7542def5329211f8c"
+    },
+    {
+      "source": "website/public/assets/css/growth-center.css",
+      "rel": "public/assets/css/growth-center.css",
+      "dest": "/home/servernetcloud/public_html/assets/css/growth-center.css",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "e44e5be741e4712870f7ce4dc6c38d7d001508ac911432605c3937ec5aa122c8"
+    },
+    {
+      "source": "website/public/assets/js/growth-center.js",
+      "rel": "public/assets/js/growth-center.js",
+      "dest": "/home/servernetcloud/public_html/assets/js/growth-center.js",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "096434afc21b15d1718064c969212013edb165ecf008dee879e56e2a301680e7"
+    },
+    {
+      "source": "website/resources/views/admin/growth/calendar.blade.php",
+      "rel": "resources/views/admin/growth/calendar.blade.php",
+      "dest": "/home/servernetcloud/servernet_app/resources/views/admin/growth/calendar.blade.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "7d2286884676c0429f77d586f44e33f086f3bb122832c11f531fac6131ce32c0"
+    },
+    {
+      "source": "website/resources/views/admin/growth/content.blade.php",
+      "rel": "resources/views/admin/growth/content.blade.php",
+      "dest": "/home/servernetcloud/servernet_app/resources/views/admin/growth/content.blade.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "8d4c152d2b8bc6f2b3799546f3245bfec1fe9ef03e0ba101b9ee6a23cfed0d8b"
+    },
+    {
+      "source": "website/resources/views/admin/growth/index.blade.php",
+      "rel": "resources/views/admin/growth/index.blade.php",
+      "dest": "/home/servernetcloud/servernet_app/resources/views/admin/growth/index.blade.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "1b7f8334c4a199db852c1234d5143a29719723bcf967251949c4a9bc35f88a62"
+    },
+    {
+      "source": "website/resources/views/admin/growth/jobs.blade.php",
+      "rel": "resources/views/admin/growth/jobs.blade.php",
+      "dest": "/home/servernetcloud/servernet_app/resources/views/admin/growth/jobs.blade.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "74360941aa9766afdcd01b0bcaf7dd32f57910c036da55e31e17f0a2caf01b1e"
+    },
+    {
+      "source": "website/resources/views/admin/layout.blade.php",
+      "rel": "resources/views/admin/layout.blade.php",
+      "dest": "/home/servernetcloud/servernet_app/resources/views/admin/layout.blade.php",
+      "kind": "merge",
+      "before_sha256": "92251c8da25f9299aa78a9a2be3cbaf2bad4446972ae3de1a66370d1cf862e5c",
+      "after_sha256": "7805815083d0ddec258affe1eca6ecf00c18f5c526bbfe1621833830d50151e6"
+    },
+    {
+      "source": "website/routes/ai-growth.php",
+      "rel": "routes/ai-growth.php",
+      "dest": "/home/servernetcloud/servernet_app/routes/ai-growth.php",
+      "kind": "new",
+      "before_sha256": null,
+      "after_sha256": "ba7d356860958604800b703b54f52db0ffff8ac1889f2d716a4e2fe9bbbef828"
+    },
+    {
+      "source": "website/routes/console.php",
+      "rel": "routes/console.php",
+      "dest": "/home/servernetcloud/servernet_app/routes/console.php",
+      "kind": "merge",
+      "before_sha256": "705bad22e1b39f4c2604ba7905676569dc677b1cdc5d019f4f15e383ed7781f8",
+      "after_sha256": "f4d7d941a270ce784693cb8f8dbba9003448b76b870ca2646836c27f96d227d9"
+    },
+    {
+      "source": "website/routes/web.php",
+      "rel": "routes/web.php",
+      "dest": "/home/servernetcloud/servernet_app/routes/web.php",
+      "kind": "merge",
+      "before_sha256": "26308cd60e1545416f75bc5c4ada50bd5c4a4e40ed1a9013db474cf0638a8cf6",
+      "after_sha256": "76f897e849e1dcd82578c8affe12622065deb631f7fa3f389e3aca7a16ec6208"
+    }
+  ],
+  "mariadb_migration": {
+    "version": "10.11.19-MariaDB",
+    "passed_checks": 33,
+    "temporary_database_deleted": true,
+    "error": null
+  },
+  "backup": {
+    "dump_exit": 0,
+    "uncompressed_bytes": 44393388,
+    "compressed_bytes": 8505730,
+    "sha256": "02bda2424b819fd56d2c586dd357bc6f22f848cb4aea1e72a139fdd916152b53",
+    "decompression_verified": true,
+    "full_restore_tested": false
+  },
+  "migration": {
+    "exit": 0,
+    "migration_rows_added": 1,
+    "exact_migration_rows": 1,
+    "controls": {
+      "id": 1,
+      "enabled": 0,
+      "daily_irt": 0,
+      "monthly_irt": 0,
+      "notify": 0,
+      "daily_tasks": 0,
+      "created_at": "2026-10-25 13:20:25",
+      "updated_at": "2026-10-25 13:20:25"
+    }
+  },
+  "install": {
+    "installed": 36,
+    "hashes_verified": 36,
+    "shared_files_merged": 3,
+    "utc": "2026-10-25T13:20:56+00:00"
+  },
+  "activation": {
+    "sapi": "fpm-fcgi",
+    "opcache_enabled": "1",
+    "validate_timestamps": "1",
+    "requested": 34,
+    "invalidated": 34,
+    "layout_compiled_absent": true,
+    "helper_deleted": true
+  },
+  "kernel_acceptance": {
+    "screens": [
+      {
+        "locale": "fa",
+        "tab": "overview",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 35956
+      },
+      {
+        "locale": "fa",
+        "tab": "sociality",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34969
+      },
+      {
+        "locale": "fa",
+        "tab": "calendar",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 39052
+      },
+      {
+        "locale": "fa",
+        "tab": "creative",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 35210
+      },
+      {
+        "locale": "fa",
+        "tab": "seo",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 35309
+      },
+      {
+        "locale": "fa",
+        "tab": "knowledge",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34988
+      },
+      {
+        "locale": "fa",
+        "tab": "hermes",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 35522
+      },
+      {
+        "locale": "fa",
+        "tab": "research",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32430
+      },
+      {
+        "locale": "fa",
+        "tab": "analytics",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 31948
+      },
+      {
+        "locale": "fa",
+        "tab": "integrations",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 33202
+      },
+      {
+        "locale": "fa",
+        "tab": "automation",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32847
+      },
+      {
+        "locale": "fa",
+        "tab": "costs",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32651
+      },
+      {
+        "locale": "fa",
+        "tab": "settings",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 33537
+      },
+      {
+        "locale": "en",
+        "tab": "overview",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 35060
+      },
+      {
+        "locale": "en",
+        "tab": "sociality",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34311
+      },
+      {
+        "locale": "en",
+        "tab": "calendar",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 38261
+      },
+      {
+        "locale": "en",
+        "tab": "creative",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34448
+      },
+      {
+        "locale": "en",
+        "tab": "seo",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34490
+      },
+      {
+        "locale": "en",
+        "tab": "knowledge",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34310
+      },
+      {
+        "locale": "en",
+        "tab": "hermes",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34721
+      },
+      {
+        "locale": "en",
+        "tab": "research",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 31976
+      },
+      {
+        "locale": "en",
+        "tab": "analytics",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 31539
+      },
+      {
+        "locale": "en",
+        "tab": "integrations",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32593
+      },
+      {
+        "locale": "en",
+        "tab": "automation",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32134
+      },
+      {
+        "locale": "en",
+        "tab": "costs",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32099
+      },
+      {
+        "locale": "en",
+        "tab": "settings",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32922
+      },
+      {
+        "locale": "tr",
+        "tab": "overview",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 35146
+      },
+      {
+        "locale": "tr",
+        "tab": "sociality",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34396
+      },
+      {
+        "locale": "tr",
+        "tab": "calendar",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 38351
+      },
+      {
+        "locale": "tr",
+        "tab": "creative",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34539
+      },
+      {
+        "locale": "tr",
+        "tab": "seo",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34588
+      },
+      {
+        "locale": "tr",
+        "tab": "knowledge",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34397
+      },
+      {
+        "locale": "tr",
+        "tab": "hermes",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 34814
+      },
+      {
+        "locale": "tr",
+        "tab": "research",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32055
+      },
+      {
+        "locale": "tr",
+        "tab": "analytics",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 31601
+      },
+      {
+        "locale": "tr",
+        "tab": "integrations",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32685
+      },
+      {
+        "locale": "tr",
+        "tab": "automation",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32205
+      },
+      {
+        "locale": "tr",
+        "tab": "costs",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32156
+      },
+      {
+        "locale": "tr",
+        "tab": "settings",
+        "status": 200,
+        "title_present": true,
+        "body_bytes": 32999
+      }
+    ],
+    "auth": {
+      "anonymous": 302,
+      "support": 403,
+      "author": 403
+    },
+    "blocked_sql_writes": 0,
+    "calendar": {
+      "label": "آبان 1405",
+      "days": 30
+    },
+    "controls": {
+      "id": 1,
+      "enabled": 0,
+      "daily_irt": 0,
+      "monthly_irt": 0,
+      "notify": 0,
+      "daily_tasks": 0,
+      "created_at": "2026-10-25 13:20:25",
+      "updated_at": "2026-10-25 13:20:25"
+    }
+  },
+  "public_http": [
+    {
+      "path": "/up",
+      "status": 200
+    },
+    {
+      "path": "/admin/ai-growth",
+      "status": 302
+    },
+    {
+      "path": "/admin/ai-growth/assets/999999",
+      "status": 302
+    },
+    {
+      "path": "/assets/css/growth-center.css",
+      "status": 200,
+      "sha256": "e44e5be741e4712870f7ce4dc6c38d7d001508ac911432605c3937ec5aa122c8",
+      "matches_expected": true
+    },
+    {
+      "path": "/assets/js/growth-center.js",
+      "status": 200,
+      "sha256": "096434afc21b15d1718064c969212013edb165ecf008dee879e56e2a301680e7",
+      "matches_expected": true
+    },
+    {
+      "path": "/api/internal/growth/knowledge/search",
+      "unsigned_status": 401
+    }
+  ],
+  "visual": {
+    "surface": "fresh isolated Chrome, actual read-only production Blade output; no live authenticated browser session",
+    "screens": [
+      {
+        "page": "fa-overview",
+        "width": 1440,
+        "height": 1000,
+        "doc": 1425,
+        "body": 1425,
+        "days": 0,
+        "tabs": 13,
+        "no_horizontal_page_overflow": true
+      },
+      {
+        "page": "fa-calendar",
+        "width": 390,
+        "height": 1000,
+        "doc": 390,
+        "body": 390,
+        "days": 30,
+        "tabs": 13,
+        "no_horizontal_page_overflow": true
+      },
+      {
+        "page": "en-knowledge",
+        "width": 1440,
+        "height": 1000,
+        "doc": 1425,
+        "body": 1425,
+        "days": 0,
+        "tabs": 13,
+        "no_horizontal_page_overflow": true
+      },
+      {
+        "page": "tr-sociality",
+        "width": 390,
+        "height": 1000,
+        "doc": 390,
+        "body": 390,
+        "days": 0,
+        "tabs": 13,
+        "no_horizontal_page_overflow": true
+      }
+    ],
+    "picker": {
+      "picker_api_ok": true,
+      "picker_api_from_live_read_only_kernel": true,
+      "days": 30,
+      "x": 78,
+      "width": 304,
+      "value": "2026-10-23",
+      "popup_closed": true
+    }
+  },
+  "final": {
+    "hashes": [
+      {
+        "path": "app/Console/Commands/RunGrowthCenter.php",
+        "match": true
+      },
+      {
+        "path": "app/Http/Controllers/Admin/GrowthController.php",
+        "match": true
+      },
+      {
+        "path": "app/Http/Controllers/Admin/GrowthKnowledgeController.php",
+        "match": true
+      },
+      {
+        "path": "app/Http/Controllers/HermesKnowledgeController.php",
+        "match": true
+      },
+      {
+        "path": "app/Models/GrowthAsset.php",
+        "match": true
+      },
+      {
+        "path": "app/Models/GrowthCampaign.php",
+        "match": true
+      },
+      {
+        "path": "app/Models/GrowthContent.php",
+        "match": true
+      },
+      {
+        "path": "app/Models/GrowthDocument.php",
+        "match": true
+      },
+      {
+        "path": "app/Models/GrowthJob.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/ContentWorkflow.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/ConversationImport.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/GrowthAudit.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/GrowthCalendar.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/GrowthDrive.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/GrowthGateway.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/GrowthJobs.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/GrowthNotifications.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/HermesSignature.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/KnowledgeBrain.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/MediaArchive.php",
+        "match": true
+      },
+      {
+        "path": "app/Services/Growth/Redactor.php",
+        "match": true
+      },
+      {
+        "path": "config/ai_growth.php",
+        "match": true
+      },
+      {
+        "path": "database/migrations/2026_10_25_160000_create_growth_center_tables.php",
+        "match": true
+      },
+      {
+        "path": "lang/en/growth.php",
+        "match": true
+      },
+      {
+        "path": "lang/fa/growth.php",
+        "match": true
+      },
+      {
+        "path": "lang/tr/growth.php",
+        "match": true
+      },
+      {
+        "path": "public/assets/css/growth-center.css",
+        "match": true
+      },
+      {
+        "path": "public/assets/js/growth-center.js",
+        "match": true
+      },
+      {
+        "path": "resources/views/admin/growth/calendar.blade.php",
+        "match": true
+      },
+      {
+        "path": "resources/views/admin/growth/content.blade.php",
+        "match": true
+      },
+      {
+        "path": "resources/views/admin/growth/index.blade.php",
+        "match": true
+      },
+      {
+        "path": "resources/views/admin/growth/jobs.blade.php",
+        "match": true
+      },
+      {
+        "path": "resources/views/admin/layout.blade.php",
+        "match": true
+      },
+      {
+        "path": "routes/ai-growth.php",
+        "match": true
+      },
+      {
+        "path": "routes/console.php",
+        "match": true
+      },
+      {
+        "path": "routes/web.php",
+        "match": true
+      }
+    ],
+    "table_counts": {
+      "growth_controls": 1,
+      "growth_campaigns": 0,
+      "growth_contents": 0,
+      "growth_revisions": 0,
+      "growth_jobs": 0,
+      "growth_assets": 0,
+      "growth_documents": 0,
+      "growth_chunks": 0,
+      "growth_audits": 0,
+      "growth_automation_runs": 0
+    },
+    "controls": {
+      "id": 1,
+      "enabled": 0,
+      "daily_irt": 0,
+      "monthly_irt": 0,
+      "notify": 0,
+      "daily_tasks": 0,
+      "created_at": "2026-10-25 13:20:25",
+      "updated_at": "2026-10-25 13:20:25"
+    },
+    "scheduler_cron_count": 1,
+    "cron_sha256": "8ea9bc904368431c0c8970de0aff54349a50689c03ccaefa5722d7877dff4806",
+    "helper_absent": true,
+    "activation_secret_absent": true,
+    "dump_credentials_absent": true
+  },
+  "access_cleanup": {
+    "old_key": {
+      "name": "growth_center_1792923749479_ca866c0c",
+      "removed_authorized_lines": 1,
+      "other_lines_preserved": true,
+      "public_file_deleted": true,
+      "verified": true
+    },
+    "current_key": {
+      "name": "growth_resume_1792933512915",
+      "removed_lines": 1,
+      "other_bytes_preserved": true,
+      "current_key_absent": true,
+      "old_public_file_absent": true,
+      "reauthentication": {
+        "denied": true,
+        "level": "client-authentication"
+      }
+    }
+  }
+}
