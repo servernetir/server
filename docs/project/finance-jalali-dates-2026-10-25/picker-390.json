@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "checks": [
+    "Initial value is Jalali",
+    "Opens the selected month",
+    "Previous month leaves popup open",
+    "Leap Esfand contains 30 days",
+    "Selection submits the canonical ISO date",
+    "Selection label includes Jalali year and day",
+    "Optional filter clears",
+    "Empty required date blocks submission",
+    "Required date accepts a valid selection",
+    "Failure fallback stays Jalali",
+    "Manual Persian digits convert on the server",
+    "Cash-flow builder writes a Jalali dated flow",
+    "Existing service minimum date is enforced",
+    "Maximum date is enforced",
+    "Existing hidden service date remains compatible",
+    "Viewport width 390",
+    "Popup fits the viewport",
+    "No browser JavaScript errors"
+  ]
+}
