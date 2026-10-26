@@ -402,7 +402,7 @@ body.imp-on .pnl-side{top:calc(var(--cvb-top) + var(--imp-h))}
 /* انجام‌شده: تیکِ آرام، بی‌جلبِ توجه */
 .cb-step.is-done .cb-dot{border-color:var(--ok);background:var(--ok)}
 .cb-step.is-done .cb-dot::after{content:"";width:5px;height:9px;border:2px solid #04121a;
-  border-top:0;border-inline-start:0;transform:rotate(45deg) translate(-1px,-1px)}
+  border-top:0;border-left:0;transform:rotate(45deg) translate(-1px,-1px)}
 .cb-step.is-done .cb-txt b{color:var(--text)}
 
 /* جاری: تنها چیزی که در صفحه می‌جنبد */
@@ -476,7 +476,7 @@ body.imp-on .pnl-side{top:calc(var(--cvb-top) + var(--imp-h))}
 .cvb-step .cb-dot{width:16px;height:16px;margin:0}
 .cvb-step.is-done .cb-dot{border-color:var(--ok);background:var(--ok)}
 .cvb-step.is-done .cb-dot::after{content:"";width:4px;height:8px;border:2px solid var(--bg);
-  border-top:0;border-inline-start:0;transform:rotate(45deg) translate(-1px,-1px)}
+  border-top:0;border-left:0;transform:rotate(45deg) translate(-1px,-1px)}
 .cvb-step.is-now .cb-dot{border-color:var(--info);background:var(--info-bg)}
 .cvb-step.is-todo .cb-dot{border-style:dashed}
 
@@ -1634,3 +1634,14 @@ html[data-theme="light"] .cvb-plan:hover{background:rgba(20,30,60,.04)}
 @keyframes cvb-version-open{from{opacity:0;transform:translateY(-4px) scale(.97)}to{opacity:1;transform:none}}
 @keyframes cvb-version-item{from{opacity:0;transform:translateY(-7px) scale(.96)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.cvb-version-menu,.cvb-version-option{animation:none}.cvb-version-trigger,.cvb-version-arrow i{transition:none}}
+
+/* Keep resource/software steps in normal flow inside the desktop workspace.
+   The location explorer owns the viewport-height layout; later steps can grow
+   beyond it and scroll without compressing image cards, notes or form labels.
+   The extra state selector also takes precedence over the workspace stylesheet. */
+@media(min-width:1001px) and (min-height:700px){
+  .cvx-store.cvx-enhanced:not([data-active-step="1"]) .cvb-main>.cvb-step{flex:0 0 auto}
+  .cvx-store.cvx-enhanced:not([data-active-step="1"]) .cvb-step-b,
+  .cvx-store.cvx-enhanced:not([data-active-step="1"]) .cvb-step-i{height:auto}
+  .cvx-store.cvx-enhanced:not([data-active-step="1"]) .cvb-main>.pnl-sec>.cvb-step-b>.cvb-step-i>.pnl-sec-b{height:auto;display:block}
+}
