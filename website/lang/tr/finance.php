@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'wallet_refund_payout' => 'Banka üzerinden cüzdan iadesi; borç kapatma',
+    'wallet_refunds_paid_irt' => 'Banka üzerinden cüzdan iadesi; borç kapatma',
+    'net_external_receipts_irt' => 'Cüzdan iadeleri sonrası net dış tahsilat',
+    'wallet_refund_no_reverse' => 'Gerçek iade ödemesi genel fiş ters kaydıyla geri alınamaz. Düzeltmeler ayrı banka mutabakatı incelemesi gerektirir.',
     'accounting' => 'Muhasebe ve belgeler',
     'export' => 'CSV dışa aktar',
     'search' => 'Ara',

@@ -175,6 +175,10 @@
       @endif
 
       <div class="ad-nav-sep">مالی</div>
+      @if(auth()->user()->isAdmin() && app(\App\Services\Finance\WalletRefunds::class)->ready())
+        @php $pendingRefunds = \App\Models\WalletRefundRequest::whereIn('status', \App\Models\WalletRefundRequest::OPEN)->count(); @endphp
+        <a href="{{ route('admin.wallet-refunds') }}" class="@yield('nav_wallet_refunds')"><svg class="icon"><use href="#i-coins"/></svg>{{ __('refund.queue') }}@if($pendingRefunds)<span class="ad-pill">{{ fa_num($pendingRefunds) }}</span>@endif</a>
+      @endif
       <a href="/admin/finance" class="@yield('nav_finance')"><svg class="icon"><use href="#i-coins"/></svg>مالی و سود</a>
       <a href="/admin/reports" class="@yield('nav_reports')"><svg class="icon"><use href="#i-gauge"/></svg>گزارشِ کسب‌وکار</a>
       <a href="/admin/transactions" class="@yield('nav_transactions')"><svg class="icon"><use href="#i-list"/></svg>تراکنش‌ها و اعتبار</a>

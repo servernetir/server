@@ -57,7 +57,7 @@ class SettingsController extends Controller
     /** تب‌ها به همان ترتیبی که در نوار دیده می‌شوند. */
     public const TABS = [
         'general'  => ['t' => 'عمومی',          'icon' => 'i-wrench'],
-        'accounts' => ['t' => 'حساب‌ها',         'icon' => 'i-coins'],
+        'accounts' => ['t' => 'حساب‌ها و پرداخت', 'icon' => 'i-coins'],
         'pricing'  => ['t' => 'نرخ‌گذاری و سود', 'icon' => 'i-trend'],
         'infra'    => ['t' => 'زیرساخت و CDN',   'icon' => 'i-cloud'],
         'costs'    => ['t' => 'هزینه‌ها',         'icon' => 'i-tag'],

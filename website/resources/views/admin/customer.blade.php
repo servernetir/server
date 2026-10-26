@@ -42,6 +42,7 @@
     @endif
     <a class="btn btn-glass" href="#account-moderation" data-open-account-moderation>مسدودسازی / رفع مسدودی</a>
     <a class="btn btn-glass" href="/admin/broadcasts?customer={{ $c->id }}"><svg class="icon"><use href="#i-message"/></svg>ارسال اعلان</a>
+    <a class="btn btn-glass" href="#customer-ticket-compose" data-open-customer-ticket><svg class="icon"><use href="#i-lifebuoy"/></svg>ثبت تیکت برای این مشتری</a>
 
     {{-- ══ تماس با مشتری ══
          🔴 جایش این‌جاست، نه داخلِ تبِ تماس‌ها.
@@ -80,6 +81,8 @@
     @endif
   </div>
 </div>
+
+@include('admin.partials.customer-ticket-compose')
 
 {{-- ══ آمار سریع ══
      «در یک نگاه» یعنی همین ردیف: چه چیزی از ما دارد، چقدر بدهکار است و
@@ -361,7 +364,7 @@
         سؤالِ پشتیبانی است. چیزی که در هر ردیف لازم است، ستونِ خودش را
         می‌خواهد نه یک چیپِ گم‌شده وسطِ متن.
       --}}
-      <thead><tr><th>سرویس</th><th>آدرس</th><th>دوره</th><th>مبلغ</th><th>وضعیت</th><th>سررسید</th><th></th></tr></thead>
+      <thead><tr><th>سرویس</th><th>آدرس</th><th>زیرساخت و رهگیری</th><th>دوره</th><th>مبلغ</th><th>وضعیت</th><th>سررسید</th><th></th></tr></thead>
       <tbody>
         @foreach($liveServices as $s)
         @php $sb = $s->statusBadge(); @endphp
@@ -383,7 +386,6 @@
                     ?? $s->server_ip
                     ?? $s->server?->server_ip;
               $svcDns = collect(preg_split('/\s*,\s*/', (string) ($s->server?->nameservers ?? ''), -1, PREG_SPLIT_NO_EMPTY));
-              $infraName = $s->server?->name;
               /* در Salad، provider_ref دقیقاً name/display_name گروه است؛
                  hostname بعداً با DNS دروازه جایگزین می‌شود و نامِ پنل نیست. */
               $saladGpuName = $s->cloudInstance?->provider === 'salad'
@@ -452,14 +454,12 @@
             @if($svcDns->isNotEmpty())
               <div style="font-size:12px;color:var(--muted)"><b style="font-size:11px;color:var(--dim)">DNS:</b> <span dir="ltr" style="user-select:all">{{ $svcDns->implode(' · ') }}</span></div>
             @endif
-            @if($infraName)
-              <div style="font-size:12px;color:#a78bfa"><b style="font-size:11px">زیرساخت:</b> {{ $infraName }}</div>
-            @endif
             @if($saladGpuName)
               <div style="font-size:12px;color:#34d399"><b style="font-size:11px">نام GPU در Salad:</b> <span dir="ltr" style="user-select:all">{{ $saladGpuName }}</span></div>
             @endif
-            @unless($s->domain || $svcIp || $svcDns->isNotEmpty() || $infraName || $saladGpuName)<span style="color:var(--dim)">—</span>@endunless
+            @unless($s->domain || $svcIp || $svcDns->isNotEmpty() || $saladGpuName)<span style="color:var(--dim)">—</span>@endunless
           </td>
+          <td>@include('admin.partials.service-infrastructure', ['s' => $s])</td>
           <td>{{ $s->cycleLabel() }}@if($s->isInternalInfrastructure())<small> · زیرساخت داخلی؛ معاف از قطع بابت بدهی</small>@endif</td>
           {{-- ساعتی: نرخِ واقعیِ کسر، نه معادلِ ماهانه که هرگز فاکتور نمی‌شود --}}
           <td>@if($s->isHourly()){{ number_format((int) $s->hourly_rate_irt) }} ت/ساعت@else{{ $money($s->total()) }}@endif</td>
@@ -613,7 +613,7 @@
         سرویس‌های لغو/خاتمه‌یافته ({{ fa_num($deadServices->count()) }})
       </summary>
       <table class="ad-table">
-        <thead><tr><th>سرویس</th><th>آدرس</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead>
+        <thead><tr><th>سرویس</th><th>آدرس</th><th>زیرساخت و رهگیری</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead>
         <tbody>
           @foreach($deadServices as $s)
             @php
@@ -628,6 +628,7 @@
                 @if($ip2)<div dir="ltr" style="font-size:12px;color:var(--muted)">{{ $ip2 }}</div>@endif
                 @unless($s->domain || $ip2)<span style="color:var(--dim)">—</span>@endunless
               </td>
+              <td>@include('admin.partials.service-infrastructure', ['s' => $s])</td>
               <td>{{ $money($s->total()) }}</td>
               <td><span class="ad-badge" style="background:{{ $sb2[1] }}22;color:{{ $sb2[1] }}">{{ $sb2[0] }}</span></td>
               <td class="ad-row-act" style="white-space:nowrap">
@@ -780,6 +781,7 @@
 
 {{-- ─────────── تبِ مالی ─────────── --}}
 <div class="ct-pane" data-pane="finance">
+@include('admin.partials.customer-wallet-refunds')
 {{-- ══ فاکتورها ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>فاکتورها</h3></div>
@@ -1199,7 +1201,7 @@
 <div class="ad-panel" style="border-color:rgba(255,107,107,.28)">
   <div class="ad-panel-h"><h3 style="color:#ff6b6b">حذف مشتری</h3></div>
   <div style="padding:16px">
-    @if($invoiceTotals['paid'] > 0 || $creditBalance != 0)
+    @if($invoiceTotals['paid'] > 0 || $creditBalance != 0 || ($walletRefundHistory ?? false))
       <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.9">
         این مشتری سابقهٔ مالی دارد (فاکتور پرداخت‌شده یا ماندهٔ اعتبار) و برای حفظِ سوابقِ حسابداری قابلِ حذف نیست.
         برای مسدودسازی، از بخشِ «وضعیت حساب» گزینهٔ «بسته» را انتخاب کنید.
@@ -1249,11 +1251,33 @@
 .svc-meta i{ font-style:normal; font-size:11.5px; color:var(--dim); display:inline-flex; align-items:center; gap:4px }
 .svc-meta i b{ color:var(--muted); font-weight:600 }
 
+.svc-infrastructure{display:grid;gap:5px;min-width:175px;max-width:280px;overflow-wrap:anywhere;font-size:12px}
+.svc-infrastructure>b{color:var(--text)}
+.svc-infrastructure small{color:var(--muted);font-size:11.5px}
+.svc-origin-ref{user-select:all}
+.svc-infrastructure-link{color:var(--cyan);font-size:12px}
+.cust-ticket-form{padding:16px;display:grid;gap:14px}
+.cust-ticket-form label{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+.cust-ticket-form .ad-input{width:100%;box-sizing:border-box}
+.cust-ticket-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
 @media(max-width:1100px){ .cust-kpis{ grid-template-columns:repeat(3,1fr) } }
 @media(max-width:640px){ .cust-kpis{ grid-template-columns:repeat(2,1fr) } .ct-tab{ padding:10px 12px; font-size:13px } }
 </style>
 
 <script>
+(function () {
+  var link = document.querySelector('[data-open-customer-ticket]');
+  var compose = document.getElementById('customer-ticket-compose');
+  if (!link || !compose) return;
+  link.addEventListener('click', function (event) {
+    event.preventDefault();
+    compose.open = true;
+    compose.scrollIntoView({behavior:'smooth', block:'nearest'});
+    var subject = compose.querySelector('input[name="subject"]');
+    if (subject) subject.focus({preventScroll:true});
+  });
+})();
 /* فرمِ فروشِ سرویس: پشتِ دکمهٔ بالای پنل، نه همیشه‌باز در انتهای صفحه.
  *
  * ⚠️ `hidden` روی `#sell-form-wrap` کار می‌کند چون آن عنصر `display:` صریح
@@ -1276,7 +1300,7 @@
 
   /* اگر اعتبارسنجی سرور خطا داد، فرم باید **باز** برگردد — وگرنه مدیر پیامِ
    * خطا را می‌بیند و فرمی که خطا داده پنهان است. */
-  @if($errors->any())
+  @if($errors->any() && ! old('_customer_ticket_form'))
     btn.click();
   @endif
 })();
@@ -1305,6 +1329,7 @@
 
   // با لینکِ #finance یا رفرش، همان تب باز بماند
   var initial = (location.hash || '').replace('#', '');
+  @if(old('_wallet_refund_permission')) initial = 'finance'; @endif
   if (initial && document.querySelector('.ct-pane[data-pane="' + initial + '"]')) show(initial);
 })();
 </script>

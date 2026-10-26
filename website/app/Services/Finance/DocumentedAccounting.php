@@ -246,6 +246,7 @@ final class DocumentedAccounting
         return DB::transaction(function () use ($voucher, $date, $reason, $actor) {
             $this->guardDate($date);
             $v = FinanceVoucher::whereKey($voucher->id)->lockForUpdate()->firstOrFail();
+            $this->check($v->type !== 'wallet_refund_payout', 'wallet_refund_no_reverse');
             $this->check($date >= $v->occurred_at->toDateString());
             $this->check(! $v->reversal_of && ! FinanceVoucher::where('reversal_of', $v->id)->exists(), 'already_reversed');
             $this->check(mb_strlen(trim($reason)) >= 5);

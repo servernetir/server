@@ -1,6 +1,14 @@
 <?php
 
 return [
+    // Reseller origin must be confirmed by VPS.TC; no guessed default host.
+    // Credentials may instead be stored encrypted in the dedicated admin page.
+    'vpstc' => [
+        'base_url' => env('VPSTC_API_BASE_URL', ''),
+        'username' => env('VPSTC_API_USERNAME', ''),
+        'password' => env('VPSTC_API_PASSWORD', ''),
+    ],
+
     'support_ticket_api' => [
         'token' => env('SUPPORT_TICKET_API_TOKEN'),
     ],

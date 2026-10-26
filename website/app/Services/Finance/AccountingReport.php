@@ -57,6 +57,14 @@ final class AccountingReport
             }
             $result['payments'] = ['external_receipts_irt' => $total, 'wallet_spend_irt' => $wallet, 'topups_irt' => $topup];
         }
+        if (Schema::hasTable('wallet_refund_requests')) {
+            $refunds = \App\Models\WalletRefundRequest::where('status', 'paid');
+            if ($scope->from) $refunds->whereDate('payout_date', '>=', $scope->from->toDateString());
+            if ($scope->to) $refunds->whereDate('payout_date', '<=', $scope->to->toDateString());
+            $paidRefunds = (int) $refunds->sum('amount_irt');
+            $result['payments']['wallet_refunds_paid_irt'] = $paidRefunds;
+            $result['payments']['net_external_receipts_irt'] = ($result['payments']['external_receipts_irt'] ?? 0) - $paidRefunds;
+        }
         if (Schema::hasTable('ai_usage')) {
             $ai = DB::table('ai_usage')->whereIn('status', ['settled', 'unknown_charged']);
             if ($scope->from) {

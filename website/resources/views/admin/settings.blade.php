@@ -20,6 +20,12 @@
   @endforeach
 </div>
 
+<p style="margin:0 0 18px">
+  <a class="btn btn-glass" href="/admin/settings?tab=accounts#payment-languages">
+    <svg class="icon"><use href="#i-coins"/></svg>درگاه‌های پرداخت بر اساس زبان
+  </a>
+</p>
+
 @if($notReady && ! in_array($tab, ['guide'], true))
   <div class="ad-panel">
     <p style="padding:18px;color:#fbbf24">
