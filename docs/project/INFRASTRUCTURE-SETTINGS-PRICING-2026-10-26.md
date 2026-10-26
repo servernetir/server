@@ -4,7 +4,11 @@
 
 The owner requested compact ordered infrastructure settings, VPS.tc in the same settings surface, competitive prices for equivalent servers, cost-aware customer operations and a central automatic Navasan TRY card. This record covers that follow-up. Source baseline is `984d7d04fa3a29816465ed63bb165a47f4cec380` on `develop`; it includes the already-installed three-file VPS.tc diagnostic release.
 
-Implementation is validated in isolation. Production installation and live acceptance are recorded after the hash-guarded release below. No paid provider operation, new cron, migration, dependency update, environment edit or credential rotation is part of this release.
+Production: **20 runtime files installed** from `fb791fc47e1133d18be1c1d0583a435175d2db77`; [manifest/receipt](infrastructure-settings-20261026/installed-manifest.json). Live checkout and settings-controller drift were preserved. No paid provider operation, new cron, migration, dependency update, environment edit or credential rotation is part of this release.
+
+Authenticated web acceptance confirmed all nine provider rows and four supporting sections start closed, correct red/yellow status colors, zero nested forms, 60 legacy controls/save associations, five separate inline VPS.tc forms, blank credential inputs and optional manual rate. Keyboard opening/closing of VPS.tc succeeded. The four Navasan cards rendered; live TRY was 5,640 toman from `try_hav`, source timestamp 12:20:09 UTC, fetched 12:26:47 UTC.
+
+The existing `fx:dollar` workflow successfully published four rates, but its cloud repricing stage failed on a missing existing LightNode quote after exact retry. No VPS.tc order, instance or operation was created. The old cloud-price proof correctly became stale; recovery below isolates this unverified supplier rather than guessing a cost or deleting inventory. Domain repricing is independent of that cloud failure. Recovery acceptance is recorded after its separate one-file release.
 
 ## Resulting behavior
 
@@ -32,3 +36,11 @@ Independent reviews caught and corrected premature alias pruning, hourly display
 `scripts/deploy-infrastructure-settings-20261026.py` pins the exact file-only core SHA-256 `00d016eb781d37d31f14e1c57afd386321b308060c7f06e9d111f2c4636638de`, base `984d7d0...`, exactly 20 runtime paths and four explicitly new files. It preserves both shared release locks, source/target hashes, private backups, lint, plan SHA approval, per-file atomic replacement and guarded rollback. Live checkout/pricing changes must be merged through its three-way patch; a conflict stops without application writes. There is no public asset or route update.
 
 Apply and rollback use the exact target, real application root, private release directory and plan SHA. Rollback refuses newer hashes. It restores files only; owner settings, rates, supplier state, invoices and credentials are not erased. Rate-refresh acceptance uses the existing application workflow separately from file installation and is recorded with its actual outcome.
+
+## LightNode price-proof recovery
+
+The follow-up changes only `CloudCatalogRepricer.php`: if an existing LightNode quote remains missing after its existing targeted retry, or that retry fails, the entire provider is added to this price snapshot's exclusions before any of its native cost rows are processed. All old LightNode prices and inventory remain byte-for-byte unchanged; other fully verified providers can publish prices with the new Navasan rates. No provider-disable setting is written, no product is declared out of stock, and no cost is inferred. A later complete quote batch automatically restores eligibility. Initial malformed catalogs, malformed quote values and other-provider failures retain their existing strict behavior.
+
+`scopeSellable`, `offers`, `bestForSlug` and order selection exclude suppliers in the stored price proof. `blockedReason` reports price unavailable for the excluded LightNode shelf card. Thus a current global snapshot cannot authorize a stale LightNode sale. Existing paid-order delivery also independently checks its fresh native quote and cost cap.
+
+Validation: **47 tests / 332 assertions passed** across the new three recovery tests and existing repricer/snapshot/VPS.tc/FetchDollar cases. An independent 20-test / 163-assertion subset and financial gate review passed. The one-file deployment wrapper pins the same core, source base `fb791fc47e1133d18be1c1d0583a435175d2db77`, and only `app/Services/Cloud/CloudCatalogRepricer.php`; three offline scope/drift/precondition/rollback tests passed. No paid operation is used for recovery acceptance.

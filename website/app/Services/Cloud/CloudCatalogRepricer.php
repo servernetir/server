@@ -91,9 +91,18 @@ class CloudCatalogRepricer
                     // Retry only those exact products, with fresh quotes and specs.
                     $retry = $driver->fetchExistingPlanCosts($missing->values()->all());
                     if (($retry['ok'] ?? false) !== true || ! is_array($retry['plans'] ?? null)) {
-                        throw new \RuntimeException('Price refresh could not read supplier costs: '.$provider);
+                        $this->excludeLightNode($skip, 'exact_quote_retry_failed');
+                        continue;
                     }
                     $quotes += $this->indexQuotes($retry['plans'], $provider);
+                }
+                if ($active->contains(fn (CloudPlan $plan) =>
+                    ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]))) {
+                    // Missing quote evidence is not proof of no stock. Preserve
+                    // every old LightNode row, but exclude the whole supplier
+                    // from this price snapshot so fresh peers remain sellable.
+                    $this->excludeLightNode($skip, 'existing_quote_still_missing');
+                    continue;
                 }
             }
 
@@ -217,6 +226,18 @@ class CloudCatalogRepricer
     {
         if (isset($inputs['vpstc']) && $inputs['vpstc'] !== app(VpsTcPricing::class)->fingerprint()) {
             throw new \RuntimeException('VPS.TC exchange inputs changed before price publication.');
+        }
+    }
+
+    private function excludeLightNode(array &$skip, string $reason): void
+    {
+        $skip[] = 'lightnode';
+        try {
+            \App\Support\ErrorTracker::noteOnce('pricing',
+                'قیمت تازهٔ همهٔ پلن‌های LightNode تأیید نشد؛ فروش این زیرساخت موقتاً از snapshot نرخ کنار گذاشته شد. بها و موجودی قبلی حفظ شدند.',
+                3600, ['provider' => 'lightnode', 'reason' => $reason]);
+        } catch (\Throwable) {
+            // A diagnostic failure must not prevent publishing verified peers.
         }
     }
 
