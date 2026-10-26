@@ -19,7 +19,7 @@ class NavasanExchangeRateTest extends TestCase
         parent::setUp();
         $this->travelTo(now()->startOfSecond());
         config()->set('services.exchange.enabled', true);
-        Setting::query()->whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt'])->delete();
+        Setting::query()->whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt', 'fx_last_try'])->delete();
         Cache::forget('fx.navasan.rates');
         Cache::forget('settings.all');
         app()->forgetInstance('settings.request-memo');
@@ -36,14 +36,16 @@ class NavasanExchangeRateTest extends TestCase
             'usd_shakhs' => ['value' => 273380, 'date' => now()->subMinutes(5)->timestamp],
             'eur_hav' => ['value' => 305110, 'date' => now()->subMinutes(5)->timestamp],
             'usd_usdt' => ['value' => 264250, 'date' => now()->subMinutes(5)->timestamp],
+            'try_hav' => ['value' => 5640, 'date' => now()->subMinutes(5)->timestamp],
             // Similar rows must not be confused with the owner's chosen rates.
             'usd_sherkat' => ['value' => 270820, 'date' => now()->timestamp],
             'usd_sell' => ['value' => 190000, 'date' => now()->timestamp],
             'eur' => ['value' => 220000, 'date' => now()->timestamp],
+            'try' => ['value' => 5300, 'date' => now()->timestamp],
         ];
     }
 
-    public function test_one_request_publishes_three_distinct_toman_rates_from_the_selected_rows(): void
+    public function test_one_request_publishes_four_distinct_toman_rates_from_the_selected_rows(): void
     {
         Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($this->payload())]);
         $fx = app(ExchangeRate::class);
@@ -51,9 +53,10 @@ class NavasanExchangeRateTest extends TestCase
 
         Http::assertSentCount(1);
         Http::assertSent(fn ($request) => str_starts_with($request->url(), ExchangeRate::SOURCE_URL.'?'));
-        foreach (['USD' => 273380, 'EUR' => 305110, 'USDT' => 264250] as $currency => $rate) {
+        foreach (['USD' => 273380, 'EUR' => 305110, 'USDT' => 264250, 'TRY' => 5640] as $currency => $rate) {
             $this->assertSame($rate, $rows[$currency]['rate_toman']);
             $this->assertSame('navasan.net', $rows[$currency]['source']);
+            $this->assertSame('IRT', $rows[$currency]['unit']);
             $this->assertSame(ExchangeRate::SOURCE_ITEMS[$currency], $rows[$currency]['source_item']);
             $this->assertSame(now()->subMinutes(5)->toIso8601String(), $rows[$currency]['source_at']);
             $this->assertSame($rate, $fx->toToman($currency));
@@ -69,7 +72,7 @@ class NavasanExchangeRateTest extends TestCase
         Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($this->payload())]);
         $fx->refreshAll();
         $before = array_map(fn ($currency) => $fx->current($currency), array_combine(array_keys(ExchangeRate::SOURCE_ITEMS), array_keys(ExchangeRate::SOURCE_ITEMS)));
-        $persisted = Setting::whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt'])->pluck('value', 'key')->all();
+        $persisted = Setting::whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt', 'fx_last_try'])->pluck('value', 'key')->all();
 
         $missing = $this->payload();
         unset($missing['usd_usdt']);
@@ -161,7 +164,7 @@ class NavasanExchangeRateTest extends TestCase
         $fx = app(ExchangeRate::class);
         Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($this->payload())]);
         $before = $fx->refreshAll();
-        $persisted = Setting::whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt'])
+        $persisted = Setting::whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt', 'fx_last_try'])
             ->pluck('value', 'key')->all();
         Http::swap(new Factory);
         Http::fake();
@@ -205,7 +208,7 @@ class NavasanExchangeRateTest extends TestCase
         Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($this->payload())]);
         $before = $fx->refreshAll();
         $this->assertNotNull($before);
-        $persisted = Setting::whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt'])
+        $persisted = Setting::whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt', 'fx_last_try'])
             ->pluck('value', 'key')->all();
         $payload = $this->payload();
         $payload['eur_hav'] = ['value' => 310000, 'date' => now()->timestamp];

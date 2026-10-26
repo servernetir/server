@@ -476,14 +476,13 @@ class CloudController extends Controller
         }
 
         $lines = [];
-        $i = 0;
-
         foreach ($configured as $driver) {
-            $i++;
+            $status = app(\App\Services\Cloud\InfrastructureSettingsStatus::class);
+            $fingerprint = $status->fingerprint($driver->slug());
             $r = $driver->testConnection();
-            // در پیامِ مدیر هم نامِ ارائه‌دهنده را نمی‌نویسیم؛ «زیرساختِ ۱/۲»
-            // همان ترتیبی است که در فرمِ تنظیمات دیده.
-            $lines[] = ($r['ok'] ? '✅' : '❌')." زیرساختِ {$i}: ".$r['message'];
+            $status->record($driver->slug(), ($r['ok'] ?? false) === true, $fingerprint);
+            // Use the stable registry number even when earlier providers are unconfigured.
+            $lines[] = ($r['ok'] ? '✅' : '❌').' '.$this->manager->realLabel($driver->slug()).': '.$r['message'];
         }
 
         return back()->with($lines === [] ? 'err' : 'ok', implode(' | ', $lines));

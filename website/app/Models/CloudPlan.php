@@ -236,6 +236,7 @@ class CloudPlan extends Model
      */
     public static function offers(?string $locationCode = null, bool $hourly = false)
     {
+        $selection = new \App\Services\Cloud\CloudOfferSelection;
         return static::query()
             ->sellable()
             ->when($hourly, fn ($q) => $q->hourlyCapable())
@@ -243,7 +244,7 @@ class CloudPlan extends Model
             ->orderBy('cost_eur_cents')
             ->get()
             ->groupBy('slug')
-            ->map(fn ($rows) => $rows->first())      // ارزان‌ترین، چون مرتب‌شده آمد
+            ->map(fn ($rows) => $selection->representative($rows, $hourly))
             ->sortBy([['vcpu', 'asc'], ['ram_mb', 'asc'], ['disk_gb', 'asc']])
             ->values()
             ->keyBy('slug');
@@ -298,12 +299,13 @@ class CloudPlan extends Model
      */
     public static function shelf(?string $locationCode = null)
     {
+        $selection = new \App\Services\Cloud\CloudOfferSelection;
         $off = self::disabledProviders();
         if (! app(\App\Services\Cloud\VpsTcSales::class)->enabled()) {
             $off[] = 'vpstc';
         }
 
-        return static::query()
+        $rows = static::query()
             ->where('is_active', true)
             ->where('admin_disabled', false)
             ->when($off !== [], fn ($qq) => $qq->whereNotIn('provider', $off))
@@ -311,7 +313,15 @@ class CloudPlan extends Model
             ->orderBy('cost_eur_cents')
             ->get()
             ->groupBy('slug')
-            ->map(fn ($rows) => $rows->first(fn ($r) => $r->blockedReason() === null) ?? $rows->first())
+            ->map(function ($rows) use ($selection) {
+                $sellable = $rows->filter(fn ($r) => $r->blockedReason() === null);
+                return $selection->representative($sellable->isNotEmpty() ? $sellable : $rows);
+            });
+
+        // Keep every persisted alias here. The store's existing display
+        // pruning preserves an explicitly requested ?plan= alias before
+        // hiding equivalent dearer cards on the default page.
+        return $rows
             ->sortBy([['vcpu', 'asc'], ['ram_mb', 'asc'], ['disk_gb', 'asc']])
             ->values()
             ->keyBy('slug');
@@ -329,9 +339,10 @@ class CloudPlan extends Model
      */
     public static function bestForSlug(string $slug, bool $hourly = false): ?self
     {
-        return static::query()->sellable()
+        $rows = static::query()->sellable()
             ->when($hourly, fn ($q) => $q->hourlyCapable())
-            ->where('slug', $slug)->orderBy('cost_eur_cents')->first();
+            ->where('slug', $slug)->orderBy('cost_eur_cents')->get();
+        return (new \App\Services\Cloud\CloudOfferSelection)->representative($rows, $hourly);
     }
 
     // ───────────────────────── نمایش ─────────────────────────

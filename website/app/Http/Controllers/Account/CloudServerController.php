@@ -108,7 +108,12 @@ class CloudServerController extends Controller
 
     private function powerActions(?CloudInstance $instance): array
     {
-        if ($instance === null || $this->manager->forInstance($instance) === null) {
+        $driver = $instance ? $this->manager->forInstance($instance) : null;
+        if ($instance === null || $driver === null) {
+            return [];
+        }
+        if ($instance->provider === 'vpstc'
+            && (! $driver instanceof \App\Services\Cloud\VpsTcClient || ! $driver->canPower($instance))) {
             return [];
         }
 

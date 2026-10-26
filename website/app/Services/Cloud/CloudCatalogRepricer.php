@@ -56,6 +56,7 @@ class CloudCatalogRepricer
 
             // fetchCatalog only reads supplier catalogs/quotes. Do not call
             // syncOne: price refresh must not enable plans or alter inventory.
+            $vpstcInput = $provider === 'vpstc' ? app(VpsTcPricing::class)->fingerprint() : null;
             $regionalArvan = $provider === 'arvan' && $driver instanceof ArvanClient;
             $catalog = $regionalArvan
                 ? $driver->fetchExistingPlanCosts($active->values()->all())
@@ -123,8 +124,11 @@ class CloudCatalogRepricer
                 ];
             }
             if ($provider === 'vpstc' && $active->isNotEmpty()) {
+                if ($vpstcInput !== app(VpsTcPricing::class)->fingerprint()) {
+                    throw new \RuntimeException('VPS.TC exchange inputs changed during supplier quote collection.');
+                }
                 $skip = array_values(array_diff($skip, ['vpstc']));
-                $providerInputs['vpstc'] = app(VpsTcPricing::class)->fingerprint();
+                $providerInputs['vpstc'] = $vpstcInput;
             }
         }
 
@@ -136,6 +140,7 @@ class CloudCatalogRepricer
             // Current reads avoid a MariaDB repeatable-read snapshot; locks last
             // only for product writes, never for slow supplier requests.
             $this->assertSettings($settings, $persist);
+            $this->assertProviderInputs($providerInputs);
             $count = 0;
             foreach (CloudPlan::query()->whereIn('id', $plans->modelKeys())
                 ->when($persist, fn ($query) => $query->lockForUpdate())->get() as $plan) {
@@ -180,6 +185,7 @@ class CloudCatalogRepricer
             }
             $this->assertRates($rates);
             $this->assertSettings($settings, $persist);
+            $this->assertProviderInputs($providerInputs);
             if ($persist) {
                 app(CloudPricingSnapshot::class)->publish($rates, $skip, $providerInputs);
             }
@@ -204,6 +210,13 @@ class CloudCatalogRepricer
     {
         if ($settings !== $this->settings($lock)) {
             throw new \RuntimeException('Pricing settings changed during price refresh; retry with a fresh snapshot.');
+        }
+    }
+
+    private function assertProviderInputs(array $inputs): void
+    {
+        if (isset($inputs['vpstc']) && $inputs['vpstc'] !== app(VpsTcPricing::class)->fingerprint()) {
+            throw new \RuntimeException('VPS.TC exchange inputs changed before price publication.');
         }
     }
 

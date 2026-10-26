@@ -436,7 +436,7 @@ class SettingsController extends Controller
     {
         $fx = app(\App\Services\ExchangeRate::class);
         $liveRates = [];
-        foreach (['USD', 'EUR', 'USDT'] as $currency) {
+        foreach (['USD', 'EUR', 'USDT', 'TRY'] as $currency) {
             $liveRates[$currency] = $fx->current($currency);
         }
 
@@ -464,6 +464,8 @@ class SettingsController extends Controller
     private function infraData(bool $ready): array
     {
         return [
+            'infraStatuses' => $ready ? app(\App\Services\Cloud\InfrastructureSettingsStatus::class)->rows() : [],
+            'vpstcPanel' => $ready ? app(VpsTcController::class)->viewData() + ['vpstcInline' => true] : [],
             'cloud' => [
                 'cloudflare' => $ready && filled(Setting::getSecret('cloudflare_token')),
                 'cf_zone'    => $ready ? Setting::get('cloudflare_zone_id') : null,

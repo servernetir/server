@@ -33,6 +33,7 @@ class NavasanDomainPricingTest extends TestCase
             'eur_hav' => ['value' => $euro, 'date' => now()->timestamp],
             'usd_shakhs' => ['value' => $usd, 'date' => now()->timestamp],
             'usd_usdt' => ['value' => 105000, 'date' => now()->timestamp],
+            'try_hav' => ['value' => 5600, 'date' => now()->timestamp],
         ])]);
         $this->assertNotNull(app(ExchangeRate::class)->refreshAll());
     }

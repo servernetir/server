@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\CloudImage;
 use App\Services\Cloud\CloudDominance;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -27,9 +28,15 @@ class CloudDominanceTest extends TestCase
     private function plan(array $over = []): CloudPlan
     {
         $this->n++;
+        // A provider and installable OS contract must be known before a
+        // cheaper row may remove another deliverable product from the store.
+        CloudImage::firstOrCreate(['provider' => 'hetzner', 'provider_ref' => 'fixture-ubuntu'], [
+            'key' => 'ubuntu-24.04', 'kind' => 'os', 'family' => 'ubuntu', 'version' => '24.04',
+            'label' => 'Ubuntu 24.04', 'arch' => 'x86', 'is_active' => true,
+        ]);
 
         return CloudPlan::create(array_merge([
-            'provider' => 'p', 'provider_ref' => 'r'.$this->n,
+            'provider' => 'hetzner', 'provider_ref' => 'r'.$this->n,
             'location_code' => 'de-falkenstein', 'slug' => 'cv-'.$this->n,
             'public_name' => 'CV-'.$this->n,
             'vcpu' => 2, 'ram_mb' => 2048, 'disk_gb' => 40, 'disk_type' => 'nvme',
@@ -147,6 +154,10 @@ class CloudDominanceTest extends TestCase
 
     public function test_the_country_page_hides_the_dominated_plan(): void
     {
+        $this->mock(\App\Services\Cloud\CloudPricingSnapshot::class, function ($mock) {
+            $mock->shouldReceive('current')->andReturn(true);
+            $mock->shouldReceive('excludedProviders')->andReturn([]);
+        });
         CloudLocation::create(['code' => 'de-falkenstein', 'country' => 'DE', 'city' => 'Falkenstein', 'is_active' => true, 'sort' => 0]);
 
         $this->plan(['public_name' => 'GOOD', 'slug' => 'g', 'vcpu' => 2, 'ram_mb' => 2048, 'price_irt' => 1370000]);

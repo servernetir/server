@@ -33,10 +33,12 @@ These changes use the three-file `deploy-vpstc-live-contract.py` wrapper, based 
 
 Follow-up isolated validation: **173 tests / 1,207 assertions passed** on PHP 8.4.27 (all `VpsTc*`, Navasan snapshot, catalog repricing, payment callback and complimentary-service suites). Six changed PHP source/test/view files linted successfully. Seven focused offline tests passed for the three-file deployment wrapper. This test result does not prove a paid supplier lifecycle or authorize sales.
 
+Follow-up source `984d7d04fa3a29816465ed63bb165a47f4cec380` was installed as exactly three hash-guarded runtime files; [manifest/receipt](vpstc-sales-20261026/live-contract-installed-manifest.json). The authenticated browser preflight at 11:56 UTC reported seven category nodes, 70 observed products, 16 VPS monthly offers, 40 Regular monthly candidates across all product kinds and one Metered product. It displayed the empty currency, literal `Array` fees and category/order mismatch. Unsupported representative order forms keep the discovery marked partial; observed counts are not a complete sales catalog. No financial input, sales activation, supplier order or service action was performed.
+
 ## Implemented behavior
 
 - Encrypted credential intake remains at `/admin/cloud/vpstc`; credentials are neither redisplayed nor flashed after validation errors.
-- Separate inputs: supplier currency, native-currency-to-toman conversion, supplier purchase tax, funding/FX fee and profit. TRY requires a manual toman-per-lira value. USD/EUR/USDT can use valid current Navasan rates when the manual rate is blank. Invoice customer VAT remains separate.
+- Separate inputs: supplier currency, supplier purchase tax, funding/FX fee and profit. The later [central TRY follow-up](INFRASTRUCTURE-SETTINGS-PRICING-2026-10-26.md) uses valid stored Navasan TRY by default, alongside USD/EUR/USDT; a manual supplier override is optional. Invoice customer VAT remains separate.
 - Exact decimal procurement calculation, upward rounding, explicit zero percentages and no inherited global margin/FX fee for incomplete VPS.TC inputs. Setup uses this supplier's margin as well.
 - Reviewed account-bound catalog mappings retain product resources, location, image selection, traffic and billing contracts. They are not inferred from marketing descriptions. Fresh API forms, selected option costs, monthly prices/setup, currency, payment fees and native availability are verified before import or purchase.
 - Monthly-only checkout and provider enforcement. Annual-only products are rejected; the global monthly/720 fallback and forged hourly cost never authorize VPS.TC hourly sales. Other suppliers keep their existing supported periods.

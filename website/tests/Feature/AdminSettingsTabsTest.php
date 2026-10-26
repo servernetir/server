@@ -349,6 +349,12 @@ class AdminSettingsTabsTest extends TestCase
             [resource_path('views/admin/settings.blade.php')]
         );
 
+        // Scoped styles may live with a settings-only view; their classes still need definitions.
+        foreach ($views as $view) {
+            preg_match_all('~<style\b[^>]*>(.*?)</style>~is', (string) file_get_contents($view), $styles);
+            $css .= implode("\n", $styles[1]);
+        }
+
         $missing = [];
         foreach ($views as $view) {
             preg_match_all('~class="([^"{}]+)"~', (string) file_get_contents($view), $m);

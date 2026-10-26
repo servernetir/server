@@ -19,6 +19,7 @@ class ExchangeRate
         'USD' => 'usd_shakhs', // دلار آمریکا شخص — owner's selected buying rate
         'EUR' => 'eur_hav',
         'USDT' => 'usd_usdt',
+        'TRY' => 'try_hav', // حواله لیر — same keyless #Ctable2 feed, already toman (no /10)
     ];
 
     private const SNAPSHOT_KEY = 'fx.navasan.rates';
@@ -84,7 +85,7 @@ class ExchangeRate
     }
 
     /**
-     * Validate all three rates before publishing a single cached snapshot.
+     * Validate all procurement rates before publishing a single cached snapshot.
      * An incomplete/failed response never replaces any previous price.
      *
      * @return array<string,array>|null
@@ -219,7 +220,8 @@ class ExchangeRate
             $quote = $payload[$item] ?? null;
             $rate = is_array($quote) ? ($quote['value'] ?? null) : null;
             $timestamp = is_array($quote) ? ($quote['date'] ?? null) : null;
-            if (! $this->validRate($rate) || ! is_numeric($timestamp)
+            if (! $this->validRate($rate, $currency) || (isset($quote['unit']) && $quote['unit'] !== 'IRT')
+                || ! is_numeric($timestamp)
                 || (float) $timestamp !== (float) (int) $timestamp
                 || ! $this->validTime((int) $timestamp)) {
                 return null;
@@ -228,6 +230,7 @@ class ExchangeRate
             $rows[$currency] = [
                 'currency' => $currency,
                 'rate_toman' => (int) $rate,
+                'unit' => 'IRT',
                 'source' => 'navasan.net',
                 'source_item' => $item,
                 'source_at' => Carbon::createFromTimestampUTC((int) $timestamp)->toIso8601String(),
@@ -238,12 +241,17 @@ class ExchangeRate
         return $rows;
     }
 
-    private function validRate(mixed $rate): bool
+    private function validRate(mixed $rate, string $currency): bool
     {
+        // TRY is worth fewer toman per unit than USD/EUR/USDT. This is only
+        // a sanity bound; its value still comes exclusively from try_hav.
+        $minimum = $currency === 'TRY' ? 100 : self::MIN_TOMAN;
+        $maximum = $currency === 'TRY' ? 100_000 : self::MAX_TOMAN;
         return (is_int($rate) || is_float($rate) || is_string($rate))
+            && (! is_string($rate) || preg_match('/\A[1-9][0-9]{0,9}\z/D', $rate))
             && is_numeric($rate) && is_finite((float) $rate)
             && (float) $rate === (float) (int) $rate
-            && (int) $rate >= self::MIN_TOMAN && (int) $rate <= self::MAX_TOMAN;
+            && (int) $rate >= $minimum && (int) $rate <= $maximum;
     }
 
     private function validTime(mixed $value): bool
@@ -264,9 +272,20 @@ class ExchangeRate
         return ($row['source'] ?? null) === 'navasan.net'
             && ($row['source_item'] ?? null) === self::SOURCE_ITEMS[$currency]
             && ($row['currency'] ?? null) === $currency
-            && $this->validRate($row['rate_toman'] ?? null)
+            && ($currency !== 'TRY' || ($row['unit'] ?? null) === 'IRT')
+            && (! isset($row['unit']) || $row['unit'] === 'IRT')
+            && $this->validRate($row['rate_toman'] ?? null, $currency)
+            && ($currency !== 'TRY' || ($this->absoluteTimestamp($row['at'] ?? null)
+                && $this->absoluteTimestamp($row['source_at'] ?? null)))
             && $this->validTime($row['at'] ?? null)
             && $this->validTime($row['source_at'] ?? null);
+    }
+
+    private function absoluteTimestamp(mixed $value): bool
+    {
+        // Relative strings such as "now" would renew a cached quote on every read.
+        return is_string($value)
+            && preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})\z/D', $value);
     }
 
     /** Durable Navasan fallback, bounded by both fetch time and upstream quote time. */

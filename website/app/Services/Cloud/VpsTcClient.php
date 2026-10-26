@@ -5,6 +5,7 @@ namespace App\Services\Cloud;
 use App\Models\CloudInstance;
 use App\Models\CloudPlan;
 use App\Models\CloudProviderOperation;
+use App\Models\Service;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -403,10 +404,58 @@ class VpsTcClient implements CloudProvider
         finally { $lock->release(); }
     }
 
+    /** Local contract check; missing cost evidence never means a free operation. */
+    public function canPower(CloudInstance $instance): bool
+    {
+        try {
+            if ($instance->provider !== $this->slug() || ! $this->numericId((string) $instance->provider_ref)
+                || CloudInstance::where('provider', $this->slug())->where('provider_ref', $instance->provider_ref)->count() !== 1) {
+                return false;
+            }
+            $service = Service::find($instance->service_id);
+            $plan = $service ? CloudPlan::find($service->cloud_plan_id) : null;
+            if (! $plan || $plan->provider !== $this->slug() || ! $this->numericId((string) $plan->provider_ref)
+                || $instance->location_code !== $plan->location_code) {
+                return false;
+            }
+            $product = (string) $plan->provider_ref;
+            $location = (string) ($plan->provider_location ?: $plan->location_code);
+            $purchase = $this->purchase((string) $instance->provider_ref);
+            if (! $purchase || (($purchase->payload['_account'] ?? '') !== $this->api->accountFingerprint()
+                || (string) ($purchase->payload['_spec']['plan_ref'] ?? '') !== $product
+                || (string) ($purchase->payload['_spec']['location_ref'] ?? '') !== $location
+                || ($purchase->payload['_spec']['name'] ?? '') !== 'sn-svc-'.$instance->service_id)) {
+                return false;
+            }
+            // An admin in another process can revoke an included operation
+            // while supplier reads are running. Request-memoized settings
+            // must not authorize the final mutation after that revocation.
+            $stored = Setting::query()->whereKey('vpstc_catalog_manifest')->value('value');
+            if (! is_string($stored) || $stored === ''
+                || ! hash_equals($stored, (string) Setting::get('vpstc_catalog_manifest', ''))) {
+                return false;
+            }
+            $manifest = $this->catalog->manifest();
+            if (! $manifest || ($manifest['account_fingerprint'] ?? null) !== $this->api->accountFingerprint()) {
+                return false;
+            }
+            $mappings = array_values(array_filter($manifest['products'] ?? [], fn ($row) => is_array($row)
+                && (string) ($row['product_id'] ?? '') === $product));
+            return count($mappings) === 1 && ($mappings[0]['location_ref'] ?? null) === $location
+                && ($mappings[0]['power_cost_mode'] ?? null) === 'included';
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
     public function power(string $ref, string $action): array
     {
         $native = ['on' => 'start', 'off' => 'stop', 'shutdown' => 'shutdown', 'reboot' => 'reboot', 'reset' => 'reset'][$action] ?? null;
         if (! $native || ! $this->numericId($ref)) { return $this->unsupported(); }
+        $instance = CloudInstance::where('provider', $this->slug())->where('provider_ref', $ref)->first();
+        if (! $instance || ! $this->canPower($instance)) {
+            return $this->failure('هزینهٔ این عملیات در قرارداد سرویس تأیید نشده و در دسترس نیست.');
+        }
         $lock = Cache::lock('vpstc-resource-'.hash('sha256', $ref), 120);
         if (! $lock->get()) { return $this->pending('عملیات قبلی در حال بررسی است.'); }
         try {
@@ -436,6 +485,9 @@ class VpsTcClient implements CloudProvider
                 } else {
                     return $this->pending('نتیجهٔ عملیات قبلی هنوز تأیید نشده؛ درخواست دوباره ارسال نمی‌شود.');
                 }
+            }
+            if (! $this->canPower($instance->fresh())) {
+                return $this->failure('قرارداد هزینهٔ عملیات تغییر کرده و درخواست ارسال نشد.');
             }
             $op = CloudProviderOperation::create(['operation_key' => $key, 'provider' => $this->slug(), 'action' => 'power',
                 'resource_ref' => $ref, 'payload' => ['_account' => $this->api->accountFingerprint(), 'action' => $native, 'vm' => $vm], 'state' => 'submitting']);

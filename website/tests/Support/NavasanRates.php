@@ -8,18 +8,18 @@ use Illuminate\Support\Facades\Cache;
 
 final class NavasanRates
 {
-    public static function rows(array $rates = ['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000], ?string $at = null): array
+    public static function rows(array $rates = ['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000, 'TRY' => 5000], ?string $at = null): array
     {
         $rows = [];
         foreach ($rates as $currency => $rate) {
-            $rows[$currency] = ['currency' => $currency, 'rate_toman' => $rate, 'source' => 'navasan.net',
+            $rows[$currency] = ['currency' => $currency, 'rate_toman' => $rate, 'unit' => 'IRT', 'source' => 'navasan.net',
                 'source_item' => ExchangeRate::SOURCE_ITEMS[$currency],
                 'source_at' => $at ?? now()->toIso8601String(), 'at' => $at ?? now()->toIso8601String()];
         }
         return $rows;
     }
 
-    public static function store(array $rates = ['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000], ?string $at = null): array
+    public static function store(array $rates = ['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000, 'TRY' => 5000], ?string $at = null): array
     {
         $rows = self::rows($rates, $at);
         foreach ($rows as $currency => $row) {

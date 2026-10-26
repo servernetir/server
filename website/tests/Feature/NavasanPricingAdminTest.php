@@ -32,15 +32,15 @@ class NavasanPricingAdminTest extends TestCase
         Setting::put('pricing_usdt_rate_override', null);
         $sourceAt = now()->subMinute()->toIso8601String();
         $receivedAt = now()->toIso8601String();
-        NavasanRates::store(['USD' => 92500, 'EUR' => 110000, 'USDT' => 94000], $sourceAt);
+        NavasanRates::store(['USD' => 92500, 'EUR' => 110000, 'USDT' => 94000, 'TRY' => 5640], $sourceAt);
         $rows = Cache::get('fx.navasan.rates');
         foreach ($rows as &$row) { $row['at'] = $receivedAt; }
         unset($row);
         Cache::put('fx.navasan.rates', $rows, now()->addHours(6));
 
         $response = $this->actingAs($this->admin())->get('/admin/settings?tab=pricing')->assertOk();
-        foreach (['USD', 'EUR', 'USDT', 'navasan.net', 'دلار آمریکا (شخص)', 'نرخ فروش حواله و ارز دیجیتال',
-            '۶ ساعت', $sourceAt, $receivedAt, fa_num('92,500'), fa_num('110,000'), fa_num('94,000')] as $text) {
+        foreach (['USD', 'EUR', 'USDT', 'TRY', 'navasan.net', 'دلار آمریکا (شخص)', 'لیر ترکیه (حواله)', 'نرخ فروش حواله و ارز دیجیتال',
+            '۶ ساعت', $sourceAt, $receivedAt, fa_num('92,500'), fa_num('110,000'), fa_num('94,000'), fa_num('5,640')] as $text) {
             $response->assertSee($text);
         }
         foreach (['pricing_baseline_rate', 'pricing_rate_override', 'pricing_usd_rate_override', 'pricing_usdt_rate_override'] as $field) {

@@ -1,0 +1,47 @@
+{
+  "base": "bbac6e628759dd980a689206d1c7ccd8cc151644",
+  "target": "984d7d04fa3a29816465ed63bb165a47f4cec380",
+  "plan_sha256": "887a50e2fa7cf3d63b3988ce4d5ab3b4db8330b5db16c9b18e01d31221553779",
+  "files": [
+    {
+      "after_mode": 420,
+      "after_sha256": "cb329feb5203d180784b4305f408662d1460d3e8ae3b70e99e7103715603bbe8",
+      "before_mode": 420,
+      "before_sha256": "17f6875b9d623decdf3e9bddcaf07aae33993a885ab4d2b73f4499b85eacfbf3",
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcCatalog.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "17f6875b9d623decdf3e9bddcaf07aae33993a885ab4d2b73f4499b85eacfbf3",
+      "source_target_sha256": "cb329feb5203d180784b4305f408662d1460d3e8ae3b70e99e7103715603bbe8"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "f9c38770ee84a4d919e326e6a22d49a10204d9ac5594017085350832fd8a8f48",
+      "before_mode": 420,
+      "before_sha256": "5861368a7eed3b18dd41dada92379387d0a3648ac00c29ec4cdc67346cef8efc",
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcPreflight.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "5861368a7eed3b18dd41dada92379387d0a3648ac00c29ec4cdc67346cef8efc",
+      "source_target_sha256": "f9c38770ee84a4d919e326e6a22d49a10204d9ac5594017085350832fd8a8f48"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "1d6d02d42019ad8d277e28fed52c11e2efa520f3a837c5439b666f6903a915cd",
+      "before_mode": 420,
+      "before_sha256": "4b3effba4d68a0ef33a7fa9e4395e15ef8bef21ba59bf1f9a52f490f5ada8453",
+      "change": true,
+      "path": "resources/views/admin/cloud-vpstc.blade.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "4b3effba4d68a0ef33a7fa9e4395e15ef8bef21ba59bf1f9a52f490f5ada8453",
+      "source_target_sha256": "1d6d02d42019ad8d277e28fed52c11e2efa520f3a837c5439b666f6903a915cd"
+    }
+  ],
+  "receipt": {
+    "application_activation": "not_performed",
+    "files_installed": 3,
+    "plan_sha256": "887a50e2fa7cf3d63b3988ce4d5ab3b4db8330b5db16c9b18e01d31221553779",
+    "status": "installed",
+    "target": "984d7d04fa3a29816465ed63bb165a47f4cec380"
+  }
+}

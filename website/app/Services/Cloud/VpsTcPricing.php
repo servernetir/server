@@ -41,8 +41,8 @@ class VpsTcPricing
         if ($manual !== '') {
             return $this->number($manual, 0.000001, 1_000_000_000) !== null;
         }
-        // Navasan's supported feed has no TRY quote. Never substitute USD for lira.
-        return $currency !== 'TRY';
+        // TRY follows the same verified central Navasan snapshot shown in Settings.
+        return $currency !== 'TRY' || app(ExchangeRate::class)->toToman('TRY') !== null;
     }
 
     public function marginPct(): ?float
@@ -110,6 +110,19 @@ class VpsTcPricing
         $values = [];
         foreach (self::SNAPSHOT_KEYS as $key) {
             $values[$key] = Setting::get($key);
+        }
+        if (Setting::get('vpstc_currency') === 'TRY' && Setting::get('vpstc_fx_rate_toman', '') === '') {
+            $row = app(ExchangeRate::class)->current('TRY');
+            // The global cloud signature keeps its original three currencies;
+            // a TRY-only change/expiry invalidates this supplier independently.
+            $central = null;
+            if (is_array($row)) {
+                $central = [];
+                foreach (['currency', 'rate_toman', 'unit', 'source', 'source_item', 'source_at', 'at'] as $key) {
+                    $central[$key] = $row[$key] ?? null;
+                }
+            }
+            $values['central_try'] = $central;
         }
         return hash('sha256', json_encode($values, JSON_THROW_ON_ERROR));
     }

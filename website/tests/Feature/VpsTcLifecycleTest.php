@@ -88,6 +88,26 @@ class VpsTcLifecycleTest extends TestCase
         return Http::recorded(fn ($request) => $request->method() === 'POST' && str_ends_with($request->url(), '/api/order/12'))->count();
     }
 
+    private function includedPowerFixture(): void
+    {
+        $customer = Customer::create(['email' => 'power-policy@example.test', 'password' => 'fixture']);
+        $service = new Service(['customer_id' => $customer->id, 'cloud_plan_id' => CloudPlan::where('provider', 'vpstc')->sole()->id,
+            'name' => 'Fixture VPS', 'cycle' => 'monthly', 'status' => 'active', 'provision_status' => 'done', 'price' => 100]);
+        $service->id = 7; $service->save();
+        CloudInstance::create(['service_id' => 7, 'provider' => 'vpstc', 'provider_ref' => '83',
+            'location_code' => 'tr-istanbul', 'status' => 'running']);
+        $account = app(\App\Services\Cloud\VpsTcApi::class)->accountFingerprint();
+        CloudProviderOperation::create(['operation_key' => hash('sha256', 'fixture-power-purchase'), 'provider' => 'vpstc',
+            'action' => 'create', 'resource_ref' => '83', 'task_ref' => '91', 'state' => 'pending', 'payload' => [
+                '_account' => $account, '_spec' => $this->spec,
+                'request' => ['domain' => 'sn-svc-7.servernet.cloud'], '_quote' => $this->quote,
+            ]]);
+        $manifest = ['account_fingerprint' => $account,
+            'products' => [['product_id' => '12', 'location_ref' => 'tr-ist', 'power_cost_mode' => 'included']]];
+        Setting::put('vpstc_catalog_manifest', json_encode($manifest, JSON_THROW_ON_ERROR));
+        app(VpsTcCatalog::class)->shouldReceive('manifest')->andReturn($manifest);
+    }
+
     public function test_monthly_order_is_journaled_before_purchase_and_retries_adopt_same_receipt(): void
     {
         $this->fake();
@@ -365,6 +385,7 @@ class VpsTcLifecycleTest extends TestCase
 
     public function test_lost_power_stop_can_reconcile_observed_off_without_resubmission(): void
     {
+        $this->includedPowerFixture();
         $attempts = 0;
         $this->fake(['*/api/service/83/vms/vm-1056/stop' => function () use (&$attempts) {
             $attempts++; throw new ConnectionException('lost');
@@ -377,6 +398,7 @@ class VpsTcLifecycleTest extends TestCase
 
     public function test_lost_reboot_is_not_completed_merely_because_vm_is_running(): void
     {
+        $this->includedPowerFixture();
         $attempts = 0;
         $this->fake(['*/api/service/83/vms/vm-1056/reboot' => function () use (&$attempts) {
             $attempts++; throw new ConnectionException('lost');

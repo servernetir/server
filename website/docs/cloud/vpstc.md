@@ -1,8 +1,14 @@
 # VPS.TC reseller integration
 
-Current continuation, 26 October 2026: monthly order/lifecycle/renewal and independent pricing preparation is installed in production (24 files), as described in [the sales preparation and acceptance record](../../../docs/project/VPSTC-SALES-PREPARATION-2026-10-26.md). The sections below record the earlier read-only phase and must not be used as the current code capability inventory. Live sales remain blocked pending API credentials and account-specific monthly catalog/billing acceptance.
+Current continuation, 26 October 2026: the owner saved credentials and authenticated reads succeeded; the nested VPS category has 16 monthly offers. Sales remain closed because account currency is empty, payment fees contain literal `Array` strings, and native category/order amounts disagree. The original 24-file runtime and three-file diagnostic follow-up were installed; see [sales acceptance](../../../docs/project/VPSTC-SALES-PREPARATION-2026-10-26.md).
 
-Production update, 26 October 2026: the encrypted admin connection page and read-only preflight code are installed at `/admin/cloud/vpstc`. The page renders in the authenticated admin session; no reseller credentials are saved and no live API preflight was run. Customer sales remain unavailable. See [deployment and remaining work](../../../docs/project/BACKLOG-RECONCILIATION-2026-10-26.md).
+The [settings/rate/offer follow-up](../../../docs/project/INFRASTRUCTURE-SETTINGS-PRICING-2026-10-26.md) adds compact numbered infrastructure settings, a shared inline VPS.tc panel, central Navasan TRY by default with the existing six-hour job, and retail comparison of verified equivalent offers. A manual supplier rate is optional. Independent purchase tax, funding fee and profit remain separate. A TRY-only change or expiry invalidates VPS.tc pricing until fresh repricing.
+
+The [27-capability and cost matrix](../../../docs/project/VPSTC-CAPABILITIES-2026-10-26.md) is the current capability inventory. Console requires supplier browser-session context; independent guest-password change exists but is not accepted as free forced recovery. Optional reinstall/resize/backup/IP features remain unavailable until entitlement and costs are verified. Power requires a matching creation journal and account-bound `power_cost_mode=included` proof; unknown price is not zero. Parent cancellation remains independent. No paid supplier operation has been performed.
+
+## Historical read-only preparation
+
+Everything below records the earlier phase and is **historical**, not current code, credential, deployment or capability state. Current operations and rollback come from the three records linked above; preserve encrypted owner settings when restoring files.
 
 Historical status, 24 October: draft preparation only, not yet installed.
 

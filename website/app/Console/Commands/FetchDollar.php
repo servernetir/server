@@ -14,12 +14,12 @@ class FetchDollar extends Command
     // Keep the existing command name for operational compatibility.
     protected $signature = 'fx:dollar {--show : فقط نمایش مقدار فعلی بدون دریافت}';
 
-    protected $description = 'دریافت دلار، یورو و تتر از نوسان و همگام‌سازی قیمت محصولات';
+    protected $description = 'دریافت دلار، یورو، تتر و حواله لیر از نوسان و همگام‌سازی قیمت محصولات';
 
     public function handle(ExchangeRate $fx, CloudCatalogSync $catalog): int
     {
         if ($this->option('show')) {
-            foreach (['USD', 'EUR', 'USDT'] as $currency) {
+            foreach (array_keys(ExchangeRate::SOURCE_ITEMS) as $currency) {
                 $row = $fx->current($currency);
                 $rate = is_array($row) ? ($row['rate_toman'] ?? null) : null;
 
@@ -36,14 +36,14 @@ class FetchDollar extends Command
         $rates = $fx->refreshAll();
 
         if ($rates === null) {
-            ErrorTracker::note('pricing', 'دریافت نرخ دلار، یورو و تتر از نوسان ناموفق بود؛ همگام‌سازی قیمت محصولات انجام نشد.');
+            ErrorTracker::note('pricing', 'دریافت نرخ دلار، یورو، تتر و حواله لیر از نوسان ناموفق بود؛ همگام‌سازی قیمت محصولات انجام نشد.');
             $this->error('نرخ ارز تازه نشد — نرخ‌ها و قیمت‌های قبلی حفظ شدند.');
 
             return self::FAILURE;
         }
 
         $labels = [];
-        foreach (['USD', 'EUR', 'USDT'] as $currency) {
+        foreach (array_keys(ExchangeRate::SOURCE_ITEMS) as $currency) {
             $labels[] = $currency.': '.number_format($rates[$currency]['rate_toman']).' تومان';
         }
         $this->info('نرخ به‌روز شد — '.implode(' · ', $labels));

@@ -10,14 +10,14 @@
   <input type="hidden" name="tab" value="pricing">
 
   <div class="ad-panel">
-    <div class="ad-panel-h"><h2>نرخِ دلار، یورو و تتر</h2></div>
+    <div class="ad-panel-h"><h2>نرخِ دلار، یورو، تتر و لیر ترکیه</h2></div>
     <p class="set-lead">
       منبع نرخ‌ها: <a href="https://www.navasan.net/" target="_blank" rel="noopener noreferrer">نوسان</a>،
-      جدول «نرخ فروش حواله و ارز دیجیتال»؛ دلار آمریکا (شخص)، یورو حواله و تتر.
+      جدول «نرخ فروش حواله و ارز دیجیتال»؛ دلار آمریکا (شخص)، یورو حواله، تتر و حواله لیر ترکیه.
       نرخ‌ها هر <b>۶ ساعت</b> دریافت می‌شوند و پس از دریافت موفق، قیمت محصولات همگام می‌شود.
     </p>
     <div class="set-rate" style="flex-wrap:wrap;gap:18px">
-      @foreach(['USD' => 'دلار آمریکا (شخص)', 'EUR' => 'یورو حواله', 'USDT' => 'تتر'] as $currency => $label)
+      @foreach(['USD' => 'دلار آمریکا (شخص)', 'EUR' => 'یورو حواله', 'USDT' => 'تتر', 'TRY' => 'لیر ترکیه (حواله)'] as $currency => $label)
         @php($rateRow = $liveRates[$currency] ?? null)
         <div>
           <small>{{ $label }} ({{ $currency }})</small>

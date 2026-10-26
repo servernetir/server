@@ -53,13 +53,14 @@ class CloudDominance
     public static function prune(Collection $plans): Collection
     {
         $list = $plans->values();
+        $selection = new CloudOfferSelection;
 
         if ($list->count() < 2) {
             return $list;
         }
 
         return $list
-            ->reject(fn ($b) => $list->contains(fn ($a) => self::dominates($a, $b)))
+            ->reject(fn ($b) => $list->contains(fn ($a) => self::compare($a, $b, $selection)))
             ->values();
     }
 
@@ -72,9 +73,19 @@ class CloudDominance
      */
     public static function dominates(mixed $a, mixed $b): bool
     {
-        if ($a === $b) {
+        return self::compare($a, $b, new CloudOfferSelection);
+    }
+
+    private static function compare(mixed $a, mixed $b, CloudOfferSelection $selection): bool
+    {
+        if ($a === $b || ! $a instanceof \App\Models\CloudPlan || ! $b instanceof \App\Models\CloudPlan) {
             return false;
         }
+
+        // Resource counts alone cannot make another city, licence, billing
+        // contract or access feature interchangeable. Never prune that value.
+        if (! $a->is_active || ! $a->in_stock || $a->admin_disabled
+            || ! $selection->sameContract($a, $b) || ! $selection->pricesNoWorse($a, $b)) { return false; }
 
         // ناهم‌سنخ: هیچ‌کدام جایگزینِ دیگری نیست
         if ((string) $a->arch !== (string) $b->arch) {
@@ -131,7 +142,7 @@ class CloudDominance
         // تا این‌جا «الف» در هیچ بُعدی بدتر نیست و گران‌تر هم نیست.
         // برای حذف، باید دستِ‌کم در یک چیز **واقعاً** بهتر باشد — وگرنه دو پلنِ
         // کاملاً یکسان در دو شهر همدیگر را حذف می‌کنند و هر دو غیب می‌شوند.
-        if ($pa < $pb) {
+        if ($selection->priceDominates($a, $b)) {
             return true;
         }
 

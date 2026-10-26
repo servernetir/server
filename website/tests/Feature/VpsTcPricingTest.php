@@ -104,11 +104,11 @@ class VpsTcPricingTest extends TestCase
         }
     }
 
-    public function test_lira_requires_a_positive_explicit_rate_and_invalid_inputs_close_pricing(): void
+    public function test_invalid_manual_override_or_supplier_inputs_close_pricing(): void
     {
         $pricing = app(VpsTcPricing::class);
         foreach ([
-            ['vpstc_fx_rate_toman' => ''], ['vpstc_fx_rate_toman' => '0'],
+            ['vpstc_fx_rate_toman' => '0'],
             ['vpstc_fx_rate_toman' => '1e309'], ['cloud_margin_pct_vpstc' => ''],
             ['vpstc_supplier_tax_pct' => '-1'], ['pricing_fx_fee_pct_vpstc' => '101'],
             ['vpstc_currency' => 'GBP'],
@@ -128,6 +128,87 @@ class VpsTcPricingTest extends TestCase
         $this->assertSame(500, $pricing->costEurCents(10, 'USD'));
         NavasanRates::store(['USD' => 120000, 'EUR' => 200000, 'USDT' => 150000]);
         $this->assertSame(600, $pricing->costEurCents(10, 'USD'));
+        Http::assertNothingSent();
+    }
+
+    public function test_lira_defaults_to_the_central_navasan_rate_and_only_try_changes_close_its_snapshot(): void
+    {
+        $this->inputs(['vpstc_fx_rate_toman' => '']);
+        $pricing = app(VpsTcPricing::class);
+        $this->assertTrue($pricing->configured());
+        $this->assertSame(315, $pricing->costEurCents(100, 'TRY'));
+        $snapshot = app(CloudPricingSnapshot::class);
+        $snapshot->publish([100000, 200000, 150000], [], ['vpstc' => $pricing->fingerprint()]);
+        $this->assertTrue($snapshot->current('vpstc'));
+        NavasanRates::store(['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000, 'TRY' => 6000]);
+        $this->assertSame(378, $pricing->costEurCents(100, 'TRY'));
+        $this->assertFalse($snapshot->current('vpstc'));
+        $this->assertContains('vpstc', $snapshot->excludedProviders());
+        $this->assertTrue($snapshot->current('hetzner'));
+        $snapshot->publish([100000, 200000, 150000], [], ['vpstc' => $pricing->fingerprint()]);
+        $this->assertTrue($snapshot->current('vpstc'));
+        Http::assertNothingSent();
+    }
+
+    public function test_missing_central_try_closes_blank_override_without_network_or_a_fixed_default(): void
+    {
+        $this->inputs(['vpstc_fx_rate_toman' => '']);
+        NavasanRates::store(['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000]);
+        Setting::put('fx_last_try', null);
+        $pricing = app(VpsTcPricing::class);
+        $this->assertFalse($pricing->configured());
+        $this->assertNull($pricing->costEurCents(100, 'TRY'));
+        $this->assertSame(0, $pricing->sellEurCents(100));
+        Http::assertNothingSent();
+    }
+
+    public function test_explicit_supplier_override_remains_optional_and_independent_of_central_try(): void
+    {
+        $this->inputs(['vpstc_fx_rate_toman' => '5000']);
+        $pricing = app(VpsTcPricing::class);
+        $fingerprint = $pricing->fingerprint();
+        NavasanRates::store(['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000, 'TRY' => 6000]);
+        $this->assertSame(315, $pricing->costEurCents(100, 'TRY'));
+        $this->assertSame($fingerprint, $pricing->fingerprint());
+        Http::assertNothingSent();
+    }
+
+    public function test_valid_durable_try_fallback_preserves_the_price_input_fingerprint(): void
+    {
+        $this->inputs(['vpstc_fx_rate_toman' => '']);
+        $pricing = app(VpsTcPricing::class);
+        $fingerprint = $pricing->fingerprint();
+        \Illuminate\Support\Facades\Cache::forget('fx.navasan.rates');
+        $this->assertSame($fingerprint, $pricing->fingerprint());
+        $this->assertSame(315, $pricing->costEurCents(100, 'TRY'));
+        Http::assertNothingSent();
+    }
+
+    public function test_try_change_during_supplier_quote_collection_cannot_publish_mixed_costs(): void
+    {
+        $this->inputs(['vpstc_fx_rate_toman' => '']);
+        $plan = CloudPlan::create([
+            'provider' => 'vpstc', 'provider_ref' => 'fx-race', 'location_code' => 'tr-istanbul',
+            'public_name' => 'CV-1', 'slug' => 'try-race', 'vcpu' => 1, 'ram_mb' => 1024,
+            'disk_gb' => 20, 'cost_eur_cents' => 100, 'price_eur_cents' => 120, 'price_irt' => 240000,
+            'is_active' => true, 'in_stock' => true, 'admin_disabled' => false,
+        ]);
+        $driver = \Mockery::mock(CloudProvider::class);
+        $driver->shouldReceive('isConfigured')->once()->andReturnTrue();
+        $driver->shouldReceive('fetchCatalog')->once()->andReturnUsing(function () {
+            NavasanRates::store(['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000, 'TRY' => 6000]);
+            return ['ok' => true, 'plans' => [['provider_ref' => 'fx-race', 'location_code' => 'tr-istanbul',
+                'cost_eur_cents' => 315, 'cost_hour_eur_micro' => null, 'setup_eur_cents' => 0]]];
+        });
+        $this->mock(CloudManager::class)->shouldReceive('driver')->with('vpstc')->once()->andReturn($driver);
+        try {
+            app(CloudCatalogRepricer::class)->run();
+            $this->fail('A TRY rate change during a native quote must not publish a mixed batch.');
+        } catch (\RuntimeException $error) {
+            $this->assertStringContainsString('exchange inputs changed', $error->getMessage());
+        }
+        $this->assertSame(100, (int) $plan->fresh()->cost_eur_cents);
+        $this->assertSame(240000, (int) $plan->fresh()->price_irt);
         Http::assertNothingSent();
     }
 
@@ -225,7 +306,7 @@ class VpsTcPricingTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'support']), 'web');
         $this->post('/admin/cloud/vpstc/pricing', $values)->assertForbidden();
         $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
-        $this->post('/admin/cloud/vpstc/pricing', array_replace($values, ['vpstc_fx_rate_toman' => '']))
+        $this->post('/admin/cloud/vpstc/pricing', array_replace($values, ['vpstc_fx_rate_toman' => '0']))
             ->assertSessionHasErrors('vpstc_fx_rate_toman');
         $this->assertSame('5000', Setting::get('vpstc_fx_rate_toman'));
         $this->assertSame([], session()->getOldInput());

@@ -906,6 +906,7 @@ class CloudStoreController extends Controller
 
         $addonSvc = app(CloudAddons::class);
         $manager = app(\App\Services\Cloud\CloudManager::class);
+        $offerSelection = new \App\Services\Cloud\CloudOfferSelection;
 
         $imageMap = [];     // slug => ['os' => [key,…], 'app' => [key,…]]
         $priceMap = [];     // slug => cycle => ['cycle','per','first','save']
@@ -1002,8 +1003,8 @@ class CloudStoreController extends Controller
             | ساعتیِ شهرِ دیگر مجوزِ فروشِ این شهر نیست — دقیقاً همان ناهم‌خوانی‌ای
             | که `store()` بعداً ردش می‌کرد.
             */
-            $hourlyRow = $rows->first(fn (CloudPlan $p) => (string) $p->location_code === (string) $code
-                && $p->supportsHourly());
+            $hourlyRow = $offerSelection->representative($rows->filter(fn (CloudPlan $p) =>
+                (string) $p->location_code === (string) $code && $p->supportsHourly()), true);
 
             $hourlyMap[(string) $slug] = [
                 'rate' => $hourlyRow?->hourlyIrt() ?? 0,
