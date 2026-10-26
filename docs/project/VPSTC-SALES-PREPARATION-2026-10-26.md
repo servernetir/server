@@ -6,6 +6,8 @@ The owner requested continuation of the earlier connection through the signed-in
 
 This release implements the monthly integration and keeps new sales **closed by default**. An authenticated browser session is not an API credential. No supplier password has been extracted from the browser, no account credential was changed, and no paid supplier order was placed during development.
 
+Production status: **24 runtime files installed and the new admin page verified in the authenticated browser**. Source runtime: `bbac6e628759dd980a689206d1c7ccd8cc151644` on `develop`; release overlays: `a9ae2398b84ba6329cf55f6d0df1aa30401f0285`. This is installed preparation, not accepted live supplier sales. See the [installed manifest and receipt](vpstc-sales-20261026/installed-manifest.json).
+
 Observed on the signed-in supplier portal:
 
 - The API origin is `https://portal.vps.tc`; the current official Swagger version is `4.20261019`.
@@ -50,6 +52,22 @@ Changing the account, manifest, FX, tax, fee or profit invalidates VPS.TC's pric
 5. With an explicit test item and spending limit, test creation, exact resources, SSH/RDP access, power, renewal and billing cancellation. Verify supplier invoice/due dates and absence of continuing billing.
 
 Lost supplier order responses without service/invoice receipts remain a manual reconciliation case because the order API does not establish an idempotency key or a unique hostname contract. This is intentional: missing evidence never authorizes another purchase. Current console access requires supplier browser-session context and is not exposed through a reusable white-label URL.
+
+## Production acceptance and rollback
+
+The ordinary plan first stopped with zero application writes when it encountered live checkout changes. Exact live controller/view snapshots were reviewed; `deploy-vpstc-reviewed-overlay.py` adds only the VPS.TC rules and verifies both original/candidate hashes plus reversible replacements. Existing procurement floors, add-on billing, Iran-sales controls and the newer UI remain intact. Four files contain preserved production drift: PaymentService, CloudStoreController, the customer cloud-store view and routes/web.php.
+
+The final hash-guarded plan installed 24 files with private backups. No migration, seeder, cron, global cache clear, supplier order, credit payment or service action ran. The existing provider-operations table was verified before installation. The helper itself performs no application/cache activation; subsequent web requests verified that the new code/routes/view were loaded normally.
+
+Fresh acceptance after installation:
+
+- Authenticated `/admin/cloud/vpstc` rendered the independent pricing, catalog refresh and guarded sales controls.
+- `/account/cloud-store` rendered the retained customer UI and produced no captured JavaScript errors.
+- Public `/up` returned HTTP 200 on both servernet.cloud and console.servernet.cloud.
+- Runtime loaded the registered VPS.TC driver; credential configuration, pricing configuration and sales were all false. No VPS.TC plan, instance or operation was created.
+- The isolated production overlays passed 71 tests / 331 assertions, full Blade compilation, three-language billing controls and JavaScript parsing. Six additional focused overlay checks passed against the exact runtime source.
+
+Rollback is file-only and uses the private release directory matching `vpstc-release-bbac6e628759-*`, its `plan.json`/`rollback-plan.json` and the saved receipt. Run the same overlay helper with the exact target, root, private release directory and `--rollback <plan_sha256>`. It refuses to overwrite newer file hashes. Preserve the owner's credentials and settings if they are supplied after this release; no financial/provider state is undone by restoring files.
 
 ## Validation and publication
 

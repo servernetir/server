@@ -1,0 +1,278 @@
+{
+  "runtime_sha": "bbac6e628759dd980a689206d1c7ccd8cc151644",
+  "source_base": "8489da5b559ce02c7ce34f5ede5b0e086fb72850",
+  "plan_sha256": "2101382fb4bae1827a44b926150038375c3fc0f4c8f10fcdc5df03dc0c223b03",
+  "receipt": {
+    "application_activation": "not_performed",
+    "files_installed": 24,
+    "plan_sha256": "2101382fb4bae1827a44b926150038375c3fc0f4c8f10fcdc5df03dc0c223b03",
+    "status": "installed",
+    "target": "bbac6e628759dd980a689206d1c7ccd8cc151644"
+  },
+  "files": [
+    {
+      "after_mode": 420,
+      "after_sha256": "17f6875b9d623decdf3e9bddcaf07aae33993a885ab4d2b73f4499b85eacfbf3",
+      "before_mode": null,
+      "before_sha256": null,
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcCatalog.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": null,
+      "source_target_sha256": "17f6875b9d623decdf3e9bddcaf07aae33993a885ab4d2b73f4499b85eacfbf3"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "8e4e65e15f6116b531f0208f86b9049caba543376bf8bb32ce3bfd6133647362",
+      "before_mode": null,
+      "before_sha256": null,
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcClient.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": null,
+      "source_target_sha256": "8e4e65e15f6116b531f0208f86b9049caba543376bf8bb32ce3bfd6133647362"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "93a0ce4fb073de6d99d3e5f4691308689810e1af43d560a36fc24fcafed58111",
+      "before_mode": null,
+      "before_sha256": null,
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcPricing.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": null,
+      "source_target_sha256": "93a0ce4fb073de6d99d3e5f4691308689810e1af43d560a36fc24fcafed58111"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "f149606b41009ba12280b02f683e1681dd8fe67038f033d4285cb85f44d0f3d1",
+      "before_mode": null,
+      "before_sha256": null,
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcRenewal.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": null,
+      "source_target_sha256": "f149606b41009ba12280b02f683e1681dd8fe67038f033d4285cb85f44d0f3d1"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "016aeb6ca668bbf0a4d31646f2e3bd9a51b3145bcadb552981f6639087ec8f67",
+      "before_mode": null,
+      "before_sha256": null,
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcSales.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": null,
+      "source_target_sha256": "016aeb6ca668bbf0a4d31646f2e3bd9a51b3145bcadb552981f6639087ec8f67"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "5282e624e3194283df2586d5350ce665e5db01a5dc5f90b7cbc87692ff55a42e",
+      "before_mode": 420,
+      "before_sha256": "92731fd037abc89cae8ddb968e7ac2520e70852aeb2b0254a032e1c0a651f778",
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcApi.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "92731fd037abc89cae8ddb968e7ac2520e70852aeb2b0254a032e1c0a651f778",
+      "source_target_sha256": "5282e624e3194283df2586d5350ce665e5db01a5dc5f90b7cbc87692ff55a42e"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "5861368a7eed3b18dd41dada92379387d0a3648ac00c29ec4cdc67346cef8efc",
+      "before_mode": 420,
+      "before_sha256": "b1914e6db2852c156a915baa97b15153e28376f6081d8d68ba18204c868cdbab",
+      "change": true,
+      "path": "app/Services/Cloud/VpsTcPreflight.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "b1914e6db2852c156a915baa97b15153e28376f6081d8d68ba18204c868cdbab",
+      "source_target_sha256": "5861368a7eed3b18dd41dada92379387d0a3648ac00c29ec4cdc67346cef8efc"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "732ea3c5615c2877a9778986dc36065ac2aafc6d18c2999c98318709293d614f",
+      "before_mode": 420,
+      "before_sha256": "e549bc910cab3e9efd8d36d72ef8efd78be1d2780587a2b68e7ccd7b440603c1",
+      "change": true,
+      "path": "app/Services/Cloud/CloudPricing.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "e549bc910cab3e9efd8d36d72ef8efd78be1d2780587a2b68e7ccd7b440603c1",
+      "source_target_sha256": "732ea3c5615c2877a9778986dc36065ac2aafc6d18c2999c98318709293d614f"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "eca28ad913524f356ee28fc248efce759b63afd9ba6c0d7575a8d70883a9fe12",
+      "before_mode": 420,
+      "before_sha256": "8000239034465fddc325b6cd572b0f661092d15ebbc7a47436e2e8c85cce7879",
+      "change": true,
+      "path": "app/Services/Cloud/CloudPricingSnapshot.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "8000239034465fddc325b6cd572b0f661092d15ebbc7a47436e2e8c85cce7879",
+      "source_target_sha256": "eca28ad913524f356ee28fc248efce759b63afd9ba6c0d7575a8d70883a9fe12"
+    },
+    {
+      "after_mode": 384,
+      "after_sha256": "832e95dda31e121be8e1434b57c3f900b1e75821f80696f898b5334d8fd72fd5",
+      "before_mode": 384,
+      "before_sha256": "08244ae81e5d746be7bc5383d9afaa1060fdece2c7ff83c616fe2890523b1639",
+      "change": true,
+      "path": "app/Models/CloudImage.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "08244ae81e5d746be7bc5383d9afaa1060fdece2c7ff83c616fe2890523b1639",
+      "source_target_sha256": "832e95dda31e121be8e1434b57c3f900b1e75821f80696f898b5334d8fd72fd5"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "f08a0ef5d948da06752742c0b707509d82b840eba4c4ca910786ba776d2847f3",
+      "before_mode": 420,
+      "before_sha256": "fd8f34a2a87e439272b90152ac84e58dbcafab77a58c810dae70f35f10d31308",
+      "change": true,
+      "path": "app/Models/CloudPlan.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "fd8f34a2a87e439272b90152ac84e58dbcafab77a58c810dae70f35f10d31308",
+      "source_target_sha256": "f08a0ef5d948da06752742c0b707509d82b840eba4c4ca910786ba776d2847f3"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "bdefbd959de61b9c07aa0344c0758d4576ff90ad687ba3471bd1dcef1c6dd295",
+      "before_mode": 420,
+      "before_sha256": "40261fafc8934d9087d06e5a77479428686fc1f975497b4357e26ae78f25e2a4",
+      "change": true,
+      "path": "app/Services/Cloud/CloudCatalogRepricer.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "40261fafc8934d9087d06e5a77479428686fc1f975497b4357e26ae78f25e2a4",
+      "source_target_sha256": "bdefbd959de61b9c07aa0344c0758d4576ff90ad687ba3471bd1dcef1c6dd295"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "b8c7cdb5e53eb4a91bd46fb4482be08cb810cc6caab06960aba40cceb2febbcc",
+      "before_mode": 420,
+      "before_sha256": "719b71406d1750019c0c9f343a6b39e9dc26e38a7ef8cd4be1f92c1a17fc9bee",
+      "change": true,
+      "path": "app/Services/Cloud/CloudCatalogSync.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "719b71406d1750019c0c9f343a6b39e9dc26e38a7ef8cd4be1f92c1a17fc9bee",
+      "source_target_sha256": "b8c7cdb5e53eb4a91bd46fb4482be08cb810cc6caab06960aba40cceb2febbcc"
+    },
+    {
+      "after_mode": 384,
+      "after_sha256": "9a18ee21bcf9251d85e650f691b1c41d8d430755003333ef76550b485579148c",
+      "before_mode": 384,
+      "before_sha256": "51ed8c519d17a3633069864c9f6f8c51d00892503fcf07cda45cf0ffecd87c0b",
+      "change": true,
+      "path": "app/Services/Cloud/CloudManager.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "51ed8c519d17a3633069864c9f6f8c51d00892503fcf07cda45cf0ffecd87c0b",
+      "source_target_sha256": "9a18ee21bcf9251d85e650f691b1c41d8d430755003333ef76550b485579148c"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "0ec979fd07c73576179fe5047491725bbb120e49205c975c6d9028ef0d4ffd6a",
+      "before_mode": 420,
+      "before_sha256": "2f13911e30c93007dfe20ef7b3d367f9c5c655363baea7dbfaf850354cd8c4c5",
+      "change": true,
+      "path": "app/Services/Cloud/CloudProvisioner.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "2f13911e30c93007dfe20ef7b3d367f9c5c655363baea7dbfaf850354cd8c4c5",
+      "source_target_sha256": "0ec979fd07c73576179fe5047491725bbb120e49205c975c6d9028ef0d4ffd6a"
+    },
+    {
+      "after_mode": 384,
+      "after_sha256": "30799a900eadc73125c33b3c34b95c73b5e7e4b213b9c8f2e8ff0f5e5faef7b1",
+      "before_mode": 384,
+      "before_sha256": "4fc3f363c81c174eee999f7d4b2fb4bc00b06c1623781b8b06dc84afaf84d669",
+      "change": true,
+      "path": "app/Services/Billing/ComplimentaryServices.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "4fc3f363c81c174eee999f7d4b2fb4bc00b06c1623781b8b06dc84afaf84d669",
+      "source_target_sha256": "30799a900eadc73125c33b3c34b95c73b5e7e4b213b9c8f2e8ff0f5e5faef7b1"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "fb7d0078e2f438bee3048f6c1de6b0e8bbe1ffeedfa4ec7f769a020f937a20f6",
+      "before_mode": 420,
+      "before_sha256": "c852ee6381289d61795303f7ecad0567add86a57437a40a6e3791edb8d1133df",
+      "change": true,
+      "path": "app/Services/Payment/PaymentService.php",
+      "preserved_live_drift": true,
+      "source_base_sha256": "1bde12782558701ef31b6092451633ea8590a0e3e5160a3f58e670ae55a54065",
+      "source_target_sha256": "89239f17fdfd12f57b01f0ba7acc92c5643fffc5012f6cb7713725daefb68dd0"
+    },
+    {
+      "after_mode": 384,
+      "after_sha256": "1a9d99fb833059ce4d0c042d86da60f4834194a90f587711d7a04ef4e83837f9",
+      "before_mode": 384,
+      "before_sha256": "09e7e84afe19abb33e038f5c80afc6763a40581ec8efb320396bf74f12a806f0",
+      "change": true,
+      "path": "app/Console/Commands/RunServiceLifecycle.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "09e7e84afe19abb33e038f5c80afc6763a40581ec8efb320396bf74f12a806f0",
+      "source_target_sha256": "1a9d99fb833059ce4d0c042d86da60f4834194a90f587711d7a04ef4e83837f9"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "e9c24a249b1d74c291773385c9ebd410d270ee6c4ad656c66659509b5bfbd9ff",
+      "before_mode": 420,
+      "before_sha256": "f96386269829f6385f2afdb962d4fec5b5798a32232f7c6ed81ed90403f94037",
+      "change": true,
+      "path": "app/Http/Controllers/Account/CloudServerController.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "f96386269829f6385f2afdb962d4fec5b5798a32232f7c6ed81ed90403f94037",
+      "source_target_sha256": "e9c24a249b1d74c291773385c9ebd410d270ee6c4ad656c66659509b5bfbd9ff"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "208916e844025815150eb88bba8d081cce20b63c8cb034d71c560299583b286f",
+      "before_mode": 420,
+      "before_sha256": "9dcef025c7aea41aacee5aa3eba7b1e873e6f81099074654686d620692db106a",
+      "change": true,
+      "path": "app/Http/Controllers/Account/CloudStoreController.php",
+      "preserved_live_drift": true,
+      "source_base_sha256": "ed68f90569aefe7d7cd677ff2d810d5baf2b91e54b5eada15621f015f63d9f2d",
+      "source_target_sha256": "a0f8aaef43f95c4fa317cf0c3baa75853d4573265b3fe8994627a66cd5c5e2e4"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "625bcee9ee01ca43bd4713d40ebe83f82ead583423068fe46d0062adf90f5f47",
+      "before_mode": 420,
+      "before_sha256": "c9fe7d4ce1d3bb5544d0f9f61ff35706c35f6887434835ae0290e8c8654726ab",
+      "change": true,
+      "path": "app/Http/Controllers/Admin/VpsTcController.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "c9fe7d4ce1d3bb5544d0f9f61ff35706c35f6887434835ae0290e8c8654726ab",
+      "source_target_sha256": "625bcee9ee01ca43bd4713d40ebe83f82ead583423068fe46d0062adf90f5f47"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "2f92a7f1b070541eef63b77c363679c442f236c7f7e79590a33221d36bda2332",
+      "before_mode": 420,
+      "before_sha256": "e53f4faeb24ec557953222c0804801425f82f52d9b83ba5f0b1124ef3caa8ce4",
+      "change": true,
+      "path": "resources/views/account/cloud-store.blade.php",
+      "preserved_live_drift": true,
+      "source_base_sha256": "349ce97d782706ab0def5343dac8d9dc97ae8c26aa7ec5ea3a236721f8a8fa06",
+      "source_target_sha256": "be25ddca675f4a1d0036ac00c82999c4f72577f4b22fa759b584fed417d8feba"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "4b3effba4d68a0ef33a7fa9e4395e15ef8bef21ba59bf1f9a52f490f5ada8453",
+      "before_mode": 420,
+      "before_sha256": "754f2932197840b6c5bccc3982c818b97e504172f777a5206446bdbdd9b2d593",
+      "change": true,
+      "path": "resources/views/admin/cloud-vpstc.blade.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "754f2932197840b6c5bccc3982c818b97e504172f777a5206446bdbdd9b2d593",
+      "source_target_sha256": "4b3effba4d68a0ef33a7fa9e4395e15ef8bef21ba59bf1f9a52f490f5ada8453"
+    },
+    {
+      "after_mode": 420,
+      "after_sha256": "eb13be203415650dd999e5e7110967f8d7741434fc40e16fad953d217f35f1cd",
+      "before_mode": 420,
+      "before_sha256": "5e1f98cfe2756d8d9a7b252ad81e9bc6b12f2c00e640bfeab1b60668f6ac574c",
+      "change": true,
+      "path": "routes/web.php",
+      "preserved_live_drift": true,
+      "source_base_sha256": "4779ad30c20bdb03b746cf6ef43b0d881391c13ebd00511a438d9895ade8e203",
+      "source_target_sha256": "c1124f5abdde1a5f76929d599189f2ae35e82220869c438793d2ecc969fe21c6"
+    }
+  ]
+}
