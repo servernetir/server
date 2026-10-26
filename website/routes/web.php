@@ -3020,6 +3020,7 @@ Route::prefix('admin')->group(function () {
             Route::delete('/customers/{customer}/notes/{note}', [\App\Http\Controllers\Admin\CustomerNoteController::class, 'destroy']);
         });
         Route::post('/customers/{customer}/status', [\App\Http\Controllers\Admin\CustomerController::class, 'status']);
+        Route::post('/customers/{customer}/discount-entry', [\App\Http\Controllers\Admin\DiscountVisibilityController::class, 'updateCustomer'])->middleware('admin');
         Route::post('/customers/{customer}/password', [\App\Http\Controllers\Admin\CustomerController::class, 'password']);
         /*
         | نمایشِ یک‌بارهٔ شمارهٔ کاملِ کارت — فقط `admin`، نه هر کاربرِ پنل.
@@ -3439,6 +3440,7 @@ Route::prefix('admin')->group(function () {
         Route::get('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'edit'])->name('admin.settings')->middleware('admin');
         Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->middleware('admin');
         Route::post('/settings/payment-visibility', [\App\Http\Controllers\Admin\SettingsController::class, 'paymentVisibility'])->middleware('admin');
+        Route::post('/settings/discount-entry', [\App\Http\Controllers\Admin\DiscountVisibilityController::class, 'updateDefault'])->middleware('admin');
     });
 });
 
