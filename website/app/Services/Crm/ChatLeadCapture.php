@@ -10,10 +10,20 @@ use Illuminate\Support\Facades\DB;
 
 class ChatLeadCapture
 {
-    /** One registration per n8n row, isolated from domain/email deduplication. */
+    /** Legacy registrations use one message per n8n row; optional keys allow distinct inbound follow-ups. */
     public function capture(array $data): array
     {
-        [$lead, $created] = DB::transaction(function () use ($data) {
+        $providerId = 'site-chat:'.$data['external_id'];
+        if (array_key_exists('message_key', $data)) {
+            if (! is_string($data['message_key']) || $data['message_key'] === '') {
+                throw new \InvalidArgumentException('An optional message key must be a nonempty string.');
+            }
+            $providerId .= ':'.hash('sha256', $data['message_key']);
+            if (strlen($providerId) > 190) {
+                throw new \InvalidArgumentException('The message identity exceeds the provider ID limit.');
+            }
+        }
+        [$lead, $created] = DB::transaction(function () use ($data, $providerId) {
             $lead = CrmLead::firstOrCreate([
                 'domain_hash' => hash('sha256', 'site-chat|'.$data['external_id']),
             ], [
@@ -26,7 +36,7 @@ class ChatLeadCapture
             ]);
             $lead = CrmLead::whereKey($lead->id)->lockForUpdate()->firstOrFail();
             $message = CrmMessage::firstOrCreate([
-                'lead_id' => $lead->id, 'provider_id' => 'site-chat:'.$data['external_id'],
+                'lead_id' => $lead->id, 'provider_id' => $providerId,
             ], [
                 'channel' => 'chat', 'direction' => 'in', 'status' => 'received',
                 'subject' => $data['ticket'] ?? 'درخواست گفتگو',

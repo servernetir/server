@@ -220,13 +220,13 @@ if ($ids) {
     ];
 @endphp
 <script type="application/ld+json">{!! json_encode($website, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
-@include('partials.gtm-head')
+@unless(\Illuminate\Support\Facades\View::hasSection('private_report'))@include('partials.gtm-head')@endunless
 </head>
 {{-- imp-on: به بدنه به اندازهٔ ارتفاعِ نوار padding-top می‌دهد تا نوار هیچ
      محتوایی را نپوشاند و padding-topهای موجود (hero ۱۷۰، pnl-wrap ۱۱۸، …)
      دست‌نخورده بمانند. قاعده‌هایش انتهای site.css است. --}}
 <body @class(['imp-on' => $impBar, 'sn-public' => $atlasPublic])>
-@include('partials.gtm-body')
+@unless(\Illuminate\Support\Facades\View::hasSection('private_report'))@include('partials.gtm-body')@endunless
 
 <a class="skip-link" href="#main">{{ __('ui.skip') }}</a>
 <div id="progress"></div>
@@ -241,7 +241,7 @@ if ($ids) {
 </main>
 
 @include('partials.footer')
-@include('partials.chat')
+@unless(\Illuminate\Support\Facades\View::hasSection('private_report'))@include('partials.chat')@endunless
 
 <script src="{{ asset_ver('assets/js/site.js') }}" defer></script>
 <script src="{{ asset_ver('assets/js/server-menu.js') }}" defer></script>

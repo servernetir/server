@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditReport;
 use App\Models\OutreachContact;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -13,14 +14,17 @@ use Illuminate\View\View;
  */
 class ReportController extends Controller
 {
-    public function show(string $token): View
+    public function show(string $token): Response
     {
         // روی نصبی که هنوز مهاجرت نخورده، ۵۰۰ ندهد
         abort_unless(Schema::hasTable('audit_reports'), 404);
 
         $report = AuditReport::where('token', $token)->firstOrFail();
 
-        return view('pages.report', ['report' => $report]);
+        return response()->view('pages.report', ['report' => $report])
+            ->header('Cache-Control', 'private, no-store')
+            ->header('Referrer-Policy', 'no-referrer')
+            ->header('X-Robots-Tag', 'noindex, nofollow');
     }
 
     /**

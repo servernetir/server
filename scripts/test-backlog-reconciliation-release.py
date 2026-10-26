@@ -10,6 +10,15 @@ spec.loader.exec_module(release)
 
 
 class ReleaseMergeTest(unittest.TestCase):
+    def test_concurrent_acceptance_requires_the_exact_reviewed_merge(self):
+        base = b'first=1\nmiddle=1\nlast=1\n'
+        installed = base.replace(b'first=1', b'first=2')
+        concurrent = base.replace(b'last=1', b'last=3')
+        actual = installed.replace(b'last=1', b'last=3').replace(b'\n', b'\r\n')
+        self.assertEqual(release.verify_concurrent_file(installed, base, concurrent, actual), release.digest(actual))
+        with self.assertRaisesRegex(RuntimeError, 'differs'):
+            release.verify_concurrent_file(installed, base, concurrent, actual + b'unreviewed=4\r\n')
+
     def test_vpstc_addition_preserves_existing_provider_configuration(self):
         path = 'config/services.php'
         base = b"<?php\n\nreturn [\n    'other' => true,\n];\n"

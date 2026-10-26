@@ -35,6 +35,8 @@ class AccountController extends Controller
          * فهرست ثابت. داشبوردی که همیشه همان سه کارت را نشان می‌دهد، بعد از
          * دو بار دیدن نامرئی می‌شود.
          */
+        $checkoutRecovery = app(\App\Services\Marketing\CheckoutRecovery::class)->forCustomer((int) $customer->id);
+        $recoveryIds = $checkoutRecovery->pluck('invoice_id')->all();
         $todo = [];
 
         if ($customer->locale === 'fa' && $identity?->status !== 'verified') {
@@ -58,6 +60,9 @@ class AccountController extends Controller
         }
 
         foreach ($openInvoices as $inv) {
+            if (in_array((int) $inv->id, $recoveryIds, true)) {
+                continue;
+            }
             $todo[] = [
                 'icon' => 'coins', 'tone' => 'w',
                 'title' => __('ui.pnl_invoice_due', ['number' => $inv->number]),
@@ -73,6 +78,7 @@ class AccountController extends Controller
             'identity'     => $identity,
             'bank'         => $bank,
             'todo'         => $todo,
+            'checkoutRecovery' => $checkoutRecovery,
             'openInvoices' => $openInvoices,
             'credit'       => $customer->creditBalance(),
             'recent'       => $customer->payments()->latest('id')->limit(5)->get(),

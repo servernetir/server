@@ -71,6 +71,14 @@ def merge_runtime(name, current, base, desired):
     return merge_candidate(current, base, desired)
 
 
+def verify_concurrent_file(installed, base, concurrent, current):
+    normalize = lambda content: content.replace(b'\r\n', b'\n')
+    expected = merge_candidate(normalize(installed), normalize(base), normalize(concurrent))
+    if expected != normalize(current):
+        raise RuntimeError('Concurrent file differs from the pinned, reviewed source')
+    return digest(current)
+
+
 def fetch(url):
     with urllib.request.urlopen(url, timeout=45) as response:
         data = response.read(90_000_001)
@@ -138,8 +146,15 @@ def activation_helper(live, stage, manifest):
     # Standard web/session/CSRF/admin middleware; no deploy token or new credential.
     name = 'servernet-backlog-activate-' + digest(str(stage).encode())[:16] + '.php'
     code = '''<?php
+define('LARAVEL_START', microtime(true));
 require %s;
 $app = require %s;
+$_SERVER['SCRIPT_FILENAME'] = __DIR__.'/index.php';
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+$request=Illuminate\\Http\\Request::capture();
+$app->instance('request', $request);
+Illuminate\\Support\\Facades\\Facade::clearResolvedInstance('request');
 $kernel = $app->make(Illuminate\\Contracts\\Http\\Kernel::class);
 $kernel->bootstrap();
 Illuminate\\Support\\Facades\\Route::match(['GET','POST'], '/%s', function (Illuminate\\Http\\Request $request) {
@@ -155,8 +170,7 @@ Illuminate\\Support\\Facades\\Route::match(['GET','POST'], '/%s', function (Illu
     $receipt = ['activated'=>true,'cached_files_invalidated'=>$cached,'utc'=>gmdate('c')];
     file_put_contents(%s, json_encode($receipt));
     return response()->json($receipt)->header('Cache-Control','private, no-store');
-})->middleware(['web','auth','admin']);
-$request=Illuminate\\Http\\Request::capture();
+})->middleware(['web','auth:web','admin']);
 $response=$kernel->handle($request); $response->send(); $kernel->terminate($request,$response);
 ''' % (repr(str(live / 'vendor/autoload.php')), repr(str(live / 'bootstrap/app.php')), name,
        repr(json.dumps(targets)), repr(str(stage / 'activation.json')))
@@ -275,20 +289,36 @@ def apply(live, stage):
         raise
 
 
-def finalize(live, stage):
+def finalize(live, stage, release_source, concurrent_source=None):
     installed = json.loads((stage / 'installed.json').read_text())
     activation = json.loads((stage / 'activation.json').read_text())
     if activation.get('activated') is not True:
         raise RuntimeError('Web activation is not confirmed')
     manifest = json.loads((stage / 'manifest.json').read_text())
-    if any(digest((live / name).read_bytes()) != row['after'] for name, row in manifest.items()):
-        raise RuntimeError('Post-install file drift; inspect rather than restore')
+    drift = [name for name, row in manifest.items() if digest((live / name).read_bytes()) != row['after']]
+    reviewed = {}
+    if drift:
+        if concurrent_source is None:
+            raise RuntimeError('Post-install file drift; inspect rather than restore')
+        source_manifest = json.loads(fetch('https://raw.githubusercontent.com/servernetir/server/' + release_source + '/docs/project/backlog-2026-10-26/source-manifest.json'))
+        wanted = ['website/' + name for name in drift]
+        base = sources(source_manifest['base_sha'], wanted)
+        concurrent = sources(concurrent_source, wanted)
+        for name in drift:
+            reviewed[name] = verify_concurrent_file((stage / 'candidate' / name).read_bytes(), base['website/' + name],
+                                                    concurrent['website/' + name], (live / name).read_bytes())
+        (stage / 'reviewed-concurrent-source.json').write_text(json.dumps({'source': concurrent_source, 'files': reviewed}, indent=2))
+    # Recheck immediately before cleanup; never edit or restore a concurrent file.
+    if any(digest((live / name).read_bytes()) != reviewed.get(name, row['after']) for name, row in manifest.items()):
+        raise RuntimeError('Another live change arrived during final verification')
     helper = Path.home() / 'public_html' / installed['activation_file']
     if helper.exists():
         if digest(helper.read_bytes()) != installed['activation_sha256']:
             raise RuntimeError('Activation helper changed; refusing cleanup')
         helper.unlink()
-    receipt = {'status': 'finalized', 'file_hashes': len(manifest), 'activation': activation, 'schema': probe(live)['tables'], 'helper_removed': True}
+    receipt = {'status': 'finalized', 'unchanged_file_hashes': len(manifest) - len(reviewed),
+               'verified_concurrent_files': reviewed, 'concurrent_source': concurrent_source if reviewed else None,
+               'activation': activation, 'schema': probe(live)['tables'], 'helper_removed': True}
     (stage / 'final.json').write_text(json.dumps(receipt, indent=2))
     print(json.dumps(receipt))
 
@@ -298,6 +328,7 @@ def main():
     parser.add_argument('mode', choices=['prepare', 'apply', 'finalize'])
     parser.add_argument('--source', required=True)
     parser.add_argument('--stage', required=True)
+    parser.add_argument('--concurrent-source', help='Reviewed public commit; finalize only, never a forced overwrite')
     args = parser.parse_args()
     stage = Path(args.stage).resolve()
     if stage.parent != Path.home() or not stage.name.startswith('servernet-backlog-release-'):
@@ -315,7 +346,7 @@ def main():
     elif args.mode == 'apply':
         apply(live, stage)
     else:
-        finalize(live, stage)
+        finalize(live, stage, args.source, args.concurrent_source)
 
 
 if __name__ == '__main__':
