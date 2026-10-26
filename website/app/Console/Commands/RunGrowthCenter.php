@@ -32,7 +32,10 @@ class RunGrowthCenter extends Command
         if (! $lock->get()) {
             return self::SUCCESS;
         }
+        $outcome = 'ok';
+        $started = microtime(true);
         try {
+            $this->heartbeat('running', 0);
             $control = DB::table('growth_controls')->find(1);
             // Reconcile receipts even when the kill switch is off. No upstream inference is triggered here.
             foreach (GrowthJob::whereIn('status', ['processing', 'failed', 'completed'])->where(function ($q) {
@@ -49,6 +52,7 @@ class RunGrowthCenter extends Command
                 }
             }
             if (! $control?->enabled) {
+                $outcome = 'paused';
                 $this->info('Growth is paused.');
 
                 return self::SUCCESS;
@@ -63,6 +67,7 @@ class RunGrowthCenter extends Command
                     $jobs->run($job);
                 }
             } else {
+                $outcome = 'circuit_open';
                 $this->warn('Circuit open: five failures in ten minutes. No new paid calls.');
             }
             foreach (GrowthContent::where('status', 'scheduled')->where('channel', 'blog')->where('scheduled_at', '<=', now())->limit(20)->get() as $item) {
@@ -79,9 +84,24 @@ class RunGrowthCenter extends Command
             }
 
             return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $outcome = 'failed';
+            throw $e;
         } finally {
+            try {
+                $this->heartbeat($outcome, (int) ((microtime(true) - $started) * 1000));
+            } catch (\Throwable) {
+                $this->warn('Growth heartbeat could not be recorded.');
+            }
             $lock->release();
         }
+    }
+
+    private function heartbeat(string $status, int $duration): void
+    {
+        DB::table('growth_automation_runs')->updateOrInsert(['run_key' => 'engine:heartbeat'], [
+            'summary' => json_encode(['status' => $status, 'duration_ms' => $duration], JSON_THROW_ON_ERROR), 'created_at' => now(),
+        ]);
     }
 
     private function daily(): void

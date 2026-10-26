@@ -8,8 +8,11 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\Growth\ContentWorkflow;
 use App\Services\Growth\GrowthAutopilot;
+use App\Services\Growth\GrowthClaims;
 use App\Services\Growth\GrowthJobs;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -178,5 +181,93 @@ class GrowthAutopilotTest extends TestCase
         $this->assertSame('quality_review_required', app(GrowthAutopilot::class)->status()['latest'][0]['summary']['code']);
         $this->assertDatabaseCount('growth_jobs', 1);
         $this->assertDatabaseCount('posts', 0);
+    }
+
+    public function test_unpaid_source_failure_retries_only_after_one_hour_and_does_not_duplicate_content(): void
+    {
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(['https://servernet.cloud/*' => Http::sequence()->push('Unavailable', 503)->push('<main>'.str_repeat('Public product facts. ', 100).'</main>', 200)]);
+        $auto = app(GrowthAutopilot::class);
+        $auto->prepare();
+        $auto->prepare();
+        $this->assertSame('waiting_source', $auto->status()['operating_state']);
+        $this->assertDatabaseCount('growth_jobs', 0);
+        Http::assertSentCount(1);
+        $this->travel(61)->minutes();
+        $auto->prepare();
+        $auto->prepare();
+        $this->assertDatabaseCount('growth_contents', 1);
+        $this->assertDatabaseCount('growth_jobs', 1);
+        $this->assertSame(2, $auto->status()['latest'][0]['summary']['source_attempts']);
+        Http::assertSentCount(2);
+    }
+
+    public function test_unpaid_source_recovery_stops_after_three_attempts_for_the_day(): void
+    {
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(['https://servernet.cloud/*' => Http::response('Unavailable', 503)]);
+        for ($i = 0; $i < 5; $i++) {
+            app(GrowthAutopilot::class)->prepare();
+            $this->travel(61)->minutes();
+        }
+        $this->assertDatabaseCount('growth_contents', 0);
+        $this->assertDatabaseCount('growth_jobs', 0);
+        $this->assertSame('blocked', app(GrowthAutopilot::class)->status()['operating_state']);
+        Http::assertSentCount(3);
+    }
+
+    public function test_commercial_assertions_stop_automatic_progress_before_image_work(): void
+    {
+        app(GrowthAutopilot::class)->prepare();
+        app(GrowthJobs::class)->run(GrowthJob::sole());
+        $item = GrowthContent::sole();
+        $item->update(['body' => $item->body."\nترافیک در تمام پلن‌ها نامحدود است."]);
+        Setting::put('growth_autopilot_images', '1');
+        app(GrowthAutopilot::class)->prepare();
+        $this->assertSame('draft', $item->fresh()->status);
+        $this->assertSame('claims_review_required', app(GrowthAutopilot::class)->status()['latest'][0]['summary']['code']);
+        $this->assertDatabaseCount('growth_jobs', 1);
+        $this->assertNull($item->fresh()->approved_by);
+    }
+
+    public function test_claim_screen_handles_persian_english_turkish_and_neutral_technical_text(): void
+    {
+        $screen = app(GrowthClaims::class);
+        foreach ([['هزینه ۲٬۳۰۰ تومان در ساعت', 'price'], ['Costs 10 USD', 'price'], ['99.99% uptime', 'sla'],
+            ['ترافیک در تمام پلن‌ها نامحدود است', 'traffic'], ['sınırsız trafik', 'traffic'], ['under 5 minutes', 'delivery'], ['39 countries', 'coverage']] as [$body, $code]) {
+            $this->assertContains($code, $screen->findings($body));
+        }
+        $this->assertSame([], $screen->findings('برای شروع آزمایش، CPU و RAM و سقف ترافیک و تعرفه روز را بررسی کنید.'));
+        $this->assertSame([], $screen->findings('The measured CPU usage is 70.5%.'));
+    }
+
+    public function test_scheduler_heartbeat_is_real_and_staleness_is_visible_without_paid_work(): void
+    {
+        DB::table('growth_controls')->where('id', 1)->update(['enabled' => false]);
+        $this->artisan('growth:run')->assertSuccessful();
+        $status = app(GrowthAutopilot::class)->status();
+        $this->assertTrue($status['enabled']);
+        $this->assertFalse($status['active']);
+        $this->assertSame('paused', $status['engine_status']);
+        $this->actingAs($this->operator)->get('/admin/ai-growth?tab=automation')->assertOk()->assertSee(__('growth.engine_paused'));
+        DB::table('growth_automation_runs')->where('run_key', 'engine:heartbeat')->update(['created_at' => now()->subMinutes(6)]);
+        $this->assertSame('stale', app(GrowthAutopilot::class)->status()['engine_status']);
+        Http::assertNothingSent();
+    }
+
+    public function test_exhausted_topics_and_daily_window_have_explicit_states_without_spend(): void
+    {
+        $this->travelTo(now()->setTime(3, 0));
+        $status = app(GrowthAutopilot::class)->status();
+        $this->assertSame('before_window', $status['operating_state']);
+        $this->assertSame('08:00', Carbon::parse($status['next_at'])->format('H:i'));
+        $this->travel(3)->hours();
+        config(['ai_growth.autopilot_topics' => []]);
+        app(GrowthAutopilot::class)->prepare();
+        $this->assertSame('topic_pool_empty', app(GrowthAutopilot::class)->status()['operating_state']);
+        $this->assertDatabaseCount('growth_jobs', 0);
+        Http::assertNothingSent();
     }
 }
