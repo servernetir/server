@@ -1,5 +1,7 @@
 # Invoice discount entry visibility — 26 October 2026
 
+Follow-up: [invoice-only discount entry](INVOICE-ONLY-DISCOUNTS-2026-10-26.md) removes the customer offers/birthday UI and enforces administrator permission on new code submissions. The earlier behavior below is the historical first release.
+
 Status: **installed and accepted on production on 26 October 2026**, following the owner's explicit installation approval. Feature PR: [#134](https://github.com/servernetir/server/pull/134), merged into `develop` as `f383474e5b3ff3110cc70daadcd5b308e84d562d`. Production installation uses the narrow deployment branch at `c94fba275a4823d70d1dc50acc96ad16ad301f80`. The global display setting is explicitly `0`; every existing customer initially inherits it.
 
 ## Behavior

@@ -1,0 +1,125 @@
+{
+  "status": "accepted",
+  "checks": 62,
+  "rendered_variants": 18,
+  "matrix": [
+    {
+      "global": "0",
+      "mode": "inherit",
+      "locale": "fa",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "inherit",
+      "locale": "en",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "inherit",
+      "locale": "tr",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "enabled",
+      "locale": "fa",
+      "visible": true
+    },
+    {
+      "global": "0",
+      "mode": "enabled",
+      "locale": "en",
+      "visible": true
+    },
+    {
+      "global": "0",
+      "mode": "enabled",
+      "locale": "tr",
+      "visible": true
+    },
+    {
+      "global": "0",
+      "mode": "disabled",
+      "locale": "fa",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "disabled",
+      "locale": "en",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "disabled",
+      "locale": "tr",
+      "visible": false
+    },
+    {
+      "global": "1",
+      "mode": "inherit",
+      "locale": "fa",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "inherit",
+      "locale": "en",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "inherit",
+      "locale": "tr",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "enabled",
+      "locale": "fa",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "enabled",
+      "locale": "en",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "enabled",
+      "locale": "tr",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "disabled",
+      "locale": "fa",
+      "visible": false
+    },
+    {
+      "global": "1",
+      "mode": "disabled",
+      "locale": "en",
+      "visible": false
+    },
+    {
+      "global": "1",
+      "mode": "disabled",
+      "locale": "tr",
+      "visible": false
+    }
+  ],
+  "sql_writes": 0,
+  "external_http_calls": 0,
+  "persisted_test_customers": 0,
+  "browser": {
+    "offers_menu_links": 0,
+    "legacy_page_redirects_to_unsubscribe": true,
+    "birthday_inputs": 0,
+    "real_customer_forms_submitted": 0,
+    "unsubscribe_code_inputs": 0
+  }
+}

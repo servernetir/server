@@ -1,0 +1,54 @@
+{
+  "app/Http/Controllers/Account/AccountController.php": {
+    "before": "e3db1350d122a7d5499d52eab926e1df0a7d800293a2302e5e9ede2f2708718d",
+    "after": "ac0bc29071aac13d8447fffb2d05405429a5684c3a18b00585f5f56654c14230"
+  },
+  "app/Http/Controllers/Account/OfferController.php": {
+    "before": "4cd9558b1f2a04f3523fa7065fcff45f3f61a9bdbb293d20c3bd7f07345b8851",
+    "after": "138e8881bac3ce20e339b4fcfc16f022ad87e0a06120bbd68cc312cf9b38c126"
+  },
+  "app/Http/Controllers/Account/PaymentController.php": {
+    "before": "5e168864be1f3070ac9f47534dbe7244e4ce926ac03c0f8e3f41f6ee6e7f74b7",
+    "after": "587e563d8157f868f8a13c52a1c220645eb1135ccfd8a70330e803b1092c2aa6"
+  },
+  "app/Services/Marketing/CampaignAudience.php": {
+    "before": "e3ba8e71e3da5d4a3f6cdcc33b59e5674268c8c6a2afc14338685125c87472c4",
+    "after": "c4d1ac630a8a987b3b2be10a5dce639128e81591cac4458517c1e351c711f76c"
+  },
+  "app/Services/Marketing/CampaignMessages.php": {
+    "before": "c26ad5c7053c8fab12ef916866ab84b8d63a44f8567a09746a5ab7778746a0df",
+    "after": "14574f8bd2ed5ea610587ef8674bf2381e608b7de3461e26e246220de3e10c8d"
+  },
+  "app/Services/Marketing/DiscountEntryVisibility.php": {
+    "before": "75bca4485bf27c1173d52e064f567d529b96e2bc73ae98d1f7a1a95e73f3c7c7",
+    "after": "eb2e41dee5125c0ed545f26f90c940a9fce83e897883acd8b201337b5b06b4dc"
+  },
+  "lang/en/marketing.php": {
+    "before": "cfb6a9423cfc992c58796e18b4bfc1c5a4ccf870fd76bfd44acfb812ca1de023",
+    "after": "eb84a81f5578919bf7a386c4f8f594eace8dd5e00a162409bbb439b53fdd381f"
+  },
+  "lang/fa/marketing.php": {
+    "before": "bc9189b95b38715c441f9da284b94cf2566d344b76d4b7e3b53721cce7ef9021",
+    "after": "793cb121e1894a8c29dfac4b43e1afe29772af35da5e62b961ef49ebe4233e5c"
+  },
+  "lang/tr/marketing.php": {
+    "before": "381ca6e797fabc9a4bdde55b10c788c550a5d02deaf9f016b4559c28b7a1e5f7",
+    "after": "91d7cb99c70ffb0b26cbadd2f0ea3bd993710330a3df01abd48df556cd7653c1"
+  },
+  "resources/views/account/marketing-unsubscribe.blade.php": {
+    "before": null,
+    "after": "ee0848e048a4d1216048cfc0f52b8c1a4b129de064172be0edf3db98c9c8ebbc"
+  },
+  "resources/views/account/offers.blade.php": {
+    "before": "5842e41874f34c9d207bfea5b0ca2ba56702d7d89923c6fd89aaa5ff4f8ca132",
+    "after": null
+  },
+  "resources/views/account/partials/campaign-discount.blade.php": {
+    "before": "989dba80b45c3736495e2e19cf6748174c47eac09ad0349b3d429cf42f716932",
+    "after": "2503328e52389583dae6359c15f64c43a687723d0cf59a452eeb8ba75f375a44"
+  },
+  "routes/web.php": {
+    "before": "eb13be203415650dd999e5e7110967f8d7741434fc40e16fad953d217f35f1cd",
+    "after": "54f542a2ebcbb7b4170bcb955ef390d2d6b3e8ab0faf500c75933dc849af6906"
+  }
+}
