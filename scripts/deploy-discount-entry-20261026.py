@@ -91,7 +91,8 @@ for f,v in manifest.items():
  if sha((stage/'staged'/f).read_bytes())!=v['after']:raise RuntimeError('Stage drift')
 installed=[]
 try:
- for f in files:
+ order=sorted(files,key=lambda f:0 if f in new else 1 if f.startswith('lang/') else 2 if f.endswith('account/partials/campaign-discount.blade.php') else 4 if f=='routes/web.php' else 3)
+ for f in order:
   p=live/f;v=manifest[f];old=p.read_bytes() if p.exists() else None
   if (sha(old) if old is not None else None)!=v['before']:raise RuntimeError('Live drift: '+f)
   p.parent.mkdir(parents=True,exist_ok=True);temp=p.with_name(p.name+'.discount-staged')
