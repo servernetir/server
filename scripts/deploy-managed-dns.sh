@@ -67,8 +67,11 @@ else
   git clone --depth 500 --branch "$BRANCH" https://github.com/servernetir/server.git "$WORK/repo" || exit 1
 fi
 git -C "$WORK/repo" rev-parse --verify "$MINE^{commit}" >/dev/null 2>&1 || { echo "FATAL: کامیت $MINE در مخزن نیست."; exit 1; }
-# 🔴 وجودِ شیء کافی نیست: کامیت باید روی شاخه باشد (سرور زیرمجموعهٔ develop می‌مانَد)
-git -C "$WORK/repo" merge-base --is-ancestor "$MINE" FETCH_HEAD 2>/dev/null || {
+# 🔴 وجودِ شیء کافی نیست: کامیت باید روی شاخه باشد (سرور زیرمجموعهٔ develop می‌مانَد).
+# ⚠️ نوکِ شاخه از origin/<BRANCH>: `git clone` اصلاً FETCH_HEAD نمی‌سازد، پس اجرای اولِ
+#    روی سرور (۲۶ اکتبر) با «روی develop نیست» متوقف شد — بی‌هیچ نوشتنی.
+TIP="$(git -C "$WORK/repo" rev-parse -q --verify "refs/remotes/origin/$BRANCH" 2>/dev/null || git -C "$WORK/repo" rev-parse -q --verify FETCH_HEAD 2>/dev/null)"
+[ -n "$TIP" ] && git -C "$WORK/repo" merge-base --is-ancestor "$MINE" "$TIP" 2>/dev/null || {
   echo "FATAL: $MINE روی $BRANCH نیست — انتشارِ کارِ ادغام‌نشده ممنوع است."; exit 1; }
 echo "── هدف: $(git -C "$WORK/repo" log -1 --format='%h %s' "$MINE")"
 
