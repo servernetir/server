@@ -45,7 +45,7 @@ jobs:
       COMPOSER_NO_INTERACTION: '1'
     steps:
       - name: Checkout exact event revision without persisted credentials
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
           fetch-depth: 1
@@ -74,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           php -l tests/Feature/GitDeploymentArticleReviewTest.php
-          php artisan test --filter='GitDeploymentArticleReviewTest|GrowthArticlePublishingTest|BlogSitemapLastmodTest' --compact
+          vendor/bin/phpunit --filter='GitDeploymentArticleReviewTest|GrowthArticlePublishingTest|BlogSitemapLastmodTest' --display-warnings --fail-on-warning --colors=never
       - name: Record test scope
         if: always()
         run: |
@@ -84,3 +84,32 @@ jobs:
             echo 'No production deployment, CMS update, Google login, provider order or host cron is performed.'
             echo 'Passing automated checks is not independent editorial review or production acceptance.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  public-observation:
+    if: github.repository == 'servernetir/server' && github.event.repository.private == false && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout checker without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Observe fifteen existing public pages without login or writes
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          paths = ['/vps/hourly', '/gpu', '/blog/git-basics-for-deployment', '/blog/object-storage-vs-block-storage', '/blog/php-version-upgrade-guide']
+          rows = []
+          for path in paths:
+              alternates = {'fa': path, 'en': '/en' + path, 'tr': '/tr' + path}
+              for locale, prefix in [('fa', ''), ('en', '/en'), ('tr', '/tr')]:
+                  rows.append({'path': prefix + path, 'language': locale, 'alternates': alternates})
+          Path('/tmp/seo-public-targets.json').write_text(json.dumps({'schema_version': 1, 'targets': rows}))
+          PY
+          result=0
+          python3 scripts/seo-growth-cycle/check_public.py --targets /tmp/seo-public-targets.json --output /tmp/seo-public-observation.json --timeout 15 --run-id "seo-git-${GITHUB_RUN_ID}" || result=$?
+          test ! -f /tmp/seo-public-observation.json || cat /tmp/seo-public-observation.json
+          exit "$result"
