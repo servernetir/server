@@ -10,6 +10,19 @@ spec.loader.exec_module(release)
 
 
 class ReleaseMergeTest(unittest.TestCase):
+    def test_vpstc_addition_preserves_existing_provider_configuration(self):
+        path = 'config/services.php'
+        base = b"<?php\n\nreturn [\n    'other' => true,\n];\n"
+        block = b"    // Reseller origin must be confirmed by VPS.TC; no guessed default host.\n    // Credentials may instead be stored encrypted in the dedicated admin page.\n    'vpstc' => [\n        'base_url' => env('VPSTC_API_BASE_URL', ''),\n        'username' => env('VPSTC_API_USERNAME', ''),\n        'password' => env('VPSTC_API_PASSWORD', ''),\n    ],\n\n"
+        desired = base.replace(b'return [\n', b'return [\n' + block)
+        current = base.replace(b"'other' => true", b"'other' => false, 'live_only' => 123")
+        result = release.merge_runtime(path, current, base, desired)
+        self.assertIn(b"'live_only' => 123", result)
+        self.assertIn(block, result)
+        self.assertEqual(release.merge_runtime(path, result, base, desired), result)
+        with self.assertRaises(RuntimeError):
+            release.merge_runtime(path, current.replace(b"'other'", b"'vpstc'"), base, desired)
+
     def test_reviewed_caption_patch_preserves_live_controller_formatting_and_other_code(self):
         path = 'app/Http/Controllers/Admin/SettingsController.php'
         old = "        'accounts' => ['t' => 'حساب‌ها',         'icon' => 'i-coins'],\n".encode()
