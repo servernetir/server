@@ -1,5 +1,4 @@
 ---
 deployment:
   tasks:
-    - /usr/bin/python3 /home/servernetcloud/conversion-release-source-20261026/scripts/deploy-growth-conversion.py /home/servernetcloud/conversion-release-source-20261026/website /home/servernetcloud/servernet_app /home/servernetcloud/deploy-backups/growth-conversion-20261026-e6bd24d2
-    - /usr/bin/python3 /home/servernetcloud/conversion-release-source-20261026/scripts/deploy-growth-conversion.py /home/servernetcloud/conversion-release-source-20261026/website /home/servernetcloud/servernet_app /home/servernetcloud/deploy-backups/growth-conversion-20261026-e6bd24d2 --execute
+    - /usr/bin/python3 /home/servernetcloud/conversion-release-source-20261026/scripts/verify-growth-conversion.py /home/servernetcloud/servernet_app /home/servernetcloud/deploy-backups/growth-conversion-20261026-e6bd24d2 e5acd598ff9adcd1b04d8dea069f1e59c307b521158bb6a8b96e612cf40eada1
