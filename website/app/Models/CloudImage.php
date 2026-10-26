@@ -164,6 +164,10 @@ class CloudImage extends Model
             ->get();
 
         $match = $rows->first(function (CloudImage $row) use ($plan) {
+            if ($plan->provider === 'vpstc'
+                && ! str_starts_with((string) $row->provider_ref, $plan->provider_ref.'|')) {
+                return false;
+            }
             if (! self::providerAccessIsAutomated((string) $plan->provider, $row)) {
                 return false;
             }

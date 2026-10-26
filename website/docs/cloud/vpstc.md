@@ -1,5 +1,7 @@
 # VPS.TC reseller integration
 
+Current continuation, 26 October 2026: monthly order/lifecycle/renewal and independent pricing preparation is described in [the sales preparation record](../../../docs/project/VPSTC-SALES-PREPARATION-2026-10-26.md). The sections below record the earlier read-only phase and must not be used as the current code capability inventory. Live sales remain blocked pending API credentials and account-specific monthly catalog/billing acceptance.
+
 Production update, 26 October 2026: the encrypted admin connection page and read-only preflight code are installed at `/admin/cloud/vpstc`. The page renders in the authenticated admin session; no reseller credentials are saved and no live API preflight was run. Customer sales remain unavailable. See [deployment and remaining work](../../../docs/project/BACKLOG-RECONCILIATION-2026-10-26.md).
 
 Historical status, 24 October: draft preparation only, not yet installed.

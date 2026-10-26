@@ -92,6 +92,10 @@ class CloudPlan extends Model
      */
     public function supportsHourly(): bool
     {
+        // VPS.TC's account catalog is prepaid monthly; even a stale/forged hourly cost grants no sale.
+        if ($this->provider === 'vpstc') {
+            return false;
+        }
         if ($this->provider === 'arvan') {
             return Setting::get('arvan_hourly_sales_enabled') === '1'
                 && (int) ($this->cost_hour_eur_micro ?? 0) > 0;
@@ -129,7 +133,7 @@ class CloudPlan extends Model
     {
         $arvanEnabled = Setting::get('arvan_hourly_sales_enabled') === '1';
 
-        return $q->where(function (Builder $qq) use ($arvanEnabled) {
+        return $q->where('provider', '!=', 'vpstc')->where(function (Builder $qq) use ($arvanEnabled) {
             $qq->whereNotIn('provider', [...self::TERM_BASED_PROVIDERS, 'arvan'])
                 ->when($arvanEnabled, fn (Builder $q2) => $q2->orWhere(
                     fn (Builder $q3) => $q3->where('provider', 'arvan')
@@ -168,6 +172,9 @@ class CloudPlan extends Model
             return $q->whereRaw('1 = 0');
         }
         $off = array_unique([...self::disabledProviders(), ...$snapshot->excludedProviders()]);
+        if (! app(\App\Services\Cloud\VpsTcSales::class)->enabled()) {
+            $off[] = 'vpstc';
+        }
 
         return $q->where('is_active', true)
             ->where('cost_eur_cents', '>', 0)
@@ -257,6 +264,9 @@ class CloudPlan extends Model
      */
     public function blockedReason(): ?string
     {
+        if ($this->provider === 'vpstc' && ! app(\App\Services\Cloud\VpsTcSales::class)->enabled()) {
+            return 'off';
+        }
         if (! $this->is_active || $this->admin_disabled || self::providerIsDisabled((string) $this->provider)) {
             return 'off';
         }
@@ -289,6 +299,9 @@ class CloudPlan extends Model
     public static function shelf(?string $locationCode = null)
     {
         $off = self::disabledProviders();
+        if (! app(\App\Services\Cloud\VpsTcSales::class)->enabled()) {
+            $off[] = 'vpstc';
+        }
 
         return static::query()
             ->where('is_active', true)
@@ -347,6 +360,20 @@ class CloudPlan extends Model
     public function trafficLabel(?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
+        if ($this->provider === 'vpstc') {
+            if (($this->network_terms['charge_mode'] ?? '') === 'unmetered'
+                && ($this->network_terms['extra_charges'] ?? null) === false) {
+                return match ($locale) {
+                    'en' => 'Unmetered, fair use', 'tr' => 'Ölçümsüz, adil kullanım',
+                    default => 'بدون اندازه‌گیری حجم، مصرف منصفانه',
+                };
+            }
+            return match ($locale) {
+                'en' => $this->traffic_gb.' GB/month, hard limit',
+                'tr' => $this->traffic_gb.' GB/ay, kesin sınır',
+                default => fa_num($this->traffic_gb).' گیگابایت ماهانه با سقف قطعی',
+            };
+        }
 
         // A monthly headline allowance is prorated for hourly instances.
         // Never turn this finite network contract into an unlimited promise.
@@ -426,7 +453,8 @@ class CloudPlan extends Model
             return 0;
         }
 
-        return (int) (app(\App\Services\Cloud\CloudPricing::class)->priceFor($cents)['irt'] ?? 0);
+        return (int) (app(\App\Services\Cloud\CloudPricing::class)
+            ->priceFor($cents, $this->provider === 'vpstc' ? 'vpstc' : null)['irt'] ?? 0);
     }
 
     public function cpuKindLabel(?string $locale = null): string

@@ -3159,6 +3159,9 @@ Route::prefix('admin')->group(function () {
         Route::get('/cloud/vpstc', [\App\Http\Controllers\Admin\VpsTcController::class, 'index'])->middleware('admin')->name('admin.cloud.vpstc');
         Route::post('/cloud/vpstc', [\App\Http\Controllers\Admin\VpsTcController::class, 'save'])->middleware(['admin', 'throttle:6,1'])->name('admin.cloud.vpstc.save');
         Route::post('/cloud/vpstc/preflight', [\App\Http\Controllers\Admin\VpsTcController::class, 'preflight'])->middleware(['admin', 'throttle:3,1'])->name('admin.cloud.vpstc.preflight');
+        Route::post('/cloud/vpstc/pricing', [\App\Http\Controllers\Admin\VpsTcController::class, 'savePricing'])->middleware(['admin', 'throttle:6,1'])->name('admin.cloud.vpstc.pricing');
+        Route::post('/cloud/vpstc/catalog', [\App\Http\Controllers\Admin\VpsTcController::class, 'syncCatalog'])->middleware(['admin', 'throttle:3,1'])->name('admin.cloud.vpstc.catalog');
+        Route::post('/cloud/vpstc/sales', [\App\Http\Controllers\Admin\VpsTcController::class, 'saveSales'])->middleware(['admin', 'throttle:6,1'])->name('admin.cloud.vpstc.sales');
         // [vpstc-readonly-admin:end]
 
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\Cloud\VpsTcApi;
 use App\Services\Cloud\VpsTcPreflight;
+use App\Services\Cloud\VpsTcPricing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -18,6 +19,10 @@ class VpsTcController extends Controller
             'apiOrigin' => (string) Setting::get('cloud_vpstc_api_origin', config('services.vpstc.base_url', '')),
             'hasUsername' => filled(Setting::getSecret('cloud_vpstc_username')),
             'hasPassword' => filled(Setting::getSecret('cloud_vpstc_password')),
+            'vpstcPricing' => app(VpsTcPricing::class)->values(),
+            'pricingConfigured' => app(VpsTcPricing::class)->configured(),
+            'vpstcSalesEnabled' => app(\App\Services\Cloud\VpsTcSales::class)->enabled(),
+            'vpstcMapped' => app(\App\Services\Cloud\VpsTcCatalog::class)->manifest() !== null,
         ])->header('Cache-Control', 'private, no-store');
     }
 
@@ -72,5 +77,78 @@ class VpsTcController extends Controller
         $report = $preflight->inspect(filled($data['product_id'] ?? null) ? (string) $data['product_id'] : null, filled($data['category_id'] ?? null) ? (string) $data['category_id'] : null);
 
         return redirect()->route('admin.cloud.vpstc')->with('vpstc_report', $report);
+    }
+
+    public function savePricing(Request $request)
+    {
+        $validator = Validator::make($request->only(VpsTcPricing::INPUT_KEYS), [
+            'vpstc_currency' => ['required', 'string', 'in:TRY,USD,EUR,USDT'],
+            'cloud_margin_pct_vpstc' => ['required', 'numeric', 'min:0', 'max:500'],
+            'vpstc_supplier_tax_pct' => ['required', 'numeric', 'min:0', 'max:100'],
+            'pricing_fx_fee_pct_vpstc' => ['required', 'numeric', 'min:0', 'max:100'],
+            'vpstc_fx_rate_toman' => ['nullable', 'required_if:vpstc_currency,TRY', 'numeric', 'min:0.000001', 'max:1000000000'],
+        ]);
+        if ($validator->fails()) {
+            return redirect()->route('admin.cloud.vpstc')->withErrors($validator);
+        }
+        $data = $validator->validated();
+        DB::transaction(function () use ($data) {
+            foreach (VpsTcPricing::INPUT_KEYS as $key) {
+                Setting::put($key, isset($data[$key]) ? (string) $data[$key] : '');
+            }
+        });
+        \App\Services\SiteMenu::forget();
+        \App\Services\Cloud\CloudCountry::forget();
+
+        return redirect()->route('admin.cloud.vpstc')->with('success',
+            'تنظیمات مستقل قیمت‌گذاری ذخیره شد. برای انتشار قیمت‌های تازه، کاتالوگ را همگام کنید. تا آن زمان فروش این زیرساخت با قیمت قبلی بسته است.');
+    }
+
+    public function syncCatalog(Request $request)
+    {
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $pricing = app(VpsTcPricing::class);
+        if (! $snapshot->current() || ! $pricing->configured()
+            || app(\App\Services\Cloud\VpsTcCatalog::class)->manifest() === null) {
+            return redirect()->route('admin.cloud.vpstc')->withErrors([
+                'catalog' => 'اتصال، قیمت‌گذاری، نرخ معتبر ارز و تطبیق منابع/دوره/ترافیک باید تکمیل شوند.']);
+        }
+        try {
+            $fingerprint = $pricing->fingerprint();
+            $rates = $snapshot->rates();
+            DB::transaction(function () use ($snapshot, $fingerprint, $rates, $pricing) {
+                $report = app(\App\Services\Cloud\CloudCatalogSync::class)->sync('vpstc');
+                $result = $report['providers']['vpstc'] ?? [];
+                if (! ($result['ok'] ?? false) || ($result['plans'] ?? 0) < 1
+                    || $rates !== $snapshot->rates() || $fingerprint !== $pricing->fingerprint()) {
+                    throw new \RuntimeException('Unverified catalog or changed pricing inputs.');
+                }
+                $excluded = array_values(array_diff($snapshot->excludedProviders(), ['vpstc']));
+                $snapshot->publish($rates, $excluded, ['vpstc' => $fingerprint]);
+            });
+        } catch (\Throwable) {
+            return redirect()->route('admin.cloud.vpstc')->withErrors([
+                'catalog' => 'همگام‌سازی تأیید نشد؛ فروش یا قیمت‌های ناقص منتشر نشدند.']);
+        }
+        return redirect()->route('admin.cloud.vpstc')->with('success', 'کاتالوگ و قیمت ماهانه تازه شد. وضعیت فروش را جداگانه انتخاب کنید.');
+    }
+
+    public function saveSales(Request $request)
+    {
+        $data = $request->validate(['enabled' => ['required', 'boolean']]);
+        if ($request->boolean('enabled')
+            && (! app(VpsTcApi::class)->isConfigured() || ! app(VpsTcPricing::class)->configured()
+                || app(\App\Services\Cloud\VpsTcCatalog::class)->manifest() === null
+                || ! app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('vpstc')
+                || ! \App\Models\CloudPlan::where('provider', 'vpstc')->where('is_active', true)
+                    ->where('admin_disabled', false)->where('in_stock', true)->where('price_irt', '>', 0)->exists())) {
+            return redirect()->route('admin.cloud.vpstc')->withErrors([
+                'sales' => 'فروش پس از اتصال معتبر، تطبیق قرارداد ماهانه و همگام‌سازی قیمت قابل فعال‌سازی است.']);
+        }
+        Setting::put('vpstc_sales_enabled', $request->boolean('enabled') ? '1' : '0');
+        \App\Services\SiteMenu::forget();
+        \App\Services\Cloud\CloudCountry::forget();
+        return redirect()->route('admin.cloud.vpstc')->with('success',
+            $request->boolean('enabled') ? 'فروش ماهانهٔ این زیرساخت فعال شد.' : 'فروش تازهٔ این زیرساخت بسته شد.');
     }
 }

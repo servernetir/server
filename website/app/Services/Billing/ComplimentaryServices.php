@@ -40,6 +40,19 @@ class ComplimentaryServices
                 || ! $this->applies($fresh) || $fresh->isHourly()) {
                 return false;
             }
+            $actualProvider = $fresh->isCloud()
+                ? \App\Models\CloudInstance::where('service_id', $fresh->id)->value('provider') : null;
+            if ($actualProvider === 'vpstc' || ($actualProvider === null && $fresh->isCloud()
+                && \App\Models\CloudPlan::whereKey($fresh->cloud_plan_id)->where('provider', 'vpstc')->exists())) {
+                // Waiving retail revenue cannot extend a prepaid supplier's contract.
+                // There is no paid source invoice for the automatic renewal journal.
+                \App\Support\ErrorTracker::noteOnce('billing',
+                    'تمدید رایگان سرور پیش‌پرداخت به تأیید پرداخت و دورهٔ زیرساخت نیاز دارد؛ سررسید محلی تغییر نکرد.',
+                    3600, ['service' => $fresh->id]);
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'renewal' => 'تمدید رایگان این سرور نیازمند بررسی هزینه و تأیید دورهٔ زیرساخت توسط مدیر است؛ سررسید تغییر نکرد.',
+                ]);
+            }
 
             $threshold = now()->startOfDay()->addDays(max(0, $days));
             $old = $fresh->next_due_at?->toDateString();

@@ -33,6 +33,9 @@ class CloudPricing
      */
     public function marginPct(?string $provider = null): float
     {
+        if ($provider === 'vpstc') {
+            return app(VpsTcPricing::class)->marginPct() ?? 0.0;
+        }
         if ($provider === 'salad') {
             $gpu = Setting::get('cloud_margin_pct_salad');
             if ($gpu !== null && $gpu !== '') {
@@ -80,6 +83,9 @@ class CloudPricing
      */
     public function fxFeePctFor(?string $provider): float
     {
+        if ($provider === 'vpstc') {
+            return app(VpsTcPricing::class)->fxFeePct() ?? 0.0;
+        }
         if (filled($provider)) {
             $v = Setting::get('pricing_fx_fee_pct_'.strtolower(trim($provider)));
 
@@ -100,6 +106,9 @@ class CloudPricing
     /** قیمتِ فروشِ یورویی به سنت — گردشده رو به بالا به ۱۰ سنت */
     public function sellEurCents(int $costEurCents, ?string $provider = null): int
     {
+        if ($provider === 'vpstc') {
+            return app(VpsTcPricing::class)->sellEurCents($costEurCents);
+        }
         if ($costEurCents <= 0) {
             return 0;
         }

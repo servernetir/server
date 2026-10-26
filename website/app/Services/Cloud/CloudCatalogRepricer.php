@@ -12,7 +12,7 @@ class CloudCatalogRepricer
 {
     // These drivers normalize a non-EUR supplier quote to EUR. Reusing their
     // old EUR result would incorrectly make USD/IRT procurement follow EUR.
-    private const NORMALIZED_PROVIDERS = ['lightnode', 'salad', 'ovh', 'arvan'];
+    private const NORMALIZED_PROVIDERS = ['lightnode', 'salad', 'ovh', 'arvan', 'vpstc'];
 
     private const SETTING_KEYS = [
         'cloud_margin_pct', 'cloud_margin_pct_salad',
@@ -22,6 +22,7 @@ class CloudCatalogRepricer
         // Account changes also invalidate quotes collected from that account.
         'salad_api_key', 'ovh_app_key', 'ovh_app_secret', 'ovh_consumer_key',
         'lightnode_api_token', 'arvan_api_token',
+        ...VpsTcPricing::SNAPSHOT_KEYS,
     ];
 
     public function __construct(private CloudManager $manager, private CloudPricing $pricing) {}
@@ -40,7 +41,8 @@ class CloudCatalogRepricer
         $plans = CloudPlan::query()->where('cost_eur_cents', '>', 0)
             ->whereNotIn('provider', CloudPlan::disabledProviders())->get();
         $nativeCosts = [];
-        $skip = [];
+        $skip = ['vpstc'];
+        $providerInputs = [];
         $unavailable = [];
 
         foreach ($plans->whereIn('provider', self::NORMALIZED_PROVIDERS)->groupBy('provider') as $provider => $group) {
@@ -120,13 +122,17 @@ class CloudCatalogRepricer
                     'setup_eur_cents' => $this->amount($setup ?? 0, true, $provider),
                 ];
             }
+            if ($provider === 'vpstc' && $active->isNotEmpty()) {
+                $skip = array_values(array_diff($skip, ['vpstc']));
+                $providerInputs['vpstc'] = app(VpsTcPricing::class)->fingerprint();
+            }
         }
 
         // All required quotes are validated before the first product write.
         // Any database failure rolls back the complete product-price batch.
         $this->assertRates($rates);
         $this->assertSettings($settings);
-        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings): int {
+        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs): int {
             // Current reads avoid a MariaDB repeatable-read snapshot; locks last
             // only for product writes, never for slow supplier requests.
             $this->assertSettings($settings, $persist);
@@ -175,7 +181,7 @@ class CloudCatalogRepricer
             $this->assertRates($rates);
             $this->assertSettings($settings, $persist);
             if ($persist) {
-                app(CloudPricingSnapshot::class)->publish($rates, $skip);
+                app(CloudPricingSnapshot::class)->publish($rates, $skip, $providerInputs);
             }
             return $count;
         };

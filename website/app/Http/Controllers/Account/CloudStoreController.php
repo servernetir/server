@@ -110,13 +110,16 @@ class CloudStoreController extends Controller
      */
     public static function priceForCycle(CloudPlan $plan, string $cycle, array $addons = []): int
     {
+        if ($plan->provider === 'vpstc' && $cycle !== 'monthly') {
+            return 0;
+        }
         $months = Service::monthsIn($cycle);
 
         if ($months <= 0) {
             return 0;
         }
 
-        $discount = in_array($plan->provider, ['salad', 'lightnode'], true) ? 0
+        $discount = in_array($plan->provider, ['salad', 'lightnode', 'vpstc'], true) ? 0
             : (int) (config('billing.cycles.'.$cycle.'.discount_pct') ?? 0);
         $discount = max(0, min(90, $discount));
 
@@ -934,12 +937,15 @@ class CloudStoreController extends Controller
 
             foreach ($cycles as $cy) {
                 $price = self::priceForCycle($offer, $cy);
+                if ($price <= 0) {
+                    continue;
+                }
                 $priceMap[$slug][$cy] = [
                     'cycle' => $price,
                     'per' => self::monthlyEquivalent($offer, $cy),
                     'setup' => $setupIrt,
                     'first' => $price + $setupIrt + (int) round(($price + $setupIrt) * $taxPct / 100),
-                    'save' => in_array($offer->provider, ['salad', 'lightnode'], true) ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
+                    'save' => in_array($offer->provider, ['salad', 'lightnode', 'vpstc'], true) ? 0 : (int) (config('billing.cycles.'.$cy.'.discount_pct') ?? 0),
                 ];
             }
 

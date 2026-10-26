@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Service;
 use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Cloud\VpsTcRenewal;
 use App\Services\Finance\BusinessLedger;
 use App\Services\Notify\AdminNotifier;
 use App\Services\Notify\CustomerNotifier;
@@ -349,8 +350,9 @@ class PaymentService
                         // پیش از ثبتِ activated_at می‌سنجیم: اگر از قبل فعال بوده،
                         // این پرداخت «تمدید» است؛ وگرنه «فعال‌سازیِ اولِ» خرید.
                         $wasActivated = $service->activated_at !== null;
+                        $supplierRenewal = $wasActivated && app(VpsTcRenewal::class)->applies($service);
                         $service->activated_at ??= now();
-                        if ($service->isRecurring()) {
+                        if ($service->isRecurring() && ! $supplierRenewal) {
                             // سررسیدِ بعدی از «پایانِ دورهٔ خریداری‌شده» جلو می‌رود، نه از
                             // لحظهٔ پرداخت. فاکتورِ تمدید چند روز پیش از سررسید صادر
                             // می‌شود؛ اگر از now() حساب می‌کردیم هر دوره چند روز کوتاه‌تر
@@ -380,16 +382,22 @@ class PaymentService
                             }
                         }
                         $service->save();
+                        if ($supplierRenewal) {
+                            // Reserve locally in this transaction; the financial API runs after commit.
+                            app(VpsTcRenewal::class)->queue($service, $invoice);
+                        }
 
                         // لاگِ سرویس‌محور: خرید (فعال‌سازیِ اول) یا تمدید. actor از
                         // زمینه: اگر مشتری در نشست باشد 'customer'، وگرنه (تمدیدِ
                         // خودکار از اعتبار/کرون) 'system'.
                         try {
                             ActivityLog::forService($service,
-                                $wasActivated ? 'renew' : 'purchase',
-                                $wasActivated
+                                $supplierRenewal ? 'provision' : ($wasActivated ? 'renew' : 'purchase'),
+                                $supplierRenewal
+                                    ? 'پرداخت تمدید ثبت شد؛ تأیید دورهٔ زیرساخت در انتظار انجام است.'
+                                    : ($wasActivated
                                     ? 'سرویس با پرداختِ فاکتور تمدید شد'.($service->next_due_at ? ' (سررسیدِ بعدی: '.$service->next_due_at->format('Y-m-d').')' : '')
-                                    : 'سرویس با پرداختِ فاکتور فعال شد',
+                                    : 'سرویس با پرداختِ فاکتور فعال شد'),
                                 auth('customer')->check() ? 'customer' : 'system');
                         } catch (\Throwable) {
                             // لاگ نباید تسویه را بشکند
@@ -591,6 +599,17 @@ class PaymentService
         // اگر این settle قبلاً هم اجرا شده باشد، درآمد دوباره ثبت نمی‌شود.
         // نگهبان ready() یعنی اگر جدول هنوز ساخته نشده، پرداخت نمی‌شکند.
         if ($outcome->ok && $outcome->payment !== null) {
+            // Settlement is already committed. A supplier timeout leaves its period pending.
+            if (($renewalInvoice = $outcome->payment->invoice) !== null) {
+                // Credit/gift/bank-review callers may still own an outer transaction.
+                // afterCommit defers the supplier purchase until that transaction succeeds.
+                if (DB::transactionLevel() > 0) {
+                    DB::afterCommit(fn () => app(VpsTcRenewal::class)->process($renewalInvoice->fresh()));
+                } else {
+                    app(VpsTcRenewal::class)->process($renewalInvoice);
+                }
+                $outcome->payment->unsetRelation('invoice');
+            }
             try {
                 app(BusinessLedger::class)->recordPayment($outcome->payment);
             } catch (\Throwable $e) {
@@ -648,7 +667,10 @@ class PaymentService
                     */
                     $svc = $outcome->payment->invoice?->service;
 
-                    if ($svc !== null && $svc->status === 'active' && $svc->next_due_at !== null) {
+                    if ($svc !== null && $svc->status === 'active' && $svc->next_due_at !== null
+                        && ! app(VpsTcRenewal::class)->pending($svc)
+                        && (! app(VpsTcRenewal::class)->applies($svc)
+                            || (int) data_get($svc->provision_meta, 'vpstc_last_renewal.invoice_id') === (int) $outcome->payment->invoice_id)) {
                         app(Notifier::class)->fire(
                             'renewed',
                             $customer,

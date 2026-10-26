@@ -21,11 +21,9 @@ class VpsTcPreflight
             'order_form_checked' => false,
             'catalog_complete' => false,
             'blockers' => [
-                'provider_lifecycle_adapter_not_implemented',
                 'catalog_mapping_not_verified',
                 'traffic_cost_control_not_verified',
                 'live_provisioning_not_verified',
-                'order_reconciliation_not_implemented',
                 'renewal_and_billing_cancellation_not_verified',
             ],
             'message' => 'Read-only preflight has not completed; customer sales remain unavailable.',

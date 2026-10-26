@@ -101,6 +101,7 @@
 
   $curCycle = (string) old('cycle', $defCycle);
   if (! in_array($curCycle, $cycles, true)) { $curCycle = $defCycle; }
+  if (!isset($priceMap[$curSlug][$curCycle]) && !empty($priceMap[$curSlug])) { $curCycle = array_key_first($priceMap[$curSlug]); }
 
   $curLabel = (string) old('label', '');
   $curIp    = (int) old('extra_ipv4', 0);
@@ -472,8 +473,8 @@
             <div class="cvb-segs cvb-bill @if($hOn) is-hourly @endif" id="cvb-bill">
               @foreach($cycles as $cy)
                 @php $row = $priceMap[$curSlug][$cy] ?? ['save' => 0]; @endphp
-                <label class="cvb-seg cvb-seg-c @if($cy === $curCycle) on @endif" data-cyc="{{ $cy }}">
-                  <input type="radio" name="cycle" value="{{ $cy }}" @checked($cy === $curCycle)>
+                <label class="cvb-seg cvb-seg-c @if($cy === $curCycle) on @endif" data-cyc="{{ $cy }}" @if(!isset($priceMap[$curSlug][$cy])) hidden @endif>
+                  <input type="radio" name="cycle" value="{{ $cy }}" @checked($cy === $curCycle) @disabled(!isset($priceMap[$curSlug][$cy]))>
                   <span>{{ $cycleLabels[$cy] ?? $cy }}</span>
                   @if(($row['save'] ?? 0) > 0)<em>{{ fa_num($row['save']) }}{{ __('ui.cvb_save_suf') }}</em>@endif
                 </label>
@@ -1201,6 +1202,19 @@
     var slug = val('plan'), cyc = val('cycle');
     checkGpuCapacity(slug);
     var bucket = D.prices[slug] || {};
+    // Billing choices follow the selected offer's actual supplier contract.
+    var availableCycles = Object.keys(bucket);
+    if (!bucket[cyc] && availableCycles.length) {
+      cyc = availableCycles[0];
+      var selectedCycle = form.querySelector('input[name="cycle"][value="' + cyc + '"]');
+      if (selectedCycle) selectedCycle.checked = true;
+    }
+    form.querySelectorAll('.cvb-seg-c[data-cyc]').forEach(function(segment){
+      var cycleInput = segment.querySelector('input[name="cycle"]');
+      var supported = !!bucket[segment.getAttribute('data-cyc')];
+      segment.hidden = !supported;
+      if (cycleInput) cycleInput.disabled = !supported;
+    });
     var h = (D.hourly || {})[slug] || { rate: 0, min: 0 };
 
     /* ── کلیدِ ساعتی: برمتال، یا اسلاگی که زیرساخت ساعتی نمی‌فروشدش ──

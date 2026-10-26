@@ -55,12 +55,14 @@ class CloudProvisioner
         // LightNode exposes a durable async receipt.  Other providers have
         // different lifecycle contracts and must not inherit this deadline.
         'lightnode' => 30,
+        'vpstc' => 30,
     ];
 
     /** Provider-accepted deletion may be asynchronous, but not indefinitely. */
     private const RELEASE_PENDING_DEADLINES = [
         // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
         'arvan' => 15,
+        'vpstc' => 30,
     ];
 
     public function __construct(
@@ -441,6 +443,20 @@ class CloudProvisioner
 
         $instance->save();
 
+        if ($instance->provider === 'vpstc' && in_array($result['status'] ?? '', ['running', 'off'], true)
+            && is_string($result['username'] ?? null) && trim($result['username']) !== '') {
+            // The supplier may return an OS-specific login. Preserve the
+            // verified identity alongside the password before final delivery.
+            $service->forceFill(['username' => $result['username']])->save();
+            $instance->refresh();
+            $meta = $instance->meta ?? [];
+            if (! isset($meta['vpstc_supplier_due_at']) && is_string($result['supplier_due_at'] ?? null)
+                && preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z/D', $result['supplier_due_at'])) {
+                $meta['vpstc_supplier_due_at'] = $result['supplier_due_at'];
+                $instance->update(['meta' => $meta]);
+            }
+        }
+
         // ── IP اضافه ──
         // بعد از ساختِ سرور، چون به شناسه‌اش بسته می‌شود. شکستش تحویل را
         // شکست‌خورده **نمی‌کند** (سرور کار می‌کند و مشتری منتظرش است)، ولی مدیر
@@ -587,8 +603,9 @@ class CloudProvisioner
                 | ذخیرهٔ این دو یعنی پنلِ مدیریت «کاربر: root» نشان دهد و هر سطحی
                 | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
                 */
-                'username' => $instance->isGpuApp() ? null
-                    : (in_array($instance->provider, ['arvan', 'lightnode'], true) && $instance->isWindows() ? 'Administrator' : 'root'),
+                'username' => $instance->provider === 'vpstc' ? $current->username
+                    : ($instance->isGpuApp() ? null
+                        : (in_array($instance->provider, ['arvan', 'lightnode'], true) && $instance->isWindows() ? 'Administrator' : 'root')),
                 ...$credentialFields,
                 'domain' => $service->domain ?: ($instance->isGpuApp()
                     ? ($instance->accessHost() ?: null)
@@ -1033,6 +1050,11 @@ class CloudProvisioner
 
                     continue;
                 }
+
+                // This driver durably adopts access credentials and the first
+                // supplier due date while reconciling. Do not overwrite those
+                // fields with metadata loaded before that reconciliation.
+                if ($instance->provider === 'vpstc') { $instance->refresh(); }
 
                 $wasBuilding = $instance->status === 'building';
 

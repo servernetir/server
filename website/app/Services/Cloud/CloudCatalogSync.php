@@ -282,11 +282,16 @@ class CloudCatalogSync
             // برمتال (سرورِ فیزیکی) — باید به نام و اسلاگ برسد وگرنه با VPSِ
             // هسته‌اختصاصیِ هم‌مشخصات یک گروه می‌شود (توضیح در CloudNaming).
             $metal = (bool) ($r['metal'] ?? false);
-            $networkTerms = $provider === 'lightnode' ? ($r['network_terms'] ?? null) : null;
+            $networkTerms = in_array($provider, ['lightnode', 'vpstc'], true) ? ($r['network_terms'] ?? null) : null;
             $planSlug = CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount, $metal);
             if ($provider === 'lightnode') {
                 // Different network contracts cannot be interchangeable offers.
                 $planSlug .= '-net-'.substr(hash('sha256', json_encode($networkTerms)), 0, 12);
+            }
+            if ($provider === 'vpstc') {
+                // A monthly parent service with its own network contract cannot
+                // become an interchangeable hourly/long-cycle fallback.
+                $planSlug .= '-monthly-net-'.substr(hash('sha256', json_encode($networkTerms)), 0, 12);
             }
 
             CloudPlan::updateOrCreate(
@@ -357,7 +362,7 @@ class CloudCatalogSync
 
         // پلنی که این بار نیامد = برداشته شده. غیرفعال می‌شود تا از فروشگاه
         // بیرون برود، ولی ردیفش می‌ماند چون سرویسِ فعالِ مشتری به آن اشاره دارد.
-        if ($seen !== [] || $provider === 'lightnode') {
+        if ($seen !== [] || in_array($provider, ['lightnode', 'vpstc'], true)) {
             CloudPlan::where('provider', $provider)
                 ->get(['id', 'provider_ref', 'location_code', 'is_active'])
                 ->each(function (CloudPlan $p) use ($seen) {

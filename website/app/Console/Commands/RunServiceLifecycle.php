@@ -126,6 +126,20 @@ class RunServiceLifecycle extends Command
         if ($service->isInternalInfrastructure()) {
             return;
         }
+        $supplierRenewal = app(\App\Services\Cloud\VpsTcRenewal::class);
+        if ($supplierRenewal->pending($service)) {
+            // Paid periods awaiting upstream confirmation are not unpaid renewals.
+            if ($dry) {
+                $stats['pending']++;
+                return;
+            }
+            $invoice = Invoice::find(data_get($service->provision_meta, 'vpstc_renewal.invoice_id'));
+            if (! $invoice || ! $supplierRenewal->process($invoice)) {
+                $stats['errors']++;
+                return;
+            }
+            $service->refresh();
+        }
         if ($service->next_due_at === null) {
             $stats['errors']++;
             if (! $dry) {

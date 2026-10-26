@@ -7,7 +7,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
-/** Independent, read-only VPS.TC reseller API client. No service mutations. */
+/** Fixed-endpoint VPS.TC client. Mutations are never retried; callers journal and reconcile them. */
 final class VpsTcApi
 {
     private string $origin;
@@ -60,6 +60,12 @@ final class VpsTcApi
         return self::validOrigin($this->origin) && $this->username !== '' && $this->password !== '';
     }
 
+    /** Bind durable receipts to their original account without revealing credentials. */
+    public function accountFingerprint(): string
+    {
+        return hash_hmac('sha256', implode("\0", [$this->origin, $this->username, $this->password]), (string) config('app.key'));
+    }
+
     public function balance(): array
     {
         return $this->read('/api/balance', 'details');
@@ -77,7 +83,96 @@ final class VpsTcApi
 
     public function services(): array
     {
+        // The published endpoint lists all account services and declares no
+        // pagination parameters. Callers must reject any partial-list markers;
+        // a missing row never proves an ambiguous purchase did not happen.
         return $this->read('/api/service', 'services');
+    }
+
+    public function paymentMethods(): array
+    {
+        return $this->read('/api/payment', 'payments');
+    }
+
+    public function paymentFees(): array
+    {
+        return $this->read('/api/payment/fees', 'payments');
+    }
+
+    public function invoice(string $invoiceId): array
+    {
+        return $this->withIds([$invoiceId], fn () => $this->read('/api/invoice/'.$invoiceId, 'invoice'));
+    }
+
+    public function serviceMethods(string $serviceId): array
+    {
+        return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/methods', 'methods'));
+    }
+
+    /** Only monthly orders are accepted; prepaid monthly offers cannot be sold hourly. */
+    public function order(string $productId, array $payload): array
+    {
+        return $this->withIds([$productId], function () use ($productId, $payload) {
+            $allowed = ['product_id', 'domain', 'hostname', 'cycle', 'pay_method', 'custom', 'promocode', 'aff_id'];
+            if (array_diff(array_keys($payload), $allowed) !== []
+                || ($payload['cycle'] ?? null) !== 'm'
+                || (! is_string($payload['pay_method'] ?? null) && ! is_int($payload['pay_method'] ?? null))
+                || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) ($payload['pay_method'] ?? ''))
+                || (isset($payload['product_id']) && ! is_string($payload['product_id']) && ! is_int($payload['product_id']))
+                || (isset($payload['product_id']) && (string) $payload['product_id'] !== $productId)
+                || (isset($payload['custom']) && ! is_array($payload['custom']))
+                || (isset($payload['promocode']) && (! is_string($payload['promocode']) || strlen($payload['promocode']) > 512))
+                || (isset($payload['aff_id']) && ((! is_string($payload['aff_id']) && ! is_int($payload['aff_id']))
+                    || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) $payload['aff_id'])))) {
+                return $this->failure('invalid_order', 'A validated monthly order and payment method are required.');
+            }
+            foreach (['domain', 'hostname'] as $field) {
+                if (isset($payload[$field]) && (! is_string($payload[$field]) || strlen($payload[$field]) > 253
+                    || filter_var($payload[$field], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) === false)) {
+                    return $this->failure('invalid_order', 'A valid hostname is required.');
+                }
+            }
+            try {
+                if (strlen(json_encode($payload, JSON_THROW_ON_ERROR)) > 200000) {
+                    return $this->failure('invalid_order', 'The order configuration is too large.');
+                }
+            } catch (Throwable) {
+                return $this->failure('invalid_order', 'The order configuration is invalid.');
+            }
+            $payload['product_id'] = (int) $productId;
+
+            return $this->mutate('/api/order/'.$productId, $payload, ['items']);
+        });
+    }
+
+    public function renewService(string $serviceId): array
+    {
+        return $this->withIds([$serviceId], fn () => $this->mutate('/api/service/'.$serviceId.'/renew', ['id' => (int) $serviceId], ['invoice_id']));
+    }
+
+    /** A successful receipt is not proof of payment; read the invoice afterwards. */
+    public function applyInvoiceCredit(string $invoiceId, ?string $amount = null): array
+    {
+        return $this->withIds([$invoiceId], function () use ($invoiceId, $amount) {
+            if ($amount !== null && (! preg_match('/\A(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,8})?\z/D', $amount)
+                || ! preg_match('/[1-9]/', $amount))) {
+                return $this->failure('invalid_amount', 'A positive plain decimal credit amount is required.');
+            }
+
+            return $this->mutate('/api/invoice/'.$invoiceId.'/credit', $amount === null ? [] : ['amount' => $amount]);
+        });
+    }
+
+    /** Cancel the billed parent service; deleting its VM alone does not stop billing. */
+    public function cancelService(string $serviceId, bool $immediate = true, string $reason = 'Customer requested service cancellation'): array
+    {
+        return $this->withIds([$serviceId], function () use ($serviceId, $immediate, $reason) {
+            if ($reason === '' || strlen($reason) > 1000 || preg_match('/[\x00-\x08\x0b\x0c\x0e-\x1f]/', $reason)) {
+                return $this->failure('invalid_reason', 'A short cancellation reason is required.');
+            }
+
+            return $this->mutate('/api/service/'.$serviceId.'/cancel', ['id' => (int) $serviceId, 'immediate' => $immediate ? 'true' : 'false', 'reason' => $reason]);
+        });
     }
 
     public function products(string $categoryId): array
@@ -107,7 +202,105 @@ final class VpsTcApi
 
     public function vm(string $serviceId, string $vmId): array
     {
-        return $this->withIds([$serviceId, $vmId], fn () => $this->read('/api/service/'.$serviceId.'/vms/'.$vmId, 'vm'));
+        return $this->withVm($serviceId, $vmId, fn () => $this->read('/api/service/'.$serviceId.'/vms/'.$vmId, 'vm'));
+    }
+
+    public function vmUsage(string $serviceId, string $vmId): array
+    {
+        return $this->withVm($serviceId, $vmId, fn () => $this->read('/api/service/'.$serviceId.'/vms/'.$vmId.'/usage', 'usage'));
+    }
+
+    public function power(string $serviceId, string $vmId, string $action): array
+    {
+        return $this->withVm($serviceId, $vmId, function () use ($serviceId, $vmId, $action) {
+            if (! in_array($action, ['start', 'stop', 'shutdown', 'reboot', 'reset'], true)) {
+                return $this->failure('invalid_action', 'The power operation is not supported.');
+            }
+
+            return $this->mutate('/api/service/'.$serviceId.'/vms/'.$vmId.'/'.$action, ['vmid' => $vmId]);
+        });
+    }
+
+    public function rebuild(string $serviceId, string $vmId, string $template): array
+    {
+        return $this->withVm($serviceId, $vmId, function () use ($serviceId, $vmId, $template) {
+            if (! preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,127}\z/D', $template)) {
+                return $this->failure('invalid_template', 'A valid operating system template is required.');
+            }
+
+            return $this->mutate('/api/service/'.$serviceId.'/vms/'.$vmId.'/rebuild', ['template' => $template]);
+        });
+    }
+
+    public function console(string $serviceId, string $vmId): array
+    {
+        return $this->withVm($serviceId, $vmId, fn () => $this->failure('unsupported_console', 'This console requires a supplier browser session and is unavailable through the server API.'));
+    }
+
+    private function withVm(string $serviceId, string $vmId, callable $operation): array
+    {
+        return $this->withIds([$serviceId], function () use ($vmId, $operation) {
+            // vCenter uses MoRefs such as vm-1056; Proxmox uses positive integers.
+            if (! preg_match('/\A(?:vm-)?[1-9][0-9]{0,17}\z/D', $vmId)) {
+                return $this->failure('invalid_id', 'A valid provider VM identifier is required.');
+            }
+
+            return $operation();
+        });
+    }
+
+    /**
+     * Never replay a mutation, including after 401, 429 or a lost response.
+     * Callers must persist their immutable request before calling and reconcile
+     * receipts with invoice/service/VM state before treating it as completed.
+     */
+    private function mutate(string $path, array $payload, array $expectedKeys = []): array
+    {
+        if (! $this->isConfigured()) {
+            return $this->failure('not_configured', 'VPS.TC credentials and an approved HTTPS API origin are required.');
+        }
+        if ($this->token === null && ! $this->authenticate(false)) {
+            return $this->failure('authentication_failed', 'VPS.TC authentication failed. No service operation was submitted.');
+        }
+        try {
+            $response = $this->request('POST', $path, $payload, true);
+            if (! $response->successful()) {
+                if (in_array($response->status(), [400, 403, 404, 422], true)) {
+                    return $this->failure('mutation_rejected', 'VPS.TC rejected the operation. Verify the requested resource and configuration.');
+                }
+
+                return $this->failure('outcome_unknown', 'The VPS.TC operation outcome is unknown. Reconcile the provider state before any retry.');
+            }
+            $data = $this->decode($response);
+            if ($data === null) {
+                return $this->failure('outcome_unknown', 'The VPS.TC operation returned an unreadable receipt. Reconcile the provider state before any retry.');
+            }
+            if ($this->hasApiError($data)) {
+                foreach ($expectedKeys as $key) {
+                    if (array_key_exists($key, $data)) {
+                        return $this->failure('outcome_unknown', 'The VPS.TC operation returned a conflicting receipt. Reconcile the provider state before any retry.');
+                    }
+                }
+                return $this->failure('mutation_rejected', 'VPS.TC rejected the operation. Verify the requested resource and configuration.');
+            }
+            $hasReceipt = ($data['status'] ?? null) === true || ($data['success'] ?? null) === true;
+            foreach ($expectedKeys as $key) {
+                if (! array_key_exists($key, $data) || $data[$key] === null || $data[$key] === '' || $data[$key] === []
+                    || ($key === 'items' && ! is_array($data[$key]))
+                    || ($key === 'invoice_id' && ((! is_string($data[$key]) && ! is_int($data[$key]))
+                        || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) $data[$key])))) {
+                    return $this->failure('outcome_unknown', 'The VPS.TC operation receipt is incomplete. Reconcile the provider state before any retry.');
+                }
+                $hasReceipt = true;
+            }
+            if (! $hasReceipt) {
+                return $this->failure('outcome_unknown', 'The VPS.TC operation returned no confirmed receipt. Reconcile the provider state before any retry.');
+            }
+
+            return ['ok' => true, 'data' => $data, 'message' => '', 'code' => 'ok'];
+        } catch (Throwable) {
+            return $this->failure('outcome_unknown', 'The VPS.TC operation could not be confirmed. Reconcile the provider state before any retry.');
+        }
     }
 
     private function withIds(array $ids, callable $operation): array

@@ -27,6 +27,7 @@ class CloudManager
         // دیگری امتحان شود و هر دو بی‌صدا بمیرند.
         'hetzner-robot' => HetznerRobotClient::class,
         'lightnode' => LightNodeClient::class,
+        'vpstc' => VpsTcClient::class,
     ];
 
     /**
@@ -50,6 +51,7 @@ class CloudManager
         'salad'   => 'SaladCloud (GPU)',
         'hetzner-robot' => 'Hetzner Robot (Dedicated)',
         'lightnode' => 'LightNode',
+        'vpstc' => 'VPS.TC',
     ];
 
     /** @var array<string, CloudProvider> */

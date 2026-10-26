@@ -61,7 +61,8 @@ class VpsTcPreflightTest extends TestCase
         foreach (['fixture-user', 'fixture-password', 'fixture-token', 'fixture-refresh', 'upstream-credential', '<script>', 'acc_credit'] as $private) {
             $this->assertStringNotContainsString($private, $json);
         }
-        $this->assertArrayNotHasKey('vpstc', CloudManager::DRIVERS);
+        $this->assertArrayHasKey('vpstc', CloudManager::DRIVERS);
+        $this->assertFalse(app(\App\Services\Cloud\VpsTcSales::class)->enabled());
         Http::assertSentCount(3);
         Http::assertSent(fn ($r) => $r->method() === 'GET' && $r->url() === 'https://api.vps.tc/api/category');
     }

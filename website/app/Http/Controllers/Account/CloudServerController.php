@@ -429,6 +429,9 @@ class CloudServerController extends Controller
         );
 
         if ($r['ok']) {
+            // Reconciliation may have persisted verified access and the
+            // supplier renewal anchor after this instance was loaded.
+            if ($instance->provider === 'vpstc') { $instance->refresh(); }
             $this->billingClock->record($service, $instance, (string) $r['status'], [
                 'ipv4' => $r['ipv4'] ?: $instance->ipv4,
                 'ipv6' => $r['ipv6'] ?: $instance->ipv6,

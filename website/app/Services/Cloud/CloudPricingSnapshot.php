@@ -31,24 +31,45 @@ class CloudPricingSnapshot
         return $rates !== null && is_array($stored)
             && ($stored['source'] ?? null) === 'navasan.net'
             && ($stored['rates'] ?? null) === $rates
-            && ($provider === null || ! in_array($provider, $stored['excluded_providers'] ?? [], true));
+            && ($provider === null || ! in_array($provider, $stored['excluded_providers'] ?? [], true))
+            && ($provider !== 'vpstc' || $this->vpsTcCurrent($stored));
     }
 
     public function excludedProviders(): array
     {
         $stored = json_decode((string) Setting::get(self::KEY, ''), true);
-        return is_array($stored['excluded_providers'] ?? null) ? $stored['excluded_providers'] : [];
+        $excluded = is_array($stored['excluded_providers'] ?? null) ? $stored['excluded_providers'] : [];
+        if (! is_array($stored) || ! $this->vpsTcCurrent($stored)) {
+            $excluded[] = 'vpstc';
+        }
+        return array_values(array_unique($excluded));
+    }
+
+    private function vpsTcCurrent(array $stored): bool
+    {
+        $pricing = app(VpsTcPricing::class);
+        return $pricing->configured()
+            && ($stored['provider_inputs']['vpstc'] ?? null) === $pricing->fingerprint();
     }
 
     /** Called inside the same transaction as the complete catalog price batch. */
-    public function publish(array $rates, array $excludedProviders = []): void
+    public function publish(array $rates, array $excludedProviders = [], array $providerInputs = []): void
     {
         if ($rates !== $this->rates()) {
             throw new \RuntimeException('Navasan rates changed before cloud quote publication.');
         }
+        $vpstc = app(VpsTcPricing::class);
+        // A global refresh can skip disabled/unconfigured suppliers. It cannot
+        // bless their old converted costs with today's account inputs or rates.
+        $vpstcProof = $vpstc->configured()
+            && ($providerInputs['vpstc'] ?? null) === $vpstc->fingerprint();
+        if (! $vpstcProof) {
+            $excludedProviders[] = 'vpstc';
+        }
         Setting::put(self::KEY, json_encode([
             'source' => 'navasan.net', 'rates' => $rates,
-            'excluded_providers' => array_values($excludedProviders),
+            'excluded_providers' => array_values(array_unique($excludedProviders)),
+            'provider_inputs' => $vpstcProof ? ['vpstc' => $providerInputs['vpstc']] : [],
             'at' => now()->toIso8601String(),
         ], JSON_THROW_ON_ERROR));
     }
