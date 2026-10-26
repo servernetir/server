@@ -57,7 +57,7 @@ class VpsTcSalesTest extends TestCase
         Setting::put('vpstc_catalog_manifest', json_encode([
             'account_fingerprint' => $account ?? app(VpsTcApi::class)->accountFingerprint(),
             'products' => [[
-                'product_id' => '12', 'kind' => 'vps', 'cycle' => 'm',
+                'product_id' => '12', 'category_id' => '7', 'kind' => 'vps', 'cycle' => 'm',
                 'renewal_mode' => 'manual_invoice_deduplicated', 'parent_cancel_stops_billing' => true,
                 'forms_sha256' => VpsTcCatalog::formFingerprint($this->forms),
                 'country' => 'TR', 'city' => 'Istanbul', 'location_ref' => 'istanbul',
@@ -230,7 +230,13 @@ class VpsTcSalesTest extends TestCase
             'https://portal.vps.tc/api/login' => Http::response(['token' => 'fixture-token']),
             'https://portal.vps.tc/api/balance' => Http::response(['details' => [
                 'currency' => 'USD', 'acc_credit' => '100.00', 'acc_balance' => '0']]),
-            'https://portal.vps.tc/api/order/12' => Http::response(['product' => ['id' => '12', 'in_stock' => true, 'config' => [
+            'https://portal.vps.tc/api/category/7/product' => Http::response(['products' => [[
+                'id' => '12', 'category_id' => '7', 'paytype' => 'Regular',
+                'periods' => [['value' => 'm', 'price' => '2.79', 'setup' => '1.25']],
+            ]]]),
+            'https://portal.vps.tc/api/order/12' => Http::response(['product' => ['id' => '12', 'category_id' => '7',
+                'paytype' => 'Regular', 'billingtype' => 'PrePay', 'recurring' => 'm',
+                'price' => '2.79', 'recurring_price' => '2.79', 'setup' => '1.25', 'in_stock' => true, 'config' => [
                 'product' => [['id' => 'cycle', 'items' => [['value' => 'm', 'price' => '2.79', 'setup' => '1.25']]]],
                 'forms' => $this->forms]]]),
             'https://portal.vps.tc/api/payment' => Http::response(['payments' => ['120' => 'Credit Balance']]),

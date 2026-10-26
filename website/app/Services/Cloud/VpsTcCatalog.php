@@ -84,8 +84,13 @@ class VpsTcCatalog
         $form = $this->api->productOrderForm($productId);
         $product = $form['data']['product'] ?? null;
         if (! ($form['ok'] ?? false) || ! is_array($product)
-            || (isset($product['id']) && ! is_string($product['id']) && ! is_int($product['id']))
-            || (isset($product['id']) && (string) $product['id'] !== $productId)
+            || (! is_string($product['id'] ?? null) && ! is_int($product['id'] ?? null))
+            || (string) $product['id'] !== $productId
+            || (! is_string($product['category_id'] ?? null) && ! is_int($product['category_id'] ?? null))
+            || (string) $product['category_id'] !== (string) $mapping['category_id']
+            || ($product['paytype'] ?? null) !== 'Regular'
+            || ($product['billingtype'] ?? null) !== 'PrePay'
+            || ($product['recurring'] ?? null) !== 'm'
             || ! is_array($product['config']['forms'] ?? null)
             || ! hash_equals($mapping['forms_sha256'], self::formFingerprint($product['config']['forms']))) {
             return null;
@@ -105,22 +110,44 @@ class VpsTcCatalog
             }
         }
         // Never divide an annual tariff by twelve, or a monthly tariff by 720.
-        $periods = [];
         if (! is_array($product['config']['product'] ?? null)) {
             return null;
         }
-        foreach ($product['config']['product'] as $field) {
-            if (is_array($field) && ($field['id'] ?? null) === 'cycle') {
-                if ($periods !== [] || ! is_array($field['items'] ?? null)) {
-                    return null;
-                }
-                $periods = $field['items'] ?? [];
-            }
+        $cycles = array_values(array_filter($product['config']['product'], fn ($field) =>
+            is_array($field) && ($field['id'] ?? null) === 'cycle'));
+        if (count($cycles) !== 1 || ! is_array($cycles[0]['items'] ?? null)) {
+            return null;
         }
-        $monthly = array_values(array_filter($periods, fn ($row) =>
-            is_array($row) && ($row['value'] ?? null) === 'm'));
-        if (count($monthly) !== 1 || ! $this->amount($monthly[0]['price'] ?? null, false)
-            || ! $this->amount($monthly[0]['setup'] ?? null, true)) {
+        $monthly = $this->monthlyPeriod($cycles[0]['items']);
+        if ($monthly === null
+            || ! $this->sameAmount($product['price'] ?? null, $monthly['price'], false)
+            || ! $this->sameAmount($product['recurring_price'] ?? null, $monthly['price'], false)
+            || ! $this->sameAmount($product['setup'] ?? null, $monthly['setup'], true)
+            || (array_key_exists('price', $cycles[0]) && ! $this->sameAmount($cycles[0]['price'], $monthly['price'], false))
+            || (array_key_exists('setup', $cycles[0]) && ! $this->sameAmount($cycles[0]['setup'], $monthly['setup'], true))) {
+            return null;
+        }
+        // The live account has exposed a native category price 45x the order
+        // form's raw price. Neither is a conversion rate: require agreement,
+        // never read a currency symbol or formatted advertisement as a quote.
+        $category = $this->api->products((string) $mapping['category_id']);
+        $categoryRows = $category['data']['products'] ?? null;
+        if (! ($category['ok'] ?? false) || ! is_array($categoryRows)
+            || filled($category['data']['next_page'] ?? null) || filled($category['data']['next'] ?? null)) {
+            return null;
+        }
+        $matches = array_values(array_filter($categoryRows, fn ($row) =>
+            is_array($row) && (is_string($row['id'] ?? null) || is_int($row['id'] ?? null))
+            && (string) $row['id'] === $productId));
+        if (count($matches) !== 1 || ($matches[0]['paytype'] ?? null) !== 'Regular'
+            || (! is_string($matches[0]['category_id'] ?? null) && ! is_int($matches[0]['category_id'] ?? null))
+            || (string) $matches[0]['category_id'] !== (string) $mapping['category_id']
+            || ! is_array($matches[0]['periods'] ?? null)) {
+            return null;
+        }
+        $nativeMonthly = $this->monthlyPeriod($matches[0]['periods']);
+        if ($nativeMonthly === null || ! $this->sameAmount($nativeMonthly['price'], $monthly['price'], false)
+            || ! $this->sameAmount($nativeMonthly['setup'], $monthly['setup'], true)) {
             return null;
         }
         // The supported Credit Balance method must still exist and be fee-free.
@@ -132,9 +159,10 @@ class VpsTcCatalog
         if (is_array($name)) {
             $name = $name['name'] ?? null;
         }
-        $fee = collect($fees['data']['payments'] ?? [])->first(fn ($row) =>
+        $matchingFees = collect($fees['data']['payments'] ?? [])->filter(fn ($row) =>
             is_array($row) && (is_string($row['id'] ?? null) || is_int($row['id'] ?? null))
-            && (string) $row['id'] === $method);
+            && (string) $row['id'] === $method)->values()->all();
+        $fee = count($matchingFees) === 1 ? $matchingFees[0] : null;
         if (! ($payments['ok'] ?? false) || ! ($fees['ok'] ?? false)
             || ! is_string($name) || strtolower(trim($name)) !== 'credit balance'
             || ! is_array($fee) || ! $this->amount($fee['fixed_fee'] ?? null, true)
@@ -143,22 +171,24 @@ class VpsTcCatalog
             || BigDecimal::of((string) $fee['percent_fee'])->isGreaterThan(0)) {
             return null;
         }
-        $cost = $this->pricing->costEurCents($monthly[0]['price'], $currency);
-        $setup = $this->pricing->costEurCents($monthly[0]['setup'], $currency, true);
+        $cost = $this->pricing->costEurCents($monthly['price'], $currency);
+        $setup = $this->pricing->costEurCents($monthly['setup'], $currency, true);
         if ($cost === null || $setup === null) {
             return null;
         }
-        $total = BigDecimal::of((string) $monthly[0]['price'])->plus((string) $monthly[0]['setup'])
+        $total = BigDecimal::of((string) $monthly['price'])->plus((string) $monthly['setup'])
             ->multipliedBy(BigDecimal::of((string) Setting::get('vpstc_supplier_tax_pct'))->plus(100))
             ->dividedBy(100, 2, RoundingMode::Ceiling);
-        $renewal = BigDecimal::of((string) $monthly[0]['price'])
+        $renewal = BigDecimal::of((string) $monthly['price'])
             ->multipliedBy(BigDecimal::of((string) Setting::get('vpstc_supplier_tax_pct'))->plus(100))
             ->dividedBy(100, 2, RoundingMode::Ceiling);
-        return array_replace($mapping, ['product_id' => $productId, 'currency' => $currency, 'monthly_amount' => (string) $monthly[0]['price'],
-            'setup_amount' => (string) $monthly[0]['setup'], 'total_amount' => (string) $total,
+        return array_replace($mapping, ['product_id' => $productId, 'category_id' => (string) $mapping['category_id'],
+            'paytype' => $product['paytype'], 'billingtype' => $product['billingtype'], 'cycle' => 'm',
+            'currency' => $currency, 'monthly_amount' => (string) $monthly['price'],
+            'setup_amount' => (string) $monthly['setup'], 'total_amount' => (string) $total,
             'renewal_total_amount' => (string) $renewal, 'in_stock' => $inStock,
             'cost_eur_cents' => $cost, 'setup_eur_cents' => $setup,
-            'fingerprint' => hash('sha256', json_encode([$mapping, $monthly[0], $currency,
+            'fingerprint' => hash('sha256', json_encode([$mapping, $monthly, $nativeMonthly, $currency,
                 $this->pricing->fingerprint()], JSON_THROW_ON_ERROR))]);
     }
 
@@ -198,6 +228,8 @@ class VpsTcCatalog
     private function validMapping(array $row): bool
     {
         if (($row['kind'] ?? null) !== 'vps' || ($row['cycle'] ?? null) !== 'm'
+            || (! is_string($row['category_id'] ?? null) && ! is_int($row['category_id'] ?? null))
+            || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) ($row['category_id'] ?? ''))
             || ($row['renewal_mode'] ?? null) !== 'manual_invoice_deduplicated'
             || ($row['parent_cancel_stops_billing'] ?? null) !== true
             || ! is_string($row['forms_sha256'] ?? null) || ! is_string($row['country'] ?? null)
@@ -249,6 +281,20 @@ class VpsTcCatalog
         return (is_int($value) || is_string($value) || (is_float($value) && is_finite($value)))
             && preg_match('/\A(?:0|[1-9][0-9]{0,8})(?:\.[0-9]{1,6})?\z/D', (string) $value)
             && ($zero || BigDecimal::of((string) $value)->isGreaterThan(0));
+    }
+
+    private function monthlyPeriod(array $periods): ?array
+    {
+        $monthly = array_values(array_filter($periods, fn ($row) =>
+            is_array($row) && ($row['value'] ?? null) === 'm'));
+        return count($monthly) === 1 && $this->amount($monthly[0]['price'] ?? null, false)
+            && $this->amount($monthly[0]['setup'] ?? null, true) ? $monthly[0] : null;
+    }
+
+    private function sameAmount(mixed $left, mixed $right, bool $zero): bool
+    {
+        return $this->amount($left, $zero) && $this->amount($right, $zero)
+            && BigDecimal::of((string) $left)->compareTo(BigDecimal::of((string) $right)) === 0;
     }
 
     /**

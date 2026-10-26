@@ -17,6 +17,22 @@ Observed on the signed-in supplier portal:
 
 Do not request a funding amount or advertise ready VPS sales from these public/portal prices. Read the authenticated account catalog and confirm the actual VPS products first.
 
+## Authenticated account follow-up
+
+After the owner saved credentials, read-only production requests on 26 October confirmed authentication and the nested VPS category. It contains 16 Regular monthly VPS offers across Istanbul and New York. The annual-only LXC products are a separate category. A Cloud offer is `Metered`, despite a cycle value of `m`, and is not a fixed monthly tariff.
+
+Three supplier response problems prevent a safe live sale:
+
+- `balance.details.currency` is the empty string. It cannot establish the unit of available credit or procurement quotes.
+- Every payment fee response contains the literal string `Array` for both fee fields. Unknown fees cannot be treated as zero.
+- For the same monthly VPS, the category amount is `125.55`, while the order form's raw monthly amount is `2.79`; both format the price as `₺125.55`. Official public HTML also exposes separate USD/TRY prices, which supports a base/display-currency explanation but does not supply an authenticated API currency contract. No conversion factor is inferred or applied.
+
+The follow-up changes reject Metered and non-PrePay orders, require a reviewed numeric category ID, and compare category, order, recurring and cycle amounts before import or purchase. A read-only preview now traverses nested categories with request/data limits, displays observed products without importing them, and reports currency, fee and price disagreements. Existing encrypted credentials, financial inputs and the sales flag are unchanged.
+
+These changes use the three-file `deploy-vpstc-live-contract.py` wrapper, based on installed runtime `bbac6e628759dd980a689206d1c7ccd8cc151644`. It retains the pinned core's locks, private backups, hash preconditions, lint, plan/apply/rollback and refusal to overwrite later changes. Source validation and production acceptance of this follow-up are recorded separately below; the original 24-file release remains historical evidence.
+
+Follow-up isolated validation: **173 tests / 1,207 assertions passed** on PHP 8.4.27 (all `VpsTc*`, Navasan snapshot, catalog repricing, payment callback and complimentary-service suites). Six changed PHP source/test/view files linted successfully. Seven focused offline tests passed for the three-file deployment wrapper. This test result does not prove a paid supplier lifecycle or authorize sales.
+
 ## Implemented behavior
 
 - Encrypted credential intake remains at `/admin/cloud/vpstc`; credentials are neither redisplayed nor flashed after validation errors.
@@ -35,7 +51,7 @@ Do not request a funding amount or advertise ready VPS sales from these public/p
 
 `vpstc_catalog_manifest` is an internal reviewed mapping; it is not a user-facing product form or an automatically trusted upstream instruction. The envelope contains the current `VpsTcApi::accountFingerprint()` and a nonempty list of products. Every row must have:
 
-- numeric product/payment IDs, `kind=vps`, `cycle=m`, exact CPU/RAM/disk/architecture/location and supported image/custom-option mappings;
+- numeric product/category/payment IDs, `kind=vps`, `cycle=m`, exact CPU/RAM/disk/architecture/location and supported image/custom-option mappings;
 - a SHA-256 of the current native forms; all selected options must have known zero additional prices/setup until paid options are separately modelled;
 - an explicit native `availability.path` plus `boolean` or `positive_integer` interpretation, verified against the real response;
 - enforceable network terms: `hard_cap` or verified `unmetered`, with no extra usage charges;
@@ -45,8 +61,8 @@ Changing the account, manifest, FX, tax, fee or profit invalidates VPS.TC's pric
 
 ## Remaining acceptance
 
-1. The owner enters the VPS.TC password in ServerNet's secure connection form. The browser form was prepared with the verified API origin and account email; saving credentials remains incomplete until the owner supplies the password.
-2. Read the actual authenticated catalog and resolve whether monthly VPS products are enabled for this account. Confirm invoice currency/tax/credit fields and native stock semantics.
+1. Credentials were saved by the owner and authenticated reads succeeded. No credential extraction is required.
+2. Resolve the supplier's empty account currency, malformed payment fees and inconsistent category/order amount units. The authenticated catalog confirms monthly VPS products; this alone does not verify safe procurement prices. Confirm invoice currency/tax/credit fields and native stock semantics.
 3. Review and populate the account mapping, including traffic hard-cap/no-charge behavior, selected options, renewal-invoice deduplication and confirmed parent cancellation behavior.
 4. Owner sets financial inputs; refresh only this supplier's catalog/prices. Determine required credit from the verified final test quote. No speculative top-up is required before these checks.
 5. With an explicit test item and spending limit, test creation, exact resources, SSH/RDP access, power, renewal and billing cancellation. Verify supplier invoice/due dates and absence of continuing billing.

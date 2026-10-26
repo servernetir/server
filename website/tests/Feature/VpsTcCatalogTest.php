@@ -21,6 +21,7 @@ class VpsTcCatalogTest extends TestCase
     private array $product;
     private array $payments;
     private array $fees;
+    private array $categoryProducts;
     private string $currency = 'USD';
 
     protected function setUp(): void
@@ -33,7 +34,9 @@ class VpsTcCatalogTest extends TestCase
             'vpstc_fx_rate_toman' => ''] as $key => $value) { Setting::put($key, $value); }
         $this->api = new VpsTcApi('https://portal.vps.tc', 'fixture-reseller', 'fixture-secret');
         $this->catalog = new VpsTcCatalog($this->api, app(VpsTcPricing::class));
-        $this->product = ['id' => '12', 'in_stock' => true, 'config' => [
+        $this->product = ['id' => '12', 'category_id' => 56, 'paytype' => 'Regular', 'billingtype' => 'PrePay',
+            'recurring' => 'm', 'price' => '2.79', 'recurring_price' => '2.79', 'setup' => '1.25',
+            'in_stock' => true, 'config' => [
             'product' => [['id' => 'cycle', 'items' => [['value' => 'm', 'price' => 2.79, 'setup' => 1.25]]]],
             'forms' => [['id' => '44', 'type' => 'select', 'required' => true, 'price' => 0,
                 'setup' => 0, 'recurring_price' => 0, 'value' => [], 'items' => [
@@ -42,11 +45,14 @@ class VpsTcCatalogTest extends TestCase
         ]];
         $this->payments = ['120' => 'Credit Balance'];
         $this->fees = [['id' => 120, 'fixed_fee' => '0', 'percent_fee' => '0']];
+        $this->categoryProducts = [['id' => 12, 'category_id' => '56', 'paytype' => 'Regular',
+            'periods' => [['value' => 'm', 'price' => '2.79', 'setup' => '1.25']]]];
         Http::fake(function (Request $request) {
             return match ($request->url()) {
                 'https://portal.vps.tc/api/login' => Http::response(['token' => 'fixture-token']),
                 'https://portal.vps.tc/api/balance' => Http::response(['details' => ['currency' => $this->currency, 'acc_credit' => '100.00', 'acc_balance' => '0']]),
                 'https://portal.vps.tc/api/order/12' => Http::response(['product' => $this->product]),
+                'https://portal.vps.tc/api/category/56/product' => Http::response(['products' => $this->categoryProducts]),
                 'https://portal.vps.tc/api/payment' => Http::response(['payments' => $this->payments]),
                 'https://portal.vps.tc/api/payment/fees' => Http::response(['payments' => $this->fees]),
                 default => Http::response(['error' => 'Unknown fixture endpoint'], 404),
@@ -57,7 +63,7 @@ class VpsTcCatalogTest extends TestCase
     private function mapping(array $overrides = []): array
     {
         return array_replace([
-            'product_id' => '12', 'kind' => 'vps', 'cycle' => 'm',
+            'product_id' => '12', 'category_id' => '56', 'kind' => 'vps', 'cycle' => 'm',
             'renewal_mode' => 'manual_invoice_deduplicated', 'parent_cancel_stops_billing' => true,
             'forms_sha256' => VpsTcCatalog::formFingerprint($this->product['config']['forms']),
             'country' => 'TR', 'city' => 'Istanbul', 'location_ref' => 'istanbul',
@@ -148,6 +154,8 @@ class VpsTcCatalogTest extends TestCase
             $this->assertNull($this->catalog->quote('12'));
         }
         $this->product['config']['product'][0]['items'][0]['setup'] = 0.0;
+        $this->product['setup'] = 0;
+        $this->categoryProducts[0]['periods'][0]['setup'] = 0;
         $this->assertNotNull($this->catalog->quote('12'));
     }
 
@@ -239,12 +247,15 @@ class VpsTcCatalogTest extends TestCase
     public function test_manifest_cannot_override_computed_current_currency_cost_or_invoice_ceiling(): void
     {
         $this->save($this->mapping(['currency' => 'TRY', 'cost_eur_cents' => 1,
-            'setup_eur_cents' => 0, 'total_amount' => '0.01', 'fingerprint' => 'stale']));
+            'setup_eur_cents' => 0, 'total_amount' => '0.01', 'fingerprint' => 'stale',
+            'paytype' => 'Metered', 'billingtype' => 'PostPay']));
         $quote = $this->catalog->quote('12');
         $this->assertSame('USD', $quote['currency']);
         $this->assertSame(176, $quote['cost_eur_cents']);
         $this->assertSame(79, $quote['setup_eur_cents']);
         $this->assertSame('4.85', $quote['total_amount']);
+        $this->assertSame('Regular', $quote['paytype']);
+        $this->assertSame('PrePay', $quote['billingtype']);
         $this->assertNotSame('stale', $quote['fingerprint']);
     }
 
@@ -288,5 +299,99 @@ class VpsTcCatalogTest extends TestCase
         $this->product['config']['product'][0]['items'][] = ['value' => 'm', 'price' => '9.99', 'setup' => 0];
         $this->save();
         $this->assertNull($this->catalog->quote('12'));
+    }
+
+    public function test_metered_cloud_with_monthly_cycle_and_tiny_rate_is_not_a_prepaid_monthly_contract(): void
+    {
+        $this->product['paytype'] = 'Metered';
+        $this->product['price'] = $this->product['recurring_price'] = '0.00001';
+        $this->product['setup'] = '5';
+        $this->product['config']['product'][0]['items'] = [['value' => 'm', 'price' => '0.00001', 'setup' => '5']];
+        $this->categoryProducts[0]['paytype'] = 'Metered';
+        $this->categoryProducts[0]['periods'] = [['value' => 'm', 'price' => '0.00001', 'setup' => '5']];
+        $this->save();
+        $this->assertNull($this->catalog->quote('12'));
+        $this->assertFalse($this->catalog->fetch()['ok']);
+        Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/payment'));
+    }
+
+    public function test_regular_product_must_explicitly_use_prepay_monthly_billing(): void
+    {
+        $this->save();
+        foreach ([['billingtype' => 'PostPay'], ['billingtype' => null], ['billingtype' => 'prepay'],
+            ['paytype' => null], ['paytype' => 'regular'], ['recurring' => 'h'], ['recurring' => null]] as $invalid) {
+            $original = $this->product;
+            $this->product = array_replace($this->product, $invalid);
+            $this->assertNull($this->catalog->quote('12'));
+            $this->product = $original;
+        }
+        $this->assertNotNull($this->catalog->quote('12'));
+    }
+
+    public function test_native_category_and_order_amounts_must_agree_without_a_formatted_price_conversion(): void
+    {
+        Setting::put('vpstc_currency', 'TRY');
+        Setting::put('vpstc_fx_rate_toman', '5000');
+        $this->currency = 'TRY';
+        $this->categoryProducts[0]['periods'][0] = ['value' => 'm', 'price' => '125.55', 'setup' => '0',
+            'formatted' => '₺125.55  Monthly'];
+        $this->product['setup'] = 0;
+        $this->product['config']['product'][0]['items'][0] = ['value' => 'm', 'price' => '2.79', 'setup' => 0,
+            'formatted' => '₺125.55  Monthly'];
+        $this->save();
+        $this->assertNull($this->catalog->quote('12'), 'The observed 45x API disagreement cannot become a conversion factor.');
+        $this->assertFalse($this->catalog->fetch()['ok']);
+        $this->product['price'] = $this->product['recurring_price'] = '125.55';
+        $this->product['config']['product'][0]['items'][0]['price'] = '125.55';
+        $this->assertSame('125.55', $this->catalog->quote('12')['monthly_amount']);
+        $this->product['config']['product'][0]['items'][0]['price'] = '₺125.55';
+        $this->assertNull($this->catalog->quote('12'));
+    }
+
+    public function test_order_raw_prices_and_category_identity_cannot_be_replaced_by_the_cycle_row(): void
+    {
+        $this->save();
+        foreach ([['price' => '1.00'], ['recurring_price' => '1.00'], ['setup' => '0'],
+            ['price' => null], ['recurring_price' => null], ['category_id' => '57'], ['id' => null]] as $invalid) {
+            $original = $this->product;
+            $this->product = array_replace($this->product, $invalid);
+            $this->assertNull($this->catalog->quote('12'));
+            $this->product = $original;
+        }
+        $this->categoryProducts[0]['category_id'] = '57';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->categoryProducts[0]['category_id'] = '56';
+        $this->categoryProducts[] = $this->categoryProducts[0];
+        $this->assertNull($this->catalog->quote('12'));
+    }
+
+    public function test_missing_account_currency_and_literal_array_fees_are_never_inferred_as_safe(): void
+    {
+        $this->save();
+        $this->currency = '';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->currency = 'USD';
+        $this->fees = [['id' => 120, 'fixed_fee' => 'Array', 'percent_fee' => 'Array']];
+        $this->assertNull($this->catalog->quote('12'));
+        $this->fees = [['id' => 120, 'fixed_fee' => '0', 'percent_fee' => '0'],
+            ['id' => 120, 'fixed_fee' => 'Array', 'percent_fee' => 'Array']];
+        $this->assertNull($this->catalog->quote('12'), 'An ambiguous fee list cannot pick its zero-fee row.');
+    }
+
+    public function test_category_mapping_and_native_monthly_evidence_are_required(): void
+    {
+        foreach ([null, '', '0', '56/../57', []] as $bad) {
+            $this->save($this->mapping(['category_id' => $bad]));
+            $this->assertNull($this->catalog->manifest());
+        }
+        $this->save();
+        $this->categoryProducts[0]['periods'][] = ['value' => 'm', 'price' => '2.79', 'setup' => '1.25'];
+        $this->assertNull($this->catalog->quote('12'));
+        array_pop($this->categoryProducts[0]['periods']);
+        $this->categoryProducts[0]['paytype'] = 'Metered';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->categoryProducts = [];
+        $this->assertNull($this->catalog->quote('12'));
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET' && ! str_ends_with($request->url(), '/login'));
     }
 }
