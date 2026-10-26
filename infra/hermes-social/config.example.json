@@ -1,0 +1,23 @@
+{
+  "state_dir": "/home/hermes/.local/share/servernet-social/state",
+  "manifest_path": "/home/hermes/.config/servernet-social/manifest.json",
+  "drive_root_folder_id": "REPLACE_CAMPAIGN_FOLDER_ID",
+  "google_credentials_file": "/home/hermes/.config/servernet-social/google.json",
+  "drive_receipt_file_id": null,
+  "graph_version": "REPLACE_WITH_SUPPORTED_VERSION",
+  "publishing_enabled": false,
+  "replies_enabled": false,
+  "max_publications_per_account_24h": 5,
+  "instagram": {
+    "FA": {"id": "REPLACE_NUMERIC_ID", "username": "servernet.ir", "token_file": "/home/hermes/.config/servernet-social/instagram-fa.token"},
+    "EN": {"id": "REPLACE_NUMERIC_ID", "username": "servernet.cloud", "token_file": "/home/hermes/.config/servernet-social/instagram-en.token"},
+    "TR": {"id": "REPLACE_NUMERIC_ID", "username": "servernet.tr", "token_file": "/home/hermes/.config/servernet-social/instagram-tr.token"}
+  },
+  "media_store": {
+    "endpoint_url": "https://REPLACE_S3_ENDPOINT",
+    "bucket": "REPLACE_PRIVATE_MEDIA_BUCKET",
+    "region": "us-east-1",
+    "addressing_style": "path",
+    "credentials_file": "/home/hermes/.config/servernet-social/s3.json"
+  }
+}

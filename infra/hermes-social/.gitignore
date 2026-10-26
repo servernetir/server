@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.egg-info/
+*.sqlite*
+config.json
+credentials/
+state/
+manifest.json
