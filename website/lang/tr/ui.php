@@ -3340,4 +3340,14 @@ return [
     'svc_terminate_phrase_hint' => 'Yukarıdaki ifadeyi eksiksiz girdiğinizde silme düğmesi etkinleşir.',
     'svc_terminate_phrase_error' => 'Silme işlemini onaylamak için gösterilen ifadeyi eksiksiz girin.',
     'svc_terminate_restart' => 'Bu silme onayı geçersiz veya süresi dolmuş. Bu hizmet için Hizmeti sil düğmesine yeniden tıklayın.',
+
+    // Pending cloud request presentation.
+    'gpu_request_status' => 'Talep durumu',
+    'gpu_request_unbilled' => 'Ücret alınmadı',
+    'gpu_request_required_credit' => 'Başlamak için gereken bakiye',
+    'gpu_request_next' => 'Sonraki adımlar',
+    'gpu_request_new_price' => 'Onayınıza sunulan yeni ücret',
+    'gpu_request_credit_hint' => 'Bu tutar, başlamak için gereken minimum kullanılabilir bakiyedir. Beklerken ücret alınmaz.',
+    'gpu_request_cancel_heading' => 'Talebi iptal et',
+    'gpu_request_cancel_hint' => 'Vazgeçtiyseniz talebi iptal ederek bu siparişin otomatik devam etmesini durdurabilirsiniz.',
 ];

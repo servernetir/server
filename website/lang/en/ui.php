@@ -3340,4 +3340,14 @@ return [
     'svc_terminate_phrase_hint' => 'The delete button becomes available when you enter the phrase above exactly.',
     'svc_terminate_phrase_error' => 'Enter the displayed phrase exactly to confirm deletion.',
     'svc_terminate_restart' => 'This deletion confirmation is invalid or has expired. Click Delete service again for this service.',
+
+    // Pending cloud request presentation.
+    'gpu_request_status' => 'Request status',
+    'gpu_request_unbilled' => 'No charge taken',
+    'gpu_request_required_credit' => 'Credit required to start',
+    'gpu_request_next' => 'What happens next',
+    'gpu_request_new_price' => 'New rate for your review',
+    'gpu_request_credit_hint' => 'This is the minimum usable credit needed to start. There is no charge while you wait.',
+    'gpu_request_cancel_heading' => 'Cancel request',
+    'gpu_request_cancel_hint' => 'Changed your mind? Cancelling stops this order from continuing automatically.',
 ];

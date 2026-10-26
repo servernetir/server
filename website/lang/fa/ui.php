@@ -3360,4 +3360,14 @@ return [
     'svc_terminate_phrase_hint' => 'دکمهٔ حذف پس از وارد کردن دقیق عبارت بالا فعال می‌شود.',
     'svc_terminate_phrase_error' => 'برای تأیید حذف، عبارت نمایش‌داده‌شده را دقیق وارد کنید.',
     'svc_terminate_restart' => 'تأیید حذف معتبر نیست یا مهلت آن تمام شده است. دوباره دکمهٔ حذف همین سرویس را بزنید.',
+
+    // Pending cloud request presentation.
+    'gpu_request_status' => 'وضعیت درخواست',
+    'gpu_request_unbilled' => 'بدون کسر هزینه',
+    'gpu_request_required_credit' => 'اعتبار موردنیاز برای شروع',
+    'gpu_request_next' => 'ادامهٔ سفارش چگونه است؟',
+    'gpu_request_new_price' => 'تعرفهٔ جدید برای بررسی شما',
+    'gpu_request_credit_hint' => 'این مبلغ، حداقل اعتبار قابل‌استفاده برای شروع است؛ هزینهٔ انتظار از حساب شما کسر نمی‌شود.',
+    'gpu_request_cancel_heading' => 'لغو درخواست',
+    'gpu_request_cancel_hint' => 'اگر منصرف شده‌اید، با لغو درخواست ادامهٔ خودکار این سفارش متوقف می‌شود.',
 ];

@@ -1,11 +1,12 @@
 @extends('panel.layout')
 @section('title', __('ui.cs_title'))
 
-{{-- نسخهٔ واقعی و داده‌محورِ همان طرحی که در panel/server.blade.php پیش‌نمایش
-     شده بود. عمداً از همان کلاس‌های CSS استفاده می‌کند (pnl-sec، pnl-acts،
-     pnl-btn، pnl-res، pnl-bar) تا نه استایلِ تازه لازم شود نه ظاهر عوض شود.
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/cloud-request.css') }}">
+@endpush
 
-     قاعدهٔ سفیدبرچسبی: در کلِ این فایل هیچ‌جا نامِ زیرساخت نیست. --}}
+{{-- Live customer server details. Pending requests use their own presentation;
+     provider identity remains private throughout this view. --}}
 
 @section('panel')
 
@@ -121,11 +122,11 @@
       @if($inst?->isGpuApp())
         @if($inst->accessHost())<span dir="ltr">{{ $inst->accessHost() }}</span> · @endif
       @elseif($inst?->address())<span dir="ltr">{{ $inst->address() }}</span> · @endif
-      {{ $loc?->label() ?? '—' }} · {{ \App\Support\PanelText::text($osLbl) }}
+      @if($loc){{ $loc->label() }} · @endif{{ \App\Support\PanelText::text($osLbl) }}
     </p>
   </div>
-  <span class="pnl-pill {{ $inst?->status === 'running' ? 'ok' : '' }}" id="st-pill"
-        style="font-size:12.5px;padding:7px 15px;color:{{ $inst?->statusColor() ?? 'var(--dim)' }}">
+  <span class="pnl-pill {{ (! $closed && ($capacityWaiting || $gpuAwaitingInvoice)) ? 'warn' : ($inst?->status === 'running' ? 'ok' : '') }}" id="st-pill"
+        style="font-size:12.5px;padding:7px 15px;color:{{ (! $closed && ($capacityWaiting || $gpuAwaitingInvoice)) ? 'var(--warn)' : ($inst?->statusColor() ?? 'var(--dim)') }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
     {{ $closed ? __('ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
@@ -174,29 +175,7 @@
     </div>
   </section>
 @elseif(! $ready && $capacityWaiting)
-  <section class="pnl-sec" data-gpu-capacity-wait>
-    <div class="pnl-sec-h"><h2 id="gpu-capacity-heading">{{ __('ui.gpu_order_'.$capacityDisplayState) }}</h2></div>
-    <div class="pnl-sec-b">
-      <p class="cb-lead">{{ __('ui.gpu_wait_no_charge') }}</p>
-      @if($capacityDisplayState === 'waiting_capacity')<p>{{ __('ui.gpu_wait_delayed') }}</p>@endif
-      <p>{{ __($service->billing_mode === 'hourly' ? 'ui.gpu_wait_auto' : 'ui.gpu_wait_cycle') }}</p>
-      <p>{{ __('ui.gpu_approved_price') }}: <b class="pnl-num">{{ cloud_price($service->billing_mode === 'hourly' ? $service->hourly_rate_irt : $service->price) }}</b>{{ $service->billing_mode === 'hourly' ? __('ui.cvb_hourly_per') : '' }}</p>
-      @if(($capacityOrder['state'] ?? '') === 'price_changed' && ($capacityOrder['new_price_irt'] ?? 0) > 0)
-        <p>{{ __('ui.gpu_price_change_note') }}</p>
-        <form method="post" action="{{ lroute('account.cloud.gpu-price', $service) }}">
-          @csrf
-          <input type="hidden" name="quoted_price_irt" value="{{ (int) $capacityOrder['new_price_irt'] }}">
-          <p class="pnl-num">{{ cloud_price($capacityOrder['new_price_irt']) }}{{ $service->billing_mode === 'hourly' ? __('ui.cvb_hourly_per') : '' }}</p>
-          <button class="pnl-btn" type="submit">{{ __('ui.gpu_confirm_price') }}</button>
-        </form>
-      @endif
-      @if(($capacityOrder['state'] ?? '') === 'insufficient_credit')
-        <p>{{ __('ui.gpu_min_credit', ['amount' => cloud_price($capacityOrder['minimum_credit_irt'] ?? 0)]) }}</p>
-        <a class="pnl-btn" href="{{ lroute('account.topup') }}">{{ __('ui.gpu_topup') }}</a>
-      @endif
-      <p class="cb-foot">{{ __('ui.gpu_wait_leave') }}</p>
-    </div>
-  </section>
+  @include('account.partials.gpu-capacity-wait')
 @elseif(! $ready && $service->provision_status === 'manual')
   {{-- ═══ 🔴 نگه‌داشته‌شده برای بازبینی ═══
 
@@ -949,12 +928,22 @@
 @endif {{-- پایانِ حالتِ آماده --}}
 
 @unless($closed)
+@if($capacityWaiting)
+<section class="pnl-sec cr-cancel" id="service-lifecycle" aria-labelledby="gpu-cancel-heading">
+  <div class="cr-cancel-copy">
+    <h2 id="gpu-cancel-heading">{{ __('ui.gpu_request_cancel_heading') }}</h2>
+    <p>{{ __('ui.gpu_request_cancel_hint') }}</p>
+  </div>
+  @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server'])
+</section>
+@else
 <section class="pnl-sec cs-danger" id="service-lifecycle">
   <div class="pnl-sec-h"><h2>{{ __('ui.svc_terminate') }}</h2></div>
   <div class="pnl-sec-b">
     @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server'])
   </div>
 </section>
+@endif
 @endunless
 
 <style>
