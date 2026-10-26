@@ -1,0 +1,4 @@
+---
+deployment:
+  tasks:
+    - /usr/bin/python3 /home/servernetcloud/discount-entry-source-20261026/scripts/deploy-discount-entry-20261026.py /home/servernetcloud/discount-entry-source-20261026 /home/servernetcloud/servernet_app /home/servernetcloud/deploy-backups/discount-entry-20261026-f383474e control
