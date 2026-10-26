@@ -1,9 +1,13 @@
 # ServerNet marketing campaigns — 2026-10-25
 
+## Follow-up on 2026-10-26
+
+The expired publication key was removed from authorized_keys and its matching public file, with other/main keys preserved; its local private/public files were deleted. The owner then authorized two private live test campaigns for one synthetic account. They remain valid until 27 October 09:32 Tehran; no paid order, wallet entry or real SMS was created. See [the new live acceptance record](MARKETING-CAMPAIGNS-LIVE-TEST-2026-10-26.md). The zero-campaign statement below describes the initial publication time.
+
 ## Delivery status
 
 Production publication was explicitly authorized by the owner and completed on 2026-10-25.
-The additive migration and 45 source files were installed and verified. No real campaign was created or activated, no real SMS was sent, and no real customer's wallet or invoice was changed. Promotional sending remains disabled. Final temporary SSH-key cleanup was interrupted by the workstation disconnect and is NOT confirmed; see the deployment record below.
+The additive migration and 45 source files were installed and verified. No real campaign was created or activated, no real SMS was sent, and no real customer's wallet or invoice was changed. Promotional sending remains disabled. The interrupted temporary SSH-key cleanup was completed and independently checked on 2026-10-26; see the follow-up below.
 Development is based on the current repository's Laravel application in website/, not the abandoned app/ tree.
 
 Previously: GiftCoupon and birthday:gift issued fixed, customer-bound, short-lived gifts. Applying those gifts posted a gift payment immediately. Those historical semantics and records are preserved.
@@ -179,7 +183,7 @@ Acceptance harness incident: the first attempt retained a connection name when s
 
 Confirmed cleanup before disconnection: temporary QA database and QA-only user deleted; independent cPanel lists confirmed both absent and the production DB user present. Local/remote QA credential files and the transient dump credential file were absent. Web opcode helpers were absent.
 
-Final SSH cleanup remains UNCONFIRMED. A command was submitted to remove only this release's unique restricted key/public file, preserve other authorized lines including the main key, verify a rejected login and delete the local private/public files. The workstation transport closed before any result was received. Do not record that command as successful or blindly rerun it. The key had been limited to no forwarding/PTY and configured to expire at 2026-10-25 15:19:34 UTC. After reconnection, inspect the private stage cleanup.json receipt, current authorized_keys/public file, and local key existence; finish only the remaining exact cleanup. Preserve unrelated keys and never copy key contents into documentation.
+Historical status at the 25 October disconnect: final SSH cleanup was UNCONFIRMED. A command was submitted to remove only this release's unique restricted key/public file, preserve other authorized lines including the main key, verify a rejected login and delete the local private/public files. The workstation transport closed before any result was received. Do not record that command as successful or blindly rerun it. The key had been limited to no forwarding/PTY and configured to expire at 2026-10-25 15:19:34 UTC. After reconnection, inspect the private stage cleanup.json receipt, current authorized_keys/public file, and local key existence; finish only the remaining exact cleanup. Preserve unrelated keys and never copy key contents into documentation.
 
 Private persistence and rollback materials: /home/servernetcloud/marketing-campaigns-20261025-1792934369354 contains consistent database.sql (44,412,582 bytes, SHA-256 6c7883498959d21da4ccde6d8eb6415442556a0adaa2e98929fd7099f0428bd6), schema.sql (156,257 bytes, SHA-256 d9f9e4c2f449b178cea00593c709133193b10f5f589672b90c92587e09a08571), before snapshots, the final 45-file manifest, QA/deployed acceptance receipts, and rollback-code.py. Directory 0700; SQL/snapshots 0600, outside the webroot. No full database restore occurred. A richer local documentation/manifest draft exists in the isolated workstation clone but could not be committed before disconnection; this connected-GitHub record preserves the verified outcome.
 

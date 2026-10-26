@@ -1,0 +1,233 @@
+{
+  "ok": true,
+  "run_tag": "owner-test-20261026-cc403906",
+  "assertions": 45,
+  "checks": [
+    "natural scheduler issued the percentage code",
+    "percent account controller redirects after application",
+    "percent exact server-side discount ignores forged amounts",
+    "percent correct frozen tax",
+    "percent correct final total",
+    "percent setup remains undiscounted",
+    "percent reservation is not paid cash",
+    "percent duplicate application is idempotent",
+    "percent same private grant cannot reserve two invoices",
+    "second campaign cannot stack on existing reservation",
+    "rejected stacking preserves percentage total",
+    "percent cancel releases the reservation",
+    "percent cancel restores invoice total",
+    "fixed account controller redirects after application",
+    "fixed exact server-side discount ignores forged amounts",
+    "fixed correct frozen tax",
+    "fixed correct final total",
+    "fixed setup remains undiscounted",
+    "fixed reservation is not paid cash",
+    "fixed duplicate application is idempotent",
+    "fixed same private grant cannot reserve two invoices",
+    "fixed cancel releases the reservation",
+    "fixed cancel restores invoice total",
+    "percentage maximum is capped at 50000",
+    "capped quote cancellation releases once",
+    "duplicate cancellation does not release twice",
+    "released fixed code can be reserved again",
+    "IRT code is rejected on an IRR invoice",
+    "minimum eligible purchase is enforced",
+    "unmarked service lines are rejected",
+    "private code is hidden from a different customer",
+    "expired grant is rejected by backend",
+    "extra private grant cannot exceed customer capacity",
+    "scheduled automation cannot issue twice",
+    "percent report has one issued and one released test checkout",
+    "percent no invented sale or spend",
+    "percent only original guarantee remains held",
+    "fixed report has one issued and one released test checkout",
+    "fixed no invented sale or spend",
+    "fixed only original guarantee remains held",
+    "synthetic account wallet remains zero",
+    "no payment record was made",
+    "no service was provisioned",
+    "no message outbox was created",
+    "only the two canceled evidence invoices persist"
+  ],
+  "checked_at": "2026-10-26T06:05:31+00:00",
+  "real_sms_sent": 0,
+  "real_money_moved": 0,
+  "no_payment_or_ledger_write": true,
+  "attempted_write_tables": [
+    "invoices",
+    "invoice_items",
+    "marketing_redemptions",
+    "marketing_events",
+    "customers",
+    "marketing_grants",
+    "marketing_audits"
+  ],
+  "quotes": {
+    "percent": {
+      "campaign_id": 1,
+      "grant_id": 2,
+      "code": "SN-8B1C0E37E6696D33AEAC",
+      "invoice_id": 618,
+      "invoice_number": "INV-261026-8123",
+      "before_tax_service": 200000,
+      "noneligible_setup": 50000,
+      "before_total": 275000,
+      "discount": 20000,
+      "tax": 23000,
+      "after_total": 253000,
+      "paid": 0,
+      "final_invoice_status": "canceled",
+      "final_redemption_status": "released"
+    },
+    "fixed": {
+      "campaign_id": 2,
+      "grant_id": 1,
+      "code": "SN-4E211DD17B0A9389CEB1",
+      "invoice_id": 620,
+      "invoice_number": "INV-261026-4240",
+      "before_tax_service": 200000,
+      "noneligible_setup": 50000,
+      "before_total": 275000,
+      "discount": 25000,
+      "tax": 22500,
+      "after_total": 247500,
+      "paid": 0,
+      "final_invoice_status": "canceled",
+      "final_redemption_status": "released"
+    }
+  },
+  "reports": {
+    "percent": {
+      "currency": "IRT",
+      "issued": 1,
+      "expired": 0,
+      "revoked": 0,
+      "redemptions": {
+        "released": 1
+      },
+      "paid_orders": 0,
+      "sales_before": 0,
+      "sales_after": 0,
+      "discount_used": 0,
+      "tax_reduction": 0,
+      "delivery_states": [],
+      "sms_estimate_irt": 0,
+      "clicks": 0,
+      "checkout_starts": 1,
+      "held": 50000,
+      "spent": 0,
+      "available": 0,
+      "estimated_profit": 0,
+      "unknown_supplier_cost_orders": 0,
+      "attribution": "One campaign per invoice. Authenticated landing opens are deduplicated per grant/account/UTC day. Attributed sales are not incremental sales."
+    },
+    "fixed": {
+      "currency": "IRT",
+      "issued": 1,
+      "expired": 0,
+      "revoked": 0,
+      "redemptions": {
+        "released": 1
+      },
+      "paid_orders": 0,
+      "sales_before": 0,
+      "sales_after": 0,
+      "discount_used": 0,
+      "tax_reduction": 0,
+      "delivery_states": [],
+      "sms_estimate_irt": 0,
+      "clicks": 0,
+      "checkout_starts": 1,
+      "held": 25000,
+      "spent": 0,
+      "available": 0,
+      "estimated_profit": 0,
+      "unknown_supplier_cost_orders": 0,
+      "attribution": "One campaign per invoice. Authenticated landing opens are deduplicated per grant/account/UTC day. Attributed sales are not incremental sales."
+    }
+  },
+  "test_customer_id": 592,
+  "test_customer_code": "SN-978032",
+  "expires_at": "2026-10-27T06:02:37+00:00",
+  "rendering": {
+    "ok": true,
+    "read_only": true,
+    "views": {
+      "admin_percent": 36451,
+      "admin_fixed": 36448,
+      "offers_fa": 108697,
+      "offers_en": 102801,
+      "offers_tr": 103458
+    },
+    "state": {
+      "percent": {
+        "campaign_id": 1,
+        "status": "active",
+        "grants": 1,
+        "runs": 1,
+        "messages": 0,
+        "code_valid": true,
+        "held": 50000,
+        "spent": 0,
+        "messages_paused": true
+      },
+      "fixed": {
+        "campaign_id": 2,
+        "status": "active",
+        "grants": 1,
+        "runs": 0,
+        "messages": 0,
+        "code_valid": true,
+        "held": 25000,
+        "spent": 0,
+        "messages_paused": true
+      }
+    },
+    "heartbeat": "2026-10-26T06:06:13+00:00",
+    "checked_at": "2026-10-26T06:06:37+00:00"
+  },
+  "public_http": [
+    {
+      "url": "https://servernet.cloud/",
+      "status": 200,
+      "location": null
+    },
+    {
+      "url": "https://console.servernet.cloud/admin/marketing/campaigns/1",
+      "status": 302,
+      "location": "https://console.servernet.cloud/admin/login"
+    },
+    {
+      "url": "https://console.servernet.cloud/admin/marketing/campaigns/2",
+      "status": 302,
+      "location": "https://console.servernet.cloud/admin/login"
+    },
+    {
+      "url": "https://console.servernet.cloud/account/offers",
+      "status": 302,
+      "location": "https://console.servernet.cloud/login"
+    }
+  ],
+  "old_deployment_key_cleanup": {
+    "old_key_removed_lines": 1,
+    "old_key_authorized": false,
+    "old_public_file_exists": false,
+    "main_key_preserved": true,
+    "other_lines_preserved": 5,
+    "at": "2026-10-26T05:58:07.150645+00:00"
+  },
+  "private_evidence_stage": "/home/servernetcloud/marketing-live-test-20261026-1792994209428",
+  "source_changed": false,
+  "sms_transport_unchanged": true,
+  "scope": "Two private campaigns bound only to synthetic customer 592; canceled synthetic invoices retained; no gateway charge, wallet entry, provisioned service or real marketing recipient.",
+  "cleanup": {
+    "temporary_key_authorized": false,
+    "temporary_public_file_exists": false,
+    "main_key_preserved": true,
+    "other_authorized_lines_preserved": 3,
+    "verified_at": "2026-10-26T06:12:20.952859+00:00",
+    "login_rejected": true,
+    "cpanel_independently_confirmed_absent": true,
+    "local_private_and_public_deleted": true
+  }
+}
