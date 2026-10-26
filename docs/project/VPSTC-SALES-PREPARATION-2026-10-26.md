@@ -57,7 +57,7 @@ Development baseline: `8489da5b559ce02c7ce34f5ede5b0e086fb72850` (`develop`). Co
 
 PHP 8.4.27 and locked Composer dependencies were installed in an isolated checkout. All provider HTTP, mail, queue and billing test fixtures are isolated; real credentials were not loaded into the test runtime.
 
-Final isolated acceptance: **157 tests / 1,052 assertions passed** on PHP 8.4.27, covering every `VpsTc*` test plus current Navasan snapshots, catalog repricing, payment callbacks and complimentary-service regressions. All 31 changed/new PHP source/test/view files passed lint. The file-release helper has 13 offline safety tests, with a separate complete 24-file candidate/lint check. Historical test results in `website/docs/cloud/vpstc.md` are not evidence for this release.
+Final isolated acceptance: **157 tests / 1,056 assertions passed** on PHP 8.4.27, covering every `VpsTc*` test plus current Navasan snapshots, catalog repricing, payment callbacks and complimentary-service regressions. All 31 changed/new PHP source/test/view files passed lint. The file-release helper has 13 offline safety tests, with a separate complete 24-file candidate/lint check. Historical test results in `website/docs/cloud/vpstc.md` are not evidence for this release.
 
 Known baseline: `CloudHourlyTermSupportTest` has four failures and two errors that reproduce at the initial base. The payment/lifecycle baseline batch has the same three CreditInvoicePayment failures and three BillingRenewalSafety errors on base and current code. They are not represented as passing by this work.
 

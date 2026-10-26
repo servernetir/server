@@ -618,6 +618,11 @@ class CloudStoreController extends Controller
                 continue;                                 // این زیرساخت این اسلاگ را نمی‌فروشد
             }
 
+            if ($offer->provider === 'vpstc'
+                && ! str_starts_with((string) $row->provider_ref, $offer->provider_ref.'|')) {
+                continue;
+            }
+
             if ($row->provider === 'arvan' && $row->kind === 'app') {
                 $region = explode(':', (string) $row->provider_ref)[1] ?? '';
                 if (\App\Services\Cloud\ArvanApplicationImages::imageId($region, (string) $row->provider_ref) === null

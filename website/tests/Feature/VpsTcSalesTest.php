@@ -267,16 +267,22 @@ class VpsTcSalesTest extends TestCase
     public function test_image_translation_uses_the_ordered_product_even_when_another_product_has_the_same_os_key(): void
     {
         $plan = $this->plan();
+        $this->manifest();
+        $this->snapshot();
+        Setting::put('vpstc_sales_enabled', '1');
         $fields = ['provider' => 'vpstc', 'key' => 'ubuntu-24.04', 'kind' => 'os',
             'family' => 'ubuntu', 'version' => '24.04', 'label' => 'Ubuntu 24.04',
             'arch' => 'x86', 'min_ram_mb' => 512, 'min_disk_gb' => 10, 'is_active' => true];
         CloudImage::create($fields + ['provider_ref' => '13|ubuntu-24.04']);
         $correct = CloudImage::create($fields + ['provider_ref' => '12|ubuntu-24.04']);
         $this->assertSame('12|ubuntu-24.04', CloudImage::compatibleRefFor($plan, 'ubuntu-24.04'));
+        $this->assertSame(['ubuntu-24.04'], CloudStoreController::imageKeysFor($plan));
         $correct->update(['is_active' => false]);
         $this->assertNull(CloudImage::compatibleRefFor($plan, 'ubuntu-24.04'));
+        $this->assertSame([], CloudStoreController::imageKeysFor($plan));
         $correct->update(['is_active' => true, 'min_ram_mb' => 4096]);
         $this->assertNull(CloudImage::compatibleRefFor($plan, 'ubuntu-24.04'));
+        $this->assertSame([], CloudStoreController::imageKeysFor($plan));
         Http::assertNothingSent();
     }
 
