@@ -20,38 +20,33 @@
     "next_run_note": "Tool next_run_time is null; first scheduled occurrence is derived from the recorded DTSTART, not a recorded run.",
     "last_state_verified_date_tehran": "2026-10-25"
   },
-  "active_run": {
+  "active_run": null,
+  "last_run": {
     "run_id": "growth-cycle-20261026-0629-git-guide-finalize",
     "task_id": "git-deployment-guide-safe-example",
     "base_sha": "198199258bb761e0964a96d844d80711dc9f1d9d",
     "started_at_utc": "2026-10-26T06:28:54Z",
-    "lease_expires_at_utc": "2026-10-26T08:28:54Z",
-    "phase": "reviewing",
-    "note": "Owner-requested continuation of PR132, not a new article. Codex independent review completed without findings for d2c391c; reconcile fresh develop, resolve documented wording precision and rerun checks. Browser context unavailable and local network DNS failed; no production write or Google login."
-  },
-  "last_run": {
-    "run_id": "growth-cycle-20261026-0202-git-guide",
-    "task_id": "git-deployment-guide-safe-example",
-    "base_sha": "ddeb5bdc9c6767f12a877fb620597f6a299d3fd8",
-    "started_at_utc": "2026-10-25T22:37:40.848Z",
     "phase": "completed",
-    "outcome": "validated_pending_review_and_deployment",
-    "completed_at_utc": "2026-10-26T05:24:41Z",
+    "outcome": "merged_pending_deployment",
+    "completed_at_utc": "2026-10-26T06:36:47Z",
     "feature_branch": "seo/20261026-git-deployment-guide",
-    "tested_head_sha": "d2c391c5b6a2b82480032f84fc9b92e330659fc0",
+    "tested_head_sha": "6effc23d8026a589686dad1f3b70cb9a321fd56f",
     "pull_request": 132,
-    "implementation_merged": false,
+    "implementation_merged": true,
+    "implementation_merge_sha": "81c12f6650a7b44a5360feeda58eb89dc2699300",
+    "merged_at_utc": "2026-10-26T06:35:51Z",
     "installed_at_utc": null,
     "production_verified": false,
-    "receipt": "docs/project/seo-growth-cycle-2026-10-26/git-guide-validation.json",
+    "receipt": "docs/project/seo-growth-cycle-2026-10-26/git-guide-finalization.json",
     "completed_task_ids": [],
-    "completed_gates": ["three-language source draft", "six source/local-Git tests", "nineteen PHP tests with 522 assertions", "fifteen bounded public HTML checks", "pull request created"],
-    "blockers": ["independent_review_pending", "production_execution_access_unverified"],
-    "traffic_impact": "not_measured; proposal not published"
+    "completed_gates": ["three-language source precision corrections", "six source/local-Git tests", "nineteen PHP tests with 522 assertions", "fifteen bounded public HTML checks", "independent automated Codex review without findings", "PR132 merged preserving concurrent develop changes"],
+    "blockers": ["authorized_private_production_execution_unavailable"],
+    "traffic_impact": "not_measured; source merged but not published"
   },
   "run_receipts": [
     {"run_id": "growth-cycle-20261025-initial", "completed_at_utc": "2026-10-25T16:24:33.603756+00:00", "path": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json", "outcome": "production_verified"},
-    {"run_id": "growth-cycle-20261026-0202-git-guide", "completed_at_utc": "2026-10-26T05:24:41Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-validation.json", "outcome": "validated_pending_review_and_deployment", "pull_request": 132}
+    {"run_id": "growth-cycle-20261026-0202-git-guide", "completed_at_utc": "2026-10-26T05:24:41Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-validation.json", "outcome": "validated_pending_review_and_deployment", "pull_request": 132},
+    {"run_id": "growth-cycle-20261026-0629-git-guide-finalize", "completed_at_utc": "2026-10-26T06:36:47Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-finalization.json", "outcome": "merged_pending_deployment", "pull_request": 132}
   ],
   "measurement": {
     "gsc_max_fetches_per_day": 1,
@@ -148,19 +143,21 @@
       "acceptance": ["Read current official MySQL/MariaDB backup and client credential guidance before replacing examples.", "Use least-privilege example credentials outside command-line arguments; explicit pipeline/error checks.", "No retention deletion unless a new backup and independent recovery verification satisfy documented policy; work only on disposable fixtures.", "Cover engine/consistency constraints and tested restore, not a DB-size threshold or guaranteed recovery time.", "Inspect fa/tr bodies before deciding scope; preserve original publication dates and URLs."], "owner_note": "Observed by content reviewer in this initial session; article is not modified or accepted yet."
     },
     {
-      "id": "git-deployment-guide-safe-example", "priority": "P1", "state": "blocked_review_and_deployment", "urls": ["/blog/git-basics-for-deployment", "/en/blog/git-basics-for-deployment", "/tr/blog/git-basics-for-deployment"],
+      "id": "git-deployment-guide-safe-example", "priority": "P1", "state": "merged_pending_deployment", "urls": ["/blog/git-basics-for-deployment", "/en/blog/git-basics-for-deployment", "/tr/blog/git-basics-for-deployment"],
       "reason": "Fresh article-body review found a public deploy.php example with an unenforced IP allowlist, unconditional shell_exec git-pull, and query-token fallback. This is a defect in published guidance, not proof that such an endpoint is deployed on ServerNet.", "evidence": "docs/project/seo-growth-cycle-2026-10-25/technical-links.md",
       "acceptance": ["Replace executable public deployment examples with an authenticated, least-privilege, auditable workflow supported by current primary Git/hosting documentation.", "No secrets in URLs or shell commands; no generic public shell endpoint.", "Explain reviewed commit/release, allowed paths, atomicity limits, backup and rollback.", "Inspect all three language bodies and preserve their URLs/publication dates; test any example only in a disposable local fixture."],
       "feature_branch": "seo/20261026-git-deployment-guide",
-      "tested_head_sha": "d2c391c5b6a2b82480032f84fc9b92e330659fc0",
+      "tested_head_sha": "6effc23d8026a589686dad1f3b70cb9a321fd56f",
       "pull_request": 132,
-      "validation_receipt": "docs/project/seo-growth-cycle-2026-10-26/git-guide-validation.json",
-      "independent_review": "pending",
-      "implementation_merged": false,
+      "validation_receipt": "docs/project/seo-growth-cycle-2026-10-26/git-guide-finalization.json",
+      "independent_review": "Codex automated code review completed on 6effc23 with no findings; receipt comment 6409816508. Not a human security audit.",
+      "implementation_merged": true,
+      "implementation_merge_sha": "81c12f6650a7b44a5360feeda58eb89dc2699300",
+      "merged_at_utc": "2026-10-26T06:35:51Z",
       "production_installed": false,
       "production_verified": false,
-      "next_action": "Continue PR132; do not redraft or duplicate it. Resolve editorial precision notes, obtain independent review, merge against fresh develop and publish only with verified private execution access, CMS snapshot guards, backups and a real release lock.",
-      "owner_note": "6 Python checks and 19 PHP tests/522 assertions passed in isolated GitHub Actions. 15 existing public HTML pages passed with HTTP200 and X-Cache BYPASS; this is not publication of the new source. Connected Browser context unavailable; no production CMS write. Reservation released."
+      "next_action": "Publish the merged source only after authorized private production access, fresh CMS/source snapshots, private backups and a real shared release lock. Do not redraft or duplicate PR132. If access remains unavailable, retain this gate and choose another bounded independent task.",
+      "owner_note": "Final head passed 6 Python tests and 19 PHP tests/522 assertions in isolated Actions runs 40280377150/40280380793. Independent Codex review completed without findings. 15 existing public pages passed HTTP200/X-Cache BYPASS; not new-source publication. Concurrent PR133 documentation preserved. No production CMS/file write, no Google login, no GSC fetch by this run. Reservation released."
     },
     {
       "id": "staging-guide-accurate-workflow", "priority": "P1", "state": "ready_for_research", "urls": ["/en/blog/staging-environment-setup"],
