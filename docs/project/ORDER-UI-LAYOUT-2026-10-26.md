@@ -1,6 +1,6 @@
 # Server order layout correction — 26 October 2026
 
-Status: implementation and isolated visual acceptance complete; production installation pending.
+Status: deployed and public assets verified on 26 October 2026 at 2026-10-26T05:49:23.317Z. Source correction:97017cbe on develop.
 
 ## Scope and cause
 
@@ -23,3 +23,14 @@ Existing PHP suites CloudServerPageLayoutTest, CloudStoreSlipTest and CssVariabl
 The public document-root panel.css differs from app/public/panel.css by existing hourly-billing styles. Each file must be patched from its own fresh snapshot; never upload the whole repository CSS to the document root. Preserve all existing bytes outside the two checkmarks and appended layout rules. Back up both originals outside public_html, verify current hashes before upload, and verify post-upload contents and both public domains. Updating the app copy also advances asset_ver. CSS needs no PHP cache flush.
 
 Rollback: only restore each corresponding original when its current hash still matches this release; otherwise merge the inverse patch to preserve concurrent changes. Retain both originals and the release receipt.
+
+## Completed release
+
+Release order-ui-20261026-1792993721861 installed only the two panel.css copies. Both fresh snapshots matched before mutation; backups were uploaded outside the document root and read back successfully. Each installed file was read back and checked. Existing public-only hourly-billing styles were preserved.
+
+| File | Before SHA-256 | After SHA-256 | Private home backup |
+| --- | --- | --- | --- |
+| public_html/assets/css/panel.css | 3a4f4b5faa6d04dc17730dcd7402b94d7464d5295f72baf61365927bf7bb234c | 724c0d20587f0885ac78479b523933f68b2605bba090f38e92e13506a88e274b | order-ui-20261026-1792993721861-public-before.css |
+| servernet_app/public/assets/css/panel.css | 83f9fc5f55e797c5713036a7481bc2a0b1ef6139962ea10b7c82309bcfc1ea0a | 9cfc2e89cad314cedd8877c5d71d9ed3dedd16bcffe6e58d6755e9a8a3695383 | order-ui-20261026-1792993721861-app-before.css |
+
+Both https://console.servernet.cloud/assets/css/panel.css and https://servernet.cloud/assets/css/panel.css returned HTTP200, text/css and the exact accepted public SHA-256. Each has the layout correction once and no logical-border version of either checkmark. App/public was updated independently for asset versioning; no view, config or PHP cache was flushed. The release receipt is order-ui-20261026-1792993721861-receipt.json beside the private backups. Authentication, orders and live customer data were not exercised during acceptance.
