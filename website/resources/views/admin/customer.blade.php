@@ -782,6 +782,7 @@
 {{-- ─────────── تبِ مالی ─────────── --}}
 <div class="ct-pane" data-pane="finance">
 @include('admin.partials.customer-wallet-refunds')
+@include('admin.partials.customer-discount-entry')
 {{-- ══ فاکتورها ══ --}}
 <div class="ad-panel">
   <div class="ad-panel-h"><h3>فاکتورها</h3></div>

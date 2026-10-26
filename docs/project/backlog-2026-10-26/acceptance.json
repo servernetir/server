@@ -1,0 +1,54 @@
+{
+  "status": "installed_and_verified",
+  "release_source": "adbed2413baab2dc71933a6b490df1455914f149",
+  "combined_source": "779455cb3a7ad970354269ab16245690be428e5d",
+  "additional_source_preserved_in_final_git": "f383474e5b3ff3110cc70daadcd5b308e84d562d",
+  "activation_utc": "2026-10-26T09:26:51Z",
+  "runtime_files": 40,
+  "original_after_hashes_still_equal": 38,
+  "concurrent_source_verified": "87d42b4c640cd43b74fe225d230fdf8fe2cb8429",
+  "concurrent_files_preserved": [
+    "app/Http/Controllers/Account/AccountController.php",
+    "routes/web.php"
+  ],
+  "cached_files_invalidated_in_web_pool": 13,
+  "temporary_activation_helper_removed": true,
+  "new_tables": {
+    "wallet_refund_permissions": 0,
+    "wallet_refund_requests": 0,
+    "wallet_refund_events": 0
+  },
+  "customer_refund_access_default": "disabled",
+  "payment_language_checkboxes_seen": 18,
+  "payment_matrix_unchanged": true,
+  "authenticated_ui_checks": [
+    "Payment settings caption and shortcut",
+    "Three-language payment matrix",
+    "Empty wallet-refund queue",
+    "Per-customer refund permission defaults off",
+    "Inline ticket form opens without submission",
+    "Cloud provider label and resource/panel links",
+    "VPS.TC preparation page with no saved credentials"
+  ],
+  "tests": {
+    "php_passed": 222,
+    "php_assertions": 3393,
+    "offline_release_guards_passed": 7,
+    "runtime_php_lint_passed": 40
+  },
+  "actions_by_this_release": {
+    "customer_permissions_enabled": 0,
+    "real_tickets_sent": 0,
+    "refund_requests_created": 0,
+    "bank_transfers": 0,
+    "supplier_orders": 0,
+    "live_vpstc_preflight": 0
+  },
+  "not_run": [
+    "Full repository suite",
+    "New MariaDB concurrency run",
+    "Mobile visual acceptance",
+    "Real payment, refund or ticket notification"
+  ],
+  "baseline_failure_preserved": "HourlyCycleConvertTest::test_discount_label_respects_procurement_floor_instead_of_promising_configured_twenty_percent"
+}

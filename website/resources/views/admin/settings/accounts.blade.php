@@ -10,6 +10,7 @@
 --}}
 
 @include('admin.settings.payment-visibility')
+@include('admin.settings.discount-entry')
 
 {{-- ═══ ۱) حسابِ بانکیِ ایران — تنها بخشی که به /admin/settings می‌رود ═══ --}}
 <form method="post" action="/admin/settings">

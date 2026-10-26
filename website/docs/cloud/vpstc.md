@@ -1,6 +1,8 @@
 # VPS.TC reseller integration
 
-Status: draft preparation only, 24 October 2026. Not installed in production and not available for customer sales.
+Production update, 26 October 2026: the encrypted admin connection page and read-only preflight code are installed at `/admin/cloud/vpstc`. The page renders in the authenticated admin session; no reseller credentials are saved and no live API preflight was run. Customer sales remain unavailable. See [deployment and remaining work](../../../docs/project/BACKLOG-RECONCILIATION-2026-10-26.md).
+
+Historical status, 24 October: draft preparation only, not yet installed.
 
 The dedicated admin page stores reseller credentials encrypted and runs a read-only preflight. The API client remains separate from CloudProvider/CloudManager. Saving credentials cannot import plans, place an order, spend credit, or allow the provisioner to retry an ambiguous upstream order.
 
