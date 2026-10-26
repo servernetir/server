@@ -20,7 +20,15 @@ PHP8.4.27/isolated SQLite and synthetic fixtures: **67 tests / 516 assertions pa
 
 The reviewed helper scripts/deploy-growth-conversion.py defaults to preflight; it makes zero application/DB writes in that mode (release lock files may be opened/created). It holds both existing release locks, rejects existing target/stage/route cache, preserves live shared-file differences through exact insertions, snapshots sources privately, lints staged files, checks before-write hashes and verifies final hashes. Failed installation restores only its own matching writes. It never migrates/clears data or creates credentials/public helper endpoints.
 
-Production installation and acceptance are recorded separately after actual execution. A dedicated private cPanel Git checkout and its native one-time deployment task are used; no host cron or SSH key is required. A branch-specific .cpanel.yml invokes only the reviewed helper and is not added to develop as a general autopublish policy.
+Production installation completed through a dedicated private cPanel Git checkout and its native one-time deployment task (`deploy2`). The branch-specific `.cpanel.yml` invokes only the reviewed helper; it is not a general autopublish policy on develop. No host cron or SSH key was created.
+
+## Production installation and acceptance — completed 26 October 2026
+
+Feature `e6bd24d2` and deployment-helper correction `2c251bef` were used for the native cPanel `deploy2` task. The retained deployment log is `vc_1793006581.7124_git_deploy.log`. The installer reported success and its final raw-file hash checks passed. A separate read-only native `deploy3` task (`vc_1793007057.20054_git_deploy.log`, branch commit `09f51b8c`) independently verified all **14 raw installed files** against both the manifest and staged bytes, and verified every existing before snapshot. It found exactly one consultation route and performed zero application writes or database access. The Fileman text API representation of `routes/web.php` differs even after CRLF normalization (the raw file has no CRLF); its exact text-conversion cause was not established. It is not used as the integrity authority: direct host-byte verification passed. The retained verifier reports `raw_verified` separately from the optional API comparison.
+
+A live report GET returned **HTTP 200** with the consultation form and its request-specific contact consent. Private-report response handling and absence of GTM/chat integrations were confirmed on the live page. No real consultation was submitted, and the authenticated production dashboard, invoice continuation and payment flow were not exercised. Existing automated development coverage remains **67 tests / 516 assertions**, not live customer acceptance.
+
+This completes only phase one of GROW-01/GROW-02: inbound report consultation captured in the existing CRM and a customer-owned continuation panel for eligible existing invoices. It does not establish report-to-invoice/revenue attribution, verified incremental sales, automatic recovery email/reminders or complete end-to-end recovery. No new paid order, provider request, marketing subscription or customer message was created during this acceptance.
 
 ## Stop / rollback
 
