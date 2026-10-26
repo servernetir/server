@@ -8,6 +8,7 @@ use App\Models\GrowthDocument;
 use App\Models\GrowthJob;
 use App\Services\Growth\ContentWorkflow;
 use App\Services\Growth\GrowthAudit;
+use App\Services\Growth\GrowthAutopilot;
 use App\Services\Growth\GrowthJobs;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -57,6 +58,7 @@ class RunGrowthCenter extends Command
                 ->update(['status' => 'failed', 'error_code' => 'worker_lost_review_receipt', 'finished_at' => now()]);
             $failures = GrowthJob::where('status', 'failed')->where('finished_at', '>', now()->subMinutes(10))->count();
             if ($failures < 5) {
+                app(GrowthAutopilot::class)->prepare();
                 foreach (GrowthJob::where('status', 'queued')->orderBy('id')->limit(max(1, min(20, (int) $this->option('limit'))))->get() as $job) {
                     $jobs->run($job);
                 }
@@ -101,7 +103,7 @@ class RunGrowthCenter extends Command
                 'evening' => 'Review content and publish approved items.','night' => 'Review costs, failures and actual analytics.'
             }];
         if (DB::table('growth_automation_runs')->insertOrIgnore(['run_key' => $key, 'summary' => json_encode($summary, JSON_THROW_ON_ERROR), 'created_at' => now()])) {
-            GrowthAudit::record('automation.digest',$key,null,$summary);
+            GrowthAudit::record('automation.digest', $key, null, $summary);
         }
     }
 }
