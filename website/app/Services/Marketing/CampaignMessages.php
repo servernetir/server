@@ -31,7 +31,7 @@ class CampaignMessages
             'discount_label' => $this->label($rule, $locale), 'service_name' => $g->snapshot['message']['service_name'],
             'expires_at_local' => $g->expires_at->setTimezone($g->snapshot['timezone'])->format('Y-m-d H:i').' '.$g->snapshot['timezone'],
             'redeem_url' => 'https://console.servernet.cloud/m/'.$g->track_token,
-            'unsubscribe_instructions' => __('marketing.optout_sms', [], $locale).' https://console.servernet.cloud'.($locale === 'fa' ? '' : '/'.$locale).'/account/offers'];
+            'unsubscribe_instructions' => __('marketing.optout_sms', [], $locale).' https://console.servernet.cloud'.($locale === 'fa' ? '' : '/'.$locale).'/account/marketing/unsubscribe'];
 
         return preg_replace_callback('/{{\s*([^{}]+)\s*}}/u', fn ($m) => $vars[trim($m[1])] ?? '', $g->snapshot['message']['template']);
     }

@@ -97,6 +97,7 @@ class DiscountEntryVisibilityTest extends TestCase
             $this->assertGreaterThan(strpos($html, trans('ui.inv_payable', [], $locale)), $entry);
             $this->assertLessThan(strpos($html, trans('ui.inv_pay_heading', [], $locale)), $entry);
             $this->assertStringContainsString('id="invoice-discount-code"', $html);
+            $this->assertStringNotContainsString('/account/offers', $html);
         }
         $this->assertSame($before, $invoice->fresh()->getRawOriginal());
         $this->assertSame(0, Payment::count());

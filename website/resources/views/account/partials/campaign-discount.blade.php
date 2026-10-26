@@ -45,7 +45,6 @@
           </label>
           <button class="pnl-btn" type="submit">{{ __('marketing.apply_short') }}</button>
         </form>
-        <a class="invoice-discount-link" href="{{ lroute('account.offers') }}">{{ __('marketing.my_offers_short') }}</a>
       @endif
       @if($showGiftEntry)
         <form method="post" action="{{ lroute('account.invoice.coupon', $invoice) }}" class="invoice-discount-gift">

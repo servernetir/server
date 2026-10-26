@@ -405,6 +405,8 @@ $site = function (): void {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
         Route::post('/offers/preferences', [Account\OfferController::class, 'preferences'])->name('offers.preferences')->middleware('throttle:10,1');
+        Route::get('/marketing/unsubscribe', [Account\OfferController::class, 'unsubscribePage'])->name('marketing.unsubscribe');
+        Route::post('/marketing/unsubscribe', [Account\OfferController::class, 'unsubscribe'])->middleware('throttle:10,1');
         Route::get('/offers/{grant}/open', [Account\OfferController::class, 'open'])->name('offers.open');
         Route::post('/invoices/{invoice}/offer', [Account\OfferController::class, 'apply'])->name('invoice.offer')->middleware('throttle:10,1');
         Route::post('/invoices/{invoice}/offer/free', [Account\OfferController::class, 'free'])->name('invoice.offer.free')->middleware('throttle:10,1');

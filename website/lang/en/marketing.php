@@ -2,6 +2,8 @@
 
 return [
     'title' => 'My offers and discounts',
+    'unsubscribe_title' => 'Unsubscribe from promotional SMS',
+    'unsubscribe_saved' => 'Promotional SMS has been disabled.',
     'friend' => 'Dear customer',
     'minimum' => 'Minimum purchase',
     'currency' => 'The currency or language of this offer does not match your order.',
@@ -19,7 +21,7 @@ return [
     'reconciliation' => 'This payment requires reconciliation. Contact support before paying again.',
     'saved' => 'Your preferences have been saved.',
     'birth_invalid' => 'Please enter a valid birthday.',
-    'optout_sms' => 'Opt out of marketing in My offers:',
+    'optout_sms' => 'Unsubscribe from promotional SMS:',
     'reserved_ok' => 'Discount reserved. Complete payment before the displayed deadline.',
     'apply' => 'Apply discount code',
     'code' => 'Discount code',
@@ -56,7 +58,7 @@ return [
     'my_offers_short' => 'My offers',
     'visibility_title' => 'Discount code visibility on invoices',
     'visibility_default' => 'Show to all customers by default',
-    'visibility_help' => 'Off by default. Enable individually in the customer profile, Finance tab. This controls form visibility only and does not change an applied discount.',
+    'visibility_help' => 'Off by default. Enable individually in the customer profile, Finance tab. This controls visibility and new code submissions; an existing applied discount is preserved.',
     'visibility_customer_help' => 'This customer’s choice takes priority over the global setting.',
     'visibility_inherit' => 'Use global setting',
     'visibility_enabled' => 'Enabled',

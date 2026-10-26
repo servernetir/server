@@ -402,8 +402,7 @@ class MarketingCampaignEngineTest extends TestCase
     public function test_full_birthday_flow_with_mock_sms_reminder_payment_and_expiry(): void
     {
         $c = $this->customer();
-        [, $m, $d] = Jalali::ofMoment(now(), 'Asia/Tehran');
-        MarketingPreference::where('customer_id', $c->id)->update(['birth_calendar' => 'jalali', 'birth_month' => $m, 'birth_day' => $d]);
+        $c->defaultProfile()->update(['birth_date' => now()->toDateString()]);
         $campaign = $this->campaign(['trigger' => 'birthday', 'message' => ['enabled' => true]]);
         $this->enableSms($campaign);
         app(CampaignRunner::class)->tick();
@@ -429,11 +428,11 @@ class MarketingCampaignEngineTest extends TestCase
     {
         $c = $this->customer();
         [, $m, $d] = Jalali::ofMoment(now(), 'Asia/Tehran');
-        MarketingPreference::where('customer_id', $c->id)->update(['birth_calendar' => 'jalali', 'birth_month' => $m, 'birth_day' => $d]);
+        $c->defaultProfile()->update(['birth_date' => now()->toDateString()]);
         $a = $this->campaign(['trigger' => 'birthday']);
         $b = $this->campaign(['trigger' => 'birthday']);
         $this->assertTrue(app(CampaignRunner::class)->issueDue($a, $c));
-        MarketingPreference::where('customer_id', $c->id)->update(['birth_calendar' => 'gregorian', 'birth_month' => 10, 'birth_day' => 25]);
+        $c->defaultProfile()->update(['birth_date' => implode('-', Jalali::toGregorian(1370, $m, $d))]);
         $this->assertFalse(app(CampaignRunner::class)->issueDue($b, $c));
         $this->assertDatabaseCount('marketing_grants', 1);
     }
@@ -441,7 +440,7 @@ class MarketingCampaignEngineTest extends TestCase
     public function test_jalali_leap_day_and_tehran_day_boundary(): void
     {
         $c = $this->customer();
-        MarketingPreference::where('customer_id', $c->id)->update(['birth_calendar' => 'jalali', 'birth_month' => 12, 'birth_day' => 30]);
+        $c->defaultProfile()->update(['birth_date' => implode('-', Jalali::toGregorian(1399, 12, 30))]);
         $date = Jalali::startOfDay(1404, 12, 29, 'Asia/Tehran')->addHours(1)->utc();
         $this->assertTrue(app(CampaignAudience::class)->birthday($c, $date->setTimezone('Asia/Tehran')));
         $this->assertFalse(app(CampaignAudience::class)->birthday($c, $date->copy()->subDays(1)->setTimezone('Asia/Tehran')));
@@ -450,7 +449,7 @@ class MarketingCampaignEngineTest extends TestCase
     public function test_dry_run_has_no_grants_deliveries_commitments_or_wallet_writes(): void
     {
         $c = $this->customer();
-        MarketingPreference::where('customer_id', $c->id)->update(['birth_calendar' => 'gregorian', 'birth_month' => 10, 'birth_day' => 25]);
+        $c->defaultProfile()->update(['birth_date' => now()->toDateString()]);
         $campaign = $this->campaign(['trigger' => 'birthday']);
         $this->artisan('marketing:tick --dry-run')->assertExitCode(0);
         foreach (['marketing_grants', 'marketing_deliveries', 'marketing_runs', 'credit_ledger'] as $table) {
@@ -466,7 +465,8 @@ class MarketingCampaignEngineTest extends TestCase
         $campaign = $this->campaign(['message' => ['enabled' => true]]);
         $this->enableSms($campaign);
         $this->grant($campaign, $c);
-        MarketingPreference::where('customer_id', $c->id)->update(['consent' => 'withdrawn']);
+        $this->actingAs($c, 'customer')->post('/account/marketing/unsubscribe', ['consent' => 'granted', 'birth_month' => 1])->assertRedirect();
+        $this->assertSame('withdrawn', MarketingPreference::where('customer_id', $c->id)->value('consent'));
         app(CampaignMessages::class)->dispatch(MarketingDelivery::where('kind', 'offer')->first());
         $this->assertCount(0, $this->sms->sent);
         $this->assertSame('blocked', MarketingDelivery::where('kind', 'offer')->first()->status);
@@ -530,16 +530,31 @@ class MarketingCampaignEngineTest extends TestCase
         $this->actingAs($author, 'web')->get('/admin/marketing/campaigns/'.$c->id.'/export')->assertForbidden();
     }
 
-    public function test_customer_pages_render_in_all_three_languages_and_admin_preview_renders(): void
+    public function test_retired_customer_page_redirects_in_all_three_languages_and_admin_preview_renders(): void
     {
         $c = $this->customer();
         $campaign = $this->campaign();
         $this->grant($campaign, $c);
         foreach (['', '/en', '/tr'] as $prefix) {
-            $this->actingAs($c, 'customer')->get($prefix.'/account/offers')->assertOk()->assertDontSee('marketing.title', false);
+            $this->actingAs($c, 'customer')->get($prefix.'/account/offers')->assertRedirect($prefix.'/account/marketing/unsubscribe');
+            $this->get($prefix.'/account/marketing/unsubscribe')->assertOk()->assertDontSee('birth_month', false)->assertDontSee('marketing.unsubscribe_title', false);
         }
         $this->actingAs($this->admin, 'web')->get('/admin/marketing/campaigns/'.$campaign->id)->assertOk();
         $this->actingAs($this->admin, 'web')->get('/admin/marketing/campaigns/create')->assertOk();
+    }
+
+    public function test_only_an_admin_enabled_customer_can_submit_a_campaign_code_on_an_invoice(): void
+    {
+        $c = $this->customer();
+        $g = $this->grant($this->campaign(), $c);
+        $invoice = $this->invoice($c);
+        $this->actingAs($c, 'customer')->post('/account/invoices/'.$invoice->id.'/offer', ['code' => $g->code])->assertForbidden();
+        $this->assertDatabaseCount('marketing_redemptions', 0);
+        $c->forceFill(['discount_entry_visibility' => 'enabled'])->save();
+        $this->post('/account/invoices/'.$invoice->id.'/offer', ['code' => $g->code])->assertRedirect();
+        $this->assertDatabaseCount('marketing_redemptions', 1);
+        $this->assertSame('reserved', MarketingRedemption::first()->status);
+        $this->assertSame(0, $invoice->fresh()->paid);
     }
 
     public function test_discounted_invoice_can_use_existing_wallet_checkout(): void
@@ -605,8 +620,8 @@ class MarketingCampaignEngineTest extends TestCase
 
     public function test_birthday_can_issue_and_redeem_again_in_next_annual_cycle(): void
     {
-        $c = $this->customer();
-        MarketingPreference::where('customer_id', $c->id)->update(['birth_calendar' => 'gregorian', 'birth_month' => 10, 'birth_day' => 25]);
+        $c = $this->customer('en');
+        $c->defaultProfile()->update(['birth_date' => '2000-10-25']);
         $campaign = $this->campaign(['trigger' => 'birthday']);
         app(CampaignRunner::class)->issueDue($campaign, $c);
         $g = MarketingGrant::first();

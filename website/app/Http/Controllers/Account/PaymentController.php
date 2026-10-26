@@ -829,6 +829,7 @@ class PaymentController extends Controller
     public function applyCoupon(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        abort_unless(app(\App\Services\Marketing\DiscountEntryVisibility::class)->enabled(Auth::guard('customer')->user()), 403);
 
         $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
         $code = \App\Models\GiftCoupon::normalize($data['code']);
