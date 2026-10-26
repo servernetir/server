@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - /usr/bin/python3 /home/servernetcloud/conversion-release-source-20261026/scripts/deploy-growth-conversion.py /home/servernetcloud/conversion-release-source-20261026/website /home/servernetcloud/servernet_app /home/servernetcloud/deploy-backups/growth-conversion-20261026-e6bd24d2
+    - /usr/bin/python3 /home/servernetcloud/conversion-release-source-20261026/scripts/deploy-growth-conversion.py /home/servernetcloud/conversion-release-source-20261026/website /home/servernetcloud/servernet_app /home/servernetcloud/deploy-backups/growth-conversion-20261026-e6bd24d2 --execute
