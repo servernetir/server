@@ -723,3 +723,6 @@ Schedule::command('dns:reconcile')
 
 Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
     ->appendOutputTo(storage_path('logs/marketing-scheduler.log'));
+
+// Bounded knowledge/receipt supervision; independently paused until explicitly enabled.
+Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);

@@ -17,6 +17,7 @@ use App\Services\Growth\GrowthCalendar;
 use App\Services\Growth\GrowthDrive;
 use App\Services\Growth\GrowthGateway;
 use App\Services\Growth\GrowthJobs;
+use App\Services\Growth\HermesSupervisor;
 use App\Services\Growth\KnowledgeBrain;
 use App\Services\Growth\MediaArchive;
 use App\Support\FinanceDates;
@@ -43,6 +44,7 @@ class GrowthController extends Controller
 
         return view('admin.growth.index', [
             'autopilot' => app(GrowthAutopilot::class)->status(),
+            'supervisor' => in_array($tab, ['hermes', 'automation'], true) ? app(HermesSupervisor::class)->status() : null,
             'tab' => $tab, 'items' => $items, 'calendar' => $tab === 'calendar' ? app(GrowthCalendar::class)->month($calendarDate, $calendarTimezone) : null, 'campaigns' => GrowthCampaign::orderByDesc('id')->get(),
             'control' => DB::table('growth_controls')->find(1), 'stats' => GrowthContent::select('status', DB::raw('count(*) as count'))->groupBy('status')->pluck('count', 'status'),
             'jobs' => GrowthJob::latest()->limit(30)->get(), 'documents' => GrowthDocument::latest()->limit(40)->get(),
@@ -227,6 +229,19 @@ class GrowthController extends Controller
             Setting::put('growth_autopilot_images', $request->boolean('autopilot_images') ? '1' : '0');
             Setting::put('growth_autopilot_actor_id', (string) $request->user()->id);
             GrowthAudit::record('settings.updated', 'growth', (int) $request->user()->id);
+        });
+
+        return back()->with('ok', __('growth.saved'));
+    }
+
+    public function supervisor(Request $request)
+    {
+        $request->validate(['enabled' => 'required|boolean']);
+        DB::transaction(function () use ($request) {
+            DB::table('growth_controls')->where('id', 1)->lockForUpdate()->first();
+            Setting::put('hermes_supervisor_enabled', $request->boolean('enabled') ? '1' : '0');
+            GrowthAudit::record('supervisor.policy_updated', 'growth', (int) $request->user()->id,
+                ['enabled' => $request->boolean('enabled'), 'policy' => HermesSupervisor::POLICY]);
         });
 
         return back()->with('ok', __('growth.saved'));

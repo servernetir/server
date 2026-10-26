@@ -16,6 +16,7 @@
     @foreach(['draft','review','approved','scheduled','published'] as $key)<a href="/admin/ai-growth?tab=sociality&status={{ $key }}"><b>{{ number_format($stats[$key]??0) }}</b><span>{{ __('growth.'.$key) }}</span></a>@endforeach
   </div>
 
+  @if(in_array($tab,['hermes','automation'],true))@include('admin.growth.hermes-supervisor')@endif
   @if($tab==='calendar')@include('admin.growth.calendar')@endif
   @if(in_array($tab,['overview','sociality','calendar','creative','seo'],true))
     @if($tab==='creative')<p class="gc-notice">{{ __('growth.media_note') }}</p>@endif

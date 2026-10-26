@@ -20,6 +20,7 @@ Route::prefix('admin/ai-growth')->middleware(['auth:web', 'admin'])->group(funct
     Route::get('/content/{content}/export', [GrowthController::class, 'export']);
     Route::get('/assets/{asset}', [GrowthController::class, 'asset']);
     Route::post('/settings', [GrowthController::class, 'settings']);
+    Route::post('/supervisor', [GrowthController::class, 'supervisor']);
     Route::post('/google/connect', [GrowthController::class, 'googleConnect']);
     Route::get('/google/callback', [GrowthController::class, 'googleCallback'])->name('admin.growth.google.callback');
     Route::post('/google/disconnect', [GrowthController::class, 'googleDisconnect']);
