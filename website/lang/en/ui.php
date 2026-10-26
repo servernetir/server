@@ -3350,4 +3350,13 @@ return [
     'gpu_request_credit_hint' => 'This is the minimum usable credit needed to start. There is no charge while you wait.',
     'gpu_request_cancel_heading' => 'Cancel request',
     'gpu_request_cancel_hint' => 'Changed your mind? Cancelling stops this order from continuing automatically.',
+
+    // Hourly wallet policy; hours comes from CloudPlan.
+    'gpu_request_wallet_heading' => 'Starting credit and hourly billing',
+    'gpu_request_wallet_start_heading' => 'Credit required to start',
+    'gpu_request_wallet_start' => 'To begin provisioning an hourly server, your wallet must have available credit covering at least :hours hours at this server’s hourly rate. The minimum shown also includes the required credit for your other hourly servers.',
+    'gpu_request_wallet_billing_heading' => 'Hourly billing and server deletion',
+    'gpu_request_wallet_billing' => 'Charges are deducted from your wallet hourly after this service is ready. You can delete the server at any time; once deletion is complete, no further hourly charges accrue for that server.',
+    'gpu_request_wallet_reuse_heading' => 'Using your remaining credit',
+    'gpu_request_wallet_reuse' => 'Unspent, available wallet credit remains in your account and can be used to purchase or renew other ServerNet services.',
 ];

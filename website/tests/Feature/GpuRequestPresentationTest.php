@@ -72,6 +72,22 @@ class GpuRequestPresentationTest extends TestCase
         $this->assertStringContainsString(__('ui.gpu_approved_price'), $summary->textContent);
         $this->assertStringContainsString(__('ui.gpu_request_required_credit'), $summary->textContent);
 
+        $policy = $xpath->query('.//*[@data-hourly-wallet-policy]', $card)->item(0);
+        $this->assertNotNull($policy);
+        $policyHeading = $policy->getAttribute('aria-labelledby');
+        $this->assertNotSame('', $policyHeading);
+        $this->assertSame(1, $xpath->query('//*[@id="'.$policyHeading.'"]')->length);
+        $this->assertStringContainsString(__('ui.gpu_request_wallet_heading'), $policy->textContent);
+        $this->assertStringNotContainsString(':hours', $policy->textContent);
+        $this->assertStringNotContainsString('ui.gpu_request_wallet_', $policy->textContent);
+
+        $points = $xpath->query('.//li', $policy);
+        $this->assertCount(3, $points);
+        foreach (['start', 'billing', 'reuse'] as $index => $point) {
+            $this->assertStringContainsString(__('ui.gpu_request_wallet_'.$point.'_heading'), $points->item($index)->textContent);
+        }
+        $this->assertStringContainsString((string) fa_num(CloudPlan::HOURLY_START_MIN_HOURS), $points->item(0)->textContent);
+
         $topup = $xpath->query('.//a[@href="'.lroute('account.topup').'"]', $card)->item(0);
         $this->assertNotNull($topup);
         $this->assertStringContainsString(__('ui.gpu_topup'), $topup->textContent);
@@ -107,6 +123,21 @@ class GpuRequestPresentationTest extends TestCase
         $this->assertSame(0, $xpath->query('.//a[@href="'.lroute('account.topup').'"]', $card)->length);
 
         $this->assertRequestWasOnlyRead($service, 'price_changed');
+    }
+
+    #[DataProvider('locales')]
+    public function test_cycle_request_does_not_show_the_hourly_wallet_policy(string $locale): void
+    {
+        $service = $this->request('waiting_capacity', ['charge_pending' => false]);
+        $service->update(['billing_mode' => 'cycle']);
+        $xpath = $this->render($service, $locale);
+
+        $card = $xpath->query('//*[@data-gpu-capacity-wait]')->item(0);
+        $this->assertNotNull($card);
+        $this->assertStringContainsString(__('ui.gpu_wait_cycle'), $card->textContent);
+        $this->assertSame(0, $xpath->query('//*[@data-hourly-wallet-policy]')->length);
+        $this->assertStringNotContainsString(__('ui.gpu_request_wallet_heading'), $card->textContent);
+        $this->assertRequestWasOnlyRead($service, 'waiting_capacity');
     }
 
     public function test_closed_request_does_not_render_waiting_or_cancellation_controls(): void

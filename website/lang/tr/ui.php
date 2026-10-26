@@ -3350,4 +3350,13 @@ return [
     'gpu_request_credit_hint' => 'Bu tutar, başlamak için gereken minimum kullanılabilir bakiyedir. Beklerken ücret alınmaz.',
     'gpu_request_cancel_heading' => 'Talebi iptal et',
     'gpu_request_cancel_hint' => 'Vazgeçtiyseniz talebi iptal ederek bu siparişin otomatik devam etmesini durdurabilirsiniz.',
+
+    // Hourly wallet policy; hours comes from CloudPlan.
+    'gpu_request_wallet_heading' => 'Başlangıç bakiyesi ve saatlik faturalandırma',
+    'gpu_request_wallet_start_heading' => 'Başlangıç için gereken bakiye',
+    'gpu_request_wallet_start' => 'Saatlik sunucunun kurulumunu başlatmak için cüzdanınızdaki kullanılabilir bakiye, en az bu sunucunun :hours saatlik ücretini karşılamalıdır. Gösterilen minimum bakiye, diğer saatlik sunucularınız için gereken bakiyeyi de kapsar.',
+    'gpu_request_wallet_billing_heading' => 'Saatlik ücretlendirme ve sunucu silme',
+    'gpu_request_wallet_billing' => 'Bu servis hazır olduktan sonra ücretler saatlik olarak cüzdanınızdan düşülür. Sunucuyu istediğiniz zaman silebilirsiniz; silme işlemi tamamlandığında bu sunucu için yeni saatlik ücret hesaplanmaz.',
+    'gpu_request_wallet_reuse_heading' => 'Kalan bakiyenin kullanımı',
+    'gpu_request_wallet_reuse' => 'Harcanmamış ve kullanılabilir cüzdan bakiyeniz hesabınızda kalır; bu bakiyeyi diğer ServerNet hizmetlerini satın almak veya yenilemek için kullanabilirsiniz.',
 ];

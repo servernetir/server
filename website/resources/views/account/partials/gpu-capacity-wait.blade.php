@@ -38,6 +38,26 @@
       </div>
     </div>
 
+    @if($service->billing_mode === 'hourly')
+      <section class="cr-wallet-policy" data-hourly-wallet-policy aria-labelledby="gpu-wallet-policy-heading">
+        <h3 id="gpu-wallet-policy-heading"><svg class="icon" aria-hidden="true"><use href="#i-coins"/></svg>{{ __('ui.gpu_request_wallet_heading') }}</h3>
+        <ul role="list">
+          <li>
+            <strong>{{ __('ui.gpu_request_wallet_start_heading') }}</strong>
+            <p>{{ __('ui.gpu_request_wallet_start', ['hours' => fa_num(\App\Models\CloudPlan::HOURLY_START_MIN_HOURS)]) }}</p>
+          </li>
+          <li>
+            <strong>{{ __('ui.gpu_request_wallet_billing_heading') }}</strong>
+            <p>{{ __('ui.gpu_request_wallet_billing') }}</p>
+          </li>
+          <li>
+            <strong>{{ __('ui.gpu_request_wallet_reuse_heading') }}</strong>
+            <p>{{ __('ui.gpu_request_wallet_reuse') }}</p>
+          </li>
+        </ul>
+      </section>
+    @endif
+
     @if(($capacityOrder['state'] ?? '') === 'price_changed' && ($capacityOrder['new_price_irt'] ?? 0) > 0)
       <form class="cr-price-review" method="post" action="{{ lroute('account.cloud.gpu-price', $service) }}">
         @csrf
