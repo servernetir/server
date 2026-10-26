@@ -28,7 +28,7 @@ only-notify=
 
 # serial: expire = ۲۸ روز. secondaryِ جدامانده تا این مدت پاسخِ آخرین داده را می‌دهد، بعد SERVFAIL.
 default-soa-content=NS_A_HOST. hostmaster.servernet.cloud. 0 3600 600 2419200 300
-default-soa-edit-api=DEFAULT
+# soa-edit-api را برنامه روی هر zone می‌گذارد (soa_edit_api=DEFAULT هنگامِ ساخت)؛ تنظیمِ سراسریِ default-soa-edit-api در 5.0 حذف شده و سرور را بالا نمی‌آورد
 
 # API — فقط روی loopback؛ دسترسیِ بیرونی فقط از پروکسیِ TLS
 api=yes
