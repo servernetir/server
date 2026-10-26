@@ -140,4 +140,5 @@ return [
     'auto_code_failed_job_requires_review' => 'پردازش ناموفق است؛ پیش از تکرار رسید بررسی شود.',
     'auto_code_operator_changed_content' => 'محتوا توسط مدیر تغییر کرده؛ اجرای خودکار روی آن متوقف شد.',
     'auto_code_generation_not_queued' => 'تولید هنوز در صف نیست.',
+    'auto_code_quality_review_required' => 'کیفیت یا زبان متن قابل اتکا نیست؛ خروجی متوقف شد و بررسی لازم است.',
 ];

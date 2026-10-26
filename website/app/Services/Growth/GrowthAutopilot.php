@@ -116,7 +116,11 @@ final class GrowthAutopilot
                 continue;
             }
             try {
-                $payload = $gateway->payload($item, $kind, $slug);
+                $input = clone $item;
+                if ($kind === 'image') {
+                    $input->brief = 'Conceptual editorial illustration: '.$item->title.'. No text, charts, prices or claims about actual infrastructure.';
+                }
+                $payload = $gateway->payload($input, $kind, $slug);
                 $quote = $gateway->estimate($payload, $kind);
                 if ($quote['max_cost_irt'] > 0 && $quote['max_cost_irt'] <= $remaining
                     && (! $best || $quote['max_cost_irt'] < $best['quote']['max_cost_irt'])) {
@@ -154,6 +158,10 @@ final class GrowthAutopilot
             } elseif ($item->status !== 'draft' || $item->version !== $job->content_version + 1) {
                 $state['stage'] = 'blocked';
                 $state['code'] = 'operator_changed_content';
+            } elseif ($state['stage'] === 'text_queued' && ! $this->acceptable($item)) {
+                $state['stage'] = 'blocked';
+                $state['code'] = 'quality_review_required';
+                GrowthAudit::record('autopilot.quality_rejected', 'content:'.$item->id, $actor);
             } else {
                 if ($state['stage'] === 'text_queued' && Setting::get('growth_autopilot_images') === '1') {
                     try {
@@ -174,5 +182,17 @@ final class GrowthAutopilot
             }
             DB::table('growth_automation_runs')->where('id', $run->id)->update(['summary' => json_encode($state, JSON_THROW_ON_ERROR)]);
         });
+    }
+
+    private function acceptable(GrowthContent $item): bool
+    {
+        $body = (string) $item->body;
+        if (mb_strlen($body) < 600 || preg_match('/<\|[^>\r\n]{1,100}\|>|[\p{Han}\p{Hiragana}\p{Katakana}\p{Cyrillic}\p{Hangul}]/u', $body)) {
+            return false;
+        }
+        $letters = preg_match_all('/\p{L}/u', $body);
+        $matching = preg_match_all($item->locale === 'fa' ? '/\p{Arabic}/u' : '/\p{Latin}/u', $body);
+
+        return $letters > 0 && $matching / $letters >= ($item->locale === 'fa' ? 0.7 : 0.9);
     }
 }

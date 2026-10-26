@@ -35,8 +35,8 @@ class GrowthAutopilotTest extends TestCase
         config(['ai_growth.autopilot_text_models' => [$this->model->slug], 'ai_growth.autopilot_image_models' => []]);
         DB::table('growth_controls')->where('id', 1)->update(['enabled' => true, 'daily_irt' => 50000, 'monthly_irt' => 1000000]);
         Http::preventStrayRequests();
-        Http::fake(['https://servernet.cloud/*' => Http::response('<main>'.str_repeat('Public product facts and practical tradeoffs. ', 30).'</main>'),
-            '*/chat/completions' => Http::response(['choices' => [['message' => ['content' => 'A useful sourced draft for human review.']]],
+        Http::fake(['https://servernet.cloud/*' => Http::response('<main>'.str_repeat('Public product facts and practical tradeoffs. ', 200).'</main>'),
+            '*/chat/completions' => Http::response(['choices' => [['message' => ['content' => str_repeat('این راهنما روش انتخاب منابع پردازنده و حافظه برای یک پروژه آزمایشی را توضیح می‌دهد. ', 18)]]],
                 'usage' => ['prompt_tokens' => 40, 'completion_tokens' => 5, 'total_tokens' => 45]])]);
     }
 
@@ -146,6 +146,7 @@ class GrowthAutopilotTest extends TestCase
         app(GrowthAutopilot::class)->prepare();
         $this->assertDatabaseCount('growth_jobs', 2);
         $imageJob = GrowthJob::where('kind', 'image')->sole();
+        $this->assertLessThan(1000, mb_strlen($imageJob->payload['prompt']));
         app(GrowthJobs::class)->run($imageJob);
         $this->assertSame('completed', $imageJob->fresh()->status);
         app(GrowthAutopilot::class)->prepare();
@@ -165,5 +166,17 @@ class GrowthAutopilotTest extends TestCase
         $this->assertSame('queued', GrowthJob::sole()->status);
         $this->assertSame(0, GrowthJob::sole()->attempts);
         Http::assertSentCount(1);
+    }
+
+    public function test_corrupt_multilingual_output_is_blocked_before_image_or_review(): void
+    {
+        app(GrowthAutopilot::class)->prepare();
+        app(GrowthJobs::class)->run(GrowthJob::sole());
+        GrowthContent::sole()->update(['body' => str_repeat('متن فارسی ', 100).'<|reserved_special_token_162|> 対象']);
+        app(GrowthAutopilot::class)->prepare();
+        $this->assertSame('draft', GrowthContent::sole()->status);
+        $this->assertSame('quality_review_required', app(GrowthAutopilot::class)->status()['latest'][0]['summary']['code']);
+        $this->assertDatabaseCount('growth_jobs', 1);
+        $this->assertDatabaseCount('posts', 0);
     }
 }

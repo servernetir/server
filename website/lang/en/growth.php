@@ -140,4 +140,5 @@ return [
     'auto_code_failed_job_requires_review' => 'Failed job; reconcile the receipt before retrying.',
     'auto_code_operator_changed_content' => 'Operator changed the content; automation stopped for this item.',
     'auto_code_generation_not_queued' => 'Generation not queued yet.',
+    'auto_code_quality_review_required' => 'Output failed the language or quality check; review is required.',
 ];

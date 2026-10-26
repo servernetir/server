@@ -5,6 +5,8 @@ namespace App\Services\Growth;
 use App\Models\AiUsage;
 use App\Models\GrowthContent;
 use App\Models\GrowthJob;
+use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -59,9 +61,11 @@ final class GrowthJobs
         if (! DB::table('growth_controls')->where('id', 1)->value('enabled')) {
             return;
         }
-        $autonomous = hash_equals(hash('sha256', 'autopilot:drafts-v1:'.$job->content_id.':'.$job->kind), $job->request_key);
-        if ($autonomous && (\App\Models\Setting::get('growth_autopilot_enabled') !== '1'
-            || ! \App\Models\User::whereKey((int) \App\Models\Setting::get('growth_autopilot_actor_id', '0'))->where('role', 'admin')->exists())) {
+        $prefix = 'autopilot:drafts-v1:'.$job->content_id.':'.$job->kind;
+        $autonomous = hash_equals(hash('sha256', $prefix), $job->request_key)
+            || hash_equals(hash('sha256', $prefix.':quality-repair-1'), $job->request_key);
+        if ($autonomous && (Setting::get('growth_autopilot_enabled') !== '1'
+            || ! User::whereKey((int) Setting::get('growth_autopilot_actor_id', '0'))->where('role', 'admin')->exists())) {
             return;
         }
         if (! GrowthJob::whereKey($job->id)->where('status', 'queued')->update(['status' => 'processing', 'started_at' => now(),

@@ -6,9 +6,7 @@ return [
     'media_hosts' => ['api.deepinfra.com', 'inference.deepinfra.com', 'storage.googleapis.com', 'generativelanguage.googleapis.com'],
     'max_asset_bytes' => 25_000_000,
     'autopilot_text_models' => [
-        'di-meta-llamallama-33-70b-instruct-turbo-3c195ebcef',
         'di-qwenqwen3-235b-a22b-instruct-2507-12d7a45f0c',
-        'di-deepseek-aideepseek-v3-0452ac47f3',
         'di-googlegemini-25-flash-cd62f9d5ea',
     ],
     'autopilot_image_models' => ['di-black-forest-labsflux-1-schnell-9979f6c653'],

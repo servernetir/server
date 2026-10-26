@@ -140,4 +140,5 @@ return [
     'auto_code_failed_job_requires_review' => 'Başarısız iş; tekrar denemeden önce makbuzu kontrol edin.',
     'auto_code_operator_changed_content' => 'İçerik yönetici tarafından değiştirildi; otomasyon durduruldu.',
     'auto_code_generation_not_queued' => 'Üretim henüz sıraya alınmadı.',
+    'auto_code_quality_review_required' => 'Çıktı dil veya kalite denetimini geçemedi; inceleme gerekiyor.',
 ];
