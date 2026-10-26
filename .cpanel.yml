@@ -1,0 +1,4 @@
+---
+deployment:
+  tasks:
+    - /usr/bin/python3 /home/servernetcloud/invoice-only-source-20261026/scripts/deploy-invoice-only-discounts-20261026.py /home/servernetcloud/invoice-only-source-20261026
