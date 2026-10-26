@@ -20,7 +20,15 @@
     "next_run_note": "Tool next_run_time is null; first scheduled occurrence is derived from the recorded DTSTART, not a recorded run.",
     "last_state_verified_date_tehran": "2026-10-25"
   },
-  "active_run": null,
+  "active_run": {
+    "run_id": "growth-cycle-20261026-0629-git-guide-finalize",
+    "task_id": "git-deployment-guide-safe-example",
+    "base_sha": "198199258bb761e0964a96d844d80711dc9f1d9d",
+    "started_at_utc": "2026-10-26T06:28:54Z",
+    "lease_expires_at_utc": "2026-10-26T08:28:54Z",
+    "phase": "reviewing",
+    "note": "Owner-requested continuation of PR132, not a new article. Codex independent review completed without findings for d2c391c; reconcile fresh develop, resolve documented wording precision and rerun checks. Browser context unavailable and local network DNS failed; no production write or Google login."
+  },
   "last_run": {
     "run_id": "growth-cycle-20261026-0202-git-guide",
     "task_id": "git-deployment-guide-safe-example",
