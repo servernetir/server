@@ -1,0 +1,86 @@
+name: SEO Git guide checks
+
+on:
+  push:
+    branches: ['seo/20261026-git-deployment-guide']
+    paths:
+      - 'website/resources/content/growth/git-basics-for-deployment.json'
+      - 'website/tests/Feature/GitDeploymentArticleReviewTest.php'
+      - 'scripts/seo-growth-cycle/test_git_deployment_article.py'
+      - '.github/workflows/seo-git-guide-check.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/resources/content/growth/git-basics-for-deployment.json'
+      - 'website/tests/Feature/GitDeploymentArticleReviewTest.php'
+      - 'scripts/seo-growth-cycle/test_git_deployment_article.py'
+      - '.github/workflows/seo-git-guide-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seo-git-guide-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  article-checks:
+    if: github.repository == 'servernetir/server' && github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      APP_LOCALE: fa
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - name: Checkout exact event revision without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up isolated PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Verify source, markup and disposable Git examples
+        run: python3 scripts/seo-growth-cycle/test_git_deployment_article.py
+      - name: Verify checkout isolation and install locked dependencies
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          php -v
+          git rev-parse HEAD
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: PHP syntax and application regression tests
+        working-directory: website
+        run: |
+          set -euo pipefail
+          php -l tests/Feature/GitDeploymentArticleReviewTest.php
+          php artisan test --filter='GitDeploymentArticleReviewTest|GrowthArticlePublishingTest|BlogSitemapLastmodTest' --compact
+      - name: Record test scope
+        if: always()
+        run: |
+          {
+            echo '## Scope'
+            echo 'This job uses an isolated checkout, synthetic SQLite data and no production credentials.'
+            echo 'No production deployment, CMS update, Google login, provider order or host cron is performed.'
+            echo 'Passing automated checks is not independent editorial review or production acceptance.'
+          } >> "$GITHUB_STEP_SUMMARY"
