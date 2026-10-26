@@ -20,6 +20,8 @@ class ReleaseMergeTest(unittest.TestCase):
         self.assertIn(b"'live_only' => 123", result)
         self.assertIn(block, result)
         self.assertEqual(release.merge_runtime(path, result, base, desired), result)
+        crlf = current.replace(b'\n', b'\r\n')
+        self.assertEqual(release.merge_runtime(path, crlf, base, desired), result.replace(b'\n', b'\r\n'))
         with self.assertRaises(RuntimeError):
             release.merge_runtime(path, current.replace(b"'other'", b"'vpstc'"), base, desired)
 

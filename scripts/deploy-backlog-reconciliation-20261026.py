@@ -61,11 +61,13 @@ def merge_runtime(name, current, base, desired):
     if name == 'config/services.php' and base is not None and current is not None:
         anchor = b'return [\n'
         block = b"    // Reseller origin must be confirmed by VPS.TC; no guessed default host.\n    // Credentials may instead be stored encrypted in the dedicated admin page.\n    'vpstc' => [\n        'base_url' => env('VPSTC_API_BASE_URL', ''),\n        'username' => env('VPSTC_API_USERNAME', ''),\n        'password' => env('VPSTC_API_PASSWORD', ''),\n    ],\n\n"
-        if base.count(anchor) == 1 and base.replace(anchor, anchor + block, 1) == desired and current.count(anchor) == 1:
-            if block in current:
+        live_anchor = b'return [\r\n' if current.count(b'return [\r\n') == 1 else anchor
+        live_block = block.replace(b'\n', b'\r\n') if live_anchor.endswith(b'\r\n') else block
+        if base.count(anchor) == 1 and base.replace(anchor, anchor + block, 1) == desired and current.count(live_anchor) == 1:
+            if live_block in current:
                 return current
             if b"'vpstc'" not in current:
-                return current.replace(anchor, anchor + block, 1)
+                return current.replace(live_anchor, live_anchor + live_block, 1)
     return merge_candidate(current, base, desired)
 
 
