@@ -1,6 +1,6 @@
 # Shared select menus and customer profile — 26 October 2026
 
-Status: prepared; behavior, visual and profile acceptance passed; production installation pending.
+Status: deployed and verified at 2026-10-26T06:22:40.194Z. Source commit: 6b4dc10ad87e4148258c7600401cc05d5f3ded7c on develop.
 
 ## Request and scope
 
@@ -23,3 +23,20 @@ AccountPanelTest passes10tests/43assertions, including a new rendered-profile re
 Only shared web assets, the shared layout and profile template are installed. No DB, order, invoice, balance, provider request, service, route, DNS, NAT/firewall or network agent changes. The production layout differs from develop, so add only the two asset hooks to the fresh production template. Profile currently matches source; patch only the reviewed UI lines. Upload and verify both app/public and public_html asset copies first, then activate the templates. Preserve fresh private backups and verify pre/post hashes. Verify HTTP assets in both domains plus the rendered login page asset hooks. Authenticated live customer browsing is unavailable in this environment; acceptance uses isolated browser fixtures and Laravel renders.
 
 Rollback: restore each template only if its current hash still matches this release, otherwise merge the inverse UI patch. Deactivating the layout hooks returns native selects. New unreferenced static files may remain until a later controlled cleanup. Do not overwrite unrelated production layout changes or rerun earlier deployment helpers.
+
+## Completed production release
+
+Release shared-select-20261026-1792995725709 installed4static copies and2templates, with fresh pre-install checks and post-upload content hashes. The private originals and receipt are stored outside public_html under the release-prefixed home filenames. Production layout changes beyond the two asset hooks were preserved.
+
+| Installed path | After SHA-256 | Private backup |
+| --- | --- | --- |
+| servernet_app/public/assets/css/site-select.css | 57c739eb4645a792291afbefc7e28732cc95ae48f0e6c1f88d4e7cf2bd33b9f2 | New file |
+| servernet_app/public/assets/js/site-select.js | 19d8a68044a284e01bd130a4b2d936e1c1623b9a163c3dd583922faca4e6d36d | New file |
+| public_html/assets/css/site-select.css | 57c739eb4645a792291afbefc7e28732cc95ae48f0e6c1f88d4e7cf2bd33b9f2 | New file |
+| public_html/assets/js/site-select.js | 19d8a68044a284e01bd130a4b2d936e1c1623b9a163c3dd583922faca4e6d36d | New file |
+| servernet_app/resources/views/account/profile.blade.php | 762a0e4534fda638e35d64f60f0374da1b440a911d2aaf459cd677e3871b6832 | shared-select-20261026-1792995725709-profile-before.blade.php |
+| servernet_app/resources/views/layouts/site.blade.php | 23a1134fd4a5c5aeb1f2591a4eeab30c2dd6a13fc1d20ee44c2c20a8c9fbb8d8 | shared-select-20261026-1792995725709-site-before.blade.php |
+
+CSS and JS return HTTP200 with the exact accepted hashes from both servernet.cloud and console.servernet.cloud. Live FA/EN/TR login renders include both asset hooks and new app-public mtime versions. Public /cloud, /vps/hourly and /en/cloud return HTTP200 with both hooks and their existing native selects. No cache flush was needed. Production customer profile source matches the accepted template hash; authenticated customer actions were not performed.
+
+The release receipt shared-select-20261026-1792995725709-receipt.json records all before/after hashes, backup filenames, source commit, installation time and asset/login checks. Local browser and behavior fixtures contain only synthetic data.
