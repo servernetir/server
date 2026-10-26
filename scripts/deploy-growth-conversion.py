@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 """Narrow conversion release; no schema, credentials, payments, sends or cron changes."""
-import fcntl,hashlib,json,os,subprocess,sys
+import fcntl,hashlib,json,os,re,subprocess,sys
 from pathlib import Path
 src,live,stage=(Path(p).resolve() for p in sys.argv[1:4]);execute=sys.argv[4:]==['--execute']
 if len(sys.argv) not in [4,5] or (len(sys.argv)==5 and not execute):raise SystemExit('Invalid args')
 php='/opt/cpanel/ea-php84/root/usr/bin/php'
 new=['app/Http/Controllers/ReportConsultationController.php','app/Services/Marketing/CheckoutRecovery.php','lang/fa/conversion.php','lang/en/conversion.php','lang/tr/conversion.php','resources/views/partials/report-consultation.blade.php','resources/views/account/partials/checkout-recovery.blade.php']
 shared=['app/Services/Crm/ChatLeadCapture.php','app/Http/Controllers/ReportController.php','app/Http/Controllers/Account/AccountController.php','resources/views/pages/report.blade.php','resources/views/layouts/site.blade.php','resources/views/account/home.blade.php','routes/web.php']
-def once(s,a,b):
- if s.count(a)!=1:raise RuntimeError('Anchor differs; inspect live source')
- return s.replace(a,b,1)
+def once(s,a,b,counts=(1,)):
+ # Match either line ending, preserving every byte outside the exact insertion.
+ pattern=r'\r?\n'.join(re.escape(part) for part in a.split('\n'))
+ matches=list(re.finditer(pattern,s))
+ if len(matches) not in counts:raise RuntimeError('Anchor differs; inspect live source')
+ m=matches[0];tail=s[m.end():].split('\n',1)[0]
+ ending='\r\n' if '\r\n' in m.group(0) or tail.endswith('\r') else '\n'
+ return s[:m.start()]+b.replace('\n',ending)+s[m.end():]
 def sha(b):return hashlib.sha256(b).hexdigest()
 handles=[]
 for file in [Path.home()/'.servernet-web-release.lock',Path.home()/'servernet-release.lock']:
@@ -49,8 +54,7 @@ for f in shared:
  else:
   if "name('report.consultation')" in s:raise RuntimeError('Consultation route exists')
   a="    Route::get('/report/{token}', [ReportController::class, 'show'])\n        ->name('report')->where('token', '[a-z0-9]{16,40}');"
-  if s.count(a) not in [1,2]:raise RuntimeError('Unexpected report routing')
-  s=s.replace(a,a+"\n    Route::post('/report/{token}/consultation', [\\App\\Http\\Controllers\\ReportConsultationController::class, 'store'])\n        ->name('report.consultation')->where('token', '[a-z0-9]{16,40}')->middleware('throttle:3,1');",1)
+  s=once(s,a,a+"\n    Route::post('/report/{token}/consultation', [\\App\\Http\\Controllers\\ReportConsultationController::class, 'store'])\n        ->name('report.consultation')->where('token', '[a-z0-9]{16,40}')->middleware('throttle:3,1');",(1,2))
  output[f]=s.encode()
 if not execute:
  print(json.dumps({'status':'preflight_ok','files':len(output),'new':len(new),'writes':0}));raise SystemExit(0)
