@@ -66,7 +66,8 @@ class VpsTcClient implements CloudProvider
             $details = $balance['data']['details'] ?? [];
             $credit = $this->minor($details['acc_credit'] ?? null);
             $ceiling = $this->minor($quote['total_amount'] ?? null);
-            if (! $balance['ok'] || ($details['currency'] ?? '') !== $quote['currency'] || $credit === null
+            $currency = (new VpsTcMoneyContract($this->api))->resolveCurrency($balance);
+            if (! $balance['ok'] || $currency === null || $currency !== $quote['currency'] || $credit === null
                 || $ceiling === null || $ceiling <= 0 || $credit < $ceiling) {
                 return $this->failure('اعتبار قابل‌استفادهٔ زیرساخت برای این سفارش کافی یا قابل تأیید نیست.') + $fail;
             }
@@ -170,25 +171,30 @@ class VpsTcClient implements CloudProvider
         if (! $r['ok'] || ! $this->invoiceMatches($op, $invoice)) { return false; }
         if (($invoice['status'] ?? '') === 'Paid') { return true; }
         if (($invoice['status'] ?? '') !== 'Unpaid') { return false; }
+        $amounts = VpsTcInvoiceAmounts::inspect($invoice);
+        $due = VpsTcInvoiceAmounts::decimal($amounts['due'] ?? null);
+        if ($due === null || ! $due->isPositive()) { return false; }
         $balance = $this->api->balance();
         $details = $balance['data']['details'] ?? [];
-        $credit = $this->minor($details['acc_credit'] ?? null);
-        if (! $balance['ok'] || ($details['currency'] ?? '') !== ($invoice['currency'] ?? null)
-            || $credit === null || $credit < $this->minor($invoice['total'])) { return false; }
+        $credit = VpsTcInvoiceAmounts::decimal($details['acc_credit'] ?? null);
+        $currency = (new VpsTcMoneyContract($this->api))->resolveCurrency($balance);
+        if (! $balance['ok'] || $currency === null || $currency !== ($invoice['currency'] ?? null)
+            || $credit === null || $credit->compareTo($due) < 0) { return false; }
         // Claim the payment durably before POST. Pollers and retried provisioners
         // may both reach this point, but exactly one may submit account credit.
-        $claimed = DB::transaction(function () use ($op) {
+        $claimed = DB::transaction(function () use ($op, $due) {
             $fresh = CloudProviderOperation::whereKey($op->id)->lockForUpdate()->first();
             if (! $fresh || isset($fresh->payload['_credit_attempted'])) { return false; }
             $payload = $fresh->payload;
             $payload['_credit_attempted'] = now()->toIso8601String();
+            $payload['_credit_amount'] = (string) $due;
             $fresh->update(['payload' => $payload]);
             return true;
         });
         if ($claimed) {
             // Bound the debit to the exact amount inspected above. The
             // supplier's default "maximum" must not fund a changed invoice.
-            $this->api->applyInvoiceCredit((string) $op->task_ref, (string) $invoice['total']);
+            $this->api->applyInvoiceCredit((string) $op->task_ref, (string) $due);
         }
         // A lost acknowledgement is safe: a later read may prove payment,
         // while the durable marker prevents a second payment submission.
@@ -200,11 +206,14 @@ class VpsTcClient implements CloudProvider
     private function invoiceMatches(CloudProviderOperation $op, array $invoice): bool
     {
         $quote = $op->payload['_quote'] ?? [];
-        $total = $this->minor($invoice['total'] ?? null);
-        $limit = $this->minor($quote['total_amount'] ?? null);
         if ((string) ($invoice['id'] ?? '') !== (string) $op->task_ref
-            || ($invoice['currency'] ?? '') !== ($quote['currency'] ?? null)
-            || $total === null || $limit === null || $total > $limit || $total <= 0) { return false; }
+            || ($invoice['currency'] ?? '') !== ($quote['currency'] ?? null)) { return false; }
+        if (VpsTcInvoiceAmounts::bounded($invoice, $quote['total_amount'] ?? null) === null) {
+            \App\Support\ErrorTracker::noteOnce('billing',
+                'ناخالص فاکتور زیرساخت با اجزای مبلغ یا سقف سفارش تطبیق ندارد؛ اعتبار مصرف‌شده نیز جزو بهاست.',
+                3600, ['provider' => 'vpstc', 'provider_invoice' => $op->task_ref]);
+            return false;
+        }
         $items = $invoice['items'] ?? [];
         // Fee-free single-service orders must not fund another service or a
         // mixed invoice merely because one line happens to match our parent ID.

@@ -109,6 +109,64 @@ final class VpsTcApi
         return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/methods', 'methods'));
     }
 
+    /** Calculate one monthly configuration; this route never submits an order or payment. */
+    public function quote(string $productId, string $paymentMethod, array $custom = [], ?string $hostname = null): array
+    {
+        return $this->withIds([$productId, $paymentMethod], function () use ($productId, $paymentMethod, $custom, $hostname) {
+            $hostname ??= 'preflight-'.$productId.'.example.invalid';
+            if ($hostname === '' || strlen($hostname) > 253
+                || filter_var($hostname, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) === false) {
+                return $this->failure('invalid_quote', 'A valid hostname is required for the calculation.');
+            }
+            $payload = ['pay_method' => (int) $paymentMethod, 'output' => 'full', 'items' => [[
+                'type' => 'product', 'product_id' => (int) $productId, 'domain' => $hostname,
+                'cycle' => 'm', 'custom' => $custom,
+            ]]];
+            try {
+                if (strlen(json_encode($payload, JSON_THROW_ON_ERROR, 32)) > 200000) {
+                    return $this->failure('invalid_quote', 'The calculation configuration is too large.');
+                }
+            } catch (Throwable) {
+                return $this->failure('invalid_quote', 'The calculation configuration is invalid.');
+            }
+
+            $result = $this->read('/api/quote', 'summary', $payload);
+            if (! $result['ok']) { return $result; }
+            $data = $result['data'];
+            if ($data['summary'] === [] || array_is_list($data['summary'])
+                || ! is_array($data['items'] ?? null) || ! array_is_list($data['items'])
+                || count($data['items']) !== 1 || ! is_array($data['items'][0]) || $data['items'][0] === []) {
+                return $this->failure('invalid_response', 'VPS.TC returned an unsupported calculation response.');
+            }
+            $item = $data['items'][0];
+            $identities = [];
+            if (array_key_exists('product_id', $item)) { $identities[] = $item['product_id']; }
+            if (array_key_exists('product', $item)) {
+                if (! is_array($item['product']) || ! array_key_exists('id', $item['product'])) {
+                    return $this->failure('invalid_response', 'VPS.TC returned an unsupported calculation item.');
+                }
+                $identities[] = $item['product']['id'];
+            }
+            if ($identities === []) {
+                return $this->failure('invalid_response', 'VPS.TC did not identify the calculated product.');
+            }
+            foreach ($identities as $identity) {
+                if ((! is_int($identity) && ! is_string($identity)) || (string) $identity !== $productId) {
+                    return $this->failure('invalid_response', 'VPS.TC calculated a different product.');
+                }
+            }
+            foreach ([$data, $data['summary'], $item] as $row) {
+                if ($this->hasApiError($row)
+                    || (array_key_exists('errors', $row) && ! in_array($row['errors'], [null, false, '', [], 0], true))
+                    || (array_key_exists('valid', $row) && $row['valid'] !== true)) {
+                    return $this->failure('invalid_response', 'VPS.TC did not validate the requested calculation.');
+                }
+            }
+
+            return $result;
+        });
+    }
+
     /** Only monthly orders are accepted; prepaid monthly offers cannot be sold hourly. */
     public function order(string $productId, array $payload): array
     {
@@ -314,7 +372,7 @@ final class VpsTcApi
         return $operation();
     }
 
-    private function read(string $path, string $expectedKey): array
+    private function read(string $path, string $expectedKey, ?array $calculation = null): array
     {
         if (! $this->isConfigured()) {
             return $this->failure('not_configured', 'VPS.TC credentials and an approved HTTPS API origin are required.');
@@ -323,13 +381,15 @@ final class VpsTcApi
             return $this->failure('authentication_failed', 'VPS.TC authentication failed. Check the reseller credentials and API origin.');
         }
         try {
-            $response = $this->request('GET', $path, null, true);
-            // Only one recovery per read. No blind retries or mutation endpoints.
+            // The only POST read is the fixed /quote calculation above.
+            $method = $calculation === null ? 'GET' : 'POST';
+            $response = $this->request($method, $path, $calculation, true);
+            // One auth recovery per read/calculation; never a business mutation.
             if ($response->status() === 401) {
                 if (! $this->authenticate(true)) {
                     return $this->failure('authentication_failed', 'VPS.TC authentication could not be renewed.');
                 }
-                $response = $this->request('GET', $path, null, true);
+                $response = $this->request($method, $path, $calculation, true);
             }
             if ($response->status() >= 300 && $response->status() < 400) {
                 return $this->failure('redirect_rejected', 'VPS.TC returned a redirect. Verify the API origin.');

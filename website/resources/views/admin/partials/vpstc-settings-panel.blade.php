@@ -76,7 +76,7 @@
 </div>
 <div class="ad-panel">
   <div class="ad-panel-h"><h2>بررسی اتصال و کاتالوگ</h2></div>
-  <p class="vpstc-intro">این بررسی فقط اطلاعات را می‌خواند و سفارش یا پرداختی ایجاد نمی‌کند. شناسه‌های دسته و محصول اختیاری‌اند. تأیید اتصال به معنی آماده‌بودن فروش نیست.</p>
+  <p class="vpstc-intro">این بررسی سفارش یا پرداختی ایجاد نمی‌کند. برای بررسی همهٔ فرم‌های VPS، شناسهٔ دستهٔ VPS را وارد کنید؛ در بررسی کلی فقط چند فرم نمونه خوانده می‌شود. محاسبهٔ آزمایشی قیمت نیز سروری ایجاد نمی‌کند. تأیید اتصال به معنی آماده‌بودن فروش نیست.</p>
   <form class="vpstc-form" method="post" action="{{ route('admin.cloud.vpstc.preflight') }}">
     @csrf @if(!empty($vpstcInline))<input type="hidden" name="return_to" value="infra">@endif
     <div class="vpstc-grid">
@@ -128,6 +128,13 @@
       'product_read_limit_reached' => 'خواندن دسته‌های محصول به سقف ایمن بررسی رسید',
       'product_row_limit_reached' => 'تعداد محصولات به سقف ایمن بررسی رسید',
       'candidate_preview_limit_reached' => 'پیش‌نمایش محصولات به سقف ایمن بررسی رسید',
+      'order_form_read_limit_reached' => 'بررسی همهٔ فرم‌ها به سقف ایمن درخواست رسید',
+      'quote_read_limit_reached' => 'محاسبهٔ قیمت همهٔ محصولات به سقف ایمن درخواست رسید',
+      'credit_payment_method_not_verified' => 'روش پرداخت از اعتبار حساب به‌طور یکتا تأیید نشد',
+      'quote_read_failed' => 'محاسبهٔ قیمت در تأمین‌کننده موفق نبود',
+      'quote_schema_not_verified' => 'ساختار محاسبهٔ قیمت تأیید نشده است',
+      'quote_arithmetic_mismatch' => 'جمع اجزای هزینه با مبلغ کامل محاسبهٔ قیمت همخوان نیست',
+      'quote_raw_unit_not_verified' => 'واحد اعداد خام محاسبهٔ قیمت نیازمند تطبیق با سند حساب است',
     ];
   @endphp
   <div class="ad-panel">
@@ -137,7 +144,7 @@
       <p>این بررسی فروش را فعال نمی‌کند. مشاهدهٔ محصول به معنی تأیید قیمت، تحویل یا چرخهٔ صورتحساب نیست.</p>
       <dl class="vpstc-grid">
         <div><dt>زمان بررسی</dt><dd dir="ltr">{{ $report['checked_at'] ?? '—' }}</dd></div>
-        <div><dt>واحد پول حساب</dt><dd dir="ltr">{{ $report['currency'] ?? 'تأیید نشده' }}</dd></div>
+        <div><dt>واحد پول حساب</dt><dd><span dir="ltr">{{ $report['currency'] ?? 'تأیید نشده' }}</span>@if(($report['currency_source'] ?? '') === 'reviewed_account_contract')<br>با تطبیق سند مالی حساب؛ فیلد ارز API خالی است.@endif</dd></div>
         <div><dt>دسته‌های مشاهده‌شده</dt><dd>{{ $report['categories_seen'] ?? '—' }}</dd></div>
         <div><dt>محصولات مشاهده‌شده</dt><dd>{{ $report['products_seen'] ?? '—' }}</dd></div>
         <div><dt>تعرفه‌های ماهانهٔ مشاهده‌شده</dt><dd>{{ $report['monthly_offers_seen'] ?? '—' }}</dd></div>
@@ -146,6 +153,13 @@
         <div><dt>کارمزد پرداخت تأییدشده</dt><dd>{{ !empty($report['payment_fees_verified']) ? 'بله' : 'خیر؛ مبلغ نامعلوم صفر محسوب نمی‌شود.' }}</dd></div>
         <div><dt>پیمایش دسته‌های فرعی</dt><dd>{{ !empty($report['discovery_complete']) ? 'خواندن فهرست در محدودهٔ بررسی کامل شد.' : 'کامل نشده است.' }}</dd></div>
         <div><dt>فرم سفارش</dt><dd>{{ !empty($report['order_form_checked']) ? 'خوانده شد؛ سفارشی ایجاد نشد.' : 'بررسی نشده است.' }}</dd></div>
+        @if(array_key_exists('order_forms_expected', $report))
+          <div><dt>فرم‌های خوانده‌شده در محدودهٔ بررسی</dt><dd>{{ fa_num($report['order_forms_checked'] ?? 0) }} از {{ fa_num($report['order_forms_expected']) }} — {{ !empty($report['order_forms_complete']) ? 'کامل' : 'ناقص' }}</dd></div>
+        @endif
+        @if(($report['quotes_expected'] ?? 0) > 0)
+          <div><dt>محاسبهٔ آزمایشی قیمت</dt><dd>{{ fa_num($report['quotes_checked'] ?? 0) }} از {{ fa_num($report['quotes_expected']) }}؛ تطبیق جمع هزینه: {{ fa_num($report['quotes_arithmetic_verified'] ?? 0) }}</dd></div>
+          <div><dt>تطبیق قیمت با سند واحد پول حساب</dt><dd>{{ fa_num($report['money_quotes_verified'] ?? 0) }} از {{ fa_num($report['quotes_expected']) }}</dd></div>
+        @endif
       </dl>
       @if(!empty($report['categories']))
         <div class="vpstc-table-wrap"><table class="vpstc-table">
@@ -172,9 +186,9 @@
       @if(!empty($candidatePreview))
         <details open>
           <summary>محصولات مشاهده‌شده و تطبیق قیمت API</summary>
-          <p>این جدول پیش‌نمایش فنی است و پلنی در فروشگاه ایجاد نمی‌کند. اعداد خام دو مسیر API بدون تبدیل نمایش داده می‌شوند؛ واحد پول خالی یا اختلاف مبلغ نیازمند رفع در تأمین‌کننده است. مقدار ماهانه در محصول مصرفی، قیمت ثابت ماهانه محسوب نمی‌شود.</p>
+          <p>این جدول پیش‌نمایش فنی است و پلنی در فروشگاه ایجاد نمی‌کند. اعداد خام دو مسیر API بدون تبدیل نمایش داده می‌شوند؛ اختلاف اعداد به‌تنهایی واحد پول یا نرخ تبدیل را ثابت نمی‌کند. مقدار ماهانه در محصول مصرفی، قیمت ثابت ماهانه محسوب نمی‌شود. مبلغ قابل پرداختِ صفر نیز ممکن است از اعتبار حساب پوشش داده شده باشد و به معنی هزینهٔ صفر نیست.</p>
           <div class="vpstc-table-wrap"><table class="vpstc-table">
-            <thead><tr><th>شناسه / محصول</th><th>دسته</th><th>نوع تعرفه</th><th>مبلغ فهرست API</th><th>مبلغ فرم سفارش API</th><th>تطبیق دو مبلغ</th></tr></thead>
+            <thead><tr><th>شناسه / محصول</th><th>دسته</th><th>نوع تعرفه</th><th>مبلغ خام فهرست API</th><th>مبلغ خام فرم سفارش API</th><th>تطبیق دو مبلغ</th><th>محاسبهٔ آزمایشی قیمت</th></tr></thead>
             <tbody>
               @foreach(array_slice($candidatePreview, 0, 40) as $candidate)
                 @php($effectivePaytype = !empty($candidate['order_checked']) ? ($candidate['order_paytype'] ?? null) : ($candidate['paytype'] ?? null))
@@ -182,9 +196,24 @@
                   <td><span dir="ltr">{{ $candidate['id'] ?? '—' }}</span><br><span dir="auto">{{ $candidate['name'] ?? '—' }}</span></td>
                   <td dir="ltr">{{ $candidate['category_id'] ?? '—' }}</td>
                   <td>{{ $effectivePaytype === 'Regular' ? 'ثابت؛ نیازمند تأیید' : ($effectivePaytype === 'Metered' ? 'مصرفی؛ قابل فروش ثابت نیست' : 'تأیید نشده') }}</td>
-                  <td dir="ltr">{{ $candidate['monthly_price_raw'] ?? '—' }}</td>
-                  <td dir="ltr">{{ $candidate['order_monthly_raw'] ?? '—' }}</td>
-                  <td class="{{ ($candidate['price_match'] ?? null) === false ? 'vpstc-warning' : '' }}">{{ ($candidate['price_match'] ?? null) === true ? 'برابر؛ سایر شرایط بررسی شود' : (($candidate['price_match'] ?? null) === false ? 'ناسازگار؛ فروش بسته می‌ماند' : 'فرم تطبیق داده نشده') }}</td>
+                  <td dir="ltr">{{ $candidate['monthly_price_raw'] ?? '—' }}@if(!empty($candidate['raw_unit_verified']))<br>{{ $candidate['catalog_raw_unit'] ?? '' }}@endif</td>
+                  <td dir="ltr">{{ $candidate['order_monthly_raw'] ?? '—' }}@if(!empty($candidate['raw_unit_verified']))<br>{{ $candidate['order_raw_unit'] ?? '' }}@endif</td>
+                  <td class="{{ ($candidate['price_match'] ?? null) === false && empty($candidate['price_normalized_match']) ? 'vpstc-warning' : '' }}">{{ !empty($candidate['price_normalized_match']) ? 'با سند واحد پول حساب تطبیق شد؛ آمادگی تحویل جداگانه بررسی می‌شود.' : (($candidate['price_match'] ?? null) === true ? 'برابر؛ سایر شرایط بررسی شود' : (($candidate['price_match'] ?? null) === false ? 'اعداد متفاوت؛ سند واحد پول لازم است' : 'فرم خوانده نشده یا قیمت تأیید نشده')) }}</td>
+                  <td>
+                    @if(!empty($candidate['quote_checked']) && is_array($candidate['quote_diagnostics'] ?? null))
+                      @php($diagnostic = $candidate['quote_diagnostics'])
+                      هزینهٔ کامل خام: <span dir="ltr">{{ $diagnostic['gross_raw'] ?? '—' }}</span><br>
+                      {{ !empty($diagnostic['arithmetic_match']) ? 'جمع اجزای هزینه همخوان است.' : 'جمع اجزای هزینه نیازمند بررسی است.' }}<br>
+                      @if(($diagnostic['payment_coverage'] ?? '') === 'covered_by_credit')از اعتبار حساب پوشش داده می‌شود؛ رایگان نیست.<br>@endif
+                      {{ !empty($diagnostic['unit_verified']) ? 'واحد پول تأیید شده است.' : 'واحد عدد خام تأیید نشده است.' }}
+                      @if(is_array($candidate['money_evidence'] ?? null))
+                        <br>هزینهٔ کامل با مالیات: <span dir="ltr">{{ $candidate['money_evidence']['total_amount'] ?? '—' }} {{ $candidate['money_evidence']['currency'] ?? '' }}</span>
+                        @if(empty($candidate['money_evidence']['configuration_verified']))<br>این محاسبه مربوط به انتخاب‌های پیش‌فرض تأمین‌کننده است؛ همهٔ گزینه‌ها تأیید نشده‌اند.@endif
+                      @endif
+                    @else
+                      محاسبه نشده
+                    @endif
+                  </td>
                 </tr>
               @endforeach
             </tbody>

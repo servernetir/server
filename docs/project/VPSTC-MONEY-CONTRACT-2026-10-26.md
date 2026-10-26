@@ -1,0 +1,42 @@
+# VPS.tc account money contract and full VPS diagnostics — 26 October 2026
+
+## Purpose and current boundary
+
+The owner requested continuation of the incomplete account preview, not a speculative currency conversion. This follow-up reconciles the supplier's two numeric units using reviewed account evidence, expands explicit VPS-category diagnostics to every monthly form, protects the full procurement cost when credit is consumed, and checks existing invoices before a renewal mutation. New supplier sales remain closed until catalog, network and paid lifecycle acceptance are complete. No order, payment, renewal, power or cancellation request was made for this follow-up.
+
+The prior UI and central TRY release is recorded in [infrastructure settings and pricing](INFRASTRUCTURE-SETTINGS-PRICING-2026-10-26.md). Its later global price recovery completed successfully at 13:14:33 UTC with 2,568 rows repriced and a current proof for verified suppliers; VPS.tc and LightNode were excluded.
+
+## Evidence and units
+
+Read-only account checks confirmed all 16 Regular/PrePay monthly VPS forms. The category numeric price is in the account's TRY display unit, whereas the order/calculation raw numeric price is in the supplier's USD base unit. That interpretation is accepted only by the separate account-bound money contract, not by reading a symbol or dividing two prices:
+
+- [Official public product page](https://www.vps.tc/en/vps), SHA-256 `fd9911b1edd124e10934566ebdb87e557bbed84a8952451e438a7a87de83bfbe`, explicitly associates product 351 with USD 2.79 and TRY 125.55. Its public cart script identifies the portal's USD and TRY selectors; those UI parameters are not invented API parameters.
+- A freshly read existing Paid invoice states TRY, conversion multiplier 45, net 125.55, tax 25.11 and gross 150.66. Its due amount is zero because 150.66 was consumed from account credit. A single Hosting line links it to the reviewed monthly parent service. Its private invoice/service IDs, full financial digest and nonsecret service projection are stored only in an encrypted production setting.
+- The read-only calculated quote for that product reports base subtotal 2.79, 20% KDV tax, gross 3.348, monthly recurring gross 3.348 and no setup/discount. Both net and gross multiplied by the reviewed multiplier reconcile with the actual TRY invoice.
+- Account `balance.details.currency` remains literally empty and `/payment/fees` still returns `Array`. These upstream defects are not relabelled as fixed. A blank currency can be resolved only by fresh account-bound invoice/service evidence. Exact quote reconciliation can establish the cost of one selected configuration; it does not establish a universal payment-fee schedule.
+
+The multiplier is supplier account conversion evidence, not Navasan's TRY/toman rate and not a general market exchange rate. Fresh category/form/calculated-price agreement is required on every normalized quote. A changed account, anchor, tax, unit, rate, product, setup, option cost, summary field or form closes the affected offer. Literal decimal strings stay exact; only JSON floating-point representation noise is canonicalized to eight places. A real difference of 0.00000001 is not erased.
+
+## Runtime behavior
+
+- `VpsTcApi::quote()` calculates exactly one monthly product at the fixed `POST /api/quote` endpoint. IDs, hostname and payload size are bounded before authentication; one 401 refresh repeats only the same calculation. Wrong product identity and top/item/summary failure flags are rejected. No order or credit mutation is retried through this path.
+- `VpsTcMoneyContract` loads the encrypted account-bound evidence and re-reads the anchor invoice and monthly service. It checks currency, rate, gross arithmetic, item/service binding and reviewed source provenance. It normalizes the current category, form and full computed quote, including credit, tax, recurring gross and selected option echoes. Diagnostic defaults are distinguished from an explicitly verified order configuration.
+- `VpsTcInvoiceAmounts` requires subtotal plus both taxes to equal due plus credit, and validates numeric `grandtotal` when present. Procurement ceilings cover the full gross, including credit already consumed. Unexplained discounts, inconsistent totals and excessive gross are rejected. A zero due amount does not itself prove Paid status. Credit payment uses the explicit positive remaining due only after native invoice/status/currency linkage is checked.
+- Explicit category diagnostics read up to 32 forms and calculate up to 16 monthly VPS quotes. Coverage counts distinguish expected, attempted, parsed and money-verified results. The ordinary global preview remains bounded to three representative forms with no default calculations. No diagnostic imports a plan, enables sales, or changes a resource or setting.
+- A renewal scans complete invoice headers and bounded open-invoice details before submitting. An existing open Hosting line for the parent, including a mixed invoice, stops for reconciliation. It never automatically adopts an invoice without proof of the billed period. This cannot make an external supplier cron/operator race atomic; account-specific manual billing acceptance remains mandatory.
+
+## Observed options and availability
+
+All 16 observed forms have `out_of_stock=false`; the opposite-boolean interpretation must be explicitly mapped. `stock=false` and `qty=0` are not substituted for that field.
+
+Additional storage has a zero-unit default and a nonzero unit price. Backups have a zero-unit default and a nonzero unit price. Snapshots have a minimum/default of two and charge for additional units. The reviewed mapping must retain the exact included baseline, `dontchargedefault`, form hash and a full zero-extra computed quote; a paid per-unit price is never called universally free. Product 2171 also contains a separate native `servergroupselector` location field. Linux and Windows choices being listed at zero does not establish licensing rights or successful provisioning for every OS.
+
+Istanbul offers have finite advertised transfer allowances; a hard cap/no-overage contract is still needed before sale. New York advertises Unlimited/10 Gbit; that wording is not silently upgraded into proof of every network term. Console, OS replacement, password reset, snapshots and other optional actions remain subject to the [capability/cost matrix](VPSTC-CAPABILITIES-2026-10-26.md).
+
+## Release and acceptance
+
+The scoped release wrapper pins core SHA-256 `00d016eb781d37d31f14e1c57afd386321b308060c7f06e9d111f2c4636638de` and installed source base `ffa7205fc48a524af814586ccfa66683496fee85`. Exactly nine runtime paths are permitted. The two new helpers install before their callers. It retains shared release locks, private backups, lint, approved plan hash, atomic writes, three-way drift preservation and newer-file-safe rollback. It performs no application, API, setting, cache or cron action. Four focused offline release tests passed.
+
+Final source validation on PHP 8.4.27: **369 tests / 4,762 assertions passed** across all VPS.tc suites, Navasan/TRY and FetchDollar, catalog repricing/LightNode recovery, equivalent-offer and explicit-alias selection, infrastructure settings/forms, payment callbacks and complimentary services. Only the named pre-existing `NavasanRateConsumersTest::test_domain_cache_is_invalidated_by_a_changed_exchange_snapshot` was excluded; its unchanged-baseline failure is documented in the earlier infrastructure release. Nine runtime files linted cleanly. Four offline scoped release tests passed. Independent SDK, financial, renewal and actual quote-envelope reviews were performed.
+
+Production acceptance is recorded after the scoped installation. Private live evidence and account identifiers are intentionally not copied into this public repository. Financial settings, margin, network acceptance and a real owner-approved test remain separate from installing code.

@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Services\Cloud\VpsTcApi;
 use App\Services\Cloud\VpsTcCatalog;
 use App\Services\Cloud\VpsTcPricing;
+use App\Services\Cloud\VpsTcMoneyContract;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
@@ -22,6 +23,9 @@ class VpsTcCatalogTest extends TestCase
     private array $payments;
     private array $fees;
     private array $categoryProducts;
+    private array $anchorInvoice = [];
+    private array $anchorService = [];
+    private array $calculation = [];
     private string $currency = 'USD';
 
     protected function setUp(): void
@@ -53,6 +57,9 @@ class VpsTcCatalogTest extends TestCase
                 'https://portal.vps.tc/api/balance' => Http::response(['details' => ['currency' => $this->currency, 'acc_credit' => '100.00', 'acc_balance' => '0']]),
                 'https://portal.vps.tc/api/order/12' => Http::response(['product' => $this->product]),
                 'https://portal.vps.tc/api/category/56/product' => Http::response(['products' => $this->categoryProducts]),
+                'https://portal.vps.tc/api/invoice/91' => Http::response(['invoice' => $this->anchorInvoice]),
+                'https://portal.vps.tc/api/service/301' => Http::response(['service' => $this->anchorService]),
+                'https://portal.vps.tc/api/quote' => Http::response($this->calculation),
                 'https://portal.vps.tc/api/payment' => Http::response(['payments' => $this->payments]),
                 'https://portal.vps.tc/api/payment/fees' => Http::response(['payments' => $this->fees]),
                 default => Http::response(['error' => 'Unknown fixture endpoint'], 404),
@@ -82,6 +89,48 @@ class VpsTcCatalogTest extends TestCase
     {
         Setting::put('vpstc_catalog_manifest', json_encode(['account_fingerprint' => $account ?? $this->api->accountFingerprint(),
             'products' => [$mapping ?? $this->mapping()]], JSON_THROW_ON_ERROR));
+    }
+
+    private function converted(array $overrides = []): void
+    {
+        Setting::put('vpstc_currency', 'TRY'); Setting::put('vpstc_fx_rate_toman', '5000');
+        $this->currency = '';
+        $this->product['setup'] = 0;
+        $this->product['description'] = '<p>Reviewed CPU/RAM/DISK/NETWORK/LOCATION terms</p>';
+        $this->product['out_of_stock'] = false;
+        $this->product['config']['product'][0]['items'][0] = ['value' => 'm', 'price' => '2.79', 'setup' => 0, 'formatted' => '₺125.55 Monthly'];
+        $this->categoryProducts[0]['periods'][0] = ['value' => 'm', 'price' => '125.55', 'setup' => 0, 'formatted' => '₺125.55 Monthly'];
+        $this->fees = [['id' => 120, 'fixed_fee' => 'Array', 'percent_fee' => 'Array']];
+        $this->anchorService = ['id' => '301', 'name' => 'Reviewed VPS', 'billingcycle' => 'Monthly', 'date_created' => '2026-01-01'];
+        $this->anchorInvoice = ['id' => '91', 'status' => 'Paid', 'currency' => 'TRY', 'rate' => '45', 'subtotal' => '125.55',
+            'tax' => '25.11', 'tax2' => '0', 'grandtotal' => '150.66', 'credit' => '150.66', 'total' => '0', 'discounts' => [],
+            'items' => [['type' => 'Hosting', 'item_id' => '301', 'qty' => '1.00']]];
+        Setting::putSecret(VpsTcMoneyContract::KEY, json_encode(['version' => 1, 'account_fingerprint' => $this->api->accountFingerprint(),
+            'base_currency' => 'USD', 'account_currency' => 'TRY', 'multiplier' => '45', 'payment_method' => '120',
+            'source' => ['kind' => 'reviewed_portal_currency_table', 'sha256' => str_repeat('a', 64), 'reviewed_at' => now()->toIso8601String(),
+                'url' => 'https://www.vps.tc/en/vps',
+                'product_id' => '12', 'base_price' => '2.79', 'native_price' => '125.55'],
+            'anchor' => ['invoice_id' => '91', 'service_id' => '301', 'product_id' => '12', 'cycle' => 'm', 'base_price' => '2.79', 'tax_percent' => '20',
+                'financial_sha256' => VpsTcMoneyContract::financialFingerprint($this->anchorInvoice),
+                'service_sha256' => VpsTcMoneyContract::serviceFingerprint($this->anchorService)]], JSON_THROW_ON_ERROR));
+        $mapping = $this->mapping(array_replace(['terms_sha256' => VpsTcCatalog::termsFingerprint($this->product),
+            'availability' => ['path' => 'out_of_stock', 'mode' => 'boolean_false']], $overrides));
+        $custom = array_replace_recursive($mapping['custom'], $mapping['images']['12|ubuntu-24.04']['custom']);
+        $echo = $this->product;
+        $echo['domain'] = 'preflight-12.example.invalid';
+        $echo['config']['product'][0] = ['id' => 'cycle', 'value' => 'm', 'price' => '2.79', 'setup' => 0];
+        $echo['config']['forms'] = [];
+        foreach ($custom as $id => $value) {
+            $echo['config']['forms'][] = ['id' => (string) $id, 'value' => $value, 'price' => 0, 'recurring_price' => 0, 'setup' => 0];
+        }
+        $this->calculation = ['summary' => ['subtotal' => '2.79', 'cost' => '2.79', 'setup_fee' => 0, 'discount' => 0,
+            'credit' => 3.348, 'total' => 0, 'recurring_discount' => [],
+            'tax' => [['name' => 'KDV', 'tax' => 0.5579999999999999, 'value' => 20]],
+            'recurring' => [['value' => 'm', 'price' => 3.348]]], 'items' => [['index' => 0, 'valid' => true, 'error' => [], 'coupon' => [], 'product' => $echo,
+                'domains' => ['preflight-12.example.invalid' => ['category_id' => null, 'category_name' => null, 'config' => [], 'id' => null,
+                    'name' => 'preflight-12.example.invalid', 'nameservers' => [], 'period' => 0, 'price' => 0,
+                    'recurring_price' => null, 'setup' => 0, 'tld' => '', 'type' => 'hostname']]]]];
+        $this->save($mapping);
     }
 
     public function test_absent_or_different_account_mapping_cannot_import_an_offer(): void
@@ -393,5 +442,97 @@ class VpsTcCatalogTest extends TestCase
         $this->categoryProducts = [];
         $this->assertNull($this->catalog->quote('12'));
         Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET' && ! str_ends_with($request->url(), '/login'));
+    }
+
+    public function test_reviewed_unit_proof_uses_native_category_cost_and_current_exact_computed_configuration(): void
+    {
+        $this->converted();
+        $quote = $this->catalog->quote('12');
+        $this->assertNotNull($quote);
+        $this->assertSame('125.55', $quote['monthly_amount']);
+        $this->assertSame('150.66', $quote['total_amount']);
+        $this->assertSame(396, $quote['cost_eur_cents']);
+        $this->assertTrue($quote['in_stock']);
+        $this->product['out_of_stock'] = true;
+        $this->assertFalse($this->catalog->quote('12')['in_stock']);
+        Http::assertNotSent(fn (Request $request) => $request->method() === 'POST'
+            && ! str_ends_with($request->url(), '/login') && ! str_ends_with($request->url(), '/quote'));
+    }
+
+    public function test_paid_unit_is_free_only_at_the_reviewed_included_baseline_with_a_zero_cost_echo(): void
+    {
+        $this->product['config']['forms'][] = ['id' => '45', 'type' => 'slider', 'price' => 0, 'recurring_price' => 0, 'setup' => 0,
+            'config' => ['minvalue' => '2', 'maxvalue' => '100', 'initialval' => '2', 'dontchargedefault' => '1'],
+            'items' => [['id' => '124', 'value' => 2, 'price' => 0.5, 'unit_price' => 0.5, 'setup' => 0]]];
+        $this->converted(['custom' => ['45' => ['124' => 2]], 'included_quantities' => ['45' => ['124' => 2]]]);
+        $this->assertNotNull($this->catalog->quote('12'));
+        $this->calculation['items'][0]['product']['config']['forms'][1]['value']['124'] = 3;
+        $this->assertNull($this->catalog->quote('12'));
+        $this->calculation['items'][0]['product']['config']['forms'][1]['value']['124'] = 2;
+        $this->calculation['items'][0]['product']['config']['forms'][1]['price'] = '0.5';
+        $this->assertNull($this->catalog->quote('12'));
+    }
+
+    public function test_description_unit_tax_anchor_or_default_review_change_closes_normalized_offer(): void
+    {
+        $this->converted();
+        $this->product['description'] .= '<p>Changed resources</p>';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->converted();
+        $this->product['config']['product'][0]['items'][0]['formatted'] = '$2.79 Monthly';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->converted();
+        Setting::put('vpstc_supplier_tax_pct', '0');
+        $this->assertNull($this->catalog->quote('12'));
+        Setting::put('vpstc_supplier_tax_pct', '20');
+        $this->anchorInvoice['rate'] = '46';
+        $this->assertNull($this->catalog->quote('12'));
+    }
+
+    public function test_price_identity_is_stable_when_only_credit_coverage_changes(): void
+    {
+        $this->converted();
+        $first = $this->catalog->quote('12');
+        $this->calculation['summary']['total'] = 3.348;
+        $this->calculation['summary']['credit'] = 0;
+        $next = $this->catalog->quote('12');
+        $this->assertSame($first['fingerprint'], $next['fingerprint']);
+        $this->assertSame($first['total_amount'], $next['total_amount']);
+        $this->assertNotSame($first['calculation_sha256'], $next['calculation_sha256']);
+    }
+
+    public function test_only_the_single_zero_cost_hostname_wrapper_is_accepted(): void
+    {
+        $this->converted();
+        $this->assertNotNull($this->catalog->quote('12'));
+        $this->calculation['items'][0]['domains']['preflight-12.example.invalid']['price'] = '0.01';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->calculation['items'][0]['domains']['preflight-12.example.invalid']['price'] = 0;
+        $this->calculation['items'][0]['domains']['preflight-12.example.invalid']['type'] = 'register';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->converted();
+        $this->calculation['items'][0]['index'] = 1;
+        $this->assertNull($this->catalog->quote('12'));
+    }
+
+    public function test_zero_quantity_paid_storage_and_backup_require_reviewed_default_and_echo_evidence(): void
+    {
+        $this->product['config']['forms'][] = ['id' => '45', 'type' => 'slider', 'price' => 0, 'recurring_price' => 0, 'setup' => 0,
+            'config' => ['minvalue' => '2', 'maxvalue' => '100', 'initialval' => '2', 'dontchargedefault' => '1'],
+            'items' => [['id' => '124', 'value' => 2, 'price' => '0.5', 'setup' => 0]]];
+        foreach (['46' => ['item' => '126', 'unit' => '0.1'], '47' => ['item' => '127', 'unit' => '1']] as $id => $option) {
+            $this->product['config']['forms'][] = ['id' => (string) $id, 'type' => 'qty', 'price' => 0, 'recurring_price' => 0, 'setup' => 0,
+                'config' => ['minvalue' => '0', 'maxvalue' => '100', 'initialval' => '0', 'dontchargedefault' => '1'],
+                'items' => [['id' => $option['item'], 'value' => 0, 'price' => $option['unit'], 'setup' => 0]]];
+        }
+        $this->converted(['custom' => ['45' => ['124' => 2], '46' => ['126' => 0], '47' => ['127' => 0]],
+            'included_quantities' => ['45' => ['124' => 2], '46' => ['126' => 0], '47' => ['127' => 0]]]);
+        $this->assertNotNull($this->catalog->quote('12'));
+        $this->assertCount(4, $this->calculation['items'][0]['product']['config']['forms']);
+        $this->calculation['items'][0]['product']['config']['forms'][0]['unknown_fee'] = '0.001';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->converted(['custom' => ['46' => ['126' => 0], '47' => ['127' => 0]],
+            'included_quantities' => ['46' => ['126' => 0]]]);
+        $this->assertNull($this->catalog->quote('12'));
     }
 }

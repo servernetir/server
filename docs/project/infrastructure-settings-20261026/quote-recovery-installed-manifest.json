@@ -1,0 +1,25 @@
+{
+  "base": "fb791fc47e1133d18be1c1d0583a435175d2db77",
+  "target": "ffa7205fc48a524af814586ccfa66683496fee85",
+  "plan_sha256": "3caa669c6dce5d95272a43136a0389a8e4bf5225b27f33517a2abf8938ffee39",
+  "files": [
+    {
+      "after_mode": 420,
+      "after_sha256": "fbc6b2aeb1adfbb2277c0e8c0415c23bd60c029e6cb2fb84ba0f7214278d3eb1",
+      "before_mode": 420,
+      "before_sha256": "d3bea1031173dcaf1fff844a5d28348c963df8012e104d16c5b147a6d5d21fb6",
+      "change": true,
+      "path": "app/Services/Cloud/CloudCatalogRepricer.php",
+      "preserved_live_drift": false,
+      "source_base_sha256": "d3bea1031173dcaf1fff844a5d28348c963df8012e104d16c5b147a6d5d21fb6",
+      "source_target_sha256": "fbc6b2aeb1adfbb2277c0e8c0415c23bd60c029e6cb2fb84ba0f7214278d3eb1"
+    }
+  ],
+  "receipt": {
+    "application_activation": "not_performed",
+    "files_installed": 1,
+    "plan_sha256": "3caa669c6dce5d95272a43136a0389a8e4bf5225b27f33517a2abf8938ffee39",
+    "status": "installed",
+    "target": "ffa7205fc48a524af814586ccfa66683496fee85"
+  }
+}

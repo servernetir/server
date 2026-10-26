@@ -28,6 +28,7 @@ use Tests\TestCase;
 class VpsTcRenewalTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\VpsTcMoneyContractFixture;
 
     protected function setUp(): void
     {
@@ -87,17 +88,22 @@ class VpsTcRenewalTest extends TestCase
 
     private function bill(string $status = 'Paid', string $sid = '301', string $total = '120.00'): array
     {
-        return ['invoice' => ['id' => '777', 'currency' => 'TRY', 'status' => $status, 'total' => $total,
+        return ['invoice' => ['id' => '777', 'currency' => 'TRY', 'status' => $status,
+            'total' => $status === 'Paid' ? '0.00' : $total, 'credit' => $status === 'Paid' ? $total : '0.00',
+            'subtotal' => '100.00', 'tax' => '20.00', 'tax2' => '0.00',
             'items' => [['type' => 'Hosting', 'item_id' => $sid, 'qty' => '1.00', 'linetotal' => '100.00']]]];
     }
 
     private function supplier(array $overrides = [], bool $advanced = true): void
     {
+        Http::swap(new \Illuminate\Http\Client\Factory());
+        Http::preventStrayRequests();
         $service = fn ($due) => ['service' => ['id' => '301', 'total' => '100.00', 'billingcycle' => 'Monthly', 'next_due' => $due, 'status' => 'Active']];
         Http::fake($overrides + [
             'https://portal.vps.tc/api/login' => Http::response(['token' => 'fixture-token']),
             'https://portal.vps.tc/api/service/301' => Http::sequence()->push($service('2026-10-30'))->push($service($advanced ? '2026-11-30' : '2026-10-30')),
             'https://portal.vps.tc/api/balance' => Http::response(['details' => ['currency' => 'TRY', 'acc_credit' => '1000.00', 'acc_balance' => '0.00']]),
+            'https://portal.vps.tc/api/invoice' => Http::response(['invoices' => []]),
             'https://portal.vps.tc/api/service/301/renew' => Http::response(['status' => true, 'invoice_id' => '777']),
             'https://portal.vps.tc/api/invoice/777' => Http::response($this->bill()),
         ]);
@@ -126,7 +132,7 @@ class VpsTcRenewalTest extends TestCase
         $this->assertSame('2026-11-30', $service->fresh()->next_due_at->toDateString());
         $this->assertFalse($renewal->pending($service->fresh()));
         $this->assertSame('done', CloudProviderOperation::where('action', 'renew')->sole()->state);
-        Http::assertSentCount(6);
+        Http::assertSentCount(7);
         Http::assertSent(fn ($r) => $r->method() === 'POST' && str_ends_with($r->url(), '/service/301/renew'));
     }
 
@@ -157,7 +163,7 @@ class VpsTcRenewalTest extends TestCase
         $this->assertSame('unknown', CloudProviderOperation::where('action', 'renew')->sole()->state);
         $this->assertSame('2026-10-30', $service->fresh()->next_due_at->toDateString());
         $this->assertSame(1, $attempts);
-        Http::assertSentCount(3);
+        Http::assertSentCount(4);
     }
 
     public function test_foreign_service_invoice_is_never_paid_or_used_as_renewal_proof(): void
@@ -182,7 +188,8 @@ class VpsTcRenewalTest extends TestCase
         $renewal->queue($service, $invoice);
         $this->assertTrue($renewal->process($invoice));
         $this->assertTrue($renewal->process($invoice));
-        Http::assertSentCount(8);
+        Http::assertSentCount(10);
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/credit') && $r['amount'] === '120.00');
     }
 
     public function test_insufficient_credit_blocks_renew_before_financial_request(): void
@@ -251,7 +258,7 @@ class VpsTcRenewalTest extends TestCase
         $this->assertTrue($renewal->process($invoice));
         $this->assertFalse($renewal->process($second));
         $this->assertSame('2026-11-30', $service->fresh()->next_due_at->toDateString());
-        Http::assertSentCount(6);
+        Http::assertSentCount(7);
     }
 
     public function test_ancillary_invoice_linked_to_a_server_does_not_buy_a_renewal(): void
@@ -341,5 +348,205 @@ class VpsTcRenewalTest extends TestCase
         $this->assertFalse($renewal->process($invoice));
         $this->assertSame('supplier_renewal_contract_not_verified', CloudProviderOperation::where('action', 'renew')->sole()->payload['last_issue']);
         Http::assertNotSent(fn ($r) => $r->method() === 'POST' && str_ends_with($r->url(), '/renew'));
+    }
+
+    public function test_zero_due_paid_supplier_bill_over_gross_cap_cannot_extend_retail_period(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $bill = $this->bill();
+        $bill['invoice'] = array_replace($bill['invoice'], ['total' => '0.00', 'credit' => '144.00',
+            'subtotal' => '120.00', 'tax' => '24.00', 'grandtotal' => '144.00']);
+        $this->supplier(['https://portal.vps.tc/api/invoice/777' => Http::response($bill)]);
+        $renewal = app(VpsTcRenewal::class);
+        $renewal->queue($service, $invoice);
+        $this->assertFalse($renewal->process($invoice));
+        $this->assertSame('2026-10-30', $service->fresh()->next_due_at->toDateString());
+        $this->assertSame('supplier_invoice_not_verified', CloudProviderOperation::where('action', 'renew')->sole()->payload['last_issue']);
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/credit'));
+    }
+
+    public function test_partially_credited_bill_only_applies_the_exact_verified_remaining_due(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $unpaid = $this->bill('Unpaid');
+        $unpaid['invoice'] = array_replace($unpaid['invoice'], ['total' => '60.00', 'credit' => '60.00', 'grandtotal' => '120.00']);
+        $this->supplier([
+            'https://portal.vps.tc/api/invoice/777' => Http::sequence()->push($unpaid)->push($this->bill()),
+            'https://portal.vps.tc/api/invoice/777/credit' => Http::response(['status' => true]),
+        ]);
+        $renewal = app(VpsTcRenewal::class);
+        $renewal->queue($service, $invoice);
+        $this->assertTrue($renewal->process($invoice));
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/credit') && $r['amount'] === '60.00');
+        $this->assertSame('60.00', CloudProviderOperation::where('action', 'renew')->sole()->payload['credit_amount']);
+    }
+
+    public function test_unpaid_zero_due_waits_for_paid_proof_without_another_credit_debit(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $bill = $this->bill(); $bill['invoice']['status'] = 'Unpaid';
+        $this->supplier(['https://portal.vps.tc/api/invoice/777' => Http::response($bill)]);
+        $renewal = app(VpsTcRenewal::class);
+        $renewal->queue($service, $invoice);
+        $this->assertFalse($renewal->process($invoice));
+        $this->assertSame('2026-10-30', $service->fresh()->next_due_at->toDateString());
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/credit'));
+    }
+
+    public function test_existing_open_parent_invoice_even_when_mixed_blocks_new_renewal(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $existing = $this->bill('Unpaid'); $existing['invoice']['id'] = '888';
+        $existing['invoice']['items'][] = ['type' => 'Other', 'item_id' => '0', 'qty' => '1'];
+        $this->supplier([
+            'https://portal.vps.tc/api/invoice' => Http::response(['invoices' => [['id' => '888', 'status' => 'Unpaid']]]),
+            'https://portal.vps.tc/api/invoice/888' => Http::response($existing),
+            'https://portal.vps.tc/api/service/301' => Http::response(['service' => ['id' => '301', 'total' => '100.00',
+                'billingcycle' => 'Monthly', 'next_due' => '2026-10-30', 'status' => 'Active']]),
+        ]);
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        $this->assertFalse($renewal->process($invoice));
+        $this->assertFalse($renewal->process($invoice));
+        $op = CloudProviderOperation::where('action', 'renew')->sole();
+        $this->assertSame('prepared', $op->state);
+        $this->assertSame('supplier_existing_invoice_needs_reconciliation', $op->payload['last_issue']);
+        $this->assertSame('2026-10-30', $service->fresh()->next_due_at->toDateString());
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/renew') || str_ends_with($r->url(), '/credit'));
+    }
+
+    public function test_every_open_header_is_read_and_closed_headers_do_not_need_details(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $unrelated = $this->bill('Unpaid', '302'); $unrelated['invoice']['id'] = '888';
+        $this->supplier([
+            'https://portal.vps.tc/api/invoice' => Http::response(['invoices' => [
+                ['id' => '886', 'status' => 'Paid'], ['id' => '887', 'status' => 'Cancelled'], ['id' => '888', 'status' => 'Unpaid'],
+            ], 'total_count' => '3']),
+            'https://portal.vps.tc/api/invoice/888' => Http::response($unrelated),
+        ]);
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        $this->assertTrue($renewal->process($invoice));
+        $this->assertTrue($renewal->process($invoice));
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/invoice/888'));
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/invoice/886') || str_ends_with($r->url(), '/invoice/887'));
+        $this->assertSame(1, Http::recorded(fn ($r) => str_ends_with($r->url(), '/renew'))->count());
+    }
+
+    public function test_incomplete_duplicate_unknown_or_unbounded_invoice_inventory_never_renews(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        $invalid = [
+            ['invoices' => [], 'has_more' => true], ['invoices' => [], 'pagination' => ['page' => 1]],
+            ['invoices' => [], 'total_count' => '1'], ['invoices' => ['id' => '888', 'status' => 'Paid']],
+            ['invoices' => [['id' => '888', 'status' => 'Paid'], ['id' => '888', 'status' => 'Unpaid']]],
+            ['invoices' => [['id' => '../888', 'status' => 'Unpaid']]],
+            ['invoices' => [['id' => '888', 'status' => 'Refunded']]],
+            ['invoices' => [['id' => '888', 'status' => 'Unpaid', 'merge_id' => '889']]],
+            ['invoices' => array_map(fn ($id) => ['id' => (string) $id, 'status' => 'Unpaid'], range(1, 33))],
+        ];
+        foreach ($invalid as $inventory) {
+            $this->supplier(['https://portal.vps.tc/api/invoice' => Http::response($inventory)]);
+            $this->assertFalse($renewal->process($invoice));
+            $this->assertSame('prepared', CloudProviderOperation::where('action', 'renew')->sole()->state);
+            Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/renew') || str_ends_with($r->url(), '/credit'));
+        }
+        $this->supplier(['https://portal.vps.tc/api/invoice' => Http::response([], 500)]);
+        $this->assertFalse($renewal->process($invoice));
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/renew'));
+        $this->assertSame('2026-10-30', $service->fresh()->next_due_at->toDateString());
+    }
+
+    public function test_unreadable_or_mismatched_open_invoice_details_never_renew(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        $valid = $this->bill('Unpaid', '302')['invoice']; $valid['id'] = '888';
+        foreach ([['id' => '889'], ['status' => 'Paid'], ['items' => []], ['items' => 'Array'],
+            ['items' => [['type' => 'Hosting', 'item_id' => '302', 'qty' => 'Array']]]] as $change) {
+            $this->supplier([
+                'https://portal.vps.tc/api/invoice' => Http::response(['invoices' => [['id' => '888', 'status' => 'Unpaid']]]),
+                'https://portal.vps.tc/api/invoice/888' => Http::response(['invoice' => array_replace($valid, $change)]),
+            ]);
+            $this->assertFalse($renewal->process($invoice));
+            Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/renew') || str_ends_with($r->url(), '/credit'));
+        }
+    }
+
+    public function test_blank_balance_currency_requires_fresh_anchor_for_both_reserve_and_credit(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $proofResponses = $this->reviewedMoneyContract();
+        $snapshot = app(CloudPricingSnapshot::class);
+        $snapshot->publish($snapshot->rates(), [], ['vpstc' => app(VpsTcPricing::class)->fingerprint()]);
+        $this->supplier([
+            'https://portal.vps.tc/api/balance' => Http::response(['details' => ['currency' => '', 'acc_credit' => '1000.00']]),
+            'https://portal.vps.tc/api/invoice/777' => Http::sequence()->push($this->bill('Unpaid'))->push($this->bill()),
+            'https://portal.vps.tc/api/invoice/777/credit' => Http::response(['status' => true]),
+        ] + $proofResponses);
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        $this->assertTrue($renewal->process($invoice), json_encode(CloudProviderOperation::where('action', 'renew')->sole()->payload));
+        $this->assertSame('2026-11-30', $service->fresh()->next_due_at->toDateString());
+        $this->assertSame(2, Http::recorded(fn ($r) => str_ends_with($r->url(), '/invoice/9001'))->count());
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/credit') && $r['amount'] === '120.00');
+    }
+
+    public function test_missing_changed_account_or_stale_anchor_proof_blocks_blank_currency_renewal(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $proofResponses = $this->reviewedMoneyContract();
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        foreach (['missing', 'account', 'anchor'] as $failure) {
+            $this->saveMoneyContract();
+            if ($failure === 'missing') { Setting::putSecret(\App\Services\Cloud\VpsTcMoneyContract::KEY, null); }
+            if ($failure === 'account') {
+                $this->moneyProof['account_fingerprint'] = str_repeat('b', 64); $this->saveMoneyContract();
+                $this->moneyProof['account_fingerprint'] = app(\App\Services\Cloud\VpsTcApi::class)->accountFingerprint();
+            }
+            if ($failure === 'anchor') { $this->moneyAnchorService['name'] = 'Changed service identity'; }
+            $snapshot = app(CloudPricingSnapshot::class);
+            $snapshot->publish($snapshot->rates(), [], ['vpstc' => app(VpsTcPricing::class)->fingerprint()]);
+            $this->supplier(['https://portal.vps.tc/api/balance' => Http::response(['details' => ['currency' => '', 'acc_credit' => '1000.00']])] + $proofResponses);
+            $this->assertFalse($renewal->process($invoice));
+            $this->assertSame('supplier_credit_required', CloudProviderOperation::where('action', 'renew')->sole()->payload['last_issue']);
+            Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/renew') || str_ends_with($r->url(), '/credit'));
+        }
+        $this->assertSame('2026-10-30', $service->fresh()->next_due_at->toDateString());
+    }
+
+    public function test_anchor_changed_between_reservation_and_credit_is_not_reused(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $proofResponses = $this->reviewedMoneyContract();
+        $snapshot = app(CloudPricingSnapshot::class);
+        $snapshot->publish($snapshot->rates(), [], ['vpstc' => app(VpsTcPricing::class)->fingerprint()]);
+        $balances = 0;
+        $this->supplier([
+            'https://portal.vps.tc/api/balance' => function () use (&$balances) {
+                if (++$balances === 2) { $this->moneyAnchorService['name'] = 'Changed reviewed service'; }
+                return Http::response(['details' => ['currency' => '', 'acc_credit' => '1000.00']]);
+            },
+            'https://portal.vps.tc/api/invoice/777' => Http::response($this->bill('Unpaid')),
+        ] + $proofResponses);
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        $this->assertFalse($renewal->process($invoice));
+        $this->assertSame('accepted', CloudProviderOperation::where('action', 'renew')->sole()->state);
+        $this->assertSame(1, Http::recorded(fn ($r) => str_ends_with($r->url(), '/renew'))->count());
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/credit'));
+        $this->assertSame('2026-10-30', $service->fresh()->next_due_at->toDateString());
+    }
+
+    public function test_parent_cancel_recorded_during_invoice_search_blocks_final_renewal_claim(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $this->supplier(['https://portal.vps.tc/api/invoice' => function () {
+            CloudProviderOperation::create(['operation_key' => hash('sha256', 'cancel-during-renew-check'), 'provider' => 'vpstc',
+                'action' => 'cancel', 'resource_ref' => '301', 'state' => 'submitting', 'payload' => []]);
+            return Http::response(['invoices' => []]);
+        }]);
+        $renewal = app(VpsTcRenewal::class); $renewal->queue($service, $invoice);
+        $this->assertFalse($renewal->process($invoice));
+        $this->assertSame('renewal_context_changed', CloudProviderOperation::where('action', 'renew')->sole()->payload['last_issue']);
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/renew') || str_ends_with($r->url(), '/credit'));
     }
 }

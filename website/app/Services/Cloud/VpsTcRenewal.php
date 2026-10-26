@@ -139,9 +139,20 @@ class VpsTcRenewal
                 ->dividedBy(100, 6, RoundingMode::Ceiling)->__toString();
             $balance = $api->balance();
             $account = $balance['data']['details'] ?? [];
-            if (! ($balance['ok'] ?? false) || ($account['currency'] ?? null) !== ($quote['currency'] ?? null)
+            $currency = (new VpsTcMoneyContract($api))->resolveCurrency($balance);
+            if (! ($balance['ok'] ?? false) || $currency === null || $currency !== ($quote['currency'] ?? null)
                 || ! $this->amountAtMost($ceiling, $account['acc_credit'] ?? null)) {
                 return $this->problem($op, 'supplier_credit_required');
+            }
+            // A manual renewal contract does not prove that the supplier has
+            // not already generated an unpaid invoice for this parent.
+            if (($issue = $this->existingInvoiceIssue($api, $sid)) !== null) {
+                return $this->problem($op, $issue);
+            }
+            if (($payload['account'] ?? '') !== $this->account()
+                || CloudProviderOperation::where('provider', 'vpstc')->where('action', 'cancel')->where('resource_ref', $sid)->exists()
+                || ! app(CloudPricingSnapshot::class)->current('vpstc')) {
+                return $this->problem($op, 'renewal_context_changed');
             }
             $payload += [
                 'before_supplier_due' => $nativeDue->toDateString(),
@@ -179,14 +190,29 @@ class VpsTcRenewal
             return $this->problem($op, 'supplier_invoice_not_verified');
         }
         if (strtolower((string) ($bill['status'] ?? '')) !== 'paid') {
-            if ($op->state !== 'accepted') {
+            $amounts = VpsTcInvoiceAmounts::inspect($bill);
+            $due = VpsTcInvoiceAmounts::decimal($amounts['due'] ?? null);
+            if ($op->state !== 'accepted' || strtolower((string) ($bill['status'] ?? '')) !== 'unpaid'
+                || $due === null || ! $due->isPositive()) {
                 return $this->problem($op, 'supplier_payment_pending');
+            }
+            $balance = $api->balance();
+            $details = $balance['data']['details'] ?? [];
+            $credit = VpsTcInvoiceAmounts::decimal($details['acc_credit'] ?? null);
+            $currency = (new VpsTcMoneyContract($api))->resolveCurrency($balance);
+            if (! ($balance['ok'] ?? false) || $currency === null || $currency !== ($payload['currency'] ?? null)
+                || $credit === null || $credit->compareTo($due) < 0) {
+                return $this->problem($op, 'supplier_credit_required');
             }
             $claimed = CloudProviderOperation::whereKey($op->id)->where('state', 'accepted')->update(['state' => 'credit_submitting', 'updated_at' => now()]);
             if (! $claimed) {
                 return false;
             }
-            $api->applyInvoiceCredit((string) $op->task_ref);
+            $op->refresh();
+            $creditPayload = (array) $op->payload;
+            $creditPayload['credit_amount'] = (string) $due;
+            $op->forceFill(['payload' => $creditPayload])->save();
+            $api->applyInvoiceCredit((string) $op->task_ref, (string) $due);
             $op->refresh();
             // Acknowledgement never replaces the read-back of Paid and the service period.
             $read = $api->invoice((string) $op->task_ref);
@@ -229,11 +255,82 @@ class VpsTcRenewal
         });
     }
 
+    /** A negative invoice search is usable only if every header and open detail was checked. */
+    private function existingInvoiceIssue(VpsTcApi $api, string $sid): ?string
+    {
+        $deadline = microtime(true) + 30;
+        $read = $api->invoices();
+        $data = $read['data'] ?? null;
+        $headers = is_array($data) ? ($data['invoices'] ?? null) : null;
+        if (! ($read['ok'] ?? false) || ! is_array($headers) || ! array_is_list($headers)
+            || count($headers) > 5000 || microtime(true) > $deadline) {
+            return 'supplier_invoice_inventory_not_verified';
+        }
+        // The published endpoint lists all invoices and declares no paging.
+        // Extra/partial metadata must not turn a page into an account inventory.
+        foreach ($data as $key => $value) {
+            if ($key === 'invoices') { continue; }
+            if (! in_array($key, ['count', 'total', 'total_count', 'total_records'], true)
+                || (! is_int($value) && ! is_string($value))
+                || ! preg_match('/\A(?:0|[1-9][0-9]{0,8})\z/D', (string) $value)
+                || (int) $value !== count($headers)) {
+                return 'supplier_invoice_inventory_not_verified';
+            }
+        }
+        $seen = []; $open = [];
+        foreach ($headers as $header) {
+            $id = is_array($header) ? ($header['id'] ?? null) : null;
+            $status = is_array($header) ? ($header['status'] ?? null) : null;
+            if ((! is_string($id) && ! is_int($id)) || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) $id)
+                || isset($seen[(string) $id]) || ! is_string($status)
+                || ! in_array(strtolower($status), ['paid', 'cancelled', 'unpaid', 'draft', 'processing'], true)) {
+                return 'supplier_invoice_inventory_not_verified';
+            }
+            $seen[(string) $id] = true;
+            if (in_array(strtolower($status), ['paid', 'cancelled'], true)) { continue; }
+            if (! in_array($header['merge_id'] ?? null, [null, '', '0', 0], true)) {
+                return 'supplier_invoice_inventory_not_verified';
+            }
+            $open[(string) $id] = strtolower($status);
+        }
+        if (count($open) > 32) { return 'supplier_invoice_inventory_limit'; }
+        foreach ($open as $id => $status) {
+            if (microtime(true) > $deadline) { return 'supplier_invoice_inventory_limit'; }
+            $read = $api->invoice((string) $id);
+            $invoice = $read['data']['invoice'] ?? null;
+            $items = is_array($invoice) ? ($invoice['items'] ?? null) : null;
+            if (! ($read['ok'] ?? false) || ! is_array($invoice) || microtime(true) > $deadline
+                || (string) ($invoice['id'] ?? '') !== (string) $id
+                || ! is_string($invoice['status'] ?? null) || strtolower($invoice['status']) !== $status
+                || ! is_array($items) || ! array_is_list($items) || $items === [] || count($items) > 1000) {
+                return 'supplier_invoice_inventory_not_verified';
+            }
+            foreach ($items as $item) {
+                $type = is_array($item) ? ($item['type'] ?? null) : null;
+                $itemId = is_array($item) ? ($item['item_id'] ?? null) : null;
+                $qty = is_array($item) ? VpsTcInvoiceAmounts::decimal($item['qty'] ?? null) : null;
+                if (! is_string($type) || ! in_array(strtolower($type), ['hosting', 'other', 'domain', 'addon', 'upgrade'], true)
+                    || (! is_string($itemId) && ! is_int($itemId))
+                    || ! preg_match('/\A-?(?:0|[1-9][0-9]{0,17})\z/D', (string) $itemId)
+                    || (strtolower($type) === 'hosting' && ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) $itemId))
+                    || $qty === null || ! $qty->isPositive()
+                    || (array_key_exists('invoice_id', $item) && (string) $item['invoice_id'] !== (string) $id)) {
+                    return 'supplier_invoice_inventory_not_verified';
+                }
+                if (strtolower($type) === 'hosting' && (string) $itemId === $sid) {
+                    // Its billing period is unknown: never auto-adopt or pay it.
+                    return 'supplier_existing_invoice_needs_reconciliation';
+                }
+            }
+        }
+        return null;
+    }
+
     private function linkedInvoice(array $invoice, CloudProviderOperation $op, array $payload): bool
     {
         if ((string) ($invoice['id'] ?? '') !== (string) $op->task_ref
             || ($invoice['currency'] ?? null) !== ($payload['currency'] ?? null)
-            || ! $this->amountAtMost($invoice['total'] ?? null, $payload['native_ceiling'] ?? null)) {
+            || VpsTcInvoiceAmounts::bounded($invoice, $payload['native_ceiling'] ?? null) === null) {
             return false;
         }
         $items = $invoice['items'] ?? null;
@@ -242,9 +339,10 @@ class VpsTcRenewal
         }
         $linked = 0;
         foreach ($items as $item) {
+            $quantity = is_array($item) ? VpsTcInvoiceAmounts::decimal($item['qty'] ?? null) : null;
             if (! is_array($item) || (string) ($item['item_id'] ?? '') !== (string) $op->resource_ref
                 || strtolower((string) ($item['type'] ?? '')) !== 'hosting'
-                || ! $this->amountAtMost($item['qty'] ?? null, '1') || (float) ($item['qty'] ?? 0) !== 1.0) {
+                || $quantity === null || $quantity->compareTo(1) !== 0) {
                 return false;
             }
             $linked++;

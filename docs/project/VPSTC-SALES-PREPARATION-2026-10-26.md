@@ -19,13 +19,15 @@ Do not request a funding amount or advertise ready VPS sales from these public/p
 
 ## Authenticated account follow-up
 
+Subsequent read-only investigation reconciled the two monetary units using an existing Paid TRY invoice, its linked monthly parent, the current calculated quote and explicit official USD/TRY product metadata. The evidence-bound implementation and its remaining acceptance boundary are recorded in the [money-contract follow-up](VPSTC-MONEY-CONTRACT-2026-10-26.md). The observations below describe the earlier blocking preview; they are not a claim that a numeric ratio alone can establish currency.
+
 After the owner saved credentials, read-only production requests on 26 October confirmed authentication and the nested VPS category. It contains 16 Regular monthly VPS offers across Istanbul and New York. The annual-only LXC products are a separate category. A Cloud offer is `Metered`, despite a cycle value of `m`, and is not a fixed monthly tariff.
 
-Three supplier response problems prevent a safe live sale:
+Three supplier response problems initially prevented safe procurement:
 
 - `balance.details.currency` is the empty string. It cannot establish the unit of available credit or procurement quotes.
 - Every payment fee response contains the literal string `Array` for both fee fields. Unknown fees cannot be treated as zero.
-- For the same monthly VPS, the category amount is `125.55`, while the order form's raw monthly amount is `2.79`; both format the price as `₺125.55`. Official public HTML also exposes separate USD/TRY prices, which supports a base/display-currency explanation but does not supply an authenticated API currency contract. No conversion factor is inferred or applied.
+- For the same monthly VPS, the category amount is `125.55`, while the order form's raw monthly amount is `2.79`; both format the price as `₺125.55`. The first preview deliberately applied no conversion. Later account invoice/credit/tax evidence enabled the separate reviewed contract above; formatted prices remain insufficient on their own.
 
 The follow-up changes reject Metered and non-PrePay orders, require a reviewed numeric category ID, and compare category, order, recurring and cycle amounts before import or purchase. A read-only preview now traverses nested categories with request/data limits, displays observed products without importing them, and reports currency, fee and price disagreements. Existing encrypted credentials, financial inputs and the sales flag are unchanged.
 

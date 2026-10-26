@@ -24,6 +24,7 @@ use Tests\TestCase;
 class VpsTcLifecycleTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\VpsTcMoneyContractFixture;
 
     private array $quote;
     private array $spec;
@@ -34,6 +35,7 @@ class VpsTcLifecycleTest extends TestCase
     private string $invoiceStatus = 'Paid';
     private string $supplierDue = '2026-11-26';
     private bool $journalObserved = false;
+    private string $supplierCurrency = 'USD';
 
     protected function setUp(): void
     {
@@ -65,7 +67,7 @@ class VpsTcLifecycleTest extends TestCase
     {
         Http::fake($overrides + [
             '*/api/login' => Http::response(['token' => 'fixture-token']),
-            '*/api/balance' => Http::response(['details' => ['currency' => 'USD', 'acc_credit' => '100.00']]),
+            '*/api/balance' => Http::response(['details' => ['currency' => $this->supplierCurrency, 'acc_credit' => '100.00']]),
             '*/api/service' => Http::response(['services' => []]),
             '*/api/order/12' => function () {
                 $this->journalObserved = CloudProviderOperation::where('provider', 'vpstc')->where('action', 'create')->exists();
@@ -73,7 +75,9 @@ class VpsTcLifecycleTest extends TestCase
                     'items' => ['id' => '83', 'type' => 'Hosting', 'product_id' => '12', 'name' => 'sn-svc-7.servernet.cloud']]);
             },
             '*/api/invoice/91' => fn () => Http::response(['invoice' => ['id' => '91', 'status' => $this->invoiceStatus,
-                'currency' => 'USD', 'total' => '11.00', 'items' => [['item_id' => '83', 'type' => 'Hosting', 'qty' => '1.00']]]]),
+                'currency' => $this->supplierCurrency, 'total' => $this->invoiceStatus === 'Paid' ? '0.00' : '11.00',
+                'credit' => $this->invoiceStatus === 'Paid' ? '11.00' : '0.00', 'subtotal' => '11.00', 'tax' => '0.00', 'tax2' => '0.00',
+                'items' => [['item_id' => '83', 'type' => 'Hosting', 'qty' => '1.00']]]]),
             '*/api/service/83' => fn () => Http::response(['service' => ['id' => '83', 'status' => $this->serviceStatus,
                 'domain' => 'sn-svc-7.servernet.cloud', 'billingcycle' => 'Monthly', 'next_due' => $this->supplierDue]]),
             '*/api/service/83/vms' => Http::response(['vms' => [['vmid' => 'vm-1056']]]),
@@ -86,6 +90,87 @@ class VpsTcLifecycleTest extends TestCase
     private function orderCount(): int
     {
         return Http::recorded(fn ($request) => $request->method() === 'POST' && str_ends_with($request->url(), '/api/order/12'))->count();
+    }
+
+    private function nativeCurrencyQuote(): void
+    {
+        $this->supplierCurrency = 'TRY';
+        $this->quote['currency'] = 'TRY';
+        Setting::put('vpstc_currency', 'TRY');
+        Setting::put('vpstc_fx_rate_toman', '5000');
+    }
+
+    public function test_blank_balance_currency_uses_fresh_account_bound_anchor_before_order(): void
+    {
+        $this->nativeCurrencyQuote();
+        $proofResponses = $this->reviewedMoneyContract();
+        $this->fake(['*/api/balance' => Http::response(['details' => ['currency' => '', 'acc_credit' => '100.00']])] + $proofResponses);
+        $result = $this->client()->createServer($this->spec);
+        $this->assertSame('running', $result['status']);
+        $this->assertSame(1, $this->orderCount());
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/invoice/9001'));
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/service/9002'));
+    }
+
+    public function test_blank_currency_without_proof_or_with_changed_account_or_anchor_never_orders(): void
+    {
+        $this->nativeCurrencyQuote();
+        $proofResponses = $this->reviewedMoneyContract();
+        $this->fake(['*/api/balance' => Http::response(['details' => ['currency' => '', 'acc_credit' => '100.00']])] + $proofResponses);
+        Setting::putSecret(\App\Services\Cloud\VpsTcMoneyContract::KEY, null);
+        $this->assertFalse($this->client()->createServer($this->spec)['ok']);
+        $this->moneyProof['account_fingerprint'] = str_repeat('b', 64);
+        $this->saveMoneyContract();
+        $this->assertFalse($this->client()->createServer($this->spec)['ok']);
+        $this->moneyProof['account_fingerprint'] = app(\App\Services\Cloud\VpsTcApi::class)->accountFingerprint();
+        $this->saveMoneyContract();
+        $this->moneyAnchorInvoice['currency'] = 'USD';
+        $this->assertFalse($this->client()->createServer($this->spec)['ok']);
+        $this->assertSame(0, $this->orderCount());
+        $this->assertSame(0, CloudProviderOperation::count());
+    }
+
+    public function test_nonempty_conflicting_balance_currency_never_uses_anchor_to_override_it(): void
+    {
+        $this->nativeCurrencyQuote();
+        $proofResponses = $this->reviewedMoneyContract();
+        $this->fake(['*/api/balance' => Http::response(['details' => ['currency' => 'USD', 'acc_credit' => '100.00']])] + $proofResponses);
+        $this->assertFalse($this->client()->createServer($this->spec)['ok']);
+        $this->assertSame(0, $this->orderCount());
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/invoice/9001'));
+    }
+
+    public function test_invoice_credit_with_blank_balance_currency_still_needs_own_native_invoice_proof(): void
+    {
+        $this->nativeCurrencyQuote();
+        $this->invoiceStatus = 'Unpaid';
+        $proofResponses = $this->reviewedMoneyContract();
+        $this->fake(['*/api/balance' => Http::sequence()
+            ->push(['details' => ['currency' => 'TRY', 'acc_credit' => '100.00']])
+            ->push(['details' => ['currency' => '', 'acc_credit' => '100.00']]),
+            '*/api/invoice/91/credit' => function ($r) {
+                $this->assertSame('11.00', $r['amount']);
+                $this->invoiceStatus = 'Paid';
+                return Http::response(['status' => true]);
+            }] + $proofResponses);
+        $this->assertSame('running', $this->client()->createServer($this->spec)['status']);
+        $this->assertSame(1, Http::recorded(fn ($r) => str_ends_with($r->url(), '/invoice/91/credit'))->count());
+        Http::assertSent(fn ($r) => str_ends_with($r->url(), '/invoice/9001'));
+    }
+
+    public function test_changed_fresh_anchor_after_order_blocks_credit_and_delivery(): void
+    {
+        $this->nativeCurrencyQuote();
+        $this->invoiceStatus = 'Unpaid';
+        $proofResponses = $this->reviewedMoneyContract();
+        $this->moneyAnchorInvoice['credit'] = '0';
+        $this->fake(['*/api/balance' => Http::sequence()
+            ->push(['details' => ['currency' => 'TRY', 'acc_credit' => '100.00']])
+            ->push(['details' => ['currency' => '', 'acc_credit' => '100.00']])] + $proofResponses);
+        $result = $this->client()->createServer($this->spec);
+        $this->assertSame('building', $result['status']);
+        $this->assertSame(1, $this->orderCount());
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/credit') || str_ends_with($r->url(), '/vms'));
     }
 
     private function includedPowerFixture(): void
@@ -217,7 +302,8 @@ class VpsTcLifecycleTest extends TestCase
     public function test_unpaid_or_unrelated_invoice_cannot_mark_delivery_ready_or_pay_unrelated_credit(): void
     {
         $this->fake(['*/api/invoice/91' => Http::response(['invoice' => ['id' => '91', 'status' => 'Paid',
-            'currency' => 'USD', 'total' => '11.00', 'items' => [['item_id' => '999']]]])]);
+            'currency' => 'USD', 'total' => '0.00', 'credit' => '11.00', 'subtotal' => '11.00', 'tax' => '0.00',
+            'items' => [['item_id' => '999']]]])]);
         $r = $this->client()->createServer($this->spec);
         $this->assertTrue($r['ok']);
         $this->assertSame('building', $r['status']);
@@ -362,11 +448,49 @@ class VpsTcLifecycleTest extends TestCase
     public function test_mixed_invoice_cannot_apply_credit_even_when_below_quote_ceiling(): void
     {
         $this->fake(['*/api/invoice/91' => Http::response(['invoice' => ['id' => '91', 'status' => 'Unpaid',
-            'currency' => 'USD', 'total' => '10.00', 'items' => [
+            'currency' => 'USD', 'total' => '10.00', 'credit' => '0.00', 'subtotal' => '10.00', 'tax' => '0.00', 'items' => [
                 ['item_id' => '83', 'type' => 'Hosting', 'qty' => '1.00'],
                 ['item_id' => '84', 'type' => 'Hosting', 'qty' => '1.00'],
             ]]])]);
         $this->assertSame('building', $this->client()->createServer($this->spec)['status']);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/credit'));
+    }
+
+    public function test_zero_due_paid_invoice_still_enforces_gross_already_consumed_from_credit(): void
+    {
+        $this->fake(['*/api/invoice/91' => Http::response(['invoice' => ['id' => '91', 'status' => 'Paid',
+            'currency' => 'USD', 'total' => '0.00', 'credit' => '12.00', 'subtotal' => '10.00', 'tax' => '2.00',
+            'grandtotal' => '12.00', 'items' => [['item_id' => '83', 'type' => 'Hosting', 'qty' => '1.00']]]])]);
+        $result = $this->client()->createServer($this->spec);
+        $this->assertSame('building', $result['status']);
+        $this->assertNull($result['root_password']);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/credit'));
+    }
+
+    public function test_credit_settled_paid_invoice_within_gross_cap_can_finish_delivery(): void
+    {
+        $this->fake();
+        $result = $this->client()->createServer($this->spec);
+        $this->assertSame('running', $result['status']);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/credit'));
+    }
+
+    public function test_conflicting_grand_total_cannot_finish_delivery_or_apply_credit(): void
+    {
+        $this->fake(['*/api/invoice/91' => Http::response(['invoice' => ['id' => '91', 'status' => 'Paid',
+            'currency' => 'USD', 'total' => '0.00', 'credit' => '11.00', 'subtotal' => '11.00', 'tax' => '0.00',
+            'grandtotal' => '10.00', 'items' => [['item_id' => '83', 'type' => 'Hosting', 'qty' => '1.00']]]])]);
+        $this->assertSame('building', $this->client()->createServer($this->spec)['status']);
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/credit'));
+    }
+
+    public function test_unpaid_zero_due_does_not_debit_credit_or_become_paid_by_inference(): void
+    {
+        $this->fake(['*/api/invoice/91' => Http::response(['invoice' => ['id' => '91', 'status' => 'Unpaid',
+            'currency' => 'USD', 'total' => '0.00', 'credit' => '11.00', 'subtotal' => '11.00', 'tax' => '0.00',
+            'grandtotal' => '11.00', 'items' => [['item_id' => '83', 'type' => 'Hosting', 'qty' => '1.00']]]])]);
+        $this->assertSame('building', $this->client()->createServer($this->spec)['status']);
+        $this->assertNull(CloudProviderOperation::where('action', 'create')->sole()->payload['_credit_attempted'] ?? null);
         Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/credit'));
     }
 

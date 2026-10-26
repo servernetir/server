@@ -248,4 +248,22 @@ class InfrastructureSettingsUiTest extends TestCase
         $this->assertStringContainsString(fa_num(46).' محصول', $html);
         Http::assertNothingSent();
     }
+
+    public function test_preflight_shows_complete_form_scope_and_credit_covered_cost_without_claiming_free_service(): void
+    {
+        $html = $this->withSession(['vpstc_report' => ['connection_ok' => true,
+            'order_forms_expected' => 16, 'order_forms_checked' => 16, 'order_forms_complete' => true,
+            'quotes_expected' => 16, 'quotes_checked' => 16, 'quotes_arithmetic_verified' => 16,
+            'candidates' => [['id' => '351', 'name' => 'Monthly VPS', 'category_name' => 'VPS',
+                'monthly_price_raw' => '125.55', 'order_checked' => true, 'order_monthly_raw' => '2.79',
+                'price_match' => false, 'quote_checked' => true, 'quote_diagnostics' => [
+                    'gross_raw' => '3.348', 'arithmetic_match' => true,
+                    'payment_coverage' => 'covered_by_credit', 'unit_verified' => false]]]]])->page();
+        $this->assertStringContainsString('فرم‌های خوانده‌شده در محدودهٔ بررسی', $html);
+        $this->assertStringContainsString(fa_num(16).' از '.fa_num(16).' — کامل', $html);
+        $this->assertStringContainsString('3.348', $html);
+        $this->assertStringContainsString('از اعتبار حساب پوشش داده می‌شود؛ رایگان نیست.', $html);
+        $this->assertStringContainsString('واحد عدد خام تأیید نشده است.', $html);
+        Http::assertNothingSent();
+    }
 }

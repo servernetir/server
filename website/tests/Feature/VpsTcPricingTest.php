@@ -231,6 +231,17 @@ class VpsTcPricingTest extends TestCase
         $this->assertStringNotContainsString('different-reseller', Setting::get(CloudPricingSnapshot::KEY));
     }
 
+    public function test_private_money_evidence_update_only_invalidates_the_vpstc_supplier_proof(): void
+    {
+        $this->inputs();
+        $pricing = app(VpsTcPricing::class);
+        $snapshot = app(CloudPricingSnapshot::class);
+        $snapshot->publish([100000, 200000, 150000], [], ['vpstc' => $pricing->fingerprint()]);
+        Setting::putSecret(\App\Services\Cloud\VpsTcMoneyContract::KEY, '{"reviewed":"new private evidence"}');
+        $this->assertFalse($snapshot->current('vpstc'));
+        $this->assertTrue($snapshot->current('hetzner'));
+    }
+
     public function test_stale_positive_hourly_cost_never_authorizes_a_prepaid_vpstc_plan(): void
     {
         foreach ([null, 0, 5000] as $index => $cost) {

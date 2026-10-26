@@ -19,6 +19,7 @@ class VpsTcPricing
         ...self::INPUT_KEYS,
         'cloud_vpstc_api_origin', 'cloud_vpstc_username', 'cloud_vpstc_password',
         'vpstc_catalog_manifest',
+        VpsTcMoneyContract::KEY,
     ];
 
     public function values(): array
