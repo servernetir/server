@@ -11,6 +11,7 @@
      نتایجِ گوگل بنشیند بی‌آنکه خودش خواسته باشد — و یعنی هزاران صفحهٔ نازکِ
      تکراری روی دامنهٔ ما. --}}
 @section('noindex', '1')
+@section('private_report', '1')
 
 @section('content')
 
@@ -45,6 +46,8 @@
     'printDate'  => sdate($report->created_at),
     'printUrl'   => $report->url(),
 ])
+
+@include('partials.report-consultation')
 
 {{-- ⚠️ ترتیب مهم است: این دو inline‌اند و همان لحظهٔ پارس اجرا می‌شوند، ولی
      `tools.js` با `defer` بعد از پارسِ کلِ سند می‌دود — پس وقتی به

@@ -252,6 +252,8 @@ $site = function (): void {
         ->name('report.unsubscribe')->where('token', '[a-z0-9]{16,40}');
     Route::get('/report/{token}', [ReportController::class, 'show'])
         ->name('report')->where('token', '[a-z0-9]{16,40}');
+    Route::post('/report/{token}/consultation', [\App\Http\Controllers\ReportConsultationController::class, 'store'])
+        ->name('report.consultation')->where('token', '[a-z0-9]{16,40}')->middleware('throttle:3,1');
 
     /*
      * گزارشِ ماندگارِ بررسیِ سایت — نشانی‌ای که برای صاحبِ سایت می‌فرستیم.

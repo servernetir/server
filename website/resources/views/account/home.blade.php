@@ -65,6 +65,8 @@
   </a>
 </div>
 
+@include('account.partials.checkout-recovery')
+
 {{-- ══ کارهای معلق — فقط وقتی واقعاً کاری هست ══ --}}
 @if($todo)
 <section class="pnl-sec pnl-alert">
