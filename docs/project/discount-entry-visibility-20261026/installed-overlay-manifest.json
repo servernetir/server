@@ -1,0 +1,58 @@
+{
+  "feature_commit": "f383474e5b3ff3110cc70daadcd5b308e84d562d",
+  "deployment_commit": "c94fba275a4823d70d1dc50acc96ad16ad301f80",
+  "files": {
+    "app/Http/Controllers/Admin/DiscountVisibilityController.php": {
+      "before": null,
+      "after": "a2da3ff611dade57f7909a24a71af8baa77b05306ee342378e3be10e1947c7af"
+    },
+    "app/Services/Marketing/DiscountEntryVisibility.php": {
+      "before": null,
+      "after": "75bca4485bf27c1173d52e064f567d529b96e2bc73ae98d1f7a1a95e73f3c7c7"
+    },
+    "database/migrations/2026_10_26_140000_add_discount_entry_visibility_to_customers.php": {
+      "before": null,
+      "after": "37c40d937073faebd52417862cd468bc4f4bc55ccd997ba5c3620a3533e1ed23"
+    },
+    "lang/fa/marketing.php": {
+      "before": "ca1290a7df1a8383377729dd7702348233e42864852f2f8c33588deb4ef0e710",
+      "after": "bc9189b95b38715c441f9da284b94cf2566d344b76d4b7e3b53721cce7ef9021"
+    },
+    "lang/en/marketing.php": {
+      "before": "31f5150da61725be4f6b2e5440367519fdf43a8e81f2571af822aac70aa55828",
+      "after": "cfb6a9423cfc992c58796e18b4bfc1c5a4ccf870fd76bfd44acfb812ca1de023"
+    },
+    "lang/tr/marketing.php": {
+      "before": "09790b8c38d05112e4c89fa5e2f60d4b8d68fcc0cbe8c10b8d77fde27bda53c8",
+      "after": "381ca6e797fabc9a4bdde55b10c788c550a5d02deaf9f016b4559c28b7a1e5f7"
+    },
+    "resources/views/account/invoice.blade.php": {
+      "before": "5e4e00b2204b352c57aeacba0676ba9f6b86e7446ed72b1efe79dbb6f8f253dd",
+      "after": "e70403e34004c7f8f7a5d7d616944215c5734ebd5e1568a8669003208ba0d15d"
+    },
+    "resources/views/account/partials/campaign-discount.blade.php": {
+      "before": "4392db7f9856f08b7d9076a600eb7983413df474c944bebd2ece199cb236e185",
+      "after": "989dba80b45c3736495e2e19cf6748174c47eac09ad0349b3d429cf42f716932"
+    },
+    "resources/views/admin/customer.blade.php": {
+      "before": "9d625fbda6825c3d59278d7abf47bb92fd279b97d978e3e899580670f8958d98",
+      "after": "39a9c1030a0d7cb087c43ebd75ff08a3a67693b1cd8d048edf4ed117f888c111"
+    },
+    "resources/views/admin/partials/customer-discount-entry.blade.php": {
+      "before": null,
+      "after": "fa9f2414e6de4f9cd391c1387852e570ff37a9d93308e9e84810f140e2191842"
+    },
+    "resources/views/admin/settings/accounts.blade.php": {
+      "before": "42eef407ecbff170308aea23cb7cb4e3977425fd0ed3abd3e944259954d75df1",
+      "after": "7f1a9566f85b9b5a4bb88f8393244408d18dc72c7cc36738bec0e386e89e1a84"
+    },
+    "resources/views/admin/settings/discount-entry.blade.php": {
+      "before": null,
+      "after": "c05638dfa9b84526f9d784f43a5faf2b90021d4a4992971ebecf482094562e97"
+    },
+    "routes/web.php": {
+      "before": "ac98d839bd32c2cdfad8b8534e63465fd5d3c6689e4a4fdc5373f6e266291df2",
+      "after": "5e1f98cfe2756d8d9a7b252ad81e9bc6b12f2c00e640bfeab1b60668f6ac574c"
+    }
+  }
+}

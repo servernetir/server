@@ -1,0 +1,126 @@
+{
+  "status": "accepted",
+  "checks": 48,
+  "rendered_variants": 18,
+  "matrix": [
+    {
+      "global": "0",
+      "mode": "inherit",
+      "locale": "fa",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "inherit",
+      "locale": "en",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "inherit",
+      "locale": "tr",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "enabled",
+      "locale": "fa",
+      "visible": true
+    },
+    {
+      "global": "0",
+      "mode": "enabled",
+      "locale": "en",
+      "visible": true
+    },
+    {
+      "global": "0",
+      "mode": "enabled",
+      "locale": "tr",
+      "visible": true
+    },
+    {
+      "global": "0",
+      "mode": "disabled",
+      "locale": "fa",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "disabled",
+      "locale": "en",
+      "visible": false
+    },
+    {
+      "global": "0",
+      "mode": "disabled",
+      "locale": "tr",
+      "visible": false
+    },
+    {
+      "global": "1",
+      "mode": "inherit",
+      "locale": "fa",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "inherit",
+      "locale": "en",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "inherit",
+      "locale": "tr",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "enabled",
+      "locale": "fa",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "enabled",
+      "locale": "en",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "enabled",
+      "locale": "tr",
+      "visible": true
+    },
+    {
+      "global": "1",
+      "mode": "disabled",
+      "locale": "fa",
+      "visible": false
+    },
+    {
+      "global": "1",
+      "mode": "disabled",
+      "locale": "en",
+      "visible": false
+    },
+    {
+      "global": "1",
+      "mode": "disabled",
+      "locale": "tr",
+      "visible": false
+    }
+  ],
+  "fixture_writes_rolled_back": 4,
+  "persisted_test_customers": 0,
+  "financial_sql_writes": 0,
+  "external_http_calls": 0,
+  "global_default": "0",
+  "browser_settings": {
+    "actual_https_page_inspected": true,
+    "default_checkbox_checked": false,
+    "save_unchanged_succeeded": true,
+    "invoice_visual_checkout_tested": false
+  }
+}
