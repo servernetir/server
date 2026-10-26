@@ -3,68 +3,59 @@
 namespace App\Http\Controllers\Account;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\MarketingGrant;
 use App\Models\MarketingPreference;
 use App\Models\MarketingRedemption;
 use App\Models\Payment;
 use App\Services\Marketing\DiscountEngine;
+use App\Services\Marketing\DiscountEntryVisibility;
 use App\Services\Payment\PaymentService;
-use App\Support\Jalali;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Validation\ValidationException;
 
 class OfferController extends Controller
 {
     public function index()
     {
-        $ready = Schema::hasTable('marketing_campaigns');
-        $customer = Auth::guard('customer')->user();
-
-        return view('account.offers', AccountController::shell('offers') + [
-            'ready' => $ready, 'offers' => $ready ? MarketingGrant::where('customer_id', $customer->id)->latest()->paginate(20) : collect(),
-            'preference' => $ready ? MarketingPreference::firstOrNew(['customer_id' => $customer->id]) : null,
-            'redemptions' => $ready ? MarketingRedemption::where('customer_id', $customer->id)->get()->keyBy('grant_id') : collect(),
-        ]);
+        // Legacy SMS opt-out links must still reach an unsubscribe action.
+        return redirect()->to(lroute('account.marketing.unsubscribe'));
     }
 
     public function preferences(Request $request)
     {
+        // Retired form: neither birthdays nor positive marketing consent are accepted here.
+        abort(410);
+    }
+
+    public function unsubscribePage()
+    {
+        return view('account.marketing-unsubscribe', AccountController::shell(''));
+    }
+
+    public function unsubscribe()
+    {
         abort_unless(Schema::hasTable('marketing_preferences'), 503);
-        $data = $request->validate(['consent' => 'required|in:granted,withdrawn,unknown',
-            'birth_calendar' => 'nullable|in:jalali,gregorian', 'birth_year' => 'nullable|integer|min:1200|max:2200',
-            'birth_month' => 'nullable|integer|min:1|max:12', 'birth_day' => 'nullable|integer|min:1|max:31']);
-        $calendar = $data['birth_calendar'] ?? null;
-        $month = $data['birth_month'] ?? null;
-        $day = $data['birth_day'] ?? null;
-        if ($calendar || $month || $day) {
-            $max = $calendar === 'jalali' ? ($month <= 6 ? 31 : 30) : ([2 => 29, 4 => 30, 6 => 30, 9 => 30, 11 => 30][$month] ?? 31);
-            if (! $calendar || ! $month || ! $day || $day > $max ||
-                (! empty($data['birth_year']) && ($calendar === 'jalali'
-                    ? $day > Jalali::daysInMonth($data['birth_year'], $month)
-                    : ! checkdate($month, $day, $data['birth_year'])))) {
-                throw ValidationException::withMessages(['birth_day' => __('marketing.birth_invalid')]);
-            }
-        }
-        $data['customer_id'] = Auth::guard('customer')->id();
-        $data['consent_at'] = now();
-        DB::transaction(function () use ($data) {
-            $old = MarketingPreference::where('customer_id', $data['customer_id'])->lockForUpdate()->first();
+        $id = Auth::guard('customer')->id();
+        DB::transaction(function () use ($id) {
+            // Serialize concurrent opt-out requests even when no preference row exists yet.
+            Customer::whereKey($id)->lockForUpdate()->firstOrFail();
+            $old = MarketingPreference::where('customer_id', $id)->lockForUpdate()->first();
             $before = $old?->consent ?: 'unknown';
-            MarketingPreference::updateOrCreate(['customer_id' => $data['customer_id']], $data);
-            DB::table('marketing_audits')->insert(['action' => 'consent', 'reason' => 'Customer preference update',
-                'details' => json_encode(['customer_id' => $data['customer_id'], 'before' => $before, 'after' => $data['consent']]),
-                'created_at' => now()]);
-            if ($data['consent'] !== 'granted') {
-                DB::table('marketing_deliveries')->where('customer_id', $data['customer_id'])
-                    ->where('status', 'scheduled')->update(['status' => 'blocked', 'reason' => 'marketing_consent', 'updated_at' => now()]);
+            MarketingPreference::updateOrCreate(['customer_id' => $id], ['consent' => 'withdrawn', 'consent_at' => now()]);
+            if ($before !== 'withdrawn') {
+                DB::table('marketing_audits')->insert(['action' => 'consent', 'reason' => 'Customer marketing opt-out',
+                    'details' => json_encode(['customer_id' => $id, 'before' => $before, 'after' => 'withdrawn']),
+                    'created_at' => now()]);
             }
+            DB::table('marketing_deliveries')->where('customer_id', $id)
+                ->where('status', 'scheduled')->update(['status' => 'blocked', 'reason' => 'marketing_consent', 'updated_at' => now()]);
         });
 
-        return back()->with('ok', __('marketing.saved'));
+        return redirect()->to(lroute('account.marketing.unsubscribe'))->with('ok', __('marketing.unsubscribe_saved'));
     }
 
     public function track(string $token)
@@ -95,6 +86,7 @@ class OfferController extends Controller
 
     public function apply(Request $request, Invoice $invoice, DiscountEngine $engine)
     {
+        abort_unless(app(DiscountEntryVisibility::class)->enabled(Auth::guard('customer')->user()), 403);
         $data = $request->validate(['code' => 'required|string|max:40']);
         $engine->reserve($invoice, Auth::guard('customer')->user(), $data['code']);
 

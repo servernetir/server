@@ -59,22 +59,16 @@ class CampaignAudience
 
     public function birthday(Customer $customer, Carbon $local): bool
     {
-        $p = MarketingPreference::where('customer_id', $customer->id)->first();
-        $calendar = $p?->birth_calendar;
-        $month = $p?->birth_month;
-        $day = $p?->birth_day;
-        if (! $calendar || ! $month || ! $day) {
-            // Existing identity data is already Gregorian; Persian customers use its Jalali anniversary.
-            $date = $customer->defaultProfile()?->birth_date;
-            if (! $date) {
-                return false;
-            }
-            $calendar = $customer->locale === 'fa' ? 'jalali' : 'gregorian';
-            if ($calendar === 'jalali') {
-                [, $month, $day] = Jalali::fromGregorian((int) $date->format('Y'), (int) $date->format('m'), (int) $date->format('d'));
-            } else {
-                [$month, $day] = [(int) $date->format('m'), (int) $date->format('d')];
-            }
+        // The existing account profile is the sole source; ignore legacy marketing birthday input.
+        $date = $customer->defaultProfile()?->birth_date;
+        if (! $date) {
+            return false;
+        }
+        $calendar = $customer->locale === 'fa' ? 'jalali' : 'gregorian';
+        if ($calendar === 'jalali') {
+            [, $month, $day] = Jalali::fromGregorian((int) $date->format('Y'), (int) $date->format('m'), (int) $date->format('d'));
+        } else {
+            [$month, $day] = [(int) $date->format('m'), (int) $date->format('d')];
         }
         if ($calendar === 'jalali') {
             [$y, $m, $d] = Jalali::ofMoment($local, $local->timezoneName);

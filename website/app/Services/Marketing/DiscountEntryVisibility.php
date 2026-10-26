@@ -5,7 +5,7 @@ namespace App\Services\Marketing;
 use App\Models\Customer;
 use App\Models\Setting;
 
-/** Presentation preference only; offer eligibility and existing redemptions stay independent. */
+/** Controls new customer code entry; existing reservations and campaign eligibility stay independent. */
 final class DiscountEntryVisibility
 {
     public const SETTING = 'invoice_discount_entry_enabled';

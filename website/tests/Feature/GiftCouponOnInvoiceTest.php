@@ -23,11 +23,14 @@ class GiftCouponOnInvoiceTest extends TestCase
 
     private function customer(): Customer
     {
-        return Customer::create([
+        $customer = Customer::create([
             'email' => 'c'.random_int(1, 9999999).'@t.test',
             'phone' => '0912'.random_int(1000000, 9999999),
             'password' => bcrypt('x'), 'status' => 'active', 'locale' => 'fa',
         ]);
+        $customer->forceFill(['discount_entry_visibility' => 'enabled'])->save();
+
+        return $customer;
     }
 
     private function invoice(Customer $c, int $total = 2_000_000): Invoice

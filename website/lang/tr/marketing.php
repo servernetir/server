@@ -2,6 +2,8 @@
 
 return [
     'title' => 'Tekliflerim ve indirimlerim',
+    'unsubscribe_title' => 'Tanıtım SMS aboneliğini iptal et',
+    'unsubscribe_saved' => 'Tanıtım SMS aboneliği iptal edildi.',
     'friend' => 'Değerli müşterimiz',
     'minimum' => 'Asgari alışveriş',
     'currency' => 'Teklifin para birimi veya dili siparişinizle eşleşmiyor.',
@@ -19,7 +21,7 @@ return [
     'reconciliation' => 'Bu ödeme mutabakat gerektiriyor. Tekrar ödeme yapmadan önce destekle iletişime geçin.',
     'saved' => 'Tercihleriniz kaydedildi.',
     'birth_invalid' => 'Geçerli bir doğum günü girin.',
-    'optout_sms' => 'Pazarlama mesajlarını Tekliflerim bölümünden kapatın:',
+    'optout_sms' => 'Tanıtım SMS aboneliğini iptal etmek için:',
     'reserved_ok' => 'İndirim ayrıldı. Ödemeyi gösterilen süre içinde tamamlayın.',
     'apply' => 'İndirim kodunu uygula',
     'code' => 'İndirim kodu',
@@ -56,7 +58,7 @@ return [
     'my_offers_short' => 'Tekliflerim',
     'visibility_title' => 'Faturalarda indirim kodu görünürlüğü',
     'visibility_default' => 'Varsayılan olarak tüm müşterilere göster',
-    'visibility_help' => 'Varsayılan olarak kapalıdır. Müşteri profilinin Finans sekmesinden kişiye özel açabilirsiniz. Bu ayar yalnızca formun görünürlüğünü kontrol eder; uygulanmış indirimi değiştirmez.',
+    'visibility_help' => 'Varsayılan olarak kapalıdır. Müşteri profilinin Finans sekmesinden ayrı ayrı etkinleştirin. Bu ayar görünürlüğü ve yeni kod girişini denetler; uygulanmış indirim korunur.',
     'visibility_customer_help' => 'Bu müşterinin seçimi genel ayardan önceliklidir.',
     'visibility_inherit' => 'Genel ayarı kullan',
     'visibility_enabled' => 'Açık',

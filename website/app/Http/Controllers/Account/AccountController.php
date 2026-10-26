@@ -137,7 +137,6 @@ class AccountController extends Controller
             'pnlNav' => [
                 ['label' => null, 'items' => [
                     ['key' => 'dash', 'icon' => 'gauge', 'label' => __('ui.nav_dash'), 'url' => lroute('account.home')],
-                    ['key' => 'offers', 'icon' => 'gift', 'label' => __('marketing.title'), 'url' => lroute('account.offers')],
                     ['key' => 'store', 'icon' => 'box', 'label' => __('ui.nav_store'), 'url' => lroute('account.store')],
                 ]],
                 /*
