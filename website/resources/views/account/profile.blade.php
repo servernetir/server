@@ -105,14 +105,14 @@
 {{-- ══ احراز هویتِ حقوقی (شرکت) — ادغام‌شده از صفحهٔ جدای قبلی ══ --}}
 @php
   $st = $profile->status ?? 'draft';
-  $isCompany = ($profile->type ?? 'individual') === 'company';
-  $vb = ['verified'=>[__('ui.prof_st_verified'),'var(--ok)'],'pending'=>[__('ui.prof_st_pending'),'var(--warn)'],'rejected'=>[__('ui.prof_st_rejected'),'var(--danger)']][$st] ?? [__('ui.prof_st_none'),'var(--muted)'];
+  $isCompany = old('type', $profile->type ?? 'individual') === 'company';
+  $vb = ['verified'=>[__('ui.prof_st_verified'),'ok'],'pending'=>[__('ui.prof_st_pending'),'warn'],'rejected'=>[__('ui.prof_st_rejected'),'danger']][$st] ?? [__('ui.prof_st_none'),'mute'];
 @endphp
 
 <section class="pnl-sec" id="company">
   <div class="pnl-sec-h">
     <h2>{{ __('ui.prof_legal_h') }}</h2>
-    <span class="pnl-pill" style="background:{{ $vb[1] }}22;color:{{ $vb[1] }}">{{ $vb[0] }}</span>
+    <span class="pnl-pill {{ $vb[1] }}">{{ $vb[0] }}</span>
   </div>
   <div class="pnl-sec-b">
 

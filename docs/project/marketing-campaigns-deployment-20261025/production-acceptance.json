@@ -76,7 +76,15 @@
     "temporary_ssh_key_cleanup_confirmed": false,
     "local_temporary_key_deletion_confirmed": false,
     "temporary_key_configured_expiry": "2026-10-25T15:19:34Z",
-    "reason": "Workstation transport closed before cleanup command returned; inspect receipt/current state after reconnecting."
+    "reason": "Workstation transport closed before cleanup command returned; inspect receipt/current state after reconnecting.",
+    "follow_up_20261026": {
+      "old_key_removed": true,
+      "old_public_file_removed": true,
+      "local_private_and_public_deleted": true,
+      "main_and_other_keys_preserved": true,
+      "receipt": "cleanup-backfill-20261026.json",
+      "verified_at": "2026-10-26T05:58:07.150645+00:00"
+    }
   },
   "private_rollback_stage": "/home/servernetcloud/marketing-campaigns-20261025-1792934369354",
   "rollback_code_dry_run": {

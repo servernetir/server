@@ -1,0 +1,323 @@
+{
+  "release_id": "growth-autonomy-20261026-1792994699924",
+  "code_sha": "acb11fde32bc3ccbe6f84e834da94f25243ac6c8",
+  "quality_sha": "b1a85c64fc99761c300ef42d6b5c6ecd1dfa75e8",
+  "install": {
+    "files": 9,
+    "hashes_verified": 9,
+    "code_sha": "acb11fde32bc3ccbe6f84e834da94f25243ac6c8",
+    "utc": "2026-10-26T06:07:04+00:00"
+  },
+  "configuration": {
+    "project_id": 20,
+    "token_id": 40,
+    "owner_id": 1,
+    "daily_irt": 50000,
+    "monthly_irt": 1000000,
+    "autopilot": true,
+    "images": true,
+    "notify": false,
+    "wallet_funded_by_this_work": false
+  },
+  "repair": {
+    "job_id": 2,
+    "model": "di-qwenqwen3-235b-a22b-instruct-2507-12d7a45f0c",
+    "max_cost_irt": 1084,
+    "previous_charge_irt": 159
+  },
+  "activation": {
+    "sapi": "fpm-fcgi",
+    "invalidated": 9,
+    "validate_timestamps": "1",
+    "helper_deleted": true
+  },
+  "quality_activation": {
+    "sapi": "fpm-fcgi",
+    "invalidated": 9,
+    "validate_timestamps": "1",
+    "helper_deleted": true
+  },
+  "tests": {
+    "count": 46,
+    "assertions": 223,
+    "result": "passed",
+    "environment": "isolated SQLite; fake upstream suppliers"
+  },
+  "view_acceptance": {
+    "checks": [
+      {
+        "locale": "fa",
+        "tab": "overview",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "fa",
+        "tab": "automation",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "fa",
+        "tab": "settings",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "en",
+        "tab": "overview",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "en",
+        "tab": "automation",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "en",
+        "tab": "settings",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "tr",
+        "tab": "overview",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "tr",
+        "tab": "automation",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "locale": "tr",
+        "tab": "settings",
+        "status": 200,
+        "autopilot_label": true,
+        "untranslated_quality_key": false
+      },
+      {
+        "content_detail_status": 200
+      }
+    ],
+    "blocked_writes": 0
+  },
+  "output": {
+    "body_chars": 5062,
+    "status": "review",
+    "approved_by": null,
+    "post_id": null,
+    "assets": [
+      {
+        "id": 1,
+        "mime": "image/png",
+        "bytes": 365893,
+        "sha256": "45bc9ad13c30fdd5f5995e75b9a5ad56402c2d782378ea4b9e0a5240075de221",
+        "file_hash_matches": true,
+        "width": 1024,
+        "height": 1024
+      }
+    ]
+  },
+  "public_http": [
+    {
+      "path": "/up",
+      "status": 200
+    },
+    {
+      "path": "/admin/ai-growth",
+      "status": 302
+    },
+    {
+      "path": "/admin/ai-growth/content/1",
+      "status": 302
+    },
+    {
+      "path": "/admin/ai-growth/assets/1",
+      "status": 302
+    }
+  ],
+  "final": {
+    "utc": "2026-10-26T06:18:50+00:00",
+    "hashes": [
+      {
+        "path": "app/Services/Growth/GrowthAutopilot.php",
+        "sha256": "f8aaa646a4234065062130a2893ebdf2e868edf2610298434977da165816b199"
+      },
+      {
+        "path": "app/Console/Commands/RunGrowthCenter.php",
+        "sha256": "69e29cad3c28372bbd43a237e0f78729221a72552052c332fc35bcf1f20b27dd"
+      },
+      {
+        "path": "app/Http/Controllers/Admin/GrowthController.php",
+        "sha256": "78da0a189e4504148e6a392b18f9c1aababb1e50a2d07cc39f0cec7ed23113a0"
+      },
+      {
+        "path": "config/ai_growth.php",
+        "sha256": "7c3bd31c873a3f61ec9f737b512d93c9f10b120a248a4cd1d0a3f0f9f2d1e949"
+      },
+      {
+        "path": "lang/fa/growth.php",
+        "sha256": "6a0a54a1932217181c702ece65fc9524262d464b27946778c5de1b3d37276732"
+      },
+      {
+        "path": "lang/en/growth.php",
+        "sha256": "eb9a8f12dda5212c838f70bf2b154ad15a60a127678413a5a14498a08147f4d7"
+      },
+      {
+        "path": "lang/tr/growth.php",
+        "sha256": "cea62893febfaa7a0ab2dcf3b287427fd4991899b43bbc3fbbfc7dbadc4e32e9"
+      },
+      {
+        "path": "resources/views/admin/growth/index.blade.php",
+        "sha256": "19f74f7ecca80b5a783021a71229d45fa9ebfd427472e8afd0ea462fcca2d954"
+      },
+      {
+        "path": "app/Services/Growth/GrowthJobs.php",
+        "sha256": "d6646d22607eb742f53debd1fa4196b0cf9c9425fc9e3651d4024ff1ce91bcb5"
+      }
+    ],
+    "autopilot": {
+      "enabled": true,
+      "actor_id": 1,
+      "policy": "drafts-v1",
+      "daily_topics": 1,
+      "review_backlog_limit": 7,
+      "publication": "human_review",
+      "timezone": "Asia/Tehran",
+      "latest": [
+        {
+          "key": "autopilot:2026-10-26",
+          "summary": {
+            "stage": "review_ready",
+            "code": null,
+            "policy": "drafts-v1",
+            "content_id": 1,
+            "source": "https://servernet.cloud/vps/hourly",
+            "source_sha256": "434ad6072633578325b2c4165696f327b48f9d9792c6781785834d45b39e30b4",
+            "source_at": "2026-10-26T06:07:14+00:00",
+            "text_job_id": 2,
+            "previous_text_job_ids": [
+              1
+            ],
+            "recovery": "known_charge_quality_repair",
+            "image_job_id": 3
+          },
+          "created_at": "2026-10-26 06:07:14"
+        }
+      ]
+    },
+    "control": {
+      "id": 1,
+      "enabled": 1,
+      "daily_irt": 50000,
+      "monthly_irt": 1000000,
+      "notify": 0,
+      "daily_tasks": 1,
+      "created_at": "2026-10-25 13:20:25",
+      "updated_at": "2026-10-26 06:07:05"
+    },
+    "jobs": [
+      {
+        "id": 1,
+        "kind": "text",
+        "model_slug": "di-meta-llamallama-33-70b-instruct-turbo-3c195ebcef",
+        "status": "completed",
+        "attempts": 1,
+        "max_cost_irt": 891,
+        "actual_cost_irt": 159,
+        "ai_usage_id": 128,
+        "created_at": "2026-10-26T06:07:14.000000Z",
+        "finished_at": "2026-10-26T06:07:37.000000Z"
+      },
+      {
+        "id": 2,
+        "kind": "text",
+        "model_slug": "di-qwenqwen3-235b-a22b-instruct-2507-12d7a45f0c",
+        "status": "completed",
+        "attempts": 1,
+        "max_cost_irt": 1084,
+        "actual_cost_irt": 662,
+        "ai_usage_id": 129,
+        "created_at": "2026-10-26T06:14:08.000000Z",
+        "finished_at": "2026-10-26T06:16:07.000000Z"
+      },
+      {
+        "id": 3,
+        "kind": "image",
+        "model_slug": "di-black-forest-labsflux-1-schnell-9979f6c653",
+        "status": "completed",
+        "attempts": 1,
+        "max_cost_irt": 181,
+        "actual_cost_irt": 164,
+        "ai_usage_id": 130,
+        "created_at": "2026-10-26T06:16:12.000000Z",
+        "finished_at": "2026-10-26T06:16:14.000000Z"
+      }
+    ],
+    "receipts": [
+      {
+        "job_id": 1,
+        "status": "settled",
+        "charged_irt": 159,
+        "refunded_irt": 0,
+        "customer_id": 1
+      },
+      {
+        "job_id": 2,
+        "status": "settled",
+        "charged_irt": 662,
+        "refunded_irt": 0,
+        "customer_id": 1
+      },
+      {
+        "job_id": 3,
+        "status": "settled",
+        "charged_irt": 164,
+        "refunded_irt": 0,
+        "customer_id": 1
+      }
+    ],
+    "content": {
+      "id": 1,
+      "title": "چگونه منابع سرور ساعتی را برای یک پروژه آزمایشی انتخاب کنیم؟",
+      "locale": "fa",
+      "status": "review",
+      "version": 4,
+      "approved_by": null,
+      "post_id": null
+    },
+    "spend_day": 985,
+    "helpers_absent": true,
+    "old_access_public_absent": true
+  },
+  "access_cleanup": {
+    "initial_direct_removal_failed": true,
+    "corrected_by": "cPanel SSH authkey deauthorize",
+    "deauthorization_status": "deauthorized",
+    "authorization_listing": [
+      {
+        "name": "growth_auto_1792994528299",
+        "auth": 0,
+        "authstatus": "not authorized"
+      }
+    ],
+    "key_absent_in_authorized_keys": true,
+    "public_file_deleted": true,
+    "private_file_deleted": true,
+    "reauthentication_after_fix": "not_repeated_after_private_key_deletion",
+    "previous_temporary_key_deauthorization_api_success": true
+  }
+}

@@ -1,5 +1,7 @@
 # ServerNet AI Growth & Knowledge Center — 25 October 2026
 
+Current operating state was updated on 26 October: the owner enabled budgeted draft automation. See [Growth autopilot](AI-GROWTH-AUTOPILOT-2026-10-26.md). The installation defaults and acceptance below describe the 25 October release.
+
 ## Delivery state
 
 The implemented first release was installed and accepted on the production application at **25 October 2026, 13:20:56 UTC / 16:50:56 Asia/Tehran**, following the owner’s deployment approval. All 36 runtime file hashes match the release manifest; exactly one new migration created the ten Growth tables. Execution, notifications and daily tasks remain disabled, with daily/monthly budgets at zero. No Google account, social account or live Hermes client was connected; the dedicated Gateway and Hermes keys are not configured. No paid supplier request, customer message or infrastructure operation was performed. Earlier provider and wallet tests used isolated fixtures.

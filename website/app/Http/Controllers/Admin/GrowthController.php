@@ -12,6 +12,7 @@ use App\Models\Setting;
 use App\Services\Ai\AiModelRegistry;
 use App\Services\Growth\ContentWorkflow;
 use App\Services\Growth\GrowthAudit;
+use App\Services\Growth\GrowthAutopilot;
 use App\Services\Growth\GrowthCalendar;
 use App\Services\Growth\GrowthDrive;
 use App\Services\Growth\GrowthGateway;
@@ -41,6 +42,7 @@ class GrowthController extends Controller
         abort_unless(in_array($calendarTimezone, ['Asia/Tehran', 'UTC', 'Europe/Berlin', 'Europe/Istanbul'], true), 422);
 
         return view('admin.growth.index', [
+            'autopilot' => app(GrowthAutopilot::class)->status(),
             'tab' => $tab, 'items' => $items, 'calendar' => $tab === 'calendar' ? app(GrowthCalendar::class)->month($calendarDate, $calendarTimezone) : null, 'campaigns' => GrowthCampaign::orderByDesc('id')->get(),
             'control' => DB::table('growth_controls')->find(1), 'stats' => GrowthContent::select('status', DB::raw('count(*) as count'))->groupBy('status')->pluck('count', 'status'),
             'jobs' => GrowthJob::latest()->limit(30)->get(), 'documents' => GrowthDocument::latest()->limit(40)->get(),
@@ -209,7 +211,7 @@ class GrowthController extends Controller
 
     public function settings(Request $request)
     {
-        $data = $request->validate(['enabled' => 'nullable|boolean', 'daily_tasks' => 'nullable|boolean', 'notify' => 'nullable|boolean',
+        $data = $request->validate(['enabled' => 'nullable|boolean', 'autopilot_enabled' => 'nullable|boolean', 'autopilot_images' => 'nullable|boolean', 'daily_tasks' => 'nullable|boolean', 'notify' => 'nullable|boolean',
             'daily_irt' => 'required|integer|min:0|max:1000000000', 'monthly_irt' => 'required|integer|min:0|max:10000000000',
             'gateway_key' => 'nullable|string|max:512', 'hermes_key' => 'nullable|string|min:32|max:512']);
         DB::transaction(function () use ($data, $request) {
@@ -221,6 +223,9 @@ class GrowthController extends Controller
                     Setting::putSecret('growth_'.$key, $data[$key]);
                 }
             }
+            Setting::put('growth_autopilot_enabled', $request->boolean('autopilot_enabled') ? '1' : '0');
+            Setting::put('growth_autopilot_images', $request->boolean('autopilot_images') ? '1' : '0');
+            Setting::put('growth_autopilot_actor_id', (string) $request->user()->id);
             GrowthAudit::record('settings.updated', 'growth', (int) $request->user()->id);
         });
 
