@@ -473,6 +473,63 @@ class VpsTcCatalogTest extends TestCase
         $this->assertNull($this->catalog->quote('12'));
     }
 
+    public function test_native_server_group_requires_an_explicit_free_nested_selection_and_exact_calculated_echo(): void
+    {
+        $this->product['config']['forms'][] = ['id' => '48', 'type' => 'servergroupselector', 'name' => 'custom[48]',
+            'price' => 0, 'recurring_price' => 0, 'setup' => 0, 'value' => ['128' => '1'],
+            'items' => [['id' => '128', 'title' => 'Reviewed location', 'value' => '1',
+                'price' => 0, 'unit_price' => 0, 'setup' => 0, 'selected' => true]]];
+        $this->converted(['custom' => ['48' => ['128' => 1]]]);
+        $this->calculation['items'][0]['product']['config']['forms'][0]['type'] = 'servergroupselector';
+        $this->calculation['items'][0]['product']['config']['forms'][0]['value']['128'] = '1';
+        $quote = $this->catalog->quote('12');
+        $this->assertNotNull($quote);
+        $this->assertSame('150.66', $quote['total_amount']);
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/quote')
+            && $request['items'][0]['custom']['48'] === ['128' => 1]);
+        $this->calculation['items'][0]['product']['config']['forms'][0]['value']['128'] = '2';
+        $this->assertNull($this->catalog->quote('12'));
+        $this->converted(['custom' => ['48' => ['128' => 1]]]);
+        $this->calculation = [];
+        $this->assertNull($this->catalog->quote('12'));
+    }
+
+    public function test_server_group_cannot_use_an_implicit_unknown_paid_or_non_unit_selection(): void
+    {
+        $this->product['config']['forms'][] = ['id' => '48', 'type' => 'servergroupselector',
+            'price' => 0, 'recurring_price' => 0, 'setup' => 0, 'value' => ['128' => '1'],
+            'items' => [['id' => '128', 'price' => 0, 'unit_price' => 0, 'setup' => 0, 'selected' => true]]];
+        foreach ([[], ['48' => []], ['48' => '128'], ['48' => ['999' => 1]], ['48' => ['128' => 2]],
+            ['48' => ['128' => 'main']], ['48' => ['128' => true]], ['48' => ['128' => 1, '129' => 1]]] as $custom) {
+            $this->converted(['custom' => $custom]);
+            $this->assertNull($this->catalog->quote('12'));
+        }
+        foreach ([['price' => '0.01'], ['unit_price' => '0.01'], ['price' => 'unknown'], ['setup' => '0.01']] as $charge) {
+            $this->product['config']['forms'][1]['items'][0] = array_replace(
+                ['id' => '128', 'price' => 0, 'unit_price' => 0, 'setup' => 0, 'selected' => true], $charge);
+            $this->converted(['custom' => ['48' => ['128' => 1]]]);
+            $this->assertNull($this->catalog->quote('12'));
+        }
+        $this->product['config']['forms'][1]['items'][0] = ['id' => '128', 'price' => 0, 'unit_price' => 0, 'setup' => 0];
+        $this->product['config']['forms'][1]['type'] = 'unknownservergroupselector';
+        $this->converted(['custom' => ['48' => ['128' => 1]]]);
+        $this->assertNull($this->catalog->quote('12'));
+        Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/quote'));
+    }
+
+    public function test_server_group_requires_a_fresh_calculation_even_when_direct_prices_and_fees_look_free(): void
+    {
+        $this->product['config']['forms'][] = ['id' => '48', 'type' => 'servergroupselector',
+            'price' => 0, 'recurring_price' => 0, 'setup' => 0,
+            'items' => [['id' => '128', 'price' => 0, 'setup' => 0]]];
+        $this->converted(['custom' => ['48' => ['128' => 1]]]);
+        $this->categoryProducts[0]['periods'][0]['price'] = '2.79';
+        $this->fees = [['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 0]];
+        $this->calculation = [];
+        $this->assertNull($this->catalog->quote('12'));
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/quote'));
+    }
+
     public function test_description_unit_tax_anchor_or_default_review_change_closes_normalized_offer(): void
     {
         $this->converted();

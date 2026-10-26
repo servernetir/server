@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "scope": "VPS category 56 only",
+  "web_preflight_at": "2026-10-26T13:54:56+00:00",
+  "explicit_ubuntu24_completed_at": "2026-10-26T14:00:40+00:00",
+  "account_currency": "TRY",
+  "currency_source": "reviewed_account_contract",
+  "forms_expected": 16,
+  "forms_checked": 16,
+  "default_quotes_checked": 16,
+  "default_money_quotes_verified": 16,
+  "explicit_ubuntu24_configurations_verified": 16,
+  "supplier_tax_pct": "20",
+  "global_cloud_price_snapshot_current": true,
+  "source": {
+    "url": "https://www.vps.tc/en/vps",
+    "sha256": "fd9911b1edd124e10934566ebdb87e557bbed84a8952451e438a7a87de83bfbe"
+  },
+  "native_monthly_pairs": [
+    {
+      "istanbul_product": "351",
+      "new_york_product": "2169",
+      "currency": "TRY",
+      "net": "125.55",
+      "gross": "150.66",
+      "setup": "0"
+    },
+    {
+      "istanbul_product": "352",
+      "new_york_product": "2170",
+      "currency": "TRY",
+      "net": "188.55",
+      "gross": "226.26",
+      "setup": "0"
+    },
+    {
+      "istanbul_product": "353",
+      "new_york_product": "2171",
+      "currency": "TRY",
+      "net": "251.55",
+      "gross": "301.86",
+      "setup": "0"
+    },
+    {
+      "istanbul_product": "354",
+      "new_york_product": "2172",
+      "currency": "TRY",
+      "net": "377.55",
+      "gross": "453.06",
+      "setup": "0"
+    },
+    {
+      "istanbul_product": "355",
+      "new_york_product": "2173",
+      "currency": "TRY",
+      "net": "440.55",
+      "gross": "528.66",
+      "setup": "0"
+    },
+    {
+      "istanbul_product": "356",
+      "new_york_product": "2174",
+      "currency": "TRY",
+      "net": "755.55",
+      "gross": "906.66",
+      "setup": "0"
+    },
+    {
+      "istanbul_product": "357",
+      "new_york_product": "2175",
+      "currency": "TRY",
+      "net": "881.55",
+      "gross": "1057.86",
+      "setup": "0"
+    },
+    {
+      "istanbul_product": "358",
+      "new_york_product": "2176",
+      "currency": "TRY",
+      "net": "1007.55",
+      "gross": "1209.06",
+      "setup": "0"
+    }
+  ],
+  "provider_order_posts": 0,
+  "provider_credit_posts": 0,
+  "provider_renewal_posts": 0,
+  "provider_resource_mutations": 0,
+  "local_vpstc": {
+    "plans": 0,
+    "instances": 0,
+    "operations": 0,
+    "sales_enabled": false
+  },
+  "remaining": [
+    "owner financial preferences",
+    "reviewed catalog/network acceptance",
+    "paid creation/delivery test",
+    "paid renewal test",
+    "confirmed parent billing cancellation"
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "target": "4e4e4ecabd3513f725cd8e10e397f58021e51542",
+  "source_base": "ffa7205fc48a524af814586ccfa66683496fee85",
+  "core_sha256": "00d016eb781d37d31f14e1c57afd386321b308060c7f06e9d111f2c4636638de",
+  "wrapper_sha256": "f0d6ee00453a5e22cb2a7090f9cdba92a9ca19b2b60e4d63195ebec8affad17f",
+  "plan_sha256": "efa369e3ca5ce3704aa244b4a68024d70760537517d88238e9de351450c9fc81",
+  "receipt": {
+    "status": "installed",
+    "files_installed": 9,
+    "application_activation": "not_performed"
+  },
+  "files": [
+    {
+      "path": "app/Services/Cloud/VpsTcInvoiceAmounts.php",
+      "before_sha256": null,
+      "after_sha256": "c662c96763e840be5ea921cee25481cd3c8cb80172064ee4aafcc2d391d319b4",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "app/Services/Cloud/VpsTcMoneyContract.php",
+      "before_sha256": null,
+      "after_sha256": "9311c0116fc17222c811ebb479b7a39365a5f4140921e6e1fda28d32857b3b2b",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "app/Services/Cloud/VpsTcApi.php",
+      "before_sha256": "5282e624e3194283df2586d5350ce665e5db01a5dc5f90b7cbc87692ff55a42e",
+      "after_sha256": "a09482d6cd341b845eb1536a9283d8dcef7fe647a2c4a927f23c178f7867685d",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "app/Services/Cloud/VpsTcPricing.php",
+      "before_sha256": "e83a63d1ecdf04c28db2ced9b4031a7d6398a0a50ddbce6bd396c6b0275cb546",
+      "after_sha256": "edd494aaf182f0d81cd14d2eabde88fab5f3982eed5b9e7997e97e82e23fd6c8",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "app/Services/Cloud/VpsTcCatalog.php",
+      "before_sha256": "cb329feb5203d180784b4305f408662d1460d3e8ae3b70e99e7103715603bbe8",
+      "after_sha256": "fd648eb19b90c41a0c4a9b3aa023f4c33119652e4eb0bd8e8f0a38ea8f499c34",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "app/Services/Cloud/VpsTcPreflight.php",
+      "before_sha256": "f9c38770ee84a4d919e326e6a22d49a10204d9ac5594017085350832fd8a8f48",
+      "after_sha256": "d457abbdfaf433268b8a43b1ced10699ff74fb3f461e438de62914105700547d",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "app/Services/Cloud/VpsTcClient.php",
+      "before_sha256": "784de254285e6503777ae3fb1c5b6854566f9d0da5d26b094cfe487071751cfd",
+      "after_sha256": "309d621e0a930b2d49f53eebd7d3b9708d5eb3561e7af2f9f6054d24e2ad92fd",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "app/Services/Cloud/VpsTcRenewal.php",
+      "before_sha256": "f149606b41009ba12280b02f683e1681dd8fe67038f033d4285cb85f44d0f3d1",
+      "after_sha256": "ba3a8451bbd92f7b6f581055f98b50f2f73f5a1c90cb9df10593d1cee5af2569",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    },
+    {
+      "path": "resources/views/admin/partials/vpstc-settings-panel.blade.php",
+      "before_sha256": "2d8b4640fbe7603fca5bb1978b60c84b3c97c09eaa9bca220424b98d94ffb805",
+      "after_sha256": "a18a58d2861ce50aed95ae596c498197812f49be382f2396dc39fa1a70221e1b",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    }
+  ],
+  "actions": {
+    "file_only_release": true,
+    "migrations": 0,
+    "cron_changes": 0,
+    "provider_orders": 0,
+    "provider_payments": 0,
+    "provider_resource_mutations": 0,
+    "sales_enabled": false
+  }
+}

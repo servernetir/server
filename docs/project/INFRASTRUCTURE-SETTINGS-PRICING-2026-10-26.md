@@ -21,7 +21,7 @@ The existing `fx:dollar` workflow successfully published four rates, but its clo
 
 ## Supplier acceptance remains separate
 
-Authenticated reads confirmed 16 monthly VPS offers. New VPS.tc sales remain closed because the API returns empty account currency, literal `Array` payment fees and inconsistent native category/order amount units. Public USD/TRY display metadata is not a substitute for a verified account-currency contract. Profit/FX/tax settings or a top-up cannot repair these response ambiguities. No supplier purchase or free-operation promise is inferred from this release. See [account acceptance](VPSTC-SALES-PREPARATION-2026-10-26.md).
+Authenticated reads confirmed 16 monthly VPS offers. The later [money-contract follow-up](VPSTC-MONEY-CONTRACT-2026-10-26.md) reconciled their raw base/account units through a fresh Paid invoice, tax/credit arithmetic and explicit source provenance; all 16 default and Ubuntu 24.04 configurations were calculated without an order. Empty API currency and literal `Array` fee fields remain upstream defects, with strict per-configuration evidence required. New VPS.tc sales remain closed pending reviewed catalog/network terms, owner financial inputs and real delivery/renewal/cancellation acceptance. See [account acceptance](VPSTC-SALES-PREPARATION-2026-10-26.md).
 
 ## Validation
 

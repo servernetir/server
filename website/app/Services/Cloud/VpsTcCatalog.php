@@ -169,7 +169,9 @@ class VpsTcCatalog
         $unknownArrayFees = ($fee['fixed_fee'] ?? null) === 'Array' && ($fee['percent_fee'] ?? null) === 'Array';
         if (! $freeFees && ! $unknownArrayFees) { return null; }
         $normalized = null;
-        $needsCalculation = ! $directPrices || ! $freeFees || ($mapping['included_quantities'] ?? []) !== [];
+        $needsCalculation = ! $directPrices || ! $freeFees || ($mapping['included_quantities'] ?? []) !== []
+            || collect($product['config']['forms'])->contains(fn ($form) =>
+                is_array($form) && ($form['type'] ?? null) === 'servergroupselector');
         foreach ($mapping['images'] as $image) {
             $custom = array_replace_recursive($mapping['custom'], $image['custom']);
             if (! $this->selectionsKnownFree($product['config']['forms'], $custom,
@@ -346,7 +348,7 @@ class VpsTcCatalog
             if (! is_array($form) || (! is_int($form['id'] ?? null) && ! is_string($form['id'] ?? null))
                 || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) $form['id'])
                 || isset($known[(string) $form['id']])
-                || ! in_array($form['type'] ?? null, ['select', 'radio', 'sshkeyselect', 'servicegroupselector', 'qty', 'slider'], true)
+                || ! in_array($form['type'] ?? null, ['select', 'radio', 'sshkeyselect', 'servicegroupselector', 'servergroupselector', 'qty', 'slider'], true)
                 || ! is_array($form['items'] ?? null)) {
                 return false;
             }
@@ -365,6 +367,12 @@ class VpsTcCatalog
                     || ! BigDecimal::of((string) $form[$key])->isZero())) {
                     return false;
                 }
+            }
+            // A supplier server-group default is not a reviewed location choice.
+            // Require the exact nested item => 1 payload and a fresh calculation.
+            if ($form['type'] === 'servergroupselector'
+                && (! array_key_exists($id, $custom) || ! is_array($custom[$id]) || count($custom[$id]) !== 1)) {
+                return false;
             }
             $selected = $custom[$id] ?? $form['value'] ?? [];
             if (! is_array($selected)) {
@@ -393,6 +401,10 @@ class VpsTcCatalog
                 if (! is_array($item) || ! $this->amount($item['price'] ?? null, true)
                     || ! $this->amount($item['setup'] ?? null, true)
                     || ! BigDecimal::of((string) $item['setup'])->isZero()) {
+                    return false;
+                }
+                if ($form['type'] === 'servergroupselector' && array_key_exists('unit_price', $item)
+                    && (! $this->amount($item['unit_price'], true) || ! BigDecimal::of((string) $item['unit_price'])->isZero())) {
                     return false;
                 }
                 if (! BigDecimal::of((string) $item['price'])->isZero()) {
