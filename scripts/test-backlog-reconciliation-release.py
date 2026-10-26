@@ -10,6 +10,17 @@ spec.loader.exec_module(release)
 
 
 class ReleaseMergeTest(unittest.TestCase):
+    def test_reviewed_caption_patch_preserves_live_controller_formatting_and_other_code(self):
+        path = 'app/Http/Controllers/Admin/SettingsController.php'
+        old = "        'accounts' => ['t' => 'حساب‌ها',         'icon' => 'i-coins'],\n".encode()
+        new = "        'accounts' => ['t' => 'حساب‌ها و پرداخت', 'icon' => 'i-coins'],\n".encode()
+        current = b'// existing production change\n' + old
+        result = release.merge_runtime(path, current, old, new)
+        self.assertEqual(result, current.replace('حساب‌ها'.encode(), 'حساب‌ها و پرداخت'.encode()))
+        self.assertEqual(release.merge_runtime(path, result, old, new), result)
+        with self.assertRaises(RuntimeError):
+            release.merge_runtime(path, current.replace(old, b'other caption\n'), old, new)
+
     def test_preserves_unrelated_live_changes(self):
         base = b'<?php\n$first = 1;\n$middle = 1;\n$last = 1;\n'
         current = base.replace(b'$first = 1;', b'$first = 2;')

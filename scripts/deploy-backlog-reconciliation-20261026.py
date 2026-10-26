@@ -45,6 +45,22 @@ def merge_candidate(current, base, desired):
         return result.stdout
 
 
+def merge_runtime(name, current, base, desired):
+    # The live settings file has historical formatting drift. This release's
+    # entire source delta in that controller is the reviewed tab caption.
+    if name == 'app/Http/Controllers/Admin/SettingsController.php':
+        old = "'accounts' => ['t' => 'حساب‌ها',".encode()
+        new = "'accounts' => ['t' => 'حساب‌ها و پرداخت',".encode()
+        old_line = b'        ' + old + b"         'icon' => 'i-coins'],"
+        new_line = b'        ' + new + b" 'icon' => 'i-coins'],"
+        if base is not None and base.count(old_line) == 1 and base.replace(old_line, new_line, 1) == desired and current is not None:
+            if current.count(old) == 1:
+                return current.replace(old, new, 1)
+            if current.count(new) == 1:
+                return current
+    return merge_candidate(current, base, desired)
+
+
 def fetch(url):
     with urllib.request.urlopen(url, timeout=45) as response:
         data = response.read(90_000_001)
@@ -155,6 +171,7 @@ def prepare(args, live, stage):
     base = sources(source_manifest['base_sha'], ['website/' + name for name, row in entries.items() if row['base'] is not None])
     candidates = {}
     manifest = {}
+    conflicts = []
     for name, row in entries.items():
         new = desired['website/' + name]
         old = base.get('website/' + name)
@@ -163,11 +180,14 @@ def prepare(args, live, stage):
         path = live / name
         current = path.read_bytes() if path.exists() else None
         try:
-            merged = merge_candidate(current, old, new)
+            merged = merge_runtime(name, current, old, new)
         except RuntimeError as error:
-            raise RuntimeError(str(error) + ': ' + name) from error
+            conflicts.append(name)
+            continue
         candidates[name] = (current, merged)
         manifest[name] = {'before': digest(current), 'after': digest(merged), 'drift': current != old, 'changed': current != merged}
+    if conflicts:
+        raise RuntimeError('Overlapping live edits require review: ' + ', '.join(conflicts))
     stage.mkdir(mode=0o700)
     for name, (current, merged) in candidates.items():
         target = stage / 'candidate' / name
