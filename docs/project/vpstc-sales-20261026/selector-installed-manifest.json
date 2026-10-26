@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "target": "91d010eadae54243181d5bbde6f0831a487270bb",
+  "source_base": "4e4e4ecabd3513f725cd8e10e397f58021e51542",
+  "core_sha256": "00d016eb781d37d31f14e1c57afd386321b308060c7f06e9d111f2c4636638de",
+  "wrapper_sha256": "bcf3c38cc9036ae71ca42875c6f5d0f710ce2f3931eddc060a7a47d7fb1701dd",
+  "plan_sha256": "041450e21337987df8883b9587721aaf8b61be246ed83b057cd7252cafcad931",
+  "receipt": {
+    "status": "installed",
+    "files_installed": 1,
+    "application_activation": "not_performed"
+  },
+  "files": [
+    {
+      "path": "app/Services/Cloud/VpsTcCatalog.php",
+      "before_sha256": "fd648eb19b90c41a0c4a9b3aa023f4c33119652e4eb0bd8e8f0a38ea8f499c34",
+      "after_sha256": "8abec2e31cac0b416ab8ca37420c9c4fdf5562180c65a193b91342574a92b4fb",
+      "after_mode": 420,
+      "preserved_live_drift": false
+    }
+  ],
+  "provider_mutations": 0
+}

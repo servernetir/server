@@ -98,5 +98,13 @@
     "paid creation/delivery test",
     "paid renewal test",
     "confirmed parent billing cancellation"
-  ]
+  ],
+  "final_read_only_acceptance_at": "2026-10-26T14:10:23+00:00",
+  "fx_schedule": {
+    "command": "php artisan fx:dollar",
+    "expression": "0 */6 * * *",
+    "timezone": "UTC",
+    "next_due_date": "2026-10-26 18:00:00 +00:00",
+    "has_mutex": false
+  }
 }
