@@ -185,4 +185,18 @@ class AccountPanelTest extends TestCase
             $this->get($uri)->assertRedirect(route('login'));
         }
     }
+
+    public function test_profile_keeps_the_submitted_company_type_after_validation(): void
+    {
+        $this->withSession(['_old_input' => ['type' => 'company']]);
+        [$code, $html] = $this->render($this->customer(), '/account/profile');
+        $this->assertSame(200, $code);
+
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($dom);
+        $this->assertSame(1, $xpath->query('//select[@id="vf-type"]/option[@value="company"][@selected]')->length);
+        $this->assertSame(0, $xpath->query('//*[@id="vf-company"][@hidden]')->length);
+        $this->assertSame(1, $xpath->query('//section[@id="company"]//span[contains(concat(" ", normalize-space(@class), " "), " mute ")]')->length);
+    }
 }

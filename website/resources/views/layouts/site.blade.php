@@ -133,6 +133,7 @@
 <link rel="stylesheet" href="{{ asset_ver($siteCss) }}">
 <link rel="stylesheet" href="{{ asset_ver('assets/css/server-menu.css') }}">
 @endif
+<link rel="stylesheet" href="{{ asset_ver('assets/css/site-select.css') }}">
 {{-- صفحه‌هایی مثل پنل که CSS اختصاصی دارند، از اینجا تزریق می‌کنند --}}
 @stack('head')
 @if($atlasPublic)
@@ -244,5 +245,6 @@ if ($ids) {
 
 <script src="{{ asset_ver('assets/js/site.js') }}" defer></script>
 <script src="{{ asset_ver('assets/js/server-menu.js') }}" defer></script>
+<script src="{{ asset_ver('assets/js/site-select.js') }}" defer></script>
 </body>
 </html>
