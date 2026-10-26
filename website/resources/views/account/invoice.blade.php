@@ -48,7 +48,6 @@
   </div>
 @endif
 
-@include('account.partials.campaign-discount')
 <section class="pnl-sec">
   <div class="pnl-sec-h">
     <h2>{{ __('ui.inv_items') }}</h2>
@@ -102,6 +101,8 @@
   </div>
 </section>
 
+@include('account.partials.campaign-discount')
+
 @if($invoice->isPayable())
 @if(session('ok'))
   <div class="pnl-sec" style="border-color:var(--ok-line)">
@@ -128,23 +129,6 @@
           <b>{{ invoice_money($creditBalance, 'IRT') }}</b>
         </span>
         <button class="pnl-btn" type="submit">{{ __('ui.inv_credit_btn') }}</button>
-      </form>
-    @endif
-
-    {{-- کوپنِ هدیه — فقط وقتی مشتری کوپنِ زنده‌ای دارد.
-         ⚠️ اگر همیشه نشان داده شود، فیلدی روی صفحه می‌مانَد که ۹۹٪ کاربران
-         چیزی برایش ندارند و هر بار می‌پرسند «کد از کجا بیاورم؟». --}}
-    @if(($giftCoupon ?? null) && $invoice->due() > 0 && $invoice->kind !== 'topup' && $invoice->currency_code === 'IRT')
-      <form method="POST" action="{{ lroute('account.invoice.coupon', $invoice) }}"
-            style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel-2,rgba(0,0,0,.04));border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:16px">
-        @csrf
-        <span style="font-size:13.5px;line-height:2">
-          {{ __('ui.iv_cp_lead', ['amount' => invoice_money($giftCoupon->amount, 'IRT'), 'hours' => fa_num((string) $giftCoupon->hoursLeft())]) }}
-        </span>
-        <input name="code" dir="ltr" required maxlength="32"
-               value="{{ $giftCoupon->code }}"
-               style="font-family:monospace;letter-spacing:1px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--text)">
-        <button class="pnl-btn" type="submit">{{ __('ui.iv_cp_btn') }}</button>
       </form>
     @endif
 
@@ -464,6 +448,24 @@
 
 
 <style>
+
+.invoice-discount{margin:0 0 18px;padding-inline:2px;max-width:620px;color:var(--muted)}
+.invoice-discount>summary{display:inline-flex;align-items:center;gap:6px;list-style:none;cursor:pointer;font-size:12px;line-height:1.8;padding:7px 0}
+.invoice-discount>summary::-webkit-details-marker{display:none}
+.invoice-discount>summary svg{width:14px;height:14px;flex:none;transition:transform .16s}
+.invoice-discount[open]>summary svg{transform:rotate(180deg)}
+.invoice-discount>summary:hover{color:var(--text)}
+.invoice-discount>summary:focus-visible{outline:2px solid var(--brand);outline-offset:4px;border-radius:4px}
+.invoice-discount-body{padding-top:8px;display:grid;gap:14px}
+.invoice-discount-form{display:flex;align-items:end;gap:8px;flex-wrap:wrap;max-width:460px}
+.invoice-discount-field{display:grid;gap:5px;font-size:11px;flex:1 1 180px;min-width:0}
+.invoice-discount-form .pnl-input{width:100%;min-width:0;box-sizing:border-box;font-family:inherit}
+.invoice-discount-form .pnl-btn{flex:none;min-height:38px;padding:7px 13px;font-size:12px}
+.invoice-discount-link{justify-self:start;color:var(--muted);font-size:11px;text-underline-offset:3px}
+.invoice-discount-link:hover{color:var(--text)}
+.invoice-discount-gift{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;line-height:1.8;margin:0}
+@media(prefers-reduced-motion:reduce){.invoice-discount>summary svg{transition:none}}
+
 .pm-lead{ font-size:13px; color:var(--muted); margin-bottom:12px; }
 .pm-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
 .pm-card{ position:relative; display:flex; align-items:center; gap:12px; cursor:pointer;

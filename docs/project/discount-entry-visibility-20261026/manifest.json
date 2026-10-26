@@ -1,0 +1,72 @@
+{
+  "status": "tested-not-deployed",
+  "base": "f202bc5b",
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/Admin/DiscountVisibilityController.php",
+      "target": "servernet_app/app/Http/Controllers/Admin/DiscountVisibilityController.php",
+      "sha256": "a2da3ff611dade57f7909a24a71af8baa77b05306ee342378e3be10e1947c7af"
+    },
+    {
+      "source": "website/app/Services/Marketing/DiscountEntryVisibility.php",
+      "target": "servernet_app/app/Services/Marketing/DiscountEntryVisibility.php",
+      "sha256": "75bca4485bf27c1173d52e064f567d529b96e2bc73ae98d1f7a1a95e73f3c7c7"
+    },
+    {
+      "source": "website/database/migrations/2026_10_26_140000_add_discount_entry_visibility_to_customers.php",
+      "target": "servernet_app/database/migrations/2026_10_26_140000_add_discount_entry_visibility_to_customers.php",
+      "sha256": "37c40d937073faebd52417862cd468bc4f4bc55ccd997ba5c3620a3533e1ed23"
+    },
+    {
+      "source": "website/lang/fa/marketing.php",
+      "target": "servernet_app/lang/fa/marketing.php",
+      "sha256": "bc9189b95b38715c441f9da284b94cf2566d344b76d4b7e3b53721cce7ef9021"
+    },
+    {
+      "source": "website/lang/en/marketing.php",
+      "target": "servernet_app/lang/en/marketing.php",
+      "sha256": "cfb6a9423cfc992c58796e18b4bfc1c5a4ccf870fd76bfd44acfb812ca1de023"
+    },
+    {
+      "source": "website/lang/tr/marketing.php",
+      "target": "servernet_app/lang/tr/marketing.php",
+      "sha256": "381ca6e797fabc9a4bdde55b10c788c550a5d02deaf9f016b4559c28b7a1e5f7"
+    },
+    {
+      "source": "website/resources/views/account/invoice.blade.php",
+      "target": "servernet_app/resources/views/account/invoice.blade.php",
+      "sha256": "aeef44cf33d9db8ce92d21db4eb3ba6e1fd3813857c6d6fd0c37d38ed0cf02e4"
+    },
+    {
+      "source": "website/resources/views/account/partials/campaign-discount.blade.php",
+      "target": "servernet_app/resources/views/account/partials/campaign-discount.blade.php",
+      "sha256": "989dba80b45c3736495e2e19cf6748174c47eac09ad0349b3d429cf42f716932"
+    },
+    {
+      "source": "website/resources/views/admin/customer.blade.php",
+      "target": "servernet_app/resources/views/admin/customer.blade.php",
+      "sha256": "427f33021d4eec884cf484dd3ca3249bb980280530632a9f271adf2cc4c55e0c"
+    },
+    {
+      "source": "website/resources/views/admin/partials/customer-discount-entry.blade.php",
+      "target": "servernet_app/resources/views/admin/partials/customer-discount-entry.blade.php",
+      "sha256": "fa9f2414e6de4f9cd391c1387852e570ff37a9d93308e9e84810f140e2191842"
+    },
+    {
+      "source": "website/resources/views/admin/settings/accounts.blade.php",
+      "target": "servernet_app/resources/views/admin/settings/accounts.blade.php",
+      "sha256": "e9260bf645ca2ba1de1e9fdffce8985ab39061a24c6216e84f7f96cc7e66a57a"
+    },
+    {
+      "source": "website/resources/views/admin/settings/discount-entry.blade.php",
+      "target": "servernet_app/resources/views/admin/settings/discount-entry.blade.php",
+      "sha256": "c05638dfa9b84526f9d784f43a5faf2b90021d4a4992971ebecf482094562e97"
+    },
+    {
+      "source": "website/routes/web.php",
+      "target": "servernet_app/routes/web.php",
+      "sha256": "edeec278e4fbbe0d008f728645a41e69f1b0b1ffda0a212279b6df8e340b4c9f"
+    }
+  ],
+  "integrated_base": "2c251bef0c499ca99dc3e95963ff40017f226c6f"
+}
