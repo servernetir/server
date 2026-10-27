@@ -1,5 +1,7 @@
 # VPS.tc retained Turkey server acceptance — 27 October 2026
 
+Later follow-up: [power and SSH acceptance](VPSTC-POWER-ACCEPTANCE-2026-10-27.md) supersedes the SSH-unconfirmed status below. Shutdown, startup, a guest-boot-ID verified reboot and subsequent SSH are now observed; public sales still remain off. The remaining text is the earlier purchase-stage record.
+
 Status: **one supplier SDK purchase and native read-back verified; SSH result unconfirmed**. This is not customer retail checkout-to-delivery acceptance. Public VPS.tc sales remain off; no sales flag or owner pricing preference was changed. The server must be retained for use, with no cancellation or deletion after testing.
 
 ## Purchase and running resource

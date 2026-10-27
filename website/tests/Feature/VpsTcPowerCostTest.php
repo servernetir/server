@@ -94,7 +94,8 @@ class VpsTcPowerCostTest extends TestCase
             '*/api/service/83' => Http::response(['service' => ['id' => '83', 'status' => 'Active', 'billingcycle' => 'Monthly',
                 'domain' => $this->hostname.'.servernet.cloud']]),
             '*/api/invoice/91' => Http::response(['invoice' => ['id' => '91', 'status' => 'Paid', 'currency' => 'USD',
-                'total' => '10.00', 'items' => [['type' => 'Hosting', 'item_id' => '83', 'qty' => '1.00']]]]),
+                'total' => '0.00', 'credit' => '10.00', 'subtotal' => '10.00', 'tax' => '0.00',
+                'items' => [['type' => 'Hosting', 'item_id' => '83', 'qty' => '1.00']]]]),
             '*/api/service/83/vms' => Http::response(['vms' => [['vmid' => 'vm-1056']]]),
             '*/api/service/83/vms/vm-1056' => fn () => Http::response(['vm' => ['vmid' => 'vm-1056',
                 'built' => true, 'locked' => false, 'status' => $this->remoteStatus, 'ipv4' => ['203.0.113.5'],
@@ -138,6 +139,20 @@ class VpsTcPowerCostTest extends TestCase
         $this->assertSame(1200000, (int) $service->fresh()->price);
         $this->assertSame(0, CloudProviderOperation::where('action', 'power')->count());
         Http::assertNotSent(fn ($r) => str_contains($r->url(), '/order/') || str_contains($r->url(), '/credit'));
+    }
+
+    public function test_paid_invoice_without_gross_components_never_submits_power(): void
+    {
+        [, $instance] = $this->machine();
+        $this->manifest('included');
+        $this->fake([
+            '*/api/invoice/91' => Http::response(['invoice' => ['id' => '91', 'status' => 'Paid', 'currency' => 'USD',
+                'total' => '10.00', 'items' => [['type' => 'Hosting', 'item_id' => '83', 'qty' => '1.00']]]]),
+        ]);
+
+        $this->assertFalse(app(VpsTcClient::class)->power((string) $instance->provider_ref, 'off')['ok']);
+        Http::assertNotSent(fn ($request) => $request->method() === 'POST' && str_ends_with($request->url(), '/stop'));
+        $this->assertSame(0, CloudProviderOperation::where('action', 'power')->count());
     }
 
     public function test_policy_for_another_account_product_or_location_cannot_authorize_power(): void
