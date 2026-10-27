@@ -7,7 +7,7 @@ use App\Services\Billing\OrderPaymentWindow;
 use App\Services\Cloud\{GpuCapacityOrders, HourlyStartCredit, SaladClient};
 use App\Services\Finance\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\{DB, Http};
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
