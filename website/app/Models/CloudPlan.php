@@ -374,6 +374,14 @@ class CloudPlan extends Model
     public function trafficLabel(?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
+        // Metered Iranian traffic must never inherit the global unlimited label.
+        if ($this->provider === 'arvan') {
+            return match ($locale) {
+                'en' => 'Metered; traffic billed separately',
+                'tr' => 'Kullanıma göre; trafik ayrıca ücretlendirilir',
+                default => 'مصرفی؛ ترافیک جداگانه محاسبه می‌شود',
+            };
+        }
         if ($this->provider === 'vpstc') {
             if (($this->network_terms['charge_mode'] ?? '') === 'unconfirmed') {
                 return match ($locale) {
