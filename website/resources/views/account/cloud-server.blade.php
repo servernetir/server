@@ -3,6 +3,7 @@
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/cloud-request.css') }}">
+<script src="{{ asset_ver('assets/js/gpu-request-expiry.js') }}" defer></script>
 @endpush
 
 {{-- Live customer server details. Pending requests use their own presentation;
@@ -43,6 +44,7 @@
   $gpuAwaitingInvoice = ($capacityOrder['version'] ?? null) === 1
       && ($capacityOrder['state'] ?? '') === 'awaiting_payment' && $service->status === 'pending';
   if ($capacityWaiting) { $stage = 'allocating'; $stageIdx = 2; }
+  $fundingExpired = ($capacityOrder['closed_reason'] ?? '') === 'payment_expired';
   $closed = in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
   $ready = $ready && ! $closed;
 
@@ -129,7 +131,7 @@
         style="font-size:12.5px;padding:7px 15px;color:{{ (! $closed && ($capacityWaiting || $gpuAwaitingInvoice)) ? 'var(--warn)' : ($inst?->statusColor() ?? 'var(--dim)') }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
-    {{ $closed ? __('ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
+    {{ $closed ? __($fundingExpired ? 'ui.gpu_order_expired' : 'ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
   </span>
 </div>
 
@@ -157,9 +159,9 @@
      می‌گوید نشان می‌دهد. حکم مالِ زیرساخت است. الگوی دوم نمی‌سازیم. --}}
 @if($closed)
   <section class="pnl-sec" data-gpu-closed>
-    <div class="pnl-sec-h"><h2>{{ __('ui.cs_closed_h') }}</h2></div>
+    <div class="pnl-sec-h"><h2>{{ __($fundingExpired ? 'ui.gpu_request_expired_h' : 'ui.cs_closed_h') }}</h2></div>
     <div class="pnl-sec-b">
-      <p class="cb-lead">{{ __(data_get($service->provision_meta, 'gpu_delivery_recovery') ? 'ui.cs_closed_refund_p' : 'ui.cs_closed_p') }}</p>
+      <p class="cb-lead">{{ __($fundingExpired ? 'ui.gpu_request_expired_p' : (data_get($service->provision_meta, 'gpu_delivery_recovery') ? 'ui.cs_closed_refund_p' : 'ui.cs_closed_p')) }}</p>
       <a class="pnl-btn" href="{{ lroute('account.services') }}">{{ __('ui.svc_page_title') }}</a>
     </div>
   </section>

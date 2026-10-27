@@ -3359,4 +3359,16 @@ return [
     'gpu_request_wallet_billing' => 'Charges are deducted from your wallet hourly after this service is ready. You can delete the server at any time; once deletion is complete, no further hourly charges accrue for that server.',
     'gpu_request_wallet_reuse_heading' => 'Using your remaining credit',
     'gpu_request_wallet_reuse' => 'Unspent, available wallet credit remains in your account and can be used to purchase or renew other ServerNet services.',
+
+    // Funding expiry for unpaid hourly GPU requests.
+    'gpu_request_deadline_heading' => 'Request funding deadline',
+    'gpu_request_deadline_note' => 'Ensure your available wallet balance meets the required minimum within :hours hours of submitting this request. Otherwise, the request will be cancelled automatically.',
+    'gpu_request_deadline_at' => 'Funding due by',
+    'gpu_request_deadline_timezone' => 'UTC',
+    'gpu_request_deadline_remaining' => ':hours h :minutes min remaining',
+    'gpu_request_deadline_passed' => 'The funding window has ended. The final request status is being checked.',
+    'gpu_request_expired_h' => 'Request cancelled after the funding deadline',
+    'gpu_request_expired_p' => 'The required minimum balance was not available within the funding window, so this request was cancelled automatically. No wallet charge was made for this request. You can submit a new request to continue.',
+    'gpu_order_expired' => 'Cancelled — funding deadline passed',
+    'act_gpu_request_expired' => 'Hourly request automatically cancelled because the minimum available balance was not funded within the payment window.',
 ];

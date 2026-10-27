@@ -4,12 +4,13 @@ namespace App\Console\Commands;
 
 use App\Models\Invoice;
 use App\Services\Billing\InvoiceCanceller;
+use App\Services\Billing\OrderPaymentWindow;
 use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * پیش‌فاکتورِ سفارشِ پرداخت‌نشده بعد از ۷۲ ساعت منقضی می‌شود.
+ * پیش‌فاکتورِ سفارشِ پرداخت‌نشده پس از مهلتِ تنظیم‌شده منقضی می‌شود.
  *
  * کارفرما: «بعداً دوباره سفارش بدهد اگر خواست، چون قیمت‌ها نوسان دارد.» بهای
  * تمام‌شدهٔ ما یورویی است و پیش‌فاکتورِ هفته‌پیش می‌تواند زیرِ قیمتِ خرید باشد.
@@ -30,7 +31,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * 🔴 **پیش‌فاکتورِ صادرشدهٔ مدیر** (`services.created_by` پر است). ممکن است
  * تخفیفِ مذاکره‌شده داشته باشد که بازسازی‌شدنی نیست، و مدیر می‌تواند تاریخِ
- * صدور را عقب بزند پس بعضی‌شان از لحظهٔ تولد از ۷۲ ساعت قدیمی‌ترند.
+ * صدور را عقب بزند پس بعضی‌شان از لحظهٔ تولد از مهلتِ تنظیم‌شده قدیمی‌ترند.
  *
  * ⚠️ **لغو، نه حذفِ فیزیکی.** چرایش در `InvoiceCanceller`.
  */
@@ -41,7 +42,7 @@ class ExpireOrderInvoices extends Command
         {--limit=200 : سقفِ ردیف در هر اجرا}
         {--dry : فقط نشان بده، چیزی ننویس}';
 
-    protected $description = 'پیش‌فاکتورِ سفارشِ مشتری را که ۷۲ ساعت پرداخت نشده لغو می‌کند (تمدیدها را هرگز)';
+    protected $description = 'پیش‌فاکتورِ سفارشِ مشتری را پس از مهلتِ پرداختِ تنظیم‌شده لغو می‌کند (تمدیدها را هرگز)';
 
     public function handle(InvoiceCanceller $canceller): int
     {
@@ -62,7 +63,7 @@ class ExpireOrderInvoices extends Command
 
     private function expire(InvoiceCanceller $canceller): int
     {
-        $hours  = (int) ($this->option('hours') ?: config('billing.order_expiry_hours', 72));
+        $hours  = OrderPaymentWindow::hours((int) $this->option('hours'));
         $limit  = max(1, (int) $this->option('limit'));
         $dry    = (bool) $this->option('dry');
         $cutoff = now()->subHours(max(1, $hours));

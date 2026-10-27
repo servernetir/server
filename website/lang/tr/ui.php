@@ -3359,4 +3359,16 @@ return [
     'gpu_request_wallet_billing' => 'Bu servis hazır olduktan sonra ücretler saatlik olarak cüzdanınızdan düşülür. Sunucuyu istediğiniz zaman silebilirsiniz; silme işlemi tamamlandığında bu sunucu için yeni saatlik ücret hesaplanmaz.',
     'gpu_request_wallet_reuse_heading' => 'Kalan bakiyenin kullanımı',
     'gpu_request_wallet_reuse' => 'Harcanmamış ve kullanılabilir cüzdan bakiyeniz hesabınızda kalır; bu bakiyeyi diğer ServerNet hizmetlerini satın almak veya yenilemek için kullanabilirsiniz.',
+
+    // Funding expiry for unpaid hourly GPU requests.
+    'gpu_request_deadline_heading' => 'Talep için bakiye yükleme süresi',
+    'gpu_request_deadline_note' => 'Talebin oluşturulmasından itibaren :hours saat içinde kullanılabilir cüzdan bakiyenizin gerekli asgari tutara ulaşmasını sağlayın. Süre sonunda yeterli bakiye bulunmazsa talep otomatik olarak iptal edilir.',
+    'gpu_request_deadline_at' => 'Son bakiye yükleme zamanı',
+    'gpu_request_deadline_timezone' => 'UTC',
+    'gpu_request_deadline_remaining' => ':hours sa :minutes dk kaldı',
+    'gpu_request_deadline_passed' => 'Bakiye yükleme süresi doldu. Talebin son durumu kontrol ediliyor.',
+    'gpu_request_expired_h' => 'Talep, bakiye yükleme süresi dolduğu için iptal edildi',
+    'gpu_request_expired_p' => 'Belirlenen süre içinde gerekli asgari kullanılabilir bakiye sağlanmadığı için bu talep otomatik olarak iptal edildi. Bu talep için cüzdanınızdan ücret kesilmedi. Devam etmek için yeni bir talep oluşturabilirsiniz.',
+    'gpu_order_expired' => 'İptal edildi — bakiye yükleme süresi doldu',
+    'act_gpu_request_expired' => 'Ödeme süresi içinde gerekli asgari kullanılabilir bakiye sağlanmadığı için saatlik talep otomatik olarak iptal edildi.',
 ];

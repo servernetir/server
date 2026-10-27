@@ -3,12 +3,14 @@
 namespace App\Services\Cloud;
 
 use App\Http\Controllers\Account\CloudStoreController;
+use App\Models\ActivityLog;
 use App\Models\CloudInstance;
 use App\Models\CloudImage;
 use App\Models\CloudPlan;
 use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Service;
+use App\Services\Billing\OrderPaymentWindow;
 use App\Services\Finance\Wallet;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -47,6 +49,114 @@ class GpuCapacityOrders
             }
         }
         return $state;
+    }
+
+    /** The original request timestamp is immutable for funding-window purposes. */
+    public static function requestDeadline(Service $service): ?Carbon
+    {
+        if (! self::managed($service) || $service->billing_mode !== 'hourly') {
+            return null;
+        }
+        $createdAt = $service->created_at;
+        $requested = data_get($service->provision_meta, 'gpu_capacity_order.requested_at');
+        $startedAt = null;
+        // Carbon accepts relative phrases; stored request dates must be absolute.
+        if (is_string($requested) && preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/D', $requested)) {
+            try {
+                $parsed = Carbon::parse($requested);
+                $errors = Carbon::getLastErrors();
+                if (! is_array($errors) || ($errors['warning_count'] === 0 && $errors['error_count'] === 0)) {
+                    $startedAt = $parsed;
+                }
+            } catch (\Throwable) {
+                // A malformed legacy date falls back to actual row creation.
+            }
+        }
+        $startedAt ??= $createdAt?->copy();
+        if ($startedAt === null) {
+            return null;
+        }
+        if ($createdAt && $startedAt->gt($createdAt)) {
+            $startedAt = $createdAt->copy();
+        }
+        return OrderPaymentWindow::deadline($startedAt);
+    }
+
+    /** Read-only presentation data, using the same eligibility and usable-credit gates. */
+    public static function fundingWindow(Service $service): ?array
+    {
+        if (! $service->customer_id || $service->provision_status !== self::WAIT
+            || ! self::isUnallocatedHourlyIntent($service) || ! ($deadline = self::requestDeadline($service))) {
+            return null;
+        }
+        $minimum = app(HourlyStartCredit::class)->minimum($service->customer_id, (int) $service->hourly_rate_irt, $service->id);
+        return ['deadline' => $deadline, 'hours' => OrderPaymentWindow::hours(), 'required_credit' => $minimum,
+            'funded' => app(Wallet::class)->availableOf($service->customer_id) >= $minimum];
+    }
+
+    /** Never closes a paid, allocated, invoice-backed, or staff-created service. */
+    private static function isUnallocatedHourlyIntent(Service $service): bool
+    {
+        return self::unpaid($service) && $service->billing_mode === 'hourly'
+            && $service->cloudPlan?->provider === 'salad'
+            && $service->status === 'awaiting_provision' && $service->created_by === null
+            && $service->activated_at === null && (int) $service->hourly_rate_irt > 0
+            && in_array($service->provision_status, [self::WAIT, 'pending', 'running'], true)
+            && ! data_get($service->provision_meta, 'gpu_capacity_order.allocation_started_at')
+            && ! $service->cloudInstance()->exists() && ! $service->invoices()->exists()
+            && ! CreditEntry::where('customer_id', $service->customer_id)->where('source_type', Service::class)
+                ->where('source_id', $service->id)->where('reason', 'cloud_hourly')->where('amount', '<', 0)->exists();
+    }
+
+    public function expireUnfunded(Service $service): bool
+    {
+        if (! self::managed($service) || $service->billing_mode !== 'hourly') {
+            return false;
+        }
+        $expired = DB::transaction(function () use ($service): bool {
+            Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
+            $locked = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+            if ((int) $locked->customer_id !== (int) $service->customer_id) {
+                return false;
+            }
+            return $this->expireUnfundedLocked($locked);
+        }, 3);
+        $service->refresh();
+        return $expired;
+    }
+
+    /** Caller holds the customer lock followed by the fresh service lock. */
+    private function expireUnfundedLocked(Service $service): bool
+    {
+        if (! self::isUnallocatedHourlyIntent($service) || ! ($deadline = self::requestDeadline($service))
+            || now()->lt($deadline)) {
+            return false;
+        }
+        $minimum = $this->credit->minimum($service->customer_id, (int) $service->hourly_rate_irt, $service->id);
+        if ($this->wallet->availableOf($service->customer_id) >= $minimum) {
+            return false;
+        }
+        $this->state($service, 'expired', ['closed_reason' => 'payment_expired', 'charge_pending' => false,
+            'stop_pending' => false, 'expired_at' => now()->toIso8601String(), 'expires_at' => $deadline->toIso8601String()]);
+        $service->update(['status' => 'cancelled', 'cancelled_at' => now(), 'provision_status' => 'none']);
+        ActivityLog::forService($service, 'gpu_request_expired', __('ui.act_gpu_request_expired'), 'system');
+        return true;
+    }
+
+    /** Recheck after provider calls: a late callback must not revive a closed intent. */
+    private function waitForAllocation(Service $service, string $state, array $extra = []): void
+    {
+        DB::transaction(function () use ($service, $state, $extra) {
+            Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
+            $locked = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+            if ((int) $locked->customer_id !== (int) $service->customer_id
+                || ! self::isUnallocatedHourlyIntent($locked) || $this->expireUnfundedLocked($locked)) {
+                return;
+            }
+            $this->state($locked, $state, $extra);
+            $locked->update(['status' => 'awaiting_provision', 'provision_status' => self::WAIT]);
+        }, 3);
+        $service->refresh();
     }
 
     public function replay(int $customerId, string $key): ?Service
@@ -117,6 +227,9 @@ class GpuCapacityOrders
             return data_get($service->provision_meta, 'gpu_capacity_order.stop_pending')
                 ? $this->retryStop($service) : 'skip';
         }
+        if ($this->expireUnfunded($service)) {
+            return 'expired';
+        }
         if ($service->provision_status !== self::WAIT) {
             return $this->settleDelivery($service);
         }
@@ -144,8 +257,11 @@ class GpuCapacityOrders
         return DB::transaction(function () use ($service) {
             Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
             $locked = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
-            if ($locked->isDead() || $locked->provision_status !== self::WAIT) {
+            if ((int) $locked->customer_id !== (int) $service->customer_id || $locked->isDead() || $locked->provision_status !== self::WAIT) {
                 return 'skip';
+            }
+            if ($this->expireUnfundedLocked($locked)) {
+                return 'expired';
             }
             if ($locked->billing_mode === 'hourly') {
                 $minimum = $this->credit->minimum($locked->customer_id, (int) $locked->hourly_rate_irt, $locked->id);
@@ -182,14 +298,25 @@ class GpuCapacityOrders
 
     public function confirmPrice(Service $service, int $quoted): void
     {
+        $service->refresh();
+        if ($this->expireUnfunded($service)
+            || data_get($service->provision_meta, 'gpu_capacity_order.closed_reason') === 'payment_expired') {
+            throw ValidationException::withMessages(['price' => __('ui.gpu_request_expired_p')]);
+        }
+        abort_if($service->isDead(), 409);
         $rate = $this->currentRate($service);
         if ($rate === null || $rate !== $quoted || $quoted <= 0) {
             throw ValidationException::withMessages(['price' => __('ui.cvb_gpu_price_changed')]);
         }
-        DB::transaction(function () use ($service, $rate) {
+        // Return first so expiry commits before validation is reported to the customer.
+        $confirmed = DB::transaction(function () use ($service, $rate): bool {
             Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
             $locked = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
-            abort_unless(self::managed($locked) && ! $locked->isDead() && $locked->provision_status === self::WAIT, 409);
+            abort_unless((int) $locked->customer_id === (int) $service->customer_id
+                && self::managed($locked) && ! $locked->isDead() && $locked->provision_status === self::WAIT, 409);
+            if ($this->expireUnfundedLocked($locked)) {
+                return false;
+            }
             if ($locked->billing_mode === 'hourly') {
                 $locked->hourly_rate_irt = $rate;
                 $locked->hourly_rate_eur = $locked->cloudPlan->hourlyEurCents();
@@ -198,46 +325,54 @@ class GpuCapacityOrders
             }
             $locked->save();
             $this->state($locked, 'waiting_capacity', ['new_price_irt' => null]);
+            return true;
         }, 3);
+        if (! $confirmed) {
+            throw ValidationException::withMessages(['price' => __('ui.gpu_request_expired_p')]);
+        }
     }
 
     /** A final capacity check in the provisioner's claimed path, before create. */
     public function allowAllocation(Service $service, CloudPlan $plan): bool
     {
+        $service->refresh()->load('cloudInstance');
+        if ($service->isDead() || $this->expireUnfunded($service)) {
+            return false;
+        }
         if (! self::unpaid($service) || filled($service->cloudInstance?->provider_ref)) {
             return true;
         }
         if (CloudPlan::providerIsDisabled('salad') || SaladClient::salesPaused((string) $service->cloud_image_key)
             || ! $plan->is_active || ! $plan->in_stock || $plan->admin_disabled
             || CloudImage::compatibleRefFor($plan, (string) $service->cloud_image_key) === null) {
-            $this->state($service, 'unavailable');
-            $service->update(['status' => 'awaiting_provision', 'provision_status' => self::WAIT]);
+            $this->waitForAllocation($service, 'unavailable');
             return false;
         }
         $capacity = $this->provider->capacityFor($plan, true);
         $rate = $this->currentRate($service);
         if (! $capacity['ok'] || ! $capacity['available'] || $rate === null || $rate > $service->hourly_rate_irt) {
-            $this->state($service, $rate !== null && $rate > $service->hourly_rate_irt ? 'price_changed'
+            $this->waitForAllocation($service, $rate !== null && $rate > $service->hourly_rate_irt ? 'price_changed'
                 : ($capacity['ok'] ? 'waiting_capacity' : 'checking_capacity'), ['new_price_irt' => $rate]);
-            $service->update(['status' => 'awaiting_provision', 'provision_status' => self::WAIT]);
             return false;
         }
-        $allowed = DB::transaction(function () use ($service): bool {
+        return DB::transaction(function () use ($service): bool {
             Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
             $locked = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
-            if ($locked->isDead()) { return false; }
+            if ((int) $locked->customer_id !== (int) $service->customer_id || $locked->isDead()
+                || $this->expireUnfundedLocked($locked)) {
+                return false;
+            }
             $minimum = $this->credit->minimum($locked->customer_id, (int) $locked->hourly_rate_irt, $locked->id);
             if ($this->wallet->availableOf($locked->customer_id) < $minimum) {
                 $this->state($locked, 'insufficient_credit', ['minimum_credit_irt' => $minimum]);
                 $locked->update(['status' => 'awaiting_provision', 'provision_status' => self::WAIT]);
                 return false;
             }
+            // The expiry checker sees this marker under the same lock before create starts.
+            $this->state($locked, 'allocating', ['allocation_started_at' =>
+                data_get($locked->provision_meta, 'gpu_capacity_order.allocation_started_at') ?: now()->toIso8601String()]);
             return true;
         }, 3);
-        if (! $allowed) { return false; }
-        $this->state($service, 'allocating', ['allocation_started_at' =>
-            data_get($service->provision_meta, 'gpu_capacity_order.allocation_started_at') ?: now()->toIso8601String()]);
-        return true;
     }
 
     private function settleDelivery(Service $service): string
@@ -340,7 +475,11 @@ class GpuCapacityOrders
         foreach ($extra as $key => $value) {
             $changes['provision_meta->gpu_capacity_order->'.$key] = $value;
         }
-        Service::whereKey($service->id)->update($changes);
+        $query = Service::whereKey($service->id);
+        if (! in_array($state, ['closed', 'expired'], true)) {
+            $query->whereNotIn('status', Service::DEAD_STATUSES);
+        }
+        $query->update($changes);
         $service->refresh();
     }
 }
