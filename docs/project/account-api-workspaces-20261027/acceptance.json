@@ -1,0 +1,128 @@
+{
+  "source_sha": "e659e7b90d5baae8cb9906097a409f40634e7d1d",
+  "release_id": "pending-request-ui-account-api-20261027-e659e7b9",
+  "status": "installed-and-scoped-production-acceptance-passed",
+  "accepted_at_utc": "2026-10-27T12:06:15.905Z",
+  "tests": {
+    "php_passed": 129,
+    "php_assertions": 1214,
+    "php_runtime": "PHP 8.4.26; SQLite memory",
+    "synthetic_chromium_unique_cases": 62,
+    "final_ai_empty_state_rechecks": 6,
+    "mariadb_concurrency_tested": false
+  },
+  "preflight": {
+    "files": 10,
+    "live_writes": 0,
+    "lint": "passed"
+  },
+  "install": {
+    "status": "installed",
+    "files": 10,
+    "hashes_verified": true,
+    "targeted_blade_compilation": true
+  },
+  "independent_post_install_hashes": [
+    {
+      "path": "servernet_app/public/assets/css/account-api.css",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "public_html/assets/css/account-api.css",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/lang/fa/identity.php",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/lang/fa/ai.php",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/lang/en/identity.php",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/lang/en/ai.php",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/lang/tr/identity.php",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/lang/tr/ai.php",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/resources/views/account/identity.blade.php",
+      "status": 1,
+      "matches": true
+    },
+    {
+      "path": "servernet_app/resources/views/account/ai.blade.php",
+      "status": 1,
+      "matches": true
+    }
+  ],
+  "public_css": {
+    "path": "assets/css/account-api.css",
+    "checks": [
+      {
+        "host": "servernet.cloud",
+        "status": 200,
+        "sha256": "4e8b7106ea570c91968713dbff1acf1e737028ddd195b20223d212225d3f5d1d"
+      },
+      {
+        "host": "console.servernet.cloud",
+        "status": 200,
+        "sha256": "4e8b7106ea570c91968713dbff1acf1e737028ddd195b20223d212225d3f5d1d"
+      }
+    ]
+  },
+  "synthetic_live_render": {
+    "synthetic_live_renders": [
+      {
+        "locale": "fa",
+        "identity": true,
+        "ai": true
+      },
+      {
+        "locale": "en",
+        "identity": true,
+        "ai": true
+      },
+      {
+        "locale": "tr",
+        "identity": true,
+        "ai": true
+      }
+    ],
+    "translation_keys": {
+      "identity": 59,
+      "ai": 24
+    },
+    "db_write_queries": 0,
+    "customer_records_created": 0,
+    "financial_or_provider_commands_run": false
+  },
+  "cleanup": {
+    "prepare_job_removed": true,
+    "install_job_removed": true,
+    "remaining_original_jobs": 10,
+    "original_schedule_and_commands_preserved": true,
+    "release_jobs_remaining": 0
+  },
+  "customer_authenticated_browser_tested": false,
+  "manual_financial_or_product_commands_run": false,
+  "shared_cache_flushed": false
+}
