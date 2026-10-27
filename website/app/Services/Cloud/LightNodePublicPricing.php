@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 class LightNodePublicPricing
 {
     private bool $catalogSnapshot = false;
+    private array $configurationMemo = [];
     private const ORIGIN = 'https://www.lightnode.com';
     public const SERIES = ['s2', 'g2', 's3', 'g2a'];
     // A rolling customer month can span two supplier calendar billing months;
@@ -98,8 +99,14 @@ class LightNodePublicPricing
         if (! $this->catalogSnapshot) { return $this->read($path, $input); }
         // Catalog variants share read-only region/spec trees for up to one
         // minute. Amounts are never cached; purchase quotes bypass this cache.
-        return Cache::remember('lightnode-public-config:'.hash('sha256', $path.json_encode($input)), 60,
-            fn () => $this->read($path, $input));
+        $key = hash('sha256', $path.json_encode($input));
+        if (($this->configurationMemo[$key]['until'] ?? 0) > microtime(true)) {
+            return $this->configurationMemo[$key]['data'];
+        }
+        $entry = Cache::remember('lightnode-public-config:v2:'.$key, 60,
+            fn () => ['until' => microtime(true) + 60, 'data' => $this->read($path, $input)]);
+        $this->configurationMemo[$key] = $entry;
+        return $entry['data'];
     }
 
     private function within(array $nodes, int $size): bool
@@ -173,9 +180,20 @@ class LightNodePublicPricing
             $rows = $this->read('/api/site/sku/getBatchPrice.do', $query + ['resources' => $resources, 'billingCycle' => 'HOUR',
                 'orderTypeEnum' => 'BUY_PRODUCT', 'time' => 1], true);
             return $this->normalize($rows, $mode, count($resources) === 3) + ['series' => $series, 'verified_at' => time()];
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            $code = match ($e->getMessage()) {
+                'Calculator region unavailable' => 'region_unavailable',
+                'Calculator CPU/RAM mismatch' => 'cpu_ram_mismatch',
+                'Calculator boot disk mismatch' => 'boot_disk_mismatch',
+                'Calculator data disk mismatch' => 'data_disk_mismatch',
+                'Calculator network mismatch', 'Public calculator configuration mismatch' => 'network_configuration_mismatch',
+                'Public calculator bootstrap changed', 'Public calculator certificate unavailable',
+                'Public calculator certificate schema changed' => 'calculator_bootstrap_changed',
+                'Public calculator response rejected' => 'calculator_response_rejected',
+                default => $e instanceof \Illuminate\Http\Client\ConnectionException ? 'transport_unavailable' : 'quote_not_verified',
+            };
             // No vendor body, source code, certificate or exception text in logs.
-            return ['ok' => false, 'message' => 'قیمت و موجودی معتبر از محاسبه‌گر عمومی دریافت نشد.'];
+            return ['ok' => false, 'failure_code' => $code, 'message' => 'قیمت و موجودی معتبر از محاسبه‌گر عمومی دریافت نشد.'];
         }
     }
 

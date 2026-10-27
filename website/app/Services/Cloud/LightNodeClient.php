@@ -16,6 +16,9 @@ use Illuminate\Support\Facades\Http;
 /** Official OpenAPI lifecycle; anonymous public calculator for supplier quotes. */
 class LightNodeClient implements CloudProvider
 {
+    private ?LightNodePublicPricing $publicCalculator = null;
+    private array $pricingFailures = [];
+
     private const BASE = 'https://openapi.lightnode.com';
 
     public function slug(): string { return 'lightnode'; }
@@ -136,7 +139,9 @@ class LightNodeClient implements CloudProvider
                 'locations' => [], 'plans' => [], 'images' => []];
         }
         try {
-            return $this->catalog();
+            $this->pricingFailures = [];
+            $catalog = $this->catalog();
+            return $catalog + ['pricing_failures' => $this->pricingFailures];
         } catch (\Throwable) {
             return ['ok' => false, 'message' => 'کاتالوگ و نرخ معتبر دریافت نشد.', 'locations' => [], 'plans' => [], 'images' => []];
         }
@@ -210,17 +215,25 @@ class LightNodeClient implements CloudProvider
                 || $binding['verified_at'] > time() || $binding['verified_at'] < time() - 30 * 86400
                 // No supported API setter for limitFlow has been verified.
                 || ($package['publicIpChargeMode'] ?? '') !== 'PayByBandwidth') { return null; }
-            $quote = app(LightNodePublicPricing::class)->quote($package, $binding['series'], 'linux', $fresh);
+            $quote = ($this->publicCalculator ??= app(LightNodePublicPricing::class))->quote($package, $binding['series'], 'linux', $fresh);
             if (($quote['ok'] ?? false) !== true || ($quote['source'] ?? '') !== 'public_calculator'
-                || ($quote['currency'] ?? '') !== 'USD') { return null; }
+                || ($quote['currency'] ?? '') !== 'USD') {
+                $key = 'linux_'.($quote['failure_code'] ?? 'quote_not_verified');
+                $this->pricingFailures[$key] = ($this->pricingFailures[$key] ?? 0) + 1;
+                return null;
+            }
             // One plan has one supplier price. Windows must have the same exact
             // quote before its images can be offered against that plan.
             if ((int) $package['cpu'] >= 2 && (int) $package['memory'] >= 4) {
-                $windows = app(LightNodePublicPricing::class)->quote($package, $binding['series'], 'windows', $fresh);
+                $windows = ($this->publicCalculator ??= app(LightNodePublicPricing::class))->quote($package, $binding['series'], 'windows', $fresh);
                 if (($windows['ok'] ?? false) !== true || ($windows['source'] ?? '') !== 'public_calculator'
                     || ($windows['currency'] ?? '') !== 'USD'
                     || ($windows['hour_usd'] ?? null) !== $quote['hour_usd']
-                    || ($windows['month_usd'] ?? null) !== $quote['month_usd']) { return null; }
+                    || ($windows['month_usd'] ?? null) !== $quote['month_usd']) {
+                    $key = 'windows_'.($windows['failure_code'] ?? 'price_not_equivalent');
+                    $this->pricingFailures[$key] = ($this->pricingFailures[$key] ?? 0) + 1;
+                    return null;
+                }
             }
             return $quote + ['cpu_kind' => $binding['cpu_kind'], 'delivery_verified' => ($binding['delivery_verified'] ?? false) === true,
                 'owner_accepted_model' => ($binding['owner_accepted_model'] ?? false) === true,

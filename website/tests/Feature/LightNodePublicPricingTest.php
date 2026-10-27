@@ -86,6 +86,16 @@ class LightNodePublicPricingTest extends TestCase
         });
     }
 
+    public function test_quote_failure_exposes_only_a_stable_internal_reason_code(): void
+    {
+        $this->fake(true);
+        $quote = app(LightNodePublicPricing::class)->quote($this->package(), 's2');
+        $this->assertFalse($quote['ok']);
+        $this->assertSame('region_unavailable', $quote['failure_code']);
+        $this->assertArrayNotHasKey('exception', $quote);
+        $this->assertArrayNotHasKey('body', $quote);
+    }
+
     public function test_amd_series_must_exist_in_exact_public_region_configuration(): void
     {
         foreach (['s3', 'g2a'] as $series) {

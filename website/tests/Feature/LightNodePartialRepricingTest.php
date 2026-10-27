@@ -57,24 +57,27 @@ class LightNodePartialRepricingTest extends TestCase
         $this->mock(CloudManager::class)->shouldReceive('driver')->with('lightnode')->once()->andReturn($driver);
     }
 
-    public function test_missing_exact_quote_excludes_only_lightnode_and_keeps_every_old_lightnode_attribute(): void
+    public function test_missing_exact_quote_quarantines_only_that_plan_and_publishes_verified_quotes(): void
     {
         $native = $this->plan('lightnode', 'known-native', ['admin_note' => 'Keep existing stock']);
         $missing = $this->plan('lightnode', 'missing-native');
         $eur = $this->plan('hetzner', 'fresh-peer');
         $before = [$native->fresh()->getRawOriginal(), $missing->fresh()->getRawOriginal()];
-        // Even the native row with a new quote must not be partly repriced.
+        // A missing quote must not hide independently verified products.
         $this->driver([$this->quote($native, 9999)], ['ok' => true, 'plans' => []], [$missing->id]);
 
-        $this->assertSame(1, app(CloudCatalogRepricer::class)->run());
-        $this->assertSame($before, [$native->fresh()->getRawOriginal(), $missing->fresh()->getRawOriginal()]);
+        $this->assertSame(2, app(CloudCatalogRepricer::class)->run());
+        $this->assertSame($before[1], $missing->fresh()->getRawOriginal());
+        $this->assertSame(9999, (int) $native->fresh()->cost_eur_cents);
+        $this->assertSame(30000000, (int) $native->fresh()->price_irt);
         $this->assertSame(3000000, (int) $eur->fresh()->price_irt);
         $snapshot = app(CloudPricingSnapshot::class);
         $this->assertTrue($snapshot->current());
         $this->assertTrue($snapshot->current('hetzner'));
-        $this->assertFalse($snapshot->current('lightnode'));
-        $this->assertContains('lightnode', $snapshot->excludedProviders());
-        $this->assertSame([$eur->id], CloudPlan::query()->sellable()->pluck('id')->all());
+        $this->assertTrue($snapshot->current('lightnode'));
+        $this->assertNotContains('lightnode', $snapshot->excludedProviders());
+        $this->assertSame([$missing->id], CloudPricingSnapshot::excludedPlanIds());
+        $this->assertSame([$native->id, $eur->id], CloudPlan::query()->sellable()->pluck('id')->all());
         $this->assertFalse(CloudPlan::offers()->has($missing->slug));
         $this->assertNull(CloudPlan::bestForSlug($missing->slug));
         $this->assertSame('price', CloudPlan::shelf()->get($missing->slug)->blockedReason());
@@ -102,10 +105,87 @@ class LightNodePartialRepricingTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_failed_retry_does_not_block_a_separately_verified_plan_or_replace_missing_cost(): void
+    {
+        $known = $this->plan('lightnode', 'known-native');
+        $missing = $this->plan('lightnode', 'missing-native');
+        $this->driver([$this->quote($known)], ['ok' => false, 'plans' => []], [$missing->id]);
+        app(CloudCatalogRepricer::class)->run();
+        $this->assertSame([$known->id], CloudPlan::sellable()->pluck('id')->all());
+        $this->assertSame(1000, (int) $missing->fresh()->cost_eur_cents);
+        $this->assertSame('price', $missing->fresh()->blockedReason());
+        Http::assertNothingSent();
+    }
+
+    public function test_an_unverified_cheaper_row_cannot_win_checkout_or_hide_a_verified_same_slug(): void
+    {
+        $known = $this->plan('lightnode', 'known-native', ['slug' => 'same-offer']);
+        $missing = $this->plan('lightnode', 'missing-native', ['slug' => 'same-offer', 'price_irt' => 1000]);
+        $this->driver([$this->quote($known)], ['ok' => true, 'plans' => []], [$missing->id]);
+        app(CloudCatalogRepricer::class)->run();
+        $this->assertSame($known->id, CloudPlan::bestForSlug('same-offer')?->id);
+        $this->assertSame($known->id, CloudPlan::shelf()->get('same-offer')?->id);
+        $this->assertSame($known->id, CloudPlan::offers()->get('same-offer')?->id);
+        $this->assertFalse(CloudPlan::sellable()->whereKey($missing->id)->exists());
+    }
+
+    public function test_provider_specific_publication_preserves_other_quarantined_plans_and_malformed_ids_fail_closed(): void
+    {
+        $snapshot = app(CloudPricingSnapshot::class);
+        $rates = $snapshot->rates();
+        $snapshot->publish($rates, [], [], [123, 456]);
+        $snapshot->publish($rates);
+        $this->assertSame([123, 456], CloudPricingSnapshot::excludedPlanIds());
+        $row = json_decode(Setting::get(CloudPricingSnapshot::KEY), true);
+        $row['excluded_plans'] = ['123'];
+        Setting::put(CloudPricingSnapshot::KEY, json_encode($row));
+        $this->assertFalse($snapshot->current());
+    }
+
+    public function test_isolated_lightnode_refresh_preserves_other_provider_prices_and_exclusions(): void
+    {
+        $known = $this->plan('lightnode', 'known-native');
+        $missing = $this->plan('lightnode', 'missing-native');
+        $peer = $this->plan('hetzner', 'peer');
+        $before = $peer->fresh()->getRawOriginal();
+        $snapshot = app(CloudPricingSnapshot::class);
+        $snapshot->publish($snapshot->rates(), ['lightnode', 'salad'], [], [999]);
+        $this->driver([$this->quote($known)], ['ok' => true, 'plans' => []], [$missing->id]);
+        app(CloudCatalogRepricer::class)->runForProvider('lightnode');
+        $this->assertSame($before, $peer->fresh()->getRawOriginal());
+        $this->assertContains('salad', $snapshot->excludedProviders());
+        $this->assertNotContains('lightnode', $snapshot->excludedProviders());
+        $this->assertSame([999, $missing->id], CloudPricingSnapshot::excludedPlanIds());
+        $this->assertTrue(CloudPlan::sellable()->whereKey($known->id)->exists());
+        Http::assertNothingSent();
+    }
+
+    public function test_empty_target_refresh_does_not_remove_a_provider_exclusion(): void
+    {
+        $snapshot = app(CloudPricingSnapshot::class);
+        $snapshot->publish($snapshot->rates(), ['lightnode']);
+        try {
+            app(CloudCatalogRepricer::class)->runForProvider('lightnode');
+            $this->fail('No supplier price was verified.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('No eligible', $e->getMessage());
+        }
+        $this->assertContains('lightnode', $snapshot->excludedProviders());
+        Http::assertNothingSent();
+    }
+
+    public function test_isolated_refresh_cannot_bless_other_providers_with_changed_fx(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('requires a current global FX snapshot');
+        app(CloudCatalogRepricer::class)->runForProvider('lightnode');
+    }
+
     public function test_successful_exact_retry_reprices_lightnode_and_restores_its_snapshot_eligibility(): void
     {
         $known = $this->plan('lightnode', 'known-native');
         $missing = $this->plan('lightnode', 'missing-native');
+        app(CloudPricingSnapshot::class)->publish(app(CloudPricingSnapshot::class)->rates(), ['lightnode'], [], [$missing->id]);
         $this->driver([$this->quote($known)], ['ok' => true, 'plans' => [$this->quote($missing, 2500)]], [$missing->id]);
 
         $this->assertSame(2, app(CloudCatalogRepricer::class)->run());
@@ -113,6 +193,7 @@ class LightNodePartialRepricingTest extends TestCase
         $this->assertSame(7500000, (int) $missing->fresh()->price_irt);
         $this->assertTrue(app(CloudPricingSnapshot::class)->current('lightnode'));
         $this->assertNotContains('lightnode', app(CloudPricingSnapshot::class)->excludedProviders());
+        $this->assertSame([], CloudPricingSnapshot::excludedPlanIds());
         $this->assertCount(2, CloudPlan::query()->sellable()->get());
         Http::assertNothingSent();
     }

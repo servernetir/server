@@ -176,7 +176,9 @@ class CloudPlan extends Model
             $off[] = 'vpstc';
         }
 
-        return $q->where('is_active', true)
+        $unverifiedPrices = \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds();
+        return $q->when($unverifiedPrices !== [], fn ($qq) => $qq->whereNotIn('cloud_plans.id', $unverifiedPrices))
+            ->where('is_active', true)
             ->where('cost_eur_cents', '>', 0)
             ->where('in_stock', true)
             ->where('price_irt', '>', 0)
@@ -276,7 +278,8 @@ class CloudPlan extends Model
             return 'stock';
         }
 
-        if ((int) $this->price_irt <= 0 || (int) $this->cost_eur_cents <= 0
+        if (in_array((int) $this->id, \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds(), true)
+            || (int) $this->price_irt <= 0 || (int) $this->cost_eur_cents <= 0
             || ! app(\App\Services\Cloud\CloudPricingSnapshot::class)->current((string) $this->provider)) {
             return 'price';
         }

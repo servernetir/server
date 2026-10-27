@@ -29,6 +29,24 @@ class CloudCatalogRepricer
 
     public function run(bool $persist = true): int
     {
+        return $this->performRun($persist);
+    }
+
+    /** Refresh only this supplier without quoting or changing other suppliers. */
+    public function runForProvider(string $provider, bool $persist = true): int
+    {
+        if ($provider !== 'lightnode') {
+            throw new \InvalidArgumentException('Unsupported isolated supplier refresh.');
+        }
+        return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performRun($persist, $provider));
+    }
+
+    private function performRun(bool $persist, ?string $only = null): int
+    {
+        $snapshot = app(CloudPricingSnapshot::class);
+        if ($only !== null && ! $snapshot->current()) {
+            throw new \RuntimeException('A supplier-only refresh requires a current global FX snapshot.');
+        }
         $settings = $this->settings();
         $memo = array_filter(Setting::cached(), fn (string $key) =>
             in_array($key, self::SETTING_KEYS, true)
@@ -39,11 +57,18 @@ class CloudCatalogRepricer
         }
         $rates = $this->rates();
         $plans = CloudPlan::query()->where('cost_eur_cents', '>', 0)
-            ->whereNotIn('provider', CloudPlan::disabledProviders())->get();
+            ->whereNotIn('provider', CloudPlan::disabledProviders())
+            ->when($only, fn ($query) => $query->where('provider', $only))->get();
+        if ($only !== null && $plans->isEmpty()) {
+            throw new \RuntimeException('No eligible existing supplier plans to verify.');
+        }
         $nativeCosts = [];
-        $skip = ['vpstc'];
-        $providerInputs = [];
+        $skip = $only === null ? ['vpstc'] : array_values(array_diff($snapshot->excludedProviders(), [$only]));
+        $providerInputs = $only !== null && $snapshot->current('vpstc')
+            ? ['vpstc' => app(VpsTcPricing::class)->fingerprint()] : [];
         $unavailable = [];
+        $unverifiedPlans = $only === null ? []
+            : array_values(array_diff(CloudPricingSnapshot::excludedPlanIds(), $plans->modelKeys()));
 
         foreach ($plans->whereIn('provider', self::NORMALIZED_PROVIDERS)->groupBy('provider') as $provider => $group) {
             $active = $group->filter(fn (CloudPlan $plan) => $plan->is_active && ! $plan->admin_disabled);
@@ -91,23 +116,22 @@ class CloudCatalogRepricer
                     // Retry only those exact products, with fresh quotes and specs.
                     $retry = $driver->fetchExistingPlanCosts($missing->values()->all());
                     if (($retry['ok'] ?? false) !== true || ! is_array($retry['plans'] ?? null)) {
-                        $this->excludeLightNode($skip, 'exact_quote_retry_failed');
-                        continue;
+                        // Keep independently verified quotes; quarantine only missing products.
+                        $retry['plans'] = [];
                     }
-                    $quotes += $this->indexQuotes($retry['plans'], $provider);
+                    $quotes += $this->indexQuotes($retry['plans'] ?? [], $provider);
                 }
-                if ($active->contains(fn (CloudPlan $plan) =>
-                    ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]))) {
-                    // Missing quote evidence is not proof of no stock. Preserve
-                    // every old LightNode row, but exclude the whole supplier
-                    // from this price snapshot so fresh peers remain sellable.
-                    $this->excludeLightNode($skip, 'existing_quote_still_missing');
+                $unquoted = $active->filter(fn (CloudPlan $plan) =>
+                    ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
+                foreach ($unquoted as $plan) { $unverifiedPlans[] = (int) $plan->id; }
+                if ($unquoted->count() === $active->count()) {
+                    $this->excludeLightNode($skip, 'no_existing_quote_verified');
                     continue;
                 }
             }
 
             foreach ($active as $plan) {
-                if (isset($unavailable[$plan->id])) {
+                if (isset($unavailable[$plan->id]) || in_array((int) $plan->id, $unverifiedPlans, true)) {
                     continue;
                 }
                 $row = $quotes[$this->key($plan->provider_ref, $plan->location_code)] ?? null;
@@ -145,7 +169,7 @@ class CloudCatalogRepricer
         // Any database failure rolls back the complete product-price batch.
         $this->assertRates($rates);
         $this->assertSettings($settings);
-        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs): int {
+        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs, $unverifiedPlans): int {
             // Current reads avoid a MariaDB repeatable-read snapshot; locks last
             // only for product writes, never for slow supplier requests.
             $this->assertSettings($settings, $persist);
@@ -153,7 +177,8 @@ class CloudCatalogRepricer
             $count = 0;
             foreach (CloudPlan::query()->whereIn('id', $plans->modelKeys())
                 ->when($persist, fn ($query) => $query->lockForUpdate())->get() as $plan) {
-                if (in_array($plan->provider, $skip, true)
+                if (in_array((int) $plan->id, $unverifiedPlans, true)
+                    || in_array($plan->provider, $skip, true)
                     || CloudPlan::providerIsDisabled($plan->provider)
                     || (in_array($plan->provider, self::NORMALIZED_PROVIDERS, true)
                         && (! $plan->is_active || $plan->admin_disabled))) {
@@ -196,7 +221,7 @@ class CloudCatalogRepricer
             $this->assertSettings($settings, $persist);
             $this->assertProviderInputs($providerInputs);
             if ($persist) {
-                app(CloudPricingSnapshot::class)->publish($rates, $skip, $providerInputs);
+                app(CloudPricingSnapshot::class)->publish($rates, $skip, $providerInputs, $unverifiedPlans);
             }
             return $count;
         };
