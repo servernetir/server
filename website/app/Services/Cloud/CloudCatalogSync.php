@@ -36,6 +36,11 @@ class CloudCatalogSync
      */
     public function sync(?string $only = null): array
     {
+        return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performSync($only));
+    }
+
+    private function performSync(?string $only): array
+    {
         if (! Schema::hasTable('cloud_plans')) {
             return ['ok' => false, 'providers' => [], 'rate' => 0, 'message' => 'جدول‌های ابری ساخته نشده‌اند — اول مهاجرت را بزنید.'];
         }
@@ -503,6 +508,11 @@ class CloudCatalogSync
      * فقط قیمت پلن‌های موجود تغییر می‌کند؛ موجودی و سرویس‌ها دست‌نخورده می‌مانند.
      */
     public function reprice(): int
+    {
+        return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performReprice());
+    }
+
+    private function performReprice(): int
     {
         if (! Schema::hasTable('cloud_plans')) {
             return 0;

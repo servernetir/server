@@ -16,14 +16,16 @@ class ErrorLogController extends Controller
     public function index(): View
     {
         // دو فایلِ جدا: سیلِ ۴۰۴ دیگر خطاهای ۵۰۰ را از پنجره بیرون نمی‌اندازد
-        $all = ErrorTracker::recent(150, 'error');
+        // Independent windows keep a noisy scheduler from hiding a web failure.
+        $all = ErrorTracker::recent(1200, 'error');
 
         // نام «errors» ممنوع است: لاراول $errors را برای کیف خطاهای اعتبارسنجی
         // (ViewErrorBag) رزرو کرده و لایوت $errors->any() صدا می‌زند. اگر اینجا
         // یک آرایه با همان نام بفرستیم، آن را می‌پوشاند و کل پنل ۵۰۰ می‌شود.
         return view('admin.errors', [
-            'serverErrors' => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'error'),
-            'incidents'    => array_filter($all, fn ($e) => ($e['type'] ?? '') === 'incident'),
+            'serverErrors' => array_slice(array_filter($all, fn ($e) => ($e['type'] ?? '') === 'error' && ! ErrorTracker::isConsoleRecord($e)), 0, 150),
+            'consoleErrors' => array_slice(array_filter($all, fn ($e) => ($e['type'] ?? '') === 'error' && ErrorTracker::isConsoleRecord($e)), 0, 150),
+            'incidents'    => array_slice(array_filter($all, fn ($e) => ($e['type'] ?? '') === 'incident'), 0, 150),
             'nf'           => ErrorTracker::recent(150, 'notfound'),
             // ⚠️ سلامت **کنارِ** خطاها و نه در صفحهٔ جدا: گران‌ترین خرابی‌های این
             //    پروژه هیچ خطایی تولید نکردند. اگر مدیر برای دیدنشان باید جای

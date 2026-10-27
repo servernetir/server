@@ -21,6 +21,8 @@ use Throwable;
  */
 class ErrorTracker
 {
+    // Independent retention for web failures, caught incidents and console
+    // exceptions. A noisy background task must not evict a rare web failure.
     private const MAX_LINES = 400;
 
     /**
@@ -202,7 +204,11 @@ class ErrorTracker
 
         self::write([
             'type'    => 'error',
-            'status'  => $status,
+            // A console failure has no HTTP response. Keep it visible without
+            // inventing a GET / 500 or a customer identity for a cron command.
+            'source'  => $request === null ? 'console' : 'http',
+            'command' => $request === null ? self::consoleCommand() : null,
+            'status'  => $request === null ? null : $status,
             'method'  => $request?->method(),
             'url'     => self::requestUrl($request),
             'class'   => $e::class,
@@ -210,6 +216,27 @@ class ErrorTracker
             'file'    => str_replace(base_path().DIRECTORY_SEPARATOR, '', $e->getFile()).':'.$e->getLine(),
             'frame'   => self::firstAppFrame($e),
         ], $request);
+    }
+
+    /** Conservative compatibility for records written before source was stored. */
+    public static function isConsoleRecord(array $row): bool
+    {
+        if (isset($row['source'])) {
+            return $row['source'] === 'console';
+        }
+
+        return str_starts_with((string) ($row['message'] ?? ''), 'Scheduled command [')
+            || preg_match('~^artisan:\d+$~', (string) ($row['frame'] ?? '')) === 1
+            || preg_match('~^(?:Command line code|Standard input code)(?::|\(|$)~', (string) ($row['file'] ?? '')) === 1;
+    }
+
+    private static function consoleCommand(): ?string
+    {
+        // Arguments can contain credentials. Store only a command name.
+        $command = $_SERVER['argv'][1] ?? null;
+
+        return is_string($command) && preg_match('/^[a-z][a-z0-9_-]*:[a-z0-9:_-]+$/iD', $command)
+            ? $command : null;
     }
 
     /** ثبت یک ۴۰۴ — خودِ آدرسِ گمشده همان اطلاعات است */
@@ -241,7 +268,18 @@ class ErrorTracker
             return [];
         }
 
-        $lines = @file(self::path($type), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+        $handle = @fopen(self::path($type), 'rb');
+        if ($handle === false) {
+            return [];
+        }
+        try {
+            if (! flock($handle, LOCK_SH)) {
+                return [];
+            }
+            $lines = preg_split('/\r?\n/', stream_get_contents($handle) ?: '', -1, PREG_SPLIT_NO_EMPTY);
+        } finally {
+            fclose($handle);
+        }
 
         // 🔴 اول **نوع** را فیلتر کن، بعد ببُر.
         //
@@ -274,8 +312,18 @@ class ErrorTracker
 
     public static function clear(): void
     {
-        @file_put_contents(self::path('error'), '');
-        @file_put_contents(self::path('notfound'), '');
+        foreach (['error', 'notfound'] as $type) {
+            $handle = @fopen(self::path($type), 'c+b');
+            if ($handle !== false) {
+                try {
+                    if (flock($handle, LOCK_EX)) {
+                        ftruncate($handle, 0);
+                    }
+                } finally {
+                    fclose($handle);
+                }
+            }
+        }
     }
 
     // ─────────────────────────────── درونی ───────────────────────────────
@@ -289,17 +337,50 @@ class ErrorTracker
                 'ua'      => mb_substr((string) $request?->userAgent(), 0, 120),
                 'referer' => str_contains((string) $request?->headers->get('referer'), '/api/ai-media/')
                     ? '[redacted supplier media]' : (mb_substr((string) $request?->headers->get('referer'), 0, 200) ?: null),
-                'who'     => self::who(),
+                'who'     => ($row['source'] ?? '') === 'console' ? 'console' : self::who(),
             ] + $row;
 
-            $line = json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES).PHP_EOL;
+            $line = json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE).PHP_EOL;
 
             $file = self::path((string) ($row['type'] ?? 'error'));
-            @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
-
-            // برش گاه‌به‌گاه تا فایل کنترل‌شده بماند (نه هر بار، برای سرعت)
-            if (self::shouldTrim()) {
-                self::trim($file);
+            $handle = @fopen($file, 'c+b');
+            if ($handle === false) {
+                return;
+            }
+            try {
+                if (! flock($handle, LOCK_EX)) {
+                    return;
+                }
+                fseek($handle, 0, SEEK_END);
+                fwrite($handle, $line);
+                fflush($handle);
+                // Read/trim/write under the SAME lock as append. Reading first
+                // and locking only the replacement can erase another worker's
+                // already-committed exception during a busy failure window.
+                if (self::shouldTrim()) {
+                    rewind($handle);
+                    $lines = preg_split('/\r?\n/', stream_get_contents($handle) ?: '', -1, PREG_SPLIT_NO_EMPTY);
+                    if (count($lines) > self::MAX_LINES) {
+                        $retained = [];
+                        $counts = ['console' => 0, 'application' => 0, 'incident' => 0];
+                        foreach (array_reverse($lines) as $entry) {
+                            $record = json_decode($entry, true);
+                            $channel = is_array($record) && ($record['type'] ?? '') === 'error'
+                                && self::isConsoleRecord($record) ? 'console' : 'application';
+                            if (is_array($record) && ($record['type'] ?? '') === 'incident') {
+                                $channel = 'incident';
+                            }
+                            if (++$counts[$channel] <= self::MAX_LINES) {
+                                $retained[] = $entry;
+                            }
+                        }
+                        rewind($handle);
+                        ftruncate($handle, 0);
+                        fwrite($handle, implode(PHP_EOL, array_reverse($retained)).PHP_EOL);
+                    }
+                }
+            } finally {
+                fclose($handle);
             }
         } catch (Throwable) {
             // ردیاب خطا نباید خودش منبع خطا شود
@@ -312,15 +393,6 @@ class ErrorTracker
 
         // `1` ⇒ `random_int(1, 1)` همیشه ۱ است ⇒ هر بار. `0` ⇒ هرگز.
         return $n >= 1 && random_int(1, $n) === 1;
-    }
-
-    private static function trim(string $file): void
-    {
-        $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
-
-        if (count($lines) > self::MAX_LINES) {
-            @file_put_contents($file, implode(PHP_EOL, array_slice($lines, -self::MAX_LINES)).PHP_EOL, LOCK_EX);
-        }
     }
 
     /** چه کسی خطا را دید — بدون افشای اطلاعات حساس */

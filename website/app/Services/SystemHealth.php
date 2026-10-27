@@ -80,6 +80,7 @@ class SystemHealth
             ['aeza_control', 'کنترل Aeza', 'aezaControlContract'],
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
+            ['catalogue_refresh', 'همگام‌سازی درخواستی کاتالوگ', 'catalogueRefresh'],
             ['mailboxes', 'صندوق‌های ایمیل', 'mailboxes'],
             ['content', 'صف محتوا', 'contentQueue'],
             ['errors', 'خطاها', 'recentErrors'],
@@ -98,6 +99,29 @@ class SystemHealth
         }
 
         return $checks;
+    }
+
+    private function catalogueRefresh(): array
+    {
+        $state = app(\App\Services\Cloud\CatalogRefreshRequests::class)->snapshot();
+        $title = 'همگام‌سازی درخواستی کاتالوگ';
+        if ($state === null) {
+            return $this->row('catalogue_refresh', true, 'ok', $title, 'درخواست همگام‌سازی ثبت نشده است.');
+        }
+        $status = $state['state'];
+        $stalled = ($status === 'queued' && Carbon::parse($state['requested_at'])->addMinutes(15)->isPast())
+            || ($status === 'running' && Carbon::parse($state['started_at'] ?? $state['requested_at'])->addHour()->isPast());
+        $attention = $stalled || in_array($status, ['failed', 'partial', 'unavailable'], true);
+        $detail = $stalled ? 'درخواست در موعد اجرا یا تکمیل نشده است؛ زمان‌بند و رسید اجرا را بررسی کنید.'
+            : match ($status) {
+                'completed' => 'آخرین درخواست تکمیل شده است.',
+                'queued' => 'درخواست در صف اجراست؛ هنوز همگام‌سازی انجام نشده است.',
+                'running' => 'درخواست در حال اجراست؛ نتیجه هنوز تأیید نشده است.',
+                default => 'آخرین درخواست ناموفق، ناقص یا ناخوانا است؛ رسید اجرا نیازمند بررسی است.',
+            };
+
+        return $this->row('catalogue_refresh', ! $attention, $attention ? 'warn' : 'ok', $title, $detail,
+            [['url' => '/admin/cloud', 'label' => 'وضعیت همگام‌سازی']]);
     }
 
     /** از بازنویسیِ درایور کنترل Aeza با مسیر قدیمی پس از انتشار خبر می‌دهد. */
@@ -965,7 +989,7 @@ class SystemHealth
             $since = now()->subHours($hours);
             $n = 0;
 
-            foreach (ErrorTracker::recent(400, 'error') as $e) {
+            foreach (ErrorTracker::recent(1200, 'error') as $e) {
                 if (! $match($e)) {
                     continue;
                 }

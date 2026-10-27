@@ -6,11 +6,12 @@
 
 <div class="ad-toolbar" style="justify-content:space-between">
   <div style="color:var(--muted);font-size:13px">
-    {{ fa_num(count($serverErrors)) }} خطای سرور · {{ fa_num(count($incidents)) }} خرابیِ خاموش · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
+    {{ fa_num(count($serverErrors)) }} خطای وب · {{ fa_num(count($consoleErrors)) }} خطای فرمان و زمان‌بند · {{ fa_num(count($incidents)) }} خرابیِ خاموش · {{ fa_num(count($nf)) }} صفحهٔ یافت‌نشده
+    <small style="display:block">در هر بخش حداکثر ۱۵۰ رخداد اخیر نمایش داده می‌شود.</small>
   </div>
   {{-- incidents هم شمرده می‌شود، وگرنه با ردیابِ فقط-حادثه نشانِ کنارِ منو
        روشن می‌مانْد و هیچ راهی برای پاک‌کردنش نبود. --}}
-  @if(count($serverErrors) || count($incidents) || count($nf))
+  @if(count($serverErrors) || count($consoleErrors) || count($incidents) || count($nf))
     <form method="post" action="/admin/errors/clear" data-confirm="پاک کردن همهٔ رکوردها؟" data-confirm-danger>
       @csrf<button type="submit" class="ad-badge" style="background:rgba(255,107,107,.15);color:#ff6b6b;border:0;padding:8px 16px;cursor:pointer;font:inherit">پاک کردن</button>
     </form>
@@ -87,6 +88,24 @@
       @endforeach
     </div>
   @endif
+</div>
+
+<div class="ad-panel" style="margin-top:16px">
+  <div class="ad-panel-h"><h2>خطاهای فرمان و زمان‌بند</h2></div>
+  <p style="padding:0 18px;color:var(--muted);font-size:12.5px;line-height:1.9">این خطاها هنگام اجرای فرمان یا بررسی داخلی رخ داده‌اند. شکست کار پس‌زمینه همچنان نیازمند پیگیری است؛ این رکورد به‌تنهایی نشان‌دهندهٔ پاسخ ۵۰۰ به مشتری نیست. رکوردهای قدیمی با منشأ نامشخص در بخش خطاهای وب باقی می‌مانند.</p>
+  @forelse($consoleErrors as $e)
+    <div class="err-row">
+      <div class="err-top">
+        <span class="ad-badge">CLI</span>
+        <b class="err-class" dir="ltr">{{ $e['command'] ?? class_basename($e['class'] ?? 'Error') }}</b>
+        <span class="err-time" dir="ltr">{{ $e['at'] ?? '—' }}</span>
+      </div>
+      <div class="err-msg">{{ $e['message'] ?? '' }}</div>
+      <div class="err-meta" dir="ltr">{{ $e['frame'] ?? $e['file'] ?? '' }}</div>
+    </div>
+  @empty
+    <p style="padding:0 20px 20px;color:var(--muted)">موردی ثبت نشده.</p>
+  @endforelse
 </div>
 
 {{-- ══ خرابی‌های گرفته‌شده ══

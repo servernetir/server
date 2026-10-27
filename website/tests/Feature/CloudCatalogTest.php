@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
+use Tests\Support\NavasanRates;
 
 /**
  * کاتالوگِ سرورِ ابری — تمرکز روی سه چیزی که اگر بشکنند گران تمام می‌شوند:
@@ -30,9 +31,11 @@ class CloudCatalogTest extends TestCase
     {
         parent::setUp();
 
-        // نرخِ دستی تا تست به سرویسِ نرخِ ارزِ بیرونی وابسته نباشد
-        Setting::put('pricing_rate_override', '100000');    // ۱ یورو = ۱۰۰٬۰۰۰ تومان
+        // Exercise the current stored Navasan contract, without live FX calls.
+        Http::preventStrayRequests();
+        NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
         Setting::put('cloud_margin_pct', '50');
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([100000, 100000, 100000]);
     }
 
     // ═══════════════════ یکسان‌سازیِ نام‌ها ═══════════════════
@@ -616,7 +619,7 @@ class CloudCatalogTest extends TestCase
         $res->assertOk();
         $html = $res->getContent();
 
-        $this->assertStringContainsString('زیرساختِ سرورِ ابری', $html);
+        $this->assertStringContainsString('id="infra-hetzner"', $html, 'گروه تنظیمات اتصال هتزنر باید در آکاردئون زیرساخت باشد');
         $this->assertStringContainsString('hetzner_api_token', $html, 'فیلدِ توکن باید در فرم باشد');
 
         // ⚠️ درصدِ سود از تبِ زیرساخت به تبِ نرخ‌گذاری رفت — همهٔ حاشیه‌های سود
@@ -687,7 +690,7 @@ class CloudCatalogTest extends TestCase
         $this->assertSame(570000, (int) $plan->price_irt);
 
         // نرخِ یورو دو برابر شد
-        Setting::put('pricing_rate_override', '200000');
+        NavasanRates::store(['USD' => 200000, 'EUR' => 200000, 'USDT' => 200000]);
         Http::fake();                                       // هیچ تماسی نباید برود
 
         $n = app(CloudCatalogSync::class)->reprice();

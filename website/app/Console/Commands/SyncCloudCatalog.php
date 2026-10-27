@@ -25,6 +25,17 @@ class SyncCloudCatalog extends Command
 
     public function handle(CloudCatalogSync $sync): int
     {
+        try {
+            return $this->runSync($sync);
+        } catch (\App\Services\Cloud\CatalogRefreshBusy) {
+            $this->warn('A catalog refresh is already running; no overlapping refresh was started.');
+
+            return self::SUCCESS;
+        }
+    }
+
+    private function runSync(CloudCatalogSync $sync): int
+    {
         if ($this->option('prices')) {
             $n = $sync->reprice();
             $this->info("قیمتِ {$n} پلن بازمحاسبه شد.");

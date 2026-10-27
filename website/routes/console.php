@@ -467,6 +467,13 @@ Schedule::command('cloud:sync')
     ->cron('30 22 */2 * *')
     ->withoutOverlapping(60);
 
+// Supplier pagination belongs in CLI, outside the web worker's 30-second budget.
+// Reuse the existing scheduler; no new host cron or database queue is needed.
+Schedule::command('cloud:refresh-requested')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping(10);
+
 // بازمحاسبهٔ پشتیبانِ قیمت محصولات — روزانه با بهای تازه برای زیرساخت غیرِیورویی.
 // جدا از سینکِ کامل است چون نرخِ ارز روزانه می‌جنبد ولی مشخصاتِ پلن‌ها ماه‌ها
 // ثابت می‌مانند؛ بی‌این، قیمتِ تومانی تا سینکِ بعدی کهنه می‌ماند.

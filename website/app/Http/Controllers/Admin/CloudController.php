@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
-use App\Services\Cloud\CloudCatalogSync;
+use App\Services\Cloud\CatalogRefreshRequests;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudProvisioner;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -139,6 +139,7 @@ class CloudController extends Controller
         $offers = $ready ? CloudPlan::offers() : collect();
 
         return view('admin.cloud', [
+            'catalogRefresh' => app(CatalogRefreshRequests::class)->snapshot(),
             'notReady'  => ! $ready,
             'providers' => $providers,
             // «کدام زیرساخت کجاست» — سؤالِ روزمرهٔ مدیر، حالا در خودِ صفحه
@@ -489,68 +490,22 @@ class CloudController extends Controller
     }
 
     /** همگام‌سازیِ کاتالوگ (یا فقط بازمحاسبهٔ قیمت) */
-    public function sync(Request $request, CloudCatalogSync $sync): RedirectResponse
+    public function sync(Request $request, CatalogRefreshRequests $requests): RedirectResponse
     {
         if (! Schema::hasTable('cloud_plans')) {
             return back()->with('err', 'جدول‌های ابری ساخته نشده‌اند — اول مهاجرت را اجرا کنید.');
         }
 
-        if ($request->boolean('prices_only')) {
-            $n = $sync->reprice();
+        try {
+            $state = $requests->request($request->boolean('prices_only'), (int) $request->user()->id);
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::noteOnce('cloud_catalog', 'Catalog refresh request could not be saved.', 900,
+                ['exception_class' => $e::class]);
 
-            return back()->with('ok', "قیمتِ {$n} پلن با نرخِ روزِ یورو بازمحاسبه شد.");
+            return back()->with('err', 'درخواست ذخیره نشد؛ همگام‌سازی آغاز نشده است. وضعیت ذخیره‌سازی را بررسی کنید.');
         }
 
-        $report = $sync->sync();
-
-        if (isset($report['message'])) {
-            return back()->with('err', $report['message']);
-        }
-
-        if ($report['providers'] === []) {
-            return back()->with('err', 'هیچ زیرساختی تنظیم نشده است.');
-        }
-
-        $lines = [];
-        $i = 0;
-
-        $sanity = $report['providers']['__sanity'] ?? null;
-        $costAlert = $report['providers']['__cost'] ?? null;
-        unset($report['providers']['__sanity'], $report['providers']['__cost']);
-
-        foreach ($report['providers'] as $r) {
-            $i++;
-            if (! $r['ok']) {
-                $lines[] = "زیرساختِ {$i}: خطا — {$r['message']}";
-
-                continue;
-            }
-
-            $line = "زیرساختِ {$i}: {$r['plans']} پلن، {$r['locations']} مکان، {$r['images']} سیستم‌عامل";
-
-            // توضیحِ «چرا صفر» — اگر درایور دلیلی داشت، همان‌جا نشان بده
-            if (filled($r['message'] ?? null)) {
-                $line .= ' ⚠️ '.$r['message'];
-            }
-
-            $lines[] = $line;
-        }
-
-        // گران‌شدنِ بها اولِ همه — چون ضررِ در جریان است، نه یک تذکر
-        if (is_string($costAlert) && $costAlert !== '') {
-            array_unshift($lines, $costAlert);
-        }
-
-        // دامِ «واحدِ قیمت اشتباه»
-        if (is_string($sanity) && $sanity !== '') {
-            $lines[] = $sanity;
-        }
-
-        if (($report['rate'] ?? 0) <= 0) {
-            $lines[] = '⚠️ نرخِ یورو در دسترس نبود، پس قیمتِ تومانی ساخته نشد و پلن‌ها در فروشگاه نمی‌آیند.';
-        }
-
-        return back()->with('ok', implode(' | ', $lines));
+        return back()->with('ok', 'درخواست '.$state['id'].' ثبت شده است. اجرا در پس‌زمینه انجام می‌شود؛ وضعیت و نتیجه را در همین صفحه ببینید.');
     }
 
     /**
