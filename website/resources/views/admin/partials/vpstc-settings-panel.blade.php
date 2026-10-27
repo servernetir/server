@@ -30,7 +30,7 @@
   <div class="ad-panel-h"><h2>کاتالوگ و وضعیت فروش</h2></div>
   <div class="vpstc-intro">
     <p>{{ !empty($vpstcMapped) ? 'کاتالوگ این حساب ثبت شده است؛ ثبت مجوز تجاری مالک به معنی تأیید شرایط نامشخص تأمین‌کننده نیست.' : 'تطبیق قرارداد کاتالوگ این حساب هنوز انجام نشده است. پلن سالانه یا کانتینر به‌عنوان VPS ماهانه وارد نمی‌شود.' }}</p>
-    <p>پس از ورود اطلاعات و درصدهای قیمت‌گذاری، کاتالوگ را تازه کنید. خاموش‌کردن فروش، مدیریت سرویس‌های موجود را متوقف نمی‌کند.</p>
+    <p>هنگام فروش فعال، ذخیرهٔ قیمت‌گذاری، قیمت‌ها را هم منتشر می‌کند. خاموش‌کردن فروش، مدیریت سرویس‌های موجود را متوقف نمی‌کند.</p>
   </div>
   <div class="vpstc-form">
     <form method="post" action="{{ route('admin.cloud.vpstc.catalog') }}">@csrf @if(!empty($vpstcInline))<input type="hidden" name="return_to" value="infra">@endif<button class="btn btn-glass" type="submit">تازه‌سازی کاتالوگ و قیمت</button></form>

@@ -12,6 +12,18 @@ use Illuminate\Database\Eloquent\Model;
  */
 class CloudLocation extends Model
 {
+    /** Public city aliases only; supplier region and existing service identities stay unchanged. */
+    public static function canonicalCode(string $code): string
+    {
+        return $code === 'tr-istanbul-ii' ? 'tr-istanbul' : $code;
+    }
+
+    public static function cityCodes(string $code): array
+    {
+        return self::canonicalCode($code) === 'tr-istanbul'
+            ? ['tr-istanbul', 'tr-istanbul-ii'] : [$code];
+    }
+
     protected $fillable = [
         'code', 'country', 'city', 'label_fa', 'label_en', 'label_tr',
         'flag', 'latitude', 'longitude', 'is_active', 'sort',

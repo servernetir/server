@@ -118,7 +118,7 @@ class CloudCountry
 
                 $row['plans']++;
 
-                $city = trim((string) $loc->city);
+                $city = CloudLocation::canonicalCode($loc->code) === 'tr-istanbul' ? 'Istanbul' : trim((string) $loc->city);
 
                 if ($city !== '' && ! in_array($city, $row['cities'], true)) {
                     $row['cities'][] = $city;
@@ -176,10 +176,10 @@ class CloudCountry
             return [];
         }
 
-        $offers = CloudPlan::offers()->groupBy('location_code');
+        $offers = CloudPlan::offers()->groupBy(fn ($plan) => CloudLocation::canonicalCode($plan->location_code));
         $out = [];
 
-        foreach ($locations as $loc) {
+        foreach ($locations->filter(fn ($loc) => CloudLocation::canonicalCode($loc->code) === $loc->code) as $loc) {
             $rows = $offers[$loc->code] ?? collect();
 
             if ($rows->isEmpty()) {
@@ -232,7 +232,7 @@ class CloudCountry
                     && ! CloudLocation::isGpuCode((string) $code));
 
         return $first
-            ? lroute('cloud.location', ['location' => $first])
+            ? lroute('cloud.location', ['location' => CloudLocation::canonicalCode($first)])
             : lroute('cloud.index');
     }
 

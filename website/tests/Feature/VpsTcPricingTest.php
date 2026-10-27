@@ -303,10 +303,10 @@ class VpsTcPricingTest extends TestCase
         $values = $this->inputs();
         $values['cloud_margin_pct_vpstc'] = '0';
         $this->post('/admin/cloud/vpstc/pricing', $values + ['password' => 'ignore-me'])
-            ->assertRedirect('/admin/cloud/vpstc')->assertSessionHasNoErrors();
+            ->assertRedirect('/admin/settings?tab=infra#infra-vpstc')->assertSessionHasNoErrors();
         $this->assertSame('0', Setting::get('cloud_margin_pct_vpstc'));
         $this->assertSame('existing-private-credential', Setting::getSecret('cloud_vpstc_password'));
-        $this->get('/admin/cloud/vpstc')->assertOk()->assertSee('name="vpstc_fx_rate_toman"', false)
+        $this->get('/admin/settings?tab=infra')->assertOk()->assertSee('name="vpstc_fx_rate_toman"', false)
             ->assertDontSee('existing-private-credential');
         Http::assertNothingSent();
     }

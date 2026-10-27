@@ -861,7 +861,7 @@ class VpsTcPreflightTest extends TestCase
                 'monthly_price_formatted' => '₺125.55', 'order_monthly_formatted' => '₺125.55',
                 'price_match' => false]]];
         $this->actingAs(\App\Models\User::factory()->create(['role' => 'admin']), 'web');
-        $response = $this->withSession(['vpstc_report' => $report])->get('/admin/cloud/vpstc');
+        $response = $this->withSession(['vpstc_report' => $report])->get('/admin/settings?tab=infra');
         $response->assertOk()->assertSee('&lt;script&gt;category()&lt;/script&gt;', false)
             ->assertSee('&lt;img src=x onerror=alert(1)&gt;', false)
             ->assertDontSee('<script>category()</script>', false)->assertDontSee('<img src=x', false)

@@ -15,7 +15,7 @@ class VpsTcController extends Controller
 {
     public function index()
     {
-        return response()->view('admin.cloud-vpstc', $this->viewData())->header('Cache-Control', 'private, no-store');
+        return redirect()->to('/admin/settings?tab=infra#infra-vpstc');
     }
 
     /** Local display values only; never returns stored credential contents or calls the provider. */
@@ -102,16 +102,51 @@ class VpsTcController extends Controller
             return redirect()->to($this->destination($request))->withErrors($validator);
         }
         $data = $validator->validated();
-        DB::transaction(function () use ($data) {
-            foreach (VpsTcPricing::INPUT_KEYS as $key) {
-                Setting::put($key, isset($data[$key]) ? (string) $data[$key] : '');
+        $publish = Setting::get('vpstc_sales_enabled') === '1'
+            && app(\App\Services\Cloud\VpsTcCatalog::class)->manifest() !== null;
+        $previous = app(VpsTcPricing::class)->values();
+        $marginOnly = $publish && app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('vpstc');
+        foreach (array_diff(VpsTcPricing::INPUT_KEYS, ['cloud_margin_pct_vpstc']) as $key) {
+            $marginOnly = $marginOnly && $previous[$key] === (string) ($data[$key] ?? '');
+        }
+        try {
+            $apply = function () use ($data, $publish, $marginOnly, $previous) {
+                DB::transaction(function () use ($data, $publish, $marginOnly, $previous) {
+                    Setting::whereIn('key', [...VpsTcPricing::INPUT_KEYS, \App\Services\Cloud\CloudPricingSnapshot::KEY])->lockForUpdate()->get();
+                    \Illuminate\Support\Facades\Cache::forget('settings.all');
+                    app()->forgetInstance('settings.request-memo');
+                    if ($previous !== app(VpsTcPricing::class)->values()
+                        || ($marginOnly && ! app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('vpstc'))) {
+                        throw new \RuntimeException('Pricing changed concurrently.');
+                    }
+                    foreach (VpsTcPricing::INPUT_KEYS as $key) {
+                        Setting::put($key, isset($data[$key]) ? (string) $data[$key] : '');
+                    }
+                    if ($marginOnly) {
+                        $this->publishMargin();
+                    } elseif ($publish) {
+                        $this->publishCatalog();
+                    }
+                });
+            };
+            if ($marginOnly) {
+                app(\App\Services\Cloud\CatalogRefreshRequests::class)->exclusive($apply);
+            } else {
+                $apply();
             }
-        });
+        } catch (\Throwable $e) {
+            // Setting::put invalidates a shared cache before the transaction commits.
+            \Illuminate\Support\Facades\Cache::forget('settings.all');
+            app()->forgetInstance('settings.request-memo');
+            return redirect()->to($this->destination($request))->withErrors([
+                'pricing' => 'قیمت تازه تأیید نشد؛ تغییر تنظیمات و قیمت‌ها برگشت داده شد. دوباره تلاش کنید.',
+            ]);
+        }
         \App\Services\SiteMenu::forget();
         \App\Services\Cloud\CloudCountry::forget();
 
         return redirect()->to($this->destination($request))->with('success',
-            'تنظیمات مستقل قیمت‌گذاری ذخیره شد. برای انتشار قیمت‌های تازه، کاتالوگ را همگام کنید. تا آن زمان فروش این زیرساخت با قیمت قبلی بسته است.');
+            $publish ? 'تنظیمات و قیمت‌های تازه منتشر شدند؛ وضعیت فروش حفظ شد.' : 'قیمت‌گذاری ذخیره شد. کاتالوگ را همگام کنید و سپس فروش را فعال کنید.');
     }
 
     public function syncCatalog(Request $request)
@@ -124,23 +159,57 @@ class VpsTcController extends Controller
                 'catalog' => 'اتصال، قیمت‌گذاری، نرخ معتبر ارز و تطبیق منابع/دوره/ترافیک باید تکمیل شوند.']);
         }
         try {
-            $fingerprint = $pricing->fingerprint();
-            $rates = $snapshot->rates();
-            DB::transaction(function () use ($snapshot, $fingerprint, $rates, $pricing) {
-                $report = app(\App\Services\Cloud\CloudCatalogSync::class)->sync('vpstc');
-                $result = $report['providers']['vpstc'] ?? [];
-                if (! ($result['ok'] ?? false) || ($result['plans'] ?? 0) < 1
-                    || $rates !== $snapshot->rates() || $fingerprint !== $pricing->fingerprint()) {
-                    throw new \RuntimeException('Unverified catalog or changed pricing inputs.');
-                }
-                $excluded = array_values(array_diff($snapshot->excludedProviders(), ['vpstc']));
-                $snapshot->publish($rates, $excluded, ['vpstc' => $fingerprint]);
-            });
+            $this->publishCatalog();
         } catch (\Throwable) {
             return redirect()->to($this->destination($request))->withErrors([
                 'catalog' => 'همگام‌سازی تأیید نشد؛ فروش یا قیمت‌های ناقص منتشر نشدند.']);
         }
         return redirect()->to($this->destination($request))->with('success', 'کاتالوگ و قیمت ماهانه تازه شد. وضعیت فروش را جداگانه انتخاب کنید.');
+    }
+
+    /** Profit alone changes no supplier cost: reuse only a current, verified cost snapshot. */
+    private function publishMargin(): void
+    {
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $rates = $snapshot->rates();
+        $excluded = array_values(array_diff($snapshot->excludedProviders(), ['vpstc']));
+        $fingerprint = app(VpsTcPricing::class)->fingerprint();
+        $plans = \App\Models\CloudPlan::where('provider', 'vpstc')->where('is_active', true)
+            ->where('cost_eur_cents', '>', 0)->lockForUpdate()->get();
+        if ($plans->isEmpty()) {
+            throw new \RuntimeException('No verified costs.');
+        }
+        foreach ($plans as $plan) {
+            $price = app(\App\Services\Cloud\CloudPricing::class)->priceFor($plan->cost_eur_cents, 'vpstc');
+            if (($price['irt'] ?? 0) <= 0 || ($price['eur_cents'] ?? 0) <= 0) {
+                throw new \RuntimeException('Invalid refreshed price.');
+            }
+            $plan->update(['price_irt' => $price['irt'], 'price_eur_cents' => $price['eur_cents']]);
+        }
+        $snapshot->publish($rates, $excluded, ['vpstc' => $fingerprint]);
+    }
+
+    /** The settings and all verified supplier prices commit together. No purchase is made. */
+    private function publishCatalog(): void
+    {
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $pricing = app(VpsTcPricing::class);
+        $fingerprint = $pricing->fingerprint();
+        $rates = $snapshot->rates();
+        if (! $snapshot->current() || ! $pricing->configured()
+            || app(\App\Services\Cloud\VpsTcCatalog::class)->manifest() === null) {
+            throw new \RuntimeException('Unverified pricing or mapping.');
+        }
+        DB::transaction(function () use ($snapshot, $fingerprint, $rates, $pricing) {
+            $report = app(\App\Services\Cloud\CloudCatalogSync::class)->sync('vpstc');
+            $result = $report['providers']['vpstc'] ?? [];
+            if (! ($result['ok'] ?? false) || ($result['plans'] ?? 0) < 1
+                || $rates !== $snapshot->rates() || $fingerprint !== $pricing->fingerprint()) {
+                throw new \RuntimeException('Unverified catalog or changed pricing inputs.');
+            }
+            $excluded = array_values(array_diff($snapshot->excludedProviders(), ['vpstc']));
+            $snapshot->publish($rates, $excluded, ['vpstc' => $fingerprint]);
+        });
     }
 
     public function saveSales(Request $request)
@@ -164,8 +233,6 @@ class VpsTcController extends Controller
 
     private function destination(Request $request): string
     {
-        return $request->input('return_to') === 'infra'
-            ? '/admin/settings?tab=infra#infra-vpstc'
-            : route('admin.cloud.vpstc');
+        return '/admin/settings?tab=infra#infra-vpstc';
     }
 }

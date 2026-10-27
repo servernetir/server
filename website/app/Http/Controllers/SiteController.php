@@ -468,7 +468,7 @@ class SiteController extends Controller
                     || \App\Models\CloudLocation::isGpuCode((string) $code)) {
                     continue;
                 }
-                $add('cloud.location', $code);
+                $add('cloud.location', \App\Models\CloudLocation::canonicalCode((string) $code));
             }
         }
         $add('blog.index');

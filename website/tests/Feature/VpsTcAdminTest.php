@@ -54,13 +54,20 @@ class VpsTcAdminTest extends TestCase
             'api_origin' => 'https://api.vps.tc',
             'username' => 'private-api-user',
             'password' => 'private-api-password',
-        ])->assertRedirect('/admin/cloud/vpstc')->assertSessionHasNoErrors();
+        ])->assertRedirect('/admin/settings?tab=infra#infra-vpstc')->assertSessionHasNoErrors();
         $this->assertSame('private-api-user', Setting::getSecret('cloud_vpstc_username'));
         $this->assertSame('private-api-password', Setting::getSecret('cloud_vpstc_password'));
         $this->assertNotSame('private-api-user', Setting::get('cloud_vpstc_username'));
         $this->assertNotSame('private-api-password', Setting::get('cloud_vpstc_password'));
-        $this->get('/admin/cloud/vpstc')->assertOk()->assertDontSee('private-api-user')->assertDontSee('private-api-password');
+        $this->get('/admin/settings?tab=infra')->assertOk()->assertDontSee('private-api-user')->assertDontSee('private-api-password');
         $this->assertSame([], session()->getOldInput());
+        Http::assertNothingSent();
+    }
+
+    public function test_old_settings_url_redirects_to_the_only_infrastructure_settings_page(): void
+    {
+        $this->admin();
+        $this->get('/admin/cloud/vpstc')->assertRedirect('/admin/settings?tab=infra#infra-vpstc');
         Http::assertNothingSent();
     }
 
@@ -117,7 +124,7 @@ class VpsTcAdminTest extends TestCase
     {
         $this->admin();
         $this->saved();
-        $this->get('/admin/cloud/vpstc')->assertOk()->assertSee('VPS.TC')->assertSee('name="password"', false)->assertDontSee('private-api-password');
+        $this->get('/admin/settings?tab=infra')->assertOk()->assertSee('VPS.TC')->assertSee('name="password"', false)->assertDontSee('private-api-password');
         Http::assertNothingSent();
     }
 
@@ -125,7 +132,7 @@ class VpsTcAdminTest extends TestCase
     {
         $this->admin();
         for ($i = 0; $i < 3; $i++) {
-            $this->post('/admin/cloud/vpstc/preflight')->assertRedirect('/admin/cloud/vpstc');
+            $this->post('/admin/cloud/vpstc/preflight')->assertRedirect('/admin/settings?tab=infra#infra-vpstc');
         }
         $this->post('/admin/cloud/vpstc/preflight')->assertStatus(429);
         Http::assertNothingSent();

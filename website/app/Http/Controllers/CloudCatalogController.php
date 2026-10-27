@@ -458,6 +458,9 @@ class CloudCatalogController extends Controller
         | پیش از هر پرس‌وجوی DB می‌آید: ردیفِ legacyِ دارای پلن هنوز فعال است
         | (پلن‌هایش باید فروختنی بمانند) ولی صفحه‌اش نباید رندر شود.
         */
+        if (CloudLocation::canonicalCode($location) !== $location) {
+            return redirect()->to($this->locUrl(CloudLocation::canonicalCode($location)), 301);
+        }
         if (CloudLocation::isLegacyCode($location)) {
             $cc = substr($location, 0, 2);
 
@@ -485,7 +488,7 @@ class CloudCatalogController extends Controller
         $locLabel = $loc->label();
         $cityLabel = $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel();
 
-        $rows = $this->planRows($offers, collect([$loc->code => $loc]), CloudPlan::offers($loc->code, hourly: true));
+        $rows = $this->planRows($offers, $this->activeLocations(), CloudPlan::offers($loc->code, hourly: true));
 
         return view('pages.cloud-location', [
             't' => $t,
@@ -553,7 +556,7 @@ class CloudCatalogController extends Controller
      */
     private function continentTree(Collection $offers, Collection $locations): array
     {
-        $byLoc = $offers->groupBy('location_code');
+        $byLoc = $offers->groupBy(fn ($plan) => CloudLocation::canonicalCode($plan->location_code));
         $tree = [];
 
         foreach ($byLoc as $code => $plans) {
@@ -655,7 +658,7 @@ class CloudCatalogController extends Controller
     {
         $rows = [];
 
-        foreach ($offers as $p) {
+        foreach (\App\Services\Cloud\CloudDominance::prune($offers->values()) as $p) {
             $loc = $locations->get($p->location_code);
             if ($loc === null) {
                 continue;
@@ -683,7 +686,7 @@ class CloudCatalogController extends Controller
                 'price' => $p->priceLabel(),
                 'price_n' => (int) $p->price_irt,
                 'eur' => (int) $p->price_eur_cents,
-                'loc_code' => (string) $p->location_code,
+                'loc_code' => CloudLocation::canonicalCode((string) $p->location_code),
                 'loc' => $loc->label(),
                 'city' => $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel(),
                 'country' => strtoupper((string) $loc->country),
@@ -1024,6 +1027,7 @@ class CloudCatalogController extends Controller
      */
     private function locUrl(string $code): string
     {
+        $code = CloudLocation::canonicalCode($code);
         /*
         | ممیزی ۷: کدِ legacy (گروهِ محصول به‌جای شهر) صفحهٔ خودش را ندارد —
         | `/cloud/{code}`اش ۳۰۱ است. لینک باید مستقیم به مقصدِ نهایی برود

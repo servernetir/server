@@ -54,6 +54,30 @@ class CloudOfferSelectionTest extends TestCase
             'label' => $key, 'arch' => 'x86', 'min_ram_mb' => 1024, 'min_disk_gb' => 20, 'is_active' => true]);
     }
 
+    public function test_istanbul_aliases_share_one_sales_page_and_cheapest_equivalent_offer(): void
+    {
+        $this->image('fixture-a'); $this->image('fixture-b');
+        foreach (['tr-istanbul' => 'Istanbul', 'tr-istanbul-ii' => 'Istanbul II'] as $code => $city) {
+            \App\Models\CloudLocation::create(['code' => $code, 'city' => $city, 'country' => 'TR', 'is_active' => true]);
+        }
+        $old = $this->plan(['provider' => 'fixture-a', 'location_code' => 'tr-istanbul-ii',
+            'price_irt' => 300000, 'price_eur_cents' => 300]);
+        $best = $this->plan(['provider' => 'fixture-b', 'price_irt' => 200000, 'price_eur_cents' => 200]);
+        $groups = app(\App\Http\Controllers\Account\CloudStoreController::class)->locationGroups();
+        $this->assertSame(['tr-istanbul'], collect($groups)->flatMap(fn ($group) => $group['locations'])->pluck('code')->all());
+        $this->assertCount(2, CloudPlan::offers('tr-istanbul'));
+        $this->assertSame([$best->id], CloudDominance::prune(CloudPlan::offers('tr-istanbul'))->pluck('id')->all());
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/cloud/tr-istanbul-ii')->assertStatus(301)
+                ->assertRedirect(url($prefix.'/cloud/tr-istanbul'));
+            $this->get($prefix.'/cloud/tr-istanbul')->assertOk()
+                ->assertSee($best->slug)->assertDontSee($old->slug);
+        }
+        $this->assertSame('tr-istanbul-ii', $old->fresh()->location_code);
+        $this->assertSame($old->id, CloudPlan::bestForSlug($old->slug)?->id);
+        Http::assertNothingSent();
+    }
+
     public function test_same_contract_chooses_customer_price_instead_of_lowest_supplier_cost(): void
     {
         $this->image('fixture-a');

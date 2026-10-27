@@ -34,7 +34,7 @@ class CloudOfferSelection
     {
         if ((! is_array($a->network_terms) && $a->network_terms !== null)
             || (! is_array($b->network_terms) && $b->network_terms !== null)) { return false; }
-        if ((string) $a->location_code === '' || (string) $a->location_code !== (string) $b->location_code
+        if ((string) $a->location_code === '' || \App\Models\CloudLocation::canonicalCode((string) $a->location_code) !== \App\Models\CloudLocation::canonicalCode((string) $b->location_code)
             || (string) $a->arch !== (string) $b->arch || (string) $a->cpu_kind !== (string) $b->cpu_kind
             || $a->isMetal() !== $b->isMetal() || (bool) $a->is_interruptible !== (bool) $b->is_interruptible
             || strtolower(trim((string) $a->gpu_model)) !== strtolower(trim((string) $b->gpu_model))

@@ -151,7 +151,7 @@ class VpsTcSalesTest extends TestCase
         $plan = $this->plan(['cost_hour_eur_micro' => 999999]);
         $this->snapshot();
         $this->post('/admin/cloud/vpstc/sales', ['enabled' => 1])
-            ->assertRedirect('/admin/cloud/vpstc')->assertSessionHasNoErrors();
+            ->assertRedirect('/admin/settings?tab=infra#infra-vpstc')->assertSessionHasNoErrors();
         $this->assertSame('1', Setting::get('vpstc_sales_enabled'));
         $this->assertTrue(CloudPlan::sellable()->whereKey($plan->id)->exists());
         $this->assertCount(1, CloudPlan::offers());
@@ -243,7 +243,7 @@ class VpsTcSalesTest extends TestCase
             'https://portal.vps.tc/api/payment/fees' => Http::response(['payments' => [
                 ['id' => 120, 'fixed_fee' => '0', 'percent_fee' => '0']]]),
         ]);
-        $this->post('/admin/cloud/vpstc/catalog')->assertRedirect('/admin/cloud/vpstc')->assertSessionHasNoErrors();
+        $this->post('/admin/cloud/vpstc/catalog')->assertRedirect('/admin/settings?tab=infra#infra-vpstc')->assertSessionHasNoErrors();
         $plan = CloudPlan::where('provider', 'vpstc')->sole();
         $this->assertSame(176, $plan->cost_eur_cents);
         $this->assertGreaterThan(0, $plan->price_irt);
@@ -256,6 +256,23 @@ class VpsTcSalesTest extends TestCase
         Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET'
             && $request->url() !== 'https://portal.vps.tc/api/login');
         $this->post('/admin/cloud/vpstc/sales', ['enabled' => 1])->assertSessionHasNoErrors();
+        $values = app(\App\Services\Cloud\VpsTcPricing::class)->values();
+        $requestsBeforeProfitEdit = Http::recorded()->count();
+        $this->post('/admin/cloud/vpstc/pricing', array_replace($values, ['cloud_margin_pct_vpstc' => '40']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame($requestsBeforeProfitEdit, Http::recorded()->count());
+        $this->assertSame('40', Setting::get('cloud_margin_pct_vpstc'));
+        $this->assertTrue($snapshot->current('vpstc'));
+        $this->assertTrue(CloudPlan::sellable()->whereKey($plan->id)->exists());
+        $this->assertGreaterThan($plan->price_irt, $plan->fresh()->price_irt);
+        $price = $plan->fresh()->price_irt;
+        $this->mock(\App\Services\Cloud\CloudCatalogSync::class, fn ($mock) => $mock->shouldReceive('sync')->once()->with('vpstc')->andThrow(new \RuntimeException('supplier unavailable')));
+        $this->post('/admin/cloud/vpstc/pricing', array_replace($values, ['cloud_margin_pct_vpstc' => '50', 'pricing_fx_fee_pct_vpstc' => '6']))
+            ->assertSessionHasErrors('pricing');
+        $this->assertSame('40', Setting::get('cloud_margin_pct_vpstc'));
+        $this->assertSame($price, $plan->fresh()->price_irt);
+        $this->assertTrue($snapshot->current('vpstc'));
+
         $this->assertTrue(CloudPlan::sellable()->whereKey($plan->id)->exists());
     }
 

@@ -278,6 +278,7 @@ class CloudStoreController extends Controller
      */
     private function groupsFor(Collection $codes): array
     {
+        $codes = $codes->map(fn ($code) => CloudLocation::canonicalCode($code))->unique()->values();
         if ($codes->isEmpty()) {
             return [];
         }
@@ -552,9 +553,10 @@ class CloudStoreController extends Controller
             ->groupBy('location_code')->get();
 
         foreach ($rows as $r) {
-            $out[(string) $r->location_code] = [
-                'irt' => (int) $r->min_irt,
-                'cores' => (int) $r->max_vcpu,
+            $code = CloudLocation::canonicalCode((string) $r->location_code);
+            $out[$code] = [
+                'irt' => min($out[$code]['irt'] ?? PHP_INT_MAX, (int) $r->min_irt),
+                'cores' => max($out[$code]['cores'] ?? 0, (int) $r->max_vcpu),
             ];
         }
 
@@ -793,7 +795,7 @@ class CloudStoreController extends Controller
         // اخطار می‌دهد؛ لاراول اخطار را به استثنا تبدیل می‌کند و صفحه ۵۰۰ می‌شود.
         // یک خزندهٔ بدرفتار نباید صفحهٔ فروش را بخواباند.
         $wanted = $request->query('location') ?? $request->query('loc') ?? '';
-        $wanted = is_string($wanted) ? $wanted : '';
+        $wanted = is_string($wanted) ? CloudLocation::canonicalCode($wanted) : '';
 
         /*
         | 🔴 «هنوز کشوری انتخاب نشده» یک وضعیتِ **واقعی** است، نه یک شاخهٔ مرده.
@@ -1004,7 +1006,7 @@ class CloudStoreController extends Controller
             | که `store()` بعداً ردش می‌کرد.
             */
             $hourlyRow = $offerSelection->representative($rows->filter(fn (CloudPlan $p) =>
-                (string) $p->location_code === (string) $code && $p->supportsHourly()), true);
+                CloudLocation::canonicalCode((string) $p->location_code) === (string) $code && $p->supportsHourly()), true);
 
             $hourlyMap[(string) $slug] = [
                 'rate' => $hourlyRow?->hourlyIrt() ?? 0,
