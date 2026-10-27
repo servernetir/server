@@ -21,6 +21,8 @@ class CloudOfferSelection
         $best = $rows->first();
         if (! $best instanceof CloudPlan) { return null; }
         foreach ($rows as $candidate) {
+            // Comparing an offer to itself cannot select another supplier.
+            if ($candidate === $best) { continue; }
             if ($candidate instanceof CloudPlan && $this->sameContract($candidate, $best, true)
                 && $this->priceDominates($candidate, $best, $hourly)) {
                 $best = $candidate;

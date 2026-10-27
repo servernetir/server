@@ -19,6 +19,12 @@ Production: the existing VPS.tc 40% setting was preserved and its verified catal
 
 Actual account connection reads succeeded for Hetzner, Aeza, Arvan, OVH, Proxmox, Salad, Robot and LightNode. A subsequent VPS.tc connection read also succeeded. Existing sellable counts observed: Hetzner62, Aeza96, Arvan32, Salad54, Robot204, VPS.tc1. Connection evidence is credential-bound and expires after 24 hours.
 
+## Final acceptance
+
+The installed pricing controller was invoked on production with the owner's unchanged 40% values: success flash confirmed publication, no validation errors, current supplier snapshot, one in-stock sellable plan at IRT1,460,000 / EUR4.70. A production application GET confirmed the old Istanbul URL returns 301 to the canonical city. Direct production controller and Blade rendering completed successfully. Browser re-navigation to both public and console hosts later returned network timeouts, so a fresh external browser success is not claimed.
+
+Profiling also found repeated self-comparisons in offer selection. These unnecessarily built OS/capability evidence for every single-row offer; skipping the self-comparison preserves all cross-offer checks and removes that redundant catalog work.
+
 ## Remaining provider limitations
 
 - LightNode is authenticated but excluded from the current pricing snapshot. Its 381 saved active offers must not be reported as sellable merely because its region endpoint succeeds. A global read-only reprice was stopped after 14 minutes before publication; no successful price batch was observed. Previous cost/inventory records were preserved. This release does not claim LightNode sales were reopened.
