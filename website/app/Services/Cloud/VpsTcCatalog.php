@@ -12,7 +12,9 @@ use Brick\Math\RoundingMode;
  * Acceptance also requires observed supplier billing behavior: manual renewal
  * must reuse an existing unpaid renewal invoice, and parent-service cancellation
  * must stop future charges. These manifest assertions record account-specific
- * evidence gathered before mapping; they are not customer or admin opt-in flags.
+ * evidence gathered before mapping. An explicit account/configuration-bound
+ * owner launch approval may separately accept pending commercial questions;
+ * it must not turn unknown supplier behavior into a verified guarantee.
  */
 class VpsTcCatalog
 {
@@ -270,7 +272,7 @@ class VpsTcCatalog
             || (! is_string($row['category_id'] ?? null) && ! is_int($row['category_id'] ?? null))
             || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) ($row['category_id'] ?? ''))
             || ($row['renewal_mode'] ?? null) !== 'manual_invoice_deduplicated'
-            || ($row['parent_cancel_stops_billing'] ?? null) !== true
+            || (($row['parent_cancel_stops_billing'] ?? null) !== true && ! $this->commercialLaunchApproved($row))
             || ! is_string($row['forms_sha256'] ?? null) || ! is_string($row['country'] ?? null)
             || ! preg_match('/\A[0-9a-f]{64}\z/D', $row['forms_sha256'] ?? '')
             || ! preg_match('/\A[A-Z]{2}\z/D', $row['country'] ?? '')
@@ -287,8 +289,9 @@ class VpsTcCatalog
             || (! is_string($row['payment_method'] ?? null) && ! is_int($row['payment_method'] ?? null))
             || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) ($row['payment_method'] ?? ''))
             || ! is_array($row['images'] ?? null) || $row['images'] === []
-            || ($row['network_terms']['extra_charges'] ?? null) !== false
-            || ! in_array($row['network_terms']['charge_mode'] ?? null, ['hard_cap', 'unmetered'], true)) {
+            || ((($row['network_terms']['extra_charges'] ?? null) !== false
+                || ! in_array($row['network_terms']['charge_mode'] ?? null, ['hard_cap', 'unmetered'], true))
+                && ! $this->commercialLaunchApproved($row))) {
             return false;
         }
         foreach (['vcpu', 'ram_mb', 'disk_gb'] as $key) {
@@ -313,6 +316,40 @@ class VpsTcCatalog
             }
         }
         return true;
+    }
+
+    /** Owner's commercial decision is separate from evidence about supplier billing. */
+    private function commercialLaunchApproved(array $row): bool
+    {
+        $approval = $row['commercial_launch_approval'] ?? null;
+        if (! is_array($approval) || ($approval['version'] ?? null) !== 1
+            || ($approval['decision'] ?? null) !== 'launch_pending_supplier_clarification'
+            || ($approval['approved_by'] ?? null) !== 'owner'
+            || ($approval['account_fingerprint'] ?? null) !== $this->api->accountFingerprint()
+            || (string) ($approval['product_id'] ?? '') !== (string) ($row['product_id'] ?? '')
+            || ! is_string($approval['support_ticket'] ?? null)
+            || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', $approval['support_ticket'])
+            || ($approval['pending'] ?? null) !== ['supplier_autorenew', 'cancellation_billing', 'traffic_overage']
+            || ! is_string($approval['approved_at'] ?? null)
+            || ! preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00\z/D', $approval['approved_at'])
+            || ($at = strtotime($approval['approved_at'])) === false || $at > time()
+            || ! is_string($approval['scope_sha256'] ?? null)
+            || ! hash_equals(self::launchScopeFingerprint($row), $approval['scope_sha256'])
+            || ($row['renewal_mode'] ?? null) !== 'manual_invoice_deduplicated'
+            || ($row['parent_cancel_stops_billing'] ?? null) !== null
+            || ($row['network_terms']['charge_mode'] ?? null) !== 'unconfirmed'
+            || ($row['network_terms']['extra_charges'] ?? null) !== null) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public static function launchScopeFingerprint(array $row): string
+    {
+        unset($row['commercial_launch_approval']);
+
+        return hash('sha256', json_encode($row, JSON_THROW_ON_ERROR));
     }
 
     private function amount(mixed $value, bool $zero): bool

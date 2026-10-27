@@ -372,6 +372,13 @@ class CloudPlan extends Model
     {
         $locale = $locale ?: app()->getLocale();
         if ($this->provider === 'vpstc') {
+            if (($this->network_terms['charge_mode'] ?? '') === 'unconfirmed') {
+                return match ($locale) {
+                    'en' => $this->traffic_gb.' GB included; extra traffic by arrangement',
+                    'tr' => $this->traffic_gb.' GB dahil; ek trafik için iletişime geçin',
+                    default => fa_num($this->traffic_gb).' گیگابایت ترافیک پایه؛ مصرف بیشتر با هماهنگی',
+                };
+            }
             if (($this->network_terms['charge_mode'] ?? '') === 'unmetered'
                 && ($this->network_terms['extra_charges'] ?? null) === false) {
                 return match ($locale) {

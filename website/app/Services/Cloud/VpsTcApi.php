@@ -248,6 +248,14 @@ final class VpsTcApi
         return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId, 'service'));
     }
 
+    /** Billing identity may remain readable while the hypervisor manager is offline.
+     * This method is not evidence of VM availability or successful provisioning.
+     */
+    public function serviceBilling(string $serviceId): array
+    {
+        return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId, 'service', null, true));
+    }
+
     public function templates(string $serviceId): array
     {
         return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/templates', 'templates'));
@@ -372,7 +380,7 @@ final class VpsTcApi
         return $operation();
     }
 
-    private function read(string $path, string $expectedKey, ?array $calculation = null): array
+    private function read(string $path, string $expectedKey, ?array $calculation = null, bool $billingIdentityOnly = false): array
     {
         if (! $this->isConfigured()) {
             return $this->failure('not_configured', 'VPS.TC credentials and an approved HTTPS API origin are required.');
@@ -404,7 +412,12 @@ final class VpsTcApi
                 return $this->failure('provider_error', 'VPS.TC could not complete the read-only request.');
             }
             $data = $this->decode($response);
-            if ($data === null || ! array_key_exists($expectedKey, $data) || ! is_array($data[$expectedKey]) || $this->hasApiError($data)) {
+            $billingAdvisory = $billingIdentityOnly && $expectedKey === 'service'
+                && preg_match('~\A/api/service/[1-9][0-9]{0,17}\z~D', $path)
+                && ($data['error'] ?? null) === ['management_offline']
+                && ($data['success'] ?? true) !== false && ($data['status'] ?? true) !== false;
+            if ($data === null || ! array_key_exists($expectedKey, $data) || ! is_array($data[$expectedKey])
+                || ($this->hasApiError($data) && ! $billingAdvisory)) {
                 return $this->failure('invalid_response', 'VPS.TC returned an unsupported response.');
             }
 

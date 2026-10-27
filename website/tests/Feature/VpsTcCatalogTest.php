@@ -178,6 +178,72 @@ class VpsTcCatalogTest extends TestCase
         Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET' && ! str_ends_with($request->url(), '/login'));
     }
 
+    private function commercialMapping(): array
+    {
+        $row = $this->mapping(['parent_cancel_stops_billing' => null,
+            'network_terms' => ['charge_mode' => 'unconfirmed', 'extra_charges' => null]]);
+        $row['commercial_launch_approval'] = [
+            'version' => 1, 'decision' => 'launch_pending_supplier_clarification', 'approved_by' => 'owner',
+            'account_fingerprint' => $this->api->accountFingerprint(), 'product_id' => '12',
+            'approved_at' => gmdate('c'), 'support_ticket' => '154596',
+            'pending' => ['supplier_autorenew', 'cancellation_billing', 'traffic_overage'],
+            'scope_sha256' => VpsTcCatalog::launchScopeFingerprint($row),
+        ];
+        return $row;
+    }
+
+    public function test_explicit_commercial_launch_accepts_unknown_policies_without_changing_them(): void
+    {
+        $row = $this->commercialMapping();
+        $this->save($row);
+        $quote = $this->catalog->quote('12');
+        $this->assertNotNull($quote);
+        $this->assertNull($quote['parent_cancel_stops_billing']);
+        $this->assertNull($quote['network_terms']['extra_charges']);
+        $this->assertSame('unconfirmed', $quote['network_terms']['charge_mode']);
+        $this->assertSame('4.85', $quote['total_amount']);
+        $this->assertTrue($this->catalog->fetch()['ok']);
+    }
+
+    public function test_commercial_approval_is_bound_to_account_product_configuration_and_owner(): void
+    {
+        foreach ([
+            ['account_fingerprint' => 'different'], ['product_id' => '13'], ['approved_by' => 'customer'],
+            ['scope_sha256' => str_repeat('0', 64)], ['approved_at' => '2100-01-01T00:00:00+00:00'],
+            ['support_ticket' => ''], ['pending' => []], ['decision' => 'free_operations'],
+        ] as $override) {
+            $row = $this->commercialMapping();
+            $row['commercial_launch_approval'] = array_replace($row['commercial_launch_approval'], $override);
+            $this->save($row);
+            $this->assertNull($this->catalog->manifest());
+        }
+        $row = $this->commercialMapping();
+        $row['ram_mb'] = 4096;
+        $this->save($row);
+        $this->assertNull($this->catalog->manifest());
+        Http::assertNothingSent();
+    }
+
+    public function test_commercial_approval_does_not_bypass_price_stock_or_missing_resource_validation(): void
+    {
+        $row = $this->commercialMapping();
+        $this->save($row);
+        $this->product['price'] = '0.01';
+        $this->assertNull($this->catalog->quote('12'));
+        $row['vcpu'] = 0;
+        $row['commercial_launch_approval']['scope_sha256'] = VpsTcCatalog::launchScopeFingerprint($row);
+        $this->save($row);
+        $this->assertNull($this->catalog->manifest());
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            $plan = new \App\Models\CloudPlan(['provider' => 'vpstc', 'traffic_gb' => 2048,
+                'network_terms' => ['charge_mode' => 'unconfirmed', 'extra_charges' => null]]);
+            $label = $plan->trafficLabel($locale);
+            $this->assertNotEmpty($label);
+            $this->assertStringNotContainsString('hard limit', $label);
+            $this->assertStringNotContainsString('سقف قطعی', $label);
+        }
+    }
+
     public function test_annual_lxc_or_missing_monthly_tariff_is_never_divided_into_retail_terms(): void
     {
         $this->product['config']['product'][0]['items'] = [['value' => 'a', 'price' => '12', 'setup' => 0]];

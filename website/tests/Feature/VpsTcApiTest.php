@@ -21,6 +21,35 @@ class VpsTcApiTest extends TestCase
         return new VpsTcApi('https://api.vps.tc', 'test-reseller', 'test-password');
     }
 
+    public function test_management_offline_advisory_allows_billing_identity_but_never_service_readiness(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/351' => Http::response(['service' => ['id' => '351', 'name' => 'Monthly VPS'],
+                'error' => ['management_offline']]),
+        ]);
+        $api = $this->api();
+        $this->assertTrue($api->serviceBilling('351')['ok']);
+        $this->assertSame('invalid_response', $api->service('351')['code']);
+    }
+
+    public function test_billing_identity_advisory_never_ignores_other_errors_or_missing_service_data(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/351' => Http::sequence()
+                ->push(['service' => [], 'error' => ['management_offline', 'access_denied']])
+                ->push(['service' => [], 'error' => ['management_offline'], 'success' => false])
+                ->push(['service' => [], 'error' => ['management_offline'], 'status' => false])
+                ->push(['error' => ['management_offline']]),
+        ]);
+        $api = $this->api();
+        for ($i = 0; $i < 4; $i++) {
+            $this->assertFalse($api->serviceBilling('351')['ok']);
+        }
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET' && ! str_ends_with($request->url(), '/login'));
+    }
+
     public function test_only_approved_bare_https_origins_are_accepted(): void
     {
         foreach (['https://vps.tc', 'https://api.vps.tc/', 'https://whitelabelservices.us', 'https://portal.whitelabelservices.us'] as $origin) {

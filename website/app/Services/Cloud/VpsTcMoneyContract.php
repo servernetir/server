@@ -62,7 +62,7 @@ final class VpsTcMoneyContract
             if (! is_array($item) || strtolower((string) ($item['type'] ?? '')) !== 'hosting'
                 || (string) ($item['item_id'] ?? '') !== (string) $proof['anchor']['service_id']
                 || ! $this->equal($item['qty'] ?? null, '1')) { return null; }
-            $serviceRead = $this->api->service((string) $proof['anchor']['service_id']);
+            $serviceRead = $this->api->serviceBilling((string) $proof['anchor']['service_id']);
             $service = $serviceRead['data']['service'] ?? [];
             if (! ($serviceRead['ok'] ?? false) || (string) ($service['id'] ?? '') !== (string) $proof['anchor']['service_id']
                 || strtolower((string) ($service['billingcycle'] ?? '')) !== 'monthly'
