@@ -372,6 +372,9 @@ final class AiCaller
                     'fx_at' => $q->fx->at,
                     'fee_bp' => $q->feeBp,
                     'margin_bp' => $q->marginBp,
+                    ...(\Illuminate\Support\Facades\Schema::hasColumn('ai_usage', 'birthday_reward_id')
+                        ? ['birthday_reward_id' => str_starts_with($q->marginSource, 'birthday:') ? (int) substr($q->marginSource, 9) : null]
+                        : []),
                     'vat_bp' => $vat['bp'],
                     'vat_basis' => $vat['basis'],
                     'p_input_irt_m' => $q->pIn,

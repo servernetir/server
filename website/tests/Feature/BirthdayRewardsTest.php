@@ -375,6 +375,26 @@ class BirthdayRewardsTest extends TestCase
         $this->assertSame($charge['cost_irt'], $charge['sell']);
         $this->assertGreaterThan(0, $charge['tax']);
         $this->assertSame(2500, $pricing->quote($m)->marginBp);
+        // Per-million display rounding used to add one extra toman on larger usage.
+        (new \App\Services\Ai\PriceBook)->supersede($m, 'input', 230001, currencyCode: 'USD');
+        (new \App\Services\Ai\PriceBook)->supersede($m, 'output', 400001, currencyCode: 'USD');
+        $frozen = $pricing->quoteFor($m, $c);
+        $rounded = $pricing->charge($frozen, 2000000, 0, 2000000, 1000);
+        $stored = new \App\Models\AiUsage([
+            'ai_model_id' => $m->id, 'ai_provider_id' => $provider->id,
+            'birthday_reward_id' => app(BirthdayProgram::class)->current($c)->id,
+            'price_currency' => $frozen->currency, 'fx_rate_toman' => $frozen->rate(),
+            'fx_source' => $frozen->fx->source, 'fx_at' => now(), 'fee_bp' => $frozen->feeBp,
+            'margin_bp' => 0, 'input_rate_micro' => $frozen->rIn,
+            'cached_rate_micro' => $frozen->rCached, 'output_rate_micro' => $frozen->rOut,
+            'p_input_irt_m' => $frozen->pIn, 'p_cached_irt_m' => $frozen->pCached,
+            'p_output_irt_m' => $frozen->pOut,
+        ]);
+        $recovered = $pricing->charge($stored->quote(), 2000000, 0, 2000000, 1000);
+        $this->assertSame($rounded['sell'], $recovered['sell']);
+        $this->assertSame($recovered['cost_irt'], $recovered['sell']);
+        $this->assertSame($rounded['cost_irt'], $rounded['sell']);
+        $this->assertGreaterThan($rounded['sell'], $rounded['sell_book']);
         // Keep the stored FX evidence current when testing promotion expiry.
         $this->travel(25)->hours();
         \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 110000]);

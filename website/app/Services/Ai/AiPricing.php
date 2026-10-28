@@ -334,7 +334,10 @@ final class AiPricing
             ->dividedBy(10_000,RoundingMode::Up));
         $floor=max($floor,$ledgerFloor);
 
-        $sell = max($book, $floor);
+        // Birthday prices follow the exact rounded landed ledger cost. Rounding each
+        // per-million display price separately must not reintroduce a hidden markup.
+        $birthday = $q->marginBp === 0 && str_starts_with($q->marginSource, 'birthday:');
+        $sell = $birthday ? $costIrt : max($book, $floor);
         $tax = self::tax($sell, $vatBp);
 
         return [

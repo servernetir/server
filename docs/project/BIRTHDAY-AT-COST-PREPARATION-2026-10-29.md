@@ -48,7 +48,7 @@ The feature retains output tax using the existing frozen line basis points. It d
 
 ## Invoice and payment integrity
 
-Three additive tables record annual windows, immutable invoice original/cost snapshots, and verified product costs. Supplier evidence stays private. No existing migration is edited.
+Three additive tables record annual windows, immutable invoice original/cost snapshots, and verified product costs. One nullable birthday_reward_id foreign key in ai_usage preserves the source of zero-markup pricing during delayed/recovered settlement; ordinary historical snapshots keep their previous calculation. Birthday AI settlement uses exactly the rounded landed ledger cost, so per-million display rounding cannot create a hidden residual markup. Supplier evidence stays private. No existing migration is edited.
 
 A signed invoice-price token is required for birthday-related payment forms and checked before payment preparation. An expired page cannot silently charge the newly restored full price. If supplier cost changes, POST rejects the old quote and a GET presents the revised amount for review.
 
