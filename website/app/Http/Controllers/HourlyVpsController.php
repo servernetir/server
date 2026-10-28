@@ -50,6 +50,7 @@ class HourlyVpsController extends Controller
         $locale = app()->getLocale();
         $isFa = $locale === 'fa';
 
+        $unavailableCountries = [];
         $countries = [];     // iso => ردیفِ جدولِ نرخ‌ها
         $featured = [];      // کارت‌های نمونه
         $fromHourly = null;  // ارزان‌ترین نرخِ ساعتیِ کلِ کاتالوگ (برچسب)
@@ -59,7 +60,11 @@ class HourlyVpsController extends Controller
         $irCities = [];      // شهرهای ایران — برای پاسخِ «سرور ساعتی ایران دارید؟»
 
         if (Schema::hasTable('cloud_plans') && Schema::hasTable('cloud_locations')) {
-            $offers = CloudPlan::offers();
+            $allOffers = CloudPlan::sellable()->orderBy('cost_eur_cents')->get();
+            $selection = new \App\Services\Cloud\CloudOfferSelection;
+            $offers = $allOffers->filter(fn (CloudPlan $p) => $p->supportsHourly() && ! $p->isMetal())
+                ->groupBy('slug')->map(fn ($rows) => $selection->representative($rows, true))
+                ->sortBy([['vcpu', 'asc'], ['ram_mb', 'asc'], ['disk_gb', 'asc']])->values();
             $locations = CloudLocation::query()
                 ->where('is_active', true)
                 ->orderBy('sort')
@@ -143,6 +148,15 @@ class HourlyVpsController extends Controller
                 }
             }
 
+            foreach ($allOffers as $offer) {
+                $loc = $locations->get(\App\Models\CloudLocation::canonicalCode($offer->location_code));
+                if (! $loc || $loc->country === 'XX') { continue; }
+                $iso = strtoupper((string) $loc->country);
+                if (isset($countries[$iso]) || isset($unavailableCountries[$iso])) { continue; }
+                $unavailableCountries[$iso] = ['iso' => $iso, 'label' => $loc->countryLabel(),
+                    'flag' => $loc->flagEmoji(), 'flag_svg' => $loc->flagSvg()];
+            }
+
             // ایران اول (کاربرِ فارسی بیشتر همین را می‌خواهد)، بعد ارزان‌ترین‌ها
             uasort($countries, function (array $a, array $b) {
                 if ($a['iso'] === 'IR') {
@@ -163,6 +177,7 @@ class HourlyVpsController extends Controller
         return view('pages.vps-hourly', [
             'costExamples' => $costExamples,
             'countries' => $countries,
+            'unavailableCountries' => array_values($unavailableCountries),
             'featured' => $featured,
             'fromHourly' => $fromHourly,
             'fromHourlyRaw' => $fromHourlyRaw,

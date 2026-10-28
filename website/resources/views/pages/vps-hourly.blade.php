@@ -261,7 +261,7 @@
       <p>{{ __('ui.hv_rates_d') }}</p>
     </div>
 
-    @if($countries)
+    @if($countries || ($unavailableCountries ?? []))
       <div class="hv-filter" data-hourly-enhance hidden>
         <label for="hourly-country-search">{{ $hvUx['search'] }}<input id="hourly-country-search" type="search" autocomplete="off" aria-controls="hourly-rates-body"></label>
         <p id="hourly-country-status" role="status" aria-live="polite"></p>
@@ -285,6 +285,12 @@
                 <td data-label="{{ __('ui.hv_th_monthly') }}">{{ $c['monthly'] }}</td>
                 <td data-label="{{ __('ui.hv_th_plans') }}">{{ $isFa ? fa_num($c['plans']) : $c['plans'] }}</td>
                 <td class="hv-td-buy"><a class="hv-link" href="{{ $c['url'] }}">{{ $isFa ? 'سرور مجازی '.$c['label'] : $c['label'].' VPS' }}</a></td>
+              </tr>
+            @endforeach
+            @foreach($unavailableCountries ?? [] as $c)
+              <tr data-hourly-country="{{ $c['label'] }} {{ $c['iso'] }}" aria-disabled="true" style="filter:grayscale(1);opacity:.6">
+                <td>@include('partials.flag', ['flagSrc' => $c['flag_svg'], 'flagEmoji' => $c['flag'], 'flagSize' => 18]) {{ $c['label'] }}</td>
+                <td colspan="4">{{ __('ui.choice_country_hourly') }}</td>
               </tr>
             @endforeach
           </tbody>

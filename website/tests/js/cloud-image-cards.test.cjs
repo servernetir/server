@@ -14,14 +14,14 @@ function setup(extra='') {
   const form=dom.window.document.querySelector('form');
   return {dom,form,cards:dom.window.ServerNetImageCards.mount(form,words)};
 }
-test('family cards group versions and hide incompatible options',()=>{
+test('family cards group versions and retain disabled incompatible options',()=>{
   const {form,cards}=setup();
   assert.equal(form.querySelectorAll('.cvb-image-card').length,2);
   assert.equal(form.querySelectorAll('.cvb-image-card.is-selected').length,1);
   const version=form.querySelector('.cvb-image-version');
   assert.equal(version.value,'u24');
   assert.equal(version.querySelector('[value="u26"]').disabled,true);
-  assert.equal(version.querySelector('[value="u26"]').hidden,true);
+  assert.equal(version.querySelector('[value="u26"]').hidden,false);
   assert.equal(cards.labels.u24,'Ubuntu 24.04');
   assert.equal(cards.logos.opensuse,'/assets/os/opensuse.svg');
   assert.ok(!form.querySelector('.cvb-image-grid').textContent.includes('Arvan'));
@@ -54,14 +54,16 @@ test('plan synchronization replaces unavailable selections without stale version
   const version=form.querySelector('.cvb-image-version');
   assert.equal(version.value,'u22');
   assert.equal(version.querySelector('[value="u24"]').disabled,true);
-  assert.ok(version.closest('.cvb-image-bottom').classList.contains('is-single'));
+  assert.equal(version.closest('.cvb-image-bottom').classList.contains('is-single'),false);
 });
-test('a family with no available images disappears',()=>{
+test('a family with no available images remains disabled',()=>{
   const {form,cards}=setup();
   form.querySelectorAll('[data-fam="ubuntu"] .cvb-img').forEach(n=>n.hidden=true);
   cards.refresh();
   const card=[...form.querySelectorAll('.cvb-image-card')].find(n=>n.textContent.includes('Ubuntu'));
-  assert.equal(card.hidden,true);
+  assert.equal(card.hidden,false);
+  assert.equal(card.getAttribute('aria-disabled'),'true');
+  assert.equal(card.querySelector('button').disabled,true);
   assert.equal(card.querySelector('select').disabled,true);
 });
 test('continue is a separate non-submitting action and hides for an empty catalog',()=>{
@@ -88,7 +90,7 @@ test('existing GPU app cards are preserved',()=>{
   assert.equal(pane.querySelector('.cvb-gpu-app').hidden,false);
 });
 
-test('animated popup exposes only compatible versions and submits the original image key',()=>{
+test('animated popup exposes disabled incompatible versions and submits the original image key',()=>{
   const {dom,form}=setup();
   const trigger=form.querySelector('.cvb-version-trigger');
   assert.equal(trigger.type,'button');
@@ -96,8 +98,9 @@ test('animated popup exposes only compatible versions and submits the original i
   const menu=dom.window.document.querySelector('[role="listbox"]');
   assert.equal(menu.parentElement,dom.window.document.body);
   assert.equal(trigger.getAttribute('aria-expanded'),'true');
-  assert.deepEqual([...menu.querySelectorAll('[role="option"]')].map(n=>n.textContent),['24.04','22.04']);
-  menu.querySelectorAll('[role="option"]')[1].click();
+  assert.deepEqual([...menu.querySelectorAll('[role="option"]')].map(n=>n.textContent),['26.04','24.04','22.04']);
+  assert.equal(menu.querySelector('[role="option"]').disabled,true);
+  menu.querySelectorAll('[role="option"]')[2].click();
   assert.equal(dom.window.document.querySelector('[role="listbox"]'),null);
   assert.equal(trigger.getAttribute('aria-expanded'),'false');
   assert.deepEqual(new dom.window.FormData(form).getAll('image'),['u22']);
@@ -125,4 +128,18 @@ test('keyboard navigation, Escape, outside click and plan refresh close the popu
   stale.click();
   assert.deepEqual(new dom.window.FormData(form).getAll('image'),['u24']);
   assert.equal(doc.querySelector('[role="listbox"]'),null);
+});
+
+test('disabled source radios stay visible with reasons and cannot be selected by cards or version menus',()=>{
+  const {form,cards}=setup();
+  const row=form.querySelector('[data-key="u22"]');
+  row.querySelector('input').disabled=true;
+  const reason=form.ownerDocument.createElement('small');reason.className='cvb-choice-reason';reason.textContent='Requires 4096 MB RAM';row.appendChild(reason);
+  cards.refresh();
+  const option=form.querySelector('.cvb-image-version [value="u22"]');
+  assert.equal(option.hidden,false);assert.equal(option.disabled,true);assert.match(option.textContent,/4096/);
+  form.querySelector('.cvb-version-trigger').click();
+  const disabled=[...form.ownerDocument.querySelectorAll('.cvb-version-option')].find(o=>o.textContent.includes('4096'));
+  assert.equal(disabled.disabled,true);disabled.click();
+  assert.equal(row.querySelector('input').checked,false);
 });

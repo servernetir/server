@@ -1,6 +1,15 @@
 <?php
 
 return [
+    'choice_hourly' => 'Hourly billing is not available for this plan at this location.',
+    'choice_cycle' => 'This billing period is not available for the selected plan.',
+    'choice_image_unavailable' => 'This operating system or application is currently unavailable for this plan and location.',
+    'choice_ram' => 'Requires at least :amount MB RAM; the selected plan has insufficient memory.',
+    'choice_disk' => 'Requires at least :amount GB of boot disk; a data disk cannot replace the boot disk.',
+    'choice_arch' => 'Not compatible with this plan’s CPU architecture.',
+    'choice_cpu' => 'Requires at least :amount vCPUs.',
+    'choice_country_hourly' => 'No hourly plans are currently available for sale in this country.',
+
     'iv_no_payment_methods' => 'No payment method is currently enabled for this language. Please contact support to arrange payment.',
     'f_email_transactional' => 'Transactional Email & SMTP',
     'cvb_live_price_changed' => 'This plan price was updated. Nothing was charged; review the new price and confirm your purchase again.',

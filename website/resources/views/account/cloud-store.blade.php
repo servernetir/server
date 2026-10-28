@@ -336,10 +336,10 @@
                       $gShut = (int) ($g['openCities'] ?? 0) === 0;
                     @endphp
                     <a class="cvb-nat @if($gShut) is-shut @endif @if($gOn) on @endif"
-                       data-nat="{{ $g['country'] }}" href="{{ $countryHref((string) $g['entry']) }}"@if($gOn) aria-current="true"@endif>
+                       data-hourly-available="{{ ($g['hourlyAvailable'] ?? false) ? '1' : '0' }}" data-monthly-closed="{{ $gShut ? '1' : '0' }}" data-nat="{{ $g['country'] }}" href="{{ $countryHref((string) $g['entry']) }}"@if($gOn) aria-current="true"@endif>
                       <span class="cvb-flag">@include('partials.flag', ['flagSrc' => $g['flag_svg'] ?? null, 'flagEmoji' => $g['flag'], 'flagSize' => 24])</span>
                       <span class="cvb-nat-t">
-                        <b>{{ $g['label'] }}</b>
+                        <b>{{ $g['label'] }}</b><small class="cvb-country-reason" hidden>{{ __('ui.choice_country_hourly') }}</small>
                         @if((int) ($g['openCities'] ?? 0) > 1)
                           <small>{{ trans_choice('ui.cvb_c_cities', (int) $g['openCities'], ['n' => fa_num((int) $g['openCities'])]) }}</small>
                         @endif
@@ -473,9 +473,9 @@
             <div class="cvb-segs cvb-bill @if($hOn) is-hourly @endif" id="cvb-bill">
               @foreach($cycles as $cy)
                 @php $row = $priceMap[$curSlug][$cy] ?? ['save' => 0]; @endphp
-                <label class="cvb-seg cvb-seg-c @if($cy === $curCycle) on @endif" data-cyc="{{ $cy }}" @if(!isset($priceMap[$curSlug][$cy])) hidden @endif>
+                <label class="cvb-seg cvb-seg-c @if($cy === $curCycle) on @endif" data-cyc="{{ $cy }}" aria-disabled="{{ isset($priceMap[$curSlug][$cy]) ? 'false' : 'true' }}" title="{{ isset($priceMap[$curSlug][$cy]) ? '' : __('ui.choice_cycle') }}">
                   <input type="radio" name="cycle" value="{{ $cy }}" @checked($cy === $curCycle) @disabled(!isset($priceMap[$curSlug][$cy]))>
-                  <span>{{ $cycleLabels[$cy] ?? $cy }}</span>
+                  <span>{{ $cycleLabels[$cy] ?? $cy }}</span><small class="cvb-cycle-reason" @if(isset($priceMap[$curSlug][$cy])) hidden @endif>{{ __('ui.choice_cycle') }}</small>
                   @if(($row['save'] ?? 0) > 0)<em>{{ fa_num($row['save']) }}{{ __('ui.cvb_save_suf') }}</em>@endif
                 </label>
               @endforeach
@@ -489,9 +489,9 @@
                    در DOM نباشد، رفتن به پلنی که ساعتی **دارد** گزینه را
                    برنمی‌گرداند. (`.cvb-seg[hidden]` در panel.css صریح خاموش
                    شده — `display:inline-flex`ِ نویسنده بر [hidden] می‌چربد.) --}}
-              <label class="cvb-seg cvb-seg-h @if($hOn) on @endif" @if($hRate <= 0) hidden @endif>
-                <input type="checkbox" name="billing_mode" value="hourly" id="cvb-hourly" @checked($hOn)>
-                <span>{{ __('ui.cvb_mode_hourly') }}</span>
+              <label class="cvb-seg cvb-seg-h @if($hOn) on @endif" aria-disabled="{{ $hRate <= 0 ? 'true' : 'false' }}" title="{{ $hRate <= 0 ? __('ui.choice_hourly') : '' }}">
+                <input type="checkbox" name="billing_mode" value="hourly" id="cvb-hourly" @checked($hOn) @disabled($hRate <= 0)>
+                <span>{{ __('ui.cvb_mode_hourly') }}</span><small id="cvb-hourly-reason" @if($hRate > 0) hidden @endif>{{ __('ui.choice_hourly') }}</small>
               </label>
             </div>
 
@@ -671,10 +671,10 @@
                 <div class="cvb-opts">
                   @foreach($rows as $img)
                     <label class="cvb-img @if($img->key === $curImage) on @endif"
-                           data-key="{{ $img->key }}" @if(! in_array($img->key, $okOs, true)) hidden @endif>
-                      <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                           data-key="{{ $img->key }}" aria-disabled="{{ in_array($img->key, $okOs, true) ? 'false' : 'true' }}">
+                      <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage) @disabled(!in_array($img->key, array_merge($okOs, $okApp), true))>
                       <img class="cvb-logo" src="{{ $img->logo() }}" alt="" loading="lazy" width="20" height="20">
-                      <b>{{ \App\Support\PanelText::text($img->label) }}</b>
+                      <b>{{ \App\Support\PanelText::text($img->label) }}</b><small class="cvb-choice-reason">{{ in_array($img->key, array_merge($okOs, $okApp), true) ? '' : ($imageReasons[$curSlug][$img->key] ?? __('ui.choice_image_unavailable')) }}</small>
                     </label>
                   @endforeach
                 </div>
@@ -695,8 +695,8 @@
                 <div class="cvb-opts cvb-gpu-app-grid">
                   @foreach($appCatalog as $img)
                     <label class="cvb-img cvb-gpu-app @if($img->key === $curImage) on @endif"
-                           data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
-                      <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                           data-key="{{ $img->key }}" aria-disabled="{{ in_array($img->key, $okApp, true) ? 'false' : 'true' }}">
+                      <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage) @disabled(!in_array($img->key, array_merge($okOs, $okApp), true))>
                       <span class="cvb-gpu-app-top" aria-hidden="true">
                         <span class="cvb-gpu-app-icon"><img src="{{ $img->logo() }}" alt="" width="30" height="30" loading="lazy"></span>
                         <span class="cvb-gpu-app-check"><svg class="icon"><use href="#i-check"/></svg></span>
@@ -717,10 +717,10 @@
                 <div class="cvb-opts">
                   @foreach($rows as $img)
                     <label class="cvb-img @if($img->key === $curImage) on @endif"
-                           data-key="{{ $img->key }}" @if(! in_array($img->key, $okApp, true)) hidden @endif>
-                      <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage)>
+                           data-key="{{ $img->key }}" aria-disabled="{{ in_array($img->key, $okApp, true) ? 'false' : 'true' }}">
+                      <input type="radio" name="image" value="{{ $img->key }}" @checked($img->key === $curImage) @disabled(!in_array($img->key, array_merge($okOs, $okApp), true))>
                       <img class="cvb-logo" src="{{ $img->logo() }}" alt="" loading="lazy" width="20" height="20">
-                      <b>{{ \App\Support\PanelText::text($img->label) }}</b>
+                      <b>{{ \App\Support\PanelText::text($img->label) }}</b><small class="cvb-choice-reason">{{ in_array($img->key, array_merge($okOs, $okApp), true) ? '' : ($imageReasons[$curSlug][$img->key] ?? __('ui.choice_image_unavailable')) }}</small>
                     </label>
                   @endforeach
                 </div>
@@ -1018,6 +1018,10 @@
     'gpuCapacityUnknown' => __('ui.gpu_capacity_unknown'),
     'prices' => $priceMap,
     'images' => $imageMap,
+    'imageReasons' => $imageReasons,
+    'imageUnavailable' => __('ui.choice_image_unavailable'),
+    'hourlyUnavailable' => __('ui.choice_hourly'),
+    'cycleUnavailable' => __('ui.choice_cycle'),
     'cycles' => $cycleLabels,
     'months' => $cycleMonths,
     'plans'  => $jsPlans,
@@ -1135,7 +1139,12 @@
 
       pane.querySelectorAll('.cvb-img').forEach(function(lab){
         var can = ok.indexOf(lab.getAttribute('data-key')) !== -1;
-        lab.hidden = !can;
+        lab.hidden = false;
+        lab.setAttribute('aria-disabled', can ? 'false' : 'true');
+        var radio = lab.querySelector('input');
+        if (radio) { radio.disabled = !can; if (!can) radio.checked = false; }
+        var reason = lab.querySelector('.cvb-choice-reason');
+        if (reason) reason.textContent = can ? '' : ((D.imageReasons[slug] || {})[lab.getAttribute('data-key')] || D.imageUnavailable);
         if (can) {
           shown++;
           if (!first) { first = lab; firstKind = kind; }
@@ -1144,7 +1153,7 @@
       });
 
       pane.querySelectorAll('.cvb-fam').forEach(function(fam){
-        fam.hidden = fam.querySelectorAll('.cvb-img:not([hidden])').length === 0;
+        fam.hidden = false;
       });
 
       var empty = pane.querySelector('[data-empty]');
@@ -1198,6 +1207,9 @@
   }
   if(D.gpu) { setInterval(function(){checkGpuCapacity(val('plan'));}, 30000); }
 
+  form.querySelectorAll('.cvb-nat').forEach(function(country){
+    country.addEventListener('click',function(event){if(country.getAttribute('aria-disabled')==='true') event.preventDefault();});
+  });
   var render = function(){
     var slug = val('plan'), cyc = val('cycle');
     checkGpuCapacity(slug);
@@ -1212,7 +1224,10 @@
     form.querySelectorAll('.cvb-seg-c[data-cyc]').forEach(function(segment){
       var cycleInput = segment.querySelector('input[name="cycle"]');
       var supported = !!bucket[segment.getAttribute('data-cyc')];
-      segment.hidden = !supported;
+      segment.hidden = false;
+      segment.setAttribute('aria-disabled', supported ? 'false' : 'true');
+      segment.title = supported ? '' : D.cycleUnavailable;
+      var note=segment.querySelector('.cvb-cycle-reason'); if(note) note.hidden=supported;
       if (cycleInput) cycleInput.disabled = !supported;
     });
     var h = (D.hourly || {})[slug] || { rate: 0, min: 0 };
@@ -1228,10 +1243,19 @@
     var isMetal = !!((D.metal || {})[slug]);
     var hOff = isMetal || !(h.rate > 0);
     var hSeg = form.querySelector('.cvb-seg-h');
-    if (hSeg) { hSeg.hidden = hOff; }
+    if (hSeg) { hSeg.hidden = false; hSeg.setAttribute('aria-disabled', hOff ? 'true' : 'false'); hSeg.title = hOff ? D.hourlyUnavailable : ''; }
+    if (hChk) hChk.disabled = hOff;
+    var hReason = document.getElementById('cvb-hourly-reason');
+    if (hReason) hReason.hidden = !hOff;
     if (hOff && hChk && hChk.checked) { hChk.checked = false; }
 
     var hourly = !!(hChk && hChk.checked);
+    form.querySelectorAll('.cvb-nat[data-hourly-available]').forEach(function(country){
+      var off = hourly && country.getAttribute('data-hourly-available') !== '1';
+      country.setAttribute('aria-disabled', off ? 'true' : 'false');
+      country.classList.toggle('is-shut', off || country.getAttribute('data-monthly-closed') === '1');
+      var reason=country.querySelector('.cvb-country-reason'); if(reason) reason.hidden=!off;
+    });
 
     // مبلغِ ستونِ هر ردیف = همان دورهٔ انتخابی.
     // ⚠️ این حلقه عمداً **پیش از** بازگشتِ زودهنگامِ ساعتی است، و تا وقتی
