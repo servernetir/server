@@ -1,0 +1,118 @@
+{
+  "playbook_deployment": {
+    "after": "c894605d7379c51c2dca86cfb5e7599bb5810aa573d2547373c6ddcb3787f837",
+    "opcache_invalidated": true,
+    "before": "95cd4fcc67a7ea5019e0f57a853dc69e32c96867233cc882598c516dc4153ce9"
+  },
+  "files": {
+    "website/app/Services/Cloud/ArvanClient.php": "a31ed383663139d2bd24518505f3bd300667202597b8884e6863313b1675ff39",
+    "HermesReadOnlyDiagnostics.php": "9a8d8f638fd96f12a5ed8d89b5c837c31fe007e6ddd3ac39914f7aabcd43b7fa",
+    "HermesSupportDraftWriter.php": "5ebbbe6443e7c290e0478319a705085f5625623fbf534099a2e55e7dac1f4037",
+    "HermesSupportPlaybooks.php": "c894605d7379c51c2dca86cfb5e7599bb5810aa573d2547373c6ddcb3787f837",
+    "HermesSupportPolicy.php": "506ef771973452d1cb649b6f104fe983488e57e979101977ef2ca26878c3b9bc",
+    "HermesServiceDossier.php": "33e59d197a221b1eeac998e1d2850d160d9cf4fa97a2b913e4e2be2f36d54dee"
+  },
+  "privacy": "No customer identifiers, addresses, raw ticket text or private receipts included",
+  "semantics_deployment": {
+    "utc": "2026-10-28T14:21:42+03:30",
+    "files": {
+      "app/Services/Hermes/HermesSupportDraftWriter.php": {
+        "before": "ed8e3958935f8bf68595b77d1716b6bd249ae413b9ae92cc6840025dacf7d8fa",
+        "after": "5ebbbe6443e7c290e0478319a705085f5625623fbf534099a2e55e7dac1f4037",
+        "lint_ok": true,
+        "opcache_invalidated": true
+      },
+      "app/Services/Cloud/ArvanClient.php": {
+        "before": "716f250ea80cf8233b44fc8396b919524d6d9cd918c88d96f69d3952f0170b62",
+        "after": "a31ed383663139d2bd24518505f3bd300667202597b8884e6863313b1675ff39",
+        "lint_ok": true,
+        "opcache_invalidated": true
+      }
+    },
+    "ticket_diagnostic_cache_invalidated": true
+  },
+  "teaching": {
+    "documents": [
+      {
+        "id": "arvan-firewall-policy-20261028",
+        "present": true,
+        "reference_only": true,
+        "audience": "owner_private",
+        "current_state_verified": false,
+        "content_sha256": "4ea8d4c7c13c636d0082ecf6beff25df9e4e6162de4d7149fffceb676139f5f6"
+      },
+      {
+        "id": "arvan-firewall-api-v2-20261028",
+        "present": true,
+        "reference_only": true,
+        "audience": "owner_private",
+        "current_state_verified": false,
+        "content_sha256": "74b9515b304fe70811f5bd9be49bbcccf6a6f23ee39f7cf9260a2b127fe159a5"
+      },
+      {
+        "id": "cloud-service-ownership-support-20261028",
+        "present": true,
+        "reference_only": true,
+        "audience": "owner_private",
+        "current_state_verified": false,
+        "content_sha256": "c49bafe43b78f338fb5d679e63b0cc7c290be9874e4bc9fb14e88be2d24019e0"
+      },
+      {
+        "id": "network-diagnostics-evidence-20261028",
+        "present": true,
+        "reference_only": true,
+        "audience": "owner_private",
+        "current_state_verified": false,
+        "content_sha256": "b38f75a86841f3128134730742f9f960edbd2d76862a5aab28f7dad96ec10662"
+      },
+      {
+        "id": "concise-ticket-followup-network-20261028",
+        "present": true,
+        "reference_only": true,
+        "audience": "owner_private",
+        "current_state_verified": false,
+        "content_sha256": "d118550f3680437fa639fd923d924a13d4c1aa609ae081bebcaa42e1c6388924"
+      },
+      {
+        "id": "firewall-change-persistence-20261028",
+        "present": true,
+        "reference_only": true,
+        "audience": "owner_private",
+        "current_state_verified": false,
+        "content_sha256": "4df01173e3f5cf73c5992406caca829a066a9ddda646c39e8eaee7f70e3f1ca2"
+      }
+    ],
+    "imported": 6,
+    "reference_count": 105,
+    "preserved_rules": 17
+  },
+  "date": "2026-10-28",
+  "native_acceptance": {
+    "retrieved_reference_ids": [
+      "arvan-firewall-policy-20261028",
+      "arvan-firewall-api-v2-20261028",
+      "concise-ticket-followup-network-20261028",
+      "firewall-change-persistence-20261028"
+    ],
+    "at": "2026-10-28T14:22:14+03:30",
+    "analysis_characters": 754,
+    "reply_characters": 534,
+    "all_tcp_udp_ports": {
+      "ingress": {
+        "IPv4": true,
+        "IPv6": true
+      },
+      "egress": {
+        "IPv4": true,
+        "IPv6": true
+      }
+    }
+  },
+  "vm_knowledge": {
+    "indexes_updated": 4,
+    "sha256": "60f08ac145de9e13fb669f8e993e26ef941aa06fb28f71c6f3b26fd56eaaafba",
+    "copies": 2,
+    "broker_matches": true,
+    "document": "ARVAN-FIREWALL-SUPPORT-KNOWLEDGE-2026-10-28.md"
+  }
+}

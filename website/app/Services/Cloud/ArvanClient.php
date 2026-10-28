@@ -800,15 +800,18 @@ class ArvanClient implements CloudProvider
         $wanted = trim((string) Setting::get('arvan_security_group', ''));
 
         return Cache::remember(
-            // v3: علاوه بر تغییر نام→ID، fallback نامعتبرِ تنظیم دستی نیز حذف
-            // شد؛ کشِ v2 مخصوصاً برای منطقهٔ از‌دسترس‌خارج نباید باقی بماند.
-            'arvan.sg-id.v3.'.$regionCode.'.'.md5($wanted),
+            // v4: use the current panel inventory, including groups created through v2.
+            'arvan.sg-id.v4.'.$regionCode.'.'.md5($wanted),
             3600,
             function () use ($regionCode, $wanted) {
                 // ⚠️ دو نامزدِ دیگر: نامِ مسیر قطعی نیست و هزینهٔ امتحانشان یک
                 // درخواستِ ۴۰۴ است، در برابرِ تحویلی که اصلاً انجام نمی‌شود.
+                $paths = ['/ecc/v2/firewall/'.rawurlencode($regionCode).'/list'];
                 foreach (['/securities', '/security-groups', '/securitygroups', '/firewalls'] as $path) {
-                    $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).$path);
+                    $paths[] = self::ECC.'/regions/'.rawurlencode($regionCode).$path;
+                }
+                foreach ($paths as $path) {
+                    $r = $this->req('GET', $path);
 
                     if (! $r['ok']) {
                         continue;
@@ -1420,6 +1423,75 @@ class ArvanClient implements CloudProvider
             'ipv6' => null,
             'traffic_used_gb' => null,
         ];
+    }
+
+    /** Bounded read-only firewall evidence. Raw server bodies and credentials never leave this method. */
+    public function inspectFirewall(string $ref): array
+    {
+        $base = ['check' => 'cloud_firewall', 'source' => 'provider_api', 'at' => time(),
+            'result' => 'unavailable', 'repairs_performed' => false];
+        [$region, $id] = $this->split($ref);
+        if ($region === '' || $id === '') { return $base; }
+        $prefix = self::ECC.'/regions/'.rawurlencode($region);
+        $server = $this->req('GET', $prefix.'/servers/'.rawurlencode($id));
+        // The legacy /securities response can omit rules created by the current panel.
+        // Read the same v2 list/details endpoints as the panel, then project only rules.
+        $firewallPrefix = '/ecc/v2/firewall/'.rawurlencode($region);
+        $groups = $this->req('GET', $firewallPrefix.'/list');
+        $s = $server['data'] ?? null; $rows = $groups['data'] ?? null;
+        if (! ($server['ok'] ?? false) || ! ($groups['ok'] ?? false)
+            || ! is_array($s) || ($s['id'] ?? null) !== $id
+            || ! is_array($rows) || ! array_is_list($rows)
+            || ! is_array($s['security_groups'] ?? null) || ! array_is_list($s['security_groups'])
+            || count($s['security_groups']) < 1 || count($s['security_groups']) > 8) { return $base; }
+        $rules = []; $seen = []; $shared = false;
+        $coverage = ['ingress' => ['IPv4' => ['tcp' => false, 'udp' => false], 'IPv6' => ['tcp' => false, 'udp' => false]],
+            'egress' => ['IPv4' => ['tcp' => false, 'udp' => false], 'IPv6' => ['tcp' => false, 'udp' => false]]];
+        foreach ($s['security_groups'] as $attached) {
+            $groupId = is_array($attached) ? ($attached['id'] ?? null) : null;
+            if (! is_string($groupId) || $groupId === '' || isset($seen[$groupId])) { return $base; }
+            $matches = array_values(array_filter($rows, fn ($g) => is_array($g) && ($g['id'] ?? null) === $groupId));
+            if (count($matches) !== 1) { return $base; }
+            $details = $this->req('GET', $firewallPrefix.'/details/'.rawurlencode($groupId));
+            $groupRules = $details['data'] ?? null;
+            if (! ($details['ok'] ?? false) || ! is_array($groupRules)
+                || ! array_is_list($groupRules) || count($rules) + count($groupRules) > 64) { return $base; }
+            $seen[$groupId] = true;
+            if (is_int($matches[0]['instances'] ?? null) && $matches[0]['instances'] > 1) { $shared = true; }
+            foreach ($groupRules as $raw) {
+                if (! is_array($raw) || count(array_intersect(['type', 'version', 'protocol', 'src_dest', 'port_start', 'port_end'], array_keys($raw))) !== 6) { return $base; }
+                $r = ['direction' => $raw['type'], 'ether_type' => $raw['version'],
+                    'protocol' => $raw['protocol'], 'ip' => $raw['src_dest'],
+                    'port_start' => $raw['port_start'], 'port_end' => $raw['port_end']];
+                if (! is_array($r) || ! in_array($r['direction'] ?? null, ['ingress', 'egress'], true)
+                    || ! in_array($r['ether_type'] ?? null, ['IPv4', 'IPv6'], true)
+                    || ! in_array($r['protocol'] ?? null, ['', 'tcp', 'udp', 'icmp', 'ipv6-icmp'], true)
+                    || ! is_string($r['ip'] ?? null) || strlen($r['ip']) > 64
+                    || ! array_key_exists('port_start', $r) || ! array_key_exists('port_end', $r)) { return $base; }
+                foreach (['port_start', 'port_end'] as $port) {
+                    if ($r[$port] !== null && (! is_int($r[$port]) || $r[$port] < 0 || $r[$port] > 65535)) { return $base; }
+                }
+                if (($r['port_start'] === null) !== ($r['port_end'] === null)
+                    || ($r['port_start'] !== null && $r['port_start'] > $r['port_end'])) { return $base; }
+                // Match the current panel's display: blank protocol is TCP,UDP;
+                // zero/zero means every port, not a closed or missing UDP rule.
+                $allPorts = in_array($r['port_start'], [null, 0], true) && in_array($r['port_end'], [null, 0], true);
+                $fullRange = $r['port_start'] === 1 && $r['port_end'] === 65535;
+                $anyAddress = in_array($r['ip'], ['', $r['ether_type'] === 'IPv4' ? '0.0.0.0/0' : '::/0'], true);
+                if ($anyAddress && ($allPorts || $fullRange)) {
+                    foreach (['tcp', 'udp'] as $protocol) {
+                        if ($r['protocol'] === '' || $r['protocol'] === $protocol) { $coverage[$r['direction']][$r['ether_type']][$protocol] = true; }
+                    }
+                }
+                $rules[] = $r + ['protocol_display' => $r['protocol'] === '' ? 'TCP,UDP' : strtoupper($r['protocol']),
+                    'port_scope' => $allPorts || $fullRange ? 'all' : 'range', 'address_scope' => $anyAddress ? 'any' : 'restricted'];
+            }
+        }
+        return array_replace($base, ['result' => 'verified', 'attached_group_count' => count($seen),
+            'other_attached_servers_observed' => $shared, 'rules' => $rules,
+            'all_tcp_udp_ports' => array_map(fn ($families) => array_map(fn ($p) => $p['tcp'] && $p['udp'], $families), $coverage),
+            'scope' => 'attached_infrastructure_firewall_rules_only', 'guest_firewall_tested' => false,
+            'packet_delivery_tested' => false]);
     }
 
     private function responsePassword(array $server): ?string
