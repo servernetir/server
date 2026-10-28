@@ -198,6 +198,7 @@ final class HermesSupervisor
             'observed_at' => now('UTC')->toIso8601String(), 'observed_before' => $observed,
             'observed_after' => $observed, 'findings' => $this->findings($observed), 'executed_actions' => [],
             'campaign_policy' => (new HermesGrowthPolicy)->context(\DateTimeImmutable::createFromInterface(now('UTC'))),
+            'section_oversight' => (new HermesSectionOversight)->snapshot(),
             'verification' => ['performed' => false], 'scope' => 'knowledge_expiry_and_aggregate_supervision_only'];
     }
 }

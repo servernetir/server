@@ -99,6 +99,8 @@ class HermesSupervisorTest extends TestCase
         $this->assertSame('hermes-growth:2026-10-26', $receipt['campaign_policy']['daily_key']);
         $this->assertSame(5, $receipt['campaign_policy']['new_contact_cap']);
         $this->assertSame(2, $receipt['campaign_policy']['followup_cap']);
+        $this->assertSame(6, $receipt['section_oversight']['coverage_count']);
+        $this->assertFalse($receipt['section_oversight']['learning_assessed']);
         $this->assertFalse($receipt['campaign_policy']['human_review_may_be_impersonated']);
         $this->assertSame('knowledge_expiry_and_aggregate_supervision_only', $receipt['scope']);
         Mail::assertNothingSent();
