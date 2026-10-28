@@ -64,7 +64,7 @@ class BirthdayRewardsTest extends TestCase
 
     private function invoice(Customer $c, bool $known = true): Invoice
     {
-        $product = Product::create(['name' => 'Birthday fixture', 'plan' => 'birthday-'.bin2hex(random_bytes(5)),
+        $product = Product::create(['name' => 'Birthday fixture', 'slug' => 'birthday-'.bin2hex(random_bytes(5)), 'plan' => 'birthday-'.bin2hex(random_bytes(5)),
             'category' => 'other', 'price' => 1000, 'base_price_eur' => 1, 'currency_code' => 'IRT',
             'is_active' => true]);
         $s = Service::create(['customer_id' => $c->id, 'name' => 'Birthday fixture', 'plan' => $product->plan,
@@ -185,7 +185,7 @@ class BirthdayRewardsTest extends TestCase
         $this->assertSame(100, $i->tax);
         $this->assertSame('released', $engine->redemption($i)->status);
         $this->rejected(fn () => $engine->assertPresented($i, $old));
-        $this->assertDatabaseCount('credit_entries', 0);
+        $this->assertDatabaseCount('credit_ledger', 0);
     }
 
     public function test_pending_payment_keeps_agreed_amount_and_late_settlement_commits_it(): void
@@ -222,7 +222,7 @@ class BirthdayRewardsTest extends TestCase
         $this->actingAs($c, 'customer')->post('/account/invoices/'.$i->id.'/pay-credit')
             ->assertSessionHasErrors('birthday');
         $this->assertSame(0, $i->fresh()->paid);
-        $this->assertDatabaseCount('credit_entries', 0);
+        $this->assertDatabaseCount('credit_ledger', 0);
     }
 
     public function test_patterns_stay_blocked_until_approved_and_are_attempted_only_once(): void
@@ -296,6 +296,116 @@ class BirthdayRewardsTest extends TestCase
         $this->born(); Setting::put('birthday_offer_enabled', '1');
         $this->artisan('birthday:rewards', ['--dry-run' => true])->assertSuccessful();
         $this->assertDatabaseCount('birthday_rewards', 0);
+    }
+
+
+    public function test_hourly_window_splits_seconds_and_preserves_historical_usage_after_expiry(): void
+    {
+        $c = $this->born(); $r = $this->reward($c);
+        $r->update(['starts_at' => now()->subMinutes(30), 'expires_at' => now()->addMinutes(30)]);
+        $plan = \App\Models\CloudPlan::create(['provider' => 'hetzner', 'slug' => 'birthday-hourly',
+            'name' => 'Fixture', 'cost_eur_cents' => 720, 'cost_hour_eur_micro' => 1000,
+            'price_irt' => 720000, 'price_eur_cents' => 1000, 'is_active' => true]);
+        $s = Service::create(['customer_id' => $c->id, 'name' => 'Hourly', 'plan' => 'birthday-hourly',
+            'cloud_plan_id' => $plan->id, 'price' => 720000, 'cycle' => 'monthly',
+            'billing_mode' => 'hourly', 'hourly_rate_irt' => 1000, 'status' => 'active']);
+        $fx = \Mockery::mock(\App\Services\ExchangeRate::class);
+        $fx->shouldReceive('current')->with('EUR')->andReturn(['rate_toman' => 100000]);
+        $this->app->instance(\App\Services\ExchangeRate::class, $fx);
+        $snapshot = \Mockery::mock(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $snapshot->shouldReceive('current')->with('hetzner')->andReturn(true);
+        $this->app->instance(\App\Services\Cloud\CloudPricingSnapshot::class, $snapshot);
+        $hourly = app(\App\Services\Birthday\BirthdayHourly::class);
+        $start = now()->subHour();
+        $this->assertSame([550, 550, 1000], $hourly->rates($s, $start, 3, 1000));
+        $this->travel(2)->days();
+        $this->assertSame([550, 550, 1000], $hourly->rates($s, $start, 3, 1000));
+        $this->assertSame(['hours' => 2, 'amount' => 1100, 'credit_bound' => true, 'discount' => 900],
+            $hourly->affordable($s, $start, 3, 1000, 1100));
+        $this->assertSame(1000, (int) $s->fresh()->hourly_rate_irt);
+        $s->cloud_addons = ['unverified_extra' => 1];
+        $this->assertSame([1000], $hourly->rates($s, $start, 1, 1000));
+        $this->assertDatabaseCount('credit_ledger', 0);
+    }
+
+    public function test_identity_quote_keeps_purchase_tax_and_output_tax_and_restores_markup_after_expiry(): void
+    {
+        $c = $this->born(); $this->reward($c);
+        \App\Models\TaxRate::query()->delete();
+        \App\Models\TaxRate::create(['country' => 'IR', 'product_kind' => null, 'name' => 'Fixture',
+            'rate_bp' => 1000, 'priority' => 1, 'is_active' => true]);
+        $p = \App\Models\IdentityPrice::create(['service' => 'shahkar-inquiry', 'source_amount' => 1000,
+            'source_currency' => 'IRT', 'purchase_tax_included' => true, 'purchase_tax_amount' => 100,
+            'markup_bps' => 500, 'daily_quota' => 100, 'billing_policy' => 'valid_data_v1',
+            'evidence' => 'test-invoice', 'access_evidence' => 'test-contract',
+            'effective_at' => now(), 'valid_until' => now()->addDays(3)]);
+        $pricing = app(\App\Services\IdentityApi\Pricing::class);
+        $q = $pricing->quote($p, $c);
+        $this->assertSame(1000, $q['sell_irt']);
+        $this->assertSame(100, $q['purchase_tax_amount']);
+        $this->assertSame(100, $q['tax_irt']);
+        $this->assertSame(1100, $q['total_irt']);
+        $this->assertSame(1050, $pricing->preview($p, $c)['sell_irt']);
+        $this->assertSame(500, $p->fresh()->markup_bps);
+        $this->travel(25)->hours();
+        $this->assertSame(1155, $pricing->quote($p, $c)['total_irt']);
+    }
+
+    public function test_ai_quote_waives_customer_markup_and_keeps_fees_cost_and_regular_prices(): void
+    {
+        $c = $this->born(); $this->reward($c);
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 110000]);
+        Setting::put('ai_margin_pct', '25');
+        $provider = \App\Models\AiProvider::create(['slug' => 'birthday-fixture', 'name' => 'Fixture',
+            'driver' => 'OpenAI-Compatible', 'enabled' => true, 'commercial_enabled' => true,
+            'resale_allowed' => true, 'agreement_status' => 'signed', 'live_calls_enabled' => true,
+            'priority' => 100, 'billing_currency_code' => 'USD', 'fx_fee_bp' => 800]);
+        $m = \App\Models\AiModel::create(['ai_provider_id' => $provider->id, 'slug' => 'birthday/model',
+            'upstream_model' => 'fixture', 'name' => 'Fixture', 'category' => 'chat', 'status' => 'active']);
+        foreach (['input' => 230000, 'cached_input' => 115000, 'output' => 400000] as $unit => $micros) {
+            (new \App\Services\Ai\PriceBook)->supersede($m, $unit, $micros, currencyCode: 'USD');
+        }
+        $m->refresh()->load('provider');
+        $pricing = app(\App\Services\Ai\AiPricing::class);
+        $ordinary = $pricing->quote($m); $gift = $pricing->quoteFor($m, $c);
+        $this->assertSame(0, $gift->marginBp);
+        $this->assertSame(800, $gift->feeBp);
+        $this->assertSame($ordinary->rate(), $gift->rate());
+        $charge = $pricing->charge($gift, 12000, 8000, 900, 1000);
+        $this->assertSame($charge['cost_irt'], $charge['sell']);
+        $this->assertGreaterThan(0, $charge['tax']);
+        $this->assertSame(2500, $pricing->quote($m)->marginBp);
+        // Keep the stored FX evidence current when testing promotion expiry.
+        $this->travel(25)->hours();
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 110000]);
+        $this->assertSame(2500, $pricing->quoteFor($m, $c)->marginBp);
+    }
+
+    public function test_domain_floor_only_waives_documented_markup_and_never_supplier_cost(): void
+    {
+        $c = $this->born(); $this->reward($c);
+        $d = \App\Models\Domain::create(['customer_id' => $c->id, 'domain' => 'birthday-fixture.com',
+            'sld' => 'birthday-fixture', 'tld' => 'com', 'status' => 'pending', 'period_years' => 1,
+            'price_toman' => 1100, 'renew_toman' => 1100]);
+        $i = Invoice::create(['customer_id' => $c->id, 'domain_id' => $d->id, 'kind' => 'domain',
+            'currency_code' => 'IRT', 'subtotal' => 1100, 'tax' => 110, 'total' => 1210,
+            'paid' => 0, 'status' => 'unpaid', 'issued_at' => now()]);
+        InvoiceItem::create(['invoice_id' => $i->id, 'title' => 'Domain birthday-fixture.com',
+            'quantity' => 1, 'unit_price' => 1100, 'line_total' => 1100, 'discount' => 0,
+            'tax_rate_bp' => 1000, 'tax_amount' => 110]);
+        $pricing = \Mockery::mock(\App\Services\Domain\LiveDomainPricing::class)->makePartial();
+        $pricing->shouldReceive('quote')->andReturn(['wholesale_toman' => 1000,
+            'floor_toman' => 1100, 'sell_toman' => 1100]);
+        $this->app->instance(\App\Services\Domain\LiveDomainPricing::class, $pricing);
+        $engine = app(BirthdayInvoices::class); $engine->prepare($i, true);
+        $this->assertSame(1100, $i->total);
+        $pricing->reviewInvoice($i);
+        $this->assertSame(1100, $i->fresh()->total);
+        $line = $i->items()->firstOrFail();
+        $this->assertSame(1000, $engine->domainFloor($i, $d, $line, 1000));
+        $this->assertNull($engine->domainFloor($i, $d, $line, 1001));
+        $this->travel(25)->hours();
+        $this->assertNull($engine->domainFloor($i, $d, $line, 1000));
     }
 
     public function test_integer_cost_and_tax_math_never_drops_below_cost_or_adds_markup(): void

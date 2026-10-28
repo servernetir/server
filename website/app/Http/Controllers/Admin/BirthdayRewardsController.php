@@ -30,6 +30,10 @@ class BirthdayRewardsController extends Controller
         DB::transaction(function () use ($data) {
             Setting::put('birthday_offer_enabled', $data['enabled'] ? '1' : '0');
             Setting::put('birthday_sms_enabled', $data['sms_enabled'] ? '1' : '0');
+            if (! $data['enabled']) {
+                \App\Models\BirthdayReward::whereNull('revoked_at')->where('expires_at', '>', now())
+                    ->update(['revoked_at' => now(), 'updated_at' => now()]);
+            }
         });
 
         return redirect('/admin/settings?tab=accounts#birthday-rewards')->with('ok', __('birthday.saved'));

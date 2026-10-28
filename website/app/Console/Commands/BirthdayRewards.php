@@ -20,11 +20,21 @@ class BirthdayRewards extends Command
 
     public function handle(BirthdayProgram $program, BirthdayMessages $messages): int
     {
+        $dry = (bool) $this->option('dry-run');
+        if (! $dry && \Illuminate\Support\Facades\Schema::hasTable('birthday_redemptions')) {
+            // Process only applied rows: old in-flight locks must not starve later expirations.
+            $expired = BirthdayRedemption::where('status', 'applied')->where(function ($q) {
+                $q->where('expires_at', '<=', now())->orWhereIn('birthday_reward_id',
+                    BirthdayReward::whereNotNull('revoked_at')->select('id'));
+            })->orderBy('id')->limit(100)->get();
+            foreach ($expired as $redemption) {
+                app(BirthdayInvoices::class)->synchronize(Invoice::findOrFail($redemption->invoice_id));
+            }
+        }
         if (! $program->enabled()) {
-            $this->line('Birthday rewards disabled; no operation performed.');
+            $this->line('New birthday rewards and SMS disabled.');
             return self::SUCCESS;
         }
-        $dry = (bool) $this->option('dry-run');
         $cursor = (int) Setting::get('birthday_rewards_cursor', '0');
         $customers = Customer::where('status', 'active')->where('id', '>', $cursor)->orderBy('id')
             ->limit((int) config('birthday_rewards.batch_size', 100))->get();
@@ -42,10 +52,6 @@ class BirthdayRewards extends Command
         if (! $dry) {
             Setting::put('birthday_rewards_cursor', $customers->count() < config('birthday_rewards.batch_size', 100)
                 ? '0' : (string) $customers->last()->id);
-            foreach (BirthdayRedemption::whereIn('status', ['applied', 'locked'])->where('expires_at', '<=', now())
-                ->orderBy('id')->limit(100)->get() as $redemption) {
-                app(BirthdayInvoices::class)->synchronize(Invoice::findOrFail($redemption->invoice_id));
-            }
             foreach (BirthdayReward::whereIn('sms_status', ['pending_pattern', 'scheduled'])->where('expires_at', '>', now())
                 ->orderBy('id')->limit(100)->get() as $reward) {
                 $messages->dispatch($reward);

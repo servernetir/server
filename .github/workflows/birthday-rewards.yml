@@ -69,6 +69,12 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+      - name: Checkout immutable develop baseline for comparison
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: fa190192341bb50d1f2371c7a27c9823e2bd4486
+          path: baseline
+          persist-credentials: false
       - name: Set up PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
@@ -84,24 +90,21 @@ jobs:
           php -l app/Http/Middleware/PrepareBirthdayReward.php
           php -l database/migrations/2026_10_29_010000_create_birthday_rewards.php
           php -l tests/Feature/BirthdayRewardsTest.php
-      - name: Run isolated financial and pricing regression tests
+      - name: Run new birthday financial cases (all must pass)
+        run: vendor/bin/phpunit --testdox tests/Feature/BirthdayRewardsTest.php
+      - name: Install baseline locked dependencies
+        working-directory: baseline/website
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Run unchanged regressions on immutable baseline
+        working-directory: baseline/website
         run: >-
-          vendor/bin/phpunit --testdox
-          tests/Feature/BirthdayRewardsTest.php
-          tests/Feature/BirthdayGiftTest.php
-          tests/Feature/DiscountEntryVisibilityTest.php
-          tests/Feature/InvoiceOnlyDiscountAccessTest.php
-          tests/Feature/MarketingCampaignEngineTest.php
-          tests/Feature/GiftCouponOnInvoiceTest.php
-          tests/Feature/InvoiceDiscountTest.php
-          tests/Feature/DomainRenewalFloorTest.php
-          tests/Feature/NavasanDomainPricingTest.php
-          tests/Feature/AiPricingFormulaTest.php
-          tests/Feature/AiPricingPropertyTest.php
-          tests/Feature/IdentityApiTest.php
-          tests/Feature/CloudHourlyBillingTest.php
-          tests/Feature/CloudFairHourlyMeteringTest.php
-          tests/Feature/HourlyBillingHoldTest.php
-          tests/Feature/HourlyUnderwaterGuardTest.php
-          tests/Feature/AdminSettingsTabsTest.php
-          tests/Feature/AdminSettingsFormNestingTest.php
+          vendor/bin/phpunit --testdox --log-junit "$RUNNER_TEMP/birthday-baseline.xml"
+          tests/Feature/BirthdayGiftTest.php tests/Feature/DiscountEntryVisibilityTest.php tests/Feature/InvoiceOnlyDiscountAccessTest.php tests/Feature/MarketingCampaignEngineTest.php tests/Feature/GiftCouponOnInvoiceTest.php tests/Feature/InvoiceDiscountTest.php tests/Feature/DomainRenewalFloorTest.php tests/Feature/NavasanDomainPricingTest.php tests/Feature/AiPricingFormulaTest.php tests/Feature/AiPricingPropertyTest.php tests/Feature/IdentityApiTest.php tests/Feature/CloudHourlyBillingTest.php tests/Feature/CloudFairHourlyMeteringTest.php tests/Feature/HourlyBillingHoldTest.php tests/Feature/HourlyUnderwaterGuardTest.php tests/Feature/AdminSettingsTabsTest.php tests/Feature/AdminSettingsFormNestingTest.php
+          || test -f "$RUNNER_TEMP/birthday-baseline.xml"
+      - name: Run the same regressions on this change
+        run: >-
+          vendor/bin/phpunit --testdox --log-junit "$RUNNER_TEMP/birthday-head.xml"
+          tests/Feature/BirthdayGiftTest.php tests/Feature/DiscountEntryVisibilityTest.php tests/Feature/InvoiceOnlyDiscountAccessTest.php tests/Feature/MarketingCampaignEngineTest.php tests/Feature/GiftCouponOnInvoiceTest.php tests/Feature/InvoiceDiscountTest.php tests/Feature/DomainRenewalFloorTest.php tests/Feature/NavasanDomainPricingTest.php tests/Feature/AiPricingFormulaTest.php tests/Feature/AiPricingPropertyTest.php tests/Feature/IdentityApiTest.php tests/Feature/CloudHourlyBillingTest.php tests/Feature/CloudFairHourlyMeteringTest.php tests/Feature/HourlyBillingHoldTest.php tests/Feature/HourlyUnderwaterGuardTest.php tests/Feature/AdminSettingsTabsTest.php tests/Feature/AdminSettingsFormNestingTest.php
+          || test -f "$RUNNER_TEMP/birthday-head.xml"
+      - name: Reject new failures and list existing baseline failures
+        run: php tests/Support/compare-birthday-regressions.php "$RUNNER_TEMP/birthday-baseline.xml" "$RUNNER_TEMP/birthday-head.xml"
