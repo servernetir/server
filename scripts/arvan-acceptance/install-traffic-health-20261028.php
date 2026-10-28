@@ -170,7 +170,10 @@ try {
         $report=(new App\Services\Finance\ArvanTrafficHealth())->report();
         echo json_encode(['ok'=>true,'mode'=>$status,'view_before_sha256'=>$beforeHash,'view_sha256'=>thHash($view),
             'candidate_view_sha256'=>$afterHash,'class_sha256'=>$classHash,'compiled_view_invalidated'=>$invalidated,
-            'backup'=>$mode==='--apply'?'storage/app/private/arvan-traffic-health-release-20261028':null,'report'=>$report],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),PHP_EOL;
+            'validation'=>['class_lint'=>true,'test_lint'=>true,'pure_tests'=>true,'blade_lint'=>true,'fresh_composer_autoload'=>$mode==='--apply'],
+            'backup'=>$mode==='--apply'?'storage/app/private/arvan-traffic-health-release-20261028':null,
+            'backup_manifest_present'=>is_file($backup.'/manifest.json')&&!is_link($backup.'/manifest.json'),
+            'report'=>$report],JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES|JSON_THROW_ON_ERROR),PHP_EOL;
     }
 } catch(Throwable $e) {
     $reason=preg_match('/^guard:[a-z0-9_]+$/D',$e->getMessage())===1?$e->getMessage():'operation_failed';
