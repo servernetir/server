@@ -5,7 +5,7 @@ const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
-const {execFile} = require('node:child_process');
+const {spawn} = require('node:child_process');
 
 const app = path.resolve(__dirname, '../..');
 const chrome = process.env.TEST_CHROME || '/usr/bin/google-chrome';
@@ -229,6 +229,121 @@ function outer(cases) {
     '</script></body></html>';
 }
 
+async function chromiumReport(profile, reduced, fixtureUrl) {
+  assert.equal(new URL(fixtureUrl).hostname, '127.0.0.1');
+  const args = [
+    '--headless=new', '--no-first-run', '--no-default-browser-check',
+    '--disable-background-networking', '--user-data-dir='+profile,
+    '--window-size=1480,1100', '--remote-debugging-address=127.0.0.1',
+    '--remote-debugging-port=0'
+  ];
+  if (reduced) args.push('--force-prefers-reduced-motion');
+  args.push('about:blank');
+  const child = spawn(chrome, args, {
+    windowsHide:true, stdio:['ignore','ignore','pipe']
+  });
+  child.stderr.setEncoding('utf8');
+  let stderr = '', socket;
+  const pending = new Map();
+  try {
+    const endpoint = await new Promise((resolve,reject) => {
+      const timer = setTimeout(() => reject(
+        new Error('Chrome debugging endpoint timeout: '+stderr.slice(-2000))
+      ), 12000);
+      const fail = error => {clearTimeout(timer); reject(error);};
+      child.once('error',fail);
+      child.once('exit',(code,signal) => fail(new Error(
+        'Chrome exited '+code+'/'+signal+': '+stderr.slice(-2000)
+      )));
+      child.stderr.on('data',chunk => {
+        stderr = (stderr+chunk).slice(-32000);
+        const match = stderr.match(/DevTools listening on (ws:\/\/127\.0\.0\.1:\d+\/\S+)/);
+        if (match) {clearTimeout(timer); resolve(new URL(match[1]));}
+      });
+    });
+    let target;
+    for (let attempt=0;attempt<20 && !target;attempt++) {
+      const response = await fetch('http://127.0.0.1:'+endpoint.port+'/json/list',
+        {signal:AbortSignal.timeout(10000)});
+      assert.ok(response.ok,'Chrome target listing succeeded');
+      target = (await response.json()).find(item => item.type==='page');
+      if (!target) await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    assert.ok(target && target.webSocketDebuggerUrl,'Chrome page target exists');
+    const pageSocket = new URL(target.webSocketDebuggerUrl);
+    assert.equal(pageSocket.protocol,'ws:');
+    assert.equal(pageSocket.hostname,'127.0.0.1');
+    assert.equal(pageSocket.port,endpoint.port);
+    socket = new WebSocket(pageSocket);
+    let serial = 0;
+    const rejectPending = error => {
+      for (const entry of pending.values()) {
+        clearTimeout(entry.timer); entry.reject(error);
+      }
+      pending.clear();
+    };
+    socket.addEventListener('message',event => {
+      const message = JSON.parse(String(event.data));
+      const entry = pending.get(message.id);
+      if (!entry) return;
+      pending.delete(message.id); clearTimeout(entry.timer);
+      if (message.error) entry.reject(new Error(message.error.message));
+      else entry.resolve(message.result);
+    });
+    socket.addEventListener('close',() => rejectPending(new Error('Chrome CDP closed')));
+    socket.addEventListener('error',() => rejectPending(new Error('Chrome CDP error')));
+    await new Promise((resolve,reject) => {
+      const timer=setTimeout(()=>reject(new Error('Chrome CDP connection timeout')),10000);
+      socket.addEventListener('open',()=>{clearTimeout(timer);resolve();},{once:true});
+      socket.addEventListener('error',()=>{
+        clearTimeout(timer);reject(new Error('Cannot connect to Chrome CDP'));
+      },{once:true});
+    });
+    const send = (method,params={}) => new Promise((resolve,reject) => {
+      const id = ++serial;
+      const timer = setTimeout(() => {
+        pending.delete(id); reject(new Error('CDP timeout: '+method));
+      },10000);
+      pending.set(id,{resolve,reject,timer});
+      socket.send(JSON.stringify({id,method,params}));
+    });
+    await send('Page.enable');
+    await send('Page.bringToFront');
+    const navigation = await send('Page.navigate',{url:fixtureUrl});
+    assert.ok(!navigation.errorText,navigation.errorText);
+    const deadline = Date.now()+70000;
+    let lastError = '';
+    while (Date.now()<deadline) {
+      try {
+        const result = await send('Runtime.evaluate',{
+          expression:'document.getElementById("qa-result")?.textContent || ""',
+          returnByValue:true
+        });
+        if (result.exceptionDetails) throw new Error(
+          JSON.stringify(result.exceptionDetails)
+        );
+        if (result.result?.value) return result.result.value;
+      } catch (error) {
+        if (!/context.*destroyed|cannot find context/i.test(error.message)) throw error;
+        lastError = error.message;
+      }
+      await new Promise(resolve => setTimeout(resolve,100));
+    }
+    throw new Error('Fixture report timeout: '+lastError+' '+stderr.slice(-1500));
+  } finally {
+    for (const entry of pending.values()) clearTimeout(entry.timer);
+    pending.clear();
+    if (socket) socket.close();
+    if (child.exitCode===null && child.signalCode===null) {
+      await new Promise(resolve => {
+        const timer = setTimeout(() => child.kill('SIGKILL'),3000);
+        child.once('exit',() => {clearTimeout(timer); resolve();});
+        child.kill();
+      });
+    }
+  }
+}
+
 for (const reduced of [false,true]) {
   test('panel navigation in Chromium'+(reduced?' with reduced motion':''), {timeout:120000}, async () => {
     const layout=await fs.readFile(path.join(app,'resources/views/panel/layout.blade.php'),'utf8');
@@ -266,18 +381,10 @@ for (const reduced of [false,true]) {
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const profile=await fs.mkdtemp(path.join(os.tmpdir(),'servernet-panel-nav-'));
     try {
-      const args=['--headless=new','--no-first-run','--no-default-browser-check',
-        '--disable-background-networking','--user-data-dir='+profile,
-        '--window-size=1480,1100','--virtual-time-budget=60000','--dump-dom'];
-      if(reduced) args.push('--force-prefers-reduced-motion');
-      args.push('http://127.0.0.1:'+server.address().port);
-      const stdout=await new Promise((resolve,reject)=>execFile(chrome,args,
-        {windowsHide:true,encoding:'utf8',maxBuffer:8*1024*1024,timeout:100000},
-        (error,out,stderr)=>error?reject(Object.assign(error,{stderr})):resolve(out)));
-      const match=stdout.match(/<pre id="qa-result"[^>]*>([\s\S]*?)<\/pre>/);
-      assert.ok(match,'Chromium emitted the scenario report');
-      const report=JSON.parse(match[1].replace(/&quot;/g,'"').replace(/&#39;/g,"'")
-        .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&'));
+      const raw = await chromiumReport(
+        profile, reduced, 'http://127.0.0.1:'+server.address().port
+      );
+      const report = JSON.parse(raw);
       assert.equal(report.error,null,JSON.stringify(report));
       assert.equal(report.results.length,cases.length);
       for (const result of report.results) {
