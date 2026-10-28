@@ -197,6 +197,7 @@ final class HermesSupervisor
         return ['policy' => self::POLICY, 'run_key' => $key, 'dry_run' => $dryRun, 'status' => $state,
             'observed_at' => now('UTC')->toIso8601String(), 'observed_before' => $observed,
             'observed_after' => $observed, 'findings' => $this->findings($observed), 'executed_actions' => [],
+            'campaign_policy' => (new HermesGrowthPolicy)->context(\DateTimeImmutable::createFromInterface(now('UTC'))),
             'verification' => ['performed' => false], 'scope' => 'knowledge_expiry_and_aggregate_supervision_only'];
     }
 }
