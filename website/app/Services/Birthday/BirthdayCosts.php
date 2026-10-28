@@ -78,6 +78,9 @@ class BirthdayCosts
         $amount = $this->convert((int) $cost->amount * $quantity, $cost->currency_code, $currency);
         return $amount ? ['amount' => $amount, 'currency' => $currency, 'source' => 'verified_product_cost',
             'cost_id' => $cost->id, 'product_id' => $product->id, 'cycle' => $cycle, 'component' => $component,
+            'native_amount' => (int) $cost->amount * $quantity, 'native_currency' => $cost->currency_code,
+            'reference' => $cost->reference, 'verified_by' => $cost->verified_by,
+            'valid_until' => $cost->valid_until->toIso8601String(), 'quoted_at' => now()->toIso8601String(),
             'as_of' => $cost->verified_at->toIso8601String()] : null;
     }
 

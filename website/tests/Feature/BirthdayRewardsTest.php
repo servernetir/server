@@ -145,7 +145,11 @@ class BirthdayRewardsTest extends TestCase
         $this->assertSame(880, $i->total);
         $this->assertDatabaseCount('birthday_redemptions', 1);
         $r = $engine->redemption($i);
-        $this->assertSame(800, $r->snapshot['costs'][(string) $i->items()->first()->id]['amount']);
+        $proof = $r->snapshot['costs'][(string) $i->items()->first()->id];
+        $this->assertSame(800, $proof['amount']);
+        $this->assertSame('TEST-SUPPLIER-INVOICE', $proof['reference']);
+        BirthdayProductCost::query()->update(['reference' => 'REPLACEMENT-DOCUMENT']);
+        $this->assertSame('TEST-SUPPLIER-INVOICE', $r->fresh()->snapshot['costs'][(string) $i->items()->first()->id]['reference']);
     }
 
     public function test_unknown_and_expired_costs_do_not_invent_a_discount(): void
