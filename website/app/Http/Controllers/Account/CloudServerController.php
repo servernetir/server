@@ -126,7 +126,7 @@ class CloudServerController extends Controller
 
     // ───────────────────────── نمایش ─────────────────────────
 
-    public function show(Service $service): View
+    public function show(Service $service): \Illuminate\Http\Response
     {
         $this->ownedService($service);
 
@@ -148,32 +148,10 @@ class CloudServerController extends Controller
             $caps['rebuild'] = false;
         }
 
-        // رمز فقط **یک بار** نشان داده می‌شود. دلیل: صفحهٔ همیشه‌بازِ پنل روی یک
-        // لپ‌تاپِ مشترک، رمزِ root را به هر رهگذری می‌دهد. بعد از اولین دیدن،
-        // مشتری باید «رمزِ تازه بساز» بزند.
-        /*
-        |----------------------------------------------------------------------
-        | 🔴 رمز با **دیدنِ صفحه** سوخته نمی‌شود — فقط با کلیکِ صریح
-        |----------------------------------------------------------------------
-        |
-        | رخدادِ واقعی: مشتری سرور خرید و در پنل هیچ رمزی ندید، پس اصلاً
-        | نمی‌توانست وصل شود.
-        |
-        | علت: این‌جا یک **GET** پرچمِ `password_seen` را می‌زد. یعنی هر
-        | بارگذاریِ صفحه رمز را می‌سوزاند — یک رفرش، یک prefetchِ مرورگر، یا
-        | ورودِ مدیر به پنلِ مشتری برای عیب‌یابی. کاربر هیچ‌وقت چیزی ندید و
-        | پرچم روشن شد.
-        |
-        | ⚠️ قاعدهٔ عمومی: **GET نباید حالت را عوض کند.** مرورگرها GET را آزادانه
-        | تکرار و پیش‌بارگذاری می‌کنند؛ هر چیزی که یک‌بارمصرف است باید پشتِ یک
-        | کنشِ صریح باشد.
-        |
-        | خودِ قاعدهٔ «یک بار» درست است و می‌مانَد (صفحهٔ همیشه‌بازِ پنل روی
-        | لپ‌تاپِ مشترک)، ولی حالا لحظه‌اش را **کاربر** انتخاب می‌کند:
-        | `revealPassword()` با POST.
-        */
-        $password = session('revealed_root_password');
-        $canReveal = $instance && ! $instance->password_seen && $instance->hasPassword();
+        // Explicit POST reveals are repeatable. GET never decrypts credentials.
+        // Scope the transient value to this instance and consume it on display.
+        $password = $instance ? session()->pull('revealed_root_password_'.$instance->id) : null;
+        $canReveal = $instance && $instance->hasPassword();
         if ($instance?->provider === 'lightnode'
             && (! $instance->ready_notified_at || ! in_array($instance->status, ['running', 'off'], true))) {
             $password = null; $canReveal = false;
@@ -189,7 +167,7 @@ class CloudServerController extends Controller
 
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
-        return view('account.cloud-server', AccountController::shell('servers') + [
+        return response()->view('account.cloud-server', AccountController::shell('servers') + [
             'service' => $service,
             'instance' => $instance,
             'caps' => $caps,
@@ -227,7 +205,7 @@ class CloudServerController extends Controller
             'cycleConvert' => $this->cycleConvertView($service),
             'creditOut' => $service->billing_mode === 'hourly' && ! $service->isDead()
                 ? ((string) $service->on_credit_out ?: 'suspend') : null,
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     /**
@@ -523,17 +501,7 @@ class CloudServerController extends Controller
      * توجه: «خاموش» در درایور به `shutdown` نرم (ACPI) نگاشت می‌شود نه کشیدنِ
      * برق — روی سرورِ دیتابیس‌دار، قطعِ ناگهانی داده را خراب می‌کند.
      */
-    /**
-     * نمایشِ یک‌بارهٔ رمزِ root — با کنشِ صریحِ کاربر.
-     *
-     * ⚠️ POST و نه GET: مرورگر GET را آزادانه تکرار و پیش‌بارگذاری می‌کند، و
-     * تا امروز همان باعث می‌شد رمز پیش از دیده‌شدن بسوزد و مشتری هیچ راهی به
-     * سرورش نداشته باشد.
-     *
-     * ⚠️ رمز در **session flash** برمی‌گردد نه در URL: هرچه در آدرس باشد در
-     * لاگِ سرور، لاگِ کلادفلر و تاریخچهٔ مرورگر می‌نشیند — همان قاعده‌ای که
-     * برای `DEPLOY_TOKEN` هم داریم.
-     */
+    /** Reveal the stored credential on explicit owner request, including repeat requests. */
     public function revealPassword(Request $request, Service $service): RedirectResponse
     {
         $this->ownedService($service);
@@ -548,14 +516,20 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_not_ready'));
         }
 
-        if ($instance->password_seen) {
-            return back()->withErrors(__('ui.cx_pass_seen'));
+        $password = $instance->password();
+        if (! is_string($password) || $password === '') {
+            return back()->withErrors(__('ui.cx_no_pass'));
         }
 
-        $password = $instance->password();
+        // Retain the legacy marker for provisioning compatibility, not eligibility.
         $instance->update(['password_seen' => true]);
+        $staff = $request->session()->has('impersonator_id');
+        ActivityLog::forService($service, $staff ? 'impersonate' : 'password_reveal',
+            'درخواست نمایش رمز ورود سرور ثبت شد.', $staff ? 'staff' : 'customer', $request);
 
-        return back()->with('revealed_root_password', $password);
+        return redirect()->to(lroute('account.cloud.show', $service))
+            ->with('revealed_root_password_'.$instance->id, $password)
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function power(Request $request, Service $service): RedirectResponse

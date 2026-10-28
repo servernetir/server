@@ -857,7 +857,7 @@ class LightNodeClientTest extends TestCase
         $instance->update(['status' => 'running', 'ready_notified_at' => now()]);
         $this->get('/account/cloud/'.$service->id)->assertOk()->assertViewHas('canReveal', true);
         $this->post('/account/cloud/'.$service->id.'/reveal-password')
-            ->assertSessionHas('revealed_root_password', 'FixturePassword9!');
+            ->assertSessionHas('revealed_root_password_'.$instance->id, 'FixturePassword9!');
         $this->assertTrue($instance->fresh()->password_seen);
     }
 
