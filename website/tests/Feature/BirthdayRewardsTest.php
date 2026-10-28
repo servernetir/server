@@ -353,6 +353,7 @@ class BirthdayRewardsTest extends TestCase
 
     public function test_ai_quote_waives_customer_markup_and_keeps_fees_cost_and_regular_prices(): void
     {
+        $this->assertTrue(\Illuminate\Support\Facades\Schema::hasColumn('ai_usage', 'birthday_reward_id'));
         $c = $this->born(); $this->reward($c);
         \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 110000]);
         Setting::put('ai_margin_pct', '25');

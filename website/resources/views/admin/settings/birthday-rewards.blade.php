@@ -11,9 +11,9 @@
     <form method="post" action="/admin/settings/birthday-rewards">
       @csrf
       <input type="hidden" name="enabled" value="0">
-      <label class="set-f"><input type="checkbox" name="enabled" value="1" @checked($birthdayEnabled) @disabled(!$birthdaySchema)> {{ __('birthday.enable') }}</label>
+      <label style="display:flex;align-items:center;gap:10px"><input type="checkbox" name="enabled" value="1" @checked($birthdayEnabled) @disabled(!$birthdaySchema)> {{ __('birthday.enable') }}</label>
       <input type="hidden" name="sms_enabled" value="0">
-      <label style="display:block;margin:14px 0"><input type="checkbox" name="sms_enabled" value="1" @checked(\App\Models\Setting::get('birthday_sms_enabled', '0') === '1') @disabled(!$birthdaySchema || !$birthdayPatternReady)> {{ __('birthday.sms_enable') }}</label>
+      <label style="display:flex;align-items:center;gap:10px;margin:14px 0"><input type="checkbox" name="sms_enabled" value="1" @checked(\App\Models\Setting::get('birthday_sms_enabled', '0') === '1') @disabled(!$birthdaySchema || !$birthdayPatternReady)> {{ __('birthday.sms_enable') }}</label>
       <p role="status">{{ __($birthdayPatternReady ? 'birthday.pattern_ready' : 'birthday.pattern_pending') }}</p>
       <button class="btn btn-primary" type="submit" @disabled(!$birthdaySchema)>{{ __('birthday.save') }}</button>
     </form>

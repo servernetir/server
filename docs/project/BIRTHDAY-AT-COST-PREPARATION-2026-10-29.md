@@ -48,7 +48,7 @@ The feature retains output tax using the existing frozen line basis points. It d
 
 ## Invoice and payment integrity
 
-Three additive tables record annual windows, immutable invoice original/cost snapshots, and verified product costs. One nullable birthday_reward_id foreign key in ai_usage preserves the source of zero-markup pricing during delayed/recovered settlement; ordinary historical snapshots keep their previous calculation. Birthday AI settlement uses exactly the rounded landed ledger cost, so per-million display rounding cannot create a hidden residual markup. Supplier evidence stays private. No existing migration is edited.
+Three additive tables record annual windows, immutable invoice original/cost snapshots, and verified product costs. One nullable birthday_reward_id foreign key in ai_usage preserves the source of zero-markup pricing during delayed/recovered settlement; ordinary historical snapshots keep their previous calculation. Birthday AI settlement uses exactly the rounded landed ledger cost, so per-million display rounding cannot create a hidden residual markup. Supplier evidence stays private. No existing migration is edited. Two new migrations are required: the three birthday tables, then the AI foreign key after the repository's existing November-dated AI migrations. Artisan runs pending migrations by filename order, including future-dated filenames.
 
 A signed invoice-price token is required for birthday-related payment forms and checked before payment preparation. An expired page cannot silently charge the newly restored full price. If supplier cost changes, POST rejects the old quote and a GET presents the revised amount for review.
 
@@ -64,8 +64,8 @@ No raw-text/OTP fallback. A customer/reward lock records the attempt before tran
 
 ## Installation and activation handoff
 
-1. Deploy only the reviewed develop revision using the established live-overlay preservation workflow. Back up first and apply only the new additive migration; never refresh the production database.
-2. Keep birthday_offer_enabled and birthday_sms_enabled at 0. Verify the three tables, admin accounts settings, translated invoice rendering, dedicated CSS and minute scheduler. Admin dates use existing localized rendering; the new cost form asks validity in days and adds no Gregorian date picker.
+1. Deploy only the reviewed develop revision using the established live-overlay preservation workflow. Back up first and apply the two new additive migrations; never refresh the production database.
+2. Keep birthday_offer_enabled and birthday_sms_enabled at 0. Verify the three tables, admin accounts settings, translated invoice rendering, dedicated CSS, ai_usage.birthday_reward_id and minute scheduler. Admin dates use existing localized rendering; the new cost form asks validity in days and adds no Gregorian date picker.
 3. Audit live legacy birthday/campaign settings and outstanding gifts. The new program suppresses new legacy birthday issuance when enabled; the annual guard prevents duplicate gifts.
 4. Enter/verify cost evidence for every advertised fixed product/server/cycle/component and audit native supplier/FX freshness. Uncovered metered/add-on paths above require further implementation before advertising universal at-cost coverage.
 5. After the operator supplies the actual approved pattern ID, install its exact name variable mapping in the selected sender and relay allowlist. Set the dedicated config pattern_reference and matching birthday_pattern_reference plus birthday_pattern_approved. Do not expose relay secrets in docs, tests or logs.

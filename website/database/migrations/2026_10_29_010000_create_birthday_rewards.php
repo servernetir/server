@@ -52,18 +52,10 @@ return new class extends Migration
             $table->timestamp('valid_until')->index();
             $table->timestamps();
         });
-        if (Schema::hasTable('ai_usage')) {
-            Schema::table('ai_usage', function (Blueprint $table) {
-                $table->foreignId('birthday_reward_id')->nullable()->constrained('birthday_rewards')->restrictOnDelete();
-            });
-        }
     }
 
     public function down(): void
     {
-        if (Schema::hasColumn('ai_usage', 'birthday_reward_id')) {
-            Schema::table('ai_usage', fn (Blueprint $table) => $table->dropConstrainedForeignId('birthday_reward_id'));
-        }
         Schema::dropIfExists('birthday_redemptions');
         Schema::dropIfExists('birthday_product_costs');
         Schema::dropIfExists('birthday_rewards');
