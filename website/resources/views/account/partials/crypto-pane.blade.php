@@ -57,7 +57,8 @@
         <b>{{ __('ui.cy_expired_title') }}</b>
         <p>{{ __('ui.cy_expired') }}</p>
         <form method="POST" action="{{ lroute('account.invoice.crypto', $invoice) }}">
-          @csrf<input type="hidden" name="asset" value="{{ $cy->asset }}">
+          @csrf
+          @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="asset" value="{{ $cy->asset }}">
           <button type="submit" class="pnl-btn primary">{{ __('ui.cy_new_address') }}</button>
         </form>
       </div>
@@ -117,6 +118,7 @@
   @elseif($cyDefault !== null)
     <form method="POST" action="{{ lroute('account.invoice.crypto', $invoice) }}" class="cyx-pick" id="cy-pick">
       @csrf
+          @include('account.partials.birthday-price-token', ['invoice' => $invoice])
       <label class="cyx-label" for="cy-asset">{{ __('ui.cy_choose_coin') }}</label>
 
       {{-- بدونِ JS همین select کار می‌کند؛ JS آن را به فهرستِ کشوییِ نشان‌دار تبدیل می‌کند --}}

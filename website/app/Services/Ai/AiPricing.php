@@ -59,6 +59,23 @@ final class AiPricing
      *
      * @throws AiPricingException pricing_incomplete (با دلیل‌ها) یا fx_unavailable
      */
+    /** Freeze the ordinary quote first; a birthday waives markup, never supplier/FX costs or sale gates. */
+    public function quoteFor(AiModel $model, \App\Models\Customer $customer): AiPriceQuote
+    {
+        $q = $this->quote($model);
+        $reward = app(\App\Services\Birthday\BirthdayProgram::class)->ensure($customer);
+        if (! $reward) {
+            return $q;
+        }
+
+        return new AiPriceQuote($q->modelId, $q->providerId, $q->currency, $q->fx, $q->feeBp, 0,
+            'birthday:'.$reward->id, $q->rIn, $q->rCached, $q->rOut,
+            $q->inputPriceId, $q->cachedPriceId, $q->outputPriceId,
+            self::perMillion($q->rIn, $q->rate(), $q->feeBp, 0),
+            self::perMillion($q->rCached, $q->rate(), $q->feeBp, 0),
+            self::perMillion($q->rOut, $q->rate(), $q->feeBp, 0), $q->native);
+    }
+
     public function quote(AiModel $model): AiPriceQuote
     {
         $model->loadMissing('provider');
@@ -317,7 +334,10 @@ final class AiPricing
             ->dividedBy(10_000,RoundingMode::Up));
         $floor=max($floor,$ledgerFloor);
 
-        $sell = max($book, $floor);
+        // Birthday prices follow the exact rounded landed ledger cost. Rounding each
+        // per-million display price separately must not reintroduce a hidden markup.
+        $birthday = $q->marginBp === 0 && str_starts_with($q->marginSource, 'birthday:');
+        $sell = $birthday ? $costIrt : max($book, $floor);
         $tax = self::tax($sell, $vatBp);
 
         return [

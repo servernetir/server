@@ -32,6 +32,7 @@
       <form method="POST" action="{{ lroute('account.invoice.cancel', $invoice) }}" style="display:inline"
             data-confirm="{{ __('ui.inv_cancel_confirm') }}" data-confirm-danger data-confirm-title="{{ __('ui.inv_cancel') }}" data-confirm-ok="{{ __('ui.inv_cancel_ok') }}">
         @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
         <button type="submit" class="pnl-btn" style="color:var(--danger);border-color:var(--danger-line)">
           <svg class="icon"><use href="#i-x"/></svg>{{ __('ui.inv_cancel') }}
         </button>
@@ -101,6 +102,7 @@
   </div>
 </section>
 
+@include('account.partials.birthday-discount')
 @include('account.partials.campaign-discount')
 
 @if($invoice->isPayable())
@@ -124,6 +126,7 @@
       <form method="POST" action="{{ lroute('account.invoice.paycredit', $invoice) }}"
             style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel-2,rgba(0,0,0,.04));border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:16px">
         @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
         <span style="font-size:13.5px;line-height:2">
           {{ __('ui.inv_credit_lead') }}
           <b>{{ invoice_money($creditBalance, 'IRT') }}</b>
@@ -275,7 +278,8 @@
 
       @if(isset($gateways['zarinpal']))
         <form class="pm-pane" id="pane-zarinpal" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-          @csrf<input type="hidden" name="gateway" value="zarinpal">
+          @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="gateway" value="zarinpal">
           <div class="pm-pane-h"><b>{{ __('ui.inv_zp_pane_title') }}</b></div>
           <p class="pm-note">{{ __('ui.inv_zp_note') }}</p>
           <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_pay_btn') }} {{ invoice_money($invoice->due(), $invoice->currency_code) }}</button>
@@ -285,7 +289,8 @@
       @if($snapppay['show'])
         {{-- توضیحِ پنل هم همان متنِ اسنپ‌پی است، نه نوشتهٔ ما. --}}
         <form class="pm-pane" id="pane-snapppay" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-          @csrf<input type="hidden" name="gateway" value="snapppay">
+          @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="gateway" value="snapppay">
           <div class="pm-pane-h"><b>{{ $snapppay['title'] }}</b></div>
           <p class="pm-note">{{ $snapppay['description'] }}</p>
           <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_pay_btn') }} {{ invoice_money($invoice->due(), $invoice->currency_code) }}</button>
@@ -294,7 +299,8 @@
 
       @if(isset($gateways['bale']))
         <form class="pm-pane" id="pane-bale" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-          @csrf<input type="hidden" name="gateway" value="bale">
+          @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="gateway" value="bale">
           <div class="pm-pane-h"><b>{{ __('ui.inv_bale_pane_title') }}</b></div>
           <p class="pm-note">{{ __('ui.inv_bale_note') }}</p>
           @php $baleUser = config('services.bale.username'); @endphp
@@ -333,6 +339,7 @@
           </p>
           <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             <input type="text" name="reference" required maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_ref_ph') }}" class="bank-input">
             <input type="text" name="paid_from" maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_from_ph') }}" class="bank-input">
             <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
@@ -373,6 +380,7 @@
 
           <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             @if($wireAccounts->count() === 1)
               <input type="hidden" name="payment_account_id" value="{{ $wireAccounts->first()->id }}">
             @else
@@ -423,6 +431,7 @@
 
           <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             <input type="hidden" name="payment_account_id" value="{{ $acc->id }}">
             <input type="text" name="reference" required maxlength="120" dir="ltr" class="bank-input"
                    placeholder="{{ $acc->isCrypto() ? __('ui.inv_cy_txid_ph') : __('ui.inv_wire_ref_ph') }}">

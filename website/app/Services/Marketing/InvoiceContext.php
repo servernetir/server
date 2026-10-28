@@ -23,6 +23,7 @@ class InvoiceContext
             return [];
         }
         $context = ['eligible' => true, 'operation' => $operation, 'product_id' => $product?->id,
+            'birthday_component' => 'service', 'billing_cycle' => $service->cycle, 'cloud_plan_id' => $cloud?->id,
             'family' => $cloud ? (filled($cloud->gpu_model) ? 'gpu' : 'vps') : $product?->category, 'plan' => $cloud?->slug ?: $product?->plan,
             'provider' => $cloud?->provider ?: $service->server?->type,
             'country' => $cloud?->location?->country_code ?: $service->server?->country];

@@ -49,6 +49,10 @@ class BirthdayGift extends Command
 
     public function handle(): int
     {
+        if (app(\App\Services\Birthday\BirthdayProgram::class)->enabled()) {
+            $this->info('Automatic at-cost birthday rewards are enabled; legacy gift issuance skipped.');
+            return self::SUCCESS;
+        }
         $dry = (bool) $this->option('dry');
 
         if (! $this->enabled()) {

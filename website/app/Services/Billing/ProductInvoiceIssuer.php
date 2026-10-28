@@ -64,7 +64,9 @@ class ProductInvoiceIssuer
         ]);
 
         if ($setupFee > 0) {
-            InvoiceItem::create([
+            InvoiceItem::create((\Illuminate\Support\Facades\Schema::hasColumn('invoice_items', 'marketing_context')
+                ? ['marketing_context' => ['eligible' => false, 'birthday_component' => 'setup',
+                    'birthday_product_id' => $product->id, 'billing_cycle' => $service->cycle]] : []) + [
                 'invoice_id'  => $invoice->id,
                 'title'       => 'هزینهٔ راه‌اندازی — '.$product->name,
                 'quantity'    => 1,

@@ -47,6 +47,7 @@
                 <b class="pnl-num">{{ invoice_money($p->recurringTotal()) }}</b>
                 <span>/ {{ $p->cycleLabel() }}</span>
               </div>
+              @include('account.partials.birthday-product-price', ['birthdayProduct' => $p])
               @if($p->setup_fee > 0)
                 <div class="store-setup">+ {{ invoice_money($p->setup_fee) }} {{ __('ui.sto_setup_once') }}</div>
               @endif

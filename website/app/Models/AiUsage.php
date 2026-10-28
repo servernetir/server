@@ -99,7 +99,7 @@ class AiUsage extends Model
                 (string) $this->fx_source, $this->fx_at?->toIso8601String()),
             feeBp: (int) $this->fee_bp,
             marginBp: (int) $this->margin_bp,
-            marginSource: 'snapshot',
+            marginSource: $this->birthday_reward_id ? 'birthday:'.$this->birthday_reward_id : 'snapshot',
             rIn: (int) $this->input_rate_micro,
             rCached: (int) ($this->cached_rate_micro ?? $this->input_rate_micro),
             rOut: (int) $this->output_rate_micro,

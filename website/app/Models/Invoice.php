@@ -82,6 +82,9 @@ class Invoice extends Model
                 \Illuminate\Support\Facades\Schema::hasTable('marketing_redemptions')) {
                 app(\App\Services\Marketing\DiscountEngine::class)->sync($invoice);
             }
+            if ($invoice->wasChanged('status') && \Illuminate\Support\Facades\Schema::hasTable('birthday_redemptions')) {
+                app(\App\Services\Birthday\BirthdayInvoices::class)->synchronize($invoice);
+            }
         });
         static::creating(function (self $i) {
             if (blank($i->number)) {

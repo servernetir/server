@@ -31,6 +31,8 @@ function fixture(layout, config) {
   let shell = layout.slice(start, end + '</section>'.length);
   shell = shell.replace(/\{\{--[\s\S]*?--\}\}/g, '');
   shell = shell.replace(/@include\('panel\.avatar'[^\n]*\)/g, '');
+  // Birthday content is rendered separately by PHP and is covered by locale invoice tests.
+  shell = shell.replace(/@include\('account\.partials\.birthday-notice'\)/g, '');
   shell = shell.replace('@yield(\'panel\')',
     '<div'+(config.cvb?' class="cvb-wrap"':'')+'>'+
     '<h1 id="fixture-title">Account workspace</h1>'+
