@@ -39,7 +39,10 @@ try {
     $out=['utc'=>gmdate('c'),'mode'=>'traffic_control_read_only','meter'=>trafficSummary($state)];
     $excluded=$state['excluded_customers']??null;
     $out['excluded_customer_count']=is_array($excluded)?count($excluded):null;
-    $out['disputed_account_exclusion_present']=is_array($excluded)&&array_is_list($excluded)
+    $exclusionListValid=is_array($excluded)&&array_is_list($excluded)
+        && count(array_filter($excluded,static fn($v)=>is_int($v)&&$v>=0
+            || is_string($v)&&preg_match('/^(?:0|[1-9]\\d{0,9})$/D',$v)===1))===count($excluded);
+    $out['disputed_account_exclusion_present']=$exclusionListValid
         ? in_array(545,array_map('intval',$excluded),true):null;
     $db->rollBack(); unset($raw,$state,$excluded);
     $stage='source_metadata';
@@ -68,8 +71,7 @@ try {
         $name=null;
         foreach($names as $n) if(preg_match('/(?<![a-z0-9_:-])'.preg_quote($n,'/').'(?![a-z0-9_:-])/i',$command)) { $name=$n; break; }
         if($name===null && str_contains(strtolower($command),'arvan')
-            && (str_contains(strtolower($command),'traffic')||str_contains(strtolower($command),'meter'))
-            && preg_match('/\\b([a-z][a-z0-9_-]*:[a-z][a-z0-9_-]*)\\b/',$command,$m)) $name=$m[1];
+            && (str_contains(strtolower($command),'traffic')||str_contains(strtolower($command),'meter'))) $name='unrecognized_arvan_traffic_command';
         if($name===null) continue;
         $expression=method_exists($event,'getExpression')?(string)$event->getExpression():(string)($event->expression??'');
         $out['registered_traffic_events'][]=['command_name'=>$name,
