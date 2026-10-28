@@ -254,7 +254,17 @@ class ErrorTracker
     {
         if ($request && \App\Http\Middleware\IdentityPrivacy::sensitive($request)) return $request->getSchemeAndHttpHost().'/identity-api/[redacted]';
         // These opaque IDs and signatures are temporary supplier credentials, including on 404s.
-        return $request?->is('api/ai-media/*') ? $request->getSchemeAndHttpHost().'/api/ai-media/[redacted]' : $request?->fullUrl();
+        return $request?->is('api/ai-media/*') ? $request->getSchemeAndHttpHost().'/api/ai-media/[redacted]' : self::safeUrl($request);
+    }
+
+    /** Webhook tokens authenticate the bot and must never survive in tracker URLs. */
+    private static function safeUrl(?Request $request): ?string
+    {
+        return $request === null ? null : preg_replace(
+            '~(/bale/webhook/)[a-f0-9]{32}~i',
+            '$1[redacted]',
+            $request->fullUrl()
+        );
     }
 
     /**

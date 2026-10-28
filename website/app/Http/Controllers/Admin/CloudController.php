@@ -493,7 +493,8 @@ class CloudController extends Controller
     public function sync(Request $request, CatalogRefreshRequests $requests): RedirectResponse
     {
         if (! Schema::hasTable('cloud_plans')) {
-            return back()->with('err', 'جدول‌های ابری ساخته نشده‌اند — اول مهاجرت را اجرا کنید.');
+            return redirect()->route('admin.cloud', status: 303)
+                ->with('err', 'جدول‌های ابری ساخته نشده‌اند — اول مهاجرت را اجرا کنید.');
         }
 
         try {
@@ -502,10 +503,12 @@ class CloudController extends Controller
             \App\Support\ErrorTracker::noteOnce('cloud_catalog', 'Catalog refresh request could not be saved.', 900,
                 ['exception_class' => $e::class]);
 
-            return back()->with('err', 'درخواست ذخیره نشد؛ همگام‌سازی آغاز نشده است. وضعیت ذخیره‌سازی را بررسی کنید.');
+            return redirect()->route('admin.cloud', status: 303)
+                ->with('err', 'درخواست ذخیره نشد؛ همگام‌سازی آغاز نشده است. وضعیت ذخیره‌سازی را بررسی کنید.');
         }
 
-        return back()->with('ok', 'درخواست '.$state['id'].' ثبت شده است. اجرا در پس‌زمینه انجام می‌شود؛ وضعیت و نتیجه را در همین صفحه ببینید.');
+        return redirect()->route('admin.cloud', status: 303)
+            ->with('ok', 'درخواست '.$state['id'].' ثبت شده است. اجرا در پس‌زمینه انجام می‌شود؛ وضعیت و نتیجه را در همین صفحه ببینید.');
     }
 
     /**

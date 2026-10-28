@@ -53,12 +53,27 @@ class CatalogRefreshRequestsTest extends TestCase
     {
         $this->mock(CloudCatalogSync::class)->shouldNotReceive('sync', 'reprice');
         $this->actingAs($this->admin())->from('/admin/cloud')->post('/admin/cloud/sync')
-            ->assertRedirect('/admin/cloud')->assertSessionHas('ok');
+            ->assertStatus(303)->assertRedirect('/admin/cloud')->assertSessionHas('ok');
         $first = $this->requests->snapshot();
-        $this->post('/admin/cloud/sync', ['prices_only' => 1])->assertRedirect();
+        $this->post('/admin/cloud/sync', ['prices_only' => 1])
+            ->assertStatus(303)->assertRedirect('/admin/cloud');
         $this->assertSame($first, $this->requests->snapshot());
         $this->assertSame('queued', $first['state']);
         $this->assertFalse($first['prices_only']);
+        Http::assertNothingSent();
+    }
+
+    public function test_get_sync_url_recovers_to_catalogue_without_starting_provider_work(): void
+    {
+        $this->mock(CloudCatalogSync::class)->shouldNotReceive('sync', 'reprice');
+
+        $this->actingAs($this->admin())->get('/admin/cloud/sync')
+            ->assertStatus(303)
+            ->assertRedirect('/admin/cloud')
+            ->assertSessionHas('err');
+
+        $this->assertNull($this->requests->snapshot());
+        $this->assertDirectoryDoesNotExist($this->directory);
         Http::assertNothingSent();
     }
 

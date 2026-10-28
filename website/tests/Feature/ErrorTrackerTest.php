@@ -180,6 +180,18 @@ class ErrorTrackerTest extends TestCase
         $this->assertSame('POST', $row['method']);
     }
 
+    public function test_bale_webhook_secret_is_redacted_from_http_error_urls(): void
+    {
+        $token = str_repeat('a', 32);
+        $request = \Illuminate\Http\Request::create('https://servernet.cloud/bale/webhook/'.$token, 'POST');
+
+        ErrorTracker::exception(new \RuntimeException('Webhook failure'), $request);
+
+        $row = ErrorTracker::recent(1)[0];
+        $this->assertSame('https://servernet.cloud/bale/webhook/[redacted]', $row['url']);
+        $this->assertStringNotContainsString($token, json_encode($row));
+    }
+
     public function test_legacy_console_records_are_recognized_without_guessing_from_guest_or_loopback(): void
     {
         $this->assertTrue(ErrorTracker::isConsoleRecord(['frame' => 'artisan:16']));
