@@ -32,13 +32,17 @@ try {
     $state = json_decode(Illuminate\Support\Facades\Crypt::decryptString((string) $raw), true, 512, JSON_THROW_ON_ERROR);
     if (!is_array($state)) { throw new RuntimeException('state'); }
     $last = is_array($state['last_result'] ?? null) ? $state['last_result'] : [];
+    $excluded = $state['excluded_customers'] ?? null;
+    $excludedValid = is_array($excluded) && array_is_list($excluded)
+        && count(array_filter($excluded, static fn ($v) => trafficDetailId($v) !== null)) === count($excluded);
+    $excludedIds = $excludedValid ? array_map('trafficDetailId', $excluded) : [];
     $out = ['utc' => gmdate('c'), 'mode' => 'traffic_scope_details_read_only'];
     $invoiceStatuses = ['unpaid', 'draft', 'partial', 'overdue', 'paid', 'canceled', 'cancelled'];
     $invoiceRows = $last['invoices'] ?? null;
     $out['invoice_node'] = ['type' => get_debug_type($invoiceRows), 'count' => is_array($invoiceRows) ? count($invoiceRows) : null];
     $out['invoices'] = [];
     if (is_array($invoiceRows)) foreach (array_slice($invoiceRows, 0, 20, true) as $row) {
-        $id = trafficDetailId($row);
+        $id = array_is_list($invoiceRows) ? trafficDetailId($row) : null;
         if (is_array($row)) { $id = trafficDetailId($row['invoice_id'] ?? $row['id'] ?? $row['invoice'] ?? null); }
         $entry = ['schema' => trafficDetailShape($row), 'verified_arvan_service_invoice' => false];
         if ($id !== null) {
@@ -69,7 +73,7 @@ try {
         $entry = ['schema' => trafficDetailShape($row)];
         $reason = is_array($row) ? ($row['reason'] ?? $row['code'] ?? null) : (is_string($row) ? $row : null);
         $entry['reason_code'] = is_string($reason) && in_array($reason, $reasons, true) ? $reason : 'other_or_unknown';
-        $serviceId = is_array($row) ? trafficDetailId($row['service_id'] ?? $row['service'] ?? null) : trafficDetailId($key);
+        $serviceId = is_array($row) ? trafficDetailId($row['service_id'] ?? $row['service'] ?? null) : (!array_is_list($heldRows) ? trafficDetailId($key) : null);
         if ($serviceId !== null && $db->table('services as s')->where('s.id', $serviceId)
             ->whereExists(fn ($q) => $q->selectRaw('1')->from('cloud_instances as ci')
                 ->whereColumn('ci.service_id', 's.id')->where('ci.provider', 'arvan'))->exists()) {
@@ -102,6 +106,7 @@ try {
             'service_id' => (int) $s->id, 'service_status' => $s->status, 'billing_is_hourly' => $hourly,
             'credit_out_policy' => in_array($s->on_credit_out, ['terminate', 'convert', 'suspend'], true) ? $s->on_credit_out : 'default_suspend',
             'available_credit_verified_from_reviewed_wallet' => $wallet !== null,
+            'traffic_meter_customer_excluded' => $excludedValid ? in_array($customerId, $excludedIds, true) : null,
             'available_credit_nonpositive' => is_int($balance) ? $balance <= 0 : null,
             'below_one_hour_rate' => $hourly && $rate > 0 && is_int($balance) ? $balance < $rate : null,
             'hourly_suspend_marker_present' => $s->suspended_at !== null || $suspension !== [],
