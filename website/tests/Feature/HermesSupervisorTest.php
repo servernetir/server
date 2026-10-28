@@ -93,6 +93,17 @@ class HermesSupervisorTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_receipt_contains_program_boundaries_without_granting_dispatch_rights(): void
+    {
+        $receipt = app(HermesSupervisor::class)->tick();
+        $this->assertSame('hermes-growth:2026-10-26', $receipt['campaign_policy']['daily_key']);
+        $this->assertSame(5, $receipt['campaign_policy']['new_contact_cap']);
+        $this->assertSame(2, $receipt['campaign_policy']['followup_cap']);
+        $this->assertFalse($receipt['campaign_policy']['human_review_may_be_impersonated']);
+        $this->assertSame('knowledge_expiry_and_aggregate_supervision_only', $receipt['scope']);
+        Mail::assertNothingSent();
+    }
+
     public function test_only_expired_verified_documents_change_and_action_is_verified(): void
     {
         $expired = $this->document('verified', now()->subMinute());
