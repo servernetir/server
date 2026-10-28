@@ -292,8 +292,27 @@ class Instagram:
         return {key: result[key] for key in ("id", "timestamp", "permalink", "caption") if key in result}
 
     def comments(self, media_id):
-        return self.call("GET", self.numeric(media_id) + "/comments",
-                         fields="id,text,username,timestamp", limit=100).get("data", [])
+        items, seen_ids, seen_cursors = [], set(), set()
+        after = None
+        for _ in range(20):
+            params = {"fields": "id,text,username,timestamp", "limit": 100}
+            if after:
+                params["after"] = after
+            page = self.call("GET", self.numeric(media_id) + "/comments", **params)
+            for item in page.get("data", []):
+                comment_id = self.numeric(item.get("id"))
+                if comment_id not in seen_ids:
+                    seen_ids.add(comment_id)
+                    items.append(item)
+            paging = page.get("paging", {})
+            if not paging.get("next"):
+                return items
+            after = paging.get("cursors", {}).get("after")
+            if not isinstance(after, str) or not after or after in seen_cursors:
+                raise Blocked("comment_pagination_invalid")
+            seen_cursors.add(after)
+        # Never silently discard the remaining customer comments or trust a raw next URL.
+        raise Blocked("comment_pagination_limit_requires_operator_review")
 
     def reply(self, comment_id, text):
         return self.numeric(self.call("POST", self.numeric(comment_id) + "/replies", message=text).get("id"))
@@ -302,3 +321,4 @@ class Instagram:
         result = self.call("GET", self.numeric(reply_id), fields="id,text")
         if result.get("id") != reply_id or result.get("text") != text:
             raise Blocked("reply_not_verified")
+

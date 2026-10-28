@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+from pathlib import Path
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -9,28 +11,54 @@ from .policy import Blocked, digest
 
 
 class Journal:
-    def __init__(self, path):
-        self.path = str(path)
-        with self.db() as db:
+    @classmethod
+    def initialize(cls, path):
+        """Explicit first-install only; never recreate an existing/lost journal at startup."""
+        path = Path(path).resolve()
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        os.close(fd)
+        db = sqlite3.connect(path.as_uri() + "?mode=rw", uri=True)
+        try:
             db.executescript("""
-                CREATE TABLE IF NOT EXISTS publications (
+                CREATE TABLE publications (
                     key TEXT PRIMARY KEY, digest TEXT NOT NULL, lang TEXT NOT NULL,
                     kind TEXT NOT NULL, state TEXT NOT NULL, container TEXT, media_id TEXT,
                     receipt TEXT, error TEXT, publish_started REAL, last_poll REAL DEFAULT 0
                 );
-                CREATE TABLE IF NOT EXISTS comments (
+                CREATE TABLE comments (
                     id TEXT NOT NULL, lang TEXT NOT NULL, media_id TEXT NOT NULL,
                     state TEXT NOT NULL DEFAULT 'OBSERVED', reply_id TEXT,
                     PRIMARY KEY(id,lang)
                 );
+                CREATE TABLE executor_state (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                INSERT INTO executor_state VALUES ('schema_version', '1');
             """)
+            db.commit()
+        finally:
+            db.close()
+        return cls(path)
+
+    def __init__(self, path):
+        self.path = str(Path(path).resolve())
+        with self.db():
+            pass
 
     @contextmanager
     def db(self):
-        db = sqlite3.connect(self.path, timeout=15)
+        # mode=rw cannot create a replacement after deletion, even on a live Engine.
+        try:
+            db = sqlite3.connect(Path(self.path).as_uri() + "?mode=rw", uri=True, timeout=15)
+        except sqlite3.Error:
+            raise Blocked("journal_missing_restore_and_reconcile") from None
         db.row_factory = sqlite3.Row
         try:
             db.execute("BEGIN IMMEDIATE")
+            tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if not {"publications", "comments", "executor_state"} <= tables:
+                raise Blocked("journal_invalid_restore_and_reconcile")
+            version = db.execute("SELECT value FROM executor_state WHERE key='schema_version'").fetchone()
+            if not version or version[0] != "1":
+                raise Blocked("journal_invalid_restore_and_reconcile")
             yield db
             db.commit()
         except BaseException:
@@ -93,7 +121,12 @@ class Engine:
                        (key, digest(job), job["lang"], job["kind"]))
         creating = False
         try:
-            urls = [self.media_store.stage(self.drive.download(a), a, job["kind"]) for a in job["assets"]]
+            urls = []
+            for asset in job["assets"]:
+                self.policy.enabled()
+                payload = self.drive.download(asset)
+                self.policy.enabled()
+                urls.append(self.media_store.stage(payload, asset, job["kind"]))
             self.policy.enabled()
             self.policy.due(job, self.clock())
             # Commit intent BEFORE every call which could create remote state.
@@ -109,7 +142,7 @@ class Engine:
     def advance(self, key):
         job = self.policy.job(key)
         row = self.row(key)
-        if not row:
+        if not row or row["state"] == "BLOCKED":
             return self.prepare(key)
         api = self.instagram_factory(job["lang"])
         if row["state"] == "VERIFYING":
@@ -221,13 +254,23 @@ class Engine:
         if not isinstance(limit, int) or not 1 <= limit <= 10:
             raise Blocked("tick_limit_between_1_and_10")
         result = []
-        for key, job in self.policy.jobs.items():
+        keys = list(self.policy.jobs)
+        with self.journal.db() as db:
+            cursor = db.execute("SELECT value FROM executor_state WHERE key='tick_next'").fetchone()
+        offset = keys.index(cursor[0]) if cursor and cursor[0] in keys else 0
+        for key in keys[offset:] + keys[:offset]:
+            job = self.policy.jobs[key]
             row = self.row(key)
             if row and row["state"] in {"PUBLISHED", "FAILED", "UNKNOWN_PREPARE", "CREATING", "PREPARING", "PUBLISHING", "UNCERTAIN"}:
                 continue
             try:
                 if not row or row["state"] != "VERIFYING":
                     self.policy.due(job, self.clock())
+                # Persist the next candidate before remote work so restarts stay fair.
+                with self.journal.db() as db:
+                    db.execute("INSERT INTO executor_state(key,value) VALUES('tick_next',?) "
+                               "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                               (keys[(keys.index(key) + 1) % len(keys)],))
                 result.append(self.advance(key))
             except Blocked as error:
                 if str(error) not in {"not_due", "publication_window_expired", "native_story_stickers_require_manual_composer"}:
@@ -304,3 +347,4 @@ class Engine:
         with self.journal.db() as db:
             db.execute("UPDATE comments SET state='REPLIED' WHERE id=? AND lang=?", (comment_id, job["lang"]))
         return {"comment_id": comment_id, "reply_id": reply_id, "state": "REPLIED"}
+

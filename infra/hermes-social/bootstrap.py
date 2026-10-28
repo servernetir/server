@@ -22,7 +22,7 @@ settings = home / ".config" / "servernet-social"
 install = home / ".local" / "lib" / "servernet-social"
 state = home / ".local" / "share" / "servernet-social" / "state"
 config_path = settings / "config.json"
-if config_path.exists() or install.exists() or (settings / "manifest.json").exists():
+if config_path.exists() or install.exists() or (settings / "manifest.json").exists() or (state / "publications.sqlite3").exists():
     raise SystemExit("Existing installation/config found; do not overwrite it. Use the documented upgrade procedure.")
 if not args.apply:
     print(json.dumps({"mode": "preflight", "writes": 0, "settings": str(settings),
@@ -50,6 +50,10 @@ venv.create(environment, with_pip=True)
 python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 subprocess.run([str(python), "-m", "pip", "install", "-r", str(source / "requirements.lock")], check=True)
 subprocess.run([str(python), "-m", "pip", "install", "--no-deps", str(source)], check=True)
+subprocess.run([str(python), "-c",
+                "from pathlib import Path; from hermes_social.engine import Journal; "
+                "import sys; Journal.initialize(Path(sys.argv[1]))",
+                str(state / "publications.sqlite3")], check=True)
 snippet = {"mcp_servers": {"servernet_social": {
     "command": str(python), "args": ["-m", "hermes_social.cli", "--config", str(config_path), "serve"],
     "timeout": 180, "connect_timeout": 30, "supports_parallel_tool_calls": False,
@@ -61,3 +65,4 @@ snippet_path.write_text(json.dumps(snippet, indent=2))
 snippet_path.chmod(0o600)
 print(json.dumps({"installed_adapter": True, "hermes_config_fragment": str(snippet_path),
                   "publishing_enabled": False, "mcp_registered": False, "timer_installed": False}))
+

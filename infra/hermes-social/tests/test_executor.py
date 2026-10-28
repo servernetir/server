@@ -16,7 +16,7 @@ import httpx
 from PIL import Image
 
 from hermes_social.clients import Drive, Instagram, publish_bytes
-from hermes_social.engine import Engine
+from hermes_social.engine import Engine, Journal
 from hermes_social.policy import Blocked, Policy
 
 NOW = datetime(2026, 10, 26, 12, tzinfo=timezone.utc)
@@ -28,6 +28,7 @@ class Fixture:
         self.root = Path(self.temp.name)
         self.state = self.root / "state"
         self.state.mkdir(mode=0o700)
+        Journal.initialize(self.state / "publications.sqlite3")
         self.job = {"key": "sn-test-en-feed", "lang": "EN", "username": "servernet.cloud", "kind": "IMAGE",
                     "publish_at": (NOW - timedelta(hours=1)).isoformat(),
                     "expires_at": (NOW + timedelta(hours=1)).isoformat(), "caption": "Approved example",
@@ -321,6 +322,114 @@ class ExecutorTests(unittest.TestCase):
             self.engine.resolve_media(self.key, "999")
 
 
+    def test_lost_journal_blocks_restart_and_current_worker(self):
+        self.published()
+        journal = self.f.state / "publications.sqlite3"
+        journal.unlink()
+        with self.assertRaisesRegex(Blocked, "journal_missing"):
+            Engine(self.policy, FakeDrive(), FakeStore(), lambda lang: self.api)
+        with self.assertRaisesRegex(Blocked, "journal_missing"):
+            self.engine.tick()
+        self.assertFalse(journal.exists())
+        self.assertEqual(self.api.published, 1)
+
+    def test_empty_journal_is_not_treated_as_new_install(self):
+        path = self.f.state / "publications.sqlite3"
+        path.write_bytes(b"")
+        with self.assertRaisesRegex(Blocked, "journal_invalid"):
+            Engine(self.policy, FakeDrive(), FakeStore(), lambda lang: self.api)
+
+    def test_explicit_initialization_never_overwrites_state(self):
+        with self.assertRaises(FileExistsError):
+            Journal.initialize(self.f.state / "publications.sqlite3")
+
+    def test_transient_download_retries_on_tick_without_new_remote_attempt(self):
+        from unittest.mock import Mock
+        drive = Mock()
+        drive.download.side_effect = [OSError("transient"), b"image"]
+        self.engine.drive = drive
+        self.assertEqual(self.engine.prepare(self.key)["state"], "BLOCKED")
+        self.engine.tick()
+        self.assertEqual(self.api.created, 1)
+        self.assertEqual(self.engine.row(self.key)["state"], "WAITING")
+
+    def test_pause_during_download_prevents_upload(self):
+        from unittest.mock import Mock
+        def download(asset):
+            (self.f.state / "PAUSED").touch()
+            return b"image"
+        self.engine.drive.download = download
+        self.engine.media_store = Mock()
+        self.engine.prepare(self.key)
+        self.engine.media_store.stage.assert_not_called()
+        self.assertEqual(self.api.created, 0)
+
+    def test_pause_after_first_carousel_upload_stops_remaining_assets(self):
+        self.f.job.update(kind="CAROUSEL", assets=self.f.job["assets"] * 3)
+        self.f.save()
+        self.engine.policy = self.f.policy()
+        calls = []
+        def stage(*args):
+            calls.append(args)
+            (self.f.state / "PAUSED").touch()
+            return "https://example.invalid/image.jpg"
+        self.engine.media_store.stage = stage
+        self.engine.prepare(self.key)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(self.api.created, 0)
+
+    def test_persistent_tick_cursor_does_not_starve_later_jobs(self):
+        self.f.manifest["jobs"] = []
+        for i in range(6):
+            job = copy.deepcopy(self.f.job)
+            job["key"] = "job-" + str(i)
+            self.f.manifest["jobs"].append(job)
+        self.f.save()
+        self.engine.policy = self.f.policy()
+        for i in range(5):
+            self.engine.prepare("job-" + str(i))
+            self.engine.journal.update("job-" + str(i), "VERIFYING", media_id="999")
+        self.api.fail_verify = True
+        self.engine.tick(limit=5)
+        restarted = Engine(self.f.policy(), FakeDrive(), FakeStore(), lambda lang: self.api, lambda: NOW)
+        restarted.tick(limit=1)
+        self.assertEqual(restarted.row("job-5")["state"], "WAITING")
+
+
+class CommentPaginationRegressionTests(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture()
+        self.addCleanup(self.f.close)
+
+    def test_comments_follow_cursor_without_following_remote_url(self):
+        calls = []
+        def handler(request):
+            calls.append(request)
+            if request.url.params.get("after") == "cursor-2":
+                return httpx.Response(200, json={"data": [{"id": "222", "text": "Question"}]})
+            return httpx.Response(200, json={"data": [{"id": "111"}], "paging": {
+                "next": "https://untrusted.invalid/do-not-follow", "cursors": {"after": "cursor-2"}}})
+        api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+        self.assertEqual([c["id"] for c in api.comments("999")], ["111", "222"])
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(r.url.host != "untrusted.invalid" for r in calls))
+
+    def test_repeated_comment_cursor_stops_explicitly(self):
+        def handler(request):
+            return httpx.Response(200, json={"data": [], "paging": {"next": "ignored", "cursors": {"after": "same"}}})
+        api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+        with self.assertRaisesRegex(Blocked, "comment_pagination_invalid"):
+            api.comments("999")
+
+    def test_pagination_cap_does_not_return_incomplete_comments(self):
+        def handler(request):
+            cursor = int(request.url.params.get("after", "0")) + 1
+            return httpx.Response(200, json={"data": [], "paging": {"next": "ignored", "cursors": {"after": str(cursor)}}})
+        api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+        with self.assertRaisesRegex(Blocked, "comment_pagination_limit"):
+            api.comments("999")
+
+
 class AdapterTests(unittest.TestCase):
     def setUp(self):
         self.f = Fixture()
@@ -556,7 +665,7 @@ class BootstrapTests(unittest.TestCase):
 
     def test_bootstrap_installs_separate_environment_without_enabling(self):
         output, environments, installs = self.run_bootstrap(apply=True)
-        self.assertEqual((environments, installs), (1, 2))
+        self.assertEqual((environments, installs), (1, 3))
         config = json.loads((self.home / ".config/servernet-social/config.json").read_text())
         self.assertFalse(config["publishing_enabled"])
         self.assertFalse(config["replies_enabled"])
@@ -608,3 +717,4 @@ class BootstrapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -77,6 +77,23 @@ systemctl --user status hermes-social.timer
 
 The existing `hermes` user's linger/service behavior must be checked. The user timer is independent of the Laravel minute cron and does not execute billing/provisioning. One unit does not overlap itself; the SQLite claim also serializes MCP calls. On Windows, create a Task Scheduler task under the dedicated executor account calling the generated Python path with `-m hermes_social.cli --config ... tick` every minute, with the “do not start a new instance” policy. Do not put account passwords or tokens into task arguments.
 
+## Review fixes — 2026-10-28
+
+Normal startup now requires an initialized, valid journal and opens SQLite in `mode=rw`.
+Only first-install bootstrap calls `Journal.initialize`; it refuses any existing journal.
+If a journal is missing, empty or lacks the schema marker, stop and restore/reconcile it.
+Never initialize a replacement to bypass this guard. Older uninstalled package examples
+must use the updated bootstrap; existing journals require a separately reviewed migration,
+not an automatic schema upgrade. This change has not been installed on VM 127.
+
+Transient failures before a remote container exists can retry through bounded ticks;
+ambiguous container/publication states stay quarantined. Ticks persist the next job key
+so repeated verification failures cannot starve later jobs across process restarts.
+Pause is rechecked after each download and before every media upload.
+Comment reads follow opaque cursors (up to 20 pages); malformed/repeated cursors or the
+page cap return an explicit block instead of silently discarding comments. Remote
+`paging.next` URLs are never followed. No new credentials, scopes or listener were added.
+
 ## Stop and recovery
 
 - Create the state directory's `PAUSED` file or call `social_pause`; every future external mutation checks it. An already transmitted request cannot be canceled by the flag. Disable the user timer as well when doing maintenance. Only the operator removes the stop file.
@@ -103,3 +120,4 @@ python build_manifest.py --drive-index /private/drive_manifest.json \
 ```
 
 Source references: [Hermes MCP configuration](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp/), [official MCP Python SDK v1](https://py.sdk.modelcontextprotocol.io/v1/), [Meta publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing), [Meta image/container API](https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media), [Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login), [Google downloads](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Google desktop OAuth](https://developers.google.com/identity/protocols/oauth2/native-app), [S3 presigned URLs](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/generate_presigned_url.html). Full Meta pages were inaccessible to this session; primary-source search excerpts confirmed the contract, while live app/version acceptance remains required.
+
