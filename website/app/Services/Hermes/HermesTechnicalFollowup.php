@@ -52,6 +52,20 @@ final class HermesTechnicalFollowup
                 $lines[] = self::describe($name, $checks[$name]);
             }
             if (! $found) { $lines[] = 'بررسی تازه و قابل انتساب به همین سرویس در دسترس نیست؛ سلامت سرویس تأیید نمی‌شود.'; }
+            $account = $evidence['service_investigation'] ?? [];
+            if (($account['service_id'] ?? null) === $id && ($account['result'] ?? '') === 'verified'
+                && ($account['source'] ?? '') === 'servernet_database_and_wallet' && self::fresh($account['checked_at'] ?? null, $now)) {
+                $cause = match ($account['cause_code'] ?? '') {
+                    'operator_billing_hold_recorded' => 'سوابق حساب: نگهداشت مدیریتی صورتحساب فعال است؛ شارژ مجدد به‌تنهایی رفع آن را ثابت نمی‌کند.',
+                    'staff_suspension_recorded' => 'سوابق حساب: تعلیق کارکنان ثبت شده است؛ علت و تصمیم رفع آن باید تطبیق داده شود.',
+                    'hourly_credit_out_recorded' => 'سوابق حساب: رویداد خاموشی خودکار بابت اتمام اعتبار قابل‌مصرف ثبت شده است.',
+                    default => 'علت قطعی تعلیق از سوابق ثبت‌شده مشخص نشد.',
+                };
+                $lines[] = $cause;
+                if (($account['retention_reserve_limits_available_credit'] ?? false) === true) {
+                    $lines[] = 'ماندهٔ کل کیف پول مثبت است؛ ذخیرهٔ نگهداری، اعتبار قابل‌مصرف ساعت بعد را محدود کرده است. این وضعیت به معنی موجودی صفر نیست.';
+                }
+            }
         }
         $text = $subject."\n".implode("\n", array_column($thread, 'body'));
         $gaps = [];

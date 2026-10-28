@@ -1,0 +1,154 @@
+{
+  "release": "hermes-support-learning-20261028",
+  "base_sha": "b88ae6d3d58c451266dc4f8c7c810b21ead642f2",
+  "status": "production_verified",
+  "verified_at": "2026-10-28T17:13:41+03:30",
+  "runtime_files": [
+    {
+      "source": "website/app/Services/Hermes/HermesServiceInvestigation.php",
+      "destination": "app/Services/Hermes/HermesServiceInvestigation.php",
+      "before": null,
+      "after": "f29de8629211769ea2735731eb6ed5e82025eb120f8674033304c79e590d5c02",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    },
+    {
+      "source": "website/app/Services/Hermes/HermesSupportExperience.php",
+      "destination": "app/Services/Hermes/HermesSupportExperience.php",
+      "before": null,
+      "after": "86792e66eac987c5e1386ddc6fc30b327fb6356d1b34323e49fc3190bc01e607",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    },
+    {
+      "source": "website/app/Services/Hermes/HermesSupportEvidenceGuard.php",
+      "destination": "app/Services/Hermes/HermesSupportEvidenceGuard.php",
+      "before": null,
+      "after": "3040673a98d60f0dd6bbcee40e8bb1c00c6abe2c50c1398cc631da0b069a14da",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    },
+    {
+      "source": "website/app/Services/Hermes/HermesTechnicalFollowup.php",
+      "destination": "app/Services/Hermes/HermesTechnicalFollowup.php",
+      "before": "44851f5197f874e4286443fbf9467e441eeeb5e12583b3c66a91b21fd98b62e6",
+      "after": "ed95a3bd7e52407dfe3cf1aa790b1bd11fe9bac2a6c016d53401b06747b13029",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    },
+    {
+      "source": "infra/hermes/support-learning-20261028/HermesOperations.php",
+      "destination": "app/Services/Hermes/HermesOperations.php",
+      "before": "1da5e4a1a649303fd94b41f7c4ac072d5277a51a0e72f74e50dbad102c8ec10d",
+      "after": "ba1502378e7a4f4c2c0eb1bb2fdd352c2c4c3f5be491df33bcb7bdba278846e5",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    },
+    {
+      "source": "infra/hermes/support-learning-20261028/HermesSupportDraftWriter.php",
+      "destination": "app/Services/Hermes/HermesSupportDraftWriter.php",
+      "before": "5ebbbe6443e7c290e0478319a705085f5625623fbf534099a2e55e7dac1f4037",
+      "after": "48cf83e8edb43aa5809733d760ffe280b7902860b0cbcb52bb60be42c6a0cb28",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    },
+    {
+      "source": "infra/hermes/support-learning-20261028/HermesSupportReviewService.php",
+      "destination": "app/Services/Hermes/HermesSupportReviewService.php",
+      "before": "d0d51e180feb7c68a1b5930c873b4a60c834217345c4732e7d8114e4db71953b",
+      "after": "ee0deb17ed9fc4f42817b86cab4c83586b9aec9b1fde6600010d3de262cc761a",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    }
+  ],
+  "offline_only": {
+    "source": "infra/hermes/support-learning-20261028/HermesOperationsStore.php",
+    "sha256": "6583a234855b55ada896e82975ad323a372ed04017a1a2903b2697f4359c966d",
+    "installed": false
+  },
+  "revision_chain": [
+    "initial",
+    "history-r2",
+    "account-r3",
+    "evidence-r4",
+    "experience-r5",
+    "priority-r6"
+  ],
+  "verification": {
+    "learning_enabled": true,
+    "followup_enabled": true,
+    "native_sequence": 6119,
+    "last_success_age_seconds": 22,
+    "last_run_failures": 0,
+    "public_delivery_flag_hard_off": true,
+    "reference_count_before": 107,
+    "reference_count_after": 112,
+    "approved_rules_preserved": 17,
+    "case_count": 213,
+    "index": {
+      "version": 2,
+      "observed_at": 1793194426,
+      "source_ticket_count": 246,
+      "source_message_count": 943,
+      "bounded_inventory_complete": true,
+      "confirmed_case_count": 2
+    }
+  },
+  "tests": {
+    "php": "8.4.26",
+    "production_credentials": false,
+    "isolated_checkout": true,
+    "assertions": 235,
+    "filter": "HermesServiceInvestigationTest|HermesSupportExperienceTest|HermesSupportLearningIntegrationTest|HermesSupportEvidenceGuardTest|HermesTechnicalFollowupTest|HermesTechnicalFollowupWorkflowTest|HermesNetworkFollowupEvidenceTest|HermesCloudNetworkPlaybookTest|ArvanFirewallEvidenceTest",
+    "database": "SQLite :memory:",
+    "tests": 90,
+    "http": "fake",
+    "result": "passed",
+    "full_project_suite_run": false,
+    "repeated_after_integration_rebase": true
+  },
+  "native_model_acceptance": [
+    {
+      "reply_chars": 373,
+      "case": "positive_total_with_reserve_limited_available",
+      "current_case_excluded": true,
+      "analysis_chars": 762,
+      "public_reply_written": false,
+      "model_returned": true,
+      "evidence_bytes": 12357
+    },
+    {
+      "current_supplier_report_not_checked": true,
+      "case": "operator_hold_despite_sufficient_available",
+      "public_reply_written": false,
+      "historical_incident_not_current_health": true,
+      "model_returned": true,
+      "evidence_bytes": 18578
+    },
+    {
+      "synthetic_only": true,
+      "guard_accepts_actual_zero": true,
+      "case": "unseen_zero_balance_no_reserve_fresh_firewall_over_old_claim",
+      "public_reply_written": false,
+      "database_ticket_created": false,
+      "model_returned": true
+    }
+  ],
+  "vm_knowledge": {
+    "copies": 2,
+    "indexes_updated": 4,
+    "broker_readback_matches": true,
+    "document_sha256": "7f2dff3e48fe5be8720767912a937c8c8d2c384636ccb81524874a44a0566074"
+  },
+  "owner_notice": "Bale API accepted; receipt private; reading not verified",
+  "boundaries": {
+    "future_customer_continuation_after_install_observed": false,
+    "new_timers": 0,
+    "financial_actions": 0,
+    "network_changes": 0,
+    "power_actions": 0,
+    "new_public_customer_delivery_permissions": false
+  },
+  "rollback": "Disable hermes_support_learning_enabled; full code rollback requires fresh matching hashes and per-file private backups. Preserve state, rules, cursors, financial records and send receipts.",
+  "integration_base_sha": "dbdbfa0d55e4dc631245e1983d99a90872961f51"
+}

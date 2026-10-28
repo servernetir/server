@@ -140,4 +140,17 @@ class HermesTechnicalFollowupTest extends TestCase
         $this->assertStringNotContainsString('همهٔ TCP/UDP', $r['analysis']);
         $this->assertStringContainsString('مسدودبودن پورت درخواستی هم', $r['analysis']);
     }
+
+    public function test_followup_includes_fresh_recorded_credit_cause_and_does_not_call_positive_total_zero(): void
+    {
+        $e = $this->evidence(); $e['service_investigation'] = ['service_id' => 10,
+            'source' => 'servernet_database_and_wallet', 'checked_at' => 10000, 'result' => 'verified',
+            'cause_code' => 'hourly_credit_out_recorded', 'retention_reserve_limits_available_credit' => true];
+        $r = HermesTechnicalFollowup::assess('technical', 'خاموشی', $this->thread('هنوز مشکل دارد'), $e, 10000);
+        $this->assertStringContainsString('خاموشی خودکار', $r['analysis']);
+        $this->assertStringContainsString('ماندهٔ کل کیف پول مثبت است', $r['analysis']);
+        $e['service_investigation']['service_id'] = 11;
+        $r = HermesTechnicalFollowup::assess('technical', 'خاموشی', $this->thread('هنوز مشکل دارد'), $e, 10000);
+        $this->assertStringNotContainsString('ماندهٔ کل کیف پول مثبت است', $r['analysis']);
+    }
 }
