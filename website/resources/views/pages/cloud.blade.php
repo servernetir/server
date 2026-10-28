@@ -218,7 +218,8 @@
 
         {{-- ظرفِ لغزان: جدول ۸ ستون دارد و روی موبایل باید افقی بلغزد، نه اینکه
              کلِ صفحه را افقی کند. --}}
-        <div class="cvps-tw">
+        <p class="cvps-table-hint" id="clp-scroll-hint">{{ $t['cloud_scroll_hint'] }}</p>
+        <div class="cvps-tw" tabindex="0" role="region" aria-labelledby="clp-results-title" aria-describedby="clp-scroll-hint">
           <table class="cvps-table">
             <thead>
               <tr>
@@ -379,7 +380,9 @@
 .cvps-fld select:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px }
 .cvps-count{ font-size:12.5px; color:var(--dim); margin-inline-start:auto; padding-bottom:9px }
 
-.cvps-tw{ overflow-x:auto; border:1px solid var(--line); border-radius:18px; background:var(--surface) }
+.cvps-tw{ overflow-x:auto; max-width:100%; border:1px solid var(--line); border-radius:18px; background:var(--surface) }
+.cvps-tw:focus-visible{ outline:2px solid var(--cyan); outline-offset:3px }
+.cvps-table-hint{ display:none; font-size:12px; color:var(--muted); line-height:1.8; margin-bottom:10px }
 .cvps-table{ width:100%; border-collapse:collapse; min-width:800px; font-size:13.2px }
 .cvps-table th{ text-align:start; font-size:11.8px; font-weight:700; color:var(--dim);
   padding:12px 14px; border-bottom:1px solid var(--line); white-space:nowrap; background:var(--bg2) }
@@ -434,6 +437,11 @@ body.imp-on #clp-results-title{ scroll-margin-top:calc(var(--header-h,112px) + v
   .cvps-count{ margin-inline-start:0 }
   .cvps-fld{ flex:1 1 140px }
   .cvps-fld select{ width:100% }
+  .cvps-table-hint{ display:block }
+  .cvps-table td:nth-child(2){ white-space:normal; min-width:72px }
+  .cvps-table td:nth-child(2) .cvps-dim{ display:block; max-width:100px; line-height:1.55 }
+  .cvps-td-l a{ display:inline-block; max-width:150px; white-space:normal; overflow-wrap:break-word; vertical-align:middle }
+  .cvps-td-p{ white-space:nowrap }
 }
 </style>
 

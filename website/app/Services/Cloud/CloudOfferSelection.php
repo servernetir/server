@@ -11,6 +11,7 @@ use Throwable;
 class CloudOfferSelection
 {
     private ?Collection $imagesByProvider = null;
+    private array $imageFactsByProvider = [];
     private array $regionalImages = [];
     private array $imageSets = [];
     private array $capabilities = [];
@@ -125,47 +126,73 @@ class CloudOfferSelection
     {
         $key = spl_object_id($plan);
         if (isset($this->imageSets[$key])) { return $this->imageSets[$key]; }
+        // Plan inputs are fixed for this predicate call; do not resolve the
+        // same Eloquent attributes for every image in the catalogue.
+        $provider = (string) $plan->provider;
+        $reference = (string) $plan->provider_ref;
+        $arch = $plan->arch;
+        $ram = (int) $plan->ram_mb;
+        $bootDiskValue = $plan->boot_disk_gb;
+        $bootDisk = (int) ($bootDiskValue ?? $plan->disk_gb);
+        $cpu = (int) $plan->vcpu;
+        $location = (string) $plan->provider_location;
+        $gpu = (string) $plan->gpu_model;
+        $prefix = match ($provider) {
+            'lightnode' => explode('|', $reference)[0].'|',
+            'vpstc' => $reference.'|',
+            default => null,
+        };
         $out = [];
-        foreach ($this->candidateImages($plan) as $image) {
-            if ((string) $image->provider !== (string) $plan->provider
-                || ! CloudImage::providerAccessIsAutomated((string) $plan->provider, $image)
-                || (filled($image->arch) && filled($plan->arch) && $image->arch !== $plan->arch)
-                || (int) $image->min_ram_mb > (int) $plan->ram_mb
-                || (int) $image->min_disk_gb > (int) ($plan->boot_disk_gb ?? $plan->disk_gb)) { continue; }
-            if ($plan->provider === 'vpstc' && ! str_starts_with((string) $image->provider_ref, $plan->provider_ref.'|')) { continue; }
-            if ($plan->provider === 'lightnode') {
-                $region = explode('|', (string) $plan->provider_ref)[0];
-                if (! str_starts_with((string) $image->provider_ref, $region.'|')
-                    || ($image->family === 'windows' && ((int) $plan->vcpu < 2 || (int) $plan->ram_mb < 4096))) { continue; }
+        foreach ($this->candidateImages($provider, $prefix) as $image) {
+            if ($image['provider'] !== $provider
+                // This access gate remains live and precedes compatibility checks.
+                || ! CloudImage::providerAccessIsAutomated($provider, $image['model'])
+                || (filled($image['arch']) && filled($arch) && $image['arch'] !== $arch)
+                || $image['min_ram'] > $ram
+                || $image['min_disk'] > $bootDisk) { continue; }
+            if ($provider === 'vpstc' && ! str_starts_with($image['reference'], $prefix)) { continue; }
+            if ($provider === 'lightnode') {
+                if (! str_starts_with($image['reference'], $prefix)
+                    || ($image['family'] === 'windows' && ($cpu < 2 || $ram < 4096))) { continue; }
             }
-            if ($plan->provider === 'arvan' && $image->kind === 'app'
-                && (ArvanApplicationImages::imageId((string) $plan->provider_location, (string) $image->provider_ref) === null
-                    || (int) $plan->vcpu < ArvanApplicationImages::minCpu((string) $image->family))) { continue; }
-            if ($plan->provider === 'salad' && ! SaladClient::imageSupportsGpu((string) $image->provider_ref, (string) $plan->gpu_model)) { continue; }
-            $out[] = implode('|', [(string) $image->kind, (string) $image->key, (string) $image->family, (string) $image->version]);
+            if ($provider === 'arvan' && $image['kind'] === 'app'
+                && (ArvanApplicationImages::imageId($location, $image['reference']) === null
+                    || $cpu < ArvanApplicationImages::minCpu((string) $image['family']))) { continue; }
+            if ($provider === 'salad' && ! SaladClient::imageSupportsGpu($image['reference'], $gpu)) { continue; }
+            $out[] = $image['key'];
         }
         sort($out, SORT_STRING);
         return $this->imageSets[$key] = array_values(array_unique($out));
     }
 
     /** Narrow the once-loaded image catalogue before applying the full contract predicate. */
-    private function candidateImages(CloudPlan $plan): Collection
+    private function candidateImages(string $provider, ?string $prefix): Collection
     {
         $this->imagesByProvider ??= CloudImage::query()->usable()->get()
             ->groupBy(fn ($image) => (string) $image->provider);
-        $provider = (string) $plan->provider;
-        $images = $this->imagesByProvider->get($provider, collect());
-        if (! in_array($provider, ['lightnode', 'vpstc'], true)) {
+        // Snapshot scalar fields only for providers this selection visits;
+        // unrelated suppliers need no additional attribute resolution.
+        $images = $this->imageFactsByProvider[$provider] ??= $this->imagesByProvider->get($provider, collect())
+            ->map(static fn (CloudImage $image) => [
+                'model' => $image,
+                'provider' => (string) $image->provider,
+                'reference' => (string) $image->provider_ref,
+                'arch' => $image->arch,
+                'min_ram' => (int) $image->min_ram_mb,
+                'min_disk' => (int) $image->min_disk_gb,
+                'kind' => $image->kind,
+                'family' => $image->family,
+                'key' => implode('|', [(string) $image->kind, (string) $image->key, (string) $image->family, (string) $image->version]),
+            ]);
+        if ($prefix === null) {
             return $images;
         }
 
         // LightNode uses a region prefix; VPS.TC's prefix is the entire
         // product reference and can itself contain a separator. Keep those
         // existing prefix semantics, including empty/malformed references.
-        $prefix = ($provider === 'lightnode'
-            ? explode('|', (string) $plan->provider_ref)[0] : (string) $plan->provider_ref).'|';
         return $this->regionalImages[$provider][$prefix] ??= $images
-            ->filter(fn ($image) => str_starts_with((string) $image->provider_ref, $prefix))
+            ->filter(fn ($image) => str_starts_with($image['reference'], $prefix))
             ->values();
     }
 

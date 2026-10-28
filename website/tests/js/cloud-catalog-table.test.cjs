@@ -16,7 +16,7 @@ function setup(locale = 'en', run = true) {
     <select id="clp-cpu"><option value="">All</option><option>4</option></select>
     <select id="clp-ram"><option value="">All</option><option>2048</option></select>
     <select id="clp-sort"><option value="price-asc">Price asc</option><option value="price-desc">Price desc</option><option value="cpu">CPU</option><option value="ram">RAM</option></select>
-    <span id="clp-count" data-tpl=":n matching plans"></span><table><tbody id="clp-body">${rows}</tbody></table><p id="clp-none" style="display:none">No match</p>
+    <span id="clp-count" data-tpl=":n matching plans"></span><p id="clp-scroll-hint">Scroll horizontally</p><div class="cvps-tw" tabindex="0" role="region" aria-labelledby="clp-results-title" aria-describedby="clp-scroll-hint"><table><tbody id="clp-body">${rows}</tbody></table></div><p id="clp-none" style="display:none">No match</p>
     <nav id="clp-pager" hidden><button id="clp-prev" type="button">Previous</button><span id="clp-page" role="status" tabindex="-1" data-tpl="Page :page of :pages · plans :from–:to of :total"></span><button id="clp-next" type="button">Next</button></nav></div>
   </body></html>`, {runScripts:'outside-only', pretendToBeVisual:true});
   const {window:w} = dom, doc = w.document, body = doc.getElementById('clp-body');
@@ -34,6 +34,10 @@ function setup(locale = 'en', run = true) {
 test('no-JS HTML keeps all plans and purchase links; JS starts with50 without reparenting server order', t => {
   const x = setup('en', false); t.after(() => x.dom.window.close());
   assert.equal(x.visible().length,123); assert.equal(x.body.querySelectorAll('a').length,123);
+  const region = x.doc.querySelector('.cvps-tw');
+  region.focus(); assert.equal(x.doc.activeElement,region);
+  assert.equal(region.getAttribute('aria-labelledby'),'clp-results-title');
+  assert.equal(region.getAttribute('aria-describedby'),'clp-scroll-hint');
   assert.equal(x.doc.getElementById('clp-pager').hidden,true);
   x.w.eval(script);
   assert.equal(x.visible().length,50); assert.equal(x.visible()[0].id,'r1'); assert.equal(x.visible().at(-1).id,'r50');
