@@ -401,7 +401,7 @@ for (const reduced of [false,true]) {
       await new Promise(resolve=>server.close(resolve));
       assert.equal(path.dirname(profile),os.tmpdir());
       assert.ok(path.basename(profile).startsWith('servernet-panel-nav-'));
-      await fs.rm(profile,{recursive:true,force:true});
+      await fs.rm(profile,{recursive:true,force:true,maxRetries:10,retryDelay:100});
     }
   });
 }
