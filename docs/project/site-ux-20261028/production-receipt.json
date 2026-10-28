@@ -1,0 +1,101 @@
+{
+  "utc": "2026-10-28T08:46:37.985558+00:00",
+  "files": [
+    {
+      "target": "servernet_app/app/Http/Controllers/SiteController.php",
+      "before": "bb3ab9bc3a82efaebd87361bd594818813a4995788d63dc52d87a9a73a41a9d5",
+      "after": "9e020f26c9459673ff3500f989e88076ad93f241a6d84f2ff16af53081e6752b"
+    },
+    {
+      "target": "servernet_app/app/Services/Cloud/CloudDominance.php",
+      "before": "d3fe989054009e53d7e90f938f976fb6c2282aef5abf323442109bd764e7e027",
+      "after": "6cbe98baed0af3860583849d9e13f76e774ce2abb80005f7b083e6519cc72529"
+    },
+    {
+      "target": "servernet_app/resources/views/pages/home.blade.php",
+      "before": "1708192bf0b52a3a2324cbcaff98edae34b9ea1fd6f5ef81289b3863792b9ab1",
+      "after": "423e661c7eb242f2c6375c3bc2391dde9f4477376d42c93b66a30196a71eb6bd"
+    },
+    {
+      "target": "servernet_app/resources/views/partials/header.blade.php",
+      "before": "f4d5684f1392317007c5c4802f8a03343a13318b7835fbe04f5c3e3430ca5453",
+      "after": "531c866610fb6064d503ebc9b5b7cd805623a52542c08a0238c351f36204aaa6"
+    },
+    {
+      "target": "servernet_app/public/assets/js/site.js",
+      "before": "92c266c7648bf164d5f6bf378ec8a7dc10ab8a5929a1521663962f6785e5b006",
+      "after": "65850756db1904f5d6beaa067f2e30e49bd6ea737f288191b6d229ccc4a722c9"
+    },
+    {
+      "target": "public_html/assets/js/site.js",
+      "before": "fea45b86cea575de094c46d50b8b0054662a8a5412b33cf7f7574b386d94cc56",
+      "after": "04d0119f7f8e53b002d596c123034ee1f72cb302603da23c63a62e9d27d194b4"
+    },
+    {
+      "target": "servernet_app/resources/views/pages/hosting.blade.php",
+      "before": "cb00b7e7473f43a239a52d5da07a576b46dd2e6ffa88820b68d4e3dd3fe71c07",
+      "after": "dd2ab08e4d305016c28ea3e367964a3aa171cb3647bc880f41794d1de19d6f1d"
+    },
+    {
+      "target": "servernet_app/lang/fa/ui.php",
+      "before": "24e267ae17c6a798e5485442d2485f4390eb01ace6dc7d2942970401b8d2ef7c",
+      "after": "0764f244bb02218c59987670699ecbb676aa9cb1ab2e13b08b5cde51707455cb",
+      "verified_current_hash": "0c032fc2bb38e35235ce8e680e8556f8908d94e863e9cf859fa900ea2c0b5b1e",
+      "rollback_mode": "remove own hp_domain_plans_sub key only; preserve concurrent choice_* additions"
+    },
+    {
+      "target": "servernet_app/lang/en/ui.php",
+      "before": "7eb39ee44aff18544de452a13c2cbe0cd37acc5e0ec37a8115390adc90ba6fb5",
+      "after": "0c531607ab44136989fec1f1bd742ad26d492e5eed92b76efc6df2229dc0f676",
+      "verified_current_hash": "abec4272892a8bd5d009d108ee5077e04d71f60de7711cd02c9e4a7bc9368d99",
+      "rollback_mode": "remove own hp_domain_plans_sub key only; preserve concurrent choice_* additions"
+    },
+    {
+      "target": "servernet_app/lang/tr/ui.php",
+      "before": "1218889ab7b3671762f5711c3c2e15441360b5852f1d5fe48d999476dd96cf2c",
+      "after": "5a005739dcb5f1fcc49cecbec0f1fbeedd60691b66d6375d1004a7aaf103f069",
+      "verified_current_hash": "85e8bdd8cef16371665b4123c0f308778d8318ae09d79bcd3f0e6f3a615c3037",
+      "rollback_mode": "remove own hp_domain_plans_sub key only; preserve concurrent choice_* additions"
+    }
+  ],
+  "sql_writes": 0,
+  "status": "production_verified",
+  "public_asset_note": "independent public copy merged against its own snapshot; morph guard retained",
+  "focus_followup": "f58f7783716f0a51e409c734410e7f28399fdd38",
+  "verified_utc": "2026-10-28T08:57:23.632220+00:00",
+  "staged_renders": 9,
+  "staged_sql_writes": 0,
+  "public_http": {
+    "home_fa_en_tr": 200,
+    "hourly": 200,
+    "gpu": 200,
+    "domain_fa_en_tr": 200,
+    "cloud": 200,
+    "cloud_total_seconds": [
+      8.59,
+      14.84
+    ]
+  },
+  "browser": {
+    "mobile_focus_close": true,
+    "tab_inside": true,
+    "escape_restores_hamburger": true,
+    "monthly_home_only": true,
+    "plan_location_visible": true
+  },
+  "concurrent_preserved": [
+    "servernet_app/lang/fa/ui.php",
+    "servernet_app/lang/en/ui.php",
+    "servernet_app/lang/tr/ui.php"
+  ],
+  "limits": [
+    "No real purchase/payment/analytics conversion test",
+    "Cloud uncached rendering remains slow; no LCP target achievement claim"
+  ],
+  "backup_id": ".ux-release-20261028-0833",
+  "source_commits": [
+    "ef08fc01",
+    "59bd1190",
+    "f58f7783"
+  ]
+}
