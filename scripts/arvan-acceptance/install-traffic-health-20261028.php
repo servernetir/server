@@ -153,7 +153,7 @@ try {
             }
             thGuard(!is_link($class)&&thHash($class)===$classHash,'class_verify');
             $stage='fresh_composer_autoload';
-            $autoloadCode='require '.var_export($root.'/vendor/autoload.php',true).'; $r=new ReflectionClass("App\\\\Services\\\\Finance\\\\ArvanTrafficHealth"); if(realpath($r->getFileName())!=='.var_export($class,true).'||hash_file("sha256",$r->getFileName())!=='.var_export($classHash,true).') exit(3);';
+            $autoloadCode='require '.var_export($root.'/vendor/autoload.php',true).'; $r=new ReflectionClass('.var_export(App\Services\Finance\ArvanTrafficHealth::class,true).'); if(realpath($r->getFileName())!=='.var_export($class,true).'||hash_file("sha256",$r->getFileName())!=='.var_export($classHash,true).') exit(3);';
             thRun([$php,'-r',$autoloadCode],$root);
             $stage='view_install';
             if(!$installed) thAtomicView($view,$candidate,$beforeHash,$temps);
@@ -164,6 +164,9 @@ try {
         }
         $stage='safe_report';
         if(!class_exists(App\Services\Finance\ArvanTrafficHealth::class)) require $source;
+        $reportClass=new ReflectionClass(App\Services\Finance\ArvanTrafficHealth::class);
+        thGuard(in_array(realpath($reportClass->getFileName()),[$source,$class],true)
+            && thHash($reportClass->getFileName())===$classHash,'report_class_identity');
         $report=(new App\Services\Finance\ArvanTrafficHealth())->report();
         echo json_encode(['ok'=>true,'mode'=>$status,'view_before_sha256'=>$beforeHash,'view_sha256'=>thHash($view),
             'candidate_view_sha256'=>$afterHash,'class_sha256'=>$classHash,'compiled_view_invalidated'=>$invalidated,
