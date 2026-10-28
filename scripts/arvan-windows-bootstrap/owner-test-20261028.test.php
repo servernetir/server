@@ -49,6 +49,12 @@ $bad = $intent; unset($bad['cleanup_at']);
 $reject(static fn () => $g::cleanupDeadline($bad), 'immutable_cleanup_deadline');
 $bad = $intent; $bad['create_intent_at'] = (string) $now;
 $reject(static fn () => $g::cleanupDeadline($bad), 'immutable_cleanup_deadline');
+// A legacy state must fail before reconcile can contact a provider or extend its deadline.
+$legacy = $intent; $legacy['cleanup_at'] = $now + 48 * 3600;
+$runner = new OwnerWindowsDiagnostic28Run();
+(new ReflectionProperty($runner, 'state'))->setValue($runner, $legacy);
+$reconcile = new ReflectionMethod($runner, 'reconcile');
+$reject(static fn () => $reconcile->invoke($runner, false), 'immutable_cleanup_deadline');
 
 $m = ['name' => $g::NAME, 'region' => $g::REGION, 'owner_id' => $g::OWNER, 'owner_code' => $g::OWNER_CODE,
     'plan_id' => 1, 'plan_ref' => 'fixture-eco', 'image_id' => $id, 'image_key' => '2025',
@@ -75,6 +81,12 @@ $bad = $m; $bad['name'] = 'some-customer-vm';
 $reject(static fn () => $g::manifest($bad, $now), 'manifest_identity');
 $bad = $m; $bad['volume_schema'] = 'instance_id';
 $reject(static fn () => $g::manifest($bad, $now), 'volume_schema_not_observed');
+$reject(static fn () => $g::requireCleanupSchema($m), 'cleanup_volume_schema_unverified');
+$reject(static fn () => $g::requireCleanupSchema($bad), 'cleanup_volume_schema_unverified');
+foreach (['instance_id', 'attachments.server_id'] as $schema) {
+    $observed = $m; $observed['volume_schema'] = $schema; $observed['volume_schema_observed'] = true;
+    $g::requireCleanupSchema($observed); $assert(true, 'observed_cleanup_schema');
+}
 
 $response = static fn (array $rows): array => ['ok' => true, 'status' => 200, 'json_valid' => true,
     'data_present' => true, 'data_is_list' => true, 'data' => $rows];
