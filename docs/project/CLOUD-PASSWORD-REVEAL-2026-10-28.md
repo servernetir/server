@@ -22,7 +22,7 @@ Panel guidance and delivery-email guidance are consistent in Persian, English an
 
 The repeatable-reveal controller, panel and translations were installed earlier on 28 October at 10:44:39 UTC. That candidate passed 70 isolated regression checks using synthetic credentials, an in-memory SQLite database and blocked outgoing HTTP. Production browser acceptance confirmed repeated masked reveal, refresh returning to the reveal button, and staff audit attribution. Private customer evidence and deployment artifacts are deliberately excluded from this repository.
 
-The additional delivery-email wording correction in this Git change has not been deployed. The Git source was reconciled onto current `develop` without incorporating unrelated local edits.
+At Git registration, the additional delivery-email wording correction had not been deployed. The owner subsequently authorized its production installation and testing; that follow-up is recorded below. The Git source was reconciled onto current `develop` without incorporating unrelated local edits.
 
 Local validation used PHP 8.4.26 in an isolated worktree, matching `composer.lock` dependencies, SQLite in memory and synthetic credentials. All eight changed PHP/Blade files passed syntax checks, and `git diff --check` passed.
 
@@ -35,6 +35,18 @@ php vendor/phpunit/phpunit/phpunit tests/Feature/CloudProvisionTest.php tests/Fe
 ```
 
 The full application suite was not run. These local tests do not establish MariaDB behavior, email delivery or an actual remote-desktop login. No provider purchase, password reset or customer message was performed for Git validation.
+
+### Delivery-email production follow-up
+
+Status: **installed and verified in production** for the email wording and server-side render. Source/base Git revision: `a23af6a1d14258272d9f5159905be8795abeabd2` on `develop`. Installation completed on 28 October 2026 at **11:51:30 UTC**.
+
+Only `email_service_pass_panel` changed in each of `website/lang/fa/ui.php`, `website/lang/en/ui.php` and `website/lang/tr/ui.php`, mapped to the corresponding live application language files. The release started from fresh live files, preserving every other translation rather than replacing those files from the checkout. PHP 8.4.27 lint and full-array comparison after removing the selected key passed for all three candidates. Private backups, before/after SHA-256 preconditions, a release lock, permission-preserving staging and per-file atomic rename guarded installation. All three installed hashes matched the reviewed candidates.
+
+The actual installed `ServiceReadyMail::render()` and full email layout passed **31 checks** with synthetic service data across Persian, English and Turkish. Checks included the exact new guidance, removal of the once-only promise, service-page link, recipient locale, layout direction, locale restoration and exclusion of a supplied synthetic password. Tests used a read-only in-memory SQLite connection, unavailable production database connections, array mail/cache/session, blocked outgoing HTTP and private compiled views. No email was sent and no production database write occurred. The candidate passed the same 31 checks before installation; an initial candidate-harness path error was corrected to retain production translation support files, without changing the application.
+
+After installation, public `/up` checks returned HTTP 200 on both the main site and customer console. These are bootstrap health checks, not evidence of an SMTP delivery. The delivery path sends this mailable synchronously; the naturally scheduled cloud synchronization process loads fresh language files. No queue restart, broad cache flush, migration, cron invocation, provider operation, guest change or network change was performed. PHP-FPM cache state and actual mailbox receipt were not separately tested by this CLI render acceptance.
+
+Private release identifier: `password-reveal-email-20261028`. The backup and manifest remain outside the webroot. To roll back this follow-up, restore only the three email-key changes after checking for newer edits; the guarded helper refuses unknown live hashes. No rollback was required. Reverting this text correction does not roll back repeatable password reveal.
 
 ## Limits and rollback
 
