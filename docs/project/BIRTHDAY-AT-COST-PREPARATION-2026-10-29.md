@@ -78,6 +78,17 @@ Rollback: turn off SMS and program through the dedicated admin form, which revok
 
 Execution uses synthetic records and fake provider/SMS responses only. Local Windows execution was unavailable because the tool launcher failed before shell startup; GitHub Actions provides isolated PHP 8.4 SQLite and MariaDB 11.4 execution. No production credentials enter CI.
 
-The new birthday financial cases must all pass. Existing regression suites are also run against the immutable develop base and the change; the comparison rejects new failures and explicitly lists existing baseline failures. Existing manual-FX-dependent tests must not be described as passing because a baseline comparison is green. Final result counts and CI link are recorded below after completion.
+The new birthday financial cases must all pass. Existing regression suites are also run against the immutable develop base and the change; the comparison rejects new failures and explicitly lists existing baseline failures. Existing manual-FX-dependent tests must not be described as passing because a baseline comparison is green. Verified financial run on source 50027ab3becf0c21322e4a7dd0a044e267ef214b: https://github.com/servernetir/server/actions/runs/40782466983.
+
+| Check | SQLite | MariaDB 11.4 |
+|---|---:|---:|
+| New birthday cases | 25 passed, 434 assertions | 25 passed, 434 assertions |
+| Existing regression cases compared against base | 298 | 298 |
+| Existing failing cases on both base and change | 20 (16 errors, 4 failures) | 21 (16 errors, 5 failures), plus 1 existing risky test |
+| Newly failing regression cases | 0 | 0 |
+
+The baseline failures include older manual-FX-dependent AI/domain/hourly fixtures. They remain open and are not represented as passing tests. Native AI and settlement suites were included in the comparison. The new supplier evidence test confirms that later registry edits cannot rewrite the invoice's original document reference.
+
+The first navigation run timed out because its synthetic Blade fixture did not replace the new birthday-notice include, so it served an unresolved fixture before any browser scenario ran. The fixture now explicitly removes that dynamic PHP partial, as it already does the avatar. Three-locale PHP invoice tests cover actual birthday rendering. Browser navigation acceptance is recorded in PR checks after the fixture correction.
 
 No production or visual-browser acceptance is claimed.
