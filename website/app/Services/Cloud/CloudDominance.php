@@ -59,16 +59,27 @@ class CloudDominance
             return $list;
         }
 
-        // Different cities can never satisfy sameContract(). The global
-        // catalogue may contain hundreds of offers, so avoid running the
-        // full contract check for every unrelated city pair. Canonical city
-        // aliases must share a bucket; retain the original result ordering.
-        $city = static fn ($plan) => $plan instanceof \App\Models\CloudPlan
-            ? \App\Models\CloudLocation::canonicalCode((string) $plan->location_code) : '';
-        $byCity = $list->groupBy($city);
+        // These immutable display/resource facts are local to this prune call.
+        // Eloquent would otherwise cast them again for every candidate pair.
+        // Money, eligibility and live contract checks are deliberately absent.
+        $facts = [];
+        foreach ($list as $plan) {
+            if ($plan instanceof \App\Models\CloudPlan) {
+                $facts[spl_object_id($plan)] ??= self::comparisonFacts($plan);
+            }
+        }
+        // Every field in the bucket is a necessary equality condition in the
+        // unchanged contract predicate. Canonical city aliases stay together.
+        $bucket = static fn ($plan) => $plan instanceof \App\Models\CloudPlan
+            ? $facts[spl_object_id($plan)]['bucket'] : '';
+        $candidates = $list->groupBy($bucket);
 
         return $list
-            ->reject(fn ($b) => $byCity->get($city($b))->contains(fn ($a) => self::compare($a, $b, $selection)))
+            ->reject(fn ($b) => $candidates->get($bucket($b))->contains(fn ($a) => self::compare(
+                $a, $b, $selection,
+                $a instanceof \App\Models\CloudPlan ? $facts[spl_object_id($a)] : null,
+                $b instanceof \App\Models\CloudPlan ? $facts[spl_object_id($b)] : null,
+            )))
             ->values();
     }
 
@@ -84,7 +95,7 @@ class CloudDominance
         return self::compare($a, $b, new CloudOfferSelection);
     }
 
-    private static function compare(mixed $a, mixed $b, CloudOfferSelection $selection): bool
+    private static function compare(mixed $a, mixed $b, CloudOfferSelection $selection, ?array $aFacts = null, ?array $bFacts = null): bool
     {
         if ($a === $b || ! $a instanceof \App\Models\CloudPlan || ! $b instanceof \App\Models\CloudPlan) {
             return false;
@@ -93,18 +104,20 @@ class CloudDominance
         // Resource counts alone cannot make another city, licence, billing
         // contract or access feature interchangeable. Never prune that value.
         if (! $a->is_active || ! $a->in_stock || $a->admin_disabled) { return false; }
+        $aFacts ??= self::comparisonFacts($a);
+        $bFacts ??= self::comparisonFacts($b);
 
         // ناهم‌سنخ: هیچ‌کدام جایگزینِ دیگری نیست
-        if ((string) $a->arch !== (string) $b->arch) {
+        if ($aFacts['arch'] !== $bFacts['arch']) {
             return false;
         }
 
-        if ((string) $a->cpu_kind !== (string) $b->cpu_kind) {
+        if ($aFacts['cpu'] !== $bFacts['cpu']) {
             return false;
         }
         // Hourly traffic allowances and fixed-bandwidth contracts are not
         // interchangeable, even when CPU, RAM and total storage match.
-        if (($a->network_terms ?? null) != ($b->network_terms ?? null)) {
+        if ($aFacts['network'] != $bFacts['network']) {
             return false;
         }
 
@@ -115,8 +128,7 @@ class CloudDominance
         | هم‌مشخصات را بی‌صدا از فروشگاه حذف می‌کرد (۵ شهریور ۱۴۰۵: RTX 4090
         | با آمدنِ GTX 1650ِ هم‌مشخصات و ارزان‌تر از ویترین غیب شد).
         */
-        if (strtolower(trim((string) $a->gpu_model)) !== strtolower(trim((string) $b->gpu_model))
-            || (int) $a->gpu_count !== (int) $b->gpu_count) {
+        if ($aFacts['gpu'] !== $bFacts['gpu'] || $aFacts['gpu_count'] !== $bFacts['gpu_count']) {
             return false;
         }
 
@@ -132,18 +144,13 @@ class CloudDominance
             return false;
         }
 
-        $dims = [
-            [(int) $a->vcpu,       (int) $b->vcpu],
-            [(int) $a->ram_mb,     (int) $b->ram_mb],
-            [(int) $a->disk_gb,    (int) $b->disk_gb],
-            [(int) $a->traffic_gb, (int) $b->traffic_gb],
-            [self::diskRank($a),   self::diskRank($b)],
-        ];
-
-        foreach ($dims as [$av, $bv]) {
+        $betterResources = false;
+        foreach ($aFacts['dims'] as $dimension => $av) {
+            $bv = $bFacts['dims'][$dimension];
             if ($av < $bv) {
                 return false;                    // «الف» در این بُعد بدتر است
             }
+            $betterResources = $betterResources || $av > $bv;
         }
 
         // A candidate with fewer resources or a dearer monthly price cannot
@@ -160,13 +167,24 @@ class CloudDominance
             return true;
         }
 
-        foreach ($dims as [$av, $bv]) {
-            if ($av > $bv) {
-                return true;
-            }
-        }
+        return $betterResources;
+    }
 
-        return false;
+    private static function comparisonFacts(\App\Models\CloudPlan $plan): array
+    {
+        $city = \App\Models\CloudLocation::canonicalCode((string) $plan->location_code);
+        $arch = (string) $plan->arch;
+        $cpu = (string) $plan->cpu_kind;
+        $gpu = strtolower(trim((string) $plan->gpu_model));
+        $gpuCount = (int) $plan->gpu_count;
+
+        return [
+            'bucket' => serialize([$city, $arch, $cpu, $gpu, $gpuCount]),
+            'arch' => $arch, 'cpu' => $cpu, 'gpu' => $gpu, 'gpu_count' => $gpuCount,
+            'network' => $plan->network_terms ?? null,
+            'dims' => [(int) $plan->vcpu, (int) $plan->ram_mb, (int) $plan->disk_gb,
+                (int) $plan->traffic_gb, self::diskRank($plan)],
+        ];
     }
 
     private static function diskRank(mixed $plan): int

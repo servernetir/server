@@ -87,6 +87,74 @@ class CloudDominancePartitionTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_pure_fact_buckets_keep_the_frozen_contract_results_for_a_mixed_catalogue(): void
+    {
+        $base = $this->plan('base', 'tr-istanbul', ['network_terms' => ['quota' => 1000, 'overage' => ['rate' => 0, 'unit' => 'GB']]]);
+        $changes = [
+            ['location_code' => 'tr-istanbul-ii', 'price_irt' => 300000, 'price_eur_cents' => 300],
+            ['location_code' => 'de-berlin'], ['arch' => 'arm'], ['cpu_kind' => 'dedicated'],
+            ['gpu_model' => 'RTX 3090', 'gpu_count' => 1], ['gpu_count' => 2], ['gpu_vram_mb' => 8192],
+            ['is_interruptible' => true], ['disk_type' => 'ssd'], ['disk_type' => 'NVME'],
+            ['network_terms' => ['overage' => ['unit' => 'GB', 'rate' => 0], 'quota' => 1000]],
+            ['network_terms' => ['quota' => '1000', 'overage' => ['rate' => 0, 'unit' => 'GB']]],
+            ['network_terms' => null], ['network_terms' => 'invalid'],
+            ['setup_eur_cents' => 200, 'price_irt' => 100000, 'price_eur_cents' => 100],
+            ['is_active' => false], ['in_stock' => false], ['admin_disabled' => true],
+            ['price_irt' => 0], ['price_eur_cents' => 0], ['vcpu' => 4, 'ram_mb' => 4096],
+        ];
+        $plans = collect([$base]);
+        foreach ($changes as $i => $change) {
+            $plans->push($this->plan('variant-'.$i, 'tr-istanbul', array_replace([
+                'network_terms' => ['quota' => 1000, 'overage' => ['rate' => 0, 'unit' => 'GB']],
+            ], $change)));
+        }
+        // Preserve prior tolerance and object identity for repeated/mixed inputs.
+        $plans->push($base, null, new \stdClass);
+        $this->assertSame($this->referencePrune($plans)->all(), CloudDominance::prune($plans)->all());
+        Http::assertNothingSent();
+    }
+
+    public function test_facts_are_rebuilt_after_resource_price_or_availability_changes_between_calls(): void
+    {
+        $good = $this->plan('good', 'de-berlin', ['vcpu' => 4, 'ram_mb' => 4096]);
+        $bad = $this->plan('bad', 'de-berlin', ['price_irt' => 300000, 'price_eur_cents' => 300]);
+        $plans = collect([$bad, $good]);
+        $this->assertSame([$good], CloudDominance::prune($plans)->all());
+        foreach ([['vcpu' => 1], ['arch' => 'arm'], ['gpu_model' => 'RTX 3090'],
+            ['network_terms' => ['quota' => 100]], ['price_irt' => 0], ['in_stock' => false]] as $change) {
+            $original = $good->getAttributes();
+            $good->fill($change);
+            $this->assertSame($this->referencePrune($plans)->all(), CloudDominance::prune($plans)->all());
+            $this->assertSame([$bad, $good], CloudDominance::prune($plans)->all());
+            $good->setRawAttributes($original);
+            $this->assertSame([$good], CloudDominance::prune($plans)->all());
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_nonfinancial_casts_are_bounded_while_money_and_eligibility_are_not_memoized(): void
+    {
+        $plans = collect(range(1, 80))->map(function ($i) {
+            $plan = new CountingDominanceFactsPlan;
+            $plan->setRawAttributes($this->plan('size-'.$i, 'de-berlin', [
+                'vcpu' => $i, 'ram_mb' => 1024 * $i, 'disk_gb' => 20 * $i,
+                'price_irt' => 100000 * $i, 'price_eur_cents' => 100 * $i,
+                'network_terms' => ['quota' => 1000],
+            ])->getAttributes());
+            return $plan;
+        });
+        $this->assertSame($plans->all(), CloudDominance::prune($plans)->all());
+        foreach (['location_code', 'arch', 'cpu_kind', 'network_terms', 'gpu_model', 'gpu_count',
+            'vcpu', 'ram_mb', 'disk_gb', 'traffic_gb', 'disk_type'] as $field) {
+            $reads = $plans->sum(fn ($plan) => $plan->reads[$field] ?? 0);
+            $this->assertLessThanOrEqual($plans->count() * 2, $reads, $field);
+        }
+        foreach (['price_irt', 'is_active', 'in_stock', 'admin_disabled'] as $field) {
+            $this->assertGreaterThan($plans->count(), $plans->sum(fn ($plan) => $plan->reads[$field] ?? 0), $field);
+        }
+        Http::assertNothingSent();
+    }
+
     /** Frozen pre-optimization predicate, independent of the production helper. */
     private function referencePrune($plans)
     {
@@ -112,5 +180,16 @@ class CloudDominancePartitionTest extends TestCase
         if ($selection->priceDominates($a, $b)) { return true; }
         foreach ($dims as [$av, $bv]) { if ($av > $bv) { return true; } }
         return false;
+    }
+}
+
+class CountingDominanceFactsPlan extends CloudPlan
+{
+    public array $reads = [];
+
+    public function getAttribute($key)
+    {
+        $this->reads[$key] = ($this->reads[$key] ?? 0) + 1;
+        return parent::getAttribute($key);
     }
 }

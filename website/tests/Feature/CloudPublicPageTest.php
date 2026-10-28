@@ -682,6 +682,9 @@ class CloudPublicPageTest extends TestCase
             $this->assertStringContainsString('id="clp-pager" aria-label="'.$strings['cloud_page_label'].'" hidden', $main);
             $this->assertStringContainsString($strings['cloud_page_prev'], $main);
             $this->assertStringContainsString($strings['cloud_page_next'], $main);
+            $this->assertStringContainsString($strings['cloud_scroll_hint'], $main);
+            $this->assertStringContainsString('class="cvps-tw" tabindex="0" role="region" aria-labelledby="clp-results-title" aria-describedby="clp-scroll-hint"', $main);
+            $this->assertStringContainsString('id="clp-results-title" tabindex="-1"', $main);
             preg_match('~<tbody id="clp-body">(.*?)</tbody>~s', $main, $table);
             $this->assertSame(count($response->viewData('rows')), substr_count($table[1], 'data-row="1"'));
             $this->assertStringNotContainsString(' hidden', $table[1]);

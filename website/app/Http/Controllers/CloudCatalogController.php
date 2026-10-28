@@ -326,6 +326,7 @@ class CloudCatalogController extends Controller
         'cloud_page_next' => ['fa' => 'صفحهٔ بعد', 'en' => 'Next page', 'tr' => 'Sonraki sayfa'],
         'cloud_page_label' => ['fa' => 'صفحه‌های پلن‌ها', 'en' => 'Plan pages', 'tr' => 'Paket sayfaları'],
         'cloud_page_summary' => ['fa' => 'صفحهٔ :page از :pages · پلن‌های :from تا :to از :total', 'en' => 'Page :page of :pages · plans :from–:to of :total', 'tr' => 'Sayfa :page / :pages · :total paketten :from–:to'],
+        'cloud_scroll_hint' => ['fa' => 'برای دیدن همهٔ مشخصات، قیمت و دکمهٔ خرید، جدول را افقی حرکت دهید.', 'en' => 'Scroll the table horizontally to see all specifications, prices and purchase buttons.', 'tr' => 'Tüm özellikleri, fiyatları ve satın alma düğmelerini görmek için tabloyu yatay kaydırın.'],
         'cloud_nomatch' => [
             'fa' => 'با این فیلترها پلنی پیدا نشد. یکی از فیلترها را روی «همه» بگذارید.',
             'en' => 'No plan matches these filters. Set one of them back to “All”.',

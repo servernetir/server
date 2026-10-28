@@ -74,11 +74,15 @@ class CloudOfferImageIndexTest extends TestCase
         $plans = collect([
             $this->plan('fixture'), $this->plan('fixture', ['arch' => 'arm']),
             $this->plan('fixture', ['arch' => null, 'ram_mb' => 8192, 'boot_disk_gb' => 100]),
+            $this->plan('fixture', ['boot_disk_gb' => null]),
+            $this->plan('fixture', ['boot_disk_gb' => 0]),
             $this->plan('other'), $this->plan('missing'),
             $this->plan('lightnode'), $this->plan('lightnode', ['provider_ref' => 'region-ab|package']),
             $this->plan('lightnode', ['provider_ref' => '|package']),
             $this->plan('lightnode', ['provider_ref' => 'region-a', 'vcpu' => 1]),
             $this->plan('lightnode', ['ram_mb' => 2048]),
+            $this->plan('lightnode', ['ram_mb' => 4095]),
+            $this->plan('lightnode', ['ram_mb' => 4096, 'vcpu' => 2]),
             $this->plan('vpstc'), $this->plan('vpstc', ['provider_ref' => 'region-a']),
             $this->plan('arvan'), $this->plan('arvan', ['vcpu' => 8, 'ram_mb' => 16384, 'boot_disk_gb' => 100]),
             $this->plan('salad'), $this->plan('salad', ['gpu_model' => 'GTX 1080']),
@@ -118,6 +122,45 @@ class CloudOfferImageIndexTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_plan_attributes_are_resolved_once_per_predicate_instead_of_once_per_image(): void
+    {
+        for ($i = 0; $i < 120; $i++) {
+            $this->image('fixture', 'image-'.$i);
+        }
+        $plan = new CountingImageSelectionPlan($this->plan('fixture')->getAttributes());
+        $selection = new CloudOfferSelection;
+        $method = new ReflectionMethod($selection, 'imageSet');
+        $images = CloudImage::query()->usable()->get();
+        $expected = $this->originalImageSet($plan, $images);
+        $plan->attributeReads = [];
+        $this->assertSame($expected, $method->invoke($selection, $plan));
+        foreach (['provider', 'provider_ref', 'arch', 'ram_mb', 'boot_disk_gb', 'vcpu', 'provider_location', 'gpu_model'] as $field) {
+            $this->assertSame(1, $plan->attributeReads[$field] ?? 0, $field);
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_image_metadata_reuse_does_not_cache_the_arvan_windows_access_gate(): void
+    {
+        $this->image('arvan', 'windows-current', ['family' => 'windows']);
+        $images = CloudImage::query()->usable()->get();
+        $selection = new CloudOfferSelection;
+        $method = new ReflectionMethod($selection, 'imageSet');
+        // Distinct plans share the loaded image catalogue, while each new
+        // predicate must still consult the current access gate before filtering.
+        $blocked = $this->plan('arvan');
+        $allowed = $this->plan('arvan');
+        $blockedAgain = $this->plan('arvan');
+        Setting::put('arvan_windows_ready_image_refs', '');
+        $this->assertSame([], $method->invoke($selection, $blocked));
+        Setting::put('arvan_windows_ready_image_refs', 'windows-current');
+        $this->assertSame($this->originalImageSet($allowed, $images), $method->invoke($selection, $allowed));
+        $this->assertSame(['os|windows-current|windows|24.04'], $method->invoke($selection, $allowed));
+        Setting::put('arvan_windows_ready_image_refs', '');
+        $this->assertSame([], $method->invoke($selection, $blockedAgain));
+        Http::assertNothingSent();
+    }
+
     /** Frozen image predicate from before provider/region candidate indexing. */
     private function originalImageSet(CloudPlan $plan, Collection $images): array
     {
@@ -142,5 +185,16 @@ class CloudOfferImageIndexTest extends TestCase
         }
         sort($out, SORT_STRING);
         return array_values(array_unique($out));
+    }
+}
+
+class CountingImageSelectionPlan extends CloudPlan
+{
+    public array $attributeReads = [];
+
+    public function getAttribute($key)
+    {
+        $this->attributeReads[$key] = ($this->attributeReads[$key] ?? 0) + 1;
+        return parent::getAttribute($key);
     }
 }
