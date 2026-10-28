@@ -1645,3 +1645,13 @@ html[data-theme="light"] .cvb-plan:hover{background:rgba(20,30,60,.04)}
   .cvx-store.cvx-enhanced:not([data-active-step="1"]) .cvb-step-i{height:auto}
   .cvx-store.cvx-enhanced:not([data-active-step="1"]) .cvb-main>.pnl-sec>.cvb-step-b>.cvb-step-i>.pnl-sec-b{height:auto;display:block}
 }
+
+/* Visible unavailable choices: source radios and enhanced OS/version cards. */
+.cvb-img[aria-disabled="true"],.cvb-seg[aria-disabled="true"],.cvb-image-card[aria-disabled="true"],.cvb-version-option:disabled{filter:grayscale(1);opacity:.6;cursor:not-allowed}
+.cvb-choice-reason{display:block;flex-basis:100%;padding:4px 10px;font-size:12px;line-height:1.7;color:var(--muted);white-space:normal}
+.cvb-choice-reason:empty{display:none}
+.cvb-img{flex-wrap:wrap}
+.cvb-seg-h{flex-wrap:wrap}
+.cvb-seg-h small{max-width:25em;font-size:11px;white-space:normal}
+.cvb-nat[aria-disabled="true"]{filter:grayscale(1);opacity:.6;cursor:not-allowed}
+.cvb-nat .cvb-country-reason{display:block;white-space:normal;line-height:1.6}

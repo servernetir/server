@@ -1,6 +1,15 @@
 <?php
 
 return [
+    'choice_hourly' => 'Bu konumda bu plan için saatlik faturalandırma sunulmuyor.',
+    'choice_cycle' => 'Seçilen plan için bu ödeme dönemi sunulmuyor.',
+    'choice_image_unavailable' => 'Bu işletim sistemi veya uygulama şu anda bu plan ve konum için sunulmuyor.',
+    'choice_ram' => 'En az :amount MB RAM gerekiyor; seçilen planın belleği yetersiz.',
+    'choice_disk' => 'En az :amount GB sistem diski gerekiyor; veri diski sistem diskinin yerine geçmez.',
+    'choice_arch' => 'Bu planın işlemci mimarisiyle uyumlu değil.',
+    'choice_cpu' => 'En az :amount sanal işlemci gerekiyor.',
+    'choice_country_hourly' => 'Bu ülkede şu anda satışa uygun saatlik plan bulunmuyor.',
+
     'iv_no_payment_methods' => 'Bu dil için şu anda etkin bir ödeme yöntemi yok. Ödeme için destek ekibiyle iletişime geçin.',
     'f_email_transactional' => 'İşlemsel E-posta ve SMTP',
     'cvb_live_price_changed' => 'Bu paketin fiyatı güncellendi. Ücret alınmadı; yeni fiyatı inceleyip satın almayı tekrar onaylayın.',

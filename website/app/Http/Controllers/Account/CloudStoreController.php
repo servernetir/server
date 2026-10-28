@@ -58,7 +58,7 @@ use Illuminate\View\View;
  *    دیگرِ همان اسلاگ می‌رود. پس «قابلِ تحویل» یعنی: ایمیج روی دستِ‌کم یکی
  *    از زیرساخت‌هایی که همین اسلاگ را می‌فروشند موجود باشد، معماری‌اش با پلن
  *    بخواند و `min_disk_gb` از دیسکِ پلن بیشتر نباشد. گزینه‌ای که تحویل
- *    نمی‌شود، **نباید** به مشتری نشان داده شود — وگرنه پول می‌گیریم و
+ *    نمی‌شود، باید با دلیل غیرفعال نمایش داده شود و قابل سفارش نباشد — وگرنه پول می‌گیریم و
  *    ساختش شکست می‌خورد.
  */
 class CloudStoreController extends Controller
@@ -729,11 +729,14 @@ class CloudStoreController extends Controller
         | `CloudCountry::served()` هم شهرهای خام را حساس‌به‌حروف می‌شمارد.
         */
         $anchors = self::priceAnchors();
+        $hourlyCodes = CloudPlan::sellable()->hourlyCapable()->where('slug', 'not like', 'cbm-%')->pluck('location_code')
+            ->map(fn ($c) => CloudLocation::canonicalCode($c))->unique()->all();
 
         foreach ($groups as $i => $g) {
             $cities = self::cityBuckets($g['locations'], $openCodes, $anchors);
 
             $groups[$i]['cities'] = $cities;
+            $groups[$i]['hourlyAvailable'] = collect($g['locations'])->contains(fn ($l) => in_array($l->code, $hourlyCodes, true));
             $groups[$i]['openCities'] = count(array_filter($cities, fn ($c) => $c['open']));
             $groups[$i]['region'] = self::regionOf((string) $g['country']);
 
@@ -910,6 +913,8 @@ class CloudStoreController extends Controller
         $manager = app(\App\Services\Cloud\CloudManager::class);
         $offerSelection = new \App\Services\Cloud\CloudOfferSelection;
 
+        $imageReasons = [];
+        $availability = app(\App\Services\Cloud\CloudChoiceAvailability::class);
         $imageMap = [];     // slug => ['os' => [key,…], 'app' => [key,…]]
         $priceMap = [];     // slug => cycle => ['cycle','per','first','save']
         $planCards = [];    // دادهٔ نمایشیِ امن (بی‌هیچ ستونِ زیرساخت)
@@ -932,6 +937,8 @@ class CloudStoreController extends Controller
                 foreach ($catalog as $img) {
                     if (self::deliverable($offer, $slugProviders, $rowsByKey->get((string) $img->key, collect()))) {
                         $keys[] = (string) $img->key;
+                    } else {
+                        $imageReasons[$slug][$img->key] = $availability->imageReason($offer, $rowsByKey->get((string) $img->key, collect()), $rows);
                     }
                 }
 
@@ -1054,8 +1061,7 @@ class CloudStoreController extends Controller
         // به HTML نمی‌رود. اگر فقط با CSS پنهانش می‌کردیم، در سورس دیده می‌شد و
         // بدتر: با یک دستکاریِ ساده قابلِ ارسال بود.
         $union = collect($imageMap);
-        $osCatalog = $osCatalog
-            ->whereIn('key', $union->pluck('os')->flatten()->unique()->all())->values();
+        // Keep known OS choices visible; eligibility remains in imageMap/order().
         $appCatalog = $appCatalog
             ->whereIn('key', $union->pluck('app')->flatten()->unique()->all())->values();
 
@@ -1076,6 +1082,7 @@ class CloudStoreController extends Controller
             'osCatalog' => $osCatalog,
             'appCatalog' => $appCatalog,
             'imageMap' => $imageMap,
+            'imageReasons' => $imageReasons,
             'priceMap' => $priceMap,
             'cycles' => $cycles,
             'cycleLabels' => collect($cycles)->mapWithKeys(fn ($c) => [$c => Service::labelFor($c)])->all(),

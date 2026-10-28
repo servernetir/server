@@ -214,14 +214,14 @@ class CloudStoreTest extends TestCase
     }
 
     /** پلنی که برای این پلن قابلِ تحویل نیست، حتی پنهان هم در HTML نباشد */
-    public function test_an_image_that_cannot_fit_any_plan_never_reaches_the_html(): void
+    public function test_an_image_that_cannot_fit_any_plan_is_visible_but_disabled(): void
     {
         $this->catalog();
 
         $html = $this->actingAs($this->customer(), 'customer')->get($this->u())->getContent();
 
-        $this->assertStringNotContainsString('Windows Server 2022', $html);
-        $this->assertStringNotContainsString('windows-2022', $html);
+        $this->assertStringContainsString('Windows Server 2022', $html);
+        $this->assertMatchesRegularExpression('/<input[^>]*value="windows-2022"[^>]*disabled/', $html);
     }
 
     /** سیستم‌عاملِ سنگین روی پلن کم‌رم نه نمایش داده شود و نه با POST قابل دورزدن باشد. */

@@ -70,7 +70,7 @@
       button.setAttribute('aria-controls',id);
       select.hidden=true; select.insertAdjacentElement('afterend',button);
       var picker={button:button};
-      function options() { return Array.from(select.options).filter(function(o){return !o.disabled&&!o.hidden;}); }
+      function options() { return Array.from(select.options).filter(function(o){return !o.hidden;}); }
       function open(first) {
         if (button.disabled) return;
         if (activeMenu && activeMenu.picker===picker) { closeVersionMenu(true); return; }
@@ -80,6 +80,7 @@
         var items=[];
         options().forEach(function(option){
           var item=el('button','cvb-version-option'); item.type='button'; item.tabIndex=-1;
+          item.disabled=option.disabled; item.setAttribute('aria-disabled',option.disabled?'true':'false');
           item.setAttribute('role','option'); item.setAttribute('aria-selected',option.value===select.value?'true':'false');
           item.appendChild(icon('check','cvb-version-option-check'));
           item.appendChild(el('span','',option.text));
@@ -91,7 +92,7 @@
             select.dispatchEvent(new doc.defaultView.Event('change',{bubbles:true}));
             button.focus();
           });
-          popup.appendChild(item); items.push(item);
+          popup.appendChild(item); if (!item.disabled) items.push(item);
         });
         if (!items.length) return;
         // A body-level popup escapes card overflow and inline-size containment.
@@ -141,7 +142,7 @@
       if (activeMenu&&!activeMenu.popup.contains(event.target)) closeVersionMenu(false);
     },true);
     function choose(card) {
-      var item = card.items.find(function (item) { return !item.source.hidden && item.input.value === card.select.value; });
+      var item = card.items.find(function (item) { return !item.source.hidden && !item.input.disabled && item.input.value === card.select.value; });
       if (!item) return;
       item.input.checked = true;
       item.input.dispatchEvent(new doc.defaultView.Event('change', {bubbles:true}));
@@ -186,8 +187,9 @@
         });
         var single=el('span','cvb-image-single'); single.dir='auto';
         bottom.appendChild(select); bottom.appendChild(single); bottom.appendChild(icon('chev','cvb-image-chevron'));
+        var reason=el('small','cvb-choice-reason'); box.appendChild(reason);
         box.appendChild(bottom); grid.appendChild(box);
-        var card={box:box,button:button,select:select,single:single,bottom:bottom,items:group.items,picker:versionPicker(select)};
+        var card={box:box,button:button,select:select,single:single,bottom:bottom,reason:reason,items:group.items,picker:versionPicker(select)};
         button.addEventListener('click',function(){choose(card);});
         select.addEventListener('change',function(){choose(card);});
         single.addEventListener('click',function(){choose(card);});
@@ -199,28 +201,37 @@
     });
     function refresh() {
       cards.forEach(function(card){
-        var available=card.items.filter(function(item){return !item.source.hidden;});
+        var available=card.items.filter(function(item){return !item.source.hidden && !item.input.disabled;});
         var selected=available.find(function(item){return item.input.checked;});
-        card.box.hidden=available.length===0;
+        card.box.hidden=false;
+        card.box.setAttribute('aria-disabled',available.length ? 'false' : 'true');
+        card.button.disabled=available.length===0;
+        var blocked=card.items.find(function(item){return item.input.disabled;});
+        var note=blocked && blocked.source.querySelector('.cvb-choice-reason');
+        card.reason.textContent=available.length ? '' : (note ? note.textContent : '');
         card.box.classList.toggle('is-selected',!!selected);
         card.button.setAttribute('aria-pressed',selected?'true':'false');
         card.button.setAttribute('aria-label',card.button.querySelector('b').textContent+(selected?' — '+words.selected:''));
         Array.from(card.select.options).forEach(function(option){
           var can=available.some(function(item){return item.input.value===option.value;});
-          option.hidden=!can; option.disabled=!can;
+          option.hidden=false; option.disabled=!can;
+          var original=card.items.find(function(item){return item.input.value===option.value;});
+          var reason=original && original.source.querySelector('.cvb-choice-reason');
+          option.text=original.info.version + (!can && reason && reason.textContent ? ' — '+reason.textContent : '');
         });
         var remembered=available.find(function(item){return item.input.value===card.select.value;});
         var current=selected || remembered || available[0];
+        if (!current) current=card.items[0];
         if (current) {
           card.select.value=current.input.value;
           card.single.textContent=current.info.version.toLowerCase()===current.info.name.toLowerCase() ? words.ready : current.info.version;
         }
         card.select.disabled=available.length===0;
-        card.bottom.classList.toggle('is-single',available.length<2);
+        card.bottom.classList.toggle('is-single',card.items.length<2);
         card.picker.refresh();
       });
       form.querySelectorAll('[data-image-continue]').forEach(function(button){
-        button.hidden=!button.parentNode.querySelector('.cvb-image-card:not([hidden])');
+        button.hidden=!cards.some(function(card){return button.parentNode.contains(card.box) && card.items.some(function(item){return !item.source.hidden && !item.input.disabled && item.input.checked;});});
       });
     }
     refresh();
