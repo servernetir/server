@@ -3168,6 +3168,12 @@ Route::prefix('admin')->group(function () {
 
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
         Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');
+        // Action URLs are POST-only. A browser/history/expired form must return
+        // to the catalogue instead of exposing Laravel's generic 405 page.
+        // This GET never queues or executes provider work.
+        Route::get('/cloud/sync', fn () => redirect()->route('admin.cloud', status: 303)
+            ->with('err', 'درخواست همگام‌سازی از مسیر امن اجرا نشد و هیچ تغییری اعمال نشد. از دکمهٔ همگام‌سازی همین صفحه استفاده کنید.'))
+            ->middleware('admin');
         Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync'])->middleware('admin');
         // ابزارِ عیب‌یابیِ ساختارِ پاسخ — نگاشتِ فیلدهای زیرساختِ ۲ کاملاً قطعی نیست
         // اتصالِ سرورِ ازقبل‌ساخته‌شده به مشتری — سرور نمی‌سازد، فقط ثبت می‌کند.
