@@ -1,0 +1,51 @@
+[
+  {
+    "path": "/cloud?ux_probe=20261028cpu",
+    "metrics": "200,2.641424,3.412625,1080807",
+    "canonical": "https://servernet.cloud/cloud",
+    "scroll_hint": true,
+    "h1": 1
+  },
+  {
+    "path": "/en/cloud",
+    "metrics": "200,4.039297,4.765256,1014394",
+    "canonical": "https://servernet.cloud/en/cloud",
+    "scroll_hint": true,
+    "h1": 1
+  },
+  {
+    "path": "/tr/cloud",
+    "metrics": "200,2.661986,3.407557,1027085",
+    "canonical": "https://servernet.cloud/tr/cloud",
+    "scroll_hint": true,
+    "h1": 1
+  },
+  {
+    "path": "/cloud/ae-dubai",
+    "metrics": "200,1.107018,1.442221,192356",
+    "canonical": "https://servernet.cloud/cloud/ae-dubai",
+    "scroll_hint": false,
+    "h1": 1
+  },
+  {
+    "path": "/cloud/ph-manila",
+    "metrics": "200,1.167094,1.492136,196657",
+    "canonical": "https://servernet.cloud/cloud/ph-manila",
+    "scroll_hint": false,
+    "h1": 1
+  },
+  {
+    "path": "/vps/hourly",
+    "metrics": "200,1.490598,1.923243,252454",
+    "canonical": "https://servernet.cloud/vps/hourly",
+    "scroll_hint": false,
+    "h1": 1
+  },
+  {
+    "path": "/gpu",
+    "metrics": "200,1.755763,2.212182,247093",
+    "canonical": "https://servernet.cloud/gpu",
+    "scroll_hint": false,
+    "h1": 1
+  }
+]
