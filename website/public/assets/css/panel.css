@@ -180,6 +180,7 @@ html[data-theme="light"] .pnl-sec{background:#fff}
 /* در دسکتاپ پنهان است؛ در موبایل جای سایدبار ثابت را می‌گیرد. */
 .pnl-mobar{display:none}
 .pnl-drawer-bd{display:none}
+.pnl-nav-close{display:none}
 
 /* ============================ ریسپانسیو ============================ */
 @media(max-width:1000px){
@@ -204,21 +205,27 @@ html[data-theme="light"] .pnl-sec{background:#fff}
      پشتِ کشو می‌زند بیرون و «شیشه‌ای/قاطی» دیده می‌شود (باگِ گزارش‌شده). */
   .pnl-side{position:fixed;inset-inline:0;top:0;z-index:395;
     max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
-    transform:translateY(-100%);transition:transform .3s var(--ease);
+    visibility:hidden;transform:translateY(-100%);
+    transition:transform .3s var(--ease),visibility 0s .3s;
     padding:12px 14px 18px;background:var(--bg2);
     border-bottom:1px solid var(--line-2);box-shadow:0 18px 50px rgba(0,0,0,.6);
     border-radius:0 0 22px 22px}
   html[data-theme="light"] .pnl-side{background:#fff;box-shadow:0 18px 50px rgba(20,30,60,.16)}
-  .pnl-side.open{transform:translateY(0)}
+  .pnl-side.open{visibility:visible;transform:translateY(0);transition-delay:0s}
   /* داخلِ کشو، کارت دیگر پس‌زمینه/حاشیهٔ خودش را ندارد؛ خودِ کشو «سطح» است */
   .pnl-side .pnl-card{background:transparent;border:0;border-radius:0;padding:4px 2px;box-shadow:none}
   html[data-theme="light"] .pnl-side .pnl-card{background:transparent}
   /* دستگیرهٔ پایین — نشانهٔ بصری که این یک کشوی کشیدنی است */
   .pnl-side::after{content:"";display:block;width:44px;height:4px;border-radius:99px;
     background:var(--line-2);margin:14px auto 2px}
-  .pnl-drawer-bd{position:fixed;inset:0;z-index:390;background:rgba(3,5,12,.62);
-    opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
-  .pnl-drawer-bd.open{opacity:1;pointer-events:auto}
+  .pnl-drawer-bd{display:block;position:fixed;inset:0;z-index:390;background:rgba(3,5,12,.62);
+    visibility:hidden;opacity:0;pointer-events:none;transition:opacity .3s,visibility 0s .3s;
+    backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+  .pnl-drawer-bd.open{visibility:visible;opacity:1;pointer-events:auto;transition-delay:0s}
+  .pnl-nav-close{display:flex;align-items:center;justify-content:center;min-height:44px;
+    margin-inline-start:auto;margin-bottom:10px;padding:8px 14px;border:1px solid var(--line-2);
+    border-radius:10px;background:var(--surface-2);color:var(--text);font:inherit;cursor:pointer}
+  .pnl-nav-close:focus-visible{outline:2px solid var(--info);outline-offset:2px}
   /* روی موبایل کارت پروفایلِ داخل سایدبار تکراری است چون بالای نوار هست */
   .pnl-side .pnl-me{display:none}
 }
@@ -1655,3 +1662,6 @@ html[data-theme="light"] .cvb-plan:hover{background:rgba(20,30,60,.04)}
 .cvb-seg-h small{max-width:25em;font-size:11px;white-space:normal}
 .cvb-nat[aria-disabled="true"]{filter:grayscale(1);opacity:.6;cursor:not-allowed}
 .cvb-nat .cvb-country-reason{display:block;white-space:normal;line-height:1.6}
+
+/* Navigation remains immediate when the user requests less motion. */
+@media(prefers-reduced-motion:reduce){.pnl-side,.pnl-drawer-bd{transition:none}}
