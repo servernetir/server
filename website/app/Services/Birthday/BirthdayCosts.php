@@ -34,7 +34,7 @@ class BirthdayCosts
         }
         $ctx = $item->marketing_context ?: [];
         $component = $ctx['birthday_component'] ?? 'service';
-        $primary = ($ctx['eligible'] ?? false) && ($ctx['operation'] ?? null) === 'purchase';
+        $primary = ($ctx['eligible'] ?? false) && in_array($ctx['operation'] ?? null, ['purchase', 'renewal'], true);
         if (! $primary && $component !== 'setup') {
             return null;
         }

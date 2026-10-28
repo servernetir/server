@@ -303,8 +303,8 @@ class BirthdayRewardsTest extends TestCase
     {
         $c = $this->born(); $r = $this->reward($c);
         $r->update(['starts_at' => now()->subMinutes(30), 'expires_at' => now()->addMinutes(30)]);
-        $plan = \App\Models\CloudPlan::create(['provider' => 'hetzner', 'slug' => 'birthday-hourly',
-            'name' => 'Fixture', 'cost_eur_cents' => 720, 'cost_hour_eur_micro' => 1000,
+        $plan = \App\Models\CloudPlan::create(['provider' => 'hetzner', 'provider_ref' => 'fixture-hourly', 'location_code' => 'de-fixture',
+            'public_name' => 'Fixture', 'slug' => 'birthday-hourly', 'cost_eur_cents' => 720, 'cost_hour_eur_micro' => 1000,
             'price_irt' => 720000, 'price_eur_cents' => 1000, 'is_active' => true]);
         $s = Service::create(['customer_id' => $c->id, 'name' => 'Hourly', 'plan' => 'birthday-hourly',
             'cloud_plan_id' => $plan->id, 'price' => 720000, 'cycle' => 'monthly',
@@ -406,6 +406,51 @@ class BirthdayRewardsTest extends TestCase
         $this->assertNull($engine->domainFloor($i, $d, $line, 1001));
         $this->travel(25)->hours();
         $this->assertNull($engine->domainFloor($i, $d, $line, 1000));
+    }
+
+
+    public function test_valid_wallet_payment_captures_only_discounted_total_and_commits_once(): void
+    {
+        $c = $this->born(); $this->reward($c); $i = $this->invoice($c);
+        \Illuminate\Support\Facades\Queue::fake();
+        $wallet = app(\App\Services\Finance\Wallet::class);
+        $wallet->credit($c->id, 'IRT', 10000, 'topup', $c);
+        $engine = app(BirthdayInvoices::class); $engine->prepare($i, true);
+        $this->actingAs($c, 'customer')->post('/account/invoices/'.$i->id.'/pay-credit', [
+            'birthday_price_token' => $engine->token($i),
+        ])->assertSessionHasNoErrors();
+        $this->assertSame(9120, $wallet->balanceOf($c->id));
+        $this->assertSame(880, $i->fresh()->paid);
+        $this->assertSame('committed', $engine->redemption($i)->status);
+        $this->actingAs($c, 'customer')->post('/account/invoices/'.$i->id.'/pay-credit', [
+            'birthday_price_token' => $engine->token($i),
+        ]);
+        $this->assertSame(9120, $wallet->balanceOf($c->id));
+    }
+
+    public function test_disabling_program_revokes_future_usage_but_preserves_completed_payments(): void
+    {
+        $c = $this->born(); $r = $this->reward($c); $i = $this->invoice($c);
+        app(BirthdayInvoices::class)->prepare($i, true);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->post('/admin/settings/birthday-rewards', ['enabled' => 0, 'sms_enabled' => 0])
+            ->assertSessionHasNoErrors();
+        $this->assertNotNull($r->fresh()->revoked_at);
+        $this->artisan('birthday:rewards')->assertSuccessful();
+        $this->assertSame(1100, $i->fresh()->total);
+        $this->assertSame('released', app(BirthdayInvoices::class)->redemption($i)->status);
+        $this->assertDatabaseCount('credit_ledger', 0);
+    }
+
+
+    public function test_a_new_documented_renewal_can_receive_the_gift_without_repricing_the_service(): void
+    {
+        $c = $this->born(); $this->reward($c); $i = $this->invoice($c);
+        $line = $i->items()->firstOrFail(); $context = $line->marketing_context;
+        $context['operation'] = 'renewal'; $line->update(['marketing_context' => $context]);
+        app(BirthdayInvoices::class)->prepare($i, true);
+        $this->assertSame(880, $i->total);
+        $this->assertSame(1000, (int) $i->service->price);
     }
 
     public function test_integer_cost_and_tax_math_never_drops_below_cost_or_adds_markup(): void

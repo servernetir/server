@@ -26,6 +26,23 @@
     <p class="set-lead">{{ __('birthday.cost_help') }}</p>
     @if(\Illuminate\Support\Facades\Schema::hasTable('birthday_product_costs'))
       <p>{{ __('birthday.cost_rows') }}: {{ \App\Models\BirthdayProductCost::where('valid_until', '>', now())->count() }}</p>
+      <div style="overflow:auto;margin:14px 0">
+        <table style="width:100%;font-size:13px">
+          <thead><tr><th>{{ __('birthday.product') }}</th><th>{{ __('birthday.server') }}</th><th>{{ __('birthday.cycle') }}</th><th>{{ __('birthday.component') }}</th><th>{{ __('birthday.amount') }}</th><th>{{ __('birthday.reference') }}</th><th>{{ __('birthday.valid_until') }}</th></tr></thead>
+          <tbody>
+          @foreach(\App\Models\BirthdayProductCost::orderByDesc('id')->limit(50)->get() as $birthdayCostRow)
+            <tr>
+              <td>{{ $birthdayCostRow->product_id }}</td><td>{{ $birthdayCostRow->server_id ?: '—' }}</td>
+              <td>{{ \App\Models\Service::labelFor($birthdayCostRow->cycle) }}</td>
+              <td>{{ __('birthday.'.$birthdayCostRow->component) }}</td>
+              <td dir="ltr">{{ number_format($birthdayCostRow->amount / ($birthdayCostRow->currency_code === 'IRT' ? 1 : 100), $birthdayCostRow->currency_code === 'IRT' ? 0 : 2) }} {{ $birthdayCostRow->currency_code }}</td>
+              <td>{{ $birthdayCostRow->reference }}</td>
+              <td>{{ blog_date($birthdayCostRow->valid_until->copy()->setTimezone('Asia/Tehran')->toDateString()) }}</td>
+            </tr>
+          @endforeach
+          </tbody>
+        </table>
+      </div>
       <form method="post" action="/admin/settings/birthday-costs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
         @csrf
         <label class="set-f">{{ __('birthday.product') }}<select name="product_id" required >
