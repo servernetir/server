@@ -20,7 +20,8 @@ function setup(dir = 'rtl') {
   Object.defineProperty(w, 'innerWidth', {value:390, writable:true});
   w.matchMedia = () => ({matches:true});
   w.IntersectionObserver = class {observe(){} unobserve(){}};
-  w.requestAnimationFrame = () => 1;
+  const frames = [];
+  w.requestAnimationFrame = callback => {frames.push(callback); return frames.length;};
   w.HTMLElement.prototype.getClientRects = function () {return this.hidden ? [] : [{width:100,height:40}];};
   w.HTMLElement.prototype.scrollIntoView = () => {};
   w.eval(source);
@@ -30,7 +31,8 @@ function setup(dir = 'rtl') {
     doc.activeElement.dispatchEvent(e); return e;
   };
   const open = () => {doc.getElementById('hamburger').focus(); click('hamburger');};
-  return {dom,w,doc,click,key,open};
+  const frame = () => frames.splice(0).forEach(callback => callback(0));
+  return {dom,w,doc,click,key,open,frame};
 }
 
 test('open is modal, moves focus inside, and Escape restores prior focus and scroll state', t => {
@@ -77,4 +79,35 @@ test('close button and backdrop both restore state; resizing to desktop releases
   assert.equal(x.doc.getElementById('drawer').hasAttribute('inert'),true);
   assert.equal(x.doc.getElementById('hamburger').getAttribute('aria-expanded'),'false');
   assert.equal(x.doc.activeElement.id,'logo'); assert.equal(x.doc.body.style.overflow,'auto');
+});
+
+test('opening recovers focus after a hidden animation frame, but never steals a choice inside', t => {
+  const x = setup(); t.after(() => x.dom.window.close());
+  const nativeFocus = x.w.HTMLElement.prototype.focus;
+  let rendered = false;
+  x.w.HTMLElement.prototype.focus = function (...args) {
+    if (this.closest('#drawer') && !rendered) return;
+    return nativeFocus.apply(this,args);
+  };
+  x.open(); assert.equal(x.doc.activeElement.id,'hamburger');
+  rendered = true; x.frame(); assert.equal(x.doc.activeElement.id,'drawer-close');
+  x.doc.getElementById('last').focus();
+  x.doc.getElementById('drawer').dispatchEvent(new x.w.Event('transitionend',{bubbles:true}));
+  assert.equal(x.doc.activeElement.id,'last');
+});
+
+test('transition completion recovers a longer visibility delay and ignores a drawer closed before its frame', t => {
+  const x = setup(); t.after(() => x.dom.window.close());
+  const nativeFocus = x.w.HTMLElement.prototype.focus;
+  let rendered = false;
+  x.w.HTMLElement.prototype.focus = function (...args) {
+    if (this.closest('#drawer') && !rendered) return;
+    return nativeFocus.apply(this,args);
+  };
+  x.open(); x.frame(); assert.equal(x.doc.activeElement.id,'hamburger');
+  rendered = true;
+  x.doc.getElementById('drawer').dispatchEvent(new x.w.Event('transitionend',{bubbles:true}));
+  assert.equal(x.doc.activeElement.id,'drawer-close');
+  x.click('drawer-close'); x.open(); x.click('drawer-close'); x.frame();
+  assert.equal(x.doc.activeElement.id,'hamburger');
 });
