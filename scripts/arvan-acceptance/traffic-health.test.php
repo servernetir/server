@@ -33,6 +33,9 @@ $assert(array_values($r['verification']) === ['unverified', 'unverified', 'unver
 $row = H::healthRow($r);
 $assert($row['key'] === 'arvan_traffic_meter' && $row['ok'] === false && $row['level'] === 'warn', 'native_health_shape');
 $assert(str_contains($row['detail'], '232') && str_contains($row['detail'], '4'), 'safe_numeric_receipt_description');
+$tehran = $base; $tehran['last_success'] = '2026-10-28T12:31:26+00:00';
+$tehranRow = H::healthRow(H::evaluate($tehran, strtotime('2026-10-28T13:01:21+00:00')));
+$assert(str_contains($tehranRow['detail'], '2026-10-28 16:01:26') && str_contains($tehranRow['detail'], 'به وقت تهران'), 'ui_time_is_explicit_tehran');
 
 $zero = $base;
 $zero['last_result'] = ['mode' => 'apply', 'total_irt' => 0, 'invoices' => [], 'held' => [], 'unallocated_count' => 0];
@@ -103,6 +106,11 @@ $bad = $zero; unset($bad['last_result']['held']); $bad['last_result']['held_coun
 $assert(H::evaluate($bad, $now)['held_count'] === 2, 'explicit_count_supported');
 $bad = $zero; $bad['last_result']['held'] = 0;
 $assert(H::evaluate($bad, $now)['held_count'] === null, 'held_scalar_not_silently_array');
+foreach (['invoices' => 'invoice_count', 'held' => 'held_count', 'unallocated' => 'unallocated_count'] as $arrayKey => $countKey) {
+    $bad = $zero; $bad['last_result'][$arrayKey] = ['malformed-key' => ['private' => 'not-a-list']];
+    $r = H::evaluate($bad, $now);
+    $assert($r[$countKey] === null && $has($r, $countKey.'_unknown'), 'associative_item_collection_unknown');
+}
 $bad = $zero; $bad['last_result']['unallocated_count'] = '0';
 $assert(H::evaluate($bad, $now)['unallocated_count'] === null, 'unallocated_string_not_zero');
 $bad = $zero; $bad['last_result']['unallocated'] = [['secret' => 'ignored']];
