@@ -65,6 +65,8 @@ class AllTldPresentationTest extends TestCase
             $this->assertStringNotContainsString('987654321', $html);
         }
         $response = $this->get($prefix.'/domain/popular-tlds')->assertOk();
+        $this->assertStringContainsString(__('ui.hp_domain_plans_sub'), $response->getContent());
+        $this->assertStringNotContainsString(__('ui.hp_plans_sub'), $response->getContent());
         $response->assertViewHas('product', fn (array $product) =>
             $product['plans'][0]['irt'] === 3000000 && $product['plans'][0]['min_years'] === 2);
         $this->assertGreaterThanOrEqual(2, substr_count($response->getContent(), $term));

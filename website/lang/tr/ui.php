@@ -116,6 +116,7 @@ return [
     'hp_plans_badge' => 'Planlar ve fiyatlar',
     'hp_plans_title' => 'Size uygun planı seçin',
     'hp_plans_sub' => 'İstediğiniz an kesintisiz yükseltin — yıllık ödemede %20 daha az ödeyin.',
+    'hp_domain_plans_sub' => 'Uzantıları ve kayıt sürelerini karşılaştırın; kullanılabilirliği ve güncel fiyatı doğrulamak için seçtiğiniz alan adını arayın.',
     'hp_inc_title' => 'Tüm planlara dahil:',
     'hp_inc1' => 'Ücretsiz SSL',
     'hp_inc2' => 'Günlük yedekleme',
