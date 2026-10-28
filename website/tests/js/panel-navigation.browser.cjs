@@ -99,6 +99,7 @@ async function browserScenario() {
     let outsideClicks=0;
     outside.addEventListener('click',()=>outsideClicks++);
     side.querySelector('form').addEventListener('submit',e=>e.preventDefault());
+    side.querySelectorAll('a[href]').forEach(link=>link.addEventListener('click',e=>e.preventDefault()));
     function keyboard(key,shiftKey=false) {
       const event=new KeyboardEvent('keydown',{key,shiftKey,bubbles:true,cancelable:true});
       document.activeElement.dispatchEvent(event);
@@ -202,6 +203,8 @@ async function browserScenario() {
     report.status='passed';
   } catch(error) {
     report.error=String(error.stack||error);
+    report.debug={width:innerWidth,active:document.activeElement?.outerHTML,errors:window.__panelErrors,
+      nodes:['pnl-menu','pnl-side','pnl-bd','pnl-close'].map(id=>{const el=document.getElementById(id),s=el&&getComputedStyle(el);return {id,html:el?.outerHTML.slice(0,400),inert:!!el?.closest('[inert]'),display:s?.display,visibility:s?.visibility,transition:s?.transition,rect:el?.getBoundingClientRect().toJSON()};})};
   }
   parent.postMessage({kind:'panel-nav-result',report},location.origin);
 }
