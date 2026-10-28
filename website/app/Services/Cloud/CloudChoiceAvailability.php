@@ -14,7 +14,8 @@ class CloudChoiceAvailability
         $pairs = collect();
         foreach ($images as $image) {
             foreach ($plans as $plan) {
-                if ($plan->provider !== $image->provider) { continue; }
+                if ($plan->provider !== $image->provider
+                    || \App\Models\CloudLocation::canonicalCode((string) $plan->location_code) !== \App\Models\CloudLocation::canonicalCode((string) $offer->location_code)) { continue; }
                 if ($plan->provider === 'vpstc' && ! str_starts_with((string) $image->provider_ref, $plan->provider_ref.'|')) { continue; }
                 if ($plan->provider === 'lightnode' && explode('|', (string) $image->provider_ref)[0] !== explode('|', (string) $plan->provider_ref)[0]) { continue; }
                 if ($plan->provider === 'arvan' && $image->kind === 'app'
