@@ -41,14 +41,33 @@ class ChatController extends Controller
 
     private function askN8n(string $url, string $message, string $locale, ?string $session): ?string
     {
+        $headers = ['Content-Type: application/json'];
+        $relaySecret = \App\Models\Setting::getSecret('site_chat_n8n_webhook_secret');
+        if (is_string($relaySecret) && $relaySecret !== '') {
+            $headers[] = 'X-ServerNet-Chat: '.$relaySecret;
+        }
+        $knowledge = [];
+        try {
+            $projectId = (int) \App\Models\Setting::get('site_chat_ai_project_id', 0);
+            $project = $projectId > 0 ? \App\Models\AiProject::query()
+                ->whereKey($projectId)->where('slug', 'site-chat-n8n')->first() : null;
+            if ($project && $project->status === \App\Models\AiProject::STATUS_ACTIVE
+                && ! $project->budgetWindowCovers(now())) {
+                $project->refreshBudgetWindow();
+            }
+            $knowledge = app(\App\Services\PublicChatKnowledge::class)->forMessage($message, $locale);
+        } catch (\Throwable) {
+            Log::warning('Public chat knowledge unavailable');
+        }
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
-            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_POSTFIELDS     => json_encode([
                 'message' => $message,
                 'locale'  => $locale,
                 'session' => $session ?: 'anon-'.substr(md5($message.microtime()), 0, 12),
+                'public_knowledge' => $knowledge,
             ], JSON_UNESCAPED_UNICODE),
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 50,
@@ -64,7 +83,12 @@ class ChatController extends Controller
 
         $json = json_decode($raw, true);
 
-        return is_array($json) ? ($json['reply'] ?? null) : null;
+        $reply = is_array($json) ? ($json['reply'] ?? null) : null;
+        if (! is_string($reply)) {
+            return null;
+        }
+        // The chat renderer links bare URLs; models can still emit Markdown links.
+        return preg_replace('~\[[^\]\r\n]+\]\((https?://[^)\s]+)\)~u', '$1', $reply) ?? $reply;
     }
 
     private function reply(string $msg, string $loc): array

@@ -1,0 +1,32 @@
+{
+  "ok": true,
+  "utc": "2026-10-28T16:41:09+03:30",
+  "changed": true,
+  "before": {
+    "project_id": 21,
+    "customer_id": 1,
+    "status": "active",
+    "monthly_budget_irt": 300000,
+    "budget_period": "monthly",
+    "daily_spend_cap_irt": 20000
+  },
+  "after": {
+    "project_id": 21,
+    "monthly_budget_irt": 1000000,
+    "daily_spend_cap_irt": 20000,
+    "monthly_window_current": true,
+    "status": "active"
+  },
+  "independent_readback": {
+    "monthly_budget_irt": 1000000,
+    "daily_spend_cap_irt": 20000,
+    "status": "active",
+    "monthly_window_current": true,
+    "controller_sha256": "8240748936fc8073d91b5bcdd0df2b106005764eeebe270225c36df34997cb08",
+    "knowledge_sha256": "ebb560bea07c3c3095fa67ded27929a37eeb32ef3efe1f00ac1c5ddc407e46ac"
+  },
+  "workflow_active": true,
+  "active_version": "1e3cba47-6255-498e-9b17-0935e50578fc",
+  "helpers_absent": true,
+  "paid_model_calls": 0
+}

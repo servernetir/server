@@ -1,0 +1,55 @@
+{
+  "acceptance": {
+    "execution_id": "79023",
+    "status": "success",
+    "model": "di-qwenqwen3-235b-a22b-instruct-2507-12d7a45f0c",
+    "last_node": "Respond to Site",
+    "sales_tool_calls": 0,
+    "knowledge_present": true,
+    "catalogue_count": 66,
+    "matched_documents": 0,
+    "knowledge_contact_keys": [
+      "phone",
+      "phone_link",
+      "email",
+      "sales_email"
+    ],
+    "knowledge_locale": "fa",
+    "locale": "fa"
+  },
+  "published": {
+    "ok": true,
+    "utc": "2026-10-28T16:28:33.057877+03:30",
+    "workflow_id": "WxwgkFYxcE1RBM4a",
+    "active_version": "1e3cba47-6255-498e-9b17-0935e50578fc",
+    "draft_version": "08504e79-1873-4cd8-baee-f02698f4187c",
+    "prior_draft_preserved": true,
+    "model": "di-qwenqwen3-235b-a22b-instruct-2507-12d7a45f0c",
+    "gateway": "https://servernet.cloud/v1",
+    "model_node": "ServerNet Qwen Model",
+    "header_auth": true,
+    "original_sales_workflow_preserved": true,
+    "max_output_tokens": 900,
+    "max_agent_iterations": 3,
+    "automatic_model_retries": 0,
+    "public_knowledge_anchor_filter": true,
+    "plain_text_links": true
+  },
+  "cleanup": {
+    "ok": true,
+    "temporary_workflows": [
+      {
+        "workflow_id": "WJ7iUbIuQzLijRLn",
+        "absent": true
+      },
+      {
+        "workflow_id": "V2844na0GXTtY628",
+        "absent": true
+      }
+    ],
+    "plaintext_transfer_key_removed": true,
+    "temporary_ingress_copy_removed": true,
+    "production_active": true,
+    "utc": "2026-10-28T16:31:23.504205+03:30"
+  }
+}
