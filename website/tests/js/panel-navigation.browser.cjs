@@ -75,6 +75,7 @@ async function browserScenario() {
   const c = window.__fixtureConfig;
   const report = {config:c,status:'failed',checks:[]};
   const wait = ms => new Promise(resolve => setTimeout(resolve,ms));
+  const frame = () => new Promise(resolve=>requestAnimationFrame(()=>resolve()));
   const check = (value,label) => {
     if (!value) throw new Error(label);
     report.checks.push(label);
@@ -83,12 +84,14 @@ async function browserScenario() {
     for (let i=0;i<80;i++) {
       if (predicate()) return;
       await wait(20);
+      await frame();
     }
     throw new Error('Timed out: '+label);
   };
   const visible = el => !!el && !!el.getClientRects().length &&
     getComputedStyle(el).visibility !== 'hidden' && !el.closest('[hidden],[inert]');
   try {
+    await frame();
     const menu=document.getElementById('pnl-menu'), side=document.getElementById('pnl-side');
     const bd=document.getElementById('pnl-bd'), close=document.getElementById('pnl-close');
     const first=document.getElementById('nav-first'), outside=document.getElementById('outside');

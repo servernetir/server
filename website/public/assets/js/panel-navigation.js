@@ -42,7 +42,7 @@
   }
 
   function recoverFocus() {
-    if (opened && !side.contains(document.activeElement)) focusInside();
+    if (opened && (!side.contains(document.activeElement) || document.activeElement === side)) focusInside();
   }
 
   function focusMain() {

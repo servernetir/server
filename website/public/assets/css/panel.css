@@ -1664,4 +1664,4 @@ html[data-theme="light"] .cvb-plan:hover{background:rgba(20,30,60,.04)}
 .cvb-nat .cvb-country-reason{display:block;white-space:normal;line-height:1.6}
 
 /* Navigation remains immediate when the user requests less motion. */
-@media(prefers-reduced-motion:reduce){.pnl-side,.pnl-drawer-bd{transition:none}}
+@media(prefers-reduced-motion:reduce){.pnl-side,.pnl-side *,.pnl-drawer-bd{transition:none!important}}
