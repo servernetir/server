@@ -24,7 +24,7 @@
         @include('panel.avatar', ['user' => $pnlUser])
         <b>{{ $pnlUser['name'] ?? '' }}</b>
       </div>
-      <button class="pnl-menu-btn" id="pnl-menu" aria-label="{{ __('ui.menu') }}">
+      <button type="button" class="pnl-menu-btn" id="pnl-menu" aria-label="{{ __('ui.menu') }}" aria-controls="pnl-side" aria-expanded="false">
         <svg class="icon"><use href="#i-list"/></svg>
       </button>
     </div>
@@ -36,8 +36,9 @@
         @yield('panel')
       </div>
 
-      <aside class="pnl-side">
+      <aside class="pnl-side" id="pnl-side" tabindex="-1" aria-label="{{ __('ui.menu') }}">
         <div class="pnl-card">
+          <button type="button" class="pnl-nav-close" id="pnl-close">{{ __('ui.close') }}</button>
 
           <div class="pnl-me">
             @include('panel.avatar', ['user' => $pnlUser])
@@ -81,24 +82,10 @@
 
     </div>
 
-    <div class="pnl-drawer-bd" id="pnl-bd"></div>
+    <div class="pnl-drawer-bd" id="pnl-bd" aria-hidden="true"></div>
   </div>
 </section>
 
-<script>
-(function () {
-  var btn = document.getElementById('pnl-menu'),
-      side = document.querySelector('.pnl-side'),
-      bd = document.getElementById('pnl-bd');
-  if (!btn || !side) return;
-  function toggle(open){ side.classList.toggle('open', open); bd.classList.toggle('open', open); }
-  btn.addEventListener('click', function(){ toggle(!side.classList.contains('open')); });
-  bd.addEventListener('click', function(){ toggle(false); });
-  // با کلیک روی هر لینک منو، کشو بسته شود
-  side.querySelectorAll('a').forEach(function(a){ a.addEventListener('click', function(){ toggle(false); }); });
-  document.addEventListener('keydown', function(e){ if(e.key==='Escape') toggle(false); });
-})();
-
-</script>
+<script src="{{ asset_ver('assets/js/panel-navigation.js') }}" defer></script>
 @include('partials.ui-dialog')
 @endsection
