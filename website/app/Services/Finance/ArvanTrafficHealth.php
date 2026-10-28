@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Finance;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -160,8 +161,10 @@ final class ArvanTrafficHealth
             'unallocated_costs_need_review' => 'هزینهٔ بدون تخصیص برای بررسی وجود دارد.',
         ];
         $parts = [];
-        if (is_string($r['last_success_utc'] ?? null) && self::timestamp($r['last_success_utc']) !== null) {
-            $parts[] = 'آخرین رسید موفق: '.$r['last_success_utc'].'.';
+        $success = self::timestamp($r['last_success_utc'] ?? null);
+        if ($success !== null) {
+            $localTime = (new DateTimeImmutable('@'.$success))->setTimezone(new DateTimeZone('Asia/Tehran'))->format('Y-m-d H:i:s');
+            $parts[] = 'آخرین رسید موفق: '.$localTime.' به وقت تهران.';
         }
         if (self::nonnegativeInt($r['last_result_total_irt'] ?? null) !== null
             && self::nonnegativeInt($r['invoice_count'] ?? null) !== null) {
@@ -188,7 +191,7 @@ final class ArvanTrafficHealth
     {
         $hasArray = array_key_exists($arrayKey, $result);
         $hasCount = array_key_exists($countKey, $result);
-        if ($hasArray && !is_array($result[$arrayKey])) { return null; }
+        if ($hasArray && (!is_array($result[$arrayKey]) || !array_is_list($result[$arrayKey]))) { return null; }
         $fromArray = $hasArray ? count($result[$arrayKey]) : null;
         $fromCount = $hasCount ? self::nonnegativeInt($result[$countKey]) : null;
         if ($hasCount && $fromCount === null) { return null; }
