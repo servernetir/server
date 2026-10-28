@@ -92,8 +92,7 @@ class CloudDominance
 
         // Resource counts alone cannot make another city, licence, billing
         // contract or access feature interchangeable. Never prune that value.
-        if (! $a->is_active || ! $a->in_stock || $a->admin_disabled
-            || ! $selection->sameContract($a, $b) || ! $selection->pricesNoWorse($a, $b)) { return false; }
+        if (! $a->is_active || ! $a->in_stock || $a->admin_disabled) { return false; }
 
         // ناهم‌سنخ: هیچ‌کدام جایگزینِ دیگری نیست
         if ((string) $a->arch !== (string) $b->arch) {
@@ -145,6 +144,13 @@ class CloudDominance
             if ($av < $bv) {
                 return false;                    // «الف» در این بُعد بدتر است
             }
+        }
+
+        // A candidate with fewer resources or a dearer monthly price cannot
+        // dominate regardless of its OS/billing contract. Resolve those
+        // expensive contracts only for candidates that pass the cheap checks.
+        if (! $selection->sameContract($a, $b) || ! $selection->pricesNoWorse($a, $b)) {
+            return false;
         }
 
         // تا این‌جا «الف» در هیچ بُعدی بدتر نیست و گران‌تر هم نیست.

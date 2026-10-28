@@ -173,7 +173,7 @@
     <div class="section-head reveal">
       <span class="badge">{{ __('ui.hp_plans_badge') }}</span>
       <h2>{{ __('ui.hp_plans_title') }}</h2>
-      <p>{{ isset($product['plan_note']) ? lc($product['plan_note']) : __('ui.hp_plans_sub') }}</p>
+      <p>{{ isset($product['plan_note']) ? lc($product['plan_note']) : __($category === 'domain' ? 'ui.hp_domain_plans_sub' : 'ui.hp_plans_sub') }}</p>
     </div>
     @php
       // سرورِ مجازی/اختصاصی با پلنِ زنده = **جدولِ کامل**، نه کارت.

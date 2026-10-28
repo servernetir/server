@@ -7,6 +7,7 @@ use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\Cloud\CloudDominance;
 use App\Services\Cloud\CloudManager;
+use App\Services\Cloud\CloudOfferSelection;
 use App\Services\Cloud\CloudPricingSnapshot;
 use App\Services\ExchangeRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -55,7 +56,7 @@ class CloudDominancePartitionTest extends TestCase
             $this->plan('berlin-arm', 'de-berlin', ['arch' => 'arm']),
             $this->plan('frankfurt-out-of-stock', 'de-frankfurt', ['in_stock' => false, 'price_irt' => 100000, 'price_eur_cents' => 100]),
         ]);
-        $reference = $plans->reject(fn ($b) => $plans->contains(fn ($a) => CloudDominance::dominates($a, $b)))->values();
+        $reference = $this->referencePrune($plans);
         $actual = CloudDominance::prune($plans);
 
         $this->assertSame($reference->all(), $actual->all());
@@ -72,5 +73,44 @@ class CloudDominancePartitionTest extends TestCase
         $this->assertSame($plans->all(), CloudDominance::prune($plans)->all());
         $this->assertSame([], \Illuminate\Support\Facades\DB::getQueryLog());
         Http::assertNothingSent();
+    }
+
+    public function test_same_city_resource_and_price_ladder_preserves_every_tradeoff(): void
+    {
+        $plans = collect(range(1, 80))->map(fn ($i) => $this->plan('size-'.$i, 'de-berlin', [
+            'vcpu' => $i, 'ram_mb' => 1024 * $i, 'disk_gb' => 20 * $i,
+            'price_irt' => 100000 * $i, 'price_eur_cents' => 100 * $i,
+        ]));
+
+        $this->assertSame($this->referencePrune($plans)->all(), CloudDominance::prune($plans)->all());
+        $this->assertSame($plans->all(), CloudDominance::prune($plans)->all());
+        Http::assertNothingSent();
+    }
+
+    /** Frozen pre-optimization predicate, independent of the production helper. */
+    private function referencePrune($plans)
+    {
+        $selection = new CloudOfferSelection;
+        return $plans->reject(fn ($b) => $plans->contains(fn ($a) => $this->referenceDominates($a, $b, $selection)))->values();
+    }
+
+    private function referenceDominates($a, $b, CloudOfferSelection $selection): bool
+    {
+        if ($a === $b || ! $a instanceof CloudPlan || ! $b instanceof CloudPlan) { return false; }
+        if (! $a->is_active || ! $a->in_stock || $a->admin_disabled
+            || ! $selection->sameContract($a, $b) || ! $selection->pricesNoWorse($a, $b)) { return false; }
+        if ((string) $a->arch !== (string) $b->arch || (string) $a->cpu_kind !== (string) $b->cpu_kind
+            || ($a->network_terms ?? null) != ($b->network_terms ?? null)
+            || strtolower(trim((string) $a->gpu_model)) !== strtolower(trim((string) $b->gpu_model))
+            || (int) $a->gpu_count !== (int) $b->gpu_count) { return false; }
+        $pa = (int) $a->price_irt; $pb = (int) $b->price_irt;
+        if ($pa <= 0 || $pb <= 0 || $pa > $pb) { return false; }
+        $rank = fn ($p) => ['nvme' => 3, 'ssd' => 2, 'hdd' => 1][strtolower((string) $p->disk_type)] ?? 0;
+        $dims = [[(int) $a->vcpu, (int) $b->vcpu], [(int) $a->ram_mb, (int) $b->ram_mb],
+            [(int) $a->disk_gb, (int) $b->disk_gb], [(int) $a->traffic_gb, (int) $b->traffic_gb], [$rank($a), $rank($b)]];
+        foreach ($dims as [$av, $bv]) { if ($av < $bv) { return false; } }
+        if ($selection->priceDominates($a, $b)) { return true; }
+        foreach ($dims as [$av, $bv]) { if ($av > $bv) { return true; } }
+        return false;
     }
 }

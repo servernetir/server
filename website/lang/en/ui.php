@@ -125,6 +125,7 @@ return [
     'hp_plans_badge' => 'Plans & pricing',
     'hp_plans_title' => 'Pick the plan that fits',
     'hp_plans_sub' => 'Upgrade anytime with zero downtime — pay 20% less with yearly billing.',
+    'hp_domain_plans_sub' => 'Compare extensions and registration terms, then search your chosen domain to confirm availability and the current quote.',
     'hp_inc_title' => 'Every plan includes:',
     'hp_inc1' => 'Free SSL',
     'hp_inc2' => 'Daily backups',
