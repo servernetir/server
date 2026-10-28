@@ -321,6 +321,11 @@ class CloudCatalogController extends Controller
         'cloud_th_loc' => ['fa' => 'مکان', 'en' => 'Location', 'tr' => 'Konum'],
         'cloud_th_price' => ['fa' => 'قیمت ماهانه', 'en' => 'Monthly price', 'tr' => 'Aylık fiyat'],
         'cloud_shown_n' => ['fa' => ':n پلن نمایش داده می‌شود', 'en' => ':n plans shown', 'tr' => ':n paket gösteriliyor'],
+        'cloud_matched_n' => ['fa' => ':n پلن مطابق فیلترها', 'en' => ':n matching plans', 'tr' => 'Filtrelere uyan :n paket'],
+        'cloud_page_prev' => ['fa' => 'صفحهٔ قبل', 'en' => 'Previous page', 'tr' => 'Önceki sayfa'],
+        'cloud_page_next' => ['fa' => 'صفحهٔ بعد', 'en' => 'Next page', 'tr' => 'Sonraki sayfa'],
+        'cloud_page_label' => ['fa' => 'صفحه‌های پلن‌ها', 'en' => 'Plan pages', 'tr' => 'Paket sayfaları'],
+        'cloud_page_summary' => ['fa' => 'صفحهٔ :page از :pages · پلن‌های :from تا :to از :total', 'en' => 'Page :page of :pages · plans :from–:to of :total', 'tr' => 'Sayfa :page / :pages · :total paketten :from–:to'],
         'cloud_nomatch' => [
             'fa' => 'با این فیلترها پلنی پیدا نشد. یکی از فیلترها را روی «همه» بگذارید.',
             'en' => 'No plan matches these filters. Set one of them back to “All”.',
@@ -657,21 +662,46 @@ class CloudCatalogController extends Controller
     private function planRows(Collection $offers, Collection $locations, ?Collection $hourlyOffers = null): array
     {
         $rows = [];
+        $locationPresentation = [];
 
         foreach (\App\Services\Cloud\CloudDominance::prune($offers->values()) as $p) {
-            $loc = $locations->get($p->location_code);
+            $locationCode = (string) $p->location_code;
+            $loc = $locations->get($locationCode);
             if ($loc === null) {
                 continue;
+            }
+            // These labels are pure display data for the current locale. Keep
+            // original aliases separate, and reuse only within this mapping.
+            if (! isset($locationPresentation[$locationCode])) {
+                $city = $loc->cityLabel();
+                $countryLabel = $loc->countryLabel();
+                $locationPresentation[$locationCode] = [
+                    'loc_code' => CloudLocation::canonicalCode($locationCode),
+                    'loc' => $loc->label(),
+                    'city' => $city !== '' ? $city : $countryLabel,
+                    'country' => strtoupper((string) $loc->country),
+                    'country_label' => $countryLabel,
+                    'flag' => $loc->flagEmoji(),
+                    'flag_svg' => $loc->flagSvg(),
+                    'loc_url' => $this->locUrl($locationCode),
+                ];
             }
 
             // Resolve hourly offers separately: the cheapest monthly alias may
             // have no hourly contract. Use the same sellable selection as checkout.
             $hourly = $hourlyOffers?->get($p->slug);
-            $hasHourly = $hourly !== null && ! $hourly->isMetal() && $hourly->hourlyIrt() > 0 && $hourly->hourlyEurCents() > 0;
+            $hourlyIrt = $hourlyEur = 0;
+            if ($hourly !== null && ! $hourly->isMetal()) {
+                $hourlyIrt = $hourly->hourlyIrt();
+                if ($hourlyIrt > 0) {
+                    $hourlyEur = $hourly->hourlyEurCents();
+                }
+            }
+            $hasHourly = $hourlyIrt > 0 && $hourlyEur > 0;
             $hourlyPrice = $hasHourly
                 ? (app()->getLocale() === 'fa'
-                    ? fa_num(number_format($hourly->hourlyIrt())).' تومان'
-                    : '€'.number_format($hourly->hourlyEurCents() / 100, 2))
+                    ? fa_num(number_format($hourlyIrt)).' تومان'
+                    : '€'.number_format($hourlyEur / 100, 2))
                 : null;
 
             $rows[] = [
@@ -686,14 +716,7 @@ class CloudCatalogController extends Controller
                 'price' => $p->priceLabel(),
                 'price_n' => (int) $p->price_irt,
                 'eur' => (int) $p->price_eur_cents,
-                'loc_code' => CloudLocation::canonicalCode((string) $p->location_code),
-                'loc' => $loc->label(),
-                'city' => $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel(),
-                'country' => strtoupper((string) $loc->country),
-                'country_label' => $loc->countryLabel(),
-                'flag' => $loc->flagEmoji(),
-                'flag_svg' => $loc->flagSvg(),
-                'loc_url' => $this->locUrl((string) $p->location_code),
+                ...$locationPresentation[$locationCode],
                 'buy_url' => $this->buyUrl((string) $p->location_code, (string) $p->slug),
                 'hourly_price' => $hourlyPrice,
                 'hourly_buy_url' => $hasHourly ? $this->buyUrl((string) $p->location_code, (string) $p->slug, 'hourly') : null,

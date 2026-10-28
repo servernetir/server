@@ -164,7 +164,7 @@
   <section class="section cvps-sec" id="plans">
     <div class="container">
       <div class="cvps-sec-h">
-        <h2>{{ $t['cloud_table_t'] }}</h2>
+        <h2 id="clp-results-title" tabindex="-1">{{ $t['cloud_table_t'] }}</h2>
         <p>{{ $t['cloud_table_d'] }}</p>
       </div>
 
@@ -211,8 +211,8 @@
             </select>
           </label>
 
-          <span class="cvps-count" id="clp-count" data-tpl="{{ $t['cloud_shown_n'] }}">
-            {{ strtr($t['cloud_shown_n'], [':n' => fa_num(number_format(count($rows)))]) }}
+          <span class="cvps-count" id="clp-count" role="status" aria-live="polite" data-tpl="{{ $t['cloud_matched_n'] }}">
+            {{ strtr($t['cloud_matched_n'], [':n' => fa_num(number_format(count($rows)))]) }}
           </span>
         </div>
 
@@ -260,6 +260,11 @@
         </div>
 
         <p class="cvps-none" id="clp-none">{{ $t['cloud_nomatch'] }}</p>
+        <nav class="cvps-pager" id="clp-pager" aria-label="{{ $t['cloud_page_label'] }}" hidden>
+          <button class="btn btn-glass" id="clp-prev" type="button">{{ $t['cloud_page_prev'] }}</button>
+          <span id="clp-page" tabindex="-1" role="status" aria-live="polite" data-tpl="{{ $t['cloud_page_summary'] }}"></span>
+          <button class="btn btn-glass" id="clp-next" type="button">{{ $t['cloud_page_next'] }}</button>
+        </nav>
       </div>
     </div>
   </section>
@@ -392,6 +397,13 @@
 .cvps-buy:hover{ box-shadow:0 6px 20px rgba(34,211,238,.32) }
 .cvps-none{ display:none; margin-top:14px; padding:16px; border:1px dashed var(--line-2);
   border-radius:14px; color:var(--muted); font-size:13px; text-align:center }
+.cvps-table tr[hidden],.cvps-pager[hidden]{ display:none }
+.cvps-pager{ display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:12px; margin-top:18px }
+.cvps-pager span{ color:var(--muted); font-size:12px; text-align:center }
+.cvps-pager button{ font-size:12px; padding:9px 14px }
+.cvps-pager button:disabled{ opacity:.45; cursor:default; transform:none }
+#clp-results-title{ scroll-margin-top:calc(var(--header-h,112px) + 18px) }
+body.imp-on #clp-results-title{ scroll-margin-top:calc(var(--header-h,112px) + var(--imp-h,0px) + 18px) }
 
 /* ── حالتِ خالی ── */
 .cvps-empty{ border:1px solid var(--line); border-radius:22px; background:var(--surface);
@@ -433,13 +445,25 @@
   var body = document.getElementById('clp-body');
   if (!wrap || !body) { return; }
 
-  var rows  = Array.prototype.slice.call(body.querySelectorAll('tr[data-row]'));
+  // Keep every server-rendered row for no-JS readers and full-set filtering.
+  // Pagination limits table layout/paint; it does not reduce the HTML payload.
+  var rows = Array.prototype.slice.call(body.querySelectorAll('tr[data-row]')).map(function(row, index){
+    return {el:row, country:row.getAttribute('data-c'), cpu:row.getAttribute('data-v'), ram:row.getAttribute('data-r'),
+      price:parseInt(row.getAttribute('data-p'), 10) || 0, index:index};
+  });
+  var ordered = rows.slice(), lastMode = 'price-asc', page = 1, size = 50;
   var fc    = document.getElementById('clp-country');
   var fv    = document.getElementById('clp-cpu');
   var fr    = document.getElementById('clp-ram');
   var fs    = document.getElementById('clp-sort');
   var out   = document.getElementById('clp-count');
   var none  = document.getElementById('clp-none');
+  var pager = document.getElementById('clp-pager');
+  var previous = document.getElementById('clp-prev');
+  var next = document.getElementById('clp-next');
+  var summary = document.getElementById('clp-page');
+  var resultsTitle = document.getElementById('clp-results-title');
+  var pageTpl = summary ? summary.getAttribute('data-tpl') || '' : '';
   var tpl   = out ? (out.getAttribute('data-tpl') || '') : '';
   var isFa  = document.documentElement.lang === 'fa';
 
@@ -448,36 +472,62 @@
     if (!isFa) { return s; }
     return s.replace(/[0-9]/g, function(d){ return String.fromCharCode(1776 + Number(d)); });
   }
-  function num(el, attr){ return parseInt(el.getAttribute(attr), 10) || 0; }
   function val(el){ return el ? el.value : ''; }
 
   function apply(){
-    var c = val(fc), v = val(fv), r = val(fr), shown = 0;
-
-    rows.forEach(function(row){
-      var ok = (c === '' || row.getAttribute('data-c') === c)
-            && (v === '' || row.getAttribute('data-v') === v)
-            && (r === '' || row.getAttribute('data-r') === r);
-      row.style.display = ok ? '' : 'none';
-      if (ok) { shown = shown + 1; }
-    });
-
+    var c = val(fc), v = val(fv), r = val(fr);
     var mode = val(fs) || 'price-asc';
-    var key = 'data-p', dir = 1;
-    if (mode === 'price-desc') { dir = -1; }
-    else if (mode === 'cpu')   { key = 'data-v'; dir = -1; }
-    else if (mode === 'ram')   { key = 'data-r'; dir = -1; }
-
-    rows.slice().sort(function(a, b){
-      var d = (num(a, key) - num(b, key)) * dir;
-      return d !== 0 ? d : (num(a, 'data-p') - num(b, 'data-p'));
-    }).forEach(function(row){ body.appendChild(row); });
-
-    if (out) { out.textContent = digits(tpl.replace(':n', String(shown))); }
-    if (none) { none.style.display = shown === 0 ? 'block' : 'none'; }
+    if (mode !== lastMode) {
+      var key = mode === 'cpu' ? 'cpu' : (mode === 'ram' ? 'ram' : 'price');
+      var dir = mode === 'price-asc' ? 1 : -1;
+      ordered = rows.slice().sort(function(a, b){
+        return (Number(a[key]) - Number(b[key])) * dir || a.price - b.price || a.index - b.index;
+      });
+      // Server order already matches the default. Reparent only changed sorts,
+      // as one fragment rather than hundreds of individual table insertions.
+      if (ordered.some(function(row, index){ return body.children[index] !== row.el; })) {
+        var fragment = document.createDocumentFragment();
+        ordered.forEach(function(row){ fragment.appendChild(row.el); });
+        body.appendChild(fragment);
+      }
+      lastMode = mode;
+    }
+    var matching = ordered.filter(function(row){
+      return (c === '' || row.country === c) && (v === '' || row.cpu === v) && (r === '' || row.ram === r);
+    });
+    var pages = Math.max(1, Math.ceil(matching.length / size));
+    page = Math.max(1, Math.min(page, pages));
+    var start = (page - 1) * size;
+    var visible = new Set(matching.slice(start, start + size).map(function(row){ return row.el; }));
+    rows.forEach(function(row){
+      var hidden = !visible.has(row.el);
+      if (row.el.hidden !== hidden) { row.el.hidden = hidden; }
+    });
+    if (out) { out.textContent = digits(tpl.replace(':n', String(matching.length))); }
+    if (none) { none.style.display = matching.length === 0 ? 'block' : 'none'; }
+    if (pager) { pager.hidden = pages < 2; }
+    if (previous) { previous.disabled = page === 1; }
+    if (next) { next.disabled = page === pages; }
+    if (summary) {
+      summary.textContent = digits(pageTpl.replace(':page', String(page)).replace(':pages', String(pages))
+        .replace(':from', String(matching.length ? start + 1 : 0)).replace(':to', String(Math.min(start + size, matching.length)))
+        .replace(':total', String(matching.length)));
+    }
   }
 
-  [fc, fv, fr, fs].forEach(function(el){ if (el) { el.addEventListener('change', apply); } });
+  [fc, fv, fr, fs].forEach(function(el){ if (el) { el.addEventListener('change', function(){ page = 1; apply(); }); } });
+  function move(amount){
+    page += amount;
+    apply();
+    // A new page starts at the results, including when the clicked boundary
+    // button becomes disabled. Filters retain their own focus and position.
+    if (resultsTitle) {
+      resultsTitle.focus({preventScroll:true});
+      resultsTitle.scrollIntoView({block:'start', behavior:'instant'});
+    }
+  }
+  if (previous) { previous.addEventListener('click', function(){ move(-1); }); }
+  if (next) { next.addEventListener('click', function(){ move(1); }); }
   apply();
 })();
 </script>
