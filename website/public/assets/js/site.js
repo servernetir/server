@@ -315,18 +315,66 @@
   const backdrop = document.getElementById('drawer-backdrop');
   const burger = document.getElementById('hamburger');
   if (drawer && backdrop && burger) {
-    const setDrawer = (open) => {
+    const closeButton = document.getElementById('drawer-close');
+    let previousFocus = null, previousOverflow = '', background = [];
+    const focusable = () => Array.from(drawer.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')).filter((el) =>
+      !el.disabled && el.tabIndex >= 0 && !el.closest('[hidden],[inert]') && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+    const focusInside = () => (closeButton || focusable()[0] || drawer).focus({ preventScroll: true });
+    const setDrawer = (open, restoreFocus = true) => {
+      if (open === drawer.classList.contains('open')) return;
+      if (open) {
+        previousFocus = document.activeElement;
+        previousOverflow = document.body.style.overflow;
+        drawer.removeAttribute('inert');
+        drawer.setAttribute('aria-hidden', 'false');
+      } else {
+        background.forEach(([el, wasInert]) => { if (!wasInert) el.removeAttribute('inert'); });
+        background = [];
+        document.body.style.overflow = previousOverflow;
+      }
       drawer.classList.toggle('open', open);
       backdrop.classList.toggle('open', open);
       burger.classList.toggle('active', open);
       burger.setAttribute('aria-expanded', String(open));
-      document.body.style.overflow = open ? 'hidden' : '';
+      if (open) {
+        // Move focus before hiding its previous ancestor from assistive technology.
+        focusInside();
+        background = Array.from(document.body.children).filter((el) => el !== drawer && el !== backdrop && !el.contains(drawer) && !['SCRIPT', 'STYLE', 'LINK'].includes(el.tagName)).map((el) => [el, el.hasAttribute('inert')]);
+        background.forEach(([el]) => el.setAttribute('inert', ''));
+        document.body.style.overflow = 'hidden';
+      } else {
+        if (restoreFocus && previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+        else if (drawer.contains(document.activeElement)) document.querySelector('.header-wrap a[href]')?.focus({ preventScroll: true });
+        drawer.setAttribute('inert', '');
+        drawer.setAttribute('aria-hidden', 'true');
+      }
     };
     burger.addEventListener('click', () => setDrawer(!drawer.classList.contains('open')));
-    document.getElementById('drawer-close')?.addEventListener('click', () => setDrawer(false));
+    closeButton?.addEventListener('click', () => setDrawer(false));
     backdrop.addEventListener('click', () => setDrawer(false));
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
-    drawer.querySelectorAll('.acc-head').forEach((head) => {
+    document.addEventListener('keydown', (e) => {
+      if (!drawer.classList.contains('open')) return;
+      if (e.key === 'Escape') { e.preventDefault(); setDrawer(false); return; }
+      if (e.key !== 'Tab') return;
+      const items = focusable(), first = items[0], last = items[items.length - 1];
+      if (!first) { e.preventDefault(); drawer.focus(); }
+      else if (!drawer.contains(document.activeElement)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    document.addEventListener('focusin', (e) => {
+      if (drawer.classList.contains('open') && !drawer.contains(e.target)) focusInside();
+    });
+    window.addEventListener('resize', () => { if (window.innerWidth > 1020) setDrawer(false, false); }, { passive: true });
+    const heads = Array.from(drawer.querySelectorAll('.acc-head'));
+    const syncAccordions = () => heads.forEach((head) => {
+      const body = head.parentElement.querySelector('.acc-body'), open = head.parentElement.classList.contains('open');
+      head.setAttribute('aria-expanded', String(open));
+      if (body) { body.toggleAttribute('inert', !open); body.setAttribute('aria-hidden', String(!open)); }
+    });
+    heads.forEach((head, index) => {
+      const body = head.parentElement.querySelector('.acc-body');
+      if (body) { body.id ||= 'drawer-section-' + (index + 1); head.setAttribute('aria-controls', body.id); }
       head.addEventListener('click', () => {
         const acc = head.parentElement;
         const wasOpen = acc.classList.contains('open');
@@ -336,8 +384,10 @@
           // آکاردئون بازشده بیاید بالای دید تا همه‌ی گروه‌ها قابل‌دیدن باشند
           setTimeout(() => acc.scrollIntoView({ behavior: 'smooth', block: 'start' }), 380);
         }
+        syncAccordions();
       });
     });
+    syncAccordions();
   }
 
   /* ---- FOOTER ACCORDION (mobile) ---- */
