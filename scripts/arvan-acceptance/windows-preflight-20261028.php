@@ -31,7 +31,14 @@ try {
     $ownerVerified = $db->table('customers')->where('id', 1)->where('code', 'SN-457136')->where('status', 'active')->exists();
     $plans = $db->table('cloud_plans')->where('provider', 'arvan')->where('provider_location', $region)
         ->where('is_active', 1)->where('vcpu', 1)->where('ram_mb', 3072)->where('disk_gb', 30)
-        ->where('cpu_kind', 'shared')->get(['id', 'provider_ref'])->all();
+        ->where('cpu_kind', 'shared')->get(['id', 'provider_ref', 'price_irt', 'cost_hour_eur_micro'])->all();
+    $pricingKeys = ['cloud_margin_pct', 'pricing_fx_fee_pct_arvan', 'pricing_fx_fee_pct'];
+    $pricingValues = $db->table('settings')->whereIn('key', $pricingKeys)->pluck('value', 'key');
+    $pricingSettings = [];
+    foreach ($pricingKeys as $key) {
+        $value = $pricingValues[$key] ?? null;
+        $pricingSettings[$key] = is_scalar($value) && preg_match('/^-?\\d{1,4}(?:\\.\\d{1,6})?$/D', (string) $value) === 1 ? (float) $value : null;
+    }
     $imageLocal = $db->table('cloud_images')->where('provider', 'arvan')->where('key', '2025')
         ->where('family', 'windows')->where('is_active', 1)->exists();
     $attemptExists = $db->table('arvan_create_attempts')->where('region', $region)->where('hostname', $testName)->exists();
@@ -40,6 +47,7 @@ try {
         'utc' => gmdate('c'), 'mode' => 'windows_preflight_get_only', 'region' => $region,
         'budget_cap_irt' => 120000, 'owner_verified' => $ownerVerified,
         'existing_create_attempt' => $attemptExists, 'local_windows_2025_active' => $imageLocal,
+        'pricing_settings_numeric_only' => $pricingSettings,
         'desired_shape' => ['vcpu' => 1, 'ram_mb' => 3072, 'disk_gb' => 30, 'cpu_kind' => 'shared'],
         'no_paid_action_performed' => true,
     ];
@@ -92,6 +100,8 @@ try {
             $candidates[] = [
                 'local_plan_match_count' => count($matches),
                 'local_plan_id' => count($matches) === 1 ? (int) $matches[0]->id : null,
+                'local_price_irt' => count($matches) === 1 ? $int($matches[0]->price_irt) : null,
+                'local_cost_hour_eur_micro' => count($matches) === 1 ? $int($matches[0]->cost_hour_eur_micro) : null,
                 'provider_hourly_rial_per_existing_driver' => $hour,
                 'provider_monthly_rial_reported' => $int($size->price_per_month ?? null),
                 'flavor_only_48h_irt_with_assumed_10pct_vat' => (int) ceil($hour * 48 * 11 / 100),
