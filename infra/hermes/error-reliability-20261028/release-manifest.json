@@ -1,0 +1,41 @@
+{
+  "status": "prepared_not_installed",
+  "purpose": "Make partial inventory health truthful and retain bounded failure attribution for naturally scheduled Hermes commands.",
+  "files": [
+    {
+      "source": "infra/hermes/error-reliability-20261028/HermesKnowledgeRefresh.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/HermesKnowledgeRefresh.php",
+      "expected_before_sha256": "8297fda545f51efbc6dc5a91e45b1a7946691ccd2aba30aad35bbc76e125ea76",
+      "after_sha256": "2b5a9e361afd7969d1693c4360cbd1d2cdaf5adcb34fd3cebf3a0b7716d786ec"
+    },
+    {
+      "source": "infra/hermes/error-reliability-20261028/HermesOperationsReview.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/HermesOperationsReview.php",
+      "expected_before_sha256": "b0ef327a6625bed8dab4f73b3b080ff465f5e2cd3d1f7327df09894b977afc49",
+      "after_sha256": "f8e24b6082ba8d7fd8be0c08e4abcb6deab2cbd037244b98b1e3118cb2aeca8d"
+    }
+  ],
+  "requires_existing_production_module": [
+    "App\\Services\\Hermes\\HermesOperations",
+    "App\\Services\\Hermes\\HermesOperationsStore",
+    "App\\Services\\Hermes\\HermesKnowledge",
+    "App\\Services\\Bale\\Admin\\HermesMiniAppStore"
+  ],
+  "manual_execution_required": false,
+  "cron_change_required": false,
+  "migration_required": false,
+  "fixtures_are_never_deployed": true,
+  "preconditions": [
+    "Read and compare live hashes again; abort on drift.",
+    "Compare the captured dependency hashes and tested result contracts; reconcile drift before installation.",
+    "Back up the two files privately and preserve concurrent changes.",
+    "No manual Hermes run: it could send an existing owner digest or invoke the existing model path.",
+    "Observe the next natural scheduled run and inspect its bounded tracker source/provider/stage details."
+  ],
+  "rollback": "Restore only these two files from the matching private backup after current-hash validation. Do not restore or erase encrypted operations state, financial ledgers, support memory, cursors or knowledge references.",
+  "observed_dependency_sha256": {
+    "app/Services/Hermes/HermesKnowledge.php": "dd59914f397f9c5f1860deb356d3107ebcfc58d5ee4336ad344b63413bf420b7",
+    "app/Services/Hermes/HermesOperations.php": "ba1502378e7a4f4c2c0eb1bb2fdd352c2c4c3f5be491df33bcb7bdba278846e5",
+    "app/Services/Hermes/HermesOperationsStore.php": "6583a234855b55ada896e82975ad323a372ed04017a1a2903b2697f4359c966d"
+  }
+}
