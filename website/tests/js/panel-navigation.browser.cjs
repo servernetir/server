@@ -334,11 +334,14 @@ async function chromiumReport(profile, reduced, fixtureUrl) {
     for (const entry of pending.values()) clearTimeout(entry.timer);
     pending.clear();
     if (socket) socket.close();
-    if (child.exitCode===null && child.signalCode===null) {
+    if (child.pid && child.exitCode===null && child.signalCode===null) {
       await new Promise(resolve => {
-        const timer = setTimeout(() => child.kill('SIGKILL'),3000);
+        let timer = setTimeout(() => {
+          if (!child.kill('SIGKILL')) {clearTimeout(timer); resolve(); return;}
+          timer = setTimeout(resolve,3000);
+        },3000);
         child.once('exit',() => {clearTimeout(timer); resolve();});
-        child.kill();
+        if (!child.kill()) {clearTimeout(timer); resolve();}
       });
     }
   }
