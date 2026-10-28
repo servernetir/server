@@ -1,5 +1,5 @@
 @php
-  $birthdaySchema = \Illuminate\Support\Facades\Schema::hasTable('birthday_rewards');
+  $birthdaySchema = app(\App\Services\Birthday\BirthdayProgram::class)->installed();
   $birthdayEnabled = \App\Models\Setting::get('birthday_offer_enabled', '0') === '1';
   $birthdayPatternReady = app(\App\Services\Birthday\BirthdayMessages::class)->configured();
 @endphp

@@ -22,7 +22,7 @@ class BirthdayRewardsController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
         $data = $request->validate(['enabled' => 'required|boolean', 'sms_enabled' => 'required|boolean']);
-        abort_unless(Schema::hasTable('birthday_rewards'), 503);
+        abort_unless(app(\App\Services\Birthday\BirthdayProgram::class)->installed(), 503);
         // Pattern reference/approval are installed only after the owner's operator approval.
         if ($data['sms_enabled'] && (! $data['enabled'] || ! app(BirthdayMessages::class)->configured())) {
             throw ValidationException::withMessages(['sms_enabled' => __('birthday.pattern_pending')]);

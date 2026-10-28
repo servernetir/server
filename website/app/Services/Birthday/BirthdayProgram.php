@@ -12,10 +12,17 @@ use Illuminate\Support\Facades\Schema;
 
 class BirthdayProgram
 {
+    public function installed(): bool
+    {
+        return Schema::hasTable('birthday_rewards') && Schema::hasTable('birthday_redemptions')
+            && Schema::hasTable('birthday_product_costs')
+            && (! Schema::hasTable('ai_usage') || Schema::hasColumn('ai_usage', 'birthday_reward_id'));
+    }
+
     public function enabled(): bool
     {
         return Setting::get('birthday_offer_enabled', config('birthday_rewards.enabled') ? '1' : '0') === '1'
-            && Schema::hasTable('birthday_rewards') && Schema::hasTable('birthday_redemptions');
+            && $this->installed();
     }
 
     public function current(Customer $customer): ?BirthdayReward
