@@ -206,6 +206,14 @@ final class OwnerWindowsDiagnostic28
         return $matches;
     }
 
+    public static function requireCleanupSchema(array $m): void
+    {
+        // Empty preflight lists do not prove how a newly created Windows disk will be linked.
+        // Fail before spending if cleanup would otherwise deadlock on an unknown schema.
+        self::guard(in_array($m['volume_schema'] ?? 'unverified', ['attachments.server_id', 'instance_id'], true)
+            && ($m['volume_schema_observed'] ?? false) === true, 'cleanup_volume_schema_unverified');
+    }
+
     public static function createIntent(array $s, int $now): array
     {
         self::guard(! array_key_exists('create_intent_at', $s) && ! array_key_exists('cleanup_at', $s),
@@ -607,6 +615,7 @@ final class OwnerWindowsDiagnostic28Run
                 $this->save();
             } elseif ($mode === 'create') {
                 $g::guard(! isset($this->state['create_intent_at']), 'create_already_attempted_reconcile_only');
+                $g::requireCleanupSchema($this->manifest);
                 $g::guard($this->cronConfigured() && isset($this->state['cleanup_heartbeat_at'])
                     && is_int($this->state['cleanup_heartbeat_at']) && is_int($this->state['prepared_at'] ?? null)
                     && $this->state['cleanup_heartbeat_at'] >= $this->state['prepared_at']
