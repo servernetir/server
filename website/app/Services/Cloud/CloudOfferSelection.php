@@ -10,7 +10,8 @@ use Throwable;
 /** Compare customer prices only after the deliverable contracts match. */
 class CloudOfferSelection
 {
-    private ?Collection $images = null;
+    private ?Collection $imagesByProvider = null;
+    private array $regionalImages = [];
     private array $imageSets = [];
     private array $capabilities = [];
     private array $prices = [];
@@ -124,9 +125,8 @@ class CloudOfferSelection
     {
         $key = spl_object_id($plan);
         if (isset($this->imageSets[$key])) { return $this->imageSets[$key]; }
-        $this->images ??= CloudImage::query()->usable()->get();
         $out = [];
-        foreach ($this->images as $image) {
+        foreach ($this->candidateImages($plan) as $image) {
             if ((string) $image->provider !== (string) $plan->provider
                 || ! CloudImage::providerAccessIsAutomated((string) $plan->provider, $image)
                 || (filled($image->arch) && filled($plan->arch) && $image->arch !== $plan->arch)
@@ -146,6 +146,27 @@ class CloudOfferSelection
         }
         sort($out, SORT_STRING);
         return $this->imageSets[$key] = array_values(array_unique($out));
+    }
+
+    /** Narrow the once-loaded image catalogue before applying the full contract predicate. */
+    private function candidateImages(CloudPlan $plan): Collection
+    {
+        $this->imagesByProvider ??= CloudImage::query()->usable()->get()
+            ->groupBy(fn ($image) => (string) $image->provider);
+        $provider = (string) $plan->provider;
+        $images = $this->imagesByProvider->get($provider, collect());
+        if (! in_array($provider, ['lightnode', 'vpstc'], true)) {
+            return $images;
+        }
+
+        // LightNode uses a region prefix; VPS.TC's prefix is the entire
+        // product reference and can itself contain a separator. Keep those
+        // existing prefix semantics, including empty/malformed references.
+        $prefix = ($provider === 'lightnode'
+            ? explode('|', (string) $plan->provider_ref)[0] : (string) $plan->provider_ref).'|';
+        return $this->regionalImages[$provider][$prefix] ??= $images
+            ->filter(fn ($image) => str_starts_with((string) $image->provider_ref, $prefix))
+            ->values();
     }
 
     private function hasWindows(CloudPlan $plan): bool

@@ -668,6 +668,26 @@ class CloudPublicPageTest extends TestCase
         $this->assertStringContainsString('id="clp-count"', $main);
     }
 
+    public function test_pager_is_localized_and_all_rows_remain_in_initial_no_js_html(): void
+    {
+        \Illuminate\Support\Facades\Http::preventStrayRequests();
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([100000, 100000, 100000]);
+        $this->seedCatalog();
+
+        foreach (['/cloud', '/en/cloud', '/tr/cloud'] as $path) {
+            $response = $this->get($path)->assertOk();
+            $main = $this->mainOf($response->getContent());
+            $strings = $response->viewData('t');
+            $this->assertStringContainsString('id="clp-pager" aria-label="'.$strings['cloud_page_label'].'" hidden', $main);
+            $this->assertStringContainsString($strings['cloud_page_prev'], $main);
+            $this->assertStringContainsString($strings['cloud_page_next'], $main);
+            preg_match('~<tbody id="clp-body">(.*?)</tbody>~s', $main, $table);
+            $this->assertSame(count($response->viewData('rows')), substr_count($table[1], 'data-row="1"'));
+            $this->assertStringNotContainsString(' hidden', $table[1]);
+        }
+    }
+
     // ═══════════════════════ ۷) کاتالوگِ خالی ═══════════════════════
 
     public function test_index_with_empty_catalog_is_graceful_not_an_error(): void
