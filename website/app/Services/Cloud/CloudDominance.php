@@ -59,8 +59,16 @@ class CloudDominance
             return $list;
         }
 
+        // Different cities can never satisfy sameContract(). The global
+        // catalogue may contain hundreds of offers, so avoid running the
+        // full contract check for every unrelated city pair. Canonical city
+        // aliases must share a bucket; retain the original result ordering.
+        $city = static fn ($plan) => $plan instanceof \App\Models\CloudPlan
+            ? \App\Models\CloudLocation::canonicalCode((string) $plan->location_code) : '';
+        $byCity = $list->groupBy($city);
+
         return $list
-            ->reject(fn ($b) => $list->contains(fn ($a) => self::compare($a, $b, $selection)))
+            ->reject(fn ($b) => $byCity->get($city($b))->contains(fn ($a) => self::compare($a, $b, $selection)))
             ->values();
     }
 

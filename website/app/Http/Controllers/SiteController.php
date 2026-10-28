@@ -54,10 +54,16 @@ class SiteController extends Controller
 
     private function homeCloudPlans(Collection $offers): array
     {
-        return $offers->take(4)->values()->map(function (CloudPlan $plan, int $index) {
+        $plans = new \Illuminate\Database\Eloquent\Collection($offers->take(4)->all());
+        $plans->loadMissing('location');
+
+        return $plans->values()->map(function (CloudPlan $plan, int $index) {
             $name = trim((string) $plan->public_name) ?: 'Cloud '.($index + 1);
             return $this->cloudQuote($plan) + [
                 'pid' => $plan->id,
+                'slug' => (string) $plan->slug,
+                'location_code' => (string) $plan->location_code,
+                'location_label' => $plan->location?->label(),
                 'cpu' => $plan->vcpu.' vCPU',
                 'ram' => $plan->ramLabel(),
                 'ssd' => $plan->diskLabel(),

@@ -109,7 +109,19 @@
         <div class="picon"><svg class="icon"><use href="#i-{{ $p['icon'] }}"/></svg></div>
         <h3>{{ lc($p)['t'] }}</h3>
         <p>{{ lc($p)['d'] }}</p>
-        <div class="price">{{ __('ui.from') }}<b>{{ site_price($p) }}</b>{{ __('ui.mo') }}</div>
+        <div class="price">
+          @if(site_price_toman($p) !== null)
+            @if(isset($p['tld']))<span dir="ltr">{{ $p['tld'] }}</span>@else{{ __('ui.from') }}@endif
+            <b>{{ site_price($p) }}</b>
+            @if(isset($p['tld']))
+              {{ (int) ($p['min_years'] ?? 1) > 1 ? '/ '.__('ui.domain_period_years', ['years' => fa_num((string) $p['min_years'])]) : __('ui.domain_year') }}
+            @else
+              {{ __('ui.mo') }}
+            @endif
+          @else
+            <b>{{ __('ui.hp_contact_price') }}</b>
+          @endif
+        </div>
         <span class="buy">{{ __('ui.prod_view') }} <svg class="icon dir"><use href="#i-arrow"/></svg></span>
       </a>
       @endforeach
@@ -145,18 +157,18 @@
       <h2>{{ __('ui.vps_title') }}</h2>
       <p>{{ __('ui.vps_sub') }}</p>
     </div>
-    <div class="bill-toggle reveal" role="group" aria-label="Billing cycle">
-      <button type="button" class="active" data-bill="monthly">{{ __('ui.bill_monthly') }}</button>
-      <button type="button" data-bill="yearly">{{ __('ui.bill_yearly') }}<span class="save">{{ __('ui.bill_save', ['percent' => $isFa ? fa_num(config('billing.cycles.yearly.discount_pct')) : config('billing.cycles.yearly.discount_pct')]) }}</span></button>
-    </div>
     <div class="plans" id="plans">
       @foreach($plans as $i => $p)
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">
         @if($p['popular'] ?? false)<span class="pop-badge">{{ __('ui.popular') }}</span>@endif
         <h3>{{ lc($p) }}</h3>
+        @if(filled($p['location_label'] ?? null))<p class="muted">{{ $p['location_label'] }}</p>@endif
         <div class="p-price">
-          <span class="pr pr-m"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></span>
-          <span class="pr pr-y"><s>{{ site_price($p) }}</s><b>{{ site_price_yearly($p) }}</b><span>{{ __('ui.bill_yearly_note') }}</span></span>
+          @if(site_price_toman($p) !== null)
+            <span class="pr pr-m"><b>{{ site_price($p) }}</b><span>{{ __('ui.mo') }}</span></span>
+          @else
+            <span class="pr pr-m"><b>{{ __('ui.hp_contact_price') }}</b></span>
+          @endif
         </div>
         <ul>
           <li><svg class="icon"><use href="#i-check"/></svg>{{ $p['cpu'] }}</li>
@@ -167,7 +179,7 @@
         {{-- پلن‌های سرورِ مجازیِ صفحهٔ اصلی → فروشگاهِ **کنسولِ خودمان**.
              (قبلاً به WHMCSِ بیرونی می‌رفت؛ فروش و تحویل حالا کاملاً داخلی است.) --}}
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}"
-           href="{{ lroute('account.cloud.store') }}">{{ __('ui.choose') }}</a>
+           href="{{ lroute('account.cloud.store', ['location' => $p['location_code'], 'plan' => $p['slug']]) }}">{{ __('ui.choose') }}</a>
       </article>
       @endforeach
     </div>
