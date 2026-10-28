@@ -31,6 +31,13 @@
 <div class="ad-panel" style="margin-bottom:18px">
   <div class="ad-panel-h"><h2>سلامتِ سامانه</h2></div>
   <div style="display:flex;flex-direction:column">
+    {{-- [arvan-traffic-health:start] --}}
+    @php
+      if (!collect($health ?? [])->contains('key', 'arvan_traffic_meter')) {
+        $health[] = app(\App\Services\Finance\ArvanTrafficHealth::class)->check();
+      }
+    @endphp
+    {{-- [arvan-traffic-health:end] --}}
     @foreach($health as $c)
       <div class="err-row" style="border-inline-start:3px solid {{ $c['level'] === 'fail' ? '#ff6b6b' : ($c['level'] === 'warn' ? '#fbbf24' : '#34d399') }}">
         <div class="err-top">
