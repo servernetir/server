@@ -453,6 +453,49 @@ class BirthdayRewardsTest extends TestCase
         $this->assertSame(1000, (int) $i->service->price);
     }
 
+
+    public function test_real_hourly_meter_debits_the_birthday_cost_once_and_keeps_regular_rate(): void
+    {
+        $c = $this->born(); $r = $this->reward($c);
+        $r->update(['starts_at' => now()->subHours(2), 'expires_at' => now()->addHours(22)]);
+        \Tests\Support\NavasanRates::store(['USD' => 90000, 'EUR' => 100000, 'USDT' => 90000]);
+        $plan = \App\Models\CloudPlan::create(['provider' => 'hetzner', 'provider_ref' => 'fixture-meter',
+            'location_code' => 'de-fixture', 'public_name' => 'Fixture', 'slug' => 'birthday-meter',
+            'cost_eur_cents' => 720, 'cost_hour_eur_micro' => 1000,
+            'price_irt' => 720000, 'price_eur_cents' => 1000, 'is_active' => true]);
+        $s = Service::create(['customer_id' => $c->id, 'name' => 'Hourly', 'plan' => 'birthday-meter',
+            'cloud_plan_id' => $plan->id, 'price' => 720000, 'cycle' => 'monthly',
+            'billing_mode' => 'hourly', 'hourly_rate_irt' => 1000, 'status' => 'active',
+            'activated_at' => now()->subDay(), 'provision_status' => 'done',
+            'last_metered_at' => now()->subHour(), 'on_credit_out' => 'suspend']);
+        \App\Models\CloudInstance::create(['service_id' => $s->id, 'provider' => 'hetzner',
+            'provider_ref' => 'fixture-'.$s->id, 'location_code' => 'de-fixture',
+            'image_key' => 'ubuntu-24.04', 'hostname' => 'fixture', 'ipv4' => '192.0.2.2',
+            'status' => 'running', 'ready_notified_at' => now()->subDay()]);
+        $snapshot = \Mockery::mock(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $snapshot->shouldReceive('current')->with('hetzner')->andReturn(true);
+        $this->app->instance(\App\Services\Cloud\CloudPricingSnapshot::class, $snapshot);
+        $wallet = app(\App\Services\Finance\Wallet::class);
+        $wallet->credit($c->id, 'IRT', 100000, 'topup', $c);
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame(99900, $wallet->balanceOf($c->id));
+        $this->assertSame(1, \App\Models\CreditEntry::where('source_type', Service::class)
+            ->where('source_id', $s->id)->where('reason', 'cloud_hourly')->count());
+        $this->assertSame(1000, (int) $s->fresh()->hourly_rate_irt);
+        Http::assertNothingSent();
+    }
+
+
+    public function test_cost_is_not_reused_for_a_different_billing_cycle(): void
+    {
+        $c = $this->born(); $this->reward($c); $i = $this->invoice($c);
+        $i->service->update(['cycle' => 'annually']);
+        app(BirthdayInvoices::class)->prepare($i, true);
+        $this->assertSame(1100, $i->total);
+        $this->assertDatabaseCount('birthday_redemptions', 0);
+    }
+
     public function test_integer_cost_and_tax_math_never_drops_below_cost_or_adds_markup(): void
     {
         $calculator = app(BirthdayCalculator::class);

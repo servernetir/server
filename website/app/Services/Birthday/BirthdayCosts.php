@@ -33,6 +33,13 @@ class BirthdayCosts
             return null;
         }
         $ctx = $item->marketing_context ?: [];
+        if (isset($ctx['billing_cycle']) && $ctx['billing_cycle'] !== $service->cycle) {
+            return null;
+        }
+        if ($service->cloud_plan_id && isset($ctx['cloud_plan_id'])
+            && (int) $ctx['cloud_plan_id'] !== (int) $service->cloud_plan_id) {
+            return null;
+        }
         $component = $ctx['birthday_component'] ?? 'service';
         $primary = ($ctx['eligible'] ?? false) && in_array($ctx['operation'] ?? null, ['purchase', 'renewal'], true);
         if (! $primary && $component !== 'setup') {
