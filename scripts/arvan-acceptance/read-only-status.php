@@ -5,13 +5,21 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 $root = '/home/servernetcloud/servernet_app';
 $db = null;
-$stage = 'bootstrap';
+$stage = 'autoload';
+$driver = null;
 try {
     require $root.'/vendor/autoload.php';
+    $stage = 'application';
     $app = require $root.'/bootstrap/app.php';
+    $stage = 'kernel_bootstrap';
     $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+    $stage = 'db_connection';
     $db = Illuminate\Support\Facades\DB::connection();
-    if ($db->getDriverName() !== 'mysql') { throw new RuntimeException('unsupported_driver'); }
+    $stage = 'db_driver';
+    $driver = $db->getDriverName();
+    if (!in_array($driver, ['mysql', 'mariadb'], true)) { throw new RuntimeException('unsupported_driver'); }
+    $stage = 'db_connect';
+    $db->getPdo();
     $stage = 'read_only_transaction';
     $db->statement('SET TRANSACTION READ ONLY');
     $db->beginTransaction();
@@ -58,8 +66,13 @@ try {
     $out['tools'] = ['flock' => is_executable('/usr/bin/flock'), 'crontab' => is_executable('/usr/bin/crontab'), 'at' => is_executable('/usr/bin/at')];
     $out['finance_meter_code_present'] = is_file($root.'/app/Services/Finance/ArvanTrafficMeter.php');
     echo json_encode($out, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), PHP_EOL;
-} catch (Throwable) {
+} catch (Throwable $e) {
     if ($db && $db->transactionLevel() > 0) { try { $db->rollBack(); } catch (Throwable) {} }
-    echo json_encode(['error' => 'read_only_probe_failed', 'stage' => $stage]), PHP_EOL;
+    echo json_encode([
+        'error' => 'read_only_probe_failed', 'stage' => $stage,
+        'exception_class' => get_class($e),
+        'source_file' => basename($e->getFile()), 'source_line' => $e->getLine(),
+        'db_driver' => in_array($driver, ['mysql', 'mariadb', 'pgsql', 'sqlite', 'sqlsrv'], true) ? $driver : null,
+    ], JSON_UNESCAPED_SLASHES), PHP_EOL;
     exit(1);
 }
