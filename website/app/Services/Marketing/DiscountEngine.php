@@ -29,6 +29,9 @@ class DiscountEngine
             if ((int) $i->customer_id !== (int) $customer->id || ! $customer->isActive()) {
                 $this->fail('unknown');
             }
+            if (app(\App\Services\Birthday\BirthdayInvoices::class)->hasDiscount($i)) {
+                $this->fail('stacking');
+            }
             $code = GiftCoupon::normalize($code);
             $g = MarketingGrant::where('code', $code)
                 ->where(fn ($q) => $q->where('customer_id', $customer->id)->orWhereNull('customer_id'))->first();
@@ -236,6 +239,7 @@ class DiscountEngine
     /** Protect wallet/bank/gateway starts as well as the coupon form. */
     public function assertPayable(Invoice $invoice): void
     {
+        app(\App\Services\Birthday\BirthdayInvoices::class)->prepare($invoice);
         if (! Schema::hasTable('marketing_redemptions')) {
             return;
         }

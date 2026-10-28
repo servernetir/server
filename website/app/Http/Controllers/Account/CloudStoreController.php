@@ -1543,10 +1543,12 @@ class CloudStoreController extends Controller
                 | اگر رزروِ هم‌زمانِ AI وجهِ ساعتی را قفل کرده باشد، استثنای
                 | Wallet کلِ تراکنش و ساخت سرویس را برمی‌گرداند.
                 */
+                $firstHour = app(\App\Services\Birthday\BirthdayHourly::class)->rates($service, now(), 1, $hourly)[0];
+                $birthdayNote = $firstHour < $hourly ? ' — '.__('birthday.usage_discount', ['amount' => invoice_money($hourly - $firstHour, 'IRT')]) : '';
                 $wallet->debit(
-                    $customer->id, 'IRT', $hourly,
+                    $customer->id, 'IRT', $firstHour,
                     'cloud_hourly', $service,
-                    'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name
+                    'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name.$birthdayNote
                 );
 
                 return $service;

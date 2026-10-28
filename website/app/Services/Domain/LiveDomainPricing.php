@@ -168,7 +168,37 @@ class LiveDomainPricing
         $item = $this->domainItem($domain, $invoice);
         $header = min((int) $invoice->subtotal, (int) $invoice->total - max(0, (int) $invoice->tax));
 
-        return $item ? min($header, (int) $item->line_total, (int) $item->unit_price) : $header;
+        return $item ? min($header, $item->netTotal(), (int) $item->unit_price) : $header;
+    }
+
+    /** Exact registrar cost for a domain line, including the existing supplier tax/FX policy. */
+    public function birthdayCost(Invoice $invoice, InvoiceItem $item): ?array
+    {
+        if (! $invoice->domain_id || $invoice->currency_code !== 'IRT') {
+            return null;
+        }
+        $domain = Domain::find($invoice->domain_id);
+        if (! $domain || (int) $domain->customer_id !== (int) $invoice->customer_id) {
+            return null;
+        }
+        $line = $this->domainItem($domain, $invoice);
+        if (! $line || $line->id !== $item->id) {
+            return null;
+        }
+        [$operation, $years] = $this->invoiceOperation($domain, $invoice);
+        $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
+        $cost = (int) ($quote['wholesale_toman'] ?? 0);
+        return $cost > 0 ? ['amount' => $cost, 'currency' => 'IRT', 'source' => 'live_registrar_landed_cost',
+            'domain_id' => $domain->id, 'operation' => $operation, 'years' => $years,
+            'as_of' => now()->toIso8601String()] : null;
+    }
+
+    private function requiredFloor(Domain $domain, Invoice $invoice, array $quote): int
+    {
+        $item = $this->domainItem($domain, $invoice);
+        $birthday = $item ? app(\App\Services\Birthday\BirthdayInvoices::class)
+            ->domainFloor($invoice, $domain, $item, (int) $quote['wholesale_toman']) : null;
+        return $birthday ?? (int) $quote['floor_toman'];
     }
 
     /** Pending receipts and supplier payment attempts freeze the agreed invoice amount. */
@@ -205,7 +235,7 @@ class LiveDomainPricing
             }
             [$operation, $years] = $this->invoiceOperation($domain, $fresh);
             $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
-            if ($this->domainNetAmount($domain, $fresh) >= $quote['floor_toman']) {
+            if ($this->domainNetAmount($domain, $fresh) >= $this->requiredFloor($domain, $fresh, $quote)) {
                 return;
             }
             if ($fresh->paid > 0 || $this->hasPaymentInFlight($fresh)) {
@@ -242,7 +272,7 @@ class LiveDomainPricing
         }
         [$operation, $years] = $this->invoiceOperation($domain, $invoice);
         $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
-        if ($this->domainNetAmount($domain, $invoice) < $quote['floor_toman']) {
+        if ($this->domainNetAmount($domain, $invoice) < $this->requiredFloor($domain, $invoice, $quote)) {
             throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
         }
     }
@@ -266,7 +296,7 @@ class LiveDomainPricing
             $this->unavailable();
         }
         $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
-        if ($this->domainNetAmount($domain, $invoice) < $quote['floor_toman']) {
+        if ($this->domainNetAmount($domain, $invoice) < $this->requiredFloor($domain, $invoice, $quote)) {
             throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
         }
         $this->remember($domain, $quote);

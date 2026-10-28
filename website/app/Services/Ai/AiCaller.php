@@ -118,7 +118,8 @@ final class AiCaller
 
         // ── A4: قیمت و نرخِ ارز — فقط از کش؛ ناقص ⇒ فروش بسته، هرگز حدس ──
         try {
-            $quote = $this->pricing->quote($model);
+            $quote = app(\App\Services\Birthday\BirthdayProgram::class)->enabled()
+                ? $this->pricing->quoteFor($model, $customer) : $this->pricing->quote($model);
         } catch (AiPricingException $e) {
             return $this->pricingFailure($e);
         }

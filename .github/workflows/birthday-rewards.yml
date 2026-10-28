@@ -1,0 +1,107 @@
+name: Birthday reward financial checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/**'
+      - 'website/config/**'
+      - 'website/database/migrations/**'
+      - 'website/resources/views/**'
+      - 'website/lang/**'
+      - 'website/routes/**'
+      - 'website/tests/**'
+      - '.github/workflows/birthday-rewards.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Birthday/**'
+      - 'website/tests/Feature/Birthday*'
+      - '.github/workflows/birthday-rewards.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: birthday-rewards-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  financial:
+    name: Financial regression (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: birthday_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'birthday_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      EXCHANGE_ENABLED: 'false'
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Check syntax
+        run: |
+          find app/Services/Birthday -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l app/Http/Controllers/Admin/BirthdayRewardsController.php
+          php -l app/Http/Middleware/PrepareBirthdayReward.php
+          php -l database/migrations/2026_10_29_010000_create_birthday_rewards.php
+          php -l tests/Feature/BirthdayRewardsTest.php
+      - name: Run isolated financial and pricing regression tests
+        run: >-
+          vendor/bin/phpunit --testdox
+          tests/Feature/BirthdayRewardsTest.php
+          tests/Feature/BirthdayGiftTest.php
+          tests/Feature/DiscountEntryVisibilityTest.php
+          tests/Feature/InvoiceOnlyDiscountAccessTest.php
+          tests/Feature/MarketingCampaignEngineTest.php
+          tests/Feature/GiftCouponOnInvoiceTest.php
+          tests/Feature/InvoiceDiscountTest.php
+          tests/Feature/DomainRenewalFloorTest.php
+          tests/Feature/NavasanDomainPricingTest.php
+          tests/Feature/AiPricingFormulaTest.php
+          tests/Feature/AiPricingPropertyTest.php
+          tests/Feature/IdentityApiTest.php
+          tests/Feature/CloudHourlyBillingTest.php
+          tests/Feature/CloudFairHourlyMeteringTest.php
+          tests/Feature/HourlyBillingHoldTest.php
+          tests/Feature/HourlyUnderwaterGuardTest.php
+          tests/Feature/AdminSettingsTabsTest.php
+          tests/Feature/AdminSettingsFormNestingTest.php

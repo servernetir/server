@@ -14,7 +14,19 @@ class Pricing
             throw new IdentityError('price_unavailable', 503);
         }
 
-        return $this->preview($p, $customer);
+        $quote = $this->preview($p, $customer);
+        $reward = $customer ? app(\App\Services\Birthday\BirthdayProgram::class)->ensure($customer) : null;
+        if ($reward) {
+            $quote['birthday_reward_id'] = $reward->id;
+            $quote['regular_sell_irt'] = $quote['sell_irt'];
+            $quote['markup_bps'] = 0;
+            $quote['sell_irt'] = $quote['cost_irt'];
+            $quote['birthday_discount_irt'] = max(0, $quote['regular_sell_irt'] - $quote['sell_irt']);
+            $quote['tax_irt'] = $this->ceil($quote['sell_irt'] * $quote['tax_bps'], 10000);
+            $quote['total_irt'] = $quote['sell_irt'] + $quote['tax_irt'];
+        }
+
+        return $quote;
     }
 
     /** Operator-only calculation; a preview does not approve billing or enable a service. */

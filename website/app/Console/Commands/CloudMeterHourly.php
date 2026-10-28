@@ -418,10 +418,11 @@ class CloudMeterHourly extends Command
         *  (skipped) · >۰ = ساعت‌های کسرشده (charged).
         */
         $charged = null;
+        $chargedAmount = 0;
         $creditBound = false;
 
         try {
-            DB::transaction(function () use ($wallet, $customer, $service, $rate, $elapsed, $prev, &$charged, &$creditBound): void {
+            DB::transaction(function () use ($wallet, $customer, $service, $rate, $elapsed, $prev, &$charged, &$creditBound, &$chargedAmount): void {
                 Customer::whereKey($customer->id)->lockForUpdate()->first();
 
                 $locked = Service::whereKey($service->id)->lockForUpdate()->first();
@@ -436,16 +437,18 @@ class CloudMeterHourly extends Command
                 }
 
                 $available = $wallet->availableOf($customer->id);
-                $affordable = intdiv(max(0, $available), $rate);
+                $birthdayCharge = app(\App\Services\Birthday\BirthdayHourly::class)
+                    ->affordable($locked, $prev, min($elapsed, self::CATCHUP_CAP), $rate, $available);
 
-                if ($affordable < 1) {
+                if ($birthdayCharge['hours'] < 1) {
                     $charged = 0;                     // بیرونِ تراکنش creditOut می‌زنیم
 
                     return;
                 }
 
-                $hours = min($elapsed, $affordable, self::CATCHUP_CAP);
-                $creditBound = $hours === $affordable;
+                $hours = $birthdayCharge['hours'];
+                $chargedAmount = $birthdayCharge['amount'];
+                $creditBound = $birthdayCharge['credit_bound'];
                 $newMetered = $prev->copy()->addHours($hours);
 
                 // claimِ اتمی — دو اجرا هم‌زمان نتوانند یک ساعت را دوبار کسر کنند.
@@ -465,8 +468,10 @@ class CloudMeterHourly extends Command
                     return;
                 }
 
-                $wallet->debit($customer->id, 'IRT', $rate * $hours, 'cloud_hourly', $service,
-                    "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان');
+                $birthdayNote = $birthdayCharge['discount'] > 0 ? ' — '.__('birthday.usage_discount',
+                    ['amount' => invoice_money($birthdayCharge['discount'], 'IRT')]) : '';
+                $wallet->debit($customer->id, 'IRT', $chargedAmount, 'cloud_hourly', $service,
+                    "کسرِ ساعتیِ سرورِ ابری — {$hours} ساعت × ".number_format($rate).' تومان'.$birthdayNote);
 
                 $charged = $hours;
             });
@@ -487,7 +492,7 @@ class CloudMeterHourly extends Command
         }
 
         $hours = $charged;
-        $amount = -1 * $rate * $hours;
+        $amount = -1 * $chargedAmount;
 
         $balance = $customer->creditBalance('IRT');   // فقط برای پیام — حقیقت در Wallet بود
 

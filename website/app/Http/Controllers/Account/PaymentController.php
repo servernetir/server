@@ -167,7 +167,10 @@ class PaymentController extends Controller
         $this->authorizeInvoice($invoice);
 
         try {
+            app(\App\Services\Birthday\BirthdayInvoices::class)->synchronize($invoice);
+            app(\App\Services\Birthday\BirthdayInvoices::class)->prepare($invoice, true);
             app(\App\Services\Domain\LiveDomainPricing::class)->reviewInvoice($invoice);
+            app(\App\Services\Birthday\BirthdayInvoices::class)->prepare($invoice, true);
         } catch (\Illuminate\Validation\ValidationException $e) {
             view()->share('errors', (new \Illuminate\Support\ViewErrorBag)
                 ->put('default', new \Illuminate\Support\MessageBag($e->errors())));
@@ -832,6 +835,9 @@ class PaymentController extends Controller
         abort_unless(app(\App\Services\Marketing\DiscountEntryVisibility::class)->enabled(Auth::guard('customer')->user()), 403);
 
         $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+        if (app(\App\Services\Birthday\BirthdayInvoices::class)->hasDiscount($invoice)) {
+            return back()->withErrors(__('marketing.stacking'));
+        }
         $code = \App\Models\GiftCoupon::normalize($data['code']);
         if (\Illuminate\Support\Facades\Schema::hasTable('marketing_grants') && str_starts_with($code, 'SN-')) {
             return app(OfferController::class)->apply($request, $invoice, app(\App\Services\Marketing\DiscountEngine::class));
@@ -979,6 +985,8 @@ class PaymentController extends Controller
     {
         abort_if($invoice->customer_id !== Auth::guard('customer')->id(), 404);
         if (! request()->isMethod('GET') && ! str_ends_with((string) request()->route()?->getName(), '.cancel')) {
+            app(\App\Services\Birthday\BirthdayInvoices::class)
+                ->assertPresented($invoice, (string) request()->input('birthday_price_token', ''));
             app(\App\Services\Marketing\DiscountEngine::class)->assertPayable($invoice);
             app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
             app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($invoice);

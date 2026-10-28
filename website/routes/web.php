@@ -401,7 +401,7 @@ $site = function (): void {
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
-    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
+    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
         Route::post('/offers/preferences', [Account\OfferController::class, 'preferences'])->name('offers.preferences')->middleware('throttle:10,1');
@@ -3476,6 +3476,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->middleware('admin');
         Route::post('/settings/payment-visibility', [\App\Http\Controllers\Admin\SettingsController::class, 'paymentVisibility'])->middleware('admin');
         Route::post('/settings/discount-entry', [\App\Http\Controllers\Admin\DiscountVisibilityController::class, 'updateDefault'])->middleware('admin');
+        Route::post('/settings/birthday-rewards', [\App\Http\Controllers\Admin\BirthdayRewardsController::class, 'update'])->middleware('admin');
+        Route::post('/settings/birthday-costs', [\App\Http\Controllers\Admin\BirthdayRewardsController::class, 'cost'])->middleware('admin');
     });
 });
 

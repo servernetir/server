@@ -7,6 +7,7 @@
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/panel.css') }}">
+<link rel="stylesheet" href="{{ asset_ver('assets/css/birthday-rewards.css') }}">
 @endpush
 
 @section('content')
@@ -33,6 +34,7 @@
 
       {{-- محتوا اول در DOM، سایدبار دوم: کاربر صفحه‌کلید زودتر به کار اصلی می‌رسد --}}
       <div class="pnl-main">
+        @include('account.partials.birthday-notice')
         @yield('panel')
       </div>
 
