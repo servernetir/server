@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # UI-only traffic report release. Never invokes a meter, debit, provider or notification.
 set -euo pipefail
+umask 077
 arvan_mode="${1:---preview}"
 if [[ "$#" -gt 1 ]]; then exit 2; fi
 case "$arvan_mode" in
