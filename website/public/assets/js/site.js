@@ -320,6 +320,9 @@
     const focusable = () => Array.from(drawer.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')).filter((el) =>
       !el.disabled && el.tabIndex >= 0 && !el.closest('[hidden],[inert]') && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
     const focusInside = () => (closeButton || focusable()[0] || drawer).focus({ preventScroll: true });
+    const recoverDrawerFocus = () => {
+      if (drawer.classList.contains('open') && !drawer.contains(document.activeElement)) focusInside();
+    };
     const setDrawer = (open, restoreFocus = true) => {
       if (open === drawer.classList.contains('open')) return;
       if (open) {
@@ -342,6 +345,9 @@
         background = Array.from(document.body.children).filter((el) => el !== drawer && el !== backdrop && !el.contains(drawer) && !['SCRIPT', 'STYLE', 'LINK'].includes(el.tagName)).map((el) => [el, el.hasAttribute('inert')]);
         background.forEach(([el]) => el.setAttribute('inert', ''));
         document.body.style.overflow = 'hidden';
+        // A visibility transition can reject the synchronous focus attempt.
+        // Retry after layout, without moving focus a user already placed inside.
+        requestAnimationFrame(recoverDrawerFocus);
       } else {
         if (restoreFocus && previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
         else if (drawer.contains(document.activeElement)) document.querySelector('.header-wrap a[href]')?.focus({ preventScroll: true });
@@ -365,6 +371,7 @@
     document.addEventListener('focusin', (e) => {
       if (drawer.classList.contains('open') && !drawer.contains(e.target)) focusInside();
     });
+    drawer.addEventListener('transitionend', (e) => { if (e.target === drawer) recoverDrawerFocus(); });
     window.addEventListener('resize', () => { if (window.innerWidth > 1020) setDrawer(false, false); }, { passive: true });
     const heads = Array.from(drawer.querySelectorAll('.acc-head'));
     const syncAccordions = () => heads.forEach((head) => {
