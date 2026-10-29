@@ -1,0 +1,14 @@
+{
+  "status": "preview_ready",
+  "source_sha256": "40b94a1ccdadfb655ed39c30d3331d3359c5cdc69c7c9f4bcd538343d1b8c025",
+  "cms_snapshot": "1ce5b92a7e14daf295f729864442fc5e0580d42107095eceba527dce61d88830",
+  "raw_hash": "f3e5aa0fe0b619710f0992f0abc7c20398d037fa6ef15199e0be29309231a774",
+  "translation_count": 3,
+  "backup_sha256": "abb4b6ad3ee28632de045eff1bc1d0d6422c09f1852c0bfcb537c3687073f03f",
+  "body_sha256": {
+    "en": "ae02178f12137450643ab2becba6a9d17ae32b02119bb6c0e44058e003b99f1b",
+    "fa": "83e103786ca893b300fd524cccef19d8e22762440584e2fd6e3bb9ba91dc356e",
+    "tr": "52dd88dd04b3cc90b926b624923e702c69814707a3366a639ee0a091ad6912b7"
+  },
+  "at": "2026-10-29T06:56:47+00:00"
+}

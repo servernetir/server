@@ -1,0 +1,182 @@
+{
+  "observed_at_utc": "2026-10-29T06:58:29.2151128Z",
+  "scope": "Exactly three public guide GETs and one main sitemap GET; no account/source/production mutations; only sanitized acceptance metadata saved.",
+  "reviewed_source_sha256": "40b94a1ccdadfb655ed39c30d3331d3359c5cdc69c7c9f4bcd538343d1b8c025",
+  "source_sha256_after": "40b94a1ccdadfb655ed39c30d3331d3359c5cdc69c7c9f4bcd538343d1b8c025",
+  "pages": [
+    {
+      "locale": "fa",
+      "url": "https://servernet.cloud/blog/git-basics-for-deployment",
+      "checked_url": "https://servernet.cloud/blog/git-basics-for-deployment?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "article_found": true,
+      "rendered_body_sha256": "20b059960613089b55ab63844edce2d5808c71b915dfcd193e7ad66353acff07",
+      "reviewed_body_sha256": "20b059960613089b55ab63844edce2d5808c71b915dfcd193e7ad66353acff07",
+      "exact_body_matches_reviewed": true,
+      "trimmed_body_matches_reviewed": true,
+      "title": "آموزش گیت برای استقرار سایت؛ از مخزن تا دیپلوی روی سرور — سرورنت کلاود",
+      "h1": [
+        "آموزش گیت برای استقرار سایت؛ از مخزن تا دیپلوی روی سرور"
+      ],
+      "canonical": [
+        "https://servernet.cloud/blog/git-basics-for-deployment"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "locale": "fa",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "en",
+          "url": "https://servernet.cloud/en/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "tr",
+          "url": "https://servernet.cloud/tr/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "x-default",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        }
+      ],
+      "json_ld_blocks": 3,
+      "json_ld_error_count": 0,
+      "json_ld_types": [
+        "Organization",
+        "WebSite",
+        "BlogPosting"
+      ],
+      "localized_hourly_link": "/vps/hourly",
+      "localized_hourly_link_present": true,
+      "signed_webhook_markers_present": true,
+      "official_github_source_present": true,
+      "official_cpanel_source_present": true,
+      "legacy_get_code_present": false
+    },
+    {
+      "locale": "en",
+      "url": "https://servernet.cloud/en/blog/git-basics-for-deployment",
+      "checked_url": "https://servernet.cloud/en/blog/git-basics-for-deployment?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "article_found": true,
+      "rendered_body_sha256": "2e76f744f84b7ea41ba890e6349a9c26838cc2871396af5ba61b6cbc9c8dfa8a",
+      "reviewed_body_sha256": "2e76f744f84b7ea41ba890e6349a9c26838cc2871396af5ba61b6cbc9c8dfa8a",
+      "exact_body_matches_reviewed": true,
+      "trimmed_body_matches_reviewed": true,
+      "title": "Git basics for deploying your site — ServerNet Cloud",
+      "h1": [
+        "Git basics for deploying your site"
+      ],
+      "canonical": [
+        "https://servernet.cloud/en/blog/git-basics-for-deployment"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "locale": "fa",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "en",
+          "url": "https://servernet.cloud/en/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "tr",
+          "url": "https://servernet.cloud/tr/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "x-default",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        }
+      ],
+      "json_ld_blocks": 3,
+      "json_ld_error_count": 0,
+      "json_ld_types": [
+        "Organization",
+        "WebSite",
+        "BlogPosting"
+      ],
+      "localized_hourly_link": "/en/vps/hourly",
+      "localized_hourly_link_present": true,
+      "signed_webhook_markers_present": true,
+      "official_github_source_present": true,
+      "official_cpanel_source_present": true,
+      "legacy_get_code_present": false
+    },
+    {
+      "locale": "tr",
+      "url": "https://servernet.cloud/tr/blog/git-basics-for-deployment",
+      "checked_url": "https://servernet.cloud/tr/blog/git-basics-for-deployment?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "article_found": true,
+      "rendered_body_sha256": "92f3a57877ccd07c6dde6e60cdd4117daefa31a3bfb5171c1f2d3d2acf15d42e",
+      "reviewed_body_sha256": "92f3a57877ccd07c6dde6e60cdd4117daefa31a3bfb5171c1f2d3d2acf15d42e",
+      "exact_body_matches_reviewed": true,
+      "trimmed_body_matches_reviewed": true,
+      "title": "Site dağıtımı için Git temelleri — ServerNet Cloud",
+      "h1": [
+        "Site dağıtımı için Git temelleri"
+      ],
+      "canonical": [
+        "https://servernet.cloud/tr/blog/git-basics-for-deployment"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "locale": "fa",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "en",
+          "url": "https://servernet.cloud/en/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "tr",
+          "url": "https://servernet.cloud/tr/blog/git-basics-for-deployment"
+        },
+        {
+          "locale": "x-default",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        }
+      ],
+      "json_ld_blocks": 3,
+      "json_ld_error_count": 0,
+      "json_ld_types": [
+        "Organization",
+        "WebSite",
+        "BlogPosting"
+      ],
+      "localized_hourly_link": "/tr/vps/hourly",
+      "localized_hourly_link_present": true,
+      "signed_webhook_markers_present": true,
+      "official_github_source_present": true,
+      "official_cpanel_source_present": true,
+      "legacy_get_code_present": false
+    }
+  ],
+  "sitemap": {
+    "url": "https://servernet.cloud/sitemap.xml?qa=1",
+    "status": 200,
+    "cache": "BYPASS",
+    "target_rows": [
+      {
+        "url": "https://servernet.cloud/blog/git-basics-for-deployment",
+        "lastmod": "2026-10-29"
+      },
+      {
+        "url": "https://servernet.cloud/en/blog/git-basics-for-deployment",
+        "lastmod": "2026-10-29"
+      },
+      {
+        "url": "https://servernet.cloud/tr/blog/git-basics-for-deployment",
+        "lastmod": "2026-10-29"
+      }
+    ],
+    "target_count": 3
+  },
+  "limits": "HTTP and returned HTML acceptance only. Parent handles rendered desktop/mobile validation. No actual purchase or conversion exercised."
+}
