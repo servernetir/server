@@ -1,0 +1,66 @@
+[
+  {
+    "query": "توکن نامحدود اشتراک",
+    "expected_id": "snk-gateway-metered"
+  },
+  {
+    "query": "اتمام اعتبار رزرو 402",
+    "expected_id": "snk-gateway-zero-balance"
+  },
+  {
+    "query": "محرمانگی پیش‌نویس نگهداری",
+    "expected_id": "snk-privacy-gateway-unresolved"
+  },
+  {
+    "query": "GageNet OBH Token Base",
+    "expected_id": "snk-tools-taxonomy"
+  },
+  {
+    "query": "نمایندگی رسمی مدرک",
+    "expected_id": "snk-official-representation"
+  },
+  {
+    "query": "Pro تعارض مستندات",
+    "expected_id": "snk-deepseek-conflicting-docs"
+  },
+  {
+    "query": "پذیرش pytest TLS",
+    "expected_id": "snk-vps-acceptance"
+  },
+  {
+    "query": "مدیریتی دیتاسنتر root",
+    "expected_id": "snk-vps-admin-control"
+  },
+  {
+    "query": "صرافی معامله مرحله",
+    "expected_id": "snk-python-stage-approval"
+  },
+  {
+    "query": "GPU 24 ساعت اعتبار",
+    "expected_id": "snk-gpu-wallet"
+  },
+  {
+    "query": "Plesk WIN-5 SSMS",
+    "expected_id": "snk-windows-hosting"
+  },
+  {
+    "query": "VPS.TC استانبول تمدید",
+    "expected_id": "snk-vpstc-contract"
+  },
+  {
+    "query": "آروان ترافیک baseline",
+    "expected_id": "snk-arvan-traffic"
+  },
+  {
+    "query": "BitLocker درایو develop",
+    "expected_id": "snk-git-development"
+  },
+  {
+    "query": "Irexbridge VLESS Nextcloud",
+    "expected_id": "snk-projects-isolation"
+  },
+  {
+    "query": "مثال هزینه مالیات تومان",
+    "expected_id": "snk-gateway-cost-example"
+  }
+]
