@@ -1,4 +1,4 @@
 ---
 deployment:
   tasks:
-    - /usr/bin/python3 /home/servernetcloud/hermes-reliability-source-20261029/scripts/deploy-hermes-knowledge-due-20261029.py
+    - /opt/cpanel/ea-php84/root/usr/bin/php /home/servernetcloud/hermes-reliability-source-20261029/scripts/test-hermes-knowledge-due-20261029.php
