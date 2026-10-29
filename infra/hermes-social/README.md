@@ -77,6 +77,17 @@ systemctl --user status hermes-social.timer
 
 The existing `hermes` user's linger/service behavior must be checked. The user timer is independent of the Laravel minute cron and does not execute billing/provisioning. One unit does not overlap itself; the SQLite claim also serializes MCP calls. On Windows, create a Task Scheduler task under the dedicated executor account calling the generated Python path with `-m hermes_social.cli --config ... tick` every minute, with the “do not start a new instance” policy. Do not put account passwords or tokens into task arguments.
 
+## Follow-up review — 2026-10-29
+
+Carousel creation now checks the pause flag immediately before every child POST
+and before the final parent-container POST. If a pause interrupts creation after
+a child may exist, Engine keeps `UNKNOWN_PREPARE`; restart/ticks never blindly
+create a replacement. 58 local tests pass on this follow-up revision. Three added mocked-HTTP regression tests cover pause after
+the first child, after the last child, and before a single-image container.
+The previously raised queue-starvation example is covered by the existing
+persistent-cursor restart test and passes on this revision. No VM installation,
+live credentials, real publication or comment response is part of these tests.
+
 ## Review fixes — 2026-10-28
 
 Normal startup now requires an initialized, valid journal and opens SQLite in `mode=rw`.
@@ -120,4 +131,5 @@ python build_manifest.py --drive-index /private/drive_manifest.json \
 ```
 
 Source references: [Hermes MCP configuration](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp/), [official MCP Python SDK v1](https://py.sdk.modelcontextprotocol.io/v1/), [Meta publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing), [Meta image/container API](https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media), [Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login), [Google downloads](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Google desktop OAuth](https://developers.google.com/identity/protocols/oauth2/native-app), [S3 presigned URLs](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/generate_presigned_url.html). Full Meta pages were inaccessible to this session; primary-source search excerpts confirmed the contract, while live app/version acceptance remains required.
+
 

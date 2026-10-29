@@ -637,6 +637,52 @@ class MCPIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertIn("social_status", prompt.messages[0].content.text)
 
 
+class CarouselPauseTests(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture()
+        self.addCleanup(self.f.close)
+        self.calls = []
+        self.job = copy.deepcopy(self.f.job)
+        self.job.update(kind="CAROUSEL", assets=self.job["assets"] * 3)
+        self.f.manifest["jobs"] = [self.job]
+        self.f.save()
+
+    def api(self, pause_at):
+        def handler(request):
+            if request.method == "GET":
+                return httpx.Response(200, json={"id": "123", "username": "servernet.cloud"})
+            self.calls.append(request)
+            if len(self.calls) == pause_at:
+                (self.f.state / "PAUSED").touch()
+            return httpx.Response(200, json={"id": str(500 + len(self.calls))})
+        return Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+
+    def test_pause_after_first_child_prevents_remaining_remote_mutations(self):
+        api = self.api(1)
+        engine = Engine(self.f.policy(), FakeDrive(), FakeStore(), lambda lang: api, lambda: NOW)
+        result = engine.prepare(self.job["key"])
+        self.assertEqual(result["state"], "UNKNOWN_PREPARE")
+        self.assertEqual(len(self.calls), 1)
+        (self.f.state / "PAUSED").unlink()
+        engine.prepare(self.job["key"])
+        engine.tick()
+        self.assertEqual(len(self.calls), 1)
+
+    def test_pause_after_last_child_prevents_parent_container(self):
+        api = self.api(3)
+        with self.assertRaisesRegex(Blocked, "executor_paused"):
+            api.create(self.job, ["https://example.invalid/image.jpg"] * 3)
+        self.assertEqual(len(self.calls), 3)
+        self.assertTrue(all(r.content.find(b"is_carousel_item=true") >= 0 for r in self.calls))
+
+    def test_prepaused_image_never_creates_container(self):
+        api = self.api(1)
+        (self.f.state / "PAUSED").touch()
+        with self.assertRaisesRegex(Blocked, "executor_paused"):
+            api.create(self.f.job, ["https://example.invalid/image.jpg"])
+        self.assertEqual(self.calls, [])
+
+
 class BootstrapTests(unittest.TestCase):
     def setUp(self):
         self.f = Fixture()
@@ -717,4 +763,5 @@ class BootstrapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 

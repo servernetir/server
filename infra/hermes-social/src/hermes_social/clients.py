@@ -212,6 +212,7 @@ class MediaStore:
 class Instagram:
     def __init__(self, policy, lang, client=None):
         import httpx
+        self.policy = policy
         self.account = policy.account(lang)
         version = policy.data.get("graph_version", "")
         if not re.fullmatch(r"v[0-9]+\.0", version):
@@ -249,6 +250,7 @@ class Instagram:
         if job["kind"] == "CAROUSEL":
             children = []
             for asset, url in zip(job["assets"], urls, strict=True):
+                self.policy.enabled()
                 response = self.call("POST", account_id + "/media", image_url=url,
                                      is_carousel_item="true", alt_text=asset.get("alt", ""))
                 children.append(self.numeric(response.get("id")))
@@ -259,6 +261,7 @@ class Instagram:
             fields = {"media_type": "STORIES", "image_url": urls[0]}
         else:
             fields.update(image_url=urls[0], alt_text=job["assets"][0].get("alt", ""))
+        self.policy.enabled()
         return self.numeric(self.call("POST", account_id + "/media", **fields).get("id"))
 
     @staticmethod
@@ -321,4 +324,5 @@ class Instagram:
         result = self.call("GET", self.numeric(reply_id), fields="id,text")
         if result.get("id") != reply_id or result.get("text") != text:
             raise Blocked("reply_not_verified")
+
 
