@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - /opt/cpanel/ea-php84/root/usr/bin/php -l /home/servernetcloud/hermes-knowledge-import-20261029/infra/hermes/knowledge-transfer-20261029/import.php
+    - /opt/cpanel/ea-php84/root/usr/bin/php /home/servernetcloud/hermes-knowledge-import-20261029/infra/hermes/knowledge-transfer-20261029/import.php
