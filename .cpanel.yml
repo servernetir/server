@@ -1,0 +1,4 @@
+---
+deployment:
+  tasks:
+    - /usr/bin/python3 /home/servernetcloud/hermes-reliability-source-20261029/scripts/deploy-hermes-reliability-20261029.py
