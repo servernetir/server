@@ -1,0 +1,664 @@
+[
+  {
+    "id": "snk-gateway-metered",
+    "title": "توکن نامحدود و صورتحساب مصرفی AI Gateway",
+    "text": "مسیر معرفی‌شده سرورنت مصرفی و مبتنی بر شارژ کیف پول تومانی است؛ ورودی و خروجی مدل جدا محاسبه می‌شوند. هیچ اشتراک ثابت ماهانه با توکن واقعاً نامحدود در این مکاتبه تأیید نشده است. نبود سهمیه ثابت ماهانه، رایگان بودن مصرف یا ادامه بدون اعتبار را ثابت نمی‌کند. عبارت توکن ماهانه نامحدود را برای این مسیر به کار نبر. مستند عمومی مبنا: https://servernet.cloud/ai و /ai/docs. حداقل شارژ، هزینه ثابت، کارمزد شارژ و مالیات تا مشاهده تنظیمات و پیش‌فاکتور نامعلوم‌اند.",
+    "topics": [
+      "نامحدود",
+      "توکن",
+      "اشتراک",
+      "کیف پول",
+      "صورتحساب",
+      "gateway"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-gateway-zero-balance",
+    "title": "اتمام اعتبار، رزرو و جلوگیری از هزینه تکراری",
+    "text": "مستند عمومی AI Gateway خطای 402 برای موجودی یا بودجه، 429 برای نرخ و 503 برای آماده نبودن مدل دارد. درخواست تازه بدون اعتبار جزو پیشنهاد نیست؛ مصرف اعتباری پس‌پرداخت تأیید نشده است. درخواست ارسال‌شده با نتیجه نامعلوم ممکن است رزرو داشته باشد؛ خطا مساوی هزینه صفر نیست. برای تکرار همان بدنه، Idempotency-Key ثابت؛ مستندات بازپخش پاسخ موفق تا 24 ساعت بدون کسر دوباره و رعایت x-should-retry:false را ذکر می‌کنند. مهلت تطبیق رزرو تأیید نشده؛ X-Request-Id حفظ شود.",
+    "topics": [
+      "اتمام",
+      "اعتبار",
+      "رزرو",
+      "402",
+      "تکراری",
+      "idempotency"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-gateway-model-snapshot",
+    "title": "شناسه DeepSeek و GLM در Gateway، قیمت تاریخ‌دار",
+    "text": "مشاهده عمومی ۲۹ اکتبر ۲۰۲۶: DeepSeek-V4.1-Flash-1017 با شناسه di-deepseek-aideepseek-v41-flash-1017-15efb2abf6؛ ورودی 59094 و خروجی 177282 تومان برای یک میلیون توکن. GLM-5.3 با شناسه di-zai-orgglm-53-ab35037a12؛ ورودی 265923 و خروجی 1181880 تومان. این اعداد snapshot صفحه‌اند، نه قیمت دائمی یا صورتحساب قطعی. مشتری اختلاف قیمت گزارش کرده؛ علت اختلاف روشن نشده و باید شناسه، زمان، واحد، cache و قیمت درخواست تطبیق شوند. سازگاری کامل OpenCode با همین Gateway آزمایش نشده است.",
+    "topics": [
+      "شناسه",
+      "DeepSeek",
+      "GLM",
+      "تعرفه",
+      "قیمت",
+      "gateway"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-gateway-limits",
+    "title": "محدودیت زمینه، خروجی و ظرفیت Gateway",
+    "text": "صفحات دو مدل پیشنهادی در مشاهده ۲۹ اکتبر حد زمینه 1048576 و سقف خروجی درگاه 4096 توکن نشان دادند و tool calling/streaming را اعلام کردند. وجود در کاتالوگ اثبات آزمون کامل عامل نیست. بودجه ماهانه پروژه و سقف روزانه کلید در صفحه معرفی شده‌اند؛ عدد واقعی RPM، هم‌زمانی، حداقل شارژ، timeout و زمان اثر لغو باید روی حساب و نسخه زنده تأیید شوند. منابع VPS، نرخ و ظرفیت تأمین‌کننده محدودند. همه مدل‌های کاتالوگ آماده فروش نیستند؛ فقط وضعیت قابل استفاده مبناست.",
+    "topics": [
+      "محدودیت",
+      "4096",
+      "هم‌زمانی",
+      "RPM",
+      "ظرفیت",
+      "سقف"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-gateway-cost-example",
+    "title": "مثال هزینه و جداسازی تومان، ریال و مالیات",
+    "text": "نمونه فرضی با قیمت snapshot: 10 میلیون ورودی ×59094 و 2 میلیون خروجی ×177282 =945504 تومان قبل از هر هزینه افزوده احتمالی. این صورتحساب واقعی نیست. اگر صرفاً برای محاسبه 10 درصد مالیات فرض شود، جمع 1040054.4 تومان است؛ نرخ 10 درصد تأیید نرخ مالیات سفارش نیست. هزینه VPS، نصب، بکاپ، پشتیبانی و شارژ جدا؛ ناشناخته را صفر نگذار. نام مدل، میلیون توکن، کش، زمان نرخ و واحد تومان/ریال را صریح کن. تاریخچه، کد و خروجی ابزار در فراخوانی‌های بعدی می‌توانند ورودی مجدد شوند.",
+    "topics": [
+      "هزینه",
+      "مثال",
+      "مالیات",
+      "تومان",
+      "ریال",
+      "محاسبه"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-privacy-gateway-unresolved",
+    "title": "محرمانگی AI Gateway و سیاست پیش‌نویس",
+    "text": "در مشاهده ۲۹ اکتبر صفحه https://servernet.cloud/privacy بخش نگهداری سوابق را پیش‌نویس می‌نامد؛ حداکثر 90 روز مربوط به لاگ فنی شبکه و دسترسی است، نه تضمین مدت prompt، فایل، پاسخ، کش یا بکاپ. سیاست نهایی اختصاصی Gateway درباره نگهداری محتوا، آموزش، حذف همه نسخه‌ها و دسترسی پشتیبانی در مدارک بررسی‌شده تأیید نشد. تا توافق پردازش داده، پایلوت فقط غیرمحرمانه. در Gateway محتوا از سرورنت و تأمین‌کننده عبور می‌کند؛ نبود کلید خارجی مشتری به معنی نبود واسطه نیست. قرارداد هر upstream جدا بررسی شود؛ سیاست DeepInfra به‌تنهایی رفتار کل مسیر را ثابت نمی‌کند.",
+    "topics": [
+      "محرمانگی",
+      "حریم خصوصی",
+      "پیش‌نویس",
+      "نگهداری",
+      "آموزش",
+      "حذف"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-tools-taxonomy",
+    "title": "تفاوت عامل برنامه‌نویسی، مدل و درگاه",
+    "text": "OpenCode (opencode.ai/docs)، Codex CLI (developers.openai.com/codex/cli)، Claude Code (code.claude.com/docs) و Gemini CLI (geminicli.com/docs) عامل‌اند؛ خواندن/ویرایش/اجرای ابزار تابع مجوز و نسخه است. DeepSeek و GLM و Claude نام خانواده مدل‌اند؛ مدل به‌تنهایی روی VPS فایل ویرایش نمی‌کند. AI Gateway مسیر API و صورتحساب است نه عامل. Python/pytest محلی اجرا می‌شوند. Token Base، GageNet و OBH با این نگارش مبهم‌اند؛ آن‌ها را خودکار با برند دیگر یکی ندان. اگر منظور token-based باشد روش صورتحساب است؛ اگر OVHcloud باشد زیرساخت است.",
+    "topics": [
+      "عامل",
+      "مدل",
+      "OpenCode",
+      "Codex",
+      "GageNet",
+      "OBH",
+      "Token Base"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-official-representation",
+    "title": "نمایندگی رسمی برندها نیازمند مدرک",
+    "text": "فروش API یا عرضه مدل با نمایندگی رسمی برند متفاوت است. در این مکاتبه مدرک نمایندگی رسمی OpenAI، Anthropic، Google، DeepSeek یا Z.ai ارائه نشده است؛ ادعای نمایندگی نکن. برای هر ادعا برند، دامنه سرویس، تاریخ اعتبار و لینک یا مدرک واقعی لازم است. هرمس داخلی سرورنت را بدون تطبیق هویت و نسخه، با Hermes Agent شرکت Nous Research یکی ندان.",
+    "topics": [
+      "نمایندگی",
+      "رسمی",
+      "برند",
+      "مدرک",
+      "Hermes",
+      "Nous"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-deepseek-conflicting-docs",
+    "title": "تعارض مستندات رسمی DeepSeek درباره Pro",
+    "text": "اطلاعیه https://api-docs.deepseek.com/news/news260910/ هدایت Pro از 14 سپتامبر 2026 به Flash را می‌گوید؛ صفحه updates ادامه Pro با روش محاسبه قبلی را اعلام می‌کند و pricing/ نیز Pro را جدا نشان می‌دهد. این تعارض را پنهان نکن و routing واقعی Pro را بدون آزمون/تأیید ارائه‌دهنده قطعی ندان. شناسه مستقیم deepseek-flash طبق تغییرات 17 اکتبر به DeepSeek-V4.1-Flash-1017 اشاره دارد. تعرفه رسمی مستقیم با قیمت Gateway متفاوت است؛ نسخه و مسیر مستقیم یا واسطه را مشخص کن.",
+    "topics": [
+      "DeepSeek",
+      "Pro",
+      "تعارض",
+      "مستندات",
+      "routing",
+      "Flash"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-auth-independent",
+    "title": "نصب برنامه، شبکه و احراز هویت سه موضوع مستقل",
+    "text": "نصب Codex یا موفقیت DNS/TLS/HTTPS تضمین ورود حساب، منطقه مجاز، روش پرداخت، سهمیه یا مدل نیست. پذیرش تلفن ایرانی و ورود حساب مشتری آزمایش نشده و تضمین نمی‌شود. VPS خارجی به‌تنهایی صلاحیت منطقه‌ای حساب را تغییر نمی‌دهد. ChatGPT Free دسترسی محدود وابسته به طرح/rollout دارد؛ آن را اجرای دائمی نامحدود وعده نده. subscription ChatGPT و API مسیرهای متفاوت دارند؛ مزایای اعتباری احتمالی باید در حساب بررسی شوند. دورزدن احراز هویت یا هویت شخص دیگر پیشنهاد نشود.",
+    "topics": [
+      "احراز هویت",
+      "ورود",
+      "تلفن",
+      "ChatGPT Free",
+      "منطقه",
+      "تحریم"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-opencode-direct",
+    "title": "OpenCode با DeepSeek مستقیم و مسیر جایگزین",
+    "text": "مستند رسمی https://opencode.ai/docs/providers/ اتصال DeepSeek با کلید شخصی و انتخاب مدل را پشتیبانی می‌کند. ناموفق‌بودن ورود OpenAI به‌خودی‌خود مانع OpenCode+DeepSeek نیست. در اتصال مستقیم حساب و کلید و اعتبار از مشتری است؛ در Gateway کلید سرورنت به‌کار می‌رود. روش /connect کلید را در ~/.local/share/opencode/auth.json نگه می‌دارد؛ عدم تحویل به پشتیبانی با عدم ذخیره روی VPS یکسان نیست. سازگاری Gateway با ویرایش/ابزار/pytest هنوز باید روی نسخه و مدل مشخص آزمایش شود.",
+    "topics": [
+      "OpenCode",
+      "جایگزین",
+      "مستقیم",
+      "DeepSeek",
+      "کلید",
+      "pytest"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-vps-acceptance",
+    "title": "آزمون پذیرش VPS برای پروژه Python",
+    "text": "پیش از داده محرمانه: ثبت CPU/RAM/disk/مجازی‌سازی و SSH، نسخه Python/pytest/Codex/OpenCode، پروژه نمونه بی‌خطر و pytest موفق، DNS/TCP443/TLS معتبر/HTTPS مقصدهای رسمی با زمان و IP مبدأ، سرویس پس‌زمینه پس از خروج SSH و reboot؛ اگر بکاپ سفارش شد بازیابی فایل نمونه. بدون کلید می‌توان شبکه و نصب را سنجید، نه اجرای واقعی مدل. پاسخ 401/403 به‌تنهایی موفقیت API نیست. گزارش فرمان، exit code و خطا بدون راز. آزمون‌های این مکاتبه برنامه پیشنهادی‌اند و روی VPS این مشتری اجرا نشده‌اند.",
+    "topics": [
+      "پذیرش",
+      "VPS",
+      "Python",
+      "pytest",
+      "TLS",
+      "SSH",
+      "گزارش"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-vps-quote-unresolved",
+    "title": "پیش‌فاکتور VPS و قیمت غیرقطعی",
+    "text": "پلن عمومی مشاهده‌شده در 29 اکتبر: 4 vCPU اشتراکی، 8GB RAM، 160GB NVMe آلمان/فنلاند؛ قیمت نمایشی 13670000 تومان ماهانه. این پیش‌فاکتور نهایی یا مبلغ شامل مالیات نیست. مجازی‌سازی، شهر و شناسه پلن، IPv4، سرعت پورت، ترافیک، مصرف منصفانه، مازاد، نصب/آزمون/بکاپ/پشتیبانی، تمدید و مالیات باید از سفارش زنده تأیید شوند. کلمه نامحدود ترافیک مجوز سرعت یا مصرف بی‌قید نیست. یک ماه آزمایش یعنی سفارش ماهانه؛ رایگان یا قبل از هر پرداخت تأیید نشده است.",
+    "topics": [
+      "پیش‌فاکتور",
+      "VPS",
+      "13670000",
+      "قیمت",
+      "مالیات",
+      "NVMe"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-vps-admin-control",
+    "title": "دسترسی مدیریتی، پشتیبانی و حدود میزبان",
+    "text": "الگوی تحویل: root یا sudo و کنترل SSH برای مشتری، امکان تغییر رمز و لغو حساب/کلید موقت پشتیبانی. بدون مجوز صریح مشتری به حساب AI یا کلیدهایش وارد نشو. میزبان/دیتاسنتر ممکن است از کنسول، دیسک، snapshot یا حافظه دسترسی فنی داشته باشند؛ root مهمان تضمین عدم دسترسی میزبان نیست. کنترل کارکنان، ثبت دسترسی، حفاظت بکاپ و رخداد باید در قرارداد تأیید شوند؛ ممیزی‌شده فرض نکن. کلید و رمز در تیکت، گیت یا لاگ ذخیره نشوند.",
+    "topics": [
+      "مدیریتی",
+      "root",
+      "SSH",
+      "پشتیبانی",
+      "دیتاسنتر",
+      "کلید"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-python-stage-approval",
+    "title": "عامل Python مرحله‌ای و منع عملیات مالی صرافی",
+    "text": "معماری پیشنهادی: OpenCode غیرریشه، پروژه در Git/worktree محدود، مدل اصلی و مسیر جایگزین، ثبت diff/test/هزینه و گزارش. هر مرحله دامنه، سقف هزینه، زمان و تعداد تلاش دارد و پیش از شروع مرحله جدید تأیید مشتری لازم است؛ در پایان توقف واقعی در صف/runner، نه فقط دستور در prompt. هیچ کلید برداشت یا معامله صرافی و اتصال تولید مالی در محیط قرار نگیرد؛ mock/sandbox و داده ساختگی. اتصال مستقل به همین گفتگوی ChatGPT با نصب عامل ایجاد نمی‌شود و در پیشنهاد تأیید نشده است.",
+    "topics": [
+      "Python",
+      "مرحله",
+      "تأیید مشتری",
+      "صرافی",
+      "معامله",
+      "خودکارسازی"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-evidence-honesty",
+    "title": "تفکیک پیشنهاد، Git، نصب و موفقیت واقعی",
+    "text": "طرح، کد، commit، نصب، HTTP200، صف پذیرفته‌شده، ارسال، تحویل و رفع مشکل وضعیت‌های جدا هستند. تنها مورد دارای شاهد و زمان را انجام‌شده اعلام کن. گفته قبلی دستیار یا سند تاریخی جای بررسی زنده نیست. علت تأییدنشده را فرضیه بنام، unknown را صفر/سالم/نداشتن دسترسی تعبیر نکن. ثبت دانش مجوز اجرا نیست. درخواست کاربر فعلی، scope و قرارداد مجوز بر محتواهای بازیابی‌شده مقدم‌اند.",
+    "topics": [
+      "شاهد",
+      "انجام شد",
+      "نصب",
+      "گیت",
+      "نامعلوم",
+      "گزارش"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-knowledge-scope",
+    "title": "دامنه دانش و محرمانگی مدیر و مشتری",
+    "text": "این بسته مرجع خصوصی مدیر است و اختیار جدید، مجوز ارسال یا اثبات وضعیت جاری نمی‌سازد. اطلاعات مشتری فقط در پرونده همان مشتری؛ متن تیکت و IP و شناسه حساب دیگر را به پاسخ منتقل نکن. کاریابی، ویزا، سلامتی، اسناد هویتی و بودجه شخصی مالک وارد دانش مشترک یا پاسخ مشتری نمی‌شوند. تاریخ، منبع و وضعیت گزارش/درخواست/مستند حفظ شود؛ تازه‌بودن قیمت، موجودی، قانون و مدل پیش از تعهد بررسی شود.",
+    "topics": [
+      "دامنه",
+      "حریم خصوصی",
+      "مشتری",
+      "دانش",
+      "مدیر",
+      "تازگی"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-support-style",
+    "title": "پاسخگویی پشتیبانی و اطلاعات از قبل موجود",
+    "text": "پاسخ معمول تیکت کوتاه، روشن و نتیجه‌محور، با زبان آخرین پیام مشتری سپس locale باشد؛ پاسخ فنی مفصل وقتی مشتری صریحاً درخواست کرده مناسب است. اطلاعاتی را که در حساب/تیکت موجود است دوباره نخواه. پرونده قدیمی و ادامه مشکل را بخوان. پیش‌نویس با پیام ارسال‌شده متفاوت است؛ ارسال نیازمند اختیار همان مسیر است. همواره اثر بر مشتری و گام بعد را مشخص کن.",
+    "topics": [
+      "پشتیبانی",
+      "تیکت",
+      "پاسخ",
+      "زبان",
+      "پیگیری"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-gpu-wallet",
+    "title": "GPU ساعتی و اعتبار لازم پیش از شروع",
+    "text": "مالک قاعده حداقل اعتبار معادل 24 ساعت هزینه همه سرورهای ساعتی فعال پیش از شروع GPU را خواسته است. total wallet و اعتبار قابل مصرف پس از رزرو فرق دارند؛ موجودی کل مثبت می‌تواند برای شروع کافی نباشد. متن سه‌زبانه باید روشن باشد. باقی‌مانده کیف پول طبق سیاست مالک قابل برداشت عمومی نیست و برای دیگر خدمات قابل مصرف است؛ جبران خطای صورتحساب و حقوق الزامی/قرارداد جاری جدا بررسی شوند.",
+    "topics": [
+      "GPU",
+      "24 ساعت",
+      "اعتبار",
+      "کیف پول",
+      "رزرو",
+      "شروع"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-gpu-images",
+    "title": "تصاویر GPU، Jupyter، ComfyUI و Ollama",
+    "text": "تصاویر هدف فروش GPU: Jupyter PyTorch، ComfyUI و Ollama؛ وضعیت عرضه/ظرفیت امروز باید از پنل تأیید شود. نیازهای مشتریان شامل RTX A5000 24GB،3090/4090 و WAN 2.2 TI2V-5B و I2V/T2V بوده است. مدل از پیش نصب‌شده یا قابل اجرا را بدون بررسی image،VRAM،دیسک و نمونه واقعی وعده نده. Jupyter ممکن است token بخواهد نه password. URL بیرونی ComfyUI/FastAPI نیازمند مسیر proxy واقعی و HTTPS است؛ 127.0.0.1 مهمان مستقیم عمومی نیست.",
+    "topics": [
+      "GPU",
+      "Jupyter",
+      "ComfyUI",
+      "Ollama",
+      "WAN",
+      "VRAM"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-gpu-persistence",
+    "title": "GPU توقف، حذف و ماندگاری فایل",
+    "text": "پرسش درباره start/stop/status و ماندگاری فایل پس از Stop مطرح شده است. ماندگاری را از نوع volume و قرارداد runtime همان سرویس تأیید کن؛ Stop و Delete یکسان نیستند. قبل از اقدام مخرب اثر بر داده و هزینه را توضیح بده و snapshot/backup واقعی را بررسی کن. درخواست ساعتی بدون اعتبار و مهلت پیش‌فاکتور از سرور provision‌شده تفکیک شود.",
+    "topics": [
+      "GPU",
+      "توقف",
+      "حذف",
+      "ماندگاری",
+      "دیسک",
+      "backup"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-windows-hosting",
+    "title": "هاست ویندوز Plesk و اتصال SQL",
+    "text": "محصول WIN-5/Plesk Windows و نیازهای .NET8،EF Core8،MSSQL،SSMS remote،App Pool،SSL،subdomain،cron/log مطرح‌اند. سازگاری نسخه را از میزبان همان مشتری تأیید کن؛ اشتراک هاست با VPS مدیریتی یکسان نیست. در سابقه یک اتصال SQL با تونل و پورت سفارشی موفق شد؛ این شاهد فقط همان پرونده است. بازکردن عمومی 1433 یا همه IPها راه‌حل پیش‌فرض نیست؛ دسترسی را به تونل/IP مجاز محدود کن و secrets چاپ نشوند.",
+    "topics": [
+      "ویندوز",
+      "Plesk",
+      "WIN-5",
+      "SQL",
+      "SSMS",
+      "NET"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-cloud-providers",
+    "title": "کاتالوگ زیرساخت و تحویل واقعی",
+    "text": "ارائه‌دهندگان در پروژه شامل Hetzner،Aeza،OVHcloud،ArvanCloud،Salad،VPS.TC و LightNode هستند؛ حضور نام در کد/کاتالوگ نشانه آماده‌بودن فروش یا خودکارسازی تمام lifecycle نیست. ظرفیت، قیمت، فعال‌بودن، شهر، ایمیج و SLA هر سفارش تازه بررسی شوند. OVH قبلاً صف دستی داشت؛ فعال‌شدن کامل را از درخواست توسعه نتیجه نگیر. تحویل تنها با هویت منبع، اطلاعات دسترسی و شاهد مربوط تأیید شود؛ retry کور خرید ممنوع.",
+    "topics": [
+      "زیرساخت",
+      "Hetzner",
+      "Aeza",
+      "OVH",
+      "LightNode",
+      "Salad"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-vpstc-contract",
+    "title": "VPS.TC استانبول و جلوگیری از تمدید ناخواسته",
+    "text": "مالک برای VPS.TC عرضه استانبول و تست امکانات به‌جز حذف سرور را خواسته و تأکید کرده تمدید تا اقدام خودمان خودکار نباشد. مبنای قیمت‌گذاری فاکتور واقعی کسرشده شامل مالیات،نرخ TRY و سود است، نه قیمت خام تبلیغ. تمدید،مازاد ترافیک،IP،مجازی‌سازی و امکانات API تا سند زنده تأیید نشده‌اند. پیام management_offline/HTTP200 اثبات ساخت/تحویل نیست. سوابق انتشار را با تنظیم جاری تطبیق بده.",
+    "topics": [
+      "VPS.TC",
+      "استانبول",
+      "تمدید",
+      "TRY",
+      "فاکتور",
+      "ترکیه"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-arvan-traffic",
+    "title": "ترافیک آروان، هزینه مازاد و تعلیق",
+    "text": "مالک هزینه بالای ترافیک و نیاز به نگاشت مصرف به هر سرور/مشتری،پایش،محدودیت و کسر دوره‌ای را مطرح کرده است. مقدار تاریخی هزینه یا تعداد ماشین را وضعیت امروز فرض نکن. مصرف جاری،مبنای baseline،بازه،واحد GB/TB،تعرفه و دوباره‌برداشت را تطبیق بده. پرداخت بدهی مصرف قبلی لزوماً مجوز رفع تعلیق/اعتبار آینده نیست. درباره حساب مستثنا یا تعلیق‌مانده فقط پرونده مجاز را بخوان؛ هیچ حسابی را از این دانش تغییر نده.",
+    "topics": [
+      "آروان",
+      "ترافیک",
+      "تعلیق",
+      "هزینه",
+      "baseline",
+      "صورتحساب"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-network-evidence",
+    "title": "تشخیص شبکه از فایروال تا برنامه",
+    "text": "بازبودن قاعده زیرساخت کافی نیست؛ listener،فایروال مهمان،مسیر و پاسخ واقعی جدا سنجیده شوند. TCP refused با timeout و موفقیت فرق دارد. ارسال UDP بی‌پاسخ تحویل یا فیلتر را ثابت نمی‌کند. پورت‌های جدید درخواست قبلی را حذف نمی‌کنند. SSH/route تولید و مسیر مالی جانبی تغییر نکنند. دانستن دسترسی admin اختیار بازکردن همه پورت‌ها نمی‌دهد.",
+    "topics": [
+      "شبکه",
+      "فایروال",
+      "UDP",
+      "TCP",
+      "listener",
+      "timeout"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  },
+  {
+    "id": "snk-finance-ledger",
+    "title": "مالی: گردش درگاه، سود و مالیات",
+    "text": "درخواست مالک تفکیک درآمد/هزینه/سود،VAT و مالیات درآمد با بازه تاریخ،نرخ ارز و هزینه upstream EUR/USD/TRY است. کل ورودی درگاه را سود فرض نکن؛ فروش 11 دلار با هزینه 10 دلار مساوی 11 دلار سود نیست. توصیه حقوقی/مالیاتی باید از منبع معتبر جاری و حسابدار تأیید شود. ROI/IRR/NPV فقط با جریان نقد،زمان و فرض‌های روشن معتبرند. wallet،invoice،ledger،reserve و قابل مصرف را تفکیک کن.",
+    "topics": [
+      "مالی",
+      "سود",
+      "مالیات",
+      "VAT",
+      "ROI",
+      "IRR",
+      "NPV"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "requested"
+  },
+  {
+    "id": "snk-payments-per-language",
+    "title": "درگاه‌های پرداخت بر اساس زبان",
+    "text": "مالک کنترل نمایش/فعال‌بودن درگاه‌ها برای fa/en/tr را خواسته است؛ زرین‌پال،SnappPay و کریپتو حسب تنظیمات. نمایش رابط،مرچنت معتبر،callback و پرداخت واقعی مراحل جدا هستند. مسیر رمز‌ارز شامل تخصیص invoice/time window و آزادسازی و جلوگیری از تأیید تکراری باید از کد و receipt بررسی شود. نرخ نوسان دوره شش‌ساعته خواسته شده؛ timestamp نرخ و واحد مبلغ را حفظ کن.",
+    "topics": [
+      "درگاه",
+      "پرداخت",
+      "زبان",
+      "fa",
+      "en",
+      "tr",
+      "کریپتو"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "requested"
+  },
+  {
+    "id": "snk-refund-ban",
+    "title": "عودت، مسدودی حساب و حسابرسی",
+    "text": "مالک امکان فعال‌سازی عودت برای هر مشتری با پیش‌فرض خاموش،درخواست/تأیید و ردیابی مالیاتی را خواسته است. این با مجوز برداشت عمومی مانده کیف پول یکسان نیست. ban حساب با دلیل و ثبت اثر بر دسترسی درخواست شده است. knowledge یا گزارش شکایت اجازه بن/عودت خودکار نمی‌دهد؛ قبل از اقدام دامنه،اختیار،شناسه یکتا،سوابق و اثر را بررسی کن.",
+    "topics": [
+      "عودت",
+      "refund",
+      "ban",
+      "مسدودی",
+      "حسابرسی",
+      "مجوز"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "requested"
+  },
+  {
+    "id": "snk-birthday-coupons",
+    "title": "تولد مشتری و تخفیف خودکار",
+    "text": "مالک پیامک تولد با دعوت به پروفایل و اعتبار 24ساعته و قیمت تمام‌شده بدون سود برای محصولات را خواسته است. تصویب متن پیامک/پترن،تخفیف فعال،حاشیه سود،مالیات،API upstream،قیمت کف و اجرای واقعی جدا تأیید شوند؛ مجازبودن کار تبلیغاتی از دانستن نیاز نتیجه نمی‌شود. کوپن درصدی/مبلغی باید بر service/user و تاریخ درست محدود و جلوگیری از تکرار رعایت شود.",
+    "topics": [
+      "تولد",
+      "تخفیف",
+      "کوپن",
+      "قیمت کف",
+      "پیامک",
+      "24ساعت"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "requested"
+  },
+  {
+    "id": "snk-identity-api",
+    "title": "وب‌سرویس احراز هویت سفیدبرچسب",
+    "text": "مالک عرضه خدمات zohal.io با برند و کیف پول سرورنت را خواسته است؛ صفحات /identity-api و /account/identity-api. شاهکار و تعرفه/فعال‌بودن واقعی باید از قرارداد و کاتالوگ جاری تأیید شود. اطلاعات هویتی حساس و خروجی استعلام را در دانش عمومی و لاگ قرار نده؛ مجوز مشتری و محدودیت خدمت رعایت شود. درخواست فعال‌کردن فروش یا اعلام تأیید تعرفه را با receipt اجرای واقعی یکی ندان.",
+    "topics": [
+      "احراز هویت",
+      "شاهکار",
+      "identity",
+      "zohal",
+      "کیف پول"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-ses-email",
+    "title": "ایمیل تراکنشی و SES relay",
+    "text": "محصول ایمیل تراکنشی با relay مبتنی بر SES و توسعه صفحه SEO مطرح شده است. بازبودن پورت SMTP،sandbox،quota،اعتبار دامنه و مجازبودن ارسال به recipient جدا هستند. حجم ماهانه یا نرخ از سناریوی قدیمی به همه سفارش‌ها تعمیم داده نشود. قبل از وعده،اتصال،سهمیه،احراز دامنه و سیاست ضداسپم جاری تأیید شود؛ پیام آزمایشی بدون مجوز نفرست.",
+    "topics": [
+      "SES",
+      "ایمیل",
+      "SMTP",
+      "تراکنشی",
+      "quota"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-growth-social",
+    "title": "رشد، سئو و شبکه اجتماعی سرورنت",
+    "text": "مالک فعالیت مستمر برای SEO/AEO،محتوا،کمپین و سه Instagram سرورنت فارسی/انگلیسی/ترکی را خواسته است. مقاله،پست،اسلاید،استوری،ویدئو و تقویم باید با مجوز همان scope و manifest مصوب اجرا شوند. آمار واقعی GSC/GA4 و دوره کامل مبنا باشد؛ رتبه اول یا وایرال‌شدن تضمین نشود. داشتن Google AI Pro به معنی API رایگان نامحدود نیست. job/timer موازی جدید از این یادداشت نساز.",
+    "topics": [
+      "رشد",
+      "SEO",
+      "AEO",
+      "Instagram",
+      "کمپین",
+      "تقویم"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "requested"
+  },
+  {
+    "id": "snk-hermes-workflow",
+    "title": "هرمس، بله و پیگیری پایدار",
+    "text": "هرمس دستیار عملیاتی سرورنت و مسیر @ServerNetbot و Mini-App روی servernet.ir مطرح است. هدف: پایش تیکت،پیش‌نویس،بررسی infra/خطا و رشد. سلامت UI،webhook،queue،VM،مدل و connector مستقل‌اند؛ ورود یا heartbeat سلامت کل مسیر نیست. کارهای باز در state موجود ثبت شوند و اعلان/کرون تکراری نساز. مسیرهای WHM/Plesk/n8n/Proxmox فقط بعد از اتصال مؤثر و اختیار استفاده شوند. حافظه خصوصی مدیر به مشتری نشت نکند.",
+    "topics": [
+      "هرمس",
+      "بله",
+      "Mini-App",
+      "پیگیری",
+      "WHM",
+      "n8n"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-git-development",
+    "title": "توسعه روی develop و خطای BitLocker نامرتبط",
+    "text": "مرجع کاری servernetir/server شاخه develop است؛ main پیش‌فرض GitHub مبنا نیست. app فعال website است و infra/relay مقصدهای مستقل دارند. قبل از نوشتن HEAD تازه و تغییرهای دیگران حفظ؛ force-push/reset مخرب ممنوع. خطای launcher درایو I و BitLocker وابستگی پروژه نیست؛ از مالک درخواست بازکردن آن نکن. تست ایزوله با API ساختگی و بدون secrets؛ ثبت Git را نصب تولید معرفی نکن.",
+    "topics": [
+      "develop",
+      "GitHub",
+      "BitLocker",
+      "درایو",
+      "توسعه",
+      "انتشار"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-proxmox-boundaries",
+    "title": "Proxmox و شبکه داخلی خارج از فروش عمومی",
+    "text": "Proxmox داخلی کارخانه و VMهای مدیریت با cloud فروشی یک scope ندارند. درخواست‌های route محدود Cloudflare/OpenAI/Codex یا VM آزمایشی باید به هویت دقیق و شبکه جاری تطبیق شوند؛ default route،SSH و تولید جانبی تغییر نکنند. zpool import و storage repair عملیات حساس دارای اثرند؛ از خطای تاریخی دستور رفع عمومی تولید نکن. backup و طرح بازگشت قبل از اقدام لازم است.",
+    "topics": [
+      "Proxmox",
+      "VM",
+      "relay",
+      "route",
+      "zpool",
+      "کارخانه"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-projects-isolation",
+    "title": "تفکیک پروژه‌های ServerNet، Irexbridge و VPN",
+    "text": "Irexbridge پروژه پرداخت خارجی با نرخ ارز و کارمزد مطرح‌شده 5 درصد است؛ این عدد را بدون سند به AI Gateway نسبت نده. سایت فروش VPN مبتنی بر Marzban،QR/VLESS،usage و پرداخت Zarinpal/crypto خواسته شده و نباید برند ServerNet در رابط آن نمایش داده شود. اتصال Nextcloud/Drive و backup فروشی هنوز نیازمند ظرفیت،مجوز،امنیت و قرارداد واقعی است. هر پروژه scope و secrets جدا دارد.",
+    "topics": [
+      "Irexbridge",
+      "VPN",
+      "Marzban",
+      "VLESS",
+      "Nextcloud",
+      "5درصد"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-brand-kianpet",
+    "title": "پروژه جداگانه برند Kianpet",
+    "text": "نام درست برند Kianpet است و مالک تصحیح کرده مدیرعامل مرد است. محصولات PET sheet و ظروف و فرم نمایشگاهی چندزبانه در پروژه جدا هستند. دانش طراحی،QR و داده مشتریان Kianpet به پاسخ مشتری ServerNet وارد نشود. آدرس kianpet.com/qrcode و زبان پیش‌فرض انگلیسی از خواسته‌های مالک بوده؛ وضعیت فرم و اعلان Bale/Telegram باید زنده تأیید شود.",
+    "topics": [
+      "Kianpet",
+      "کیان پت",
+      "برند",
+      "QR",
+      "PET"
+    ],
+    "source_type": "owner_chat",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "reported"
+  },
+  {
+    "id": "snk-ticket-history-not-proof",
+    "title": "پرونده‌های پشتیبانی و شاهد تاریخی",
+    "text": "سوابق تیکت GPU/WAN/ComfyUI،Jupyter،Windows SQL،پورت و ترافیک برای یافتن runbook مفیدند؛ محتوا یا نتیجه یک مشتری قابل تعمیم نیست. شماره‌های تیکت و داده حساس در این بسته عمومی کپی نشده‌اند. برای پاسخ مشتری،همان پرونده و سرویس مجاز را بخوان،حل‌شدن تاریخی را شاهد امروز ندان و تیکت ادامه مشکل را صرفاً تکراری نبند.",
+    "topics": [
+      "تیکت",
+      "سابقه",
+      "runbook",
+      "پرونده",
+      "مشتری"
+    ],
+    "source_type": "chatgpt_report",
+    "source_ref": "owner-authorized-servernet-conversation-2026-10-29",
+    "source_date": "2026-10-29",
+    "status": "documented"
+  }
+]
