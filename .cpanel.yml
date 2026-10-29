@@ -3,37 +3,34 @@ deployment:
   tasks:
     - >-
       /opt/cpanel/ea-php84/root/usr/bin/php -d display_errors=0 -r 'try {
-          require "/home/servernetcloud/servernet_app/vendor/autoload.php";
-          $client = new GuzzleHttp\Client();
-          $results = [];
-          foreach ([
-              "configured"=>"https://docs.cpanel.net/release-notes/release-notes/index.xml",
-              "section"=>"https://docs.cpanel.net/release-notes/index.xml"
-          ] as $label=>$url) {
-              $row = ["probe"=>$label]; $phase = "fetch"; $stream = null;
-              try {
-                  $r=$client->get($url,["headers"=>["User-Agent"=>"ServerNet-Hermes-Knowledge/1.0",
-                      "Accept"=>"application/atom+xml, application/rss+xml, application/xml, text/xml"],
-                      "connect_timeout"=>5,"timeout"=>15,"allow_redirects"=>false,"http_errors"=>false,"stream"=>true]);
-                  $row["http_status"]=$r->getStatusCode();
-                  $row["content_type"]=$r->getHeaderLine("Content-Type");
-                  $phase="read"; $stream=$r->getBody(); $body="";
-                  while (!$stream->eof() && strlen($body)<=1048576) {
-                      $chunk=$stream->read(min(65536,1048577-strlen($body)));
-                      if ($chunk==="" && !$stream->eof()) {throw new RuntimeException("Incomplete bounded read");}
-                      $body.=$chunk;
-                  }
-                  $row["body_bytes_read"]=strlen($body);
-                  $row["over_limit"]=strlen($body)>1048576;
-                  $row["has_doctype_or_entity"]=(bool)preg_match("/<!\\s*(?:DOCTYPE|ENTITY)/i",$body);
-                  $phase="parse";
-                  if ($r->getStatusCode()>=200 && $r->getStatusCode()<300) {
-                      $items=App\Services\Hermes\HermesKnowledge::parse("cpanel",$body,time());
-                      $row["parse_status"]="valid"; $row["accepted_items"]=count($items);
-                  } else {$row["parse_status"]="not_parsed_non_2xx";}
-              } catch (Throwable $e) {$row["failure_phase"]=$phase;$row["exception_class"]=$e::class;}
-              finally {if ($stream) {$stream->close();}}
-              $results[]=$row;
-          }
-          echo json_encode(["status"=>"bounded_official_feed_read","results"=>$results],JSON_THROW_ON_ERROR)."\n";
-      } catch (Throwable $e) {echo json_encode(["status"=>"feed_read_unavailable","exception_class"=>$e::class])."\n";exit(1);}'
+       require "/home/servernetcloud/servernet_app/vendor/autoload.php";
+       $url="https://docs.cpanel.net/release-notes/release-notes/index.xml";
+       $result=["status"=>"fixed_official_transport_read","allow_url_fopen"=>(bool)ini_get("allow_url_fopen"),"curl_available"=>function_exists("curl_init")];
+       try {
+        $response=(new GuzzleHttp\Client())->get($url,["connect_timeout"=>5,"timeout"=>15,"stream"=>true,"allow_redirects"=>false,"http_errors"=>false,
+         "headers"=>["User-Agent"=>"ServerNet-Hermes-Knowledge/1.0","Accept"=>"application/atom+xml, application/rss+xml, application/xml, text/xml"]]);
+        $result["stream"]=["status"=>$response->getStatusCode()];$response->getBody()->close();
+       } catch (Throwable $e) {
+        $flags=[];foreach(["SSL","certificate","timed out","HTTP request failed","wrapper","allow_url_fopen","Connection refused","Unable to connect","failed to open stream","HTTP/1.1 403","HTTP/1.1 404","php_network_getaddresses","getaddrinfo"] as $flag) {
+         if(stripos($e->getMessage(),$flag)!==false){$flags[]=$flag;}
+        }
+        $context=method_exists($e,"getHandlerContext")?$e->getHandlerContext():[];
+        $result["stream"]=["exception_class"=>$e::class,"flags"=>$flags,
+         "handler"=>array_intersect_key($context,array_flip(["errno","ssl_verify_result","http_code"]))];
+       }
+       if(function_exists("curl_init")){
+        $body="";$curl=curl_init($url);
+        curl_setopt_array($curl,[CURLOPT_FOLLOWLOCATION=>false,CURLOPT_CONNECTTIMEOUT=>5,CURLOPT_TIMEOUT=>15,CURLOPT_SSL_VERIFYPEER=>true,CURLOPT_SSL_VERIFYHOST=>2,CURLOPT_ENCODING=>"",
+         CURLOPT_HTTPHEADER=>["User-Agent: ServerNet-Hermes-Knowledge/1.0","Accept: application/atom+xml, application/rss+xml, application/xml, text/xml"],
+         CURLOPT_WRITEFUNCTION=>function($c,$chunk)use(&$body){$room=1048577-strlen($body);if($room<=0){return 0;}$body.=substr($chunk,0,$room);return strlen($chunk)>$room?0:strlen($chunk);}]);
+        curl_exec($curl);
+        $result["curl"]=["errno"=>curl_errno($curl),"http_status"=>curl_getinfo($curl,CURLINFO_HTTP_CODE),
+         "ssl_verify_result"=>curl_getinfo($curl,CURLINFO_SSL_VERIFYRESULT),"body_bytes"=>strlen($body)];
+        curl_close($curl);
+        if($result["curl"]["errno"]===0&&$result["curl"]["http_status"]===200){
+         try{$items=App\Services\Hermes\HermesKnowledge::parse("cpanel",$body,time());$result["curl"]["parse_status"]="valid";$result["curl"]["accepted_items"]=count($items);}
+         catch(Throwable $e){$result["curl"]["parse_exception_class"]=$e::class;}
+        }
+       }
+       echo json_encode($result,JSON_THROW_ON_ERROR)."\n";
+      }catch(Throwable $e){echo json_encode(["status"=>"transport_read_unavailable","exception_class"=>$e::class])."\n";exit(1);}'
