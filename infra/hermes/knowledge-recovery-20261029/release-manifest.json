@@ -1,0 +1,22 @@
+{
+  "status": "prepared_not_installed_pending_explicit_owner_authorization",
+  "code_commit": "8dcca8b5655228afb9edba924b2a4c91dc466c04",
+  "purpose": "Avoid skipped hourly retries from within-hour scheduler jitter; retain all feed and TLS protections.",
+  "files": [
+    {
+      "source": "infra/hermes/knowledge-recovery-20261029/HermesKnowledge.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Hermes/HermesKnowledge.php",
+      "expected_before_sha256": "dd59914f397f9c5f1860deb356d3107ebcfc58d5ee4336ad344b63413bf420b7",
+      "after_sha256": "76e708c5b5671ade71b868eb18e1c0d2f3c6f8c5513310c483a47eae5769905a"
+    }
+  ],
+  "tests": {
+    "native_isolated_source_checks_passed": 8,
+    "framework_bootstrap": false,
+    "network_or_database": false
+  },
+  "installer": "scripts/deploy-hermes-knowledge-due-20261029.py",
+  "required_approval_scope": "Install this one service file with private backup, both release locks, PHP lint and hash/mode/cron guards; no cron, migration, finance, credential, TLS or encrypted-state change.",
+  "rollback": "Restore only the matching HermesKnowledge.php.before after current after-hash validation; retain the two installed command files and all live encrypted state.",
+  "does_not_fix_cpanel_tls_failure": true
+}

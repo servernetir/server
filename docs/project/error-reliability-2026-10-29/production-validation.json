@@ -1,0 +1,158 @@
+{
+  "status": "installed_hash_and_lint_verified",
+  "package_commit": "92686a3619cabfca699a4cdd1aa3bbf56e9874e2",
+  "installer_commit": "f8caeb51f2acb295a80cc8f3a54af09ebf670f51",
+  "deployment_branch_commit": "0cfafadc9ca9c0c958d3cd91ec3ac70fcf314d41",
+  "prepared_utc": "2026-10-29T06:06:24Z",
+  "installed_utc": "2026-10-29T06:07:02Z",
+  "verified_utc": "2026-10-29T06:07:42Z",
+  "files": {
+    "HermesKnowledgeRefresh.php": {
+      "after_sha256": "2b5a9e361afd7969d1693c4360cbd1d2cdaf5adcb34fd3cebf3a0b7716d786ec",
+      "before_sha256": "8297fda545f51efbc6dc5a91e45b1a7946691ccd2aba30aad35bbc76e125ea76",
+      "mode": 420
+    },
+    "HermesOperationsReview.php": {
+      "after_sha256": "f8e24b6082ba8d7fd8be0c08e4abcb6deab2cbd037244b98b1e3118cb2aeca8d",
+      "before_sha256": "b0ef327a6625bed8dab4f73b3b080ff465f5e2cd3d1f7327df09894b977afc49",
+      "mode": 420
+    }
+  },
+  "independent_fileman_hashes": [
+    {
+      "file": "HermesKnowledgeRefresh.php",
+      "sha256": "2b5a9e361afd7969d1693c4360cbd1d2cdaf5adcb34fd3cebf3a0b7716d786ec"
+    },
+    {
+      "file": "HermesOperationsReview.php",
+      "sha256": "f8e24b6082ba8d7fd8be0c08e4abcb6deab2cbd037244b98b1e3118cb2aeca8d"
+    }
+  ],
+  "native_php_lint": {
+    "staged_files": 2,
+    "active_files_after_apply": 2,
+    "active_files_at_verify": 2,
+    "result": "passed"
+  },
+  "native_tasks": [
+    {
+      "phase": "prepare",
+      "task_id": "00000000/6ae2e2602ff53c",
+      "deploy_id": 10,
+      "native_status": "succeeded"
+    },
+    {
+      "phase": "apply",
+      "task_id": "00000000/6ae2e285b74811",
+      "deploy_id": 11,
+      "native_status": "succeeded"
+    },
+    {
+      "phase": "verify",
+      "task_id": "00000000/6ae2e2ae70a725",
+      "deploy_id": 12,
+      "native_status": "succeeded"
+    }
+  ],
+  "cron": {
+    "unchanged": true,
+    "jobs_before": 10,
+    "jobs_after": 10
+  },
+  "bootstrap_http": {
+    "url": "https://console.servernet.cloud/up",
+    "status": 200,
+    "business_operations_verified": false
+  },
+  "installer_tests": {
+    "passed": 9,
+    "network_used": false,
+    "isolated_synthetic_homes": true
+  },
+  "previous_php_tests": {
+    "passed": 69,
+    "assertions": 380,
+    "rerun_in_this_session": false
+  },
+  "natural_scheduler_acceptance": {
+    "status": "observed_natural_internal_refresh_with_cpanel_source_still_unavailable",
+    "manual_hermes_runs": 0,
+    "internal_observed_at": 1793254233,
+    "internal_observed_utc": "2026-10-29T06:10:33+00:00",
+    "observed_server_utc": "2026-10-29T06:14:36+00:00",
+    "sources": {
+      "php": {
+        "checked_at": 1793239833,
+        "status": "ok",
+        "last_success_at": 1793239833
+      },
+      "plesk": {
+        "checked_at": 1793239833,
+        "status": "ok",
+        "last_success_at": 1793239833
+      },
+      "proxmox": {
+        "checked_at": 1793239833,
+        "status": "ok",
+        "last_success_at": 1793239833
+      },
+      "cpanel": {
+        "checked_at": 1793250648,
+        "status": "unavailable",
+        "last_success_at": null
+      },
+      "cloudflare": {
+        "checked_at": 1793239833,
+        "status": "ok",
+        "last_success_at": 1793239833
+      },
+      "n8n": {
+        "checked_at": 1793239833,
+        "status": "ok",
+        "last_success_at": 1793239833
+      }
+    },
+    "observation_commit": "56d2e4e503ad7123fef0a8565fcac0c50e11ffae",
+    "observation_initial_attempt": "stopped_at_provider_registration_without_application_writes"
+  },
+  "financial_database_or_provider_mutations": false,
+  "new_cron_or_auth_credentials": false,
+  "final_live_hashes": [
+    {
+      "file": "app/Services/Hermes/HermesKnowledge.php",
+      "sha256": "dd59914f397f9c5f1860deb356d3107ebcfc58d5ee4336ad344b63413bf420b7"
+    },
+    {
+      "file": "app/Console/Commands/HermesKnowledgeRefresh.php",
+      "sha256": "2b5a9e361afd7969d1693c4360cbd1d2cdaf5adcb34fd3cebf3a0b7716d786ec"
+    },
+    {
+      "file": "app/Console/Commands/HermesOperationsReview.php",
+      "sha256": "f8e24b6082ba8d7fd8be0c08e4abcb6deab2cbd037244b98b1e3118cb2aeca8d"
+    }
+  ],
+  "cpanel_feed_tls": {
+    "official_configured_url": "https://docs.cpanel.net/release-notes/release-notes/index.xml",
+    "guzzle_errno": 60,
+    "curl_errno": 60,
+    "ssl_verify_result": 18,
+    "http_status": 0,
+    "body_bytes": 0,
+    "peer_and_hostname_validation_enabled": true,
+    "root_connection_failure_resolved": false,
+    "responsible_certificate_or_dns_component_identified": false
+  },
+  "third_file_scheduling_fix": {
+    "status": "prepared_not_installed_automatic_approval_review_blocked",
+    "code_commit": "8dcca8b5655228afb9edba924b2a4c91dc466c04",
+    "destination_relative_to_home": "servernet_app/app/Services/Hermes/HermesKnowledge.php",
+    "before_sha256": "dd59914f397f9c5f1860deb356d3107ebcfc58d5ee4336ad344b63413bf420b7",
+    "after_sha256": "76e708c5b5671ade71b868eb18e1c0d2f3c6f8c5513310c483a47eae5769905a",
+    "native_isolated_pure_source_checks": 8,
+    "pure_test_status": "passed",
+    "pure_test_writes_to_application": false,
+    "pure_test_commit": "11b7b37370f6cd5d3eab2359b750e8763f5a61af",
+    "approval_review_reason": "The previous explicit authorization covered only the two command files; the additional production modification requires explicit user authorization.",
+    "production_write_attempt_retried": false
+  }
+}
