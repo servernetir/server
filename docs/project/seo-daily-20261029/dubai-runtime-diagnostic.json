@@ -1,0 +1,32 @@
+{
+    "observed_at": "2026-10-29T06:51:40+00:00",
+    "snapshot_current": true,
+    "locations": {
+        "ae-dubai": {
+            "active": true,
+            "total": 10,
+            "active_plans": 10,
+            "quarantined": 10,
+            "positive_price": 10,
+            "positive_cost": 10,
+            "in_stock": 10,
+            "blocked_reasons": {
+                "price": 10
+            },
+            "sellable": 0
+        },
+        "ph-manila": {
+            "active": true,
+            "total": 11,
+            "active_plans": 11,
+            "quarantined": 0,
+            "positive_price": 11,
+            "positive_cost": 11,
+            "in_stock": 11,
+            "blocked_reasons": {
+                "eligible": 11
+            },
+            "sellable": 11
+        }
+    }
+}

@@ -1,0 +1,106 @@
+{
+  "source": "Authenticated Google Search Console Chrome UI; date comparison dialog and device table",
+  "property": "sc-domain:servernet.cloud",
+  "observed_date": "2026-10-29",
+  "search_type": "web",
+  "current": {
+    "start": "2026-09-29",
+    "end": "2026-10-26",
+    "clicks": 1416,
+    "impressions": 38721,
+    "ctr_percent_derived": 3.6569303478732467,
+    "average_position_ui": 29.4
+  },
+  "previous": {
+    "start": "2026-09-01",
+    "end": "2026-09-28",
+    "clicks": 1209,
+    "impressions": 32170,
+    "ctr_percent_derived": 3.758159776188996,
+    "average_position_ui": 29.4
+  },
+  "devices": {
+    "desktop": {
+      "clicks": [
+        827,
+        627
+      ],
+      "impressions": [
+        26866,
+        21003
+      ]
+    },
+    "mobile": {
+      "clicks": [
+        583,
+        572
+      ],
+      "impressions": [
+        11746,
+        11035
+      ]
+    },
+    "tablet": {
+      "clicks": [
+        6,
+        10
+      ],
+      "impressions": [
+        109,
+        132
+      ]
+    }
+  },
+  "brand": {
+    "regex": "(سرور[ ]*نت|server[ ]*net)",
+    "clicks": [
+      201,
+      311
+    ],
+    "impressions": [
+      572,
+      805
+    ]
+  },
+  "nonbrand": {
+    "complement_of_brand_regex": true,
+    "clicks": [
+      425,
+      327
+    ],
+    "rounded_impressions_ui": [
+      "21.6K",
+      "20K"
+    ]
+  },
+  "indexing": {
+    "snapshot_date": "2026-10-23",
+    "indexed_ui_rounded": "4.4K",
+    "excluded_ui_rounded": "7.79K",
+    "newly_confirmed_indexed": [
+      "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff",
+      "https://servernet.cloud/servers/hpe-proliant-ml110-gen10"
+    ],
+    "sample_ai_model_unknown": "https://servernet.cloud/ai/models/di-qwenqwen36-35b-a3b-1bd979b4cf"
+  },
+  "cwv": {
+    "snapshot_date": "2026-10-26",
+    "mobile": {
+      "needs_improvement": 125,
+      "poor": 0,
+      "good": 0
+    },
+    "desktop": {
+      "needs_improvement": 0,
+      "poor": 0,
+      "good": 125
+    }
+  },
+  "limitations": [
+    "Filtered brand/nonbrand query totals are partial and do not sum to property totals.",
+    "Comparison window ends before the October 28 and 29 releases; no causal attribution.",
+    "GSC Wizard connection returned payment_required; no subscription purchased; authenticated UI used.",
+    "No new GA4 revenue/purchase delivery verification or fresh Lighthouse benchmark.",
+    "Snapshot dates are not observation dates."
+  ]
+}
