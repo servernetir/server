@@ -1,4 +1,53 @@
 ---
 deployment:
   tasks:
-    - /usr/bin/python3 /home/servernetcloud/hermes-reliability-source-20261029/scripts/deploy-hermes-reliability-20261029.py
+    - >-
+      /opt/cpanel/ea-php84/root/usr/bin/php -d display_errors=0 -r 'define("LARAVEL_START", microtime(true));
+      try {
+          $root = "/home/servernetcloud/servernet_app";
+          require $root."/vendor/autoload.php";
+          $app = require $root."/bootstrap/app.php";
+          $app->afterBootstrapping(Illuminate\Foundation\Bootstrap\LoadConfiguration::class, function ($app) {
+              $app["config"]->set("cache.default", "array");
+              $app["config"]->set("session.driver", "array");
+          });
+          $app->afterBootstrapping(Illuminate\Foundation\Bootstrap\RegisterFacades::class, function () {
+              Illuminate\Support\Facades\Http::preventStrayRequests();
+              Illuminate\Support\Facades\Http::fake([]);
+              Illuminate\Support\Facades\Mail::fake();
+              Illuminate\Support\Facades\Notification::fake();
+              Illuminate\Support\Facades\Bus::fake();
+              Illuminate\Support\Facades\DB::connection()->beforeExecuting(function ($query) {
+                  if (!preg_match("/^\\s*(select|show|explain)\\b/i", $query)) {
+                      throw new RuntimeException("Read-only receipt rejected SQL mutation");
+                  }
+              });
+          });
+          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+          $gate = $app->make(App\Services\Bale\Admin\AdminBaleGate::class);
+          $binding = $gate->binding();
+          $user = $gate->boundUser();
+          if (!$gate->enabled() || !$binding || !$user) {
+              echo json_encode(["status"=>"owner_binding_unavailable"], JSON_THROW_ON_ERROR)."\n"; exit(1);
+          }
+          $path = storage_path("app/private/hermes-operations/".hash("sha256", (string)$user->id.":".(string)$binding["chat_id"]));
+          if (is_link($path) || !is_file($path) || filesize($path)>16*1024*1024) {
+              throw new RuntimeException("Bounded existing state unavailable");
+          }
+          $state = json_decode(Illuminate\Support\Facades\Crypt::decryptString(file_get_contents($path)), true, 64, JSON_THROW_ON_ERROR);
+          $sources = [];
+          foreach (["php","plesk","proxmox","cpanel","cloudflare","n8n"] as $key) {
+              $row = $state["knowledge"]["sources"][$key] ?? [];
+              $sources[$key] = array_intersect_key($row, array_flip(["status","checked_at","last_success_at"]));
+              if (isset($row["failure"])) {
+                  $sources[$key]["failure"] = array_intersect_key($row["failure"], array_flip(["reason","http_status","exception_class"]));
+              }
+          }
+          echo json_encode(["status"=>"observed_existing_state","server_utc"=>gmdate("c"),
+              "operations_enabled"=>App\Models\Setting::get("hermes_operations_enabled")==="1",
+              "internal_observed_at"=>$state["knowledge"]["internal"]["observed_at"]??null,
+              "sources"=>$sources,"operations_run_alert_active"=>(bool)($state["alerts"]["operations:run"]["active"]??false)],
+              JSON_THROW_ON_ERROR)."\n";
+      } catch (Throwable $error) {
+          echo json_encode(["status"=>"read_receipt_unavailable","exception_class"=>$error::class])."\n"; exit(1);
+      }'
