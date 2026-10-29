@@ -2,52 +2,38 @@
 deployment:
   tasks:
     - >-
-      /opt/cpanel/ea-php84/root/usr/bin/php -d display_errors=0 -r 'define("LARAVEL_START", microtime(true));
-      try {
-          $root = "/home/servernetcloud/servernet_app";
-          require $root."/vendor/autoload.php";
-          $app = require $root."/bootstrap/app.php";
-          $app->afterBootstrapping(Illuminate\Foundation\Bootstrap\LoadConfiguration::class, function ($app) {
-              $app["config"]->set("cache.default", "array");
-              $app["config"]->set("session.driver", "array");
-          });
-          $app->afterBootstrapping(Illuminate\Foundation\Bootstrap\RegisterProviders::class, function () {
-              Illuminate\Support\Facades\Http::preventStrayRequests();
-              Illuminate\Support\Facades\Http::fake([]);
-              Illuminate\Support\Facades\Mail::fake();
-              Illuminate\Support\Facades\Notification::fake();
-              Illuminate\Support\Facades\Bus::fake();
-              Illuminate\Support\Facades\DB::connection()->beforeExecuting(function ($query) {
-                  if (!preg_match("/^\\s*(select|show|explain)\\b/i", $query)) {
-                      throw new RuntimeException("Read-only receipt rejected SQL mutation");
+      /opt/cpanel/ea-php84/root/usr/bin/php -d display_errors=0 -r 'try {
+          require "/home/servernetcloud/servernet_app/vendor/autoload.php";
+          $client = new GuzzleHttp\Client();
+          $results = [];
+          foreach ([
+              "configured"=>"https://docs.cpanel.net/release-notes/release-notes/index.xml",
+              "section"=>"https://docs.cpanel.net/release-notes/index.xml"
+          ] as $label=>$url) {
+              $row = ["probe"=>$label]; $phase = "fetch"; $stream = null;
+              try {
+                  $r=$client->get($url,["headers"=>["User-Agent"=>"ServerNet-Hermes-Knowledge/1.0",
+                      "Accept"=>"application/atom+xml, application/rss+xml, application/xml, text/xml"],
+                      "connect_timeout"=>5,"timeout"=>15,"allow_redirects"=>false,"http_errors"=>false,"stream"=>true]);
+                  $row["http_status"]=$r->getStatusCode();
+                  $row["content_type"]=$r->getHeaderLine("Content-Type");
+                  $phase="read"; $stream=$r->getBody(); $body="";
+                  while (!$stream->eof() && strlen($body)<=1048576) {
+                      $chunk=$stream->read(min(65536,1048577-strlen($body)));
+                      if ($chunk==="" && !$stream->eof()) {throw new RuntimeException("Incomplete bounded read");}
+                      $body.=$chunk;
                   }
-              });
-          });
-          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-          $gate = $app->make(App\Services\Bale\Admin\AdminBaleGate::class);
-          $binding = $gate->binding();
-          $user = $gate->boundUser();
-          if (!$gate->enabled() || !$binding || !$user) {
-              echo json_encode(["status"=>"owner_binding_unavailable"], JSON_THROW_ON_ERROR)."\n"; exit(1);
+                  $row["body_bytes_read"]=strlen($body);
+                  $row["over_limit"]=strlen($body)>1048576;
+                  $row["has_doctype_or_entity"]=(bool)preg_match("/<!\\s*(?:DOCTYPE|ENTITY)/i",$body);
+                  $phase="parse";
+                  if ($r->getStatusCode()>=200 && $r->getStatusCode()<300) {
+                      $items=App\Services\Hermes\HermesKnowledge::parse("cpanel",$body,time());
+                      $row["parse_status"]="valid"; $row["accepted_items"]=count($items);
+                  } else {$row["parse_status"]="not_parsed_non_2xx";}
+              } catch (Throwable $e) {$row["failure_phase"]=$phase;$row["exception_class"]=$e::class;}
+              finally {if ($stream) {$stream->close();}}
+              $results[]=$row;
           }
-          $path = storage_path("app/private/hermes-operations/".hash("sha256", (string)$user->id.":".(string)$binding["chat_id"]));
-          if (is_link($path) || !is_file($path) || filesize($path)>16*1024*1024) {
-              throw new RuntimeException("Bounded existing state unavailable");
-          }
-          $state = json_decode(Illuminate\Support\Facades\Crypt::decryptString(file_get_contents($path)), true, 64, JSON_THROW_ON_ERROR);
-          $sources = [];
-          foreach (["php","plesk","proxmox","cpanel","cloudflare","n8n"] as $key) {
-              $row = $state["knowledge"]["sources"][$key] ?? [];
-              $sources[$key] = array_intersect_key($row, array_flip(["status","checked_at","last_success_at"]));
-              if (isset($row["failure"])) {
-                  $sources[$key]["failure"] = array_intersect_key($row["failure"], array_flip(["reason","http_status","exception_class"]));
-              }
-          }
-          echo json_encode(["status"=>"observed_existing_state","server_utc"=>gmdate("c"),
-              "operations_enabled"=>App\Models\Setting::get("hermes_operations_enabled")==="1",
-              "internal_observed_at"=>$state["knowledge"]["internal"]["observed_at"]??null,
-              "sources"=>$sources,"operations_run_alert_active"=>(bool)($state["alerts"]["operations:run"]["active"]??false)],
-              JSON_THROW_ON_ERROR)."\n";
-      } catch (Throwable $error) {
-          echo json_encode(["status"=>"read_receipt_unavailable","exception_class"=>$error::class])."\n"; exit(1);
-      }'
+          echo json_encode(["status"=>"bounded_official_feed_read","results"=>$results],JSON_THROW_ON_ERROR)."\n";
+      } catch (Throwable $e) {echo json_encode(["status"=>"feed_read_unavailable","exception_class"=>$e::class])."\n";exit(1);}'
