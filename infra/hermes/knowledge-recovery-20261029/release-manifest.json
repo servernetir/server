@@ -1,5 +1,5 @@
 {
-  "status": "prepared_not_installed_pending_explicit_owner_authorization",
+  "status": "installed_after_explicit_owner_authorization_hash_and_lint_verified",
   "code_commit": "8dcca8b5655228afb9edba924b2a4c91dc466c04",
   "purpose": "Avoid skipped hourly retries from within-hour scheduler jitter; retain all feed and TLS protections.",
   "files": [
@@ -16,7 +16,23 @@
     "network_or_database": false
   },
   "installer": "scripts/deploy-hermes-knowledge-due-20261029.py",
-  "required_approval_scope": "Install this one service file with private backup, both release locks, PHP lint and hash/mode/cron guards; no cron, migration, finance, credential, TLS or encrypted-state change.",
   "rollback": "Restore only the matching HermesKnowledge.php.before after current after-hash validation; retain the two installed command files and all live encrypted state.",
-  "does_not_fix_cpanel_tls_failure": true
+  "does_not_fix_cpanel_tls_failure": true,
+  "approved_scope": "Install this one service file with private backup, both release locks, PHP lint and hash/mode/cron guards; no cron, migration, finance, credential, TLS or encrypted-state change.",
+  "owner_approval": {
+    "explicit_confirmation_received": true,
+    "previous_two_file_scope_block_resolved": true
+  },
+  "native_deployment_commit": "4328562fab339118b7fb05a9e4734ebff35baf21",
+  "production_result": {
+    "prepared_utc": "2026-10-29T11:14:33Z",
+    "installed_and_verified_utc": "2026-10-29T11:16:08Z",
+    "native_source_checks_passed": 8,
+    "staged_and_active_php_lint": "passed",
+    "cron_unchanged": true,
+    "mode_octal": "0644",
+    "installer_sealed": true,
+    "natural_scheduler_acceptance_after_install": "not_observed_in_this_session"
+  },
+  "production_evidence": "docs/project/error-reliability-2026-10-29/production-validation.json"
 }

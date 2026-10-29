@@ -1,5 +1,5 @@
 {
-  "status": "installed_hash_and_lint_verified",
+  "status": "three_runtime_files_installed_hash_and_lint_verified",
   "package_commit": "92686a3619cabfca699a4cdd1aa3bbf56e9874e2",
   "installer_commit": "f8caeb51f2acb295a80cc8f3a54af09ebf670f51",
   "deployment_branch_commit": "0cfafadc9ca9c0c958d3cd91ec3ac70fcf314d41",
@@ -120,7 +120,7 @@
   "final_live_hashes": [
     {
       "file": "app/Services/Hermes/HermesKnowledge.php",
-      "sha256": "dd59914f397f9c5f1860deb356d3107ebcfc58d5ee4336ad344b63413bf420b7"
+      "sha256": "76e708c5b5671ade71b868eb18e1c0d2f3c6f8c5513310c483a47eae5769905a"
     },
     {
       "file": "app/Console/Commands/HermesKnowledgeRefresh.php",
@@ -140,10 +140,20 @@
     "body_bytes": 0,
     "peer_and_hostname_validation_enabled": true,
     "root_connection_failure_resolved": false,
-    "responsible_certificate_or_dns_component_identified": false
+    "responsible_certificate_or_dns_component_identified": false,
+    "latest_application_connection_failure": {
+      "at": "2026-10-29T10:10:33+00:00",
+      "cause": {
+        "source": "cpanel",
+        "reason": "connection_error",
+        "http_status": null,
+        "exception_class": "Illuminate\\Http\\Client\\ConnectionException"
+      }
+    },
+    "direct_tls_probe_repeated_for_third_file_rollout": false
   },
   "third_file_scheduling_fix": {
-    "status": "prepared_not_installed_automatic_approval_review_blocked",
+    "status": "installed_after_explicit_owner_authorization_hash_and_lint_verified",
     "code_commit": "8dcca8b5655228afb9edba924b2a4c91dc466c04",
     "destination_relative_to_home": "servernet_app/app/Services/Hermes/HermesKnowledge.php",
     "before_sha256": "dd59914f397f9c5f1860deb356d3107ebcfc58d5ee4336ad344b63413bf420b7",
@@ -152,7 +162,46 @@
     "pure_test_status": "passed",
     "pure_test_writes_to_application": false,
     "pure_test_commit": "11b7b37370f6cd5d3eab2359b750e8763f5a61af",
-    "approval_review_reason": "The previous explicit authorization covered only the two command files; the additional production modification requires explicit user authorization.",
-    "production_write_attempt_retried": false
+    "prior_approval_review_reason": "The previous explicit authorization covered only the two command files; the additional production modification requires explicit user authorization.",
+    "execution_after_new_explicit_owner_authorization": true,
+    "installation_retried_without_new_authorization": false,
+    "approved_deployment_commit": "4328562fab339118b7fb05a9e4734ebff35baf21",
+    "prepared_utc": "2026-10-29T11:14:33Z",
+    "installed_and_verified_utc": "2026-10-29T11:16:08Z",
+    "native_prepare_source_checks_passed": 8,
+    "native_staged_and_active_php_lint": "passed",
+    "native_tasks": [
+      {
+        "deploy_id": 18,
+        "task_id": "00000000/6ae32a994a6874",
+        "timestamps": {
+          "active": 1793272473.55006,
+          "succeeded": 1793272473.81182,
+          "queued": 1793272473.3535
+        },
+        "source_commit": "4328562fab339118b7fb05a9e4734ebff35baf21"
+      },
+      {
+        "deploy_id": 19,
+        "task_id": "00000000/6ae32af7918d69",
+        "timestamps": {
+          "succeeded": 1793272568.12682,
+          "active": 1793272567.87272,
+          "queued": 1793272567.65298
+        },
+        "source_commit": "4328562fab339118b7fb05a9e4734ebff35baf21"
+      }
+    ],
+    "backup_relative_to_home": "deploy-backups/hermes-knowledge-due-20261029",
+    "mode_octal": "0644",
+    "cron": {
+      "unchanged": true,
+      "jobs_before": 10,
+      "jobs_after": 10
+    },
+    "rollback_guarded": true,
+    "installer_sealed": true,
+    "natural_scheduler_acceptance_after_this_install": "not_observed_in_this_session",
+    "manual_hermes_command_runs": 0
   }
 }
