@@ -11,7 +11,7 @@ deployment:
               $app["config"]->set("cache.default", "array");
               $app["config"]->set("session.driver", "array");
           });
-          $app->afterBootstrapping(Illuminate\Foundation\Bootstrap\RegisterFacades::class, function () {
+          $app->afterBootstrapping(Illuminate\Foundation\Bootstrap\RegisterProviders::class, function () {
               Illuminate\Support\Facades\Http::preventStrayRequests();
               Illuminate\Support\Facades\Http::fake([]);
               Illuminate\Support\Facades\Mail::fake();
