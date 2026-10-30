@@ -1,0 +1,6 @@
+---
+deployment:
+  tasks:
+    - /opt/cpanel/ea-php84/root/usr/bin/php -l /home/servernetcloud/hermes-business-source-20261030/infra/hermes/business-20261030/native-release.php
+    - /opt/cpanel/ea-php84/root/usr/bin/php /home/servernetcloud/hermes-business-source-20261030/infra/hermes/business-20261030/native-release.php deploy
+    - /opt/cpanel/ea-php84/root/usr/bin/php /home/servernetcloud/hermes-business-source-20261030/infra/hermes/business-20261030/native-release.php accept
