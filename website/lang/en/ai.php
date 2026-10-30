@@ -113,7 +113,7 @@ return [
     'errors_text' => '401 invalid key; 402 balance or budget limit; 403 key or project access; 429 rate limit; 503 model or provider unavailable. If the connection fails after sending, the hold remains while usage is reconciled. Retain X-Request-Id for support.',
     'faq' => 'Frequently asked questions',
     'q1' => 'How is usage billed?',
-    'a1' => 'Billing uses reported model consumption and the prices frozen for your request. When a response becomes uncertain after sending, consumption is reconciled according to the request state.',
+    'a1' => 'This API bills reported model usage to your Toman wallet at the prices frozen for each request. Funding the wallet is not a fixed monthly subscription with unlimited tokens. When a response becomes uncertain after sending, consumption is reconciled according to the request state.',
     'q2' => 'Can I use every listed model?',
     'a2' => 'Each model shows its availability. Only available models can be purchased through the API. Preparing and discontinued models remain visible for catalogue reference.',
     'q3' => 'How can I limit team spending?',
