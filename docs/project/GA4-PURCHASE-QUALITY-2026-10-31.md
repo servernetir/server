@@ -33,7 +33,7 @@ node scripts/prepare-purchase-gtm-repair.cjs /private/fresh-export.json /private
 - workflow محدود `analytics-purchase.yml` روی آخرین head یعنی `4b435e8d864729155fafe6664f5c749b717d99f9` با PHP۸٫۴ و SQLite/MariaDB موفق شد: در هر پایگاه۱۳تست/۹۳بررسی و۱۷تست Node پذیرفته شدند. [اجرای نهایی CI](https://github.com/servernetir/server/actions/runs/41132585869) شاهد همین نسخه است؛ اجرای تکراری در دو پایگاه به شمار تست مستقل اضافه نمی‌شود.
 - [بررسی مالی موجود](https://github.com/servernetir/server/actions/runs/41132585919) در هر دو پایگاه نسبت به مبنای ثابت شکست تازه‌ای نیافت. ۲۵تست تولد/۴۳۴بررسی در هر پایگاه موفق بود؛ در۲۹۸مورد مقایسه‌شده،۲۰شکست قدیمی SQLite و۲۱شکست قدیمی MariaDB باقی‌اند و موفق شمرده نمی‌شوند.
 - وضعیت: [PR۱۶۱](https://github.com/servernetir/server/pull/161) با merge commit `9845f76d25c7a24f545668efac3a3e018b2fe3e8` در develop ادغام شد. نصب تولید، import/انتشار GTM و دریافت DebugView انجام نشده‌اند.
-- مرورگر مجاز Tag Manager به صفحه ورود Google هدایت شد؛ اتصال خواندن GA4 از Windsor مجوز یا نشست ویرایش GTM نیست. هیچ ورود، دسترسی تازه یا تغییر تنظیمات Google انجام نشد.
+- مرورگر مجاز Tag Manager به صفحه ورود Google هدایت شد؛ اتصال خواندن GA4 از Windsor مجوز یا نشست ویرایش GTM نیست. هیچ ورود موفق، دسترسی تازه یا تغییر تنظیمات Google تأیید نشد.
 
 ## موارد باز پیش از پذیرش کامل درآمد
 
@@ -55,3 +55,5 @@ node scripts/prepare-purchase-gtm-repair.cjs /private/fresh-export.json /private
 بازگشت: فایل‌های analytics همین تغییر برگردند؛ هیچ داده مالی تغییر نکرده است. تا قبل از انتشار GTM، تنظیم فعال Google دست‌نخورده است. پس از انتشار احتمالی، فقط field همان tag با export قبلی و تغییرهای همکاران تطبیق داده شود؛ rollback کامل کانتینر مجوز ضمنی ندارد.
 
 بررسی تکمیلی runtime عمومی: در پاسخ با hash `88cfd921f6f4e1a42d517f101df1a2f06d55c8bb0bd60e4718dfadde658c8719`، تابع ecommerce وقتی source برابر dataLayer نیست به macroData رجوع و در نبود آن پیش از کپی پارامترها return می‌کند. در tag خرید هر دو فیلد غایب‌اند؛ در این مسیر کد، پیش‌فرض پنهان dataLayer وجود ندارد. این تأیید علتِ forwardنشدن پارامترهاست، نه پذیرش رفع درآمد/دریافت GA4.
+
+درخواست امن ورود Google پس از ادغام تغییر باز شد و با لغو کاربر متوقف شد؛ تکرار نشد. ورود موفق اثبات نشده و هیچ import/انتشار GTM توسط این اجرا انجام نشده است. ادامهٔ بخش Google به نشست مجاز تازه نیاز دارد؛ کد و آزمون‌های ثبت‌شده مستقل از این مانع باقی‌اند.
