@@ -19,7 +19,7 @@
 set -euo pipefail
 
 VM_IP="${SN_VM_IP:-10.10.10.200}"
-PRIMARY_IP="${SN_PRIMARY_IP:-91.107.173.226}"
+PRIMARY_IP="${SN_PRIMARY_IP:-155.103.69.128}"
 PUBLIC_IP="${SN_PUBLIC_IP:-85.9.108.118}"
 KEYFILE=/root/.ssh/sn-dns
 CATALOG="catalog.servernet.invalid"

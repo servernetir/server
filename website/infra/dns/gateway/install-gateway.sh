@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# نصبِ primaryِ پنهان + نیم‌سرورِ عمومیِ derek روی سرورِ Gateway (91.107.173.226)
+# نصبِ primaryِ پنهان + نیم‌سرورِ عمومیِ derek روی سرورِ Gateway ترکیه (155.103.69.128)
 #
 #   curl -fsSL https://raw.githubusercontent.com/servernetir/server/develop/website/infra/dns/gateway/install-gateway.sh | bash
 #
@@ -17,7 +17,7 @@
 # =============================================================================
 set -euo pipefail
 
-PUBIP="${SN_EXPECT_IP:-91.107.173.226}"     # فقط برای تمرین عوض می‌شود
+PUBIP="${SN_EXPECT_IP:-155.103.69.128}"     # فقط برای تمرین عوض می‌شود
 IRAN_IP="${SN_IRAN_IP:-85.9.108.118}"       # SNAT/DNATِ میزبانِ ایران
 WHM_IP="${SN_WHM_IP:-65.109.176.14}"        # تنها مبدأِ مجاز برای API (برنامهٔ لاراول)
 API_HOST="${SN_API_HOST:-dns-api.servernet.cloud}"

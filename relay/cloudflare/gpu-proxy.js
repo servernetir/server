@@ -42,6 +42,7 @@
  *      *.servernet.cloud/*     → gpu-proxy
  *      cdn.servernet.cloud/*   → None   ← استثنای هر رکوردِ پروکسی‌شده
  *      ns3.servernet.cloud/*   → None
+ *      admin.servernet.cloud/* → None  ← اصلاحِ مسیرِ Proxmox، ۳۰ اکتبر ۲۰۲۶
  *    🔴 قاعده: هر رکوردِ **پروکسی‌شدهٔ** تازه‌ای که ساختی، یک مسیرِ None
  *    هم بگیرد، وگرنه ترافیکش از این Worker رد می‌شود و ۴۰۴ می‌گیرد.
  *    (رکوردهای DNS-only اصلاً به Cloudflare/Worker نمی‌رسند.)
