@@ -113,7 +113,7 @@ return [
     'errors_text' => '401 geçersiz anahtar; 402 bakiye veya bütçe sınırı; 403 anahtar veya proje izni; 429 hız sınırı; 503 model veya sağlayıcı hazır değil. Gönderim sonrası bağlantı kesilirse kullanım kontrol edilene kadar rezerv tutulur. Destek için X-Request-Id değerini saklayın.',
     'faq' => 'Sık sorulan sorular',
     'q1' => 'Kullanım ücreti nasıl hesaplanır?',
-    'a1' => 'Bildirilen model tüketimi ve istek başlangıcında sabitlenen fiyatlar kullanılır. Gönderim sonrası belirsiz kalan yanıtların tüketimi istek durumuna göre incelenir.',
+    'a1' => 'Bu API, bildirilen model tüketimini her istek için sabitlenen fiyatlarla Toman cüzdanınızdan tahsil eder. Cüzdana bakiye yüklemek, sınırsız token içeren sabit ücretli aylık abonelik değildir. Gönderim sonrası belirsiz kalan yanıtların tüketimi istek durumuna göre incelenir.',
     'q2' => 'Listelenen tüm modeller kullanılabilir mi?',
     'a2' => 'Her modelin durumu gösterilir. Yalnızca kullanılabilir modeller API üzerinden satın alınabilir. Hazırlanan ve durdurulan modeller katalog bilgisi için listelenir.',
     'q3' => 'Ekip harcamasını nasıl sınırlarım?',
