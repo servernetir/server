@@ -1,6 +1,7 @@
 ---
 deployment:
   tasks:
+    - /opt/cpanel/ea-php84/root/usr/bin/php -l /home/servernetcloud/hermes-business-source-20261030/infra/hermes/business-20261030/HermesConversationMemory.php
     - /opt/cpanel/ea-php84/root/usr/bin/php -l /home/servernetcloud/hermes-business-source-20261030/website/app/Services/Hermes/HermesApprovedBusinessKnowledge.php
     - /opt/cpanel/ea-php84/root/usr/bin/php -l /home/servernetcloud/hermes-business-source-20261030/infra/hermes/business-20261030/HermesOperations.php
     - /opt/cpanel/ea-php84/root/usr/bin/php -l /home/servernetcloud/hermes-business-source-20261030/infra/hermes/business-20261030/HermesSupportDraftWriter.php

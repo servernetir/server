@@ -87,10 +87,9 @@ final class HermesOperations
                 'confirmed_case_count' => $state['support_experience']['confirmed_case_count'] ?? 0,
                 'reference_only' => true, 'grants_permissions' => false],
             'infrastructure_changes_authorized' => false];
-        $business = app(HermesApprovedBusinessKnowledge::class)->read($query, true);
-        if (mb_strlen(json_encode($context + ['approved_business_knowledge' => $business], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)) <= 7600) {
-            $context['approved_business_knowledge'] = $business;
-        }
+        // The owner caller fits optional runbooks after its existing history and
+        // runtime compression, so guidance cannot evict existing observations.
+        $context['approved_business_knowledge'] = app(HermesApprovedBusinessKnowledge::class)->read($query, true);
         return $context;
     }
 
