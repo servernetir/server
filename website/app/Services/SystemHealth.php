@@ -79,6 +79,7 @@ class SystemHealth
             ['cloud_delivery', 'تحویلِ سرورِ ابری', 'undeliveredCloud'],
             ['aeza_control', 'کنترل Aeza', 'aezaControlContract'],
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
+            ['cloud_release_untracked', 'حذف‌های خارج از صف', 'untrackedCloudRelease'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
             ['catalogue_refresh', 'همگام‌سازی درخواستی کاتالوگ', 'catalogueRefresh'],
             ['mailboxes', 'صندوق‌های ایمیل', 'mailboxes'],
@@ -825,6 +826,38 @@ class SystemHealth
              خوانده نشده؛ `fx:dollar` و اتصال تامین‌کننده را بررسی کنید.');
     }
 
+    /** Read-only reconciliation: protected or legacy rows must not disappear from monitoring. */
+    private function untrackedCloudRelease(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasTable('cloud_instances')
+            || ! Schema::hasColumn('services', 'provision_status')) {
+            return $this->row('cloud_release_untracked', true, 'ok', 'حذف‌های خارج از صف',
+                'روی این نصب فعال نیست.');
+        }
+
+        $query = Service::query()->whereIn('status', Service::DEAD_STATUSES)
+            ->where(fn ($q) => $q->whereNull('provision_status')
+                ->orWhere('provision_status', '!=', Service::PROVISION_RELEASING))
+            ->whereHas('cloudInstance', fn ($q) => $q->whereNotNull('provider_ref')
+                ->where('provider_ref', '!=', '')
+                ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'deleted')));
+        $count = (clone $query)->count();
+
+        if ($count === 0) {
+            return $this->row('cloud_release_untracked', true, 'ok', 'حذف‌های خارج از صف',
+                'سرویس بسته‌شده‌ای با ماشین تعیین‌تکلیف‌نشده خارج از صف پیدا نشد.');
+        }
+
+        $rows = $query->orderBy('id')->limit(self::NAME_LIMIT)
+            ->with('customer:id,code,email')->get(['id', 'name', 'customer_id']);
+
+        return $this->row('cloud_release_untracked', false, 'fail', 'حذف‌های خارج از صف',
+            fa_num($count).' سرویس بسته شده ولی ماشین آن حذف‌شده ثبت نشده و در صف آزادسازی هم نیست: '
+            .$rows->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
+            .'. وضعیت واقعی زیرساخت و محافظت داخلی را بررسی کنید؛ این هشدار هیچ ماشینی را خودکار حذف نمی‌کند.',
+            $this->serviceLinks($rows));
+    }
+
     private function cloudRelease(): array
     {
         try {
@@ -847,7 +880,7 @@ class SystemHealth
 
         if ($allRows->isEmpty()) {
             return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور',
-                'هر سرویسِ بسته‌شده‌ای نزدِ زیرساخت هم آزاد شده.');
+                'صفِ تلاشِ دوبارهٔ آزادسازی خالی است؛ موارد خارج از صف جداگانه بررسی می‌شوند.');
         }
 
         $freshPending = $allRows->filter(function (Service $service) {

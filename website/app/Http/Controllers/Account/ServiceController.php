@@ -30,6 +30,10 @@ class ServiceController extends Controller
     {
         $this->ownedOr404($service);
 
+        if ($service->isInternalInfrastructure()) {
+            return back()->withErrors(__('ui.svc_removal_protected'));
+        }
+
         if (! $this->terminable($service)) {
             return back()->withErrors(__('ui.svf_state'));
         }
@@ -47,6 +51,13 @@ class ServiceController extends Controller
     public function terminate(Request $request, Service $service): RedirectResponse
     {
         $this->ownedOr404($service);
+
+        if ($service->isInternalInfrastructure()) {
+            $request->session()->forget('svc_terminate_ctx');
+
+            return back()->withErrors(__('ui.svc_removal_protected'));
+        }
+
         $ctx = $request->session()->get('svc_terminate_ctx');
 
         // Reject legacy OTP contexts, expired dialogs and confirmation of a different service.
@@ -177,7 +188,8 @@ class ServiceController extends Controller
      */
     private function terminable(Service $service): bool
     {
-        return in_array($service->status, ['active', 'suspended', 'expired'], true)
+        return ! $service->isInternalInfrastructure()
+            && in_array($service->status, ['active', 'suspended', 'expired'], true)
             && $service->provision_status !== 'failed'
             && ! $service->cloudUndelivered();
     }
@@ -191,10 +203,11 @@ class ServiceController extends Controller
      */
     private function cancellable(Service $service): bool
     {
-        return in_array($service->status, ['awaiting_provision', 'provision_failed'], true)
+        return ! $service->isInternalInfrastructure()
+            && (in_array($service->status, ['awaiting_provision', 'provision_failed'], true)
             || ($service->status === 'active' && $service->provision_status === 'failed')
             || ($service->cloudUndelivered()
-                && in_array($service->status, ['active', 'suspended', 'expired'], true));
+                && in_array($service->status, ['active', 'suspended', 'expired'], true)));
     }
 
     private function ownedOr404(Service $service)
@@ -225,6 +238,10 @@ class ServiceController extends Controller
 
         abort_if($customer === null || (int) $service->customer_id !== (int) $customer->id, 404);
 
+        if ($service->isInternalInfrastructure()) {
+            return back()->withErrors(__('ui.svc_removal_protected'));
+        }
+
         // فقط سفارشِ تحویل‌نشده. سرویسِ فعالِ تحویل‌شده مسیرِ خودش را دارد.
         if (! $this->cancellable($service)) {
             return back()->withErrors(__('ui.svf_cancel_state'));
@@ -232,13 +249,13 @@ class ServiceController extends Controller
 
         $refund = 0;
 
-        DB::transaction(function () use ($service, $customer, &$refund) {
+        $transitioned = DB::transaction(function () use ($service, $customer, &$refund): bool {
             // ترتیب قفل مالی در کل سامانه: مشتری، سپس سرویس (همان ترتیب متر).
             $lockedCustomer = Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
             $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
 
-            if ($fresh === null || $fresh->status === 'cancelled') {
-                return;                          // قبلاً لغو شده — دوباره پول برنگردان
+            if ($fresh === null || ! $this->cancellable($fresh)) {
+                return false;
             }
 
             // مبلغِ پرداخت‌شدهٔ همین سرویس (فاکتورهای تسویه‌شده + کسرهای ساعتی)
@@ -308,7 +325,13 @@ class ServiceController extends Controller
                 'cancelled_at'     => now(),
                 'provision_status' => 'none',
             ]);
+
+            return true;
         });
+
+        if (! $transitioned) {
+            return back()->withErrors(__('ui.svf_cancel_state'));
+        }
 
         /*
         | اگر نیمه‌ساخته چیزی نزدِ زیرساخت مانده، پاکش کن (هزینه‌اش پای ماست).

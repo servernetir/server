@@ -1,0 +1,44 @@
+{
+  "base_sha": "cc10dd8137d28f96d21e00f38ae92a3836442b16",
+  "status": "prepared_not_installed",
+  "migration": false,
+  "config_change": false,
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/Account/ServiceController.php",
+      "destination": "servernet_app/app/Http/Controllers/Account/ServiceController.php",
+      "expected_before_sha256": "f9033b80be854d6e28c860434e9d546e95c755fe0bb22a41f46961b20b86d521",
+      "after_sha256": "cf0bf330772acb737fe8660c820777dd20b9603c775009ac5f70d3b045ead38f"
+    },
+    {
+      "source": "website/app/Services/SystemHealth.php",
+      "destination": "servernet_app/app/Services/SystemHealth.php",
+      "expected_before_sha256": "7f4d148be054f8464412046340daba15b9db26b18a4763dd6a4c756d3639ad08",
+      "after_sha256": "fac52e5a54ff3dce41e79fbdbcf0d7cb23f3bea1070602de52a55a905e1b677d"
+    },
+    {
+      "source": "website/resources/views/account/partials/svc-actions.blade.php",
+      "destination": "servernet_app/resources/views/account/partials/svc-actions.blade.php",
+      "expected_before_sha256": "cfaf655a4856201f490feb953ed64c7f591f5a22026c4deb132b3325d172968d",
+      "after_sha256": "bf10cc19c747a27ddffa9ba5b235a9c88e7f3bb02fad17e92516cbdd44c9243d"
+    },
+    {
+      "source": "website/lang/fa/ui.php",
+      "destination": "servernet_app/lang/fa/ui.php",
+      "expected_before_sha256": "10c2c9c8bedc7cb338396c702f9d26b8ad5e0c14acd8dc115438d18a28c43b04",
+      "after_sha256": "a6860cba03fbd9160f73f50e22519a1bf9e20a25a49dc79a3356c25eded95d42"
+    },
+    {
+      "source": "website/lang/en/ui.php",
+      "destination": "servernet_app/lang/en/ui.php",
+      "expected_before_sha256": "ef79f375c32fe8be4284a7de02210b3dcb5cbb6bd1d512251971b3a2ec12a29d",
+      "after_sha256": "1a3f53871bb2f7ef44ab948298f8370c997bd147e868dfae95d8cf2f080111a4"
+    },
+    {
+      "source": "website/lang/tr/ui.php",
+      "destination": "servernet_app/lang/tr/ui.php",
+      "expected_before_sha256": "51e8cc8881c0df3c883c97a6a44224c9921bcfe666fadc6d678c3cf18cafa1c3",
+      "after_sha256": "11cd8c008d6b286d5522580e7fa8847866222a0260ea966a2810178151d5dedc"
+    }
+  ]
+}

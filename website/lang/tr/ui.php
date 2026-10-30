@@ -1296,6 +1296,7 @@ return [
     'scf_token_ok' => 'Belirtec olusturuldu. Simdi kopyalayin - tekrar gosterilmez.',
     'scf_token_revoked' => 'Belirtec iptal edildi ve artik calismiyor.',
     'svf_state' => 'Bu hizmet silinebilecek durumda degil.',
+    'svc_removal_protected' => 'Bu hizmeti silmek veya iptal etmek için destek ekibiyle iletişime geçmeniz gerekiyor. Lütfen bir destek talebi açın.',
     'svf_code_sent' => 'Dogrulama kodu gonderildi. Hizmeti silmek icin kodu girin.',
     'svf_ask_code' => 'Once bu hizmet icin dogrulama kodu alin.',
     'svf_deleted' => 'Hizmet silindi ve bu andan itibaren ucret alinmaz. Kullanilmayan bakiye cuzdaninizda kalir (onceden faturalanan saatler iade edilmez).',

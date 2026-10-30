@@ -1296,6 +1296,7 @@ return [
     'scf_token_ok' => 'Token created. Copy it now - it will not be shown again.',
     'scf_token_revoked' => 'The token was revoked and no longer works.',
     'svf_state' => 'This service is not in a state where it can be deleted.',
+    'svc_removal_protected' => 'Deleting or cancelling this service requires support assistance. Please open a ticket.',
     'svf_code_sent' => 'A verification code was sent. Enter it to delete the service.',
     'svf_ask_code' => 'Request a verification code for this service first.',
     'svf_deleted' => 'The service was deleted and nothing more will be charged from this moment. Unused credit stays in your wallet (hours already billed are not refunded).',
