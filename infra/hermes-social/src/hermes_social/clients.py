@@ -127,9 +127,12 @@ class Drive:
         if metadata.get("mimeType") != "application/json":
             raise Blocked("receipt_target_must_be_json")
         try:
+            headers = {**self.headers(), "Content-Type": "application/json"}
+            # Scope/metadata reads may run while paused; the external write may not.
+            self.policy.check_not_paused()
             response = self.http.patch("https://www.googleapis.com/upload/drive/v3/files/" + identifier(target),
                                        params={"uploadType": "media", "supportsAllDrives": "true"},
-                                       headers={**self.headers(), "Content-Type": "application/json"},
+                                       headers=headers,
                                        content=json.dumps(snapshot, ensure_ascii=False).encode())
             if response.status_code != 200 or response.json().get("id") != target:
                 raise Blocked("drive_receipt_write_not_verified")
@@ -324,5 +327,6 @@ class Instagram:
         result = self.call("GET", self.numeric(reply_id), fields="id,text")
         if result.get("id") != reply_id or result.get("text") != text:
             raise Blocked("reply_not_verified")
+
 
 

@@ -396,6 +396,33 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(restarted.row("job-5")["state"], "WAITING")
 
 
+    def test_pause_before_publish_releases_claim_and_resumes_once(self):
+        self.engine.prepare(self.key)
+        original = self.api.verify_account
+        def pause_after_identity():
+            original()
+            (self.f.state / "PAUSED").touch()
+        self.api.verify_account = pause_after_identity
+        self.assertEqual(self.engine.advance(self.key)["state"], "WAITING")
+        self.assertIsNone(self.engine.row(self.key)["publish_started"])
+        self.assertEqual(self.api.published, 0)
+        (self.f.state / "PAUSED").unlink()
+        self.api.verify_account = original
+        self.engine.clock = lambda: NOW + timedelta(seconds=61)
+        self.assertEqual(self.engine.advance(self.key)["state"], "PUBLISHED")
+        self.assertEqual(self.api.published, 1)
+
+    def test_expired_pre_publish_check_is_not_an_unknown_remote_result(self):
+        self.engine.prepare(self.key)
+        def expire_after_identity():
+            self.engine.clock = lambda: NOW + timedelta(hours=2)
+        self.api.verify_account = expire_after_identity
+        self.assertEqual(self.engine.advance(self.key)["state"], "WAITING")
+        self.assertIsNone(self.engine.row(self.key)["publish_started"])
+        self.assertEqual(self.api.published, 0)
+        self.assertEqual(self.engine.reconcile(self.key)["state"], "WAITING")
+
+
 class CommentPaginationRegressionTests(unittest.TestCase):
     def setUp(self):
         self.f = Fixture()
@@ -553,6 +580,50 @@ class AdapterTests(unittest.TestCase):
         result = self.drive(handler).sync_receipts(snapshot)
         self.assertTrue(result["synced"])
         self.assertEqual(received, [snapshot])
+
+
+    def test_paused_drive_sync_never_transmits_patch(self):
+        self.policy.data["drive_receipt_file_id"] = "receipt"
+        requests = []
+        def handler(request):
+            requests.append(request.method)
+            file_id = request.url.path.split("/")[-1]
+            return httpx.Response(200, json={"id": file_id,
+                "mimeType": "application/vnd.google-apps.folder" if file_id == "root" else "application/json",
+                "parents": [] if file_id == "root" else ["root"]})
+        (self.f.state / "PAUSED").touch()
+        with self.assertRaisesRegex(Blocked, "executor_paused"):
+            self.drive(handler).sync_receipts({})
+        self.assertNotIn("PATCH", requests)
+
+    def test_pause_during_auth_header_resolution_prevents_receipt_patch(self):
+        from unittest.mock import Mock
+        self.policy.data["drive_receipt_file_id"] = "receipt"
+        drive = self.drive(lambda request: self.fail("No PATCH expected"))
+        drive.scoped = Mock(return_value={"mimeType": "application/json"})
+        def headers():
+            (self.f.state / "PAUSED").touch()
+            return {"Authorization": "Bearer SYNTHETIC"}
+        drive.headers = headers
+        with self.assertRaisesRegex(Blocked, "executor_paused"):
+            drive.sync_receipts({})
+
+    def test_receipt_sync_does_not_require_enabling_publication(self):
+        self.policy.data["drive_receipt_file_id"] = "receipt"
+        self.f.config["publishing_enabled"] = False
+        self.f.save()
+        self.policy = self.f.policy()
+        self.policy.data["drive_receipt_file_id"] = "receipt"
+        def handler(request):
+            if request.method == "PATCH":
+                return httpx.Response(200, json={"id": "receipt"})
+            if request.url.params.get("alt") == "media":
+                return httpx.Response(200, json={"publications": []})
+            file_id = request.url.path.split("/")[-1]
+            return httpx.Response(200, json={"id": file_id,
+                "mimeType": "application/vnd.google-apps.folder" if file_id == "root" else "application/json",
+                "parents": [] if file_id == "root" else ["root"]})
+        self.assertTrue(self.drive(handler).sync_receipts({"publications": []})["synced"])
 
     def test_drive_receipt_write_does_not_overwrite_approved_asset(self):
         self.policy.data["drive_receipt_file_id"] = "asset"
@@ -763,5 +834,6 @@ class BootstrapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

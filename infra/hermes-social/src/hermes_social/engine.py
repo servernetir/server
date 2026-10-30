@@ -192,6 +192,16 @@ class Engine:
         try:
             self.policy.enabled()
             self.policy.due(job, self.clock())
+        except Exception as error:
+            # No publish POST has been invoked. Release only our own claim so a
+            # pause/config failure does not manufacture an unknown remote result.
+            with self.journal.db() as db:
+                db.execute("UPDATE publications SET state='WAITING',publish_started=NULL,error=? "
+                           "WHERE key=? AND state='PUBLISHING' AND publish_started=?",
+                           (str(error) if isinstance(error, Blocked) else "publish_preflight_failed",
+                            key, now.timestamp()))
+            return self.receipt(key)
+        try:
             media_id = api.publish(row["container"])
             self.journal.update(key, "VERIFYING", media_id=media_id)
         except Exception:
@@ -347,4 +357,5 @@ class Engine:
         with self.journal.db() as db:
             db.execute("UPDATE comments SET state='REPLIED' WHERE id=? AND lang=?", (comment_id, job["lang"]))
         return {"comment_id": comment_id, "reply_id": reply_id, "state": "REPLIED"}
+
 

@@ -111,6 +111,10 @@ class Policy:
             raise Blocked("job_not_in_owner_manifest")
         return self.jobs[key]
 
+    def check_not_paused(self):
+        if (self.state / "PAUSED").exists():
+            raise Blocked("executor_paused")
+
     def enabled(self, *, replies=False):
         # Re-read the owner's config and pause file before every external mutation.
         current = json.loads(private_file(self.path).read_text())
@@ -133,3 +137,4 @@ class Policy:
         if not isinstance(account.get("id"), str) or not account["id"].isdigit():
             raise Blocked("instagram_numeric_id_required")
         return account
+

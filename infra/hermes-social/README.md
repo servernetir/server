@@ -105,6 +105,19 @@ Comment reads follow opaque cursors (up to 20 pages); malformed/repeated cursors
 page cap return an explicit block instead of silently discarding comments. Remote
 `paging.next` URLs are never followed. No new credentials, scopes or listener were added.
 
+## Review fixes — 2026-10-30
+
+Receipt sync checks the shared pause file immediately before the Drive PATCH,
+including after credential-header preparation. It still works with publication
+disabled when not paused; syncing an existing designated receipt grants no new scope.
+Publication preflight failures after claiming but before calling the publish API
+release only that claim back to WAITING and clear its attempt timestamp. A timeout
+or exception after invoking the publish API remains UNCERTAIN and is never retried
+blindly. Crashes after the persisted claim remain quarantined as before.
+
+Validation: 63 local tests pass, including five added pause/preflight regression
+cases. The latest package has not been installed or verified live on VM 127.
+
 ## Stop and recovery
 
 - Create the state directory's `PAUSED` file or call `social_pause`; every future external mutation checks it. An already transmitted request cannot be canceled by the flag. Disable the user timer as well when doing maintenance. Only the operator removes the stop file.
@@ -131,5 +144,6 @@ python build_manifest.py --drive-index /private/drive_manifest.json \
 ```
 
 Source references: [Hermes MCP configuration](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp/), [official MCP Python SDK v1](https://py.sdk.modelcontextprotocol.io/v1/), [Meta publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing), [Meta image/container API](https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media), [Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login), [Google downloads](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Google desktop OAuth](https://developers.google.com/identity/protocols/oauth2/native-app), [S3 presigned URLs](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/generate_presigned_url.html). Full Meta pages were inaccessible to this session; primary-source search excerpts confirmed the contract, while live app/version acceptance remains required.
+
 
 
