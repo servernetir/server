@@ -27,11 +27,11 @@ node scripts/prepare-purchase-gtm-repair.cjs /private/fresh-export.json /private
 
 ## وضعیت آزمون و انتشار
 
-- ۱۵ تست Node ابزار آفلاین و بررسی نحو هر دو فایل موفق‌اند؛ fixtureها ساختگی هستند.
+- ۱۷ تست Node ابزار آفلاین و بررسی نحو هر دو فایل موفق‌اند؛ fixtureها ساختگی هستند.
 - بازبینی مستقل سه فایل PHP ایراد مسدودکننده‌ای در این دامنه محدود پیدا نکرد.
 - PHP محلی موجود نیست؛ تلاش نصب runtime با محدودیت مجوز محیط متوقف شد و دور زده نشد.
-- workflow محدود `analytics-purchase.yml` با PHP۸٫۴ و SQLite/MariaDB برای lint و تست‌های DataLayer/session/catalog اضافه شد؛ نتیجه CI باید از اجرای واقعی همین revision خوانده شود، نه از این تعریف.
-- وضعیت اولیه این سند: تغییر آماده بررسی در Git؛ نصب تولید و انتشار GTM انجام نشده‌اند. نتیجه نهایی CI در رسید تحویل/PR ثبت می‌شود.
+- workflow محدود `analytics-purchase.yml` با PHP۸٫۴ و SQLite/MariaDB اجرا شد: هر دو مسیر موفق و در هر پایگاه ۱۳تست/۹۳بررسی پذیرفته شدند. اجرای نخست روی `8093d7f90f5a761748165e2e1cd3e59fe0191e8c` بود؛ سپس دو سخت‌گیری parser و آزمونشان اضافه شدند و ۱۷تست Node محلی موفق‌اند. [اجرای CI](https://github.com/servernetir/server/actions/runs/41132372764) شاهد PHP است؛ تعداد اجرای تکراری به شمار تست مستقل اضافه نمی‌شود.
+- وضعیت: تغییر در PR۱۶۱ ثبت شده و آزمون‌های مرتبط موفق‌اند؛ نتیجه آخرین revision در همان PR خوانده شود. نصب تولید، import/انتشار GTM و دریافت DebugView انجام نشده‌اند.
 - مرورگر مجاز Tag Manager به صفحه ورود Google هدایت شد؛ اتصال خواندن GA4 از Windsor مجوز یا نشست ویرایش GTM نیست. هیچ ورود، دسترسی تازه یا تغییر تنظیمات Google انجام نشد.
 
 ## موارد باز پیش از پذیرش کامل درآمد
@@ -52,3 +52,5 @@ node scripts/prepare-purchase-gtm-repair.cjs /private/fresh-export.json /private
 - https://support.google.com/analytics/answer/9796179?hl=en
 
 بازگشت: فایل‌های analytics همین تغییر برگردند؛ هیچ داده مالی تغییر نکرده است. تا قبل از انتشار GTM، تنظیم فعال Google دست‌نخورده است. پس از انتشار احتمالی، فقط field همان tag با export قبلی و تغییرهای همکاران تطبیق داده شود؛ rollback کامل کانتینر مجوز ضمنی ندارد.
+
+بررسی تکمیلی runtime عمومی: در پاسخ با hash `88cfd921f6f4e1a42d517f101df1a2f06d55c8bb0bd60e4718dfadde658c8719`، تابع ecommerce وقتی source برابر dataLayer نیست به macroData رجوع و در نبود آن پیش از کپی پارامترها return می‌کند. در tag خرید هر دو فیلد غایب‌اند؛ در این مسیر کد، پیش‌فرض پنهان dataLayer وجود ندارد. این تأیید علتِ forwardنشدن پارامترهاست، نه پذیرش رفع درآمد/دریافت GA4.

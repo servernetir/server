@@ -119,6 +119,19 @@ test('rejects a second route that invokes purchase through sequencing', () => {
   rejected(v => { v.tag[2].setupTag = [{tagName: 'TEST Purchase'}]; }, /invoked by tag sequencing/);
   rejected(v => { v.tag[2].teardownTag = [{tagName: '{{Computed Tag}}'}]; }, /Computed tag sequencing/);
 });
+test('fails closed on case flags outside the supported exact equality contract', () => {
+  rejected(v => {
+    v.trigger[1].customEventFilter[0] = {type: 'EQUALS', parameter: [
+      parameter('arg0', '{{Event}}'), parameter('arg1', 'PURCHASE'), parameter('ignore_case', 'true', 'BOOLEAN')]};
+  }, /Case-insensitive equality/);
+  rejected(v => {
+    v.trigger[0].customEventFilter[0].parameter.push(parameter('ignore_case', 'true', 'BOOLEAN'));
+  }, /match exactly/);
+});
+test('fails closed on a sequence reference matching the purchase numeric identity', () => {
+  rejected(v => { v.tag[2].setupTag = [{tagName: v.tag[1].tagId}]; }, /invoked by tag sequencing/);
+  rejected(v => { v.tag[2].teardownTag = [{tagName: v.tag[1].tagId}]; }, /invoked by tag sequencing/);
+});
 test('file writer creates a private merge artifact and refuses input/output overwrite', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'snet-gtm-repair-test-'));
   try {

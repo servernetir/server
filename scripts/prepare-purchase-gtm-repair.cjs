@@ -56,7 +56,9 @@ function triggerCanMatchPurchase(trigger, version) {
     const ignoreCase = booleanFlag(p.ignore_case), negate = booleanFlag(p.negate);
     let matches;
     switch (normalized(condition.type)) {
-      case 'EQUALS': matches = expected === 'purchase'; break;
+      case 'EQUALS':
+        check(!ignoreCase, 'Case-insensitive equality requires manual review.');
+        matches = expected === 'purchase'; break;
       case 'MATCHREGEX':
         try { matches = new RegExp(expected, ignoreCase ? 'i' : '').test('purchase'); }
         catch { throw new Error('Invalid custom event regex; review manually.'); }
@@ -129,7 +131,8 @@ function buildRepair(source, target = TARGET, exportTime = new Date().toISOStrin
   check(conditions.length === 1 && normalized(conditions[0].type) === 'EQUALS', 'Purchase trigger must match exactly purchase.');
   const condition = parameters(conditions[0]);
   check(isEventReference(condition.arg0?.value, version) && condition.arg1?.value === 'purchase'
-    && !booleanFlag(condition.negate), 'Purchase trigger must match exactly purchase.');
+    && !booleanFlag(condition.negate) && !booleanFlag(condition.ignore_case),
+  'Purchase trigger must match exactly purchase.');
 
   for (const tag of sameProperty) {
     if (tag === purchase) continue;
@@ -148,7 +151,8 @@ function buildRepair(source, target = TARGET, exportTime = new Date().toISOStrin
     for (const step of [...(tag.setupTag || []), ...(tag.teardownTag || [])]) {
       check(typeof step.tagName === 'string' && !step.tagName.includes('{{'),
         'Computed tag sequencing requires manual review.');
-      check(step.tagName !== purchase.name, 'Purchase is also invoked by tag sequencing; review manually.');
+      check(![purchase.name, purchase.tagId].includes(step.tagName),
+        'Purchase is also invoked by tag sequencing; review manually.');
     }
   }
   // Copy the field's known shape from a same-property active ecommerce tag.
