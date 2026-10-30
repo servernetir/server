@@ -1,0 +1,28 @@
+{
+  "observed_at_utc": "2026-10-30T06:57:29.311Z",
+  "page": "/vps/hourly",
+  "font": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+  "gtmLoader": true,
+  "h1": [
+    "خرید سرور مجازی ساعتی، برای زمانی که نیاز دارید."
+  ],
+  "newPartialMarker": true,
+  "purchaseLinks": 16,
+  "viewport": 390,
+  "width": 390,
+  "workerLoader": true,
+  "network": [
+    {
+      "host": "servernet.cloud",
+      "path": "/assets/js/snet-analytics-worker-0.15.0-snet3/partytown.js",
+      "status": 200
+    },
+    {
+      "host": "servernet.cloud",
+      "path": "/assets/js/snet-analytics-worker-0.15.0-snet3/partytown-sandbox-sw.html",
+      "status": 200
+    }
+  ],
+  "network_truncated": false,
+  "limits": "Passive page load only; no purchase, conversion, synthetic Google event or Lighthouse benchmark."
+}
