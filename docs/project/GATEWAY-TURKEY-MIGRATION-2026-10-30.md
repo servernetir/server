@@ -77,10 +77,19 @@ Verified in production during the authorized migration:
 - Current recovery-copy integrity and removal of migration-owned temporary
   jobs while retaining unrelated jobs.
 
+Fresh checks after the owner's deletion report found all ten target workload
+units and three timers active, with the VPN container running. A real
+authenticated request from the website to the DNS API returned 200 and the two
+expected zones. Both public VPN dashboards returned 200. Anonymous requests
+to the public management and two additional tunnel hostnames still redirected
+to the existing Access sign-in; their tunnel DNS mappings remained correct.
+These redirects do not establish authenticated application acceptance.
+
 Native Proxmox sign-in and console WebSocket acceptance through the public
 hostname, a real authenticated GPU application/WebSocket session, an Iran GPU
 client and peak-load/reboot acceptance are not established by the checks above.
-Additional tunnel-origin acceptance remains a follow-up. Old VPN profiles with
+Authenticated acceptance of the two additional tunnel applications remains a
+follow-up. Old VPN profiles with
 the retired numerical address must be refreshed from subscriptions or
 reimported; DNS cannot rewrite a cached profile.
 
