@@ -6,18 +6,18 @@ umask(0077);
 $base = '/home/servernetcloud/servernet_app';
 $source = '/home/servernetcloud/hermes-business-source-20261030';
 $mode = $argv[1] ?? '';
-if (!in_array($mode, ['deploy', 'accept'], true) || getenv('HOME') !== '/home/servernetcloud') { exit(1); }
+if (!in_array($mode, ['deploy', 'deploy-v2', 'accept'], true) || getenv('HOME') !== '/home/servernetcloud') { exit(1); }
 try {
     require $base.'/vendor/autoload.php';
     $app = require $base.'/bootstrap/app.php';
     $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
-    if ($mode === 'deploy') {
+    if (in_array($mode, ['deploy', 'deploy-v2'], true)) {
         $lock = Illuminate\Support\Facades\Cache::lock('hermes:support-review', 2700);
         if (!$lock->get()) { throw new RuntimeException('review_busy'); }
         try {
             foreach (['prepare', 'apply', 'verify'] as $phase) {
                 $process = new Symfony\Component\Process\Process(
-                    ['/usr/bin/python3', $source.'/infra/hermes/business-20261030/deploy.py', $phase, $source],
+                    ['/usr/bin/python3', $source.'/infra/hermes/business-20261030/'.($mode === 'deploy-v2' ? 'deploy-v2.py' : 'deploy.py'), $phase, $source],
                     $source, ['HERMES_REVIEW_LOCK_HELD' => '1'], null, 90
                 );
                 $process->run();
@@ -44,10 +44,11 @@ try {
     $context = $ops->chatContext($owner, 'بررسی اقدام یادگیری');
     $modelContext = App\Services\Hermes\HermesConversationMemory::context(['messages'=>[], 'memories'=>[]], $context, 'acceptance-fixture');
     $state = app(App\Services\Hermes\HermesOperationsStore::class)->read($owner);
-    $complete=isset($context['approved_business_knowledge']) && str_contains($modelContext, 'approved-business-knowledge-v1');
+    $relayContainsBridge=str_contains($modelContext, '"approved_business_knowledge"') && str_contains($modelContext, '"citation"');
+    $complete=isset($context['approved_business_knowledge']) && $relayContainsBridge;
     $receipt = ['status'=>$complete ? 'accepted' : 'partial', 'checked_at'=>gmdate('c'), 'public_query_checks'=>$checks,
         'owner_context_contains_bridge'=>isset($context['approved_business_knowledge']),
-        'owner_relay_contains_bridge'=>str_contains($modelContext, 'approved-business-knowledge-v1'),
+        'owner_relay_contains_bridge'=>$relayContainsBridge,
         'native_operations_enabled'=>$ops->enabled(),
         'native_support_enabled'=>$context['support_enabled'] ?? null,
         'support_last_run_at'=>$context['support_last_run_at'] ?? null,

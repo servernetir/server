@@ -72,6 +72,7 @@ namespace {
     require_once $root.'/infra/hermes/support-firewall-20261028/HermesSupportPolicy.php';
     require_once $root.'/infra/hermes/business-20261030/HermesSupportDraftWriter.php';
     require_once $root.'/infra/hermes/business-20261030/HermesOperations.php';
+    require_once $root.'/infra/hermes/business-20261030/HermesConversationMemory.php';
     $checks = 0;
     $assert = static function (bool $condition, string $case) use (&$checks): void {
         if (! $condition) { throw new \RuntimeException('FAILED: '.$case); }
@@ -150,8 +151,40 @@ namespace {
     $assert($owner['customer_send'] === 'exact_owner_approval' && $owner['infrastructure_changes_authorized'] === false, 'owner authority preserved');
     \App\Services\Hermes\HermesOperationsStore::$padding = str_repeat('x', 7000);
     $ownerLarge = $operations->chatContext(['user_id' => '1', 'chat_id' => 'fixture'], 'SMTP');
-    $assert(! isset($ownerLarge['approved_business_knowledge']), 'optional owner references do not overflow existing context');
+    $assert(isset($ownerLarge['approved_business_knowledge']), 'owner runtime carries optional knowledge to final caller');
     $assert(strlen($ownerLarge['inventory_checks']['padding']) === 7000, 'existing owner observations preserved');
+    $decodeContext = static function (string $prompt): array {
+        $json = substr($prompt, strpos($prompt, '{'));
+        return json_decode(substr($json, 0, strrpos($json, '}') + 1), true, flags: JSON_THROW_ON_ERROR);
+    };
+    $ownerState = ['messages' => [], 'memories' => [['text' => 'durable-owner-marker']]];
+    $ownerPrompt = \App\Services\Hermes\HermesConversationMemory::context($ownerState, $ownerLarge, 'current');
+    $ownerPayload = $decodeContext($ownerPrompt);
+    $assert(isset($ownerPayload['application_state']['approved_business_knowledge']['references'][0]['citation']), 'actual owner caller retains cited optional knowledge');
+    $assert(in_array('durable-owner-marker', $ownerPayload['durable_owner_memory'], true), 'caller retains existing owner memory');
+    $assert(strlen($ownerPayload['application_state']['inventory_checks']['padding']) === 7000, 'caller retains existing diagnostics');
+    $assert(mb_strlen(json_encode($ownerPayload, JSON_UNESCAPED_UNICODE)) <= 9000, 'actual owner JSON budget holds');
+    $assert(mb_strlen($ownerPrompt) + 4000 < 16000, 'actual owner relay budget holds');
+    $baseRuntime = $ownerLarge; unset($baseRuntime['approved_business_knowledge']);
+    $basePayload = $decodeContext(\App\Services\Hermes\HermesConversationMemory::context($ownerState, $baseRuntime, 'current'));
+    $comparePayload = $ownerPayload; unset($comparePayload['application_state']['approved_business_knowledge']);
+    unset($basePayload['checked_at'], $comparePayload['checked_at']);
+    $assert($basePayload === $comparePayload, 'optional guidance never changes original retained observations or memories');
+    for ($size = 7500; $size <= 9300; $size += 100) {
+        $runtime = $baseRuntime; $runtime['inventory_checks']['padding'] = str_repeat('x', $size);
+        $without = $decodeContext(\App\Services\Hermes\HermesConversationMemory::context($ownerState, $runtime, 'current'));
+        $runtime['approved_business_knowledge'] = $ownerLarge['approved_business_knowledge'];
+        $withPrompt = \App\Services\Hermes\HermesConversationMemory::context($ownerState, $runtime, 'current');
+        $with = $decodeContext($withPrompt);
+        unset($with['application_state']['approved_business_knowledge'], $with['checked_at'], $without['checked_at']);
+        $assert($with === $without, 'optional guidance preserves original compression at size '.$size);
+        $assert(mb_strlen($withPrompt) + 4000 < 16000, 'relay remains bounded at size '.$size);
+    }
+    $tight = $baseRuntime;
+    $tight['inventory_checks']['padding'] = str_repeat('x', 7900);
+    $tight['approved_business_knowledge'] = $ownerLarge['approved_business_knowledge'];
+    $tightPrompt = \App\Services\Hermes\HermesConversationMemory::context($ownerState, $tight, 'current');
+    $assert(str_contains($tightPrompt, 'Approved business runbook context:'), 'caller explicitly reports inclusion or omission state');
     \App\Services\Hermes\HermesSupportPlaybooks::$padding = str_repeat('x', 23000);
     $large = $operations->evidence(new \App\Models\Ticket, 'SMTP');
     $assert(! isset($large['approved_business_knowledge']), 'optional guidance omitted before overflowing writer');
