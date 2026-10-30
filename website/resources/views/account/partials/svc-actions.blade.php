@@ -20,14 +20,17 @@
      یعنی مشتریِ پول‌داده فقط یک دکمهٔ قرمزِ بی‌اثر می‌دید و هیچ راهی به
      پولش نداشت. تعریف از مدل می‌آید تا با کنترلر یکی بمانَد. */
   $pendingDelivery = $s->cloudUndelivered();
+  $removalProtected = $s->isInternalInfrastructure();
 
-  $cancellable = in_array($s->status, ['awaiting_provision', 'provision_failed'], true)
+  $cancellable = ! $removalProtected
+      && (in_array($s->status, ['awaiting_provision', 'provision_failed'], true)
       || ($s->status === 'active' && $s->provision_status === 'failed')
-      || ($pendingDelivery && in_array($s->status, ['active', 'suspended', 'expired'], true));
+      || ($pendingDelivery && in_array($s->status, ['active', 'suspended', 'expired'], true)));
 
   /* ⚠️ دو شرط ناسازگار می‌مانند: `$pendingDelivery` از یکی کم و به دیگری
      اضافه می‌کند، پس هیچ سرویسی هم‌زمان هر دو را نمی‌گیرد. */
-  $terminable = in_array($s->status, ['active', 'suspended', 'expired'], true)
+  $terminable = ! $removalProtected
+      && in_array($s->status, ['active', 'suspended', 'expired'], true)
       && $s->provision_status !== 'failed'
       && ! $pendingDelivery;
 
@@ -36,7 +39,7 @@
      `awaiting_provision` است هیچ‌وقت دکمهٔ حذف نداشته، پس افزودنِ یک دکمهٔ
      خاموش به آن فقط نویز است — و بدتر، متنش («در حال تحویل») برای سفارشی که
      به بازبینی رفته **نادرست** است. */
-  $deliveryLocked = $pendingDelivery
+  $deliveryLocked = ! $removalProtected && $pendingDelivery
       && in_array($s->status, ['active', 'suspended', 'expired'], true)
       && $s->provision_status !== 'failed';
 
@@ -64,6 +67,10 @@
 @endphp
 
 <div class="pnl-acts svc-acts">
+  @if($removalProtected && ! $s->isDead())
+    <p class="svc-note warn">{{ __('ui.svc_removal_protected') }}</p>
+  @endif
+
   @if($unpaid)
     <a class="pnl-btn primary" href="{{ lroute('account.invoice', $unpaid) }}">{{ __('ui.svc_pay') }}</a>
   @endif
