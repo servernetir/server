@@ -1,6 +1,6 @@
 {
   "base_sha": "cc10dd8137d28f96d21e00f38ae92a3836442b16",
-  "status": "prepared_not_installed",
+  "status": "installed_verified",
   "migration": false,
   "config_change": false,
   "files": [
@@ -40,5 +40,7 @@
       "expected_before_sha256": "51e8cc8881c0df3c883c97a6a44224c9921bcfe666fadc6d678c3cf18cafa1c3",
       "after_sha256": "11cd8c008d6b286d5522580e7fa8847866222a0260ea966a2810178151d5dedc"
     }
-  ]
+  ],
+  "release_merge_sha": "00542fa57db07673e78dad8a916ba02fbaa3c73a",
+  "installed_at_utc": "2026-10-30T13:45:03+00:00"
 }
