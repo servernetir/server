@@ -66,9 +66,11 @@
   w.dataLayer.push({customer_status:'authenticated'});
   @endauth
 
+  // A callback can flash and render in the same request. Consume emitted
+  // events so Laravel's next-request flash lifetime cannot replay them.
   @foreach([\App\Services\Analytics\DataLayerService::SESSION_PURCHASE_KEY, \App\Services\Analytics\DataLayerService::SESSION_AUTH_KEY, \App\Services\Analytics\DataLayerService::SESSION_GENERIC_KEY] as $analyticsSessionKey)
   @if(session()->has($analyticsSessionKey))
-  analytics.push({!! json_encode(session($analyticsSessionKey), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!});
+  analytics.push({!! json_encode(session()->pull($analyticsSessionKey), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!});
   @endif
   @endforeach
 
