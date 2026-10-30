@@ -6,9 +6,10 @@ below completed before source retirement. The owner subsequently reported that
 the Germany server was deleted; provider billing/cancellation was not
 independently verified in this follow-up.
 
-This publication updates the existing relay and DNS defaults and records the
-completed runtime work. Git publication does not run an installer, Ansible,
-database migration or deployment. The publication branch starts from develop
+The initial source publication in PR #158 updated the existing relay and DNS
+defaults and recorded the completed runtime work. Git publication does not run
+an installer, Ansible, database migration or deployment. That branch started
+from develop
 `00542fa`; concurrent website, service-deletion, Hermes and SEO work is retained.
 Operational inventory, recovery archives, credentials and detailed receipts
 remain private and are not part of this repository.
@@ -60,6 +61,39 @@ to the public root and version API still redirected to Cloudflare Access; the
 unauthenticated GPU canary still returned its expected authentication failure.
 No API-token permission was expanded.
 
+## Public tunnel recovery after source retirement
+
+A later public request returned Cloudflare Tunnel error 1033. Fresh checks
+found the intended connector identity and Turkey backhaul, while local
+readiness returned 200 with four connections. The account dashboard nevertheless
+showed the tunnel down with no active replica, and the Access-authenticated
+browser still received 1033.
+
+At 14:56:05 UTC on 30 October, a guarded restart of only the primary
+`cloudflared.service` forced a fresh connection. Credentials, configuration,
+DNS, Worker routes, Access policies, the other connectors and the shared
+backhaul were preserved. Cloudflare then reported a healthy new replica
+through Turkey, and the public hostname displayed the native Proxmox login
+form. At 14:59 UTC, cookie-free root and version-API requests still redirected
+to Access, the unauthenticated GPU canary returned 401, and the DNS mapping
+was unchanged.
+
+The observed mismatch is consistent with stale connection registration; its
+exact upstream trigger was not established. Local readiness alone was
+insufficient for end-to-end acceptance. Future incident checks must reconcile
+connector identity, Cloudflare's current replica state and the authenticated
+application response. No recurring restart or new monitoring job was installed.
+
+The owner then completed native Proxmox sign-in through the public hostname.
+At 15:02 UTC, an interactive noVNC shell executed a disposable canary and
+returned the root prompt. At 15:07 and 15:09 UTC, the same reopened public
+embedded xterm.js shell executed two spaced interactive commands, retained
+the earlier output and returned the root prompt. Authenticated public
+host-shell and WebSocket acceptance therefore covers both tested modes;
+guest-OS interaction was not exercised. An earlier xterm.js client-wait
+timeout describes the failed session. No additional server changes were made
+for these console checks, and no specific Proxmox package fault was established.
+
 ## Acceptance and remaining limits
 
 Verified in production during the authorized migration:
@@ -85,12 +119,12 @@ to the public management and two additional tunnel hostnames still redirected
 to the existing Access sign-in; their tunnel DNS mappings remained correct.
 These redirects do not establish authenticated application acceptance.
 
-Native Proxmox sign-in and console WebSocket acceptance through the public
-hostname, a real authenticated GPU application/WebSocket session, an Iran GPU
-client and peak-load/reboot acceptance are not established by the checks above.
+A real authenticated GPU application/WebSocket session, an Iran GPU client and
+peak-load/reboot acceptance are not established by the checks above.
 Authenticated acceptance of the two additional tunnel applications remains a
-follow-up. Old VPN profiles with
-the retired numerical address must be refreshed from subscriptions or
+follow-up: browser navigation timed out before an application response, and no
+additional Worker-route or DNS changes were applied for those hosts.
+Old VPN profiles with the retired numerical address must be refreshed from subscriptions or
 reimported; DNS cannot rewrite a cached profile.
 
 ## Source validation and recovery
