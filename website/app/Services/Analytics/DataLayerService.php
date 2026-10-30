@@ -18,7 +18,7 @@ class DataLayerService
     public const SESSION_GENERIC_KEY  = 'servernet_analytics_generic_event';
 
     /**
-     * ثبت و آماده‌سازی رویداد خرید (purchase) استاندارد GA4 E-Commerce.
+     * Record a settled payment for analytics; wallet funding is not a sale.
      */
     public static function flashPurchase(Payment $payment): void
     {
@@ -35,12 +35,24 @@ class DataLayerService
         }
     }
 
-    /** @return array{event:string,ecommerce:array<string,mixed>} */
+    /** @return array<string,mixed> */
     public static function purchasePayload(Payment $payment): array
     {
         $invoice = $payment->relationLoaded('invoice')
             ? $payment->invoice
             : $payment->invoice()->with('items')->first();
+
+        // Funding creates a wallet liability, not product revenue. The later
+        // service payment keeps its own purchase event. Keep funding outside
+        // ecommerce so a generic ecommerce tag cannot count it as a sale.
+        if ($invoice?->kind === 'topup') {
+            return [
+                'event' => 'wallet_topup',
+                'funding_reference' => 'payment:'.(string) $payment->id,
+                'funding_amount' => (int) $payment->amount,
+                'funding_currency' => strtoupper((string) ($payment->currency_code ?: $invoice->currency_code ?: 'IRR')),
+            ];
+        }
 
         [$currency, $multiplier] = self::normaliseCurrency(
             (string) ($payment->currency_code ?: $invoice?->currency_code ?: 'IRR')

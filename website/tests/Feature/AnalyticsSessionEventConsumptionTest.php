@@ -92,6 +92,29 @@ class AnalyticsSessionEventConsumptionTest extends TestCase
             ->assertDontSee('"event":"service_provisioned"', false);
     }
 
+    public function test_wallet_funding_is_emitted_once_without_purchase_or_ecommerce(): void
+    {
+        Route::middleware('web')->get('/__test/analytics/topup', function () {
+            $payment = $this->payment();
+            $payment->invoice->kind = 'topup';
+            DataLayerService::flashPurchase($payment);
+
+            return view('partials.gtm-head');
+        });
+
+        $response = $this->get('/__test/analytics/topup')->assertOk();
+        $response->assertSee('"event":"wallet_topup"', false)
+            ->assertSee('"funding_amount":109000', false)
+            ->assertSee('"funding_currency":"IRT"', false)
+            ->assertDontSee('"event":"purchase"', false)
+            ->assertDontSee('"transaction_id":"payment:44"', false);
+        $this->assertSame(1, substr_count($response->getContent(), '"event":"wallet_topup"'));
+
+        $this->get('/__test/analytics/page')->assertOk()
+            ->assertDontSee('"event":"wallet_topup"', false);
+        Http::assertNothingSent();
+    }
+
     private function payment(): Payment
     {
         $item = new InvoiceItem(['title' => 'Cloud plan CV-2', 'quantity' => 2, 'unit_price' => 50_000, 'line_total' => 100_000]);

@@ -2,6 +2,8 @@
 
 این راهنما معماری، کاتالوگ رویدادها، پارامترهای دیتالایر و استراتژی تحلیل داده‌های تجاری (Business Intelligence & Growth) سرورنت را شرح می‌دهد.
 
+پیگیری ۳۱ اکتبر: [جداسازی شارژ کیف پول و پذیرش درآمد](../../docs/project/GA4-PURCHASE-QUALITY-2026-10-31.md). رویداد `wallet_topup` در لایه داده، شارژ را بدون `ecommerce` از `purchase` سرویس جدا می‌کند؛ ارسال و دریافت این رویداد در GTM/GA4 هنوز پذیرش نشده است. منطق تسویه و موجودی تغییر نمی‌کند. تبدیل تومان به `IRR` در کد صرفاً قرارداد واحد است، نه اثبات پشتیبانی درآمدی GA4؛ اعتبار ارز گزارش و مالیات باید جدا پذیرفته شود.
+
 پیگیری ۲۵ اکتبر: مسیر دو رویداد `product_cta_click` و `hourly_vps_interaction` در GTM عمومی نسخه۸ وجود ندارد. [بستهٔ محدود تنظیم، ساخت فایل Merge از export واقعی و پذیرش GA4](../../docs/project/SEO-GROWTH-ANALYTICS-2026-10-25.md) آماده است؛ import/انتشار و دریافت واقعی هنوز تأیید نشده‌اند. وجود رویداد در dataLayer به معنی دریافت آن در GA4 نیست.
 
 ---
@@ -95,7 +97,7 @@ ServerNetAnalytics.useTool('DNS Lookup', 'network');
 ## ۳. هوک‌های سمت سرور (Laravel Flash DataLayer)
 
 در متدهای کنترلرها، با استفاده از متدهای استاتیک `DataLayerService`:
-- `DataLayerService::flashPurchase($payment)`: رویداد استاندارد خرید GA4.
+- `DataLayerService::flashPurchase($payment)`: رویداد `purchase` برای پرداخت سرویس؛ برای فاکتور `topup`، رویداد غیرتجارت‌الکترونیکی `wallet_topup` با `funding_reference`, `funding_amount`, `funding_currency` در واحد اصلی مبلغ.
 - `DataLayerService::flashSignUp($customer)`: رویداد ثبت‌نام موفق.
 - `DataLayerService::flashLogin($customer)`: رویداد ورود موفق.
 - `DataLayerService::flashEvent($eventName, $params)`: سایر رویدادها.
