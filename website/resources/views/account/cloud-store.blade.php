@@ -871,6 +871,9 @@
             <p class="cvb-note" id="cvb-retention-note" @if($hRetention === 0) hidden @endif>
               {{ __('ui.cvb_retention_pre') }}<b id="cvb-retention">{{ cloud_price($hRetention) }}</b>{{ __('ui.cvb_retention_suf') }}
             </p>
+            @if($isGpuStore)
+              <input type="hidden" name="on_credit_out" value="suspend">
+            @else
             <label class="cvb-field">
               <span>{{ __('ui.cvb_hourly_end') }}</span>
               <select name="on_credit_out">
@@ -879,9 +882,10 @@
                 <option value="terminate" @selected(old('on_credit_out') === 'terminate')>{{ __('ui.cvb_hourly_end_terminate') }}</option>
               </select>
             </label>
+            @endif
             <p class="cvb-note">
               <svg class="icon"><use href="#i-info"/></svg>
-              <span>{{ __('ui.cvb_hourly_note') }}</span>
+              <span>{{ __($isGpuStore ? 'ui.gpu_hourly_lifecycle' : 'ui.cvb_hourly_note') }}</span>
             </p>
           </div>
         @endif
