@@ -265,7 +265,11 @@ class SupplierCreditReconciliationTest extends TestCase
         $vendor = $this->account();
         $this->topup($vendor);
         $d = $this->data($vendor, $this->cost());
-        $this->rejected($d, 'supplier_receipt_invalid', UploadedFile::fake()->createWithContent('not-proof.pdf', '<html>not a PDF</html>'));
+        $fake = UploadedFile::fake()->createWithContent('not-proof.pdf', '<html>not a PDF</html>');
+        // Laravel's fake advertises MIME from the filename; use a real uploaded file to exercise content sniffing.
+        $hostile = new UploadedFile($fake->getRealPath(), 'not-proof.pdf', null, null, true);
+        $this->assertNotContains($hostile->getMimeType(), ['application/pdf', 'image/jpeg', 'image/png']);
+        $this->rejected($d, 'supplier_receipt_invalid', $hostile);
         $this->rejected($d, 'supplier_receipt_invalid', UploadedFile::fake()->create('too-large.pdf', 10241, 'application/pdf'));
         $this->rejected(array_replace($d, ['bank_reference' => 'not a valid <reference>']), 'supplier_review_required');
     }

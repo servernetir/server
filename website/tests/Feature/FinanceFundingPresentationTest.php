@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\ViewErrorBag;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -79,7 +80,7 @@ class FinanceFundingPresentationTest extends TestCase
         $request = Request::create(route('admin.accounting'), 'GET', ['from' => '2026-10-01', 'to' => '2026-10-31']);
         $request->setUserResolver(fn () => $this->admin);
         $request->setLaravelSession($this->app['session']->driver());
-        $html = app(AccountingController::class)->index($request)->render();
+        $html = app(AccountingController::class)->index($request)->with('errors', new ViewErrorBag)->render();
         $xpath = $this->xpath($html);
 
         $this->assertStringNotContainsString($this->card, $html);

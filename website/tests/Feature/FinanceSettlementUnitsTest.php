@@ -61,7 +61,7 @@ class FinanceSettlementUnitsTest extends TestCase
         $before = BusinessEntry::count();
         app(BankReconciliation::class)->match($row, $payment->id, 10000, 100, 'Synthetic gateway settlement', 1);
         $payload = ['idempotency_key' => (string) Str::uuid(), 'type' => 'bank_collection', 'occurred_at' => '2026-10-31',
-            'service_line' => 'other', 'amount_irt' => 1000, 'original_currency' => 'IRR', 'original_minor' => 10000,
+            'service_line' => 'other', 'category' => 'other', 'amount_irt' => 1000, 'original_currency' => 'IRR', 'original_minor' => 10000,
             'settlement_currency' => null, 'settlement_minor' => 0, 'target_account_id' => $bank->id,
             'bank_transaction_id' => $row, 'bank_reference' => 'SYNTHETIC-NET', 'note' => 'Net bank credit, sale already recognized',
             'tax_status' => 'pending', 'vat_status' => 'none'];
@@ -108,7 +108,7 @@ class FinanceSettlementUnitsTest extends TestCase
         [$bank, $row] = $this->bank('IRR', 10000);
         try {
             app(DocumentedAccounting::class)->post(['idempotency_key' => (string) Str::uuid(), 'type' => 'bank_collection',
-                'occurred_at' => '2026-10-31', 'service_line' => 'other', 'amount_irt' => 10000,
+                'occurred_at' => '2026-10-31', 'service_line' => 'other', 'category' => 'other', 'amount_irt' => 10000,
                 'original_currency' => 'IRR', 'original_minor' => 10000, 'settlement_currency' => null,
                 'settlement_minor' => 0, 'target_account_id' => $bank->id, 'bank_transaction_id' => $row,
                 'bank_reference' => 'SYNTHETIC-WRONG-UNIT', 'note' => 'Synthetic wrong rial conversion',

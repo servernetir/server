@@ -45,7 +45,7 @@ class FinanceFundingEvidenceTest extends TestCase
         $vendor = FinanceAccount::create(['name' => 'Synthetic supplier wallet', 'type' => 'vendor',
             'currency_code' => 'TRY', 'created_by' => $admin->id]);
         $topup = app(DocumentedAccounting::class)->post(['idempotency_key' => (string) Str::uuid(),
-            'type' => 'vendor_topup', 'occurred_at' => '2026-10-01', 'service_line' => 'domain',
+            'type' => 'vendor_topup', 'occurred_at' => '2026-10-01', 'service_line' => 'domain', 'category' => 'domain_wholesale',
             'amount_irt' => 1000, 'original_currency' => 'TRY', 'original_minor' => 2000,
             'settlement_currency' => 'IRT', 'settlement_minor' => 1000,
             'funding_account_id' => $partner->id, 'target_account_id' => $vendor->id,
