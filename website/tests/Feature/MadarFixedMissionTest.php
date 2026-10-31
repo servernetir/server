@@ -46,7 +46,7 @@ class MadarFixedMissionTest extends TestCase
         return Customer::create(['email' => Str::uuid().'@example.test', 'locale' => 'fa', 'status' => 'active']);
     }
 
-    private function campaign(int $amount = 500_000, array $extra = []): MarketingCampaign
+    private function campaign(int $amount = 350_000, array $extra = []): MarketingCampaign
     {
         $manager = app(CampaignManager::class);
         $c = $manager->save(array_replace_recursive([
@@ -102,7 +102,7 @@ class MadarFixedMissionTest extends TestCase
         $mission = $this->publish();
         $r = $this->get('/account/madar')->assertOk()->assertSee('data-madar-claim', false)
             ->assertSee(__('madar.campaigns.gpu-video.requirements'))->assertSee(__('madar.minimum'));
-        $this->assertSame(500_000, $mission->reward_amount_irt);
+        $this->assertSame(350_000, $mission->reward_amount_irt);
         $this->assertSame(0, MarketingGrant::count());
     }
 
@@ -117,8 +117,8 @@ class MadarFixedMissionTest extends TestCase
         $this->assertSame(2, $p->flow_version);
         $this->assertSame(1, $p->messages()->count());
         $this->assertSame(0, $p->messages()->whereIn('event', ['offered', 'accepted'])->count());
-        $this->assertSame(500_000, $p->grant->liability);
-        $this->assertSame(500_000, MarketingCampaign::find($mission->reward_campaign_id)->held);
+        $this->assertSame(350_000, $p->grant->liability);
+        $this->assertSame(350_000, MarketingCampaign::find($mission->reward_campaign_id)->held);
         $this->assertSame(0, CreditEntry::count());
         $i = Invoice::create(['customer_id' => $customer->id, 'kind' => 'service', 'currency_code' => 'IRT',
             'subtotal' => 2_000_000, 'tax' => 200_000, 'total' => 2_200_000, 'paid' => 0, 'status' => 'unpaid']);
@@ -130,7 +130,7 @@ class MadarFixedMissionTest extends TestCase
             'action' => 'approve', 'body' => 'Verified original useful output, placement and disclosure.', 'human_reviewed' => 1])->assertRedirect();
         $this->actingAs($customer, 'customer')->post('/account/madar/'.$p->public_id.'/redeem', ['invoice_id' => $i->id])->assertRedirect();
         $this->assertSame('rewarded', $p->fresh()->status);
-        $this->assertSame(500_000, $i->fresh()->discount);
+        $this->assertSame(350_000, $i->fresh()->discount);
         $this->assertSame(1, MarketingRedemption::count());
         $this->post('/account/madar/'.$p->public_id.'/message', ['body' => 'Thanks, my reward is on the invoice.'])->assertRedirect();
     }
@@ -177,7 +177,7 @@ class MadarFixedMissionTest extends TestCase
         $this->rejects(fn () => app(MadarClaims::class)->submit($this->customer(), $third));
         $this->assertSame(1, MadarParticipation::count());
         $this->assertSame(1, MarketingGrant::count());
-        $this->assertSame(400_000, MarketingCampaign::find($mission->reward_campaign_id)->held);
+        $this->assertSame(280_000, MarketingCampaign::find($mission->reward_campaign_id)->held);
     }
 
     public function test_public_versions_and_financial_terms_are_immutable_while_new_copy_creates_a_new_version(): void
@@ -195,18 +195,18 @@ class MadarFixedMissionTest extends TestCase
         // A creator who worked against the previous published version can still submit before its deadline.
         $p = app(MadarClaims::class)->submit($this->customer(), $this->proof($mission, ['distribution_url' => null]));
         $this->assertSame($mission->id, $p->mission_id);
-        $this->assertSame(500_000, $p->reward_snapshot['amount_irt']);
+        $this->assertSame(350_000, $p->reward_snapshot['amount_irt']);
     }
 
     public function test_no_funds_or_wrong_amount_cannot_publish_or_accept_an_unfunded_claim(): void
     {
-        $c = $this->campaign(500_000, ['budget' => 500_000, 'max_uses' => 1]);
+        $c = $this->campaign(350_000, ['budget' => 350_000, 'max_uses' => 1]);
         $this->rejects(fn () => app(MadarPublishing::class)->publish('gpu-video', $c, 400_000, $this->admin));
         $mission = $this->publish('gpu-video', $c);
         app(MadarClaims::class)->submit($this->customer(), $this->proof($mission));
         $this->rejects(fn () => app(MadarClaims::class)->submit($this->customer(), $this->proof($mission)));
         $this->assertFalse((bool) app(MadarHub::class)->campaigns($this->customer())['gpu-video']['open']);
-        $this->assertSame(500_000, $c->fresh()->held);
+        $this->assertSame(350_000, $c->fresh()->held);
         $this->assertSame(1, MarketingGrant::count());
     }
 
@@ -233,7 +233,7 @@ class MadarFixedMissionTest extends TestCase
 
     public function test_publication_deadline_is_bounded_and_pausing_stops_new_claims_without_revoking_accepted_work(): void
     {
-        $c = $this->campaign(500_000, ['ends_at' => now()->addDays(100)->toDateTimeString()]);
+        $c = $this->campaign(350_000, ['ends_at' => now()->addDays(100)->toDateTimeString()]);
         $mission = $this->publish('gpu-video', $c);
         $this->assertTrue($mission->submissions_until->equalTo(now()->addDays(10)));
         $p = app(MadarClaims::class)->submit($this->customer(), $this->proof($mission));
@@ -262,7 +262,7 @@ class MadarFixedMissionTest extends TestCase
     {
         $customer = $this->customer();
         $customer->update(['locale' => 'tr']);
-        $c = $this->campaign(500_000, ['rule' => ['locales' => ['fa']]]);
+        $c = $this->campaign(350_000, ['rule' => ['locales' => ['fa']]]);
         // Recursive test fixture replacement leaves other locales; set the real fixture explicitly.
         $c->forceFill(['rule' => array_replace($c->rule, ['locales' => ['fa']])])->save();
         $mission = $this->publish('gpu-video', $c);
