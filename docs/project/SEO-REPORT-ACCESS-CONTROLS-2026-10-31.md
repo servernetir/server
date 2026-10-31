@@ -15,7 +15,7 @@
 
 ## آزمون و پذیرش
 
-سناریوهای تازه با داده ساختگی: انقضای GET و POST مشاوره بدون CRM، ابطال مدیر و توقف ردیف منتظر، تکرار امن ابطال، منع ارسال گزارش منقضی و منع ابطال بدون ورود. workflow محدود PHP 8.4 روی SQLite و MariaDB فقط AuditReportShareTest را اجرا می‌کند؛ هیچ API خارجی، ایمیل واقعی، scan، migration تولید یا deploy ندارد. ReportConsultationTest قدیمی در اجرای نخست به مانع مستقل Route [home] not defined در سناریوی حذف schema رسید و جزو ادعای قبولی این تغییر نیست.
+سناریوهای تازه با داده ساختگی: انقضای GET و POST مشاوره بدون CRM، fallback نودروزه گزارش قدیمی، ابطال مدیر و توقف ردیف منتظر، تکرار امن ابطال، منع ارسال گزارش منقضی و منع ابطال بدون ورود. workflow محدود PHP 8.4 روی SQLite و MariaDB فقط همین پنج قرارداد نام‌دار در AuditReportShareTest را اجرا می‌کند؛ هیچ API خارجی، ایمیل واقعی، scan، migration تولید یا deploy ندارد. اجرای گسترده‌تر به شکست‌های مستقل قدیمی رسید: ReportConsultationTest در سناریوی حذف schema و AuditReportShareTest در test_the_own_data_list_still_honours_unsubscribes هر دو هنگام رندر خطا Route [home] not defined دادند و جزو ادعای قبولی این تغییر نیستند.
 
 در این مرحله وضعیت «توسعه آماده برای CI» است. قبولی CI، ادغام Git، اجرای migration، نصب کد و پذیرش زنده پنج وضعیت جدا هستند. چون PHP محلی در این محیط موجود نیست، نتیجهٔ آزمون فقط پس از اجرای واقعی CI نوشته می‌شود.
 

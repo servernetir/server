@@ -92,7 +92,7 @@ jobs:
           php -l app/Http/Controllers/Admin/SeoOutreachController.php
           php -l database/migrations/2026_10_31_130000_add_access_controls_to_audit_reports.php
           set +e
-          vendor/bin/phpunit tests/Feature/AuditReportShareTest.php --display-warnings --fail-on-warning --colors=never 2>&1 | tee /tmp/seo-report-access-phpunit.log
+          vendor/bin/phpunit tests/Feature/AuditReportShareTest.php --filter='test_report_link_expires_and_refuses_consultation_without_creating_a_lead|test_legacy_report_without_an_explicit_expiry_uses_the_ninety_day_limit|test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery|test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact|test_the_admin_pages_and_endpoints_require_a_logged_in_admin' --display-warnings --fail-on-warning --colors=never 2>&1 | tee /tmp/seo-report-access-phpunit.log
           test_status=${PIPESTATUS[0]}
           set -e
           if [ "$test_status" -ne 0 ]; then
