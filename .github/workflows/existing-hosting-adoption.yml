@@ -1,0 +1,80 @@
+name: Existing hosting adoption checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/**'
+      - 'website/resources/views/**'
+      - 'website/lang/**'
+      - 'website/tests/Feature/ExistingHostingAdoptionTest.php'
+      - '.github/workflows/existing-hosting-adoption.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: existing-hosting-adoption-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  adoption:
+    name: Management-only billing guards (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: hosting_adoption_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'hosting_adoption_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      EXCHANGE_ENABLED: 'false'
+    steps:
+      - name: Checkout isolated source without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+      - name: Install locked dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Check changed backend syntax
+        run: |
+          php -l app/Models/Service.php
+          php -l app/Models/Invoice.php
+          php -l app/Services/Provisioning/ExistingHostingAdoption.php
+          php -l tests/Feature/ExistingHostingAdoptionTest.php
+      - name: Run existing hosting adoption and billing-boundary tests
+        run: vendor/bin/phpunit --testdox tests/Feature/ExistingHostingAdoptionTest.php
+      - name: Run normal invoicing and provisioning regressions
+        run: vendor/bin/phpunit --testdox tests/Feature/AdminServiceTest.php tests/Feature/ProvisioningTest.php

@@ -1,7 +1,7 @@
 {
   "status": "code_tested_not_deployed",
   "source_baseline": "14a88e98f85c840fdbef63bdc059549a084a5e74",
-  "develop_synchronized": "c444fd7051281b359d5c95cdef91f02a605f2a4e",
+  "develop_synchronized": "012eaf2e02a0ac3cca2effffcd38c709ade99fc4",
   "runtime": {
     "php": "8.4.27",
     "database": "SQLite in-memory",
@@ -47,5 +47,12 @@
     "transfer_destination_default": 0,
     "deployment_allowed_by_this_receipt": false
   },
-  "review": "independent agent review found and verified fixes for payment invalidation during preflight, account routing, quote change acceptance, own contact eligibility and frozen ledger evidence"
+  "review": "independent agent review found and verified fixes for payment invalidation during preflight, account routing, quote change acceptance, own contact eligibility and frozen ledger evidence",
+  "post_merge": {
+    "new_tests": 144,
+    "assertions": 821,
+    "seo_route_regressions_passed": 4,
+    "seo_assertions": 15,
+    "native_route_source_verified": true
+  }
 }

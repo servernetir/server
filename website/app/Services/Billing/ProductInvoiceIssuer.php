@@ -26,6 +26,9 @@ class ProductInvoiceIssuer
 {
     public function issue(Service $service, Product $product): Invoice
     {
+        if ($service->hasUnverifiedBillingTerms()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['service' => __('ui.svc_billing_terms_required')]);
+        }
         app(\App\Services\ProductPricing::class)->assertAvailable();
         if ((int) $service->price <= 0 || $product->effectivePrice() <= 0) {
             throw \Illuminate\Validation\ValidationException::withMessages(['product' => __('ui.cvb_e_price')]);

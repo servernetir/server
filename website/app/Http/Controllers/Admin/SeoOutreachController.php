@@ -8,6 +8,7 @@ use App\Models\AuditReport;
 use App\Models\OutreachContact;
 use App\Services\SiteAudit;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -69,7 +70,9 @@ class SeoOutreachController extends Controller
 
     public function index(Request $request): View
     {
-        $ready = Schema::hasTable('outreach_contacts') && Schema::hasTable('audit_reports');
+        $ready = Schema::hasTable('outreach_contacts')
+            && Schema::hasTable('audit_reports')
+            && Schema::hasColumns('audit_reports', ['expires_at', 'revoked_at']);
 
         $contacts = $ready
             ? OutreachContact::with('report')->latest('id')->limit(300)->get()
@@ -352,7 +355,10 @@ class SeoOutreachController extends Controller
         }
 
         if (! $contact->isSendable()) {
-            $contact->update(['status' => 'skipped', 'error' => 'suppressed']);
+            $reason = $contact->report?->isAccessible() === false
+                ? 'report_unavailable'
+                : 'suppressed';
+            $contact->update(['status' => 'skipped', 'error' => $reason]);
 
             return response()->json(['ok' => true, 'done' => false, 'id' => $contact->id,
                 'email' => $contact->email, 'status' => 'skipped']);
@@ -377,6 +383,19 @@ class SeoOutreachController extends Controller
 
         return response()->json(['ok' => true, 'done' => false, 'id' => $contact->id,
             'email' => $contact->email, 'status' => $status, 'error' => $contact->error]);
+    }
+
+    /** لینک گزارش را فوراً از دسترس عمومی خارج می‌کند و ارسال‌های منتظر آن را متوقف می‌کند. */
+    public function revokeReport(AuditReport $report): RedirectResponse
+    {
+        abort_unless(Schema::hasColumn('audit_reports', 'revoked_at'), 503);
+
+        $report->revoke();
+        OutreachContact::where('audit_report_id', $report->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'skipped', 'error' => 'report_revoked']);
+
+        return back()->with('seo_status', 'لینک گزارش باطل شد و ردیف‌های در انتظار آن متوقف شدند.');
     }
 
     /**

@@ -3362,6 +3362,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/seo/list-own', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'importOwn']);
         Route::post('/seo/scan-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'scanNext']);
         Route::post('/seo/send-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendNext']);
+        Route::post('/seo/reports/{report}/revoke', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'revokeReport'])
+            ->name('admin.seo.reports.revoke');
 
         /*
          * اتصالِ تقویمِ گوگل — **per-user**. هر کاربرِ پنل حسابِ خودش را وصل

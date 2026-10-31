@@ -89,4 +89,22 @@ return [
     'net_external_receipts_irt' => 'Cüzdan iadeleri sonrası net dış tahsilat',
     'wallet_refunds_paid_irt' => 'Banka üzerinden cüzdan iadesi; borç kapatma',
     'receipt_missing' => 'Özel dekont bulunamadı veya bütünlük doğrulanamadı.',
+
+    // Customer wallet refund workspace presentation.
+    'workspace_eyebrow' => 'Cüzdan yönetimi',
+    'workspace_intro' => 'Bakiye iadesi talep edin; inceleme ve banka havalesini tek bir yerden takip edin.',
+    'workspace_balance_hint' => 'Cüzdanınızda kayıtlı bakiyenin genel görünümü.',
+    'workspace_available_hint' => 'Aktif rezervler düşüldükten sonraki kullanılabilir bakiye. Bu sayfadaki tutarlar IRT cinsindedir.',
+    'workspace_request' => 'Yeni talep',
+    'workspace_request_intro' => 'Göndermeden önce tutarı ve alıcı hesabı kontrol edin.',
+    'workspace_open_request' => 'Açık bir talebiniz var',
+    'workspace_amount_hint' => 'IRT (tümen) cinsinde, ondalık içermeyen tam bir tutar girin.',
+    'workspace_bank_placeholder' => 'Doğrulanmış bir banka hesabı seçin',
+    'workspace_note_hint' => 'Talebinizin nedenini ve inceleme için gereken ayrıntıları yazın.',
+    'workspace_process' => 'Talep inceleme adımları',
+    'workspace_step_request' => 'Talep tutarı, talep sonuçlanana kadar bloke edilir.',
+    'workspace_step_review' => 'Talep ve alıcı hesap incelenir. Onay, havalenin yapıldığı anlamına gelmez.',
+    'workspace_step_paid' => 'Havale kaydedildikten sonra takip numarası ve dekont geçmişte erişilebilir olur.',
+    'workspace_conditions' => 'Talebi göndermeden önce',
+    'workspace_empty_hint' => 'Talepleriniz, inceleme sonuçları ve havale dekontları burada görünür.',
 ];

@@ -92,6 +92,9 @@ class Invoice extends Model
             }
         });
         static::creating(function (self $i) {
+            if ($i->service_id && Service::find($i->service_id)?->hasUnverifiedBillingTerms()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['service' => __('ui.svc_billing_terms_required')]);
+            }
             if (blank($i->number)) {
                 $i->number = self::nextNumber();
             }
