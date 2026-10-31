@@ -148,7 +148,7 @@ class AdminWalletRefundPresentationTest extends TestCase
     {
         app()->setLocale($locale);
         session()->put('_old_input', [
-            'review_action' => 'paid', 'funding_account_id' => $this->partner->id, 'payout_date' => '2026-10-30',
+            '_refund_form' => 'paid', 'funding_account_id' => $this->partner->id, 'payout_date' => '2026-10-30',
             'bank_reference' => 'SYNTHETIC-REF-77', 'bank_transaction_id' => '91', 'transferred' => '1',
             'note' => 'Synthetic rejection note <script>old-xss</script>', 'not_transferred' => '1',
         ]);
@@ -167,7 +167,7 @@ class AdminWalletRefundPresentationTest extends TestCase
         $this->capture($locale, 'validation', $html);
 
         session()->put('_old_input', [
-            'review_action' => 'approve', 'source_payment_id' => 801,
+            '_refund_form' => 'approve', 'source_payment_id' => 801,
             'note' => 'Synthetic approval note <script>approval-old-xss</script>',
             'source_note' => 'Synthetic customer payment provenance retained after validation',
         ]);
