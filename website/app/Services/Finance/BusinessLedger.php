@@ -529,15 +529,47 @@ class BusinessLedger
      * — حدسِ ساختگی وارد دفتر نمی‌شود (همان قاعدهٔ `recordApiCost`) ولی در
      * ردیاب دیده می‌شود تا «هزینهٔ گمشده» بی‌صدا نماند.
      */
-    public function recordDomainWholesale(Domain $domain, string $stage, int $years = 1): void
+    public function recordDomainWholesale(Domain $domain, string $stage, int $years = 1, ?Invoice $invoice = null): void
     {
         if (! $this->ready()) {
             return;
         }
 
         try {
-            $amount = app(DomainCostFloor::class)
-                ->wholesaleToman($domain, $stage, $years);
+            $invoice ??= Invoice::where('domain_id', $domain->id)
+                ->where('kind', 'domain')->where('paid', '>', 0)->orderByDesc('id')->first();
+            if ($invoice === null || (int) $invoice->domain_id !== (int) $domain->id
+                || (int) $invoice->customer_id !== (int) $domain->customer_id || $invoice->status !== 'paid') {
+                return;
+            }
+            if ($invoice->supplier_account_id && ! $invoice->supplier_quote
+                && ! \App\Services\Domain\DomainSupplierLifecycle::legacyCompatible($domain)) {
+                ErrorTracker::noteOnce('finance', 'Domain wholesale cost awaits supplier debit reconciliation.', 3600,
+                    ['invoice_id' => $invoice->id, 'stage' => $stage]);
+                return;
+            }
+            if ($invoice->supplier_account_id && $invoice->supplier_quote) {
+                $snapshot = (array) $invoice->supplier_quote;
+                $receipt = (array) ($snapshot['purchase_evidence'] ?? []);
+                $operation = $stage === 'register' ? 'create' : $stage;
+                // A spending ceiling is not an expense receipt. Keep missing proof in the manual queue.
+                if ((int) $invoice->supplier_account_id !== (int) $domain->supplier_account_id
+                    || (int) ($snapshot['supplier_account_id'] ?? 0) !== (int) $invoice->supplier_account_id
+                    || ($snapshot['operation'] ?? null) !== $operation || (int) ($snapshot['period_months'] ?? 0) !== $years * 12
+                    || ($receipt['cost_status'] ?? null) !== 'provider_reported'
+                    || ! is_int($receipt['purchase_minor'] ?? null) || $receipt['purchase_minor'] <= 0
+                    || ($receipt['currency'] ?? null) !== ($snapshot['currency'] ?? null)) {
+                    ErrorTracker::noteOnce('finance', 'Domain wholesale cost awaits supplier debit reconciliation.', 3600,
+                        ['invoice_id' => $invoice->id, 'stage' => $stage]);
+                    return;
+                }
+                $fx = (array) ($snapshot['fx_snapshot'] ?? []);
+                $amount = \App\Services\Domain\Pricing\DomainMoney::ceilRatio(
+                    \App\Services\Domain\Pricing\DomainMoney::multiply($receipt['purchase_minor'], (int) ($fx['numerator'] ?? 0)),
+                    (int) ($fx['denominator'] ?? 0));
+            } else {
+                $amount = app(DomainCostFloor::class)->wholesaleToman($domain, $stage, $years);
+            }
 
             if ($amount <= 0) {
                 if ((int) $domain->cost_amount > 0) {
@@ -547,16 +579,6 @@ class BusinessLedger
                 }
 
                 return;
-            }
-
-            $invoice = Invoice::where('domain_id', $domain->id)
-                ->where('kind', 'domain')
-                ->where('paid', '>', 0)
-                ->orderByDesc('id')
-                ->first();
-
-            if ($invoice === null) {
-                return;     // ردیفِ دستیِ بی‌فاکتور — چیزی برای اتصال نیست
             }
 
             $labels = ['register' => 'ثبت', 'renew' => 'تمدید', 'transfer' => 'انتقال'];

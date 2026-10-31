@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Services\Domain\DomainRenewalInvoicer;
+use App\Services\Domain\DomainManagement;
 use App\Services\Notify\AdminNotifier;
 use App\Services\Notify\CustomerNotifier;
 use Illuminate\Console\Command;
@@ -71,7 +72,7 @@ class RunDomainLifecycle extends Command
         CustomerNotifier $customers,
         AdminNotifier $admin,
         DomainRenewalInvoicer $invoicer,
-        \App\Services\Domain\OpenProviderClient $op,
+        DomainManagement $management,
     ): int {
         if (! Schema::hasTable('domains')) {
             $this->warn('جدول domains ساخته نشده؛ اول مهاجرت را اجرا کنید.');
@@ -84,7 +85,7 @@ class RunDomainLifecycle extends Command
         $today = now()->startOfDay();
 
         if (! $dry) {
-            $this->repairMissingExpiry($op);
+            $this->repairMissingExpiry($management);
         }
 
         // ⚠️ دامنهٔ بی‌تاریخِ انقضا کنار می‌رود: یا هنوز ثبت نشده یا رجیسترار
@@ -104,7 +105,7 @@ class RunDomainLifecycle extends Command
             } catch (\Throwable $e) {
                 Log::error('چرخهٔ عمرِ دامنه خطا داد', [
                     'domain' => $domain->domain,
-                    'error'  => $e::class.': '.mb_substr($e->getMessage(), 0, 200),
+                    'error_type' => $e::class,
                 ]);
             }
         }
@@ -225,25 +226,25 @@ class RunDomainLifecycle extends Command
      * صدها دامنه بود. این‌جا حداکثر ۱۰ تماسِ ترمیمی در روز است، فقط برای
      * ردیف‌هایی که داده‌شان ناقص است — و بی‌آن، نقصِ داده دائمی می‌شود.
      */
-    private function repairMissingExpiry(\App\Services\Domain\OpenProviderClient $op): void
+    private function repairMissingExpiry(DomainManagement $management): void
     {
-        if (! $op->enabled()) {
-            return;
-        }
-
         $rows = Domain::where('status', 'active')
             ->whereNull('expires_at')
-            ->whereNotNull('op_id')
+            ->where(function ($query) {
+                $query->whereNotNull('op_id');
+                if (Schema::hasColumn('domains', 'supplier_object_id')) {
+                    $query->orWhereNotNull('supplier_object_id');
+                }
+            })
             ->limit(10)
             ->get();
 
         foreach ($rows as $domain) {
             try {
-                $detail = $op->getDomain((int) $domain->op_id);
-                $raw = data_get($detail, 'data.expiration_date')
-                    ?: data_get($detail, 'data.expiration_date_time');
+                $detail = $management->find($domain);
+                $raw = $detail['expires_at'] ?? null;
 
-                if (blank($raw)) {
+                if (($detail['found'] ?? null) !== true || blank($raw)) {
                     continue;
                 }
 
@@ -253,7 +254,7 @@ class RunDomainLifecycle extends Command
             } catch (\Throwable $e) {
                 Log::warning('ترمیمِ تاریخِ انقضای دامنه نشد', [
                     'domain' => $domain->domain,
-                    'err'    => mb_substr($e->getMessage(), 0, 120),
+                    'error_type' => $e::class,
                 ]);
             }
         }

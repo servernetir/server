@@ -13,7 +13,8 @@ class DomainQuote extends Model
     protected $fillable = [
         'domain', 'tld', 'registrar', 'customer_id', 'is_premium',
         'cost_amount', 'cost_renew_amount', 'cost_currency', 'sell_toman', 'renew_toman',
-        'honour_until', 'raw',
+        'honour_until', 'raw', 'supplier_account_id', 'operation', 'period_months',
+        'purchase_minor', 'currency', 'fx_snapshot', 'cost_components', 'selection_reason',
     ];
 
     /**
@@ -21,7 +22,8 @@ class DomainQuote extends Model
      * این مدل امروز مستقیم serialize نمی‌شود، ولی روزی که بشود نباید حاشیهٔ
      * سودمان با خودش بیرون برود.
      */
-    protected $hidden = ['cost_amount', 'cost_renew_amount', 'cost_currency', 'raw'];
+    protected $hidden = ['registrar', 'cost_amount', 'cost_renew_amount', 'cost_currency', 'raw', 'supplier_account_id',
+        'purchase_minor', 'currency', 'fx_snapshot', 'cost_components', 'selection_reason', 'registrar'];
 
     protected function casts(): array
     {
@@ -29,6 +31,8 @@ class DomainQuote extends Model
             'is_premium'   => 'boolean',
             'honour_until' => 'datetime',
             'raw'          => 'array',
+            'supplier_account_id' => 'integer', 'period_months' => 'integer', 'purchase_minor' => 'integer',
+            'fx_snapshot' => 'array', 'cost_components' => 'array',
         ];
     }
 
@@ -50,20 +54,16 @@ class DomainQuote extends Model
      */
     public function claimFor(int $customerId): bool
     {
-        static $has = null;
-        $has ??= \Illuminate\Support\Facades\Schema::hasColumn('domain_quotes', 'customer_id');
-
-        if (! $has || $customerId <= 0) {
-            return true;
+        if ($customerId <= 0) return false;
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('domain_quotes', 'customer_id')) {
+            return true; // Legacy deployment compatibility; multi-provider sales require migrated schema.
         }
 
-        if ($this->customer_id === null) {
-            $this->forceFill(['customer_id' => $customerId])->save();
-
-            return true;
-        }
-
-        return (int) $this->customer_id === $customerId;
+        // Claim with compare-and-set, then read persisted ownership. Two viewers cannot both win.
+        static::whereKey($this->getKey())->whereNull('customer_id')->update(['customer_id' => $customerId]);
+        $owner = static::whereKey($this->getKey())->value('customer_id');
+        $this->setAttribute('customer_id', $owner);
+        return $owner !== null && (int) $owner === $customerId;
     }
 
     /** آخرین استعلام معتبر برای یک دامنه */

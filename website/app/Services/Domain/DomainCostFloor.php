@@ -12,7 +12,7 @@ class DomainCostFloor
     /** Missing current supplier data blocks pricing. */
     public function renewPerYear(Domain $domain): int
     {
-        return app(LiveDomainPricing::class)->quote($domain->sld, $domain->tld, 'renew')['floor_toman'];
+        return app(LiveDomainPricing::class)->quote($domain->sld, $domain->tld, 'renew', 1, $domain)['floor_toman'];
     }
 
     /**

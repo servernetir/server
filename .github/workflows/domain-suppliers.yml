@@ -1,0 +1,182 @@
+name: Domain supplier financial and account isolation checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Domain/**'
+      - 'website/app/Services/Finance/BusinessLedger.php'
+      - 'website/app/Models/Domain*'
+      - 'website/app/Models/Invoice.php'
+      - 'website/app/Models/RegistryHandle.php'
+      - 'website/app/Http/Controllers/**/Domain*'
+      - 'website/app/Console/Commands/*Domain*'
+      - 'website/config/domain*'
+      - 'website/database/migrations/**'
+      - 'website/routes/**'
+      - 'website/tests/**'
+      - 'scripts/run-php-tests-offline.py'
+      - '.github/workflows/domain-suppliers.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Domain/**'
+      - 'website/tests/Feature/Domain*'
+      - '.github/workflows/domain-suppliers.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: domain-suppliers-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Synthetic supplier contracts (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: domain_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      APP_URL: http://localhost
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'domain_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      DOMAIN_MULTI_PROVIDER_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - name: Checkout tested revision without credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Checkout immutable develop baseline
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: 891a92350a2e332b81373a1968a83092214c1884
+          path: baseline
+          persist-credentials: false
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies on head and base
+        run: |
+          set -euo pipefail
+          for app in . ../baseline/website; do
+            (
+              cd "$app"
+              test ! -e .env
+              test ! -e bootstrap/cache/config.php
+              composer install --prefer-dist --no-progress --no-scripts --no-plugins
+              composer check-platform-reqs
+              php artisan package:discover --ansi
+            )
+          done
+      - name: Lint supplier contracts and migration
+        run: |
+          set -euo pipefail
+          find app/Services/Domain app/Models/DomainSupplier* -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l app/Http/Controllers/Admin/DomainSupplierController.php
+          php -l database/migrations/2026_10_31_150000_domain_supplier_accounts.php
+          php -l tests/Support/compare-domain-regressions.php
+      - name: New supplier cases must all pass
+        run: |
+          set -euo pipefail
+          cases=(
+            tests/Feature/DomainProviderAdaptersTest.php
+            tests/Feature/DomainProcurementTest.php
+            tests/Feature/DomainSupplierAdminSchemaTest.php
+            tests/Feature/DomainSupplierCheckoutTest.php
+            tests/Feature/DomainSupplierLifecycleTest.php
+            tests/Feature/DomainSupplierTransferEligibilityTest.php
+            tests/Feature/DomainSupplierRoutingTest.php
+            tests/Feature/DomainSupplierManagementTest.php
+            tests/Feature/DomainSupplierWholesaleTest.php
+          )
+          if [[ "$DB_CONNECTION" == sqlite ]]; then
+            python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- --colors=never --log-junit="$RUNNER_TEMP/domain-new.xml" "${cases[@]}"
+          else
+            # MariaDB needs its local test socket. Every new suite also uses
+            # HTTP fakes/stray-request guards; no real provider credentials exist.
+            php vendor/bin/phpunit --colors=never --log-junit="$RUNNER_TEMP/domain-new.xml" "${cases[@]}"
+          fi
+      - name: Compare unchanged regression suite with base
+        run: |
+          set -euo pipefail
+          cases=(
+            tests/Feature/DomainRegistrarTest.php
+            tests/Feature/DomainRegisterTruthTest.php
+            tests/Feature/DomainInvoiceSafetyTest.php
+            tests/Feature/DomainRenewalTest.php
+            tests/Feature/DomainRenewalFailureTest.php
+            tests/Feature/DomainRenewNowTest.php
+            tests/Feature/DomainRenewalFloorTest.php
+            tests/Feature/DomainRestoreTest.php
+            tests/Feature/DomainTransferTest.php
+            tests/Feature/DomainStuckResolutionTest.php
+            tests/Feature/DomainQuotePrivacyTest.php
+            tests/Feature/DomainSearchTest.php
+            tests/Feature/DomainSearchBatchTest.php
+            tests/Feature/DomainPricingRateTest.php
+            tests/Feature/DomainMultiYearPricingTest.php
+            tests/Feature/NavasanDomainPricingTest.php
+            tests/Feature/ResellerDomainApiTest.php
+            tests/Feature/OpenProviderCircuitBreakerTest.php
+            tests/Feature/OpenProviderManagerBalanceTest.php
+            tests/Feature/DomainRegistrarBalanceTest.php
+            tests/Feature/DomainCheckFailureVisibilityTest.php
+          )
+          run_cases() {
+            local report="$1"
+            local app="$2"
+            (
+              cd "$app"
+              if [[ "$DB_CONNECTION" == sqlite ]]; then
+                python3 "$GITHUB_WORKSPACE/scripts/run-php-tests-offline.py" --php "$(command -v php)" -- --colors=never --log-junit="$report" "${cases[@]}"
+              else
+                php vendor/bin/phpunit --colors=never --log-junit="$report" "${cases[@]}"
+              fi
+            ) || test -s "$report"
+          }
+          run_cases "$RUNNER_TEMP/domain-baseline.xml" ../baseline/website
+          run_cases "$RUNNER_TEMP/domain-head.xml" .
+          php tests/Support/compare-domain-regressions.php "$RUNNER_TEMP/domain-baseline.xml" "$RUNNER_TEMP/domain-head.xml"
+      - name: Verify sanitized Hermes knowledge retrieval
+        if: matrix.database == 'sqlite'
+        run: php tests/standalone/domain-supplier-knowledge.php
+      - name: Record execution boundary
+        if: always()
+        run: |
+          echo 'Synthetic account, quote, invoice, journal and migration tests only. SQLite runs deny network sockets; MariaDB uses an isolated local test database and HTTP fakes. No production deploy, purchase, renewal, transfer, signup, verification or funding.' >> "$GITHUB_STEP_SUMMARY"

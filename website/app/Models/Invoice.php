@@ -20,12 +20,17 @@ class Invoice extends Model
     protected $fillable = [
         'customer_id', 'service_id', 'domain_id', 'number', 'kind', 'currency_code',
         'subtotal', 'discount', 'discount_note', 'tax', 'total', 'paid', 'status', 'note',
-        'issued_at', 'due_at', 'paid_at',
+        'issued_at', 'due_at', 'paid_at', 'supplier_account_id', 'supplier_quote', 'supplier_payment_ledger_id',
     ];
+
+    protected $hidden = ['supplier_account_id', 'supplier_quote', 'supplier_payment_ledger_id'];
 
     protected function casts(): array
     {
         return [
+            'supplier_account_id' => 'integer',
+            'supplier_payment_ledger_id' => 'integer',
+            'supplier_quote' => 'array',
             'subtotal' => 'integer',
             'discount' => 'integer',
             'tax' => 'integer',

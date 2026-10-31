@@ -68,6 +68,24 @@ class ResellerOrderService
      */
     public function register(Customer $customer, string $fqdn, int $years, array $nameServers = []): array
     {
+        $ascii = idn_to_ascii(strtolower(trim($fqdn, '. ')), IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+        if (! is_string($ascii) || strlen($ascii) > 253) {
+            return $this->fail('invalid_domain', __('domain-pricing.unavailable'), 422);
+        }
+        $fqdn = strtolower($ascii);
+        try {
+            return \Illuminate\Support\Facades\Cache::lock(
+                \App\Services\Domain\DomainSupplierLifecycle::domainLockKey($fqdn), 180
+            )->block(5, fn () => $this->registerLocked($customer, $fqdn, $years, $nameServers));
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            return $this->fail('operation_busy', __('domain-pricing.unavailable'), 409);
+        } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
+            return $this->fail('quote_changed', __('domain-pricing.changed'), 409);
+        }
+    }
+
+    private function registerLocked(Customer $customer, string $fqdn, int $years, array $nameServers): array
+    {
         $fqdn = strtolower(trim($fqdn, ". \t\n\r"));
         [$sld, $tld] = Domain::splitFqdn($fqdn);
 
@@ -119,7 +137,7 @@ class ResellerOrderService
         }
 
         // ── قیمت: استعلامِ تازه، نه عددِ ورودی ──
-        $quote = $this->freshQuote($fqdn, $tld);
+        $quote = $this->freshQuote($fqdn, $tld, $customer->id);
 
         if (! $quote['ok']) {
             return $this->fail($quote['error'], $quote['message'], $quote['status'] ?? 422);
@@ -137,7 +155,21 @@ class ResellerOrderService
         */
         $livePricing = app(LiveDomainPricing::class);
         try {
-            $liveQuote = $livePricing->quote($sld, $tld, 'create', $years);
+            if ($q->supplier_account_id) {
+                $procurement = app(\App\Services\Domain\DomainProcurement::class);
+                $q = $years * 12 === (int) $q->period_months ? $procurement->revalidate($q)
+                    : $procurement->quote($fqdn, 'create', $years * 12);
+                if (! $q->claimFor($customer->id)) {
+                    return $this->fail('quote_unavailable', __('domain-pricing.unavailable'), 409);
+                }
+                if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)->ready($customer, (int) $q->supplier_account_id)) {
+                    return $this->fail('profile_review_required', __('domain-management.profile_review_required'), 422);
+                }
+                $snapshot = $procurement->snapshot($q);
+                $liveQuote = $snapshot + ['supplier_quote' => $snapshot];
+            } else {
+                $liveQuote = $livePricing->quote($sld, $tld, 'create', $years);
+            }
         } catch (ValidationException) {
             return $this->fail('no_price', __('domain-pricing.unavailable'), 503);
         }
@@ -168,7 +200,7 @@ class ResellerOrderService
                     'domain' => $fqdn,
                     'sld' => $sld,
                     'tld' => $tld,
-                    'registrar' => 'openprovider',
+                    'registrar' => (string) ($liveQuote['supplier_provider'] ?? 'openprovider'),
                     'status' => 'pending',
                     /*
                     | 🔴 بازمصرفِ ردیفِ مرده باید کامل باشد — اگر ردیفِ قبلی
@@ -191,6 +223,12 @@ class ResellerOrderService
                     'name_servers' => $ns,
                 ] + ($hasRenewCost ? ['cost_renew_amount' => $q->cost_renew_amount] : []))->save();
 
+                if (isset($liveQuote['supplier_account_id'])) {
+                    $domain->forceFill(['supplier_account_id' => $liveQuote['supplier_account_id'],
+                        'supplier_object_id' => null, 'op_id' => null, 'owner_handle' => null,
+                        'registrar' => (string) ($liveQuote['supplier_provider'] ?? $q->registrar),
+                        'quote_id' => $liveQuote['quote_id'] ?? $q->id])->save();
+                }
                 $livePricing->remember($domain, $liveQuote);
                 $domain->putMeta([
                     'source' => 'reseller_api',
@@ -237,7 +275,7 @@ class ResellerOrderService
 
         $livePricing = app(LiveDomainPricing::class);
         try {
-            $liveQuote = $livePricing->quote($domain->sld, $domain->tld, 'renew', $years);
+            $liveQuote = $livePricing->quote($domain->sld, $domain->tld, 'renew', $years, $domain);
         } catch (ValidationException) {
             return $this->fail('no_price', __('domain-pricing.unavailable'), 503);
         }
@@ -393,7 +431,12 @@ class ResellerOrderService
                 } else {
                     $domain->forceFill(['invoice_id' => $invoice->id])->save();
                 }
-                $this->wallet->debit($fresh->id, 'IRT', $total, 'domain_'.$kind.'_api', $domain, $title);
+                $entry = $this->wallet->debit($fresh->id, 'IRT', $total, 'domain_'.$kind.'_api', $domain, $title);
+                if ($domain->supplier_account_id && $domain->supplier_quote) {
+                    $invoice->forceFill(['supplier_account_id' => $domain->supplier_account_id,
+                        'supplier_quote' => $domain->supplier_quote,
+                        'supplier_payment_ledger_id' => $entry->id])->save();
+                }
 
                 /*
                 | 🔴 درآمدِ این فروش باید به دفترِ کسب‌وکار برسد. این مسیر
@@ -487,7 +530,7 @@ class ResellerOrderService
             | کرون با `findDomain()` واقعیت را کشف می‌کند.
             */
             Log::warning('reseller inline register did not finish', [
-                'domain' => $domain->domain, 'err' => $e->getMessage(),
+                'domain_id' => $domain->id, 'exception_type' => get_class($e),
             ]);
 
             return 'pending';
@@ -505,9 +548,9 @@ class ResellerOrderService
      *
      * @return array<string,mixed>
      */
-    private function freshQuote(string $fqdn, string $tld): array
+    private function freshQuote(string $fqdn, string $tld, int $customerId): array
     {
-        $rows = $this->search->search($fqdn, [$tld]);
+        $rows = $this->search->search($fqdn, [$tld], $customerId);
         $row = null;
 
         foreach ($rows as $r) {

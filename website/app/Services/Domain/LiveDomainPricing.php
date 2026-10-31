@@ -75,11 +75,40 @@ class LiveDomainPricing
         ];
     }
 
-    public function quote(string $sld, string $tld, string $operation, int $years = 1): array
+    public function quote(string $sld, string $tld, string $operation, int $years = 1, ?Domain $domain = null): array
     {
         if (! in_array($operation, ['create', 'renew', 'transfer', 'restore'], true)
             || ! DomainSearch::sells($tld) || $sld === '' || $years < 1 || $years > 10
             || (in_array($operation, ['transfer', 'restore'], true) && $years !== 1)) {
+            $this->unavailable();
+        }
+        if (app(DomainProcurement::class)->enabled()) {
+            try {
+                $procurement = app(DomainProcurement::class);
+                if ($operation === 'transfer') {
+                    // A customer-requested incoming transfer has a reviewed,
+                    // explicit destination; cheapest registration does not select it.
+                    $accountId = $domain?->supplier_account_id ?: (int) config('domain_suppliers.transfer_account_id');
+                    $destination = $accountId ? \App\Models\DomainSupplierAccount::find($accountId) : null;
+                    if (! $destination) {
+                        throw new \App\Services\Domain\Pricing\DomainProcurementException('explicit_transfer_destination_required');
+                    }
+                    $quoted = $procurement->quoteTransfer($sld.'.'.$tld, $years * 12, $destination,
+                        (array) data_get($domain?->supplier_quote, 'options', []), $domain?->customer_id, $domain);
+                } else {
+                    $quoted = $domain
+                        ? $procurement->quoteForDomain($domain, $operation, $years * 12)
+                        : $procurement->quote($sld.'.'.$tld, $operation, $years * 12);
+                }
+                $snapshot = $procurement->snapshot($quoted);
+                return $snapshot + ['supplier_quote' => $snapshot];
+            } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
+                $this->unavailable();
+            }
+        }
+        // Feature rollback cannot send another supplier's object id to OpenProvider.
+        if ($domain && (! in_array((string) $domain->registrar, ['', 'openprovider'], true)
+            || ($domain->supplier_account_id && ! $domain->supplierAccount?->legacy_config))) {
             $this->unavailable();
         }
         // Account prices exclude VAT. Read the account's actual tax rate for each order quote.
@@ -120,8 +149,25 @@ class LiveDomainPricing
             'supplier_vat_pct' => $this->verifiedVat, 'quoted_at' => now()->toIso8601String()];
     }
 
-    public function remember(Domain $domain, array $quote): void
+    public function remember(Domain $domain, array $quote, ?Invoice $invoice = null): void
     {
+        if (isset($quote['supplier_quote'])) {
+            $snapshot = (array) $quote['supplier_quote'];
+            if ($domain->supplier_account_id && (int) $domain->supplier_account_id !== (int) ($snapshot['supplier_account_id'] ?? 0)) {
+                $this->unavailable();
+            }
+            if ($invoice && ((int) $invoice->domain_id !== (int) $domain->id
+                || (int) $invoice->customer_id !== (int) $domain->customer_id
+                || ($invoice->supplier_account_id && (int) $invoice->supplier_account_id !== (int) $snapshot['supplier_account_id']))) {
+                $this->unavailable();
+            }
+            $domain->forceFill(['supplier_account_id' => $snapshot['supplier_account_id'],
+                'registrar' => $snapshot['provider'], 'supplier_quote' => $snapshot])->save();
+            if ($invoice) {
+                $invoice->forceFill(['supplier_account_id' => $snapshot['supplier_account_id'],
+                    'supplier_quote' => $snapshot])->save();
+            }
+        }
         $domain->putMeta(['live_price' => $quote]);
     }
 
@@ -186,7 +232,7 @@ class LiveDomainPricing
             return null;
         }
         [$operation, $years] = $this->invoiceOperation($domain, $invoice);
-        $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
+        $quote = $this->quote($domain->sld, $domain->tld, $operation, $years, $domain);
         $cost = (int) ($quote['wholesale_toman'] ?? 0);
         return $cost > 0 ? ['amount' => $cost, 'currency' => 'IRT', 'source' => 'live_registrar_landed_cost',
             'domain_id' => $domain->id, 'operation' => $operation, 'years' => $years,
@@ -234,7 +280,15 @@ class LiveDomainPricing
                 $this->unavailable();
             }
             [$operation, $years] = $this->invoiceOperation($domain, $fresh);
-            $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
+            if (app(DomainProcurement::class)->enabled()) {
+                try {
+                    app(DomainProcurement::class)->revalidateDomain($domain, $operation, $years * 12, $fresh);
+                } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
+                    throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+                }
+                return;
+            }
+            $quote = $this->quote($domain->sld, $domain->tld, $operation, $years, $domain);
             if ($this->domainNetAmount($domain, $fresh) >= $this->requiredFloor($domain, $fresh, $quote)) {
                 return;
             }
@@ -252,7 +306,7 @@ class LiveDomainPricing
                 $tax = (int) $fresh->items()->sum('tax_amount');
             }
             $fresh->update(['subtotal' => $subtotal, 'tax' => $tax, 'total' => $subtotal + $tax]);
-            $this->remember($domain, $quote);
+            $this->remember($domain, $quote, $fresh);
             if ($operation === 'renew') {
                 $domain->update(['renew_toman' => (int) ceil($quote['sell_toman'] / $years)]);
             }
@@ -271,8 +325,30 @@ class LiveDomainPricing
             $this->unavailable();
         }
         [$operation, $years] = $this->invoiceOperation($domain, $invoice);
-        $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
+        if (app(DomainProcurement::class)->enabled()) {
+            try {
+                $snapshot = app(DomainProcurement::class)->revalidateDomain($domain, $operation, $years * 12, $invoice);
+                $quote = $snapshot;
+            } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
+                throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+            }
+        } else {
+            $quote = $this->quote($domain->sld, $domain->tld, $operation, $years, $domain);
+        }
         if ($this->domainNetAmount($domain, $invoice) < $this->requiredFloor($domain, $invoice, $quote)) {
+            throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+        }
+    }
+
+    /** Recheck settled domain-line coverage without network I/O while the invoice is locked. */
+    public function assertSnapshotCoverage(Domain $domain, Invoice $invoice, array $quote): void
+    {
+        $current = (array) ($quote['revalidated'] ?? $quote);
+        if ((int) $invoice->domain_id !== (int) $domain->id
+            || (int) $invoice->customer_id !== (int) $domain->customer_id || $invoice->currency_code !== 'IRT'
+            || ! is_int($current['wholesale_toman'] ?? null) || $current['wholesale_toman'] <= 0
+            || ! is_int($current['floor_toman'] ?? null) || $current['floor_toman'] < $current['wholesale_toman']
+            || $this->domainNetAmount($domain, $invoice) < $this->requiredFloor($domain, $invoice, $current)) {
             throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
         }
     }
@@ -295,10 +371,19 @@ class LiveDomainPricing
             || (int) $invoice->paid < (int) $invoice->total) {
             $this->unavailable();
         }
-        $quote = $this->quote($domain->sld, $domain->tld, $operation, $years);
+        if (app(DomainProcurement::class)->enabled()) {
+            try {
+                $snapshot = app(DomainProcurement::class)->revalidateDomain($domain, $operation, $years * 12, $invoice);
+                $quote = $snapshot + ['supplier_quote' => $snapshot];
+            } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
+                throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+            }
+        } else {
+            $quote = $this->quote($domain->sld, $domain->tld, $operation, $years, $domain);
+        }
         if ($this->domainNetAmount($domain, $invoice) < $this->requiredFloor($domain, $invoice, $quote)) {
             throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
         }
-        $this->remember($domain, $quote);
+        $this->remember($domain, $quote, $invoice);
     }
 }

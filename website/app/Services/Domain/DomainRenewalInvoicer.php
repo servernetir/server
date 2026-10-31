@@ -21,12 +21,12 @@ class DomainRenewalInvoicer
 
     public function effectivePerYear(Domain $domain): int
     {
-        return $this->pricing->quote($domain->sld, $domain->tld, 'renew')['sell_toman'];
+        return $this->pricing->quote($domain->sld, $domain->tld, 'renew', 1, $domain)['sell_toman'];
     }
 
     public function issue(Domain $domain, int $years = 1): Invoice
     {
-        $quote = $this->pricing->quote($domain->sld, $domain->tld, 'renew', $years);
+        $quote = $this->pricing->quote($domain->sld, $domain->tld, 'renew', $years, $domain);
         $unit = $quote['sell_toman'];
         $taxPct = CloudStoreController::taxPercent();
         $tax = (int) round($unit * $taxPct / 100);
@@ -46,7 +46,7 @@ class DomainRenewalInvoicer
                 $open->items()->update(['unit_price' => $unit, 'line_total' => $unit,
                     'description' => $years.' سال', 'tax_rate_bp' => (int) ($taxPct * 100), 'tax_amount' => $tax]);
                 $domain->putMeta(['renew_years' => $years]);
-                $this->pricing->remember($domain, $quote);
+                $this->pricing->remember($domain, $quote, $open);
                 $domain->forceFill(['renew_toman' => (int) ceil($unit / $years)])->save();
 
                 return $open->refresh();
@@ -65,8 +65,10 @@ class DomainRenewalInvoicer
                 'unit_price' => $unit, 'line_total' => $unit,
                 'tax_rate_bp' => (int) ($taxPct * 100), 'tax_amount' => $tax,
             ]);
-            $domain->putMeta(['renew_years' => $years, 'renew_invoice_id' => $invoice->id]);
-            $this->pricing->remember($domain, $quote);
+            $domain->putMeta(['renew_years' => $years, 'renew_invoice_id' => $invoice->id,
+                'renewal_from' => $domain->expires_at?->toIso8601String(),
+                'renewal_target' => $domain->expires_at?->copy()->addYears($years)->toIso8601String()]);
+            $this->pricing->remember($domain, $quote, $invoice);
             $domain->forceFill(['renew_toman' => (int) ceil($unit / $years)])->save();
 
             return $invoice;
