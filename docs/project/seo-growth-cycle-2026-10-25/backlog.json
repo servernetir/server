@@ -22,45 +22,53 @@
   },
   "active_run": null,
   "last_run": {
-    "run_id": "daily-seo-20261030-analytics-flash-consumption",
-    "task_id": "analytics-flash-one-render",
-    "base_sha": "f048d3893119bb822c2dbf1c1f5f63b57d782edb",
+    "run_id": "weekly-seo-20261031-ai-planner",
+    "task_id": "ai-usage-planner-discovery",
+    "base_sha": "7425ecf9e639d3a4f231d1f6f6ded46c35ec113f",
     "phase": "completed",
     "outcome": "production_verified",
-    "completed_at_utc": "2026-10-30T07:02:37.690395+00:00",
-    "feature_branch": "codex/seo-daily-20261030",
-    "tested_head_sha": "2034e47eb752f7ac109e1e3cc948e0f3ae9c77a6",
-    "pull_request": 153,
+    "completed_at_utc": "2026-10-31T06:51:23.036575+00:00",
+    "feature_branch": "codex/seo-weekly-20261031",
+    "tested_head_sha": "e8cf8def219dbb6628f608bd81ec62c1c3adbdb0",
+    "pull_request": 165,
     "implementation_merged": true,
-    "implementation_merge_sha": "bf2e5b01ae3c82d9186cd543aedd58739db2a63f",
-    "installed_at_utc": "2026-10-30T06:55:11Z",
+    "implementation_merge_sha": "ad3cdbb32671578b8a5b8ee2e5defb35264f1dd0",
+    "installed_at_utc": "2026-10-31T06:47:21Z",
     "production_verified": true,
-    "receipt": "docs/project/seo-daily-20261030/analytics-applied.json",
-    "acceptance_receipt": "docs/project/seo-daily-20261030/analytics-public-acceptance.json",
-    "report": "SEO-DAILY-2026-10-30.md",
+    "receipt": "docs/project/seo-daily-20261031/ai-planner-applied.json",
+    "acceptance_receipt": "docs/project/seo-daily-20261031/ai-planner-public-comparison.json",
+    "report": "SEO-DAILY-2026-10-31.md",
     "completed_task_ids": [
-      "analytics-flash-one-render"
+      "ai-usage-planner-discovery"
     ],
     "blockers": [],
-    "traffic_impact": "not measured; complete GSC window predates this release; actual GA4 purchase/revenue acceptance remains open"
+    "traffic_impact": "not measured; complete GSC window ends before this release; indexing request failed at Google reCAPTCHA service; actual GA4 purchase/revenue and CWV remain open"
   },
   "run_receipts": [
     {"run_id": "growth-cycle-20261025-initial", "completed_at_utc": "2026-10-25T16:24:33.603756+00:00", "path": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json", "outcome": "production_verified"},
     {"run_id": "growth-cycle-20261026-0202-git-guide", "completed_at_utc": "2026-10-26T05:24:41Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-validation.json", "outcome": "validated_pending_review_and_deployment", "pull_request": 132},
     {"run_id": "growth-cycle-20261026-0629-git-guide-finalize", "completed_at_utc": "2026-10-26T06:36:47Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-finalization.json", "outcome": "merged_pending_deployment", "pull_request": 132},
     {"run_id": "growth-cycle-20261029-git-guide-publication", "completed_at_utc": "2026-10-29T07:00:52Z", "path": "docs/project/seo-daily-20261029/git-guide-applied.json", "acceptance_path": "docs/project/seo-daily-20261029/git-guide-public-acceptance.json", "outcome": "production_verified", "pull_request": 132},
-    {"run_id": "daily-seo-20261030-analytics-flash-consumption", "completed_at_utc": "2026-10-30T07:02:37.690395+00:00", "outcome": "production_verified", "pull_request": 153, "path": "docs/project/seo-daily-20261030/analytics-applied.json"}
+    {"run_id": "daily-seo-20261030-analytics-flash-consumption", "completed_at_utc": "2026-10-30T07:02:37.690395+00:00", "outcome": "production_verified", "pull_request": 153, "path": "docs/project/seo-daily-20261030/analytics-applied.json"},
+    {
+      "run_id": "weekly-seo-20261031-ai-planner",
+      "completed_at_utc": "2026-10-31T06:51:23.036575+00:00",
+      "outcome": "production_verified",
+      "pull_request": 165,
+      "path": "docs/project/seo-daily-20261031/ai-planner-applied.json",
+      "acceptance_path": "docs/project/seo-daily-20261031/ai-planner-public-comparison.json"
+    }
   ],
   "measurement": {
     "gsc_max_fetches_per_day": 1,
     "comparison_days": 28,
-    "google_login": "GSC available through authenticated Chrome on2026-10-30; GA4 access not rechecked",
+    "google_login": "GSC available through authenticated Chrome on2026-10-31; GA4 access not rechecked",
     "repeat_google_login_requests": false,
-    "latest_known_report": "docs/project/seo-daily-20261030/gsc-summary.json",
-    "latest_known_complete_end_date": "2026-10-27",
+    "latest_known_report": "docs/project/seo-daily-20261031/gsc-summary.json",
+    "latest_known_complete_end_date": "2026-10-28",
     "triage_end_date": "2026-10-17",
     "do_not_mix_baseline_windows": true,
-    "last_gsc_fetch_date_tehran": "2026-10-30",
+    "last_gsc_fetch_date_tehran": "2026-10-31",
     "latest_targeted_baseline": "docs/project/seo-growth-cycle-2026-10-25/gsc-baseline.json"
   },
   "completed_baseline": [
@@ -189,6 +197,19 @@
       "production_verified": true,
       "next_action": "Observe; do not republish without new evidence. This closes only this HTML replay defect. Real GA4 delivery/revenue, concurrent callback/session behavior and attribution remain separate acceptance work.",
       "owner_note": "One partial deployed; payment/auth/consent/worker/prices unchanged. Synthetic private array-session render has 1 then 0 purchase emissions, with no JavaScript or Google dispatch; six public marker/HTTP checks and 390px IRANSans rendering passed."
+    },
+    {
+      "id": "ai-usage-planner-discovery",
+      "priority": "P1",
+      "state": "production_verified",
+      "reason": "Public AI cards and model jump navigation did not expose the existing token calculator. Same existence gate and localized HTML links added.",
+      "evidence": "docs/project/seo-daily-20261031/ai-planner-test-receipt.json",
+      "pull_request": 165,
+      "published_at_utc": "2026-10-31T06:47:21Z",
+      "publication_report": "SEO-DAILY-2026-10-31.md",
+      "production_verified": true,
+      "next_action": "Observe after a comparable complete window; do not republish. AI cohort indexing, field LCP and actual GA4 delivery/revenue remain separate acceptance work.",
+      "owner_note": "Only two views and their compiled outputs deployed; pricing, eligibility, calculation and tracking unchanged. 28 tests passed, one existing skip; both CI checks passed; public before/after and mobile acceptance passed."
     }
   ]
 }

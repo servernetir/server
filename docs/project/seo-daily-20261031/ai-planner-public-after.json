@@ -1,0 +1,1744 @@
+{
+  "phase": "after",
+  "observed_at_utc": "2026-10-31T06:47:48.4557394Z",
+  "completed_at_utc": "2026-10-31T06:47:54.1037244Z",
+  "request_count": 9,
+  "scope": "Exactly nine anonymous GETs, no redirects/cookies/retries, accounts, events, purchases or writes. Raw HTML and response cookies are not retained.",
+  "pages": [
+    {
+      "locale": "fa",
+      "kind": "home",
+      "url": "https://servernet.cloud/ai",
+      "checked_url": "https://servernet.cloud/ai?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "API هوش مصنوعی؛ مدل مناسب پروژهٔ شما."
+      ],
+      "canonical": [
+        "https://servernet.cloud/ai"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 3,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "Answer",
+        "ContactPoint",
+        "FAQPage",
+        "Organization",
+        "PostalAddress",
+        "Question",
+        "WebSite"
+      ],
+      "json_ld_signature": "7595fa7f7128d84a20954d4ec69b79348a4a32e09786f1c0d357ef3e5c826ec2",
+      "calculator_target_present": false,
+      "planner_link_count": 6,
+      "planner_links": [
+        {
+          "href": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-tencenthy4-preview-ed5625f629#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v41-flash-1017-15efb2abf6#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v4-flash-51630916db#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-zai-orgglm-53-ab35037a12#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        }
+      ],
+      "expected_localized_label": "برای مصرف توکن برنامه‌ریزی کنید",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "",
+      "card_model_ids": [
+        "di-xiaomimimomimo-v26-pro-14810b5543",
+        "di-tencenthy4-preview-ed5625f629",
+        "di-deepseek-aideepseek-v41-flash-1017-15efb2abf6",
+        "di-deepseek-aideepseek-v4-flash-51630916db",
+        "di-zai-orgglm-53-ab35037a12",
+        "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+      ],
+      "model_id_signature": "0f79590dfc2dff4c70d4f03c5fbe9a2e615a910ad4046426db2601f52f3cf317",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "129,555",
+              "262,123"
+            ],
+            "model_id": "di-xiaomimimomimo-v26-pro-14810b5543"
+          },
+          {
+            "rates": [
+              "251,277",
+              "753,528"
+            ],
+            "model_id": "di-tencenthy4-preview-ed5625f629"
+          },
+          {
+            "rates": [
+              "60,259",
+              "180,775"
+            ],
+            "model_id": "di-deepseek-aideepseek-v41-flash-1017-15efb2abf6"
+          },
+          {
+            "rates": [
+              "27,117",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-51630916db"
+          },
+          {
+            "rates": [
+              "271,162",
+              "1,205,163"
+            ],
+            "model_id": "di-zai-orgglm-53-ab35037a12"
+          },
+          {
+            "rates": [
+              "132,568",
+              "397,704"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+          }
+        ],
+        "detail": []
+      },
+      "price_signature": "d1e7603a9e6ff4133253bbb9931a135ba7a1ad7026dc1142358cf2d5da5b5315",
+      "link_count": 339,
+      "non_planner_link_count": 333,
+      "non_planner_link_signature": "839b950fbabe3d10fb71c97b3c6b488b749cc4986026d87666b392196b941329"
+    },
+    {
+      "locale": "fa",
+      "kind": "catalogue",
+      "url": "https://servernet.cloud/ai/models",
+      "checked_url": "https://servernet.cloud/ai/models?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "مقایسهٔ مدل‌ها"
+      ],
+      "canonical": [
+        "https://servernet.cloud/ai/models"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai/models",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai/models",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai/models",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai/models",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 2,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "ContactPoint",
+        "Organization",
+        "PostalAddress",
+        "WebSite"
+      ],
+      "json_ld_signature": "0a9dbccb97d02529d84fff2e08eef96468e4f2648d96efd5a3f5ab2b81542aaf",
+      "calculator_target_present": false,
+      "planner_link_count": 10,
+      "planner_links": [
+        {
+          "href": "https://servernet.cloud/ai/models/di-sentence-transformersall-minilm-l12-v2-787be1395e#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-sentence-transformersall-minilm-l6-v2-e9e2c8815f#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-sentence-transformersall-mpnet-base-v2-35c62fcf7f#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-baaibge-base-en-v15-3c57837793#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-baaibge-en-icl-5788b58bbf#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-baaibge-large-en-v15-271a77b26d#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-baaibge-m3-d790e73745#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-baaibge-m3-multi-ebe9621025#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-baaibge-m3-multi-8k-ff6ca81b22#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/gapgpt-claude-fable-5-2858afd746#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        }
+      ],
+      "expected_localized_label": "برای مصرف توکن برنامه‌ریزی کنید",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "",
+      "card_model_ids": [
+        "di-ace-stepacestep-v15-xl-sft-5f5031a451",
+        "di-deepinfraairoboros-70b-29c23b58ed",
+        "di-sentence-transformersall-minilm-l12-v2-787be1395e",
+        "di-sentence-transformersall-minilm-l6-v2-e9e2c8815f",
+        "di-sentence-transformersall-mpnet-base-v2-35c62fcf7f",
+        "di-audio8audio8-tts-preview-06b-b2a5c5222d",
+        "gapgpt-babbage-002-980145897e",
+        "di-baaibge-base-en-v15-3c57837793",
+        "di-baaibge-en-icl-5788b58bbf",
+        "di-baaibge-large-en-v15-271a77b26d",
+        "di-baaibge-m3-d790e73745",
+        "di-baaibge-m3-multi-ebe9621025",
+        "di-baaibge-m3-multi-8k-ff6ca81b22",
+        "di-briablur-background-a3fb928fc3",
+        "di-briabria-32-c67b2846ad",
+        "di-briabria-32-vector-47ae002010",
+        "di-resembleaichatterbox-650f9abf03",
+        "di-resembleaichatterbox-multilingual-cb46c2a82a",
+        "di-resembleaichatterbox-turbo-049f30e3e2",
+        "di-austismchronos-hermes-13b-v2-a602bdfd06",
+        "di-anthropicclaude-3-7-sonnet-latest-0718a013ea",
+        "di-anthropicclaude-4-opus-bd66e8574d",
+        "di-anthropicclaude-4-sonnet-e14152af46",
+        "gapgpt-claude-fable-5-2858afd746"
+      ],
+      "model_id_signature": "b3f18373ec4715f2199a78509ef785bee05e38f1002f94fdbfa679d005a41c8d",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-ace-stepacestep-v15-xl-sft-5f5031a451"
+          },
+          {
+            "rates": [],
+            "model_id": "di-deepinfraairoboros-70b-29c23b58ed"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-minilm-l12-v2-787be1395e"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-minilm-l6-v2-e9e2c8815f"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-mpnet-base-v2-35c62fcf7f"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-audio8audio8-tts-preview-06b-b2a5c5222d"
+          },
+          {
+            "rates": [
+              "649"
+            ],
+            "model_id": "gapgpt-babbage-002-980145897e"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-baaibge-base-en-v15-3c57837793"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-en-icl-5788b58bbf"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-large-en-v15-271a77b26d"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-d790e73745"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-multi-ebe9621025"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-multi-8k-ff6ca81b22"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briablur-background-a3fb928fc3"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briabria-32-c67b2846ad"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briabria-32-vector-47ae002010"
+          },
+          {
+            "rates": [],
+            "model_id": "di-resembleaichatterbox-650f9abf03"
+          },
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-resembleaichatterbox-multilingual-cb46c2a82a"
+          },
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-resembleaichatterbox-turbo-049f30e3e2"
+          },
+          {
+            "rates": [],
+            "model_id": "di-austismchronos-hermes-13b-v2-a602bdfd06"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-3-7-sonnet-latest-0718a013ea"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-4-opus-bd66e8574d"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-4-sonnet-e14152af46"
+          },
+          {
+            "rates": [
+              "3,012,906",
+              "15,064,530"
+            ],
+            "model_id": "gapgpt-claude-fable-5-2858afd746"
+          }
+        ],
+        "detail": []
+      },
+      "price_signature": "c93d527ab75b7568e933e9cba9af0e9fd63922ab2a2eb54f66c835f8d8966e0a",
+      "link_count": 404,
+      "non_planner_link_count": 394,
+      "non_planner_link_signature": "db79f02a7854e2a01996d7581d991ed0bb7b1aaec67e6ce37aa1783fc0ec6294"
+    },
+    {
+      "locale": "fa",
+      "kind": "model",
+      "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "checked_url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "MiMo-V2.6-Pro API"
+      ],
+      "canonical": [
+        "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 3,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "Answer",
+        "BreadcrumbList",
+        "ContactPoint",
+        "FAQPage",
+        "ListItem",
+        "Offer",
+        "Organization",
+        "PostalAddress",
+        "QuantitativeValue",
+        "Question",
+        "Service",
+        "UnitPriceSpecification",
+        "WebPage",
+        "WebSite"
+      ],
+      "json_ld_signature": "167aaafd952bd1f2c5005aa14b98043fd07a042c0c781a6791b9a5f86d6dca2c",
+      "calculator_target_present": true,
+      "planner_link_count": 7,
+      "planner_links": [
+        {
+          "href": "#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-flash-9582fe3fee#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v4-flash-51630916db#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v4-pro-e491c52826#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "href": "https://servernet.cloud/ai/models/di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5#usage-planner",
+          "label": "برای مصرف توکن برنامه‌ریزی کنید"
+        }
+      ],
+      "expected_localized_label": "برای مصرف توکن برنامه‌ریزی کنید",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "di-xiaomimimomimo-v26-pro-14810b5543",
+      "card_model_ids": [
+        "di-xiaomimimomimo-v26-flash-9582fe3fee",
+        "di-deepseek-aideepseek-v4-flash-51630916db",
+        "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a",
+        "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef",
+        "di-deepseek-aideepseek-v4-pro-e491c52826",
+        "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5"
+      ],
+      "model_id_signature": "26c98fb16888d63973cc821e00a32e17a8c0be252e7db96ed1de8d0b7d384481",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "42,181",
+              "84,362"
+            ],
+            "model_id": "di-xiaomimimomimo-v26-flash-9582fe3fee"
+          },
+          {
+            "rates": [
+              "27,117",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-51630916db"
+          },
+          {
+            "rates": [
+              "18,078",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a"
+          },
+          {
+            "rates": [
+              "132,568",
+              "397,704"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+          },
+          {
+            "rates": [
+              "391,678",
+              "783,356"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-pro-e491c52826"
+          },
+          {
+            "rates": [
+              "391,678",
+              "783,356"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5"
+          }
+        ],
+        "detail": [
+          "129,555",
+          "262,123"
+        ]
+      },
+      "price_signature": "29570a330e5715442c37fda94247aee1268b431bc1c2b46fd87d7dc228ab03d7",
+      "link_count": 339,
+      "non_planner_link_count": 332,
+      "non_planner_link_signature": "6d3c06e0f669a6d7fdd0ec25d1940bd98fce81d5b9a0a4d94a9b40e60ec30b67"
+    },
+    {
+      "locale": "en",
+      "kind": "home",
+      "url": "https://servernet.cloud/en/ai",
+      "checked_url": "https://servernet.cloud/en/ai?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "Find your model. Build your next idea."
+      ],
+      "canonical": [
+        "https://servernet.cloud/en/ai"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 3,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "Answer",
+        "ContactPoint",
+        "FAQPage",
+        "Organization",
+        "PostalAddress",
+        "Question",
+        "WebSite"
+      ],
+      "json_ld_signature": "6d137c4294e3e014fe4c0a7d8a546d5ee19feb4ca0ec1ab74fa66e1098026b8f",
+      "calculator_target_present": false,
+      "planner_link_count": 6,
+      "planner_links": [
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-tencenthy4-preview-ed5625f629#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v41-flash-1017-15efb2abf6#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v4-flash-51630916db#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-zai-orgglm-53-ab35037a12#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef#usage-planner",
+          "label": "Plan your token usage"
+        }
+      ],
+      "expected_localized_label": "Plan your token usage",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "",
+      "card_model_ids": [
+        "di-xiaomimimomimo-v26-pro-14810b5543",
+        "di-tencenthy4-preview-ed5625f629",
+        "di-deepseek-aideepseek-v41-flash-1017-15efb2abf6",
+        "di-deepseek-aideepseek-v4-flash-51630916db",
+        "di-zai-orgglm-53-ab35037a12",
+        "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+      ],
+      "model_id_signature": "0f79590dfc2dff4c70d4f03c5fbe9a2e615a910ad4046426db2601f52f3cf317",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "129,555",
+              "262,123"
+            ],
+            "model_id": "di-xiaomimimomimo-v26-pro-14810b5543"
+          },
+          {
+            "rates": [
+              "251,277",
+              "753,528"
+            ],
+            "model_id": "di-tencenthy4-preview-ed5625f629"
+          },
+          {
+            "rates": [
+              "60,259",
+              "180,775"
+            ],
+            "model_id": "di-deepseek-aideepseek-v41-flash-1017-15efb2abf6"
+          },
+          {
+            "rates": [
+              "27,117",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-51630916db"
+          },
+          {
+            "rates": [
+              "271,162",
+              "1,205,163"
+            ],
+            "model_id": "di-zai-orgglm-53-ab35037a12"
+          },
+          {
+            "rates": [
+              "132,568",
+              "397,704"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+          }
+        ],
+        "detail": []
+      },
+      "price_signature": "d1e7603a9e6ff4133253bbb9931a135ba7a1ad7026dc1142358cf2d5da5b5315",
+      "link_count": 338,
+      "non_planner_link_count": 332,
+      "non_planner_link_signature": "88d6eb581c3234bad73a7f61a041333d23008fe2f388926f32058c96c12d3112"
+    },
+    {
+      "locale": "en",
+      "kind": "catalogue",
+      "url": "https://servernet.cloud/en/ai/models",
+      "checked_url": "https://servernet.cloud/en/ai/models?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "Compare models"
+      ],
+      "canonical": [
+        "https://servernet.cloud/en/ai/models"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai/models",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai/models",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai/models",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai/models",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 2,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "ContactPoint",
+        "Organization",
+        "PostalAddress",
+        "WebSite"
+      ],
+      "json_ld_signature": "709ed001a45ba756dcc40266f45693762125db1cffd3d10a1150fcd5575e9d21",
+      "calculator_target_present": false,
+      "planner_link_count": 10,
+      "planner_links": [
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-sentence-transformersall-minilm-l12-v2-787be1395e#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-sentence-transformersall-minilm-l6-v2-e9e2c8815f#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-sentence-transformersall-mpnet-base-v2-35c62fcf7f#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-baaibge-base-en-v15-3c57837793#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-baaibge-en-icl-5788b58bbf#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-baaibge-m3-d790e73745#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-baaibge-m3-multi-ebe9621025#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-baaibge-m3-multi-8k-ff6ca81b22#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/gapgpt-claude-fable-5-2858afd746#usage-planner",
+          "label": "Plan your token usage"
+        }
+      ],
+      "expected_localized_label": "Plan your token usage",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "",
+      "card_model_ids": [
+        "di-ace-stepacestep-v15-xl-sft-5f5031a451",
+        "di-deepinfraairoboros-70b-29c23b58ed",
+        "di-sentence-transformersall-minilm-l12-v2-787be1395e",
+        "di-sentence-transformersall-minilm-l6-v2-e9e2c8815f",
+        "di-sentence-transformersall-mpnet-base-v2-35c62fcf7f",
+        "di-audio8audio8-tts-preview-06b-b2a5c5222d",
+        "gapgpt-babbage-002-980145897e",
+        "di-baaibge-base-en-v15-3c57837793",
+        "di-baaibge-en-icl-5788b58bbf",
+        "di-baaibge-large-en-v15-271a77b26d",
+        "di-baaibge-m3-d790e73745",
+        "di-baaibge-m3-multi-ebe9621025",
+        "di-baaibge-m3-multi-8k-ff6ca81b22",
+        "di-briablur-background-a3fb928fc3",
+        "di-briabria-32-c67b2846ad",
+        "di-briabria-32-vector-47ae002010",
+        "di-resembleaichatterbox-650f9abf03",
+        "di-resembleaichatterbox-multilingual-cb46c2a82a",
+        "di-resembleaichatterbox-turbo-049f30e3e2",
+        "di-austismchronos-hermes-13b-v2-a602bdfd06",
+        "di-anthropicclaude-3-7-sonnet-latest-0718a013ea",
+        "di-anthropicclaude-4-opus-bd66e8574d",
+        "di-anthropicclaude-4-sonnet-e14152af46",
+        "gapgpt-claude-fable-5-2858afd746"
+      ],
+      "model_id_signature": "b3f18373ec4715f2199a78509ef785bee05e38f1002f94fdbfa679d005a41c8d",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-ace-stepacestep-v15-xl-sft-5f5031a451"
+          },
+          {
+            "rates": [],
+            "model_id": "di-deepinfraairoboros-70b-29c23b58ed"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-minilm-l12-v2-787be1395e"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-minilm-l6-v2-e9e2c8815f"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-mpnet-base-v2-35c62fcf7f"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-audio8audio8-tts-preview-06b-b2a5c5222d"
+          },
+          {
+            "rates": [
+              "649"
+            ],
+            "model_id": "gapgpt-babbage-002-980145897e"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-baaibge-base-en-v15-3c57837793"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-en-icl-5788b58bbf"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-large-en-v15-271a77b26d"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-d790e73745"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-multi-ebe9621025"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-multi-8k-ff6ca81b22"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briablur-background-a3fb928fc3"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briabria-32-c67b2846ad"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briabria-32-vector-47ae002010"
+          },
+          {
+            "rates": [],
+            "model_id": "di-resembleaichatterbox-650f9abf03"
+          },
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-resembleaichatterbox-multilingual-cb46c2a82a"
+          },
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-resembleaichatterbox-turbo-049f30e3e2"
+          },
+          {
+            "rates": [],
+            "model_id": "di-austismchronos-hermes-13b-v2-a602bdfd06"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-3-7-sonnet-latest-0718a013ea"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-4-opus-bd66e8574d"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-4-sonnet-e14152af46"
+          },
+          {
+            "rates": [
+              "3,012,906",
+              "15,064,530"
+            ],
+            "model_id": "gapgpt-claude-fable-5-2858afd746"
+          }
+        ],
+        "detail": []
+      },
+      "price_signature": "c93d527ab75b7568e933e9cba9af0e9fd63922ab2a2eb54f66c835f8d8966e0a",
+      "link_count": 403,
+      "non_planner_link_count": 393,
+      "non_planner_link_signature": "ba68345664420408145e7ffe4916b4aac77aabd03cd391c5b683472dfefbc26a"
+    },
+    {
+      "locale": "en",
+      "kind": "model",
+      "url": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "checked_url": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "MiMo-V2.6-Pro API"
+      ],
+      "canonical": [
+        "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 3,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "Answer",
+        "BreadcrumbList",
+        "ContactPoint",
+        "FAQPage",
+        "ListItem",
+        "Offer",
+        "Organization",
+        "PostalAddress",
+        "QuantitativeValue",
+        "Question",
+        "Service",
+        "UnitPriceSpecification",
+        "WebPage",
+        "WebSite"
+      ],
+      "json_ld_signature": "2976fe9e31609c09a8b8019ef4c4fbcd56e9087db0bdb032b3b88c3936fff698",
+      "calculator_target_present": true,
+      "planner_link_count": 7,
+      "planner_links": [
+        {
+          "href": "#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-flash-9582fe3fee#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v4-flash-51630916db#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v4-pro-e491c52826#usage-planner",
+          "label": "Plan your token usage"
+        },
+        {
+          "href": "https://servernet.cloud/en/ai/models/di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5#usage-planner",
+          "label": "Plan your token usage"
+        }
+      ],
+      "expected_localized_label": "Plan your token usage",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "di-xiaomimimomimo-v26-pro-14810b5543",
+      "card_model_ids": [
+        "di-xiaomimimomimo-v26-flash-9582fe3fee",
+        "di-deepseek-aideepseek-v4-flash-51630916db",
+        "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a",
+        "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef",
+        "di-deepseek-aideepseek-v4-pro-e491c52826",
+        "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5"
+      ],
+      "model_id_signature": "26c98fb16888d63973cc821e00a32e17a8c0be252e7db96ed1de8d0b7d384481",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "42,181",
+              "84,362"
+            ],
+            "model_id": "di-xiaomimimomimo-v26-flash-9582fe3fee"
+          },
+          {
+            "rates": [
+              "27,117",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-51630916db"
+          },
+          {
+            "rates": [
+              "18,078",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a"
+          },
+          {
+            "rates": [
+              "132,568",
+              "397,704"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+          },
+          {
+            "rates": [
+              "391,678",
+              "783,356"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-pro-e491c52826"
+          },
+          {
+            "rates": [
+              "391,678",
+              "783,356"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5"
+          }
+        ],
+        "detail": [
+          "129,555",
+          "262,123"
+        ]
+      },
+      "price_signature": "29570a330e5715442c37fda94247aee1268b431bc1c2b46fd87d7dc228ab03d7",
+      "link_count": 338,
+      "non_planner_link_count": 331,
+      "non_planner_link_signature": "2582a0ec85501da6db5d5d1c2d524730dd3a64b71f6a99645d94fa4186d24849"
+    },
+    {
+      "locale": "tr",
+      "kind": "home",
+      "url": "https://servernet.cloud/tr/ai",
+      "checked_url": "https://servernet.cloud/tr/ai?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "Modelinizi bulun. Yeni fikrinizi geliştirin."
+      ],
+      "canonical": [
+        "https://servernet.cloud/tr/ai"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 3,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "Answer",
+        "ContactPoint",
+        "FAQPage",
+        "Organization",
+        "PostalAddress",
+        "Question",
+        "WebSite"
+      ],
+      "json_ld_signature": "bf4f4886d7f3ac51b857e9af651489ad485a585e3a604036fd417971f075bc47",
+      "calculator_target_present": false,
+      "planner_link_count": 6,
+      "planner_links": [
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-tencenthy4-preview-ed5625f629#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v41-flash-1017-15efb2abf6#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-flash-51630916db#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-zai-orgglm-53-ab35037a12#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef#usage-planner",
+          "label": "Token kullanımını planlayın"
+        }
+      ],
+      "expected_localized_label": "Token kullanımını planlayın",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "",
+      "card_model_ids": [
+        "di-xiaomimimomimo-v26-pro-14810b5543",
+        "di-tencenthy4-preview-ed5625f629",
+        "di-deepseek-aideepseek-v41-flash-1017-15efb2abf6",
+        "di-deepseek-aideepseek-v4-flash-51630916db",
+        "di-zai-orgglm-53-ab35037a12",
+        "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+      ],
+      "model_id_signature": "0f79590dfc2dff4c70d4f03c5fbe9a2e615a910ad4046426db2601f52f3cf317",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "129,555",
+              "262,123"
+            ],
+            "model_id": "di-xiaomimimomimo-v26-pro-14810b5543"
+          },
+          {
+            "rates": [
+              "251,277",
+              "753,528"
+            ],
+            "model_id": "di-tencenthy4-preview-ed5625f629"
+          },
+          {
+            "rates": [
+              "60,259",
+              "180,775"
+            ],
+            "model_id": "di-deepseek-aideepseek-v41-flash-1017-15efb2abf6"
+          },
+          {
+            "rates": [
+              "27,117",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-51630916db"
+          },
+          {
+            "rates": [
+              "271,162",
+              "1,205,163"
+            ],
+            "model_id": "di-zai-orgglm-53-ab35037a12"
+          },
+          {
+            "rates": [
+              "132,568",
+              "397,704"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+          }
+        ],
+        "detail": []
+      },
+      "price_signature": "d1e7603a9e6ff4133253bbb9931a135ba7a1ad7026dc1142358cf2d5da5b5315",
+      "link_count": 338,
+      "non_planner_link_count": 332,
+      "non_planner_link_signature": "796ecaa1810cc61265c8ec1294d523e0fa048856539be8595616e268fe5e3267"
+    },
+    {
+      "locale": "tr",
+      "kind": "catalogue",
+      "url": "https://servernet.cloud/tr/ai/models",
+      "checked_url": "https://servernet.cloud/tr/ai/models?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "Modelleri karşılaştır"
+      ],
+      "canonical": [
+        "https://servernet.cloud/tr/ai/models"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai/models",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai/models",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai/models",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai/models",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 2,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "ContactPoint",
+        "Organization",
+        "PostalAddress",
+        "WebSite"
+      ],
+      "json_ld_signature": "709ed001a45ba756dcc40266f45693762125db1cffd3d10a1150fcd5575e9d21",
+      "calculator_target_present": false,
+      "planner_link_count": 10,
+      "planner_links": [
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-sentence-transformersall-minilm-l12-v2-787be1395e#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-sentence-transformersall-minilm-l6-v2-e9e2c8815f#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-sentence-transformersall-mpnet-base-v2-35c62fcf7f#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-baaibge-base-en-v15-3c57837793#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-baaibge-en-icl-5788b58bbf#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-baaibge-large-en-v15-271a77b26d#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-baaibge-m3-d790e73745#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-baaibge-m3-multi-ebe9621025#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-baaibge-m3-multi-8k-ff6ca81b22#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/gapgpt-claude-fable-5-2858afd746#usage-planner",
+          "label": "Token kullanımını planlayın"
+        }
+      ],
+      "expected_localized_label": "Token kullanımını planlayın",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "",
+      "card_model_ids": [
+        "di-ace-stepacestep-v15-xl-sft-5f5031a451",
+        "di-deepinfraairoboros-70b-29c23b58ed",
+        "di-sentence-transformersall-minilm-l12-v2-787be1395e",
+        "di-sentence-transformersall-minilm-l6-v2-e9e2c8815f",
+        "di-sentence-transformersall-mpnet-base-v2-35c62fcf7f",
+        "di-audio8audio8-tts-preview-06b-b2a5c5222d",
+        "gapgpt-babbage-002-980145897e",
+        "di-baaibge-base-en-v15-3c57837793",
+        "di-baaibge-en-icl-5788b58bbf",
+        "di-baaibge-large-en-v15-271a77b26d",
+        "di-baaibge-m3-d790e73745",
+        "di-baaibge-m3-multi-ebe9621025",
+        "di-baaibge-m3-multi-8k-ff6ca81b22",
+        "di-briablur-background-a3fb928fc3",
+        "di-briabria-32-c67b2846ad",
+        "di-briabria-32-vector-47ae002010",
+        "di-resembleaichatterbox-650f9abf03",
+        "di-resembleaichatterbox-multilingual-cb46c2a82a",
+        "di-resembleaichatterbox-turbo-049f30e3e2",
+        "di-austismchronos-hermes-13b-v2-a602bdfd06",
+        "di-anthropicclaude-3-7-sonnet-latest-0718a013ea",
+        "di-anthropicclaude-4-opus-bd66e8574d",
+        "di-anthropicclaude-4-sonnet-e14152af46",
+        "gapgpt-claude-fable-5-2858afd746"
+      ],
+      "model_id_signature": "b3f18373ec4715f2199a78509ef785bee05e38f1002f94fdbfa679d005a41c8d",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-ace-stepacestep-v15-xl-sft-5f5031a451"
+          },
+          {
+            "rates": [],
+            "model_id": "di-deepinfraairoboros-70b-29c23b58ed"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-minilm-l12-v2-787be1395e"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-minilm-l6-v2-e9e2c8815f"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-sentence-transformersall-mpnet-base-v2-35c62fcf7f"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-audio8audio8-tts-preview-06b-b2a5c5222d"
+          },
+          {
+            "rates": [
+              "649"
+            ],
+            "model_id": "gapgpt-babbage-002-980145897e"
+          },
+          {
+            "rates": [
+              "1,507"
+            ],
+            "model_id": "di-baaibge-base-en-v15-3c57837793"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-en-icl-5788b58bbf"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-large-en-v15-271a77b26d"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-d790e73745"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-multi-ebe9621025"
+          },
+          {
+            "rates": [
+              "3,013"
+            ],
+            "model_id": "di-baaibge-m3-multi-8k-ff6ca81b22"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briablur-background-a3fb928fc3"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briabria-32-c67b2846ad"
+          },
+          {
+            "rates": [
+              "12,053"
+            ],
+            "model_id": "di-briabria-32-vector-47ae002010"
+          },
+          {
+            "rates": [],
+            "model_id": "di-resembleaichatterbox-650f9abf03"
+          },
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-resembleaichatterbox-multilingual-cb46c2a82a"
+          },
+          {
+            "rates": [
+              "302"
+            ],
+            "model_id": "di-resembleaichatterbox-turbo-049f30e3e2"
+          },
+          {
+            "rates": [],
+            "model_id": "di-austismchronos-hermes-13b-v2-a602bdfd06"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-3-7-sonnet-latest-0718a013ea"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-4-opus-bd66e8574d"
+          },
+          {
+            "rates": [],
+            "model_id": "di-anthropicclaude-4-sonnet-e14152af46"
+          },
+          {
+            "rates": [
+              "3,012,906",
+              "15,064,530"
+            ],
+            "model_id": "gapgpt-claude-fable-5-2858afd746"
+          }
+        ],
+        "detail": []
+      },
+      "price_signature": "c93d527ab75b7568e933e9cba9af0e9fd63922ab2a2eb54f66c835f8d8966e0a",
+      "link_count": 403,
+      "non_planner_link_count": 393,
+      "non_planner_link_signature": "e4f38bccd808875bb97f245917cebd27121a2a71b1636d46abcabb4b037b0f18"
+    },
+    {
+      "locale": "tr",
+      "kind": "model",
+      "url": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "checked_url": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "h1": [
+        "MiMo-V2.6-Pro API"
+      ],
+      "canonical": [
+        "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "fa"
+        },
+        {
+          "url": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "en"
+        },
+        {
+          "url": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "tr"
+        },
+        {
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "locale": "x-default"
+        }
+      ],
+      "json_ld_count": 3,
+      "json_ld_errors": 0,
+      "json_ld_types": [
+        "Answer",
+        "BreadcrumbList",
+        "ContactPoint",
+        "FAQPage",
+        "ListItem",
+        "Offer",
+        "Organization",
+        "PostalAddress",
+        "QuantitativeValue",
+        "Question",
+        "Service",
+        "UnitPriceSpecification",
+        "WebPage",
+        "WebSite"
+      ],
+      "json_ld_signature": "87407717d44b124461096cfec88af2524caff1de12f5cfd93db0a65e1eb4271b",
+      "calculator_target_present": true,
+      "planner_link_count": 7,
+      "planner_links": [
+        {
+          "href": "#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-flash-9582fe3fee#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-flash-51630916db#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-pro-e491c52826#usage-planner",
+          "label": "Token kullanımını planlayın"
+        },
+        {
+          "href": "https://servernet.cloud/tr/ai/models/di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5#usage-planner",
+          "label": "Token kullanımını planlayın"
+        }
+      ],
+      "expected_localized_label": "Token kullanımını planlayın",
+      "planner_labels_correct": true,
+      "detail_public_model_id": "di-xiaomimimomimo-v26-pro-14810b5543",
+      "card_model_ids": [
+        "di-xiaomimimomimo-v26-flash-9582fe3fee",
+        "di-deepseek-aideepseek-v4-flash-51630916db",
+        "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a",
+        "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef",
+        "di-deepseek-aideepseek-v4-pro-e491c52826",
+        "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5"
+      ],
+      "model_id_signature": "26c98fb16888d63973cc821e00a32e17a8c0be252e7db96ed1de8d0b7d384481",
+      "public_rate_displays": {
+        "cards": [
+          {
+            "rates": [
+              "42,181",
+              "84,362"
+            ],
+            "model_id": "di-xiaomimimomimo-v26-flash-9582fe3fee"
+          },
+          {
+            "rates": [
+              "27,117",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-51630916db"
+          },
+          {
+            "rates": [
+              "18,078",
+              "54,233"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a"
+          },
+          {
+            "rates": [
+              "132,568",
+              "397,704"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef"
+          },
+          {
+            "rates": [
+              "391,678",
+              "783,356"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-pro-e491c52826"
+          },
+          {
+            "rates": [
+              "391,678",
+              "783,356"
+            ],
+            "model_id": "di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5"
+          }
+        ],
+        "detail": [
+          "129,555",
+          "262,123"
+        ]
+      },
+      "price_signature": "29570a330e5715442c37fda94247aee1268b431bc1c2b46fd87d7dc228ab03d7",
+      "link_count": 338,
+      "non_planner_link_count": 331,
+      "non_planner_link_signature": "f5e8d53ab2c5bcd2657c693aa272e514da675da4f5121f55481a2cecf99171f3"
+    }
+  ],
+  "comparison_to_before": [
+    {
+      "url": "https://servernet.cloud/ai",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/ai/models",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/en/ai",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/en/ai/models",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/ai",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/ai/models",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    },
+    {
+      "url": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "model_ids_unchanged": true,
+      "public_rates_unchanged": false,
+      "non_planner_links_unchanged": true,
+      "link_count_change_matches_planner_additions": true,
+      "h1_unchanged": true,
+      "canonical_unchanged": true,
+      "hreflang_unchanged": false,
+      "json_ld_unchanged": true
+    }
+  ],
+  "page_acceptance_failure_count": 0,
+  "limits": "HTTP/returned HTML only. Signatures can change if the live catalogue changes independently; investigate drift rather than alter pricing or declare it caused by these links. No browser/mobile interaction, real AI request, indexing/ranking or analytics acceptance."
+}

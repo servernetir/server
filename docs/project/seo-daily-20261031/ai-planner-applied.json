@@ -1,0 +1,28 @@
+{
+  "status": "applied",
+  "at": "2026-10-31T06:47:21+00:00",
+  "files": [
+    {
+      "path": "resources/views/pages/ai/card.blade.php",
+      "before": "d5382d1c84685ecbb732902b8f39de5b4b5e5decd7fc5522a303d43fc79274fc",
+      "after": "ab05b448a6035c5d2b1bea03041998d43b0375de7575ebb1c98b416f369c880f",
+      "compiled": "/home/servernetcloud/servernet_app/storage/framework/views/2565dbaa2bba5b286f69586a4eb84459.php",
+      "compiled_before": "5abf784f438eafd22ea5eff699ca70be72e7a6de8850ee1b87f60d6b4a26d9ac",
+      "compiled_after": "b9672e7fa6371b02e3d3ce087e1b9d188b4b563d10bb8eeabe2b528a32e401d7",
+      "source_mode": 420,
+      "compiled_mode": 493
+    },
+    {
+      "path": "resources/views/pages/ai/model.blade.php",
+      "before": "15f92c99462829df1c411b0ba9b11627f3d689ad280b30757d12ecbedc674f66",
+      "after": "0b99d7b95e97c1afde701379af9882b60ad626706c0162f843c2c21bcfc37944",
+      "compiled": "/home/servernetcloud/servernet_app/storage/framework/views/542379869b59478dc81d9572ef12f7db.php",
+      "compiled_before": "d3fe0242749cc3b0edef293e1a88cd03d0dc0ff16c0d81e2ec1a1f8ae9574f0a",
+      "compiled_after": "f55488d03761c6a7ed1b102359b6e31c1baf5a09844c24c50bd5b1f24014633a",
+      "source_mode": 420,
+      "compiled_mode": 493
+    }
+  ],
+  "no_cache_flush": true,
+  "no_database_mutation": true
+}

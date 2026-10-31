@@ -1,0 +1,44 @@
+{
+  "base_sha": "7425ecf9e639d3a4f231d1f6f6ded46c35ec113f",
+  "branch": "codex/seo-weekly-20261031",
+  "status": "locally_verified_not_deployed_by_subtask",
+  "production_source_files": [
+    {
+      "after_sha256": "ab05b448a6035c5d2b1bea03041998d43b0375de7575ebb1c98b416f369c880f",
+      "path": "website/resources/views/pages/ai/card.blade.php",
+      "before_sha256": "d5382d1c84685ecbb732902b8f39de5b4b5e5decd7fc5522a303d43fc79274fc"
+    },
+    {
+      "after_sha256": "0b99d7b95e97c1afde701379af9882b60ad626706c0162f843c2c21bcfc37944",
+      "path": "website/resources/views/pages/ai/model.blade.php",
+      "before_sha256": "15f92c99462829df1c411b0ba9b11627f3d689ad280b30757d12ecbedc674f66"
+    }
+  ],
+  "gate": "Exactly token operation chat/embedding/rerank and existing quote, matching the existing estimator section; no ready-only gate.",
+  "source_base_matches_parent_live_preflight": true,
+  "working_directory": "website/",
+  "new_test_command": "& 'C:\\Users\\admin\\.codex\\.tmp\\server-menu-php84\\php.exe' vendor/phpunit/phpunit/phpunit tests/Feature/AiUsagePlannerDiscoveryTest.php --display-warnings --fail-on-warning --colors=never",
+  "new_test_result": {
+    "tool": "phpunit",
+    "result": "passed",
+    "tests": 4,
+    "passed": 4,
+    "assertions": 116,
+    "duration_ms": 3179
+  },
+  "combined_test_command": "& 'C:\\Users\\admin\\.codex\\.tmp\\server-menu-php84\\php.exe' vendor/phpunit/phpunit/phpunit tests/Feature/AiUsagePlannerDiscoveryTest.php tests/Feature/AiWorkspaceTest.php tests/Feature/AiModelSeoTest.php --display-warnings --fail-on-warning --colors=never",
+  "combined_test_result": {
+    "tool": "phpunit",
+    "result": "passed",
+    "tests": 29,
+    "passed": 28,
+    "assertions": 1105,
+    "duration_ms": 8943,
+    "skipped": 1
+  },
+  "totals_note": "Combined includes the four new tests; do not sum repeated runs.",
+  "skipped_prerequisite": "Existing Bria ready-contract case requires a trusted video decoder unavailable in this local fixture.",
+  "independent_review": "Accepted by public_code_audit read-only review; exact quote/category gates, locale links and existing CSS checked.",
+  "diff_check": "passed",
+  "limits": "No production operation, API request, real purchase, account change, GSC submission, live mobile acceptance, pricing/eligibility mutation or ranking/traffic claim by subtask."
+}
