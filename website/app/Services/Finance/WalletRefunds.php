@@ -259,6 +259,12 @@ final class WalletRefunds
                 $this->check($account !== null && in_array($account->type, ['bank', 'partner'], true)
                     && in_array($account->currency_code, ['IRT', 'IRR'], true), 'funding_bank');
                 $this->check($account->type !== 'partner' || filled($account->owner_name), 'funding_owner');
+                if ($account->type === 'partner') {
+                    // This form records a personal payout, not consumption of a documented company advance.
+                    foreach ([$this->journal->balance($account, $date), $this->journal->balance($account)] as $balance) {
+                        $this->check($balance['irt'] >= 0 && $balance['native'] >= 0, 'funding_advance');
+                    }
+                }
                 // Personal funds create a partner payable; they are not a company bank balance.
                 $this->check($account->type === 'bank' || $bankTransactionId === null, 'invalid_bank_row');
                 $native = $account->currency_code === 'IRR' ? $r->amount_irt * 10 : $r->amount_irt;
