@@ -397,6 +397,13 @@ class CloudPlan extends Model
             }
             if (! in_array($terms['charge_mode'] ?? '', ['hard_cap', 'unmetered'], true)
                 || ($terms['extra_charges'] ?? null) !== false) {
+                if ($this->traffic_gb <= 0) {
+                    return match ($locale) {
+                        'en' => 'Traffic terms require confirmation',
+                        'tr' => 'Trafik koşulları için bilgi alın',
+                        default => 'شرایط ترافیک با هماهنگی پشتیبانی',
+                    };
+                }
                 return match ($locale) {
                     'en' => $this->traffic_gb.' GB included; extra traffic by arrangement',
                     'tr' => $this->traffic_gb.' GB dahil; ek trafik için iletişime geçin',
