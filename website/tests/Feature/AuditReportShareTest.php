@@ -161,6 +161,7 @@ class AuditReportShareTest extends TestCase
 
     public function test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact(): void
     {
+        $this->withoutExceptionHandling();
         Mail::fake();
         $expired = $this->report('expired.example');
         $expired->forceFill(['expires_at' => now()->subMinute()])->save();
