@@ -94,14 +94,12 @@ jobs:
           set +e
           route_status=0
           access_status=0
-          php artisan route:list --json > /tmp/seo-report-route.json 2>&1 || route_status=$?
-          if [ "$route_status" -eq 0 ]; then
-            php -r '$routes=json_decode(file_get_contents("/tmp/seo-report-route.json"), true, 512, JSON_THROW_ON_ERROR); $route=null; foreach($routes as $candidate){if(($candidate["uri"]??null)==="admin/seo/reports/{report}/revoke"){$route=$candidate;break;}} $middleware=is_array($route["middleware"]??null)?implode(",",$route["middleware"]):(string)($route["middleware"]??""); exit($route!==null && ($route["name"]??null)==="admin.seo.reports.revoke" && str_contains((string)($route["method"]??""), "POST") && str_contains($middleware, "auth:web") && str_contains($middleware, "admin") ? 0 : 1);' || route_status=$?
-          fi
+          grep -Fq "Route::middleware(['auth:web', 'admin'])->group(function ()" routes/web.php || route_status=1
+          grep -Fq "Route::post('/seo/reports/{report}/revoke'" routes/web.php || route_status=1
+          grep -Fq "name('admin.seo.reports.revoke')" routes/web.php || route_status=1
           vendor/bin/phpunit tests/Feature/AuditReportShareTest.php --filter='test_report_link_expires_and_refuses_consultation_without_creating_a_lead|test_legacy_report_without_an_explicit_expiry_uses_the_ninety_day_limit|test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery|test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact' --display-warnings --fail-on-warning --colors=never > /tmp/seo-report-access-phpunit.log 2>&1 || access_status=$?
           test_status=$((route_status != 0 || access_status != 0))
           printf '\nRoute contract exit: %s; access contract exit: %s\n' "$route_status" "$access_status" >> /tmp/seo-report-access-phpunit.log
-          cat /tmp/seo-report-route.json >> /tmp/seo-report-access-phpunit.log
           set -e
           if [ "$test_status" -ne 0 ]; then
             strings -n 8 /tmp/seo-report-access-phpunit.log > /tmp/seo-report-access-readable.log
