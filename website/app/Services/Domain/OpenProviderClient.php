@@ -524,7 +524,7 @@ class OpenProviderClient
             }
         }
 
-        return $this->parseBalance(['ok' => ($result['code'] ?? null) === 0,
+        return $this->parseManagerBalance(['ok' => ($result['code'] ?? null) === 0,
             'data' => is_array($result['data'] ?? null) ? $result['data'] : []]);
     }
 
@@ -550,7 +550,7 @@ class OpenProviderClient
             $http = Http::acceptJson()->asJson()->withoutRedirecting()->timeout(10)->connectTimeout(3);
             $response = $path === '/auth/login'
                 ? $http->post($this->base.'/auth/login', ['username' => $this->username, 'password' => $this->password])
-                : $http->withToken($token)->get($this->base.'/resellers');
+                : $http->withToken($token)->get($this->base.'/resellers', ['with_settings' => 'true']);
             // Openprovider business errors can use HTTP 500; code is decisive.
             if (strlen($response->body()) > 500000) { return []; }
             $body = $response->json();
@@ -560,6 +560,43 @@ class OpenProviderClient
             // Never publish or log credential-bearing request/exception details.
             return [];
         }
+    }
+
+    /**
+     * The documented account balance and its account currency are at different
+     * paths: data.balance and data.settings.currency (with_settings=true).
+     * reserved_balance, payment-limit currency keys and locale are not evidence
+     * of the currency for this amount. Legacy balance() parsing is unchanged.
+     *
+     * @see https://github.com/openprovider/api-documentation/blob/v1beta/swagger/reseller-customer.swagger.json
+     */
+    private function parseManagerBalance(array $info): array
+    {
+        $unknown = ['known' => false, 'amount' => 0.0, 'currency' => ''];
+        $data = $info['data'];
+        if (! $info['ok'] || ! is_numeric($data['balance'] ?? null)) { return $unknown; }
+        $amount = (float) $data['balance'];
+        if (! is_finite($amount)) { return $unknown; }
+        $currencies = [];
+        $fields = [];
+        if (is_array($data['settings'] ?? null) && array_key_exists('currency', $data['settings'])) {
+            $fields[] = $data['settings']['currency'];
+        }
+        // Older response shapes can carry an explicit sibling currency. If two
+        // explicit sources disagree, neither is chosen and the snapshot is unknown.
+        foreach (['currency', 'balance_currency'] as $field) {
+            if (array_key_exists($field, $data)) { $fields[] = $data[$field]; }
+        }
+        foreach ($fields as $field) {
+            if (! is_string($field) || preg_match('/\A[A-Z]{3}\z/D', strtoupper(trim($field))) !== 1) {
+                return ['known' => true, 'amount' => $amount, 'currency' => ''];
+            }
+            $currencies[] = strtoupper(trim($field));
+        }
+        $currencies = array_values(array_unique($currencies));
+
+        return ['known' => true, 'amount' => $amount,
+            'currency' => count($currencies) === 1 ? $currencies[0] : ''];
     }
 
     /** Same parser as the pre-existing health check; unknown is not observed zero. */

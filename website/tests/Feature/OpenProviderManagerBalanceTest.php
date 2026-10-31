@@ -141,12 +141,60 @@ class OpenProviderManagerBalanceTest extends TestCase
     {
         Http::fake([
             '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'fixture-account-token']]),
-            '*/resellers' => Http::response(['code' => 0, 'data' => ['balance' => '22.25', 'currency' => 'EUR']], 500),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['balance' => '22.25', 'currency' => 'EUR']], 500),
         ]);
         $balance = $this->client('second')->managerBalance();
         $this->assertTrue($balance['known']);
         $this->assertSame(22.25, $balance['amount']);
         $this->assertSame('EUR', $balance['currency']);
         Http::assertSentCount(2);
+    }
+
+    public function test_documented_settings_currency_is_requested_and_bound_to_the_available_balance(): void
+    {
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'fixture-account-token']]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['balance' => '31.25', 'reserved_balance' => 900,
+                'settings' => ['currency' => 'EUR', 'payment_methods' => [['settings' => ['limit' => ['USD' => 1000]]]]]]]),
+        ]);
+        $client = $this->client('second');
+        $row = $this->snapshots($client)->snapshot()['openprovider'];
+        $this->assertSame('known', $row['status']);
+        $this->assertSame('31.25', $row['value']);
+        $this->assertSame('EUR', $row['currency']);
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/resellers?with_settings=true'));
+        Http::assertSentCount(2);
+        // The protected legacy health/financial reader retains its former parser.
+        $legacy = $client->balance();
+        $this->assertTrue($legacy['known']);
+        $this->assertSame('', $legacy['currency']);
+    }
+
+    public function test_conflicting_explicit_account_currencies_are_not_chosen_or_converted(): void
+    {
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'fixture-account-token']]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['balance' => '31.25',
+                'currency' => 'USD', 'settings' => ['currency' => 'EUR']]]),
+        ]);
+        $row = $this->snapshots($this->client('second'))->snapshot()['openprovider'];
+        $this->assertSame('unknown', $row['status']);
+        $this->assertSame('currency_unverified', $row['reason']);
+        $this->assertNull($row['value']);
+        $this->assertNull($row['currency']);
+    }
+
+    public function test_account_currency_is_not_inferred_from_ids_symbols_locale_or_payment_limit_keys(): void
+    {
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'fixture-account-token']]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['balance' => '31.25', 'locale' => 'en_US',
+                'settings' => ['currency' => ['id' => 1, 'symbol' => '$'], 'payment_methods' => ['USD' => 1000]]]]),
+        ]);
+        $row = $this->snapshots($this->client('second'))->snapshot()['openprovider'];
+        $this->assertSame('unknown', $row['status']);
+        $this->assertSame('currency_unverified', $row['reason']);
+        $this->assertNull($row['value']);
+        $this->assertNull($row['currency']);
     }
 }

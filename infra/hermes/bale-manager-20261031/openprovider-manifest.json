@@ -1,0 +1,11 @@
+{
+  "release": "bale-manager-openprovider-20261031",
+  "files": [
+    {
+      "source": "website/app/Services/Domain/OpenProviderClient.php",
+      "target": "app/Services/Domain/OpenProviderClient.php",
+      "before": "c6ba2825c25db8664c6fa1172e993291b575a918c7705ae0f1c38fe73a5f6577",
+      "after": "d0f8c17473a6afe0a7145b9cab66cdcd0a903097b9fcc983c1a03b51eb84697e"
+    }
+  ]
+}

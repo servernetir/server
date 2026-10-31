@@ -37,7 +37,7 @@ class ProviderBalanceSnapshotTest extends TestCase
     {
         Http::fake([
             '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'fixture-op-token']]),
-            '*/resellers' => Http::response(['code' => 0, 'data' => ['balance' => $opAmount, 'currency' => $opCurrency]]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['balance' => $opAmount, 'currency' => $opCurrency]]),
             '*/api/login' => Http::response(['token' => 'fixture-vpstc-token']),
             '*/api/balance' => Http::response(['details' => ['acc_credit' => $credit, 'acc_balance' => '999.99', 'currency' => $currency]]),
         ]);

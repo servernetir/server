@@ -83,7 +83,7 @@ native code. The manifest uses an ordered list (dependencies before consumers):
 ```
 
 `target` is relative to `servernet_app`. Only PHP files under `app`, `resources`,
-`routes`, `lang` and `database/migrations` are accepted. Every row needs the exact
+`routes`, `lang`, `database/migrations` and `database/seeders` are accepted. Every row needs the exact
 live before hash (or `null` for verified absence) and source after hash. The final
 manifest must be built after source freezes and live drift reconciliation; the
 example is deliberately not executable. No target deletion is supported in the
@@ -152,3 +152,31 @@ The private native audit receipt is separate from the file installer's receipt.
 Framework mutex APIs were checked against the official Laravel 13
 [CacheEventMutex API](https://api.laravel.com/docs/13.x/Illuminate/Console/Scheduling/CacheEventMutex.html)
 and [Event API](https://api.laravel.com/docs/13.x/Illuminate/Console/Scheduling/Event.html).
+
+### Openprovider balance layer
+
+`openprovider-followup.py` reuses the same installer with release ID
+`bale-manager-openprovider-20261031` and separate private backup/receipt paths.
+Its external `openprovider-manifest.json` uses the same manifest structure, but
+must contain exactly `website/app/Services/Domain/OpenProviderClient.php` to
+`app/Services/Domain/OpenProviderClient.php`. Its before hash must equal that
+target's after hash in the main `release-manifest.json`. This pins the layer to
+the already verified manager release; no other target can be overridden.
+
+`openprovider-native-release.php deploy` holds the same native Hermes locks and
+actual Bale worker schedule mutex and invokes prepare/apply/verify/composed
+acceptance. `accept` and `rollback` are separate modes. It changes no feature
+flag, schema or setting and makes no provider/model calls or external sends.
+Only the reviewed adapter file is installed. Composed acceptance verifies the
+main manifest's complete current target set with this one override, preserves
+all original modes, and requires both the main and follow-up verified receipts.
+The original main helper's unmodified `verify` correctly detects the layered
+target as drift; use composed acceptance while this layer is installed.
+
+Rollback order is mandatory: first `openprovider-native-release.php rollback`,
+then, if needed, `native-release.php rollback`. Main rollback stops safely while
+the follow-up bytes are present. Reverting the adapter layer restores the exact
+main after bytes, allowing the main package's original guards to apply. Schema,
+evidence, other files, feature state and unrelated later edits remain outside
+the adapter rollback. Offline validation: 28 base guard tests plus eight layered
+acceptance/rollback tests passed, using synthetic files and no production calls.

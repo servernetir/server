@@ -1,0 +1,14 @@
+{
+  "workflow": "ServerNet SMS Relay (Bale → IPPanel) v2",
+  "node": "Verify & Map Template",
+  "published_version_name": "Bale manager reviewed acknowledgement — 2026-10-31",
+  "before_sha256": "4fef711f7b1569b49821dd4ff7ae09d1a9e8a776a5b2141730fa762ed70a4f44",
+  "after_sha256": "e4f26d58bee1a7687f8ca6a3718b1d6a8779c2884cb456e50805764cad829f81",
+  "code_compared_exactly_in_ui_before_publish": true,
+  "published_ui_observed": true,
+  "synthetic_security_tests": 6,
+  "qa_customer_sms_sent": 0,
+  "credentials_or_other_nodes_changed": false,
+  "approved_operator_pattern_configured": false,
+  "uninstalled_birthday_event_preserved_as_uninstalled": true
+}
