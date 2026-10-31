@@ -2,7 +2,7 @@
   "release_id": "hourly-runtime-credit-20261031",
   "status": "prepared_not_installed",
   "reference_branch": "develop",
-  "review_base_sha": "b93d3ed6b379c28a709b83c472d7f6698ada46a4",
+  "review_base_sha": "335e0573b219adb689f9c5f008c87ece7d23b60f",
   "patch": "runtime.patch",
   "patch_sha256": "722cb2dd0e438be4c59dbbe3c47fc2a1abc1d4a7552a6787864081d4ec02bef1",
   "apply_to_private_staging_with_fuzz": 0,
