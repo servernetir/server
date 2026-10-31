@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\FinanceAccount;
+use App\Models\FinanceDocument;
+use App\Models\FinanceVoucher;
 use App\Models\Payment;
 use App\Models\WalletRefundRequest;
 use App\Services\Finance\FinanceFilter;
@@ -12,6 +14,7 @@ use App\Services\Finance\WalletRefunds;
 use App\Support\FinanceDates;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 
 final class WalletRefundController extends Controller
@@ -54,12 +57,30 @@ final class WalletRefundController extends Controller
     {
         abort_unless($request->user()?->isAdmin(), 403);
 
-        return view('admin.wallet-refund', ['refund' => $refund->load('customer'),
-            'events' => DB::table('wallet_refund_events')->where(fn ($q) => $q->where('request_id', $refund->id)
-                ->orWhere(fn ($q) => $q->whereNull('request_id')->where('customer_id', $refund->customer_id)))->orderBy('id')->get(),
-            'accounts' => FinanceAccount::where('type', 'bank')->whereIn('currency_code', ['IRT', 'IRR'])->get(),
+        $events = Schema::hasTable('wallet_refund_events')
+            ? DB::table('wallet_refund_events')->where(fn ($q) => $q->where('request_id', $refund->id)
+                ->orWhere(fn ($q) => $q->whereNull('request_id')->where('customer_id', $refund->customer_id)))->orderBy('id')->get()
+            : collect();
+        $paidEvent = $events->first(fn ($event) => $event->action === 'paid' && (int) $event->request_id === (int) $refund->id);
+
+        return view('admin.wallet-refund', ['refund' => $refund->load('customer'), 'events' => $events, 'paidEvent' => $paidEvent,
+            'receiptDocument' => $refund->document_id ? FinanceDocument::whereKey($refund->document_id)->where('voucher_id', $refund->voucher_id)->first() : null,
+            'accounts' => FinanceAccount::whereIn('type', ['bank', 'partner'])->whereIn('currency_code', ['IRT', 'IRR'])
+                ->orderBy('type')->orderBy('name')->orderBy('id')->get(),
             'payments' => Payment::where('customer_id', $refund->customer_id)->where('status', 'paid')
-                ->where('currency_code', 'IRT')->whereNotIn('gateway', ['credit', 'gift'])->latest('id')->limit(100)->get()]);
+                ->where('currency_code', 'IRT')->whereNotIn('gateway', ['credit', 'gift'])->latest('id')->limit(100)->get()]
+            + $this->fundingEvidence($refund, $paidEvent));
+    }
+
+    private function fundingEvidence(WalletRefundRequest $refund, ?object $paidEvent): array
+    {
+        $fundingSnapshot = WalletRefunds::fundingAccountSnapshot($paidEvent);
+        $fundingAccountId = $fundingSnapshot['id'] ?? ($refund->voucher_id
+            ? FinanceVoucher::whereKey($refund->voucher_id)->value('funding_account_id') : null);
+        $fundingLegacyFallback = $refund->status === 'paid' && $fundingSnapshot === null;
+        $fundingAccount = $fundingLegacyFallback && $fundingAccountId ? FinanceAccount::find($fundingAccountId) : null;
+
+        return compact('fundingSnapshot', 'fundingAccountId', 'fundingAccount', 'fundingLegacyFallback');
     }
 
     public function permission(Request $request, Customer $customer, WalletRefunds $refunds)
@@ -108,10 +129,19 @@ final class WalletRefundController extends Controller
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, ['Request', 'Customer', 'Status', 'Amount IRT', 'Requested UTC', 'Approved UTC', 'Paid date Tehran',
-                'Bank reference', 'Finance voucher', 'Receipt', 'Source payment', 'Reviewer', 'Payout recorder'], escape: '');
+                'Bank reference', 'Finance voucher', 'Receipt', 'Source payment', 'Reviewer', 'Payout recorder',
+                'Funding account ID', 'Funding account name', 'Funding account type', 'Funding account currency',
+                'Funding account owner', 'Funding account legacy fallback'], escape: '');
+            $hasEvents = Schema::hasTable('wallet_refund_events');
             foreach ($q->orderBy('id')->lazyById(200) as $r) {
+                $paidEvent = $hasEvents && $r->status === 'paid' ? DB::table('wallet_refund_events')
+                    ->where('request_id', $r->id)->where('action', 'paid')->orderBy('id')->first() : null;
+                $funding = $this->fundingEvidence($r, $paidEvent);
+                $identity = $funding['fundingSnapshot'] ?? $funding['fundingAccount']?->only(['id', 'name', 'type', 'currency_code', 'owner_name']);
                 $cells = [$r->public_id, $r->customer->code, $r->status, $r->amount_irt, $r->created_at, $r->reviewed_at,
-                    $r->payout_date?->toDateString(), $r->bank_reference, $r->voucher_id, $r->document_id, $r->source_payment_id, $r->reviewed_by, $r->paid_by];
+                    $r->payout_date?->toDateString(), $r->bank_reference, $r->voucher_id, $r->document_id, $r->source_payment_id, $r->reviewed_by, $r->paid_by,
+                    $funding['fundingAccountId'], $identity['name'] ?? null, $identity['type'] ?? null,
+                    $identity['currency_code'] ?? null, $identity['owner_name'] ?? null, (int) $funding['fundingLegacyFallback']];
                 fputcsv($out, array_map(fn ($v) => is_string($v) && preg_match('/^\s*[=+@\-]/u', $v) ? "'".$v : $v, $cells), escape: '');
             }
             fclose($out);
