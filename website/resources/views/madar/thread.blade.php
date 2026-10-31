@@ -11,6 +11,8 @@
 
       @if($message->evidence_url)<a class="mdr-evidence-link" href="{{ $message->evidence_url }}" target="_blank" rel="noopener noreferrer nofollow ugc">{{ __('madar.evidence_url') }} ↗<small dir="ltr">{{ $message->evidence_url }}</small></a>
 @endif
+      @if($message->distribution_url)<a class="mdr-evidence-link" href="{{ $message->distribution_url }}" target="_blank" rel="noopener noreferrer nofollow ugc">{{ __('madar.distribution_url') }} ↗<small dir="ltr">{{ $message->distribution_url }}</small></a>
+      @endif
 
       @if($message->attachment_path)<a class="mdr-attachment" href="{{ $admin ? route('admin.madar.attachment', [$participation, $message]) : lroute('account.madar.attachment', [$participation, $message]) }}"><svg class="icon"><use href="#i-image"/></svg>{{ __('madar.attachment') }} <bdi>{{ number_format($message->attachment_bytes / 1024) }} KB</bdi></a>
 @endif

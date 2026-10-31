@@ -14,6 +14,34 @@ use Illuminate\Support\Facades\Schema;
  */
 class Service extends Model
 {
+    /** Existing account management; historical billing has not been reconciled. */
+    public const BILLING_EXTERNAL = 'external';
+
+    public function hasUnverifiedBillingTerms(): bool
+    {
+        return $this->billing_mode === self::BILLING_EXTERNAL || $this->cycle === self::BILLING_EXTERNAL
+            || data_get($this->provision_meta, 'existing_hosting_adoption.billing_terms') === 'unverified';
+    }
+
+    /** Owner-recorded management validity is separate from billing or renewal. */
+    public function managementValidUntil(): ?Carbon
+    {
+        if (! $this->hasUnverifiedBillingTerms()
+            || data_get($this->provision_meta, 'existing_hosting_adoption.version') !== 1) { return null; }
+        $date = data_get($this->provision_meta, 'existing_hosting_adoption.valid_until');
+        if (! is_string($date) || ! preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/D', $date, $parts)
+            || ! checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) { return null; }
+        return Carbon::createMidnightDate((int) $parts[1], (int) $parts[2], (int) $parts[3], 'UTC');
+    }
+
+    public function scopeLocallyBilled($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('billing_mode')->orWhere('billing_mode', '!=', self::BILLING_EXTERNAL))
+            ->where('cycle', '!=', self::BILLING_EXTERNAL)
+            ->where(fn ($q) => $q->whereNull('provision_meta->existing_hosting_adoption->billing_terms')
+                ->orWhere('provision_meta->existing_hosting_adoption->billing_terms', '!=', 'unverified'));
+    }
+
     public function isInternalInfrastructure(): bool
     {
         if (in_array((int) $this->getKey(), array_map('intval', (array) config('billing.internal_service_ids', [])), true)) { return true; }
@@ -24,7 +52,7 @@ class Service extends Model
 
     public function scopeCustomerRecurring($query, bool $includeInternal = false)
     {
-        return $query->when(! $includeInternal, fn ($q) => $q->whereNotIn('id', (array) config('billing.internal_service_ids', []))
+        return $query->locallyBilled()->when(! $includeInternal, fn ($q) => $q->whereNotIn('id', (array) config('billing.internal_service_ids', []))
             ->where(fn ($q) => $q->whereNull('provision_meta->internal_infrastructure')->orWhere('provision_meta->internal_infrastructure', '!=', true)
                 ->orWhereNull('provision_meta->internal_infrastructure_customer')
                 ->orWhere('provision_meta->internal_infrastructure_customer', '!=', (int) config('billing.complimentary_services.customer_id', 0))
@@ -557,7 +585,7 @@ class Service extends Model
 
     public function isRecurring(): bool
     {
-        return $this->cycle !== 'once';
+        return ! $this->hasUnverifiedBillingTerms() && $this->cycle !== 'once';
     }
 
     /**
@@ -566,6 +594,7 @@ class Service extends Model
      */
     public function nextDueFrom(Carbon $from): ?Carbon
     {
+        if ($this->hasUnverifiedBillingTerms()) { return null; }
         $months = self::monthsIn((string) $this->cycle);
 
         // NoOverflow لازم است: ۳۱ فروردین + ۱ ماه نباید به دو ماه بعد بپرد.
@@ -574,6 +603,7 @@ class Service extends Model
 
     public function cycleLabel(): string
     {
+        if ($this->hasUnverifiedBillingTerms()) { return __('ui.svc_existing_management'); }
         /*
         | 🔴 سرویسِ ساعتی cycle=monthly دارد (برای ساختارِ داده) ولی صورت‌حسابش
         | متر است نه فاکتورِ ماهانه. نمایشِ «ماهانه» به مدیر دروغ می‌گفت —

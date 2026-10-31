@@ -53,6 +53,7 @@ final class MadarEvidence
     {
         $hub = app(MadarHub::class);
         $url = $this->url($data['evidence_url'] ?? null);
+        $distribution = $this->url($data['distribution_url'] ?? null);
         $attachment = [];
         $path = null;
         if ($file) {
@@ -65,24 +66,36 @@ final class MadarEvidence
                 'attachment_bytes' => $file->getSize(), 'attachment_sha256' => hash_file('sha256', $file->getRealPath())];
         }
         try {
-            return DB::transaction(function () use ($p, $role, $actorId, $data, $submit, $url, $attachment, $hub) {
+            return DB::transaction(function () use ($p, $role, $actorId, $data, $submit, $url, $distribution, $attachment, $hub) {
                 $fresh = MadarParticipation::whereKey($p->id)->lockForUpdate()->firstOrFail();
                 $hub->check(in_array($fresh->status, MadarParticipation::STATUSES, true), 'state');
                 if ($submit) {
                     $hub->check($role === 'customer' && in_array($fresh->status, ['working', 'changes_requested'], true), 'state');
                     $hub->check($fresh->work_due_at?->isFuture() === true, 'deadline');
                     $hub->check((bool) ($data['rights_confirmed'] ?? false), 'rights');
-                    $public = (bool) config('madar.campaigns.'.$fresh->campaign_key.'.public_content');
+                    $meta = (int) $fresh->flow_version === 2 ? $fresh->reward_snapshot['mission']['mission'] : null;
+                    $public = $meta['public_content'] ?? (bool) config('madar.campaigns.'.$fresh->campaign_key.'.public_content');
+                    if ($meta && $meta['public_content']) {
+                        $hub->check($url !== null, 'publication');
+                        $hub->check(! $meta['distribution_required'] || ($distribution !== null && $distribution !== $url), 'distribution');
+                        foreach (array_filter([$url, $distribution]) as $link) {
+                            $hub->check(! preg_match('/(?:^|\.)(trustpilot\.com|google\.[a-z.]+|goo\.gl)$/D', strtolower(parse_url($link, PHP_URL_HOST))), 'publication');
+                        }
+                    }
                     $hub->check(! $public || (bool) ($data['disclosure_confirmed'] ?? false), 'disclosure');
                     $hub->check($url !== null || ! empty($attachment), 'evidence');
                     $hash = $url ? $this->fingerprint($url) : $attachment['attachment_sha256'];
                     // A unique DB claim closes the race between two customers submitting the same artifact.
-                    DB::table('madar_artifacts')->insertOrIgnore(['hash' => $hash, 'participation_id' => $fresh->id,
-                        'created_at' => now(), 'updated_at' => now()]);
-                    $hub->check((int) DB::table('madar_artifacts')->where('hash', $hash)->value('participation_id') === $fresh->id, 'duplicate');
+                    foreach (array_unique(array_filter([$hash, $distribution ? $this->fingerprint($distribution) : null,
+                        $attachment['attachment_sha256'] ?? null])) as $claim) {
+                        DB::table('madar_artifacts')->insertOrIgnore(['hash' => $claim, 'participation_id' => $fresh->id,
+                            'created_at' => now(), 'updated_at' => now()]);
+                        $hub->check((int) DB::table('madar_artifacts')->where('hash', $claim)->value('participation_id') === $fresh->id, 'duplicate');
+                    }
                     $fresh->forceFill(['status' => 'submitted', 'submitted_at' => now()])->save();
                 }
-                $message = $fresh->messages()->create($attachment + ['sender_type' => $role, 'sender_id' => $actorId,
+                $extra = $distribution ? ['distribution_url' => $distribution] : [];
+                $message = $fresh->messages()->create($attachment + $extra + ['sender_type' => $role, 'sender_id' => $actorId,
                     'body' => $data['body'], 'evidence_url' => $url, 'is_submission' => $submit,
                     'artifact_hash' => $hash ?? null, 'rights_confirmed' => (bool) ($data['rights_confirmed'] ?? false),
                     'disclosure_confirmed' => (bool) ($data['disclosure_confirmed'] ?? false)]);

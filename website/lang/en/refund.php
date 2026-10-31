@@ -89,4 +89,22 @@ return [
     'net_external_receipts_irt' => 'Net external receipts after wallet payouts',
     'wallet_refunds_paid_irt' => 'Bank refunds of wallet balance; liability settlement',
     'receipt_missing' => 'The private receipt is unavailable or failed integrity verification.',
+
+    // Customer wallet refund workspace presentation.
+    'workspace_eyebrow' => 'Wallet management',
+    'workspace_intro' => 'Submit a balance refund request and follow its review and bank transfer in one place.',
+    'workspace_balance_hint' => 'An overview of the balance recorded in your wallet.',
+    'workspace_available_hint' => 'Free balance after active reservations. Amounts on this page are in IRT.',
+    'workspace_request' => 'New request',
+    'workspace_request_intro' => 'Review the amount and destination account before submitting.',
+    'workspace_open_request' => 'You have an open request',
+    'workspace_amount_hint' => 'Enter a whole amount in IRT (toman), without decimals.',
+    'workspace_bank_placeholder' => 'Select a verified bank account',
+    'workspace_note_hint' => 'Describe the reason and the details needed to review your request.',
+    'workspace_process' => 'How requests are reviewed',
+    'workspace_step_request' => 'The requested amount is reserved until the request is resolved.',
+    'workspace_step_review' => 'The request and destination account are reviewed. Approval does not mean a transfer has been made.',
+    'workspace_step_paid' => 'After a transfer is recorded, its reference and receipt become available in your history.',
+    'workspace_conditions' => 'Before you submit',
+    'workspace_empty_hint' => 'Your requests, review results and bank transfer receipts will appear here.',
 ];

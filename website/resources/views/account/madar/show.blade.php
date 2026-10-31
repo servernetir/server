@@ -8,7 +8,8 @@
   @include('madar.feedback')
   <div class="mdr-workspace">
     <div>
-      @include('madar.thread', ['admin' => false])
+      @include('madar.mission')
+    @include('madar.thread', ['admin' => false])
       @if(in_array($participation->status, ['working', 'changes_requested']))
       <section class="mdr-form-card mdr-single"><h2>{{ __('madar.evidence') }}</h2><p>{{ __('madar.submit_hint') }}</p>
         <form method="post" enctype="multipart/form-data" action="{{ lroute('account.madar.submit', $participation) }}">
@@ -16,9 +17,12 @@
 @csrf
 <label>{{ __('madar.body') }}<textarea name="body" required minlength="5" maxlength="5000" rows="4">{{ old('body') }}</textarea></label>
           <label>{{ __('madar.evidence_url') }}<input type="url" name="evidence_url" dir="ltr" maxlength="1500" placeholder="https://" value="{{ old('evidence_url') }}"></label>
+          @if((int) $participation->flow_version === 2)
+            <label>{{ __('madar.distribution_url') }}<input type="url" name="distribution_url" dir="ltr" maxlength="1500" placeholder="https://" value="{{ old('distribution_url') }}"><small>{{ __('madar.distribution_hint') }}</small></label>
+          @endif
           <label>{{ __('madar.attachment') }}<input type="file" name="attachment" accept="image/jpeg,image/png,image/webp"><small>{{ __('madar.attachment_hint') }}</small></label>
           <label class="mdr-check"><input type="checkbox" name="rights_confirmed" value="1" required><span>{{ __('madar.rights') }}</span></label>
-          @if(config('madar.campaigns.'.$participation->campaign_key.'.public_content'))<label class="mdr-check"><input type="checkbox" name="disclosure_confirmed" value="1" required><span>{{ __('madar.disclosure') }}</span></label>
+          @if($participation->reward_snapshot['mission']['mission']['public_content'] ?? config('madar.campaigns.'.$participation->campaign_key.'.public_content'))<label class="mdr-check"><input type="checkbox" name="disclosure_confirmed" value="1" required><span>{{ __('madar.disclosure') }}</span></label>
 @endif
 
           <p class="mdr-small">{{ __('madar.reuse') }}</p>

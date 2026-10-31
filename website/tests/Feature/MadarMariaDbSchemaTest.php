@@ -26,6 +26,7 @@ class MadarMariaDbSchemaTest extends TestCase
         $old = DB::getDefaultConnection();
         DB::setDefaultConnection('madar_schema');
         $migration = require database_path('migrations/2026_10_31_180000_create_madar_participation_hub.php');
+        $fixed = require database_path('migrations/2026_10_31_190000_publish_fixed_madar_missions.php');
         try {
             $this->assertSame([], DB::select('SHOW TABLES'), 'Schema test refuses a nonempty database.');
             Schema::create('customers', function (Blueprint $t) {
@@ -47,6 +48,28 @@ class MadarMariaDbSchemaTest extends TestCase
             } catch (QueryException $e) {
                 $this->assertSame('23000', (string) $e->getCode());
             }
+            $this->assertSame(['amount_irt' => 100_000], json_decode(DB::table('madar_participations')->value('reward_snapshot'), true));
+            $fixed->up();
+            $this->assertSame(8, DB::table('madar_campaigns')->count());
+            $this->assertSame(1, (int) DB::table('madar_participations')->where('id', $id)->value('flow_version'));
+            $mission = ['campaign_key' => 'gpu-template', 'version' => 1, 'reward_campaign_id' => 99,
+                'reward_amount_irt' => 800_000, 'snapshot' => json_encode(['terms_version' => 'fixture-v2']),
+                'published_at' => now(), 'submissions_until' => now()->addDays(30), 'published_by' => 1];
+            $mid = DB::table('madar_missions')->insertGetId($mission);
+            DB::table('madar_participations')->where('id', $id)->update(['mission_id' => $mid, 'flow_version' => 2, 'submission_hash' => str_repeat('c', 64)]);
+            DB::table('madar_messages')->where('participation_id', $id)->update(['distribution_url' => 'https://www.linkedin.com/posts/fixture']);
+            $this->assertSame(800_000, (int) DB::table('madar_missions')->value('reward_amount_irt'));
+            $this->assertSame('https://www.linkedin.com/posts/fixture', DB::table('madar_messages')->value('distribution_url'));
+            try {
+                DB::table('madar_missions')->insert($mission);
+                $this->fail('Published mission versions must be unique.');
+            } catch (QueryException $e) {
+                $this->assertSame('23000', (string) $e->getCode());
+            }
+            $fixed->down();
+            $this->assertFalse(Schema::hasTable('madar_missions'));
+            $this->assertFalse(Schema::hasColumn('madar_participations', 'flow_version'));
+            $this->assertSame(1, DB::table('madar_participations')->count());
             $this->assertSame(['amount_irt' => 100_000], json_decode(DB::table('madar_participations')->value('reward_snapshot'), true));
             $migration->down();
             $this->assertFalse(Schema::hasTable('madar_messages'));

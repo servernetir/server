@@ -8,6 +8,7 @@
   <header class="mdr-case-head"><span class="mdr-eyebrow">{{ __('madar.campaigns.'.$participation->campaign_key.'.title') }}</span><h1>{{ $participation->title }}</h1><span class="mdr-badge">{{ __('madar.statuses.'.$participation->status) }}</span><p><a href="/admin/customers/{{ $participation->customer_id }}"><bdi>{{ $participation->customer?->code }}</bdi></a></p></header>
   @include('madar.feedback')
   <div class="mdr-workspace"><div>
+    @include('madar.mission')
     @include('madar.thread', ['admin' => true])
     @if($participation->status === 'requested')
     <section class="mdr-action-card"><h2>{{ __('madar.offer') }}</h2><p>{{ __('madar.offer_body') }}</p><form method="post" action="{{ route('admin.madar.offer', $participation) }}">

@@ -15,7 +15,7 @@ use App\Models\TunnelJob;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudOperations;
 use App\Services\Cloud\HourlyCycleConverter;
-use App\Services\Cloud\HourlyStartCredit;
+use App\Services\Cloud\HourlyGpuStart;
 use App\Services\Cloud\InterruptibleBillingClock;
 use App\Services\Finance\Wallet;
 use App\Support\ExitCountries;
@@ -294,6 +294,9 @@ class CloudServerController extends Controller
             return back()->withErrors(__('panel.credit_out_na'));
         }
 
+        if ((bool) $service->cloudPlan?->is_interruptible) {
+            $mode = 'suspend';
+        }
         $service->forceFill(['on_credit_out' => $mode])->save();
 
         ActivityLog::forService($service, 'settings',
@@ -408,7 +411,14 @@ class CloudServerController extends Controller
         $r = Cache::remember(
             'cloud-st:'.$instance->id,
             now()->addSeconds(20),
-            fn () => $driver->serverStatus((string) $instance->provider_ref)
+            function () use ($driver, $instance): array {
+                $observedAt = now()->toISOString();
+
+                $snapshot = $driver->serverStatus((string) $instance->provider_ref);
+                $snapshot['_observed_at'] = $observedAt;
+
+                return $snapshot;
+            }
         );
 
         if ($r['ok']) {
@@ -422,7 +432,7 @@ class CloudServerController extends Controller
                 'synced_at' => now(),
                 'meta' => array_merge($instance->meta ?? [], isset($r['build'])
                     ? ['gpu_build' => $r['build']] : []),
-            ]);
+            ], observedAt: isset($r['_observed_at']) ? \Illuminate\Support\Carbon::parse($r['_observed_at']) : null);
         }
 
         return response()->json(
@@ -554,39 +564,17 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_op_na'));
         }
 
-        // خریدِ سرورِ دوم وقتی GPU قبلی خاموش است مجاز می‌ماند؛ هنگام روشن‌کردن
-        // دوباره باید اعتبارِ ۲۴ ساعتِ مجموعِ سرورهای در حال مصرف موجود باشد.
+        // An existing GPU needs one funded hour; the 24-hour gate is only for creation.
         $claimedInstanceId = null;
         if ($action === 'on' && $service->billing_mode === 'hourly'
             && (bool) $service->cloudPlan?->is_interruptible) {
-            // The customer lock is shared with hourly checkout. Claiming an off
-            // instance as building makes a concurrent checkout/start count it.
-            $start = DB::transaction(function () use ($service): array {
-                Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
-                $instance = CloudInstance::where('service_id', $service->id)->lockForUpdate()->first();
-                if ($instance?->status === 'building') {
-                    return ['pending' => true];
-                }
-                if ($instance?->status !== 'off') {
-                    return [];
-                }
-                $minimum = app(HourlyStartCredit::class)->minimum(
-                    (int) $service->customer_id, (int) $service->hourly_rate_irt, (int) $service->id
-                );
-                $available = app(Wallet::class)->availableOf((int) $service->customer_id);
-                if ($available < $minimum) {
-                    return ['minimum' => $minimum, 'available' => $available];
-                }
-                $instance->update(['status' => 'building']);
-
-                return ['claimed' => $instance->id];
-            });
+            $start = app(HourlyGpuStart::class)->claim($service);
             if ($start['pending'] ?? false) {
                 return back()->withErrors(__('ui.cx_not_ready'));
             }
             if (isset($start['minimum'])) {
                 return back()->withErrors(__('ui.cx_e_hourly_credit', [
-                    'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
+                    'hours' => fa_num(1),
                     'min' => cloud_price($start['minimum']),
                     'bal' => cloud_price($start['available']),
                 ]));
@@ -877,20 +865,28 @@ class CloudServerController extends Controller
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
-            $this->releasePowerOnClaim($claimedInstanceId);
+            $this->releasePowerOnClaim($claimedInstanceId, $service);
             return back()->withErrors(__('ui.cx_not_ready'));
+        }
+
+        if ($powerAction !== null) {
+            Cache::forget('cloud-st:'.$instance->id);
         }
 
         try {
             $r = $fn($driver, (string) $instance->provider_ref);
         } catch (\Throwable $e) {
-            $this->releasePowerOnClaim($claimedInstanceId);
+            $this->releasePowerOnClaim($claimedInstanceId, $service);
             throw $e;
+        }
+
+        if ($powerAction !== null) {
+            Cache::forget('cloud-st:'.$instance->id);
         }
 
         if (! ($r['ok'] ?? false)) {
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
-            $this->releasePowerOnClaim($claimedInstanceId);
+            $this->releasePowerOnClaim($claimedInstanceId, $service);
 
             return back()->withErrors(__('ui.cx_action_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
         }
@@ -899,6 +895,10 @@ class CloudServerController extends Controller
             $instance->update(['status' => 'building', 'last_error' => null, 'synced_at' => now()]);
             $this->log($service, $logAction);
             return back()->with('ok', __('ui.cx_async_accepted'));
+        }
+
+        if ($powerAction === 'off' && $this->billingClock->applies($service)) {
+            app(HourlyGpuStart::class)->release($service);
         }
 
         if ($powerAction !== null && $this->billingClock->applies($service)) {
@@ -920,9 +920,10 @@ class CloudServerController extends Controller
         return back()->with('ok', $okMessage);
     }
 
-    private function releasePowerOnClaim(?int $instanceId): void
+    private function releasePowerOnClaim(?int $instanceId, Service $service): void
     {
         if ($instanceId !== null) {
+            app(HourlyGpuStart::class)->release($service);
             CloudInstance::whereKey($instanceId)->where('status', 'building')->update(['status' => 'off']);
         }
     }

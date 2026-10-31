@@ -16,6 +16,7 @@ use App\Models\Service;
 use App\Models\TaxRate;
 use App\Services\Cloud\CloudAddons;
 use App\Services\Cloud\HourlyStartCredit;
+use App\Services\Cloud\HourlyHold;
 use App\Services\Finance\Wallet;
 use App\Services\Finance\WalletException;
 use App\Services\Notify\AdminNotifier;
@@ -1015,10 +1016,16 @@ class CloudStoreController extends Controller
             $hourlyRow = $offerSelection->representative($rows->filter(fn (CloudPlan $p) =>
                 CloudLocation::canonicalCode((string) $p->location_code) === (string) $code && $p->supportsHourly()), true);
 
+            if ($hourlyRow && ! app(HourlyHold::class)->fundablePlan($hourlyRow, $hourlyRow->hourlyIrt())) {
+                $hourlyRow = null;
+            }
+
             $hourlyMap[(string) $slug] = [
                 'rate' => $hourlyRow?->hourlyIrt() ?? 0,
                 'min' => $hourlyRow ? $hourlyRow->hourlyStartMinIrt() + $existingHourlyMinimum : 0,
                 'existing' => $existingHourlyMinimum,
+                'retention' => $hourlyRow && HourlyHold::enabled()
+                    ? HourlyHold::fullReserve(app(HourlyHold::class)->rateForPlan($hourlyRow, $hourlyRow->hourlyIrt()), 'suspend') : 0,
             ];
 
             // ⚠️ به‌ازای **هر اسلاگ**، نه فقط اسلاگِ انتخابی. قبلاً یک بولینِ واحد
@@ -1469,7 +1476,7 @@ class CloudStoreController extends Controller
         $hourly = $offer->hourlyIrt();
         $hourlyEur = $offer->hourlyEurCents();
 
-        if ($hourly <= 0) {
+        if ($hourly <= 0 || ! app(HourlyHold::class)->fundablePlan($offer, $hourly)) {
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_hourly_price')]);
         }
 
@@ -1497,7 +1504,8 @@ class CloudStoreController extends Controller
                 | می‌خوانیم تا دو سفارشِ هم‌زمان از یک موجودی عبور نکنند.
                 */
                 Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
-                $minStart = $credit->minimum($customer->id, $hourly);
+                $minStart = $credit->minimum($customer->id, $hourly) + (HourlyHold::enabled()
+                    ? HourlyHold::fullReserve(app(HourlyHold::class)->rateForPlan($offer, $hourly), $onCreditOut) : 0);
                 $balance = $wallet->availableOf($customer->id);
                 if ($balance < $minStart) {
                     return null;
@@ -1527,6 +1535,9 @@ class CloudStoreController extends Controller
                     'plan'             => (string) $offer->public_name,
                 ]);
 
+                // Protect paid standby before the first debit, not at a later meter tick.
+                app(HourlyHold::class)->syncRunning($service);
+
                 /*
                 | کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید).
                 |
@@ -1555,12 +1566,13 @@ class CloudStoreController extends Controller
             });
         } catch (WalletException) {
             $service = null;
-            $minStart = $credit->minimum($customer->id, $hourly);
+            $minStart = $credit->minimum($customer->id, $hourly) + (HourlyHold::enabled()
+                    ? HourlyHold::fullReserve(app(HourlyHold::class)->rateForPlan($offer, $hourly), $onCreditOut) : 0);
             $balance = $wallet->availableOf($customer->id);
         }
 
         if ($service === null) {
-            $message = $minStart > $offer->hourlyStartMinIrt()
+            $message = $credit->existingRate($customer->id) > 0
                 ? 'ui.cvb_e_hourly_credit_combined' : 'ui.cvb_e_hourly_credit';
             return back()->withInput()->withErrors(['billing_mode' => __($message, [
                 'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),

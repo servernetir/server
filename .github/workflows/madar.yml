@@ -14,6 +14,7 @@ on:
       - 'website/resources/views/**/madar/**'
       - 'website/resources/views/madar/**'
       - 'website/public/assets/css/madar.css'
+      - 'website/public/assets/js/madar.js'
       - 'website/routes/madar-*.php'
       - 'website/routes/web.php'
       - 'website/tests/Feature/Madar*.php'
@@ -75,7 +76,7 @@ jobs:
           mkdir -p "$MADAR_PREVIEW_DIR"
       - name: Test workflow, ownership, CSRF, budget, redemption and Hermes
         working-directory: website
-        run: vendor/bin/phpunit --filter='MadarHubTest|MarketingCampaignEngineTest|MarketingCampaignConcurrencyTest|MarketingDiscountMathTest|DiscountEntryVisibilityTest|InvoiceOnlyDiscountAccessTest|HermesSectionOversightTest|HermesGrowthPolicyTest' --fail-on-warning --colors=never
+        run: vendor/bin/phpunit --filter='MadarHubTest|MadarFixedMissionTest|MarketingCampaignEngineTest|MarketingCampaignConcurrencyTest|MarketingDiscountMathTest|DiscountEntryVisibilityTest|InvoiceOnlyDiscountAccessTest|HermesSectionOversightTest|HermesGrowthPolicyTest' --fail-on-warning --colors=never
       - name: Test additive migration and unique claims on disposable MariaDB
         working-directory: website
         env:

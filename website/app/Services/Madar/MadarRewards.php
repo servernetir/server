@@ -98,7 +98,8 @@ final class MadarRewards
             $this->hub->check(! $g->revoked_at && $g->expires_at->isFuture(), 'expired');
             $proof = $fresh->messages()->where('is_submission', true)->latest('id')->first();
             $this->hub->check($proof !== null && $proof->rights_confirmed, 'evidence');
-            $this->hub->check(! config('madar.campaigns.'.$fresh->campaign_key.'.public_content') || $proof->disclosure_confirmed, 'disclosure');
+            $public = $fresh->reward_snapshot['mission']['mission']['public_content'] ?? config('madar.campaigns.'.$fresh->campaign_key.'.public_content');
+            $this->hub->check(! $public || $proof->disclosure_confirmed, 'disclosure');
             $state = $action === 'approve' ? 'rewarded' : 'changes_requested';
             $this->hub->check($action === 'approve' || $fresh->work_due_at?->isFuture() === true, 'deadline');
             $fresh->forceFill(['status' => $state, 'reviewed_at' => now(), 'reviewed_by' => $actor->id,

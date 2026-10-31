@@ -1,0 +1,15 @@
+{
+  "release": "site-errors-20261031",
+  "base_commit": "c444fd7051281b359d5c95cdef91f02a605f2a4e",
+  "reconciled_tests_parent": "012eaf2e02a0ac3cca2effffcd38c709ade99fc4",
+  "runtime": {"phase": "verified", "files": 3, "cron_unchanged": true},
+  "separate_activation": {"key": "link_audit_public_root", "status": "configured", "new_metadata_keys": 1, "page_cache_purged": false},
+  "tests": {"php": 156, "assertions": 827, "php_version": "8.4.27", "phpunit_version": "12.5.31", "network_sockets_denied": true, "python_release": 9},
+  "route_source_recovery": {"bytes": 260792, "sha256": "a6cd3338a321b5df64c45ad366661ae3558ab530f5884dc7d8badbda2956379d", "all_previous_bytes_preserved": 260629, "added_revoke_route_bytes": 163, "real_route_bootstrap_passed": true, "production_web_routes_replaced": false},
+  "static_asset_acceptance": {"http_200": 4, "installed_resolver_passed": 4},
+  "sample": {"sent_utc": "2026-10-31T08:55:11Z", "status": "sent", "daily_claim_unchanged": true, "cost_baseline_unchanged": true},
+  "google": {"connected": true, "data_status": "unknown", "reason": "SERVICE_DISABLED", "services": ["analyticsdata.googleapis.com", "searchconsole.googleapis.com"], "cloud_console_browser_status": 403},
+  "cpanel_feed": {"fixed": false, "curl_errno": 60, "tls_verify_result": 18, "both_current_ipv4_tested": true, "dns_matches_public_resolvers": true, "tls_verification_disabled": false},
+  "customer_or_financial_mutations": 0,
+  "schema_changed": false
+}

@@ -1,0 +1,105 @@
+name: Wallet refund workspace checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/routes/web.php'
+      - 'website/resources/views/account/wallet-refunds.blade.php'
+      - 'website/public/assets/css/wallet-refunds.css'
+      - 'website/lang/*/refund.php'
+      - 'website/tests/Feature/WalletRefundPresentationTest.php'
+      - 'website/tests/js/wallet-refunds.browser.cjs'
+      - 'website/tests/js/panel-navigation.browser.cjs'
+      - '.github/workflows/wallet-refunds-ui.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/routes/web.php'
+      - 'website/resources/views/account/wallet-refunds.blade.php'
+      - 'website/public/assets/css/wallet-refunds.css'
+      - 'website/lang/*/refund.php'
+      - 'website/tests/Feature/WalletRefundPresentationTest.php'
+      - 'website/tests/js/wallet-refunds.browser.cjs'
+      - '.github/workflows/wallet-refunds-ui.yml'
+permissions:
+  contents: read
+concurrency:
+  group: wallet-refunds-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      WALLET_REFUND_UI_FIXTURES: /tmp/servernet-wallet-refund-ui-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install locked PHP dependencies in the isolated checkout
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Verify rendering and existing refund workflow guards
+        working-directory: website
+        run: |
+          set -euo pipefail
+          php -l routes/web.php
+          php -l tests/Feature/WalletRefundPresentationTest.php
+          php -l lang/fa/refund.php
+          php -l lang/en/refund.php
+          php -l lang/tr/refund.php
+          result=0
+          vendor/bin/phpunit --filter='WalletRefundPresentationTest|WalletRefundWorkflowTest|AuditReportShareTest|ReportConsultationTest' --colors=never --log-junit "$RUNNER_TEMP/wallet-refund-ui.xml" > "$RUNNER_TEMP/wallet-refund-ui.log" 2>&1 || result=$?
+          python3 - "$RUNNER_TEMP/wallet-refund-ui.xml" "$RUNNER_TEMP/wallet-refund-ui.log" <<'PY'
+          import pathlib, sys, xml.etree.ElementTree as ET
+          xml_path, log_path = map(pathlib.Path, sys.argv[1:])
+          if xml_path.exists():
+              root = ET.parse(xml_path).getroot()
+              print("PHP test report:", root.attrib)
+              for case in root.iter("testcase"):
+                  for kind in ("failure", "error"):
+                      for issue in case.findall(kind):
+                          message = issue.attrib.get("message", "") + "\n" + (issue.text or "")
+                          print("TEST FAILURE:", case.attrib.get("classname"), case.attrib.get("name"))
+                          print(message[:3500] + ("\n[large assertion output truncated]\n" + message[-1200:] if len(message) > 4700 else ""))
+          else:
+              print("No JUnit report was produced")
+          print(log_path.read_text(errors="replace")[-1800:] if log_path.exists() else "No console log")
+          PY
+          exit "$result"
+      - name: Verify responsive UI, bank picker and previous drawer fixes
+        env:
+          TEST_CHROME: /usr/bin/google-chrome
+        run: |
+          node --version
+          "$TEST_CHROME" --version
+          node --test website/tests/js/wallet-refunds.browser.cjs
+          node --test website/tests/js/panel-navigation.browser.cjs

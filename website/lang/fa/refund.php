@@ -89,4 +89,22 @@ return [
     'net_external_receipts_irt' => 'خالص وصول بیرونی پس از عودت کیف پول',
     'wallet_refunds_paid_irt' => 'عودت بانکی موجودی کیف پول؛ تسویه بدهی',
     'receipt_missing' => 'رسید خصوصی در دسترس نیست یا یکپارچگی آن تأیید نشد.',
+
+    // Customer wallet refund workspace presentation.
+    'workspace_eyebrow' => 'مدیریت اعتبار',
+    'workspace_intro' => 'درخواست بازگشت موجودی را ثبت کنید و نتیجهٔ بررسی و واریز را در یک فضای مشخص دنبال کنید.',
+    'workspace_balance_hint' => 'نمای کلی موجودی ثبت‌شده در کیف پول شما.',
+    'workspace_available_hint' => 'ماندهٔ آزاد پس از کسر رزروهای فعال؛ مبالغ این صفحه به تومان هستند.',
+    'workspace_request' => 'درخواست جدید',
+    'workspace_request_intro' => 'پیش از ثبت، مبلغ و حساب مقصد را بررسی کنید.',
+    'workspace_open_request' => 'یک درخواست باز دارید',
+    'workspace_amount_hint' => 'مبلغ را به تومان و بدون اعشار وارد کنید.',
+    'workspace_bank_placeholder' => 'انتخاب حساب بانکی تأییدشده',
+    'workspace_note_hint' => 'علت درخواست و جزئیات موردنیاز برای بررسی را بنویسید.',
+    'workspace_process' => 'مراحل بررسی درخواست',
+    'workspace_step_request' => 'مبلغ درخواست تا تعیین تکلیف از موجودی قابل مصرف کنار گذاشته می‌شود.',
+    'workspace_step_review' => 'درخواست و حساب مقصد بررسی می‌شوند؛ تأیید به معنی انجام واریز نیست.',
+    'workspace_step_paid' => 'پس از ثبت واریز، کد رهگیری و رسید در تاریخچه در دسترس خواهند بود.',
+    'workspace_conditions' => 'پیش از ثبت درخواست',
+    'workspace_empty_hint' => 'درخواست‌های ثبت‌شده، نتیجهٔ بررسی و رسیدهای واریز در این بخش نمایش داده می‌شوند.',
 ];

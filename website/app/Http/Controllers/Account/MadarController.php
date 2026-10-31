@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\MadarMessage;
 use App\Models\MadarParticipation;
 use App\Models\MarketingRedemption;
+use App\Services\Madar\MadarClaims;
 use App\Services\Madar\MadarEvidence;
 use App\Services\Madar\MadarHub;
 use App\Services\Madar\MadarRewards;
@@ -15,27 +16,30 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 
 class MadarController extends Controller
 {
     public function index(MadarHub $hub)
     {
         return response()->view('account.madar.index', AccountController::shell('madar') + ['ready' => $hub->ready(),
-            'campaigns' => $hub->campaigns(), 'requestKey' => $hub->newKey(),
+            'campaigns' => $hub->campaigns(Auth::guard('customer')->user()), 'catalogReady' => $hub->catalogReady(), 'requestKey' => $hub->newKey(),
             'participations' => $hub->ready() ? MadarParticipation::where('customer_id', Auth::guard('customer')->id())
                 ->latest('updated_at')->paginate(15) : collect()])->header('Cache-Control', 'private, no-store');
     }
 
     public function apply(Request $request, MadarHub $hub)
     {
-        $data = $request->validate(['request_key' => 'required|uuid',
-            'campaign' => ['required', Rule::in(array_keys(config('madar.campaigns')))],
-            'title' => 'required|string|min:5|max:180', 'body' => 'required|string|min:20|max:5000', 'terms' => 'accepted',
-            'terms_version' => ['required', Rule::in([config('madar.terms_version')])]]);
-        $p = $hub->apply(Auth::guard('customer')->user(), $data);
+        abort(410); // Initial negotiation is retired; customers submit completed published work.
+    }
 
-        return redirect()->to(lroute('account.madar.show', $p))->with('ok', __('madar.applied'));
+    public function claim(Request $request, MadarClaims $claims)
+    {
+        $data = $request->validate(MadarEvidence::rules() + ['request_key' => 'required|uuid', 'mission_id' => 'required|integer',
+            'title' => 'required|string|min:5|max:180', 'evidence_url' => 'nullable|string|max:1500', 'distribution_url' => 'nullable|string|max:1500',
+            'rights_confirmed' => 'accepted', 'disclosure_confirmed' => 'sometimes|accepted', 'terms' => 'accepted', 'terms_version' => 'required|string|max:40']);
+        $p = $claims->submit(Auth::guard('customer')->user(), $data, $request->file('attachment'));
+
+        return redirect()->to(lroute('account.madar.show', $p))->with('ok', __('madar.submitted'));
     }
 
     private function owned(MadarParticipation $participation): void
@@ -80,7 +84,7 @@ class MadarController extends Controller
     public function submit(Request $request, MadarParticipation $participation, MadarEvidence $evidence)
     {
         $this->owned($participation);
-        $data = $request->validate(MadarEvidence::rules() + ['evidence_url' => 'nullable|string|max:1500',
+        $data = $request->validate(MadarEvidence::rules() + ['evidence_url' => 'nullable|string|max:1500', 'distribution_url' => 'nullable|string|max:1500',
             'rights_confirmed' => 'accepted', 'disclosure_confirmed' => 'sometimes|accepted']);
         $evidence->write($participation, 'customer', Auth::guard('customer')->id(), $data, $request->file('attachment'), true);
 

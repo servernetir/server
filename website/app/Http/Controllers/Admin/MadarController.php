@@ -9,6 +9,7 @@ use App\Models\MadarParticipation;
 use App\Models\MarketingCampaign;
 use App\Services\Madar\MadarEvidence;
 use App\Services\Madar\MadarHub;
+use App\Services\Madar\MadarPublishing;
 use App\Services\Madar\MadarReview;
 use App\Services\Madar\MadarRewards;
 use Illuminate\Http\Request;
@@ -36,13 +37,18 @@ class MadarController extends Controller
             'counts' => $hub->ready() ? MadarParticipation::select('status')->selectRaw('count(*) AS total')->groupBy('status')->pluck('total', 'status') : collect()])->header('Cache-Control', 'private, no-store');
     }
 
-    public function settings(Request $request, MadarHub $hub)
+    public function settings(Request $request, MadarHub $hub, MadarPublishing $publishing)
     {
         abort_unless($hub->ready(), 503);
         $data = $request->validate(['campaign' => ['required', Rule::in(array_keys(config('madar.campaigns')))],
-            'open' => 'required|boolean', 'reward_campaign_id' => 'nullable|integer|exists:marketing_campaigns,id']);
-        DB::table('madar_campaigns')->where('campaign_key', $data['campaign'])->update(['open' => $data['open'],
-            'reward_campaign_id' => $data['reward_campaign_id'] ?? null, 'updated_by' => $request->user('web')->id, 'updated_at' => now()]);
+            'open' => 'required|boolean', 'reward_irt' => 'required|integer|min:1|max:10000000', 'reward_campaign_id' => 'nullable|integer|exists:marketing_campaigns,id']);
+        if ($data['open']) {
+            $hub->check(! empty($data['reward_campaign_id']), 'fixed_program');
+            $publishing->publish($data['campaign'], MarketingCampaign::findOrFail($data['reward_campaign_id']), (int) $data['reward_irt'], $request->user('web'));
+        } else {
+            DB::table('madar_campaigns')->where('campaign_key', $data['campaign'])->update(['open' => false,
+                'updated_by' => $request->user('web')->id, 'updated_at' => now()]);
+        }
 
         return back()->with('ok', __('madar.saved'));
     }

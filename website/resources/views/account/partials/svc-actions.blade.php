@@ -12,7 +12,7 @@
    ۳) تأیید حذف به همان سرویس، نشست و فرم با مهلت محدود گره می‌خورد.
 --}}
 @php
-  $unpaid = $s->invoices->firstWhere('status', 'unpaid');
+  $unpaid = $s->hasUnverifiedBillingTerms() ? null : $s->invoices->firstWhere('status', 'unpaid');
 
   /* 🔴 «هنوز تحویل نشده» سومین حالتِ لازم بود.
      `finalize()` سرِ پذیرشِ سفارش `active` + `done` می‌نویسد، پس سرویسی که
@@ -20,7 +20,7 @@
      یعنی مشتریِ پول‌داده فقط یک دکمهٔ قرمزِ بی‌اثر می‌دید و هیچ راهی به
      پولش نداشت. تعریف از مدل می‌آید تا با کنترلر یکی بمانَد. */
   $pendingDelivery = $s->cloudUndelivered();
-  $removalProtected = $s->isInternalInfrastructure();
+  $removalProtected = $s->isInternalInfrastructure() || $s->hasUnverifiedBillingTerms();
 
   $cancellable = ! $removalProtected
       && (in_array($s->status, ['awaiting_provision', 'provision_failed'], true)
@@ -68,7 +68,7 @@
 
 <div class="pnl-acts svc-acts">
   @if($removalProtected && ! $s->isDead())
-    <p class="svc-note warn">{{ __('ui.svc_removal_protected') }}</p>
+    <p class="svc-note warn">{{ __($s->hasUnverifiedBillingTerms() ? 'ui.svc_existing_management_notice' : 'ui.svc_removal_protected') }}</p>
   @endif
 
   @if($unpaid)

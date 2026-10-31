@@ -18,7 +18,7 @@ final class MadarReview
             'terms_accepted' => $p->accepted_at !== null,
             'evidence_received' => $proof !== null && (filled($proof->evidence_url) || filled($proof->attachment_path)),
             'rights_declared' => $proof?->rights_confirmed === true,
-            'disclosure_declared' => ! config('madar.campaigns.'.$p->campaign_key.'.public_content') || $proof?->disclosure_confirmed === true,
+            'disclosure_declared' => ! ($p->reward_snapshot['mission']['mission']['public_content'] ?? config('madar.campaigns.'.$p->campaign_key.'.public_content')) || $proof?->disclosure_confirmed === true,
             // Declarations and service history do not prove truth, ownership, quality or an incremental sale.
             'human_verification_required' => true,
         ];

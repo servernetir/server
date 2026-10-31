@@ -188,7 +188,7 @@ class ServiceController extends Controller
      */
     private function terminable(Service $service): bool
     {
-        return ! $service->isInternalInfrastructure()
+        return ! $service->hasUnverifiedBillingTerms() && ! $service->isInternalInfrastructure()
             && in_array($service->status, ['active', 'suspended', 'expired'], true)
             && $service->provision_status !== 'failed'
             && ! $service->cloudUndelivered();
@@ -203,7 +203,7 @@ class ServiceController extends Controller
      */
     private function cancellable(Service $service): bool
     {
-        return ! $service->isInternalInfrastructure()
+        return ! $service->hasUnverifiedBillingTerms() && ! $service->isInternalInfrastructure()
             && (in_array($service->status, ['awaiting_provision', 'provision_failed'], true)
             || ($service->status === 'active' && $service->provision_status === 'failed')
             || ($service->cloudUndelivered()

@@ -85,6 +85,7 @@ class BusinessReport
         }
 
         $rows = Service::query()
+            ->locallyBilled()
             ->with('customer')
             ->where('status', 'active')
             ->whereIn('cycle', array_keys((array) config('billing.cycles', [])))

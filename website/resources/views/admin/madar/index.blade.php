@@ -31,9 +31,9 @@
   <section class="mdr-section"><h2>{{ __('madar.settings') }}</h2><p>{{ __('madar.settings_hint') }}</p><div class="mdr-campaigns">
     @foreach($campaigns as $key => $campaign)<form class="mdr-action-card" method="post" action="{{ route('admin.madar.settings') }}">
 @csrf
-<input type="hidden" name="campaign" value="{{ $key }}"><h3>{{ __('madar.campaigns.'.$key.'.title') }}</h3><label>{{ __('madar.open') }}<select name="open"><option value="1" @selected($campaign['open'])>{{ __('madar.open') }}</option><option value="0" @selected(! $campaign['open'])>{{ __('madar.closed') }}</option></select></label><label>{{ __('madar.reward_program') }}<select name="reward_campaign_id"><option value="">{{ __('madar.no_program') }}</option>@foreach($rewardCampaigns as $program)<option value="{{ $program->id }}" @selected((int) $campaign['reward_campaign_id'] === $program->id)>{{ $program->name }}</option>
+<input type="hidden" name="campaign" value="{{ $key }}"><h3>{{ __('madar.campaigns.'.$key.'.title') }}</h3><label>{{ __('madar.open') }}<select name="open"><option value="1" @selected($campaign['accepting'])>{{ __('madar.open') }}</option><option value="0" @selected(! $campaign['accepting'])>{{ __('madar.closed') }}</option></select></label><label>{{ __('madar.reward_amount') }}<input name="reward_irt" type="number" min="1" max="10000000" required value="{{ $campaign['amount_irt'] }}"></label><label>{{ __('madar.reward_program') }}<select name="reward_campaign_id"><option value="">{{ __('madar.no_program') }}</option>@foreach($rewardCampaigns as $program)<option value="{{ $program->id }}" @selected((int) $campaign['reward_campaign_id'] === $program->id)>{{ $program->name }}</option>
 @endforeach
-</select></label><button class="ad-btn" type="submit">{{ __('madar.save') }}</button></form>
+</select></label><button class="ad-btn" type="submit">{{ __('madar.publish') }}</button></form>
 @endforeach
 
   </div></section>

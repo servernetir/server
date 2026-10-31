@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 // Included inside the existing localized, active-customer account group.
 Route::get('/madar', [MadarController::class, 'index'])->name('madar');
 Route::post('/madar', [MadarController::class, 'apply'])->name('madar.apply')->middleware('throttle:5,1');
+Route::post('/madar/claims', [MadarController::class, 'claim'])->name('madar.claim')->middleware('throttle:5,1');
 Route::prefix('/madar/{participation}')->whereUuid('participation')->group(function () {
     Route::get('/', [MadarController::class, 'show'])->name('madar.show');
     Route::get('/attachments/{message}', [MadarController::class, 'attachment'])->name('madar.attachment')->whereNumber('message');

@@ -29,7 +29,7 @@ class MadarParticipation extends Model
 
     protected function casts(): array
     {
-        return ['reward_snapshot' => 'array', 'terms_accepted_at' => 'datetime', 'work_due_at' => 'datetime',
+        return ['flow_version' => 'integer', 'mission_id' => 'integer', 'reward_snapshot' => 'array', 'terms_accepted_at' => 'datetime', 'work_due_at' => 'datetime',
             'accepted_at' => 'datetime', 'submitted_at' => 'datetime', 'reviewed_at' => 'datetime',
             'customer_read_at' => 'datetime', 'staff_read_at' => 'datetime'];
     }

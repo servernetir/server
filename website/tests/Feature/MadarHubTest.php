@@ -12,13 +12,16 @@ use App\Models\MarketingGrant;
 use App\Models\MarketingRedemption;
 use App\Models\User;
 use App\Services\Growth\HermesSectionOversight;
+use App\Services\Madar\MadarClaims;
 use App\Services\Madar\MadarHub;
+use App\Services\Madar\MadarPublishing;
 use App\Services\Madar\MadarRewards;
 use App\Services\Marketing\CampaignManager;
 use App\Services\Marketing\DiscountEngine;
 use App\Services\Marketing\DiscountEntryVisibility;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -133,7 +136,16 @@ class MadarHubTest extends TestCase
 
     public function test_localized_hub_and_thread_render_with_real_forms_and_no_missing_keys(): void
     {
-        $p = $this->proposal();
+        foreach (config('madar.campaigns') as $key => $meta) {
+            $amount = $meta['reward_irt'];
+            $c = $this->campaign(['budget' => 10_000_000, 'rule' => ['value' => $amount, 'max_discount' => $amount,
+                'min_purchase' => 2_000_000, 'per_customer_cap' => $amount]]);
+            app(MadarPublishing::class)->publish($key, $c, $amount, $this->admin);
+        }
+        $customer = $this->customer();
+        $mission = app(MadarHub::class)->campaigns($customer)['gpu-video']['published'];
+        $p = app(MadarClaims::class)->submit($customer, $this->proof() + ['request_key' => (string) Str::uuid(),
+            'mission_id' => $mission->id, 'title' => 'ComfyUI product video', 'terms_version' => config('madar.terms_version')]);
         foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
             $response = $this->actingAs($p->customer, 'customer')->get($prefix.'/account/madar');
             $response->assertOk()->assertSee('name="request_key"', false)->assertSee($prefix.'/account/madar', false);
@@ -146,20 +158,19 @@ class MadarHubTest extends TestCase
         }
         $this->assertEquals(array_keys(require lang_path('en/madar.php')), array_keys(require lang_path('fa/madar.php')));
         $this->assertEquals(array_keys(require lang_path('tr/madar.php')), array_keys(require lang_path('fa/madar.php')));
+        $keys = fn ($locale) => array_keys(Arr::dot(require lang_path($locale.'/madar.php')));
+        $this->assertSame($keys('fa'), $keys('en'));
+        $this->assertSame($keys('fa'), $keys('tr'));
     }
 
-    public function test_proposal_requires_terms_and_retry_is_idempotent(): void
+    public function test_initial_proposals_are_retired_in_favor_of_post_work_evidence(): void
     {
-        $customer = $this->customer();
-        $data = ['request_key' => (string) Str::uuid(), 'campaign' => 'gpu-code', 'title' => 'My PyTorch notebook',
-            'body' => 'I will build and document a reproducible PyTorch notebook.', 'terms_version' => config('madar.terms_version')];
-        $this->actingAs($customer, 'customer')->post('/account/madar', $data)->assertSessionHasErrors('terms');
-        $this->post('/account/madar', $data + ['terms' => 1])->assertRedirect();
-        $this->post('/account/madar', $data + ['terms' => 1])->assertRedirect();
-        $this->assertSame(1, MadarParticipation::count());
-        $this->assertSame(1, MadarParticipation::first()->messages()->count());
+        $this->actingAs($this->customer(), 'customer')->post('/account/madar', [
+            'request_key' => (string) Str::uuid(), 'campaign' => 'gpu-code', 'title' => 'My notebook',
+            'body' => 'I will build a GPU notebook.', 'terms' => 1, 'terms_version' => config('madar.terms_version'),
+        ])->assertGone();
+        $this->assertSame(0, MadarParticipation::count());
         $this->assertSame(0, MarketingGrant::count());
-        $this->assertSame(0, CreditEntry::count());
     }
 
     public function test_other_customers_cannot_read_or_change_any_case(): void
@@ -347,15 +358,12 @@ class MadarHubTest extends TestCase
         $this->assertSame($at, $p->fresh()->updated_at->toIso8601String());
     }
 
-    public function test_expired_terms_closed_campaign_and_excess_open_cases_are_rejected(): void
+    public function test_legacy_case_creation_still_respects_closure_and_open_limits(): void
     {
         $customer = $this->customer();
-        $data = ['request_key' => (string) Str::uuid(), 'campaign' => 'gpu-code', 'title' => 'A test collaboration',
-            'body' => 'A useful notebook with a reproducible GPU workflow.', 'terms' => 1, 'terms_version' => 'old-version'];
-        $this->actingAs($customer, 'customer')->post('/account/madar', $data)->assertSessionHasErrors('terms_version');
-        DB::table('madar_campaigns')->where('campaign_key', 'gpu-code')->update(['open' => false]);
-        $data['terms_version'] = config('madar.terms_version');
-        $this->post('/account/madar', $data)->assertSessionHasErrors('madar');
+        DB::table('madar_campaigns')->where('campaign_key', 'gpu-video')->update(['open' => false]);
+        $this->rejectValidation(fn () => $this->proposal($customer));
+        DB::table('madar_campaigns')->where('campaign_key', 'gpu-video')->update(['open' => true]);
         config(['madar.max_open_per_customer' => 1]);
         $this->proposal($customer);
         $this->rejectValidation(fn () => $this->proposal($customer));
