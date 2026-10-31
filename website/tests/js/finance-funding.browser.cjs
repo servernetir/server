@@ -59,7 +59,7 @@ async function scenario() {
     check(box.width>0 && box.left>=-1 && box.right<=innerWidth+1 && box.top>=-1 && box.bottom<=innerHeight+1,'account picker portal stays in the viewport');
     check(getComputedStyle(menu).animationName.includes('sn-select-open'),'account picker uses shared smooth opening');
     const item=menu.querySelector('[data-index="'+option.index+'"]');
-    check(item.textContent.trim()===option.textContent.trim(),'enhanced picker retains full account type, owner and currency');
+    check(item.querySelector('.sn-select-option-label')?.textContent===option.label,'enhanced picker retains full account type, owner and currency');
     item.click();
     check(select.value===option.value && new FormData(voucher).get('funding_account_id')===option.value,'chosen account is the submitted account');
     check(trigger.textContent.includes('TRY') && trigger.textContent.includes('Synthetic Partner'),'selected account remains identifiable');
