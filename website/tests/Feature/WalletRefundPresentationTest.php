@@ -161,6 +161,39 @@ class WalletRefundPresentationTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_router_source_has_valid_php_opening_and_utf8(): void
+    {
+        $source = file_get_contents(base_path('routes/web.php'));
+        $this->assertIsString($source);
+        $this->assertTrue(mb_check_encoding($source, 'UTF-8'), 'Web routes must be UTF-8 source, not decoded transport output.');
+        $this->assertMatchesRegularExpression('/\\A<\\?php\\s/u', $source);
+    }
+
+    public function test_home_and_refund_route_mappings_exist_in_every_locale(): void
+    {
+        $routes = app('router')->getRoutes();
+        foreach (['', 'en.', 'tr.'] as $prefix) {
+            $this->assertNotNull($routes->getByName($prefix.'home'), $prefix.'home');
+            foreach (['' => ['GET', 'index'], '.store' => ['POST', 'store'], '.cancel' => ['POST', 'cancel'], '.receipt' => ['GET', 'receipt']] as $suffix => [$method, $action]) {
+                $name = $prefix.'account.wallet-refunds'.$suffix;
+                $route = $routes->getByName($name);
+                $this->assertNotNull($route, $name);
+                $this->assertContains($method, $route->methods(), $name);
+                $this->assertSame(\App\Http\Controllers\Account\WalletRefundController::class.'@'.$action, $route->getActionName(), $name);
+            }
+        }
+    }
+
+    public function test_seo_report_revocation_keeps_the_admin_route_guards(): void
+    {
+        $route = app('router')->getRoutes()->getByName('admin.seo.reports.revoke');
+        $this->assertNotNull($route);
+        $this->assertContains('POST', $route->methods());
+        $this->assertSame(\App\Http\Controllers\Admin\SeoOutreachController::class.'@revokeReport', $route->getActionName());
+        $this->assertContains('auth:web', $route->gatherMiddleware());
+        $this->assertContains('admin', $route->gatherMiddleware());
+    }
+
     private function renderState(string $locale, string $state): array
     {
         session()->forget(['_old_input', 'ok']);
