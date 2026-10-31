@@ -92,17 +92,18 @@ jobs:
           php -l app/Http/Controllers/Admin/SeoOutreachController.php
           php -l database/migrations/2026_10_31_130000_add_access_controls_to_audit_reports.php
           set +e
-          vendor/bin/phpunit tests/Feature/AuditReportShareTest.php --filter='test_report_link_expires_and_refuses_consultation_without_creating_a_lead|test_legacy_report_without_an_explicit_expiry_uses_the_ninety_day_limit|test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery|test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact|test_the_admin_pages_and_endpoints_require_a_logged_in_admin' --display-warnings --fail-on-warning --colors=never 2>&1 | tee /tmp/seo-report-access-phpunit.log
-          test_status=${PIPESTATUS[0]}
+          vendor/bin/phpunit tests/Feature/AuditReportShareTest.php --filter='test_report_link_expires_and_refuses_consultation_without_creating_a_lead|test_legacy_report_without_an_explicit_expiry_uses_the_ninety_day_limit|test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery|test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact|test_the_admin_pages_and_endpoints_require_a_logged_in_admin' --display-warnings --fail-on-warning --colors=never > /tmp/seo-report-access-phpunit.log 2>&1
+          test_status=$?
           set -e
           if [ "$test_status" -ne 0 ]; then
+            strings -n 8 /tmp/seo-report-access-phpunit.log > /tmp/seo-report-access-readable.log
             {
               echo '### PHPUnit failure (synthetic report-access contract)'
               echo '```text'
-              tail -n 120 /tmp/seo-report-access-phpunit.log
+              tail -n 120 /tmp/seo-report-access-readable.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            diagnostic=$(head -n 35 /tmp/seo-report-access-phpunit.log)
+            diagnostic=$(tail -n 80 /tmp/seo-report-access-readable.log)
             diagnostic=${diagnostic//'%'/'%25'}
             diagnostic=${diagnostic//$'\r'/'%0D'}
             diagnostic=${diagnostic//$'\n'/'%0A'}

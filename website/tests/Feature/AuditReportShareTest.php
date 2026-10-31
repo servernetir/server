@@ -141,6 +141,7 @@ class AuditReportShareTest extends TestCase
 
     public function test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery(): void
     {
+        $this->withoutExceptionHandling();
         Mail::fake();
         $report = $this->report('revoked.example');
         $contact = OutreachContact::create([
