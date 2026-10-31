@@ -73,7 +73,25 @@ jobs:
           php -l lang/fa/refund.php
           php -l lang/en/refund.php
           php -l lang/tr/refund.php
-          vendor/bin/phpunit --filter='WalletRefundPresentationTest|WalletRefundWorkflowTest' --colors=never
+          result=0
+          vendor/bin/phpunit --filter='WalletRefundPresentationTest|WalletRefundWorkflowTest' --colors=never --log-junit "$RUNNER_TEMP/wallet-refund-ui.xml" > "$RUNNER_TEMP/wallet-refund-ui.log" 2>&1 || result=$?
+          python3 - "$RUNNER_TEMP/wallet-refund-ui.xml" "$RUNNER_TEMP/wallet-refund-ui.log" <<'PY'
+          import pathlib, sys, xml.etree.ElementTree as ET
+          xml_path, log_path = map(pathlib.Path, sys.argv[1:])
+          if xml_path.exists():
+              root = ET.parse(xml_path).getroot()
+              print("PHP test report:", root.attrib)
+              for case in root.iter("testcase"):
+                  for kind in ("failure", "error"):
+                      for issue in case.findall(kind):
+                          message = issue.attrib.get("message", "") + "\n" + (issue.text or "")
+                          print("TEST FAILURE:", case.attrib.get("classname"), case.attrib.get("name"))
+                          print(message[:3500] + ("\n[large assertion output truncated]\n" + message[-1200:] if len(message) > 4700 else ""))
+          else:
+              print("No JUnit report was produced")
+          print(log_path.read_text(errors="replace")[-1800:] if log_path.exists() else "No console log")
+          PY
+          exit "$result"
       - name: Verify responsive UI, bank picker and previous drawer fixes
         env:
           TEST_CHROME: /usr/bin/google-chrome
