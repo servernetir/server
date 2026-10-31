@@ -483,12 +483,12 @@ class CloudCatalogController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if ($loc === null) {
-            return $this->legacyCloudPage($location);
+        if ($loc !== null && \App\Services\Cloud\CloudCountry::marketingSlug((string) $loc->country) !== null) {
+            return redirect()->to(\App\Services\Cloud\CloudCountry::url((string) $loc->country), 301);
         }
 
-        if (\App\Services\Cloud\CloudCountry::marketingSlug((string) $loc->country) !== null) {
-            return redirect()->to(\App\Services\Cloud\CloudCountry::url((string) $loc->country), 301);
+        if ($loc === null) {
+            return $this->legacyCloudPage($location);
         }
 
         $t = $this->strings();

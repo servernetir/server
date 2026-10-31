@@ -1,8 +1,5 @@
 @extends('panel.layout')
 @section('title', __(($gpuMode ?? false) ? 'ui.cvb_gpu_title' : 'ui.cvb_title'))
-@push('head')
-<link rel="stylesheet" href="{{ asset_ver('assets/css/choice-hints.css') }}">
-@endpush
 
 {{-- «برگهٔ سرور» — سرورساز به‌شکلِ یک رسید که خودش را پر می‌کند.
 
@@ -1063,6 +1060,9 @@
     'sDesc'  => __('ui.cvb_sort_desc'),
   ];
 @endphp
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/choice-hints.css') }}">
+@endpush
 <script src="{{ asset_ver('assets/js/cloud-image-cards.js') }}"></script>
 <script src="{{ asset_ver('assets/js/choice-hints.js') }}" defer></script>
 <script>
