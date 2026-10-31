@@ -14,7 +14,7 @@
     <nav class="vpsc-crumbs" aria-label="breadcrumb"><a href="{{ lroute('home') }}">{{ __('ui.brand') }}</a><span>/</span><a href="{{ lroute('cloud.index') }}">{{ __('vps-catalog.catalog') }}</a><span>/</span><span>{{ $country }}</span></nav>
     <div class="sn-product-hero sn-product-polish">
       @include('partials.atlas-product-horizon')
-      <span class="badge">{{ $flag }} {{ $country }}</span>
+      <span class="badge">@include('partials.flag', ['flagSrc' => $flag_svg, 'flagEmoji' => $flag, 'flagSize' => 24, 'flagEager' => true]) {{ $country }}</span>
       <h1>{{ $seo['h1'] }}</h1>
       <p>{{ $seo['intro'] }}</p>
     </div>

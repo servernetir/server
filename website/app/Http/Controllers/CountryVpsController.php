@@ -34,6 +34,7 @@ class CountryVpsController extends Controller
             'iso' => $iso,
             'country' => $country,
             'flag' => CloudLocation::COUNTRIES[$iso]['flag'],
+            'flag_svg' => CloudLocation::flagSvgFor($iso),
             'seo' => app(CountryLandingSeo::class)->content($iso),
             'vpsRows' => $rows,
             'ld' => [

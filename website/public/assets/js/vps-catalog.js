@@ -18,7 +18,8 @@
       matched.sort(function(a,b){var x=Number(a.dataset[key]),y=Number(b.dataset[key]);if(key==='hourly'){x=x||Infinity;y=y||Infinity;}return x-y||Number(a.dataset.monthly)-Number(b.dataset.monthly);});
       rows.forEach(function(r){r.hidden=true;});
       matched.forEach(function(r,i){tbody.appendChild(r);r.hidden=i>=limit;});
-      count.textContent=new Intl.NumberFormat(document.documentElement.lang||'fa').format(matched.length)+' / '+new Intl.NumberFormat(document.documentElement.lang||'fa').format(rows.length);
+      var number=new Intl.NumberFormat(document.documentElement.lang||'fa');
+      count.textContent=(count.getAttribute('data-vps-count-template')||':shown / :total').replace(':shown',number.format(matched.length)).replace(':total',number.format(rows.length));
       empty.hidden=matched.length>0;more.hidden=matched.length<=limit;
     }
     form.addEventListener('submit',function(e){e.preventDefault();});
