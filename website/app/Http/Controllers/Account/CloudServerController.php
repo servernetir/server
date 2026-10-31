@@ -411,7 +411,14 @@ class CloudServerController extends Controller
         $r = Cache::remember(
             'cloud-st:'.$instance->id,
             now()->addSeconds(20),
-            fn () => $driver->serverStatus((string) $instance->provider_ref)
+            function () use ($driver, $instance): array {
+                $observedAt = now()->toISOString();
+
+                $snapshot = $driver->serverStatus((string) $instance->provider_ref);
+                $snapshot['_observed_at'] = $observedAt;
+
+                return $snapshot;
+            }
         );
 
         if ($r['ok']) {
@@ -425,7 +432,7 @@ class CloudServerController extends Controller
                 'synced_at' => now(),
                 'meta' => array_merge($instance->meta ?? [], isset($r['build'])
                     ? ['gpu_build' => $r['build']] : []),
-            ]);
+            ], observedAt: isset($r['_observed_at']) ? \Illuminate\Support\Carbon::parse($r['_observed_at']) : null);
         }
 
         return response()->json(
@@ -862,11 +869,19 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_not_ready'));
         }
 
+        if ($powerAction !== null) {
+            Cache::forget('cloud-st:'.$instance->id);
+        }
+
         try {
             $r = $fn($driver, (string) $instance->provider_ref);
         } catch (\Throwable $e) {
             $this->releasePowerOnClaim($claimedInstanceId, $service);
             throw $e;
+        }
+
+        if ($powerAction !== null) {
+            Cache::forget('cloud-st:'.$instance->id);
         }
 
         if (! ($r['ok'] ?? false)) {

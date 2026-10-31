@@ -39,7 +39,8 @@ class HourlyGpuStart
                 return compact('minimum', 'available');
             }
             $meta = (array) $current->provision_meta;
-            $meta['hourly_restart'] = ['amount_irt' => $minimum, 'claimed_at' => now()->toIso8601String()];
+            $meta['hourly_restart'] = ['amount_irt' => $minimum, 'claimed_at' => now()->toISOString(), 'observation_version' => 1];
+            $meta['hourly_power_at'] = $meta['hourly_restart']['claimed_at'];
             $current->update(['provision_meta' => $meta, 'hold_rate_irt' => 0, 'hold_reserve_irt' => $minimum]);
             $instance->update(['status' => 'building']);
 
@@ -57,8 +58,15 @@ class HourlyGpuStart
         $meta = (array) $service->provision_meta;
         unset($meta['hourly_restart']);
         $service->update(['provision_meta' => $meta, 'hold_reserve_irt' => 0]);
-        app(Wallet::class)->debit((int) $service->customer_id, 'IRT', $amount,
-            'cloud_hourly', $service, 'ساعت اول پس از روشن‌شدن مجدد سرور گرافیکی');
+        // The birthday module is not installed on every production release.
+        // Keep the full-rate admission hold, then charge eligible usage only.
+        $charge = class_exists(\App\Services\Birthday\BirthdayHourly::class)
+            ? app(\App\Services\Birthday\BirthdayHourly::class)->rates($service, now(), 1, $amount)[0]
+            : $amount;
+        if ($charge > 0) {
+            app(Wallet::class)->debit((int) $service->customer_id, 'IRT', $charge,
+                'cloud_hourly', $service, 'ساعت اول پس از روشن‌شدن مجدد سرور گرافیکی');
+        }
     }
 
     /** Rejected start or an explicit stop: release the unused start reservation. */

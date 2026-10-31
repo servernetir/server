@@ -8,6 +8,7 @@ file. Activation and observing the existing scheduler are separate acceptance st
 import hashlib
 import importlib.util
 from pathlib import Path
+import re
 
 BASE = '14a88e98f85c840fdbef63bdc059549a084a5e74'
 CORE_SHA256 = '00d016eb781d37d31f14e1c57afd386321b308060c7f06e9d111f2c4636638de'
@@ -26,6 +27,51 @@ RUNTIME_PATHS = (
 )
 
 
+def merge_translations(before, base, desired):
+    """Merge only uniquely identified one-line translations; reject key conflicts.
+
+    A concurrent release can append unrelated translations at the array end,
+    where a context patch would otherwise conflict. Reproduce the entire source
+    delta first; any non-translation change still fails closed.
+    """
+    pattern = re.compile(r'''^    ['"]([^'"]+)['"] => .*,$''', re.MULTILINE)
+    def rows(text):
+        values = {}
+        for match in pattern.finditer(text):
+            key = match.group(1)
+            if key in values:
+                raise RuntimeError('duplicate_translation_key:' + key)
+            values[key] = match.group(0)
+        return values
+    original, wanted, current = (data.decode('utf-8').replace('\r\n', '\n')
+                                 for data in (base, desired, before))
+    old, new = rows(original), rows(wanted)
+    if set(old) - set(new):
+        raise RuntimeError('translation_removal_requires_review')
+    changes = {key: value for key, value in new.items() if old.get(key) != value}
+    def apply(text, source=False):
+        existing = rows(text)
+        for key, value in changes.items():
+            if key in old:
+                if existing.get(key) == value:
+                    continue
+                if existing.get(key) != old[key]:
+                    raise RuntimeError('concurrent_translation_conflict:' + key)
+                text = text.replace(old[key], value, 1)
+            elif key in existing:
+                if existing[key] != value:
+                    raise RuntimeError('concurrent_translation_conflict:' + key)
+            else:
+                if not text.endswith('];\n'):
+                    raise RuntimeError('translation_array_ending_requires_review')
+                text = text[:-3] + value + '\n];\n'
+        return text
+    if apply(original, source=True) != wanted:
+        raise RuntimeError('non_translation_source_delta')
+    merged = apply(current).encode()
+    return merged.replace(b'\n', b'\r\n') if b'\r\n' in before else merged
+
+
 def load_scoped_core():
     path = Path(__file__).with_name('deploy-vpstc.py')
     if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != CORE_SHA256:
@@ -36,6 +82,12 @@ def load_scoped_core():
     core.BASE = BASE
     core.RUNTIME_PATHS = RUNTIME_PATHS
     core.NEW_PATHS = frozenset(RUNTIME_PATHS[:1])
+    original_merge = core.merge_candidate
+    def merge(release, relative, before, base, desired):
+        if relative in ('lang/fa/ui.php', 'lang/en/ui.php', 'lang/tr/ui.php'):
+            return merge_translations(before, base, desired)
+        return original_merge(release, relative, before, base, desired)
+    core.merge_candidate = merge
     return core
 
 

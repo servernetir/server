@@ -313,6 +313,7 @@ class CloudMeterHourly extends Command
                 return 'skipped';
             }
 
+            $observedAt = now();
             try {
                 $live = $driver->serverStatus((string) $instance->provider_ref);
             } catch (\Throwable $e) {
@@ -335,7 +336,7 @@ class CloudMeterHourly extends Command
                 'hostname' => filled($live['hostname'] ?? null) ? $live['hostname'] : $instance->hostname,
                 'synced_at' => now(),
                 'last_error' => null,
-            ]);
+            ], observedAt: $observedAt);
 
             // A confirmed-off, unfunded GPU must still enter the 24-hour grace.
             // A pending restart already has its first hour reserved in Wallet.
