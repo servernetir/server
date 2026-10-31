@@ -23,6 +23,7 @@ final class AccountingReport
         $result = ['summary' => $s, 'profile' => null, 'eligible_costs' => 0, 'pending_costs' => $s['expense'], 'input_vat' => 0,
             'vat_paid' => 0, 'income_tax_paid' => 0, 'taxable_income' => null, 'income_tax_estimate' => null, 'income_tax_due' => null,
             'vat_output_reviewed' => null, 'vat_movement' => $s['tax_liability'], 'vat_due' => null, 'vat_credit' => null, 'accounts' => collect(),
+            'partner_receivables_irt' => 0, 'partner_payables_irt' => 0,
             'payments' => [], 'coverage' => app(FinanceAudit::class)->inspect($scope), 'unconverted' => $s['by_currency'], 'services' => app(ServiceProfitability::class)->calculate($scope)];
         if (Schema::hasTable('payments')) {
             $p = Payment::where('status', 'paid')->where('currency_code', 'IRT')->with('invoice');
@@ -124,6 +125,13 @@ final class AccountingReport
         $result['income_tax_paid'] = $incomePaid;
         $result['vat_movement'] = $s['tax_collected'] - $s['tax_paid'] - $input - $vatPaid;
         $result['accounts'] = FinanceAccount::orderBy('id')->get()->map(fn ($a) => ['account' => $a, 'balance' => $this->journal->balance($a, $scope->to?->toDateString())]);
+        // These are claims between company and partner, never the partner's personal bank cash.
+        foreach ($result['accounts'] as $row) {
+            if ($row['account']->type === 'partner') {
+                $result['partner_receivables_irt'] += max(0, -$row['balance']['irt']);
+                $result['partner_payables_irt'] += max(0, $row['balance']['irt']);
+            }
+        }
         if ($scope->from && $scope->to) {
             $profile = FinanceTaxProfile::whereDate('from_date', $scope->from->toDateString())->whereDate('to_date', $scope->to->toDateString())->latest('id')->first();
             $result['profile'] = $profile;

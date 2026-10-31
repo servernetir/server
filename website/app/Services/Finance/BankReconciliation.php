@@ -78,13 +78,30 @@ final class BankReconciliation
             $bank = DB::table('finance_bank_transactions')->where('id', $bankId)->lockForUpdate()->first();
             $p = Payment::whereKey($paymentId)->lockForUpdate()->first();
             $this->check($bank && $p && $p->status === 'paid' && ! in_array($p->gateway, ['credit', 'gift'], true));
-            $this->check($bank->credit_minor > 0 && $p->currency_code === $bank->currency_code && $amount > 0 && $fee >= 0 && mb_strlen($reference) >= 3);
+            $rialFamily = in_array($p->currency_code, ['IRT', 'IRR'], true) && in_array($bank->currency_code, ['IRT', 'IRR'], true);
+            $this->check($bank->credit_minor > 0 && ($p->currency_code === $bank->currency_code || $rialFamily)
+                && $amount > 0 && $amount <= AccountingMoney::MAX && $fee >= 0 && $fee <= AccountingMoney::MAX
+                && (int) $p->amount > 0 && (int) $p->amount <= AccountingMoney::MAX && mb_strlen($reference) >= 3);
             $used = (int) DB::table('finance_bank_matches')->where('bank_transaction_id', $bankId)->whereNull('voided_at')->sum('amount_minor');
-            $paid = DB::table('finance_bank_matches')->where('payment_id', $paymentId)->whereNull('voided_at')->selectRaw('COALESCE(SUM(amount_minor+fee_minor),0) as n')->first();
-            $this->check($used + $amount <= (int) $bank->credit_minor && (int) $paid->n + $amount + $fee <= (int) $p->amount, 'bank_overmatch');
+            // Match amounts always retain the bank row's native unit. Sum earlier allocations
+            // in rial for the IRT/IRR family, including matches from a different bank unit.
+            $unit = static fn (string $currency): int => $rialFamily && $currency === 'IRT' ? 10 : 1;
+            $paid = 0;
+            $allocations = DB::table('finance_bank_matches as m')->join('finance_bank_transactions as b', 'b.id', '=', 'm.bank_transaction_id')
+                ->where('m.payment_id', $paymentId)->whereNull('m.voided_at')
+                ->get(['m.amount_minor', 'm.fee_minor', 'b.currency_code']);
+            foreach ($allocations as $allocation) {
+                $this->check($allocation->currency_code === $p->currency_code
+                    || ($rialFamily && in_array($allocation->currency_code, ['IRT', 'IRR'], true)));
+                $paid += ((int) $allocation->amount_minor + (int) $allocation->fee_minor) * $unit($allocation->currency_code);
+            }
+            $this->check($used + $amount <= (int) $bank->credit_minor
+                && $paid + ($amount + $fee) * $unit($bank->currency_code) <= (int) $p->amount * $unit($p->currency_code), 'bank_overmatch');
             $id = DB::table('finance_bank_matches')->insertGetId(['bank_transaction_id' => $bankId, 'payment_id' => $paymentId,
                 'amount_minor' => $amount, 'fee_minor' => $fee, 'reference' => $reference, 'created_by' => $actor, 'created_at' => now(), 'updated_at' => now()]);
-            app(DocumentedAccounting::class)->audit('bank_matched', $actor, $id, ['payment_id' => $paymentId, 'bank_id' => $bankId]);
+            app(DocumentedAccounting::class)->audit('bank_matched', $actor, $id, ['payment_id' => $paymentId, 'bank_id' => $bankId,
+                'bank_currency' => $bank->currency_code, 'net_bank_minor' => $amount, 'allocated_fee_minor' => $fee,
+                'payment_currency' => $p->currency_code, 'gross_payment_minor' => (int) $p->amount]);
 
             return $id;
         }, 3);

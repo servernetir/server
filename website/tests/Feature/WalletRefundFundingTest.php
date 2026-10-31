@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -192,6 +193,79 @@ class WalletRefundFundingTest extends TestCase
         $this->assertRejected(fn () => $this->refunds->paid($r, $this->admin, $a->id, '2026-10-25',
             'PARTNER-REFUND-1001', $this->receipt(), $row), 'invalid_bank_row');
         $this->assertNoPayout($r);
+    }
+
+
+    private function documentedFunding(FinanceAccount $funding, array $overrides): FinanceVoucher
+    {
+        return app(DocumentedAccounting::class)->post(array_replace([
+            'idempotency_key' => (string) Str::uuid(), 'type' => 'expense', 'occurred_at' => '2026-10-25',
+            'service_line' => 'other', 'category' => 'other', 'amount_irt' => 100000,
+            'original_currency' => 'IRT', 'original_minor' => 100000,
+            'settlement_currency' => $funding->currency_code, 'settlement_minor' => 100000,
+            'funding_account_id' => $funding->id, 'target_account_id' => null,
+            'bank_reference' => 'SYNTHETIC-FUNDING-'.Str::uuid(), 'note' => 'Synthetic documented funding evidence',
+            'tax_status' => 'pending', 'vat_status' => 'none',
+        ], $overrides), $this->admin->id);
+    }
+
+    #[DataProvider('advancePayoutDates')]
+    public function test_personal_payout_cannot_consume_a_company_advance_on_either_relevant_date(
+        string $advanceDate, string $payoutDate, bool $clearToday,
+    ): void {
+        $r = $this->approved();
+        $this->travelTo(Carbon::parse('2026-10-26 08:00:00', 'UTC'));
+        $bank = $this->account('bank', 'IRT', 'Synthetic company');
+        $partner = $this->account('partner', 'IRR');
+        $this->documentedFunding($bank, ['type' => 'opening_balance',
+            'funding_account_id' => null, 'target_account_id' => $bank->id, 'settlement_minor' => 0]);
+        $advance = $this->documentedFunding($bank, ['type' => 'partner_advance', 'occurred_at' => $advanceDate,
+            'amount_irt' => 50000, 'original_currency' => 'IRR', 'original_minor' => 500000,
+            'settlement_minor' => 50000, 'target_account_id' => $partner->id]);
+        if ($clearToday) {
+            $this->documentedFunding($partner, ['occurred_at' => '2026-10-26',
+                'amount_irt' => 50000, 'original_minor' => 50000, 'settlement_minor' => 500000,
+                'funding_mode' => 'advance', 'related_voucher_id' => $advance->id]);
+        }
+        $before = [FinanceVoucher::count(), FinanceLine::count(), BusinessEntry::count(),
+            DB::table('finance_audit_events')->count()];
+        $this->assertRejected(fn () => $this->refunds->paid($r, $this->admin, $partner->id, $payoutDate,
+            'SYNTHETIC-ADVANCE-REFUND', $this->receipt()), 'funding_advance');
+        $this->assertNoPayout($r);
+        $this->assertSame($before, [FinanceVoucher::count(), FinanceLine::count(), BusinessEntry::count(),
+            DB::table('finance_audit_events')->count()]);
+    }
+
+    public static function advancePayoutDates(): array
+    {
+        return [
+            'negative on payout and current dates' => ['2026-10-25', '2026-10-26', false],
+            'negative only on current date' => ['2026-10-26', '2026-10-25', false],
+            'negative only on payout date' => ['2026-10-25', '2026-10-25', true],
+        ];
+    }
+
+    public function test_paid_personal_payout_retry_still_returns_original_after_a_later_company_advance(): void
+    {
+        $partner = $this->account();
+        $r = $this->settle($this->approved(), $partner);
+        $original = $this->details($r);
+        $bank = $this->account('bank', 'IRT', 'Synthetic company');
+        $this->documentedFunding($bank, ['type' => 'opening_balance',
+            'funding_account_id' => null, 'target_account_id' => $bank->id, 'settlement_minor' => 0]);
+        $this->documentedFunding($bank, ['type' => 'partner_repayment', 'amount_irt' => 40000,
+            'original_minor' => 40000, 'settlement_minor' => 40000, 'target_account_id' => $partner->id]);
+        $this->documentedFunding($bank, ['type' => 'partner_advance', 'amount_irt' => 40000,
+            'original_minor' => 40000, 'settlement_minor' => 40000, 'target_account_id' => $partner->id]);
+        $this->assertSame(['irt' => -40000, 'native' => -40000], app(DocumentedAccounting::class)->balance($partner));
+        $retry = $this->settle($r, $partner);
+        $this->assertSame($r->id, $retry->id);
+        $this->assertSame($original, $this->details($retry));
+        $this->assertSame(1, FinanceVoucher::where('type', 'wallet_refund_payout')->count());
+        $this->assertSame(1, FinanceDocument::count());
+        $this->assertSame(1, CreditEntry::where('reason', 'wallet_refund_payout')->count());
+        $this->assertCount(1, Storage::disk('local')->allFiles('finance/wallet-refunds'));
+        $this->assertSame(60000, $this->wallet->balanceOf($this->customer->id));
     }
 
     public function test_allowing_partner_funding_does_not_allow_an_unfunded_company_bank_payout(): void

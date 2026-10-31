@@ -158,4 +158,5 @@ return [
     'admin_evidence_trail' => 'Dosya hareketleri',
     'admin_no_events' => 'Henüz bir hareket kaydedilmedi.',
     'funding_owner' => 'Finans hesaplarında ortak cari hesabına hesap sahibinin adını ekleyin.',
+    'funding_advance' => 'Bu ortak hesabında ödeme tarihinde veya bugün şirket avansı bulunuyor. Bu form yalnızca ortağın kişisel ödemesini kaydeder; şirket banka hesabını seçin veya önce avansın belgeli kapatmasını yapın.',
 ];

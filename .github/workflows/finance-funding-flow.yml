@@ -1,0 +1,161 @@
+name: Finance funding flow checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Finance/**'
+      - 'website/app/Http/Controllers/Admin/AccountingController.php'
+      - 'website/app/Models/Finance*.php'
+      - 'website/database/migrations/*finance*'
+      - 'website/resources/views/admin/accounting*.blade.php'
+      - 'website/lang/*/finance.php'
+      - 'website/tests/Feature/*Finance*'
+      - 'website/tests/Feature/DocumentedAccountingTest.php'
+      - 'website/tests/Feature/BusinessLedgerTest.php'
+      - 'website/tests/Feature/PartnerFundingFlowTest.php'
+      - 'website/tests/Feature/SupplierCreditReconciliationTest.php'
+      - 'website/tests/js/finance-funding.browser.cjs'
+      - 'website/public/assets/css/finance-funding.css'
+      - '.github/workflows/finance-funding-flow.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Finance/**'
+      - 'website/app/Http/Controllers/Admin/AccountingController.php'
+      - 'website/app/Models/Finance*.php'
+      - 'website/database/migrations/*finance*'
+      - 'website/resources/views/admin/accounting*.blade.php'
+      - 'website/lang/*/finance.php'
+      - 'website/tests/Feature/*Finance*'
+      - 'website/tests/Feature/DocumentedAccountingTest.php'
+      - 'website/tests/Feature/BusinessLedgerTest.php'
+      - 'website/tests/Feature/PartnerFundingFlowTest.php'
+      - 'website/tests/Feature/SupplierCreditReconciliationTest.php'
+      - 'website/tests/js/finance-funding.browser.cjs'
+      - 'website/public/assets/css/finance-funding.css'
+      - '.github/workflows/finance-funding-flow.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: finance-funding-flow-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  financial:
+    name: Funding evidence (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: finance_funding_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'finance_funding_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      FINANCE_EXPECTED_DB: ${{ matrix.database }}
+      FINANCE_FUNDING_UI_FIXTURES: /tmp/servernet-finance-flow-${{ github.run_id }}
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Set up Node for rendered UI checks
+        if: matrix.database == 'sqlite'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install locked dependencies in the isolated checkout
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Check financial source syntax
+        run: |
+          set -euo pipefail
+          find app/Services/Finance -name '*.php' -print0 | xargs -0 -r -n1 php -l
+          find database/migrations -maxdepth 1 -name '*finance*.php' -print0 | xargs -0 -r -n1 php -l
+          php -l app/Models/FinanceAccount.php
+          php -l app/Models/FinanceVoucher.php
+          php -l app/Http/Controllers/Admin/AccountingController.php
+          php -l tests/Feature/PartnerFundingFlowTest.php
+          php -l tests/Feature/FinanceAccountIdentityTest.php
+          php -l tests/Feature/SupplierCreditReconciliationTest.php
+          php -l tests/Feature/FinanceSettlementUnitsTest.php
+          php -l tests/Feature/FinanceFundingEvidenceTest.php
+          php -l tests/Feature/FinanceFundingPresentationTest.php
+          php -l lang/fa/finance.php
+          php -l lang/en/finance.php
+          php -l lang/tr/finance.php
+      - name: Verify financial flows, masking and existing regression guards
+        run: |
+          set -euo pipefail
+          result=0
+          vendor/bin/phpunit --filter='DocumentedAccountingTest|FinanceBankReconciliationTest|FinanceEvidenceBundleTest|BusinessLedgerTest|PartnerFundingFlowTest|FinanceAccountIdentityTest|SupplierCreditReconciliationTest|FinanceFundingPresentationTest|FinanceSettlementUnitsTest|FinanceFundingEvidenceTest|WalletRefundWorkflowTest|WalletRefundFundingTest' --colors=never --log-junit "$RUNNER_TEMP/finance-funding.xml" > "$RUNNER_TEMP/finance-funding.log" 2>&1 || result=$?
+          python3 - "$RUNNER_TEMP/finance-funding.xml" "$RUNNER_TEMP/finance-funding.log" <<'PY'
+          import pathlib, sys, xml.etree.ElementTree as ET
+          xml_path, log_path = map(pathlib.Path, sys.argv[1:])
+          if xml_path.exists():
+              root = ET.parse(xml_path).getroot()
+              suites = list(root.iter("testsuite"))
+              print("PHP suite totals:", [suite.attrib for suite in suites if suite.attrib.get("tests")])
+              for case in root.iter("testcase"):
+                  for kind in ("failure", "error"):
+                      for issue in case.findall(kind):
+                          message = issue.attrib.get("message", "") + "\n" + (issue.text or "")
+                          print("TEST FAILURE:", case.attrib.get("classname"), case.attrib.get("name"))
+                          print(message[:3500] + ("\n[large assertion output truncated]\n" + message[-1200:] if len(message) > 4700 else ""))
+          else:
+              print("No JUnit report was produced")
+          print(log_path.read_text(errors="replace")[-1800:] if log_path.exists() else "No console log")
+          PY
+          exit "$result"
+      - name: Verify rendered financial forms and account picker in Chromium
+        if: matrix.database == 'sqlite'
+        env:
+          TEST_CHROME: /usr/bin/google-chrome
+        run: |
+          node --version
+          "$TEST_CHROME" --version
+          node --test tests/js/finance-funding.browser.cjs

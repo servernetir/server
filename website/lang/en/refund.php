@@ -158,4 +158,5 @@ return [
     'admin_evidence_trail' => 'Case activity',
     'admin_no_events' => 'No activity has been recorded.',
     'funding_owner' => 'Add the account holder\'s name to the partner current account in Finance accounts.',
+    'funding_advance' => 'This partner account holds a company advance on the payout date or today. This form records personal partner payouts only; choose a company bank account or document the advance settlement first.',
 ];
