@@ -178,7 +178,7 @@ return [
     'receipt_scope' => 'Wallet topups and internal settlement are not sales. Collections use the selected filters; wallet balances cover all customers through the end date.',
     'gateway' => 'Gateway / settlement method',
     'bank_reconciliation' => 'Bank reconciliation',
-    'bank_invalid' => 'Invalid statement or bank allocation.',
+    'bank_invalid' => 'The statement, bank reference or bank allocation is invalid, does not match the transfer or has already been used.',
     'bank_csv_header' => 'CSV header must be exactly date,reference,credit,debit,currency.',
     'bank_overmatch' => 'Allocation exceeds bank credit or the payment remainder.',
     'statement' => 'Bank statement CSV',

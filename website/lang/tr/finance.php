@@ -178,7 +178,7 @@ return [
     'receipt_scope' => 'Cüzdan yüklemeleri ve iç ödeme satış değildir. Tahsilatlar filtrelere bağlıdır; cüzdan bakiyeleri bitiş tarihindeki tüm müşteriler içindir.',
     'gateway' => 'Ödeme yöntemi',
     'bank_reconciliation' => 'Banka mutabakatı',
-    'bank_invalid' => 'Geçersiz ekstre veya banka eşleştirmesi.',
+    'bank_invalid' => 'Ekstre, banka referansı veya banka eşleştirmesi geçersiz, transferle uyumsuz ya da daha önce kullanılmış.',
     'bank_csv_header' => 'CSV başlığı date,reference,credit,debit,currency olmalıdır.',
     'bank_overmatch' => 'Eşleştirme banka girişini veya kalan ödemeyi aşıyor.',
     'statement' => 'Banka ekstresi CSV',

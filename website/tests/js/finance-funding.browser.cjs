@@ -72,7 +72,8 @@ async function scenario() {
     report.status='passed';
   } catch(error) {
     report.error=String(error.stack||error);
-    report.debug={width:innerWidth,scrollWidth:document.documentElement.scrollWidth,active:document.activeElement?.outerHTML.slice(0,400),errors:window.__uiErrors};
+    report.debug={width:innerWidth,scrollWidth:document.documentElement.scrollWidth,active:document.activeElement?.outerHTML.slice(0,400),errors:window.__uiErrors,
+      overflow:Array.from(document.body.querySelectorAll('*')).map(el=>{const r=el.getBoundingClientRect();return {tag:el.tagName,cls:String(el.className).slice(0,100),parent:el.parentElement?.className,left:r.left,right:r.right,width:r.width};}).filter(x=>x.width>0 && (x.right>innerWidth+1 || x.left< -1)).sort((a,b)=>b.right-a.right).slice(0,16)};
   }
   parent.postMessage({kind:'finance-funding-ui-result',report},location.origin);
 }

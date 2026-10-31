@@ -1,5 +1,11 @@
 /* Page-scoped additions for documented funding and supplier reconciliation. */
 :root{--line-2:var(--line2);--bg2:var(--surface2);--surface-2:var(--surface);--info:var(--cyan);--info-bg:rgba(34,211,238,.12);--danger:var(--red);--font-body:var(--font);--ease:cubic-bezier(.22,.61,.36,1)}
+/* Finance page titles and operator names share the mobile header without forcing its width. */
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top{flex-wrap:wrap;gap:12px}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top h1{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top .ad-top-side{min-width:0;max-width:100%;flex-wrap:wrap}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top .ad-user{min-width:0;max-width:100%;flex-wrap:wrap}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top .ad-user>span{min-width:0;overflow-wrap:anywhere}
 .acc-panel,.ff-voucher{min-width:0}
 .acc-panel .acc-form{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
 .acc-form>*{min-width:0}
