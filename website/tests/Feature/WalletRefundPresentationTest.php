@@ -51,6 +51,7 @@ class WalletRefundPresentationTest extends TestCase
         ]);
         $this->actingAs($this->customer, 'customer');
         $this->withSession(['_token' => 'synthetic-refund-ui-csrf']);
+        $this->app['request']->setLaravelSession($this->app['session']->driver());
     }
 
     public static function locales(): array
