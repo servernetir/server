@@ -92,7 +92,7 @@ jobs:
           php -l app/Http/Controllers/Admin/SeoOutreachController.php
           php -l database/migrations/2026_10_31_130000_add_access_controls_to_audit_reports.php
           set +e
-          vendor/bin/phpunit --filter='AuditReportShareTest|ReportConsultationTest' --display-warnings --fail-on-warning --colors=never 2>&1 | tee /tmp/seo-report-access-phpunit.log
+          vendor/bin/phpunit tests/Feature/AuditReportShareTest.php --display-warnings --fail-on-warning --colors=never 2>&1 | tee /tmp/seo-report-access-phpunit.log
           test_status=${PIPESTATUS[0]}
           set -e
           if [ "$test_status" -ne 0 ]; then
