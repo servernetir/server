@@ -192,7 +192,7 @@ class GpuCapacityOrders
                 'billing_mode' => $hourly ? 'hourly' : 'cycle',
                 'hourly_rate_irt' => $hourly ? $plan->hourlyIrt() : null,
                 'hourly_rate_eur' => $hourly ? $plan->hourlyEurCents() : null,
-                'on_credit_out' => $data['on_credit_out'] ?? 'suspend',
+                'on_credit_out' => 'suspend',
                 'status' => 'awaiting_provision', 'provision_status' => self::WAIT,
                 'cloud_plan_id' => $plan->id, 'cloud_image_key' => $data['image'], 'cloud_addons' => [],
                 'plan' => $plan->public_name,
