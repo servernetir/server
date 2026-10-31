@@ -48,6 +48,9 @@ class CloudFairHourlyMeteringTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Anchor creation and post-command assertions must use the same clock,
+        // including when MariaDB work crosses a real wall-clock minute.
+        Carbon::setTestNow(now()->startOfSecond());
         Http::fake(function ($request) {
             if (! str_contains($request->url(), 'api.salad.com/')) {
                 return Http::response([], 200);
