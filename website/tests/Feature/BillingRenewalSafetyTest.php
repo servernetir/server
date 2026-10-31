@@ -580,7 +580,7 @@ class BillingRenewalSafetyTest extends TestCase
         $binding += ['service_id' => $service->id, 'customer_id' => $service->customer_id, 'server_id' => $server->id];
         $service->forceFill(['provision_meta' => array_merge($service->provision_meta, ['existing_storage_binding' => $binding])])->save();
         $invoice = $this->invoice($service);
-        $beforeInvoice = $invoice->getRawOriginal();
+        $beforeInvoice = $invoice->fresh()->getRawOriginal();
         Http::swap(new Factory); Http::preventStrayRequests(); $updates = [];
         $state = $binding['access_settings'];
         Http::fake(function ($request) use (&$updates, &$state) {
