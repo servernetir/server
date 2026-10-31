@@ -43,6 +43,27 @@ final class ProviderMoney
         return $bps;
     }
 
+    /** Read a configured minor-unit fee without silently truncating a decimal. */
+    public static function integerMinor(mixed $amount): int
+    {
+        if (! is_int($amount) && (! is_string($amount) || ! preg_match('/^(?:0|[1-9][0-9]{0,18})$/D', $amount))) {
+            throw new DomainProviderException('invalid_supplier_amount');
+        }
+        $value = filter_var($amount, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+        if ($value === false) { throw new DomainProviderException('invalid_supplier_amount'); }
+        return $value;
+    }
+
+    public static function add(int ...$amounts): int
+    {
+        $sum = 0;
+        foreach ($amounts as $amount) {
+            if ($amount < 0 || $amount > PHP_INT_MAX - $sum) { throw new DomainProviderException('invalid_supplier_amount'); }
+            $sum += $amount;
+        }
+        return $sum;
+    }
+
     /** Mandatory cost adjustments round upwards, so procurement is never understated. */
     public static function surcharge(int $minor, int $bps): int
     {

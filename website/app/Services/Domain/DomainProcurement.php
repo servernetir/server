@@ -221,6 +221,8 @@ class DomainProcurement
             throw new DomainProcurementException('domain_unavailable');
         }
         if ($fresh['currency'] !== $old['currency'] || $fresh['amount_minor'] > $old['amount_minor']
+            || (isset($old['provider_debit_minor']) && ($fresh['provider_debit_minor'] ?? PHP_INT_MAX) > $old['provider_debit_minor'])
+            || (isset($old['provider_terms_hash']) && ($fresh['provider_terms_hash'] ?? null) !== $old['provider_terms_hash'])
             || $fresh['premium'] !== $old['premium'] || $fresh['terms_hash'] !== $old['terms_hash']
             || $fresh['floor_toman'] > (int) $quote->sell_toman) {
             throw new DomainProcurementException('supplier_quote_changed');
@@ -283,10 +285,16 @@ class DomainProcurement
         if (isset($q['valid_until']) && ! Carbon::parse($q['valid_until'])->isFuture()) {
             throw new DomainProcurementException('supplier_quote_expired');
         }
+        // Funding charges affect landed cost, but are not deducted from the
+        // registrar wallet. Keep its actual debit separate from retail cost.
+        $debit = $q['provider_debit_minor'] ?? $q['amount_minor'];
+        if (! is_int($debit) || $debit < 1 || $debit > $q['amount_minor']) {
+            throw new DomainProcurementException('supplier_quote_invalid');
+        }
         $fx = $this->rate($q['currency']);
         $balance = $provider->probe();
         if (($balance['healthy'] ?? false) !== true || ! is_int($balance['balance_minor'] ?? null)
-            || ($balance['currency'] ?? null) !== $q['currency'] || $balance['balance_minor'] < $q['amount_minor']) {
+            || ($balance['currency'] ?? null) !== $q['currency'] || $balance['balance_minor'] < $debit) {
             throw new DomainProcurementException('supplier_balance_insufficient');
         }
         $numerator = DomainMoney::multiply($q['amount_minor'], $fx['numerator']);
@@ -309,6 +317,7 @@ class DomainProcurement
             'target_expires_at' => $operation === 'renew' ? $bound?->expires_at?->copy()->addMonthsNoOverflow($months)->toIso8601String() : null,
             'fx_snapshot' => $fx, 'comparison_numerator' => $numerator, 'comparison_denominator' => $fx['denominator'],
             'wholesale_toman' => $wholesale, 'floor_toman' => $floor, 'sell_toman' => $sell,
+            'provider_terms_hash' => $q['provider_terms_hash'] ?? $q['terms_hash'] ?? null,
             'margin_units' => $margin, 'terms_hash' => hash('sha256', json_encode($terms, JSON_THROW_ON_ERROR))]);
     }
 
@@ -418,6 +427,12 @@ class DomainProcurement
 
     private function cheaper(array $candidate, array $best): bool
     {
+        // Apply the current shared margin and rounding before comparing the
+        // customer price. Common sales VAT preserves this order; landed cost
+        // resolves equal customer prices without using floating point money.
+        if ($candidate['sell_toman'] !== $best['sell_toman']) {
+            return $candidate['sell_toman'] < $best['sell_toman'];
+        }
         $leftWhole = intdiv($candidate['comparison_numerator'], $candidate['comparison_denominator']);
         $rightWhole = intdiv($best['comparison_numerator'], $best['comparison_denominator']);
         if ($leftWhole !== $rightWhole) {

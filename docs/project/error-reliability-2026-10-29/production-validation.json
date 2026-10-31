@@ -1,5 +1,5 @@
 {
-  "status": "three_runtime_files_installed_hash_and_lint_verified",
+  "status": "three_runtime_files_installed_natural_schedule_observed_cpanel_tls_unresolved",
   "package_commit": "92686a3619cabfca699a4cdd1aa3bbf56e9874e2",
   "installer_commit": "f8caeb51f2acb295a80cc8f3a54af09ebf670f51",
   "deployment_branch_commit": "0cfafadc9ca9c0c958d3cd91ec3ac70fcf314d41",
@@ -201,7 +201,15 @@
     },
     "rollback_guarded": true,
     "installer_sealed": true,
-    "natural_scheduler_acceptance_after_this_install": "not_observed_in_this_session",
+    "natural_scheduler_acceptance_after_this_install": "observed_2026_10_31_with_cpanel_tls_still_unavailable",
     "manual_hermes_command_runs": 0
+  },
+  "latest_followup": {
+    "observed_utc": "2026-10-31T09:52:36+00:00",
+    "evidence": "docs/project/error-reliability-2026-10-29/followup-2026-10-31.json",
+    "report": "docs/project/ERROR-RELIABILITY-ACCEPTANCE-2026-10-31.md",
+    "runtime_files_unchanged": true,
+    "natural_schedule_after_third_file": "observed",
+    "cpanel_tls_resolved": false
   }
 }

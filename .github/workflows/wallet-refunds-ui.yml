@@ -4,6 +4,14 @@ on:
     branches: [develop]
     paths:
       - 'website/routes/web.php'
+      - 'website/resources/views/admin/wallet-refund.blade.php'
+      - 'website/public/assets/css/admin-wallet-refund.css'
+      - 'website/app/Services/Finance/WalletRefunds.php'
+      - 'website/app/Services/Finance/TaxEvidenceBundle.php'
+      - 'website/app/Http/Controllers/Admin/WalletRefundController.php'
+      - 'website/tests/Feature/AdminWalletRefundPresentationTest.php'
+      - 'website/tests/Feature/WalletRefundFundingTest.php'
+      - 'website/tests/js/admin-wallet-refund.browser.cjs'
       - 'website/resources/views/account/wallet-refunds.blade.php'
       - 'website/public/assets/css/wallet-refunds.css'
       - 'website/lang/*/refund.php'
@@ -15,6 +23,14 @@ on:
     branches: [develop]
     paths:
       - 'website/routes/web.php'
+      - 'website/resources/views/admin/wallet-refund.blade.php'
+      - 'website/public/assets/css/admin-wallet-refund.css'
+      - 'website/app/Services/Finance/WalletRefunds.php'
+      - 'website/app/Services/Finance/TaxEvidenceBundle.php'
+      - 'website/app/Http/Controllers/Admin/WalletRefundController.php'
+      - 'website/tests/Feature/AdminWalletRefundPresentationTest.php'
+      - 'website/tests/Feature/WalletRefundFundingTest.php'
+      - 'website/tests/js/admin-wallet-refund.browser.cjs'
       - 'website/resources/views/account/wallet-refunds.blade.php'
       - 'website/public/assets/css/wallet-refunds.css'
       - 'website/lang/*/refund.php'
@@ -44,6 +60,7 @@ jobs:
       PAGE_CACHE: 'false'
       EXCHANGE_ENABLED: 'false'
       WALLET_REFUND_UI_FIXTURES: /tmp/servernet-wallet-refund-ui-${{ github.run_id }}
+      ADMIN_WALLET_REFUND_UI_FIXTURES: /tmp/servernet-admin-wallet-refund-ui-${{ github.run_id }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -73,11 +90,13 @@ jobs:
           set -euo pipefail
           php -l routes/web.php
           php -l tests/Feature/WalletRefundPresentationTest.php
+          php -l tests/Feature/AdminWalletRefundPresentationTest.php
+          php -l tests/Feature/WalletRefundFundingTest.php
           php -l lang/fa/refund.php
           php -l lang/en/refund.php
           php -l lang/tr/refund.php
           result=0
-          vendor/bin/phpunit --filter='WalletRefundPresentationTest|WalletRefundWorkflowTest|AuditReportShareTest|ReportConsultationTest' --colors=never --log-junit "$RUNNER_TEMP/wallet-refund-ui.xml" > "$RUNNER_TEMP/wallet-refund-ui.log" 2>&1 || result=$?
+          vendor/bin/phpunit --filter='WalletRefundPresentationTest|AdminWalletRefundPresentationTest|WalletRefundFundingTest|WalletRefundWorkflowTest|AuditReportShareTest|ReportConsultationTest' --colors=never --log-junit "$RUNNER_TEMP/wallet-refund-ui.xml" > "$RUNNER_TEMP/wallet-refund-ui.log" 2>&1 || result=$?
           python3 - "$RUNNER_TEMP/wallet-refund-ui.xml" "$RUNNER_TEMP/wallet-refund-ui.log" <<'PY'
           import pathlib, sys, xml.etree.ElementTree as ET
           xml_path, log_path = map(pathlib.Path, sys.argv[1:])
@@ -102,4 +121,5 @@ jobs:
           node --version
           "$TEST_CHROME" --version
           node --test website/tests/js/wallet-refunds.browser.cjs
+          node --test website/tests/js/admin-wallet-refund.browser.cjs
           node --test website/tests/js/panel-navigation.browser.cjs

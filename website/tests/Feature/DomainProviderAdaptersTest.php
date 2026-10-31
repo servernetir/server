@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\DomainSupplierAccount;
 use App\Models\Domain;
+use App\Models\Setting;
 use App\Services\Domain\DomainManagement;
 use App\Services\Domain\DomainSupplierLifecycle;
 use App\Services\Domain\OpenProviderClient;
@@ -43,7 +44,15 @@ class DomainProviderAdaptersTest extends TestCase
 
     private function fakeJoker(array $extra): void
     {
-        Http::fake(['*/login' => $this->reply('', "Auth-SID: fixture-session\n")] + $extra);
+        Http::fake($extra + [
+            '*/login' => $this->reply('', "Auth-SID: fixture-session\n"),
+            '*/domain-check' => function (Request $request) {
+                $operation = $request['check-price'];
+                $status = $operation === 'create' ? 'available' : 'unavailable';
+                $years = intdiv((int) $request['period'], 12);
+                return $this->reply("domain-status: $status\ndomain-class: standard\ndomain-price-$operation: 8.21 USD {$years}y\n");
+            },
+        ]);
     }
 
     private function context(): array
@@ -76,6 +85,147 @@ class DomainProviderAdaptersTest extends TestCase
         $quote = (new JokerAdapter($this->account()))->quote('example.com', 'create', 12);
         $this->assertTrue($quote['premium']);
         $this->assertSame(10005, $quote['amount_minor']);
+    }
+
+    public function test_joker_external_fees_change_landed_cost_without_repeating_supplier_vat(): void
+    {
+        Setting::put('domain_supplier_vat_pct', '20');
+        config(['domain_pricing.supplier_vat_pct' => 20]);
+        $account = $this->account();
+        $account->settings = ['supplier_vat_pct' => 40, 'supplier_fee_pct' => 10, 'mandatory_fee_minor' => 25];
+        $this->fakeJoker(['*/domain-check' => $this->reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 10.00 USD 1y\n")]);
+        $quote = (new JokerAdapter($account))->quote('example.com', 'create', 12);
+        $this->assertSame(1000, $quote['provider_debit_minor']);
+        $this->assertSame(1125, $quote['amount_minor']);
+        $this->assertSame(1000, $quote['components']['final_account_domain_minor']);
+        $this->assertSame(100, $quote['components']['supplier_fee_minor']);
+        $this->assertSame(25, $quote['components']['mandatory_fee_minor']);
+        $this->assertTrue($quote['components']['supplier_tax_included']);
+        $this->assertTrue($quote['tax_included']);
+    }
+
+    public function test_joker_global_funding_fee_rounds_up_and_account_zero_can_override_it(): void
+    {
+        Setting::put('domain_supplier_fee_pct', '2.5');
+        config(['domain_pricing.supplier_fee_pct' => 9]);
+        $account = $this->account();
+        $adapter = new JokerAdapter($account);
+        $this->fakeJoker(['*/domain-check' => $this->reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 10.01 USD 1y\n")]);
+        $quote = $adapter->quote('example.com', 'create', 12);
+        $this->assertSame(1027, $quote['amount_minor']); // 1001 + ceil(25.025)
+        $this->assertSame(1001, $quote['provider_debit_minor']);
+        $account->settings = ['supplier_fee_pct' => 0];
+        $withoutFee = $adapter->quote('example.com', 'create', 12);
+        $this->assertSame(1001, $withoutFee['amount_minor']);
+        $this->assertSame($withoutFee['provider_terms_hash'], $quote['provider_terms_hash']);
+        $this->assertNotSame($withoutFee['terms_hash'], $quote['terms_hash']);
+    }
+
+    public function test_joker_funding_fee_never_inflates_the_dmapi_max_price(): void
+    {
+        $account = $this->account();
+        $account->settings = ['supplier_fee_pct' => 10];
+        $this->fakeJoker([
+            '*/domain-check' => $this->reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 10.00 USD 1y\n"),
+            '*/domain-register' => $this->reply('', "Result: ACK\nProc-ID: 42\n"),
+        ]);
+        $context = ['max_price_minor' => 1100, 'provider_price_ceiling_minor' => 1000] + $this->context();
+        $res = (new JokerAdapter($account))->submit('create', 'example.com', 12, $context);
+        $this->assertSame('queued', $res['status']);
+        Http::assertSent(fn (Request $r) => str_ends_with($r->url(), '/domain-register') && $r['max-price'] === '10.00');
+    }
+
+    public function test_joker_provider_price_increase_cannot_consume_an_unused_external_fee_budget(): void
+    {
+        $this->fakeJoker(['*/domain-check' => $this->reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 11.00 USD 1y\n")]);
+        $context = ['max_price_minor' => 1100, 'provider_price_ceiling_minor' => 1000] + $this->context();
+        try {
+            (new JokerAdapter($this->account()))->submit('create', 'example.com', 12, $context);
+            $this->fail('An original 10.00 provider cap must still apply after external fees fall.');
+        } catch (DomainProviderException $e) {
+            $this->assertSame('supplier_price_changed', $e->reason);
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/domain-register'));
+    }
+
+    public function test_joker_external_fee_increase_is_revalidated_before_a_financial_request(): void
+    {
+        $account = $this->account();
+        $account->settings = ['supplier_fee_pct' => 20];
+        $this->fakeJoker(['*/domain-check' => $this->reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 10.00 USD 1y\n")]);
+        $context = ['max_price_minor' => 1100, 'provider_price_ceiling_minor' => 1000] + $this->context();
+        try {
+            (new JokerAdapter($account))->submit('create', 'example.com', 12, $context);
+            $this->fail('The current 12.00 landed cost exceeds the original 11.00 cap.');
+        } catch (DomainProviderException $e) {
+            $this->assertSame('supplier_price_changed', $e->reason);
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/domain-register'));
+    }
+
+    public function test_joker_external_fees_require_an_explicit_provider_debit_cap(): void
+    {
+        $account = $this->account();
+        $account->settings = ['supplier_fee_pct' => 10];
+        try {
+            (new JokerAdapter($account))->submit('create', 'example.com', 12, $this->context());
+            $this->fail('Landed cost alone must not authorize a larger registrar debit.');
+        } catch (DomainProviderException $e) {
+            $this->assertSame('provider_price_ceiling_required', $e->reason);
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_joker_submission_rejects_a_currency_change_even_at_the_same_numeric_amount(): void
+    {
+        $this->fakeJoker(['*/domain-check' => $this->reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 8.21 EUR 1y\n")]);
+        try {
+            (new JokerAdapter($this->account()))->submit('create', 'example.com', 12, $this->context());
+            $this->fail('An equal numeric amount in another currency is a changed purchase.');
+        } catch (DomainProviderException $e) {
+            $this->assertSame('supplier_price_changed', $e->reason);
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/domain-register'));
+    }
+
+    public function test_joker_submission_rejects_a_premium_class_change_at_the_same_currency_and_price(): void
+    {
+        $this->fakeJoker(['*/domain-check' => $this->reply("domain-status: available\ndomain-class: tier-1\ndomain-price-create: 8.21 USD 1y\n")]);
+        try {
+            (new JokerAdapter($this->account()))->submit('create', 'example.com', 12, ['quoted_premium' => false] + $this->context());
+            $this->fail('A new premium price class requires a fresh customer decision.');
+        } catch (DomainProviderException $e) {
+            $this->assertSame('supplier_price_changed', $e->reason);
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/domain-register'));
+    }
+
+    public function test_joker_submission_rejects_a_change_to_the_original_provider_terms(): void
+    {
+        $this->fakeJoker([]);
+        try {
+            (new JokerAdapter($this->account()))->submit('create', 'example.com', 12,
+                ['quoted_provider_terms_hash' => 'different-original-provider-terms'] + $this->context());
+            $this->fail('A matching amount does not approve different provider terms.');
+        } catch (DomainProviderException $e) {
+            $this->assertSame('supplier_price_changed', $e->reason);
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/domain-register'));
+    }
+
+    public function test_joker_mandatory_fee_must_already_be_an_exact_integer_minor_unit(): void
+    {
+        $account = $this->account();
+        $account->settings = ['mandatory_fee_minor' => '1.5'];
+        $this->fakeJoker([]);
+        $this->expectExceptionMessage('invalid_supplier_amount');
+        (new JokerAdapter($account))->quote('example.com', 'create', 12);
+    }
+
+    public function test_landed_cost_overflow_is_rejected_without_a_float_conversion(): void
+    {
+        $this->expectExceptionMessage('invalid_supplier_amount');
+        ProviderMoney::add(PHP_INT_MAX, 1);
     }
 
     public function test_pricing_errors_are_not_domain_unavailability_and_do_not_leak_the_key(): void
@@ -415,6 +565,63 @@ class DomainProviderAdaptersTest extends TestCase
             $this->fail('Renewal target is already met');
         } catch (DomainProviderException $e) { $this->assertSame('renewal_expiry_changed', $e->reason); }
         Http::assertNotSent(fn (Request $r) => str_contains($r->url(), '/renew'));
+    }
+
+    public function test_openprovider_debit_uses_actual_vat_without_external_fees_or_a_configured_tax_reserve(): void
+    {
+        $account = $this->account('openprovider');
+        $account->settings = ['supplier_vat_pct' => 20, 'supplier_fee_pct' => 10, 'mandatory_fee_minor' => '7'];
+        Http::fake(['*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'token']]),
+            '*/domains/check' => Http::response(['code' => 0, 'data' => ['results' => [['status' => 'free']]]]),
+            '*/domains/prices*' => Http::response(['code' => 0, 'data' => ['is_premium' => false,
+                'price' => ['reseller' => ['price' => '10.00', 'currency' => 'USD']]]]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['vatperc' => '10']])]);
+        $adapter = (new DomainProviderFactory)->forAccount($account);
+        $quote = $adapter->quote('example.com', 'create', 12);
+        $this->assertSame(1100, $quote['provider_debit_minor']);
+        $this->assertSame(1327, $quote['amount_minor']); // 1000 + 200 reserved VAT + 120 fee + 7 mandatory
+        $this->assertSame(100, $quote['components']['actual_supplier_tax_minor']);
+        $this->assertSame(100, $quote['components']['supplier_tax_reserve_minor']);
+        $account->settings = ['supplier_vat_pct' => 10, 'supplier_fee_pct' => 0];
+        $withoutExternalCosts = $adapter->quote('example.com', 'create', 12);
+        $this->assertSame(1100, $withoutExternalCosts['amount_minor']);
+        $this->assertSame($quote['provider_terms_hash'], $withoutExternalCosts['provider_terms_hash']);
+        $this->assertNotSame($quote['terms_hash'], $withoutExternalCosts['terms_hash']);
+    }
+
+    public function test_openprovider_actual_debit_increase_cannot_consume_unused_external_cost_budget(): void
+    {
+        $account = $this->account('openprovider');
+        $account->settings = ['supplier_vat_pct' => 10, 'supplier_fee_pct' => 0];
+        Http::fake(['*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'token']]),
+            '*/domains/check' => Http::response(['code' => 0, 'data' => ['results' => [['status' => 'free']]]]),
+            '*/domains/prices*' => Http::response(['code' => 0, 'data' => ['is_premium' => false,
+                'price' => ['reseller' => ['price' => '10.00', 'currency' => 'USD']]]]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['vatperc' => '10']])]);
+        try {
+            (new DomainProviderFactory)->forAccount($account)->submit('create', 'example.com', 12,
+                ['max_price_minor' => 1500, 'provider_price_ceiling_minor' => 1000] + $this->context());
+            $this->fail('The 11.00 provider debit exceeds the original 10.00 cap, even below the landed cap.');
+        } catch (DomainProviderException $e) { $this->assertSame('supplier_price_changed', $e->reason); }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/domains'));
+    }
+
+    public function test_openprovider_submission_requires_original_premium_and_provider_terms_when_supplied(): void
+    {
+        $account = $this->account('openprovider');
+        $account->settings = ['supplier_vat_pct' => 0, 'supplier_fee_pct' => 0];
+        Http::fake(['*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'token']]),
+            '*/domains/check' => Http::response(['code' => 0, 'data' => ['results' => [['status' => 'free']]]]),
+            '*/domains/prices*' => Http::response(['code' => 0, 'data' => ['is_premium' => false,
+                'price' => ['reseller' => ['price' => '8.21', 'currency' => 'USD']]]]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['vatperc' => 0]])]);
+        foreach ([['quoted_premium' => true], ['quoted_provider_terms_hash' => 'different-original-terms']] as $changed) {
+            try {
+                (new DomainProviderFactory)->forAccount($account)->submit('create', 'example.com', 12, $changed + $this->context());
+                $this->fail('A matching amount must not authorize changed supplier terms.');
+            } catch (DomainProviderException $e) { $this->assertSame('supplier_price_changed', $e->reason); }
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/domains'));
     }
 
     public function test_minor_units_use_explicit_currency_and_half_up_rounding(): void

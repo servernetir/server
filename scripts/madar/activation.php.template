@@ -1,0 +1,27 @@
+<?php
+// Temporary release activation, protected by the application's normal session, admin and CSRF middleware.
+define('LARAVEL_START', microtime(true));
+require '__AUTOLOAD__';
+$app = require '__BOOTSTRAP__';
+$_SERVER['SCRIPT_FILENAME'] = __DIR__.'/index.php';
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+$request = Illuminate\Http\Request::capture();
+$app->instance('request', $request);
+Illuminate\Support\Facades\Facade::clearResolvedInstance('request');
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+$kernel->bootstrap();
+Illuminate\Support\Facades\Route::match(['GET','POST'], '/__HELPER__', function (Illuminate\Http\Request $request) {
+    if ($request->isMethod('GET')) return response('<!doctype html><meta charset="utf-8"><title>Madar release</title><h1>Madar release activation</h1><p>Refresh only this release’s PHP bytecode.</p><form method="post">'.csrf_field().'<button type="submit">Activate Madar release</button></form>')->header('Cache-Control','private, no-store');
+    $cached = 0;
+    foreach (json_decode('__TARGETS__', true, 512, JSON_THROW_ON_ERROR) as $file) {
+        if (function_exists('opcache_is_script_cached') && opcache_is_script_cached($file)) {
+            abort_unless(opcache_invalidate($file, true), 500);
+            $cached++;
+        }
+    }
+    $receipt = ['activated'=>true, 'cached_files_invalidated'=>$cached, 'utc'=>gmdate('c')];
+    file_put_contents('__RECEIPT__', json_encode($receipt, JSON_THROW_ON_ERROR), LOCK_EX);
+    return response()->json($receipt)->header('Cache-Control','private, no-store');
+})->middleware(['web','auth:web','admin']);
+$response=$kernel->handle($request);$response->send();$kernel->terminate($request,$response);

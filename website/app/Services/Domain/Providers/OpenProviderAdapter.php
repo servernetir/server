@@ -59,24 +59,31 @@ class OpenProviderAdapter implements DomainProvider
         // API reseller prices exclude VAT; do not let a UI flag suppress it.
         $account = $this->client->resellerInfo();
         $this->assertOk($account);
-        $vat = ProviderMoney::basisPoints(data_get($account, 'data.vatperc', ''));
+        $actualVat = ProviderMoney::basisPoints(data_get($account, 'data.vatperc', ''));
+        $vat = $actualVat;
         $reserve = $settings['supplier_vat_pct'] ?? $settings['vat_pct'] ?? Setting::get('domain_supplier_vat_pct') ?? config('domain_pricing.supplier_vat_pct');
         if ($reserve !== null) { $vat = max($vat, ProviderMoney::basisPoints($reserve)); }
         $feeBps = ProviderMoney::basisPoints($settings['supplier_fee_pct'] ?? $settings['fee_pct'] ?? Setting::get('domain_supplier_fee_pct') ?? config('domain_pricing.supplier_fee_pct', 0));
+        $actualTax = ProviderMoney::surcharge($base, $actualVat);
         $tax = ProviderMoney::surcharge($base, $vat);
-        $fee = ProviderMoney::surcharge($base + $tax, $feeBps);
-        $mandatory = (int) ($settings['mandatory_fee_minor'] ?? 0);
-        if ($mandatory < 0) { throw new DomainProviderException('invalid_supplier_amount'); }
-        $total = $base + $tax + $fee + $mandatory;
+        $fee = ProviderMoney::surcharge(ProviderMoney::add($base, $tax), $feeBps);
+        $mandatory = ProviderMoney::integerMinor($settings['mandatory_fee_minor'] ?? 0);
+        $total = ProviderMoney::add($base, $tax, $fee, $mandatory);
+        // External charges and a configured VAT reserve affect landed cost,
+        // not the actual deduction from this registrar account's wallet.
+        $debit = ProviderMoney::add($base, $actualTax);
         $validUntil = now()->addMinutes(5);
         $promotion = (array) data_get($res, 'data.promotion_data', []);
         $promotionEnd = isset($promotion['end_date']) && is_numeric($promotion['end_date']) ? (int) $promotion['end_date'] : null;
         if ($promotionEnd && $promotionEnd > time() && $promotionEnd < $validUntil->getTimestamp()) { $validUntil->setTimestamp($promotionEnd); }
         return [
-            'available' => $available, 'amount_minor' => $total, 'currency' => $currency,
+            'available' => $available, 'amount_minor' => $total, 'provider_debit_minor' => $debit, 'currency' => $currency,
             'period_months' => $months, 'premium' => $premium, 'tax_included' => true,
             'components' => ['discounted_domain_minor' => $base, 'supplier_tax_minor' => $tax,
+                'actual_supplier_tax_minor' => $actualTax, 'supplier_tax_reserve_minor' => $tax - $actualTax,
                 'supplier_fee_minor' => $fee, 'mandatory_fee_minor' => $mandatory, 'privacy_minor' => 0],
+            'provider_terms_hash' => hash('sha256', json_encode([$fqdn, $operation, $months, $premium, 'none', $actualVat,
+                (bool) data_get($res, 'data.is_promotion', false), $promotion])),
             'terms_hash' => hash('sha256', json_encode([$fqdn, $operation, $months, $premium, 'none', $vat, $feeBps, $mandatory,
                 (bool) data_get($res, 'data.is_promotion', false), $promotion])),
             'valid_until' => $validUntil->toIso8601String(),
@@ -117,8 +124,13 @@ class OpenProviderAdapter implements DomainProvider
             }
         }
         $quote = $this->quote($fqdn, $operation, $months, ['privacy' => $context['privacy'] ?? 'none']);
+        $providerCap = $context['provider_price_ceiling_minor'] ?? null;
         if (! is_int($context['max_price_minor'] ?? null) || $context['max_price_minor'] <= 0
             || $quote['amount_minor'] > $context['max_price_minor'] || $quote['currency'] !== ($context['currency'] ?? null)
+            || ($providerCap !== null && (! is_int($providerCap) || $providerCap < 1
+                || $providerCap > $context['max_price_minor'] || $quote['provider_debit_minor'] > $providerCap))
+            || (isset($context['quoted_premium']) && $context['quoted_premium'] !== $quote['premium'])
+            || (isset($context['quoted_provider_terms_hash']) && $context['quoted_provider_terms_hash'] !== $quote['provider_terms_hash'])
             || ($operation === 'create' && $quote['available'] !== true)) {
             throw new DomainProviderException('supplier_price_changed');
         }

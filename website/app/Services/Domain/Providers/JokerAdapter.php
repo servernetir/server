@@ -3,6 +3,7 @@
 namespace App\Services\Domain\Providers;
 
 use App\Models\DomainSupplierAccount;
+use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -69,16 +70,34 @@ class JokerAdapter implements DomainProvider
                 $validUntil->setTimestamp(strtotime($window[1]));
             }
         }
+        // The DMAPI price is the account's final debit, including its VAT and
+        // discounts. External funding/procurement charges are a separate cost;
+        // they must affect selection without increasing the registrar ceiling.
+        [$feeBps, $mandatory] = $this->externalFees();
+        $fee = ProviderMoney::surcharge($minor, $feeBps);
+        $landed = ProviderMoney::add($minor, $fee, $mandatory);
+        $providerTerms = hash('sha256', json_encode([$fqdn, $operation, $months, $premium, $class, 'none', $promo, $options['language'] ?? null]));
         return [
-            'available' => $available, 'amount_minor' => $minor, 'currency' => $m[2],
+            'available' => $available, 'amount_minor' => $landed, 'provider_debit_minor' => $minor, 'currency' => $m[2],
             'period_months' => $months, 'premium' => $premium, 'tax_included' => true,
-            // This is the final actual account deduction, including all
-            // reseller discounts/promos. Applying VAT again would duplicate it.
+            // Applying supplier VAT again would duplicate it. The additional
+            // fee below is external to the account debit, not a second VAT.
             'components' => ['final_account_domain_minor' => $minor, 'privacy_minor' => 0,
+                'supplier_fee_minor' => $fee, 'mandatory_fee_minor' => $mandatory,
                 'supplier_tax_included' => true, 'account_discounts_included' => true],
-            'terms_hash' => hash('sha256', json_encode([$fqdn, $operation, $months, $premium, $class, 'none', $promo, $options['language'] ?? null])),
+            'provider_terms_hash' => $providerTerms,
+            'terms_hash' => $feeBps === 0 && $mandatory === 0 ? $providerTerms
+                : hash('sha256', json_encode([$providerTerms, $feeBps, $mandatory])),
             'valid_until' => $validUntil->toIso8601String(),
         ];
+    }
+
+    private function externalFees(): array
+    {
+        $settings = (array) $this->account->settings;
+        $percentage = $settings['supplier_fee_pct'] ?? $settings['fee_pct']
+            ?? Setting::get('domain_supplier_fee_pct') ?? config('domain_pricing.supplier_fee_pct', 0);
+        return [ProviderMoney::basisPoints($percentage), ProviderMoney::integerMinor($settings['mandatory_fee_minor'] ?? 0)];
     }
 
     public function find(string $fqdn): array
@@ -105,7 +124,26 @@ class JokerAdapter implements DomainProvider
         $price = $context['max_price_minor'] ?? null;
         $currency = (string) ($context['currency'] ?? '');
         if (! is_int($price) || $price <= 0) { throw new DomainProviderException('supplier_price_ceiling_required'); }
-        $params = ['domain' => $fqdn, 'max-price' => ProviderMoney::decimal($price, $currency),
+        [$feeBps, $mandatory] = $this->externalFees();
+        $providerCeiling = $context['provider_price_ceiling_minor'] ?? null;
+        // Old no-fee requests used one amount for both concepts. Never make
+        // that inference after external costs have been configured.
+        if ($providerCeiling === null && $feeBps === 0 && $mandatory === 0) { $providerCeiling = $price; }
+        if (! is_int($providerCeiling) || $providerCeiling <= 0 || $providerCeiling > $price) {
+            throw new DomainProviderException('provider_price_ceiling_required');
+        }
+        $quoted = $this->quote($fqdn, $operation, $months, array_filter([
+            'privacy' => $context['privacy'] ?? 'none', 'language' => $context['language'] ?? null,
+        ], fn ($value) => $value !== null));
+        if ($quoted['provider_debit_minor'] > $providerCeiling || $quoted['amount_minor'] > $price
+            || $quoted['currency'] !== $currency
+            || ($operation === 'create' && $quoted['available'] !== true)
+            || ($operation === 'transfer' && $quoted['available'] !== false)
+            || (isset($context['quoted_premium']) && $context['quoted_premium'] !== $quoted['premium'])
+            || (isset($context['quoted_provider_terms_hash']) && $context['quoted_provider_terms_hash'] !== $quoted['provider_terms_hash'])) {
+            throw new DomainProviderException('supplier_price_changed');
+        }
+        $params = ['domain' => $fqdn, 'max-price' => ProviderMoney::decimal($providerCeiling, $currency),
             'privacy' => (string) ($context['privacy'] ?? 'none')];
         if ($params['privacy'] !== 'none') { throw new DomainProviderException('privacy_price_unavailable'); }
         if (! empty($context['client_transaction_id'] ?? $context['cltrid'] ?? null)) { $params['cltrid'] = $context['client_transaction_id'] ?? $context['cltrid']; }

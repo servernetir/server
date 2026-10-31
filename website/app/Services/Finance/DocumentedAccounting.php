@@ -19,11 +19,12 @@ final class DocumentedAccounting
 {
     public const SERVICES = ['shared_hosting', 'reseller_hosting', 'cloud_vps', 'dedicated', 'gpu', 'domain', 'ai', 'identity_api', 'storage', 'sms', 'network', 'email_hosting', 'transactional_email', 'physical_sales', 'remote_access', 'automation', 'bpmn_erp', 'managed_services', 'seo_services', 'web_design', 'cloud_phone', 'other'];
 
-    public const TYPES = ['expense', 'cost_adjustment', 'vendor_topup', 'asset_purchase', 'partner_funding', 'partner_repayment', 'opening_balance', 'vat_payment', 'income_tax_payment', 'bank_collection'];
+    public const TYPES = ['expense', 'cost_adjustment', 'vendor_topup', 'asset_purchase', 'partner_funding', 'partner_repayment', 'partner_advance', 'partner_advance_transfer', 'opening_balance', 'vat_payment', 'income_tax_payment', 'bank_collection'];
 
     public function ready(): bool
     {
-        return Schema::hasTable('finance_vouchers') && Schema::hasTable('finance_controls');
+        return Schema::hasTable('finance_vouchers') && Schema::hasTable('finance_controls')
+            && Schema::hasColumn('finance_vouchers', 'related_voucher_id');
     }
 
     private function check(bool $condition, string $key = 'invalid_voucher'): void
@@ -49,18 +50,38 @@ final class DocumentedAccounting
     public function post(array $d, int $actor): FinanceVoucher
     {
         $this->check($this->ready(), 'not_ready');
+        if (in_array($d['type'], ['partner_advance', 'partner_advance_transfer'], true)) {
+            $this->check(is_string($d['bank_reference'] ?? null), 'bank_invalid');
+            $reference = $this->normalizeBankReference($d['bank_reference']);
+            $this->check(is_string($reference) && mb_strlen($reference) >= 4 && mb_strlen($reference) <= 150, 'bank_invalid');
+            $d['bank_reference'] = $reference;
+            $bankRowId = $d['bank_transaction_id'] ?? null;
+            $this->check($bankRowId === null || $bankRowId === '' || (filter_var($bankRowId, FILTER_VALIDATE_INT) !== false && (int) $bankRowId > 0), 'bank_invalid');
+            $d['bank_transaction_id'] = $bankRowId === null || $bankRowId === '' ? null : (int) $bankRowId;
+        }
+        $d['funding_mode'] = $d['funding_mode'] ?? ($d['type'] === 'partner_advance_transfer' ? 'advance' : 'personal');
+        $this->check(in_array($d['funding_mode'], ['personal', 'advance'], true), 'invalid_funding_mode');
+        $relatedId = $d['related_voucher_id'] ?? null;
+        $this->check($relatedId === null || $relatedId === '' || (filter_var($relatedId, FILTER_VALIDATE_INT) !== false && (int) $relatedId > 0), 'advance_source');
+        $d['related_voucher_id'] = $relatedId === null || $relatedId === '' ? null : (int) $relatedId;
         $hash = hash('sha256', json_encode($d, JSON_THROW_ON_ERROR));
+        $legacyPayload = $d;
+        unset($legacyPayload['funding_mode'], $legacyPayload['related_voucher_id']);
+        $legacyHash = hash('sha256', json_encode($legacyPayload, JSON_THROW_ON_ERROR));
 
-        return DB::transaction(function () use ($d, $actor, $hash) {
+        return DB::transaction(function () use ($d, $actor, $hash, $legacyHash) {
             $this->guardDate($d['occurred_at']);
             $existing = FinanceVoucher::where('idempotency_key', $d['idempotency_key'])->first();
             if ($existing) {
-                $this->check(hash_equals($existing->payload_hash, $hash), 'duplicate_mismatch');
+                $legacyRetry = $d['funding_mode'] === 'personal' && $d['related_voucher_id'] === null
+                    && ! $existing->related_voucher_id && hash_equals($existing->payload_hash, $legacyHash);
+                $this->check(hash_equals($existing->payload_hash, $hash) || $legacyRetry, 'duplicate_mismatch');
 
                 return $existing;
             }
             $this->check(isset(AccountingMoney::EXPONENTS[$d['original_currency']]));
             $type = $d['type'];
+            $fundingMode = $d['funding_mode'];
             $this->check(in_array($d['tax_status'] ?? 'pending', ['pending', 'rejected'], true), 'cost_proof');
             $gross = (int) $d['amount_irt'];
             $this->check(in_array($type, self::TYPES, true) && $gross > 0 && $gross <= AccountingMoney::MAX);
@@ -74,17 +95,17 @@ final class DocumentedAccounting
                 $this->check($funding !== null && $native > 0 && $d['settlement_currency'] === $funding->currency_code);
                 $this->check(in_array($funding->type, ['bank', 'partner', 'vendor'], true));
             }
-            if (! in_array($type, ['vendor_topup', 'partner_funding', 'partner_repayment', 'opening_balance', 'bank_collection'], true)) {
+            if (! in_array($type, ['vendor_topup', 'partner_funding', 'partner_repayment', 'partner_advance', 'partner_advance_transfer', 'opening_balance', 'bank_collection'], true)) {
                 $this->check($target === null);
             }
             if (in_array($type, ['opening_balance', 'bank_collection'], true)) {
                 $this->check($funding === null && $native === 0);
             }
-            if ($d['original_currency'] === 'IRT') {
-                $this->check($original === $gross);
+            if (in_array($d['original_currency'], ['IRT', 'IRR'], true)) {
+                $this->check($original === ($d['original_currency'] === 'IRR' ? $gross * 10 : $gross), 'currency_conversion');
             }
-            if (($d['settlement_currency'] ?? null) === 'IRT' && ! in_array($type, ['opening_balance', 'bank_collection'], true)) {
-                $this->check($native === $gross);
+            if (in_array($d['settlement_currency'] ?? null, ['IRT', 'IRR'], true) && ! in_array($type, ['opening_balance', 'bank_collection'], true)) {
+                $this->check($native === ($d['settlement_currency'] === 'IRR' ? $gross * 10 : $gross), 'currency_conversion');
             }
             $inputVat = (int) ($d['input_vat_irt'] ?? 0);
             $this->check($inputVat >= 0 && $inputVat < $gross);
@@ -92,17 +113,69 @@ final class DocumentedAccounting
                 && ($d['vat_status'] ?? 'none') === 'eligible' && $d['original_currency'] === 'IRT'
                 && ! empty($d['tax_reference']) && ! empty($d['invoice_number']) && ! empty($d['vendor'])), 'vat_proof');
             $net = $gross - $inputVat;
-            if (in_array($type, ['vendor_topup', 'partner_funding', 'partner_repayment', 'opening_balance'], true)) {
+            if (in_array($type, ['vendor_topup', 'partner_funding', 'partner_repayment', 'partner_advance', 'partner_advance_transfer', 'opening_balance'], true)) {
                 $this->check($target !== null && (! $funding || $target->id !== $funding->id));
             }
             if ($type === 'vendor_topup') {
                 $this->check($target->type === 'vendor' && $target->currency_code === $d['original_currency']);
+                $this->check(! $this->hasLaterActivity($target, $d['occurred_at']), 'advance_source');
             }
             if ($type === 'partner_funding') {
                 $this->check($funding->type === 'partner' && $target->type === 'bank' && $target->currency_code === $d['original_currency']);
             }
             if ($type === 'partner_repayment') {
                 $this->check($funding->type === 'bank' && $target->type === 'partner' && $target->currency_code === $d['original_currency']);
+            }
+            if (in_array($type, ['partner_advance', 'partner_advance_transfer'], true)) {
+                $this->check($target->type === 'partner' && $target->currency_code === $d['original_currency']
+                    && filled($target->owner_name), 'advance_source');
+                $this->check($type === 'partner_advance' ? $funding->type === 'bank'
+                    : $funding->type === 'partner' && $fundingMode === 'advance', 'advance_source');
+                if ($type === 'partner_advance_transfer') {
+                    $this->check(filled($funding->partner_key) && filled($target->partner_key)
+                        && hash_equals((string) $funding->partner_key, (string) $target->partner_key), 'advance_source');
+                }
+                // Historical pooled carrying values cannot be rebased after later activity.
+                $this->check(! $this->hasLaterActivity($funding, $d['occurred_at'])
+                    && ! $this->hasLaterActivity($target, $d['occurred_at']), 'advance_source');
+                // An advance is not an implicit repayment/netting of an existing partner claim.
+                foreach ([$this->balance($target, $d['occurred_at']), $this->balance($target)] as $claim) {
+                    $this->check($claim['native'] <= 0 && $claim['irt'] <= 0
+                        && (($claim['native'] === 0) === ($claim['irt'] === 0)), 'partner_advance_mixed');
+                }
+                // The same real outflow cannot fund a new advance after any earlier voucher or reversal.
+                foreach (FinanceVoucher::where('funding_account_id', $funding->id)->whereNotNull('bank_reference')
+                    ->select(['id', 'bank_reference'])->lazyById(200) as $previous) {
+                    $this->check($this->normalizeBankReference((string) $previous->bank_reference) !== $d['bank_reference'], 'bank_invalid');
+                }
+                if ($type === 'partner_advance_transfer') {
+                    $this->check($d['bank_transaction_id'] === null, 'bank_invalid');
+                } elseif ($d['bank_transaction_id'] !== null) {
+                    $bankRow = DB::table('finance_bank_transactions')->where('id', $d['bank_transaction_id'])->lockForUpdate()->first();
+                    $this->check($bankRow !== null && (int) $bankRow->account_id === (int) $funding->id
+                        && $bankRow->currency_code === $funding->currency_code && $bankRow->occurred_at === $d['occurred_at']
+                        && (int) $bankRow->debit_minor === $native && (int) $bankRow->credit_minor === 0
+                        && ! FinanceVoucher::where('bank_transaction_id', $bankRow->id)->exists(), 'bank_invalid');
+                }
+                $fixedRialToman = in_array($funding->currency_code, ['IRT', 'IRR'], true)
+                    && in_array($target->currency_code, ['IRT', 'IRR'], true);
+                $this->check($funding->currency_code === $target->currency_code || $fixedRialToman || filled($d['fx_basis'] ?? null), 'cost_proof');
+            }
+            $this->check($funding?->type === 'partner' || $fundingMode === 'personal', 'invalid_funding_mode');
+            $related = $d['related_voucher_id'] ? FinanceVoucher::whereKey($d['related_voucher_id'])->lockForUpdate()->first() : null;
+            if ($d['related_voucher_id']) {
+                $allowedSources = match ($funding?->type) {
+                    'bank' => ['opening_balance', 'bank_collection', 'partner_funding'],
+                    'partner' => ['partner_advance', 'partner_advance_transfer'],
+                    'vendor' => ['vendor_topup', 'opening_balance'],
+                    default => [],
+                };
+                $this->check($related !== null && ! $related->reversal_of && $funding !== null
+                    && (int) $related->target_account_id === (int) $funding->id
+                    && in_array($related->type, $allowedSources, true)
+                    && $related->occurred_at->toDateString() <= $d['occurred_at']
+                    && ! FinanceVoucher::where('reversal_of', $related->id)->exists(), 'advance_source');
+                $this->check($funding->type !== 'partner' || $fundingMode === 'advance', 'advance_source');
             }
             if (in_array($type, ['vat_payment', 'income_tax_payment'], true)) {
                 $this->check($funding->type !== 'vendor');
@@ -128,6 +201,27 @@ final class DocumentedAccounting
                     $this->check($gross === $carrying, 'carrying_cost');
                 }
             }
+            if ($funding?->type === 'partner') {
+                $balances = [$this->balance($funding, $d['occurred_at']), $this->balance($funding)];
+                if ($fundingMode === 'advance') {
+                    $this->check($related !== null && filled($funding->owner_name)
+                        && ! $this->hasLaterActivity($funding, $d['occurred_at'])
+                        && (! $target || ! $this->hasLaterActivity($target, $d['occurred_at'])), 'advance_source');
+                    foreach ($balances as $balance) {
+                        $this->check($balance['native'] < 0 && $balance['irt'] < 0 && -$balance['native'] >= $native, 'insufficient_advance');
+                    }
+                    $available = -$balances[0]['native'];
+                    $carrying = -$balances[0]['irt'];
+                    $fundingCarrying = $native === $available ? $carrying
+                        : (int) bcdiv(bcmul((string) $carrying, (string) $native, 0), (string) $available, 0);
+                    $this->check($fundingCarrying > 0 && -$balances[1]['irt'] >= $fundingCarrying
+                        && ($native !== -$balances[1]['native'] || $fundingCarrying === -$balances[1]['irt']), 'insufficient_advance');
+                } else {
+                    foreach ($balances as $balance) {
+                        $this->check($balance['native'] >= 0 && $balance['irt'] >= 0, 'partner_advance_mixed');
+                    }
+                }
+            }
             if ($type === 'partner_repayment') {
                 $claim = $this->balance($target, $d['occurred_at']);
                 $currentClaim = $this->balance($target);
@@ -142,7 +236,12 @@ final class DocumentedAccounting
                     ->whereNotIn('id', FinanceVoucher::whereNotNull('reversal_of')->select('reversal_of'))->exists(), 'already_documented');
                 $this->check(in_array($d['original_currency'], ['IRT', 'IRR'], true) || ! empty($d['fx_basis']), 'cost_proof');
             }
+            if (in_array($type, ['partner_advance', 'partner_advance_transfer'], true) && $funding->currency_code === $target->currency_code) {
+                $this->check($original === $native && $gross === $fundingCarrying, 'carrying_cost');
+            }
             $fxGain = $type === 'bank_collection' || $type === 'opening_balance' ? 0 : $targetCarrying + $inputVat - $fundingCarrying;
+            $this->check(! ($funding?->type === 'partner' && $fundingMode === 'advance' && $fxGain !== 0)
+                || filled($d['fx_basis'] ?? null), 'cost_proof');
             $linked = null;
             if (! empty($d['business_entry_id'])) {
                 $this->check(in_array($type, ['expense', 'cost_adjustment'], true) && $inputVat === 0);
@@ -165,7 +264,7 @@ final class DocumentedAccounting
             }
             $allowed = ['idempotency_key', 'type', 'occurred_at', 'service_line', 'category', 'vendor', 'invoice_number', 'bank_reference',
                 'fx_basis', 'note', 'original_currency', 'original_minor', 'settlement_currency', 'settlement_minor', 'funding_account_id',
-                'target_account_id', 'bank_transaction_id', 'tax_status', 'tax_reference', 'vat_status'];
+                'target_account_id', 'bank_transaction_id', 'related_voucher_id', 'tax_status', 'tax_reference', 'vat_status'];
             $v = FinanceVoucher::create(array_intersect_key($d, array_flip($allowed)) + [
                 'payload_hash' => $hash, 'vendor_invoice_key' => $invoiceKey, 'amount_irt' => $gross, 'input_vat_irt' => $inputVat, 'created_by' => $actor,
                 'business_entry_id' => $type === 'cost_adjustment' ? null : $linked?->id, 'adjusts_entry_id' => $type === 'cost_adjustment' ? $linked?->id : null, 'owns_business_entry' => false, 'book_delta_irt' => 0, 'fx_gain_irt' => $fxGain]);
@@ -186,7 +285,7 @@ final class DocumentedAccounting
             } else {
                 $debitCode = match ($type) {
                     'expense','cost_adjustment' => 'expense','asset_purchase' => 'fixed_asset','vendor_topup' => 'vendor_prepaid',
-                    'partner_funding' => 'bank','partner_repayment' => 'partner_current','vat_payment' => 'vat_payable',
+                    'partner_funding' => 'bank','partner_repayment','partner_advance','partner_advance_transfer' => 'partner_current','vat_payment' => 'vat_payable',
                     'income_tax_payment' => 'income_tax_payable',
                 };
                 $this->line($v, $debitCode, $targetCarrying, 0, $target?->id, $target ? $original : 0);
@@ -217,10 +316,51 @@ final class DocumentedAccounting
                     'serial' => $d['asset_serial'] ?? null, 'in_service_at' => $d['in_service_at'], 'useful_life_months' => $d['useful_life_months'],
                     'cost_irt' => $net, 'residual_irt' => $d['residual_irt'] ?? 0]);
             }
-            $this->audit('voucher_posted', $actor, $v->id, ['type' => $type, 'base_currency' => 'IRT']);
+            $this->audit('voucher_posted', $actor, $v->id, ['type' => $type, 'base_currency' => 'IRT',
+                'funding_mode' => $funding?->type === 'partner' ? $fundingMode : null, 'related_voucher_id' => $related?->id,
+                'funding_account_snapshot' => $this->accountSnapshot($funding), 'target_account_snapshot' => $this->accountSnapshot($target)]);
 
             return $v;
         }, 3);
+    }
+
+    private function normalizeBankReference(string $reference): ?string
+    {
+        $reference = strtr(trim($reference), array_combine(preg_split('//u', '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', -1, PREG_SPLIT_NO_EMPTY), str_split('01234567890123456789')));
+        $reference = preg_replace('/\s+/u', '', $reference);
+
+        return is_string($reference) ? mb_strtolower($reference) : null;
+    }
+
+    private function hasLaterActivity(FinanceAccount $account, string $date): bool
+    {
+        return DB::table('finance_lines as lines')->join('finance_vouchers as vouchers', 'vouchers.id', '=', 'lines.voucher_id')
+            ->where('lines.account_id', $account->id)->whereDate('vouchers.occurred_at', '>', $date)->exists();
+    }
+
+    private function accountSnapshot(?FinanceAccount $account): ?array
+    {
+        if (! $account) {
+            return null;
+        }
+        $snapshot = ['id' => (int) $account->id, 'name' => $account->name, 'type' => $account->type,
+            'currency_code' => $account->currency_code, 'owner_name' => $account->owner_name, 'partner_key' => $account->partner_key];
+        $masked = method_exists($account, 'maskedBankIdentity') ? $account->maskedBankIdentity() : [];
+        foreach (['bank_name', 'card_last4', 'iban_last4', 'iban_country'] as $key) {
+            $value = $masked[$key] ?? null;
+            if ($value !== null && ! is_string($value)) {
+                continue;
+            }
+            if (in_array($key, ['card_last4', 'iban_last4'], true) && $value !== null) {
+                $value = substr(preg_replace('/[^a-zA-Z0-9]/', '', $value), -4);
+            }
+            if ($key === 'iban_country' && $value !== null) {
+                $value = preg_match('/^[A-Z]{2}$/D', $value) ? $value : null;
+            }
+            $snapshot[$key] = $value;
+        }
+
+        return $snapshot;
     }
 
     public function line(FinanceVoucher $v, string $code, int $debit, int $credit, ?int $account = null, int $nativeDebit = 0, int $nativeCredit = 0): void
@@ -243,6 +383,8 @@ final class DocumentedAccounting
 
     public function reverse(FinanceVoucher $voucher, string $date, string $reason, int $actor): FinanceVoucher
     {
+        $this->check($this->ready(), 'not_ready');
+
         return DB::transaction(function () use ($voucher, $date, $reason, $actor) {
             $this->guardDate($date);
             $v = FinanceVoucher::whereKey($voucher->id)->lockForUpdate()->firstOrFail();
@@ -250,9 +392,30 @@ final class DocumentedAccounting
             $this->check($date >= $v->occurred_at->toDateString());
             $this->check(! $v->reversal_of && ! FinanceVoucher::where('reversal_of', $v->id)->exists(), 'already_reversed');
             $this->check(mb_strlen(trim($reason)) >= 5);
+            $this->check(! FinanceVoucher::where('related_voucher_id', $v->id)->whereNull('reversal_of')
+                ->whereNotIn('id', FinanceVoucher::whereNotNull('reversal_of')->select('reversal_of'))->exists(), 'related_in_use');
+            $postedDetails = json_decode((string) DB::table('finance_audit_events')->where('action', 'voucher_posted')
+                ->where('subject_id', $v->id)->orderBy('id')->value('details'), true);
+            $advanceFlow = in_array($v->type, ['partner_advance', 'partner_advance_transfer'], true)
+                || (is_array($postedDetails) && ($postedDetails['funding_mode'] ?? null) === 'advance');
             // Reversing a prepaid topup or opening after consumption would make fictitious negative balances.
             foreach (FinanceLine::where('voucher_id', $v->id)->whereNotNull('account_id')->get() as $l) {
                 $a = FinanceAccount::whereKey($l->account_id)->lockForUpdate()->firstOrFail();
+                if ($advanceFlow) {
+                    $this->check(! $this->hasLaterActivity($a, $date), 'advance_source');
+                    if ($a->type === 'partner' && $l->native_credit > 0) {
+                        foreach ([$this->balance($a, $date), $this->balance($a)] as $claim) {
+                            $this->check($claim['native'] <= 0 && $claim['irt'] <= 0, 'partner_advance_mixed');
+                        }
+                    }
+                }
+                if ($a->type === 'partner' && $l->native_debit > 0
+                    && in_array($v->type, ['partner_advance', 'partner_advance_transfer'], true)) {
+                    foreach ([$this->balance($a, $date), $this->balance($a)] as $advance) {
+                        $this->check($advance['native'] <= -$l->native_debit && $advance['irt'] <= -$l->debit_irt
+                            && ($advance['native'] !== -$l->native_debit || $advance['irt'] === -$l->debit_irt), 'insufficient_advance');
+                    }
+                }
                 if ($a->type !== 'partner' && $l->native_debit > 0) {
                     $bal = $this->balance($a, $date);
                     $current = $this->balance($a);

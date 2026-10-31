@@ -6,7 +6,6 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Services\Bale\Admin\AdminBaleGate;
 use App\Services\Bale\Admin\AdminBaleRouter;
-use App\Services\Calendar\CalendarService;
 use App\Services\ExchangeRate;
 use App\Services\Finance\AccountingMoney;
 use Illuminate\Support\Carbon;
@@ -18,6 +17,8 @@ use Illuminate\Support\Facades\Schema;
 class BaleManagerDailyDigest
 {
     public const TOPICS = ['stats', 'payments', 'domains', 'hermes', 'mail', 'calendar', 'identity', 'content', 'traffic', 'balances', 'fx', 'costs'];
+    private const TITLES = ['stats' => '📊 مشتری و تحویل', 'payments' => '💰 دریافت موفق', 'domains' => '🌐 دامنه', 'hermes' => '⚠️ پیگیری هرمس', 'mail' => '📬 ایمیل',
+        'calendar' => '📅 تقویم', 'identity' => '🪪 استعلام', 'content' => '📝 محتوا', 'traffic' => '🔎 ورودی سایت', 'fx' => '💱 نرخ ارز', 'balances' => '🏦 موجودی زیرساخت', 'costs' => '📈 افزایش هزینه تأمین‌کننده'];
     private ?Carbon $reportAt = null;
 
     public function snapshot(): array
@@ -38,17 +39,15 @@ class BaleManagerDailyDigest
         catch (\Throwable) { return ['available' => false, 'reason' => 'source_unavailable']; }
     }
 
-    /** Explicit Gregorian calendar month; all query bounds converted from Tehran to UTC. */
+    /** Adjacent half-open 30-day windows, anchored to this report's Tehran instant. */
     public function periods(): array
     {
         $local = ($this->reportAt ?? now())->copy()->setTimezone('Asia/Tehran');
         return ['now' => $local->copy()->utc(), 'day_start' => $local->copy()->subDay()->utc(),
-            'month_start' => $local->copy()->startOfMonth()->subMonth()->utc(),
-            'month_end' => $local->copy()->startOfMonth()->utc(),
             'rolling_start' => $local->copy()->subDays(30)->utc(),
+            'previous_rolling_start' => $local->copy()->subDays(60)->utc(),
             'yesterday_start' => $local->copy()->startOfDay()->subDay()->utc(),
-            'yesterday_end' => $local->copy()->startOfDay()->utc(),
-            'month_label' => $local->copy()->startOfMonth()->subMonth()->format('Y-m').' میلادی'];
+            'yesterday_end' => $local->copy()->startOfDay()->utc()];
     }
 
     public function text(?array $snapshot = null): string
@@ -56,25 +55,130 @@ class BaleManagerDailyDigest
         $snapshot ??= $this->snapshot();
         $s = $snapshot['sections'];
         $at = Carbon::parse($snapshot['observed_at'] ?? now())->setTimezone('Asia/Tehran');
-        $lines = ['📋 گزارش روزانه مدیریت — '.$at->format('Y-m-d H:i').' تهران'];
+        // Bale automatically parses Markdown. Only fixed headings contain markup;
+        // the surrounding spaces are required by Bale's documented bold syntax.
+        $heading = "📋 *گزارش روزانه مدیریت* \n".$this->jalali($at).' تهران';
+        $blocks = [];
         foreach (['stats', 'payments', 'domains', 'hermes', 'mail', 'calendar', 'identity', 'content', 'traffic', 'fx', 'balances', 'costs'] as $topic) {
             $rows = $this->lines($topic, $s[$topic] ?? ['available' => false], false);
-            $lines = array_merge($lines, $rows);
+            if ($rows === []) { continue; }
+            $title = self::TITLES[$topic];
+            if (str_starts_with($rows[0], $title)) {
+                $rows[0] = ltrim(mb_substr($rows[0], mb_strlen($title)), ': ');
+                if ($rows[0] === '') { array_shift($rows); }
+            } elseif ($topic === 'traffic') {
+                $rows[0] = preg_replace('/^🔎\s*/u', '', $rows[0]) ?? $rows[0];
+            }
+            [$icon, $label] = explode(' ', $title, 2);
+            $blocks[] = ['heading' => $icon.' *'.$label.'* ',
+                'body' => implode("\n", $rows)];
         }
-        $lines[] = '۲۴ساعت، منتهی به زمان گزارش است. جزئیات با دکمه‌ها؛ مقدار ناموجود صفر فرض نشده است.';
-        return mb_substr(implode("\n", $lines), 0, 3500);
+        $footer = '۲۴ساعت تا زمان گزارش؛ دو دورهٔ ماهانه، هرکدام ۳۰ روز مستقل‌اند. آمار گوگل بر پایهٔ روزهای منبع است. جزئیات با دکمه‌ها؛ مقدار ناموجود صفر فرض نشده است.';
+        return $this->boundedReport($heading, $blocks, $footer);
+    }
+
+    /** Keep every section heading and balanced markup, even with unusually long source labels. */
+    private function boundedReport(string $heading, array $blocks, string $footer): string
+    {
+        $render = static fn (array $parts) => $heading."\n\n".implode("\n\n", array_map(
+            static fn (array $block) => $block['heading']."\n".$block['body'], $parts))."\n\n".$footer;
+        $text = $render($blocks);
+        while (mb_strlen($text) > 3500) {
+            $longest = null;
+            foreach ($blocks as $key => $block) {
+                if (mb_strlen($block['body']) > 180 && ($longest === null || mb_strlen($block['body']) > mb_strlen($blocks[$longest]['body']))) { $longest = $key; }
+            }
+            if ($longest === null) { break; }
+            $note = '… جزئیات با دکمهٔ همین بخش.';
+            $limit = max(180, mb_strlen($blocks[$longest]['body']) - (mb_strlen($text) - 3500));
+            $kept = [];
+            foreach (explode("\n", $blocks[$longest]['body']) as $line) {
+                if (mb_strlen(implode("\n", [...$kept, $line])) + mb_strlen($note) + 1 > $limit) { break; }
+                $kept[] = $line;
+            }
+            $blocks[$longest]['body'] = ($kept === [] ? '' : implode("\n", $kept)."\n").$note;
+            $text = $render($blocks);
+        }
+        return $text;
     }
 
     public function detail(string $topic): string
     {
-        $out = '';
-        foreach ($this->lines($topic, $this->section($topic), true) as $line) {
-            if (mb_strlen($out) + mb_strlen($line) + 1 > 3300) {
-                return $out."\nچند ردیف دیگر در این پیام جا نشد؛ ادامه در پنل مدیریت.";
+        $rows = $this->lines($topic, $this->section($topic), true);
+        [$icon, $label] = explode(' ', self::TITLES[$topic], 2);
+        $out = $icon.$this->strong($label);
+        if (($rows[0] ?? '') === self::TITLES[$topic]) { array_shift($rows); }
+        foreach ($rows as $paragraph) {
+            if (mb_strlen($out) + mb_strlen($paragraph) + 2 > 3300) {
+                return $out."\n\nچند مورد دیگر در این پیام جا نشد؛ ادامه در پنل مدیریت.";
             }
-            $out .= ($out === '' ? '' : "\n").$line;
+            $out .= "\n\n".$paragraph;
         }
         return $out;
+    }
+
+    /** Display only: query bounds and source calendar periods remain unchanged. */
+    private function jalali(mixed $value, bool $withTime = true, string $inputTimezone = 'UTC'): string
+    {
+        if ($value === null || $value === '') { return 'نامشخص'; }
+        try {
+            $at = $value instanceof \DateTimeInterface ? Carbon::instance($value)->copy() : Carbon::parse((string) $value, $inputTimezone);
+            $at->setTimezone('Asia/Tehran');
+            [$year, $month, $day] = \App\Support\Jalali::ofMoment($at, 'Asia/Tehran');
+            return sprintf('%04d/%02d/%02d', $year, $month, $day).($withTime ? ' '.$at->format('H:i') : '');
+        } catch (\Throwable) { return 'نامشخص'; }
+    }
+
+    /** A Google date is a source-calendar day, not a UTC instant. */
+    private function sourceDay(mixed $date): string
+    {
+        return is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/D', $date)
+            ? $this->jalali($date, false, 'Asia/Tehran') : 'نامشخص';
+    }
+
+    /** Pure count comparison, shared by business and Google metrics; no state or money arithmetic. */
+    private function comparison(?int $current, ?int $previous, string $unit): string
+    {
+        if ($current === null || $previous === null || $current < 0 || $previous < 0) {
+            return ' مقایسه نامشخص؛ دادهٔ هر دو دوره قابل تأیید نیست.';
+        }
+        $difference = $current - $previous;
+        if ($difference === 0) { return $this->strong('بدون تغییر: 0 '.$unit.($previous === 0 ? '؛ هر دو دوره صفر' : ' (0.0٪)')); }
+        $change = number_format(abs($difference)).' '.$unit.($difference > 0 ? ' بیشتر' : ' کمتر');
+        if ($previous === 0) { return $this->strong('افزایش: '.$change.'؛ دورهٔ قبل صفر است، درصد قابل محاسبه نیست'); }
+        $percent = number_format(abs($difference) / $previous * 100, 1, '.', '');
+        return $this->strong(($difference > 0 ? 'افزایش: ' : 'کاهش: ').$change.' ('.$percent.'٪ '.($difference > 0 ? 'رشد' : 'افت').')');
+    }
+
+    private function knownCount(array $period, string $metric): ?int
+    {
+        $value = $period[$metric] ?? null;
+        return ($period['status'] ?? '') === 'known' && is_int($value) && $value >= 0 ? $value : null;
+    }
+
+    private function plain(string $text, int $limit = 500): string
+    {
+        return strtr($this->clean($text, $limit), ['*' => '＊', '_' => '＿', '[' => '［', ']' => '］']);
+    }
+
+    private function strong(string $text): string
+    {
+        return ' *'.$this->plain($text).'* ';
+    }
+
+    /** Group an already calculated decimal string; never cast money through float. */
+    private function decimal(string $value): string
+    {
+        if (! preg_match('/^(-?)(\d+)(\.\d+)?$/D', $value, $match)) { return $this->plain($value); }
+        return $match[1].preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', $match[2]).($match[3] ?? '');
+    }
+
+    private function paymentAmount(int $minor, string $currency): string
+    {
+        $display = AccountingMoney::display($minor, $currency);
+        $amount = substr($display, 0, -(strlen($currency) + 1));
+        $unit = ['IRT' => 'تومان (IRT)', 'IRR' => 'ریال (IRR)'][$currency] ?? $this->plain($currency);
+        return $this->decimal($amount).' '.$unit;
     }
 
     public function buttons(): array
@@ -94,15 +198,19 @@ class BaleManagerDailyDigest
     {
         $p = $this->periods();
         $this->requireColumns('customers', ['created_at']);
-        return ['available' => true, 'month_label' => $p['month_label'],
+        return ['available' => true,
             'signups_24h' => $this->countBetween('customers', 'created_at', $p['day_start'], $p['now']),
-            'signups_previous_month' => $this->countBetween('customers', 'created_at', $p['month_start'], $p['month_end']),
             'signups_30d' => $this->countBetween('customers', 'created_at', $p['rolling_start'], $p['now']),
+            'signups_previous_30d' => $this->countBetween('customers', 'created_at', $p['previous_rolling_start'], $p['rolling_start']),
             'customers_total' => DB::table('customers')->count(),
             'delivered_24h' => $this->delivered($p['day_start'], $p['now']),
-            'delivered_previous_month' => $this->delivered($p['month_start'], $p['month_end']),
             'delivered_30d' => $this->delivered($p['rolling_start'], $p['now']),
-            'delivery_basis' => 'cloud readiness notice claim; other services successful provisioning timestamp'];
+            'delivered_previous_30d' => $this->delivered($p['previous_rolling_start'], $p['rolling_start']),
+            'periods' => [
+                '24h' => ['start_at' => $p['day_start']->toIso8601String(), 'end_at' => $p['now']->toIso8601String()],
+                'recent_30d' => ['start_at' => $p['rolling_start']->toIso8601String(), 'end_at' => $p['now']->toIso8601String()],
+                'previous_30d' => ['start_at' => $p['previous_rolling_start']->toIso8601String(), 'end_at' => $p['rolling_start']->toIso8601String()],
+            ], 'delivery_basis' => 'cloud readiness notice claim; other services successful provisioning timestamp'];
     }
 
     private function delivered(Carbon $from, Carbon $to): ?int
@@ -158,12 +266,7 @@ class BaleManagerDailyDigest
 
     protected function calendar(): array
     {
-        $service = app(CalendarService::class);
-        $layers = array_keys(array_filter((array) config('calendar.layers'), fn ($v, $k) => $k !== 'google' && ($v['default'] ?? true), ARRAY_FILTER_USE_BOTH));
-        $items = $service->upcoming($layers, 2)->reject(fn ($i) => $i->status === 'done');
-        return ['available' => true, 'partial' => $service->failures() !== [] || $service->truncatedLayers() !== [], 'count' => $items->count(),
-            'items' => $items->take(10)->map(fn ($i) => ['title' => $i->title, 'at' => $i->at->copy()->setTimezone('Asia/Tehran')->format('Y-m-d H:i'), 'money' => $i->money()])->values()->all(),
-            'basis' => 'default organization layers, next two days; signed-in personal Google calendar excluded'];
+        return app(ManagerBusinessCalendarSnapshot::class)->snapshot();
     }
 
     protected function identity(): array
@@ -255,37 +358,86 @@ class BaleManagerDailyDigest
 
     private function lines(string $topic, array $s, bool $detail): array
     {
-        $titles = ['stats' => '📊 مشتری و تحویل', 'payments' => '💰 دریافت موفق', 'domains' => '🌐 دامنه', 'hermes' => '⚠️ پیگیری هرمس', 'mail' => '📬 ایمیل',
-            'calendar' => '📅 تقویم', 'identity' => '🪪 استعلام', 'content' => '📝 محتوا', 'traffic' => '🔎 ورودی سایت', 'fx' => '💱 نرخ ارز', 'balances' => '🏦 موجودی زیرساخت', 'costs' => '📈 افزایش هزینه تأمین‌کننده'];
-        $title = $titles[$topic];
+        $title = self::TITLES[$topic];
         if (empty($s['available'])) {
-            $out = [$title.': نامشخص'.($topic === 'traffic' ? '؛ داده تازه و قابل تأیید بازدیدکننده GA4 و کلیک/نمایش GSC در دسترس نیست.' : ($topic === 'costs' ? '؛ مقایسه مستند هزینه قبلی و فعلی موجود نیست.' : '؛ منبع اکنون قابل خواندن نیست.'))];
-            if ($detail && $topic === 'traffic') { $out[] = 'اتصال و وضعیت منابع: '.url('/admin/bale/reporting'); }
+            $out = [$title, 'نامشخص'.($topic === 'traffic' ? '؛ داده تازه و قابل تأیید بازدیدکننده GA4 و کلیک/نمایش GSC در دسترس نیست.' : ($topic === 'costs' ? '؛ مقایسه مستند هزینه قبلی و فعلی موجود نیست.' : '؛ منبع اکنون قابل خواندن نیست.'))];
             return $out;
         }
         $v = fn ($n) => $n === null ? 'نامشخص' : number_format((int) $n);
         switch ($topic) {
             case 'stats':
-                $out = [$title.': ثبت‌نام ۲۴ساعت '.$v($s['signups_24h']).' | ماه قبل '.$v($s['signups_previous_month']).' | کل '.$v($s['customers_total']),
-                    'تحویل ثبت‌شده: ۲۴ساعت '.$v($s['delivered_24h']).' | ماه قبل '.$v($s['delivered_previous_month']).' ('.$s['month_label'].')'];
-                if ($detail) { $out[] = '۳۰ روز اخیر: ثبت‌نام '.$v($s['signups_30d'] ?? null).' | تحویل '.$v($s['delivered_30d'] ?? null)."\nتحویل بر پایه زمان ثبت اعلان آمادگی ابر و موفقیت ساخت سایر سرویس‌هاست؛ رسید خواندن مشتری نیست."; }
+                $out = [$title];
+                foreach (['24h' => '۲۴ ساعت گذشته', '30d' => 'یک ماه اخیر (۳۰ روز)', 'previous_30d' => 'ماه پیش از آن (۳۰ روز)'] as $key => $label) {
+                    $out[] = $label.': ثبت‌نام '.$v($s['signups_'.$key] ?? null).' کاربر · تحویل '.$v($s['delivered_'.$key] ?? null).' سرویس';
+                }
+                $out[] = 'تغییر ثبت‌نام:'.$this->comparison($s['signups_30d'] ?? null, $s['signups_previous_30d'] ?? null, 'کاربر');
+                $out[] = 'تغییر تحویل:'.$this->comparison($s['delivered_30d'] ?? null, $s['delivered_previous_30d'] ?? null, 'سرویس');
+                $out[] = 'کل کاربران: '.$v($s['customers_total'] ?? null).' کاربر';
+                if ($detail) {
+                    foreach (['24h' => '۲۴ ساعت گذشته', 'recent_30d' => 'یک ماه اخیر (۳۰ روز)', 'previous_30d' => 'ماه پیش از آن (۳۰ روز)'] as $key => $label) {
+                        $period = $s['periods'][$key] ?? [];
+                        $out[] = 'بازهٔ '.$label.': از '.$this->jalali($period['start_at'] ?? null).' تا پیش از '.$this->jalali($period['end_at'] ?? null).' تهران';
+                    }
+                    $out[] = 'دو بازهٔ ۳۰روزه مستقل و پشت سر هم‌اند؛ جمع ۶۰ روز به‌جای دورهٔ اخیر نمایش داده نمی‌شود. تحویل بر پایه زمان ثبت اعلان آمادگی ابر و موفقیت ساخت سایر سرویس‌هاست؛ رسید خواندن مشتری نیست.';
+                }
                 return $out;
             case 'payments':
-                $amounts = array_map(fn ($r) => AccountingMoney::display($r['amount_minor'], $r['currency']), $s['currencies']);
-                return [$title.' در ۲۴ساعت: '.$v($s['count']).' پرداخت؛ '.($amounts ? implode('، ', $amounts) : '۰ مبلغ ثبت‌شده').($detail ? "\nشامل شارژ کیف پول؛ این عدد درآمد فروش یا سود نیست. هر ردیف پرداخت موفق فقط یک بار جمع شده است.\nبازه [".$s['start_at'].'، '.$s['end_at'].')' : '')];
-            case 'domains': return [$title.' در ۲۴ساعت: ثبت '.$v($s['registered_24h']).' | آخرین تمدید ثبت‌شده '.$v($s['renewed_24h_recorded']).($detail ? "\nتمدید بر اساس آخرین renewed_at هر دامنه است؛ دفتر کامل رویدادهای تاریخی نیست." : '')];
+                $out = [$title, '۲۴ ساعت گذشته: '.$v($s['count']).' پرداخت موفق'];
+                foreach ($s['currencies'] as $row) {
+                    $out[] = '•'.$this->strong($this->paymentAmount((int) $row['amount_minor'], (string) $row['currency'])).($detail ? ' · '.$v($row['count'] ?? null).' پرداخت' : '');
+                }
+                if ($s['currencies'] === []) { $out[] = 'مبلغی برای پرداخت موفق ثبت نشده است.'; }
+                if ($detail) {
+                    $out[] = 'شامل شارژ کیف پول؛ این عدد درآمد فروش یا سود نیست. هر ردیف پرداخت موفق فقط یک بار جمع شده است.';
+                    $out[] = 'از '.$this->jalali($s['start_at'] ?? null).' تا پیش از '.$this->jalali($s['end_at'] ?? null).' تهران';
+                }
+                return $out;
+            case 'domains':
+                return [$title, 'ثبت در ۲۴ ساعت گذشته: '.$v($s['registered_24h']).' دامنه',
+                    'آخرین تمدید ثبت‌شده در ۲۴ ساعت: '.$v($s['renewed_24h_recorded']).' دامنه',
+                    ...($detail ? ['تمدید بر اساس آخرین زمان تمدید هر دامنه است؛ دفتر کامل رویدادهای تاریخی نیست.'] : [])];
             case 'mail':
-                $out = [$title.': نامه تازه در ۲۴ساعت '.$v($s['received_24h']).' | کل صف پاسخ '.$v($s['pending'])];
-                if ($detail) { foreach ($s['items'] as $i) { $out[] = '• #'.$i['id'].' '.$this->clean($i['subject'] ?? '', 100).' — '.$this->clean($i['summary'] ?? '', 180); } }
+                $out = [$title, 'نامه تازه در ۲۴ ساعت: '.$v($s['received_24h']).' نامه'."\nکل صف پاسخ: ".$v($s['pending']).' نامه'];
+                if ($detail) {
+                    foreach ($s['items'] as $item) {
+                        $out[] = '✉️ '.$this->strong('نامه #'.(string) $item['id'])."\nعنوان: ".$this->plain($item['subject'] ?? '', 120)
+                            ."\nخلاصه: ".$this->plain($item['summary'] ?? '', 250)
+                            .(! empty($item['received_at']) ? "\nدریافت: ".$this->jalali($item['received_at']).' تهران' : '');
+                    }
+                }
                 return $out;
             case 'calendar':
-                $out = [$title.': '.$v($s['count']).' مورد در دو روز آینده'.(! empty($s['partial']) ? '؛ پوشش ناقص' : '')];
-                if ($detail) { foreach ($s['items'] as $i) { $out[] = '• '.$i['at'].' '.$this->clean($i['title'], 130).($i['money'] ? ' — '.$i['money'] : ''); } }
+                $partial = ! empty($s['partial']);
+                $out = [$title, 'امروز و فردا: '.$v($s['count'] ?? null).' رویداد'.($partial ? '؛ حداقل '.$v($s['observed_count'] ?? null).' رویداد مشاهده‌شده' : ''),
+                    '۷ روز آینده: '.$v($s['count_7d'] ?? null).' رویداد'.($partial ? '؛ حداقل '.$v($s['observed_count_7d'] ?? null).' رویداد مشاهده‌شده' : '')];
+                if ($partial) { $out[] = '⚠️'.$this->strong('پوشش ناقص').'؛ نبود داده به معنی نبود رویداد نیست.'; }
+                if (! empty($s['content_count'])) { $out[] = 'برنامهٔ محتوا در ۷ روز: '.($partial ? 'حداقل ' : '').$v($s['content_count']).' مورد'.($partial ? ' مشاهده‌شده' : '').'؛ در فهرست اقدامات تکرار نشده است.'; }
+                foreach (array_slice($s['items'] ?? [], 0, $detail ? 10 : 3) as $item) {
+                    $out[] = '•'.$this->strong($this->clean($item['title'], 160))."\nزمان: ".$this->jalali($item['at'] ?? null, true, 'Asia/Tehran').' تهران'
+                        .($detail && ! empty($item['type_label']) ? ' · '.$this->plain((string) $item['type_label'], 60) : '')
+                        .(! empty($item['money']) ? "\nمبلغ: ".$this->plain((string) $item['money']) : '');
+                }
+                if ($detail) {
+                    $out[] = 'بازهٔ ۷ روز: '.$this->jalali($s['lookahead_from_at'] ?? null).' تا '.$this->jalali($s['lookahead_to_at'] ?? null).' تهران';
+                    $types = [];
+                    foreach ($s['type_counts'] ?? [] as $type => $count) {
+                        $types[] = $this->plain((string) ($s['type_labels'][$type] ?? $type), 80).': '.($partial ? 'حداقل ' : '').$v($count).' رویداد'.($partial ? ' مشاهده‌شده' : '');
+                    }
+                    if ($types !== []) { $out[] = 'تفکیک رویدادها'.($partial ? ' (مشاهده‌شده)' : '').":\n".implode("\n", $types); }
+                    $out[] = 'پوشش سازمانی: '.implode('، ', array_map(fn ($label) => $this->plain((string) $label, 80), $s['coverage_labels'] ?? []));
+                    foreach (['failed_layers' => 'منابع ناموفق', 'truncated_layers' => 'منابع دارای سقف نتیجه', 'missing_layers' => 'منابع تنظیم‌نشده'] as $key => $label) {
+                        if (! empty($s[$key])) { $out[] = $label.': '.implode('، ', array_map(fn ($item) => $this->plain((string) $item, 80), $s[$key])); }
+                    }
+                    if (! empty($s['omitted_count'])) { $out[] = $v($s['omitted_count']).' اقدام دیگر در تقویم مدیریت است.'; }
+                }
                 return $out;
-            case 'identity': return $s['discrepancies'] || $s['pending_reconciliation'] || ! empty($s['funding_evidence_stale'])
-                ? [$title.': '.$v($s['discrepancies']).' مغایرت | '.$v($s['pending_reconciliation']).' تطبیق معوق'.(! empty($s['funding_evidence_stale']) ? ' | شاهد موجودی قدیمی' : '').'؛ رسید همان درخواست و تازگی موجودی بررسی شود.'] : ($detail ? [$title.': مغایرت یا تطبیق معوق ثبت‌شده‌ای نیست.'] : []);
+            case 'identity':
+                return $s['discrepancies'] || $s['pending_reconciliation'] || ! empty($s['funding_evidence_stale'])
+                    ? [$title, 'مغایرت: '.$v($s['discrepancies']).' درخواست · تطبیق معوق: '.$v($s['pending_reconciliation']).' درخواست'
+                        .(! empty($s['funding_evidence_stale']) ? ' · شاهد موجودی قدیمی' : ''), 'اقدام: رسید همان درخواست و تازگی موجودی بررسی شود.']
+                    : ($detail ? [$title, 'مغایرت یا تطبیق معوق ثبت‌شده‌ای نیست.'] : []);
             case 'content':
-                $out = [$title.': انتشار سایت در ۲۴ساعت '.$v($s['published_24h']).' (Growth '.$v($s['growth_published_24h'] ?? null).') | منتظر بازبینی '.$v($s['pending_review'])];
+                $out = [$title, 'انتشار سایت در ۲۴ساعت: '.$v($s['published_24h']).' محتوا (Growth '.$v($s['growth_published_24h'] ?? null).')'."\n".'منتظر بازبینی: '.$v($s['pending_review']).' محتوا'];
                 $jobs = $s['jobs'] ?? ['available' => false];
                 if (empty($jobs['available'])) { $out[] = 'پردازش Growth: نامشخص؛ رسید پردازش قابل خواندن نیست.'; }
                 elseif ($jobs['failed_24h'] || $jobs['uncertain_cost']) {
@@ -304,51 +456,83 @@ class BaleManagerDailyDigest
             case 'traffic':
                 $ga = $s['ga4']['periods'] ?? [];
                 $gsc = $s['gsc']['periods'] ?? [];
-                $metric = fn (array $period, string $key) => ($period['status'] ?? '') === 'known' ? $v($period[$key] ?? null) : 'نامشخص';
-                $out = ['🔎 بازدیدکننده یکتای GA4: '.($ga['yesterday']['start_date'] ?? 'دیروز منبع').' '.$metric($ga['yesterday'] ?? [], 'total_users').' | ماه قبل '.$metric($ga['previous_month'] ?? [], 'total_users'),
-                    'جستجوی GSC (کلیک/نمایش): '.($gsc['yesterday']['start_date'] ?? 'دیروز منبع').' '.$metric($gsc['yesterday'] ?? [], 'clicks').'/'.$metric($gsc['yesterday'] ?? [], 'impressions')
-                    .' | ماه قبل '.$metric($gsc['previous_month'] ?? [], 'clicks').'/'.$metric($gsc['previous_month'] ?? [], 'impressions')];
-                $preliminary = collect(array_merge(array_values($ga), array_values($gsc)))
-                    ->contains(fn ($r) => ($r['status'] ?? '') === 'known' && ! empty($r['preliminary']));
-                if ($preliminary) { $out[] = 'بخشی از داده گوگل اولیه است و ممکن است تکمیل شود.'; }
-                if ($detail) {
-                    foreach (['GA4' => $ga, 'GSC' => $gsc] as $source => $periods) {
-                        foreach (['yesterday' => 'دیروز', 'previous_month' => 'ماه تقویمی قبل'] as $key => $label) {
-                            $r = $periods[$key] ?? [];
-                            $out[] = $source.' '.$label.': '.($r['start_date'] ?? 'نامشخص').' تا '.($r['end_date'] ?? 'نامشخص').'؛ منطقه زمانی '.($r['timezone'] ?? 'نامشخص');
+                $out = [$title];
+                foreach (['GA4' => $ga, 'GSC' => $gsc] as $source => $periods) {
+                    $sourceRows = [$this->strong($source === 'GA4' ? 'بازدیدکننده یکتای GA4' : 'جستجوی GSC (کلیک/نمایش)')];
+                    foreach (['yesterday' => 'دیروز منبع', 'recent_30d' => 'یک ماه اخیر (۳۰ روز)', 'previous_30d' => 'ماه پیش از آن (۳۰ روز)'] as $key => $label) {
+                        $period = $periods[$key] ?? [];
+                        $counts = $source === 'GA4' ? $v($this->knownCount($period, 'total_users')).' کاربر یکتا'
+                            : $v($this->knownCount($period, 'clicks')).' کلیک · '.$v($this->knownCount($period, 'impressions')).' نمایش';
+                        $dates = $this->sourceDay($period['start_date'] ?? null);
+                        if ($detail) { $dates .= ' تا '.$this->sourceDay($period['end_date'] ?? null); }
+                        $sourceRows[] = $label.': '.$counts.($detail || $key === 'yesterday' ? ' ('.$dates.')' : '');
+                        if ($detail) {
+                            $timezone = (string) ($period['timezone'] ?? 'نامشخص');
+                            $sourceRows[] = 'منطقه زمانی دورهٔ منبع: '.(preg_match('/^[A-Za-z0-9_+\/-]+$/D', $timezone) ? $timezone : $this->plain($timezone));
                         }
                     }
-                    $out[] = 'مشاهده منبع: '.($s['as_of'] ?? 'نامشخص').'؛ کاربران GA4 در کل بازه یکتا هستند؛ جمع آمار روزانه نیستند. کلیک و نمایش GSC بازدیدکننده نیستند.';
-                    $out[] = 'اتصال و وضعیت منابع: '.url('/admin/bale/reporting');
+                    foreach ($source === 'GA4' ? ['total_users' => 'کاربر یکتا'] : ['clicks' => 'کلیک', 'impressions' => 'نمایش'] as $metric => $unit) {
+                        $sourceRows[] = 'تغییر '.$unit.':'.$this->comparison($this->knownCount($periods['recent_30d'] ?? [], $metric), $this->knownCount($periods['previous_30d'] ?? [], $metric), $unit);
+                    }
+                    $out[] = implode("\n", $sourceRows);
+                }
+                $preliminary = collect(array_merge(array_values($ga), array_values($gsc)))
+                    ->contains(fn ($period) => ($period['status'] ?? '') === 'known' && ! empty($period['preliminary']));
+                if ($preliminary) { $out[] = 'بخشی از داده گوگل اولیه است و ممکن است تکمیل شود.'; }
+                if ($detail) {
+                    $out[] = 'مشاهده منبع: '.$this->jalali($s['as_of'] ?? null).' تهران';
+                    $out[] = 'گوگل، روز تقویمی دیروز و دو دورهٔ مستقل ۳۰روزهٔ منبع را نشان می‌دهد، نه ۲۴ساعت شناور. تاریخ روزهای آماری، شمسیِ همان روز تقویمی منبع است؛ دوره به تهران جابه‌جا نشده است. کاربران GA4 در کل هر بازه یکتا هستند؛ جمع آمار روزانه یا جمع دو دوره نیستند. کلیک و نمایش GSC بازدیدکننده نیستند.';
                 }
                 return $out;
             case 'fx':
-                $parts = [];
-                foreach ($s['rows'] as $currency => $r) { $parts[] = $currency.' '.($r ? $v($r['rate_toman']).' تومان'.($r['stale'] ? ' (قدیمی)' : '').($detail ? '؛ مشاهده '.$r['at'] : '') : 'نامشخص'); }
-                return [$title.': '.implode(' | ', $parts)];
+                $out = [$title];
+                foreach ($s['rows'] as $currency => $r) {
+                    $out[] = '• '.$this->plain((string) $currency).': '.($r ? $v($r['rate_toman']).' تومان'.($r['stale'] ? ' (قدیمی)' : '').($detail ? '؛ مشاهده '.$this->jalali($r['at'] ?? null).' تهران' : '') : 'نامشخص');
+                }
+                return $out;
             case 'balances':
-                $parts = []; $unknown = 0;
+                $out = [$title]; $unknown = [];
                 foreach ($s['rows'] as $row) {
                     if (! is_array($row)) { continue; }
+                    $label = $this->plain((string) ($row['label'] ?? $row['provider'] ?? 'زیرساخت'), 200);
                     if (($row['status'] ?? '') !== 'known' || ($row['value'] ?? null) === null) {
-                        $unknown++;
                         if ($detail) {
                             $why = ['not_configured' => 'اتصال حساب کامل نیست', 'balance_api_not_integrated' => 'رابط معتبر موجودی متصل نشده',
                                 'not_applicable' => 'حساب پیش‌پرداخت ندارد', 'no_observation' => 'مشاهده‌ای ثبت نشده',
                                 'observation_expired' => 'مشاهده قبلی قدیمی است'][$row['reason'] ?? ''] ?? 'منبع قابل تأیید نیست';
-                            $parts[] = ($row['label'] ?? $row['provider'] ?? 'زیرساخت').': نامشخص؛ '.$why;
-                        } else {
-                            $parts[] = ($row['label'] ?? $row['provider'] ?? 'زیرساخت').' نامشخص';
-                        }
+                            $out[] = '• '.$label.': نامشخص؛ '.$why;
+                        } else { $unknown[] = $label; }
                         continue;
                     }
-                    $observed = empty($row['observed_at']) ? 'نامشخص' : Carbon::parse($row['observed_at'])->setTimezone('Asia/Tehran')->format($detail ? 'Y-m-d H:i' : 'H:i');
-                    $parts[] = ($row['label'] ?? $row['provider']).' '.$row['value'].' '.$row['currency'].(! empty($row['stale']) ? ' (قدیمی)' : '').'؛ مشاهده '.$observed;
+                    $observed = $this->jalali($row['observed_at'] ?? null);
+                    $out[] = '• '.$label.': '.$this->decimal((string) $row['value']).' '.$this->plain((string) $row['currency']).(! empty($row['stale']) ? ' (قدیمی)' : '').'؛ مشاهده '.$observed.' تهران';
                 }
-                return [$title.': '.implode(' | ', $parts)];
+                if ($unknown !== []) {
+                    $line = 'نامشخص: ';
+                    foreach ($unknown as $label) {
+                        $separator = $line === 'نامشخص: ' || $line === '' ? '' : '، ';
+                        if (mb_strlen($line.$separator.$label) > 99 && $separator !== '') {
+                            $out[] = $line.'،';
+                            $line = $label;
+                        } else { $line .= $separator.$label; }
+                    }
+                    $out[] = $line;
+                }
+                if (count($out) === 1) { $out[] = 'نامشخص؛ مشاهدهٔ موجودی در دسترس نیست.'; }
+                return $out;
             case 'hermes':
-                $out = [$title.': منتظر تصمیم '.($s['task_counts']['waiting_owner'] ?? 0).' | منتظر مشتری '.($s['task_counts']['waiting_customer'] ?? 0).' | هشدار '.count($s['alerts']).(! empty($s['source_stale']) ? '؛ مرور مالی قدیمی/نامشخص' : '')];
-                if ($detail) { $out[] = 'در حال بررسی '.($s['task_counts']['investigating'] ?? 0).' | حل‌شده '.($s['task_counts']['resolved'] ?? 0).'؛ آخرین مرور مالی '.(empty($s['last_run_at']) ? 'نامشخص' : Carbon::createFromTimestamp((int) $s['last_run_at'])->setTimezone('Asia/Tehran')->format('Y-m-d H:i')).' تهران'; }
+                $ownerCount = $s['task_counts']['waiting_owner'] ?? 0;
+                $ownerLine = 'منتظر تصمیم: '.$v($ownerCount).' مورد';
+                $alertLine = 'هشدار فعال: '.$v(count($s['alerts'])).' مورد';
+                $out = [$title, ($ownerCount > 0 ? $this->strong($ownerLine) : $ownerLine)
+                    ."\nمنتظر مشتری: ".$v($s['task_counts']['waiting_customer'] ?? 0).' مورد'
+                    ."\n".($s['alerts'] !== [] ? $this->strong($alertLine) : $alertLine)
+                    .(! empty($s['source_stale']) ? "\n⚠️".$this->strong('مرور مالی قدیمی/نامشخص') : '')];
+                if ($detail) {
+                    $out[] = 'در حال بررسی: '.$v($s['task_counts']['investigating'] ?? 0).' مورد'."\nحل‌شده: ".$v($s['task_counts']['resolved'] ?? 0).' مورد';
+                    $out[] = 'آخرین مرور مالی: '.$this->jalali(empty($s['last_run_at']) ? null : Carbon::createFromTimestamp((int) $s['last_run_at'])).' تهران';
+                    $out[] = $this->strong('علت و اقدام پیشنهادی');
+                }
                 $group = array_count_values(array_column($s['alerts'], 'code'));
                 foreach (array_slice($group, 0, $detail ? 12 : 2, true) as $code => $count) {
                     $advice = [
@@ -374,22 +558,22 @@ class BaleManagerDailyDigest
                 return $out;
             case 'costs':
                 if (($s['status'] ?? '') !== 'compared') {
-                    return [$title.': نامشخص؛ خط مبنای تاریخ‌دار و قابل مقایسه هنوز کامل نیست.'];
+                    return [$title, 'نامشخص؛ خط مبنای تاریخ‌دار و قابل مقایسه هنوز کامل نیست.'];
                 }
-                $out = [$title.': '.$v($s['increase_count']).' افزایش در برآورد کاتالوگ؛ '.$v($s['unknown_count']).' پلن نامشخص.'];
+                $out = [$title, $v($s['increase_count']).' افزایش در برآورد کاتالوگ؛ '.$v($s['unknown_count']).' پلن نامشخص.'];
                 foreach (array_slice($s['provider_increases'] ?? [], 0, $detail ? 12 : 3) as $group) {
-                    $out[] = '• '.$this->clean($group['label'], 60).': '.$v($group['increase_count']).' نرخ بیشتر؛ علت تأمین‌کننده/ارز تأیید نشده؛ تعرفه تاریخ‌دار و نرخ ارز را تطبیق دهید، سپس حاشیه فروش بررسی شود.';
+                    $out[] = '• '.$this->plain($group['label'], 60).': '.$v($group['increase_count']).' نرخ بیشتر؛ علت تأمین‌کننده/ارز تأیید نشده؛ تعرفه تاریخ‌دار و نرخ ارز را تطبیق دهید، سپس حاشیه فروش بررسی شود.';
                     if ($detail) {
                         foreach ($group['items'] ?? [] as $item) {
                             $exp = $item['period'] === 'hour' ? 6 : 2;
-                            $out[] = '  #'.$item['plan_id'].' از '.bcdiv((string) $item['before'], (string) $item['scale'], $exp).' به '.bcdiv((string) $item['after'], (string) $item['scale'], $exp).' EUR/'.($item['period'] === 'hour' ? 'ساعت' : 'ماه').'؛ زمان منبع قبلی '.$item['before_source_at'].'؛ فعلی '.$item['source_at'];
+                            $out[] = '  #'.$item['plan_id'].' از '.bcdiv((string) $item['before'], (string) $item['scale'], $exp).' به '.bcdiv((string) $item['after'], (string) $item['scale'], $exp).' EUR/'.($item['period'] === 'hour' ? 'ساعت' : 'ماه').'؛ زمان منبع قبلی '.$this->jalali($item['before_source_at'] ?? null).' تهران؛ فعلی '.$this->jalali($item['source_at'] ?? null).' تهران';
                         }
                     }
                 }
-                if ($detail) { $out[] = 'ثبت خط مبنا: '.$s['baseline_at'].'؛ برآورد نرمال‌شده کاتالوگ EUR است، هزینه قطعی فاکتور تأمین‌کننده نیست.'; }
+                if ($detail) { $out[] = 'ثبت خط مبنا: '.$this->jalali($s['baseline_at'] ?? null).' تهران؛ برآورد نرمال‌شده کاتالوگ EUR است، هزینه قطعی فاکتور تأمین‌کننده نیست.'; }
                 return $out;
         }
-        return [$title.': نامشخص'];
+        return [$title, 'نامشخص'];
     }
 
     private function countBetween(string $table, string $field, Carbon $from, Carbon $to): int

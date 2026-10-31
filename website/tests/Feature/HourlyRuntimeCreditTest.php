@@ -36,6 +36,7 @@ class HourlyRuntimeCreditTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['billing.internal_service_ids' => []]);
         $this->travelTo(now()->setDate(2026, 10, 31)->setTime(12, 0));
         Http::preventStrayRequests();
         Setting::putSecret('salad_api_key', 'test-key');
@@ -409,5 +410,63 @@ class HourlyRuntimeCreditTest extends TestCase
         $this->assertSame(2000, app(HourlyHold::class)->rateForPlan($plan, 1000));
         $plan->update(['cost_hour_eur_micro' => 0, 'cost_eur_cents' => 0]);
         $this->assertFalse(app(HourlyHold::class)->fundablePlan($plan, 1000));
+    }
+
+    public function test_cached_running_reply_from_before_restart_never_spends_the_reserved_hour(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $instance = $service->cloudInstance;
+        $instance->update(['status' => 'off']);
+        $key = 'cloud-st:'.$instance->id;
+        $stale = ['ok' => true, 'status' => 'running', 'ipv4' => '192.0.2.10',
+            'ipv6' => null, 'hostname' => 'test', '_observed_at' => now()->subMinute()->toISOString()];
+        \Illuminate\Support\Facades\Cache::put($key, $stale, 20);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertSessionHasNoErrors();
+        $this->assertFalse(\Illuminate\Support\Facades\Cache::has($key));
+        // An older in-flight poll can fill the cache again after invalidation.
+        \Illuminate\Support\Facades\Cache::put($key, $stale, 20);
+        $this->get(route('account.cloud.status', $service))->assertOk();
+        $this->assertSame(1000, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1000, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame('building', $instance->fresh()->status);
+        $this->travel(21)->seconds();
+        $this->get(route('account.cloud.status', $service))->assertOk();
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame(0, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1, CreditEntry::where('reason', 'cloud_hourly')->count());
+    }
+
+    public function test_a_restart_is_not_charged_before_the_power_command_is_accepted(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $instance = $service->cloudInstance;
+        $instance->update(['status' => 'off']);
+        $this->assertArrayHasKey('claimed', app(HourlyGpuStart::class)->claim($service));
+        app(InterruptibleBillingClock::class)->record($service->fresh(), $instance->fresh(),
+            'running', observedAt: now());
+        $this->assertSame(1000, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1000, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame('building', $instance->fresh()->status);
+    }
+
+    public function test_confirmed_restart_honors_the_usage_discount_and_releases_its_unused_hold(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $service->cloudInstance->update(['status' => 'off']);
+        $calculator = \Mockery::mock(\App\Services\Birthday\BirthdayHourly::class)->makePartial();
+        $calculator->shouldReceive('rates')->once()->with(\Mockery::on(fn ($s) => $s->id === $service->id),
+            \Mockery::type(\Illuminate\Support\Carbon::class), 1, 1000)->andReturn([800]);
+        $this->app->instance(\App\Services\Birthday\BirthdayHourly::class, $calculator);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertSessionHasNoErrors();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame(200, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame(-800, (int) CreditEntry::where('reason', 'cloud_hourly')->sole()->amount);
     }
 }

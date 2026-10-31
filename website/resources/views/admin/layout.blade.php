@@ -51,6 +51,7 @@
     @endphp
     <nav class="ad-nav">
       @if($navAdmin)<a href="/admin/ai-growth" class="@yield('nav_growth')"><svg class="icon"><use href="#i-sparkles"/></svg>{{ __('growth.center') }}</a>@endif
+      @if($navAdmin)<a href="/admin/madar" class="@yield('nav_madar')"><svg class="icon"><use href="#i-users"/></svg>{{ __('madar.nav') }}</a>@endif
       <a href="/admin" class="@yield('nav_dash')"><svg class="icon"><use href="#i-layout"/></svg>داشبورد</a>
       @unless($navSup)
         <a href="/admin/posts?type=blog" class="@yield('nav_blog')"><svg class="icon"><use href="#i-book"/></svg>بلاگ</a>

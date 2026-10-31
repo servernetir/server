@@ -203,6 +203,8 @@ class AccountController extends Controller
                     ['key' => 'tickets', 'icon' => 'lifebuoy', 'label' => __('ui.tk_title'), 'url' => lroute('account.tickets')],
                 ]],
                 ['label' => __('ui.nav_account'), 'items' => [
+                    ...(\Illuminate\Support\Facades\Route::has('account.madar')
+                        ? [['key' => 'madar', 'icon' => 'sparkles', 'label' => __('madar.nav'), 'url' => lroute('account.madar')]] : []),
                     // «پروفایل و احراز هویت» یک صفحه است؛ آیتمِ جدای verify حذف شد
                     // چون کاربر نمی‌فهمید تفاوتش با پروفایل چیست.
                     ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],

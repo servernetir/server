@@ -1,0 +1,55 @@
+{
+  "release": "bale-month-comparison-20261031",
+  "runtime_source_commit": "5edb67971bb6e987d2fb310985919cef78300c11",
+  "runtime_source_tree": "dc400faee651bffeb579a1b6ca5e097b4c28ac54",
+  "base_commit": "978f7e94ef652413da51143bf2232cf2df75103d",
+  "tests": {
+    "php_version": "8.4.27",
+    "phpunit_version": "12.5.31",
+    "php_tests": 79,
+    "assertions": 875,
+    "network_denied": true,
+    "changed_php_lint": 11,
+    "release_guard_tests": 12,
+    "fastcgi_protocol_tests": 6
+  },
+  "production": {
+    "files": 5,
+    "prepare": "prepared",
+    "apply": "verified",
+    "manifest_hashes_matched": true,
+    "private_backup": true,
+    "cron_unchanged": true,
+    "schema_settings_policy_unchanged": true,
+    "rollback_required": false
+  },
+  "fpm": {
+    "verified_utc": "2026-10-31T10:46:00Z",
+    "pools": 2,
+    "validate_timestamps": "1",
+    "revalidate_freq": "2",
+    "only_release_files_invalidated": true,
+    "all_fixture_checks": true,
+    "temporary_primary_removed": true,
+    "before_after_http_get_post": "404 both hosts after same-site redirect"
+  },
+  "google": {
+    "observed_utc": "2026-10-31T10:47:35Z",
+    "reports": 6,
+    "existing_token_refreshes": 1,
+    "periods_per_source": 3,
+    "all_periods": "known",
+    "recent_preliminary": true,
+    "new_scopes": false
+  },
+  "preview": {
+    "characters": 2426,
+    "three_stats_windows": true,
+    "signup_comparison_visible": true,
+    "google_comparisons_visible": true,
+    "daily_claim_unchanged": true,
+    "cost_baseline_unchanged": true,
+    "messages_sent": 0
+  },
+  "private_metrics_included": false
+}

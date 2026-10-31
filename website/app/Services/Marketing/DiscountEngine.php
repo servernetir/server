@@ -38,6 +38,12 @@ class DiscountEngine
             if (! $g) {
                 $this->fail('unknown');
             }
+            // A reserved Madar offer is earned only after the submitted work is approved.
+            // Enforce this in the shared engine too, including direct invoice/code requests.
+            if (Schema::hasTable('madar_participations') && DB::table('madar_participations')
+                ->where('grant_id', $g->id)->where('status', '!=', 'rewarded')->exists()) {
+                $this->fail('scope');
+            }
             $c = MarketingCampaign::whereKey($g->campaign_id)->lockForUpdate()->firstOrFail();
             $g = MarketingGrant::whereKey($g->id)->lockForUpdate()->firstOrFail();
             $existing = MarketingRedemption::where('invoice_id', $i->id)->lockForUpdate()->first();

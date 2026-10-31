@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'svc_valid_until' => 'Service valid until',
     'svc_existing_management' => 'Existing service management',
     'svc_billing_terms_pending' => 'Renewal amount and period pending records review',
     'svc_billing_terms_required' => 'Verify and record this service’s price, period and due date from valid records before issuing an invoice.',

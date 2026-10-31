@@ -262,25 +262,35 @@ class DomainSupplierLifecycle
             $context = (array) $op->request_context;
             unset($context['approval']);
             $context['max_price_minor'] = (int) ($quote['amount_minor'] ?? 0);
+            if (isset($quote['provider_debit_minor'])) {
+                $context['provider_price_ceiling_minor'] = $quote['provider_debit_minor'];
+            }
+            if (isset($quote['premium'])) { $context['quoted_premium'] = $quote['premium']; }
+            if (isset($quote['provider_terms_hash'])) { $context['quoted_provider_terms_hash'] = $quote['provider_terms_hash']; }
             $context['currency'] = (string) ($quote['currency'] ?? '');
             $context['object_id'] = (string) $domain->supplier_object_id;
             $context['cltrid'] = 'sn-domain-op-'.$op->id;
             if ($context['max_price_minor'] <= 0 || $context['currency'] === '') {
                 return $this->failOperation($op, $domain, 'quote_missing');
             }
+            $requiredDebit = $context['provider_price_ceiling_minor'] ?? $context['max_price_minor'];
+            if (! is_int($requiredDebit) || $requiredDebit < 1 || $requiredDebit > $context['max_price_minor']) {
+                return $this->failOperation($op, $domain, 'quote_missing');
+            }
             $reserved = DomainSupplierOperation::where('supplier_account_id', $account->id)
                 ->whereKeyNot($op->id)->whereIn('status', self::IN_FLIGHT)->get()
-                ->sum(fn ($other) => (int) data_get($other->quote_snapshot, 'amount_minor', data_get($other->quote_snapshot, 'purchase_minor', 0)));
+                ->sum(fn ($other) => (int) data_get($other->quote_snapshot, 'provider_debit_minor',
+                    data_get($other->quote_snapshot, 'amount_minor', data_get($other->quote_snapshot, 'purchase_minor', 0))));
             $probe = $this->providers->forAccount($account)->probe();
             if (! ($probe['healthy'] ?? false) || ($probe['currency'] ?? null) !== $context['currency']
-                || ! isset($probe['balance_minor']) || (int) $probe['balance_minor'] - $reserved < $context['max_price_minor']) {
+                || ! isset($probe['balance_minor']) || (int) $probe['balance_minor'] - $reserved < $requiredDebit) {
                 return $this->hold($domain, 'supplier_balance_unavailable');
             }
             // Final decision after the last slow provider read. Lock the same
             // customer/invoice/domain order used by settlement, then account and
             // journal. A refund, ownership/account change or approval revocation
             // during quote/probe cannot pass this durable claim.
-            $decision = DB::transaction(function () use ($op, $domain, $account, $accountIdentity, $invoiceId, $operation, $months, $payment, $quote, $probe, $context) {
+            $decision = DB::transaction(function () use ($op, $domain, $account, $accountIdentity, $invoiceId, $operation, $months, $payment, $quote, $probe, $context, $requiredDebit) {
                 Customer::whereKey($domain->customer_id)->lockForUpdate()->firstOrFail();
                 $invoice = Invoice::whereKey($invoiceId)->lockForUpdate()->firstOrFail();
                 $invoice->items()->orderBy('id')->lockForUpdate()->get();
@@ -308,13 +318,14 @@ class DomainSupplierLifecycle
                 $reservedNow = 0;
                 foreach (DomainSupplierOperation::where('supplier_account_id', $freshAccount->id)->whereKeyNot($fresh->id)
                     ->whereIn('status', self::IN_FLIGHT)->orderBy('id')->lockForUpdate()->get() as $other) {
-                    $amount = data_get($other->quote_snapshot, 'amount_minor', data_get($other->quote_snapshot, 'purchase_minor'));
+                    $amount = data_get($other->quote_snapshot, 'provider_debit_minor',
+                        data_get($other->quote_snapshot, 'amount_minor', data_get($other->quote_snapshot, 'purchase_minor')));
                     if (! is_int($amount) || $amount < 1 || $reservedNow > PHP_INT_MAX - $amount) {
                         throw new DomainProcurementException('supplier_reserved_cost_unknown');
                     }
                     $reservedNow += $amount;
                 }
-                if ((int) $probe['balance_minor'] - $reservedNow < $context['max_price_minor']) {
+                if ((int) $probe['balance_minor'] - $reservedNow < $requiredDebit) {
                     throw new DomainProcurementException('supplier_balance_unavailable');
                 }
                 $currentPayment = $this->paymentSnapshot($freshDomain, $operation, true);
@@ -524,6 +535,10 @@ class DomainSupplierLifecycle
             'target_expires_at' => $quote['target_expires_at'] ?? null,
             'privacy' => data_get($quote, 'options.privacy', $domain->whois_privacy ? 'basic' : 'none'),
             'language' => data_get($quote, 'options.language')];
+        foreach (['provider_debit_minor' => 'provider_price_ceiling_minor', 'premium' => 'quoted_premium',
+            'provider_terms_hash' => 'quoted_provider_terms_hash'] as $source => $target) {
+            if (isset($quote[$source])) { $context[$target] = $quote[$source]; }
+        }
         if (in_array($operation, ['create', 'transfer'], true)) {
             $profile = $domain->customer?->defaultProfile();
             $handle = $profile && Schema::hasTable('domain_supplier_contacts') ? DomainSupplierContact::where('customer_profile_id', $profile->id)

@@ -1,0 +1,183 @@
+{
+  "status": "natural_schedule_observed_with_cpanel_tls_unresolved",
+  "base_develop_commit": "0861aab6d5452db065a7e1cbaaa3c9d3cd0bddeb",
+  "observation_surface": "authenticated_cpanel_terminal_sanitized_projection",
+  "file_hash_observed_utc": "2026-10-31T09:51:44.194361+00:00",
+  "active_sha256": {
+    "app/Services/Hermes/HermesKnowledge.php": "76e708c5b5671ade71b868eb18e1c0d2f3c6f8c5513310c483a47eae5769905a",
+    "app/Console/Commands/HermesKnowledgeRefresh.php": "2b5a9e361afd7969d1693c4360cbd1d2cdaf5adcb34fd3cebf3a0b7716d786ec",
+    "app/Console/Commands/HermesOperationsReview.php": "f8e24b6082ba8d7fd8be0c08e4abcb6deab2cbd037244b98b1e3118cb2aeca8d"
+  },
+  "third_file_receipt_phase": "verified",
+  "crontab": {
+    "sha256": "8ea9bc904368431c0c8970de0aff54349a50689c03ccaefa5722d7877dff4806",
+    "matches_2026_10_29_release": true,
+    "modified": false
+  },
+  "natural_observation": {
+    "observed_utc": "2026-10-31T09:52:36+00:00",
+    "operations_enabled": true,
+    "internal_observed_at": 1793437825,
+    "internal_observed_utc": "2026-10-31T09:10:25+00:00",
+    "traffic_last_sample_at": 1793437391,
+    "traffic_last_sample_utc": "2026-10-31T09:03:11+00:00",
+    "operations_run_alert": {
+      "code": "operations_run_failed",
+      "active": false,
+      "last_at": 1793430127
+    },
+    "inventory_scans": {
+      "hetzner": {
+        "at": 1793437313,
+        "complete": true
+      },
+      "aeza": {
+        "at": 1793437313,
+        "complete": true
+      },
+      "arvan": {
+        "at": 1793437338,
+        "complete": true
+      },
+      "ovh": {
+        "at": 1793437340,
+        "complete": true
+      },
+      "proxmox": {
+        "at": 1793437349,
+        "complete": true
+      },
+      "salad": {
+        "at": 1793437350,
+        "complete": true
+      },
+      "hetzner-robot": {
+        "at": 1793437350,
+        "complete": true
+      },
+      "lightnode": {
+        "at": 1793437378,
+        "complete": true
+      },
+      "vpstc": {
+        "at": 1793437380,
+        "complete": true
+      }
+    },
+    "sources": {
+      "php": {
+        "status": "ok",
+        "checked_at": 1793434235,
+        "last_success_at": 1793434235
+      },
+      "plesk": {
+        "status": "ok",
+        "checked_at": 1793434235,
+        "last_success_at": 1793434235
+      },
+      "proxmox": {
+        "status": "ok",
+        "checked_at": 1793434235,
+        "last_success_at": 1793434235
+      },
+      "cloudflare": {
+        "status": "ok",
+        "checked_at": 1793434235,
+        "last_success_at": 1793434235
+      },
+      "n8n": {
+        "status": "ok",
+        "checked_at": 1793434235,
+        "last_success_at": 1793434235
+      },
+      "cpanel": {
+        "status": "unavailable",
+        "checked_at": 1793437825,
+        "last_success_at": null,
+        "failure": {
+          "reason": "connection_error",
+          "http_status": null,
+          "exception_class": "Illuminate\\Http\\Client\\ConnectionException"
+        }
+      }
+    },
+    "direct_existing_encrypted_state_read": true,
+    "operations_store_read_or_change_called": false,
+    "array_cache_and_session": true,
+    "http_mail_notification_bus_faked_before_provider_boot": true,
+    "sql_mutations_guarded": true,
+    "limitation": "One current natural cycle; no live partial-failure scenario was induced and other business or service warnings are not cleared by this observation."
+  },
+  "cpanel_tls": {
+    "official_url": "https://docs.cpanel.net/release-notes/release-notes/index.xml",
+    "official_reference": "https://support.cpanel.net/hc/en-us/articles/360053124534-Where-can-I-locate-the-cPanel-changelogs",
+    "openssl_observed_utc": "2026-10-31T09:52:59.040287+00:00",
+    "sni_and_verified_hostname": "docs.cpanel.net",
+    "openssl_verify_return_error": true,
+    "openssl_exit": 1,
+    "openssl_verify_error": 18,
+    "peer_certificate": {
+      "common_name": "default.domain.com",
+      "dns_subject_alternative_names": [
+        "default.domain.com"
+      ],
+      "subject_equals_issuer": true,
+      "sha256_fingerprint": "69:17:A1:25:8E:66:18:E7:53:B2:85:3F:47:58:8B:A5:84:3B:95:9D:46:00:ED:B5:20:95:61:41:7D:01:40:56",
+      "not_before_utc": "2023-12-15T08:14:10Z",
+      "not_after_utc": "2033-12-12T08:14:10Z"
+    },
+    "host_resolver_ipv4": [
+      "104.18.35.25",
+      "172.64.152.231"
+    ],
+    "explicit_hosts_entry_for_hostname": false,
+    "shell_proxy_environment_present": {
+      "HTTPS_PROXY": false,
+      "https_proxy": false,
+      "ALL_PROXY": false,
+      "all_proxy": false
+    },
+    "php_curl": {
+      "observed_utc": "2026-10-31T09:54:07+00:00",
+      "success": false,
+      "errno": 60,
+      "verify_result": 18,
+      "http_status": 0,
+      "primary_ip_reported": "",
+      "body_bytes": 0,
+      "peer_verification": true,
+      "hostname_verification": true,
+      "follow_redirects": false,
+      "connect_timeout_seconds": 5,
+      "request_timeout_seconds": 15,
+      "decompressed_body_limit_bytes": 1048576
+    },
+    "responsible_interception_or_upstream_component_identified": false,
+    "root_cause_fixed": false,
+    "certificate_trust_or_url_changed": false,
+    "each_ipv4_retest_in_this_session": false,
+    "related_same_day_report": "docs/project/SITE-ERRORS-AUDIT-2026-10-31.md"
+  },
+  "host_access": {
+    "root": false,
+    "nft_ruleset_read": {
+      "exit": 1,
+      "permission_denied": true
+    },
+    "iptables_nat_read": {
+      "exit": 4,
+      "permission_denied": true
+    },
+    "sudo_or_escalation_attempts": 0,
+    "network_rules_modified": false,
+    "remaining_action": "Host administrator must identify the component presenting the unrelated certificate on the outbound TLS path and restore a valid chain/hostname; then verify the feed and its next natural successful state."
+  },
+  "runtime_files_written": 0,
+  "manual_hermes_command_runs": 0,
+  "manual_scheduler_queue_or_digest_runs": 0,
+  "new_cron_jobs": 0,
+  "financial_or_provider_mutations": false,
+  "messages_or_support_tickets_sent": 0,
+  "historical_application_or_installer_tests_rerun": false,
+  "report": "docs/project/ERROR-RELIABILITY-ACCEPTANCE-2026-10-31.md"
+}

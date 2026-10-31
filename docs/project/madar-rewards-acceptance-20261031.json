@@ -1,0 +1,178 @@
+{
+  "status": "verified_in_production",
+  "source_branch": "develop",
+  "source_base": "b4b5b555094c2a5af5717ce6a277eae2efe823c7",
+  "source_commit": "5594ed12f115b09df587a243bd5943dcbd644619",
+  "request": "reduce all eight base mission rewards by 30 percent, round, deploy and commit develop",
+  "currency": "IRT",
+  "rounding": "nearest 10000; half up",
+  "rewards": {
+    "gpu-video": {
+      "before": 500000,
+      "after": 350000
+    },
+    "gpu-code": {
+      "before": 400000,
+      "after": 280000
+    },
+    "gpu-guide": {
+      "before": 300000,
+      "after": 210000
+    },
+    "referral": {
+      "before": 200000,
+      "after": 140000
+    },
+    "migration-story": {
+      "before": 250000,
+      "after": 180000
+    },
+    "gpu-template": {
+      "before": 800000,
+      "after": 560000
+    },
+    "gpu-benchmark": {
+      "before": 450000,
+      "after": 320000
+    },
+    "gpu-workshop": {
+      "before": 750000,
+      "after": 530000
+    }
+  },
+  "deployment": {
+    "changed_runtime_paths": [
+      "config/madar.php"
+    ],
+    "plan_sha256": "c07eaa22f2e8cb7167ccdb393736e37d01696da2bbbd21643b62bfff9132d238",
+    "before_sha256": "389cc5ebf09f5a2c3a5b0246580a0dd55efadbbe1b145e8d834c6ad1b47e2779",
+    "after_sha256": "38651acbd0d51a7bb1691bd1215f6bfba1024868498b1e37b1c6b45d9cead3da",
+    "shared_release_locks": 2,
+    "private_backup": true,
+    "atomic_install": true,
+    "schema_changes": 0,
+    "global_cache_flush": false
+  },
+  "web_activation": {
+    "same_account_pools_verified": 2,
+    "php": "8.4.27",
+    "config_scripts_invalidated_per_pool": 1,
+    "latest_verify_utc": "2026-10-31T11:52:53+00:00",
+    "framework_bootstrapped": false,
+    "database_writes": 0,
+    "temporary_primary_removed": true,
+    "pre_execution_http_denial": [
+      {
+        "host": "servernet.cloud",
+        "method": "GET",
+        "status": 404
+      },
+      {
+        "host": "servernet.cloud",
+        "method": "POST",
+        "status": 404
+      },
+      {
+        "host": "console.servernet.cloud",
+        "method": "GET",
+        "status": 404
+      },
+      {
+        "host": "console.servernet.cloud",
+        "method": "POST",
+        "status": 404
+      }
+    ]
+  },
+  "readonly_render": {
+    "utc": "2026-10-31T11:53:50+00:00",
+    "locales": {
+      "fa": {
+        "customer_cards": 8,
+        "customer_prices_verified": 8,
+        "admin_prices_verified": 8
+      },
+      "en": {
+        "customer_cards": 8,
+        "customer_prices_verified": 8,
+        "admin_prices_verified": 8
+      },
+      "tr": {
+        "customer_cards": 8,
+        "customer_prices_verified": 8,
+        "admin_prices_verified": 8
+      }
+    },
+    "database_mode": "READ ONLY; rolled back",
+    "identity": "synthetic unsaved ID 0; no actual customer sign-in",
+    "published_missions_before": 0,
+    "published_missions_after": 0,
+    "participations_before": 0,
+    "participations_after": 0,
+    "config_cached": false
+  },
+  "financial_status": "no funded missions activated; reward claims remain closed pending funded publication",
+  "checks": {
+    "phpunit": {
+      "tool": "phpunit",
+      "result": "passed",
+      "tests": 33,
+      "passed": 33,
+      "assertions": 269,
+      "duration_ms": 4115
+    },
+    "pint": "passed",
+    "php_lint": "passed",
+    "python_parse": "passed",
+    "git_diff_check": "passed",
+    "mobile_dark_retest": "not repeated for config-only amount change",
+    "http": [
+      {
+        "host": "servernet.cloud",
+        "path": "/",
+        "status": 200
+      },
+      {
+        "host": "servernet.cloud",
+        "path": "/gpu",
+        "status": 200
+      },
+      {
+        "host": "console.servernet.cloud",
+        "path": "/account/madar",
+        "status": 302
+      },
+      {
+        "host": "console.servernet.cloud",
+        "path": "/en/account/madar",
+        "status": 302
+      },
+      {
+        "host": "console.servernet.cloud",
+        "path": "/tr/account/madar",
+        "status": 302
+      },
+      {
+        "host": "console.servernet.cloud",
+        "path": "/admin/madar",
+        "status": 302
+      },
+      {
+        "host": "servernet.cloud",
+        "path": "/_madar_rewards_release_20261031/activate.php",
+        "status": 404
+      },
+      {
+        "host": "console.servernet.cloud",
+        "path": "/_madar_rewards_release_20261031/activate.php",
+        "status": 301,
+        "final_status": 404
+      }
+    ]
+  },
+  "proof_image": {
+    "path": "images/madar-rewards-live-20261031.png",
+    "sha256": "b701da95fd899394af057112c2ad9e84b2005a841927b4de8bc5592b08406a02",
+    "kind": "same-account terminal release receipt; not a customer UI screenshot"
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "release": "madar-20261031",
+  "runtime_source_commit": "bdd3f3afe8911a73f9426c9a69a992a8688f53b0",
+  "approved_pr_head": "638df34024e20d72bfca5514e2e8b28dc3754812",
+  "plan_sha256": "1b786db7a2f4508a20fb0611a074237b5cc96a9252f4010bffd1ef1fc9193242",
+  "status": "production_verified",
+  "fpm_verified_utc": "2026-10-31T11:00:57+00:00",
+  "production_files": 38,
+  "migrations": 2,
+  "catalog_ready": true,
+  "mission_controls": 8,
+  "published_reward_missions": 0,
+  "reward_claims": 0,
+  "financial_campaigns_created": 0,
+  "payouts_executed": 0,
+  "private_backups_retained": true,
+  "temporary_web_helpers_removed": true,
+  "fpm": {
+    "pools": 2,
+    "php": "8.4.27",
+    "scoped_cached_files_invalidated": 11,
+    "validate_timestamps": "1",
+    "new_classes_autoload_verified": true,
+    "framework_bootstrapped": false,
+    "database_writes": 0
+  },
+  "readonly_render": {
+    "locales": [
+      "fa",
+      "en",
+      "tr"
+    ],
+    "customer_cards_each": 8,
+    "reward_amounts_each": 8,
+    "admin_controls_each": 8,
+    "missing_campaign_translation": false,
+    "synthetic_identity_saved": false,
+    "database_transaction": "read_only_rolled_back"
+  },
+  "tests": {
+    "php_tests": 108,
+    "assertions": 767,
+    "approved_ci_feature_tests": 105,
+    "approved_ci_assertions": 705,
+    "mariadb_schema_tests": 1,
+    "mariadb_assertions": 17,
+    "ci_browser_combinations": 48,
+    "release_guard_tests": 9,
+    "fastcgi_protocol_tests": 6
+  },
+  "live_browser_visual_verification": false,
+  "live_browser_limitation": "connected_browser_https_connection_closed",
+  "traffic_or_conversion_uplift_claimed": false,
+  "private_customer_data_included": false,
+  "assets": [
+    {
+      "url": "https://servernet.cloud/assets/css/madar.css",
+      "status": 200,
+      "sha256": "409c487bc9d106c14b192f51a2908f52b106ccb4252d78b66a4fff196c58e18f",
+      "matches_source": true
+    },
+    {
+      "url": "https://servernet.cloud/assets/js/madar.js",
+      "status": 200,
+      "sha256": "966aaeda334f79e82d8d9a77cbf140bc9190b1c077bb86f84a762487661f5347",
+      "matches_source": true
+    },
+    {
+      "url": "https://console.servernet.cloud/assets/css/madar.css",
+      "status": 200,
+      "sha256": "409c487bc9d106c14b192f51a2908f52b106ccb4252d78b66a4fff196c58e18f",
+      "matches_source": true
+    },
+    {
+      "url": "https://console.servernet.cloud/assets/js/madar.js",
+      "status": 200,
+      "sha256": "966aaeda334f79e82d8d9a77cbf140bc9190b1c077bb86f84a762487661f5347",
+      "matches_source": true
+    }
+  ],
+  "http": [
+    {
+      "url": "https://servernet.cloud/",
+      "status": 200,
+      "location": null,
+      "ok": true
+    },
+    {
+      "url": "https://servernet.cloud/en",
+      "status": 200,
+      "location": null,
+      "ok": true
+    },
+    {
+      "url": "https://servernet.cloud/tr",
+      "status": 200,
+      "location": null,
+      "ok": true
+    },
+    {
+      "url": "https://servernet.cloud/gpu",
+      "status": 200,
+      "location": null,
+      "ok": true
+    },
+    {
+      "url": "https://console.servernet.cloud/account/madar",
+      "status": 302,
+      "location": "https://console.servernet.cloud/login",
+      "ok": true
+    },
+    {
+      "url": "https://console.servernet.cloud/en/account/madar",
+      "status": 302,
+      "location": "https://console.servernet.cloud/login",
+      "ok": true
+    },
+    {
+      "url": "https://console.servernet.cloud/tr/account/madar",
+      "status": 302,
+      "location": "https://console.servernet.cloud/login",
+      "ok": true
+    },
+    {
+      "url": "https://console.servernet.cloud/admin/madar",
+      "status": 302,
+      "location": "https://console.servernet.cloud/admin/login",
+      "ok": true
+    },
+    {
+      "url": "https://servernet.cloud/servernet-madar-activate-bdd3f3afe891.php",
+      "status": 404,
+      "location": null,
+      "ok": true
+    },
+    {
+      "url": "https://servernet.cloud/_madar_release_20261031/activate.php",
+      "status": 404,
+      "location": null,
+      "ok": true
+    }
+  ],
+  "helper_cleanup_http": [
+    {
+      "url": "https://servernet.cloud/servernet-madar-activate-bdd3f3afe891.php",
+      "status": 404
+    },
+    {
+      "url": "https://servernet.cloud/_madar_release_20261031/activate.php",
+      "status": 404
+    },
+    {
+      "url": "https://console.servernet.cloud/servernet-madar-activate-bdd3f3afe891.php",
+      "status": 404
+    },
+    {
+      "url": "https://console.servernet.cloud/_madar_release_20261031/activate.php",
+      "status": 404
+    }
+  ]
+}

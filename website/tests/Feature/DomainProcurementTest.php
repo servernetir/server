@@ -11,6 +11,7 @@ use App\Services\Domain\DomainProcurement;
 use App\Services\Domain\Pricing\DomainProcurementException;
 use App\Services\Domain\Providers\DomainProvider;
 use App\Services\Domain\Providers\DomainProviderFactory;
+use App\Services\Domain\Providers\JokerAdapter;
 use App\Services\ExchangeRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -134,6 +135,100 @@ class DomainProcurementTest extends TestCase
         $quote = $this->procurement->quote('example.com', 'create', 12);
         $this->assertSame(1200, (int) $quote->purchase_minor);
         $this->assertSame(2424000, (int) $quote->sell_toman);
+    }
+
+    public function test_real_joker_funding_fee_changes_the_cheapest_retail_offer_but_not_the_required_provider_balance(): void
+    {
+        $op = $this->account('openprovider', ['balance_currency' => 'USD']);
+        $joker = $this->account('joker', ['balance_currency' => 'USD', 'balance_minor' => 1000,
+            'settings' => ['supplier_fee_pct' => 10]]);
+        $openProvider = \Mockery::mock(DomainProvider::class);
+        $openProvider->shouldReceive('quote')->andReturn([
+            'available' => true, 'amount_minor' => 1050, 'currency' => 'USD', 'period_months' => 12,
+            'premium' => false, 'tax_included' => true, 'components' => ['subtotal_minor' => 1050],
+            'terms_hash' => 'synthetic-openprovider-terms',
+        ]);
+        $openProvider->shouldReceive('probe')->andReturn(['healthy' => true, 'balance_minor' => 100000, 'currency' => 'USD']);
+        $factory = \Mockery::mock(DomainProviderFactory::class);
+        $factory->shouldReceive('forAccount')->andReturnUsing(fn ($account) => $account->provider === 'joker'
+            ? new JokerAdapter($account) : $openProvider);
+        $fx = \Mockery::mock(ExchangeRate::class);
+        $fx->shouldReceive('current')->with('USD')->andReturnUsing(fn () => [
+            'currency' => 'USD', 'rate_toman' => 100000, 'at' => now()->toIso8601String(),
+            'source_at' => now()->toIso8601String(), 'source' => 'navasan.net',
+        ]);
+        $procurement = new DomainProcurement($factory, $fx);
+        $reply = fn ($body) => Http::response("Status-Code: 1000\nStatus-Text: OK\n\n".$body, 200);
+        Http::fake([
+            '*/login' => Http::response("Status-Code: 1000\nAuth-SID: synthetic-joker-session\n\n", 200),
+            '*/domain-check' => $reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 10.00 USD 1y\n"),
+            '*/query-account-balance' => Http::response("Status-Code: 1000\nColumns: available,pending,total,currency\nSeparator: TAB\n\n10.00\t0.00\t10.00\tUSD\n", 200),
+        ]);
+
+        $quote = $procurement->quote('example.com', 'create', 12);
+        $this->assertSame($op->id, $quote->supplier_account_id); // 10.50 < Joker's landed 11.00
+        $this->assertSame(1061000, (int) $quote->sell_toman); // current 1% margin, rounded to 1000 IRT
+        $this->assertSame([], $quote->raw['excluded']); // Joker's 10.00 spendable balance covers its debit.
+
+        $op->update(['active' => false]);
+        $jokerOnly = $procurement->quote('example.com', 'create', 12);
+        $this->assertSame($joker->id, $jokerOnly->supplier_account_id);
+        $this->assertSame(1100, (int) $jokerOnly->purchase_minor);
+        $this->assertSame(1000, $jokerOnly->raw['supplier_quote']['provider_debit_minor']);
+        $this->assertSame(100, $jokerOnly->cost_components['supplier_fee_minor']);
+        $this->assertSame(1111000, (int) $jokerOnly->sell_toman);
+
+        $op->update(['active' => true]);
+        $joker->update(['settings' => ['supplier_fee_pct' => 0]]);
+        $withoutFundingFee = $procurement->quote('example.com', 'create', 12);
+        $this->assertSame($joker->id, $withoutFundingFee->supplier_account_id);
+        $this->assertSame(1010000, (int) $withoutFundingFee->sell_toman);
+    }
+
+    public function test_real_openprovider_balance_covers_actual_debit_while_fees_and_tax_reserve_affect_selection(): void
+    {
+        $op = $this->account('openprovider', ['balance_currency' => 'USD', 'balance_minor' => 1100,
+            'credentials' => ['username' => 'synthetic-op', 'password' => 'synthetic-only'],
+            'settings' => ['supplier_vat_pct' => 20, 'supplier_fee_pct' => 10]]);
+        $this->account('joker', ['balance_currency' => 'USD']);
+        $jokerProvider = \Mockery::mock(DomainProvider::class);
+        $jokerProvider->shouldReceive('quote')->andReturn([
+            'available' => true, 'amount_minor' => 1400, 'provider_debit_minor' => 1400, 'currency' => 'USD',
+            'period_months' => 12, 'premium' => false, 'tax_included' => true,
+            'components' => ['final_account_domain_minor' => 1400], 'terms_hash' => 'synthetic-joker-terms',
+        ]);
+        $jokerProvider->shouldReceive('probe')->andReturn(['healthy' => true, 'balance_minor' => 100000, 'currency' => 'USD']);
+        $realFactory = new DomainProviderFactory;
+        $factory = \Mockery::mock(DomainProviderFactory::class);
+        $factory->shouldReceive('forAccount')->andReturnUsing(fn ($account) => $account->provider === 'openprovider'
+            ? $realFactory->forAccount($account) : $jokerProvider);
+        $fx = \Mockery::mock(ExchangeRate::class);
+        $fx->shouldReceive('current')->with('USD')->andReturnUsing(fn () => [
+            'currency' => 'USD', 'rate_toman' => 100000, 'at' => now()->toIso8601String(),
+            'source_at' => now()->toIso8601String(), 'source' => 'navasan.net',
+        ]);
+        Http::fake(['*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'synthetic-op-token']]),
+            '*/domains/check' => Http::response(['code' => 0, 'data' => ['results' => [['status' => 'free']]]]),
+            '*/domains/prices*' => Http::response(['code' => 0, 'data' => ['is_premium' => false,
+                'price' => ['reseller' => ['price' => '10.00', 'currency' => 'USD']]]]),
+            '*/resellers*' => Http::response(['code' => 0, 'data' => ['vatperc' => '10', 'balance' => '11.00', 'currency' => 'USD']])]);
+        $quote = (new DomainProcurement($factory, $fx))->quote('example.com', 'create', 12);
+        $this->assertSame($op->id, $quote->supplier_account_id); // landed 13.20 < 14.00
+        $this->assertSame([], $quote->raw['excluded']); // balance 11.00 covers its actual wallet debit
+        $this->assertSame(1100, $quote->raw['supplier_quote']['provider_debit_minor']);
+        $this->assertSame(1320, (int) $quote->purchase_minor);
+        $this->assertSame(100, $quote->cost_components['actual_supplier_tax_minor']);
+        $this->assertSame(100, $quote->cost_components['supplier_tax_reserve_minor']);
+        $this->assertSame(1334000, (int) $quote->sell_toman);
+    }
+
+    public function test_revalidation_rejects_a_higher_wallet_debit_hidden_by_unchanged_landed_cost(): void
+    {
+        $account = $this->account();
+        $this->remote[$account->id] = ['amount_minor' => 1200, 'provider_debit_minor' => 1000];
+        $quote = $this->procurement->quote('example.com', 'create', 12);
+        $this->remote[$account->id]['provider_debit_minor'] = 1100;
+        $this->assertReason('supplier_quote_changed', fn () => $this->procurement->revalidate($quote));
     }
 
     public function test_a_wrong_period_promotion_is_disqualified(): void

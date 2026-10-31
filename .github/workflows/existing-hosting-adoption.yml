@@ -8,6 +8,9 @@ on:
       - 'website/resources/views/**'
       - 'website/lang/**'
       - 'website/tests/Feature/ExistingHostingAdoptionTest.php'
+      - 'website/tests/Feature/AccountSectionsTest.php'
+      - 'website/tests/Feature/BillingRenewalSafetyTest.php'
+      - 'website/tests/Feature/HetznerStorageProvisioningTest.php'
       - '.github/workflows/existing-hosting-adoption.yml'
 
 permissions:
@@ -74,7 +77,15 @@ jobs:
           php -l app/Models/Invoice.php
           php -l app/Services/Provisioning/ExistingHostingAdoption.php
           php -l tests/Feature/ExistingHostingAdoptionTest.php
+          php -l app/Services/Provisioning/HetznerStorageProvisioner.php
+          php -l tests/Feature/BillingRenewalSafetyTest.php
       - name: Run existing hosting adoption and billing-boundary tests
         run: vendor/bin/phpunit --testdox tests/Feature/ExistingHostingAdoptionTest.php
       - name: Run normal invoicing and provisioning regressions
         run: vendor/bin/phpunit --testdox tests/Feature/AdminServiceTest.php tests/Feature/ProvisioningTest.php
+      - name: Run focused recorded storage connection rendering cases
+        run: vendor/bin/phpunit --testdox --filter 'test_recorded_storage_|test_storage_connection_' tests/Feature/AccountSectionsTest.php
+      - name: Verify existing storage billing suspension and payment restoration
+        run: vendor/bin/phpunit --testdox --filter test_existing_storage_billing_suspension_restores_only_after_full_verified_payment tests/Feature/BillingRenewalSafetyTest.php
+      - name: Run Storage Box driver regressions
+        run: vendor/bin/phpunit --testdox tests/Feature/HetznerStorageProvisioningTest.php

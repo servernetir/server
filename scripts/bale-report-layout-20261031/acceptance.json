@@ -1,0 +1,60 @@
+{
+  "release": "bale-report-layout-20261031",
+  "runtime_source_commit": "960152bf496038351a3dfd5ce90257f87ecb6667",
+  "base_commit": "0861aab6d5452db065a7e1cbaaa3c9d3cd0bddeb",
+  "tests": {
+    "php_version": "8.4.27",
+    "phpunit_version": "12.5.31",
+    "php_tests": 206,
+    "assertions": 1508,
+    "network_denied": true,
+    "release_guard_tests": 12,
+    "fastcgi_protocol_tests": 6,
+    "changed_php_lint": "passed"
+  },
+  "production": {
+    "files": 4,
+    "manifest_hashes_matched": true,
+    "prepare": "prepared",
+    "apply": "verified",
+    "private_backup": true,
+    "cron_unchanged": true,
+    "schema_settings_policy_unchanged": true,
+    "rollback_required": false
+  },
+  "google": {
+    "connection": "existing",
+    "ga4_periods": "known",
+    "gsc_periods": "known",
+    "new_scopes": false,
+    "fresh_data_marked_preliminary": true
+  },
+  "sample": {
+    "utc": "2026-10-31T10:10:29Z",
+    "status": "sent",
+    "daily_claim_unchanged": true,
+    "cost_baseline_unchanged": true
+  },
+  "bale_ui": {
+    "spaced_strong_headings": true,
+    "jalali_dates": true,
+    "numeric_units": true,
+    "grouped_unknown_balances": true,
+    "calendar_callback": "successful",
+    "detail_navigation_buttons": "visible"
+  },
+  "fpm": {
+    "verified_utc": "2026-10-31T10:16:47Z",
+    "pools": 2,
+    "php_version": "8.4.27",
+    "validate_timestamps": "1",
+    "revalidate_freq": "2",
+    "only_release_paths_invalidated": true,
+    "synthetic_fixture_both_pools": true,
+    "framework_bootstraps": 0,
+    "messages_sent": 0,
+    "temporary_primary_removed": true,
+    "get_post_http_denial_before_after": "404 on both domains after same-site redirect"
+  },
+  "private_data_included": false
+}

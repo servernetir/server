@@ -1,0 +1,24 @@
+{
+  "release": "site-errors-20261031",
+  "base_commit": "c444fd7051281b359d5c95cdef91f02a605f2a4e",
+  "files": [
+    {
+      "source": "website/app/Services/Bale/Management/BaleManagerDigestDelivery.php",
+      "target": "app/Services/Bale/Management/BaleManagerDigestDelivery.php",
+      "before": "8e5eb8adcc8235d290eb5afb90380584fe2c45807fe6155fda540e75971a8ca0",
+      "after": "8b3a138eb504ae7f483d5310427d7006b40c41641a737350f16ce3c58649429d"
+    },
+    {
+      "source": "website/app/Console/Commands/BaleManagerDigest.php",
+      "target": "app/Console/Commands/BaleManagerDigest.php",
+      "before": "aabe4e1b50959720dae637a705b5ad2f23e3528d6223cef6081580c7debf7b77",
+      "after": "8661e3c3b60d8f13d09b8ab1b4779dfd2d9ccb1ac0da0d5db72ea45c606512ba"
+    },
+    {
+      "source": "website/app/Console/Commands/CheckContentLinks.php",
+      "target": "app/Console/Commands/CheckContentLinks.php",
+      "before": "c2587fee3ff26e52509d51d00bb7c42e89cf78e3e8a10b3d5e6d7ae29f48523b",
+      "after": "51cd92f2a36049e4895f8cd0a263567136a6c99d56a03d2eb00933eb5d58f5d7"
+    }
+  ]
+}

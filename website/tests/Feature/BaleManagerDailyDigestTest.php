@@ -25,11 +25,14 @@ class BaleManagerDailyDigestTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_signup_month_bounds_use_tehran_and_cloud_delivery_is_not_double_counted(): void
+    public function test_adjacent_thirty_day_windows_are_half_open_and_cloud_delivery_is_not_double_counted(): void
     {
+        // Tehran 09:00 is UTC 05:30. The two windows meet on October 2,
+        // rather than at a calendar-month boundary, with no overlap or gap.
         Schema::create('customers', fn (Blueprint $t) => $t->timestamp('created_at'));
-        foreach (['2026-09-30 20:29:59', '2026-09-30 20:30:00', '2026-10-30 05:30:00',
-            '2026-10-31 05:30:00', '2026-10-31 20:30:00', '2026-11-01 05:30:00'] as $at) {
+        foreach (['2026-09-02 05:29:59', '2026-09-02 05:30:00', '2026-10-02 05:29:59',
+            '2026-10-02 05:30:00', '2026-10-31 05:29:59', '2026-10-31 05:30:00',
+            '2026-11-01 05:29:59', '2026-11-01 05:30:00'] as $at) {
             DB::table('customers')->insert(['created_at' => $at]);
         }
         Schema::create('services', function (Blueprint $t) {
@@ -39,26 +42,38 @@ class BaleManagerDailyDigestTest extends TestCase
         Schema::create('cloud_instances', function (Blueprint $t) {
             $t->unsignedBigInteger('service_id'); $t->timestamp('ready_notified_at')->nullable();
         });
-        foreach ([1, 2, 3, 4] as $id) {
+        foreach ([1 => '2026-09-02 05:30:00', 2 => '2026-10-02 05:29:59',
+            3 => '2026-10-02 05:29:59', 4 => '2026-10-31 05:30:00',
+            5 => '2026-10-31 05:30:00', 6 => '2026-11-01 05:30:00',
+            7 => '2026-10-31 05:30:00', 8 => '2026-09-02 05:29:59',
+            9 => '2026-10-31 05:30:00'] as $id => $at) {
             DB::table('services')->insert(['id' => $id, 'cloud_plan_id' => null,
-                'provisioned_at' => '2026-10-31 05:30:00', 'provision_status' => 'done']);
+                'provisioned_at' => $at, 'provision_status' => 'done']);
         }
         DB::table('cloud_instances')->insert([
-            ['service_id' => 1, 'ready_notified_at' => '2026-10-31 05:30:00'],
-            ['service_id' => 2, 'ready_notified_at' => null],
-            ['service_id' => 4, 'ready_notified_at' => '2026-10-31 05:30:00'],
+            ['service_id' => 1, 'ready_notified_at' => '2026-09-02 05:30:00'],
+            ['service_id' => 3, 'ready_notified_at' => '2026-10-02 05:30:00'],
+            ['service_id' => 5, 'ready_notified_at' => null],
+            ['service_id' => 7, 'ready_notified_at' => '2026-11-01 05:29:59'],
+            ['service_id' => 7, 'ready_notified_at' => '2026-11-01 05:29:59'],
+            ['service_id' => 9, 'ready_notified_at' => '2026-10-31 05:30:00'],
         ]);
-        config()->set('billing.internal_service_ids', [4]);
+        config()->set('billing.internal_service_ids', [9]);
 
         $row = app(BaleManagerDailyDigest::class)->section('stats');
         $this->assertTrue($row['available']);
         $this->assertSame(2, $row['signups_24h']);
-        $this->assertSame(3, $row['signups_previous_month']);
-        $this->assertSame(3, $row['signups_30d']);
-        $this->assertSame(6, $row['customers_total']);
-        $this->assertSame('2026-10 میلادی', $row['month_label']);
+        $this->assertSame(4, $row['signups_30d']);
+        $this->assertSame(2, $row['signups_previous_30d']);
+        $this->assertSame(8, $row['customers_total']);
         $this->assertSame(2, $row['delivered_24h']);
-        $this->assertSame(2, $row['delivered_previous_month']);
+        $this->assertSame(3, $row['delivered_30d']);
+        $this->assertSame(2, $row['delivered_previous_30d']);
+        $this->assertSame(['start_at' => '2026-09-02T05:30:00+00:00', 'end_at' => '2026-10-02T05:30:00+00:00'], $row['periods']['previous_30d']);
+        $this->assertSame(['start_at' => '2026-10-02T05:30:00+00:00', 'end_at' => '2026-11-01T05:30:00+00:00'], $row['periods']['recent_30d']);
+        $this->assertSame($row['periods']['previous_30d']['end_at'], $row['periods']['recent_30d']['start_at']);
+        $this->assertArrayNotHasKey('month_label', $row);
+        $this->assertArrayNotHasKey('signups_previous_month', $row);
         Http::assertNothingSent();
     }
 
@@ -80,8 +95,8 @@ class BaleManagerDailyDigestTest extends TestCase
         $this->assertSame(3, $row['count']);
         $this->assertSame(3000, $amounts['IRT']);
         $this->assertSame(1234, $amounts['USD']);
-        $text = $digest->detail('payments');
-        $this->assertStringContainsString('3000 IRT', $text);
+        $text = preg_replace('/[ \t]+/u', ' ', str_replace('*', '', $digest->detail('payments')));
+        $this->assertStringContainsString('3,000 تومان (IRT)', $text);
         $this->assertStringContainsString('12.34 USD', $text);
         $this->assertStringContainsString('درآمد فروش یا سود نیست', $text);
         Http::assertNothingSent();
@@ -159,9 +174,10 @@ class BaleManagerDailyDigestTest extends TestCase
                 'before_source_at' => '2026-10-28T05:00:00Z', 'source_at' => '2026-10-31T04:00:00Z']]]]]);
         $this->app->instance(\App\Services\Bale\Management\ManagementCostChanges::class, $costs);
         $text = app(BaleManagerDailyDigest::class)->detail('costs');
-        $this->assertStringContainsString('زمان منبع قبلی 2026-10-28T05:00:00Z', $text);
-        $this->assertStringContainsString('فعلی 2026-10-31T04:00:00Z', $text);
-        $this->assertStringContainsString('ثبت خط مبنا: 2026-10-30T06:00:00Z', $text);
+        $plain = preg_replace('/[ \t]+/u', ' ', str_replace('*', '', $text));
+        $this->assertStringContainsString('زمان منبع قبلی 1405/08/06 08:30', $plain);
+        $this->assertStringContainsString('فعلی 1405/08/09 07:30', $plain);
+        $this->assertStringContainsString('ثبت خط مبنا: 1405/08/08 09:30', $plain);
     }
 
     public function test_compact_report_names_each_unreadable_provider_without_inventing_zero_balances(): void
@@ -173,7 +189,8 @@ class BaleManagerDailyDigestTest extends TestCase
         $text = app(BaleManagerDailyDigest::class)->text(['sections' => [
             'balances' => ['available' => true, 'rows' => $rows],
         ]]);
-        foreach ($rows as $row) { $this->assertStringContainsString($row['label'].' نامشخص', $text); }
+        foreach ($rows as $row) { $this->assertStringContainsString($row['label'], $text); }
+        $this->assertStringContainsString('نامشخص: Hetzner Cloud، Aeza، OVHcloud، SaladCloud', $text);
         $this->assertStringNotContainsString('0 USD', $text);
         $this->assertStringNotContainsString('0 EUR', $text);
     }
@@ -204,21 +221,37 @@ class BaleManagerDailyDigestTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_traffic_shows_source_dates_and_distinguishes_users_from_sessions_and_search_metrics(): void
+    public function test_traffic_shows_adjacent_thirty_day_source_ranges_and_distinguishes_users_from_sessions_and_search_metrics(): void
     {
         $ga = ['status' => 'known', 'total_users' => 11, 'sessions' => 22, 'start_date' => '2026-10-31', 'end_date' => '2026-10-31', 'timezone' => 'Asia/Tehran'];
         $gsc = ['status' => 'known', 'clicks' => 33, 'impressions' => 444, 'start_date' => '2026-10-30', 'end_date' => '2026-10-30', 'timezone' => 'America/Los_Angeles'];
         $traffic = \Mockery::mock(\App\Services\Bale\Management\ManagerTrafficSnapshot::class);
         $traffic->shouldReceive('cachedSnapshot')->once()->andReturn(['available' => true, 'as_of' => '2026-11-01T05:30:00Z',
-            'ga4' => ['periods' => ['yesterday' => $ga, 'previous_month' => array_replace($ga, ['total_users' => 111, 'sessions' => 222])]],
-            'gsc' => ['periods' => ['yesterday' => $gsc, 'previous_month' => array_replace($gsc, ['clicks' => 333, 'impressions' => 4444])]]]);
+            'ga4' => ['periods' => ['yesterday' => $ga,
+                'recent_30d' => array_replace($ga, ['total_users' => 500, 'sessions' => 900, 'start_date' => '2026-10-02', 'end_date' => '2026-10-31']),
+                'previous_30d' => array_replace($ga, ['total_users' => 580, 'sessions' => 1100, 'start_date' => '2026-09-02', 'end_date' => '2026-10-01'])]],
+            'gsc' => ['periods' => ['yesterday' => $gsc,
+                'recent_30d' => array_replace($gsc, ['clicks' => 333, 'impressions' => 4444, 'start_date' => '2026-10-01', 'end_date' => '2026-10-30']),
+                'previous_30d' => array_replace($gsc, ['clicks' => 400, 'impressions' => 5000, 'start_date' => '2026-09-01', 'end_date' => '2026-09-30'])]]]);
         $traffic->shouldNotReceive('refresh');
         $this->app->instance(\App\Services\Bale\Management\ManagerTrafficSnapshot::class, $traffic);
         $text = app(BaleManagerDailyDigest::class)->detail('traffic');
-        $this->assertStringContainsString('بازدیدکننده یکتای GA4: 2026-10-31 11 | ماه قبل 111', $text);
-        $this->assertStringContainsString('جستجوی GSC (کلیک/نمایش): 2026-10-30 33/444', $text);
-        $this->assertStringContainsString('America/Los_Angeles', $text);
-        $this->assertStringContainsString('/admin/bale/reporting', $text);
+        $this->assertStringContainsString('بازدیدکننده یکتای GA4', $text);
+        $this->assertStringContainsString('دیروز منبع: 11 کاربر یکتا (1405/08/09 تا 1405/08/09)', $text);
+        $this->assertStringContainsString('یک ماه اخیر (۳۰ روز): 500 کاربر یکتا (1405/07/10 تا 1405/08/09)', $text);
+        $this->assertStringContainsString('ماه پیش از آن (۳۰ روز): 580 کاربر یکتا (1405/06/11 تا 1405/07/09)', $text);
+        $this->assertStringContainsString('جستجوی GSC (کلیک/نمایش)', $text);
+        $this->assertStringContainsString('دیروز منبع: 33 کلیک · 444 نمایش (1405/08/08 تا 1405/08/08)', $text);
+        $this->assertStringContainsString('یک ماه اخیر (۳۰ روز): 333 کلیک · 4,444 نمایش (1405/07/09 تا 1405/08/08)', $text);
+        $this->assertStringContainsString('ماه پیش از آن (۳۰ روز): 400 کلیک · 5,000 نمایش (1405/06/10 تا 1405/07/08)', $text);
+        $this->assertStringContainsString('منطقه زمانی دورهٔ منبع: Asia/Tehran', $text);
+        $this->assertStringContainsString('منطقه زمانی دورهٔ منبع: America/Los_Angeles', $text);
+        $plain = preg_replace('/[ \t]+/u', ' ', str_replace('*', '', $text));
+        $this->assertStringContainsString('تغییر کاربر یکتا: کاهش: 80 کاربر یکتا کمتر (13.8٪ افت)', $plain);
+        $this->assertStringContainsString('تغییر کلیک: کاهش: 67 کلیک کمتر (16.8٪ افت)', $plain);
+        $this->assertStringContainsString('تغییر نمایش: کاهش: 556 نمایش کمتر (11.1٪ افت)', $plain);
+        foreach (['22', '900', '1,100'] as $sessions) { $this->assertStringNotContainsString($sessions.' کاربر یکتا', $text); }
+        $this->assertStringNotContainsString('http', $text);
         Http::assertNothingSent();
     }
 }

@@ -55,5 +55,14 @@
     "seo_assertions": 15,
     "native_route_source_verified": true,
     "upstream_native_recovery_preserved": "72955a9"
+  },
+  "followup": {
+    "develop_synchronized": "891a92350a2e332b81373a1968a83092214c1884",
+    "status": "awaiting_revision_ci_not_deployed",
+    "local_php": "8.3.6 syntax only; locked suite requires >=8.4.1",
+    "php_files_linted": 40,
+    "knowledge_checks_passed": 29,
+    "live_account_connected": false,
+    "real_financial_operations": false
   }
 }

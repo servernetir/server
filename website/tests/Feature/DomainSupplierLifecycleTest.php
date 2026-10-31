@@ -493,4 +493,39 @@ class DomainSupplierLifecycleTest extends TestCase
         $this->assertSame(0, $op->fresh()->attempts);
     }
 
+    public function test_landed_cost_and_actual_joker_debit_keep_separate_approved_ceilings(): void
+    {
+        [$d, $account, $invoice] = $this->renewal();
+        $quote = $invoice->supplier_quote + ['provider_debit_minor' => 900, 'premium' => false,
+            'provider_terms_hash' => 'fixture-provider-terms'];
+        $invoice->forceFill(['supplier_quote' => $quote])->save();
+        $d->forceFill(['supplier_quote' => $quote])->save();
+        $this->pricing->shouldReceive('revalidateDomain')->andReturn($quote + ['floor_toman' => 100000]);
+        $this->provider->shouldReceive('probe')->andReturn(['healthy' => true, 'balance_minor' => 900, 'currency' => 'EUR']);
+        $op = $this->authorize($d->fresh());
+        $this->assertSame(900, data_get($op->request_context, 'provider_price_ceiling_minor'));
+        $this->assertSame('fixture-provider-terms', data_get($op->request_context, 'quoted_provider_terms_hash'));
+        $this->provider->shouldReceive('submit')->once()->withArgs(function ($kind, $fqdn, $months, $context) {
+            $this->assertSame(1000, $context['max_price_minor']);
+            $this->assertSame(900, $context['provider_price_ceiling_minor']);
+            $this->assertFalse($context['quoted_premium']);
+            $this->assertSame('fixture-provider-terms', $context['quoted_provider_terms_hash']);
+            return true;
+        })->andReturn(['status' => 'queued', 'process_id' => 'fixture-debit-cap']);
+        $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);
+    }
+
+    public function test_other_operation_reserves_provider_debit_without_external_funding_fees(): void
+    {
+        [$d, $account] = $this->renewal();
+        $this->authorize($d);
+        DomainSupplierOperation::create(['supplier_account_id' => $account->id, 'operation' => 'create',
+            'idempotency_key' => 'external-fee-fixture', 'fqdn' => 'other.example', 'active_fqdn' => 'other.example',
+            'period_months' => 12, 'status' => 'unknown', 'sent_at' => now(), 'attempts' => 1,
+            'quote_snapshot' => ['amount_minor' => 1500, 'provider_debit_minor' => 1000, 'currency' => 'EUR']]);
+        $this->provider->shouldReceive('probe')->andReturn(['healthy' => true, 'balance_minor' => 2000, 'currency' => 'EUR']);
+        $this->provider->shouldReceive('submit')->once()->andReturn(['status' => 'queued', 'process_id' => 'fixture-reservation']);
+        $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);
+    }
+
 }
