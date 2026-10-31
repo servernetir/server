@@ -16,11 +16,14 @@ class AuditReport extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['token', 'url', 'host', 'score', 'grade', 'locale', 'result', 'source', 'created_by'];
+    protected $fillable = ['token', 'url', 'host', 'score', 'grade', 'locale', 'result', 'source', 'created_by',
+        'expires_at', 'revoked_at'];
 
     protected $casts = [
         'result' => 'array',
         'score'  => 'integer',
+        'expires_at' => 'datetime',
+        'revoked_at' => 'datetime',
     ];
 
     /**
@@ -34,6 +37,9 @@ class AuditReport extends Model
 
     /** روزهای اعتبار — بعد از آن گزارش «کهنه» علامت می‌خورد، نه حذف. */
     public const FRESH_DAYS = 30;
+
+    /** لینک خصوصی پس از این مدت دیگر باز نمی‌شود؛ کهنگی زودتر فقط فرم مشاوره را می‌بندد. */
+    public const ACCESS_DAYS = 90;
 
     protected static function booted(): void
     {
@@ -90,6 +96,28 @@ class AuditReport extends Model
     {
         return $this->created_at !== null
             && $this->created_at->lt(now()->subDays(self::FRESH_DAYS));
+    }
+
+    public function isExpired(): bool
+    {
+        $deadline = $this->expires_at
+            ?? $this->created_at?->copy()->addDays(self::ACCESS_DAYS);
+
+        return $deadline !== null && $deadline->isPast();
+    }
+
+    public function isAccessible(): bool
+    {
+        return $this->revoked_at === null && ! $this->isExpired();
+    }
+
+    public function revoke(): bool
+    {
+        if ($this->revoked_at !== null) {
+            return false;
+        }
+
+        return $this->forceFill(['revoked_at' => now()])->save();
     }
 
     /** «چند مورد باید درست شود» — همان عددی که در ایمیل وعده داده می‌شود. */

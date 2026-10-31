@@ -113,6 +113,69 @@ class AuditReportShareTest extends TestCase
         $this->get('/report/'.str_repeat('a', 32))->assertNotFound();
     }
 
+    public function test_report_link_expires_and_refuses_consultation_without_creating_a_lead(): void
+    {
+        $report = $this->report();
+        $report->forceFill(['expires_at' => now()->subMinute()])->save();
+
+        $this->get('/report/'.$report->token)->assertNotFound();
+        $this->post('/report/'.$report->token.'/consultation', [
+            'consultation_name' => 'Owner',
+            'consultation_email' => 'owner@example.test',
+            'consultation_message' => 'Please help',
+            'consultation_consent' => '1',
+        ])->assertNotFound();
+        $this->assertDatabaseCount('crm_leads', 0);
+    }
+
+    public function test_legacy_report_without_an_explicit_expiry_uses_the_ninety_day_limit(): void
+    {
+        $report = $this->report();
+        $report->forceFill([
+            'created_at' => now()->subDays(AuditReport::ACCESS_DAYS)->subMinute(),
+            'expires_at' => null,
+        ])->save();
+
+        $this->get('/report/'.$report->token)->assertNotFound();
+    }
+
+    public function test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery(): void
+    {
+        Mail::fake();
+        $report = $this->report('revoked.example');
+        $contact = OutreachContact::create([
+            'host' => 'revoked.example', 'email' => 'verified@revoked.example',
+            'audit_report_id' => $report->id,
+        ]);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post('/admin/seo/reports/'.$report->id.'/revoke')->assertRedirect();
+        $this->assertNotNull($report->fresh()->revoked_at);
+        $this->assertSame('skipped', $contact->fresh()->status);
+        $this->assertSame('report_revoked', $contact->fresh()->error);
+        $this->get('/report/'.$report->token)->assertNotFound();
+
+        $this->actingAs($admin)->post('/admin/seo/reports/'.$report->id.'/revoke')->assertRedirect();
+        Mail::assertNothingSent();
+    }
+
+    public function test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact(): void
+    {
+        $this->withoutExceptionHandling();
+        Mail::fake();
+        $expired = $this->report('expired.example');
+        $expired->forceFill(['expires_at' => now()->subMinute()])->save();
+        $contact = OutreachContact::create([
+            'host' => 'expired.example', 'email' => 'verified@expired.example',
+            'audit_report_id' => $expired->id,
+        ]);
+
+        $this->actingAs($this->admin())->postJson('/admin/seo/send-next', ['ids' => [$contact->id]])
+            ->assertOk()->assertJsonPath('status', 'skipped');
+        $this->assertSame('report_unavailable', $contact->fresh()->error);
+        Mail::assertNothingSent();
+    }
+
     // ═══════════════ ۳) ابزارِ عمومی ═══════════════
 
     /**
@@ -250,9 +313,12 @@ class AuditReportShareTest extends TestCase
 
     public function test_the_admin_pages_and_endpoints_require_a_logged_in_admin(): void
     {
+        $report = $this->report();
         $this->get('/admin/seo')->assertRedirect();
         $this->postJson('/admin/seo/send-one', ['url' => 'x.com', 'email' => 'a@b.com'])
             ->assertStatus(302);
+        $this->post('/admin/seo/reports/'.$report->id.'/revoke')->assertRedirect();
+        $this->assertNull($report->fresh()->revoked_at);
     }
 
     /**

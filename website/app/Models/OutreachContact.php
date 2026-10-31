@@ -57,6 +57,8 @@ class OutreachContact extends Model
     public function isSendable(): bool
     {
         return $this->audit_report_id !== null
+            && $this->report !== null
+            && $this->report->isAccessible()
             && $this->status === 'pending'
             && $this->unsubscribed_at === null
             && ! static::isSuppressed($this->email);
