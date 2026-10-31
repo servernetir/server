@@ -118,6 +118,15 @@ blindly. Crashes after the persisted claim remain quarantined as before.
 Validation: 63 local tests pass, including five added pause/preflight regression
 cases. The latest package has not been installed or verified live on VM 127.
 
+## Reply preflight recovery — 2026-10-31
+
+A local pause/configuration failure immediately before a reply POST releases the
+unsent claim back to `OBSERVED`, so the same incoming comment can resume after repair.
+A failure from the actual API reply call still stays `UNCERTAIN` and is never resent.
+Three regression tests cover pause/resume, reply flag changes and a local config-read
+failure; the full local suite has 66 passing tests. No live reply or server install
+was performed by this change.
+
 ## Stop and recovery
 
 - Create the state directory's `PAUSED` file or call `social_pause`; every future external mutation checks it. An already transmitted request cannot be canceled by the flag. Disable the user timer as well when doing maintenance. Only the operator removes the stop file.
@@ -144,6 +153,7 @@ python build_manifest.py --drive-index /private/drive_manifest.json \
 ```
 
 Source references: [Hermes MCP configuration](https://hermes-agent.nousresearch.com/docs/user-guide/features/mcp/), [official MCP Python SDK v1](https://py.sdk.modelcontextprotocol.io/v1/), [Meta publishing](https://developers.facebook.com/documentation/instagram-platform/content-publishing), [Meta image/container API](https://developers.facebook.com/documentation/instagram-platform/instagram-graph-api/reference/ig-user/media), [Instagram Login](https://developers.facebook.com/documentation/instagram-platform/instagram-api-with-instagram-login), [Google downloads](https://developers.google.com/workspace/drive/api/guides/manage-downloads), [Google desktop OAuth](https://developers.google.com/identity/protocols/oauth2/native-app), [S3 presigned URLs](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/generate_presigned_url.html). Full Meta pages were inaccessible to this session; primary-source search excerpts confirmed the contract, while live app/version acceptance remains required.
+
 
 
 

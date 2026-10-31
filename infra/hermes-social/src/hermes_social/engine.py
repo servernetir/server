@@ -342,6 +342,15 @@ class Engine:
             return {"comment_id": comment_id, "state": existing["state"], "reused": True}
         try:
             self.policy.enabled(replies=True)
+        except Exception as error:
+            # No reply POST was attempted. Release only our unsent claim so an
+            # operator can resume after correcting the local policy/configuration.
+            with self.journal.db() as db:
+                db.execute("UPDATE comments SET state='OBSERVED' WHERE id=? AND lang=? AND state='SENDING'",
+                           (comment_id, job["lang"]))
+            return {"comment_id": comment_id, "state": "OBSERVED",
+                    "blocked": str(error) if isinstance(error, Blocked) else "reply_preflight_failed"}
+        try:
             reply_id = api.reply(comment_id, text)
         except Exception:
             with self.journal.db() as db:
@@ -357,5 +366,6 @@ class Engine:
         with self.journal.db() as db:
             db.execute("UPDATE comments SET state='REPLIED' WHERE id=? AND lang=?", (comment_id, job["lang"]))
         return {"comment_id": comment_id, "reply_id": reply_id, "state": "REPLIED"}
+
 
 

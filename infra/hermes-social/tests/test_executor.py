@@ -423,6 +423,52 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(self.engine.reconcile(self.key)["state"], "WAITING")
 
 
+    def test_pause_during_comment_fetch_releases_unsent_reply_claim(self):
+        self.published()
+        self.engine.read_comments(self.key)
+        comments = self.api.comments
+        def pause_while_reading(media_id):
+            (self.f.state / "PAUSED").touch()
+            return comments(media_id)
+        self.api.comments = pause_while_reading
+        result = self.engine.reply_comment(self.key, "444", "Which application?")
+        self.assertEqual(result["state"], "OBSERVED")
+        self.assertEqual(result["blocked"], "executor_paused")
+        self.assertEqual(self.api.replies, 0)
+        (self.f.state / "PAUSED").unlink()
+        self.api.comments = comments
+        self.assertEqual(self.engine.reply_comment(self.key, "444", "Which application?")["state"], "REPLIED")
+        self.engine.reply_comment(self.key, "444", "Which application?")
+        self.assertEqual(self.api.replies, 1)
+
+    def test_reply_disabled_during_comment_fetch_can_resume_without_resend(self):
+        self.published()
+        self.engine.read_comments(self.key)
+        comments = self.api.comments
+        def disable_while_reading(media_id):
+            self.f.config["replies_enabled"] = False
+            self.f.save()
+            return comments(media_id)
+        self.api.comments = disable_while_reading
+        result = self.engine.reply_comment(self.key, "444", "Hello")
+        self.assertEqual((result["state"], self.api.replies), ("OBSERVED", 0))
+        self.f.config["replies_enabled"] = True
+        self.f.save()
+        self.api.comments = comments
+        self.assertEqual(self.engine.reply_comment(self.key, "444", "Hello")["state"], "REPLIED")
+        self.assertEqual(self.api.replies, 1)
+
+    def test_reply_local_config_read_failure_does_not_quarantine_unsent_claim(self):
+        from unittest.mock import patch
+        self.published()
+        self.engine.read_comments(self.key)
+        with patch.object(self.engine.policy, "enabled", side_effect=[None, OSError("private failure")]):
+            result = self.engine.reply_comment(self.key, "444", "Hello")
+        self.assertEqual(result, {"comment_id": "444", "state": "OBSERVED", "blocked": "reply_preflight_failed"})
+        self.assertEqual(self.api.replies, 0)
+        self.assertEqual(self.engine.reply_comment(self.key, "444", "Hello")["state"], "REPLIED")
+
+
 class CommentPaginationRegressionTests(unittest.TestCase):
     def setUp(self):
         self.f = Fixture()
@@ -834,6 +880,7 @@ class BootstrapTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 
