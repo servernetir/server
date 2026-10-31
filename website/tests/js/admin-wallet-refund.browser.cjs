@@ -79,10 +79,15 @@ async function scenario() {
       const menu=document.querySelector('.sn-select-menu'),box=menu.getBoundingClientRect();
       check(box.width>0 && box.left>=-1 && box.right<=innerWidth+1 && box.top>=-1 && box.bottom<=innerHeight+1,'picker portal stays within viewport');
       check(getComputedStyle(menu).animationName.includes('sn-select-open'),'picker uses shared smooth opening animation');
+      if(approved) for(const group of select.querySelectorAll('optgroup')) {
+        const item=menu.querySelector('[data-index="'+group.querySelector('option').index+'"]');
+        check(item.textContent.includes(group.label),'enhanced menu exposes the payer account type');
+      }
       const option=Array.from(select.options).find(option=>option.value && !option.disabled);
       check(!!option,'registered option exists');
       menu.querySelector('[data-index="'+option.index+'"]').click();
       check(select.value===option.value && new FormData(select.form).get(name)===option.value,'presentation choice and form payload agree');
+      if(approved) check(trigger.textContent.includes(option.parentElement.label),'chosen payer retains company or partner classification');
       check(document.activeElement===trigger && !document.querySelector('.sn-select-menu'),'selection closes menu and restores focus');
       trigger.click();await until(()=>!!document.querySelector('.sn-select-menu'),'picker reopens');
       trigger.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));

@@ -17,7 +17,7 @@
   $fundingLegacyFallback = $fundingLegacyFallback ?? ($refund->status === 'paid' && !$fundingSnapshot);
   $displayFunding = $fundingSnapshot ?: ($fundingAccount ? $fundingAccount->only(['id','name','type','currency_code','owner_name']) : null);
   $isOpen = in_array($refund->status, \App\Models\WalletRefundRequest::OPEN, true);
-  $step = $refund->status === 'paid' ? 3 : ($refund->status === 'approved' ? 2 : 1);
+  $step = $refund->status === 'paid' ? 3 : ($refund->status === 'approved' ? 2 : ($refund->status === 'requested' ? 1 : 0));
   $oldForm = old('_refund_form', 'approve');
 @endphp
 <div class="ar-workspace" data-refund-status="{{ $refund->status }}">
@@ -126,7 +126,7 @@
                     @if($accounts->where('type', $accountType)->isNotEmpty())
                       <optgroup label="{{ __('refund.admin_funding_'.$accountType) }}">
                         @foreach($accounts->where('type', $accountType) as $account)
-                          <option value="{{ $account->id }}" @selected((string)old('funding_account_id') === (string)$account->id)>#{{ $account->id }} · {{ $account->name }}@if($account->owner_name) · {{ $account->owner_name }}@endif · {{ $account->currency_code }}</option>
+                          <option value="{{ $account->id }}" @selected((string)old('funding_account_id') === (string)$account->id)>{{ __('refund.admin_funding_'.$accountType) }} · #{{ $account->id }} · {{ $account->name }}@if($account->owner_name) · {{ $account->owner_name }}@endif · {{ $account->currency_code }}</option>
                         @endforeach
                       </optgroup>
                     @endif
