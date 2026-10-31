@@ -40,6 +40,17 @@ RUNTIME = NEW + (
 # Confirmed absent in live preflight; both are reviewed, read-only prerequisites.
 MISSING_DEPENDENCIES = frozenset(('app/Services/Growth/HermesSectionOversight.php', 'config/hermes_growth.php'))
 
+def add_madar_routes(source):
+    admin=b"require __DIR__.'/ai-growth.php';\n"
+    home=b"        Route::get('/', [Account\\AccountController::class, 'home'])->name('home');\n"
+    if source.count(admin)!=1 or source.count(home)!=1 or b"require __DIR__.'/madar-" in source:
+        raise RuntimeError('route_anchors_not_unique')
+    opener=source[:source.index(home)].splitlines()[-1]
+    if not all(marker in opener for marker in (b"auth:customer",b"EnsureCustomerActive",b"EnforceCustomerIp",b"->prefix('account')->name('account.')->group(function () {")):
+        raise RuntimeError('customer_route_guards_changed')
+    return source.replace(admin,admin+b"require __DIR__.'/madar-admin.php';\n",1).replace(home,b"        require __DIR__.'/madar-account.php';\n"+home,1)
+
+
 
 def load_core():
     path = Path(__file__).with_name('deploy-vpstc.py')
@@ -75,6 +86,15 @@ def load_core():
     def candidate(release, relative, before, base, desired):
         if before is None and relative in MISSING_DEPENDENCIES:
             return desired
+        if relative=='routes/web.php' and before is not None:
+            original,_=core.normalized(base,relative)
+            wanted,_=core.normalized(desired,relative)
+            current,ending=core.normalized(before,relative)
+            if current==wanted:return before
+            if add_madar_routes(original)!=wanted:
+                raise RuntimeError('unexpected_route_source_delta')
+            result=add_madar_routes(current)
+            return result.replace(b'\n',b'\r\n') if ending==b'\r\n' else result
         return merge(release,relative,before,base,desired)
     core.merge_candidate = candidate
     core.checked_file = destination
