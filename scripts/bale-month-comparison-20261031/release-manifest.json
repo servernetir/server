@@ -1,0 +1,36 @@
+{
+  "release": "bale-month-comparison-20261031",
+  "base_commit": "978f7e94ef652413da51143bf2232cf2df75103d",
+  "files": [
+    {
+      "source": "website/lang/fa/bale-reporting.php",
+      "target": "lang/fa/bale-reporting.php",
+      "before": "d9dd16154b1a8fe2b22423243444979a6f3d47cd292fd677be7a800949894c3c",
+      "after": "a8c444ddbe4d162f34eb0c941ed0f4dff6b5196dad4c17bcd961476e8a6c5977"
+    },
+    {
+      "source": "website/lang/en/bale-reporting.php",
+      "target": "lang/en/bale-reporting.php",
+      "before": "689ce23b178a584676d2c0710a5d995949cad2618d05b15901e197be6350dfdd",
+      "after": "c35f3e8a1fba87aed94536e6cedc777d8ae80c84dc9ec437b4279af2ae93b092"
+    },
+    {
+      "source": "website/lang/tr/bale-reporting.php",
+      "target": "lang/tr/bale-reporting.php",
+      "before": "cd06f71edd0ce00d95bf93f5951db251be97138674941c06b3a561dadad120a5",
+      "after": "4183fe0de935e02f476cc6a7d69c68846be0413e1d4b19ec830e57de3c6a0696"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/ManagerTrafficSnapshot.php",
+      "target": "app/Services/Bale/Management/ManagerTrafficSnapshot.php",
+      "before": "76e00824777135b5ae2571ac1b1ed356657a6bf81efc26d07f9b241efd17b588",
+      "after": "4680b33ec5f4088367cfeec913fa6bef60f4bbe13985cc78e0a684f4ed4c491d"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "target": "app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "before": "f3d5f7364393d4690c0cae5433178172ae0641c548bb75da42bf0c942bc1b74d",
+      "after": "d6d9a849bdc7786a1a2fc7334348ba0332baa88a8f869c67d075141638ec68da"
+    }
+  ]
+}

@@ -39,17 +39,15 @@ class BaleManagerDailyDigest
         catch (\Throwable) { return ['available' => false, 'reason' => 'source_unavailable']; }
     }
 
-    /** Explicit Gregorian calendar month; all query bounds converted from Tehran to UTC. */
+    /** Adjacent half-open 30-day windows, anchored to this report's Tehran instant. */
     public function periods(): array
     {
         $local = ($this->reportAt ?? now())->copy()->setTimezone('Asia/Tehran');
         return ['now' => $local->copy()->utc(), 'day_start' => $local->copy()->subDay()->utc(),
-            'month_start' => $local->copy()->startOfMonth()->subMonth()->utc(),
-            'month_end' => $local->copy()->startOfMonth()->utc(),
             'rolling_start' => $local->copy()->subDays(30)->utc(),
+            'previous_rolling_start' => $local->copy()->subDays(60)->utc(),
             'yesterday_start' => $local->copy()->startOfDay()->subDay()->utc(),
-            'yesterday_end' => $local->copy()->startOfDay()->utc(),
-            'month_label' => $local->copy()->startOfMonth()->subMonth()->format('Y-m').' میلادی'];
+            'yesterday_end' => $local->copy()->startOfDay()->utc()];
     }
 
     public function text(?array $snapshot = null): string
@@ -75,7 +73,7 @@ class BaleManagerDailyDigest
             $blocks[] = ['heading' => $icon.' *'.$label.'* ',
                 'body' => implode("\n", $rows)];
         }
-        $footer = 'بازهٔ ۲۴ساعت تا زمان گزارش است. ماه قبل، ماه تقویمی میلادی است. جزئیات با دکمه‌ها؛ مقدار ناموجود صفر فرض نشده است.';
+        $footer = '۲۴ساعت تا زمان گزارش؛ دو دورهٔ ماهانه، هرکدام ۳۰ روز مستقل‌اند. آمار گوگل بر پایهٔ روزهای منبع است. جزئیات با دکمه‌ها؛ مقدار ناموجود صفر فرض نشده است.';
         return $this->boundedReport($heading, $blocks, $footer);
     }
 
@@ -138,13 +136,24 @@ class BaleManagerDailyDigest
             ? $this->jalali($date, false, 'Asia/Tehran') : 'نامشخص';
     }
 
-    private function monthRange(string $label): string
+    /** Pure count comparison, shared by business and Google metrics; no state or money arithmetic. */
+    private function comparison(?int $current, ?int $previous, string $unit): string
     {
-        if (! preg_match('/^(\d{4}-\d{2})\b/u', $label, $match)) { return 'نامشخص'; }
-        try {
-            $start = Carbon::parse($match[1].'-01', 'Asia/Tehran')->startOfDay();
-            return $this->jalali($start, false).' تا '.$this->jalali($start->copy()->endOfMonth(), false);
-        } catch (\Throwable) { return 'نامشخص'; }
+        if ($current === null || $previous === null || $current < 0 || $previous < 0) {
+            return ' مقایسه نامشخص؛ دادهٔ هر دو دوره قابل تأیید نیست.';
+        }
+        $difference = $current - $previous;
+        if ($difference === 0) { return $this->strong('بدون تغییر: 0 '.$unit.($previous === 0 ? '؛ هر دو دوره صفر' : ' (0.0٪)')); }
+        $change = number_format(abs($difference)).' '.$unit.($difference > 0 ? ' بیشتر' : ' کمتر');
+        if ($previous === 0) { return $this->strong('افزایش: '.$change.'؛ دورهٔ قبل صفر است، درصد قابل محاسبه نیست'); }
+        $percent = number_format(abs($difference) / $previous * 100, 1, '.', '');
+        return $this->strong(($difference > 0 ? 'افزایش: ' : 'کاهش: ').$change.' ('.$percent.'٪ '.($difference > 0 ? 'رشد' : 'افت').')');
+    }
+
+    private function knownCount(array $period, string $metric): ?int
+    {
+        $value = $period[$metric] ?? null;
+        return ($period['status'] ?? '') === 'known' && is_int($value) && $value >= 0 ? $value : null;
     }
 
     private function plain(string $text, int $limit = 500): string
@@ -189,15 +198,19 @@ class BaleManagerDailyDigest
     {
         $p = $this->periods();
         $this->requireColumns('customers', ['created_at']);
-        return ['available' => true, 'month_label' => $p['month_label'],
+        return ['available' => true,
             'signups_24h' => $this->countBetween('customers', 'created_at', $p['day_start'], $p['now']),
-            'signups_previous_month' => $this->countBetween('customers', 'created_at', $p['month_start'], $p['month_end']),
             'signups_30d' => $this->countBetween('customers', 'created_at', $p['rolling_start'], $p['now']),
+            'signups_previous_30d' => $this->countBetween('customers', 'created_at', $p['previous_rolling_start'], $p['rolling_start']),
             'customers_total' => DB::table('customers')->count(),
             'delivered_24h' => $this->delivered($p['day_start'], $p['now']),
-            'delivered_previous_month' => $this->delivered($p['month_start'], $p['month_end']),
             'delivered_30d' => $this->delivered($p['rolling_start'], $p['now']),
-            'delivery_basis' => 'cloud readiness notice claim; other services successful provisioning timestamp'];
+            'delivered_previous_30d' => $this->delivered($p['previous_rolling_start'], $p['rolling_start']),
+            'periods' => [
+                '24h' => ['start_at' => $p['day_start']->toIso8601String(), 'end_at' => $p['now']->toIso8601String()],
+                'recent_30d' => ['start_at' => $p['rolling_start']->toIso8601String(), 'end_at' => $p['now']->toIso8601String()],
+                'previous_30d' => ['start_at' => $p['previous_rolling_start']->toIso8601String(), 'end_at' => $p['rolling_start']->toIso8601String()],
+            ], 'delivery_basis' => 'cloud readiness notice claim; other services successful provisioning timestamp'];
     }
 
     private function delivered(Carbon $from, Carbon $to): ?int
@@ -354,16 +367,19 @@ class BaleManagerDailyDigest
         switch ($topic) {
             case 'stats':
                 $out = [$title];
-                if ($detail) {
-                    $out[] = $this->strong('ثبت‌نام کاربران')."\n۲۴ ساعت گذشته: ".$v($s['signups_24h']).' کاربر'."\nماه قبل: ".$v($s['signups_previous_month']).' کاربر'."\nکل کاربران: ".$v($s['customers_total']).' کاربر';
-                    $out[] = $this->strong('تحویل ثبت‌شده')."\n۲۴ ساعت گذشته: ".$v($s['delivered_24h']).' سرویس'."\nماه قبل: ".$v($s['delivered_previous_month']).' سرویس';
-                    $out[] = '۳۰ روز اخیر: ثبت‌نام '.$v($s['signups_30d'] ?? null).' کاربر · تحویل '.$v($s['delivered_30d'] ?? null).' سرویس';
-                    $out[] = 'تحویل بر پایه زمان ثبت اعلان آمادگی ابر و موفقیت ساخت سایر سرویس‌هاست؛ رسید خواندن مشتری نیست.';
-                } else {
-                    $out[] = 'ثبت‌نام: ۲۴ساعت '.$v($s['signups_24h']).' کاربر · ماه قبل '.$v($s['signups_previous_month']).' کاربر · کل '.$v($s['customers_total']).' کاربر';
-                    $out[] = 'تحویل ثبت‌شده: ۲۴ساعت '.$v($s['delivered_24h']).' سرویس · ماه قبل '.$v($s['delivered_previous_month']).' سرویس';
+                foreach (['24h' => '۲۴ ساعت گذشته', '30d' => 'یک ماه اخیر (۳۰ روز)', 'previous_30d' => 'ماه پیش از آن (۳۰ روز)'] as $key => $label) {
+                    $out[] = $label.': ثبت‌نام '.$v($s['signups_'.$key] ?? null).' کاربر · تحویل '.$v($s['delivered_'.$key] ?? null).' سرویس';
                 }
-                $out[] = 'بازهٔ ماه قبل (تقویم میلادی): '.$this->monthRange($s['month_label'] ?? '');
+                $out[] = 'تغییر ثبت‌نام:'.$this->comparison($s['signups_30d'] ?? null, $s['signups_previous_30d'] ?? null, 'کاربر');
+                $out[] = 'تغییر تحویل:'.$this->comparison($s['delivered_30d'] ?? null, $s['delivered_previous_30d'] ?? null, 'سرویس');
+                $out[] = 'کل کاربران: '.$v($s['customers_total'] ?? null).' کاربر';
+                if ($detail) {
+                    foreach (['24h' => '۲۴ ساعت گذشته', 'recent_30d' => 'یک ماه اخیر (۳۰ روز)', 'previous_30d' => 'ماه پیش از آن (۳۰ روز)'] as $key => $label) {
+                        $period = $s['periods'][$key] ?? [];
+                        $out[] = 'بازهٔ '.$label.': از '.$this->jalali($period['start_at'] ?? null).' تا پیش از '.$this->jalali($period['end_at'] ?? null).' تهران';
+                    }
+                    $out[] = 'دو بازهٔ ۳۰روزه مستقل و پشت سر هم‌اند؛ جمع ۶۰ روز به‌جای دورهٔ اخیر نمایش داده نمی‌شود. تحویل بر پایه زمان ثبت اعلان آمادگی ابر و موفقیت ساخت سایر سرویس‌هاست؛ رسید خواندن مشتری نیست.';
+                }
                 return $out;
             case 'payments':
                 $out = [$title, '۲۴ ساعت گذشته: '.$v($s['count']).' پرداخت موفق'];
@@ -440,21 +456,23 @@ class BaleManagerDailyDigest
             case 'traffic':
                 $ga = $s['ga4']['periods'] ?? [];
                 $gsc = $s['gsc']['periods'] ?? [];
-                $metric = fn (array $period, string $key) => ($period['status'] ?? '') === 'known' ? $v($period[$key] ?? null) : 'نامشخص';
                 $out = [$title];
                 foreach (['GA4' => $ga, 'GSC' => $gsc] as $source => $periods) {
-                    $sourceRows = [$detail ? $this->strong($source === 'GA4' ? 'بازدیدکننده یکتای GA4' : 'جستجوی GSC (کلیک/نمایش)') : $source];
-                    foreach (['yesterday' => 'دیروز منبع', 'previous_month' => 'ماه تقویمی قبل'] as $key => $label) {
+                    $sourceRows = [$this->strong($source === 'GA4' ? 'بازدیدکننده یکتای GA4' : 'جستجوی GSC (کلیک/نمایش)')];
+                    foreach (['yesterday' => 'دیروز منبع', 'recent_30d' => 'یک ماه اخیر (۳۰ روز)', 'previous_30d' => 'ماه پیش از آن (۳۰ روز)'] as $key => $label) {
                         $period = $periods[$key] ?? [];
-                        $counts = $source === 'GA4' ? $metric($period, 'total_users').' کاربر یکتا'
-                            : $metric($period, 'clicks').' کلیک · '.$metric($period, 'impressions').' نمایش';
+                        $counts = $source === 'GA4' ? $v($this->knownCount($period, 'total_users')).' کاربر یکتا'
+                            : $v($this->knownCount($period, 'clicks')).' کلیک · '.$v($this->knownCount($period, 'impressions')).' نمایش';
                         $dates = $this->sourceDay($period['start_date'] ?? null);
-                        if ($detail || $key === 'previous_month') { $dates .= ' تا '.$this->sourceDay($period['end_date'] ?? null); }
-                        $sourceRows[] = $label.': '.$counts.' ('.$dates.')';
+                        if ($detail) { $dates .= ' تا '.$this->sourceDay($period['end_date'] ?? null); }
+                        $sourceRows[] = $label.': '.$counts.($detail || $key === 'yesterday' ? ' ('.$dates.')' : '');
                         if ($detail) {
                             $timezone = (string) ($period['timezone'] ?? 'نامشخص');
                             $sourceRows[] = 'منطقه زمانی دورهٔ منبع: '.(preg_match('/^[A-Za-z0-9_+\/-]+$/D', $timezone) ? $timezone : $this->plain($timezone));
                         }
+                    }
+                    foreach ($source === 'GA4' ? ['total_users' => 'کاربر یکتا'] : ['clicks' => 'کلیک', 'impressions' => 'نمایش'] as $metric => $unit) {
+                        $sourceRows[] = 'تغییر '.$unit.':'.$this->comparison($this->knownCount($periods['recent_30d'] ?? [], $metric), $this->knownCount($periods['previous_30d'] ?? [], $metric), $unit);
                     }
                     $out[] = implode("\n", $sourceRows);
                 }
@@ -463,7 +481,7 @@ class BaleManagerDailyDigest
                 if ($preliminary) { $out[] = 'بخشی از داده گوگل اولیه است و ممکن است تکمیل شود.'; }
                 if ($detail) {
                     $out[] = 'مشاهده منبع: '.$this->jalali($s['as_of'] ?? null).' تهران';
-                    $out[] = 'تاریخ روزهای آماری، شمسیِ همان روز تقویمی منبع است؛ دوره به تهران جابه‌جا نشده است. کاربران GA4 در کل بازه یکتا هستند؛ جمع آمار روزانه نیستند. کلیک و نمایش GSC بازدیدکننده نیستند.';
+                    $out[] = 'گوگل، روز تقویمی دیروز و دو دورهٔ مستقل ۳۰روزهٔ منبع را نشان می‌دهد، نه ۲۴ساعت شناور. تاریخ روزهای آماری، شمسیِ همان روز تقویمی منبع است؛ دوره به تهران جابه‌جا نشده است. کاربران GA4 در کل هر بازه یکتا هستند؛ جمع آمار روزانه یا جمع دو دوره نیستند. کلیک و نمایش GSC بازدیدکننده نیستند.';
                 }
                 return $out;
             case 'fx':
