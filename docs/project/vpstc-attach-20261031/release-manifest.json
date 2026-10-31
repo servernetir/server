@@ -1,51 +1,83 @@
 {
   "base_sha": "6d465debff5b3617a3849c1ff14019155b566fc9",
-  "status": "source_prepared",
+  "status": "installed_and_verified",
   "runtime": [
     {
       "source": "website/app/Services/Cloud/VpsTcAttachment.php",
       "target": "servernet_app/app/Services/Cloud/VpsTcAttachment.php",
       "sha256": "4b0d95ff7a02bee8cbb6adff27f5fdf09910f1c1b63f87c3c2746e962c81d07d",
-      "new": true
+      "new": true,
+      "installed_sha256": "4b0d95ff7a02bee8cbb6adff27f5fdf09910f1c1b63f87c3c2746e962c81d07d",
+      "preserved_live_drift": false
     },
     {
       "source": "website/app/Services/Cloud/VpsTcClient.php",
       "target": "servernet_app/app/Services/Cloud/VpsTcClient.php",
       "sha256": "a6130debca85a4a0dbc02be5f2b1a5f375cfab9fb6b3983bed9641f51b240f1d",
-      "new": false
+      "new": false,
+      "installed_sha256": "a6130debca85a4a0dbc02be5f2b1a5f375cfab9fb6b3983bed9641f51b240f1d",
+      "preserved_live_drift": false
     },
     {
       "source": "website/app/Models/Service.php",
       "target": "servernet_app/app/Models/Service.php",
       "sha256": "ef1446df0c8e38960eb04d90203516989c98498ae00aa8ff04b4b31b19b289a7",
-      "new": false
+      "new": false,
+      "installed_sha256": "ef1446df0c8e38960eb04d90203516989c98498ae00aa8ff04b4b31b19b289a7",
+      "preserved_live_drift": false
     },
     {
       "source": "website/app/Services/Billing/ComplimentaryServices.php",
       "target": "servernet_app/app/Services/Billing/ComplimentaryServices.php",
       "sha256": "4b79aa49a917e2f2417f14097f39b4bcc0e52b25941de7cf106d1f33159f688c",
-      "new": false
+      "new": false,
+      "installed_sha256": "4b79aa49a917e2f2417f14097f39b4bcc0e52b25941de7cf106d1f33159f688c",
+      "preserved_live_drift": false
     },
     {
       "source": "website/app/Http/Controllers/Admin/CloudAttachController.php",
       "target": "servernet_app/app/Http/Controllers/Admin/CloudAttachController.php",
       "sha256": "e0a8cadd29357ca33a8f59e94124af9b0545cc38e43406f0084d80d6aa84358d",
-      "new": false
+      "new": false,
+      "installed_sha256": "e0a8cadd29357ca33a8f59e94124af9b0545cc38e43406f0084d80d6aa84358d",
+      "preserved_live_drift": false
     },
     {
       "source": "website/app/Models/CloudPlan.php",
       "target": "servernet_app/app/Models/CloudPlan.php",
       "sha256": "bee40ea6485cc66e71455930d07b7052ca4239e9ea8342c0e84aeb4dd247e6bf",
-      "new": false
+      "new": false,
+      "installed_sha256": "e14462acacf92969863d5413710a9f3473deae40d0b0808229c24511f0fa890e",
+      "preserved_live_drift": true
     },
     {
       "source": "website/resources/views/admin/cloud-attach.blade.php",
       "target": "servernet_app/resources/views/admin/cloud-attach.blade.php",
       "sha256": "f09b27289fd588e80ed0260d271a6952625049851096204becea1bda68ffc35d",
-      "new": false
+      "new": false,
+      "installed_sha256": "f09b27289fd588e80ed0260d271a6952625049851096204becea1bda68ffc35d",
+      "preserved_live_drift": false
     }
   ],
   "migration": false,
   "provider_test_mutations": false,
-  "production_installation": "pending"
+  "production_installation": "installed",
+  "source_sha": "40dff78a922d4856ed58873ade7ee0fb1d623a4e",
+  "develop_merge_sha": "7425ecf9e639d3a4f231d1f6f6ded46c35ec113f",
+  "plan_sha256": "427cafe282471eb06d1dd8bde58de6db544bc841d33eb8a00d1ced694f9d6c2a",
+  "catalog": {
+    "products": 16,
+    "locations": 2,
+    "images": 16,
+    "snapshot_current": true
+  },
+  "private_attachments": {
+    "count": 2,
+    "ownership_verified": true,
+    "unique_references": true,
+    "encrypted_access_and_receipts": true,
+    "supplier_due_anchors_verified": true,
+    "invoice_count_created": 0,
+    "provider_test_mutations": false
+  }
 }
