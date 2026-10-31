@@ -35,10 +35,13 @@ class Domain extends Model
         'whois_privacy', 'name_servers', 'registered_at', 'expires_at',
         'price_toman', 'renew_toman', 'cost_amount', 'cost_renew_amount', 'cost_currency',
         'quote_id', 'invoice_id', 'meta',
+        'supplier_account_id', 'supplier_object_id', 'supplier_quote',
     ];
 
     protected $casts = [
         'name_servers' => 'array',
+        'supplier_account_id' => 'integer',
+        'supplier_quote' => 'array',
         'meta' => 'array',
         'auto_renew' => 'boolean',
         'is_locked' => 'boolean',
@@ -57,7 +60,8 @@ class Domain extends Model
      * ⚠️ بهایِ تمام‌شده هرگز نباید در JSONی که به مشتری می‌رود ظاهر شود —
      * همان قاعدهٔ `CloudPlan::$hidden`. حاشیهٔ سودِ ما دادهٔ داخلی است.
      */
-    protected $hidden = ['cost_amount', 'cost_renew_amount', 'cost_currency', 'owner_handle', 'op_id'];
+    protected $hidden = ['registrar', 'cost_amount', 'cost_renew_amount', 'cost_currency', 'owner_handle', 'op_id',
+        'supplier_account_id', 'supplier_object_id', 'supplier_quote', 'registrar', 'supplierAccount', 'supplier_account'];
 
     public function attributesToArray(): array
     {
@@ -67,6 +71,11 @@ class Domain extends Model
         }
 
         return $attributes;
+    }
+
+    public function supplierAccount(): BelongsTo
+    {
+        return $this->belongsTo(DomainSupplierAccount::class, 'supplier_account_id');
     }
 
     public function customer(): BelongsTo

@@ -167,7 +167,7 @@ class DomainApiController extends Controller
         }
 
         try {
-            $rows = $this->search->search($data['domain'], $data['tlds'] ?? []);
+            $rows = $this->search->search($data['domain'], $data['tlds'] ?? [], (int) $c->id);
         } catch (\Throwable) {
             return $this->err('lookup_failed', 'استعلام ممکن نشد. کمی بعد دوباره تلاش کنید.', 503);
         }
@@ -397,7 +397,7 @@ class DomainApiController extends Controller
             return $data;
         }
 
-        if (! $d->op_id) {
+        if (! app(\App\Services\Domain\DomainManagement::class)->registered($d)) {
             return $this->err('not_registered', 'این دامنه هنوز نزدِ رجیسترار ثبت نشده است.', 409);
         }
 
@@ -406,7 +406,11 @@ class DomainApiController extends Controller
             $data['nameservers']
         )));
 
-        $res = $this->op->setNameServers((int) $d->op_id, $ns);
+        $res = app(\App\Services\Domain\DomainManagement::class)->manage($d, 'nameservers', ['nameservers' => $ns]);
+
+        if (in_array($res['status'] ?? '', ['queued', 'unknown'], true)) {
+            return $this->ok(['domain' => $d->domain, 'order_state' => 'pending'])->setStatusCode(202);
+        }
 
         if (! ($res['ok'] ?? false)) {
             // ⚠️ پیامِ خامِ رجیسترار برنمی‌گردد — ممکن است نام یا شناسهٔ داخلیِ
@@ -441,11 +445,15 @@ class DomainApiController extends Controller
                 'خاموش‌کردنِ قفلِ انتقال از API ممکن نیست. از پنلِ کاربری انجام دهید.', 403);
         }
 
-        if (! $d->op_id) {
+        if (! app(\App\Services\Domain\DomainManagement::class)->registered($d)) {
             return $this->err('not_registered', 'این دامنه هنوز نزدِ رجیسترار ثبت نشده است.', 409);
         }
 
-        $res = $this->op->setLock((int) $d->op_id, true);
+        $res = app(\App\Services\Domain\DomainManagement::class)->manage($d, 'lock', ['locked' => true]);
+
+        if (in_array($res['status'] ?? '', ['queued', 'unknown'], true)) {
+            return $this->ok(['domain' => $d->domain, 'order_state' => 'pending'])->setStatusCode(202);
+        }
 
         if (! ($res['ok'] ?? false)) {
             return $this->err('registrar_rejected', 'رجیسترار این تغییر را نپذیرفت.', 502);
@@ -639,6 +647,9 @@ class DomainApiController extends Controller
                 'nameservers' => $d->effectiveNameServers(),
                 'renew_price' => (int) $d->renew_toman,
                 'currency'    => 'IRT',
+                'management_pending' => \Illuminate\Support\Facades\Schema::hasTable('domain_supplier_operations')
+                    && \App\Models\DomainSupplierOperation::where('domain_id', $d->id)
+                        ->where('operation', 'like', 'manage_%')->whereIn('status', ['submitting', 'queued', 'unknown'])->exists(),
                 /*
                 | ⚠️ `provision_status` یک برچسبِ **داخلی** است و به‌عنوان
                 | «وضعیتِ سفارش» بیرون می‌رود، نه با نامِ خودش: ماژولی که رویش
@@ -659,7 +670,8 @@ class DomainApiController extends Controller
 
     private function owned(Request $request, string $domain): Domain|JsonResponse
     {
-        $fqdn = strtolower(trim($domain, ". \t\n\r"));
+        $fqdn = idn_to_ascii(strtolower(trim($domain, ". \t\n\r")), IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+        if (! is_string($fqdn)) return $this->err('not_found', 'Domain not found.', 404);
 
         $d = Domain::where('customer_id', $this->customer($request)->id)
             ->where('domain', $fqdn)

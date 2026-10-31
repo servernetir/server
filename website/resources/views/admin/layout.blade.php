@@ -158,6 +158,7 @@
       {{-- [ai-admin-nav:end] --}}
       <div class="ad-nav-sep">دامنه</div>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
+      <a href="{{ route('admin.domain-suppliers') }}" class="@yield('nav_domain_suppliers')"><svg class="icon"><use href="#i-server"/></svg>{{ __('domain-suppliers.title') }}</a>
       {{-- [managed-dns:start] --}}
       <a href="/admin/dns" class="@yield('nav_dns')"><svg class="icon"><use href="#i-link"/></svg>مدیریت DNS</a>
       {{-- [managed-dns:end] --}}

@@ -766,3 +766,12 @@ Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
 
 // Bounded knowledge/receipt supervision; independently paused until explicitly enabled.
 \Illuminate\Support\Facades\Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);
+
+// Read-only account health/balance refresh. Disabled multi-provider feature makes this a no-op.
+Schedule::command('domains:suppliers-probe')->everyFiveMinutes()->withoutOverlapping(5);
+
+// Poll only persisted submissions; never buy, renew, transfer, or repeat a request.
+Schedule::command('domains:supplier-reconcile --limit=25')->everyFiveMinutes()->withoutOverlapping(5);
+
+// Sends only a persisted, exact owner-approved paid operation; feature remains off by default.
+Schedule::command('domains:supplier-dispatch-approved --limit=10')->everyMinute()->withoutOverlapping(5);

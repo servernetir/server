@@ -72,7 +72,7 @@ class DomainController extends Controller
 
         if ($query !== '' && mb_strlen($query) <= 120) {
             try {
-                $results = $search->search($query);
+                $results = $search->search($query, [], $this->customerId());
                 $lookupOk = $search->lookupOk();
             } catch (\Throwable $e) {
                 // جستجوی خراب نباید فهرستِ دامنه‌های مشتری را هم بخوابانَد
@@ -152,6 +152,15 @@ class DomainController extends Controller
             'defaultNs'      => Domain::defaultNameServers(),
             'transferUnpaid' => $openInvoice,
             'renewUnit'      => $renewUnit,
+            'managementCaps' => config('domain_suppliers.enabled', false) && $domain->supplier_account_id
+                ? (array) data_get($domain->supplierAccount?->capabilities, 'tlds.'.$domain->tld.'.management', []) : [],
+            'verifiedContacts' => config('domain_suppliers.enabled', false) && $domain->supplier_account_id
+                ? \App\Models\DomainSupplierContact::where('supplier_account_id', $domain->supplier_account_id)
+                    ->where('customer_profile_id', auth('customer')->user()?->defaultProfile()?->id ?? 0)
+                    ->where('status', 'active')->whereNotNull('verified_at')->where('verified_at', '<=', now())->get() : collect(),
+            'pendingDomainManagement' => \Illuminate\Support\Facades\Schema::hasTable('domain_supplier_operations')
+                ? \App\Models\DomainSupplierOperation::where('domain_id', $domain->id)->where('operation', 'like', 'manage_%')
+                    ->whereIn('status', ['submitting', 'queued', 'unknown'])->get(['id', 'status']) : collect(),
         ]);
     }
 
@@ -178,14 +187,18 @@ class DomainController extends Controller
             return back()->withErrors(__('ui.dm_ns_two'));
         }
 
-        if (! $domain->op_id) {
+        if (! app(\App\Services\Domain\DomainManagement::class)->registered($domain)) {
             return back()->withErrors(__('ui.dm_not_registered'));
         }
 
-        $res = $this->op->setNameServers((int) $domain->op_id, $ns);
+        $res = app(\App\Services\Domain\DomainManagement::class)->manage($domain, 'nameservers', ['nameservers' => $ns]);
+
+        if (in_array($res['status'] ?? '', ['queued', 'unknown'], true)) {
+            return back()->with('ok', __('domain-management.pending'));
+        }
 
         if (! $res['ok']) {
-            return back()->withErrors($this->safeMessage($res['message']));
+            return back()->withErrors($this->safeMessage(($res['message'] ?? '')));
         }
 
         $domain->update(['name_servers' => $ns]);
@@ -201,15 +214,19 @@ class DomainController extends Controller
     {
         $this->owned($domain);
 
-        if (! $domain->op_id) {
+        if (! app(\App\Services\Domain\DomainManagement::class)->registered($domain)) {
             return back()->withErrors(__('ui.dm_not_registered'));
         }
 
         $lock = $request->boolean('lock');
-        $res = $this->op->setLock((int) $domain->op_id, $lock);
+        $res = app(\App\Services\Domain\DomainManagement::class)->manage($domain, 'lock', ['locked' => $lock]);
+
+        if (in_array($res['status'] ?? '', ['queued', 'unknown'], true)) {
+            return back()->with('ok', __('domain-management.pending'));
+        }
 
         if (! $res['ok']) {
-            return back()->withErrors($this->safeMessage($res['message']));
+            return back()->withErrors($this->safeMessage(($res['message'] ?? '')));
         }
 
         $domain->update(['is_locked' => $lock]);
@@ -228,7 +245,7 @@ class DomainController extends Controller
     {
         $this->owned($domain);
 
-        if (! $domain->op_id) {
+        if (! app(\App\Services\Domain\DomainManagement::class)->registered($domain)) {
             return back()->withErrors(__('ui.dm_not_registered'));
         }
 
@@ -236,13 +253,87 @@ class DomainController extends Controller
             return back()->withErrors(__('ui.dm_unlock_first'));
         }
 
-        $res = $this->op->authCode((int) $domain->op_id);
+        $res = app(\App\Services\Domain\DomainManagement::class)->manage($domain, 'auth_code');
 
         if (! $res['ok'] || blank($res['auth_code'])) {
-            return back()->withErrors($this->safeMessage($res['message'] ?: __('ui.dm_epp_na')));
+            return back()->withErrors($this->safeMessage(($res['message'] ?? '') ?: __('ui.dm_epp_na')));
         }
 
         return back()->with('authCode', $res['auth_code']);
+    }
+
+    public function dnssec(Request $request, Domain $domain): RedirectResponse
+    {
+        $this->owned($domain);
+        abort_unless(config('domain_suppliers.enabled', false) && $domain->supplier_account_id, 404);
+        $data = $request->validate([
+            'enabled' => ['sometimes', 'boolean'], 'keys' => ['nullable', 'array', 'max:6'],
+            'keys.*.record_type' => ['nullable', 'in:DS,DNSKEY'],
+            'keys.*.flags' => ['nullable', 'integer', 'in:256,257'],
+            'keys.*.protocol' => ['nullable', 'integer', 'in:3'],
+            'keys.*.public_key' => ['nullable', 'string', 'max:4096', 'regex:/^[A-Za-z0-9+\/=]+$/D'],
+            'keys.*.tag' => ['nullable', 'integer', 'between:0,65535'],
+            'keys.*.algorithm' => ['nullable', 'integer', 'between:1,255'],
+            'keys.*.digest_type' => ['nullable', 'integer', 'in:1,2,4'],
+            'keys.*.digest' => ['nullable', 'string', 'regex:/^[A-Fa-f0-9]+$/D', 'max:96'],
+        ]);
+        $keys = [];
+        if ($request->boolean('enabled')) {
+            foreach ((array) ($data['keys'] ?? []) as $key) {
+                if (($key['record_type'] ?? 'DS') === 'DNSKEY') {
+                    if (empty($key['public_key'])) continue;
+                    if (! isset($key['algorithm']) || ! in_array((int) ($key['flags'] ?? 0), [256, 257], true)
+                        || (int) ($key['protocol'] ?? 0) !== 3 || base64_decode($key['public_key'], true) === false) {
+                        return back()->withErrors(__('panel.operation_failed'));
+                    }
+                    $keys[] = ['record_type' => 'DNSKEY', 'algorithm' => (int) $key['algorithm'],
+                        'flags' => (int) $key['flags'], 'protocol' => 3, 'public_key' => $key['public_key']];
+                    continue;
+                }
+                if (empty($key['digest'])) continue;
+                $type = (int) ($key['digest_type'] ?? 0);
+                if (! isset($key['tag'], $key['algorithm']) || ! in_array($type, [1, 2, 4], true)
+                    || strlen($key['digest']) !== ([1 => 40, 2 => 64, 4 => 96][$type])) {
+                    return back()->withErrors(__('panel.operation_failed'));
+                }
+                $keys[] = ['record_type' => 'DS', 'tag' => (int) $key['tag'], 'algorithm' => (int) $key['algorithm'],
+                    'digest_type' => $type, 'digest' => strtoupper($key['digest'])];
+            }
+            if ($keys === []) return back()->withErrors(__('panel.operation_failed'));
+        }
+        return $this->managementResponse(app(\App\Services\Domain\DomainManagement::class)
+            ->manage($domain, 'dnssec', ['keys' => $keys]));
+    }
+
+    public function contacts(Request $request, Domain $domain): RedirectResponse
+    {
+        $this->owned($domain);
+        abort_unless(config('domain_suppliers.enabled', false) && $domain->supplier_account_id, 404);
+        $data = $request->validate(['contacts' => ['required', 'array', 'min:1', 'max:3'],
+            'contacts.admin' => ['nullable', 'integer', 'min:1'],
+            'contacts.tech' => ['nullable', 'integer', 'min:1'],
+            'contacts.billing' => ['nullable', 'integer', 'min:1']]);
+        $profile = auth('customer')->user()?->defaultProfile();
+        $handles = [];
+        foreach (['admin', 'tech', 'billing'] as $role) {
+            if (empty($data['contacts'][$role])) continue;
+            $contact = \App\Models\DomainSupplierContact::whereKey($data['contacts'][$role])
+                ->where('supplier_account_id', $domain->supplier_account_id)
+                ->where('customer_profile_id', $profile?->id ?? 0)->where('status', 'active')
+                ->whereNotNull('verified_at')->whereIn('role', [$role, 'registrant'])->first();
+            if (! $contact) return back()->withErrors(__('domain-management.invalid_contact'));
+            $handles[$role] = $contact->handle;
+        }
+        if ($handles === []) return back()->withErrors(__('domain-management.invalid_contact'));
+        return $this->managementResponse(app(\App\Services\Domain\DomainManagement::class)
+            ->manage($domain, 'contacts', ['handles' => $handles]));
+    }
+
+    private function managementResponse(array $result): RedirectResponse
+    {
+        if (in_array($result['status'] ?? '', ['queued', 'unknown'], true)) return back()->with('ok', __('domain-management.pending'));
+        return ($result['ok'] ?? false) ? back()->with('ok', __('domain-management.saved'))
+            : back()->withErrors(__('panel.operation_failed'));
     }
 
     public function autoRenew(Request $request, Domain $domain): RedirectResponse
@@ -334,7 +425,7 @@ class DomainController extends Controller
             return back()->withErrors(__('ui.dm_restore_state'));
         }
 
-        if (! $domain->op_id) {
+        if (! app(\App\Services\Domain\DomainManagement::class)->registered($domain)) {
             return back()->withErrors(__('ui.dm_restore_support'));
         }
 
@@ -347,7 +438,7 @@ class DomainController extends Controller
         }
 
         $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
-        $liveQuote = $pricing->quote($domain->sld, $domain->tld, 'restore');
+        $liveQuote = $pricing->quote($domain->sld, $domain->tld, 'restore', 1, $domain);
         $invoice = DB::transaction(function () use ($domain, $invoicer, $liveQuote, $pricing) {
             $domain = Domain::whereKey($domain->id)->lockForUpdate()->firstOrFail();
             if ($domain->status !== 'expired' || in_array($domain->provision_status, ['pending', 'running', 'manual'], true)) {
@@ -410,7 +501,7 @@ class DomainController extends Controller
 
             // نشانِ فاکتور برای رفاندِ هدفمند + یک‌سالِ تمدیدِ همراهِ بازیابی
             $domain->putMeta(['restore_invoice_id' => $invoice->id, 'renew_years' => 1]);
-            $pricing->remember($domain, $liveQuote);
+            $pricing->remember($domain, $liveQuote, $invoice);
 
             return $invoice;
         });
@@ -479,6 +570,23 @@ class DomainController extends Controller
     ];
 
     public function order(Request $request): RedirectResponse
+    {
+        $quote = DomainQuote::find((int) $request->input('quote_id'));
+        if (! $quote) {
+            return back()->withErrors(__('ui.dm_quote_missing'));
+        }
+        try {
+            return \Illuminate\Support\Facades\Cache::lock(
+                \App\Services\Domain\DomainSupplierLifecycle::domainLockKey($quote->domain), 180
+            )->block(5, fn () => $this->orderLocked($request));
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            return back()->withErrors(__('domain-pricing.unavailable'));
+        } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
+            return back()->withErrors(__('domain-pricing.changed'));
+        }
+    }
+
+    private function orderLocked(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'quote_id' => ['required', 'integer'],
@@ -619,7 +727,7 @@ class DomainController extends Controller
 
         [$sld, $tld] = Domain::splitFqdn((string) $quote->domain);
 
-        $existing = Domain::where('domain', $quote->domain)->where('registrar', 'openprovider')->first();
+        $existing = Domain::where('domain', $quote->domain)->first();
 
         if ($existing !== null && ! $existing->isDead()) {
             return back()->withErrors(__('ui.dm_already'));
@@ -641,7 +749,40 @@ class DomainController extends Controller
             $ns = Domain::defaultNameServers();
         }
 
-        $liveQuote = app(\App\Services\Domain\LiveDomainPricing::class)->quote($sld, $tld, 'create', $years);
+        $supplierQuote = null;
+        if (app(\App\Services\Domain\DomainProcurement::class)->enabled() && ! $quote->supplier_account_id) {
+            if (! in_array((string) $quote->registrar, ['', 'openprovider'], true)) {
+                return back()->withErrors(__('domain-pricing.unavailable'));
+            }
+            $replacement = app(\App\Services\Domain\DomainProcurement::class)->quote($quote->domain, 'create', $years * 12);
+            abort_unless($replacement->claimFor($customerId), 404);
+            return redirect()->to(lroute('account.domains.checkout', ['quote' => $replacement->id, 'years' => $years]));
+        }
+        if ($quote->supplier_account_id) {
+            if (! config('domain_suppliers.enabled', false)) {
+                return back()->withErrors(__('domain-pricing.unavailable'));
+            }
+            $procurement = app(\App\Services\Domain\DomainProcurement::class);
+            if ((int) $quote->period_months !== $years * 12) {
+                // A different term is a different product. Show its actual price before an invoice exists.
+                $replacement = $procurement->quote($quote->domain, 'create', $years * 12);
+                abort_unless($replacement->claimFor($customerId), 404);
+                return redirect()->to(lroute('account.domains.checkout', ['quote' => $replacement->id, 'years' => $years]));
+            }
+            if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)
+                ->ready(auth('customer')->user(), (int) $quote->supplier_account_id)) {
+                return back()->withErrors(__('domain-management.profile_review_required'));
+            }
+            $supplierQuote = $procurement->revalidate($quote);
+            $snapshot = $procurement->snapshot($supplierQuote);
+            $liveQuote = $snapshot + ['supplier_quote' => $snapshot];
+        } else {
+            // Forged registrar labels never grant a delivery path.
+            if (! in_array((string) $quote->registrar, ['', 'openprovider'], true)) {
+                return back()->withErrors(__('domain-pricing.unavailable'));
+            }
+            $liveQuote = app(\App\Services\Domain\LiveDomainPricing::class)->quote($sld, $tld, 'create', $years);
+        }
         $invoice = null;
 
         DB::transaction(function () use ($quote, $customerId, $years, $sld, $tld, &$invoice, $existing, $ns, $liveQuote) {
@@ -663,7 +804,7 @@ class DomainController extends Controller
                     'domain'        => $quote->domain,
                     'sld'           => $sld,
                     'tld'           => $tld,
-                    'registrar'     => 'openprovider',
+                    'registrar'     => (string) ($liveQuote['supplier_provider'] ?? 'openprovider'),
                     'status'        => 'pending',
                     // ⚠️ `none` نه `pending`: تا فاکتور پرداخت نشده، کرون
                     // نباید برش دارد. `PaymentService` بعد از تسویه پرچم را
@@ -694,6 +835,17 @@ class DomainController extends Controller
                 ] + $money)->save();
             }
 
+            if (isset($liveQuote['supplier_account_id'])) {
+                $domain->forceFill([
+                    'registrar' => (string) ($liveQuote['supplier_provider'] ?? $quote->registrar),
+                    'supplier_account_id' => $liveQuote['supplier_account_id'],
+                    'supplier_object_id' => null,
+                    'op_id' => null,
+                    'owner_handle' => null,
+                    'quote_id' => $liveQuote['quote_id'] ?? $quote->id,
+                ])->save();
+            }
+
             // The provider quotes the full selected registration term for this exact name.
             $unit = $liveQuote['sell_toman'];
             app(\App\Services\Domain\LiveDomainPricing::class)->remember($domain, $liveQuote);
@@ -716,6 +868,7 @@ class DomainController extends Controller
                 'note'          => 'ثبتِ دامنهٔ '.$quote->domain,
             ]);
             $domain->forceFill(['invoice_id' => $invoice->id])->save();
+            app(\App\Services\Domain\LiveDomainPricing::class)->remember($domain, $liveQuote, $invoice);
 
             InvoiceItem::create([
                 'invoice_id'  => $invoice->id,
@@ -756,18 +909,35 @@ class DomainController extends Controller
      */
     public function transferOrder(Request $request, \App\Services\Domain\DomainTransfer $transfers): RedirectResponse
     {
+        $raw = $request->input('domain');
+        if (! is_string($raw)) return back()->withErrors(__('ui.dm_bad_name'));
+        try {
+            return \Illuminate\Support\Facades\Cache::lock(
+                \App\Services\Domain\DomainSupplierLifecycle::domainLockKey($raw), 180
+            )->block(5, fn () => $this->transferOrderLocked($request, $transfers));
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException|\App\Services\Domain\Pricing\DomainProcurementException) {
+            return back()->withErrors(__('domain-pricing.unavailable'));
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            return back()->withErrors(__('ui.dm_already'));
+        }
+    }
+
+    private function transferOrderLocked(Request $request, \App\Services\Domain\DomainTransfer $transfers): RedirectResponse
+    {
         $data = $request->validate([
             'domain' => ['required', 'string', 'max:253'],
         ], [], ['domain' => __('panel.field_domain')]);
 
-        [$sld, $tld] = Domain::splitFqdn(strtolower(trim($data['domain'])));
+        $ascii = idn_to_ascii(strtolower(trim($data['domain'], '. ')), IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+        if (! is_string($ascii)) return back()->withErrors(__('ui.dm_bad_name'));
+        [$sld, $tld] = Domain::splitFqdn(strtolower($ascii));
 
         if ($sld === '' || $tld === '') {
             return back()->withErrors(__('ui.dm_bad_name'));
         }
 
         // 🔴 همهٔ گیت‌ها پیش از ساختِ فاکتور — نه بعدش
-        $gate = $transfers->eligibility($sld, $tld);
+        $gate = $transfers->eligibility($sld, $tld, $this->customerId());
 
         if (! $gate['ok']) {
             return back()->withErrors($gate['message']);
@@ -782,7 +952,19 @@ class DomainController extends Controller
         | ندارد که بشود به آن تکیه کرد.
         */
         $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
-        $liveQuote = $pricing->quote($sld, $tld, 'transfer');
+        if (app(\App\Services\Domain\DomainProcurement::class)->enabled()) {
+            $quoted = DomainQuote::findOrFail((int) ($gate['quote_id'] ?? 0));
+            abort_unless($quoted->claimFor($this->customerId()), 404);
+            if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)
+                ->ready(auth('customer')->user(), (int) $quoted->supplier_account_id)) {
+                return back()->withErrors(__('domain-management.profile_review_required'));
+            }
+            $procurement = app(\App\Services\Domain\DomainProcurement::class);
+            $snapshot = $procurement->snapshot($procurement->revalidate($quoted));
+            $liveQuote = $snapshot + ['supplier_quote' => $snapshot];
+        } else {
+            $liveQuote = $pricing->quote($sld, $tld, 'transfer');
+        }
         $price = $liveQuote['sell_toman'];
         $renew = 0; // Future renewals always receive their own quote.
 
@@ -796,7 +978,8 @@ class DomainController extends Controller
                 'domain'           => $fqdn,
                 'sld'              => $sld,
                 'tld'              => $tld,
-                'registrar'        => 'openprovider',
+                'registrar'        => (string) ($liveQuote['supplier_provider'] ?? 'openprovider'),
+                'quote_id'         => $liveQuote['quote_id'] ?? null,
                 'order_type'       => 'transfer',
                 'status'           => Domain::STATUS_TRANSFERRING,
                 'transfer_status'  => 'pending',
@@ -825,13 +1008,15 @@ class DomainController extends Controller
                 'note'          => 'انتقالِ دامنهٔ '.$fqdn,
             ]);
             $domain->forceFill(['invoice_id' => $invoice->id])->save();
+            $pricing->remember($domain, $liveQuote, $invoice);
 
             InvoiceItem::create([
                 'invoice_id'  => $invoice->id,
                 'title'       => 'انتقالِ دامنهٔ '.$fqdn,
                 // ⚠️ «۱ سال تمدید» بخشی از خودِ انتقال است و باید روی فاکتور
                 //    دیده شود، وگرنه مشتری فکر می‌کند فقط جابه‌جایی خریده.
-                'description' => 'شاملِ یک سال تمدید',
+                'description' => isset($liveQuote['resulting_period_months'])
+                    ? __('domain-management.transfer_term', ['months' => $liveQuote['resulting_period_months']]) : 'شاملِ یک سال تمدید',
                 'quantity'    => 1,
                 'unit_price'  => $price,
                 'line_total'  => $price,
@@ -884,8 +1069,12 @@ class DomainController extends Controller
         // ⚠️ خودِ `$data` هم باید از حافظه برود — همان کد داخلش است
         unset($data);
 
+        if (in_array($res['status'] ?? '', ['queued', 'unknown'], true)) {
+            return back()->with('ok', __('domain-management.pending'));
+        }
+
         if (! $res['ok']) {
-            return back()->withErrors($this->safeMessage($res['message']));
+            return back()->withErrors($this->safeMessage(($res['message'] ?? '')));
         }
 
         return back()->with('ok',
@@ -910,7 +1099,7 @@ class DomainController extends Controller
      */
     private function safeMessage(string $raw): string
     {
-        \Illuminate\Support\Facades\Log::info('domain op failed', ['msg' => $raw]);
+        // Never log raw descriptions: they can contain contacts or EPP credentials.
 
         return __('panel.operation_failed');
     }

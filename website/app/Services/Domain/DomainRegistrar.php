@@ -446,6 +446,9 @@ class DomainRegistrar
      */
     public function registrationBlocker(Domain $domain): ?string
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return DomainSupplierLifecycle::hasUnresolvedOperation($domain) ? __('domain-suppliers.review_required') : null;
+        }
         if (! $this->op->enabled()) {
             return 'اتصالِ رجیسترار پیکربندی نشده است.';
         }
@@ -472,6 +475,10 @@ class DomainRegistrar
 
     public function register(Domain $domain): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'create', max(1, (int) $domain->period_years) * 12);
+        }
+
         // ── قفلِ اتمی: فقط یک اجرا می‌تواند این دامنه را بردارد ──
         //
         // 🔴 بدونِ این، کرونِ هر-دقیقه و کلیکِ دستیِ مدیر می‌توانند هم‌زمان
@@ -687,6 +694,8 @@ class DomainRegistrar
             'expires_at' => $this->parseDate($expires) ?: $domain->expires_at,
         ])->save();
 
+        DomainSupplierLifecycle::bindLegacyResult($domain, $remote);
+
         $until = $domain->fresh()?->expires_at;
 
         $this->announce('domain_registered', $domain,
@@ -837,6 +846,10 @@ class DomainRegistrar
     /** @return array{ok:bool, message:string} */
     public function renew(Domain $domain, int $years = 1): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'renew', max(1, $years) * 12);
+        }
+
         if (! $domain->op_id) {
             return ['ok' => false, 'message' => 'این دامنه شناسهٔ رجیسترار ندارد.'];
         }
@@ -860,6 +873,7 @@ class DomainRegistrar
         // چون دورهٔ واقعی ممکن است با آنچه خواستیم فرق کند.
         $detail = $this->op->getDomain((int) $domain->op_id);
         $expires = $this->parseDate(data_get($detail, 'data.expiration_date'));
+        DomainSupplierLifecycle::bindLegacyResult($domain, (array) ($detail['data'] ?? []));
 
         $domain->forceFill([
             'status' => 'active',
@@ -887,6 +901,10 @@ class DomainRegistrar
      */
     public function renewPaid(Domain $domain): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'renew', $domain->renewYears() * 12);
+        }
+
         $claimed = DB::table('domains')
             ->where('id', $domain->id)
             ->where('status', 'active')
@@ -1022,6 +1040,10 @@ class DomainRegistrar
      */
     public function restorePaid(Domain $domain): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'restore', $domain->renewYears() * 12);
+        }
+
         $claimed = DB::table('domains')
             ->where('id', $domain->id)
             ->where('status', 'expired')

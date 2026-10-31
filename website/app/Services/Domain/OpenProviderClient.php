@@ -41,6 +41,7 @@ class OpenProviderClient
         private ?string $base = null,
         private ?string $username = null,
         private ?string $password = null,
+        private bool $accountScoped = false,
     ) {
         $cfg = config('services.openprovider');
         $this->base     ??= rtrim($cfg['base_url'] ?? 'https://api.openprovider.eu/v1beta', '/');
@@ -51,6 +52,11 @@ class OpenProviderClient
     public function enabled(): bool
     {
         return filled($this->username) && filled($this->password);
+    }
+
+    private function cacheKey(string $key): string
+    {
+        return $this->accountScoped ? $key.':'.$this->accountFingerprint() : $key;
     }
 
     /** Bind read-only manager observations to this exact client account. */
@@ -70,12 +76,12 @@ class OpenProviderClient
             return null;
         }
 
-        if (! $forceFresh && ($cached = Cache::get(self::TOKEN_KEY))) {
+        if (! $forceFresh && ($cached = Cache::get($this->cacheKey(self::TOKEN_KEY)))) {
             return $cached;
         }
 
         // مدار باز است؟ لاگینِ تازه نزن — پاسخ تا دخالتِ انسان عوض نمی‌شود.
-        if (Cache::get(self::AUTH_DOWN_KEY)) {
+        if (Cache::get($this->cacheKey(self::AUTH_DOWN_KEY))) {
             return null;
         }
 
@@ -87,12 +93,12 @@ class OpenProviderClient
         $token = data_get($res, 'data.token');
 
         if (blank($token)) {
-            Cache::put(self::AUTH_DOWN_KEY, (int) data_get($res, 'code', -1),
+            Cache::put($this->cacheKey(self::AUTH_DOWN_KEY), (int) data_get($res, 'code', -1),
                 now()->addMinutes(self::AUTH_DOWN_MINUTES));
 
             Log::warning('OpenProvider login failed', [
                 'code' => data_get($res, 'code'),
-                'desc' => data_get($res, 'desc'),
+                'account' => $this->accountFingerprint(),
             ]);
 
             /*
@@ -103,7 +109,7 @@ class OpenProviderClient
             try {
                 \App\Support\ErrorTracker::noteOnce('domain',
                     'ورود به OpenProvider رد شد (کد '.data_get($res, 'code', '؟').') — فروش و تمدیدِ دامنه خوابیده است.',
-                    900, ['desc' => mb_substr((string) data_get($res, 'desc', ''), 0, 160)]);
+                    900, ['code' => (int) data_get($res, 'code', -1)]);
             } catch (\Throwable) {
                 // ردیاب هرگز مسیرِ اصلی را نمی‌شکند
             }
@@ -111,8 +117,8 @@ class OpenProviderClient
             return null;
         }
 
-        Cache::forget(self::AUTH_DOWN_KEY);
-        Cache::put(self::TOKEN_KEY, $token, now()->addHours(6));
+        Cache::forget($this->cacheKey(self::AUTH_DOWN_KEY));
+        Cache::put($this->cacheKey(self::TOKEN_KEY), $token, now()->addHours(6));
 
         return $token;
     }
@@ -207,6 +213,7 @@ class OpenProviderClient
         int $period = 1,
         bool $autoRenew = false,
         array $additional = [],
+        ?string $acceptPremiumFee = null,
     ): array {
         $payload = [
             'domain'         => ['name' => $name, 'extension' => ltrim($extension, '.')],
@@ -225,6 +232,7 @@ class OpenProviderClient
         if ($additional !== []) {
             $payload['additional_data'] = $additional;
         }
+        if ($acceptPremiumFee !== null) { $payload['accept_premium_fee'] = (float) $acceptPremiumFee; }
 
         $res = $this->call('POST', '/domains', $payload);
 
@@ -375,6 +383,7 @@ class OpenProviderClient
         string $authCode,
         array $nameServers = [],
         int $period = 1,
+        ?string $acceptPremiumFee = null,
     ): array {
         $payload = [
             'domain'         => ['name' => $name, 'extension' => ltrim($extension, '.')],
@@ -390,6 +399,7 @@ class OpenProviderClient
         if ($nameServers !== []) {
             $payload['name_servers'] = array_values(array_map(fn ($ns) => ['name' => $ns], $nameServers));
         }
+        if ($acceptPremiumFee !== null) { $payload['accept_premium_fee'] = (float) $acceptPremiumFee; }
 
         $res = $this->call('POST', '/domains/transfer', $payload);
 
@@ -674,7 +684,7 @@ class OpenProviderClient
         */
         if ((int) data_get($res, 'code') === 196
             && data_get($res, 'desc') !== 'No token available') {
-            Cache::forget(self::TOKEN_KEY);
+            Cache::forget($this->cacheKey(self::TOKEN_KEY));
             $res = $this->raw($method, $path, $payload, forceFreshToken: true);
 
             /*
@@ -683,7 +693,7 @@ class OpenProviderClient
             | برگردند؛ وگرنه هر کالِ منطقی دو درخواست + یک لاگین می‌سوزانْد.
             */
             if ((int) data_get($res, 'code') === 196) {
-                Cache::put(self::AUTH_DOWN_KEY, 196, now()->addMinutes(self::AUTH_DOWN_MINUTES));
+                Cache::put($this->cacheKey(self::AUTH_DOWN_KEY), 196, now()->addMinutes(self::AUTH_DOWN_MINUTES));
             }
         }
 
@@ -709,12 +719,12 @@ class OpenProviderClient
         | روی پاسخی که رجیسترار **آگاهانه** داده هیچ‌وقت جواب نمی‌دهد؛ فقط
         | هزینهٔ اعتبارِ حساب است.
         */
-        $req = Http::acceptJson()->asJson()->timeout(25)->retry(
-            2,
-            400,
-            fn ($e) => $e instanceof \Illuminate\Http\Client\ConnectionException,
-            throw: false,
-        );
+        $req = Http::acceptJson()->asJson()->timeout(25);
+        // A financial POST can have committed before a transport failure.
+        // Retry only read requests (domain checks are read-only POSTs).
+        if (in_array(strtoupper($method), ['GET', 'HEAD'], true) || $path === '/domains/check') {
+            $req = $req->retry(2, 400, fn ($e) => $e instanceof \Illuminate\Http\Client\ConnectionException, throw: false);
+        }
 
         if ($withToken) {
             $token = $this->token($forceFreshToken);
@@ -738,8 +748,8 @@ class OpenProviderClient
         try {
             $response = $req->send($method, $this->base.$path, $options);
         } catch (\Throwable $e) {
-            Log::warning('OpenProvider transport error', ['path' => $path, 'err' => $e->getMessage()]);
-            return ['code' => -1, 'desc' => 'transport: '.$e->getMessage()];
+            Log::warning('OpenProvider transport error', ['path' => $path, 'error_class' => get_class($e)]);
+            return ['code' => -1, 'desc' => 'transport_failure'];
         }
 
         $body = $response->json();
@@ -753,7 +763,7 @@ class OpenProviderClient
             Log::info('OpenProvider API error', [
                 'path' => $path,
                 'code' => $body['code'] ?? null,
-                'desc' => $body['desc'] ?? null,
+                'account' => $this->accountFingerprint(),
             ]);
         }
 

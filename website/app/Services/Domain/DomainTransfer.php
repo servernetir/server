@@ -28,7 +28,7 @@ use Illuminate\Validation\ValidationException;
  * برای کارِ ثانیه‌ای درست است — روی انتقال به فاجعه تبدیل شود: هر ۱۵ دقیقه یک
  * سفارشِ انتقالِ تازه به رجیسترار.
  *
- * ═══ 🔴 کدِ انتقال هرگز ذخیره نمی‌شود ═══
+ * ═══ مسیر قدیمی OpenProvider: کدِ انتقال ذخیره نمی‌شود ═══
  *
  * `$authCode` فقط پارامترِ متد است و هیچ‌جا نوشته نمی‌شود — نه در ستون، نه در
  * `meta`، نه در لاگ. کلیدِ مالکیتِ دامنه است و همین پروژه در
@@ -37,6 +37,10 @@ use Illuminate\Validation\ValidationException;
  *
  * ⚠️ به همین دلیل، `submit()` **در همان درخواستی که مشتری کد را وارد می‌کند**
  * صدا زده می‌شود، نه در کرون. کرون کد ندارد و نمی‌تواند داشته باشد.
+ *
+ * مسیر چندتأمین‌کننده EPP را فقط تا اولین ارسال در request_context رمزنگاری‌شده
+ * و مخفی دفتر عملیات نگه می‌دارد؛ ارسال به تأیید مالک همان عملیات مقید است.
+ * پس از ارسال حذف می‌شود و هرگز در URL، log یا خروجی مشتری نمی‌آید.
  *
  * ═══ ترتیبِ پول ═══
  *
@@ -84,13 +88,32 @@ class DomainTransfer
      *
      * @return array{ok:bool, reason:string, message:string}
      */
-    public function eligibility(string $sld, string $tld): array
+    public function eligibility(string $sld, string $tld, ?int $customerId = null): array
     {
         $tld = ltrim(strtolower($tld), '.');
 
         if (! DomainSearch::sells($tld)) {
             return $this->no('tld_not_sold',
                 'پسوندِ «.'.$tld.'» از این مسیر منتقل نمی‌شود.');
+        }
+
+        if (app(DomainProcurement::class)->enabled()) {
+            $fqdn = strtolower($sld.'.'.$tld);
+            if (Domain::alive()->where('domain', $fqdn)->exists()) {
+                return $this->no('already_ours', __('domain-suppliers.review_required'));
+            }
+            $destination = \App\Models\DomainSupplierAccount::find((int) config('domain_suppliers.transfer_account_id'));
+            if (! $destination) {
+                return $this->no('transfer_destination_required', __('domain-suppliers.review_required'));
+            }
+            try {
+                $quote = app(DomainProcurement::class)->quoteTransfer($fqdn, 12, $destination, [], $customerId);
+                return ['ok' => true, 'reason' => '', 'message' => '', 'quote_id' => $quote->id];
+            } catch (\Throwable) {
+                // Neither an authentication failure nor a pricing failure proves that
+                // the domain is available or that it is transferable into this account.
+                return $this->no('transfer_eligibility_unconfirmed', __('domain-suppliers.review_required'));
+            }
         }
 
         if (TldGate::isBlocked($tld)) {
@@ -164,6 +187,10 @@ class DomainTransfer
      */
     public function submit(Domain $domain, string $authCode): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'transfer', max(1, (int) $domain->period_years) * 12, ['auth_code' => $authCode]);
+        }
+
         // قفلِ اتمی — همان الگوی ثبت. بی‌آن، کلیکِ دوبارهٔ مشتری دو سفارشِ
         // انتقال می‌فرستد و رجیسترار هر دو را هزینه می‌کند.
         $claimed = DB::table('domains')
@@ -295,6 +322,13 @@ class DomainTransfer
      */
     public function poll(Domain $domain): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            $op = \App\Models\DomainSupplierOperation::where('domain_id', $domain->id)->where('operation', 'transfer')->latest('id')->first();
+            $result = $op ? app(DomainSupplierLifecycle::class)->reconcile($op) : ['ok' => false, 'status' => 'manual_review', 'manual' => true, 'message' => __('domain-suppliers.review_required')];
+            return array_merge($result, ['ok' => in_array($result['status'] ?? '', ['succeeded', 'queued', 'failed'], true),
+                'state' => match ($result['status'] ?? '') { 'succeeded' => 'completed', 'failed' => 'rejected', default => 'submitted' }]);
+        }
+
         // مهرِ زمان **پیش از** تماس زده می‌شود، نه بعدش.
         //
         // ⚠️ اگر بعد از تماس بزنیم، هر تماسِ شکست‌خورده مهر را جا می‌اندازد و
@@ -382,6 +416,8 @@ class DomainTransfer
             'registered_at' => $domain->registered_at ?: $created,
             'expires_at' => $this->parseDate($expires) ?: $domain->expires_at,
         ])->save();
+
+        DomainSupplierLifecycle::bindLegacyResult($domain, $remote);
 
         $this->tell($domain, 'domain_transfer_completed',
             'انتقالِ دامنهٔ «'.$domain->domain.'» با موفقیت انجام شد و از این پس در پنلِ شما مدیریت می‌شود.');

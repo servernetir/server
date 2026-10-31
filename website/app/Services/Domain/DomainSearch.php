@@ -246,7 +246,7 @@ class DomainSearch
         ));
     }
 
-    public function search(string $query, array $tlds = []): array
+    public function search(string $query, array $tlds = [], ?int $customerId = null): array
     {
         $this->lookupOk = true;
         $this->lookupReason = null;
@@ -273,6 +273,40 @@ class DomainSearch
         // سقفِ ایمنی: هر پسوند یک ردیفِ استعلام است و رسیلری درخواستِ
         // بی‌اندازه را رد می‌کند.
         $extensions = array_slice($extensions, 0, self::MAX_TLDS);
+
+        if (app(DomainProcurement::class)->enabled()) {
+            $rows = [];
+            foreach ($extensions as $extension) {
+                $fqdn = $name.'.'.$extension;
+                if (! self::sells($extension)) {
+                    $rows[] = $this->withState($this->unknownRow($fqdn, $extension, 'tld_not_sold'));
+                    continue;
+                }
+                try {
+                    $quote = app(DomainProcurement::class)->quote($fqdn, 'create', 12, [], null, $customerId);
+                    $rows[] = $this->withState([
+                        'domain' => $fqdn, 'tld' => $extension,
+                        'status' => $quote->is_premium ? 'premium' : 'available',
+                        'available' => true, 'is_premium' => (bool) $quote->is_premium,
+                        'orderable' => true, 'price_toman' => (int) $quote->sell_toman,
+                        // Renewal and transfer need their own operation-specific quote.
+                        'renew_toman' => null, 'transfer_toman' => null,
+                        'reason' => null, 'quote_id' => $quote->id,
+                    ]);
+                } catch (\App\Services\Domain\Pricing\DomainProcurementException $e) {
+                    $row = $this->unknownRow($fqdn, $extension, 'lookup_failed');
+                    if ($e->reason === 'domain_unavailable') {
+                        $row['status'] = 'unavailable';
+                        $row['reason'] = 'registered';
+                    } else {
+                        $this->lookupOk = false;
+                        $this->lookupReason = 'lookup_failed';
+                    }
+                    $rows[] = $this->withState($row);
+                }
+            }
+            return $rows;
+        }
 
         /*
         |----------------------------------------------------------------------
@@ -442,7 +476,7 @@ class DomainSearch
             $fqdn = $name.'.'.$e;
             $out[] = isset($failed[$e])
                 ? $this->withState($this->unknownRow($fqdn, $e, $failed[$e]))
-                : $this->withState($this->shape($fqdn, $name, $e, $byDomain[strtolower($fqdn)] ?? null));
+                : $this->withState($this->shape($fqdn, $name, $e, $byDomain[strtolower($fqdn)] ?? null, $customerId));
         }
 
         return $out;
@@ -515,7 +549,7 @@ class DomainSearch
      *   premium              — آزاد ولی قیمت ویژه
      *   unavailable          — گرفته‌شده یا غیرقابل فروش
      */
-    private function shape(string $fqdn, string $name, string $ext, ?array $raw): array
+    private function shape(string $fqdn, string $name, string $ext, ?array $raw, ?int $customerId = null): array
     {
         $base = [
             'domain' => $fqdn,
@@ -671,6 +705,7 @@ class DomainSearch
         $hasRenewCost ??= Schema::hasColumn('domain_quotes', 'cost_renew_amount');
 
         $quote = DomainQuote::create([
+            'customer_id' => $customerId,
             'domain' => $fqdn,
             'tld' => $ext,
             'registrar' => 'openprovider',

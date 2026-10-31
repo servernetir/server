@@ -1,0 +1,51 @@
+{
+  "status": "code_tested_not_deployed",
+  "source_baseline": "14a88e98f85c840fdbef63bdc059549a084a5e74",
+  "develop_synchronized": "c444fd7051281b359d5c95cdef91f02a605f2a4e",
+  "runtime": {
+    "php": "8.4.27",
+    "database": "SQLite in-memory",
+    "dependencies": "repository composer.lock exact match",
+    "network": "Linux seccomp denied sockets to test processes and children"
+  },
+  "new_tests": {
+    "suites": 9,
+    "tests": 144,
+    "passed": 144,
+    "assertions": 821
+  },
+  "legacy_comparison": {
+    "tests": 151,
+    "passed": 106,
+    "pre_existing_failures": 25,
+    "pre_existing_errors": 20,
+    "new_regressions": 0,
+    "compared_to": "14a88e98f85c840fdbef63bdc059549a084a5e74",
+    "scope": "same 151 existing test cases; exact failing case sets matched"
+  },
+  "other_checks": {
+    "php_files_linted": 63,
+    "hermes_synthetic_retrieval_checks": 29,
+    "workflow_yaml_and_bash": "valid",
+    "diff_check": "passed",
+    "customer_and_admin_templates": "FA/EN/TR rendered and DOM checked"
+  },
+  "not_performed": [
+    "local MariaDB acceptance",
+    "real OT&E session",
+    "real account connection and prices",
+    "browser interaction acceptance",
+    "production deployment or migrations",
+    "account signup/KYC/contracts/funding",
+    "real domain financial or management operation",
+    "production Hermes knowledge import/review"
+  ],
+  "activation": {
+    "multi_provider_enabled_default": false,
+    "joker_sales_enabled": false,
+    "approver_allowlist_default": [],
+    "transfer_destination_default": 0,
+    "deployment_allowed_by_this_receipt": false
+  },
+  "review": "independent agent review found and verified fixes for payment invalidation during preflight, account routing, quote change acceptance, own contact eligibility and frozen ledger evidence"
+}

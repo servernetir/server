@@ -1,0 +1,68 @@
+{
+  "schema": "servernet-approved-runbook-candidates-v1",
+  "prepared_on": "2026-10-31",
+  "source": "docs/project/DOMAIN-SUPPLIERS-JOKER-2026-10-31.md",
+  "approval_basis": "Owner explicit domain multi-supplier requirements, 2026-10-31; procedural decisions only.",
+  "imported_to_production": false,
+  "grants_execution_rights": false,
+  "review_workflow": {
+    "candidate": "App\\Services\\Growth\\KnowledgeBrain::candidate(payload, actual_actor_id)",
+    "review": "App\\Services\\Growth\\KnowledgeBrain::review(actual_document_id, verified, actual_actor_id, review_note, future_review_at)",
+    "reader": "App\\Services\\Hermes\\HermesApprovedBusinessKnowledge",
+    "instructions": "Use existing authorized review UI/service. Never fabricate IDs, timestamps or reviewers. Preserve prior documents; same-body candidate SHA avoids duplicate import. Do not auto-deploy or execute."
+  },
+  "documents": [
+    {
+      "slug": "domain-procurement-equal-terms",
+      "payload": {
+        "title": "دامنه: انتخاب هزینهٔ واقعی و استعلام هم‌شرایط",
+        "body": "برای ثبت تازهٔ دامنه، تنها حساب فعال و آماده با موجودی کافی و امکان مدیریت پس از خرید واجد شرایط است. همان دامنه، عملیات، دوره، شرایط پرمیوم و حریم خصوصی با ارز و زمان نرخ معتبر مقایسه شوند. تخفیف واقعی و هزینه‌های اجباری خرید در قیمت محاسبه شوند و مالیات خریدی که داخل قیمت است دوباره افزوده نشود. قیمت تبلیغاتی سال اول با تمدید یا دورهٔ دیگر یکسان نیست. مبلغ خرید و اطلاعات محرمانهٔ تأمین‌کننده به مشتری نمایش داده نشود. استعلام منقضی یا افزایش مبلغ پیش از سفارش به تصمیم روشن مشتری نیاز دارد؛ خطای اتصال به معنی ثبت‌شدن دامنه نیست.",
+        "source": "docs/project/DOMAIN-SUPPLIERS-JOKER-2026-10-31.md",
+        "kind": "runbook",
+        "locale": "fa",
+        "classification": "internal",
+        "scope": "general",
+        "review_at": "2026-11-30T00:00:00Z"
+      }
+    },
+    {
+      "slug": "domain-holder-account-renewal",
+      "payload": {
+        "title": "دامنه: حساب واقعی نگهدارنده و تمدید صحیح",
+        "body": "مدیریت و تمدید دامنهٔ موجود فقط از همان حساب واقعی نگهدارنده انجام می‌شود. ارزان‌بودن تأمین‌کنندهٔ دیگر مجوز انتقال یا تمدید از حساب دیگر نیست. انتقال عملیات مستقل با بررسی شرایط و اجازهٔ مشخص مالک است. RDAP و نام رجیسترار وجود دامنه در حساب نمایندگی ما را ثابت نمی‌کنند. اتصال دامنهٔ موجود پس از مشاهدهٔ واقعی در حساب انجام می‌شود؛ اتصال نباید خرید دوباره، فاکتور تاریخی، تغییر مخاطب یا ساخت خودکار DNS ایجاد کند. تمام درخواست‌ها به مالک همان دامنه محدود و پروندهٔ مشتریان از هم جدا بمانند.",
+        "source": "docs/project/DOMAIN-SUPPLIERS-JOKER-2026-10-31.md",
+        "kind": "runbook",
+        "locale": "fa",
+        "classification": "internal",
+        "scope": "general",
+        "review_at": "2026-11-30T00:00:00Z"
+      }
+    },
+    {
+      "slug": "domain-unknown-operations",
+      "payload": {
+        "title": "دامنه: نتیجهٔ نامعلوم، تکرار سفارش و تطبیق پرداخت",
+        "body": "پاسخ موفق HTTP یا پذیرش اولیهٔ درخواست دامنه تحویل نهایی را ثابت نمی‌کند. پیش از عملیات مالی، پرداخت، قفل دامنه و سفارش و ثبت یکتا کنترل شوند. شناسهٔ واقعی پردازش و رهگیری نگهداری و وضعیت صف، موفقیت نهایی، شکست قطعی و نتیجهٔ نامعلوم جدا ثبت شوند. پس از timeout یا نتیجهٔ نامعلوم، ابتدا همان عملیات در حساب اصلی تطبیق داده شود؛ خرید یا تمدید در تأمین‌کنندهٔ دیگر کورکورانه تکرار نشود. شکست قطعی و وضعیت نیازمند بررسی با مسئول پیگیری و قدم بعد روشن در صف دستی قرار بگیرند. خاموش‌کردن فروش حساب، دلیل حذف دفتر عملیات یا کنارگذاشتن تطبیق درخواست معوق نیست. قفل موقت ممکن است منقضی شود؛ کلید یکتای پایگاه داده و ثبت حالت ارسال لازم‌اند. تطبیق نهایی پرداخت و مالکیت پس از استعلام‌های کند و پیش از ثبت قطعی ارسال زیر قفل پایگاه داده تکرار شود.",
+        "source": "docs/project/DOMAIN-SUPPLIERS-JOKER-2026-10-31.md",
+        "kind": "runbook",
+        "locale": "fa",
+        "classification": "internal",
+        "scope": "general",
+        "review_at": "2026-11-30T00:00:00Z"
+      }
+    },
+    {
+      "slug": "domain-joker-readiness",
+      "payload": {
+        "title": "Joker: آمادگی حساب و مرز فعال‌سازی فروش دامنه",
+        "body": "Joker تا تأیید حساب واقعی، قرارداد، احراز، اتصال و قیمت‌گذاری و پذیرش آزمون فروش خاموش می‌ماند. نبود حساب Joker نباید فروش معتبر OpenProvider را مختل کند. برای ثبت‌نام و وریفای تنها هویت، کشور، نشانی و مدارک واقعی استفاده شوند؛ صلاحیت کشور و مدارک لازم از شواهد رسمی جاری تأیید شوند و از فهرست عمومی حدس زده نشوند. پذیرش قرارداد، ارسال مدرک و شارژ فقط با اقدام یا مجوز مشخص صاحب حساب پیش می‌روند. آزمون ساختگی و OT&E به معنی پذیرش تولید یا مجوز خرید نیستند. هر خرید، تمدید، انتقال یا شارژ واقعی به مجوز مشخص همان عملیات نیاز دارد. این راهنما تصمیم مصوب است و وضعیت فعلی حساب یا امکان فروش را اثبات نمی‌کند.",
+        "source": "docs/project/DOMAIN-SUPPLIERS-JOKER-2026-10-31.md",
+        "kind": "runbook",
+        "locale": "fa",
+        "classification": "internal",
+        "scope": "general",
+        "review_at": "2026-11-30T00:00:00Z"
+      }
+    }
+  ]
+}
