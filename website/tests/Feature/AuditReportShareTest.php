@@ -170,11 +170,14 @@ class AuditReportShareTest extends TestCase
 
     public function test_revoke_endpoint_is_post_only_and_requires_an_admin_web_session(): void
     {
-        $route = collect(Route::getRoutes())->first(
-            fn ($route) => $route->getName() === 'admin.seo.reports.revoke'
-        );
+        $routes = collect(Route::getRoutes());
+        $route = $routes->first(fn ($route) => $route->uri() === 'admin/seo/reports/{report}/revoke');
+        $diagnostic = $routes->filter(fn ($route) => str_contains($route->uri(), 'seo'))
+            ->map(fn ($route) => implode('|', $route->methods()).' '.$route->uri().' '.($route->getName() ?? '-'))
+            ->implode("\n");
 
-        $this->assertNotNull($route);
+        $this->assertNotNull($route, $diagnostic);
+        $this->assertSame('admin.seo.reports.revoke', $route->getName());
         $this->assertContains('POST', $route->methods());
         $this->assertContains('auth:web', $route->gatherMiddleware());
         $this->assertContains('admin', $route->gatherMiddleware());
