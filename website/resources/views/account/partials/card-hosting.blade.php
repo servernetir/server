@@ -70,7 +70,7 @@
       @endif
       @if($s->hasUnverifiedBillingTerms())
         <div class="svc-fact"><small>{{ __('ui.svc_th_amount') }}</small><b>{{ __('ui.svc_billing_terms_pending') }}</b></div>
-        <div class="svc-fact"><small>{{ __('ui.svc_th_due') }}</small><b>{{ __('ui.svc_billing_terms_pending') }}</b></div>
+        <div class="svc-fact"><small>{{ __('ui.svc_valid_until') }}</small><b>{{ sdate($s->managementValidUntil()) }}</b></div>
       @elseif(! $s->isHourly())
         <div class="svc-fact"><small>{{ __('ui.svc_th_due') }}</small><b>{{ sdate($s->next_due_at) }}</b></div>
         <div class="svc-fact"><small>{{ __('ui.svc_th_amount') }}</small><b>{{ invoice_money($s->total(), $s->currency_code) }} <em>{{ $s->cycleLabel() }}</em></b></div>

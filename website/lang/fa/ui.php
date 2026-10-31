@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'svc_valid_until' => 'اعتبار سرویس تا',
     'svc_existing_management' => 'مدیریت سرویس موجود',
     'svc_billing_terms_pending' => 'مبلغ و دورهٔ تمدید در انتظار تطبیق سوابق',
     'svc_billing_terms_required' => 'ابتدا مبلغ، دوره و سررسید این سرویس از سوابق معتبر تطبیق و ثبت شود؛ در حال حاضر صدور فاکتور مجاز نیست.',

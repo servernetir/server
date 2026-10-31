@@ -269,4 +269,42 @@ class ExistingHostingAdoptionTest extends TestCase
         $this->actingAs($this->customer(), 'customer')->get('/account/services/'.$service->id.'/cpanel')->assertNotFound();
         $this->assertSame(0, Invoice::count());
     }
+
+    public function test_recorded_management_validity_displays_without_enabling_billing(): void
+    {
+        $this->whm(); $service = $this->adopt();
+        $meta = $service->provision_meta;
+        $meta['existing_hosting_adoption']['valid_until'] = '2027-02-25';
+        $meta['existing_hosting_adoption']['valid_until_provenance'] = ['source' => 'fixture-owner-confirmed',
+            'source_expiration_utc' => '2027-02-25T13:00:24Z', 'authorized_by' => 1];
+        $service->forceFill(['provision_meta' => $meta])->save();
+        $this->assertSame('2027-02-25', $service->managementValidUntil()->toDateString());
+        $this->assertSame('00:00:00', $service->managementValidUntil()->format('H:i:s'));
+        $this->assertSame('UTC', $service->managementValidUntil()->timezoneName);
+        $this->assertFalse($service->isRecurring());
+        $this->assertNull($service->next_due_at);
+        $this->assertNull(RenewalTerms::serviceDeadline($service));
+        $this->assertNull(RenewalTerms::ensureInvoice($service));
+        $this->actingAs($service->customer, 'customer')->get('/account/services')->assertOk()
+            ->assertSee(__('ui.svc_valid_until'))->assertSee(sdate($service->managementValidUntil()))
+            ->assertSee(__('ui.svc_billing_terms_pending'));
+        $this->actingAs($this->admin(), 'web')->get('/admin/customers/'.$service->customer_id)->assertOk()
+            ->assertSee(sdate($service->managementValidUntil()));
+        $this->assertSame(0, Invoice::count());
+        Http::assertSentCount(1); Mail::assertNothingSent();
+    }
+
+    public function test_management_validity_rejects_invalid_dates_and_non_adoption_records(): void
+    {
+        foreach ([null, '', 'tomorrow', '2027-2-25', '2027-02-30', '2027-02-25<script>', 20270225] as $bad) {
+            $service = new Service(['billing_mode' => 'external', 'cycle' => 'external',
+                'provision_meta' => ['existing_hosting_adoption' => ['version' => 1, 'valid_until' => $bad]]]);
+            $this->assertNull($service->managementValidUntil());
+        }
+        $normal = new Service(['billing_mode' => 'cycle', 'cycle' => 'monthly',
+            'provision_meta' => ['existing_hosting_adoption' => ['version' => 1, 'valid_until' => '2027-02-25']]]);
+        $this->assertNull($normal->managementValidUntil());
+        $missingVersion = new Service(['billing_mode' => 'external', 'provision_meta' => ['existing_hosting_adoption' => ['valid_until' => '2027-02-25']]]);
+        $this->assertNull($missingVersion->managementValidUntil());
+    }
 }

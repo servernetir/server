@@ -23,6 +23,17 @@ class Service extends Model
             || data_get($this->provision_meta, 'existing_hosting_adoption.billing_terms') === 'unverified';
     }
 
+    /** Owner-recorded management validity is separate from billing or renewal. */
+    public function managementValidUntil(): ?Carbon
+    {
+        if (! $this->hasUnverifiedBillingTerms()
+            || data_get($this->provision_meta, 'existing_hosting_adoption.version') !== 1) { return null; }
+        $date = data_get($this->provision_meta, 'existing_hosting_adoption.valid_until');
+        if (! is_string($date) || ! preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/D', $date, $parts)
+            || ! checkdate((int) $parts[2], (int) $parts[3], (int) $parts[1])) { return null; }
+        return Carbon::createMidnightDate((int) $parts[1], (int) $parts[2], (int) $parts[3], 'UTC');
+    }
+
     public function scopeLocallyBilled($query)
     {
         return $query->where(fn ($q) => $q->whereNull('billing_mode')->orWhere('billing_mode', '!=', self::BILLING_EXTERNAL))
