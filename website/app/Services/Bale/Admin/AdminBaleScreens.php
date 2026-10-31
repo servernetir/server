@@ -7,6 +7,9 @@ use App\Models\Customer;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Models\Service;
+use App\Models\Setting;
+use App\Services\Finance\Wallet;
+use App\Services\Cloud\CloudManager;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -99,25 +102,47 @@ class AdminBaleScreens
             return ['text' => 'دستِ‌کم دو حرف بفرستید.', 'rows' => [], 'next' => null];
         }
 
-        $digits = preg_replace('/\D+/', '', $term) ?? '';
-
-        $rows = Customer::query()
-            ->where(function ($q) use ($term, $digits) {
-                $q->where('code', 'like', '%'.$term.'%')
-                    ->orWhere('email', 'like', '%'.$term.'%');
-
-                if ($digits !== '' && mb_strlen($digits) >= 4) {
-                    $q->orWhere('phone', 'like', '%'.$digits.'%');
-                }
-
+        if (Setting::get('bale_manager_policy_v2_enabled') === '1') {
+            $term = self::normalizeSearch($term);
+            $digits = preg_replace('/\D+/', '', $term) ?? '';
+            $tokens = array_slice(array_values(array_filter(explode(' ', $term))), 0, 5);
+            $rows = Customer::query()->where(function ($q) use ($term, $digits, $tokens) {
+                $q->where('code', 'like', '%'.$term.'%')->orWhere('email', 'like', '%'.$term.'%');
+                if (strlen($digits) >= 4) { $q->orWhere('phone', 'like', '%'.$digits.'%'); }
                 if (Schema::hasTable('customer_profiles')) {
-                    $q->orWhereHas('profiles', fn ($p) => $p
-                        ->where('first_name', 'like', '%'.$term.'%')
-                        ->orWhere('last_name', 'like', '%'.$term.'%')
-                        ->orWhere('company_name', 'like', '%'.$term.'%'));
+                    $q->orWhereHas('profiles', function ($p) use ($tokens) {
+                        foreach ($tokens as $token) {
+                            $p->where(function ($part) use ($token) {
+                                foreach (['first_name', 'last_name', 'company_name'] as $index => $column) {
+                                    $method = $index === 0 ? 'whereRaw' : 'orWhereRaw';
+                                    $part->$method("replace(replace(replace(".$column.", 'ي', 'ی'), 'ك', 'ک'), '‌', ' ') like ?", ['%'.$token.'%']);
+                                }
+                            });
+                        }
+                    });
                 }
-            })
-            ->orderByDesc('id')->limit(self::PAGE)->get();
+            })->orderByDesc('id')->limit(self::PAGE)->get();
+        } else {
+            $digits = preg_replace('/\D+/', '', $term) ?? '';
+
+            $rows = Customer::query()
+                ->where(function ($q) use ($term, $digits) {
+                    $q->where('code', 'like', '%'.$term.'%')
+                        ->orWhere('email', 'like', '%'.$term.'%');
+
+                    if ($digits !== '' && mb_strlen($digits) >= 4) {
+                        $q->orWhere('phone', 'like', '%'.$digits.'%');
+                    }
+
+                    if (Schema::hasTable('customer_profiles')) {
+                        $q->orWhereHas('profiles', fn ($p) => $p
+                            ->where('first_name', 'like', '%'.$term.'%')
+                            ->orWhere('last_name', 'like', '%'.$term.'%')
+                            ->orWhere('company_name', 'like', '%'.$term.'%'));
+                    }
+                })
+                ->orderByDesc('id')->limit(self::PAGE)->get();
+        }
 
         if ($rows->isEmpty()) {
             return ['text' => '🔎 «'.$this->clip($term, 40).'» — چیزی پیدا نشد.', 'rows' => [], 'next' => null];
@@ -133,9 +158,18 @@ class AdminBaleScreens
         ];
     }
 
-    /** پروندهٔ مشتری — بی‌ایمیل، بی‌موبایل */
+    public static function normalizeSearch(string $term): string
+    {
+        $term = strtr(mb_strtolower(trim($term)), ['ي' => 'ی', 'ك' => 'ک', '‌' => ' ',
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']);
+        return preg_replace('/\s+/u', ' ', $term) ?? $term;
+    }
+
+    /** Owner-private manager dossier; credentials are never included. */
     public function customer(Customer $c): string
     {
+        if (Setting::get('bale_manager_policy_v2_enabled') === '1') { return $this->managerCustomer($c); }
         // «فعال» = پرداخت‌شده؛ سفارشِ پرداخت‌نشده جدا شمرده می‌شود تا کارتِ
         // مشتریِ تازه «سرویسِ فعال: ۱» نگوید (خواستِ کارفرما، ۶ شهریور)
         $services = $this->safeCount(fn () => $c->services()->countsAsActive()->count());
@@ -156,6 +190,42 @@ class AdminBaleScreens
             '',
             'عضویت: '.$this->ago($c->created_at),
         ]));
+    }
+
+    private function managerCustomer(Customer $customer): string
+    {
+        $lines = ['👤 '.$customer->displayName().' · '.$customer->code, 'وضعیت: '.$this->customerStatus($customer)];
+        try {
+            $wallet = app(Wallet::class);
+            $balance = $wallet->balanceOf((int) $customer->id, 'IRT');
+            $reserved = $wallet->reservedOf((int) $customer->id, 'IRT');
+            $lines[] = '💰 اعتبار کل: '.fa_num(number_format($balance)).' تومان';
+            $lines[] = 'قابل‌مصرف: '.fa_num(number_format($balance - $reserved)).'؛ رزرو: '.fa_num(number_format($reserved)).' تومان';
+        } catch (\Throwable) { $lines[] = '💰 اعتبار: نامشخص؛ خواندن دفتر مالی موفق نبود'; }
+        try {
+            $paid = $customer->payments()->where('status', 'paid')->where('currency_code', 'IRT');
+            $lines[] = '💳 مجموع پرداخت تومانی: '.fa_num(number_format((int) (clone $paid)->sum('amount'))).' تومان';
+            $last = (clone $paid)->orderByDesc('paid_at')->orderByDesc('id')->first();
+            if ($last) { $lines[] = 'آخرین پرداخت: '.fa_num(number_format((int) $last->amount)).' تومان؛ '.$this->ago($last->paid_at ?? $last->created_at); }
+        } catch (\Throwable) { $lines[] = '💳 سابقه پرداخت: نامشخص'; }
+        try {
+            $services = $customer->services()->with(['cloudInstance', 'cloudPlan', 'server'])->orderByDesc('id')->limit(6)->get();
+            $lines[] = '🖥 سرویس‌ها (حداکثر ۶ مورد تازه):';
+            foreach ($services as $service) {
+                $instance = $service->cloudInstance;
+                $provider = $instance?->provider ?: $service->cloudPlan?->provider;
+                $providerName = $provider ? (CloudManager::REAL_NAMES[$provider] ?? $provider) : ($service->server?->name ?: 'نامشخص');
+                $meta = is_array($service->provision_meta) ? $service->provision_meta : [];
+                $ip = ($instance && ! $instance->isGpuApp() ? $instance->address() : null)
+                    ?: ($meta['ip'] ?? $service->server_ip ?? $service->server?->server_ip ?? 'نامشخص');
+                $due = $service->next_due_at ? $service->next_due_at->copy()->timezone('Asia/Tehran')->format('Y-m-d') : 'نامشخص';
+                $lines[] = '• #'.$service->id.' '.$this->clip((string) $service->name, 35).' — '.$this->serviceStatus($service)
+                    .' | IP: '.$ip.' | '.$providerName.' | تمدید: '.$due;
+            }
+            if ($services->isEmpty()) { $lines[] = 'سرویسی ثبت نشده است.'; }
+        } catch (\Throwable) { $lines[] = '🖥 جزئیات سرویس‌ها: نامشخص'; }
+        $lines[] = 'پرونده: https://console.servernet.cloud/admin/customers/'.$customer->id;
+        return implode("\n", $lines);
     }
 
     // ───────────────────────────── سرویس ─────────────────────────────
@@ -276,6 +346,15 @@ class AdminBaleScreens
      * می‌گیرد** و بدهیِ فاکتور را تسویه می‌کند. اگر این دو نخوانند، کارفرما
      * باید پیش از تأیید ببیندش — روی گوشی جای دیگری برای دیدنش نیست.
      */
+    public static function receiptAmount(BankTransferReceipt $receipt, ?int $amount = null): string
+    {
+        $value = $amount ?? (int) $receipt->amount;
+        $currency = $receipt->invoice?->currency_code;
+        if ($currency === 'IRT') { return fa_num(number_format($value)).' تومان'; }
+        return $currency ? \App\Services\Finance\AccountingMoney::display($value, $currency)
+            : fa_num(number_format($value)).' (واحد نامشخص)';
+    }
+
     public function receipt(BankTransferReceipt $r): string
     {
         $inv = $r->invoice;
@@ -286,12 +365,17 @@ class AdminBaleScreens
             '🏦 رسیدِ واریز',
             $r->customer ? ('👤 '.$r->customer->displayName().' · '.$r->customer->code) : null,
             '',
-            'ادعای مشتری: '.fa_num(number_format($amt)).' تومان',
-            $inv ? ('بدهیِ فاکتورِ '.$inv->number.': '.fa_num(number_format($due)).' تومان') : '⚠️ فاکتورِ این رسید پیدا نشد.',
+            'ادعای مشتری: '.(Setting::get('bale_manager_policy_v2_enabled') === '1' ? self::receiptAmount($r) : fa_num(number_format($amt)).' تومان'),
+            $inv ? ('بدهیِ فاکتورِ '.$inv->number.': '.(Setting::get('bale_manager_policy_v2_enabled') === '1' ? self::receiptAmount($r, $due) : fa_num(number_format($due)).' تومان')) : '⚠️ فاکتورِ این رسید پیدا نشد.',
             $inv && $amt !== $due ? '⚠️ این دو عدد یکی نیستند — تأیید، بدهیِ فاکتور را تسویه می‌کند نه مبلغِ ادعاشده.' : null,
             $inv && ! $inv->isPayable() ? '⚠️ این فاکتور دیگر قابلِ پرداخت نیست (لغو یا تسویه شده).' : null,
             '',
             'شمارهٔ پیگیری: '.$this->clip((string) $r->reference, 40),
+            Setting::get('bale_manager_policy_v2_enabled') === '1' ? 'وضعیت: '.$r->status : null,
+            Setting::get('bale_manager_policy_v2_enabled') === '1' && $r->paid_from ? 'مبدأ: '.$this->clip((string) $r->paid_from, 100) : null,
+            Setting::get('bale_manager_policy_v2_enabled') === '1' && $r->account ? 'حساب مقصد: '.$r->account->displayLabel() : null,
+            Setting::get('bale_manager_policy_v2_enabled') === '1' && $r->sent_amount ? 'مبلغ ارسالی: '.number_format($r->sent_amount / 100, 2).' '.strtoupper((string) $r->sent_currency) : null,
+            Setting::get('bale_manager_policy_v2_enabled') === '1' && $r->note ? 'توضیح مشتری: '.$this->clip((string) $r->note, 250) : null,
             'ثبت: '.$this->ago($r->created_at),
         ]));
     }

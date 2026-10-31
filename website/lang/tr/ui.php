@@ -3382,4 +3382,8 @@ return [
     'gpu_request_expired_p' => 'Belirlenen süre içinde gerekli asgari kullanılabilir bakiye sağlanmadığı için bu talep otomatik olarak iptal edildi. Bu talep için cüzdanınızdan ücret kesilmedi. Devam etmek için yeni bir talep oluşturabilirsiniz.',
     'gpu_order_expired' => 'İptal edildi — bakiye yükleme süresi doldu',
     'act_gpu_request_expired' => 'Ödeme süresi içinde gerekli asgari kullanılabilir bakiye sağlanmadığı için saatlik talep otomatik olarak iptal edildi.',
+    'receipt_evidence_label' => 'Dekont görseli veya PDF (isteğe bağlı)',
+    'receipt_evidence_hint' => 'JPG, PNG veya PDF; en fazla 5 MB. Dosya müşteri kaydınızda saklanır.',
+    'receipt_evidence_unavailable' => 'Dekont yükleme hazır değil. Dosyasız gönderin veya destek ile görüşün.',
+    'receipt_evidence_pending' => 'Bu faturanın incelenmeyi bekleyen bir dekontu var. Yeni dosya kabul edilmedi; düzeltme için destekle iletişime geçin.',
 ];

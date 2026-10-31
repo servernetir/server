@@ -53,6 +53,13 @@ class OpenProviderClient
         return filled($this->username) && filled($this->password);
     }
 
+    /** Bind read-only manager observations to this exact client account. */
+    public function accountFingerprint(): string
+    {
+        return hash_hmac('sha256', implode("\0", [(string) $this->base,
+            (string) $this->username, (string) $this->password]), (string) config('app.key'));
+    }
+
     /**
      * توکن معتبر. OpenProvider توکن را حدود ۱۲ ساعت زنده نگه می‌دارد؛
      * ما محافظه‌کارانه ۶ ساعت کش می‌کنیم.
@@ -486,8 +493,78 @@ class OpenProviderClient
      */
     public function balance(): array
     {
-        $info = $this->resellerInfo();
+        return $this->parseBalance($this->resellerInfo());
+    }
 
+    /**
+     * Manager-only read using an account-bound token. The legacy purchase token
+     * cache is global and may belong to previous credentials; it must not make a
+     * different account's balance look fresh. Never alter purchase auth/retries.
+     *
+     * @return array{known:bool,amount:float,currency:string}
+     */
+    public function managerBalance(): array
+    {
+        $unknown = ['known' => false, 'amount' => 0.0, 'currency' => ''];
+        if (! $this->enabled()) { return $unknown; }
+        $key = 'openprovider.manager-balance:'.$this->accountFingerprint();
+        if (Cache::has($key.':auth-down')) { return $unknown; }
+        $token = Cache::get($key.':token');
+        $token = is_string($token) && $token !== '' ? $token : $this->managerToken($key);
+        if ($token === null) { return $unknown; }
+        $result = $this->managerRequest('/resellers', $token);
+        if ((int) ($result['code'] ?? -1) === 196) {
+            Cache::forget($key.':token');
+            $token = $this->managerToken($key);
+            if ($token === null) { return $unknown; }
+            $result = $this->managerRequest('/resellers', $token);
+            if ((int) ($result['code'] ?? -1) === 196) {
+                Cache::forget($key.':token');
+                Cache::put($key.':auth-down', true, now()->addMinutes(self::AUTH_DOWN_MINUTES));
+            }
+        }
+
+        return $this->parseBalance(['ok' => ($result['code'] ?? null) === 0,
+            'data' => is_array($result['data'] ?? null) ? $result['data'] : []]);
+    }
+
+    private function managerToken(string $key): ?string
+    {
+        $result = $this->managerRequest('/auth/login');
+        $token = $result['data']['token'] ?? null;
+        if (($result['code'] ?? null) !== 0 || ! is_string($token) || $token === ''
+            || strlen($token) > 8192 || preg_match('/[\x00-\x20\x7f]/', $token)) {
+            Cache::put($key.':auth-down', true, now()->addMinutes(self::AUTH_DOWN_MINUTES));
+
+            return null;
+        }
+        Cache::put($key.':token', $token, now()->addHours(6));
+
+        return $token;
+    }
+
+    /** Only login and the documented existing reseller read; no paid API route. */
+    private function managerRequest(string $path, ?string $token = null): array
+    {
+        try {
+            $http = Http::acceptJson()->asJson()->withoutRedirecting()->timeout(10)->connectTimeout(3);
+            $response = $path === '/auth/login'
+                ? $http->post($this->base.'/auth/login', ['username' => $this->username, 'password' => $this->password])
+                : $http->withToken($token)->get($this->base.'/resellers');
+            // Openprovider business errors can use HTTP 500; code is decisive.
+            if (strlen($response->body()) > 500000) { return []; }
+            $body = $response->json();
+
+            return is_array($body) && array_key_exists('code', $body) ? $body : [];
+        } catch (\Throwable) {
+            // Never publish or log credential-bearing request/exception details.
+            return [];
+        }
+    }
+
+    /** Same parser as the pre-existing health check; unknown is not observed zero. */
+    private function parseBalance(array $info): array
+    {
         if (! $info['ok']) {
             return ['known' => false, 'amount' => 0.0, 'currency' => ''];
         }

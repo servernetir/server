@@ -217,6 +217,18 @@ Schedule::call(fn () => File::put(
 */
 Schedule::command('system:health')
     ->everyFifteenMinutes()
+    ->when(fn () => ! \App\Services\Notify\BaleManagerPolicy::enabled())
+    ->withoutOverlapping(30);
+
+// Owner-selected cadence. Same watchdog and persisted incident state.
+Schedule::command('system:health')
+    ->everyThirtyMinutes()
+    ->when(fn () => \App\Services\Notify\BaleManagerPolicy::enabled())
+    ->withoutOverlapping(30);
+
+Schedule::command('bale:manager-digest')
+    ->dailyAt('09:00')->timezone('Asia/Tehran')
+    ->when(fn () => \App\Services\Notify\BaleManagerPolicy::enabled())
     ->withoutOverlapping(30);
 
 // صفِ تحویلِ سرویس — سرویس‌هایِ پرداخت‌شده که منتظرِ ساختِ خودکار روی سرورند.
@@ -690,10 +702,6 @@ Schedule::command('links:content --scheduled')
 | ۰۳:۰۰ UTC (۶:۳۰ صبحِ تهران)، بعد از خزندهٔ لینک و قبل از شروعِ روز؛ قرمز ⇒
 | noteOnce در /admin/errors. در چک‌لیستِ انتشار هم دستی اجرا می‌شود.
 */
-Schedule::command('site:gate')
-    ->dailyAt('03:00')
-    ->withoutOverlapping(60);
-
 // [managed-dns:start]
 /*
 |--------------------------------------------------------------------------
@@ -724,8 +732,31 @@ Schedule::command('dns:reconcile')
     ->hourlyAt(17)
     ->withoutOverlapping(30);
 // [managed-dns:end]
+Schedule::command('site:gate')
+    ->dailyAt('03:00')
+    ->withoutOverlapping(60);
 
-// Growth has its own durable jobs, approval gates and pause switch; safe before migration.
+// Hermes owner review; all customer replies require explicit approval.
+\Illuminate\Support\Facades\Schedule::command('hermes:support-review')->everyMinute()->withoutOverlapping(45)->name('hermes:support-review');
+
+// Owner-only read-only inventory/cost audit and daily report.
+\Illuminate\Support\Facades\Schedule::command('hermes:operations')->hourly()->withoutOverlapping(45)->name('hermes:operations');
+\Illuminate\Support\Facades\Schedule::command('hermes:operations --digest')->dailyAt('09:00')->timezone('Asia/Tehran')->withoutOverlapping(45)->name('hermes:operations-digest');
+
+// Update recorded infrastructure/work hourly; official news feeds at most once per six hours.
+// Does not process tickets, send messages, invoke a model or change infrastructure.
+\Illuminate\Support\Facades\Schedule::command('hermes:knowledge-refresh')->hourlyAt(10)->withoutOverlapping(10)->name('hermes:knowledge-refresh');
+// Read-only audit; existing Hermes digest owns owner notifications. No duplicate ticket review.
+\Illuminate\Support\Facades\Schedule::command('hermes:business-review')->everyFifteenMinutes()->withoutOverlapping(45)->name('hermes:business-review');
+
+// Owner-authorized incremental traffic settlement. Paid baseline is mandatory; no lifecycle actions.
+Schedule::command('finance:meter-arvan-traffic --apply')
+    ->cron('0 */2 * * *')
+    ->timezone('Asia/Tehran')
+    ->withoutOverlapping(45)
+    ->runInBackground();
+
+// Growth Center uses the existing scheduler; disabled and zero-budget after migration.
 \Illuminate\Support\Facades\Schedule::command('growth:run --limit=3')->everyMinute()->withoutOverlapping(15);
 
 Schedule::command('birthday:rewards')->everyMinute()->withoutOverlapping(10);
@@ -734,4 +765,4 @@ Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
     ->appendOutputTo(storage_path('logs/marketing-scheduler.log'));
 
 // Bounded knowledge/receipt supervision; independently paused until explicitly enabled.
-Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);
+\Illuminate\Support\Facades\Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);

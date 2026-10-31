@@ -421,6 +421,7 @@ class DomainTransfer
             app(AdminNotifier::class)->event(
                 'انتقالِ دامنه انجام نشد',
                 ['دامنه' => $domain->domain,
+                    'رجیسترار' => 'Openprovider',
                     'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                     'علت' => mb_substr($why, 0, 160),
                     'بازگشتِ وجه' => $refunded ? 'انجام شد' : 'انجام نشد'],

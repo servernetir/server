@@ -11,6 +11,7 @@ class BankTransferReceipt extends Model
         'customer_id', 'invoice_id', 'amount', 'reference', 'paid_from',
         'note', 'status', 'reject_reason', 'reviewed_by', 'reviewed_at',
         'payment_account_id', 'sent_amount', 'sent_currency',
+        'evidence_path', 'evidence_name', 'evidence_mime', 'evidence_sha256', 'evidence_size',
     ];
 
     protected function casts(): array

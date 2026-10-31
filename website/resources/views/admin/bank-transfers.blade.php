@@ -59,6 +59,9 @@
           <td dir="ltr" style="color:var(--muted)">{{ $r->paid_from ?: '—' }}</td>
           <td dir="ltr" style="color:var(--muted)">{{ stime($r->created_at) }}</td>
           <td class="ad-row-act" style="white-space:nowrap">
+            @if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && $r->evidence_path)
+              <a href="{{ route('admin.bank-transfers.evidence', $r) }}" style="display:block;margin-bottom:6px">📎 فایل رسید</a>
+            @endif
             @if($r->status === 'pending')
               <form method="post" action="/admin/bank-transfers/{{ $r->id }}/approve" style="display:inline"
                     data-confirm="تأیید واریز؟ فاکتور تسویه و سرویس فعال می‌شود." data-confirm-title="تأیید واریز">@csrf

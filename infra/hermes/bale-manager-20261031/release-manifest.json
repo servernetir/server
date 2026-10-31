@@ -1,0 +1,366 @@
+{
+  "release": "bale-manager-20261031",
+  "files": [
+    {
+      "source": "website/app/Console/Commands/BaleManagerDigest.php",
+      "target": "app/Console/Commands/BaleManagerDigest.php",
+      "before": null,
+      "after": "aabe4e1b50959720dae637a705b5ad2f23e3528d6223cef6081580c7debf7b77"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/ManagerReportingController.php",
+      "target": "app/Http/Controllers/Admin/ManagerReportingController.php",
+      "before": null,
+      "after": "2383f48a7fe99794978174e6cf19e697ffb4a63b001529a534cace30307a7c94"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/BaleLeadReview.php",
+      "target": "app/Services/Bale/Management/BaleLeadReview.php",
+      "before": null,
+      "after": "593e8d54138c9efcc405617306e0b79b7b69ce15e1396ab770f366bb22706054"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "target": "app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "before": null,
+      "after": "33a351d019bf28bd82da44fc3f8e7d22ca0d592a9bcd1f6850a882f055a8b9a9"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/BaleManagerDigestDelivery.php",
+      "target": "app/Services/Bale/Management/BaleManagerDigestDelivery.php",
+      "before": null,
+      "after": "8e5eb8adcc8235d290eb5afb90380584fe2c45807fe6155fda540e75971a8ca0"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/BaleRefundReview.php",
+      "target": "app/Services/Bale/Management/BaleRefundReview.php",
+      "before": null,
+      "after": "22f1ed91b19748518329ff6b9896d46cfca76165ec83e75d9e5951e7363b1133"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/ManagementCostChanges.php",
+      "target": "app/Services/Bale/Management/ManagementCostChanges.php",
+      "before": null,
+      "after": "591fef351944ad97f9d56fb1e276d5b4b4aec46a88ec129d11d2a542ecf99232"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/ManagerGoogleReporting.php",
+      "target": "app/Services/Bale/Management/ManagerGoogleReporting.php",
+      "before": null,
+      "after": "810b24547fc5c7d9e0af3d201f2e5cde2cf76b3ac10e9a8bed98938d5583788a"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/ManagerTrafficSnapshot.php",
+      "target": "app/Services/Bale/Management/ManagerTrafficSnapshot.php",
+      "before": null,
+      "after": "76e00824777135b5ae2571ac1b1ed356657a6bf81efc26d07f9b241efd17b588"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/ProviderBalanceSnapshot.php",
+      "target": "app/Services/Bale/Management/ProviderBalanceSnapshot.php",
+      "before": null,
+      "after": "aa05917123fe377434880227f8a54a030f2db94bc3b60d25eb2cd30eeb6fb6f3"
+    },
+    {
+      "source": "website/app/Services/Billing/BankReceiptEvidence.php",
+      "target": "app/Services/Billing/BankReceiptEvidence.php",
+      "before": null,
+      "after": "eb8042e6b211d145ca5d45fd6c13126d160338d3301f68e823f8fa5a5ff46a2c"
+    },
+    {
+      "source": "website/app/Services/Hermes/HermesOwnerNotification.php",
+      "target": "app/Services/Hermes/HermesOwnerNotification.php",
+      "before": null,
+      "after": "4a03f699b6108ac1f1df93b8a0a065bd639a8344595a20ffc937487afbe41f04"
+    },
+    {
+      "source": "website/app/Services/Notify/BaleManagerPolicy.php",
+      "target": "app/Services/Notify/BaleManagerPolicy.php",
+      "before": null,
+      "after": "b8411d5992ff8983a5b70ba89dce96b66a60e89820033173e6392e4459853d9f"
+    },
+    {
+      "source": "website/database/migrations/2026_10_31_110000_add_bank_receipt_evidence.php",
+      "target": "database/migrations/2026_10_31_110000_add_bank_receipt_evidence.php",
+      "before": null,
+      "after": "41c01c0ab1db1d5679f2eb26f40739046e818ff9ff1d0b3264b0ea683b00c63f"
+    },
+    {
+      "source": "website/lang/en/bale-evidence.php",
+      "target": "lang/en/bale-evidence.php",
+      "before": null,
+      "after": "aeb72c2a9837aaa20302d545056e2e435c9fd9da1973c7e8608f326be2fc5a6e"
+    },
+    {
+      "source": "website/lang/en/bale-reporting.php",
+      "target": "lang/en/bale-reporting.php",
+      "before": null,
+      "after": "689ce23b178a584676d2c0710a5d995949cad2618d05b15901e197be6350dfdd"
+    },
+    {
+      "source": "website/lang/fa/bale-evidence.php",
+      "target": "lang/fa/bale-evidence.php",
+      "before": null,
+      "after": "a0ef2e01fe60c7022c61f64c4cabd5fd60bc7c441888561fda04fdb48c84f164"
+    },
+    {
+      "source": "website/lang/fa/bale-reporting.php",
+      "target": "lang/fa/bale-reporting.php",
+      "before": null,
+      "after": "d9dd16154b1a8fe2b22423243444979a6f3d47cd292fd677be7a800949894c3c"
+    },
+    {
+      "source": "website/lang/tr/bale-evidence.php",
+      "target": "lang/tr/bale-evidence.php",
+      "before": null,
+      "after": "f6c6f85d5bf746eb0aab05920e99389cc56dfa3c2952f79cd53617c583524b69"
+    },
+    {
+      "source": "website/lang/tr/bale-reporting.php",
+      "target": "lang/tr/bale-reporting.php",
+      "before": null,
+      "after": "cd06f71edd0ce00d95bf93f5951db251be97138674941c06b3a561dadad120a5"
+    },
+    {
+      "source": "website/resources/views/admin/bale/reporting.blade.php",
+      "target": "resources/views/admin/bale/reporting.blade.php",
+      "before": null,
+      "after": "885873b6bb16cea93736f31b0854e7a585ea1604b9653c5873302bb84c541ab3"
+    },
+    {
+      "source": "website/resources/views/admin/customer-evidence.blade.php",
+      "target": "resources/views/admin/customer-evidence.blade.php",
+      "before": null,
+      "after": "965a86d0fec6abac283afc72c431f310c5a4d31baccbed1e2bfca33cda6cc0a3"
+    },
+    {
+      "source": "website/resources/views/admin/partials/customer-evidence.blade.php",
+      "target": "resources/views/admin/partials/customer-evidence.blade.php",
+      "before": null,
+      "after": "2d18bcd019a70d1240a2d2aeba69a53c7fb48950146962da62abf3766a2b915f"
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/AccountController.php",
+      "target": "app/Http/Controllers/Account/AccountController.php",
+      "before": "ac0bc29071aac13d8447fffb2d05405429a5684c3a18b00585f5f56654c14230",
+      "after": "4ff96d3c90af2f8320a1b15fb46feceff4c9e4b34c37a0384a0fa8e79952dfaf"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/BaleAdminController.php",
+      "target": "app/Http/Controllers/Admin/BaleAdminController.php",
+      "before": "59aefbf1fb7be64d41a02518dc3596d68f14e3f0f78007e0a9b7a481a625dd05",
+      "after": "14cf5db6ebf96265bb5330586353a39585a4d85fbbfe8605372d20002ef2a113"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/BankTransferController.php",
+      "target": "app/Http/Controllers/Admin/BankTransferController.php",
+      "before": "d9287b84c7d8bd163093c4e099fa91104051b939d2f58c32739a4d09726c26f3",
+      "after": "2d71cdcd490ce0a5662956d54e9237a0d7a97503b42890a4c884b3970aa8bc70"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/CalendarController.php",
+      "target": "app/Http/Controllers/Admin/CalendarController.php",
+      "before": "2288d8ad14331b0de9d9ed5bd6e702abf0654d9a9a61b58d2620eebe7f931a7c",
+      "after": "fd15741afcf7236e084a821d49824a44a78723c3e61df75e99bf9a951ab2bd1a"
+    },
+    {
+      "source": "website/app/Models/BankTransferReceipt.php",
+      "target": "app/Models/BankTransferReceipt.php",
+      "before": "d2471f25437d2913175c22364034ca4e4ab7266a0abfd3e6b21eaa7d29274f8f",
+      "after": "9d61884adf665009687c07f2911ef222e77e59bfc9121c7ff32a9a38e75e981c"
+    },
+    {
+      "source": "website/app/Models/CustomerProfile.php",
+      "target": "app/Models/CustomerProfile.php",
+      "before": "428fa7ab633d297299358979f0fc0d62cfc23354c952e2aa6c2da2ca0d371c6e",
+      "after": "8b93fbef1b5445dc96f132a4961f2ca349f9022ad209a090a94a6b4656368e40"
+    },
+    {
+      "source": "website/app/Models/NotificationTemplate.php",
+      "target": "app/Models/NotificationTemplate.php",
+      "before": "7cb838715adc8ddadb93b02df2d2ad2b8f65c84c016275ad3728cc5a67c66ae8",
+      "after": "53857f864754869fc60459ef2541644470f77e11d36ab7038a784e92d0f42355"
+    },
+    {
+      "source": "website/app/Services/Bale/Admin/AdminBaleRouter.php",
+      "target": "app/Services/Bale/Admin/AdminBaleRouter.php",
+      "before": "027e3b0e391c63a9bafe64e5170a59b866d498a46670a0d303becb3b22e11fe1",
+      "after": "427923cfe9e3324af4ac13b39883a3fcb9100627033df29e42360ff1de789de5"
+    },
+    {
+      "source": "website/app/Services/Bale/Admin/AdminBaleScreens.php",
+      "target": "app/Services/Bale/Admin/AdminBaleScreens.php",
+      "before": "1e1cc3a35cb1d205957e55a131d41f633ac4e7cfcdae44d88aedeef1b067ab5f",
+      "after": "32e97d24140d0bc37dad797d82132caefaa46d94eb6f488109c2d34343de765e"
+    },
+    {
+      "source": "website/app/Services/Bale/Admin/AdminBaleWorker.php",
+      "target": "app/Services/Bale/Admin/AdminBaleWorker.php",
+      "before": "54b784845bdaba56f7ac8ee800e524eb932beeca13f6f2b02a13711a2548fefc",
+      "after": "e1c56eebc4ebcd7928232907e48a56e5f92e61867c9014c21073cd690b853a3e"
+    },
+    {
+      "source": "website/app/Services/Domain/DomainRegistrar.php",
+      "target": "app/Services/Domain/DomainRegistrar.php",
+      "before": "f0c080fe20fc92c9849e9d68fdd8a2c6c4fa0fc77bccd6eb452874df339f1d85",
+      "after": "359e40f44a3d7f0f964ddea63c445de7f55e7aae0b56e92a81d298438cf1c2e2"
+    },
+    {
+      "source": "website/app/Services/Domain/DomainTransfer.php",
+      "target": "app/Services/Domain/DomainTransfer.php",
+      "before": "e1ebacd9155fa387da62a5c9eb0cb84ab9547dbac2250052f3ba97368dbfd066",
+      "after": "af4e072e720977ee61d2807b14ed861033f778aec9472c26f45e6401be2d10dc"
+    },
+    {
+      "source": "website/app/Services/Domain/OpenProviderClient.php",
+      "target": "app/Services/Domain/OpenProviderClient.php",
+      "before": "7287790653acdd7bc27e9df23cf1a6007cc1909eb74acd8d528f1f7b8991e85d",
+      "after": "c6ba2825c25db8664c6fa1172e993291b575a918c7705ae0f1c38fe73a5f6577"
+    },
+    {
+      "source": "website/app/Services/Mail/MailboxDigest.php",
+      "target": "app/Services/Mail/MailboxDigest.php",
+      "before": "b78cb6b3162b348587194c147b7155240cce825db97e53cd4b75c95659bf0e29",
+      "after": "87efa740fbda85d9348a99202b2320204dda86eb8c6769552cf1d024fd024d04"
+    },
+    {
+      "source": "website/app/Services/Notify/AdminNotifier.php",
+      "target": "app/Services/Notify/AdminNotifier.php",
+      "before": "430d0573d409108a1c2baa6554fec578302aeaf57bf0165e90a8231235a03203",
+      "after": "b15ebeb8619dcd06d882f44d3c7c3287ffc9f6f49727289fae4f1e9ea0817a75"
+    },
+    {
+      "source": "website/app/Services/Notify/Notifier.php",
+      "target": "app/Services/Notify/Notifier.php",
+      "before": "ad998ce055080d76956a602096f030794fc6ada9ee72fed70b9751d374ae2ace",
+      "after": "703bfab9e4bc0ce32746ab03eb95e0958b6eeaa0011321e27b638d3df4c63228"
+    },
+    {
+      "source": "website/app/Services/Notify/NotifyEvent.php",
+      "target": "app/Services/Notify/NotifyEvent.php",
+      "before": "a8a9baaf42de43bd9806c61b94f25e7dd04ff8ad0896414b55fd9c177bafd220",
+      "after": "15c860d9cb21ed34066022718b758d5be19c0f89282a847c2b9da491f347cf2f"
+    },
+    {
+      "source": "website/app/Services/Sms/SignedRelaySender.php",
+      "target": "app/Services/Sms/SignedRelaySender.php",
+      "before": "393f2dadc4f3c54ed61300b213addb22f0e60422fdd0471bacd766b99f970bba",
+      "after": "1c690c7c86a7755de29398ca35c55c226236b0f9d1b51519583d6fc885bfb823"
+    },
+    {
+      "source": "website/database/seeders/NotificationTemplateSeeder.php",
+      "target": "database/seeders/NotificationTemplateSeeder.php",
+      "before": "2d66b3c9f3928220966256d6e79e542893a7348828c155abbca2cbdbe9ad71c6",
+      "after": "e7f3d5823fcae6c4bcc306f2714332d05266394b2e9bce88f7dc97e73faf35e5"
+    },
+    {
+      "source": "website/lang/en/ui.php",
+      "target": "lang/en/ui.php",
+      "before": "1a3f53871bb2f7ef44ab948298f8370c997bd147e868dfae95d8cf2f080111a4",
+      "after": "10484373c47a7ba54287f05b99c5e212aca375a6c0e1de64c57f8251d062c0d7"
+    },
+    {
+      "source": "website/lang/fa/ui.php",
+      "target": "lang/fa/ui.php",
+      "before": "a6860cba03fbd9160f73f50e22519a1bf9e20a25a49dc79a3356c25eded95d42",
+      "after": "df8b1fa2450fec994ab0659a868720d9672db32321aaae4a65688ecc86a96057"
+    },
+    {
+      "source": "website/lang/tr/ui.php",
+      "target": "lang/tr/ui.php",
+      "before": "11cd8c008d6b286d5522580e7fa8847866222a0260ea966a2810178151d5dedc",
+      "after": "106adcc5cf4eb0095d09ec13e2ec6566f633d1ff483c4c13b9ce3c4a9d4c0002"
+    },
+    {
+      "source": "website/resources/views/admin/bank-transfers.blade.php",
+      "target": "resources/views/admin/bank-transfers.blade.php",
+      "before": "5e7c67666b46cf4c829cafbd44e26831dd802e471e1393c0971a08c0f81325bb",
+      "after": "a1ef106e0be42305df501ef1425491590086036fccb8b05e113559295d083b85"
+    },
+    {
+      "source": "website/resources/views/admin/settings/bale.blade.php",
+      "target": "resources/views/admin/settings/bale.blade.php",
+      "before": "d5892f3f293d2683ba396ceac18124cb82386e3e15570097e57daeaaccedce90",
+      "after": "1e54d7d9dcc6ad51a6922acfb1e9996a5abf84644a1547b14cdffc4d7356a829"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/app/Http/Controllers/Account/PaymentController.php",
+      "target": "app/Http/Controllers/Account/PaymentController.php",
+      "before": "587e563d8157f868f8a13c52a1c220645eb1135ccfd8a70330e803b1092c2aa6",
+      "after": "28c8e19cb06cdcab95dec2e6723e92537b5e3ba1d32c85f1479792eae561e4fe"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/app/Http/Controllers/Account/VerificationController.php",
+      "target": "app/Http/Controllers/Account/VerificationController.php",
+      "before": "d9d6521e6a4d4e84063ea8bd882fba5753f8d6ab78d753a310dd8ad38bfda754",
+      "after": "a282bc4e16051815ccf7589049128b78ca1bf72687526ff290a4a48c2f5a83a3"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/app/Http/Controllers/Admin/CustomerController.php",
+      "target": "app/Http/Controllers/Admin/CustomerController.php",
+      "before": "59ab6df3acdc10b1820098672a7104f7691178361610a12f0391b59615772191",
+      "after": "e78063cb4322f4fd15a04728f901c2eac1aa016939f2fe2d164e8d0138470dab"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/app/Services/Cloud/CloudProvisioner.php",
+      "target": "app/Services/Cloud/CloudProvisioner.php",
+      "before": "29beb0228d42d2a17f9d178802b642ee781307597d7852441113db1a7ee51516",
+      "after": "e71a222d0942947ba7b309f0662e5a525ce8af05e63be01dbd58f32210ee9085"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/app/Services/Cloud/OvhClient.php",
+      "target": "app/Services/Cloud/OvhClient.php",
+      "before": "93705e40ec9bb95ba484085eb5d1b64869126a1d184f589d1107886153de37db",
+      "after": "bdd2d94b321b696d8f1030114e5f808f7c049014b5c60fb5e4d329394c66a697"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/app/Services/Customer/KycReview.php",
+      "target": "app/Services/Customer/KycReview.php",
+      "before": "c830616907149a6e32f5ae38c66ba01e519dcc0b094eb950545c3b38e7397a98",
+      "after": "00f56d978439f1cab5362fa9bd11855b8472b9b81ba8e7e43f83c81af7757735"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/HermesOperations.php",
+      "target": "app/Services/Hermes/HermesOperations.php",
+      "before": "0e5b6bfccbab16b3e8c4a258e2aff68adeefb59716cb00f446db978126e96c6e",
+      "after": "3f42b7be147bae9cf9c218b04d32b4ed2232c1f5507477dac5d5420110657d65"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/HermesSupportOwnerReview.php",
+      "target": "app/Services/Hermes/HermesSupportOwnerReview.php",
+      "before": "45c854efd3655a4faddeda3c6476fc22983e35d6281c0aed90315123bc3b6b06",
+      "after": "2331d67ee502dcca6850696facb34eaa674728bce2cdba835bafcf46b865a6be"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/resources/views/account/invoice.blade.php",
+      "target": "resources/views/account/invoice.blade.php",
+      "before": "406aa4e404c0a8fd372a249cf581e9c96e10a7f1dfea3bbe6daec2c6b8069251",
+      "after": "92c2f143916cef4b7cf0fdd42284e2c5722560c7f2a1a4c122e0bcb6d3a836da"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/resources/views/admin/customer.blade.php",
+      "target": "resources/views/admin/customer.blade.php",
+      "before": "39a9c1030a0d7cb087c43ebd75ff08a3a67693b1cd8d048edf4ed117f888c111",
+      "after": "7e7fe4a1b1b350341e3a21554bede44c20d121c7edeaae879fb720a911c09b31"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/HermesBusinessReview.php",
+      "target": "app/Console/Commands/HermesBusinessReview.php",
+      "before": "0130cb4776b767071e3448ec68dcf8b979c35ce58f4d1553005d2b94bd9e4936",
+      "after": "69f89664cef1e4b8c9f252223b8d60c82626f886772f42fdf7b272d4e4d7e63a"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/routes/console.php",
+      "target": "routes/console.php",
+      "before": "c57d61960c5a578566aa37ff3b97c79d9fc03a654b36dbf21c52fafffc6b959d",
+      "after": "2dc691fb844b4829321980183132502f720e749c482fd2112d7f0be62113354d"
+    },
+    {
+      "source": "infra/hermes/bale-manager-20261031/runtime/routes/web.php",
+      "target": "routes/web.php",
+      "before": "9efe9cb15f673f6250dcec89445d84dd5d764997b92e966d6a6902ba0c10cfe4",
+      "after": "085856d2f956265b0fe68c8dcf00e2f18b1aa0c735113d8a82205f0421906468"
+    }
+  ]
+}
+
