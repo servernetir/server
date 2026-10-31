@@ -8,6 +8,27 @@ final class HermesSupportInvestigation
     public static function assess(string $subject, array $thread, array $evidence): ?array
     {
         $text = $subject."\n".implode("\n", array_column($thread, 'body'));
+        // A serious impact report needs investigation on its first message too.
+        // This gate neither chooses a machine from prose nor verifies data loss.
+        $latestCustomer = '';
+        foreach ($thread as $message) {
+            if (($message['role'] ?? '') === 'customer') { $latestCustomer = (string) ($message['body'] ?? ''); }
+        }
+        if ((new HermesSupportPolicy())->reportsServiceIncident($latestCustomer)) {
+            $dossier = $evidence['dossier'] ?? [];
+            $id = $dossier['service']['id'] ?? null;
+            $at = $dossier['checked_at'] ?? null;
+            $owned = is_int($id) && $id > 0 && ($dossier['source'] ?? '') === 'servernet_database'
+                && is_int($at) && $at >= time() - 900 && $at <= time() + 60;
+            $lines = ['گزارش مشتری دربارهٔ از دست رفتن داده یا قطعی تکرارشونده نیازمند بررسی داخلی است؛ وقوع، دامنه و قابلیت بازیابی داده هنوز تأیید نشده‌اند.'];
+            $lines[] = $owned ? 'سرویس دقیق از دادهٔ تازهٔ مالکیت حساب تطبیق داده شد.'
+                : 'ابتدا سرویس دقیق از سوابق همین حساب توسط مدیر انتخاب شود؛ متن مشتری به‌تنهایی مجوز انتخاب ماشین نیست و شناسهٔ موجود دوباره از مشتری پرسیده نشود.';
+            $lines[] = 'گام بعد: وضعیت جاری ماشین و اتصال و قابلیت واقعی کنسول خوانده شود؛ رخدادهای توقف، تعویض میزبان، دیسک و نصب مجدد با زمان گزارش تطبیق داده شوند. عدم اتصال، نبود داده را ثابت نمی‌کند.';
+            $lines[] = 'برای حفظ امکان بررسی، نصب مجدد، حذف، فرمت، بازیابی روی دیسک اصلی یا restart غیرضروری پیشنهاد نشود. وجود و زمان و سلامت نسخهٔ پشتیبان مستقل بررسی شود؛ آزمون بازیابی روی محیط جدا و فقط با مجوز مشخص انجام شود.';
+            $lines[] = 'مانع، شواهد و مسئول پیگیری ثبت و پس از بررسی، پاسخ دقیق مشتری آماده شود. هیچ تغییر، بازیابی یا پاسخ عمومی اجرا نشده است؛ از سلامت یا نابودی قطعی داده ادعا نشود.';
+            return ['required' => true, 'kind' => 'reported_service_incident', 'state' => 'waiting_owner_investigation',
+                'analysis' => implode("\n", $lines), 'customer_reply_ready' => false, 'infrastructure_change_executed' => false];
+        }
         if (! preg_match('/php|session\.upload_progress/iu', $text)
             || ! preg_match('/PHP-SEC|session\.upload_progress|امنیت|وصله|آسیب.?پذیر|patch|vulnerab|security/iu', $text)) {
             $network = self::network($text, $thread, $evidence);
