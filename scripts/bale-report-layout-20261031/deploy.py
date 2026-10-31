@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guarded one-file daily-report presentation release; no app bootstrap.
+"""Guarded four-file manager-report release; no app bootstrap.
 
 Run prepare, inspect its private receipt, then apply (which verifies and seals).
 The dependency is the already-reviewed installer at the exact hash below. Its
@@ -13,7 +13,6 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-import re
 import sys
 
 sys.dont_write_bytecode = True
@@ -27,19 +26,28 @@ base = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(base)
 
 RELEASE = 'bale-report-layout-20261031'
+BASE_COMMIT = '0861aab6d5452db065a7e1cbaaa3c9d3cd0bddeb'
 MANIFEST = 'scripts/bale-report-layout-20261031/release-manifest.json'
+# A new class must exist before the digest or router can resolve it. Install the
+# backwards-compatible sender before any caller that uses its navigation support.
 TARGETS = (
+    'app/Services/Bale/Management/ManagerBusinessCalendarSnapshot.php',
+    'app/Services/Bale/BaleSender.php',
     'app/Services/Bale/Management/BaleManagerDailyDigest.php',
+    'app/Services/Bale/Admin/AdminBaleRouter.php',
 )
 EXPECTED_BEFORE = {
-    TARGETS[0]: '33a351d019bf28bd82da44fc3f8e7d22ca0d592a9bcd1f6850a882f055a8b9a9',
+    TARGETS[0]: None,
+    TARGETS[1]: 'b6127d4e9fe90313e3519690142b7345d33439834b2c3d2fd0a94f7f9ff9426b',
+    TARGETS[2]: '33a351d019bf28bd82da44fc3f8e7d22ca0d592a9bcd1f6850a882f055a8b9a9',
+    TARGETS[3]: '427923cfe9e3324af4ac13b39883a3fcb9100627033df29e42360ff1de789de5',
 }
 base.RELEASE = RELEASE
 
 
 def manifest(source):
     package = base.load_manifest(base.safe_path(source, MANIFEST))
-    if set(package) != {'release', 'base_commit', 'files'} or not re.fullmatch(r'[0-9a-f]{40}', str(package.get('base_commit', ''))):
+    if set(package) != {'release', 'base_commit', 'files'} or package.get('base_commit') != BASE_COMMIT:
         raise base.ReleaseError('release_metadata_invalid')
     files = package['files']
     if tuple(row['target'] for row in files) != TARGETS:
@@ -70,8 +78,8 @@ def run(home, source, phase, lint=base.php_lint, observe_cron=base.cron_snapshot
 if __name__ == '__main__':
     try:
         home = Path('/home/servernetcloud')
-        if Path.home() != home or os.getuid() == 0:
-            raise base.ReleaseError('unexpected_account')
+        if Path.home() != home or os.getuid() == 0 or os.environ.get('BALE_MANAGER_LOCKS_HELD') != '1':
+            raise base.ReleaseError('unexpected_account_or_missing_native_lock_contract')
         if len(sys.argv) != 3:
             raise base.ReleaseError('usage_phase_source_root')
         print(json.dumps(run(home, Path(sys.argv[2]), sys.argv[1]), sort_keys=True))

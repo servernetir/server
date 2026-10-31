@@ -80,8 +80,8 @@ class BaleManagerDailyDigestTest extends TestCase
         $this->assertSame(3, $row['count']);
         $this->assertSame(3000, $amounts['IRT']);
         $this->assertSame(1234, $amounts['USD']);
-        $text = $digest->detail('payments');
-        $this->assertStringContainsString('3000 IRT', $text);
+        $text = preg_replace('/[ \t]+/u', ' ', str_replace('*', '', $digest->detail('payments')));
+        $this->assertStringContainsString('3,000 تومان (IRT)', $text);
         $this->assertStringContainsString('12.34 USD', $text);
         $this->assertStringContainsString('درآمد فروش یا سود نیست', $text);
         Http::assertNothingSent();
@@ -159,9 +159,10 @@ class BaleManagerDailyDigestTest extends TestCase
                 'before_source_at' => '2026-10-28T05:00:00Z', 'source_at' => '2026-10-31T04:00:00Z']]]]]);
         $this->app->instance(\App\Services\Bale\Management\ManagementCostChanges::class, $costs);
         $text = app(BaleManagerDailyDigest::class)->detail('costs');
-        $this->assertStringContainsString('زمان منبع قبلی 2026-10-28T05:00:00Z', $text);
-        $this->assertStringContainsString('فعلی 2026-10-31T04:00:00Z', $text);
-        $this->assertStringContainsString('ثبت خط مبنا: 2026-10-30T06:00:00Z', $text);
+        $plain = preg_replace('/[ \t]+/u', ' ', str_replace('*', '', $text));
+        $this->assertStringContainsString('زمان منبع قبلی 1405/08/06 08:30', $plain);
+        $this->assertStringContainsString('فعلی 1405/08/09 07:30', $plain);
+        $this->assertStringContainsString('ثبت خط مبنا: 1405/08/08 09:30', $plain);
     }
 
     public function test_compact_report_names_each_unreadable_provider_without_inventing_zero_balances(): void
@@ -216,10 +217,17 @@ class BaleManagerDailyDigestTest extends TestCase
         $traffic->shouldNotReceive('refresh');
         $this->app->instance(\App\Services\Bale\Management\ManagerTrafficSnapshot::class, $traffic);
         $text = app(BaleManagerDailyDigest::class)->detail('traffic');
-        $this->assertStringContainsString('بازدیدکننده یکتای GA4: 2026-10-31 11 | ماه قبل 111', $text);
-        $this->assertStringContainsString('جستجوی GSC (کلیک/نمایش): 2026-10-30 33/444', $text);
-        $this->assertStringContainsString('America/Los_Angeles', $text);
-        $this->assertStringContainsString('/admin/bale/reporting', $text);
+        $this->assertStringContainsString('بازدیدکننده یکتای GA4', $text);
+        $this->assertStringContainsString('دیروز منبع: 11 کاربر یکتا (1405/08/09 تا 1405/08/09)', $text);
+        $this->assertStringContainsString('ماه تقویمی قبل: 111 کاربر یکتا (1405/08/09 تا 1405/08/09)', $text);
+        $this->assertStringContainsString('جستجوی GSC (کلیک/نمایش)', $text);
+        $this->assertStringContainsString('دیروز منبع: 33 کلیک · 444 نمایش (1405/08/08 تا 1405/08/08)', $text);
+        $this->assertStringContainsString('ماه تقویمی قبل: 333 کلیک · 4,444 نمایش (1405/08/08 تا 1405/08/08)', $text);
+        $this->assertStringContainsString('منطقه زمانی دورهٔ منبع: Asia/Tehran', $text);
+        $this->assertStringContainsString('منطقه زمانی دورهٔ منبع: America/Los_Angeles', $text);
+        $this->assertStringNotContainsString('22 کاربر یکتا', $text);
+        $this->assertStringNotContainsString('222 کاربر یکتا', $text);
+        $this->assertStringNotContainsString('http', $text);
         Http::assertNothingSent();
     }
 }
