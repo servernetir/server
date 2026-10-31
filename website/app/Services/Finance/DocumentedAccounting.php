@@ -52,10 +52,9 @@ final class DocumentedAccounting
         $this->check($this->ready(), 'not_ready');
         if (in_array($d['type'], ['partner_advance', 'partner_advance_transfer'], true)) {
             $this->check(is_string($d['bank_reference'] ?? null), 'bank_invalid');
-            $reference = strtr(trim($d['bank_reference']), array_combine(preg_split('//u', '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', -1, PREG_SPLIT_NO_EMPTY), str_split('01234567890123456789')));
-            $reference = preg_replace('/\s+/u', '', $reference);
+            $reference = $this->normalizeBankReference($d['bank_reference']);
             $this->check(is_string($reference) && mb_strlen($reference) >= 4 && mb_strlen($reference) <= 150, 'bank_invalid');
-            $d['bank_reference'] = mb_strtolower($reference);
+            $d['bank_reference'] = $reference;
             $bankRowId = $d['bank_transaction_id'] ?? null;
             $this->check($bankRowId === null || $bankRowId === '' || (filter_var($bankRowId, FILTER_VALIDATE_INT) !== false && (int) $bankRowId > 0), 'bank_invalid');
             $d['bank_transaction_id'] = $bankRowId === null || $bankRowId === '' ? null : (int) $bankRowId;
@@ -144,9 +143,11 @@ final class DocumentedAccounting
                     $this->check($claim['native'] <= 0 && $claim['irt'] <= 0
                         && (($claim['native'] === 0) === ($claim['irt'] === 0)), 'partner_advance_mixed');
                 }
-                $this->check(! FinanceVoucher::where('funding_account_id', $funding->id)
-                    ->whereIn('type', ['partner_advance', 'partner_advance_transfer'])
-                    ->where('bank_reference', $d['bank_reference'])->exists(), 'bank_invalid');
+                // The same real outflow cannot fund a new advance after any earlier voucher or reversal.
+                foreach (FinanceVoucher::where('funding_account_id', $funding->id)->whereNotNull('bank_reference')
+                    ->select(['id', 'bank_reference'])->lazyById(200) as $previous) {
+                    $this->check($this->normalizeBankReference((string) $previous->bank_reference) !== $d['bank_reference'], 'bank_invalid');
+                }
                 if ($type === 'partner_advance_transfer') {
                     $this->check($d['bank_transaction_id'] === null, 'bank_invalid');
                 } elseif ($d['bank_transaction_id'] !== null) {
@@ -321,6 +322,14 @@ final class DocumentedAccounting
 
             return $v;
         }, 3);
+    }
+
+    private function normalizeBankReference(string $reference): ?string
+    {
+        $reference = strtr(trim($reference), array_combine(preg_split('//u', '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', -1, PREG_SPLIT_NO_EMPTY), str_split('01234567890123456789')));
+        $reference = preg_replace('/\s+/u', '', $reference);
+
+        return is_string($reference) ? mb_strtolower($reference) : null;
     }
 
     private function hasLaterActivity(FinanceAccount $account, string $date): bool

@@ -64,7 +64,8 @@ final class TaxEvidenceBundle
                 }
             })();
             $add('ledger.csv', $csv(['Entry', 'Date Tehran', 'Kind', 'Category', 'Currency', 'Amount minor', 'Equivalent IRR if IRT', 'Direction', 'Source type', 'Source ID', 'Note'], $ledgerRows));
-            $vouchers = FinanceVoucher::whereBetween('occurred_at', [$scope->from->toDateString(), $scope->to->toDateString()])->orderBy('id')->get();
+            $vouchers = FinanceVoucher::whereDate('occurred_at', '>=', $scope->from->toDateString())
+                ->whereDate('occurred_at', '<=', $scope->to->toDateString())->orderBy('id')->get();
             $ids = $vouchers->pluck('id')->merge($vouchers->pluck('reversal_of')->filter())->unique();
             foreach ($vouchers as $v) {
                 if ($v->asset_period && preg_match('/^asset-(\d+)-/', $v->asset_period, $m)) {

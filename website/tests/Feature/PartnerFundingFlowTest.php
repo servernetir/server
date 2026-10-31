@@ -709,4 +709,20 @@ class PartnerFundingFlowTest extends TestCase
         $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($newFunding));
         $this->assertSame(0, app(BusinessLedger::class)->summary()['expense']);
     }
+
+    public function test_a_legacy_expense_reference_blocks_a_new_advance_using_the_same_normalized_bank_transfer(): void
+    {
+        $bank = $this->bank();
+        $partner = $this->account('partner', 'IRR');
+        $rawReference = ' ReF-۱۲ ۳۴ ';
+        $expense = $this->postVoucher($bank, ['amount_irt' => 100, 'original_currency' => 'IRT',
+            'original_minor' => 100, 'settlement_minor' => 1000, 'bank_reference' => $rawReference]);
+        $this->assertSame($rawReference, $expense->bank_reference);
+        $this->rejectedWithoutPosting($this->advancePayload($bank, $partner, 1001, '2026-10-08',
+            ['bank_reference' => 'rEf-١٢٣٤']));
+        $this->assertSame($rawReference, $expense->fresh()->bank_reference);
+        $this->assertSame(['irt' => 1900, 'native' => 19000], $this->journal()->balance($bank));
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($partner));
+        $this->assertSame(100, app(BusinessLedger::class)->summary()['expense']);
+    }
 }
