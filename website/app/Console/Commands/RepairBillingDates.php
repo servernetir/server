@@ -21,7 +21,7 @@ class RepairBillingDates extends Command
         $count = 0;
         foreach (Invoice::outstanding()->with(['service', 'domain'])->orderBy('id')->cursor() as $invoice) {
             $service = $invoice->service;
-            if ($service?->isInternalInfrastructure()) {
+            if ($service?->hasUnverifiedBillingTerms() || $service?->isInternalInfrastructure()) {
                 continue;
             }
             $due = null;

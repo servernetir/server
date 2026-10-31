@@ -49,6 +49,7 @@ class GenerateServiceRenewals extends Command
 
         foreach ($due as $service) {
             try {
+                if ($service->hasUnverifiedBillingTerms()) { continue; }
                 $complimentary = app(ComplimentaryServices::class);
                 if ($complimentary->applies($service)) {
                     $complimentary->renew($service, (int) $this->option('days'));

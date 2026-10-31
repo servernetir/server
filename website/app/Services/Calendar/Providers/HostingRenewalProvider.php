@@ -28,6 +28,7 @@ class HostingRenewalProvider implements CalendarEventProvider
         }
 
         return Service::query()
+            ->locallyBilled()
             /*
              * از همان تعریفی می‌پرسیم که خودِ مدل برای «سرویسِ مرده» دارد.
              * شرطِ دست‌نویسِ موازی یعنی افزودنِ یک وضعیتِ مرده در آینده، این

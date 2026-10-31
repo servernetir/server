@@ -464,7 +464,7 @@
           <td>@include('admin.partials.service-infrastructure', ['s' => $s])</td>
           <td>{{ $s->cycleLabel() }}@if($s->isInternalInfrastructure())<small> · زیرساخت داخلی؛ معاف از قطع بابت بدهی</small>@endif</td>
           {{-- ساعتی: نرخِ واقعیِ کسر، نه معادلِ ماهانه که هرگز فاکتور نمی‌شود --}}
-          <td>@if($s->isHourly()){{ number_format((int) $s->hourly_rate_irt) }} ت/ساعت@else{{ $money($s->total()) }}@endif</td>
+          <td>@if($s->hasUnverifiedBillingTerms()){{ __('ui.svc_billing_terms_pending') }}@elseif($s->isHourly()){{ number_format((int) $s->hourly_rate_irt) }} ت/ساعت@else{{ $money($s->total()) }}@endif</td>
           <td><span class="ad-badge" style="background:{{ $sb[1] }}22;color:{{ $sb[1] }}">{{ $sb[0] }}</span></td>
           {{-- 🔴 سرویسِ **زندهٔ بی‌سررسید** یعنی سرویسِ رایگانِ ابدی:
                `services:renew-due` شرطِ `whereNotNull('next_due_at')` دارد، پس
@@ -472,7 +472,9 @@
                خطایی هم تولید نمی‌کند. پس به‌جای یک خطِ تیره، همین‌جا هم هشدار
                داده می‌شود و هم راهِ رفعش هست. --}}
           <td dir="ltr" style="color:var(--muted)">
-            @if($s->next_due_at)
+            @if($s->hasUnverifiedBillingTerms())
+              <span dir="rtl">{{ __('ui.svc_billing_terms_pending') }}</span>
+            @elseif($s->next_due_at)
               {{ sdate($s->next_due_at) }}
             @elseif($s->isHourly())
               {{-- ساعتی عمداً سررسید ندارد: صورت‌حسابش متر است، نه فاکتورِ دوره‌ای.
