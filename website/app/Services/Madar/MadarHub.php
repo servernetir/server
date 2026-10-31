@@ -6,7 +6,6 @@ use App\Models\Customer;
 use App\Models\MadarMission;
 use App\Models\MadarParticipation;
 use App\Models\MarketingCampaign;
-use App\Services\Marketing\CampaignAudience;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -53,7 +52,7 @@ final class MadarHub
             $program = $rewards->get($published?->reward_campaign_id ?? $control?->reward_campaign_id);
             $amount = $published?->reward_amount_irt ?? $mission['reward_irt'];
             $capacity = $published && $program ? app(MadarPublishing::class)->capacity($program, $amount) : 0;
-            $eligible = ! $customer || ! $program || app(CampaignAudience::class)->matches($customer, $program->audience);
+            $eligible = ! $customer || ! $program || app(MadarPublishing::class)->eligible($program, $customer, $amount);
             $repeatSince = now()->subDays($published?->snapshot['repeat_days'] ?? config('madar.repeat_days'));
             $eligible = $eligible && ! $claims->contains(fn ($p) => $p->campaign_key === $key && $p->terms_accepted_at->gte($repeatSince))
                 && $claims->filter(fn ($p) => $p->terms_accepted_at->gte($week))->count() < ($published?->snapshot['weekly_cap'] ?? config('madar.weekly_claim_cap'));

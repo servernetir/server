@@ -2,11 +2,13 @@
 
 namespace App\Services\Madar;
 
+use App\Models\Customer;
 use App\Models\MadarMission;
 use App\Models\MarketingCampaign;
 use App\Models\MarketingGrant;
 use App\Models\MarketingRedemption;
 use App\Models\User;
+use App\Services\Marketing\CampaignAudience;
 use App\Services\Marketing\CampaignManager;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -39,6 +41,21 @@ final class MadarPublishing
             ->whereNotIn('id', (clone $uses)->select('grant_id'))->count();
 
         return max(0, min(intdiv(max(0, $c->budget - $c->held - $c->spent), $amount), $c->max_uses - $uses->count() - $held));
+    }
+
+    public function eligible(MarketingCampaign $c, Customer $customer, int $amount): bool
+    {
+        if (! $customer->isActive() || ! in_array($customer->locale ?: 'fa', $c->rule['locales'], true)
+            || ! app(CampaignAudience::class)->matches($customer, $c->audience)) {
+            return false;
+        }
+        $uses = MarketingRedemption::where('campaign_id', $c->id)->where('customer_id', $customer->id)
+            ->whereIn('status', ['reserved', 'committed', 'reconciliation', 'refunded']);
+        $promises = MarketingGrant::where('campaign_id', $c->id)->where('customer_id', $customer->id)
+            ->where('budget_held', true)->whereNotIn('id', (clone $uses)->select('grant_id'));
+
+        return (clone $uses)->count() + (clone $promises)->count() < $c->max_per_customer
+            && (clone $uses)->sum('amount') + (clone $promises)->sum('liability') + $amount <= $c->rule['per_customer_cap'];
     }
 
     public function publish(string $key, MarketingCampaign $campaign, int $amount, User $actor): MadarMission

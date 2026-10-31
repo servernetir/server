@@ -256,7 +256,7 @@ return [
     'limits' => 'Each mission once per 30 days; at most three eligible submissions per calendar week, Tehran time. Each artifact or publication earns at most one reward.',
     'sponsorship' => 'Clearly disclose the reward. Qualify sponsored website links with sponsored or nofollow; use the platform\'s partnership label on social networks. Copies, spam, bought views and paid rating reviews are ineligible.',
     'distribution_url' => 'Community or social announcement link',
-    'distribution_hint' => 'Code mission: a project announcement link, separate from the repository link, is required.',
+    'distribution_hint' => 'Code, template and workshop missions require a separate public announcement link, in addition to the artifact or recording.',
     'publish' => 'Publish fixed-reward mission',
     'reward_amount' => 'Reward amount (IRT)',
     'capacity' => 'Remaining capacity: :count rewards',

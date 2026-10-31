@@ -34,7 +34,8 @@ final class MadarClaims
             $c = MarketingCampaign::whereKey($mission->reward_campaign_id)->lockForUpdate()->firstOrFail();
             $control = DB::table('madar_campaigns')->where('campaign_key', $mission->campaign_key)->first();
             $this->hub->check($freshCustomer->isActive() && $control?->open && $mission->published_at->lte(now())
-                && $mission->submissions_until->isFuture() && $this->publishing->validProgram($c, $mission->reward_amount_irt), 'closed');
+                && $mission->submissions_until->isFuture() && $this->publishing->validProgram($c, $mission->reward_amount_irt)
+                && $this->publishing->eligible($c, $freshCustomer, $mission->reward_amount_irt), 'closed');
             $this->hub->check($data['terms_version'] === $mission->snapshot['terms_version'], 'terms_changed');
             $week = now('Asia/Tehran')->startOfWeek(CarbonInterface::MONDAY)->utc();
             $prior = MadarParticipation::where('customer_id', $freshCustomer->id)->where('flow_version', 2)

@@ -256,7 +256,7 @@ return [
     'limits' => 'Her görev 30 günde bir; Tahran saatine göre takvim haftasında en fazla üç uygun gönderim. Her çalışma veya yayın en fazla bir ödül kazanır.',
     'sponsorship' => 'Ödülü açıkça belirtin. Web sitesindeki sponsorlu bağlantılarda sponsored veya nofollow kullanın; sosyal ağlarda platformun iş birliği etiketini kullanın. Kopya, spam, satın alınmış izlenme ve ücretli puan yorumları uygun değildir.',
     'distribution_url' => 'Topluluk veya sosyal tanıtım bağlantısı',
-    'distribution_hint' => 'Kod görevi: depo bağlantısından ayrı bir proje tanıtım bağlantısı gereklidir.',
+    'distribution_hint' => 'Kod, şablon ve atölye görevlerinde eser veya kayıt bağlantısına ek olarak ayrı bir herkese açık tanıtım bağlantısı gerekir.',
     'publish' => 'Sabit ödüllü görevi yayınla',
     'reward_amount' => 'Ödül tutarı (IRT)',
     'capacity' => 'Kalan kapasite: :count ödül',

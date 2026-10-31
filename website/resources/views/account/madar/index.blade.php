@@ -45,6 +45,7 @@
             <p>{{ __('madar.reward_window', ['days' => fa_num(intdiv($campaign['published']->snapshot['validity_hours'], 24))]) }}</p>
             <p>{{ __('madar.minimum') }}: {{ invoice_money($campaign['published']->snapshot['rule']['min_purchase'], 'IRT') }}</p>
             <p>{{ __('madar.scope') }}: {{ collect($campaign['published']->snapshot['rule']['families'])->map(fn ($f) => \Illuminate\Support\Facades\Lang::has('madar.families.'.$f) ? __('madar.families.'.$f) : __('madar.scope'))->join(' / ') }}</p>
+            <p>{{ __('madar.operations') }}: {{ collect($campaign['published']->snapshot['rule']['operations'])->map(fn ($op) => __('madar.op.'.$op))->join(' / ') }}</p>
             <p>{{ __('madar.margin') }} {{ __('madar.hourly_notice') }}</p>
             <p>{{ __('madar.capacity', ['count' => fa_num($campaign['capacity'])]) }}</p>
           @endif

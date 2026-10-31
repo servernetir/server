@@ -244,6 +244,35 @@ class MadarFixedMissionTest extends TestCase
         $this->assertNull($p->grant->revoked_at);
     }
 
+    public function test_previous_reward_capacity_is_checked_before_inviting_a_repeat_creator_to_start(): void
+    {
+        $customer = $this->customer();
+        $first = $this->publish();
+        app(MadarClaims::class)->submit($customer, $this->proof($first));
+        $this->travel(31)->days();
+        $new = $this->publish('gpu-video', MarketingCampaign::findOrFail($first->reward_campaign_id));
+        $this->assertSame(2, $new->version);
+        $this->assertFalse((bool) app(MadarHub::class)->campaigns($customer)['gpu-video']['open']);
+        $this->assertTrue((bool) app(MadarHub::class)->campaigns($this->customer())['gpu-video']['open']);
+        $this->rejects(fn () => app(MadarClaims::class)->submit($customer, $this->proof($new)));
+        $this->assertSame(1, MarketingGrant::count());
+    }
+
+    public function test_customer_locale_is_enforced_before_work_and_at_submission(): void
+    {
+        $customer = $this->customer();
+        $customer->update(['locale' => 'tr']);
+        $c = $this->campaign(500_000, ['rule' => ['locales' => ['fa']]]);
+        // Recursive test fixture replacement leaves other locales; set the real fixture explicitly.
+        $c->forceFill(['rule' => array_replace($c->rule, ['locales' => ['fa']])])->save();
+        $mission = $this->publish('gpu-video', $c);
+        $this->assertFalse((bool) app(MadarHub::class)->campaigns($customer)['gpu-video']['open']);
+        $this->rejects(fn () => app(MadarClaims::class)->submit($customer, $this->proof($mission)));
+        $this->assertSame(0, MarketingGrant::count());
+        $customer->update(['locale' => 'fa']);
+        $this->assertTrue((bool) app(MadarHub::class)->campaigns($customer)['gpu-video']['open']);
+    }
+
     public function test_share_urls_do_not_leak_identity_and_are_not_a_claim_of_automatic_sales_attribution(): void
     {
         $customer = $this->customer();
