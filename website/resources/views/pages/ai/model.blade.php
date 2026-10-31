@@ -28,7 +28,15 @@
         <a class="ai-btn" href="{{ lroute('ai.docs') }}">{{ __('ai.docs') }}</a>
     </div>
     </div><aside class="ai-model-side"><span class="ai-label">{{ __('ai_model.model_id') }}</span><p style="margin:14px 0"><code>{{ $model->slug }}</code></p><p class="ai-muted">{{ __('ai_experience.quickstart_note') }}</p><a class="ai-btn" href="{{ lroute('ai.compare', ['models' => $comparisonSlugs]) }}">{{ __('ai_experience.comparison_link') }}</a></aside></div>
-    <nav class="ai-jump" aria-label="{{ __('ai_experience.jump') }}"><a href="#model-overview">{{ __('ai_experience.jump_overview') }}</a><a href="#model-pricing">{{ __('ai_experience.jump_pricing') }}</a>@if($seo['example'])<a href="#model-integration">{{ __('ai_experience.jump_connect') }}</a>@endif<a href="#model-alternatives">{{ __('ai_experience.jump_related') }}</a></nav>
+    <nav class="ai-jump" aria-label="{{ __('ai_experience.jump') }}">
+        <a href="#model-overview">{{ __('ai_experience.jump_overview') }}</a>
+        <a href="#model-pricing">{{ __('ai_experience.jump_pricing') }}</a>
+        @if($seo['tokenOperation'] && $state['quote'])
+        <a href="#usage-planner">{{ __('ai_experience.estimator') }}</a>
+        @endif
+        @if($seo['example'])<a href="#model-integration">{{ __('ai_experience.jump_connect') }}</a>@endif
+        <a href="#model-alternatives">{{ __('ai_experience.jump_related') }}</a>
+    </nav>
     <section class="ai-grid" id="model-pricing" aria-label="{{ __('ai_model.operation') }}">
         <div class="ai-card">
             <h2>{{ $seo['tokenOperation'] ? __('ai.price') : __('ai_model.operation') }}</h2>
