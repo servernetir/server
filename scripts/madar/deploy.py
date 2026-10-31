@@ -37,6 +37,9 @@ RUNTIME = NEW + (
     'app/Http/Controllers/Account/AccountController.php','resources/views/admin/layout.blade.php','routes/web.php',
 )
 
+# Confirmed absent in live preflight; both are reviewed, read-only prerequisites.
+MISSING_DEPENDENCIES = frozenset(('app/Services/Growth/HermesSectionOversight.php', 'config/hermes_growth.php'))
+
 
 def load_core():
     path = Path(__file__).with_name('deploy-vpstc.py')
@@ -46,7 +49,7 @@ def load_core():
     core = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(core)
     core.BASE, core.RUNTIME_PATHS, core.NEW_PATHS = BASE, RUNTIME, frozenset(NEW)
-    fetch, lint = core.fetch_source, core.lint
+    fetch, lint, merge = core.fetch_source, core.lint, core.merge_candidate
     def source(commit, relative):
         return fetch(commit, 'public/'+relative[len('runtime-assets/'):] if relative.startswith('runtime-assets/') else relative)
     def destination(root, relative):
@@ -69,6 +72,11 @@ def load_core():
         if path.exists() and not path.is_file():
             raise core.ReleaseError('nonregular_release_file:'+relative)
         return path
+    def candidate(release, relative, before, base, desired):
+        if before is None and relative in MISSING_DEPENDENCIES:
+            return desired
+        return merge(release,relative,before,base,desired)
+    core.merge_candidate = candidate
     core.checked_file = destination
     core.fetch_source = source
     core.lint = lambda php,path,relative: lint(php,path,relative) if relative.endswith('.php') else None

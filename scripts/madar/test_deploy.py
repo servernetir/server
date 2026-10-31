@@ -22,15 +22,25 @@ class ScopedReleaseTests(unittest.TestCase):
     def tearDown(self):
         deploy.__file__=self.original;self.temp.cleanup()
 
-    def plan(self):
+    def plan(self, missing=()):
         for rel in deploy.RUNTIME:
             path=self.core.checked_file(self.root,rel)
-            if rel not in deploy.NEW:
+            if rel not in deploy.NEW and rel not in missing:
                 path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'base\n')
         def source(commit,relative):
             if commit==deploy.BASE:return None if relative in deploy.NEW else b'base\n'
             return b'new reviewed bytes\n'
         return self.core.build_plan(self.root,'a'*40,'unused',source_reader=source)
+
+    def test_confirmed_missing_read_only_dependencies_are_installed_and_rollback_restores_absence(self):
+        release,plan=self.plan(missing=deploy.MISSING_DEPENDENCIES)
+        self.core.apply_plan(self.root,release,plan,'unused')
+        for rel in deploy.MISSING_DEPENDENCIES:self.assertTrue((self.root/rel).is_file())
+        self.core.explicit_rollback(self.root,release,plan)
+        for rel in deploy.MISSING_DEPENDENCIES:self.assertFalse((self.root/rel).exists())
+
+    def test_other_missing_existing_file_still_stops_prepare(self):
+        with self.assertRaises(self.core.ReleaseError):self.plan(missing=('routes/web.php',))
 
     def test_native_mariadb_driver_passes_but_unknown_driver_or_existing_schema_stops(self):
         for driver in ('mysql', 'mariadb'):
