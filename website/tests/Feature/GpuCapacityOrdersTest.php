@@ -28,6 +28,8 @@ class GpuCapacityOrdersTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Tests\Support\NavasanRates::store(['USD' => 90000, 'EUR' => 100000, 'USDT' => 90000]);
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([90000, 100000, 90000]);
         Setting::putSecret('salad_api_key', 'test-only');
         Setting::put('salad_org', 'test-org'); Setting::put('salad_project', 'test-project');
         Setting::put('salad_priority', 'high');
@@ -94,7 +96,7 @@ class GpuCapacityOrdersTest extends TestCase
     public function test_zero_capacity_creates_no_invoice_debit_instance_or_provider_purchase(): void
     {
         $s = $this->register(); $orders = app(GpuCapacityOrders::class);
-        $this->travel(3)->days();
+        $this->travel(3)->hours(); // Still inside the separate unpaid-request funding deadline.
         $this->assertSame('waiting', $orders->advance($s));
         $this->assertSame(GpuCapacityOrders::WAIT, $s->fresh()->provision_status);
         $this->assertDatabaseCount('invoices', 0); $this->assertDatabaseCount('cloud_instances', 0);

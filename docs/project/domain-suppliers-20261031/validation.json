@@ -1,7 +1,7 @@
 {
   "status": "code_tested_not_deployed",
   "source_baseline": "14a88e98f85c840fdbef63bdc059549a084a5e74",
-  "develop_synchronized": "012eaf2e02a0ac3cca2effffcd38c709ade99fc4",
+  "develop_synchronized": "46998d65743880f72d4efcb01b5fb96639514b2a",
   "runtime": {
     "php": "8.4.27",
     "database": "SQLite in-memory",
@@ -53,6 +53,7 @@
     "assertions": 821,
     "seo_route_regressions_passed": 4,
     "seo_assertions": 15,
-    "native_route_source_verified": true
+    "native_route_source_verified": true,
+    "upstream_native_recovery_preserved": "72955a9"
   }
 }

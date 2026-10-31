@@ -25,8 +25,7 @@ use Illuminate\Support\Facades\Schema;
  * ═══ قاعده ═══
  *
  *  • نرخِ نگهداری = **بهای تمام‌شدهٔ** ساعتیِ همان ماشین نزدِ زیرساخت (سربارِ
- *    ارزی را درایور از قبل در بها نشانده)، گرد به بالا تا ۱۰۰ تومان، و هرگز
- *    بیشتر از نرخِ فروش. روی نگهداری سود نمی‌گیریم.
+ *    ارزی را درایور از قبل در بها نشانده)، گرد به بالا تا ۱۰۰ تومان، بدون محدودکردن به نرخ فروش. روی نگهداری سود نمی‌گیریم.
  *  • زیرساختی که ماشینِ خاموش برایش هزینه ندارد (`salad`، `proxmox` و هر پلنِ
  *    `is_interruptible`) ⇒ نرخِ صفر ⇒ نگهداری مثلِ قبل رایگان.
  *  • **ذخیره** (`services.hold_reserve_irt`): برای هر سرورِ ساعتیِ زنده
@@ -90,6 +89,14 @@ final class HourlyHold
             ->sum('hold_reserve_irt');
     }
 
+    /** The reserve actually counted by Wallet, including a pending GPU restart. */
+    public static function reservedFor(Service $service): int
+    {
+        return self::enabled() && $service->isHourly()
+            && in_array($service->status, self::HOLDING_STATUSES, true)
+            ? max(0, (int) $service->hold_reserve_irt) : 0;
+    }
+
     /**
      * نرخِ نگهداریِ امروزِ یک سرویس — تومان/ساعت. صفر = برای ما رایگان (یا بها
      * نامعلوم است و آژیر زده شد).
@@ -132,6 +139,14 @@ final class HourlyHold
         return $this->fromCost($plan, $sellRateIrt);
     }
 
+    /** Unknown paid standby is unavailable for new hourly orders, never advertised as free. */
+    public function fundablePlan(CloudPlan $plan, int $sellRateIrt): bool
+    {
+        return (bool) $plan->is_interruptible
+            || in_array((string) $plan->provider, self::STANDBY_FREE_PROVIDERS, true)
+            || $this->rateForPlan($plan, $sellRateIrt) > 0;
+    }
+
     /** ذخیرهٔ کاملِ یک سرورِ **در حالِ کار** با این نرخ و سیاستِ اتمامِ اعتبار */
     public static function fullReserve(int $rate, ?string $onCreditOut): int
     {
@@ -148,12 +163,22 @@ final class HourlyHold
             return;
         }
 
-        $rate = $this->rateIrt($service);
-        $reserve = self::fullReserve($rate, $service->on_credit_out);
-
-        if ((int) $service->hold_rate_irt !== $rate || (int) $service->hold_reserve_irt !== $reserve) {
-            $service->forceFill(['hold_rate_irt' => $rate, 'hold_reserve_irt' => $reserve])->save();
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($service): void {
+            \App\Models\Customer::whereKey($service->customer_id)->lockForUpdate()->first();
+            $current = Service::whereKey($service->id)->lockForUpdate()->first();
+            if ($current === null || ! $current->isHourly() || $current->status === 'suspended') {
+                return;
+            }
+            $rate = $this->rateIrt($current);
+            $reserve = self::fullReserve($rate, $current->on_credit_out);
+            if ((bool) $current->cloudPlan?->is_interruptible) {
+                $reserve = HourlyGpuStart::pending($current);
+            }
+            if ((int) $current->hold_rate_irt !== $rate || (int) $current->hold_reserve_irt !== $reserve) {
+                $current->forceFill(['hold_rate_irt' => $rate, 'hold_reserve_irt' => $reserve])->save();
+            }
+            $service->setRawAttributes($current->getAttributes(), true);
+        });
     }
 
     /** ساعت‌های نگهداریِ باقی — از خودِ ذخیره، نه از ساعتِ دیوار */
@@ -194,6 +219,6 @@ final class HourlyHold
 
         $irt = (int) (ceil(($micro / 1_000_000) * $this->eurToman / 100) * 100);
 
-        return $sellRateIrt > 0 ? min($irt, $sellRateIrt) : $irt;
+        return $irt; // Standby must cover supplier cost even for a legacy underwater sell rate.
     }
 }

@@ -119,6 +119,8 @@
 
   $hRate = (int) ($hourlyMap[$curSlug]['rate'] ?? 0);
   $hMin  = (int) ($hourlyMap[$curSlug]['min'] ?? 0);
+  $hRetention = old('on_credit_out', 'suspend') === 'terminate' ? 0 : (int) ($hourlyMap[$curSlug]['retention'] ?? 0);
+  $hMin += $hRetention;
   $hExisting = (int) ($hourlyMap[$curSlug]['existing'] ?? 0);
   /*
   | تیکِ ساعتی از دو جا می‌آید: بازگشتِ فرم (`old`) یا **لینکِ ورودی**
@@ -866,6 +868,9 @@
               </span>
             </p>
             <p class="cvb-warn" id="cvb-h-low" @if($creditIrt >= $hMin) hidden @endif>{{ __('ui.cvb_hourly_low') }}</p>
+            <p class="cvb-note" id="cvb-retention-note" @if($hRetention === 0) hidden @endif>
+              {{ __('ui.cvb_retention_pre') }}<b id="cvb-retention">{{ cloud_price($hRetention) }}</b>{{ __('ui.cvb_retention_suf') }}
+            </p>
             <label class="cvb-field">
               <span>{{ __('ui.cvb_hourly_end') }}</span>
               <select name="on_credit_out">
@@ -1326,12 +1331,19 @@
     // ── نرخِ ساعتی ──
     set('cvb-h-rate', h.display_rate || '—');
     document.getElementById('cvb-quoted-hourly').value = h.rate || 0;
-    set('cvb-h-min', money(h.min));
+    var endMode = form.querySelector('select[name="on_credit_out"]');
+    if (endMode) endMode.onchange = render;
+    var retention = endMode && endMode.value === 'terminate' ? 0 : (h.retention || 0);
+    var startMinimum = (h.min || 0) + retention;
+    set('cvb-h-min', money(startMinimum));
+    set('cvb-retention', money(retention));
+    var retentionNote = document.getElementById('cvb-retention-note');
+    if (retentionNote) retentionNote.hidden = retention === 0;
     set('cvb-h-existing', money(h.existing || 0));
     var existingNote = document.getElementById('cvb-h-existing-note');
     if (existingNote) existingNote.hidden = !(h.existing > 0);
     var low = document.getElementById('cvb-h-low');
-    if (low) low.hidden = (D.credit >= h.min);
+    if (low) low.hidden = (D.credit >= startMinimum);
 
     var bill = document.getElementById('cvb-bill');
     if (bill) bill.classList.toggle('is-hourly', hourly);
