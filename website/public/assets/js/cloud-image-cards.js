@@ -80,19 +80,20 @@
         var items=[];
         options().forEach(function(option){
           var item=el('button','cvb-version-option'); item.type='button'; item.tabIndex=-1;
-          item.disabled=option.disabled; item.setAttribute('aria-disabled',option.disabled?'true':'false');
+          item.setAttribute('aria-disabled',option.disabled?'true':'false');
+          if(option.disabled&&option.title)item.setAttribute('data-choice-hint',option.title);
           item.setAttribute('role','option'); item.setAttribute('aria-selected',option.value===select.value?'true':'false');
           item.appendChild(icon('check','cvb-version-option-check'));
           item.appendChild(el('span','',option.text));
           item.addEventListener('click',function(){
-            closeVersionMenu(false);
             // An old popup must not bypass a plan change that disabled its option.
             if (option.disabled||option.hidden||select.disabled) return;
+            closeVersionMenu(false);
             select.value=option.value;
             select.dispatchEvent(new doc.defaultView.Event('change',{bubbles:true}));
             button.focus();
           });
-          popup.appendChild(item); if (!item.disabled) items.push(item);
+          popup.appendChild(item); items.push(item);
         });
         if (!items.length) return;
         // A body-level popup escapes card overflow and inline-size containment.
@@ -217,7 +218,8 @@
           option.hidden=false; option.disabled=!can;
           var original=card.items.find(function(item){return item.input.value===option.value;});
           var reason=original && original.source.querySelector('.cvb-choice-reason');
-          option.text=original.info.version + (!can && reason && reason.textContent ? ' — '+reason.textContent : '');
+          option.text=original.info.version;
+          option.title=!can && reason ? reason.textContent : '';
         });
         var remembered=available.find(function(item){return item.input.value===card.select.value;});
         var current=selected || remembered || available[0];

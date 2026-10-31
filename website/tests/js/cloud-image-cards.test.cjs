@@ -99,7 +99,7 @@ test('animated popup exposes disabled incompatible versions and submits the orig
   assert.equal(menu.parentElement,dom.window.document.body);
   assert.equal(trigger.getAttribute('aria-expanded'),'true');
   assert.deepEqual([...menu.querySelectorAll('[role="option"]')].map(n=>n.textContent),['26.04','24.04','22.04']);
-  assert.equal(menu.querySelector('[role="option"]').disabled,true);
+  assert.equal(menu.querySelector('[role="option"]').getAttribute('aria-disabled'),'true');
   menu.querySelectorAll('[role="option"]')[2].click();
   assert.equal(dom.window.document.querySelector('[role="listbox"]'),null);
   assert.equal(trigger.getAttribute('aria-expanded'),'false');
@@ -112,7 +112,10 @@ test('keyboard navigation, Escape, outside click and plan refresh close the popu
   const doc=dom.window.document, trigger=form.querySelector('.cvb-version-trigger');
   const key=(target,value)=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true}));
   key(trigger,'ArrowDown');
-  assert.equal(doc.activeElement.textContent,'24.04');
+  assert.equal(doc.activeElement.textContent,'26.04');
+  assert.equal(doc.activeElement.getAttribute('aria-disabled'),'true');
+  doc.activeElement.click();
+  assert.deepEqual(new dom.window.FormData(form).getAll('image'),['u24']);
   key(doc.activeElement,'End');
   assert.equal(doc.activeElement.textContent,'22.04');
   key(doc.activeElement,'Escape');
@@ -137,9 +140,9 @@ test('disabled source radios stay visible with reasons and cannot be selected by
   const reason=form.ownerDocument.createElement('small');reason.className='cvb-choice-reason';reason.textContent='Requires 4096 MB RAM';row.appendChild(reason);
   cards.refresh();
   const option=form.querySelector('.cvb-image-version [value="u22"]');
-  assert.equal(option.hidden,false);assert.equal(option.disabled,true);assert.match(option.textContent,/4096/);
+  assert.equal(option.hidden,false);assert.equal(option.disabled,true);assert.equal(option.textContent,'22.04');assert.match(option.title,/4096/);
   form.querySelector('.cvb-version-trigger').click();
-  const disabled=[...form.ownerDocument.querySelectorAll('.cvb-version-option')].find(o=>o.textContent.includes('4096'));
-  assert.equal(disabled.disabled,true);disabled.click();
+  const disabled=[...form.ownerDocument.querySelectorAll('.cvb-version-option')].find(o=>o.getAttribute('data-choice-hint')?.includes('4096'));
+  assert.equal(disabled.getAttribute('aria-disabled'),'true');disabled.focus();assert.equal(form.ownerDocument.activeElement,disabled);disabled.click();
   assert.equal(row.querySelector('input').checked,false);
 });

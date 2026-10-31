@@ -74,17 +74,14 @@ class CloudPublicPageTest extends TestCase
         $this->get('/cloud/de-falkenstein')->assertOk()->assertDontSee('billing_mode=hourly');
     }
 
-    public function test_bare_metal_cards_never_advertise_hourly_purchase(): void
+    public function test_bare_metal_is_not_advertised_as_a_vps_country_offer(): void
     {
         $this->seedCatalog();
         foreach (CloudPlan::where('location_code', 'de-falkenstein')->get() as $plan) {
             $plan->update(['slug' => 'cbm-'.$plan->slug]);
         }
-        $response = $this->get('/cloud/de-falkenstein')->assertOk();
-        foreach ($response->viewData('rows') as $row) {
-            $this->assertNull($row['hourly_buy_url']);
-        }
-        $response->assertDontSee('billing_mode=hourly');
+        $this->get('/cloud/de-falkenstein')->assertStatus(301)->assertRedirect('/vps/germany');
+        $this->get('/vps/germany')->assertOk()->assertViewHas('vpsRows', []);
     }
 
     public function test_lightnode_card_uses_its_hourly_quote_instead_of_dividing_the_monthly_price(): void
@@ -128,14 +125,13 @@ class CloudPublicPageTest extends TestCase
         }
     }
 
-    public function test_manual_location_label_is_preserved_in_country_seo_copy(): void
+    public function test_manual_city_label_does_not_create_another_country_landing_page(): void
     {
         $this->seedCatalog();
         CloudLocation::where('code', 'ae-dubai')->update(['label_en' => 'Emirates Test Location']);
-        $html = $this->get('/en/cloud/ae-dubai')->assertOk()->getContent();
-        $this->assertStringContainsString('<h1>Emirates Test Location VPS hosting</h1>', $html);
-        $this->assertStringContainsString('Emirates Test Location VPS Hosting | Current Plans', $html);
-        $this->assertStringContainsString('id="country-selection-styles"', explode('</head>', $html)[0]);
+        $this->get('/en/cloud/ae-dubai')->assertStatus(301)->assertRedirect('/en/vps/uae');
+        $this->get('/en/vps/uae')->assertOk()->assertSee('UAE VPS hosting')
+            ->assertDontSee('Emirates Test Location VPS hosting');
     }
 
     protected function setUp(): void
@@ -419,7 +415,7 @@ class CloudPublicPageTest extends TestCase
     {
         $this->seedCatalog();
 
-        foreach (['/cloud', '/en/cloud', '/tr/cloud', '/cloud/de-falkenstein', '/en/cloud/de-falkenstein'] as $url) {
+        foreach (['/cloud', '/en/cloud', '/tr/cloud', '/vps/germany', '/en/vps/germany'] as $url) {
             $main = $this->mainOf($this->get($url)->assertOk()->getContent());
 
             foreach (['hetzner', 'aeza', 'cx22', 'ccx13', 'fsn1', 'hel1', 'provider_ref', 'cost_eur_cents'] as $secret) {
@@ -548,8 +544,8 @@ class CloudPublicPageTest extends TestCase
     {
         $this->seedCatalog();
 
-        $de = $this->mainOf($this->get('/cloud/de-falkenstein')->assertOk()->getContent());
-        $ae = $this->mainOf($this->get('/cloud/ae-dubai')->assertOk()->getContent());
+        $de = $this->mainOf($this->get('/vps/germany')->assertOk()->getContent());
+        $ae = $this->mainOf($this->get('/vps/uae')->assertOk()->getContent());
 
         $this->assertStringContainsString('نوع CPU، هزینه و زمان پاسخ', $de);
         $this->assertStringContainsString('فروشگاه یا API با کاربران امارات', $ae);
@@ -609,18 +605,12 @@ class CloudPublicPageTest extends TestCase
     }
 
     /** مکانی که پلنِ فروختنی ندارد: صفحه بالا بیاید، ولی جدولِ خالیِ آبرومند */
-    public function test_location_without_sellable_plans_renders_gracefully(): void
+    public function test_city_without_sellable_plans_redirects_to_the_country_empty_state(): void
     {
         $this->seedCatalog();
         CloudPlan::where('location_code', 'us-ashburn')->update(['in_stock' => false]);
-
-        $res = $this->get('/cloud/us-ashburn');
-        $res->assertOk();
-        $main = $this->mainOf($res->getContent());
-
-        $this->assertRenderIsClean($main);
-        $this->assertStringContainsString('پلنِ آماده‌ای در این مکان نداریم', $main);
-        $this->assertStringContainsString('همهٔ مکان‌ها', $main);
+        $this->get('/cloud/us-ashburn')->assertStatus(301)->assertRedirect('/vps/usa');
+        $this->get('/vps/usa')->assertOk()->assertSee(__('vps-catalog.unavailable'));
     }
 
     // ═══════════════════════ ۵) لینکِ خرید ═══════════════════════
