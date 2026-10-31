@@ -144,7 +144,6 @@ class AuditReportShareTest extends TestCase
 
     public function test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery(): void
     {
-        $this->withoutExceptionHandling();
         Mail::fake();
         $report = $this->report('revoked.example');
         $contact = OutreachContact::create([
@@ -183,7 +182,6 @@ class AuditReportShareTest extends TestCase
 
     public function test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact(): void
     {
-        $this->withoutExceptionHandling();
         Mail::fake();
         $expired = $this->report('expired.example');
         $expired->forceFill(['expires_at' => now()->subMinute()])->save();
