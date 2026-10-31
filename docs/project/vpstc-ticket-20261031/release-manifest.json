@@ -1,7 +1,7 @@
 {
   "release": "vpstc-ticket-154596-20261031",
   "base_ref": "develop",
-  "base_sha": "fc68971351fd17f2f5e18a3852f000108e56531a",
+  "base_sha": "664873077150d146f684aafae786ce10d3c02192",
   "status": "prepared_not_installed",
   "live_snapshot_required": true,
   "files": [
@@ -54,5 +54,6 @@
       "after_sha256": "01b45bce9f2f1d654e2f2a6be53d4208ccc6ae10ce2182afe4880bce4b8f1c6f",
       "operation": "replace_after_live_hash_reconciliation"
     }
-  ]
+  ],
+  "initial_base_sha": "fc68971351fd17f2f5e18a3852f000108e56531a"
 }
