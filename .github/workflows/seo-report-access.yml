@@ -102,7 +102,7 @@ jobs:
               tail -n 120 /tmp/seo-report-access-phpunit.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            diagnostic=$(grep -E '^(There was|There were|[0-9]+\)|FAILURES!|Tests:)|Route \[|SQLSTATE|Exception:|Error:|Expected response|Failed asserting|Undefined|Call to ' /tmp/seo-report-access-phpunit.log | tail -n 80 || true)
+            diagnostic=$(grep -Ei '^(There was|There were|[0-9]+\)|FAILURES!|WARNINGS!|Tests:)|warning|triggered|deprecated|Route \[|SQLSTATE|Exception:|Error:|Expected response|Failed asserting|Undefined|Call to ' /tmp/seo-report-access-phpunit.log | tail -n 80 || true)
             if [ -z "$diagnostic" ]; then
               diagnostic=$(tail -n 120 /tmp/seo-report-access-phpunit.log)
             fi
