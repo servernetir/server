@@ -16,7 +16,7 @@
 --}}
 @php
   $cyReady = collect($cryptoAssets)->filter(fn ($s) => $s['state'] !== \App\Services\Payment\CryptoIssuer::BUSY);
-  $cyDefault = $cyReady->keys()->first();
+  $cyDefault = $cyReady->has('USDT_BEP20') ? 'USDT_BEP20' : $cyReady->keys()->first();
 @endphp
 <div class="pm-pane cyx" id="pane-crypto" @unless($cryptoOpen) hidden @endunless>
   <div class="pm-pane-h"><b>{{ __('ui.inv_crypto_pane') }}</b></div>
@@ -128,7 +128,7 @@
           <option value="{{ $code }}" @selected($code === $cyDefault) @disabled($busy)
                   data-asset="{{ $spec['asset'] }}" data-net="{{ $spec['network'] }}" data-window="{{ $spec['window'] }}"
                   data-est="{{ $spec['estimate'] ?? '' }}" data-busy="{{ $busy ? '1' : '' }}">
-            {{ $spec['label'] }}{{ $busy ? ' · '.__('ui.cy_busy') : '' }}
+            {{ $spec['label'] }}{{ $code === 'USDT_BEP20' ? ' · '.__('ui.cy_recommended') : '' }}{{ $busy ? ' · '.__('ui.cy_busy') : '' }}
           </option>
         @endforeach
       </select>
@@ -145,7 +145,7 @@
                 @if($busy) aria-disabled="true" @endif tabindex="-1">
               <span class="cyx-opt-main">
                 @include('account.partials.crypto-coin', ['code' => $spec['asset'], 'size' => 30])
-                <span class="cyx-opt-t"><b dir="ltr">{{ $spec['asset'] }}</b><small dir="ltr">{{ $spec['network'] }}</small></span>
+                <span class="cyx-opt-t"><b dir="ltr">{{ $spec['asset'] }}</b><small dir="ltr">{{ $spec['network'] }}@if($code === 'USDT_BEP20') · <span dir="auto">{{ __('ui.cy_recommended') }}</span>@endif</small></span>
               </span>
               @if($busy)
                 <span class="cyx-opt-busy">{{ __('ui.cy_busy') }}</span>

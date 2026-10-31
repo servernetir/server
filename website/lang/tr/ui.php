@@ -2714,6 +2714,7 @@ return [
     'cy_not_payable' => 'Bu fatura ödenebilir değil.',
     'cy_busy' => 'Geçici olarak kullanılamıyor',
     'cy_busy_hint' => 'Tüm alım adresleri şu anda kullanımda — lütfen birkaç dakika sonra tekrar deneyin.',
+    'cy_recommended' => 'Önerilen',
     'cy_choose_coin' => 'Ödeme para birimi ve ağı',
     'cy_invoice_amount' => 'Fatura tutarı',
     'cy_approx_label' => 'Yaklaşık karşılığı',
