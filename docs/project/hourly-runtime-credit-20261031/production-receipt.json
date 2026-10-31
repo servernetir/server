@@ -1,6 +1,6 @@
 {
-  "status": "billing_production_verified_gpu_checkout_cleanup_pending",
-  "verified_utc": "2026-10-31T09:30:36+00:00",
+  "status": "production_verified",
+  "verified_utc": "2026-10-31T09:55:56.582737+00:00",
   "pull_requests": {
     "billing": 171,
     "review_fixes": 185,
@@ -24,8 +24,8 @@
       "utc": "2026-10-31T09:29:05+00:00"
     },
     "natural_meter": {
-      "finished_at": "2026-10-31T09:30:34+00:00",
-      "last_success_at": "2026-10-31T09:30:34+00:00",
+      "finished_at": "2026-10-31T09:55:33+00:00",
+      "last_success_at": "2026-10-31T09:55:33+00:00",
       "errors": 0,
       "pending": 0
     },
@@ -41,7 +41,43 @@
     "migrations_run": 0,
     "cron_changed": false,
     "temporary_public_helpers_removed": true,
-    "restart_debits_during_review_window": 0
+    "restart_debits_during_review_window": 0,
+    "checkout_activation": {
+      "activated": true,
+      "cached_files_invalidated": 0,
+      "utc": "2026-10-31T09:50:34+00:00"
+    },
+    "policy_rendering": {
+      "fa": {
+        "gpu_fixed_suspend": true,
+        "gpu_selector_absent": true,
+        "gpu_policy_visible": true,
+        "vps_selector_present": true
+      },
+      "en": {
+        "gpu_fixed_suspend": true,
+        "gpu_selector_absent": true,
+        "gpu_policy_visible": true,
+        "vps_selector_present": true
+      },
+      "tr": {
+        "gpu_fixed_suspend": true,
+        "gpu_selector_absent": true,
+        "gpu_policy_visible": true,
+        "vps_selector_present": true
+      }
+    },
+    "language_policy_unchanged": {
+      "fa": true,
+      "en": true,
+      "tr": true
+    },
+    "concurrent_translation_changes_preserved": [
+      "lang/fa/ui.php",
+      "lang/en/ui.php",
+      "lang/tr/ui.php"
+    ],
+    "review_window_check_utc": "2026-10-31T09:22:17+00:00"
   },
   "tests": {
     "focused": {
@@ -69,69 +105,86 @@
   "verified_runtime_files": [
     {
       "path": "app/Services/Cloud/HourlyGpuStart.php",
-      "sha256": "59458498551ed5fa9e88673fbcb258effdb0816076050349e5d3fb6a0e998019"
+      "sha256": "59458498551ed5fa9e88673fbcb258effdb0816076050349e5d3fb6a0e998019",
+      "verification_basis": "release_hash"
     },
     {
       "path": "app/Services/Cloud/HourlyHold.php",
-      "sha256": "cd9e77e5a898df17459617676b9d6d766473050997eb9a3d0b20c4d954a9f02a"
+      "sha256": "cd9e77e5a898df17459617676b9d6d766473050997eb9a3d0b20c4d954a9f02a",
+      "verification_basis": "release_hash"
     },
     {
       "path": "app/Services/Cloud/InterruptibleBillingClock.php",
-      "sha256": "e6329dd78251cc06411bcc27e07e07a712e8804f4a0f2d72ab01051708a2f3c3"
+      "sha256": "e6329dd78251cc06411bcc27e07e07a712e8804f4a0f2d72ab01051708a2f3c3",
+      "verification_basis": "release_hash"
     },
     {
       "path": "app/Services/Cloud/HourlyCycleConverter.php",
-      "sha256": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9"
+      "sha256": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9",
+      "verification_basis": "release_hash"
     },
     {
       "path": "app/Services/Cloud/GpuCapacityOrders.php",
-      "sha256": "73835fc2d086c05f1e923cae71fc65eb183aaa6fc33a9359ae8e81305ee09fa5"
+      "sha256": "73835fc2d086c05f1e923cae71fc65eb183aaa6fc33a9359ae8e81305ee09fa5",
+      "verification_basis": "release_hash"
     },
     {
       "path": "app/Http/Controllers/Account/CloudServerController.php",
-      "sha256": "80d2df67d7c3db8f2781bfa6695ba0c828fa477bb30d020539855b8bfb9f5ba7"
+      "sha256": "80d2df67d7c3db8f2781bfa6695ba0c828fa477bb30d020539855b8bfb9f5ba7",
+      "verification_basis": "release_hash"
     },
     {
       "path": "app/Http/Controllers/Account/CloudStoreController.php",
-      "sha256": "a68687c633fd6d6fffd32c34019ef9b2d0df8c2bab54be90bf7bed40312a959d"
+      "sha256": "a68687c633fd6d6fffd32c34019ef9b2d0df8c2bab54be90bf7bed40312a959d",
+      "verification_basis": "release_hash"
     },
     {
       "path": "app/Console/Commands/CloudMeterHourly.php",
-      "sha256": "9f81ebde0d18b312188ae60c0dd0493081a05e7b677d94a5bddc554b9fa3ac5e"
+      "sha256": "9f81ebde0d18b312188ae60c0dd0493081a05e7b677d94a5bddc554b9fa3ac5e",
+      "verification_basis": "release_hash"
     },
     {
       "path": "lang/fa/ui.php",
-      "sha256": "ef9e092c58b55524682820edbf6ce940e260cd86035fc71107a2798d18d56adf"
+      "sha256": "0fbc841a3ff9e8970eb9325985f79dfa255d54bc21d1871f34c910775c48523d",
+      "verification_basis": "policy_keys_unchanged_after_concurrent_release"
     },
     {
       "path": "lang/en/ui.php",
-      "sha256": "1822f146554fca7b2d914630824ead688e3ed771f9d836ec19610fd79f88401e"
+      "sha256": "ccb46ad776c1e18106545a08ec3f7b5587492f90c805d395c20e1b024598366f",
+      "verification_basis": "policy_keys_unchanged_after_concurrent_release"
     },
     {
       "path": "lang/tr/ui.php",
-      "sha256": "93dd927ae742e2419923397fb4057f7c9d34849437cbc815ecf656e285935f3d"
+      "sha256": "6e5f8b4b4131f35ea6daa0beb29d4d4e7a0e82dd2fcad1d091fcd0ebacb016ff",
+      "verification_basis": "policy_keys_unchanged_after_concurrent_release"
     },
     {
       "path": "resources/views/account/cloud-store.blade.php",
-      "sha256": "55d56e30494818967e217bfcec522a4f60e96ffe86c4ffa425beccc8cc27b627"
+      "sha256": "18ac80f3d473296deb1fd1017a80a9e8b935e325fd047b12ccd92da53dc37b12",
+      "verification_basis": "release_hash"
     },
     {
       "path": "resources/views/account/cloud-server.blade.php",
-      "sha256": "a11a8ebd3da182704c1df2754b4466b13a76a261e1037bc646a895a4dc50c5d4"
+      "sha256": "a11a8ebd3da182704c1df2754b4466b13a76a261e1037bc646a895a4dc50c5d4",
+      "verification_basis": "release_hash"
     }
   ],
-  "pending": {
+  "pending": null,
+  "rollback": "Reverse the four-file review-fix release before reversing the initial 13-file release, with matching installed hashes and both shared locks. Do not roll back ledger data.",
+  "resolved_deployment_blocker": {
     "scope": "GPU checkout selector simplification only",
     "source": "397642cfec9deec4451489d39979fde202255138",
     "pull_request": 186,
     "files": [
       "resources/views/account/cloud-store.blade.php"
     ],
-    "state": "merged_planned_compiled_not_installed",
-    "application_writes": 0,
-    "public_helper_created": false,
+    "state": "resolved_installed_compiled_activated_verified",
+    "application_writes": 1,
+    "public_helper_created": true,
     "reason": "cPanel HTTP connection closed and Terminal WebSocket handshake failed before the UI-only apply step",
-    "private_stage": "/home/servernetcloud/hourly-gpu-copy-release-20261031"
-  },
-  "rollback": "Reverse the four-file review-fix release before reversing the initial 13-file release, with matching installed hashes and both shared locks. Do not roll back ledger data."
+    "private_stage": "/home/servernetcloud/hourly-gpu-copy-release-20261031",
+    "activation_utc": "2026-10-31T09:50:34+00:00",
+    "resolution": "Owner-provided authenticated cPanel session restored access. The existing private plan passed its original hash precondition; unrelated translation edits were preserved.",
+    "public_helper_removed": true
+  }
 }
