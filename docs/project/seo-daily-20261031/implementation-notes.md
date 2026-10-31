@@ -52,4 +52,3 @@ The initial script flagged unordered PowerShell dictionary key serialization for
 No paid AI request, real purchase, session/account operation, price/availability mutation, GSC submission or analytics event was executed. HTTP/returned HTML does not establish mobile layout, Google indexing, ranking, traffic uplift or a calculation-quality improvement. Only the two Blade files are a production payload; tests and these notes are not.
 
 Rollback is a scoped reversal of the two link additions, with the parent's live before/after guards. Preserve any newer unrelated edits. No database rollback or cache-wide flush is required by this change.
-

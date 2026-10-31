@@ -11,4 +11,3 @@ Read-only bounded audit: **52 public GET requests** (robots, two sitemaps and 49
 Returned HTML/JSON parsing is not a full schema eligibility validator, rendered mobile audit, exhaustive cross-page link crawl, Google URL Inspection or purchase/analytics acceptance. CTA query values were omitted from saved samples. No raw HTML, cookies or authentication headers were saved. No new public defect here justifies a production edit; continue the existing Dubai catalogue, mobile LCP and indexing cohorts through their scoped investigations.
 
 Evidence: `public-health.json`. The public sitemap/robots input URL lists and read-only audit scripts remain in the local working `output/seo-20261031/` directory, outside this durable evidence package. This weekly public-audit subtask changed no tracked source or external state; the separately documented later AI release is covered by `release-manifest.json`. No rollback was required by the audit.
-
