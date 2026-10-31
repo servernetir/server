@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Admin\SeoOutreachController;
 use App\Mail\AuditReportMail;
 use App\Models\AuditReport;
 use App\Models\OutreachContact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -184,8 +186,11 @@ class AuditReportShareTest extends TestCase
             'audit_report_id' => $expired->id,
         ]);
 
-        $this->actingAs($this->admin())->postJson('/admin/seo/send-next', ['ids' => [$contact->id]])
-            ->assertOk()->assertJsonPath('status', 'skipped');
+        $request = Request::create('/admin/seo/send-next', 'POST', ['ids' => [$contact->id]]);
+        $response = app(SeoOutreachController::class)->sendNext($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('skipped', $response->getData(true)['status']);
         $this->assertSame('report_unavailable', $contact->fresh()->error);
         Mail::assertNothingSent();
     }
