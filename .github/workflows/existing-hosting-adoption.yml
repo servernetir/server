@@ -8,6 +8,7 @@ on:
       - 'website/resources/views/**'
       - 'website/lang/**'
       - 'website/tests/Feature/ExistingHostingAdoptionTest.php'
+      - 'website/tests/Feature/AccountSectionsTest.php'
       - '.github/workflows/existing-hosting-adoption.yml'
 
 permissions:
@@ -78,3 +79,5 @@ jobs:
         run: vendor/bin/phpunit --testdox tests/Feature/ExistingHostingAdoptionTest.php
       - name: Run normal invoicing and provisioning regressions
         run: vendor/bin/phpunit --testdox tests/Feature/AdminServiceTest.php tests/Feature/ProvisioningTest.php
+      - name: Run focused recorded storage connection rendering cases
+        run: vendor/bin/phpunit --testdox --filter 'test_recorded_storage_|test_storage_connection_' tests/Feature/AccountSectionsTest.php
