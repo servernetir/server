@@ -3155,7 +3155,9 @@
           "type": "object",
           "properties": {
             "national_code": {
-              "type": "string"
+              "type": "string",
+              "maxLength": 11,
+              "minLength": 10
             },
             "nationality_type": {
               "type": "integer"
@@ -3229,7 +3231,7 @@
     "contract_blocker": null,
     "catalog_price_unverified": 91000,
     "source": "https://service.zohal.io/api/v0/services/openapi/",
-    "checked_at": "2026-10-17",
+    "checked_at": "2026-10-31",
     "account_access": "active_in_dashboard_2026-10-17",
     "postman_source": null
   },

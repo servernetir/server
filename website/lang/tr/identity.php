@@ -283,4 +283,8 @@ return [
     'workspace_input_separated' => 'Ayrıştırma parametresi',
     'workspace_input_type' => 'İstek türü',
     'workspace_input_website' => 'Web sitesi adresi',
+    'control_price_sync_enabled' => 'Onaylı ve değişmeyen tarifeleri otomatik yenile',
+    'price_sync_help' => 'Genel fiyatlar altı saatte bir kontrol edilir. Yalnızca açık, onaylı, taban fiyatı değişmeyen ve 48 saatten az süresi kalan hizmetler için 30 günlük yeni fiyat sürümü oluşturulur. Değişen fiyatlar, yeni hizmetler ve sıfır fiyatlar yönetici incelemesi gerektirir. Hesap erişimi yeniden doğrulanmaz.',
+    'price_sync_observed' => 'Son tarife gözlemi',
+    'price_sync_review' => 'İnceleme gerekiyor',
 ];

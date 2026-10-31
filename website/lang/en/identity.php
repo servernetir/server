@@ -283,4 +283,8 @@ return [
     'workspace_input_separated' => 'Separation parameter',
     'workspace_input_type' => 'Request type',
     'workspace_input_website' => 'Website URL',
+    'control_price_sync_enabled' => 'Automatically renew unchanged approved tariffs',
+    'price_sync_help' => 'Every six hours, public rates are checked. Only enabled services with approved, unchanged base rates and less than 48 hours remaining receive a new 30-day price version. Changed rates, new services and zero prices require operator review. Account access is not reverified.',
+    'price_sync_observed' => 'Last tariff observation',
+    'price_sync_review' => 'Needs review',
 ];
