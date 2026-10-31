@@ -1,0 +1,73 @@
+{
+  "base_sha": "664873077150d146f684aafae786ce10d3c02192",
+  "php": "8.4.27",
+  "dependencies": "composer.lock, no update",
+  "database": "isolated SQLite",
+  "network": "fake provider HTTP, preventStrayRequests",
+  "suites": {
+    "baseline": {
+      "tests": 238,
+      "assertions": 1915,
+      "failures": 0,
+      "errors": 0
+    },
+    "final": {
+      "result": "passed",
+      "tests": 260,
+      "passed": 260,
+      "assertions": 2383,
+      "duration_ms": 16881
+    },
+    "related-final": {
+      "result": "failed",
+      "tests": 62,
+      "passed": 53,
+      "assertions": 785,
+      "duration_ms": 5168,
+      "failed": 9,
+      "failed_test_names": [
+        "Tests\\Feature\\CloudPlanTableTest::test_every_sellable_plan_appears",
+        "Tests\\Feature\\CloudPlanTableTest::test_many_plans_render_as_a_table",
+        "Tests\\Feature\\CloudPlanTableTest::test_each_row_links_straight_to_checkout_with_its_plan",
+        "Tests\\Feature\\CloudPlanTableTest::test_plans_differing_only_in_architecture_are_both_shown",
+        "Tests\\Feature\\CloudPlanTableTest::test_plans_differing_only_in_traffic_are_both_shown",
+        "Tests\\Feature\\CloudPlanTableTest::test_identical_plans_from_two_providers_collapse_to_one_row",
+        "Tests\\Feature\\CloudPlanTableTest::test_unsellable_plans_stay_out",
+        "Tests\\Feature\\CloudPlanTableTest::test_admin_on_sale_filter_means_actually_sellable",
+        "Tests\\Feature\\CloudPlanTableTest::test_admin_country_and_state_filters_combine"
+      ]
+    },
+    "extra-baseline": {
+      "result": "failed",
+      "tests": 23,
+      "passed": 14,
+      "assertions": 417,
+      "duration_ms": 3322,
+      "failed": 9,
+      "failed_test_names": [
+        "Tests\\Feature\\CloudPlanTableTest::test_every_sellable_plan_appears",
+        "Tests\\Feature\\CloudPlanTableTest::test_many_plans_render_as_a_table",
+        "Tests\\Feature\\CloudPlanTableTest::test_each_row_links_straight_to_checkout_with_its_plan",
+        "Tests\\Feature\\CloudPlanTableTest::test_plans_differing_only_in_architecture_are_both_shown",
+        "Tests\\Feature\\CloudPlanTableTest::test_plans_differing_only_in_traffic_are_both_shown",
+        "Tests\\Feature\\CloudPlanTableTest::test_identical_plans_from_two_providers_collapse_to_one_row",
+        "Tests\\Feature\\CloudPlanTableTest::test_unsellable_plans_stay_out",
+        "Tests\\Feature\\CloudPlanTableTest::test_admin_on_sale_filter_means_actually_sellable",
+        "Tests\\Feature\\CloudPlanTableTest::test_admin_country_and_state_filters_combine"
+      ]
+    },
+    "synchronized_final": {
+      "result": "passed",
+      "tests": 260,
+      "passed": 260,
+      "assertions": 2383,
+      "duration_ms": 15662
+    }
+  },
+  "php_lint_changed_files": 10,
+  "production_installed": false,
+  "native_billing_fixes_verified": false,
+  "live_report": "account_read_failed; old installed preflight does not disclose its specific cause",
+  "blocked_action": "cPanel browser access rejected by automatic security review; no workaround attempted",
+  "initial_base_sha": "fc68971351fd17f2f5e18a3852f000108e56531a"
+}

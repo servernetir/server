@@ -383,7 +383,20 @@ class CloudPlan extends Model
             };
         }
         if ($this->provider === 'vpstc') {
-            if (($this->network_terms['charge_mode'] ?? '') === 'unconfirmed') {
+            $terms = (array) $this->network_terms;
+            if (($terms['charge_mode'] ?? '') === 'throttled' && ($terms['extra_charges'] ?? null) === false
+                && ($terms['counting'] ?? '') === 'combined' && ($terms['period'] ?? '') === 'monthly'
+                && $this->traffic_gb > 0 && is_int($terms['overuse_mbps'] ?? null)
+                && $terms['overuse_mbps'] > 0 && $terms['overuse_mbps'] <= 100000) {
+                $speed = $terms['overuse_mbps'];
+                return match ($locale) {
+                    'en' => $this->traffic_gb.' GB/month total in + out; then approx. '.$speed.' Mbit/s; no metered overage fee',
+                    'tr' => $this->traffic_gb.' GB/ay toplam gelen + giden; sonra yaklaşık '.$speed.' Mbit/sn; aşım ücreti yok',
+                    default => fa_num($this->traffic_gb).' گیگابایت ماهانه مجموع رفت‌وبرگشت؛ سپس حدود '.fa_num($speed).' مگابیت؛ بدون هزینهٔ مصرف مازاد',
+                };
+            }
+            if (! in_array($terms['charge_mode'] ?? '', ['hard_cap', 'unmetered'], true)
+                || ($terms['extra_charges'] ?? null) !== false) {
                 return match ($locale) {
                     'en' => $this->traffic_gb.' GB included; extra traffic by arrangement',
                     'tr' => $this->traffic_gb.' GB dahil; ek trafik için iletişime geçin',

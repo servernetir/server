@@ -2,6 +2,15 @@
 .vpstc-intro{padding:0 18px 18px;color:var(--muted);line-height:2}.vpstc-form{padding:0 18px 20px;display:grid;gap:16px}.vpstc-form label{display:grid;gap:8px}.vpstc-form input,.vpstc-form select{box-sizing:border-box;width:100%;padding:11px 13px;border:1px solid var(--line,#334155);border-radius:10px;background:var(--bg,#0f172a);color:inherit}.vpstc-form small{color:var(--muted);line-height:1.9}.vpstc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px}.vpstc-alert{padding:14px 18px;margin-bottom:16px;border:1px solid #64748b;border-radius:12px;line-height:2}.vpstc-report{padding:0 18px 18px;line-height:2}.vpstc-report dt{color:var(--muted)}.vpstc-report dd{margin:0 0 8px;overflow-wrap:anywhere}.vpstc-table-wrap{overflow-x:auto;margin:16px 0}.vpstc-table{border-collapse:collapse;width:100%;min-width:640px;text-align:start}.vpstc-table th,.vpstc-table td{padding:10px 12px;border-bottom:1px solid var(--line,#334155);vertical-align:top}.vpstc-table th{color:var(--muted)}.vpstc-table td{overflow-wrap:anywhere}.vpstc-warning{color:#fbbf24}
 </style>
 <div class="vpstc-alert">VPS.TC — {{ !empty($vpstcSalesEnabled) ? 'فروش ماهانه فعال است.' : 'فروش تازه بسته است؛ اتصال و قرارداد کاتالوگ را تکمیل کنید.' }} فروش ساعتی پشتیبانی نمی‌شود.</div>
+<div class="ad-panel">
+  <div class="ad-panel-h"><h2>کنترل تمدید و قرارداد تأمین‌کننده</h2></div>
+  <div class="vpstc-intro">
+    <p>طبق تیکت ۱۵۴۵۹۶، پس از هر خرید تازه باید Service Auto Renewal همان سرویس در پورتال خاموش و بررسی شود؛ API برای خاموش‌کردن آن یا پیش‌فرض خاموشِ سفارش‌های جدید مسیری ندارد. Auto-apply credit خاموش، قفل برداشت نیست؛ درخواست صریح خرید یا پرداخت اعتبار همچنان می‌تواند موجودی را مصرف کند.</p>
+    <p>تمدید نامشخص را تکرار نکنید؛ ابتدا فاکتورها و سررسید بررسی شوند. پیکربندی فعلی محصول مرجع، تعلیق یک روز و حذف هفت روز پس از سررسید دارد. درخواست لغو به معنی خاتمهٔ تأییدشده نیست و سرویس‌ها یا فاکتورهای مستقل باید جدا بررسی شوند.</p>
+    <p>ترافیک محصول مرجع: ۲ ترابایت مجموع رفت‌وبرگشت در دورهٔ ماهانه؛ پس از سهمیه، کاهش سرعت به ۲ مگابایت در ثانیه، حدود ۱۶ مگابیت، بدون هزینهٔ مصرف مازاد. واحد دقیق بایت و ساعت بازنشانی هنوز تأیید نشده‌اند؛ این شرایط به سایر محصولات تعمیم داده نمی‌شوند. دو جایگاه اسنپ‌شات در بسته است و بکاپ صفر است؛ مسیرهای API اسنپ‌شات، بکاپ، آمار مصرف و کنسول نمایندگی تأیید نشده‌اند. نشست حساب مادر در اختیار مشتری قرار نگیرد.</p>
+    <p>اصلاح ارز و کارمزد، قیمت خام USD و نمایش TRY را یکسان نمی‌کند. قیمت نهایی پیش از برداشت هنوز قرارداد تضمین‌شده ندارد؛ فاکتور، ارز، مالیات، اعتبار مصرف‌شده و مبلغ ناخالص باید جدا تطبیق داده شوند.</p>
+  </div>
+</div>
 @if(session('success'))<div class="vpstc-alert" role="status">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="vpstc-alert" role="alert"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 <div class="ad-panel">
@@ -83,7 +92,8 @@
       <label for="vpstc-category">شناسهٔ دسته (اختیاری)<input id="vpstc-category" name="category_id" inputmode="numeric" pattern="[1-9][0-9]{0,17}" maxlength="18" dir="ltr"></label>
       <label for="vpstc-product">شناسهٔ محصول (اختیاری)<input id="vpstc-product" name="product_id" inputmode="numeric" pattern="[1-9][0-9]{0,17}" maxlength="18" dir="ltr"></label>
     </div>
-    <div><button type="submit" class="btn btn-glass">بررسی اتصال و کاتالوگ</button></div>
+    <div><button type="submit" class="btn btn-glass">بررسی اتصال و کاتالوگ</button> <button type="submit" class="btn btn-glass" name="billing_only" value="1">فقط بررسی ارز و کارمزد</button></div>
+    <small>بررسی ارز و کارمزد فقط اطلاعات حساب و روش‌های پرداخت را می‌خواند؛ کاتالوگ، سفارش و محاسبهٔ قیمت اجرا نمی‌شوند.</small>
   </form>
 </div>
 @if(is_array(session('vpstc_report')))
@@ -117,6 +127,7 @@
       'payment_fees_literal_array' => 'API کارمزد پرداخت را به‌جای عدد، عبارت Array برگردانده است',
       'payment_fee_amount_not_verified' => 'مبلغ کارمزد پرداخت قابل محاسبه نیست',
       'payment_fees_not_verified' => 'کارمزد روش پرداخت حساب تأیید نشده است',
+      'credit_payment_fee_not_free' => 'کارمزد صفر روش پرداخت از اعتبار تأیید نشد؛ خرید متوقف بماند',
       'order_product_mismatch' => 'شناسهٔ محصول فرم سفارش با درخواست همخوان نیست',
       'order_monthly_price_not_verified' => 'قیمت ماهانهٔ فرم سفارش معتبر نیست',
       'monthly_price_mismatch' => 'مبلغ ماهانه در فهرست و فرم سفارش ناسازگار است؛ تبدیل ارز حدس زده نمی‌شود',
@@ -140,7 +151,24 @@
   <div class="ad-panel">
     <div class="ad-panel-h"><h2>نتیجهٔ بررسی</h2></div>
     <div class="vpstc-report">
+      @if(($report['scope'] ?? '') === 'billing_only')
+        <p>{{ !empty($report['ok']) ? 'ارز پاسخ اصلی و کارمزد عددیِ صفرِ پرداخت از اعتبار تأیید شدند.' : 'اصلاح پاسخ ارز و کارمزد روی این حساب هنوز تأیید نشده است.' }}</p>
+      @else
       <p>{{ !empty($report['ok']) ? 'خواندن اطلاعات حساب و کاتالوگ موفق بود.' : (!empty($report['connection_ok']) ? 'اتصال حساب تأیید شد؛ بررسی کاتالوگ کامل نشد.' : 'اتصال هنوز تأیید نشده است.') }}</p>
+      @endif
+      @php
+        $accountReadLabels = [
+        'authentication_failed' => 'احراز هویت API موفق نبود؛ اتصال ذخیره‌شده بررسی شود.',
+        'access_denied' => 'API دسترسی این حساب را نپذیرفت.',
+        'redirect_rejected' => 'API به مقصد دیگری هدایت کرد؛ مبدأ اتصال بررسی شود.',
+        'rate_limited' => 'محدودیت تعداد درخواست API فعال شده است.',
+        'provider_error' => 'تأمین‌کننده خواندن حساب را کامل نکرد.',
+        'invalid_response' => 'ساختار پاسخ حساب یا مبلغ‌های آن معتبر نیست.',
+        'connection_failed' => 'ارتباط امن با API برقرار نشد.',
+        'not_configured' => 'اتصال API کامل تنظیم نشده است.',
+        ];
+      @endphp
+      @if(isset($accountReadLabels[$report['account_read_code'] ?? '']))<p>{{ $accountReadLabels[$report['account_read_code']] }}</p>@endif
       <p>این بررسی فروش را فعال نمی‌کند. مشاهدهٔ محصول به معنی تأیید قیمت، تحویل یا چرخهٔ صورتحساب نیست.</p>
       <dl class="vpstc-grid">
         <div><dt>زمان بررسی</dt><dd dir="ltr">{{ $report['checked_at'] ?? '—' }}</dd></div>

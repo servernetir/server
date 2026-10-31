@@ -1,0 +1,59 @@
+{
+  "release": "vpstc-ticket-154596-20261031",
+  "base_ref": "develop",
+  "base_sha": "664873077150d146f684aafae786ce10d3c02192",
+  "status": "prepared_not_installed",
+  "live_snapshot_required": true,
+  "files": [
+    {
+      "source_path": "website/app/Services/Cloud/VpsTcApi.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/VpsTcApi.php",
+      "expected_base_sha256": "1b5270b06f8f6854ba7e6ed719ddd15873f2cd2a076e4e6c9dbd42956c524b10",
+      "after_sha256": "ddb8c91f42c7e0aaab9220d97c6eaba21a1812056ce67b06f0d894bd59484573",
+      "operation": "replace_after_live_hash_reconciliation"
+    },
+    {
+      "source_path": "website/app/Services/Cloud/VpsTcCatalog.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/VpsTcCatalog.php",
+      "expected_base_sha256": "894e9be942c0b8dd48c2e7e9c73319dcf52c62f3a8411c3a4396dc5a82478cbc",
+      "after_sha256": "b62c66eb99e634dddc1086f4ac7cfc4eb7e6a2a4b2bb2eacf864e23d685ae71a",
+      "operation": "replace_after_live_hash_reconciliation"
+    },
+    {
+      "source_path": "website/app/Models/CloudPlan.php",
+      "destination_relative_to_home": "servernet_app/app/Models/CloudPlan.php",
+      "expected_base_sha256": "67199772176d3cc6b14f0a5aba563bb3583ee2721286ab4af6de03e1f2018697",
+      "after_sha256": "222cd769a97486d89b16ba2cd364f541587c325c187e4856a078c75a1625dcbf",
+      "operation": "replace_after_live_hash_reconciliation"
+    },
+    {
+      "source_path": "website/app/Services/Cloud/VpsTcPreflight.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/VpsTcPreflight.php",
+      "expected_base_sha256": "d457abbdfaf433268b8a43b1ced10699ff74fb3f461e438de62914105700547d",
+      "after_sha256": "6111da9024550717385fd8d590eed32fce9bd6e3e9e5cc0b8f239c7b4d226b69",
+      "operation": "replace_after_live_hash_reconciliation"
+    },
+    {
+      "source_path": "website/app/Console/Commands/VpsTcPreflight.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/VpsTcPreflight.php",
+      "expected_base_sha256": "d16be61766743073cc4a92eb4dfc9740ccdbd38ee93485d9e31325ab7169df2c",
+      "after_sha256": "4ae0f8fd3b2d6df0b948fcab9c44e89ed80736525017ef91ab075ad92f70b341",
+      "operation": "replace_after_live_hash_reconciliation"
+    },
+    {
+      "source_path": "website/app/Http/Controllers/Admin/VpsTcController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Admin/VpsTcController.php",
+      "expected_base_sha256": "a07a60b0e684b1f70401e30fddd934a8155545525a13fc2d81f332df68b35df8",
+      "after_sha256": "ec94d81c4ca725b1c211bce2eb65c8451660441e21793809cd9fbfccd44ec688",
+      "operation": "replace_after_live_hash_reconciliation"
+    },
+    {
+      "source_path": "website/resources/views/admin/partials/vpstc-settings-panel.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/partials/vpstc-settings-panel.blade.php",
+      "expected_base_sha256": "572bf6ccb312683bb121773e784376e9bc55ea931dbc0d438f66f09a0cc0ef16",
+      "after_sha256": "01b45bce9f2f1d654e2f2a6be53d4208ccc6ae10ce2182afe4880bce4b8f1c6f",
+      "operation": "replace_after_live_hash_reconciliation"
+    }
+  ],
+  "initial_base_sha": "fc68971351fd17f2f5e18a3852f000108e56531a"
+}

@@ -21,6 +21,38 @@ class VpsTcApiTest extends TestCase
         return new VpsTcApi('https://api.vps.tc', 'test-reseller', 'test-password');
     }
 
+    public function test_purchased_resources_use_the_supported_get_route_with_bearer_only(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/301/resources' => Http::response(['resources' => ['data_combined' => 2048]]),
+        ]);
+        $this->assertSame(2048, $this->api()->serviceResources('301')['data']['resources']['data_combined']);
+        Http::assertSent(fn (Request $r) => $r->url() === 'https://api.vps.tc/api/service/301/resources'
+            && $r->method() === 'GET' && $r->hasHeader('Authorization', 'Bearer fixture-token')
+            && ! str_contains($r->url(), '?'));
+        Http::assertSentCount(2);
+    }
+
+    public function test_known_unregistered_usage_and_console_routes_never_authenticate_or_probe(): void
+    {
+        $api = $this->api();
+        $this->assertSame('unsupported_usage', $api->vmUsage('301', '991')['code']);
+        $this->assertSame('unsupported_console', $api->console('301', '991')['code']);
+        $this->assertSame('invalid_id', $api->serviceResources('../301')['code']);
+        $this->assertSame('invalid_id', $api->vmUsage('301', '../991')['code']);
+        Http::assertNothingSent();
+    }
+
+    public function test_resources_rejects_a_usage_shape_instead_of_reporting_a_zero_allowance(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/301/resources' => Http::response(['usage' => ['data_combined' => 0]]),
+        ]);
+        $this->assertSame('invalid_response', $this->api()->serviceResources('301')['code']);
+    }
+
     public function test_management_offline_advisory_allows_billing_identity_but_never_service_readiness(): void
     {
         Http::fake([

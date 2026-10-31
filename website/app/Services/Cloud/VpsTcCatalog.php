@@ -9,10 +9,10 @@ use Brick\Math\RoundingMode;
 /**
  * Import only reviewed, account-bound monthly VPS contracts. Descriptions and
  * product names are not a machine-readable resource or traffic guarantee.
- * Acceptance also requires observed supplier billing behavior: manual renewal
- * must reuse an existing unpaid renewal invoice, and parent-service cancellation
- * must stop future charges. These manifest assertions record account-specific
- * evidence gathered before mapping. An explicit account/configuration-bound
+ * Acceptance requires account-specific billing evidence. Local renewal scans
+ * unpaid invoices and journals mutations; the supplier's own invoice lookup is
+ * not a concurrent-retry guarantee. Parent cancellation must stop future charges
+ * or remain explicitly pending. An account/configuration-bound
  * owner launch approval may separately accept pending commercial questions;
  * it must not turn unknown supplier behavior into a verified guarantee.
  */
@@ -168,10 +168,12 @@ class VpsTcCatalog
         }
         $freeFees = $this->sameAmount($fee['fixed_fee'] ?? null, '0', true)
             && $this->sameAmount($fee['percent_fee'] ?? null, '0', true);
-        $unknownArrayFees = ($fee['fixed_fee'] ?? null) === 'Array' && ($fee['percent_fee'] ?? null) === 'Array';
-        if (! $freeFees && ! $unknownArrayFees) { return null; }
+        // The supplier repaired these fields (ticket 154596, 30 October).
+        // A past zero-fee invoice or calculated quote cannot establish today's
+        // payment fee when either native field regresses to a malformed value.
+        if (! $freeFees) { return null; }
         $normalized = null;
-        $needsCalculation = ! $directPrices || ! $freeFees || ($mapping['included_quantities'] ?? []) !== []
+        $needsCalculation = ! $directPrices || ($mapping['included_quantities'] ?? []) !== []
             || collect($product['config']['forms'])->contains(fn ($form) =>
                 is_array($form) && ($form['type'] ?? null) === 'servergroupselector');
         foreach ($mapping['images'] as $image) {
@@ -289,9 +291,7 @@ class VpsTcCatalog
             || (! is_string($row['payment_method'] ?? null) && ! is_int($row['payment_method'] ?? null))
             || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) ($row['payment_method'] ?? ''))
             || ! is_array($row['images'] ?? null) || $row['images'] === []
-            || ((($row['network_terms']['extra_charges'] ?? null) !== false
-                || ! in_array($row['network_terms']['charge_mode'] ?? null, ['hard_cap', 'unmetered'], true))
-                && ! $this->commercialLaunchApproved($row))) {
+            || (! $this->verifiedNetworkTerms($row) && ! $this->commercialLaunchApproved($row))) {
             return false;
         }
         foreach (['vcpu', 'ram_mb', 'disk_gb'] as $key) {
@@ -318,10 +318,27 @@ class VpsTcCatalog
         return true;
     }
 
+    /** Reviewed terms describe this product only; throttling is not a hard volume cap. */
+    private function verifiedNetworkTerms(array $row): bool
+    {
+        $terms = $row['network_terms'] ?? null;
+        if (! is_array($terms) || ($terms['extra_charges'] ?? null) !== false) { return false; }
+        return match ($terms['charge_mode'] ?? null) {
+            'hard_cap', 'unmetered' => true,
+            'throttled' => is_int($row['traffic_gb'] ?? null) && $row['traffic_gb'] > 0
+                && ($terms['counting'] ?? null) === 'combined'
+                && ($terms['period'] ?? null) === 'monthly'
+                && is_int($terms['overuse_mbps'] ?? null) && $terms['overuse_mbps'] > 0
+                && $terms['overuse_mbps'] <= 100000,
+            default => false,
+        };
+    }
+
     /** Owner's commercial decision is separate from evidence about supplier billing. */
     private function commercialLaunchApproved(array $row): bool
     {
         $approval = $row['commercial_launch_approval'] ?? null;
+        $networkVerified = $this->verifiedNetworkTerms($row);
         if (! is_array($approval) || ($approval['version'] ?? null) !== 1
             || ($approval['decision'] ?? null) !== 'launch_pending_supplier_clarification'
             || ($approval['approved_by'] ?? null) !== 'owner'
@@ -329,7 +346,9 @@ class VpsTcCatalog
             || (string) ($approval['product_id'] ?? '') !== (string) ($row['product_id'] ?? '')
             || ! is_string($approval['support_ticket'] ?? null)
             || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', $approval['support_ticket'])
-            || ($approval['pending'] ?? null) !== ['supplier_autorenew', 'cancellation_billing', 'traffic_overage']
+            || ($approval['pending'] ?? null) !== ($networkVerified
+                ? ['supplier_autorenew', 'cancellation_billing']
+                : ['supplier_autorenew', 'cancellation_billing', 'traffic_overage'])
             || ! is_string($approval['approved_at'] ?? null)
             || ! preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00\z/D', $approval['approved_at'])
             || ($at = strtotime($approval['approved_at'])) === false || $at > time()
@@ -337,8 +356,8 @@ class VpsTcCatalog
             || ! hash_equals(self::launchScopeFingerprint($row), $approval['scope_sha256'])
             || ($row['renewal_mode'] ?? null) !== 'manual_invoice_deduplicated'
             || ($row['parent_cancel_stops_billing'] ?? null) !== null
-            || ($row['network_terms']['charge_mode'] ?? null) !== 'unconfirmed'
-            || ($row['network_terms']['extra_charges'] ?? null) !== null) {
+            || (! $networkVerified && (($row['network_terms']['charge_mode'] ?? null) !== 'unconfirmed'
+                || ($row['network_terms']['extra_charges'] ?? null) !== null))) {
             return false;
         }
 
