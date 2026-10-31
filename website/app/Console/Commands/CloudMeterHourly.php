@@ -41,10 +41,8 @@ use Illuminate\Support\Facades\Schema;
  *    نمی‌شود (رخدادی که کارفرما گزارش کرد).
  *  • 🔴 **لحظه‌ای که مشتری حذف را می‌خواهد، ساعت می‌ایستد** — وضعیتِ صورت‌حسابی
  *    پیش از هر تماس با زیرساخت بسته می‌شود و به نتیجهٔ آن تماس بند نیست.
- *  • 🔴 **نگهداریِ ۲۴ساعتهٔ پس از اتمامِ اعتبار از پیش ذخیره شده است**
- *    (`HourlyHold`): کسرِ ساعتی فقط از مازادِ ذخیره می‌خورد، و ساعت‌های مهلت
- *    به بهای تمام‌شدهٔ نگهداری از همان ذخیره کسر می‌شوند. زیرساختی که ماشینِ
- *    خاموش برایش هزینه ندارد نرخِ صفر دارد (رایگان، مثلِ قبل).
+ *  • Running credit is not reserved for future retention. The 24-hour start
+ *    gate never prevents an existing server from spending remaining credit.
  *
  * ایمنیِ پول (سه محافظ):
  *  ۱) **idempotent**: با claimِ اتمی روی `last_metered_at` (UPDATE شرطی) — دو
@@ -62,20 +60,7 @@ class CloudMeterHourly extends Command
     /** عمومی چون `HourlyCycleConverter::unmeteredHours()` هم همین سقف را می‌خوانَد — یک منبع */
     public const CATCHUP_CAP = 48;
 
-    /**
-     * مهلتِ نگه‌داشتنِ سرورِ تعلیق‌شده (نبودِ اعتبار) پیش از حذف — ساعت.
-     *
-     * 🔴 این عدد باید همیشه با `CloudPlan::HOURLY_START_MIN_HOURS` **برابر**
-     * بمانَد — تصمیمِ صریحِ کارفرما (شهریور ۱۴۰۵): «جفتشو ۲۴ ساعت، یجوری که نه
-     * مشتری ضرر کنه نه ما.»
-     *
-     * منطقش: این مهلت ساعت‌هایی است که پس از تمام‌شدنِ اعتبار، ماشین را
-     * تعلیق‌شده نگه می‌داریم و اجاره‌اش را **ما** می‌دهیم. اگر کفِ خرید از این
-     * مهلت کمتر شود، مشتری کمتر از آنچه رایگان نگهش می‌داریم پرداخت کرده و
-     * تفاوت از جیبِ ما می‌رود؛ اگر بیشتر شود، پولی گرفته‌ایم که بابتش سرویسی
-     * نداده‌ایم. برابری تنها نقطه‌ای است که هیچ‌کدام ضرر نمی‌کنند.
-     * **هر تغییرِ یکی، باید همان لحظه روی دیگری هم اعمال شود.**
-     */
+    /** Retention after verified credit suspension, independent of starting credit. */
     private const SUSPEND_GRACE_HOURS = HourlyHold::GRACE_HOURS;
 
     public function handle(
@@ -303,8 +288,8 @@ class CloudMeterHourly extends Command
         }
 
         /*
-        | ذخیرهٔ نگهداری با بهای **امروز** (نرخِ یورو جابه‌جا می‌شود) — پیش از
-        | خواندنِ «در دسترس»، تا کسرِ این ساعت هرگز پولِ نگهداری را نخورد.
+        | Clear obsolete retention reserves; running credit stays spendable.
+        | Genuine AI/identity/refund reservations remain protected by Wallet.
         */
         $this->hold()->syncRunning($service);
 
@@ -509,8 +494,7 @@ class CloudMeterHourly extends Command
                 'left' => invoice_money(max(0, $balance)),
             ]), 'system'));
 
-        // ساعتِ باقی از «در دسترس» — ذخیرهٔ نگهداری خرجِ کار نمی‌شود، پس
-        // هشدار باید پیش از آن‌که واقعاً سرور بایستد برسد، نه پس از آن.
+        // Warn against usable credit after genuine pending financial reservations.
         $this->warnIfCreditLow($service, $customer, $rate, $wallet->availableOf($customer->id));
 
         // 🔴 آنچه در این اجرا کسر **نشد** باید ردِ مکتوب داشته باشد. سقفِ ۴۸
@@ -627,11 +611,11 @@ class CloudMeterHourly extends Command
         }
         $this->asCustomer($service->customer, fn () => ActivityLog::forService(
             $service, 'suspend', __('ui.act_hourly_suspend'), 'system'));
-        $holdRate = HourlyHold::enabled() ? (int) $service->hold_rate_irt : 0;
+        $hasReserve = HourlyHold::reservedFor($service) > 0;
         $this->notifyCustomer($service, 'hourly_credit_out',
             'اعتبار سرویس ساعتی «'.$service->name.'» تمام شد و خاموش‌شدن تأیید شد. '
             .'با شارژ کیف پول دوباره فعال می‌شود. مهلت نگهداری '.self::SUSPEND_GRACE_HOURS.' ساعت است'
-            .($holdRate > 0 ? ' (هزینهٔ نگهداری از اعتبار ذخیره‌شده کسر می‌شود)' : '')
+            .($hasReserve ? ' (هزینهٔ نگهداری از اعتبار ذخیره‌شده کسر می‌شود)' : '')
             .'؛ پس از آن سرور و داده‌هایش حذف می‌شوند.',
             ['grace' => self::SUSPEND_GRACE_HOURS]);
 
@@ -708,7 +692,7 @@ class CloudMeterHourly extends Command
         foreach ($suspended as $service) {
             try {
                 // No wallet-driven resume, suspension or deletion for the owner.
-                if (app(ComplimentaryServices::class)->applies($service)) {
+                if (app(ComplimentaryServices::class)->applies($service) || $service->hourlyBillingHeld()) {
                     continue;
                 }
                 $rate = (int) $service->hourly_rate_irt;
@@ -740,13 +724,13 @@ class CloudMeterHourly extends Command
                     }
                 }
 
-                // ساعت‌های نگهداریِ سپری‌شده — از ذخیرهٔ خودِ همین سرور
-                $this->chargeHold($service);
-
-                // دوباره اعتبار دارد → روشن و ادامهٔ متر
+                // A funded legacy suspension can resume using its own reserve.
+                // Do not consume that running credit on another retention tick.
                 if ($rate > 0 && $this->resume($service, $prov)) {
                     continue;
                 }
+
+                $this->chargeHold($service);
 
                 $fresh = $service->fresh();
                 if ($fresh === null || $fresh->status !== 'suspended') {
@@ -756,12 +740,9 @@ class CloudMeterHourly extends Command
 
                 // An eligible customer must not lose the server merely because power-on failed.
                 if ($rate > 0) {
-                    $holdRate = $this->hold()->rateIrt($service);
-                    $fullReserve = HourlyHold::enabled()
-                        ? HourlyHold::fullReserve($holdRate, $service->on_credit_out) : 0;
-                    $ownReserve = HourlyHold::enabled() ? (int) $service->hold_reserve_irt : 0;
+                    $ownReserve = HourlyHold::reservedFor($service);
                     $available = app(Wallet::class)->availableOf($customer->id);
-                    if ($available + $ownReserve - $fullReserve >= $rate) {
+                    if ($available + $ownReserve >= $rate) {
                         continue;
                     }
                 }
@@ -781,9 +762,8 @@ class CloudMeterHourly extends Command
     /**
      * روشن‌کردنِ دوبارهٔ سرورِ تعلیق‌شده پس از شارژ.
      *
-     * 🔴 شرط «اعتبارِ یک ساعت» روی مازادِ **ذخیرهٔ کاملِ نگهداریِ این سرور**
-     * است، نه روی جمعِ خام؛ وگرنه ساعتِ بعد دوباره خاموش می‌شد و ذخیره‌ای
-     * برای نگهداریِ بعدی نمی‌ماند.
+     * One prepaid hour is enough to continue an existing service. Release its
+     * own legacy reserve atomically; do not replenish a 24-hour reserve.
      *
      * 🔴 ساعتِ اولِ پس از روشن‌شدن **پیش‌پرداخت** است — عینِ لحظهٔ خرید. پیش‌تر
      * لنگر فقط «اکنون» می‌شد و کسر یک ساعت بعد می‌آمد؛ یعنی اگر اعتبار دوباره
@@ -796,10 +776,9 @@ class CloudMeterHourly extends Command
         $wallet = app(Wallet::class);
 
         $holdRate = $this->hold()->rateIrt($service);
-        $fullReserve = HourlyHold::enabled() ? HourlyHold::fullReserve($holdRate, $service->on_credit_out) : 0;
-        $ownReserve = HourlyHold::enabled() ? (int) $service->hold_reserve_irt : 0;
+        $ownReserve = HourlyHold::reservedFor($service);
 
-        if ($wallet->availableOf($customer->id) + $ownReserve - $fullReserve < $rate) {
+        if ($wallet->availableOf($customer->id) + $ownReserve < $rate) {
             return false;
         }
 
@@ -807,18 +786,20 @@ class CloudMeterHourly extends Command
         $resumed = false;
 
         try {
-            DB::transaction(function () use ($wallet, $customer, $service, $rate, $holdRate, $fullReserve, $ownReserve, $prov, &$powered, &$resumed): void {
+            DB::transaction(function () use ($wallet, $customer, $service, $rate, $holdRate, $prov, &$powered, &$resumed): void {
                 Customer::whereKey($customer->id)->lockForUpdate()->first();
                 $current = Service::whereKey($service->id)->lockForUpdate()->first();
 
                 if ($current?->status !== 'suspended'
-                    || $wallet->availableOf($customer->id) + $ownReserve - $fullReserve < $rate) {
+                    || ! $current->isHourly() || $current->hourlyBillingHeld()
+                    || ($current->suspended_at === null && empty($current->provision_meta['hourly_suspend']))
+                    || $wallet->availableOf($customer->id) + HourlyHold::reservedFor($current) < $rate) {
                     return;
                 }
 
                 // Provider acceptance must precede the first-hour debit and local activation.
-                if (! $prov->unsuspend($service)) {
-                    if ($prov->lifecyclePending($service, 'running')) {
+                if (! $prov->unsuspend($current)) {
+                    if ($prov->lifecyclePending($current, 'running')) {
                         $this->pending++;
 
                         return;
@@ -830,14 +811,14 @@ class CloudMeterHourly extends Command
                 }
                 $powered = true;
 
-                $meta = (array) $service->provision_meta;
+                $meta = (array) $current->provision_meta;
                 unset($meta['hourly_suspend']);
-                $service->update([
+                $current->update([
                     'provision_meta' => $meta,
                     'status' => 'active', 'suspended_at' => null, 'last_metered_at' => now(),
-                ] + (HourlyHold::enabled() ? ['hold_rate_irt' => $holdRate, 'hold_reserve_irt' => $fullReserve] : []));
+                ] + (HourlyHold::enabled() ? ['hold_rate_irt' => $holdRate, 'hold_reserve_irt' => 0] : []));
 
-                $wallet->debit($customer->id, 'IRT', $rate, 'cloud_hourly', $service,
+                $wallet->debit($customer->id, 'IRT', $rate, 'cloud_hourly', $current,
                     'روشن‌شدنِ دوبارهٔ سرورِ ساعتی — ساعتِ اول');
                 $resumed = true;
             });
@@ -860,6 +841,8 @@ class CloudMeterHourly extends Command
 
             return false;
         }
+
+        $service->refresh();
 
         $this->asCustomer($customer, fn () => ActivityLog::forService(
             $service, 'reactivate', __('ui.act_hourly_resume'), 'system'));

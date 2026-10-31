@@ -1,0 +1,61 @@
+{
+  "release_id": "hourly-runtime-credit-20261031",
+  "status": "prepared_not_installed",
+  "reference_branch": "develop",
+  "review_base_sha": "b93d3ed6b379c28a709b83c472d7f6698ada46a4",
+  "patch": "runtime.patch",
+  "patch_sha256": "722cb2dd0e438be4c59dbbe3c47fc2a1abc1d4a7552a6787864081d4ec02bef1",
+  "apply_to_private_staging_with_fuzz": 0,
+  "migration_required": false,
+  "cron_change_required": false,
+  "files": [
+    {
+      "source_path": "website/app/Services/Cloud/HourlyHold.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/HourlyHold.php",
+      "operation": "patch_verified_live_snapshot",
+      "expected_before_sha256": "9c29fb4980bbeb2da1c323c1af1c37303310311952c102b21577ab630b2958d2",
+      "expected_after_sha256": "434270091ac7743f3981bd78486b5730e1799011ce97e2585d9b81b9ae1db3dd",
+      "git_source_sha256": "434270091ac7743f3981bd78486b5730e1799011ce97e2585d9b81b9ae1db3dd"
+    },
+    {
+      "source_path": "website/app/Services/Cloud/HourlyCycleConverter.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/HourlyCycleConverter.php",
+      "operation": "patch_verified_live_snapshot",
+      "expected_before_sha256": "8a23c5ca8a9784708165b04fb3f80eae17a5274edae8e24bdafe42f36372ecac",
+      "expected_after_sha256": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9",
+      "git_source_sha256": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9"
+    },
+    {
+      "source_path": "website/app/Console/Commands/CloudMeterHourly.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/CloudMeterHourly.php",
+      "operation": "patch_verified_live_snapshot",
+      "expected_before_sha256": "5b6268d6f9ac23d03cebec3c27b90e09b8df5d6773acafb92fa3a08c84becce2",
+      "expected_after_sha256": "f802654928541dde7300af8f336e2d232e018ddd20b2a7293692dca96462a16c",
+      "git_source_sha256": "93889ccd9091df1ae200245ee09c96419ea9792505d230807ce4ba19a3be65b8"
+    },
+    {
+      "source_path": "website/lang/fa/ui.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/ui.php",
+      "operation": "patch_verified_live_snapshot",
+      "expected_before_sha256": "df8b1fa2450fec994ab0659a868720d9672db32321aaae4a65688ecc86a96057",
+      "expected_after_sha256": "f6a65bdd50698164ef08fc80085480d182b3802073be52ad188a089b71d855ac",
+      "git_source_sha256": "fa4b77a2d8c59c564f4e0ee1e4ab10f854dc7d9d3d0e8bda7b38ff0c06d5f6e6"
+    },
+    {
+      "source_path": "website/lang/en/ui.php",
+      "destination_relative_to_home": "servernet_app/lang/en/ui.php",
+      "operation": "patch_verified_live_snapshot",
+      "expected_before_sha256": "10484373c47a7ba54287f05b99c5e212aca375a6c0e1de64c57f8251d062c0d7",
+      "expected_after_sha256": "c95607dab8c76e9c46439a5faea893bac551a4824479ff248c130b2b8decedc0",
+      "git_source_sha256": "614619056281f1d457cc6882d5d4fc91e6ab5995f95db530eaba020e9a0717ce"
+    },
+    {
+      "source_path": "website/lang/tr/ui.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/ui.php",
+      "operation": "patch_verified_live_snapshot",
+      "expected_before_sha256": "106adcc5cf4eb0095d09ec13e2ec6566f633d1ff483c4c13b9ce3c4a9d4c0002",
+      "expected_after_sha256": "dcf747a31581d1b7b1c2ad12ccd7cf065a4ae82525d705664cb391e2241605a4",
+      "git_source_sha256": "895a5fa1005220a6ca6285a058c619a1cc7fe70feb7dc987e9e5512fdde3a2d7"
+    }
+  ]
+}

@@ -1,0 +1,513 @@
+diff --git a/website/app/Console/Commands/CloudMeterHourly.php b/website/app/Console/Commands/CloudMeterHourly.php
+index 6790e9e..214b583 100644
+--- a/website/app/Console/Commands/CloudMeterHourly.php
++++ b/website/app/Console/Commands/CloudMeterHourly.php
+@@ -41,10 +41,8 @@
+  *    نمی‌شود (رخدادی که کارفرما گزارش کرد).
+  *  • 🔴 **لحظه‌ای که مشتری حذف را می‌خواهد، ساعت می‌ایستد** — وضعیتِ صورت‌حسابی
+  *    پیش از هر تماس با زیرساخت بسته می‌شود و به نتیجهٔ آن تماس بند نیست.
+- *  • 🔴 **نگهداریِ ۲۴ساعتهٔ پس از اتمامِ اعتبار از پیش ذخیره شده است**
+- *    (`HourlyHold`): کسرِ ساعتی فقط از مازادِ ذخیره می‌خورد، و ساعت‌های مهلت
+- *    به بهای تمام‌شدهٔ نگهداری از همان ذخیره کسر می‌شوند. زیرساختی که ماشینِ
+- *    خاموش برایش هزینه ندارد نرخِ صفر دارد (رایگان، مثلِ قبل).
++ *  • Running credit is not reserved for future retention. The 24-hour start
++ *    gate never prevents an existing server from spending remaining credit.
+  *
+  * ایمنیِ پول (سه محافظ):
+  *  ۱) **idempotent**: با claimِ اتمی روی `last_metered_at` (UPDATE شرطی) — دو
+@@ -62,20 +60,7 @@ class CloudMeterHourly extends Command
+     /** عمومی چون `HourlyCycleConverter::unmeteredHours()` هم همین سقف را می‌خوانَد — یک منبع */
+     public const CATCHUP_CAP = 48;
+ 
+-    /**
+-     * مهلتِ نگه‌داشتنِ سرورِ تعلیق‌شده (نبودِ اعتبار) پیش از حذف — ساعت.
+-     *
+-     * 🔴 این عدد باید همیشه با `CloudPlan::HOURLY_START_MIN_HOURS` **برابر**
+-     * بمانَد — تصمیمِ صریحِ کارفرما (شهریور ۱۴۰۵): «جفتشو ۲۴ ساعت، یجوری که نه
+-     * مشتری ضرر کنه نه ما.»
+-     *
+-     * منطقش: این مهلت ساعت‌هایی است که پس از تمام‌شدنِ اعتبار، ماشین را
+-     * تعلیق‌شده نگه می‌داریم و اجاره‌اش را **ما** می‌دهیم. اگر کفِ خرید از این
+-     * مهلت کمتر شود، مشتری کمتر از آنچه رایگان نگهش می‌داریم پرداخت کرده و
+-     * تفاوت از جیبِ ما می‌رود؛ اگر بیشتر شود، پولی گرفته‌ایم که بابتش سرویسی
+-     * نداده‌ایم. برابری تنها نقطه‌ای است که هیچ‌کدام ضرر نمی‌کنند.
+-     * **هر تغییرِ یکی، باید همان لحظه روی دیگری هم اعمال شود.**
+-     */
++    /** Retention after verified credit suspension, independent of starting credit. */
+     private const SUSPEND_GRACE_HOURS = HourlyHold::GRACE_HOURS;
+ 
+     public function handle(
+@@ -303,8 +288,8 @@ private function meterOne(
+         }
+ 
+         /*
+-        | ذخیرهٔ نگهداری با بهای **امروز** (نرخِ یورو جابه‌جا می‌شود) — پیش از
+-        | خواندنِ «در دسترس»، تا کسرِ این ساعت هرگز پولِ نگهداری را نخورد.
++        | Clear obsolete retention reserves; running credit stays spendable.
++        | Genuine AI/identity/refund reservations remain protected by Wallet.
+         */
+         $this->hold()->syncRunning($service);
+ 
+@@ -509,8 +494,7 @@ private function meterOne(
+                 'left' => invoice_money(max(0, $balance)),
+             ]), 'system'));
+ 
+-        // ساعتِ باقی از «در دسترس» — ذخیرهٔ نگهداری خرجِ کار نمی‌شود، پس
+-        // هشدار باید پیش از آن‌که واقعاً سرور بایستد برسد، نه پس از آن.
++        // Warn against usable credit after genuine pending financial reservations.
+         $this->warnIfCreditLow($service, $customer, $rate, $wallet->availableOf($customer->id));
+ 
+         // 🔴 آنچه در این اجرا کسر **نشد** باید ردِ مکتوب داشته باشد. سقفِ ۴۸
+@@ -627,11 +611,11 @@ private function confirmHourlySuspension(Service $service, CloudProvisioner $pro
+         }
+         $this->asCustomer($service->customer, fn () => ActivityLog::forService(
+             $service, 'suspend', __('ui.act_hourly_suspend'), 'system'));
+-        $holdRate = HourlyHold::enabled() ? (int) $service->hold_rate_irt : 0;
++        $hasReserve = HourlyHold::reservedFor($service) > 0;
+         $this->notifyCustomer($service, 'hourly_credit_out',
+             'اعتبار سرویس ساعتی «'.$service->name.'» تمام شد و خاموش‌شدن تأیید شد. '
+             .'با شارژ کیف پول دوباره فعال می‌شود. مهلت نگهداری '.self::SUSPEND_GRACE_HOURS.' ساعت است'
+-            .($holdRate > 0 ? ' (هزینهٔ نگهداری از اعتبار ذخیره‌شده کسر می‌شود)' : '')
++            .($hasReserve ? ' (هزینهٔ نگهداری از اعتبار ذخیره‌شده کسر می‌شود)' : '')
+             .'؛ پس از آن سرور و داده‌هایش حذف می‌شوند.',
+             ['grace' => self::SUSPEND_GRACE_HOURS]);
+ 
+@@ -708,7 +692,7 @@ private function handleSuspended(CloudProvisioner $prov): void
+         foreach ($suspended as $service) {
+             try {
+                 // No wallet-driven resume, suspension or deletion for the owner.
+-                if (app(ComplimentaryServices::class)->applies($service)) {
++                if (app(ComplimentaryServices::class)->applies($service) || $service->hourlyBillingHeld()) {
+                     continue;
+                 }
+                 $rate = (int) $service->hourly_rate_irt;
+@@ -740,14 +724,14 @@ private function handleSuspended(CloudProvisioner $prov): void
+                     }
+                 }
+ 
+-                // ساعت‌های نگهداریِ سپری‌شده — از ذخیرهٔ خودِ همین سرور
+-                $this->chargeHold($service);
+-
+-                // دوباره اعتبار دارد → روشن و ادامهٔ متر
++                // A funded legacy suspension can resume using its own reserve.
++                // Do not consume that running credit on another retention tick.
+                 if ($rate > 0 && $this->resume($service, $prov)) {
+                     continue;
+                 }
+ 
++                $this->chargeHold($service);
++
+                 $fresh = $service->fresh();
+                 if ($fresh === null || $fresh->status !== 'suspended') {
+                     continue;
+@@ -756,12 +740,9 @@ private function handleSuspended(CloudProvisioner $prov): void
+ 
+                 // An eligible customer must not lose the server merely because power-on failed.
+                 if ($rate > 0) {
+-                    $holdRate = $this->hold()->rateIrt($service);
+-                    $fullReserve = HourlyHold::enabled()
+-                        ? HourlyHold::fullReserve($holdRate, $service->on_credit_out) : 0;
+-                    $ownReserve = HourlyHold::enabled() ? (int) $service->hold_reserve_irt : 0;
++                    $ownReserve = HourlyHold::reservedFor($service);
+                     $available = app(Wallet::class)->availableOf($customer->id);
+-                    if ($available + $ownReserve - $fullReserve >= $rate) {
++                    if ($available + $ownReserve >= $rate) {
+                         continue;
+                     }
+                 }
+@@ -781,9 +762,8 @@ private function handleSuspended(CloudProvisioner $prov): void
+     /**
+      * روشن‌کردنِ دوبارهٔ سرورِ تعلیق‌شده پس از شارژ.
+      *
+-     * 🔴 شرط «اعتبارِ یک ساعت» روی مازادِ **ذخیرهٔ کاملِ نگهداریِ این سرور**
+-     * است، نه روی جمعِ خام؛ وگرنه ساعتِ بعد دوباره خاموش می‌شد و ذخیره‌ای
+-     * برای نگهداریِ بعدی نمی‌ماند.
++     * One prepaid hour is enough to continue an existing service. Release its
++     * own legacy reserve atomically; do not replenish a 24-hour reserve.
+      *
+      * 🔴 ساعتِ اولِ پس از روشن‌شدن **پیش‌پرداخت** است — عینِ لحظهٔ خرید. پیش‌تر
+      * لنگر فقط «اکنون» می‌شد و کسر یک ساعت بعد می‌آمد؛ یعنی اگر اعتبار دوباره
+@@ -796,10 +776,9 @@ private function resume(Service $service, CloudProvisioner $prov): bool
+         $wallet = app(Wallet::class);
+ 
+         $holdRate = $this->hold()->rateIrt($service);
+-        $fullReserve = HourlyHold::enabled() ? HourlyHold::fullReserve($holdRate, $service->on_credit_out) : 0;
+-        $ownReserve = HourlyHold::enabled() ? (int) $service->hold_reserve_irt : 0;
++        $ownReserve = HourlyHold::reservedFor($service);
+ 
+-        if ($wallet->availableOf($customer->id) + $ownReserve - $fullReserve < $rate) {
++        if ($wallet->availableOf($customer->id) + $ownReserve < $rate) {
+             return false;
+         }
+ 
+@@ -807,18 +786,20 @@ private function resume(Service $service, CloudProvisioner $prov): bool
+         $resumed = false;
+ 
+         try {
+-            DB::transaction(function () use ($wallet, $customer, $service, $rate, $holdRate, $fullReserve, $ownReserve, $prov, &$powered, &$resumed): void {
++            DB::transaction(function () use ($wallet, $customer, $service, $rate, $holdRate, $prov, &$powered, &$resumed): void {
+                 Customer::whereKey($customer->id)->lockForUpdate()->first();
+                 $current = Service::whereKey($service->id)->lockForUpdate()->first();
+ 
+                 if ($current?->status !== 'suspended'
+-                    || $wallet->availableOf($customer->id) + $ownReserve - $fullReserve < $rate) {
++                    || ! $current->isHourly() || $current->hourlyBillingHeld()
++                    || ($current->suspended_at === null && empty($current->provision_meta['hourly_suspend']))
++                    || $wallet->availableOf($customer->id) + HourlyHold::reservedFor($current) < $rate) {
+                     return;
+                 }
+ 
+                 // Provider acceptance must precede the first-hour debit and local activation.
+-                if (! $prov->unsuspend($service)) {
+-                    if ($prov->lifecyclePending($service, 'running')) {
++                if (! $prov->unsuspend($current)) {
++                    if ($prov->lifecyclePending($current, 'running')) {
+                         $this->pending++;
+ 
+                         return;
+@@ -830,14 +811,14 @@ private function resume(Service $service, CloudProvisioner $prov): bool
+                 }
+                 $powered = true;
+ 
+-                $meta = (array) $service->provision_meta;
++                $meta = (array) $current->provision_meta;
+                 unset($meta['hourly_suspend']);
+-                $service->update([
++                $current->update([
+                     'provision_meta' => $meta,
+                     'status' => 'active', 'suspended_at' => null, 'last_metered_at' => now(),
+-                ] + (HourlyHold::enabled() ? ['hold_rate_irt' => $holdRate, 'hold_reserve_irt' => $fullReserve] : []));
++                ] + (HourlyHold::enabled() ? ['hold_rate_irt' => $holdRate, 'hold_reserve_irt' => 0] : []));
+ 
+-                $wallet->debit($customer->id, 'IRT', $rate, 'cloud_hourly', $service,
++                $wallet->debit($customer->id, 'IRT', $rate, 'cloud_hourly', $current,
+                     'روشن‌شدنِ دوبارهٔ سرورِ ساعتی — ساعتِ اول');
+                 $resumed = true;
+             });
+@@ -861,6 +842,8 @@ private function resume(Service $service, CloudProvisioner $prov): bool
+             return false;
+         }
+ 
++        $service->refresh();
++
+         $this->asCustomer($customer, fn () => ActivityLog::forService(
+             $service, 'reactivate', __('ui.act_hourly_resume'), 'system'));
+ 
+diff --git a/website/app/Services/Cloud/HourlyCycleConverter.php b/website/app/Services/Cloud/HourlyCycleConverter.php
+index d0f704b..5419051 100644
+--- a/website/app/Services/Cloud/HourlyCycleConverter.php
++++ b/website/app/Services/Cloud/HourlyCycleConverter.php
+@@ -176,7 +176,7 @@ public function quotes(Service $service): array
+     /** پولِ قابلِ خرج برای تبدیل: «در دسترس» + ذخیرهٔ نگهداریِ همین سرور (با تبدیل آزاد می‌شود) */
+     public function spendable(Service $service): int
+     {
+-        $own = HourlyHold::enabled() ? (int) $service->hold_reserve_irt : 0;
++        $own = HourlyHold::reservedFor($service);
+ 
+         return $this->wallet->availableOf((int) $service->customer_id) + $own;
+     }
+diff --git a/website/app/Services/Cloud/HourlyHold.php b/website/app/Services/Cloud/HourlyHold.php
+index 04a417d..63e19de 100644
+--- a/website/app/Services/Cloud/HourlyHold.php
++++ b/website/app/Services/Cloud/HourlyHold.php
+@@ -9,52 +9,24 @@
+ use Illuminate\Support\Facades\Schema;
+ 
+ /**
+- * نگهداریِ ۲۴ساعتهٔ سرورِ ساعتیِ خاموش پس از اتمامِ اعتبار — **بدونِ ضرر**.
++ * Legacy retention accounting after verified hourly-credit suspension.
+  *
+- * ═══ رخداد و تصمیم (شهریور ۱۴۰۵) ═══
+- *
+- * تا امروز مهلتِ ۲۴ساعته رایگان بود و استدلالش «کفِ شروعِ ۲۴ ساعت = مهلتِ ۲۴
+- * ساعت» بود. آن برابری فقط **لحظهٔ خرید** را می‌پوشاند: مشتری همان ۲۴ ساعت را
+- * مصرف می‌کند، اعتبار صفر می‌شود، و ۲۴ ساعتِ نگهداریِ بعدی را روی
+- * هتزنر/aeza/OVH/آروان — که ماشینِ خاموش را کامل صورت‌حساب می‌کنند — **ما**
+- * می‌پردازیم. مشتری‌ای که برنگردد، خالص ضرر است.
+- *
+- * کارفرما: «جایی که برای ما هزینه دارد ما هم هزینه بگیریم، جایی که ندارد
+- * نمی‌گیریم… تعداد روز را تأیید می‌کنم ولی متضرر نشویم اصلاً.»
+- *
+- * ═══ قاعده ═══
+- *
+- *  • نرخِ نگهداری = **بهای تمام‌شدهٔ** ساعتیِ همان ماشین نزدِ زیرساخت (سربارِ
+- *    ارزی را درایور از قبل در بها نشانده)، گرد به بالا تا ۱۰۰ تومان، و هرگز
+- *    بیشتر از نرخِ فروش. روی نگهداری سود نمی‌گیریم.
+- *  • زیرساختی که ماشینِ خاموش برایش هزینه ندارد (`salad`، `proxmox` و هر پلنِ
+- *    `is_interruptible`) ⇒ نرخِ صفر ⇒ نگهداری مثلِ قبل رایگان.
+- *  • **ذخیره** (`services.hold_reserve_irt`): برای هر سرورِ ساعتیِ زنده
+- *    `GRACE_HOURS × نرخ` کنار گذاشته می‌شود و `Wallet::reservedOf` آن را از
+- *    «در دسترس» کم می‌کند. پس نه مترِ ساعتی، نه فاکتور، نه دامنه، نه AI
+- *    نمی‌توانند پولِ نگهداری را خرج کنند — لحظهٔ خاموشی پولش از پیش در کیف است.
+- *  • در مهلت، هر ساعتِ سپری‌شده به نرخِ نگهداری کسر می‌شود و **همان‌قدر** از
+- *    ذخیره کم می‌شود (در یک تراکنش). شارژ ⇒ روشن‌شدن؛ مصرف‌نشده هرگز خرج نشده.
+- *  • سیاستِ «حذف هنگام اتمامِ اعتبار» (`terminate`) نگهداری ندارد ⇒ ذخیرهٔ صفر.
+- *
+- * 🔴 بهای ناشناخته ⇒ نرخِ صفر + آژیرِ پایدار (همان قاعدهٔ `alarmIfUnderwater`:
+- *    «بها نداریم ⇒ ادعا هم نداریم»). عددِ حدسی از جیبِ مشتری ممنوع.
++ * Owner decision, 2026-10-31: starting credit must remain spendable while a
++ * server is running. Do not reserve future retention or stop a funded server.
++ * Existing suspended reserves stay protected until resumed, converted,
++ * charged or released. Retention grace is unchanged; where no reserve exists,
++ * its supplier cost is a business expense, not funded by the start minimum.
+  */
+ final class HourlyHold
+ {
+-    /**
+-     * مهلتِ نگهداری پیش از حذف — ساعت.
+-     *
+-     * 🔴 تصمیمِ کارفرما: برابر با `CloudPlan::HOURLY_START_MIN_HOURS`
+-     * (`HourlyHoldTest` برابری را قفل می‌کند).
+-     */
++    /** Retention after verified shutdown; separate from the starting-credit gate. */
+     public const GRACE_HOURS = 24;
+ 
+     /** زیرساخت‌هایی که ماشینِ خاموش برایشان هزینه‌ای ندارد */
+     public const STANDBY_FREE_PROVIDERS = ['salad', 'proxmox'];
+ 
+-    /** وضعیت‌هایی که ذخیرهٔ نگهداری را نگه می‌دارند */
+-    public const HOLDING_STATUSES = ['active', 'awaiting_provision', 'suspended'];
++    /** Only already-suspended servers may still hold a legacy reserve. */
++    public const HOLDING_STATUSES = ['suspended'];
+ 
+     private ?int $eurToman = null;
+ 
+@@ -90,6 +62,14 @@ public static function heldOf(int $customerId): int
+             ->sum('hold_reserve_irt');
+     }
+ 
++    /** The amount actually included in Wallet::reservedOf for this service. */
++    public static function reservedFor(Service $service): int
++    {
++        return self::enabled() && $service->isHourly()
++            && in_array($service->status, self::HOLDING_STATUSES, true)
++            ? max(0, (int) $service->hold_reserve_irt) : 0;
++    }
++
+     /**
+      * نرخِ نگهداریِ امروزِ یک سرویس — تومان/ساعت. صفر = برای ما رایگان (یا بها
+      * نامعلوم است و آژیر زده شد).
+@@ -132,15 +112,15 @@ public function rateForPlan(CloudPlan $plan, int $sellRateIrt): int
+         return $this->fromCost($plan, $sellRateIrt);
+     }
+ 
+-    /** ذخیرهٔ کاملِ یک سرورِ **در حالِ کار** با این نرخ و سیاستِ اتمامِ اعتبار */
++    /** Historical full reserve, for legacy records and diagnostics only. */
+     public static function fullReserve(int $rate, ?string $onCreditOut): int
+     {
+         return $onCreditOut === 'terminate' ? 0 : max(0, $rate) * self::GRACE_HOURS;
+     }
+ 
+     /**
+-     * نرخ و ذخیرهٔ سرورِ در حالِ کار را با بهای امروز هم‌سو می‌کند (خرید، هر
+-     * تیکِ متر، تغییرِ سیاست، روشن‌شدنِ دوباره). فقط ستون‌ها را می‌نویسد.
++     * Keep the cost rate current and clear obsolete running reserves. Wallet
++     * ignores them immediately, even before this service's next meter tick.
+      */
+     public function syncRunning(Service $service): void
+     {
+@@ -149,7 +129,8 @@ public function syncRunning(Service $service): void
+         }
+ 
+         $rate = $this->rateIrt($service);
+-        $reserve = self::fullReserve($rate, $service->on_credit_out);
++        // Creation credit must remain spendable while the server is running.
++        $reserve = 0;
+ 
+         if ((int) $service->hold_rate_irt !== $rate || (int) $service->hold_reserve_irt !== $reserve) {
+             $service->forceFill(['hold_rate_irt' => $rate, 'hold_reserve_irt' => $reserve])->save();
+diff --git a/website/lang/en/ui.php b/website/lang/en/ui.php
+index bb12538..9d6cce3 100644
+--- a/website/lang/en/ui.php
++++ b/website/lang/en/ui.php
+@@ -2057,7 +2057,7 @@
+     'cvb_hourly_end_suspend' => 'Power off the server (data kept, resumes on top-up)',
+     'cvb_hourly_end_convert' => 'Switch to monthly billing',
+     'cvb_hourly_end_terminate' => 'Delete the server',
+-    'cvb_hourly_note' => 'The first hour is charged now and the rest hourly. Cancel any time — unused credit stays in your wallet.',
++    'cvb_hourly_note' => 'The minimum credit is a starting requirement. After launch, service continues while usable credit covers the next hour, even when the balance falls below the starting minimum. Charges are hourly and unused credit stays in your wallet.',
+     'svc_terminate' => 'Delete service',
+     'svc_terminate_ok' => 'Send code',
+     'svc_terminate_confirm' => 'Deleting this service permanently destroys the server and all its data. The data cannot be restored.',
+@@ -2899,8 +2899,8 @@
+     'hv_how_t' => 'How does an hourly server work?',
+     'hv_how_d' => 'Four steps, all from your ServerNet panel — no ticket needed.',
+     'hv_step1_t' => 'Top up your wallet',
+-    'hv_step1_d' => 'Base starting credit is :hours hours of the plan rate, about :min for the cheapest plan. A retention reserve and existing hourly services can increase the required balance; checkout shows the exact amount.',
+-    'hv_step1_d_nop' => 'Base starting credit is :hours hours of the plan rate. A retention reserve and existing hourly services also affect available credit; check the exact amount at checkout.',
++    'hv_step1_d' => 'Starting credit is :hours hours of the plan rate, about :min for the cheapest plan. Checkout includes your other commitments in the exact amount. After launch, the remaining usable credit pays for continued service.',
++    'hv_step1_d_nop' => 'Starting credit is :hours hours of the plan rate. Checkout shows the exact amount including other commitments. After launch, the remaining usable credit pays for continued service.',
+     'hv_step2_t' => 'Pick a location and a plan',
+     'hv_step2_d' => 'Compare countries, cities, resources, disk type and available operating systems in the store. Options depend on the plan and current availability in that location.',
+     'hv_step3_t' => 'Tick “hourly billing”',
+@@ -2924,7 +2924,7 @@
+     'hv_card_buy' => 'Order hourly',
+ 
+     'hv_vs_t' => 'Hourly or monthly — which is cheaper?',
+-    'hv_vs_lead' => 'For a short job, compare the hourly rate multiplied by the required time with the billing-cycle price of the same plan. A normal VPS power-off does not end charges. Starting credit and a retention reserve are separate from the final usage cost.',
++    'hv_vs_lead' => 'For a short job, compare the hourly rate multiplied by the required time with the billing-cycle price of the same plan. A normal VPS power-off does not end charges. Minimum starting credit is not a minimum usage commitment.',
+     'hv_vs_h_item' => 'Criterion',
+     'hv_vs_h_hourly' => 'Hourly',
+     'hv_vs_h_monthly' => 'Monthly',
+@@ -2961,10 +2961,10 @@
+     'hv_faq1_q' => 'What is an hourly VPS?',
+     'hv_faq1_a' => 'An hourly VPS is a cloud server charged from your wallet at the hourly rate recorded in your order. Resources and access follow the selected plan. A normal VPS power-off does not stop charges; delete the service to end billing.',
+     'hv_faq2_q' => 'What is the minimum cost to start an hourly server?',
+-    'hv_faq2_a' => 'Base starting credit is :hours hours of the plan rate, about :min for the cheapest plan. This is not a minimum usage commitment. The first hour is debited at checkout; a retention reserve and other hourly services can increase the balance required. Reserved credit is not a final charge until consumed.',
+-    'hv_faq2_a_nop' => 'Base starting credit is :hours hours of the plan rate, not a minimum usage commitment. The first hour is debited at checkout; a retention reserve and other hourly services can increase the required balance. Checkout shows the exact amount.',
++    'hv_faq2_a' => 'Starting requires :hours hours of the plan rate, about :min for the cheapest plan. This is not a minimum usage commitment. After launch, service continues while usable credit covers the next hour; falling below the starting minimum does not stop it.',
++    'hv_faq2_a_nop' => 'Starting requires :hours hours of the plan rate, not a minimum usage commitment. After launch, service continues while usable credit covers the next hour; you do not need to maintain the starting balance.',
+     'hv_faq3_q' => 'What happens when my wallet runs out?',
+-    'hv_faq3_a' => 'Choose an end-of-credit policy when ordering. With retention, after a confirmed shutdown, data is kept for up to :hours hours before deletion; retention may consume reserved credit at the stated rate. Top up before the deadline to continue. Retention is not a backup.',
++    'hv_faq3_a' => 'Choose an end-of-credit policy when ordering. With retention, after a confirmed shutdown, data is kept for up to :hours hours before deletion. Top up before the deadline to continue. Retention is not a backup.',
+     'hv_faq4_q' => 'Is an hourly server weaker than a monthly one?',
+     'hv_faq4_a' => 'No. Resources, disk, network and IP follow the selected plan; billing differs. The displayed hourly rate is the billing basis and is not necessarily derived from the monthly price. Powering off does not stop charges; delete the server to end billing.',
+     'hv_faq5_q' => 'Do you offer hourly VPS in Iran?',
+@@ -3166,7 +3166,7 @@
+     'gpu_warn_t' => 'About capacity and delivery time',
+     'gpu_warn_d' => 'After submission, your request enters allocation and preparation; follow progress in the panel. Waiting and preparation are free. Allow around an hour to get started; delivery time is not guaranteed. Work can be interrupted or moved, and disk space is temporary. Store important outputs externally.',
+     'gpu_hourly_t' => 'How is it billed?',
+-    'gpu_hourly_d' => 'Pay as you go, by the hour. You need at least :hours hours of credit to start; each hour is deducted from that balance, and deductions stop the moment you delete the machine.',
++    'gpu_hourly_d' => 'Pay hourly for usage. Credit for :hours hours is required to start; afterwards service continues while usable credit covers the next hour, even when the balance falls below the starting minimum.',
+     'gpu_ssh_t' => 'How do I use it?',
+     'gpu_ssh_d' => 'Pick a ready-made app at checkout and get a dedicated HTTPS address - open it in your browser or call it as an API from your own server or code. These are not VPS machines with SSH and root; they are a ready app on a dedicated GPU.',
+     'gpu_use1_t' => 'Model inference',
+@@ -3367,7 +3367,7 @@
+     'gpu_request_wallet_start_heading' => 'Credit required to start',
+     'gpu_request_wallet_start' => 'To begin provisioning an hourly server, your wallet must have available credit covering at least :hours hours at this server’s hourly rate. The minimum shown also includes the required credit for your other hourly servers.',
+     'gpu_request_wallet_billing_heading' => 'Hourly billing and server deletion',
+-    'gpu_request_wallet_billing' => 'Charges are deducted from your wallet hourly after this service is ready. You can delete the server at any time; once deletion is complete, no further hourly charges accrue for that server.',
++    'gpu_request_wallet_billing' => 'Once the service is ready, hourly charges are deducted from your wallet. The starting-credit requirement is not reapplied to continued usage; service continues while usable credit covers the next hour. You can delete the server at any time; no new hourly charges are calculated after deletion completes.',
+     'gpu_request_wallet_reuse_heading' => 'Using your remaining credit',
+     'gpu_request_wallet_reuse' => 'Unspent, available wallet credit remains in your account and can be used to purchase or renew other ServerNet services.',
+ 
+diff --git a/website/lang/fa/ui.php b/website/lang/fa/ui.php
+index 923b677..a913d91 100644
+--- a/website/lang/fa/ui.php
++++ b/website/lang/fa/ui.php
+@@ -2063,7 +2063,7 @@
+     'cvb_hourly_end_suspend' => 'سرور خاموش شود (داده می‌ماند، با شارژ روشن می‌شود)',
+     'cvb_hourly_end_convert' => 'به پرداختِ ماهانه تبدیل شود',
+     'cvb_hourly_end_terminate' => 'سرور حذف شود',
+-    'cvb_hourly_note' => 'ساعتِ اول همین حالا از اعتبارتان کم می‌شود و بقیه هر ساعت. هر وقت لغو کنید، اعتبارِ استفاده‌نشده در کیفتان می‌ماند.',
++    'cvb_hourly_note' => 'حداقل اعتبار فقط شرط شروع است. پس از راه‌اندازی، تا وقتی اعتبار قابل‌استفاده برای ساعت بعد دارید سرویس ادامه دارد؛ کمترشدن مانده از حداقل شروع باعث قطع سرویس نمی‌شود. هزینه هر ساعت کسر می‌شود و اعتبار استفاده‌نشده در کیف پول می‌ماند.',
+     'svc_terminate' => 'حذف سرویس',
+     'svc_terminate_ok' => 'کد را بفرست',
+     'svc_terminate_confirm' => 'با حذف این سرویس، سرور و تمام داده‌های روی آن برای همیشه پاک می‌شود و قابل بازیابی نیست.',
+@@ -2919,8 +2919,8 @@
+     'hv_how_t' => 'سرور ساعتی چطور کار می‌کند؟',
+     'hv_how_d' => 'چهار قدم، همه از پنل سرورنت و بدون تماس با پشتیبانی.',
+     'hv_step1_t' => 'کیف پول را شارژ کنید',
+-    'hv_step1_d' => 'اعتبار پایه شروع معادل :hours ساعت از نرخ پلن است؛ برای ارزان‌ترین پلن حدود :min. اعتبار رزروشده نگهداری و تعهد سرویس‌های ساعتی دیگر می‌تواند موجودی لازم را بیشتر کند؛ مبلغ دقیق در سفارش نمایش داده می‌شود.',
+-    'hv_step1_d_nop' => 'اعتبار پایه شروع معادل :hours ساعت از نرخ پلن است. اعتبار رزروشده نگهداری و سرویس‌های ساعتی دیگر نیز در موجودی قابل‌استفاده لحاظ می‌شوند؛ مبلغ دقیق را هنگام سفارش ببینید.',
++    'hv_step1_d' => 'اعتبار لازم برای شروع معادل :hours ساعت از نرخ پلن است؛ برای ارزان‌ترین پلن حدود :min. تعهد سایر سرویس‌ها در مبلغ دقیق سفارش لحاظ می‌شود. پس از شروع، مانده اعتبار قابل‌استفاده برای ادامه مصرف می‌شود.',
++    'hv_step1_d_nop' => 'اعتبار لازم برای شروع معادل :hours ساعت از نرخ پلن است. مبلغ دقیق با درنظرگرفتن سایر تعهدات در سفارش نمایش داده می‌شود؛ پس از شروع، اعتبار باقی‌مانده قابل‌مصرف است.',
+     'hv_step2_t' => 'مکان و پلن را انتخاب کنید',
+     'hv_step2_d' => 'کشور، شهر، منابع، نوع دیسک و سیستم‌عامل‌های قابل ارائه را در فروشگاه بررسی کنید. گزینه‌ها به پلن و موجودی همان مکان وابسته‌اند.',
+     'hv_step3_t' => 'تیک «پرداخت ساعتی» را بزنید',
+@@ -2944,7 +2944,7 @@
+     'hv_card_buy' => 'سفارش ساعتی',
+ 
+     'hv_vs_t' => 'ساعتی یا ماهانه؟ کدام به‌صرفه‌تر است؟',
+-    'hv_vs_lead' => 'برای کار کوتاه، برآورد نرخ ساعتی × مدت نیاز را با قیمت دوره‌ای همان پلن مقایسه کنید. خاموشی معمولی VPS پایان هزینه نیست. اعتبار لازم برای شروع و ذخیره نگهداری هم با مبلغ مصرف نهایی فرق دارند.',
++    'hv_vs_lead' => 'برای کار کوتاه، برآورد نرخ ساعتی × مدت نیاز را با قیمت دوره‌ای همان پلن مقایسه کنید. خاموشی معمولی VPS پایان هزینه نیست. حداقل اعتبار، شرط شروع است و حداقل مصرف اجباری نیست.',
+     'hv_vs_h_item' => 'معیار',
+     'hv_vs_h_hourly' => 'ساعتی',
+     'hv_vs_h_monthly' => 'ماهانه',
+@@ -2981,10 +2981,10 @@
+     'hv_faq1_q' => 'سرور مجازی ساعتی چیست؟',
+     'hv_faq1_a' => 'سرور مجازی ساعتی یا VPS ساعتی، سروری است که هزینه‌اش با نرخ ساعتی ثبت‌شده در سفارش از کیف پول کسر می‌شود. منابع و دسترسی از پلن انتخابی پیروی می‌کنند. خاموشی معمولی VPS هزینه را متوقف نمی‌کند؛ برای پایان صورتحساب سرویس را حذف کنید.',
+     'hv_faq2_q' => 'حداقل هزینهٔ شروع سرور ساعتی چقدر است؟',
+-    'hv_faq2_a' => 'اعتبار پایه معادل :hours ساعت نرخ پلن است؛ حدود :min برای ارزان‌ترین پلن. این حداقل مصرف اجباری نیست. ساعت اول در سفارش کسر می‌شود؛ ذخیره نگهداری و تعهد سرویس‌های دیگر می‌توانند موجودی لازم را افزایش دهند. ذخیره تا هنگام مصرف، هزینه نهایی محسوب نمی‌شود.',
+-    'hv_faq2_a_nop' => 'اعتبار پایه معادل :hours ساعت نرخ پلن است و حداقل مصرف اجباری نیست. ساعت اول در سفارش کسر می‌شود؛ ذخیره نگهداری و تعهد سرویس‌های دیگر می‌توانند موجودی لازم را افزایش دهند. مبلغ دقیق در سفارش مشخص است.',
++    'hv_faq2_a' => 'برای شروع، اعتبار معادل :hours ساعت نرخ پلن لازم است؛ حدود :min برای ارزان‌ترین پلن. این مبلغ حداقل مصرف اجباری نیست. پس از شروع، هزینه ساعتی کسر می‌شود و سرویس تا زمانی که اعتبار قابل‌استفاده برای ساعت بعد دارید ادامه دارد؛ کاهش مانده به زیر حداقل شروع باعث قطع آن نمی‌شود.',
++    'hv_faq2_a_nop' => 'برای شروع، اعتبار معادل :hours ساعت نرخ پلن لازم است و حداقل مصرف اجباری نیست. پس از شروع، سرویس تا زمانی که اعتبار قابل‌استفاده برای ساعت بعد دارید ادامه دارد؛ لازم نیست همیشه مانده معادل حداقل شروع داشته باشید.',
+     'hv_faq3_q' => 'اگر اعتبار کیف پول تمام شود چه می‌شود؟',
+-    'hv_faq3_a' => 'سیاست پایان اعتبار را هنگام سفارش انتخاب می‌کنید. در حالت نگهداری، پس از خاموشی تأییدشده، داده‌ها حداکثر :hours ساعت حفظ و سپس سرویس حذف می‌شود؛ نگهداری ممکن است از ذخیره با نرخ اعلام‌شده کسر شود. برای ادامه، پیش از پایان مهلت حساب را شارژ کنید. نگهداری جای بکاپ نیست.',
++    'hv_faq3_a' => 'سیاست پایان اعتبار را هنگام سفارش انتخاب می‌کنید. در حالت نگهداری، پس از خاموشی تأییدشده، داده‌ها حداکثر :hours ساعت حفظ و سپس سرویس حذف می‌شود. برای ادامه، پیش از پایان مهلت حساب را شارژ کنید. نگهداری جای بکاپ نیست.',
+     'hv_faq4_q' => 'آیا سرور ساعتی از سرور ماهانه ضعیف‌تر است؟',
+     'hv_faq4_a' => 'نه. منابع، دیسک، شبکه و IP همان مشخصات پلن انتخابی هستند؛ روش پرداخت متفاوت است. نرخ ساعتی نمایش‌داده‌شده مبنای صورتحساب است و لزوماً از تقسیم قیمت ماهانه به‌دست نمی‌آید. خاموش‌کردن سرور هزینه را متوقف نمی‌کند؛ برای پایان هزینه باید آن را حذف کنید.',
+     'hv_faq5_q' => 'سرور مجازی ساعتی ایران هم دارید؟',
+@@ -3186,7 +3186,7 @@
+     'gpu_warn_t' => 'دربارهٔ ظرفیت و زمان تحویل',
+     'gpu_warn_d' => 'پس از ثبت، درخواست وارد فرایند تخصیص و آماده‌سازی می‌شود؛ پیشرفت را در پنل دنبال کنید. انتظار و آماده‌سازی هزینه ندارد. برای شروع حدود یک ساعت در نظر بگیرید؛ زمان تحویل تضمینی نیست. اجرای کار ممکن است با وقفه یا جابه‌جایی محیط همراه شود و دیسک موقت است؛ خروجی‌های مهم را بیرون ذخیره کنید.',
+     'gpu_hourly_t' => 'چطور حساب می‌شود؟',
+-    'gpu_hourly_d' => 'پرداخت به‌ازای مصرف و ساعتی. برای شروع باید دست‌کم اعتبار :hours ساعت در حسابتان باشد؛ هر ساعت از همان اعتبار کم می‌شود و هر وقت ماشین را پاک کنید، کسر متوقف می‌شود.',
++    'gpu_hourly_d' => 'پرداخت به‌ازای مصرف و ساعتی است. اعتبار :hours ساعت فقط برای شروع لازم است؛ پس از آن سرویس تا وقتی اعتبار قابل‌استفاده برای ساعت بعد دارید ادامه دارد، حتی اگر مانده کمتر از حداقل شروع باشد.',
+     'gpu_ssh_t' => 'چطور استفاده می‌کنم؟',
+     'gpu_ssh_d' => 'برنامهٔ آماده را موقع خرید انتخاب می‌کنید و یک نشانی HTTPS اختصاصی می‌گیرید — در مرورگر بازش کنید یا از برنامه و سرور خودتان به‌عنوان API صدایش بزنید. این‌ها ماشین مجازی با SSH و root نیستند؛ یک برنامهٔ آماده روی GPU اختصاصی‌اند.',
+     'gpu_use1_t' => 'استنتاج مدل',
+@@ -3387,7 +3387,7 @@
+     'gpu_request_wallet_start_heading' => 'اعتبار لازم برای شروع',
+     'gpu_request_wallet_start' => 'برای آغاز ساخت و راه‌اندازی سرور ساعتی، اعتبار قابل‌استفادهٔ کیف پول شما باید حداقل معادل هزینهٔ :hours ساعتِ این سرور باشد. اعتبار لازم برای سایر سرورهای ساعتی شما نیز در حداقل نمایش‌داده‌شده لحاظ می‌شود.',
+     'gpu_request_wallet_billing_heading' => 'پرداخت ساعتی و حذف سرور',
+-    'gpu_request_wallet_billing' => 'پس از آماده‌شدن این سرویس، هزینه با تعرفهٔ ساعتی از کیف پول کسر می‌شود. می‌توانید سرور را هر زمان حذف کنید؛ پس از تکمیل حذف، هزینهٔ ساعتی جدیدی برای آن محاسبه نمی‌شود.',
++    'gpu_request_wallet_billing' => 'پس از آماده‌شدن سرویس، هزینه ساعتی از کیف پول کسر می‌شود. شرط اعتبار اولیه دوباره برای ادامه مصرف اعمال نمی‌شود؛ تا وقتی اعتبار قابل‌استفاده برای ساعت بعد دارید سرویس ادامه دارد. می‌توانید سرور را هر زمان حذف کنید؛ پس از تکمیل حذف، هزینه ساعتی جدیدی محاسبه نمی‌شود.',
+     'gpu_request_wallet_reuse_heading' => 'استفاده از ماندهٔ اعتبار',
+     'gpu_request_wallet_reuse' => 'ماندهٔ اعتبار مصرف‌نشده و قابل‌استفاده در کیف پول شما باقی می‌ماند و می‌توانید از آن برای خرید و تمدید سایر خدمات سرورنت استفاده کنید.',
+ 
+diff --git a/website/lang/tr/ui.php b/website/lang/tr/ui.php
+index 1fda405..70c9517 100644
+--- a/website/lang/tr/ui.php
++++ b/website/lang/tr/ui.php
+@@ -2057,7 +2057,7 @@
+     'cvb_hourly_end_suspend' => 'Sunucu kapatılsın (veriler kalır, yükleme ile açılır)',
+     'cvb_hourly_end_convert' => 'Aylık ödemeye geçilsin',
+     'cvb_hourly_end_terminate' => 'Sunucu silinsin',
+-    'cvb_hourly_note' => 'İlk saat şimdi, kalanı saatlik tahsil edilir. İstediğiniz an iptal edin — kullanılmayan bakiye cüzdanınızda kalır.',
++    'cvb_hourly_note' => 'Asgari bakiye yalnızca başlatma koşuludur. Başlatıldıktan sonra kullanılabilir bakiye sonraki saati karşıladığı sürece hizmet devam eder; başlangıç eşiğinin altına düşmek hizmeti durdurmaz. Ücret saatlik düşülür, kullanılmayan bakiye cüzdanda kalır.',
+     'svc_terminate' => 'Hizmeti sil',
+     'svc_terminate_ok' => 'Kodu gönder',
+     'svc_terminate_confirm' => 'Bu hizmet silindiğinde sunucu ve tüm verileri kalıcı olarak silinir. Veriler geri yüklenemez.',
+@@ -2899,8 +2899,8 @@
+     'hv_how_t' => 'Saatlik sunucu nasıl çalışır?',
+     'hv_how_d' => 'Dört adım, hepsi ServerNet panelinden — destek talebi gerekmez.',
+     'hv_step1_t' => 'Cüzdanınızı yükleyin',
+-    'hv_step1_d' => 'Temel başlangıç bakiyesi plan ücretinin :hours saatlik karşılığıdır; en ucuz plan için yaklaşık :min. Saklama rezervi ve diğer saatlik hizmetler gerekli bakiyeyi artırabilir; kesin tutar siparişte gösterilir.',
+-    'hv_step1_d_nop' => 'Temel başlangıç bakiyesi plan ücretinin :hours saatlik karşılığıdır. Saklama rezervi ve diğer saatlik hizmetler kullanılabilir bakiyeyi etkiler; kesin tutarı siparişte kontrol edin.',
++    'hv_step1_d' => 'Başlangıç bakiyesi plan ücretinin :hours saatlik karşılığıdır; en ucuz plan için yaklaşık :min. Diğer yükümlülükleriniz kesin sipariş tutarına dahil edilir. Başlatıldıktan sonra kalan kullanılabilir bakiye hizmet için harcanabilir.',
++    'hv_step1_d_nop' => 'Başlangıç bakiyesi plan ücretinin :hours saatlik karşılığıdır. Diğer yükümlülüklerle birlikte kesin tutar siparişte gösterilir. Başlatıldıktan sonra kalan kullanılabilir bakiye hizmet için harcanabilir.',
+     'hv_step2_t' => 'Konum ve paket seçin',
+     'hv_step2_d' => 'Ülkeleri, şehirleri, kaynakları, disk türünü ve kullanılabilir işletim sistemlerini mağazada karşılaştırın. Seçenekler plana ve konumdaki güncel kapasiteye bağlıdır.',
+     'hv_step3_t' => '“Saatlik ödeme” kutusunu işaretleyin',
+@@ -2924,7 +2924,7 @@
+     'hv_card_buy' => 'Saatlik sipariş',
+ 
+     'hv_vs_t' => 'Saatlik mi aylık mı — hangisi daha ucuz?',
+-    'hv_vs_lead' => 'Kısa bir iş için saatlik ücret × ihtiyaç duyulan süre tahminini aynı planın dönem fiyatıyla karşılaştırın. VPS’yi normal şekilde kapatmak ücreti bitirmez. Başlangıç bakiyesi ve saklama rezervi nihai kullanım maliyetinden ayrıdır.',
++    'hv_vs_lead' => 'Kısa bir iş için saatlik ücret × ihtiyaç duyulan süre tahminini aynı planın dönem fiyatıyla karşılaştırın. VPS’yi normal şekilde kapatmak ücreti bitirmez. Başlangıç bakiyesi zorunlu asgari kullanım değildir.',
+     'hv_vs_h_item' => 'Ölçüt',
+     'hv_vs_h_hourly' => 'Saatlik',
+     'hv_vs_h_monthly' => 'Aylık',
+@@ -2961,10 +2961,10 @@
+     'hv_faq1_q' => 'Saatlik VPS nedir?',
+     'hv_faq1_a' => 'Saatlik VPS, siparişte kaydedilen saatlik ücretle cüzdanınızdan ödenen bir bulut sunucudur. Kaynaklar ve erişim seçilen plana bağlıdır. VPS’yi normal şekilde kapatmak ücreti durdurmaz; faturalandırmayı bitirmek için hizmeti silin.',
+     'hv_faq2_q' => 'Saatlik sunucuya başlamanın minimum maliyeti nedir?',
+-    'hv_faq2_a' => 'Temel başlangıç bakiyesi planın :hours saatlik ücretidir; en ucuz plan için yaklaşık :min. Bu zorunlu asgari kullanım değildir. İlk saat siparişte düşülür; saklama rezervi ve diğer saatlik hizmetler gereken bakiyeyi artırabilir. Rezerve bakiye tüketilene kadar nihai maliyet değildir.',
+-    'hv_faq2_a_nop' => 'Temel başlangıç bakiyesi planın :hours saatlik ücretidir ve zorunlu asgari kullanım değildir. İlk saat siparişte düşülür; saklama rezervi ve diğer saatlik hizmetler gereken bakiyeyi artırabilir. Kesin tutar siparişte gösterilir.',
++    'hv_faq2_a' => 'Başlatmak için plan ücretinin :hours saatlik karşılığı gerekir; en ucuz plan için yaklaşık :min. Bu zorunlu asgari kullanım değildir. Sonrasında kullanılabilir bakiye sonraki saati karşıladığı sürece hizmet devam eder; başlangıç eşiğinin altına düşmek hizmeti durdurmaz.',
++    'hv_faq2_a_nop' => 'Başlatmak için plan ücretinin :hours saatlik karşılığı gerekir; bu zorunlu asgari kullanım değildir. Sonrasında kullanılabilir bakiye sonraki saati karşıladığı sürece hizmet devam eder; başlangıç bakiyesini sürekli korumanız gerekmez.',
+     'hv_faq3_q' => 'Cüzdan bakiyesi biterse ne olur?',
+-    'hv_faq3_a' => 'Siparişte bakiye tükenme politikasını seçersiniz. Saklama seçildiğinde doğrulanmış kapatmadan sonra veriler silinmeden önce en fazla :hours saat tutulur; belirtilen saklama ücreti rezerve bakiyeden düşülebilir. Devam etmek için süre dolmadan bakiye yükleyin. Saklama yedekleme değildir.',
++    'hv_faq3_a' => 'Siparişte bakiye tükenme politikasını seçersiniz. Saklama seçildiğinde doğrulanmış kapatmadan sonra veriler silinmeden önce en fazla :hours saat tutulur. Devam etmek için süre dolmadan bakiye yükleyin. Saklama yedekleme değildir.',
+     'hv_faq4_q' => 'Saatlik sunucu aylıktan daha mı zayıf?',
+     'hv_faq4_a' => 'Hayır. Kaynaklar, disk, ağ ve IP seçilen pakete göre aynıdır; faturalama farklıdır. Gösterilen saatlik ücret esas alınır ve her zaman aylık fiyattan türetilmez. Kapatmak ücreti durdurmaz; faturalamayı bitirmek için sunucuyu silin.',
+     'hv_faq5_q' => 'İran’da saatlik VPS var mı?',
+@@ -3166,7 +3166,7 @@
+     'gpu_warn_t' => 'Kapasite ve teslim süresi hakkında',
+     'gpu_warn_d' => 'İsteğiniz gönderildikten sonra tahsis ve hazırlık sürecine girer; ilerlemeyi panelden izleyin. Bekleme ve hazırlık ücretsizdir. Başlangıç için yaklaşık bir saat ayırın; teslim süresi garanti edilmez. Çalışma kesintiye uğrayabilir veya taşınabilir ve disk geçicidir. Önemli çıktıları harici olarak saklayın.',
+     'gpu_hourly_t' => 'Nasil faturalanir?',
+-    'gpu_hourly_d' => 'Kullandiginiz kadar odeyin, saatlik. Baslamak icin hesabinizda en az :hours saatlik bakiye gerekir; her saat bu bakiyeden dusulur ve makineyi sildiginiz anda kesinti durur.',
++    'gpu_hourly_d' => 'Kullanım için saatlik ödeme yapın. :hours saatlik bakiye yalnızca başlatmak için gereklidir; sonrasında bakiye başlangıç eşiğinin altına düşse bile kullanılabilir bakiye sonraki saati karşıladığı sürece hizmet devam eder.',
+     'gpu_ssh_t' => 'Nasil kullanirim?',
+     'gpu_ssh_d' => 'Satin alirken hazir uygulamayi secersiniz ve ozel bir HTTPS adresi alirsiniz - tarayicida acin veya kendi sunucunuzdan API olarak cagirin. Bunlar SSH ve root iceren VPS degildir; ozel GPU uzerinde hazir bir uygulamadir.',
+     'gpu_use1_t' => 'Model cikarimi',
+@@ -3367,7 +3367,7 @@
+     'gpu_request_wallet_start_heading' => 'Başlangıç için gereken bakiye',
+     'gpu_request_wallet_start' => 'Saatlik sunucunun kurulumunu başlatmak için cüzdanınızdaki kullanılabilir bakiye, en az bu sunucunun :hours saatlik ücretini karşılamalıdır. Gösterilen minimum bakiye, diğer saatlik sunucularınız için gereken bakiyeyi de kapsar.',
+     'gpu_request_wallet_billing_heading' => 'Saatlik ücretlendirme ve sunucu silme',
+-    'gpu_request_wallet_billing' => 'Bu servis hazır olduktan sonra ücretler saatlik olarak cüzdanınızdan düşülür. Sunucuyu istediğiniz zaman silebilirsiniz; silme işlemi tamamlandığında bu sunucu için yeni saatlik ücret hesaplanmaz.',
++    'gpu_request_wallet_billing' => 'Hizmet hazır olduğunda saatlik ücretler cüzdanınızdan düşülür. Başlangıç bakiyesi koşulu kullanıma devam ederken yeniden uygulanmaz; kullanılabilir bakiye sonraki saati karşıladığı sürece hizmet sürer. Sunucuyu istediğiniz zaman silebilirsiniz; silme tamamlandıktan sonra yeni saatlik ücret hesaplanmaz.',
+     'gpu_request_wallet_reuse_heading' => 'Kalan bakiyenin kullanımı',
+     'gpu_request_wallet_reuse' => 'Harcanmamış ve kullanılabilir cüzdan bakiyeniz hesabınızda kalır; bu bakiyeyi diğer ServerNet hizmetlerini satın almak veya yenilemek için kullanabilirsiniz.',
+ 

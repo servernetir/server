@@ -10,18 +10,12 @@ use App\Services\Cloud\HourlyHold;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-/**
- * 🔴 «~N ساعت اعتبار» روی کارتِ سرور باید همان عددی باشد که متر خرج می‌کند.
- *
- * رخداد (مهر ۱۴۰۵، TK-261017-9453 و TK-261021-5248): کارت از موجودیِ **خام**
- * حساب می‌کرد و ذخیرهٔ نگهداریِ ۲۴ ساعته را کم نمی‌کرد؛ مشتری «۵۰ ساعت» می‌دید
- * و سرورش حدودِ نصفِ آن زمان با پیامِ «اعتبار تمام شد» معلق می‌شد.
- */
+/** Running-time estimates must include the former retention reserve. */
 class PanelHoursLeftReserveTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_the_card_subtracts_the_hold_reserve_like_the_meter_does(): void
+    public function test_the_card_includes_the_obsolete_active_reserve_like_the_meter_does(): void
     {
         $this->assertTrue(HourlyHold::enabled(), 'ستون‌های ذخیرهٔ نگهداری در تست نیستند — این تست چیزی نمی‌سنجد.');
 
@@ -57,12 +51,12 @@ class PanelHoursLeftReserveTest extends TestCase
             'ipv4' => '203.0.113.9', 'status' => 'running', 'ready_notified_at' => now()->subDay(),
         ]);
 
-        $this->assertSame(76, $s->fresh()->hoursLeft(), 'مرجع: همان عددِ «در دسترس» که متر می‌خوانَد');
+        $this->assertSame(100, $s->fresh()->hoursLeft(), 'Active reserves must not reduce running time.');
 
         $html = (string) $this->actingAs($c, 'customer')
             ->get(route('account.services', [], false))->assertOk()->getContent();
 
-        $this->assertStringContainsString('~'.fa_num(76), $html, 'کارت باید ۷۶ ساعتِ واقعی را بگوید.');
-        $this->assertStringNotContainsString('~'.fa_num(100).' ', $html, 'کارت هنوز از موجودیِ خام (۱۰۰ ساعت) حساب می‌کند.');
+        $this->assertStringContainsString('~'.fa_num(100), $html, 'The full 100 usable hours must be shown.');
+        $this->assertStringNotContainsString('~'.fa_num(76).' ', $html, 'The obsolete reserve must not hide 24 running hours.');
     }
 }

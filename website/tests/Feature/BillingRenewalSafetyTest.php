@@ -435,7 +435,7 @@ class BillingRenewalSafetyTest extends TestCase
     {
         $this->assertTrue(Schema::hasColumns('services', ['hold_rate_irt', 'hold_reserve_irt']));
         HourlyHold::flush();
-        $service = $this->hourly(['status' => 'suspended', 'suspended_at' => now()->subHours(2),
+        $service = $this->hourly(['status' => 'suspended', 'hourly_rate_irt' => 5000, 'suspended_at' => now()->subHours(2),
             'last_metered_at' => now()->subHours(2), 'hold_rate_irt' => 100, 'hold_reserve_irt' => 2400,
             'provision_meta' => ['hourly_suspend' => ['confirmed_at' => now()->subHours(2)->toIso8601String()]]]);
         $this->topup($service, 3000);
@@ -571,7 +571,7 @@ class BillingRenewalSafetyTest extends TestCase
         $migration->up();
         $this->assertSame(2400, (int) $service->fresh()->hold_reserve_irt);
         $this->assertSame(100, (int) $service->fresh()->hold_rate_irt);
-        $this->assertSame(2400, HourlyHold::heldOf($service->customer_id));
+        $this->assertSame(0, HourlyHold::heldOf($service->customer_id), 'Old active columns survive migration but no longer hold credit.');
     }
 
     public function test_rclone_driver_registration_and_pricing_configuration_are_complete(): void
