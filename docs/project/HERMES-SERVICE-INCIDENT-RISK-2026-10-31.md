@@ -51,12 +51,31 @@ php website/tests/standalone/hermes-support-incident.php \
   infra/hermes/server-ticket-followup-20261028/HermesSupportInvestigation.php
 ```
 
-PHP execution is pending on an isolated runtime; local PHP is unavailable.
-Baseline and modified-source results must be recorded before claiming acceptance.
+Executed by the release coordinator in an isolated PHP 8.4 CLI process on
+2026-10-31, with the explicit staged policy and investigation sources. The
+authoritative terminal result was:
+
+```json
+{"status":"passed","cases":28,"assertions":74,"external_calls":0,"application_bootstrap":false}
+```
+
+The source and harness SHA-256 values tested were:
+
+| File | SHA-256 |
+|---|---|
+| `HermesSupportPolicy.php` | `fecc379101303fcd3261f24accca86a8b243f8a0ed3f2f90f7701fecdfe54054` |
+| `HermesSupportInvestigation.php` | `defc82a34c66bd00bd6dd58d4a09bbf0ca5e76942918bde1392ccd948108a295` |
+| `hermes-support-incident.php` | `eda57bf5fd6150111ef423a5ee2e23ceb032801bf58869d564dce542261f4c97` |
+
+Independent source review found no blocker after the multiline and English
+phrase coverage fixes. No runtime source changed after this execution. Local PHP
+was unavailable; this is not a full Laravel suite or a real model/provider test.
+Complex negations can conservatively escalate for review; the classifier does
+not infer verified loss or authorize actions.
 
 ## Release and rollback
 
-Status: prepared source only; no production installation performed by this change.
+Status: tested source in PR #169; no production installation claimed by this report.
 Production destinations are `app/Services/Hermes/HermesSupportPolicy.php` and
 `app/Services/Hermes/HermesSupportInvestigation.php` outside the tracked website
 tree on this baseline. Before any installation, read both current files, preserve
