@@ -473,7 +473,7 @@
                داده می‌شود و هم راهِ رفعش هست. --}}
           <td dir="ltr" style="color:var(--muted)">
             @if($s->hasUnverifiedBillingTerms())
-              <span dir="rtl">{{ __('ui.svc_billing_terms_pending') }}</span>
+              <span title="{{ __('ui.svc_valid_until') }}">{{ sdate($s->managementValidUntil()) }}</span>
             @elseif($s->next_due_at)
               {{ sdate($s->next_due_at) }}
             @elseif($s->isHourly())

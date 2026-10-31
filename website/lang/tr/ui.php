@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'svc_valid_until' => 'Hizmet geçerlilik tarihi',
     'svc_existing_management' => 'Mevcut hizmet yönetimi',
     'svc_billing_terms_pending' => 'Yenileme tutarı ve dönemi kayıt incelemesinde',
     'svc_billing_terms_required' => 'Fatura düzenlemeden önce bu hizmetin fiyatını, dönemini ve vade tarihini geçerli kayıtlardan doğrulayın.',
