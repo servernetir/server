@@ -102,12 +102,11 @@ jobs:
               tail -n 120 /tmp/seo-report-access-phpunit.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            while IFS= read -r line; do
-              line=${line//'%'/'%25'}
-              line=${line//$'\r'/'%0D'}
-              line=${line//$'\n'/'%0A'}
-              echo "::error title=Report access PHPUnit::$line"
-            done < <(tail -n 60 /tmp/seo-report-access-phpunit.log)
+            diagnostic=$(tail -n 120 /tmp/seo-report-access-phpunit.log)
+            diagnostic=${diagnostic//'%'/'%25'}
+            diagnostic=${diagnostic//$'\r'/'%0D'}
+            diagnostic=${diagnostic//$'\n'/'%0A'}
+            echo "::error title=Report access PHPUnit::$diagnostic"
             exit "$test_status"
           fi
       - name: Record acceptance boundary
