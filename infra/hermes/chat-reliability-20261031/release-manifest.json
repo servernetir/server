@@ -1,0 +1,24 @@
+{
+  "release": "hermes-chat-reliability-20261031",
+  "base_commit": "fc68971351fd17f2f5e18a3852f000108e56531a",
+  "files": {
+    "HermesAlertSummary.php": {
+      "source": "website/app/Services/Hermes/HermesAlertSummary.php",
+      "target": "app/Services/Hermes/HermesAlertSummary.php",
+      "before": null,
+      "after": "622ec303e2293db88b1fba0c7a508d95e3b6c929a09df4fb815ba60f33042638"
+    },
+    "ConsoleHost.php": {
+      "source": "website/app/Http/Middleware/ConsoleHost.php",
+      "target": "app/Http/Middleware/ConsoleHost.php",
+      "before": "7cc57d3edaa03e4d6669a46be1c3fb2cd3bca664f4dcfc204205a6685a6dd7b5",
+      "after": "36b1f7668ef05bf991533a4e3a148f5002b624260350b9256d9123a4e0176f5e"
+    },
+    "HermesOperations.php": {
+      "source": "infra/hermes/chat-reliability-20261031/HermesOperations.php",
+      "target": "app/Services/Hermes/HermesOperations.php",
+      "before": "25cd6698628341aafe77a868b522bcca94d73603be8367bb3ddccbc712d20b1d",
+      "after": "0e5b6bfccbab16b3e8c4a258e2aff68adeefb59716cb00f446db978126e96c6e"
+    }
+  }
+}

@@ -161,4 +161,35 @@ class ConsoleHostTest extends TestCase
         $this->on('console.servernet.cloud', '/login')
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
     }
+
+    public function test_console_ai_posts_reach_the_existing_auth_gate_without_a_redirect(): void
+    {
+        \Illuminate\Support\Facades\Http::preventStrayRequests();
+
+        foreach (['chat/completions', 'embeddings', 'rerank', 'inference'] as $path) {
+            $this->postJson('https://console.servernet.cloud/v1/'.$path, [])
+                ->assertStatus(401)->assertJsonPath('error.code', 'invalid_token')
+                ->assertHeaderMissing('Location');
+        }
+
+        $this->getJson('https://console.servernet.cloud/v1/models')
+            ->assertStatus(401)->assertJsonPath('error.code', 'invalid_token')
+            ->assertHeaderMissing('Location');
+    }
+
+    public function test_console_keeps_chat_method_json_and_bearer_header(): void
+    {
+        \Illuminate\Support\Facades\Route::post('/v1/console-host-fixture',
+            fn (\Illuminate\Http\Request $request) => response()->json([
+                'method' => $request->method(), 'payload' => $request->json()->all(),
+                'bearer' => $request->bearerToken(), 'query' => $request->query('trace'),
+            ]));
+
+        $payload = ['model' => 'fixture-only', 'messages' => [['role' => 'user', 'content' => 'سلام']]];
+        $this->withToken('synthetic-routing-fixture')
+            ->postJson('https://console.servernet.cloud/v1/console-host-fixture?trace=fixture', $payload)
+            ->assertOk()->assertExactJson(['method' => 'POST', 'payload' => $payload,
+                'bearer' => 'synthetic-routing-fixture', 'query' => 'fixture'])
+            ->assertHeaderMissing('Location');
+    }
 }
