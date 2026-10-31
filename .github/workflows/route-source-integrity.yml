@@ -1,0 +1,76 @@
+name: Route source integrity
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'website/routes/**'
+      - 'website/bootstrap/**'
+      - 'website/composer.json'
+      - 'website/composer.lock'
+      - 'website/tests/Unit/RouteSourceIntegrityTest.php'
+      - 'scripts/run-php-tests-offline.py'
+      - '.github/workflows/route-source-integrity.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/routes/**'
+      - 'website/bootstrap/**'
+      - 'website/composer.json'
+      - 'website/composer.lock'
+      - 'website/tests/Unit/RouteSourceIntegrityTest.php'
+      - 'scripts/run-php-tests-offline.py'
+      - '.github/workflows/route-source-integrity.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: route-source-integrity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  routes:
+    name: UTF-8 PHP and real route bootstrap
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - name: Checkout exact revision without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up isolated PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without production configuration
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Validate executable source and actual route registration without network
+        working-directory: website
+        run: |
+          set -euo pipefail
+          python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- \
+            tests/Unit/RouteSourceIntegrityTest.php --display-warnings --fail-on-warning --colors=never
