@@ -50,6 +50,16 @@ final class DocumentedAccounting
     public function post(array $d, int $actor): FinanceVoucher
     {
         $this->check($this->ready(), 'not_ready');
+        if (in_array($d['type'], ['partner_advance', 'partner_advance_transfer'], true)) {
+            $this->check(is_string($d['bank_reference'] ?? null), 'bank_invalid');
+            $reference = strtr(trim($d['bank_reference']), array_combine(preg_split('//u', '۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', -1, PREG_SPLIT_NO_EMPTY), str_split('01234567890123456789')));
+            $reference = preg_replace('/\s+/u', '', $reference);
+            $this->check(is_string($reference) && mb_strlen($reference) >= 4 && mb_strlen($reference) <= 150, 'bank_invalid');
+            $d['bank_reference'] = mb_strtolower($reference);
+            $bankRowId = $d['bank_transaction_id'] ?? null;
+            $this->check($bankRowId === null || $bankRowId === '' || (filter_var($bankRowId, FILTER_VALIDATE_INT) !== false && (int) $bankRowId > 0), 'bank_invalid');
+            $d['bank_transaction_id'] = $bankRowId === null || $bankRowId === '' ? null : (int) $bankRowId;
+        }
         $d['funding_mode'] = $d['funding_mode'] ?? ($d['type'] === 'partner_advance_transfer' ? 'advance' : 'personal');
         $this->check(in_array($d['funding_mode'], ['personal', 'advance'], true), 'invalid_funding_mode');
         $relatedId = $d['related_voucher_id'] ?? null;
@@ -109,6 +119,7 @@ final class DocumentedAccounting
             }
             if ($type === 'vendor_topup') {
                 $this->check($target->type === 'vendor' && $target->currency_code === $d['original_currency']);
+                $this->check(! $this->hasLaterActivity($target, $d['occurred_at']), 'advance_source');
             }
             if ($type === 'partner_funding') {
                 $this->check($funding->type === 'partner' && $target->type === 'bank' && $target->currency_code === $d['original_currency']);
@@ -132,6 +143,18 @@ final class DocumentedAccounting
                 foreach ([$this->balance($target, $d['occurred_at']), $this->balance($target)] as $claim) {
                     $this->check($claim['native'] <= 0 && $claim['irt'] <= 0
                         && (($claim['native'] === 0) === ($claim['irt'] === 0)), 'partner_advance_mixed');
+                }
+                $this->check(! FinanceVoucher::where('funding_account_id', $funding->id)
+                    ->whereIn('type', ['partner_advance', 'partner_advance_transfer'])
+                    ->where('bank_reference', $d['bank_reference'])->exists(), 'bank_invalid');
+                if ($type === 'partner_advance_transfer') {
+                    $this->check($d['bank_transaction_id'] === null, 'bank_invalid');
+                } elseif ($d['bank_transaction_id'] !== null) {
+                    $bankRow = DB::table('finance_bank_transactions')->where('id', $d['bank_transaction_id'])->lockForUpdate()->first();
+                    $this->check($bankRow !== null && (int) $bankRow->account_id === (int) $funding->id
+                        && $bankRow->currency_code === $funding->currency_code && $bankRow->occurred_at === $d['occurred_at']
+                        && (int) $bankRow->debit_minor === $native && (int) $bankRow->credit_minor === 0
+                        && ! FinanceVoucher::where('bank_transaction_id', $bankRow->id)->exists(), 'bank_invalid');
                 }
                 $fixedRialToman = in_array($funding->currency_code, ['IRT', 'IRR'], true)
                     && in_array($target->currency_code, ['IRT', 'IRR'], true);

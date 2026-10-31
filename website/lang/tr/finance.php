@@ -259,7 +259,7 @@ return [
     'funding_mode_help' => 'Ödeyen hesap ortak hesabıysa kişisel fon ortağa borç oluşturur. Avans modu yalnızca mevcut belgeli iş avansını tüketir.',
     'related_voucher' => 'Kaynak / ilgili fiş kimliği',
     'related_voucher_help' => 'Avansı kullanmak veya aktarmak için alıcısı bu ödeyen hesap olan aktif önceki fişi seçin. Tedarikçi hesabında yükleme veya belgeli açılış fişini kullanın.',
-    'advance_workflow_help' => 'Şirket bankası → ortak için Ortağa iş avansı seçin. Aynı ortağın hesapları arasında avans aktarımı için İş avansı transferi, Avans modu ve kaynak fiş gerekir. Bu avansla tedarikçiye yükleme için Tedarikçi yüklemesi ve Avans modu seçin. Her iki para birimindeki gerçek tutarları ve tarihsel kur dayanağını kaydedin.',
+    'advance_workflow_help' => 'Şirket bankası → ortak için Ortağa iş avansı seçin. Aynı ortağın hesapları arasında avans aktarımı için İş avansı transferi, Avans modu ve kaynak fiş gerekir. Bu avansla tedarikçiye yükleme için Tedarikçi yüklemesi ve Avans modu seçin. Her iki para birimindeki gerçek tutarları ve tarihsel kur dayanağını kaydedin. Avansları, avans transferlerini ve tedarikçi yüklemelerini zaman sırasıyla girin; hesaptaki sonraki hareketten önceki tarihler kabul edilmez. Avans veya transfer için en az dört karakterli gerçek transfer referansı gerekir. Kayıttan sonra dekontu aynı fişe ekleyin. Bu form banka havalesi yapmaz; fişin kaydedilmesi tek başına ödeme kanıtı değildir.',
     'supplier_debit' => 'Gerçek tedarikçi kredisi tüketimini eşleştir',
     'supplier_debit_help' => 'Bu form satın almayı tekrarlamaz veya hizmet oluşturmaz. Gerçek tedarikçi kredi borç hareketini o hizmetin mevcut gideri ve belgesine bağlar. Kayıtlı maliyet, belgelenmiş bakiyelerden hesaplanır.',
     'supplier_account' => 'Tedarikçi ön ödemeli kredi hesabı',
@@ -285,7 +285,7 @@ return [
     'account_type_locked' => 'Mali kullanım sonrasında hesap türü, para birimi veya sabit ortak kimliği değiştirilemez.',
     'account_owner_required' => 'Ortak cari hesabının sahibinin adını girin.',
     'invalid_funding_mode' => 'Geçerli ortak fon kaynağı seçin: kişisel para veya belgeli iş avansı.',
-    'advance_source' => 'Hesap, tarih ve avans akışıyla eşleşen aktif kaynak fişi seçin.',
+    'advance_source' => 'Hesap ve avans akışıyla eşleşen aktif kaynak fişi seçin. Kayıtları zaman sırasıyla girin; avans hesabındaki sonraki mali hareketten önceki bir tarih kabul edilmez.',
     'insufficient_advance' => 'Belgeli iş avansı fiş tarihinde veya bugün yetersiz.',
     'partner_advance_mixed' => 'Bu işlem iş avansını ortağın kişisel alacağıyla karıştırır. Önce ilgili bakiyeleri ve belgeleri sonuçlandırın.',
     'currency_conversion' => 'Para birimlerini, gerçek tutarları ve tarihsel kur dayanağını kontrol edin.',
@@ -293,4 +293,5 @@ return [
     'supplier_review_required' => 'Gider, ön ödemeli hesap, tarih, hizmet kimliği ve tedarikçi borç belgesi eşleştirme gerektirir.',
     'supplier_reference_used' => 'Bu tedarikçi borç referansı aktif bir eşleştirmede kullanılıyor.',
     'supplier_receipt_invalid' => 'Bu borç hareketi için en fazla 10 MB boyutunda geçerli PDF, JPG veya PNG belge gerekir.',
+    'bundle_chain_limit' => 'İlgili fiş zinciri tek bir belge paketi için çok büyük. Daha kısa bir dönem seçin ve kayıtları küçük paketlerle inceleyin.',
 ];

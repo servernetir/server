@@ -60,7 +60,7 @@ class PartnerFundingFlowTest extends TestCase
             'input_vat_irt' => 0, 'vat_status' => 'none'], $override);
     }
 
-    private function post(FinanceAccount $funding, array $override = []): FinanceVoucher
+    private function postVoucher(FinanceAccount $funding, array $override = []): FinanceVoucher
     {
         return $this->journal()->post($this->data($funding, $override), 1);
     }
@@ -68,7 +68,7 @@ class PartnerFundingFlowTest extends TestCase
     private function bank(int $amount = 2000, string $currency = 'IRR'): FinanceAccount
     {
         $bank = $this->account('bank', $currency, null, 'Synthetic Company');
-        $this->post($bank, ['type' => 'opening_balance', 'occurred_at' => '2026-10-01',
+        $this->postVoucher($bank, ['type' => 'opening_balance', 'occurred_at' => '2026-10-01',
             'amount_irt' => $amount, 'original_currency' => $currency,
             'original_minor' => $currency === 'IRR' ? $amount * 10 : $amount,
             'funding_account_id' => null, 'target_account_id' => $bank->id,
@@ -79,7 +79,7 @@ class PartnerFundingFlowTest extends TestCase
 
     private function advance(FinanceAccount $bank, FinanceAccount $partner, int $amount = 1001, string $date = '2026-10-05'): FinanceVoucher
     {
-        return $this->post($bank, ['type' => 'partner_advance', 'occurred_at' => $date,
+        return $this->postVoucher($bank, ['type' => 'partner_advance', 'occurred_at' => $date,
             'amount_irt' => $amount, 'original_currency' => $partner->currency_code,
             'original_minor' => $partner->currency_code === 'IRR' ? $amount * 10 : $amount,
             'settlement_minor' => $bank->currency_code === 'IRR' ? $amount * 10 : $amount,
@@ -129,7 +129,7 @@ class PartnerFundingFlowTest extends TestCase
     {
         $c = $this->chain();
         $vendor = $this->account('vendor', 'TRY');
-        $topup = $this->post($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
+        $topup = $this->postVoucher($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
             'funding_mode' => 'advance', 'related_voucher_id' => $c['transfer']->id]);
         $this->assertSame(['irt' => 999, 'native' => 9990], $this->journal()->balance($c['bank']));
         $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['domestic']));
@@ -138,9 +138,9 @@ class PartnerFundingFlowTest extends TestCase
         $this->assertSame(0, app(BusinessLedger::class)->summary()['expense']);
         $this->assertSame(0, app(BusinessLedger::class)->summary()['revenue']);
 
-        $this->post($vendor, ['amount_irt' => 333, 'original_minor' => 1, 'settlement_minor' => 1,
+        $this->postVoucher($vendor, ['amount_irt' => 333, 'original_minor' => 1, 'settlement_minor' => 1,
             'related_voucher_id' => $topup->id]);
-        $this->post($vendor, ['amount_irt' => 668, 'original_minor' => 2, 'settlement_minor' => 2,
+        $this->postVoucher($vendor, ['amount_irt' => 668, 'original_minor' => 2, 'settlement_minor' => 2,
             'related_voucher_id' => $topup->id]);
         $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($vendor));
         $this->assertSame(1001, app(BusinessLedger::class)->summary()['expense']);
@@ -154,12 +154,12 @@ class PartnerFundingFlowTest extends TestCase
     {
         $c = $this->chain();
         $vendor = $this->account('vendor', 'TRY');
-        $first = $this->post($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
+        $first = $this->postVoucher($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
             'amount_irt' => 400, 'original_minor' => 1, 'settlement_minor' => 1,
             'funding_mode' => 'advance', 'related_voucher_id' => $c['transfer']->id]);
         $this->assertSame(['irt' => -668, 'native' => -2], $this->journal()->balance($c['foreign']));
         $this->assertSame(67, (int) $first->fx_gain_irt);
-        $last = $this->post($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
+        $last = $this->postVoucher($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
             'amount_irt' => 800, 'original_minor' => 2, 'settlement_minor' => 2,
             'funding_mode' => 'advance', 'related_voucher_id' => $c['transfer']->id]);
         $this->assertSame(132, (int) $last->fx_gain_irt);
@@ -169,7 +169,7 @@ class PartnerFundingFlowTest extends TestCase
         $this->assertSame(0, $summary['expense']);
         $this->assertSame(199, $summary['other_income']);
         $this->assertSame(0, $summary['revenue']);
-        $this->post($vendor, ['amount_irt' => 1200]);
+        $this->postVoucher($vendor, ['amount_irt' => 1200]);
         $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($vendor));
         $this->assertSame(1200, app(BusinessLedger::class)->summary()['expense']);
         $this->assertBalanced();
@@ -185,7 +185,7 @@ class PartnerFundingFlowTest extends TestCase
         $this->assertSame(['irt' => 1001, 'native' => 3], $this->journal()->balance($partner));
         $this->assertSame(['irt' => 1001, 'native' => 3], $this->journal()->balance($vendor));
         $this->assertSame(0, app(BusinessLedger::class)->summary()['expense']);
-        $this->post($vendor);
+        $this->postVoucher($vendor);
         $this->assertSame(1001, app(BusinessLedger::class)->summary()['expense']);
         $this->assertBalanced();
     }
@@ -250,11 +250,11 @@ class PartnerFundingFlowTest extends TestCase
         $bank = $this->bank(4000);
         $source = $this->account('partner', 'IRR');
         $target = $this->account('partner', 'TRY');
-        $opening = $this->post($bank, ['type' => 'opening_balance', 'occurred_at' => '2026-10-02',
+        $opening = $this->postVoucher($bank, ['type' => 'opening_balance', 'occurred_at' => '2026-10-02',
             'amount_irt' => 100, 'original_currency' => 'IRR', 'original_minor' => 1000,
             'funding_account_id' => null, 'target_account_id' => $source->id,
             'settlement_currency' => null, 'settlement_minor' => 0]);
-        $this->post($bank, ['type' => 'partner_repayment', 'occurred_at' => '2026-10-03',
+        $this->postVoucher($bank, ['type' => 'partner_repayment', 'occurred_at' => '2026-10-03',
             'target_account_id' => $source->id, 'amount_irt' => 100,
             'original_currency' => 'IRR', 'original_minor' => 1000, 'settlement_minor' => 1000]);
         $this->advance($bank, $source);
@@ -338,7 +338,7 @@ class PartnerFundingFlowTest extends TestCase
         $this->rejectedWithoutPosting($this->data($bank, ['type' => 'partner_repayment',
             'target_account_id' => $partner->id, 'amount_irt' => 100,
             'original_currency' => 'IRR', 'original_minor' => 1000, 'settlement_minor' => 1000]));
-        $this->post($partner, ['amount_irt' => 100, 'original_currency' => 'IRT',
+        $this->postVoucher($partner, ['amount_irt' => 100, 'original_currency' => 'IRT',
             'original_minor' => 100, 'settlement_minor' => 1000]);
         $this->rejectedWithoutPosting($this->data($bank, ['type' => 'partner_advance',
             'target_account_id' => $partner->id, 'amount_irt' => 100,
@@ -356,7 +356,7 @@ class PartnerFundingFlowTest extends TestCase
         $source = $this->account('partner', 'IRR');
         $target = $this->account('partner', 'TRY');
         $advance = $this->advance($bank, $source);
-        $this->post($target, ['amount_irt' => 100, 'original_minor' => 1, 'settlement_minor' => 1]);
+        $this->postVoucher($target, ['amount_irt' => 100, 'original_minor' => 1, 'settlement_minor' => 1]);
         $this->rejectedWithoutPosting($this->transferData($source, $target, $advance));
         $this->assertSame(['irt' => 100, 'native' => 1], $this->journal()->balance($target));
     }
@@ -375,7 +375,7 @@ class PartnerFundingFlowTest extends TestCase
     {
         $c = $this->chain();
         $vendor = $this->account('vendor', 'TRY');
-        $topup = $this->post($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
+        $topup = $this->postVoucher($c['foreign'], ['type' => 'vendor_topup', 'target_account_id' => $vendor->id,
             'funding_mode' => 'advance', 'related_voucher_id' => $c['transfer']->id]);
         $existing = BusinessEntry::create(['currency_code' => 'IRT', 'direction' => 'out',
             'kind' => 'expense', 'category' => 'domain_wholesale', 'amount' => 1001,

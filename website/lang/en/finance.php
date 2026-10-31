@@ -259,7 +259,7 @@ return [
     'funding_mode_help' => 'For a partner funding account, personal funds create a liability to the partner. Advance mode consumes only an existing documented business advance.',
     'related_voucher' => 'Source / related voucher ID',
     'related_voucher_help' => 'To spend or transfer an advance, select an active earlier voucher whose destination was this funding account. For a supplier funding account, use its topup or evidenced opening voucher.',
-    'advance_workflow_help' => 'For company bank → partner, select Business advance to partner. To transfer an advance between the same partner\'s accounts, select Business advance transfer, Advance mode and the source voucher. To top up a supplier using that advance, select Supplier topup and Advance mode. Record actual amounts in both currencies and the historical FX basis.',
+    'advance_workflow_help' => 'For company bank → partner, select Business advance to partner. To transfer an advance between the same partner\'s accounts, select Business advance transfer, Advance mode and the source voucher. To top up a supplier using that advance, select Supplier topup and Advance mode. Record actual amounts in both currencies and the historical FX basis. Record advances, advance transfers and supplier topups in chronological order; dates before later account activity are not accepted. An advance or transfer requires the actual transfer reference, at least four characters. Attach its receipt to the voucher after posting. This form does not make a bank transfer, and posting a voucher alone does not prove payment.',
     'supplier_debit' => 'Reconcile actual supplier credit consumption',
     'supplier_debit_help' => 'This form does not repeat a purchase or create a service. It links an actual supplier credit debit to the existing cost of that service and its evidence. Carrying value is calculated from documented balances.',
     'supplier_account' => 'Supplier prepaid credit account',
@@ -285,7 +285,7 @@ return [
     'account_type_locked' => 'The account type, currency or stable partner ID cannot change after financial use.',
     'account_owner_required' => 'Enter the partner current account holder\'s name.',
     'invalid_funding_mode' => 'Select a valid partner funding source: personal funds or a documented business advance.',
-    'advance_source' => 'Select an active source voucher matching the account, date and advance flow.',
+    'advance_source' => 'Select an active source voucher matching the account and advance flow. Post in chronological order; a date before later financial activity in the advance account is not accepted.',
     'insufficient_advance' => 'The documented business advance is insufficient on the posting date or today.',
     'partner_advance_mixed' => 'This operation would mix a business advance with a personal partner liability. Resolve the related balances and evidence first.',
     'currency_conversion' => 'Check the currencies, actual amounts and historical FX basis.',
@@ -293,4 +293,5 @@ return [
     'supplier_review_required' => 'The cost, prepaid account, date, service identity and supplier debit evidence require reconciliation.',
     'supplier_reference_used' => 'This supplier debit reference is already used in an active reconciliation.',
     'supplier_receipt_invalid' => 'A valid PDF, JPG or PNG proof for this debit, up to 10 MB, is required.',
+    'bundle_chain_limit' => 'The related voucher chain is too large for one evidence bundle. Select a shorter period and review the records in smaller bundles.',
 ];
