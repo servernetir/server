@@ -943,7 +943,7 @@ class AdminBaleRouter
             ],
         ];
         if ($this->managerMode()) { $rows[] = [
-            ['text' => '📊 گزارش مدیریت', 'data' => self::CB_PREFIX.'md:stats'],
+            ['text' => '📊 گزارش مدیریت', 'data' => self::CB_PREFIX.'md:overview'],
             ['text' => '📈 آمار بازدید و اتصال گوگل', 'data' => self::CB_PREFIX.'md:traffic'],
         ]; }
         $this->sendButtons($d['text'], $rows);
@@ -1382,10 +1382,30 @@ class AdminBaleRouter
 
     private function managerDetail(string $topic): void
     {
-        if (! in_array($topic, ['stats','payments','domains','hermes','mail','calendar','identity','content','traffic','balances','fx','costs'], true)) { $this->replyToOwner('بخش گزارش شناخته نشد.'); return; }
-        $detail = app(\App\Services\Bale\Management\BaleManagerDailyDigest::class)->detail($topic);
-        if ($topic === 'traffic') { $detail .= "\n\nتنظیم اتصال آمار و دسترسی گوگل:\nhttps://console.servernet.cloud/admin/bale/reporting"; }
-        $this->replyToOwner($detail);
+        $digest = app(\App\Services\Bale\Management\BaleManagerDailyDigest::class);
+        if ($topic === 'overview') {
+            // This only renders current local/cached observations. It does not
+            // dispatch a daily/sample delivery or refresh an upstream account.
+            $this->sendButtons($digest->text(), $digest->buttons());
+            return;
+        }
+        if (! in_array($topic, \App\Services\Bale\Management\BaleManagerDailyDigest::TOPICS, true)) { $this->replyToOwner('بخش گزارش شناخته نشد.'); return; }
+        $panels = [
+            'stats' => ['👥 پرونده مشتریان', '/admin/customers'], 'payments' => ['💰 دفتر مالی', '/admin/finance'],
+            'domains' => ['🌐 مدیریت دامنه‌ها', '/admin/domains'], 'hermes' => ['⚠️ نظارت هرمس', '/admin/ai-growth?tab=hermes'],
+            'mail' => ['📬 ایمیل در پنل', '/admin/mail'], 'calendar' => ['📅 تقویم کسب‌وکار', '/admin/calendar'],
+            'identity' => ['🪪 بررسی استعلام‌ها', '/admin/identity-api'], 'content' => ['📝 مدیریت محتوا', '/admin/posts'],
+            'traffic' => ['🔎 اتصال و آمار گوگل', '/admin/bale/reporting'], 'balances' => ['🏦 مدیریت زیرساخت‌ها', '/admin/cloud'],
+            'fx' => ['💱 تنظیمات نرخ ارز', '/admin/settings'], 'costs' => ['📈 بررسی زیرساخت‌ها', '/admin/cloud'],
+        ];
+        $rows = [[['text' => '🔄 بازخوانی نمایش', 'data' => self::CB_PREFIX.'md:'.$topic],
+            ['text' => '📋 گزارش کامل', 'data' => self::CB_PREFIX.'md:overview']]];
+        [$label, $path] = $panels[$topic];
+        $rows[] = [['text' => $label, 'url' => 'https://console.servernet.cloud'.$path]];
+        if ($topic === 'mail') { $rows[1][] = ['text' => '📬 صندوق بله', 'data' => self::CB_PREFIX.'m:']; }
+        elseif ($topic === 'stats') { $rows[1][] = ['text' => '🔎 یافتن مشتری', 'data' => self::CB_PREFIX.'cf:']; }
+        elseif ($topic === 'hermes') { $rows[1][] = ['text' => '🚧 تحویل‌های معطل', 'data' => self::CB_PREFIX.'sq:']; }
+        $this->sendButtons($digest->detail($topic), $rows);
     }
 
     private function customerDocuments(int $id): void
@@ -3267,7 +3287,7 @@ class AdminBaleRouter
      *
      * ⚠️ مثلِ `replyToOwner()` آرگومانِ مقصد ندارد — همان استدلالِ امنیتی.
      *
-     * @param  array<int,array<int,array{text:string,data:string}>>  $rows
+     * @param  array<int,array<int,array{text:string,data?:string,url?:string}>>  $rows
      */
     private function sendButtons(string $text, array $rows): void
     {
