@@ -28,7 +28,7 @@ class ManagerTrafficSnapshot
         } catch (\Throwable) { return $this->unknown('snapshot_unavailable'); }
     }
 
-    /** Explicit scheduled-delivery operation: at most one token refresh and four bounded read reports. */
+    /** Explicit scheduled-delivery operation: at most one token refresh and six bounded read reports. */
     public function refresh(): array
     {
         if (! BaleManagerPolicy::enabled()) { return $this->unknown('disabled'); }
@@ -62,27 +62,38 @@ class ManagerTrafficSnapshot
         $row['ga4']['property_id'] = $configuration['property_id'];
         $row['gsc']['site'] = $configuration['site'];
         // Relative yesterday is interpreted by GA4 in the property's own timezone.
+        $bootstrapStartedAt = now('UTC');
         $reply = $this->ga4($token, 'yesterday', 'yesterday', $configuration);
         $timezone = $reply['body']['metadata']['timeZone'] ?? null;
         if (! is_string($timezone) || ! in_array($timezone, timezone_identifiers_list(), true)) { $timezone = null; }
         $gaPeriods = $this->periods($timezone ?? 'Asia/Tehran');
+        if ($timezone !== null && $bootstrapStartedAt->copy()->setTimezone($timezone)->toDateString() !== now($timezone)->toDateString()) {
+            // The relative query may have been evaluated on either side of the
+            // property's midnight. Do not attach its value to a guessed date.
+            $reply = ['ok' => false, 'reason' => 'source_day_changed'];
+        }
         $row['ga4']['periods']['yesterday'] = $this->gaPeriod($reply, $gaPeriods['yesterday'], $timezone, true);
-        $month = $timezone !== null ? $this->ga4($token, $gaPeriods['previous_month']['start_date'], $gaPeriods['previous_month']['end_date'], $configuration)
-            : ['ok' => false, 'reason' => 'timezone_unverified'];
-        $row['ga4']['periods']['previous_month'] = $this->gaPeriod($month, $gaPeriods['previous_month'], $timezone, false);
+        foreach (['recent_30d', 'previous_30d'] as $name) {
+            $reply = $timezone !== null ? $this->ga4($token, $gaPeriods[$name]['start_date'], $gaPeriods[$name]['end_date'], $configuration)
+                : ['ok' => false, 'reason' => 'timezone_unverified'];
+            $row['ga4']['periods'][$name] = $this->gaPeriod($reply, $gaPeriods[$name], $timezone, $name === 'recent_30d');
+        }
         $gscPeriods = $this->periods('America/Los_Angeles');
         foreach ($gscPeriods as $name => $dates) {
             // date dimension on the single fresh day exposes firstIncompleteDate;
-            // the month has no dimensions, so clicks/impressions are property totals.
+            // each 30-day report has no dimensions, so it is a whole-property total.
+            // Recent totals include fresh data explicitly; "final" would omit the
+            // unsettled tail while still displaying the complete 30-day range.
+            $includeFresh = $name !== 'previous_30d';
             $reply = $this->google->report('gsc', $token, ['startDate' => $dates['start_date'], 'endDate' => $dates['end_date'],
                 'type' => 'web', 'aggregationType' => 'byProperty',
-                'dataState' => $name === 'yesterday' ? 'all' : 'final', 'rowLimit' => 1,
+                'dataState' => $includeFresh ? 'all' : 'final', 'rowLimit' => 1,
                 'dimensions' => $name === 'yesterday' ? ['date'] : []], $configuration);
-            $row['gsc']['periods'][$name] = $this->gscPeriod($reply, $dates, $name === 'yesterday');
+            $row['gsc']['periods'][$name] = $this->gscPeriod($reply, $dates, $name === 'yesterday', $includeFresh);
         }
         foreach (['ga4', 'gsc'] as $source) {
             $known = count(array_filter($row[$source]['periods'], fn ($p) => $p['status'] === 'known'));
-            $row[$source]['status'] = $known === 2 ? 'known' : ($known > 0 ? 'partial' : 'unknown');
+            $row[$source]['status'] = $known === 3 ? 'known' : ($known > 0 ? 'partial' : 'unknown');
         }
         $known = count(array_filter([$row['ga4']['status'], $row['gsc']['status']], fn ($s) => $s === 'known'));
         $row['available'] = $row['ga4']['status'] !== 'unknown' || $row['gsc']['status'] !== 'unknown';
@@ -122,9 +133,8 @@ class ManagerTrafficSnapshot
     }
 
     /** @see https://developers.google.com/webmaster-tools/v1/searchanalytics/query */
-    private function gscPeriod(array $reply, array $dates, bool $preliminary): array
+    private function gscPeriod(array $reply, array $dates, bool $dateDimension, bool $preliminary): array
     {
-        $freshDay = $preliminary;
         $preliminary = $preliminary || Carbon::parse($dates['end_date'], 'America/Los_Angeles')
             ->gte(now('America/Los_Angeles')->subDays(3)->startOfDay());
         $row = $dates + ['status' => 'unknown', 'clicks' => null, 'impressions' => null,
@@ -133,7 +143,8 @@ class ManagerTrafficSnapshot
         $body = $reply['body'];
         if (($body['responseAggregationType'] ?? null) !== 'byProperty') { return $row; }
         $metrics = $body['rows'][0];
-        if ($freshDay && ($metrics['keys'] ?? null) !== [$dates['start_date']]) { return $row; }
+        if ($dateDimension && ($metrics['keys'] ?? null) !== [$dates['start_date']]) { return $row; }
+        if (! $dateDimension && ! empty($metrics['keys'])) { return $row; }
         $clicks = $this->integer($metrics['clicks'] ?? null);
         $impressions = $this->integer($metrics['impressions'] ?? null);
         if ($clicks === null || $impressions === null) { return $row; }
@@ -144,14 +155,14 @@ class ManagerTrafficSnapshot
 
     private function periods(string $timezone): array
     {
-        $now = now($timezone);
-        $yesterday = $now->copy()->subDay()->toDateString();
-        // The manager's previous-month label follows the Tehran report calendar;
-        // Google interprets these explicit dates in each source's own timezone.
-        $month = now('Asia/Tehran')->startOfMonth()->subMonth();
+        $yesterday = now($timezone)->subDay()->startOfDay();
+        $recentStart = $yesterday->copy()->subDays(29);
 
-        return ['yesterday' => ['start_date' => $yesterday, 'end_date' => $yesterday],
-            'previous_month' => ['start_date' => $month->toDateString(), 'end_date' => $month->copy()->endOfMonth()->toDateString()]];
+        // Inclusive source-calendar-day ranges: two adjacent periods of exactly
+        // 30 days. The earlier comparison is not a cumulative 60-day total.
+        return ['yesterday' => ['start_date' => $yesterday->toDateString(), 'end_date' => $yesterday->toDateString()],
+            'recent_30d' => ['start_date' => $recentStart->toDateString(), 'end_date' => $yesterday->toDateString()],
+            'previous_30d' => ['start_date' => $recentStart->copy()->subDays(30)->toDateString(), 'end_date' => $recentStart->copy()->subDay()->toDateString()]];
     }
 
     private function unknown(string $reason, bool $connected = false): array
@@ -164,7 +175,7 @@ class ManagerTrafficSnapshot
         foreach (['ga4' => 'Asia/Tehran', 'gsc' => 'America/Los_Angeles'] as $source => $timezone) {
             foreach ($this->periods($timezone) as $name => $dates) {
                 $row[$source]['periods'][$name] = $dates + ['status' => 'unknown', 'timezone' => $source === 'ga4' ? null : $timezone,
-                    'preliminary' => $name === 'yesterday', 'reason' => $reason]
+                    'preliminary' => $name !== 'previous_30d', 'reason' => $reason]
                     + ($source === 'ga4' ? ['total_users' => null, 'sessions' => null] : ['clicks' => null, 'impressions' => null]);
             }
         }
@@ -184,12 +195,22 @@ class ManagerTrafficSnapshot
 
     private function key(string $identity): string
     {
-        return 'bale:manager:traffic:v1:'.$identity;
+        return 'bale:manager:traffic:v2:'.$identity;
     }
 
     private function fresh(array $row): bool
     {
         if (($row['report_day'] ?? '') !== now('Asia/Tehran')->toDateString() || ! is_string($row['as_of'] ?? null)) { return false; }
+        foreach (['ga4', 'gsc'] as $source) {
+            $timezone = $source === 'gsc' ? 'America/Los_Angeles' : ($row[$source]['periods']['yesterday']['timezone'] ?? 'Asia/Tehran');
+            if (! is_string($timezone) || ! in_array($timezone, timezone_identifiers_list(), true)) { return false; }
+            foreach ($this->periods($timezone) as $name => $dates) {
+                // A source's day can change before Tehran's report day does.
+                // A six-hour-old observation must not be relabelled as its new yesterday.
+                if (($row[$source]['periods'][$name]['start_date'] ?? null) !== $dates['start_date']
+                    || ($row[$source]['periods'][$name]['end_date'] ?? null) !== $dates['end_date']) { return false; }
+            }
+        }
         try { $age = now()->timestamp - Carbon::parse($row['as_of'])->timestamp; }
         catch (\Throwable) { return false; }
 

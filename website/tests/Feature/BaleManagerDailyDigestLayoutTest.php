@@ -30,23 +30,26 @@ class BaleManagerDailyDigestLayoutTest extends TestCase
     public function test_summary_has_separate_timestamp_spaced_bold_headings_and_readable_currency_rows(): void
     {
         $text = app(BaleManagerDailyDigest::class)->text($this->snapshot([
-            'stats' => ['available' => true, 'signups_24h' => 13, 'signups_previous_month' => 277, 'customers_total' => 642,
-                'delivered_24h' => 18, 'delivered_previous_month' => 131, 'month_label' => '2026-09 میلادی'],
+            'stats' => ['available' => true, 'signups_24h' => 13, 'signups_30d' => 500, 'signups_previous_30d' => 580, 'customers_total' => 642,
+                'delivered_24h' => 18, 'delivered_30d' => 600, 'delivered_previous_30d' => 500],
             'fx' => ['available' => true, 'rows' => ['USD' => ['rate_toman' => 281580, 'stale' => false],
                 'EUR' => ['rate_toman' => 313060, 'stale' => true], 'TRY' => null]],
         ]));
 
         $this->assertStringStartsWith("📋 *گزارش روزانه مدیریت* \n1405/08/09 12:25 تهران\n\n📊 *مشتری و تحویل* \n", $text);
-        $this->assertStringContainsString('ثبت‌نام: ۲۴ساعت 13 کاربر · ماه قبل 277 کاربر · کل 642 کاربر', $text);
-        $this->assertStringContainsString('تحویل ثبت‌شده: ۲۴ساعت 18 سرویس · ماه قبل 131 سرویس', $text);
+        $this->assertStringContainsString('۲۴ ساعت گذشته: ثبت‌نام 13 کاربر · تحویل 18 سرویس', $text);
+        $this->assertStringContainsString('یک ماه اخیر (۳۰ روز): ثبت‌نام 500 کاربر · تحویل 600 سرویس', $text);
         $this->assertStringContainsString("\n\n💱 *نرخ ارز* \n• USD: 281,580 تومان\n• EUR: 313,060 تومان (قدیمی)\n• TRY: نامشخص", $text);
         preg_match_all('/\*[^*]+\*/u', $text, $headings, PREG_OFFSET_CAPTURE);
         foreach ($headings[0] as [$heading, $offset]) {
             $this->assertSame(' ', substr($text, $offset - 1, 1));
             $this->assertSame(' ', substr($text, $offset + strlen($heading), 1));
         }
-        $this->assertCount(13, $headings[0]);
-        $this->assertStringContainsString('بازهٔ ماه قبل (تقویم میلادی): 1405/06/10 تا 1405/07/08', $text);
+        $this->assertGreaterThanOrEqual(13, count($headings[0]));
+        $this->assertStringContainsString('ماه پیش از آن (۳۰ روز): ثبت‌نام 580 کاربر · تحویل 500 سرویس', $text);
+        $this->assertStringContainsString(' *کاهش: 80 کاربر کمتر (13.8٪ افت)* ', $text);
+        $this->assertStringContainsString(' *افزایش: 100 سرویس بیشتر (20.0٪ رشد)* ', $text);
+        $this->assertStringNotContainsString('تقویمی میلادی', $text);
         $this->assertDoesNotMatchRegularExpression('/\b20\d{2}-\d{2}/', $text);
         Http::assertNothingSent();
     }
@@ -153,19 +156,27 @@ class BaleManagerDailyDigestLayoutTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_all_detail_views_use_spaced_bold_headings_units_and_jalali_dates_without_changing_month_basis(): void
+    public function test_all_detail_views_use_spaced_bold_headings_units_and_jalali_dates_without_changing_rolling_periods(): void
     {
         $digest = $this->fixtureDigest([
-            'stats' => ['available' => true, 'signups_24h' => 2, 'signups_previous_month' => 13, 'customers_total' => 40,
-                'delivered_24h' => 3, 'delivered_previous_month' => 17, 'signups_30d' => 14, 'delivered_30d' => 18, 'month_label' => '2026-09 میلادی'],
+            'stats' => ['available' => true, 'signups_24h' => 2, 'signups_previous_30d' => 13, 'customers_total' => 40,
+                'delivered_24h' => 3, 'delivered_previous_30d' => 17, 'signups_30d' => 14, 'delivered_30d' => 18, 'periods' => [
+                    '24h' => ['start_at' => '2026-10-30T08:55:00Z', 'end_at' => '2026-10-31T08:55:00Z'],
+                    'recent_30d' => ['start_at' => '2026-10-01T08:55:00Z', 'end_at' => '2026-10-31T08:55:00Z'],
+                    'previous_30d' => ['start_at' => '2026-09-01T08:55:00Z', 'end_at' => '2026-10-01T08:55:00Z'],
+                ]],
             'hermes' => ['available' => true, 'task_counts' => ['waiting_owner' => 3, 'waiting_customer' => 20, 'investigating' => 1, 'resolved' => 4],
                 'alerts' => [['code' => 'wallet_runway_low'], ['code' => 'wallet_runway_low']], 'last_run_at' => 1793442300],
             'domains' => ['available' => true, 'registered_24h' => 3, 'renewed_24h_recorded' => 1],
             'fx' => ['available' => true, 'rows' => ['USD' => ['rate_toman' => 281580, 'stale' => true, 'at' => '2026-10-31T07:43:00Z']]],
         ]);
         $stats = $digest->detail('stats');
-        $this->assertStringContainsString(" *ثبت‌نام کاربران* \n۲۴ ساعت گذشته: 2 کاربر\nماه قبل: 13 کاربر\nکل کاربران: 40 کاربر", $stats);
-        $this->assertStringContainsString('بازهٔ ماه قبل (تقویم میلادی): 1405/06/10 تا 1405/07/08', $stats);
+        $this->assertStringContainsString('۲۴ ساعت گذشته: ثبت‌نام 2 کاربر · تحویل 3 سرویس', $stats);
+        $this->assertStringContainsString('یک ماه اخیر (۳۰ روز): ثبت‌نام 14 کاربر · تحویل 18 سرویس', $stats);
+        $this->assertStringContainsString('ماه پیش از آن (۳۰ روز): ثبت‌نام 13 کاربر · تحویل 17 سرویس', $stats);
+        $this->assertStringContainsString('کل کاربران: 40 کاربر', $stats);
+        $this->assertStringContainsString('بازهٔ یک ماه اخیر (۳۰ روز): از 1405/07/09 12:25 تا پیش از 1405/08/09 12:25 تهران', $stats);
+        $this->assertStringContainsString('بازهٔ ماه پیش از آن (۳۰ روز): از 1405/06/10 12:25 تا پیش از 1405/07/09 12:25 تهران', $stats);
         $hermes = $digest->detail('hermes');
         $this->assertStringContainsString(' *منتظر تصمیم: 3 مورد* ', $hermes);
         $this->assertStringContainsString('منتظر مشتری: 20 مورد', $hermes);
