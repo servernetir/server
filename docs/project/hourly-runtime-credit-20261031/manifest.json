@@ -1,6 +1,8 @@
 {
   "release_id": "hourly-runtime-credit-20261031",
-  "status": "prepared_not_installed",
+  "status": "blocked_owner_rejected_company_funded_retention",
+  "deployment_allowed": false,
+  "blocked_reason": "Paid retention must be funded separately from usable running credit; this candidate would shift costs to the business.",
   "reference_branch": "develop",
   "review_base_sha": "335e0573b219adb689f9c5f008c87ece7d23b60f",
   "patch": "runtime.patch",
