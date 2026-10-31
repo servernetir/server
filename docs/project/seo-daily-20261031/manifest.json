@@ -1,0 +1,15 @@
+{
+  "base": "7425ecf9e639d3a4f231d1f6f6ded46c35ec113f",
+  "files": [
+    {
+      "path": "resources/views/pages/ai/card.blade.php",
+      "before": "d5382d1c84685ecbb732902b8f39de5b4b5e5decd7fc5522a303d43fc79274fc",
+      "after": "ab05b448a6035c5d2b1bea03041998d43b0375de7575ebb1c98b416f369c880f"
+    },
+    {
+      "path": "resources/views/pages/ai/model.blade.php",
+      "before": "15f92c99462829df1c411b0ba9b11627f3d689ad280b30757d12ecbedc674f66",
+      "after": "0b99d7b95e97c1afde701379af9882b60ad626706c0162f843c2c21bcfc37944"
+    }
+  ]
+}
