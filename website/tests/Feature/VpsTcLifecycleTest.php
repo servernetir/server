@@ -354,9 +354,13 @@ class VpsTcLifecycleTest extends TestCase
         $customer = Customer::create(['email' => 'vpstc-fixture@example.test', 'password' => 'fixture-password']);
         $service = new Service(['customer_id' => $customer->id, 'name' => 'Fixture VPS', 'cycle' => 'monthly', 'price' => 100]);
         $service->id = 7; $service->save();
-        $instance = CloudInstance::create(['service_id' => 7, 'provider' => 'vpstc', 'provider_ref' => '83', 'status' => 'building']);
+        // A first procurement has no native reference; an existing reference
+        // without a journal must be reconciled rather than purchased again.
+        $instance = CloudInstance::create(['service_id' => 7, 'provider' => 'vpstc', 'status' => 'building']);
         $this->fake();
         $this->assertSame('running', $this->client()->createServer($this->spec)['status']);
+        $instance->update(['provider_ref' => '83']);
+        $this->assertTrue($this->client()->serverStatus('83')['ok']);
         $this->assertTrue($instance->fresh()->hasPassword());
         $this->assertSame('root', $service->fresh()->username);
         $this->assertSame('fixture-root-password', $service->fresh()->password);
@@ -369,6 +373,18 @@ class VpsTcLifecycleTest extends TestCase
         $this->assertTrue($instance->fresh()->password_seen);
         $this->assertSame('2026-11-26', $instance->fresh()->meta['vpstc_supplier_due_at']);
         $this->assertSame('2026-11-26', CloudProviderOperation::where('action', 'create')->sole()->payload['_supplier_due_at']);
+    }
+
+    public function test_existing_native_reference_without_a_receipt_never_authorizes_another_purchase(): void
+    {
+        $customer = Customer::create(['email' => 'existing-native@example.test', 'password' => 'fixture']);
+        $service = new Service(['customer_id' => $customer->id, 'name' => 'Existing', 'cycle' => 'monthly', 'price' => 100]);
+        $service->id = 7; $service->save();
+        CloudInstance::create(['service_id' => 7, 'provider' => 'vpstc', 'provider_ref' => '83', 'status' => 'running']);
+        $this->fake();
+        $this->assertFalse($this->client()->createServer($this->spec)['ok']);
+        $this->assertSame(0, $this->orderCount());
+        Http::assertNothingSent();
     }
 
     public function test_account_poll_and_scheduler_preserve_metadata_written_during_reconciliation(): void

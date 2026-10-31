@@ -16,12 +16,20 @@ class Service extends Model
 {
     public function isInternalInfrastructure(): bool
     {
-        return in_array((int) $this->getKey(), array_map('intval', (array) config('billing.internal_service_ids', [])), true);
+        if (in_array((int) $this->getKey(), array_map('intval', (array) config('billing.internal_service_ids', [])), true)) { return true; }
+        return data_get($this->provision_meta, 'internal_infrastructure') === true
+            && (int) data_get($this->provision_meta, 'internal_infrastructure_customer', 0) === (int) $this->customer_id
+            && app(\App\Services\Billing\ComplimentaryServices::class)->customerExempt($this->customer);
     }
 
     public function scopeCustomerRecurring($query, bool $includeInternal = false)
     {
-        return $query->when(! $includeInternal, fn ($q) => $q->whereNotIn('id', (array) config('billing.internal_service_ids', [])))
+        return $query->when(! $includeInternal, fn ($q) => $q->whereNotIn('id', (array) config('billing.internal_service_ids', []))
+            ->where(fn ($q) => $q->whereNull('provision_meta->internal_infrastructure')->orWhere('provision_meta->internal_infrastructure', '!=', true)
+                ->orWhereNull('provision_meta->internal_infrastructure_customer')
+                ->orWhere('provision_meta->internal_infrastructure_customer', '!=', (int) config('billing.complimentary_services.customer_id', 0))
+                ->orWhere('customer_id', '!=', (int) config('billing.complimentary_services.customer_id', 0))
+                ->orWhereHas('customer', fn ($c) => $c->where('code', '!=', (string) config('billing.complimentary_services.customer_code', '')))))
             ->whereIn('cycle', array_keys((array) config('billing.cycles', [])))
             ->where(fn ($q) => $q->whereNull('billing_mode')->orWhere('billing_mode', '!=', 'hourly'));
     }

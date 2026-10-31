@@ -1,6 +1,6 @@
 # VPS.TC reseller integration
 
-Current contract, 31 October 2026: [supplier ticket 154596 and corrective release](../../../docs/project/VPSTC-TICKET-154596-2026-10-31.md) supersedes earlier statements about unavailable routes, traffic and the reported currency/fee defects. The supplier reports those two formatting fixes deployed; our live admin preflight did not verify the account read, so account acceptance is still pending. A numeric TRY balance does not normalize raw USD order prices or establish a guaranteed gross quote.
+Current contract, 31 October 2026: [supplier ticket 154596 and corrective release](../../../docs/project/VPSTC-TICKET-154596-2026-10-31.md) supersedes earlier statements about unavailable routes, traffic and the reported currency/fee defects. The seven-file correction is installed. Production CLI and protected admin billing-only checks verified native TRY and numeric zero credit-payment fees on 31 October. A numeric TRY balance does not normalize raw USD order prices or establish a guaranteed gross quote.
 
 Monthly sales were opened with explicit owner approval on 27 October; see [commercial launch](../../../docs/project/VPSTC-COMMERCIAL-LAUNCH-2026-10-27.md). That approval remains configuration-bound. Every new service still needs its Service Auto Renewal switch manually turned Off and checked in the provider portal. Auto-apply credit Off is not a spending lock. Native unpaid-invoice lookup does not make concurrent renewal retries safe; keep the local journal, preflight invoice scan and reconciliation.
 
@@ -93,3 +93,5 @@ Deploy only from fresh exact-byte production snapshots: SettingsController and r
 The proposal uses application files and encrypted settings only, with no migration or scheduler. No customer plan, service, invoice or provider resource is created by preparation. Guests, network routes, NAT/firewall, DNS, host cron and routing/port-forward agent state were not changed.
 
 For a future installed release, restore only its manifest files with installed-hash guards, remove only its dedicated routes/link and invalidate affected caches. Preserve unrelated application changes and existing customer services. Retain encrypted settings unless the administrator explicitly removes those three specific keys. Do not rotate APP_KEY or roll back network state.
+
+Existing paid-service adoption and owner-authorized offer expansion: [31 October report](../../../docs/project/VPSTC-ATTACH-CATALOG-2026-10-31.md). Import preserves the actual VM, access and supplier due anchor; it does not manufacture a purchase or repeat a payment.
