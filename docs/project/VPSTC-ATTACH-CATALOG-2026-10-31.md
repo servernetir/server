@@ -1,6 +1,6 @@
 # VPS.TC existing paid services and catalog expansion — 31 October 2026
 
-Source prepared on develop base `6d465debff5b3617a3849c1ff14019155b566fc9`. The owner explicitly authorized installation, expanding monthly offers, attaching an already-paid customer's guest and attaching the owner's existing internal relay. Private identity, addresses, native service/VM IDs, credentials and ownership receipts remain outside this public repository. Installation and business acceptance are recorded separately below.
+Installed and verified in production. Source prepared on develop base `6d465debff5b3617a3849c1ff14019155b566fc9`. The owner explicitly authorized installation, expanding monthly offers, attaching an already-paid customer's guest and attaching the owner's existing internal relay. Private identity, addresses, native service/VM IDs, credentials and ownership receipts remain outside this public repository. Installation and business acceptance are recorded separately below.
 
 ## Existing paid guest
 
@@ -22,7 +22,7 @@ Apply checks the before-manifest hash, candidate hash and unchanged pricing/FX i
 
 ## Validation
 
-PHP 8.4.27, locked dependencies, isolated SQLite and fake provider HTTP: **295 tests / 2,238 assertions passed** across VPS.TC, attachment, internal deletion and complimentary-service suites. Eight adoption and two expansion tests cover wrong identity/IP/resources/date/price, masked credentials, duplicate import, changed ownership, original access, regular admin route, customer denial, owner marker, internal deletion/invoice protection and changed catalog contracts. MariaDB attachment/protection coverage is added to the existing VPS.TC CI workflow; its result is pending until run.
+PHP 8.4.27, locked dependencies, isolated SQLite and fake provider HTTP: **295 tests / 2,238 assertions passed** across VPS.TC, attachment, internal deletion and complimentary-service suites. Eight adoption and two expansion tests cover wrong identity/IP/resources/date/price, masked credentials, duplicate import, changed ownership, original access, regular admin route, customer denial, owner marker, internal deletion/invoice protection and changed catalog contracts. GitHub Actions [run 41176758290](https://github.com/servernetir/server/actions/runs/41176758290) passed: 260 VPS.TC tests / 2,089 assertions on SQLite and 43 attachment/protection tests / 206 assertions on MariaDB 11.4.13. The [financial regression matrix](https://github.com/servernetir/server/actions/runs/41176758091) also passed on SQLite and MariaDB against its immutable baseline.
 
 The related `BillingRenewalSafetyTest` has the same three errors and two risky tests on this change and a clean worktree at the exact base. They concern hourly mock expectations and a domain price fixture. No provider safeguards were disabled to mask them. The earlier catalog-table baseline failures are recorded in the preceding ticket release.
 
@@ -32,4 +32,16 @@ The seven runtime files are listed in [manifest](vpstc-attach-20261031/release-m
 
 For rollback, restore only unchanged installed runtime destinations from this release's private backups. Preserve attached services and encrypted journals; a source rollback is not permission to remove the customer's guest or reset billing. Reconcile the reviewed catalog mapping and normal price snapshot separately if reverting offers. Do not restore the whole settings table or replay a supplier mutation.
 
-Production installation, expanded purchasable count and two private ownership attachments: **pending**.
+## Production acceptance
+
+PR [#163](https://github.com/servernetir/server/pull/163), source `40dff78a922d4856ed58873ade7ee0fb1d623a4e`, merged at `7425ecf9e639d3a4f231d1f6f6ded46c35ec113f`. The seven-file release installed successfully under both shared web locks with verified before/after hashes and private backups. The new `CloudPlan` hash is `e14462acacf92969863d5413710a9f3473deae40d0b0808229c24511f0fa890e`; pre-existing OVH guards remain intact. No schema or environment changes were made.
+
+All sixteen candidate quotes ultimately passed the current native checks. An earlier read-only planning pass rejected several transient/inconclusive reads; it performed no mapping or price writes. The final apply re-read the complete catalog, committed sixteen active/in-stock priced plans and sixteen explicitly selected Linux images in two locations, and published a current pricing snapshot. Eight Istanbul and eight New York offers are visible with working monthly purchase links; hourly purchase remains disabled for these offers. Margin 40%, supplier tax 20%, funding fee 21% and the central Navasan FX source were retained. The global synchronizer also reported a pre-existing cross-provider sanity warning for another supplier; no unrelated supplier prices were changed.
+
+The public [Istanbul page](https://servernet.cloud/cloud/tr-istanbul) shows eight monthly offers in fa/en/tr, including reference combined traffic and its throttle. The old Istanbul-II entry redirects to the canonical Istanbul page. The public [New York page](https://servernet.cloud/cloud/us-new-york) shows all eight new offers and honest unconfirmed-traffic labels, with no supplier identity leakage.
+
+Both requested existing guests are attached to their authoritative customer profiles. The current retail customer's renewal base equals the live website monthly price (1,480,000 IRT plus normal 10% retail tax), with the actual supplier due anchor; the first period is recorded as already paid externally and no new invoice/payment was fabricated. The owner's relay has zero retail price and the owner-bound internal-infrastructure protection. Encrypted access and receipts, unique native references, original OS/hostname, matching dates and enabled included-power entitlement were verified privately. Both customer views show the assigned guest, IP, SSH command and real due date. No password was exposed in a public artifact, no welcome message was sent, and no power/rebuild/renewal/payment/cancellation/deletion was used as an acceptance test.
+
+The customer's supplier Auto Renewal was On and was set to Off through its existing portal control; the owner's reference service was already Off. Auto Renewal Off does not reserve provider funds or preserve expired guests indefinitely. Funding checks remain in the real purchase path; larger offers still require enough supplier credit at order time. Browser impersonation was stopped after the profile checks. Console SSO, API snapshots/backups/password reset and measured usage remain unsupported.
+
+The private release and ownership receipts remain outside webroot. Final state: **installed and verified in production**. This is read-only/attachment/catalog acceptance, not a new paid lifecycle test.
