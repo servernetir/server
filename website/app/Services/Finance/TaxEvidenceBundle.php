@@ -3,11 +3,13 @@
 namespace App\Services\Finance;
 
 use App\Models\BusinessEntry;
+use App\Models\FinanceAccount;
 use App\Models\FinanceAsset;
 use App\Models\FinanceDocument;
 use App\Models\FinanceLine;
 use App\Models\FinanceVoucher;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use ZipArchive;
@@ -79,13 +81,30 @@ final class TaxEvidenceBundle
                 FinanceLine::whereIn('voucher_id', $ids)->orderBy('id')->get()->map(fn ($l) => [$l->voucher_id, $l->code, $l->account_id, $l->debit_irt, $l->credit_irt, $l->native_debit, $l->native_credit])));
             $add('tax-review-history.csv', $csv(['Voucher', 'Status', 'Reference', 'Reviewer ID', 'Reviewed UTC'],
                 DB::table('finance_tax_reviews')->whereIn('voucher_id', $ids)->orderBy('id')->get()->map(fn ($r) => [$r->voucher_id, $r->status, $r->reference, $r->created_by, $r->created_at])));
-            if (\Illuminate\Support\Facades\Schema::hasTable('wallet_refund_requests')) {
+            if (Schema::hasTable('wallet_refund_requests')) {
                 $refunds = \App\Models\WalletRefundRequest::where(function ($q) use ($ids, $scope) {
                     $q->whereIn('voucher_id', $ids)->orWhereBetween('created_at', [
                         $scope->from->copy()->startOfDay()->utc(), $scope->to->copy()->endOfDay()->utc()]);
                 })->orderBy('id')->get();
+                $relatedVoucherIds = $refunds->pluck('voucher_id')->filter()->unique();
+                $relatedVouchers = FinanceVoucher::whereIn('id', $relatedVoucherIds)->get()->keyBy('id');
+                $fundingAccounts = FinanceAccount::whereIn('id', $relatedVouchers->pluck('funding_account_id')->filter()->unique())->get()->keyBy('id');
+                $receiptDocuments = FinanceDocument::whereIn('id', $refunds->pluck('document_id')->filter()->unique())->get()->keyBy('id');
+                $events = Schema::hasTable('wallet_refund_events') ? DB::table('wallet_refund_events')->where(function ($q) use ($refunds) {
+                    $q->whereIn('request_id', $refunds->pluck('id'))->orWhere(function ($q) use ($refunds) {
+                        $q->whereNull('request_id')->whereIn('customer_id', $refunds->pluck('customer_id'));
+                    });
+                })->orderBy('id')->get() : collect();
+                $paidEvents = $events->where('action', 'paid')->unique('request_id')->keyBy('request_id');
                 foreach ($refunds as $refund) {
                     $source = $refund->source_payment_id ? \App\Models\Payment::find($refund->source_payment_id) : null;
+                    $voucher = $relatedVouchers->get($refund->voucher_id);
+                    $fundingSnapshot = WalletRefunds::fundingAccountSnapshot($paidEvents->get($refund->id));
+                    $fundingAccountId = $fundingSnapshot['id'] ?? $voucher?->funding_account_id;
+                    $fundingLegacyFallback = $refund->status === 'paid' && $fundingSnapshot === null;
+                    $fundingCurrent = $fundingLegacyFallback
+                        ? $fundingAccounts->get($fundingAccountId)?->only(['id', 'name', 'type', 'currency_code', 'owner_name']) : null;
+                    $receipt = $receiptDocuments->get($refund->document_id);
                     $add('wallet-refunds/'.$refund->public_id.'.json', json_encode([
                         'request' => $refund->public_id, 'customer' => $refund->customer->code, 'amount_irt' => $refund->amount_irt,
                         'status' => $refund->status, 'requested_utc' => $refund->created_at->toIso8601String(),
@@ -95,22 +114,20 @@ final class TaxEvidenceBundle
                         'payout_date_tehran' => $refund->payout_date?->toDateString(), 'bank_reference' => $refund->bank_reference,
                         'paid_by' => $refund->paid_by, 'paid_utc' => $refund->paid_at?->toIso8601String(),
                         'voucher' => $refund->voucher_id, 'receipt_document' => $refund->document_id, 'wallet_entry' => $refund->credit_entry_id,
+                        'funding_account_id' => $fundingAccountId, 'funding_account_snapshot' => $fundingSnapshot,
+                        'funding_account_current' => $fundingCurrent, 'funding_account_legacy_fallback' => $fundingLegacyFallback,
+                        'bank_transaction_id' => $voucher?->bank_transaction_id,
+                        'receipt_sha256' => $receipt && (int) $receipt->voucher_id === (int) $refund->voucher_id ? $receipt->sha256 : null,
                         'source_payment' => $source?->only(['id', 'invoice_id', 'gateway', 'currency_code', 'amount', 'status', 'ref_id', 'paid_at']),
                         'accounting_treatment' => 'wallet_liability_settlement_no_additional_revenue_or_vat_deduction',
                     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
                 }
-                $relatedVoucherIds = $refunds->pluck('voucher_id')->filter()->unique();
                 $add('wallet-refund-related-journal.json', json_encode([
-                    'vouchers' => FinanceVoucher::whereIn('id', $relatedVoucherIds)->get(),
+                    'vouchers' => $relatedVouchers->values(),
                     'lines' => FinanceLine::whereIn('voucher_id', $relatedVoucherIds)->get(),
                     'note' => 'Related records may fall outside the selected period; they support refund audit history.',
                 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
                 $ids = $ids->merge($relatedVoucherIds)->unique();
-                $events = DB::table('wallet_refund_events')->where(function ($q) use ($refunds) {
-                    $q->whereIn('request_id', $refunds->pluck('id'))->orWhere(function ($q) use ($refunds) {
-                        $q->whereNull('request_id')->whereIn('customer_id', $refunds->pluck('customer_id'));
-                    });
-                })->orderBy('id')->get();
                 $add('wallet-refund-audit.csv', $csv(['ID', 'Customer ID', 'Request ID', 'Actor type', 'Actor ID', 'Actor name at action', 'Action', 'Details', 'UTC'],
                     $events->map(fn ($e) => [$e->id, $e->customer_id, $e->request_id, $e->actor_type, $e->actor_id, $e->actor_name, $e->action, $e->details, $e->created_at])));
             }
@@ -148,7 +165,7 @@ final class TaxEvidenceBundle
                 $zip->addFile($disk->path($i->path), $name);
                 $manifest[] = ['file' => $name, 'sha256' => $i->sha256, 'bytes' => $bytes];
             }
-            $add('README.txt', "ServerNet financial evidence package\nManagement estimates only: not filed with the tax authority.\nDates are Gregorian calendar days in Asia/Tehran.\nIRT is toman; IRR equals IRT x 10. Foreign amounts are minor units with explicit currencies.\nSales, external collections and wallet liabilities are distinct. Wallet payouts settle customer liabilities and are not an additional expense, sales reversal or automatic VAT deduction. Related refund evidence can include supporting vouchers outside the selected period; period report totals remain date-scoped. Supplier topups and fixed-asset purchases are not immediate expenses.\nThe supplemental double-entry journal covers documented transactions, not a certified full balance sheet.\nTax eligibility proposals require review of current law, electronic invoices, foreign service/import tax and the actual taxpayer file.\nProof files can contain an entire statement, including dates outside the selected window. Keep this archive private.\nMissing costs, refunds or untranslated foreign receipts must be reconciled before filing.\n");
+            $add('README.txt', "ServerNet financial evidence package\nManagement estimates only: not filed with the tax authority.\nDates are Gregorian calendar days in Asia/Tehran.\nIRT is toman; IRR equals IRT x 10. Foreign amounts are minor units with explicit currencies.\nSales, external collections and wallet liabilities are distinct. Wallet payouts settle customer liabilities and are not an additional expense, sales reversal or automatic VAT deduction. Related refund evidence can include supporting vouchers outside the selected period; period report totals remain date-scoped. Company-funded payouts reduce bank assets; partner-funded payouts increase the partner current-account payable. The original customer payment is separate from the outgoing funding account. funding_account_snapshot records identity at payout; funding_account_current is current data only when funding_account_legacy_fallback is true and does not establish historical identity. Supplier topups and fixed-asset purchases are not immediate expenses.\nThe supplemental double-entry journal covers documented transactions, not a certified full balance sheet.\nTax eligibility proposals require review of current law, electronic invoices, foreign service/import tax and the actual taxpayer file.\nProof files can contain an entire statement, including dates outside the selected window. Keep this archive private.\nMissing costs, refunds or untranslated foreign receipts must be reconciled before filing.\n");
             $zip->addFromString('manifest-sha256.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
             if (! $zip->close()) {
                 throw new \RuntimeException('Evidence archive finalization failed');

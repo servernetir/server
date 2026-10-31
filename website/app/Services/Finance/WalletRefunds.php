@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
-/** Lock order: customer -> refund -> finance control -> funding bank. No bank transfer is initiated here. */
+/** Lock order: customer -> refund -> finance control -> funding account. No bank transfer is initiated here. */
 final class WalletRefunds
 {
     public function __construct(private Wallet $wallet, private DocumentedAccounting $journal) {}
@@ -27,6 +27,25 @@ final class WalletRefunds
     {
         return Schema::hasTable('wallet_refund_permissions') && Schema::hasTable('wallet_refund_requests')
             && Schema::hasTable('wallet_refund_events') && $this->journal->ready();
+    }
+
+    /** Identity captured at payout; never substitute a current account for historical evidence. */
+    public static function fundingAccountSnapshot(?object $paidEvent): ?array
+    {
+        if (! $paidEvent || $paidEvent->action !== 'paid') {
+            return null;
+        }
+        $details = json_decode((string) $paidEvent->details, true);
+        $snapshot = is_array($details) ? ($details['funding_account_snapshot'] ?? null) : null;
+        $keys = ['id', 'name', 'type', 'currency_code', 'owner_name'];
+        if (! is_array($snapshot) || array_diff($keys, array_keys($snapshot))
+            || ! is_int($snapshot['id']) || $snapshot['id'] < 1 || ! is_string($snapshot['name']) || trim($snapshot['name']) === ''
+            || ! in_array($snapshot['type'], ['bank', 'partner'], true) || ! in_array($snapshot['currency_code'], ['IRT', 'IRR'], true)
+            || ($snapshot['owner_name'] !== null && ! is_string($snapshot['owner_name']))) {
+            return null;
+        }
+
+        return array_intersect_key($snapshot, array_flip($keys));
     }
 
     public function enabled(int $customerId): bool
@@ -237,11 +256,19 @@ final class WalletRefunds
                 $control = DB::table('finance_controls')->where('id', 1)->lockForUpdate()->first();
                 $this->check($control !== null && (! $control->locked_through || $date > $control->locked_through), 'period_locked');
                 $account = FinanceAccount::whereKey($accountId)->lockForUpdate()->first();
-                $this->check($account !== null && $account->type === 'bank' && in_array($account->currency_code, ['IRT', 'IRR'], true), 'funding_bank');
+                $this->check($account !== null && in_array($account->type, ['bank', 'partner'], true)
+                    && in_array($account->currency_code, ['IRT', 'IRR'], true), 'funding_bank');
+                $this->check($account->type !== 'partner' || filled($account->owner_name), 'funding_owner');
+                // Personal funds create a partner payable; they are not a company bank balance.
+                $this->check($account->type === 'bank' || $bankTransactionId === null, 'invalid_bank_row');
                 $native = $account->currency_code === 'IRR' ? $r->amount_irt * 10 : $r->amount_irt;
-                foreach ([$this->journal->balance($account, $date), $this->journal->balance($account)] as $balance) {
-                    $this->check($balance['irt'] >= $r->amount_irt && $balance['native'] >= $native, 'insufficient_bank');
+                if ($account->type === 'bank') {
+                    foreach ([$this->journal->balance($account, $date), $this->journal->balance($account)] as $balance) {
+                        $this->check($balance['irt'] >= $r->amount_irt && $balance['native'] >= $native, 'insufficient_bank');
+                    }
                 }
+                $fundingSnapshot = ['id' => (int) $account->id, 'name' => $account->name, 'type' => $account->type,
+                    'currency_code' => $account->currency_code, 'owner_name' => $account->owner_name];
                 $fingerprint = hash('sha256', $accountId.'|'.strtolower($reference));
                 $this->check(! WalletRefundRequest::where('payout_fingerprint', $fingerprint)->exists(), 'reference_used');
                 if ($bankTransactionId) {
@@ -262,12 +289,14 @@ final class WalletRefunds
                     'settlement_currency' => $account->currency_code, 'settlement_minor' => $native, 'funding_account_id' => $accountId,
                     'bank_transaction_id' => $bankTransactionId, 'tax_status' => 'pending', 'vat_status' => 'none', 'created_by' => $actor->id]);
                 $this->journal->line($voucher, 'customer_wallet_liability', $r->amount_irt, 0);
-                $this->journal->line($voucher, 'bank', 0, $r->amount_irt, $accountId, 0, $native);
+                $this->journal->line($voucher, $account->type === 'partner' ? 'partner_current' : 'bank', 0, $r->amount_irt, $accountId, 0, $native);
                 $doc = FinanceDocument::create(['voucher_id' => $voucher->id, 'path' => $path,
                     'name' => mb_substr(basename($receipt->getClientOriginalName()), 0, 200), 'mime' => $receipt->getMimeType(),
                     'size' => $receipt->getSize(), 'sha256' => $receiptHash]);
                 $r->forceFill(['voucher_id' => $voucher->id, 'document_id' => $doc->id, 'credit_entry_id' => $entry->id])->save();
-                $this->event($r->customer_id, $r, 'staff', $actor->id, 'paid', ['voucher_id' => $voucher->id, 'document_sha256' => $receiptHash, 'amount_irt' => $r->amount_irt, 'bank_reference' => $reference, 'payout_date' => $date, 'funding_account_id' => $accountId], $actor->name);
+                $this->event($r->customer_id, $r, 'staff', $actor->id, 'paid', ['voucher_id' => $voucher->id,
+                    'document_sha256' => $receiptHash, 'amount_irt' => $r->amount_irt, 'bank_reference' => $reference,
+                    'payout_date' => $date, 'funding_account_id' => $accountId, 'funding_account_snapshot' => $fundingSnapshot], $actor->name);
                 $this->journal->audit('wallet_refund_paid', $actor->id, $voucher->id, ['refund' => $r->public_id]);
                 DB::afterCommit(fn () => app(WalletRefundNotifications::class)->status($r));
 
