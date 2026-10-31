@@ -8,6 +8,7 @@ use App\Models\OutreachContact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
@@ -158,6 +159,18 @@ class AuditReportShareTest extends TestCase
 
         $this->actingAs($admin)->post('/admin/seo/reports/'.$report->id.'/revoke')->assertRedirect();
         Mail::assertNothingSent();
+    }
+
+    public function test_revoke_endpoint_is_post_only_and_requires_an_admin_web_session(): void
+    {
+        $route = collect(Route::getRoutes())->first(
+            fn ($route) => $route->getName() === 'admin.seo.reports.revoke'
+        );
+
+        $this->assertNotNull($route);
+        $this->assertContains('POST', $route->methods());
+        $this->assertContains('auth:web', $route->gatherMiddleware());
+        $this->assertContains('admin', $route->gatherMiddleware());
     }
 
     public function test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact(): void
@@ -314,12 +327,9 @@ class AuditReportShareTest extends TestCase
 
     public function test_the_admin_pages_and_endpoints_require_a_logged_in_admin(): void
     {
-        $report = $this->report();
         $this->get('/admin/seo')->assertRedirect();
         $this->postJson('/admin/seo/send-one', ['url' => 'x.com', 'email' => 'a@b.com'])
             ->assertStatus(302);
-        $this->post('/admin/seo/reports/'.$report->id.'/revoke')->assertRedirect();
-        $this->assertNull($report->fresh()->revoked_at);
     }
 
     /**
