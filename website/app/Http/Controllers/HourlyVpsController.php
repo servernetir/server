@@ -50,6 +50,7 @@ class HourlyVpsController extends Controller
         $locale = app()->getLocale();
         $isFa = $locale === 'fa';
 
+        $catalogRows = [];
         $unavailableCountries = [];
         $countries = [];     // iso => ردیفِ جدولِ نرخ‌ها
         $featured = [];      // کارت‌های نمونه
@@ -170,11 +171,16 @@ class HourlyVpsController extends Controller
             });
 
             $featured = $this->featured($offers, $locations, $locale, $hourlyRates);
+            $monthlyOffers = $allOffers->groupBy('slug')->map(fn ($rows) => $selection->representative($rows));
+            $catalogRows = app(\App\Services\Cloud\PublicVpsCatalog::class)->rows(
+                offers: $monthlyOffers, hourlyOffers: $offers->keyBy('slug'), locations: $locations, hourlyRates: $hourlyRates,
+            );
         }
 
         $countries = array_values($countries);
 
         return view('pages.vps-hourly', [
+            'vpsRows' => $catalogRows,
             'costExamples' => $costExamples,
             'countries' => $countries,
             'unavailableCountries' => array_values($unavailableCountries),

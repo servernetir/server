@@ -474,7 +474,11 @@ class SiteController extends Controller
                     || \App\Models\CloudLocation::isGpuCode((string) $code)) {
                     continue;
                 }
-                $add('cloud.location', \App\Models\CloudLocation::canonicalCode((string) $code));
+                $iso = strtoupper(substr((string) $code, 0, 2));
+                $slug = \App\Services\Cloud\CloudCountry::marketingSlug($iso);
+                if ($slug !== null) {
+                    $add('catalog', ['category' => 'vps', 'slug' => $slug]);
+                }
             }
         }
         $add('blog.index');
@@ -613,7 +617,7 @@ class SiteController extends Controller
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
             .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
-        foreach ($urls as $u) {
+        foreach (collect($urls)->unique('loc') as $u) {
             $xml .= '  <url><loc>'.htmlspecialchars($u['loc'], ENT_XML1).'</loc>';
 
             if (! empty($u['lastmod'])) {

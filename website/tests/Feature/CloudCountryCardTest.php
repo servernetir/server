@@ -20,6 +20,13 @@ use Tests\TestCase;
 class CloudCountryCardTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SeedsCatalogPricing;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seedCatalogPricing();
+    }
 
     private int $n = 0;
 
