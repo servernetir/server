@@ -2714,6 +2714,7 @@ return [
     'cy_not_payable' => 'This invoice is not payable.',
     'cy_busy' => 'Temporarily unavailable',
     'cy_busy_hint' => 'All receiving addresses are in use right now — please try again in a few minutes.',
+    'cy_recommended' => 'Recommended',
     'cy_choose_coin' => 'Payment currency and network',
     'cy_invoice_amount' => 'Invoice amount',
     'cy_approx_label' => 'Approximate equivalent',
