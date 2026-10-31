@@ -65,9 +65,12 @@
     }
   },
   "php_lint_changed_files": 10,
-  "production_installed": false,
-  "native_billing_fixes_verified": false,
-  "live_report": "account_read_failed; old installed preflight does not disclose its specific cause",
-  "blocked_action": "cPanel browser access rejected by automatic security review; no workaround attempted",
-  "initial_base_sha": "fc68971351fd17f2f5e18a3852f000108e56531a"
+  "production_installed": true,
+  "native_billing_fixes_verified": true,
+  "live_report": "CLI 05:56 UTC and admin UI 05:58 UTC: ok=true; native TRY, numeric fee fields and zero current Credit Balance fees",
+  "initial_base_sha": "fc68971351fd17f2f5e18a3852f000108e56531a",
+  "prior_blocked_action": "cPanel browser access rejected by automatic security review; no workaround attempted",
+  "installed_source_sha": "9d10cfd4c6d51b4b7e3a5a4216bc06a779d54b56",
+  "develop_merge_sha": "6d465debff5b3617a3849c1ff14019155b566fc9",
+  "live_cloudplan_sha256": "69f748dabc47558755c67a25bccc51edf3055aece5e8a6cfcc52df1dcc977d1d"
 }
