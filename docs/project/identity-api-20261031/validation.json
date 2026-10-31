@@ -1,0 +1,17 @@
+{
+  "date": "2026-10-31",
+  "php": "8.4.27",
+  "database": "isolated SQLite memory",
+  "tests": 90,
+  "assertions": 790,
+  "failed": 0,
+  "upstream_calls_in_tests": "HTTP fake; stray requests prohibited",
+  "live_paid_tests": false,
+  "live_active_services": 30,
+  "live_inactive_services": 5,
+  "catalog_rows": 34,
+  "reviewed_json_contracts": 31,
+  "contract_delta": "bounced-cheque-inquiry national_code minLength=10 maxLength=11; source updated; not deployed",
+  "catalog_sha256": "16e82ea36d018eb188a4a21fc39ccb0677134a59f7622491d53a97477e3704d5",
+  "openapi_sha256": "932a2aaa79c8276bde297efd22ec753f487d8cae7067b5fd5c67b12074ad7ff9"
+}
