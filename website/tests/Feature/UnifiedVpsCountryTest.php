@@ -108,6 +108,16 @@ class UnifiedVpsCountryTest extends TestCase
         $this->assertStringNotContainsString('/cloud/jp-tokyo</loc>', $xml);
     }
 
+    public function test_infrastructure_aliases_use_the_same_public_city_label(): void
+    {
+        $this->offer('tr-istanbul', 'TR', 'MAIN');
+        $this->offer('tr-istanbul-ii', 'TR', 'ALIAS', 990000);
+        $rows = collect($this->get('/vps/turkiye')->assertOk()->viewData('vpsRows'));
+        $this->assertSame(['tr-istanbul'], $rows->pluck('location')->unique()->values()->all());
+        $this->assertCount(1, $rows->pluck('city')->unique());
+        $this->assertSame(CloudLocation::flagSvgFor('TR'), $rows->first()['flag_svg']);
+    }
+
     public function test_unavailable_prices_do_not_enter_the_public_table(): void
     {
         $plan = $this->offer('us-new-york', 'US', 'UNPRICED');

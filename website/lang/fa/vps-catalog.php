@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'count_filtered' => ':shown پلن از :total',
     'hourly_unavailable' => 'ساعتی ارائه نمی‌شود',
     'setup' => 'راه‌اندازی: :price',
     'catalog' => 'سرور مجازی',

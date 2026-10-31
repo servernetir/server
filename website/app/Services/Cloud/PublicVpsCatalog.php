@@ -56,7 +56,8 @@ class PublicVpsCatalog
             $rows[] = [
                 'slug' => $plan->slug, 'name' => $plan->public_name,
                 'country' => $loc->country, 'country_label' => $loc->countryLabel(),
-                'flag' => $loc->flagEmoji(), 'city' => $loc->cityLabel(),
+                'flag' => $loc->flagEmoji(), 'flag_svg' => $loc->flagSvg(),
+                'city' => ($locations->get(CloudLocation::canonicalCode($loc->code)) ?? $loc)->cityLabel(),
                 'location' => CloudLocation::canonicalCode($loc->code),
                 'cpu' => (int) $plan->vcpu, 'cpu_kind' => $plan->cpuKindLabel(), 'arch' => strtoupper((string) $plan->arch),
                 'ram_mb' => (int) $plan->ram_mb, 'ram' => $plan->ramLabel(),

@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'count_filtered' => ':total plandan :shown tanesi',
     'hourly_unavailable' => 'Saatlik sunulmaz',
     'setup' => 'Kurulum: :price',
     'catalog' => 'Sanal sunucular',

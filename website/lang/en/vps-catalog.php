@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'count_filtered' => ':shown of :total plans',
     'hourly_unavailable' => 'Hourly unavailable',
     'setup' => 'Setup: :price',
     'catalog' => 'Virtual servers',
