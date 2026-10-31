@@ -94,7 +94,7 @@ jobs:
           set +e
           route_status=0
           access_status=0
-          php artisan route:list --path='admin/seo' --json > /tmp/seo-report-route.json 2>&1 || route_status=$?
+          php artisan route:list --json > /tmp/seo-report-route.json 2>&1 || route_status=$?
           if [ "$route_status" -eq 0 ]; then
             grep -Fq 'admin/seo/reports/{report}/revoke' /tmp/seo-report-route.json || route_status=1
             grep -Fq 'admin.seo.reports.revoke' /tmp/seo-report-route.json || route_status=1
