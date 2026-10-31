@@ -21,8 +21,9 @@ class CryptoIssuer
      * نه اینکه پیش‌فرضِ ۵۹ دقیقه را برایش هم بردار.
      */
     public const ASSETS = [
-        'USDT' => ['chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'USDT (TRC20)', 'window' => 59],
-        'TRX' => ['chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'TRX', 'window' => 25],
+        'USDT_BEP20' => ['asset' => 'USDT', 'chain' => 'bsc', 'network' => 'BEP20', 'decimals' => 6, 'label' => 'USDT (BEP20 · BNB Smart Chain)', 'window' => 59],
+        'USDT' => ['asset' => 'USDT', 'chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'USDT (TRC20)', 'window' => 59],
+        'TRX' => ['asset' => 'TRX', 'chain' => 'tron', 'network' => 'TRC20', 'decimals' => 6, 'label' => 'TRX', 'window' => 25],
     ];
 
     /** آدرسِ آزاد دارد و قیمت هم داریم ⇒ همین حالا قابلِ صدور */
@@ -117,8 +118,8 @@ class CryptoIssuer
             $out[$code]['estimate'] = $spec['state'] === self::READY ? $this->estimate($invoice, $code) : null;
         }
 
-        if ($open !== null && isset(self::ASSETS[$open->asset])) {
-            $out[$open->asset] = self::ASSETS[$open->asset] + ['state' => self::OPEN];
+        if ($open !== null && ($key = self::selectionFor($open)) !== null) {
+            $out[$key] = self::ASSETS[$key] + ['state' => self::OPEN];
         }
 
         return $out;
@@ -133,7 +134,13 @@ class CryptoIssuer
      */
     public function issue(Invoice $invoice, string $asset): ?CryptoPayment
     {
-        $open = CryptoPayment::where('invoice_id', $invoice->id)->where('asset', $asset)
+        $spec = self::ASSETS[$asset] ?? null;
+        if ($spec === null) {
+            return null;
+        }
+
+        $open = CryptoPayment::where('invoice_id', $invoice->id)->where('asset', $spec['asset'])
+            ->where('chain', $spec['chain'])->where('network', $spec['network'])
             ->whereIn('status', ['pending', 'seen'])->where('expires_at', '>', now())
             ->latest('id')->first();
 
@@ -142,12 +149,6 @@ class CryptoIssuer
         }
 
         if (! app(PaymentVisibility::class)->allows('crypto')) {
-            return null;
-        }
-
-        $spec = self::ASSETS[$asset] ?? null;
-
-        if ($spec === null) {
             return null;
         }
 
@@ -177,7 +178,7 @@ class CryptoIssuer
             'invoice_id' => $invoice->id,
             'customer_id' => $invoice->customer_id,
             'chain' => $spec['chain'],
-            'asset' => $asset,
+            'asset' => $spec['asset'],
             'network' => $spec['network'],
             'address' => '',                       // بلافاصله پر می‌شود
             'amount_atomic' => $atomic,
@@ -254,6 +255,7 @@ class CryptoIssuer
      */
     private function tomanPerUnit(string $asset, bool $live): float
     {
+        $asset = self::ASSETS[$asset]['asset'] ?? $asset;
         if ($asset === 'USDT') {
             return $this->tomanPerCurrency('USDT', $live);
         }
@@ -348,6 +350,18 @@ class CryptoIssuer
         }
 
         return rtrim(rtrim(number_format($atomic / (10 ** $decimals), min(4, $decimals), '.', ''), '0'), '.') ?: null;
+    }
+
+    /** Persist the real ticker; selector keys distinguish networks without changing existing rows. */
+    public static function selectionFor(CryptoPayment $payment): ?string
+    {
+        foreach (self::ASSETS as $key => $spec) {
+            if ($payment->asset === $spec['asset'] && $payment->chain === $spec['chain'] && $payment->network === $spec['network']) {
+                return $key;
+            }
+        }
+
+        return null;
     }
 
     private function atomicFor(int $due, string $currency, int $rateMicro, int $decimals): int

@@ -31,17 +31,34 @@ class CryptoReconciler
     public function __construct(
         private readonly TronWatcher $tron,
         private readonly PaymentService $payments,
+        private readonly BscWatcher $bsc,
     ) {}
 
     /** یک دور پایش روی همهٔ پرداخت‌های باز. خروجی: شمارشِ کارهای انجام‌شده */
     public function sweep(): array
     {
+        $failedChains = [];
         $stat = ['checked' => 0, 'confirmed' => 0, 'expired' => 0, 'unmatched' => 0];
 
-        foreach (CryptoPayment::watchable()->where('chain', 'tron')->get() as $cp) {
+        foreach (CryptoPayment::watchable()->whereIn('chain', ['tron', 'bsc'])->get() as $cp) {
+            if (isset($failedChains[$cp->chain])) {
+                continue;
+            }
             $stat['checked']++;
 
-            foreach ($this->tron->deposits($cp->address, $cp->asset) as $d) {
+            try {
+                $deposits = $cp->chain === 'bsc'
+                    ? $this->bsc->deposits($cp->address, $cp->asset, $cp->created_at->timestamp - self::CLOCK_SKEW_SECONDS)
+                    : $this->tron->deposits($cp->address, $cp->asset);
+            } catch (\Throwable $e) {
+                // A read failure must not expire an address before its transfers can be checked.
+                $stat['errors'] = ($stat['errors'] ?? 0) + 1;
+                $failedChains[$cp->chain] = true;
+                Log::warning('crypto watcher unavailable', ['chain' => $cp->chain, 'payment_id' => $cp->id]);
+
+                continue;
+            }
+            foreach ($deposits as $d) {
                 $r = $this->apply($cp, $d);
                 if ($r !== null) {
                     $stat[$r]++;
@@ -49,7 +66,7 @@ class CryptoReconciler
             }
         }
 
-        $stat['expired'] += $this->expireStale();
+        $stat['expired'] += $this->expireStale(array_keys($failedChains));
         $stat['orphan_freed'] = $this->freeOrphanedWallets();
 
         return $stat;
@@ -72,7 +89,7 @@ class CryptoReconciler
     {
         $n = 0;
 
-        $wallets = \App\Models\CryptoWallet::whereNotNull('busy_payment_id')->get();
+        $wallets = CryptoWallet::whereNotNull('busy_payment_id')->get();
 
         foreach ($wallets as $w) {
             $holder = CryptoPayment::find($w->busy_payment_id);
@@ -96,6 +113,10 @@ class CryptoReconciler
      */
     private function apply(CryptoPayment $cp, array $d): ?string
     {
+        if (($d['confirmed'] ?? false) !== true) {
+            return null;
+        }
+
         // این تراکنش قبلاً هر جا ثبت شده؟ دوباره حساب نمی‌شود
         if (CryptoPayment::where('chain', $cp->chain)->where('txid', $d['txid'])->exists()) {
             return null;
@@ -186,7 +207,7 @@ class CryptoReconciler
 
             $row->received_atomic += (int) $d['amount'];
             $row->txid = $d['txid'];
-            $row->confirmations = TronWatcher::MIN_CONFIRMATIONS;
+            $row->confirmations = $row->chain === 'bsc' ? (int) $d['confirmations'] : TronWatcher::MIN_CONFIRMATIONS;
             $row->status = 'seen';
             $row->save();
 
@@ -253,11 +274,11 @@ class CryptoReconciler
      * ⚠️ آدرس با **دورهٔ خنک‌شدن** آزاد می‌شود، نه بلافاصله — وگرنه واریزیِ
      * دیرهنگامِ همان مشتری به فاکتورِ نفرِ بعدی می‌نشست.
      */
-    private function expireStale(): int
+    private function expireStale(array $failedChains = []): int
     {
         $n = 0;
 
-        foreach (CryptoPayment::where('status', 'pending')->where('expires_at', '<', now())->get() as $cp) {
+        foreach (CryptoPayment::where('status', 'pending')->whereNotIn('chain', $failedChains)->where('expires_at', '<', now())->get() as $cp) {
             // ⚠️ پولی که رسیده ولی هنوز تأیید نشده را منقضی نمی‌کنیم
             if ($cp->received_atomic > 0) {
                 continue;
