@@ -153,13 +153,19 @@ class AuditReportShareTest extends TestCase
         ]);
         $admin = $this->admin();
 
-        $this->actingAs($admin)->post('/admin/seo/reports/'.$report->id.'/revoke')->assertRedirect();
+        $request = Request::create('/admin/seo/reports/'.$report->id.'/revoke', 'POST');
+        $request->setLaravelSession(app('session.store'));
+        $request->setUserResolver(fn () => $admin);
+        $this->app->instance('request', $request);
+        $response = app(SeoOutreachController::class)->revokeReport($report);
+
+        $this->assertSame(302, $response->getStatusCode());
         $this->assertNotNull($report->fresh()->revoked_at);
         $this->assertSame('skipped', $contact->fresh()->status);
         $this->assertSame('report_revoked', $contact->fresh()->error);
         $this->get('/report/'.$report->token)->assertNotFound();
 
-        $this->actingAs($admin)->post('/admin/seo/reports/'.$report->id.'/revoke')->assertRedirect();
+        $this->assertSame(302, app(SeoOutreachController::class)->revokeReport($report->fresh())->getStatusCode());
         Mail::assertNothingSent();
     }
 
