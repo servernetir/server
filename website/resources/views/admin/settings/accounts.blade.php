@@ -271,7 +271,7 @@
       <form method="post" action="/admin/crypto-wallets">
         @csrf
         <label style="display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px">زنجیره</label>
-        <select name="chain" class="ad-input" style="max-width:220px"><option value="tron">Tron (TRC20)</option></select>
+        <select name="chain" class="ad-input" style="max-width:220px"><option value="tron">Tron (TRC20)</option><option value="bsc">BNB Smart Chain — USDT (BEP20)</option></select>
 
         <label style="display:block;font-size:12.5px;color:var(--muted);margin:14px 0 6px">
           آدرس‌ها — هر خط یکی (یا با کاما جدا کنید)
@@ -281,7 +281,7 @@
                   placeholder="TXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"></textarea>
 
         <p style="font-size:12px;color:var(--muted);line-height:1.9;margin:10px 0 0">
-          آدرس ترون با <code>T</code> شروع می‌شود و ۳۴ نویسه است؛ موارد نامعتبر یا
+          آدرس ترون با <code>T</code> شروع می‌شود و ۳۴ نویسه است؛ آدرس BNB Smart Chain با <code>0x</code> شروع می‌شود و ۴۲ نویسه است. موارد نامعتبر یا
           تکراری بی‌سروصدا رد می‌شوند. ۱۰ تا ۲۰ آدرس برای مدت‌ها کافی است، چون هر
           آدرس بعد از تسویه دوباره به استخر برمی‌گردد.
         </p>

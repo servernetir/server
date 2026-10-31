@@ -248,7 +248,7 @@
       @if(! empty($cryptoAssets))
         @php
           $cyAllBusy = collect($cryptoAssets)->every(fn ($s) => $s['state'] === \App\Services\Payment\CryptoIssuer::BUSY);
-          $cyCodes = implode(' · ', array_keys($cryptoAssets));
+          $cyCodes = implode(' · ', array_column($cryptoAssets, 'label'));
         @endphp
         @if($cyAllBusy && ! $cryptoOpen)
           <label class="pm-card is-off" data-m="crypto" title="{{ __('ui.cy_busy_hint') }}">
@@ -261,7 +261,7 @@
           <label class="pm-card" data-m="crypto">
             <input type="radio" name="pm" value="crypto" hidden @if($cryptoOpen) checked @endif>
             <span class="pm-badge cy"><svg class="icon"><use href="#i-coins"/></svg></span>
-            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $cyCodes }} · TRC20</small></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $cyCodes }}</small></span>
             <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
           </label>
         @endif
