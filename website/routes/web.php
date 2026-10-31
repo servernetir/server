@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Route;
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
 require __DIR__.'/ai-growth.php';
+require __DIR__.'/madar-admin.php';
 
 // Private n8n registration callback: dedicated Bearer credential, no browser session.
 Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestController::class)
@@ -402,6 +403,7 @@ $site = function (): void {
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
     Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
+        require __DIR__.'/madar-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
         Route::post('/offers/preferences', [Account\OfferController::class, 'preferences'])->name('offers.preferences')->middleware('throttle:10,1');

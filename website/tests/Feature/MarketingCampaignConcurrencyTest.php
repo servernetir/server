@@ -59,9 +59,16 @@ class MarketingCampaignConcurrencyTest extends TestCase
                         'unit_price' => 1_000_000, 'line_total' => 1_000_000, 'tax_rate_bp' => 0, 'tax_amount' => 0,
                         'marketing_context' => ['eligible' => true, 'operation' => 'purchase']]);
                     $command = [PHP_BINARY, '-n', '-d', 'memory_limit=512M', '-d', 'extension_dir='.ini_get('extension_dir')];
-                    foreach (['mbstring', 'pdo_sqlite', 'sqlite3', 'openssl', 'fileinfo', 'intl', 'curl', 'gd', 'sodium', 'zip'] as $ext) {
+                    foreach (['pdo', 'mbstring', 'pdo_sqlite', 'sqlite3', 'openssl', 'fileinfo', 'intl', 'curl', 'gd', 'sodium', 'zip'] as $ext) {
                         if (extension_loaded($ext)) {
-                            array_push($command, '-d', 'extension='.$ext);
+                            // PDO must precede its driver. Built-in extensions have no loadable file.
+                            $fileName = ini_get('extension_dir').DIRECTORY_SEPARATOR.$ext.'.'.PHP_SHLIB_SUFFIX;
+                            if (! is_file($fileName) && PHP_SHLIB_SUFFIX === 'dll') {
+                                $fileName = ini_get('extension_dir').DIRECTORY_SEPARATOR.'php_'.$ext.'.dll';
+                            }
+                            if (is_file($fileName)) {
+                                array_push($command, '-d', 'extension='.$fileName);
+                            }
                         }
                     }
                     array_push($command, base_path('tests/Support/marketing-race-worker.php'), $file,

@@ -148,7 +148,17 @@ final class HermesSectionOversight
             return $this->missing();
         }
 
-        return ['state' => 'observed', 'counts' => [
+        $madarReady = app(\App\Services\Madar\MadarHub::class)->ready();
+
+        return ['state' => 'observed', 'madar' => [
+            'path' => '/admin/madar', 'state' => $madarReady ? 'observed' : 'schema_unavailable',
+            'counts' => $madarReady ? [
+                'awaiting_agreement' => DB::table('madar_participations')->where('status', 'requested')->count(),
+                'awaiting_review' => DB::table('madar_participations')->where('status', 'submitted')->count(),
+                'unread_customer_threads' => DB::table('madar_participations')->whereNull('staff_read_at')->count(),
+            ] : null,
+            'financial_operations_enabled' => false, 'content_verified' => false,
+        ], 'counts' => [
             'replied_leads' => DB::table('crm_leads')->where('stage', 'replied')->count(),
             'queued_messages' => DB::table('crm_messages')->where('direction', 'out')->where('status', 'queued')->count(),
             'results_requiring_reconciliation' => DB::table('crm_messages')->where('direction', 'out')
@@ -184,7 +194,8 @@ final class HermesSectionOversight
             $score = match ($section) {
                 'mail' => ($counts['business_threads_needing_reply'] ?? 0) > 0 ? 100 : 20,
                 'marketing' => ($counts['results_requiring_reconciliation'] ?? 0) > 0 ? 110
-                    : (($counts['replied_leads'] ?? 0) > 0 ? 95 : 25),
+                    : (($counts['replied_leads'] ?? 0) > 0 ? 95
+                        : (($value['observation']['madar']['counts']['awaiting_review'] ?? 0) > 0 ? 90 : 25)),
                 'ai_growth' => ($counts['uncertain_cost_jobs'] ?? 0) > 0 ? 105 : 50,
                 'comments' => ($counts['pending_moderation'] ?? 0) > 0 ? 70 : 30,
                 'kb' => 45,
