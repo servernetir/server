@@ -1,0 +1,97 @@
+name: SEO report access controls
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Models/AuditReport.php'
+      - 'website/app/Models/OutreachContact.php'
+      - 'website/app/Http/Controllers/ReportController.php'
+      - 'website/app/Http/Controllers/ReportConsultationController.php'
+      - 'website/app/Http/Controllers/Admin/SeoOutreachController.php'
+      - 'website/database/migrations/*audit_reports*'
+      - 'website/resources/views/admin/seo.blade.php'
+      - 'website/routes/web.php'
+      - 'website/tests/Feature/AuditReportShareTest.php'
+      - 'website/tests/Feature/ReportConsultationTest.php'
+      - '.github/workflows/seo-report-access.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seo-report-access-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Report access (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: seo_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'seo_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - name: Checkout exact revision without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up isolated PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without production configuration
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Validate report access with synthetic data only
+        working-directory: website
+        run: |
+          set -euo pipefail
+          php -l app/Models/AuditReport.php
+          php -l app/Models/OutreachContact.php
+          php -l app/Http/Controllers/ReportController.php
+          php -l app/Http/Controllers/ReportConsultationController.php
+          php -l app/Http/Controllers/Admin/SeoOutreachController.php
+          php -l database/migrations/2026_10_31_130000_add_access_controls_to_audit_reports.php
+          vendor/bin/phpunit --filter='AuditReportShareTest|ReportConsultationTest' --display-warnings --fail-on-warning --colors=never
+      - name: Record acceptance boundary
+        if: always()
+        run: echo 'Synthetic tests only; no scan, email, CRM production write, deployment or migration was performed.' >> "$GITHUB_STEP_SUMMARY"
