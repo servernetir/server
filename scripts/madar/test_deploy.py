@@ -32,6 +32,13 @@ class ScopedReleaseTests(unittest.TestCase):
             return b'new reviewed bytes\n'
         return self.core.build_plan(self.root,'a'*40,'unused',source_reader=source)
 
+    def test_native_mariadb_driver_passes_but_unknown_driver_or_existing_schema_stops(self):
+        for driver in ('mysql', 'mariadb'):
+            deploy.validate_initial_database({'driver':driver,'madar_tables':{'madar_missions':False}})
+        for state in ({'driver':'sqlite','madar_tables':{'madar_missions':False}},
+                      {'driver':'mariadb','madar_tables':{'madar_missions':True}}):
+            with self.assertRaises(RuntimeError):deploy.validate_initial_database(state)
+
     def test_public_assets_have_two_explicit_destinations_and_no_arbitrary_path(self):
         self.assertEqual(self.home/'public_html/assets/css/madar.css',self.core.checked_file(self.root,'public/assets/css/madar.css'))
         self.assertEqual(self.root/'public/assets/js/madar.js',self.core.checked_file(self.root,'runtime-assets/assets/js/madar.js'))

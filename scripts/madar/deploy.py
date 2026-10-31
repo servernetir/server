@@ -99,6 +99,13 @@ echo json_encode(['driver'=>Illuminate\Support\Facades\DB::connection()->getDriv
 ''', root)
 
 
+def validate_initial_database(state):
+    if state['driver'] not in ('mysql', 'mariadb'):
+        raise RuntimeError('unsupported_production_database_driver')
+    if any(state['madar_tables'].values()):
+        raise RuntimeError('unexpected_existing_madar_schema')
+
+
 def activation_helper(core, root, release, plan, php):
     paths=[str(core.checked_file(root,row['path'])) for row in plan['files'] if row['path'].endswith('.php')]
     views=[core.checked_file(root,row['path']) for row in plan['files'] if row['path'].endswith('.blade.php')]
@@ -149,8 +156,7 @@ def run():
             if (root/'bootstrap/cache/config.php').exists():
                 raise RuntimeError('config_cache_needs_review_before_install')
             state=inspect_database(root,args.php)
-            if state['driver']!='mysql' or any(state['madar_tables'].values()):
-                raise RuntimeError('unexpected_existing_madar_schema')
+            validate_initial_database(state)
             release,plan=core.build_plan(root,target,args.php,source_reader=core.fetch_source)
             core.private_write(release/'database-before.json',core.canonical(state))
             result={'status':'planned','release_dir':str(release),'plan_sha256':plan['plan_sha256'],
