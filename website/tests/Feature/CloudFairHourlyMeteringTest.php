@@ -48,6 +48,10 @@ class CloudFairHourlyMeteringTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // MariaDB keeps AUTO_INCREMENT across transaction rollbacks: a fixture
+        // may receive production's protected service ID 20. These are billable
+        // test servers; internal-resource protection has its own dedicated suite.
+        config(['billing.internal_service_ids' => []]);
         // Anchor creation and post-command assertions must use the same clock,
         // including when MariaDB work crosses a real wall-clock minute.
         Carbon::setTestNow(now()->startOfSecond());
