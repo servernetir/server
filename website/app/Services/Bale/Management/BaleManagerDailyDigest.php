@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Schema;
 class BaleManagerDailyDigest
 {
     public const TOPICS = ['stats', 'payments', 'domains', 'hermes', 'mail', 'calendar', 'identity', 'content', 'traffic', 'balances', 'fx', 'costs'];
+    private const TITLES = ['stats' => '📊 مشتری و تحویل', 'payments' => '💰 دریافت موفق', 'domains' => '🌐 دامنه', 'hermes' => '⚠️ پیگیری هرمس', 'mail' => '📬 ایمیل',
+        'calendar' => '📅 تقویم', 'identity' => '🪪 استعلام', 'content' => '📝 محتوا', 'traffic' => '🔎 ورودی سایت', 'fx' => '💱 نرخ ارز', 'balances' => '🏦 موجودی زیرساخت', 'costs' => '📈 افزایش هزینه تأمین‌کننده'];
     private ?Carbon $reportAt = null;
 
     public function snapshot(): array
@@ -56,13 +58,51 @@ class BaleManagerDailyDigest
         $snapshot ??= $this->snapshot();
         $s = $snapshot['sections'];
         $at = Carbon::parse($snapshot['observed_at'] ?? now())->setTimezone('Asia/Tehran');
-        $lines = ['📋 گزارش روزانه مدیریت — '.$at->format('Y-m-d H:i').' تهران'];
+        // Bale automatically parses Markdown. Only fixed headings contain markup;
+        // the surrounding spaces are required by Bale's documented bold syntax.
+        $heading = "📋 *گزارش روزانه مدیریت* \n".$at->format('Y-m-d H:i').' تهران';
+        $blocks = [];
         foreach (['stats', 'payments', 'domains', 'hermes', 'mail', 'calendar', 'identity', 'content', 'traffic', 'fx', 'balances', 'costs'] as $topic) {
             $rows = $this->lines($topic, $s[$topic] ?? ['available' => false], false);
-            $lines = array_merge($lines, $rows);
+            if ($rows === []) { continue; }
+            $title = self::TITLES[$topic];
+            if (str_starts_with($rows[0], $title)) {
+                $rows[0] = ltrim(mb_substr($rows[0], mb_strlen($title)), ': ');
+                if ($rows[0] === '') { array_shift($rows); }
+            } elseif ($topic === 'traffic') {
+                $rows[0] = preg_replace('/^🔎\s*/u', '', $rows[0]) ?? $rows[0];
+            }
+            [$icon, $label] = explode(' ', $title, 2);
+            $blocks[] = ['heading' => $icon.' *'.$label.'* ',
+                'body' => strtr(implode("\n", $rows), ['*' => '＊', '_' => '＿', '[' => '［', ']' => '］', ' | ' => ' · '])];
         }
-        $lines[] = '۲۴ساعت، منتهی به زمان گزارش است. جزئیات با دکمه‌ها؛ مقدار ناموجود صفر فرض نشده است.';
-        return mb_substr(implode("\n", $lines), 0, 3500);
+        $footer = 'بازهٔ ۲۴ساعت تا زمان گزارش است. ماه قبل، ماه تقویمی میلادی است. جزئیات با دکمه‌ها؛ مقدار ناموجود صفر فرض نشده است.';
+        return $this->boundedReport($heading, $blocks, $footer);
+    }
+
+    /** Keep every section heading and balanced markup, even with unusually long source labels. */
+    private function boundedReport(string $heading, array $blocks, string $footer): string
+    {
+        $render = static fn (array $parts) => $heading."\n\n".implode("\n\n", array_map(
+            static fn (array $block) => $block['heading']."\n".$block['body'], $parts))."\n\n".$footer;
+        $text = $render($blocks);
+        while (mb_strlen($text) > 3500) {
+            $longest = null;
+            foreach ($blocks as $key => $block) {
+                if (mb_strlen($block['body']) > 180 && ($longest === null || mb_strlen($block['body']) > mb_strlen($blocks[$longest]['body']))) { $longest = $key; }
+            }
+            if ($longest === null) { break; }
+            $note = '… جزئیات با دکمهٔ همین بخش.';
+            $limit = max(180, mb_strlen($blocks[$longest]['body']) - (mb_strlen($text) - 3500));
+            $kept = [];
+            foreach (explode("\n", $blocks[$longest]['body']) as $line) {
+                if (mb_strlen(implode("\n", [...$kept, $line])) + mb_strlen($note) + 1 > $limit) { break; }
+                $kept[] = $line;
+            }
+            $blocks[$longest]['body'] = ($kept === [] ? '' : implode("\n", $kept)."\n").$note;
+            $text = $render($blocks);
+        }
+        return $text;
     }
 
     public function detail(string $topic): string
@@ -255,9 +295,7 @@ class BaleManagerDailyDigest
 
     private function lines(string $topic, array $s, bool $detail): array
     {
-        $titles = ['stats' => '📊 مشتری و تحویل', 'payments' => '💰 دریافت موفق', 'domains' => '🌐 دامنه', 'hermes' => '⚠️ پیگیری هرمس', 'mail' => '📬 ایمیل',
-            'calendar' => '📅 تقویم', 'identity' => '🪪 استعلام', 'content' => '📝 محتوا', 'traffic' => '🔎 ورودی سایت', 'fx' => '💱 نرخ ارز', 'balances' => '🏦 موجودی زیرساخت', 'costs' => '📈 افزایش هزینه تأمین‌کننده'];
-        $title = $titles[$topic];
+        $title = self::TITLES[$topic];
         if (empty($s['available'])) {
             $out = [$title.': نامشخص'.($topic === 'traffic' ? '؛ داده تازه و قابل تأیید بازدیدکننده GA4 و کلیک/نمایش GSC در دسترس نیست.' : ($topic === 'costs' ? '؛ مقایسه مستند هزینه قبلی و فعلی موجود نیست.' : '؛ منبع اکنون قابل خواندن نیست.'))];
             if ($detail && $topic === 'traffic') { $out[] = 'اتصال و وضعیت منابع: '.url('/admin/bale/reporting'); }
@@ -266,7 +304,7 @@ class BaleManagerDailyDigest
         $v = fn ($n) => $n === null ? 'نامشخص' : number_format((int) $n);
         switch ($topic) {
             case 'stats':
-                $out = [$title.': ثبت‌نام ۲۴ساعت '.$v($s['signups_24h']).' | ماه قبل '.$v($s['signups_previous_month']).' | کل '.$v($s['customers_total']),
+                $out = [$title.': ثبت‌نام: ۲۴ساعت '.$v($s['signups_24h']).' | ماه قبل '.$v($s['signups_previous_month']).' | کل '.$v($s['customers_total']),
                     'تحویل ثبت‌شده: ۲۴ساعت '.$v($s['delivered_24h']).' | ماه قبل '.$v($s['delivered_previous_month']).' ('.$s['month_label'].')'];
                 if ($detail) { $out[] = '۳۰ روز اخیر: ثبت‌نام '.$v($s['signups_30d'] ?? null).' | تحویل '.$v($s['delivered_30d'] ?? null)."\nتحویل بر پایه زمان ثبت اعلان آمادگی ابر و موفقیت ساخت سایر سرویس‌هاست؛ رسید خواندن مشتری نیست."; }
                 return $out;
@@ -323,29 +361,41 @@ class BaleManagerDailyDigest
                 }
                 return $out;
             case 'fx':
-                $parts = [];
-                foreach ($s['rows'] as $currency => $r) { $parts[] = $currency.' '.($r ? $v($r['rate_toman']).' تومان'.($r['stale'] ? ' (قدیمی)' : '').($detail ? '؛ مشاهده '.$r['at'] : '') : 'نامشخص'); }
-                return [$title.': '.implode(' | ', $parts)];
+                $out = [$title];
+                foreach ($s['rows'] as $currency => $r) {
+                    $out[] = '• '.$currency.': '.($r ? $v($r['rate_toman']).' تومان'.($r['stale'] ? ' (قدیمی)' : '').($detail ? '؛ مشاهده '.$r['at'] : '') : 'نامشخص');
+                }
+                return $out;
             case 'balances':
-                $parts = []; $unknown = 0;
+                $out = [$title]; $unknown = [];
                 foreach ($s['rows'] as $row) {
                     if (! is_array($row)) { continue; }
+                    $label = $this->clean((string) ($row['label'] ?? $row['provider'] ?? 'زیرساخت'), 200);
                     if (($row['status'] ?? '') !== 'known' || ($row['value'] ?? null) === null) {
-                        $unknown++;
                         if ($detail) {
                             $why = ['not_configured' => 'اتصال حساب کامل نیست', 'balance_api_not_integrated' => 'رابط معتبر موجودی متصل نشده',
                                 'not_applicable' => 'حساب پیش‌پرداخت ندارد', 'no_observation' => 'مشاهده‌ای ثبت نشده',
                                 'observation_expired' => 'مشاهده قبلی قدیمی است'][$row['reason'] ?? ''] ?? 'منبع قابل تأیید نیست';
-                            $parts[] = ($row['label'] ?? $row['provider'] ?? 'زیرساخت').': نامشخص؛ '.$why;
-                        } else {
-                            $parts[] = ($row['label'] ?? $row['provider'] ?? 'زیرساخت').' نامشخص';
-                        }
+                            $out[] = '• '.$label.': نامشخص؛ '.$why;
+                        } else { $unknown[] = $label; }
                         continue;
                     }
                     $observed = empty($row['observed_at']) ? 'نامشخص' : Carbon::parse($row['observed_at'])->setTimezone('Asia/Tehran')->format($detail ? 'Y-m-d H:i' : 'H:i');
-                    $parts[] = ($row['label'] ?? $row['provider']).' '.$row['value'].' '.$row['currency'].(! empty($row['stale']) ? ' (قدیمی)' : '').'؛ مشاهده '.$observed;
+                    $out[] = '• '.$label.': '.$row['value'].' '.$row['currency'].(! empty($row['stale']) ? ' (قدیمی)' : '').'؛ مشاهده '.$observed;
                 }
-                return [$title.': '.implode(' | ', $parts)];
+                if ($unknown !== []) {
+                    $line = 'نامشخص: ';
+                    foreach ($unknown as $label) {
+                        $separator = $line === 'نامشخص: ' || $line === '' ? '' : '، ';
+                        if (mb_strlen($line.$separator.$label) > 99 && $separator !== '') {
+                            $out[] = $line.'،';
+                            $line = $label;
+                        } else { $line .= $separator.$label; }
+                    }
+                    $out[] = $line;
+                }
+                if (count($out) === 1) { $out[] = 'نامشخص؛ مشاهدهٔ موجودی در دسترس نیست.'; }
+                return $out;
             case 'hermes':
                 $out = [$title.': منتظر تصمیم '.($s['task_counts']['waiting_owner'] ?? 0).' | منتظر مشتری '.($s['task_counts']['waiting_customer'] ?? 0).' | هشدار '.count($s['alerts']).(! empty($s['source_stale']) ? '؛ مرور مالی قدیمی/نامشخص' : '')];
                 if ($detail) { $out[] = 'در حال بررسی '.($s['task_counts']['investigating'] ?? 0).' | حل‌شده '.($s['task_counts']['resolved'] ?? 0).'؛ آخرین مرور مالی '.(empty($s['last_run_at']) ? 'نامشخص' : Carbon::createFromTimestamp((int) $s['last_run_at'])->setTimezone('Asia/Tehran')->format('Y-m-d H:i')).' تهران'; }

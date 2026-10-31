@@ -1,0 +1,12 @@
+{
+  "release": "bale-report-layout-20261031",
+  "base_commit": "3d5b65c615361eee6ea044ba2de451d03606e774",
+  "files": [
+    {
+      "source": "website/app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "target": "app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "before": "33a351d019bf28bd82da44fc3f8e7d22ca0d592a9bcd1f6850a882f055a8b9a9",
+      "after": "c95671a04ba2ddf1f082c1aa383151639b1c68cb33746e1cf75559a5d51bf5aa"
+    }
+  ]
+}

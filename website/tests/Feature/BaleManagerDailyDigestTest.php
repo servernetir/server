@@ -173,7 +173,8 @@ class BaleManagerDailyDigestTest extends TestCase
         $text = app(BaleManagerDailyDigest::class)->text(['sections' => [
             'balances' => ['available' => true, 'rows' => $rows],
         ]]);
-        foreach ($rows as $row) { $this->assertStringContainsString($row['label'].' نامشخص', $text); }
+        foreach ($rows as $row) { $this->assertStringContainsString($row['label'], $text); }
+        $this->assertStringContainsString('نامشخص: Hetzner Cloud، Aeza، OVHcloud، SaladCloud', $text);
         $this->assertStringNotContainsString('0 USD', $text);
         $this->assertStringNotContainsString('0 EUR', $text);
     }
