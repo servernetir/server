@@ -1,5 +1,17 @@
 # قابلیت‌های مشتری و بهای عملیات VPS.TC — ۲۶ اکتبر ۲۰۲۶
 
+## Current override — supplier ticket 154596, reviewed 31 October 2026
+
+The matrix below is a historical Swagger inventory, **not the callable route inventory for this account**. The supplier's 27/30 October clarification supersedes its claims that usage/traffic/tasks/snapshot/backup/password/console routes are available. See [current contract and corrective release](VPSTC-TICKET-154596-2026-10-31.md).
+
+- `GET S/methods` is the supported inventory. `GET S/resources`, `GET V` and `GET S/templates` are verified examples. The new `serviceResources()` wrapper reads allowances only. `vmUsage()` now returns unsupported locally; usage remains unknown rather than zero.
+- Traffic, tasks, VM usage, snapshots, backups and their schedule routes are not registered. Snapshot/password/console-SSO routes are absent from the verified method list. Power and rebuild routes are exposed; availability alone does not bypass local order/entitlement safeguards.
+- The reviewed product includes two simultaneous snapshot slots, backups zero, and portal management within purchased limits. This does not enable customer API operations or sharing the parent account session.
+- Reviewed traffic is 2 TB combined inbound/outbound per monthly period; overuse reduces speed to 2 MB/s (approximately 16 Mbit/s), without metered overage charges. Exact byte convention and reset execution time are unverified. Additional traffic purchases cover the current period, not permanent quota. No API spending cap is documented.
+- Turn Service Auto Renewal Off in the portal for every new service. The API exposes no default-Off control. Auto-apply credit Off does not block explicit spending. Suspension/termination are configured at due +1/+7 days. Supplier unpaid-invoice lookup is not concurrent retry safety.
+
+Everything after this override records the 26 October review. Do not implement missing routes or promise free operations from that older specification.
+
 وضعیت: **ممیزی فقط‌خواندنی؛ مستند شد**. این سند قابلیتی را فعال نمی‌کند و گواه نصب یا پذیرش تولید نیست. هیچ سفارش، پرداخت، تغییر رمز، نصب مجدد یا تغییر ماشین برای تهیهٔ آن اجرا نشد. شناسه‌ها و اطلاعات حساب مشتری در سند درج نشده‌اند.
 
 مبنای کد: `effea7992d9cac0db26bafc52f1d599210f374aa` و تطبیق کد واقعی `website/app/Services/Cloud/VpsTc*.php` هنگام تهیهٔ سند. اصلاحات هم‌زمان کاتالوگ/پیش‌بررسی جداگانه در حال بررسی‌اند. مبنای API: Swagger رسمی نسخهٔ `4.20261019` با ۱۲۹ مسیر، بازیابی‌شده در ۲۶ اکتبر؛ SHA-256 محتوای بررسی‌شده: `3eb8bf67934abcafe7f1546dd019d4d1a77a50cf8ae499bf498715a71e57e53e`.

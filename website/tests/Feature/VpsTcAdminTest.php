@@ -71,6 +71,27 @@ class VpsTcAdminTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_admin_can_verify_billing_fixes_without_running_catalog_or_enabling_sales(): void
+    {
+        $this->admin();
+        $this->saved();
+        Setting::put('vpstc_currency', 'TRY');
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'private-token']),
+            '*/api/balance' => Http::response(['details' => ['currency' => 'TRY', 'acc_credit' => 5, 'acc_balance' => 0]]),
+            '*/api/payment' => Http::response(['payments' => ['120' => 'Credit Balance']]),
+            '*/api/payment/fees' => Http::response(['payments' => [['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 0]]]),
+        ]);
+        $this->post('/admin/cloud/vpstc/preflight', ['billing_only' => '1'])
+            ->assertRedirect('/admin/settings?tab=infra#infra-vpstc')
+            ->assertSessionHas('vpstc_report.ok', true)->assertSessionHas('vpstc_report.scope', 'billing_only');
+        $this->assertNotSame('1', Setting::get('vpstc_sales_enabled'));
+        $this->get('/admin/settings?tab=infra')->assertOk()
+            ->assertSee('ارز پاسخ اصلی')->assertSee('Service Auto Renewal')
+            ->assertDontSee('private-token')->assertDontSee('private-api-password');
+        Http::assertSentCount(4);
+    }
+
     public function test_blank_edit_preserves_both_existing_credentials(): void
     {
         $this->admin();

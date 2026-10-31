@@ -73,9 +73,10 @@ class VpsTcController extends Controller
 
     public function preflight(Request $request, VpsTcPreflight $preflight)
     {
-        $validator = Validator::make($request->only(['product_id', 'category_id']), [
+        $validator = Validator::make($request->only(['product_id', 'category_id', 'billing_only']), [
             'product_id' => ['nullable', 'string', 'regex:/\A[1-9][0-9]{0,17}\z/D'],
             'category_id' => ['nullable', 'string', 'regex:/\A[1-9][0-9]{0,17}\z/D'],
+            'billing_only' => ['sometimes', 'boolean'],
         ]);
         if ($validator->fails()) {
             return redirect()->to($this->destination($request))->withErrors($validator);
@@ -83,7 +84,11 @@ class VpsTcController extends Controller
         $data = $validator->validated();
         $connectionStatus = app(\App\Services\Cloud\InfrastructureSettingsStatus::class);
         $testedFingerprint = $connectionStatus->fingerprint('vpstc');
-        $report = $preflight->inspect(filled($data['product_id'] ?? null) ? (string) $data['product_id'] : null, filled($data['category_id'] ?? null) ? (string) $data['category_id'] : null);
+        $productId = filled($data['product_id'] ?? null) ? (string) $data['product_id'] : null;
+        $categoryId = filled($data['category_id'] ?? null) ? (string) $data['category_id'] : null;
+        $report = ! empty($data['billing_only'])
+            ? $preflight->inspect($productId, $categoryId, true)
+            : $preflight->inspect($productId, $categoryId);
 
         $connectionStatus->record('vpstc', ($report['connection_ok'] ?? false) === true, $testedFingerprint);
         return redirect()->to($this->destination($request))->with('vpstc_report', $report);

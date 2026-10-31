@@ -145,6 +145,70 @@ class VpsTcPreflightTest extends TestCase
         $this->artisan('cloud:vpstc-preflight')->expectsOutputToContain('"sales_ready": false')->assertSuccessful();
     }
 
+    public function test_billing_only_verifies_repaired_native_try_and_fees_without_catalog_or_quotes(): void
+    {
+        Setting::put('vpstc_currency', 'TRY');
+        $this->fixtures(['api.vps.tc/api/payment/fees' => Http::response(['payments' => [
+            ['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 0],
+        ]])], 'TRY');
+        $report = app(VpsTcPreflight::class)->inspect(billingOnly: true);
+        $this->assertTrue($report['ok']);
+        $this->assertSame('billing_only', $report['scope']);
+        $this->assertSame('TRY', $report['currency']);
+        $this->assertSame('api_balance', $report['currency_source']);
+        $this->assertTrue($report['payment_fees_verified']);
+        $this->assertTrue($report['credit_payment_fee_free']);
+        $this->assertFalse($report['sales_ready']);
+        $this->assertFalse($report['catalog_complete']);
+        $this->assertSame(0, $report['quotes_attempted']);
+        Http::assertSentCount(4);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/category') || str_contains($r->url(), '/quote')
+            || ($r->method() !== 'GET' && ! str_ends_with($r->url(), '/login')));
+    }
+
+    public function test_billing_only_rejects_missing_changed_and_unknown_native_currency_without_fallback(): void
+    {
+        Setting::put('vpstc_currency', 'TRY');
+        foreach (['', 'USD', 'FOO', null] as $currency) {
+            $this->fixtures(currency: $currency);
+            $this->assertFalse(app(VpsTcPreflight::class)->inspect(billingOnly: true)['ok']);
+        }
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), '/invoice') || str_contains($r->url(), '/service'));
+    }
+
+    public function test_billing_only_rejects_array_paid_duplicate_or_unbound_credit_fees(): void
+    {
+        foreach ([
+            [['id' => 120, 'fixed_fee' => 'Array', 'percent_fee' => 'Array']],
+            [['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 1]],
+            [['id' => 121, 'fixed_fee' => 0, 'percent_fee' => 0]],
+            [['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 0], ['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 0]],
+        ] as $rows) {
+            $this->fixtures(['api.vps.tc/api/payment/fees' => Http::response(['payments' => $rows])], 'TRY');
+            $report = app(VpsTcPreflight::class)->inspect(billingOnly: true);
+            $this->assertFalse($report['ok']);
+            $this->assertFalse($report['credit_payment_fee_free']);
+        }
+    }
+
+    public function test_billing_check_exposes_a_safe_failure_category_without_the_provider_body(): void
+    {
+        $this->fixtures(['api.vps.tc/api/balance' => Http::response(['error' => 'private-upstream-details'], 403)]);
+        $report = app(VpsTcPreflight::class)->inspect(billingOnly: true);
+        $this->assertFalse($report['ok']);
+        $this->assertSame('access_denied', $report['account_read_code']);
+        $this->assertStringNotContainsString('private-upstream-details', json_encode($report));
+        Http::assertSentCount(2);
+    }
+
+    public function test_cli_billing_only_uses_the_same_bounded_read_check(): void
+    {
+        $this->fixtures(currency: 'TRY');
+        $this->artisan('cloud:vpstc-preflight --billing-only')
+            ->expectsOutputToContain('"scope": "billing_only"')->assertSuccessful();
+        Http::assertSentCount(4);
+    }
+
     private function product(int $id, string $paytype = 'Regular', string $period = 'm', mixed $price = '125.55'): array
     {
         return ['id' => $id, 'name' => 'Fixture server '.$id, 'paytype' => $paytype,

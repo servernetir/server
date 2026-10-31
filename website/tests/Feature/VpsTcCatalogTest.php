@@ -94,13 +94,13 @@ class VpsTcCatalogTest extends TestCase
     private function converted(array $overrides = []): void
     {
         Setting::put('vpstc_currency', 'TRY'); Setting::put('vpstc_fx_rate_toman', '5000');
-        $this->currency = '';
+        $this->currency = 'TRY';
         $this->product['setup'] = 0;
         $this->product['description'] = '<p>Reviewed CPU/RAM/DISK/NETWORK/LOCATION terms</p>';
         $this->product['out_of_stock'] = false;
         $this->product['config']['product'][0]['items'][0] = ['value' => 'm', 'price' => '2.79', 'setup' => 0, 'formatted' => '₺125.55 Monthly'];
         $this->categoryProducts[0]['periods'][0] = ['value' => 'm', 'price' => '125.55', 'setup' => 0, 'formatted' => '₺125.55 Monthly'];
-        $this->fees = [['id' => 120, 'fixed_fee' => 'Array', 'percent_fee' => 'Array']];
+        $this->fees = [['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 0]];
         $this->anchorService = ['id' => '301', 'name' => 'Reviewed VPS', 'billingcycle' => 'Monthly', 'date_created' => '2026-01-01'];
         $this->anchorInvoice = ['id' => '91', 'status' => 'Paid', 'currency' => 'TRY', 'rate' => '45', 'subtotal' => '125.55',
             'tax' => '25.11', 'tax2' => '0', 'grandtotal' => '150.66', 'credit' => '150.66', 'total' => '0', 'discounts' => [],
@@ -523,6 +523,54 @@ class VpsTcCatalogTest extends TestCase
         $this->assertFalse($this->catalog->quote('12')['in_stock']);
         Http::assertNotSent(fn (Request $request) => $request->method() === 'POST'
             && ! str_ends_with($request->url(), '/login') && ! str_ends_with($request->url(), '/quote'));
+    }
+
+    public function test_repaired_try_currency_and_numeric_fees_do_not_normalize_raw_usd_prices(): void
+    {
+        $this->converted();
+        $this->assertSame('150.66', $this->catalog->quote('12')['total_amount']);
+        foreach ([['fixed_fee' => 'Array', 'percent_fee' => 'Array'],
+            ['fixed_fee' => 0, 'percent_fee' => 'Array'], ['fixed_fee' => 1, 'percent_fee' => 0]] as $fee) {
+            $this->fees = [['id' => 120] + $fee];
+            $this->assertNull($this->catalog->quote('12'), 'Even a reviewed paid invoice cannot establish a missing current payment fee.');
+        }
+        $this->fees = [['id' => 120, 'fixed_fee' => 0, 'percent_fee' => 0]];
+        $this->calculation = [];
+        $this->assertNull($this->catalog->quote('12'), 'Native TRY balance is not proof that raw order prices changed from USD.');
+    }
+
+    public function test_throttled_combined_allowance_is_distinct_from_a_hard_cap_and_pending_billing(): void
+    {
+        $terms = ['charge_mode' => 'throttled', 'extra_charges' => false, 'counting' => 'combined',
+            'period' => 'monthly', 'overuse_mbps' => 16];
+        $row = $this->commercialMapping();
+        $row['traffic_gb'] = 2048;
+        $row['network_terms'] = $terms;
+        $this->save($row);
+        $this->assertNull($this->catalog->manifest(), 'The previous approval cannot be reused for changed terms.');
+        $row['commercial_launch_approval']['pending'] = ['supplier_autorenew', 'cancellation_billing'];
+        $row['commercial_launch_approval']['scope_sha256'] = VpsTcCatalog::launchScopeFingerprint($row);
+        $this->save($row);
+        $quote = $this->catalog->quote('12');
+        $this->assertNotNull($quote);
+        $this->assertSame($terms, $quote['network_terms']);
+        $this->assertNull($quote['parent_cancel_stops_billing']);
+        foreach ([['counting' => 'outbound'], ['period' => 'permanent'], ['overuse_mbps' => 0],
+            ['overuse_mbps' => '16'], ['extra_charges' => true]] as $bad) {
+            $changed = $row;
+            $changed['network_terms'] = array_replace($terms, $bad);
+            $changed['commercial_launch_approval']['scope_sha256'] = VpsTcCatalog::launchScopeFingerprint($changed);
+            $this->save($changed);
+            $this->assertNull($this->catalog->manifest());
+        }
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            $plan = new \App\Models\CloudPlan(['provider' => 'vpstc', 'traffic_gb' => 2048, 'network_terms' => $terms]);
+            $label = $plan->trafficLabel($locale);
+            $this->assertStringContainsString($locale === 'fa' ? '۱۶' : '16', $label);
+            foreach (['hard limit', 'kesin sınır', 'سقف قطعی'] as $wrong) { $this->assertStringNotContainsString($wrong, $label); }
+            $plan->network_terms = ['charge_mode' => 'throttled'];
+            $this->assertStringNotContainsString('hard limit', $plan->trafficLabel('en'));
+        }
     }
 
     public function test_paid_unit_is_free_only_at_the_reviewed_included_baseline_with_a_zero_cost_echo(): void

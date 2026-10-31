@@ -109,6 +109,12 @@ final class VpsTcApi
         return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/methods', 'methods'));
     }
 
+    /** Purchased allowances, not usage counters or permission to buy additional resources. */
+    public function serviceResources(string $serviceId): array
+    {
+        return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/resources', 'resources'));
+    }
+
     /** Calculate one monthly configuration; this route never submits an order or payment. */
     public function quote(string $productId, string $paymentMethod, array $custom = [], ?string $hostname = null): array
     {
@@ -273,7 +279,9 @@ final class VpsTcApi
 
     public function vmUsage(string $serviceId, string $vmId): array
     {
-        return $this->withVm($serviceId, $vmId, fn () => $this->read('/api/service/'.$serviceId.'/vms/'.$vmId.'/usage', 'usage'));
+        // Supplier ticket 154596 confirms this advertised route is not registered.
+        // Keep the callable for compatibility, without repeatedly probing a known 404.
+        return $this->withVm($serviceId, $vmId, fn () => $this->failure('unsupported_usage', 'Usage statistics are not exposed by the verified service API.'));
     }
 
     public function power(string $serviceId, string $vmId, string $action): array
@@ -300,7 +308,7 @@ final class VpsTcApi
 
     public function console(string $serviceId, string $vmId): array
     {
-        return $this->withVm($serviceId, $vmId, fn () => $this->failure('unsupported_console', 'This console requires a supplier browser session and is unavailable through the server API.'));
+        return $this->withVm($serviceId, $vmId, fn () => $this->failure('unsupported_console', 'No reseller console grant is exposed by the verified service API.'));
     }
 
     private function withVm(string $serviceId, string $vmId, callable $operation): array
