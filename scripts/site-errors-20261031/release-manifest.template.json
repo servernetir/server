@@ -1,0 +1,24 @@
+{
+  "release": "site-errors-20261031",
+  "base_commit": "c444fd7051281b359d5c95cdef91f02a605f2a4e",
+  "files": [
+    {
+      "source": "website/app/Services/Bale/Management/BaleManagerDigestDelivery.php",
+      "target": "app/Services/Bale/Management/BaleManagerDigestDelivery.php",
+      "before": "8e5eb8adcc8235d290eb5afb90380584fe2c45807fe6155fda540e75971a8ca0",
+      "after": "REPLACE_WITH_REVIEWED_SOURCE_SHA256"
+    },
+    {
+      "source": "website/app/Console/Commands/BaleManagerDigest.php",
+      "target": "app/Console/Commands/BaleManagerDigest.php",
+      "before": "aabe4e1b50959720dae637a705b5ad2f23e3528d6223cef6081580c7debf7b77",
+      "after": "REPLACE_WITH_REVIEWED_SOURCE_SHA256"
+    },
+    {
+      "source": "website/app/Console/Commands/CheckContentLinks.php",
+      "target": "app/Console/Commands/CheckContentLinks.php",
+      "before": "c2587fee3ff26e52509d51d00bb7c42e89cf78e3e8a10b3d5e6d7ae29f48523b",
+      "after": "REPLACE_WITH_REVIEWED_SOURCE_SHA256"
+    }
+  ]
+}

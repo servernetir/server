@@ -6,8 +6,10 @@ use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Customer;
 use App\Models\Service;
+use App\Services\Cloud\CloudPricing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\NavasanRates;
 use Tests\TestCase;
 
 /**
@@ -45,9 +47,10 @@ class ScheduledFindingIsNotAFailureTest extends TestCase
         parent::setUp();
         Http::fake();
 
-        // بی‌نرخِ یورو، ممیزی هر سرویس را رد می‌کند و تست بی‌صدا هیچ‌چیز
-        // نمی‌سنجد — همان تلهٔ «فیکسچری که حالتِ مسئله را نمی‌سازد».
-        \App\Models\Setting::put('pricing_rate_override', '1000000');
+        // ممیزی فقط نرخ معتبر ذخیره‌شدهٔ نوسان را مصرف می‌کند؛ override قدیمی
+        // دیگر منبع نرخ نیست و می‌تواند fixture زیان‌ده را بی‌اثر کند.
+        NavasanRates::store(['EUR' => 1_000_000]);
+        $this->assertSame(1_000_000, app(CloudPricing::class)->eurToToman());
     }
 
     /** یک سرویسِ ساعتی که نرخِ قفل‌شده‌اش زیرِ بهای تمام‌شده است */
@@ -75,7 +78,7 @@ class ScheduledFindingIsNotAFailureTest extends TestCase
             'is_active' => true, 'in_stock' => true,
         ]);
 
-        return Service::create([
+        $service = Service::create([
             'customer_id' => $customer->id, 'name' => 'سرورِ ابری CV-2-4',
             'currency_code' => 'IRT', 'price' => 570000, 'tax_percent' => 0,
             'cycle' => 'monthly', 'billing_mode' => 'hourly',
@@ -84,6 +87,16 @@ class ScheduledFindingIsNotAFailureTest extends TestCase
             'cloud_plan_id' => $plan->id, 'cloud_image_key' => 'ubuntu-24.04',
             'activated_at' => now(), 'next_due_at' => now()->addMonth(),
         ]);
+
+        $this->assertSame(90_000, (int) $plan->fresh()->cost_hour_eur_micro);
+        $this->assertSame(1, (int) $service->fresh()->hourly_rate_irt);
+        $this->assertLessThan(
+            0.09,
+            (int) $service->hourly_rate_irt / app(CloudPricing::class)->eurToToman(),
+            'Fixture must actually charge below the stored EUR 0.09 hourly cost.'
+        );
+
+        return $service;
     }
 
     // ───────────────────────── ممیزیِ ساعتی ─────────────────────────
@@ -98,7 +111,8 @@ class ScheduledFindingIsNotAFailureTest extends TestCase
     {
         $this->underwaterService();
 
-        $this->artisan('cloud:hourly-audit --notify')->assertExitCode(0);
+        $this->artisan('cloud:hourly-audit --notify')
+            ->expectsOutputToContain('UNDERWATER')->assertExitCode(0);
     }
 
     /**
@@ -111,7 +125,8 @@ class ScheduledFindingIsNotAFailureTest extends TestCase
     {
         $this->underwaterService();
 
-        $this->artisan('cloud:hourly-audit')->assertExitCode(1);
+        $this->artisan('cloud:hourly-audit')
+            ->expectsOutputToContain('UNDERWATER')->assertExitCode(1);
     }
 
     /** بی‌یافته، هر دو حالت موفق‌اند */
