@@ -43,8 +43,19 @@ together. This change does not guess those terms or implement a conversion UI.
 
 `ExistingHostingAdoptionTest` uses synthetic accounts, isolated databases and
 HTTP fakes with stray-request blocking. Dedicated PHP 8.4 CI runs it on SQLite and
-MariaDB, followed by normal invoicing/provisioning regressions. Execution results
-are pending; no test or production installation is claimed yet.
+MariaDB, followed by normal invoicing/provisioning regressions. At source commit
+`a8cd327d99b4bfe31fe66a3d6b6836fb5db26972`, workflow `41185778045` passed:
+
+| Database | Adoption/billing-boundary tests | Normal sale/provisioning regressions |
+|---|---|---|
+| SQLite | 13 tests, 113 assertions | 12 tests, 52 assertions |
+| MariaDB 11.4 | 13 tests, 113 assertions | 12 tests, 52 assertions |
+
+Syntax checks also passed. Independent source review found no blocker. Birthday
+financial checks (`41185778179`) and VPS.TC regressions (`41185778199`) passed on
+the same commit. Local PHP is unavailable; this is isolated CI, not a real WHM or
+customer login test. Production installation and adoption remain separate and
+are not claimed by these results.
 
 Deploy the Service model helper before consumers, preserve fresh production
 changes, and validate all guarded entry points before attaching any record.
