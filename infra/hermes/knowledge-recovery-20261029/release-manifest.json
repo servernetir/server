@@ -1,5 +1,5 @@
 {
-  "status": "installed_after_explicit_owner_authorization_hash_and_lint_verified",
+  "status": "installed_hash_and_lint_verified_natural_schedule_observed_cpanel_tls_unresolved",
   "code_commit": "8dcca8b5655228afb9edba924b2a4c91dc466c04",
   "purpose": "Avoid skipped hourly retries from within-hour scheduler jitter; retain all feed and TLS protections.",
   "files": [
@@ -32,7 +32,8 @@
     "cron_unchanged": true,
     "mode_octal": "0644",
     "installer_sealed": true,
-    "natural_scheduler_acceptance_after_install": "not_observed_in_this_session"
+    "natural_scheduler_acceptance_after_install": "observed_2026_10_31_with_cpanel_tls_still_unavailable"
   },
-  "production_evidence": "docs/project/error-reliability-2026-10-29/production-validation.json"
+  "production_evidence": "docs/project/error-reliability-2026-10-29/production-validation.json",
+  "latest_natural_schedule_evidence": "docs/project/error-reliability-2026-10-29/followup-2026-10-31.json"
 }
