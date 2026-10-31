@@ -1,6 +1,6 @@
 {
-  "status": "approved_implementation_validation_in_progress",
-  "production_verified": false,
+  "status": "billing_production_verified_gpu_checkout_cleanup_pending",
+  "production_verified": true,
   "base_sha": "14a88e98f85c840fdbef63bdc059549a084a5e74",
   "deploy_wrapper": "scripts/deploy-hourly-runtime-credit.py",
   "migrations": false,
@@ -71,5 +71,8 @@
       "source_base_sha256": "64078d7ef4ee5923241689da6d5b55ba247ac427db8e1895efc30f9a6b45d75b",
       "source_target_sha256": "aef7cd97763cad5643f07ab0d0520c8f386632cf75e60c73a8b4f0dde64a9a3b"
     }
-  ]
+  ],
+  "production_scope": "Billing runtime and primary policy copy; final GPU checkout selector simplification is not installed",
+  "files_describe": "Initial 13-file source delta. Final installed hashes and subsequent revisions are in production-receipt.json.",
+  "production_receipt": "production-receipt.json"
 }
