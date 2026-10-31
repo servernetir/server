@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'svc_existing_management' => 'Existing service management',
+    'svc_billing_terms_pending' => 'Renewal amount and period pending records review',
+    'svc_billing_terms_required' => 'Verify and record this service’s price, period and due date from valid records before issuing an invoice.',
+    'svc_existing_no_reprovision' => 'This account already exists; provisioning it again through this action is not allowed.',
+    'svc_existing_management_notice' => 'This existing account is connected for management. Billing and renewal terms will be confirmed after reviewing records. Contact support to change or end the service.',
     'choice_hourly' => 'Hourly billing is not available for this plan at this location.',
     'choice_cycle' => 'This billing period is not available for the selected plan.',
     'choice_image_unavailable' => 'This operating system or application is currently unavailable for this plan and location.',

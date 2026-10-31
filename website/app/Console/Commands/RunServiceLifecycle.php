@@ -114,6 +114,7 @@ class RunServiceLifecycle extends Command
         AdminNotifier $admin,
         ProvisioningService $provisioner,
     ): void {
+        if ($service->hasUnverifiedBillingTerms()) { return; }
         $complimentary = app(ComplimentaryServices::class);
         if ($complimentary->applies($service)) {
             if (! $dry) {
