@@ -1,0 +1,264 @@
+{
+  "status": "accepted_with_reviewed_concurrent_translation_additions",
+  "checked_at": "2026-10-31T08:09:25Z",
+  "runtime_files_verified": 60,
+  "exact_installed_files": 57,
+  "compatible_language_additions": 3,
+  "files": [
+    {
+      "target": "app/Console/Commands/BaleManagerDigest.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Admin/ManagerReportingController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/BaleLeadReview.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/BaleManagerDigestDelivery.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/BaleRefundReview.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/ManagementCostChanges.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/ManagerGoogleReporting.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/ManagerTrafficSnapshot.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Management/ProviderBalanceSnapshot.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Billing/BankReceiptEvidence.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Hermes/HermesOwnerNotification.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Notify/BaleManagerPolicy.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "database/migrations/2026_10_31_110000_add_bank_receipt_evidence.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "lang/en/bale-evidence.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "lang/en/bale-reporting.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "lang/fa/bale-evidence.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "lang/fa/bale-reporting.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "lang/tr/bale-evidence.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "lang/tr/bale-reporting.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "resources/views/admin/bale/reporting.blade.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "resources/views/admin/customer-evidence.blade.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "resources/views/admin/partials/customer-evidence.blade.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Account/AccountController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Admin/BaleAdminController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Admin/BankTransferController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Admin/CalendarController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Models/BankTransferReceipt.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Models/CustomerProfile.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Models/NotificationTemplate.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Admin/AdminBaleRouter.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Admin/AdminBaleScreens.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Bale/Admin/AdminBaleWorker.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Domain/DomainRegistrar.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Domain/DomainTransfer.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Domain/OpenProviderClient.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Mail/MailboxDigest.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Notify/AdminNotifier.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Notify/Notifier.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Notify/NotifyEvent.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Sms/SignedRelaySender.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "database/seeders/NotificationTemplateSeeder.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "lang/en/ui.php",
+      "status": "compatible_concurrent_addition",
+      "observed_sha256": "5502fa783b6dcfe6a035629f620861d0f3be66e232611fd417c0fc0e87182c70",
+      "only_added_key": "cy_recommended",
+      "prior_values_preserved": true
+    },
+    {
+      "target": "lang/fa/ui.php",
+      "status": "compatible_concurrent_addition",
+      "observed_sha256": "00bca0d8e64c03991f70366b7238ad2666f0b149fa4b58b4a2087ea2807fae4a",
+      "only_added_key": "cy_recommended",
+      "prior_values_preserved": true
+    },
+    {
+      "target": "lang/tr/ui.php",
+      "status": "compatible_concurrent_addition",
+      "observed_sha256": "6eb017dd7c4212642ba34fc1a4504cb1a23b5bdf17c2b19a59c15da5c8a0a25b",
+      "only_added_key": "cy_recommended",
+      "prior_values_preserved": true
+    },
+    {
+      "target": "resources/views/admin/bank-transfers.blade.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "resources/views/admin/settings/bale.blade.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Account/PaymentController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Account/VerificationController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Http/Controllers/Admin/CustomerController.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Cloud/CloudProvisioner.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Cloud/OvhClient.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Customer/KycReview.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Hermes/HermesOperations.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Services/Hermes/HermesSupportOwnerReview.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "resources/views/account/invoice.blade.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "resources/views/admin/customer.blade.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "app/Console/Commands/HermesBusinessReview.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "routes/console.php",
+      "status": "exact_installed_hash"
+    },
+    {
+      "target": "routes/web.php",
+      "status": "exact_installed_hash"
+    }
+  ],
+  "runtime_mutations": 0,
+  "provider_calls": 0,
+  "customer_messages_sent": 0,
+  "strict_installer_receipts_modified": false,
+  "rollback_requires_shared_language_reconciliation": true
+}
+
