@@ -91,7 +91,25 @@ jobs:
           php -l app/Http/Controllers/ReportConsultationController.php
           php -l app/Http/Controllers/Admin/SeoOutreachController.php
           php -l database/migrations/2026_10_31_130000_add_access_controls_to_audit_reports.php
-          vendor/bin/phpunit --filter='AuditReportShareTest|ReportConsultationTest' --display-warnings --fail-on-warning --colors=never
+          set +e
+          vendor/bin/phpunit --filter='AuditReportShareTest|ReportConsultationTest' --display-warnings --fail-on-warning --colors=never 2>&1 | tee /tmp/seo-report-access-phpunit.log
+          test_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$test_status" -ne 0 ]; then
+            {
+              echo '### PHPUnit failure (synthetic report-access contract)'
+              echo '```text'
+              tail -n 120 /tmp/seo-report-access-phpunit.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            while IFS= read -r line; do
+              line=${line//'%'/'%25'}
+              line=${line//$'\r'/'%0D'}
+              line=${line//$'\n'/'%0A'}
+              echo "::error title=Report access PHPUnit::$line"
+            done < <(tail -n 60 /tmp/seo-report-access-phpunit.log)
+            exit "$test_status"
+          fi
       - name: Record acceptance boundary
         if: always()
         run: echo 'Synthetic tests only; no scan, email, CRM production write, deployment or migration was performed.' >> "$GITHUB_STEP_SUMMARY"
