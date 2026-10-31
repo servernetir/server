@@ -1,5 +1,5 @@
 /* Wallet refund workspace. Intentionally scoped; balances and submission rules live on the server. */
-.wr-workspace{--wr-accent:var(--info);display:flex;flex-direction:column;gap:24px;min-width:0}
+.wr-workspace{--wr-accent:var(--info);--dim:var(--muted);display:flex;flex-direction:column;gap:24px;min-width:0}
 .wr-workspace *{box-sizing:border-box}
 .wr-workspace h1,.wr-workspace h2,.wr-workspace h3,.wr-workspace p{margin:0}
 .wr-hero{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:30px;border:1px solid var(--line-2);border-radius:22px;background:linear-gradient(120deg,var(--info-bg),transparent 75%),var(--surface);position:relative;overflow:hidden}
@@ -73,7 +73,7 @@ html[dir="ltr"] .wr-submit>span{transform:rotate(180deg)}
 .wr-status{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:8px;font-size:11px;line-height:1.8;background:var(--surface-2);color:var(--muted);max-width:100%}
 .wr-status i{width:5px;height:5px;flex:none;border-radius:50%;background:currentColor}
 .wr-status-pending{color:var(--warn);background:var(--warn-bg)}
-.wr-status-approved{color:var(--info);background:var(--info-bg)}
+.wr-status-approved{color:var(--wr-accent);background:var(--info-bg)}
 .wr-status-paid{color:var(--ok);background:var(--ok-bg)}
 .wr-status-rejected{color:var(--danger);background:var(--danger-bg)}
 .wr-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;padding:0;margin:20px 0 0}
@@ -99,3 +99,5 @@ html[dir="ltr"] .wr-submit>span{transform:rotate(180deg)}
 @media(max-width:780px){.wr-layout{grid-template-columns:minmax(0,1fr)}.wr-guide{padding:22px 24px}.wr-hero-icon{width:68px;height:68px;border-radius:20px}.wr-hero-icon svg{width:42px;height:42px}}
 @media(max-width:480px){.wr-workspace{gap:18px}.wr-hero{padding:22px 18px;gap:12px}.wr-hero-icon{display:none}.wr-hero h1{font-size:23px}.wr-hero p{font-size:13px}.wr-metrics{gap:10px}.wr-metric{padding:16px 13px;border-radius:14px}.wr-metric-label{font-size:11px}.wr-money{gap:5px}.wr-money bdi{font-size:23px}.wr-metric p{font-size:11px}.wr-card-head{padding:18px;gap:10px}.wr-card-head h2{font-size:16px}.wr-request-form,.wr-state,.wr-guide{padding:20px 18px}.wr-workspace .wr-input{font-size:16px}.wr-history-card{padding:18px}.wr-details{grid-template-columns:minmax(0,1fr);gap:12px}.wr-history-money bdi{font-size:22px}.wr-card-footer .pnl-btn{width:100%}.wr-card-footer form{width:100%}}
 @media(prefers-reduced-motion:reduce){.wr-workspace .wr-input{transition:none!important}}
+
+html[data-theme="light"] .wr-workspace{--wr-accent:#0e7490;--info:#0e7490;--ok:#047857;--warn:#92400e;--danger:#b91c1c}

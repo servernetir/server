@@ -349,7 +349,9 @@ async function chromiumReport(profile, reduced, fixtureUrl) {
   }
 }
 
-for (const reduced of [false,true]) {
+module.exports = {chromiumReport};
+
+if (require.main === module) for (const reduced of [false,true]) {
   test('panel navigation in Chromium'+(reduced?' with reduced motion':''), {timeout:120000}, async () => {
     const layout=await fs.readFile(path.join(app,'resources/views/panel/layout.blade.php'),'utf8');
     assert.match(layout,/asset_ver\('assets\/js\/panel-navigation\.js'\)/);

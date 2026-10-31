@@ -1,0 +1,84 @@
+name: Wallet refund workspace checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/resources/views/account/wallet-refunds.blade.php'
+      - 'website/public/assets/css/wallet-refunds.css'
+      - 'website/lang/*/refund.php'
+      - 'website/tests/Feature/WalletRefundPresentationTest.php'
+      - 'website/tests/js/wallet-refunds.browser.cjs'
+      - 'website/tests/js/panel-navigation.browser.cjs'
+      - '.github/workflows/wallet-refunds-ui.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/resources/views/account/wallet-refunds.blade.php'
+      - 'website/public/assets/css/wallet-refunds.css'
+      - 'website/lang/*/refund.php'
+      - 'website/tests/Feature/WalletRefundPresentationTest.php'
+      - 'website/tests/js/wallet-refunds.browser.cjs'
+      - '.github/workflows/wallet-refunds-ui.yml'
+permissions:
+  contents: read
+concurrency:
+  group: wallet-refunds-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      WALLET_REFUND_UI_FIXTURES: ${{ runner.temp }}/wallet-refund-ui
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install locked PHP dependencies in the isolated checkout
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Verify rendering and existing refund workflow guards
+        working-directory: website
+        run: |
+          set -euo pipefail
+          php -l tests/Feature/WalletRefundPresentationTest.php
+          php -l lang/fa/refund.php
+          php -l lang/en/refund.php
+          php -l lang/tr/refund.php
+          vendor/bin/phpunit --filter='WalletRefundPresentationTest|WalletRefundWorkflowTest' --colors=never
+      - name: Verify responsive UI, bank picker and previous drawer fixes
+        env:
+          TEST_CHROME: /usr/bin/google-chrome
+        run: |
+          node --version
+          "$TEST_CHROME" --version
+          node --test website/tests/js/wallet-refunds.browser.cjs
+          node --test website/tests/js/panel-navigation.browser.cjs
