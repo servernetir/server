@@ -253,6 +253,8 @@
   </div>
 </div>
 
+@include('admin.partials.customer-evidence')
+
 {{-- ══ حساب‌های بانکی ══ --}}
 @if($c->bankAccounts->isNotEmpty())
 <div class="ad-panel">

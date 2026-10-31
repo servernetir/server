@@ -91,7 +91,8 @@ class NotificationTemplate extends Model
         | می‌داند، و `SmsTemplateRegistryTest` آن را با رجیستریِ n8n قفل کرده —
         | پس این ستون هم خودبه‌خود درست می‌مانَد.
         */
-        $channels = ['bale', 'email'];
+        // Explicit visitor acknowledgement has no customer Bale identity.
+        $channels = $key === 'lead_reviewed' ? ['email'] : ['bale', 'email'];
 
         if (in_array($key, \App\Services\Sms\SignedRelaySender::TEMPLATES, true)) {
             array_unshift($channels, 'sms');

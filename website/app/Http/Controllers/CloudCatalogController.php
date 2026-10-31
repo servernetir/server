@@ -465,7 +465,7 @@ class CloudCatalogController extends Controller
         | (پلن‌هایش باید فروختنی بمانند) ولی صفحه‌اش نباید رندر شود.
         */
         if (CloudLocation::canonicalCode($location) !== $location) {
-            return redirect()->to($this->locUrl(CloudLocation::canonicalCode($location)), 301);
+            return redirect()->to(\App\Services\Cloud\CloudCountry::url(strtoupper(substr($location, 0, 2))), 301);
         }
         if (CloudLocation::isLegacyCode($location)) {
             $cc = substr($location, 0, 2);
@@ -482,6 +482,10 @@ class CloudCatalogController extends Controller
             ->where('code', $location)
             ->where('is_active', true)
             ->first();
+
+        if ($loc !== null && \App\Services\Cloud\CloudCountry::marketingSlug((string) $loc->country) !== null) {
+            return redirect()->to(\App\Services\Cloud\CloudCountry::url((string) $loc->country), 301);
+        }
 
         if ($loc === null) {
             return $this->legacyCloudPage($location);

@@ -589,7 +589,9 @@
       </p>
     @endif
 
-    @if(! empty($creditOut))
+    @if($service->isHourly() && (bool) $service->cloudPlan?->is_interruptible)
+      <p class="dm-note">{{ __('ui.gpu_hourly_lifecycle') }}</p>
+    @elseif(! empty($creditOut))
       <form method="post" action="{{ lroute('account.cloud.credit-out', $service) }}" style="margin-top:16px">
         @csrf
         <div class="pnl-acts" style="align-items:center">

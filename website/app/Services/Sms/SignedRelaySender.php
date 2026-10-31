@@ -23,7 +23,8 @@ use Illuminate\Support\Str;
  * ═══ چه چیزی این‌جا **نیست** و عمدی است ═══
  *
  * • کلیدِ APIِ آی‌پی‌پنل
- * • کدِ واقعیِ الگو — فقط نامِ منطقی مثلِ `otp` می‌رود؛ ترجمه‌اش کارِ n8n است.
+ * • کدِ واقعیِ الگو برای رویدادهای قدیمی — فقط نامِ منطقی مثلِ `otp` می‌رود؛ ترجمه‌اش کارِ n8n است.
+ *   استثنای صریح `lead_reviewed` کد تأییدشدهٔ تنظیمات مدیر را داخل پاکت امضاشده می‌برد.
  *   نگه‌داشتنِ فهرستِ الگوها در دو جا یعنی دیر یا زود یکی کهنه می‌شود و
  *   پیامک بی‌صدا نمی‌رود.
  * • تأییدِ OTP — تولید و تأیید کاملاً در همین پروژه می‌مانَد؛ n8n فقط پیام‌رسان است.
@@ -60,6 +61,7 @@ abstract class SignedRelaySender implements SmsSender, SupportsPatterns
     public const TEMPLATES = [
         'otp',
         'welcome',
+        'lead_reviewed',
         'invoice',
         'payment_due',
         'service_ordered',
@@ -220,6 +222,16 @@ abstract class SignedRelaySender implements SmsSender, SupportsPatterns
             // ⚠️ n8n پاکتِ خارج از پنجرهٔ زمانی را رد می‌کند (ضدِّ بازپخش)
             'issued_at'  => time(),
         ];
+
+        if ($template === 'lead_reviewed') {
+            $code = \App\Services\Bale\Management\BaleLeadReview::patternCode();
+            if (\App\Models\Setting::get('bale_manager_policy_v2_enabled') !== '1' || $code === null) {
+                $this->fail($template, 'sms_pattern_not_configured');
+                return false;
+            }
+            // Only this explicit event accepts a configured code; the signed envelope binds it.
+            $payload['pattern_code'] = $code;
+        }
 
         try {
             if ($this->deliver($this->encode($payload))) {

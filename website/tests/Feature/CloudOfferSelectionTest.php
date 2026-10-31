@@ -69,8 +69,9 @@ class CloudOfferSelectionTest extends TestCase
         $this->assertSame([$best->id], CloudDominance::prune(CloudPlan::offers('tr-istanbul'))->pluck('id')->all());
         foreach (['', '/en', '/tr'] as $prefix) {
             $this->get($prefix.'/cloud/tr-istanbul-ii')->assertStatus(301)
-                ->assertRedirect(url($prefix.'/cloud/tr-istanbul'));
-            $this->get($prefix.'/cloud/tr-istanbul')->assertOk()
+                ->assertRedirect(url($prefix.'/vps/turkiye'));
+            $this->get($prefix.'/cloud/tr-istanbul')->assertStatus(301)->assertRedirect(url($prefix.'/vps/turkiye'));
+            $this->get($prefix.'/vps/turkiye')->assertOk()
                 ->assertSee($best->slug)->assertDontSee($old->slug);
         }
         $this->assertSame('tr-istanbul-ii', $old->fresh()->location_code);

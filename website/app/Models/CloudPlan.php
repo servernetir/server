@@ -618,7 +618,7 @@ class CloudPlan extends Model
     /**
      * Credit required before starting a new hourly server, before its first-hour
      * debit. This is neither a minimum purchase nor a continuing balance floor.
-     * Retention after credit exhaustion is a separate policy and expense.
+     * Paid standby is funded separately; free standby needs no retention deposit.
      */
     public const HOURLY_START_MIN_HOURS = 24;
 

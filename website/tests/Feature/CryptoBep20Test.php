@@ -171,7 +171,8 @@ class CryptoBep20Test extends TestCase
         foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
             app()->setLocale($locale);
             $this->actingAs($customer, 'customer')->get($prefix.'/account/invoices/'.$invoice->id)
-                ->assertOk()->assertSee('USDT_BEP20', false)->assertSee('BNB Smart Chain');
+                ->assertOk()->assertSee('USDT_BEP20', false)->assertSee('BNB Smart Chain')
+                ->assertSee(__('ui.cy_recommended'));
         }
         $this->actingAs($customer, 'customer')->post('/account/invoices/'.$invoice->id.'/crypto', ['asset' => 'USDT_BEP20'])->assertRedirect();
         $cp = CryptoPayment::where('invoice_id', $invoice->id)->firstOrFail();

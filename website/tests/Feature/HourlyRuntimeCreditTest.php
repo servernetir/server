@@ -9,6 +9,10 @@ use App\Models\CloudPlan;
 use App\Models\CreditEntry;
 use App\Models\Customer;
 use App\Models\Service;
+use App\Models\Setting;
+use App\Services\Cloud\HourlyGpuStart;
+use App\Services\Cloud\InterruptibleBillingClock;
+use App\Services\Provisioning\ProvisioningService;
 use App\Services\Ai\AiReservations;
 use App\Services\Cloud\CloudPricing;
 use App\Services\Cloud\CloudPricingSnapshot;
@@ -26,12 +30,29 @@ class HourlyRuntimeCreditTest extends TestCase
 {
     use RefreshDatabase;
 
+    private string $liveStatus = 'running';
+    private int $httpStatus = 200;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->travelTo(now()->setDate(2026, 10, 31)->setTime(12, 0));
         Http::preventStrayRequests();
-        Http::fake();
+        Setting::putSecret('salad_api_key', 'test-key');
+        Setting::put('salad_org', 'test-org');
+        Setting::put('salad_project', 'test-project');
+        Http::fake(function ($request) {
+            if ($this->httpStatus !== 200) {
+                return Http::response(['message' => 'rejected'], $this->httpStatus);
+            }
+            if (str_ends_with($request->url(), '/instances')) {
+                return Http::response(['items' => $this->liveStatus === 'running' ? [[
+                    'state' => 'running', 'started' => true, 'ready' => true,
+                ]] : []]);
+            }
+            return Http::response(['current_state' => ['status' => $this->liveStatus === 'off'
+                ? 'stopped' : $this->liveStatus, 'description' => '']]);
+        });
         Mail::fake();
         HourlyHold::flush();
         Wallet::flushSchemaCache();
@@ -59,7 +80,7 @@ class HourlyRuntimeCreditTest extends TestCase
 
     private function server(Customer $customer, array $attributes = []): Service
     {
-        $plan = CloudPlan::create(['provider' => 'aeza', 'provider_ref' => uniqid('runtime'),
+        $plan = CloudPlan::create(['provider' => 'salad', 'is_interruptible' => true, 'provider_ref' => uniqid('runtime'),
             'location_code' => 'de-test', 'public_name' => 'Test VPS', 'slug' => uniqid('runtime'),
             'cost_hour_eur_micro' => 8000, 'cost_eur_cents' => 576,
             'price_eur_cents' => 720, 'price_irt' => 720000]);
@@ -68,7 +89,7 @@ class HourlyRuntimeCreditTest extends TestCase
             'cycle' => 'monthly', 'billing_mode' => 'hourly', 'hourly_rate_irt' => 1000,
             'status' => 'active', 'provision_status' => 'done', 'activated_at' => now(),
             'last_metered_at' => now(), 'on_credit_out' => 'suspend', 'cloud_plan_id' => $plan->id]);
-        CloudInstance::create(['service_id' => $service->id, 'provider' => 'aeza',
+        CloudInstance::create(['service_id' => $service->id, 'provider' => 'salad',
             'provider_ref' => 'test-'.$service->id, 'location_code' => 'de-test',
             'image_key' => 'ubuntu-24.04', 'hostname' => 'test-'.$service->id,
             'ipv4' => '192.0.2.10', 'status' => 'running', 'ready_notified_at' => now()]);
@@ -117,7 +138,8 @@ class HourlyRuntimeCreditTest extends TestCase
             'price_irt' => 720000, 'is_active' => true, 'in_stock' => true]);
         $rate = $plan->hourlyIrt();
         $this->assertGreaterThan(0, $rate);
-        $minimum = 24 * $rate;
+        $reserve = 24 * app(HourlyHold::class)->rateForPlan($plan, $rate);
+        $minimum = 24 * $rate + $reserve;
         $customer = $this->funded($minimum - 1);
         $order = ['location' => 'de-test', 'plan' => $plan->slug,
             'image' => 'ubuntu-24.04', 'cycle' => 'monthly', 'billing_mode' => 'hourly'];
@@ -130,45 +152,45 @@ class HourlyRuntimeCreditTest extends TestCase
         $this->post('/account/cloud-store', $order)->assertRedirect();
         $this->assertSame(1, Service::where('customer_id', $customer->id)->count());
         $this->assertSame($minimum - $rate, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame($reserve, (int) Service::where('customer_id', $customer->id)->first()->hold_reserve_irt);
+        $this->assertSame(23 * $rate, app(Wallet::class)->availableOf($customer->id));
     }
 
-    public function test_stale_active_reserves_do_not_block_either_server_or_inflate_conversion_credit(): void
+    public function test_paid_standby_is_protected_separately_and_not_spent_on_running_hours(): void
     {
-        $customer = $this->funded(2000);
-        $first = $this->server($customer, ['hold_rate_irt' => 800, 'hold_reserve_irt' => 19200]);
-        $second = $this->server($customer, ['hold_rate_irt' => 800, 'hold_reserve_irt' => 19200]);
-        $provider = \Mockery::mock(CloudProvisioner::class);
-        $provider->shouldNotReceive('suspend', 'unsuspend', 'terminate');
-        $this->app->instance(CloudProvisioner::class, $provider);
-        $this->assertSame(2000, app(Wallet::class)->availableOf($customer->id));
-        $this->assertSame(2000, app(HourlyCycleConverter::class)->spendable($first));
-
+        $customer = $this->funded(43200);
+        $service = $this->server($customer);
+        $service->cloudPlan->update(['provider' => 'aeza', 'is_interruptible' => false]);
+        $service->cloudInstance->update(['provider' => 'aeza']);
+        app(HourlyHold::class)->syncRunning($service->fresh());
+        $this->assertSame(19200, (int) $service->fresh()->hold_reserve_irt);
+        $this->assertSame(24000, app(Wallet::class)->availableOf($customer->id));
+        app(Wallet::class)->debit($customer->id, 'IRT', 1000, 'cloud_hourly', $service);
         $this->travel(1)->hours();
         $this->artisan('cloud:meter')->assertSuccessful();
-        $this->assertSame('active', $first->fresh()->status);
-        $this->assertSame('active', $second->fresh()->status);
-        $this->assertSame(0, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertSame(22000, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(19200, (int) $service->fresh()->hold_reserve_irt);
+        $this->assertSame(41200, app(HourlyCycleConverter::class)->spendable($service->fresh()));
     }
 
-    public function test_legacy_credit_suspension_resumes_with_one_hour_including_its_own_reserve(): void
+    public function test_credit_suspended_gpu_resumes_with_just_one_hour_and_charges_once(): void
     {
-        $customer = $this->funded(2500);
+        $customer = $this->funded(1000);
         $service = $this->server($customer, ['status' => 'suspended',
-            'suspended_at' => now()->subHours(3), 'last_metered_at' => now()->subHours(3),
-            'hold_rate_irt' => 100, 'hold_reserve_irt' => 2400,
-            'provision_meta' => ['hourly_suspend' => ['confirmed_at' => now()->subHours(3)->toIso8601String()]]]);
+            'suspended_at' => now()->subHours(23), 'last_metered_at' => now()->subHours(23),
+            'provision_meta' => ['hourly_suspend' => ['confirmed_at' => now()->subHours(23)->toIso8601String()]]]);
         $provider = \Mockery::mock(CloudProvisioner::class);
         $provider->shouldReceive('unsuspend')->once()->andReturnTrue();
         $provider->shouldNotReceive('suspend', 'terminate');
         $this->app->instance(CloudProvisioner::class, $provider);
-
         $this->artisan('cloud:meter')->assertSuccessful();
         $this->artisan('cloud:meter')->assertSuccessful();
         $this->assertSame('active', $service->fresh()->status);
+        $this->assertSame(0, app(Wallet::class)->balanceOf($customer->id));
         $this->assertSame(0, (int) $service->fresh()->hold_reserve_irt);
-        $this->assertSame(1500, app(Wallet::class)->balanceOf($customer->id));
-        $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly_hold')->count());
         $this->assertSame(1, CreditEntry::where('reason', 'cloud_hourly')->count());
+        $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly_hold')->count());
     }
 
     public function test_other_live_financial_reservations_remain_protected(): void
@@ -225,7 +247,7 @@ class HourlyRuntimeCreditTest extends TestCase
         $customer = $this->funded(2500);
         $service = $this->server($customer, ['status' => 'suspended',
             'suspended_at' => now()->subHours(30), 'last_metered_at' => now(),
-            'hold_rate_irt' => 100, 'hold_reserve_irt' => 2400,
+            'hold_rate_irt' => 0, 'hold_reserve_irt' => 0,
             'provision_meta' => ['hourly_suspend' => ['confirmed_at' => now()->subHours(30)->toIso8601String()]]]);
         $provider = \Mockery::mock(CloudProvisioner::class);
         $provider->shouldReceive('unsuspend')->once()->andReturnFalse();
@@ -236,7 +258,156 @@ class HourlyRuntimeCreditTest extends TestCase
         $this->artisan('cloud:meter')->assertFailed();
         $this->assertSame('suspended', $service->fresh()->status);
         $this->assertSame(2500, app(Wallet::class)->balanceOf($customer->id));
-        $this->assertSame(2400, (int) $service->fresh()->hold_reserve_irt);
+        $this->assertSame(0, (int) $service->fresh()->hold_reserve_irt);
         $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly')->count());
+    }
+
+    public function test_restart_needs_one_hour_not_twenty_four_and_prepaid_hour_is_not_cut_short(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $service->cloudInstance->update(['status' => 'off']);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertSame(1000, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(1000, HourlyGpuStart::pending($service->fresh()));
+        $provider = \Mockery::mock(CloudProvisioner::class);
+        $provider->shouldReceive('suspend')->once()->andReturnTrue();
+        $provider->shouldNotReceive('unsuspend', 'terminate');
+        $this->app->instance(CloudProvisioner::class, $provider);
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame(0, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1, CreditEntry::where('reason', 'cloud_hourly')->count());
+        $this->travel(59)->minutes();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame('active', $service->fresh()->status);
+        $this->travel(1)->minutes();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame('suspended', $service->fresh()->status);
+    }
+
+    public function test_restart_below_one_hour_rejects_before_sending_a_power_command(): void
+    {
+        $customer = $this->funded(999);
+        $service = $this->server($customer);
+        $service->cloudInstance->update(['status' => 'off']);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertSessionHasErrors();
+        $this->assertSame('off', $service->cloudInstance->fresh()->status);
+        $this->assertSame(999, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly')->count());
+        Http::assertNotSent(fn ($request) => str_ends_with($request->url(), '/start'));
+    }
+
+    public function test_pending_start_reserves_its_hour_without_billing_until_confirmed_running(): void
+    {
+        $this->liveStatus = 'off';
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $service->cloudInstance->update(['status' => 'off']);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertSessionHasNoErrors();
+        $this->travel(3)->hours();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertSame(1000, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, app(Wallet::class)->availableOf($customer->id));
+        $this->liveStatus = 'running';
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame(0, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1, CreditEntry::where('reason', 'cloud_hourly')->count());
+    }
+
+    public function test_unfunded_already_off_gpu_gets_twenty_four_hours_then_exactly_one_release_request(): void
+    {
+        $this->liveStatus = 'off';
+        $customer = $this->funded(1);
+        $service = $this->server($customer, ['on_credit_out' => 'terminate']);
+        $service->cloudInstance->update(['status' => 'off']);
+        $provider = \Mockery::mock(CloudProvisioner::class);
+        $provider->shouldReceive('suspend')->once()->andReturnTrue();
+        $provider->shouldNotReceive('unsuspend', 'terminate');
+        $this->app->instance(CloudProvisioner::class, $provider);
+        $release = \Mockery::mock(ProvisioningService::class);
+        $release->shouldReceive('releaseAndTrack')->once()->with(\Mockery::on(fn ($s) => $s->id === $service->id && $s->status === 'terminated'))->andReturn(\App\Services\Provisioning\ProvisionResult::success(null, null, null));
+        $this->app->instance(ProvisioningService::class, $release);
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertNotNull($service->fresh()->suspended_at);
+        $this->travel(23)->hours();
+        $this->travel(59)->minutes();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->travel(1)->minutes();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->artisan('cloud:meter')->assertSuccessful();
+        $this->assertSame('terminated', $service->fresh()->status);
+        $this->assertSame(1, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly_hold')->count());
+    }
+
+    public function test_a_rejected_restart_releases_the_unused_hour(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $service->cloudInstance->update(['status' => 'off']);
+        $this->httpStatus = 400;
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertSessionHasErrors();
+        $this->assertSame(1000, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame('off', $service->cloudInstance->fresh()->status);
+    }
+
+    public function test_restart_cannot_spend_another_financial_reservation(): void
+    {
+        $customer = $this->funded(2000);
+        $service = $this->server($customer);
+        $service->cloudInstance->update(['status' => 'off']);
+        $this->assertTrue(app(AiReservations::class)->reserve($customer->id, 1500, 'restart-protected')->ok);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertSessionHasErrors();
+        $this->assertSame(500, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+    }
+
+    public function test_cancelled_pending_start_returns_its_reserved_hour(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $service->cloudInstance->update(['status' => 'off']);
+        $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
+            ->assertSessionHasNoErrors();
+        $this->post(route('account.cloud.power', $service), ['action' => 'off'])->assertSessionHasNoErrors();
+        $this->assertSame(1000, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly')->count());
+    }
+
+    public function test_grace_deletion_rechecks_funding_before_closing_the_service(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer, ['status' => 'suspended', 'suspended_at' => now()->subHours(24)]);
+        $release = \Mockery::mock(ProvisioningService::class);
+        $release->shouldNotReceive('releaseAndTrack');
+        $this->app->instance(ProvisioningService::class, $release);
+        $command = app(\App\Console\Commands\CloudMeterHourly::class);
+        (new \ReflectionMethod($command, 'closeAndRelease'))->invoke($command, $service, 'expired');
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertSame(1000, app(Wallet::class)->balanceOf($customer->id));
+    }
+
+    public function test_paid_standby_cost_is_not_capped_by_an_underwater_sale_rate(): void
+    {
+        $customer = $this->funded(1000);
+        $service = $this->server($customer);
+        $plan = $service->cloudPlan;
+        $plan->update(['provider' => 'aeza', 'is_interruptible' => false, 'cost_hour_eur_micro' => 20000]);
+        $this->assertSame(2000, app(HourlyHold::class)->rateForPlan($plan, 1000));
+        $plan->update(['cost_hour_eur_micro' => 0, 'cost_eur_cents' => 0]);
+        $this->assertFalse(app(HourlyHold::class)->fundablePlan($plan, 1000));
     }
 }

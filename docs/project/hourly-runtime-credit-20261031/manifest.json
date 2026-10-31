@@ -1,63 +1,75 @@
 {
-  "release_id": "hourly-runtime-credit-20261031",
-  "status": "blocked_owner_rejected_company_funded_retention",
-  "deployment_allowed": false,
-  "blocked_reason": "Paid retention must be funded separately from usable running credit; this candidate would shift costs to the business.",
-  "reference_branch": "develop",
-  "review_base_sha": "335e0573b219adb689f9c5f008c87ece7d23b60f",
-  "patch": "runtime.patch",
-  "patch_sha256": "722cb2dd0e438be4c59dbbe3c47fc2a1abc1d4a7552a6787864081d4ec02bef1",
-  "apply_to_private_staging_with_fuzz": 0,
-  "migration_required": false,
-  "cron_change_required": false,
+  "status": "approved_implementation_validation_in_progress",
+  "production_verified": false,
+  "base_sha": "14a88e98f85c840fdbef63bdc059549a084a5e74",
+  "deploy_wrapper": "scripts/deploy-hourly-runtime-credit.py",
+  "migrations": false,
+  "manual_meter_run": false,
   "files": [
     {
-      "source_path": "website/app/Services/Cloud/HourlyHold.php",
-      "destination_relative_to_home": "servernet_app/app/Services/Cloud/HourlyHold.php",
-      "operation": "patch_verified_live_snapshot",
-      "expected_before_sha256": "9c29fb4980bbeb2da1c323c1af1c37303310311952c102b21577ab630b2958d2",
-      "expected_after_sha256": "434270091ac7743f3981bd78486b5730e1799011ce97e2585d9b81b9ae1db3dd",
-      "git_source_sha256": "434270091ac7743f3981bd78486b5730e1799011ce97e2585d9b81b9ae1db3dd"
+      "path": "app/Services/Cloud/HourlyGpuStart.php",
+      "source_base_sha256": null,
+      "source_target_sha256": "8dae4fe38a30298436891d1e88b8a3da2e3ed1c00e7b5bfbff8a40d050ac7ad5"
     },
     {
-      "source_path": "website/app/Services/Cloud/HourlyCycleConverter.php",
-      "destination_relative_to_home": "servernet_app/app/Services/Cloud/HourlyCycleConverter.php",
-      "operation": "patch_verified_live_snapshot",
-      "expected_before_sha256": "8a23c5ca8a9784708165b04fb3f80eae17a5274edae8e24bdafe42f36372ecac",
-      "expected_after_sha256": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9",
-      "git_source_sha256": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9"
+      "path": "app/Services/Cloud/HourlyHold.php",
+      "source_base_sha256": "9c29fb4980bbeb2da1c323c1af1c37303310311952c102b21577ab630b2958d2",
+      "source_target_sha256": "cd9e77e5a898df17459617676b9d6d766473050997eb9a3d0b20c4d954a9f02a"
     },
     {
-      "source_path": "website/app/Console/Commands/CloudMeterHourly.php",
-      "destination_relative_to_home": "servernet_app/app/Console/Commands/CloudMeterHourly.php",
-      "operation": "patch_verified_live_snapshot",
-      "expected_before_sha256": "5b6268d6f9ac23d03cebec3c27b90e09b8df5d6773acafb92fa3a08c84becce2",
-      "expected_after_sha256": "f802654928541dde7300af8f336e2d232e018ddd20b2a7293692dca96462a16c",
-      "git_source_sha256": "93889ccd9091df1ae200245ee09c96419ea9792505d230807ce4ba19a3be65b8"
+      "path": "app/Services/Cloud/InterruptibleBillingClock.php",
+      "source_base_sha256": "1d86e0142d9a536c55d3884ebd14ae320b5e1b30a79f21f9320d797aa0265731",
+      "source_target_sha256": "e4166b550f97dfe0c53a9b83fee5ed5f1f92553f5d038c4b036a94a5525d323b"
     },
     {
-      "source_path": "website/lang/fa/ui.php",
-      "destination_relative_to_home": "servernet_app/lang/fa/ui.php",
-      "operation": "patch_verified_live_snapshot",
-      "expected_before_sha256": "df8b1fa2450fec994ab0659a868720d9672db32321aaae4a65688ecc86a96057",
-      "expected_after_sha256": "f6a65bdd50698164ef08fc80085480d182b3802073be52ad188a089b71d855ac",
-      "git_source_sha256": "fa4b77a2d8c59c564f4e0ee1e4ab10f854dc7d9d3d0e8bda7b38ff0c06d5f6e6"
+      "path": "app/Services/Cloud/HourlyCycleConverter.php",
+      "source_base_sha256": "8a23c5ca8a9784708165b04fb3f80eae17a5274edae8e24bdafe42f36372ecac",
+      "source_target_sha256": "b484bb4579258f3e039a231801343b7665f225a3cb135fcd9de7daa1abafe2e9"
     },
     {
-      "source_path": "website/lang/en/ui.php",
-      "destination_relative_to_home": "servernet_app/lang/en/ui.php",
-      "operation": "patch_verified_live_snapshot",
-      "expected_before_sha256": "10484373c47a7ba54287f05b99c5e212aca375a6c0e1de64c57f8251d062c0d7",
-      "expected_after_sha256": "c95607dab8c76e9c46439a5faea893bac551a4824479ff248c130b2b8decedc0",
-      "git_source_sha256": "614619056281f1d457cc6882d5d4fc91e6ab5995f95db530eaba020e9a0717ce"
+      "path": "app/Services/Cloud/GpuCapacityOrders.php",
+      "source_base_sha256": "6e895006289d57ca73cf17146f1d684b28c95d32fa875f92d7c855f5701128e3",
+      "source_target_sha256": "73835fc2d086c05f1e923cae71fc65eb183aaa6fc33a9359ae8e81305ee09fa5"
     },
     {
-      "source_path": "website/lang/tr/ui.php",
-      "destination_relative_to_home": "servernet_app/lang/tr/ui.php",
-      "operation": "patch_verified_live_snapshot",
-      "expected_before_sha256": "106adcc5cf4eb0095d09ec13e2ec6566f633d1ff483c4c13b9ce3c4a9d4c0002",
-      "expected_after_sha256": "dcf747a31581d1b7b1c2ad12ccd7cf065a4ae82525d705664cb391e2241605a4",
-      "git_source_sha256": "895a5fa1005220a6ca6285a058c619a1cc7fe70feb7dc987e9e5512fdde3a2d7"
+      "path": "app/Http/Controllers/Account/CloudServerController.php",
+      "source_base_sha256": "ae166d05a28f8cea62d2e2024d2bf46ddd7e181ce88a17e3db554a4e80b6d79a",
+      "source_target_sha256": "7172c50165dd02010ea5936ab1ebc1473e0ce8a774485f6dbf738f86dedfea2f"
+    },
+    {
+      "path": "app/Http/Controllers/Account/CloudStoreController.php",
+      "source_base_sha256": "bae7f574bc7ea5b2e13221e020dd812b0158a6ea00128a03467841c4ae3b2b3d",
+      "source_target_sha256": "c8824d895e0fe182c5bbc0178d4b6e368d65e13648f3a69d10578973d9f09d25"
+    },
+    {
+      "path": "app/Console/Commands/CloudMeterHourly.php",
+      "source_base_sha256": "05038ae7272635e02002e80bfb55a652a79641bfb0c92186bf4121d5f6ce5fa2",
+      "source_target_sha256": "050cc582b85370ee24874c7988512433d86ef4fab4aa63f0ba2af5c8179940dd"
+    },
+    {
+      "path": "lang/fa/ui.php",
+      "source_base_sha256": "00bca0d8e64c03991f70366b7238ad2666f0b149fa4b58b4a2087ea2807fae4a",
+      "source_target_sha256": "9cf0bdbb0b4bd82af917f4d2302f864aa3b0bef0565a6c70c34b58da8563f451"
+    },
+    {
+      "path": "lang/en/ui.php",
+      "source_base_sha256": "5502fa783b6dcfe6a035629f620861d0f3be66e232611fd417c0fc0e87182c70",
+      "source_target_sha256": "c1fd2ad35f093fc47af2fba04383af03f417086cc35041cdd10e1442ae341d8c"
+    },
+    {
+      "path": "lang/tr/ui.php",
+      "source_base_sha256": "6eb017dd7c4212642ba34fc1a4504cb1a23b5bdf17c2b19a59c15da5c8a0a25b",
+      "source_target_sha256": "13281d157d33a230a4ede6e311d7eaaeb7c3a1838c2c9722952baffa27b732e3"
+    },
+    {
+      "path": "resources/views/account/cloud-store.blade.php",
+      "source_base_sha256": "d0dffe5801fa1692348eee85ed4ee96f0749fef2dc4fc5571e8f69fceaa875c8",
+      "source_target_sha256": "cd78945fe2609f66468d5b0fe631bf9de237adbd6f1860aa022c267b76f66aee"
+    },
+    {
+      "path": "resources/views/account/cloud-server.blade.php",
+      "source_base_sha256": "64078d7ef4ee5923241689da6d5b55ba247ac427db8e1895efc30f9a6b45d75b",
+      "source_target_sha256": "aef7cd97763cad5643f07ab0d0520c8f386632cf75e60c73a8b4f0dde64a9a3b"
     }
   ]
 }

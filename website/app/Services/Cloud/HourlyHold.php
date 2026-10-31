@@ -9,24 +9,51 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Legacy retention accounting after verified hourly-credit suspension.
+ * نگهداریِ ۲۴ساعتهٔ سرورِ ساعتیِ خاموش پس از اتمامِ اعتبار — **بدونِ ضرر**.
  *
- * Owner decision, 2026-10-31: starting credit must remain spendable while a
- * server is running. Do not reserve future retention or stop a funded server.
- * Existing suspended reserves stay protected until resumed, converted,
- * charged or released. Retention grace is unchanged; where no reserve exists,
- * its supplier cost is a business expense, not funded by the start minimum.
+ * ═══ رخداد و تصمیم (شهریور ۱۴۰۵) ═══
+ *
+ * تا امروز مهلتِ ۲۴ساعته رایگان بود و استدلالش «کفِ شروعِ ۲۴ ساعت = مهلتِ ۲۴
+ * ساعت» بود. آن برابری فقط **لحظهٔ خرید** را می‌پوشاند: مشتری همان ۲۴ ساعت را
+ * مصرف می‌کند، اعتبار صفر می‌شود، و ۲۴ ساعتِ نگهداریِ بعدی را روی
+ * هتزنر/aeza/OVH/آروان — که ماشینِ خاموش را کامل صورت‌حساب می‌کنند — **ما**
+ * می‌پردازیم. مشتری‌ای که برنگردد، خالص ضرر است.
+ *
+ * کارفرما: «جایی که برای ما هزینه دارد ما هم هزینه بگیریم، جایی که ندارد
+ * نمی‌گیریم… تعداد روز را تأیید می‌کنم ولی متضرر نشویم اصلاً.»
+ *
+ * ═══ قاعده ═══
+ *
+ *  • نرخِ نگهداری = **بهای تمام‌شدهٔ** ساعتیِ همان ماشین نزدِ زیرساخت (سربارِ
+ *    ارزی را درایور از قبل در بها نشانده)، گرد به بالا تا ۱۰۰ تومان، بدون محدودکردن به نرخ فروش. روی نگهداری سود نمی‌گیریم.
+ *  • زیرساختی که ماشینِ خاموش برایش هزینه ندارد (`salad`، `proxmox` و هر پلنِ
+ *    `is_interruptible`) ⇒ نرخِ صفر ⇒ نگهداری مثلِ قبل رایگان.
+ *  • **ذخیره** (`services.hold_reserve_irt`): برای هر سرورِ ساعتیِ زنده
+ *    `GRACE_HOURS × نرخ` کنار گذاشته می‌شود و `Wallet::reservedOf` آن را از
+ *    «در دسترس» کم می‌کند. پس نه مترِ ساعتی، نه فاکتور، نه دامنه، نه AI
+ *    نمی‌توانند پولِ نگهداری را خرج کنند — لحظهٔ خاموشی پولش از پیش در کیف است.
+ *  • در مهلت، هر ساعتِ سپری‌شده به نرخِ نگهداری کسر می‌شود و **همان‌قدر** از
+ *    ذخیره کم می‌شود (در یک تراکنش). شارژ ⇒ روشن‌شدن؛ مصرف‌نشده هرگز خرج نشده.
+ *  • سیاستِ «حذف هنگام اتمامِ اعتبار» (`terminate`) نگهداری ندارد ⇒ ذخیرهٔ صفر.
+ *
+ * 🔴 بهای ناشناخته ⇒ نرخِ صفر + آژیرِ پایدار (همان قاعدهٔ `alarmIfUnderwater`:
+ *    «بها نداریم ⇒ ادعا هم نداریم»). عددِ حدسی از جیبِ مشتری ممنوع.
  */
 final class HourlyHold
 {
-    /** Retention after verified shutdown; separate from the starting-credit gate. */
+    /**
+     * مهلتِ نگهداری پیش از حذف — ساعت.
+     *
+     * 🔴 تصمیمِ کارفرما: برابر با `CloudPlan::HOURLY_START_MIN_HOURS`
+     * (`HourlyHoldTest` برابری را قفل می‌کند).
+     */
     public const GRACE_HOURS = 24;
 
     /** زیرساخت‌هایی که ماشینِ خاموش برایشان هزینه‌ای ندارد */
     public const STANDBY_FREE_PROVIDERS = ['salad', 'proxmox'];
 
-    /** Only already-suspended servers may still hold a legacy reserve. */
-    public const HOLDING_STATUSES = ['suspended'];
+    /** وضعیت‌هایی که ذخیرهٔ نگهداری را نگه می‌دارند */
+    public const HOLDING_STATUSES = ['active', 'awaiting_provision', 'suspended'];
 
     private ?int $eurToman = null;
 
@@ -62,7 +89,7 @@ final class HourlyHold
             ->sum('hold_reserve_irt');
     }
 
-    /** The amount actually included in Wallet::reservedOf for this service. */
+    /** The reserve actually counted by Wallet, including a pending GPU restart. */
     public static function reservedFor(Service $service): int
     {
         return self::enabled() && $service->isHourly()
@@ -112,15 +139,23 @@ final class HourlyHold
         return $this->fromCost($plan, $sellRateIrt);
     }
 
-    /** Historical full reserve, for legacy records and diagnostics only. */
+    /** Unknown paid standby is unavailable for new hourly orders, never advertised as free. */
+    public function fundablePlan(CloudPlan $plan, int $sellRateIrt): bool
+    {
+        return (bool) $plan->is_interruptible
+            || in_array((string) $plan->provider, self::STANDBY_FREE_PROVIDERS, true)
+            || $this->rateForPlan($plan, $sellRateIrt) > 0;
+    }
+
+    /** ذخیرهٔ کاملِ یک سرورِ **در حالِ کار** با این نرخ و سیاستِ اتمامِ اعتبار */
     public static function fullReserve(int $rate, ?string $onCreditOut): int
     {
         return $onCreditOut === 'terminate' ? 0 : max(0, $rate) * self::GRACE_HOURS;
     }
 
     /**
-     * Keep the cost rate current and clear obsolete running reserves. Wallet
-     * ignores them immediately, even before this service's next meter tick.
+     * نرخ و ذخیرهٔ سرورِ در حالِ کار را با بهای امروز هم‌سو می‌کند (خرید، هر
+     * تیکِ متر، تغییرِ سیاست، روشن‌شدنِ دوباره). فقط ستون‌ها را می‌نویسد.
      */
     public function syncRunning(Service $service): void
     {
@@ -128,13 +163,22 @@ final class HourlyHold
             return;
         }
 
-        $rate = $this->rateIrt($service);
-        // Creation credit must remain spendable while the server is running.
-        $reserve = 0;
-
-        if ((int) $service->hold_rate_irt !== $rate || (int) $service->hold_reserve_irt !== $reserve) {
-            $service->forceFill(['hold_rate_irt' => $rate, 'hold_reserve_irt' => $reserve])->save();
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($service): void {
+            \App\Models\Customer::whereKey($service->customer_id)->lockForUpdate()->first();
+            $current = Service::whereKey($service->id)->lockForUpdate()->first();
+            if ($current === null || ! $current->isHourly() || $current->status === 'suspended') {
+                return;
+            }
+            $rate = $this->rateIrt($current);
+            $reserve = self::fullReserve($rate, $current->on_credit_out);
+            if ((bool) $current->cloudPlan?->is_interruptible) {
+                $reserve = HourlyGpuStart::pending($current);
+            }
+            if ((int) $current->hold_rate_irt !== $rate || (int) $current->hold_reserve_irt !== $reserve) {
+                $current->forceFill(['hold_rate_irt' => $rate, 'hold_reserve_irt' => $reserve])->save();
+            }
+            $service->setRawAttributes($current->getAttributes(), true);
+        });
     }
 
     /** ساعت‌های نگهداریِ باقی — از خودِ ذخیره، نه از ساعتِ دیوار */
@@ -175,6 +219,6 @@ final class HourlyHold
 
         $irt = (int) (ceil(($micro / 1_000_000) * $this->eurToman / 100) * 100);
 
-        return $sellRateIrt > 0 ? min($irt, $sellRateIrt) : $irt;
+        return $irt; // Standby must cover supplier cost even for a legacy underwater sell rate.
     }
 }

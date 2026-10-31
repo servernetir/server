@@ -92,9 +92,7 @@ class Wallet
         }
 
         /*
-        | Legacy reserves of already-suspended servers (`HourlyHold`) remain
-        | protected. Active/awaiting servers no longer reserve retention credit.
-        | ذخیرهٔ نگهداریِ قدیمی سرورهای تعلیق‌شده هم نگه‌دارنده
+        | 🔴 ذخیرهٔ نگهداریِ ۲۴ساعتهٔ سرورهای ساعتی (`HourlyHold`) هم نگه‌دارنده
         | است: پولی که برای نگهداریِ ماشینِ خاموش کنار گذاشته شده، نه فاکتور
         | می‌خوردش، نه دامنه، نه AI. کسرِ خودِ نگهداری پیش از برداشت همان‌قدر
         | از ذخیره کم می‌کند، پس دوبار شمرده نمی‌شود.

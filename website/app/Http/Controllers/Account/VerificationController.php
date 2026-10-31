@@ -81,7 +81,7 @@ class VerificationController extends Controller
             ];
         }
         // اولین بار: هر دو سند لازم است؛ اگر قبلاً آپلود شده، اختیاری
-        $have = CustomerDocument::where('customer_profile_id', $profile->id)->pluck('kind')->all();
+        $have = CustomerDocument::where('customer_profile_id', $profile->id)->where('status', '!=', 'superseded')->pluck('kind')->all();
         $docRule = fn ($kind) => [
             in_array($kind, $have, true) ? 'nullable' : ($isCompany ? 'required' : 'nullable'),
             'file', 'mimetypes:application/pdf,image/png,image/jpeg', 'max:5120',
@@ -179,27 +179,40 @@ class VerificationController extends Controller
 
     private function storeDoc(CustomerProfile $profile, UploadedFile $file, string $kind, ?array $replaces = null): void
     {
-        // نسخهٔ قبلیِ همین نوع (یا خانوادهٔ هم‌ردیف) را حذف کن — فقط آخرین معتبر است
-        foreach (CustomerDocument::where('customer_profile_id', $profile->id)
-            ->whereIn('kind', $replaces ?? [$kind])->get() as $old) {
-            Storage::disk('local')->delete($old->disk_path);
-            $old->delete();
-        }
-
+        // Store the replacement first; failure must not retire the current document.
         $path = $file->storeAs('kyc/'.$profile->customer_id, $kind.'-'.uniqid().'.'.$file->extension(), 'local');
+        if (! $path) { throw new \RuntimeException('KYC evidence storage failed'); }
+        $write = function () use ($profile, $file, $kind, $replaces, $path): void {
+            if (\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1') {
+                CustomerProfile::whereKey($profile->id)->lockForUpdate()->firstOrFail();
+            }
+            foreach (CustomerDocument::where('customer_profile_id', $profile->id)
+                ->whereIn('kind', $replaces ?? [$kind])->where('status', '!=', 'superseded')->get() as $old) {
+                if (\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1') {
+                    // Keep original evidence and its review metadata in the private customer dossier.
+                    $old->forceFill(['status' => 'superseded'])->save();
+                } else {
+                    Storage::disk('local')->delete($old->disk_path);
+                    $old->delete();
+                }
+            }
 
-        CustomerDocument::create([
-            'customer_profile_id' => $profile->id,
-            'kind'                => $kind,
-            'status'              => 'pending',
-            'scan_status'         => 'skipped',
-            'disk_path'           => $path,
-            'original_name'       => mb_substr($file->getClientOriginalName(), 0, 190),
-            'mime'                => $file->getClientMimeType(),
-            'size_bytes'          => $file->getSize(),
-            'sha256'              => hash_file('sha256', $file->getRealPath()),
-            'uploaded_at'         => now(),
-        ]);
+            CustomerDocument::create([
+                'customer_profile_id' => $profile->id,
+                'kind'                => $kind,
+                'status'              => 'pending',
+                'scan_status'         => 'skipped',
+                'disk_path'           => $path,
+                'original_name'       => mb_substr($file->getClientOriginalName(), 0, 190),
+                'mime'                => $file->getMimeType(),
+                'size_bytes'          => $file->getSize(),
+                'sha256'              => hash_file('sha256', $file->getRealPath()),
+                'uploaded_at'         => now(),
+            ]);
+        };
+        if (\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1') {
+            \Illuminate\Support\Facades\DB::transaction($write, 3);
+        } else { $write(); }
     }
 
     /*
@@ -224,7 +237,7 @@ class VerificationController extends Controller
                 'کشور'  => \App\Support\Countries::name($profile->country),
                 'زبانِ مشتری' => strtoupper((string) $customer->locale),
                 'کد'    => $customer->code,
-                'مدارک' => fa_num(\App\Models\CustomerDocument::where('customer_profile_id', $profile->id)->count()).' فایل',
+                'مدارک' => fa_num(\App\Models\CustomerDocument::where('customer_profile_id', $profile->id)->where('status', '!=', 'superseded')->count()).' فایل',
             ], null, '🪪', [
                 [['text' => '📄 مشاهدهٔ مدارک', 'data' => $cb.'kd:'.$profile->id]],
                 [

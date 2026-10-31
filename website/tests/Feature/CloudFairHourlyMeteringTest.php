@@ -518,7 +518,7 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'));
 
         $this->artisan('cloud:meter')->assertOk();
-        $this->assertSame(120_000, $c->creditBalance('IRT'));
+        $this->assertSame(115_000, $c->creditBalance('IRT')); // Verified restart prepays one hour.
     }
 
     public function test_failed_power_on_releases_the_credit_claim(): void

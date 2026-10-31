@@ -321,6 +321,9 @@ class AdminBaleRouter
                 $this->consumeButtons();
             }
 
+            if (in_array($verb, ['rd','cr','cd','kp','ld','lr','lc','rf','rfa','rfr','rfay','md'], true)
+                && ! $this->managerMode()) { $this->replyToOwner('این قابلیت مدیریتی هنوز فعال نیست.'); return; }
+
             match ($verb) {
                 // آزمونِ زنده — نگه داشته شد چون تنها راهِ سنجیدنِ خودِ مسیر است
                 'ping' => $this->replyToOwner(
@@ -330,6 +333,8 @@ class AdminBaleRouter
                 'q' => $this->showQueue(),
                 't' => $this->showTicket($arg),
                 'tc' => $this->armCloseById($arg),
+                'hsa', 'hsr' => $this->hermesSupportDecision($cb, $arg, $verb === 'hsa'),
+                'hsv' => $this->hermesSupportFull($cb, $arg),
                 'td' => $this->draft($arg),
                 'tw' => $this->howToWrite($arg),
                 'ts' => $this->armStoredDraft($arg),
@@ -347,6 +352,18 @@ class AdminBaleRouter
                 'i' => $this->invoiceCard((int) $arg),
                 'rl' => $this->receiptList(),
                 'r' => $this->receiptCard((int) $arg),
+                'rd' => $this->receiptEvidence((int) $arg),
+                'cr' => $this->customerReceiptHistory((int) $arg),
+                'cd' => $this->customerDocuments((int) $arg),
+                'kp' => $this->kycProfile((int) $arg),
+                'ld' => $this->leadCard((int) $arg),
+                'lr' => $this->leadAction($arg, false),
+                'lc' => $this->leadAction($arg, true),
+                'rf' => $this->refundCard((int) $arg),
+                'rfa' => $this->refundStart($arg, false),
+                'rfr' => $this->refundStart($arg, true),
+                'rfay' => $this->refundApproveFinal($arg),
+                'md' => $this->managerDetail($arg),
                 'dl' => $this->domainList(),
                 'd' => $this->domainCard((int) $arg),
                 'sq' => $this->stuckList(),
@@ -414,6 +431,11 @@ class AdminBaleRouter
             if ($this->gate->binding() === null) {
                 $this->pair($text, $from);
 
+                return;
+            }
+
+            if (class_exists(HermesBaleRelay::class) && (HermesBaleRelay::isCommand($text) || HermesBaleRelay::isReply($update))) {
+                app(HermesBaleRelay::class)->handle($update);
                 return;
             }
 
@@ -580,6 +602,27 @@ class AdminBaleRouter
         }
 
         $flow = $this->gate->flow();
+
+        if ($this->managerMode() && $flow !== null && str_starts_with($flow, 'refundnote:')) {
+            $id = (int) substr($flow, 11);
+            if (mb_strlen(trim($text)) < 10) { $this->replyToOwner('توضیح بررسی و منبع وجه را دست‌کم در ۱۰ نویسه بنویسید.'); return; }
+            $note = mb_substr(trim($text), 0, 500);
+            $request = \App\Models\WalletRefundRequest::with('customer')->find($id);
+            if (! $request || $request->status !== 'requested') { $this->gate->clearFlow(); $this->staleButton(); return; }
+            $fingerprint = \App\Services\Bale\Management\BaleRefundReview::fingerprint($request);
+            $this->gate->armFlow('refundconfirm:'.$id, ['note' => $note, 'fingerprint' => $fingerprint]);
+            $payload = 'rfay:'.$id.':'.substr(hash('sha256', $note.$fingerprint), 0, 12);
+            $this->sendButtons('تأیید درخواست عودت '.$request->public_id."؟\nمشتری: ".($request->customer?->displayName() ?? '—').' · '.($request->customer?->code ?? '—')."\nمبلغ: ".fa_num(number_format((int) $request->amount_irt)).' تومان'."\nتوضیح: ".$note."\nاین تأیید واریز بانکی انجام نمی‌دهد؛ پرداخت نهایی در پرونده مالی ثبت می‌شود.", [
+                [['text' => '✅ تأیید همین درخواست و توضیح', 'data' => self::CB_PREFIX.$payload.':'.$this->gate->stamp($payload)]],
+                [['text' => 'انصراف', 'data' => self::CB_PREFIX.'fx']]]);
+            return;
+        }
+        if ($this->managerMode() && $flow !== null && str_starts_with($flow, 'refundreject:')) {
+            if (mb_strlen(trim($text)) < 5) { $this->replyToOwner('دلیل رد را دست‌کم در ۵ نویسه بنویسید.'); return; }
+            $this->gate->clearFlow();
+            $this->enqueue('refund_reject', ['id' => (int) substr($flow, 13), 'note' => mb_substr(trim($text), 0, 500)], 'رد درخواست عودت');
+            return;
+        }
 
         if ($flow === 'search') {
             $this->gate->clearFlow();
@@ -875,7 +918,7 @@ class AdminBaleRouter
         // شمارش روی **برچسبِ دکمه** — تا بی‌بازکردن بفهمد کجا کار هست
         $tag = fn (string $base, int $c) => $c > 0 ? $base.' ('.fa_num((string) $c).')' : $base;
 
-        $this->sendButtons($d['text'], [
+        $rows = [
             [
                 ['text' => $tag('🎫 تیکت‌ها', $n['tickets']), 'data' => self::CB_PREFIX.'q'],
                 ['text' => $tag('🏦 رسیدها', $n['bank']),     'data' => self::CB_PREFIX.'rl'],
@@ -898,7 +941,12 @@ class AdminBaleRouter
             [
                 ['text' => '📖 راهنما', 'data' => self::CB_PREFIX.'?'],
             ],
-        ]);
+        ];
+        if ($this->managerMode()) { $rows[] = [
+            ['text' => '📊 گزارش مدیریت', 'data' => self::CB_PREFIX.'md:stats'],
+            ['text' => '📈 آمار بازدید و اتصال گوگل', 'data' => self::CB_PREFIX.'md:traffic'],
+        ]; }
+        $this->sendButtons($d['text'], $rows);
     }
 
     private function showQueue(): void
@@ -1327,6 +1375,128 @@ class AdminBaleRouter
         );
     }
 
+    private function managerMode(): bool
+    {
+        return \App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1';
+    }
+
+    private function managerDetail(string $topic): void
+    {
+        if (! in_array($topic, ['stats','payments','domains','hermes','mail','calendar','identity','content','traffic','balances','fx','costs'], true)) { $this->replyToOwner('بخش گزارش شناخته نشد.'); return; }
+        $detail = app(\App\Services\Bale\Management\BaleManagerDailyDigest::class)->detail($topic);
+        if ($topic === 'traffic') { $detail .= "\n\nتنظیم اتصال آمار و دسترسی گوگل:\nhttps://console.servernet.cloud/admin/bale/reporting"; }
+        $this->replyToOwner($detail);
+    }
+
+    private function customerDocuments(int $id): void
+    {
+        $customer = Customer::find($id);
+        if (! $customer) { $this->replyToOwner('مشتری پیدا نشد.'); return; }
+        $rows = [];
+        foreach ($customer->profiles()->orderByDesc('id')->limit(8)->get() as $profile) {
+            $rows[] = [['text' => '📄 '.($profile->company_name ?: trim($profile->first_name.' '.$profile->last_name)).' — '.$profile->status,
+                'data' => self::CB_PREFIX.'kp:'.$profile->id]];
+        }
+        $rows[] = $this->nav('c:'.$id);
+        $this->sendButtons('📄 پرونده مدارک '.$customer->code."\nمدارک پس از بررسی در پرونده محفوظ‌اند؛ هر پروفایل را برای تطبیق و مشاهده انتخاب کنید.", $rows);
+    }
+
+    private function kycProfile(int $id): void
+    {
+        $p = CustomerProfile::with('customer')->find($id);
+        if (! $p) { $this->replyToOwner('پروفایل پیدا نشد.'); return; }
+        $rows = [[['text' => '📎 مشاهده مدارک', 'data' => self::CB_PREFIX.'kd:'.$p->id]]];
+        if ($p->status === 'pending') { $rows[] = [
+            ['text' => '✅ تأیید هویت', 'data' => self::CB_PREFIX.'ka:'.$p->id],
+            ['text' => '⛔ رد با دلیل', 'data' => self::CB_PREFIX.'kr:'.$p->id]]; }
+        $rows[] = $this->nav('c:'.$p->customer_id);
+        $this->sendButtons(implode("\n", array_filter(['📄 '.($p->company_name ?: trim($p->first_name.' '.$p->last_name)),
+            'مشتری: '.($p->customer?->displayName() ?? '—').' · '.($p->customer?->code ?? '—'), 'وضعیت: '.$p->status,
+            'کشور: '.($p->country ?: 'نامشخص'), $p->birth_date ? 'تولد: '.$p->birth_date->format('Y-m-d') : null,
+            'آدرس: '.mb_substr((string) $p->address, 0, 180), 'شهر: '.($p->city ?: '—')])), $rows);
+    }
+
+    private function customerReceiptHistory(int $id): void
+    {
+        $c = Customer::find($id);
+        if (! $c) { $this->replyToOwner('مشتری پیدا نشد.'); return; }
+        $rows = [];
+        foreach (BankTransferReceipt::where('customer_id', $id)->with('invoice')->orderByDesc('id')->limit(8)->get() as $receipt) {
+            $rows[] = [['text' => '🏦 #'.$receipt->id.' · '.AdminBaleScreens::receiptAmount($receipt).' · '.$receipt->status,
+                'data' => self::CB_PREFIX.'r:'.$receipt->id]];
+        }
+        $rows[] = $this->nav('c:'.$id);
+        $this->sendButtons('🏦 سوابق رسیدهای '.$c->code.'؛ شامل رسیدهای تأیید و ردشده', $rows);
+    }
+
+    private function receiptEvidence(int $id): void
+    {
+        $r = BankTransferReceipt::find($id);
+        if (! $r || ! app(\App\Services\Billing\BankReceiptEvidence::class)->path($r)) { $this->replyToOwner('برای این رسید فایل قابل نمایش ثبت نشده است.'); return; }
+        $this->enqueue('receipt_evidence', ['id' => $id], 'نمایش فایل رسید');
+    }
+
+    private function leadCard(int $id): void
+    {
+        $lead = \App\Models\CrmLead::find($id);
+        if (! $lead) { $this->replyToOwner('سرنخ پیدا نشد.'); return; }
+        $rows = [];
+        if ($lead->messages()->where('direction', 'in')->exists()) {
+            $rows[] = [$this->stamped('✅ بررسی شد؛ اطلاع به متقاضی', 'lr', $id), $this->stamped('📞 تماس انجام شد', 'lc', $id)];
+        }
+        $rows[] = $this->nav();
+        $last = $lead->messages()->where('direction', 'in')->orderByDesc('id')->first();
+        $decoded = $last?->body ? json_decode($last->body, true) : null;
+        $summary = is_array($decoded) ? ($decoded['summary'] ?? '') : strip_tags((string) $last?->body);
+        $this->sendButtons('👤 '.($lead->contact_name ?: $lead->company).' · CHAT-'.$id."\nوضعیت: ".$lead->stageLabel()
+            ."\nتماس: ".($lead->phone ?: 'ثبت نشده')."\nایمیل: ".($lead->email ?: 'ثبت نشده')
+            ."\nخلاصه: ".mb_substr((string) $summary, 0, 420)
+            ."\nبا «بررسی شد» ثبت پیگیری و یک تلاش ایمیل/پیامک برای اطلاعات تماس معتبر انجام می‌شود؛ ارسال ناموفق موفق فرض نمی‌شود.", $rows);
+    }
+
+    private function leadAction(string $arg, bool $contacted): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, $contacted ? 'lc' : 'lr');
+        if (! $fresh) { $this->staleButton(); return; }
+        $this->enqueue($contacted ? 'lead_contacted' : 'lead_reviewed', ['id' => $id], $contacted ? 'ثبت تماس با سرنخ' : 'ثبت بررسی و اطلاع به متقاضی');
+    }
+
+    private function refundCard(int $id): void
+    {
+        $r = \App\Models\WalletRefundRequest::with('customer')->find($id);
+        if (! $r) { $this->replyToOwner('درخواست عودت پیدا نشد.'); return; }
+        $rows = [];
+        if ($r->status === 'requested') { $rows[] = [$this->stamped('✅ بررسی برای تأیید', 'rfa', $id), $this->stamped('⛔ رد با دلیل', 'rfr', $id)]; }
+        $rows[] = $this->nav('c:'.$r->customer_id);
+        $this->sendButtons('💸 عودت '.$r->public_id."\nمشتری: ".($r->customer?->displayName() ?? '—').' · '.($r->customer?->code ?? '—')
+            ."\nمبلغ: ".fa_num(number_format((int) $r->amount_irt)).' تومان؛ وضعیت: '.$r->status
+            ."\nتأیید درخواست و واریز بانکی دو مرحله جدا هستند. پرونده مالی:\nhttps://console.servernet.cloud/admin/wallet-refunds/".$r->public_id, $rows);
+    }
+
+    private function refundStart(string $arg, bool $reject): void
+    {
+        [$id, $fresh] = $this->unstamp($arg, $reject ? 'rfr' : 'rfa');
+        $r = $fresh ? \App\Models\WalletRefundRequest::find($id) : null;
+        if (! $r || $r->status !== 'requested') { $this->staleButton(); return; }
+        $this->gate->armFlow(($reject ? 'refundreject:' : 'refundnote:').$id);
+        $this->replyToOwner($reject ? 'دلیل رد درخواست را بنویسید؛ این توضیح در پرونده ثبت می‌شود.' : 'توضیح بررسی و منبع وجه را دست‌کم در ۱۰ نویسه بنویسید. پس از نمایش متن، تأیید نهایی خواهید کرد؛ این مرحله واریز بانکی انجام نمی‌دهد.');
+    }
+
+    private function refundApproveFinal(string $arg): void
+    {
+        [$id, $hash, $stamp] = array_pad(explode(':', $arg, 3), 3, '');
+        $note = (string) ($this->gate->flowData()['note'] ?? '');
+        $fingerprint = (string) ($this->gate->flowData()['fingerprint'] ?? '');
+        $request = \App\Models\WalletRefundRequest::find((int) $id);
+        $payload = 'rfay:'.$id.':'.$hash;
+        if ($this->gate->flow() !== 'refundconfirm:'.$id || ! $this->gate->verifyStamp($payload, $stamp)
+            || ! $request || $request->status !== 'requested'
+            || ! hash_equals($fingerprint, \App\Services\Bale\Management\BaleRefundReview::fingerprint($request))
+            || ! hash_equals(substr(hash('sha256', $note.$fingerprint), 0, 12), $hash)) { $this->staleButton(); return; }
+        $this->gate->clearFlow();
+        $this->enqueue('refund_approve', ['id' => (int) $id, 'note' => $note, 'fingerprint' => $fingerprint], 'تأیید درخواست عودت');
+    }
+
     private function customerList(?int $cursor): void
     {
         $r = $this->screens->customers($cursor);
@@ -1369,6 +1539,12 @@ class AdminBaleRouter
             $rows[] = [$this->stamped($label, 'cc', $c->id)];
         }
 
+        if ($this->managerMode()) {
+            $rows[] = [
+                ['text' => '📄 مدارک و پروفایل‌ها', 'data' => self::CB_PREFIX.'cd:'.$c->id],
+                ['text' => '🏦 سوابق رسیدها', 'data' => self::CB_PREFIX.'cr:'.$c->id],
+            ];
+        }
         $rows[] = $this->nav('cm');
 
         $this->sendButtons($this->screens->customer($c), $rows);
@@ -1645,6 +1821,9 @@ class AdminBaleRouter
             $rows[] = [['text' => '👤 پروندهٔ مشتری', 'data' => self::CB_PREFIX.'c:'.$r->customer_id]];
         }
 
+        if ($this->managerMode() && filled($r->evidence_path)) {
+            $rows[] = [['text' => '📎 مشاهده فایل رسید', 'data' => self::CB_PREFIX.'rd:'.$r->id]];
+        }
         $rows[] = $this->nav('rl');
 
         $this->sendButtons($this->screens->receipt($r), $rows);
@@ -2120,8 +2299,8 @@ class AdminBaleRouter
             '✅ تأییدِ واریز؟',
             '',
             $r->customer ? ('👤 '.$r->customer->displayName().' · '.$r->customer->code) : null,
-            '💰 ادعای مشتری: '.fa_num(number_format((int) $r->amount)).' تومان',
-            $inv ? ('🧾 تسویه می‌شود: '.fa_num(number_format($due)).' تومان — فاکتورِ '.$inv->number) : null,
+            '💰 ادعای مشتری: '.($this->managerMode() ? AdminBaleScreens::receiptAmount($r) : fa_num(number_format((int) $r->amount)).' تومان'),
+            $inv ? ('🧾 تسویه می‌شود: '.($this->managerMode() ? AdminBaleScreens::receiptAmount($r, $due) : fa_num(number_format($due)).' تومان').' — فاکتورِ '.$inv->number) : null,
             (int) $r->amount !== $due ? '⚠️ این دو یکی نیستند.' : null,
             '',
             'با تأیید، فاکتور تسویه و سرویس فعال می‌شود. برگشت ندارد.',
@@ -2158,7 +2337,7 @@ class AdminBaleRouter
         $this->gate->armFlow('reject:'.$r->id);
 
         $this->sendButtons(
-            '⛔️ ردِ رسیدِ '.fa_num(number_format((int) $r->amount))." تومان\n\n"
+            '⛔️ ردِ رسیدِ '.($this->managerMode() ? AdminBaleScreens::receiptAmount($r) : fa_num(number_format((int) $r->amount)).' تومان')."\n\n"
             .'دلیلِ رد را بنویسید — مشتری همین متن را می‌بیند.',
             [[['text' => '✖️ انصراف', 'data' => self::CB_PREFIX.'fx']]],
         );
@@ -2333,6 +2512,10 @@ class AdminBaleRouter
 
     private function enqueue(string $verb, array $args, string $human): void
     {
+        if (in_array($verb, ['receipt_evidence', 'lead_reviewed', 'lead_contacted', 'refund_approve', 'refund_reject'], true)) {
+            $args['manager_actor_id'] = (int) $this->gate->boundUser()?->id;
+            $args['manager_binding_hash'] = hash('sha256', (string) \App\Models\Setting::get(AdminBaleGate::KEY_BIND));
+        }
         if (! $this->gate->queueJob($verb, $args)) {
             $this->replyToOwner('⏳ کارِ دیگری در صف است. چند لحظه صبر کنید و دوباره بزنید.');
 
@@ -3036,6 +3219,38 @@ class AdminBaleRouter
      * تمامِ استدلالِ امنیتیِ این کلاس فرو می‌ریزد: کدِ تأیید به دستِ همان کسی
      * می‌رسد که آپدیت را جعل کرده.
      */
+    private function hermesSupportFull(array $callback, string $token): void
+    {
+        $status = app(\App\Services\Hermes\HermesSupportOwnerReview::class)->showFull(
+            $token, (string) ($callback['from']['id'] ?? ''),
+            (string) ($callback['message']['chat']['id'] ?? ''),
+        );
+        if ($status !== 'shown') {
+            $this->replyToOwner(match ($status) {
+                'stale' => 'پیشنهاد تغییر کرده یا منقضی شده است؛ بررسی تازه درخواست کن.',
+                'unavailable' => 'نمایش متن کامل اکنون ممکن نیست؛ در مینی‌اپ بررسی کن.',
+                default => 'پیشنهاد معتبر نیست یا دسترسی به آن تأیید نشد.',
+            });
+        }
+    }
+
+    private function hermesSupportDecision(array $callback, string $token, bool $approve): void
+    {
+        $status = app(\App\Services\Hermes\HermesSupportOwnerReview::class)->decide(
+            $token, (string) ($callback['from']['id'] ?? ''),
+            (string) ($callback['message']['chat']['id'] ?? ''), $approve,
+        );
+        $this->replyToOwner(match ($status) {
+            'sent' => '✅ همین پاسخ پیشنهادی برای مشتری ثبت و ارسال شد.',
+            'sent_notification_error' => '✅ پاسخ ثبت شد؛ اعلان مشتری خطا داشت و پاسخ دوباره ارسال نمی‌شود.',
+            'rejected' => 'پیشنهاد رد شد؛ پاسخی برای مشتری ارسال نشد.',
+            'stale', 'invalidated', 'expired' => 'پیشنهاد تغییر کرده یا منقضی شده است؛ در مینی‌اپ بررسی تازه درخواست کن.',
+            'not_ready', 'busy' => 'ثبت پیشنهاد در حال تکمیل است؛ چند لحظه بعد دوباره بررسی کن.',
+            'dispatching', 'message_written', 'delivery_uncertain' => 'وضعیت ارسال نیاز به بررسی دارد؛ خودکار دوباره ارسال نمی‌شود.',
+            default => 'این پیشنهاد معتبر نیست یا قبلاً دربارهٔ آن تصمیم‌گیری شده است؛ تیکت را بررسی کن.',
+        });
+    }
+
     private function replyToOwner(string $text): void
     {
         $chat = $this->gate->binding()['chat_id'] ?? '';

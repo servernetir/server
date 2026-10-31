@@ -32,6 +32,14 @@ class BaleAdminController extends Controller
         return redirect('/admin/settings?tab=bale');
     }
 
+    public function reviewSms(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin() && \App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1', 403);
+        $data = $request->validate(['pattern_code' => ['nullable', 'string', 'regex:/^[a-zA-Z0-9]{6,64}$/D']]);
+        \App\Models\Setting::put(\App\Services\Bale\Management\BaleLeadReview::PATTERN_SETTING, trim((string) ($data['pattern_code'] ?? '')) ?: null);
+        return back()->with('ok', 'تنظیم الگوی پیامک بررسی ذخیره شد؛ فعال بودن الگوی تأییدشده و نسخه جدید رله را بررسی کنید.');
+    }
+
     public function pair(Request $request, AdminBaleGate $gate): RedirectResponse
     {
         $res = $gate->beginPairing($request->user());

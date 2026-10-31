@@ -2987,6 +2987,11 @@ Route::prefix('admin')->group(function () {
         */
         Route::get('/bale', [\App\Http\Controllers\Admin\BaleAdminController::class, 'index'])
             ->name('admin.bale')->middleware('admin');
+        Route::get('/bale/reporting', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'index'])->name('admin.bale.reporting')->middleware('admin');
+        Route::post('/bale/reporting/configure', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'configure'])->middleware(['admin', 'throttle:forms']);
+        Route::get('/bale/reporting/connect', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'connect'])->middleware('admin');
+        Route::post('/bale/reporting/disconnect', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'disconnect'])->middleware(['admin', 'throttle:forms']);
+        Route::post('/bale/review-sms', [\App\Http\Controllers\Admin\BaleAdminController::class, 'reviewSms'])->middleware(['admin', 'throttle:forms'])->name('admin.bale.review-sms');
         Route::post('/bale/pair', [\App\Http\Controllers\Admin\BaleAdminController::class, 'pair'])
             ->middleware(['admin', 'throttle:6,1']);
         Route::post('/bale/revoke', [\App\Http\Controllers\Admin\BaleAdminController::class, 'revoke'])
@@ -3455,6 +3460,8 @@ Route::prefix('admin')->group(function () {
 
         // واریز به حساب — صف تأیید پرداخت‌های دستی
         Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');
+        Route::get('/customers/{customer}/evidence', [\App\Http\Controllers\Admin\CustomerController::class, 'evidence'])->middleware('admin')->name('admin.customer.evidence');
+        Route::get('/bank-transfers/{receipt}/evidence', [\App\Http\Controllers\Admin\BankTransferController::class, 'evidence'])->middleware('admin')->name('admin.bank-transfers.evidence');
         Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve'])->middleware('admin');
         Route::post('/bank-transfers/{receipt}/reject', [\App\Http\Controllers\Admin\BankTransferController::class, 'reject'])->middleware('admin');
 

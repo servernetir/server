@@ -172,7 +172,7 @@ class HourlyVpsPageTest extends TestCase
             ->keyBy('iso');
 
         foreach (['PH' => 'ph-manila', 'BG' => 'bg-sofia', 'MX' => 'mx-mexico-city'] as $iso => $code) {
-            $this->assertSame(url('/cloud/'.$code), $countries[$iso]['url']);
+            $this->assertSame(\App\Services\Cloud\CloudCountry::url($iso), $countries[$iso]['url']);
         }
         // One table-existence check and one active-location read; no per-country reads.
         $this->assertCount(2, $locationReads, 'Country links should share the active-location query.');

@@ -8,6 +8,8 @@ const TEMPLATES = {
   //    پروژه کد را با کلیدِ `code` می‌فرستد (BaleRelaySender::sendOtp)،
   //    نه `otp`. با نگاشتِ otp←otp هر ورودی با missing_param رد می‌شد.
   otp:               { code: 'u507b9k77p8oim0', vars: { otp: 'code' } },
+  // Operator approval is required. This event alone accepts its approved code from the HMAC-signed application configuration.
+  lead_reviewed:     { code: 'REPLACE_APPROVED_LEAD_REVIEWED_CODE', vars: { code: 'code' } },
   welcome:           { code: 'sjuoigsehhebc66', vars: { name: 'name' } },
   invoice:           { code: 'xhfy1tg4cprsqty', vars: { number: 'number', amount: 'amount' } },
   payment_due:       { code: 'airtetaxgkti7nq', vars: { number: 'number', amount: 'amount' } },
@@ -345,7 +347,12 @@ const now = Math.floor(Date.now() / 1000);
 const ts = Number(p.issued_at ?? 0);
 if (!Number.isFinite(ts) || ts <= 0 || Math.abs(now - ts) > config.maxMessageAgeSeconds) return out(false, { reason: 'expired_or_invalid_timestamp' });
 
-const tpl = TEMPLATES[String(p.template ?? '').trim()];
+let tpl = TEMPLATES[String(p.template ?? '').trim()];
+const configuredPatternCode = String(p.pattern_code ?? '');
+if (p.template === 'lead_reviewed' && /^[a-zA-Z0-9]{6,64}$/.test(configuredPatternCode)
+  && configuredPatternCode === configuredPatternCode.trim()) {
+  tpl = { ...tpl, code: configuredPatternCode };
+}
 if (!tpl) return out(false, { reason: 'unknown_template', template: p.template });
 if (!tpl.code || tpl.code.startsWith('REPLACE_')) return out(false, { reason: 'pattern_code_not_configured', template: p.template });
 
