@@ -41,7 +41,7 @@ jobs:
       QUEUE_CONNECTION: sync
       PAGE_CACHE: 'false'
       EXCHANGE_ENABLED: 'false'
-      WALLET_REFUND_UI_FIXTURES: ${{ runner.temp }}/wallet-refund-ui
+      WALLET_REFUND_UI_FIXTURES: /tmp/servernet-wallet-refund-ui-${{ github.run_id }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
