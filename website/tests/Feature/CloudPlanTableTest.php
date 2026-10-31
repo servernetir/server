@@ -20,11 +20,13 @@ use Tests\TestCase;
 class CloudPlanTableTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Support\SeedsCatalogPricing;
 
     protected function setUp(): void
     {
         parent::setUp();
         Http::fake();
+        $this->seedCatalogPricing();
     }
 
     private function location(string $code = 'de-falkenstein', string $country = 'DE'): CloudLocation

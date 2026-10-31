@@ -42,6 +42,11 @@ class CatalogController extends Controller
             return redirect()->to(lroute('gpu'), 301);
         }
 
+        $country = \App\Services\Cloud\CloudCountry::isoForSlug($slug);
+        if ($country !== null && $category === 'vps') {
+            return app(CountryVpsController::class)->show($country);
+        }
+
         return $this->render($category, $slug);
     }
 

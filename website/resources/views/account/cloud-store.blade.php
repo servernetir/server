@@ -1,5 +1,8 @@
 @extends('panel.layout')
 @section('title', __(($gpuMode ?? false) ? 'ui.cvb_gpu_title' : 'ui.cvb_title'))
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/choice-hints.css') }}">
+@endpush
 
 {{-- «برگهٔ سرور» — سرورساز به‌شکلِ یک رسید که خودش را پر می‌کند.
 
@@ -1061,6 +1064,7 @@
   ];
 @endphp
 <script src="{{ asset_ver('assets/js/cloud-image-cards.js') }}"></script>
+<script src="{{ asset_ver('assets/js/choice-hints.js') }}" defer></script>
 <script>
 (function(){
   'use strict';

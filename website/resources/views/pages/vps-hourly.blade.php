@@ -261,6 +261,8 @@
       <p>{{ __('ui.hv_rates_d') }}</p>
     </div>
 
+    @include('partials.vps-plan-table', ['hourlyPage' => true])
+
     @if($countries || ($unavailableCountries ?? []))
       <div class="hv-filter" data-hourly-enhance hidden>
         <label for="hourly-country-search">{{ $hvUx['search'] }}<input id="hourly-country-search" type="search" autocomplete="off" aria-controls="hourly-rates-body"></label>

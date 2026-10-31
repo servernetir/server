@@ -47,6 +47,27 @@ class VpsTcSalesTest extends TestCase
             ]]];
     }
 
+    public function test_monthly_only_public_country_and_hourly_shelves_match_checkout(): void
+    {
+        $this->manifest();
+        $this->snapshot();
+        Setting::put('vpstc_sales_enabled', '1');
+        $plan = $this->plan();
+        $expected = CloudStoreController::priceForCycle($plan, 'monthly');
+        $country = $this->get('/vps/turkiye')->assertOk();
+        $rows = $country->viewData('vpsRows');
+        $this->assertCount(1, $rows);
+        $this->assertSame($expected, $rows[0]['monthly']);
+        $this->assertGreaterThan(0, $rows[0]['monthly']);
+        $this->assertSame(0, $rows[0]['hourly']);
+        $this->assertNull($rows[0]['hourly_url']);
+        $country->assertSee(cloud_price($expected))->assertDontSee('vpstc');
+        $hourly = $this->get('/vps/hourly')->assertOk();
+        $this->assertCount(1, $hourly->viewData('vpsRows'));
+        $hourly->assertSee(__('vps-catalog.monthly_only'));
+        Http::assertNothingSent();
+    }
+
     private function admin(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');

@@ -54,16 +54,29 @@ class CloudCountry
         'GB' => 'england',
     ];
 
+    /** Stable existing URLs plus one country URL for every supported geography. */
+    public static function marketingSlugs(): array
+    {
+        $slugs = self::MARKETING_SLUG;
+        foreach (CloudLocation::COUNTRIES as $iso => $labels) {
+            if ($iso !== 'XX') {
+                $slugs[$iso] ??= \Illuminate\Support\Str::slug($labels['en']);
+            }
+        }
+
+        return $slugs;
+    }
+
     /** اسلاگِ صفحهٔ بازاریابیِ این کشور، یا null اگر صفحه‌ای ندارد */
     public static function marketingSlug(string $iso): ?string
     {
-        return self::MARKETING_SLUG[strtoupper(trim($iso))] ?? null;
+        return self::marketingSlugs()[strtoupper(trim($iso))] ?? null;
     }
 
     /** کدِ کشورِ یک اسلاگِ بازاریابی */
     public static function isoForSlug(string $slug): ?string
     {
-        $iso = array_search(strtolower(trim($slug)), self::MARKETING_SLUG, true);
+        $iso = array_search(strtolower(trim($slug)), self::marketingSlugs(), true);
 
         return $iso === false ? null : $iso;
     }
