@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'svc_existing_management' => 'Mevcut hizmet yönetimi',
+    'svc_billing_terms_pending' => 'Yenileme tutarı ve dönemi kayıt incelemesinde',
+    'svc_billing_terms_required' => 'Fatura düzenlemeden önce bu hizmetin fiyatını, dönemini ve vade tarihini geçerli kayıtlardan doğrulayın.',
+    'svc_existing_no_reprovision' => 'Bu hesap zaten mevcut; bu işlemle yeniden oluşturulamaz.',
+    'svc_existing_management_notice' => 'Mevcut hesap yönetim için bağlanmıştır. Fatura ve yenileme koşulları kayıtlar incelendikten sonra bildirilecektir. Hizmeti değiştirmek veya sonlandırmak için destek talebi açın.',
     'choice_hourly' => 'Bu konumda bu plan için saatlik faturalandırma sunulmuyor.',
     'choice_cycle' => 'Seçilen plan için bu ödeme dönemi sunulmuyor.',
     'choice_image_unavailable' => 'Bu işletim sistemi veya uygulama şu anda bu plan ve konum için sunulmuyor.',

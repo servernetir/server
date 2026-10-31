@@ -68,7 +68,10 @@
       @if($s->username)
         <div class="svc-fact"><small>{{ __('ui.svc_cred_username') }}</small><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $s->username }}</b></div>
       @endif
-      @if(! $s->isHourly())
+      @if($s->hasUnverifiedBillingTerms())
+        <div class="svc-fact"><small>{{ __('ui.svc_th_amount') }}</small><b>{{ __('ui.svc_billing_terms_pending') }}</b></div>
+        <div class="svc-fact"><small>{{ __('ui.svc_th_due') }}</small><b>{{ __('ui.svc_billing_terms_pending') }}</b></div>
+      @elseif(! $s->isHourly())
         <div class="svc-fact"><small>{{ __('ui.svc_th_due') }}</small><b>{{ sdate($s->next_due_at) }}</b></div>
         <div class="svc-fact"><small>{{ __('ui.svc_th_amount') }}</small><b>{{ invoice_money($s->total(), $s->currency_code) }} <em>{{ $s->cycleLabel() }}</em></b></div>
       @endif

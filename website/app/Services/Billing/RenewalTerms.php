@@ -19,6 +19,7 @@ class RenewalTerms
     /** A date-only service remains paid through the end of its local due day. */
     public static function serviceDeadline(Service $service): ?Carbon
     {
+        if ($service->hasUnverifiedBillingTerms()) { return null; }
         return $service->next_due_at
             ? Carbon::parse($service->next_due_at->toDateString(), self::timezone())->endOfDay()->utc()
             : null;
@@ -39,7 +40,7 @@ class RenewalTerms
     {
         return DB::transaction(function () use ($service) {
             $locked = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
-            if ($locked->isInternalInfrastructure() || $locked->billing_mode === 'hourly'
+            if ($locked->hasUnverifiedBillingTerms() || $locked->isInternalInfrastructure() || $locked->billing_mode === 'hourly'
                 || ! $locked->isRecurring() || ! in_array($locked->status, ['active', 'suspended'], true)) {
                 return null;
             }
