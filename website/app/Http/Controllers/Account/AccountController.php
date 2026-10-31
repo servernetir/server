@@ -117,7 +117,7 @@ class AccountController extends Controller
             'profile'    => $profile,
             'nameLocked' => $customer->isNameLocked(),
             'docs'       => \App\Models\CustomerDocument::where('customer_profile_id', $profile->id)
-                ->latest('id')->get()->keyBy('kind'),
+                ->where('status', '!=', 'superseded')->latest('id')->get()->keyBy('kind'),
         ]);
     }
 

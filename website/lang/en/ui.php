@@ -3382,4 +3382,8 @@ return [
     'gpu_request_expired_p' => 'The required minimum balance was not available within the funding window, so this request was cancelled automatically. No wallet charge was made for this request. You can submit a new request to continue.',
     'gpu_order_expired' => 'Cancelled — funding deadline passed',
     'act_gpu_request_expired' => 'Hourly request automatically cancelled because the minimum available balance was not funded within the payment window.',
+    'receipt_evidence_label' => 'Receipt image or PDF (optional)',
+    'receipt_evidence_hint' => 'JPG, PNG or PDF; maximum 5 MB. The file remains in your customer record.',
+    'receipt_evidence_unavailable' => 'Receipt uploads are not ready. Submit without a file or contact support.',
+    'receipt_evidence_pending' => 'This invoice already has a pending receipt. The new file was not accepted; contact support to correct the receipt.',
 ];

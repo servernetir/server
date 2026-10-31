@@ -1209,6 +1209,7 @@ class CloudProvisioner
                     .($plan ? ' — '.fa_num((int) $plan->vcpu).' هسته/'.$plan->ramLabel() : '')
                     .($loc ? ' · '.$loc : '')
                     .' · '.($service->isHourly() ? 'ساعتی' : 'ماهانه')
+                    .($plan?->provider ? ' · '.(CloudManager::REAL_NAMES[$plan->provider] ?? $plan->provider) : '')
                     .($since ? ' · از '.$since->diffForHumans() : '')
                     .' — '.$why;
 
@@ -1673,6 +1674,7 @@ class CloudProvisioner
 
         try {
             app(AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
+                'زیرساخت' => CloudManager::REAL_NAMES[$plan->provider] ?? $plan->provider,
                 'تعداد پلن' => (string) $closed,
                 'علت' => mb_substr($message, 0, 200),
                 // ⚠️ بی‌این جمله، مدیر باید ۲۲۱ ردیف را تک‌تک در پنل باز کند —

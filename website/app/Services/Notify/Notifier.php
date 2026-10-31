@@ -78,6 +78,9 @@ class Notifier
                     $emoji,
                     // دکمه‌های شیشه‌ای — فقط در بله؛ ایمیل متن می‌مانَد
                     $buttons,
+                    // Only the manager's Bale policy consumes this identity;
+                    // customer templates and the legacy default stay unchanged.
+                    key: BaleManagerPolicy::enabled() ? 'event:'.$key : null,
                 );
             } catch (\Throwable $e) {
                 \App\Support\ErrorTracker::note('notify', $e, ['event' => $key, 'to' => 'admin']);

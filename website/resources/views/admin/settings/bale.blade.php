@@ -1,3 +1,17 @@
+@if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1')
+<p><a href="{{ route('admin.bale.reporting') }}" class="ad-btn">اتصال آمار بازدید و جستجو به گزارش مدیریت</a></p>
+<div class="ad-panel" style="padding:16px;margin-bottom:16px">
+  <h3>پیامک «بررسی شد»</h3>
+  <p style="color:var(--muted)">ابتدا این متن را با متغیر <b dir="ltr">%code%</b> در پنل اپراتور ثبت و تأیید کنید. سپس کد تأییدشده را وارد کنید. رله پیامک باید نسخه جدید نگاشت این رویداد را داشته باشد.</p>
+  <blockquote>درخواست شما با کد %code% توسط تیم سرورنت بررسی شد. ادامه پیگیری: servernet.cloud</blockquote>
+  <form method="post" action="{{ route('admin.bale.review-sms') }}">@csrf
+    <label>کد الگوی تأییدشده <input name="pattern_code" value="{{ \App\Models\Setting::get(\App\Services\Bale\Management\BaleLeadReview::PATTERN_SETTING) }}" maxlength="64" dir="ltr" autocomplete="off"></label>
+    <button class="ad-btn" type="submit">ذخیره</button>
+    <p style="color:var(--muted)">خالی بودن کد، پیامک این عملیات را متوقف می‌کند و علت در رسید اطلاع‌رسانی ثبت می‌شود. ایمیل جداگانه ارسال می‌شود.</p>
+  </form>
+</div>
+@endif
+
 @php
   $webhookLabel = [
     'ours'      => ['✅', 'وب‌هوک به همین سایت وصل است'],

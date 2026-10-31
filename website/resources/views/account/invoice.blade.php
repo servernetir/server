@@ -337,11 +337,15 @@
           <p class="pm-note">
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
           </p>
-          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+          <form method="POST" enctype="multipart/form-data" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
         @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             <input type="text" name="reference" required maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_ref_ph') }}" class="bank-input">
             <input type="text" name="paid_from" maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_from_ph') }}" class="bank-input">
+            @if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && \Illuminate\Support\Facades\Schema::hasColumn('bank_transfer_receipts', 'evidence_path'))
+              <label>{{ __('ui.receipt_evidence_label') }}<input type="file" name="receipt_evidence" accept="image/jpeg,image/png,application/pdf" class="bank-input"></label>
+              <small>{{ __('ui.receipt_evidence_hint') }}</small>
+            @endif
             <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
           </form>
         @endif
@@ -378,7 +382,7 @@
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
           </p>
 
-          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+          <form method="POST" enctype="multipart/form-data" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
         @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             @if($wireAccounts->count() === 1)
@@ -397,6 +401,10 @@
                    placeholder="{{ __('ui.inv_wire_amount_ph', ['cur' => $wireAccounts->pluck('currency_code')->map(fn ($c) => strtoupper($c))->unique()->implode('/')]) }}">
             <input type="text" name="paid_from" maxlength="120" dir="ltr" class="bank-input"
                    placeholder="{{ __('ui.inv_wire_from_ph') }}">
+            @if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && \Illuminate\Support\Facades\Schema::hasColumn('bank_transfer_receipts', 'evidence_path'))
+              <label>{{ __('ui.receipt_evidence_label') }}<input type="file" name="receipt_evidence" accept="image/jpeg,image/png,application/pdf" class="bank-input"></label>
+              <small>{{ __('ui.receipt_evidence_hint') }}</small>
+            @endif
             <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
           </form>
         @endif
@@ -429,7 +437,7 @@
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
           </p>
 
-          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+          <form method="POST" enctype="multipart/form-data" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
         @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             <input type="hidden" name="payment_account_id" value="{{ $acc->id }}">
@@ -440,6 +448,10 @@
                    placeholder="{{ __('ui.inv_wire_amount_ph', ['cur' => strtoupper($acc->currency_code)]) }}">
             <input type="text" name="paid_from" maxlength="120" dir="ltr" class="bank-input"
                    placeholder="{{ $acc->isCrypto() ? __('ui.inv_cy_from_ph') : __('ui.inv_wire_from_ph') }}">
+            @if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && \Illuminate\Support\Facades\Schema::hasColumn('bank_transfer_receipts', 'evidence_path'))
+              <label>{{ __('ui.receipt_evidence_label') }}<input type="file" name="receipt_evidence" accept="image/jpeg,image/png,application/pdf" class="bank-input"></label>
+              <small>{{ __('ui.receipt_evidence_hint') }}</small>
+            @endif
             <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
           </form>
         @endif

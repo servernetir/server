@@ -10,6 +10,7 @@ use App\Services\Bale\Admin\AdminBaleRouter;
 use App\Services\Dns\DomainZoneProvisioner;
 use App\Services\Finance\BusinessLedger;
 use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\BaleManagerPolicy;
 use App\Services\Notify\Notifier;
 use App\Support\ErrorTracker;
 use Illuminate\Support\Carbon;
@@ -718,6 +719,9 @@ class DomainRegistrar
     private function announce(string $event, Domain $domain, string $text): void
     {
         try {
+            if (BaleManagerPolicy::enabled() && in_array($event, ['domain_registered', 'domain_renewed'], true)) {
+                BaleManagerPolicy::clearDomainFundingAttempt($domain->domain, $this->noticeCustomer($domain));
+            }
             app(Notifier::class)->fire(
                 $event,
                 $domain->customer,
@@ -764,6 +768,8 @@ class DomainRegistrar
             'provision_error' => mb_substr($message, 0, 500),
         ])->save();
 
+        if (! $manual) { $this->earlyFundingNotice($domain, $message, 'admin.domain_register_failed', 'create'); }
+
         /*
         |----------------------------------------------------------------------
         | 🔴 پارک‌شدنِ یک دامنهٔ **پرداخت‌شده** نباید بی‌صدا باشد
@@ -797,6 +803,7 @@ class DomainRegistrar
                 app(AdminNotifier::class)->event(
                     'ثبتِ دامنه خودکار انجام نشد',
                     ['دامنه' => $domain->domain,
+                        'رجیسترار' => 'Openprovider',
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
@@ -957,6 +964,8 @@ class DomainRegistrar
             'provision_error' => mb_substr('تمدید: '.$message, 0, 300),
         ])->save();
 
+        if (! $manual) { $this->earlyFundingNotice($domain, $message, 'admin.domain_renew_failed', 'renew'); }
+
         ErrorTracker::note('provision', 'تمدیدِ دامنه ناموفق: '.$message, [
             'domain' => $domain->domain,
             'tries' => $tries,
@@ -973,6 +982,7 @@ class DomainRegistrar
                 app(AdminNotifier::class)->event(
                     'تمدیدِ دامنه خودکار انجام نشد',
                     ['دامنه' => $domain->domain,
+                        'رجیسترار' => 'Openprovider',
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
@@ -1118,6 +1128,8 @@ class DomainRegistrar
             'provision_error' => mb_substr('بازیابی: '.$message, 0, 300),
         ])->save();
 
+        if (! $manual) { $this->earlyFundingNotice($domain, $message, 'admin.domain_recover_failed', 'restore'); }
+
         ErrorTracker::note('provision', 'بازیابیِ دامنه ناموفق: '.$message, [
             'domain' => $domain->domain,
             'tries' => $tries,
@@ -1128,6 +1140,7 @@ class DomainRegistrar
                 app(AdminNotifier::class)->event(
                     'بازیابیِ دامنهٔ منقضی انجام نشد',
                     ['دامنه' => $domain->domain,
+                        'رجیسترار' => 'Openprovider',
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
@@ -1140,5 +1153,27 @@ class DomainRegistrar
         }
 
         return ['ok' => false, 'manual' => $manual, 'message' => $message];
+    }
+
+    private function noticeCustomer(Domain $domain): string
+    {
+        return trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')');
+    }
+
+    /** Notify the first paid funding failure without changing any delivery/retry state. */
+    private function earlyFundingNotice(Domain $domain, string $message, string $key, string $operation): void
+    {
+        if (! BaleManagerPolicy::enabled() || ! BaleManagerPolicy::isRegistrarFundingFailure($message)) { return; }
+        try {
+            $invoiceId = $operation === 'create' ? (int) $domain->invoice_id : (int) data_get($domain->meta, $operation.'_invoice_id');
+            if ($invoiceId <= 0 || ! \App\Models\Invoice::whereKey($invoiceId)->where('domain_id', $domain->id)
+                ->where('customer_id', $domain->customer_id)->where('status', 'paid')->exists()) { return; }
+            app(AdminNotifier::class)->baleIncident($key, \App\Support\AdminAlerts::EVENTS[$key][0], [
+                'دامنه' => $domain->domain, 'رجیسترار' => 'Openprovider', 'مشتری' => $this->noticeCustomer($domain),
+                'علت' => mb_substr($message, 0, 160),
+            ], [[['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]]);
+        } catch (\Throwable $e) {
+            ErrorTracker::note('notify', $e, ['area' => 'domain-funding-notice']);
+        }
     }
 }

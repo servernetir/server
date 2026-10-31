@@ -108,6 +108,14 @@ class NotificationTemplateSeeder extends Seeder
                 'variables' => [],
             ],
             [
+                'key' => 'lead_reviewed', 'title' => 'بررسی درخواست متقاضی توسط مدیر', 'group' => 'account',
+                'sms_event' => 'lead_reviewed',
+                'email_subject' => 'بررسی درخواست شما در سرورنت',
+                'email_body' => '<p>درخواست شما با کد <b>{code}</b> توسط تیم سرورنت بررسی شد.</p><p>ادامه پیگیری: servernet.cloud</p>',
+                'bale_body' => null,
+                'variables' => [['name' => 'code', 'desc' => 'کد پیگیری درخواست']],
+            ],
+            [
                 'key' => 'password_changed', 'title' => 'تغییر رمز عبور توسط پشتیبانی', 'group' => 'account',
                 'email_subject' => 'رمز عبور حساب شما تغییر کرد',
                 'email_body' => '<p>رمز عبور حساب سرورنت شما توسط پشتیبانی تغییر کرد.</p><p>اگر این کار را درخواست نکرده‌اید، <b>فوراً</b> با ما تماس بگیرید.</p>',
