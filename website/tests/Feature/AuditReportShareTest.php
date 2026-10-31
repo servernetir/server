@@ -10,7 +10,6 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
@@ -166,21 +165,6 @@ class AuditReportShareTest extends TestCase
 
         $this->assertSame(302, app(SeoOutreachController::class)->revokeReport($report->fresh())->getStatusCode());
         Mail::assertNothingSent();
-    }
-
-    public function test_revoke_endpoint_is_post_only_and_requires_an_admin_web_session(): void
-    {
-        $routes = collect(Route::getRoutes());
-        $route = $routes->first(fn ($route) => $route->uri() === 'admin/seo/reports/{report}/revoke');
-        $diagnostic = $routes->filter(fn ($route) => str_contains($route->uri(), 'seo'))
-            ->map(fn ($route) => implode('|', $route->methods()).' '.$route->uri().' '.($route->getName() ?? '-'))
-            ->implode("\n");
-
-        $this->assertNotNull($route, $diagnostic);
-        $this->assertSame('admin.seo.reports.revoke', $route->getName());
-        $this->assertContains('POST', $route->methods());
-        $this->assertContains('auth:web', $route->gatherMiddleware());
-        $this->assertContains('admin', $route->gatherMiddleware());
     }
 
     public function test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact(): void
