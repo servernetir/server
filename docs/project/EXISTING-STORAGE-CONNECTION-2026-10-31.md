@@ -1,0 +1,11 @@
+# Recorded connection details for an existing backup account
+
+The customer services list can display connection facts for an existing Storage Box that has been passively matched to its original local service. It keeps the service in the existing other-services section and retains its price, due date, status and payment/action controls.
+
+The single runtime change is `website/resources/views/account/partials/row-other.blade.php`. It requires a matching storage driver and server type, a positive resource identifier and a version-1 `existing_storage_binding` whose customer, service, server and box identifiers match the row. The main-account username must match the safe hostname exactly. Links are constructed only for that hostname; arbitrary panel URLs and passwords are never rendered.
+
+SFTP on port 23 and WebDAV are shown only when their recorded protocol flags and external reachability are strictly true. These are recorded connection facts, not a live health or payment claim. There is no Storage Box customer usage endpoint to reuse, so this change introduces no usage requests, SSO, password operations or provisioning behavior. Protocol/address references: [official access overview](https://docs.hetzner.com/storage/storage-box/access/access-overview/) and [SFTP on port 23](https://docs.hetzner.com/storage/storage-box/access/access-ssh-rsync-borg/).
+
+Focused synthetic fixtures in `AccountSectionsTest` cover rendering, unchanged service/invoice/manual-action records, unsafe or mismatched identity rejection, strict protocol flags and customer ownership. The existing isolated SQLite/MariaDB workflow now executes those section tests as well as its current billing/provisioning checks.
+
+Operational reconciliation is separate from this code change. Match the latest staff-delivered replacement against fresh provider evidence, attach the existing record passively and preserve unpaid invoices and pending manual lifecycle work. Never call create/adopt or reset a password merely to reconcile an already delivered account. No customer identifiers, credentials, production mutation or production acceptance are included in this report. A one-file guarded deployment must preserve live drift and invalidate only the affected compiled view.
