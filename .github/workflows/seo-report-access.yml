@@ -102,10 +102,7 @@ jobs:
               tail -n 120 /tmp/seo-report-access-phpunit.log
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
-            diagnostic=$(grep -Ei '^(There was|There were|[0-9]+\)|FAILURES!|WARNINGS!|Tests:)|warning|triggered|deprecated|exception|typeerror|assert|status code|received|not defined|does not exist|Route \[|SQLSTATE|Error:|Undefined|Call to ' /tmp/seo-report-access-phpunit.log | grep -Ev '^#[0-9]+' | head -n 40 || true)
-            if [ -z "$diagnostic" ]; then
-              diagnostic=$(tail -n 120 /tmp/seo-report-access-phpunit.log)
-            fi
+            diagnostic=$(head -n 35 /tmp/seo-report-access-phpunit.log)
             diagnostic=${diagnostic//'%'/'%25'}
             diagnostic=${diagnostic//$'\r'/'%0D'}
             diagnostic=${diagnostic//$'\n'/'%0A'}
