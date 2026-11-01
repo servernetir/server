@@ -1,0 +1,41 @@
+name: Hermes Growth read client
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'infra/hermes/growth-client-20261101/**'
+      - '.github/workflows/hermes-growth-read-client.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hermes-growth-read-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Read-only HMAC contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact revision without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up isolated PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl
+          coverage: none
+      - name: Validate the minimum-privilege client
+        run: |
+          set -euo pipefail
+          php -l infra/hermes/growth-client-20261101/HermesGrowthReadClient.php
+          php -l infra/hermes/growth-client-20261101/test.php
+          php infra/hermes/growth-client-20261101/test.php
+      - name: Record acceptance boundary
+        if: always()
+        run: echo 'Synthetic HMAC contract only; no credential, live request, VM install, customer data, send, finance or scheduler change.' >> "$GITHUB_STEP_SUMMARY"
