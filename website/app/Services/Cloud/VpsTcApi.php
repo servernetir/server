@@ -15,6 +15,7 @@ final class VpsTcApi
     private string $password;
     private ?string $token = null;
     private ?string $refresh = null;
+    private ?int $authenticationStatus = null;
 
     public function __construct(?string $origin = null, ?string $username = null, ?string $password = null)
     {
@@ -334,7 +335,7 @@ final class VpsTcApi
             return $this->failure('not_configured', 'VPS.TC credentials and an approved HTTPS API origin are required.');
         }
         if ($this->token === null && ! $this->authenticate(false)) {
-            return $this->failure('authentication_failed', 'VPS.TC authentication failed. No service operation was submitted.');
+            return $this->failure($this->authenticationFailureCode(), 'VPS.TC authentication could not complete. No service operation was submitted.');
         }
         try {
             $response = $this->request('POST', $path, $payload, true);
@@ -394,7 +395,7 @@ final class VpsTcApi
             return $this->failure('not_configured', 'VPS.TC credentials and an approved HTTPS API origin are required.');
         }
         if ($this->token === null && ! $this->authenticate(false)) {
-            return $this->failure('authentication_failed', 'VPS.TC authentication failed. Check the reseller credentials and API origin.');
+            return $this->failure($this->authenticationFailureCode(), 'VPS.TC authentication could not complete. Inspect the safe failure code before changing credentials.');
         }
         try {
             // The only POST read is the fixed /quote calculation above.
@@ -403,7 +404,7 @@ final class VpsTcApi
             // One auth recovery per read/calculation; never a business mutation.
             if ($response->status() === 401) {
                 if (! $this->authenticate(true)) {
-                    return $this->failure('authentication_failed', 'VPS.TC authentication could not be renewed.');
+                    return $this->failure($this->authenticationFailureCode(), 'VPS.TC authentication could not be renewed.');
                 }
                 $response = $this->request($method, $path, $calculation, true);
             }
@@ -437,6 +438,7 @@ final class VpsTcApi
 
     private function authenticate(bool $renew): bool
     {
+        $this->authenticationStatus = null;
         try {
             $useRefresh = $renew && $this->refresh !== null;
             $response = $this->request(
@@ -445,6 +447,7 @@ final class VpsTcApi
                 $useRefresh ? ['refresh_token' => $this->refresh] : ['username' => $this->username, 'password' => $this->password],
                 false
             );
+            $this->authenticationStatus = $response->status();
             if (! $response->successful()) {
                 $this->token = null;
 
@@ -465,6 +468,16 @@ final class VpsTcApi
 
             return false;
         }
+    }
+
+    private function authenticationFailureCode(): string
+    {
+        $status = $this->authenticationStatus;
+        if ($status === null) { return 'connection_failed'; }
+        if ($status >= 500 && $status <= 599) { return 'upstream_http_'.$status; }
+        if ($status === 429) { return 'rate_limited'; }
+        if ($status >= 300 && $status < 400) { return 'redirect_rejected'; }
+        return 'authentication_failed';
     }
 
     private function request(string $method, string $path, ?array $payload, bool $authenticated): Response
