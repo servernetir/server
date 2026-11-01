@@ -57,6 +57,7 @@ class CloudCatalogSync
                 $report[$slug] = $this->syncOne($slug, $driver);
             } catch (\Throwable $e) {
                 // یک ارائه‌دهندهٔ خراب نباید سینکِ دیگری را بخواباند
+                app(CloudPricingSnapshot::class)->excludeProvider($slug, 'supplier_cost_read_failed');
                 Log::error('cloud.sync.failed', ['provider' => $slug, 'err' => $e->getMessage()]);
 
                 $report[$slug] = [
@@ -96,6 +97,7 @@ class CloudCatalogSync
         $cat = $driver->fetchCatalog();
 
         if (! ($cat['ok'] ?? false)) {
+            app(CloudPricingSnapshot::class)->excludeProvider($provider, 'supplier_cost_read_failed');
             return [
                 'ok' => false, 'message' => (string) ($cat['message'] ?? 'کاتالوگ خوانده نشد.'),
                 'locations' => 0, 'plans' => 0, 'images' => 0,

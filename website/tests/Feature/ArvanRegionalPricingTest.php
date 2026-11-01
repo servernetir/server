@@ -150,9 +150,10 @@ class ArvanRegionalPricingTest extends TestCase
         $before = CloudPlan::orderBy('id')->get()->map->getAttributes()->all();
         Http::fake(['*/sizes' => Http::response(['message' => 'Unavailable'], 503)]);
         $this->driver();
-        try { app(CloudCatalogRepricer::class)->run(); $this->fail('Expected regional failure'); }
-        catch (\RuntimeException $e) { $this->assertStringContainsString('supplier costs', $e->getMessage()); }
-        $this->assertSame($before, CloudPlan::orderBy('id')->get()->map->getAttributes()->all());
+        app(CloudCatalogRepricer::class)->run();
+        $this->assertSame($before[0], CloudPlan::orderBy('id')->first()->getAttributes());
+        $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('arvan'));
+        $this->assertTrue(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('hetzner'));
     }
 
     public function test_an_unavailability_decision_for_another_region_is_rejected(): void
@@ -163,8 +164,8 @@ class ArvanRegionalPricingTest extends TestCase
         $driver->shouldReceive('fetchExistingPlanCosts')->once()->andReturn(['ok' => true, 'plans' => [],
             'unavailable' => [['provider_ref' => 'old', 'provider_location' => 'ir-thr-si1', 'location_code' => 'ir-shiraz']]]);
         $this->mock(CloudManager::class)->shouldReceive('driver')->with('arvan')->once()->andReturn($driver);
-        try { app(CloudCatalogRepricer::class)->run(); $this->fail('Expected identity rejection'); }
-        catch (\RuntimeException $e) { $this->assertStringContainsString('unavailable Arvan', $e->getMessage()); }
+        app(CloudCatalogRepricer::class)->run();
+        $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('arvan'));
         $this->assertTrue($old->fresh()->in_stock);
     }
 }

@@ -766,3 +766,9 @@ Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
 
 // Bounded knowledge/receipt supervision; independently paused until explicitly enabled.
 \Illuminate\Support\Facades\Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);
+
+// Infrastructure sales must be checked independently of supplier sync and digest cadence.
+Schedule::command('cloud:watch-sales')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping(2);

@@ -18,6 +18,7 @@ use Brick\Math\RoundingMode;
  */
 class VpsTcCatalog
 {
+    private ?string $lastQuoteReason = null;
     public function __construct(private VpsTcApi $api, private VpsTcPricing $pricing) {}
 
     public function fetch(): array
@@ -33,7 +34,7 @@ class VpsTcCatalog
             $quote = $this->quote((string) ($mapping['product_id'] ?? ''));
             if ($quote === null) {
                 // A partial read must not silently retire unrelated products.
-                return $empty;
+                return array_replace($empty, ['reason' => $this->lastQuoteReason ?? 'supplier_cost_read_failed']);
             }
             $code = CloudNaming::locationCode($quote['country'], $quote['city'], $quote['location_ref']);
             $locations[$code] = ['code' => $code, 'country' => $quote['country'],
@@ -59,6 +60,7 @@ class VpsTcCatalog
 
     public function quote(string $productId): ?array
     {
+        $this->lastQuoteReason = null;
         try {
             return $this->reviewedQuote($productId);
         } catch (\Throwable) {
@@ -82,6 +84,8 @@ class VpsTcCatalog
         $money = new VpsTcMoneyContract($this->api);
         $currency = $money->resolveCurrency($balance);
         if (! ($balance['ok'] ?? false) || $currency !== Setting::get('vpstc_currency')) {
+            $this->lastQuoteReason = ($balance['ok'] ?? false)
+                ? 'account_currency_unverified' : (string) ($balance['code'] ?? 'supplier_cost_read_failed');
             return null;
         }
         $form = $this->api->productOrderForm($productId);

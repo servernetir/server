@@ -81,6 +81,7 @@ class SystemHealth
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
             ['cloud_release_untracked', 'حذف‌های خارج از صف', 'untrackedCloudRelease'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
+            ['gpu_sales', 'فروش GPU', 'gpuSales'],
             ['catalogue_refresh', 'همگام‌سازی درخواستی کاتالوگ', 'catalogueRefresh'],
             ['mailboxes', 'صندوق‌های ایمیل', 'mailboxes'],
             ['content', 'صف محتوا', 'contentQueue'],
@@ -100,6 +101,16 @@ class SystemHealth
         }
 
         return $checks;
+    }
+
+    private function gpuSales(): array
+    {
+        $check = app(\App\Services\Cloud\GpuSalesHealth::class)->snapshot();
+        return $this->row('gpu_sales', $check['ok'], $check['ok'] ? 'ok' : 'fail', 'فروش GPU',
+            ! $check['enabled'] ? 'روی این نصب فعال نیست.' : ($check['ok']
+                ? 'عرضهٔ GPU با قیمت معتبر و برنامهٔ قابل سفارش موجود است.'
+                : 'هیچ GPU قابل سفارش نیست؛ snapshot قیمت، تنظیم فروش، موجودی و برنامه‌ها را بررسی کنید.'),
+            [['label' => 'کاتالوگ', 'url' => '/admin/cloud']]);
     }
 
     private function catalogueRefresh(): array
