@@ -22,7 +22,7 @@ class Drive:
             from google.oauth2 import service_account
             from google.oauth2.credentials import Credentials
             path = private_file(policy.data["google_credentials_file"])
-            if json.loads(path.read_text()).get("type") == "service_account":
+            if json.loads(path.read_text(encoding="utf-8")).get("type") == "service_account":
                 # A dedicated service account sees only explicitly shared resources;
                 # its resource ACL, plus scoped(), bounds the campaign folder.
                 credentials = service_account.Credentials.from_service_account_file(
@@ -188,7 +188,7 @@ class MediaStore:
         import boto3
         from botocore.config import Config
         conf = policy.data["media_store"]
-        credentials = json.loads(private_file(conf["credentials_file"]).read_text())
+        credentials = json.loads(private_file(conf["credentials_file"]).read_text(encoding="utf-8"))
         self.bucket = conf["bucket"]
         self.client = boto3.client("s3", endpoint_url=https_url(conf["endpoint_url"]),
                                    region_name=conf.get("region", "us-east-1"),
@@ -283,9 +283,24 @@ class Instagram:
     def verify_media(self, media_id, kind):
         # Verify the result against the account's own media edge, not an arbitrary public ID.
         edge = "stories" if kind == "STORY" else "media"
-        listing = self.call("GET", self.account["id"] + "/" + edge, fields="id", limit=50)
-        if not any(str(x.get("id")) == media_id for x in listing.get("data", [])):
-            raise Blocked("published_media_not_yet_visible_on_owner_edge")
+        media_id = self.numeric(media_id)
+        after, seen_cursors = None, set()
+        for _ in range(20):
+            params = {"fields": "id", "limit": 50}
+            if after:
+                params["after"] = after
+            listing = self.call("GET", self.account["id"] + "/" + edge, **params)
+            if any(str(x.get("id")) == media_id for x in listing.get("data", [])):
+                break
+            paging = listing.get("paging", {})
+            if not paging.get("next"):
+                raise Blocked("published_media_not_yet_visible_on_owner_edge")
+            after = paging.get("cursors", {}).get("after")
+            if not isinstance(after, str) or not after or after in seen_cursors:
+                raise Blocked("media_pagination_invalid")
+            seen_cursors.add(after)
+        else:
+            raise Blocked("media_pagination_limit_requires_operator_review")
         fields = "id,timestamp" if kind == "STORY" else "id,timestamp,permalink,caption"
         result = self.call("GET", self.numeric(media_id), fields=fields)
         if str(result.get("id")) != media_id or not result.get("timestamp"):
@@ -327,6 +342,7 @@ class Instagram:
         result = self.call("GET", self.numeric(reply_id), fields="id,text")
         if result.get("id") != reply_id or result.get("text") != text:
             raise Blocked("reply_not_verified")
+
 
 
 

@@ -157,3 +157,17 @@ Source references: [Hermes MCP configuration](https://hermes-agent.nousresearch.
 
 
 
+
+
+## Review fixes — 2026-11-01
+
+Ownership verification follows bounded opaque cursors on the account media/stories edge
+(up to 20 pages of 50 entries), so an older post can still be verified and reconciled.
+The adapter does not follow raw next URLs. Missing/repeated cursors or the page cap
+produce an explicit block; absence from the first page alone is no longer a rejection.
+All Path-based configuration, manifest and campaign text reads/writes use UTF-8
+explicitly, including the manifest compiler and bootstrap. This prevents host-locale
+corruption of Persian/Turkish approved copy on the documented Windows Python setup.
+Seven regression tests bring the local suite to 73 passing tests. Windows-like CP1252
+defaults were emulated locally; an actual Windows installation and all live API/VM127
+acceptance are still unverified. No credentials, scopes, timers or host routes changed.

@@ -48,7 +48,7 @@ class Fixture:
 
     @staticmethod
     def write(path, value):
-        path.write_text(value)
+        path.write_text(value, encoding="utf-8")
         path.chmod(0o600)
 
     def save(self):
@@ -829,10 +829,10 @@ class BootstrapTests(unittest.TestCase):
     def test_bootstrap_installs_separate_environment_without_enabling(self):
         output, environments, installs = self.run_bootstrap(apply=True)
         self.assertEqual((environments, installs), (1, 3))
-        config = json.loads((self.home / ".config/servernet-social/config.json").read_text())
+        config = json.loads((self.home / ".config/servernet-social/config.json").read_text(encoding="utf-8"))
         self.assertFalse(config["publishing_enabled"])
         self.assertFalse(config["replies_enabled"])
-        fragment = json.loads((self.home / ".config/servernet-social/hermes-mcp.json").read_text())
+        fragment = json.loads((self.home / ".config/servernet-social/hermes-mcp.json").read_text(encoding="utf-8"))
         self.assertEqual(len(fragment["mcp_servers"]["servernet_social"]["tools"]["include"]), 9)
         self.assertFalse(json.loads(output)["mcp_registered"])
         self.assertFalse((self.home / ".hermes/config.yaml").exists())
@@ -840,10 +840,10 @@ class BootstrapTests(unittest.TestCase):
     def test_bootstrap_preserves_existing_configuration(self):
         existing = self.home / ".config/servernet-social/config.json"
         existing.parent.mkdir(parents=True)
-        existing.write_text("preserve me")
+        existing.write_text("preserve me", encoding="utf-8")
         with self.assertRaisesRegex(SystemExit, "Existing installation"):
             self.run_bootstrap(apply=True)
-        self.assertEqual(existing.read_text(), "preserve me")
+        self.assertEqual(existing.read_text(encoding="utf-8"), "preserve me")
 
     @unittest.skipIf(os.name == "nt", "Unix root guard")
     def test_bootstrap_refuses_root_execution(self):
@@ -859,18 +859,18 @@ class BootstrapTests(unittest.TestCase):
         for lang in ["FA", "EN", "TR"]:
             folder = assets / "2026-10-26" / lang
             folder.mkdir(parents=True)
-            (folder / "caption.txt").write_text("Approved example")
+            (folder / "caption.txt").write_text("Approved example", encoding="utf-8")
             for name in ["post-01.png", "story-01.png", "story-02.png"]:
                 (folder / name).write_bytes(b"synthetic image content")
                 files.append({"date": "2026-10-26", "lang": lang, "name": name, "id": lang + name.replace(".", "-")})
         index = self.f.root / "index.json"
-        index.write_text(json.dumps({"files": files}))
+        index.write_text(json.dumps({"files": files}), encoding="utf-8")
         out = self.f.root / "compiled.json"
         args = ["build_manifest.py", "--drive-index", str(index), "--assets-root", str(assets),
                 "--drive-root", "root", "--out", str(out)]
         with patch.object(sys, "argv", args), patch("sys.stdout", new_callable=io.StringIO):
             runpy.run_path(str(self.source / "build_manifest.py"), run_name="__main__")
-        result = json.loads(out.read_text())
+        result = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual(len(result["jobs"]), 9)
         self.assertEqual(sum(bool(j.get("native_stickers")) for j in result["jobs"]), 6)
         self.f.manifest = result
@@ -878,8 +878,109 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(len(self.f.policy().jobs), 9)
 
 
+class MediaEdgeAndEncodingRegressionTests(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture()
+        self.addCleanup(self.f.close)
+
+    def test_older_feed_and_story_media_are_verified_on_later_pages(self):
+        for kind, edge in [("IMAGE", "media"), ("STORY", "stories")]:
+            with self.subTest(kind=kind):
+                calls = []
+                def handler(request):
+                    calls.append(request)
+                    if request.url.path.endswith("/123/" + edge):
+                        if request.url.params.get("after") == "opaque-page-two":
+                            return httpx.Response(200, json={"data": [{"id": "999"}]})
+                        return httpx.Response(200, json={"data": [{"id": "111"}], "paging": {
+                            "next": "https://untrusted.invalid/never-follow", "cursors": {"after": "opaque-page-two"}}})
+                    return httpx.Response(200, json={"id": "999", "timestamp": NOW.isoformat(),
+                        "permalink": "https://www.instagram.com/p/owned/", "caption": "Approved example"})
+                api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+                self.assertEqual(api.verify_media("999", kind)["id"], "999")
+                self.assertEqual(len(calls), 3)
+                self.assertTrue(all(r.url.host != "untrusted.invalid" for r in calls))
+
+    def test_media_missing_cursor_is_blocked(self):
+        def handler(request):
+            return httpx.Response(200, json={"data": [], "paging": {"next": "untrusted"}})
+        api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+        with self.assertRaisesRegex(Blocked, "media_pagination_invalid"):
+            api.verify_media("999", "IMAGE")
+
+    def test_media_repeated_cursor_is_blocked(self):
+        def handler(request):
+            return httpx.Response(200, json={"data": [], "paging": {"next": "untrusted", "cursors": {"after": "same"}}})
+        api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+        with self.assertRaisesRegex(Blocked, "media_pagination_invalid"):
+            api.verify_media("999", "IMAGE")
+
+    def test_media_page_cap_requires_review(self):
+        calls = []
+        def handler(request):
+            calls.append(request)
+            return httpx.Response(200, json={"data": [], "paging": {"next": "untrusted", "cursors": {"after": str(len(calls))}}})
+        api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+        with self.assertRaisesRegex(Blocked, "media_pagination_limit"):
+            api.verify_media("999", "IMAGE")
+        self.assertEqual(len(calls), 20)
+
+    def test_unowned_media_is_not_accepted_by_direct_id(self):
+        paths = []
+        def handler(request):
+            paths.append(request.url.path)
+            return httpx.Response(200, json={"data": [{"id": "111"}]})
+        api = Instagram(self.f.policy(), "EN", httpx.Client(transport=httpx.MockTransport(handler)))
+        with self.assertRaisesRegex(Blocked, "not_yet_visible_on_owner_edge"):
+            api.verify_media("999", "IMAGE")
+        self.assertEqual(len(paths), 1)
+
+    @staticmethod
+    def emulate_cp1252_open():
+        from unittest.mock import patch
+        original = Path.open
+        def opened(path, mode="r", buffering=-1, encoding=None, errors=None, newline=None):
+            if "b" not in mode and encoding in (None, "locale"):
+                encoding = "cp1252"
+            return original(path, mode, buffering, encoding, errors, newline)
+        return patch.object(Path, "open", opened)
+
+    def test_policy_preserves_unicode_with_windows_like_default_encoding(self):
+        self.f.job["caption"] = "سلام / Türkçe / ıİşğ"
+        self.f.job["assets"][0]["alt"] = "نمونه / açıklama"
+        self.f.save()
+        with self.emulate_cp1252_open():
+            policy = self.f.policy()
+            self.assertEqual(policy.job(self.f.job["key"])["caption"], self.f.job["caption"])
+            self.assertEqual(policy.job(self.f.job["key"])["assets"][0]["alt"], self.f.job["assets"][0]["alt"])
+            policy.enabled()
+
+    def test_manifest_compiler_roundtrips_utf8_under_non_utf8_default(self):
+        import runpy
+        from unittest.mock import patch
+        assets = self.f.root / "unicode-assets"
+        files = []
+        captions = {"FA": "سلام؛ نمونه فارسی", "EN": "Sample caption", "TR": "Türkçe: ıİşğ"}
+        for lang, caption in captions.items():
+            folder = assets / "2026-11-07" / lang
+            folder.mkdir(parents=True)
+            (folder / "caption.txt").write_bytes(caption.encode("utf-8"))
+            (folder / "post-01.png").write_bytes(b"synthetic")
+            files.append({"date": "2026-11-07", "lang": lang, "name": "post-01.png", "id": lang})
+        index = self.f.root / "unicode-index.json"
+        index.write_bytes(json.dumps({"files": files}, ensure_ascii=False).encode("utf-8"))
+        out = self.f.root / "utf8-compiled.json"
+        source = Path(__file__).resolve().parents[1] / "build_manifest.py"
+        args = [str(source), "--drive-index", str(index), "--assets-root", str(assets), "--drive-root", "root", "--out", str(out)]
+        with self.emulate_cp1252_open(), patch.object(sys, "argv", args), patch("sys.stdout", new_callable=io.StringIO):
+            runpy.run_path(str(source), run_name="__main__")
+        compiled = json.loads(out.read_bytes().decode("utf-8"))
+        self.assertEqual({j["lang"]: j["caption"] for j in compiled["jobs"]}, captions)
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

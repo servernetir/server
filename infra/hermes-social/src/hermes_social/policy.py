@@ -48,7 +48,7 @@ def private_file(path: str | Path) -> Path:
 
 
 def secret(path: str) -> str:
-    value = private_file(path).read_text().strip()
+    value = private_file(path).read_text(encoding="utf-8").strip()
     if not value or "\n" in value:
         raise Blocked("invalid_secret_file")
     return value
@@ -64,14 +64,14 @@ def https_url(value: str) -> str:
 class Policy:
     def __init__(self, path: str | Path):
         self.path = private_file(path)
-        self.data = json.loads(self.path.read_text())
+        self.data = json.loads(self.path.read_text(encoding="utf-8"))
         self.root = identifier(self.data["drive_root_folder_id"])
         self.state = Path(self.data["state_dir"]).expanduser().resolve()
         self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
         if os.name != "nt" and self.state.stat().st_mode & 0o077:
             raise Blocked("state_directory_permissions_must_be_0700")
         self.manifest_path = private_file(self.data["manifest_path"])
-        manifest = json.loads(self.manifest_path.read_text())
+        manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
         if manifest.get("schema_version") != 1 or manifest.get("drive_root_folder_id") != self.root:
             raise Blocked("manifest_scope_mismatch")
         identifier(manifest["campaign_id"])
@@ -117,7 +117,7 @@ class Policy:
 
     def enabled(self, *, replies=False):
         # Re-read the owner's config and pause file before every external mutation.
-        current = json.loads(private_file(self.path).read_text())
+        current = json.loads(private_file(self.path).read_text(encoding="utf-8"))
         flag = "replies_enabled" if replies else "publishing_enabled"
         if current.get(flag) is not True or (self.state / "PAUSED").exists():
             raise Blocked("executor_paused")
@@ -137,4 +137,5 @@ class Policy:
         if not isinstance(account.get("id"), str) or not account["id"].isdigit():
             raise Blocked("instagram_numeric_id_required")
         return account
+
 

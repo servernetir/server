@@ -13,7 +13,7 @@ parser.add_argument("--drive-root", required=True)
 parser.add_argument("--campaign-data", help="Optional reviewed page copy for descriptive image alt text")
 parser.add_argument("--out", required=True)
 args = parser.parse_args()
-index = json.loads(Path(args.drive_index).read_text())
+index = json.loads(Path(args.drive_index).read_text(encoding="utf-8"))
 assets = Path(args.assets_root).resolve()
 out = Path(args.out).resolve()
 if out.exists():
@@ -21,7 +21,7 @@ if out.exists():
 mapping = {(x["date"], x["lang"], x["name"]): x["id"] for x in index["files"]}
 copy_by_date = {}
 if args.campaign_data:
-    copy_by_date = {x["date"]: x for x in json.loads(Path(args.campaign_data).read_text())["data"]}
+    copy_by_date = {x["date"]: x for x in json.loads(Path(args.campaign_data).read_text(encoding="utf-8"))["data"]}
 accounts = {"FA": ("servernet.ir", "Asia/Tehran", "20:30"),
             "EN": ("servernet.cloud", "Europe/Berlin", "17:30"),
             "TR": ("servernet.tr", "Asia/Istanbul", "20:00")}
@@ -48,7 +48,7 @@ for day in sorted(assets.iterdir()):
         base = {"key": "sn-" + day.name + "-" + lang.lower() + "-feed",
                 "lang": lang, "username": username, "kind": "CAROUSEL" if len(images) > 1 else "IMAGE",
                 "publish_at": start.isoformat(), "expires_at": (start.astimezone(timezone.utc) + timedelta(hours=24)).isoformat(),
-                "caption": (folder / "caption.txt").read_text().strip(), "assets": images}
+                "caption": (folder / "caption.txt").read_text(encoding="utf-8").strip(), "assets": images}
         jobs.append(base)
         for number, path in enumerate(sorted(folder.glob("story-*.png"))):
             when = start + timedelta(minutes=-45 if number == 0 else 30)
@@ -60,8 +60,9 @@ result = {"schema_version": 1, "campaign_id": "sn_social_20261026", "drive_root_
           "authority_reference": "Owner's explicit ServerNet social campaign request, 2026-10-26",
           "jobs": jobs}
 out.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-out.write_text(json.dumps(result, ensure_ascii=False, indent=2))
+out.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
 out.chmod(0o600)
 print(json.dumps({"jobs": len(jobs), "feed_jobs": sum(x["kind"] != "STORY" for x in jobs),
                   "native_story_jobs": sum(x["kind"] == "STORY" for x in jobs),
                   "sha256": hashlib.sha256(out.read_bytes()).hexdigest()}))
+
