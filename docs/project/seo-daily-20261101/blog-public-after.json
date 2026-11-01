@@ -1,0 +1,775 @@
+{
+  "phase": "after",
+  "observed_at_utc": "2026-11-01T06:57:53.6956257Z",
+  "completed_at_utc": "2026-11-01T06:57:57.0756379Z",
+  "request_count": 6,
+  "scope": "Exactly six anonymous HttpClient GETs with UseCookies=false, no redirects/retries. No browser/account/purchase/API mutation. CSRF/forms/comments/header identity and raw HTML are excluded.",
+  "pages": [
+    {
+      "locale": "fa",
+      "kind": "listing",
+      "url": "https://servernet.cloud/blog",
+      "checked_url": "https://servernet.cloud/blog?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.846,
+      "html_bytes": 139496,
+      "canonical_self": true,
+      "stable": {
+        "title": "بلاگ — سرورنت کلاود",
+        "h1": [
+          "دانش، آموزش و اخبار فناوری"
+        ],
+        "meta_description": [
+          "بلاگ سرورنت: مقالات و آموزش‌های تخصصی هاستینگ، سرور ابری، امنیت، سئو و کسب‌وکار آنلاین."
+        ],
+        "canonical": [
+          "https://servernet.cloud/blog"
+        ],
+        "hreflang": [
+          {
+            "locale": "fa",
+            "url": "https://servernet.cloud/blog"
+          },
+          {
+            "locale": "en",
+            "url": "https://servernet.cloud/en/blog"
+          },
+          {
+            "locale": "tr",
+            "url": "https://servernet.cloud/tr/blog"
+          },
+          {
+            "locale": "x-default",
+            "url": "https://servernet.cloud/blog"
+          }
+        ],
+        "robots_meta": [],
+        "json_ld_count": 2,
+        "json_ld_valid_count": 2,
+        "json_ld_error_count": 0,
+        "json_ld_types": [
+          "Organization",
+          "WebSite"
+        ],
+        "json_ld_signature": "8259e824aa09ac48592e8bb7f591ae386cbbdd9bf7142582ae3b789339136a45",
+        "visible_article_body_present": false,
+        "article_body_sha256": null,
+        "article_body_text_sha256": null,
+        "article_body_bytes": 0,
+        "article_metadata": {
+          "lead_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "byline_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cover_markup_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cover_has_image": false,
+          "cover_src": "",
+          "cover_priority": "",
+          "cover_decoding": ""
+        },
+        "article_body_public_link_paths": [],
+        "article_card_links": [
+          {
+            "url": "https://servernet.cloud/blog/cron-jobs-that-actually-run",
+            "title": "کرون جاب اجرا نمی‌شود؟ این ۷ دلیل واقعی را چک کنید",
+            "card_markup_sha256": "440d837a38720e450eddf78d66ab573833b9ecd6c061461ac6b45590a3b0894a"
+          },
+          {
+            "url": "https://servernet.cloud/blog/systemd-service-basics",
+            "title": "سرویس systemd برای اپ شما: از unit تا ری‌استارت خودکار",
+            "card_markup_sha256": "bb610b093c7b02e82fefe42d770c025461d32eaf5e13ce38c20e227c93ecbfe4"
+          },
+          {
+            "url": "https://servernet.cloud/blog/memory-usage-linux-truth",
+            "title": "چرا free می‌گوید حافظه پر است؟ مصرف رم لینوکس",
+            "card_markup_sha256": "818d17ce934bd1c52a96629b68f55cb8a51d286a3ac6925e50801b7ce9c60a0f"
+          },
+          {
+            "url": "https://servernet.cloud/blog/understanding-load-average",
+            "title": "load average چیست و چه عددی روی سرور خطرناک است؟",
+            "card_markup_sha256": "8173c638158f23f480929c243c66650ee47c54e52a53a55ba934be4e3a20c951"
+          },
+          {
+            "url": "https://servernet.cloud/blog/finding-what-fills-disk",
+            "title": "دیسک پر سرور: پیدا کردن مقصر و آزادسازی فضا",
+            "card_markup_sha256": "08ab36a061f82a634e22db56e32b5560e109e1ecfe0b2c6b0c6fc1162b76ba7e"
+          },
+          {
+            "url": "https://servernet.cloud/blog/linux-commands-for-web-admins",
+            "title": "دستورات لینوکس برای عیب‌یابی سرور وب",
+            "card_markup_sha256": "0fe7d0aa1a14b18222db31989c93aa4e64a331d6b4626cedc4f16b82e1499754"
+          },
+          {
+            "url": "https://servernet.cloud/blog/vulnerability-scanning-basics",
+            "title": "اسکن آسیب پذیری سایت: از خروجی خام تا تصمیم درست",
+            "card_markup_sha256": "045ed6d23b234b908284136f3cb7c5411078e4c3967fdf8083a5a2406c93bda5"
+          },
+          {
+            "url": "https://servernet.cloud/blog/rate-limiting-and-bot-defense",
+            "title": "محدودیت نرخ: دفاع هوشمند در برابر ربات‌ها",
+            "card_markup_sha256": "bd2930e87ade3ebef85c1823130409edee3ec0920fc83301bedf3f048caca8db"
+          },
+          {
+            "url": "https://servernet.cloud/blog/security-headers-guide",
+            "title": "هدر امنیتی: CSP و HSTS و بقیه که سایت را می‌بندند",
+            "card_markup_sha256": "af1ecb405822137e2b234a6fbfa83320672e4e13715090a15ff1a6c69dfd6d32"
+          }
+        ],
+        "font_asset_markers": [
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          },
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          }
+        ],
+        "iransans_reference": true
+      },
+      "semantic_signature": "d30b18f62b2583b75124ab440e80c2a6af27907ff33babb2e0f3afc0ebf0c806"
+    },
+    {
+      "locale": "fa",
+      "kind": "article",
+      "url": "https://servernet.cloud/blog/php-version-upgrade-guide",
+      "checked_url": "https://servernet.cloud/blog/php-version-upgrade-guide?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.335,
+      "html_bytes": 152328,
+      "canonical_self": true,
+      "stable": {
+        "title": "ارتقای PHP بدون شکستن سایت: راهنمای گام‌به‌گام برای مدیران وب — سرورنت کلاود",
+        "h1": [
+          "ارتقای PHP بدون شکستن سایت: راهنمای گام‌به‌گام برای مدیران وب"
+        ],
+        "meta_description": [
+          "PHP را با بررسی سازگاری، تست محیط جدا، بازیابی بکاپ و کنترل وب و Workerها ارتقا دهید؛ همراه منابع رسمی و چک‌لیست خطاهای رایج."
+        ],
+        "canonical": [
+          "https://servernet.cloud/blog/php-version-upgrade-guide"
+        ],
+        "hreflang": [
+          {
+            "locale": "fa",
+            "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "en",
+            "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "tr",
+            "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "x-default",
+            "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+          }
+        ],
+        "robots_meta": [],
+        "json_ld_count": 3,
+        "json_ld_valid_count": 3,
+        "json_ld_error_count": 0,
+        "json_ld_types": [
+          "BlogPosting",
+          "Organization",
+          "WebSite"
+        ],
+        "json_ld_signature": "abc8d36b7f7ca17431e62b9a05330e608e090bee734b6995e8bef5e55236cab6",
+        "visible_article_body_present": true,
+        "article_body_sha256": "e3f859ed7d4e4393b613b47bf263c82ce0514548ea29a4622cb74f8b2a16cd80",
+        "article_body_text_sha256": "8288aa1fb4629bd8cba37ce2a56db09532ac74dd53b8f323226037b657549055",
+        "article_body_bytes": 13324,
+        "article_metadata": {
+          "lead_sha256": "b951ebaf31fe508032c94cd7e75d10814c08e8d327e625a9fa0c5bd37227e2ea",
+          "byline_sha256": "0f9520c2afdd1815f4bab546b2c865cd2352ba7de03b36a0cb11d620dcfcde2a",
+          "cover_markup_sha256": "1b4f107bc6811f5141d2dfeb6aa0cfb1a6e8821788fd696316061d0207927106",
+          "cover_has_image": false,
+          "cover_src": "",
+          "cover_priority": "",
+          "cover_decoding": ""
+        },
+        "article_body_public_link_paths": [
+          "https://www.php.net/supported-versions.php",
+          "https://www.php.net/eol.php",
+          "https://www.php.net/manual/en/migration84.php",
+          "https://www.php.net/manual/en/migration85.php",
+          "https://github.com/PHPCompatibility/PHPCompatibility",
+          "https://getcomposer.org/doc/01-basic-usage.md",
+          "https://getcomposer.org/doc/03-cli.md",
+          "https://servernet.cloud/vps/hourly",
+          "https://docs.cpanel.net/cpanel/software/multiphp-manager-for-cpanel/",
+          "https://servernet.cloud/hosting/linux"
+        ],
+        "article_card_links": [
+          {
+            "url": "https://servernet.cloud/blog/staging-environment-setup",
+            "title": "راهنمای کامل ساخت محیط استیجینگ برای سایت (Staging Environment)",
+            "card_markup_sha256": "3e332a034251e5d5f9fa5624ad976e584a59152ec7ac7051d166e1e3cf7df247"
+          },
+          {
+            "url": "https://servernet.cloud/blog/reduce-server-response-time",
+            "title": "کاهش TTFB: راهنمای عملی برای بهبود زمان پاسخ سرور",
+            "card_markup_sha256": "9217993748c710f8552d02a4dd589ab29fdc7a1c5fdbb1d0105c780d5dc6965f"
+          },
+          {
+            "url": "https://servernet.cloud/blog/sql-injection-prevention",
+            "title": "تزریق SQL چیست و چرا کوئری پارامتری تنها راه نجات است؟",
+            "card_markup_sha256": "44ac44d2a9ccd14c06c517a2996b1bc0cafd299ba4871002b9d400c23b2bdbf4"
+          }
+        ],
+        "font_asset_markers": [
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          },
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          }
+        ],
+        "iransans_reference": true
+      },
+      "semantic_signature": "32603660625da7a502ee91296d80ce948c26e632b919f377baa5d05e8cd7579b"
+    },
+    {
+      "locale": "en",
+      "kind": "listing",
+      "url": "https://servernet.cloud/en/blog",
+      "checked_url": "https://servernet.cloud/en/blog?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.5,
+      "html_bytes": 131653,
+      "canonical_self": true,
+      "stable": {
+        "title": "Blog — ServerNet Cloud",
+        "h1": [
+          "Knowledge, tutorials & tech news"
+        ],
+        "meta_description": [
+          "The ServerNet blog: expert articles and tutorials on hosting, cloud servers, security, SEO and online business."
+        ],
+        "canonical": [
+          "https://servernet.cloud/en/blog"
+        ],
+        "hreflang": [
+          {
+            "locale": "fa",
+            "url": "https://servernet.cloud/blog"
+          },
+          {
+            "locale": "en",
+            "url": "https://servernet.cloud/en/blog"
+          },
+          {
+            "locale": "tr",
+            "url": "https://servernet.cloud/tr/blog"
+          },
+          {
+            "locale": "x-default",
+            "url": "https://servernet.cloud/blog"
+          }
+        ],
+        "robots_meta": [],
+        "json_ld_count": 2,
+        "json_ld_valid_count": 2,
+        "json_ld_error_count": 0,
+        "json_ld_types": [
+          "Organization",
+          "WebSite"
+        ],
+        "json_ld_signature": "df34b4d8632546915c085a452c89b0c86933a19ffa9d9685debe5625bd1d29fd",
+        "visible_article_body_present": false,
+        "article_body_sha256": null,
+        "article_body_text_sha256": null,
+        "article_body_bytes": 0,
+        "article_metadata": {
+          "lead_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "byline_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cover_markup_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cover_has_image": false,
+          "cover_src": "",
+          "cover_priority": "",
+          "cover_decoding": ""
+        },
+        "article_body_public_link_paths": [],
+        "article_card_links": [
+          {
+            "url": "https://servernet.cloud/en/blog/cron-jobs-that-actually-run",
+            "title": "Cron Job Not Running? Check These 7 Real Reasons",
+            "card_markup_sha256": "86db1d981e4d9c736c8ed0cc102dcb80063db0521d76441246da72d26e5a390c"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/systemd-service-basics",
+            "title": "systemd Service for Your App: From Unit to Automatic Restart",
+            "card_markup_sha256": "c1135ea6fe0263dcaa1fabdbfd09b486e2abe5c1d82484ccf7c75d1ebc07e15d"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/memory-usage-linux-truth",
+            "title": "Why does free say memory is full? Linux RAM usage",
+            "card_markup_sha256": "6299d404176ddffd8b2feefda4b28f5936f86fdc136004e5744e64b8a51dd6c7"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/understanding-load-average",
+            "title": "What Is Load Average and What Number Is Dangerous on a Server?",
+            "card_markup_sha256": "f7ee3ff7f609bc6611f0fe3b334c78f835b442c9629082ec53fd330f52043a6c"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/finding-what-fills-disk",
+            "title": "Full Server Disk: Find the Culprit and Free Up Space",
+            "card_markup_sha256": "894d967cf517e65e9a28ddfccdfaeee2ee7a0eb41c69ca9f510c798eb094739d"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/linux-commands-for-web-admins",
+            "title": "Linux Commands for Troubleshooting a Web Server",
+            "card_markup_sha256": "707e6c2526a739d85a0a7473e5191370e7bc7dcced2dfe345e38342f8819ca35"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/vulnerability-scanning-basics",
+            "title": "Website Vulnerability Scanning: From Raw Output to the Right Decision",
+            "card_markup_sha256": "64933d25d6c997b0d06e51a4a4ad0b949130c78253e75873273d5f57c62bd9aa"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/rate-limiting-and-bot-defense",
+            "title": "Rate Limiting: Smart Defense Against Bots",
+            "card_markup_sha256": "016489e9bfb36c06fcd968d34271ab73cb5ae054c4c302e087f8dad7e95c349b"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/security-headers-guide",
+            "title": "Security Headers: CSP, HSTS, and the Rest That Lock Down Your Site",
+            "card_markup_sha256": "65d10cbb1a182437890ab2a846263b5ca341d6313bdbe4d2b1fe9fa249cbd2cf"
+          }
+        ],
+        "font_asset_markers": [
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          },
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          }
+        ],
+        "iransans_reference": true
+      },
+      "semantic_signature": "690236e04d44f96ecec7b3dd0f93c69cbfe2089e7346560bf65aa2f84f68aedb"
+    },
+    {
+      "locale": "en",
+      "kind": "article",
+      "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "checked_url": "https://servernet.cloud/en/blog/php-version-upgrade-guide?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.372,
+      "html_bytes": 138971,
+      "canonical_self": true,
+      "stable": {
+        "title": "Upgrading your PHP version without breaking the site — ServerNet Cloud",
+        "h1": [
+          "Upgrading your PHP version without breaking the site"
+        ],
+        "meta_description": [
+          "Plan a PHP upgrade with supported versions, compatibility checks, an isolated staging environment, restore testing and a controlled production switch."
+        ],
+        "canonical": [
+          "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+        ],
+        "hreflang": [
+          {
+            "locale": "fa",
+            "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "en",
+            "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "tr",
+            "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "x-default",
+            "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+          }
+        ],
+        "robots_meta": [],
+        "json_ld_count": 3,
+        "json_ld_valid_count": 3,
+        "json_ld_error_count": 0,
+        "json_ld_types": [
+          "BlogPosting",
+          "Organization",
+          "WebSite"
+        ],
+        "json_ld_signature": "a29c87dbf39f2754e41bf5d3eec55d42e2cc066424bf1c4bad6de7e0c9222a73",
+        "visible_article_body_present": true,
+        "article_body_sha256": "2aa01ef5fc086ba42df348bdc58315dcbf4a274ea1a5446f062e4023f0d94e64",
+        "article_body_text_sha256": "bf2443fe1e03ea5e2e3b9d7d1404f49d902c483445dcbd8e54ab06b0776c696e",
+        "article_body_bytes": 9102,
+        "article_metadata": {
+          "lead_sha256": "2aadb10231df13b187f8f2dc5f7b5347cce234f6f758537061bbb071cb01b027",
+          "byline_sha256": "6c7e415e9bf604306006cefca91c96e5ac7a1fee0f65a6f95691f51ddaab0cd8",
+          "cover_markup_sha256": "e0e622a551a253f1c47d1d8ff4db54db223ccd8bfa3cee45b09cb44128bc21c1",
+          "cover_has_image": false,
+          "cover_src": "",
+          "cover_priority": "",
+          "cover_decoding": ""
+        },
+        "article_body_public_link_paths": [
+          "https://www.php.net/supported-versions.php",
+          "https://www.php.net/eol.php",
+          "https://www.php.net/manual/en/migration84.php",
+          "https://www.php.net/manual/en/migration85.php",
+          "https://github.com/PHPCompatibility/PHPCompatibility",
+          "https://getcomposer.org/doc/01-basic-usage.md",
+          "https://getcomposer.org/doc/03-cli.md",
+          "https://servernet.cloud/en/vps/hourly",
+          "https://docs.cpanel.net/cpanel/software/multiphp-manager-for-cpanel/",
+          "https://servernet.cloud/en/hosting/linux"
+        ],
+        "article_card_links": [
+          {
+            "url": "https://servernet.cloud/en/blog/reading-server-error-logs",
+            "title": "Server Error Log: Finding Errors Without Getting Lost",
+            "card_markup_sha256": "8372bf95276982a30edf7ecd7ef013ceaac7dc4618c0182b6a178b3a92ac5628"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/connection-timed-out-diagnosis",
+            "title": "Diagnosing Connection Timed Out: Network or Server?",
+            "card_markup_sha256": "a68df45ef9e92bb9215243ff91150a4f0e66aebbe413acee8010669674c95d2e"
+          },
+          {
+            "url": "https://servernet.cloud/en/blog/staging-environment-setup",
+            "title": "Setting up a staging environment for your site",
+            "card_markup_sha256": "da0b6a9b0c75ccbc91679279bd42220dbecbae6ace7e571796f27398b77ed14b"
+          }
+        ],
+        "font_asset_markers": [
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          },
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          }
+        ],
+        "iransans_reference": true
+      },
+      "semantic_signature": "1846bc5873dfd97b55f49c801128e22f7eeb72a50b68b4a1b76b63bec429396a"
+    },
+    {
+      "locale": "tr",
+      "kind": "listing",
+      "url": "https://servernet.cloud/tr/blog",
+      "checked_url": "https://servernet.cloud/tr/blog?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.363,
+      "html_bytes": 132592,
+      "canonical_self": true,
+      "stable": {
+        "title": "Blog — ServerNet Cloud",
+        "h1": [
+          "Bilgi, eğitim ve teknoloji haberleri"
+        ],
+        "meta_description": [
+          "ServerNet blog: hosting, bulut sunucu, güvenlik, SEO ve online iş üzerine uzman makaleler ve eğitimler."
+        ],
+        "canonical": [
+          "https://servernet.cloud/tr/blog"
+        ],
+        "hreflang": [
+          {
+            "locale": "fa",
+            "url": "https://servernet.cloud/blog"
+          },
+          {
+            "locale": "en",
+            "url": "https://servernet.cloud/en/blog"
+          },
+          {
+            "locale": "tr",
+            "url": "https://servernet.cloud/tr/blog"
+          },
+          {
+            "locale": "x-default",
+            "url": "https://servernet.cloud/blog"
+          }
+        ],
+        "robots_meta": [],
+        "json_ld_count": 2,
+        "json_ld_valid_count": 2,
+        "json_ld_error_count": 0,
+        "json_ld_types": [
+          "Organization",
+          "WebSite"
+        ],
+        "json_ld_signature": "df34b4d8632546915c085a452c89b0c86933a19ffa9d9685debe5625bd1d29fd",
+        "visible_article_body_present": false,
+        "article_body_sha256": null,
+        "article_body_text_sha256": null,
+        "article_body_bytes": 0,
+        "article_metadata": {
+          "lead_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "byline_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cover_markup_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "cover_has_image": false,
+          "cover_src": "",
+          "cover_priority": "",
+          "cover_decoding": ""
+        },
+        "article_body_public_link_paths": [],
+        "article_card_links": [
+          {
+            "url": "https://servernet.cloud/tr/blog/cron-jobs-that-actually-run",
+            "title": "Cron job çalışmıyor mu? Bu 7 gerçek nedeni kontrol edin",
+            "card_markup_sha256": "4e2bcbd0f2d490bacbccfed19c98bb4b9ef24a68c78e80a1ac645fd2c8c141ac"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/systemd-service-basics",
+            "title": "Uygulamanız için systemd servisi: unit'ten otomatik yeniden başlatmaya",
+            "card_markup_sha256": "56aa6a4b2d25250f097234da145fbad466ef674a5c5b431bd3d20207bb5b8262"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/memory-usage-linux-truth",
+            "title": "free neden belleğin dolu olduğunu söylüyor? Linux RAM kullanımı",
+            "card_markup_sha256": "16448e06499c3ca0e21a33fd91c27b6d4c63804d8f231454bce7c28a69622588"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/understanding-load-average",
+            "title": "load average nedir ve sunucuda hangi değer tehlikelidir?",
+            "card_markup_sha256": "ab015899d969aefec76db5ed52fd9fecd78905edaea1fa4264c0080ee0fbcf04"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/finding-what-fills-disk",
+            "title": "Sunucuda disk doldu: Suçluyu bulma ve alan boşaltma",
+            "card_markup_sha256": "b0cc1d8758b88cc3af40310b3bdc4007f28cc405b85666718a6d60e64bd5b432"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/linux-commands-for-web-admins",
+            "title": "Web sunucusu sorun giderme için Linux komutları",
+            "card_markup_sha256": "0c730c0a5762792168c852cf9e3178054b1870cc81809473a189d3295c5e8545"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/vulnerability-scanning-basics",
+            "title": "Web sitesi güvenlik açığı taraması: ham çıktıdan doğru karara",
+            "card_markup_sha256": "481ee5d01563866183640e77bce4325eae5930b28c26e4e97ea27cd0e5451b6a"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/rate-limiting-and-bot-defense",
+            "title": "Hız Sınırlama: Botlara Karşı Akıllı Savunma",
+            "card_markup_sha256": "eca948f599784eb6b43e8e47933533302074be058e555fd8895f40cb267226c1"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/security-headers-guide",
+            "title": "Güvenlik Başlıkları: CSP, HSTS ve Siteyi Kapatan Diğerleri",
+            "card_markup_sha256": "028dab202145d7d2e39786c3ad9c2e81f32961741b43aa48e27a6cd74dcf26b3"
+          }
+        ],
+        "font_asset_markers": [
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          },
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          }
+        ],
+        "iransans_reference": true
+      },
+      "semantic_signature": "e9ffc39fb992b22d2fc9d91034ce25a5ccda4b0fd0ffd9b84fde3cb0a83ee638"
+    },
+    {
+      "locale": "tr",
+      "kind": "article",
+      "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+      "checked_url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.382,
+      "html_bytes": 140068,
+      "canonical_self": true,
+      "stable": {
+        "title": "Siteyi bozmadan PHP sürümünü yükseltme — ServerNet Cloud",
+        "h1": [
+          "Siteyi bozmadan PHP sürümünü yükseltme"
+        ],
+        "meta_description": [
+          "Desteklenen PHP sürümünü seçin; uyumluluk, staging, yedekten dönüş ve web/worker kontrolleriyle üretim geçişini planlayın."
+        ],
+        "canonical": [
+          "https://servernet.cloud/tr/blog/php-version-upgrade-guide"
+        ],
+        "hreflang": [
+          {
+            "locale": "fa",
+            "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "en",
+            "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "tr",
+            "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide"
+          },
+          {
+            "locale": "x-default",
+            "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+          }
+        ],
+        "robots_meta": [],
+        "json_ld_count": 3,
+        "json_ld_valid_count": 3,
+        "json_ld_error_count": 0,
+        "json_ld_types": [
+          "BlogPosting",
+          "Organization",
+          "WebSite"
+        ],
+        "json_ld_signature": "0beec8e90c793a14435218c65c41dbda8c51bf263b3363f1fb06242ae4045541",
+        "visible_article_body_present": true,
+        "article_body_sha256": "c850dcc2a90ad42487c444a53c800e1164543c05f0baa0964feae6d258c75f15",
+        "article_body_text_sha256": "591f24864a297231591a9d610abeef1ef06a6a76ad552361592263320e6be671",
+        "article_body_bytes": 9550,
+        "article_metadata": {
+          "lead_sha256": "2d3e278e5d40f330138e7141553f34e070093b694db9aaf0522c73014e4da5bc",
+          "byline_sha256": "f08408699b0b23a54e5c7954dae0dc89dddf980d53f842206bfad095f4a51306",
+          "cover_markup_sha256": "9e79e24784f1d184ea17abad47beb1e9d1c596c91a2fb1e7d4012245b4c44510",
+          "cover_has_image": false,
+          "cover_src": "",
+          "cover_priority": "",
+          "cover_decoding": ""
+        },
+        "article_body_public_link_paths": [
+          "https://www.php.net/supported-versions.php",
+          "https://www.php.net/eol.php",
+          "https://www.php.net/manual/en/migration84.php",
+          "https://www.php.net/manual/en/migration85.php",
+          "https://github.com/PHPCompatibility/PHPCompatibility",
+          "https://getcomposer.org/doc/01-basic-usage.md",
+          "https://getcomposer.org/doc/03-cli.md",
+          "https://servernet.cloud/tr/vps/hourly",
+          "https://docs.cpanel.net/cpanel/software/multiphp-manager-for-cpanel/",
+          "https://servernet.cloud/tr/hosting/linux"
+        ],
+        "article_card_links": [
+          {
+            "url": "https://servernet.cloud/tr/blog/reading-server-error-logs",
+            "title": "Sunucu hata günlüğü: Kaybolmadan hatayı bulmak",
+            "card_markup_sha256": "a7055c4cf3e7e3db3944ab80def1a5a38d78e95acd00f143931c0bd71bdf03dd"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/connection-timed-out-diagnosis",
+            "title": "Connection timed out hatası: Ağ mı yoksa sunucu mu?",
+            "card_markup_sha256": "b14c7ec717b738b1c8e9d6a8f698bb50ec96b1c0ee8f2694548d8acc37a543f1"
+          },
+          {
+            "url": "https://servernet.cloud/tr/blog/staging-environment-setup",
+            "title": "Siteniz için staging ortamı kurma",
+            "card_markup_sha256": "1c572df20e1162a7ea9332d79c9cb753d3b1d6cc2a299d32d483a3bfcfe99030"
+          }
+        ],
+        "font_asset_markers": [
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          },
+          {
+            "url": "https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2",
+            "rel": "preload",
+            "as": "font",
+            "type": "font/woff2"
+          }
+        ],
+        "iransans_reference": true
+      },
+      "semantic_signature": "3f9f20465adc0d5674b62b03b2177a7acbd8510d5a5e2821ea0e027ce4818521"
+    }
+  ],
+  "page_acceptance_failure_count": 0,
+  "comparison_to_before": [
+    {
+      "url": "https://servernet.cloud/blog",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.903,
+      "elapsed_after_s": 0.846
+    },
+    {
+      "url": "https://servernet.cloud/blog/php-version-upgrade-guide",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.332,
+      "elapsed_after_s": 0.335
+    },
+    {
+      "url": "https://servernet.cloud/en/blog",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.341,
+      "elapsed_after_s": 0.5
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.273,
+      "elapsed_after_s": 0.372
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.28,
+      "elapsed_after_s": 0.363
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.373,
+      "elapsed_after_s": 0.382
+    }
+  ],
+  "limits": "One-pass HTTP timings only, not stable speed, LCP or CWV. Public body/metadata/link/font signatures guard semantic equivalence; investigate unrelated live content drift before attributing it to code."
+}

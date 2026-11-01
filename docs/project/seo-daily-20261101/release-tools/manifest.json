@@ -1,0 +1,52 @@
+{
+  "release": "seo-blog-authors-20261101",
+  "source_commit": "6527322d",
+  "base_commit": "891a9235",
+  "merged_develop": "ecc2f93266845b423811b3b3de916dbbadd00ab3",
+  "production_execution_performed": false,
+  "app_files": [
+    {
+      "target": "app/Services/BlogRepository.php",
+      "before": "78d4310b9262476e25fb7d77df174c0c38a6fc0872d5bbad9aaa03ac0d2e0117",
+      "after": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df"
+    }
+  ],
+  "stage_files": {
+    "blog-fpm-activate.py": {
+      "sha256": "02648fa1f86f5db6cd34727e4f95ea352877dafac9fad51b17d637db01f3fbbc",
+      "bytes": 6925
+    },
+    "blog-fpm-activation.php": {
+      "sha256": "f624f46d7e66d64e2366d38ef05f207d3f8e7179e79d197bc6f4cbe3a23d7794",
+      "bytes": 4959
+    },
+    "blog-fpm-cleanup.py": {
+      "sha256": "bdae731eb0145413a7585ae6891f25b4c055289dc19ede70f18a23eb70136baf",
+      "bytes": 1661
+    },
+    "blog-probe.php": {
+      "sha256": "a084cf7c11f453fd208a3dc6201ca6b50586ae867371db2a38bff4c8e750d324",
+      "bytes": 4572
+    },
+    "blog-summary.py": {
+      "sha256": "ad2a42da8d133582c1bc588bfb40b4b7309a275754b59ce13eb062988c3e64f7",
+      "bytes": 1276
+    },
+    "candidate.php": {
+      "sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "bytes": 12939
+    },
+    "public-deny.htaccess": {
+      "sha256": "fa28d421a28ed9b6f4b997d5119c2b8adbacff6e2dd119a179b71230f9664934",
+      "bytes": 19
+    },
+    "README.md": {
+      "sha256": "545476d33e75d28c66848067640026b8f0dea1179dd7a0aeea6ff8499b1eb524",
+      "bytes": 7005
+    },
+    "release.php": {
+      "sha256": "5ba8b2de2d14cbca74e0fb536ec0fe32e78eee0c9fbeaf4b8fbeabee876d0397",
+      "bytes": 8267
+    }
+  }
+}
