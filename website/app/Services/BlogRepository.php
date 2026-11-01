@@ -23,7 +23,7 @@ class BlogRepository
             return Cache::remember("blog.index.{$this->type}.{$locale}", 600, function () use ($locale) {
                 return Post::query()
                     ->where('type', $this->type)->where('status', 'published')
-                    ->with('translations')
+                    ->with(['translations', 'author:id,name'])
                     ->orderByDesc('published_at')->orderByDesc('id')
                     ->get()
                     /*
