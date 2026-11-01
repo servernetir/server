@@ -1,0 +1,11 @@
+test_fastcgi_lengths_and_record_padding_match_the_wire_format (__main__.PrivateFastCgiTests.test_fastcgi_lengths_and_record_padding_match_the_wire_format) ... ok
+test_fragmented_stdout_and_padding_are_reassembled_before_json_decoding (__main__.PrivateFastCgiTests.test_fragmented_stdout_and_padding_are_reassembled_before_json_decoding) ... ok
+test_reading_past_the_total_deadline_is_rejected_before_socket_access (__main__.PrivateFastCgiTests.test_reading_past_the_total_deadline_is_rejected_before_socket_access) ... ok
+test_stderr_and_nonzero_application_status_are_not_treated_as_success (__main__.PrivateFastCgiTests.test_stderr_and_nonzero_application_status_are_not_treated_as_success) ... ok
+test_truncated_and_wrong_request_responses_fail_closed (__main__.PrivateFastCgiTests.test_truncated_and_wrong_request_responses_fail_closed) ... ok
+test_unbounded_or_wrong_release_output_is_rejected (__main__.PrivateFastCgiTests.test_unbounded_or_wrong_release_output_is_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.001s
+
+OK

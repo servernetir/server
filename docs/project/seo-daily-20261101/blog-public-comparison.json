@@ -1,0 +1,70 @@
+{
+  "observed_at_utc": "2026-11-01T06:58:59.7037414Z",
+  "status": "accepted",
+  "before_snapshot_sha256": "3d119041cd4481bf66e833baa2435379daeb34a6400703df4f334a18e5c52610",
+  "after_snapshot_sha256": "678089aab0ed00b591d9c42ed9227448a6f59ab49da50101b0317f35da14fc13",
+  "before_gets": 6,
+  "after_gets": 6,
+  "comparison_extra_gets": 0,
+  "page_failure_count": 0,
+  "comparison_failure_count": 0,
+  "pages": [
+    {
+      "url": "https://servernet.cloud/blog",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.903,
+      "elapsed_after_s": 0.846
+    },
+    {
+      "url": "https://servernet.cloud/blog/php-version-upgrade-guide",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.332,
+      "elapsed_after_s": 0.335
+    },
+    {
+      "url": "https://servernet.cloud/en/blog",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.341,
+      "elapsed_after_s": 0.5
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.273,
+      "elapsed_after_s": 0.372
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.28,
+      "elapsed_after_s": 0.363
+    },
+    {
+      "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide",
+      "semantic_signature_unchanged": true,
+      "body_hash_unchanged": true,
+      "metadata_unchanged": true,
+      "article_cards_unchanged": true,
+      "elapsed_before_s": 0.373,
+      "elapsed_after_s": 0.382
+    }
+  ],
+  "mobile_receipt": "blog-public-mobile.json",
+  "screenshot": "blog-public-mobile.jpg",
+  "limits": "Six anonymous HTTP GETs per phase; one separate authorized Chrome page load for390px UI proof. No real purchase/account operation, analytics event, Google delivery or stable LCP/CWV acceptance. One-pass HTTP timings are informational."
+}

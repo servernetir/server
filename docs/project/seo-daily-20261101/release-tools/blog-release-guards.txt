@@ -1,0 +1,11 @@
+test_changed_backup_or_candidate_is_refused (__main__.ReleaseGuards.test_changed_backup_or_candidate_is_refused) ... ok
+test_existing_preview_cannot_be_reused_as_a_new_release (__main__.ReleaseGuards.test_existing_preview_cannot_be_reused_as_a_new_release) ... ok
+test_failed_post_install_probe_keeps_guarded_rollback_available (__main__.ReleaseGuards.test_failed_post_install_probe_keeps_guarded_rollback_available) ... ok
+test_install_rollback_and_single_use (__main__.ReleaseGuards.test_install_rollback_and_single_use) ... ok
+test_newer_source_is_never_overwritten_by_rollback (__main__.ReleaseGuards.test_newer_source_is_never_overwritten_by_rollback) ... ok
+test_source_drift_after_preview_prevents_intent_and_write (__main__.ReleaseGuards.test_source_drift_after_preview_prevents_intent_and_write) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 8.944s
+
+OK

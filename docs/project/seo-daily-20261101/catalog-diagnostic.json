@@ -1,0 +1,159 @@
+{
+  "at_utc": "2026-11-01T06:46:50+00:00",
+  "mode": "read_only_aggregate_diagnostic",
+  "fx_cache_read": {
+    "original_store_is_file": true,
+    "seeded_keys": 1,
+    "expired_keys": 0,
+    "mode": "array_cache_seeded_from_read_only_public_fx_files"
+  },
+  "pricing_gate": {
+    "snapshot_present": true,
+    "snapshot_source_verified": true,
+    "snapshot_at": "2026-11-01T00:08:34+00:00",
+    "current_three_rates_available": true,
+    "stored_rates_match_current": false,
+    "excluded_plan_list_valid": true,
+    "excluded_plan_count": 0,
+    "excluded_provider_groups": [],
+    "global_snapshot_current": false,
+    "freshness": {
+      "USD": {
+        "effective_current_available": true,
+        "durable_row_present": true,
+        "fetched_at": "2026-11-01T06:00:14+00:00",
+        "source_at": "2026-11-01T05:50:08+00:00",
+        "fetch_age_hours": 0.78,
+        "source_age_hours": 0.95
+      },
+      "EUR": {
+        "effective_current_available": true,
+        "durable_row_present": true,
+        "fetched_at": "2026-11-01T06:00:14+00:00",
+        "source_at": "2026-11-01T05:50:08+00:00",
+        "fetch_age_hours": 0.78,
+        "source_age_hours": 0.95
+      },
+      "USDT": {
+        "effective_current_available": true,
+        "durable_row_present": true,
+        "fetched_at": "2026-11-01T06:00:14+00:00",
+        "source_at": "2026-11-01T05:50:08+00:00",
+        "fetch_age_hours": 0.78,
+        "source_age_hours": 0.95
+      },
+      "TRY": {
+        "effective_current_available": true,
+        "durable_row_present": true,
+        "fetched_at": "2026-11-01T06:00:14+00:00",
+        "source_at": "2026-11-01T05:50:08+00:00",
+        "fetch_age_hours": 0.78,
+        "source_age_hours": 0.95
+      }
+    },
+    "policy": "CloudPlan::scopeSellable returns WHERE1=0 whenever global snapshot current() is false; FX fallback validity is48hours. No rate amount is output."
+  },
+  "catalogue_counts": {
+    "stored_flags": {
+      "total": 4189,
+      "active": "1112",
+      "in_stock": "4035",
+      "admin_disabled": "529",
+      "positive_stored_price": "4189",
+      "positive_stored_cost": "4189",
+      "last_synced_at": "2026-11-01 06:15:36",
+      "last_updated_at": "2026-11-01 06:15:36"
+    },
+    "base_flags_positive_before_snapshot_provider_quarantine": 928,
+    "base_rows_explicitly_quarantined": 0,
+    "sellable_raw_plans": 0,
+    "hourly_capable_sellable_raw_plans": 0,
+    "gpu_labelled_hourly_sellable_raw_plans": 0,
+    "country_sellable_raw_plan_counts": {
+      "AE": 0,
+      "PH": 0,
+      "DE": 0
+    },
+    "provider_groups": [
+      {
+        "group": "6bcdaf97e3b6",
+        "total": 240,
+        "last_synced_at": "2026-10-31T22:30:47+00:00"
+      },
+      {
+        "group": "6e956453c07f",
+        "total": 804,
+        "last_synced_at": "2026-10-31T22:31:21+00:00"
+      },
+      {
+        "group": "294aa8d75483",
+        "total": 118,
+        "last_synced_at": "2026-10-31T22:30:44+00:00"
+      },
+      {
+        "group": "ae15a1f65efe",
+        "total": 2388,
+        "last_synced_at": "2026-10-31T22:31:35+00:00"
+      },
+      {
+        "group": "2c845b0d7c5d",
+        "total": 401,
+        "last_synced_at": "2026-10-31T22:36:39+00:00"
+      },
+      {
+        "group": "9790b8f4a599",
+        "total": 156,
+        "last_synced_at": "2026-10-31T22:31:30+00:00"
+      },
+      {
+        "group": "d20dbd6a870c",
+        "total": 6,
+        "last_synced_at": "2026-10-31T22:31:30+00:00"
+      },
+      {
+        "group": "c6c3fa689e29",
+        "total": 60,
+        "last_synced_at": "2026-11-01T06:15:36+00:00"
+      },
+      {
+        "group": "d515e8ed6ee9",
+        "total": 16,
+        "last_synced_at": "2026-10-31T22:38:54+00:00"
+      }
+    ],
+    "limits": "Raw plan counts, not deduplicated offers. No representative pruning, public quote amount, authenticated visibility, controller render, provider sync or account data was evaluated."
+  },
+  "provider_gates": {
+    "disabled_provider_groups": [
+      "d20dbd6a870c",
+      "9790b8f4a599"
+    ],
+    "effective_snapshot_excluded_groups": [
+      "d515e8ed6ee9"
+    ],
+    "monthly_only_provider_sales_enabled": true,
+    "no_configuration_values_or_credentials_output": true
+  },
+  "source_conditions": {
+    "country": "PublicVpsCatalog::rows uses sellable offers, active locations, non-metal/non-GPU city, live Iran visibility overlay and positive monthly quote; empty country rows are noindex.",
+    "hourly": "Shared PublicVpsCatalog uses the same guarded offers; absent rows display unavailable notice.",
+    "gpu": "GpuController uses hourly offers at its GPU location, nonempty gpu_model and positive hourlyIrt; absent cards display empty state."
+  },
+  "source_sha256": {
+    "app/Models/CloudPlan.php": "e14462acacf92969863d5413710a9f3473deae40d0b0808229c24511f0fa890e",
+    "app/Services/Cloud/CloudPricingSnapshot.php": "440909f678f83b64202c02263799d02a722dd8cd076771497bdfaa755d68d6af",
+    "app/Services/ExchangeRate.php": "1294aebf72afecb2a3d7d274222552b40ab1cea9490c3cccff3bb51c0a62b44b",
+    "app/Services/Cloud/PublicVpsCatalog.php": "0b6bf94e5a383602450d3a570c79c4ab290024a686c229ae490e1c74c2fa4c8d"
+  },
+  "status": "observed",
+  "guards": {
+    "query_attempts": 13,
+    "query_budget": 80,
+    "denied_sql": 0,
+    "blocked_http_attempts": 0,
+    "cache_driver": "array",
+    "production_cache_mutation": false,
+    "customer_or_auth_session_opened": false,
+    "refresh_sync_reprice_or_flag_change": false
+  }
+}

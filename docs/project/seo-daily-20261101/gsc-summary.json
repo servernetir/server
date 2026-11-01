@@ -1,0 +1,801 @@
+{
+  "report_date_tehran": "2026-11-01",
+  "property": "sc-domain:servernet.cloud",
+  "search_type": "web",
+  "source": {
+    "type": "Authorized Google Search Console Chrome UI observations supplied by the parent audit",
+    "performance_ui_last_update_approx_hours": [
+      9,
+      9.5
+    ],
+    "gsc_wizard_attempts": 1,
+    "gsc_wizard_result": "payment_required",
+    "subscription_or_payment": false,
+    "privacy": "Only sanitized site metrics; no account identity, authentication/session data, raw account UI or customer data."
+  },
+  "windows": {
+    "current": {
+      "start": "2026-10-02",
+      "end": "2026-10-29",
+      "days": 28
+    },
+    "previous": {
+      "start": "2026-09-04",
+      "end": "2026-10-01",
+      "days": 28
+    },
+    "status": "Complete equal-length Web Search windows verified from UI."
+  },
+  "totals": {
+    "basis": "Exact sum of complete three-device table",
+    "clicks": {
+      "current": 1544,
+      "previous": 1252,
+      "delta": 292,
+      "change_percent": 23.32268370607029
+    },
+    "impressions": {
+      "current": 42031,
+      "previous": 32221,
+      "delta": 9810,
+      "change_percent": 30.445982433816464
+    },
+    "ctr_percent_calculated": {
+      "current": 3.673479098760439,
+      "previous": 3.8856646286583287,
+      "delta_percentage_points": -0.21218552989788986
+    },
+    "ctr_percent_ui": {
+      "current": 3.7,
+      "previous": 3.9,
+      "rounded": true
+    },
+    "average_position_ui": {
+      "current": 29.4,
+      "previous": 28.7,
+      "delta": 0.7
+    }
+  },
+  "devices": [
+    {
+      "device": "desktop",
+      "clicks": {
+        "current": 903,
+        "previous": 666,
+        "delta": 237,
+        "change_percent": 35.58558558558558
+      },
+      "impressions": {
+        "current": 29438,
+        "previous": 21161,
+        "delta": 8277,
+        "change_percent": 39.11440858182507
+      }
+    },
+    {
+      "device": "mobile",
+      "clicks": {
+        "current": 634,
+        "previous": 577,
+        "delta": 57,
+        "change_percent": 9.8786828422877
+      },
+      "impressions": {
+        "current": 12477,
+        "previous": 10934,
+        "delta": 1543,
+        "change_percent": 14.111944393634523
+      }
+    },
+    {
+      "device": "tablet",
+      "clicks": {
+        "current": 7,
+        "previous": 9,
+        "delta": -2,
+        "change_percent": -22.22222222222222
+      },
+      "impressions": {
+        "current": 116,
+        "previous": 126,
+        "delta": -10,
+        "change_percent": -7.936507936507942
+      }
+    }
+  ],
+  "branded": {
+    "regex": "(سرور[ ]*نت|server[ ]*net)",
+    "filter_type": "query matches historical regex",
+    "clicks": {
+      "current": 211,
+      "previous": 300,
+      "delta": -89,
+      "change_percent": -29.666666666666664
+    },
+    "impressions": {
+      "current": 578,
+      "previous": 786,
+      "delta": -208,
+      "change_percent": -26.46310432569975
+    },
+    "ctr_percent_ui": {
+      "current": 36.5,
+      "previous": 38.2
+    },
+    "average_position_ui": {
+      "current": 3.1,
+      "previous": 3
+    },
+    "partial_filter_warning": true
+  },
+  "nonbranded": {
+    "regex": "(سرور[ ]*نت|server[ ]*net)",
+    "filter_type": "query does not match historical regex",
+    "clicks": {
+      "current": 491,
+      "previous": 344,
+      "delta": 147,
+      "change_percent": 42.732558139534895
+    },
+    "impressions": {
+      "current": 23653,
+      "previous": 19661,
+      "delta": 3992,
+      "change_percent": 20.304155434616746
+    },
+    "impressions_basis": "Exact sum of freshly observed complete three-device filtered table",
+    "devices": [
+      {
+        "device": "desktop",
+        "clicks": {
+          "current": 265,
+          "previous": 159,
+          "delta": 106,
+          "change_percent": 66.66666666666667
+        },
+        "impressions": {
+          "current": 16398,
+          "previous": 12973,
+          "delta": 3425,
+          "change_percent": 26.400986664611125
+        }
+      },
+      {
+        "device": "mobile",
+        "clicks": {
+          "current": 223,
+          "previous": 180,
+          "delta": 43,
+          "change_percent": 23.888888888888893
+        },
+        "impressions": {
+          "current": 7223,
+          "previous": 6633,
+          "delta": 590,
+          "change_percent": 8.894919342680542
+        }
+      },
+      {
+        "device": "tablet",
+        "clicks": {
+          "current": 3,
+          "previous": 5,
+          "delta": -2,
+          "change_percent": -40
+        },
+        "impressions": {
+          "current": 32,
+          "previous": 55,
+          "delta": -23,
+          "change_percent": -41.81818181818182
+        }
+      }
+    ],
+    "impressions_ui_rounded": {
+      "current": "23.7k",
+      "previous": "19.7k"
+    },
+    "ctr_percent_ui": {
+      "current": 2.1,
+      "previous": 1.7
+    },
+    "average_position_ui": {
+      "current": 45.1,
+      "previous": 42
+    },
+    "partial_filter_warning": true
+  },
+  "filter_caveat": "Filtered chart/table totals may be partial. Historical brand regex is not every possible brand variant. Brand and nonbrand figures must not be added as total property clicks.",
+  "top_pages_sample": [
+    {
+      "url": "https://servernet.cloud/vps/hourly",
+      "clicks": {
+        "current": 350,
+        "previous": 171,
+        "delta": 179,
+        "change_percent": 104.67836257309942
+      },
+      "impressions": {
+        "current": 3207,
+        "previous": 1770,
+        "delta": 1437,
+        "change_percent": 81.1864406779661
+      }
+    },
+    {
+      "url": "https://servernet.cloud/gpu",
+      "clicks": {
+        "current": 293,
+        "previous": 166,
+        "delta": 127,
+        "change_percent": 76.50602409638554
+      },
+      "impressions": {
+        "current": 1938,
+        "previous": 1143,
+        "delta": 795,
+        "change_percent": 69.5538057742782
+      }
+    },
+    {
+      "url": "https://servernet.cloud/",
+      "clicks": {
+        "current": 217,
+        "previous": 349,
+        "delta": -132,
+        "change_percent": -37.82234957020057
+      },
+      "impressions": {
+        "current": 447,
+        "previous": 631,
+        "delta": -184,
+        "change_percent": -29.160063391442158
+      }
+    },
+    {
+      "url": "https://servernet.cloud/en/vps/hourly",
+      "clicks": {
+        "current": 105,
+        "previous": 58,
+        "delta": 47,
+        "change_percent": 81.03448275862068
+      },
+      "impressions": {
+        "current": 1426,
+        "previous": 556,
+        "delta": 870,
+        "change_percent": 156.4748201438849
+      }
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "clicks": {
+        "current": 50,
+        "previous": 8,
+        "delta": 42,
+        "change_percent": 525
+      },
+      "impressions": {
+        "current": 2371,
+        "previous": 311,
+        "delta": 2060,
+        "change_percent": 662.379421221865
+      }
+    },
+    {
+      "url": "https://servernet.cloud/en",
+      "clicks": {
+        "current": 34,
+        "previous": 17,
+        "delta": 17,
+        "change_percent": 100
+      },
+      "impressions": {
+        "current": 1047,
+        "previous": 1177,
+        "delta": -130,
+        "change_percent": -11.045029736618517
+      }
+    },
+    {
+      "url": "https://servernet.cloud/en/lookup/global-ping",
+      "clicks": {
+        "current": 19,
+        "previous": 3,
+        "delta": 16,
+        "change_percent": 533.3333333333333
+      },
+      "impressions": {
+        "current": 261,
+        "previous": 32,
+        "delta": 229,
+        "change_percent": 715.625
+      }
+    },
+    {
+      "url": "https://servernet.cloud/blog/iranian-discord-servers",
+      "clicks": {
+        "current": 14,
+        "previous": 54,
+        "delta": -40,
+        "change_percent": -74.07407407407408
+      },
+      "impressions": {
+        "current": 337,
+        "previous": 770,
+        "delta": -433,
+        "change_percent": -56.23376623376623
+      }
+    },
+    {
+      "url": "https://servernet.cloud/en/vps/discord",
+      "clicks": {
+        "current": 13,
+        "previous": 2,
+        "delta": 11,
+        "change_percent": 550
+      },
+      "impressions": {
+        "current": 468,
+        "previous": 60,
+        "delta": 408,
+        "change_percent": 680
+      }
+    },
+    {
+      "url": "https://servernet.cloud/tr/gpu",
+      "clicks": {
+        "current": 13,
+        "previous": 10,
+        "delta": 3,
+        "change_percent": 30.000000000000004
+      },
+      "impressions": {
+        "current": 155,
+        "previous": 116,
+        "delta": 39,
+        "change_percent": 33.62068965517242
+      }
+    }
+  ],
+  "top_queries_sample": [
+    {
+      "query": "سرورنت",
+      "clicks": {
+        "current": 79,
+        "previous": 136,
+        "delta": -57,
+        "change_percent": -41.91176470588235
+      },
+      "impressions": {
+        "current": 92,
+        "previous": 156,
+        "delta": -64,
+        "change_percent": -41.02564102564102
+      }
+    },
+    {
+      "query": "سرور نت",
+      "clicks": {
+        "current": 75,
+        "previous": 114,
+        "delta": -39,
+        "change_percent": -34.210526315789465
+      },
+      "impressions": {
+        "current": 90,
+        "previous": 141,
+        "delta": -51,
+        "change_percent": -36.170212765957444
+      }
+    },
+    {
+      "query": "سرور مجازی ساعتی",
+      "clicks": {
+        "current": 65,
+        "previous": 50,
+        "delta": 15,
+        "change_percent": 30.000000000000004
+      },
+      "impressions": {
+        "current": 395,
+        "previous": 321,
+        "delta": 74,
+        "change_percent": 23.052959501557634
+      }
+    },
+    {
+      "query": "سرور ساعتی",
+      "clicks": {
+        "current": 44,
+        "previous": 25,
+        "delta": 19,
+        "change_percent": 76
+      },
+      "impressions": {
+        "current": 441,
+        "previous": 315,
+        "delta": 126,
+        "change_percent": 39.99999999999999
+      }
+    },
+    {
+      "query": "servernet",
+      "clicks": {
+        "current": 35,
+        "previous": 44,
+        "delta": -9,
+        "change_percent": -20.45454545454546
+      },
+      "impressions": {
+        "current": 189,
+        "previous": 239,
+        "delta": -50,
+        "change_percent": -20.920502092050206
+      }
+    },
+    {
+      "query": "اجاره gpu",
+      "clicks": {
+        "current": 28,
+        "previous": 15,
+        "delta": 13,
+        "change_percent": 86.66666666666667
+      },
+      "impressions": {
+        "current": 159,
+        "previous": 172,
+        "delta": -13,
+        "change_percent": -7.558139534883724
+      }
+    },
+    {
+      "query": "سرور ساعتی ایران",
+      "clicks": {
+        "current": 28,
+        "previous": 11,
+        "delta": 17,
+        "change_percent": 154.54545454545453
+      },
+      "impressions": {
+        "current": 106,
+        "previous": 79,
+        "delta": 27,
+        "change_percent": 34.17721518987342
+      }
+    },
+    {
+      "query": "سرور گرافیکی ساعتی",
+      "clicks": {
+        "current": 22,
+        "previous": 23,
+        "delta": -1,
+        "change_percent": -4.347826086956519
+      },
+      "impressions": {
+        "current": 76,
+        "previous": 49,
+        "delta": 27,
+        "change_percent": 55.10204081632652
+      }
+    },
+    {
+      "query": "خرید سرور ساعتی",
+      "clicks": {
+        "current": 21,
+        "previous": 7,
+        "delta": 14,
+        "change_percent": 200
+      },
+      "impressions": {
+        "current": 243,
+        "previous": 110,
+        "delta": 133,
+        "change_percent": 120.9090909090909
+      }
+    },
+    {
+      "query": "اجاره کارت گرافیک",
+      "clicks": {
+        "current": 19,
+        "previous": 11,
+        "delta": 8,
+        "change_percent": 72.72727272727273
+      },
+      "impressions": {
+        "current": 116,
+        "previous": 69,
+        "delta": 47,
+        "change_percent": 68.1159420289855
+      }
+    }
+  ],
+  "countries_sample": [
+    {
+      "country": "Iran",
+      "clicks": {
+        "current": 1167,
+        "previous": 998,
+        "delta": 169,
+        "change_percent": 16.93386773547094
+      },
+      "impressions": {
+        "current": 20870,
+        "previous": 19657,
+        "delta": 1213,
+        "change_percent": 6.170829729867222
+      }
+    },
+    {
+      "country": "Turkey",
+      "clicks": {
+        "current": 86,
+        "previous": 63,
+        "delta": 23,
+        "change_percent": 36.50793650793651
+      },
+      "impressions": {
+        "current": 4862,
+        "previous": 3050,
+        "delta": 1812,
+        "change_percent": 59.40983606557377
+      }
+    },
+    {
+      "country": "United States",
+      "clicks": {
+        "current": 36,
+        "previous": 9,
+        "delta": 27,
+        "change_percent": 300
+      },
+      "impressions": {
+        "current": 4128,
+        "previous": 2673,
+        "delta": 1455,
+        "change_percent": 54.433221099887774
+      }
+    },
+    {
+      "country": "Germany",
+      "clicks": {
+        "current": 27,
+        "previous": 32,
+        "delta": -5,
+        "change_percent": -15.625
+      },
+      "impressions": {
+        "current": 815,
+        "previous": 506,
+        "delta": 309,
+        "change_percent": 61.06719367588933
+      }
+    },
+    {
+      "country": "Netherlands",
+      "clicks": {
+        "current": 22,
+        "previous": 7,
+        "delta": 15,
+        "change_percent": 214.28571428571428
+      },
+      "impressions": {
+        "current": 616,
+        "previous": 281,
+        "delta": 335,
+        "change_percent": 119.21708185053382
+      }
+    },
+    {
+      "country": "United Kingdom",
+      "clicks": {
+        "current": 16,
+        "previous": 8,
+        "delta": 8,
+        "change_percent": 100
+      },
+      "impressions": {
+        "current": 1218,
+        "previous": 634,
+        "delta": 584,
+        "change_percent": 92.11356466876973
+      }
+    },
+    {
+      "country": "India",
+      "clicks": {
+        "current": 14,
+        "previous": 15,
+        "delta": -1,
+        "change_percent": -6.666666666666665
+      },
+      "impressions": {
+        "current": 1177,
+        "previous": 698,
+        "delta": 479,
+        "change_percent": 68.6246418338109
+      }
+    },
+    {
+      "country": "Russia",
+      "clicks": {
+        "current": 14,
+        "previous": 9,
+        "delta": 5,
+        "change_percent": 55.55555555555556
+      },
+      "impressions": {
+        "current": 304,
+        "previous": 206,
+        "delta": 98,
+        "change_percent": 47.57281553398058
+      }
+    },
+    {
+      "country": "France",
+      "clicks": {
+        "current": 13,
+        "previous": 8,
+        "delta": 5,
+        "change_percent": 62.5
+      },
+      "impressions": {
+        "current": 281,
+        "previous": 136,
+        "delta": 145,
+        "change_percent": 106.61764705882355
+      }
+    },
+    {
+      "country": "Philippines",
+      "clicks": {
+        "current": 9,
+        "previous": 1,
+        "delta": 8,
+        "change_percent": 800
+      },
+      "impressions": {
+        "current": 263,
+        "previous": 122,
+        "delta": 141,
+        "change_percent": 115.57377049180326
+      }
+    }
+  ],
+  "indexing": {
+    "snapshot_date": "2026-10-23",
+    "fresh_ui_read_today": true,
+    "snapshot_unchanged_from_oct31": true,
+    "indexed": 4398,
+    "excluded": 7788,
+    "counts_are_exact": true,
+    "all_11_reasons_viewed_today": true,
+    "reasons": [
+      {
+        "reason": "Excluded by noindex",
+        "count": 733
+      },
+      {
+        "reason": "Not found 404",
+        "count": 56
+      },
+      {
+        "reason": "Duplicate Google chose different canonical",
+        "count": 120
+      },
+      {
+        "reason": "Blocked by robots",
+        "count": 2999
+      },
+      {
+        "reason": "Alternative page with proper canonical",
+        "count": 298
+      },
+      {
+        "reason": "Page with redirect",
+        "count": 168
+      },
+      {
+        "reason": "Blocked unauthorized 401",
+        "count": 1
+      },
+      {
+        "reason": "Crawled currently not indexed",
+        "count": 202
+      },
+      {
+        "reason": "Redirect error",
+        "count": 1
+      },
+      {
+        "reason": "Server error 5xx",
+        "count": 1
+      },
+      {
+        "reason": "Discovered currently not indexed",
+        "count": 3209
+      }
+    ],
+    "new_url_inspection_today": false,
+    "indexing_request_today": false,
+    "historical_context": "The October31 Xiaomi model Request Indexing attempt failed with a Google/reCAPTCHA service error; no repeat or newly accepted request is claimed today."
+  },
+  "submitted_sitemaps": [
+    {
+      "url": "https://servernet.cloud/sitemap.xml",
+      "status": "Success",
+      "last_read": "2026-10-31",
+      "discovered_pages": 5457
+    },
+    {
+      "url": "https://servernet.cloud/hardware-sitemap.xml",
+      "status": "Success",
+      "last_read": "2026-10-26",
+      "discovered_pages": 2115
+    }
+  ],
+  "core_web_vitals": {
+    "source": "Chrome UX Report through Search Console UI",
+    "snapshot_date": "2026-10-30",
+    "new_snapshot_since_previous_daily": true,
+    "mobile": {
+      "poor": 0,
+      "needs_improvement": 128,
+      "good": 0
+    },
+    "desktop": {
+      "poor": 0,
+      "needs_improvement": 0,
+      "good": 128
+    },
+    "mobile_lcp_issue": {
+      "threshold_seconds": 2.5,
+      "group_population": 128,
+      "group_lcp_seconds": 3,
+      "example_url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "validation": "Not Started"
+    },
+    "mobile_inp_over_200ms_issue_url_count": 0,
+    "prior_snapshot": {
+      "date": "2026-10-29",
+      "mobile_needs_improvement": 129,
+      "desktop_good": 129,
+      "group_lcp_seconds": 2.9
+    },
+    "reported_group_lcp_change_seconds": 0.1,
+    "limits": "Grouped rolling field values; population changed129 to128. A0.1s higher reported group LCP is not a matched page-specific or causal release result. No Validate Fix was started; zero INP issue URLs is not a lab TBT result."
+  },
+  "public_health": {
+    "receipt": "public-health.json",
+    "followup_receipt": "public-health-followup.json",
+    "summary": "public-health-summary.md",
+    "initial_gets": 20,
+    "separately_authorized_followup_gets": 6,
+    "total_gets": 26,
+    "initial_html_statuses": {
+      "http200": 15,
+      "http301": 2
+    },
+    "main_sitemap_unique_urls": 5382,
+    "hardware_sitemap_unique_urls": 2115,
+    "known_intentional_change": "PR172/175 consolidate city URLs into country URLs; empty-country noindex guard is preserved.",
+    "actionable_findings": [
+      "Fresh country/hourly views show no orderable VPS table and GPU shows its empty state; public rendering does not establish a private financial/provider/inventory cause.",
+      "Hourly empty state has a missing #plans target.",
+      "GPU empty state has a missing #gpu-configure target."
+    ],
+    "preserved_release": "AI planner links6/10/7 and model target1, plus exact Persian Git-guide body, remain intact."
+  },
+  "access_limits": {
+    "cpanel": "User login restored authorized Chrome access. Live BlogRepository matched the reviewed base hash; PHP8.4.27 was observed. Private catalogue diagnostic at06:46:50UTC completed13 read-only queries with zero SQL mutations/HTTP requests. Pricing snapshot differed from fresh FX rates, globally hiding sellable offers. See catalog-diagnostic.json; application publication has a separate release receipt. No authentication credential or access grant changed."
+  },
+  "limits": [
+    "Search metrics end2026-10-29, before the October30-November1 releases; limited October29 guide exposure does not establish causality.",
+    "Clicks are not unique visitors, customers or sales.",
+    "No fresh GA4/transaction, real purchase/fulfilment, analytics transport or paid model call today.",
+    "No URL Inspection, live URL test or indexing request today.",
+    "Search Console discovered sitemap totals, current public sitemap URLs and indexed counts are separate measures.",
+    "Public offer absence, smaller HTML and lower response time do not establish an improvement in field speed or a provider/financial root cause.",
+    "No raw account/browser/session files or private backups are included in this summary."
+  ]
+}

@@ -22,27 +22,29 @@
   },
   "active_run": null,
   "last_run": {
-    "run_id": "weekly-seo-20261031-ai-planner",
-    "task_id": "ai-usage-planner-discovery",
-    "base_sha": "7425ecf9e639d3a4f231d1f6f6ded46c35ec113f",
+    "run_id": "daily-seo-20261101-blog-author-loading",
+    "task_id": "blog-index-author-eager-loading",
+    "base_sha": "891a92350a2e332b81373a1968a83092214c1884",
     "phase": "completed",
     "outcome": "production_verified",
-    "completed_at_utc": "2026-10-31T06:51:23.036575+00:00",
-    "feature_branch": "codex/seo-weekly-20261031",
-    "tested_head_sha": "e8cf8def219dbb6628f608bd81ec62c1c3adbdb0",
-    "pull_request": 165,
+    "completed_at_utc": "2026-11-01T06:58:59Z",
+    "feature_branch": "codex/seo-daily-20261101",
+    "tested_head_sha": "6527322db2911ca73d6dcd93af4384facd3eebcc",
+    "pull_request": 196,
     "implementation_merged": true,
-    "implementation_merge_sha": "ad3cdbb32671578b8a5b8ee2e5defb35264f1dd0",
-    "installed_at_utc": "2026-10-31T06:47:21Z",
+    "implementation_merge_sha": "ecc2f93266845b423811b3b3de916dbbadd00ab3",
+    "installed_at_utc": "2026-11-01T06:57:04Z",
     "production_verified": true,
-    "receipt": "docs/project/seo-daily-20261031/ai-planner-applied.json",
-    "acceptance_receipt": "docs/project/seo-daily-20261031/ai-planner-public-comparison.json",
-    "report": "SEO-DAILY-2026-10-31.md",
+    "receipt": "docs/project/seo-daily-20261101/blog-release-summary.json",
+    "acceptance_receipt": "docs/project/seo-daily-20261101/blog-public-comparison.json",
+    "report": "SEO-DAILY-2026-11-01.md",
     "completed_task_ids": [
-      "ai-usage-planner-discovery"
+      "blog-index-author-eager-loading"
     ],
-    "blockers": [],
-    "traffic_impact": "not measured; complete GSC window ends before this release; indexing request failed at Google reCAPTCHA service; actual GA4 purchase/revenue and CWV remain open"
+    "blockers": [
+      "Separate P0 catalogue availability recovery needs explicit pricing/stock scope; no sales guard bypass."
+    ],
+    "traffic_impact": "Not attributable; GSC window ends before release. Field LCP, actual GA4 delivery/revenue and purchase remain open."
   },
   "run_receipts": [
     {"run_id": "growth-cycle-20261025-initial", "completed_at_utc": "2026-10-25T16:24:33.603756+00:00", "path": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json", "outcome": "production_verified"},
@@ -57,18 +59,19 @@
       "pull_request": 165,
       "path": "docs/project/seo-daily-20261031/ai-planner-applied.json",
       "acceptance_path": "docs/project/seo-daily-20261031/ai-planner-public-comparison.json"
-    }
+    },
+    {"run_id": "daily-seo-20261101-blog-author-loading", "completed_at_utc": "2026-11-01T06:58:59Z", "outcome": "production_verified", "pull_request": 196, "path": "docs/project/seo-daily-20261101/blog-release-summary.json", "acceptance_path": "docs/project/seo-daily-20261101/blog-public-comparison.json"}
   ],
   "measurement": {
     "gsc_max_fetches_per_day": 1,
     "comparison_days": 28,
-    "google_login": "GSC available through authenticated Chrome on2026-10-31; GA4 access not rechecked",
+    "google_login": "GSC available through authenticated Chrome on2026-11-01; GA4 not rechecked",
     "repeat_google_login_requests": false,
-    "latest_known_report": "docs/project/seo-daily-20261031/gsc-summary.json",
-    "latest_known_complete_end_date": "2026-10-28",
+    "latest_known_report": "docs/project/seo-daily-20261101/gsc-summary.json",
+    "latest_known_complete_end_date": "2026-10-29",
     "triage_end_date": "2026-10-17",
     "do_not_mix_baseline_windows": true,
-    "last_gsc_fetch_date_tehran": "2026-10-31",
+    "last_gsc_fetch_date_tehran": "2026-11-01",
     "latest_targeted_baseline": "docs/project/seo-growth-cycle-2026-10-25/gsc-baseline.json"
   },
   "completed_baseline": [
@@ -210,6 +213,46 @@
       "production_verified": true,
       "next_action": "Observe after a comparable complete window; do not republish. AI cohort indexing, field LCP and actual GA4 delivery/revenue remain separate acceptance work.",
       "owner_note": "Only two views and their compiled outputs deployed; pricing, eligibility, calculation and tracking unchanged. 28 tests passed, one existing skip; both CI checks passed; public before/after and mobile acceptance passed."
+    },
+    {
+      "id": "blog-index-author-eager-loading",
+      "priority": "P1",
+      "state": "production_verified",
+      "pull_request": 196,
+      "reason": "Cold blog index loaded each CMS author separately; eager load id/name preserves complete public metadata.",
+      "evidence": "docs/project/seo-daily-20261101/blog-release-summary.json",
+      "acceptance_receipt": "docs/project/seo-daily-20261101/blog-public-comparison.json",
+      "published_at_utc": "2026-11-01T06:57:04Z",
+      "publication_report": "SEO-DAILY-2026-11-01.md",
+      "next_action": "Observe; do not redeploy. Actual production cold SQL9 to3, author7 to1 in all locales,205 rows unchanged,warm0. This is not stable LCP or purchase evidence."
+    },
+    {
+      "id": "catalogue-pricing-snapshot-availability",
+      "priority": "P0",
+      "state": "requires_scoped_authorization",
+      "urls": [
+        "/vps/hourly",
+        "/gpu",
+        "/vps/uae",
+        "/vps/philippines",
+        "/vps/germany"
+      ],
+      "reason": "Live snapshot00:08:34 differs from valid FX fetched06:00:14; global snapshot false blocks sellable offers.928base-eligible rows,0sellable.",
+      "evidence": "docs/project/seo-daily-20261101/catalog-diagnostic.json",
+      "report": "SEO-DAILY-2026-11-01.md",
+      "next_action": "Read only bounded sanitized latest pricing failure/state before a concrete recovery plan. cloud:sync --prices mutates price/snapshot and may stock flags; require specific authorization, private backup, concurrency guard and business acceptance. Preserve live CloudPlan overlay; do not bypass pricing or country noindex guards."
+    },
+    {
+      "id": "empty-catalogue-jump-targets",
+      "priority": "P1",
+      "state": "ready_for_scoped_fix",
+      "urls": [
+        "/vps/hourly",
+        "/gpu"
+      ],
+      "evidence": "docs/project/seo-daily-20261101/public-health-summary.md",
+      "reason": "Hourly #plans and GPU #gpu-configure are missing when offers are empty.",
+      "next_action": "Use unconditional hourly #rates target and unique GPU empty-state target; verify available and empty renders, preserve original font, quotes and eligibility."
     }
   ]
 }

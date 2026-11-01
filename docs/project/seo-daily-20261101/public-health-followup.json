@@ -1,0 +1,259 @@
+{
+  "observed_at_utc": "2026-11-01T06:35:32.5045671Z",
+  "scope": "Six explicitly authorized follow-up GETs after20 initial requests: two redirect header captures and four fresh no-follow page observations. No account/browser/provider/price mutation.",
+  "additional_get_requests": 6,
+  "initial_get_requests": 20,
+  "total_get_requests": 26,
+  "redirects": [
+    {
+      "url": "https://servernet.cloud/cloud/ae-dubai",
+      "status": 301,
+      "location": "https://servernet.cloud/vps/uae"
+    },
+    {
+      "url": "https://servernet.cloud/cloud/ph-manila",
+      "status": 301,
+      "location": "https://servernet.cloud/vps/philippines"
+    }
+  ],
+  "pages": [
+    {
+      "url": "https://servernet.cloud/vps/philippines",
+      "checked_url": "https://servernet.cloud/vps/philippines?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.742,
+      "html_bytes": 123199,
+      "title": "خرید سرور مجازی فیلیپین | پلن و قیمت جاری | سرورنت",
+      "h1": [
+        "سرور مجازی فیلیپین"
+      ],
+      "canonical": [],
+      "canonical_exact_string": false,
+      "canonical_self": false,
+      "hreflang": [],
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "noindex": true,
+      "meta_description": [
+        "پلن‌های سرور مجازی فیلیپین را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "schema_blocks": 4,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "FAQPage"
+      ],
+      "schema_error_count": 0,
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [],
+      "purchase_anchor_markup_count": 0,
+      "planner_links": [],
+      "planner_target_count": 0,
+      "vps_catalog_present": true,
+      "vps_table_present": false,
+      "vps_unavailable_notice": [
+        "در حال حاضر پلن قابل سفارشی برای این کشور موجود نیست."
+      ],
+      "gpu_empty_notice": [],
+      "empty_location_plan_markup": false,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/uae",
+      "checked_url": "https://servernet.cloud/vps/uae?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.766,
+      "html_bytes": 123035,
+      "title": "خرید سرور مجازی امارات | پلن و قیمت جاری | سرورنت",
+      "h1": [
+        "سرور مجازی امارات"
+      ],
+      "canonical": [],
+      "canonical_exact_string": false,
+      "canonical_self": false,
+      "hreflang": [],
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "noindex": true,
+      "meta_description": [
+        "پلن‌های سرور مجازی امارات را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "schema_blocks": 4,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "FAQPage"
+      ],
+      "schema_error_count": 0,
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [],
+      "purchase_anchor_markup_count": 0,
+      "planner_links": [],
+      "planner_target_count": 0,
+      "vps_catalog_present": true,
+      "vps_table_present": false,
+      "vps_unavailable_notice": [
+        "در حال حاضر پلن قابل سفارشی برای این کشور موجود نیست."
+      ],
+      "gpu_empty_notice": [],
+      "empty_location_plan_markup": false,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/hourly",
+      "checked_url": "https://servernet.cloud/vps/hourly?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.728,
+      "html_bytes": 164120,
+      "title": "خرید سرور مجازی ساعتی | تعرفه و شرایط مصرف — سرورنت",
+      "h1": [
+        "خرید سرور مجازی ساعتی، برای زمانی که نیاز دارید."
+      ],
+      "canonical": [
+        "https://servernet.cloud/vps/hourly"
+      ],
+      "canonical_exact_string": true,
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/vps/hourly"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/vps/hourly"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/vps/hourly"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/vps/hourly"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "meta_description": [
+        "خرید سرور مجازی ساعتی؛ مقایسه منابع و مکان‌های موجود، اعتبار شروع، شرایط خاموشی و حذف سرور در کنسول سرورنت."
+      ],
+      "schema_blocks": 5,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "FAQPage",
+        "BreadcrumbList",
+        "HowTo"
+      ],
+      "schema_error_count": 0,
+      "missing_same_page_fragments": [
+        "plans"
+      ],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "query_keys": [
+            "billing_mode"
+          ],
+          "text": "سفارش سرور ساعتی"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "query_keys": [
+            "billing_mode"
+          ],
+          "text": "سفارش سرور ساعتی"
+        }
+      ],
+      "purchase_anchor_markup_count": 0,
+      "planner_links": [],
+      "planner_target_count": 0,
+      "vps_catalog_present": true,
+      "vps_table_present": false,
+      "vps_unavailable_notice": [
+        "در حال حاضر پلن قابل سفارشی برای این کشور موجود نیست."
+      ],
+      "gpu_empty_notice": [],
+      "empty_location_plan_markup": false,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/gpu",
+      "checked_url": "https://servernet.cloud/gpu?qa=1",
+      "status": 200,
+      "cache": "BYPASS",
+      "elapsed_s": 0.576,
+      "html_bytes": 160161,
+      "title": "اجاره GPU و سرور گرافیکی ساعتی | ComfyUI و Jupyter",
+      "h1": [
+        "سرور گرافیکی ساعتی"
+      ],
+      "canonical": [
+        "https://servernet.cloud/gpu"
+      ],
+      "canonical_exact_string": true,
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/gpu"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/gpu"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/gpu"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/gpu"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "meta_description": [
+        "اجاره GPU و سرور گرافیکی ساعتی برای برنامه‌های سازگار؛ انتخاب کارت و برنامه، شرایط اعتبار شروع، دیسک موقت و دسترسی HTTPS در کنسول سرورنت."
+      ],
+      "schema_blocks": 3,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList"
+      ],
+      "schema_error_count": 0,
+      "missing_same_page_fragments": [
+        "gpu-configure"
+      ],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/gpu",
+          "query_keys": [
+            "qa"
+          ],
+          "text": "انتخاب و پیکربندی GPU ↓"
+        }
+      ],
+      "purchase_anchor_markup_count": 0,
+      "planner_links": [],
+      "planner_target_count": 0,
+      "vps_catalog_present": false,
+      "vps_table_present": false,
+      "vps_unavailable_notice": [],
+      "gpu_empty_notice": [
+        "هنوز کارتی برای فروش نیست کاتالوگ گرافیکی هنوز همگام نشده است. برای اطلاع از زمان عرضه با ما تماس بگیرید."
+      ],
+      "empty_location_plan_markup": false,
+      "guide": null
+    }
+  ],
+  "limits": "Redirect chains not followed automatically; only the captured same-host VPS destinations were separately requested once. No HTML, cookies or authentication data retained. No financial eligibility diagnosis or rendered interaction test."
+}

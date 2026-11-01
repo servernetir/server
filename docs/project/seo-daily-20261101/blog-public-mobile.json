@@ -1,0 +1,46 @@
+{
+  "bodyFont": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+  "documentWidth": 390,
+  "fontStatus": "loaded",
+  "gtmLoaderPresent": true,
+  "headRect": {
+    "bottom": 621.328125,
+    "height": 621.328125,
+    "left": 0,
+    "top": 0,
+    "width": 390
+  },
+  "headerBottom": 110,
+  "leadPresent": true,
+  "observedAt": "2026-11-01T06:58:17.331Z",
+  "scrollY": 0,
+  "title": "Upgrading your PHP version without breaking the site",
+  "titleFont": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+  "titleRect": {
+    "bottom": 318.640625,
+    "height": 97.40625,
+    "top": 221.234375,
+    "width": 350
+  },
+  "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+  "viewport": {
+    "height": 844,
+    "width": 390
+  },
+  "screenshot": {
+    "file": "blog-public-mobile.jpg",
+    "clip": {
+      "x": 0,
+      "y": 130,
+      "width": 390,
+      "height": 500
+    },
+    "public_article_only": true
+  },
+  "cleanup": {
+    "viewportOverrideCleared": true,
+    "ownedTabClosed": true,
+    "parentGscAndCpanelTabsUntouched": true
+  },
+  "limits": "Rendered responsive UI only; no fresh LCP/CLS/TBT benchmark, real purchase, synthetic analytics event or GA4 delivery. Existing authorized Chrome session; no anonymous-browser claim."
+}
