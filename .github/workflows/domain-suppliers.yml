@@ -120,6 +120,27 @@ jobs:
           php -l database/migrations/2026_10_31_150000_domain_supplier_accounts.php
           php -l database/migrations/2026_11_02_120000_domain_supplier_contact_requests.php
           php -l tests/Support/compare-domain-regressions.php
+      - name: Set up Node for actual domain UI behavior tests
+        if: matrix.database == 'sqlite'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Render real Blade and exercise three-language discovery UI
+        if: matrix.database == 'sqlite'
+        run: |
+          set -euo pipefail
+          npm ci --prefix tests/js --ignore-scripts --no-audit --no-fund
+          for locale in fa en tr; do
+            php tests/Fixtures/DomainDiscoveryPreview.php "$locale" "$RUNNER_TEMP/domain-discovery-preview"
+          done
+          DOMAIN_DISCOVERY_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" node --test tests/js/domain-discovery-page.test.cjs tests/js/domain-home-discovery.test.cjs
+      - name: Retain synthetic domain UI preview for visual review
+        if: matrix.database == 'sqlite' && success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: domain-discovery-synthetic-preview
+          path: ${{ runner.temp }}/domain-discovery-preview
+          retention-days: 7
       - name: New supplier cases must all pass
         run: |
           set -euo pipefail
@@ -192,27 +213,6 @@ jobs:
       - name: Verify sanitized Hermes knowledge retrieval
         if: matrix.database == 'sqlite'
         run: php tests/standalone/domain-supplier-knowledge.php
-      - name: Set up Node for actual domain UI behavior tests
-        if: matrix.database == 'sqlite'
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '22'
-      - name: Render real Blade and exercise three-language discovery UI
-        if: matrix.database == 'sqlite'
-        run: |
-          set -euo pipefail
-          npm ci --prefix tests/js --ignore-scripts --no-audit --no-fund
-          for locale in fa en tr; do
-            php tests/Fixtures/DomainDiscoveryPreview.php "$locale" "$RUNNER_TEMP/domain-discovery-preview"
-          done
-          DOMAIN_DISCOVERY_FIXTURES="$RUNNER_TEMP/domain-discovery-preview" node --test tests/js/domain-discovery-page.test.cjs tests/js/domain-home-discovery.test.cjs
-      - name: Retain synthetic domain UI preview for visual review
-        if: matrix.database == 'sqlite' && success()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: domain-discovery-synthetic-preview
-          path: ${{ runner.temp }}/domain-discovery-preview
-          retention-days: 7
       - name: Record execution boundary
         if: always()
         run: |

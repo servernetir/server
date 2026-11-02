@@ -25,6 +25,15 @@ class HomeDomainBoxTest extends TestCase
 
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Explicit verified zero VAT/fees in this synthetic fixture; production
+        // continues to reject unknown supplier tax rather than guessing it.
+        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+    }
+
+
     /**
      * ⚠️ `Http::swap(new Factory)` و نه `Http::fake()`ِ دوم.
      *
@@ -211,22 +220,10 @@ class HomeDomainBoxTest extends TestCase
         ]);
         \App\Models\Setting::put('pricing_rate_override', '100000');
 
-        // ── مرحلهٔ ۱: گرم‌کردنِ دفترچه، همان‌طور که کرون می‌کند ──
-        Http::swap(new Factory);
-        Http::fake([
-            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'T']], 200),
-            '*/domains/check*' => Http::response(['code' => 0, 'data' => ['results' => [
-                ['domain' => 'sn7price9check4base.net', 'status' => 'free',
-                    'price' => ['reseller' => ['price' => 5.0, 'currency' => 'EUR']]],
-            ]]], 200),
-            '*' => Http::response(['code' => 0, 'data' => []], 200),
-        ]);
-
-        $book = app(\App\Services\Domain\TldPriceBook::class)
-            ->forTlds(\App\Http\Controllers\DomainCheckController::SUGGEST);
-
-        $this->assertArrayHasKey('net', $book,
-            'دفترچه گرم نشد — بقیهٔ این تست چیزی را ثابت نمی‌کند');
+        $book = \Mockery::mock(\App\Services\Domain\TldPriceBook::class)->makePartial();
+        $book->shouldReceive('cachedFullForTlds')->once()->andReturn(['net' => ['register' => 540000, 'min_years' => 1]]);
+        $book->shouldReceive('promotionForQuote')->andReturn(\App\Services\Domain\DomainPromotion::empty());
+        $this->app->instance(\App\Services\Domain\TldPriceBook::class, $book);
 
         // ── مرحلهٔ ۲: استعلامِ کاربر، با قیمتِ زندهٔ عمداً گران ──
         Http::swap(new Factory);
@@ -245,11 +242,9 @@ class HomeDomainBoxTest extends TestCase
 
         $this->assertNotNull($net);
 
-        // ⚠️ جداکنندهٔ هزارگان همان کامای اسکی است: `cloud_price` از
-        //    `number_format` استفاده می‌کند و `fa_num` فقط **رقم‌ها** را
-        //    فارسی می‌کند، نه نشانه‌ها.
-        $this->assertStringContainsString('۱۰,۶۹۲,۰۰۰', $net['price'],
-            'قیمتِ دقیق همین نام باید بر تخمین کاتالوگ کش‌شده مقدم باشد؛ تخفیفِ منقضی/دورهٔ دیگر فروخته نشود');
+        $expected = app(\App\Services\Domain\LiveDomainPricing::class)->fromAmount(99, 'EUR', 'net')['sell_toman'];
+        $this->assertSame(cloud_price($expected), $net['price']);
+        $this->assertNotSame(cloud_price(540000), $net['price'], 'Exact-name quote must win over the stale catalogue estimate.');
     }
 
     /** ⚠️ رجیسترارِ خواب در لحظهٔ تازه‌سازیِ کش نباید جعبهٔ صفحهٔ اول را بشکند */
@@ -272,8 +267,11 @@ class HomeDomainBoxTest extends TestCase
         $commands = collect(app(\Illuminate\Console\Scheduling\Schedule::class)->events())
             ->map(fn ($e) => (string) $e->command);
 
-        $this->assertTrue($commands->contains(fn ($c) => str_contains($c, 'domains:price-book')),
-            'domains:price-book زمان‌بندی نشده — بازدیدکننده هزینهٔ استعلام را می‌دهد');
+        // The accepted schedule refreshes FX first, then publishes domain prices
+        // with that same snapshot. It deliberately has no duplicate standalone job.
+        $this->assertTrue($commands->contains(fn ($c) => str_contains($c, 'fx:dollar')));
+        $this->assertStringContainsString("'domains:price-book', ['--strict' => true]",
+            file_get_contents(app_path('Console/Commands/FetchDollar.php')));
     }
 
     /** ورودیِ بی‌معنا باید ۴۲۲ بگیرد، نه استعلامِ بیهوده به رجیسترار */
