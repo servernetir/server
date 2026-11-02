@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Route;
 
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
+require __DIR__.'/urmia-auth.php';
 require __DIR__.'/ai-growth.php';
 require __DIR__.'/madar-admin.php';
 
