@@ -39,7 +39,13 @@ class HermesSupportExperienceTest extends TestCase
         $m[] = ['id' => 4, 'ticket_id' => 1, 'author_role' => 'staff', 'author_name' => 'Support', 'body' => 'قواعد UDP اصلاح شد.', 'created_at' => '2026-01-04'];
         $m[] = ['id' => 5, 'ticket_id' => 1, 'author_role' => 'customer', 'body' => 'مشکل حل شد', 'created_at' => '2026-01-05'];
         $i = HermesSupportExperience::compile($this->tickets(), $m, 10001);
-        $this->assertSame('customer_confirmed_report', $i['cases'][0]['outcome']);
+        // All-history keeps both exchanges. The failed earlier answer must
+        // remain failed; only the later answer has customer confirmation.
+        $byReply = array_column($i['cases'], null, 'reply_message_id');
+        $this->assertArrayHasKey(1, $byReply);
+        $this->assertArrayHasKey(4, $byReply);
+        $this->assertSame('customer_reports_continuing', $byReply[1]['outcome']);
+        $this->assertSame('customer_confirmed_report', $byReply[4]['outcome']);
         $this->assertSame(1, $i['confirmed_case_count']);
     }
 

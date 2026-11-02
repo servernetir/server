@@ -85,7 +85,7 @@ jobs:
       PULSE_ENABLED: 'false'
       TELESCOPE_ENABLED: 'false'
       NIGHTWATCH_ENABLED: 'false'
-      INCIDENT_CORE_FILTER: 'WalletRefundNotificationsTest|VpsTcSalesTest|UnifiedVpsCountryTest|PageCacheTest|BlogListingCanonicalTest|BlogSitemapLastmodTest|InternalLinkAssetResolutionTest|CloudSalesWatchTest|CloudSalesIncidentPolicyTest|SystemHealthSalesNotificationOwnershipTest|SystemHealthTest|NavasanCoordinatedRefreshTest|NavasanExchangeRateTest|NavasanTryRateTest|CloudCatalogRepricingTest|LightNodePartialRepricingTest|ArvanRegionalPricingTest|FetchDollarTest|NavasanCloudPricingSnapshotTest|LightNodePublicPricingTest|LightNodeClientTest::test_zero_overhead_refresh_uses_fresh_lightnode_quotes_and_preserves_other_providers|CountrySitemapEligibilityTest|CountryVpsServiceSchemaTest|GpuDecisionGuideTest|IranSalesVisibilityTest'
+      INCIDENT_CORE_FILTER: 'WalletRefundNotificationsTest|VpsTcSalesTest|UnifiedVpsCountryTest|PageCacheTest|BlogListingCanonicalTest|BlogSitemapLastmodTest|InternalLinkAssetResolutionTest|CloudSalesWatchTest|CloudSalesIncidentPolicyTest|SystemHealthSalesNotificationOwnershipTest|SystemHealthTest|NavasanCoordinatedRefreshTest|NavasanExchangeRateTest|NavasanTryRateTest|CloudCatalogRepricingTest|LightNodePartialRepricingTest|ArvanRegionalPricingTest|FetchDollarTest|NavasanCloudPricingSnapshotTest|LightNodePublicPricingTest|LightNodeClientTest|CountrySitemapEligibilityTest|CountryVpsServiceSchemaTest|GpuDecisionGuideTest|IranSalesVisibilityTest'
       INCIDENT_HERMES_FILTER: 'HermesSupportExperienceTest|HermesOwnerReviewNoiseTest|HermesSupportLearningIntegrationTest|HermesTechnicalFollowupWorkflowTest|HermesBackgroundReliabilityTest|HermesOwnerNotificationTest'
     steps:
       - name: Checkout without persisted credentials
@@ -162,6 +162,21 @@ jobs:
           sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -d ::1/128 -j ACCEPT
           mkdir -p storage/framework/testing/incident-ci bootstrap/cache
           sudo chown -R incident-tests:incident-tests "$GITHUB_WORKSPACE/website"
+          # sudo inherits cwd, but PHP resolves autoload/source paths absolutely.
+          # Permit traversal through runner-owned ancestors without exposing their files.
+          ancestor="$GITHUB_WORKSPACE"
+          while [ "$ancestor" != / ]; do
+            if command -v setfacl >/dev/null 2>&1; then
+              rights=--x
+              if [ "$ancestor" = "$GITHUB_WORKSPACE" ]; then rights=r-x; fi
+              sudo setfacl -m "u:$test_uid:$rights" "$ancestor"
+            else
+              # Ephemeral runner fallback: traversal only, no read/write permissions added.
+              sudo chmod o+x "$ancestor"
+            fi
+            ancestor="$(dirname "$ancestor")"
+          done
+          sudo -u incident-tests -- test -r "$GITHUB_WORKSPACE/website/vendor/autoload.php"
           printf '%s\n' 'APP_ENV,APP_KEY,APP_URL,DB_CONNECTION,DB_HOST,DB_PORT,DB_DATABASE,DB_USERNAME,DB_PASSWORD,DB_URL,DB_SOCKET,CACHE_STORE,SESSION_DRIVER,QUEUE_CONNECTION,MAIL_MAILER,SMS_DRIVER,PAGE_CACHE,EXCHANGE_ENABLED,BROADCAST_CONNECTION,PULSE_ENABLED,TELESCOPE_ENABLED,NIGHTWATCH_ENABLED' > "$RUNNER_TEMP/incident-preserve-env"
           preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
           sudo --preserve-env="$preserved" -u incident-tests -- php artisan package:discover --ansi
