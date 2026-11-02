@@ -11,6 +11,7 @@ import dataclasses
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -56,7 +57,7 @@ def invoke_adapter(config: dict, action: str, payload: dict) -> dict:
     from .agent import _bounded_process
     code, output = _bounded_process([str(path), action],
                                     json.dumps(payload, separators=(',', ':'), allow_nan=False).encode(),
-                                    timeout=30)
+                                    timeout=60 if action == 'collect' else 30)
     if code != 0:
         raise RecoveryError('Integration adapter failed')
     response = json.loads(output)
@@ -65,7 +66,39 @@ def invoke_adapter(config: dict, action: str, payload: dict) -> dict:
     return response
 
 
-def tick(config: dict, now: int, adapter=invoke_adapter) -> dict:
+def tick(config: dict, now: int, adapter=invoke_adapter, *, clock=None) -> dict:
+    """Advance the observation/claim clock across blocking integration I/O.
+
+    Production anchors UTC once at invocation and advances using monotonic
+    elapsed time. The integer UTC anchor has a subsecond uncertainty: a 0.2s
+    operation can cross a wall-clock second. Resolve only that one-second
+    interval using wall time, clamped between the monotonic floor/ceiling;
+    never stamp a fast effect's intent one second in its actual future and
+    never follow an arbitrary wall-clock jump. Tests may inject an integer
+    UTC clock without consulting the real host.
+    """
+    if type(now) is not int or now < 0:
+        raise RecoveryError('Invalid worker clock')
+    started = time.monotonic()
+    last_clock = now
+    last_elapsed = 0.0
+
+    def current_time() -> int:
+        nonlocal last_clock, last_elapsed
+        if clock is None:
+            elapsed = time.monotonic() - started
+            if not math.isfinite(elapsed) or elapsed < last_elapsed or elapsed < 0:
+                raise RecoveryError('Worker monotonic clock regressed')
+            last_elapsed = elapsed
+            value = min(now + math.ceil(elapsed),
+                        max(now + math.floor(elapsed), int(time.time())))
+        else:
+            value = clock()
+        if type(value) is not int or value < last_clock:
+            raise RecoveryError('Worker clock regressed')
+        last_clock = value
+        return value
+
     try:
         state_dir = private_state_dir(Path(config['state_dir']))
     except GatewayError:
@@ -97,31 +130,33 @@ def tick(config: dict, now: int, adapter=invoke_adapter) -> dict:
         raise RecoveryError('Journal provider scope mismatch')
     engine = Engine(policy, journal)
     try:
-        collected = adapter(config, 'collect', {'now': now, 'state': journal.snapshot(),
+        collected = adapter(config, 'collect', {'now': current_time(), 'state': journal.snapshot(),
                                                'binding': binding})
         if collected.get('schema') != 'servernet.relay.evidence.v1' or not isinstance(collected.get('evidence'), dict):
             raise RecoveryError('Invalid evidence envelope')
         evidence = collected['evidence']
     except Exception:
         evidence = {}
-    state = engine.observe(evidence, now)
-    intent = engine.plan(state, evidence, now)
+    decision_at = current_time()
+    state = engine.observe(evidence, decision_at)
+    intent = engine.plan(state, evidence, decision_at)
     performed = False
     if intent.kind != 'HOLD':
         # No call to an external adapter happens before durable journal commit.
-        engine.commit_intent(intent, evidence, now)
+        claimed_at = current_time()
+        engine.commit_intent(intent, evidence, claimed_at)
         try:
-            envelope = adapter(config, intent.kind, {'now': now, 'intent': intent.to_dict(),
+            envelope = adapter(config, intent.kind, {'now': claimed_at, 'intent': intent.to_dict(),
                                                     'evidence': evidence})
             if envelope.get('schema') != 'servernet.relay.effect.v1':
                 raise RecoveryError('Invalid effect envelope')
-            engine.record_effect(intent.id, envelope['receipt'], int(time.time()))
+            engine.record_effect(intent.id, envelope['receipt'], current_time())
             performed = True
         except Exception:
             # Preserve ambiguous operation. Next tick can only reconcile it.
             # Exception text may include secrets; it never enters status output.
             pass
-    result = {'schema': 'servernet.relay.controller.v1', 'at': now,
+    result = {'schema': 'servernet.relay.controller.v1', 'at': current_time(),
               'mode': 'enabled' if policy.enabled else 'observe_only',
               'phase': journal.snapshot()['phase'], 'intent': intent.kind,
               'reason': intent.reason, 'retry_at': intent.retry_at,

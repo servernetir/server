@@ -393,7 +393,7 @@ class Hetzner:
             return OperationResult(state, exc.reason)
 
     def create_candidate(self, intent: CandidateIntent, quote: Quote | None = None,
-                         *, reconciliation_only: bool = False) -> OperationResult:
+                         *, reconciliation_only: bool = False, authorize=None) -> OperationResult:
         intent.validate(self.now())
         try:
             prior = self.reconcile_candidate(intent)
@@ -412,6 +412,10 @@ class Hetzner:
             image = self._ok(self._request("GET", "/images/" + _identifier(intent.image))).get("image", {})
             if image.get("architecture") != "x86" or image.get("status") != "available" or image.get("deprecation") is not None:
                 return OperationResult("blocked", "incompatible_image")
+            if self.now() - quote.observed_at not in range(0, 301):
+                return OperationResult("blocked", "stale_or_missing_quote")
+            if authorize is not None:
+                authorize()
             response = self._request("POST", "/servers", {
                 "name": intent.name, "server_type": intent.server_type, "location": intent.location,
                 "image": int(intent.image), "ssh_keys": [int(i) for i in intent.ssh_key_ids],
@@ -449,7 +453,7 @@ class Hetzner:
         elif permit.kind != "retired_generation":
             raise AdapterError("invalid_delete_permit")
 
-    def delete_server(self, server: ManagedServer, permit: DeletePermit) -> OperationResult:
+    def delete_server(self, server: ManagedServer, permit: DeletePermit, *, authorize=None) -> OperationResult:
         """One deletion step. Persist returned remaining_ip_ids across invocations.
 
         No removal of snapshots, volumes or unrelated resources is implemented.
@@ -470,7 +474,7 @@ class Hetzner:
                     return OperationResult("blocked", "project_scope_unconfirmed", server, server.primary_ip_ids)
             response = self._request("GET", "/servers/" + server_id)
             if response.status == 404:
-                return self._cleanup_ips(server)
+                return self._cleanup_ips(server, permit, authorize)
             raw = self._ok(response).get("server", {})
             if str(raw.get("id")) != server_id or raw.get("name") != server.name or raw.get("labels") != server.labels or raw.get("labels", {}).get("sn-managed") != MANAGER:
                 return OperationResult("blocked", "delete_identity_conflict", server)
@@ -481,6 +485,9 @@ class Hetzner:
             # Resources attached later may contain unique data or another service.
             if raw.get("volumes") or raw.get("private_net"):
                 return OperationResult("blocked", "attached_resources_need_separate_plan", server)
+            self._permit(server, permit)
+            if authorize is not None:
+                authorize()
             deleted = self._request("DELETE", "/servers/" + server_id)
             if deleted.status not in (200, 201, 204, 404):
                 return OperationResult("delete_pending", "delete_not_confirmed", server, server.primary_ip_ids)
@@ -493,11 +500,11 @@ class Hetzner:
             after = self._request("GET", "/servers/" + server_id)
             if after.status != 404:
                 return OperationResult("delete_pending", "server_absence_unconfirmed", server, server.primary_ip_ids)
-            return self._cleanup_ips(server)
+            return self._cleanup_ips(server, permit, authorize)
         except AdapterError as exc:
             return OperationResult("delete_pending", exc.reason, server, server.primary_ip_ids)
 
-    def _cleanup_ips(self, server: ManagedServer) -> OperationResult:
+    def _cleanup_ips(self, server: ManagedServer, permit: DeletePermit, authorize=None) -> OperationResult:
         remaining = []
         for ip_id in server.primary_ip_ids:
             try:
@@ -515,6 +522,9 @@ class Hetzner:
                 if raw.get("assignee_id") is not None or raw.get("assignee_type") not in (None, "unassigned"):
                     remaining.append(ip_id)
                     continue
+                self._permit(server, permit)
+                if authorize is not None:
+                    authorize()
                 response = self._request("DELETE", "/primary_ips/" + ip_id)
                 if response.status not in (200, 201, 204, 404):
                     remaining.append(ip_id)

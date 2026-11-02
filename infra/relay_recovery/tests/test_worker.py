@@ -132,6 +132,110 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual("CREATE_UNKNOWN", result["phase"])
         self.assertNotIn("token-must-not-leak", json.dumps(result))
 
+    def test_collection_and_effect_use_advancing_injected_clock(self):
+        self.cfg["policy"]["enabled"] = True
+        clock = {"now": self.now}
+        effects = []
+        def adapter(config, action, payload):
+            if action == "collect":
+                clock["now"] += 2
+                return self.evidence(clock["now"], payload["state"])
+            self.assertEqual("CREATE", action)
+            effects.append(action)
+            self.assertEqual(clock["now"], payload["now"])
+            clock["now"] += 2
+            intent = payload["intent"]
+            return {"schema": "servernet.relay.effect.v1", "receipt": {
+                "intent_id": intent["id"], "kind": action, "outcome": "created",
+                "verified": True, "received_at": clock["now"], "create_intent_id": intent["id"],
+                "identity": {"provider": "hetzner", "project_id": "project-a", "provider_id": "new", "generation": 2}}}
+        for step in (0, 30, 60):
+            clock["now"] = self.now + step
+            result = worker.tick(self.cfg, clock["now"], adapter=adapter, clock=lambda: clock["now"])
+        self.assertEqual(["CREATE"], effects)
+        self.assertEqual("VALIDATING", result["phase"])
+        self.assertTrue(result["effect_performed"])
+        self.assertEqual(self.now + 64, result["at"])
+
+    def test_default_monotonic_clock_covers_fractional_wall_second_boundary(self):
+        self.cfg["policy"]["enabled"] = True
+        elapsed = {"seconds": 0.0}
+        def adapter(config, action, payload):
+            self.assertEqual("collect", action)
+            # Actual UTC can cross a second after only 0.2s of collection.
+            elapsed["seconds"] += 0.2
+            return self.evidence(payload["now"] + 1, payload["state"])
+        with patch.object(worker.time, "monotonic", side_effect=lambda: 1000.0 + elapsed["seconds"]):
+            result = worker.tick(self.cfg, self.now, adapter=adapter)
+        self.assertEqual("SUSPECT", result["reason"])
+        self.assertEqual(self.now + 1, result["at"])
+
+    def test_default_clock_does_not_stamp_fast_claim_in_actual_future(self):
+        self.cfg["policy"]["enabled"] = True
+        elapsed = {"seconds": 0.0}
+        wall = {"now": self.now}
+        effects = []
+        def adapter(config, action, payload):
+            elapsed["seconds"] += 0.1
+            if action == "collect":
+                return self.evidence(wall["now"], payload["state"])
+            effects.append(action)
+            self.assertEqual(wall["now"], payload["now"])
+            intent = payload["intent"]
+            return {"schema": "servernet.relay.effect.v1", "receipt": {
+                "intent_id": intent["id"], "kind": action, "outcome": "unknown",
+                "verified": True, "received_at": wall["now"]}}
+        for step in (0, 30, 60):
+            elapsed["seconds"] = 0.0
+            wall["now"] = self.now + step
+            with patch.object(worker.time, "time", side_effect=lambda: wall["now"]), \
+                    patch.object(worker.time, "monotonic", side_effect=lambda: 1000.0 + elapsed["seconds"]):
+                result = worker.tick(self.cfg, wall["now"], adapter=adapter)
+        self.assertEqual(["CREATE"], effects)
+        self.assertTrue(result["effect_performed"])
+
+    def test_collection_does_not_refresh_stale_health_by_backdating_time(self):
+        self.cfg["policy"]["enabled"] = True
+        clock = {"now": self.now}
+        def adapter(config, action, payload):
+            self.assertEqual("collect", action)
+            result = self.evidence(payload["now"], payload["state"])
+            clock["now"] += 100
+            return result
+        result = worker.tick(self.cfg, self.now, adapter=adapter, clock=lambda: clock["now"])
+        self.assertEqual("IR_UNREACHABLE_OR_STALE", result["reason"])
+        self.assertFalse(result["effect_performed"])
+
+    def test_clock_regression_after_collection_never_claims_effect(self):
+        self.cfg["policy"]["enabled"] = True
+        clock = {"now": self.now}
+        def adapter(config, action, payload):
+            self.assertEqual("collect", action)
+            clock["now"] -= 1
+            return self.evidence(payload["now"], payload["state"])
+        with self.assertRaisesRegex(core.RecoveryError, "clock regressed"):
+            worker.tick(self.cfg, self.now, adapter=adapter, clock=lambda: clock["now"])
+        with sqlite3.connect(self.root / "controller.sqlite3") as db:
+            self.assertEqual(0, db.execute("SELECT COUNT(*) FROM actions").fetchone()[0])
+
+    def test_deadline_is_rechecked_before_claim_after_planning(self):
+        self.cfg["policy"]["enabled"] = True
+        actions = []
+        def adapter(config, action, payload):
+            actions.append(action)
+            self.assertEqual("collect", action)
+            return self.evidence(payload["now"], payload["state"])
+        for step in (0, 30):
+            now = self.now + step
+            worker.tick(self.cfg, now, adapter=adapter, clock=lambda: now)
+        now = self.now + 60
+        clock = iter((now, now, now + 31))
+        with self.assertRaises(core.StaleIntent):
+            worker.tick(self.cfg, now, adapter=adapter, clock=lambda: next(clock))
+        self.assertEqual(["collect"] * 3, actions)
+        with sqlite3.connect(self.root / "controller.sqlite3") as db:
+            self.assertEqual(0, db.execute("SELECT COUNT(*) FROM actions").fetchone()[0])
+
     def executable(self):
         path = self.root / "fixed-adapter"
         path.write_text("#!/usr/bin/python3\n# inert test adapter; execution is mocked\n")
@@ -160,6 +264,14 @@ class WorkerTests(unittest.TestCase):
             with self.assertRaisesRegex(core.RecoveryError, "hash mismatch"):
                 worker.invoke_adapter(self.cfg, "collect", {})
             process.assert_not_called()
+
+    def test_collection_has_sixty_second_bound_without_expanding_mutation_timeout(self):
+        self.executable()
+        with patch("relay_recovery.agent._bounded_process", return_value=(0, b'{"schema":"test-result"}')) as process:
+            worker.invoke_adapter(self.cfg, "collect", {"now": self.now})
+            self.assertEqual(60, process.call_args.kwargs["timeout"])
+            worker.invoke_adapter(self.cfg, "RECONCILE_CREATE", {"intent": {"payload": {"read_only": True}}})
+            self.assertEqual(30, process.call_args.kwargs["timeout"])
 
     def test_public_state_directory_is_refused(self):
         self.root.chmod(0o755)
