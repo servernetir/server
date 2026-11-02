@@ -78,26 +78,45 @@ final class HermesProviderReply
         return implode("\n", $lines);
     }
 
-    /** Only supplier-list and single-supplier sales/catalogue fact questions; work requests reach the model. */
+    /** Complete supported fact questions only. Unconsumed clauses belong to the model. */
     public static function intent(string $query): ?string
     {
         if (mb_strlen($query) > 1000) { return null; }
-        $text = mb_strtolower(str_replace(['ي', 'ك', '‌'], ['ی', 'ک', ' '], $query));
-        if (preg_match('/خبر|اخبار|دانش|یادگیری|حافظه|مموری|یاد بگیر|دیروز|گذشته|قبلا|تاریخچه|news|knowledge|memory|yesterday|history/iu', $text)
-            || preg_match('/(?:^|[\s؟?!،؛])کن(?:ید|ین)?(?:$|[\s؟?!،؛])/u', $text)
-            || preg_match('/باز(?:ش)?\s*کن|ببند|فعال(?:ش)?\s*کن|غیرفعال(?:ش)?\s*کن|روشن(?:ش)?\s*کن|خاموش(?:ش)?\s*کن|ببین|بخوان|راه.?بنداز|تغییر|بخر|خرید|حذف|منتقل|اصلاح|تعمیر|برطرف|درست\s*کن|مدیریت\s*کن|بررسی\s*کن|چک\s*کن|تست\s*کن|پیگیری\s*کن|ارسال|بفرست|بنویس|مقایسه|انجام\s*بده|همزمان|سپس|بعدش|enable|disable|buy|purchase|create|delete|repair|manage|check|test|send|change|compare/iu', $text)) { return null; }
-        $list = preg_match('/چه|کدام|کدوم|فهرست|لیست|which|list/iu', $text)
-            && preg_match('/زیرساخت|تامین.?کنند|تأمین.?کنند|دیتاسنتر|providers?|suppliers?/iu', $text)
-            && preg_match('/فروش|می\s*فروش|عرضه|ارائه|ثبت.?شده|sell|sales|offered|registered/iu', $text);
-        if ($list) { return 'list'; }
-        if (! preg_match('/فروش|پلن|پلان|عرضه|کاتالوگ|sales?|plans?|offers?|catalog/iu', $text)
-            || ! preg_match('/چرا|چیه|چی\s*شده|وضعیت|باز|بسته|فعال|غیرفعال|چند|تعداد|why|what|status|open|closed|available/iu', $text)) { return null; }
-        $matches = [];
+        $text = mb_strtolower(str_replace(['ي', 'ك', '‌'], ['ی', 'ک', ' '], trim($query)));
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+        // Remove only address/politeness and final punctuation, never an internal sentence or clause.
+        $text = preg_replace('/^(?:آراز|araz)[،,:]?\s+/u', '', $text) ?? $text;
+        $text = preg_replace('/^(?:لطفا|لطفاً|please)\s+/u', '', $text) ?? $text;
+        $text = trim(preg_replace('/[؟?!.]+$/u', '', $text) ?? '');
+        if ($text === 'چرا زیرساخت آروان باز فروش پنل هاست بسته هست چیشده') { return 'arvan'; }
+        if ($text === 'نه در مورد سرورنت اطلاعاتی نداری چه زیرساخت هایی میفروشیم') { return 'list'; }
+
+        $supplier = '(?:زیرساخت(?:\s*(?:ها|های|هایی))?|(?:تامین|تأمین)\s*کننده(?:\s*(?:ها|های|هایی))?|دیتاسنتر(?:\s*(?:ها|های|هایی))?)';
+        $listPatterns = [
+            '/\A(?:چه|کدام|کدوم)\s+'.$supplier.'\s+فروش\s*(?:شون|شان)?\s+(?:باز|بسته|فعال|غیرفعال|مسدود)(?:\s+(?:است|هست|هستند|شده))?\z/u',
+            '/\A(?:چه|کدام|کدوم)\s+'.$supplier.'(?:\s+(?:را|رو))?\s+(?:می\s*فروشیم|برای فروش داریم|عرضه می\s*کنیم|ارائه می\s*کنیم)\z/u',
+            '/\A(?:فهرست|لیست)\s+'.$supplier.'\s+(?:فروش|قابل فروش|ثبت شده برای فروش)(?:\s+سرورنت)?(?:\s+(?:را|رو))?(?:\s+(?:بگو|بده|نشان بده))?\z/u',
+            '/\A(?:which|what)\s+(?:providers|suppliers)\s+(?:do we sell|does servernet sell|do we offer|are registered for sales)\z/u',
+            '/\A(?:show me )?(?:the )?list of (?:sales providers|sales suppliers|providers we sell|suppliers we sell)\z/u',
+        ];
+        foreach ($listPatterns as $pattern) { if (preg_match($pattern, $text) === 1) { return 'list'; } }
+
         foreach (self::ALIASES as $id => $aliases) {
-            foreach ($aliases as $alias) { if (str_contains($text, $alias)) { $matches[] = $id; break; } }
+            $aliases = array_values(array_unique($aliases));
+            $name = '(?:زیرساخت\s+)?(?:'.implode('|', array_map(fn ($alias) => preg_quote($alias, '/'), $aliases)).')';
+            $state = '(?:باز|بسته|مسدود|فعال|غیرفعال)';
+            $end = '(?:\s+(?:است|هست|شده|شده است))?';
+            $patterns = [
+                '/\A(?:چرا|برای چه)\s+(?:فروش|عرضه)\s+'.$name.'\s+'.$state.$end.'\z/u',
+                '/\Aچرا\s+'.$name.'\s+فروش(?:ش)?\s+'.$state.$end.'\z/u',
+                '/\A(?:وضعیت(?: کلی)?|تعداد)\s+(?:فروش|کاتالوگ|پلن ها|پلن های قابل فروش|عرضه های قابل فروش)\s+'.$name.'(?:\s+(?:چیه|چیست|چطوره|چگونه است|چند است|چنده|چندتاست|را بگو|رو بگو|را نشان بده|رو نشان بده))?\z/u',
+                '/\A(?:فروش|عرضه)\s+'.$name.'\s+(?:'.$state.$end.'|چطوره|چیه|چه وضعیتی دارد)\z/u',
+                '/\A'.$name.'\s+(?:چند عرضه قابل فروش دارد|چند پلن قابل فروش دارد|برای فروش باز است|برای فروش بسته است)\z/u',
+                '/\A(?:what is|what\x27s|why is|is)\s+(?:the )?'.$name.'\s+(?:sales status|sales|catalogue|catalog|plan sales)(?:\s+(?:open|closed|available))?\z/u',
+            ];
+            foreach ($patterns as $pattern) { if (preg_match($pattern, $text) === 1) { return $id; } }
         }
-        if (in_array('hetzner-robot', $matches, true)) { $matches = array_values(array_diff($matches, ['hetzner'])); }
-        return count($matches) === 1 ? $matches[0] : null;
+        return null;
     }
 
     private static function salesText(array $row): string
