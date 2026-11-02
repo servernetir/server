@@ -124,6 +124,22 @@
       "migration_execution_separate": false
     },
     {
+      "source": "website/app/Http/Controllers/DomainCheckController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/DomainCheckController.php",
+      "operation": "replace",
+      "expected_before_sha256": "8cd35c3789c70011d832bc08afcae0ba63855cc1cd4777752119652d2553a60b",
+      "after_sha256": "a6d9a48b987352115bf0747b9d486783b2a6cec02766449210dd561f2cc30081",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Http/Controllers/DomainSearchController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/DomainSearchController.php",
+      "operation": "replace",
+      "expected_before_sha256": "2160bc48526082addc8f5d52e0e8bf68d9f99b58d234f10d9eca3d4890403800",
+      "after_sha256": "a5cf41c25b8188684a623ad4daa2006ff970c8722e623d4217742c50767ab876",
+      "migration_execution_separate": false
+    },
+    {
       "source": "website/app/Models/Domain.php",
       "destination_relative_to_home": "servernet_app/app/Models/Domain.php",
       "operation": "replace",
@@ -215,7 +231,15 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainProcurement.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "5d045ea9c8c9bfa121828d5a2b5be4c438b719e3ec892877ead75b3ac59cba4a",
+      "after_sha256": "1cc4c5b9a17d082fe9a7bf745aabbb27d435d663678547522b2f20f37acb5fdc",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainPromotion.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainPromotion.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "a44a93327b2c2faff75aa72e5abc4109eeebf2ab7939a2f6b3d4a723729e7ece",
       "migration_execution_separate": false
     },
     {
@@ -255,7 +279,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSearch.php",
       "operation": "replace",
       "expected_before_sha256": "0d59f4ca6226a615fb89aed9448176cf3b41705c97337696328eaf8dc133b417",
-      "after_sha256": "cb4da5bda9ebbe701ac625953f7ae04779c93285bae19029ea6f46ad0e593c11",
+      "after_sha256": "9d3dae167878b16b25108a43e7b200b7d26ad9c14d0afc4d30ad2cbb6d642b3b",
       "migration_execution_separate": false
     },
     {
@@ -263,7 +287,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierCatalogue.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "1b69a13bea12a623b960994381fe4dbc9c359a2bea0c7f2967c597f151b5f3d8",
+      "after_sha256": "11eebd3ce1a9d3e3def13e26493a55d9ff559002449d1b30828b45c568fbd433",
       "migration_execution_separate": false
     },
     {
@@ -366,7 +390,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/JokerAdapter.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "22a852fc2815b8eb8d71a9615ca799f4797619388d20dd60cc15495a5a9c0a6a",
+      "after_sha256": "747108d03f08e8ba7be2809aed779e904ca834d80b14593c8ec566738efd11a3",
       "migration_execution_separate": false
     },
     {
@@ -382,7 +406,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/OpenProviderAdapter.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "5fd92be93eaebdd3ff1487aced3ceffd0ff7f009c4a4c4fdc18be0ec4ec1bbc4",
+      "after_sha256": "5d91f3d1ad65dc02995931580608b83c765d2e3457fb76661cb98f980519a79f",
       "migration_execution_separate": false
     },
     {
@@ -414,7 +438,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/TldPriceBook.php",
       "operation": "replace",
       "expected_before_sha256": "f76df1870d61387b9c7eae0f2ae8262ee348e69484c98bd2537cc74f2fb3042a",
-      "after_sha256": "3f74f2ad8f424dd2d10c652cdc50d4afb7875ffacf9725a3f687180194f4c352",
+      "after_sha256": "96b0752c6d642fba3527e687fa4207134a883a465d5a94b1e7566626a8da7a23",
       "migration_execution_separate": false
     },
     {
@@ -450,6 +474,14 @@
       "migration_execution_separate": true
     },
     {
+      "source": "website/lang/en/domain-discovery.php",
+      "destination_relative_to_home": "servernet_app/lang/en/domain-discovery.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "49d28adea4409e25662b42fee5f36d39a0f52e8a3debef819604365d99066849",
+      "migration_execution_separate": false
+    },
+    {
       "source": "website/lang/en/domain-management.php",
       "destination_relative_to_home": "servernet_app/lang/en/domain-management.php",
       "operation": "create",
@@ -463,6 +495,14 @@
       "operation": "create",
       "expected_before_sha256": "absent",
       "after_sha256": "af3bff1f5b4a5df129c39032e3e51d2abb2c5c70b491208e505021ed69066a95",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/lang/fa/domain-discovery.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/domain-discovery.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "a5353c19823b0f6c002dab990925326eb155afe32eaa736ee6bb4c84883bb97e",
       "migration_execution_separate": false
     },
     {
@@ -482,6 +522,14 @@
       "migration_execution_separate": false
     },
     {
+      "source": "website/lang/tr/domain-discovery.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/domain-discovery.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "aafb0d1ea39a8c33a801838dcbd25c4970a9f01497af1cc43a6a6aef4dac95ab",
+      "migration_execution_separate": false
+    },
+    {
       "source": "website/lang/tr/domain-management.php",
       "destination_relative_to_home": "servernet_app/lang/tr/domain-management.php",
       "operation": "create",
@@ -495,6 +543,22 @@
       "operation": "create",
       "expected_before_sha256": "absent",
       "after_sha256": "de590dccf6f41f7220f6bcbb78c010bdea4a53339684d2d7cec518ac5bb125a0",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/public/assets/css/site.css",
+      "destination_relative_to_home": "public_html/assets/css/site.css",
+      "operation": "replace",
+      "expected_before_sha256": "c1f86b591dd52de2e2ace95e4098baf783f8fe0ba4378289816c637f8c991048",
+      "after_sha256": "22d099f824670d6e27f354adc1afb3644da539b8d2e1889d3fb2f99fe25b9f1d",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/public/assets/js/site.js",
+      "destination_relative_to_home": "public_html/assets/js/site.js",
+      "operation": "replace",
+      "expected_before_sha256": "04d0119f7f8e53b002d596c123034ee1f72cb302603da23c63a62e9d27d194b4",
+      "after_sha256": "4dc0768fe9425162f7acf2845b6fa0ec7377a0e1b0d2e1d8ff0316789d40e92c",
       "migration_execution_separate": false
     },
     {
@@ -535,6 +599,30 @@
       "operation": "replace",
       "expected_before_sha256": "d576cdc4f7866f30a2152b314bafea476312cd5122c1f4d50a90645b6baff2f5",
       "after_sha256": "01e45eec8fc5c2fbd25954e4704e59913de0c626ae670616cfa705477222dc80",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/pages/domain-search.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/domain-search.blade.php",
+      "operation": "replace",
+      "expected_before_sha256": "0334fb73e0d1814daaed83b49ee2ea2506aae4797c4e48b95d956dff97da702d",
+      "after_sha256": "09743f19bec624f4dd909bed8d0635a676326744146e76b9f1a4366eb7fa6f81",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/pages/home.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/home.blade.php",
+      "operation": "replace",
+      "expected_before_sha256": "ff348efa76b7164adeb154449f1c12b3040d1c45da31df8f1566b69dbcbf6b3a",
+      "after_sha256": "74a299d113925321218fa0ba248219de18c7d34b19a57fd6c3d028468e915e70",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/partials/sig-domainsearch.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/partials/sig-domainsearch.blade.php",
+      "operation": "replace",
+      "expected_before_sha256": "bcb0bfe8b6d64f8ce101637a91ca390bdfef99c381a4fd0405fb7982f04fbd04",
+      "after_sha256": "142f8fffb7e2b1236cc4559aa03e2565f64e75a29e215da925ba2b3caf8dd86c",
       "migration_execution_separate": false
     },
     {
@@ -608,5 +696,28 @@
     "knowledge_checks_passed": 29,
     "workflows_passed": 11,
     "source_and_overlay_hashes_reverified": true
+  },
+  "discovery_promotions_continuation": {
+    "baseline_develop_sha": "6c4c96119dcc2e12ce2ab548d82f40ae55662c58",
+    "previous_feature_sha": "ce0fcf46423b1ffad859b97f4db7397bd41a4f90",
+    "candidate_runtime_sha": "5220dc25d43525d90cae10017fc39c484f7282bf",
+    "validation": "php84_sqlite_mariadb_242_tests_1498_assertions_each_passed",
+    "deployment_status": "not_deployed",
+    "requires_fresh_live_inventory": true,
+    "previous_live_inventory_count": 67,
+    "current_runtime_entries": 78,
+    "overlays": "six_unchanged_historical_lint_receipts_no_behavior_acceptance",
+    "ote_status": "support_reply_received_access_request_not_addressed_no_test_account",
+    "ci_url": "https://github.com/servernetir/server/actions/runs/41452396846",
+    "runtime_sha": "5220dc25d43525d90cae10017fc39c484f7282bf",
+    "jsdom_real_blade_tests_passed": 10,
+    "knowledge_checks_passed": 29,
+    "baseline_cases": 200,
+    "baseline_failures": 38,
+    "baseline_errors": 19,
+    "new_regressions": 0,
+    "runtime_workflows_passed": 11,
+    "visual_review": "chrome_desktop_and_390px_mobile_no_horizontal_overflow_before_final_form_polish;_final_polish_compiled_behavior_ci_passed;_final_chrome_check_unavailable",
+    "support_clarification": "unsent_draft_in_requested_gmail_thread"
   }
 }
