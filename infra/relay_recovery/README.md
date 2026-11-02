@@ -22,6 +22,8 @@ probe, backup proof or fencing receipt is a blocker, never a successful check.
 | `controller_adapter.py` | Receipt validation, evidence collection and probe publication |
 | `servernet_bridge.php` | Private CLI for the existing owner's protected logical service |
 | `relay_side.py` | Restricted SSH inspection and private consistent SQLite snapshots |
+| `backup_client.py` | Pinned SSH download, strict archive validation and disk admission |
+| `cloudflare_adapter.py` | Scoped content-only DNS plans, receipts and reconciliation |
 
 Importing modules performs no provider or application operation. All credentials
 and infrastructure inventories belong in private configuration outside this
