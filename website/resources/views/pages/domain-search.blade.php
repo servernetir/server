@@ -86,7 +86,7 @@ $T = [
       <span class="dsx-badge"><span class="dsx-live-dot" aria-hidden="true"></span>{{ __('domain-discovery.eyebrow') }}</span>
       <h1>{{ __('domain-discovery.headline_start') }} <span>{{ __('domain-discovery.headline_accent') }}</span></h1>
       <p>{{ __('domain-discovery.lead') }}</p>
-      <div class="dsx-orbit" aria-hidden="true"><span>.com</span><b>your next idea</b><span>.net</span><span>.ir</span></div>
+      <div class="dsx-orbit" aria-hidden="true"><span>.com</span><b>your next idea</b><span>.net</span><span>.dev</span></div>
     </header>
 
     <div class="dsx-box">
@@ -413,6 +413,7 @@ html[data-theme="light"] .dsx-row:hover{background:rgba(0,0,0,.025)}
 .dsx-links{margin-top:38px}
 .dsx-links h2{font-size:11px;font-weight:600}
 .dsx-links-in a{font-size:11px;padding:8px 12px;border-radius:8px;background:transparent}
+.dsx-overview,.dsx-ideas{scroll-margin-top:120px}
 .dsx-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .dsx button:focus-visible,.dsx a:focus-visible,.dsx input:focus-visible,.dsx select:focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
 .dm-spin{width:18px;height:18px;border:2px solid rgba(4,20,28,.2);border-top-color:#04141c;border-radius:50%;animation:dsx-spin .7s linear infinite}
@@ -424,7 +425,7 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
 @media(max-width:720px){
  .dsx{padding:28px 0 60px}.dsx-head{margin-bottom:24px}.dsx-head h1{font-size:clamp(30px,7.5vw,44px);letter-spacing:-.6px;max-width:19ch}.dsx-head p{font-size:13px;max-width:40ch}.dsx-badge{font-size:9px}
  .dsx-orbit{gap:7px;margin-top:18px}.dsx-orbit span{font-size:10px;padding:6px 9px}.dsx-orbit b{font-size:9px;padding:6px 9px}
- .dsx-in{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px;padding:7px;border-radius:14px}.dsx-in input{width:auto;order:0;font-size:16px;padding:12px 7px;min-height:48px}.dsx-go{order:0;width:auto;padding-inline:15px;min-height:48px;font-size:12px;border-radius:9px}.dsx-go>.icon{display:none}
+ .dsx-in{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:7px;padding:7px;border-radius:14px}.dsx-in input{width:auto;order:0;font-size:16px;padding:12px 7px;min-height:48px}.dsx-go{order:0;width:auto;padding-inline:15px;min-height:48px;font-size:12px;border-radius:9px}.dsx-go>.icon{display:none}
  .dsx-hint{font-size:10px;text-align:start;padding-inline:4px;line-height:1.9}.dsx-seeds{gap:6px;margin-top:13px}.dsx-seeds>span{flex-basis:100%;font-size:10px;text-align:center;margin-bottom:2px}.dsx-seeds button{padding:6px 9px;font-size:11px;min-height:32px}.dsx-promises{gap:15px;font-size:9px;margin-top:15px}.dsx-box{margin-bottom:25px}
  .dsx-ideas{padding:15px;display:block;margin-bottom:21px;border-radius:12px}.dsx-ideas h2{font-size:12px}.dsx-ideas p{max-width:none;font-size:10px}.dsx-idea-chips{justify-content:flex-start;max-width:none;margin-top:12px;gap:6px}.dsx-idea-chips button{font-size:11px;min-height:36px;padding:7px 9px}
  .dsx-overview{margin-top:25px;display:block}.dsx-overview h2{font-size:20px}.dsx-result-stats{gap:9px;margin-top:10px;font-size:10px}.dsx-result-stats span+span{padding-inline-start:9px}
@@ -627,6 +628,10 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       if (mine !== token) return;
       if (!first.ok) { err.textContent = T.err_empty; err.hidden = false; return; }
       flagLookup(first); append(first.results); showIdeas(first.suggestion_names); updateLoad();
+      if (rows.length) {
+        var target = ideas.hidden ? overview : ideas;
+        if (typeof target.scrollIntoView === 'function') target.scrollIntoView({block:'start', behavior:window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+      }
       if (!rows.length) { err.textContent = T.err_empty; err.hidden = false; }
     } catch (e) {
       if (mine !== token || e.name === 'AbortError') return;
