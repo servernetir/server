@@ -1,4 +1,4 @@
-> ادامهٔ خودکار دامنه: [صف تکی، fade و مرتب‌سازی](../docs/project/DOMAIN-AUTO-DISCOVERY-2026-11-02.md) در PR۲۲۹ آماده و آزموده است؛ نصب تولید به‌علت رد خودکار مجوز مبدأ console انجام نشده است.
+> ادامهٔ خودکار دامنه: [صف تکی، fade و مرتب‌سازی](../docs/project/DOMAIN-AUTO-DISCOVERY-2026-11-02.md) در PR۲۲۹/develop ثبت و preview تولید موفق است؛ apply انجام نشده و ادامه به بازیابی اتصال همان مرورگر نیاز دارد. اجازهٔ console قبلاً داده شده است.
 
 > رابط دامنهٔ مستقل: `pages/domain-search.blade.php` و بخش `sn-domain-discovery` خانه با دارایی اختصاصی `domain-home-discovery.js/.css` و `lang/{fa,en,tr}/domain-discovery.php` کار می‌کنند؛ controller/shared assets دست‌نخورده‌اند. [رسید انتشار محدود](../docs/project/DOMAIN-DISCOVERY-UI-RELEASE-2026-11-02.md) مرجع وضعیت نصب است.
 
