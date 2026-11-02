@@ -15,6 +15,29 @@ API::
     # execute exactly intent.kind/payload, then:
     engine.record_effect(intent.id, receipt, now)
 
+Private installation/workflow APIs (never expose through an agent endpoint)::
+
+    intent = engine.claim_installation_trial(local_authorization, evidence, now)
+    # The returned CREATE is ALREADY committed; execute/reconcile as usual.
+    engine.begin_restore(committed_local_workflow_intent, now) # BEFORE fence/rebuild
+    engine.record_restore_epoch(committed_local_restore_receipt, now)
+
+claim_installation_trial requires a caller-authenticated local owner file. It
+does not arm disabled runtime recovery and bypasses only the outage wait and
+full restore/cutover readiness for one actual installation restore drill. It
+uses the identical retained CREATE budget, inventory and attempt reservation.
+The unique authorization is consumed atomically with the CREATE, never reused.
+No trial authorization grants promotion or retirement permission.
+
+record_restore_epoch accepts only a committed local workflow receipt for the
+exact existing candidate/source and a matching prior begin_restore HOLD. A
+failed restore remains held; no automatic abort/unfence/delete is authorized.
+It clears candidate observation history. After
+that, health and critical receipts for this resource must carry the exact
+restore_epoch/restore_hash and be received after the rebuild. Receipt adapters
+must derive these from authenticated post-restore observations, not add them to
+old reports. Resources without a restore epoch retain the original protocol.
+
 All times are integer UTC seconds. The controller supplies receipt received_at,
 not a remote timestamp. Evidence freshness is rechecked when claiming an intent.
 A backwards/implausible clock becomes CLOCK_UNSAFE until a verified local clock
@@ -59,6 +82,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import uuid
 from typing import Any, Mapping
 
 
@@ -95,6 +119,22 @@ def timestamp(value: Any) -> int:
     return value
 
 
+def _sha256(value: Any) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(c in '0123456789abcdef' for c in value)
+
+
+def _local_id(value: Any) -> bool:
+    return (isinstance(value, str) and 1 <= len(value) <= 96 and value.isascii()
+            and value[0].isalnum() and all(c.isalnum() or c in '_.:-' for c in value))
+
+
+def _workflow_id(value: Any) -> bool:
+    try:
+        return isinstance(value, str) and str(uuid.UUID(value)) == value
+    except (ValueError, AttributeError):
+        return False
+
+
 def identity(value: Mapping[str, Any]) -> dict[str, Any]:
     out = {k: value.get(k) for k in ('provider', 'project_id', 'provider_id', 'generation')}
     if (not all(isinstance(out[k], str) and 0 < len(out[k]) <= 160
@@ -110,6 +150,10 @@ def same_identity(left: Mapping[str, Any], right: Mapping[str, Any]) -> bool:
         return identity(left) == identity(right)
     except (RecoveryError, AttributeError):
         return False
+
+
+def _exact_identity(value: Any, resource: Mapping[str, Any]) -> bool:
+    return isinstance(value, dict) and canonical(value) == canonical(identity(resource))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -200,6 +244,13 @@ class Journal:
                   id TEXT PRIMARY KEY, incident TEXT NOT NULL, created_at INTEGER NOT NULL,
                   trial_micro INTEGER NOT NULL, country TEXT NOT NULL, location TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS promotions (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS installation_trials (
+                  id TEXT PRIMARY KEY, created_at INTEGER NOT NULL,
+                  authorization TEXT NOT NULL, intent_id TEXT NOT NULL UNIQUE);
+                CREATE TABLE IF NOT EXISTS restore_epochs (
+                  workflow_id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, receipt TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS restore_begins (
+                  workflow_id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, receipt TEXT NOT NULL);
             ''')
         os.chmod(self.path, 0o600)
 
@@ -303,6 +354,7 @@ class Engine:
 
     def _quality(self, receipt: Any, resource: Mapping[str, Any], now: int) -> str:
         if not (self._fresh(receipt, now)
+                and self._restore_bound(receipt, resource)
                 and receipt.get('agent_id') == self.config.agent_id
                 and receipt.get('generation') == resource['generation']
                 and receipt.get('config_hash') == resource['config_hash']
@@ -314,6 +366,20 @@ class Engine:
         if receipt.get('tunnel_ok') is False or receipt.get('probe_ok') is False:
             return 'bad'
         return 'unknown'
+
+    @staticmethod
+    def _restore_bound(receipt: Mapping[str, Any], resource: Mapping[str, Any]) -> bool:
+        if resource.get('restore_pending') is not None:
+            return False
+        if 'restore_epoch' not in resource:
+            return True
+        return (type(receipt.get('restore_epoch')) is int
+                and receipt['restore_epoch'] == resource['restore_epoch']
+                and receipt.get('restore_hash') == resource['restore_hash']
+                and type(receipt.get('received_at')) is int
+                and receipt['received_at'] >= resource['restore_recorded_at']
+                and type(receipt.get('observed_at')) is int
+                and resource['restore_recorded_at'] <= receipt['observed_at'] <= receipt['received_at'] + 5)
 
     def _advance_health(self, h: dict[str, Any], quality: str, now: int) -> dict[str, Any]:
         h = dict(h)
@@ -453,7 +519,9 @@ class Engine:
             matched = [r for r in rows if isinstance(r, dict) and r.get('consumer') == name]
             # A stale successful receipt must not mask a newer failure. The
             # adapter sends one current receipt per required consumer.
-            if len(matched) != 1 or matched[0].get('ok') is not True or not self._scope(matched[0], s, resource, now):
+            if (len(matched) != 1 or matched[0].get('ok') is not True
+                    or not self._scope(matched[0], s, resource, now)
+                    or not self._restore_bound(matched[0], resource)):
                 return False
         return True
 
@@ -501,6 +569,8 @@ class Engine:
             return self._hold(s, 'CLOCK_OR_OBSERVATION_UNSAFE', now)
         if s['active']['project_id'] != self.config.project_id or s['active']['provider'] != 'hetzner':
             return self._hold(s, 'ACTIVE_IDENTITY_NOT_ADOPTED', now)
+        if s.get('candidate') is not None and s['candidate'].get('restore_pending') is not None:
+            return self._hold(s, 'RESTORE_IN_PROGRESS', now)
         phase = s['phase']
         if phase == 'CREATE_UNKNOWN':
             return self._intent(s, 'RECONCILE_CREATE', {'create_intent_id': s['pending_create'], 'read_only': True}, now)
@@ -560,6 +630,11 @@ class Engine:
             return self._hold(s, 'MISSING_INCIDENT', now)
         if not self._preflight_gate(evidence, now):
             return self._hold(s, 'PREFLIGHT_INCOMPLETE', now)
+        return self._create_choice(s, evidence, now, db)
+
+    def _create_choice(self, s: Mapping[str, Any], evidence: Mapping[str, Any], now: int,
+                       db: sqlite3.Connection) -> Intent:
+        """Shared cost/concurrency/choice gate, with no outage/readiness bypass."""
         stats = self._stats(db, s, now)
         blocked_until = []
         if len(stats['incident_24h']) >= self.config.max_attempts_per_incident_24h:
@@ -615,19 +690,196 @@ class Engine:
             expected = self._plan(s, evidence, now, db)
             if expected.id != intent.id or expected.kind != intent.kind or expected.payload != intent.payload:
                 raise StaleIntent('Intent gates changed')
-            db.execute('INSERT INTO actions(id,kind,incident,created_at,body) VALUES(?,?,?,?,?)',
-                       (intent.id, intent.kind, intent.incident_id, now, canonical(intent.to_dict())))
-            if intent.kind == 'CREATE':
-                o = intent.payload['option']
-                db.execute('INSERT INTO attempts VALUES(?,?,?,?,?,?)',
-                    (intent.id, intent.incident_id, now, o['trial_max_gross_micro'], o['country'], o['location']))
-                s.update(phase='CREATE_UNKNOWN', pending_create=intent.id)
-            elif intent.kind == 'PROMOTE':
-                s.update(phase='CUTOVER', pending_action=intent.id)
-            elif intent.kind == 'DELETE_CANDIDATE':
-                s.update(phase='DELETE_CANDIDATE_PENDING', pending_action=intent.id)
-            elif intent.kind == 'RETIRE':
-                s.update(phase='RETIRE_PENDING', pending_action=intent.id)
+            self._persist_intent(db, s, intent, now)
+
+    def _persist_intent(self, db: sqlite3.Connection, s: dict, intent: Intent, now: int) -> None:
+        """One durable reservation path shared by runtime and private trial."""
+        db.execute('INSERT INTO actions(id,kind,incident,created_at,body) VALUES(?,?,?,?,?)',
+                   (intent.id, intent.kind, intent.incident_id, now, canonical(intent.to_dict())))
+        if intent.kind == 'CREATE':
+            o = intent.payload['option']
+            db.execute('INSERT INTO attempts VALUES(?,?,?,?,?,?)',
+                (intent.id, intent.incident_id, now, o['trial_max_gross_micro'], o['country'], o['location']))
+            s.update(phase='CREATE_UNKNOWN', pending_create=intent.id)
+        elif intent.kind == 'PROMOTE':
+            s.update(phase='CUTOVER', pending_action=intent.id)
+        elif intent.kind == 'DELETE_CANDIDATE':
+            s.update(phase='DELETE_CANDIDATE_PENDING', pending_action=intent.id)
+        elif intent.kind == 'RETIRE':
+            s.update(phase='RETIRE_PENDING', pending_action=intent.id)
+        self.journal._write(db, s)
+
+    def claim_installation_trial(self, authorization: Mapping[str, Any],
+                                 evidence: Mapping[str, Any], now: int) -> Intent:
+        """Atomically commit one local-owner installation CREATE, never promote.
+
+        The caller MUST verify a private local owner authorization file and
+        locally generated guard/workflow receipts before verified=True. Agent
+        reports are not authorizations. Repeated claims fail; recover a crash
+        through the already committed intent and ordinary read-only reconcile.
+        Config.enabled may remain false throughout installation.
+
+        authorization fields: verified/id/purpose/owner_id/service_id/project_id,
+        active_identity (exact four-field identity), active_config_hash,
+        issued_at/expires_at/max_one_candidate. Evidence has ordinary preflight,
+        inventory/options plus safe_boot_guard={verified,received_at,
+        active_identity,guard_hash,safe_boot_guard_ready:true,fail_closed:true}.
+        The private maintenance driver needs an enabled operator policy for
+        normal strict reconciliation/cleanup; the scheduler can remain disabled
+        against the SAME journal and retained ledger.
+        """
+        now = timestamp(now)
+        auth, evidence = dict(authorization), dict(evidence)
+        raw = canonical(auth); canonical(evidence)
+        with self.journal.transaction() as db:
+            s = self.journal._read(db)
+            if (not all((self.config.owner_id, self.config.service_id, self.config.project_id))
+                    or auth.get('verified') is not True or not _local_id(auth.get('id'))
+                    or auth.get('purpose') != 'installation_restore_drill'
+                    or auth.get('max_one_candidate') is not True
+                    or any(auth.get(k) != getattr(self.config, k) for k in ('owner_id', 'service_id', 'project_id'))
+                    or not _exact_identity(auth.get('active_identity'), s['active'])
+                    or auth.get('active_config_hash') != s['active']['config_hash']
+                    or type(auth.get('issued_at')) is not int or type(auth.get('expires_at')) is not int
+                    or not 0 <= auth['issued_at'] <= now < auth['expires_at']):
+                raise RecoveryError('Invalid local installation authorization')
+            if db.execute('SELECT 1 FROM installation_trials WHERE id=?', (auth['id'],)).fetchone():
+                raise RecoveryError('Installation authorization already consumed')
+            if (s['clock_unsafe'] or now < s['last_now'] or now - s['last_now'] > self.config.receipt_max_age
+                    or s['active']['provider'] != 'hetzner' or s['active']['project_id'] != self.config.project_id
+                    or s['phase'] != 'HEALTHY' or s['candidate'] is not None or s['retiring'] is not None
+                    or s['incident_id'] is not None
+                    or s['pending_create'] is not None or s['pending_action'] is not None
+                    or db.execute('SELECT 1 FROM actions WHERE receipt IS NULL LIMIT 1').fetchone()):
+                raise RecoveryError('Installation state is not safe')
+            preflight, guard = evidence.get('preflight'), evidence.get('safe_boot_guard')
+            required = ('owner_bound', 'independent_control', 'provider_access', 'budget_authorized',
+                        'registry_complete', 'fencing_enforced', 'safe_boot_guard_ready')
+            if (not self._fresh(preflight, now, self.config.data_max_age)
+                    or any(preflight.get(k) != getattr(self.config, k) for k in ('owner_id', 'service_id', 'project_id'))
+                    or not isinstance(preflight.get('checks'), dict)
+                    or not all(preflight['checks'].get(k) is True for k in required)
+                    or not self._fresh(guard, now)
+                    or not _exact_identity(guard.get('active_identity'), s['active'])
+                    or guard.get('safe_boot_guard_ready') is not True or guard.get('fail_closed') is not True
+                    or not _sha256(guard.get('guard_hash'))):
+                raise RecoveryError('Installation guard/preflight incomplete')
+            if s['incident_id'] is None:
+                s['incident_id'] = 'install-' + digest([auth['id'], identity(s['active'])])[:24]
+            intent = self._create_choice(s, evidence, now, db)
+            if intent.kind != 'CREATE':
+                raise RecoveryError('Installation trial blocked: ' + intent.reason)
+            intent = self._intent(s, 'CREATE', {**intent.payload,
+                'installation_authorization_id': auth['id'], 'purpose': auth['purpose'],
+                'safe_boot_guard_hash': guard['guard_hash']}, now)
+            intent = dataclasses.replace(intent, expires_at=min(intent.expires_at, auth['expires_at'] - 1))
+            self._persist_intent(db, s, intent, now)
+            db.execute('INSERT INTO installation_trials VALUES(?,?,?,?)', (auth['id'], now, raw, intent.id))
+            return intent
+
+    def begin_restore(self, receipt: Mapping[str, Any], now: int) -> None:
+        """Commit a private workflow HOLD BEFORE any source fence or VM rebuild.
+
+        Receipt uses fresh candidate scope, exact identity/source_identity,
+        canonical workflow_id UUID, workflow_committed:true (local workflow
+        intent durably journaled), purpose:candidate_restore, expected_restore_epoch.
+        An unresolved begin is never cancelled, unfenced or deleted by core.
+        Only a matching completed restore receipt releases this hold.
+        """
+        now = timestamp(now)
+        proof = dict(receipt); raw = canonical(proof)
+        workflow = proof.get('workflow_id')
+        if not _workflow_id(workflow):
+            raise RecoveryError('Invalid local restore workflow')
+        with self.journal.transaction() as db:
+            prior = db.execute('SELECT receipt FROM restore_begins WHERE workflow_id=?', (workflow,)).fetchone()
+            if prior:
+                if prior['receipt'] == raw:
+                    return
+                raise RecoveryError('Immutable restore begin conflict')
+            s = self.journal._read(db)
+            candidate = s['candidate']
+            if (s['clock_unsafe'] or now < s['last_now'] or now - s['last_now'] > self.config.receipt_max_age
+                    or not all((self.config.owner_id, self.config.service_id, self.config.project_id))
+                    or s['active']['provider'] != 'hetzner' or s['active']['project_id'] != self.config.project_id
+                    or s['phase'] != 'VALIDATING' or candidate is None or s['retiring'] is not None
+                    or s['pending_create'] is not None or s['pending_action'] is not None
+                    or candidate.get('restore_pending') is not None
+                    or db.execute('SELECT 1 FROM actions WHERE receipt IS NULL LIMIT 1').fetchone()):
+                raise RecoveryError('Restore begin in unsafe state')
+            epoch = proof.get('expected_restore_epoch')
+            if (not self._scope(proof, s, candidate, now)
+                    or not _exact_identity(proof.get('identity'), candidate)
+                    or not _exact_identity(proof.get('source_identity'), s['active'])
+                    or proof.get('purpose') != 'candidate_restore' or proof.get('workflow_committed') is not True
+                    or type(epoch) is not int or not candidate.get('restore_epoch', 0) < epoch <= 2**53 - 1):
+                raise RecoveryError('Unproven local restore begin')
+            candidate['restore_pending'] = dict(workflow_id=workflow, expected_restore_epoch=epoch,
+                                               started_at=now, begin_hash=digest(proof))
+            s['candidate_health'] = {}
+            s['last_now'] = now
+            db.execute('INSERT INTO restore_begins VALUES(?,?,?)', (workflow, now, raw))
+            self.journal._write(db, s)
+
+    def record_restore_epoch(self, receipt: Mapping[str, Any], now: int) -> None:
+        """Record a caller-verified committed local restore, invalidating health.
+
+        This is not an agent API. No identities, budget rows or billable
+        candidate.created_at/deadline are changed. Rebuild duration must fit the
+        explicit policy budget; a restore never silently extends that lifetime.
+
+        Receipt fields: verified/received_at/incident_id/generation/config_hash,
+        exact identity/source_identity, workflow_id (canonical UUID),
+        workflow_committed:true, snapshot_id (canonical positive decimal),
+        restore_epoch (increasing positive wire-safe integer), restore_hash
+        (SHA-256 of the final snapshot and bootstrap provenance),
+        snapshot_available/source_fenced/boot_verified/quarantine_verified:true,
+        machine_id_sha256/boot_id_sha256 from the authenticated new-boot proof.
+        """
+        now = timestamp(now)
+        proof = dict(receipt); raw = canonical(proof)
+        workflow = proof.get('workflow_id')
+        if not _workflow_id(workflow):
+            raise RecoveryError('Invalid local restore workflow')
+        with self.journal.transaction() as db:
+            prior = db.execute('SELECT receipt FROM restore_epochs WHERE workflow_id=?', (workflow,)).fetchone()
+            if prior:
+                if prior['receipt'] == raw:
+                    return
+                raise RecoveryError('Immutable restore receipt conflict')
+            s = self.journal._read(db)
+            candidate = s['candidate']
+            if (s['clock_unsafe'] or now < s['last_now'] or now - s['last_now'] > self.config.receipt_max_age
+                    or not all((self.config.owner_id, self.config.service_id, self.config.project_id))
+                    or s['active']['provider'] != 'hetzner' or s['active']['project_id'] != self.config.project_id
+                    or s['phase'] != 'VALIDATING' or candidate is None or s['retiring'] is not None
+                    or s['pending_create'] is not None or s['pending_action'] is not None
+                    or db.execute('SELECT 1 FROM actions WHERE receipt IS NULL LIMIT 1').fetchone()):
+                raise RecoveryError('Restore epoch in unsafe state')
+            epoch, snapshot = proof.get('restore_epoch'), proof.get('snapshot_id')
+            pending = candidate.get('restore_pending')
+            if (not self._scope(proof, s, candidate, now)
+                    or not _exact_identity(proof.get('identity'), candidate)
+                    or not _exact_identity(proof.get('source_identity'), s['active'])
+                    or proof.get('workflow_committed') is not True
+                    or not isinstance(pending, dict) or pending.get('workflow_id') != workflow
+                    or pending.get('expected_restore_epoch') != epoch
+                    or proof['received_at'] < pending['started_at']
+                    or type(epoch) is not int or not candidate.get('restore_epoch', 0) < epoch <= 2**53 - 1
+                    or not isinstance(snapshot, str) or not snapshot.isascii() or not snapshot.isdigit()
+                    or not 1 <= len(snapshot) <= 20 or int(snapshot) < 1 or str(int(snapshot)) != snapshot
+                    or not _sha256(proof.get('restore_hash'))
+                    or not all(proof.get(k) is True for k in
+                        ('snapshot_available', 'source_fenced', 'boot_verified', 'quarantine_verified'))
+                    or not _sha256(proof.get('machine_id_sha256')) or not _sha256(proof.get('boot_id_sha256'))):
+                raise RecoveryError('Unproven local restore epoch')
+            candidate.update(restore_epoch=epoch, restore_hash=proof['restore_hash'],
+                restore_recorded_at=now, restore_snapshot_id=snapshot, restore_workflow_id=workflow)
+            candidate.pop('restore_pending')
+            s['candidate_health'] = {}
+            # Critical receipts are evaluated afresh, never retained in core.
+            s['last_now'] = now
+            db.execute('INSERT INTO restore_epochs VALUES(?,?,?)', (workflow, now, raw))
             self.journal._write(db, s)
 
     def record_effect(self, intent_id: str, receipt: Mapping[str, Any], now: int) -> None:

@@ -19,7 +19,18 @@ whose process targets the exact requested relay IPv4, and an HTTPS request
 through that SOCKS socket whose real public egress equals the requested relay.
 The VM109 source route is diagnostic ONLY. It never proves VM109 guest health.
 
-VM109 is false if QGA is absent. When available, a fixed PowerShell read checks
+VM109 prefers the installed authenticated read-only Windows HTTP probe when its
+private local config exists. The default path is fixed below. --windows-config
+is a local install-time override; its absolute argv operand must be an Iran
+adapter input hash pin. Include windows_probe_client.py, protocol.py and all
+imported bundle modules in the adapter's input pins. The private default config
+and its key can rotate under root ownership without changing the target bundle.
+A configured client failure never falls back to a different guest transport.
+Only an absent default config permits the QGA fallback. No config path, endpoint,
+executable or key is selected from the network context.
+
+Without an installed HTTP config, VM109 is false if QGA is absent. When QGA is
+available, a fixed PowerShell read checks
 the source address and binds curl.exe to 10.10.10.50 inside the actual Windows
 guest. Its real public egress must equal the requested relay. The subprocess
 budget is below the Iran adapter's eight-second read-only deadline. No raw
@@ -41,11 +52,11 @@ from typing import Callable
 
 try:
     from . import agent, iran_adapter
-    from .protocol import ProtocolError, canonical_json, decode_json
+    from .protocol import MAX_BODY, ProtocolError, canonical_json, decode_json, private_file
 except ImportError:
     import agent
     import iran_adapter
-    from protocol import ProtocolError, canonical_json, decode_json
+    from protocol import MAX_BODY, ProtocolError, canonical_json, decode_json, private_file
 
 
 PCT = '/usr/sbin/pct'
@@ -57,6 +68,7 @@ SOURCE_IP = '10.10.10.50'
 CT_UNITS = ('servernet-country@119.service', 'vm119-fixed-relay.service')
 SOCKS_ADDRESS = '127.0.0.1:10819'
 EGRESS_URL = 'https://api.ipify.org'
+WINDOWS_CONFIG = '/etc/servernet/relay-recovery/windows-probe.json'
 SCOPE = iran_adapter.SCOPE
 PID = re.compile(r'\bpid=([1-9][0-9]{0,9})\b')
 
@@ -66,7 +78,7 @@ GUEST_SCRIPT = (
     "$ErrorActionPreference='Stop';"
     "$a=Get-NetIPAddress -IPAddress '10.10.10.50' -AddressFamily IPv4 -ErrorAction Stop;"
     "if (@($a).Count -ne 1) {exit 2};"
-    "$v=(& curl.exe --noproxy '*' --interface '10.10.10.50' -fsS --max-time 4 'https://api.ipify.org');"
+    "$v=(& 'C:\\Windows\\System32\\curl.exe' -q --noproxy '*' --interface '10.10.10.50' -fsS --max-time 4 'https://api.ipify.org');"
     "if ($LASTEXITCODE -ne 0) {exit 3};"
     "@{source_ip=$a.IPAddress;egress_ip=([string]$v).Trim()} | ConvertTo-Json -Compress"
 )
@@ -130,9 +142,13 @@ def _ssh_target(raw: bytes, target: str) -> bool:
 
 class Probes:
     def __init__(self, *, runner: Callable = agent._bounded_process,
-                 tcp: Callable = agent.tcp_probe, read: Callable | None = None):
+                 tcp: Callable = agent.tcp_probe, read: Callable | None = None,
+                 windows_config: str | Path | None = None, windows_explicit: bool = False,
+                 windows_probe: Callable | None = None, root_owned: bool = True):
         self.runner, self.tcp = runner, tcp
         self.read = read or (lambda path: Path(path).read_bytes())
+        self.windows_config, self.windows_explicit = windows_config, windows_explicit
+        self.windows_probe, self.root_owned = windows_probe, root_owned
 
     def command(self, argv: list[str], timeout: float) -> tuple[bool, bytes]:
         try:
@@ -165,7 +181,7 @@ class Probes:
             'table': (['/usr/sbin/ip', '-j', 'route', 'show', 'table', '119'], 2),
             'source_route': (['/usr/sbin/ip', '-j', 'route', 'get', '1.1.1.1', 'from', SOURCE_IP], 2),
             'socket': (['/usr/bin/ss', '-H', '-ltnp', '( sport = :10819 )'], 2),
-            'egress': (['/usr/bin/curl', '--socks5-hostname', SOCKS_ADDRESS,
+            'egress': (['/usr/bin/curl', '-q', '--socks5-hostname', SOCKS_ADDRESS,
                         '-fsS', '--max-time', '5', EGRESS_URL], 6),
         }
         with ThreadPoolExecutor(max_workers=len(work)) as pool:
@@ -201,7 +217,55 @@ class Probes:
             checks['tunnel_ok'] = checks['probe_ok'] = False
         return checks
 
+    def _windows(self, context: dict) -> dict | None:
+        """None means unconfigured. Configured failure is explicit, never QGA."""
+        if self.windows_config is None:
+            return None
+        checks = dict(execution_origin='guest', windows_channel_verified=False,
+                      source_ip=None, egress_ip=None, tunnel_ok=False, probe_ok=False)
+        try:
+            path = Path(self.windows_config)
+            try:
+                path.lstat()
+            except FileNotFoundError:
+                return checks if self.windows_explicit else None
+            path = private_file(path, root_owned=self.root_owned)
+            if path.stat().st_size > MAX_BODY:
+                return checks
+            client = self.windows_probe
+            if client is None:
+                # The outer pinned Iran SPEC verifies this dependency's exact
+                # bytes before starting us. Also refuse unsafe local code here.
+                private_file(Path(__file__).parent / 'windows_probe_client.py', root_owned=self.root_owned)
+                try:
+                    from .windows_probe_client import probe as client
+                except ImportError:
+                    from windows_probe_client import probe as client
+            result = client(context, config_path=str(path))
+            if (not isinstance(result, dict) or result.get('schema') != iran_adapter.PROBE_SCHEMA
+                    or result.get('probe_kind') != 'vm109' or result.get('read_only') is not True
+                    or type(result.get('ok')) is not bool or not iran_adapter._bound(result, context)
+                    or not isinstance(result.get('checks'), dict)
+                    or len(canonical_json(result['checks'])) > 2048):
+                return checks
+            proof = result['checks']
+            source = proof.get('source_ip')
+            egress = _ip(proof.get('egress_ip', '').encode('ascii')) if isinstance(proof.get('egress_ip'), str) else None
+            good = (result['ok'] and proof.get('execution_origin') == 'guest' and source == SOURCE_IP
+                    and egress == context['job']['target']['host']
+                    and proof.get('tunnel_ok') is True and proof.get('probe_ok') is True)
+            checks.update(windows_channel_verified=bool(good), source_ip=source if source == SOURCE_IP else None,
+                          egress_ip=egress, tunnel_ok=bool(good), probe_ok=bool(good))
+            return checks
+        except Exception:
+            # Fail closed without reflecting local files, transport errors,
+            # raw responses, HMAC material or private configuration.
+            return checks
+
     def vm109(self, context: dict) -> dict:
+        windows = self._windows(context)
+        if windows is not None:
+            return windows
         checks = dict(execution_origin='guest', qga_available=False, source_ip=None,
                       egress_ip=None, tunnel_ok=False, probe_ok=False)
         available, _ = self.command([QM, 'guest', 'cmd', '109', 'ping'], 1.25)
@@ -244,6 +308,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--kind', choices=('host', 'ct113', 'vm109'), required=True)
     parser.add_argument('--agent-id', default='pve-ir')
+    parser.add_argument('--windows-config', help='Private local Windows probe config; never a network-supplied path')
     args = parser.parse_args(argv)
     context = {}
     try:
@@ -253,7 +318,8 @@ def main(argv=None) -> int:
         if len(raw) > 16384:
             raise ProtocolError('probe_input_size')
         context = decode_json(raw)
-        result = Probes().run(args.kind, context, args.agent_id)
+        result = Probes(windows_config=args.windows_config or WINDOWS_CONFIG,
+                        windows_explicit=args.windows_config is not None).run(args.kind, context, args.agent_id)
         sys.stdout.buffer.write(canonical_json(result))
         return 0 if result['ok'] else 1
     except (ProtocolError, OSError):

@@ -5,6 +5,10 @@ The gateway has already authenticated agent envelopes before committing its
 ``latest`` table. This adapter additionally binds every job receipt to the exact
 locally published manifest. It preserves both receiver and remote observation
 times: polling an old successful job never makes that job fresh again.
+After a committed local restore epoch, only a newly published exact epoch/hash
+job and observations received after that epoch may supply health/critical
+evidence. Network probes attest fresh connectivity, not snapshot/disk identity;
+that provenance is verified separately by the committed local restore workflow.
 
 Only ``probe`` jobs are published. Promotion is unavailable unless an installed,
 hash-pinned cutover recipe implements the entire transaction and reconciliation.
@@ -227,6 +231,7 @@ class Adapter:
                     continue
                 record = {'agent_id': agent, 'received_at': received_at,
                           'receipt': receipt, 'job': selected[0],
+                          'manifest_issued_at': manifest['issued_at'],
                           'incident_id': manifest['incident_id']}
                 # Immutable original receiver time: a duplicate cannot refresh it.
                 digest = hashlib.sha256(canonical_json(receipt)).hexdigest()
@@ -281,11 +286,35 @@ class Adapter:
                     or not _fresh(source.get('observed_at'), r['received_at'], self.now,
                                   self.policy.receipt_max_age)):
                 continue
+            restore = self._restore_params(resource)
+            if restore and (type(params.get('restore_epoch')) is not int
+                    or params['restore_epoch'] != restore['restore_epoch']
+                    or params.get('restore_hash') != restore['restore_hash']
+                    or type(r.get('manifest_issued_at')) is not int
+                    or r['manifest_issued_at'] < resource['restore_recorded_at']
+                    or source['observed_at'] < resource['restore_recorded_at']
+                    or r['received_at'] < resource['restore_recorded_at']):
+                continue
             found.append(r)
         if not found: return None
         # Remote observation time is primary; a re-delivery of an older success
         # must not mask a more recently observed failure.
         return max(found, key=lambda r: (r['receipt']['observed_at'], r['received_at']))
+
+    @staticmethod
+    def _restore_params(resource: dict) -> dict:
+        """Only locally committed resource state chooses an epoch. No report can
+        introduce one, and malformed local restore metadata fails closed.
+        """
+        if 'restore_epoch' not in resource:
+            return {}
+        epoch, proof, recorded = (resource.get('restore_epoch'), resource.get('restore_hash'),
+                                   resource.get('restore_recorded_at'))
+        if (type(epoch) is not int or not 1 <= epoch <= 2**53 - 1
+                or not isinstance(proof, str) or not HEX64.fullmatch(proof)
+                or type(recorded) is not int or recorded < 0):
+            raise CollectorError('invalid_local_restore_epoch')
+        return {'restore_epoch': epoch, 'restore_hash': proof}
 
     def _base(self, resource: dict, state: dict) -> dict:
         return {'verified': True, 'received_at': self.now, 'observed_at': self.now,
@@ -340,11 +369,14 @@ class Adapter:
                 if ip.version != 4 or not ip.is_global: continue
                 provider_id = target['provider_id']
                 if not isinstance(provider_id, str) or not provider_id.isdecimal(): continue
+                restore = self._restore_params(target)
+                if restore and self.now < target['restore_recorded_at']:
+                    raise CollectorError('restore_epoch_is_future')
                 jobs.append({'id': f'probe-{provider_id}-{revision}', 'op': 'probe',
                              'target': {'host': str(ip), 'port': port, 'provider_id': provider_id},
                              'params': {'resource_identity': identity(target),
                                         'resource_config_hash': target['config_hash'],
-                                        'critical_consumers': list(self.policy.critical_consumers)}})
+                                        'critical_consumers': list(self.policy.critical_consumers), **restore}})
             manifest = {'agent_id': agent, 'incident_id': state.get('incident_id') or f'observe-{resource["generation"]}',
                         'generation': generation, 'revision': revision,
                         'config_hash': resource['config_hash'], 'jobs_hash': manifest_hash(jobs),
@@ -387,11 +419,23 @@ class Adapter:
             base = {**self._base(target, state), 'received_at': source['received_at'],
                     'observed_at': raw['observed_at'], 'agent_id': agent,
                     'incident_id': None if source['incident_id'].startswith('observe-') else source['incident_id']}
+            if 'restore_epoch' in target:
+                # _resource_receipt already matched exact locally persisted
+                # manifest params and post-restore issue/observe/receive times.
+                # Never derive these fields from a cached unrelated report.
+                params = source['job']['params']
+                base.update(restore_epoch=params['restore_epoch'], restore_hash=params['restore_hash'])
+            # Network path health is distinct from guest/business acceptance.
+            # An unavailable VM109/QGA must block promotion, never turn a
+            # functioning CT113 path into an outage and trigger another buy.
+            path_ok, tcp_ok = detail.get('path_probe_ok'), checks.get('candidate_tcp')
+            network_probe = (path_ok and tcp_ok
+                             if type(path_ok) is bool and type(tcp_ok) is bool else None)
             evidence[key] = {**base, 'direct_control': direct,
                              'host_healthy': detail.get('host_healthy'),
                              'internet_healthy': detail.get('internet_healthy'),
-                             'tunnel_ok': detail.get('tunnel_ok'),
-                             'probe_ok': checks.get('candidate_tcp') if raw['ok'] is True else False}
+                             'tunnel_ok': detail.get('tunnel_ok') if type(path_ok) is bool else None,
+                             'probe_ok': network_probe}
             if same_identity(target, resource):
                 critical = detail.get('critical_consumers', {})
                 if not isinstance(critical, dict): critical = {}
@@ -406,6 +450,13 @@ class Adapter:
                             evidence[output] = {**result[output], **self._base(resource, state),
                                                 'observed_at': result['observed_at']}
                 else: evidence[name] = result
+        # CREATE needs proof that the exact active generation *can* be fenced,
+        # not proof it has already been stopped. Requiring actual fencing here
+        # would either deadlock candidate creation or power off the only relay
+        # prematurely. This read-only capability is never a fencing receipt.
+        capability = self._scoped_recipe('fencing_capability', state, active)
+        if capability is not None:
+            evidence['fencing_capability'] = capability
         owner = self.recipe('owner_binding', state)
         owner_ok = bool(owner and owner['ok'] and all(str(owner.get(k, '')) == str(getattr(self.policy, k))
                                                    for k in ('owner_id', 'service_id', 'project_id')))
@@ -448,7 +499,9 @@ class Adapter:
         checks = {'owner_bound': owner_ok, 'independent_control': control_ok,
                   'restore_current': bool(evidence.get('backup', {}).get('durable') is True
                                           and evidence.get('backup', {}).get('restore_verified') is True),
-                  'fencing_enforced': evidence.get('fencing', {}).get('verified_fenced') is True,
+                  'fencing_enforced': bool(capability
+                      and capability.get('enforcement_ready') is True
+                      and capability.get('capability_verified') is True),
                   'registry_complete': evidence.get('active_refs', {}).get('complete') is True,
                   'provider_access': provider_ok, 'budget_authorized': budget_ok}
         # Provisioning is blocked too if no real cutover implementation exists.

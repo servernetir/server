@@ -506,6 +506,28 @@ class ProviderEffectsTests(unittest.TestCase):
         with self.assertRaisesRegex(ProviderEffectError, 'app_binding'):
             self.effects.inventory(self.active)
 
+    def test_inventory_after_promotion_uses_current_credentials_not_seed_describe(self):
+        self.retirement_intent()
+        active = self.state()['active']
+        self.assertEqual('51', active['provider_id'])
+        calls = []
+        def bridge_request(operation):
+            calls.append(operation)
+            if operation == 'describe':
+                raise ProviderEffectError('original_seed_has_changed')
+            return {'ok': True, 'binding': {'owner_id': 1, 'service_id': 711, 'provider_id': '51',
+                                           'ipv4': '203.0.113.51'}, 'internal_protected': True,
+                    'hetzner_token': 'private-promoted-scope-token'}
+        self.bridge.request = bridge_request
+        inventory = self.effects.inventory(core.identity(active))
+        self.assertTrue(inventory['complete'])
+        self.assertEqual(core.identity(active), inventory['active_identity'])
+        self.assertEqual(2, inventory['managed_vm_count'])
+        self.assertEqual(['credentials'], calls)
+        self.assertNotIn('private-promoted-scope-token', repr(inventory))
+        with self.assertRaisesRegex(ProviderEffectError, 'original_seed'):
+            self.effects.adoption_plan()
+
     def test_adoption_plan_is_readonly_and_mutation_requires_explicit_setup(self):
         self.world.servers['40']['labels'] = {'keep': 'this'}
         plan = self.effects.adoption_plan()

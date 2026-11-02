@@ -4,12 +4,14 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
 import iran_probes as mod
 import protocol
+import windows_probe_client as windows
 
 
 class ProbeTests(unittest.TestCase):
@@ -102,7 +104,7 @@ class ProbeTests(unittest.TestCase):
         self.assertTrue(checks['source_route_tun119'])
         curl = [call[0] for call in self.calls if '/usr/bin/curl' in call[0]]
         self.assertEqual(curl, [[mod.PCT, 'exec', '113', '--', '/usr/bin/curl',
-                                '--socks5-hostname', '127.0.0.1:10819', '-fsS', '--max-time', '5',
+                                '-q', '--socks5-hostname', '127.0.0.1:10819', '-fsS', '--max-time', '5',
                                 'https://api.ipify.org']])
         self.assertTrue(all(timeout <= 6 for _, _, timeout in self.calls))
 
@@ -169,6 +171,8 @@ class ProbeTests(unittest.TestCase):
         self.assertEqual(result['checks']['execution_origin'], 'guest')
         argv = self.calls[-1][0]
         self.assertEqual(argv[-1], mod.GUEST_SCRIPT)
+        self.assertIn("& 'C:\\Windows\\System32\\curl.exe' -q --noproxy", argv[-1])
+        self.assertNotIn('& curl.exe', argv[-1])
         self.assertIn("--interface '10.10.10.50'", argv[-1])
         self.assertNotIn('91.107.179.25', argv[-1])
 
@@ -212,6 +216,160 @@ class ProbeTests(unittest.TestCase):
         self.assertNotIn(b'root@', output)
         self.assertNotIn(b'8312', output)
         self.assertNotIn(b'1.1.1.1', output)
+
+    def _windows_fixture(self, result_patch=None, *, fault=None):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        config = Path(temporary.name) / 'windows-probe.json'
+        config.write_bytes(b'{"schema":"local-test-fixture"}')
+        config.chmod(0o600)
+        calls = []
+        def client(context, *, config_path):
+            calls.append((copy.deepcopy(context), config_path))
+            if fault:
+                raise fault
+            result = dict(schema='servernet.relay.iran-probe.v1', probe_kind='vm109', read_only=True,
+                          ok=True, checks=dict(execution_origin='guest', source_ip=mod.SOURCE_IP,
+                              egress_ip=context['job']['target']['host'], tunnel_ok=True, probe_ok=True),
+                          target=context['job']['target'], **{k: context[k] for k in mod.SCOPE})
+            if result_patch:
+                result_patch(result)
+            return result
+        instance = mod.Probes(runner=self.runner, tcp=self.tcp, read=self.read,
+                              windows_config=config, windows_explicit=True,
+                              windows_probe=client, root_owned=False)
+        return instance, config, calls
+
+    def test_private_http_guest_probe_is_preferred_and_exact_scope_bound(self):
+        probes, config, calls = self._windows_fixture()
+        self.qga = True
+        ctx = self.context()
+        result = probes.run('vm109', ctx)
+        self.assertTrue(result['ok'])
+        self.assertTrue(result['checks']['windows_channel_verified'])
+        self.assertEqual(result['checks']['source_ip'], mod.SOURCE_IP)
+        self.assertEqual(calls, [(ctx, str(config))])
+        self.assertEqual(self.calls, [])
+
+    def test_configured_http_error_never_falls_back_to_qga(self):
+        probes, _, _ = self._windows_fixture(fault=protocol.ProtocolError('invalid_hmac_or_replay'))
+        self.qga = True
+        result = probes.run('vm109', self.context())
+        self.assertFalse(result['ok'])
+        self.assertFalse(result['checks']['windows_channel_verified'])
+        self.assertEqual(self.calls, [])
+        self.assertNotIn(b'invalid_hmac_or_replay', protocol.canonical_json(result))
+
+    def test_http_wrong_scope_target_or_readonly_receipt_never_passes(self):
+        for key, value in [('generation', 999), ('config_hash', 'f' * 64), ('read_only', False),
+                           ('target', dict(host='1.1.1.1', port=443, provider_id='9999')),
+                           ('probe_kind', 'ct113')]:
+            probes, _, _ = self._windows_fixture(lambda result: result.update({key: value}))
+            with self.subTest(key=key):
+                self.assertFalse(probes.run('vm109', self.context())['ok'])
+        self.assertEqual(self.calls, [])
+
+    def test_http_requires_actual_guest_source_egress_and_positive_path_receipt(self):
+        for key, value in [('execution_origin', 'ct113'), ('source_ip', '10.10.10.20'),
+                           ('egress_ip', '155.103.69.128'), ('tunnel_ok', False), ('probe_ok', False)]:
+            probes, _, _ = self._windows_fixture(lambda result: result['checks'].update({key: value}))
+            with self.subTest(key=key):
+                self.assertFalse(probes.run('vm109', self.context())['ok'])
+        probes, _, _ = self._windows_fixture(lambda result: result.update(ok=False))
+        self.assertFalse(probes.run('vm109', self.context())['ok'])
+        self.assertEqual(self.calls, [])
+
+    def test_http_missing_or_unbounded_checks_fail_closed(self):
+        for value in ({}, {'secret': 'x' * 2049}, 'not-a-dict'):
+            probes, _, _ = self._windows_fixture(lambda result: result.update(checks=value))
+            with self.subTest(value=str(value)[:30]):
+                self.assertFalse(probes.run('vm109', self.context())['ok'])
+        self.assertEqual(self.calls, [])
+
+    def test_windows_config_must_be_private_regular_file_and_no_symlink(self):
+        probes, config, calls = self._windows_fixture()
+        config.chmod(0o644)
+        self.assertFalse(probes.run('vm109', self.context())['ok'])
+        self.assertFalse(calls)
+        config.chmod(0o600)
+        link = config.with_name('linked-config.json')
+        link.symlink_to(config)
+        probes.windows_config = link
+        self.assertFalse(probes.run('vm109', self.context())['ok'])
+        self.assertFalse(calls)
+        self.assertEqual(self.calls, [])
+
+    def test_only_absent_default_windows_config_allows_readonly_qga_fallback(self):
+        probes, config, calls = self._windows_fixture()
+        config.unlink()
+        self.qga = True
+        self.assertFalse(probes.run('vm109', self.context())['ok'])
+        self.assertEqual(self.calls, [])
+        probes.windows_explicit = False
+        self.assertTrue(probes.run('vm109', self.context())['ok'])
+        self.assertFalse(calls)
+        self.assertEqual(self.calls[0][0], [mod.QM, 'guest', 'cmd', '109', 'ping'])
+
+    def test_http_guest_failure_does_not_change_actual_host_or_ct_probes(self):
+        probes, _, _ = self._windows_fixture(fault=OSError('private transport failure'))
+        self.assertTrue(probes.run('host', self.context())['ok'])
+        self.assertTrue(probes.run('ct113', self.context())['ok'])
+        self.assertFalse(probes.run('vm109', self.context())['ok'])
+
+    def test_network_cannot_select_windows_config_client_or_endpoint(self):
+        probes, _, calls = self._windows_fixture()
+        for key in ('windows_config', 'client_path', 'endpoint'):
+            ctx = self.context(); ctx['job']['params'] = {key: '/tmp/untrusted'}
+            with self.subTest(key=key), self.assertRaises(protocol.ProtocolError):
+                probes.run('vm109', ctx)
+        self.assertFalse(calls)
+
+    def _actual_windows_client(self, *, tamper=False):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        key = b'w' * 32
+        key_file = root / 'guest.key'; key_file.write_bytes(key); key_file.chmod(0o600)
+        config_path = root / 'windows-probe.json'
+        config_path.write_bytes(protocol.canonical_json(dict(schema=windows.SCHEMA, agent_id='pve-ir',
+            key_file=str(key_file), state_dir=str(root / 'client-state'), host=windows.HOST, port=windows.PORT)))
+        config_path.chmod(0o600)
+        now = 1_800_000_000
+        request_replay = protocol.ReplayStore(root / 'request-nonces.sqlite3')
+        def transport(host, port, path, body, headers, timeout):
+            self.assertEqual((host, port, path, timeout), (windows.HOST, windows.PORT, windows.PATH, windows.DEADLINE))
+            windows.verify(key, 'POST', body, headers, now, request_replay)
+            request = protocol.decode_json(body)
+            response = dict(schema=windows.WIRE_SCHEMA, op='probe', request_nonce=headers['X-VM-Nonce'],
+                scope=request['scope'], target=request['target'], observed_at=now, read_only=True,
+                execution_origin='guest', source_ip=mod.SOURCE_IP, egress_ip=request['target']['host'],
+                tunnel_ok=True, probe_ok=True, ok=True)
+            raw = protocol.canonical_json(response)
+            signed = windows.sign(key, 'RESPONSE', raw, now, 'e' * 32)
+            if tamper:
+                signed['X-VM-Signature'] = 'f' * 64
+            return 200, signed, raw
+        def public_api(context, config_path=windows.DEFAULT_CONFIG):
+            cfg = windows.load_config(config_path, root_owned=False)
+            return windows.WindowsProbeClient(cfg, transport=transport, clock=lambda: now,
+                monotonic=lambda: 0, root_owned=False).probe(context)
+        return mod.Probes(runner=self.runner, tcp=self.tcp, read=self.read, windows_config=config_path,
+                          windows_explicit=True, windows_probe=public_api, root_owned=False)
+
+    def test_actual_hmac_windows_client_interoperates_with_production_guest_probe(self):
+        result = self._actual_windows_client().run('vm109', self.context())
+        self.assertTrue(result['ok'])
+        self.assertTrue(result['checks']['windows_channel_verified'])
+        self.assertEqual(result['checks']['source_ip'], mod.SOURCE_IP)
+        self.assertEqual(result['checks']['egress_ip'], self.context()['job']['target']['host'])
+        self.assertEqual(self.calls, [])
+
+    def test_actual_hmac_client_bad_signature_never_uses_qga_or_fails_ct_path(self):
+        self.qga = True
+        probes = self._actual_windows_client(tamper=True)
+        self.assertFalse(probes.run('vm109', self.context())['ok'])
+        self.assertEqual(self.calls, [])
+        self.assertTrue(probes.run('ct113', self.context())['ok'])
 
 
 if __name__ == '__main__':

@@ -8,6 +8,10 @@ adapters. It does not use the public customer provision/terminate queue.
 Purchasing, promotion and retirement must remain disabled until the production
 recipes and an end-to-end recovery drill have passed. A missing recipe, guest
 probe, backup proof or fencing receipt is a blocker, never a successful check.
+The first signed agent exchange and restricted WHM-to-relay SSH inspection have
+been exercised. The Proxmox timer, Windows listener, clone guards and final
+consumer/DNS cutover integration are not yet active. Merely setting `enabled`
+to true does not complete this installation.
 
 ## Components
 
@@ -24,6 +28,13 @@ probe, backup proof or fencing receipt is a blocker, never a successful check.
 | `relay_side.py` | Restricted SSH inspection and private consistent SQLite snapshots |
 | `backup_client.py` | Pinned SSH download, strict archive validation and disk admission |
 | `cloudflare_adapter.py` | Scoped content-only DNS plans, receipts and reconciliation |
+| `bootstrap.py`, `snapshot_adapter.py` | Quarantined trial bootstrap and durable native disk restoration |
+| `generation_guard.py`, `lifecycle_side.py` | Physical-instance writer guard and signed lifecycle operations |
+| `lifecycle_client.py`, `lifecycle_cli.py` | Pinned SSH lifecycle client and restricted dispatcher |
+| `restore_workflow.py` | Preparation through `PRE_CUTOVER_READY`; global cutover is separate |
+| `iran_stage.py`, `ct_stage.py` | Isolated CT113 trial tunnel and reviewed endpoint transactions |
+| `windows_probe*.py`, `windows_probe.ps1` | Authenticated read-only guest egress proof without QGA |
+| `maintenance.py` | Bounded pruning of acknowledged, obsolete control history |
 
 Importing modules performs no provider or application operation. All credentials
 and infrastructure inventories belong in private configuration outside this
@@ -54,6 +65,14 @@ restoration, runtime application health or persistent fencing. Container image
 and bind mount exports must also account for the writable container layer.
 Snapshots containing credentials must stay private on the owner's servers.
 
+The native snapshot path rejects attached volumes and private-network
+dependencies. A clone must retain fail-closed writer guards through its first
+boot and guarded machine-ID reset. Restored cloud-init data preserves source
+SSH host keys, account credentials and SSH policy; initial trial pins are
+replaced with the independently trusted source pin only after the verified cold
+rebuild. Cloud-init clean hooks and all non-cloud-init startup writers still
+need a reviewed inventory on the real source.
+
 ## Effect gates
 
 Default policy requires a sustained three-hour outage with continuous fresh
@@ -78,6 +97,16 @@ billing-completion receipt: captured dedicated IP resources must also be absent.
 Unknown create/delete outcomes are reconciled with reads only. Another mutation
 requires a new intent and fresh gates. Existing customer servers and unrecorded
 provider resources are never implicit cleanup targets.
+
+An installation restore drill uses an explicit one-shot local authorization and
+the same cost and concurrency ledger. Its private operator configuration may
+enable that bounded workflow while the regular scheduler remains disabled; it
+must never turn a consumed drill into another ordinary CREATE. Before source
+fencing or rebuilding, `begin_restore` persists a hold that blocks promotion and
+candidate deletion. Only matching snapshot, boot and quarantine proof completes
+the epoch. Fresh post-restore jobs must carry that epoch and hash; old successful
+observations cannot be relabelled. The final driver must also enforce the
+workflow's 20-minute acceptance window and real consumer/DNS/CRM transaction.
 
 ## Application bridge
 

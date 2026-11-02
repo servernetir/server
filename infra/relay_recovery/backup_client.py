@@ -398,10 +398,14 @@ class BackupClient:
         with os.fdopen(fd, "wb") as output:
             code = self.transport(ssh_argv(self.config), self._request(op, request_id), ReservedWriter(output, self._space), limit, self.config["timeout_seconds"])
             output.flush(); os.fsync(output.fileno())
-            if code != 0:
+            # relay_side inspect exits2 for a valid, authenticated inventory
+            # report containing issues. It still proves independent control.
+            # An export stream is usable ONLY after exit0, without exception.
+            if type(code) is not int or code not in ({0, 2} if op == "inspect" else {0}):
                 raise ProtocolError("ssh_exit_failed")
             if os.fstat(output.fileno()).st_size > limit:
                 raise ProtocolError("artifact_size_limit")
+            return code
 
     def _base_metadata(self, request_id):
         return dict(schema=SCHEMA, request_id=request_id, node_id=self.config["node_id"], generation=self.config["generation"],
@@ -414,9 +418,11 @@ class BackupClient:
             raise ProtocolError("request_id")
         with tempfile.TemporaryDirectory(prefix=".inspect-", dir=self.state) as name:
             target = Path(name) / "response.json"
-            self._download("inspect", request_id, target)
+            code = self._download("inspect", request_id, target)
             response = decode_json(target.read_bytes())
             self._identity(response, request_id, "inspect")
+            if code == 2 and response["ok"] is not False:
+                raise ProtocolError("inspect_exit_mismatch")
             registry = response.get("registry_hash")
             if not isinstance(registry, str) or not HEX64.fullmatch(registry):
                 raise ProtocolError("registry_hash")

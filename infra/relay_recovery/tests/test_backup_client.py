@@ -168,6 +168,32 @@ class BackupClientTests(unittest.TestCase):
         self.assertFalse(result["inventory_safe"])
         self.assertIn("consistency_unverified", result["issue_codes"])
 
+    def test_actual_inspect_exit2_still_proves_independent_control_with_unsafe_inventory(self):
+        self.code = 2
+        self.side_cfg["groups"]["gateway"].pop("consistency")
+        result = self.client().inspect()
+        self.assertTrue(result["independent_control_reachable"])
+        self.assertFalse(result["inventory_safe"])
+        self.assertFalse(result["configured_inventory_complete"])
+        self.assertFalse(result["ready"])
+        self.assertIn("consistency_unverified", result["issue_codes"])
+
+    def test_inspect_exit2_requires_valid_report_and_never_relaxes_export_status(self):
+        self.code = 2
+        with self.assertRaisesRegex(ProtocolError, "inspect_exit_mismatch"):
+            self.client().inspect()  # Safe fixture falsely contradicts exit2.
+        state = Path(self.cfg["state_dir"])
+        self.assertFalse((state / "inspect-latest.json").exists())
+        with self.assertRaisesRegex(ProtocolError, "ssh_exit_failed"):
+            self.client().backup()
+        self.assertFalse((state / "latest.json").exists())
+
+    def test_other_inspect_exit_codes_are_never_reachability_evidence(self):
+        for code in (1, 3, 255):
+            self.code = code
+            with self.subTest(code=code), self.assertRaisesRegex(ProtocolError, "ssh_exit_failed"):
+                self.client().inspect()
+
     def test_wrong_host_pin_and_multiple_host_keys_are_rejected_before_transport(self):
         self.cfg["expected_host_key_sha256"] = "SHA256:wrong"
         with self.assertRaisesRegex(ProtocolError, "host_key_pin"): self.client()

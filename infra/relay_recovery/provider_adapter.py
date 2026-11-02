@@ -216,9 +216,11 @@ class ProviderEffects:
         active = self.store.read_resource(active_identity['provider_id'])
         if self._identity(active) != core.identity(active_identity):
             raise ProviderEffectError('inventory_active_scope_mismatch')
-        described = self.bridge.request('describe')
-        binding = described.get('binding', {})
-        if (described.get('internal_protected') is not True
+        # Runtime uses stable owner/service credential authorization. describe
+        # intentionally remains pinned to the original seed for setup adoption.
+        credentials = self.bridge.request('credentials')
+        binding = credentials.get('binding', {})
+        if (credentials.get('internal_protected') is not True
                 or str(binding.get('owner_id')) != self.policy.owner_id
                 or str(binding.get('service_id')) != self.policy.service_id
                 or str(binding.get('provider_id')) != active.provider_id

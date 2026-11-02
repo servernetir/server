@@ -48,6 +48,10 @@ tunnel_ok/probe_ok, egress_ip, source_ip. Egress must equal the requested target
 the guest source must equal locally configured vm109_source_ip. Route-get or a
 CT113 curl must NOT be implemented as the VM109 guest probe. Missing real guest
 execution means unknown/failed, never a synthetic success.
+The relay path and individual guest acceptance are separate: CT113 proves
+tunnel_ok/path_probe_ok, while an unavailable VM109 keeps its critical consumer
+false. An offline guest must not trigger replacement of a working relay path.
+The accept action still requires every requested critical consumer to pass.
 
 Recipe stdout schema servernet.relay.iran-recipe.v1 includes action, read_only,
 ok, checks, target, scope. stage/apply/rollback need staged/applied/rolled_back=True.
@@ -92,8 +96,8 @@ ACTIONS = frozenset({'probe', 'stage', 'apply', 'accept', 'rollback', 'reconcile
 MUTATIONS = frozenset({'stage', 'apply', 'rollback'})
 SHELLS = frozenset({'sh', 'bash', 'dash', 'zsh', 'csh', 'tcsh', 'fish', 'ksh'})
 INT_PARAMS = frozenset({'expected_current_generation', 'expected_generation', 'expected_revision',
-                        'fencing_token', 'expires_at'})
-HASH_PARAMS = frozenset({'expected_config_hash', 'bundle_hash'})
+                        'fencing_token', 'expires_at', 'restore_epoch'})
+HASH_PARAMS = frozenset({'expected_config_hash', 'bundle_hash', 'restore_hash'})
 ID_PARAMS = frozenset({'checkpoint', 'backup_checkpoint', 'consumer',
                       'expected_provider_id', 'expected_active_provider_id'})
 RESOURCE_PARAMS = frozenset({'resource_identity', 'resource_config_hash', 'critical_consumers'})
@@ -267,6 +271,8 @@ def validate_context(context: object, config: dict) -> dict:
             _hash(value, 'adapter_param_hash')
         elif key in ID_PARAMS and (not isinstance(value, str) or not IDENTIFIER.fullmatch(value)):
             raise ProtocolError('adapter_param_identifier')
+    if ('restore_epoch' in params) != ('restore_hash' in params):
+        raise ProtocolError('adapter_restore_scope')
     if set(params) & {'resource_identity', 'resource_config_hash'}:
         ref = params.get('resource_identity')
         if (not isinstance(ref, dict) or set(ref) != {'provider', 'project_id', 'provider_id', 'generation'}
@@ -374,8 +380,12 @@ class IranAdapter:
                 good = good and c.get('source_ip') == self.config['vm109_source_ip']
             consumers[name] = good
         checks['consumers'] = consumers
-        checks['tunnel_ok'] = consumers['ct113'] and consumers['vm109']
-        checks['probe_ok'] = host_ok and checks['tunnel_ok']
+        # A guest fault or absent QGA is not evidence of a relay-path outage.
+        # Keep it in critical acceptance so it blocks cutover/retirement while
+        # the real host/CT path remains independently healthy.
+        checks['tunnel_ok'] = consumers['ct113']
+        checks['path_probe_ok'] = host_ok and checks['tunnel_ok']
+        checks['probe_ok'] = checks['path_probe_ok']
         acceptance = {**consumers, 'vpn': checks['tunnel_ok']}
         for name in self.config.get('consumer_probes', {}):
             observed = results.get(name)
@@ -417,7 +427,9 @@ class IranAdapter:
         result['checks'] = checks
         if action == 'accept':
             probe_ok, probe_checks = self._probe(context)
-            result['ok'] = result['ok'] and probe_ok
+            critical = probe_checks['critical_consumers']
+            result['ok'] = (result['ok'] and probe_ok and bool(critical)
+                            and all(value is True for value in critical.values()))
             result['checks'] = {**checks, **probe_checks}
         return result
 

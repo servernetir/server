@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+import copy
 import dataclasses
 import importlib.util
 from pathlib import Path
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import threading
 import unittest
+import uuid
 
 MODULE = Path(__file__).resolve().parents[1] / 'core.py'
 spec = importlib.util.spec_from_file_location('relay_recovery_core', MODULE)
@@ -547,6 +549,342 @@ class RecoveryTest(unittest.TestCase):
     def test_journal_currency_cannot_be_reinterpreted_after_restart(self):
         with self.assertRaises(core.RecoveryError):
             core.Engine(dataclasses.replace(self.cfg, budget_currency='USD'), self.j)
+
+    def installation_authorization(self, **changes):
+        authorization = dict(verified=True, id='local-installation-2026', purpose='installation_restore_drill',
+            owner_id='1', service_id='711', project_id='p', active_identity=core.identity(self.state()['active']),
+            active_config_hash=self.state()['active']['config_hash'], issued_at=self.now - 5,
+            expires_at=self.now + 300, max_one_candidate=True)
+        authorization.update(changes)
+        return authorization
+
+    def installation_evidence(self):
+        ev = self.evidence(True)
+        ev['preflight']['ready'] = False
+        ev['preflight']['checks'].update(restore_current=False, safe_boot_guard_ready=True)
+        ev['safe_boot_guard'] = dict(verified=True, received_at=self.now,
+            active_identity=core.identity(self.state()['active']), guard_hash='b' * 64,
+            safe_boot_guard_ready=True, fail_closed=True)
+        return ev
+
+    def ledger_rows(self):
+        with sqlite3.connect(self.path) as db:
+            return db.execute('SELECT * FROM attempts ORDER BY id').fetchall()
+
+    def restore_receipt(self, **changes):
+        candidate = self.state()['candidate']
+        proof = self.receipt(candidate, identity=core.identity(candidate), source_identity=core.identity(self.state()['active']),
+            workflow_id=str(uuid.uuid4()), workflow_committed=True, snapshot_id='123456789',
+            restore_epoch=1, restore_hash='d' * 64, snapshot_available=True, source_fenced=True,
+            boot_verified=True, quarantine_verified=True, machine_id_sha256='e' * 64, boot_id_sha256='f' * 64)
+        proof.update(changes)
+        return proof
+
+    def begin_restore_for(self, proof):
+        begin = self.receipt(self.state()['candidate'], identity=proof['identity'], source_identity=proof['source_identity'],
+            workflow_id=proof['workflow_id'], workflow_committed=True, purpose='candidate_restore',
+            expected_restore_epoch=proof['restore_epoch'])
+        self.e.begin_restore(begin, self.now)
+        return begin
+
+    def epoch_evidence(self, *, critical=True):
+        ev = self.promotion_evidence()
+        candidate = self.state()['candidate']
+        epoch = dict(restore_epoch=candidate['restore_epoch'], restore_hash=candidate['restore_hash'], observed_at=self.now)
+        ev['candidate_health'].update(epoch)
+        if critical:
+            for receipt in ev['critical_receipts']:
+                receipt.update(epoch)
+        return ev
+
+    def test_local_installation_claim_is_one_committed_create_without_false_outage(self):
+        self.observe(self.evidence(True))
+        self.assertIsNone(self.state()['incident_id'])
+        self.assertEqual(self.plan(self.installation_evidence()).reason, 'HEALTHY')
+        authorization = self.installation_authorization()
+        intent = self.e.claim_installation_trial(authorization, self.installation_evidence(), self.now)
+        self.assertEqual(intent.kind, 'CREATE')
+        self.assertEqual(intent.payload['purpose'], 'installation_restore_drill')
+        self.assertEqual(intent.payload['installation_authorization_id'], authorization['id'])
+        self.assertEqual(self.state()['phase'], 'CREATE_UNKNOWN')
+        self.assertEqual(self.state()['pending_create'], intent.id)
+        self.assertEqual(self.state()['health']['quality'], 'ok')
+        self.assertEqual(len(self.ledger_rows()), 1)
+        with sqlite3.connect(self.path) as db:
+            self.assertEqual(db.execute('SELECT intent_id FROM installation_trials').fetchone()[0], intent.id)
+            self.assertIsNone(db.execute('SELECT receipt FROM actions WHERE id=?', (intent.id,)).fetchone()[0])
+        reconcile = self.plan(self.installation_evidence())
+        self.assertEqual(reconcile.kind, 'RECONCILE_CREATE')
+        self.assertTrue(reconcile.payload['read_only'])
+
+    def test_installation_authorization_cannot_cross_owner_bundle_or_expiry(self):
+        auth = self.installation_authorization()
+        invalid = [dict(verified=False), dict(owner_id='2'), dict(service_id='20'), dict(project_id='other'),
+            dict(active_identity={**auth['active_identity'], 'provider_id': 'foreign'}),
+            dict(active_identity={**auth['active_identity'], 'generation': True}),
+            dict(active_config_hash='different-bundle'), dict(purpose='purchase'), dict(max_one_candidate=False),
+            dict(expires_at=self.now), dict(issued_at=self.now + 1), dict(id='../../bad')]
+        initial = self.state()
+        for change in invalid:
+            with self.subTest(change=change), self.assertRaises(core.RecoveryError):
+                self.e.claim_installation_trial({**auth, **change}, self.installation_evidence(), self.now)
+        self.assertEqual(self.state(), initial)
+        self.assertFalse(self.ledger_rows())
+
+    def test_installation_purchase_permit_never_outlives_local_authorization(self):
+        auth = {**self.installation_authorization(), 'expires_at': self.now + 2}
+        intent = self.e.claim_installation_trial(auth, self.installation_evidence(), self.now)
+        self.assertEqual(intent.expires_at, self.now + 1)
+
+    def test_installation_requires_actual_guard_and_all_nonrestore_preflight(self):
+        required = ('owner_bound', 'independent_control', 'provider_access', 'budget_authorized',
+                    'registry_complete', 'fencing_enforced', 'safe_boot_guard_ready')
+        for name in required:
+            ev = self.installation_evidence(); ev['preflight']['checks'][name] = False
+            with self.subTest(check=name), self.assertRaises(core.RecoveryError):
+                self.e.claim_installation_trial(self.installation_authorization(), ev, self.now)
+        for change in [dict(safe_boot_guard_ready=False), dict(fail_closed=False), dict(guard_hash='unhashed'),
+                       dict(received_at=self.now - 31), dict(active_identity={**core.identity(self.state()['active']), 'provider_id': 'foreign'})]:
+            ev = self.installation_evidence(); ev['safe_boot_guard'].update(change)
+            with self.subTest(guard=change), self.assertRaises(core.RecoveryError):
+                self.e.claim_installation_trial(self.installation_authorization(), ev, self.now)
+        self.assertFalse(self.ledger_rows())
+
+    def test_installation_authorization_is_consumed_after_crash_restart_and_provider_failure(self):
+        auth = self.installation_authorization()
+        intent = self.e.claim_installation_trial(auth, self.installation_evidence(), self.now)
+        self.e = core.Engine(self.cfg, core.Journal(self.path))
+        with self.assertRaises(core.RecoveryError):
+            self.e.claim_installation_trial(auth, self.installation_evidence(), self.now)
+        self.assertEqual(self.plan().kind, 'RECONCILE_CREATE')
+        self.e.record_effect(intent.id, self.effect(intent, 'failed', definitive_rejection=True), self.now)
+        self.observe(self.evidence(True))
+        self.assertIsNone(self.state()['incident_id'])
+        with self.assertRaises(core.RecoveryError):
+            self.e.claim_installation_trial(auth, self.installation_evidence(), self.now)
+        self.assertEqual(len(self.ledger_rows()), 1)
+
+    def test_installation_shared_ledger_survives_disabled_scheduler_restart(self):
+        auth = self.installation_authorization()
+        intent = self.e.claim_installation_trial(auth, self.installation_evidence(), self.now)
+        disabled = core.Engine(dataclasses.replace(self.cfg, enabled=False), core.Journal(self.path))
+        self.assertEqual(disabled.plan(disabled.snapshot(), self.installation_evidence(), self.now).reason, 'DISABLED')
+        self.assertEqual(len(self.ledger_rows()), 1)
+        self.e = core.Engine(self.cfg, core.Journal(self.path))
+        self.assertEqual(self.plan().kind, 'RECONCILE_CREATE')
+        self.assertEqual(self.state()['pending_create'], intent.id)
+        with self.assertRaises(core.RecoveryError):
+            self.e.claim_installation_trial({**auth, 'id': 'different-id'}, self.installation_evidence(), self.now)
+
+    def test_installation_never_resets_existing_incident_or_normal_runtime_restore_gate(self):
+        self.advance(180)
+        incident = self.state()['incident_id']
+        with self.assertRaises(core.RecoveryError):
+            self.e.claim_installation_trial(self.installation_authorization(), self.installation_evidence(), self.now)
+        self.assertEqual(self.state()['incident_id'], incident)
+        ev = self.installation_evidence(); ev['health'] = self.health(False)
+        self.assertEqual(self.plan(ev).reason, 'PREFLIGHT_INCOMPLETE')
+        self.assertFalse(self.ledger_rows())
+
+    def test_installation_cost_attempt_vm_and_quote_limits_match_runtime(self):
+        for case in ('attempts', 'rolling_cost', 'month_cost', 'max_vms', 'monthly_quote', 'trial_quote'):
+            with self.subTest(case=case):
+                path = Path(self.tmp.name) / (case + '.sqlite3')
+                journal = core.Journal(path)
+                journal.initialize(self.state()['active'], self.now)
+                engine = core.Engine(self.cfg, journal)
+                ev = self.installation_evidence()
+                with journal.transaction() as db:
+                    if case == 'attempts':
+                        for n in range(5):
+                            db.execute('INSERT INTO attempts VALUES(?,?,?,?,?,?)', (str(n), 'other', self.now, 10_000, 'DE', 'fsn1'))
+                    elif case in ('rolling_cost', 'month_cost'):
+                        db.execute('INSERT INTO attempts VALUES(?,?,?,?,?,?)',
+                            ('spent', 'other', self.now if case == 'rolling_cost' else self.now - 90000,
+                             1_000_000 if case == 'rolling_cost' else 3_000_000, 'DE', 'fsn1'))
+                if case == 'max_vms': ev['inventory']['managed_vm_count'] = 2
+                if case == 'monthly_quote': ev['options'][0]['monthly_gross_micro'] = 13_000_000
+                if case == 'trial_quote': ev['options'][0]['trial_max_gross_micro'] = 1_000_001
+                with self.assertRaises(core.RecoveryError):
+                    engine.claim_installation_trial(self.installation_authorization(), ev, self.now)
+                self.assertEqual(engine.snapshot()['phase'], 'HEALTHY')
+                with sqlite3.connect(path) as db:
+                    self.assertEqual(db.execute('SELECT COUNT(*) FROM installation_trials').fetchone()[0], 0)
+                    self.assertEqual(db.execute('SELECT COUNT(*) FROM actions').fetchone()[0], 0)
+
+    def test_installation_concurrent_claim_commits_at_most_one_candidate(self):
+        auth, ev = self.installation_authorization(), self.installation_evidence()
+        def claim(_):
+            try:
+                return self.e.claim_installation_trial(auth, ev, self.now).id
+            except core.RecoveryError:
+                return None
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            claimed = list(pool.map(claim, range(8)))
+        self.assertEqual(sum(value is not None for value in claimed), 1)
+        self.assertEqual(len(self.ledger_rows()), 1)
+
+    def test_installation_failed_candidate_cleanup_keeps_old_source_and_cost_ledger(self):
+        intent = self.e.claim_installation_trial(self.installation_authorization(), self.installation_evidence(), self.now)
+        old = copy.deepcopy(self.state()['active'])
+        candidate = dict(provider='hetzner', project_id='p', provider_id='trial', generation=2)
+        self.e.record_effect(intent.id, self.effect(intent, 'created', identity=candidate, create_intent_id=intent.id), self.now)
+        ev = self.evidence(True, candidate_rejected=self.receipt(self.state()['candidate'], rejected=True))
+        self.assertEqual(self.plan(ev).kind, 'HOLD')
+        ev['cleanup'] = self.receipt(self.state()['candidate'], identity=candidate, no_actual_writes=True, never_promoted=True)
+        cleanup = self.plan(ev)
+        self.assertEqual(cleanup.kind, 'DELETE_CANDIDATE')
+        self.assertEqual(cleanup.payload['identity'], candidate)
+        self.e.commit_intent(cleanup, ev, self.now)
+        self.e.record_effect(cleanup.id, self.effect(cleanup, 'deleted', identity=candidate,
+            absence_verified=True, dependent_resources_absent=True), self.now)
+        self.assertEqual(self.state()['active'], old)
+        self.assertIsNone(self.state()['candidate'])
+        self.assertIsNone(self.state()['retiring'])
+        self.assertEqual(len(self.ledger_rows()), 1)
+
+    def test_restore_epoch_invalidates_full_candidate_timer_and_old_critical_evidence(self):
+        self.candidate()
+        for _ in range(3):
+            self.now += 30; self.observe(self.promotion_evidence())
+        self.assertEqual(self.plan(self.promotion_evidence()).kind, 'PROMOTE')
+        before, ledger = copy.deepcopy(self.state()), self.ledger_rows()
+        proof = self.restore_receipt()
+        self.begin_restore_for(proof)
+        self.e.record_restore_epoch(proof, self.now)
+        state = self.state()
+        self.assertEqual(state['candidate_health'], {})
+        self.assertEqual(state['active'], before['active'])
+        self.assertEqual(state['candidate']['created_at'], before['candidate']['created_at'])
+        self.assertEqual(core.identity(state['candidate']), core.identity(before['candidate']))
+        self.assertEqual(self.ledger_rows(), ledger)
+        self.observe(self.promotion_evidence())
+        self.assertEqual(self.state()['candidate_health']['quality'], 'unknown')
+        for _ in range(3):
+            self.now += 30; self.observe(self.epoch_evidence(critical=False))
+        self.assertEqual(self.plan(self.epoch_evidence(critical=False)).kind, 'HOLD')
+        self.assertEqual(self.plan(self.epoch_evidence()).kind, 'PROMOTE')
+
+    def test_restore_epoch_rejects_cross_source_candidate_uncommitted_and_stale_receipts(self):
+        self.candidate()
+        proof = self.restore_receipt()
+        self.begin_restore_for(proof)
+        invalid = [dict(verified=False), dict(workflow_committed=False), dict(snapshot_id='snapshot-123'),
+            dict(restore_hash='bad'), dict(restore_epoch=True), dict(restore_epoch=2**53),
+            dict(snapshot_id='00123'), dict(workflow_id='not-uuid'),
+            dict(received_at=self.now - 31), dict(config_hash='wrong'), dict(incident_id='other'),
+            dict(identity={**proof['identity'], 'provider_id': 'foreign'}),
+            dict(source_identity={**proof['source_identity'], 'provider_id': 'foreign'}),
+            dict(source_identity={**proof['source_identity'], 'generation': True})]
+        before = self.state()
+        for change in invalid:
+            with self.subTest(change=change), self.assertRaises(core.RecoveryError):
+                self.e.record_restore_epoch({**proof, **change}, self.now)
+        self.assertEqual(self.state(), before)
+
+    def test_restore_epoch_receipt_is_immutable_and_restart_idempotent(self):
+        self.candidate()
+        proof = self.restore_receipt()
+        self.begin_restore_for(proof)
+        self.e.record_restore_epoch(proof, self.now)
+        before = self.state()
+        self.e = core.Engine(self.cfg, core.Journal(self.path))
+        self.e.record_restore_epoch(proof, self.now)
+        self.assertEqual(self.state(), before)
+        with self.assertRaises(core.RecoveryError):
+            self.e.record_restore_epoch({**proof, 'restore_hash': 'e' * 64}, self.now)
+        with self.assertRaises(core.RecoveryError):
+            self.e.record_restore_epoch({**proof, 'workflow_id': str(uuid.uuid4())}, self.now)
+        second = {**proof, 'workflow_id': str(uuid.uuid4()), 'restore_epoch': 2, 'restore_hash': 'e' * 64}
+        self.begin_restore_for(second)
+        self.e.record_restore_epoch(second, self.now)
+        self.assertEqual(self.state()['candidate']['restore_epoch'], 2)
+
+    def test_restore_epoch_requires_future_observation_and_exact_hash(self):
+        self.candidate()
+        proof = self.restore_receipt(); self.begin_restore_for(proof)
+        self.e.record_restore_epoch(proof, self.now)
+        ev = self.epoch_evidence()
+        for change in [dict(restore_epoch=0), dict(restore_hash='e' * 64), dict(observed_at=self.now - 1),
+                       dict(received_at=self.now - 1), dict(observed_at=self.now + 6)]:
+            health = {**ev['candidate_health'], **change}
+            with self.subTest(change=change):
+                self.assertEqual(self.e._quality(health, self.state()['candidate'], self.now), 'unknown')
+
+    def test_restore_epoch_cannot_cross_an_unfinished_core_action(self):
+        self.candidate()
+        for _ in range(3):
+            self.now += 30; self.observe(self.promotion_evidence())
+        proof = self.restore_receipt()
+        promote = self.plan(self.promotion_evidence())
+        self.e.commit_intent(promote, self.promotion_evidence(), self.now)
+        with self.assertRaises(core.RecoveryError):
+            self.e.record_restore_epoch(proof, self.now)
+        self.assertEqual(self.state()['phase'], 'CUTOVER')
+
+    def test_begin_restore_blocks_old_promotion_cleanup_and_expiry_before_external_rebuild(self):
+        self.candidate()
+        for _ in range(3):
+            self.now += 30; self.observe(self.promotion_evidence())
+        planned = self.plan(self.promotion_evidence())
+        self.assertEqual(planned.kind, 'PROMOTE')
+        before, ledger = copy.deepcopy(self.state()), self.ledger_rows()
+        begin = self.begin_restore_for(self.restore_receipt())
+        self.assertEqual(self.state()['candidate_health'], {})
+        self.assertEqual(self.plan(self.promotion_evidence()).reason, 'RESTORE_IN_PROGRESS')
+        with self.assertRaises(core.StaleIntent):
+            self.e.commit_intent(planned, self.promotion_evidence(), self.now)
+        self.now += 300
+        ev = self.promotion_evidence()
+        ev.update(candidate_rejected=self.receipt(self.state()['candidate'], rejected=True),
+            cleanup=self.receipt(self.state()['candidate'], identity=core.identity(self.state()['candidate']),
+                                 no_actual_writes=True, never_promoted=True))
+        self.observe(ev)
+        self.assertEqual(self.plan(ev).reason, 'RESTORE_IN_PROGRESS')
+        self.assertEqual(self.state()['candidate_health']['quality'], 'unknown')
+        self.assertEqual(self.state()['candidate']['restore_pending']['workflow_id'], begin['workflow_id'])
+        self.assertEqual(self.state()['active'], before['active'])
+        self.assertEqual(self.state()['candidate']['created_at'], before['candidate']['created_at'])
+        self.assertEqual(self.ledger_rows(), ledger)
+
+    def test_begin_restore_is_restart_idempotent_and_conflicts_cannot_replace_hold(self):
+        self.candidate()
+        proof = self.restore_receipt(); begin = self.begin_restore_for(proof)
+        before = self.state()
+        self.e = core.Engine(self.cfg, core.Journal(self.path))
+        self.e.begin_restore(begin, self.now)
+        self.assertEqual(self.state(), before)
+        for change in (dict(expected_restore_epoch=2), dict(workflow_id=str(uuid.uuid4()))):
+            with self.subTest(change=change), self.assertRaises(core.RecoveryError):
+                self.e.begin_restore({**begin, **change}, self.now)
+        self.assertEqual(self.state(), before)
+
+    def test_restore_completion_without_prior_begin_or_actual_boot_proof_is_rejected(self):
+        self.candidate()
+        proof = self.restore_receipt()
+        with self.assertRaises(core.RecoveryError):
+            self.e.record_restore_epoch(proof, self.now)
+        self.begin_restore_for(proof)
+        for change in [dict(workflow_id=str(uuid.uuid4())), dict(restore_epoch=2), dict(snapshot_available=False),
+                       dict(source_fenced=False), dict(boot_verified=False), dict(quarantine_verified=False),
+                       dict(machine_id_sha256='wrong'), dict(boot_id_sha256='wrong'), dict(received_at=self.now - 1)]:
+            with self.subTest(change=change), self.assertRaises(core.RecoveryError):
+                self.e.record_restore_epoch({**proof, **change}, self.now)
+        self.assertEqual(self.plan(self.promotion_evidence()).reason, 'RESTORE_IN_PROGRESS')
+
+    def test_begin_restore_requires_exact_fresh_committed_source_and_candidate_scope(self):
+        self.candidate()
+        proof = self.restore_receipt()
+        begin = self.receipt(self.state()['candidate'], identity=proof['identity'], source_identity=proof['source_identity'],
+            workflow_id=proof['workflow_id'], workflow_committed=True, purpose='candidate_restore', expected_restore_epoch=1)
+        before = self.state()
+        for change in [dict(workflow_committed=False), dict(expected_restore_epoch=True), dict(purpose='delete'),
+                       dict(workflow_id='not-uuid'), dict(received_at=self.now - 31), dict(config_hash='other'),
+                       dict(identity={**proof['identity'], 'provider_id': 'foreign'}),
+                       dict(source_identity={**proof['source_identity'], 'provider_id': 'foreign'})]:
+            with self.subTest(change=change), self.assertRaises(core.RecoveryError):
+                self.e.begin_restore({**begin, **change}, self.now)
+        self.assertEqual(self.state(), before)
 
 
 if __name__ == '__main__':
