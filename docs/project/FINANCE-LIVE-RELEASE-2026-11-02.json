@@ -1,0 +1,227 @@
+{
+  "source_commit": "190ff59cc1531399c7cdbd8b928b54d3c7727ae6",
+  "status": "installed-source-and-schema-verified",
+  "installed_utc": "2026-11-02T16:40:53+00:00",
+  "runtime_destinations": {
+    "public_html/assets/css/admin-wallet-refund.css": {
+      "source": "website/public/assets/css/admin-wallet-refund.css",
+      "before_sha256": null,
+      "after_sha256": "6e090d2de71600bbaf4bc19414766ef6c220f5cde4250aa490b6423ffa8fe787",
+      "operation": "create"
+    },
+    "public_html/assets/css/finance-funding.css": {
+      "source": "website/public/assets/css/finance-funding.css",
+      "before_sha256": null,
+      "after_sha256": "201323ec28c75804977f80e3fc4d2dfc60c3c2f89454d03f4c24089f3e7f3f30",
+      "operation": "create"
+    },
+    "servernet_app/app/Http/Controllers/Admin/AccountingController.php": {
+      "source": "website/app/Http/Controllers/Admin/AccountingController.php",
+      "before_sha256": "73b82c985bb7846117667b358ee64c490cd3e052e064949535bf39e83c1674d7",
+      "after_sha256": "bcfff50e552616bacae0c9357f1dfb2fcbf9df6a751709efd0c0366bec9b2aaf",
+      "operation": "replace"
+    },
+    "servernet_app/app/Http/Controllers/Admin/WalletRefundController.php": {
+      "source": "website/app/Http/Controllers/Admin/WalletRefundController.php",
+      "before_sha256": "a8d7b98e70828c08c5272001a3a083baca5c370972a95e47549cc2e427276baf",
+      "after_sha256": "feea7d6b13a44aa61bd3ece2937ef4d286bdb3b8bec2f380e1bdad1985dd5e12",
+      "operation": "replace"
+    },
+    "servernet_app/app/Models/FinanceAccount.php": {
+      "source": "website/app/Models/FinanceAccount.php",
+      "before_sha256": "99161453f947f6291f5134ddab6371955c7baf0aa92f4c61eee1283ba9b6ce2f",
+      "after_sha256": "c2371981847c66a589c9a2c2c94d9dd7ab64b404f5df47b1c6f1a54d5710189e",
+      "operation": "replace"
+    },
+    "servernet_app/app/Models/FinanceVoucher.php": {
+      "source": "website/app/Models/FinanceVoucher.php",
+      "before_sha256": "2a08ea3b41859ca2b483f96f8a0eaf70a0427fea39751c15671c39faf51177cf",
+      "after_sha256": "2987a12230b5803646545d38436b77a68225bebf3ea69f6af9b196f84cbd3097",
+      "operation": "replace"
+    },
+    "servernet_app/app/Services/Finance/AccountingReport.php": {
+      "source": "website/app/Services/Finance/AccountingReport.php",
+      "before_sha256": "8d19406d37c1c1717b3eb49da530098e8719e62fd4ad12e54292f2435615ba29",
+      "after_sha256": "9324c4b9c499d859b09b60789115d95242f004f325fe66d45d6e9e55a3b62572",
+      "operation": "replace"
+    },
+    "servernet_app/app/Services/Finance/BankReconciliation.php": {
+      "source": "website/app/Services/Finance/BankReconciliation.php",
+      "before_sha256": "8c1e850414c8f91f0dce1f4cef243041d38aa1b0d523ae257a3690da050efc00",
+      "after_sha256": "fb70f70c7f9d0a88355102245810e9d40476d9dbdffe2da518fb451d84eb86f1",
+      "operation": "replace"
+    },
+    "servernet_app/app/Services/Finance/BusinessLedger.php": {
+      "source": "website/app/Services/Finance/BusinessLedger.php",
+      "before_sha256": "d41744e876b6e63f152227f7bd12a69d8271276324f863aaa0fd6f8603e775d9",
+      "after_sha256": "d41744e876b6e63f152227f7bd12a69d8271276324f863aaa0fd6f8603e775d9",
+      "operation": "unchanged"
+    },
+    "servernet_app/app/Services/Finance/DocumentedAccounting.php": {
+      "source": "website/app/Services/Finance/DocumentedAccounting.php",
+      "before_sha256": "f759ff738524b996a8bf28db60688ef6a4c09f9afa0247adc29e651efa4c153b",
+      "after_sha256": "ff28b0e66c57dce3d1fcb2ebfbe7f7f568d7f8dcd38147fb5ec7cfe272c4f56b",
+      "operation": "replace"
+    },
+    "servernet_app/app/Services/Finance/FinanceAccountRegistry.php": {
+      "source": "website/app/Services/Finance/FinanceAccountRegistry.php",
+      "before_sha256": null,
+      "after_sha256": "d399a604593df6de6354933ecf7157979dbbb2e0e84ed23941e8f9db7a339324",
+      "operation": "create"
+    },
+    "servernet_app/app/Services/Finance/FinanceAudit.php": {
+      "source": "website/app/Services/Finance/FinanceAudit.php",
+      "before_sha256": "43f8fcd2cbcd6a0a4bc25b0f574c119b5de44555c7339d42527db0673ace7068",
+      "after_sha256": "d08c83f59efbf7043f246b9bebcb9df95150499b22c2e557238c6f241d267507",
+      "operation": "replace"
+    },
+    "servernet_app/app/Services/Finance/SupplierCreditReconciliation.php": {
+      "source": "website/app/Services/Finance/SupplierCreditReconciliation.php",
+      "before_sha256": null,
+      "after_sha256": "fc81bdb4e3f7d1d2d115c2abf26e4bf306f8683cd7ade04bdf0e15956bbced53",
+      "operation": "create"
+    },
+    "servernet_app/app/Services/Finance/TaxEvidenceBundle.php": {
+      "source": "website/app/Services/Finance/TaxEvidenceBundle.php",
+      "before_sha256": "4066a9dbd0de96cf1fa47ba0f529c10bb4ca5b03028bb0c0dc3c8addd72fa18f",
+      "after_sha256": "92234c8c7f22b4f87049c55c1158073dc6cdf9d9cec6554107e33b7c7bfca224",
+      "operation": "replace"
+    },
+    "servernet_app/app/Services/Finance/WalletRefunds.php": {
+      "source": "website/app/Services/Finance/WalletRefunds.php",
+      "before_sha256": "6c6b231003ee94a3f8bc79dd9bfba6444269f85306a5f55316b4cd137886daf5",
+      "after_sha256": "734f4f56839976c9532fa662e5f9e776ef55b1aca670b3ad1f5e5c31c0a6fe3b",
+      "operation": "replace"
+    },
+    "servernet_app/database/migrations/2026_10_31_180000_add_bank_identity_to_finance_accounts.php": {
+      "source": "website/database/migrations/2026_10_31_180000_add_bank_identity_to_finance_accounts.php",
+      "before_sha256": null,
+      "after_sha256": "a38e485c7473f4d769400fc6e4843d10c38324f420a8bfc8165e624170a8e06d",
+      "operation": "create"
+    },
+    "servernet_app/database/migrations/2026_10_31_230100_add_related_voucher_to_finance_vouchers.php": {
+      "source": "website/database/migrations/2026_10_31_230100_add_related_voucher_to_finance_vouchers.php",
+      "before_sha256": null,
+      "after_sha256": "b0cda776fb361118f3d5fc446915cc919bd6932c1c69acf9622bcb98b8a13213",
+      "operation": "create"
+    },
+    "servernet_app/lang/en/finance.php": {
+      "source": "website/lang/en/finance.php",
+      "before_sha256": "56bfea6dcdaaa03cd3554e03ce150b36a5bcb14687e5ba4064cbf75e4f2928be",
+      "after_sha256": "b98b41233b13bc3b07412b182b79b87c9422db7f7b584a5b173c9bce0f02e8ca",
+      "operation": "replace"
+    },
+    "servernet_app/lang/en/refund.php": {
+      "source": "website/lang/en/refund.php",
+      "before_sha256": "21c5a3367b99e627a829c65a19c8826bc062c98131e8cda67f936fab14ebebb2",
+      "after_sha256": "fecd591251e02808c44c4966adbd3ac727f9388d6d2c451f68add69c48d4c2ef",
+      "operation": "replace"
+    },
+    "servernet_app/lang/fa/finance.php": {
+      "source": "website/lang/fa/finance.php",
+      "before_sha256": "fa4fec8937244fba9386f8b92cb708a9dff35118f859cd37d1cc8fd664d95575",
+      "after_sha256": "32b3f8573bb65a15030292848d0f324a963bb09692e7ffc1844030abc914be38",
+      "operation": "replace"
+    },
+    "servernet_app/lang/fa/refund.php": {
+      "source": "website/lang/fa/refund.php",
+      "before_sha256": "21f7d342a91a794c4bd3a4975baa27647543658d92da127f816fb863a4775918",
+      "after_sha256": "0fb858e29f8e0081fec6121e40accd4db1c955faa41cde6b0231fcef72ba6b7f",
+      "operation": "replace"
+    },
+    "servernet_app/lang/tr/finance.php": {
+      "source": "website/lang/tr/finance.php",
+      "before_sha256": "2af443fbb4ab1f5390c82338e7ad4665f36a7ac25eb0ec4f999055a6f7fde0b4",
+      "after_sha256": "aeafa60ced49f1eaa941009955d46c21d158af7e762730448a442e3446c7533d",
+      "operation": "replace"
+    },
+    "servernet_app/lang/tr/refund.php": {
+      "source": "website/lang/tr/refund.php",
+      "before_sha256": "d98123cf608853549062e20465b796fb62a36d5b105adeac831e7897d01f23a5",
+      "after_sha256": "1b538912a7d65aa50182b44acafe420c19cb466bcdca9ec97e662b18efb9bf15",
+      "operation": "replace"
+    },
+    "servernet_app/public/assets/css/admin-wallet-refund.css": {
+      "source": "website/public/assets/css/admin-wallet-refund.css",
+      "before_sha256": null,
+      "after_sha256": "6e090d2de71600bbaf4bc19414766ef6c220f5cde4250aa490b6423ffa8fe787",
+      "operation": "create"
+    },
+    "servernet_app/public/assets/css/finance-funding.css": {
+      "source": "website/public/assets/css/finance-funding.css",
+      "before_sha256": null,
+      "after_sha256": "201323ec28c75804977f80e3fc4d2dfc60c3c2f89454d03f4c24089f3e7f3f30",
+      "operation": "create"
+    },
+    "servernet_app/resources/views/admin/accounting-voucher.blade.php": {
+      "source": "website/resources/views/admin/accounting-voucher.blade.php",
+      "before_sha256": "e0bd2fac7ddbf26f1189d1fdfbb524d6ef60e508798afca815cbd378a562df01",
+      "after_sha256": "894c920082c65dabb661536b4cb4471e4ebcf96934b7a2fec2d60e0cc0ff2f88",
+      "operation": "replace"
+    },
+    "servernet_app/resources/views/admin/accounting.blade.php": {
+      "source": "website/resources/views/admin/accounting.blade.php",
+      "before_sha256": "1c7f845d2d9717937eeb47c485df0436872c112830fde83e1c00a87be5123372",
+      "after_sha256": "db70d9b34382ea73199930b96e06095fc69358e49fcd129c6fc569599967cffe",
+      "operation": "replace"
+    },
+    "servernet_app/resources/views/admin/wallet-refund.blade.php": {
+      "source": "website/resources/views/admin/wallet-refund.blade.php",
+      "before_sha256": "1067b4efdf9ce023085cd1d165d16b22b432b150064708fcd47191aae90f2bcd",
+      "after_sha256": "d9429ffad1d4ed50723a9b253e5cef788c0c577e17e8c86c0936e227b859b44b",
+      "operation": "replace"
+    }
+  },
+  "shared_dependencies_preserved": {
+    "public_html/assets/css/admin.css": "e66f73ae2e321953ad12aa729a96d8626fbcc9ec211a71adb02806401454d130",
+    "public_html/assets/css/jdate.css": "f730bd99d400302d2d37a8180ad52ada0116678fea3860d0ca7fd19176cfdbeb",
+    "public_html/assets/css/site-select.css": "57c739eb4645a792291afbefc7e28732cc95ae48f0e6c1f88d4e7cf2bd33b9f2",
+    "public_html/assets/js/finance-dates.js": "03eb64b8c9f3e67b4490411d45d794bddc823b793839c4e77d7e8a10c4b533a2",
+    "public_html/assets/js/jdate.js": "f0884e18500e3d0423bc3a47214b2fb985ed251e9c94463692320edea6a6151d",
+    "public_html/assets/js/site-select.js": "19d8a68044a284e01bd130a4b2d936e1c1623b9a163c3dd583922faca4e6d36d",
+    "servernet_app/public/assets/css/admin.css": "e66f73ae2e321953ad12aa729a96d8626fbcc9ec211a71adb02806401454d130",
+    "servernet_app/public/assets/css/jdate.css": "f730bd99d400302d2d37a8180ad52ada0116678fea3860d0ca7fd19176cfdbeb",
+    "servernet_app/public/assets/css/site-select.css": "57c739eb4645a792291afbefc7e28732cc95ae48f0e6c1f88d4e7cf2bd33b9f2",
+    "servernet_app/public/assets/js/finance-dates.js": "03eb64b8c9f3e67b4490411d45d794bddc823b793839c4e77d7e8a10c4b533a2",
+    "servernet_app/public/assets/js/jdate.js": "f0884e18500e3d0423bc3a47214b2fb985ed251e9c94463692320edea6a6151d",
+    "servernet_app/public/assets/js/site-select.js": "19d8a68044a284e01bd130a4b2d936e1c1623b9a163c3dd583922faca4e6d36d",
+    "servernet_app/resources/views/admin/layout.blade.php": "d576cdc4f7866f30a2152b314bafea476312cd5122c1f4d50a90645b6baff2f5",
+    "servernet_app/resources/views/admin/partials/finance-periods.blade.php": "b7a0bef337c8b7cae3a352822451b2f223a605c417312f34588bf161fde15e9c",
+    "servernet_app/resources/views/components/admin-jdate.blade.php": "4126d94bfaac74b6c066a2ad5e99eb20a83e64a9cfba8b64b5530233bfddaa58"
+  },
+  "compiled_views": {
+    "website/resources/views/admin/accounting-voucher.blade.php": {
+      "path": "/home/servernetcloud/servernet_app/storage/framework/views/cc421c44146bb851044a0ba0b3476786.php",
+      "sha256": "61da558cb06f86be50a1f31fd78e6056499b4e1ab775efab921ee34794c435a2"
+    },
+    "website/resources/views/admin/accounting.blade.php": {
+      "path": "/home/servernetcloud/servernet_app/storage/framework/views/c70f689f3531e3b4802e513ef355495e.php",
+      "sha256": "3d59edd788c52666c530fd51ddba8b744666fc1b9e415e76e597fc23a5abdf7c"
+    },
+    "website/resources/views/admin/wallet-refund.blade.php": {
+      "path": "/home/servernetcloud/servernet_app/storage/framework/views/87ecb6c1bc5dfabd7e7fa673d378ff2a.php",
+      "sha256": "42a9811ee308c86b91fa72f452cba0f9549779bcb161c602f5383478749978d1"
+    }
+  },
+  "database_backup": {
+    "scope": "six-accounting-and-migration-tables",
+    "sha256": "ba737a9a29343541ff057908282ad322fa1b4d0412cf5cd55a45c9095088caae",
+    "bytes": 491205,
+    "structure_verified": true,
+    "restore_executed": false
+  },
+  "bank_identity_acceptance": {
+    "accounts_verified": 3,
+    "existing_try_account_reused": true,
+    "partners_linked_by_stable_key": true,
+    "company_bank_separate": true,
+    "encrypted_roundtrip_verified": true,
+    "idempotent_replay_verified": true,
+    "company_settings_preserved": true,
+    "new_financial_vouchers": 0,
+    "new_financial_lines": 0,
+    "refund_integrity_preserved": true
+  },
+  "public_css_http_sha256_checks": 4,
+  "browser_interaction_this_session": "not_verified"
+}
