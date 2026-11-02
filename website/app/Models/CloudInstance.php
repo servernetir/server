@@ -250,6 +250,37 @@ class CloudInstance extends Model
             ->exists();
     }
 
+    /** Policy eligibility only; this does not prove a live console handshake or Windows logon. */
+    public function arvanWindowsConsoleAvailable(): bool
+    {
+        if ($this->provider !== 'arvan' || ! $this->isWindows()) {
+            return false;
+        }
+
+        $service = Service::find($this->service_id);
+        if ($service === null) {
+            return false;
+        }
+
+        // eligible() reads the service's current instance. Never let a stale
+        // object borrow console eligibility from a replacement or rebuilt VM.
+        $current = self::where('service_id', $service->id)->first();
+        if ($current === null || ! $this->exists
+            || (int) $current->getKey() !== (int) $this->getKey()
+            || (int) $current->service_id !== (int) $this->service_id
+            || $current->provider !== $this->provider
+            || $current->provider_ref !== $this->provider_ref
+            || $current->image_key !== $this->image_key
+            || $current->status !== $this->status) {
+            return false;
+        }
+
+        $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
+
+        return $broker->enabledFor($service) && $broker->configuredSocketPath() !== null
+            && $broker->eligible($service);
+    }
+
     /** فرمان آمادهٔ Remote Desktop برای سرورهای ویندوزی. */
     public function rdpCommand(): ?string
     {
@@ -294,9 +325,10 @@ class CloudInstance extends Model
     /**
      * آیا ایمیل/پیامِ «سرورت آماده شد» مجاز است؟
      *
-     * ⚠️ دو شرط، و **هر دو** لازم است:
+     * ⚠️ دو شرط پایه، و **هر دو** لازم است:
      *   • زیرساخت بگوید بالا است (`active` → `running`)
      *   • IPv4 داشته باشیم
+     * ویندوز آروان علاوه بر این‌ها، رمز خواندنی یا مسیر کنسول مجاز لازم دارد.
      *
      * شرطِ دوم عمداً مستقل است، چون کلِ خرابیِ گزارش‌شده همین بود: ایمیلی که
      * `IP: —` داشت. اگر ماشین `active` شد ولی IP نرسیده، یک دقیقهٔ دیگر صبر
@@ -308,7 +340,21 @@ class CloudInstance extends Model
         if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {
             return false;
         }
-        return in_array($this->status, self::READY_STATUSES, true) && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));
+        if (! in_array($this->status, self::READY_STATUSES, true)
+            || ! ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4))) {
+            return false;
+        }
+
+        // A running Windows VM without a usable credential or an eligible
+        // console must not receive a ready notice solely because it has an IP.
+        // Retain the delivered-page/console path so first sign-in stays possible.
+        // A readable stored password is not proof of a live Windows logon or
+        // password freshness after a customer change; no credential is reset here.
+        if ($this->provider === 'arvan' && $this->isWindows()) {
+            return filled($this->password()) || $this->arvanWindowsConsoleAvailable();
+        }
+
+        return true;
     }
 
     /**

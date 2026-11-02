@@ -275,6 +275,9 @@
       $gpuTok  = $gpuApp ? $inst->accessToken() : null;
       $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;
       $windows = ! $gpuApp && $inst->isWindows();
+      $windowsConsoleSetup = $windows && $inst->provider === 'arvan' && ! $inst->hasPassword()
+          && ($caps['console'] ?? false)
+          && $inst->arvanWindowsConsoleAvailable();
     @endphp
 
     @if($gpuApp)
@@ -437,6 +440,18 @@
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
         {{ __('ui.cs_pw_missing') }}
       </p>
+    @elseif($windowsConsoleSetup)
+      <div class="dm-note" style="margin-top:14px" data-windows-console-setup>
+        <strong>{{ __('ui.cs_windows_console_setup_h') }}</strong>
+        <ol style="margin:8px 0;padding-inline-start:22px;line-height:1.9">
+          <li>{{ __('ui.cs_windows_console_setup_password') }}</li>
+          <li>{{ __('ui.cs_windows_console_setup_rdp') }}</li>
+        </ol>
+        <p style="margin:8px 0;font-size:12.5px;line-height:1.9">{{ __('ui.cs_windows_console_setup_note') }}</p>
+        <form method="post" action="{{ lroute('account.cloud.console', $service) }}" target="_blank" rel="noopener noreferrer">
+          @csrf<button class="pnl-btn" type="submit"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.cs_console') }}</button>
+        </form>
+      </div>
     @elseif($windows && ! $inst->hasPassword())
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
         {{ __('ui.cs_windows_pw_unavailable') }}
@@ -529,7 +544,7 @@
       @endif
     </div>
 
-    @if($windows && ! ($caps['console'] ?? false))
+    @if($windows && $inst->hasPassword() && ! ($caps['console'] ?? false))
       <p class="dm-note" style="margin-top:12px">{{ __('ui.cs_console_unavailable_rdp') }}</p>
     @endif
 

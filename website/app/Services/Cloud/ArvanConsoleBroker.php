@@ -30,6 +30,15 @@ class ArvanConsoleBroker
             && preg_match('/\A[a-f0-9]{64}\z/', (string) Setting::getSecret('arvan_console_worker_key')) === 1;
     }
 
+    /** A locally accepted transport path, not proof of a live provider handshake. */
+    public function configuredSocketPath(): ?string
+    {
+        $path = Setting::get('arvan_console_worker_socket_path');
+
+        return in_array($path, ['/ir-tbz-sh1/websockify', '/ir-tbz-sh1/vnc_lite.html/websockify'], true)
+            ? $path : null;
+    }
+
     /** Owner-only pilot is separate from the public capability and defaults off. */
     private function ownerPilotEnabled(): bool
     {
@@ -121,8 +130,8 @@ class ArvanConsoleBroker
             }
             $upstream = $this->validateUrl(Crypt::decryptString($grant['url']), explode(':', $instance->provider_ref, 2)[0]);
             // Set only after the exact path is observed in a successful provider handshake.
-            $path = Setting::get('arvan_console_worker_socket_path');
-            if (! in_array($path, ['/ir-tbz-sh1/websockify', '/ir-tbz-sh1/vnc_lite.html/websockify'], true)) {
+            $path = $this->configuredSocketPath();
+            if ($path === null) {
                 return $this->response(['ok' => false], 503);
             }
 
