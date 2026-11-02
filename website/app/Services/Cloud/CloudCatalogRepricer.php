@@ -190,17 +190,29 @@ class CloudCatalogRepricer
             }
         }
 
+        // Keep the exact original-row guard without retaining one complete
+        // Eloquent catalogue while the apply phase loads a second catalogue.
+        // serialize preserves every raw attribute's PHP type and key order;
+        // a subset or JSON conversion could miss a concurrent row change.
+        $planIds = $plans->modelKeys();
+        $planFingerprints = [];
+        foreach ($plans as $plan) {
+            $planFingerprints[(int) $plan->getKey()] = $this->planFingerprint($plan);
+        }
+        unset($plans, $group, $active, $plan, $missing, $unquoted, $matches,
+            $catalog, $quotes, $retry, $row, $identity, $e, $driver);
+
         // All required quotes are validated before the first product write.
         // Any database failure rolls back the complete product-price batch.
         $this->assertRates($rates);
         $this->assertSettings($settings);
-        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs, $unverifiedPlans, $reasons, $prepareOnly): int {
+        $apply = function () use ($planIds, $planFingerprints, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs, $unverifiedPlans, $reasons, $prepareOnly): int {
             // Current reads avoid a MariaDB repeatable-read snapshot; locks last
             // only for product writes, never for slow supplier requests.
             $this->assertSettings($settings, $persist);
             $this->assertProviderInputs($providerInputs);
             if ($prepareOnly) {
-                $expectedIds = $plans->modelKeys();
+                $expectedIds = $planIds;
                 sort($expectedIds, SORT_NUMERIC);
                 $currentIds = CloudPlan::query()->where('cost_eur_cents', '>', 0)
                     ->whereNotIn('provider', CloudPlan::disabledProviders())
@@ -210,7 +222,7 @@ class CloudCatalogRepricer
                 }
             }
             $count = 0;
-            foreach (CloudPlan::query()->whereIn('id', $plans->modelKeys())
+            foreach (CloudPlan::query()->whereIn('id', $planIds)
                 ->when($persist, fn ($query) => $query->lockForUpdate())->get() as $plan) {
                 if (in_array((int) $plan->id, $unverifiedPlans, true)
                     || in_array($plan->provider, $skip, true)
@@ -219,8 +231,8 @@ class CloudCatalogRepricer
                         && (! $plan->is_active || $plan->admin_disabled))) {
                     continue;
                 }
-                $old = $plans->firstWhere('id', $plan->id);
-                if ($plan->getRawOriginal() !== $old->getRawOriginal()) {
+                $original = $planFingerprints[(int) $plan->getKey()] ?? null;
+                if (! is_string($original) || ! hash_equals($original, $this->planFingerprint($plan))) {
                     throw new \RuntimeException('Catalog changed during price refresh; retry with a fresh snapshot.');
                 }
                 if (isset($unavailable[$plan->id])) {
@@ -262,6 +274,12 @@ class CloudCatalogRepricer
         };
 
         return $prepareOnly ? $apply : ($persist ? DB::transaction($apply) : $apply());
+    }
+
+    /** Exact raw-row comparison token; no model instances survive preparation. */
+    private function planFingerprint(CloudPlan $plan): string
+    {
+        return hash('sha256', serialize($plan->getRawOriginal()));
     }
 
     private function settings(bool $lock = false): array

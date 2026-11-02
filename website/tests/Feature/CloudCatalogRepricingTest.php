@@ -381,4 +381,48 @@ class CloudCatalogRepricingTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_prepared_batch_releases_the_original_hydrated_catalogue_before_apply(): void
+    {
+        $plan = $this->plan('salad');
+        $this->provider('salad', [$this->quote($plan)]);
+        $hydrated = [];
+        CloudPlan::retrieved(static function (CloudPlan $row) use (&$hydrated): void {
+            $hydrated[] = \WeakReference::create($row);
+        });
+
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        gc_collect_cycles();
+
+        // A prepared batch needs row identities and exact comparison tokens,
+        // not strong references to the original hydrated catalogue.
+        $this->assertNotEmpty($hydrated);
+        foreach ($hydrated as $reference) {
+            $this->assertNull($reference->get(), 'Preparation retained a hydrated catalogue row.');
+        }
+        $this->assertSame(1, DB::transaction($apply));
+        $this->assertSame(2000, (int) $plan->fresh()->cost_eur_cents);
+        Http::assertNothingSent();
+    }
+
+    public function test_prepared_fingerprint_detects_a_change_outside_the_price_columns(): void
+    {
+        $plan = $this->plan('salad');
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        DB::table('cloud_plans')->where('id', $plan->id)->update(['public_name' => 'Concurrent display correction']);
+        $concurrent = $plan->fresh()->getRawOriginal();
+
+        try {
+            DB::transaction($apply);
+            $this->fail('An unrelated raw-column edit must invalidate the prepared batch.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Catalog changed', $e->getMessage());
+        }
+
+        $this->assertSame($concurrent, $plan->fresh()->getRawOriginal());
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        Http::assertNothingSent();
+    }
+
 }
