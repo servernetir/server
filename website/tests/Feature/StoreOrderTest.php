@@ -35,12 +35,12 @@ class StoreOrderTest extends TestCase
 
     public function test_customer_can_order_a_package_and_gets_a_proforma(): void
     {
-        $server = Server::create(['name' => 'WHM-1', 'type' => 'whm', 'status' => 'active', 'country' => 'DE']);
+        $server = Server::create(['name' => 'WHM-1', 'type' => 'whm', 'status' => 'active']);
         $product = $this->product(['server_id' => $server->id, 'plan' => 'WP-5', 'requires_domain' => true]);
         $customer = $this->customer();
 
         $this->actingAs($customer, 'customer')
-            ->post("/account/order/{$product->slug}", ['country' => 'DE', 'cycle' => 'monthly', 'domain_mode' => 'have', 'domain' => 'client-site.com'])
+            ->post("/account/order/{$product->slug}", ['cycle' => 'monthly', 'domain_mode' => 'have', 'domain' => 'client-site.com'])
             ->assertRedirect();
 
         $service = Service::where('customer_id', $customer->id)->firstOrFail();
@@ -56,12 +56,11 @@ class StoreOrderTest extends TestCase
 
     public function test_setup_fee_is_added_to_first_invoice(): void
     {
-        $this->whm('WHM-DE', 'DE');
         $product = $this->product(['setup_fee' => 100000]);
         $customer = $this->customer();
 
         $this->actingAs($customer, 'customer')
-            ->post("/account/order/{$product->slug}", ['country' => 'DE', 'cycle' => 'monthly', 'domain_mode' => 'subdomain', 'subdomain' => 'mysite'])
+            ->post("/account/order/{$product->slug}", ['cycle' => 'monthly', 'domain_mode' => 'subdomain', 'subdomain' => 'mysite'])
             ->assertRedirect();
 
         $invoice = Invoice::where('service_id', Service::first()->id)->firstOrFail();

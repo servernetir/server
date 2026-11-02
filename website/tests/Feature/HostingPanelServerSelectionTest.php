@@ -7,10 +7,10 @@ use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Server;
 use App\Models\Service;
-use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Tests\Support\NavasanRates;
 use Tests\TestCase;
 
 /** Prevent Windows catalog purchases from being silently routed to Linux WHM. */
@@ -24,6 +24,7 @@ class HostingPanelServerSelectionTest extends TestCase
         Http::preventStrayRequests();
         Mail::fake();
         config(['provisioning.plesk_auto' => false]);
+        NavasanRates::store(['USD' => 100000, 'EUR' => 200000, 'USDT' => 150000, 'TRY' => 5000]);
     }
 
     private function server(string $type, string $country, array $attributes = []): Server
@@ -181,7 +182,6 @@ class HostingPanelServerSelectionTest extends TestCase
 
     public function test_a_windows_order_records_plesk_even_if_the_old_product_server_was_whm(): void
     {
-        Setting::put('pricing_rate_override', '300000');
         $whm = $this->server('whm', 'DE');
         $plesk = $this->server('plesk', 'DE');
         $product = $this->product(['server_id' => $whm->id]);
@@ -198,7 +198,6 @@ class HostingPanelServerSelectionTest extends TestCase
 
     public function test_unlocated_nonhosting_manual_orders_keep_their_existing_path(): void
     {
-        Setting::put('pricing_rate_override', '300000');
         $server = $this->server('generic', 'DE');
         $product = $this->product(['category' => 'other', 'group' => null, 'server_id' => $server->id, 'requires_domain' => false]);
         $customer = $this->customer();
