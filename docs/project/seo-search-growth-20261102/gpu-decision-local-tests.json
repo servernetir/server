@@ -1,0 +1,33 @@
+{
+  "status": "local_checks_passed_not_published",
+  "base_commit": "d3be9c422fa37f77a48aca05065421d56108dec4",
+  "observed_at_utc": "2026-11-02T06:05:00.9838027Z",
+  "files": [
+    "website/resources/views/pages/gpu.blade.php",
+    "website/tests/Feature/GpuDecisionGuideTest.php"
+  ],
+  "sha256": {
+    "view": "d326884263cf14e542119fb00ac0e592af41cb3e779e6bd66b9b6ebfac367f82",
+    "test": "27f23bbc56da5b105b1288acecc902c1ce8b2ae0c5f7e6b20966dba65db4a6ff"
+  },
+  "phpunit": {
+    "command": "C:\\Users\\admin\\.codex\\.tmp\\server-menu-php84\\php.exe vendor/bin/phpunit tests/Feature/GpuDecisionGuideTest.php tests/Feature/GpuPageTest.php tests/Feature/GrowthArticlePublishingTest.php --colors=never",
+    "cwd": "website",
+    "tests": 29,
+    "passed": 29,
+    "assertions": 577,
+    "duration_ms": 10169
+  },
+  "other_checks": [
+    "PHP lint: pass",
+    "Pint --test specific new test: pass",
+    "git diff --check: pass"
+  ],
+  "limits": [
+    "No production publication or rendered-browser acceptance yet.",
+    "No real purchase, GA4 delivery, ranking uplift, runtime provisioning or Core Web Vitals claim.",
+    "Initial new-test helper name collision and raw-fixture attribute comparison corrected; final test run above is the one accepted result."
+  ],
+  "external_requests_in_tests": "Http::preventStrayRequests; order regression case Http::assertNothingSent",
+  "source_scope": "Additive GPU view decision section and scoped CSS only; existing controller, form, prices, scripts, tracking and fonts unedited."
+}

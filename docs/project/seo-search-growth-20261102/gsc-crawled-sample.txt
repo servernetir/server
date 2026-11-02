@@ -1,0 +1,116 @@
+- navigation "Breadcrumbs":
+  - link "Page indexing":
+    - /url: ./search-console/index?resource_id=sc-domain%3Aservernet.cloud&pages=ALL_URLS
+  - generic: 
+  - heading "Crawled - currently not indexed" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- button "Get shareable link.":
+  - generic: 
+  - generic: SHARE
+- listbox:
+  - option "All known pages" [selected]
+  - option "All submitted pages"
+  - option "Unsubmitted pages only"
+  - option "https://servernet.cloud/hardware-sitemap.xml"
+  - option "https://servernet.cloud/sitemap.xml"
+- generic: "Last update: 23/10/2026"
+- main:
+  - generic: info
+  - generic: Crawled - currently not indexed
+  - generic: These pages aren't indexed or served on Google
+  - link "Link to more extensive documentation":
+    - /url: https://support.google.com/webmasters/answer/7440203#crawled
+    - generic: Learn more
+  - generic: "First detected: 14/02/2026"
+  - generic: Finished fixing?
+  - button "validate fix":
+    - generic: validate fix
+  - generic "Affected pages"
+  - generic "202"
+  - generic: Examples
+  - button "null":
+    - generic: 
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "URL Last crawled":
+        - columnheader "URL":
+          - generic: URL
+        - columnheader "Last crawled":
+          - generic: Last crawled
+    - rowgroup:
+      - row "https://servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d 24 Oct 2026":
+        - cell "https://servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d":
+          - generic "https://servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d":
+            - generic: https://servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://mail.servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd 24 Oct 2026":
+        - cell "https://mail.servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd":
+          - generic "https://mail.servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd":
+            - generic: https://mail.servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd 24 Oct 2026":
+        - cell "https://servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd":
+          - generic "https://servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd":
+            - generic: https://servernet.cloud/tr/ai/models/gapgpt-qwen3-235b-a22b-b4441d4fdd
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/en/docs/using-cloud-phone 24 Oct 2026":
+        - cell "https://servernet.cloud/en/docs/using-cloud-phone":
+          - generic "https://servernet.cloud/en/docs/using-cloud-phone":
+            - generic: https://servernet.cloud/en/docs/using-cloud-phone
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://mail.servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff 24 Oct 2026":
+        - cell "https://mail.servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff":
+          - generic "https://mail.servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff":
+            - generic: https://mail.servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff 24 Oct 2026":
+        - cell "https://servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff":
+          - generic "https://servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff":
+            - generic: https://servernet.cloud/tr/parts/disk/disk-hpe-146gb-sas-10k-6g-sff
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/en/servers/hpe-proliant-bl460c-gen7 24 Oct 2026":
+        - cell "https://servernet.cloud/en/servers/hpe-proliant-bl460c-gen7":
+          - generic "https://servernet.cloud/en/servers/hpe-proliant-bl460c-gen7":
+            - generic: https://servernet.cloud/en/servers/hpe-proliant-bl460c-gen7
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/tr/parts/raid/raid-hp-p440-4gb 24 Oct 2026":
+        - cell "https://servernet.cloud/tr/parts/raid/raid-hp-p440-4gb":
+          - generic "https://servernet.cloud/tr/parts/raid/raid-hp-p440-4gb":
+            - generic: https://servernet.cloud/tr/parts/raid/raid-hp-p440-4gb
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://mail.servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325 24 Oct 2026":
+        - cell "https://mail.servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325":
+          - generic "https://mail.servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325":
+            - generic: https://mail.servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325 24 Oct 2026":
+        - cell "https://servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325":
+          - generic "https://servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325":
+            - generic: https://servernet.cloud/en/ai/models/gapgpt-claude-fable-5-1-f8064a2325
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-10 of 202
+  - generic: 
+  - generic: 

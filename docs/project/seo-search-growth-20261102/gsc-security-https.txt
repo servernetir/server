@@ -1,0 +1,42 @@
+- navigation "Breadcrumbs":
+  - heading "HTTPS" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- generic: "Last update: 01/11/2026"
+- main:
+  - button "Non-HTTPS URLs 0 No critical issues":
+    - generic "Non-HTTPS URLs":
+      - generic: 
+      - generic: Non-HTTPS URLs
+    - generic "0"
+    - generic: No critical issues
+  - button "null":
+    - generic: 
+  - button "HTTPS URLs 160":
+    - generic "HTTPS URLs":
+      - generic: 
+      - generic: HTTPS URLs
+    - generic "160"
+  - button "null":
+    - generic: 
+  - generic: Pages
+  - link "View examples of HTTPS pages":
+    - /url: ./search-console/https/drilldown?resource_id=sc-domain%3Aservernet.cloud
+    - generic: check_circle
+    - generic: View examples of HTTPS pages
+    - generic: 
+  - generic: Good job!
+  - generic: No issues detected in the last 90 days
+
+- navigation "Breadcrumbs":
+  - heading "Manual actions" [level=1]
+- main:
+  - generic: check_circle
+  - generic: No issues detected
+
+- navigation "Breadcrumbs":
+  - heading "Security issues" [level=1]
+- main:
+  - generic: check_circle
+  - generic: No issues detected

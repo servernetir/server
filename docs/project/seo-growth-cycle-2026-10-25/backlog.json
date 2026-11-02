@@ -20,7 +20,17 @@
     "next_run_note": "Tool next_run_time is null; first scheduled occurrence is derived from the recorded DTSTART, not a recorded run.",
     "last_state_verified_date_tehran": "2026-10-25"
   },
-  "active_run": null,
+  "active_run": {
+    "run_id": "search-growth-20261102",
+    "phase": "awaiting_production_access",
+    "pull_request": 202,
+    "code_commit": "ee3f188ce929b28390d73b9e0b65e57caa5481f3",
+    "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+    "production_verified": false,
+    "blocker": "Owner requested cPanel API token. Relevant local credential/file/environment lookup found none; awaiting secure token file location. No production mutations.",
+    "merge_sha": "b47bb98a122fb4bc9c5ead79daaf6f21ed7e532e",
+    "git_status": "merged_into_develop"
+  },
   "last_run": {
     "run_id": "daily-seo-20261101-blog-author-loading",
     "task_id": "blog-index-author-eager-loading",
@@ -65,13 +75,13 @@
   "measurement": {
     "gsc_max_fetches_per_day": 1,
     "comparison_days": 28,
-    "google_login": "GSC available through authenticated Chrome on2026-11-01; GA4 not rechecked",
+    "google_login": "Authenticated GSC Chrome2026-11-02; GA4 not rechecked",
     "repeat_google_login_requests": false,
-    "latest_known_report": "docs/project/seo-daily-20261101/gsc-summary.json",
-    "latest_known_complete_end_date": "2026-10-29",
+    "latest_known_report": "docs/project/seo-search-growth-20261102/gsc-summary.json",
+    "latest_known_complete_end_date": "2026-10-30",
     "triage_end_date": "2026-10-17",
     "do_not_mix_baseline_windows": true,
-    "last_gsc_fetch_date_tehran": "2026-11-01",
+    "last_gsc_fetch_date_tehran": "2026-11-02",
     "latest_targeted_baseline": "docs/project/seo-growth-cycle-2026-10-25/gsc-baseline.json"
   },
   "completed_baseline": [
@@ -229,7 +239,7 @@
     {
       "id": "catalogue-pricing-snapshot-availability",
       "priority": "P0",
-      "state": "requires_scoped_authorization",
+      "state": "recovered_separate_release",
       "urls": [
         "/vps/hourly",
         "/gpu",
@@ -238,21 +248,55 @@
         "/vps/germany"
       ],
       "reason": "Live snapshot00:08:34 differs from valid FX fetched06:00:14; global snapshot false blocks sellable offers.928base-eligible rows,0sellable.",
-      "evidence": "docs/project/seo-daily-20261101/catalog-diagnostic.json",
-      "report": "SEO-DAILY-2026-11-01.md",
-      "next_action": "Read only bounded sanitized latest pricing failure/state before a concrete recovery plan. cloud:sync --prices mutates price/snapshot and may stock flags; require specific authorization, private backup, concurrency guard and business acceptance. Preserve live CloudPlan overlay; do not bypass pricing or country noindex guards."
+      "evidence": "docs/project/GPU-SALES-RECOVERY-2026-11-01.md",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "next_action": "PR198 isolated supplier failure; Nov2 public hourly/GPU/DE/PH forms recovered. Do not repeat repricing. Iran geo and UAE remain separate; no financial policy changed in SEO run."
     },
     {
       "id": "empty-catalogue-jump-targets",
       "priority": "P1",
-      "state": "ready_for_scoped_fix",
+      "state": "observe",
       "urls": [
         "/vps/hourly",
         "/gpu"
       ],
       "evidence": "docs/project/seo-daily-20261101/public-health-summary.md",
       "reason": "Hourly #plans and GPU #gpu-configure are missing when offers are empty.",
-      "next_action": "Use unconditional hourly #rates target and unique GPU empty-state target; verify available and empty renders, preserve original font, quotes and eligibility."
+      "next_action": "Nov2 recovered catalogue samples have no missing fragment targets. No new empty-state patch today; retain empty-state regression concern for genuine recurrence.",
+      "latest_evidence": "docs/project/seo-search-growth-20261102/public-health-summary.md"
+    },
+    {
+      "id": "country-sitemap-legacy-eligibility",
+      "priority": "P1",
+      "state": "tested_pending_production_access",
+      "pull_request": 202,
+      "reason": "Empty country reinsertion by legacy catalogue loop",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
+      "production_verified": false,
+      "next_action": "Reconcile current live files, guarded backup/install, HTTP and3locale mobile acceptance; then targeted Google follow-up and comparable-window observation."
+    },
+    {
+      "id": "vps-service-schema",
+      "priority": "P1",
+      "state": "tested_pending_production_access",
+      "pull_request": 202,
+      "reason": "299 Merchant items caused by VPS rentals emitted as Product",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
+      "production_verified": false,
+      "next_action": "Reconcile current live files, guarded backup/install, HTTP and3locale mobile acceptance; then targeted Google follow-up and comparable-window observation."
+    },
+    {
+      "id": "gpu-workload-selection-guide",
+      "priority": "P1",
+      "state": "tested_pending_production_access",
+      "pull_request": 202,
+      "reason": "Fresh GSC commercial intent supports useful selection guidance and relevant existing links",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
+      "production_verified": false,
+      "next_action": "Reconcile current live files, guarded backup/install, HTTP and3locale mobile acceptance; then targeted Google follow-up and comparable-window observation."
     }
   ]
 }

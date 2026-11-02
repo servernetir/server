@@ -1,0 +1,204 @@
+- navigation "Breadcrumbs":
+  - heading "Core web vitals" [level=1]
+- text: "Source: Chrome UX report"
+- button "null":
+  - generic: 
+- generic: "Last updated: 31/10/2026"
+- main:
+  - link "Mobile Open report":
+    - /url: ./search-console/core-web-vitals/summary?resource_id=sc-domain%3Aservernet.cloud&device=2
+    - generic: Mobile
+    - generic: Open report
+    - generic: 
+  - generic: 0 poor URLs
+  - generic: 154 URLs need improvement
+  - generic: 0 good URLs
+  - link "Desktop Open report":
+    - /url: ./search-console/core-web-vitals/summary?resource_id=sc-domain%3Aservernet.cloud&device=1
+    - generic: Desktop
+    - generic: Open report
+    - generic: 
+  - generic: 0 poor URLs
+  - generic: 0 URLs need improvement
+  - generic: 154 good URLs
+- generic: Core web vitals
+
+- navigation "Breadcrumbs":
+  - link "Core web vitals":
+    - /url: ./search-console/core-web-vitals?resource_id=sc-domain%3Aservernet.cloud
+  - generic: 
+  - heading "Mobile" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- text: "Source: Chrome UX report"
+- button "null":
+  - generic: 
+- generic: "Last update: 31/10/2026"
+- main:
+  - button "Poor 0 No issues":
+    - generic "Poor":
+      - generic: 
+      - generic: Poor
+    - generic "0"
+    - generic: No issues
+  - button "null":
+    - generic: 
+  - button "Need improvement 154 1 issue":
+    - generic "Need improvement":
+      - generic: Need improvement
+    - generic "154"
+    - generic: 1 issue
+  - button "null":
+    - generic: 
+  - button "Good 0":
+    - generic "Good":
+      - generic: Good
+    - generic "0"
+  - button "null":
+    - generic: 
+  - generic: URLs
+  - link "View data about good URLs":
+    - /url: ./search-console/core-web-vitals/drilldown?resource_id=sc-domain%3Aservernet.cloud&device=2
+    - generic: check_circle
+    - generic: View data about good URLs
+    - generic: 
+  - generic: Why URLs aren't considered good
+  - generic: URLs with these issues don’t provide a good page experience
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "Severity Issue null Validation Trend URLs":
+        - columnheader "Severity":
+          - generic: Severity
+        - columnheader "Issue null":
+          - text: Issue
+          - button "null":
+            - generic: 
+        - columnheader "Validation":
+          - generic: Validation
+        - columnheader "Trend":
+          - generic: Trend
+        - columnheader "URLs":
+          - generic: URLs
+    - rowgroup:
+      - 'row "Need improvement LCP issue: longer than 2.5s (mobile) Not Started 154"':
+        - cell "Need improvement":
+          - generic: warning
+          - text: Need improvement
+        - 'cell "LCP issue: longer than 2.5s (mobile)"':
+          - 'generic "LCP issue: longer than 2.5s (mobile)"'
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "154":
+          - generic: "154"
+      - 'row "Poor LCP issue: longer than 4 s (mobile) N/A 0"':
+        - cell "Poor":
+          - generic: error
+          - text: Poor
+        - 'cell "LCP issue: longer than 4 s (mobile)"':
+          - 'generic "LCP issue: longer than 4 s (mobile)"'
+        - cell "N/A":
+          - generic: N/A
+        - cell:
+        - cell "0":
+          - generic: "0"
+      - 'row "Need improvement INP issue: longer than 200 ms (mobile) N/A 0"':
+        - cell "Need improvement":
+          - generic: warning
+          - text: Need improvement
+        - 'cell "INP issue: longer than 200 ms (mobile)"':
+          - 'generic "INP issue: longer than 200 ms (mobile)"'
+        - cell "N/A":
+          - generic: N/A
+        - cell:
+        - cell "0":
+          - generic: "0"
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-3 of 3
+  - generic: 
+  - generic: 
+- generic: Core web vitals
+
+- navigation "Breadcrumbs":
+  - link "Core web vitals":
+    - /url: ./search-console/core-web-vitals?resource_id=sc-domain%3Aservernet.cloud
+  - generic: 
+  - link "Mobile":
+    - /url: ./search-console/core-web-vitals/summary?resource_id=sc-domain%3Aservernet.cloud&device=2
+  - generic: 
+  - 'heading "LCP issue: longer than 2.5s (mobile)" [level=1]'
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- button "Get shareable link.":
+  - generic: 
+  - generic: SHARE
+- text: "Source: Chrome UX report"
+- button "null":
+  - generic: 
+- generic: "Last update: 31/10/2026"
+- main:
+  - generic: warning
+  - generic: "LCP issue: longer than 2.5s (mobile)"
+  - generic: URLs with this issue need to improve the page experience that they provide
+  - link "Link to more extensive documentation":
+    - /url: https://web.dev/lcp/
+    - generic: Learn more
+  - generic: "First detected: 29/08/2026"
+  - generic: Finished fixing?
+  - button "validate fix":
+    - generic: validate fix
+  - button "null":
+    - generic: 
+  - generic "Affected URLs"
+  - generic "154"
+  - generic: URL groups
+  - button "null":
+    - generic: 
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "Example URL null Group population null Group LCP":
+        - columnheader "Example URL null":
+          - text: Example URL
+          - button "null":
+            - generic: 
+        - columnheader "Group population null":
+          - text: Group population
+          - button "null":
+            - generic: 
+        - columnheader "Group LCP":
+          - generic: Group LCP
+    - rowgroup:
+      - row "https://servernet.cloud/en/blog/php-version-upgrade-guide 154 3.1 s":
+        - cell "https://servernet.cloud/en/blog/php-version-upgrade-guide":
+          - generic "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+        - cell "154":
+          - generic: "154"
+        - cell "3.1 s":
+          - generic: 3.1 s
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-1 of 1
+  - generic: 
+  - generic: 
