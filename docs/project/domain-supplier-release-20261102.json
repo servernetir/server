@@ -81,7 +81,7 @@
         "expected_before_sha256": "faf7cda94c056d1c1c02868530996937e62748ffd4a56af7da9e5b51da768608",
         "after_sha256": "54864869f9e0c721517d47d2f8ceae29b513b90cf797590be29f911afcaea2f5",
         "patch_sha256": "d651e52b6f71129a433e1314005e98d0b22e599a5076c90d8b9c151bad79be76",
-        "acceptance": "prepared_not_php_or_runtime_validated"
+        "acceptance": "php_lint_passed_runtime_acceptance_pending"
       }
     },
     {
@@ -104,7 +104,7 @@
         "expected_before_sha256": "28c8e19cb06cdcab95dec2e6723e92537b5e3ba1d32c85f1479792eae561e4fe",
         "after_sha256": "3d38afcc55efdda2bdb08d59d428d317b0e8bf08929eca4bc5d57244e84a361c",
         "patch_sha256": "e9cf7fc2ae31637537adb92a7fd2e04b6eb056b3e89b590534a3a082af3997e6",
-        "acceptance": "prepared_not_php_or_runtime_validated"
+        "acceptance": "php_lint_passed_runtime_acceptance_pending"
       }
     },
     {
@@ -183,7 +183,7 @@
         "expected_before_sha256": "e473742145b04dea06111f539caceee202c8b008762c906a8f13d55a34afa8ba",
         "after_sha256": "90fd4272be78eacce855f018c4bdb42deaf99b02039f6c081463083e7a05a440",
         "patch_sha256": "922c29662d8a67cb15bfb26c09b67807cbc993154f3d90d61ab8194d6436da15",
-        "acceptance": "prepared_not_php_or_runtime_validated"
+        "acceptance": "php_lint_passed_runtime_acceptance_pending"
       }
     },
     {
@@ -310,7 +310,7 @@
         "expected_before_sha256": "d5cbbbb2e569e096c2b51b37059a39209ef63c3c8d4f87d3cc24955e0562209b",
         "after_sha256": "fc8df235f0fb2ea585b9abfe4354a8ce6248406fc282a39a3a63cbdf5a034b44",
         "patch_sha256": "ec75c051537666255becc83c457f076b33ce9e96afebd7b6e7827f0cd11c0fa7",
-        "acceptance": "prepared_not_php_or_runtime_validated"
+        "acceptance": "php_lint_passed_runtime_acceptance_pending"
       }
     },
     {
@@ -549,7 +549,7 @@
         "expected_before_sha256": "2d619bb06d824b756a27933c0d4113c6f1983eaf2941dbb81d30f4b3fa6b69ff",
         "after_sha256": "c31b476c88ab9b01a31225431c3a3aadcc441afd22f87a54ed1c8591f0f7e567",
         "patch_sha256": "209cee2d27cab58b63352a3a44d4fdd5f38c981e9a00cc3800a3d48e093581c2",
-        "acceptance": "prepared_not_php_or_runtime_validated"
+        "acceptance": "php_lint_passed_runtime_acceptance_pending"
       }
     },
     {
@@ -580,7 +580,7 @@
         "expected_before_sha256": "99fd5165c8235b3895037e6dcafcb3af90c16e0158ec99eb8e14fa9ba6a38e1a",
         "after_sha256": "631132200a46604e4ac8ebe681eb328afb4191855de9c4d2ef72554f72c9e6c3",
         "patch_sha256": "ddbca66970bebbd0e00c005447bd52eb73eb011a7077bffd70d05c59d2514f82",
-        "acceptance": "prepared_not_php_or_runtime_validated"
+        "acceptance": "php_lint_passed_runtime_acceptance_pending"
       }
     }
   ],
@@ -591,6 +591,7 @@
     "drift_count": 6,
     "overlay_prepared_count": 6,
     "overlays_installed": false,
-    "requires_fresh_drift_check": true
+    "requires_fresh_drift_check": true,
+    "overlay_php_lint_passed": 6
   }
 }
