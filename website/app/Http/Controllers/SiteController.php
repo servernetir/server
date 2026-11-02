@@ -451,6 +451,7 @@ class SiteController extends Controller
         // سرورِ گرافیکی — خطِ محصولِ مستقل، روتِ صریح
         $add('gpu');
 
+        $globallyAvailableVpsCountries = [];
         if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')) {
             /*
             | فقط مکان‌هایی که واقعاً پلنِ قابل‌فروش دارند. ردیف‌های میراثیِ
@@ -463,7 +464,10 @@ class SiteController extends Controller
             $sellableLocs = \App\Models\CloudPlan::query()->sellable()
                 ->distinct()->pluck('location_code')->all();
             foreach (\App\Models\CloudLocation::where('is_active', true)
-                ->whereIn('code', $sellableLocs)->pluck('code') as $code) {
+                ->whereIn('code', $sellableLocs)->get(['code', 'country']) as $location) {
+                // Global catalogue existence only: visitor/geo visibility must not vary the XML.
+                $globallyAvailableVpsCountries[strtoupper(trim((string) $location->country))] = true;
+                $code = $location->code;
                 /*
                 | ممیزی ۷، یافتهٔ ۱: نسلِ دومِ همان باگ — کدِ کشورِ دوبل
                 | (de-de-dedicated…) که **پلنِ فروختنی دارد** و برای همین از
@@ -570,6 +574,10 @@ class SiteController extends Controller
         }
         foreach (config('catalog') as $category => $products) {
             foreach (array_keys($products) as $slug) {
+                $country = $category === 'vps' ? \App\Services\Cloud\CloudCountry::isoForSlug((string) $slug) : null;
+                if ($country !== null && ! isset($globallyAvailableVpsCountries[$country])) {
+                    continue; // Do not reintroduce an unavailable country through legacy config.
+                }
                 $add('catalog', ['category' => $category, 'slug' => $slug]);
             }
         }
