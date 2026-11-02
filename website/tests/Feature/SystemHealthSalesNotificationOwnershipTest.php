@@ -102,4 +102,42 @@ class SystemHealthSalesNotificationOwnershipTest extends TestCase
             fn ($title, $rows) => array_key_exists('GPU test', $rows));
         $this->artisan('system:health --notify')->assertSuccessful();
     }
+    public function test_cron_recovery_does_not_announce_all_clear_while_owned_gpu_is_still_failed(): void
+    {
+        $this->receipt();
+        $cron = ['key' => 'cron', 'ok' => false, 'level' => 'fail', 'title' => 'Cron test', 'detail' => 'Stopped'];
+        $health = $this->mock(SystemHealth::class);
+        $health->shouldReceive('checks')->once()->andReturn([$this->gpu(), $cron])->ordered();
+        $health->shouldReceive('checks')->once()->andReturn([
+            $this->gpu(), array_replace($cron, ['ok' => true, 'level' => 'ok', 'detail' => 'Running']),
+        ])->ordered();
+        $sent = [];
+        $this->mock(AdminNotifier::class)->shouldReceive('event')->andReturnUsing(
+            function ($title, $rows) use (&$sent) { $sent[] = compact('title', 'rows'); });
+        $this->artisan('system:health')->assertSuccessful();
+        $this->artisan('system:health')->expectsOutputToContain('GPU test')->assertSuccessful();
+        $this->assertCount(1, $sent);
+        $this->assertArrayHasKey('Cron test', $sent[0]['rows']);
+        $this->assertArrayNotHasKey('GPU test', $sent[0]['rows']);
+    }
+
+    public function test_genuine_all_green_recovery_is_announced_with_gpu_notification_ownership(): void
+    {
+        $this->receipt();
+        $cron = ['key' => 'cron', 'ok' => false, 'level' => 'fail', 'title' => 'Cron test', 'detail' => 'Stopped'];
+        $health = $this->mock(SystemHealth::class);
+        $health->shouldReceive('checks')->once()->andReturn([$this->gpu(), $cron])->ordered();
+        $health->shouldReceive('checks')->once()->andReturn([
+            array_replace($this->gpu(), ['ok' => true, 'level' => 'ok', 'detail' => 'Available']),
+            array_replace($cron, ['ok' => true, 'level' => 'ok', 'detail' => 'Running']),
+        ])->ordered();
+        $sent = [];
+        $this->mock(AdminNotifier::class)->shouldReceive('event')->andReturnUsing(
+            function ($title) use (&$sent) { $sent[] = $title; });
+        $this->artisan('system:health')->assertSuccessful();
+        $this->artisan('system:health')->assertSuccessful();
+        $this->assertCount(2, $sent);
+        $this->assertStringContainsString('عادی', $sent[1]);
+    }
+
 }

@@ -44,8 +44,8 @@ class SystemHealthCheck extends Command
         $checks = $health->checks();
         // Keep every check in console/dashboard; avoid a second owner for fresh GPU incidents.
         $salesOwnsGpu = ! $this->option('notify') && $this->salesMonitorOwnsGpu();
-        $bad = array_values(array_filter($checks, fn ($c) => ! $c['ok']
-            && (! $salesOwnsGpu || ($c['key'] ?? '') !== 'gpu_sales')));
+        $allBad = array_values(array_filter($checks, fn ($c) => ! $c['ok']));
+        $bad = array_values(array_filter($allBad, fn ($c) => ! $salesOwnsGpu || ($c['key'] ?? '') !== 'gpu_sales'));
         $worst = SystemHealth::worst($checks);
 
         foreach ($checks as $c) {
@@ -62,7 +62,8 @@ class SystemHealthCheck extends Command
         // Ownership transfer is not a system recovery notification.
         if ($salesOwnsGpu) { unset($previous['gpu_sales']); }
         $toAnnounce = [];
-        $announceRecovery = $current === [] && $previous !== [];
+        // Alert ownership does not change the overall health result.
+        $announceRecovery = $current === [] && $previous !== [] && $allBad === [];
 
         if ($this->option('notify')) {
             $toAnnounce = $bad;
