@@ -28,9 +28,10 @@ class JokerContractRehearsalTest extends TestCase
         $account = new DomainSupplierAccount(['provider' => 'joker', 'environment' => 'ote',
             'credentials' => ['api_key' => 'synthetic-ote-key'], 'settings' => ['supplier_fee_pct' => 0, 'mandatory_fee_minor' => 0]]);
         $reply = fn (string $body = '', string $headers = '') => Http::response("Status-Code: 1000\n".$headers."\n".$body);
-        $complete = false; $mutations = [];
+        $complete = false; $mutations = []; $submittedRequest = null;
+        $finalExpiry = $operation === 'renew' ? '2028-11-02' : '2027-11-02';
         $columns = 'order_id,proc_id,created_at,status,type,amount_brutto,amount_netto,currency,identifier';
-        Http::fake(function (Request $request) use (&$complete, &$mutations, $reply, $operation, $command, $columns) {
+        Http::fake(function (Request $request) use (&$complete, &$mutations, &$submittedRequest, $finalExpiry, $reply, $operation, $command, $columns) {
             // Every attempted request, including accidental unfaked traffic, is checked.
             $this->assertSame('dmapi.ote.joker.com', parse_url($request->url(), PHP_URL_HOST));
             $path = basename(parse_url($request->url(), PHP_URL_PATH));
@@ -50,21 +51,10 @@ class JokerContractRehearsalTest extends TestCase
                 $status = $operation === 'create' ? 'available' : 'unavailable';
                 return $reply("domain-status: $status\ndomain-class: standard\ndomain-price-$operation: 8.21 USD 1y\n");
             }
-            if ($path === 'query-domain-list') return $reply('synthetic.com'."\t".($complete ? '2028-11-02' : '2027-11-02')."\tlock\n");
+            if ($path === 'query-domain-list') return $reply('synthetic.com'."\t".($complete ? $finalExpiry : '2027-11-02')."\tlock\n");
             if ($path === $command) {
                 $mutations[] = $path;
-                $this->assertSame('POST', $request->method());
-                $this->assertSame('8.21', $request['max-price']);
-                $this->assertStringNotContainsString('auth-sid', $request->url());
-                if ($operation === 'renew') {
-                    $this->assertSame(2028, $request['expyear']);
-                    $this->assertNull($request['period']);
-                } else {
-                    $this->assertSame('CCOM-SYNTHETIC', $request['owner-c']);
-                    $this->assertSame(0, $request['autorenew']);
-                    $this->assertSame($operation === 'create' ? 12 : null, $request['period']);
-                    if ($operation === 'transfer') $this->assertSame('synthetic-epp-secret', $request['transfer-auth-id']);
-                }
+                $submittedRequest = $request;
                 return $reply('', "Proc-ID: order-2\nTracking-ID: order-track-2\nResult: ACK\n");
             }
             if ($path === 'result-list') {
@@ -91,12 +81,30 @@ class JokerContractRehearsalTest extends TestCase
             'auth_code' => 'synthetic-epp-secret', 'name_servers' => ['ns1.example.test', 'ns2.example.test']];
         $accepted = $adapter->submit($operation, 'synthetic.com', 12, $context);
         $this->assertSame('queued', $accepted['status']);
+        // Assert after transport returns, so adapter exception redaction cannot
+        // hide a fixture assertion as an uncertain provider response.
+        $this->assertNotNull($submittedRequest);
+        $this->assertSame('POST', $submittedRequest->method());
+        $this->assertSame('8.21', $submittedRequest['max-price']);
+        $this->assertStringNotContainsString('auth-sid', $submittedRequest->url());
+        if ($operation === 'renew') {
+            $this->assertSame(2028, $submittedRequest['expyear']);
+            $this->assertFalse(isset($submittedRequest['period']));
+        } else {
+            $this->assertSame('CCOM-SYNTHETIC', $submittedRequest['owner-c']);
+            $this->assertSame(0, $submittedRequest['autorenew']);
+            if ($operation === 'create') $this->assertSame(12, $submittedRequest['period']);
+            else {
+                $this->assertFalse(isset($submittedRequest['period']));
+                $this->assertSame('synthetic-epp-secret', $submittedRequest['transfer-auth-id']);
+            }
+        }
         $journal = $accepted + ['operation' => $operation, 'fqdn' => 'synthetic.com', 'request_context' => $context];
         $this->assertSame('queued', $adapter->reconcile($journal)['status']);
         $complete = true;
         $delivered = $adapter->reconcile($journal);
         $this->assertSame('succeeded', $delivered['status']);
-        $this->assertSame('2028-11-02', $delivered['expires_at']);
+        $this->assertSame($finalExpiry, $delivered['expires_at']);
         $this->assertSame(821, $delivered['purchase_minor']);
         $this->assertSame('provider_reported', $delivered['cost_status']);
         $this->assertSame('succeeded', $adapter->reconcile($journal)['status']);
