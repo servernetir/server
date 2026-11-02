@@ -30,7 +30,7 @@ This release does not repair that egress defect, replace the feed, weaken certif
 
 Run PHP lint on both candidates, `php scripts/test-hermes-feed-resilience-20261102.php`, and the feature filter `HermesBackgroundReliabilityTest`. Feature tests use an isolated encrypted operations store, dependency doubles and fake HTTP; no production state or network is used. They cover retained data, other-feed progress, skipped degraded visibility, all-unavailable failure, recovery, incident gating, persistence failure and existing internal/busy/disabled contracts.
 
-Tests are authored but execution and production installation are owned by the parent release. Do not report them as passing until their results are available. Observe the next natural scheduled run and compare its persisted source receipt and explicit summary; a source backoff skip is not a fresh connectivity test.
+The two runtime files were installed with guarded hashes and lint at 08:05:03 UTC and their opcodes activated on both web domains. At 08:08 UTC the real refresh returned exit 0 with explicit degraded status: five verified sources and cPanel unavailable. Combined CI passed 59 Hermes tests/708 assertions and 42 pure feed checks; the expanded core suites also passed on SQLite and MariaDB. See [production evidence and remaining boundaries](https://github.com/servernetir/server/blob/develop/docs/project/INCIDENT-REVIEW-2026-11-02.md). Observe the next natural scheduled run and compare its persisted source receipt and explicit summary; a source backoff skip is not a fresh connectivity test.
 
 Only two runtime files are in deployment scope. No VM, route, NAT/firewall, DNS, cron, credential, wallet, invoice, customer lifecycle or reconciler source-of-state changes are required.
 
