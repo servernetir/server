@@ -1,0 +1,489 @@
+{
+  "schema": 1,
+  "baseline_develop_sha": "d5ea19b52774207cfad756eaeedd1b2af6eee860",
+  "deployment_status": "not_deployed",
+  "activation_status": "blocked_on_catalogue_contacts_and_live_acceptance",
+  "before_hash_basis": "source_baseline_only_requires_live_inventory_and_drift_review",
+  "entries": [
+    {
+      "source": "website/app/Console/Commands/DomainSupplierDispatchApproved.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/DomainSupplierDispatchApproved.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "238ce3fb341b492620ef5a3fd9121eb117022d9841da3f92880f28d486d0b10b",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Console/Commands/DomainSupplierLink.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/DomainSupplierLink.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "5444f63b12a70bda8e25f71c8bc23967492c8c23473f75f82298d7f39b65838d",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Console/Commands/DomainSupplierReconcile.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/DomainSupplierReconcile.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "791ae9c433f2e92a3e86f0dc61985cb7900a83cd7de82754503697d99755608e",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Console/Commands/ProbeDomainSuppliers.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/ProbeDomainSuppliers.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "fd29e6451d11c57a0eaeee45e17c5374aaf031851186cf07f4a03820d3ec2a4a",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Console/Commands/ResolveStuckDomains.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/ResolveStuckDomains.php",
+      "operation": "replace",
+      "expected_before_sha256": "e265b93dfacc66b9424f591afddb6ca458d091915b61b8ca081e341b8f9c7a66",
+      "after_sha256": "bbc482fc3f4a7bf0de6468e2d7499fdbe248b5ea25f8ca0b34420fb4de7f4a59",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Console/Commands/RunDomainLifecycle.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/RunDomainLifecycle.php",
+      "operation": "replace",
+      "expected_before_sha256": "74d453f5ee81bc0cba90b5d40bcde63e08ee3ee5b5c4c5c10a2dea15b4c09ec8",
+      "after_sha256": "440e59a489c919a26f5b867f0bfdc22710f1686b45b104df9673470eeb7297e1",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/BuilderCheckoutController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Account/BuilderCheckoutController.php",
+      "operation": "replace",
+      "expected_before_sha256": "b4817e30331581bc3c1426ebedb3797a6392468c917c3b027f010ca38488969f",
+      "after_sha256": "082319201a5098d3af942f7d33b005f7abc8dde864fb12da4c815853344dda82",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/DomainController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Account/DomainController.php",
+      "operation": "replace",
+      "expected_before_sha256": "ae021e8c764300fca8547ef28f7ebdd2197fa6097ab0b4f1e2958b670dcc6695",
+      "after_sha256": "09ac189974d3f1083c2e43b9b4c3f32c8dd4f2b54ef048448bfed1e5203f32ee",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/PaymentController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Account/PaymentController.php",
+      "operation": "replace",
+      "expected_before_sha256": "c719334947bbd0ab2c0710d729f74dbc24bd9b4f6ace51284dd728ee1f4f012d",
+      "after_sha256": "abd1ccad0d72818f27f683aaa13c73671abcd9d243205f2b37ffa33244cac0ed",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/DomainSupplierController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Admin/DomainSupplierController.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "31cddc4df1d6ae82a5e09c5dc19fd265acabba11bcbdc58552f196fde3dddac0",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Http/Controllers/Api/DomainApiController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Api/DomainApiController.php",
+      "operation": "replace",
+      "expected_before_sha256": "e37a1270520bfd363d80b08a782c974a41f6f4565c6e310b942df35e3908e481",
+      "after_sha256": "654bd69df44e09203cdffe569d5c256a228da0e3e0cd5c344a364187f86cd474",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Models/Domain.php",
+      "destination_relative_to_home": "servernet_app/app/Models/Domain.php",
+      "operation": "replace",
+      "expected_before_sha256": "9a7856925aaafbd320c2dc720419510d01051e35e2fd5b6917c47fecbdabe1a8",
+      "after_sha256": "9cbeec4f665d925678ef0daf559067baad559c52e0f30efa55c6cb2f4b3c1813",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Models/DomainQuote.php",
+      "destination_relative_to_home": "servernet_app/app/Models/DomainQuote.php",
+      "operation": "replace",
+      "expected_before_sha256": "7b7f6b84a17cc6744c649759edd2173fc6294768bd8f3010d94525c598e28905",
+      "after_sha256": "b4544c93ba2a3c4378305463018c9c427cc2e1402c9d6f713c99cb0cbfd29fcc",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Models/DomainSupplierAccount.php",
+      "destination_relative_to_home": "servernet_app/app/Models/DomainSupplierAccount.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "a26a6e73ccf4cae2def7994ed19bfb4e363c47e9dd7e7af32868137432dc4336",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Models/DomainSupplierContact.php",
+      "destination_relative_to_home": "servernet_app/app/Models/DomainSupplierContact.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "d3993be79b39471b592318bb50c6b155f1db550b1071e6e232ba4fc1d93209c2",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Models/DomainSupplierOperation.php",
+      "destination_relative_to_home": "servernet_app/app/Models/DomainSupplierOperation.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "338f830cd1e84bb371cb8c140b90eae981f2c520dbec88ecb18c47a1ce7c6aca",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Models/Invoice.php",
+      "destination_relative_to_home": "servernet_app/app/Models/Invoice.php",
+      "operation": "replace",
+      "expected_before_sha256": "5220fba90befd5e03735ef8739d4e745a1d6070b4aeb59432bd0c2ff7a797688",
+      "after_sha256": "6c7c03623fd6bbd374f45b7e45128dcf52d6de8c5e3b29a1326f4be0b212e779",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Models/RegistryHandle.php",
+      "destination_relative_to_home": "servernet_app/app/Models/RegistryHandle.php",
+      "operation": "replace",
+      "expected_before_sha256": "96b18e9d5e6da4ab5f09fbc3bbfddaf8befe5266b4a6cedb2557520620242e3d",
+      "after_sha256": "eef096eeb9ccc30102b9a36904d577727faa350b20a1d110dcbc71f59a196c45",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainCostFloor.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainCostFloor.php",
+      "operation": "replace",
+      "expected_before_sha256": "ee51808ab3ca2dfaa4bbaabfdf153486b2a17472a07a4fd52fdc544f37136fcb",
+      "after_sha256": "d65dbf360751253a733d856bdbe0019f9569f35fb6eb678b153315091da3c052",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainManagement.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainManagement.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "0b6bdcfec6bbf3629d358525d7186ce06c9f06817e0057a7ea0a257c0abb84e0",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainProcurement.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainProcurement.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "797e934b26100494b2e687a3f60981426a99b1b9d98ad9dc09ff299b8e484dca",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainRegistrar.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainRegistrar.php",
+      "operation": "replace",
+      "expected_before_sha256": "359e40f44a3d7f0f964ddea63c445de7f55e7aae0b56e92a81d298438cf1c2e2",
+      "after_sha256": "5dd5478d66c503ef4d9140963e7eca018aef4ff5bbf1caf6aab70e07e41773d6",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainRegistrationReadiness.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainRegistrationReadiness.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "94a25ba83dba61c6a46bae963c5207d4e2d47c6e9b4e5f7978bc29e4be091e4c",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainRenewalInvoicer.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainRenewalInvoicer.php",
+      "operation": "replace",
+      "expected_before_sha256": "d4f087db5995d60c60c4b20222b6251ae703cc8d6230bf0aa3eec534e75f3083",
+      "after_sha256": "85a7fdbf34cc81b2d0f43ff2538214f19d883cd08eaad051a8cb4730c2ba7111",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainSaleAuthorization.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSaleAuthorization.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "6401a5551bcaac00e220117ae2dd96f1955de69f5f9ace5be5eb0c1a13c96a7a",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainSearch.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSearch.php",
+      "operation": "replace",
+      "expected_before_sha256": "0d59f4ca6226a615fb89aed9448176cf3b41705c97337696328eaf8dc133b417",
+      "after_sha256": "8e31595146f0dca319032f98dbdaff5213a0bf421e0e7f2dc304fd0bac7ca6cb",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainSupplierLifecycle.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierLifecycle.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "ae0085ae19c7e8836f0b86b73ec67beb67db8ebf810b0b8a453e8d2525fda794",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainSupplierProbe.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierProbe.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "5d3f12d15ed53ef2cd1ad7b755cdaad9d0cfe1a5cce9534fd71f670c24ef58ca",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainTransfer.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainTransfer.php",
+      "operation": "replace",
+      "expected_before_sha256": "af4e072e720977ee61d2807b14ed861033f778aec9472c26f45e6401be2d10dc",
+      "after_sha256": "0aee4ccdf00dbadaeaa7d3546f8bd574388b8e16b9676d9e6dfaefb74fa4b50a",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/LiveDomainPricing.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/LiveDomainPricing.php",
+      "operation": "replace",
+      "expected_before_sha256": "e36e5c7d6d2afbaa50c18f5d683cf4ee51e8f57cb3fb9b835b6502e63ba3179b",
+      "after_sha256": "9de025de1647224a65b5ef00c65b9b13429a744365710a2c57578909d37d21d6",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/OpenProviderClient.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/OpenProviderClient.php",
+      "operation": "replace",
+      "expected_before_sha256": "d0f8c17473a6afe0a7145b9cab66cdcd0a903097b9fcc983c1a03b51eb84697e",
+      "after_sha256": "bf2d87213382f5a43dae2158b1c4d5154c21e76c65695ca9cb5e8aa97d8f6859",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Pricing/DomainMoney.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Pricing/DomainMoney.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "842d716f10ca026c77e8e02304706c490e70902576f0a679414700aabeb23912",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Pricing/DomainProcurementException.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Pricing/DomainProcurementException.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "2e9dbb74e47da7ef86310e4cabfca5fef427708af38d50f5150a3a64990a306e",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Providers/DomainProvider.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/DomainProvider.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "7d830449390e18a4965028ba678cc9eef73ed293e4a70725f360e75034efb5c3",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Providers/DomainProviderException.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/DomainProviderException.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "ecad8fbce0806a202198a459f45d9e3a178a8762e3d3ab51387425e133c2d34a",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Providers/DomainProviderFactory.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/DomainProviderFactory.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "05c38fd352534f40e8e39c97508f15c7e39b83397793c6a28587d8b1bc5d173a",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Providers/JokerAdapter.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/JokerAdapter.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "a17e29612ec8271a653b32a8f1cc6f61106c4837022288219b88c1edbe764945",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Providers/LegacyAccountIdentity.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/LegacyAccountIdentity.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "be65b490d92cd1989d0d4409a332a69ac07ded4a39b539354b54ce9b95c446a1",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Providers/OpenProviderAdapter.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/OpenProviderAdapter.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "06daadfb3215c06f5b249a874cfdaf673917fe7c0a365b1c28d5104df79a6e50",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Providers/ProviderMoney.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/ProviderMoney.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "95f6d2499f3844fe9121da16623ad9f5df4b96cfe118eac55371a1dad274fc92",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Reseller/ResellerOrderService.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Reseller/ResellerOrderService.php",
+      "operation": "replace",
+      "expected_before_sha256": "c11a9572212eb4a0b86c0b4a4a011a79081c2ec996187eda2abbf4d2ae7bdf4a",
+      "after_sha256": "433dc8ba59ebd55266fd9a2b8a3a79d62a6333aa5888527263874331cc0eeff0",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/Reseller/ResellerPricing.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/Reseller/ResellerPricing.php",
+      "operation": "replace",
+      "expected_before_sha256": "74fd5aeaf685442b1b5000190ea85a58014aabffaf42531e08045423ee62ead6",
+      "after_sha256": "6dd5120dbe383f6b9a7afb6372a7b53620c6d310600d80c6840d4554f9b577fb",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Finance/BusinessLedger.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Finance/BusinessLedger.php",
+      "operation": "replace",
+      "expected_before_sha256": "d41744e876b6e63f152227f7bd12a69d8271276324f863aaa0fd6f8603e775d9",
+      "after_sha256": "dc4491215321f15efd845d11cb9793a62253fd17adb974138a62f8e42244bf5d",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/config/domain_suppliers.php",
+      "destination_relative_to_home": "servernet_app/config/domain_suppliers.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "759334b628851dc51b0ef73701dbec83d152c1196d716ce0dce410563bf96322",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/database/migrations/2026_10_31_150000_domain_supplier_accounts.php",
+      "destination_relative_to_home": "servernet_app/database/migrations/2026_10_31_150000_domain_supplier_accounts.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "fff9cd71c81ed075a5b6d3b221f4a9d628dea32f899f9116c8936f0d456289e2",
+      "migration_execution_separate": true
+    },
+    {
+      "source": "website/lang/en/domain-management.php",
+      "destination_relative_to_home": "servernet_app/lang/en/domain-management.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "9429f3ed326621f798329400e57fb6c3950111ac055ad9cd3b3847daeb94facd",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/lang/en/domain-suppliers.php",
+      "destination_relative_to_home": "servernet_app/lang/en/domain-suppliers.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "af3bff1f5b4a5df129c39032e3e51d2abb2c5c70b491208e505021ed69066a95",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/lang/fa/domain-management.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/domain-management.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "d1627f1f3f18e3bfdc694e38475bc4f285bfec27f12c25f763c8036bc334b1e9",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/lang/fa/domain-suppliers.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/domain-suppliers.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "9837220d127745b264066320df319095e3576d13db8540a2bec33f71d6092a8d",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/lang/tr/domain-management.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/domain-management.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "08b9670dac00df287393807950040d392fb5c551c94ae237ba716baddefba564",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/lang/tr/domain-suppliers.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/domain-suppliers.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "de590dccf6f41f7220f6bcbb78c010bdea4a53339684d2d7cec518ac5bb125a0",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/account/domain-management.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/account/domain-management.blade.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "b186e8427d53c4752315eb68738bb66c31c10dd1edb1b57835b1a35d016dffcf",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/account/domain-show.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/account/domain-show.blade.php",
+      "operation": "replace",
+      "expected_before_sha256": "3e0b326c76cfb974a40bcc5312ee75ac247f5f4aa76ccf7a7239ca11f3d775e7",
+      "after_sha256": "848e0b2398b1719f48fca01e48123dad4905b56741e7d1381e0c15e65d4c5552",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/admin/domain-suppliers/form.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/domain-suppliers/form.blade.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "872e5ff8745db08ff7c7b7fcfcf86e850866892086a53dbfeea930ce76371b9c",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/admin/domain-suppliers/index.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/domain-suppliers/index.blade.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "72b496827a498dda288a6ec9a83daafe06534fc17dee2a3425fefbdd4b6a8a9c",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/resources/views/admin/layout.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/layout.blade.php",
+      "operation": "replace",
+      "expected_before_sha256": "d576cdc4f7866f30a2152b314bafea476312cd5122c1f4d50a90645b6baff2f5",
+      "after_sha256": "01e45eec8fc5c2fbd25954e4704e59913de0c626ae670616cfa705477222dc80",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/routes/console.php",
+      "destination_relative_to_home": "servernet_app/routes/console.php",
+      "operation": "replace",
+      "expected_before_sha256": "3fdeb45350901161570dc3f5ab691d10a53f04a9c860915707fbf49c928a41a4",
+      "after_sha256": "a77301a503bee59a3eb575f9e6e4ebccbe47781631413916a38067e5a20bab82",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/routes/domain-management.php",
+      "destination_relative_to_home": "servernet_app/routes/domain-management.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "8bd87114baad333adf111463e8f381d53d83dcf24d8b11e9b1d3bcc33d6a6696",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/routes/domain-suppliers.php",
+      "destination_relative_to_home": "servernet_app/routes/domain-suppliers.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "f0cbaa8dd87a016f52fc4857cf4790aab32ddd356c1bda83ccbc4c15705b1752",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/routes/web.php",
+      "destination_relative_to_home": "servernet_app/routes/web.php",
+      "operation": "replace",
+      "expected_before_sha256": "5abdb250c627982a0fc339e09c786052f9dac8aa3f02ee7a1b786da17cd0a0af",
+      "after_sha256": "971e7cabc2a66b1f6bf495e193b511e470b08b3ea2d2e89f56d674ec1d037a4a",
+      "migration_execution_separate": false
+    }
+  ]
+}

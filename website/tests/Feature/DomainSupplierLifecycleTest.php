@@ -295,6 +295,15 @@ class DomainSupplierLifecycleTest extends TestCase
             && $ctx['contact_handles']['owner'] === 'real-account-handle'
             && $ctx['name_servers'] === ['ns1.example.test', 'ns2.example.test'])->andReturn(['status' => 'queued']);
         $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'create', 12)['status']);
+        $zone = Mockery::mock(\App\Services\Dns\DomainZoneProvisioner::class);
+        $zone->shouldReceive('ensure')->once()->withArgs(fn ($delivered) => $delivered->id === $d->id
+            && $delivered->status === 'active' && $delivered->supplier_object_id === $d->domain)->andReturn(['ok' => true]);
+        $this->app->instance(\App\Services\Dns\DomainZoneProvisioner::class, $zone);
+        $this->provider->shouldReceive('reconcile')->once()->andReturn(['status' => 'succeeded']);
+        $this->provider->shouldReceive('find')->once()->andReturn(['found' => true,
+            'object_id' => $d->domain, 'expires_at' => now()->addYear()->toIso8601String()]);
+        $this->assertTrue($this->lifecycle->reconcile($op->fresh())['ok']);
+        $this->assertTrue($this->lifecycle->reconcile($op->fresh())['ok']);
     }
 
     public function test_definite_pre_submission_rejection_is_not_an_unknown_network_result(): void
