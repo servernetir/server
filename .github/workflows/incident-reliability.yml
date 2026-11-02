@@ -86,7 +86,7 @@ jobs:
       TELESCOPE_ENABLED: 'false'
       NIGHTWATCH_ENABLED: 'false'
       INCIDENT_CORE_FILTER: 'WalletRefundNotificationsTest|VpsTcSalesTest|UnifiedVpsCountryTest|PageCacheTest|BlogListingCanonicalTest|BlogSitemapLastmodTest|InternalLinkAssetResolutionTest|CloudSalesWatchTest|CloudSalesIncidentPolicyTest|SystemHealthSalesNotificationOwnershipTest|SystemHealthTest|NavasanCoordinatedRefreshTest|NavasanExchangeRateTest|NavasanTryRateTest|CloudCatalogRepricingTest|LightNodePartialRepricingTest|ArvanRegionalPricingTest|FetchDollarTest|NavasanCloudPricingSnapshotTest|LightNodePublicPricingTest|LightNodeClientTest|CountrySitemapEligibilityTest|CountryVpsServiceSchemaTest|GpuDecisionGuideTest|IranSalesVisibilityTest'
-      INCIDENT_HERMES_FILTER: 'HermesSupportExperienceTest|HermesOwnerReviewNoiseTest|HermesSupportLearningIntegrationTest|HermesTechnicalFollowupWorkflowTest|HermesBackgroundReliabilityTest|HermesOwnerNotificationTest'
+      INCIDENT_HERMES_FILTER: 'HermesSupportExperienceTest|HermesOwnerReviewNoiseTest|HermesSupportLearningIntegrationTest|HermesTechnicalFollowupWorkflowTest|HermesBackgroundReliabilityTest|HermesOwnerNotificationTest|HermesSupportExperienceIndexTest'
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -160,7 +160,11 @@ jobs:
           done < "$RUNNER_TEMP/incident-mariadb-ips"
           sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -j REJECT
           sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -d ::1/128 -j ACCEPT
-          mkdir -p storage/framework/testing/incident-ci bootstrap/cache
+          mkdir -p storage/framework/testing/incident-ci bootstrap/cache \
+            "$GITHUB_WORKSPACE/output/learning-tests" "$GITHUB_WORKSPACE/output/technical-followup-tests"
+          # Legacy Hermes integration fixtures deliberately live outside the Laravel subtree.
+          sudo chown -R incident-tests:incident-tests \
+            "$GITHUB_WORKSPACE/output/learning-tests" "$GITHUB_WORKSPACE/output/technical-followup-tests"
           sudo chown -R incident-tests:incident-tests "$GITHUB_WORKSPACE/website"
           # sudo inherits cwd, but PHP resolves autoload/source paths absolutely.
           # Permit traversal through runner-owned ancestors without exposing their files.

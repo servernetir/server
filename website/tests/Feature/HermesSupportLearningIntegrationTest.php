@@ -125,7 +125,9 @@ class HermesSupportLearningIntegrationTest extends TestCase
         $index = (new HermesSupportExperience($store))->refresh(['user_id' => '100', 'chat_id' => '200']);
         $this->assertSame(104, $index['source_ticket_count']);
         $this->assertSame(603, $index['source_message_count']);
-        $this->assertCount(602, $index['cases']);
+        $this->assertSame(602, $index['case_count']);
+        $this->assertArrayNotHasKey('cases', $index);
+        $this->assertCount(602, iterator_to_array((new HermesSupportExperience($store))->cases(['user_id' => '100', 'chat_id' => '200'], $index), false));
         $this->assertTrue($index['bounded_inventory_complete']);
         $this->assertSame(104, $index['snapshot_max_ticket_id']);
         $this->assertSame(603, $index['snapshot_max_message_id']);
