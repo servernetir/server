@@ -46,6 +46,6 @@ final class HermesRelayMonitor
             default => "⚠️ اطلاعات تازهٔ پایش رله در دسترس نیست\nقطعی یا سلامت خود رله هنوز تأیید نشده است؛ پایش مستقل به بررسی نیاز دارد.",
         };
         $date = (new \DateTimeImmutable('@'.$event['at']))->setTimezone(new \DateTimeZone('Asia/Tehran'))->format('Y-m-d H:i');
-        return "🤖 هرمس\n\n".$line."\n\nزمان بررسی: ".$date.' تهران';
+        return "🤖 آراز\n\n".$line."\n\nزمان بررسی: ".$date.' تهران';
     }
 }

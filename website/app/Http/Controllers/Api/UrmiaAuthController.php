@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\OtpChallenge;
 use App\Services\Otp\OtpService;
+use App\Services\IdentityApi\IdentityError;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -24,23 +25,28 @@ class UrmiaAuthController extends Controller
     protected function signingKey(): string
     {
         $key = @file_get_contents(storage_path('app/private/urmia-city-otp.key'));
-        abort_unless(is_string($key) && strlen(trim($key)) >= 48, 503, 'urmia_auth_not_configured');
+        $this->requireCondition(is_string($key) && strlen(trim($key)) >= 48, 503, 'urmia_auth_not_configured');
         return trim($key);
+    }
+
+    private function requireCondition(bool $condition, int $status, string $error = 'invalid_request'): void
+    {
+        if (! $condition) { throw new IdentityError($error, $status); }
     }
 
     private function authenticate(Request $request): void
     {
-        abort_if(strlen($request->getContent()) > 2048, 413);
-        abort_unless($request->isJson(), 415);
+        $this->requireCondition(strlen($request->getContent()) <= 2048, 413);
+        $this->requireCondition($request->isJson(), 415);
         $time = (string) $request->header('X-Urmia-Timestamp');
         $nonce = (string) $request->header('X-Urmia-Nonce');
         $signature = (string) $request->header('X-Urmia-Signature');
-        abort_unless(ctype_digit($time) && abs(time() - (int) $time) <= 90
+        $this->requireCondition(ctype_digit($time) && abs(time() - (int) $time) <= 90
             && preg_match('/^[a-f0-9-]{36}$/D', $nonce)
             && preg_match('/^[a-f0-9]{64}$/D', $signature), 403, 'invalid_signature');
         $canonical = implode("\n", ['v1', 'POST', $request->getPathInfo(), $time, $nonce, hash('sha256', $request->getContent())]);
-        abort_unless(hash_equals(hash_hmac('sha256', $canonical, $this->signingKey()), $signature), 403, 'invalid_signature');
-        abort_unless(Cache::add('urmia-auth:nonce:'.$nonce, true, 300), 409, 'replayed_signature');
+        $this->requireCondition(hash_equals(hash_hmac('sha256', $canonical, $this->signingKey()), $signature), 403, 'invalid_signature');
+        $this->requireCondition(Cache::add('urmia-auth:nonce:'.$nonce, true, 300), 409, 'replayed_signature');
     }
 
     private function response(array $data, int $status = 200): JsonResponse
@@ -65,11 +71,11 @@ class UrmiaAuthController extends Controller
     private function publicStart(array $entry): JsonResponse
     {
         return $this->response([
-            'accepted' => $entry['status'] === 'sent',
+            'accepted' => in_array($entry['status'], ['sent', 'unknown'], true) && isset($entry['challenge_id']),
             'status' => $entry['status'],
             'challenge_id' => $entry['challenge_id'] ?? null,
             'expires_at' => $entry['expires_at'] ?? null,
-            'retry_after' => 60,
+            'retry_after' => OtpService::TTL_MINUTES * 60,
         ], in_array($entry['status'], ['sending', 'unknown'], true) ? 202 : 200);
     }
 
@@ -90,7 +96,7 @@ class UrmiaAuthController extends Controller
         return Cache::lock('urmia-auth:mobile:'.hash('sha256', $body['mobile']), 60)->block(3, function () use ($otp, $body, $requestKey, $fingerprint) {
             $existing = $this->ledgerGet($requestKey);
             if (is_array($existing)) {
-                abort_unless(hash_equals($existing['fingerprint'], $fingerprint), 409, 'idempotency_conflict');
+                $this->requireCondition(hash_equals($existing['fingerprint'], $fingerprint), 409, 'idempotency_conflict');
                 if (in_array($existing['status'], ['sending', 'unknown'], true) && time() >= ($existing['deadline'] ?? PHP_INT_MAX)) {
                     $existing['status'] = 'expired'; $this->ledgerPut($requestKey, $existing);
                 }
@@ -108,12 +114,12 @@ class UrmiaAuthController extends Controller
             ]);
             if ($claimed !== 1) {
                 $prior=$this->ledgerGet($requestKey);
-                abort_unless(is_array($prior) && hash_equals($prior['fingerprint'],$fingerprint),409,'idempotency_conflict');
+                $this->requireCondition(is_array($prior) && hash_equals($prior['fingerprint'],$fingerprint),409,'idempotency_conflict');
                 return $this->publicStart($prior);
             }
             try {
                 $issued = $otp->issue('sms', $body['mobile'], self::PURPOSE, $body['client_ip'], smsOnly: true);
-                if (! $issued->ok) {
+                if (! $issued->ok && $issued->challengeId === null) {
                     $entry['status'] = 'failed';
                 } else {
                     $entry += [
@@ -121,13 +127,16 @@ class UrmiaAuthController extends Controller
                         'otp_id' => $issued->challengeId,
                         'expires_at' => $issued->expiresAt->toIso8601String(),
                     ];
-                    $entry['status'] = 'sent';
+                    $entry['status'] = $issued->ok ? 'sent' : 'unknown';
                 }
             } catch (\Throwable) {
                 $entry['status'] = 'unknown';
                 $known = OtpChallenge::where('channel', 'sms')->where('destination', $body['mobile'])
                     ->where('purpose', self::PURPOSE)->where('created_at', '>=', now()->subMinutes(2))->latest('id')->first();
-                if ($known) { $entry['deadline'] = $known->expires_at->getTimestamp(); }
+                if ($known) {
+                    $entry += ['challenge_id'=>(string) Str::uuid(), 'otp_id'=>$known->id, 'expires_at'=>$known->expires_at->toIso8601String()];
+                    $entry['deadline'] = $known->expires_at->getTimestamp();
+                }
             }
             $this->ledgerPut($requestKey, $entry);
             return $this->publicStart($entry);
@@ -144,11 +153,11 @@ class UrmiaAuthController extends Controller
         ])->validate();
         $requestKey = DB::table('urmia_auth_requests')->where('challenge_id', $body['challenge_id'])->value('request_key');
         $entry = is_string($requestKey) ? $this->ledgerGet($requestKey) : null;
-        abort_unless(is_array($entry) && hash_equals($entry['binding'], $body['session_binding']), 403, 'challenge_not_owned');
+        $this->requireCondition(is_array($entry) && hash_equals($entry['binding'], $body['session_binding']), 403, 'challenge_not_owned');
         return Cache::lock('urmia-auth:mobile:'.hash('sha256', $entry['mobile']), 60)->block(3, function () use ($requestKey, $body, $otp) {
             $entry = $this->ledgerGet($requestKey);
-            abort_unless(is_array($entry) && ($entry['status'] ?? '') === 'sent', 409, 'challenge_not_active');
-            abort_unless(hash_equals($entry['binding'], $body['session_binding']), 403);
+            $this->requireCondition(is_array($entry) && in_array($entry['status'] ?? '', ['sent', 'unknown'], true), 409, 'challenge_not_active');
+            $this->requireCondition(hash_equals($entry['binding'], $body['session_binding']), 403);
             $codeHash = hash_hmac('sha256', $body['code'], $this->signingKey());
             if (isset($entry['verified_hash'])) {
                 return $this->response(['verified' => hash_equals($entry['verified_hash'], $codeHash)

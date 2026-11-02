@@ -109,8 +109,9 @@ class OtpService
         if ($active !== null) {
             $since = (int) abs($active->updated_at?->diffInSeconds(now()) ?? PHP_INT_MAX);
 
-            if ($since < self::RESEND_COOLDOWN) {
-                $wait = self::RESEND_COOLDOWN - $since;
+            $wait = $smsOnly ? max(0, $active->expires_at->getTimestamp() - time()) : self::RESEND_COOLDOWN - $since;
+
+            if ($wait > 0) {
 
                 // شماره در پیام می‌آید تا اگر کاربر شماره‌اش را عوض کرده و
                 // باز این را دید، بفهمد پیام دربارهٔ کدام شماره است
@@ -149,6 +150,11 @@ class OtpService
         };
 
         if (! $sent) {
+            // The boolean SMS contract cannot distinguish rejection from a lost relay response.
+            // Only the private SMS-only caller keeps this bounded challenge usable and never resends it.
+            if ($smsOnly && $channel === 'sms') {
+                return new OtpIssue(false, 'sms_outcome_unknown', $challenge->id, $challenge->expires_at);
+            }
             /*
             | 🔴 منقضی می‌شود، **حذف نمی‌شود**.
             |

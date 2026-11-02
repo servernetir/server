@@ -15,3 +15,7 @@ Validation on 2026-11-02: the isolated component harness passed 20 checks on SQL
 Harness: `tests/urmia-auth-isolated.php`; pass the approved vendor autoloader as its sole argument. It defaults to in-memory SQLite; optional `URMIA_TEST_DB_*` variables select a disposable MySQL/MariaDB schema. Never point it at production.
 
 Rollback: disable/remove the dedicated signing key and remove the single route require before restoring the previous OTP service. Leave the additive ledger in place until retention and reconciliation are decided; a code rollback does not require dropping it.
+
+## Follow-up review fixes
+
+The bridge now throws the existing IdentityError type so IdentityPrivacy preserves authentication, nonce and binding statuses. The harness exercises the actual privacy middleware. A boolean false from the configured SMS sender is conservatively treated as uncertain for the private smsOnly caller: its code stays usable until the original expiry, the opaque challenge can be verified, and a fresh UUID cannot resend during that full TTL. Existing four-argument ServerNet callers retain their prior expiry and parallel-delivery behavior. The expanded harness and PR-only CI cover these cases with fake SMS; this follow-up is not production-installed and has not sent real SMS.

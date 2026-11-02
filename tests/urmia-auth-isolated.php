@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\UrmiaAuthController;
 
 $root = dirname(__DIR__);
 require $root.'/website/app/Services/Otp/OtpService.php';
+require $root.'/website/app/Http/Middleware/IdentityPrivacy.php';
 require $root.'/website/app/Http/Controllers/Api/UrmiaAuthController.php';
 $app = new Application($root);
 Container::setInstance($app);
@@ -26,7 +27,9 @@ $app->instance('config', new Repository([
     'cache'=>['default'=>'array','stores'=>['array'=>['driver'=>'array','serialize'=>false]],'prefix'=>'urmia-auth-tests'],
 ]));
 $app->instance('cache',new CacheManager($app));
-$app->instance('validator',new ValidationFactory(new Translator(new ArrayLoader(),'en'),$app));
+$app->instance(\Illuminate\Contracts\Routing\ResponseFactory::class,new class { public function json($data=[],int $status=200,array $headers=[],int $options=0){return new \Illuminate\Http\JsonResponse($data,$status,$headers,$options);} });
+$translator=new Translator(new ArrayLoader(),'en');$app->instance('translator',$translator);
+$app->instance('validator',new ValidationFactory($translator,$app));
 $db = new Capsule($app);
 $driver=getenv('URMIA_TEST_DB_DRIVER')?:'sqlite';
 $db->addConnection($driver==='sqlite'?['driver'=>'sqlite','database'=>':memory:','prefix'=>'']:['driver'=>'mysql','host'=>'127.0.0.1','port'=>3306,'database'=>getenv('URMIA_TEST_DB_NAME'),'username'=>getenv('URMIA_TEST_DB_USER'),'password'=>getenv('URMIA_TEST_DB_PASS'),'charset'=>'utf8mb4','collation'=>'utf8mb4_unicode_ci','prefix'=>'']);
@@ -38,11 +41,11 @@ $db->schema()->create('otp_challenges', function ($t) {
     $t->string('ip')->nullable();$t->timestamp('expires_at');$t->timestamp('verified_at')->nullable();$t->timestamps();
 });
 final class FakeUrmiaSms implements SmsSender {
-    public array $codes=[]; public bool $throw=false;
+    public array $codes=[]; public bool $throw=false; public bool $negative=false;
     public function enabled():bool{return true;}
     public function name():string{return 'isolated-fixture';}
     public function send(string $mobile,string $text):bool{throw new RuntimeException('free-text forbidden');}
-    public function sendOtp(string $mobile,string $code):bool{$this->codes[]=$code;if($this->throw)throw new RuntimeException('unknown network outcome');return true;}
+    public function sendOtp(string $mobile,string $code):bool{$this->codes[]=$code;if($this->throw)throw new RuntimeException('unknown network outcome');return !$this->negative;}
 }
 final class FixtureUrmiaController extends UrmiaAuthController {
     protected function signingKey():string{return str_repeat('isolated-key-',5);}
@@ -58,11 +61,13 @@ function callUrmia(string $action,array $body,?string $nonce=null,bool $bad=fals
     $canonical=implode("\n",['v1','POST',$path,$time,$nonce,hash('sha256',$raw)]);
     $request->headers->set('X-Urmia-Timestamp',$time);$request->headers->set('X-Urmia-Nonce',$nonce);
     $request->headers->set('X-Urmia-Signature',$bad?str_repeat('0',64):hash_hmac('sha256',$canonical,str_repeat('isolated-key-',5)));
-    try{$r=$controller->$action($request,$otp);return [$r->getStatusCode(),$r->getData(true)];}
-    catch(\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e){return [$e->getStatusCode(),[]];}
+    $privacy=new \App\Http\Middleware\IdentityPrivacy();
+    $r=$privacy->handle($request,fn($r)=>$controller->$action($r,$otp));
+    return [$r->getStatusCode(),$r->getData(true)];
 }
 $body=['request_id'=>(string)\Illuminate\Support\Str::uuid(),'mobile'=>'09140000000','client_ip'=>'192.0.2.10','session_binding'=>str_repeat('a',64)];
 [$status]=callUrmia('start',$body,bad:true);expect($status===403,'bad signature rejected');expect(count($sms->codes)===0,'bad signature cannot send SMS');
+[$status]=callUrmia('start',[...$body,'mobile'=>'invalid']);expect($status===422,'actual privacy middleware preserves validation status');
 $nonce=(string)\Illuminate\Support\Str::uuid();[$status,$sent]=callUrmia('start',$body,$nonce);
 expect($status===200&&$sent['accepted']===true,'signed send accepted');expect(count($sms->codes)===1,'one central SMS send');expect(!isset($sent['code']),'no raw OTP in response');
 [$status]=callUrmia('start',$body,$nonce);expect($status===409,'nonce replay rejected');
@@ -81,6 +86,15 @@ expect(\App\Models\OtpChallenge::where('purpose','urmia_city_login')->count()===
 \Illuminate\Support\Facades\DB::table('urmia_auth_requests')->where('request_key','urmia-auth:request:'.$unknown['request_id'])->update(['payload'=>json_encode(['status'=>'unknown','fingerprint'=>hash('sha256',json_encode([$unknown['mobile'],$unknown['client_ip'],$unknown['session_binding']],JSON_THROW_ON_ERROR)),'mobile'=>$unknown['mobile'],'binding'=>$unknown['session_binding'],'deadline'=>time()-1])]);
 [$status,$expired]=callUrmia('start',$unknown);expect($expired['status']==='expired','uncertain expired challenge can be explicitly restarted');
 $sms->throw=false;
+// A real relay converts timeout/rejection into false: retain the code without another send.
+$sms->negative=true;$uncertain=[...$body,'request_id'=>(string)\Illuminate\Support\Str::uuid(),'mobile'=>'09140000005'];
+[$status,$receipt]=callUrmia('start',$uncertain);expect($status===202&&$receipt['accepted']===true&&$receipt['status']==='unknown','boolean false remains an uncertain, verifiable challenge');
+$code=end($sms->codes);$before=count($sms->codes);
+[$status,$receiptAgain]=callUrmia('start',$uncertain);expect(count($sms->codes)===$before&&$receiptAgain['challenge_id']===$receipt['challenge_id'],'uncertain boolean result is not resent');
+\App\Models\OtpChallenge::where('destination',$uncertain['mobile'])->update(['updated_at'=>now()->subSeconds(90)]);
+[$status,$blocked]=callUrmia('start',[...$uncertain,'request_id'=>(string)\Illuminate\Support\Str::uuid()]);expect(count($sms->codes)===$before&&$blocked['accepted']===false,'fresh UUID cannot resend an uncertain SMS during its full TTL');
+[$status,$proof]=callUrmia('verify',['challenge_id'=>$receipt['challenge_id'],'code'=>$code,'session_binding'=>$uncertain['session_binding']]);expect($proof['verified']===true,'possibly delivered code remains usable');
+$sms->negative=false;
 $bale=new class {public int $calls=0;public function otp(string $mobile,string $code):void{$this->calls++;}};
 $app->instance(\App\Services\Bale\BaleNotifier::class,$bale);
 $legacy=$otp->issue('sms','09140000002','login','192.0.2.88');
