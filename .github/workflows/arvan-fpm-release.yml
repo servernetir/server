@@ -1,0 +1,61 @@
+name: Arvan targeted FPM release checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/arvan-monitoring/fpm-release/**'
+      - 'scripts/arvan-monitoring/web-release/deploy.php'
+      - '.github/workflows/arvan-fpm-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-fpm-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-checks:
+    name: Frozen artifacts and synthetic filesystem/wire checks (PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for synthetic tests only
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Check frozen bytes and exercise private synthetic files and mock sockets
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_root="$(mktemp -d "$RUNNER_TEMP/arvan-fpm-fixtures.XXXXXX")"
+          mkdir "$fixture_root/arvan-fpm-candidate"
+          mkdir -p "$fixture_root/arvan-release-candidate/v2"
+          cp -a scripts/arvan-monitoring/fpm-release/. "$fixture_root/arvan-fpm-candidate/"
+          cp scripts/arvan-monitoring/web-release/deploy.php "$fixture_root/arvan-release-candidate/v2/deploy.php"
+          cd "$fixture_root"
+          # Preserve reviewed bytes, including the test's original isolated fixture layout.
+          sha256sum --check arvan-fpm-candidate/SHA256SUMS
+          printf '%s\n' '0b9c796cda3f05e6e6092c445198ae49c25b805742f502786569f7b7ce92c75d  arvan-release-candidate/v2/deploy.php' | sha256sum --check
+          php -l arvan-fpm-candidate/fpm-activation.php
+          php -l arvan-fpm-candidate/inspect-fpm-config.php
+          php -l arvan-fpm-candidate/test-compiled-ops.php
+          # Only helper function declarations and synthetic temp files execute.
+          # No Composer, app bootstrap, FPM socket, HTTP request or production path runs.
+          php -d opcache.enable_cli=0 -d allow_url_fopen=0 \
+            -d disable_functions=exec,passthru,shell_exec,system,proc_open,popen,fsockopen,pfsockopen,stream_socket_client \
+            arvan-fpm-candidate/test-compiled-ops.php
+          python3 arvan-fpm-candidate/test-fpm-activation.py
