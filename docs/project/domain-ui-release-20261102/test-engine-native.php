@@ -62,7 +62,7 @@ function fixture(): array
             $compiler->setPath($home.'/'.$relative);
             $compiledPath = $compiler->getCompiledPath($home.'/'.$relative);
             $compiled = $compiler->compileString($before)."\n<?php /**PATH {$home}/{$relative} ENDPATH**/ ?>";
-            putFixture($compiledPath, $compiled);
+            putFixture($compiledPath, $compiled, 0755);
             $oldCompiled[$compiledPath] = hash('sha256', $compiled);
         }
         $entries[] = ['destination' => $relative, 'before_sha256' => $before === null ? 'absent' : hash('sha256', $before),
@@ -113,10 +113,18 @@ try {
         expect(hash_file('sha256', $f['home'].'/'.$entry['destination']) === $entry['before_sha256'], 'preview changed source');
     }
     assertPhase($f, 'apply', 'applied');
+    expect(array_reduce(array_keys($f['oldCompiled']), fn ($ok, $path) => $ok && (fileperms($path) & 0777) === 0755, true),
+        'existing compiled0755 mode must be preserved after apply');
     expect((phase($f, 'apply')['reason'] ?? '') === 'duplicate_or_unprepared_apply', 'duplicate apply guard');
     assertPhase($f, 'verify', 'verified');
+    $permissionTarget = array_key_first($f['oldCompiled']); chmod($permissionTarget, 0644);
+    expect((phase($f, 'rollback')['reason'] ?? '') === 'rollback_compiled_mode_drift'
+        && (fileperms($permissionTarget) & 0777) === 0644, 'rollback must refuse permissions-only drift without broadening mode');
+    chmod($permissionTarget, 0755);
     $beforeRollback = count($f['store']->observations);
     assertPhase($f, 'rollback', 'rolled_back');
+    expect(array_reduce(array_keys($f['oldCompiled']), fn ($ok, $path) => $ok && (fileperms($path) & 0777) === 0755, true),
+        'existing compiled0755 mode must be preserved after rollback');
     $rollbackObservations = array_slice($f['store']->observations, $beforeRollback);
     expect(count($rollbackObservations) === 24, 'targeted page cache count on rollback');
     expect($rollbackObservations[0]['old_compiled'] && $rollbackObservations[0]['deps_present'], 'old compiled restoration must precede dependency removal');
@@ -132,7 +140,12 @@ try {
     $original = (string) file_get_contents($target); file_put_contents($target, 'unrelated newer edit');
     expect((phase($g, 'apply')['reason'] ?? '') === 'destination_hash_drift', 'preflight must reject concurrent edit');
     expect(file_get_contents($target) === 'unrelated newer edit', 'preflight must preserve concurrent edit');
-    file_put_contents($target, $original); assertPhase($g, 'apply', 'applied');
+    file_put_contents($target, $original);
+    $compiledTarget = array_key_first($g['oldCompiled']); chmod($compiledTarget, 0644);
+    expect((phase($g, 'apply')['reason'] ?? '') === 'compiled_mode_drift'
+        && (fileperms($compiledTarget) & 0777) === 0644, 'permissions-only compiled drift must stop without broadening mode');
+    chmod($compiledTarget, 0755);
+    assertPhase($g, 'apply', 'applied');
     file_put_contents($target, 'unrelated after scan');
     // Simulate mutation after restore's initial scan: the immediate per-file guard must still reject it.
     $engine = $g['reflection']->newInstanceWithoutConstructor();
@@ -140,7 +153,7 @@ try {
     $restore = $g['reflection']->getMethod('restoreOne');
     try {
         $restore->invoke($engine, $target, $g['stage'].'/before/file-0', $g['plan']['entries'][0]['before_sha256'],
-            $g['plan']['entries'][0]['before_mode'], $g['plan']['entries'][0]['after_sha256']);
+            $g['plan']['entries'][0]['before_mode'], $g['plan']['entries'][0]['after_sha256'], $g['plan']['entries'][0]['mode']);
         throw new RuntimeException('immediate CAS failed to reject newer edit');
     } catch (RuntimeException $e) { expect($e->getMessage() === 'rollback_concurrent_drift', 'immediate rollback guard'); }
     expect((phase($g, 'rollback')['reason'] ?? '') === 'rollback_newer_file_rejected', 'complete rollback precheck must reject unknown hashes');
