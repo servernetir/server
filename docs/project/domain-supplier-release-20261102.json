@@ -672,7 +672,7 @@
       }
     }
   ],
-  "source_runtime_sha": "9d5a26cf7e19614c6acbfaedf951bc2b999ecc18",
+  "source_runtime_sha": "c0a691e5b25ec897afe3e653d37764749ea99fe5",
   "live_inventory": {
     "files": 67,
     "source_baseline_matches": 61,
@@ -698,9 +698,9 @@
     "source_and_overlay_hashes_reverified": true
   },
   "discovery_promotions_continuation": {
-    "baseline_develop_sha": "6c4c96119dcc2e12ce2ab548d82f40ae55662c58",
+    "baseline_develop_sha": "f54256d529b6f0cbe38f687bcf82511f44bb96aa",
     "previous_feature_sha": "ce0fcf46423b1ffad859b97f4db7397bd41a4f90",
-    "candidate_runtime_sha": "5220dc25d43525d90cae10017fc39c484f7282bf",
+    "candidate_runtime_sha": "c0a691e5b25ec897afe3e653d37764749ea99fe5",
     "validation": "php84_sqlite_mariadb_242_tests_1498_assertions_each_passed",
     "deployment_status": "not_deployed",
     "requires_fresh_live_inventory": true,
@@ -708,8 +708,8 @@
     "current_runtime_entries": 78,
     "overlays": "six_unchanged_historical_lint_receipts_no_behavior_acceptance",
     "ote_status": "support_reply_received_access_request_not_addressed_no_test_account",
-    "ci_url": "https://github.com/servernetir/server/actions/runs/41452396846",
-    "runtime_sha": "5220dc25d43525d90cae10017fc39c484f7282bf",
+    "ci_url": "https://github.com/servernetir/server/actions/runs/41454121151",
+    "runtime_sha": "c0a691e5b25ec897afe3e653d37764749ea99fe5",
     "jsdom_real_blade_tests_passed": 10,
     "knowledge_checks_passed": 29,
     "baseline_cases": 200,
@@ -718,6 +718,12 @@
     "new_regressions": 0,
     "runtime_workflows_passed": 11,
     "visual_review": "chrome_desktop_and_390px_mobile_no_horizontal_overflow_before_final_form_polish;_final_polish_compiled_behavior_ci_passed;_final_chrome_check_unavailable",
-    "support_clarification": "unsent_draft_in_requested_gmail_thread"
+    "support_clarification": "unsent_draft_in_requested_gmail_thread",
+    "ci_checkout_sha": "8f48aad7982fd71d2595dd42dc78506043b5ba15",
+    "sqlite_job_id": 125306362470,
+    "mariadb_job_id": 125306362829,
+    "prior_runtime_sha": "5220dc25d43525d90cae10017fc39c484f7282bf",
+    "domain_runtime_unchanged_by_develop_merge": true,
+    "entry_before_hashes_preserved_from_prior_inventory": true
   }
 }
