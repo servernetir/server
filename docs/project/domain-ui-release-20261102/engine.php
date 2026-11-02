@@ -56,7 +56,16 @@ final class Engine
                     'mode' => $hash === 'absent' ? null : fileperms($file) & 0777,
                     'uid' => $hash === 'absent' ? null : fileowner($file)];
             }
-            return ['ok' => true, 'account_uid' => $engine->uid, 'files' => $out];
+            $protected = [];
+            // load() has already confined these entries to the fixed protected allowlist.
+            foreach ($engine->plan['protected'] ?? [] as $entry) {
+                $file = self::HOME.'/'.$entry['destination']; $hash = $engine->hash($file);
+                $protected[] = ['destination' => $entry['destination'], 'sha256' => $hash,
+                    'bytes' => $hash === 'absent' ? null : filesize($file),
+                    'mode' => $hash === 'absent' ? null : fileperms($file) & 0777,
+                    'uid' => $hash === 'absent' ? null : fileowner($file)];
+            }
+            return ['ok' => true, 'account_uid' => $engine->uid, 'files' => $out, 'protected_files' => $protected];
         } catch (\Throwable) { return ['ok' => false, 'reason' => 'inventory_guard_failed']; }
     }
 
