@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "baseline_develop_sha": "d5ea19b52774207cfad756eaeedd1b2af6eee860",
+  "baseline_develop_sha": "6443ab136e52ae51d1af73347971dd07ead10cb1",
   "deployment_status": "not_deployed",
-  "activation_status": "blocked_on_catalogue_contacts_and_live_acceptance",
+  "activation_status": "blocked_on_deployment_and_live_write_acceptance",
   "before_hash_basis": "source_baseline_only_requires_live_inventory_and_drift_review",
   "entries": [
     {
@@ -10,7 +10,7 @@
       "destination_relative_to_home": "servernet_app/app/Console/Commands/DomainSupplierDispatchApproved.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "238ce3fb341b492620ef5a3fd9121eb117022d9841da3f92880f28d486d0b10b",
+      "after_sha256": "addc7a6fb4b4c4d26744daa2a2c4b8cfff20e4afbaed437b9391e76a6ccc3192",
       "migration_execution_separate": false
     },
     {
@@ -26,7 +26,7 @@
       "destination_relative_to_home": "servernet_app/app/Console/Commands/DomainSupplierReconcile.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "791ae9c433f2e92a3e86f0dc61985cb7900a83cd7de82754503697d99755608e",
+      "after_sha256": "423b81d031d9263be61873ae5a2795853dba092a7c39b40203ec4d73f32ea285",
       "migration_execution_separate": false
     },
     {
@@ -35,6 +35,22 @@
       "operation": "create",
       "expected_before_sha256": "absent",
       "after_sha256": "fd29e6451d11c57a0eaeee45e17c5374aaf031851186cf07f4a03820d3ec2a4a",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Console/Commands/PruneDomainQuotes.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/PruneDomainQuotes.php",
+      "operation": "replace",
+      "expected_before_sha256": "07e2593678229640394fc81271333bb8391627a602f18cc4b19c2e252eebcf4e",
+      "after_sha256": "f70c2664bfea22f11df63fefd8c5c6d81a652d89c17dd43297df16cfdd164cdc",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Console/Commands/RefreshTldPriceBook.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/RefreshTldPriceBook.php",
+      "operation": "replace",
+      "expected_before_sha256": "90be54a5aee8564e10dc60eb9cd14c3af362ecd0d8203074bd05912e39cbb477",
+      "after_sha256": "e5aaa5f8aa38d212621fd832549c6891398cdcf8e28f6a1e91deb4aeaee2b473",
       "migration_execution_separate": false
     },
     {
@@ -58,15 +74,22 @@
       "destination_relative_to_home": "servernet_app/app/Http/Controllers/Account/BuilderCheckoutController.php",
       "operation": "replace",
       "expected_before_sha256": "b4817e30331581bc3c1426ebedb3797a6392468c917c3b027f010ca38488969f",
-      "after_sha256": "082319201a5098d3af942f7d33b005f7abc8dde864fb12da4c815853344dda82",
-      "migration_execution_separate": false
+      "after_sha256": "cd18c97ed2b23a0b16a6c39151a6152bc4df5cdff9faf9262c2ab0f5210ec0ec",
+      "migration_execution_separate": false,
+      "live_overlay": {
+        "patch": "docs/project/domain-supplier-release-20261102/patches/app/Http/Controllers/Account/BuilderCheckoutController.php.patch",
+        "expected_before_sha256": "faf7cda94c056d1c1c02868530996937e62748ffd4a56af7da9e5b51da768608",
+        "after_sha256": "54864869f9e0c721517d47d2f8ceae29b513b90cf797590be29f911afcaea2f5",
+        "patch_sha256": "d651e52b6f71129a433e1314005e98d0b22e599a5076c90d8b9c151bad79be76",
+        "acceptance": "prepared_not_php_or_runtime_validated"
+      }
     },
     {
       "source": "website/app/Http/Controllers/Account/DomainController.php",
       "destination_relative_to_home": "servernet_app/app/Http/Controllers/Account/DomainController.php",
       "operation": "replace",
       "expected_before_sha256": "ae021e8c764300fca8547ef28f7ebdd2197fa6097ab0b4f1e2958b670dcc6695",
-      "after_sha256": "09ac189974d3f1083c2e43b9b4c3f32c8dd4f2b54ef048448bfed1e5203f32ee",
+      "after_sha256": "ae8b934264ea1af57c2dd5f1304a110fd009682484ad61fd226d3a2e71e40bd5",
       "migration_execution_separate": false
     },
     {
@@ -75,7 +98,14 @@
       "operation": "replace",
       "expected_before_sha256": "c719334947bbd0ab2c0710d729f74dbc24bd9b4f6ace51284dd728ee1f4f012d",
       "after_sha256": "abd1ccad0d72818f27f683aaa13c73671abcd9d243205f2b37ffa33244cac0ed",
-      "migration_execution_separate": false
+      "migration_execution_separate": false,
+      "live_overlay": {
+        "patch": "docs/project/domain-supplier-release-20261102/patches/app/Http/Controllers/Account/PaymentController.php.patch",
+        "expected_before_sha256": "28c8e19cb06cdcab95dec2e6723e92537b5e3ba1d32c85f1479792eae561e4fe",
+        "after_sha256": "3d38afcc55efdda2bdb08d59d428d317b0e8bf08929eca4bc5d57244e84a361c",
+        "patch_sha256": "e9cf7fc2ae31637537adb92a7fd2e04b6eb056b3e89b590534a3a082af3997e6",
+        "acceptance": "prepared_not_php_or_runtime_validated"
+      }
     },
     {
       "source": "website/app/Http/Controllers/Admin/DomainSupplierController.php",
@@ -126,6 +156,14 @@
       "migration_execution_separate": false
     },
     {
+      "source": "website/app/Models/DomainSupplierContactRequest.php",
+      "destination_relative_to_home": "servernet_app/app/Models/DomainSupplierContactRequest.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "61b9f9d32edebbf0eb7763ed538b75e0defe5702b63281b3537432ab0f16a85d",
+      "migration_execution_separate": false
+    },
+    {
       "source": "website/app/Models/DomainSupplierOperation.php",
       "destination_relative_to_home": "servernet_app/app/Models/DomainSupplierOperation.php",
       "operation": "create",
@@ -139,7 +177,14 @@
       "operation": "replace",
       "expected_before_sha256": "5220fba90befd5e03735ef8739d4e745a1d6070b4aeb59432bd0c2ff7a797688",
       "after_sha256": "6c7c03623fd6bbd374f45b7e45128dcf52d6de8c5e3b29a1326f4be0b212e779",
-      "migration_execution_separate": false
+      "migration_execution_separate": false,
+      "live_overlay": {
+        "patch": "docs/project/domain-supplier-release-20261102/patches/app/Models/Invoice.php.patch",
+        "expected_before_sha256": "e473742145b04dea06111f539caceee202c8b008762c906a8f13d55a34afa8ba",
+        "after_sha256": "90fd4272be78eacce855f018c4bdb42deaf99b02039f6c081463083e7a05a440",
+        "patch_sha256": "922c29662d8a67cb15bfb26c09b67807cbc993154f3d90d61ab8194d6436da15",
+        "acceptance": "prepared_not_php_or_runtime_validated"
+      }
     },
     {
       "source": "website/app/Models/RegistryHandle.php",
@@ -170,7 +215,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainProcurement.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "797e934b26100494b2e687a3f60981426a99b1b9d98ad9dc09ff299b8e484dca",
+      "after_sha256": "5d045ea9c8c9bfa121828d5a2b5be4c438b719e3ec892877ead75b3ac59cba4a",
       "migration_execution_separate": false
     },
     {
@@ -186,7 +231,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainRegistrationReadiness.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "94a25ba83dba61c6a46bae963c5207d4e2d47c6e9b4e5f7978bc29e4be091e4c",
+      "after_sha256": "6cd3ebe85b986b9813409e279c2d482aca17996837622752c9a22d514f531800",
       "migration_execution_separate": false
     },
     {
@@ -210,7 +255,23 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSearch.php",
       "operation": "replace",
       "expected_before_sha256": "0d59f4ca6226a615fb89aed9448176cf3b41705c97337696328eaf8dc133b417",
-      "after_sha256": "8e31595146f0dca319032f98dbdaff5213a0bf421e0e7f2dc304fd0bac7ca6cb",
+      "after_sha256": "cb4da5bda9ebbe701ac625953f7ae04779c93285bae19029ea6f46ad0e593c11",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainSupplierCatalogue.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierCatalogue.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "1b69a13bea12a623b960994381fe4dbc9c359a2bea0c7f2967c597f151b5f3d8",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/DomainSupplierContactProvisioner.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierContactProvisioner.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "d1a291ad604d3dd6672cb63a957bc20f119e199e6b79d8b226fc88a7d6d93edc",
       "migration_execution_separate": false
     },
     {
@@ -218,7 +279,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierLifecycle.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "ae0085ae19c7e8836f0b86b73ec67beb67db8ebf810b0b8a453e8d2525fda794",
+      "after_sha256": "a50b95d9d86f0f49cdc996b09b099a3431225fb25b3d8391eb561da4d2a17beb",
       "migration_execution_separate": false
     },
     {
@@ -226,7 +287,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierProbe.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "5d3f12d15ed53ef2cd1ad7b755cdaad9d0cfe1a5cce9534fd71f670c24ef58ca",
+      "after_sha256": "63527684ce80a3d971e5be654ad07185751f018374084f4f7d2ce0ac5bb0686c",
       "migration_execution_separate": false
     },
     {
@@ -234,7 +295,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainTransfer.php",
       "operation": "replace",
       "expected_before_sha256": "af4e072e720977ee61d2807b14ed861033f778aec9472c26f45e6401be2d10dc",
-      "after_sha256": "0aee4ccdf00dbadaeaa7d3546f8bd574388b8e16b9676d9e6dfaefb74fa4b50a",
+      "after_sha256": "a1a9ee0dc4310d516710f19359dda21d6f919ab326a5067188f29ecfb4a46810",
       "migration_execution_separate": false
     },
     {
@@ -243,14 +304,21 @@
       "operation": "replace",
       "expected_before_sha256": "e36e5c7d6d2afbaa50c18f5d683cf4ee51e8f57cb3fb9b835b6502e63ba3179b",
       "after_sha256": "9de025de1647224a65b5ef00c65b9b13429a744365710a2c57578909d37d21d6",
-      "migration_execution_separate": false
+      "migration_execution_separate": false,
+      "live_overlay": {
+        "patch": "docs/project/domain-supplier-release-20261102/patches/app/Services/Domain/LiveDomainPricing.php.patch",
+        "expected_before_sha256": "d5cbbbb2e569e096c2b51b37059a39209ef63c3c8d4f87d3cc24955e0562209b",
+        "after_sha256": "fc8df235f0fb2ea585b9abfe4354a8ce6248406fc282a39a3a63cbdf5a034b44",
+        "patch_sha256": "ec75c051537666255becc83c457f076b33ce9e96afebd7b6e7827f0cd11c0fa7",
+        "acceptance": "prepared_not_php_or_runtime_validated"
+      }
     },
     {
       "source": "website/app/Services/Domain/OpenProviderClient.php",
       "destination_relative_to_home": "servernet_app/app/Services/Domain/OpenProviderClient.php",
       "operation": "replace",
       "expected_before_sha256": "d0f8c17473a6afe0a7145b9cab66cdcd0a903097b9fcc983c1a03b51eb84697e",
-      "after_sha256": "bf2d87213382f5a43dae2158b1c4d5154c21e76c65695ca9cb5e8aa97d8f6859",
+      "after_sha256": "59ad0e2ff017caf8309b5d7c85289c8a4c5081de92e93208aff0b8347eda13bb",
       "migration_execution_separate": false
     },
     {
@@ -274,7 +342,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/DomainProvider.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "7d830449390e18a4965028ba678cc9eef73ed293e4a70725f360e75034efb5c3",
+      "after_sha256": "c0de040bcd9cbd7e132ea9cc2dc20a9b774be26e039fde96437d79c011bfea99",
       "migration_execution_separate": false
     },
     {
@@ -298,7 +366,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/JokerAdapter.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "a17e29612ec8271a653b32a8f1cc6f61106c4837022288219b88c1edbe764945",
+      "after_sha256": "b967802ff78f2abbf4f712d6a5772bb65a1cc9ea10bcf4f78f9209778613a482",
       "migration_execution_separate": false
     },
     {
@@ -314,7 +382,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/OpenProviderAdapter.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "06daadfb3215c06f5b249a874cfdaf673917fe7c0a365b1c28d5104df79a6e50",
+      "after_sha256": "5fd92be93eaebdd3ff1487aced3ceffd0ff7f009c4a4c4fdc18be0ec4ec1bbc4",
       "migration_execution_separate": false
     },
     {
@@ -330,7 +398,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/Reseller/ResellerOrderService.php",
       "operation": "replace",
       "expected_before_sha256": "c11a9572212eb4a0b86c0b4a4a011a79081c2ec996187eda2abbf4d2ae7bdf4a",
-      "after_sha256": "433dc8ba59ebd55266fd9a2b8a3a79d62a6333aa5888527263874331cc0eeff0",
+      "after_sha256": "e0418a08ce129a48e5b12b54f327960d4ebc11c9e7fb023aca02502b57979c1d",
       "migration_execution_separate": false
     },
     {
@@ -339,6 +407,14 @@
       "operation": "replace",
       "expected_before_sha256": "74fd5aeaf685442b1b5000190ea85a58014aabffaf42531e08045423ee62ead6",
       "after_sha256": "6dd5120dbe383f6b9a7afb6372a7b53620c6d310600d80c6840d4554f9b577fb",
+      "migration_execution_separate": false
+    },
+    {
+      "source": "website/app/Services/Domain/TldPriceBook.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Domain/TldPriceBook.php",
+      "operation": "replace",
+      "expected_before_sha256": "f76df1870d61387b9c7eae0f2ae8262ee348e69484c98bd2537cc74f2fb3042a",
+      "after_sha256": "3f74f2ad8f424dd2d10c652cdc50d4afb7875ffacf9725a3f687180194f4c352",
       "migration_execution_separate": false
     },
     {
@@ -354,7 +430,7 @@
       "destination_relative_to_home": "servernet_app/config/domain_suppliers.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "759334b628851dc51b0ef73701dbec83d152c1196d716ce0dce410563bf96322",
+      "after_sha256": "365a87ca78e6ebdd9a1bf079e27603101f6e008117f07f95e97b6f24a9a36199",
       "migration_execution_separate": false
     },
     {
@@ -363,6 +439,14 @@
       "operation": "create",
       "expected_before_sha256": "absent",
       "after_sha256": "fff9cd71c81ed075a5b6d3b221f4a9d628dea32f899f9116c8936f0d456289e2",
+      "migration_execution_separate": true
+    },
+    {
+      "source": "website/database/migrations/2026_11_02_120000_domain_supplier_contact_requests.php",
+      "destination_relative_to_home": "servernet_app/database/migrations/2026_11_02_120000_domain_supplier_contact_requests.php",
+      "operation": "create",
+      "expected_before_sha256": "absent",
+      "after_sha256": "4895d5ad4e04f4c615f091c09ecae39481ed591b2c29595379a0dfee5f73291a",
       "migration_execution_separate": true
     },
     {
@@ -459,7 +543,14 @@
       "operation": "replace",
       "expected_before_sha256": "3fdeb45350901161570dc3f5ab691d10a53f04a9c860915707fbf49c928a41a4",
       "after_sha256": "a77301a503bee59a3eb575f9e6e4ebccbe47781631413916a38067e5a20bab82",
-      "migration_execution_separate": false
+      "migration_execution_separate": false,
+      "live_overlay": {
+        "patch": "docs/project/domain-supplier-release-20261102/patches/routes/console.php.patch",
+        "expected_before_sha256": "2d619bb06d824b756a27933c0d4113c6f1983eaf2941dbb81d30f4b3fa6b69ff",
+        "after_sha256": "c31b476c88ab9b01a31225431c3a3aadcc441afd22f87a54ed1c8591f0f7e567",
+        "patch_sha256": "209cee2d27cab58b63352a3a44d4fdd5f38c981e9a00cc3800a3d48e093581c2",
+        "acceptance": "prepared_not_php_or_runtime_validated"
+      }
     },
     {
       "source": "website/routes/domain-management.php",
@@ -483,7 +574,23 @@
       "operation": "replace",
       "expected_before_sha256": "5abdb250c627982a0fc339e09c786052f9dac8aa3f02ee7a1b786da17cd0a0af",
       "after_sha256": "971e7cabc2a66b1f6bf495e193b511e470b08b3ea2d2e89f56d674ec1d037a4a",
-      "migration_execution_separate": false
+      "migration_execution_separate": false,
+      "live_overlay": {
+        "patch": "docs/project/domain-supplier-release-20261102/patches/routes/web.php.patch",
+        "expected_before_sha256": "99fd5165c8235b3895037e6dcafcb3af90c16e0158ec99eb8e14fa9ba6a38e1a",
+        "after_sha256": "631132200a46604e4ac8ebe681eb328afb4191855de9c4d2ef72554f72c9e6c3",
+        "patch_sha256": "ddbca66970bebbd0e00c005447bd52eb73eb011a7077bffd70d05c59d2514f82",
+        "acceptance": "prepared_not_php_or_runtime_validated"
+      }
     }
-  ]
+  ],
+  "source_runtime_sha": "9d5a26cf7e19614c6acbfaedf951bc2b999ecc18",
+  "live_inventory": {
+    "files": 67,
+    "source_baseline_matches": 61,
+    "drift_count": 6,
+    "overlay_prepared_count": 6,
+    "overlays_installed": false,
+    "requires_fresh_drift_check": true
+  }
 }
