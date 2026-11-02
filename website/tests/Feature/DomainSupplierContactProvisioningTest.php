@@ -138,4 +138,39 @@ class DomainSupplierContactProvisioningTest extends TestCase
         $this->assertSame(['status' => 'succeeded', 'handle' => 'CCOM-SYNTHETIC'], $r);
         $this->assertSame('unknown', (new JokerAdapter($a))->reconcileContact(['process_id' => 'other-process', 'tld' => 'com'])['status']);
     }
+    public function test_registry_specific_declarations_block_before_contact_journal_or_payment(): void
+    {
+        [$c, $profile, $a, $p, $service] = $this->fixture();
+        $p->shouldNotReceive('createContact');
+        $tlds = ['us', 'kids.us', 'fi', 'se', 'nu'];
+        $a->update(['capabilities' => ['tlds' => array_fill_keys($tlds, ['contact_creation' => 'standard'])]]);
+        foreach ($tlds as $tld) {
+            $this->assertFalse($service->ensure($c, $a, $tld), $tld);
+            $this->assertFalse(app(DomainRegistrationReadiness::class)->ready($c, $a->id, $tld), $tld);
+        }
+        $profile->update(['type' => 'company', 'company_name' => 'Synthetic Company']);
+        $a->update(['capabilities' => ['tlds' => ['co.uk' => ['contact_creation' => 'standard']]]]);
+        $this->assertFalse($service->ensure($c->fresh(), $a, 'co.uk'));
+        $this->assertDatabaseCount('domain_supplier_contact_requests', 0);
+        $this->assertDatabaseCount('invoices', 0);
+        $this->assertDatabaseCount('payments', 0);
+        Http::assertNothingSent();
+    }
+
+    public function test_adapter_also_rejects_uncollected_registry_fields_without_network(): void
+    {
+        Http::preventStrayRequests();
+        $a = new DomainSupplierAccount(['provider' => 'joker', 'environment' => 'ote', 'credentials' => ['api_key' => 'synthetic']]);
+        foreach (['us', 'fi', 'se', 'nu', 'co.uk'] as $tld) {
+            try {
+                (new JokerAdapter($a))->createContact($tld, ['company_name' => 'Synthetic Company'], 'synthetic');
+                $this->fail('Missing registry declarations must stop '.$tld);
+            } catch (DomainProviderException $e) {
+                $this->assertSame('registry_contact_fields_required', $e->reason);
+                $this->assertFalse($e->uncertain);
+            }
+        }
+        Http::assertNothingSent();
+    }
+
 }

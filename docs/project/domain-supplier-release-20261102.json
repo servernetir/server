@@ -271,7 +271,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/DomainSupplierContactProvisioner.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "d1a291ad604d3dd6672cb63a957bc20f119e199e6b79d8b226fc88a7d6d93edc",
+      "after_sha256": "2f63398e748b80370de06f4f1127b97ed7961d05fb3d2fcf03c3939765fce675",
       "migration_execution_separate": false
     },
     {
@@ -366,7 +366,7 @@
       "destination_relative_to_home": "servernet_app/app/Services/Domain/Providers/JokerAdapter.php",
       "operation": "create",
       "expected_before_sha256": "absent",
-      "after_sha256": "b967802ff78f2abbf4f712d6a5772bb65a1cc9ea10bcf4f78f9209778613a482",
+      "after_sha256": "22a852fc2815b8eb8d71a9615ca799f4797619388d20dd60cc15495a5a9c0a6a",
       "migration_execution_separate": false
     },
     {
@@ -593,5 +593,11 @@
     "overlays_installed": false,
     "requires_fresh_drift_check": true,
     "overlay_php_lint_passed": 6
+  },
+  "documentation_continuation": {
+    "baseline_develop_sha": "6c4c96119dcc2e12ce2ab548d82f40ae55662c58",
+    "validation": "pending_fresh_ci",
+    "ote_acceptance": "awaiting_joker_support_reply",
+    "live_overlays": "unchanged_php_lint_only_behavior_pending"
   }
 }

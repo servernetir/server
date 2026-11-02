@@ -669,4 +669,52 @@ class DomainProviderAdaptersTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_process_only_lookup_cannot_collapse_two_tracking_records_into_one(): void
+    {
+        $this->fakeJoker(['*/result-list' => $this->reply("20261102120000\t99\t42\tdomain-register\tack\tfirst\n20261102120001\t100\t42\tdomain-register\tack\tsecond\n")]);
+        $result = (new JokerAdapter($this->account()))->reconcile(['operation' => 'create', 'fqdn' => 'example.com', 'process_id' => '42']);
+        $this->assertSame('unknown', $result['status']);
+        $this->assertSame('provider_result_not_unique', $result['error_code']);
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/result-retrieve'));
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/query-domain-list'));
+    }
+
+    public static function mismatchedResults(): array
+    {
+        return [
+            'wrong object' => ["20261102120000\t99\t42\tdomain-register\tother.com\tack\tfixture", 'provider_result_mismatch'],
+            'wrong command' => ["20261102120000\t99\t42\tdomain-renew\tack\tfixture", 'provider_result_mismatch'],
+            'extra column' => ["20261102120000\t99\t42\tdomain-register\texample.com\textra\tack\tfixture", 'provider_result_schema_unverified'],
+            'short row' => ["20261102120000\t99\t42\tdomain-register\tack", 'provider_result_schema_unverified'],
+            'invalid timestamp' => ["unknown\t99\t42\tdomain-register\tack\tfixture", 'provider_result_schema_unverified'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('mismatchedResults')]
+    public function test_unverified_result_rows_cannot_confirm_delivery(string $row, string $reason): void
+    {
+        $this->fakeJoker(['*/result-list' => $this->reply($row)]);
+        try {
+            (new JokerAdapter($this->account()))->reconcile(['operation' => 'create', 'fqdn' => 'example.com', 'tracking_id' => '99', 'process_id' => '42']);
+            $this->fail('Unverified result must not confirm a domain');
+        } catch (DomainProviderException $e) {
+            $this->assertSame($reason, $e->reason);
+        }
+        Http::assertNotSent(fn (Request $r) => str_ends_with($r->url(), '/query-domain-list'));
+    }
+
+    public function test_ambiguous_portfolio_cannot_prove_account_binding(): void
+    {
+        $this->fakeJoker(['*/query-domain-list' => $this->reply("example.com\t2027-05-30\tlock\nexample.com\t2028-05-30\tlock\n")]);
+        $this->expectExceptionMessage('ambiguous_domain_object');
+        (new JokerAdapter($this->account()))->find('example.com');
+    }
+
+    public function test_conflicting_domain_price_values_are_not_last_value_wins(): void
+    {
+        $this->fakeJoker(['*/domain-check' => $this->reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 8.21 USD 1y\ndomain-price-create: 7.00 USD 1y\n")]);
+        $this->expectExceptionMessage('ambiguous_provider_response');
+        (new JokerAdapter($this->account()))->quote('example.com', 'create', 12);
+    }
+
 }

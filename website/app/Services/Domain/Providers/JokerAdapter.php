@@ -103,6 +103,9 @@ class JokerAdapter implements DomainProvider
         $params = ['domain' => $fqdn, 'check-price' => $operation, 'period' => $months];
         if (! empty($options['language'])) { $params['language'] = $options['language']; }
         $res = $this->request('domain-check', $params);
+        foreach (['domain-status', 'domain-class', 'domain-price-'.$operation, 'domain-price-promo'] as $key) {
+            if (count(array_unique($res['values'][$key] ?? [])) > 1) throw new DomainProviderException('ambiguous_provider_response');
+        }
         $fields = $res['fields'];
         $status = strtolower((string) ($fields['domain-status'] ?? ''));
         $available = match ($status) { 'available', 'premium' => true, 'unavailable' => false, default => null };
@@ -157,16 +160,32 @@ class JokerAdapter implements DomainProvider
         return [ProviderMoney::basisPoints($percentage), ProviderMoney::integerMinor($settings['mandatory_fee_minor'] ?? 0)];
     }
 
+    /** Only fields actually collected by the current customer profile may be inferred. */
+    public static function supportsStandardContact(string $tld, array $payload): bool
+    {
+        $tld = strtolower($tld);
+        foreach (['us', 'se', 'nu', 'fi'] as $special) {
+            if ($tld === $special || str_ends_with($tld, '.'.$special)) return false;
+        }
+        return ! (($tld === 'uk' || str_ends_with($tld, '.uk')) && ! empty($payload['company_name']));
+    }
+
     public function createContact(string $tld, array $payload, string $transactionId): array
     {
+        $tld = strtolower($tld);
+        if (! preg_match('/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/D', $tld)) throw new DomainProviderException('invalid_suffix');
+        if (! self::supportsStandardContact($tld, $payload)) throw new DomainProviderException('registry_contact_fields_required');
         $fields = ['tld' => $tld, 'name' => trim(data_get($payload, 'name.first_name', '').' '.data_get($payload, 'name.last_name', '')),
+            'fname' => data_get($payload, 'name.first_name'), 'lname' => data_get($payload, 'name.last_name'),
+            'individual' => empty($payload['company_name']) ? 'Y' : 'N',
             'email' => $payload['email'], 'address-1' => data_get($payload, 'address.street'),
             'city' => data_get($payload, 'address.city'), 'postal-code' => data_get($payload, 'address.zipcode'),
             'country' => data_get($payload, 'address.country'), 'organization' => $payload['company_name'] ?? '',
             'phone' => data_get($payload, 'phone.country_code').'.'.data_get($payload, 'phone.area_code').data_get($payload, 'phone.subscriber_number'),
             'cltrid' => $transactionId];
+        // EURid notification language is immutable; use its documented English default explicitly.
+        if ($tld === 'eu') $fields['lang'] = 'EN';
         if ($tld === 'uk' || str_ends_with($tld, '.uk')) {
-            if (! empty($payload['company_name'])) throw new DomainProviderException('registry_contact_fields_required');
             $fields['account-type'] = in_array($fields['country'], ['GB', 'UK'], true) ? 'IND' : 'FIND';
         }
         $result = $this->request('contact-create', $fields, true);
@@ -198,7 +217,7 @@ class JokerAdapter implements DomainProvider
         $handle = $row['identifier'];
         $found = $this->request('query-contact-list', ['pattern' => $handle, 'tld' => $request['tld'], 'extended-format' => 0]);
         $handles = array_map('trim', $this->lines($found['body']));
-        return in_array($handle, $handles, true) ? ['status' => 'succeeded', 'handle' => $handle] : ['status' => 'unknown'];
+        return count(array_keys($handles, $handle, true)) === 1 ? ['status' => 'succeeded', 'handle' => $handle] : ['status' => 'unknown'];
     }
 
     public function find(string $fqdn): array
@@ -207,14 +226,16 @@ class JokerAdapter implements DomainProvider
         // A public query-whois/RDAP reply proves nothing about our account.
         // Only this authenticated account portfolio list establishes access.
         $res = $this->request('query-domain-list', ['pattern' => $fqdn, 'showstatus' => 1, 'showgrants' => 1]);
+        $matches = [];
         foreach ($this->lines($res['body']) as $line) {
             $row = preg_split('/\s+/', trim($line));
             if (strtolower((string) ($row[0] ?? '')) !== $fqdn) { continue; }
             if (empty($row[1]) || strtotime($row[1]) === false) { throw new DomainProviderException('invalid_domain_object'); }
-            return ['found' => true, 'object_id' => $fqdn, 'expires_at' => $row[1],
+            $matches[] = ['found' => true, 'object_id' => $fqdn, 'expires_at' => $row[1],
                 'data' => ['status' => $row[2] ?? null, 'grants' => $row[3] ?? null]];
         }
-        return ['found' => false, 'object_id' => null];
+        if (count($matches) > 1) throw new DomainProviderException('ambiguous_domain_object');
+        return $matches[0] ?? ['found' => false, 'object_id' => null];
     }
 
     public function submit(string $operation, string $fqdn, int $months, array $context): array
@@ -299,34 +320,40 @@ class JokerAdapter implements DomainProvider
         foreach ([$trackingId, $processId] as $reference) {
             if ($reference !== '' && ! preg_match('/^[A-Za-z0-9_.:-]{1,128}$/D', $reference)) { throw new DomainProviderException('invalid_provider_reference'); }
         }
+        $expectedType = match ($operation['operation'] ?? '') {
+            'create' => 'domain-register', 'renew' => 'domain-renew', 'transfer' => 'domain-transfer-in-reseller',
+            'manage_nameservers', 'manage_contacts', 'manage_dnssec' => 'domain-modify',
+            'manage_lock' => (bool) data_get($operation, 'request_context.payload.locked', true) ? 'domain-lock' : 'domain-unlock',
+            default => throw new DomainProviderException('unsupported_operation'),
+        };
+        $fqdn = ProviderMoney::fqdn((string) ($operation['fqdn'] ?? $operation['domain'] ?? ''));
         $list = $this->request('result-list', ($trackingId !== '' ? ['svtrid' => $trackingId] : ['procid' => $processId]) + ['showall' => 1]);
         $matches = [];
         foreach ($this->lines($list['body']) as $line) {
             $row = preg_split('/\s+/', trim($line));
             // The documented six columns are TimeStamp SvTrId Proc-ID
             // request-type status ClTrId. Some responses include object too.
-            if (count($row) < 6 || ($trackingId !== '' ? ($row[1] ?? '') !== $trackingId : ($row[2] ?? '') !== $processId)) { continue; }
+            if (($trackingId !== '' ? ($row[1] ?? '') !== $trackingId : ($row[2] ?? '') !== $processId)) { continue; }
             if ($processId !== '' && ($row[2] ?? '') !== $processId) { continue; }
-            $expectedType = match ($operation['operation'] ?? '') {
-                'create' => 'domain-register', 'renew' => 'domain-renew', 'transfer' => 'domain-transfer-in-reseller',
-                'manage_nameservers', 'manage_contacts', 'manage_dnssec' => 'domain-modify',
-                'manage_lock' => (bool) data_get($operation, 'request_context.payload.locked', true) ? 'domain-lock' : 'domain-unlock',
-                default => '',
-            };
-            if ($expectedType !== '' && ($row[3] ?? '') !== $expectedType) { throw new DomainProviderException('provider_result_mismatch'); }
-            $matches[] = strtolower((string) $row[count($row) - 2]);
-            $processId = $processId ?: (string) ($row[2] ?? '');
-            $trackingId = $trackingId ?: (string) ($row[1] ?? '');
+            if (! in_array(count($row), [6, 7], true) || ! preg_match('/^\d{14}$/D', $row[0])
+                || ! preg_match('/^[A-Za-z0-9_.:-]{1,128}$/D', $row[1])
+                || ! preg_match('/^[A-Za-z0-9_.:-]{1,128}$/D', $row[2])) throw new DomainProviderException('provider_result_schema_unverified');
+            if ($row[3] !== $expectedType || (count($row) === 7 && strtolower($row[4]) !== $fqdn)) {
+                throw new DomainProviderException('provider_result_mismatch');
+            }
+            // Keep the caller's filters fixed while counting: two records for
+            // one process must not collapse into the first tracking ID found.
+            $matches[] = ['status' => strtolower($row[count($row) - 2]), 'process_id' => $row[2], 'tracking_id' => $row[1]];
         }
         if (count($matches) !== 1) { return ['status' => 'unknown', 'error_code' => 'provider_result_not_unique']; }
-        $res = $this->request('result-retrieve', $trackingId !== '' ? ['svtrid' => $trackingId] : ['proc-id' => $processId]);
+        $processId = $matches[0]['process_id']; $trackingId = $matches[0]['tracking_id'];
         // ACK on result-retrieve can acknowledge the retrieval itself. The
         // exact original result-list record is the authoritative completion.
-        $result = $matches[0];
+        $result = $matches[0]['status'];
         if ($result === 'nack') { return ['status' => 'failed', 'error_code' => 'remote_operation_failed']; }
-        if (in_array($result, ['?', 'pending', 'queued'], true)) { return ['status' => 'queued', 'process_id' => $processId ?: null, 'tracking_id' => $trackingId ?: null]; }
+        if ($result === '?') { return ['status' => 'queued', 'process_id' => $processId, 'tracking_id' => $trackingId]; }
         if ($result !== 'ack') { return ['status' => 'unknown', 'error_code' => 'provider_result_unknown']; }
-        $fqdn = ProviderMoney::fqdn((string) ($operation['fqdn'] ?? $operation['domain'] ?? ''));
+        $this->request('result-retrieve', ['svtrid' => $trackingId]);
         $remote = $this->find($fqdn);
         if (! $remote['found']) { return ['status' => 'unknown', 'error_code' => 'domain_not_in_account']; }
         if (str_starts_with((string) ($operation['operation'] ?? ''), 'manage_')) {

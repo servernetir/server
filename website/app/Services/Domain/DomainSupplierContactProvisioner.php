@@ -44,7 +44,9 @@ class DomainSupplierContactProvisioner
             || ! Schema::hasTable('domain_supplier_contact_requests') || $customer->status !== 'active') return false;
         $profile = $customer->defaultProfile(); $payload = $profile ? $this->payload($profile) : null;
         if (! $profile || ! $payload) return false;
-        if ($account->provider === 'joker' && ($tld === 'uk' || str_ends_with($tld, '.uk')) && $profile->isCompany()) return false;
+        // Registry declarations (US nexus, FI identity, SE/NU orgid, UK legal type)
+        // are not present in a standard profile. Stop before the durable send claim.
+        if ($account->provider === 'joker' && ! \App\Services\Domain\Providers\JokerAdapter::supportsStandardContact($tld, $payload)) return false;
         $key = hash('sha256', $account->id.'|'.$profile->id.'|'.$tld);
         $lock = Cache::lock('domain-supplier-contact:'.$key, 180);
         if (! $lock->get()) return false;

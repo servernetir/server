@@ -83,7 +83,7 @@ jobs:
       - name: Checkout immutable develop baseline
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: d5ea19b52774207cfad756eaeedd1b2af6eee860
+          ref: 6c4c96119dcc2e12ce2ab548d82f40ae55662c58
           path: baseline
           persist-credentials: false
       - name: Set up PHP 8.4
@@ -119,6 +119,7 @@ jobs:
           set -euo pipefail
           cases=(
             tests/Feature/DomainProviderAdaptersTest.php
+            tests/Feature/JokerContractRehearsalTest.php
             tests/Feature/DomainSupplierContactProvisioningTest.php
             tests/Feature/DomainSupplierCatalogueTest.php
             tests/Feature/DomainProcurementTest.php
