@@ -220,6 +220,8 @@ final class DocumentedAccounting
                     foreach ($balances as $balance) {
                         $this->check($balance['native'] >= 0 && $balance['irt'] >= 0, 'partner_advance_mixed');
                     }
+                    // Closed advances still depend on the partner balance recorded before their movements.
+                    $this->check(! $this->hasLaterAdvanceActivity($funding, $d['occurred_at']), 'advance_source');
                 }
             }
             if ($type === 'partner_repayment') {
@@ -336,6 +338,21 @@ final class DocumentedAccounting
     {
         return DB::table('finance_lines as lines')->join('finance_vouchers as vouchers', 'vouchers.id', '=', 'lines.voucher_id')
             ->where('lines.account_id', $account->id)->whereDate('vouchers.occurred_at', '>', $date)->exists();
+    }
+
+    private function hasLaterAdvanceActivity(FinanceAccount $account, string $date): bool
+    {
+        $advanceTypes = ['partner_advance', 'partner_advance_transfer'];
+        $advanceParents = FinanceVoucher::where('target_account_id', $account->id)->whereIn('type', $advanceTypes)->select('id');
+
+        return DB::table('finance_lines as lines')->join('finance_vouchers as vouchers', 'vouchers.id', '=', 'lines.voucher_id')
+            ->where('lines.account_id', $account->id)->whereDate('vouchers.occurred_at', '>', $date)
+            ->where(function ($query) use ($account, $advanceTypes, $advanceParents) {
+                $query->whereIn('vouchers.type', $advanceTypes)->orWhere(function ($funded) use ($account, $advanceParents) {
+                    $funded->where('vouchers.funding_account_id', $account->id)
+                        ->whereIn('vouchers.related_voucher_id', $advanceParents);
+                });
+            })->exists();
     }
 
     private function accountSnapshot(?FinanceAccount $account): ?array
