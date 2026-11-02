@@ -6,6 +6,7 @@ on:
     paths:
       - 'website/app/**'
       - 'infra/hermes/**'
+      - 'scripts/test-hermes-feed-resilience-20261102.php'
       - 'website/routes/**'
       - 'website/config/**'
       - 'website/database/migrations/**'
@@ -21,6 +22,7 @@ on:
     paths:
       - 'website/app/**'
       - 'infra/hermes/**'
+      - 'scripts/test-hermes-feed-resilience-20261102.php'
       - 'website/routes/**'
       - 'website/config/**'
       - 'website/database/migrations/**'
@@ -223,6 +225,12 @@ jobs:
           sudo --preserve-env="$preserved" -u incident-tests -- php -d memory_limit=512M vendor/bin/phpunit \
             --filter "$INCIDENT_HERMES_FILTER" --colors=never \
             --log-junit storage/framework/testing/incident-ci/hermes.xml
+      - name: Run pure feed backoff contract checks
+        if: matrix.database == 'sqlite'
+        run: |
+          set -euo pipefail
+          preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
+          sudo --preserve-env="$preserved" -u incident-tests -- php ../scripts/test-hermes-feed-resilience-20261102.php
       - name: Show actual test totals
         if: always()
         run: |
