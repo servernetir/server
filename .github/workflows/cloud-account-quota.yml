@@ -15,20 +15,6 @@ on:
       - 'website/composer.lock'
       - 'website/phpunit.xml'
       - '.github/workflows/cloud-account-quota.yml'
-  push:
-    branches: [fix/arvan-ram-quota-20261102]
-    paths:
-      - 'website/app/**'
-      - 'website/routes/**'
-      - 'website/config/**'
-      - 'website/database/migrations/**'
-      - 'website/resources/views/**'
-      - 'website/public/**'
-      - 'website/tests/**'
-      - 'website/composer.json'
-      - 'website/composer.lock'
-      - 'website/phpunit.xml'
-      - '.github/workflows/cloud-account-quota.yml'
 
 permissions:
   contents: read

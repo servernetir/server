@@ -129,7 +129,7 @@ class ArvanRamQuotaTest extends TestCase
         $this->assertSame($note, $plan->fresh()->admin_note);
         CloudPlan::setProviderDisabled('arvan', false);
         $this->assertFalse(CloudPlan::offers()->has($plan->slug));
-        $plan->update(['admin_disabled' => false, 'admin_note' => null]);
+        $plan->refresh()->update(['admin_disabled' => false, 'admin_note' => null]);
         $this->assertTrue(CloudPlan::offers()->has($plan->slug));
     }
 }
