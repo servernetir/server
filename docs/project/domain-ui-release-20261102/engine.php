@@ -321,11 +321,15 @@ final class Engine
         }
     }
 
-    private function phpPaths(array $state): array
+    private function phpPaths(array $state, bool $changedOnly = false): array
     {
-        $paths = array_column($state['compiled'], 'path');
+        $paths = [];
+        foreach ($state['compiled'] as $entry) {
+            if (! $changedOnly || $entry['before_sha256'] !== $entry['after_sha256']) $paths[] = $entry['path'];
+        }
         foreach ($this->plan['entries'] as $entry) {
-            if (str_starts_with($entry['destination'], 'servernet_app/lang/')) $paths[] = self::HOME.'/'.$entry['destination'];
+            if (str_starts_with($entry['destination'], 'servernet_app/lang/')
+                && (! $changedOnly || $entry['before_sha256'] !== $entry['after_sha256'])) $paths[] = self::HOME.'/'.$entry['destination'];
         }
         return $paths;
     }
@@ -355,7 +359,7 @@ final class Engine
         $state = $this->state();
         if (($state['status'] ?? null) !== 'previewed') throw new \RuntimeException('duplicate_or_unprepared_apply');
         $this->assertProtected(); $this->checkEntries('before'); $this->checkCompiled($state, 'before');
-        $this->opcache($this->phpPaths($state));
+        $this->opcache($this->phpPaths($state, true));
         foreach ($this->plan['entries'] as $i => $entry) {
             if ($this->hash(self::STAGE.'/candidates/file-'.$i) !== $entry['after_sha256']) throw new \RuntimeException('candidate_hash_drift');
         }
@@ -363,23 +367,29 @@ final class Engine
             if ($this->hash(self::STAGE.'/candidates/compiled-'.$entry['index'].'.php') !== $entry['after_sha256']) throw new \RuntimeException('candidate_hash_drift');
         }
         $state['status'] = 'applying'; $this->save($state);
+        $filesWritten = 0; $compiledWritten = 0;
         try {
             $order = array_keys($this->plan['entries']);
             usort($order, fn ($a, $b) => (int) in_array($this->plan['entries'][$a]['destination'], self::VIEWS, true)
                 <=> (int) in_array($this->plan['entries'][$b]['destination'], self::VIEWS, true));
             foreach ($order as $i) {
                 $entry = $this->plan['entries'][$i];
+                if ($entry['before_sha256'] === $entry['after_sha256']) continue;
                 $this->atomic(self::HOME.'/'.$entry['destination'], (string) file_get_contents(self::STAGE.'/candidates/file-'.$i), $entry['mode'], $entry['before_sha256'], $entry['before_mode']);
+                $filesWritten++;
             }
             foreach ($state['compiled'] as $entry) {
+                if ($entry['before_sha256'] === $entry['after_sha256']) continue;
                 $this->atomic($entry['path'], (string) file_get_contents(self::STAGE.'/candidates/compiled-'.$entry['index'].'.php'), $entry['mode'], $entry['before_sha256'], $entry['before_mode']);
                 $source = self::HOME.'/'.$this->plan['entries'][$entry['index']]['destination'];
                 if (! touch($entry['path'], max(time(), filemtime($source) + 1))) throw new \RuntimeException('compiled_timestamp_failed');
+                $compiledWritten++;
             }
-            $this->opcache($this->phpPaths($state)); $this->pages();
+            $this->opcache($this->phpPaths($state, true)); $this->pages();
             $this->checkEntries('after'); $this->checkCompiled($state, 'after'); $this->assertProtected();
             $state['status'] = 'applied'; $this->save($state);
-            return ['state' => 'applied', 'files' => 9, 'compiled_views' => 2, 'page_keys_invalidated' => 12];
+            return ['state' => 'applied', 'files' => 9, 'compiled_views' => 2,
+                'files_written' => $filesWritten, 'compiled_written' => $compiledWritten, 'page_keys_invalidated' => 12];
         } catch (\Throwable $error) {
             try { $this->restore($state); $state['status'] = 'rolled_back'; $this->save($state); }
             catch (\Throwable) { $state['status'] = 'stopped_manual_review'; $this->save($state); }
