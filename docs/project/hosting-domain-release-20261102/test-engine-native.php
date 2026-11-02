@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 // Native guard rehearsal with a synthetic compiler/router. No Laravel/production data is loaded.
 $checks = 0; $fixtures = [];
+final class HostingReleaseProbe {
+    public static array $events = [];
+    public static function record(string $event, string $path): void { self::$events[] = [$event, $path]; }
+}
+function eventIndex(array $events, string $event, string $path, int $after = -1): int {
+    foreach ($events as $i => $row) if ($i > $after && $row === [$event, $path]) return $i;
+    throw new RuntimeException('Missing ordered event '.$event.':'.$path);
+}
 function expect(bool $ok, string $why): void { global $checks; $checks++; if (! $ok) throw new RuntimeException($why); }
 function dirFixture(string $path): void { if (! is_dir($path)) mkdir($path, 0700, true); chmod($path, 0700); }
 function putFixture(string $path, string $bytes, int $mode = 0644): void { dirFixture(dirname($path)); file_put_contents($path, $bytes); chmod($path, $mode); }
-function fixture(): array {
+function fixture(bool $reversePayload = false): array {
     global $fixtures;
     $id = bin2hex(random_bytes(6)); $root = sys_get_temp_dir().'/hosting-release-native-'.$id; $fixtures[] = $root;
     $home = $root.'/home'; $stage = $home.'/hosting-domain-release-20261102'; dirFixture($stage);
@@ -20,6 +28,10 @@ function fixture(): array {
     $source = str_replace("'/home/servernetcloud'", var_export($home, true), $source);
     $source = str_replace('/home/servernetcloud/servernet_app/', $home.'/servernet_app/', $source);
     $source = str_replace("private const PHP = '/opt/cpanel/ea-php84/root/usr/bin/php';", 'private const PHP = '.var_export(PHP_BINARY, true).';', $source);
+    // Observe only the throwaway engine copy, without introducing production test hooks.
+    $source = str_replace("private function opcache(array \$paths): void\n    {", "private function opcache(array \$paths): void\n    {\n        foreach (\$paths as \$probePath) \\HostingReleaseProbe::record('activate', \$probePath);", $source);
+    $source = str_replace("        \$tmp = dirname(\$path).", "        \\HostingReleaseProbe::record('atomic', \$path);\n        \$tmp = dirname(\$path).", $source);
+    $source = str_replace("    private function restoreOne(string \$path, string \$backup, string \$before, ?int \$mode, string \$expected, ?int \$expectedMode): void\n    {", "    private function restoreOne(string \$path, string \$backup, string \$before, ?int \$mode, string \$expected, ?int \$expectedMode): void\n    {\n        \\HostingReleaseProbe::record('restore', \$path);", $source);
     putFixture($stage.'/engine.php', $source, 0600); require $stage.'/engine.php';
     $class = $namespace.'\\Engine'; $reflection = new ReflectionClass($class);
     $allowed = $reflection->getConstant('ALLOWED'); $views = $reflection->getConstant('VIEWS');
@@ -58,15 +70,17 @@ PHP);
     $entries = [];
     foreach ($allowed as $i => $relative) {
         dirFixture(dirname($home.'/'.$relative));
-        $view = in_array($relative, $views, true); $before = $relative === $views[1] ? '<section>Old hosting card</section>' : null;
+        $view = in_array($relative, $views, true); $before = $relative === $views[1] ? '<section>Old hosting card</section>'
+            : ($relative === 'servernet_app/app/Http/Controllers/Account/StoreController.php' ? '<?php // Old private controller' : null);
         $after = $view ? '<section>New hosting partial '.$i.'</section>' : (str_ends_with($relative, '.php') ? '<?php return true;' : '/* synthetic asset */');
         if ($before !== null) {
             putFixture($home.'/'.$relative, $before, 0600);
-            putFixture($compiler->getCompiledPath($home.'/'.$relative), $before."\n<?php /**PATH {$home}/{$relative} ENDPATH**/ ?>", 0755);
+            if ($view) putFixture($compiler->getCompiledPath($home.'/'.$relative), $before."\n<?php /**PATH {$home}/{$relative} ENDPATH**/ ?>", 0755);
         }
         $entries[] = ['destination' => $relative, 'before_sha256' => $before === null ? 'absent' : hash('sha256', $before), 'after_sha256' => hash('sha256', $after), 'before_mode' => $before === null ? null : 0600, 'mode' => $before === null ? 0644 : 0600, 'content' => $after];
     }
     $protected = 'servernet_app/app/Models/Service.php'; putFixture($home.'/'.$protected, '<?php // untouched');
+    if ($reversePayload) $entries = array_reverse($entries);
     $plan = ['release' => 'hosting-domain-20261102', 'source_sha' => str_repeat('a', 40), 'account_uid' => $uid, 'entries' => $entries, 'protected' => [['destination' => $protected, 'sha256' => hash_file('sha256', $home.'/'.$protected)]]];
     $json = json_encode($plan, JSON_THROW_ON_ERROR); putFixture($stage.'/payload.json', $json, 0600);
     return compact('home','stage','class','reflection','app','plan','compiler') + ['pin' => hash('sha256', $json)];
@@ -74,7 +88,7 @@ PHP);
 function phase(array $f, string $phase): array { return $f['class']::run($f['app'], $phase, $f['pin']); }
 function successful(array $f, string $phase, string $state): array { $out = phase($f, $phase); expect(($out['ok'] ?? false) && ($out['state'] ?? null) === $state, $phase.': '.json_encode($out)); return $out; }
 try {
-    $f = fixture();
+    $f = fixture(true);
     expect(($f['class']::inspect($f['pin'])['ok'] ?? false), 'inventory');
     expect(count($f['class']::inspect($f['pin'])['files']) === 14, 'fourteen exact files');
     $f['app']->cached = true;
@@ -82,15 +96,36 @@ try {
     $f['app']->cached = false;
     successful($f, 'preview', 'previewed');
     expect(! file_exists($f['home'].'/public_html/assets/js/hosting-connection.js'), 'preview does not install');
+    HostingReleaseProbe::$events = [];
     successful($f, 'apply', 'applied');
+    $cardSource = $f['home'].'/servernet_app/resources/views/account/partials/card-hosting.blade.php';
+    $partialSource = $f['home'].'/servernet_app/resources/views/account/partials/hosting-domain-connection.blade.php';
+    $cardCompiled = $f['compiler']->getCompiledPath($cardSource);
+    $partialCompiled = $f['compiler']->getCompiledPath($partialSource);
+    $events = HostingReleaseProbe::$events;
+    expect(eventIndex($events, 'atomic', $partialSource) < eventIndex($events, 'atomic', $cardSource), 'apply installs partial source before card despite reversed payload');
+    expect(eventIndex($events, 'atomic', $partialCompiled) < eventIndex($events, 'atomic', $cardCompiled), 'apply installs partial compiled before card despite reversed payload');
     expect((phase($f, 'apply')['reason'] ?? '') === 'duplicate_or_unprepared_apply', 'duplicate apply rejected');
     successful($f, 'verify', 'verified');
     foreach ($f['plan']['entries'] as $entry) expect(hash_file('sha256', $f['home'].'/'.$entry['destination']) === $entry['after_sha256'], 'exact after hash');
     $cardPath = $f['home'].'/servernet_app/resources/views/account/partials/card-hosting.blade.php';
     expect((fileperms($cardPath) & 0777) === 0600, 'private card mode retained');
+    $storePath = $f['home'].'/servernet_app/app/Http/Controllers/Account/StoreController.php';
+    expect((fileperms($storePath) & 0777) === 0600, 'private StoreController mode retained during install');
+    HostingReleaseProbe::$events = [];
     successful($f, 'rollback', 'rolled_back');
+    $events = HostingReleaseProbe::$events;
+    $cardSourceRestore = eventIndex($events, 'restore', $cardSource);
+    $cardCompiledRestore = eventIndex($events, 'restore', $cardCompiled);
+    $cardSourceActivation = eventIndex($events, 'activate', $cardSource, $cardCompiledRestore);
+    $cardCompiledActivation = eventIndex($events, 'activate', $cardCompiled, $cardCompiledRestore);
+    $partialSourceRestore = eventIndex($events, 'restore', $partialSource);
+    $partialCompiledRestore = eventIndex($events, 'restore', $partialCompiled);
+    expect($cardSourceRestore < $cardCompiledRestore && $cardCompiledRestore < $cardSourceActivation && $cardCompiledRestore < $cardCompiledActivation, 'rollback restores both old card representations then invalidates them');
+    expect($cardSourceActivation < $partialSourceRestore && $cardCompiledActivation < $partialSourceRestore && $partialSourceRestore < $partialCompiledRestore, 'rollback activates old card before deleting new partial source or compiled');
     expect((fileperms($cardPath) & 0777) === 0600 && file_get_contents($cardPath) === '<section>Old hosting card</section>', 'old source restored');
     expect(! file_exists($f['home'].'/public_html/assets/js/hosting-connection.js'), 'new asset removed on explicit rollback');
+    expect((fileperms($storePath) & 0777) === 0600 && file_get_contents($storePath) === '<?php // Old private controller', 'private StoreController bytes and mode restored');
     $g = fixture(); successful($g, 'preview', 'previewed');
     $target = $g['home'].'/servernet_app/resources/views/account/partials/card-hosting.blade.php'; file_put_contents($target, 'newer unrelated edit');
     expect((phase($g, 'apply')['reason'] ?? '') === 'destination_hash_drift', 'concurrent source edit rejected');

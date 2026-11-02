@@ -32,6 +32,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
         with:
           php-version: '8.4'
@@ -51,8 +52,21 @@ jobs:
           set -euo pipefail
           php tests/standalone/hosting-domain-connection.php
           php ../docs/project/hosting-domain-release-20261102/test-engine-native.php
-          vendor/bin/phpunit tests/Feature/HostingDomainConnectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/ExistingHostingAdoptionTest.php tests/Feature/StoreOrderTest.php
-          if [ -f tests/Feature/HostingPanelServerSelectionTest.php ]; then vendor/bin/phpunit tests/Feature/HostingPanelServerSelectionTest.php; fi
+          vendor/bin/phpunit tests/Feature/HostingDomainConnectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/ExistingHostingAdoptionTest.php tests/Feature/HostingPanelServerSelectionTest.php
+      - name: Compare historical StoreOrder failures against unchanged base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        working-directory: website
+        run: |
+          set -euo pipefail
+          git worktree add --detach /tmp/hosting-order-baseline "$BASE_REF"
+          cp -a vendor /tmp/hosting-order-baseline/website/vendor
+          set +e
+          (cd /tmp/hosting-order-baseline/website && vendor/bin/phpunit tests/Feature/StoreOrderTest.php --log-junit /tmp/hosting-order-base.xml)
+          vendor/bin/phpunit tests/Feature/StoreOrderTest.php --log-junit /tmp/hosting-order-head.xml
+          set -e
+          python3 ../scripts/compare-hosting-order-baseline.py /tmp/hosting-order-base.xml /tmp/hosting-order-head.xml
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'

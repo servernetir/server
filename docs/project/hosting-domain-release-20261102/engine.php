@@ -133,10 +133,12 @@ final class Engine
                 || (! is_int($entry['before_mode'] ?? null) && ($entry['before_mode'] ?? null) !== null)) {
                 throw new \RuntimeException('invalid_entry');
             }
+            $privatePhpSource = str_starts_with($path, 'servernet_app/')
+                && ! str_starts_with($path, 'servernet_app/public/') && str_ends_with($path, '.php');
             if ($entry['before_sha256'] === 'absent') {
                 if (($entry['before_mode'] ?? null) !== null || $entry['mode'] !== 0644) throw new \RuntimeException('invalid_new_file_mode');
             } elseif (! is_int($entry['before_mode'] ?? null) || $entry['mode'] !== $entry['before_mode']
-                || (! in_array($path, self::VIEWS, true) && $entry['mode'] !== 0644)) throw new \RuntimeException('existing_mode_not_preserved');
+                || ($entry['mode'] === 0600 && ! $privatePhpSource)) throw new \RuntimeException('existing_mode_not_preserved');
             $seen[$path] = true;
         }
         foreach ($plan['protected'] ?? [] as $entry) {
@@ -392,6 +394,16 @@ PHP;
         }
     }
 
+    /** Dependency order is explicit and does not depend on payload entry order. */
+    private function installRank(string $destination): int
+    {
+        return match ($destination) {
+            'servernet_app/resources/views/account/partials/hosting-domain-connection.blade.php' => 1,
+            'servernet_app/resources/views/account/partials/card-hosting.blade.php' => 2,
+            default => 0,
+        };
+    }
+
     private function apply(object $app): array
     {
         $state = $this->state();
@@ -408,15 +420,18 @@ PHP;
         $filesWritten = 0; $compiledWritten = 0;
         try {
             $order = array_keys($this->plan['entries']);
-            usort($order, fn ($a, $b) => (int) in_array($this->plan['entries'][$a]['destination'], self::VIEWS, true)
-                <=> (int) in_array($this->plan['entries'][$b]['destination'], self::VIEWS, true));
+            usort($order, fn ($a, $b) => $this->installRank($this->plan['entries'][$a]['destination'])
+                <=> $this->installRank($this->plan['entries'][$b]['destination']));
             foreach ($order as $i) {
                 $entry = $this->plan['entries'][$i];
                 if ($entry['before_sha256'] === $entry['after_sha256']) continue;
                 $this->atomic(self::HOME.'/'.$entry['destination'], (string) file_get_contents(self::STAGE.'/candidates/file-'.$i), $entry['mode'], $entry['before_sha256'], $entry['before_mode']);
                 $filesWritten++;
             }
-            foreach ($state['compiled'] as $entry) {
+            $compiledOrder = $state['compiled'];
+            usort($compiledOrder, fn ($a, $b) => $this->installRank($this->plan['entries'][$a['index']]['destination'])
+                <=> $this->installRank($this->plan['entries'][$b['index']]['destination']));
+            foreach ($compiledOrder as $entry) {
                 if ($entry['before_sha256'] === $entry['after_sha256']) continue;
                 $this->atomic($entry['path'], (string) file_get_contents(self::STAGE.'/candidates/compiled-'.$entry['index'].'.php'), $entry['mode'], $entry['before_sha256'], $entry['before_mode']);
                 $source = self::HOME.'/'.$this->plan['entries'][$entry['index']]['destination'];
@@ -471,23 +486,29 @@ PHP;
             if ($entry['before_sha256'] !== 'absent' && $this->hash(self::STAGE.'/before/compiled-'.$entry['index']) !== $entry['before_sha256']) throw new \RuntimeException('backup_hash_drift');
         }
         $this->opcache($this->phpPaths($state));
-        // Restore old source and old compiled views together while all new dependencies still exist.
-        foreach ($this->plan['entries'] as $i => $entry) {
-            if (in_array($entry['destination'], self::VIEWS, true)) {
-                $this->restoreOne(self::HOME.'/'.$entry['destination'], self::STAGE.'/before/file-'.$i,
-                    $entry['before_sha256'], $entry['before_mode'], $observed[$i], $observedModes[$i]);
+        // Stop all card references before restoring/removing its new partial dependency.
+        $viewOrder = array_keys(array_filter($this->plan['entries'], fn ($entry) => in_array($entry['destination'], self::VIEWS, true)));
+        usort($viewOrder, fn ($a, $b) => $this->installRank($this->plan['entries'][$b]['destination'])
+            <=> $this->installRank($this->plan['entries'][$a]['destination']));
+        foreach ($viewOrder as $index) {
+            $sourceEntry = $this->plan['entries'][$index];
+            $source = self::HOME.'/'.$sourceEntry['destination'];
+            $this->restoreOne($source, self::STAGE.'/before/file-'.$index,
+                $sourceEntry['before_sha256'], $sourceEntry['before_mode'], $observed[$index], $observedModes[$index]);
+            $activated = [$source];
+            foreach ($state['compiled'] as $i => $entry) {
+                if ($entry['index'] !== $index) continue;
+                $this->restoreOne($entry['path'], self::STAGE.'/before/compiled-'.$index,
+                    $entry['before_sha256'], $entry['before_mode'], $compiledObserved[$i], $compiledModes[$i]);
+                if ($entry['before_sha256'] !== 'absent'
+                    && ! touch($entry['path'], max(time(), filemtime($source) + 1))) {
+                    throw new \RuntimeException('compiled_timestamp_failed');
+                }
+                $activated[] = $entry['path'];
             }
+            // Invalidate the restored card source+compiled bytes before touching the partial.
+            $this->opcache($activated);
         }
-        foreach ($state['compiled'] as $i => $entry) {
-            $this->restoreOne($entry['path'], self::STAGE.'/before/compiled-'.$entry['index'],
-                $entry['before_sha256'], $entry['before_mode'], $compiledObserved[$i], $compiledModes[$i]);
-            if ($entry['before_sha256'] !== 'absent') {
-                $source = self::HOME.'/'.$this->plan['entries'][$entry['index']]['destination'];
-                if (! touch($entry['path'], max(time(), filemtime($source) + 1))) throw new \RuntimeException('compiled_timestamp_failed');
-            }
-        }
-        $this->opcache(array_column($state['compiled'], 'path'));
-        
         foreach ($this->plan['entries'] as $i => $entry) {
             if (! in_array($entry['destination'], self::VIEWS, true)) {
                 $this->restoreOne(self::HOME.'/'.$entry['destination'], self::STAGE.'/before/file-'.$i,
