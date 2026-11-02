@@ -64,7 +64,11 @@ class GpuController extends Controller
             | ⚠️ و فیلترِ GPU روی `gpu_model` است نه روی نامِ زیرساخت: اگر فردا
             | زیرساختِ دومی هم کارت بفروشد، همین صفحه بی‌تغییر نشانش می‌دهد.
             */
-            foreach (CloudPlan::offers(SaladClient::LOCATION, true) as $plan) {
+            $offers = CloudPlan::offers(SaladClient::LOCATION, true);
+            $appKeys = \App\Http\Controllers\Account\CloudStoreController::imageKeysForOffers(
+                $offers->filter(fn ($plan) => filled($plan->gpu_model)), 'app'
+            );
+            foreach ($offers as $plan) {
                 if (blank($plan->gpu_model)) {
                     continue;
                 }
@@ -87,7 +91,7 @@ class GpuController extends Controller
                     'hourly_raw'  => $hourly,
                     'hourly'      => cloud_price($hourly),
                     'interruptible' => (bool) $plan->is_interruptible,
-                    'apps' => \App\Http\Controllers\Account\CloudStoreController::imageKeysFor($plan, 'app'),
+                    'apps' => $appKeys[(string) $plan->slug] ?? [],
                 ];
 
                 if ($plan->is_interruptible) {

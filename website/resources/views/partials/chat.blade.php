@@ -1,5 +1,10 @@
 {{-- Progressive enhancement; the existing ChatController and conversation session stay intact. --}}
+@php $chatMorphCss = app(\App\Services\PublicPageStyles::class)->auxiliary('assets/css/chat-morph.css'); @endphp
+@if($chatMorphCss !== null)
+<style id="public-page-chat-morph-css">{!! $chatMorphCss !!}</style>
+@else
 <link rel="stylesheet" href="{{ asset_ver('assets/css/chat-morph.css') }}">
+@endif
 <script src="{{ asset_ver('assets/js/chat-morph.js') }}" defer></script>
 <button type="button" class="chat-fab" id="chat-fab" data-morph-chat aria-label="{{ __('ui.chat_open') }}" aria-expanded="false" aria-controls="chat-panel">
   <span class="chat-fab-orb" aria-hidden="true"></span>

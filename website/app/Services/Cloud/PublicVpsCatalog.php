@@ -22,6 +22,14 @@ class PublicVpsCatalog
             ->when($country, fn ($q) => $q->where('country', $country))->get()->keyBy('code');
         $hourlyOffers ??= CloudPlan::offers(hourly: true);
         $offers ??= CloudPlan::offers();
+        if ($country !== null) {
+            // Only these location keys can reach the rendered country rows.
+            // Dominance never crosses a canonical city; keep every alias in
+            // each relevant city, including an offer whose raw location is inactive.
+            // Representatives remain globally selected before this display-only cut.
+            $cities = $locations->keys()->map(fn ($code) => CloudLocation::canonicalCode((string) $code))->flip();
+            $offers = $offers->filter(fn ($plan) => $cities->has(CloudLocation::canonicalCode((string) $plan->location_code)));
+        }
         // Pareto pruning keeps the established sales policy. Its contract check
         // includes the canonical city, so one city can never remove another.
         $iran = $offers->filter(fn ($p) => strtoupper(substr($p->location_code, 0, 2)) === 'IR');

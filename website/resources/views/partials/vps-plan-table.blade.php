@@ -1,6 +1,11 @@
 @once
 @push('head')
+@php $vpsCatalogCss = app(\App\Services\PublicPageStyles::class)->auxiliary('assets/css/vps-catalog.css'); @endphp
+@if($vpsCatalogCss !== null)
+<style id="public-page-vps-catalog-css">{!! $vpsCatalogCss !!}</style>
+@else
 <link rel="stylesheet" href="{{ asset_ver('assets/css/vps-catalog.css') }}">
+@endif
 <script src="{{ asset_ver('assets/js/vps-catalog.js') }}" defer></script>
 @endpush
 @endonce
