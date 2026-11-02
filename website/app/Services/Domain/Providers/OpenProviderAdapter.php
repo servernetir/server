@@ -19,6 +19,81 @@ class OpenProviderAdapter implements DomainProvider
         return ['healthy' => true, 'balance_minor' => ProviderMoney::minor($balance['amount'], $currency), 'currency' => $currency];
     }
 
+    /** Complete account-scoped catalogue; create totals are only for the supplied minimum term. */
+    public function catalogue(): array
+    {
+        $account = $this->client->resellerInfo(); $this->assertOk($account);
+        $actualVat = ProviderMoney::basisPoints(data_get($account, 'data.vatperc', ''));
+        $offers = []; $seen = []; $offset = 0; $total = null;
+        do {
+            $page = $this->client->listTlds(1000, $offset, true); $this->assertOk($page);
+            $n = $page['total'] ?? null; $rows = $page['results'] ?? null;
+            if (! is_int($n) || $n < 1 || $n > 10000 || ($total !== null && $total !== $n)
+                || ! is_array($rows) || $rows === [] || count($rows) > 1000 || $offset + count($rows) > $n) {
+                throw new DomainProviderException('catalogue_incomplete');
+            }
+            $total = $n;
+            foreach ($rows as $row) {
+                $tld = strtolower((string) ($row['name'] ?? ''));
+                if (! preg_match('/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/D', $tld) || isset($seen[$tld])) {
+                    throw new DomainProviderException('catalogue_invalid_suffix');
+                }
+                $seen[$tld] = true;
+                if (($row['status'] ?? '') !== 'ACT') continue;
+                $min = $row['min_period'] ?? null; $max = $row['max_period'] ?? null;
+                if (! is_int($min) || ! is_int($max) || $min < 1 || $max < $min || $max > 10) {
+                    throw new DomainProviderException('catalogue_period_unverified');
+                }
+                foreach (['create' => 'reseller_price', 'renew' => 'renew_price', 'transfer' => 'transfer_price'] as $operation => $field) {
+                    if ($operation === 'renew' && ($row['renew_available'] ?? false) !== true) continue;
+                    if ($operation === 'transfer' && ($row['transfer_available'] ?? false) !== true) continue;
+                    $source = $row['prices'][$field] ?? ($operation === 'create' ? ($row['prices']['create_price'] ?? null) : null);
+                    if (! is_array($source)) continue;
+                    $price = $source['reseller'] ?? null; $until = now()->addDay();
+                    $promotion = $source['promotion_details'] ?? null;
+                    if (is_array($promotion) && $promotion !== []) {
+                        $from = $promotion['start_date'] ?? null; $end = $promotion['end_date'] ?? null;
+                        if (! is_numeric($from) || ! is_numeric($end) || $end <= $from) throw new DomainProviderException('catalogue_promo_invalid');
+                        if (now()->timestamp < (int) $from || now()->timestamp >= (int) $end) {
+                            $price = data_get($promotion, 'non_promo_price.reseller');
+                        } else $until = $until->min(\Illuminate\Support\Carbon::createFromTimestamp((int) $end));
+                    }
+                    if (! is_array($price)) continue;
+                    $currency = strtoupper((string) ($price['currency'] ?? ''));
+                    $base = ProviderMoney::minor($price['price'] ?? '', $currency);
+                    if ($base === 0) continue;
+                    // Do not extrapolate discounted create totals to unsupported periods.
+                    $periods = $operation === 'create' ? [$min] : ($operation === 'renew' ? range(1, $max) : [1]);
+                    foreach ($periods as $years) {
+                        $cost = $this->landedCost($operation === 'renew' ? ProviderMoney::add(...array_fill(0, $years, $base)) : $base, $actualVat);
+                        $offers[] = $cost + ['tld' => $tld, 'operation' => $operation, 'period_months' => 12 * $years,
+                            'currency' => $currency, 'premium' => false, 'tax_included' => true, 'valid_until' => $until->toIso8601String()];
+                    }
+                }
+            }
+            $offset += count($rows);
+        } while ($offset < $total);
+        if (count($seen) !== $total || $offers === []) throw new DomainProviderException('catalogue_incomplete');
+        return ['offers' => $offers, 'suffixes' => array_keys($seen), 'source' => 'openprovider_account_tlds'];
+    }
+
+    private function landedCost(int $base, int $actualVat): array
+    {
+        $settings = (array) $this->account->settings;
+        $reserve = $settings['supplier_vat_pct'] ?? $settings['vat_pct'] ?? Setting::get('domain_supplier_vat_pct') ?? config('domain_pricing.supplier_vat_pct');
+        $vat = $reserve === null ? $actualVat : max($actualVat, ProviderMoney::basisPoints($reserve));
+        $feeBps = ProviderMoney::basisPoints($settings['supplier_fee_pct'] ?? $settings['fee_pct'] ?? Setting::get('domain_supplier_fee_pct') ?? config('domain_pricing.supplier_fee_pct', 0));
+        $tax = ProviderMoney::surcharge($base, $vat); $actualTax = ProviderMoney::surcharge($base, $actualVat);
+        $fee = ProviderMoney::surcharge(ProviderMoney::add($base, $tax), $feeBps);
+        $mandatory = ProviderMoney::integerMinor($settings['mandatory_fee_minor'] ?? 0);
+        return ['amount_minor' => ProviderMoney::add($base, $tax, $fee, $mandatory),
+            'provider_debit_minor' => ProviderMoney::add($base, $actualTax), 'vat_bps' => $vat, 'fee_bps' => $feeBps,
+            'mandatory_fee_minor' => $mandatory,
+            'components' => ['discounted_domain_minor' => $base, 'supplier_tax_minor' => $tax,
+                'actual_supplier_tax_minor' => $actualTax, 'supplier_tax_reserve_minor' => $tax - $actualTax,
+                'supplier_fee_minor' => $fee, 'mandatory_fee_minor' => $mandatory, 'privacy_minor' => 0]];
+    }
+
     public function quote(string $fqdn, string $operation, int $months, array $options = []): array
     {
         $fqdn = ProviderMoney::fqdn($fqdn);
@@ -60,18 +135,9 @@ class OpenProviderAdapter implements DomainProvider
         $account = $this->client->resellerInfo();
         $this->assertOk($account);
         $actualVat = ProviderMoney::basisPoints(data_get($account, 'data.vatperc', ''));
-        $vat = $actualVat;
-        $reserve = $settings['supplier_vat_pct'] ?? $settings['vat_pct'] ?? Setting::get('domain_supplier_vat_pct') ?? config('domain_pricing.supplier_vat_pct');
-        if ($reserve !== null) { $vat = max($vat, ProviderMoney::basisPoints($reserve)); }
-        $feeBps = ProviderMoney::basisPoints($settings['supplier_fee_pct'] ?? $settings['fee_pct'] ?? Setting::get('domain_supplier_fee_pct') ?? config('domain_pricing.supplier_fee_pct', 0));
-        $actualTax = ProviderMoney::surcharge($base, $actualVat);
-        $tax = ProviderMoney::surcharge($base, $vat);
-        $fee = ProviderMoney::surcharge(ProviderMoney::add($base, $tax), $feeBps);
-        $mandatory = ProviderMoney::integerMinor($settings['mandatory_fee_minor'] ?? 0);
-        $total = ProviderMoney::add($base, $tax, $fee, $mandatory);
-        // External charges and a configured VAT reserve affect landed cost,
-        // not the actual deduction from this registrar account's wallet.
-        $debit = ProviderMoney::add($base, $actualTax);
+        $cost = $this->landedCost($base, $actualVat);
+        $vat = $cost['vat_bps']; $feeBps = $cost['fee_bps']; $mandatory = $cost['mandatory_fee_minor'];
+        $total = $cost['amount_minor']; $debit = $cost['provider_debit_minor'];
         $validUntil = now()->addMinutes(5);
         $promotion = (array) data_get($res, 'data.promotion_data', []);
         $promotionEnd = isset($promotion['end_date']) && is_numeric($promotion['end_date']) ? (int) $promotion['end_date'] : null;
@@ -79,9 +145,7 @@ class OpenProviderAdapter implements DomainProvider
         return [
             'available' => $available, 'amount_minor' => $total, 'provider_debit_minor' => $debit, 'currency' => $currency,
             'period_months' => $months, 'premium' => $premium, 'tax_included' => true,
-            'components' => ['discounted_domain_minor' => $base, 'supplier_tax_minor' => $tax,
-                'actual_supplier_tax_minor' => $actualTax, 'supplier_tax_reserve_minor' => $tax - $actualTax,
-                'supplier_fee_minor' => $fee, 'mandatory_fee_minor' => $mandatory, 'privacy_minor' => 0],
+            'components' => $cost['components'],
             'provider_terms_hash' => hash('sha256', json_encode([$fqdn, $operation, $months, $premium, 'none', $actualVat,
                 (bool) data_get($res, 'data.is_promotion', false), $promotion])),
             'terms_hash' => hash('sha256', json_encode([$fqdn, $operation, $months, $premium, 'none', $vat, $feeBps, $mandatory,

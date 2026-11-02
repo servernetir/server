@@ -323,7 +323,7 @@ class DomainProviderAdaptersTest extends TestCase
 
     public function test_joker_probe_uses_spendable_balance_not_pending_or_total(): void
     {
-        $this->fakeJoker(['*/query-account-balance' => $this->reply("9.75\t90.25\t100.00\tUSD\n", "Columns: available,pending,total,currency\nSeparator: TAB\n")]);
+        $this->fakeJoker(['*/query-account-balance*' => $this->reply("9.75\t90.25\t100.00\tUSD\n", "Columns: available,pending,total,currency\nSeparator: TAB\n")]);
         $res = (new JokerAdapter($this->account()))->probe();
         $this->assertSame(975, $res['balance_minor']);
         $this->assertSame('USD', $res['currency']);

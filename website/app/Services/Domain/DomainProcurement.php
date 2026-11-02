@@ -334,13 +334,10 @@ class DomainProcurement
             || ($balance['currency'] ?? null) !== $q['currency'] || $balance['balance_minor'] < $debit) {
             throw new DomainProcurementException('supplier_balance_insufficient');
         }
-        $numerator = DomainMoney::multiply($q['amount_minor'], $fx['numerator']);
-        $wholesale = DomainMoney::ceilRatio($numerator, $fx['denominator']);
-        $margin = $this->margin($tld);
-        $floorMargin = DomainMoney::percentUnits(config('domain_reseller.min_margin_pct', 0));
-        $step = max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
-        $floor = DomainMoney::roundUp(DomainMoney::addPercent($wholesale, $floorMargin), $step);
-        $sell = DomainMoney::roundUp(DomainMoney::addPercent($wholesale, max($margin, $floorMargin)), $step);
+        $priced = $this->costedOffer($tld, $q);
+        $fx = $priced['fx_snapshot']; $numerator = $priced['comparison_numerator'];
+        $wholesale = $priced['wholesale_toman']; $floor = $priced['floor_toman']; $sell = $priced['sell_toman'];
+        $margin = $priced['margin_units']; $floorMargin = $priced['floor_margin_units']; $step = $priced['rounding_step_toman'];
         $terms = ['domain' => $fqdn, 'operation' => $operation, 'period_months' => $months,
             'premium' => $q['premium'], 'options' => $options, 'incoming_transfer' => $incomingTransfer,
             'resulting_period_months' => $transferResult,
@@ -357,6 +354,68 @@ class DomainProcurement
             'provider_terms_hash' => $q['provider_terms_hash'] ?? $q['terms_hash'] ?? null,
             'margin_units' => $margin, 'effective_margin_units' => max($margin, $floorMargin),
             'floor_margin_units' => $floorMargin, 'rounding_step_toman' => $step, 'terms_hash' => hash('sha256', json_encode($terms, JSON_THROW_ON_ERROR))]);
+    }
+
+    /** Public catalogue projections, from private account evidence only. No network requests. */
+    public function cataloguePrices(array $catalogues): array
+    {
+        $this->quoteRates = []; $groups = [];
+        foreach ($catalogues as $entry) {
+            $account = $entry['account'];
+            foreach ($entry['offers'] as $offer) {
+                try {
+                    $tld = $offer['tld']; $op = $offer['operation']; $months = $offer['period_months'];
+                    if (! is_string($tld) || ! DomainSearch::sells($tld) || ! in_array($op, ['create', 'renew', 'transfer'], true)
+                        || ! is_int($months) || $months < 12 || $months > 120 || $months % 12 !== 0
+                        || ($offer['premium'] ?? null) !== false || ($offer['tax_included'] ?? null) !== true
+                        || ! is_string($offer['valid_until'] ?? null) || ! Carbon::parse($offer['valid_until'])->isFuture()) continue;
+                    $this->eligible($account, $tld, $op, $months, ['privacy' => 'none'], 'catalogue.'.$tld, null);
+                    $debit = $offer['provider_debit_minor'] ?? null;
+                    if (! is_int($debit) || $debit < 1 || ! is_int($offer['amount_minor'] ?? null)
+                        || $debit > $offer['amount_minor'] || $account->balance_minor === null
+                        || $account->balance_currency !== ($offer['currency'] ?? null) || $account->balance_minor < $debit) continue;
+                    $priced = $this->costedOffer($tld, $offer) + ['account_id' => (int) $account->id];
+                    $old = $groups[$tld][$months][$op][$account->id] ?? null;
+                    if ($old === null || $this->cheaper($priced, $old)) $groups[$tld][$months][$op][$account->id] = $priced;
+                } catch (\Throwable) { /* Exclude only the unverified offer/account. */ }
+            }
+        }
+        $out = [];
+        foreach ($groups as $tld => $periods) {
+            ksort($periods); $winners = [];
+            foreach ($periods as $months => $operations) {
+                foreach (($operations['create'] ?? []) as $offer) {
+                    if (! isset($winners[$months]) || $this->cheaper($offer, $winners[$months])) $winners[$months] = $offer;
+                }
+            }
+            if ($winners === []) continue;
+            $months = array_key_first($winners); $winner = $winners[$months];
+            // Renewal is an estimate on the registration winner, never a cheaper alternate holder.
+            $renew = $periods[12]['renew'][$winner['account_id']] ?? null;
+            $destination = (int) config('domain_suppliers.transfer_account_id');
+            $transfer = $destination > 0 ? ($periods[12]['transfer'][$destination] ?? null) : null;
+            $out[$tld] = ['register' => $winner['sell_toman'], 'renew' => $renew['sell_toman'] ?? null,
+                'transfer' => $transfer['sell_toman'] ?? null, 'min_years' => intdiv($months, 12),
+                'max_years' => intdiv(max(array_keys($winners)), 12), 'renew_is_estimate' => true];
+        }
+        ksort($out); return $out;
+    }
+
+    /** Identical landed-cost FX/profit/floor arithmetic for exact quotes and catalogue offers. */
+    private function costedOffer(string $tld, array $q): array
+    {
+        if (! is_int($q['amount_minor'] ?? null) || $q['amount_minor'] < 1
+            || ! preg_match('/^[A-Z]{3}$/D', (string) ($q['currency'] ?? ''))) throw new DomainProcurementException('supplier_quote_invalid');
+        $fx = $this->rate($q['currency']);
+        $numerator = DomainMoney::multiply($q['amount_minor'], $fx['numerator']);
+        $wholesale = DomainMoney::ceilRatio($numerator, $fx['denominator']);
+        $margin = $this->margin($tld); $floorMargin = DomainMoney::percentUnits(config('domain_reseller.min_margin_pct', 0));
+        $step = max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
+        return ['fx_snapshot' => $fx, 'comparison_numerator' => $numerator, 'comparison_denominator' => $fx['denominator'],
+            'wholesale_toman' => $wholesale, 'floor_toman' => DomainMoney::roundUp(DomainMoney::addPercent($wholesale, $floorMargin), $step),
+            'sell_toman' => DomainMoney::roundUp(DomainMoney::addPercent($wholesale, max($margin, $floorMargin)), $step),
+            'margin_units' => $margin, 'effective_margin_units' => max($margin, $floorMargin),
+            'floor_margin_units' => $floorMargin, 'rounding_step_toman' => $step];
     }
 
     private function eligible(DomainSupplierAccount $account, string $tld, string $operation, int $months,

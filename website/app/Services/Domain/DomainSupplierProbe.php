@@ -27,12 +27,11 @@ class DomainSupplierProbe
                     'balance_currency' => preg_match('/^[A-Z]{3}$/D', $currency) ? $currency : null,
                     'health_checked_at' => now(), 'synced_at' => now(),
                 ];
-                if (! $healthy) $values['sales_enabled'] = false;
                 $account->forceFill($values)->save();
                 return $healthy;
             } catch (\Throwable) {
                 $account->forceFill(['connection_status' => 'failed', 'health_checked_at' => now(),
-                    'balance_minor' => null, 'balance_currency' => null, 'sales_enabled' => false])->save();
+                    'balance_minor' => null, 'balance_currency' => null])->save();
                 return false;
             }
         } finally {

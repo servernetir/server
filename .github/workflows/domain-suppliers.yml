@@ -118,6 +118,7 @@ jobs:
           set -euo pipefail
           cases=(
             tests/Feature/DomainProviderAdaptersTest.php
+            tests/Feature/DomainSupplierCatalogueTest.php
             tests/Feature/DomainProcurementTest.php
             tests/Feature/DomainSupplierAdminSchemaTest.php
             tests/Feature/DomainSupplierCheckoutTest.php

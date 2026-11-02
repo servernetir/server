@@ -40,6 +40,7 @@ class TldPriceBook
     /** Amounts are for the documented minimum term, not an invented annual rate. */
     public function cachedFullForTlds(array $tlds): array
     {
+        if (app(DomainProcurement::class)->enabled()) return app(DomainSupplierCatalogue::class)->prices($this->normalise($tlds));
         try {
             $snapshot = $this->snapshot();
             return $snapshot === [] ? [] : $this->convert($snapshot, $this->normalise($tlds));
@@ -50,6 +51,7 @@ class TldPriceBook
 
     public function catalogTlds(): array
     {
+        if (app(DomainProcurement::class)->enabled()) return array_keys(app(DomainSupplierCatalogue::class)->prices());
         try {
             $snapshot = $this->snapshot();
             return $snapshot === [] ? [] : array_keys($this->convert($snapshot));
@@ -60,6 +62,7 @@ class TldPriceBook
 
     public function metadata(): array
     {
+        if (app(DomainProcurement::class)->enabled()) return ['count' => count(app(DomainSupplierCatalogue::class)->prices()), 'multi_supplier' => true];
         $snapshot = $this->snapshot();
         if ($snapshot === []) {
             return [];
@@ -71,6 +74,7 @@ class TldPriceBook
     /** Publish only after every catalogue page, tax rate and conversion validates. */
     public function refreshAll(): array
     {
+        if (app(DomainProcurement::class)->enabled()) return app(DomainSupplierCatalogue::class)->refresh();
         $lock = Cache::lock('tld.catalog.refresh', 900);
         if (! $lock->get()) {
             throw new RuntimeException('A domain catalogue refresh is already running.');

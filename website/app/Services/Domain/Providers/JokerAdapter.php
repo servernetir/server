@@ -33,6 +33,63 @@ class JokerAdapter implements DomainProvider
         return ['healthy' => true, 'balance_minor' => ProviderMoney::minor(trim($row[0]), $currency), 'currency' => $currency];
     }
 
+    /** Verified live Columns contract; prices already include account discounts and VAT. */
+    public function catalogue(): array
+    {
+        $res = $this->request('query-price-list');
+        $columns = array_map('trim', explode(',', (string) ($res['fields']['columns'] ?? '')));
+        $expected = array_merge(['type', 'operation', 'tld', 'tld-currency', 'currency'],
+            array_map(fn ($y) => 'price-'.$y.'y', range(1, 10)), ['valid_from', 'valid_until']);
+        if ($columns !== $expected) throw new DomainProviderException('catalogue_schema_unverified');
+        $offers = []; $seen = []; $suffixes = [];
+        [$feeBps, $mandatory] = $this->externalFees();
+        $lines = $this->lines($res['body']);
+        if ($lines === [] || count($lines) > 30000) throw new DomainProviderException('catalogue_incomplete');
+        foreach ($lines as $line) {
+            $cells = explode("\t", $line);
+            if (count($cells) !== count($columns)) throw new DomainProviderException('catalogue_invalid_row');
+            $row = array_combine($columns, $cells);
+            if (! in_array($row['type'], ['domain', 'domain_promo'], true)
+                || ! in_array($row['operation'], ['create', 'renew', 'transfer'], true)) continue;
+            $tld = strtolower($row['tld']);
+            if (! preg_match('/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/D', $tld)) throw new DomainProviderException('catalogue_invalid_suffix');
+            $identity = $row['type'].'|'.$row['operation'].'|'.$tld;
+            if (isset($seen[$identity])) throw new DomainProviderException('catalogue_ambiguous');
+            $seen[$identity] = true;
+            $until = now()->addDay();
+            $promo = $row['type'] === 'domain_promo';
+            if ($promo) {
+                try {
+                    $from = \Illuminate\Support\Carbon::createFromFormat('Y-m-d H:i:s O', $row['valid_from']);
+                    $end = \Illuminate\Support\Carbon::createFromFormat('Y-m-d H:i:s O', $row['valid_until']);
+                } catch (\Throwable) { throw new DomainProviderException('catalogue_promo_invalid'); }
+                if (! $from || ! $end || $end->lte($from)) throw new DomainProviderException('catalogue_promo_invalid');
+                if ($from->isFuture() || ! $end->isFuture()) continue;
+                $until = $until->min($end);
+            } elseif ($row['valid_from'] !== 'n/a' || $row['valid_until'] !== 'n/a') {
+                throw new DomainProviderException('catalogue_validity_unverified');
+            }
+            foreach (range(1, 10) as $years) {
+                $amount = $row['price-'.$years.'y'];
+                if ($amount === 'n/a') continue;
+                $debit = ProviderMoney::minor($amount, $row['currency']);
+                if ($debit === 0) continue; // Unknown/free operations never become zero-price domain sales.
+                $fee = ProviderMoney::surcharge($debit, $feeBps);
+                $key = $tld.'|'.$row['operation'].'|'.($years * 12);
+                if (! $promo && ($offers[$key]['promotion'] ?? false)) continue;
+                $offers[$key] = ['tld' => $tld, 'operation' => $row['operation'], 'period_months' => $years * 12,
+                    'amount_minor' => ProviderMoney::add($debit, $fee, $mandatory), 'provider_debit_minor' => $debit,
+                    'currency' => $row['currency'], 'premium' => false, 'tax_included' => true,
+                    'promotion' => $promo, 'valid_until' => $until->toIso8601String(),
+                    'components' => ['final_account_domain_minor' => $debit, 'supplier_fee_minor' => $fee,
+                        'mandatory_fee_minor' => $mandatory, 'supplier_tax_included' => true, 'account_discounts_included' => true]];
+                $suffixes[$tld] = true;
+            }
+        }
+        if ($offers === []) throw new DomainProviderException('catalogue_incomplete');
+        return ['offers' => array_values($offers), 'suffixes' => array_keys($suffixes), 'source' => 'joker_account_query_price_list'];
+    }
+
     public function quote(string $fqdn, string $operation, int $months, array $options = []): array
     {
         $fqdn = ProviderMoney::fqdn($fqdn);
@@ -413,8 +470,13 @@ class JokerAdapter implements DomainProvider
     private function send(string $command, array $params, bool $mutation = false): array
     {
         try {
-            $response = Http::asForm()->accept('text/plain')->timeout(25)->withOptions(['allow_redirects' => false])
-                ->post($this->base.$command, $params);
+            $http = Http::asForm()->accept('text/plain')->timeout(25)->withOptions(['allow_redirects' => false]);
+            // These read endpoints return 404 on POST in the accepted live contract.
+            // Only the short-lived Auth-SID is in the documented GET query; API keys,
+            // contact data and all financial/management submissions remain in POST bodies.
+            $response = ! $mutation && in_array($command, ['query-account-balance', 'query-price-list', 'query-promos-list'], true)
+                ? $http->get($this->base.$command, $params)
+                : $http->post($this->base.$command, $params);
         } catch (\Throwable) {
             // No exception chains: transport messages may contain sessions,
             // private contacts or EPP codes in the original request.
