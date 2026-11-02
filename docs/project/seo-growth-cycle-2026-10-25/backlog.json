@@ -22,12 +22,24 @@
   },
   "active_run": {
     "run_id": "search-growth-20261102",
-    "phase": "awaiting_production_access",
+    "phase": "production_verified_observing_google_validation",
     "pull_request": 202,
     "code_commit": "ee3f188ce929b28390d73b9e0b65e57caa5481f3",
     "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
-    "production_verified": false,
-    "blocker": "Owner requested cPanel API token. Relevant local credential/file/environment lookup found none; awaiting secure token file location. No production mutations.",
+    "production_verified": true,
+    "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+    "access_note": "Owner-provided fresh Chrome cPanel session superseded prior access blocker; no API token used or created and no new SSH key/access created.",
+    "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+    "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+    "render_receipt": "docs/project/seo-search-growth-20261102/release-render.json",
+    "release_tools": "docs/project/seo-daily-20261102/release-tools/README.md",
+    "merchant_validation": {
+      "state": "started_pending_recrawl_and_completion",
+      "started_date": "2026-11-02",
+      "affected_items_still_reported": 299,
+      "receipt": "docs/project/seo-search-growth-20261102/gsc-validation-started.json"
+    },
+    "limitations": "Public HTML and GPU mobile rendering accepted; no proof of real GA4 purchase/revenue, Google validation completion or LCP improvement. No traffic impact attributed to release.",
     "merge_sha": "b47bb98a122fb4bc9c5ead79daaf6f21ed7e532e",
     "git_status": "merged_into_develop"
   },
@@ -70,7 +82,8 @@
       "path": "docs/project/seo-daily-20261031/ai-planner-applied.json",
       "acceptance_path": "docs/project/seo-daily-20261031/ai-planner-public-comparison.json"
     },
-    {"run_id": "daily-seo-20261101-blog-author-loading", "completed_at_utc": "2026-11-01T06:58:59Z", "outcome": "production_verified", "pull_request": 196, "path": "docs/project/seo-daily-20261101/blog-release-summary.json", "acceptance_path": "docs/project/seo-daily-20261101/blog-public-comparison.json"}
+    {"run_id": "daily-seo-20261101-blog-author-loading", "completed_at_utc": "2026-11-01T06:58:59Z", "outcome": "production_verified", "pull_request": 196, "path": "docs/project/seo-daily-20261101/blog-release-summary.json", "acceptance_path": "docs/project/seo-daily-20261101/blog-public-comparison.json"},
+    {"run_id": "search-growth-20261102", "published_at_utc": "2026-11-02T06:49:08.764411+00:00", "outcome": "production_verified_google_validation_pending", "pull_request": 202, "path": "docs/project/seo-search-growth-20261102/release-applied-summary.json", "acceptance_path": "docs/project/seo-search-growth-20261102/acceptance-review.json", "render_path": "docs/project/seo-search-growth-20261102/release-render.json", "google_validation_path": "docs/project/seo-search-growth-20261102/gsc-validation-started.json"}
   ],
   "measurement": {
     "gsc_max_fetches_per_day": 1,
@@ -268,35 +281,46 @@
     {
       "id": "country-sitemap-legacy-eligibility",
       "priority": "P1",
-      "state": "tested_pending_production_access",
+      "state": "production_verified",
       "pull_request": 202,
       "reason": "Empty country reinsertion by legacy catalogue loop",
       "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
       "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
-      "production_verified": false,
-      "next_action": "Reconcile current live files, guarded backup/install, HTTP and3locale mobile acceptance; then targeted Google follow-up and comparable-window observation."
+      "production_verified": true,
+      "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+      "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+      "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+      "next_action": "Observe Google sitemap recrawl and comparable-window country cohort. Live XML removes all3 Sweden URLs; Austria, Iran and Philippines retained in all3 locales. Do not change Iran visitor-dependent visibility or bypass unavailable/noindex guards. Net XML5460 to5454 includes3 other removals not attributed by this receipt."
     },
     {
       "id": "vps-service-schema",
       "priority": "P1",
-      "state": "tested_pending_production_access",
+      "state": "production_verified",
       "pull_request": 202,
       "reason": "299 Merchant items caused by VPS rentals emitted as Product",
       "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
       "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
-      "production_verified": false,
-      "next_action": "Reconcile current live files, guarded backup/install, HTTP and3locale mobile acceptance; then targeted Google follow-up and comparable-window observation."
+      "production_verified": true,
+      "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+      "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+      "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+      "google_validation_receipt": "docs/project/seo-search-growth-20261102/gsc-validation-started.json",
+      "next_action": "Validate Fix clicked once after accepted live Service schema; Google UI started2026-11-02. Await recrawl/completion;299 affected items remain reported and are not299 pages or verified fixed items. No fake product image/rating/GTIN or physical-product schema changes."
     },
     {
       "id": "gpu-workload-selection-guide",
       "priority": "P1",
-      "state": "tested_pending_production_access",
+      "state": "production_verified",
       "pull_request": 202,
       "reason": "Fresh GSC commercial intent supports useful selection guidance and relevant existing links",
       "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
       "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
-      "production_verified": false,
-      "next_action": "Reconcile current live files, guarded backup/install, HTTP and3locale mobile acceptance; then targeted Google follow-up and comparable-window observation."
+      "production_verified": true,
+      "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+      "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+      "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+      "render_receipt": "docs/project/seo-search-growth-20261102/release-render.json",
+      "next_action": "Observe country/GPU cohort only after Google recrawl and a full comparable window. Three localized guides and real internal links accepted at390px with IRANSans, present CTA and no horizontal overflow. Form/analytics-loader HTML parity does not establish real purchase, GA4 delivery/revenue or mobile LCP improvement."
     }
   ]
 }
