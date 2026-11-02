@@ -62,7 +62,10 @@ class PageCache
         */
         try {
             $gen = (int) $store->get(self::GEN_KEY, 0);
-            $key = 'page:g'.$gen.':'.sha1($request->getHost().'|'.$request->path());
+            // The front-controller base is part of URL identity. Symfony
+            // strips /index.php from path(); sharing that key with /parts/...
+            // lets an alias response replace the clean page's canonical HTML.
+            $key = 'page:g'.$gen.':'.sha1($request->getHost().'|'.$request->getBaseUrl().'|'.$request->path());
             $hit = $store->get($key);
         } catch (\Throwable) {
             return $this->tag($next($request), 'BYPASS');

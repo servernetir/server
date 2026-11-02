@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\CloudImage;
+use App\Models\Customer;
+use App\Models\CustomerProfile;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Setting;
@@ -151,14 +153,43 @@ class PublicVpsCountryScopeTest extends TestCase
         $locations = collect(['ir-tehran' => $this->location('ir-tehran', 'IR'), 'ph-manila' => $this->location('ph-manila', 'PH')]);
         $iran = $locations->only('ir-tehran');
         Setting::put('iran_sales_open_to_unverified', '0');
+
+        // The deployed visibility gate hides restricted destinations entirely.
+        // The country optimization must preserve that behavior, not expose a disabled card.
+        $this->assertSame([], $this->assertEquivalent('IR', $offers, collect(), $iran));
+        $this->assertSame(['philippines'], array_column(
+            app(PublicVpsCatalog::class)->rows(null, $offers, collect(), $locations), 'slug'));
+
+        // Use the real profile gate so a cached guest decision cannot hide Iran from a verified customer.
+        $customer = Customer::create([
+            'email' => 'country-scope@example.test', 'phone' => '09121234567',
+            'password' => 'fixture-password', 'status' => 'active', 'locale' => 'fa',
+        ]);
+        CustomerProfile::create([
+            'customer_id' => $customer->id, 'is_default' => true, 'type' => 'individual',
+            'status' => 'verified', 'email' => $customer->email, 'mobile' => $customer->phone,
+        ]);
+        $this->actingAs($customer, 'customer');
         $rows = $this->assertEquivalent('IR', $offers, collect(), $iran);
         $this->assertSame(['iran'], array_column($rows, 'slug'));
-        $this->assertNull($rows[0]['monthly_url']);
-        $this->assertNull($rows[0]['hourly_url']);
-        Setting::put('iran_sales_open_to_unverified', '1');
-        $rows = $this->assertEquivalent('IR', $offers, collect(), $iran);
         $this->assertStringContainsString('plan=iran&cycle=monthly', $rows[0]['monthly_url']);
-        $this->assertEqualsCanonicalizing(['iran', 'philippines'], array_column(app(PublicVpsCatalog::class)->rows(null, $offers, collect(), $locations), 'slug'));
+        $this->assertNull($rows[0]['hourly_url']);
+        $this->assertEqualsCanonicalizing(['iran', 'philippines'], array_column(
+            app(PublicVpsCatalog::class)->rows(null, $offers, collect(), $locations), 'slug'));
+    }
+
+    public function test_explicit_iran_gate_opening_keeps_guest_country_rows_and_links(): void
+    {
+        // Settings changes take effect on the next request; start this request with the explicit opening.
+        Setting::put('iran_sales_open_to_unverified', '1');
+        $offers = collect([$this->plan('iran', 'ir-tehran'), $this->plan('philippines', 'ph-manila')]);
+        $locations = collect(['ir-tehran' => $this->location('ir-tehran', 'IR'), 'ph-manila' => $this->location('ph-manila', 'PH')]);
+        $rows = $this->assertEquivalent('IR', $offers, collect(), $locations->only('ir-tehran'));
+        $this->assertSame(['iran'], array_column($rows, 'slug'));
+        $this->assertStringContainsString('plan=iran&cycle=monthly', $rows[0]['monthly_url']);
+        $this->assertNull($rows[0]['hourly_url']);
+        $this->assertEqualsCanonicalizing(['iran', 'philippines'], array_column(
+            app(PublicVpsCatalog::class)->rows(null, $offers, collect(), $locations), 'slug'));
     }
 
     public function test_injected_collections_and_hourly_rates_keep_their_own_scope_and_representatives(): void

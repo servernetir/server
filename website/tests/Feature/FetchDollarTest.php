@@ -22,6 +22,7 @@ class FetchDollarTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['services.exchange.enabled' => true]);
         Http::preventStrayRequests();
         $this->mock(TldPriceBook::class)->shouldReceive('refreshAll')->byDefault()
             ->andReturn(['count' => 10, 'total' => 10, 'excluded' => 0]);
@@ -36,6 +37,17 @@ class FetchDollarTest extends TestCase
         }
 
         return $rows;
+    }
+
+    private function fakeFreshRates(): void
+    {
+        $payload = [];
+        foreach ($this->rates() as $currency => $row) {
+            $payload[ExchangeRate::SOURCE_ITEMS[$currency]] = [
+                'value' => $row['rate_toman'], 'date' => now()->timestamp, 'unit' => 'IRT',
+            ];
+        }
+        Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($payload)]);
     }
 
     public function test_success_refreshes_all_four_currencies_then_reprices_the_catalog(): void
@@ -54,16 +66,7 @@ class FetchDollarTest extends TestCase
             'is_active' => true, 'in_stock' => true,
         ]);
         $this->assertSame(1000000, \App\Services\Cloud\CloudCountry::served()['DE']['cheapest_irt']);
-        $rows = $this->rates();
-        $this->partialMock(ExchangeRate::class, function ($mock) use ($rows) {
-            $mock->shouldReceive('refreshAll')->once()->andReturnUsing(function () use ($rows) {
-                foreach ($rows as $currency => $row) {
-                    Setting::put('fx_last_'.strtolower($currency), json_encode($row, JSON_THROW_ON_ERROR));
-                }
-                Cache::put('fx.navasan.rates', $rows, now()->addHours(6));
-                return $rows;
-            });
-        });
+        $this->fakeFreshRates();
         Cache::put('page:gen', 10);
 
         $this->artisan('fx:dollar')
@@ -73,7 +76,7 @@ class FetchDollarTest extends TestCase
         $this->assertSame(1650000, (int) $plan->fresh()->price_irt);
         $this->assertSame(1650000, \App\Services\Cloud\CloudCountry::served()['DE']['cheapest_irt']);
         $this->assertGreaterThan(10, Cache::get('page:gen'));
-        Http::assertNothingSent();
+        Http::assertSentCount(1);
     }
 
     public function test_show_reads_all_four_cached_rates_without_refreshing_or_repricing(): void
@@ -81,7 +84,7 @@ class FetchDollarTest extends TestCase
         foreach ($this->rates() as $currency => $row) {
             Cache::put('fx.'.strtolower($currency).'_irt', $row, now()->addHour());
         }
-        $this->mock(CloudCatalogSync::class)->shouldNotReceive('reprice');
+        $this->mock(CloudCatalogSync::class)->shouldNotReceive('prepareReprice');
         $this->mock(TldPriceBook::class)->shouldNotReceive('refreshAll');
 
         $this->artisan('fx:dollar --show')
@@ -104,7 +107,7 @@ class FetchDollarTest extends TestCase
     public function test_failed_batch_does_not_reprice_or_purge_previous_prices(): void
     {
         $this->mock(ExchangeRate::class)->shouldReceive('refreshAll')->once()->andReturnNull();
-        $this->mock(CloudCatalogSync::class)->shouldNotReceive('reprice');
+        $this->mock(CloudCatalogSync::class)->shouldNotReceive('prepareReprice');
         $this->mock(TldPriceBook::class)->shouldNotReceive('refreshAll');
         Cache::put('page:gen', 10);
 
@@ -114,25 +117,41 @@ class FetchDollarTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_repricing_failure_is_reported_as_failure(): void
+    public function test_repricing_failure_preserves_the_old_fx_and_does_not_refresh_domains(): void
     {
-        $this->mock(ExchangeRate::class)->shouldReceive('refreshAll')->once()->andReturn($this->rates());
-        $this->mock(CloudCatalogSync::class)->shouldReceive('reprice')->once()
+        $before = NavasanRates::store(['USD' => 92500, 'EUR' => 100000, 'USDT' => 94000, 'TRY' => 5000]);
+        $durable = Setting::query()->whereIn('key', ['fx_last_usd', 'fx_last_eur', 'fx_last_usdt', 'fx_last_try'])
+            ->orderBy('key')->pluck('value', 'key')->all();
+        $this->fakeFreshRates();
+        $this->mock(CloudCatalogSync::class)->shouldReceive('prepareReprice')->once()
             ->andThrow(new \RuntimeException('Synthetic repricing failure'));
-        $this->mock(TldPriceBook::class)->shouldReceive('refreshAll')->once()
-            ->andReturn(['count' => 10, 'total' => 10, 'excluded' => 0]);
+        $this->mock(TldPriceBook::class)->shouldNotReceive('refreshAll');
+        Cache::put('page:gen', 10);
 
         $this->artisan('fx:dollar')->assertFailed();
+
+        $this->assertSame($before, Cache::get('fx.navasan.rates'));
+        $this->assertSame($durable, Setting::query()->whereIn('key', array_keys($durable))
+            ->orderBy('key')->pluck('value', 'key')->all());
+        $this->assertSame(100000, app(ExchangeRate::class)->toToman('EUR'));
+        $this->assertSame(10, Cache::get('page:gen'));
+        Http::assertSentCount(1);
     }
 
-    public function test_incomplete_domain_prices_make_the_sync_fail(): void
+    public function test_incomplete_domain_prices_make_the_sync_fail_after_the_prepared_pair_is_applied(): void
     {
-        $this->mock(ExchangeRate::class)->shouldReceive('refreshAll')->once()->andReturn($this->rates());
-        $this->mock(CloudCatalogSync::class)->shouldReceive('reprice')->once()->andReturn(0);
+        $this->fakeFreshRates();
+        $applied = false;
+        $this->mock(CloudCatalogSync::class)->shouldReceive('prepareReprice')->once()
+            ->andReturn(function () use (&$applied): int { $applied = true; return 0; });
         $this->mock(TldPriceBook::class)->shouldReceive('refreshAll')->once()
             ->andThrow(new \RuntimeException('Openprovider catalogue pagination is incomplete.'));
 
         $this->artisan('fx:dollar')->assertFailed();
+
+        $this->assertTrue($applied);
+        $this->assertSame(110000, app(ExchangeRate::class)->toToman('EUR'));
+        Http::assertSentCount(1);
     }
 
     public function test_rates_and_product_sync_run_every_six_hours_with_overlap_protection(): void

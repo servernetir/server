@@ -192,4 +192,32 @@ class LightNodePublicPricingTest extends TestCase
             catch (\RuntimeException) { $this->addToAssertionCount(1); }
         }
     }
+    public function test_catalog_configuration_memo_stays_bounded_across_regions(): void
+    {
+        $this->fake();
+        $pricing = app(LightNodePublicPricing::class);
+        (new \ReflectionProperty($pricing, 'catalogSnapshot'))->setValue($pricing, true);
+        $configuration = new \ReflectionMethod($pricing, 'configuration');
+        $memo = new \ReflectionProperty($pricing, 'configurationMemo');
+        $path = '/api/site/sku/getBuyConfigInfo.do';
+
+        for ($i = 0; $i < 40; $i++) {
+            $rows = $configuration->invoke($pricing, $path,
+                ['region' => 'fixture-'.$i, 'resourceType' => 'LIGHTNODE_ECS']);
+            $this->assertNotEmpty($rows);
+            $this->assertLessThanOrEqual(4, count($memo->getValue($pricing)));
+        }
+        $reads = Http::recorded(fn ($r) => str_contains($r->url(), '/getBuyConfigInfo.do'))->count();
+        $this->assertSame(40, $reads);
+
+        // The current region stays in process memory. An older region can
+        // still be recovered from the existing shared cache without re-fetch.
+        foreach ([39, 0] as $region) {
+            $this->assertNotEmpty($configuration->invoke($pricing, $path,
+                ['region' => 'fixture-'.$region, 'resourceType' => 'LIGHTNODE_ECS']));
+        }
+        $this->assertCount(4, $memo->getValue($pricing));
+        $this->assertSame($reads, Http::recorded(fn ($r) => str_contains($r->url(), '/getBuyConfigInfo.do'))->count());
+    }
+
 }

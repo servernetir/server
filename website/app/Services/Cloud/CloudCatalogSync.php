@@ -514,6 +514,26 @@ class CloudCatalogSync
         return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performReprice());
     }
 
+    /** Return a short guarded writer; supplier reads happen before FX publication. */
+    public function prepareReprice(): \Closure
+    {
+        if (! Schema::hasTable('cloud_plans')) {
+            return static fn (): int => 0;
+        }
+        if ($this->pricing->eurToToman() <= 0) {
+            throw new \RuntimeException('A verified EUR rate is required for coordinated publication.');
+        }
+        $apply = (new CloudCatalogRepricer($this->manager, $this->pricing))->prepare();
+
+        return static function () use ($apply): int {
+            $count = $apply();
+            if ($count > 0) {
+                \App\Services\SiteMenu::forget();
+            }
+            return $count;
+        };
+    }
+
     private function performReprice(): int
     {
         if (! Schema::hasTable('cloud_plans')) {

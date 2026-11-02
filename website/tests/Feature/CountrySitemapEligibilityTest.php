@@ -79,6 +79,38 @@ class CountrySitemapEligibilityTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_metal_and_gpu_only_locations_are_not_vps_country_shelves(): void
+    {
+        $metal = $this->offer('fr-paris', 'FR');
+        $metal->update(['slug' => 'cbm-fr-paris']);
+        $gpu = $this->offer('us-gpu-pool', 'US');
+        $this->assertSame(2, CloudPlan::query()->sellable()->whereKey([$metal->id, $gpu->id])->count());
+
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+        foreach (['', '/en', '/tr'] as $prefix) {
+            foreach (['france', 'usa'] as $slug) {
+                $this->assertSame(0, substr_count($xml, '<loc>'.url($prefix.'/vps/'.$slug).'</loc>'));
+            }
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_a_raw_sellable_plan_without_a_positive_checkout_quote_is_not_advertised(): void
+    {
+        $plan = $this->offer('fr-paris', 'FR');
+        $this->assertTrue(CloudPlan::query()->sellable()->whereKey($plan->id)->exists());
+        $this->mock(\App\Services\Cloud\CloudPublicQuote::class)
+            ->shouldReceive('monthlyPrice')
+            ->withArgs(fn (CloudPlan $candidate) => $candidate->id === $plan->id)
+            ->andReturn(0);
+
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->assertSame(0, substr_count($xml, '<loc>'.url($prefix.'/vps/france').'</loc>'));
+        }
+        Http::assertNothingSent();
+    }
+
     private function offer(string $code, string $country): CloudPlan
     {
         CloudLocation::create(['code' => $code, 'country' => $country, 'city' => 'Fixture city', 'is_active' => true]);

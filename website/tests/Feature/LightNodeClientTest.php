@@ -10,15 +10,16 @@ use App\Models\CloudPlan;
 use App\Models\CloudProviderOperation;
 use App\Models\Setting;
 use App\Services\Cloud\CloudCatalogSync;
+use App\Services\Cloud\CloudPricingSnapshot;
 use App\Services\Cloud\CloudProvisioner;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\LightNodeClient;
 use App\Services\Cloud\LightNodePublicPricing;
-use App\Services\ExchangeRate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
+use Tests\Support\NavasanRates;
 
 class LightNodeClientTest extends TestCase
 {
@@ -80,8 +81,10 @@ class LightNodeClientTest extends TestCase
 
     private function manifest(array $changes = []): void
     {
-        Setting::put('pricing_rate_override', '100000');
-        $this->mock(ExchangeRate::class, fn ($m) => $m->shouldReceive('toToman')->with('USD')->andReturn(90000));
+        // Complete, dated synthetic procurement rates exercise the real FX
+        // reader and price guard. A USD-only mock hid the missing EUR input.
+        NavasanRates::store(['USD' => 90000, 'EUR' => 100000, 'USDT' => 90000, 'TRY' => 5000]);
+        app(CloudPricingSnapshot::class)->publish([90000, 100000, 90000]);
         Setting::put('lightnode_manifest', json_encode([
             'regions' => ['ph-test' => ['country' => 'PH', 'city' => 'Manila', 'location_code' => 'ph-manila']],
             'packages' => ['ph-test|ph-test-a|sample-package' => $changes + [
@@ -94,7 +97,13 @@ class LightNodeClientTest extends TestCase
     public function test_registered_after_existing_drivers_and_token_not_returned_to_customer(): void
     {
         $manager = app(CloudManager::class);
-        $this->assertSame('lightnode', array_key_last(CloudManager::DRIVERS));
+        $providers = array_keys(CloudManager::DRIVERS);
+        $this->assertContains('lightnode', $providers);
+        $this->assertContains('hetzner-robot', $providers);
+        $this->assertContains('vpstc', $providers);
+        $this->assertGreaterThan(array_search('hetzner-robot', $providers, true),
+            array_search('lightnode', $providers, true));
+        $this->assertSame(\App\Services\Cloud\VpsTcClient::class, CloudManager::DRIVERS['vpstc']);
         $this->assertInstanceOf(LightNodeClient::class, $manager->driver('lightnode'));
         $this->assertFalse($this->client()->isConfigured());
         $this->assertFalse($this->client()->testConnection()['ok']);
@@ -206,6 +215,7 @@ class LightNodeClientTest extends TestCase
         $this->assertTrue($sync->sync('lightnode')['ok']);
         $old = CloudPlan::where('provider', 'lightnode')->firstOrFail();
         $oldHour = $old->hourlyIrt();
+        $this->assertGreaterThan(0, $oldHour);
         Setting::put('pricing_fx_fee_pct_lightnode', '0');
         $this->assertTrue($sync->sync('lightnode')['ok']);
         $plan = $old->fresh();
@@ -523,9 +533,19 @@ class LightNodeClientTest extends TestCase
         }
         $p = new CloudPlan(['provider' => 'lightnode', 'provider_ref' => 'ph-test|ph-test-a|sample-package', 'provider_location' => 'ph-test|ph-test-a', 'arch' => 'x86', 'vcpu' => 2, 'disk_gb' => 50, 'ram_mb' => 4096]);
         $this->assertSame('ph-test|img', CloudImage::compatibleRefFor($p, 'windows-2022'));
-        $this->assertFalse($p->supportsHourly());
+        NavasanRates::store(['USD' => 90000, 'EUR' => 100000, 'USDT' => 90000, 'TRY' => 5000]);
+        app(CloudPricingSnapshot::class)->publish([90000, 100000, 90000]);
+        // Capability is independent of a usable price. Checkout still rejects
+        // an unpriced hour or an unfunded paid-standby requirement.
+        $this->assertTrue($p->supportsHourly());
+        $this->assertSame(0, $p->hourlyIrt());
+        $hold = app(\App\Services\Cloud\HourlyHold::class);
+        $this->assertFalse($hold->fundablePlan($p, $p->hourlyIrt()));
         $p->cost_hour_eur_micro = 19800;
         $this->assertTrue($p->supportsHourly());
+        $this->assertGreaterThan(0, $p->hourlyIrt());
+        $this->assertTrue($hold->fundablePlan($p, $p->hourlyIrt()));
+        config(['lightnode.sales_enabled' => false]);
         $this->assertContains('lightnode', CloudPlan::disabledProviders());
         $this->assertFalse($this->client()->capabilities()['console']);
         $this->assertFalse($this->client()->capabilities()['ssh_key']);
