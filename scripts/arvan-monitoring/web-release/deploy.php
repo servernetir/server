@@ -5,7 +5,7 @@ declare(strict_types=1);
 final class ReleaseRefusal extends RuntimeException {}
 const RELEASE_ROOT = '/home/servernetcloud/servernet_app';
 const RELEASE_PHP = '/opt/cpanel/ea-php84/root/usr/bin/php';
-const PATCHDATA_SHA256 = 'de827db9f7bdcf0b9ce7abca6b42e86e4379f68bdb4a3851cf1831b34a81880b';
+const PATCHDATA_SHA256 = '59d21b9b2b3d131d7cbcc51d1d20b16798ccfabb1c7459a807a3ee40ff5053ed';
 const RELEASE_PATHS = [
     'app/Services/Cloud/ArvanConsoleBroker.php', 'app/Models/CloudInstance.php',
     'lang/fa/ui.php', 'lang/en/ui.php', 'lang/tr/ui.php',
