@@ -8,8 +8,12 @@ return [
     'health_max_age_seconds' => 300,
     'quote_ttl_seconds' => 900,
     'fx_max_age_seconds' => 172800,
-    // Each production financial operation still needs an exact owner approval.
-    'require_operation_approval' => true,
+    // Pilot remains the default. Production is a separate, bounded release decision.
+    'authorization_mode' => env('DOMAIN_SUPPLIER_AUTHORIZATION_MODE', 'pilot'),
+    'production_account_ids' => array_values(array_filter(array_map('intval', explode(',',
+        (string) env('DOMAIN_SUPPLIER_PRODUCTION_ACCOUNT_IDS', ''))), fn ($id) => $id > 0)),
+    // JSON mapping of ISO currency to an integer landed-cost ceiling per operation.
+    'production_caps_minor' => json_decode((string) env('DOMAIN_SUPPLIER_PRODUCTION_CAPS_MINOR', '{}'), true) ?: [],
     'approver_user_ids' => array_values(array_filter(array_map('intval', explode(',',
         (string) env('DOMAIN_SUPPLIER_APPROVER_USER_IDS', ''))), fn ($id) => $id > 0)),
 ];

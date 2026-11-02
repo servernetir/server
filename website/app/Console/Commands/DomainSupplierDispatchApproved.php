@@ -20,17 +20,22 @@ class DomainSupplierDispatchApproved extends Command
             return self::SUCCESS;
         }
         $operations = DomainSupplierOperation::where('status', 'prepared')->whereNull('sent_at')
-            ->whereNotNull('approved_at')->whereColumn('approval_hash', 'request_hash')
+            ->where(function ($query) {
+                $query->where(fn ($approved) => $approved->whereNotNull('approved_at')->whereColumn('approval_hash', 'request_hash'));
+                if (config('domain_suppliers.authorization_mode') === 'production') {
+                    $query->orWhereIn('supplier_account_id', (array) config('domain_suppliers.production_account_ids', []));
+                }
+            })
             ->when($this->option('id'), fn ($query, $id) => $query->whereKey((int) $id))
             ->orderBy('id')->limit(max(1, min(100, (int) $this->option('limit'))))->get();
         $states = [];
         $approved = 0;
         foreach ($operations as $operation) {
-            if ((int) data_get($operation->request_context, 'approval.actor_id') <= 0) {
-                continue;
-            }
             $domain = Domain::find($operation->domain_id);
             if (! $domain) { continue; }
+            $account = \App\Models\DomainSupplierAccount::find($operation->supplier_account_id);
+            if ((int) data_get($operation->request_context, 'approval.actor_id') <= 0
+                && (! $account || ! app(\App\Services\Domain\DomainSaleAuthorization::class)->allows($operation, $domain, $account))) continue;
             $approved++;
             // execute checks current owner rights, exact hash, invoice settlement,
             // quote, account, and the durable one-send claim before any financial I/O.

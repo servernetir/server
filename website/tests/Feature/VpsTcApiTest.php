@@ -21,6 +21,16 @@ class VpsTcApiTest extends TestCase
         return new VpsTcApi('https://api.vps.tc', 'test-reseller', 'test-password');
     }
 
+    public function test_upstream_login_outage_is_not_reported_as_a_bad_password_or_retried_as_a_purchase(): void
+    {
+        Http::fake(['*/api/login' => Http::response('upstream timeout', 522)]);
+        $result = $this->api()->balance();
+        $this->assertFalse($result['ok']);
+        $this->assertSame('upstream_http_522', $result['code']);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => ! str_ends_with($request->url(), '/api/login'));
+    }
+
     public function test_purchased_resources_use_the_supported_get_route_with_bearer_only(): void
     {
         Http::fake([

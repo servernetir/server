@@ -775,3 +775,8 @@ Schedule::command('domains:supplier-reconcile --limit=25')->everyFiveMinutes()->
 
 // Sends only a persisted, exact owner-approved paid operation; feature remains off by default.
 Schedule::command('domains:supplier-dispatch-approved --limit=10')->everyMinute()->withoutOverlapping(5);
+// Infrastructure sales must be checked independently of supplier sync and digest cadence.
+Schedule::command('cloud:watch-sales')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping(2);

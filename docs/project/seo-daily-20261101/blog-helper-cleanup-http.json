@@ -1,0 +1,16 @@
+[
+  {
+    "host": "servernet.cloud",
+    "status": 404,
+    "location": "",
+    "helper_output": false,
+    "at_utc": "2026-11-01T06:58:12.3684382Z"
+  },
+  {
+    "host": "console.servernet.cloud",
+    "status": 301,
+    "location": "https://servernet.cloud/_seo_blog_authors_20261101/activate.php?qa=1",
+    "helper_output": false,
+    "at_utc": "2026-11-01T06:58:12.8960612Z"
+  }
+]

@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-01",
+  "target": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+  "result": "limited_no_reliable_top_of_page_lcp",
+  "source_base_sha": "891a92350a2e332b81373a1968a83092214c1884",
+  "field_context_supplied_by_parent": {"snapshot": "2026-10-30", "mobile_group_urls": 128, "group_lcp_seconds": 3.0, "not_remeasured_by_this_subtask": true},
+  "pagespeed": {"attempts": 1, "url": "https://pagespeed.web.dev/", "status": 403, "message": "Your client does not have permission to get URL / from this server.", "analysis_started": false, "retries": 0},
+  "browser_method": "Authorized Chrome1 own tabs; documented CDP, buffered PerformanceObserver plus Navigation/ResourceTiming. Not Lighthouse, CrUX or a full Chrome trace.",
+  "conditions": {"width": 390, "height": 844, "device_scale_factor": 1, "cpu_slowdown": 4, "network_latency_ms": 150, "download_bytes_per_second": 200000, "upload_bytes_per_second": 75000, "browser_cache_disabled": true, "server_cache_fully_controlled": false, "user_agent": "Desktop Windows Chrome156 retained; responsive emulation, not a mobile UA", "anonymous_session_claimed": false},
+  "instrumentation_limit": "Pre-navigation Page.addScriptToEvaluateOnNewDocument is unsupported through this CDP capability. Buffered observers were installed on each measured document after navigation; a JavaScript expression parse error in the first sample was corrected on the same navigation without another request.",
+  "samples": [
+    {
+      "observed_at_utc": "2026-11-01T06:38:49.889Z",
+      "valid_initial_viewport_sample": false,
+      "reason": "Scroll position was not captured during measurement; cleanup observed scrollY2100 after restoring the viewport. Do not treat this as top-of-page LCP.",
+      "lcp_ms": 2148, "ttfb_ms": 709.7, "text_render_delay_after_ttfb_ms": 1438.3,
+      "fcp_ms": 1812, "cls_observed": 0, "document_width": 390,
+      "last_lcp_element": {"tag": "P", "public_text_prefix": "For each framework, plugin and theme, record its installed version", "image_resource": false, "font_family": "IRANSans, system-ui, Segoe UI, sans-serif", "font_size": "16.5px"},
+      "navigation_ms": {"response_end": 877.9, "dom_content_loaded_end": 2426.1, "load_end": 2868.2},
+      "server_timing_ms": {"app": 223, "cache": 0},
+      "critical_resources_ms": [
+        {"path": "/assets/css/site.min.css", "start": 816.2, "end": 1699.6, "duration": 883.4, "render_blocking": true, "encoded_bytes": 37659},
+        {"path": "/assets/font/woff2/IRANSans-web.woff2", "start": 814.2, "end": 1534.3, "duration": 720.1, "encoded_bytes": 32276},
+        {"path": "/assets/font/woff2/IRANSans-Bold-web.woff2", "start": 815.3, "end": 1669.6, "duration": 854.3, "encoded_bytes": 32096}
+      ],
+      "long_tasks": {"count": 5, "total_duration_ms": 512, "not_lighthouse_tbt": true}
+    },
+    {
+      "observed_at_utc": "2026-11-01T06:41:24.174Z",
+      "valid_initial_viewport_sample": false,
+      "before_reload": {"scroll_y": 0, "visual_page_top": 0, "width": 390, "height": 844, "verification": "DOM-grounded body Control+Home, then read-back"},
+      "after_settling": {"scroll_y": 6500, "visual_page_top": 6500, "width": 390, "height": 844, "scroll_restoration": "auto"},
+      "reason": "Scroll changed during the repeated navigation without an explicit subtask scroll action. Cause not established; do not attribute it to application code or use final LCP as initial viewport acceptance.",
+      "lcp_ms": 2428, "ttfb_ms": 607.6, "text_render_delay_after_ttfb_ms": 1820.4,
+      "fcp_ms": 1912, "cls_observed": 0, "document_width": 390,
+      "lcp_candidates": [
+        {"time_ms": 1912, "tag": "A", "class": "logo"},
+        {"time_ms": 2228, "tag": "H1", "class": "reveal", "text": "Upgrading your PHP version without breaking the site"},
+        {"time_ms": 2428, "tag": "P", "public_text_prefix": "Choose a suitable window and a short, explicit change list."}
+      ],
+      "font_family": "IRANSans, system-ui, Segoe UI, sans-serif",
+      "navigation_ms": {"response_end": 779.7, "dom_content_loaded_end": 2464.5, "load_end": 3079.5},
+      "html_bytes": {"encoded": 28490, "decoded": 143549, "transfer": 28790},
+      "server_timing_ms": {"app": 144, "cache": 0},
+      "critical_resources_ms": [
+        {"path": "/assets/css/site.min.css", "start": 733.5, "end": 1576.7, "duration": 843.2, "render_blocking": true, "encoded_bytes": 37659},
+        {"path": "/assets/font/woff2/IRANSans-web.woff2", "start": 732.1, "end": 1616.9, "duration": 884.8, "encoded_bytes": 32276},
+        {"path": "/assets/font/woff2/IRANSans-Bold-web.woff2", "start": 733.3, "end": 1617.3, "duration": 884.0, "encoded_bytes": 32096}
+      ],
+      "long_tasks": {"count": 9, "total_duration_ms": 937, "not_lighthouse_tbt": true}
+    }
+  ],
+  "browser_page_navigations": {"pagespeed_home": 1, "public_article_initial": 2, "public_article_reload": 2, "resource_requests_not_counted_as_page_navigations": true, "product_pages": 0},
+  "cleanup": {"cpu_rate_restored": 1, "network_throttle_removed": true, "cache_override_removed": true, "device_metrics_override_cleared": true, "touch_override_disabled": true, "owned_tabs_closed": 2, "parent_gsc_tabs_untouched": true},
+  "privacy": "No raw HTML, screenshot, cookie/header dump, account identity, private query value, credential or customer data retained. Only public article excerpts and public resource paths.",
+  "decision": "No source/CSS/font change justified from these samples. IRANSans preserved. GSC field issue remains open; isolate scroll behavior and capture a reliable top-of-page profile before choosing a render optimization. Do not claim current LCP fixed or stable below2.5s."
+}

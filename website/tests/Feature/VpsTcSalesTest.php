@@ -339,4 +339,42 @@ class VpsTcSalesTest extends TestCase
         $this->assertSame(fa_num(500).' گیگابایت ماهانه با سقف قطعی', $plan->trafficLabel('fa'));
         Http::assertNothingSent();
     }
+    public function test_repeated_offer_checks_validate_the_local_manifest_once_without_supplier_calls(): void
+    {
+        $this->manifest();
+        Setting::put('vpstc_sales_enabled', '1');
+        $this->mock(VpsTcCatalog::class, fn ($mock) => $mock->shouldReceive('manifest')
+            ->once()->andReturn(['products' => []]));
+
+        // The container normally creates a new gate for each row. The local
+        // validation budget must hold across those transient instances too.
+        for ($i = 0; $i < 200; $i++) {
+            $this->assertTrue(app(VpsTcSales::class)->enabled());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_request_memo_cannot_reuse_another_account_or_a_changed_manifest(): void
+    {
+        $this->manifest();
+        Setting::put('vpstc_sales_enabled', '1');
+        $raw = Setting::get('vpstc_catalog_manifest');
+        $this->assertTrue(app(VpsTcSales::class)->enabled());
+
+        Setting::putSecret('cloud_vpstc_password', 'rotated-fixture-secret');
+        $this->assertFalse(app(VpsTcSales::class)->enabled());
+        Setting::putSecret('cloud_vpstc_password', 'fixture-secret');
+        $this->assertTrue(app(VpsTcSales::class)->enabled());
+
+        Setting::put('vpstc_catalog_manifest', '{"products":[]}');
+        $this->assertFalse(app(VpsTcSales::class)->enabled());
+        Setting::put('vpstc_catalog_manifest', $raw);
+        $this->assertTrue(app(VpsTcSales::class)->enabled());
+
+        Setting::put('vpstc_sales_enabled', '0');
+        $this->assertFalse(app(VpsTcSales::class)->enabled());
+        Http::assertNothingSent();
+    }
+
 }

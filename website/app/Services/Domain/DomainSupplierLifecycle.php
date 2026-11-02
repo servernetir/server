@@ -27,6 +27,7 @@ use Illuminate\Validation\ValidationException;
 class DomainSupplierLifecycle
 {
     private const IN_FLIGHT = ['submitting', 'queued', 'unknown'];
+    private const BILLABLE = ['create', 'renew', 'transfer', 'restore'];
 
     public static function domainLockKey(string $fqdn): string
     {
@@ -249,6 +250,7 @@ class DomainSupplierLifecycle
             }
             $approval = (array) data_get($op->request_context, 'approval', []);
             if ($account->environment === 'production'
+                && ! app(DomainSaleAuthorization::class)->allows($op, $domain, $account)
                 && (! $this->isApprover((int) ($approval['actor_id'] ?? 0)) || ($approval['request_hash'] ?? null) !== $op->request_hash
                     || ! $op->approved_at || (int) $op->approved_by !== (int) ($approval['actor_id'] ?? 0) || $op->approval_hash !== $op->request_hash)) {
                 return $this->hold($domain, 'operation_approval_required');
@@ -278,7 +280,7 @@ class DomainSupplierLifecycle
                 return $this->failOperation($op, $domain, 'quote_missing');
             }
             $reserved = DomainSupplierOperation::where('supplier_account_id', $account->id)
-                ->whereKeyNot($op->id)->whereIn('status', self::IN_FLIGHT)->get()
+                ->whereKeyNot($op->id)->whereIn('operation', self::BILLABLE)->whereIn('status', self::IN_FLIGHT)->get()
                 ->sum(fn ($other) => (int) data_get($other->quote_snapshot, 'provider_debit_minor',
                     data_get($other->quote_snapshot, 'amount_minor', data_get($other->quote_snapshot, 'purchase_minor', 0))));
             $probe = $this->providers->forAccount($account)->probe();
@@ -317,7 +319,7 @@ class DomainSupplierLifecycle
                 }
                 $reservedNow = 0;
                 foreach (DomainSupplierOperation::where('supplier_account_id', $freshAccount->id)->whereKeyNot($fresh->id)
-                    ->whereIn('status', self::IN_FLIGHT)->orderBy('id')->lockForUpdate()->get() as $other) {
+                    ->whereIn('operation', self::BILLABLE)->whereIn('status', self::IN_FLIGHT)->orderBy('id')->lockForUpdate()->get() as $other) {
                     $amount = data_get($other->quote_snapshot, 'provider_debit_minor',
                         data_get($other->quote_snapshot, 'amount_minor', data_get($other->quote_snapshot, 'purchase_minor')));
                     if (! is_int($amount) || $amount < 1 || $reservedNow > PHP_INT_MAX - $amount) {
@@ -335,7 +337,8 @@ class DomainSupplierLifecycle
                     throw new DomainProcurementException('operation_snapshot_changed');
                 }
                 $approval = (array) data_get($fresh->request_context, 'approval', []);
-                if ($freshAccount->environment === 'production') {
+                if ($freshAccount->environment === 'production'
+                    && ! app(DomainSaleAuthorization::class)->allows($fresh, $freshDomain, $freshAccount)) {
                     User::whereKey((int) ($approval['actor_id'] ?? 0))->lockForUpdate()->first();
                     if (! $this->isApprover((int) ($approval['actor_id'] ?? 0)) || ! $fresh->approved_at
                         || (int) $fresh->approved_by !== (int) ($approval['actor_id'] ?? 0)
@@ -519,6 +522,9 @@ class DomainSupplierLifecycle
             }
         });
         if ($status === 'succeeded') {
+            if (in_array($op->operation, ['create', 'transfer'], true)) {
+                app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain->fresh());
+            }
             app(BusinessLedger::class)->recordDomainWholesale($domain, $op->operation === 'create' ? 'register' : $op->operation, intdiv($op->period_months, 12), Invoice::find($op->invoice_id));
         } elseif ($status === 'failed' || $status === 'unknown') {
             ErrorTracker::noteOnce('domain', 'Domain supplier operation requires administrator reconciliation.', 3600,
@@ -588,7 +594,9 @@ class DomainSupplierLifecycle
         };
         $invoice = Invoice::find($invoiceId);
         if (! $invoice || (int) $invoice->domain_id !== (int) $domain->id
-            || (int) $invoice->customer_id !== (int) $domain->customer_id || $invoice->kind !== 'domain'
+            || (int) $invoice->customer_id !== (int) $domain->customer_id
+            || ($invoice->kind !== 'domain' && (! $invoice->service_id
+                || ! \App\Models\Service::whereKey($invoice->service_id)->where('customer_id', $domain->customer_id)->exists()))
             || $invoice->status !== 'paid' || $invoice->total <= 0 || $invoice->paid < $invoice->total || $invoice->currency_code !== 'IRT') {
             throw ValidationException::withMessages(['domain' => 'payment_reconciliation_required']);
         }

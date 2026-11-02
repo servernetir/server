@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Schema;
  */
 class DomainProcurement
 {
+    /** One FX evidence row per currency throughout a comparison. */
+    private array $quoteRates = [];
     public function __construct(private DomainProviderFactory $providers, private ExchangeRate $fx) {}
 
     public function enabled(): bool
@@ -37,6 +39,7 @@ class DomainProcurement
         if (! $this->enabled()) {
             throw new DomainProcurementException('supplier_feature_disabled');
         }
+        $this->quoteRates = [];
         [$fqdn, $tld] = $this->request($fqdn, $operation, $months);
         $options = $this->options($options);
         if ($operation === 'transfer') {
@@ -94,6 +97,7 @@ class DomainProcurement
         if (! $this->enabled()) {
             throw new DomainProcurementException('supplier_feature_disabled');
         }
+        $this->quoteRates = [];
         [$fqdn, $tld] = $this->request($fqdn, 'transfer', $months);
         $options = $this->options($options);
         // A locally managed asset has a separate transfer authorization flow.
@@ -197,8 +201,41 @@ class DomainProcurement
         return $this->snapshot($quote) + ['revalidated' => $fresh, 'revalidated_at' => now()->toIso8601String()];
     }
 
+    /** Called while the unpaid invoice/domain are locked; never selects another account. */
+    public function refreshUnpaidSnapshot(Domain $domain, Invoice $invoice, string $operation, int $months): array
+    {
+        $old = (array) $invoice->supplier_quote;
+        $source = \App\Models\DomainQuote::find((int) ($old['quote_id'] ?? 0));
+        if (! $source || (int) $invoice->supplier_account_id !== (int) $domain->supplier_account_id
+            || (int) $source->supplier_account_id !== (int) $domain->supplier_account_id
+            || (int) $invoice->domain_id !== (int) $domain->id
+            || (int) $invoice->customer_id !== (int) $domain->customer_id
+            || ($source->customer_id !== null && (int) $source->customer_id !== (int) $domain->customer_id)
+            || strtolower($source->domain) !== strtolower((string) idn_to_ascii($domain->domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46))
+            || $source->operation !== $operation || (int) $source->period_months !== $months
+            || $old !== $this->snapshot($source)) {
+            throw new DomainProcurementException('supplier_quote_mismatch');
+        }
+        $quoted = $operation === 'transfer'
+            ? $this->quoteTransfer($domain->domain, $months, DomainSupplierAccount::findOrFail($domain->supplier_account_id),
+                (array) ($old['options'] ?? []), (int) $domain->customer_id, $domain)
+            : $this->quote($domain->domain, $operation, $months, (array) ($old['options'] ?? []), $domain);
+        $fresh = $this->snapshot($quoted);
+        foreach (['supplier_account_id', 'operation', 'period_months', 'options', 'premium',
+            'resulting_period_months', 'prior_expires_at', 'target_expires_at'] as $key) {
+            if (($old[$key] ?? null) !== ($fresh[$key] ?? null)) {
+                throw new DomainProcurementException('supplier_quote_changed');
+            }
+        }
+        if (! $quoted->claimFor((int) $domain->customer_id)) {
+            throw new DomainProcurementException('supplier_quote_mismatch');
+        }
+        return $fresh;
+    }
+
     private function validatedSnapshot(DomainQuote $quote, ?Domain $bound = null): array
     {
+        $this->quoteRates = [];
         if (! $this->enabled() || ! $quote->isHonourable()) {
             throw new DomainProcurementException('supplier_quote_expired');
         }
@@ -349,6 +386,11 @@ class DomainProcurement
     }
 
     private function rate(string $currency): array
+    {
+        return $this->quoteRates[$currency] ??= $this->readRate($currency);
+    }
+
+    private function readRate(string $currency): array
     {
         $money = Currency::find($currency);
         if (! $money || ! $money->is_active || $money->exponent < 0 || $money->exponent > 6) {

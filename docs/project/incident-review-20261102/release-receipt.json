@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "date_utc": "2026-11-02",
+  "repository": "servernetir/server",
+  "pull_request": 204,
+  "status": "scoped_runtime_installed_with_pending_writer_refinement",
+  "incident_code_commit": "a73d3c4c8fcbf88e204f1b6694cdc5e959ad4d7c",
+  "combined_develop_parent": "a0bd5e0713d7dda95aab2a358c33de1908b425b2",
+  "combined_validation_commit": "9dfa30843bffc235b6865cbc21d7b597207a2243",
+  "unique_runtime_destinations": 19,
+  "verification": "Operator observed exact after hashes, PHP lint and targeted OPcache activation for each installed release; private manifests are authoritative for deployed bytes.",
+  "installed_sources": [
+    {
+      "destination": "app/Services/Cloud/CloudSalesIncidentPolicy.php",
+      "source": "website/app/Services/Cloud/CloudSalesIncidentPolicy.php",
+      "installed_source_blob": "b98db9ea6b018418711a15d4035f44a3672f75da"
+    },
+    {
+      "destination": "app/Services/ExchangeRate.php",
+      "source": "website/app/Services/ExchangeRate.php",
+      "installed_source_blob": "d3a89c082d14042630e697782bf7b616571098d8"
+    },
+    {
+      "destination": "app/Services/Cloud/CloudCatalogRepricer.php",
+      "source": "website/app/Services/Cloud/CloudCatalogRepricer.php",
+      "installed_source_blob": "8ee28c45b55bd6b37b98cd9e105e02e6c1ae6315"
+    },
+    {
+      "destination": "app/Services/Cloud/CloudCatalogSync.php",
+      "source": "website/app/Services/Cloud/CloudCatalogSync.php",
+      "installed_source_blob": "e8d4c7a2e00174c1666f277ac2df65a74ed57713"
+    },
+    {
+      "destination": "app/Console/Commands/FetchDollar.php",
+      "source": "website/app/Console/Commands/FetchDollar.php",
+      "installed_source_blob": "ebd2a3d1ad47d91d7fb04a8c8d00f6aa9928ce30"
+    },
+    {
+      "destination": "app/Services/Cloud/VpsTcSales.php",
+      "source": "website/app/Services/Cloud/VpsTcSales.php",
+      "installed_source_blob": "e12978b47fc37a3916c1883d44f91afdd172623f"
+    },
+    {
+      "destination": "app/Services/Cloud/LightNodePublicPricing.php",
+      "source": "website/app/Services/Cloud/LightNodePublicPricing.php",
+      "installed_source_blob": "ca20071b03c7722ab7010afff076faf68a7ccf64"
+    },
+    {
+      "destination": "app/Console/Commands/WatchCloudSales.php",
+      "source": "website/app/Console/Commands/WatchCloudSales.php",
+      "installed_source_blob": "847d1d65883547c4645d786240292776e3672206"
+    },
+    {
+      "destination": "app/Console/Commands/SystemHealthCheck.php",
+      "source": "website/app/Console/Commands/SystemHealthCheck.php",
+      "installed_source_blob": "2fbd1af6c17df4373550ccecd5ba89b18fe7259a"
+    },
+    {
+      "destination": "app/Services/Finance/WalletRefundNotifications.php",
+      "source": "website/app/Services/Finance/WalletRefundNotifications.php",
+      "installed_source_blob": "68e9fe306e3819ecdbf5166ab8db751606e851f5"
+    },
+    {
+      "destination": "app/Http/Middleware/PageCache.php",
+      "source": "website/app/Http/Middleware/PageCache.php",
+      "installed_source_blob": "4772f86baf6d1fd9a4a68d0ab5b8c3911bf8422d"
+    },
+    {
+      "destination": "app/Http/Controllers/SiteController.php",
+      "source": "website/app/Http/Controllers/SiteController.php",
+      "installed_source_blob": "d14ee413c008a71561cda34afc80ae9e4dcf5c70"
+    },
+    {
+      "destination": "app/Services/Hermes/HermesSupportExperienceIndex.php",
+      "source": "website/app/Services/Hermes/HermesSupportExperienceIndex.php",
+      "installed_source_blob": "64d9e00384cb8bf6ef99c720e834c61af5356dcf"
+    },
+    {
+      "destination": "app/Services/Hermes/HermesSupportExperience.php",
+      "source": "website/app/Services/Hermes/HermesSupportExperience.php",
+      "installed_source_blob": "6fd74a0168913752ee7efee9a521a30c8284364e"
+    },
+    {
+      "destination": "app/Services/Hermes/HermesOperations.php",
+      "source": "infra/hermes/incident-reliability-20261102/HermesOperations.php",
+      "installed_source_blob": "bdc6c79b6d467e24c2a16a12621019b519b0531a"
+    },
+    {
+      "destination": "app/Services/Hermes/HermesSupportOwnerReview.php",
+      "source": "infra/hermes/bale-manager-20261031/HermesSupportOwnerReview.php",
+      "installed_source_blob": "101733ddc6a1617758a7439c74bea901675c20e6"
+    },
+    {
+      "destination": "app/Services/Hermes/HermesSupportDraftWriter.php",
+      "source": "infra/hermes/business-20261030/HermesSupportDraftWriter.php",
+      "installed_source_blob": "9924097680ca14068c7c26b1add86aa4432dc76e"
+    },
+    {
+      "destination": "app/Services/Hermes/HermesKnowledge.php",
+      "source": "infra/hermes/feed-resilience-20261102/HermesKnowledge.php",
+      "installed_source_blob": "6611a731c89ecde84e526cac77f74ecf1fd646d0"
+    },
+    {
+      "destination": "app/Console/Commands/HermesKnowledgeRefresh.php",
+      "source": "infra/hermes/feed-resilience-20261102/HermesKnowledgeRefresh.php",
+      "installed_source_blob": "635dad821b717aa4aa531ebd6554b40f05849d48"
+    }
+  ],
+  "pending_source": [
+    {
+      "destination": "app/Services/Hermes/HermesSupportDraftWriter.php",
+      "candidate_blob": "2c9f006c4663b73738084ca2fc2a21fc7f65952f",
+      "state": "Git/CI only; not installed or live model tested",
+      "reason": "Execution environment disconnected after previous scoped releases."
+    }
+  ],
+  "fx_canaries": [
+    {
+      "started_at": "2026-11-02T07:06:10Z",
+      "finished_at": "2026-11-02T07:14:18Z",
+      "exit": 0,
+      "snapshot_before": true,
+      "snapshot_after": true,
+      "memory_peak_bytes": 132644864
+    },
+    {
+      "started_at": "2026-11-02T07:43:52Z",
+      "finished_at": "2026-11-02T07:51:43Z",
+      "exit": 0,
+      "snapshot_before": true,
+      "snapshot_after": true,
+      "memory_limit": "128M",
+      "memory_peak_bytes": 132644864
+    },
+    {
+      "started_at": "2026-11-02T08:07:51Z",
+      "finished_at": "2026-11-02T08:15:12Z",
+      "exit": 0,
+      "snapshot_before": true,
+      "snapshot_after": true,
+      "memory_limit": "128M",
+      "memory_peak_bytes": 117964800
+    }
+  ],
+  "support_learning": {
+    "verified_at": "2026-11-02T07:16:27Z",
+    "tickets": 302,
+    "public_messages": 1231,
+    "eligible_human_exchanges": 527,
+    "departments": {
+      "billing": 26,
+      "sales": 18,
+      "technical": 258
+    },
+    "independent_database_counts_match": true,
+    "private_pages_verified": true,
+    "operations_summary_bytes": 1039,
+    "readback_matches": true,
+    "grants_permissions": false,
+    "model_weight_training": false
+  },
+  "knowledge": {
+    "verified_at": "2026-11-02T08:08:09Z",
+    "command_exit": 0,
+    "status": "degraded",
+    "verified_sources": [
+      "php",
+      "plesk",
+      "proxmox",
+      "cloudflare",
+      "n8n"
+    ],
+    "unavailable_sources": [
+      "cpanel"
+    ],
+    "tls_verification_disabled": false
+  },
+  "supplier_contract": {
+    "provider": "vpstc",
+    "reviewed_products": 16,
+    "reviewed_snapshots": 2,
+    "current_default_snapshots": 1,
+    "calculation_only_calls": 2,
+    "sample_product": "351",
+    "extra_second_snapshot_gross_base_units": "0.600",
+    "balance_unchanged": true,
+    "mapping_changed": false,
+    "new_sales_reopened": false
+  },
+  "cleanup": {
+    "disposable_database_deleted": true,
+    "disposable_database_user_deleted": true,
+    "qa_checkout_deleted": false,
+    "reason": "Host access disconnected; preserve/move private rollback tools before deleting checkout."
+  },
+  "external_remaining": [
+    "Production egress TLS to docs.cpanel.net returns unrelated self-signed certificate; exact root rule/termination remains unresolved.",
+    "VPS.TC new entitlement/cost contract requires commercial decision or supplier restoration.",
+    "Six legacy manual lifecycle cases and three retained resources need identity/obligation reconciliation; not deleted/charged."
+  ],
+  "no_production_actions": [
+    "customer reply delivery",
+    "supplier order/payment",
+    "customer resource deletion",
+    "schema migration",
+    "cron change",
+    "route/NAT/firewall/DNS change",
+    "VM restart",
+    "global cache flush"
+  ],
+  "ci": {
+    "validated_commit": "9dfa30843bffc235b6865cbc21d7b597207a2243",
+    "url": "https://github.com/servernetir/server/actions/runs/41414983246",
+    "sqlite": {
+      "tests": 278,
+      "assertions": 3396
+    },
+    "mariadb_11_4": {
+      "tests": 261,
+      "assertions": 3342
+    },
+    "hermes_sqlite": {
+      "tests": 59,
+      "assertions": 708
+    },
+    "pure_feed_checks": 42,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "explicit_exclusions": "17 existing SQLite-only asset fixtures and the deliberately SQLite-only Hermes suite are not counted as MariaDB tests."
+  }
+}

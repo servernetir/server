@@ -1,0 +1,547 @@
+{
+  "reviewed_at_utc": "2026-11-02T06:56:30.3960946Z",
+  "reviewer": "independent seo_routes_audit agent",
+  "verdict": "accepted_recorded_public_html_scope",
+  "release_applied_at_utc_parent_observed": "2026-11-02T06:49:08.764411+00:00",
+  "scope": "Offline independent before/after receipt comparison only. No additional network, browser, Git or application actions; only this artifact written.",
+  "receipts": [
+    {
+      "path": "docs\\project\\seo-search-growth-20261102\\release-public-before.json",
+      "sha256": "db7c4b7588d7960cee516e55ddd98cea8b722c28e0aabe8fdcf47aa6a8b6d3e0"
+    },
+    {
+      "path": "docs\\project\\seo-search-growth-20261102\\release-public-after.json",
+      "sha256": "3540dbb7e37a848853c6f569270e12ec884f952436c09954bbef7b42e6d730c6"
+    }
+  ],
+  "request_receipt_counts": {
+    "sitemaps_each": 1,
+    "additional_requests_by_reviewer": 0,
+    "after": 9,
+    "html_pages_each": 8,
+    "before": 9
+  },
+  "checks_passed": 46,
+  "checks_total": 46,
+  "checks": [
+    {
+      "check": "same9requestpaths",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "all_response_statuses200",
+      "passed": true,
+      "evidence": "9 before and9 after"
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/gpu",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/gpu",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/gpu",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/gpu",
+      "passed": true,
+      "evidence": {
+        "offers_before": 0,
+        "offers_after": 0,
+        "products_before": 0,
+        "services_after": 0
+      }
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/en/gpu",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/en/gpu",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/en/gpu",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/en/gpu",
+      "passed": true,
+      "evidence": {
+        "offers_before": 0,
+        "offers_after": 0,
+        "products_before": 0,
+        "services_after": 0
+      }
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/tr/gpu",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/tr/gpu",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/tr/gpu",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/tr/gpu",
+      "passed": true,
+      "evidence": {
+        "offers_before": 0,
+        "offers_after": 0,
+        "products_before": 0,
+        "services_after": 0
+      }
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/vps/philippines",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/vps/philippines",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/vps/philippines",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/vps/philippines",
+      "passed": true,
+      "evidence": {
+        "offers_before": 11,
+        "offers_after": 11,
+        "products_before": 11,
+        "services_after": 11
+      }
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/en/vps/philippines",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/en/vps/philippines",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/en/vps/philippines",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/en/vps/philippines",
+      "passed": true,
+      "evidence": {
+        "offers_before": 11,
+        "offers_after": 11,
+        "products_before": 11,
+        "services_after": 11
+      }
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/tr/vps/philippines",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/tr/vps/philippines",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/tr/vps/philippines",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/tr/vps/philippines",
+      "passed": true,
+      "evidence": {
+        "offers_before": 11,
+        "offers_after": 11,
+        "products_before": 11,
+        "services_after": 11
+      }
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/vps/sweden",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/vps/sweden",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/vps/sweden",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/vps/sweden",
+      "passed": true,
+      "evidence": {
+        "offers_before": 0,
+        "offers_after": 0,
+        "products_before": 0,
+        "services_after": 0
+      }
+    },
+    {
+      "check": "recorded_metadata_forms_parity:/vps/austria",
+      "passed": true,
+      "evidence": {
+        "different": [],
+        "compared": [
+          "final_url",
+          "h1",
+          "robots",
+          "canonical",
+          "hreflang",
+          "forms",
+          "input_names",
+          "analytics_loader_present"
+        ]
+      }
+    },
+    {
+      "check": "oneH1_noduplicateIDs:/vps/austria",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "analytics_loader_presence:/vps/austria",
+      "passed": true,
+      "evidence": "HTML loader only"
+    },
+    {
+      "check": "only_expected_schema_type_change:/vps/austria",
+      "passed": true,
+      "evidence": {
+        "offers_before": 12,
+        "offers_after": 12,
+        "products_before": 12,
+        "services_after": 12
+      }
+    },
+    {
+      "check": "gpu_guide_and_links:/gpu",
+      "passed": true,
+      "evidence": "Guide marker plus5 expected link-presence flags"
+    },
+    {
+      "check": "philippines_Service_Offer_counts:/vps/philippines",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "gpu_guide_and_links:/en/gpu",
+      "passed": true,
+      "evidence": "Guide marker plus5 expected link-presence flags"
+    },
+    {
+      "check": "philippines_Service_Offer_counts:/en/vps/philippines",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "gpu_guide_and_links:/tr/gpu",
+      "passed": true,
+      "evidence": "Guide marker plus5 expected link-presence flags"
+    },
+    {
+      "check": "philippines_Service_Offer_counts:/tr/vps/philippines",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "Sweden_removed_all3locales",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "retained_all3locales:austria",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "retained_all3locales:iran",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "retained_all3locales:philippines",
+      "passed": true,
+      "evidence": null
+    },
+    {
+      "check": "sitemap_urls_unique",
+      "passed": true,
+      "evidence": {
+        "before": 5460,
+        "after": 5454
+      }
+    },
+    {
+      "check": "Sweden_noindex_preserved",
+      "passed": true,
+      "evidence": null
+    }
+  ],
+  "page_comparisons": [
+    {
+      "path": "/gpu",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    },
+    {
+      "path": "/en/gpu",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    },
+    {
+      "path": "/tr/gpu",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    },
+    {
+      "path": "/vps/philippines",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    },
+    {
+      "path": "/en/vps/philippines",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    },
+    {
+      "path": "/tr/vps/philippines",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    },
+    {
+      "path": "/vps/sweden",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    },
+    {
+      "path": "/vps/austria",
+      "status": 200,
+      "recorded_metadata_parity": true,
+      "form_input_loader_parity": true,
+      "h1_count": 1,
+      "duplicate_id_count": 0
+    }
+  ],
+  "gpu_guides": [
+    {
+      "path": "/gpu",
+      "guide_before": false,
+      "guide_after": true,
+      "all5_expected_link_flags": true
+    },
+    {
+      "path": "/en/gpu",
+      "guide_before": false,
+      "guide_after": true,
+      "all5_expected_link_flags": true
+    },
+    {
+      "path": "/tr/gpu",
+      "guide_before": false,
+      "guide_after": true,
+      "all5_expected_link_flags": true
+    }
+  ],
+  "philippines_schema": [
+    {
+      "path": "/vps/philippines",
+      "products_before": 11,
+      "services_after": 11,
+      "products_after": 0,
+      "offers_before": 11,
+      "offers_after": 11
+    },
+    {
+      "path": "/en/vps/philippines",
+      "products_before": 11,
+      "services_after": 11,
+      "products_after": 0,
+      "offers_before": 11,
+      "offers_after": 11
+    },
+    {
+      "path": "/tr/vps/philippines",
+      "products_before": 11,
+      "services_after": 11,
+      "products_after": 0,
+      "offers_before": 11,
+      "offers_after": 11
+    }
+  ],
+  "sitemap": {
+    "attribution": "The receipt specifically proves3Sweden URLs removed. It does not attribute the other3 of the6net URL reduction.",
+    "net_change": -6,
+    "country_membership_after": {
+      "sweden": [
+        false,
+        false,
+        false
+      ],
+      "austria": [
+        true,
+        true,
+        true
+      ],
+      "iran": [
+        true,
+        true,
+        true
+      ],
+      "philippines": [
+        true,
+        true,
+        true
+      ]
+    },
+    "before_url_count": 5460,
+    "after_url_count": 5454
+  },
+  "findings": [],
+  "limitations": [
+    "Recorded metadata comparison covers final URL, H1 count, robots, canonical and hreflang. Receipts do not capture title text, meta-description text or H1 text.",
+    "Form actions/methods and ordered input-name arrays match; input values, selected states, CSRF values and live Offer amounts are not recorded. No quote/price-value equality is inferred.",
+    "Only returned HTML markers/counts were compared. Browser visual/font loading, Google recrawl/indexing and Merchant validation completion are not established.",
+    "Analytics loader presence does not prove event delivery, attribution, GA4 revenue or real-purchase acceptance.",
+    "No real purchase, paid provider call, LCP/TBT/INP/CLS measurement or stable mobile-speed proof.",
+    "Response cache fields are null; BYPASS/cache state is not inferred.",
+    "Single-response timings were not used as a performance verdict."
+  ]
+}

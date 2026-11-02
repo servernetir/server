@@ -157,6 +157,16 @@
   .gpu-note b{display:block;font-size:14.5px;margin:0 0 7px}
   .gpu-note p{margin:0;color:var(--muted);font-size:13.5px;line-height:2}
   .gpu-note .icon{width:19px;height:19px;color:var(--cyan);margin:0 0 9px}
+  .gpu-decision{margin-top:44px;scroll-margin-top:calc(var(--header-h) + 20px)}
+  .gpu-decision > h2{font-size:20px;margin:0 0 20px}
+  .gpu-decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .gpu-decision-card{padding:20px;border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow-wrap:anywhere}
+  .gpu-decision-card h3{font-size:15px;line-height:1.8;margin:0 0 10px}
+  .gpu-decision-card p{font-size:13.5px;line-height:2;color:var(--muted);margin:0 0 12px}
+  .gpu-decision-links{display:flex;flex-wrap:wrap;gap:10px 16px}
+  .gpu-decision-links a{font-size:13px;line-height:1.9;color:var(--cyan);text-decoration:underline;text-underline-offset:4px}
+  .gpu-decision-links a:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+  @media(max-width:900px){.gpu-decision-grid{grid-template-columns:1fr}}
   .gpu-cards{max-height:640px;overflow:auto;overscroll-behavior:contain}
   .gpu-app-options{display:grid;gap:9px;margin:14px 0 20px}
   .gpu-app-option{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer}
@@ -321,6 +331,87 @@
         <div class="gpu-app" data-art="jupyter"><div class="gpu-app-visual">@include('partials.gpu-app-art', ['art'=>'jupyter'])</div><span class="gpu-app-tag">03 / NOTEBOOKS</span><b>Jupyter <small>PyTorch</small></b><p>{{ ($jupyterSalesPaused ?? false) ? __('ui.gpu_jupyter_sales_paused') : __('gpu.app_nb_details') }}</p></div>
       </div>
     </div>
+
+    @php
+      $gpuDecision = lc([
+        'fa' => [
+          'title' => 'پیش از اجاره GPU، نیاز پروژه را مشخص کنید',
+          'memory_title' => 'RAM سیستم با VRAM کارت متفاوت است',
+          'memory_text' => 'RAM درج‌شده در مشخصات، حافظهٔ سیستم است و مقدار VRAM را نشان نمی‌دهد. نیاز حافظهٔ مدل را جدا بررسی کنید؛ اگر VRAM کارت مشخص نیست، پیش از سفارش نام مدل و نوع کارتان را برای پشتیبانی بفرستید.',
+          'work_title' => 'مدل، هم‌زمانی و برنامه را با هم بسنجید',
+          'work_text' => 'آموزش و اجرای مدل نیاز یکسانی ندارند. دقت عددی، طول کانتکست، اندازهٔ batch و تعداد درخواست‌های هم‌زمان روی حافظه اثر دارند؛ در تولید تصویر، ابعاد خروجی هم مهم است. فقط ترکیب کارت و برنامهٔ قابل انتخاب در پیکربند را مبنا بگیرید.',
+          'save_text' => 'برای کار طولانی، checkpoint و خروجی‌های مهم را بیرون از دیسک موقت نگه دارید و بازیابی یک نمونه را بررسی کنید.',
+          'route_title' => 'API آماده می‌خواهید یا محیط پردازش؟',
+          'route_text' => 'اگر فقط مدل را از نرم‌افزار خودتان فراخوانی می‌کنید، مدل‌ها و مستندات AI Gateway را مقایسه کنید. برای نوت‌بوک و آزمایش مدل، برنامهٔ سازگار GPU را بررسی کنید؛ برای کنترل سیستم‌عامل و پورت‌ها، VPS گزینهٔ دیگری است.',
+          'models_link' => 'مقایسهٔ API مدل‌های هوش مصنوعی',
+          'docs_link' => 'مستندات اتصال به AI Gateway',
+          'vps_link' => 'سرور مجازی ساعتی',
+          'jupyter_link' => 'راهنمای Jupyter و checkpoint',
+          'comfyui_link' => 'راهنمای ComfyUI و ذخیرهٔ خروجی',
+        ],
+        'en' => [
+          'title' => 'Define your workload before renting a GPU',
+          'memory_title' => 'System RAM and GPU VRAM are different',
+          'memory_text' => 'The RAM in the specifications is system memory, not the card’s VRAM. Check your model’s memory requirements separately. If GPU memory is not specified, send support your model name and workload before ordering.',
+          'work_title' => 'Consider the model, concurrency and app together',
+          'work_text' => 'Training and inference have different requirements. Numeric precision, context length, batch size and concurrent requests affect memory; image dimensions matter for image generation too. Use only card and app combinations available in the configurator.',
+          'save_text' => 'For long jobs, keep checkpoints and important outputs outside the temporary disk and verify a sample restore.',
+          'route_title' => 'Do you need a hosted API or a compute environment?',
+          'route_text' => 'If you only call a model from your software, compare the AI Gateway models and integration docs. For notebooks and model experiments, assess a compatible GPU app; for OS and port control, consider a VPS.',
+          'models_link' => 'Compare AI model APIs',
+          'docs_link' => 'AI Gateway integration docs',
+          'vps_link' => 'Hourly cloud VPS',
+          'jupyter_link' => 'Jupyter and checkpoint guide',
+          'comfyui_link' => 'ComfyUI and output saving guide',
+        ],
+        'tr' => [
+          'title' => 'GPU kiralamadan önce iş yükünüzü belirleyin',
+          'memory_title' => 'Sistem RAM’i ile GPU VRAM’i farklıdır',
+          'memory_text' => 'Özelliklerdeki RAM, sistem belleğidir; kartın VRAM miktarını göstermez. Modelinizin bellek ihtiyacını ayrıca inceleyin. GPU belleği belirtilmemişse siparişten önce model adını ve iş yükünü desteğe iletin.',
+          'work_title' => 'Modeli, eşzamanlılığı ve uygulamayı birlikte değerlendirin',
+          'work_text' => 'Eğitim ve çıkarımın gereksinimleri farklıdır. Sayısal hassasiyet, bağlam uzunluğu, batch boyutu ve eşzamanlı istekler bellek kullanımını etkiler; görsel üretiminde çıktı boyutları da önemlidir. Yalnızca yapılandırıcıda seçilebilen kart ve uygulama birleşimlerini esas alın.',
+          'save_text' => 'Uzun işler için checkpoint ve önemli çıktıları geçici disk dışında saklayın ve örnek bir geri yüklemeyi doğrulayın.',
+          'route_title' => 'Hazır API mi, işlem ortamı mı gerekiyor?',
+          'route_text' => 'Yazılımınızdan yalnızca model çağıracaksanız AI Gateway modellerini ve bağlantı belgelerini karşılaştırın. Notebook ve model denemeleri için uyumlu GPU uygulamasını, işletim sistemi ve port kontrolü için VPS’yi değerlendirin.',
+          'models_link' => 'Yapay zekâ modeli API’lerini karşılaştırın',
+          'docs_link' => 'AI Gateway bağlantı belgeleri',
+          'vps_link' => 'Saatlik bulut VPS',
+          'jupyter_link' => 'Jupyter ve checkpoint rehberi',
+          'comfyui_link' => 'ComfyUI ve çıktı kaydetme rehberi',
+        ],
+      ]);
+      $gpuDecisionPosts = collect(app(\App\Services\BlogRepository::class)->index())->keyBy('slug');
+    @endphp
+    <section class="gpu-decision" id="gpu-decision-guide" aria-labelledby="gpu-decision-title">
+      <h2 id="gpu-decision-title">{{ $gpuDecision['title'] }}</h2>
+      <div class="gpu-decision-grid">
+        <article class="gpu-decision-card">
+          <h3>{{ $gpuDecision['memory_title'] }}</h3>
+          <p>{{ $gpuDecision['memory_text'] }}</p>
+        </article>
+        <article class="gpu-decision-card">
+          <h3>{{ $gpuDecision['work_title'] }}</h3>
+          <p>{{ $gpuDecision['work_text'] }}</p>
+          <p>{{ $gpuDecision['save_text'] }}</p>
+          <div class="gpu-decision-links">
+            @foreach(['jupyter-hourly-gpu-guide' => 'jupyter_link', 'comfyui-hourly-gpu-guide' => 'comfyui_link'] as $guideSlug => $guideLabel)
+              @if(($gpuDecisionPosts[$guideSlug] ?? null) && empty($gpuDecisionPosts[$guideSlug]['untranslated']))
+                <a href="{{ lroute('blog', $guideSlug) }}">{{ $gpuDecision[$guideLabel] }}</a>
+              @endif
+            @endforeach
+          </div>
+        </article>
+        <article class="gpu-decision-card">
+          <h3>{{ $gpuDecision['route_title'] }}</h3>
+          <p>{{ $gpuDecision['route_text'] }}</p>
+          <div class="gpu-decision-links">
+            <a href="{{ lroute('ai.models') }}">{{ $gpuDecision['models_link'] }}</a>
+            <a href="{{ lroute('ai.docs') }}">{{ $gpuDecision['docs_link'] }}</a>
+            <a href="{{ lroute('vps.hourly') }}">{{ $gpuDecision['vps_link'] }}</a>
+          </div>
+        </article>
+      </div>
+    </section>
 
     <div class="gpu-notes">
       <div class="gpu-note">

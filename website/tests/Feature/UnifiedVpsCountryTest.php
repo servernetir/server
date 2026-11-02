@@ -137,4 +137,41 @@ class UnifiedVpsCountryTest extends TestCase
         $this->assertStringContainsString('billing_mode=hourly', $east['hourly_url']);
         $res->assertSee('EAST')->assertSee('TOKYO')->assertSee('data-vps-billing', false);
     }
+
+    public function test_sitemap_omits_empty_noindex_country_pages_in_every_language(): void
+    {
+        $this->offer('us-new-york', 'US', 'EAST');
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->assertStringNotContainsString('<loc>'.url($prefix.'/vps/iran').'</loc>', $xml);
+            $this->assertStringNotContainsString('<loc>'.url($prefix.'/vps/france').'</loc>', $xml);
+            $this->get($prefix.'/vps/france')->assertOk()
+                ->assertSee('<meta name="robots" content="noindex,follow">', false);
+        }
+    }
+
+    public function test_sitemap_does_not_treat_a_bare_metal_offer_as_a_vps_country(): void
+    {
+        $plan = $this->offer('fr-paris', 'FR', 'METAL');
+        $plan->update(['slug' => 'cbm-fr-paris']);
+        $this->assertTrue(CloudPlan::query()->sellable()->whereKey($plan->id)->exists());
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->assertStringNotContainsString('<loc>'.url($prefix.'/vps/france').'</loc>', $xml);
+        }
+    }
+
+    public function test_country_returns_to_sitemap_when_a_usable_vps_offer_returns(): void
+    {
+        $plan = $this->offer('fr-paris', 'FR', 'RECOVERED', 0);
+        $this->assertStringNotContainsString('/vps/france</loc>', $this->get('/sitemap.xml')->assertOk()->getContent());
+        $plan->update(['price_irt' => 810000]);
+        $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->assertSame(1, substr_count($xml, '<loc>'.url($prefix.'/vps/france').'</loc>'));
+            $this->get($prefix.'/vps/france')->assertOk()
+                ->assertDontSee('<meta name="robots" content="noindex,follow">', false);
+        }
+    }
+
 }

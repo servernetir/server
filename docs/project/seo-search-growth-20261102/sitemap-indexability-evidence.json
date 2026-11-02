@@ -1,0 +1,109 @@
+{
+  "observed_at_utc": "2026-11-02T05:56:14.9870655Z",
+  "source_base": "d3be9c422fa37f77a48aca05065421d56108dec4",
+  "scope": "Public sitemap/indexability sample and checkout source inspection only; no eligibility changes or provider failure diagnosis.",
+  "main_sitemap_response_sha256": "229627bf148767fc184003a1bb438d04b4611e7101189e165d143db2812bb08b",
+  "main_sitemap_unique_count": 5460,
+  "robots_rules_same_as_nov1": true,
+  "source_files": [
+    {
+      "path": "website/app/Http/Controllers/SiteController.php",
+      "sha256": "0ead3ee69923c34fb9d861e7793e0ae35ede57b4c74231d2c72d263e30e17b81"
+    },
+    {
+      "path": "website/app/Http/Controllers/CountryVpsController.php",
+      "sha256": "c89ee3e6e502b845fb897cb7b7895d0a35e528a5f76c3b4fc84db12de9c7dfeb"
+    },
+    {
+      "path": "website/app/Services/Cloud/PublicVpsCatalog.php",
+      "sha256": "0b6bf94e5a383602450d3a570c79c4ab290024a686c229ae490e1c74c2fa4c8d"
+    },
+    {
+      "path": "website/resources/views/pages/vps-country.blade.php",
+      "sha256": "b7744ed6a5b8bd387d2791c6161a1edbdcaca79c0bb90c4cceea30a9ac8df2e9"
+    }
+  ],
+  "page_evidence": [
+    {
+      "url": "https://servernet.cloud/vps/iran",
+      "status": 200,
+      "cache": "BYPASS",
+      "in_main_sitemap": true,
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "canonical": [],
+      "hreflang": [],
+      "no_country_offers_copy_present": true,
+      "response_sha256": "dfc5dea41ba85ccd8efdc1bcb0b7aef5367e6cf3c39b9a61fcea4482466c3f5a",
+      "main_sha256": "8dbe73aca7dbc5155a65266709addd43475bc98dd9349c4c6bafdab523027da2"
+    },
+    {
+      "url": "https://servernet.cloud/vps/uae",
+      "status": 200,
+      "cache": "BYPASS",
+      "in_main_sitemap": false,
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "canonical": [],
+      "hreflang": [],
+      "no_country_offers_copy_present": true,
+      "response_sha256": "a77e9053e95758716baa2ae198a4753415e960f5e992c8cc8aacd0921e8490f0",
+      "main_sha256": "c79017bb54bfa218d06f219b142b768e35b23b9212a2778d46ada3db5267b90e"
+    },
+    {
+      "url": "https://servernet.cloud/vps/sweden",
+      "status": 200,
+      "cache": "BYPASS",
+      "in_main_sitemap": true,
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "canonical": [],
+      "hreflang": [],
+      "no_country_offers_copy_present": true,
+      "response_sha256": "4484f462b4b6daac5ff840090672fc16c0def8ed6047ca2e89b58adc05c9c637",
+      "main_sha256": "3ce538eeb4ab95b088c5ccbe398172b984eb57ec673c7650264ecadeea779bd6"
+    },
+    {
+      "url": "https://servernet.cloud/vps/austria",
+      "status": 200,
+      "cache": "BYPASS",
+      "in_main_sitemap": true,
+      "robots_meta": [],
+      "canonical": [
+        "https://servernet.cloud/vps/austria"
+      ],
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/vps/austria"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/vps/austria"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/vps/austria"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/vps/austria"
+        }
+      ],
+      "no_country_offers_copy_present": false,
+      "response_sha256": "9a26bb194e50a0b5595e9e4ff20cfe56d5e8f0e0f4c741227d0a1c9ce0dcd6a1",
+      "main_sha256": "a1feb757a65e3870adca200cd5917c00b770149c94660fd0f035f0613ece0076"
+    }
+  ],
+  "source_reason": "SiteController dynamic sellable-country loop463–481 is followed by generic config-catalog loop571–575, which re-adds every legacy country slug. CountryVpsController passes current public rows; vps-country.blade.php4–5 noindexes an empty public row set.",
+  "cautions": [
+    "Austria is indexable with offers and must remain eligible for sitemap; not every legacy slug is stale.",
+    "Iran public emptiness may follow deployed IranSalesVisibility policy. The inspected checkout contains a class_exists guard but not that runtime class; this observation does not establish stock/provider/pricing failure.",
+    "UAE empty-country noindex and absence from XML are consistent with the current policy.",
+    "All3localized XML entries for Sweden/Iran were observed; only the FA response for each was fetched.",
+    "A sitemap fix should share canonical eligibility rules and preserve geo/sales guards; avoid a user-dependent or one-sample country blacklist."
+  ]
+}

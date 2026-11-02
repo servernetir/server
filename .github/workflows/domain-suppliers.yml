@@ -4,6 +4,8 @@ on:
   pull_request:
     branches: [develop]
     paths:
+      - 'website/app/Http/Controllers/Account/BuilderCheckoutController.php'
+      - 'website/app/Http/Controllers/Account/PaymentController.php'
       - 'website/app/Services/Domain/**'
       - 'website/app/Services/Finance/BusinessLedger.php'
       - 'website/app/Models/Domain*'
@@ -81,7 +83,7 @@ jobs:
       - name: Checkout immutable develop baseline
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: 891a92350a2e332b81373a1968a83092214c1884
+          ref: d5ea19b52774207cfad756eaeedd1b2af6eee860
           path: baseline
           persist-credentials: false
       - name: Set up PHP 8.4
@@ -136,6 +138,7 @@ jobs:
         run: |
           set -euo pipefail
           cases=(
+            tests/Feature/BuilderPurchaseTest.php
             tests/Feature/DomainRegistrarTest.php
             tests/Feature/DomainRegisterTruthTest.php
             tests/Feature/DomainInvoiceSafetyTest.php

@@ -147,6 +147,55 @@ class PartnerFundingFlowTest extends TestCase
         }
     }
 
+    private function closedTryAdvance(): array
+    {
+        $bank = $this->bank();
+        $partner = $this->account('partner', 'TRY');
+        $advance = $this->journal()->post($this->advancePayload($bank, $partner, 1000, '2026-10-05',
+            ['original_minor' => 10000]), 1);
+        $consumption = $this->postVoucher($partner, ['occurred_at' => '2026-10-06',
+            'amount_irt' => 1000, 'original_minor' => 10000, 'settlement_minor' => 10000,
+            'funding_mode' => 'advance', 'related_voucher_id' => $advance->id]);
+
+        return compact('bank', 'partner', 'advance', 'consumption');
+    }
+
+    private function assertPersonalRetryAfterClosedAdvance(bool $legacyHash): void
+    {
+        $bank = $this->bank(6000);
+        $partner = $this->account('partner', 'TRY');
+        $payload = $this->data($partner, ['occurred_at' => '2026-10-02',
+            'amount_irt' => 2000, 'original_minor' => 5000, 'settlement_minor' => 5000]);
+        if ($legacyHash) {
+            unset($payload['funding_mode'], $payload['related_voucher_id']);
+        }
+        $original = $this->journal()->post($payload, 1);
+        if ($legacyHash) {
+            $original->update(['payload_hash' => hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR))]);
+        }
+        $this->postVoucher($bank, ['type' => 'partner_repayment', 'occurred_at' => '2026-10-03',
+            'target_account_id' => $partner->id, 'amount_irt' => 2000,
+            'original_minor' => 5000, 'settlement_minor' => 20000]);
+        $advance = $this->journal()->post($this->advancePayload($bank, $partner, 1000, '2026-10-05',
+            ['original_minor' => 10000]), 1);
+        $this->postVoucher($partner, ['occurred_at' => '2026-10-06',
+            'amount_irt' => 1000, 'original_minor' => 10000, 'settlement_minor' => 10000,
+            'funding_mode' => 'advance', 'related_voucher_id' => $advance->id]);
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($partner));
+        $before = [FinanceVoucher::count(), FinanceLine::count(), BusinessEntry::count(), DB::table('finance_audit_events')->count()];
+        $storedHash = $original->fresh()->payload_hash;
+
+        $retry = $this->journal()->post($payload, 1);
+
+        $this->assertSame($original->id, $retry->id);
+        $this->assertSame($storedHash, $original->fresh()->payload_hash);
+        $this->assertSame($before, [FinanceVoucher::count(), FinanceLine::count(), BusinessEntry::count(), DB::table('finance_audit_events')->count()]);
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($partner));
+        $this->assertSame(['irt' => 3000, 'native' => 30000], $this->journal()->balance($bank));
+        $this->assertSame(3000, app(BusinessLedger::class)->summary()['expense']);
+        $this->assertBalanced();
+    }
+
     public function test_company_advance_moves_between_partner_currencies_then_only_supplier_consumption_is_expense(): void
     {
         $c = $this->chain();
@@ -724,5 +773,84 @@ class PartnerFundingFlowTest extends TestCase
         $this->assertSame(['irt' => 1900, 'native' => 19000], $this->journal()->balance($bank));
         $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($partner));
         $this->assertSame(100, app(BusinessLedger::class)->summary()['expense']);
+    }
+
+    public function test_personal_backfill_before_a_fully_consumed_advance_is_rejected_when_endpoint_balances_are_zero(): void
+    {
+        $c = $this->closedTryAdvance();
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner'], '2026-10-04'));
+        $this->assertSame(['irt' => -1000, 'native' => -10000], $this->journal()->balance($c['partner'], '2026-10-05'));
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner']));
+        $this->rejectedWithoutPosting($this->data($c['partner'], ['occurred_at' => '2026-10-04',
+            'amount_irt' => 2000, 'original_minor' => 5000, 'settlement_minor' => 5000]));
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner'], '2026-10-04'));
+        $this->assertSame(['irt' => -1000, 'native' => -10000], $this->journal()->balance($c['partner'], '2026-10-05'));
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner']));
+        $this->assertSame(['irt' => 1000, 'native' => 10000], $this->journal()->balance($c['bank']));
+        $this->assertSame(1000, app(BusinessLedger::class)->summary()['expense']);
+        $this->assertBalanced();
+    }
+
+    public function test_personal_payment_after_an_advance_is_fully_closed_remains_allowed(): void
+    {
+        $c = $this->closedTryAdvance();
+        $payment = $this->postVoucher($c['partner'], ['occurred_at' => '2026-10-07',
+            'amount_irt' => 2000, 'original_minor' => 5000, 'settlement_minor' => 5000]);
+        $this->assertSame('expense', $payment->type);
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner'], '2026-10-06'));
+        $this->assertSame(['irt' => 2000, 'native' => 5000], $this->journal()->balance($c['partner']));
+        $this->assertSame(['irt' => 1000, 'native' => 10000], $this->journal()->balance($c['bank']));
+        $this->assertSame(3000, app(BusinessLedger::class)->summary()['expense']);
+        $this->assertBalanced();
+    }
+
+    public function test_personal_backfill_remains_allowed_when_later_history_contains_only_personal_payments(): void
+    {
+        $partner = $this->account('partner', 'TRY');
+        $this->postVoucher($partner, ['occurred_at' => '2026-10-08',
+            'amount_irt' => 1000, 'original_minor' => 10000, 'settlement_minor' => 10000]);
+        $backfill = $this->postVoucher($partner, ['occurred_at' => '2026-10-04',
+            'amount_irt' => 2000, 'original_minor' => 5000, 'settlement_minor' => 5000]);
+        $this->assertSame('2026-10-04', $backfill->occurred_at->toDateString());
+        $this->assertSame(['irt' => 2000, 'native' => 5000], $this->journal()->balance($partner, '2026-10-04'));
+        $this->assertSame(['irt' => 3000, 'native' => 15000], $this->journal()->balance($partner));
+        $this->assertSame(3000, app(BusinessLedger::class)->summary()['expense']);
+        $this->assertSame(0, FinanceVoucher::whereIn('type', ['partner_advance', 'partner_advance_transfer'])->count());
+        $this->assertBalanced();
+    }
+
+    public function test_existing_personal_retry_returns_before_the_later_advance_history_guard(): void
+    {
+        $this->assertPersonalRetryAfterClosedAdvance(false);
+    }
+
+    public function test_legacy_personal_hash_retry_returns_before_the_later_advance_history_guard(): void
+    {
+        $this->assertPersonalRetryAfterClosedAdvance(true);
+    }
+
+    public function test_personal_backfill_cannot_cross_later_advance_reversal_and_reconsumption_with_zero_endpoint_balances(): void
+    {
+        $c = $this->closedTryAdvance();
+        $this->journal()->reverse($c['consumption'], '2026-10-08', 'Synthetic advance expense correction', 1);
+        $this->postVoucher($c['partner'], ['occurred_at' => '2026-10-09',
+            'amount_irt' => 1000, 'original_minor' => 10000, 'settlement_minor' => 10000,
+            'funding_mode' => 'advance', 'related_voucher_id' => $c['advance']->id]);
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner'], '2026-10-07'));
+        $this->assertSame(['irt' => -1000, 'native' => -10000], $this->journal()->balance($c['partner'], '2026-10-08'));
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner']));
+        $this->rejectedWithoutPosting($this->data($c['partner'], ['occurred_at' => '2026-10-07',
+            'amount_irt' => 2000, 'original_minor' => 5000, 'settlement_minor' => 5000]));
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner'], '2026-10-07'));
+        $this->assertSame(['irt' => -1000, 'native' => -10000], $this->journal()->balance($c['partner'], '2026-10-08'));
+        $this->assertSame(['irt' => 0, 'native' => 0], $this->journal()->balance($c['partner']));
+        $this->assertSame(1000, app(BusinessLedger::class)->summary()['expense']);
+
+        $this->postVoucher($c['partner'], ['occurred_at' => '2026-10-10',
+            'amount_irt' => 2000, 'original_minor' => 5000, 'settlement_minor' => 5000]);
+        $this->assertSame(['irt' => 2000, 'native' => 5000], $this->journal()->balance($c['partner']));
+        $this->assertSame(['irt' => 1000, 'native' => 10000], $this->journal()->balance($c['bank']));
+        $this->assertSame(3000, app(BusinessLedger::class)->summary()['expense']);
+        $this->assertBalanced();
     }
 }

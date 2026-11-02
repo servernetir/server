@@ -79,20 +79,54 @@ class CloudCatalogRepricingTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_supplier_failure_preserves_all_prices_including_eur_products(): void
+    public function test_supplier_failure_preserves_its_prices_and_publishes_verified_eur_products(): void
     {
         $eur = $this->plan('hetzner');
         $usd = $this->plan('salad');
+        $before = $usd->fresh()->getRawOriginal();
         $this->provider('salad', [], false);
+        NavasanRates::store(['USD' => 110000, 'EUR' => 200000, 'USDT' => 150000]);
 
-        try {
-            app(CloudCatalogSync::class)->reprice();
-            $this->fail('Supplier failure must fail the price batch.');
-        } catch (\RuntimeException $e) {
-            $this->assertStringContainsString('supplier costs', $e->getMessage());
-        }
-        $this->assertSame(1500000, (int) $eur->fresh()->price_irt);
-        $this->assertSame(1500000, (int) $usd->fresh()->price_irt);
+        $this->assertSame(1, app(CloudCatalogSync::class)->reprice());
+        $this->assertSame(3000000, (int) $eur->fresh()->price_irt);
+        $this->assertSame($before, $usd->fresh()->getRawOriginal());
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $this->assertTrue($snapshot->current('hetzner'));
+        $this->assertFalse($snapshot->current('salad'));
+        $this->assertSame([$eur->id], CloudPlan::sellable()->pluck('id')->all());
+    }
+
+    public function test_vpstc_transport_failure_does_not_close_gpu_sales_and_recovery_removes_exclusion(): void
+    {
+        foreach (['vpstc_currency' => 'TRY', 'cloud_margin_pct_vpstc' => '20',
+            'vpstc_supplier_tax_pct' => '20', 'pricing_fx_fee_pct_vpstc' => '5',
+            'vpstc_fx_rate_toman' => '5000'] as $key => $value) { Setting::put($key, $value); }
+        $gpu = $this->plan('salad', ['gpu_model' => 'RTX 3090']);
+        $failed = $this->plan('vpstc');
+        $before = $failed->fresh()->getRawOriginal();
+        $salad = \Mockery::mock(CloudProvider::class);
+        $salad->shouldReceive('isConfigured')->twice()->andReturnTrue();
+        $salad->shouldReceive('fetchCatalog')->twice()->andReturn(['ok' => true, 'plans' => [$this->quote($gpu)]]);
+        $vpstc = \Mockery::mock(CloudProvider::class);
+        $vpstc->shouldReceive('isConfigured')->twice()->andReturnTrue();
+        $vpstc->shouldReceive('fetchCatalog')->once()->andThrow(new \RuntimeException('private upstream text'));
+        $vpstc->shouldReceive('fetchCatalog')->once()->andReturn(['ok' => true, 'plans' => [$this->quote($failed)]]);
+        $manager = $this->mock(CloudManager::class);
+        $manager->shouldReceive('driver')->with('salad')->twice()->andReturn($salad);
+        $manager->shouldReceive('driver')->with('vpstc')->twice()->andReturn($vpstc);
+        NavasanRates::store(['USD' => 110000, 'EUR' => 200000, 'USDT' => 150000]);
+
+        app(CloudCatalogSync::class)->reprice();
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $this->assertTrue($snapshot->current('salad'));
+        $this->assertContains('vpstc', $snapshot->excludedProviders());
+        $this->assertSame($before, $failed->fresh()->getRawOriginal());
+        $this->assertTrue(CloudPlan::sellable()->whereKey($gpu->id)->exists());
+        app(CloudCatalogSync::class)->reprice();
+        $this->assertSame(2000, (int) $failed->fresh()->cost_eur_cents);
+        $this->assertTrue($snapshot->current('vpstc'));
+        $this->assertNotContains('vpstc', $snapshot->excludedProviders());
+        Http::assertNothingSent();
     }
 
     public function test_missing_existing_native_plan_is_not_repriced_using_stale_euro_cost(): void
@@ -100,12 +134,8 @@ class CloudCatalogRepricingTest extends TestCase
         $plan = $this->plan('salad');
         $this->provider('salad', []);
 
-        try {
-            app(CloudCatalogSync::class)->reprice();
-            $this->fail('Missing existing plan must fail the price batch.');
-        } catch (\RuntimeException $e) {
-            $this->assertStringContainsString('missing an existing supplier plan', $e->getMessage());
-        }
+        app(CloudCatalogSync::class)->reprice();
+        $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
         $this->assertSame(1500000, (int) $plan->fresh()->price_irt);
     }
 
@@ -114,13 +144,27 @@ class CloudCatalogRepricingTest extends TestCase
         $plan = $this->plan('salad');
         $this->provider('salad', [$this->quote($plan, ['cost_hour_eur_micro' => null])]);
 
-        try {
-            app(CloudCatalogSync::class)->reprice();
-            $this->fail('Missing hourly cost must fail the price batch.');
-        } catch (\RuntimeException $e) {
-            $this->assertStringContainsString('hourly supplier cost', $e->getMessage());
-        }
+        app(CloudCatalogSync::class)->reprice();
+        $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
         $this->assertSame(14000, (int) $plan->fresh()->cost_hour_eur_micro);
+    }
+
+    public function test_invalid_second_quote_discards_all_staged_costs_of_only_that_supplier(): void
+    {
+        $peer = $this->plan('hetzner');
+        $one = $this->plan('salad');
+        $two = $this->plan('salad', ['provider_ref' => 'another', 'slug' => 'another']);
+        $before = [$one->fresh()->getRawOriginal(), $two->fresh()->getRawOriginal()];
+        $this->provider('salad', [$this->quote($one), $this->quote($two, ['cost_eur_cents' => -1])]);
+        NavasanRates::store(['USD' => 110000, 'EUR' => 200000, 'USDT' => 150000]);
+        app(CloudCatalogSync::class)->reprice();
+        $this->assertSame($before, [$one->fresh()->getRawOriginal(), $two->fresh()->getRawOriginal()]);
+        $this->assertSame(3000000, (int) $peer->fresh()->price_irt);
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $this->assertTrue($snapshot->current('hetzner'));
+        $this->assertFalse($snapshot->current('salad'));
+        $this->assertSame('invalid_quote', $snapshot->exclusionReasons()['salad']);
+        Http::assertNothingSent();
     }
 
     public function test_disabled_provider_is_not_read_or_repriced(): void
@@ -270,4 +314,115 @@ class CloudCatalogRepricingTest extends TestCase
         $this->assertSame(1500000, (int) $plan->fresh()->price_irt);
         $this->assertSame('60', DB::table('settings')->where('key', 'cloud_margin_pct')->value('value'));
     }
+    public function test_prepared_repricing_does_not_write_until_the_transactional_apply_runs(): void
+    {
+        $plan = $this->plan('salad');
+        $before = $plan->fresh()->getRawOriginal();
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+
+        $this->assertInstanceOf(\Closure::class, $apply);
+        $this->assertSame($before, $plan->fresh()->getRawOriginal());
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        $this->assertSame(1, DB::transaction($apply));
+        $this->assertSame(2000, (int) $plan->fresh()->cost_eur_cents);
+        $this->assertSame(3000000, (int) $plan->fresh()->price_irt);
+        $this->assertTrue(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
+        Http::assertNothingSent();
+    }
+
+    public function test_prepared_repricing_rejects_a_new_eligible_catalog_identity(): void
+    {
+        $plan = $this->plan('salad');
+        $before = $plan->fresh()->getRawOriginal();
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        $added = $this->plan('hetzner', ['provider_ref' => 'concurrently-added', 'slug' => 'concurrently-added']);
+        $addedBefore = $added->fresh()->getRawOriginal();
+
+        try {
+            DB::transaction($apply);
+            $this->fail('A new eligible row must invalidate the prepared identity set.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Catalog identities changed', $e->getMessage());
+        }
+
+        $this->assertSame($before, $plan->fresh()->getRawOriginal());
+        $this->assertSame($addedBefore, $added->fresh()->getRawOriginal());
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        $this->assertSame(2, CloudPlan::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_prepared_repricing_preserves_a_concurrent_administrator_note(): void
+    {
+        $plan = $this->plan('salad');
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        DB::table('cloud_plans')->where('id', $plan->id)->update(['admin_note' => 'Concurrent administrator review']);
+        $concurrent = $plan->fresh()->getRawOriginal();
+
+        try {
+            DB::transaction($apply);
+            $this->fail('A concurrent row edit must reject the prepared batch.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Catalog changed', $e->getMessage());
+        }
+
+        $this->assertSame($concurrent, $plan->fresh()->getRawOriginal());
+        $this->assertSame('Concurrent administrator review', $plan->fresh()->admin_note);
+        $this->assertSame(1500000, (int) $plan->fresh()->price_irt);
+        $this->assertSame(1000, (int) $plan->fresh()->cost_eur_cents);
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        Http::assertNothingSent();
+    }
+
+    public function test_prepared_batch_releases_the_original_hydrated_catalogue_before_apply(): void
+    {
+        $plan = $this->plan('salad');
+        $this->provider('salad', [$this->quote($plan)]);
+        $hydrated = [];
+        CloudPlan::retrieved(static function (CloudPlan $row) use (&$hydrated): void {
+            $hydrated[] = \WeakReference::create($row);
+        });
+
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        gc_collect_cycles();
+
+        // A prepared batch needs row identities and exact comparison tokens,
+        // not strong references to the original hydrated catalogue.
+        $this->assertNotEmpty($hydrated);
+        foreach ($hydrated as $reference) {
+            $this->assertNull($reference->get(), 'Preparation retained a hydrated catalogue row.');
+        }
+        $this->assertSame(1, DB::transaction($apply));
+        $this->assertSame(2000, (int) $plan->fresh()->cost_eur_cents);
+        Http::assertNothingSent();
+    }
+
+    public function test_prepared_fingerprint_detects_a_change_outside_the_price_columns(): void
+    {
+        $plan = $this->plan('salad');
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        DB::table('cloud_plans')->where('id', $plan->id)->update(['public_name' => 'Concurrent display correction']);
+        $concurrent = $plan->fresh()->getRawOriginal();
+
+        try {
+            DB::transaction($apply);
+            $this->fail('An unrelated raw-column edit must invalidate the prepared batch.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Catalog changed', $e->getMessage());
+        }
+
+        $this->assertSame($concurrent, $plan->fresh()->getRawOriginal());
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        Http::assertNothingSent();
+    }
+
 }

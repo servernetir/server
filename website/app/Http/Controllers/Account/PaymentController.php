@@ -260,6 +260,7 @@ class PaymentController extends Controller
     public function cryptoIssue(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         if (! $invoice->isPayable()) {
             return back()->withErrors(['crypto' => __('ui.cy_not_payable')]);
@@ -338,6 +339,7 @@ class PaymentController extends Controller
     public function bankTransfer(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         if (! $invoice->isPayable()) {
             return back()->withErrors(['reference' => __('ui.iv_not_payable')]);
@@ -478,6 +480,7 @@ class PaymentController extends Controller
     public function pay(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         $request->validate(['gateway' => ['required', 'string', 'max:24']]);
 
@@ -734,6 +737,7 @@ class PaymentController extends Controller
     public function payCredit(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         if ($invoice->kind === 'topup') {
             return back()->withErrors(__('ui.iv_credit_self'));

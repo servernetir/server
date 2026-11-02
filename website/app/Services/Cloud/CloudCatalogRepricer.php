@@ -32,6 +32,12 @@ class CloudCatalogRepricer
         return $this->performRun($persist);
     }
 
+    /** Collect supplier evidence without writing rates or products; caller holds the catalog lock. */
+    public function prepare(): \Closure
+    {
+        return $this->performRun(true, null, true);
+    }
+
     /** Refresh only this supplier without quoting or changing other suppliers. */
     public function runForProvider(string $provider, bool $persist = true): int
     {
@@ -41,7 +47,7 @@ class CloudCatalogRepricer
         return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performRun($persist, $provider));
     }
 
-    private function performRun(bool $persist, ?string $only = null): int
+    private function performRun(bool $persist, ?string $only = null, bool $prepareOnly = false): int|\Closure
     {
         $snapshot = app(CloudPricingSnapshot::class);
         if ($only !== null && ! $snapshot->current()) {
@@ -63,6 +69,7 @@ class CloudCatalogRepricer
             throw new \RuntimeException('No eligible existing supplier plans to verify.');
         }
         $nativeCosts = [];
+        $reasons = $only === null ? [] : $snapshot->exclusionReasons();
         $skip = $only === null ? ['vpstc'] : array_values(array_diff($snapshot->excludedProviders(), [$only]));
         $providerInputs = $only !== null && $snapshot->current('vpstc')
             ? ['vpstc' => app(VpsTcPricing::class)->fingerprint()] : [];
@@ -71,111 +78,151 @@ class CloudCatalogRepricer
             : array_values(array_diff(CloudPricingSnapshot::excludedPlanIds(), $plans->modelKeys()));
 
         foreach ($plans->whereIn('provider', self::NORMALIZED_PROVIDERS)->groupBy('provider') as $provider => $group) {
-            $active = $group->filter(fn (CloudPlan $plan) => $plan->is_active && ! $plan->admin_disabled);
-            $driver = $active->isNotEmpty() ? $this->manager->driver($provider) : null;
+            $vpstcInput = null;
+            try {
+                $active = $group->filter(fn (CloudPlan $plan) => $plan->is_active && ! $plan->admin_disabled);
+                $driver = $active->isNotEmpty() ? $this->manager->driver($provider) : null;
 
-            if ($driver === null || ! $driver->isConfigured()) {
-                $skip[] = $provider;
-                continue;
-            }
-
-            // fetchCatalog only reads supplier catalogs/quotes. Do not call
-            // syncOne: price refresh must not enable plans or alter inventory.
-            $vpstcInput = $provider === 'vpstc' ? app(VpsTcPricing::class)->fingerprint() : null;
-            $regionalArvan = $provider === 'arvan' && $driver instanceof ArvanClient;
-            $catalog = $regionalArvan
-                ? $driver->fetchExistingPlanCosts($active->values()->all())
-                : $driver->fetchCatalog();
-            if (($catalog['ok'] ?? false) !== true || ! is_array($catalog['plans'] ?? null)) {
-                throw new \RuntimeException('Price refresh could not read supplier costs: '.$provider);
-            }
-
-            $quotes = $this->indexQuotes($catalog['plans'], $provider);
-            if ($regionalArvan) {
-                if (! is_array($catalog['unavailable'] ?? null)) {
-                    throw new \RuntimeException('Arvan regional availability evidence is missing.');
-                }
-                foreach ($catalog['unavailable'] as $identity) {
-                    if (! is_array($identity)) {
-                        throw new \RuntimeException('Invalid unavailable Arvan product identity.');
-                    }
-                    $key = $this->key((string) ($identity['provider_ref'] ?? ''), (string) ($identity['location_code'] ?? ''));
-                    $matches = $active->filter(fn (CloudPlan $plan) => $this->key($plan->provider_ref, $plan->location_code) === $key
-                        && $plan->provider_location === ($identity['provider_location'] ?? null));
-                    if ($matches->count() !== 1 || isset($quotes[$key]) || isset($unavailable[$matches->first()->id])) {
-                        throw new \RuntimeException('Unverified or conflicting unavailable Arvan product.');
-                    }
-                    $unavailable[$matches->first()->id] = true;
-                }
-            }
-            if ($provider === 'lightnode' && $driver instanceof LightNodeClient) {
-                $missing = $active->filter(fn (CloudPlan $plan) =>
-                    ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
-                if ($missing->isNotEmpty()) {
-                    // Public quote reads can transiently omit individual plans.
-                    // Retry only those exact products, with fresh quotes and specs.
-                    $retry = $driver->fetchExistingPlanCosts($missing->values()->all());
-                    if (($retry['ok'] ?? false) !== true || ! is_array($retry['plans'] ?? null)) {
-                        // Keep independently verified quotes; quarantine only missing products.
-                        $retry['plans'] = [];
-                    }
-                    $quotes += $this->indexQuotes($retry['plans'] ?? [], $provider);
-                }
-                $unquoted = $active->filter(fn (CloudPlan $plan) =>
-                    ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
-                foreach ($unquoted as $plan) { $unverifiedPlans[] = (int) $plan->id; }
-                if ($unquoted->count() === $active->count()) {
-                    $this->excludeLightNode($skip, 'no_existing_quote_verified');
+                if ($driver === null || ! $driver->isConfigured()) {
+                    $skip[] = $provider;
+                    $reasons[$provider] = 'not_configured';
                     continue;
                 }
-            }
 
-            foreach ($active as $plan) {
-                if (isset($unavailable[$plan->id]) || in_array((int) $plan->id, $unverifiedPlans, true)) {
-                    continue;
+                // fetchCatalog only reads supplier catalogs/quotes. Do not call
+                // syncOne: price refresh must not enable plans or alter inventory.
+                $vpstcInput = $provider === 'vpstc' ? app(VpsTcPricing::class)->fingerprint() : null;
+                $regionalArvan = $provider === 'arvan' && $driver instanceof ArvanClient;
+                $catalog = $regionalArvan
+                    ? $driver->fetchExistingPlanCosts($active->values()->all())
+                    : $driver->fetchCatalog();
+                if (($catalog['ok'] ?? false) !== true || ! is_array($catalog['plans'] ?? null)) {
+                    $reason = (string) ($catalog['reason'] ?? 'supplier_cost_read_failed');
+                    throw new \RuntimeException('Price refresh could not read supplier costs: '.$provider.'; '.$reason);
                 }
-                $row = $quotes[$this->key($plan->provider_ref, $plan->location_code)] ?? null;
-                if (! is_array($row)) {
-                    throw new \RuntimeException('Price refresh is missing an existing supplier plan: '.$provider);
+
+                $quotes = $this->indexQuotes($catalog['plans'], $provider);
+                if ($regionalArvan) {
+                    if (! is_array($catalog['unavailable'] ?? null)) {
+                        throw new \RuntimeException('Arvan regional availability evidence is missing.');
+                    }
+                    foreach ($catalog['unavailable'] as $identity) {
+                        if (! is_array($identity)) {
+                            throw new \RuntimeException('Invalid unavailable Arvan product identity.');
+                        }
+                        $key = $this->key((string) ($identity['provider_ref'] ?? ''), (string) ($identity['location_code'] ?? ''));
+                        $matches = $active->filter(fn (CloudPlan $plan) => $this->key($plan->provider_ref, $plan->location_code) === $key
+                            && $plan->provider_location === ($identity['provider_location'] ?? null));
+                        if ($matches->count() !== 1 || isset($quotes[$key]) || isset($unavailable[$matches->first()->id])) {
+                            throw new \RuntimeException('Unverified or conflicting unavailable Arvan product.');
+                        }
+                        $unavailable[$matches->first()->id] = true;
+                    }
                 }
-                if ($regionalArvan && ($row['provider_location'] ?? null) !== $plan->provider_location) {
-                    throw new \RuntimeException('Arvan price belongs to a different region.');
+                if ($provider === 'lightnode' && $driver instanceof LightNodeClient) {
+                    $missing = $active->filter(fn (CloudPlan $plan) =>
+                        ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
+                    if ($missing->isNotEmpty()) {
+                        // Public quote reads can transiently omit individual plans.
+                        // Retry only those exact products, with fresh quotes and specs.
+                        $retry = $driver->fetchExistingPlanCosts($missing->values()->all());
+                        if (($retry['ok'] ?? false) !== true || ! is_array($retry['plans'] ?? null)) {
+                            // Keep independently verified quotes; quarantine only missing products.
+                            $retry['plans'] = [];
+                        }
+                        $quotes += $this->indexQuotes($retry['plans'] ?? [], $provider);
+                    }
+                    $unquoted = $active->filter(fn (CloudPlan $plan) =>
+                        ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
+                    foreach ($unquoted as $plan) { $unverifiedPlans[] = (int) $plan->id; }
+                    if ($unquoted->count() === $active->count()) {
+                        $this->excludeLightNode($skip, 'no_existing_quote_verified');
+                        $reasons[$provider] = 'missing_quote';
+                        continue;
+                    }
                 }
-                $cost = $this->amount($row['cost_eur_cents'] ?? null, false, $provider);
-                $hourly = $row['cost_hour_eur_micro'] ?? null;
-                if ($hourly === null && (int) $plan->cost_hour_eur_micro > 0) {
-                    throw new \RuntimeException('Price refresh is missing an hourly supplier cost: '.$provider);
+
+                foreach ($active as $plan) {
+                    if (isset($unavailable[$plan->id]) || in_array((int) $plan->id, $unverifiedPlans, true)) {
+                        continue;
+                    }
+                    $row = $quotes[$this->key($plan->provider_ref, $plan->location_code)] ?? null;
+                    if (! is_array($row)) {
+                        throw new \RuntimeException('Price refresh is missing an existing supplier plan: '.$provider);
+                    }
+                    if ($regionalArvan && ($row['provider_location'] ?? null) !== $plan->provider_location) {
+                        throw new \RuntimeException('Arvan price belongs to a different region.');
+                    }
+                    $cost = $this->amount($row['cost_eur_cents'] ?? null, false, $provider);
+                    $hourly = $row['cost_hour_eur_micro'] ?? null;
+                    if ($hourly === null && (int) $plan->cost_hour_eur_micro > 0) {
+                        throw new \RuntimeException('Price refresh is missing an hourly supplier cost: '.$provider);
+                    }
+                    $setup = $row['setup_eur_cents'] ?? null;
+                    if ($setup === null && (int) $plan->setup_eur_cents > 0) {
+                        throw new \RuntimeException('Price refresh is missing a supplier setup cost: '.$provider);
+                    }
+                    $nativeCosts[$plan->id] = [
+                        'cost_eur_cents' => $cost,
+                        'cost_hour_eur_micro' => $hourly === null ? null : $this->amount($hourly, false, $provider),
+                        'setup_eur_cents' => $this->amount($setup ?? 0, true, $provider),
+                    ];
                 }
-                $setup = $row['setup_eur_cents'] ?? null;
-                if ($setup === null && (int) $plan->setup_eur_cents > 0) {
-                    throw new \RuntimeException('Price refresh is missing a supplier setup cost: '.$provider);
+                if ($provider === 'vpstc' && $active->isNotEmpty()) {
+                    if ($vpstcInput !== app(VpsTcPricing::class)->fingerprint()) {
+                        throw new \RuntimeException('VPS.TC exchange inputs changed during supplier quote collection.');
+                    }
+                    $skip = array_values(array_diff($skip, ['vpstc']));
+                    $providerInputs['vpstc'] = $vpstcInput;
                 }
-                $nativeCosts[$plan->id] = [
-                    'cost_eur_cents' => $cost,
-                    'cost_hour_eur_micro' => $hourly === null ? null : $this->amount($hourly, false, $provider),
-                    'setup_eur_cents' => $this->amount($setup ?? 0, true, $provider),
-                ];
+            } catch (\Throwable $e) {
+                if ($only !== null) { throw $e; }
+                foreach ($group as $plan) { unset($nativeCosts[$plan->id], $unavailable[$plan->id]); }
+                $unverifiedPlans = array_values(array_diff($unverifiedPlans, $group->modelKeys()));
+                unset($providerInputs[$provider]);
+                $code = $this->failureReason($e);
+                $reasons[$provider] = $code;
+                $this->excludeUnavailableSupplier($skip, $provider, $code);
             }
-            if ($provider === 'vpstc' && $active->isNotEmpty()) {
-                if ($vpstcInput !== app(VpsTcPricing::class)->fingerprint()) {
-                    throw new \RuntimeException('VPS.TC exchange inputs changed during supplier quote collection.');
-                }
-                $skip = array_values(array_diff($skip, ['vpstc']));
-                $providerInputs['vpstc'] = $vpstcInput;
+            // A changed shared FX/account input is a batch race, not a supplier outage.
+            if ($vpstcInput !== null && $vpstcInput !== app(VpsTcPricing::class)->fingerprint()) {
+                throw new \RuntimeException('VPS.TC exchange inputs changed during supplier quote collection.');
             }
         }
+
+        // Keep the exact original-row guard without retaining one complete
+        // Eloquent catalogue while the apply phase loads a second catalogue.
+        // serialize preserves every raw attribute's PHP type and key order;
+        // a subset or JSON conversion could miss a concurrent row change.
+        $planIds = $plans->modelKeys();
+        $planFingerprints = [];
+        foreach ($plans as $plan) {
+            $planFingerprints[(int) $plan->getKey()] = $this->planFingerprint($plan);
+        }
+        unset($plans, $group, $active, $plan, $missing, $unquoted, $matches,
+            $catalog, $quotes, $retry, $row, $identity, $e, $driver);
 
         // All required quotes are validated before the first product write.
         // Any database failure rolls back the complete product-price batch.
         $this->assertRates($rates);
         $this->assertSettings($settings);
-        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs, $unverifiedPlans): int {
+        $apply = function () use ($planIds, $planFingerprints, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs, $unverifiedPlans, $reasons, $prepareOnly): int {
             // Current reads avoid a MariaDB repeatable-read snapshot; locks last
             // only for product writes, never for slow supplier requests.
             $this->assertSettings($settings, $persist);
             $this->assertProviderInputs($providerInputs);
+            if ($prepareOnly) {
+                $expectedIds = $planIds;
+                sort($expectedIds, SORT_NUMERIC);
+                $currentIds = CloudPlan::query()->where('cost_eur_cents', '>', 0)
+                    ->whereNotIn('provider', CloudPlan::disabledProviders())
+                    ->orderBy('id')->lockForUpdate()->pluck('id')->all();
+                if ($expectedIds !== $currentIds) {
+                    throw new \RuntimeException('Catalog identities changed during coordinated price preparation.');
+                }
+            }
             $count = 0;
-            foreach (CloudPlan::query()->whereIn('id', $plans->modelKeys())
+            foreach (CloudPlan::query()->whereIn('id', $planIds)
                 ->when($persist, fn ($query) => $query->lockForUpdate())->get() as $plan) {
                 if (in_array((int) $plan->id, $unverifiedPlans, true)
                     || in_array($plan->provider, $skip, true)
@@ -184,8 +231,8 @@ class CloudCatalogRepricer
                         && (! $plan->is_active || $plan->admin_disabled))) {
                     continue;
                 }
-                $old = $plans->firstWhere('id', $plan->id);
-                if ($plan->getRawOriginal() !== $old->getRawOriginal()) {
+                $original = $planFingerprints[(int) $plan->getKey()] ?? null;
+                if (! is_string($original) || ! hash_equals($original, $this->planFingerprint($plan))) {
                     throw new \RuntimeException('Catalog changed during price refresh; retry with a fresh snapshot.');
                 }
                 if (isset($unavailable[$plan->id])) {
@@ -221,12 +268,18 @@ class CloudCatalogRepricer
             $this->assertSettings($settings, $persist);
             $this->assertProviderInputs($providerInputs);
             if ($persist) {
-                app(CloudPricingSnapshot::class)->publish($rates, $skip, $providerInputs, $unverifiedPlans);
+                app(CloudPricingSnapshot::class)->publish($rates, $skip, $providerInputs, $unverifiedPlans, $reasons);
             }
             return $count;
         };
 
-        return $persist ? DB::transaction($apply) : $apply();
+        return $prepareOnly ? $apply : ($persist ? DB::transaction($apply) : $apply());
+    }
+
+    /** Exact raw-row comparison token; no model instances survive preparation. */
+    private function planFingerprint(CloudPlan $plan): string
+    {
+        return hash('sha256', serialize($plan->getRawOriginal()));
     }
 
     private function settings(bool $lock = false): array
@@ -251,6 +304,32 @@ class CloudCatalogRepricer
     {
         if (isset($inputs['vpstc']) && $inputs['vpstc'] !== app(VpsTcPricing::class)->fingerprint()) {
             throw new \RuntimeException('VPS.TC exchange inputs changed before price publication.');
+        }
+    }
+
+    private function failureReason(\Throwable $e): string
+    {
+        $message = $e->getMessage();
+        if (preg_match('/\bupstream_http_([5][0-9]{2})\b/', $message, $match)) { return $match[0]; }
+        foreach (['authentication_failed', 'connection_failed', 'rate_limited', 'access_denied', 'account_currency_unverified'] as $code) {
+            if (str_contains($message, $code)) { return $code; }
+        }
+        if (str_contains($message, 'missing an existing') || str_contains($message, 'missing an hourly')
+            || str_contains($message, 'missing a supplier setup')) { return 'missing_quote'; }
+        if (str_contains($message, 'invalid') || str_contains($message, 'duplicate')
+            || str_contains($message, 'region') || str_contains($message, 'Arvan product')) { return 'invalid_quote'; }
+        return 'supplier_cost_read_failed';
+    }
+
+    private function excludeUnavailableSupplier(array &$skip, string $provider, string $reason): void
+    {
+        $skip[] = $provider;
+        try {
+            \App\Support\ErrorTracker::noteOnce('pricing',
+                'Supplier price read unavailable; only this supplier is excluded from the fresh price snapshot.',
+                1800, ['provider' => $provider, 'reason' => $reason]);
+        } catch (\Throwable) {
+            // Diagnostics cannot prevent publication of independently verified prices.
         }
     }
 

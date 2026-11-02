@@ -31,14 +31,25 @@ class FetchDollar extends Command
             return self::SUCCESS;
         }
 
-        // A single validated source snapshot prevents mixing a fresh currency
-        // with a failed currency during repricing.
-        $rates = $fx->refreshAll();
-
-        if ($rates === null) {
-            ErrorTracker::note('pricing', 'دریافت نرخ دلار، یورو، تتر و حواله لیر از نوسان ناموفق بود؛ همگام‌سازی قیمت محصولات انجام نشد.');
-            $this->error('نرخ ارز تازه نشد — نرخ‌ها و قیمت‌های قبلی حفظ شدند.');
-
+        // Supplier reads can take minutes. Keep the accepted FX/catalog pair
+        // visible until both new rate rows and the guarded price batch are ready.
+        $count = null;
+        try {
+            $rates = app(\App\Services\Cloud\CatalogRefreshRequests::class)->exclusive(
+                function () use ($fx, $catalog, &$count): ?array {
+                    return $fx->refreshAll(function (array $rows) use ($catalog, &$count): \Closure {
+                        $apply = $catalog->prepareReprice();
+                        return static function () use ($apply, &$count): void { $count = $apply(); };
+                    });
+                }
+            );
+        } catch (\Throwable $e) {
+            report($e);
+            $rates = null;
+        }
+        if ($rates === null || $count === null) {
+            ErrorTracker::note('pricing', 'دریافت نرخ و آماده‌سازی قیمت محصولات کامل نشد؛ جفت نرخ و قیمت قبلی حفظ شد.');
+            $this->error('نرخ و قیمت تازه منتشر نشد — نسخهٔ پذیرفته‌شدهٔ قبلی حفظ شد.');
             return self::FAILURE;
         }
 
@@ -47,18 +58,8 @@ class FetchDollar extends Command
             $labels[] = $currency.': '.number_format($rates[$currency]['rate_toman']).' تومان';
         }
         $this->info('نرخ به‌روز شد — '.implode(' · ', $labels));
-
+        $this->info("قیمتِ {$count} پلن بازمحاسبه شد.");
         $failed = false;
-        try {
-            $count = $catalog->reprice();
-            $this->info("قیمتِ {$count} پلن بازمحاسبه شد.");
-        } catch (\Throwable $e) {
-            report($e);
-            ErrorTracker::note('pricing', 'نرخ نوسان دریافت شد، اما همگام‌سازی قیمت محصولات ناموفق بود.');
-            $this->error('نرخ ارز به‌روز شد، اما همگام‌سازی قیمت محصولات ناموفق بود.');
-
-            $failed = true;
-        }
 
         // Refresh every sellable registrar extension after the same Navasan batch,
         // even when a cloud supplier is temporarily unavailable.

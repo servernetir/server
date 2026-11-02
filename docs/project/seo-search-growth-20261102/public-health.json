@@ -1,0 +1,3087 @@
+{
+  "observed_at_utc": "2026-11-02T05:56:14.9870655Z",
+  "completed_at_utc": "2026-11-02T05:56:28.6998539Z",
+  "source_base": "d3be9c422fa37f77a48aca05065421d56108dec4",
+  "scope": "Read-only bounded public HTTP/HTML SEO observation; no source/production/account/provider/financial changes, purchase, submission, browser or Git mutation.",
+  "http_get_request_count": 25,
+  "request_budget": 25,
+  "redirects_followed": 0,
+  "retries": 0,
+  "requested_urls": [
+    "https://servernet.cloud/robots.txt",
+    "https://servernet.cloud/sitemap.xml",
+    "https://servernet.cloud/hardware-sitemap.xml",
+    "https://servernet.cloud/?qa=1",
+    "https://servernet.cloud/vps/hourly?qa=1",
+    "https://servernet.cloud/gpu?qa=1",
+    "https://servernet.cloud/cloud?qa=1",
+    "https://servernet.cloud/vps/germany?qa=1",
+    "https://servernet.cloud/vps/iran?qa=1",
+    "https://servernet.cloud/vps/philippines?qa=1",
+    "https://servernet.cloud/vps/uae?qa=1",
+    "https://servernet.cloud/vps/sweden?qa=1",
+    "https://servernet.cloud/vps/austria?qa=1",
+    "https://servernet.cloud/hosting/linux?qa=1",
+    "https://servernet.cloud/hosting/wordpress?qa=1",
+    "https://servernet.cloud/domains?qa=1",
+    "https://servernet.cloud/ai?qa=1",
+    "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543?qa=1",
+    "https://servernet.cloud/ai/models?qa=1",
+    "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff?qa=1",
+    "https://servernet.cloud/servers/hpe-proliant-ml110-gen10?qa=1",
+    "https://servernet.cloud/en/blog/php-version-upgrade-guide?qa=1",
+    "https://servernet.cloud/blog/git-basics-for-deployment?qa=1",
+    "https://servernet.cloud/cloud/storage-box?qa=1",
+    "https://servernet.cloud/blog?qa=1"
+  ],
+  "limits": "One GET per page with qa cache bypass. HTML metadata, schema parsing and target markup do not prove browser rendering, Google indexing, rich-result eligibility, checkout success, analytics delivery or real-user speed. No financial diagnosis or repricing performed. CTA query values omitted.",
+  "robots": [
+    {
+      "url": "https://servernet.cloud/robots.txt",
+      "status": 200,
+      "elapsed_s": 1.054,
+      "response_sha256": "6706e7aa06c480af5cd1d9dd991c503227ba75e40bc29f89163d95223fae664b",
+      "body_bytes": 4568,
+      "rules": [
+        "User-agent: OAI-SearchBot",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /en/api/",
+        "Disallow: /tr/api/",
+        "Disallow: /admin",
+        "Disallow: /system/",
+        "Disallow: /go/",
+        "Disallow: /en/go/",
+        "Disallow: /tr/go/",
+        "Disallow: /account",
+        "Disallow: /en/account",
+        "Disallow: /tr/account",
+        "Disallow: /login",
+        "Disallow: /en/login",
+        "Disallow: /tr/login",
+        "Disallow: /register",
+        "Disallow: /en/register",
+        "Disallow: /tr/register",
+        "Disallow: /payment/",
+        "Disallow: /sb/",
+        "Disallow: /bale/webhook/",
+        "Disallow: /cloud-phone/webhook/",
+        "Disallow: /healthz",
+        "Disallow: /up",
+        "Disallow: /*?attachment_id=",
+        "Disallow: /parts/*?",
+        "Disallow: /en/parts/*?",
+        "Disallow: /tr/parts/*?",
+        "Disallow: /*?tag=",
+        "Disallow: /*&tag=",
+        "Disallow: /*?q=",
+        "Disallow: /*&q=",
+        "User-agent: PerplexityBot",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /en/api/",
+        "Disallow: /tr/api/",
+        "Disallow: /admin",
+        "Disallow: /system/",
+        "Disallow: /go/",
+        "Disallow: /en/go/",
+        "Disallow: /tr/go/",
+        "Disallow: /account",
+        "Disallow: /en/account",
+        "Disallow: /tr/account",
+        "Disallow: /login",
+        "Disallow: /en/login",
+        "Disallow: /tr/login",
+        "Disallow: /register",
+        "Disallow: /en/register",
+        "Disallow: /tr/register",
+        "Disallow: /payment/",
+        "Disallow: /sb/",
+        "Disallow: /bale/webhook/",
+        "Disallow: /cloud-phone/webhook/",
+        "Disallow: /healthz",
+        "Disallow: /up",
+        "Disallow: /*?attachment_id=",
+        "Disallow: /parts/*?",
+        "Disallow: /en/parts/*?",
+        "Disallow: /tr/parts/*?",
+        "Disallow: /*?tag=",
+        "Disallow: /*&tag=",
+        "Disallow: /*?q=",
+        "Disallow: /*&q=",
+        "User-agent: Googlebot",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /en/api/",
+        "Disallow: /tr/api/",
+        "Disallow: /admin",
+        "Disallow: /system/",
+        "Disallow: /go/",
+        "Disallow: /en/go/",
+        "Disallow: /tr/go/",
+        "Disallow: /account",
+        "Disallow: /en/account",
+        "Disallow: /tr/account",
+        "Disallow: /login",
+        "Disallow: /en/login",
+        "Disallow: /tr/login",
+        "Disallow: /register",
+        "Disallow: /en/register",
+        "Disallow: /tr/register",
+        "Disallow: /payment/",
+        "Disallow: /sb/",
+        "Disallow: /bale/webhook/",
+        "Disallow: /cloud-phone/webhook/",
+        "Disallow: /healthz",
+        "Disallow: /up",
+        "Disallow: /*?attachment_id=",
+        "Disallow: /parts/*?",
+        "Disallow: /en/parts/*?",
+        "Disallow: /tr/parts/*?",
+        "Disallow: /*?tag=",
+        "Disallow: /*&tag=",
+        "Disallow: /*?q=",
+        "Disallow: /*&q=",
+        "User-agent: Bingbot",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /en/api/",
+        "Disallow: /tr/api/",
+        "Disallow: /admin",
+        "Disallow: /system/",
+        "Disallow: /go/",
+        "Disallow: /en/go/",
+        "Disallow: /tr/go/",
+        "Disallow: /account",
+        "Disallow: /en/account",
+        "Disallow: /tr/account",
+        "Disallow: /login",
+        "Disallow: /en/login",
+        "Disallow: /tr/login",
+        "Disallow: /register",
+        "Disallow: /en/register",
+        "Disallow: /tr/register",
+        "Disallow: /payment/",
+        "Disallow: /sb/",
+        "Disallow: /bale/webhook/",
+        "Disallow: /cloud-phone/webhook/",
+        "Disallow: /healthz",
+        "Disallow: /up",
+        "Disallow: /*?attachment_id=",
+        "Disallow: /parts/*?",
+        "Disallow: /en/parts/*?",
+        "Disallow: /tr/parts/*?",
+        "Disallow: /*?tag=",
+        "Disallow: /*&tag=",
+        "Disallow: /*?q=",
+        "Disallow: /*&q=",
+        "User-agent: GPTBot",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /en/api/",
+        "Disallow: /tr/api/",
+        "Disallow: /admin",
+        "Disallow: /system/",
+        "Disallow: /go/",
+        "Disallow: /en/go/",
+        "Disallow: /tr/go/",
+        "Disallow: /account",
+        "Disallow: /en/account",
+        "Disallow: /tr/account",
+        "Disallow: /login",
+        "Disallow: /en/login",
+        "Disallow: /tr/login",
+        "Disallow: /register",
+        "Disallow: /en/register",
+        "Disallow: /tr/register",
+        "Disallow: /payment/",
+        "Disallow: /sb/",
+        "Disallow: /bale/webhook/",
+        "Disallow: /cloud-phone/webhook/",
+        "Disallow: /healthz",
+        "Disallow: /up",
+        "Disallow: /*?attachment_id=",
+        "Disallow: /parts/*?",
+        "Disallow: /en/parts/*?",
+        "Disallow: /tr/parts/*?",
+        "Disallow: /*?tag=",
+        "Disallow: /*&tag=",
+        "Disallow: /*?q=",
+        "Disallow: /*&q=",
+        "User-agent: Google-Extended",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /en/api/",
+        "Disallow: /tr/api/",
+        "Disallow: /admin",
+        "Disallow: /system/",
+        "Disallow: /go/",
+        "Disallow: /en/go/",
+        "Disallow: /tr/go/",
+        "Disallow: /account",
+        "Disallow: /en/account",
+        "Disallow: /tr/account",
+        "Disallow: /login",
+        "Disallow: /en/login",
+        "Disallow: /tr/login",
+        "Disallow: /register",
+        "Disallow: /en/register",
+        "Disallow: /tr/register",
+        "Disallow: /payment/",
+        "Disallow: /sb/",
+        "Disallow: /bale/webhook/",
+        "Disallow: /cloud-phone/webhook/",
+        "Disallow: /healthz",
+        "Disallow: /up",
+        "Disallow: /*?attachment_id=",
+        "Disallow: /parts/*?",
+        "Disallow: /en/parts/*?",
+        "Disallow: /tr/parts/*?",
+        "Disallow: /*?tag=",
+        "Disallow: /*&tag=",
+        "Disallow: /*?q=",
+        "Disallow: /*&q=",
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /api/",
+        "Disallow: /en/api/",
+        "Disallow: /tr/api/",
+        "Disallow: /admin",
+        "Disallow: /system/",
+        "Disallow: /go/",
+        "Disallow: /en/go/",
+        "Disallow: /tr/go/",
+        "Disallow: /account",
+        "Disallow: /en/account",
+        "Disallow: /tr/account",
+        "Disallow: /login",
+        "Disallow: /en/login",
+        "Disallow: /tr/login",
+        "Disallow: /register",
+        "Disallow: /en/register",
+        "Disallow: /tr/register",
+        "Disallow: /payment/",
+        "Disallow: /sb/",
+        "Disallow: /bale/webhook/",
+        "Disallow: /cloud-phone/webhook/",
+        "Disallow: /healthz",
+        "Disallow: /up",
+        "Disallow: /*?attachment_id=",
+        "Disallow: /parts/*?",
+        "Disallow: /en/parts/*?",
+        "Disallow: /tr/parts/*?",
+        "Disallow: /*?tag=",
+        "Disallow: /*&tag=",
+        "Disallow: /*?q=",
+        "Disallow: /*&q=",
+        "Sitemap: https://servernet.cloud/sitemap.xml"
+      ]
+    }
+  ],
+  "sitemaps": [
+    {
+      "url": "https://servernet.cloud/sitemap.xml",
+      "status": 200,
+      "elapsed_s": 1.27,
+      "response_sha256": "229627bf148767fc184003a1bb438d04b4611e7101189e165d143db2812bb08b",
+      "body_bytes": 523318,
+      "url_count": 5460,
+      "unique_count": 5460,
+      "duplicate_count": 0,
+      "off_host_count": 0,
+      "query_url_count": 45,
+      "country_legacy_membership": [
+        {
+          "slug": "iran",
+          "urls": [
+            "https://servernet.cloud/vps/iran",
+            "https://servernet.cloud/en/vps/iran",
+            "https://servernet.cloud/tr/vps/iran"
+          ]
+        },
+        {
+          "slug": "germany",
+          "urls": [
+            "https://servernet.cloud/vps/germany",
+            "https://servernet.cloud/en/vps/germany",
+            "https://servernet.cloud/tr/vps/germany"
+          ]
+        },
+        {
+          "slug": "finland",
+          "urls": [
+            "https://servernet.cloud/vps/finland",
+            "https://servernet.cloud/en/vps/finland",
+            "https://servernet.cloud/tr/vps/finland"
+          ]
+        },
+        {
+          "slug": "france",
+          "urls": [
+            "https://servernet.cloud/vps/france",
+            "https://servernet.cloud/en/vps/france",
+            "https://servernet.cloud/tr/vps/france"
+          ]
+        },
+        {
+          "slug": "usa",
+          "urls": [
+            "https://servernet.cloud/vps/usa",
+            "https://servernet.cloud/en/vps/usa",
+            "https://servernet.cloud/tr/vps/usa"
+          ]
+        },
+        {
+          "slug": "russia",
+          "urls": [
+            "https://servernet.cloud/vps/russia",
+            "https://servernet.cloud/en/vps/russia",
+            "https://servernet.cloud/tr/vps/russia"
+          ]
+        },
+        {
+          "slug": "singapore",
+          "urls": [
+            "https://servernet.cloud/vps/singapore",
+            "https://servernet.cloud/en/vps/singapore",
+            "https://servernet.cloud/tr/vps/singapore"
+          ]
+        },
+        {
+          "slug": "sweden",
+          "urls": [
+            "https://servernet.cloud/vps/sweden",
+            "https://servernet.cloud/en/vps/sweden",
+            "https://servernet.cloud/tr/vps/sweden"
+          ]
+        },
+        {
+          "slug": "netherlands",
+          "urls": [
+            "https://servernet.cloud/vps/netherlands",
+            "https://servernet.cloud/en/vps/netherlands",
+            "https://servernet.cloud/tr/vps/netherlands"
+          ]
+        },
+        {
+          "slug": "austria",
+          "urls": [
+            "https://servernet.cloud/vps/austria",
+            "https://servernet.cloud/en/vps/austria",
+            "https://servernet.cloud/tr/vps/austria"
+          ]
+        },
+        {
+          "slug": "england",
+          "urls": [
+            "https://servernet.cloud/vps/england",
+            "https://servernet.cloud/en/vps/england",
+            "https://servernet.cloud/tr/vps/england"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://servernet.cloud/hardware-sitemap.xml",
+      "status": 200,
+      "elapsed_s": 0.768,
+      "response_sha256": "ea68017b809ca48663a82c73e23b0c21f3935d84fcd17dfcd218a4fa942dc1bd",
+      "body_bytes": 544205,
+      "url_count": 2115,
+      "unique_count": 2115,
+      "duplicate_count": 0,
+      "off_host_count": 0,
+      "query_url_count": 0,
+      "country_legacy_membership": [
+        {
+          "slug": "iran",
+          "urls": []
+        },
+        {
+          "slug": "germany",
+          "urls": []
+        },
+        {
+          "slug": "finland",
+          "urls": []
+        },
+        {
+          "slug": "france",
+          "urls": []
+        },
+        {
+          "slug": "usa",
+          "urls": []
+        },
+        {
+          "slug": "russia",
+          "urls": []
+        },
+        {
+          "slug": "singapore",
+          "urls": []
+        },
+        {
+          "slug": "sweden",
+          "urls": []
+        },
+        {
+          "slug": "netherlands",
+          "urls": []
+        },
+        {
+          "slug": "austria",
+          "urls": []
+        },
+        {
+          "slug": "england",
+          "urls": []
+        }
+      ]
+    }
+  ],
+  "sitemap_cross_file_overlap_count": 2115,
+  "pages": [
+    {
+      "url": "https://servernet.cloud/",
+      "checked_url": "https://servernet.cloud/?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 1.842,
+      "html_bytes": 221284,
+      "response_sha256": "d53d21e2fd8c95941a8d8d1acf34f988ec4614e5baf2286ff93cb86172539e68",
+      "main_sha256": "cc9fd58ea32697aee409611d2cadb5fb2cb0b0824bce6c5236f2fcd3d62e68d4",
+      "in_main_sitemap": true,
+      "title": "سرورنت کلاود — هاستینگ، سرور ابری و راهکارهای سازمانی",
+      "meta_description": [
+        "سرورنت ارائه‌دهنده سرور ابری، سرور مجازی و اختصاصی، هاست، دامنه و زیرساخت سازمانی با پشتیبانی ۲۴/۷ در بیش از ۱۱ دیتاسنتر."
+      ],
+      "h1": [
+        "خانهٔ امنِ رویاهای آنلاینِ شما، روی زیرساختی که کم نمی‌آورد."
+      ],
+      "canonical": [
+        "https://servernet.cloud"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 3,
+      "schema_error_count": 0,
+      "schema_types": [
+        "WebPage",
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/",
+          "fragment": "#pricing",
+          "query_keys": [],
+          "text": "مشاهده پلن‌ها"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "انتخاب پلن"
+        },
+        {
+          "path": "https://servernet.cloud/",
+          "fragment": "#contact",
+          "query_keys": [],
+          "text": "گفتگو با تیم راهکارها"
+        },
+        {
+          "path": "https://servernet.cloud/contact",
+          "fragment": "#form",
+          "query_keys": [],
+          "text": "گفتگو دربارهٔ پروژه"
+        }
+      ],
+      "main_internal_paths": [
+        "/account/cloud-store",
+        "/ai",
+        "/cloud",
+        "/cloud/iaas",
+        "/contact",
+        "/dedicated/germany",
+        "/domain/popular-tlds",
+        "/gpu",
+        "/hosting/linux",
+        "/hosting/wordpress",
+        "/solutions",
+        "/solutions/ai-agents",
+        "/solutions/bpmn-erp",
+        "/solutions/infrastructure",
+        "/solutions/managed",
+        "/solutions/seo-services",
+        "/solutions/web-design",
+        "/transactional-email",
+        "/urmia",
+        "/vps/france",
+        "/vps/germany",
+        "/vps/hourly",
+        "/vps/usa"
+      ],
+      "form_sample": [
+        {
+          "id": "domain-form",
+          "method": "get",
+          "action_path": "https://servernet.cloud/domains"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/hourly",
+      "checked_url": "https://servernet.cloud/vps/hourly?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 3.096,
+      "html_bytes": 745163,
+      "response_sha256": "7e7c7a84cf7a18c20abe9544bde4aa352534ce86eba91f8ce55e8e8992a8a9c4",
+      "main_sha256": "7b9abccf0ec36d3d72efc3af13e5cc4b7a3735bb843a9b5df27255e1fd813760",
+      "in_main_sitemap": true,
+      "title": "خرید سرور مجازی ساعتی | تعرفه و شرایط مصرف — سرورنت",
+      "meta_description": [
+        "خرید سرور مجازی ساعتی از ۳,۷۰۰ تومان در ساعت؛ مقایسه پلن‌ها و ۳۴ کشور موجود، اعتبار شروع، شرایط خاموشی و حذف سرور. سفارش از کنسول سرورنت."
+      ],
+      "h1": [
+        "خرید سرور مجازی ساعتی، برای زمانی که نیاز دارید."
+      ],
+      "canonical": [
+        "https://servernet.cloud/vps/hourly"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/vps/hourly"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/vps/hourly"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/vps/hourly"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/vps/hourly"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 6,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "Product",
+        "FAQPage",
+        "BreadcrumbList",
+        "HowTo"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "billing_mode"
+          ],
+          "text": "سفارش سرور ساعتی"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "billing_mode",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ساعتی"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "billing_mode",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ساعتی"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "billing_mode",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ساعتی"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "billing_mode",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ساعتی"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "billing_mode",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ساعتی"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "billing_mode",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ساعتی"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/account/cloud-store",
+        "/blog",
+        "/blog/cloud-cost-optimization",
+        "/blog/docker-basics-for-web-developers",
+        "/blog/how-to-choose-a-vps",
+        "/blog/kubernetes-for-beginners",
+        "/cloud",
+        "/cloud/iaas",
+        "/contact",
+        "/docs/connecting-to-linux-server-ssh",
+        "/domains",
+        "/gpu",
+        "/hosting/python",
+        "/vps/argentina",
+        "/vps/austria",
+        "/vps/bahrain",
+        "/vps/bangladesh",
+        "/vps/brazil",
+        "/vps/bulgaria",
+        "/vps/canada",
+        "/vps/chile",
+        "/vps/ecuador",
+        "/vps/egypt",
+        "/vps/england",
+        "/vps/finland",
+        "/vps/france",
+        "/vps/germany",
+        "/vps/greece",
+        "/vps/hong-kong",
+        "/vps/indonesia",
+        "/vps/iraq",
+        "/vps/japan",
+        "/vps/kuwait",
+        "/vps/linux",
+        "/vps/malaysia",
+        "/vps/mexico",
+        "/vps/myanmar",
+        "/vps/philippines",
+        "/vps/qatar",
+        "/vps/romania",
+        "/vps/russia",
+        "/vps/saudi-arabia",
+        "/vps/singapore",
+        "/vps/taiwan",
+        "/vps/thailand",
+        "/vps/trading",
+        "/vps/usa",
+        "/vps/vietnam"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "",
+          "action_path": "https://servernet.cloud/vps/hourly"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/gpu",
+      "checked_url": "https://servernet.cloud/gpu?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.189,
+      "html_bytes": 245122,
+      "response_sha256": "8d26e7711c5936c385a3b4528ab133d28e6b8eea949d95397d4ca4b57e571e54",
+      "main_sha256": "bf2bb621f90198a6827ad897c147757373967bd6e62159584b3afa535fec0f70",
+      "in_main_sitemap": true,
+      "title": "اجاره GPU و سرور گرافیکی ساعتی | ComfyUI و Jupyter",
+      "meta_description": [
+        "اجاره GPU ساعتی از ۸,۳۰۰ تومان؛ کارت گرافیک و برنامه سازگار را انتخاب کنید. شرایط اعتبار شروع، دیسک موقت و دسترسی HTTPS را پیش از درخواست بررسی کنید."
+      ],
+      "h1": [
+        "سرور گرافیکی ساعتی"
+      ],
+      "canonical": [
+        "https://servernet.cloud/gpu"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/gpu"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/gpu"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/gpu"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/gpu"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 3,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/gpu",
+          "fragment": "#gpu-configure",
+          "query_keys": [],
+          "text": "انتخاب و پیکربندی GPU ↓"
+        }
+      ],
+      "main_internal_paths": [
+        "/blog/comfyui-hourly-gpu-guide",
+        "/blog/jupyter-hourly-gpu-guide"
+      ],
+      "form_sample": [
+        {
+          "id": "gpu-configure",
+          "method": "post",
+          "action_path": "https://servernet.cloud/gpu/order"
+        }
+      ],
+      "gpu_configure_id_count": 1,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/cloud",
+      "checked_url": "https://servernet.cloud/cloud?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.786,
+      "html_bytes": 1006436,
+      "response_sha256": "caced42e19dd72cd7f6489077d250b05bbdeac696ab76058b94292110f3d1dfe",
+      "main_sha256": "70602a7c6457ca1f4e09fae7d878e4d2acea08a87433f14bbbf591252dcc72d6",
+      "in_main_sitemap": true,
+      "title": "خرید سرور مجازی (VPS) | ایران و ده‌ها کشور، تحویل آنی | سرورنت",
+      "meta_description": [
+        "خرید سرور مجازی با منابع و دیسک مشخص در هر پلن، آی‌پی اختصاصی و تحویل خودکار در ایران و ده‌ها شهر جهان. قیمت شفاف، پرداخت ریالی و انتخاب پرداخت ساعتی یا ماهانه."
+      ],
+      "h1": [
+        "سرور مجازی، در هر کشوری که بخواهید"
+      ],
+      "canonical": [
+        "https://servernet.cloud/cloud"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/cloud"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/cloud"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/cloud"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/cloud"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 5,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "ItemList",
+        "FAQPage"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "خرید"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "خرید"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "خرید"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "خرید"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "خرید"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "خرید"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "location",
+            "plan"
+          ],
+          "text": "خرید"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/account/cloud-store",
+        "/blog",
+        "/blog/autoscaling-concepts",
+        "/blog/ddos-protection-explained",
+        "/blog/monitoring-and-alerting-setup",
+        "/cloud",
+        "/cloud/ae-dubai",
+        "/cloud/ar-buenos-aires",
+        "/cloud/at-vienna",
+        "/cloud/au-sydney",
+        "/cloud/bd-dhaka",
+        "/cloud/be-brussels",
+        "/cloud/bg-sofia",
+        "/cloud/bh-bahrain",
+        "/cloud/br-sao-paulo",
+        "/cloud/ca-beauharnois",
+        "/cloud/ca-toronto",
+        "/cloud/ch-zurich",
+        "/cloud/cl-santiago",
+        "/cloud/co-bogota",
+        "/cloud/cz-prague",
+        "/cloud/de-falkenstein",
+        "/cloud/de-frankfurt",
+        "/cloud/de-nuremberg",
+        "/cloud/ec-quito",
+        "/cloud/eg-cairo",
+        "/cloud/es-madrid",
+        "/cloud/exit-de",
+        "/cloud/exit-fi",
+        "/cloud/exit-nl",
+        "/cloud/fi-helsinki",
+        "/cloud/fr-gravelines",
+        "/cloud/fr-marseille",
+        "/cloud/fr-roubaix",
+        "/cloud/fr-strasbourg",
+        "/cloud/gb-london",
+        "/cloud/gr-athens",
+        "/cloud/hk-hong-kong",
+        "/cloud/iaas",
+        "/cloud/id-jakarta",
+        "/cloud/in-mumbai",
+        "/cloud/iq-baghdad",
+        "/cloud/it-milan",
+        "/cloud/jp-tokyo",
+        "/cloud/kh-phnom-penh",
+        "/cloud/kr-seoul-ii",
+        "/cloud/kw-kuwait-city",
+        "/cloud/mm-yangon",
+        "/cloud/mx-mexico-city",
+        "/cloud/my-kuala-lumpur",
+        "/cloud/nl-amsterdam",
+        "/cloud/np-kathmandu",
+        "/cloud/ph-manila",
+        "/cloud/pl-warsaw",
+        "/cloud/qa-doha",
+        "/cloud/ro-bucharest",
+        "/cloud/ru-moscow",
+        "/cloud/sa-riyadh-ii",
+        "/cloud/sg-singapore",
+        "/cloud/th-bangkok",
+        "/cloud/tr-istanbul",
+        "/cloud/tr-istanbul-ii",
+        "/cloud/tw-taipei-ii",
+        "/cloud/us-ashburn-va",
+        "/cloud/us-atlanta",
+        "/cloud/us-dallas",
+        "/cloud/us-denver",
+        "/cloud/us-hillsboro",
+        "/cloud/us-hillsboro-or",
+        "/cloud/us-los-angeles",
+        "/cloud/us-miami",
+        "/cloud/us-new-york",
+        "/cloud/us-palo-alto",
+        "/cloud/us-seattle",
+        "/cloud/us-silicon-valley",
+        "/cloud/us-silicon-valley-ii",
+        "/cloud/us-vint-hill",
+        "/cloud/us-washington",
+        "/cloud/vn-hanoi",
+        "/cloud/vn-ho-chi-minh",
+        "/contact",
+        "/domains",
+        "/gpu",
+        "/hosting/linux",
+        "/knowledge",
+        "/solutions",
+        "/vps/argentina",
+        "/vps/austria",
+        "/vps/bahrain",
+        "/vps/bangladesh",
+        "/vps/brazil",
+        "/vps/bulgaria",
+        "/vps/canada",
+        "/vps/chile",
+        "/vps/ecuador",
+        "/vps/egypt",
+        "/vps/england",
+        "/vps/finland",
+        "/vps/france"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/germany",
+      "checked_url": "https://servernet.cloud/vps/germany?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.232,
+      "html_bytes": 196970,
+      "response_sha256": "98fa4e158536bf2c8b5bdf65be45ab13d858bd7a7df1b0abe3514cd929dfb4ef",
+      "main_sha256": "7382a98ff7e825c0ee470ff18ca42fdc6e2bda3f381efb627585acf0e1e559e7",
+      "in_main_sitemap": true,
+      "title": "خرید سرور مجازی آلمان | پلن و قیمت جاری | سرورنت",
+      "meta_description": [
+        "پلن‌های سرور مجازی آلمان را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "h1": [
+        "سرور مجازی آلمان"
+      ],
+      "canonical": [
+        "https://servernet.cloud/vps/germany"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/vps/germany"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/vps/germany"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/vps/germany"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/vps/germany"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 5,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "ItemList",
+        "FAQPage"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/account/cloud-store",
+        "/cloud"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "",
+          "action_path": "https://servernet.cloud/vps/germany"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/iran",
+      "checked_url": "https://servernet.cloud/vps/iran?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.128,
+      "html_bytes": 150246,
+      "response_sha256": "dfc5dea41ba85ccd8efdc1bcb0b7aef5367e6cf3c39b9a61fcea4482466c3f5a",
+      "main_sha256": "8dbe73aca7dbc5155a65266709addd43475bc98dd9349c4c6bafdab523027da2",
+      "in_main_sitemap": true,
+      "title": "خرید سرور مجازی ایران | پلن و قیمت جاری | سرورنت",
+      "meta_description": [
+        "پلن‌های سرور مجازی ایران را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "h1": [
+        "سرور مجازی ایران"
+      ],
+      "canonical": [],
+      "canonical_self": false,
+      "hreflang": [],
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "noindex": true,
+      "schema_blocks": 4,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "FAQPage"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [],
+      "main_internal_paths": [
+        "/",
+        "/cloud"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": true,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/philippines",
+      "checked_url": "https://servernet.cloud/vps/philippines?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.084,
+      "html_bytes": 168387,
+      "response_sha256": "e92942e0d48365f6df7e190085ee6665746fa01b4f16d89b407515731763a16f",
+      "main_sha256": "99884df5bea37cb37498f3bbb35da3088f0684ad66ac4f7e21f514b90e435603",
+      "in_main_sitemap": true,
+      "title": "خرید سرور مجازی فیلیپین | پلن و قیمت جاری | سرورنت",
+      "meta_description": [
+        "پلن‌های سرور مجازی فیلیپین را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "h1": [
+        "سرور مجازی فیلیپین"
+      ],
+      "canonical": [
+        "https://servernet.cloud/vps/philippines"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/vps/philippines"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/vps/philippines"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/vps/philippines"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/vps/philippines"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 5,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "ItemList",
+        "FAQPage"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/account/cloud-store",
+        "/cloud"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "",
+          "action_path": "https://servernet.cloud/vps/philippines"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/uae",
+      "checked_url": "https://servernet.cloud/vps/uae?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.026,
+      "html_bytes": 150123,
+      "response_sha256": "a77e9053e95758716baa2ae198a4753415e960f5e992c8cc8aacd0921e8490f0",
+      "main_sha256": "c79017bb54bfa218d06f219b142b768e35b23b9212a2778d46ada3db5267b90e",
+      "in_main_sitemap": false,
+      "title": "خرید سرور مجازی امارات | پلن و قیمت جاری | سرورنت",
+      "meta_description": [
+        "پلن‌های سرور مجازی امارات را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "h1": [
+        "سرور مجازی امارات"
+      ],
+      "canonical": [],
+      "canonical_self": false,
+      "hreflang": [],
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "noindex": true,
+      "schema_blocks": 4,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "FAQPage"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [],
+      "main_internal_paths": [
+        "/",
+        "/cloud"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": true,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/sweden",
+      "checked_url": "https://servernet.cloud/vps/sweden?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.155,
+      "html_bytes": 150216,
+      "response_sha256": "4484f462b4b6daac5ff840090672fc16c0def8ed6047ca2e89b58adc05c9c637",
+      "main_sha256": "3ce538eeb4ab95b088c5ccbe398172b984eb57ec673c7650264ecadeea779bd6",
+      "in_main_sitemap": true,
+      "title": "خرید سرور مجازی سوئد | پلن و قیمت جاری | سرورنت",
+      "meta_description": [
+        "پلن‌های سرور مجازی سوئد را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "h1": [
+        "سرور مجازی سوئد"
+      ],
+      "canonical": [],
+      "canonical_self": false,
+      "hreflang": [],
+      "robots_meta": [
+        "noindex,follow"
+      ],
+      "noindex": true,
+      "schema_blocks": 4,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "FAQPage"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [],
+      "main_internal_paths": [
+        "/",
+        "/cloud"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": true,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/vps/austria",
+      "checked_url": "https://servernet.cloud/vps/austria?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 2.157,
+      "html_bytes": 168986,
+      "response_sha256": "9a26bb194e50a0b5595e9e4ff20cfe56d5e8f0e0f4c741227d0a1c9ce0dcd6a1",
+      "main_sha256": "a1feb757a65e3870adca200cd5917c00b770149c94660fd0f035f0613ece0076",
+      "in_main_sitemap": true,
+      "title": "خرید سرور مجازی اتریش | پلن و قیمت جاری | سرورنت",
+      "meta_description": [
+        "پلن‌های سرور مجازی اتریش را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید."
+      ],
+      "h1": [
+        "سرور مجازی اتریش"
+      ],
+      "canonical": [
+        "https://servernet.cloud/vps/austria"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/vps/austria"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/vps/austria"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/vps/austria"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/vps/austria"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 5,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "ItemList",
+        "FAQPage"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        },
+        {
+          "path": "https://servernet.cloud/account/cloud-store",
+          "fragment": "",
+          "query_keys": [
+            "cycle",
+            "location",
+            "plan"
+          ],
+          "text": "سفارش ماهانه"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/account/cloud-store",
+        "/cloud"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "",
+          "action_path": "https://servernet.cloud/vps/austria"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/hosting/linux",
+      "checked_url": "https://servernet.cloud/hosting/linux?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 1.107,
+      "html_bytes": 172982,
+      "response_sha256": "819ab4fee736dec46e1f18c567a985497133f0a0f55fea4549b81de872e23e02",
+      "main_sha256": "a1c67a535531860ff9a0a8c5fd0d38c6f151638c019efc374cd60a054f2f26f9",
+      "in_main_sitemap": true,
+      "title": "هاست لینوکس — سرورنت کلاود",
+      "meta_description": [
+        "میزبانی PHP و MySQL روی NVMe RAID-10 با LiteSpeed — پایه‌ی مطمئن هر وب‌سایتی، از وبلاگ شخصی تا پروژه‌های لاراول سازمانی. با قیمتی که رقبا توضیحی برایش ندارند."
+      ],
+      "h1": [
+        "هاست لینوکس در کلاس جهانی."
+      ],
+      "canonical": [
+        "https://servernet.cloud/hosting/linux"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/hosting/linux"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/hosting/linux"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/hosting/linux"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/hosting/linux"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 5,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "Product",
+        "FAQPage",
+        "BreadcrumbList"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/hosting/linux",
+          "fragment": "#pricing",
+          "query_keys": [],
+          "text": "مشاهده پلن‌ها"
+        },
+        {
+          "path": "https://servernet.cloud/order/linux-2",
+          "fragment": "",
+          "query_keys": [],
+          "text": "انتخاب پلن"
+        },
+        {
+          "path": "https://servernet.cloud/hosting/linux",
+          "fragment": "#pricing",
+          "query_keys": [],
+          "text": "مشاهده پلن‌ها"
+        }
+      ],
+      "main_internal_paths": [
+        "/blog",
+        "/blog/cpanel-vs-directadmin",
+        "/blog/diagnosing-slow-website",
+        "/blog/php-version-upgrade-guide",
+        "/hosting/backup",
+        "/hosting/download",
+        "/hosting/email",
+        "/hosting/python",
+        "/hosting/reseller-directadmin",
+        "/hosting/reseller-linux",
+        "/hosting/reseller-windows",
+        "/hosting/reseller-wordpress",
+        "/hosting/windows",
+        "/hosting/woocommerce",
+        "/hosting/wordpress",
+        "/order/linux-1",
+        "/order/linux-2",
+        "/order/linux-3",
+        "/order/linux-4",
+        "/order/linux-5"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/hosting/wordpress",
+      "checked_url": "https://servernet.cloud/hosting/wordpress?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 0.936,
+      "html_bytes": 174873,
+      "response_sha256": "2aa5becce2f5fd65bf1b77d8051d683a89a53b47805265da5db39820ae105231",
+      "main_sha256": "522db9cb1abe0b4c8f0e42fe8ace899738a82647f80c7d08e64dac3ad57ce26a",
+      "in_main_sitemap": true,
+      "title": "هاست وردپرس — سرورنت کلاود",
+      "meta_description": [
+        "استک اختصاصی وردپرس با LiteSpeed Enterprise و NVMe — نصب خودکار، آپدیت امن، استیجینگ و کشی که سایت شما را در صدر نتایج گوگل نگه می‌دارد."
+      ],
+      "h1": [
+        "هاست وردپرس سریع‌تر از همیشه."
+      ],
+      "canonical": [
+        "https://servernet.cloud/hosting/wordpress"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/hosting/wordpress"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/hosting/wordpress"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/hosting/wordpress"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/hosting/wordpress"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 5,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "Product",
+        "FAQPage",
+        "BreadcrumbList"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/hosting/wordpress",
+          "fragment": "#pricing",
+          "query_keys": [],
+          "text": "مشاهده پلن‌ها"
+        },
+        {
+          "path": "https://servernet.cloud/order/wordpress-3",
+          "fragment": "",
+          "query_keys": [],
+          "text": "انتخاب پلن"
+        },
+        {
+          "path": "https://servernet.cloud/hosting/wordpress",
+          "fragment": "#pricing",
+          "query_keys": [],
+          "text": "مشاهده پلن‌ها"
+        }
+      ],
+      "main_internal_paths": [
+        "/blog",
+        "/blog/cpanel-vs-directadmin",
+        "/blog/diagnosing-slow-website",
+        "/blog/php-version-upgrade-guide",
+        "/hosting/backup",
+        "/hosting/download",
+        "/hosting/email",
+        "/hosting/linux",
+        "/hosting/python",
+        "/hosting/reseller-directadmin",
+        "/hosting/reseller-linux",
+        "/hosting/reseller-windows",
+        "/hosting/reseller-wordpress",
+        "/hosting/windows",
+        "/hosting/woocommerce",
+        "/order/wordpress-1",
+        "/order/wordpress-2",
+        "/order/wordpress-3",
+        "/order/wordpress-4",
+        "/order/wordpress-5",
+        "/order/wordpress-6"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/domains",
+      "checked_url": "https://servernet.cloud/domains?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 0.969,
+      "html_bytes": 178094,
+      "response_sha256": "c04c2924461859f02f3b8c18a6bc413bb3918da2f013c39e144daa01080e1441",
+      "main_sha256": "6b1ad0848e4787e2153583a945eebe5cea1cc8336afd693d840a7dfc626079f0",
+      "in_main_sitemap": true,
+      "title": "خرید و ثبت دامنه | جستجوی آنلاین، قیمت لحظه‌ای، ir. و ۱۰۰+ پسوند — سرورنت",
+      "meta_description": [
+        "خرید دامنه و ثبت دامنه آنلاین: نام دلخواه را جستجو کنید، قیمت لحظه‌ای .ir، .com و بیش از ۱۰۰ پسوند را ببینید و با پرداخت ریالی همان لحظه ثبت کنید؛ پنل DNS و مدیریت کامل دامنه از پنل سرورنت."
+      ],
+      "h1": [
+        "ثبت دامنه"
+      ],
+      "canonical": [
+        "https://servernet.cloud/domains"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/domains"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/domains"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/domains"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/domains"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 2,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [],
+      "main_internal_paths": [
+        "/domain/backorder",
+        "/domain/ir",
+        "/domain/persian",
+        "/domain/popular-tlds",
+        "/domain/premium",
+        "/domain/reseller"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/ai",
+      "checked_url": "https://servernet.cloud/ai?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 0.88,
+      "html_bytes": 183265,
+      "response_sha256": "9792ce563c6c886570e9225512d9bc95cfefeba22c52737a2ecabe304e5a5f14",
+      "main_sha256": "6f58784fc6c272ecffd7344471ffd4bd51eb3a2e7a50ff5f9025f9abe2cac459",
+      "in_main_sitemap": true,
+      "title": "خرید API هوش مصنوعی با پرداخت تومانی | ServerNet",
+      "meta_description": [
+        "مدل‌های هوش مصنوعی، کلید API اختصاصی، بودجهٔ پروژه و گزارش مصرف در ServerNet. مقایسهٔ مدل‌ها و راهنمای اتصال با SDK سازگار با OpenAI."
+      ],
+      "h1": [
+        "API هوش مصنوعی؛ مدل مناسب پروژهٔ شما."
+      ],
+      "canonical": [
+        "https://servernet.cloud/ai"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/ai"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/ai"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/ai"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/ai"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 3,
+      "schema_error_count": 0,
+      "schema_types": [
+        "FAQPage",
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [],
+          "text": "کشف مدل‌ها ↗"
+        },
+        {
+          "path": "https://servernet.cloud/ai/compare",
+          "fragment": "",
+          "query_keys": [],
+          "text": "ساخت مقایسه"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "fragment": "",
+          "query_keys": [],
+          "text": "بررسی مدل ↗"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+          "fragment": "#usage-planner",
+          "query_keys": [],
+          "text": "برای مصرف توکن برنامه‌ریزی کنید"
+        },
+        {
+          "path": "https://servernet.cloud/ai/compare",
+          "fragment": "",
+          "query_keys": [
+            "models"
+          ],
+          "text": "مقایسهٔ مدل‌ها"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models/di-tencenthy4-preview-ed5625f629",
+          "fragment": "",
+          "query_keys": [],
+          "text": "بررسی مدل ↗"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models/di-tencenthy4-preview-ed5625f629",
+          "fragment": "#usage-planner",
+          "query_keys": [],
+          "text": "برای مصرف توکن برنامه‌ریزی کنید"
+        }
+      ],
+      "main_internal_paths": [
+        "/account/ai",
+        "/ai",
+        "/ai/compare",
+        "/ai/docs",
+        "/ai/models",
+        "/ai/models/di-deepseek-aideepseek-v4-flash-51630916db",
+        "/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef",
+        "/ai/models/di-deepseek-aideepseek-v41-flash-1017-15efb2abf6",
+        "/ai/models/di-tencenthy4-preview-ed5625f629",
+        "/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+        "/ai/models/di-zai-orgglm-53-ab35037a12"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 6,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "checked_url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 0.988,
+      "html_bytes": 193715,
+      "response_sha256": "a79bd346a3870d2d1dd0534c0d591a9e5e5d98356e5761c40df72ae6ddc3b08e",
+      "main_sha256": "9a194dd3febe65e49abca252b7ede5d7cb7f177e27141a128a54e4373f9d6f9b",
+      "in_main_sitemap": true,
+      "title": "MiMo-V2.6-Pro · DeepInfra API | قیمت، محدودیت‌ها و راهنمای اتصال | ServerNet",
+      "meta_description": [
+        "API مدل MiMo-V2.6-Pro برای چت متنی؛ قیمت تومانی، ورودی مجاز، نمونه درخواست، کنترل هزینه و وضعیت ارائه در سرورنت. قابل استفاده."
+      ],
+      "h1": [
+        "MiMo-V2.6-Pro API"
+      ],
+      "canonical": [
+        "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 3,
+      "schema_error_count": 0,
+      "schema_types": [
+        "WebPage",
+        "BreadcrumbList",
+        "Service",
+        "FAQPage",
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/account/ai",
+          "fragment": "",
+          "query_keys": [],
+          "text": "پنل هوش مصنوعی"
+        },
+        {
+          "path": "https://servernet.cloud/ai/docs",
+          "fragment": "",
+          "query_keys": [],
+          "text": "راهنمای اتصال"
+        },
+        {
+          "path": "https://servernet.cloud/ai/compare",
+          "fragment": "",
+          "query_keys": [
+            "models"
+          ],
+          "text": "مقایسه با مدل‌های دیگر"
+        },
+        {
+          "path": "https://servernet.cloud/ai/compare",
+          "fragment": "",
+          "query_keys": [
+            "models"
+          ],
+          "text": "مقایسهٔ مدل‌ها ↗"
+        },
+        {
+          "path": "https://servernet.cloud/ai/docs",
+          "fragment": "",
+          "query_keys": [],
+          "text": "کلیدها، بودجه و گزارش مصرف"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-flash-9582fe3fee",
+          "fragment": "",
+          "query_keys": [],
+          "text": "بررسی مدل ↗"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-flash-9582fe3fee",
+          "fragment": "#usage-planner",
+          "query_keys": [],
+          "text": "برای مصرف توکن برنامه‌ریزی کنید"
+        }
+      ],
+      "main_internal_paths": [
+        "/account/ai",
+        "/ai",
+        "/ai/compare",
+        "/ai/docs",
+        "/ai/models",
+        "/ai/models/di-deepseek-aideepseek-v4-flash-0731-0cb6a5868a",
+        "/ai/models/di-deepseek-aideepseek-v4-flash-51630916db",
+        "/ai/models/di-deepseek-aideepseek-v4-flash-vision-exp-8e4f6a39ef",
+        "/ai/models/di-deepseek-aideepseek-v4-pro-0813-5cf2c4e8f5",
+        "/ai/models/di-deepseek-aideepseek-v4-pro-e491c52826",
+        "/ai/models/di-xiaomimimomimo-v26-flash-9582fe3fee"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "",
+          "action_path": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 7,
+      "planner_target_count": 1,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/ai/models",
+      "checked_url": "https://servernet.cloud/ai/models?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 1.044,
+      "html_bytes": 197087,
+      "response_sha256": "435285a760027c6bfc69abafda2a53d8489c2e09e49967544c1f5d6dacd0443b",
+      "main_sha256": "d5f86c900a390d3a9f307b61684a7f0d4ec64985dab0682c85f1253882eb54b4",
+      "in_main_sitemap": true,
+      "title": "مدل‌ها و قیمت API هوش مصنوعی | ServerNet",
+      "meta_description": [
+        "فهرست مدل‌های AI، نوع سرویس، ظرفیت زمینه و وضعیت ارائه در درگاه ServerNet؛ انتخاب مدل مناسب برای برنامه و بودجهٔ شما."
+      ],
+      "h1": [
+        "مقایسهٔ مدل‌ها"
+      ],
+      "canonical": [
+        "https://servernet.cloud/ai/models"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/ai/models"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/ai/models"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/ai/models"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/ai/models"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 2,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [],
+          "text": "همهٔ انواع"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [
+            "type"
+          ],
+          "text": "چت متنی"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [
+            "type"
+          ],
+          "text": "Embedding"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [
+            "type"
+          ],
+          "text": "تصویر"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [
+            "type"
+          ],
+          "text": "صوت"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [
+            "type"
+          ],
+          "text": "بازرتبه‌بندی"
+        },
+        {
+          "path": "https://servernet.cloud/ai/models",
+          "fragment": "",
+          "query_keys": [
+            "type"
+          ],
+          "text": "ویدئو"
+        }
+      ],
+      "main_internal_paths": [
+        "/account/ai",
+        "/ai",
+        "/ai/compare",
+        "/ai/docs",
+        "/ai/models",
+        "/ai/models/di-ace-stepacestep-v15-xl-sft-5f5031a451",
+        "/ai/models/di-anthropicclaude-3-7-sonnet-latest-0718a013ea",
+        "/ai/models/di-anthropicclaude-4-opus-bd66e8574d",
+        "/ai/models/di-anthropicclaude-4-sonnet-e14152af46",
+        "/ai/models/di-audio8audio8-tts-preview-06b-b2a5c5222d",
+        "/ai/models/di-austismchronos-hermes-13b-v2-a602bdfd06",
+        "/ai/models/di-baaibge-base-en-v15-3c57837793",
+        "/ai/models/di-baaibge-en-icl-5788b58bbf",
+        "/ai/models/di-baaibge-large-en-v15-271a77b26d",
+        "/ai/models/di-baaibge-m3-d790e73745",
+        "/ai/models/di-baaibge-m3-multi-8k-ff6ca81b22",
+        "/ai/models/di-baaibge-m3-multi-ebe9621025",
+        "/ai/models/di-briablur-background-a3fb928fc3",
+        "/ai/models/di-briabria-32-c67b2846ad",
+        "/ai/models/di-briabria-32-vector-47ae002010",
+        "/ai/models/di-deepinfraairoboros-70b-29c23b58ed",
+        "/ai/models/di-resembleaichatterbox-650f9abf03",
+        "/ai/models/di-resembleaichatterbox-multilingual-cb46c2a82a",
+        "/ai/models/di-resembleaichatterbox-turbo-049f30e3e2",
+        "/ai/models/di-sentence-transformersall-minilm-l12-v2-787be1395e",
+        "/ai/models/di-sentence-transformersall-minilm-l6-v2-e9e2c8815f",
+        "/ai/models/di-sentence-transformersall-mpnet-base-v2-35c62fcf7f",
+        "/ai/models/gapgpt-babbage-002-980145897e",
+        "/ai/models/gapgpt-claude-fable-5-2858afd746"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "get",
+          "action_path": "https://servernet.cloud/ai/models"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 10,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff",
+      "checked_url": "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 0.96,
+      "html_bytes": 169451,
+      "response_sha256": "ddeaa0c1939fe90f1653f6e6ad18626901d95918cb859fba70d313eb78238833",
+      "main_sha256": "cb46a8224521520d769be6ad2cabcdb543693bec9ad3da826bf0bcc98cf09c1a",
+      "in_main_sitemap": true,
+      "title": "خرید هارد سرورHPE 1.2TB SAS 10K 6G SFF | قیمت و سازگاری | سرورنت",
+      "meta_description": [
+        "هارد سرورHPE 1.2TB SAS 10K 6G SFF — HPE 1.2TB SAS 10K 6G SFF؛ مشخصات، کاربرد و مقایسه گزینه‌ها. راهنمای سازگاری و استعلام کانفیگ، موجودی و قیمت از سرورنت."
+      ],
+      "h1": [
+        "هارد سرورHPE 1.2TB SAS 10K 6G SFF"
+      ],
+      "canonical": [
+        "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 3,
+      "schema_error_count": 0,
+      "schema_types": [
+        "BreadcrumbList",
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/contact",
+          "fragment": "",
+          "query_keys": [],
+          "text": "مشاوره و استعلام رایگان"
+        },
+        {
+          "path": "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff",
+          "fragment": "#",
+          "query_keys": [],
+          "text": "مقایسه"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/contact",
+        "/parts",
+        "/parts/chassis",
+        "/parts/compare",
+        "/parts/cpu",
+        "/parts/disk",
+        "/parts/disk/hdd-sas-1200gb-10k",
+        "/parts/disk/hdd-sas-1800gb-10k",
+        "/parts/disk/hdd-sas-300gb-10k",
+        "/parts/disk/hdd-sas-600gb-10k",
+        "/parts/gpu",
+        "/parts/nic",
+        "/parts/other",
+        "/parts/psu",
+        "/parts/raid",
+        "/parts/ram",
+        "/servers",
+        "/servers/hp/gen10",
+        "/servers/hp/gen11",
+        "/servers/hp/gen12",
+        "/servers/hp/gen8",
+        "/servers/hp/gen9"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/servers/hpe-proliant-ml110-gen10",
+      "checked_url": "https://servernet.cloud/servers/hpe-proliant-ml110-gen10?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 1.006,
+      "html_bytes": 157383,
+      "response_sha256": "1460bde89cc211e3177d6307a758b645a72911a3b95f5d328b0e4b7925698c24",
+      "main_sha256": "c5c460daf61ce8f2c2b46b7cba17fe86aa834127a9b390d0815d5adf011ab895",
+      "in_main_sitemap": true,
+      "title": "خرید HPE ProLiant ML110 Gen10 | مشخصات و استعلام قیمت | سرورنت",
+      "meta_description": [
+        "HPE ProLiant ML110 Gen10؛ مشخصات، کاربرد و مقایسه گزینه‌ها. راهنمای سازگاری و استعلام کانفیگ، موجودی و قیمت از سرورنت."
+      ],
+      "h1": [
+        "HPE ProLiant ML110 Gen10"
+      ],
+      "canonical": [
+        "https://servernet.cloud/servers/hpe-proliant-ml110-gen10"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/servers/hpe-proliant-ml110-gen10"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/servers/hpe-proliant-ml110-gen10"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/servers/hpe-proliant-ml110-gen10"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/servers/hpe-proliant-ml110-gen10"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 2,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/contact",
+          "fragment": "",
+          "query_keys": [],
+          "text": "استعلام و سفارش"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/blog",
+        "/blog/email-hosting-vs-web-hosting",
+        "/blog/file-permissions-explained",
+        "/blog/nvme-vs-ssd-hosting",
+        "/contact",
+        "/parts/cpu",
+        "/parts/disk",
+        "/parts/nic",
+        "/parts/other",
+        "/parts/psu",
+        "/parts/raid",
+        "/parts/ram",
+        "/servers",
+        "/servers/hpe-proliant-dl360-gen10",
+        "/servers/hpe-proliant-dl380-gen10",
+        "/servers/hpe-proliant-dl380-gen9"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "checked_url": "https://servernet.cloud/en/blog/php-version-upgrade-guide?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 0.982,
+      "html_bytes": 164802,
+      "response_sha256": "04b7f8020a29f410db73eb1762c4bc2243422fd35879c2be82bf1306dbcd0760",
+      "main_sha256": "d7932f5a5539de3acbe7c6e16096278f93549f1ff0df18d9e2626a682b770625",
+      "in_main_sitemap": true,
+      "title": "Upgrading your PHP version without breaking the site — ServerNet Cloud",
+      "meta_description": [
+        "Plan a PHP upgrade with supported versions, compatibility checks, an isolated staging environment, restore testing and a controlled production switch."
+      ],
+      "h1": [
+        "Upgrading your PHP version without breaking the site"
+      ],
+      "canonical": [
+        "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/blog/php-version-upgrade-guide"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/blog/php-version-upgrade-guide"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 3,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BlogPosting"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/en",
+          "fragment": "#products",
+          "query_keys": [],
+          "text": "View plans"
+        },
+        {
+          "path": "https://servernet.cloud/en/hosting/linux",
+          "fragment": "",
+          "query_keys": [],
+          "text": "Linux Hosting — View plans & pricing"
+        }
+      ],
+      "main_internal_paths": [
+        "/en",
+        "/en/blog",
+        "/en/blog/connection-timed-out-diagnosis",
+        "/en/blog/cron-jobs-that-actually-run",
+        "/en/blog/litespeed-vs-nginx",
+        "/en/blog/log-rotation-setup",
+        "/en/blog/memory-usage-linux-truth",
+        "/en/blog/reading-server-error-logs",
+        "/en/blog/staging-environment-setup",
+        "/en/blog/systemd-service-basics",
+        "/en/hosting/linux",
+        "/en/vps/hourly"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "post",
+          "action_path": "https://servernet.cloud/en/blog/php-version-upgrade-guide/comment"
+        },
+        {
+          "id": "",
+          "method": "get",
+          "action_path": "https://servernet.cloud/en/blog"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/blog/git-basics-for-deployment",
+      "checked_url": "https://servernet.cloud/blog/git-basics-for-deployment?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 1.027,
+      "html_bytes": 177132,
+      "response_sha256": "17c0346759229f191242b8eac56263c78a4dd5ebe314a900493e219b8b1ac08b",
+      "main_sha256": "582590dd2823e4762723f17a024ca8841535cb4895edd96758ca0ade2bdbd7b1",
+      "in_main_sitemap": true,
+      "title": "آموزش گیت برای استقرار سایت؛ از مخزن تا دیپلوی روی سرور — سرورنت کلاود",
+      "meta_description": [
+        "از مخزن و برنچ تا تست، انتشار نسخهٔ مشخص، Webhook امن و بازگشت: گیت کد را نسخه‌بندی می‌کند، اما به‌تنهایی کل استقرار سایت را انجام نمی‌دهد."
+      ],
+      "h1": [
+        "آموزش گیت برای استقرار سایت؛ از مخزن تا دیپلوی روی سرور"
+      ],
+      "canonical": [
+        "https://servernet.cloud/blog/git-basics-for-deployment"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/blog/git-basics-for-deployment"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/blog/git-basics-for-deployment"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/blog/git-basics-for-deployment"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 3,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite",
+        "BlogPosting"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/",
+          "fragment": "#products",
+          "query_keys": [],
+          "text": "مشاهده‌ی پلن‌ها"
+        },
+        {
+          "path": "https://servernet.cloud/hosting/wordpress",
+          "fragment": "",
+          "query_keys": [],
+          "text": "هاست وردپرس — مشاهده‌ی پلن‌ها و قیمت‌ها"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/blog",
+        "/blog/cron-jobs-that-actually-run",
+        "/blog/litespeed-vs-nginx",
+        "/blog/log-rotation-setup",
+        "/blog/memory-usage-linux-truth",
+        "/blog/systemd-service-basics",
+        "/hosting/wordpress",
+        "/vps/hourly"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "post",
+          "action_path": "https://servernet.cloud/blog/git-basics-for-deployment/comment"
+        },
+        {
+          "id": "",
+          "method": "get",
+          "action_path": "https://servernet.cloud/blog"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": {
+        "body_sha256": "20b059960613089b55ab63844edce2d5808c71b915dfcd193e7ad66353acff07",
+        "exact_reviewed_body_match": true,
+        "signed_webhook_markers": true,
+        "localized_hourly_link_present": true
+      }
+    },
+    {
+      "url": "https://servernet.cloud/cloud/storage-box",
+      "checked_url": "https://servernet.cloud/cloud/storage-box?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 1.008,
+      "html_bytes": 148896,
+      "response_sha256": "982c0ad401891b38233036ba3c30b30bdd7d370c371a686fe5275360c0357a64",
+      "main_sha256": "a92a32e9575d6605c80234bf29f954148fbb805a53b573d28b114748c43c1e30",
+      "in_main_sitemap": true,
+      "title": "فضای ذخیره‌سازی Storage Box | ServerNet",
+      "meta_description": [
+        "باکس مستقل برای نگهداری فایل و نسخهٔ پشتیبان، با دسترسی SFTP، WebDAV و ابزارهای انتقال فایل. سفارش و تحویل از پنل ServerNet انجام می‌شود."
+      ],
+      "h1": [
+        "فضای ذخیره‌سازی Storage Box"
+      ],
+      "canonical": [
+        "https://servernet.cloud/cloud/storage-box"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/cloud/storage-box"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/cloud/storage-box"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/cloud/storage-box"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/cloud/storage-box"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 2,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [],
+      "main_internal_paths": [
+        "/account/order/storage-box-bx11-fsn1",
+        "/account/order/storage-box-bx21-fsn1",
+        "/account/order/storage-box-bx31-fsn1",
+        "/account/order/storage-box-bx41-fsn1",
+        "/cloud/block-storage",
+        "/cloud/object-storage",
+        "/cloud/storage-box"
+      ],
+      "form_sample": [],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    },
+    {
+      "url": "https://servernet.cloud/blog",
+      "checked_url": "https://servernet.cloud/blog?qa=1",
+      "status": 200,
+      "location": "",
+      "cache": "BYPASS",
+      "elapsed_s": 1.015,
+      "html_bytes": 166373,
+      "response_sha256": "8b994a4510ab3961ec30c5952b688da4b52b20ccb5948b6da897cdd088ca42d7",
+      "main_sha256": "7258c4c9d2cf1056e5b85e89d23d5e84d51d23ccb1ae2207d745e602ac1dd447",
+      "in_main_sitemap": true,
+      "title": "بلاگ — سرورنت کلاود",
+      "meta_description": [
+        "بلاگ سرورنت: مقالات و آموزش‌های تخصصی هاستینگ، سرور ابری، امنیت، سئو و کسب‌وکار آنلاین."
+      ],
+      "h1": [
+        "دانش، آموزش و اخبار فناوری"
+      ],
+      "canonical": [
+        "https://servernet.cloud/blog"
+      ],
+      "canonical_self": true,
+      "hreflang": [
+        {
+          "lang": "fa",
+          "url": "https://servernet.cloud/blog"
+        },
+        {
+          "lang": "en",
+          "url": "https://servernet.cloud/en/blog"
+        },
+        {
+          "lang": "tr",
+          "url": "https://servernet.cloud/tr/blog"
+        },
+        {
+          "lang": "x-default",
+          "url": "https://servernet.cloud/blog"
+        }
+      ],
+      "robots_meta": [],
+      "noindex": false,
+      "schema_blocks": 2,
+      "schema_error_count": 0,
+      "schema_types": [
+        "Organization",
+        "WebSite"
+      ],
+      "missing_same_page_fragments": [],
+      "primary_cta_sample": [
+        {
+          "path": "https://servernet.cloud/",
+          "fragment": "#products",
+          "query_keys": [],
+          "text": "مشاهده‌ی پلن‌ها"
+        }
+      ],
+      "main_internal_paths": [
+        "/",
+        "/blog",
+        "/blog/autoscaling-concepts",
+        "/blog/browser-caching-headers",
+        "/blog/configuring-dns-for-new-site",
+        "/blog/connection-timed-out-diagnosis",
+        "/blog/cron-jobs-that-actually-run",
+        "/blog/diagnosing-slow-website",
+        "/blog/docker-basics-for-web-developers",
+        "/blog/finding-what-fills-disk",
+        "/blog/firewall-rules-basics",
+        "/blog/image-optimization-webp-avif",
+        "/blog/linux-commands-for-web-admins",
+        "/blog/litespeed-vs-nginx",
+        "/blog/log-rotation-setup",
+        "/blog/measuring-real-user-performance",
+        "/blog/memory-usage-linux-truth",
+        "/blog/systemd-service-basics",
+        "/blog/two-factor-authentication-guide",
+        "/blog/understanding-load-average",
+        "/blog/vulnerability-scanning-basics"
+      ],
+      "form_sample": [
+        {
+          "id": "",
+          "method": "get",
+          "action_path": "https://servernet.cloud/blog"
+        },
+        {
+          "id": "",
+          "method": "get",
+          "action_path": "https://servernet.cloud/blog"
+        }
+      ],
+      "gpu_configure_id_count": 0,
+      "no_country_offers_copy_present": false,
+      "gpu_empty_copy_present": false,
+      "planner_link_count": 0,
+      "planner_target_count": 0,
+      "iransans_markup_present": true,
+      "guide": null
+    }
+  ],
+  "comparison_to_nov1": [
+    {
+      "url": "https://servernet.cloud/",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/vps/hourly",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/vps/hourly"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/vps/hourly"
+      ],
+      "missing_fragments_before": [
+        "plans"
+      ],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/gpu",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/gpu"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/gpu"
+      ],
+      "missing_fragments_before": [
+        "gpu-configure"
+      ],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/cloud",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/cloud"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/cloud"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/vps/germany",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": true,
+      "noindex_now": false,
+      "canonical_before": [],
+      "canonical_now": [
+        "https://servernet.cloud/vps/germany"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/hosting/linux",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/hosting/linux"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/hosting/linux"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/domains",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/domains"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/domains"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/ai",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/ai"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/ai"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/ai/models",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/ai/models"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/ai/models"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/parts/disk/disk-hpe-1-2tb-sas-10k-6g-sff"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/servers/hpe-proliant-ml110-gen10",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/servers/hpe-proliant-ml110-gen10"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/servers/hpe-proliant-ml110-gen10"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/en/blog/php-version-upgrade-guide"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/blog/git-basics-for-deployment",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/blog/git-basics-for-deployment"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/blog/git-basics-for-deployment"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    },
+    {
+      "url": "https://servernet.cloud/cloud/storage-box",
+      "status_before": 200,
+      "status_now": 200,
+      "noindex_before": false,
+      "noindex_now": false,
+      "canonical_before": [
+        "https://servernet.cloud/cloud/storage-box"
+      ],
+      "canonical_now": [
+        "https://servernet.cloud/cloud/storage-box"
+      ],
+      "missing_fragments_before": [],
+      "missing_fragments_now": []
+    }
+  ],
+  "next_broad_audit": "2026-11-07",
+  "offline_receipt_corrections": "Sitemap URL membership normalized with URI.AbsoluteUri to equate host root slash. Three unused catalogue-count extraction fields removed because source markup did not match their heuristic; no counts inferred from them. No additional HTTP GET performed."
+}

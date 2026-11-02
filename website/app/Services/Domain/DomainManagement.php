@@ -148,6 +148,8 @@ class DomainManagement
             // The committed submitting row survives crashes/timeouts. Never retry here.
             try {
                 $result = $provider->manage($domain->domain, (string) $domain->supplier_object_id, $action, $payload);
+            } catch (\App\Services\Domain\Providers\DomainProviderException $e) {
+                $result = ['status' => $e->uncertain ? 'unknown' : 'failed', 'error_code' => $e->reason];
             } catch (\Throwable) {
                 $result = ['status' => 'unknown', 'error_code' => 'management_result_unknown'];
             }
@@ -200,7 +202,7 @@ class DomainManagement
     {
         $state = (string) ($result['status'] ?? (($result['ok'] ?? false) === true ? 'succeeded' : 'unknown'));
         if (! in_array($state, ['queued', 'unknown', 'succeeded', 'failed', 'manual_review'], true)) $state = 'unknown';
-        return DB::transaction(function () use ($operation, $domain, $account, $result, $state) {
+        $answer = DB::transaction(function () use ($operation, $domain, $account, $result, $state) {
             $op = DomainSupplierOperation::whereKey($operation->id)->lockForUpdate()->firstOrFail();
             $fresh = Domain::whereKey($domain->id)->lockForUpdate()->firstOrFail();
             $context = (array) $op->request_context;
@@ -216,7 +218,7 @@ class DomainManagement
             if ($state === 'succeeded') {
                 $payload = (array) ($context['payload'] ?? []);
                 // Only verified completion updates the customer-visible state;
-                // reconciliation never creates zones, contacts, invoices or payments.
+                // contacts, invoices and payments are never created by reconciliation.
                 if ($context['action'] === 'nameservers') $fresh->forceFill(['name_servers' => $payload['nameservers']])->save();
                 if ($context['action'] === 'lock') $fresh->forceFill(['is_locked' => $payload['locked']])->save();
                 if ($context['action'] === 'dnssec') $fresh->putMeta(['dnssec_keys' => $payload['keys']]);
@@ -225,6 +227,10 @@ class DomainManagement
             return in_array($state, ['queued', 'unknown'], true) ? $this->pending('management_pending', $state)
                 : $this->failed('management_manual_review', $state);
         });
+        if (($answer['ok'] ?? false) && data_get($operation->request_context, 'action') === 'nameservers') {
+            app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain->fresh());
+        }
+        return $answer;
     }
 
     private function bindingMatches(Domain $domain, DomainSupplierAccount $account, array $context): bool

@@ -23,7 +23,7 @@ class CountryVpsController extends Controller
                 : ($rate > 0 ? round($row['monthly'] / $rate, 2) : null);
             if ($price === null || $price <= 0) { continue; }
             $items[] = ['@type' => 'ListItem', 'position' => count($items) + 1, 'item' => [
-                '@type' => 'Product', 'name' => $row['name'].' — '.$country.' — '.$row['city'],
+                '@type' => 'Service', 'name' => $row['name'].' — '.$country.' — '.$row['city'],
                 'offers' => ['@type' => 'Offer', 'price' => $price,
                     'priceCurrency' => app()->getLocale() === 'fa' ? 'IRR' : 'EUR',
                     'url' => $url, 'availability' => 'https://schema.org/InStock'],

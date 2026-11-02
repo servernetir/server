@@ -38,7 +38,20 @@ final class HermesSupportOwnerReview
             return $report;
         }
         $processed = 0;
-        foreach ($this->state->read()['items'] as $key => $item) {
+        $items = $this->state->read()['items'];
+        $freshByTicket = [];
+        // Reconcile even cards already delivered to the owner: a staff answer or
+        // newer customer message invalidates their old draft and approval token.
+        foreach ($items as $key => $item) {
+            if (! in_array($item['status'] ?? '', ['review_required', 'awaiting_approval', 'excluded'], true)) { continue; }
+            $ticketId = (int) ($item['ticket_id'] ?? 0);
+            if (! array_key_exists($ticketId, $freshByTicket)) { $freshByTicket[$ticketId] = $this->fresh($item); }
+            if (! $this->current($item, $freshByTicket[$ticketId])) {
+                $this->state->put($key, ['status' => 'stale', 'stale_reason' => 'ticket_changed', 'finished_at' => time()]);
+                $items[$key]['status'] = 'stale';
+            }
+        }
+        foreach ($items as $key => $item) {
             if ($processed >= max(1, min(10, $limit))) {
                 break;
             }
@@ -65,6 +78,11 @@ final class HermesSupportOwnerReview
                     continue;
                 }
                 if (empty($item['draft_ciphertext']) || ($item['status'] ?? '') === 'excluded' || ! empty($item['investigation_required'])) {
+                    $retryAt = self::manualNoticeRetryAt($item, $items, (string) $owner->id, (string) $binding['chat_id'], time());
+                    if ($retryAt !== null) {
+                        $this->state->put($key, ['owner_notify_retry_at' => $retryAt, 'owner_notice_coalesced' => true]);
+                        continue;
+                    }
                     // Do not copy credential-bearing ticket subjects, bodies or attachments to Bale/model.
                     $text = '⚠️ هرمس — تیکت #'.(int) $item['ticket_id']."\n";
                     if (! empty($item['investigation_required'])) {
@@ -92,8 +110,10 @@ final class HermesSupportOwnerReview
                     if (! $sent) {
                         throw new \RuntimeException('Owner notice unavailable');
                     }
-                    $this->state->put($key, ['owner_notice_at' => time(), 'notice_owner_id' => (string) $owner->id,
-                        'notice_chat_id' => (string) $binding['chat_id']]);
+                    $receipt = ['owner_notice_at' => time(), 'notice_owner_id' => (string) $owner->id,
+                        'notice_chat_id' => (string) $binding['chat_id']];
+                    $this->state->put($key, $receipt);
+                    $items[$key] = $receipt + $item;
                 } else {
                     $proposal = $this->approvals()->prepare($key, (string) $owner->id, (string) $binding['chat_id']);
                     if ($proposal === null) {
@@ -147,6 +167,34 @@ final class HermesSupportOwnerReview
             }
         }
         return $report;
+    }
+
+    /** Coalesce multipart questions without suppressing a changed investigation. */
+    public static function manualNoticeRetryAt(array $item, array $items, string $ownerId, string $chat, int $now): ?int
+    {
+        if (! empty($item['investigation_required'])) { return null; }
+        $latest = 0;
+        foreach ($items as $prior) {
+            if ((int) ($prior['ticket_id'] ?? 0) !== (int) ($item['ticket_id'] ?? 0)
+                || (int) ($prior['customer_id'] ?? 0) !== (int) ($item['customer_id'] ?? 0)
+                || (int) ($prior['customer_message_id'] ?? 0) === (int) ($item['customer_message_id'] ?? 0)
+                || (string) ($prior['reason'] ?? '') !== (string) ($item['reason'] ?? '')
+                || ! empty($prior['investigation_required'])
+                || (string) ($prior['notice_owner_id'] ?? '') !== $ownerId
+                || (string) ($prior['notice_chat_id'] ?? '') !== $chat) { continue; }
+            $latest = max($latest, (int) ($prior['owner_notice_at'] ?? 0));
+        }
+        return $latest > 0 && $latest > $now - 1800 && $latest <= $now ? $latest + 1800 : null;
+    }
+
+    /** Never forward identity/access data in an owner question preview. */
+    public static function safeQuestion(string $question): string
+    {
+        // Scrub before truncation, so a long multipart ID is never cut into
+        // a shorter prefix that escapes the complete-number matcher.
+        $question = preg_replace('/(?<![0-9۰-۹٠-٩])(?:[0-9۰-۹٠-٩][\\s\\-‌]*){7,}(?![0-9۰-۹٠-٩])/u', '[redacted]', $question) ?? '';
+        $safe = HermesSupportExperience::excerpt($question);
+        return $safe ?? 'متن دارای اطلاعات حساس است؛ جزئیات در پنل تیکت موجود است.';
     }
 
     public static function card(int $ticketId, string $analysis, string $reply): string
@@ -263,8 +311,11 @@ final class HermesSupportOwnerReview
                 'customer_name' => (string) ($ticket->customer?->displayName() ?? ''),
                 'customer_code' => (string) ($ticket->customer?->code ?? '')];
             if ($includeQuestion) {
-                $result['question'] = (string) $ticket->visibleMessages()->whereKey((int) ($item['customer_message_id'] ?? 0))
+                $question = (string) $ticket->visibleMessages()->whereKey((int) ($item['customer_message_id'] ?? 0))
                     ->where('author_role', 'customer')->value('body');
+                // Reason codes are not a privacy boundary: a writer failure can
+                // still contain a national ID, account address or access URL.
+                $result['question'] = self::safeQuestion($question);
             }
             $operations = app(HermesOperations::class);
             $owner = $operations->owner();

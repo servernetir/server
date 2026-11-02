@@ -71,6 +71,21 @@ class BuilderCheckoutController extends Controller
     /** ثبتِ سفارش: سرویس + دامنه + یک فاکتور */
     public function order(Request $request): RedirectResponse
     {
+        $quote = \App\Models\DomainQuote::find((int) $request->input('quote_id'));
+        if (! $quote || ! $quote->claimFor((int) Auth::guard('customer')->id())) {
+            return back()->withErrors(__('ui.bcf_quote_missing'));
+        }
+        try {
+            return \Illuminate\Support\Facades\Cache::lock(
+                \App\Services\Domain\DomainSupplierLifecycle::domainLockKey($quote->domain), 180
+            )->block(5, fn () => $this->orderLocked($request));
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException|\App\Services\Domain\Pricing\DomainProcurementException) {
+            return back()->withErrors(__('domain-pricing.changed'));
+        }
+    }
+
+    private function orderLocked(Request $request): RedirectResponse
+    {
         $data = $request->validate([
             'ref'      => ['required', 'string', 'max:20', 'regex:/^SB-[A-Z0-9]{4,10}$/i'],
             'plan'     => ['required', 'string', 'max:60'],
@@ -118,9 +133,9 @@ class BuilderCheckoutController extends Controller
             return back()->withErrors(__('ui.bcf_tld_blocked', ['tld' => $tld]));
         }
 
-        $existing = Domain::where('domain', $quote->domain)->where('registrar', 'openprovider')->first();
+        $existing = Domain::where('domain', $quote->domain)->first();
 
-        if ($existing !== null && ! $existing->isDead()) {
+        if ($existing !== null && (! $existing->isDead() || (int) $existing->customer_id !== (int) Auth::guard('customer')->id())) {
             return back()->withErrors(__('ui.dm_already'));
         }
 
@@ -146,7 +161,19 @@ class BuilderCheckoutController extends Controller
         $taxPct = CloudStoreController::taxPercent();
 
         $pricing = app(\App\Services\Domain\LiveDomainPricing::class);
-        $liveQuote = $pricing->quote($sld, $tld, 'create');
+        if (app(\App\Services\Domain\DomainProcurement::class)->enabled()) {
+            if ($quote->operation !== 'create' || (int) $quote->period_months !== 12) {
+                return back()->withErrors(__('domain-pricing.changed'));
+            }
+            app(\App\Services\Domain\DomainProcurement::class)->revalidate($quote);
+            if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)->ready($customer, (int) $quote->supplier_account_id)) {
+                return back()->withErrors(__('domain-pricing.unavailable'));
+            }
+            $snapshot = app(\App\Services\Domain\DomainProcurement::class)->snapshot($quote);
+            $liveQuote = $snapshot + ['supplier_quote' => $snapshot];
+        } else {
+            $liveQuote = $pricing->quote($sld, $tld, 'create');
+        }
         $invoice = null;
 
         DB::transaction(function () use ($customer, $product, $quote, $existing, $server, $cyclePrice, $taxPct, $sld, $tld, $ref, $pricing, $liveQuote, &$invoice) {
@@ -226,6 +253,8 @@ class BuilderCheckoutController extends Controller
                 'total'     => $invoice->total + $domainPrice + $domainTax,
                 'note'      => trim(($invoice->note ?? '')."\n".'سایت‌ساز '.$ref.' + ثبتِ دامنهٔ '.$quote->domain),
             ])->save();
+            $domain->forceFill(['invoice_id' => $invoice->id])->save();
+            $pricing->remember($domain, $liveQuote, $invoice);
         });
 
         \App\Models\ActivityLog::record($customer->id, 'purchase',

@@ -80,6 +80,31 @@ class DomainSupplierManagementTest extends TestCase
         $this->assertDatabaseCount('domain_supplier_operations', 1);
     }
 
+    public function test_definite_rejection_releases_the_domain_reservation(): void
+    {
+        [$domain, , $provider, $management] = $this->fixture();
+        $provider->shouldReceive('find')->twice()->andReturn(['found' => true, 'object_id' => $domain->supplier_object_id]);
+        $provider->shouldReceive('manage')->once()->andThrow(new \App\Services\Domain\Providers\DomainProviderException('unsupported_dnssec'));
+        $this->assertSame('failed', $management->manage($domain, 'lock', ['locked' => true])['status']);
+        $this->assertNull(DomainSupplierOperation::firstOrFail()->active_fqdn);
+        $provider->shouldReceive('manage')->once()->andReturn(['status' => 'queued']);
+        $this->assertSame('queued', $management->manage($domain, 'lock', ['locked' => true])['status']);
+    }
+
+    public function test_confirmed_default_nameservers_provision_the_zone_after_reconciliation(): void
+    {
+        [$domain, , $provider, $management] = $this->fixture();
+        $this->found($provider);
+        $provider->shouldReceive('manage')->once()->andReturn(['status' => 'queued']);
+        $provider->shouldReceive('reconcile')->once()->andReturn(['status' => 'succeeded', 'object_id' => $domain->supplier_object_id]);
+        $zone = \Mockery::mock(\App\Services\Dns\DomainZoneProvisioner::class);
+        $zone->shouldReceive('ensure')->once()->withArgs(fn ($d) => $d->id === $domain->id
+            && $d->name_servers === ['ns1.example.test', 'ns2.example.test'])->andReturn(['ok' => true]);
+        $this->app->instance(\App\Services\Dns\DomainZoneProvisioner::class, $zone);
+        $management->manage($domain, 'nameservers', ['nameservers' => ['ns1.example.test', 'ns2.example.test']]);
+        $this->assertTrue($management->reconcile(DomainSupplierOperation::firstOrFail())['ok']);
+    }
+
     public function test_only_confirmed_completion_updates_nameservers_and_a_duplicate_success_is_not_resent(): void
     {
         [$domain, $account, $provider, $management] = $this->fixture();

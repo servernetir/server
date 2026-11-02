@@ -1,0 +1,38 @@
+{
+  "status": "historical_candidate_superseded_by_production_verified_receipt",
+  "commit": "ee3f188ce929b28390d73b9e0b65e57caa5481f3",
+  "pull_request": 202,
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/SiteController.php",
+      "destination": "servernet_app/app/Http/Controllers/SiteController.php",
+      "candidate_sha256": "fbb2701e8d3dcebed559e4cea4463b1fc1afa105f1ebc5283db7227409a2fc39",
+      "expected_live_sha256": null,
+      "operation": "reconcile_scoped_change_after_live_read"
+    },
+    {
+      "source": "website/app/Http/Controllers/CountryVpsController.php",
+      "destination": "servernet_app/app/Http/Controllers/CountryVpsController.php",
+      "candidate_sha256": "7056b9ee9290b6ff19834aff2797e7dd6d6d6d50bd5d1e47ed109893c10f7420",
+      "expected_live_sha256": null,
+      "operation": "reconcile_scoped_change_after_live_read"
+    },
+    {
+      "source": "website/resources/views/pages/gpu.blade.php",
+      "destination": "servernet_app/resources/views/pages/gpu.blade.php",
+      "candidate_sha256": "d326884263cf14e542119fb00ac0e592af41cb3e779e6bd66b9b6ebfac367f82",
+      "expected_live_sha256": null,
+      "operation": "reconcile_scoped_change_after_live_read"
+    }
+  ],
+  "rules": [
+    "Do not copy over unknown live overlays.",
+    "Read and reconcile each current live file before building release candidate.",
+    "Private backup plus three account release locks and source/mode hash guard required.",
+    "Activate only related compiled view/OPcache; no shared flush.",
+    "Verify all3locales, unavailable and available country sitemap, Service JSON and order forms."
+  ],
+  "merge_sha": "b47bb98a122fb4bc9c5ead79daaf6f21ed7e532e",
+  "git_status": "merged_into_develop",
+  "production_receipt": "release-applied-summary.json"
+}

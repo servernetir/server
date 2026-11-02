@@ -1,0 +1,66 @@
+{
+  "status": "byte_pinned_preparation_snapshot",
+  "note": "Tool bytes match reviewed private stage. README prepared status describes artifact creation; actual production acceptance is recorded separately by the coordinator. No ZIP, base64 transfer command, private backup or live metadata plaintext included.",
+  "source_commit": "6527322d",
+  "merged_develop": "ecc2f93266845b423811b3b3de916dbbadd00ab3",
+  "installer_guard_fixtures": 6,
+  "fastcgi_wire_fixtures": 6,
+  "files": {
+    "release.php": {
+      "sha256": "5ba8b2de2d14cbca74e0fb536ec0fe32e78eee0c9fbeaf4b8fbeabee876d0397",
+      "bytes": 8267
+    },
+    "blog-probe.php": {
+      "sha256": "a084cf7c11f453fd208a3dc6201ca6b50586ae867371db2a38bff4c8e750d324",
+      "bytes": 4572
+    },
+    "blog-fpm-activation.php": {
+      "sha256": "f624f46d7e66d64e2366d38ef05f207d3f8e7179e79d197bc6f4cbe3a23d7794",
+      "bytes": 4959
+    },
+    "blog-fpm-activate.py": {
+      "sha256": "02648fa1f86f5db6cd34727e4f95ea352877dafac9fad51b17d637db01f3fbbc",
+      "bytes": 6925
+    },
+    "blog-fpm-cleanup.py": {
+      "sha256": "bdae731eb0145413a7585ae6891f25b4c055289dc19ede70f18a23eb70136baf",
+      "bytes": 1661
+    },
+    "blog-summary.py": {
+      "sha256": "ad2a42da8d133582c1bc588bfb40b4b7309a275754b59ce13eb062988c3e64f7",
+      "bytes": 1276
+    },
+    "manifest.json": {
+      "sha256": "060c5a0630dc6b49acc7761963cb781b801f94290320490cceb5e53232f43882",
+      "bytes": 1718
+    },
+    "README.md": {
+      "sha256": "545476d33e75d28c66848067640026b8f0dea1179dd7a0aeea6ff8499b1eb524",
+      "bytes": 7005
+    },
+    "blog-release-guards.txt": {
+      "sha256": "b578226624c642eb16d4af92a929dab4d9f222e46d4d44afdfe0ac12279aee49",
+      "bytes": 921
+    },
+    "blog-fpm-wire-tests.txt": {
+      "sha256": "aacf378c984aa630296317ea083b7d8ca566558eb756c96edff7fa827cdf16ce",
+      "bytes": 1097
+    },
+    "blog-author-loading-baseline.txt": {
+      "sha256": "829a0e51a916b1876159f000b5f90f764d8dc1b1d49658ef1d92f9b7a608a146",
+      "bytes": 2930
+    },
+    "blog-author-loading-regression.txt": {
+      "sha256": "46319cdac85a1087e8f751b66525497f6cb093dd7a1555fc7cf358c2936615ee",
+      "bytes": 98
+    },
+    "blog-author-loading-receipt.json": {
+      "sha256": "531b80795aaba0d1de50874809e71b2d1563e216d32dedcc4097b0de2071c5ce",
+      "bytes": 2757
+    },
+    "blog-author-loading-notes.md": {
+      "sha256": "dd61ac438c1ef1789523c90b9109d88f800283c6501733cf2391fedec22510dd",
+      "bytes": 2733
+    }
+  }
+}

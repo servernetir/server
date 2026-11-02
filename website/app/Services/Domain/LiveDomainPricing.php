@@ -283,13 +283,27 @@ class LiveDomainPricing
             if (app(DomainProcurement::class)->enabled()) {
                 try {
                     app(DomainProcurement::class)->revalidateDomain($domain, $operation, $years * 12, $fresh);
-                } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
-                    throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+                    return;
+                } catch (\App\Services\Domain\Pricing\DomainProcurementException $e) {
+                    // Only a structurally valid, completely unpaid, unsent invoice can
+                    // refresh an expired quote. Never bypass other validation errors.
+                    if ($e->reason !== 'supplier_quote_expired' || $fresh->paid > 0
+                        || $this->hasPaymentInFlight($fresh)
+                        || \App\Models\DomainSupplierOperation::where('invoice_id', $fresh->id)->exists()) {
+                        throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+                    }
+                    try {
+                        $snapshot = app(DomainProcurement::class)->refreshUnpaidSnapshot($domain, $fresh, $operation, $years * 12);
+                    } catch (\App\Services\Domain\Pricing\DomainProcurementException) {
+                        throw ValidationException::withMessages(['domain' => __('domain-pricing.changed')]);
+                    }
+                    $quote = $snapshot + ['supplier_quote' => $snapshot];
                 }
-                return;
+            } else {
+                $quote = $this->quote($domain->sld, $domain->tld, $operation, $years, $domain);
             }
-            $quote = $this->quote($domain->sld, $domain->tld, $operation, $years, $domain);
             if ($this->domainNetAmount($domain, $fresh) >= $this->requiredFloor($domain, $fresh, $quote)) {
+                if (isset($quote['supplier_quote'])) $this->remember($domain, $quote, $fresh);
                 return;
             }
             if ($fresh->paid > 0 || $this->hasPaymentInFlight($fresh)) {

@@ -104,6 +104,63 @@ class DomainSupplierCheckoutTest extends TestCase
             ->post('/account/domains/order', ['quote_id' => $quote->id, 'years' => $years]);
     }
 
+    public function test_expired_unpaid_quote_refreshes_on_same_account_without_changing_total(): void
+    {
+        $c = $this->customer(); $q = $this->quote();
+        $this->order($c, $q)->assertSessionHasNoErrors();
+        $invoice = Invoice::firstOrFail(); $total = $invoice->total;
+        $this->travel(16)->minutes();
+        $this->account->update(['health_checked_at' => now()]);
+        app(\App\Services\Domain\LiveDomainPricing::class)->reviewInvoice($invoice);
+        $this->assertSame($total, $invoice->fresh()->total);
+        $this->assertNotSame($q->id, $invoice->fresh()->supplier_quote['quote_id']);
+        $this->assertSame($this->account->id, $invoice->fresh()->supplier_account_id);
+        app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice->fresh());
+    }
+
+    public function test_expired_quote_with_pending_payment_never_refreshes_or_changes_total(): void
+    {
+        $c = $this->customer(); $q = $this->quote();
+        $this->order($c, $q)->assertSessionHasNoErrors();
+        $invoice = Invoice::firstOrFail();
+        $this->travel(16)->minutes();
+        $this->account->update(['health_checked_at' => now()]);
+        \App\Models\Payment::create(['customer_id' => $c->id, 'invoice_id' => $invoice->id,
+            'currency_code' => 'IRT', 'amount' => $invoice->total, 'gateway' => 'fixture', 'status' => 'pending']);
+        try {
+            app(\App\Services\Domain\LiveDomainPricing::class)->reviewInvoice($invoice);
+            $this->fail('Payment in flight must freeze the quote');
+        } catch (\Illuminate\Validation\ValidationException) {
+            $this->assertSame($q->id, $invoice->fresh()->supplier_quote['quote_id']);
+            $this->assertSame(1, DomainQuote::count());
+        }
+    }
+
+    public function test_builder_combined_invoice_keeps_the_selected_supplier_and_domain_line(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake('local');
+        \Illuminate\Support\Facades\Mail::fake();
+        \Illuminate\Support\Facades\Artisan::call('products:seed-builder');
+        $product = \App\Models\Product::where('slug', 'site-builder-2')->firstOrFail();
+        \App\Models\Server::create(['name' => 'Synthetic WHM', 'type' => 'whm',
+            'hostname' => 'whm.example.test', 'port' => 2087, 'country' => 'DE', 'is_active' => true,
+            'username' => 'synthetic', 'api_token' => 'synthetic-only', 'capacity' => 100]);
+        \Illuminate\Support\Facades\Storage::disk('local')->put(
+            \App\Services\Provisioning\BuilderSitePublisher::path('SB-TEST01'), '<!doctype html><html><body>Test</body></html>');
+        $c = $this->customer(); $q = $this->quote();
+        $this->actingAs($c, 'customer')->post('/account/builder-checkout', [
+            'ref' => 'SB-TEST01', 'plan' => $product->slug, 'quote_id' => $q->id,
+        ])->assertSessionHasNoErrors();
+        $invoice = Invoice::firstOrFail(); $domain = Domain::firstOrFail();
+        $this->assertNotNull($invoice->service_id);
+        $this->assertSame($domain->id, $invoice->domain_id);
+        $this->assertSame($invoice->id, $domain->invoice_id);
+        $this->assertSame($q->id, $invoice->supplier_quote['quote_id']);
+        $this->assertSame($this->account->id, $invoice->supplier_account_id);
+        app(\App\Services\Domain\LiveDomainPricing::class)->reviewInvoice($invoice);
+        app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
+    }
+
     public function test_panel_order_preserves_exact_account_quote_and_unpaid_delivery_gate(): void
     {
         $c = $this->customer();

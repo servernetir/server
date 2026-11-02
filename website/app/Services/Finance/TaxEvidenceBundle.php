@@ -193,7 +193,15 @@ final class TaxEvidenceBundle
                 $zip->addFile($disk->path($doc->path), $name);
                 $manifest[] = ['file' => $name, 'original_name' => $doc->name, 'sha256' => $doc->sha256, 'bytes' => $doc->size];
             }
-            $bank = DB::table('finance_bank_transactions')->whereBetween('occurred_at', [$scope->from->toDateString(), $scope->to->toDateString()])->orderBy('id')->get();
+            // Ancestor vouchers can reference bank evidence outside this report's dates.
+            // Follow only their explicit row IDs; do not widen the period report or export unrelated history.
+            $relatedBankIds = $flowVouchers->pluck('bank_transaction_id')->filter()->unique()->values();
+            $bank = DB::table('finance_bank_transactions')->where(function ($query) use ($scope, $relatedBankIds) {
+                $query->whereBetween('occurred_at', [$scope->from->toDateString(), $scope->to->toDateString()]);
+                if ($relatedBankIds->isNotEmpty()) {
+                    $query->orWhereIn('id', $relatedBankIds);
+                }
+            })->orderBy('id')->get();
             $add('bank-transactions.csv', $csv(['ID', 'Account', 'Date Tehran', 'Currency', 'Credit minor', 'Debit minor', 'Reference', 'Fingerprint', 'Import ID'],
                 $bank->map(fn ($b) => [$b->id, $b->account_id, $b->occurred_at, $b->currency_code, $b->credit_minor, $b->debit_minor, $b->reference, $b->fingerprint, $b->import_id])));
             $add('bank-matches.csv', $csv(['Match ID', 'Bank row', 'Payment', 'Net bank minor', 'Allocated fee minor', 'Evidence reference', 'Voided UTC', 'Void reason'],

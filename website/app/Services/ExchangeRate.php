@@ -27,6 +27,30 @@ class ExchangeRate
     private const MAX_TOMAN = 5_000_000;
     private const FALLBACK_MAX_AGE_HOURS = 48;
 
+    /** Process-local quote inputs; never published by preparation. */
+    private static ?array $preparedRates = null;
+
+    /** Run quote work against one complete staged batch and always restore nested callers. */
+    public static function withPreparedRates(array $rows, callable $callback): mixed
+    {
+        $validator = new self;
+        if (count($rows) !== count(self::SOURCE_ITEMS)) {
+            throw new \InvalidArgumentException('A complete prepared Navasan batch is required.');
+        }
+        foreach (self::SOURCE_ITEMS as $currency => $item) {
+            if (! is_array($rows[$currency] ?? null) || ! $validator->validStoredRate($rows[$currency], $currency)) {
+                throw new \InvalidArgumentException('Prepared Navasan rate is invalid.');
+            }
+        }
+        $previous = self::$preparedRates;
+        self::$preparedRates = $rows;
+        try {
+            return $callback();
+        } finally {
+            self::$preparedRates = $previous;
+        }
+    }
+
     private function key(string $currency): string
     {
         return 'fx.'.strtolower($currency).'_irt';
@@ -41,7 +65,7 @@ class ExchangeRate
         }
 
         try {
-            $snapshot = Cache::get(self::SNAPSHOT_KEY);
+            $snapshot = self::$preparedRates ?? Cache::get(self::SNAPSHOT_KEY);
             // Legacy cache keys are accepted only with the same verified Navasan provenance.
             $row = is_array($snapshot) ? ($snapshot[$currency] ?? null) : Cache::get($this->key($currency));
         } catch (\Throwable) {
@@ -90,7 +114,7 @@ class ExchangeRate
      *
      * @return array<string,array>|null
      */
-    public function refreshAll(): ?array
+    public function refreshAll(?callable $prepare = null): ?array
     {
         if (! config('services.exchange.enabled', true)) {
             return null;
@@ -99,7 +123,7 @@ class ExchangeRate
         try {
             // Scheduled, manual and cold-start callers share this lock. Fetch
             // under it so a slower response cannot overwrite a newer quote.
-            $lock = Cache::lock('fx.navasan.refresh', 90);
+            $lock = Cache::lock('fx.navasan.refresh', $prepare === null ? 90 : 1800);
             if (! $lock->get()) {
                 return null;
             }
@@ -110,7 +134,7 @@ class ExchangeRate
         }
 
         try {
-            return $this->refreshLocked();
+            return $this->refreshLocked($prepare, $lock);
         } finally {
             try {
                 $lock->release();
@@ -122,11 +146,13 @@ class ExchangeRate
         }
     }
 
-    private function refreshLocked(): ?array
+    private function refreshLocked(?callable $prepare, \Illuminate\Contracts\Cache\Lock $lock): ?array
     {
         $previousSnapshot = null;
         $publicationAttempted = false;
         try {
+            // Compare the exact durable generation again after slow network reads.
+            $durableBefore = $this->durableRates();
             $response = Http::acceptJson()->withHeaders([
                 'User-Agent' => 'Mozilla/5.0 (compatible; ServerNetBot/1.0)',
                 'Referer' => 'https://www.navasan.net/',
@@ -154,30 +180,56 @@ class ExchangeRate
             }
 
             $previousSnapshot = Cache::get(self::SNAPSHOT_KEY);
-            // Durable rates roll back together. The production file cache is
-            // a separate backend; restore its prior snapshot if publication or
-            // database commit fails. Readers always see a complete cache batch,
-            // but may briefly read it before the database transaction commits.
-            DB::transaction(function () use ($rows, &$publicationAttempted) {
+            $apply = null;
+            if ($prepare !== null) {
+                // Supplier reads run before any database transaction or FX publication.
+                $apply = self::withPreparedRates($rows, fn () => $prepare($rows));
+                if (! $apply instanceof \Closure) {
+                    throw new \RuntimeException('Prepared Navasan publication requires an apply closure.');
+                }
+            }
+            $this->assertRefreshOwner($lock);
+            // File cache and SQL are separate backends. Their final hand-off may
+            // briefly mismatch across readers, but supplier reads never expose
+            // new rates with the previous catalogue for several minutes.
+            DB::transaction(function () use ($rows, $durableBefore, $apply, $lock, &$publicationAttempted) {
+                $this->assertRefreshOwner($lock);
+                if ($durableBefore !== $this->durableRates(true)) {
+                    throw new \RuntimeException('Durable Navasan rates changed during quote preparation.');
+                }
                 foreach ($rows as $currency => $row) {
                     Setting::put('fx_last_'.strtolower($currency), json_encode($row, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
                 }
+                if ($apply !== null) {
+                    self::withPreparedRates($rows, $apply);
+                }
+                $this->assertRefreshOwner($lock);
                 $publicationAttempted = true;
                 if (! Cache::put(self::SNAPSHOT_KEY, $rows, now()->addHours(6))) {
                     throw new \RuntimeException('Navasan rate snapshot could not be cached.');
                 }
+                $this->assertRefreshOwner($lock);
             });
+            // A Setting::get() during the transaction may have filled shared
+            // cache from uncommitted rows. Invalidate it after a successful commit.
+            app()->forgetInstance('settings.request-memo');
+            try { Cache::forget('settings.all'); } catch (\Throwable) {}
 
             return $rows;
         } catch (\Throwable $e) {
             if ($publicationAttempted) {
                 try {
-                    if (is_array($previousSnapshot)) {
-                        if (! Cache::put(self::SNAPSHOT_KEY, $previousSnapshot, now()->addMinutes(5))) {
-                            throw new \RuntimeException('Navasan previous rate snapshot could not be restored.');
+                    $currentSnapshot = Cache::get(self::SNAPSHOT_KEY);
+                    // Never compensate over a different batch published by a
+                    // newer lease owner after this attempt became uncertain.
+                    if ($currentSnapshot === $rows) {
+                        if (is_array($previousSnapshot)) {
+                            if (! Cache::put(self::SNAPSHOT_KEY, $previousSnapshot, now()->addMinutes(5))) {
+                                throw new \RuntimeException('Navasan previous rate snapshot could not be restored.');
+                            }
+                        } else {
+                            Cache::forget(self::SNAPSHOT_KEY);
                         }
-                    } else {
-                        Cache::forget(self::SNAPSHOT_KEY);
                     }
                 } catch (\Throwable $restoreError) {
                     try {
@@ -200,6 +252,21 @@ class ExchangeRate
             // Do not log response bodies, request URLs or provider credentials.
             Log::warning('Navasan rate refresh failed', ['exception' => $e::class]);
             return null;
+        }
+    }
+
+    /** Raw SQL avoids the request memo and includes TRY's independently signed input. */
+    private function durableRates(bool $lock = false): array
+    {
+        $keys = array_map(fn (string $currency) => 'fx_last_'.strtolower($currency), array_keys(self::SOURCE_ITEMS));
+        return DB::table('settings')->whereIn('key', $keys)->orderBy('key')
+            ->when($lock, fn ($query) => $query->lockForUpdate())->pluck('value', 'key')->all();
+    }
+
+    private function assertRefreshOwner(\Illuminate\Contracts\Cache\Lock $lock): void
+    {
+        if (! $lock->isOwnedByCurrentProcess()) {
+            throw new \RuntimeException('Navasan refresh lease is no longer owned.');
         }
     }
 

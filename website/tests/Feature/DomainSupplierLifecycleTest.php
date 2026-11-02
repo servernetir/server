@@ -528,4 +528,73 @@ class DomainSupplierLifecycleTest extends TestCase
         $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);
     }
 
+    public function test_unknown_management_on_another_domain_reserves_no_procurement_funds(): void
+    {
+        [$d, $a] = $this->renewal(); $this->authorize($d);
+        DomainSupplierOperation::create(['supplier_account_id' => $a->id, 'operation' => 'manage_lock',
+            'idempotency_key' => 'management-no-financial-reservation', 'fqdn' => 'other.example', 'active_fqdn' => 'other.example',
+            'period_months' => 0, 'status' => 'unknown', 'quote_snapshot' => null]);
+        $this->provider->shouldReceive('submit')->once()->andReturn(['status' => 'queued']);
+        $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);
+    }
+
+    private function productionSale(): array
+    {
+        [$d, $a, $i] = $this->renewal();
+        $a->update(['sales_enabled' => true, 'contract_verified' => true, 'identity_verified' => true,
+            'pricing_verified' => true, 'connection_status' => 'healthy', 'health_checked_at' => now(),
+            'balance_minor' => 100000, 'balance_currency' => 'EUR']);
+        $q = $i->supplier_quote + ['premium' => false];
+        $i->update(['supplier_quote' => $q]); $d->update(['supplier_quote' => $q]);
+        config(['domain_suppliers.authorization_mode' => 'production',
+            'domain_suppliers.production_account_ids' => [$a->id], 'domain_suppliers.production_caps_minor' => ['EUR' => 1000]]);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($i, $d->customer, 'panel');
+        return [$d->fresh(), $a, $i];
+    }
+
+    public function test_bounded_production_sale_uses_customer_intent_and_paid_invoice_without_pilot_approval(): void
+    {
+        [$d] = $this->productionSale();
+        $this->provider->shouldReceive('submit')->once()->andReturn(['status' => 'queued']);
+        $this->assertSame('queued', $this->lifecycle->execute($d, 'renew', 12)['status']);
+        $op = DomainSupplierOperation::firstOrFail();
+        $this->assertNull($op->approved_by); $this->assertSame(1, $op->attempts);
+        $this->provider->shouldReceive('reconcile')->once()->andReturn(['status' => 'queued']);
+        $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);
+        $this->assertSame(1, $op->fresh()->attempts);
+    }
+
+    public function test_production_still_requires_exact_customer_intent_and_a_configured_cost_cap(): void
+    {
+        [$d] = $this->productionSale();
+        config(['domain_suppliers.production_caps_minor' => ['EUR' => 999]]);
+        $this->provider->shouldNotReceive('submit');
+        $this->lifecycle->execute($d, 'renew', 12);
+        $this->assertSame('prepared', DomainSupplierOperation::firstOrFail()->status);
+        $this->assertStringContainsString('operation_approval_required', $d->fresh()->provision_error);
+    }
+
+    public function test_revoked_customer_intent_during_last_probe_cannot_authorize_submission(): void
+    {
+        [$d] = $this->productionSale();
+        $this->provider->shouldReceive('probe')->once()->andReturnUsing(function () use ($d) {
+            $d->fresh()->putMeta(['supplier_customer_authorizations' => []]);
+            return ['healthy' => true, 'balance_minor' => 100000, 'currency' => 'EUR'];
+        });
+        $this->provider->shouldNotReceive('submit');
+        $this->lifecycle->execute($d, 'renew', 12);
+        $this->assertSame('manual_review', DomainSupplierOperation::firstOrFail()->status);
+    }
+
+    public function test_combined_invoice_payment_is_validated_for_its_service_owner(): void
+    {
+        [$d, , $i] = $this->renewal();
+        $service = \App\Models\Service::create(['customer_id' => $d->customer_id, 'name' => 'Synthetic hosting',
+            'currency_code' => 'IRT', 'price' => 100000, 'cycle' => 'monthly', 'status' => 'pending']);
+        $i->update(['kind' => 'service', 'service_id' => $service->id]);
+        $this->authorize($d);
+        $this->provider->shouldReceive('submit')->once()->andReturn(['status' => 'queued']);
+        $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);
+    }
+
 }

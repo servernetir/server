@@ -436,6 +436,7 @@ class ResellerOrderService
                     $invoice->forceFill(['supplier_account_id' => $domain->supplier_account_id,
                         'supplier_quote' => $domain->supplier_quote,
                         'supplier_payment_ledger_id' => $entry->id])->save();
+                    app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, $fresh, 'reseller_api');
                 }
 
                 /*

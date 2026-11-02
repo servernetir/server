@@ -57,6 +57,7 @@ class CloudCatalogSync
                 $report[$slug] = $this->syncOne($slug, $driver);
             } catch (\Throwable $e) {
                 // یک ارائه‌دهندهٔ خراب نباید سینکِ دیگری را بخواباند
+                app(CloudPricingSnapshot::class)->excludeProvider($slug, 'supplier_cost_read_failed');
                 Log::error('cloud.sync.failed', ['provider' => $slug, 'err' => $e->getMessage()]);
 
                 $report[$slug] = [
@@ -96,6 +97,7 @@ class CloudCatalogSync
         $cat = $driver->fetchCatalog();
 
         if (! ($cat['ok'] ?? false)) {
+            app(CloudPricingSnapshot::class)->excludeProvider($provider, 'supplier_cost_read_failed');
             return [
                 'ok' => false, 'message' => (string) ($cat['message'] ?? 'کاتالوگ خوانده نشد.'),
                 'locations' => 0, 'plans' => 0, 'images' => 0,
@@ -510,6 +512,26 @@ class CloudCatalogSync
     public function reprice(): int
     {
         return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performReprice());
+    }
+
+    /** Return a short guarded writer; supplier reads happen before FX publication. */
+    public function prepareReprice(): \Closure
+    {
+        if (! Schema::hasTable('cloud_plans')) {
+            return static fn (): int => 0;
+        }
+        if ($this->pricing->eurToToman() <= 0) {
+            throw new \RuntimeException('A verified EUR rate is required for coordinated publication.');
+        }
+        $apply = (new CloudCatalogRepricer($this->manager, $this->pricing))->prepare();
+
+        return static function () use ($apply): int {
+            $count = $apply();
+            if ($count > 0) {
+                \App\Services\SiteMenu::forget();
+            }
+            return $count;
+        };
     }
 
     private function performReprice(): int
