@@ -27,7 +27,7 @@ $app->instance('config', new Repository([
     'cache'=>['default'=>'array','stores'=>['array'=>['driver'=>'array','serialize'=>false]],'prefix'=>'urmia-auth-tests'],
 ]));
 $app->instance('cache',new CacheManager($app));
-$app->instance(\Illuminate\Contracts\Routing\ResponseFactory::class,new class { public function json($data=[],int $status=200,array $headers=[],int $options=0){return new \Illuminate\Http\JsonResponse($data,$status,$headers,$options);} });
+$app->instance(\Illuminate\Contracts\Routing\ResponseFactory::class,new class extends \Illuminate\Routing\ResponseFactory { public function __construct(){} });
 $translator=new Translator(new ArrayLoader(),'en');$app->instance('translator',$translator);
 $app->instance('validator',new ValidationFactory($translator,$app));
 $db = new Capsule($app);
@@ -65,6 +65,13 @@ function callUrmia(string $action,array $body,?string $nonce=null,bool $bad=fals
     $r=$privacy->handle($request,fn($r)=>$controller->$action($r,$otp));
     return [$r->getStatusCode(),$r->getData(true)];
 }
+$privateRequest=Request::create('https://servernet.cloud/api/internal/urmia-auth/v1/otp/start','POST');
+expect(\App\Http\Middleware\IdentityPrivacy::sensitive($privateRequest),'bridge is covered by global private error redaction');
+expect(\App\Http\Middleware\IdentityPrivacy::sensitive(Request::create('https://servernet.cloud/api/v1/identity/services')),'existing identity privacy classifier is preserved');
+$limited=(new \App\Http\Middleware\IdentityPrivacy())->handle($privateRequest,function(){throw new \Symfony\Component\HttpKernel\Exception\HttpException(429,'private fixture details',null,['Retry-After'=>'60']);});
+expect($limited->getStatusCode()===429,'throttle HTTP exception keeps 429');
+expect($limited->headers->get('Retry-After')==='60','throttle retry deadline is preserved');
+expect(!str_contains($limited->getContent(),'private fixture details'),'HTTP exception message remains private');
 $body=['request_id'=>(string)\Illuminate\Support\Str::uuid(),'mobile'=>'09140000000','client_ip'=>'192.0.2.10','session_binding'=>str_repeat('a',64)];
 [$status]=callUrmia('start',$body,bad:true);expect($status===403,'bad signature rejected');expect(count($sms->codes)===0,'bad signature cannot send SMS');
 [$status]=callUrmia('start',[...$body,'mobile'=>'invalid']);expect($status===422,'actual privacy middleware preserves validation status');
