@@ -155,15 +155,19 @@ class Installer:
             if heading:
                 in_candidate = heading.group(1) == version
             elif in_candidate:
-                url = re.search(r"https?://([^/\s]+)(/[^\s]*)?", line)
-                if url:
-                    host = url.group(1).lower()
+                index = re.match(r"^\s*-?\d+\s+(\S.*)$", line)
+                if index:
+                    # Every index providing this version must be verified. A
+                    # file:/cdrom:/copy: source could otherwise win apt's
+                    # download selection while an official sibling hid it.
+                    source = re.fullmatch(r"(https?://([^/\s]+)(?:/\S*)?\s+.+\s+Packages)\s*", index.group(1))
+                    if not source:
+                        raise Refused("candidate_index_transport_not_verified")
+                    host = source.group(2).lower()
                     allowed = host in {"deb.debian.org", "security.debian.org", "archive.ubuntu.com", "security.ubuntu.com", "ports.ubuntu.com"} or bool(re.fullmatch(r"[a-z]{2}\.archive\.ubuntu\.com", host))
                     if not allowed:
                         raise Refused("candidate_has_nonofficial_repository_requires_review")
-                    source = re.match(r"^\s*\d+\s+(https?://\S+\s+.+\s+Packages)\s*$", line)
-                    if source:
-                        candidate_sources.append((source.group(1), host))
+                    candidate_sources.append((source.group(1).strip(), host))
         if not candidate_sources:
             raise Refused("official_apt_candidate_not_verified")
         # Package policy alone omits Release Origin. Bind each selected source
@@ -172,10 +176,12 @@ class Installer:
         origins = {}
         current = None
         for line in all_policy.splitlines():
-            source = re.match(r"^\s*\d+\s+(https?://\S+\s+.+\s+Packages)\s*$", line)
-            if source:
-                current = source.group(1)
-                origins[current] = {}
+            index = re.match(r"^\s*-?\d+\s+(\S.*)$", line)
+            if index:
+                source = re.fullmatch(r"(https?://\S+\s+.+\s+Packages)\s*", index.group(1))
+                current = source.group(1).strip() if source else None
+                if current:
+                    origins[current] = {}
             elif current and line.strip().startswith("release "):
                 fields_release = dict(re.findall(r"(?:^|,)([a-z])=([^,]+)", line.strip()[8:]))
                 origins[current]["origin"] = fields_release.get("o")
@@ -210,7 +216,7 @@ class Installer:
             p = self.root / relative
             if p.exists() or p.is_symlink():
                 raise Refused("existing_exporter_requires_inventory_review")
-        for name in ["prometheus-node-exporter.service", "node_exporter.service", "servernet-node-exporter.service"]:
+        for name in [UNIT, "prometheus-node-exporter.service", "node_exporter.service", "servernet-node-exporter.service"]:
             state = self.runner.run(["systemctl", "show", name, "--property=LoadState", "--value"]).strip()
             if state != "not-found":
                 raise Refused("existing_exporter_unit_requires_inventory_review")

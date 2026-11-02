@@ -4,6 +4,8 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -32,6 +34,8 @@ class StubRunner:
         self.tamper_package = False
         self.wrong_identity = False
         self.existing_unit = False
+        self.existing_managed_name_unit = False
+        self.additional_candidate_index = ""
         self.release_origin = "Debian"
         self.listener_pid = "4321"
 
@@ -55,7 +59,7 @@ class StubRunner:
                 host = "untrusted.example" if self.foreign_origin else "deb.debian.org"
                 if len(args) == 2:
                     return f"Package files:\n 500 http://{host}/debian bookworm/main amd64 Packages\n     release o={self.release_origin},n=bookworm,c=main,b=amd64\n     origin {host}\n"
-                return f"{m.PACKAGE}:\n  Installed: (none)\n  Candidate: {VERSION}\n  Version table:\n     {VERSION} 500\n        500 http://{host}/debian bookworm/main amd64 Packages\n"
+                return f"{m.PACKAGE}:\n  Installed: (none)\n  Candidate: {VERSION}\n  Version table:\n     {VERSION} 500\n        500 http://{host}/debian bookworm/main amd64 Packages\n{self.additional_candidate_index}"
             return f"Package: {m.PACKAGE}\nVersion: {VERSION}\nArchitecture: amd64\nSHA256: {m.digest(DEB)}\nSize: {len(DEB)}\n"
         if command == "apt-get":
             assert "download" in args and "install" not in args
@@ -74,6 +78,8 @@ class StubRunner:
             if args[1] == "show":
                 if "--property=MainPID" in args:
                     return "4321"
+                if args[2] == m.UNIT:
+                    return "loaded" if self.existing_managed_name_unit else "not-found"
                 return "loaded" if self.existing_unit else "not-found"
             if args[1] == "is-active":
                 return "active" if self.active else "inactive"
@@ -160,6 +166,41 @@ class InstallerTest(unittest.TestCase):
         self.runner.existing_unit = True
         with self.assertRaisesRegex(m.Refused, "existing_exporter_unit"):
             self.installer.inventory()
+
+    def test_same_name_unit_loaded_outside_etc_is_never_overridden_or_stopped(self):
+        self.runner.existing_managed_name_unit = True
+        with self.assertRaisesRegex(m.Refused, "existing_exporter_unit"):
+            self.installer.inventory()
+        self.assertFalse(self.installer.home.exists())
+        self.assertFalse(self.installer.unit.exists())
+        self.assertFalse(any(c[0] == "systemctl" and c[1] in {"enable", "disable", "daemon-reload"}
+                             for c in self.runner.calls))
+
+    def test_non_http_sibling_index_cannot_hide_behind_official_candidate(self):
+        for source in ["file:/srv/packages stable/main amd64 Packages",
+                       "cdrom://Debian stable/main amd64 Packages",
+                       "/var/lib/dpkg/status",
+                       "copy:/srv/packages stable/main amd64 Packages"]:
+            with self.subTest(source=source):
+                self.runner.additional_candidate_index = f"        500 {source}\n"
+                with self.assertRaisesRegex(m.Refused, "index_transport_not_verified"):
+                    self.installer.inventory()
+                self.assertFalse(any(c[0] == "apt-get" for c in self.runner.calls))
+
+    def test_dotted_interface_unit_argv_keeps_literal_regex_and_counters(self):
+        self.runner.routes = [{"dev": "ens3.100", "dst": "default"}]
+        self.installer.metrics_reader = lambda: METRICS.replace("ens3", "ens3.100")
+        result = self.apply()
+        self.assertEqual(result["interface"], "ens3.100")
+        exec_start = next(line[10:] for line in self.installer.unit.read_text().splitlines()
+                          if line.startswith("ExecStart="))
+        # No backslash escapes reach systemd; argv has no shell/glob expansion.
+        self.assertNotIn("\\", exec_start)
+        argv = shlex.split(exec_start)
+        option = next(x for x in argv if x.startswith("--collector.netdev.device-include="))
+        pattern = option.split("=", 1)[1]
+        self.assertTrue(re.fullmatch(pattern, "ens3.100"))
+        self.assertFalse(re.fullmatch(pattern, "ens3X100"))
 
     def test_foreign_repository_is_refused(self):
         self.runner.foreign_origin = True
