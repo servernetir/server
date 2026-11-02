@@ -171,3 +171,8 @@ corruption of Persian/Turkish approved copy on the documented Windows Python set
 Seven regression tests bring the local suite to 73 passing tests. Windows-like CP1252
 defaults were emulated locally; an actual Windows installation and all live API/VM127
 acceptance are still unverified. No credentials, scopes, timers or host routes changed.
+
+
+## UTF-8 account setup follow-up — 2026-11-02
+
+The hidden token and atomic configuration writers in `configure_instagram.py` now use explicit UTF-8, including on non-UTF-8 Windows locales. Unicode paths and campaign settings survive setup; publication/reply flags remain unchanged. Baseline: 73 tests; updated suite: 75 local tests, including CP1252 configuration round-trip and blocked identity cleanup. Actual Windows execution, VM127 installation and live API acceptance remain unverified.

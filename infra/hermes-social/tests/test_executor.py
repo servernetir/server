@@ -978,6 +978,54 @@ class MediaEdgeAndEncodingRegressionTests(unittest.TestCase):
         self.assertEqual({j["lang"]: j["caption"] for j in compiled["jobs"]}, captions)
 
 
+class ConfigureInstagramEncodingTests(unittest.TestCase):
+    def setUp(self):
+        self.f = Fixture()
+        self.addCleanup(self.f.close)
+        self.target = self.f.root / "café-ıİ.token"
+        self.f.config["instagram"]["EN"]["token_file"] = str(self.target)
+        self.f.config["publishing_enabled"] = False
+        self.f.config["replies_enabled"] = False
+        self.f.config["operator_label"] = "سلام / Türkçe"
+        self.f.save()
+
+    def run_helper(self, blocked=False):
+        import runpy
+        from unittest.mock import patch, Mock
+        original = os.fdopen
+        def opened(fd, mode="r", *args, **kwargs):
+            if "b" not in mode and "encoding" not in kwargs:
+                kwargs["encoding"] = "cp1252"
+            return original(fd, mode, *args, **kwargs)
+        source = Path(__file__).resolve().parents[1] / "configure_instagram.py"
+        with patch.object(sys, "argv", [str(source), "--config", str(self.f.config_path), "--lang", "EN"]), \
+             patch("builtins.input", return_value="123"), \
+             patch("getpass.getpass", return_value="SYNTHETIC_TEST_TOKEN"), \
+             patch("os.fdopen", opened), \
+             patch("hermes_social.clients.Instagram", return_value=Mock(verify_account=Mock(side_effect=Blocked("identity_mismatch") if blocked else None))), \
+             patch("sys.stdout", new_callable=io.StringIO), patch("sys.stderr", new_callable=io.StringIO):
+            runpy.run_path(str(source), run_name="__main__")
+
+    def test_config_roundtrips_unicode_with_cp1252_default(self):
+        self.run_helper()
+        config = json.loads(self.f.config_path.read_bytes().decode("utf-8"))
+        self.assertEqual(config["instagram"]["EN"]["token_file"], str(self.target))
+        self.assertEqual(config["operator_label"], "سلام / Türkçe")
+        self.assertEqual(self.target.read_bytes(), b"SYNTHETIC_TEST_TOKEN")
+        self.assertFalse(config["publishing_enabled"])
+        self.assertFalse(config["replies_enabled"])
+        self.assertEqual(Policy(self.f.config_path).account("EN")["id"], "123")
+
+    def test_identity_failure_preserves_config_and_removes_temporary_token(self):
+        previous = self.f.config_path.read_bytes()
+        with self.assertRaises(SystemExit) as ended:
+            self.run_helper(blocked=True)
+        self.assertEqual(ended.exception.code, 2)
+        self.assertEqual(self.f.config_path.read_bytes(), previous)
+        self.assertFalse(self.target.exists())
+        self.assertFalse(list(self.f.root.glob(".verify-token-*")))
+
+
 if __name__ == "__main__":
     unittest.main()
 

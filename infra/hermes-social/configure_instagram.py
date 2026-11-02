@@ -26,7 +26,7 @@ if not account_id.isdigit() or not token or "\n" in token:
     raise SystemExit("Invalid ID/token.")
 fd, temporary = tempfile.mkstemp(dir=target.parent, prefix=".verify-token-")
 try:
-    with os.fdopen(fd, "w") as file:
+    with os.fdopen(fd, "w", encoding="utf-8") as file:
         file.write(token)
     os.chmod(temporary, 0o600)
     original = dict(account)
@@ -35,7 +35,7 @@ try:
     os.replace(temporary, target)
     policy.data["instagram"][lang] = {**original, "id": account_id}
     output_fd, output_name = tempfile.mkstemp(dir=policy.path.parent, prefix=".config-update-")
-    with os.fdopen(output_fd, "w") as file:
+    with os.fdopen(output_fd, "w", encoding="utf-8") as file:
         file.write(json.dumps(policy.data, ensure_ascii=False, indent=2))
     os.chmod(output_name, 0o600)
     os.replace(output_name, policy.path)
