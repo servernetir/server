@@ -17,12 +17,6 @@ use Tests\TestCase;
  */
 class HomeDomainBoxTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-        config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
-    }
-
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -31,6 +25,9 @@ class HomeDomainBoxTest extends TestCase
         // Explicit verified zero VAT/fees in this synthetic fixture; production
         // continues to reject unknown supplier tax rather than guessing it.
         config(['domain_pricing.supplier_vat_pct' => 0, 'domain_pricing.supplier_fee_pct' => 0]);
+        $fx = \Mockery::mock(\App\Services\ExchangeRate::class);
+        $fx->shouldReceive('toToman')->andReturn(100000);
+        $this->app->instance(\App\Services\ExchangeRate::class, $fx);
     }
 
 
@@ -57,15 +54,8 @@ class HomeDomainBoxTest extends TestCase
             'services.openprovider.base_url' => 'https://api.example.test/v1beta',
         ]);
 
-        /*
-        | ⚠️ نرخِ یورو حتماً ست می‌شود.
-        |
-        | بی‌آن، `DomainSearch` عمداً `price_toman = 0` می‌دهد (نرخِ نامعلوم ⇒
-        | قیمتِ حدسی نزن) و برچسبِ قیمت `null` می‌شود. آن رفتار **درست** است، پس
-        | تست باید نرخ بدهد نه اینکه ادعا را ضعیف کند — وگرنه تستی داشتیم که
-        | «قیمت نشان داده می‌شود» را هرگز واقعاً نمی‌سنجید.
-        */
-        \App\Models\Setting::put('pricing_rate_override', '100000');
+        // Accepted FX is supplied in setUp; the retired manual rate override
+        // is intentionally not used as a substitute for a verified Navasan row.
     }
 
     private function check(string $domain): array
