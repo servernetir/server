@@ -102,6 +102,10 @@ try {
     $f = fixture();
     $inventory = $f['class']::inspect($f['pin']);
     expect($inventory['ok'] === true && count($inventory['files']) === 9, 'fixed raw inventory');
+    expect(count($inventory['protected_files']) === 1
+        && $inventory['protected_files'][0]['destination'] === $f['plan']['protected'][0]['destination']
+        && $inventory['protected_files'][0]['sha256'] === hash_file('sha256', $f['home'].'/'.$f['plan']['protected'][0]['destination']),
+        'only selected protected file raw hash is exposed');
     expect(! file_exists($f['stage'].'/state.json'), 'GET inspector must not create state');
     assertPhase($f, 'preview', 'previewed');
     expect(! file_exists($f['home'].'/public_html/assets/js/domain-home-discovery.js'), 'preview must not install dependencies');
