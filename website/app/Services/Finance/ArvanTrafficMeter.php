@@ -91,16 +91,21 @@ final class ArvanTrafficMeter
         }, 3);
     }
 
-    private function hasUnreviewedCharge(int $cid): bool
+    private function hasUnreviewedCharge(int $cid, bool $currentRead = false): bool
     {
-        $known = Payment::where('customer_id', $cid)->where('status', 'paid')->where('gateway', 'credit')
-            ->where(fn ($q) => $q->where('external_ref', 'like', 'traffic-owner:%')->orWhere('external_ref', 'like', 'traffic-meter:%'))
-            ->pluck('invoice_id');
-        $invoice = DB::table('invoice_items')->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
+        $knownQuery = Payment::where('customer_id', $cid)->where('status', 'paid')->where('gateway', 'credit')
+            ->where(fn ($q) => $q->where('external_ref', 'like', 'traffic-owner:%')->orWhere('external_ref', 'like', 'traffic-meter:%'));
+        // Under InnoDB REPEATABLE READ, another plain SELECT would retain the
+        // old planning snapshot even after Customer's locking read completes.
+        // Locking/current reads are required to see a just-committed debit.
+        $known = ($currentRead ? $knownQuery->lockForUpdate() : $knownQuery)->pluck('invoice_id');
+        $invoiceQuery = DB::table('invoice_items')->join('invoices', 'invoices.id', '=', 'invoice_items.invoice_id')
             ->where('invoices.customer_id', $cid)->whereNotIn('invoices.id', $known)
-            ->where(fn ($q) => $q->where('title', 'like', '%traffic%')->orWhere('title', 'like', '%ترافیک%'))->exists();
-        $debits = CreditEntry::where('customer_id', $cid)->where('amount', '<', 0)
-            ->where(fn ($q) => $q->where('reason', 'like', '%traffic%')->orWhere('note', 'like', '%traffic%')->orWhere('note', 'like', '%ترافیک%'))->get();
+            ->where(fn ($q) => $q->where('title', 'like', '%traffic%')->orWhere('title', 'like', '%ترافیک%'));
+        $invoice = $currentRead ? $invoiceQuery->lockForUpdate()->first() !== null : $invoiceQuery->exists();
+        $debitQuery = CreditEntry::where('customer_id', $cid)->where('amount', '<', 0)
+            ->where(fn ($q) => $q->where('reason', 'like', '%traffic%')->orWhere('note', 'like', '%traffic%')->orWhere('note', 'like', '%ترافیک%'));
+        $debits = ($currentRead ? $debitQuery->lockForUpdate() : $debitQuery)->get();
 
         return $invoice || $debits->contains(fn ($entry) => $entry->source_type !== Invoice::class || ! $known->contains($entry->source_id));
     }
@@ -229,7 +234,7 @@ final class ArvanTrafficMeter
             // above but before we acquire the same customer lock used by Wallet.
             // Recheck under that lock before writing ANY invoice/checkpoint.
             foreach (collect($lines)->pluck('next.customer_id')->unique()->sort() as $cid) {
-                $this->check(! $this->hasUnreviewedCharge((int) $cid),
+                $this->check(! $this->hasUnreviewedCharge((int) $cid, true),
                     'Manual traffic charge changed during lock acquisition; reconciliation required');
             }
             foreach (collect($lines)->sortBy('next.service_id') as $line) {

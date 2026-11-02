@@ -18,7 +18,9 @@ resolved from the existing encrypted setting and reports/state remain private.
 
 The source and command stay byte-identical. The meter alone adds a second
 `hasUnreviewedCharge()` check after acquiring the ordered customer locks and
-before writing any invoice or checkpoint. Previously a manual traffic debit
+before writing any invoice or checkpoint. The locked recheck uses current
+reads for payments, invoices and credit entries; another plain SELECT would
+retain the old snapshot under InnoDB REPEATABLE READ. Previously a manual traffic debit
 could become visible between the initial check and customer-lock acquisition;
 the subsequent meter would not reconsider it. The new check refuses the whole
 transaction for reconciliation when this happens. Existing global state,
@@ -36,9 +38,14 @@ owner exclusion, legacy/manual charges, deterministic lock visibility
 interleaving, changed ownership, decreasing counters, invalid supplier totals,
 complete fake supplier reads, default command preview and the actual registered
 schedule. The deterministic interleaving is not advertised as a separate-process
-concurrency proof. CI runs it on both SQLite and disposable MariaDB, with a
-negative control that removes only the new guard and requires the regression
-to fail for its intended assertion. The existing reviewed-settlement tests run
+concurrency proof. A separate MariaDB test uses two real connections: the first
+establishes its old repeatable-read snapshot; immediately before its customer
+lock, the second locks that customer, inserts a manual debit and commits. The
+meter must abort while preserving that independently committed debit. CI runs
+the main suite on both SQLite and disposable MariaDB. One negative control
+removes only the new guard; a second MariaDB negative control retains the guard
+but changes its recheck to a plain read. Both must fail for their intended
+assertion, demonstrating both the original window and the isolation requirement. The existing reviewed-settlement tests run
 in both matrices as regression coverage.
 
 Local PHP 8.3 lint was performed; local Laravel execution is unavailable because

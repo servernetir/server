@@ -215,10 +215,47 @@ jobs:
           PYCODE
           sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php
           trap - EXIT
+      - name: Prove MariaDB repeatable-read needs current-read revalidation
+        if: matrix.database == 'mariadb'
+        run: |
+          set -euo pipefail
+          fixed="$RUNNER_TEMP/arvan-traffic-meter-current-read.php"
+          cp app/Services/Finance/ArvanTrafficMeter.php "$fixed"
+          trap 'sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php' EXIT
+          sudo -u incident-tests -- python3 <<'PYCODE'
+          from pathlib import Path
+          p = Path('app/Services/Finance/ArvanTrafficMeter.php')
+          s = p.read_text()
+          old = 'hasUnreviewedCharge((int) $cid, true)'
+          if s.count(old) != 1: raise SystemExit('Expected exactly one current-read recheck.')
+          p.write_text(s.replace(old, 'hasUnreviewedCharge((int) $cid, false)'))
+          PYCODE
+          preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
+          if sudo --preserve-env="$preserved" -u incident-tests -- php -d memory_limit=512M vendor/bin/phpunit \
+              --filter 'ArvanTrafficMeterMariaDbTest::test_committed_manual_debit_between_snapshot_and_customer_lock_is_seen_by_current_read' \
+              --colors=never --log-junit storage/framework/testing/incident-ci/negative-current-read.xml; then
+            echo 'A plain reread unexpectedly passed under repeatable-read.'
+            exit 1
+          fi
+          python3 <<'PYCODE'
+          import xml.etree.ElementTree as ET
+          doc = ET.parse('storage/framework/testing/incident-ci/negative-current-read.xml')
+          failures = list(doc.iter('failure'))
+          if len(list(doc.iter('testcase'))) != 1 or len(failures) != 1 or list(doc.iter('error')):
+              raise SystemExit('Current-read negative control must fail its single intended assertion.')
+          if 'Committed manual traffic debit must be seen' not in ''.join(failures[0].itertext()):
+              raise SystemExit('Unexpected MariaDB negative-control failure.')
+          print('Verified another plain reread misses the independently committed manual debit.')
+          PYCODE
+          sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php
+          trap - EXIT
       - name: Run restored traffic meter and settlement regressions
         run: |
           set -euo pipefail
           selected="$INCIDENT_CORE_FILTER"
+          if [ "$DB_CONNECTION" = mysql ]; then
+            selected="$selected|ArvanTrafficMeterMariaDbTest"
+          fi
           # This fixture deliberately creates a minimal settings table and requires SQLite.
           if [ "$DB_CONNECTION" = mysql ]; then
             selected="$(printf '%s' "$selected" | sed 's/|InternalLinkAssetResolutionTest//')"
