@@ -50,7 +50,8 @@ jobs:
         run: |
           set -euo pipefail
           php tests/standalone/hosting-domain-connection.php
-          vendor/bin/phpunit tests/Feature/HostingDomainConnectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/ExistingHostingAdoptionTest.php
+          php ../docs/project/hosting-domain-release-20261102/test-engine-native.php
+          vendor/bin/phpunit tests/Feature/HostingDomainConnectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/ExistingHostingAdoptionTest.php tests/Feature/StoreOrderTest.php
           if [ -f tests/Feature/HostingPanelServerSelectionTest.php ]; then vendor/bin/phpunit tests/Feature/HostingPanelServerSelectionTest.php; fi
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
