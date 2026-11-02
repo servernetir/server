@@ -38,7 +38,7 @@ try {
         'database_driver', 'receipt_symlink', 'receipt_write', 'receipt_activate'];
     $safeCodes = array_merge($safeCodes, json_decode('__SAFE_OPERATION_CODES_JSON__', true, 32, JSON_THROW_ON_ERROR));
     $code = in_array($error->getMessage(), $safeCodes, true) ? $error->getMessage() : 'release_step_failed';
-    $safeSteps = ['private_stage', 'locks', 'scope', 'bootstrap', 'schema', 'accounts', 'admins', 'receipt', 'install', 'activate', 'verify', 'register'];
+    $safeSteps = ['private_stage', 'locks', 'scope', 'bootstrap', 'schema', 'accounts', 'admins', 'receipt', 'install', 'activate', 'verify', 'register', 'render'];
     $step = isset($releaseStep) && in_array($releaseStep, $safeSteps, true) ? $releaseStep : 'entry';
     echo json_encode(['ok' => false, 'code' => $code, 'step' => $step, 'error_class' => get_class($error)]);
 }

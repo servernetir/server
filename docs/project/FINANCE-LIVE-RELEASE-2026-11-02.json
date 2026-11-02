@@ -1,6 +1,6 @@
 {
   "source_commit": "190ff59cc1531399c7cdbd8b928b54d3c7727ae6",
-  "status": "installed-source-and-schema-verified",
+  "status": "production-verified",
   "installed_utc": "2026-11-02T16:40:53+00:00",
   "runtime_destinations": {
     "public_html/assets/css/admin-wallet-refund.css": {
@@ -223,5 +223,39 @@
     "refund_integrity_preserved": true
   },
   "public_css_http_sha256_checks": 4,
-  "browser_interaction_this_session": "not_verified"
+  "browser_interaction_this_session": "not_verified",
+  "synthetic_render_acceptance": {
+    "cases": 12,
+    "checks": 132,
+    "all_passed": true,
+    "locales": [
+      "fa",
+      "en",
+      "tr"
+    ],
+    "readonly_rollback": true,
+    "persistent_auth_session": false,
+    "render_helper_sha256": "2eaef1583aaac41dd1ce5d9c4a0522ef088a36ccefa5462c46df693e17b0fad3"
+  },
+  "temporary_entry_cleanup": {
+    "entry_retired_private": true,
+    "public_file_absent": true,
+    "after_hashes_verified_both_hosts": true,
+    "data_integrity_preserved": true,
+    "checks": [
+      {
+        "host": "console.servernet.cloud",
+        "retired_entry_http": 301,
+        "redirect_to_main_404": true,
+        "health_http": 200
+      },
+      {
+        "host": "servernet.cloud",
+        "retired_entry_http": 404,
+        "redirect_to_main_404": false,
+        "health_http": 200
+      }
+    ],
+    "local_secrets_removed": true
+  }
 }

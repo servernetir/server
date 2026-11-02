@@ -14,7 +14,7 @@ try {
         || is_link($stage) || realpath($stage) !== $stage || !chmod($stage, 0700)) {
         throw new RuntimeException('private_stage');
     }
-    if (!in_array($input['action'] ?? null, ['inspect', 'install', 'activate', 'verify', 'register'], true)) {
+    if (!in_array($input['action'] ?? null, ['inspect', 'install', 'activate', 'verify', 'register', 'render'], true)) {
         throw new RuntimeException('action');
     }
     $releaseStep = 'locks';
@@ -117,6 +117,15 @@ try {
             require $identityOperations;
             $identityPlan = json_decode(file_get_contents($identityPlanFile), true, 32, JSON_THROW_ON_ERROR);
             $result = financeRegisterIdentities($app, $home, $stage, $scope, $plan, $identityPlan, $input);
+        } elseif ($input['action'] === 'render') {
+            $renderOperations = $stage . '/render-operations.php';
+            if (is_link($renderOperations) || !is_file($renderOperations)
+                || hash_file('sha256', $renderOperations) !== '__RENDER_OPERATIONS_SHA256__') {
+                throw new RuntimeException('render_private_input_mismatch');
+            }
+            token_get_all(file_get_contents($renderOperations), TOKEN_PARSE);
+            require $renderOperations;
+            $result = financeRender($app, $home, $stage, $scope, $plan);
         } else {
             $context = financeReleaseContext($app, $home, $stage, $scope, $plan);
             $state = json_decode(file_get_contents(financeReleasePrivatePath($stage, 'install-state.json')), true, 32, JSON_THROW_ON_ERROR);

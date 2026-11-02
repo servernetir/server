@@ -1,0 +1,75 @@
+name: Domain discovery presentation checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/resources/views/pages/domain-search.blade.php'
+      - 'website/resources/views/pages/home.blade.php'
+      - 'website/public/assets/*/domain-home-discovery.*'
+      - 'website/lang/*/domain-discovery.php'
+      - 'website/tests/Fixtures/DomainDiscoveryPreview.php'
+      - 'website/tests/js/domain-*.test.cjs'
+      - 'docs/project/domain-ui-release-20261102/**'
+      - '.github/workflows/domain-discovery-ui.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/resources/views/pages/domain-search.blade.php'
+      - 'website/resources/views/pages/home.blade.php'
+      - 'website/public/assets/*/domain-home-discovery.*'
+      - 'website/lang/*/domain-discovery.php'
+      - '.github/workflows/domain-discovery-ui.yml'
+permissions:
+  contents: read
+concurrency:
+  group: domain-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked PHP dependencies without application scripts
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Rehearse the fixed release helper with isolated files and fake cache
+        run: |
+          set -euo pipefail
+          python3 docs/project/domain-ui-release-20261102/test-release-scope.py
+          php -l docs/project/domain-ui-release-20261102/engine.php
+          php -l docs/project/domain-ui-release-20261102/launcher.php.template
+          php -l docs/project/domain-ui-release-20261102/test-engine-native.php
+          php docs/project/domain-ui-release-20261102/test-engine-native.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Render actual Blade in all three languages and test legacy API compatibility
+        working-directory: website
+        run: |
+          set -euo pipefail
+          npm ci --prefix tests/js --ignore-scripts
+          for locale in fa en tr; do
+            php tests/Fixtures/DomainDiscoveryPreview.php "$locale" /tmp/domain-ui-fixtures
+            php -l "lang/$locale/domain-discovery.php"
+          done
+          node --check public/assets/js/domain-home-discovery.js
+          DOMAIN_DISCOVERY_FIXTURES=/tmp/domain-ui-fixtures node --test tests/js/domain-discovery-page.test.cjs tests/js/domain-home-discovery.test.cjs
+      - name: Keep synthetic page previews
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: domain-ui-synthetic-preview
+          path: /tmp/domain-ui-fixtures
+          retention-days: 7
