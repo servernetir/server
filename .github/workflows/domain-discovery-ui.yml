@@ -45,6 +45,14 @@ jobs:
           test ! -e bootstrap/cache/config.php
           composer install --prefer-dist --no-progress --no-scripts --no-plugins
           composer check-platform-reqs
+      - name: Rehearse the fixed release helper with isolated files and fake cache
+        run: |
+          set -euo pipefail
+          python3 docs/project/domain-ui-release-20261102/test-release-scope.py
+          php -l docs/project/domain-ui-release-20261102/engine.php
+          php -l docs/project/domain-ui-release-20261102/launcher.php.template
+          php -l docs/project/domain-ui-release-20261102/test-engine-native.php
+          php docs/project/domain-ui-release-20261102/test-engine-native.php
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
