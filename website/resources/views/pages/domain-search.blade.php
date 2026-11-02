@@ -485,8 +485,10 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       && actual > 0 && regular > actual && Number.isFinite(end) && end > Date.now();
   }
   function termLabel(r) {
-    var years = Number(r.period_years || r.min_years || 1);
-    return D.first_term.replace(':years', num(Number.isInteger(years) && years > 0 ? years : 1));
+    var value = r.period_years == null ? r.min_years : r.period_years;
+    if (typeof value !== 'number' && (typeof value !== 'string' || !/^[1-9][0-9]*$/.test(value))) return '';
+    var years = Number(value);
+    return Number.isSafeInteger(years) && years > 0 ? D.first_term.replace(':years', num(years)) : '';
   }
   function render(r) {
     var promotionExpired = r.is_promotion === true && Number.isFinite(Date.parse(r.promotion_ends_at || '')) && Date.parse(r.promotion_ends_at) <= Date.now();
@@ -508,7 +510,7 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       // The exact stored quote leads to checkout. Unknown or unpriced rows have no buy action.
       right = '<a class="dsx-buy" href="' + esc(r.quote_id ? T.panel + '/checkout/' + encodeURIComponent(r.quote_id) : T.panel + '?register=' + encodeURIComponent(r.domain)) + '">' + esc(T.register_btn) + '<span aria-hidden="true">↗</span></a>';
     }
-    var price = '<div class="dsx-price" aria-hidden="true">—</div>', badge = '';
+    var price = '<div class="dsx-price" aria-hidden="true">—</div>', badge = '', term = termLabel(r);
     if (amount !== null) {
       var previous = deal ? money(r.regular_price_toman) : null;
       if (deal && previous !== null && previous !== amount) {
@@ -516,10 +518,10 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
         badge = '<span class="dsx-offer-badge">' + esc(percent > 0 ? D.discount_badge.replace(':percent', num(percent)) : D.offer_badge) + '</span>';
         var date = new Date(r.promotion_ends_at);
         var until = date.toLocaleDateString(T.locale === 'fa' ? 'fa-IR' : (T.locale === 'tr' ? 'tr-TR' : 'en-GB'), {month: 'short', day: 'numeric', year: 'numeric'});
-        price = '<div class="dsx-price"><del aria-label="' + esc(D.regular_price) + '" dir="ltr">' + previous + '</del><strong aria-label="' + esc(D.current_price) + '" dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + ' · ' + esc(termLabel(r)) + '</small><span class="dsx-expiry">' + esc(D.promotion_until.replace(':date', until)) + '</span></div>';
+        price = '<div class="dsx-price"><del aria-label="' + esc(D.regular_price) + '" dir="ltr">' + previous + '</del><strong aria-label="' + esc(D.current_price) + '" dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + (term ? ' · ' + esc(term) : '') + '</small><span class="dsx-expiry">' + esc(D.promotion_until.replace(':date', until)) + '</span></div>';
       } else {
         el.dataset.deal = ''; el.classList.remove('dsx-offer-row');
-        price = '<div class="dsx-price"><strong dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + ' · ' + esc(termLabel(r)) + '</small></div>';
+        price = '<div class="dsx-price"><strong dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + (term ? ' · ' + esc(term) : '') + '</small></div>';
       }
     }
     el.innerHTML = '<div class="dsx-name"><div class="dsx-name-top">' + (r.primary ? '<span class="dsx-choice">' + esc(D.requested_domain) + '</span>' : '') + badge + '</div><b dir="ltr">' + esc(r.domain) + '</b><small>' + esc(note) + '</small></div>' + '<div class="dsx-state"><span class="dsx-pill ' + cls + '">' + esc(pill) + '</span></div>' + price + '<div class="dsx-action">' + right + '</div>';
