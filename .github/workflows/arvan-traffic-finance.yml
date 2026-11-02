@@ -186,8 +186,8 @@ jobs:
           set -euo pipefail
           fixed="$RUNNER_TEMP/arvan-traffic-meter-fixed.php"
           cp app/Services/Finance/ArvanTrafficMeter.php "$fixed"
-          trap 'cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php' EXIT
-          python3 <<'PYCODE'
+          trap 'sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php' EXIT
+          sudo -u incident-tests -- python3 <<'PYCODE'
           from pathlib import Path
           target = Path('app/Services/Finance/ArvanTrafficMeter.php')
           text = target.read_text()
@@ -213,7 +213,7 @@ jobs:
               raise SystemExit('Unexpected negative-control failure.')
           print('Verified the unguarded restored source reproduces the double-charge window.')
           PYCODE
-          cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php
+          sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php
           trap - EXIT
       - name: Run restored traffic meter and settlement regressions
         run: |
