@@ -7,7 +7,15 @@ or accounts are replaced. Existing probe.key is preserved; on first install,
 enter a distinct random 64-hex key with secure Read-Host, matching the RAW32-byte
 private PVE key. No key, BSTR text, raw curl output or credential is printed.
 No global firewall/proxy/TLS/execution-policy setting is changed.
+Explicit -AccessPolicy source_ip_hmac_v1 enrolls only socket-source plus HMAC
+authorization for this fixed read-only endpoint; it makes no network ACL claim.
 #>
+param(
+    [ValidatePattern('\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z')]
+    [string]$AgentId = 'pve-ir',
+    [ValidateSet('windows_firewall_v1', 'source_ip_hmac_v1')]
+    [string]$AccessPolicy = 'windows_firewall_v1'
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Root = 'C:\ProgramData\ServerNet\RelayRecovery'
@@ -73,13 +81,36 @@ function Hex-Nibble([int]$Code) {
     throw 'key_hex_format'
 }
 
+# Reinstalling must never silently bind an existing private monitor/key to a
+# different PVE agent. Complete this read-only check before any task, firewall,
+# runtime, ACL or key change; the parameter affects only first-time config.
+if ($AccessPolicy -cnotin @('windows_firewall_v1', 'source_ip_hmac_v1')) { throw 'access_policy' }
+if (Test-Path -LiteralPath $ConfigFile) {
+    Assert-NoReparse 'C:\ProgramData'
+    Assert-TrustedExisting $Parent
+    Assert-TrustedExisting $Root
+    Assert-TrustedExisting $ConfigFile
+    if ((Get-Item -LiteralPath $ConfigFile -Force).Length -gt 4096) { throw 'existing_probe_config_binding_mismatch' }
+    $existingConfig = $Utf8.GetString([IO.File]::ReadAllBytes($ConfigFile)) | ConvertFrom-Json -ErrorAction Stop
+    if ($null -eq $existingConfig -or $existingConfig -isnot [PSCustomObject]) { throw 'existing_probe_config_binding_mismatch' }
+    $ExistingAccessPolicy = 'windows_firewall_v1'
+    if (@($existingConfig.PSObject.Properties.Name) -ccontains 'access_policy') { $ExistingAccessPolicy = $existingConfig.access_policy }
+    $ExpectedFields = if (@($existingConfig.PSObject.Properties.Name) -ccontains 'access_policy') { @('agent_id', 'schema', 'access_policy') } else { @('agent_id', 'schema') }
+    if (@(Compare-Object @($existingConfig.PSObject.Properties.Name | Sort-Object) @($ExpectedFields | Sort-Object) -CaseSensitive).Count -ne 0 -or
+        $existingConfig.schema -isnot [string] -or $existingConfig.schema -cne 'servernet.relay.windows-probe.v1' -or
+        $existingConfig.agent_id -isnot [string] -or $existingConfig.agent_id -cne $AgentId -or
+        $ExistingAccessPolicy -isnot [string] -or $ExistingAccessPolicy -cne $AccessPolicy) {
+        throw 'existing_probe_config_binding_mismatch'
+    }
+}
+
 if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) { throw 'reviewed_runtime_missing' }
 # Actual native parser validation precedes every installation mutation.
 $tokens = $null; $parseErrors = $null
 [void][System.Management.Automation.Language.Parser]::ParseFile($Source, [ref]$tokens, [ref]$parseErrors)
 if (@($parseErrors).Count -ne 0) { throw 'runtime_parse_failed' }
 if (-not [Environment]::Is64BitProcess) { throw 'requires_64_bit_powershell' }
-if (@(Get-NetFirewallProfile -PolicyStore ActiveStore | Where-Object { [string]$_.Enabled -ne 'True' -or [string]$_.AllowLocalFirewallRules -eq 'False' }).Count -ne 0) { throw 'firewall_disabled_or_gpo_excluded_review_required' }
+if ($AccessPolicy -ceq 'windows_firewall_v1' -and @(Get-NetFirewallProfile -PolicyStore ActiveStore | Where-Object { [string]$_.Enabled -ne 'True' -or [string]$_.AllowLocalFirewallRules -eq 'False' }).Count -ne 0) { throw 'firewall_disabled_or_gpo_excluded_review_required' }
 $addresses = @(Get-NetIPAddress -IPAddress '10.10.10.50' -AddressFamily IPv4 -ErrorAction Stop)
 if ($addresses.Count -ne 1 -or $addresses[0].AddressState -ne 'Preferred') { throw 'vm109_fixed_address_missing' }
 # Preflight namespace ownership BEFORE creating/changing firewall rules. A
@@ -124,7 +155,9 @@ $sourceBytes = [IO.File]::ReadAllBytes($Source)
 [IO.File]::WriteAllBytes($Runtime, $sourceBytes)
 Set-PrivateAcl $Runtime
 if (-not (Test-Path -LiteralPath $ConfigFile)) {
-    $config = [ordered]@{ schema = 'servernet.relay.windows-probe.v1'; agent_id = 'pve-ir' } | ConvertTo-Json -Compress
+    $initialConfig = [ordered]@{ schema = 'servernet.relay.windows-probe.v1'; agent_id = $AgentId }
+    if ($AccessPolicy -ceq 'source_ip_hmac_v1') { $initialConfig['access_policy'] = $AccessPolicy }
+    $config = $initialConfig | ConvertTo-Json -Compress
     [IO.File]::WriteAllBytes($ConfigFile, $Utf8.GetBytes($config))
 }
 Set-PrivateAcl $ConfigFile
@@ -149,8 +182,10 @@ if (Test-Path -LiteralPath $KeyFile) {
     }
 }
 Set-PrivateAcl $KeyFile
-Ensure-FirewallRule $BlockRule 'Block' $BlockAddresses
-Ensure-FirewallRule $AllowRule 'Allow' @('10.10.10.1')
+if ($AccessPolicy -ceq 'windows_firewall_v1') {
+    Ensure-FirewallRule $BlockRule 'Block' $BlockAddresses
+    Ensure-FirewallRule $AllowRule 'Allow' @('10.10.10.1')
+}
 if ($reservePrefix) {
     & $netsh http add urlacl "url=$Prefix" 'sddl=D:(A;;GX;;;SY)' | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'urlacl_install_failed' }

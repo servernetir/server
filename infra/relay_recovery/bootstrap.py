@@ -353,10 +353,16 @@ class BootstrapStore:
                        or not isinstance(digest,str) or not HASH.fullmatch(digest)
                        for name,digest in self.clean_hooks.items())):
             raise BootstrapError('clean_hook_allowlist')
-        self.authorizations = []
-        for key,addresses in ((controller,_sources(entry['controller_source_ips'])),
-                              (iran,_sources(entry['iran_probe_source_ips']))):
-            self.authorizations.append('from="'+','.join(addresses)+'",no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty '+key)
+        controller_sources=_sources(entry['controller_source_ips'])
+        iran_sources=_sources(entry['iran_probe_source_ips'])
+        self.authorizations = [
+            'from="'+','.join(controller_sources)+'",no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty '+controller,
+            # Dynamic SOCKS sends a literal destination hostname. Keep this in
+            # step with CtStage's fixed --socks5-hostname / api.ipify.org probe;
+            # neither an IP allowlist nor an arbitrary forwarding key is valid.
+            # A forwarding-only connection uses ssh -N and opens no session.
+            'from="'+','.join(iran_sources)+'",restrict,port-forwarding,permitopen="api.ipify.org:443",command="/usr/bin/false" '+iran,
+        ]
 
     @contextlib.contextmanager
     def _locked(self, intent_id):
@@ -453,11 +459,17 @@ class BootstrapStore:
                 {'path':'/root/.ssh/authorized_keys','owner':'root:root','permissions':'0600',
                  'content':'\n'.join(scope['authorizations'])+'\n'},
                 {'path':'/etc/ssh/sshd_config.d/00-servernet-relay-bootstrap.conf','owner':'root:root','permissions':'0600',
-                 'content':'PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin prohibit-password\nPubkeyAuthentication yes\nAuthenticationMethods publickey\nAuthorizedKeysFile .ssh/authorized_keys\nAuthorizedKeysCommand none\nTrustedUserCAKeys none\nHostbasedAuthentication no\nGSSAPIAuthentication no\n'},
+                 'content':'PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin prohibit-password\nPubkeyAuthentication yes\nAuthenticationMethods publickey\nAuthorizedKeysFile .ssh/authorized_keys\nAuthorizedKeysCommand none\nTrustedUserCAKeys none\nHostbasedAuthentication no\nGSSAPIAuthentication no\nAllowTcpForwarding local\nAllowStreamLocalForwarding no\nPermitListen none\nPermitTunnel no\n'},
                 {'path':'/etc/servernet/relay-bootstrap.json','owner':'root:root','permissions':'0600',
                  'content':canonical_json(guest).decode()}]}
         if profile=='trial':
             document['ssh_keys']={'ed25519_private':private,'ed25519_public':public}
+            # The pinned Ubuntu/Debian trial image runs ssh.service. Merely
+            # writing a drop-in does not make its forwarding restrictions live;
+            # validate the full configuration before reloading, without a hard
+            # restart or a fallback that could silently keep broader settings.
+            document['runcmd']=[['/bin/sh','-ec',
+                '/usr/sbin/sshd -t && /usr/bin/systemctl reload ssh.service']]
         if profile=='restored':
             if not binding: raise BootstrapError('restored_candidate_binding_required')
             # Preserve snapshot SSH/SFTP policy, account credentials and its

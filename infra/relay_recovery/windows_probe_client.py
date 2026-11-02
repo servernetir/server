@@ -13,6 +13,9 @@ fixed. Install a different random key than the controller/agent HMAC key.
 
 Wire headers X-VM-Timestamp, X-VM-Nonce, X-VM-Signature authenticate UTF8 bytes:
 SN-VM-PROBE/1\nMETHOD\n/relay-probe/\nTIMESTAMP\nNONCE\nSHA256(rawbody)
+Optional access_policy is windows_firewall_v1 (default) or the explicit
+source_ip_hmac_v1 application policy. The latter requires the same policy in
+the authenticated guest response and makes no network/firewall assurance.
 No trailing newline. Request purpose POST; response purpose RESPONSE. TTL30s,
 future skew5s. Response body also binds request_nonce, scope, target and actual
 observation time. Request/response are <=8192 bytes, response headers<=8192,
@@ -55,6 +58,8 @@ MAX_BODY = MAX_HEADERS = 8192
 SCOPE = ("agent_id", "incident_id", "generation", "revision", "config_hash", "jobs_hash")
 NONCE = re.compile(r"\A[0-9a-f]{32}\Z")
 TIMESTAMP = re.compile(r"\A[1-9][0-9]{9,11}\Z")
+DEFAULT_ACCESS_POLICY = "windows_firewall_v1"
+SOURCE_HMAC_POLICY = "source_ip_hmac_v1"
 
 
 def canonical(method: str, timestamp: str, nonce: str, body: bytes) -> bytes:
@@ -99,8 +104,10 @@ def load_config(path: str | Path, *, root_owned=True) -> dict:
 
 
 def validate_config(cfg: dict, *, root_owned=True):
-    if not isinstance(cfg, dict) or cfg.get("schema") != SCHEMA or set(cfg) - {"schema", "agent_id", "key_file", "state_dir", "host", "port"}:
+    if not isinstance(cfg, dict) or cfg.get("schema") != SCHEMA or set(cfg) - {"schema", "agent_id", "key_file", "state_dir", "host", "port", "access_policy"}:
         raise ProtocolError("vm_config_schema")
+    if cfg.get("access_policy",DEFAULT_ACCESS_POLICY) not in (DEFAULT_ACCESS_POLICY,SOURCE_HMAC_POLICY):
+        raise ProtocolError("vm_access_policy")
     if not isinstance(cfg.get("agent_id"), str) or not IDENTIFIER.fullmatch(cfg["agent_id"]):
         raise ProtocolError("vm_agent_id")
     if cfg.get("host", HOST) != HOST or type(cfg.get("port", PORT)) is not int or cfg.get("port", PORT) != PORT:
@@ -207,8 +214,8 @@ class WindowsProbeClient:
                       target=target, **{k: context[k] for k in iran_adapter.SCOPE},
                       checks=dict(execution_origin="guest", authenticated_guest=False, source_ip=None,
                                   egress_ip=None, tunnel_ok=False, probe_ok=False))
-        started = int(self.clock()); begin = self.monotonic()
         try:
+            started = int(self.clock()); begin = self.monotonic()
             request_nonce = self.nonce()
             body = canonical_json(dict(op="probe", scope=scope, target=target))
             headers = sign(self.key, "POST", body, started, request_nonce)
@@ -219,6 +226,10 @@ class WindowsProbeClient:
             verify(self.key, "RESPONSE", raw, response_headers, now, self.replay)
             response = decode_json(raw)
             expected_keys = {"schema", "op", "request_nonce", "scope", "target", "observed_at", "read_only", "execution_origin", "source_ip", "egress_ip", "tunnel_ok", "probe_ok", "ok"}
+            policy = self.config.get("access_policy",DEFAULT_ACCESS_POLICY)
+            if policy == SOURCE_HMAC_POLICY:
+                expected_keys.add("access_policy")
+                if response.get("access_policy") != policy: raise ProtocolError("vm_access_policy_mismatch")
             if set(response) != expected_keys or response.get("schema") != WIRE_SCHEMA or response.get("op") != "probe" or response.get("read_only") is not True or response.get("execution_origin") != "guest":
                 raise ProtocolError("vm_receipt_schema")
             if response.get("request_nonce") != request_nonce or canonical_json(response.get("scope")) != canonical_json(scope) or canonical_json(response.get("target")) != canonical_json(target):
@@ -238,7 +249,7 @@ class WindowsProbeClient:
             result["ok"] = good
             result["checks"].update(authenticated_guest=True, source_ip=source if source == SOURCE_IP else None,
                                     egress_ip=egress if valid_egress else None, tunnel_ok=good, probe_ok=good,
-                                    observed_at=observed)
+                                    observed_at=observed, authenticated_access_policy=policy)
         except (ProtocolError, OSError, TimeoutError):
             # Deliberately no raw exception, body, key or endpoint details.
             result["checks"]["probe_unavailable"] = True

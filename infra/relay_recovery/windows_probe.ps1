@@ -4,7 +4,8 @@ VM109 fixed read-only guest probe. Run as SYSTEM via the reviewed installer.
 No network-supplied path, URL, command, argv, credentials or administration.
 Only private PVE 10.10.10.1 may call POST /relay-probe/ on 10.10.10.50:19443.
 HMAC authenticates BEFORE durable nonce claim and BEFORE starting fixed curl.
-ValidateOnly verifies the public wire self-test, ACLs/config/firewall and exits;
+ValidateOnly verifies the public wire self-test, ACLs and configured access
+policy (strict local firewall by default; explicit source/IP-HMAC otherwise);
 it never starts the listener or curl. Native PS5.1 parser/runtime must be checked
 on Windows; static tests on Linux do not establish Windows execution success.
 #>
@@ -222,12 +223,24 @@ Assert-PrivateAcl $ConfigFile
 Assert-PrivateAcl $KeyFile
 Assert-PrivateAcl (Join-Path $Root 'windows_probe.ps1')
 $Config = $Utf8.GetString([IO.File]::ReadAllBytes($ConfigFile)) | ConvertFrom-Json
-Assert-Fields $Config @('schema', 'agent_id')
+$AccessPolicy = 'windows_firewall_v1'
+if ($null -eq $Config -or $Config -isnot [PSCustomObject]) { throw 'config_schema' }
+if (@($Config.PSObject.Properties.Name) -ccontains 'access_policy') {
+    Assert-Fields $Config @('schema', 'agent_id', 'access_policy')
+    if ($Config.access_policy -isnot [string] -or $Config.access_policy -cnotin @('windows_firewall_v1', 'source_ip_hmac_v1')) { throw 'access_policy' }
+    $AccessPolicy = $Config.access_policy
+} else { Assert-Fields $Config @('schema', 'agent_id') }
 if ($Config.schema -cne 'servernet.relay.windows-probe.v1' -or $Config.agent_id -isnot [string] -or $Config.agent_id -cnotmatch '\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z') { throw 'config_schema' }
 $Key = [IO.File]::ReadAllBytes($KeyFile)
 if ($Key.Length -ne 32) { throw 'key_size' }
-Assert-Firewall
-if ($ValidateOnly) { Write-Output 'configuration_valid'; return }
+if ($AccessPolicy -ceq 'windows_firewall_v1') { Assert-Firewall }
+# The explicit source-IP/HMAC policy authorizes only this read-only endpoint.
+# It neither changes nor certifies any firewall or broader network isolation.
+if ($ValidateOnly) {
+    if ($AccessPolicy -ceq 'source_ip_hmac_v1') { Write-Output 'configuration_valid_source_ip_hmac_v1_no_network_firewall_claim' }
+    else { Write-Output 'configuration_valid' }
+    return
+}
 
 $listener = [Net.HttpListener]::new(); $listener.Prefixes.Add($Prefix)
 $listener.IgnoreWriteExceptions = $true
@@ -262,6 +275,7 @@ try {
             $observation = Invoke-FixedGuestProbe
             $good = $observation.source_ip -ceq '10.10.10.50' -and $observation.egress_ip -ceq $t.host
             $reply = [ordered]@{ schema = 'servernet.relay.vm-probe.v1'; op = 'probe'; request_nonce = $nonce; scope = $scope; target = $target; observed_at = (Get-UnixTime); read_only = $true; execution_origin = 'guest'; source_ip = $observation.source_ip; egress_ip = $observation.egress_ip; tunnel_ok = [bool]$good; probe_ok = [bool]$good; ok = [bool]$good }
+            if ($AccessPolicy -ceq 'source_ip_hmac_v1') { $reply['access_policy'] = $AccessPolicy }
             $raw = $Utf8.GetBytes(($reply | ConvertTo-Json -Depth 6 -Compress))
             $responseTimestamp = [string](Get-UnixTime); $responseNonce = New-Nonce
             $headers = @{ 'X-VM-Timestamp' = $responseTimestamp; 'X-VM-Nonce' = $responseNonce; 'X-VM-Signature' = (Get-Signature $Key 'RESPONSE' $responseTimestamp $responseNonce $raw) }

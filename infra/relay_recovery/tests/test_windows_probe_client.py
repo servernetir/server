@@ -111,6 +111,54 @@ class ClientTests(unittest.TestCase):
         self.assertTrue(self.client().probe(self.context())["ok"])
         self.assertFalse(self.client().probe(self.context())["ok"])
 
+    def test_access_policy_is_explicit_and_unknown_or_bridge_bypass_fields_are_rejected(self):
+        for values in ({'access_policy':True},{'access_policy':'skip_firewall'},
+                       {'access_policy':'pve_bridge'},{'firewall_mode':'pve_bridge'},
+                       {'access_policy':mod.SOURCE_HMAC_POLICY,'firewall_verified':True}):
+            cfg={**self.cfg,**values}
+            with self.subTest(values=values),self.assertRaises(ProtocolError):
+                mod.WindowsProbeClient(cfg,root_owned=False,transport=self.guest)
+        self.assertEqual([],self.guest.calls)
+
+    def test_default_policy_keeps_legacy_strict_firewall_wire_compatible(self):
+        result=self.client().probe(self.context())
+        self.assertTrue(result['ok'])
+        self.assertEqual(mod.DEFAULT_ACCESS_POLICY,result['checks']['authenticated_access_policy'])
+
+    def test_source_ip_hmac_opt_in_requires_matching_policy_inside_authenticated_response(self):
+        self.cfg['access_policy']=mod.SOURCE_HMAC_POLICY
+        self.guest.mutate=lambda response:response.update(access_policy=mod.SOURCE_HMAC_POLICY)
+        result=self.client().probe(self.context())
+        self.assertTrue(result['ok'])
+        self.assertEqual(mod.SOURCE_HMAC_POLICY,result['checks']['authenticated_access_policy'])
+        self.assertNotIn('network_firewall_verified',result['checks'])
+        self.assertEqual({'op','scope','target'},set(json.loads(self.guest.calls[0][3])))
+
+    def test_missing_wrong_or_default_server_policy_never_downgrades_source_hmac_client(self):
+        self.cfg['access_policy']=mod.SOURCE_HMAC_POLICY
+        client=self.client()
+        self.assertFalse(client.probe(self.context())['ok'])
+        for policy in (True,'unknown',mod.DEFAULT_ACCESS_POLICY):
+            self.guest.mutate=lambda response,p=policy:response.update(access_policy=p)
+            with self.subTest(policy=policy):self.assertFalse(client.probe(self.context())['ok'])
+        self.assertEqual(4,len(self.guest.calls))
+
+    def test_source_policy_server_cannot_silently_replace_default_firewall_policy(self):
+        self.guest.mutate=lambda response:response.update(access_policy=mod.SOURCE_HMAC_POLICY)
+        self.assertFalse(self.client().probe(self.context())['ok'])
+
+    def test_server_policy_tampering_is_rejected_by_response_hmac(self):
+        self.cfg['access_policy']=mod.SOURCE_HMAC_POLICY
+        self.guest.mutate=lambda response:response.update(access_policy=mod.SOURCE_HMAC_POLICY)
+        client=self.client();transport=client.transport
+        def tampered(*args):
+            status,headers,raw=transport(*args);response=mod.decode_json(raw)
+            response['access_policy']=mod.DEFAULT_ACCESS_POLICY
+            return status,headers,mod.canonical_json(response)
+        client.transport=tampered
+        result=client.probe(self.context())
+        self.assertFalse(result['ok']);self.assertFalse(result['checks']['authenticated_guest'])
+
     def test_request_nonce_scope_target_and_type_binding_cannot_be_reused(self):
         changes = [lambda r: r.update(request_nonce="2" * 32),
                    lambda r: r["scope"].update(incident_id="incident-other"),
@@ -272,6 +320,48 @@ class PowerShellSourceTests(unittest.TestCase):
         self.assertIn("-UserId 'SYSTEM' -LogonType ServiceAccount", self.installer)
         self.assertNotIn("Set-NetFirewallProfile", self.installer)
         self.assertNotIn("Set-ExecutionPolicy", self.installer)
+
+    def test_installer_agent_parameter_is_validated_and_backwards_compatible(self):
+        self.assertIn("[string]$AgentId = 'pve-ir'",self.installer)
+        self.assertIn("[ValidatePattern('\\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\\z')]",self.installer)
+        self.assertLess(self.installer.index('param('),self.installer.index('Set-StrictMode'))
+        self.assertIn("schema = 'servernet.relay.windows-probe.v1'; agent_id = $AgentId",self.installer)
+        initial=self.installer.index('if (-not (Test-Path -LiteralPath $ConfigFile))')
+        write=self.installer.index('[IO.File]::WriteAllBytes($ConfigFile')
+        self.assertLess(initial,write)
+
+    def test_existing_binding_is_exact_and_checked_before_any_installation_mutation(self):
+        check=self.installer.index("throw 'existing_probe_config_binding_mismatch'")
+        for mutation in ('Stop-ScheduledTask -TaskName $TaskName','[IO.Directory]::CreateDirectory($Parent)',
+                         '[IO.File]::WriteAllBytes($Runtime','[IO.File]::Open($KeyFile',
+                         'Ensure-FirewallRule $BlockRule','Register-ScheduledTask -TaskName $TaskName'):
+            with self.subTest(mutation=mutation):self.assertLess(check,self.installer.index(mutation))
+        self.assertIn("$existingConfig.schema -cne 'servernet.relay.windows-probe.v1'",self.installer)
+        self.assertIn('$existingConfig.agent_id -cne $AgentId',self.installer)
+        self.assertIn("@($ExpectedFields | Sort-Object) -CaseSensitive",self.installer)
+        self.assertIn('Assert-TrustedExisting $ConfigFile',self.installer[:check])
+        self.assertEqual(1,self.installer.count('[IO.File]::WriteAllBytes($ConfigFile'))
+        self.assertNotIn('[IO.File]::WriteAllBytes($KeyFile',self.installer)
+
+    def test_source_hmac_mode_is_explicit_bound_and_never_changes_global_firewall(self):
+        self.assertIn("[ValidateSet('windows_firewall_v1', 'source_ip_hmac_v1')]",self.installer)
+        self.assertIn("[string]$AccessPolicy = 'windows_firewall_v1'",self.installer)
+        self.assertIn("$ExistingAccessPolicy -cne $AccessPolicy",self.installer)
+        self.assertIn("if ($AccessPolicy -ceq 'windows_firewall_v1' -and @(Get-NetFirewallProfile",self.installer)
+        self.assertIn("if ($AccessPolicy -ceq 'windows_firewall_v1') {\n    Ensure-FirewallRule $BlockRule",self.installer)
+        self.assertIn("if ($AccessPolicy -ceq 'windows_firewall_v1') { Assert-Firewall }",self.runtime)
+        self.assertIn('configuration_valid_source_ip_hmac_v1_no_network_firewall_claim',self.runtime)
+        policy=self.runtime.index("$reply['access_policy'] = $AccessPolicy")
+        self.assertLess(policy,self.runtime.index('$raw = $Utf8.GetBytes(($reply'))
+        self.assertNotIn('Set-NetFirewallProfile',self.installer)
+        self.assertNotIn('Set-NetFirewallProfile',self.runtime)
+        self.assertNotIn('pve_bridge',self.installer);self.assertNotIn('pve_bridge',self.runtime)
+
+    def test_socket_peer_admission_precedes_body_and_hmac_precedes_probe_for_every_policy(self):
+        peer=self.runtime.index("$request.RemoteEndPoint.Address.ToString() -cne '10.10.10.1'")
+        self.assertLess(peer,self.runtime.index('$body = Read-Body $request'))
+        self.assertLess(self.runtime.index('Claim-Nonce $nonce $stamp'),self.runtime.index('$observation = Invoke-FixedGuestProbe'))
+        self.assertNotIn('X-Forwarded-For',self.runtime)
 
     def test_effective_firewall_policy_and_owned_task_upgrade_are_verified(self):
         self.assertIn("Get-NetFirewallProfile -PolicyStore ActiveStore", self.runtime)

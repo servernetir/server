@@ -74,6 +74,24 @@ replaced with the independently trusted source pin only after the verified cold
 rebuild. Cloud-init clean hooks and all non-cloud-init startup writers still
 need a reviewed inventory on the real source.
 
+## Windows probe access policy
+
+The default `windows_firewall_v1` enrollment requires effective scoped Windows
+Firewall rules. An existing VM whose firewall is disabled may explicitly enroll
+`source_ip_hmac_v1` without changing its global firewall profiles. This is an
+application authorization policy: the listener binds the fixed private address,
+admits only the fixed Proxmox socket peer, and verifies the distinct HMAC key,
+purpose, timestamps and durable nonce before its fixed read-only egress probe.
+It grants no command, arbitrary URL or file access and makes no network-firewall
+or network-isolation claim. TCP/HTTP availability exposure remains on that port.
+
+Use `install_windows_probe.ps1 -AgentId ir-agent -AccessPolicy source_ip_hmac_v1`
+only for that explicit enrollment, and select the same `access_policy` in the
+private PVE client config. The authenticated response binds the server policy;
+a missing or different policy fails closed. Existing agent/policy binding and
+key bytes are preserved, so an upgrade cannot silently change authorization.
+Native PowerShell, SYSTEM startup and a signed PVE round trip remain required.
+
 ## Effect gates
 
 Default policy requires a sustained three-hour outage with continuous fresh

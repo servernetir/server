@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import stat
 import struct
+import subprocess
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -80,7 +81,8 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(len(auth),2)
         self.assertTrue(auth[0].startswith('from="8.8.8.8",no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty ssh-ed25519 '))
         self.assertTrue(auth[1].startswith('from="1.1.1.1",'))
-        self.assertNotIn('runcmd',doc)
+        self.assertEqual(doc['runcmd'],[['/bin/sh','-ec',
+            '/usr/sbin/sshd -t && /usr/bin/systemctl reload ssh.service']])
         scope=json.loads((directory/'scope.json').read_text())
         self.assertEqual(scope['source_identity'],self.source)
         self.assertEqual(scope['owner_id'],'test-owner')
@@ -91,6 +93,79 @@ class BootstrapTests(unittest.TestCase):
         second=store.prepare(other,self.source)
         self.assertNotEqual(first.public_host_key,second.public_host_key)
         self.assertNotEqual(first.user_data_sha256,second.user_data_sha256)
+
+    def test_iran_trial_key_forwards_only_fixed_remote_dns_egress_probe(self):
+        store=self.store();artifact=store.prepare(self.intent,self.source)
+        doc=self.document(artifact)
+        expected=[
+            'from="8.8.8.8",no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty '+key(1),
+            'from="1.1.1.1",restrict,port-forwarding,permitopen="api.ipify.org:443",command="/usr/bin/false" '+key(2),
+        ]
+        self.assertEqual(doc['users'][0]['ssh_authorized_keys'],expected)
+        written=next(entry['content'] for entry in doc['write_files']
+                     if entry['path']=='/root/.ssh/authorized_keys')
+        self.assertEqual(written,'\n'.join(expected)+'\n')
+        # An old no-forwarding artifact must never silently survive a policy
+        # upgrade or be rewritten under the same immutable CREATE identity.
+        scope=self.root/'bootstrap'/self.intent['id']/'scope.json'
+        original=json.loads(scope.read_text())
+        original['authorizations'][1]='from="1.1.1.1",no-agent-forwarding,no-port-forwarding,no-X11-forwarding,no-pty '+key(2)
+        scope.write_bytes(b.canonical_json(original))
+        before=Path(artifact.user_data_path).read_bytes()
+        with self.assertRaisesRegex(b.BootstrapError,'authorizations_changed'):
+            self.store().profile(self.intent['id'])
+        self.assertEqual(Path(artifact.user_data_path).read_bytes(),before)
+
+    @unittest.skipUnless(Path('/usr/sbin/sshd').is_file(),'native OpenSSH parser unavailable')
+    def test_native_trial_sshd_disallows_remote_unix_and_tun_forwarding(self):
+        artifact=self.store().prepare(self.intent,self.source)
+        doc=self.document(artifact)
+        content=next(entry['content'] for entry in doc['write_files']
+                     if entry['path']=='/etc/ssh/sshd_config.d/00-servernet-relay-bootstrap.conf')
+        config=self.root/'isolated-sshd.conf'
+        config.write_text(content);config.chmod(0o600)
+        # -G parses only this isolated config and exits: no daemon, sockets,
+        # system configuration changes, credentials, or network operations.
+        result=subprocess.run(['/usr/sbin/sshd','-G','-f',str(config)],
+            stdin=subprocess.DEVNULL,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+            timeout=5,check=False,env={'PATH':'/usr/sbin:/usr/bin:/sbin:/bin','LANG':'C.UTF-8'})
+        self.assertEqual(result.returncode,0,result.stderr.decode('utf-8','replace'))
+        self.assertLess(len(result.stdout),65536)
+        effective=dict(line.split(' ',1) for line in result.stdout.decode().splitlines()
+                       if line.split(' ',1)[0] in ('allowtcpforwarding','allowstreamlocalforwarding',
+                                                  'permitlisten','permittunnel'))
+        self.assertEqual(effective,{'allowtcpforwarding':'local','allowstreamlocalforwarding':'no',
+                                    'permitlisten':'none','permittunnel':'no'})
+
+    def test_staged_curl_matches_the_authorized_literal_hostname_with_remote_dns(self):
+        from infra.relay_recovery.ct_stage import CtStage,STAGE_SOCKS,SERVICE
+        # Exercise the real path verifier with only local fake process output;
+        # it must send the hostname to SOCKS rather than resolving to an IP
+        # that would fail the exact OpenSSH PermitOpen match.
+        helper=object.__new__(CtStage)
+        helper.config={'ssh_port':22,'ssh_key_file':str(self.iran)}
+        helper.root_owned=False
+        target={'host':'9.9.9.9','port':22,'provider_id':'67890'}
+        pin=self.root/'trial.known_hosts';pin.write_text('9.9.9.9 '+key(3)+'\n');pin.chmod(0o600)
+        calls=[]
+        def run(argv,timeout):
+            calls.append(argv)
+            if argv[0]=='/usr/bin/ss':
+                return b'LISTEN 0 128 127.0.0.1:10829 0.0.0.0:* users:(("ssh",pid=8123,fd=4))\n'
+            if argv[0]=='/usr/bin/systemctl':return b'8123\n'
+            if argv[0]=='/usr/bin/ps':
+                return ('/usr/bin/ssh -F /dev/null -N -D '+STAGE_SOCKS+' -i '+str(self.iran)
+                    +' -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-ed25519'
+                    +' -o IdentitiesOnly=yes -o GlobalKnownHostsFile=/dev/null'
+                    +' -o UserKnownHostsFile='+str(pin)+' root@9.9.9.9\n').encode()
+            if argv[0]=='/usr/bin/curl':
+                self.assertEqual(argv,['/usr/bin/curl','-q','--socks5-hostname',STAGE_SOCKS,
+                    '-fsS','--max-time','2','https://api.ipify.org'])
+                return b'9.9.9.9\n'
+            self.fail('unexpected subprocess')
+        helper._run=run
+        self.assertTrue(helper._network(target,STAGE_SOCKS,SERVICE,pin,key(3)))
+        self.assertEqual(len([argv for argv in calls if argv[0]=='/usr/bin/curl']),1)
 
     def test_rebuild_preserves_source_sftp_identity_without_private_metadata(self):
         store=self.store();trial=store.prepare(self.intent,self.source)
