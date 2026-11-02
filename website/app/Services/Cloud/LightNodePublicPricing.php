@@ -115,9 +115,10 @@ class LightNodePublicPricing
         }
         // A full catalogue visits many regions. Retaining every decoded tree
         // until process exit can exhaust memory during a long refresh.
-        // Eight trees cover the current region's three resources and shared
-        // region list; evicted trees remain in the existing short shared cache.
-        while (count($this->configurationMemo) >= 8) {
+        // One region needs at most four trees: the shared region list,
+        // compute, network and optional data disk. Keep only that working set;
+        // the short shared cache still serves previously visited regions.
+        while (count($this->configurationMemo) >= 4) {
             array_shift($this->configurationMemo);
         }
         $entry = Cache::remember('lightnode-public-config:v2:'.$key, 60,

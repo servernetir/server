@@ -205,7 +205,7 @@ class LightNodePublicPricingTest extends TestCase
             $rows = $configuration->invoke($pricing, $path,
                 ['region' => 'fixture-'.$i, 'resourceType' => 'LIGHTNODE_ECS']);
             $this->assertNotEmpty($rows);
-            $this->assertLessThanOrEqual(8, count($memo->getValue($pricing)));
+            $this->assertLessThanOrEqual(4, count($memo->getValue($pricing)));
         }
         $reads = Http::recorded(fn ($r) => str_contains($r->url(), '/getBuyConfigInfo.do'))->count();
         $this->assertSame(40, $reads);
@@ -216,7 +216,7 @@ class LightNodePublicPricingTest extends TestCase
             $this->assertNotEmpty($configuration->invoke($pricing, $path,
                 ['region' => 'fixture-'.$region, 'resourceType' => 'LIGHTNODE_ECS']));
         }
-        $this->assertCount(8, $memo->getValue($pricing));
+        $this->assertCount(4, $memo->getValue($pricing));
         $this->assertSame($reads, Http::recorded(fn ($r) => str_contains($r->url(), '/getBuyConfigInfo.do'))->count());
     }
 
