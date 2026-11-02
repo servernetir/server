@@ -36,14 +36,19 @@
     <div><b>{{ fa_num('99.9') }}<span>%</span></b><span>{{ __('ui.stat_uptime') }}</span></div>
   </div>
 </div>
-<section class="sn-domain" aria-labelledby="sn-domain-title">
+<section class="sn-domain sn-domain-discovery" aria-labelledby="sn-domain-title">
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/domain-home-discovery.css') }}">
+<script src="{{ asset_ver('assets/js/domain-home-discovery.js') }}" defer></script>
+@endpush
   <div class="container sn-domain-layout">
     <div class="sn-domain-intro"><span class="sn-eyebrow" dir="ltr">YOUR NEXT ADDRESS</span><h2 id="sn-domain-title">{{ __('ui.domain_title') }}</h2></div>
     <div class="sn-domain-controls">
-      <div class="domain-box reveal" style="transition-delay:.32s">
+      <div class="domain-box">
         <p class="domain-title">{{ __('ui.domain_title') }}</p>
-        <form class="domain-search" id="domain-form"
+        <form class="domain-search" id="discovery-domain-form"
               data-endpoint="{{ route($routePrefix.'domain.check') }}"
+              data-suggestions-url="{{ lroute('domain.search') }}"
               {{-- 🔴 مسیرِ بدون‌جاوااسکریپت هم باید در سامانهٔ خودمان تمام شود.
                    تا امروز این فرم به سبدِ WHMCSِ بیرونی می‌رفت، در حالی که کنترلر
                    ماه‌ها بود از WHMCS جدا شده بود — یعنی هر کاربری که جاوااسکریپتش
@@ -51,7 +56,7 @@
                    قیمتِ دیگری پرتاب می‌شد. --}}
               action="{{ lroute('domain.search') }}" method="get">
           <svg class="icon"><use href="#i-search"/></svg>
-          <input name="q" id="domain-input" type="text" placeholder="{{ __('ui.domain_ph') }}" aria-label="Domain" required
+          <input name="q" id="discovery-domain-input" type="text" placeholder="{{ __('ui.domain_ph') }}" aria-label="{{ __('domain-discovery.search_label') }}" required maxlength="100" dir="ltr"
                  autocomplete="off" spellcheck="false"
                  data-i18n-checking="{{ __('ui.domain_checking') }}"
                  data-i18n-free="{{ __('ui.domain_free') }}"
@@ -63,11 +68,17 @@
                  {{-- سه حالتِ «نمی‌دانیم». بی اینها جاوااسکریپت رشتهٔ undefined چاپ می‌کند --}}
                  data-i18n-unchecked="{{ __('ui.dsr_unchecked_note') }}"
                  data-i18n-unsupported="{{ __('ui.dsr_unsupported_note') }}"
-                 data-i18n-noprice="{{ __('ui.dsr_no_price_pill') }}">
+                 data-i18n-noprice="{{ __('ui.dsr_no_price_pill') }}"
+                 data-i18n-ideas="{{ __('domain-discovery.suggestions_button') }}"
+                 data-i18n-discount="{{ __('domain-discovery.discount_badge') }}"
+                 data-i18n-regular="{{ __('domain-discovery.regular_price') }}"
+                 data-i18n-promotion-expired="{{ __('domain-discovery.promotion_expired') }}"
+                 data-i18n-currency="{{ __('domain-discovery.currency_unit') }}"
+                 data-i18n-term="{{ __('domain-discovery.first_term') }}">
           <button class="btn btn-primary" type="submit">{{ __('ui.domain_btn') }}</button>
         </form>
-        <div class="domain-result" id="domain-result" hidden></div>
-        <div class="tld-strip" id="tld-strip">
+        <div class="domain-result" id="discovery-domain-result" hidden></div>
+        <div class="tld-strip" id="discovery-tld-strip">
           @foreach($tlds as $t)
           <button type="button" class="tld-chip" data-tld="{{ $t['tld'] }}"><b>{{ $t['tld'] }}</b><i>{{ site_price($t) }}@if(($t['min_years'] ?? 1) > 1) <small>· {{ __('ui.domain_period_years', ['years' => fa_num((string) $t['min_years'])]) }}</small>@endif</i></button>
           @endforeach
