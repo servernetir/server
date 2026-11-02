@@ -60,7 +60,7 @@ class TldPriceBook
                     !== \App\Services\Domain\Providers\ProviderMoney::minor($net, $currency)) return DomainPromotion::empty();
             $converted = $this->convert($snapshot, [$tld])[$tld] ?? null;
             return is_array($converted) && $converted['register'] === $sell
-                ? array_intersect_key($converted, array_flip(['is_promotion', 'regular_price_toman', 'discount_percent', 'promotion_ends_at']))
+                ? array_intersect_key($converted, array_flip(['is_promotion', 'regular_price_toman', 'discount_percent', 'promotion_ends_at'])) + DomainPromotion::empty()
                 : DomainPromotion::empty();
         } catch (\Throwable) { return DomainPromotion::empty(); }
     }
@@ -359,7 +359,7 @@ class TldPriceBook
                     Carbon::createFromTimestamp($promotion['start'])->toIso8601String(), Carbon::createFromTimestamp($promotion['end'])->toIso8601String());
             }
             if ($converted['register'] > 0) {
-                $out[$tld] = $converted + $display;
+                $out[$tld] = $converted + (($display['is_promotion'] ?? false) ? $display : []);
             }
         }
         return $out;
