@@ -311,3 +311,15 @@ test('duplicate normalized submits reuse the running or hidden lookup while a ch
   e.clock.setHidden(false);search(e,'new.net');assert.equal(calls.length,2);assert.equal(calls[0].signal.aborted,true);assert.deepEqual(calls[1].body,{q:'new',tlds:['net']});
  }finally{e.w.close();}
 });
+
+test('Search and Enter cannot bypass a shared 429 cooldown with the same or a different query',async()=>{
+ const calls=[];const e=setup(async(_url,opt)=>{const body=JSON.parse(opt.body);calls.push({body,signal:opt.signal});return calls.length===2?{ok:false,status:429,headers:{get:()=> '5'}}:response([row(body.q+'.'+body.tlds[0],{primary:false})]);},'en','',{tlds:{first:['com','net'],rest:[]}});
+ try{
+  search(e,'brand.com');await settle();const original=e.doc.querySelector('[data-tld="com"]');await e.clock.advance(1800);assert.equal(calls.length,2);
+  for(const query of ['brand.com','https://BRAND.com/','different.net']){search(e,query);await settle();assert.equal(calls.length,2,query+' must not start a new job during the shared cooldown');}
+  assert.equal(e.doc.querySelector('[data-tld="com"]'),original);assert.equal(e.doc.getElementById('dm-load-wrap').dataset.state,'error');assert.equal(calls[1].signal.aborted,false,'a blocked form submit must not cancel or replace the recorded failed job');
+  await e.clock.advance(4999);search(e,'different.net');await settle();assert.equal(calls.length,2);
+  await e.clock.advance(6);assert.equal(calls.length,2,'the end of Retry-After must not restart either submitted query automatically');
+  search(e,'different.net');await settle();assert.equal(calls.length,3);assert.deepEqual(calls[2].body,{q:'different',tlds:['net']});assert.equal(e.doc.querySelector('[data-tld="com"]'),null);assert.match(e.doc.querySelector('[data-primary]').textContent,/different\.net/);
+ }finally{e.w.close();}
+});

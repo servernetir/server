@@ -474,7 +474,7 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       fUnavail = document.getElementById('f-unavail'), fDeals = document.getElementById('f-deals'),
       fSort = document.getElementById('f-sort');
   var rows = [], token = 0, activeTerm = '', seen = {}, currentJob = null, expiryTimer = null;
-  var entranceTimers = new Set(), AUTO_DELAY_MS = 1800, REQUEST_TIMEOUT_MS = 35000;
+  var entranceTimers = new Set(), AUTO_DELAY_MS = 1800, REQUEST_TIMEOUT_MS = 35000, throttleUntil = 0;
   var faDigits = function (s) { return String(s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
   var num = function (n) { return T.is_fa ? faDigits(n) : String(n); };
   var esc = function (s) { var el = document.createElement('span'); el.textContent = s == null ? '' : String(s); return el.innerHTML; };
@@ -703,7 +703,9 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
     // Bare stem + exactly one suffix keeps the legacy endpoint to one lookup.
     var response = await fetch(@json(lroute('domain.search.check')), {method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify({q:job.name,tlds:[tld]}),signal:signal});
     if (!response.ok) {
-      var failure = new Error('lookup_unavailable'); failure.kind = response.status === 429 ? 'throttled' : 'network'; failure.delay = retryDelay(response); throw failure;
+      var failure = new Error('lookup_unavailable'); failure.kind = response.status === 429 ? 'throttled' : 'network'; failure.delay = retryDelay(response);
+      if (failure.kind === 'throttled') throttleUntil = Math.max(throttleUntil, Date.now() + failure.delay);
+      throw failure;
     }
     return response.json();
   }
@@ -730,8 +732,14 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       if (currentJob === job && job.state === 'error') { updateControls(job); armCooldown(job); }
     }, Math.min(2147483647, job.retryAt - Date.now() + 5));
   }
+  function holdThrottle(job) {
+    if (currentJob !== job || Date.now() >= throttleUntil) return false;
+    clearJobTimer(job); job.state = 'error'; job.errorKind = 'throttled'; job.retryAt = Math.max(job.retryAt, throttleUntil);
+    if (job.inFlight && job.controller) job.controller.abort();
+    updateControls(job); armCooldown(job); return true;
+  }
   function scheduleNext(job) {
-    if (currentJob !== job || job.state !== 'running' || job.inFlight) return;
+    if (currentJob !== job || job.state !== 'running' || job.inFlight || holdThrottle(job)) return;
     clearJobTimer(job);
     if (job.index >= job.queue.length) { job.state = 'done'; updateControls(job); return; }
     if (document.hidden) { job.state = 'hidden'; updateControls(job); return; }
@@ -739,7 +747,7 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
     updateControls(job);
   }
   async function perform(job) {
-    if (currentJob !== job || job.inFlight || job.state !== 'running') return;
+    if (currentJob !== job || job.inFlight || job.state !== 'running' || holdThrottle(job)) return;
     if (document.hidden) { job.state = 'hidden'; updateControls(job); return; }
     job.inFlight = true; job.controller = new AbortController(); job.timedOut = false;
     var signal = job.controller.signal;
@@ -786,6 +794,9 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
   function run() {
     var term = q.value.trim();
     if (!term) { q.focus(); return; }
+    // The route rate limit spans queries, not just this job's retry button.
+    // Enter, a changed name, or a suggestion cannot clear the server's cooldown.
+    if (Date.now() < throttleUntil) { if (currentJob) holdThrottle(currentJob); return; }
     var plan = searchPlan(term);
     // Repeated Enter/click for the same active search must not duplicate backend lookups.
     if (plan && currentJob && (currentJob.state === 'running' || currentJob.state === 'hidden')
