@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "review_date": "2026-11-02",
+  "scope": "All 16 previously reviewed monthly VPS.TC mappings",
+  "products": [
+    "351",
+    "352",
+    "353",
+    "354",
+    "355",
+    "356",
+    "357",
+    "358",
+    "2169",
+    "2170",
+    "2171",
+    "2172",
+    "2173",
+    "2174",
+    "2175",
+    "2176"
+  ],
+  "evidence": {
+    "original_reviewed_form_hash_matches": 16,
+    "current_form_hash_mismatches": 16,
+    "unchanged_product_terms": 16,
+    "account_money_contract_verified": true,
+    "paid_invoice_and_service_binding_verified": true,
+    "current_native_credit_payment_fees_zero": true
+  },
+  "structural_changes": [
+    {
+      "control": "Snapshots",
+      "field": "config.minvalue",
+      "reviewed": "2",
+      "current": "1"
+    },
+    {
+      "control": "Snapshots",
+      "field": "config.initialval",
+      "reviewed": "2",
+      "current": "1"
+    },
+    {
+      "control": "Snapshots",
+      "field": "default quantities and displayed selected quantity",
+      "reviewed": 2,
+      "current": 1
+    },
+    {
+      "field": "metadata.group_id",
+      "reviewed": 21,
+      "current": 0
+    }
+  ],
+  "unchanged": "The private comparison reported no other form-field changes; product terms fingerprints remained valid.",
+  "interpretation": "The supplier reduced the snapshot control's included/default baseline from two to one. This is a commercial configuration change, not cosmetic or JSON key order drift.",
+  "unresolved": "Current per-unit prices and a read-only explicit quantity-two calculation are required to establish whether a second snapshot incurs an extra fee. dontchargedefault=1 alone does not prove quantity two remains free.",
+  "protection": {
+    "reviewed_mapping_retained": true,
+    "monetary_validation_retained": true,
+    "failed_form_hash_not_bypassed": true,
+    "supplier_new_sales_remain_closed": true,
+    "existing_services_not_modified": true
+  },
+  "recovery_options": [
+    "Supplier restores the reviewed two-slot baseline; re-read all forms and validate existing hashes and full explicit quotes before normal price publication.",
+    "Owner explicitly approves revised one-slot commercial terms; fully review and bind a new mapping and customer-facing terms before any publication.",
+    "If the supplier supports a paid second slot, implement and validate its current recurring procurement cost and disclosed commercial terms before approving a two-slot offer."
+  ],
+  "diagnostic_boundary": "The fixed POST /api/quote endpoint may calculate exact quantity-one and quantity-two configurations. It must not be replaced by an order, payment, renewal, provisioning or synchronization call. A diagnostic quote does not approve a changed offer.",
+  "sensitive_data": "Account fingerprints, authentication material, raw form bodies, native customer/service/invoice identifiers and private artifact paths are omitted."
+}
