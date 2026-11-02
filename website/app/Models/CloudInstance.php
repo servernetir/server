@@ -277,7 +277,8 @@ class CloudInstance extends Model
 
         $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
 
-        return $broker->enabledFor($service) && $broker->eligible($service);
+        return $broker->enabledFor($service) && $broker->configuredSocketPath() !== null
+            && $broker->eligible($service);
     }
 
     /** فرمان آمادهٔ Remote Desktop برای سرورهای ویندوزی. */

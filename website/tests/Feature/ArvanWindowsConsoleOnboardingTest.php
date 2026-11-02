@@ -21,6 +21,7 @@ class ArvanWindowsConsoleOnboardingTest extends TestCase
         Http::preventStrayRequests();
         Setting::put('arvan_console_worker_enabled', '1');
         Setting::putSecret('arvan_console_worker_key', str_repeat('a', 64));
+        Setting::put('arvan_console_worker_socket_path', '/ir-tbz-sh1/websockify');
     }
 
     private function fixture(string $provider = 'arvan'): array
@@ -96,6 +97,20 @@ class ArvanWindowsConsoleOnboardingTest extends TestCase
         $html = $this->page($customer, $service)->getContent();
         $this->assertStringNotContainsString('data-windows-console-setup', $html);
         $this->assertStringContainsString(e(__('ui.cs_windows_pw_unavailable')), $html);
+    }
+
+    public function test_missing_or_unsupported_socket_path_blocks_console_setup_and_ready_notice(): void
+    {
+        [$customer, $service, $instance] = $this->fixture();
+        foreach (['', '/unverified/websockify'] as $path) {
+            Setting::put('arvan_console_worker_socket_path', $path);
+            $this->assertFalse($instance->arvanWindowsConsoleAvailable());
+            $this->assertFalse($instance->readyForNotice());
+            $html = $this->page($customer, $service)->getContent();
+            $this->assertStringNotContainsString('data-windows-console-setup', $html);
+            $this->assertStringContainsString(e(__('ui.cs_windows_pw_unavailable')), $html);
+        }
+        Http::assertNothingSent();
     }
 
     public function test_saved_password_keeps_explicit_reveal_without_first_boot_instructions(): void
