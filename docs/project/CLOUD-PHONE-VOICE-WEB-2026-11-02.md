@@ -52,3 +52,33 @@ Rollback uses the same release helper with known-hash guards and its private
 backups. It restores old source/compiled views before removing new assets and
 refuses to overwrite newer or unrecognized files. Closing/reverting the web PR
 alone does not remove already installed files.
+
+## Current acceptance and publication boundary
+
+The corrected source commit is `095c61f468b2f8174d7a29b6cefe88ee81325736`.
+[PR222](https://github.com/servernetir/server/pull/222) preserves the source.
+[Clean presentation CI](https://github.com/servernetir/server/actions/runs/41493484714)
+passed PHP8.4 lint,14static releasechecks, native install/verify/rollback rehearsal,
+actual Blade renders for cloud-phone and managed in fa/en/tr and16Node checks.
+The first run caught incorrect945x2048 dimensions; the actual native PNGs are
+1233x2673 and the corrected code and tests now verify their headers exactly.
+
+Published static assets: four screenshots, the scoped CSS, three noindex HTML
+previews at `/assets/cloud-phone/preview-{fa,en,tr}.html`, and the APK at the
+versioned download URL above. The downloaded public APK returned HTTP200 with
+Android package MIME type,31,338,219bytes and the exact recordedSHA256.
+The Persian desktop preview was visually inspected and its images loaded;
+mobile rendering had no horizontal overflow at the observed433px CSS viewport.
+These previews show actual compiled page content with a synthetic shell; they
+are not proof that the requested dynamic solution route has been updated.
+
+**Main page installation is blocked by automatic approval review.** The review
+rejected uploading the temporary PHP launcher to public_html because it creates
+a new public administrative endpoint not specifically authorized by the owner.
+The rejected action was not retried through another path. Read-only inspection
+confirmed no public launcher and no payload were uploaded; only the private
+engine exists outside webroot. The three runtime PHP/Blade sources and their
+cache/compiled views remain unchanged. Specific owner approval for that temporary,
+existing-admin-authenticated/CSRF-protected launcher is needed before using it.
+It must be removed immediately after final rawhash and browser acceptance.
+No live SIP call, operational trunk provisioning or customer rollout was tested.
