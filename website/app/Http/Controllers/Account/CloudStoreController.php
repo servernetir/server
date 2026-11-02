@@ -697,6 +697,40 @@ class CloudStoreController extends Controller
         return $out;
     }
 
+    /**
+     * The same deliverability check for a public, slug-unique offer list.
+     * Image rows are shared only within this call. Provider eligibility is
+     * still queried per offer, with the original SQL slug comparison and gates.
+     *
+     * @param  Collection<int|string, CloudPlan>  $offers
+     * @return array<string, array<int, string>>
+     */
+    public static function imageKeysForOffers(Collection $offers, string $kind = 'os'): array
+    {
+        if ($offers->isEmpty()) {
+            return [];
+        }
+
+        $byKey = CloudImage::query()->usable()->where('kind', $kind)->get()->groupBy('key');
+        $catalog = CloudImage::catalog($kind);
+        $out = [];
+
+        foreach ($offers as $offer) {
+            $providers = CloudPlan::query()->sellable()
+                ->where('slug', (string) $offer->slug)
+                ->pluck('provider')->unique()->values()->all();
+            $keys = [];
+            foreach ($catalog as $image) {
+                if (self::deliverable($offer, $providers, $byKey->get((string) $image->key, collect()))) {
+                    $keys[] = (string) $image->key;
+                }
+            }
+            $out[(string) $offer->slug] = $keys;
+        }
+
+        return $out;
+    }
+
     // ═════════════════════════ نمایش ═════════════════════════
 
     public function index(Request $request): View
