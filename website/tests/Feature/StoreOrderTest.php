@@ -71,11 +71,12 @@ class StoreOrderTest extends TestCase
 
     public function test_hosting_requires_a_domain(): void
     {
+        $this->whm('WHM-DE', 'DE');
         $product = $this->product(['requires_domain' => true]);
         $customer = $this->customer();
 
         $this->actingAs($customer, 'customer')
-            ->post("/account/order/{$product->slug}", ['cycle' => 'monthly', 'domain_mode' => 'have'])   // بدونِ دامنه
+            ->post("/account/order/{$product->slug}", ['country' => 'DE', 'cycle' => 'monthly', 'domain_mode' => 'have'])   // بدونِ دامنه
             ->assertSessionHasErrors('domain');
 
         $this->assertSame(0, Service::count());   // سرویسی ساخته نشد

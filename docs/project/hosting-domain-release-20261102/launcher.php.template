@@ -1,0 +1,93 @@
+<?php
+
+declare(strict_types=1);
+
+// Transient admin-only entrypoint; replace both pins after the final payload is built.
+// Remove this launcher immediately after acceptance. Keep the private engine/backup.
+const HDC_ENGINE_SHA256 = '__ENGINE_SHA256__';
+const HDC_PAYLOAD_SHA256 = '__PAYLOAD_SHA256__';
+const HDC_STAGE = '/home/servernetcloud/hosting-domain-release-20261102';
+
+try {
+    define('LARAVEL_START', microtime(true));
+    require '/home/servernetcloud/servernet_app/vendor/autoload.php';
+    $app = require '/home/servernetcloud/servernet_app/bootstrap/app.php';
+    $_SERVER['SCRIPT_FILENAME'] = __DIR__.'/index.php';
+    $_SERVER['SCRIPT_NAME'] = '/index.php'; $_SERVER['PHP_SELF'] = '/index.php';
+    $request = Illuminate\Http\Request::capture(); $app->instance('request', $request);
+    Illuminate\Support\Facades\Facade::clearResolvedInstance('request');
+    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class); $kernel->bootstrap();
+    Illuminate\Support\Facades\Route::match(['GET', 'POST'], '/'.basename(__FILE__), function (Illuminate\Http\Request $request) use ($app) {
+        abort_unless(preg_match('/^[a-f0-9]{64}$/D', HDC_ENGINE_SHA256)
+            && preg_match('/^[a-f0-9]{64}$/D', HDC_PAYLOAD_SHA256), 409);
+        $engine = HDC_STAGE.'/engine.php'; $payload = HDC_STAGE.'/payload.json';
+        abort_unless(! is_link(HDC_STAGE) && realpath(HDC_STAGE) === HDC_STAGE && ! is_link($engine)
+            && is_file($engine) && hash_file('sha256', $engine) === HDC_ENGINE_SHA256 && ! is_link($payload)
+            && is_file($payload) && hash_file('sha256', $payload) === HDC_PAYLOAD_SHA256, 409);
+        if (filter_var(ini_get('opcache.enable'), FILTER_VALIDATE_BOOLEAN)) {
+            abort_unless(function_exists('opcache_is_script_cached') && function_exists('opcache_invalidate'), 500);
+            if (opcache_is_script_cached($engine)) abort_unless(opcache_invalidate($engine, true), 500);
+        }
+        require_once $engine;
+        $privateResponse = static fn ($value, int $status = 200) => response($value, $status)
+            ->header('Cache-Control', 'private, no-store')->header('X-Robots-Tag', 'noindex, nofollow');
+        if ($request->isMethod('GET')) {
+            $inventory = ServerNet\HostingDomainRelease20261102\Engine::inspect(HDC_PAYLOAD_SHA256);
+            $state = ['status' => 'not_previewed'];
+            $stateFile = HDC_STAGE.'/state.json';
+            if (is_file($stateFile) && ! is_link($stateFile)) {
+                $record = json_decode((string) file_get_contents($stateFile), true);
+                if (is_array($record) && ($record['payload_sha256'] ?? null) === HDC_PAYLOAD_SHA256) {
+                    $state = array_intersect_key($record, array_flip(['status', 'source_sha', 'updated_at']));
+                }
+            }
+            if (in_array($request->query('phase'), ['visual', 'visual-dns'], true)) {
+                abort_unless(($inventory['ok'] ?? false) && in_array($state['status'], ['applied', 'verified'], true), 409);
+                if ($request->query('phase') === 'visual-dns') {
+                    return response()->json(['state' => 'needs_setup', 'observed_ns' => ['ns1.example.test', 'ns2.example.test'], 'checked_at' => gmdate('c')])
+                        ->header('Cache-Control', 'private, no-store')->header('X-Robots-Tag', 'noindex, nofollow');
+                }
+                $locale = $request->query('locale', 'fa');
+                abort_unless(is_string($locale) && in_array($locale, ['fa', 'en', 'tr'], true), 422);
+                $app->setLocale($locale);
+                // Synthetic model only: no reads of services/customer data and no passwords.
+                $server = new App\Models\Server(['name' => 'Synthetic hosting', 'type' => 'whm', 'country' => 'IR',
+                    'city' => '', 'nameservers' => 'ns1.servernet.ir,ns2.servernet.ir', 'server_ip' => '203.0.113.10']);
+                $server->id = 2;
+                $service = new App\Models\Service(['name' => 'Synthetic hosting', 'domain' => 'preview.example.test', 'server_id' => 2,
+                    'customer_id' => 0, 'status' => 'active', 'provision_status' => 'done']);
+                $service->id = 0; $service->setRelation('server', $server);
+                $component = view('account.partials.hosting-domain-connection', ['s' => $service, 'type' => 'whm'])->render();
+                $fakeUrl = htmlspecialchars('/'.basename(__FILE__).'?phase=visual-dns', ENT_QUOTES, 'UTF-8');
+                $component = preg_replace('/data-url="[^"]*"/', 'data-url="'.$fakeUrl.'"', $component, 1);
+                $direction = $locale === 'fa' ? 'rtl' : 'ltr';
+                $html = '<!doctype html><html lang="'.$locale.'" dir="'.$direction.'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                    .'<title>Hosting connection — synthetic acceptance preview</title><link rel="stylesheet" href="/assets/css/site.css">'
+                    .'<style>body{margin:0;background:#f4f8f8;color:#152d32}main{max-width:700px;margin:36px auto;padding:16px}h1{font-size:20px}.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5}</style></head><body>'
+                    .'<svg hidden><symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></symbol></svg>'
+                    .'<main><h1>ServerNet · Hosting domain connection</h1><p style="font-size:12px;opacity:.65">Synthetic visual acceptance only. The DNS result below is a fixture, not customer evidence.</p>'
+                    .$component.'</main></body></html>';
+                return $privateResponse($html);
+            }
+            $html = '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+                .'<title>Hosting domain release</title><main style="font:16px/1.6 system-ui;max-width:740px;margin:40px auto;padding:20px">'
+                .'<h1>Hosting domain release — 2 November 2026</h1><p>Fixed fourteen file destinations. DNS presentation and panel-compatible hosting selection. No migrations, scheduler, supplier operations or shared-cache flush.</p>'
+                .'<pre>'.htmlspecialchars(json_encode(['state' => $state, 'inventory' => $inventory], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8').'</pre>';
+            foreach (['preview' => 'Preview and lint', 'apply' => 'Apply reviewed release', 'verify' => 'Verify exact files and fresh routes', 'rollback' => 'Restore this release'] as $phase => $label) {
+                $html .= '<form method="post" style="display:inline-block;margin:8px">'.csrf_field()
+                    .'<input type="hidden" name="phase" value="'.$phase.'"><button type="submit" style="padding:12px 18px">'.$label.'</button></form>';
+            }
+            foreach (['fa', 'en', 'tr'] as $locale) $html .= '<a style="margin:10px" href="?phase=visual&amp;locale='.$locale.'">Synthetic '.$locale.' preview</a>';
+            return $privateResponse($html.'</main>');
+        }
+        $phase = $request->input('phase');
+        abort_unless(is_string($phase) && in_array($phase, ['preview', 'apply', 'verify', 'rollback'], true), 422);
+        $result = ServerNet\HostingDomainRelease20261102\Engine::run($app, $phase, HDC_PAYLOAD_SHA256);
+        return response()->json($result, $result['ok'] ? 200 : 409)
+            ->header('Cache-Control', 'private, no-store')->header('X-Robots-Tag', 'noindex, nofollow');
+    })->middleware(['web', 'auth:web', 'admin']);
+    $response = $kernel->handle($request); $response->send(); $kernel->terminate($request, $response);
+} catch (Throwable) {
+    http_response_code(500); header('Content-Type: text/plain; charset=utf-8'); header('Cache-Control: private, no-store');
+    echo 'Hosting domain release stopped. Inspect the private release state.';
+}

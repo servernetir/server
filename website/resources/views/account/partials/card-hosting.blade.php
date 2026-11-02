@@ -77,6 +77,10 @@
       @endif
     </div>
 
+    @if($s->domain && in_array($type, ['whm', 'plesk', 'directadmin'], true) && ! $s->isDead())
+      @include('account.partials.hosting-domain-connection', ['s' => $s])
+    @endif
+
     {{-- ── اطلاعاتِ ورود ──
          ⚠️ این بلوک هرگز روی کارتِ سرورِ ابری نمی‌آید: `CloudProvisioner` رمزِ
          rootِ سرور را روی همین ستونِ `services.password` می‌نویسد، پس یک قالبِ

@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Alan adınızı bağlayın',
+    'lead' => 'Yayına bir adım daha yakın',
+    'location' => 'Hosting konumu',
+    'nameservers' => 'Bu hizmetin ad sunucuları',
+    'copy' => 'Kopyala',
+    'copied' => 'Kopyalandı',
+    'copy_failed' => 'Metni seçip kopyalayın',
+    'checking' => 'DNS kontrol ediliyor…',
+    'connected' => 'Alan adı hostinge yönleniyor',
+    'needs_setup' => 'Ad sunucusu ayarı gerekli',
+    'propagating' => 'DNS yayılımı veya eşleşmesi bekleniyor',
+    'unknown' => 'Kontrol şu anda yapılamıyor',
+    'unconfigured' => 'Bağlantı bilgileri incelenmeli',
+    'refresh' => 'Tekrar kontrol et',
+    'checked' => 'Son kontrol',
+    'observed' => 'Gözlenen ad sunucuları',
+    'intro' => 'Bu ad sunucuları size atanan hosting sunucusuna aittir. İkisini de alan adı firmanızın paneline girin.',
+    'guide' => 'Bağlantı ve site kurulum rehberi',
+    'step1' => 'Alan adı firmanızda Name Servers bölümünü açın. ir alan adları için nic.ir hesabınıza girip alan adınızı seçin.',
+    'step2' => 'Mevcut ad sunucularını yukarıdakilerle değiştirip kaydedin. Alan adında çalışan site veya e-posta varsa önce DNS kayıtlarını yeni sunucuya taşıyın.',
+    'step3' => 'Yayılım sonrasında Tekrar kontrol et seçeneğine basın. Sonuçlar en fazla 2 dakika önbellekte tutulur; DNS yayılımı 48 saat sürebilir.',
+    'start_whm' => 'Dosya Yöneticisi üzerinden site dosyalarınızı public_html klasörüne yükleyin. Varsa cPanel içindeki WordPress yükleyicisini kullanabilirsiniz.',
+    'start_other' => 'Kontrol panelinize girip dosya yöneticisini ve kurulum rehberini kullanın; site klasörü panele göre değişir.',
+    'note' => 'Bu kontrol DNS kaydının hosting IP adresine yönlenmesini ölçer. Site, SSL ve e-posta sağlığı ayrıdır. Cloudflare veya özel DNS kullanıyorsanız ad sunucularını değiştirmeden önce desteğe danışın.',
+];
