@@ -86,7 +86,7 @@ test('all locales render translated controls, correct direction, keyboard form, 
 test('legacy search envelope with missing promo and suggestion metadata gets bounded unchecked ASCII ideas',async()=>{
  const calls=[];const e=setup(async(_url,opt)=>{calls.push(JSON.parse(opt.body));return response([row('brand.co.uk',{period_years:undefined,is_promotion:undefined,regular_price_toman:undefined})]);});
  try{
-  search(e,'brand.co.uk');await settle();assert.equal(calls.length,1);assert.equal(e.doc.querySelector('del'),null);assert.match(e.doc.querySelector('.dsx-price small').textContent,/1-year/);assert.equal(e.doc.querySelector('.dsx-deal-filter').hidden,true);assert.equal(e.doc.getElementById('dm-deals-count').hidden,true);
+  search(e,'brand.co.uk');await settle();assert.equal(calls.length,1);assert.equal(e.doc.querySelector('del'),null);assert.equal(e.doc.querySelector('.dsx-price small').textContent,'€');assert.equal(e.doc.querySelector('.dsx-deal-filter').hidden,true);assert.equal(e.doc.getElementById('dm-deals-count').hidden,true);
   const buttons=[...e.doc.querySelectorAll('#dm-idea-chips button')];assert.ok(buttons.length>0&&buttons.length<=6);assert.ok(buttons.every(b=>b.textContent.endsWith('.co.uk')));assert.equal(e.doc.querySelector('#dm-ideas .dsx-pill'),null);
   buttons[0].click();await settle();assert.equal(calls.length,2);
  }finally{e.w.close();}
@@ -95,4 +95,22 @@ test('legacy fallback never mutates non-ASCII or punycode identities and respect
  for(const [query,metadata] of [['xn--mgbh0fb.com',{}],['نمونه.com',{}],['brand.com',{suggestion_names:[]}],['x.com',{}]]){
   const e=setup(async()=>response([row()],metadata));try{search(e,query);await settle();assert.equal(e.doc.querySelectorAll('#dm-idea-chips button').length,0,query);}finally{e.w.close();}
  }
+});
+
+
+test('registration term is displayed only when explicitly valid; unknown periods show currency without separator',async()=>{
+ const cases=[
+  {tld:'one',period_years:1,expected:'€ · 1-year registration'},
+  {tld:'two',period_years:2,expected:'€ · 2-year registration'},
+  {tld:'minimum',period_years:undefined,min_years:2,expected:'€ · 2-year registration'},
+  {tld:'missing',period_years:undefined,expected:'€'},
+  {tld:'zero',period_years:0,expected:'€'},
+  {tld:'negative',period_years:-1,expected:'€'},
+  {tld:'fraction',period_years:1.5,expected:'€'},
+  {tld:'boolean',period_years:true,expected:'€'},
+  {tld:'invalid',period_years:'unknown',expected:'€'}
+ ];
+ const e=setup(async()=>response(cases.map(c=>row('brand.'+c.tld,{primary:false,period_years:c.period_years,min_years:c.min_years}))));
+ try{search(e,'brand.com');await settle();for(const c of cases)assert.equal(e.doc.querySelector('[data-tld="'+c.tld+'"] .dsx-price small').textContent,c.expected,c.tld);}
+ finally{e.w.close();}
 });

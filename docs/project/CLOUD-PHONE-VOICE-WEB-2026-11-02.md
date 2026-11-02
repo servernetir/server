@@ -53,32 +53,54 @@ backups. It restores old source/compiled views before removing new assets and
 refuses to overwrite newer or unrecognized files. Closing/reverting the web PR
 alone does not remove already installed files.
 
-## Current acceptance and publication boundary
+## Verified production publication
 
-The corrected source commit is `095c61f468b2f8174d7a29b6cefe88ee81325736`.
-[PR222](https://github.com/servernetir/server/pull/222) preserves the source.
-[Clean presentation CI](https://github.com/servernetir/server/actions/runs/41493484714)
-passed PHP8.4 lint,14static releasechecks, native install/verify/rollback rehearsal,
-actual Blade renders for cloud-phone and managed in fa/en/tr and16Node checks.
-The first run caught incorrect945x2048 dimensions; the actual native PNGs are
-1233x2673 and the corrected code and tests now verify their headers exactly.
+The owner explicitly approved the temporary existing-admin/CSRF-protected PHP
+launcher after the initial automatic review rejection. Publication then continued
+through the same reviewed scope; no alternative path bypassed the rejection.
 
-Published static assets: four screenshots, the scoped CSS, three noindex HTML
-previews at `/assets/cloud-phone/preview-{fa,en,tr}.html`, and the APK at the
-versioned download URL above. The downloaded public APK returned HTTP200 with
-Android package MIME type,31,338,219bytes and the exact recordedSHA256.
-The Persian desktop preview was visually inspected and its images loaded;
-mobile rendering had no horizontal overflow at the observed433px CSS viewport.
-These previews show actual compiled page content with a synthetic shell; they
-are not proof that the requested dynamic solution route has been updated.
+Deployed source: `7cfc8927e54f345597a059279295e8bb69139ede`.
+[PR222](https://github.com/servernetir/server/pull/222) records the final Git head.
+[Final native/Blade CI](https://github.com/servernetir/server/actions/runs/41495846845)
+passed PHP8.4 lint,18static deployment checks, native install/verify/rollback and
+mode-drift rehearsals, actual fa/en/tr Blade renders and16Node assertions. The
+earlier image-dimension failure was corrected to the real PNG1233x2673 headers.
+The helper also preserves existing0755 compiled views, uses0644 for new compiled
+views and checks immediate source/compiled mode drift during apply and rollback.
 
-**Main page installation is blocked by automatic approval review.** The review
-rejected uploading the temporary PHP launcher to public_html because it creates
-a new public administrative endpoint not specifically authorized by the owner.
-The rejected action was not retried through another path. Read-only inspection
-confirmed no public launcher and no payload were uploaded; only the private
-engine exists outside webroot. The three runtime PHP/Blade sources and their
-cache/compiled views remain unchanged. Specific owner approval for that temporary,
-existing-admin-authenticated/CSRF-protected launcher is needed before using it.
-It must be removed immediately after final rawhash and browser acceptance.
-No live SIP call, operational trunk provisioning or customer rollout was tested.
+Authenticated live preview, apply and verify all succeeded:14exact destinations,
+two compiled views and8protected backend/layout/routes/shared assets unchanged.
+Account UID1020, uncached configuration and raw before-hashes were confirmed.
+The existing solution compiled view was0755 and stayed0755; the new partial is0644.
+Only the solutions config/two compiled views and six localized cloud-phone guest
+page keys were activated. The live layout, callbacks, database, finances, cron and
+provisioning were not changed; supplier API calls were zero.
+
+Private stage/backups/receipt:
+`/home/servernetcloud/cloud-phone-voice-release-20261102` (directory0700).
+Payload SHA256: `a0481bfdea3b8d9ec84a5529dbe5bbb6676f5480f131cf637dca92b4c27caba7`.
+Engine SHA256: `51db73a4fcb8c7b09e952628fbf41fdf2fa54e57ea68efadcc9a610507ee51c2`.
+Launcher raw self-hash was checked before preview:
+`bceba3f480e05e6df9505de1ba46d3753df7dd70ea44d844ed7d94efbb5a74c5`.
+Fileman content reads strip22bytes from a meta literal and were not used as raw
+launcher hash evidence. The protected layout's observed SHA256 remains
+`bf2de51af9aacdff3dfe1b9d87c2e47c85beedf66b30f1b5008d0f30f23f532c`.
+
+Public acceptance: fa/en/tr each returned HTTP200 both with a cache-bypass query
+and as a clean guest URL. Each had one H1, correct canonical and hreflang,8visible
+FAQ/schema entries, valid SoftwareApplication0.1.0-preview and an active download.
+`/up` and the neighboring managed-service page returned200; the latter did not
+inherit app assets. Persian desktop and all three mobile layouts were inspected,
+with loaded images and no horizontal overflow at the observed433px CSS viewport.
+The browser viewport was restored afterwards. The public APK returned Android
+package MIME,31,338,219bytes and its recorded digest; final HEAD size also matched.
+
+Cleanup: the approved launcher was retired outside webroot into the private stage
+and set0600. Both its old public .php URL and the temporary extensionless name
+created by Fileman's relative move resolution returned404. No public launcher
+remains. Three noindex static previews remain for review; the requested dynamic
+`/solutions/cloud-phone` page is now the published version. Rollback uses the
+same guarded private receipt/backups and requires temporarily restoring an
+approved authenticated launcher; reverting Git alone does not undo live files.
+
+No real SIP call, operational trunk provisioning or customer rollout was tested.

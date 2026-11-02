@@ -187,7 +187,7 @@ final class Engine
         if (! is_dir($path) || (fileperms($path) & 0077) !== 0) throw new \RuntimeException('private_directory_mode');
     }
 
-    private function atomic(string $path, string $bytes, int $mode, ?string $expected = null): void
+    private function atomic(string $path, string $bytes, int $mode, ?string $expected = null, ?int $expectedMode = null): void
     {
         $this->safe($path, true);
         $tmp = dirname($path).'/.domain-ui-'.bin2hex(random_bytes(12));
@@ -204,6 +204,8 @@ final class Engine
         fclose($handle);
         try {
             if ($expected !== null && $this->hash($path) !== $expected) throw new \RuntimeException('concurrent_file_drift');
+            if ($expected !== null && $expected !== 'absent' && $expectedMode !== null
+                && (fileperms($path) & 0777) !== $expectedMode) throw new \RuntimeException('concurrent_mode_drift');
             if (! rename($tmp, $path)) throw new \RuntimeException('atomic_replace_failed');
         } finally { if (is_file($tmp)) unlink($tmp); }
         if ($this->hash($path) !== hash('sha256', $bytes)) throw new \RuntimeException('written_hash_mismatch');
@@ -224,12 +226,18 @@ final class Engine
                 || ! str_starts_with($entry['path'], self::APP.'/storage/framework/views/')
                 || ! preg_match('/^(?:[a-f0-9]{64}|absent)$/D', (string) ($entry['before_sha256'] ?? ''))
                 || ! preg_match('/^[a-f0-9]{64}$/D', (string) ($entry['after_sha256'] ?? ''))
-                || ! in_array($entry['mode'] ?? null, [0600, 0644], true)
-                || ($entry['before_sha256'] !== 'absent' && (! is_int($entry['before_mode'] ?? null)
-                    || $entry['mode'] !== $entry['before_mode']))) throw new \RuntimeException('invalid_compiled_state');
+                || ! $this->compiledMode($entry['before_sha256'], $entry['before_mode'] ?? null, $entry['mode'] ?? null)) {
+                throw new \RuntimeException('invalid_compiled_state');
+            }
             $seen[$relative] = true;
         }
         return $state;
+    }
+
+    private function compiledMode(string $before, ?int $beforeMode, mixed $mode): bool
+    {
+        return $before === 'absent' ? $beforeMode === null && $mode === 0644
+            : in_array($beforeMode, [0600, 0644, 0755], true) && $mode === $beforeMode;
     }
 
     private function save(array $state): void
@@ -287,14 +295,16 @@ final class Engine
                 $path = $compiler->getCompiledPath($live);
                 if (! str_starts_with($path, self::APP.'/storage/framework/views/') || ! preg_match('/^[a-f0-9]+\.php$/D', basename($path))) throw new \RuntimeException('unexpected_compiled_path');
                 $this->safe($path, true); $before = $this->hash($path);
+                $beforeMode = $before === 'absent' ? null : fileperms($path) & 0777;
+                $mode = $beforeMode ?? 0644;
+                if (! $this->compiledMode($before, $beforeMode, $mode)) throw new \RuntimeException('unsupported_compiled_mode');
                 if ($before !== 'absent') $this->atomic(self::STAGE.'/before/compiled-'.$i, (string) file_get_contents($path), 0600);
                 $compiler->setPath($live);
                 $php = $compiler->compileString($entry['content'])."\n<?php /**PATH {$live} ENDPATH**/ ?>";
                 $compiledCandidate = self::STAGE.'/candidates/compiled-'.$i.'.php';
                 $this->atomic($compiledCandidate, $php, 0600); $this->lint($compiledCandidate);
                 $compiled[] = ['path' => $path, 'before_sha256' => $before, 'after_sha256' => hash('sha256', $php),
-                    'before_mode' => $before === 'absent' ? null : fileperms($path) & 0777,
-                    'mode' => $before === 'absent' ? 0644 : fileperms($path) & 0777, 'index' => $i];
+                    'before_mode' => $beforeMode, 'mode' => $mode, 'index' => $i];
             } elseif (str_ends_with($entry['destination'], '.php')) $this->lint($candidate);
         }
         $this->assertProtected(); $this->checkEntries('before');
@@ -311,11 +321,15 @@ final class Engine
         }
     }
 
-    private function phpPaths(array $state): array
+    private function phpPaths(array $state, bool $changedOnly = false): array
     {
-        $paths = array_column($state['compiled'], 'path');
+        $paths = [];
+        foreach ($state['compiled'] as $entry) {
+            if (! $changedOnly || $entry['before_sha256'] !== $entry['after_sha256']) $paths[] = $entry['path'];
+        }
         foreach ($this->plan['entries'] as $entry) {
-            if (str_starts_with($entry['destination'], 'servernet_app/lang/')) $paths[] = self::HOME.'/'.$entry['destination'];
+            if (str_starts_with($entry['destination'], 'servernet_app/lang/')
+                && (! $changedOnly || $entry['before_sha256'] !== $entry['after_sha256'])) $paths[] = self::HOME.'/'.$entry['destination'];
         }
         return $paths;
     }
@@ -335,6 +349,8 @@ final class Engine
     {
         foreach ($state['compiled'] as $entry) {
             if ($this->hash($entry['path']) !== $entry[$which.'_sha256']) throw new \RuntimeException('compiled_view_drift');
+            if ($entry[$which.'_sha256'] !== 'absent' && (fileperms($entry['path']) & 0777)
+                !== ($which === 'before' ? $entry['before_mode'] : $entry['mode'])) throw new \RuntimeException('compiled_mode_drift');
         }
     }
 
@@ -343,7 +359,7 @@ final class Engine
         $state = $this->state();
         if (($state['status'] ?? null) !== 'previewed') throw new \RuntimeException('duplicate_or_unprepared_apply');
         $this->assertProtected(); $this->checkEntries('before'); $this->checkCompiled($state, 'before');
-        $this->opcache($this->phpPaths($state));
+        $this->opcache($this->phpPaths($state, true));
         foreach ($this->plan['entries'] as $i => $entry) {
             if ($this->hash(self::STAGE.'/candidates/file-'.$i) !== $entry['after_sha256']) throw new \RuntimeException('candidate_hash_drift');
         }
@@ -351,23 +367,29 @@ final class Engine
             if ($this->hash(self::STAGE.'/candidates/compiled-'.$entry['index'].'.php') !== $entry['after_sha256']) throw new \RuntimeException('candidate_hash_drift');
         }
         $state['status'] = 'applying'; $this->save($state);
+        $filesWritten = 0; $compiledWritten = 0;
         try {
             $order = array_keys($this->plan['entries']);
             usort($order, fn ($a, $b) => (int) in_array($this->plan['entries'][$a]['destination'], self::VIEWS, true)
                 <=> (int) in_array($this->plan['entries'][$b]['destination'], self::VIEWS, true));
             foreach ($order as $i) {
                 $entry = $this->plan['entries'][$i];
-                $this->atomic(self::HOME.'/'.$entry['destination'], (string) file_get_contents(self::STAGE.'/candidates/file-'.$i), $entry['mode'], $entry['before_sha256']);
+                if ($entry['before_sha256'] === $entry['after_sha256']) continue;
+                $this->atomic(self::HOME.'/'.$entry['destination'], (string) file_get_contents(self::STAGE.'/candidates/file-'.$i), $entry['mode'], $entry['before_sha256'], $entry['before_mode']);
+                $filesWritten++;
             }
             foreach ($state['compiled'] as $entry) {
-                $this->atomic($entry['path'], (string) file_get_contents(self::STAGE.'/candidates/compiled-'.$entry['index'].'.php'), $entry['mode'], $entry['before_sha256']);
+                if ($entry['before_sha256'] === $entry['after_sha256']) continue;
+                $this->atomic($entry['path'], (string) file_get_contents(self::STAGE.'/candidates/compiled-'.$entry['index'].'.php'), $entry['mode'], $entry['before_sha256'], $entry['before_mode']);
                 $source = self::HOME.'/'.$this->plan['entries'][$entry['index']]['destination'];
                 if (! touch($entry['path'], max(time(), filemtime($source) + 1))) throw new \RuntimeException('compiled_timestamp_failed');
+                $compiledWritten++;
             }
-            $this->opcache($this->phpPaths($state)); $this->pages();
+            $this->opcache($this->phpPaths($state, true)); $this->pages();
             $this->checkEntries('after'); $this->checkCompiled($state, 'after'); $this->assertProtected();
             $state['status'] = 'applied'; $this->save($state);
-            return ['state' => 'applied', 'files' => 9, 'compiled_views' => 2, 'page_keys_invalidated' => 12];
+            return ['state' => 'applied', 'files' => 9, 'compiled_views' => 2,
+                'files_written' => $filesWritten, 'compiled_written' => $compiledWritten, 'page_keys_invalidated' => 12];
         } catch (\Throwable $error) {
             try { $this->restore($state); $state['status'] = 'rolled_back'; $this->save($state); }
             catch (\Throwable) { $state['status'] = 'stopped_manual_review'; $this->save($state); }
@@ -387,14 +409,20 @@ final class Engine
 
     private function restore(array $state): void
     {
-        $this->assertProtected(); $observed = []; $compiledObserved = [];
+        $this->assertProtected(); $observed = []; $compiledObserved = []; $observedModes = []; $compiledModes = [];
         foreach ($this->plan['entries'] as $i => $entry) {
             $observed[$i] = $this->hash(self::HOME.'/'.$entry['destination']);
             if (! in_array($observed[$i], [$entry['before_sha256'], $entry['after_sha256']], true)) throw new \RuntimeException('rollback_newer_file_rejected');
+            $observedModes[$i] = $observed[$i] === 'absent' ? null
+                : ($observed[$i] === $entry['before_sha256'] ? $entry['before_mode'] : $entry['mode']);
+            if ($observedModes[$i] !== null && (fileperms(self::HOME.'/'.$entry['destination']) & 0777) !== $observedModes[$i]) throw new \RuntimeException('rollback_mode_drift');
         }
         foreach ($state['compiled'] as $i => $entry) {
             $compiledObserved[$i] = $this->hash($entry['path']);
             if (! in_array($compiledObserved[$i], [$entry['before_sha256'], $entry['after_sha256']], true)) throw new \RuntimeException('rollback_newer_compiled_rejected');
+            $compiledModes[$i] = $compiledObserved[$i] === 'absent' ? null
+                : ($compiledObserved[$i] === $entry['before_sha256'] ? $entry['before_mode'] : $entry['mode']);
+            if ($compiledModes[$i] !== null && (fileperms($entry['path']) & 0777) !== $compiledModes[$i]) throw new \RuntimeException('rollback_compiled_mode_drift');
         }
         foreach ($this->plan['entries'] as $i => $entry) {
             if ($entry['before_sha256'] !== 'absent' && $this->hash(self::STAGE.'/before/file-'.$i) !== $entry['before_sha256']) throw new \RuntimeException('backup_hash_drift');
@@ -407,12 +435,12 @@ final class Engine
         foreach ($this->plan['entries'] as $i => $entry) {
             if (in_array($entry['destination'], self::VIEWS, true)) {
                 $this->restoreOne(self::HOME.'/'.$entry['destination'], self::STAGE.'/before/file-'.$i,
-                    $entry['before_sha256'], $entry['before_mode'], $observed[$i]);
+                    $entry['before_sha256'], $entry['before_mode'], $observed[$i], $observedModes[$i]);
             }
         }
         foreach ($state['compiled'] as $i => $entry) {
             $this->restoreOne($entry['path'], self::STAGE.'/before/compiled-'.$entry['index'],
-                $entry['before_sha256'], $entry['before_mode'], $compiledObserved[$i]);
+                $entry['before_sha256'], $entry['before_mode'], $compiledObserved[$i], $compiledModes[$i]);
             if ($entry['before_sha256'] !== 'absent') {
                 $source = self::HOME.'/'.$this->plan['entries'][$entry['index']]['destination'];
                 if (! touch($entry['path'], max(time(), filemtime($source) + 1))) throw new \RuntimeException('compiled_timestamp_failed');
@@ -423,20 +451,21 @@ final class Engine
         foreach ($this->plan['entries'] as $i => $entry) {
             if (! in_array($entry['destination'], self::VIEWS, true)) {
                 $this->restoreOne(self::HOME.'/'.$entry['destination'], self::STAGE.'/before/file-'.$i,
-                    $entry['before_sha256'], $entry['before_mode'], $observed[$i]);
+                    $entry['before_sha256'], $entry['before_mode'], $observed[$i], $observedModes[$i]);
             }
         }
         $this->opcache($this->phpPaths($state)); $this->pages();
         $this->checkEntries('before'); $this->checkCompiled($state, 'before'); $this->assertProtected();
     }
 
-    private function restoreOne(string $path, string $backup, string $before, ?int $mode, string $expected): void
+    private function restoreOne(string $path, string $backup, string $before, ?int $mode, string $expected, ?int $expectedMode): void
     {
         if ($this->hash($path) !== $expected) throw new \RuntimeException('rollback_concurrent_drift');
+        if ($expected !== 'absent' && $expectedMode !== null && (fileperms($path) & 0777) !== $expectedMode) throw new \RuntimeException('rollback_concurrent_mode_drift');
         if ($before === 'absent') {
             if ($expected !== 'absent' && ! unlink($path)) throw new \RuntimeException('rollback_remove_failed');
         } else {
-            $this->atomic($path, (string) file_get_contents($backup), $mode, $expected);
+            $this->atomic($path, (string) file_get_contents($backup), $mode, $expected, $expectedMode);
         }
     }
 

@@ -42,7 +42,7 @@ class ReleaseScopeTest(unittest.TestCase):
         self.assertIn('duplicate_or_unprepared_apply', ENGINE)
         self.assertIn('rollback_newer_file_rejected', ENGINE)
         self.assertIn('rollback_newer_compiled_rejected', ENGINE)
-        self.assertIn("$this->atomic($path, (string) file_get_contents($backup), $mode, $expected)", ENGINE)
+        self.assertIn("$this->atomic($path, (string) file_get_contents($backup), $mode, $expected, $expectedMode)", ENGINE)
         restore = ENGINE.split('private function restore(array $state)', 1)[1].split('private function restoreOne', 1)[0]
         self.assertLess(restore.index("$this->opcache(array_column($state['compiled'], 'path'))"),
                         restore.index("if (! in_array($entry['destination'], self::VIEWS, true))"))

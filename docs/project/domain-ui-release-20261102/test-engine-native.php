@@ -25,7 +25,7 @@ function putFixture(string $path, string $bytes, int $mode = 0644): void
 {
     privateDir(dirname($path)); file_put_contents($path, $bytes); chmod($path, $mode);
 }
-function fixture(): array
+function fixture(bool $noopHome = false): array
 {
     global $fixtures;
     $id = bin2hex(random_bytes(8)); $root = sys_get_temp_dir().'/domain-ui-native-'.$id;
@@ -57,12 +57,16 @@ function fixture(): array
         $before = $view ? '<section>Old view '.$i.'</section>' : null;
         $after = $view ? '<section>@if(true)<h1>New view '.$i.'</h1>@endif</section>'
             : (str_ends_with($relative, '.php') ? '<?php return ["title" => "Synthetic title"];' : '/* synthetic UI asset '.$i.' */');
+        if ($noopHome && $relative === $views[0]) $after = $before;
         if ($before !== null) {
             putFixture($home.'/'.$relative, $before, $mode);
             $compiler->setPath($home.'/'.$relative);
             $compiledPath = $compiler->getCompiledPath($home.'/'.$relative);
             $compiled = $compiler->compileString($before)."\n<?php /**PATH {$home}/{$relative} ENDPATH**/ ?>";
-            putFixture($compiledPath, $compiled);
+            putFixture($compiledPath, $compiled, 0755);
+            if ($noopHome && $relative === $views[0]) {
+                touch($home.'/'.$relative, time() - 120); touch($compiledPath, time() - 119);
+            }
             $oldCompiled[$compiledPath] = hash('sha256', $compiled);
         }
         $entries[] = ['destination' => $relative, 'before_sha256' => $before === null ? 'absent' : hash('sha256', $before),
@@ -99,7 +103,11 @@ function assertPhase(array $fixture, string $name, string $state): array
 }
 
 try {
-    $f = fixture();
+    $f = fixture(true);
+    $noopSource = $f['home'].'/'.$f['plan']['entries'][0]['destination'];
+    $noopCompiled = array_key_first($f['oldCompiled']);
+    $noopBefore = [hash_file('sha256', $noopSource), filemtime($noopSource), fileperms($noopSource) & 0777,
+        hash_file('sha256', $noopCompiled), filemtime($noopCompiled), fileperms($noopCompiled) & 0777];
     $inventory = $f['class']::inspect($f['pin']);
     expect($inventory['ok'] === true && count($inventory['files']) === 9, 'fixed raw inventory');
     expect(count($inventory['protected_files']) === 1
@@ -112,11 +120,23 @@ try {
     foreach ($f['plan']['entries'] as $entry) if ($entry['before_sha256'] !== 'absent') {
         expect(hash_file('sha256', $f['home'].'/'.$entry['destination']) === $entry['before_sha256'], 'preview changed source');
     }
-    assertPhase($f, 'apply', 'applied');
+    $applied = assertPhase($f, 'apply', 'applied');
+    expect($noopBefore === [hash_file('sha256', $noopSource), filemtime($noopSource), fileperms($noopSource) & 0777,
+        hash_file('sha256', $noopCompiled), filemtime($noopCompiled), fileperms($noopCompiled) & 0777]
+        && $applied['files_written'] === 8 && $applied['compiled_written'] === 1,
+        'identical source and compiled candidates must retain bytes, mtime and mode without reinstall');
+    expect(array_reduce(array_keys($f['oldCompiled']), fn ($ok, $path) => $ok && (fileperms($path) & 0777) === 0755, true),
+        'existing compiled0755 mode must be preserved after apply');
     expect((phase($f, 'apply')['reason'] ?? '') === 'duplicate_or_unprepared_apply', 'duplicate apply guard');
     assertPhase($f, 'verify', 'verified');
+    $permissionTarget = array_key_first($f['oldCompiled']); chmod($permissionTarget, 0644);
+    expect((phase($f, 'rollback')['reason'] ?? '') === 'rollback_compiled_mode_drift'
+        && (fileperms($permissionTarget) & 0777) === 0644, 'rollback must refuse permissions-only drift without broadening mode');
+    chmod($permissionTarget, 0755);
     $beforeRollback = count($f['store']->observations);
     assertPhase($f, 'rollback', 'rolled_back');
+    expect(array_reduce(array_keys($f['oldCompiled']), fn ($ok, $path) => $ok && (fileperms($path) & 0777) === 0755, true),
+        'existing compiled0755 mode must be preserved after rollback');
     $rollbackObservations = array_slice($f['store']->observations, $beforeRollback);
     expect(count($rollbackObservations) === 24, 'targeted page cache count on rollback');
     expect($rollbackObservations[0]['old_compiled'] && $rollbackObservations[0]['deps_present'], 'old compiled restoration must precede dependency removal');
@@ -132,7 +152,12 @@ try {
     $original = (string) file_get_contents($target); file_put_contents($target, 'unrelated newer edit');
     expect((phase($g, 'apply')['reason'] ?? '') === 'destination_hash_drift', 'preflight must reject concurrent edit');
     expect(file_get_contents($target) === 'unrelated newer edit', 'preflight must preserve concurrent edit');
-    file_put_contents($target, $original); assertPhase($g, 'apply', 'applied');
+    file_put_contents($target, $original);
+    $compiledTarget = array_key_first($g['oldCompiled']); chmod($compiledTarget, 0644);
+    expect((phase($g, 'apply')['reason'] ?? '') === 'compiled_mode_drift'
+        && (fileperms($compiledTarget) & 0777) === 0644, 'permissions-only compiled drift must stop without broadening mode');
+    chmod($compiledTarget, 0755);
+    assertPhase($g, 'apply', 'applied');
     file_put_contents($target, 'unrelated after scan');
     // Simulate mutation after restore's initial scan: the immediate per-file guard must still reject it.
     $engine = $g['reflection']->newInstanceWithoutConstructor();
@@ -140,7 +165,7 @@ try {
     $restore = $g['reflection']->getMethod('restoreOne');
     try {
         $restore->invoke($engine, $target, $g['stage'].'/before/file-0', $g['plan']['entries'][0]['before_sha256'],
-            $g['plan']['entries'][0]['before_mode'], $g['plan']['entries'][0]['after_sha256']);
+            $g['plan']['entries'][0]['before_mode'], $g['plan']['entries'][0]['after_sha256'], $g['plan']['entries'][0]['mode']);
         throw new RuntimeException('immediate CAS failed to reject newer edit');
     } catch (RuntimeException $e) { expect($e->getMessage() === 'rollback_concurrent_drift', 'immediate rollback guard'); }
     expect((phase($g, 'rollback')['reason'] ?? '') === 'rollback_newer_file_rejected', 'complete rollback precheck must reject unknown hashes');
