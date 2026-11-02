@@ -1,6 +1,6 @@
 # Conversational assistant and project knowledge — 2 November 2026
 
-Developer handoff. Both web layers, native owner context/name and notification observer were installed and accepted. The display name is **Nava / نوا** while Hermes service names, routes and runtime identity remain compatible. Base: `develop`, `6443ab136e52ae51d1af73347971dd07ead10cb1`; the containing commit and PR identify the final change. See the [production evidence and limits](../../../docs/project/NAVA-ASSISTANT-2026-11-02.md).
+Developer handoff. The current display name is **Araz / آراز**; Hermes service names, routes and runtime identity remain compatible. This directory retains the initial Nava release and later layers separately. Initial base: `develop`, `6443ab136e52ae51d1af73347971dd07ead10cb1`. See the historical [initial production evidence and limits](../../../docs/project/NAVA-ASSISTANT-2026-11-02.md), installed [Araz name](../../../docs/project/ARAZ-NAME-2026-11-02.md) and [chat polish](../../../docs/project/ARAZ-CHAT-POLISH-2026-11-02.md) reports. The [infra-context layer](infra-context/README.md) and final [infra-facts layer](infra-facts/README.md) are installed and hash-verified: 253 and 172 PHP checks respectively, plus 12 deployment guards for each. Direct model canaries failed grounding; the final local factual branch passed both live-class questions. See the [dated report](../../../docs/project/ARAZ-INFRA-CONTEXT-2026-11-02.md).
 
 ## Package boundaries
 
@@ -14,10 +14,14 @@ Developer handoff. Both web layers, native owner context/name and notification o
 | `owner_project_context.py`, `owner_ingress.py`, `install-native.py` | VM127 private owner-context reader and guarded initial installation |
 | `relay_notifier.py`, `relay-notify.php`, `relay-probe.php`, `install-observer.py` | Notification-only off-relay observer, delivery adapter, optional path probe and scoped cron installation |
 | `ui-followup/` | Separate four-file Nava/name/typing UI layer plus one-file VM127 display-name installer |
+| `araz-name/` | Separate Araz naming layer, preserving earlier names in historical transcript exclusions |
+| `chat-polish/` | Separate greeting routing and composer focus layer |
+| `infra-context/` | Installed owner-only provider sales evidence and bounded core-receipt retention |
+| `infra-facts/` | Installed narrow factual sales replies from current structured evidence; helper precedes Memory consumer |
 
 Several production Hermes classes are absent from canonical application paths in this repository. These are explicit live snapshots, not permission to deploy another checkout's older versions. Preserve baseline hashes, overlay order and unrelated changes. New helper classes must be installed before their consumers. Do not flatten the initial and follow-up manifests.
 
-## Observed status
+## Historical initial and Nava acceptance
 
 The initial eight web destinations and four-file follow-up were installed and verified through private deployment receipts. Twenty-three owner references were imported into the existing encrypted store, bringing the initial total to 174 references with five editable notes retained. Twelve Git summaries were imported separately during live source acceptance. The supplied project directory covers ServerNet, Kianpet, Urmia.city and Lubercar; counts overlap. A real Bale mini-app response identified those projects; a later UI response identified the assistant as Nava. VM127 received the initial helper/private payload/ingress and the Nava name layer. Receipt `1793621429` records an idle queue, only owner ingress restarted, and unchanged broker PID, helper and private payload.
 
@@ -51,12 +55,12 @@ Run the Python owner-context, status and relay tests from this package directory
 python3 -m unittest -v test_owner_project_context test_status test_relay_notifier
 ```
 
-Run follow-up harnesses from their own layer/with their documented paths; do not count an initial-source test as acceptance of follow-up bytes. Accepted final counts: 153 PHP context and 22 relay-projection checks for Nava, 48 initial repository checks, 24 UI cases, 12 deployment tests, 33 native-path tests, 10 native-name-installer tests and 35 observer tests. Live model/source/Proxmox/notification acceptance is separate from these isolated harnesses.
+Run follow-up harnesses from their own layer/with their documented paths; do not count an initial-source test as acceptance of follow-up bytes. Historical initial/Nava counts: 153 PHP context and 22 relay-projection checks for Nava, 48 initial repository checks, 24 UI cases, 12 deployment tests, 33 native-path tests, 10 native-name-installer tests and 35 observer tests. Later layers record their own results. Live model/source/Proxmox/notification acceptance is separate from these isolated harnesses.
 
 ## Deployment and rollback
 
 `native-release.php` is a private CLI launcher for `prepare/apply/verify/rollback`; it holds actual native worker locks and invokes the pinned reviewed Python deployment core. Initial manifest scope is eight web destinations; the four-file follow-up has its own launcher and exact initial-after baselines. Source deployment itself invokes no provider, model, message, schema migration or settings change. Do not serve or schedule deployment launchers.
 
-If follow-up is installed, rollback that four-file layer first, using its own launcher and manifest; only then consider initial eight-file rollback. A drift refusal means inspect current changes, not force an older snapshot over them. Native display-name rollback uses `ui-followup/install-native-name.py rollback` under its guarded VM127 contract. Initial VM127 rollback requires the matching private receipt/backups, empty owner queue, deployment lock, current hash checks and only the affected source files; preserve helper consumers and installed-layer order.
+Roll back only installed layers, each with its own launcher and manifest, in this order: **infra-facts → infra-context → chat-polish → araz-name → ui-followup → initial**. A drift refusal means inspect current changes, not force an older snapshot over them. Native display-name rollback uses the matching installed name layer's guarded installer (`araz-name/install-native-name.py` for Araz, then the historical `ui-followup` installer if applicable). Initial VM127 rollback requires the matching private receipt/backups, empty owner queue, deployment lock, current hash checks and only the affected source files; preserve helper consumers and installed-layer order.
 
 Do not restore an old application/SQLite database over new notes, jobs, receipts or conversations. Do not replay uncertain external effects. If removing the relay observer, remove only its verified tagged cron line while retaining all later unrelated lines and the notification journal. See [relay observer contract](relay-notifier.README.md) for the distinction between controller health, monitoring availability and optional HTTPS-path observations.
