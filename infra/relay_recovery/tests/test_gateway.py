@@ -115,6 +115,22 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(before, self.inbox())
         self.assertEqual(self.now, self.latest()[0])
 
+    def test_historical_mutation_with_unknown_measurement_clock_is_durable_and_acknowledged(self):
+        receipt=dict(job_id='stage-7',op='stage',ok=True,code='completed',generation=2,revision=7,
+            observed_at=None,outcome_reconciled_at=self.now,observation_kind='historical_outcome',
+            fresh_observation=False,checks={'adapter':{'staged':True,'historical_outcome':True,
+                                                      'network_observation_fresh':False}})
+        report=dict(agent_id='ir-agent',observed_at=self.now,jobs=[receipt])
+        envelope=self.envelope(report)
+        reply=gateway.handle(envelope,self.config,self.now)
+        self.assertEqual(200,reply['status'])
+        self.assertEqual(hashlib.sha256(protocol.canonical_json(report)).hexdigest(),
+                         json.loads(reply['body'])['report_ack'])
+        stored=json.loads(self.inbox()[0][4])
+        self.assertEqual(receipt,stored['report']['jobs'][0])
+        self.assertIsNone(stored['report']['jobs'][0]['observed_at'])
+        self.assertEqual(self.now,stored['received_at'])
+
     def test_full_inbox_withholds_ack_and_preserves_pending_receipts(self):
         self.config["report_inbox_max_rows"] = 1
         first = self.receipt_report("job-a")

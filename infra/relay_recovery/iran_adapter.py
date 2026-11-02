@@ -102,7 +102,10 @@ INT_PARAMS = frozenset({'expected_current_generation', 'expected_generation', 'e
                         'fencing_token', 'expires_at', 'restore_epoch'})
 HASH_PARAMS = frozenset({'expected_config_hash', 'bundle_hash', 'restore_hash'})
 ID_PARAMS = frozenset({'checkpoint', 'backup_checkpoint', 'consumer',
-                      'expected_provider_id', 'expected_active_provider_id'})
+                      'expected_provider_id', 'expected_active_provider_id',
+                      'acceptance_profile', 'stage_profile'})
+ISOLATED_HASH_PARAMS = frozenset({'expected_registry_hash','dependency_baseline_sha256','proxy_binding_sha256'})
+HASH_PARAMS = HASH_PARAMS | ISOLATED_HASH_PARAMS
 RESOURCE_PARAMS = frozenset({'resource_identity', 'resource_config_hash', 'critical_consumers'})
 DERIVED_CONSUMERS = frozenset({'proxmox', 'ct113', 'vm109', 'vpn'})
 
@@ -276,6 +279,16 @@ def validate_context(context: object, config: dict) -> dict:
             raise ProtocolError('adapter_param_identifier')
     if ('restore_epoch' in params) != ('restore_hash' in params):
         raise ProtocolError('adapter_restore_scope')
+    if 'stage_profile' in params and params['stage_profile'] not in ('trial','restored'):
+        raise ProtocolError('adapter_stage_profile')
+    if 'acceptance_profile' in params:
+        try:
+            from .isolated_acceptance import parameters
+        except ImportError:
+            from isolated_acceptance import parameters
+        parameters(context)
+    elif set(params) & {'dependency_baseline_sha256','proxy_binding_sha256'}:
+        raise ProtocolError('adapter_isolated_profile_required')
     if set(params) & {'resource_identity', 'resource_config_hash'}:
         ref = params.get('resource_identity')
         if (not isinstance(ref, dict) or set(ref) != {'provider', 'project_id', 'provider_id', 'generation'}
@@ -302,10 +315,13 @@ def _bound(result: dict, context: dict) -> bool:
 class IranAdapter:
     def __init__(self, config: dict, *, runner: Callable = agent._bounded_process,
                  tcp: Callable = agent.tcp_probe, icmp: Callable = agent.icmp_probe,
-                 now: Callable = time.time):
+                 now: Callable = time.time, isolated_verifier=None):
         self.config = config
         self.root_owned = config.get('root_owned', True)
         self.runner, self.tcp, self.icmp, self.now = runner, tcp, icmp, now
+        # The installed CLI has no implicit key/proxy/registry enrollment.
+        # A separately reviewed caller must inject the dedicated verifier.
+        self.isolated_verifier = isolated_verifier
 
     def _bundle(self, context: dict) -> dict:
         _, content = _read_file(Path(self.config['manifest_dir']) / (context['config_hash'] + '.json'), self.root_owned)
@@ -350,7 +366,8 @@ class IranAdapter:
     @staticmethod
     def _bool_checks(result: dict) -> dict:
         allowed = ('host_healthy', 'direct_control', 'internet_healthy', 'tunnel_ok', 'probe_ok',
-                   'staged', 'applied', 'rolled_back', 'accepted', 'generation_verified')
+                   'staged', 'applied', 'rolled_back', 'accepted', 'generation_verified',
+                   'historical_outcome', 'network_observation_fresh')
         return {k: result['checks'][k] for k in allowed if type(result['checks'].get(k)) is bool}
 
     def _probe(self, context: dict) -> tuple[bool, dict]:
@@ -367,15 +384,18 @@ class IranAdapter:
                 return name, None
         with ThreadPoolExecutor(max_workers=len(probes)) as pool:
             results = dict(pool.map(probe, probes))
-        host = results['host']
+        def current(value):
+            return value if value and value['checks'].get('historical_outcome') is not True else None
+        host = current(results['host'])
         host_ok = bool(host and host['ok'] and all(host['checks'].get(k) is True
                               for k in ('host_healthy', 'direct_control', 'internet_healthy')))
         for k in ('host_healthy', 'direct_control', 'internet_healthy'):
             checks[k] = bool(host and host['ok'] and host['checks'].get(k) is True)
-        ct = results['ct113']
+        ct = current(results['ct113'])
         c = ct['checks'] if ct else {}
         ct_path = None
-        if c.get('execution_origin') == 'ct113':
+        if (c.get('execution_origin') == 'ct113'
+                and c.get('path_profile','default_path_v1') == 'default_path_v1'):
             egress = c.get('egress_ip')
             try:
                 address = ipaddress.ip_address(egress)
@@ -390,9 +410,10 @@ class IranAdapter:
                 ct_path = True
             # A false/absent measurement is not a network outage. This also
             # downgrades legacy tunnel=True/probe=False/no-egress reports.
-        guest = results['vm109']; g = guest['checks'] if guest else {}
+        guest = current(results['vm109']); g = guest['checks'] if guest else {}
         consumers = {'proxmox': host_ok, 'ct113': ct_path is True,
             'vm109': bool(guest and guest['ok'] and g.get('execution_origin') == 'guest'
+                and g.get('path_profile','default_path_v1') == 'default_path_v1'
                 and g.get('tunnel_ok') is True and g.get('probe_ok') is True
                 and g.get('egress_ip') == target['host'] and g.get('source_ip') == self.config['vm109_source_ip'])}
         checks['consumers'] = consumers
@@ -405,9 +426,10 @@ class IranAdapter:
         checks['probe_ok'] = checks['path_probe_ok']
         acceptance = {**consumers, 'vpn': ct_path is True}
         for name in self.config.get('consumer_probes', {}):
-            observed = results.get(name)
+            observed = current(results.get(name))
             c = observed['checks'] if observed else {}
             acceptance[name] = bool(observed and observed['ok']
+                                    and c.get('path_profile','default_path_v1') == 'default_path_v1'
                                     and c.get('consumer') == name and c.get('probe_ok') is True)
         requested = context['job'].get('params', {}).get('critical_consumers', list(acceptance))
         checks['critical_consumers'] = {name: acceptance.get(name) is True for name in requested}
@@ -437,17 +459,38 @@ class IranAdapter:
             # allowed to establish that original mutation's observed outcome.
             result.update(ok=child['ok'] and child.get('reconciled') is True,
                           reconciled=child.get('reconciled') is True,
-                          checks={**checks, 'read_only': True})
+                          checks={**checks, 'read_only': True, 'network_observation_fresh': False})
             return result
         flag = {'stage': 'staged', 'apply': 'applied', 'rollback': 'rolled_back', 'accept': 'accepted'}[action]
-        result['ok'] = child['ok'] and checks.get(flag) is True and checks.get('generation_verified') is True
+        result['ok'] = (child['ok'] and checks.get(flag) is True and checks.get('generation_verified') is True
+                        and checks.get('historical_outcome') is not True)
         result['checks'] = checks
         if action == 'accept':
+            if context['job'].get('params',{}).get('acceptance_profile') == 'isolated_candidate_v1':
+                return self._isolated_accept(context,child,result)
             probe_ok, probe_checks = self._probe(context)
             critical = probe_checks['critical_consumers']
             result['ok'] = (result['ok'] and probe_ok and bool(critical)
                             and all(value is True for value in critical.values()))
             result['checks'] = {**checks, **probe_checks}
+        return result
+
+    def _isolated_accept(self,context,child,result):
+        try:
+            from .isolated_acceptance import IsolatedAcceptanceVerifier,PROFILE,PATH_PROFILE
+        except ImportError:
+            from isolated_acceptance import IsolatedAcceptanceVerifier,PROFILE,PATH_PROFILE
+        checks=dict(accepted=False,generation_verified=False,acceptance_profile=PROFILE,
+                    path_profile=PATH_PROFILE,default_path_verified=False,global_cutover_performed=False)
+        # A CT stage ACK is not guest health. Do not fall through to default
+        # probes, or manufacture required registry/guest proofs from booleans.
+        if not isinstance(self.isolated_verifier,IsolatedAcceptanceVerifier):
+            result.update(ok=False,checks=checks,code='isolated_verifier_not_enrolled');return result
+        try:proof=self.isolated_verifier.verify(context,child)
+        except ProtocolError:
+            result.update(ok=False,checks=checks,code='isolated_acceptance_unverified');return result
+        result.update(ok=True,checks={**checks,'accepted':True,'generation_verified':True,
+                                      'isolated_candidate':proof})
         return result
 
 

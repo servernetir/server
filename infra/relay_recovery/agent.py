@@ -439,6 +439,16 @@ class Agent:
         report["direct_control_tcp"] = controls
         return report
 
+    @staticmethod
+    def _observation_fields(receipt: dict, now: int) -> dict:
+        if receipt['checks'].get('historical_outcome') is True:
+            # A terminal remote journal row proves the mutation's old outcome,
+            # not a new tunnel/consumer measurement. Older CT records carry no
+            # original measurement clock, so keep it explicitly unknown.
+            return {'observed_at':None,'outcome_reconciled_at':now,
+                    'observation_kind':'historical_outcome','fresh_observation':False}
+        return {'observed_at':now}
+
     def run_once(self, now: int | None = None) -> dict:
         now = int(time.time()) if now is None else now
         fd = os.open(self.lock_path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
@@ -528,7 +538,7 @@ class Agent:
                 ok = adapter_result["ok"] and (checks.get("candidate_tcp", True))
                 result = {"job_id": job["id"], "op": job["op"], "ok": bool(ok),
                           "code": "completed" if ok else "check_failed", "checks": checks,
-                          "observed_at": current_time(), "incident_id": manifest["incident_id"],
+                          **self._observation_fields(adapter_result,current_time()), "incident_id": manifest["incident_id"],
                           "generation": manifest["generation"], "revision": manifest["revision"],
                           "config_hash": manifest["config_hash"], "jobs_hash": manifest["jobs_hash"],
                           "request_nonce": headers["X-Relay-Nonce"]}
@@ -582,7 +592,8 @@ class Agent:
                 if receipt.get("reconciled") is not True:
                     raise ProtocolError("reconciliation_pending")
                 result.update(ok=receipt["ok"], code="completed" if receipt["ok"] else "check_failed",
-                              checks={"adapter": receipt["checks"]}, observed_at=current_time())
+                              checks={"adapter": receipt["checks"]},
+                              **self._observation_fields(receipt,current_time()))
                 self.journal.complete(context, result)
             except ProtocolError as error:
                 result.update(code=str(error), observed_at=current_time())

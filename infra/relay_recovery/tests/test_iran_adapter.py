@@ -179,6 +179,18 @@ class IranAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(protocol.ProtocolError, 'consumer_name'):
             mod.load_config(self.cfg_path, root_owned=False)
 
+    def test_candidate_custom_consumer_does_not_count_as_default_path_health(self):
+        self.cfg_raw['consumer_probes']={'dns':self.make_spec('dns','dns')}
+        self.write_config();self.cfg=mod.load_config(self.cfg_path,root_owned=False)
+        def runner(argv,data,timeout):
+            if Path(argv[0]).name!='dns':return self.runner(argv,data,timeout)
+            ctx=protocol.decode_json(data)
+            return 0,protocol.canonical_json(dict(schema=mod.PROBE_SCHEMA,probe_kind='dns',read_only=True,ok=True,
+                checks=dict(consumer='dns',probe_ok=True,path_profile='candidate_socks_v1'),
+                target=ctx['job']['target'],**{k:ctx[k] for k in mod.SCOPE}))
+        result=self.adapter(runner=runner).run('probe',self.context())
+        self.assertFalse(result['checks']['critical_consumers']['dns'])
+
     def test_ct113_probe_cannot_impersonate_guest_source(self):
         def patch(action, result):
             if action == 'vm109':
@@ -273,6 +285,39 @@ class IranAdapterTests(unittest.TestCase):
         self.assertTrue(result['reconciled'])
         self.assertTrue(result['checks']['read_only'])
         self.assertEqual([Path(c[0][0]).name for c in self.calls], ['reconcile-v1'])
+
+    def test_historical_reconcile_preserves_provenance_and_never_claims_fresh_network(self):
+        def patch(action,result):
+            if action=='reconcile':result['checks'].update(historical_outcome=True,staged=True)
+        self.patch_result=patch
+        result=self.adapter().run('reconcile',self.context('stage'))
+        self.assertTrue(result['ok']);self.assertTrue(result['reconciled'])
+        self.assertTrue(result['checks']['historical_outcome'])
+        self.assertFalse(result['checks']['network_observation_fresh'])
+        self.assertEqual([Path(c[0][0]).name for c in self.calls],['reconcile-v1'])
+
+    def test_historical_probe_is_unknown_and_candidate_guest_cannot_prove_default_path(self):
+        def patch(action,result):
+            if action=='ct113':result['checks']['historical_outcome']=True
+            if action=='vm109':result['checks']['path_profile']='candidate_socks_v1'
+        self.patch_result=patch
+        result=self.adapter().run('probe',self.context())
+        self.assertFalse(result['ok']);self.assertIsNone(result['checks']['tunnel_ok'])
+        self.assertFalse(result['checks']['critical_consumers']['vm109'])
+
+    def test_isolated_profile_without_signed_verifier_never_falls_back_to_default_probes(self):
+        ctx=self.context('accept');ctx['job']['params']=dict(
+            acceptance_profile='isolated_candidate_v1',stage_profile='trial',
+            expected_registry_hash='c'*64,dependency_baseline_sha256='d'*64,proxy_binding_sha256='e'*64,
+            resource_identity=dict(provider='hetzner',project_id='project-1',provider_id='173913007',generation=2),
+            resource_config_hash='b'*64)
+        result=self.adapter().run('accept',ctx)
+        self.assertFalse(result['ok']);self.assertFalse(result['checks']['accepted'])
+        self.assertFalse(result['checks']['default_path_verified'])
+        self.assertNotIn('critical_consumers',result['checks'])
+        self.assertEqual([Path(c[0][0]).name for c in self.calls],['accept-v1'])
+        ctx['job']['params'].pop('dependency_baseline_sha256')
+        with self.assertRaises(protocol.ProtocolError):self.adapter().run('accept',ctx)
 
     def test_reconcile_refuses_mutating_receipt_and_does_not_retry_apply(self):
         self.patch_result = lambda action, result: result.update(read_only=False)

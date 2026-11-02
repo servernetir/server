@@ -141,6 +141,27 @@ class AgentTests(unittest.TestCase):
         report = protocol.decode_json(obj.report_path.read_bytes())
         self.assertEqual(report["jobs"][0]["observed_at"], NOW)
 
+    def test_historical_stage_reconcile_has_no_fresh_observation_clock(self):
+        self.controller.desired=manifest(jobs=[{'id':'stage-1','op':'stage'}])
+        def adapter(action,context):
+            self.calls.append((action,context))
+            if action=='stage':raise protocol.ProtocolError('fixture_timeout_after_remote_commit')
+            return dict(schema=agent.ADAPTER_SCHEMA,ok=True,reconciled=True,
+                checks=dict(staged=True,generation_verified=True,historical_outcome=True,
+                            network_observation_fresh=False,read_only=True),
+                **{k:context[k] for k in ('generation','revision','incident_id','config_hash')})
+        obj=self.instance(adapter_fn=adapter)
+        self.assertFalse(obj.run_once(NOW)['ok'])
+        self.assertEqual('reconciled',obj.run_once(NOW+200)['code'])
+        receipt=obj.journal.queued()[0]
+        self.assertTrue(receipt['ok']);self.assertEqual('completed',receipt['code'])
+        self.assertIsNone(receipt['observed_at']);self.assertFalse(receipt['fresh_observation'])
+        self.assertEqual('historical_outcome',receipt['observation_kind'])
+        self.assertEqual(NOW+200,receipt['outcome_reconciled_at'])
+        self.assertTrue(receipt['checks']['adapter']['historical_outcome'])
+        self.assertEqual(['stage','reconcile'],[action for action,_ in self.calls])
+        self.assertEqual([],obj.journal.pending_mutations(AGENT))
+
     def test_tampered_response_does_not_run_adapter(self):
         self.controller.tamper = True
         with self.assertRaisesRegex(protocol.ProtocolError, "authentication_failed"):

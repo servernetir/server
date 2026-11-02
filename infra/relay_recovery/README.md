@@ -92,6 +92,29 @@ a missing or different policy fails closed. Existing agent/policy binding and
 key bytes are preserved, so an upgrade cannot silently change authorization.
 Native PowerShell, SYSTEM startup and a signed PVE round trip remain required.
 
+## Historical outcomes and isolated candidate acceptance
+
+A terminal mutation reconciliation preserves `historical_outcome: true` and
+reports `observed_at: null`, with a separate `outcome_reconciled_at` clock.
+The gateway retains and acknowledges that outcome unchanged. Its receipt time
+does not turn an old stage result into a fresh network or consumer measurement.
+
+The explicit `isolated_candidate_v1` accept profile requires fresh CT stage
+evidence, matching dependency registry digests before and after the probe, and
+a raw guest HMAC response using `servernet.relay.vm-candidate-probe.v1`. Signed
+scope binds the exact candidate identity, generation, stage profile, restore
+epoch and proxy binding. Default-path guest responses and `staged: true` alone
+cannot satisfy it; isolated evidence never proves default-path or global cutover.
+The verifier is caller-injected and remains unenrolled in the CLI. The current
+Windows runtime runs a fixed default-path curl and cannot produce this candidate
+proof. Missing native candidate probing, registry ownership, publisher coordination
+or production hooks therefore keeps the workflow on HOLD; no core profile gate
+is enabled by this contract.
+
+The combined offline checkpoint passed 641 tests, including 11 private census
+tests excluded from this branch; 91 focused cases cover these generic changes.
+These tests do not establish native candidate-path execution or live readiness.
+
 ## Effect gates
 
 Default policy requires a sustained three-hour outage with continuous fresh
