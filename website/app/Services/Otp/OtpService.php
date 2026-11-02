@@ -7,6 +7,7 @@ use App\Services\Sms\SmsSender;
 use App\Services\Sms\SupportsPatterns;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 /**
  * کد یک‌بارمصرف — دروازهٔ قبل از هر کار پرهزینه.
@@ -68,7 +69,7 @@ class OtpService
     /**
      * ارسال کد. اگر چالش فعالی هست و هنوز خنک نشده، دوباره نمی‌فرستد.
      */
-    public function issue(string $channel, string $destination, string $purpose, ?string $ip, bool $smsOnly = false): OtpIssue
+    public function issue(string $channel, string $destination, string $purpose, ?string $ip, bool $smsOnly = false, ?callable $beforeDelivery = null): OtpIssue
     {
         $destination = $this->normalize($channel, $destination);
 
@@ -125,7 +126,7 @@ class OtpService
 
         $code = $this->randomCode();
 
-        $challenge = OtpChallenge::create([
+        $challengeData = [
             'channel'     => $channel,
             'destination' => $destination,
             'purpose'     => $purpose,
@@ -134,7 +135,14 @@ class OtpService
             'resends'     => ($active->resends ?? -1) + 1,
             'ip'          => $ip,
             'expires_at'  => now()->addMinutes(self::TTL_MINUTES),
-        ]);
+        ];
+        // Persist the private caller's association atomically with the OTP, before any delivery.
+        $persist = function () use ($challengeData, $beforeDelivery) {
+            $challenge = OtpChallenge::create($challengeData);
+            if ($beforeDelivery !== null) { $beforeDelivery($challenge); }
+            return $challenge;
+        };
+        $challenge = $beforeDelivery === null ? $persist() : DB::transaction($persist);
 
         // sendOtp و نه send — مسیر الگو، که اپراتور فوری تحویل می‌دهد.
         // با مسیر پیام آزاد، کد سه‌دقیقه‌ای ما اغلب منقضی می‌رسید.

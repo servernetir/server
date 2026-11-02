@@ -60,7 +60,7 @@ class UrmiaAuthController extends Controller
         return is_string($raw) ? json_decode($raw, true, 512, JSON_THROW_ON_ERROR) : null;
     }
 
-    private function ledgerPut(string $key, array $entry): void
+    protected function ledgerPut(string $key, array $entry): void
     {
         DB::table('urmia_auth_requests')->where('request_key',$key)->update([
             'challenge_id'=>$entry['challenge_id'] ?? null,
@@ -100,6 +100,9 @@ class UrmiaAuthController extends Controller
                 if (in_array($existing['status'], ['sending', 'unknown'], true) && time() >= ($existing['deadline'] ?? PHP_INT_MAX)) {
                     $existing['status'] = 'expired'; $this->ledgerPut($requestKey, $existing);
                 }
+                if ($existing['status'] === 'sending' && isset($existing['otp_id'], $existing['challenge_id'])) {
+                    $existing['status'] = 'unknown'; $this->ledgerPut($requestKey, $existing);
+                }
                 return $this->publicStart($existing);
             }
             // The ledger is written before issue(): a timeout never authorizes another send.
@@ -118,25 +121,21 @@ class UrmiaAuthController extends Controller
                 return $this->publicStart($prior);
             }
             try {
-                $issued = $otp->issue('sms', $body['mobile'], self::PURPOSE, $body['client_ip'], smsOnly: true);
-                if (! $issued->ok && $issued->challengeId === null) {
-                    $entry['status'] = 'failed';
-                } else {
-                    $entry += [
-                        'challenge_id' => (string) Str::uuid(),
-                        'otp_id' => $issued->challengeId,
-                        'expires_at' => $issued->expiresAt->toIso8601String(),
-                    ];
-                    $entry['status'] = $issued->ok ? 'sent' : 'unknown';
-                }
+                $issued = $otp->issue('sms', $body['mobile'], self::PURPOSE, $body['client_ip'], smsOnly: true,
+                    beforeDelivery: function (OtpChallenge $challenge) use (&$entry, $requestKey): void {
+                        $next = $entry + [
+                            'challenge_id'=>(string) Str::uuid(), 'otp_id'=>$challenge->id,
+                            'expires_at'=>$challenge->expires_at->toIso8601String(),
+                        ];
+                        $next['deadline'] = $challenge->expires_at->getTimestamp();
+                        $this->ledgerPut($requestKey, $next);
+                        $entry = $next;
+                    });
+                $entry['status'] = $issued->ok ? 'sent' : ($issued->challengeId === null ? 'failed' : 'unknown');
             } catch (\Throwable) {
+                // Read only this request's pre-delivery association; never guess another recent OTP.
+                $entry = $this->ledgerGet($requestKey) ?? $entry;
                 $entry['status'] = 'unknown';
-                $known = OtpChallenge::where('channel', 'sms')->where('destination', $body['mobile'])
-                    ->where('purpose', self::PURPOSE)->where('created_at', '>=', now()->subMinutes(2))->latest('id')->first();
-                if ($known) {
-                    $entry += ['challenge_id'=>(string) Str::uuid(), 'otp_id'=>$known->id, 'expires_at'=>$known->expires_at->toIso8601String()];
-                    $entry['deadline'] = $known->expires_at->getTimestamp();
-                }
             }
             $this->ledgerPut($requestKey, $entry);
             return $this->publicStart($entry);
@@ -155,6 +154,7 @@ class UrmiaAuthController extends Controller
         $entry = is_string($requestKey) ? $this->ledgerGet($requestKey) : null;
         $this->requireCondition(is_array($entry) && hash_equals($entry['binding'], $body['session_binding']), 403, 'challenge_not_owned');
         return Cache::lock('urmia-auth:mobile:'.hash('sha256', $entry['mobile']), 60)->block(3, function () use ($requestKey, $body, $otp) {
+            return DB::transaction(function () use ($requestKey, $body, $otp) {
             $entry = $this->ledgerGet($requestKey);
             $this->requireCondition(is_array($entry) && in_array($entry['status'] ?? '', ['sent', 'unknown'], true), 409, 'challenge_not_active');
             $this->requireCondition(hash_equals($entry['binding'], $body['session_binding']), 403);
@@ -176,6 +176,7 @@ class UrmiaAuthController extends Controller
                 $this->ledgerPut($requestKey, $entry);
             }
             return $this->response(['verified' => $checked->ok]);
+            }, 3);
         });
     }
 }

@@ -41,19 +41,24 @@ $db->schema()->create('otp_challenges', function ($t) {
     $t->string('ip')->nullable();$t->timestamp('expires_at');$t->timestamp('verified_at')->nullable();$t->timestamps();
 });
 final class FakeUrmiaSms implements SmsSender {
-    public array $codes=[]; public bool $throw=false; public bool $negative=false;
+    public array $codes=[]; public bool $throw=false; public bool $negative=false; public bool $associationBeforeSend=true; public bool $checkAssociation=true;
     public function enabled():bool{return true;}
     public function name():string{return 'isolated-fixture';}
     public function send(string $mobile,string $text):bool{throw new RuntimeException('free-text forbidden');}
-    public function sendOtp(string $mobile,string $code):bool{$this->codes[]=$code;if($this->throw)throw new RuntimeException('unknown network outcome');return !$this->negative;}
+    public function sendOtp(string $mobile,string $code):bool{if($this->checkAssociation){$last=\App\Models\OtpChallenge::where('destination',$mobile)->latest('id')->first();$found=false;foreach(\Illuminate\Support\Facades\DB::table('urmia_auth_requests')->get() as $row){$entry=json_decode($row->payload,true);if(($entry['otp_id']??null)===$last->id)$found=true;}$this->associationBeforeSend=$this->associationBeforeSend&&$found;}$this->codes[]=$code;if($this->throw)throw new RuntimeException('unknown network outcome');return !$this->negative;}
 }
 final class FixtureUrmiaController extends UrmiaAuthController {
+    public bool $failReceipt=false; public bool $failFinalSend=false;
+    protected function ledgerPut(string $key,array $entry):void {
+        if(($this->failReceipt&&isset($entry['verified_hash']))||($this->failFinalSend&&($entry['status']??'')==='sent'))throw new RuntimeException('isolated ledger write failure');
+        parent::ledgerPut($key,$entry);
+    }
     protected function signingKey():string{return str_repeat('isolated-key-',5);}
 }
 $migration=require $root.'/website/database/migrations/2026_11_02_154500_create_urmia_auth_requests_table.php';$migration->up();
 $sms=new FakeUrmiaSms();$otp=new OtpService($sms);$controller=new FixtureUrmiaController();$checks=0;
 function expect($value,string $label):void{global $checks;if(!$value)throw new RuntimeException('FAILED: '.$label);$checks++;}
-function callUrmia(string $action,array $body,?string $nonce=null,bool $bad=false):array{
+function callUrmia(string $action,array $body,?string $nonce=null,bool $bad=false,bool $privacy=true):array{
     global $controller,$otp;
     $path='/api/internal/urmia-auth/v1/otp/'.$action;$raw=json_encode($body,JSON_THROW_ON_ERROR);$time=(string)time();
     $nonce=$nonce??(string)\Illuminate\Support\Str::uuid();
@@ -61,8 +66,7 @@ function callUrmia(string $action,array $body,?string $nonce=null,bool $bad=fals
     $canonical=implode("\n",['v1','POST',$path,$time,$nonce,hash('sha256',$raw)]);
     $request->headers->set('X-Urmia-Timestamp',$time);$request->headers->set('X-Urmia-Nonce',$nonce);
     $request->headers->set('X-Urmia-Signature',$bad?str_repeat('0',64):hash_hmac('sha256',$canonical,str_repeat('isolated-key-',5)));
-    $privacy=new \App\Http\Middleware\IdentityPrivacy();
-    $r=$privacy->handle($request,fn($r)=>$controller->$action($r,$otp));
+    $r=$privacy?(new \App\Http\Middleware\IdentityPrivacy())->handle($request,fn($r)=>$controller->$action($r,$otp)):$controller->$action($request,$otp);
     return [$r->getStatusCode(),$r->getData(true)];
 }
 $privateRequest=Request::create('https://servernet.cloud/api/internal/urmia-auth/v1/otp/start','POST');
@@ -102,6 +106,21 @@ $code=end($sms->codes);$before=count($sms->codes);
 [$status,$blocked]=callUrmia('start',[...$uncertain,'request_id'=>(string)\Illuminate\Support\Str::uuid()]);expect(count($sms->codes)===$before&&$blocked['accepted']===false,'fresh UUID cannot resend an uncertain SMS during its full TTL');
 [$status,$proof]=callUrmia('verify',['challenge_id'=>$receipt['challenge_id'],'code'=>$code,'session_binding'=>$uncertain['session_binding']]);expect($proof['verified']===true,'possibly delivered code remains usable');
 $sms->negative=false;
+expect($sms->associationBeforeSend,'durable request-to-OTP association exists before delivery');
+$lost=[...$body,'request_id'=>(string)\Illuminate\Support\Str::uuid(),'mobile'=>'09140000006'];
+$controller->failFinalSend=true;$failed=false;try{callUrmia('start',$lost,privacy:false);}catch(RuntimeException){$failed=true;}
+expect($failed,'final send receipt write failure is injected');$controller->failFinalSend=false;
+$before=count($sms->codes);$lastCode=end($sms->codes);$raw=\Illuminate\Support\Facades\DB::table('urmia_auth_requests')->where('request_key','urmia-auth:request:'.$lost['request_id'])->value('payload');
+expect(isset(json_decode($raw,true)['otp_id']),'failed final write retains pre-delivery association');
+[$status,$recovered]=callUrmia('start',$lost);expect($recovered['accepted']===true&&count($sms->codes)===$before,'same request recovers a delivered OTP without resending');
+[$status,$proof]=callUrmia('verify',['challenge_id'=>$recovered['challenge_id'],'code'=>$lastCode,'session_binding'=>$lost['session_binding']]);expect($proof['verified']===true,'recovered send remains verifiable');
+$atomic=[...$body,'request_id'=>(string)\Illuminate\Support\Str::uuid(),'mobile'=>'09140000007'];[$status,$sentAtomic]=callUrmia('start',$atomic);$lastCode=end($sms->codes);
+$atomicVerify=['challenge_id'=>$sentAtomic['challenge_id'],'code'=>$lastCode,'session_binding'=>$atomic['session_binding']];
+$controller->failReceipt=true;$failed=false;try{callUrmia('verify',$atomicVerify,privacy:false);}catch(RuntimeException){$failed=true;}
+expect($failed,'verification receipt write failure is injected');$controller->failReceipt=false;
+expect(\App\Models\OtpChallenge::where('destination',$atomic['mobile'])->latest('id')->first()->verified_at===null,'receipt failure rolls back OTP consumption');
+[$status,$proof]=callUrmia('verify',$atomicVerify);expect($proof['verified']===true,'verification can safely retry after receipt rollback');
+$sms->checkAssociation=false;
 $bale=new class {public int $calls=0;public function otp(string $mobile,string $code):void{$this->calls++;}};
 $app->instance(\App\Services\Bale\BaleNotifier::class,$bale);
 $legacy=$otp->issue('sms','09140000002','login','192.0.2.88');
