@@ -32,9 +32,9 @@ class HermesBackgroundReliabilityTest extends TestCase
     {
         $root = dirname(__DIR__, 3).'/infra/hermes/';
         require_once $root.'error-reliability-20261028/fixtures/RuntimeDoubles.php';
-        require_once $root.'error-reliability-20261028/fixtures/HermesKnowledge.php';
+        require_once $root.'feed-resilience-20261102/HermesKnowledge.php';
         require_once $root.'support-learning-20261028/HermesOperationsStore.php';
-        require_once $root.'error-reliability-20261028/HermesKnowledgeRefresh.php';
+        require_once $root.'feed-resilience-20261102/HermesKnowledgeRefresh.php';
         require_once $root.'error-reliability-20261028/HermesOperationsReview.php';
         parent::setUp();
         Http::preventStrayRequests();
@@ -90,7 +90,7 @@ class HermesBackgroundReliabilityTest extends TestCase
             $state['knowledge']['items']['retained'] = ['source' => 'plesk', 'title' => 'Retained reference', 'published_at' => time() - 1000];
         });
         $this->feeds('plesk');
-        $this->artisan('hermes:knowledge-refresh')->assertFailed();
+        $this->artisan('hermes:knowledge-refresh')->expectsOutputToContain('"status":"degraded"')->assertSuccessful();
         $saved = $this->store->read($this->operations->owner())['knowledge'];
         $this->assertSame(12345, $saved['sources']['plesk']['last_success_at']);
         $this->assertSame('http_error', $saved['sources']['plesk']['failure']['reason']);
@@ -102,7 +102,7 @@ class HermesBackgroundReliabilityTest extends TestCase
     public function test_connection_failure_exposes_no_exception_message(): void
     {
         $this->feeds('cpanel', 'connection');
-        $this->artisan('hermes:knowledge-refresh')->assertFailed();
+        $this->artisan('hermes:knowledge-refresh')->expectsOutputToContain('"status":"degraded"')->assertSuccessful();
         $this->assertSame('connection_error', $this->failure()['ctx']['reason']);
         $this->assertNull($this->failure()['ctx']['http_status']);
     }
@@ -110,7 +110,7 @@ class HermesBackgroundReliabilityTest extends TestCase
     public function test_invalid_xml_is_distinct_from_network_or_http_failure(): void
     {
         $this->feeds('php', 'xml');
-        $this->artisan('hermes:knowledge-refresh')->assertFailed();
+        $this->artisan('hermes:knowledge-refresh')->expectsOutputToContain('"status":"degraded"')->assertSuccessful();
         $this->assertSame('invalid_feed', $this->failure()['ctx']['reason']);
         $this->assertSame(200, $this->failure()['ctx']['http_status']);
     }
@@ -130,6 +130,95 @@ class HermesBackgroundReliabilityTest extends TestCase
         $state = $this->store->read($this->operations->owner());
         $this->assertCount(6, array_filter($state['knowledge']['sources'], fn ($source) => $source['status'] === 'ok'));
         $this->assertEmpty(ErrorTracker::recent(50));
+    }
+
+
+    public function test_backoff_skip_keeps_failure_visible_and_does_not_refetch_any_source(): void
+    {
+        $this->feeds('cpanel', 'connection');
+        $this->artisan('hermes:knowledge-refresh')->assertSuccessful();
+        Http::assertSentCount(6);
+        $before = $this->store->read($this->operations->owner())['knowledge'];
+        $this->artisan('hermes:knowledge-refresh')->expectsOutputToContain('"status":"degraded"')->assertSuccessful();
+        Http::assertSentCount(6);
+        $saved = $this->store->read($this->operations->owner())['knowledge'];
+        $this->assertSame('degraded', $saved['refresh']['status']);
+        $this->assertSame(['cpanel'], $saved['refresh']['degraded_sources']);
+        $this->assertSame(6, $saved['refresh']['feeds_skipped']);
+        $this->assertSame($before['sources']['cpanel'], $saved['sources']['cpanel']);
+        $context = HermesKnowledge::context($saved, time());
+        $this->assertSame('unavailable', $context['sources']['cpanel']['status']);
+        $this->assertSame('connection_error', $context['sources']['cpanel']['failure']['reason']);
+        $this->assertSame('degraded', $context['feed_health']['status']);
+    }
+
+    public function test_all_failed_sources_without_verified_observations_still_fail(): void
+    {
+        $responses = [];
+        foreach (HermesKnowledge::SOURCES as $source) {
+            $responses[$source['url']] = Http::failedConnection('private-diagnostic-marker');
+        }
+        Http::fake($responses);
+        $this->artisan('hermes:knowledge-refresh')->expectsOutputToContain('"status":"unavailable"')->assertFailed();
+        $saved = $this->store->read($this->operations->owner())['knowledge'];
+        $this->assertSame('unavailable', $saved['refresh']['status']);
+        $this->assertSame([], $saved['refresh']['usable_verified_sources']);
+        $this->assertCount(6, $saved['refresh']['degraded_sources']);
+        $this->assertStringNotContainsString('private-diagnostic-marker', json_encode($saved));
+    }
+
+    public function test_recovery_resets_backoff_and_records_one_recovery_event(): void
+    {
+        $this->store->change($this->operations->owner(), static function (&$state) {
+            $state['knowledge']['sources']['cpanel'] = ['status' => 'unavailable',
+                'checked_at' => time() - 7 * 3600, 'last_success_at' => time() - 86400,
+                'consecutive_failures' => 4, 'next_attempt_at' => time() - 3600];
+        });
+        $this->feeds();
+        $this->artisan('hermes:knowledge-refresh')->expectsOutputToContain('"status":"complete"')->assertSuccessful();
+        $saved = $this->store->read($this->operations->owner())['knowledge'];
+        $this->assertSame(0, $saved['sources']['cpanel']['consecutive_failures']);
+        $this->assertSame('ok', $saved['sources']['cpanel']['status']);
+        $this->assertArrayNotHasKey('failure', $saved['sources']['cpanel']);
+        $events = array_filter(ErrorTracker::recent(50), fn ($row) => str_contains($row['message'] ?? '', 'Official feed recovered: cpanel'));
+        $this->assertCount(1, $events);
+        $this->artisan('hermes:knowledge-refresh')->assertSuccessful();
+        $events = array_filter(ErrorTracker::recent(50), fn ($row) => str_contains($row['message'] ?? '', 'Official feed recovered: cpanel'));
+        $this->assertCount(1, $events);
+    }
+
+    public function test_unchanged_failure_is_throttled_but_changed_cause_is_immediate(): void
+    {
+        $this->feeds('cpanel', 'connection');
+        $this->artisan('hermes:knowledge-refresh')->assertSuccessful();
+        $this->assertCount(1, ErrorTracker::recent(50));
+        $makeDue = function (): void {
+            $this->store->change($this->operations->owner(), static function (&$state) {
+                $state['knowledge']['sources']['cpanel']['next_attempt_at'] = time() - 1;
+            });
+        };
+        $makeDue();
+        $this->artisan('hermes:knowledge-refresh')->assertSuccessful();
+        $this->assertCount(1, ErrorTracker::recent(50), 'An unchanged cause must not create another incident.');
+        $makeDue();
+        $this->feeds('cpanel', 'http');
+        $this->artisan('hermes:knowledge-refresh')->assertSuccessful();
+        $this->assertCount(2, ErrorTracker::recent(50), 'A different cause must not hide behind the prior throttle.');
+        $this->assertSame('http_error', $this->failure()['ctx']['reason']);
+    }
+
+    public function test_state_persistence_failure_cannot_report_a_completed_refresh(): void
+    {
+        $blocked = $this->directory.'-not-a-directory';
+        file_put_contents($blocked, 'test');
+        try {
+            $this->app->instance(HermesOperationsStore::class, new HermesOperationsStore($blocked));
+            $this->artisan('hermes:knowledge-refresh')->assertFailed();
+            Http::assertNothingSent();
+            $this->assertSame('internal_knowledge', $this->failure()['ctx']['stage']);
+        } finally {
+            unlink($blocked);
+        }
     }
 
     public function test_partial_inventory_is_never_recorded_as_healthy(): void
