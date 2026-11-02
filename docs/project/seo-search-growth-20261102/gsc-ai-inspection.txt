@@ -1,0 +1,62 @@
+Inspected URL: https://servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d
+Read only; no live test or indexing request.
+- main:
+  - generic: check_circle
+  - generic: URL is on Google
+  - text: It can appear in Google Search results (if not subject to a manual action or removal request) with all relevant enhancements.
+  - link "Learn more":
+    - /url: https://support.google.com/webmasters/answer/9012289#url_on_google
+  - button "View crawled page":
+    - generic: View crawled page
+  - generic: Page changed?
+  - button "Request indexingRequest again":
+    - generic: Request indexing
+  - button "Page indexing Page is indexed" [expanded] [active]:
+    - generic: check_circle
+    - generic: Page indexing
+    - generic: Page is indexed
+    - generic: 
+  - generic: Discovery
+  - generic: Sitemaps
+  - generic: Temporary processing error
+  - generic: Referring page
+  - generic: https://mail.servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d
+  - generic: https://servernet.cloud/ai/models/di-baaibge-large-en-v15-271a77b26d
+  - generic: https://mail.servernet.cloud/ai/models/di-baaibge-large-en-v15-271a77b26d
+  - generic: Crawl
+  - generic: Last crawl
+  - generic: 24 Oct 2026, 23:14:23
+  - generic: Crawled as
+  - generic: Googlebot smartphone
+  - generic: Crawl allowed?
+  - generic: "Yes"
+  - generic: Page fetch
+  - generic: Successful
+  - generic: Indexing allowed?
+  - generic: "Yes"
+  - generic: Indexing
+  - generic: User-declared canonical
+  - generic: https://servernet.cloud/en/ai/models/di-baaibge-large-en-v15-271a77b26d
+  - generic: Google-selected canonical
+  - button "null":
+    - generic: 
+  - generic: Inspected URL
+  - link "Link to more extensive documentation":
+    - /url: https://support.google.com/webmasters/answer/7440203#submitted_and_indexed
+    - generic: Learn More
+  - link "open report":
+    - /url: ./search-console/index/drilldown?resource_id=sc-domain%3Aservernet.cloud&item_key=CAMYASAB
+    - generic: open report
+  - generic: Enhancements and experience
+  - link "HTTPS Page is served over HTTPS":
+    - /url: ./search-console/inspect/https?resource_id=sc-domain%3Aservernet.cloud&id=[redacted]
+    - generic: check_circle
+    - generic: HTTPS
+    - generic: Page is served over HTTPS
+    - generic: 
+  - link "Breadcrumbs 1 valid item detected":
+    - /url: ./search-console/inspect/r/breadcrumbs?resource_id=sc-domain%3Aservernet.cloud&id=[redacted]
+    - generic: check_circle
+    - generic: Breadcrumbs
+    - generic: 1 valid item detected
+    - generic: 

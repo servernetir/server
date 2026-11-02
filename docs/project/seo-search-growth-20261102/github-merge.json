@@ -1,0 +1,25 @@
+{
+  "pull_request": 202,
+  "head_sha": "ee3f188ce929b28390d73b9e0b65e57caa5481f3",
+  "checks": [
+    {
+      "name": "Management-only billing guards (sqlite)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Management-only billing guards (mariadb)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Financial regression (mariadb)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Financial regression (sqlite)",
+      "conclusion": "success"
+    }
+  ],
+  "sha": "b47bb98a122fb4bc9c5ead79daaf6f21ed7e532e",
+  "merged": true,
+  "message": "Pull Request successfully merged"
+}

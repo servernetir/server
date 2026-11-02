@@ -1,0 +1,36 @@
+{
+  "observed_at_utc": "2026-11-02T06:22:27.342081+00:00",
+  "code_commit": "ee3f188ce929b28390d73b9e0b65e57caa5481f3",
+  "base_after_ff": "6c0fcb7c7f441e042df8a2efd47f9c0ac9e3ce0a",
+  "combined_phpunit": {
+    "tests": 48,
+    "assertions": 1471,
+    "result": "passed",
+    "duration_ms": 39962,
+    "suites": [
+      "CountrySitemapEligibilityTest",
+      "CountryVpsServiceSchemaTest",
+      "UnifiedVpsCountryTest",
+      "CountryLandingSeoTest",
+      "GpuDecisionGuideTest",
+      "GpuPageTest",
+      "GrowthArticlePublishingTest"
+    ]
+  },
+  "mobile_preview": {
+    "width": 390,
+    "locales": [
+      "fa",
+      "en",
+      "tr"
+    ],
+    "font_family": "IRANSans, system-ui, Segoe UI, sans-serif",
+    "grid": "335px",
+    "document_scroll_width": 375,
+    "horizontal_overflow": false,
+    "fixture_only": true,
+    "purchase_and_analytics_disabled": true
+  },
+  "production_status": "not_deployed_access_blocked",
+  "review": "review.json"
+}

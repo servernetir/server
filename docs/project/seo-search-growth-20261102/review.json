@@ -1,0 +1,64 @@
+{
+  "reviewed_at_utc": "2026-11-02T06:15:27.3923672Z",
+  "reviewer": "independent seo_routes_audit agent",
+  "source_base": "6c0fcb7c7f441e042df8a2efd47f9c0ac9e3ce0a",
+  "original_base": "d3be9c422fa37f77a48aca05065421d56108dec4",
+  "verdict": "no_blockers",
+  "findings": [],
+  "scope": "Read-only independent inspection of three runtime-file diffs and three new dedicated tests. Only this sanitized review artifact was written.",
+  "reviewed_files": [
+    {
+      "path": "website/app/Http/Controllers/CountryVpsController.php",
+      "sha256": "7056b9ee9290b6ff19834aff2797e7dd6d6d6d50bd5d1e47ed109893c10f7420"
+    },
+    {
+      "path": "website/app/Http/Controllers/SiteController.php",
+      "sha256": "fbb2701e8d3dcebed559e4cea4463b1fc1afa105f1ebc5283db7227409a2fc39"
+    },
+    {
+      "path": "website/resources/views/pages/gpu.blade.php",
+      "sha256": "d326884263cf14e542119fb00ac0e592af41cb3e779e6bd66b9b6ebfac367f82"
+    },
+    {
+      "path": "website/tests/Feature/CountrySitemapEligibilityTest.php",
+      "sha256": "76f8cba02b63728e851be960137071c0af8fe631b35c8ba00f8b9d47d98ec4dc"
+    },
+    {
+      "path": "website/tests/Feature/CountryVpsServiceSchemaTest.php",
+      "sha256": "b23749da8f373c60c2fdc48c92c58c6e0241a0d3e1a55103f9bb8bf67330824d"
+    },
+    {
+      "path": "website/tests/Feature/GpuDecisionGuideTest.php",
+      "sha256": "27f23bbc56da5b105b1288acecc902c1ce8b2ae0c5f7e6b20966dba65db4a6ff"
+    }
+  ],
+  "checks": {
+    "country_service_schema": "Exactly one Product-to-Service type change; existing positive-price guard, IRR conversion, EUR rounding, Offer keys, amounts, currency, order, positions and country URL are unchanged. No fabricated image, identifier, rating, shipping or return data.",
+    "sitemap": "Global sellable active-location set prevents legacy config from re-adding globally unavailable VPS countries. Eligibility does not call visitor-specific public rows; Iran global availability and non-country products remain eligible, with existing geo/sales guards untouched.",
+    "gpu_guide": "Localized decision content and existing-route links sit outside the purchase form. Blog guides require published indexed metadata and a real translation. No price, stock, selected plan, CSRF, form action, input names, script or font changes.",
+    "physical_products": "Physical-server and parts controller/view/schema files have no diff in this change; their Product schemas are not converted.",
+    "author_history": "Existing BlogRepository eager-author loading and attribution are unchanged; these diffs rewrite no editorial author/history fields. The original task base remains an ancestor of the fast-forwarded base, preserving unrelated financial history.",
+    "test_quality": "Dedicated coverage checks all3 locales, eligibility transition/header invariance, translated-vs-draft guide links, purchase-form/plan-state preservation, exact Offer serialization, empty noindex and nonpositive-price schema exclusion."
+  },
+  "validation": {
+    "tests_run_by_reviewer": 0,
+    "additional_servernet_http_gets_by_reviewer": 0,
+    "git_diff_check": "passed",
+    "agent_schema_receipt": "output/seo-20261102/country-service-schema-local-tests.json:16 tests/844 assertions passed",
+    "parent_combined_tests": "Parent reports48 tests/1471 assertions passed; not rerun by this reviewer."
+  },
+  "primary_references": [
+    "https://developers.google.com/search/docs/appearance/structured-data/merchant-listing?hl=en",
+    "https://support.google.com/merchants/answer/6150006?hl=en",
+    "https://schema.org/Service"
+  ],
+  "limitations": [
+    "Review is source/test inspection, not production acceptance or Google recrawl.",
+    "Service semantics avoid treating a multi-plan VPS rental catalogue as physical merchandise; this does not promise a Google rich result, ranking gain or immediate disappearance of historical Merchant errors.",
+    "299 reported Merchant items are not299 distinct URLs.",
+    "The current anonymous Iran empty state may follow the deployed visibility overlay; no supplier failure or stock/pricing diagnosis was inferred.",
+    "Only targeted country schema is changed; other service templates retain their existing markup pending separate evidence."
+  ],
+  "deployment_status": "not assessed by this review",
+  "rollback": "No runtime or production changes were made by the reviewer."
+}
