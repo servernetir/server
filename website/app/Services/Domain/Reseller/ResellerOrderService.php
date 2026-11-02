@@ -162,7 +162,7 @@ class ResellerOrderService
                 if (! $q->claimFor($customer->id)) {
                     return $this->fail('quote_unavailable', __('domain-pricing.unavailable'), 409);
                 }
-                if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)->ready($customer, (int) $q->supplier_account_id)) {
+                if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)->ready($customer, (int) $q->supplier_account_id, $q->tld)) {
                     return $this->fail('profile_review_required', __('domain-management.profile_review_required'), 422);
                 }
                 $snapshot = $procurement->snapshot($q);

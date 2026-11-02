@@ -166,7 +166,7 @@ class BuilderCheckoutController extends Controller
                 return back()->withErrors(__('domain-pricing.changed'));
             }
             app(\App\Services\Domain\DomainProcurement::class)->revalidate($quote);
-            if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)->ready($customer, (int) $quote->supplier_account_id)) {
+            if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)->ready($customer, (int) $quote->supplier_account_id, $quote->tld)) {
                 return back()->withErrors(__('domain-pricing.unavailable'));
             }
             $snapshot = app(\App\Services\Domain\DomainProcurement::class)->snapshot($quote);

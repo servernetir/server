@@ -15,6 +15,10 @@ interface DomainProvider
     /** Private account catalogue: exact term totals, never a domain availability promise. */
     public function catalogue(): array;
 
+    public function createContact(string $tld, array $payload, string $transactionId): array;
+
+    public function reconcileContact(array $request): array;
+
     public function quote(string $fqdn, string $operation, int $months, array $options = []): array;
 
     public function find(string $fqdn): array;

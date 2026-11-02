@@ -770,7 +770,7 @@ class DomainController extends Controller
                 return redirect()->to(lroute('account.domains.checkout', ['quote' => $replacement->id, 'years' => $years]));
             }
             if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)
-                ->ready(auth('customer')->user(), (int) $quote->supplier_account_id)) {
+                ->ready(auth('customer')->user(), (int) $quote->supplier_account_id, $quote->tld)) {
                 return back()->withErrors(__('domain-management.profile_review_required'));
             }
             $supplierQuote = $procurement->revalidate($quote);
@@ -956,7 +956,7 @@ class DomainController extends Controller
             $quoted = DomainQuote::findOrFail((int) ($gate['quote_id'] ?? 0));
             abort_unless($quoted->claimFor($this->customerId()), 404);
             if (! app(\App\Services\Domain\DomainRegistrationReadiness::class)
-                ->ready(auth('customer')->user(), (int) $quoted->supplier_account_id)) {
+                ->ready(auth('customer')->user(), (int) $quoted->supplier_account_id, $quoted->tld)) {
                 return back()->withErrors(__('domain-management.profile_review_required'));
             }
             $procurement = app(\App\Services\Domain\DomainProcurement::class);

@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\{Currency, DomainSupplierAccount, Setting};
-use App\Services\Domain\{DomainProcurement, DomainSupplierCatalogue, DomainSupplierProbe, ExchangeRate, OpenProviderClient, TldPriceBook};
+use App\Services\Domain\{DomainProcurement, DomainSupplierCatalogue, DomainSupplierProbe, OpenProviderClient, TldPriceBook};
 use App\Services\Domain\Providers\{DomainProvider, DomainProviderFactory, JokerAdapter, OpenProviderAdapter};
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\{Http, Storage};

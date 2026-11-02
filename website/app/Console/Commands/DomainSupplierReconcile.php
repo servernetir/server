@@ -34,7 +34,14 @@ class DomainSupplierReconcile extends Command
             }
             $states[$state] = ($states[$state] ?? 0) + 1;
         }
-        $this->line(json_encode(['checked' => $operations->count(), 'states' => $states], JSON_THROW_ON_ERROR));
+        $contactChecks = 0;
+        if (! $this->option('id') && Schema::hasTable('domain_supplier_contact_requests')) {
+            foreach (\App\Models\DomainSupplierContactRequest::whereIn('status', ['submitting', 'queued', 'unknown'])
+                ->orderBy('reconciled_at')->orderBy('id')->limit(max(1, min(100, (int) $this->option('limit'))))->get() as $contact) {
+                app(\App\Services\Domain\DomainSupplierContactProvisioner::class)->reconcile($contact); $contactChecks++;
+            }
+        }
+        $this->line(json_encode(['checked' => $operations->count(), 'states' => $states, 'contacts_checked' => $contactChecks], JSON_THROW_ON_ERROR));
         return self::SUCCESS;
     }
 }

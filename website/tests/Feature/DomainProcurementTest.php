@@ -162,7 +162,7 @@ class DomainProcurementTest extends TestCase
         Http::fake([
             '*/login' => Http::response("Status-Code: 1000\nAuth-SID: synthetic-joker-session\n\n", 200),
             '*/domain-check' => $reply("domain-status: available\ndomain-class: standard\ndomain-price-create: 10.00 USD 1y\n"),
-            '*/query-account-balance' => Http::response("Status-Code: 1000\nColumns: available,pending,total,currency\nSeparator: TAB\n\n10.00\t0.00\t10.00\tUSD\n", 200),
+            '*/query-account-balance*' => Http::response("Status-Code: 1000\nColumns: available,pending,total,currency\nSeparator: TAB\n\n10.00\t0.00\t10.00\tUSD\n", 200),
         ]);
 
         $quote = $procurement->quote('example.com', 'create', 12);

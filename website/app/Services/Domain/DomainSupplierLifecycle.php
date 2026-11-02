@@ -554,6 +554,9 @@ class DomainSupplierLifecycle
                 $handle = RegistryHandle::where('customer_profile_id', $profile->id)
                     ->where('supplier_account_id', $account->id)->where('role', 'registrant')->where('status', 'active')->first();
             }
+            if (! $handle && $domain->customer) {
+                $handle = app(DomainSupplierContactProvisioner::class)->current($domain->customer, $account, $domain->tld);
+            }
             if (! $handle || blank($handle->handle)) {
                 throw ValidationException::withMessages(['domain' => 'contact_mapping_required']);
             }

@@ -112,12 +112,14 @@ jobs:
           find app/Services/Domain app/Models/DomainSupplier* -name '*.php' -print0 | xargs -0 -n1 php -l
           php -l app/Http/Controllers/Admin/DomainSupplierController.php
           php -l database/migrations/2026_10_31_150000_domain_supplier_accounts.php
+          php -l database/migrations/2026_11_02_120000_domain_supplier_contact_requests.php
           php -l tests/Support/compare-domain-regressions.php
       - name: New supplier cases must all pass
         run: |
           set -euo pipefail
           cases=(
             tests/Feature/DomainProviderAdaptersTest.php
+            tests/Feature/DomainSupplierContactProvisioningTest.php
             tests/Feature/DomainSupplierCatalogueTest.php
             tests/Feature/DomainProcurementTest.php
             tests/Feature/DomainSupplierAdminSchemaTest.php

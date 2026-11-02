@@ -157,6 +157,50 @@ class JokerAdapter implements DomainProvider
         return [ProviderMoney::basisPoints($percentage), ProviderMoney::integerMinor($settings['mandatory_fee_minor'] ?? 0)];
     }
 
+    public function createContact(string $tld, array $payload, string $transactionId): array
+    {
+        $fields = ['tld' => $tld, 'name' => trim(data_get($payload, 'name.first_name', '').' '.data_get($payload, 'name.last_name', '')),
+            'email' => $payload['email'], 'address-1' => data_get($payload, 'address.street'),
+            'city' => data_get($payload, 'address.city'), 'postal-code' => data_get($payload, 'address.zipcode'),
+            'country' => data_get($payload, 'address.country'), 'organization' => $payload['company_name'] ?? '',
+            'phone' => data_get($payload, 'phone.country_code').'.'.data_get($payload, 'phone.area_code').data_get($payload, 'phone.subscriber_number'),
+            'cltrid' => $transactionId];
+        if ($tld === 'uk' || str_ends_with($tld, '.uk')) {
+            if (! empty($payload['company_name'])) throw new DomainProviderException('registry_contact_fields_required');
+            $fields['account-type'] = in_array($fields['country'], ['GB', 'UK'], true) ? 'IND' : 'FIND';
+        }
+        $result = $this->request('contact-create', $fields, true);
+        return $this->accepted($result, '') + ['handle' => null];
+    }
+
+    public function reconcileContact(array $request): array
+    {
+        $process = (string) ($request['process_id'] ?? '');
+        if (! preg_match('/^[A-Za-z0-9_.:-]{1,128}$/D', $process)) return ['status' => 'unknown'];
+        // The documented order list ties the actual created contact to the exact process.
+        // No email search, guessed handle, or ClTrId-only match may establish ownership.
+        $res = $this->request('query-order-list', ['proc-id' => $process, 'show-all' => 'true']);
+        $expected = ['order_id', 'proc_id', 'created_at', 'status', 'type', 'amount_brutto', 'amount_netto', 'currency', 'identifier'];
+        if (explode(',', (string) ($res['fields']['columns'] ?? '')) !== $expected) return ['status' => 'unknown'];
+        $matches = [];
+        foreach ($this->lines($res['body']) as $line) {
+            $cells = explode("\t", $line);
+            if (count($cells) !== count($expected)) return ['status' => 'unknown'];
+            $row = array_combine($expected, $cells);
+            if ($row['proc_id'] === $process && $row['type'] === 'create-contact') $matches[] = $row;
+        }
+        if (count($matches) !== 1) return ['status' => 'unknown'];
+        $row = $matches[0];
+        if ($row['status'] === 'pending') return ['status' => 'queued'];
+        if ($row['status'] === 'error') return ['status' => 'failed'];
+        if ($row['status'] !== 'ok' || ! preg_match('/^0+(?:\.0+)?$/D', $row['amount_brutto'])
+            || ! preg_match('/^[A-Za-z0-9-]{1,128}$/D', $row['identifier'])) return ['status' => 'unknown'];
+        $handle = $row['identifier'];
+        $found = $this->request('query-contact-list', ['pattern' => $handle, 'tld' => $request['tld'], 'extended-format' => 0]);
+        $handles = array_map('trim', $this->lines($found['body']));
+        return in_array($handle, $handles, true) ? ['status' => 'succeeded', 'handle' => $handle] : ['status' => 'unknown'];
+    }
+
     public function find(string $fqdn): array
     {
         $fqdn = ProviderMoney::fqdn($fqdn);
@@ -474,7 +518,7 @@ class JokerAdapter implements DomainProvider
             // These read endpoints return 404 on POST in the accepted live contract.
             // Only the short-lived Auth-SID is in the documented GET query; API keys,
             // contact data and all financial/management submissions remain in POST bodies.
-            $response = ! $mutation && in_array($command, ['query-account-balance', 'query-price-list', 'query-promos-list'], true)
+            $response = ! $mutation && in_array($command, ['query-account-balance', 'query-price-list', 'query-promos-list', 'query-order-list'], true)
                 ? $http->get($this->base.$command, $params)
                 : $http->post($this->base.$command, $params);
         } catch (\Throwable) {

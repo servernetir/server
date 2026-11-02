@@ -154,6 +154,29 @@ class OpenProviderAdapter implements DomainProvider
         ];
     }
 
+    public function createContact(string $tld, array $payload, string $transactionId): array
+    {
+        LegacyAccountIdentity::assertWritable($this->account);
+        // Client returns transport failures without a reliable send classification.
+        // Commit the journal first; a failed/empty reply is conservatively unknown.
+        $result = $this->client->createCustomer($payload);
+        if (! ($result['ok'] ?? false) || blank($result['handle'] ?? null)) return ['status' => 'unknown'];
+        return $this->reconcileContact(['handle' => (string) $result['handle'], 'payload' => $payload]);
+    }
+
+    public function reconcileContact(array $request): array
+    {
+        $handle = $request['handle'] ?? null; $payload = $request['payload'] ?? null;
+        if (! is_string($handle) || $handle === '' || ! is_array($payload)) return ['status' => 'unknown'];
+        $result = $this->client->getCustomer($handle);
+        if (! ($result['ok'] ?? false)) return ['status' => 'unknown', 'handle' => $handle];
+        $data = (array) ($result['data'] ?? []);
+        foreach (['email', 'name.first_name', 'name.last_name', 'address.country', 'address.street', 'address.city', 'address.zipcode'] as $path) {
+            if (trim((string) data_get($data, $path)) !== trim((string) data_get($payload, $path))) return ['status' => 'unknown', 'handle' => $handle];
+        }
+        return ['status' => 'succeeded', 'handle' => $handle];
+    }
+
     public function find(string $fqdn): array
     {
         [$sld, $tld] = Domain::splitFqdn(ProviderMoney::fqdn($fqdn));
