@@ -9,7 +9,7 @@ final class HermesOwnerNotification
     {
         $preview = self::excerpt($draft, 430);
 
-        return self::header($context, '🎫 پاسخ پیشنهادی هرمس')
+        return self::header($context, '🎫 پاسخ پیشنهادی آراز')
             ."\nدرخواست مشتری: ".self::excerpt((string) ($context['question'] ?? ''), 180)
             ."\nجمع‌بندی بررسی: ".self::excerpt($analysis, 190)
             ."\n\nپیش‌نمایش پاسخ:\n".$preview
@@ -33,14 +33,14 @@ final class HermesOwnerNotification
             'draft_contains_credentials' => 'خروجی مدل اطلاعات حساس داشت و برای ارسال مسدود شد',
             'credentials' => 'متن مشتری اطلاعات حساس دارد؛ بررسی امن در پنل لازم است',
             'owner_exclusion' => 'این تیکت طبق تصمیم مدیر از پاسخ خودکار مستثنا شده است',
-            'review_exception' => 'اجرای بررسی فنی هرمس کامل نشد',
+            'review_exception' => 'اجرای بررسی فنی آراز کامل نشد',
             'ticket_review_failed' => 'بررسی فنی این تیکت پس از تلاش‌های مجاز کامل نشد',
             'owner_binding_unavailable' => 'اتصال مدیر برای دریافت پیشنهاد قابل تأیید نیست',
             'delivery_uncertain' => 'نتیجه ارسال قبلی نامشخص است؛ ارسال دوباره مجاز نیست',
             'sent_notification_error' => 'پاسخ در تیکت ثبت شده ولی اعلان مشتری ناموفق بوده است',
-        ][$reason] ?? 'بررسی خودکار هرمس به نتیجه قابل اتکا نرسید';
+        ][$reason] ?? 'بررسی خودکار آراز به نتیجه قابل اتکا نرسید';
 
-        $title = in_array($reason, ['credentials', 'owner_exclusion'], true) ? '⚠️ تیکت نیازمند پاسخ دستی' : '🔴 اختلال بررسی هرمس';
+        $title = in_array($reason, ['credentials', 'owner_exclusion'], true) ? '⚠️ تیکت نیازمند پاسخ دستی' : '🔴 اختلال بررسی آراز';
         return self::header($context, $title)
             ."\nعلت: ".$label
             ."\nاقدام بعدی: جزئیات همین تیکت و خطای ثبت‌شده را بررسی کن؛ در صورت نیاز پاسخ دستی بده.";
