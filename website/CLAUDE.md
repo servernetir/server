@@ -1,3 +1,5 @@
+> ادامهٔ خودکار دامنه: [صف تکی، fade و مرتب‌سازی](../docs/project/DOMAIN-AUTO-DISCOVERY-2026-11-02.md) در PR۲۲۹ آماده و آزموده است؛ نصب تولید به‌علت رد خودکار مجوز مبدأ console انجام نشده است.
+
 > رابط دامنهٔ مستقل: `pages/domain-search.blade.php` و بخش `sn-domain-discovery` خانه با دارایی اختصاصی `domain-home-discovery.js/.css` و `lang/{fa,en,tr}/domain-discovery.php` کار می‌کنند؛ controller/shared assets دست‌نخورده‌اند. [رسید انتشار محدود](../docs/project/DOMAIN-DISCOVERY-UI-RELEASE-2026-11-02.md) مرجع وضعیت نصب است.
 
 <!-- Birthday at-cost preparation (2026-10-29 Tehran): see ../docs/project/BIRTHDAY-AT-COST-PREPARATION-2026-10-29.md and PR #150. Defaults OFF; no production installation or approved operator pattern. -->
