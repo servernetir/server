@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-02",
+  "recorded_at_utc": "2026-11-02T06:49:41.284955+00:00",
+  "test_command": "python output/seo-20261102/release/test-deploy.py",
+  "tests": 7,
+  "passed": 7,
+  "failed": 0,
+  "duration_seconds": 2.533,
+  "fixture_scope": "Temporary local files only; real release hunks plus synthetic independent SiteController overlay",
+  "cases": [
+    "preview_apply_single_use_rollback_preserves_overlay",
+    "source_changed_after_preview_stops_before_intent",
+    "candidate_tamper_stops_before_intent",
+    "backup_tamper_stops_before_intent",
+    "partial_install_failure_rolls_back_own_change",
+    "mid_install_later_work_is_never_overwritten",
+    "mid_rollback_later_work_is_never_overwritten"
+  ],
+  "limitations": [
+    "Windows fixture uses no-op advisory lock context and local file ownership/modes; Linux flock and UID1020 not executed locally",
+    "Initial test harness used wrong repository parent; corrected before passing run",
+    "No remote execution or production acceptance performed by this child agent"
+  ],
+  "additional_executed_checks": [
+    "Real CountryVpsController PHP8.4 lint passed",
+    "Real SiteController PHP8.4 lint passed",
+    "Current GPU Blade standalone compile and compiled PHP8.4 lint passed",
+    "Python AST parse passed"
+  ],
+  "durable_copy_test_executed": true
+}

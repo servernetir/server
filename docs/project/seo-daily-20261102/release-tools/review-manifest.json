@@ -1,0 +1,32 @@
+{
+  "release": "seo-search-growth-20261102",
+  "git_base": "6c0fcb7c",
+  "git_after": "b47bb98a",
+  "reviewer_approved_deploy_sha256": "946ad6bd2a493f8fa8f6c57b54da9b05d54c51ab35626ba46ae562e470738669",
+  "files": {
+    "deploy.py": {
+      "sha256": "946ad6bd2a493f8fa8f6c57b54da9b05d54c51ab35626ba46ae562e470738669",
+      "bytes": 10297
+    },
+    "compile-blade.php": {
+      "sha256": "885f501150f52df2db6779077312a7a8c4de2462983a164b6b03d5bc81c29611",
+      "bytes": 468
+    },
+    "payload.json": {
+      "sha256": "8cf9016eb3d833d12a8947ab2fbd1caf3dba8107f62e8d726f63c5847330e8c2",
+      "bytes": 17004
+    },
+    "test-deploy.py": {
+      "sha256": "88f4b7cfca8134e6983c69e9b03721805df7b107a3ba46f055e5ef98e5ce2083",
+      "bytes": 6952
+    },
+    "fixture-validation.json": {
+      "sha256": "8055d61da2a9e7f5ddd1215d89c6d5e26c8886de03a03082d1610f0d32b7f249",
+      "bytes": 1357
+    },
+    "README.md": {
+      "sha256": "8a9884c21b97240995d3890f2a52f781dcb78980f865bfc2a0794f1e6c365c51",
+      "bytes": 3580
+    }
+  }
+}

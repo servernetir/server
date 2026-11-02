@@ -1,0 +1,3 @@
+# Preserve the original HTTP receipt bytes pinned by acceptance-review.json.
+release-public-before.json -text whitespace=cr-at-eol
+release-public-after.json -text whitespace=cr-at-eol

@@ -1,0 +1,866 @@
+{
+  "phase": "before",
+  "observed_at_utc": "2026-11-02T06:40:27.488548+00:00",
+  "requests": 9,
+  "rows": [
+    {
+      "path": "/gpu",
+      "status": 200,
+      "final_url": "https://servernet.cloud/gpu",
+      "cache": null,
+      "sha256": "a84f0f15f28c3c37fce9cd6d2d67020b91a60e011d098adb1ba4a969f44483cf",
+      "elapsed_ms": 2656,
+      "h1": 1,
+      "robots": null,
+      "canonical": [
+        "https://servernet.cloud/gpu"
+      ],
+      "hreflang": [
+        [
+          "fa",
+          "https://servernet.cloud/gpu"
+        ],
+        [
+          "en",
+          "https://servernet.cloud/en/gpu"
+        ],
+        [
+          "tr",
+          "https://servernet.cloud/tr/gpu"
+        ],
+        [
+          "x-default",
+          "https://servernet.cloud/gpu"
+        ]
+      ],
+      "schema_types": {
+        "Organization": 1,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "ListItem": 2,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": "https://servernet.cloud/gpu/order",
+          "method": "post"
+        },
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [
+        "_token",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1650-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-laptop-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1060-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-ti-laptop-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1070-1080-1080ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1660-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1660-super-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-6gb-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4050-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2060-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5050-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2070-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5050-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2080-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-stable-diffusion-compatible]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-ti-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2080-ti-11-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3070-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3070-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-ti-laptop-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4080-laptop-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-10-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4090-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5080-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-ti-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-ti-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3090-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3090-ti-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5090-laptop-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-ti-super-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-a5000-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4080-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5080-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4090-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5090-32-gb]",
+        "image",
+        "image",
+        "image",
+        "label"
+      ],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": true,
+        "/blog/comfyui-hourly-gpu-guide": true
+      }
+    },
+    {
+      "path": "/en/gpu",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/gpu",
+      "cache": null,
+      "sha256": "7a5060ca5b3e19a10a40841422f7e8734c82a0c0086d24c094e2d3027e8226c1",
+      "elapsed_ms": 2781,
+      "h1": 1,
+      "robots": null,
+      "canonical": [
+        "https://servernet.cloud/en/gpu"
+      ],
+      "hreflang": [
+        [
+          "fa",
+          "https://servernet.cloud/gpu"
+        ],
+        [
+          "en",
+          "https://servernet.cloud/en/gpu"
+        ],
+        [
+          "tr",
+          "https://servernet.cloud/tr/gpu"
+        ],
+        [
+          "x-default",
+          "https://servernet.cloud/gpu"
+        ]
+      ],
+      "schema_types": {
+        "Organization": 1,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "ListItem": 2,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": "https://servernet.cloud/en/gpu/order",
+          "method": "post"
+        },
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [
+        "_token",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1650-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-laptop-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1060-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-ti-laptop-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1070-1080-1080ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1660-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1660-super-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-6gb-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4050-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2060-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5050-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2070-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5050-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2080-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-stable-diffusion-compatible]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-ti-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2080-ti-11-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3070-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3070-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-ti-laptop-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4080-laptop-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-10-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4090-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5080-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-ti-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-ti-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3090-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3090-ti-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5090-laptop-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-ti-super-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-a5000-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4080-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5080-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4090-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5090-32-gb]",
+        "image",
+        "image",
+        "image",
+        "label"
+      ],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": true,
+        "/blog/comfyui-hourly-gpu-guide": true
+      }
+    },
+    {
+      "path": "/tr/gpu",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/gpu",
+      "cache": null,
+      "sha256": "3f52f2cca4e639bcb792f9935055b1ec66f679958b4915a416ad5e7f0d5f8379",
+      "elapsed_ms": 2859,
+      "h1": 1,
+      "robots": null,
+      "canonical": [
+        "https://servernet.cloud/tr/gpu"
+      ],
+      "hreflang": [
+        [
+          "fa",
+          "https://servernet.cloud/gpu"
+        ],
+        [
+          "en",
+          "https://servernet.cloud/en/gpu"
+        ],
+        [
+          "tr",
+          "https://servernet.cloud/tr/gpu"
+        ],
+        [
+          "x-default",
+          "https://servernet.cloud/gpu"
+        ]
+      ],
+      "schema_types": {
+        "Organization": 1,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "ListItem": 2,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": "https://servernet.cloud/tr/gpu/order",
+          "method": "post"
+        },
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [
+        "_token",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1650-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-laptop-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1060-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-ti-laptop-4-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1070-1080-1080ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1660-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-gtx-1660-super-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-6gb-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4050-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-laptop-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2060-6-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5050-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2070-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3050-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5050-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2080-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-stable-diffusion-compatible]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-ti-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-laptop-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-2080-ti-11-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3070-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3070-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-ti-8-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-ti-laptop-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4060-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4080-laptop-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-10-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5060-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4090-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5080-laptop-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3080-ti-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-ti-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3090-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-12-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-3090-ti-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5090-laptop-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4070-ti-super-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-a5000-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4080-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5070-ti-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5080-16-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-4090-24-gb]",
+        "plan",
+        "quotes[cv-8c-30g-150d-global-gpu-rtx-5090-32-gb]",
+        "image",
+        "image",
+        "image",
+        "label"
+      ],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": true,
+        "/blog/comfyui-hourly-gpu-guide": true
+      }
+    },
+    {
+      "path": "/vps/philippines",
+      "status": 200,
+      "final_url": "https://servernet.cloud/vps/philippines",
+      "cache": null,
+      "sha256": "79dc2e56230c471491ad19eba1e5a33689511416a4a957b617c375fdec363dca",
+      "elapsed_ms": 2578,
+      "h1": 1,
+      "robots": null,
+      "canonical": [
+        "https://servernet.cloud/vps/philippines"
+      ],
+      "hreflang": [
+        [
+          "fa",
+          "https://servernet.cloud/vps/philippines"
+        ],
+        [
+          "en",
+          "https://servernet.cloud/en/vps/philippines"
+        ],
+        [
+          "tr",
+          "https://servernet.cloud/tr/vps/philippines"
+        ],
+        [
+          "x-default",
+          "https://servernet.cloud/vps/philippines"
+        ]
+      ],
+      "schema_types": {
+        "ItemList": 1,
+        "Organization": 1,
+        "Product": 11,
+        "Offer": 11,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "Question": 4,
+        "Answer": 4,
+        "FAQPage": 1,
+        "ListItem": 14,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": null,
+          "method": "get"
+        },
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": false,
+        "/blog/comfyui-hourly-gpu-guide": false
+      }
+    },
+    {
+      "path": "/en/vps/philippines",
+      "status": 200,
+      "final_url": "https://servernet.cloud/en/vps/philippines",
+      "cache": null,
+      "sha256": "e68b9a71529bb0d167375227e47a14bfbb73172040ac61a5131f550c331ea5c4",
+      "elapsed_ms": 2454,
+      "h1": 1,
+      "robots": null,
+      "canonical": [
+        "https://servernet.cloud/en/vps/philippines"
+      ],
+      "hreflang": [
+        [
+          "fa",
+          "https://servernet.cloud/vps/philippines"
+        ],
+        [
+          "en",
+          "https://servernet.cloud/en/vps/philippines"
+        ],
+        [
+          "tr",
+          "https://servernet.cloud/tr/vps/philippines"
+        ],
+        [
+          "x-default",
+          "https://servernet.cloud/vps/philippines"
+        ]
+      ],
+      "schema_types": {
+        "ItemList": 1,
+        "Organization": 1,
+        "Product": 11,
+        "Offer": 11,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "Question": 4,
+        "Answer": 4,
+        "FAQPage": 1,
+        "ListItem": 14,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": null,
+          "method": "get"
+        },
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": false,
+        "/blog/comfyui-hourly-gpu-guide": false
+      }
+    },
+    {
+      "path": "/tr/vps/philippines",
+      "status": 200,
+      "final_url": "https://servernet.cloud/tr/vps/philippines",
+      "cache": null,
+      "sha256": "60aec478f3fe2171d50d94d1b8c2b4ab45b8fef934456e7f6f590ba6393487f2",
+      "elapsed_ms": 2500,
+      "h1": 1,
+      "robots": null,
+      "canonical": [
+        "https://servernet.cloud/tr/vps/philippines"
+      ],
+      "hreflang": [
+        [
+          "fa",
+          "https://servernet.cloud/vps/philippines"
+        ],
+        [
+          "en",
+          "https://servernet.cloud/en/vps/philippines"
+        ],
+        [
+          "tr",
+          "https://servernet.cloud/tr/vps/philippines"
+        ],
+        [
+          "x-default",
+          "https://servernet.cloud/vps/philippines"
+        ]
+      ],
+      "schema_types": {
+        "ItemList": 1,
+        "Organization": 1,
+        "Product": 11,
+        "Offer": 11,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "Question": 4,
+        "Answer": 4,
+        "FAQPage": 1,
+        "ListItem": 14,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": null,
+          "method": "get"
+        },
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": false,
+        "/blog/comfyui-hourly-gpu-guide": false
+      }
+    },
+    {
+      "path": "/vps/sweden",
+      "status": 200,
+      "final_url": "https://servernet.cloud/vps/sweden",
+      "cache": null,
+      "sha256": "87dc7a96354cd8fc880e0758a93ff369858f17f10bf8e969d1b6774010882285",
+      "elapsed_ms": 2609,
+      "h1": 1,
+      "robots": "noindex,follow",
+      "canonical": [],
+      "hreflang": [],
+      "schema_types": {
+        "Organization": 1,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "Question": 4,
+        "Answer": 4,
+        "FAQPage": 1,
+        "ListItem": 3,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": false,
+        "/blog/comfyui-hourly-gpu-guide": false
+      }
+    },
+    {
+      "path": "/vps/austria",
+      "status": 200,
+      "final_url": "https://servernet.cloud/vps/austria",
+      "cache": null,
+      "sha256": "c42891cf9d1237741a70054b34327a48cf6555e3e5f7545a191cd1705668864f",
+      "elapsed_ms": 2516,
+      "h1": 1,
+      "robots": null,
+      "canonical": [
+        "https://servernet.cloud/vps/austria"
+      ],
+      "hreflang": [
+        [
+          "fa",
+          "https://servernet.cloud/vps/austria"
+        ],
+        [
+          "en",
+          "https://servernet.cloud/en/vps/austria"
+        ],
+        [
+          "tr",
+          "https://servernet.cloud/tr/vps/austria"
+        ],
+        [
+          "x-default",
+          "https://servernet.cloud/vps/austria"
+        ]
+      ],
+      "schema_types": {
+        "ItemList": 1,
+        "Organization": 1,
+        "Product": 12,
+        "Offer": 12,
+        "ContactPoint": 1,
+        "BreadcrumbList": 1,
+        "PostalAddress": 1,
+        "Question": 4,
+        "Answer": 4,
+        "FAQPage": 1,
+        "ListItem": 15,
+        "WebSite": 1
+      },
+      "guide": false,
+      "duplicate_ids": [],
+      "forms": [
+        {
+          "action": null,
+          "method": "get"
+        },
+        {
+          "action": null,
+          "method": "get"
+        }
+      ],
+      "input_names": [],
+      "analytics_loader_present": true,
+      "guide_links_present": {
+        "/ai/models": false,
+        "/ai/docs": false,
+        "/vps/hourly": true,
+        "/blog/jupyter-hourly-gpu-guide": false,
+        "/blog/comfyui-hourly-gpu-guide": false
+      }
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "final_url": "https://servernet.cloud/sitemap.xml",
+      "cache": null,
+      "sha256": "229627bf148767fc184003a1bb438d04b4611e7101189e165d143db2812bb08b",
+      "elapsed_ms": 1907,
+      "urls": 5460,
+      "unique": 5460,
+      "country_membership": {
+        "sweden": [
+          true,
+          true,
+          true
+        ],
+        "austria": [
+          true,
+          true,
+          true
+        ],
+        "iran": [
+          true,
+          true,
+          true
+        ],
+        "philippines": [
+          true,
+          true,
+          true
+        ]
+      }
+    }
+  ],
+  "limits": "Anonymous GET only; timings not lab performance. No purchase, account mutation or GA4 transport acceptance."
+}
