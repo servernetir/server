@@ -26,7 +26,28 @@
     "unchanged_product_terms": 16,
     "account_money_contract_verified": true,
     "paid_invoice_and_service_binding_verified": true,
-    "current_native_credit_payment_fees_zero": true
+    "current_native_credit_payment_fees_zero": true,
+    "quantity_calculation": {
+      "observed_at": "2026-11-02T08:14:43Z",
+      "product_id": "351",
+      "route": "POST /api/quote",
+      "purpose": "calculation only",
+      "one_snapshot": {
+        "monthly_gross_base_units": "3.348",
+        "echoed_quantity": 1
+      },
+      "two_snapshots": {
+        "monthly_gross_base_units": "3.948",
+        "echoed_quantity": 2,
+        "extra_item_base_units": "0.5"
+      },
+      "tax_percent": "20",
+      "monthly_gross_increase_base_units": "0.600",
+      "response_currency": null,
+      "balance_unchanged": true,
+      "orders_submitted": 0,
+      "payments_submitted": 0
+    }
   },
   "structural_changes": [
     {
@@ -54,8 +75,12 @@
     }
   ],
   "unchanged": "The private comparison reported no other form-field changes; product terms fingerprints remained valid.",
-  "interpretation": "The supplier reduced the snapshot control's included/default baseline from two to one. This is a commercial configuration change, not cosmetic or JSON key order drift.",
-  "unresolved": "Current per-unit prices and a read-only explicit quantity-two calculation are required to establish whether a second snapshot incurs an extra fee. dontchargedefault=1 alone does not prove quantity two remains free.",
+  "interpretation": "The guard correctly stops a real entitlement and cost change. It must not be bypassed by refreshing the form hash or relabeling unknown raw currency units.",
+  "unresolved": [
+    "All 16 reviewed forms changed the included/default snapshot quantity from 2 to 1.",
+    "Representative product351 explicitly calculates a paid second snapshot; this is not a zero-extra-cost proof.",
+    "A reviewed commercial decision/provider restoration is required before new sales reopen."
+  ],
   "protection": {
     "reviewed_mapping_retained": true,
     "monetary_validation_retained": true,

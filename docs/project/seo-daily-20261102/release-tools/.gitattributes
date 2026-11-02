@@ -1,0 +1,2 @@
+# Preserve the exact bytes pinned by review-manifest.json.
+fixture-validation.json -text whitespace=cr-at-eol
