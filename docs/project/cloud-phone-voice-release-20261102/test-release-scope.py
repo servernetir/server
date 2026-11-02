@@ -18,6 +18,10 @@ checks={
  'no HTTP commands': all(x not in launcher for x in ("input('command')", "input('path')", "input('content')")),
  'engine payload pins': all(x in launcher for x in ('CPV_ENGINE_SHA256','CPV_PAYLOAD_SHA256',"hash_file('sha256', $engine)","hash_file('sha256', $payload)")),
  'rollback CAS': 'rollback_concurrent_drift' in engine and 'rollback_newer_file_rejected' in engine,
+ 'compiled mode preservation': "in_array($beforeMode, [0600, 0644, 0755], true) && $mode === $beforeMode" in engine and "$beforeMode === null && $mode === 0644" in engine,
+ 'mode preflight': all(x in engine for x in ('compiled_mode_drift', 'rollback_mode_drift', 'rollback_compiled_mode_drift')),
+ 'immediate mode CAS': engine.count("throw new \\RuntimeException('concurrent_mode_drift')")==2 and 'rollback_concurrent_mode_drift' in engine,
+ 'CAS mode arguments': "$entry['after_sha256'], $entry['before_sha256'], $entry['before_mode']" in engine and "$observed[$i], $observedModes[$i]" in engine and "$compiledObserved[$i], $compiledModes[$i]" in engine,
 }
 for name,ok in checks.items():
  if not ok: raise SystemExit('FAILED: '+name)

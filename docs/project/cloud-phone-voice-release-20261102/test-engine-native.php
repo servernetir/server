@@ -25,7 +25,7 @@ function putFixture(string $path, string $bytes, int $mode = 0644): void
 {
     privateDir(dirname($path)); file_put_contents($path, $bytes); chmod($path, $mode);
 }
-function fixture(): array
+function fixture(int $compiledMode = 0644): array
 {
     global $fixtures;
     $id = bin2hex(random_bytes(8)); $root = sys_get_temp_dir().'/cloud-phone-voice-native-'.$id;
@@ -65,7 +65,7 @@ function fixture(): array
             if ($view) { $compiler->setPath($home.'/'.$relative);
             $compiledPath = $compiler->getCompiledPath($home.'/'.$relative);
             $compiled = $compiler->compileString($before)."\n<?php /**PATH {$home}/{$relative} ENDPATH**/ ?>";
-            putFixture($compiledPath, $compiled);
+            putFixture($compiledPath, $compiled, $compiledMode);
             $oldCompiled[$compiledPath] = hash('sha256', $compiled); }
         }
         $source = 'sources/fixture-'.$i;
@@ -145,7 +145,7 @@ try {
     $restore = $g['reflection']->getMethod('restoreOne');
     try {
         $restore->invoke($engine, $target, $g['stage'].'/before/file-0', $g['plan']['entries'][0]['before_sha256'],
-            $g['plan']['entries'][0]['before_mode'], $g['plan']['entries'][0]['after_sha256']);
+            $g['plan']['entries'][0]['before_mode'], $g['plan']['entries'][0]['after_sha256'], $g['plan']['entries'][0]['mode']);
         throw new RuntimeException('immediate CAS failed to reject newer edit');
     } catch (RuntimeException $e) { expect($e->getMessage() === 'rollback_concurrent_drift', 'immediate rollback guard'); }
     expect((phase($g, 'rollback')['reason'] ?? '') === 'rollback_newer_file_rejected', 'complete rollback precheck must reject unknown hashes');
@@ -174,6 +174,72 @@ try {
     file_put_contents($n['stage'].'/'.$n['plan']['entries'][0]['source_file'], $bad);
     $json = json_encode($n['plan'], JSON_THROW_ON_ERROR); file_put_contents($n['stage'].'/payload.json', $json); $n['pin'] = hash('sha256', $json);
     expect((phase($n, 'preview')['reason'] ?? '') === 'other_solution_changed', 'config scope rejects unrelated solution changes');
+
+    $legacy = fixture(0755);
+    $legacyPath = array_key_first($legacy['oldCompiled']);
+    assertPhase($legacy, 'preview', 'previewed');
+    $legacyState = json_decode((string) file_get_contents($legacy['stage'].'/state.json'), true, 64, JSON_THROW_ON_ERROR);
+    expect($legacyState['compiled'][0]['before_mode'] === 0755 && $legacyState['compiled'][0]['mode'] === 0755, 'legacy compiled mode must be preserved in plan');
+    expect($legacyState['compiled'][1]['before_mode'] === null && $legacyState['compiled'][1]['mode'] === 0644, 'new compiled file must default to 0644');
+    $oldBytes = file_get_contents($legacyPath);
+    chmod($legacyPath, 0644);
+    expect((phase($legacy, 'apply')['reason'] ?? '') === 'compiled_mode_drift', 'compiled mode drift before apply rejected');
+    expect(file_get_contents($legacyPath) === $oldBytes && (fileperms($legacyPath) & 0777) === 0644, 'mode-only newer work preserved on preflight failure');
+    chmod($legacyPath, 0755);
+    assertPhase($legacy, 'apply', 'applied');
+    clearstatcache(true, $legacyPath);
+    expect((fileperms($legacyPath) & 0777) === 0755, 'apply must retain existing compiled 0755');
+    assertPhase($legacy, 'verify', 'verified');
+    chmod($legacyPath, 0644);
+    expect((phase($legacy, 'verify')['reason'] ?? '') === 'compiled_mode_drift', 'verify detects compiled mode drift');
+    expect((phase($legacy, 'rollback')['reason'] ?? '') === 'rollback_compiled_mode_drift', 'rollback refuses changed compiled mode');
+    chmod($legacyPath, 0755);
+    $modeTarget = $legacy['home'].'/'.$legacy['plan']['entries'][0]['destination'];
+    chmod($modeTarget, 0600);
+    expect((phase($legacy, 'rollback')['reason'] ?? '') === 'rollback_mode_drift', 'rollback refuses source mode-only drift');
+    expect(is_file($legacy['home'].'/public_html/assets/css/cloud-phone-voice.css'), 'mode-only rejected rollback must retain dependencies');
+    chmod($modeTarget, 0644);
+
+    // Immediate mode CAS is tested independently from the phase's initial scan.
+    $guard = $legacy['reflection']->newInstanceWithoutConstructor();
+    $legacy['reflection']->getProperty('uid')->setValue($guard, $legacy['uid']);
+    chmod($modeTarget, 0600);
+    $copy = $legacy['reflection']->getMethod('copyAtomic');
+    try {
+        $copy->invoke($guard, $modeTarget, $legacy['stage'].'/candidates/file-0', 0644,
+            $legacy['plan']['entries'][0]['after_sha256'], $legacy['plan']['entries'][0]['after_sha256'], 0644);
+        throw new RuntimeException('copy immediate mode CAS did not reject drift');
+    } catch (RuntimeException $e) { expect($e->getMessage() === 'concurrent_mode_drift', 'stream copy immediate mode CAS'); }
+    clearstatcache(true, $modeTarget);
+    expect((fileperms($modeTarget) & 0777) === 0600, 'stream copy must not overwrite newer permissions');
+    $restoreMode = $legacy['reflection']->getMethod('restoreOne');
+    try {
+        $restoreMode->invoke($guard, $modeTarget, $legacy['stage'].'/before/file-0',
+            $legacy['plan']['entries'][0]['before_sha256'], 0644, $legacy['plan']['entries'][0]['after_sha256'], 0644);
+        throw new RuntimeException('rollback immediate mode CAS did not reject drift');
+    } catch (RuntimeException $e) { expect($e->getMessage() === 'rollback_concurrent_mode_drift', 'rollback immediate mode CAS'); }
+    chmod($modeTarget, 0644);
+    chmod($legacyPath, 0644);
+    $atomic = $legacy['reflection']->getMethod('atomic');
+    try {
+        $atomic->invoke($guard, $legacyPath, file_get_contents($legacyPath), 0755,
+            hash_file('sha256', $legacyPath), 0755);
+        throw new RuntimeException('compiled immediate mode CAS did not reject drift');
+    } catch (RuntimeException $e) { expect($e->getMessage() === 'concurrent_mode_drift', 'compiled write immediate mode CAS'); }
+    clearstatcache(true, $legacyPath);
+    expect((fileperms($legacyPath) & 0777) === 0644, 'compiled write must not overwrite newer permissions');
+    chmod($legacyPath, 0755);
+    assertPhase($legacy, 'rollback', 'rolled_back');
+    clearstatcache(true, $legacyPath);
+    expect((fileperms($legacyPath) & 0777) === 0755 && file_get_contents($legacyPath) === $oldBytes, 'rollback restores legacy compiled mode and exact bytes');
+
+    $unsupported = fixture(0664);
+    expect((phase($unsupported, 'preview')['reason'] ?? '') === 'unsupported_compiled_mode', 'group-writable legacy compiled mode must not be accepted');
+    $forged = fixture(); assertPhase($forged, 'preview', 'previewed');
+    $forgedState = json_decode((string) file_get_contents($forged['stage'].'/state.json'), true, 64, JSON_THROW_ON_ERROR);
+    $forgedState['compiled'][1]['mode'] = 0755;
+    file_put_contents($forged['stage'].'/state.json', json_encode($forgedState, JSON_THROW_ON_ERROR));
+    expect((phase($forged, 'apply')['reason'] ?? '') === 'invalid_compiled_state', 'new compiled 0755 must be rejected even in forged private state');
 
     echo json_encode(['checks' => $checks, 'passed' => true, 'synthetic_only' => true, 'production_paths_used' => false], JSON_THROW_ON_ERROR).PHP_EOL;
 } finally {
