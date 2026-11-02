@@ -11,9 +11,10 @@ use App\Models\Service;
 use App\Models\Setting;
 use App\Services\Finance\ArvanTrafficMeter;
 use App\Services\Finance\Wallet;
-use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 use Tests\TestCase;
@@ -21,13 +22,12 @@ use Tests\TestCase;
 /** Two real connections to the opted-in disposable CI MariaDB; no production source or provider calls. */
 class ArvanTrafficMeterMariaDbTest extends TestCase
 {
-    use DatabaseMigrations {
-        runDatabaseMigrations as private runVerifiedMariaDbMigrations;
-    }
+    private bool $disposableReady = false;
 
-    /** Validate the disposable target BEFORE the trait can execute migrate:fresh. */
-    public function runDatabaseMigrations(): void
+    /** No migration trait: validate the disposable target before ANY migration. */
+    protected function setUp(): void
     {
+        parent::setUp();
         $cfg = config('database.connections.'.config('database.default'));
         if (($cfg['driver'] ?? null) === 'sqlite') {
             $this->markTestSkipped('This committed two-connection test requires the opted-in disposable MariaDB job.');
@@ -37,7 +37,29 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
         $this->assertSame('127.0.0.1', $cfg['host']);
         $this->assertSame('incident_testing', $cfg['database']);
         $this->assertSame('1', getenv('ARVAN_TRAFFIC_MARIADB'), 'Explicit disposable MariaDB test opt-in required.');
-        $this->runVerifiedMariaDbMigrations();
+        $this->disposableReady = true;
+        $this->assertSame(0, Artisan::call('migrate:fresh', ['--force' => true]), Artisan::output());
+        RefreshDatabaseState::$migrated = false;
+    }
+
+    protected function tearDown(): void
+    {
+        try {
+            if ($this->disposableReady && $this->app) {
+                // Legacy unrelated migration down() paths are not reliable on
+                // MariaDB. Reset only this explicitly validated disposable DB
+                // using the same fresh-schema path as the rest of CI.
+                $cfg = config('database.connections.'.config('database.default'));
+                $this->assertSame('127.0.0.1', $cfg['host']);
+                $this->assertSame('incident_testing', $cfg['database']);
+                $this->assertSame('testing', app()->environment());
+                $this->assertSame('1', getenv('ARVAN_TRAFFIC_MARIADB'));
+                $this->assertSame(0, Artisan::call('migrate:fresh', ['--force' => true]), Artisan::output());
+            }
+        } finally {
+            RefreshDatabaseState::$migrated = false;
+            parent::tearDown();
+        }
     }
 
     public function test_committed_manual_debit_between_snapshot_and_customer_lock_is_seen_by_current_read(): void
