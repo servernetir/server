@@ -30,10 +30,14 @@ On an apply failure, rollback considers only this invocation's attempted renames
 
 Private snapshots/receipts remain for audit. Do not delete them automatically or use this historical patch against a newer changed method without review.
 
+## Live-context revision 2
+
+The first plan safely refused view hunk 3 because production independently added `&& ! $ownerAcceptanceConsole` to the console-unavailable note. This revision binds that exact observed context and preserves the clause while adding only the intended `hasPassword()` condition. The observed before hash is recorded in the patch package. Other hunks, release logic and the canonical PR 214 reference are unchanged. Original frozen artifacts are retained separately; this revision requires a new private release directory/plan or explicit removal of unused private staging after review. No previous application source write is inferred from a failed plan.
+
 ## Artifact hashes
 
-- `deploy.php`: `621a1d2f1964a16cd8567b4ab5bb06aad203c0cbb87d763069817095e1fdc890`
-- `patchdata.json`: `de827db9f7bdcf0b9ce7abca6b42e86e4379f68bdb4a3851cf1831b34a81880b`
+- `deploy.php`: `0b9c796cda3f05e6e6092c445198ae49c25b805742f502786569f7b7ce92c75d`
+- `patchdata.json`: `59d21b9b2b3d131d7cbcc51d1d20b16798ccfabb1c7459a807a3ee40ff5053ed`
 - `test-pure.php`: `31b9f46f9fc6a738f9c66ec6afe3a88f58f582e542a5b93b74bf78e5b7d40df5`
 
 ## Isolated validation

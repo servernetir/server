@@ -95,10 +95,12 @@
         },
         {
           "id": 3,
-          "old": "      @endif\n    </div>\n\n    @if($windows && ! ($caps['console'] ?? false))\n      <p class=\"dm-note\" style=\"margin-top:12px\">{{ __('ui.cs_console_unavailable_rdp') }}</p>\n    @endif\n\n",
-          "new": "      @endif\n    </div>\n\n    @if($windows && $inst->hasPassword() && ! ($caps['console'] ?? false))\n      <p class=\"dm-note\" style=\"margin-top:12px\">{{ __('ui.cs_console_unavailable_rdp') }}</p>\n    @endif\n\n"
+          "old": "      @endif\n    </div>\n\n    @if($windows && ! ($caps['console'] ?? false) && ! $ownerAcceptanceConsole)\n      <p class=\"dm-note\" style=\"margin-top:12px\">{{ __('ui.cs_console_unavailable_rdp') }}</p>\n    @endif\n\n",
+          "new": "      @endif\n    </div>\n\n    @if($windows && $inst->hasPassword() && ! ($caps['console'] ?? false) && ! $ownerAcceptanceConsole)\n      <p class=\"dm-note\" style=\"margin-top:12px\">{{ __('ui.cs_console_unavailable_rdp') }}</p>\n    @endif\n\n"
         }
       ]
     }
-  ]
+  ],
+  "live_context_revision": "v2_preserve_owner_acceptance_console_clause",
+  "live_view_observed_before_sha256": "a11a8ebd3da182704c1df2754b4466b13a76a261e1037bc646a895a4dc50c5d4"
 }
