@@ -1,3 +1,5 @@
+> رابط دامنهٔ مستقل: `pages/domain-search.blade.php` و بخش `sn-domain-discovery` خانه با دارایی اختصاصی `domain-home-discovery.js/.css` و `lang/{fa,en,tr}/domain-discovery.php` کار می‌کنند؛ controller/shared assets دست‌نخورده‌اند. [رسید انتشار محدود](../docs/project/DOMAIN-DISCOVERY-UI-RELEASE-2026-11-02.md) مرجع وضعیت نصب است.
+
 <!-- Birthday at-cost preparation (2026-10-29 Tehran): see ../docs/project/BIRTHDAY-AT-COST-PREPARATION-2026-10-29.md and PR #150. Defaults OFF; no production installation or approved operator pattern. -->
 
 تخفیف فقط در فاکتور،۲۶اکتبر: منوی پیشنهادها و فرم تولد مشتری از تولید حذف شدند؛ تولد فقط از پروفایل خوانده می‌شود و ثبت کد جدید در هر دو مسیر کمپین/هدیه به مجوز مدیر وابسته است. پیش‌فرض خاموش و مجوزهای قبلی حفظ شدند. ۱۲۲تست/۲۲۱۳بررسی و ۶۲کنترل/۱۸رندر زنده موفق؛ SQLwrite و عملیات مالی صفر. مرجع: `../docs/project/INVOICE-ONLY-DISCOUNTS-2026-10-26.md`.

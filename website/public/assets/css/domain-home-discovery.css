@@ -1,0 +1,20 @@
+/* Homepage-only discovery presentation; shared styles and critical-CSS hashes stay untouched. */
+.sn-domain-discovery [hidden]{display:none!important}
+.sn-domain-discovery .domain-box{opacity:1;transform:none}
+.sn-domain-discovery .domain-search{transition:border-color .18s,box-shadow .18s}
+.sn-domain-discovery .domain-search:focus-within{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(34,211,238,.09)}
+.sn-domain-discovery .domain-result{animation:ddh-enter .22s ease both;backdrop-filter:none}
+.sn-domain-discovery .ddh-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;justify-content:flex-end}
+.sn-domain-discovery .ddh-ideas{gap:12px;min-height:44px}
+.sn-domain-discovery .ddh-ideas span{font-size:1.1em}
+.sn-domain-discovery .dr-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px}
+.sn-domain-discovery .ddh-reference{display:flex;flex-wrap:wrap;align-items:center;gap:7px;width:100%;font-size:.78em}
+.sn-domain-discovery .ddh-reference del{color:var(--muted,#94a3b8);font-weight:400;text-decoration-thickness:1px}
+.sn-domain-discovery .ddh-discount{display:inline-flex;padding:3px 8px;border-radius:999px;background:rgba(34,197,94,.12);color:#15803d;font-size:.85em;font-weight:700}
+[data-theme="dark"] .sn-domain-discovery .ddh-discount{color:#86efac}
+.sn-domain-discovery :is(button,a,input):focus-visible{outline:2px solid var(--cyan);outline-offset:4px}
+.sn-domain-discovery .tld-chip{min-height:40px}
+body[data-domain-discovery-visible="true"] .chat-fab{visibility:hidden;opacity:0;pointer-events:none}
+@keyframes ddh-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(max-width:600px){.sn-domain-discovery .ddh-actions,.sn-domain-discovery .ddh-actions .btn{width:100%}.sn-domain-discovery .ddh-actions .btn{justify-content:center}.sn-domain-discovery .dr-row{gap:12px}.sn-domain-discovery .dr-domain{overflow-wrap:anywhere;max-width:100%}.sn-domain-discovery .dr-price{min-width:0}.sn-domain-discovery .dr-row>.btn{min-height:44px}.sn-domain-discovery .tld-strip{gap:7px}.sn-domain-discovery .tld-chip{min-height:44px}}
+@media(prefers-reduced-motion:reduce){.sn-domain-discovery *{transition:none!important;animation:none!important}}
