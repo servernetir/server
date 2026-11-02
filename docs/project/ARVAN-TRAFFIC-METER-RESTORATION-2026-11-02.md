@@ -41,7 +41,10 @@ schedule. The deterministic interleaving is not advertised as a separate-process
 concurrency proof. A separate MariaDB test uses two real connections: the first
 establishes its old repeatable-read snapshot; immediately before its customer
 lock, the second locks that customer, inserts a manual debit and commits. The
-meter must abort while preserving that independently committed debit. CI runs
+meter must abort while preserving that independently committed debit. Its
+explicit opt-in/environment/loopback/database checks run before the migration
+trait can touch a database; the default SQLite suite skips this MariaDB-only
+case without migrations. CI runs
 the main suite on both SQLite and disposable MariaDB. One negative control
 removes only the new guard; a second MariaDB negative control retains the guard
 but changes its recheck to a plain read. Both must fail for their intended

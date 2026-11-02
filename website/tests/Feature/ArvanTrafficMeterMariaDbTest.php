@@ -21,15 +21,28 @@ use Tests\TestCase;
 /** Two real connections to the opted-in disposable CI MariaDB; no production source or provider calls. */
 class ArvanTrafficMeterMariaDbTest extends TestCase
 {
-    use DatabaseMigrations;
+    use DatabaseMigrations {
+        runDatabaseMigrations as private runVerifiedMariaDbMigrations;
+    }
+
+    /** Validate the disposable target BEFORE the trait can execute migrate:fresh. */
+    public function runDatabaseMigrations(): void
+    {
+        $cfg = config('database.connections.'.config('database.default'));
+        if (($cfg['driver'] ?? null) === 'sqlite') {
+            $this->markTestSkipped('This committed two-connection test requires the opted-in disposable MariaDB job.');
+        }
+        $this->assertSame('testing', app()->environment());
+        $this->assertContains($cfg['driver'], ['mysql', 'mariadb']);
+        $this->assertSame('127.0.0.1', $cfg['host']);
+        $this->assertSame('incident_testing', $cfg['database']);
+        $this->assertSame('1', getenv('ARVAN_TRAFFIC_MARIADB'), 'Explicit disposable MariaDB test opt-in required.');
+        $this->runVerifiedMariaDbMigrations();
+    }
 
     public function test_committed_manual_debit_between_snapshot_and_customer_lock_is_seen_by_current_read(): void
     {
         $cfg = config('database.connections.'.config('database.default'));
-        $this->assertContains($cfg['driver'], ['mysql', 'mariadb']);
-        $this->assertSame('127.0.0.1', $cfg['host']);
-        $this->assertSame('incident_testing', $cfg['database']);
-        $this->assertSame('testing', app()->environment());
         Http::preventStrayRequests();
         $this->travelTo(Carbon::parse('2026-11-02T12:00:00Z'));
         Setting::put('cloud_margin_pct', '5');

@@ -48,6 +48,7 @@ jobs:
         shell: bash
     env:
       APP_ENV: testing
+      ARVAN_TRAFFIC_MARIADB: ${{ matrix.database == 'mariadb' && '1' || '0' }}
       APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
       APP_URL: 'http://localhost'
       DB_CONNECTION: ${{ matrix.database == 'mariadb' && 'mysql' || 'sqlite' }}
@@ -160,7 +161,7 @@ jobs:
             ancestor="$(dirname "$ancestor")"
           done
           sudo -u incident-tests -- test -r "$GITHUB_WORKSPACE/website/vendor/autoload.php"
-          printf '%s\n' 'APP_ENV,APP_KEY,APP_URL,DB_CONNECTION,DB_HOST,DB_PORT,DB_DATABASE,DB_USERNAME,DB_PASSWORD,DB_URL,DB_SOCKET,CACHE_STORE,SESSION_DRIVER,QUEUE_CONNECTION,MAIL_MAILER,SMS_DRIVER,PAGE_CACHE,EXCHANGE_ENABLED,BROADCAST_CONNECTION,PULSE_ENABLED,TELESCOPE_ENABLED,NIGHTWATCH_ENABLED' > "$RUNNER_TEMP/incident-preserve-env"
+          printf '%s\n' 'ARVAN_TRAFFIC_MARIADB,APP_ENV,APP_KEY,APP_URL,DB_CONNECTION,DB_HOST,DB_PORT,DB_DATABASE,DB_USERNAME,DB_PASSWORD,DB_URL,DB_SOCKET,CACHE_STORE,SESSION_DRIVER,QUEUE_CONNECTION,MAIL_MAILER,SMS_DRIVER,PAGE_CACHE,EXCHANGE_ENABLED,BROADCAST_CONNECTION,PULSE_ENABLED,TELESCOPE_ENABLED,NIGHTWATCH_ENABLED' > "$RUNNER_TEMP/incident-preserve-env"
           preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
           sudo --preserve-env="$preserved" -u incident-tests -- php artisan package:discover --ansi
       - name: Verify the disposable database driver
