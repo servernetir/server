@@ -167,6 +167,10 @@ from the host via `pct`. Four roles, applied **in order**, each stage-by-default
    so the VM keeps inbound management via its Iran IP:port while only new
    outbound exits via the country.
 
+Set `relay_host` in private inventory to the reviewed current endpoint before
+staging this role. Its default pool inherits that endpoint; the role has no
+built-in provider IP and rejects an empty host before writing staging files.
+
 ```bash
 # Stage everything (no live change), review under /root/.servernet/*, then apply:
 ansible-playbook site.yml --tags relay      -e relay_apply=true

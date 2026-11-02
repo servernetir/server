@@ -18,6 +18,10 @@ working default and blackhole fallback in table119, a loopback10819 SSH socket
 whose process targets the exact requested relay IPv4, and an HTTPS request
 through that SOCKS socket whose real public egress equals the requested relay.
 The VM109 source route is diagnostic ONLY. It never proves VM109 guest health.
+An unavailable/invalid external egress measurement is UNKNOWN, not an assertion
+that the relay failed. Verified local SSH/tunnel failures and a successfully
+measured wrong public egress remain definite failures. No network job can select
+another measurement endpoint.
 
 VM109 prefers the installed authenticated read-only Windows HTTP probe when its
 private local config exists. The default path is fixed below. --windows-config
@@ -181,40 +185,87 @@ class Probes:
             'table': (['/usr/sbin/ip', '-j', 'route', 'show', 'table', '119'], 2),
             'source_route': (['/usr/sbin/ip', '-j', 'route', 'get', '1.1.1.1', 'from', SOURCE_IP], 2),
             'socket': (['/usr/bin/ss', '-H', '-ltnp', '( sport = :10819 )'], 2),
-            'egress': (['/usr/bin/curl', '-q', '--socks5-hostname', SOCKS_ADDRESS,
+            'egress': (['/usr/bin/curl', '-q', '--ipv4', '--socks5-hostname', SOCKS_ADDRESS,
                         '-fsS', '--max-time', '5', EGRESS_URL], 6),
         }
         with ThreadPoolExecutor(max_workers=len(work)) as pool:
             pending = {name: pool.submit(self.ct, argv, timeout) for name, (argv, timeout) in work.items()}
             observed = {name: future.result() for name, future in pending.items()}
-        checks = dict(execution_origin='ct113', units_active=False, tun119_up=False,
-                      table119_default=False, table119_blackhole=False, ssh_socks_listener=False,
-                      ssh_target_matches=False, source_route_tun119=False, tunnel_ok=False, probe_ok=False)
+        checks = dict(execution_origin='ct113', units_active=None, tun119_up=None,
+                      table119_default=None, table119_blackhole=None, ssh_socks_listener=None,
+                      ssh_target_matches=None, source_route_tun119=False, structural_tunnel_ok=None,
+                      egress_measurement_available=False, egress_ip=None, tunnel_ok=None, probe_ok=None)
+        # Each observation is parsed independently. A broken diagnostic route
+        # reply must never hide a definite missing socket/SSH target failure.
         try:
-            checks['units_active'] = observed['units'][0] and _text(observed['units'][1]).splitlines() == ['active', 'active']
-            links = _json_list(observed['link'][1]) if observed['link'][0] else []
-            checks['tun119_up'] = (len(links) == 1 and links[0].get('ifname') == 'tun119'
-                                   and isinstance(links[0].get('flags'), list) and 'UP' in links[0]['flags'])
-            routes = _json_list(observed['table'][1]) if observed['table'][0] else []
-            checks['table119_default'] = any(r.get('dst') == 'default' and r.get('dev') == 'tun119'
-                                             and r.get('type', 'unicast') == 'unicast' for r in routes)
-            checks['table119_blackhole'] = any(r.get('dst') == 'default' and r.get('type') == 'blackhole' for r in routes)
+            units = _text(observed['units'][1]).splitlines()
+            unit_states = {'active', 'inactive', 'failed', 'activating', 'deactivating', 'reloading', 'maintenance', 'unknown'}
+            if len(units) == 2 and all(value in unit_states for value in units):
+                checks['units_active'] = units == ['active', 'active']
+        except ProtocolError:
+            pass
+        try:
+            if observed['link'][0]:
+                links = _json_list(observed['link'][1])
+                if not links:
+                    checks['tun119_up'] = False
+                elif (len(links) == 1 and links[0].get('ifname') == 'tun119'
+                        and isinstance(links[0].get('flags'), list)
+                        and all(isinstance(flag, str) for flag in links[0]['flags'])):
+                    checks['tun119_up'] = 'UP' in links[0]['flags']
+        except ProtocolError:
+            pass
+        try:
+            if observed['table'][0]:
+                routes = _json_list(observed['table'][1])
+                route_types = {'unicast', 'local', 'broadcast', 'blackhole', 'unreachable', 'prohibit', 'throw', 'nat', 'multicast', 'anycast'}
+                valid = all(isinstance(r.get('dst'), str) and bool(r['dst'])
+                    and isinstance(r.get('type', 'unicast'), str)
+                    and r.get('type', 'unicast') in route_types
+                    and (r.get('type', 'unicast') != 'unicast'
+                         or isinstance(r.get('dev'), str) and bool(r['dev'])) for r in routes)
+                if valid:
+                    checks['table119_default'] = any(r.get('dst') == 'default' and r.get('dev') == 'tun119'
+                                                     and r.get('type', 'unicast') == 'unicast' for r in routes)
+                    checks['table119_blackhole'] = any(r.get('dst') == 'default' and r.get('type') == 'blackhole' for r in routes)
+        except ProtocolError:
+            pass
+        try:
             route = _json_list(observed['source_route'][1]) if observed['source_route'][0] else []
             checks['source_route_tun119'] = bool(route and route[0].get('dev') == 'tun119'
                                                 and route[0].get('table') in (119, '119'))
+        except ProtocolError:
+            pass
+        pid = None
+        try:
             pid = _ssh_listener(observed['socket'][1]) if observed['socket'][0] else None
-            checks['ssh_socks_listener'] = pid is not None
+            if observed['socket'][0]:
+                lines = _text(observed['socket'][1]).splitlines()
+                if all(len(line.split()) >= 6 and line.split()[0] == 'LISTEN' for line in lines):
+                    checks['ssh_socks_listener'] = pid is not None
+                    if pid is None:
+                        checks['ssh_target_matches'] = False
+        except ProtocolError:
+            pass
+        try:
             if pid is not None:
                 ok, raw = self.ct(['/usr/bin/ps', '-p', str(pid), '-o', 'args='], 1)
-                checks['ssh_target_matches'] = ok and _ssh_target(raw, context['job']['target']['host'])
-            egress = _ip(observed['egress'][1]) if observed['egress'][0] else None
-            checks['egress_ip'] = egress
-            gate = ('units_active', 'tun119_up', 'table119_default', 'table119_blackhole',
-                    'ssh_socks_listener', 'ssh_target_matches')
-            checks['tunnel_ok'] = all(checks[name] is True for name in gate)
-            checks['probe_ok'] = checks['tunnel_ok'] and egress == context['job']['target']['host']
+                checks['ssh_target_matches'] = _ssh_target(raw, context['job']['target']['host']) if ok else None
         except ProtocolError:
+            pass
+        egress = _ip(observed['egress'][1]) if observed['egress'][0] else None
+        checks['egress_ip'] = egress
+        checks['egress_measurement_available'] = egress is not None
+        gate = ('units_active', 'tun119_up', 'table119_default', 'table119_blackhole',
+                'ssh_socks_listener', 'ssh_target_matches')
+        structural = False if any(checks[name] is False for name in gate) else (
+            True if all(checks[name] is True for name in gate) else None)
+        checks['structural_tunnel_ok'] = structural
+        egress = checks['egress_ip']
+        if structural is False or egress is not None and egress != context['job']['target']['host']:
             checks['tunnel_ok'] = checks['probe_ok'] = False
+        elif structural is True and egress == context['job']['target']['host']:
+            checks['tunnel_ok'] = checks['probe_ok'] = True
         return checks
 
     def _windows(self, context: dict) -> dict | None:

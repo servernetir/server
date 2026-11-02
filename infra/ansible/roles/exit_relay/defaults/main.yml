@@ -12,7 +12,9 @@ relay_local_socks: 1080
 
 # ACTIVE relay seeded into /etc/servernet/relay.conf. relay_key is a PATH to a
 # private key that MUST already exist INSIDE the container — never key CONTENT.
-relay_host: "155.103.69.128"
+# Supply the current reviewed endpoint from private inventory. Never resurrect
+# a retired provider IP when this role is staged or applied again.
+relay_host: ""
 relay_port: 22
 relay_user: "root"
 relay_key: "/root/de_relay_key"
@@ -21,7 +23,10 @@ relay_key: "/root/de_relay_key"
 # "HOST PORT USER KEYFILE"). The self-heal monitor rotates through these on egress
 # failure. Add more at runtime with the host helper: servernet-relay-set add ...
 relay_pool:
-  - { host: "155.103.69.128", port: 22, user: "root", key: "/root/de_relay_key" }
+  - host: "{{ relay_host }}"
+    port: "{{ relay_port }}"
+    user: "{{ relay_user }}"
+    key: "{{ relay_key }}"
 
 # Health probe the monitor + host helper use to decide a relay is up (loc= line).
 relay_probe_url: "https://www.cloudflare.com/cdn-cgi/trace"

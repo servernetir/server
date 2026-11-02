@@ -80,6 +80,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import sqlite3
 import uuid
@@ -544,6 +545,40 @@ class Engine:
                 and isinstance(r.get('checks'), dict)
                 and all(r['checks'].get(k) is True for k in self.config.required_preflight))
 
+    def _restore_ready_gate(self, s: Mapping[str, Any], resource: Mapping[str, Any],
+                            evidence: Mapping[str, Any], now: int) -> bool:
+        """Mandatory local workflow acceptance; network-only trials never promote.
+
+        The collector supplies a fresh PRE_CUTOVER_READY receipt from the exact
+        committed restore workflow. This is readiness to begin global cutover,
+        not a claim that cutover already happened. Its twenty-minute observed
+        acceptance window cannot be shortened by candidate_seconds/config.
+        """
+        r = evidence.get('restore_ready')
+        epoch = resource.get('restore_epoch'); recorded = resource.get('restore_recorded_at')
+        if (type(epoch) is not int or epoch < 1 or type(recorded) is not int
+                or not _sha256(resource.get('restore_hash'))
+                or not _workflow_id(resource.get('restore_workflow_id'))
+                or not isinstance(resource.get('restore_snapshot_id'), str)
+                or not re.fullmatch(r'[1-9][0-9]{0,19}', resource['restore_snapshot_id'])
+                or not self._scope(r, s, resource, now) or not self._restore_bound(r, resource)):
+            return False
+        start, observed, received, duration = (r.get('acceptance_started_at'), r.get('observed_at'),
+                                               r.get('received_at'), r.get('acceptance_seconds'))
+        return (type(r.get('generation')) is int
+                and r.get('phase') == 'PRE_CUTOVER_READY' and r.get('pre_cutover_ready') is True
+                and r.get('global_cutover_complete') is False and r.get('migration_complete') is False
+                and _exact_identity(r.get('identity'), resource)
+                and _exact_identity(r.get('source_identity'), s['active'])
+                and r.get('workflow_id') == resource['restore_workflow_id']
+                and r.get('snapshot_id') == resource['restore_snapshot_id']
+                and type(start) is int and type(observed) is int and type(received) is int and type(duration) is int
+                and recorded <= start <= observed <= received + 5
+                and 0 <= now - observed <= self.config.receipt_max_age
+                and r.get('acceptance_last_observed_at') == observed
+                and type(r.get('acceptance_last_observed_at')) is int
+                and observed - start >= 1200 and duration == received - start and duration >= 1200)
+
     def _retire_gate(self, s: Mapping[str, Any], evidence: Mapping[str, Any], now: int) -> bool:
         active = s['active']
         h, ttl, refs = s['health'], evidence.get('ttl'), evidence.get('active_refs')
@@ -593,6 +628,12 @@ class Engine:
             rejected = evidence.get('candidate_rejected')
             expired = now - c['created_at'] >= self.config.candidate_deadline
             if ((self._scope(rejected, s, c, now) and rejected.get('rejected') is True) or expired):
+                # A restored disk contains production state even before global
+                # promotion. A cleanup assertion cannot make it a disposable
+                # network trial again. Pending deletion reconciliation above
+                # remains read only and is intentionally still available.
+                if 'restore_epoch' in c:
+                    return self._hold(s, 'CANDIDATE_DATA_UNSAFE', now)
                 cleanup = evidence.get('cleanup')
                 if (self._scope(cleanup, s, c, now) and same_identity(cleanup.get('identity', {}), c)
                         and cleanup.get('no_actual_writes') is True and cleanup.get('never_promoted') is True):
@@ -605,6 +646,7 @@ class Engine:
                     and self._quality(evidence.get('candidate_health'), c, now) == 'ok'
                     and self._scope(evidence.get('candidate_health'), s, c, now)
                     and self._preflight_gate(evidence, now)
+                    and self._restore_ready_gate(s, c, evidence, now)
                     and self._all_critical(s, c, evidence, now) and self._data_gate(s, c, evidence, now)):
                 promotion_times = self._stats(db, s, now)['promotion_times']
                 if len(promotion_times) >= self.config.max_promotions_24h:
@@ -612,7 +654,7 @@ class Engine:
                                       max(1, min(promotion_times) + 86400 - now))
                 return self._intent(s, 'PROMOTE', {'identity': identity(c),
                     'old_identity': identity(s['active']), 'checkpoint': evidence['backup']['checkpoint'],
-                    'gate_hash': digest({k: evidence[k] for k in ('candidate_health', 'critical_receipts', 'backup', 'fencing')})}, now)
+                    'gate_hash': digest({k: evidence[k] for k in ('candidate_health', 'critical_receipts', 'backup', 'fencing', 'restore_ready')})}, now)
             return self._hold(s, 'CANDIDATE_VALIDATION', now)
         h = s['health']
         current_quality = self._quality(evidence.get('health'), s['active'], now)

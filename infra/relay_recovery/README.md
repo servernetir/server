@@ -18,7 +18,8 @@ to true does not complete this installation.
 | File | Responsibility |
 | --- | --- |
 | `core.py` | Pure planner, SQLite journal, budget ledger and fresh effect permits |
-| `worker.py` | Independent bounded scheduler; commits intent before effects |
+| `worker.py` | Observation CLI and isolated scheduler test API; enabled legacy CLI is blocked |
+| `production_driver.py` | Default-off restore/cutover sequencer; concrete production integration is still required |
 | `gateway.py`, `agent-endpoint.php.tpl` | Signed data exchange and durable receipt inbox |
 | `agent.py`, `protocol.py` | Root agent, replay protection, durable outbox and acknowledgement |
 | `iran_adapter.py`, `iran_probes.py` | Fixed, hash-pinned local probes and recipes |
@@ -80,6 +81,9 @@ observations and a healthy independent control path. Probe gaps and an unhealthy
 WHM/Internet path do not count as evidence to buy a replacement. Country priority
 is Germany, Finland, then the United States; compatible x86 models are compared
 using current project prices, IPv4, taxes and expected outgoing traffic.
+An unavailable external egress measurement produces unknown path evidence;
+it does not turn a verified SSH tunnel into an outage. Verified tunnel/target
+failure remains distinct from an unavailable Windows guest or diagnostic read.
 
 At most two managed generations may coexist. The ledger bounds attempts in a
 rolling 24-hour window, promotions and trial spending. The currency is immutable
@@ -90,6 +94,10 @@ Before promotion, all critical consumers, a verified restore checkpoint, complet
 registry and persistent old-writer fence must be fresh. Before retirement, the
 new generation must pass the observation window, known DNS TTL expiry, zero
 remaining old references and a durable backup covering the promotion checkpoint.
+The core also requires the exact committed restore epoch, snapshot and workflow
+to emit fresh `PRE_CUTOVER_READY` acceptance after at least twenty minutes of
+observed restored health. Network-only trials cannot satisfy that gate, even
+when ordinary health, backup and critical-consumer checks appear successful.
 
 An unreachable candidate is cleaned up only after exact ownership, never-promoted
 status and absence of actual writes are proven. Deleting the server is not a
@@ -107,6 +115,33 @@ candidate deletion. Only matching snapshot, boot and quarantine proof completes
 the epoch. Fresh post-restore jobs must carry that epoch and hash; old successful
 observations cannot be relabelled. The final driver must also enforce the
 workflow's 20-minute acceptance window and real consumer/DNS/CRM transaction.
+The `worker` module CLI refuses an enabled policy with
+`PRODUCTION_DRIVER_REQUIRED`; its status reader remains available. The final
+effect-capable scheduler must use the production orchestration entry point.
+An obsolete legacy invocation writes its refusal to `legacy-worker-status.json`
+without replacing the production driver's authoritative `status.json`.
+
+## Production integration still required
+
+The default-off driver sequences the reviewed components; it is not a completed
+live installation. The concrete `production_hooks` module and its private
+dependency registry are intentionally absent. No CLI configuration can substitute
+an all-success hook. Actual readers, exact compare-and-set endpoint changes,
+Cloudflare origin verification and the protected application transaction still
+need to be wired and exercised on the owner's infrastructure.
+
+Before activation, resolve the real Windows-to-candidate acceptance path and
+the existing upstream pull agent's authority during the staged transition. An
+unchanged guest route through the powered-off old source cannot prove restored
+candidate readiness. Source lifecycle configuration and the trusted host pin
+must also be durably enrolled for each newly promoted active generation; the
+original startup seed is never a fallback for a later provider ID.
+
+The current safe checkpoint holds on an expired cutover claim without a proven
+no-write renewal, missing concrete CRM continuation support, or unavailable
+source SSH. A separately reviewed exact provider-fencing/restore alternative is
+required to cover complete source-control loss. These holds prevent unsafe
+writes; they are unresolved unattended-recovery cases, not successful failover.
 
 ## Application bridge
 

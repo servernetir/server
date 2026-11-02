@@ -104,7 +104,7 @@ class ProbeTests(unittest.TestCase):
         self.assertTrue(checks['source_route_tun119'])
         curl = [call[0] for call in self.calls if '/usr/bin/curl' in call[0]]
         self.assertEqual(curl, [[mod.PCT, 'exec', '113', '--', '/usr/bin/curl',
-                                '-q', '--socks5-hostname', '127.0.0.1:10819', '-fsS', '--max-time', '5',
+                                '-q', '--ipv4', '--socks5-hostname', '127.0.0.1:10819', '-fsS', '--max-time', '5',
                                 'https://api.ipify.org']])
         self.assertTrue(all(timeout <= 6 for _, _, timeout in self.calls))
 
@@ -125,6 +125,35 @@ class ProbeTests(unittest.TestCase):
         ctx = self.context(); ctx['job']['target']['host'] = '1.1.1.1'
         self.ssh_args = b'/usr/bin/ssh -N -D127.0.0.1:10819 root@1.1.1.1'
         self.assertTrue(self.probes().run('ct113', ctx)['ok'])
+
+    def test_unavailable_or_invalid_external_egress_is_unknown_with_healthy_local_tunnel(self):
+        command=(mod.PCT,'exec','113','--','/usr/bin/curl','-q','--ipv4','--socks5-hostname',
+                 mod.SOCKS_ADDRESS,'-fsS','--max-time','5',mod.EGRESS_URL)
+        for response in ((22,b''),(0,b'service unavailable'),(0,b'not-an-ip'),(0,b'127.0.0.1')):
+            self.raw[command]=response
+            with self.subTest(response=response):
+                result=self.probes().run('ct113',self.context())
+                self.assertFalse(result['ok'])
+                self.assertTrue(result['checks']['structural_tunnel_ok'])
+                self.assertFalse(result['checks']['egress_measurement_available'])
+                self.assertIsNone(result['checks']['tunnel_ok'])
+                self.assertIsNone(result['checks']['probe_ok'])
+
+    def test_verified_missing_ssh_listener_remains_bad_even_when_external_measurement_fails(self):
+        self.raw[(mod.PCT,'exec','113','--','/usr/bin/ss','-H','-ltnp','( sport = :10819 )')]=(0,b'')
+        self.raw[(mod.PCT,'exec','113','--','/usr/bin/curl','-q','--ipv4','--socks5-hostname',
+                  mod.SOCKS_ADDRESS,'-fsS','--max-time','5',mod.EGRESS_URL)]=(22,b'')
+        result=self.probes().run('ct113',self.context())
+        self.assertFalse(result['checks']['structural_tunnel_ok'])
+        self.assertIs(result['checks']['tunnel_ok'],False)
+        self.assertIs(result['checks']['probe_ok'],False)
+
+    def test_unavailable_container_observations_are_unknown_instead_of_invented_failure(self):
+        self.ct_enabled=False
+        result=self.probes().run('ct113',self.context())
+        self.assertFalse(result['ok'])
+        self.assertIsNone(result['checks']['structural_tunnel_ok'])
+        self.assertIsNone(result['checks']['tunnel_ok'])
 
     def test_any_ct_prerequisite_failure_blocks(self):
         base = (mod.PCT, 'exec', '113', '--')

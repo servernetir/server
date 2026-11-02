@@ -8,6 +8,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import uuid
 
 BASE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BASE))
@@ -205,6 +206,20 @@ class IranAdapterTests(unittest.TestCase):
         self.host_ok, self.tcp_ok = True, False
         self.assertFalse(self.adapter().run('probe', self.context())['ok'])
 
+    def test_legacy_failed_measurement_without_egress_is_unknown_not_bad(self):
+        def patch(action,result):
+            if action=='ct113':
+                result.update(ok=False)
+                result['checks'].update(tunnel_ok=True,probe_ok=False,egress_ip=None)
+        self.patch_result=patch
+        result=self.adapter().run('probe',self.context())
+        self.assertFalse(result['ok'])
+        self.assertIsNone(result['checks']['tunnel_ok'])
+        self.assertIsNone(result['checks']['path_probe_ok'])
+        self.tcp_ok=False
+        result=self.adapter().run('probe',self.context())
+        self.assertIs(result['checks']['path_probe_ok'],False)
+
     def test_future_candidate_target_is_data_not_a_command_or_preinstalled_ip(self):
         target = dict(host='1.1.1.1', port=443, provider_id='99999')
         ctx = self.context(target=target)
@@ -317,8 +332,10 @@ class IranAdapterTests(unittest.TestCase):
     def _core_evidence(self, cfg, engine, now, *, active_ok=True, candidate_probe=None):
         state = engine.snapshot()
         def scoped(resource, **extra):
-            return dict(verified=True, received_at=now, incident_id=state['incident_id'],
-                        generation=resource['generation'], config_hash=resource['config_hash'], **extra)
+            epoch = ({'restore_epoch':resource['restore_epoch'],'restore_hash':resource['restore_hash']}
+                     if 'restore_epoch' in resource else {})
+            return dict(verified=True, received_at=now, observed_at=now, incident_id=state['incident_id'],
+                        generation=resource['generation'], config_hash=resource['config_hash'], **epoch, **extra)
         def health(resource, path_ok):
             return scoped(resource, agent_id='pve-ir', direct_control=True, host_healthy=True,
                           internet_healthy=True, tunnel_ok=path_ok, probe_ok=path_ok)
@@ -355,7 +372,7 @@ class IranAdapterTests(unittest.TestCase):
 
     def test_missing_guest_acceptance_blocks_core_promotion_with_healthy_candidate_path(self):
         self.vm_ok = False
-        cfg, engine, now = self._core(outage_seconds=180, suspect_seconds=60, candidate_seconds=60)
+        cfg, engine, now = self._core(outage_seconds=180, suspect_seconds=60, candidate_seconds=60, candidate_deadline=3600)
         for _ in range(7):
             evidence = self._core_evidence(cfg, engine, now, active_ok=False)
             engine.observe(evidence, now)
@@ -367,9 +384,17 @@ class IranAdapterTests(unittest.TestCase):
         engine.record_effect(intent.id, dict(intent_id=intent.id, kind='CREATE', outcome='created',
             verified=True, received_at=now, create_intent_id=intent.id,
             identity=dict(provider='hetzner', project_id='p', provider_id='9999', generation=2)), now)
+        state=engine.snapshot();candidate=state['candidate'];workflow=str(uuid.uuid4())
+        proof=dict(verified=True,received_at=now,incident_id=state['incident_id'],generation=2,
+            config_hash=candidate['config_hash'],identity=core.identity(candidate),source_identity=core.identity(state['active']),
+            workflow_id=workflow,workflow_committed=True)
+        engine.begin_restore({**proof,'purpose':'candidate_restore','expected_restore_epoch':1},now)
+        engine.record_restore_epoch({**proof,'restore_epoch':1,'restore_hash':'b'*64,'snapshot_id':'12345',
+            'snapshot_available':True,'source_fenced':True,'boot_verified':True,'quarantine_verified':True,
+            'machine_id_sha256':'c'*64,'boot_id_sha256':'d'*64},now)
         ctx = self.context(target=dict(host='1.1.1.1', port=443, provider_id='9999'))
-        ctx['job']['params'] = {'critical_consumers': list(cfg.critical_consumers)}
-        for _ in range(4):
+        ctx['job']['params'] = {'critical_consumers': list(cfg.critical_consumers),'restore_epoch':1,'restore_hash':'b'*64}
+        for _ in range(41):
             probe = self.adapter().run('probe', ctx)
             self.assertTrue(probe['ok'])
             evidence = self._core_evidence(cfg, engine, now, active_ok=False, candidate_probe=probe)
@@ -379,11 +404,23 @@ class IranAdapterTests(unittest.TestCase):
         blocked = engine.plan(engine.snapshot(), evidence, now)
         self.assertEqual(blocked.kind, 'HOLD')
         self.assertEqual(blocked.reason, 'CANDIDATE_VALIDATION')
-        # Positive control: the already verified path/data gates are sufficient;
-        # only a real successful VM109 consumer receipt releases promotion.
+        self.assertFalse(engine._all_critical(engine.snapshot(),engine.snapshot()['candidate'],evidence,now))
+        # The restored VM must then produce a full twenty-minute successful
+        # workflow acceptance window; network-only trial health cannot promote.
         self.vm_ok = True
+        accepted_since=now
+        for _ in range(41):
+            probe=self.adapter().run('probe',ctx)
+            engine.observe(self._core_evidence(cfg,engine,now,active_ok=False,candidate_probe=probe),now)
+            now+=30
         probe = self.adapter().run('probe', ctx)
         evidence = self._core_evidence(cfg, engine, now, active_ok=False, candidate_probe=probe)
+        state=engine.snapshot();candidate=state['candidate']
+        evidence['restore_ready']=dict(verified=True,received_at=now,observed_at=now,incident_id=state['incident_id'],
+            generation=2,config_hash=candidate['config_hash'],identity=core.identity(candidate),source_identity=core.identity(state['active']),
+            restore_epoch=1,restore_hash='b'*64,workflow_id=workflow,snapshot_id='12345',phase='PRE_CUTOVER_READY',
+            pre_cutover_ready=True,global_cutover_complete=False,migration_complete=False,
+            acceptance_started_at=accepted_since,acceptance_last_observed_at=now,acceptance_seconds=now-accepted_since)
         self.assertEqual(engine.plan(engine.snapshot(), evidence, now).kind, 'PROMOTE')
 
     def test_oversized_child_output_is_bounded(self):

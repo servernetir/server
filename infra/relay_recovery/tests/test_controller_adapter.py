@@ -397,7 +397,7 @@ class CollectorTests(unittest.TestCase):
         from infra.relay_recovery import core
         self.recipe('independent_control',relay_independent=True)
         config = core.Config(**{**self.cfg['policy'],'enabled':True})
-        journal = core.Journal(self.root/'controller.sqlite3'); journal.initialize(self.active,NOW)
+        journal = core.Journal(self.root/'controller.sqlite3'); journal.initialize(self.active,NOW-1300)
         engine = core.Engine(config,journal)
         candidate = {**self.active,'provider_id':'456','generation':2,'config_hash':'b'*64,
                      'created_at':NOW-1300,'ipv4':'1.1.1.1'}
@@ -406,6 +406,19 @@ class CollectorTests(unittest.TestCase):
             state.update(candidate=candidate,phase='VALIDATING',incident_id='incident-test',
                          candidate_health={'quality':'ok','healthy_since':NOW-1300})
             journal._write(db,state)
+        scoped={'verified':True,'received_at':NOW-1300,'incident_id':'incident-test','generation':2,
+            'config_hash':candidate['config_hash'],'identity':identity(candidate),'source_identity':identity(self.active),
+            'workflow_id':str(uuid.uuid4()),'workflow_committed':True}
+        engine.begin_restore({**scoped,'purpose':'candidate_restore','expected_restore_epoch':1},NOW-1300)
+        engine.record_restore_epoch({**scoped,'snapshot_id':'123456','restore_epoch':1,'restore_hash':'d'*64,
+            'snapshot_available':True,'source_fenced':True,'boot_verified':True,'quarantine_verified':True,
+            'machine_id_sha256':'e'*64,'boot_id_sha256':'f'*64},NOW-1300)
+        candidate=engine.snapshot()['candidate']
+        for at in range(NOW-1300,NOW,60):
+            health={'verified':True,'received_at':at,'observed_at':at,'incident_id':'incident-test','generation':2,
+                'config_hash':candidate['config_hash'],'agent_id':'ir-agent','direct_control':True,'host_healthy':True,
+                'internet_healthy':True,'tunnel_ok':True,'probe_ok':True,'restore_epoch':1,'restore_hash':'d'*64}
+            engine.observe({'candidate_health':health},at)
         state = journal.snapshot()
         manifest = self.adapter().publish(state,'ir-agent')
         self.healthy_ct_without_guest(manifest,job_index=1)
@@ -418,6 +431,8 @@ class CollectorTests(unittest.TestCase):
         evidence['preflight'] = {'verified':True,'received_at':NOW+2,'ready':True,
             'owner_id':config.owner_id,'service_id':config.service_id,'project_id':config.project_id,
             'checks':{k:True for k in config.required_preflight}}
+        evidence['restore_ready']=self.restore_ready(state,NOW+2,NOW-1300)
+        state=engine.observe(evidence,NOW+2)
         self.assertTrue(engine._data_gate(state,candidate,evidence,NOW+2))
         self.assertFalse(engine._all_critical(state,candidate,evidence,NOW+2))
         intent = engine.plan(state,evidence,NOW+2)
@@ -425,6 +440,15 @@ class CollectorTests(unittest.TestCase):
         # The isolated blocker is VM109 acceptance, not network quality.
         next(r for r in evidence['critical_receipts'] if r['consumer']=='vm109')['ok'] = True
         self.assertEqual(engine.plan(state,evidence,NOW+2).kind,'PROMOTE')
+
+    def restore_ready(self,state,at,start,observed=None):
+        c=state['candidate'];observed=at if observed is None else observed
+        return {'verified':True,'received_at':at,'observed_at':observed,'incident_id':state['incident_id'],
+            'generation':c['generation'],'config_hash':c['config_hash'],'restore_epoch':c['restore_epoch'],
+            'restore_hash':c['restore_hash'],'workflow_id':c['restore_workflow_id'],'snapshot_id':c['restore_snapshot_id'],
+            'identity':identity(c),'source_identity':identity(state['active']),'phase':'PRE_CUTOVER_READY',
+            'pre_cutover_ready':True,'global_cutover_complete':False,'migration_complete':False,
+            'acceptance_started_at':start,'acceptance_last_observed_at':observed,'acceptance_seconds':at-start}
 
     def test_legacy_guest_combined_failure_without_explicit_path_is_unknown(self):
         manifest = self.adapter().publish(self.state,'ir-agent')
@@ -472,7 +496,7 @@ class CollectorTests(unittest.TestCase):
         self.assertFalse(engine._all_critical(self.state,self.state['candidate'],old,NOW+11))
         # Each later observation comes from a newly persisted exact manifest and
         # an authenticated gateway report, not a relabelled stored success.
-        for minute in range(21):
+        for minute in range(22):
             at = NOW+20+minute*60
             manifest = self.adapter(at).publish(self.state,'ir-agent')
             active_params, candidate_params = [job['params'] for job in manifest['jobs']]
@@ -495,7 +519,8 @@ class CollectorTests(unittest.TestCase):
                 'checks':{name:True for name in config.required_preflight}}
             current['backup'] = {**base,'durable':True,'restore_verified':True,'checkpoint':'restored'}
             current['fencing'] = {**base,'old_generation':1,'verified_fenced':True}
-            self.assertEqual(engine.plan(self.state,current,at+2).kind,'PROMOTE' if minute==20 else 'HOLD')
+            current['restore_ready']=self.restore_ready(self.state,at+2,NOW+22,observed=at+1)
+            self.assertEqual(engine.plan(self.state,current,at+2).kind,'PROMOTE' if minute==21 else 'HOLD')
 
     def test_missing_wrong_or_pre_restore_job_scope_is_unknown_not_relay_failure(self):
         from infra.relay_recovery import core

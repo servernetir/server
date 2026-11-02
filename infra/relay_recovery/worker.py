@@ -1,8 +1,10 @@
 """Independent WHM scheduler entry point with a private, fixed local adapter.
 
-This entry point never interprets network reports as shell commands. All effects
-require a committed core intent and the locally installed integration adapter.
-Missing integration/backup/agent evidence is a blocker, not an empty success.
+This legacy CLI is restricted to observation. Effect-capable scheduling must use
+the production driver, which sequences quarantined restore and global cutover.
+The injectable tick API remains available to isolated integration tests. No
+entry point interprets network reports as shell commands. Missing integration,
+backup or agent evidence is a blocker, not an empty success.
 """
 from __future__ import annotations
 
@@ -177,6 +179,19 @@ def main() -> int:
         if args.status:
             print(private_file(state_dir/'status.json').decode())
             return 0
+        if config.get('policy', {}).get('enabled') is True:
+            # Enabling the old scheduler cannot bypass restore orchestration by
+            # calling CREATE/PROMOTE directly. This is intentionally not a
+            # configuration flag: only the separate production driver may run
+            # the effect-capable workflow after its own integration gates.
+            result = {'schema': 'servernet.relay.controller.v1', 'at': int(time.time()),
+                      'mode': 'blocked', 'reason': 'PRODUCTION_DRIVER_REQUIRED',
+                      'effects_enabled': False, 'effect_performed': False}
+            # An obsolete cron entry must not overwrite the production driver's
+            # authoritative status while reporting its own refusal to run.
+            atomic_json(state_dir/'legacy-worker-status.json', result)
+            print(json.dumps(result, separators=(',', ':')))
+            return 1
         lock = os.open(state_dir/'worker.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

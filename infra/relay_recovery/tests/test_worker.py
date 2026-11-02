@@ -290,6 +290,29 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual("ACTIVE_ADOPTION_NOT_COMPLETE", json.loads(result.stdout)["reason"])
         self.assertEqual(0o600, (self.root / "status.json").stat().st_mode & 0o777)
 
+    def test_enabling_legacy_cli_cannot_bypass_production_driver(self):
+        cfg = copy.deepcopy(self.cfg)
+        cfg["policy"]["enabled"] = True
+        path = self.root / "config.json"
+        path.write_text(json.dumps(cfg))
+        path.chmod(0o600)
+        production_status = {"mode": "enabled", "reason": "production-driver-owned"}
+        worker.atomic_json(self.root / "status.json", production_status)
+        result = subprocess.run([sys.executable, "-m", "relay_recovery.worker", "--config", str(path)],
+                                cwd=INFRA, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+        self.assertEqual(1, result.returncode, result.stderr)
+        status = json.loads(result.stdout)
+        self.assertEqual("PRODUCTION_DRIVER_REQUIRED", status["reason"])
+        self.assertFalse(status["effects_enabled"])
+        self.assertFalse(status["effect_performed"])
+        self.assertFalse((self.root / "controller.sqlite3").exists())
+        self.assertEqual(status, json.loads((self.root / "legacy-worker-status.json").read_text()))
+        self.assertEqual(production_status, json.loads((self.root / "status.json").read_text()))
+        read = subprocess.run([sys.executable, "-m", "relay_recovery.worker", "--config", str(path), "--status"],
+                              cwd=INFRA, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5)
+        self.assertEqual(0, read.returncode, read.stderr)
+        self.assertEqual(production_status, json.loads(read.stdout))
+
 
 if __name__ == "__main__":
     unittest.main()

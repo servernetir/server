@@ -13,6 +13,7 @@ import tempfile
 import threading
 import time
 import unittest
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from urllib.parse import urlsplit
@@ -137,7 +138,7 @@ class ProviderEffectsTests(unittest.TestCase):
         self.policy = core.Config(enabled=True, owner_id='1', service_id='711', project_id='p',
             outage_seconds=180, suspect_seconds=60, recover_seconds=60, candidate_seconds=60,
             observe_seconds=120, receipt_max_age=30, observation_max_gap=30, intent_ttl=15,
-            candidate_deadline=300)
+            candidate_deadline=3600)
         self.active = dict(provider='hetzner', project_id='p', provider_id='40', generation=1, config_hash='cfg-1')
         self.config = {'state_dir': str(self.root), 'policy': dataclasses.asdict(self.policy),
             'active': self.active, 'binding': {'owner_id': '1', 'service_id': '711', 'provider_id': '40', 'ipv4': '203.0.113.40'},
@@ -161,8 +162,11 @@ class ProviderEffectsTests(unittest.TestCase):
 
     def scoped(self, resource=None, **kw):
         state = self.state(); resource = resource or state['active']
-        return dict(verified=True, received_at=self.now, incident_id=state['incident_id'],
-                    generation=resource['generation'], config_hash=resource['config_hash'], **kw)
+        value=dict(verified=True, received_at=self.now, incident_id=state['incident_id'],
+                   generation=resource['generation'], config_hash=resource['config_hash'])
+        if 'restore_epoch' in resource:
+            value.update(restore_epoch=resource['restore_epoch'],restore_hash=resource['restore_hash'],observed_at=self.now)
+        value.update(kw);return value
 
     def evidence(self):
         return {'health': self.scoped(agent_id='ir-agent', direct_control=True, host_healthy=True,
@@ -227,11 +231,24 @@ class ProviderEffectsTests(unittest.TestCase):
         evidence.update(critical_receipts=[self.scoped(target, consumer=c, ok=True) for c in self.policy.critical_consumers],
             backup=self.scoped(target, checkpoint='cp-2', durable=True, restore_verified=True),
             fencing=self.scoped(target, old_generation=(state['retiring'] or state['active'])['generation'], verified_fenced=True))
+        if 'restore_epoch' in target:
+            start=target['restore_recorded_at']
+            evidence['restore_ready']=self.scoped(target,identity=core.identity(target),
+                source_identity=core.identity(state['retiring'] or state['active']),
+                workflow_id=target['restore_workflow_id'],snapshot_id=target['restore_snapshot_id'],
+                phase='PRE_CUTOVER_READY',pre_cutover_ready=True,global_cutover_complete=False,migration_complete=False,
+                acceptance_started_at=start,acceptance_last_observed_at=self.now,acceptance_seconds=self.now-start)
         return evidence
 
     def retirement_intent(self):
-        self.candidate()
-        for _ in range(3):
+        candidate=self.candidate()
+        restore=self.scoped(candidate,identity=core.identity(candidate),source_identity=core.identity(self.state()['active']),
+            workflow_id=str(uuid.uuid4()),workflow_committed=True)
+        self.engine.begin_restore({**restore,'purpose':'candidate_restore','expected_restore_epoch':1},self.now)
+        self.engine.record_restore_epoch({**restore,'snapshot_id':'123456','restore_epoch':1,'restore_hash':'d'*64,
+            'snapshot_available':True,'source_fenced':True,'boot_verified':True,'quarantine_verified':True,
+            'machine_id_sha256':'e'*64,'boot_id_sha256':'f'*64},self.now)
+        for _ in range(40):
             self.now += 30
             self.engine.observe(self.promotion_evidence(), self.now)
         evidence = self.promotion_evidence()

@@ -647,6 +647,7 @@ class RestoreWorkflow:
                 result['restore_ready']={**{k:r[k] for k in ('verified','received_at','observed_at','incident_id','generation','config_hash',
                     'restore_epoch','restore_hash')},'identity':core.identity(w['candidate']),'source_identity':core.identity(w['source']),
                     'workflow_id':w['id'],'snapshot_id':w['snapshot_id'],'pre_cutover_ready':True,
+                    'phase':'PRE_CUTOVER_READY','acceptance_last_observed_at':r['observed_at'],
                     'global_cutover_complete':False,'migration_complete':False,'acceptance_started_at':w['healthy_since'],
                     'acceptance_seconds':r['received_at']-w['healthy_since']}
             except Exception:pass

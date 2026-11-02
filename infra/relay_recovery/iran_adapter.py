@@ -52,6 +52,9 @@ The relay path and individual guest acceptance are separate: CT113 proves
 tunnel_ok/path_probe_ok, while an unavailable VM109 keeps its critical consumer
 false. An offline guest must not trigger replacement of a working relay path.
 The accept action still requires every requested critical consumer to pass.
+Path evidence is tri-state. Missing CT receipts or unavailable external egress
+measurements remain None/unknown. Only a verified tunnel failure, wrong public
+egress, or direct candidate TCP failure can be a definite path failure.
 
 Recipe stdout schema servernet.relay.iran-recipe.v1 includes action, read_only,
 ok, checks, target, scope. stage/apply/rollback need staged/applied/rolled_back=True.
@@ -369,24 +372,38 @@ class IranAdapter:
                               for k in ('host_healthy', 'direct_control', 'internet_healthy')))
         for k in ('host_healthy', 'direct_control', 'internet_healthy'):
             checks[k] = bool(host and host['ok'] and host['checks'].get(k) is True)
-        consumers = {'proxmox': host_ok}
-        for name, origin in (('ct113', 'ct113'), ('vm109', 'guest')):
-            result = results[name]
-            c = result['checks'] if result else {}
-            good = bool(result and result['ok'] and c.get('execution_origin') == origin
-                        and c.get('tunnel_ok') is True and c.get('probe_ok') is True
-                        and c.get('egress_ip') == target['host'])
-            if name == 'vm109':
-                good = good and c.get('source_ip') == self.config['vm109_source_ip']
-            consumers[name] = good
+        ct = results['ct113']
+        c = ct['checks'] if ct else {}
+        ct_path = None
+        if c.get('execution_origin') == 'ct113':
+            egress = c.get('egress_ip')
+            try:
+                address = ipaddress.ip_address(egress)
+                valid_egress = (isinstance(egress, str) and address.version == 4
+                                and address.is_global and str(address) == egress)
+            except (TypeError, ValueError):
+                valid_egress = False
+            if c.get('tunnel_ok') is False or valid_egress and egress != target['host']:
+                ct_path = False
+            elif (ct and ct['ok'] and c.get('tunnel_ok') is True and c.get('probe_ok') is True
+                    and valid_egress and egress == target['host']):
+                ct_path = True
+            # A false/absent measurement is not a network outage. This also
+            # downgrades legacy tunnel=True/probe=False/no-egress reports.
+        guest = results['vm109']; g = guest['checks'] if guest else {}
+        consumers = {'proxmox': host_ok, 'ct113': ct_path is True,
+            'vm109': bool(guest and guest['ok'] and g.get('execution_origin') == 'guest'
+                and g.get('tunnel_ok') is True and g.get('probe_ok') is True
+                and g.get('egress_ip') == target['host'] and g.get('source_ip') == self.config['vm109_source_ip'])}
         checks['consumers'] = consumers
         # A guest fault or absent QGA is not evidence of a relay-path outage.
         # Keep it in critical acceptance so it blocks cutover/retirement while
         # the real host/CT path remains independently healthy.
-        checks['tunnel_ok'] = consumers['ct113']
-        checks['path_probe_ok'] = host_ok and checks['tunnel_ok']
+        checks['tunnel_ok'] = ct_path
+        checks['path_probe_ok'] = (False if host_ok and checks['candidate_tcp'] is False
+                                   else ct_path if host_ok else None)
         checks['probe_ok'] = checks['path_probe_ok']
-        acceptance = {**consumers, 'vpn': checks['tunnel_ok']}
+        acceptance = {**consumers, 'vpn': ct_path is True}
         for name in self.config.get('consumer_probes', {}):
             observed = results.get(name)
             c = observed['checks'] if observed else {}
@@ -394,7 +411,7 @@ class IranAdapter:
                                     and c.get('consumer') == name and c.get('probe_ok') is True)
         requested = context['job'].get('params', {}).get('critical_consumers', list(acceptance))
         checks['critical_consumers'] = {name: acceptance.get(name) is True for name in requested}
-        return bool(checks['candidate_tcp'] and checks['probe_ok']), checks
+        return bool(checks['candidate_tcp'] and checks['path_probe_ok'] is True), checks
 
     def run(self, action: str, context: dict) -> dict:
         if action not in ACTIONS:

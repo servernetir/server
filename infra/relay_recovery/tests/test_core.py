@@ -29,7 +29,7 @@ class RecoveryTest(unittest.TestCase):
         self.cfg = core.Config(enabled=True, owner_id='1', service_id='711', project_id='p',
             outage_seconds=180, suspect_seconds=60, recover_seconds=60,
             candidate_seconds=60, observe_seconds=120, receipt_max_age=30,
-            observation_max_gap=30, intent_ttl=15, candidate_deadline=300)
+            observation_max_gap=30, intent_ttl=15, candidate_deadline=3600)
         self.j = core.Journal(self.path)
         self.j.initialize(dict(provider='hetzner', project_id='p', provider_id='old',
                                generation=1, config_hash='cfg-1'), self.now)
@@ -41,8 +41,12 @@ class RecoveryTest(unittest.TestCase):
     def receipt(self, resource=None, **kw):
         s = self.state()
         r = resource or s['active']
-        return dict(verified=True, received_at=self.now, incident_id=s['incident_id'],
-                    generation=r['generation'], config_hash=r['config_hash'], **kw)
+        value = dict(verified=True, received_at=self.now, incident_id=s['incident_id'],
+                     generation=r['generation'], config_hash=r['config_hash'])
+        if 'restore_epoch' in r:
+            value.update(restore_epoch=r['restore_epoch'],restore_hash=r['restore_hash'],observed_at=self.now)
+        value.update(kw)
+        return value
 
     def health(self, ok=False, resource=None, **kw):
         return self.receipt(resource, agent_id='ir-agent', direct_control=True,
@@ -106,16 +110,31 @@ class RecoveryTest(unittest.TestCase):
     def promotion_evidence(self):
         s = self.state()
         c = s['candidate'] or s['active']
-        return self.evidence(candidate_health=self.health(True, c),
+        evidence = self.evidence(candidate_health=self.health(True, c),
             critical_receipts=[self.receipt(c, consumer=name, ok=True) for name in self.cfg.critical_consumers],
             backup=self.receipt(c, checkpoint='cp-2', durable=True, restore_verified=True),
             fencing=self.receipt(c, old_generation=(s['retiring'] or s['active'])['generation'], verified_fenced=True))
+        if 'restore_epoch' in c:
+            start=c['restore_recorded_at']
+            evidence['restore_ready']=self.receipt(c,phase='PRE_CUTOVER_READY',pre_cutover_ready=True,
+                identity=core.identity(c),source_identity=core.identity(s['retiring'] or s['active']),
+                workflow_id=c['restore_workflow_id'],snapshot_id=c['restore_snapshot_id'],
+                global_cutover_complete=False,migration_complete=False,acceptance_started_at=start,
+                acceptance_last_observed_at=self.now,acceptance_seconds=self.now-start)
+        return evidence
+
+    def restore_candidate(self,**changes):
+        proof=self.restore_receipt(**changes);self.begin_restore_for(proof)
+        self.e.record_restore_epoch(proof,self.now)
+        return proof
+
+    def accept_restore(self):
+        for _ in range(40):
+            self.now+=30;self.observe(self.promotion_evidence())
 
     def promote(self):
         self.candidate()
-        for _ in range(3):
-            self.now += 30
-            self.observe(self.promotion_evidence())
+        self.restore_candidate();self.accept_restore()
         ev = self.promotion_evidence()
         intent = self.plan(ev)
         self.assertEqual(intent.kind, 'PROMOTE')
@@ -356,6 +375,34 @@ class RecoveryTest(unittest.TestCase):
         self.assertEqual(self.plan().kind, 'RECONCILE_DELETE_CANDIDATE')
         self.assertIsNotNone(self.state()['candidate'])
 
+    def test_restored_candidate_never_deletes_on_expiry_or_forged_fresh_cleanup(self):
+        self.candidate();self.restore_candidate()
+        for expire in (False,True):
+            if expire:
+                self.now+=self.cfg.candidate_deadline;self.observe(self.evidence())
+            c=self.state()['candidate']
+            evidence=self.evidence(cleanup=self.receipt(c,identity=core.identity(c),
+                no_actual_writes=True,never_promoted=True))
+            if not expire:evidence['candidate_rejected']=self.receipt(c,rejected=True)
+            with self.subTest(expired=expire):
+                intent=self.plan(evidence)
+                self.assertEqual(('HOLD','CANDIDATE_DATA_UNSAFE'),(intent.kind,intent.reason))
+        self.assertIsNotNone(self.state()['candidate'])
+        self.assertEqual(self.state()['candidate']['restore_epoch'],1)
+
+    def test_restore_cleanup_guard_preserves_pending_readonly_deletion_reconciliation(self):
+        self.candidate();c=self.state()['candidate']
+        evidence=self.evidence(candidate_rejected=self.receipt(c,rejected=True),
+            cleanup=self.receipt(c,identity=core.identity(c),no_actual_writes=True,never_promoted=True))
+        intent=self.plan(evidence);self.e.commit_intent(intent,evidence,self.now)
+        # Model a retained historical pending record; public restore APIs refuse
+        # to cross this pending action, so no new write is being authorized here.
+        with self.j.transaction()as db:
+            state=self.j._read(db);state['candidate']['restore_epoch']=1;self.j._write(db,state)
+        reconcile=self.plan(evidence)
+        self.assertEqual('RECONCILE_DELETE_CANDIDATE',reconcile.kind)
+        self.assertTrue(reconcile.payload['read_only'])
+
     def test_candidate_cannot_promote_on_only_tcp_success(self):
         self.candidate()
         for _ in range(3):
@@ -368,6 +415,72 @@ class RecoveryTest(unittest.TestCase):
         self.assertEqual(self.state()['active']['provider_id'], 'new')
         self.assertEqual(self.state()['retiring']['provider_id'], 'old')
         self.assertEqual(self.plan().reason, 'RETIRE_GATES_INCOMPLETE')
+
+    def test_network_healthy_trial_with_all_legacy_receipts_cannot_promote_before_restore(self):
+        self.candidate()
+        for _ in range(3):
+            self.now+=30;self.observe(self.promotion_evidence())
+        evidence=self.promotion_evidence()
+        self.assertTrue(all(r['ok']for r in evidence['critical_receipts']))
+        self.assertTrue(evidence['backup']['restore_verified'])
+        self.assertEqual('HOLD',self.plan(evidence).kind)
+        # A report alone cannot introduce the committed restore metadata.
+        c=self.state()['candidate']
+        evidence['restore_ready']=self.receipt(c,restore_epoch=1,restore_hash='d'*64,
+            workflow_id=str(uuid.uuid4()),snapshot_id='123',phase='PRE_CUTOVER_READY',pre_cutover_ready=True)
+        self.assertEqual('HOLD',self.plan(evidence).kind)
+
+    def test_restore_acceptance_cannot_be_shortened_by_candidate_policy(self):
+        self.candidate();self.restore_candidate()
+        for _ in range(39):
+            self.now+=30;self.observe(self.promotion_evidence())
+        self.now+=29;self.observe(self.promotion_evidence())
+        self.assertEqual(1199,self.promotion_evidence()['restore_ready']['acceptance_seconds'])
+        self.assertEqual('HOLD',self.plan(self.promotion_evidence()).kind)
+        self.now+=1;self.observe(self.promotion_evidence())
+        self.assertEqual('PROMOTE',self.plan(self.promotion_evidence()).kind)
+
+    def test_restore_ready_requires_fresh_exact_workflow_epoch_snapshot_and_source(self):
+        self.candidate();self.restore_candidate();self.accept_restore()
+        good=self.promotion_evidence();self.assertEqual('PROMOTE',self.plan(good).kind)
+        variants=[{'verified':False},{'received_at':self.now-31},{'phase':'POST_RESTORE_VALIDATION'},
+            {'pre_cutover_ready':False},{'global_cutover_complete':True},{'migration_complete':True},
+            {'workflow_id':str(uuid.uuid4())},{'snapshot_id':'other'},{'restore_epoch':True},
+            {'restore_hash':'e'*64},{'generation':True},{'acceptance_seconds':True},
+            {'acceptance_seconds':1199},{'acceptance_started_at':self.state()['candidate']['restore_recorded_at']-1},
+            {'acceptance_last_observed_at':self.now-1},
+            {'source_identity':{**good['restore_ready']['source_identity'],'provider_id':'foreign'}},
+            {'identity':{**good['restore_ready']['identity'],'provider_id':'foreign'}}]
+        for change in variants:
+            evidence=copy.deepcopy(good);evidence['restore_ready'].update(change)
+            with self.subTest(change=change):self.assertEqual('HOLD',self.plan(evidence).kind)
+        evidence=copy.deepcopy(good);evidence.pop('restore_ready')
+        self.assertEqual('HOLD',self.plan(evidence).kind)
+
+    def test_restore_ready_requires_twenty_minutes_of_actual_observation(self):
+        self.candidate();self.restore_candidate();self.accept_restore()
+        evidence=self.promotion_evidence();r=evidence['restore_ready']
+        r.update(observed_at=self.now-1,acceptance_last_observed_at=self.now-1)
+        self.assertEqual(1200,r['acceptance_seconds'])
+        self.assertEqual('HOLD',self.plan(evidence).kind)
+
+    def test_restore_ready_old_observation_cannot_be_rewrapped_with_fresh_receive_time(self):
+        self.candidate();self.restore_candidate();self.accept_restore()
+        self.now+=31;self.observe(self.promotion_evidence())
+        evidence=self.promotion_evidence();r=evidence['restore_ready']
+        r.update(observed_at=self.now-31,acceptance_last_observed_at=self.now-31)
+        self.assertEqual(self.now,r['received_at'])
+        self.assertGreaterEqual(r['observed_at']-r['acceptance_started_at'],1200)
+        self.assertEqual('HOLD',self.plan(evidence).kind)
+
+    def test_restore_ready_is_bound_into_promotion_intent_and_rechecked_at_claim(self):
+        self.candidate();self.restore_candidate();self.accept_restore()
+        evidence=self.promotion_evidence();intent=self.plan(evidence)
+        self.assertEqual(intent.payload['gate_hash'],core.digest({k:evidence[k]for k in
+            ('candidate_health','critical_receipts','backup','fencing','restore_ready')}))
+        evidence['restore_ready']['phase']='POST_RESTORE_VALIDATION'
+        with self.assertRaises(core.StaleIntent):self.e.commit_intent(intent,evidence,self.now)
+        self.assertEqual('VALIDATING',self.state()['phase'])
 
     def test_retire_requires_every_scope_fresh_receipt_ttl_and_zero_refs(self):
         good = self.retire_ready()
@@ -401,9 +514,7 @@ class RecoveryTest(unittest.TestCase):
 
     def test_fresh_failed_candidate_blocks_promotion_even_without_observe(self):
         self.candidate()
-        for _ in range(3):
-            self.now += 30
-            self.observe(self.promotion_evidence())
+        self.restore_candidate();self.accept_restore()
         ev = self.promotion_evidence()
         intent = self.plan(ev)
         self.assertEqual(intent.kind, 'PROMOTE')
@@ -595,6 +706,9 @@ class RecoveryTest(unittest.TestCase):
         if critical:
             for receipt in ev['critical_receipts']:
                 receipt.update(epoch)
+        else:
+            for receipt in ev['critical_receipts']:
+                for field in ('restore_epoch','restore_hash','observed_at'):receipt.pop(field,None)
         return ev
 
     def test_local_installation_claim_is_one_committed_create_without_false_outage(self):
@@ -745,11 +859,11 @@ class RecoveryTest(unittest.TestCase):
 
     def test_restore_epoch_invalidates_full_candidate_timer_and_old_critical_evidence(self):
         self.candidate()
-        for _ in range(3):
-            self.now += 30; self.observe(self.promotion_evidence())
+        self.restore_candidate();self.accept_restore()
         self.assertEqual(self.plan(self.promotion_evidence()).kind, 'PROMOTE')
         before, ledger = copy.deepcopy(self.state()), self.ledger_rows()
-        proof = self.restore_receipt()
+        old_evidence=self.promotion_evidence()
+        proof = self.restore_receipt(restore_epoch=2,restore_hash='e'*64)
         self.begin_restore_for(proof)
         self.e.record_restore_epoch(proof, self.now)
         state = self.state()
@@ -758,11 +872,14 @@ class RecoveryTest(unittest.TestCase):
         self.assertEqual(state['candidate']['created_at'], before['candidate']['created_at'])
         self.assertEqual(core.identity(state['candidate']), core.identity(before['candidate']))
         self.assertEqual(self.ledger_rows(), ledger)
-        self.observe(self.promotion_evidence())
+        self.observe(old_evidence)
         self.assertEqual(self.state()['candidate_health']['quality'], 'unknown')
         for _ in range(3):
             self.now += 30; self.observe(self.epoch_evidence(critical=False))
         self.assertEqual(self.plan(self.epoch_evidence(critical=False)).kind, 'HOLD')
+        self.assertEqual(self.plan(self.epoch_evidence()).kind, 'HOLD')
+        for _ in range(37):
+            self.now+=30;self.observe(self.epoch_evidence())
         self.assertEqual(self.plan(self.epoch_evidence()).kind, 'PROMOTE')
 
     def test_restore_epoch_rejects_cross_source_candidate_uncommitted_and_stale_receipts(self):
@@ -813,9 +930,8 @@ class RecoveryTest(unittest.TestCase):
 
     def test_restore_epoch_cannot_cross_an_unfinished_core_action(self):
         self.candidate()
-        for _ in range(3):
-            self.now += 30; self.observe(self.promotion_evidence())
-        proof = self.restore_receipt()
+        self.restore_candidate();self.accept_restore()
+        proof = self.restore_receipt(restore_epoch=2,restore_hash='e'*64)
         promote = self.plan(self.promotion_evidence())
         self.e.commit_intent(promote, self.promotion_evidence(), self.now)
         with self.assertRaises(core.RecoveryError):
@@ -824,17 +940,16 @@ class RecoveryTest(unittest.TestCase):
 
     def test_begin_restore_blocks_old_promotion_cleanup_and_expiry_before_external_rebuild(self):
         self.candidate()
-        for _ in range(3):
-            self.now += 30; self.observe(self.promotion_evidence())
+        self.restore_candidate();self.accept_restore()
         planned = self.plan(self.promotion_evidence())
         self.assertEqual(planned.kind, 'PROMOTE')
         before, ledger = copy.deepcopy(self.state()), self.ledger_rows()
-        begin = self.begin_restore_for(self.restore_receipt())
+        begin = self.begin_restore_for(self.restore_receipt(restore_epoch=2,restore_hash='e'*64))
         self.assertEqual(self.state()['candidate_health'], {})
         self.assertEqual(self.plan(self.promotion_evidence()).reason, 'RESTORE_IN_PROGRESS')
         with self.assertRaises(core.StaleIntent):
             self.e.commit_intent(planned, self.promotion_evidence(), self.now)
-        self.now += 300
+        self.now += self.cfg.candidate_deadline
         ev = self.promotion_evidence()
         ev.update(candidate_rejected=self.receipt(self.state()['candidate'], rejected=True),
             cleanup=self.receipt(self.state()['candidate'], identity=core.identity(self.state()['candidate']),

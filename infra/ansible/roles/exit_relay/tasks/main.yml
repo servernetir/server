@@ -8,6 +8,18 @@
 #   # if you had migrated off de-ssh-socks and want it back:
 #   pct exec {{ relay_ctid }} -- systemctl enable --now de-ssh-socks
 
+- name: Require a reviewed relay endpoint before staging or applying
+  ansible.builtin.assert:
+    that:
+      - relay_host is string
+      - relay_host | trim | length > 0
+      - relay_pool is sequence
+      - relay_pool is not string
+      - relay_pool | length > 0
+    fail_msg: "Set relay_host and the current relay pool in private inventory before using exit_relay."
+    quiet: true
+  no_log: true
+
 - name: Ensure host staging dir
   ansible.builtin.file:
     path: "{{ relay_stage_dir }}"
