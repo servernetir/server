@@ -2,7 +2,8 @@
 
 Date: 2026-11-02. Base branch: `develop`.
 Base SHA: `d757b2ebc3a7b64f57cafdaa5b61151669fbb994`.
-Review branch: `feat/servernet-voice-android`; the review PR records the final source SHA.
+Review: [draft PR 213](https://github.com/servernetir/server/pull/213), branch
+`feat/servernet-voice-android`; the review PR records the final source SHA.
 
 ## Scope and product behavior
 
@@ -94,6 +95,12 @@ workflow builds test reports, fixture screenshots and a review APK without
 production credentials or a deployment job; its remote result must be checked
 separately from the local result above.
 
+The first GitHub run stopped before tests because the fresh runner did not expose
+`sdkmanager` on PATH. The workflow now explicitly installs the Android command-line
+tools and the pinned SDK/build-tool packages with `android-actions/setup-android`.
+The final remote run and its exact tested SHA are recorded in PR 213; the failed
+setup run must not be counted as a successful validation.
+
 ## Files, licensing, publication and rollback
 
 The change adds `mobile/voice-android/`, its Android CI workflow, this report and
@@ -107,8 +114,8 @@ fonts include their SIL OFL notice. Existing repository modules' licenses are
 unchanged. Commercial closed-source distribution requires a separately licensed
 SDK arrangement; see the module's `licenses/THIRD-PARTY.md`.
 
-State: built and tested as a review candidate, with source prepared for a draft
-PR to `develop`. No production deployment, store publication, customer rollout,
+State: built and tested as a review candidate, with source in draft PR 213 to
+`develop`. No production deployment, store publication, customer rollout,
 or live call is claimed. Repository code is delivered through the review branch;
 the review APK and native UI previews are separate deliverables.
 
