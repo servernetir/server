@@ -477,6 +477,7 @@ $site = function (): void {
         // و یک حلقهٔ ساده در مرورگر می‌تواند سهمیهٔ WHM را بسوزاند. کشِ سه
         // دقیقه‌ای بیشترش را می‌گیرد، ولی کش per-service است نه per-customer.
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats')->middleware('throttle:60,1');
+        Route::get('/services/{service}/domain-connection', Account\HostingDomainConnectionController::class)->name('services.domain-connection')->middleware('throttle:20,1');
 
         // سرورساز — مشتری خودش سرورِ مجازی می‌سازد: مکان → پلن → سیستم‌عامل/
         // نرم‌افزارِ آماده → دوره → نامِ سرور → پیش‌فاکتور → پرداخت → تحویلِ خودکار.

@@ -1,0 +1,60 @@
+name: Hosting domain connection checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Dns/HostingDomainConnection.php'
+      - 'website/app/Http/Controllers/Account/HostingDomainConnectionController.php'
+      - 'website/app/Models/Product.php'
+      - 'website/app/Http/Controllers/Account/StoreController.php'
+      - 'website/resources/views/account/partials/*hosting*'
+      - 'website/lang/*/hosting-connection.php'
+      - 'website/public/assets/*/hosting-connection.*'
+      - 'website/tests/*/*Hosting*'
+      - 'website/tests/js/hosting-connection.test.cjs'
+      - '.github/workflows/hosting-domain-connection.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Dns/HostingDomainConnection.php'
+      - 'website/app/Models/Product.php'
+      - '.github/workflows/hosting-domain-connection.yml'
+permissions:
+  contents: read
+concurrency:
+  group: hosting-connection-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  hosting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Hosting behavior and account regressions (fake resources only)
+        working-directory: website
+        run: |
+          set -euo pipefail
+          php tests/standalone/hosting-domain-connection.php
+          vendor/bin/phpunit tests/Feature/HostingDomainConnectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/ExistingHostingAdoptionTest.php
+          if [ -f tests/Feature/HostingPanelServerSelectionTest.php ]; then vendor/bin/phpunit tests/Feature/HostingPanelServerSelectionTest.php; fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Browser behavior contracts
+        working-directory: website
+        run: node --test tests/js/hosting-connection.test.cjs

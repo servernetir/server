@@ -303,6 +303,29 @@ class Product extends Model
     }
 
     /**
+     * Panel required by the sold product. Catalog Windows rows historically have
+     * category=shared/reseller, so their stable group must take precedence.
+     * Storage and non-hosting products keep their separate selection contracts.
+     */
+    public function hostingServerType(): ?string
+    {
+        if ($this->isStorageCatalogProduct()) {
+            return null;
+        }
+
+        if (in_array($this->group, ['windows', 'reseller-windows'], true)) {
+            return 'plesk';
+        }
+
+        return match ($this->category) {
+            'plesk' => 'plesk',
+            'directadmin' => 'directadmin',
+            'shared', 'reseller' => 'whm',
+            default => null,
+        };
+    }
+
+    /**
      * مکان‌هایی که این پکیج واقعاً قابلِ خرید است: اشتراکِ محدودیتِ خودِ پکیج
      * (اگر ست شده) با مکان‌هایی که سرورِ آمادهٔ فعال دارند.
      *
@@ -326,7 +349,17 @@ class Product extends Model
             return preg_match('/^[A-Z]{2}$/D', $country) && in_array($country, $allowed, true) ? [$country] : [];
         }
 
-        $available = Server::availableCountries();
+        $panelType = $this->hostingServerType();
+        $available = $panelType === null ? Server::availableCountries() : Server::query()
+            ->where('type', $panelType)
+            ->where('status', 'active')
+            ->whereNotNull('country')
+            ->get()
+            ->filter(fn (Server $server) => $server->canAcceptNew())
+            ->map(fn (Server $server) => strtoupper((string) $server->country))
+            ->unique()
+            ->values()
+            ->all();
         $allowed = array_filter((array) ($this->locations ?? []));
 
         if ($allowed === []) {
@@ -344,7 +377,19 @@ class Product extends Model
             return null;
         }
 
-        return $this->isStorageCatalogProduct() ? $this->server : Server::pickForCountry($country);
+        if ($this->isStorageCatalogProduct()) {
+            return $this->server;
+        }
+
+        $panelType = $this->hostingServerType();
+
+        return $panelType === null ? Server::pickForCountry($country) : Server::query()
+            ->where('type', $panelType)
+            ->where('status', 'active')
+            ->whereRaw('UPPER(country) = ?', [strtoupper($country)])
+            ->orderBy('active_accounts')
+            ->get()
+            ->first(fn (Server $server) => $server->canAcceptNew());
     }
 
     /**
