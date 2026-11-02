@@ -1,0 +1,24 @@
+{
+  "release": "araz-infra-context-20261102",
+  "base_commit": "1d08a1d32821d047c34aae3c86ef369aa51e207c",
+  "files": [
+    {
+      "source": "website/app/Services/Hermes/HermesInfrastructureContext.php",
+      "target": "app/Services/Hermes/HermesInfrastructureContext.php",
+      "before": null,
+      "after": "4bbf52545b65468896141620591e0f59df31a1bf2d6e7a915a25e3da5b0d0f04"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/infra-context/HermesOperations.php",
+      "target": "app/Services/Hermes/HermesOperations.php",
+      "before": "0597b2a649cdcfc1075b0eefd0ce6340ef20ad71dc278c224345a4a23b6719b2",
+      "after": "bc14141a79bee40c0c3e7867b0049e681b820f6d9b4da8a1b020bc9bbeb8f0f1"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/infra-context/HermesConversationMemory.php",
+      "target": "app/Services/Hermes/HermesConversationMemory.php",
+      "before": "2638d036aca53989ffe9aaa34798909c4ce8dbc2341274700e8f1f794a9d5a35",
+      "after": "585e61979ad6e7e8672bc2242a03948e29ddebff271edaab1ec46c404a96055f"
+    }
+  ]
+}
