@@ -6,6 +6,7 @@
   <h1>{{ __('domain-suppliers.title') }}</h1>
   <p>{{ __('domain-suppliers.intro') }}</p>
   <p>{{ __('domain-suppliers.approval_note') }}</p>
+  <p>{{ __('domain-suppliers.authorization_mode') }}: {{ config('domain_suppliers.authorization_mode', 'pilot') }}</p>
   <p><strong>{{ __('domain-suppliers.feature') }}: {{ $enabled ? __('domain-suppliers.on') : __('domain-suppliers.off') }}</strong></p>
   @if($errors->any())<div role="alert"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
 </div>
@@ -23,7 +24,15 @@
           <td dir="ltr">{{ $operation->fqdn }}<br>{{ $operation->domain?->customer?->code }}</td>
           <td>{{ $operation->account?->label }}<br><span dir="ltr">{{ $operation->invoice?->number }}</span></td>
           <td>{{ __('domain-suppliers.operation_names.'.$operation->operation) }} · {{ $operation->period_months }} {{ __('domain-suppliers.months') }}</td>
-          <td dir="ltr">{{ number_format((int) data_get($operation->quote_snapshot, 'amount_minor', data_get($operation->quote_snapshot, 'purchase_minor', 0))) }} {{ data_get($operation->quote_snapshot, 'currency', '') }} {{ __('domain-suppliers.minor_units') }}</td>
+          <td dir="ltr">{{ number_format((int) data_get($operation->quote_snapshot, 'amount_minor', data_get($operation->quote_snapshot, 'purchase_minor', 0))) }} {{ data_get($operation->quote_snapshot, 'currency', '') }} {{ __('domain-suppliers.minor_units') }}
+            @if(is_int(data_get($operation->quote_snapshot, 'effective_margin_units')))
+              <p>{{ __('domain-suppliers.common_profit') }}: {{ number_format(data_get($operation->quote_snapshot, 'effective_margin_units') / 10000, 4) }}%</p>
+              <p>{{ __('domain-suppliers.cost_floor_retail') }}:
+                {{ number_format((int) data_get($operation->quote_snapshot, 'wholesale_toman')) }} /
+                {{ number_format((int) data_get($operation->quote_snapshot, 'floor_toman')) }} /
+                {{ number_format((int) data_get($operation->quote_snapshot, 'sell_toman')) }} IRT</p>
+            @endif
+          </td>
           <td>
             {{ __('domain-suppliers.operation_status.'.$operation->status) }}
             @if($operation->status === 'prepared' && $canApprove && in_array($operation->operation, ['create', 'renew', 'transfer', 'restore'], true))

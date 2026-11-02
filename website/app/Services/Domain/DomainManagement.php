@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-/** Account-bound management. No procurement, transfer, contact creation or DNS provisioning. */
+/** Account-bound management with DNS provisioning only after confirmed default delegation. */
 class DomainManagement
 {
     public function __construct(private OpenProviderClient $legacy, private DomainProviderFactory $providers) {}
@@ -112,7 +112,7 @@ class DomainManagement
             $previous = DomainSupplierOperation::where('domain_id', $domain->id)->where('supplier_account_id', $account->id)
                 ->where('operation', $operation)->orderByDesc('id')->first();
             $provider = $this->providers->forAccount($account);
-            if ($previous && hash_equals((string) $previous->request_hash, $hash)) {
+            if ($previous && $previous->status !== 'failed' && hash_equals((string) $previous->request_hash, $hash)) {
                 if ($previous->status !== 'succeeded') return $this->failed('management_manual_review');
                 // The old operation remains a historical success. Verify the
                 // current state before treating a repeated settings POST as done.

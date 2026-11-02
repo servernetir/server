@@ -549,7 +549,7 @@ class DomainSupplierLifecycle
             $profile = $domain->customer?->defaultProfile();
             $handle = $profile && Schema::hasTable('domain_supplier_contacts') ? DomainSupplierContact::where('customer_profile_id', $profile->id)
                 ->where('supplier_account_id', $account->id)->where('role', 'registrant')->where('status', 'active')
-                ->whereNotNull('verified_at')->first() : null;
+                ->whereNotNull('verified_at')->where('verified_at', '<=', now())->first() : null;
             if (! $handle && $profile && $account->legacy_config) {
                 $handle = RegistryHandle::where('customer_profile_id', $profile->id)
                     ->where('supplier_account_id', $account->id)->where('role', 'registrant')->where('status', 'active')->first();

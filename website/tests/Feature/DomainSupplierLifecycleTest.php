@@ -500,7 +500,7 @@ class DomainSupplierLifecycleTest extends TestCase
             'provider_terms_hash' => 'fixture-provider-terms'];
         $invoice->forceFill(['supplier_quote' => $quote])->save();
         $d->forceFill(['supplier_quote' => $quote])->save();
-        $this->pricing->shouldReceive('revalidateDomain')->andReturn($quote + ['floor_toman' => 100000]);
+        $this->pricing->shouldReceive('revalidateDomain')->andReturn($quote + ['wholesale_toman' => 100000, 'floor_toman' => 100000]);
         $this->provider->shouldReceive('probe')->andReturn(['healthy' => true, 'balance_minor' => 900, 'currency' => 'EUR']);
         $op = $this->authorize($d->fresh());
         $this->assertSame(900, data_get($op->request_context, 'provider_price_ceiling_minor'));
@@ -592,6 +592,8 @@ class DomainSupplierLifecycleTest extends TestCase
         $service = \App\Models\Service::create(['customer_id' => $d->customer_id, 'name' => 'Synthetic hosting',
             'currency_code' => 'IRT', 'price' => 100000, 'cycle' => 'monthly', 'status' => 'pending']);
         $i->update(['kind' => 'service', 'service_id' => $service->id]);
+        \App\Models\InvoiceItem::create(['invoice_id' => $i->id, 'title' => 'تمدیدِ دامنهٔ '.$d->domain,
+            'quantity' => 1, 'unit_price' => 100000, 'line_total' => 100000, 'tax_rate_bp' => 0, 'tax_amount' => 0]);
         $this->authorize($d);
         $this->provider->shouldReceive('submit')->once()->andReturn(['status' => 'queued']);
         $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);

@@ -142,8 +142,9 @@ class DomainSupplierCheckoutTest extends TestCase
         \Illuminate\Support\Facades\Mail::fake();
         \Illuminate\Support\Facades\Artisan::call('products:seed-builder');
         $product = \App\Models\Product::where('slug', 'site-builder-2')->firstOrFail();
+        $product->update(['base_price_eur' => '1']);
         \App\Models\Server::create(['name' => 'Synthetic WHM', 'type' => 'whm',
-            'hostname' => 'whm.example.test', 'port' => 2087, 'country' => 'DE', 'is_active' => true,
+            'hostname' => 'whm.example.test', 'port' => 2087, 'country' => 'DE', 'status' => 'active',
             'username' => 'synthetic', 'api_token' => 'synthetic-only', 'capacity' => 100]);
         \Illuminate\Support\Facades\Storage::disk('local')->put(
             \App\Services\Provisioning\BuilderSitePublisher::path('SB-TEST01'), '<!doctype html><html><body>Test</body></html>');

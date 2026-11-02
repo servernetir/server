@@ -3,7 +3,10 @@
 return [
     'title' => 'Domain suppliers',
     'intro' => 'Configure registrar accounts independently. A provider name alone does not prove account access to a domain.',
-    'approval_note' => 'Read-only checks do not buy or renew domains. Every real financial operation requires separate approval for that exact operation.',
+    'approval_note' => 'Pilot operations require exact owner approval. After live acceptance, bounded production sales also require authenticated customer intent and independently verified settlement.',
+    'authorization_mode' => 'Sales authorization mode',
+    'common_profit' => 'Shared effective markup on landed cost',
+    'cost_floor_retail' => 'Landed cost / safety floor / retail before sales VAT',
     'feature' => 'Multi-provider sales',
     'on' => 'Enabled',
     'off' => 'Disabled',

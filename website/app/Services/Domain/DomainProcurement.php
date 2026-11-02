@@ -355,7 +355,8 @@ class DomainProcurement
             'fx_snapshot' => $fx, 'comparison_numerator' => $numerator, 'comparison_denominator' => $fx['denominator'],
             'wholesale_toman' => $wholesale, 'floor_toman' => $floor, 'sell_toman' => $sell,
             'provider_terms_hash' => $q['provider_terms_hash'] ?? $q['terms_hash'] ?? null,
-            'margin_units' => $margin, 'terms_hash' => hash('sha256', json_encode($terms, JSON_THROW_ON_ERROR))]);
+            'margin_units' => $margin, 'effective_margin_units' => max($margin, $floorMargin),
+            'floor_margin_units' => $floorMargin, 'rounding_step_toman' => $step, 'terms_hash' => hash('sha256', json_encode($terms, JSON_THROW_ON_ERROR))]);
     }
 
     private function eligible(DomainSupplierAccount $account, string $tld, string $operation, int $months,

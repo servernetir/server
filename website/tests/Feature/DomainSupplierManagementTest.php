@@ -243,4 +243,13 @@ class DomainSupplierManagementTest extends TestCase
         $this->assertDatabaseCount('domain_supplier_operations', 0);
     }
 
+    public function test_customer_view_reads_multilabel_management_capabilities_literally(): void
+    {
+        [$domain, $account] = $this->fixture();
+        $account->update(['capabilities' => ['tlds' => ['co.uk' => ['management' => ['dnssec', 'contacts']]]]]);
+        $domain->update(['domain' => 'synthetic.co.uk', 'sld' => 'synthetic', 'tld' => 'co.uk', 'status' => 'pending']);
+        $this->actingAs($domain->customer, 'customer')->get('/account/domains/'.$domain->id)
+            ->assertOk()->assertViewHas('managementCaps', ['dnssec', 'contacts']);
+    }
+
 }

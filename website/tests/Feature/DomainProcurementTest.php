@@ -488,4 +488,47 @@ class DomainProcurementTest extends TestCase
         $service = new DomainProcurement($factory, $fx);
         $this->assertReason('no_eligible_supplier', fn () => $service->quote('example.com', 'create', 12));
     }
+    public static function unrelatedSuffixes(): array
+    {
+        return [['net'], ['org'], ['co.uk'], ['com.au']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('unrelatedSuffixes')]
+    public function test_winner_and_shared_profit_apply_to_each_literal_suffix(string $suffix): void
+    {
+        $caps = ['tlds' => [$suffix => ['operations' => ['create', 'renew'], 'period_months' => [12, 24],
+            'privacy' => ['none'], 'idn' => false, 'premium' => false, 'management' => ['nameservers', 'lock', 'contacts']]]];
+        $op = $this->account('openprovider', ['capabilities' => $caps]);
+        $joker = $this->account('joker', ['capabilities' => $caps]);
+        $this->remote[$op->id] = ['amount_minor' => 1200];
+        $this->remote[$joker->id] = ['amount_minor' => 1000];
+        $first = $this->procurement->quote('synthetic-example.'.$suffix, 'create', 12);
+        $this->assertSame($joker->id, $first->supplier_account_id);
+        $this->assertSame($suffix, $first->tld);
+        $this->remote[$op->id] = ['amount_minor' => 1000];
+        $this->remote[$joker->id] = ['amount_minor' => 1200];
+        $second = $this->procurement->quote('synthetic-example.'.$suffix, 'create', 12);
+        $this->assertSame($op->id, $second->supplier_account_id);
+        $this->assertSame($first->sell_toman, $second->sell_toman);
+        $this->assertSame(10000, $this->procurement->snapshot($second)['effective_margin_units']);
+        $this->assertSame($first->fx_snapshot['numerator'], $second->fx_snapshot['numerator']);
+        Http::assertNothingSent();
+    }
+
+    public function test_all_accounts_in_one_comparison_share_one_currency_fx_read(): void
+    {
+        $first = $this->account(); $this->account('joker');
+        $provider = \Mockery::mock(DomainProvider::class);
+        $provider->shouldReceive('quote')->twice()->andReturn(['available' => true, 'amount_minor' => 1000,
+            'currency' => 'EUR', 'period_months' => 12, 'premium' => false, 'tax_included' => true, 'components' => []]);
+        $provider->shouldReceive('probe')->twice()->andReturn(['healthy' => true, 'balance_minor' => 100000, 'currency' => 'EUR']);
+        $factory = \Mockery::mock(DomainProviderFactory::class);
+        $factory->shouldReceive('forAccount')->twice()->andReturn($provider);
+        $fx = \Mockery::mock(ExchangeRate::class);
+        $fx->shouldReceive('current')->once()->with('EUR')->andReturn(['rate_toman' => 200000,
+            'at' => now()->toIso8601String(), 'source_at' => now()->toIso8601String(), 'source' => 'synthetic']);
+        $quote = (new DomainProcurement($factory, $fx))->quote('synthetic-example.com', 'create', 12);
+        $this->assertSame($first->id, $quote->supplier_account_id);
+    }
+
 }

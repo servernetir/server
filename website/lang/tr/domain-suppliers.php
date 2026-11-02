@@ -3,7 +3,10 @@
 return [
     'title' => 'Alan adı tedarikçileri',
     'intro' => 'Kayıt kuruluşu hesaplarını ayrı yapılandırın. Kuruluş adı, hesabımızın alan adına erişimini kanıtlamaz.',
-    'approval_note' => 'Salt okunur kontroller alan adı satın almaz veya yenilemez. Her gerçek mali işlem için o işleme özel onay gerekir.',
+    'approval_note' => 'Pilot işlemleri için sahibin işleme özel onayı gerekir. Canlı kabul sonrası sınırlı üretim satışları, müşterinin doğrulanmış talebi ve kesin ödeme kanıtını da gerektirir.',
+    'authorization_mode' => 'Satış yetkilendirme modu',
+    'common_profit' => 'Toplam maliyet üzerindeki ortak etkin kâr oranı',
+    'cost_floor_retail' => 'Toplam maliyet / güvenlik tabanı / satış KDV öncesi fiyat',
     'feature' => 'Çok tedarikçili satış',
     'on' => 'Etkin',
     'off' => 'Kapalı',
