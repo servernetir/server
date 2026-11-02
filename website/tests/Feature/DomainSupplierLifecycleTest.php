@@ -24,6 +24,7 @@ class DomainSupplierLifecycleTest extends TestCase
     {
         parent::setUp();
         config(['domain_suppliers.enabled' => true]);
+        $this->app->instance(\App\Services\Notify\Notifier::class, Mockery::mock(\App\Services\Notify\Notifier::class)->shouldReceive('fire')->byDefault()->getMock());
         $this->owner = User::factory()->create(['role' => 'admin']);
         config(['domain_suppliers.approver_user_ids' => [$this->owner->id]]);
         $this->provider = Mockery::mock(DomainProvider::class);
@@ -606,6 +607,88 @@ class DomainSupplierLifecycleTest extends TestCase
         $this->authorize($d);
         $this->provider->shouldReceive('submit')->once()->andReturn(['status' => 'queued']);
         $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), 'renew', 12)['status']);
+    }
+
+    public static function completionOperations(): array
+    {
+        return [['create', 'domain_registered'], ['renew', 'domain_renewed'], ['transfer', 'domain_transfer_completed']];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('completionOperations')]
+    public function test_confirmed_completion_notifies_once_after_reconciliation(string $kind, string $event): void
+    {
+        [$d, $account, $invoice] = $this->renewal();
+        $snapshot = array_replace($invoice->supplier_quote, ['operation' => $kind]);
+        $invoice->update(['supplier_quote' => $snapshot]);
+        $d->update(['supplier_quote' => $snapshot, 'invoice_id' => $invoice->id]);
+        if ($kind !== 'renew') {
+            $d->update(['supplier_object_id' => null, 'order_type' => $kind === 'transfer' ? 'transfer' : 'register',
+                'status' => $kind === 'transfer' ? Domain::STATUS_TRANSFERRING : 'pending',
+                'transfer_status' => $kind === 'transfer' ? 'pending' : null,
+                'name_servers' => ['ns1.example.test', 'ns2.example.test']]);
+            $profile = \App\Models\CustomerProfile::create(['customer_id' => $d->customer_id, 'is_default' => true,
+                'type' => 'individual', 'first_name' => 'Fixture', 'last_name' => 'Owner', 'email' => 'fixture@example.test']);
+            \App\Models\DomainSupplierContact::create(['customer_profile_id' => $profile->id, 'supplier_account_id' => $account->id,
+                'role' => 'registrant', 'handle' => 'fixture-handle', 'status' => 'active', 'verified_at' => now()]);
+            $zone = Mockery::mock(\App\Services\Dns\DomainZoneProvisioner::class);
+            $zone->shouldReceive('ensure')->once()->andReturn(['ok' => true]);
+            $this->app->instance(\App\Services\Dns\DomainZoneProvisioner::class, $zone);
+        }
+        $notifier = Mockery::mock(\App\Services\Notify\Notifier::class);
+        $notifier->shouldReceive('fire')->once()->withArgs(function ($key, $customer, $vars) use ($event, $d) {
+            $this->assertSame('active', $d->fresh()->status);
+            return $key === $event && $customer->id === $d->customer_id && $vars['domain'] === $d->domain;
+        });
+        $this->app->instance(\App\Services\Notify\Notifier::class, $notifier);
+        $extra = $kind === 'transfer' ? ['auth_code' => 'synthetic-epp'] : [];
+        $this->lifecycle->execute($d->fresh(), $kind, 12, $extra);
+        $op = DomainSupplierOperation::where('domain_id', $d->id)->firstOrFail();
+        $this->lifecycle->approve($op, $this->owner->id);
+        $this->provider->shouldReceive('submit')->once()->andReturn(['status' => 'queued', 'process_id' => 'fixture-done']);
+        $this->assertSame('queued', $this->lifecycle->execute($d->fresh(), $kind, 12)['status']);
+        $this->provider->shouldReceive('reconcile')->once()->andReturn(['status' => 'succeeded']);
+        $this->provider->shouldReceive('find')->once()->andReturn(['found' => true, 'object_id' => $d->domain,
+            'expires_at' => now()->addYears(2)->toIso8601String()]);
+        $this->assertTrue($this->lifecycle->reconcile($op->fresh())['ok']);
+        $this->assertTrue($this->lifecycle->reconcile($op->fresh())['ok']);
+        $this->assertTrue($this->lifecycle->execute($d->fresh(), $kind, 12)['ok']);
+    }
+
+    public function test_confirmed_transfer_failure_leaves_polling_queue_including_old_terminal_rows(): void
+    {
+        [$d] = $this->renewal();
+        $op = $this->authorize($d);
+        $d->update(['order_type' => 'transfer', 'transfer_status' => 'submitted', 'transfer_checked_at' => now()->subDay()]);
+        $op->update(['operation' => 'transfer', 'status' => 'unknown', 'sent_at' => now()->subDay()]);
+        $this->provider->shouldReceive('reconcile')->once()->andReturn(['status' => 'failed']);
+        $this->assertSame(1, Domain::awaitingTransferResult()->count());
+        $this->assertSame('failed', $this->lifecycle->reconcile($op->fresh())['status']);
+        $this->assertSame('rejected', $d->fresh()->transfer_status);
+        $this->assertSame(0, Domain::awaitingTransferResult()->count());
+        $this->assertSame('manual', $d->fresh()->provision_status);
+        // Repair an already-terminal historical row without another supplier read.
+        $d->update(['transfer_status' => 'submitted', 'transfer_checked_at' => now()->subDay()]);
+        $this->app->instance(DomainSupplierLifecycle::class, $this->lifecycle);
+        $this->assertSame('rejected', app(\App\Services\Domain\DomainTransfer::class)->poll($d->fresh())['state']);
+        $this->assertSame(0, Domain::awaitingTransferResult()->count());
+    }
+
+    public function test_production_dispatch_counts_authorized_work_after_skipping_a_full_page(): void
+    {
+        [$d, $account] = $this->productionSale();
+        // A complete older page consists of transfers needing individual approval.
+        foreach (range(1, 105) as $n) {
+            DomainSupplierOperation::create(['domain_id' => $d->id, 'supplier_account_id' => $account->id,
+                'operation' => 'transfer', 'fqdn' => $d->domain, 'period_months' => 12,
+                'idempotency_key' => 'skip-'.$n, 'status' => 'prepared']);
+        }
+        [$later] = $this->renewal(true, 'later.example');
+        $approved = $this->authorize($later);
+        $this->provider->shouldReceive('submit')->once()->withArgs(fn ($kind, $name) => $name === 'later.example')->andReturn(['status' => 'queued']);
+        $this->app->instance(DomainSupplierLifecycle::class, $this->lifecycle);
+        $this->artisan('domains:supplier-dispatch-approved', ['--limit' => 1])->assertExitCode(0);
+        $this->assertSame('queued', $approved->fresh()->status);
+        $this->assertSame(105, DomainSupplierOperation::where('operation', 'transfer')->where('status', 'prepared')->count());
     }
 
 }

@@ -325,6 +325,9 @@ class DomainTransfer
         if (DomainSupplierLifecycle::handles($domain)) {
             $op = \App\Models\DomainSupplierOperation::where('domain_id', $domain->id)->where('operation', 'transfer')->latest('id')->first();
             $result = $op ? app(DomainSupplierLifecycle::class)->reconcile($op) : ['ok' => false, 'status' => 'manual_review', 'manual' => true, 'message' => __('domain-suppliers.review_required')];
+            $changes = ['transfer_checked_at' => now()];
+            if (($result['status'] ?? '') === 'failed') $changes['transfer_status'] = 'rejected';
+            $domain->forceFill($changes)->save();
             return array_merge($result, ['ok' => in_array($result['status'] ?? '', ['succeeded', 'queued', 'failed'], true),
                 'state' => match ($result['status'] ?? '') { 'succeeded' => 'completed', 'failed' => 'rejected', default => 'submitted' }]);
         }

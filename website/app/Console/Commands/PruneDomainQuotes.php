@@ -41,15 +41,23 @@ class PruneDomainQuotes extends Command
         $total = 0;
 
         do {
-            $deleted = DomainQuote::query()
+            $query = DomainQuote::query()
                 ->where(fn ($w) => $w
                     ->where('honour_until', '<', $cutoff)
                     ->orWhereNull('honour_until'))
                 ->where('created_at', '<', $cutoff)
                 ->whereNotExists(fn ($q) => $q->from('domains')
-                    ->whereColumn('domains.quote_id', 'domain_quotes.id'))
-                ->limit(500)
-                ->delete();
+                    ->whereColumn('domains.quote_id', 'domain_quotes.id'));
+            // Renewal/refreshed quotes need not be domains.quote_id. Keep every
+            // durable supplier reference, independently of status or feature flags.
+            foreach ([['domains', 'supplier_quote'], ['invoices', 'supplier_quote'],
+                ['domain_supplier_operations', 'quote_snapshot']] as [$table, $column]) {
+                if (Schema::hasColumn($table, $column)) {
+                    $query->whereNotExists(fn ($q) => $q->from($table)
+                        ->whereColumn($table.'.'.$column.'->quote_id', 'domain_quotes.id'));
+                }
+            }
+            $deleted = $query->limit(500)->delete();
 
             $total += $deleted;
         } while ($deleted === 500);

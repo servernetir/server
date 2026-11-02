@@ -466,10 +466,10 @@ class DomainSupplierLifecycle
             }
         }
         $safeCode = preg_match('/^[a-zA-Z0-9_.-]{1,80}$/', (string) ($result['error_code'] ?? '')) ? $result['error_code'] : ($status === 'failed' ? 'supplier_rejected' : null);
-        DB::transaction(function () use ($op, $domain, $status, $safeCode, $result) {
+        $completedNow = DB::transaction(function () use ($op, $domain, $status, $safeCode, $result) {
             $fresh = DomainSupplierOperation::whereKey($op->id)->lockForUpdate()->firstOrFail();
             if ($fresh->status === 'succeeded') {
-                return;
+                return false;
             }
             $context = (array) $fresh->request_context;
             // EPP is needed only until first submission. Retain a hash, never a redisplayable code.
@@ -508,6 +508,7 @@ class DomainSupplierLifecycle
                 }
                 if ($op->operation === 'transfer') {
                     $changes['transfer_status'] = 'completed';
+                    $changes['transfer_checked_at'] = now();
                 }
                 $domain->forceFill($changes)->save();
                 $domain->putMeta(['exp_stage' => null, 'supplier_operation_id' => $op->id,
@@ -516,21 +517,54 @@ class DomainSupplierLifecycle
                 if ($op->operation === 'transfer' && in_array($status, ['queued', 'unknown'], true)) {
                     $domain->forceFill(['transfer_status' => 'submitted', 'transfer_submitted_at' => $op->sent_at,
                         'transfer_checked_at' => now()])->save();
+                } elseif ($op->operation === 'transfer' && $status === 'failed') {
+                    // A definite rejection must leave the pending polling queue.
+                    // Financial recovery stays in the existing manual-review path.
+                    $domain->forceFill(['transfer_status' => 'rejected', 'transfer_checked_at' => now()])->save();
                 }
                 $domain->forceFill(['provision_status' => 'manual', 'provision_error' => $this->message($safeCode ?: 'operation_'.$status)])->save();
                 $domain->putMeta(['supplier_operation_id' => $op->id]);
             }
+            return $status === 'succeeded';
         });
         if ($status === 'succeeded') {
             if (in_array($op->operation, ['create', 'transfer'], true)) {
                 app(\App\Services\Dns\DomainZoneProvisioner::class)->ensure($domain->fresh());
             }
             app(BusinessLedger::class)->recordDomainWholesale($domain, $op->operation === 'create' ? 'register' : $op->operation, intdiv($op->period_months, 12), Invoice::find($op->invoice_id));
+            if ($completedNow) $this->notifyCompletion($domain->fresh(), $op->operation);
         } elseif ($status === 'failed' || $status === 'unknown') {
             ErrorTracker::noteOnce('domain', 'Domain supplier operation requires administrator reconciliation.', 3600,
                 ['operation_id' => $op->id, 'state' => $status, 'reason' => $safeCode]);
         }
         return $this->answer($status, $safeCode);
+    }
+
+    /** Only the first confirmed state transition emits the existing completion event. */
+    private function notifyCompletion(Domain $domain, string $operation): void
+    {
+        $event = match ($operation) {
+            'create' => 'domain_registered', 'renew', 'restore' => 'domain_renewed',
+            'transfer' => 'domain_transfer_completed', default => null,
+        };
+        if ($event === null) return;
+        try {
+            if (\App\Services\Notify\BaleManagerPolicy::enabled() && in_array($event, ['domain_registered', 'domain_renewed'], true)) {
+                \App\Services\Notify\BaleManagerPolicy::clearDomainFundingAttempt($domain->domain,
+                    trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'));
+            }
+            $until = sdate($domain->expires_at) ?: '—';
+            $text = match ($event) {
+                'domain_registered' => 'دامنهٔ «'.$domain->domain.'» با موفقیت ثبت شد'.($domain->expires_at ? ' و تا '.$until.' اعتبار دارد.' : '.'),
+                'domain_renewed' => 'دامنهٔ «'.$domain->domain.'» تمدید شد و تا '.$until.' اعتبار دارد.',
+                default => 'انتقالِ دامنهٔ «'.$domain->domain.'» با موفقیت انجام شد و از این پس در پنلِ شما مدیریت می‌شود.',
+            };
+            app(\App\Services\Notify\Notifier::class)->fire($event, $domain->customer,
+                ['domain' => $domain->domain, 'until' => $until], $text, [], url('/admin/domains'), '🌐');
+        } catch (\Throwable) {
+            ErrorTracker::noteOnce('notify', 'Domain supplier completion notification failed.', 3600,
+                ['domain_id' => $domain->id, 'event' => $event]);
+        }
     }
 
     private function context(Domain $domain, DomainSupplierAccount $account, string $operation, int $months, array $extra, array $quote): array

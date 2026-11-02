@@ -633,4 +633,40 @@ class DomainProviderAdaptersTest extends TestCase
         $this->expectExceptionMessage('unsupported_currency');
         ProviderMoney::minor('10', 'ZZZ');
     }
+    public function test_openprovider_search_reuses_reseller_vat_and_balance_but_fresh_probe_reads_again(): void
+    {
+        $reads = 0;
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'fixture-token']]),
+            '*/domains/check' => Http::response(['code' => 0, 'data' => ['results' => [['status' => 'free']]]]),
+            '*/domains/prices*' => Http::response(['code' => 0, 'data' => ['price' => ['reseller' => ['price' => '8.21', 'currency' => 'USD']]]]),
+            '*/resellers*' => function () use (&$reads) {
+                $reads++;
+                return Http::response(['code' => 0, 'data' => ['vatperc' => '10', 'balance' => 100, 'currency' => 'USD']]);
+            },
+        ]);
+        $a = $this->account('openprovider');
+        $adapter = new OpenProviderAdapter($a, new OpenProviderClient('https://api.sandbox.openprovider.nl/v1beta', 'fixture-user', 'fixture-pass', true));
+        $adapter->shareSearchReads(true);
+        $adapter->quote('example.com', 'create', 12);
+        $this->assertTrue($adapter->probe()['healthy']);
+        $adapter->quote('example.net', 'create', 12);
+        $this->assertSame(1, $reads);
+        $adapter->shareSearchReads(false);
+        $adapter->probe();
+        $this->assertSame(2, $reads);
+    }
+
+    public function test_openprovider_restore_cannot_collect_a_restore_only_bundle_price(): void
+    {
+        $adapter = new OpenProviderAdapter($this->account('openprovider'), new OpenProviderClient());
+        try {
+            $adapter->quote('example.com', 'restore', 12);
+            $this->fail('Restore plus renewal is not a supported supplier product.');
+        } catch (DomainProviderException $e) {
+            $this->assertSame('unsupported_operation', $e->reason);
+        }
+        Http::assertNothingSent();
+    }
+
 }

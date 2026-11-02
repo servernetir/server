@@ -274,38 +274,45 @@ class DomainSearch
         // بی‌اندازه را رد می‌کند.
         $extensions = array_slice($extensions, 0, self::MAX_TLDS);
 
-        if (app(DomainProcurement::class)->enabled()) {
-            $rows = [];
-            foreach ($extensions as $extension) {
-                $fqdn = $name.'.'.$extension;
-                if (! self::sells($extension)) {
-                    $rows[] = $this->withState($this->unknownRow($fqdn, $extension, 'tld_not_sold'));
-                    continue;
-                }
-                try {
-                    $quote = app(DomainProcurement::class)->quote($fqdn, 'create', 12, [], null, $customerId);
-                    $rows[] = $this->withState([
-                        'domain' => $fqdn, 'tld' => $extension,
-                        'status' => $quote->is_premium ? 'premium' : 'available',
-                        'available' => true, 'is_premium' => (bool) $quote->is_premium,
-                        'orderable' => true, 'price_toman' => (int) $quote->sell_toman,
-                        // Renewal and transfer need their own operation-specific quote.
-                        'renew_toman' => null, 'transfer_toman' => null,
-                        'reason' => null, 'quote_id' => $quote->id,
-                    ]);
-                } catch (\App\Services\Domain\Pricing\DomainProcurementException $e) {
-                    $row = $this->unknownRow($fqdn, $extension, 'lookup_failed');
-                    if ($e->reason === 'domain_unavailable') {
-                        $row['status'] = 'unavailable';
-                        $row['reason'] = 'registered';
-                    } else {
-                        $this->lookupOk = false;
-                        $this->lookupReason = 'lookup_failed';
+        $procurement = app(DomainProcurement::class);
+        if ($procurement->enabled()) {
+            // The panel may request the full default list. Keep each response
+            // within the existing progressive batch size and preserve its first,
+            // explicitly requested suffix. Each quote still uses the exact name.
+            $extensions = array_slice($extensions, 0, self::BATCH);
+            return $procurement->withSearchReads(function () use ($extensions, $name, $customerId, $procurement) {
+                $rows = [];
+                foreach ($extensions as $extension) {
+                    $fqdn = $name.'.'.$extension;
+                    if (! self::sells($extension)) {
+                        $rows[] = $this->withState($this->unknownRow($fqdn, $extension, 'tld_not_sold'));
+                        continue;
                     }
-                    $rows[] = $this->withState($row);
+                    try {
+                        $quote = $procurement->quote($fqdn, 'create', 12, [], null, $customerId);
+                        $rows[] = $this->withState([
+                            'domain' => $fqdn, 'tld' => $extension,
+                            'status' => $quote->is_premium ? 'premium' : 'available',
+                            'available' => true, 'is_premium' => (bool) $quote->is_premium,
+                            'orderable' => true, 'price_toman' => (int) $quote->sell_toman,
+                            // Renewal and transfer need their own operation-specific quote.
+                            'renew_toman' => null, 'transfer_toman' => null,
+                            'reason' => null, 'quote_id' => $quote->id,
+                        ]);
+                    } catch (\App\Services\Domain\Pricing\DomainProcurementException $e) {
+                        $row = $this->unknownRow($fqdn, $extension, 'lookup_failed');
+                        if ($e->reason === 'domain_unavailable') {
+                            $row['status'] = 'unavailable';
+                            $row['reason'] = 'registered';
+                        } else {
+                            $this->lookupOk = false;
+                            $this->lookupReason = 'lookup_failed';
+                        }
+                        $rows[] = $this->withState($row);
+                    }
                 }
-            }
-            return $rows;
+                return $rows;
+            });
         }
 
         /*

@@ -17,6 +17,16 @@ use Illuminate\Support\Facades\Log;
  */
 class OpenProviderClient
 {
+    private bool $shareResellerRead = false;
+    private ?array $resellerRead = null;
+
+    /** Search-local read reuse; financial preflight never enables this scope. */
+    public function shareResellerRead(bool $enabled): void
+    {
+        $this->shareResellerRead = $enabled;
+        $this->resellerRead = null;
+    }
+
     private const TOKEN_KEY = 'openprovider.token';
 
     /**
@@ -491,9 +501,12 @@ class OpenProviderClient
      */
     public function resellerInfo(): array
     {
+        if ($this->shareResellerRead && $this->resellerRead !== null) return $this->resellerRead;
         $res = $this->call('GET', '/resellers');
 
-        return $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+        $result = $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+        if ($this->shareResellerRead) $this->resellerRead = $result;
+        return $result;
     }
 
     /**

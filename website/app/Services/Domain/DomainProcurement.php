@@ -25,7 +25,24 @@ class DomainProcurement
 {
     /** One FX evidence row per currency throughout a comparison. */
     private array $quoteRates = [];
+    private bool $searchReads = false;
+    private array $searchProviders = [];
+    private array $searchBalances = [];
     public function __construct(private DomainProviderFactory $providers, private ExchangeRate $fx) {}
+
+    /** Reuse only account reads during a bounded interactive search. Never during dispatch. */
+    public function withSearchReads(callable $search): array
+    {
+        $this->searchReads = true;
+        try { return $search(); }
+        finally {
+            foreach ($this->searchProviders as $provider) {
+                if ($provider instanceof \App\Services\Domain\Providers\OpenProviderAdapter) $provider->shareSearchReads(false);
+            }
+            $this->searchReads = false;
+            $this->searchProviders = $this->searchBalances = [];
+        }
+    }
 
     public function enabled(): bool
     {
@@ -42,6 +59,9 @@ class DomainProcurement
         $this->quoteRates = [];
         [$fqdn, $tld] = $this->request($fqdn, $operation, $months);
         $options = $this->options($options);
+        // A restore may not extend an expired registration. Until restore plus
+        // renewal has its own budget and durable journal, do not sell that bundle.
+        if ($operation === 'restore') throw new DomainProcurementException('unsupported_operation');
         if ($operation === 'transfer') {
             throw new DomainProcurementException('explicit_transfer_destination_required');
         }
@@ -271,7 +291,15 @@ class DomainProcurement
         int $months, array $options, ?Domain $bound, bool $incomingTransfer = false): array
     {
         $this->eligible($account, $tld, $operation, $months, $options, $fqdn, $bound);
-        $provider = $this->providers->forAccount($account);
+        if ($this->searchReads) {
+            if (! isset($this->searchProviders[$account->id])) {
+                $this->searchProviders[$account->id] = $this->providers->forAccount($account);
+                if ($this->searchProviders[$account->id] instanceof \App\Services\Domain\Providers\OpenProviderAdapter) {
+                    $this->searchProviders[$account->id]->shareSearchReads(true);
+                }
+            }
+            $provider = $this->searchProviders[$account->id];
+        } else $provider = $this->providers->forAccount($account);
         $transferResult = null;
         if ($incomingTransfer) {
             $found = $provider->find($fqdn);
@@ -329,7 +357,14 @@ class DomainProcurement
             throw new DomainProcurementException('supplier_quote_invalid');
         }
         $fx = $this->rate($q['currency']);
-        $balance = $provider->probe();
+        if ($this->searchReads) {
+            if (! array_key_exists($account->id, $this->searchBalances)) {
+                try { $this->searchBalances[$account->id] = $provider->probe(); }
+                catch (\Throwable $e) { $this->searchBalances[$account->id] = $e; }
+            }
+            $balance = $this->searchBalances[$account->id];
+            if ($balance instanceof \Throwable) throw $balance;
+        } else $balance = $provider->probe();
         if (($balance['healthy'] ?? false) !== true || ! is_int($balance['balance_minor'] ?? null)
             || ($balance['currency'] ?? null) !== $q['currency'] || $balance['balance_minor'] < $debit) {
             throw new DomainProcurementException('supplier_balance_insufficient');

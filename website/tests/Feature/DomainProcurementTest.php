@@ -24,6 +24,7 @@ class DomainProcurementTest extends TestCase
     private DomainProcurement $procurement;
     private array $remote = [];
     private array $calls = [];
+    private array $probes = [];
 
     protected function setUp(): void
     {
@@ -56,10 +57,12 @@ class DomainProcurementTest extends TestCase
                     'terms_hash' => 'same-terms',
                 ], $this->remote[$id] ?? []);
             });
-            $provider->shouldReceive('probe')->andReturnUsing(fn () => [
+            $provider->shouldReceive('probe')->andReturnUsing(function () use ($id) {
+                $this->probes[] = $id;
+                return [
                 'healthy' => true, 'balance_minor' => $this->remote[$id]['balance_minor'] ?? 100000,
                 'currency' => $this->remote[$id]['currency'] ?? 'EUR',
-            ]);
+            ]; });
             $provider->shouldReceive('find')->andReturnUsing(fn () => [
                 'found' => $this->remote[$id]['found'] ?? true, 'object_id' => 'real-object-'.$id,
                 'expires_at' => $this->remote[$id]['expires_at'] ?? now()->addYear()->startOfDay()->toIso8601String(),
@@ -529,6 +532,29 @@ class DomainProcurementTest extends TestCase
             'at' => now()->toIso8601String(), 'source_at' => now()->toIso8601String(), 'source' => 'synthetic']);
         $quote = (new DomainProcurement($factory, $fx))->quote('synthetic-example.com', 'create', 12);
         $this->assertSame($first->id, $quote->supplier_account_id);
+    }
+
+    public function test_interactive_search_bounds_suffixes_shares_account_reads_and_clears_them_afterward(): void
+    {
+        $a = $this->account(); $caps = $a->capabilities['tlds']['com']; $tlds = [];
+        foreach (array_merge(['co.uk'], \App\Services\Domain\DomainSearch::firstBatch()) as $tld) $tlds[$tld] = $caps;
+        $a->update(['capabilities' => ['tlds' => $tlds]]);
+        $rows = app(\App\Services\Domain\DomainSearch::class)->search('example.co.uk');
+        $this->assertCount(\App\Services\Domain\DomainSearch::BATCH, $rows);
+        $this->assertSame('example.co.uk', $rows[0]['domain']);
+        $this->assertCount(\App\Services\Domain\DomainSearch::BATCH, $this->calls);
+        $this->assertSame([$a->id], $this->probes);
+        $this->procurement->quote('example.com', 'create', 12);
+        $this->assertSame([$a->id, $a->id], $this->probes);
+    }
+
+    public function test_supplier_restore_bundle_is_rejected_before_quote_or_payment(): void
+    {
+        $a = $this->account();
+        $this->assertReason('unsupported_operation', fn () => $this->procurement->quoteForDomain($this->domain($a), 'restore', 12));
+        $this->assertSame([], $this->calls);
+        $this->assertDatabaseCount('domain_quotes', 0);
+        $this->assertDatabaseCount('invoices', 0);
     }
 
 }

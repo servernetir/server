@@ -11,6 +11,8 @@ class OpenProviderAdapter implements DomainProvider
 {
     public function __construct(private DomainSupplierAccount $account, private OpenProviderClient $client) {}
 
+    public function shareSearchReads(bool $enabled): void { $this->client->shareResellerRead($enabled); }
+
     public function probe(): array
     {
         $balance = $this->client->balance();
@@ -110,7 +112,7 @@ class OpenProviderAdapter implements DomainProvider
     {
         $fqdn = ProviderMoney::fqdn($fqdn);
         ProviderMoney::months($months);
-        if (! in_array($operation, ['create', 'renew', 'transfer', 'restore'], true)
+        if (! in_array($operation, ['create', 'renew', 'transfer'], true)
             || (in_array($operation, ['transfer', 'restore'], true) && $months !== 12)) {
             throw new DomainProviderException('unsupported_operation');
         }

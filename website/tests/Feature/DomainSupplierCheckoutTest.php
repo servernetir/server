@@ -439,4 +439,27 @@ class DomainSupplierCheckoutTest extends TestCase
         $this->assertStringNotContainsString('synthetic-key', $response->getContent());
         Http::assertNothingSent();
     }
+    public function test_pruning_keeps_invoice_domain_snapshot_and_journal_quotes_but_removes_unreferenced_rows(): void
+    {
+        $c = $this->customer(); $quotes = [];
+        foreach (range(1, 5) as $n) {
+            $q = $this->quote();
+            $q->forceFill(['honour_until' => now()->subDays(4), 'created_at' => now()->subDays(5)])->save();
+            $quotes[] = $q;
+        }
+        $domain = Domain::create(['customer_id' => $c->id, 'domain' => 'checkout-synthetic.com',
+            'sld' => 'checkout-synthetic', 'tld' => 'com', 'status' => 'active', 'quote_id' => $quotes[0]->id,
+            'supplier_account_id' => $this->account->id, 'supplier_quote' => ['quote_id' => $quotes[1]->id]]);
+        Invoice::create(['customer_id' => $c->id, 'domain_id' => $domain->id, 'kind' => 'domain',
+            'currency_code' => 'IRT', 'status' => 'unpaid', 'subtotal' => 100000, 'total' => 100000,
+            'supplier_account_id' => $this->account->id, 'supplier_quote' => ['quote_id' => $quotes[2]->id]]);
+        \App\Models\DomainSupplierOperation::create(['supplier_account_id' => $this->account->id,
+            'fqdn' => $domain->domain, 'operation' => 'renew', 'period_months' => 12,
+            'idempotency_key' => 'prune-fixture', 'status' => 'succeeded', 'quote_snapshot' => ['quote_id' => $quotes[3]->id]]);
+        config(['domain_suppliers.enabled' => false]);
+        $this->artisan('domains:prune-quotes')->assertExitCode(0);
+        $this->assertEqualsCanonicalizing(array_map(fn ($q) => $q->id, array_slice($quotes, 0, 4)), DomainQuote::pluck('id')->all());
+        $this->assertDatabaseMissing('domain_quotes', ['id' => $quotes[4]->id]);
+    }
+
 }

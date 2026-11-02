@@ -8,7 +8,7 @@ use App\Services\Domain\DomainSupplierLifecycle;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
-/** Financial worker: each exact request still requires its recorded owner approval. */
+/** Financial worker: exact pilot approval or bounded production authorization. */
 class DomainSupplierDispatchApproved extends Command
 {
     protected $signature = 'domains:supplier-dispatch-approved {--limit=10} {--id= : Exact approved operation ID}';
@@ -27,10 +27,15 @@ class DomainSupplierDispatchApproved extends Command
                 }
             })
             ->when($this->option('id'), fn ($query, $id) => $query->whereKey((int) $id))
-            ->orderBy('id')->limit(max(1, min(100, (int) $this->option('limit'))))->get();
+            ->orderBy('id');
+        $limit = max(1, min(100, (int) $this->option('limit')));
         $states = [];
         $approved = 0;
-        foreach ($operations as $operation) {
+        $reviewed = 0;
+        // Keyset pagination passes ineligible prepared rows. Only dispatched
+        // work consumes the batch allowance; no offset can skip mutated rows.
+        foreach ($operations->lazyById(100) as $operation) {
+            $reviewed++;
             $domain = Domain::find($operation->domain_id);
             if (! $domain) { continue; }
             $account = \App\Models\DomainSupplierAccount::find($operation->supplier_account_id);
@@ -42,8 +47,9 @@ class DomainSupplierDispatchApproved extends Command
             $result = $lifecycle->execute($domain, $operation->operation, $operation->period_months);
             $state = $result['status'] ?? 'manual_review';
             $states[$state] = ($states[$state] ?? 0) + 1;
+            if ($approved >= $limit) break;
         }
-        $this->line(json_encode(['reviewed' => $operations->count(), 'approved' => $approved, 'states' => $states], JSON_THROW_ON_ERROR));
+        $this->line(json_encode(['reviewed' => $reviewed, 'approved' => $approved, 'states' => $states], JSON_THROW_ON_ERROR));
         return self::SUCCESS;
     }
 }
