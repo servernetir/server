@@ -1,0 +1,95 @@
+name: Finance release candidate
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/finance-release-20261102/**'
+      - '.github/workflows/finance-release-candidate.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'scripts/finance-release-20261102/**'
+      - '.github/workflows/finance-release-candidate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Verify pinned finance source archive
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout packaging recipe without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Checkout the reviewed product snapshot separately
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: '190ff59cc1531399c7cdbd8b928b54d3c7727ae6'
+          path: release-source
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Build and verify the limited source candidate
+        run: |
+          python3 scripts/finance-release-20261102/build.py \
+            --source-root "$GITHUB_WORKSPACE/release-source" \
+            --output "$RUNNER_TEMP/finance-release-candidate"
+      - name: Verify reproducibility and reject an unexpected source change
+        run: |
+          set -euo pipefail
+          python3 scripts/finance-release-20261102/build.py \
+            --source-root "$GITHUB_WORKSPACE/release-source" \
+            --output "$RUNNER_TEMP/finance-release-rebuilt"
+          cmp "$RUNNER_TEMP/finance-release-candidate/finance-funding-20261102-source.zip" \
+              "$RUNNER_TEMP/finance-release-rebuilt/finance-funding-20261102-source.zip"
+          cd "$RUNNER_TEMP/finance-release-candidate"
+          sha256sum --check SHA256SUMS
+          cd "$GITHUB_WORKSPACE"
+          python3 - <<'PY'
+          import importlib.util
+          import pathlib
+          import tempfile
+          spec = importlib.util.spec_from_file_location("candidate", "scripts/finance-release-20261102/build.py")
+          recipe = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(recipe)
+          root = pathlib.Path("release-source").resolve()
+          source = "website/app/Services/Finance/DocumentedAccounting.php"
+          path = root / source
+          original = path.read_bytes()
+          try:
+              path.write_bytes(original + b"\n/* candidate drift check */\n")
+              with tempfile.TemporaryDirectory() as output:
+                  try:
+                      recipe.build(root, pathlib.Path(output))
+                  except ValueError as error:
+                      if "differs from the pinned commit" not in str(error):
+                          raise
+                      print("Changed tracked source rejected before packaging")
+                  else:
+                      raise AssertionError("Unexpected changed source was accepted")
+          finally:
+              path.write_bytes(original)
+          for invalid in ("../.env", "website/../.env", "/etc/passwd"):
+              try:
+                  recipe.read_source(root, invalid)
+              except ValueError:
+                  pass
+              else:
+                  raise AssertionError("Invalid source path was accepted")
+          print("Invalid source paths rejected")
+          PY
+      - name: Upload source candidate and independent checksums
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: finance-funding-20261102-source-190ff59
+          path: |
+            ${{ runner.temp }}/finance-release-candidate/finance-funding-20261102-source.zip
+            ${{ runner.temp }}/finance-release-candidate/candidate-manifest.json
+            ${{ runner.temp }}/finance-release-candidate/SHA256SUMS
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 30
