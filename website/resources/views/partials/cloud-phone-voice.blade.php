@@ -111,8 +111,8 @@
           <div class="sn-voice-orbit sn-voice-orbit-one" aria-hidden="true"></div>
           <div class="sn-voice-orbit sn-voice-orbit-two" aria-hidden="true"></div>
           <div class="sn-voice-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <div class="sn-voice-device sn-voice-device-call"><img src="{{ asset('assets/cloud-phone/voice-call-fa.png') }}" alt="{{ $voice['call_alt'] }}" width="945" height="2048" loading="lazy" decoding="async"></div>
-          <div class="sn-voice-device sn-voice-device-main"><img src="{{ asset('assets/cloud-phone/'.$voiceMainScreenshot) }}" alt="{{ $voice['main_alt'] }}" width="945" height="2048" loading="lazy" decoding="async"></div>
+          <div class="sn-voice-device sn-voice-device-call"><img src="{{ asset('assets/cloud-phone/voice-call-fa.png') }}" alt="{{ $voice['call_alt'] }}" width="1233" height="2673" loading="lazy" decoding="async"></div>
+          <div class="sn-voice-device sn-voice-device-main"><img src="{{ asset('assets/cloud-phone/'.$voiceMainScreenshot) }}" alt="{{ $voice['main_alt'] }}" width="1233" height="2673" loading="lazy" decoding="async"></div>
           <span class="sn-voice-float sn-voice-float-network" dir="auto"><span class="sn-voice-dot" aria-hidden="true"></span>{{ $voice['call_label'] }}</span>
           <span class="sn-voice-float sn-voice-float-extension" dir="auto"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><rect x="1" y="1" width="18" height="18" rx="6" fill="currentColor" opacity=".12"/><path d="M6 10h8m-4-4v8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>{{ $voice['extension_label'] }}</span>
         </div>

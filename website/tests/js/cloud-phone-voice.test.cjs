@@ -56,15 +56,17 @@ for (const locale of ['fa', 'en', 'tr']) {
             const section = doc.getElementById('voice-app'), images = [...section.querySelectorAll('img')];
             assert.equal(images.length, 2);
             for (const img of images) {
-                assert.equal(img.getAttribute('width'), '945');
-                assert.equal(img.getAttribute('height'), '2048');
+                const declaredWidth = Number(img.getAttribute('width'));
+                const declaredHeight = Number(img.getAttribute('height'));
+                assert.ok(Number.isInteger(declaredWidth) && declaredWidth > 0, 'Screenshot must declare a positive pixel width');
+                assert.ok(Number.isInteger(declaredHeight) && declaredHeight > 0, 'Screenshot must declare a positive pixel height');
                 assert.equal(img.getAttribute('loading'), 'lazy');
                 assert.ok(img.alt.length > 30);
                 const file = path.join(root, 'public', new URL(img.src).pathname);
                 const bytes = fs.readFileSync(file);
                 assert.equal(bytes.subarray(1, 4).toString(), 'PNG');
-                assert.equal(bytes.readUInt32BE(16), 945);
-                assert.equal(bytes.readUInt32BE(20), 2048);
+                assert.equal(declaredWidth, bytes.readUInt32BE(16), 'Declared width must match the actual PNG IHDR');
+                assert.equal(declaredHeight, bytes.readUInt32BE(20), 'Declared height must match the actual PNG IHDR');
             }
             const main = section.querySelector('.sn-voice-device-main img');
             assert.ok(main.src.endsWith(locale === 'fa' ? 'voice-dialer-fa.png' : locale === 'tr' ? 'voice-accounts-tr.png' : 'voice-dialer-en.png'));

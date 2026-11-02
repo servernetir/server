@@ -41,7 +41,7 @@
 .sn-voice-device{position:absolute;padding:14px 6px 7px;background:linear-gradient(130deg,#4a5f75,#121a25 25%,#344457 75%,#0a101b);border:1px solid #53687e;border-radius:33px;box-shadow:0 25px 38px -13px #000b,3px 0 0 #050a12;transform:rotate(var(--sn-voice-angle));will-change:transform}
 .sn-voice-device:before{content:"";position:absolute;width:32px;height:3px;top:5px;left:calc(50% - 16px);border-radius:5px;background:#080f19;box-shadow:inset 0 1px 1px #ffffff17}
 .sn-voice-device:after{content:"";position:absolute;width:3px;height:36px;top:96px;right:-4px;border-radius:0 3px 3px 0;background:#394c60;border:1px solid #73889c55}
-.sn-voice-device img{display:block;width:100%;height:auto;aspect-ratio:945/2048;border-radius:25px;background:#080f1e}
+.sn-voice-device img{display:block;width:100%;height:auto;aspect-ratio:1233/2673;border-radius:25px;background:#080f1e}
 .sn-voice-device-main{--sn-voice-angle:-8deg;z-index:2;width:226px;left:17px;bottom:37px;animation:sn-voice-float 8s ease-in-out infinite}
 .sn-voice-device-call{--sn-voice-angle:10deg;z-index:1;width:212px;right:8px;top:30px;animation:sn-voice-float 8s ease-in-out -4s infinite}
 .sn-voice-float{position:absolute;z-index:4;display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #365470;border-radius:13px;background:#15263af5;box-shadow:0 8px 30px #050d1e80;color:#d5e6f7;font-size:10px;font-weight:550;line-height:1.7;max-width:88%;text-align:start}
