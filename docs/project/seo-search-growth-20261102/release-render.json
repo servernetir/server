@@ -1,0 +1,51 @@
+{
+  "observedAt": "2026-11-02T06:55:32.816Z",
+  "mobile": [
+    {
+      "ctaPresent": true,
+      "documentWidth": 390,
+      "font": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+      "h3": 3,
+      "links": [
+        "https://servernet.cloud/blog/jupyter-hourly-gpu-guide",
+        "https://servernet.cloud/blog/comfyui-hourly-gpu-guide",
+        "https://servernet.cloud/ai/models",
+        "https://servernet.cloud/ai/docs",
+        "https://servernet.cloud/vps/hourly"
+      ],
+      "path": "/gpu",
+      "width": 390
+    },
+    {
+      "ctaPresent": true,
+      "documentWidth": 375,
+      "font": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+      "h3": 3,
+      "links": [
+        "https://servernet.cloud/en/blog/jupyter-hourly-gpu-guide",
+        "https://servernet.cloud/en/blog/comfyui-hourly-gpu-guide",
+        "https://servernet.cloud/en/ai/models",
+        "https://servernet.cloud/en/ai/docs",
+        "https://servernet.cloud/en/vps/hourly"
+      ],
+      "path": "/en/gpu",
+      "width": 390
+    },
+    {
+      "ctaPresent": true,
+      "documentWidth": 375,
+      "font": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+      "h3": 3,
+      "links": [
+        "https://servernet.cloud/tr/blog/jupyter-hourly-gpu-guide",
+        "https://servernet.cloud/tr/blog/comfyui-hourly-gpu-guide",
+        "https://servernet.cloud/tr/ai/models",
+        "https://servernet.cloud/tr/ai/docs",
+        "https://servernet.cloud/tr/vps/hourly"
+      ],
+      "path": "/tr/gpu",
+      "width": 390
+    }
+  ],
+  "limit": "Rendering only; authenticated browser context. No form submitted, purchase or GA4 receipt tested."
+}

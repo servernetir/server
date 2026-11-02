@@ -1,5 +1,5 @@
 {
-  "status": "candidate_only_live_snapshot_required",
+  "status": "historical_candidate_superseded_by_production_verified_receipt",
   "commit": "ee3f188ce929b28390d73b9e0b65e57caa5481f3",
   "pull_request": 202,
   "files": [
@@ -33,5 +33,6 @@
     "Verify all3locales, unavailable and available country sitemap, Service JSON and order forms."
   ],
   "merge_sha": "b47bb98a122fb4bc9c5ead79daaf6f21ed7e532e",
-  "git_status": "merged_into_develop"
+  "git_status": "merged_into_develop",
+  "production_receipt": "release-applied-summary.json"
 }

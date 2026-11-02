@@ -1,0 +1,12 @@
+{
+  "observed_at_utc": "2026-11-02T06:57:15.179Z",
+  "property": "sc-domain:servernet.cloud",
+  "report": "Merchant listings",
+  "issue": "Missing field 'image'",
+  "last_report_update": "2026-10-31",
+  "affected_items_reported": 299,
+  "action": "Validate Fix clicked once after live schema acceptance",
+  "result": "Validation started",
+  "started_date": "2026-11-02",
+  "limitation": "Google recrawl/validation completion and reduced issue counts remain pending; 299 is items, not URLs."
+}
