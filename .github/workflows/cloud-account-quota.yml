@@ -14,6 +14,7 @@ on:
       - 'website/composer.json'
       - 'website/composer.lock'
       - 'website/phpunit.xml'
+      - 'scripts/arvan-monitoring/**'
       - '.github/workflows/cloud-account-quota.yml'
 
 permissions:
@@ -69,7 +70,7 @@ jobs:
       PULSE_ENABLED: 'false'
       TELESCOPE_ENABLED: 'false'
       NIGHTWATCH_ENABLED: 'false'
-      INCIDENT_CORE_FILTER: 'ArvanRamQuotaTest|CloudDeliveryPromiseTest|CloudFailedRecoveryTest|CloudAdminControlsTest|CloudSalesWatchTest|CloudFailureDetailTest'
+      INCIDENT_CORE_FILTER: 'ArvanRamQuotaTest|CloudDeliveryPromiseTest|CloudFailedRecoveryTest|CloudAdminControlsTest|CloudSalesWatchTest|CloudFailureDetailTest|ArvanWindowsConsoleOnboardingTest|ArvanWindowsPasswordTest|ArvanConsoleBrokerTest|CloudServerPageLayoutTest'
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -83,6 +84,9 @@ jobs:
           extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
           coverage: none
           tools: composer:v2
+      - name: Verify exporter installer without installing packages or contacting servers
+        working-directory: .
+        run: python3 -m unittest discover -s scripts/arvan-monitoring -p 'test_linux_exporter.py' -v
       - name: Install locked dependencies without project scripts or plugins
         id: install
         run: |

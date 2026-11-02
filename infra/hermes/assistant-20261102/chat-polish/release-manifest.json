@@ -1,0 +1,18 @@
+{
+  "release": "araz-chat-polish-20261102",
+  "base_commit": "d757b2ebc3a7b64f57cafdaa5b61151669fbb994",
+  "files": [
+    {
+      "source": "infra/hermes/assistant-20261102/chat-polish/HermesConversationMemory.php",
+      "target": "app/Services/Hermes/HermesConversationMemory.php",
+      "before": "01f64918f955df6955c261e4d217de408d7fdb6ed387f18af3720aa395bea8ed",
+      "after": "2638d036aca53989ffe9aaa34798909c4ce8dbc2341274700e8f1f794a9d5a35"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/chat-polish/hermes.blade.php",
+      "target": "resources/views/bale/hermes.blade.php",
+      "before": "cd3895329fe45dd7ee011a178cad70f8da9fd5a5364887cea3c8cb4b8948b1ad",
+      "after": "f499f6e1ccc01b2dd18cc33a0d58c765568e54b2c84f93ffbb53349da2d8ffa2"
+    }
+  ]
+}

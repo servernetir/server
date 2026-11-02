@@ -1,0 +1,48 @@
+{
+  "release": "araz-assistant-name-20261102",
+  "base_commit": "6c4c96119dcc2e12ce2ab548d82f40ae55662c58",
+  "files": [
+    {
+      "source": "infra/hermes/assistant-20261102/araz-name/HermesAssistantContext.php",
+      "target": "app/Services/Hermes/HermesAssistantContext.php",
+      "before": "d75c9aad90c1b69204f4c3dc6f4b3f1d6c6b107cd2fbe0711dc28b8b3d6c05fc",
+      "after": "13ca9eda2b2c68b3a2d0985bfd0506ac3ef51173b1fdcfdee5dbc65aa9f7b927"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/araz-name/HermesRelayMonitor.php",
+      "target": "app/Services/Hermes/HermesRelayMonitor.php",
+      "before": "c308c899a6f26da64c1f811b573f77e6797473d001b13333219f63e2595709bd",
+      "after": "2fb5a59cb3c806676a5e4d34e40ad97dfd2340e847919fc6edefea3c682752bb"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/araz-name/HermesConversationMemory.php",
+      "target": "app/Services/Hermes/HermesConversationMemory.php",
+      "before": "1b5f01c23a37b4ec67790aac22e8983f12a3508a28f6734e2e28c7c7036b1848",
+      "after": "01f64918f955df6955c261e4d217de408d7fdb6ed387f18af3720aa395bea8ed"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/araz-name/HermesOperations.php",
+      "target": "app/Services/Hermes/HermesOperations.php",
+      "before": "b80f4aa5265eed0b25c84ba72cbf31140f96bd11cebbfa252a77b1431b4bc81b",
+      "after": "0597b2a649cdcfc1075b0eefd0ce6340ef20ad71dc278c224345a4a23b6719b2"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/araz-name/HermesSupportOwnerReview.php",
+      "target": "app/Services/Hermes/HermesSupportOwnerReview.php",
+      "before": "0efe4fa6be2a43393b3d548e60b1dfa585d87ab9ab9c43ba5151950fdf761228",
+      "after": "849251909c65c4695940b2bea1862deab1cba6a98959e869fbc83bbd12a1a9cb"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/araz-name/HermesOwnerNotification.php",
+      "target": "app/Services/Hermes/HermesOwnerNotification.php",
+      "before": "4a03f699b6108ac1f1df93b8a0a065bd639a8344595a20ffc937487afbe41f04",
+      "after": "dfd61d19cb672e320795c7abdabe116ce8eea873ad69d47a3c19a63592b29597"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/araz-name/hermes.blade.php",
+      "target": "resources/views/bale/hermes.blade.php",
+      "before": "8a4e9d240ba8c9bd9bfaff8175d20d4dc9ef0050b659c28ba5b1708f982869a5",
+      "after": "cd3895329fe45dd7ee011a178cad70f8da9fd5a5364887cea3c8cb4b8948b1ad"
+    }
+  ]
+}
