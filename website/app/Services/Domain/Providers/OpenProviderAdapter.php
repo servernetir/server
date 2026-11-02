@@ -11,7 +11,13 @@ class OpenProviderAdapter implements DomainProvider
 {
     public function __construct(private DomainSupplierAccount $account, private OpenProviderClient $client) {}
 
-    public function shareSearchReads(bool $enabled): void { $this->client->shareResellerRead($enabled); }
+    private ?array $promotionReadScope = null;
+
+    public function shareSearchReads(bool $enabled): void
+    {
+        $this->client->shareResellerRead($enabled);
+        $this->promotionReadScope = $enabled ? [] : null;
+    }
 
     public function probe(): array
     {
@@ -51,7 +57,7 @@ class OpenProviderAdapter implements DomainProvider
                     if ($operation === 'transfer' && ($row['transfer_available'] ?? false) !== true) continue;
                     $source = $row['prices'][$field] ?? ($operation === 'create' ? ($row['prices']['create_price'] ?? null) : null);
                     if (! is_array($source)) continue;
-                    $price = $source['reseller'] ?? null; $until = now()->addDay();
+                    $price = $source['reseller'] ?? null; $until = now()->addDay(); $activePromotion = false; $regularPrice = null;
                     $promotion = $source['promotion_details'] ?? null;
                     if (is_array($promotion) && $promotion !== []) {
                         $from = $this->promotionTime($promotion['start_date'] ?? null);
@@ -59,18 +65,35 @@ class OpenProviderAdapter implements DomainProvider
                         if ($from === null || $end === null || $end <= $from) throw new DomainProviderException('catalogue_promo_invalid');
                         if (now()->timestamp < $from || now()->timestamp >= $end) {
                             $price = data_get($promotion, 'non_promo_price.reseller');
-                        } else $until = $until->min(\Illuminate\Support\Carbon::createFromTimestamp($end));
+                        } else {
+                            $activePromotion = true; $regularPrice = data_get($promotion, 'non_promo_price.reseller');
+                            $until = $until->min(\Illuminate\Support\Carbon::createFromTimestamp($end));
+                        }
                     }
                     if (! is_array($price)) continue;
                     $currency = strtoupper((string) ($price['currency'] ?? ''));
                     $base = ProviderMoney::minor($price['price'] ?? '', $currency);
                     if ($base === 0) continue;
                     // Do not extrapolate discounted create totals to unsupported periods.
-                    $periods = $operation === 'create' ? [$min] : ($operation === 'renew' ? range(1, $max) : [1]);
+                    $periods = $operation === 'create' ? [$min] : ($operation === 'renew' && ! $activePromotion ? range(1, $max) : [1]);
                     foreach ($periods as $years) {
                         $cost = $this->landedCost($operation === 'renew' ? ProviderMoney::add(...array_fill(0, $years, $base)) : $base, $actualVat);
-                        $offers[] = $cost + ['tld' => $tld, 'operation' => $operation, 'period_months' => 12 * $years,
-                            'currency' => $currency, 'premium' => false, 'tax_included' => true, 'valid_until' => $until->toIso8601String()];
+                        $offer = $cost + ['tld' => $tld, 'operation' => $operation, 'period_months' => 12 * $years,
+                            'currency' => $currency, 'premium' => false, 'tax_included' => true,
+                            'promotion' => $activePromotion, 'valid_until' => $until->toIso8601String()];
+                        if ($activePromotion && is_array($regularPrice) && ($regularPrice['currency'] ?? null) === $currency) {
+                            try {
+                                $regularBase = ProviderMoney::minor($regularPrice['price'] ?? '', $currency);
+                                $regularCost = $this->landedCost($regularBase, $actualVat);
+                                if ($regularCost['amount_minor'] > $cost['amount_minor']) {
+                                    $offer['promotion_evidence'] = ['regular_amount_minor' => $regularCost['amount_minor'],
+                                        'currency' => $currency, 'period_months' => 12 * $years,
+                                        'starts_at' => \Illuminate\Support\Carbon::createFromTimestamp($from)->toIso8601String(),
+                                        'ends_at' => \Illuminate\Support\Carbon::createFromTimestamp($end)->toIso8601String()];
+                                }
+                            } catch (\Throwable) { /* A malformed reference must never invent a discount. */ }
+                        }
+                        $offers[] = $offer;
                     }
                 }
             }
@@ -154,11 +177,25 @@ class OpenProviderAdapter implements DomainProvider
         $total = $cost['amount_minor']; $debit = $cost['provider_debit_minor'];
         $validUntil = now()->addMinutes(5);
         $promotion = (array) data_get($res, 'data.promotion_data', []);
-        $promotionEnd = isset($promotion['end_date']) && is_numeric($promotion['end_date']) ? (int) $promotion['end_date'] : null;
-        if ($promotionEnd && $promotionEnd > time() && $promotionEnd < $validUntil->getTimestamp()) { $validUntil->setTimestamp($promotionEnd); }
+        $activePromotion = data_get($res, 'data.is_promotion', false) === true;
+        $promotionStart = $promotionEnd = null; $evidence = null;
+        if ($activePromotion) {
+            $promotionStart = $this->promotionTime($promotion['start_date'] ?? null);
+            $promotionEnd = $this->promotionTime($promotion['end_date'] ?? null);
+            if ($promotionStart === null || $promotionEnd === null || $promotionEnd <= $promotionStart
+                || $promotionStart > now()->timestamp || $promotionEnd <= now()->timestamp) throw new DomainProviderException('promotion_window_invalid');
+            // The API's renew price is one year. A campaign may not be extrapolated.
+            if ($operation === 'renew' && $months !== 12) throw new DomainProviderException('promotion_period_unverified');
+            if ($promotionEnd < $validUntil->timestamp) $validUntil->setTimestamp($promotionEnd);
+            if (! $premium) {
+                $cached = \App\Services\Domain\DomainSupplierCatalogue::promotionEvidence($this->account, $tld, $operation, $months, $total, $currency, $this->promotionReadScope);
+                if ($cached && strtotime($cached['starts_at']) === $promotionStart && strtotime($cached['ends_at']) === $promotionEnd) $evidence = $cached;
+            }
+        }
         return [
             'available' => $available, 'amount_minor' => $total, 'provider_debit_minor' => $debit, 'currency' => $currency,
             'period_months' => $months, 'premium' => $premium, 'tax_included' => true,
+            'promotion' => $activePromotion, 'promotion_evidence' => $evidence,
             'components' => $cost['components'],
             'provider_terms_hash' => hash('sha256', json_encode([$fqdn, $operation, $months, $premium, 'none', $actualVat,
                 (bool) data_get($res, 'data.is_promotion', false), $promotion])),

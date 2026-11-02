@@ -298,7 +298,9 @@ class DomainSearch
                             // Renewal and transfer need their own operation-specific quote.
                             'renew_toman' => null, 'transfer_toman' => null,
                             'reason' => null, 'quote_id' => $quote->id,
-                        ]);
+                            'period_months' => (int) $quote->period_months,
+                            'period_years' => intdiv((int) $quote->period_months, 12),
+                        ] + $this->publicPromotion((array) data_get($quote->raw, 'supplier_quote', []), (int) $quote->sell_toman));
                     } catch (\App\Services\Domain\Pricing\DomainProcurementException $e) {
                         $row = $this->unknownRow($fqdn, $extension, 'lookup_failed');
                         if ($e->reason === 'domain_unavailable') {
@@ -711,6 +713,9 @@ class DomainSearch
         static $hasRenewCost = null;
         $hasRenewCost ??= Schema::hasColumn('domain_quotes', 'cost_renew_amount');
 
+        $promotion = app(TldPriceBook::class)->promotionForQuote($ext, $cost['amount'], $cost['currency'], 1, $sell, $isPremium);
+        $honour = now()->addMinutes(self::QUOTE_TTL_MINUTES);
+        if ($promotion['is_promotion']) $honour = $honour->min(\Illuminate\Support\Carbon::parse($promotion['promotion_ends_at']));
         $quote = DomainQuote::create([
             'customer_id' => $customerId,
             'domain' => $fqdn,
@@ -721,7 +726,7 @@ class DomainSearch
             'cost_currency' => $cost['currency'],
             'sell_toman' => $sell,
             'renew_toman' => $sellR,
-            'honour_until' => now()->addMinutes(self::QUOTE_TTL_MINUTES),
+            'honour_until' => $honour,
             'raw' => $raw,
         ] + ($hasRenewCost && $renew !== null && $renew['currency'] === $cost['currency']
             ? ['cost_renew_amount' => (int) round($renew['amount'] * 100)]
@@ -739,7 +744,8 @@ class DomainSearch
             'transfer_toman' => $sellT,
             'reason' => null,
             'quote_id' => $quote->id,
-        ];
+            'period_months' => 12, 'period_years' => 1,
+        ] + $this->publicPromotion($promotion, $sell);
     }
 
     /**
@@ -889,6 +895,35 @@ class DomainSearch
         [$name, $ext] = $this->split($query);
 
         return ($name !== '' && $ext !== '') ? $name.'.'.$ext : null;
+    }
+
+    /** Unchecked naming ideas, generated locally; never an availability promise or API fan-out. */
+    public function similarNames(string $query): array
+    {
+        [$name, $ext] = $this->split($query);
+        if (mb_strlen($name) < 2 || str_starts_with($name, 'xn--')) return [];
+        if (! preg_match('/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/D', $ext) || ! self::sells($ext)) $ext = 'com';
+        $ideas = [];
+        foreach (['get'.$name, 'my'.$name, $name.'hub', $name.'online', 'try'.$name, $name.'site'] as $label) {
+            $ascii = idn_to_ascii($label, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
+            if (! is_string($ascii) || strlen($ascii) > 63 || strlen($ascii.'.'.$ext) > 253
+                || ! preg_match('/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/D', $ascii)) continue;
+            $ideas[] = ['name' => $ascii.'.'.$ext];
+        }
+        return array_slice(array_values(array_unique($ideas, SORT_REGULAR)), 0, 6);
+    }
+
+    /** Only verified retail promotion fields may cross the public search boundary. */
+    private function publicPromotion(array $source, int $current): array
+    {
+        $regular = $source['regular_price_toman'] ?? null;
+        $ends = $source['promotion_ends_at'] ?? null;
+        $until = is_string($ends) ? strtotime($ends) : false;
+        $active = ($source['is_promotion'] ?? false) === true && is_int($regular) && $regular > $current && $current > 0
+            && $until !== false && $until > now()->timestamp;
+        return ['is_promotion' => $active, 'regular_price_toman' => $active ? $regular : null,
+            'discount_percent' => $active ? intdiv(($regular - $current) * 100, $regular) : null,
+            'promotion_ends_at' => $active ? $ends : null];
     }
 
     /** «example.com» یا «Example.COM» یا «example» → [name, ext] */

@@ -4144,3 +4144,14 @@ html[dir="rtl"] .dt-steps li{padding:16px 60px 16px 18px}
 
 /* Mobile performance: keep two lines reserved for the rotating slogan. */
 @media(max-width:1020px){.hero-rotator{min-height:3.3em}.hero-rotator .rot-txt{min-width:0}}
+
+/* Domain discovery: reusable home-result actions, honest campaign references. */
+.dr-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;justify-content:flex-end}
+.dr-ideas{gap:12px;min-height:44px}.dr-ideas span{font-size:1.1em}
+.dr-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px}
+.dr-reference{display:flex;flex-wrap:wrap;align-items:center;gap:7px;width:100%;font-size:.78em}
+.dr-reference del{color:var(--muted,#94a3b8);font-weight:400;text-decoration-thickness:1px}
+.dr-discount{display:inline-flex;padding:3px 8px;border-radius:999px;background:rgba(34,197,94,.12);color:#15803d;font-size:.85em;font-weight:700}
+[data-theme="dark"] .dr-discount{color:#86efac}
+@media(max-width:600px){.dr-actions,.dr-actions .btn{width:100%}.dr-actions .btn{justify-content:center}.dr-row{gap:12px}.dr-domain{overflow-wrap:anywhere}.dr-price{min-width:0}.dr-row>.btn{min-height:44px}}
+@media(prefers-reduced-motion:reduce){.dr-actions *{transition:none!important;animation:none!important}}

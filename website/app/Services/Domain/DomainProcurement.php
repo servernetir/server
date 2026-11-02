@@ -37,7 +37,7 @@ class DomainProcurement
         try { return $search(); }
         finally {
             foreach ($this->searchProviders as $provider) {
-                if ($provider instanceof \App\Services\Domain\Providers\OpenProviderAdapter) $provider->shareSearchReads(false);
+                if ($provider instanceof \App\Services\Domain\Providers\OpenProviderAdapter || $provider instanceof \App\Services\Domain\Providers\JokerAdapter) $provider->shareSearchReads(false);
             }
             $this->searchReads = false;
             $this->searchProviders = $this->searchBalances = [];
@@ -294,7 +294,8 @@ class DomainProcurement
         if ($this->searchReads) {
             if (! isset($this->searchProviders[$account->id])) {
                 $this->searchProviders[$account->id] = $this->providers->forAccount($account);
-                if ($this->searchProviders[$account->id] instanceof \App\Services\Domain\Providers\OpenProviderAdapter) {
+                if ($this->searchProviders[$account->id] instanceof \App\Services\Domain\Providers\OpenProviderAdapter
+                    || $this->searchProviders[$account->id] instanceof \App\Services\Domain\Providers\JokerAdapter) {
                     $this->searchProviders[$account->id]->shareSearchReads(true);
                 }
             }
@@ -388,7 +389,9 @@ class DomainProcurement
             'wholesale_toman' => $wholesale, 'floor_toman' => $floor, 'sell_toman' => $sell,
             'provider_terms_hash' => $q['provider_terms_hash'] ?? $q['terms_hash'] ?? null,
             'margin_units' => $margin, 'effective_margin_units' => max($margin, $floorMargin),
-            'floor_margin_units' => $floorMargin, 'rounding_step_toman' => $step, 'terms_hash' => hash('sha256', json_encode($terms, JSON_THROW_ON_ERROR))]);
+            'floor_margin_units' => $floorMargin, 'rounding_step_toman' => $step, 'terms_hash' => hash('sha256', json_encode($terms, JSON_THROW_ON_ERROR)),
+            'is_promotion' => $priced['is_promotion'], 'regular_price_toman' => $priced['regular_price_toman'],
+            'discount_percent' => $priced['discount_percent'], 'promotion_ends_at' => $priced['promotion_ends_at']]);
     }
 
     /** Public catalogue projections, from private account evidence only. No network requests. */
@@ -431,7 +434,8 @@ class DomainProcurement
             $transfer = $destination > 0 ? ($periods[12]['transfer'][$destination] ?? null) : null;
             $out[$tld] = ['register' => $winner['sell_toman'], 'renew' => $renew['sell_toman'] ?? null,
                 'transfer' => $transfer['sell_toman'] ?? null, 'min_years' => intdiv($months, 12),
-                'max_years' => intdiv(max(array_keys($winners)), 12), 'renew_is_estimate' => true];
+                'max_years' => intdiv(max(array_keys($winners)), 12), 'renew_is_estimate' => true]
+                + array_intersect_key($winner, array_flip(['is_promotion', 'regular_price_toman', 'discount_percent', 'promotion_ends_at']));
         }
         ksort($out); return $out;
     }
@@ -446,11 +450,24 @@ class DomainProcurement
         $wholesale = DomainMoney::ceilRatio($numerator, $fx['denominator']);
         $margin = $this->margin($tld); $floorMargin = DomainMoney::percentUnits(config('domain_reseller.min_margin_pct', 0));
         $step = max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
-        return ['fx_snapshot' => $fx, 'comparison_numerator' => $numerator, 'comparison_denominator' => $fx['denominator'],
+        $priced = ['fx_snapshot' => $fx, 'comparison_numerator' => $numerator, 'comparison_denominator' => $fx['denominator'],
             'wholesale_toman' => $wholesale, 'floor_toman' => DomainMoney::roundUp(DomainMoney::addPercent($wholesale, $floorMargin), $step),
             'sell_toman' => DomainMoney::roundUp(DomainMoney::addPercent($wholesale, max($margin, $floorMargin)), $step),
             'margin_units' => $margin, 'effective_margin_units' => max($margin, $floorMargin),
             'floor_margin_units' => $floorMargin, 'rounding_step_toman' => $step];
+        $display = DomainPromotion::empty(); $evidence = $q['promotion_evidence'] ?? null;
+        if (($q['promotion'] ?? false) === true && is_array($evidence)
+            && is_int($evidence['regular_amount_minor'] ?? null) && $evidence['regular_amount_minor'] > $q['amount_minor']
+            && ($evidence['currency'] ?? null) === $q['currency']
+            && ($evidence['period_months'] ?? null) === ($q['period_months'] ?? null)) {
+            try {
+                // Same FX evidence, funding/tax basis, markup, floor and rounding as the current offer.
+                $regularWholesale = DomainMoney::ceilRatio(DomainMoney::multiply($evidence['regular_amount_minor'], $fx['numerator']), $fx['denominator']);
+                $regularSell = DomainMoney::roundUp(DomainMoney::addPercent($regularWholesale, max($margin, $floorMargin)), $step);
+                $display = DomainPromotion::retail($priced['sell_toman'], $regularSell, $evidence['starts_at'] ?? null, $evidence['ends_at'] ?? null);
+            } catch (\Throwable) { /* Display-only evidence must never exclude a valid current offer. */ }
+        }
+        return $priced + $display;
     }
 
     private function eligible(DomainSupplierAccount $account, string $tld, string $operation, int $months,

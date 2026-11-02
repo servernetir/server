@@ -32,6 +32,45 @@ class DomainSupplierCatalogue
         return $value;
     }
 
+    /** No network. Optional index lives only inside the caller's bounded search scope. */
+    public static function promotionEvidence(DomainSupplierAccount $account, string $tld, string $operation,
+        int $months, int $amount, string $currency, ?array &$scope = null): ?array
+    {
+        try {
+            $identity = self::identity($account);
+            $index = $scope[$identity] ?? null;
+            if ($index === null) {
+                $snapshot = json_decode(Storage::disk('local')->get(self::PATH), true, 512, JSON_THROW_ON_ERROR);
+                if (($snapshot['version'] ?? null) !== 1 || ! is_string($snapshot['fetched_at'] ?? null)) return null;
+                $at = Carbon::parse($snapshot['fetched_at']);
+                $stored = $snapshot['accounts'][(string) $account->id] ?? null;
+                if ($at->isFuture() || $at->lt(now()->subDay()) || ! is_array($stored)
+                    || ! is_string($stored['identity'] ?? null) || ! hash_equals($identity, $stored['identity'])) return null;
+                $index = ['fetched_at' => $snapshot['fetched_at'], 'offers' => []];
+                foreach ($stored['offers'] ?? [] as $q) {
+                    if (! is_array($q) || ($q['premium'] ?? null) !== false) continue;
+                    $key = json_encode([$q['tld'] ?? null, $q['operation'] ?? null, $q['period_months'] ?? null,
+                        $q['amount_minor'] ?? null, $q['currency'] ?? null], JSON_THROW_ON_ERROR);
+                    $index['offers'][$key][] = ['valid_until' => $q['valid_until'] ?? null,
+                        'promotion' => ($q['promotion'] ?? false) === true, 'promotion_evidence' => $q['promotion_evidence'] ?? null];
+                }
+                if ($scope !== null) $scope[$identity] = $index;
+            }
+            $at = Carbon::parse($index['fetched_at']);
+            if ($at->isFuture() || $at->lt(now()->subDay())) return null;
+            $matches = $index['offers'][json_encode([$tld, $operation, $months, $amount, $currency], JSON_THROW_ON_ERROR)] ?? [];
+            if (count($matches) !== 1) return null;
+            $offer = $matches[0]; $evidence = $offer['promotion_evidence'] ?? null;
+            if (($offer['promotion'] ?? false) !== true || ! is_array($evidence) || ! is_string($offer['valid_until'] ?? null)
+                || ! Carbon::parse($offer['valid_until'])->isFuture()
+                || ! is_int($evidence['regular_amount_minor'] ?? null) || $evidence['regular_amount_minor'] <= $amount
+                || ($evidence['currency'] ?? null) !== $currency || ($evidence['period_months'] ?? null) !== $months
+                || ! is_string($evidence['starts_at'] ?? null) || ! is_string($evidence['ends_at'] ?? null)
+                || Carbon::parse($evidence['starts_at'])->isFuture() || ! Carbon::parse($evidence['ends_at'])->isFuture()) return null;
+            return $evidence;
+        } catch (\Throwable) { return null; }
+    }
+
     public function refresh(): array
     {
         $lock = Cache::lock('domain-suppliers:catalogue-refresh', 900);

@@ -127,6 +127,8 @@ class DomainSupplierCatalogueTest extends TestCase
         $this->assertSame([800, 2100], array_column($catalogue['offers'], 'amount_minor'));
         $this->assertSame([12, 24], array_column($catalogue['offers'], 'period_months'));
         $this->assertSame(['USD', 'USD'], array_column($catalogue['offers'], 'currency'));
+        $this->assertSame(1000, $catalogue['offers'][0]['promotion_evidence']['regular_amount_minor']);
+        $this->assertArrayNotHasKey('promotion_evidence', $catalogue['offers'][1]);
         Http::assertSent(fn ($r) => str_contains($r->url(), '/query-price-list?') && $r->method() === 'GET');
         Http::assertNotSent(fn ($r) => str_contains($r->url(), 'synthetic') && str_contains($r->url(), 'api-key'));
     }
@@ -161,8 +163,139 @@ class DomainSupplierCatalogueTest extends TestCase
         $adapter = new OpenProviderAdapter($a, $client);
         $offer = $adapter->catalogue()['offers'][0];
         $this->assertSame(800, $offer['amount_minor']);
+        $this->assertSame(1200, $offer['promotion_evidence']['regular_amount_minor']);
         $this->assertSame(now()->addMinutes(2)->timestamp, \Illuminate\Support\Carbon::parse($offer['valid_until'])->timestamp);
         $this->travel(3)->minutes();
         $this->assertSame(1200, $adapter->catalogue()['offers'][0]['amount_minor']);
     }
+    private function promo(array $offer, int $regular): array
+    {
+        return $offer + ['promotion' => true, 'promotion_evidence' => ['regular_amount_minor' => $regular,
+            'currency' => $offer['currency'], 'period_months' => $offer['period_months'],
+            'starts_at' => now()->subDay()->toIso8601String(), 'ends_at' => now()->addHour()->toIso8601String()]];
+    }
+
+    private function storeCatalogue(DomainSupplierAccount $account, array $offers): void
+    {
+        Storage::disk('local')->put(DomainSupplierCatalogue::PATH, json_encode(['version' => 1,
+            'fetched_at' => now()->toIso8601String(), 'accounts' => [(string) $account->id => [
+                'identity' => DomainSupplierCatalogue::identity($account), 'offers' => $offers]]]));
+    }
+
+    public function test_cheapest_actual_offer_wins_and_only_its_own_original_price_is_public(): void
+    {
+        $a = $this->account(); $b = $this->account('openprovider');
+        $promo = $this->promo($this->offer('com', 800), 1200);
+        $rows = app(DomainProcurement::class)->cataloguePrices([
+            ['account' => $a, 'offers' => [$promo]], ['account' => $b, 'offers' => [$this->offer('com', 900)]]]);
+        $this->assertSame(808000, $rows['com']['register']);
+        $this->assertSame(1212000, $rows['com']['regular_price_toman']);
+        $this->assertSame(33, $rows['com']['discount_percent']);
+        $this->assertTrue($rows['com']['is_promotion']);
+        $this->assertStringNotContainsString('account_id', json_encode($rows));
+        // A cheaper non-promotional competitor wins without a made-up old price.
+        $rows = app(DomainProcurement::class)->cataloguePrices([
+            ['account' => $a, 'offers' => [$promo]], ['account' => $b, 'offers' => [$this->offer('com', 700)]]]);
+        $this->assertSame(707000, $rows['com']['register']);
+        $this->assertFalse($rows['com']['is_promotion']);
+        $this->assertNull($rows['com']['regular_price_toman']);
+        Http::assertNothingSent();
+    }
+
+    public function test_bad_reference_currency_term_or_dates_never_create_a_customer_discount(): void
+    {
+        $a = $this->account();
+        foreach (['currency' => 'EUR', 'period_months' => 24,
+            'starts_at' => now()->addDay()->toIso8601String(), 'ends_at' => now()->subMinute()->toIso8601String(),
+            'regular_amount_minor' => PHP_INT_MAX] as $key => $value) {
+            $offer = $this->promo($this->offer('com', 800), 1200);
+            $offer['promotion_evidence'][$key] = $value;
+            $rows = app(DomainProcurement::class)->cataloguePrices([['account' => $a, 'offers' => [$offer]]]);
+            $this->assertSame(808000, $rows['com']['register']);
+            $this->assertFalse($rows['com']['is_promotion'], $key);
+            $this->assertNull($rows['com']['regular_price_toman']);
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_joker_exact_discount_uses_matching_private_account_evidence_without_extra_api_reads(): void
+    {
+        $this->freezeTime(); $a = $this->account();
+        $offer = $this->promo($this->offer('com', 800), 1200);
+        $offer['promotion_evidence']['ends_at'] = now()->addMinute()->toIso8601String();
+        $this->storeCatalogue($a, [$offer]);
+        $start = $offer['promotion_evidence']['starts_at']; $end = $offer['promotion_evidence']['ends_at'];
+        Http::fake(['*/login' => Http::response("Status-Code: 1000\nAuth-SID: synthetic-session\n\n"),
+            '*/domain-check' => Http::response("Status-Code: 1000\n\ndomain-status: available\ndomain-class: standard\ndomain-price-create: 8.00 USD 1y\ndomain-price-promo: $start $end\n")]);
+        $quote = (new JokerAdapter($a))->quote('synthetic.com', 'create', 12);
+        $this->assertSame(1200, $quote['promotion_evidence']['regular_amount_minor']);
+        $this->assertSame(strtotime($end), strtotime($quote['valid_until']));
+        $a->update(['credentials' => ['api_key' => 'changed-synthetic']]);
+        $this->assertNull((new JokerAdapter($a))->quote('synthetic.com', 'create', 12)['promotion_evidence']);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'query-price-list'));
+    }
+
+    public function test_openprovider_exact_discount_uses_same_term_and_account_catalogue_reference(): void
+    {
+        $a = $this->account('openprovider');
+        $offer = $this->promo($this->offer('com', 800), 1200); $this->storeCatalogue($a, [$offer]);
+        $client = \Mockery::mock(OpenProviderClient::class);
+        $client->shouldReceive('check')->once()->andReturn(['ok' => true, 'results' => [['status' => 'free', 'is_premium' => false]]]);
+        $client->shouldReceive('domainPrice')->once()->with('synthetic', 'com', 'create', 1)->andReturn(['ok' => true, 'data' => [
+            'is_premium' => false, 'is_promotion' => true, 'price' => ['reseller' => ['price' => '8.00', 'currency' => 'USD']],
+            'promotion_data' => ['start_date' => strtotime($offer['promotion_evidence']['starts_at']),
+                'end_date' => strtotime($offer['promotion_evidence']['ends_at'])]]]);
+        $client->shouldReceive('resellerInfo')->once()->andReturn(['ok' => true, 'data' => ['vatperc' => 0]]);
+        $quote = (new OpenProviderAdapter($a, $client))->quote('synthetic.com', 'create', 12);
+        $this->assertSame(800, $quote['amount_minor']);
+        $this->assertSame(1200, $quote['promotion_evidence']['regular_amount_minor']);
+        Http::assertNothingSent();
+    }
+
+    public function test_legacy_catalogue_and_exact_search_display_same_verified_discount_and_expire_it(): void
+    {
+        $this->freezeTime();
+        config(['domain_suppliers.enabled' => false, 'services.openprovider.username' => 'synthetic-user',
+            'services.openprovider.password' => 'synthetic-password', 'domain_pricing.supplier_vat_pct' => 0,
+            'domain_pricing.supplier_fee_pct' => 0]);
+        $row = ['min_years' => 1, 'max_years' => 10, 'register' => ['amount' => 8, 'currency' => 'USD'],
+            'renew' => ['amount' => 20, 'currency' => 'USD'], 'transfer' => null,
+            'promotion' => ['start' => now()->subDay()->timestamp, 'end' => now()->addMinute()->timestamp,
+                'regular' => ['amount' => 12, 'currency' => 'USD']]];
+        Storage::disk('local')->put(TldPriceBook::SNAPSHOT_PATH, json_encode(['version' => 1,
+            'fetched_at' => now()->toIso8601String(), 'total' => 1, 'excluded' => [], 'supplier_vat_pct' => 0,
+            'supplier_identity' => \App\Services\Domain\Providers\LegacyAccountIdentity::currentFingerprint(), 'rows' => ['com' => $row]]));
+        $book = app(TldPriceBook::class); $catalogue = $book->cachedFullForTlds(['com'])['com'];
+        $this->assertSame(808000, $catalogue['register']);
+        $this->assertSame(1212000, $catalogue['regular_price_toman']);
+        $display = $book->promotionForQuote('com', 8, 'USD', 1, 808000);
+        $this->assertTrue($display['is_promotion']);
+        $this->assertSame(33, $display['discount_percent']);
+        foreach ([['com', 8, 'USD', 2, 808000, false], ['com', 9, 'USD', 1, 808000, false],
+            ['com', 8, 'USD', 1, 808000, true], ['com', 8, 'USD', 1, 900000, false]] as $args) {
+            $this->assertFalse($book->promotionForQuote(...$args)['is_promotion']);
+        }
+        $this->travel(2)->minutes();
+        $this->assertFalse($book->promotionForQuote('com', 8, 'USD', 1, 808000)['is_promotion']);
+        $this->assertSame(1212000, $book->cachedFullForTlds(['com'])['com']['register']);
+        Http::assertNothingSent();
+    }
+
+    public function test_search_promotion_index_is_reused_only_until_explicit_scope_end(): void
+    {
+        $this->freezeTime(); $a = $this->account();
+        $offer = $this->promo($this->offer('com', 800), 1200); $this->storeCatalogue($a, [$offer]);
+        $start = $offer['promotion_evidence']['starts_at']; $end = $offer['promotion_evidence']['ends_at'];
+        Http::fake(['*/login' => Http::response("Status-Code: 1000\nAuth-SID: synthetic-session\n\n"),
+            '*/domain-check' => Http::response("Status-Code: 1000\n\ndomain-status: available\ndomain-class: standard\ndomain-price-create: 8.00 USD 1y\ndomain-price-promo: $start $end\n")]);
+        $adapter = new JokerAdapter($a); $adapter->shareSearchReads(true);
+        $this->assertSame(1200, $adapter->quote('synthetic.com', 'create', 12)['promotion_evidence']['regular_amount_minor']);
+        $offer['promotion_evidence']['regular_amount_minor'] = 1400; $this->storeCatalogue($a, [$offer]);
+        $this->assertSame(1200, $adapter->quote('other.com', 'create', 12)['promotion_evidence']['regular_amount_minor']);
+        $adapter->shareSearchReads(false);
+        $this->assertSame(1400, $adapter->quote('synthetic.com', 'create', 12)['promotion_evidence']['regular_amount_minor']);
+        $this->assertSame(800, $adapter->quote('synthetic.com', 'create', 12)['amount_minor']);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'query-price-list'));
+    }
+
 }

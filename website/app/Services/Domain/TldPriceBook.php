@@ -49,6 +49,22 @@ class TldPriceBook
         }
     }
 
+    /** Exact legacy search decoration; a catalogue estimate may never become a fake discount. */
+    public function promotionForQuote(string $tld, float|string $net, string $currency, int $years, int $sell, bool $premium = false): array
+    {
+        try {
+            if ($premium || app(DomainProcurement::class)->enabled()) return DomainPromotion::empty();
+            $snapshot = $this->snapshot(); $row = $snapshot['rows'][$tld] ?? null;
+            if (! is_array($row) || $row['min_years'] !== $years || $row['register']['currency'] !== $currency
+                || \App\Services\Domain\Providers\ProviderMoney::minor($row['register']['amount'], $currency)
+                    !== \App\Services\Domain\Providers\ProviderMoney::minor($net, $currency)) return DomainPromotion::empty();
+            $converted = $this->convert($snapshot, [$tld])[$tld] ?? null;
+            return is_array($converted) && $converted['register'] === $sell
+                ? array_intersect_key($converted, array_flip(['is_promotion', 'regular_price_toman', 'discount_percent', 'promotion_ends_at']))
+                : DomainPromotion::empty();
+        } catch (\Throwable) { return DomainPromotion::empty(); }
+    }
+
     public function catalogTlds(): array
     {
         if (app(DomainProcurement::class)->enabled()) return array_keys(app(DomainSupplierCatalogue::class)->prices());
@@ -132,7 +148,8 @@ class TldPriceBook
             }
             ksort($rows);
             $snapshot = ['version' => 1, 'fetched_at' => $started, 'total' => $total,
-                'supplier_vat_pct' => (float) $vat, 'excluded' => $excluded, 'rows' => $rows];
+                'supplier_vat_pct' => (float) $vat, 'supplier_identity' => \App\Services\Domain\Providers\LegacyAccountIdentity::currentFingerprint(),
+                'excluded' => $excluded, 'rows' => $rows];
             if (count($this->convert($snapshot)) !== count($rows)) {
                 throw new RuntimeException('Some active Openprovider extensions have no valid current price.');
             }
@@ -316,6 +333,7 @@ class TldPriceBook
         $step = max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
         $pricing = app(LiveDomainPricing::class)->withSupplierVat((float) $snapshot['supplier_vat_pct']);
         $out = [];
+        $identity = \App\Services\Domain\Providers\LegacyAccountIdentity::currentFingerprint();
         foreach ($rows as $tld => $row) {
             if (! DomainSearch::sells($tld)) {
                 continue;
@@ -331,8 +349,17 @@ class TldPriceBook
                     $pricing->fromAmount($amount['amount'], $amount['currency'], $tld,
                         $rates[$amount['currency']], $step)['sell_toman']);
             }
+            $display = DomainPromotion::empty();
+            if (is_array($promotion) && $identity !== null && is_string($snapshot['supplier_identity'] ?? null)
+                && hash_equals($identity, $snapshot['supplier_identity']) && now()->timestamp >= $promotion['start']
+                && now()->timestamp < $promotion['end'] && $row['register']['currency'] === $promotion['regular']['currency']) {
+                $regular = $promotion['regular'];
+                $regularSell = $pricing->fromAmount($regular['amount'], $regular['currency'], $tld, $rates[$regular['currency']], $step)['sell_toman'];
+                $display = DomainPromotion::retail((int) $converted['register'], $regularSell,
+                    Carbon::createFromTimestamp($promotion['start'])->toIso8601String(), Carbon::createFromTimestamp($promotion['end'])->toIso8601String());
+            }
             if ($converted['register'] > 0) {
-                $out[$tld] = $converted;
+                $out[$tld] = $converted + $display;
             }
         }
         return $out;

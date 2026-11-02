@@ -202,7 +202,7 @@ class HomeDomainBoxTest extends TestCase
      * ⚠️ دو `Http::swap` عمدی است: تلهٔ ثبت‌شدهٔ این پروژه می‌گوید استابِ `'*'`
      * هر fakeِ بعدی را بی‌اثر می‌کند، پس هر مرحله factoryِ خودش را دارد.
      */
-    public function test_suggestion_prices_come_from_the_cached_price_book(): void
+    public function test_exact_suggestion_quote_wins_over_a_stale_cached_catalogue_price(): void
     {
         config([
             'services.openprovider.username' => 'u',
@@ -248,8 +248,8 @@ class HomeDomainBoxTest extends TestCase
         // ⚠️ جداکنندهٔ هزارگان همان کامای اسکی است: `cloud_price` از
         //    `number_format` استفاده می‌کند و `fa_num` فقط **رقم‌ها** را
         //    فارسی می‌کند، نه نشانه‌ها.
-        $this->assertStringContainsString('۵۴۰,۰۰۰', $net['price'],
-            'قیمتِ پیشنهاد از پاسخِ زنده (۹۹ یورو) آمده، نه از دفترچهٔ کش‌شده (۵ یورو با حداقل حاشیهٔ ۸٪)');
+        $this->assertStringContainsString('۱۰,۶۹۲,۰۰۰', $net['price'],
+            'قیمتِ دقیق همین نام باید بر تخمین کاتالوگ کش‌شده مقدم باشد؛ تخفیفِ منقضی/دورهٔ دیگر فروخته نشود');
     }
 
     /** ⚠️ رجیسترارِ خواب در لحظهٔ تازه‌سازیِ کش نباید جعبهٔ صفحهٔ اول را بشکند */

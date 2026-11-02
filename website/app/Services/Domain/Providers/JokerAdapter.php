@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Http;
 class JokerAdapter implements DomainProvider
 {
     private string $base;
+    private ?array $promotionReadScope = null;
+
+    public function shareSearchReads(bool $enabled): void { $this->promotionReadScope = $enabled ? [] : null; }
 
     public function __construct(private DomainSupplierAccount $account)
     {
@@ -41,7 +44,7 @@ class JokerAdapter implements DomainProvider
         $expected = array_merge(['type', 'operation', 'tld', 'tld-currency', 'currency'],
             array_map(fn ($y) => 'price-'.$y.'y', range(1, 10)), ['valid_from', 'valid_until']);
         if ($columns !== $expected) throw new DomainProviderException('catalogue_schema_unverified');
-        $offers = []; $seen = []; $suffixes = [];
+        $offers = []; $regularOffers = []; $seen = []; $suffixes = [];
         [$feeBps, $mandatory] = $this->externalFees();
         $lines = $this->lines($res['body']);
         if ($lines === [] || count($lines) > 30000) throw new DomainProviderException('catalogue_incomplete');
@@ -76,16 +79,28 @@ class JokerAdapter implements DomainProvider
                 if ($debit === 0) continue; // Unknown/free operations never become zero-price domain sales.
                 $fee = ProviderMoney::surcharge($debit, $feeBps);
                 $key = $tld.'|'.$row['operation'].'|'.($years * 12);
+                if (! $promo) $regularOffers[$key] = ['amount_minor' => ProviderMoney::add($debit, $fee, $mandatory), 'currency' => $row['currency']];
                 if (! $promo && ($offers[$key]['promotion'] ?? false)) continue;
                 $offers[$key] = ['tld' => $tld, 'operation' => $row['operation'], 'period_months' => $years * 12,
                     'amount_minor' => ProviderMoney::add($debit, $fee, $mandatory), 'provider_debit_minor' => $debit,
                     'currency' => $row['currency'], 'premium' => false, 'tax_included' => true,
-                    'promotion' => $promo, 'valid_until' => $until->toIso8601String(),
+                    'promotion' => $promo, 'promotion_window' => $promo ? ['starts_at' => $from->toIso8601String(), 'ends_at' => $end->toIso8601String()] : null,
+                    'valid_until' => $until->toIso8601String(),
                     'components' => ['final_account_domain_minor' => $debit, 'supplier_fee_minor' => $fee,
                         'mandatory_fee_minor' => $mandatory, 'supplier_tax_included' => true, 'account_discounts_included' => true]];
                 $suffixes[$tld] = true;
             }
         }
+        foreach ($offers as $key => &$offer) {
+            $regular = $regularOffers[$key] ?? null;
+            if ($offer['promotion'] && $regular && $regular['currency'] === $offer['currency']
+                && $regular['amount_minor'] > $offer['amount_minor']) {
+                $offer['promotion_evidence'] = ['regular_amount_minor' => $regular['amount_minor'],
+                    'currency' => $offer['currency'], 'period_months' => $offer['period_months']] + $offer['promotion_window'];
+            }
+            unset($offer['promotion_window']);
+        }
+        unset($offer);
         if ($offers === []) throw new DomainProviderException('catalogue_incomplete');
         return ['offers' => array_values($offers), 'suffixes' => array_keys($suffixes), 'source' => 'joker_account_query_price_list'];
     }
@@ -124,11 +139,16 @@ class JokerAdapter implements DomainProvider
         $premium = $status === 'premium' || $class !== 'standard';
         $validUntil = now()->addMinutes(5);
         $promo = (string) ($fields['domain-price-promo'] ?? '');
+        $promoStart = $promoEnd = null;
         if ($promo !== '') {
             $window = preg_split('/\s+/', trim($promo));
-            if (count($window) === 2 && strtotime($window[1]) > time() && strtotime($window[1]) < $validUntil->getTimestamp()) {
-                $validUntil->setTimestamp(strtotime($window[1]));
+            $promoStart = count($window) === 2 ? strtotime($window[0]) : false;
+            $promoEnd = count($window) === 2 ? strtotime($window[1]) : false;
+            if ($promoStart === false || $promoEnd === false || $promoEnd <= $promoStart
+                || $promoStart > now()->timestamp || $promoEnd <= now()->timestamp) {
+                throw new DomainProviderException('promotion_window_invalid');
             }
+            if ($promoEnd < $validUntil->getTimestamp()) $validUntil->setTimestamp($promoEnd);
         }
         // The DMAPI price is the account's final debit, including its VAT and
         // discounts. External funding/procurement charges are a separate cost;
@@ -136,10 +156,17 @@ class JokerAdapter implements DomainProvider
         [$feeBps, $mandatory] = $this->externalFees();
         $fee = ProviderMoney::surcharge($minor, $feeBps);
         $landed = ProviderMoney::add($minor, $fee, $mandatory);
+        $evidence = null;
+        if (! $premium && $promoStart !== null) {
+            [, $tld] = \App\Models\Domain::splitFqdn($fqdn);
+            $cached = \App\Services\Domain\DomainSupplierCatalogue::promotionEvidence($this->account, $tld, $operation, $months, $landed, $m[2], $this->promotionReadScope);
+            if ($cached && strtotime($cached['starts_at']) === $promoStart && strtotime($cached['ends_at']) === $promoEnd) $evidence = $cached;
+        }
         $providerTerms = hash('sha256', json_encode([$fqdn, $operation, $months, $premium, $class, 'none', $promo, $options['language'] ?? null]));
         return [
             'available' => $available, 'amount_minor' => $landed, 'provider_debit_minor' => $minor, 'currency' => $m[2],
             'period_months' => $months, 'premium' => $premium, 'tax_included' => true,
+            'promotion' => $promoStart !== null, 'promotion_evidence' => $evidence,
             // Applying supplier VAT again would duplicate it. The additional
             // fee below is external to the account debit, not a second VAT.
             'components' => ['final_account_domain_minor' => $minor, 'privacy_minor' => 0,
