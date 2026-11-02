@@ -596,8 +596,17 @@
   },
   "documentation_continuation": {
     "baseline_develop_sha": "6c4c96119dcc2e12ce2ab548d82f40ae55662c58",
-    "validation": "pending_fresh_ci",
+    "validation": "php84_sqlite_mariadb_217_tests_1298_assertions_each_passed",
     "ote_acceptance": "awaiting_joker_support_reply",
-    "live_overlays": "unchanged_php_lint_only_behavior_pending"
+    "live_overlays": "unchanged_php_lint_only_behavior_pending",
+    "runtime_sha": "c226d8da2a889457eebd6464bcdc802aafcef019",
+    "ci_url": "https://github.com/servernetir/server/actions/runs/41445955749",
+    "regression_cases": 200,
+    "baseline_failures": 38,
+    "baseline_errors": 19,
+    "new_regressions": 0,
+    "knowledge_checks_passed": 29,
+    "workflows_passed": 11,
+    "source_and_overlay_hashes_reverified": true
   }
 }
