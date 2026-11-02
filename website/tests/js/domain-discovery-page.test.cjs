@@ -249,7 +249,7 @@ test('reduced motion disables card animation and smooth scrolling without disabl
 
 
 test('URL, case and multi-label suffix normalization send the exact bare stem once and ignore bogus primary flags',async()=>{
- const examples=[['HTTPS://WWW.Brand.CO.UK/path?ref=1#part','brand','co.uk'],[' Brand.CoM. ','brand','com'],['https://Brand.NET/a','brand','net'],['BRAND','brand','com']];
+ const examples=[['HTTPS://WWW.Brand.CO.UK/path?ref=1#part','www','brand.co.uk'],[' Brand.CoM. ','brand','com'],['https://Brand.NET/a','brand','net'],['BRAND','brand','com']];
  for(const [query,stem,suffix] of examples){
   const calls=[];const e=setup(async(_url,opt)=>{const body=JSON.parse(opt.body);calls.push(body);return response([row(stem+'.wrong',{primary:true}),row(stem+'.'+body.tlds[0],{primary:false})]);},'en','',{tlds:{first:['com','net'],rest:[['co.uk']]}});
   try{
@@ -322,4 +322,20 @@ test('Search and Enter cannot bypass a shared 429 cooldown with the same or a di
   await e.clock.advance(6);assert.equal(calls.length,2,'the end of Retry-After must not restart either submitted query automatically');
   search(e,'different.net');await settle();assert.equal(calls.length,3);assert.deepEqual(calls[2].body,{q:'different',tlds:['net']});assert.equal(e.doc.querySelector('[data-tld="com"]'),null);assert.match(e.doc.querySelector('[data-primary]').textContent,/different\.net/);
  }finally{e.w.close();}
+});
+
+
+test('a registrable www label is preserved for exact lookup, primary selection and unchecked naming ideas',async()=>{
+ for(const [query,suffix] of [['www.com','com'],['www.net','net'],['www.co.uk','co.uk']]){
+  const calls=[];const e=setup(async(_url,opt)=>{const body=JSON.parse(opt.body);calls.push(body);return response([row(body.q+'.'+body.tlds[0],{primary:false})]);},'en','',{tlds:{first:['com','net','co.uk'],rest:[]}});
+  try{
+   search(e,query);await settle();assert.deepEqual(calls[0],{q:'www',tlds:[suffix]});assert.equal(e.doc.querySelector('[data-primary] .dsx-name>b').textContent,query);
+   const ideas=[...e.doc.querySelectorAll('#dm-idea-chips button')];assert.ok(ideas.length>0&&ideas.length<=6);assert.equal(ideas[0].textContent,'getwww.'+suffix);assert.ok(ideas.every(button=>button.textContent.includes('www')&&button.textContent.endsWith('.'+suffix)));
+   assert.equal(calls.length,1,'unchecked naming ideas must not start any additional lookup');
+   await e.clock.advance(3600);assert.equal(calls.length,3);assert.ok(calls.every(body=>body.q==='www'&&body.tlds.length===1));
+   const domains=[...e.doc.querySelectorAll('.dsx-name>b')].map(el=>el.textContent);assert.ok(domains.includes(query));assert.ok(!domains.includes('com.com')&&!domains.includes('net.com'));
+   assert.equal(e.doc.querySelectorAll('[data-primary]').length,1);assert.equal(e.doc.querySelector('[data-primary] .dsx-name>b').textContent,query);
+   ideas[0].click();await settle();assert.equal(calls.length,4);assert.deepEqual(calls[3],{q:'getwww',tlds:[suffix]});
+  }finally{e.w.close();}
+ }
 });

@@ -620,7 +620,7 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
   // UI-only fallback for legacy APIs: name ideas, never availability or price.
   // Restrict to existing ASCII labels; never alter punycode or transliterate identity.
   function fallbackIdeas(query) {
-    var raw = String(query || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[/?#]/)[0];
+    var raw = String(query || '').trim().toLowerCase().replace(/^https?:\/\//, '').split(/[/?#]/)[0];
     if (/[^\x00-\x7f]/.test(raw)) return [];
     var parts = raw.split('.'), name = parts.shift(), ext = parts.join('.');
     if (!name || name.length < 2 || name.length > 63 || name.indexOf('xn--') === 0 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name)) return [];
@@ -645,7 +645,7 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
     catch (_) { return String(value || '').toLowerCase().replace(/\.$/, ''); }
   }
   function searchPlan(term) {
-    var raw = term.trim().toLowerCase().replace(/^https?:\/\//, '').split(/[/?#]/)[0].replace(/^\.+/, '').replace(/^www\./, '').replace(/\s+/g, '');
+    var raw = term.trim().toLowerCase().replace(/^https?:\/\//, '').split(/[/?#]/)[0].replace(/^\.+/, '').replace(/\s+/g, '');
     var dot = raw.indexOf('.'), label = (dot < 0 ? raw : raw.slice(0, dot)).replace(/[^\p{L}\p{N}-]/gu, '').replace(/^-+|-+$/g, '');
     var primary = dot < 0 ? (T.tld_first[0] || 'com') : raw.slice(dot + 1).replace(/^\.+|\.+$/g, '');
     var validTld = function (tld) { return typeof tld === 'string' && tld.length <= 24 && /^[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*$/u.test(tld); };
