@@ -85,7 +85,7 @@ jobs:
       PULSE_ENABLED: 'false'
       TELESCOPE_ENABLED: 'false'
       NIGHTWATCH_ENABLED: 'false'
-      INCIDENT_CORE_FILTER: 'WalletRefundNotificationsTest|VpsTcSalesTest|UnifiedVpsCountryTest|PageCacheTest|BlogListingCanonicalTest|BlogSitemapLastmodTest|InternalLinkAssetResolutionTest|CloudSalesWatchTest|CloudSalesIncidentPolicyTest|SystemHealthSalesNotificationOwnershipTest|SystemHealthTest|NavasanCoordinatedRefreshTest|NavasanExchangeRateTest|NavasanTryRateTest|CloudCatalogRepricingTest|LightNodePartialRepricingTest|ArvanRegionalPricingTest|FetchDollarTest|NavasanCloudPricingSnapshotTest|LightNodePublicPricingTest|LightNodeZeroOverheadTest|CountrySitemapEligibilityTest|CountryVpsServiceSchemaTest|GpuDecisionGuideTest|IranSalesVisibilityTest'
+      INCIDENT_CORE_FILTER: 'WalletRefundNotificationsTest|VpsTcSalesTest|UnifiedVpsCountryTest|PageCacheTest|BlogListingCanonicalTest|BlogSitemapLastmodTest|InternalLinkAssetResolutionTest|CloudSalesWatchTest|CloudSalesIncidentPolicyTest|SystemHealthSalesNotificationOwnershipTest|SystemHealthTest|NavasanCoordinatedRefreshTest|NavasanExchangeRateTest|NavasanTryRateTest|CloudCatalogRepricingTest|LightNodePartialRepricingTest|ArvanRegionalPricingTest|FetchDollarTest|NavasanCloudPricingSnapshotTest|LightNodePublicPricingTest|LightNodeClientTest::test_zero_overhead_refresh_uses_fresh_lightnode_quotes_and_preserves_other_providers|CountrySitemapEligibilityTest|CountryVpsServiceSchemaTest|GpuDecisionGuideTest|IranSalesVisibilityTest'
       INCIDENT_HERMES_FILTER: 'HermesSupportExperienceTest|HermesOwnerReviewNoiseTest|HermesSupportLearningIntegrationTest|HermesTechnicalFollowupWorkflowTest|HermesBackgroundReliabilityTest|HermesOwnerNotificationTest'
     steps:
       - name: Checkout without persisted credentials
@@ -131,7 +131,8 @@ jobs:
                   subprocess.run(["php", "-l", str(source)], check=True)
           classes = (os.environ["INCIDENT_CORE_FILTER"] + "|" + os.environ["INCIDENT_HERMES_FILTER"]).split("|")
           for name in classes:
-              matches = list(pathlib.Path("tests").rglob(name + ".php"))
+              class_name = name.split("::", 1)[0]
+              matches = list(pathlib.Path("tests").rglob(class_name + ".php"))
               if len(matches) != 1:
                   raise SystemExit("Expected exactly one test file for " + name + ", found " + str(len(matches)))
           print("Linted", len(files), "changed PHP files; verified", len(classes), "selected test classes")
