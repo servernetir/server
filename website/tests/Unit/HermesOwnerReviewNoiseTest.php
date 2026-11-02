@@ -36,6 +36,13 @@ class HermesOwnerReviewNoiseTest extends TestCase
         $this->assertNull(HermesSupportOwnerReview::manualNoticeRetryAt($this->item(), [$prior], '1', '3', 1200));
     }
 
+    public function test_missing_or_zero_notice_timestamp_never_suppresses_a_first_notice(): void
+    {
+        $this->assertNull(HermesSupportOwnerReview::manualNoticeRetryAt($this->item(), [], '1', '2', 1200));
+        $prior = $this->item(9) + ['owner_notice_at' => 0, 'notice_owner_id' => '1', 'notice_chat_id' => '2'];
+        $this->assertNull(HermesSupportOwnerReview::manualNoticeRetryAt($this->item(), [$prior], '1', '2', 1200));
+    }
+
     public function test_preview_scrubs_identity_and_access_data_even_for_generic_writer_failures(): void
     {
         $preview = HermesSupportOwnerReview::safeQuestion('کد ملی ۰۰۱۲۳۴۵۶۷۸ و شماره 0912-345-6789 نشانی https://example.test/secret');

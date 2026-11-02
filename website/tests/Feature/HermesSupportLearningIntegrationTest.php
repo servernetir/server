@@ -93,9 +93,46 @@ class HermesSupportLearningIntegrationTest extends TestCase
         DB::table('ticket_messages')->insert(['id' => 4, 'ticket_id' => 4, 'author_role' => 'staff', 'author_name' => 'Support', 'body' => 'own-billing-history ثبت پرداخت بررسی شد.', 'created_at' => '2026-01-04']);
         $store = new HermesOperationsStore(dirname(__DIR__, 3).'/output/learning-tests/'.bin2hex(random_bytes(8)));
         $r = (new HermesSupportExperience($store))->context(Ticket::findOrFail(1), ['user_id' => '100', 'chat_id' => '200'], 'UDP');
-        $this->assertSame(2, $r['learned_case_count']);
+        $this->assertSame(3, $r['learned_case_count']);
+        $this->assertSame('all_departments_public_history', $r['source_scope']);
         $this->assertSame('billing', $r['same_customer_history'][0]['department']);
         $this->assertStringContainsString('own-billing-history', $r['same_customer_history'][0]['published_reply_excerpt']);
         $this->assertStringNotContainsString('own-billing-history', json_encode($r['related_case_patterns']));
+    }
+
+    public function test_full_public_history_crosses_ticket_and_message_query_pages_without_learning_private_text(): void
+    {
+        $tickets = [];
+        for ($id = 4; $id <= 104; $id++) {
+            $tickets[] = ['id' => $id, 'customer_id' => 30, 'subject' => 'فاکتور و قیمت',
+                'department' => $id % 2 ? 'sales' : 'billing', 'status' => 'answered'];
+        }
+        DB::table('tickets')->insert($tickets);
+        $messages = [];
+        for ($n = 0; $n < 600; $n++) {
+            $messages[] = ['id' => $n + 3, 'ticket_id' => 4 + $n % 101, 'author_role' => 'staff',
+                'author_name' => 'Support', 'body' => 'private-learning-marker پرداخت ثبت شد.',
+                'is_internal' => false, 'created_at' => '2026-01-01'];
+        }
+        foreach (array_chunk($messages, 100) as $batch) { DB::table('ticket_messages')->insert($batch); }
+        DB::table('ticket_messages')->insert([
+            ['id' => 603, 'ticket_id' => 104, 'author_role' => 'staff', 'author_name' => 'Hermes',
+                'body' => 'private-draft-marker', 'is_internal' => false, 'created_at' => '2026-01-01'],
+            ['id' => 604, 'ticket_id' => 104, 'author_role' => 'staff', 'author_name' => 'Support',
+                'body' => 'private-internal-marker', 'is_internal' => true, 'created_at' => '2026-01-01'],
+        ]);
+        $store = new HermesOperationsStore(dirname(__DIR__, 3).'/output/learning-tests/'.bin2hex(random_bytes(8)));
+        $index = (new HermesSupportExperience($store))->refresh(['user_id' => '100', 'chat_id' => '200']);
+        $this->assertSame(104, $index['source_ticket_count']);
+        $this->assertSame(603, $index['source_message_count']);
+        $this->assertCount(602, $index['cases']);
+        $this->assertTrue($index['bounded_inventory_complete']);
+        $this->assertSame(104, $index['snapshot_max_ticket_id']);
+        $this->assertSame(603, $index['snapshot_max_message_id']);
+        $this->assertArrayHasKey('billing', $index['department_counts']);
+        $this->assertArrayHasKey('sales', $index['department_counts']);
+        foreach (['private-learning-marker', 'private-draft-marker', 'private-internal-marker'] as $marker) {
+            $this->assertStringNotContainsString($marker, json_encode($index));
+        }
     }
 }
