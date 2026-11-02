@@ -1,0 +1,37 @@
+{
+  "base_commit": "d3be9c42",
+  "status": "local_candidate_not_committed_or_deployed",
+  "source_scope": [
+    "website/app/Http/Controllers/SiteController.php:sitemap",
+    "website/tests/Feature/CountrySitemapEligibilityTest.php"
+  ],
+  "before_sha256": "0ead3ee69923c34fb9d861e7793e0ae35ede57b4c74231d2c72d263e30e17b81",
+  "after_sha256": "fbb2701e8d3dcebed559e4cea4463b1fc1afa105f1ebc5283db7227409a2fc39",
+  "baseline": {
+    "tests": 3,
+    "expected_failures": 3,
+    "summary": "country-sitemap-baseline-summary.json"
+  },
+  "focused_after": {
+    "tests": 3,
+    "assertions": 50,
+    "passed": 3
+  },
+  "final_regression": {
+    "tests": 19,
+    "assertions": 847,
+    "passed": 19,
+    "receipt": "country-sitemap-regression.txt"
+  },
+  "php_lint": "both files passed",
+  "git_diff_check": "passed",
+  "external_http_requests_by_this_agent": 0,
+  "production_mutation": false,
+  "geo_policy_changed": false,
+  "prices_or_sellability_changed": false,
+  "limitations": [
+    "Iran live visibility policy remains separate; globally available Iran is deliberately preserved in XML.",
+    "No new quote/metal-only or visitor-specific eligibility policy added.",
+    "No ranking/indexing uplift or LCP change measured."
+  ]
+}

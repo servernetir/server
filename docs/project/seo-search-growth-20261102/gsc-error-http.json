@@ -1,0 +1,14 @@
+[
+  {
+    "url": "https://servernet.cloud/guide/privacy.php",
+    "status": 200,
+    "final_url": "https://servernet.cloud/privacy",
+    "content_type": "text/html; charset=utf-8"
+  },
+  {
+    "url": "https://console.servernet.cloud/hosting/reseller-wordpress",
+    "status": 200,
+    "final_url": "https://servernet.cloud/hosting/reseller-wordpress",
+    "content_type": "text/html; charset=utf-8"
+  }
+]
