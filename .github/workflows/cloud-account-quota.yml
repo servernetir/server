@@ -1,0 +1,220 @@
+name: Cloud account quota regressions
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/**'
+      - 'website/routes/**'
+      - 'website/config/**'
+      - 'website/database/migrations/**'
+      - 'website/resources/views/**'
+      - 'website/public/**'
+      - 'website/tests/**'
+      - 'website/composer.json'
+      - 'website/composer.lock'
+      - 'website/phpunit.xml'
+      - '.github/workflows/cloud-account-quota.yml'
+  push:
+    branches: [fix/arvan-ram-quota-20261102]
+    paths:
+      - 'website/app/**'
+      - 'website/routes/**'
+      - 'website/config/**'
+      - 'website/database/migrations/**'
+      - 'website/resources/views/**'
+      - 'website/public/**'
+      - 'website/tests/**'
+      - 'website/composer.json'
+      - 'website/composer.lock'
+      - 'website/phpunit.xml'
+      - '.github/workflows/cloud-account-quota.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloud-account-quota-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quota-regressions:
+    name: Cloud account quota (${{ matrix.database }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: incident_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: website
+        shell: bash
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: ${{ matrix.database == 'mariadb' && 'mysql' || 'sqlite' }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'incident_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      DB_SOCKET: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      BROADCAST_CONNECTION: 'null'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+      NIGHTWATCH_ENABLED: 'false'
+      INCIDENT_CORE_FILTER: 'ArvanRamQuotaTest|CloudDeliveryPromiseTest|CloudFailedRecoveryTest|CloudAdminControlsTest|CloudSalesWatchTest|CloudFailureDetailTest'
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without project scripts or plugins
+        id: install
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Lint changed PHP and verify the intended test classes exist
+        env:
+          INCIDENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          INCIDENT_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os, pathlib, subprocess
+          repo = pathlib.Path.cwd().parent
+          base = os.environ.get("INCIDENT_BASE_SHA", "")
+          head = os.environ["INCIDENT_HEAD_SHA"]
+          valid_base = base and set(base) != {"0"} and subprocess.run(
+              ["git", "cat-file", "-e", base + "^{commit}"], cwd=repo,
+              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+          args = (["git", "diff", "--name-only", "--diff-filter=ACMR", "-z", base, head]
+                  if valid_base else ["git", "ls-files", "-z"])
+          paths = subprocess.check_output(args, cwd=repo).decode().split("\0")
+          files = [repo / p for p in paths if p.startswith(("website/",)) and p.endswith(".php")]
+          for source in files:
+              if source.is_file():
+                  subprocess.run(["php", "-l", str(source)], check=True)
+          classes = os.environ["INCIDENT_CORE_FILTER"].split("|")
+          for name in classes:
+              class_name = name.split("::", 1)[0]
+              matches = list(pathlib.Path("tests").rglob(class_name + ".php"))
+              if len(matches) != 1:
+                  raise SystemExit("Expected exactly one test file for " + name + ", found " + str(len(matches)))
+          print("Linted", len(files), "changed PHP files; verified", len(classes), "selected test classes")
+          PY
+      - name: Isolate application execution from external networks
+        id: isolate
+        env:
+          INCIDENT_MARIADB_CONTAINER: ${{ job.services.mariadb.id }}
+        run: |
+          set -euo pipefail
+          # Only this unprivileged test UID is restricted; setup/actions retain connectivity.
+          # Loopback is the disposable MariaDB service. No production credentials are supplied.
+          sudo useradd --system --no-create-home --shell /usr/sbin/nologin incident-tests
+          test_uid="$(id -u incident-tests)"
+          sudo iptables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -j REJECT
+          sudo iptables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -d 127.0.0.0/8 -j ACCEPT
+          # Published localhost ports may already be DNATed before OUTPUT filtering.
+          # Permit only the exact disposable service addresses and MySQL port.
+          docker inspect --format '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' "$INCIDENT_MARIADB_CONTAINER" > "$RUNNER_TEMP/incident-mariadb-ips"
+          test -s "$RUNNER_TEMP/incident-mariadb-ips"
+          while IFS= read -r service_ip; do
+            if [ -n "$service_ip" ]; then
+              sudo iptables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -p tcp -d "$service_ip" --dport 3306 -j ACCEPT
+            fi
+          done < "$RUNNER_TEMP/incident-mariadb-ips"
+          sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -j REJECT
+          sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -d ::1/128 -j ACCEPT
+          mkdir -p storage/framework/testing/incident-ci bootstrap/cache
+          sudo chown -R incident-tests:incident-tests "$GITHUB_WORKSPACE/website"
+          # sudo inherits cwd, but PHP resolves autoload/source paths absolutely.
+          # Permit traversal through runner-owned ancestors without exposing their files.
+          ancestor="$GITHUB_WORKSPACE"
+          while [ "$ancestor" != / ]; do
+            if command -v setfacl >/dev/null 2>&1; then
+              rights=--x
+              if [ "$ancestor" = "$GITHUB_WORKSPACE" ]; then rights=r-x; fi
+              sudo setfacl -m "u:$test_uid:$rights" "$ancestor"
+            else
+              # Ephemeral runner fallback: traversal only, no read/write permissions added.
+              sudo chmod o+x "$ancestor"
+            fi
+            ancestor="$(dirname "$ancestor")"
+          done
+          sudo -u incident-tests -- test -r "$GITHUB_WORKSPACE/website/vendor/autoload.php"
+          printf '%s\n' 'APP_ENV,APP_KEY,APP_URL,DB_CONNECTION,DB_HOST,DB_PORT,DB_DATABASE,DB_USERNAME,DB_PASSWORD,DB_URL,DB_SOCKET,CACHE_STORE,SESSION_DRIVER,QUEUE_CONNECTION,MAIL_MAILER,SMS_DRIVER,PAGE_CACHE,EXCHANGE_ENABLED,BROADCAST_CONNECTION,PULSE_ENABLED,TELESCOPE_ENABLED,NIGHTWATCH_ENABLED' > "$RUNNER_TEMP/incident-preserve-env"
+          preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
+          sudo --preserve-env="$preserved" -u incident-tests -- php artisan package:discover --ansi
+      - name: Verify the disposable database driver
+        run: |
+          set -euo pipefail
+          preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
+          sudo --preserve-env="$preserved" -u incident-tests -- php -r '
+          require "vendor/autoload.php";
+          $app = require "bootstrap/app.php";
+          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+          $expected = getenv("DB_CONNECTION");
+          if (config("database.default") !== $expected) { throw new RuntimeException("Database configuration differs from CI matrix."); }
+          $driver = Illuminate\Support\Facades\DB::connection()->getPdo()->getAttribute(PDO::ATTR_DRIVER_NAME);
+          if ($driver !== $expected) { throw new RuntimeException("Unexpected PDO driver: ".$driver); }
+          if ($expected === "mysql") {
+              $version = Illuminate\Support\Facades\DB::selectOne("SELECT VERSION() AS version")->version;
+              if (!str_contains($version, "MariaDB")) { throw new RuntimeException("MariaDB service expected."); }
+          }
+          echo "Verified disposable database driver: ".$driver.PHP_EOL;
+          '
+      - name: Run core incident and public page regressions
+        run: |
+          set -euo pipefail
+          selected="$INCIDENT_CORE_FILTER"
+          # This fixture deliberately creates a minimal settings table and requires SQLite.
+          if [ "$DB_CONNECTION" = mysql ]; then
+            selected="$(printf '%s' "$selected" | sed 's/|InternalLinkAssetResolutionTest//')"
+          fi
+          preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
+          sudo --preserve-env="$preserved" -u incident-tests -- php -d memory_limit=512M vendor/bin/phpunit \
+            --filter "$selected" --colors=never \
+            --log-junit storage/framework/testing/incident-ci/core.xml
+      - name: Show actual test totals
+        if: always()
+        run: |
+          python3 <<'PY'
+          import pathlib, xml.etree.ElementTree as ET
+          for path in sorted(pathlib.Path("storage/framework/testing/incident-ci").glob("*.xml")):
+              root = ET.parse(path).getroot()
+              suites = list(root.iter("testsuite"))
+              top = [suite.attrib for suite in suites if suite.attrib.get("tests")]
+              print(path.name, top[:1])
+          PY
