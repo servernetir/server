@@ -1,0 +1,54 @@
+{
+  "release": "hermes-assistant-20261102",
+  "base_commit": "6443ab136e52ae51d1af73347971dd07ead10cb1",
+  "files": [
+    {
+      "source": "website/app/Services/Hermes/HermesAssistantContext.php",
+      "target": "app/Services/Hermes/HermesAssistantContext.php",
+      "before": null,
+      "after": "561ccb90f03ace6ef11518edab619a7c4b93f223f810c9781f0c102f3220b233"
+    },
+    {
+      "source": "website/app/Services/Hermes/HermesRepositoryKnowledge.php",
+      "target": "app/Services/Hermes/HermesRepositoryKnowledge.php",
+      "before": null,
+      "after": "46497585202191fc00aa2423e3236d5815e1e1fe6184ccdf324c7c5e65ad8e71"
+    },
+    {
+      "source": "website/app/Services/Hermes/HermesRelayMonitor.php",
+      "target": "app/Services/Hermes/HermesRelayMonitor.php",
+      "before": null,
+      "after": "968efeaa7e3d24628e788ca39104e7874895ea93dadc6ac020c7608a4037bb57"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/HermesKnowledge.php",
+      "target": "app/Services/Hermes/HermesKnowledge.php",
+      "before": "c47d352778e71db8b80b529b0563df36fcf48f339d4fe95f8738504325cf8a2f",
+      "after": "6d158d7d591c616e148413554f5794f61ec4725d9d8afa4bdcc2784bebfaad98"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/HermesConversationMemory.php",
+      "target": "app/Services/Hermes/HermesConversationMemory.php",
+      "before": "19040a28acba5a51e49cb6bd26b8cb733ffceb23e30db4883adde781f481f9e9",
+      "after": "eb4382007c12f7eeac185a3e2962969f2fef68559c04ca60dfed84f282500a53"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/HermesKnowledgeRefresh.php",
+      "target": "app/Console/Commands/HermesKnowledgeRefresh.php",
+      "before": "cf9b4d15406c9650850c62a28ab9d788f72c5d57010c03797d61a6bc0ed454af",
+      "after": "aa9be6b81ecdb509990e4f6d93ff5f0027813b4afb12e4c2c02bad7e6e01f52c"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/HermesMiniAppController.php",
+      "target": "app/Http/Controllers/HermesMiniAppController.php",
+      "before": "b3f4001c766cd58ba44bf8f448d9082af3cb61c8bfb6a8bafa092cdd4b0842c3",
+      "after": "d82da50d38561c41ab304121a8e3b067fbd79c793675d87148ac49d0dee2954f"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/hermes.blade.php",
+      "target": "resources/views/bale/hermes.blade.php",
+      "before": "1f3d9d59f86bd93a437dd7f30507991cecbd5df19600ab2d9a4bde66ed71d12f",
+      "after": "5101a4669ead8159363efd237f60b9393e6ecf6ec39ec7b14b03d64e62c1efbf"
+    }
+  ]
+}
