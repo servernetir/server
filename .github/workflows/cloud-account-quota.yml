@@ -1,8 +1,6 @@
 name: Cloud account quota regressions
 
 on:
-  push:
-    branches: ['fix/arvan-*']
   pull_request:
     branches: [develop]
     paths:
