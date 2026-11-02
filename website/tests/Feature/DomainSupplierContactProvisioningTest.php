@@ -54,6 +54,18 @@ class DomainSupplierContactProvisioningTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_supplier_identity_survives_reload_and_json_key_order_but_changes_with_credentials(): void
+    {
+        [, , $a] = $this->fixture();
+        $identity = \App\Services\Domain\DomainSupplierCatalogue::identity($a);
+        $this->assertSame($identity, \App\Services\Domain\DomainSupplierCatalogue::identity($a->fresh()));
+        $caps = $a->capabilities; $caps['tlds'] = array_reverse($caps['tlds'], true);
+        $a->update(['capabilities' => $caps]);
+        $this->assertSame($identity, \App\Services\Domain\DomainSupplierCatalogue::identity($a->fresh()));
+        $a->update(['credentials' => ['api_key' => 'different-synthetic-key']]);
+        $this->assertNotSame($identity, \App\Services\Domain\DomainSupplierCatalogue::identity($a->fresh()));
+    }
+
     public function test_timeout_stays_unknown_and_never_resubmits_even_after_profile_changes(): void
     {
         [$c, $profile, $a, $p, $service] = $this->fixture();

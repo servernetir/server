@@ -304,7 +304,7 @@ class DomainProviderAdaptersTest extends TestCase
         $this->fakeJoker(['*/result-list' => $this->reply("20261031120000\t99\t42\tdomain-register\tack\tfixture-operation\n"),
             '*/result-retrieve' => $this->reply('', "Result: ACK\n"),
             '*/query-domain-list' => $this->reply("example.com\t2027-05-30\tlock\n"),
-            '*/query-order-list' => $this->reply("123\t42\t2026-10-31T12:00:00Z\tok\tcreate\t8.20\t8.20\tUSD\texample.com\n",
+            '*/query-order-list*' => $this->reply("123\t42\t2026-10-31T12:00:00Z\tok\tcreate\t8.20\t8.20\tUSD\texample.com\n",
                 "Columns: order_id,proc_id,created_at,status,type,amount_brutto,amount_netto,currency,identifier\n")]);
         $res = (new JokerAdapter($this->account()))->reconcile(['operation' => 'create', 'fqdn' => 'example.com', 'tracking_id' => '99', 'process_id' => '42']);
         $this->assertSame('succeeded', $res['status']);

@@ -144,4 +144,25 @@ class DomainSupplierCatalogueTest extends TestCase
         $this->assertCount(1, $offers); $this->assertSame(24, $offers[0]['period_months']);
         $this->assertSame(1320, $offers[0]['amount_minor']); $this->assertSame(1200, $offers[0]['provider_debit_minor']);
     }
+
+    public function test_openprovider_iso_promotion_expires_to_regular_price_without_stale_discount(): void
+    {
+        $this->freezeTime();
+        $a = $this->account('openprovider');
+        $client = \Mockery::mock(OpenProviderClient::class);
+        $client->shouldReceive('resellerInfo')->twice()->andReturn(['ok' => true, 'data' => ['vatperc' => 0]]);
+        $client->shouldReceive('listTlds')->twice()->andReturn(['ok' => true, 'total' => 1, 'results' => [[
+            'name' => 'com', 'status' => 'ACT', 'min_period' => 1, 'max_period' => 1,
+            'prices' => ['reseller_price' => ['reseller' => ['price' => '8.00', 'currency' => 'USD'],
+                'promotion_details' => ['start_date' => now()->subDay()->toIso8601String(),
+                    'end_date' => now()->addMinutes(2)->toIso8601String(),
+                    'non_promo_price' => ['reseller' => ['price' => '12.00', 'currency' => 'USD']]]]],
+        ]]]);
+        $adapter = new OpenProviderAdapter($a, $client);
+        $offer = $adapter->catalogue()['offers'][0];
+        $this->assertSame(800, $offer['amount_minor']);
+        $this->assertSame(now()->addMinutes(2)->timestamp, \Illuminate\Support\Carbon::parse($offer['valid_until'])->timestamp);
+        $this->travel(3)->minutes();
+        $this->assertSame(1200, $adapter->catalogue()['offers'][0]['amount_minor']);
+    }
 }

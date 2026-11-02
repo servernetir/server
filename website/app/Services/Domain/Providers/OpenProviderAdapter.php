@@ -52,11 +52,12 @@ class OpenProviderAdapter implements DomainProvider
                     $price = $source['reseller'] ?? null; $until = now()->addDay();
                     $promotion = $source['promotion_details'] ?? null;
                     if (is_array($promotion) && $promotion !== []) {
-                        $from = $promotion['start_date'] ?? null; $end = $promotion['end_date'] ?? null;
-                        if (! is_numeric($from) || ! is_numeric($end) || $end <= $from) throw new DomainProviderException('catalogue_promo_invalid');
-                        if (now()->timestamp < (int) $from || now()->timestamp >= (int) $end) {
+                        $from = $this->promotionTime($promotion['start_date'] ?? null);
+                        $end = $this->promotionTime($promotion['end_date'] ?? null);
+                        if ($from === null || $end === null || $end <= $from) throw new DomainProviderException('catalogue_promo_invalid');
+                        if (now()->timestamp < $from || now()->timestamp >= $end) {
                             $price = data_get($promotion, 'non_promo_price.reseller');
-                        } else $until = $until->min(\Illuminate\Support\Carbon::createFromTimestamp((int) $end));
+                        } else $until = $until->min(\Illuminate\Support\Carbon::createFromTimestamp($end));
                     }
                     if (! is_array($price)) continue;
                     $currency = strtoupper((string) ($price['currency'] ?? ''));
@@ -75,6 +76,17 @@ class OpenProviderAdapter implements DomainProvider
         } while ($offset < $total);
         if (count($seen) !== $total || $offers === []) throw new DomainProviderException('catalogue_incomplete');
         return ['offers' => $offers, 'suffixes' => array_keys($seen), 'source' => 'openprovider_account_tlds'];
+    }
+
+    private function promotionTime(mixed $value): ?int
+    {
+        try {
+            if (is_numeric($value)) {
+                $seconds = (int) $value;
+                return $seconds >= 1000000000 && $seconds < 10000000000 ? $seconds : null;
+            }
+            return is_string($value) && $value !== '' ? \Illuminate\Support\Carbon::parse($value, 'UTC')->timestamp : null;
+        } catch (\Throwable) { return null; }
     }
 
     private function landedCost(int $base, int $actualVat): array
