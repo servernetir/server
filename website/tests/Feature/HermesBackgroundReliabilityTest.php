@@ -201,6 +201,10 @@ class HermesBackgroundReliabilityTest extends TestCase
         $this->artisan('hermes:knowledge-refresh')->assertSuccessful();
         $this->assertCount(1, ErrorTracker::recent(50), 'An unchanged cause must not create another incident.');
         $makeDue();
+        // Http::fake merges callbacks; the first matching callback wins.
+        // Replace the test factory so this phase actually changes the cause.
+        Http::swap(new \Illuminate\Http\Client\Factory());
+        Http::preventStrayRequests();
         $this->feeds('cpanel', 'http');
         $this->artisan('hermes:knowledge-refresh')->assertSuccessful();
         $this->assertCount(2, ErrorTracker::recent(50), 'A different cause must not hide behind the prior throttle.');
