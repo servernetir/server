@@ -105,6 +105,11 @@ $code=end($sms->codes);$before=count($sms->codes);
 \App\Models\OtpChallenge::where('destination',$uncertain['mobile'])->update(['updated_at'=>now()->subSeconds(90)]);
 [$status,$blocked]=callUrmia('start',[...$uncertain,'request_id'=>(string)\Illuminate\Support\Str::uuid()]);expect(count($sms->codes)===$before&&$blocked['accepted']===false,'fresh UUID cannot resend an uncertain SMS during its full TTL');
 [$status,$proof]=callUrmia('verify',['challenge_id'=>$receipt['challenge_id'],'code'=>$code,'session_binding'=>$uncertain['session_binding']]);expect($proof['verified']===true,'possibly delivered code remains usable');
+$ledgerKey='urmia-auth:request:'.$uncertain['request_id'];$entry=json_decode(\Illuminate\Support\Facades\DB::table('urmia_auth_requests')->where('request_key',$ledgerKey)->value('payload'),true);$entry['deadline']=time()-1;
+\Illuminate\Support\Facades\DB::table('urmia_auth_requests')->where('request_key',$ledgerKey)->update(['payload'=>json_encode($entry)]);
+[$status,$expiredReceipt]=callUrmia('start',$uncertain);expect($expiredReceipt['status']==='expired','start retry expires an uncertain send at its original deadline');
+[$status,$replayedProof]=callUrmia('verify',['challenge_id'=>$receipt['challenge_id'],'code'=>$code,'session_binding'=>$uncertain['session_binding']]);expect($replayedProof['verified']===true,'start expiry cannot erase the bounded successful verification receipt');
+
 $sms->negative=false;
 expect($sms->associationBeforeSend,'durable request-to-OTP association exists before delivery');
 $lost=[...$body,'request_id'=>(string)\Illuminate\Support\Str::uuid(),'mobile'=>'09140000006'];

@@ -156,13 +156,14 @@ class UrmiaAuthController extends Controller
         return Cache::lock('urmia-auth:mobile:'.hash('sha256', $entry['mobile']), 60)->block(3, function () use ($requestKey, $body, $otp) {
             return DB::transaction(function () use ($requestKey, $body, $otp) {
             $entry = $this->ledgerGet($requestKey);
-            $this->requireCondition(is_array($entry) && in_array($entry['status'] ?? '', ['sent', 'unknown'], true), 409, 'challenge_not_active');
+            $this->requireCondition(is_array($entry), 409, 'challenge_not_active');
             $this->requireCondition(hash_equals($entry['binding'], $body['session_binding']), 403);
             $codeHash = hash_hmac('sha256', $body['code'], $this->signingKey());
             if (isset($entry['verified_hash'])) {
                 return $this->response(['verified' => hash_equals($entry['verified_hash'], $codeHash)
                     && ($entry['verified_at'] ?? 0) >= time() - 120]);
             }
+            $this->requireCondition(in_array($entry['status'] ?? '', ['sent', 'unknown'], true), 409, 'challenge_not_active');
             $latest = OtpChallenge::where('channel', 'sms')->where('destination', $entry['mobile'])
                 ->where('purpose', self::PURPOSE)->whereNull('verified_at')
                 ->where('expires_at', '>', now())->latest('id')->value('id');
