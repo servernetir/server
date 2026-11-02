@@ -68,7 +68,7 @@ class OtpService
     /**
      * ارسال کد. اگر چالش فعالی هست و هنوز خنک نشده، دوباره نمی‌فرستد.
      */
-    public function issue(string $channel, string $destination, string $purpose, ?string $ip): OtpIssue
+    public function issue(string $channel, string $destination, string $purpose, ?string $ip, bool $smsOnly = false): OtpIssue
     {
         $destination = $this->normalize($channel, $destination);
 
@@ -89,9 +89,9 @@ class OtpService
         | ⚠️ برای مسیرهای داخلِ حساب، محافظِ واقعی جای دیگری است: کاربر باید
         | از قبل وارد شده باشد. سقفِ مقصد (پایین) هم همچنان برقرار است.
         */
-        $preAccount = in_array($purpose, ['register', 'login'], true);
+        $preAccount = in_array($purpose, ['register', 'login', 'urmia_city_login'], true);
 
-        if ($preAccount && $ip !== null && $this->countForIp($ip) >= self::MAX_PER_IP) {
+        if ($preAccount && $ip !== null && $this->countForIp($ip, $purpose) >= self::MAX_PER_IP) {
             return OtpIssue::fail(
                 'تعداد درخواست‌ها از این شبکه زیاد بوده است. اگر از اینترنت همراه استفاده می‌کنید '
                 .'شبکهٔ دیگری را امتحان کنید، یا با پشتیبانی تماس بگیرید.'
@@ -176,7 +176,7 @@ class OtpService
 
         // بله موازی — اگر کاربر بله را وصل کرده باشد، کد آن‌جا هم می‌رود.
         // best-effort و بی‌خطر: هرگز جریان ثبت‌نام را نمی‌شکند.
-        if ($channel === 'sms') {
+        if ($channel === 'sms' && ! $smsOnly) {
             // مسیرِ اختصاصیِ کدِ سفیر — بی‌نیاز به ورودِ کاربر به ربات
             app(\App\Services\Bale\BaleNotifier::class)->otp($destination, $code);
 
@@ -362,9 +362,10 @@ class OtpService
             ->count();
     }
 
-    private function countForIp(string $ip): int
+    private function countForIp(string $ip, string $purpose): int
     {
         return OtpChallenge::where('ip', $ip)
+            ->when($purpose === 'urmia_city_login', fn ($q) => $q->where('purpose', 'urmia_city_login'), fn ($q) => $q->where('purpose', '!=', 'urmia_city_login'))
             ->where('created_at', '>=', now()->subDay())
             ->count();
     }
