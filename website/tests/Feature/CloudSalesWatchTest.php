@@ -65,7 +65,7 @@ class CloudSalesWatchTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_watch_announces_each_failure_reason_and_recovery_without_repeating_peers(): void
+    public function test_watch_coalesces_failure_causes_and_confirms_recovery_without_repeating_peers(): void
     {
         $sent = [];
         $this->mock(AdminNotifier::class)->shouldReceive('baleEvent')->andReturnUsing(
@@ -76,7 +76,7 @@ class CloudSalesWatchTest extends TestCase
         $health = $this->mock(CloudSalesHealth::class);
         $health->shouldReceive('snapshot')->times(3)->andReturn(['hetzner' => $a, 'vpstc' => $b, 'ovh' => $off]);
         $health->shouldReceive('snapshot')->once()->andReturn(['hetzner' => $a, 'vpstc' => array_replace($b, ['reason' => 'missing_quote']), 'ovh' => $off]);
-        $health->shouldReceive('snapshot')->once()->andReturn(['hetzner' => $a, 'vpstc' => array_replace($a, ['label' => 'VPS.TC']), 'ovh' => $off]);
+        $health->shouldReceive('snapshot')->twice()->andReturn(['hetzner' => $a, 'vpstc' => array_replace($a, ['label' => 'VPS.TC']), 'ovh' => $off]);
         $this->artisan('cloud:watch-sales')->assertSuccessful();
         $this->artisan('cloud:watch-sales')->assertSuccessful();
         $this->assertCount(1, $sent);
@@ -84,9 +84,11 @@ class CloudSalesWatchTest extends TestCase
         $this->artisan('cloud:watch-sales')->assertSuccessful();
         $this->artisan('cloud:watch-sales')->assertSuccessful();
         $this->artisan('cloud:watch-sales')->assertSuccessful();
-        $this->assertCount(4, $sent);
+        $this->assertCount(1, $sent);
+        $this->artisan('cloud:watch-sales')->assertSuccessful();
+        $this->assertCount(2, $sent);
         foreach ($sent as $message) { $this->assertSame('VPS.TC', $message['rows']['زیرساخت']); }
-        $this->assertStringContainsString('دوباره', $sent[3]['title']);
+        $this->assertStringContainsString('دوباره', $sent[1]['title']);
         $this->assertSame('https://console.servernet.cloud/admin/cloud', $sent[0]['url']);
         Http::assertNothingSent();
     }
@@ -117,4 +119,28 @@ class CloudSalesWatchTest extends TestCase
         $this->assertStringNotContainsString('private bearer token', file_get_contents(storage_path('app/cloud-sales-watch.json')));
         Http::assertNothingSent();
     }
+    public function test_probe_failure_preserves_an_existing_provider_incident_receipt(): void
+    {
+        $sent = [];
+        $this->mock(AdminNotifier::class)->shouldReceive('baleEvent')->andReturnUsing(
+            function ($title, $rows) use (&$sent) { $sent[] = compact('title', 'rows'); });
+        $failure = ['ok' => false, 'offers' => 0, 'reason' => 'supplier_cost_read_failed', 'label' => 'VPS.TC'];
+        $health = $this->mock(CloudSalesHealth::class);
+        $health->shouldReceive('snapshot')->once()->andReturn(['vpstc' => $failure])->ordered();
+        $health->shouldReceive('snapshot')->once()->andThrow(new \RuntimeException('private token'))->ordered();
+        $health->shouldReceive('snapshot')->twice()->andReturn(['vpstc' => $failure])->ordered();
+        $this->artisan('cloud:watch-sales')->assertSuccessful();
+        $this->artisan('cloud:watch-sales')->assertSuccessful();
+        $this->assertCount(2, $sent); // Supplier incident and the independent failed probe.
+        $this->artisan('cloud:watch-sales')->assertSuccessful();
+        $this->assertCount(2, $sent);
+        $this->artisan('cloud:watch-sales')->assertSuccessful();
+        $this->assertCount(3, $sent); // Only the probe recovers after two successful observations.
+        $receipt = json_decode(file_get_contents(storage_path('app/cloud-sales-watch.json')), true);
+        $this->assertTrue($receipt['providers']['vpstc']['incident_open']);
+        $this->assertSame(0, $receipt['providers']['vpstc']['reminders_sent']);
+        $this->assertStringNotContainsString('private token', json_encode($receipt));
+        Http::assertNothingSent();
+    }
+
 }

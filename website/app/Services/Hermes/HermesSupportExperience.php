@@ -14,16 +14,40 @@ final class HermesSupportExperience
 
     public function refresh(array $owner): array
     {
-        $version = DB::table('ticket_messages')->where('is_internal', false)->max('id') ?? 0;
-        $key = 'hermes:support-experience:v2:'.hash('sha256', $owner['user_id'].':'.$owner['chat_id']).':'.$version;
-        $index = Cache::remember($key, 600, function (): array {
-            $tickets = DB::table('tickets')->where('department', 'technical')->orderByDesc('last_reply_at')->limit(501)
-                ->get(['id', 'customer_id', 'subject', 'department', 'status'])->map(fn ($r) => (array) $r)->all();
-            $ids = array_column(array_slice($tickets, 0, 500), 'id');
-            $messages = $ids ? DB::table('ticket_messages')->whereIn('ticket_id', $ids)->where('is_internal', false)
-                ->orderByDesc('id')->limit(5001)->get(['id', 'ticket_id', 'author_role', 'author_name', 'body', 'created_at'])
-                ->map(fn ($r) => (array) $r)->all() : [];
-            return self::compile($tickets, $messages, time());
+        // Bound the snapshot by IDs, not by the newest 500 technical tickets.
+        // Read every department in small queries; only safe, source-linked metadata
+        // leaves this compiler. No paid model call or customer dispatch is involved.
+        $version = (int) (DB::table('ticket_messages')->where('is_internal', false)->max('id') ?? 0);
+        $lastTicket = (int) (DB::table('tickets')->max('id') ?? 0);
+        $key = 'hermes:support-experience:v3:'.hash('sha256', $owner['user_id'].':'.$owner['chat_id']).':'.$lastTicket.':'.$version;
+        $index = Cache::remember($key, 600, function () use ($version, $lastTicket): array {
+            $index = self::compile([], [], time(), true);
+            $index['department_counts'] = [];
+            DB::table('tickets')->where('id', '<=', $lastTicket)->orderBy('id')
+                ->select(['id', 'customer_id', 'subject', 'department', 'status'])->chunkById(100, function ($rows) use (&$index, $version): void {
+                    $tickets = $rows->map(fn ($r) => (array) $r)->all();
+                    $messages = [];
+                    DB::table('ticket_messages')->whereIn('ticket_id', array_column($tickets, 'id'))
+                        ->where('is_internal', false)->where('id', '<=', $version)->orderBy('id')->select(['id', 'ticket_id', 'author_role', 'author_name', 'body', 'created_at'])
+                        ->chunkById(500, function ($batch) use (&$messages): void {
+                            foreach ($batch as $row) { $messages[] = (array) $row; }
+                        }, 'id');
+                    $batch = self::compile($tickets, $messages, $index['observed_at'], true);
+                    $index['cases'] = array_merge($index['cases'], $batch['cases']);
+                    $index['source_ticket_count'] += $batch['source_ticket_count'];
+                    $index['source_message_count'] += $batch['source_message_count'];
+                    $index['confirmed_case_count'] += $batch['confirmed_case_count'];
+                    foreach ($batch['topic_counts'] as $topic => $count) {
+                        $index['topic_counts'][$topic] = ($index['topic_counts'][$topic] ?? 0) + $count;
+                    }
+                    foreach ($tickets as $ticket) {
+                        $department = (string) ($ticket['department'] ?? 'unknown');
+                        $index['department_counts'][$department] = ($index['department_counts'][$department] ?? 0) + 1;
+                    }
+                }, 'id');
+            $index['snapshot_max_ticket_id'] = $lastTicket;
+            $index['snapshot_max_message_id'] = $version;
+            return $index;
         });
         $this->store->change($owner, function (array &$state) use ($index): void { $state['support_experience'] = $index; });
         return $index;
@@ -74,48 +98,51 @@ final class HermesSupportExperience
         return $context;
     }
 
-    public static function compile(array $tickets, array $messages, int $now): array
+    public static function compile(array $tickets, array $messages, int $now, bool $fullHistory = false): array
     {
-        $complete = count($tickets) <= 500 && count($messages) <= 5000;
+        $complete = $fullHistory || (count($tickets) <= 500 && count($messages) <= 5000);
         $groups = [];
-        foreach (array_slice($messages, 0, 5000) as $message) {
+        foreach (($fullHistory ? $messages : array_slice($messages, 0, 5000)) as $message) {
             if (! empty($message['is_internal'])) { continue; }
             $groups[(int) $message['ticket_id']][] = $message;
         }
         $cases = []; $counts = [];
-        foreach (array_slice($tickets, 0, 500) as $ticket) {
-            if (($ticket['department'] ?? '') !== 'technical') { continue; }
+        foreach (($fullHistory ? $tickets : array_slice($tickets, 0, 500)) as $ticket) {
             $rows = $groups[(int) $ticket['id']] ?? [];
             usort($rows, fn ($a, $b) => (int) $a['id'] <=> (int) $b['id']);
-            $reply = null; $customer = null;
-            foreach ($rows as $row) {
-                if (($row['author_role'] ?? '') === 'staff' && ($row['author_name'] ?? '') !== 'Hermes') { $reply = $row; }
-                if (($row['author_role'] ?? '') === 'customer') { $customer = $row; }
-            }
-            // Keep the actual answer a customer confirmed, rather than a later closing acknowledgement.
-            if ($customer && self::confirmed((string) $customer['body'])) {
-                foreach (array_reverse($rows) as $row) {
-                    if (($row['author_role'] ?? '') === 'staff' && ($row['author_name'] ?? '') !== 'Hermes'
-                        && (int) $row['id'] < (int) $customer['id']) { $reply = $row; break; }
+            foreach ($rows as $offset => $reply) {
+                if (($reply['author_role'] ?? '') !== 'staff' || ($reply['author_name'] ?? '') === 'Hermes'
+                    || self::excerpt((string) $reply['body']) === null) { continue; }
+                $customer = null; $after = null;
+                foreach (array_slice($rows, 0, $offset) as $row) {
+                    if (($row['author_role'] ?? '') === 'customer') { $customer = $row; }
                 }
+                // Attribute an outcome only to the answer preceding it. A later
+                // staff claim or a closing acknowledgement cannot confirm a fix.
+                foreach (array_slice($rows, $offset + 1) as $row) {
+                    if (($row['author_role'] ?? '') === 'staff' && ($row['author_name'] ?? '') !== 'Hermes') { break; }
+                    if (($row['author_role'] ?? '') === 'customer') { $after = $row; }
+                }
+                $outcome = 'awaiting_customer_confirmation';
+                if ($after) {
+                    $thread = [['role' => 'support', 'body' => ''], ['role' => 'customer', 'body' => (string) $after['body']]];
+                    $outcome = HermesTechnicalFollowup::continues('technical', $thread) ? 'customer_reports_continuing'
+                        : (self::confirmed((string) $after['body']) ? 'customer_confirmed_report' : 'no_explicit_outcome');
+                } elseif (($ticket['status'] ?? '') === 'closed') { $outcome = 'staff_closed_unconfirmed'; }
+                $topics = self::topics($ticket['subject'].' '.($customer['body'] ?? '').' '.$reply['body']);
+                foreach ($topics as $topic) { $counts[$topic] = ($counts[$topic] ?? 0) + 1; }
+                $cases[] = ['ticket_id' => (int) $ticket['id'], 'customer_id' => (int) $ticket['customer_id'],
+                    'department' => (string) ($ticket['department'] ?? 'unknown'),
+                    'reply_message_id' => (int) $reply['id'], 'reply_at' => (string) $reply['created_at'],
+                    'source_digest' => hash('sha256', (string) $reply['body']), 'topics' => $topics,
+                    'staff_reported_tags' => self::reportedTags((string) $reply['body']),
+                    'outcome' => $outcome, 'reference_only' => true];
             }
-            if (! $reply || self::excerpt((string) $reply['body']) === null) { continue; }
-            $outcome = 'awaiting_customer_confirmation';
-            if ($customer && (int) $customer['id'] > (int) $reply['id']) {
-                $thread = [['role' => 'support', 'body' => ''], ['role' => 'customer', 'body' => (string) $customer['body']]];
-                $outcome = HermesTechnicalFollowup::continues('technical', $thread) ? 'customer_reports_continuing'
-                    : (self::confirmed((string) $customer['body']) ? 'customer_confirmed_report' : 'no_explicit_outcome');
-            } elseif (($ticket['status'] ?? '') === 'closed') { $outcome = 'staff_closed_unconfirmed'; }
-            $topics = self::topics($ticket['subject'].' '.($customer['body'] ?? '').' '.$reply['body']);
-            foreach ($topics as $topic) { $counts[$topic] = ($counts[$topic] ?? 0) + 1; }
-            $cases[] = ['ticket_id' => (int) $ticket['id'], 'customer_id' => (int) $ticket['customer_id'],
-                'reply_message_id' => (int) $reply['id'], 'reply_at' => (string) $reply['created_at'],
-                'source_digest' => hash('sha256', (string) $reply['body']), 'topics' => $topics,
-                'staff_reported_tags' => self::reportedTags((string) $reply['body']),
-                'outcome' => $outcome, 'reference_only' => true];
         }
-        return ['version' => 2, 'observed_at' => $now, 'source' => 'published_staff_replies_and_customer_followups',
-            'source_ticket_count' => min(count($tickets), 500), 'source_message_count' => min(count($messages), 5000),
+        return ['version' => 3, 'observed_at' => $now, 'source' => 'published_staff_replies_and_customer_followups',
+            'source_ticket_count' => $fullHistory ? count($tickets) : min(count($tickets), 500),
+            'source_message_count' => $fullHistory ? count($messages) : min(count($messages), 5000),
+            'source_scope' => $fullHistory ? 'all_departments_public_history' : 'bounded_public_history',
             'bounded_inventory_complete' => $complete, 'cases' => $cases, 'topic_counts' => $counts,
             'confirmed_case_count' => count(array_filter($cases, fn ($c) => $c['outcome'] === 'customer_confirmed_report')),
             'grants_permissions' => false];
@@ -131,6 +158,11 @@ final class HermesSupportExperience
             if ($overlap) { $related[] = ['score' => count($overlap), 'case' => $case, 'topics' => array_values($overlap)]; }
         }
         usort($own, fn ($a, $b) => $b['reply_message_id'] <=> $a['reply_message_id']);
+        $latestByTicket = [];
+        foreach ($own as $case) {
+            if (! isset($latestByTicket[$case['ticket_id']])) { $latestByTicket[$case['ticket_id']] = $case; }
+        }
+        $own = array_values($latestByTicket);
         $reliability = static fn ($row) => match ($row['case']['outcome']) {
             'customer_confirmed_report' => 3, 'customer_reports_continuing' => 2, 'staff_closed_unconfirmed' => 0, default => 1,
         };
@@ -148,7 +180,12 @@ final class HermesSupportExperience
             }
         }
         return ['available' => true, 'observed_at' => $index['observed_at'] ?? null,
-            'learned_case_count' => count($index['cases'] ?? []), 'confirmed_case_count' => $index['confirmed_case_count'] ?? 0,
+            'learned_case_count' => count($index['cases'] ?? []),
+            'source_scope' => $index['source_scope'] ?? 'legacy_bounded_history',
+            'source_ticket_count' => $index['source_ticket_count'] ?? 0,
+            'source_message_count' => $index['source_message_count'] ?? 0,
+            'bounded_inventory_complete' => $index['bounded_inventory_complete'] ?? false,
+            'confirmed_case_count' => $index['confirmed_case_count'] ?? 0,
             'same_customer_history' => array_slice($own, 0, 3), 'related_case_patterns' => $patterns,
             'historical_reference_only' => true, 'current_state_verified_by_history' => false,
             'instruction' => 'History can explain a prior decision, not prove current health. A published answer is not a confirmed fix. Current exact-service evidence wins; never copy another customer or grant new permissions.'];
@@ -164,7 +201,7 @@ final class HermesSupportExperience
     private static function confirmed(string $text): bool
     {
         $text = str_replace('‌', ' ', $text);
-        return ! preg_match('/نشد|نشده|نمی|not |still |çalışmıyor|çözülmedi/iu', $text)
+        return ! preg_match('/نشد|نشده|نمی|not |still |çalışmıyor|çözülmedi|اگر|اگه|آیا|کاش|فکر کنم|امیدوار|ولی|اما|\\?|؟|\\b(?:if|when|hope|wish|unresolved|hasn.t|wasn.t)\\b|çözüldü mü/iu', $text)
             && preg_match('/حل شد|رفع شد|درست شد|برطرف شد|وصل شد|working now|resolved|fixed|çözüldü|düzeldi/iu', $text) === 1;
     }
 
@@ -194,9 +231,12 @@ final class HermesSupportExperience
     {
         return match ($topic) {
             'wallet_and_suspension' => 'ماندهٔ کل، ذخیره و اعتبار قابل‌مصرف را جدا بخوان؛ علت تعلیق را از flag و رویداد همان سرویس بگیر. پرداخت به‌تنهایی رفع تعلیق نیست و علت تاریخی را از ماندهٔ امروز حدس نزن.',
-            'network' => 'گروه متصل و قواعد جاری را بخوان؛ مجوز زیرساخت، listener مهمان یا تحویل UDP را ثابت نمی‌کند.',
+            'network' => 'قواعد جاری، listener مهمان و مسیر واقعی مشتری را جدا آزمایش کن؛ SSH موفق از یک مسیر، سلامت همه مسیرها یا فیلترشدن شبکه مشتری را ثابت نمی‌کند. بدون آزمون مربوط، علت را به اینترنت مشتری یا بیرون از کنترل ما نسبت نده.',
             'dns' => 'رکورد، delegation و زمان مشاهده را تفکیک کن؛ resolve ساده، صحت authoritative DNS نیست.',
             'php_runtime' => 'نسخهٔ شاخه، build وصله و تنظیم مؤثر همان SAPI را جدا بررسی کن؛ پیام قبلی پشتیبانی اثبات وصلهٔ جاری نیست.',
+            'billing_and_documents' => 'پرداخت ثبت‌شده، صدور فاکتور و ثبت مالیاتی را جدا بررسی کن؛ مبلغ و واحد را از سند همان مشتری بگیر. قول قبلی یا عذرخواهی، رسید انجام کار نیست؛ پیگیری داخلی را بر عهده بگیر و موعد تأییدنشده نده.',
+            'sales_and_selection' => 'هدف و بودجه مشتری را با قابلیت و قیمت جاری تطبیق بده؛ هزینه خدمات اضافی را از سرویس پایه جدا کن. قیمت تاریخی، موجودی یا امکان سفارش امروز را ثابت نمی‌کند.',
+            'account_and_identity' => 'اطلاعات موجود را دوباره نخواه؛ نتیجه احراز را از وضعیت ثبت‌شده بخوان و داده هویتی یا دسترسی را در پاسخ یا حافظه عمومی کپی نکن.',
             'mail' => 'دریافت API یا تنظیم SMTP، تحویل پیام نیست؛ رخداد همان پیام لازم است و محدودیت شبکه‌ها تعمیم داده نمی‌شود.',
             default => 'وضعیت حساب/ماشین را از سلامت برنامه جدا کن؛ پاسخ قبلی و بسته‌شدن تیکت به‌تنهایی اثبات رفع مشکل نیست.',
         };

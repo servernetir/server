@@ -42,7 +42,10 @@ class SystemHealthCheck extends Command
     public function handle(SystemHealth $health, AdminNotifier $notifier): int
     {
         $checks = $health->checks();
-        $bad = array_values(array_filter($checks, fn ($c) => ! $c['ok']));
+        // Keep every check in console/dashboard; avoid a second owner for fresh GPU incidents.
+        $salesOwnsGpu = ! $this->option('notify') && $this->salesMonitorOwnsGpu();
+        $bad = array_values(array_filter($checks, fn ($c) => ! $c['ok']
+            && (! $salesOwnsGpu || ($c['key'] ?? '') !== 'gpu_sales')));
         $worst = SystemHealth::worst($checks);
 
         foreach ($checks as $c) {
@@ -56,6 +59,8 @@ class SystemHealthCheck extends Command
         $current = collect($bad)->mapWithKeys(fn ($c) => [(string) $c['key'] => (string) $c['level']])->all();
         $state = $this->lastState($current);
         $previous = (array) ($state['bad'] ?? []);
+        // Ownership transfer is not a system recovery notification.
+        if ($salesOwnsGpu) { unset($previous['gpu_sales']); }
         $toAnnounce = [];
         $announceRecovery = $current === [] && $previous !== [];
 
@@ -96,6 +101,27 @@ class SystemHealthCheck extends Command
         // می‌شمارد و در لاگِ کرون سروصدا می‌کند، در حالی که این فرمان کارش را
         // درست انجام داده — فقط خبرِ بد آورده.
         return self::SUCCESS;
+    }
+
+    /** The dedicated monitor owns alerts only while its actual provider probe is fresh. */
+    private function salesMonitorOwnsGpu(): bool
+    {
+        try {
+            $path = storage_path('app/cloud-sales-watch.json');
+            if (! File::exists($path)) { return false; }
+            $state = json_decode((string) File::get($path), true);
+            if (! is_array($state) || (int) ($state['version'] ?? 0) < 2
+                || ! is_string($state['checked_at'] ?? null) || trim($state['checked_at']) === ''
+                || ! is_array($state['providers']['salad'] ?? null)) { return false; }
+            if (($state['providers']['catalogue']['ok'] ?? true) === false) { return false; }
+            $observed = (int) ($state['providers']['salad']['observed_at'] ?? 0);
+            $checked = Carbon::parse((string) ($state['checked_at'] ?? ''))->timestamp;
+            $at = now()->timestamp;
+            return $observed > 0 && $at - $observed >= 0 && $at - $observed <= 180
+                && $at - $checked >= 0 && $at - $checked <= 180;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /** @param array<int,array<string,mixed>> $bad */

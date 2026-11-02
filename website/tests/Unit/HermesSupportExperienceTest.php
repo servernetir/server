@@ -112,4 +112,59 @@ class HermesSupportExperienceTest extends TestCase
         $r = HermesSupportExperience::retrieve($i, 99, 99, 'UDP');
         $this->assertSame('customer_confirmed_report', $r['related_case_patterns'][0]['prior_outcome']);
     }
+
+    public function test_full_history_covers_all_departments_and_every_human_exchange(): void
+    {
+        $tickets = [['id' => 1, 'customer_id' => 10, 'subject' => 'فاکتور پرداخت', 'department' => 'billing', 'status' => 'open'],
+            ['id' => 2, 'customer_id' => 20, 'subject' => 'قیمت ماهانه', 'department' => 'sales', 'status' => 'answered']];
+        $messages = [
+            ['id' => 1, 'ticket_id' => 1, 'author_role' => 'staff', 'body' => 'پرداخت ثبت شده است.', 'created_at' => '2026-01-01'],
+            ['id' => 2, 'ticket_id' => 1, 'author_role' => 'customer', 'body' => 'هنوز فاکتور نیامده', 'created_at' => '2026-01-02'],
+            ['id' => 3, 'ticket_id' => 1, 'author_role' => 'staff', 'body' => 'فاکتور آماده است.', 'created_at' => '2026-01-03'],
+            ['id' => 4, 'ticket_id' => 1, 'author_role' => 'customer', 'body' => 'مشکل حل شد', 'created_at' => '2026-01-04'],
+            ['id' => 5, 'ticket_id' => 2, 'author_role' => 'staff', 'body' => 'قیمت تاریخی ماهانه private-price-label', 'created_at' => '2026-01-05'],
+        ];
+        $index = HermesSupportExperience::compile($tickets, $messages, 10000, true);
+        $this->assertSame('all_departments_public_history', $index['source_scope']);
+        $this->assertCount(3, $index['cases']);
+        $this->assertSame([1, 3, 5], array_column($index['cases'], 'reply_message_id'));
+        $this->assertSame('customer_reports_continuing', $index['cases'][0]['outcome']);
+        $this->assertSame('customer_confirmed_report', $index['cases'][1]['outcome']);
+        $this->assertSame('billing', $index['cases'][0]['department']);
+        $this->assertStringNotContainsString('private-price-label', json_encode($index));
+    }
+
+    public function test_full_history_is_not_truncated_at_the_legacy_ticket_limit(): void
+    {
+        $tickets = [];
+        for ($id = 1; $id <= 601; $id++) {
+            $tickets[] = ['id' => $id, 'customer_id' => 10, 'subject' => 'sales', 'department' => 'sales', 'status' => 'open'];
+        }
+        $index = HermesSupportExperience::compile($tickets, [], 10000, true);
+        $this->assertTrue($index['bounded_inventory_complete']);
+        $this->assertSame(601, $index['source_ticket_count']);
+    }
+
+    public function test_sarcasm_and_staff_claims_are_not_confirmation_and_own_history_is_deduplicated(): void
+    {
+        $tickets = $this->tickets();
+        $messages = $this->messages();
+        $messages[] = ['id' => 3, 'ticket_id' => 1, 'author_role' => 'customer', 'body' => 'عاشق این نگارش های ai هستم 🤩', 'created_at' => '2026-01-03'];
+        $messages[] = ['id' => 4, 'ticket_id' => 1, 'author_role' => 'staff', 'body' => 'مشکل حل شد', 'created_at' => '2026-01-04'];
+        $index = HermesSupportExperience::compile($tickets, $messages, 10000, true);
+        $this->assertSame(0, $index['confirmed_case_count']);
+        $history = HermesSupportExperience::retrieve($index, 99, 10, 'UDP')['same_customer_history'];
+        $this->assertCount(1, $history);
+        $this->assertSame(4, $history[0]['reply_message_id']);
+    }
+
+    public function test_conditional_questions_and_quoted_staff_claims_are_not_customer_confirmation(): void
+    {
+        foreach (['اگر حل شد خبر می دهم', 'آیا مشکل حل شد؟', 'you said it was fixed?', 'I hope it is fixed', 'حل شد ولی هنوز قطع می شود'] as $text) {
+            $messages = $this->messages();
+            $messages[] = ['id' => 3, 'ticket_id' => 1, 'author_role' => 'customer', 'body' => $text, 'created_at' => '2026-01-03'];
+            $index = HermesSupportExperience::compile($this->tickets(), $messages, 10000, true);
+            $this->assertSame(0, $index['confirmed_case_count'], $text);
+        }
+    }
 }

@@ -314,4 +314,71 @@ class CloudCatalogRepricingTest extends TestCase
         $this->assertSame(1500000, (int) $plan->fresh()->price_irt);
         $this->assertSame('60', DB::table('settings')->where('key', 'cloud_margin_pct')->value('value'));
     }
+    public function test_prepared_repricing_does_not_write_until_the_transactional_apply_runs(): void
+    {
+        $plan = $this->plan('salad');
+        $before = $plan->fresh()->getRawOriginal();
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+
+        $this->assertInstanceOf(\Closure::class, $apply);
+        $this->assertSame($before, $plan->fresh()->getRawOriginal());
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        $this->assertSame(1, DB::transaction($apply));
+        $this->assertSame(2000, (int) $plan->fresh()->cost_eur_cents);
+        $this->assertSame(3000000, (int) $plan->fresh()->price_irt);
+        $this->assertTrue(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
+        Http::assertNothingSent();
+    }
+
+    public function test_prepared_repricing_rejects_a_new_eligible_catalog_identity(): void
+    {
+        $plan = $this->plan('salad');
+        $before = $plan->fresh()->getRawOriginal();
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        $added = $this->plan('hetzner', ['provider_ref' => 'concurrently-added', 'slug' => 'concurrently-added']);
+        $addedBefore = $added->fresh()->getRawOriginal();
+
+        try {
+            DB::transaction($apply);
+            $this->fail('A new eligible row must invalidate the prepared identity set.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Catalog identities changed', $e->getMessage());
+        }
+
+        $this->assertSame($before, $plan->fresh()->getRawOriginal());
+        $this->assertSame($addedBefore, $added->fresh()->getRawOriginal());
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        $this->assertSame(2, CloudPlan::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_prepared_repricing_preserves_a_concurrent_administrator_note(): void
+    {
+        $plan = $this->plan('salad');
+        $snapshotBefore = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        $this->provider('salad', [$this->quote($plan)]);
+        $apply = app(CloudCatalogRepricer::class)->prepare();
+        DB::table('cloud_plans')->where('id', $plan->id)->update(['admin_note' => 'Concurrent administrator review']);
+        $concurrent = $plan->fresh()->getRawOriginal();
+
+        try {
+            DB::transaction($apply);
+            $this->fail('A concurrent row edit must reject the prepared batch.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('Catalog changed', $e->getMessage());
+        }
+
+        $this->assertSame($concurrent, $plan->fresh()->getRawOriginal());
+        $this->assertSame('Concurrent administrator review', $plan->fresh()->admin_note);
+        $this->assertSame(1500000, (int) $plan->fresh()->price_irt);
+        $this->assertSame(1000, (int) $plan->fresh()->cost_eur_cents);
+        $this->assertSame($snapshotBefore, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+        Http::assertNothingSent();
+    }
+
 }

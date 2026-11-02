@@ -100,8 +100,25 @@ class LightNodePublicPricing
         // Catalog variants share read-only region/spec trees for up to one
         // minute. Amounts are never cached; purchase quotes bypass this cache.
         $key = hash('sha256', $path.json_encode($input));
-        if (($this->configurationMemo[$key]['until'] ?? 0) > microtime(true)) {
-            return $this->configurationMemo[$key]['data'];
+        $now = microtime(true);
+        foreach ($this->configurationMemo as $memoKey => $entry) {
+            if (($entry['until'] ?? 0) <= $now) {
+                unset($this->configurationMemo[$memoKey]);
+            }
+        }
+        if (isset($this->configurationMemo[$key])) {
+            $entry = $this->configurationMemo[$key];
+            // Move the current tree to the end for least-recently-used eviction.
+            unset($this->configurationMemo[$key]);
+            $this->configurationMemo[$key] = $entry;
+            return $entry['data'];
+        }
+        // A full catalogue visits many regions. Retaining every decoded tree
+        // until process exit can exhaust memory during a long refresh.
+        // Eight trees cover the current region's three resources and shared
+        // region list; evicted trees remain in the existing short shared cache.
+        while (count($this->configurationMemo) >= 8) {
+            array_shift($this->configurationMemo);
         }
         $entry = Cache::remember('lightnode-public-config:v2:'.$key, 60,
             fn () => ['until' => microtime(true) + 60, 'data' => $this->read($path, $input)]);

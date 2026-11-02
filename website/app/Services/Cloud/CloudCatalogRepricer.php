@@ -32,6 +32,12 @@ class CloudCatalogRepricer
         return $this->performRun($persist);
     }
 
+    /** Collect supplier evidence without writing rates or products; caller holds the catalog lock. */
+    public function prepare(): \Closure
+    {
+        return $this->performRun(true, null, true);
+    }
+
     /** Refresh only this supplier without quoting or changing other suppliers. */
     public function runForProvider(string $provider, bool $persist = true): int
     {
@@ -41,7 +47,7 @@ class CloudCatalogRepricer
         return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performRun($persist, $provider));
     }
 
-    private function performRun(bool $persist, ?string $only = null): int
+    private function performRun(bool $persist, ?string $only = null, bool $prepareOnly = false): int|\Closure
     {
         $snapshot = app(CloudPricingSnapshot::class);
         if ($only !== null && ! $snapshot->current()) {
@@ -188,11 +194,21 @@ class CloudCatalogRepricer
         // Any database failure rolls back the complete product-price batch.
         $this->assertRates($rates);
         $this->assertSettings($settings);
-        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs, $unverifiedPlans, $reasons): int {
+        $apply = function () use ($plans, $nativeCosts, $skip, $unavailable, $persist, $rates, $settings, $providerInputs, $unverifiedPlans, $reasons, $prepareOnly): int {
             // Current reads avoid a MariaDB repeatable-read snapshot; locks last
             // only for product writes, never for slow supplier requests.
             $this->assertSettings($settings, $persist);
             $this->assertProviderInputs($providerInputs);
+            if ($prepareOnly) {
+                $expectedIds = $plans->modelKeys();
+                sort($expectedIds, SORT_NUMERIC);
+                $currentIds = CloudPlan::query()->where('cost_eur_cents', '>', 0)
+                    ->whereNotIn('provider', CloudPlan::disabledProviders())
+                    ->orderBy('id')->lockForUpdate()->pluck('id')->all();
+                if ($expectedIds !== $currentIds) {
+                    throw new \RuntimeException('Catalog identities changed during coordinated price preparation.');
+                }
+            }
             $count = 0;
             foreach (CloudPlan::query()->whereIn('id', $plans->modelKeys())
                 ->when($persist, fn ($query) => $query->lockForUpdate())->get() as $plan) {
@@ -245,7 +261,7 @@ class CloudCatalogRepricer
             return $count;
         };
 
-        return $persist ? DB::transaction($apply) : $apply();
+        return $prepareOnly ? $apply : ($persist ? DB::transaction($apply) : $apply());
     }
 
     private function settings(bool $lock = false): array
