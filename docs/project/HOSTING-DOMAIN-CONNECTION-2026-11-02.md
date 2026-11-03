@@ -60,3 +60,5 @@ The earlier 43 Laravel/256 assertion, 17 DNS, 43 native-release and seven JS res
 **Remaining support incident:** the pre-existing Windows-product/WHM allocation still needs content/backup/compatible-Plesk-plan assessment and a separate safe correction. It was not moved, deleted, repriced or silently relabeled by this release, and the customer ticket was not marked resolved. Do not instruct this customer to replace currently working DNS merely because the displayed default pair differs from their existing delegation. The installed system selection fix prevents the historical country-only routing path for new orders.
 
 Rollback: use the same private fixed engine/payload and verified state, with the documented guarded rollback phase. It rejects newer source/compiled drift, restores the card before its partial dependency, and preserves private evidence; do not replace the whole application or restore a database.
+
+Supplemental acceptance and public-helper cleanup: [3 November live receipt](HOSTING-DOMAIN-LIVE-RELEASE-2026-11-03.md), including the fourteen before/after hashes and the separately verified ticket-response follow-up.
