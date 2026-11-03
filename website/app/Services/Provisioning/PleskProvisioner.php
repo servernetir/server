@@ -35,11 +35,22 @@ class PleskProvisioner implements Provisioner
         }
 
         $client = new PleskClient($server);
+        if (! $service->is_reseller) {
+            return (new PleskHostingProvisioner($client))->create($service);
+        }
         $reseller = (bool) $service->is_reseller;
         $panelUrl = 'https://'.$server->hostname.':'.$server->effectivePort();
 
+        if ($reseller && ! (bool) config('provisioning.plesk_auto', false)) {
+            return ProvisionResult::manual('Reseller automation has not been enabled for this Plesk server.');
+        }
+
         // ── idempotency ────────────────────────────────────────────────────
         $state = $client->loginExists($user, $reseller);
+
+        if ($state === null) {
+            return ProvisionResult::manual('Plesk account state could not be confirmed.');
+        }
 
         if ($state === true) {
             return ProvisionResult::success($user, (string) $service->password ?: null, $panelUrl, ['reused' => true]);

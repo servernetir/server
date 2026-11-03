@@ -132,7 +132,9 @@ class Server extends Model
     public function isAutoProvisioned(): bool
     {
         if ($this->type === 'plesk') {
-            return (bool) config('provisioning.plesk_auto', false);
+            return (bool) config('provisioning.plesk_auto', false)
+                || (($this->meta['plesk_auto_enabled'] ?? false) === true
+                    && ($this->meta['plesk_auto_ready'] ?? false) === true);
         }
 
         return in_array($this->type, self::AUTO_TYPES, true);
