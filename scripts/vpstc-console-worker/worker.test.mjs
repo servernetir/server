@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+import {execFileSync} from 'node:child_process';
 import {handle, upstream, binding, signature, bridge, JS, html} from './worker.mjs';
 import {NOVNC_PATH,NOVNC_SOURCE} from './novnc-source.mjs';
 const origin = 'https://vps-vnc.servernet.cloud';
@@ -17,6 +18,9 @@ test('vendored browser module is served locally without upstream module fetches'
   assert.match(r.headers.get('Cache-Control'),/immutable/);
   assert.ok(JS.includes("import('"+NOVNC_PATH+"')"));
   assert.ok(NOVNC_SOURCE.includes('Mozilla')&&NOVNC_SOURCE.includes('Permission is hereby granted'));
+});
+test('the actual browser response parses as an ES module including license notices',()=>{
+  assert.doesNotThrow(()=>execFileSync(process.execPath,['--check','--input-type=module'],{input:NOVNC_SOURCE,stdio:['pipe','pipe','pipe']}));
 });
 
 test('disabled relay and forged origins make no broker calls', async () => {
