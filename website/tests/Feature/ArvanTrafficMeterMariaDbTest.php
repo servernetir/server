@@ -137,4 +137,141 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
         $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
         Http::assertNothingSent();
     }
+    public function test_current_wallet_sees_topup_and_live_hourly_reserve_committed_after_old_snapshot(): void
+    {
+        Http::preventStrayRequests();
+        Wallet::flushSchemaCache();
+        $cfg = config('database.connections.'.config('database.default'));
+        $customer = Customer::create(['email' => 'current-wallet@example.test', 'status' => 'active']);
+        $service = Service::create(['customer_id' => $customer->id, 'name' => 'Synthetic reserve race',
+            'currency_code' => 'IRT', 'billing_mode' => 'hourly', 'status' => 'active', 'hold_reserve_irt' => 100]);
+        app(Wallet::class)->credit($customer->id, 'IRT', 100, 'topup', null);
+        config(['database.connections.traffic_funds_writer' => $cfg]);
+        DB::purge('traffic_funds_writer');
+        $writer = DB::connection('traffic_funds_writer');
+        DB::statement('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        try {
+            DB::transaction(function () use ($customer, $service, $writer): void {
+                $wallet = app(Wallet::class);
+                $this->assertSame(0, $wallet->availableOf($customer->id), 'Establish the old consistent snapshot');
+                $writer->transaction(function () use ($writer, $customer, $service): void {
+                    $writer->table('customers')->where('id', $customer->id)->lockForUpdate()->first();
+                    $writer->table('services')->where('id', $service->id)->update(['hold_reserve_irt' => 200]);
+                    $writer->table('credit_ledger')->insert(['customer_id' => $customer->id, 'currency_code' => 'IRT',
+                        'amount' => 101, 'balance_after' => 201, 'reason' => 'topup', 'created_at' => now(), 'updated_at' => now()]);
+                });
+                Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
+                $this->assertSame(0, $wallet->availableOf($customer->id), 'Plain reread retains the old snapshot');
+                $this->assertSame(1, $wallet->availableOf($customer->id, currentRead: true),
+                    'Current spendable must include both independently committed topup and live reserve');
+            });
+        } finally {
+            DB::purge('traffic_funds_writer');
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_current_wallet_sees_independently_committed_nontraffic_debit_after_old_snapshot(): void
+    {
+        Http::preventStrayRequests();
+        Wallet::flushSchemaCache();
+        $cfg = config('database.connections.'.config('database.default'));
+        $customer = Customer::create(['email' => 'current-debit@example.test', 'status' => 'active']);
+        app(Wallet::class)->credit($customer->id, 'IRT', 1, 'topup', null);
+        config(['database.connections.traffic_funds_writer' => $cfg]);
+        DB::purge('traffic_funds_writer');
+        $writer = DB::connection('traffic_funds_writer');
+        DB::statement('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        try {
+            DB::transaction(function () use ($customer, $writer): void {
+                $wallet = app(Wallet::class);
+                $this->assertSame(1, $wallet->availableOf($customer->id));
+                $writer->transaction(function () use ($writer, $customer): void {
+                    $writer->table('customers')->where('id', $customer->id)->lockForUpdate()->first();
+                    $writer->table('credit_ledger')->insert(['customer_id' => $customer->id, 'currency_code' => 'IRT',
+                        'amount' => -1, 'balance_after' => 0, 'reason' => 'synthetic_usage', 'created_at' => now(), 'updated_at' => now()]);
+                });
+                Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
+                $this->assertSame(1, $wallet->availableOf($customer->id));
+                $this->assertSame(0, $wallet->availableOf($customer->id, currentRead: true),
+                    'Committed ordinary debit must not be hidden by the planning snapshot');
+            });
+        } finally {
+            DB::purge('traffic_funds_writer');
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_meter_uses_current_spendable_after_committed_topup_and_reserve_race(): void
+    {
+        $cfg = config('database.connections.'.config('database.default'));
+        Http::preventStrayRequests();
+        $this->travelTo(Carbon::parse('2026-11-02T12:00:00Z'));
+        Setting::put('cloud_margin_pct', '5');
+        config(['billing.tax_percent' => 10]);
+        Wallet::flushSchemaCache();
+        $customer = Customer::create(['email' => 'committed-meter-funding@example.test', 'status' => 'active']);
+        $service = Service::create(['customer_id' => $customer->id, 'name' => 'Synthetic committed manual race',
+            'currency_code' => 'IRT', 'cycle' => 'monthly', 'billing_mode' => 'cycle', 'status' => 'active', 'price' => 1000,
+            'created_at' => Carbon::parse('2026-10-24T00:00:00Z')]);
+        $cycle = '12345678-1234-1234-1234-123456789abc';
+        $native = '00000000-0000-0000-0000-000000000001';
+        $resource = 'ir-test:'.$native;
+        CloudInstance::create(['service_id' => $service->id, 'provider' => 'arvan', 'provider_ref' => $resource, 'status' => 'running']);
+        $checkpoint = ['service_id' => $service->id, 'customer_id' => $customer->id, 'resource' => $resource,
+            'item_id' => 'synthetic-internet', 'from' => '2026-10-28T00:00:00Z', 'to' => '2026-11-01T00:00:00Z',
+            'gb_display' => '1.000000', 'cost_irr' => 10000, 'sell_irt' => 1050, 'tax_irt' => 105];
+        $state = ['version' => 1, 'enabled' => true, 'authorization' => 'Synthetic committed fixture baseline',
+            'authorized_at' => '2026-10-25T00:00:00Z', 'baseline_paid_at' => '2026-10-25T00:00:00Z',
+            'baseline_hash' => str_repeat('a', 64), 'margin_bp' => 500, 'tax_bp' => 1000, 'excluded_customers' => [],
+            'sequence' => 0, 'cycles' => [$cycle => ['account_hash' => hash('sha256', 'synthetic-account'),
+                'started_at' => '2026-10-23T00:00:00Z', 'expired_at' => '2026-11-22T00:00:00Z']],
+            'checkpoints' => [$cycle.'|'.$resource => $checkpoint], 'last_success' => null];
+        Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
+        $item = ['itemId' => 'synthetic-internet', 'metric' => 'cc_internet', 'amount' => 2,
+            'price' => '20000', 'discount' => '0', 'usedGift' => '0',
+            'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z'];
+        $row = ['instanceId' => $native, 'region' => 'ir-test', 'scope' => 'instance', 'productName' => 'iaas',
+            'totalPrice' => '20000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '20000', 'items' => [$item]];
+        $cycleData = ['id' => $cycle, 'accountId' => 'synthetic-account', 'currency' => 'irr',
+            'startedAt' => '2026-10-23T00:00:00Z', 'expiredAt' => '2026-11-22T00:00:00Z',
+            'totalItemsPrice' => '20000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '20000'];
+        $snapshot = ['observed_at' => '2026-11-02T12:00:00Z', 'current_cycle' => $cycle,
+            'reports' => [['cycle' => $cycleData, 'rows' => [$row], 'total_items' => 1]]];
+
+
+        $service->update(['billing_mode' => 'hourly', 'hold_reserve_irt' => 0]);
+        $connection = DB::connection();
+        $connection->statement('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        config(['database.connections.traffic_funds_writer' => $cfg]);
+        DB::purge('traffic_funds_writer');
+        $writer = DB::connection('traffic_funds_writer');
+        $fired = false;
+        $connection->beforeExecuting(function (string $sql, array $bindings) use (&$fired, $writer, $customer, $service): void {
+            if (! $fired && str_contains(strtolower($sql), 'for update')
+                && preg_match('/\Aselect \* from [`"]customers[`"] where [`"]customers[`"]\.[`"]id[`"] = \?/i', $sql)
+                && in_array($customer->id, $bindings, true)) {
+                $fired = true;
+                $writer->transaction(function () use ($writer, $customer, $service): void {
+                    $writer->table('customers')->where('id', $customer->id)->lockForUpdate()->first();
+                    $writer->table('services')->where('id', $service->id)->update(['hold_reserve_irt' => 700]);
+                    $writer->table('credit_ledger')->insert(['customer_id' => $customer->id, 'currency_code' => 'IRT',
+                        'amount' => 1856, 'balance_after' => 1856, 'reason' => 'topup', 'created_at' => now(), 'updated_at' => now()]);
+                });
+            }
+        });
+        try {
+            app(ArvanTrafficMeter::class)->run($snapshot, true);
+        } finally {
+            DB::purge('traffic_funds_writer');
+        }
+        $this->assertTrue($fired, 'Writer must commit after the supplier planning snapshot and before the customer lock');
+        $this->assertSame(1, app(Wallet::class)->availableOf($customer->id));
+        $this->assertFalse(\App\Services\Finance\ArvanTrafficCreditGuard::active($service->fresh()),
+            'Meter must not create a traffic hold when current spendable remains positive');
+        $this->assertSame(1, Invoice::count());
+        $this->assertSame(2, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
 }
