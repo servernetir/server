@@ -386,6 +386,18 @@ class CloudServerController extends Controller
         }
         $instance = $this->instanceOf($service);
 
+        // A definitive delivery failure is a terminal presentation state, not
+        // another build step. Return safe codes only; keep raw errors internal.
+        $orderIssue = \App\Services\Cloud\CloudOrderIssue::kind($service, $instance);
+        if ($orderIssue !== null) {
+            return response()->json([
+                'ok' => true, 'status' => 'delivery_failed', 'ready' => false,
+                'delivery_issue' => $orderIssue, 'stage' => 'delivery_failed',
+                'stage_index' => null, 'label' => __('cloud-order.'.$orderIssue.'.label'),
+                'color' => 'var(--warn)',
+            ]);
+        }
+
         // ⚠️ هنوز شناسهٔ سرور نداریم (سفارشِ دومرحله‌ای تازه ثبت شده). صفحه باید
         // «سفارش ثبت شد» ببیند، نه «نامشخص» — و مطلقاً نه «آماده».
         if ($instance === null || blank($instance->provider_ref)) {

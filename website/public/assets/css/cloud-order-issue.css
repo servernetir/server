@@ -1,0 +1,22 @@
+/* Expected order outcomes. Uses panel tokens, logical spacing and no animation. */
+.co-issue{display:flex;align-items:flex-start;gap:22px;padding:30px;margin-block:20px;border:1px solid var(--warn-line);border-radius:18px;background:linear-gradient(135deg,var(--warn-bg),transparent 70%),var(--surface);color:var(--text)}
+.co-issue-icon{display:grid;place-items:center;flex:none;width:54px;height:54px;border:1px solid var(--warn-line);border-radius:16px;background:var(--warn-bg);color:var(--warn)}
+.co-issue-icon .icon{width:26px;height:26px}
+.co-issue-content{min-width:0;flex:1}
+.co-issue-eyebrow{display:block;margin-bottom:6px;font-size:11.5px;color:var(--muted)}
+.co-issue h2{font-size:clamp(17px,2vw,22px);font-weight:600;line-height:1.7;margin:0 0 10px;overflow-wrap:anywhere}
+.co-issue p{font-size:13px;line-height:2;color:var(--muted);margin:0;max-width:74ch;overflow-wrap:anywhere}
+.co-issue-next{border-inline-start:3px solid var(--warn);padding-inline-start:14px;margin-block:20px}
+.co-issue-next b{font-size:12px;line-height:1.9;font-weight:600}
+.co-issue .co-issue-assurance{display:flex;align-items:flex-start;gap:8px;color:var(--muted);font-size:12px}
+.co-issue-assurance .icon{flex:none;width:16px;height:16px;margin-top:4px;color:var(--ok)}
+.co-issue-actions{display:flex;align-items:center;flex-wrap:wrap;gap:14px 20px;margin-top:24px}
+.co-issue .pnl-btn{min-height:44px;white-space:normal;line-height:1.8;justify-content:center;text-align:center;gap:8px}
+.co-issue-support{display:inline-flex;align-items:center;min-height:44px;font-size:12px;color:var(--muted);text-decoration:underline;text-underline-offset:4px}
+.co-issue a:focus-visible{outline:2px solid var(--info);outline-offset:4px;border-radius:8px}
+.co-issue-compact{padding:20px;gap:14px;margin-block:16px}
+.co-issue-compact .co-issue-icon{width:42px;height:42px;border-radius:12px}
+.co-issue-compact h2{font-size:16px}
+.co-issue-compact .co-issue-next{margin-block:14px}
+.co-issue-compact .co-issue-actions{margin-top:16px}
+@media(max-width:560px){.co-issue{padding:20px;gap:14px;flex-direction:column;border-radius:14px}.co-issue-icon{width:44px;height:44px;border-radius:13px}.co-issue-content{width:100%}.co-issue-actions{align-items:stretch;gap:8px;flex-direction:column}.co-issue .pnl-btn{width:100%}.co-issue-support{justify-content:center}.co-issue-compact{padding:16px}}
