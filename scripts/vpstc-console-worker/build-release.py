@@ -1,4 +1,4 @@
-"""Build a private, deterministic five-file release; no network or production access."""
+"""Build a private, deterministic console release; no network or production access."""
 import base64
 import hashlib
 import json
@@ -8,6 +8,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = '826a1e6ee62a84e44bba071e31b2a4a1a07881fd'
+BROKER_BASE = 'a81f4b0a020aab5642d120fc140f98247289e735'
+BROKER = 'app/Services/Cloud/VpsTcConsoleBroker.php'
 NEW = ['app/Services/Cloud/VpsTcConsole.php', 'app/Services/Cloud/VpsTcConsoleBroker.php',
        'app/Console/Commands/VpsTcConsoleProbe.php']
 PATCH = ['app/Http/Controllers/Account/CloudServerController.php', 'routes/web.php', 'app/Http/Middleware/SecurityHeaders.php']
@@ -18,12 +20,15 @@ def git(*args):
 def encode(s):
     return base64.b64encode(s.encode()).decode()
 
-def build(headers_only=False):
+def build(headers_only=False, broker_only=False):
+    if headers_only and broker_only:
+        raise RuntimeError('Choose one release scope')
+    base = BROKER_BASE if broker_only else BASE
     files = []
-    for path in ([] if headers_only else NEW):
+    for path in ([] if headers_only or broker_only else NEW):
         files.append({'path': path, 'kind': 'new', 'content': encode((ROOT / 'website' / path).read_text())})
-    for path in (['app/Http/Middleware/SecurityHeaders.php'] if headers_only else PATCH):
-        diff = git('diff', '--no-ext-diff', '--unified=3', BASE, '--', 'website/' + path)
+    for path in ([BROKER] if broker_only else ['app/Http/Middleware/SecurityHeaders.php'] if headers_only else PATCH):
+        diff = git('diff', '--no-ext-diff', '--unified=3', base, '--', 'website/' + path)
         hunks = []
         for line in diff.splitlines(keepends=True):
             if line.startswith('@@ '):
@@ -48,7 +53,7 @@ def build(headers_only=False):
             addition = current.split('            // The separate VPS relay', 1)[1].split(anchor, 1)[0]
             addition = '            // The separate VPS relay' + addition
             hunks = [{'before': anchor, 'after': addition + anchor}]
-        source = git('show', BASE + ':website/' + path)
+        source = git('show', base + ':website/' + path)
         for h in hunks:
             if not h['before'] or source.count(h['before']) != 1:
                 raise RuntimeError('Nonunique patch context: ' + path)
@@ -64,7 +69,7 @@ if __name__ == '__main__':
     if ROOT == output or ROOT in output.parents:
         raise RuntimeError('Private release output must be outside the repository')
     output.mkdir(mode=0o700)
-    payload = build(headers_only='--headers-only' in sys.argv[2:])
+    payload = build(headers_only='--headers-only' in sys.argv[2:], broker_only='--broker-only' in sys.argv[2:])
     helper = (Path(__file__).with_name('release.php')).read_text()
     helper = helper.replace('__PAYLOAD_SHA256__', hashlib.sha256(payload).hexdigest())
     for name, data in [('payload.json', payload), ('release.php', helper.encode())]:

@@ -77,6 +77,9 @@ $payload = json_decode($bytes, true, 32, JSON_THROW_ON_ERROR);
 if (array_column($payload['files'] ?? [], 'path') === ['app/Http/Middleware/SecurityHeaders.php']) {
     $allowed = ['app/Http/Middleware/SecurityHeaders.php'];
 }
+if (array_column($payload['files'] ?? [], 'path') === ['app/Services/Cloud/VpsTcConsoleBroker.php']) {
+    $allowed = ['app/Services/Cloud/VpsTcConsoleBroker.php'];
+}
 if (($payload['schema'] ?? null) !== 1 || array_column($payload['files'] ?? [], 'path') !== $allowed) {
     throw new RuntimeException('Unexpected release scope');
 }

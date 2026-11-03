@@ -136,10 +136,15 @@ test('static asset redirects are not followed',async()=>{
     assert.equal(url,'https://console.servernet.cloud/assets/js/novnc/core/rfb.js');assert.equal(opts.redirect,'manual');return new Response(null,{status:302});
   });assert.equal(r.status,502);
 });
-test('client clears fragment even when ticket is invalid and fails with translated copy',async()=>{
-  const elements=new Map(['status','message','screen','cad','full'].map(id=>[id,{textContent:'',disabled:false,dataset:{}}]));
-  let cleared=false;
-  await vm.runInNewContext(JS,{document:{documentElement:{lang:'en'},getElementById:id=>elements.get(id)},
+test('client clears fragments and keeps full-screen usable when the native API is denied',async()=>{
+  const elements=new Map(['status','message','screen','cad','full','exitfull'].map(id=>[id,{textContent:'',disabled:false,dataset:{}}]));
+  const classes=new Set(),listeners={};let cleared=false;
+  Object.assign(elements.get('screen'),{requestFullscreen:async()=>{throw Error('Browser denied fullscreen');},
+    classList:{add:value=>classes.add(value),remove:value=>classes.delete(value)}});
+  await vm.runInNewContext(JS,{document:{documentElement:{lang:'en'},getElementById:id=>elements.get(id),addEventListener:(name,fn)=>{listeners[name]=fn;}},
     location:{hash:'#invalid',pathname:'/en/'},history:{replaceState(){cleared=true;}},clearTimeout(){},setTimeout(){throw Error('unexpected timer');}});
   assert.ok(cleared);assert.match(elements.get('message').textContent,/Open a new console/);assert.equal(elements.get('cad').disabled,true);
+  await elements.get('full').onclick();assert.ok(classes.has('expanded'));
+  elements.get('exitfull').onclick();assert.ok(!classes.has('expanded'));
+  await elements.get('full').onclick();listeners.keydown({key:'Escape'});assert.ok(!classes.has('expanded'));
 });

@@ -76,23 +76,25 @@ export function bridge(upstreamSocket, makePair = () => new WebSocketPair(), tim
 }
 const TEXT = {
   fa: {title:'کنسول امن سرور',brand:'سرورنت',back:'بازگشت به سرویس‌ها',wait:'در حال آماده‌سازی کنسول…',ready:'متصل',
-    fail:'اتصال برقرار نشد. از صفحهٔ سرویس، کنسول تازه باز کنید.',full:'تمام‌صفحه',initial:'کنسول را از صفحهٔ سرویس باز کنید.'},
+    fail:'اتصال برقرار نشد. از صفحهٔ سرویس، کنسول تازه باز کنید.',ended:'نشست کنسول پایان یافت. برای ادامه، از صفحهٔ سرویس کنسول تازه باز کنید.',full:'تمام‌صفحه',exitFull:'خروج از تمام‌صفحه',initial:'کنسول را از صفحهٔ سرویس باز کنید.'},
   en: {title:'Secure server console',brand:'ServerNet',back:'Back to services',wait:'Preparing console…',ready:'Connected',
-    fail:'Connection unavailable. Open a new console from your service page.',full:'Full screen',initial:'Open the console from your service page.'},
+    fail:'Connection unavailable. Open a new console from your service page.',ended:'Your console session ended. Open a new console from your service page to continue.',full:'Full screen',exitFull:'Exit full screen',initial:'Open the console from your service page.'},
   tr: {title:'Güvenli sunucu konsolu',brand:'ServerNet',back:'Hizmetlere dön',wait:'Konsol hazırlanıyor…',ready:'Bağlandı',
-    fail:'Bağlantı kurulamadı. Hizmet sayfasından yeni konsol açın.',full:'Tam ekran',initial:'Konsolu hizmet sayfasından açın.'},
+    fail:'Bağlantı kurulamadı. Hizmet sayfasından yeni konsol açın.',ended:'Konsol oturumunuz sona erdi. Devam etmek için hizmet sayfasından yeni konsol açın.',full:'Tam ekran',exitFull:'Tam ekrandan çık',initial:'Konsolu hizmet sayfasından açın.'},
 };
-const CSS = `@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-web.woff2') format('woff2');font-display:swap}:root{color-scheme:dark;font-family:IRANSans,Tahoma,Arial,sans-serif;background:#0b1220;color:#e2e8f0}*{box-sizing:border-box}body{margin:0}header{display:flex;align-items:center;gap:16px;min-height:80px;padding:14px 24px;background:#111d30;border-bottom:1px solid #28475d;flex-wrap:wrap}a{color:#22d3ee;text-decoration:none}.brand{font-weight:700;font-size:24px}button{font:inherit;padding:8px 14px;border-radius:9px;border:1px solid #22d3ee;background:#123747;color:#e2e8f0;cursor:pointer}button:disabled{opacity:.4;cursor:default}#status{margin-inline-start:auto;font-size:13px}#message{text-align:center;color:#fbbf24;padding:10px}#screen{height:calc(100dvh - 120px);direction:ltr}#screen:fullscreen{height:100dvh;background:#000}@media(max-width:600px){header{padding:10px;gap:10px}.brand{font-size:20px}#status{width:100%;margin:0}#screen{height:calc(100dvh - 180px)}}`;
+const CSS = `#screen.expanded{position:fixed;inset:0;z-index:40;height:100dvh;background:#000}#exitfull{display:none;position:fixed;top:12px;right:12px;z-index:50}#screen:fullscreen #exitfull,#screen.expanded #exitfull{display:block}@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-web.woff2') format('woff2');font-display:swap}:root{color-scheme:dark;font-family:IRANSans,Tahoma,Arial,sans-serif;background:#0b1220;color:#e2e8f0}*{box-sizing:border-box}body{margin:0}header{display:flex;align-items:center;gap:16px;min-height:80px;padding:14px 24px;background:#111d30;border-bottom:1px solid #28475d;flex-wrap:wrap}a{color:#22d3ee;text-decoration:none}.brand{font-weight:700;font-size:24px}button{font:inherit;padding:8px 14px;border-radius:9px;border:1px solid #22d3ee;background:#123747;color:#e2e8f0;cursor:pointer}button:disabled{opacity:.4;cursor:default}#status{margin-inline-start:auto;font-size:13px}#message{text-align:center;color:#fbbf24;padding:10px}#screen{height:calc(100dvh - 120px);direction:ltr}#screen:fullscreen{height:100dvh;background:#000}@media(max-width:600px){header{padding:10px;gap:10px}.brand{font-size:20px}#status{width:100%;margin:0}#screen{height:calc(100dvh - 180px)}}`;
 export function html(locale) {
   const t = TEXT[locale], prefix = locale === 'fa' ? '' : '/' + locale;
-  return `<!doctype html><html lang="${locale}" dir="${locale === 'fa' ? 'rtl' : 'ltr'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t.title} | ServerNet</title><link rel="stylesheet" href="/console.css"><header><a class="brand" href="${PORTAL + prefix}/account/servers">${t.brand}</a><span>${t.title}</span><span id="status" role="status"></span><button id="cad" disabled>Ctrl+Alt+Del</button><button id="full">${t.full}</button><a href="${PORTAL + prefix}/account/servers">${t.back}</a></header><section id="message" role="alert">${t.initial}</section><main id="screen"></main><script defer src="/console.js"></script></html>`;
+  return `<!doctype html><html lang="${locale}" dir="${locale === 'fa' ? 'rtl' : 'ltr'}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${t.title} | ServerNet</title><link rel="stylesheet" href="/console.css"><header><a class="brand" href="${PORTAL + prefix}/account/servers">${t.brand}</a><span>${t.title}</span><span id="status" role="status"></span><button id="cad" disabled>Ctrl+Alt+Del</button><button id="full">${t.full}</button><a href="${PORTAL + prefix}/account/servers">${t.back}</a></header><section id="message" role="alert">${t.initial}</section><main id="screen"><button id="exitfull">${t.exitFull}</button></main><script defer src="/console.js"></script></html>`;
 }
 export const JS = `(async()=>{
 const strings=${JSON.stringify(TEXT)},locale=document.documentElement.lang,t=strings[locale]||strings.en;
 const status=document.getElementById('status'),message=document.getElementById('message'),screen=document.getElementById('screen'),cad=document.getElementById('cad');
-let rfb,timer,failed=false,phase='ticket';const ticket=location.hash.slice(1);
-function fail(){if(failed)return;failed=true;clearTimeout(timer);status.textContent='';message.textContent=t.fail;message.dataset.stage=phase;cad.disabled=true;try{rfb?.disconnect();}catch{}}
-document.getElementById('full').onclick=()=>screen.requestFullscreen().catch(()=>{});cad.onclick=()=>rfb?.sendCtrlAltDel();
+let rfb,timer,failed=false,connected=false,phase='ticket';const ticket=location.hash.slice(1);
+function fail(){if(failed)return;failed=true;clearTimeout(timer);status.textContent='';message.textContent=connected?t.ended:t.fail;message.dataset.stage=phase;cad.disabled=true;try{rfb?.disconnect();}catch{}}
+document.getElementById('full').onclick=async()=>{try{await screen.requestFullscreen();}catch{screen.classList.add('expanded');}};
+function exitFull(){screen.classList.remove('expanded');if(document.fullscreenElement===screen)document.exitFullscreen().catch(()=>{});}
+document.getElementById('exitfull').onclick=exitFull;document.addEventListener('keydown',e=>{if(e.key==='Escape')exitFull();});cad.onclick=()=>rfb?.sendCtrlAltDel();
 try{
  history.replaceState(null,'',location.pathname);if(!/^[a-f0-9]{64}$/.test(ticket))throw Error();
  status.textContent=t.wait;message.textContent='';timer=setTimeout(fail,60000);
@@ -102,7 +104,7 @@ try{
  message.dataset.http=String(response.status);if(!response.ok)throw Error();const grant=await response.json();if(failed)return;
  if(!/^[a-f0-9]{64}$/.test(grant.binding||'')||typeof grant.password!=='string'||!${PASSWORD}.test(grant.password))throw Error();
  phase='socket';rfb=new RFB(screen,'wss://'+location.host+'/socket?binding='+grant.binding,{credentials:{password:grant.password},wsProtocols:['binary']});grant.password='';
- rfb.scaleViewport=true;rfb.resizeSession=false;rfb.addEventListener('connect',()=>{if(failed)return;clearTimeout(timer);status.textContent=t.ready;cad.disabled=false;});
+ rfb.scaleViewport=true;rfb.resizeSession=false;rfb.addEventListener('connect',()=>{if(failed)return;connected=true;clearTimeout(timer);status.textContent=t.ready;cad.disabled=false;});
  rfb.addEventListener('disconnect',fail);rfb.addEventListener('securityfailure',fail);rfb.addEventListener('credentialsrequired',fail);
  clearTimeout(timer);timer=setTimeout(fail,20000);
 }catch(error){message.dataset.error=['Error','TypeError','SyntaxError','ReferenceError','AbortError','SecurityError'].includes(error?.name)?error.name:'Error';fail();}
