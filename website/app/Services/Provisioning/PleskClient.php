@@ -266,7 +266,7 @@ class PleskClient
         $r = $this->call('<packet version="1.6.9.1"><server><create_session><login>'.$this->esc($login)
             .'</login><data><user_ip>'.$this->esc($ip).'</user_ip></data></create_session></server></packet>');
         $token = $r['data']['server']['create_session']['result']['id'] ?? null;
-        if (! $r['ok'] || ! is_string($token) || ! preg_match('/\A[a-f0-9]{32,128}\z/iD', $token)) return null;
+        if (! $r['ok'] || ! is_string($token) || ! preg_match('/\A[a-zA-Z0-9_,-]{16,256}\z/D', $token)) return null;
         return 'https://'.$this->server->hostname.':'.$this->server->effectivePort()
             .'/enterprise/rsession_init.php?PLESKSESSID='.rawurlencode($token);
     }
