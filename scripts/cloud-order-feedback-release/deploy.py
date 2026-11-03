@@ -11,6 +11,7 @@ import re
 import stat
 import subprocess
 import tempfile
+import time
 import urllib.request
 
 HOME = Path('/home/servernetcloud')
@@ -110,12 +111,12 @@ $compiler=$app->make('blade.compiler');
 foreach($plan['entries'] as $i=>$entry){
  if(!str_ends_with($entry['path'],'.blade.php'))continue;
  $compiler->setPath($entry['path']);
- $bytes=$compiler->compileString(file_get_contents($entry['candidate']));
+ $bytes=$compiler->compileString(file_get_contents($entry['candidate']))."\\n<?php /**PATH ".$entry['path']." ENDPATH**/ ?>";
  $candidate=dirname($p).'/compiled-'.$i.'.php';file_put_contents($candidate,$bytes);chmod($candidate,0600);
  $path=$compiler->getCompiledPath($entry['path']);
  $backup=dirname($p).'/compiled-before-'.$i;
  if(is_file($path)){copy($path,$backup);chmod($backup,0600);}
- $plan['compiled'][]=['path'=>$path,'candidate'=>$candidate,'backup'=>$backup,
+ $plan['compiled'][]=['path'=>$path,'source'=>$entry['path'],'candidate'=>$candidate,'backup'=>$backup,
  'before'=>is_file($path)?hash_file('sha256',$path):'absent','after'=>hash('sha256',$bytes),
  'mode'=>is_file($path)?fileperms($path)&0777:0600];
 }
@@ -157,7 +158,11 @@ def apply_or_verify(phase):
             if phase=='rollback' and e['before']=='absent':
                 # Only newly introduced, exact-hash files owned by this release.
                 path.unlink()
-            else: atomic(path,data,e['mode'])
+            else:
+                atomic(path,data,e['mode'])
+                if phase=='install' and e in plan['compiled']:
+                    fresh=max(time.time(),Path(e['source']).stat().st_mtime+1)
+                    os.utime(path,(fresh,fresh))
             written.append(e)
         plan['status']='rolled_back' if phase=='rollback' else 'installed'
         atomic(WORK/'manifest.json',json.dumps(plan,indent=2).encode(),0o600)
