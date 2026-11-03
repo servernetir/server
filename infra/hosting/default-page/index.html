@@ -1,0 +1,72 @@
+<!doctype html>
+<!-- ServerNet managed hosting welcome page · 2026-11-03 · v1 -->
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="میزبانی این دامنه در سرورنت فعال است. وب‌سایت به‌زودی توسط صاحب آن راه‌اندازی می‌شود.">
+  <meta name="theme-color" content="#0b1526">
+  <title>آغاز یک وب‌سایت تازه | سرورنت</title>
+  <style>
+    @font-face{font-family:IRANSans;src:url('https://servernet.cloud/assets/font/woff2/IRANSans-web.woff2') format('woff2');font-display:swap;font-weight:400}
+    @font-face{font-family:IRANSans;src:url('https://servernet.cloud/assets/font/woff2/IRANSans-Bold-web.woff2') format('woff2');font-display:swap;font-weight:600 900}
+    :root{color-scheme:dark;--bg:#0b1526;--ink:#f4f7fc;--muted:#a5b3ca;--line:#ffffff18;--blue:#8ab9ff;--green:#63e5bc}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:IRANSans,Tahoma,Arial,sans-serif;line-height:1.9;min-height:100vh}a{color:inherit;text-decoration:none}button{font:inherit}a:focus-visible,button:focus-visible{outline:3px solid var(--green);outline-offset:5px}body:before{content:"";position:fixed;inset:0;z-index:-1;background:radial-gradient(ellipse at 15% 15%,#1b497647,transparent 45%),radial-gradient(ellipse at 85% 80%,#0d5d5c29,transparent 40%)}
+    .wrap{width:min(1100px,calc(100% - 64px));margin:auto}.top{display:flex;justify-content:space-between;align-items:center;padding:30px 0}.brand{display:inline-flex;gap:10px;align-items:center;direction:ltr;font:750 25px Arial,sans-serif;letter-spacing:-.9px}.brand svg{width:34px;height:34px}.brand span{color:#9bc6ff}.langs{display:flex;gap:4px;direction:ltr;padding:4px;border:1px solid var(--line);border-radius:12px}.langs button{background:none;border:0;color:var(--muted);border-radius:8px;padding:3px 11px;cursor:pointer;font:13px/28px Tahoma,Arial,sans-serif}.langs button[aria-pressed=true]{background:#ffffff13;color:#fff}
+    main{padding:32px 0 40px}.hero{display:grid;grid-template-columns:1.15fr 1fr;align-items:center;gap:56px;min-height:400px}.eyebrow{display:inline-flex;align-items:center;gap:9px;padding:5px 13px;border:1px solid #63e5bc29;border-radius:30px;background:#63e5bc09;color:var(--green);font-size:12px}.dot{width:6px;height:6px;background:var(--green);border-radius:50%;box-shadow:0 0 12px #63e5bc66}h1{font-size:clamp(31px,3.3vw,47px);line-height:1.7;font-weight:750;letter-spacing:-1.5px;margin:20px 0 14px}h1 em{display:block;color:var(--blue);font-style:normal}.intro{color:var(--muted);font-size:14px;max-width:450px;margin:0 0 25px}.actions{display:flex;gap:12px;flex-wrap:wrap}.action{display:inline-flex;gap:16px;align-items:center;justify-content:center;min-height:47px;padding:8px 21px;border:1px solid var(--line);border-radius:10px;font-size:13px;transition:background .2s}.primary{background:#86b6ff;color:#09172b;border-color:#86b6ff;font-weight:bold}.action:hover{background:#ffffff12}.primary:hover{background:#a8cdff}.arrow{font:20px Arial}.scene{position:relative;min-height:350px;display:grid;place-items:center;direction:ltr}.orbit{position:absolute;width:320px;height:320px;border:1px solid #87b6ff16;border-radius:50%;transform:rotateX(40deg) rotate(-25deg)}.orbit:before{content:"";position:absolute;inset:35px;border:1px dashed #87b6ff26;border-radius:50%}.scene:before{content:"";position:absolute;width:235px;height:200px;background:#4a94ec25;filter:blur(65px)}
+    .server{position:relative;width:250px;padding:18px 17px 24px;border:1px solid #7299cc63;border-radius:19px;background:linear-gradient(135deg,#233b5a,#101c31);box-shadow:18px 24px 0 -7px #08101f,18px 24px 0 -6px #57759855,0 35px 70px #0005;transform:perspective(900px) rotateY(-15deg) rotateX(9deg);animation:float 7s ease-in-out infinite}.server-head{font:10px/20px monospace;letter-spacing:2px;color:#92aacb;display:flex;justify-content:space-between;margin-bottom:14px}.server-head i{width:6px;height:6px;background:var(--green);border-radius:50%;margin-top:7px}.rack{height:47px;margin-top:10px;background:linear-gradient(110deg,#30496855,#0a1325);border:1px solid #6c8ab744;border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;box-shadow:inset 0 2px 6px #0002}.rack:before{content:"";width:61px;height:11px;background:repeating-linear-gradient(90deg,#617b9f 0 3px,transparent 3px 8px);opacity:.65}.rack:after{content:"";width:5px;height:5px;background:var(--green);border-radius:50%;box-shadow:-12px 0 #76b3ff,0 0 9px #63e5bc55}.domain-tag{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:max-content;max-width:100%;background:#13243b;border:1px solid #7497cb38;border-radius:12px;padding:9px 18px;box-shadow:0 14px 40px #0003;display:flex;gap:10px;align-items:center;font:13px/24px monospace}.domain-tag svg{width:17px;height:17px;color:var(--blue)}#domain{overflow-wrap:anywhere}
+    .guide{margin-top:46px;border-top:1px solid var(--line);padding-top:25px;display:grid;grid-template-columns:repeat(3,1fr);gap:32px}.step{display:flex;gap:13px}.num{display:grid;place-items:center;flex:none;width:31px;height:31px;border:1px solid #8ab9ff33;border-radius:9px;color:var(--blue);font:12px/1 monospace;margin-top:5px}.step h2{font-size:13px;font-weight:600;margin:0 0 4px}.step p{font-size:12px;color:var(--muted);margin:0;line-height:1.9}.footer{border-top:1px solid var(--line);padding:21px 0 24px;display:flex;gap:18px;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px}.credit{display:flex;flex-wrap:wrap;align-items:center;gap:7px}.credit a{color:#c3d8f6;font-weight:bold}.credit a:hover{text-decoration:underline}.footer small{font:10px/1.8 monospace;color:#74849f;letter-spacing:1px}.footer-link{color:#8bb7ef}
+    @keyframes float{50%{transform:perspective(900px) rotateY(-15deg) rotateX(9deg) translateY(-9px)}}@media(prefers-reduced-motion:reduce){*,*:before{animation:none!important;transition:none!important}}
+    @media(max-width:760px){.wrap{width:calc(100% - 40px)}.top{padding:22px 0}.brand{font-size:22px}.brand svg{width:29px;height:29px}main{padding:20px 0 30px}.hero{grid-template-columns:1fr;gap:8px;min-height:0;text-align:center}.intro{margin-inline:auto}.actions{justify-content:center}h1{margin-top:17px;font-size:34px;letter-spacing:-1px}.scene{min-height:310px;margin-top:15px}.server{width:220px}.orbit{width:270px;height:270px}.domain-tag{bottom:0}.guide{margin-top:33px;gap:19px;grid-template-columns:1fr;padding-top:23px;text-align:start}.step h2{font-size:14px}.step p{font-size:12px}.footer{flex-direction:column;text-align:center;gap:10px}.credit{justify-content:center}.langs button{padding:3px 8px}html[dir=ltr] h1{letter-spacing:-1px;line-height:1.4}}
+    @media(max-width:360px){.wrap{width:calc(100% - 30px)}h1{font-size:29px}.brand{font-size:20px}.langs button{padding:3px 6px}.actions{gap:9px}.action{padding:8px 14px}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="https://servernet.cloud/" aria-label="ServerNet Cloud"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 29a8 8 0 0 1-1-16 11 11 0 0 1 21-1 9 9 0 0 1 0 18H15" stroke="#8ab9ff" stroke-width="2.5" stroke-linecap="round"/><path d="m19 18-5 6 5 6m5-12 5 6-5 6" stroke="#63e5bc" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Server<span>Net</span></a>
+    <nav class="langs" aria-label="Language"><button type="button" lang="fa" data-lang="fa" aria-pressed="true">فا</button><button type="button" lang="en" data-lang="en" aria-pressed="false">EN</button><button type="button" lang="tr" data-lang="tr" aria-pressed="false">TR</button></nav>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="welcome">
+      <div>
+        <div class="eyebrow"><span class="dot" aria-hidden="true"></span><span data-i18n="status">میزبانی این دامنه فعال است</span></div>
+        <h1 id="welcome"><span data-i18n="title">اینجا، شروع یک</span><em data-i18n="accent">وب‌سایت تازه است.</em></h1>
+        <p class="intro" data-i18n="intro">همه‌چیز برای قدم بعدی آماده است. صاحب این دامنه به‌زودی وب‌سایت خود را در این فضا راه‌اندازی می‌کند.</p>
+        <div class="actions"><a class="action primary" href="https://console.servernet.cloud/account"><span data-i18n="panel">ورود به پنل سرورنت</span><span class="arrow" aria-hidden="true">↗</span></a><a class="action" href="https://servernet.cloud/contact" data-i18n="support">ارتباط با پشتیبانی</a></div>
+      </div>
+      <div class="scene" aria-hidden="true"><div class="orbit"></div><div class="server"><div class="server-head"><span>SERVERNET CLOUD</span><i></i></div><div class="rack"></div><div class="rack"></div><div class="rack"></div><div class="rack"></div></div><div class="domain-tag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 7h14M5 17h14"/></svg><bdi id="domain">YOUR NEXT BIG IDEA</bdi></div></div>
+    </section>
+    <section class="guide" aria-label="راهنمای شروع" id="guide">
+      <div class="step"><span class="num" aria-hidden="true">01</span><div><h2 data-i18n="step1">این دامنه متعلق به شماست؟</h2><p data-i18n="detail1">از پنل سرورنت وارد کنترل‌پنل میزبانی خود شوید.</p></div></div>
+      <div class="step"><span class="num" aria-hidden="true">02</span><div><h2 data-i18n="step2">وب‌سایتتان را بارگذاری کنید</h2><p data-i18n="detail2">فایل‌ها و پایگاه‌دادهٔ وب‌سایت را در هاست قرار دهید.</p></div></div>
+      <div class="step"><span class="num" aria-hidden="true">03</span><div><h2 data-i18n="step3">آمادهٔ دیده‌شدن باشید</h2><p data-i18n="detail3">با انتشار سایت، این صفحه جای خود را به وب‌سایت شما می‌دهد.</p></div></div>
+    </section>
+  </main>
+  <footer class="footer"><div class="credit"><span data-i18n="powered">زیرساخت و میزبانی ابری توسط</span><a href="https://servernet.cloud/" data-i18n="brand">سرورنت</a><span aria-hidden="true">·</span><a class="footer-link" href="https://servernet.cloud/">servernet.cloud</a></div><small>BUILT FOR YOUR NEXT CHAPTER.</small></footer>
+</div>
+<script>
+(() => {
+  'use strict';
+  const translations = {
+    fa: {status:'میزبانی این دامنه فعال است',title:'اینجا، شروع یک',accent:'وب‌سایت تازه است.',intro:'همه‌چیز برای قدم بعدی آماده است. صاحب این دامنه به‌زودی وب‌سایت خود را در این فضا راه‌اندازی می‌کند.',panel:'ورود به پنل سرورنت',support:'ارتباط با پشتیبانی',step1:'این دامنه متعلق به شماست؟',detail1:'از پنل سرورنت وارد کنترل‌پنل میزبانی خود شوید.',step2:'وب‌سایتتان را بارگذاری کنید',detail2:'فایل‌ها و پایگاه‌دادهٔ وب‌سایت را در هاست قرار دهید.',step3:'آمادهٔ دیده‌شدن باشید',detail3:'با انتشار سایت، این صفحه جای خود را به وب‌سایت شما می‌دهد.',powered:'زیرساخت و میزبانی ابری توسط',brand:'سرورنت',guide:'راهنمای شروع',pageTitle:'آغاز یک وب‌سایت تازه | سرورنت'},
+    en: {status:'Hosting is active for this domain',title:'A new website',accent:'starts right here.',intro:'The space is ready for what comes next. The owner of this domain will be launching their website here soon.',panel:'Open ServerNet panel',support:'Contact support',step1:'Is this your domain?',detail1:'Open your hosting control panel from your ServerNet account.',step2:'Bring your website online',detail2:'Upload your website files and set up your database.',step3:'Get ready to be discovered',detail3:'Publish your website to replace this welcome page.',powered:'Cloud infrastructure and hosting by',brand:'ServerNet',guide:'Getting started',pageTitle:'A new website starts here | ServerNet'},
+    tr: {status:'Bu alan adının barındırması etkin',title:'Yeni bir web sitesi',accent:'burada başlıyor.',intro:'Bir sonraki adım için her şey hazır. Bu alan adının sahibi yakında web sitesini burada yayınlayacak.',panel:'ServerNet paneline giriş',support:'Destek ile iletişim',step1:'Bu alan adı size mi ait?',detail1:'ServerNet hesabınızdan hosting kontrol panelinizi açın.',step2:'Web sitenizi yükleyin',detail2:'Web sitesi dosyalarınızı yükleyin ve veritabanınızı hazırlayın.',step3:'Yayınlamaya hazır olun',detail3:'Web sitenizi yayınladığınızda bu karşılama sayfasının yerini alır.',powered:'Bulut altyapısı ve barındırma',brand:'ServerNet',guide:'Başlangıç rehberi',pageTitle:'Yeni bir web sitesi burada başlıyor | ServerNet'}
+  };
+  const domain = window.location.hostname.replace(/^www\./i,'');
+  if (domain) document.getElementById('domain').textContent = domain;
+  function setLanguage(lang) {
+    const t = translations[lang];
+    if (!t) return;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t[el.dataset.i18n]; });
+    document.querySelectorAll('[data-lang]').forEach(el => el.setAttribute('aria-pressed', String(el.dataset.lang === lang)));
+    document.getElementById('guide').setAttribute('aria-label', t.guide);
+    document.title = t.pageTitle;
+  }
+  document.querySelectorAll('[data-lang]').forEach(el => el.addEventListener('click', () => setLanguage(el.dataset.lang)));
+})();
+</script>
+</body>
+</html>
