@@ -73,7 +73,7 @@ class CloudOrderIssueTest extends TestCase
     public function test_capacity_is_actionable_in_details_list_and_live_status(string $locale, string $prefix): void
     {
         $service = $this->order($locale);
-        $before = $service->getRawOriginal();
+        $before = $service->fresh()->getRawOriginal();
         $this->actingAs($service->customer, 'customer');
 
         $html = $this->get($prefix.'/account/cloud/'.$service->id)->assertOk()->getContent();
