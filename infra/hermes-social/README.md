@@ -176,3 +176,17 @@ acceptance are still unverified. No credentials, scopes, timers or host routes c
 ## UTF-8 account setup follow-up — 2026-11-02
 
 The hidden token and atomic configuration writers in `configure_instagram.py` now use explicit UTF-8, including on non-UTF-8 Windows locales. Unicode paths and campaign settings survive setup; publication/reply flags remain unchanged. Baseline: 73 tests; updated suite: 75 local tests, including CP1252 configuration round-trip and blocked identity cleanup. Actual Windows execution, VM127 installation and live API acceptance remain unverified.
+
+
+
+## Concurrent polling recovery — 2026-11-03
+
+Slow overlapping status polls can finish after another worker publishes or begins
+verification. Terminal/error poll results now update only rows still in WAITING,
+so stale ERROR/EXPIRED/unexpected responses cannot overwrite a verified receipt
+or verification in progress. Current WAITING rows retain their FAILED/UNCERTAIN
+handling; no second publication is attempted. Baseline: 75 tests. Two regression
+tests reproduced six failing interleavings before the fix; the updated suite has
+78 passing local tests, including a third check for genuine current responses.
+The tests use threads, independent Engine instances, temporary SQLite and mock
+provider calls. No VM127 installation or live provider acceptance was performed.

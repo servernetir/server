@@ -469,6 +469,66 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(self.engine.reply_comment(self.key, "444", "Hello")["state"], "REPLIED")
 
 
+    def overlapping_status_result(self, remote_status, verify_fails=False):
+        fixture = Fixture()
+        self.addCleanup(fixture.close)
+        policy = fixture.policy()
+        first_api, second_api = FakeInstagram(), FakeInstagram()
+        second_api.fail_verify = verify_fails
+        first = Engine(policy, FakeDrive(), FakeStore(), lambda lang: first_api, lambda: NOW)
+        second = Engine(policy, FakeDrive(), FakeStore(), lambda lang: second_api,
+                        lambda: NOW + timedelta(seconds=61))
+        key = fixture.job["key"]
+        first.prepare(key)
+        entered, release = Event(), Event()
+        def delayed_status(container):
+            entered.set()
+            if not release.wait(3):
+                raise RuntimeError("test_release_timeout")
+            return remote_status
+        first_api.container_status = delayed_status
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(first.advance, key)
+            try:
+                self.assertTrue(entered.wait(3))
+                second.advance(key)
+                before = second.receipt(key)
+            finally:
+                release.set()
+            returned = pending.result(3)
+        self.assertEqual(first.receipt(key), before)
+        self.assertEqual(returned, before)
+        self.assertEqual((first_api.published, second_api.published), (0, 1))
+        return first, second, key
+
+    def test_stale_status_cannot_overwrite_verified_publication(self):
+        for status in ("PUBLISHED", "ERROR", "EXPIRED"):
+            with self.subTest(status=status):
+                first, second, key = self.overlapping_status_result(status)
+                self.assertEqual(first.receipt(key)["state"], "PUBLISHED")
+                self.assertIsNotNone(first.receipt(key)["receipt"])
+                self.assertIn("untrusted_customer_content", second.read_comments(key))
+
+    def test_stale_status_cannot_overwrite_verification_in_progress(self):
+        for status in ("PUBLISHED", "ERROR", "EXPIRED"):
+            with self.subTest(status=status):
+                first, second, key = self.overlapping_status_result(status, verify_fails=True)
+                self.assertEqual(first.receipt(key)["state"], "VERIFYING")
+                self.assertEqual(first.receipt(key)["media_id"], "999")
+
+    def test_current_waiting_status_still_records_terminal_or_uncertain_result(self):
+        for status, expected in (("ERROR", "FAILED"), ("EXPIRED", "FAILED"), ("PUBLISHED", "UNCERTAIN")):
+            with self.subTest(status=status):
+                fixture = Fixture()
+                self.addCleanup(fixture.close)
+                api = FakeInstagram()
+                engine = Engine(fixture.policy(), FakeDrive(), FakeStore(), lambda lang: api, lambda: NOW)
+                engine.prepare(fixture.job["key"])
+                api.status = status
+                self.assertEqual(engine.advance(fixture.job["key"])["state"], expected)
+                self.assertEqual(api.published, 0)
+
+
 class CommentPaginationRegressionTests(unittest.TestCase):
     def setUp(self):
         self.f = Fixture()
@@ -1028,6 +1088,7 @@ class ConfigureInstagramEncodingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

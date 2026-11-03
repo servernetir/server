@@ -160,10 +160,17 @@ class Engine:
             if status == "IN_PROGRESS":
                 return self.receipt(key)
             if status in {"ERROR", "EXPIRED"}:
-                self.journal.update(key, "FAILED", error="container_" + status.lower())
+                # A slow poll may finish after another worker has published/verified.
+                with self.journal.db() as db:
+                    db.execute("UPDATE publications SET state='FAILED',error=? "
+                               "WHERE key=? AND state='WAITING'",
+                               ("container_" + status.lower(), key))
                 return self.receipt(key)
             if status != "FINISHED":
-                self.journal.update(key, "UNCERTAIN", error="unexpected_container_state")
+                with self.journal.db() as db:
+                    db.execute("UPDATE publications SET state='UNCERTAIN',error=? "
+                               "WHERE key=? AND state='WAITING'",
+                               ("unexpected_container_state", key))
                 return self.receipt(key)
             self.policy.enabled()
             self.policy.due(job, now)
@@ -366,6 +373,7 @@ class Engine:
         with self.journal.db() as db:
             db.execute("UPDATE comments SET state='REPLIED' WHERE id=? AND lang=?", (comment_id, job["lang"]))
         return {"comment_id": comment_id, "reply_id": reply_id, "state": "REPLIED"}
+
 
 
 
