@@ -141,6 +141,9 @@ def run_embedded(installer_source: bytes, *, _root=None, _installer_factory=None
         except module.Refused as error:
             if str(error) != MISSING_CANDIDATE:
                 raise
+            # Missing package metadata permits one refresh, but cannot bypass
+            # the same path/file safety checks as the stale-metadata branch.
+            _metadata_stale(root, time.time() if _now is None else _now)
             refresh = True
         if refresh:
             # Authorized metadata refresh only. Existing sources/keys/configured

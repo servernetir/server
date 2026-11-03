@@ -8,7 +8,7 @@ namespace App\Services\Cloud;
 final class ArvanLinuxBootstrap
 {
     public const INSTALLER_SHA256 = 'ba2d8ef3c2fea7534e89ca163364c63d0161c1809c7452e3923cfbb0f90f6ab8';
-    public const WRAPPER_SHA256 = 'c49ca0a9c3d23d769560045347600d742b21d89f1c429d1248439815d6d007ef';
+    public const WRAPPER_SHA256 = '69541775c0a9ec4ac50a71c52d3c2652cba01e52cbae8c0384d4493119be7fef';
 
     /** Use only the resolved regional distribution's provider metadata. */
     public static function family(array $group, array $image): ?string

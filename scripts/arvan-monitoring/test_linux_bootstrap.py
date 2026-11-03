@@ -245,6 +245,41 @@ class LinuxBootstrapTest(unittest.TestCase):
         self.assertEqual(self.runner.refresh_calls, [])
         self.assertEqual(self.apply_calls, 0)
 
+    def test_missing_candidate_cannot_bypass_release_symlink_guard(self):
+        self.runner.missing_metadata = True
+        self.release.unlink()
+        self.release.symlink_to(self.root / "etc/os-release")
+        self.assert_refused(self.invoke(), "apt_metadata_file_requires_review")
+        self.assertEqual(self.runner.refresh_calls, [])
+        self.assertEqual(self.apply_calls, 0)
+
+    def test_missing_candidate_cannot_bypass_unsafe_release_mode_guard(self):
+        self.runner.missing_metadata = True
+        self.release.chmod(0o666)
+        self.assert_refused(self.invoke(), "apt_metadata_file_requires_review")
+        self.assertEqual(self.runner.refresh_calls, [])
+        self.assertEqual(self.apply_calls, 0)
+
+    def test_missing_candidate_cannot_bypass_lists_directory_symlink_guard(self):
+        self.runner.missing_metadata = True
+        directory = self.root / "var/lib/apt/lists"
+        moved = directory.with_name("lists-original")
+        directory.rename(moved)
+        directory.symlink_to(moved, target_is_directory=True)
+        self.assert_refused(self.invoke(), "apt_metadata_path_requires_review")
+        self.assertEqual(self.runner.refresh_calls, [])
+        self.assertEqual(self.apply_calls, 0)
+
+    def test_missing_candidate_cannot_bypass_metadata_parent_symlink_guard(self):
+        self.runner.missing_metadata = True
+        directory = self.root / "var/lib/apt"
+        moved = directory.with_name("apt-original")
+        directory.rename(moved)
+        directory.symlink_to(moved, target_is_directory=True)
+        self.assert_refused(self.invoke(), "apt_metadata_path_requires_review")
+        self.assertEqual(self.runner.refresh_calls, [])
+        self.assertEqual(self.apply_calls, 0)
+
     def test_unexpected_installer_refusal_is_redacted(self):
         def factory(module, root):
             class Refusing:
