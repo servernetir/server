@@ -26,7 +26,6 @@ class VpsTcConsoleBroker
             && Customer::whereKey($service->customer_id)->where('status', 'active')->exists();
         return ($ownerPilot || $customers)
             && preg_match('/\A[a-f0-9]{64}\z/D', (string) Setting::getSecret('vpstc_console_worker_key')) === 1
-            && $this->console->origin() !== null
             && $this->console->context($service) !== null;
     }
 
