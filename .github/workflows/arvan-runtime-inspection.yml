@@ -1,0 +1,37 @@
+name: Offline Arvan runtime inspection checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/arvan-monitoring/runtime-inspection/**'
+      - '.github/workflows/arvan-runtime-inspection.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-runtime-inspection-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-inspection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for standalone checks
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Run parser and CLI fixtures with no network interface
+        run: |
+          set -euo pipefail
+          test_php="$(command -v php)"
+          sudo unshare --net -- "$test_php" -l scripts/arvan-monitoring/runtime-inspection/inspect-runtime.php
+          sudo unshare --net -- "$test_php" scripts/arvan-monitoring/runtime-inspection/inspect-runtime.php --self-test
+          sudo unshare --net -- env PHP_BINARY="$test_php" python3 -m unittest discover -s scripts/arvan-monitoring/runtime-inspection -p 'test_runtime_inspection.py' -v
