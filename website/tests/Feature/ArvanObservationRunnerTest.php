@@ -364,6 +364,18 @@ class ArvanObservationRunnerTest extends TestCase
         DB::table('settings')->where('key', ArvanObservationRegistry::TRANSPORT)->update(['value' => '{malformed']);
         $this->assertSame('trusted_transport_configuration_unavailable', $this->registry->run()['status']);
         $this->assertSame('trusted_transport_configuration_unavailable', $this->observationRecord(ArvanObservationRegistry::RUN)['status']);
+        $valid = ArvanObservationState::decode($transport);
+        $missingVersion = $valid; unset($missingVersion['version']);
+        $missingEnabled = $valid; unset($missingEnabled['enabled']);
+        foreach ([$missingVersion, $missingEnabled, array_replace($valid, ['enabled' => 'true']),
+            array_replace($valid, ['enabled' => 1]), array_replace($valid, ['version' => 0, 'enabled' => false]),
+            array_replace($valid, ['enabled' => false, 'operator_acceptance_sha256' => 'invalid']),
+            array_replace($valid, ['enabled' => false, 'pin' => null])] as $corrupt) {
+            $this->putObservationRecord(ArvanObservationRegistry::TRANSPORT, $corrupt);
+            $this->assertSame('trusted_transport_configuration_unavailable', $this->registry->run()['status']);
+            $this->assertSame('trusted_transport_configuration_unavailable', $this->observationRecord(ArvanObservationRegistry::RUN)['status']);
+            $this->assertSame(0, $this->reads);
+        }
         DB::table('settings')->where('key', ArvanObservationRegistry::TRANSPORT)->update(['value' => $transport]);
         $this->putObservationRecord(ArvanObservationRegistry::PROGRESS, ['version' => 1, 'cursor' => 'not-an-enrollment-prefix']);
         $this->assertSame('observation_progress_requires_review', $this->registry->run()['status']);

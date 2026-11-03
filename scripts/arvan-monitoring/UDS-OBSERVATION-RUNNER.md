@@ -131,8 +131,10 @@ Only uncached dedicated settings records are written:
 | `arvan_observation_run_v1` | Central run/configuration status |
 
 Values are capped at16KiB. Discovery reads at most20keys; duplicate-resource
-checks fetch at most two rows. Each pass stops starting reads after35seconds;
-an active request can add at most5seconds. The cursor rotates past invalid or
+checks fetch at most two rows. Each pass checks a35second elapsed budget before
+starting another poll; an active source read is capped at5seconds. Database
+reads/locks use the database's configured timeouts and can extend total wall
+time; a running job never proves current coverage. The cursor rotates past invalid or
 orphan records. Large/slow fleets need enough accepted capacity to obtain a
 sample for each enrollment within150seconds; an incomplete pass is not coverage.
 

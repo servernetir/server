@@ -77,9 +77,11 @@ final class ArvanObservationRegistry
     public function transport(bool $verify = true): ?array
     {
         $value = ArvanObservationState::decode($this->raw(self::TRANSPORT, false));
-        if ($value === null || ($value['enabled'] ?? null) !== true) { return null; }
-        if (($value['version'] ?? null) !== 1 || !ArvanObservationState::sha($value['operator_acceptance_sha256'] ?? null)
+        if ($value === null) { return null; }
+        if (($value['version'] ?? null) !== 1 || !is_bool($value['enabled'] ?? null)
+            || !ArvanObservationState::sha($value['operator_acceptance_sha256'] ?? null)
             || !is_array($value['pin'] ?? null)) { throw new RuntimeException('transport_approval_invalid'); }
+        if (!$value['enabled']) { return null; }
         if ($verify) { (new UnixPrometheusTrafficTransport($this->root, $value['pin']))->verify(); }
         return $value;
     }
