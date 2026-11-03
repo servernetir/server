@@ -25,8 +25,9 @@ checked. Disable that flag and the owner pilot before disabling the Worker.
 Laravel package. `--headers-only` prepares the narrow browser-policy follow-up.
 `--broker-only` promotes the installed owner pilot to the separately gated
 customer policy, preserving all other live files and keeping rollout flags unchanged.
-`--protocol-only` applies the separate Istanbul location guard to the installed
-protocol client. Unaccepted or unknown regions cannot use the Istanbul gateway.
+`--protocol-only` prepares the original Istanbul scope follow-up.
+`--regions-only` updates the installed protocol client and broker to exact
+Istanbul/New York mapping; unknown locations cannot fall back to another region.
 The private CLI helper prepares exact-byte backups, then separately accepts
 `--apply` after review. It acquires both shared account release locks and stops
 on source drift, existing class files, a route cache or a previous apply attempt.
@@ -34,4 +35,8 @@ It does not activate flags, run migrations or flush application caches.
 
 Established console streams last up to 30 minutes. Launch grants and claim cookies
 remain short-lived and single-use; extending the stream does not extend them.
-The customer policy covers both current and future eligible Istanbul services.
+The customer policy covers both current and future eligible Istanbul and New York services.
+The corresponding approved origins are `https://console.whitelabelservices.us`
+and `https://nyc1.whitelabelservices.us:8006`; never accept a host from the browser.
+New York has public API and isolated protocol coverage; no live NY VM screen test
+is claimed. See the project console report for acceptance and release receipts.
