@@ -101,7 +101,13 @@ class PleskClient
         $statuses = $sx->xpath('/*/*/*/result/status | /*/system/status') ?: [];
         $ok = count($statuses) > 0 && count(array_filter($statuses, fn ($v) => (string) $v !== 'ok')) === 0;
 
+        $codes = $sx->xpath('/*/*/*/result/errcode | /*/system/errcode') ?: [];
+        $rejected = count($statuses) > 0 && count($codes) === count($statuses)
+            && count(array_filter($statuses, fn ($v) => (string) $v !== 'error')) === 0
+            && count(array_filter($codes, fn ($v) => ! ctype_digit((string) $v))) === 0;
+
         return [
+            'rejected'  => $rejected,
             'ok'        => $ok,
             'transport' => false,
             'reason'    => $ok ? 'ok' : (trim(((string) $errCode !== '' ? '['.$errCode.'] ' : '').(string) $errText) ?: 'unknown'),

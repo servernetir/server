@@ -160,6 +160,8 @@ class ProvisioningService
                 'username' => $result->username ?: $service->username,
                 'password' => $result->password ?: $service->password,
                 'panel_url' => $result->panelUrl ?: $service->panel_url,
+                'server_ip' => $server->type === 'plesk' && filter_var($result->meta['server_ip'] ?? null, FILTER_VALIDATE_IP)
+                    ? $result->meta['server_ip'] : $service->server_ip,
                 'provision_status' => 'done',
                 'provision_error' => null,
                 'provisioned_at' => now(),
@@ -239,9 +241,10 @@ class ProvisioningService
         }
 
         // IPِ حسابِ ساخته‌شده: اول IPِ ثبت‌شدهٔ سرور، وگرنه از میزبان resolve کن
-        $ip = filled($server->server_ip)
-            ? (string) $server->server_ip
-            : (string) @gethostbyname((string) $server->hostname);
+        $ip = $server->type === 'plesk' && filled($service->server_ip)
+            ? (string) $service->server_ip
+            : (filled($server->server_ip) ? (string) $server->server_ip
+                : (string) @gethostbyname((string) $server->hostname));
 
         if (! filter_var($ip, FILTER_VALIDATE_IP)) {
             $this->noteDns($service, 'IPِ سرور مشخص نشد؛ رکوردِ DNS دستی لازم است.');

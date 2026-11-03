@@ -24,7 +24,7 @@ namespace {
     function absent(string $operator):string{return sample($operator,'get','<status>error</status><errcode>1013</errcode><errtext>not found</errtext>');}
     function fixture():array {
         $s=new Service;
-        $f=(object)['customer'=>false,'subscription'=>false,'plan'=>true,'owner'=>7,'planId'=>'plan-fixture-guid','email'=>'fixture@example.test','customerUnknown'=>false,'customerTimeout'=>false,'subscriptionTimeout'=>false,'timeoutCreates'=>true,'creates'=>0,'calls'=>[]];
+        $f=(object)['customer'=>false,'subscription'=>false,'plan'=>true,'owner'=>7,'planId'=>'plan-fixture-guid','email'=>'fixture@example.test','customerUnknown'=>false,'customerTimeout'=>false,'subscriptionTimeout'=>false,'timeoutCreates'=>true,'customerUnreadable'=>false,'subscriptionUnreadable'=>false,'customerRejected'=>false,'creates'=>0,'calls'=>[]];
         Http::$responder=function(string $xml)use($f){
             $f->calls[]=$xml;$x=simplexml_load_string($xml);check($x!==false,'request is valid XML');
             if(isset($x->{'service-plan'}))return $f->plan?sample('service-plan','get','<status>ok</status><id>8</id><guid>plan-fixture-guid</guid><name>WIN-10</name>'):absent('service-plan');
@@ -35,6 +35,8 @@ namespace {
             }
             if(isset($x->customer->add)){
                 check(isset($x->customer->add->gen_info),'create uses gen_info');$f->creates++;
+                if($f->customerRejected)return sample('customer','add','<status>error</status><errcode>1005</errcode><errtext>Rejected</errtext>');
+                if($f->customerUnreadable)return '<html>upstream timeout</html>';
                 $f->customer=!$f->customerTimeout||$f->timeoutCreates;
                 if($f->customerTimeout)throw new RuntimeException('simulated timeout');
                 return sample('customer','add','<status>ok</status><id>7</id>');
@@ -43,6 +45,7 @@ namespace {
             if(isset($x->webspace->add)){
                 check((string)$x->webspace->add->gen_setup->{'owner-id'}==='7','subscription has exact customer owner');
                 check((string)$x->webspace->add->{'plan-name'}==='WIN-10','exact sold plan sent');$f->creates++;
+                if($f->subscriptionUnreadable)return '<html>upstream timeout</html>';
                 $f->subscription=!$f->subscriptionTimeout||$f->timeoutCreates;
                 if($f->subscriptionTimeout)throw new RuntimeException('simulated timeout');
                 return sample('webspace','add','<status>ok</status><id>12</id>');
@@ -52,7 +55,7 @@ namespace {
         return [$s,$f,new PleskHostingProvisioner(new PleskClient($s->server))];
     }
     function run(string $name,callable $test):void{global $cases;$test();$cases++;echo 'ok '.$name.PHP_EOL;}
-    run('customer AND subscription verified, repeat does not create',function(){[$s,$f,$p]=fixture();$r=$p->create($s);check($r->ok,'delivery succeeded');check($f->creates===2,'one customer and one subscription');$r=$p->create($s);check($r->ok&&$f->creates===2,'replay has no creates');check(isset(Http::$headers['KEY'])&&!isset(Http::$headers['HTTP_AUTH_PASSWD']),'key mode used');});
+    run('customer AND subscription verified, repeat does not create',function(){[$s,$f,$p]=fixture();$r=$p->create($s);check($r->ok,'delivery succeeded');check(($r->meta['server_ip']??null)==='192.0.2.10','verified IP returned');check($f->creates===2,'one customer and one subscription');$r=$p->create($s);check($r->ok&&$f->creates===2,'replay has no creates');check(isset(Http::$headers['KEY'])&&!isset(Http::$headers['HTTP_AUTH_PASSWD']),'key mode used');});
     run('unknown customer never creates',function(){[$s,$f,$p]=fixture();$f->customerUnknown=true;check($p->create($s)->manual&&$f->creates===0,'unknown fails closed');});
     run('unbound existing login is not adopted',function(){[$s,$f,$p]=fixture();$f->customer=true;check($p->create($s)->manual&&$f->creates===0,'unbound login refused');});
     run('wrong customer email is rejected',function(){[$s,$f,$p]=fixture();$f->email='other@example.test';check($p->create($s)->manual&&!$f->subscription,'foreign email refused');});
@@ -64,6 +67,9 @@ namespace {
     run('unresolved customer timeout is not reissued',function(){[$s,$f,$p]=fixture();$f->customerTimeout=true;$f->timeoutCreates=false;check($p->create($s)->manual,'timeout held');check($p->create($s)->manual&&$f->creates===1,'no second customer create');});
     run('subscription timeout reconciles visible success',function(){[$s,$f,$p]=fixture();$f->subscriptionTimeout=true;check($p->create($s)->ok&&$f->creates===2,'visible subscription accepted');});
     run('unresolved subscription timeout is not reissued',function(){[$s,$f,$p]=fixture();$f->subscriptionTimeout=true;$f->timeoutCreates=false;check($p->create($s)->manual,'timeout held');check($p->create($s)->manual&&$f->creates===2,'no second subscription create');});
+    run('HTML customer mutation response keeps reconciliation hold',function(){[$s,$f,$p]=fixture();$f->customerUnreadable=true;check($p->create($s)->manual,'HTML is not a rejection');check($p->create($s)->manual&&$f->creates===1,'no duplicate after HTML');});
+    run('HTML subscription mutation response keeps reconciliation hold',function(){[$s,$f,$p]=fixture();$f->subscriptionUnreadable=true;check($p->create($s)->manual,'HTML is not a rejection');check($p->create($s)->manual&&$f->creates===2,'no duplicate after HTML');});
+    run('explicit API rejection can be retried after confirmed absence',function(){[$s,$f,$p]=fixture();$f->customerRejected=true;check(!$p->create($s)->ok,'explicit rejection failed');$f->customerRejected=false;check($p->create($s)->ok&&$f->creates===3,'known rejection permits recovery');});
     run('changed order binding is refused',function(){[$s,$f,$p]=fixture();check($p->create($s)->ok,'initial delivery');$s->domain='other.example.test';check($p->create($s)->manual&&$f->creates===2,'no rebind');});
     run('malformed and mixed-result responses fail',function(){[$s]=fixture();$c=new PleskClient($s->server);foreach(['<html>blocked</html>','<packet><customer><get><result><status>ok</status></result><result><status>error</status></result></get></customer></packet>','<!DOCTYPE packet [<!ENTITY x SYSTEM "file:///etc/passwd">]><packet><system><status>ok</status></system></packet>'] as $body){Http::$responder=fn($xml)=>$body;check(!$c->call('<packet/>')['ok'],'invalid response not accepted');}});
     run('SSO stays on configured origin and refuses administrator',function(){[$s]=fixture();$c=new PleskClient($s->server);Http::$responder=fn($xml)=>sample('server','create_session','<status>ok</status><id>'.str_repeat('a',32).'</id>');$u=$c->createUserSession($s->username,'192.0.2.1');check(str_starts_with($u??'','https://panel.example.test:8443/enterprise/rsession_init.php?PLESKSESSID='),'fixed origin');check(!str_contains($u??'',$s->password),'no password in URL');check($c->createUserSession('admin','192.0.2.1')===null,'admin never impersonated');});

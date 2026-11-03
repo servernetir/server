@@ -57,6 +57,18 @@ class PleskPanelIntegrationTest extends TestCase
             ->assertRedirect($base.'&success_redirect_url='.rawurlencode('/smb/file-manager'));
         $this->get('/account/services/'.$s->id.'/cpanel?app=https%3A%2F%2Fevil.example.test')->assertRedirect($base);
     }
+    public function test_plesk_free_subdomain_uses_the_service_connection_ip(): void
+    {
+        $s=$this->service();$s->update(['domain'=>'fixture.servernet.cloud','server_ip'=>'192.0.2.10']);
+        $s->server->update(['server_ip'=>'192.0.2.99']);
+        $dns=\Mockery::mock(\App\Services\Dns\CloudflareDns::class);
+        $dns->shouldReceive('isConfigured')->once()->andReturn(true);
+        $dns->shouldReceive('pointSubdomain')->once()->with('fixture.servernet.cloud','192.0.2.10')->andReturn(['ok'=>true]);
+        $this->app->instance(\App\Services\Dns\CloudflareDns::class,$dns);
+        $method=new \ReflectionMethod(ProvisioningService::class,'pointFreeSubdomain');
+        $method->invoke(app(ProvisioningService::class),$s->fresh(),$s->server->fresh());
+        $this->assertStringContainsString('192.0.2.10',$s->fresh()->provision_meta['dns']);
+    }
     public function test_other_customer_cannot_request_a_session(): void
     {
         $s=$this->service();Http::swap(new Factory);Http::fake();

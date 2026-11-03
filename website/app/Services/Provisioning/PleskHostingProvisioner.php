@@ -52,7 +52,7 @@ class PleskHostingProvisioner
                 'email' => $email, 'name' => (string) ($service->customer?->displayName() ?: $login)]);
             $account = $this->client->customerInfo($login);
             if ($account['exists'] !== true) {
-                if (! $created['transport'] && ! $created['ok'] && $account['exists'] === false) {
+                if (($created['rejected'] ?? false) === true && $account['exists'] === false) {
                     $intent['customer_uncertain'] = false;
                     $this->checkpoint($service, $intent);
                     return ProvisionResult::fail('Plesk customer creation was rejected.');
@@ -82,7 +82,7 @@ class PleskHostingProvisioner
                 'login' => $login, 'password' => (string) $service->password, 'plan' => $plan]);
             $space = $this->client->subscriptionInfo($domain);
             if ($space['exists'] !== true) {
-                if (! $created['transport'] && ! $created['ok'] && $space['exists'] === false) {
+                if (($created['rejected'] ?? false) === true && $space['exists'] === false) {
                     $intent['subscription_uncertain'] = false;
                     $this->checkpoint($service, $intent);
                     return ProvisionResult::fail('Plesk subscription creation was rejected.');
@@ -112,7 +112,7 @@ class PleskHostingProvisioner
         $this->checkpoint($service, $intent);
         return ProvisionResult::success($login, (string) $service->password,
             'https://'.$server->hostname.':'.$server->effectivePort(), [
-                'reused' => $reused, 'plesk_intent' => $intent,
+                'reused' => $reused, 'server_ip' => $ip, 'plesk_intent' => $intent,
                 'plesk' => ['server_id' => (int) $server->id, 'customer_id' => $owner,
                     'subscription_id' => $subscriptionId, 'login' => $login, 'domain' => $domain, 'plan' => $plan],
             ]);
