@@ -5,8 +5,6 @@ on:
     paths:
       - 'website/**'
       - '.github/workflows/cloud-sms.yml'
-  push:
-    branches: [feature/cloud-sms-ippanel]
 permissions:
   contents: read
 concurrency:
@@ -45,13 +43,40 @@ jobs:
         working-directory: website
         env:
           SMS_UI_PREVIEW_DIR: /tmp/sms-ui-preview
-        run: vendor/bin/phpunit tests/Feature/SmsResaleTest.php tests/Feature/StoreOrderTest.php
+        run: vendor/bin/phpunit tests/Feature/SmsResaleTest.php
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
       - name: SMS segment boundaries
         working-directory: website
         run: node --test tests/js/sms-resale.test.cjs
+      - name: Browser verification of actual SMS Blade components
+        env:
+          SMS_UI_PREVIEW_DIR: /tmp/sms-ui-preview
+          SMS_PLAYWRIGHT_MODULE: /tmp/sms-browser/node_modules/playwright
+        run: |
+          npm install --prefix /tmp/sms-browser --ignore-scripts --no-audit --no-fund playwright@1.56.1
+          /tmp/sms-browser/node_modules/.bin/playwright install chromium
+          node website/tests/js/sms-resale-browser.cjs
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: sms-baseline
+          persist-credentials: false
+      - name: Compare existing StoreOrderTest with clean base
+        run: |
+          set -euo pipefail
+          cd sms-baseline/website
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          set +e
+          vendor/bin/phpunit tests/Feature/StoreOrderTest.php --log-junit /tmp/store-baseline.xml
+          baseline_exit=$?
+          cd ../../website
+          vendor/bin/phpunit tests/Feature/StoreOrderTest.php --log-junit /tmp/store-current.xml
+          current_exit=$?
+          set -e
+          echo "StoreOrderTest baseline exit: $baseline_exit; current exit: $current_exit"
+          python3 tests/compare-sms-store-baseline.py /tmp/store-baseline.xml /tmp/store-current.xml
       - name: Keep synthetic rendered pages
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

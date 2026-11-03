@@ -86,7 +86,7 @@ class Provisioner
             // Display-only snapshot, never used to settle a financial operation.
             $credit = data_get($user, 'credit.credit');
             $credit = is_numeric($credit) && BigDecimal::of((string) $credit)->isGreaterThanOrEqualTo(0)
-                ? (string) BigDecimal::of((string) $credit)->toScale(6, RoundingMode::DOWN) : null;
+                ? (string) BigDecimal::of((string) $credit)->toScale(6, RoundingMode::Down) : null;
             DB::transaction(function () use ($s, $service, $quote, $plan, $until, $credit, $active) {
                 $fresh = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
                 if ($fresh->isDead()) { return; }
