@@ -45,11 +45,10 @@ use Illuminate\Support\Facades\Schema;
 class Wallet
 {
     /** موجودیِ حقیقت — جمعِ دفتر، نه ستونِ مشاوره‌ای */
-    public function balanceOf(int $customerId, string $currency = 'IRT'): int
+    public function balanceOf(int $customerId, string $currency = 'IRT', bool $currentRead = false): int
     {
-        return (int) CreditEntry::where('customer_id', $customerId)
-            ->where('currency_code', $currency)
-            ->sum('amount');
+        return $this->total(CreditEntry::where('customer_id', $customerId)
+            ->where('currency_code', $currency), 'amount', $currentRead);
     }
 
     /**
@@ -58,17 +57,17 @@ class Wallet
      * `$excludingReservationId` برای تسویه است: رزروی که در همین تراکنش
      * مصرف می‌شود نباید هم «نگه‌داشته» حساب شود هم خرج — دوبار کسر نشود.
      */
-    public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null, ?int $excludingIdentityRequestId = null): int
+    public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null, ?int $excludingIdentityRequestId = null, bool $currentRead = false): int
     {
         $refunds = Schema::hasTable('wallet_refund_requests')
-            ? (int) \App\Models\WalletRefundRequest::where('customer_id', $customerId)->where('currency_code', $currency)
-                ->whereIn('status', \App\Models\WalletRefundRequest::OPEN)->sum('amount_irt') : 0;
+            ? $this->total(\App\Models\WalletRefundRequest::where('customer_id', $customerId)->where('currency_code', $currency)
+                ->whereIn('status', \App\Models\WalletRefundRequest::OPEN), 'amount_irt', $currentRead) : 0;
         $identity = 0;
         if (self::$identityTable ??= Schema::hasTable('identity_requests')) {
-            $identity = (int) \App\Models\IdentityRequest::where('customer_id', $customerId)
+            $identity = $this->total(\App\Models\IdentityRequest::where('customer_id', $customerId)
                 ->where('currency_code', $currency)->holding()
-                ->when($excludingIdentityRequestId !== null, fn ($q) => $q->where('id', '!=', $excludingIdentityRequestId))
-                ->sum('hold_irt');
+                ->when($excludingIdentityRequestId !== null, fn ($q) => $q->where('id', '!=', $excludingIdentityRequestId)),
+                'hold_irt', $currentRead);
         }
         /*
         | 🔴 روی نصبی که جدولِ رزروِ AI را ندارد بی‌صدا رد شو — نه ۵۰۰.
@@ -80,7 +79,7 @@ class Wallet
         | بی‌صدا برمی‌گردد.
         */
         if (! self::aiReservationsTable()) {
-            return $identity + $refunds + ($currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0);
+            return $identity + $refunds + ($currency === 'IRT' ? HourlyHold::heldOf($customerId, $currentRead) : 0);
         }
 
         $q = AiReservation::where('customer_id', $customerId)
@@ -97,9 +96,9 @@ class Wallet
         | می‌خوردش، نه دامنه، نه AI. کسرِ خودِ نگهداری پیش از برداشت همان‌قدر
         | از ذخیره کم می‌کند، پس دوبار شمرده نمی‌شود.
         */
-        $hold = $currency === 'IRT' ? HourlyHold::heldOf($customerId) : 0;
+        $hold = $currency === 'IRT' ? HourlyHold::heldOf($customerId, $currentRead) : 0;
 
-        return (int) $q->sum('amount_irt') + $hold + $identity + $refunds;
+        return $this->total($q, 'amount_irt', $currentRead) + $hold + $identity + $refunds;
     }
 
     /** جدولِ رزروِ AI یک بار در هر پروسه پرسیده می‌شود (سرِ راهِ هر کسر است) */
@@ -119,10 +118,22 @@ class Wallet
     }
 
     /** در دسترس = دفتر − نگه‌دارنده‌ها */
-    public function availableOf(int $customerId, string $currency = 'IRT'): int
+    public function availableOf(int $customerId, string $currency = 'IRT', bool $currentRead = false): int
     {
-        return $this->balanceOf($customerId, $currency)
-            - $this->reservedOf($customerId, $currency);
+        if ($currentRead && DB::transactionLevel() === 0) {
+            throw new \LogicException('Current Wallet reads require the customer lock in a transaction.');
+        }
+
+        return $this->balanceOf($customerId, $currency, $currentRead)
+            - $this->reservedOf($customerId, $currency, currentRead: $currentRead);
+    }
+
+    /** Current locking rows escape an earlier InnoDB REPEATABLE READ snapshot. Customer must already be locked. */
+    private function total($query, string $column, bool $currentRead): int
+    {
+        return $currentRead
+            ? (int) $query->orderBy('id')->lockForUpdate()->pluck($column)->sum()
+            : (int) $query->sum($column);
     }
 
     /**

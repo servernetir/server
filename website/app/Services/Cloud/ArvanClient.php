@@ -7,6 +7,7 @@ use App\Models\CloudInstance;
 use App\Models\CloudPlan;
 use App\Models\Setting;
 use App\Services\ExchangeRate;
+use App\Services\Finance\ArvanTrafficCreditGuard;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -1419,6 +1420,9 @@ class ArvanClient implements CloudProvider
         return [
             'ok' => true, 'message' => '',
             'status' => $this->mapStatus((string) ($s['status'] ?? '')),
+            // Stop receipts require identity from the detail body, not merely the requested URL.
+            'provider_ref' => ($s['id'] ?? null) === $id ? $ref : null,
+            'confirmed_power_off' => in_array(strtolower((string) ($s['status'] ?? '')), ['shutoff', 'stopped'], true),
             'ipv4' => $this->firstIp($s),
             'ipv6' => null,
             'traffic_used_gb' => null,
@@ -1517,18 +1521,29 @@ class ArvanClient implements CloudProvider
             return ['ok' => false, 'message' => 'عملیاتِ نامعتبر.'];
         }
 
+        $energizes = in_array($action, ['on', 'reboot', 'reset'], true);
+        if ($energizes && ! app(ArvanTrafficCreditGuard::class)->allowPower($ref)) {
+            return ['ok' => false, 'message' => __('panel.cloud_suspended')];
+        }
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id).'/'.$path);
+        if ($energizes) {
+            app(ArvanTrafficCreditGuard::class)->rearmAfterPower($ref);
+        }
 
         return ['ok' => $r['ok'], 'message' => $r['ok'] ? '' : $r['message']];
     }
 
     public function rebuild(string $ref, string $imageRef, ?string $password = null): array
     {
+        if (! app(ArvanTrafficCreditGuard::class)->allowPower($ref)) {
+            return ['ok' => false, 'message' => __('panel.cloud_suspended')];
+        }
         [$region, $id] = $this->split($ref);
 
         $r = $this->req('POST', self::ECC.'/regions/'.rawurlencode($region).'/servers/'.rawurlencode($id).'/rebuild', [
             'image_id' => $imageRef,
         ]);
+        app(ArvanTrafficCreditGuard::class)->rearmAfterPower($ref);
 
         return [
             'ok' => $r['ok'],

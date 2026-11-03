@@ -749,11 +749,17 @@ Schedule::command('site:gate')
 // Read-only audit; existing Hermes digest owns owner notifications. No duplicate ticket review.
 \Illuminate\Support\Facades\Schedule::command('hermes:business-review')->everyFifteenMinutes()->withoutOverlapping(45)->name('hermes:business-review');
 
-// Owner-authorized incremental traffic settlement. Paid baseline is mandatory; no lifecycle actions.
+// Owner-authorized incremental traffic settlement; supplier reports can lag actual usage.
 Schedule::command('finance:meter-arvan-traffic --apply')
-    ->cron('0 */2 * * *')
+    ->everyFiveMinutes()
     ->timezone('Asia/Tehran')
     ->withoutOverlapping(45)
+    ->runInBackground();
+
+// Retry only durable traffic-debit stop intents; independent from the supplier fetch and hourly retention.
+Schedule::command('cloud:traffic-credit-guard')
+    ->everyMinute()
+    ->withoutOverlapping(10)
     ->runInBackground();
 
 // Growth Center uses the existing scheduler; disabled and zero-budget after migration.

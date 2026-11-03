@@ -246,6 +246,7 @@ final class ArvanTrafficMeter
                     && $instances[0]->provider_ref === $next['resource'], 'Live traffic ownership changed');
             }
             $sequence = $state['sequence'] + 1;
+            $chargedServices = [];
             foreach (collect($lines)->groupBy(fn ($l) => $l['cycle'].'|'.$l['next']['customer_id'])->sortKeys() as $group) {
                 $cid = $group->first()['next']['customer_id'];
                 $subtotal = $group->sum('subtotal_irt');
@@ -279,7 +280,18 @@ final class ArvanTrafficMeter
                 $summary['invoices'][] = ['invoice_id' => $invoice->id, 'total_irt' => $invoice->total];
                 foreach ($group as $line) {
                     $state['checkpoints'][$line['key']] = $line['next'];
+                    $chargedServices[$line['next']['service_id']] = ['customer_id' => $cid, 'invoice_id' => $invoice->id];
                 }
+            }
+            // Only services with a NEW validated positive posting in this transaction may acquire a traffic hold.
+            // Locking Wallet reads escape the earlier InnoDB planning snapshot, including every live reserve.
+            $spendable = [];
+            foreach ($chargedServices as $sid => $charge) {
+                $cid = $charge['customer_id'];
+                $spendable[$cid] ??= app(Wallet::class)->availableOf($cid, currentRead: true);
+                $service = Service::whereKey($sid)->lockForUpdate()->firstOrFail();
+                $instance = CloudInstance::where('service_id', $sid)->lockForUpdate()->sole();
+                app(ArvanTrafficCreditGuard::class)->holdLocked($service, $instance, $charge['invoice_id'], $spendable[$cid]);
             }
             $state['sequence'] = $sequence;
             $state['last_success'] = now()->toIso8601String();

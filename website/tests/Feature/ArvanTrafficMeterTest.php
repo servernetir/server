@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\Service;
 use App\Models\Setting;
 use App\Services\Finance\ArvanTrafficMeter;
+use App\Services\Finance\ArvanTrafficCreditGuard;
 use App\Services\Finance\ArvanTrafficSource;
 use App\Services\Finance\Wallet;
 use Illuminate\Console\Scheduling\Schedule;
@@ -107,8 +108,88 @@ class ArvanTrafficMeterTest extends TestCase
         $this->assertSame(1, CreditEntry::count());
         $this->assertSame(2, BusinessEntry::count());
         $this->assertSame(-1155, app(Wallet::class)->balanceOf($customer->id));
-        $this->assertSame($services, Service::all()->map->getRawOriginal()->all());
+        $afterService = Service::first();
+        $this->assertTrue(ArvanTrafficCreditGuard::active($afterService));
+        $this->assertSame('pending', data_get($afterService->provision_meta, 'traffic_credit_hold.stop.state'));
+        $afterService->forceFill(['provision_meta' => null])->save();
+        $afterRows = Service::all()->map->getRawOriginal()->all();
+        foreach ($afterRows as &$serviceRow) {
+            unset($serviceRow['updated_at']);
+        }
+        foreach ($services as &$serviceRow) {
+            unset($serviceRow['updated_at']);
+        }
+        $this->assertSame($services, $afterRows);
         $this->assertSame($instances, CloudInstance::all()->map->getRawOriginal()->all());
+        Http::assertNothingSent();
+    }
+
+    public function test_new_debit_preserves_one_positive_spendable_toman_after_initial_reserve(): void
+    {
+        [$customer, $service, , $snapshot] = $this->fixture();
+        $service->update(['billing_mode' => 'hourly', 'hold_reserve_irt' => 700, 'hourly_rate_irt' => 10000]);
+        app(Wallet::class)->credit($customer->id, 'IRT', 1856, 'topup', null);
+        app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(1, app(Wallet::class)->availableOf($customer->id));
+        $this->assertFalse(ArvanTrafficCreditGuard::active($service->fresh()), '24-hour start minimum must not replace the ongoing positive-credit policy');
+        Http::assertNothingSent();
+    }
+
+    public function test_new_debit_exhausting_spendable_credit_creates_only_its_own_intent_atomically(): void
+    {
+        [$customer, $service, , $snapshot] = $this->fixture();
+        $service->update(['billing_mode' => 'hourly', 'hold_reserve_irt' => 700,
+            'provision_meta' => ['hourly_billing_hold' => ['active' => true], 'staff_marker' => 'keep']]);
+        app(Wallet::class)->credit($customer->id, 'IRT', 1855, 'topup', null);
+        app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $fresh = $service->fresh();
+        $hold = $fresh->provision_meta[ArvanTrafficCreditGuard::KEY];
+        $this->assertSame(0, app(Wallet::class)->availableOf($customer->id));
+        $this->assertTrue($hold['active']);
+        $this->assertSame('pending', $hold['stop']['state']);
+        $this->assertSame(Invoice::first()->id, $hold['trigger_invoice_id']);
+        $this->assertSame('active', $fresh->status);
+        $this->assertNull($fresh->suspended_at);
+        $this->assertTrue($fresh->hourlyBillingHeld());
+        $this->assertSame('keep', $fresh->provision_meta['staff_marker']);
+        $this->assertArrayNotHasKey('hourly_suspend', $fresh->provision_meta);
+        Http::assertNothingSent();
+    }
+
+    public function test_unchanged_supplier_cost_never_enrolls_a_zero_balance_monthly_service(): void
+    {
+        [, $service] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('10000', 1), true);
+        $this->assertFalse(ArvanTrafficCreditGuard::active($service->fresh()));
+        $this->assertSame(0, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_failure_after_saving_stop_intent_rolls_back_all_money_and_checkpoint_together(): void
+    {
+        [, $service, $state, $snapshot] = $this->fixture();
+        $saved = false;
+        DB::listen(function (QueryExecuted $query) use (&$saved): void {
+            if (! $saved && str_starts_with(strtolower($query->sql), 'update')
+                && str_contains($query->sql, 'services')
+                && collect($query->bindings)->contains(fn ($v) => is_string($v) && str_contains($v, 'traffic_credit_hold'))) {
+                $saved = true;
+                throw new RuntimeException('Synthetic failure after durable stop intent write');
+            }
+        });
+        try {
+            app(ArvanTrafficMeter::class)->run($snapshot, true);
+            $this->fail('The injected post-intent failure must roll back the financial transaction');
+        } catch (RuntimeException $error) {
+            $this->assertStringContainsString('after durable stop intent', $error->getMessage());
+        }
+        $this->assertTrue($saved);
+        $this->assertFalse(ArvanTrafficCreditGuard::active($service->fresh()));
+        $this->assertSame(0, Invoice::count());
+        $this->assertSame(0, Payment::count());
+        $this->assertSame(0, CreditEntry::count());
+        $this->assertSame(0, BusinessEntry::count());
+        $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
         Http::assertNothingSent();
     }
 
@@ -252,7 +333,7 @@ class ArvanTrafficMeterTest extends TestCase
         $events = array_values(array_filter(app(Schedule::class)->events(),
             fn ($event) => str_contains((string) $event->command, 'finance:meter-arvan-traffic')));
         $this->assertCount(1, $events, 'Restoration must not register a second scheduled meter');
-        $this->assertSame('0 */2 * * *', $events[0]->expression);
+        $this->assertSame('*/5 * * * *', $events[0]->expression);
         $this->assertSame('Asia/Tehran', $events[0]->timezone);
         $this->assertStringContainsString('--apply', $events[0]->command);
         $this->assertTrue($events[0]->withoutOverlapping);

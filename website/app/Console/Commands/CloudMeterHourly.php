@@ -865,6 +865,8 @@ class CloudMeterHourly extends Command
                 }
                 $powered = true;
 
+                // Provider gates may release their own hold using another locked Service model.
+                $current->refresh();
                 $meta = (array) $current->provision_meta;
                 unset($meta['hourly_suspend']);
                 $current->update([
