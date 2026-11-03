@@ -507,7 +507,7 @@ class Service extends Model
     /** سرویسی که باید روی سروری تحویل شود (نه یک خدمتِ صرفاً مالی مثل پشتیبانی) */
     public function needsProvisioning(): bool
     {
-        return $this->server_id !== null && $this->provision_status !== 'done';
+        return ($this->server_id !== null || \App\Services\SmsResale\Provisioner::handles($this)) && $this->provision_status !== 'done';
     }
 
     /** برچسبِ وضعیتِ تحویل برای نمایش @return array{0:string,1:string} */
@@ -700,3 +700,4 @@ class Service extends Model
         };
     }
 }
+

@@ -150,6 +150,7 @@
            فقط مدیر: این‌جا پولِ مشتری و قراردادِ ارائه‌دهنده تنظیم می‌شود. --}}
       @if(auth()->user()->isAdmin())
       <div class="ad-nav-sep">درگاه هوش مصنوعی</div>
+      <a href="{{ route('admin.sms') }}" class="@yield('nav_sms')">{{ __('sms.title') }}</a>
       <a href="{{ lroute('admin.identity.index') }}" class="@yield('nav_identity')"><svg class="icon"><use href="#i-shield"/></svg>{{ __('identity.menu') }}</a>
       <a href="/admin/ai" class="@yield('nav_ai_providers')"><svg class="icon"><use href="#i-cpu"/></svg>ارائه‌دهنده‌ها</a>
       <a href="/admin/ai/models" class="@yield('nav_ai_models')"><svg class="icon"><use href="#i-box"/></svg>مدل‌ها</a>
@@ -301,3 +302,4 @@
 @include('partials.ui-dialog')
 </body>
 </html>
+

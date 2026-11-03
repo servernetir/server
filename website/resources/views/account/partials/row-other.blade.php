@@ -72,6 +72,8 @@
   @endif
 
   <div class="svc-row-a">
+    @if(\App\Services\SmsResale\Provisioner::handles($s))<a class="pnl-btn" href="{{ lroute('account.sms') }}">{{ __('sms.my_panel') }}</a>@endif
     @include('account.partials.svc-actions', ['s' => $s, 'kind' => 'other'])
   </div>
 </li>
+

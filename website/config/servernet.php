@@ -478,6 +478,7 @@ return [
                     ['slug' => 'n8n', 'fa' => 'پلتفرم اتوماسیون n8n', 'en' => 'n8n Automation', 'tr' => 'n8n Otomasyon'],
                 ]],
                 ['fa' => 'ارتباطات ابری', 'en' => 'Cloud communications', 'tr' => 'Bulut iletişim', 'items' => [
+                    ['route' => ['sms.home'], 'new' => true, 'fa' => 'پیامک ابری', 'en' => 'Cloud SMS', 'tr' => 'Bulut SMS'],
                     ['route' => ['email.transactional'], 'fa' => 'ایمیل تراکنشی و SMTP', 'en' => 'Transactional Email & SMTP', 'tr' => 'İşlemsel E-posta ve SMTP'],
                     ['route' => ['solution', 'cloud-phone'], 'new' => true, 'fa' => 'تلفن ابری و منشی گویا', 'en' => 'Cloud Phone & IVR', 'tr' => 'Bulut Telefon & IVR'],
                 ]],
@@ -633,3 +634,4 @@ return [
     ],
 
 ];
+

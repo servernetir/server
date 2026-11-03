@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Route;
 
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
+require __DIR__.'/sms-admin.php';
 require __DIR__.'/urmia-auth.php';
 require __DIR__.'/ai-growth.php';
 require __DIR__.'/madar-admin.php';
@@ -40,6 +41,7 @@ Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestCont
 
 $site = function (): void {
     require __DIR__.'/identity-site.php';
+    require __DIR__.'/sms-site.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
     // [ai-storefront:start]
     Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
@@ -430,6 +432,7 @@ $site = function (): void {
         Route::get('/hosting', [Account\SectionController::class, 'hosting'])->name('hosting');
         Route::get('/servers', [Account\SectionController::class, 'servers'])->name('servers');
         Route::get('/other', [Account\SectionController::class, 'other'])->name('other');
+        require __DIR__.'/sms-account.php';
         // [managed-dns:start]
         /*
         |----------------------------------------------------------------------
@@ -3701,3 +3704,4 @@ Route::prefix('agent')->group(function () {
 // Tracking stores no public PII and never redeems a grant.
 Route::get('/m/{token}', [\App\Http\Controllers\Account\OfferController::class, 'track'])
     ->where('token', '[a-f0-9]{48}')->middleware('throttle:60,1');
+

@@ -48,6 +48,10 @@ class StoreController extends Controller
     /** صفحهٔ تسویهٔ یک پکیج (از دکمهٔ خریدِ سایت اصلی) */
     public function checkout(Product $product): View|RedirectResponse
     {
+        if (str_starts_with((string) $product->plan, 'sms:') || $product->group === 'sms') {
+            return redirect(lroute('account.sms'));
+        }
+
         if (! $product->is_active) {
             /*
             | ⚠️ به `home` نه — روی کنسول، `/` مشتریِ واردشده را به داشبورد
@@ -116,6 +120,10 @@ class StoreController extends Controller
     /** ثبتِ سفارش: سرویس + پیش‌فاکتور می‌سازد و به پرداخت می‌برد */
     public function order(Request $request, Product $product): RedirectResponse
     {
+        if (str_starts_with((string) $product->plan, 'sms:') || $product->group === 'sms') {
+            return redirect(lroute('account.sms'));
+        }
+
         if (! $product->is_active) {
             return back()->withErrors(__('ui.stf_pkg_na'));
         }
@@ -416,3 +424,4 @@ class StoreController extends Controller
         return \App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? '';
     }
 }
+

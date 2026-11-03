@@ -61,7 +61,7 @@ class RunProvisioning extends Command
                         ->where('updated_at', '<', $staleLock));
             })
             ->where(function ($q) use ($hasCloud) {
-                $q->whereNotNull('server_id');
+                $q->whereNotNull('server_id')->orWhere('plan', 'like', 'sms:%');
 
                 if ($hasCloud) {
                     $q->orWhereNotNull('cloud_plan_id');
@@ -87,3 +87,4 @@ class RunProvisioning extends Command
         return self::SUCCESS;
     }
 }
+
