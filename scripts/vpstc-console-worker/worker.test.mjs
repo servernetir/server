@@ -137,7 +137,7 @@ test('static asset redirects are not followed',async()=>{
   });assert.equal(r.status,502);
 });
 test('client clears fragment even when ticket is invalid and fails with translated copy',async()=>{
-  const elements=new Map(['status','message','screen','cad','full'].map(id=>[id,{textContent:'',disabled:false}]));
+  const elements=new Map(['status','message','screen','cad','full'].map(id=>[id,{textContent:'',disabled:false,dataset:{}}]));
   let cleared=false;
   await vm.runInNewContext(JS,{document:{documentElement:{lang:'en'},getElementById:id=>elements.get(id)},
     location:{hash:'#invalid',pathname:'/en/'},history:{replaceState(){cleared=true;}},clearTimeout(){},setTimeout(){throw Error('unexpected timer');}});

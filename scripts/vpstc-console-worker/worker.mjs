@@ -90,21 +90,22 @@ export function html(locale) {
 export const JS = `(async()=>{
 const strings=${JSON.stringify(TEXT)},locale=document.documentElement.lang,t=strings[locale]||strings.en;
 const status=document.getElementById('status'),message=document.getElementById('message'),screen=document.getElementById('screen'),cad=document.getElementById('cad');
-let rfb,timer,failed=false;const ticket=location.hash.slice(1);
-function fail(){if(failed)return;failed=true;clearTimeout(timer);status.textContent='';message.textContent=t.fail;cad.disabled=true;try{rfb?.disconnect();}catch{}}
+let rfb,timer,failed=false,phase='ticket';const ticket=location.hash.slice(1);
+function fail(){if(failed)return;failed=true;clearTimeout(timer);status.textContent='';message.textContent=t.fail;message.dataset.stage=phase;cad.disabled=true;try{rfb?.disconnect();}catch{}}
 document.getElementById('full').onclick=()=>screen.requestFullscreen().catch(()=>{});cad.onclick=()=>rfb?.sendCtrlAltDel();
 try{
  history.replaceState(null,'',location.pathname);if(!/^[a-f0-9]{64}$/.test(ticket))throw Error();
  status.textContent=t.wait;message.textContent='';timer=setTimeout(fail,60000);
- const {default:RFB}=await import('${NOVNC_PATH}');if(failed)return;
+ phase='module';const {default:RFB}=await import('${NOVNC_PATH}');if(failed)return;
+ phase='launch';
  const response=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(50000)});
- if(!response.ok)throw Error();const grant=await response.json();if(failed)return;
+ message.dataset.http=String(response.status);if(!response.ok)throw Error();const grant=await response.json();if(failed)return;
  if(!/^[a-f0-9]{64}$/.test(grant.binding||'')||typeof grant.password!=='string'||!${PASSWORD}.test(grant.password))throw Error();
- rfb=new RFB(screen,'wss://'+location.host+'/socket?binding='+grant.binding,{credentials:{password:grant.password},wsProtocols:['binary']});grant.password='';
+ phase='socket';rfb=new RFB(screen,'wss://'+location.host+'/socket?binding='+grant.binding,{credentials:{password:grant.password},wsProtocols:['binary']});grant.password='';
  rfb.scaleViewport=true;rfb.resizeSession=false;rfb.addEventListener('connect',()=>{if(failed)return;clearTimeout(timer);status.textContent=t.ready;cad.disabled=false;});
  rfb.addEventListener('disconnect',fail);rfb.addEventListener('securityfailure',fail);rfb.addEventListener('credentialsrequired',fail);
  clearTimeout(timer);timer=setTimeout(fail,20000);
-}catch{fail();}
+}catch(error){message.dataset.error=['Error','TypeError','SyntaxError','ReferenceError','AbortError','SecurityError'].includes(error?.name)?error.name:'Error';fail();}
 })();`;
 export async function handle(request, env = {}, fetcher = fetch, socketBridge = bridge) {
   try {
