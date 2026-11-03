@@ -28,11 +28,11 @@ function checkedRead(string $file, int $owner): array {
     clearstatcache(true, $file);
     $after = lstat($file);
     if (!is_string($bytes) || !$after) { refuse('source_changed_during_read'); }
-    foreach (['dev', 'ino', 'mode', 'uid', 'gid', 'size', 'mtime', 'ctime'] as $key) {
+    foreach (['dev', 'ino', 'mode', 'uid', 'gid', 'nlink', 'size', 'mtime', 'ctime'] as $key) {
         if ($before[$key] !== $after[$key]) { refuse('source_changed_during_read'); }
     }
     return ['bytes' => $bytes, 'sha256' => sha($bytes), 'mode' => $before['mode'] & 0777,
-        'uid' => $before['uid'], 'gid' => $before['gid'], 'dev' => $before['dev']];
+        'uid' => $before['uid'], 'gid' => $before['gid'], 'dev' => $before['dev'], 'ino' => $before['ino']];
 }
 function patchSource(string $source, array $hunks): array {
     $crlf = str_contains($source, "\r\n");
@@ -75,7 +75,7 @@ function writeNew(string $path, string $bytes, int $mode = 0600): void {
             if ($w === false || $w === 0) { refuse('private_stage_short_write'); }
             $n += $w;
         }
-        if (!fflush($h) || !chmod($path, $mode)) { refuse('private_stage_flush_or_mode_failed'); }
+        if (!chmod($path, $mode) || !fflush($h) || !fsync($h)) { refuse('private_stage_flush_or_mode_failed'); }
     } finally { fclose($h); }
     if (hash_file('sha256', $path) !== sha($bytes)) { refuse('private_stage_hash_mismatch'); }
 }
@@ -92,18 +92,74 @@ function sameLive(array $file, int $owner, string $which): void {
     if ($now['sha256'] !== $file[$which] || $now['mode'] !== $file['mode']
         || $now['uid'] !== $file['uid'] || $now['gid'] !== $file['gid']) { refuse('live_precondition_changed'); }
 }
-function replaceFromStage(string $stage, array $file, int $owner, string $expected, string $target, string $privateDir, ?callable $beforeRename = null): void {
-    $dst = RELEASE_ROOT.'/'.$file['path'];
-    if (hash_file('sha256', $stage) !== $target) { refuse('candidate_or_backup_changed'); }
-    $tmp = $privateDir.'/rename-'.bin2hex(random_bytes(8));
-    writeNew($tmp, (string) file_get_contents($stage), $file['mode']);
+function checkReleaseLock($lock, int $owner): void {
+    $path = RELEASE_ROOT.'/storage/framework/arvan-delivery-release.lock';
+    clearstatcache(true, $path); $a = @lstat($path); $b = fstat($lock);
+    if (!$a || !$b || is_link($path) || realpath($path) !== $path || $a['uid'] !== $owner
+        || ($a['mode'] & 0777) !== 0600 || $a['nlink'] !== 1 || ($a['mode'] & 0170000) !== 0100000
+        || $a['dev'] !== $b['dev'] || $a['ino'] !== $b['ino']) { refuse('release_lock_identity_changed'); }
+}
+function prepareSourceRename(string $stage, array $file, int $owner, string $target, string $privateDir): string {
+    $staged = checkedRead($stage, $owner);
+    if ($staged['sha256'] !== $target || $staged['mode'] !== 0600) { refuse('candidate_or_backup_changed'); }
+    $tmp = $privateDir.'/rename-'.bin2hex(random_bytes(12));
+    writeNew($tmp, $staged['bytes'], $file['mode']);
     if (filegroup($tmp) !== $file['gid'] && !chgrp($tmp, $file['gid'])) { refuse('group_preservation_failed'); }
-    if (stat($tmp)['dev'] !== stat(dirname($dst))['dev']) { refuse('atomic_rename_crosses_filesystem'); }
+    if (stat($tmp)['dev'] !== stat(dirname(RELEASE_ROOT.'/'.$file['path']))['dev']) { refuse('atomic_rename_crosses_filesystem'); }
+    return $tmp;
+}
+function replacePreparedSource(string $tmp, array $file, int $owner, string $expected, string $target, $lock, ?callable $beforeRename = null): void {
+    checkReleaseLock($lock, $owner);
+    $dst = RELEASE_ROOT.'/'.$file['path'];
+    $ready = checkedRead($tmp, $owner);
+    if ($ready['sha256'] !== $target || $ready['mode'] !== $file['mode'] || $ready['gid'] !== $file['gid']) { refuse('prepared_rename_changed'); }
     $now = checkedRead($dst, $owner);
-    if ($now['sha256'] !== $expected || $now['mode'] !== $file['mode'] || $now['gid'] !== $file['gid']) { refuse('live_precondition_changed'); }
+    if ($now['sha256'] !== $expected || $now['mode'] !== $file['mode'] || $now['uid'] !== $file['uid'] || $now['gid'] !== $file['gid']) { refuse('live_precondition_changed'); }
+    checkReleaseLock($lock, $owner);
     if ($beforeRename !== null) { $beforeRename(); }
+    checkReleaseLock($lock, $owner);
     if (!rename($tmp, $dst)) { refuse('atomic_rename_failed'); }
-    if (hash_file('sha256', $dst) !== $target) { refuse('installed_hash_mismatch'); }
+    $actual = checkedRead($dst, $owner);
+    if ($actual['sha256'] !== $target || $actual['mode'] !== $file['mode'] || $actual['uid'] !== $file['uid'] || $actual['gid'] !== $file['gid']) { refuse('installed_hash_or_metadata_mismatch'); }
+    checkReleaseLock($lock, $owner);
+}
+function publishReceipt(array $receipt, int $owner, array &$publication, $lock): void {
+    checkReleaseLock($lock, $owner);
+    $path = __DIR__.'/receipt.json';
+    $bytes = json_encode($receipt, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
+    $tmp = __DIR__.'/receipt-'.bin2hex(random_bytes(12)).'.tmp';
+    writeNew($tmp, $bytes);
+    $ready = checkedRead($tmp, $owner);
+    if ($ready['mode'] !== 0600 || $ready['sha256'] !== sha($bytes)) { refuse('receipt_candidate_changed'); }
+    checkReleaseLock($lock, $owner);
+    // Atomic no-overwrite publication; never replace a concurrent receipt.
+    if (!@link($tmp, $path)) { refuse('receipt_publication_failed'); }
+    $publication = ['sha256' => $ready['sha256'], 'dev' => $ready['dev'], 'ino' => $ready['ino'], 'tmp' => $tmp];
+    checkReleaseLock($lock, $owner);
+    if (!unlink($tmp)) { refuse('receipt_temp_unlink_failed'); }
+    // Verification remains inside the source rollback scope.
+    $saved = checkedRead($path, $owner);
+    if ($saved['sha256'] !== sha($bytes) || $saved['mode'] !== 0600) { refuse('published_receipt_changed'); }
+}
+function withdrawOwnReceipt(array $publication, int $owner, $lock): bool {
+    try { checkReleaseLock($lock, $owner); } catch (Throwable) { return false; }
+    $path = __DIR__.'/receipt.json';
+    if ($publication === []) { return !file_exists($path) && !is_link($path); }
+    clearstatcache(true, $path); $st = @lstat($path);
+    if (!$st && !file_exists($path) && !is_link($path)) { return true; }
+    if (!$st || is_link($path) || $st['uid'] !== $owner || ($st['mode'] & 0777) !== 0600
+        || $st['dev'] !== $publication['dev'] || $st['ino'] !== $publication['ino']) { return false; }
+    try { $now = checkedRead($path, $owner); } catch (Throwable) { return false; }
+    if ($now['sha256'] !== $publication['sha256'] || $now['dev'] !== $publication['dev'] || $now['ino'] !== $publication['ino']) { return false; }
+    try { checkReleaseLock($lock, $owner); } catch (Throwable) { return false; }
+    if (!unlink($path)) { return false; }
+    $tmp = $publication['tmp'];
+    clearstatcache(true, $tmp);
+    if (is_file($tmp) && !is_link($tmp)) {
+        try { $left = checkedRead($tmp, $owner); } catch (Throwable) { return true; }
+        if ($left['dev'] === $publication['dev'] && $left['ino'] === $publication['ino'] && $left['sha256'] === $publication['sha256']) { unlink($tmp); }
+    }
+    return true;
 }
 function main(array $args): int {
     umask(0077);
@@ -122,7 +178,7 @@ function main(array $args): int {
         $package = readJson($packagePath);
         if (array_column($package['files'] ?? [], 'path') !== RELEASE_PATHS) { refuse('patch_scope_invalid'); }
         $out = ['mode' => 'read_only', 'utc' => gmdate('c'), 'files' => []];
-        if (is_file($dir.'/receipt.json')) {
+        if (file_exists($dir.'/receipt.json') || is_link($dir.'/receipt.json')) {
             try { $out['historical_receipt_status'] = readJson($dir.'/receipt.json')['status'] ?? 'unknown'; }
             catch (Throwable) { $out['historical_receipt_status'] = 'unreadable'; }
         }
@@ -142,16 +198,19 @@ function main(array $args): int {
         return 0;
     }
     $lockPath = RELEASE_ROOT.'/storage/framework/arvan-delivery-release.lock';
-    if (is_link($lockPath) || (file_exists($lockPath) && fileowner($lockPath) !== $owner)) { refuse('unsafe_release_lock'); }
+    if (is_link($lockPath) || (file_exists($lockPath) && (!is_file($lockPath) || fileowner($lockPath) !== $owner || (fileperms($lockPath) & 0777) !== 0600))) { refuse('unsafe_release_lock'); }
     $lock = fopen($lockPath, 'c');
-    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) { refuse('release_busy'); }
+    if (!$lock) { refuse('release_busy'); }
+    checkReleaseLock($lock, $owner);
+    if (!flock($lock, LOCK_EX | LOCK_NB)) { fclose($lock); refuse('release_busy'); }
     try {
+        checkReleaseLock($lock, $owner);
         $packagePath = $dir.'/patchdata.json';
         checkedRead($packagePath, $owner);
         if (hash_file('sha256', $packagePath) !== PATCHDATA_SHA256) { refuse('patch_package_changed'); }
         $package = readJson($packagePath);
         if (($package['schema'] ?? null) !== 1 || array_column($package['files'] ?? [], 'path') !== RELEASE_PATHS) { refuse('patch_scope_invalid'); }
-        if (is_file($dir.'/receipt.json')) {
+        if (file_exists($dir.'/receipt.json') || is_link($dir.'/receipt.json')) {
             checkedRead($dir.'/receipt.json', $owner);
             $receipt = readJson($dir.'/receipt.json');
             if (($receipt['status'] ?? null) !== 'source_installed_activation_pending') {
@@ -213,45 +272,81 @@ function main(array $args): int {
         if (($plan['patchdata_sha256'] ?? null) !== PATCHDATA_SHA256 || array_column($plan['files'] ?? [], 'path') !== RELEASE_PATHS) { refuse('plan_scope_changed'); }
         $receipt = ['schema' => 1, 'utc' => gmdate('c'), 'status' => 'precondition_failed',
             'plan_sha256' => $expected, 'activation' => 'not_performed', 'attempted_writes' => [], 'installed' => [], 'rolled_back' => []];
+        $publication = []; $rollbackPrepared = []; $installPrepared = [];
         try {
             foreach ($plan['files'] as $file) {
                 sameLive($file, $owner, 'before');
                 if (hash_file('sha256', $dir.'/backup/'.$file['path']) !== $file['before']
                     || hash_file('sha256', $dir.'/candidate/'.$file['path']) !== $file['after']) { refuse('candidate_or_backup_changed'); }
             }
+            // Allocate and flush every reversal before the first live rename.
             foreach ($plan['files'] as $file) {
                 if ($file['before'] === $file['after']) { continue; }
-                replaceFromStage($dir.'/candidate/'.$file['path'], $file, $owner, $file['before'], $file['after'], $dir,
+                $rollbackPrepared[$file['path']] = prepareSourceRename($dir.'/backup/'.$file['path'], $file, $owner, $file['before'], $dir);
+                $installPrepared[$file['path']] = prepareSourceRename($dir.'/candidate/'.$file['path'], $file, $owner, $file['after'], $dir);
+            }
+            foreach ($plan['files'] as $file) {
+                if ($file['before'] === $file['after']) { continue; }
+                replacePreparedSource($installPrepared[$file['path']], $file, $owner, $file['before'], $file['after'], $lock,
                     function () use (&$receipt, $file): void { $receipt['attempted_writes'][] = $file['path']; });
                 $receipt['installed'][] = $file['path'];
             }
             foreach ($plan['files'] as $file) { sameLive($file, $owner, 'after'); }
             $receipt['status'] = 'source_installed_activation_pending';
+            $receipt['completed_utc'] = gmdate('c');
+            checkReleaseLock($lock, $owner);
+            publishReceipt($receipt, $owner, $publication, $lock);
+            // A published success must still describe the exact live sources.
+            foreach ($plan['files'] as $file) { sameLive($file, $owner, 'after'); }
+            checkReleaseLock($lock, $owner);
         } catch (Throwable $failure) {
             $receipt['error_code'] = $failure instanceof ReleaseRefusal ? $failure->getMessage() : get_class($failure);
             $receipt['status'] = 'failed_source_rollback_complete';
             $receipt['rollback_errors'] = [];
-            foreach (array_reverse($plan['files']) as $file) {
-                if (!in_array($file['path'], $receipt['attempted_writes'], true)) { continue; }
-                try {
-                    // Only our attempted renames qualify for rollback. A later
-                    // unrelated edit must not prevent restoration of other paths.
-                    $now = checkedRead(RELEASE_ROOT.'/'.$file['path'], $owner);
-                    if ($now['sha256'] === $file['before']) { continue; }
-                    if ($now['sha256'] !== $file['after']) { refuse('concurrent_update_requires_operator'); }
-                    replaceFromStage($dir.'/backup/'.$file['path'], $file, $owner, $file['after'], $file['before'], $dir);
-                    $receipt['rolled_back'][] = $file['path'];
-                } catch (Throwable $rollbackFailure) {
-                    $receipt['rollback_errors'][$file['path']] = $rollbackFailure instanceof ReleaseRefusal
-                        ? $rollbackFailure->getMessage() : get_class($rollbackFailure);
+            $receipt['receipt_withdrawn'] = false;
+            try { checkReleaseLock($lock, $owner); $lockValid = true; }
+            catch (Throwable) { $lockValid = false; }
+            if (!$lockValid) {
+                // Never withdraw a receipt, restore sources or publish under another mutex.
+                $receipt['status'] = 'failed_release_lock_reconciliation_requires_operator';
+            } else {
+                $receipt['receipt_withdrawn'] = withdrawOwnReceipt($publication, $owner, $lock);
+                try { checkReleaseLock($lock, $owner); $lockValid = true; }
+                catch (Throwable) { $lockValid = false; }
+                if (!$lockValid) {
+                    $receipt['status'] = 'failed_release_lock_reconciliation_requires_operator';
+                } elseif (!$receipt['receipt_withdrawn']) {
+                    // Preserve a foreign receipt and current sources for operator reconciliation.
+                    $receipt['status'] = 'failed_receipt_reconciliation_requires_operator';
+                } else {
+                    foreach (array_reverse($plan['files']) as $file) {
+                        if (!in_array($file['path'], $receipt['attempted_writes'], true)) { continue; }
+                        try {
+                            // Only our attempted renames qualify; continue around unrelated drift.
+                            $now = checkedRead(RELEASE_ROOT.'/'.$file['path'], $owner);
+                            if ($now['sha256'] === $file['before']) { sameLive($file, $owner, 'before'); continue; }
+                            if ($now['sha256'] !== $file['after']) { refuse('concurrent_update_requires_operator'); }
+                            if (!isset($rollbackPrepared[$file['path']])) { refuse('prepared_rollback_missing'); }
+                            replacePreparedSource($rollbackPrepared[$file['path']], $file, $owner, $file['after'], $file['before'], $lock);
+                            $receipt['rolled_back'][] = $file['path'];
+                        } catch (Throwable $rollbackFailure) {
+                            $receipt['rollback_errors'][$file['path']] = $rollbackFailure instanceof ReleaseRefusal
+                                ? $rollbackFailure->getMessage() : get_class($rollbackFailure);
+                        }
+                    }
+                    if ($receipt['rollback_errors'] !== []) { $receipt['status'] = 'failed_rollback_requires_operator'; }
+                    $receipt['completed_utc'] = gmdate('c');
+                    try { $failurePublication = []; publishReceipt($receipt, $owner, $failurePublication, $lock); }
+                    catch (Throwable $recordingFailure) {
+                        $receipt['receipt_recording_error'] = $recordingFailure instanceof ReleaseRefusal ? $recordingFailure->getMessage() : get_class($recordingFailure);
+                        if ($receipt['receipt_recording_error'] === 'release_lock_identity_changed') {
+                            $receipt['status'] = 'failed_release_lock_reconciliation_requires_operator';
+                        }
+                    }
                 }
             }
-            if ($receipt['rollback_errors'] !== []) {
-                $receipt['status'] = 'failed_rollback_requires_operator';
-            }
+            $receipt['completed_utc'] = gmdate('c');
         }
-        $receipt['completed_utc'] = gmdate('c');
-        writeNew($dir.'/receipt.json', json_encode($receipt, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n");
         echo json_encode($receipt, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), PHP_EOL;
         return $receipt['status'] === 'source_installed_activation_pending' ? 0 : 1;
     } finally { flock($lock, LOCK_UN); fclose($lock); }

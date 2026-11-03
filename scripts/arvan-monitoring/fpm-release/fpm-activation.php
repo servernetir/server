@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 // Temporary HTTP-denied primary. Only the reviewed same-account FastCGI caller may invoke it.
-const AF_RELEASE = 'arvan-delivery-20261102-v2q4m7dz';
+const AF_RELEASE = 'arvan-delivery-20261103-v3q4m7dz';
 const AF_HOME = '/home/servernetcloud';
 const AF_APP = AF_HOME.'/servernet_app';
 const AF_STAGE = AF_APP.'/storage/app/private/'.AF_RELEASE;
-const AF_PRIMARY = AF_HOME.'/public_html/_arvan_delivery_20261102_v2q4m7dz/activate.php';
-const AF_HELPER_SHA = '0b9c796cda3f05e6e6092c445198ae49c25b805742f502786569f7b7ce92c75d';
+const AF_PRIMARY = AF_HOME.'/public_html/_arvan_delivery_20261103_v3q4m7dz/activate.php';
+const AF_HELPER_SHA = '02c952a7ba3ac370e88081898c43be2b2b91ff200e894ce927c5e8bc7da8c93e';
 
 function afSameCompiled(array $row, int $owner, string $expected): array {
     $now = checkedRead($row['path'], $owner);
@@ -17,30 +17,121 @@ function afSameCompiled(array $row, int $owner, string $expected): array {
     }
     return $now;
 }
-function afReplaceCompiled(array $row, int $owner, string $expected, string $bytes, string $stage, ?callable $beforeRename = null): array {
+function afPrepareCompiled(array $row, int $owner, string $bytes, string $stage): string {
     $temp = $stage.'/compiled-install-'.bin2hex(random_bytes(12)).'.php';
     writeNew($temp, $bytes, $row['mode']);
     if (filegroup($temp) !== $row['gid'] && !chgrp($temp, $row['gid'])) { throw new RuntimeException('compiled_group_preservation_failed'); }
-    if (stat($temp)['dev'] !== stat(dirname($row['path']))['dev']) { throw new RuntimeException('compiled_atomic_rename_crosses_filesystem'); }
+    $ready = checkedRead($temp, $owner);
+    if ($ready['sha256'] !== sha($bytes) || $ready['mode'] !== $row['mode']
+        || $ready['uid'] !== $row['uid'] || $ready['gid'] !== $row['gid']
+        || $ready['dev'] !== stat(dirname($row['path']))['dev']) { throw new RuntimeException('compiled_prepared_file_invalid'); }
+    return $temp;
+}
+function afReplacePreparedCompiled(array $row, int $owner, string $expected, string $target, string $temp, ?callable $beforeRename = null, $lock = null): array {
+    if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
+    $ready = checkedRead($temp, $owner);
+    if ($ready['sha256'] !== $target || $ready['mode'] !== $row['mode']
+        || $ready['uid'] !== $row['uid'] || $ready['gid'] !== $row['gid']
+        || $ready['dev'] !== stat(dirname($row['path']))['dev']) { throw new RuntimeException('compiled_prepared_file_invalid'); }
     afSameCompiled($row, $owner, $expected);
+    if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
     if ($beforeRename !== null) { $beforeRename(); }
     if (!rename($temp, $row['path'])) { throw new RuntimeException('compiled_view_replace_failed'); }
-    return afSameCompiled($row, $owner, sha($bytes));
+    if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
+    return afSameCompiled($row, $owner, $target);
 }
-function afRollbackCompiled(array $owned, int $owner, string $stage, callable $invalidate): array {
+function afReplaceCompiled(array $row, int $owner, string $expected, string $bytes, string $stage, ?callable $beforeRename = null): array {
+    return afReplacePreparedCompiled($row, $owner, $expected, sha($bytes), afPrepareCompiled($row, $owner, $bytes, $stage), $beforeRename);
+}
+function afRollbackCompiled(array $owned, int $owner, string $stage, callable $invalidate, $lock = null): array {
     $errors = [];
     foreach (array_reverse($owned) as $row) {
         try {
+            if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
             $now = checkedRead($row['path'], $owner);
             if ($now['sha256'] === $row['sha256']) { afSameCompiled($row, $owner, $row['sha256']); continue; }
             afSameCompiled($row, $owner, $row['after']);
-            $backup = checkedRead($row['backup'], $owner);
-            if ($backup['sha256'] !== $row['sha256'] || $backup['mode'] !== 0600) { throw new RuntimeException('compiled_backup_changed'); }
-            afReplaceCompiled($row, $owner, $row['after'], $backup['bytes'], $stage);
+            if (!is_string($row['rollback'] ?? null)) { throw new RuntimeException('compiled_prepared_rollback_missing'); }
+            // No new source-sized write is needed after a disk/receipt publication failure.
+            afReplacePreparedCompiled($row, $owner, $row['after'], $row['sha256'], $row['rollback'], null, $lock);
             $invalidate($row['path']);
         } catch (Throwable $error) { $errors[] = basename($row['path']); }
     }
     return $errors;
+}
+function afReadPrivate(string $path, int $owner, array $links = [1]): array {
+    clearstatcache(true, $path);
+    if (is_link($path) || !is_file($path) || realpath($path) !== $path) { throw new RuntimeException('activation_private_file_invalid'); }
+    $before = lstat($path);
+    if (!$before || $before['uid'] !== $owner || ($before['mode'] & 0777) !== 0600
+        || !in_array($before['nlink'], $links, true)) { throw new RuntimeException('activation_private_metadata_invalid'); }
+    $bytes = file_get_contents($path); clearstatcache(true, $path); $after = lstat($path);
+    if (!is_string($bytes) || !$after) { throw new RuntimeException('activation_private_read_failed'); }
+    foreach (['dev', 'ino', 'mode', 'uid', 'gid', 'nlink', 'size', 'mtime', 'ctime'] as $key) {
+        if ($before[$key] !== $after[$key]) { throw new RuntimeException('activation_private_file_changed'); }
+    }
+    return ['sha256' => sha($bytes), 'bytes' => $bytes, 'dev' => $before['dev'], 'ino' => $before['ino']];
+}
+function afWriteReceiptTemp(string $path, string $bytes): void {
+    if (realpath(dirname($path)) !== dirname($path) || is_link($path)) { throw new RuntimeException('activation_receipt_temp_invalid'); }
+    $handle = fopen($path, 'xb');
+    if (!$handle) { throw new RuntimeException('activation_receipt_write_failed'); }
+    try {
+        $offset = 0;
+        while ($offset < strlen($bytes)) {
+            $written = fwrite($handle, substr($bytes, $offset));
+            if ($written === false || $written === 0) { throw new RuntimeException('activation_receipt_short_write'); }
+            $offset += $written;
+        }
+        if (!chmod($path, 0600) || !fflush($handle) || !fsync($handle)) { throw new RuntimeException('activation_receipt_flush_failed'); }
+    } finally { fclose($handle); }
+    if (hash_file('sha256', $path) !== sha($bytes)) { throw new RuntimeException('activation_receipt_temp_hash_mismatch'); }
+}
+function afVerifyPublishedReceipt(string $path, array $publication, int $owner): void {
+    $saved = afReadPrivate($path, $owner);
+    if ($saved['sha256'] !== $publication['sha256'] || $saved['dev'] !== $publication['dev']
+        || $saved['ino'] !== $publication['ino']) { throw new RuntimeException('activation_receipt_publication_mismatch'); }
+}
+function afPublishReceipt(string $path, array $receipt, int $owner, array &$publication, $lock = null): void {
+    $bytes = json_encode($receipt, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
+    $temp = dirname($path).'/activation-receipt-'.bin2hex(random_bytes(12)).'.json';
+    afWriteReceiptTemp($temp, $bytes);
+    $ready = afReadPrivate($temp, $owner);
+    if ($ready['sha256'] !== sha($bytes)) { throw new RuntimeException('activation_receipt_candidate_changed'); }
+    if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
+    // Atomic no-overwrite: even a receipt created after preflight is preserved.
+    if (!@link($temp, $path)) { throw new RuntimeException('activation_receipt_publication_failed'); }
+    $publication = ['sha256' => $ready['sha256'], 'dev' => $ready['dev'], 'ino' => $ready['ino'], 'temp' => $temp];
+    if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
+    if (!unlink($temp)) { throw new RuntimeException('activation_receipt_temp_unlink_failed'); }
+    afVerifyPublishedReceipt($path, $publication, $owner);
+}
+function afWithdrawOwnReceipt(string $path, array $publication, int $owner, $lock = null): bool {
+    if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
+    clearstatcache(true, $path);
+    if ($publication === []) { return !file_exists($path) && !is_link($path); }
+    if (!file_exists($path) && !is_link($path)) { return true; }
+    try {
+        // A temp unlink failure can leave two names for our exact inode.
+        $current = afReadPrivate($path, $owner, [1, 2]);
+        if ($current['sha256'] !== $publication['sha256'] || $current['dev'] !== $publication['dev']
+            || $current['ino'] !== $publication['ino']) { return false; }
+        if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
+        if (!unlink($path)) { return false; }
+    } catch (Throwable $error) { return false; }
+    // A leftover private temp is not the active receipt; never delete a foreign replacement.
+    $temp = $publication['temp'];
+    try {
+        if (file_exists($temp) || is_link($temp)) {
+            $private = afReadPrivate($temp, $owner);
+            if ($private['sha256'] === $publication['sha256'] && $private['dev'] === $publication['dev']
+                && $private['ino'] === $publication['ino']) {
+                if (is_resource($lock)) { checkReleaseLock($lock, $owner); }
+                unlink($temp);
+            }
+        }
+    } catch (Throwable $error) { /* Preserve unexpected private temp state for inspection. */ }
+    return true;
 }
 function afVerifyCompiledReceipt(array $previous, array $compiled, int $owner): void {
     $expected = $previous['compiled_verified'] ?? null;
@@ -64,6 +155,8 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: private, no-store');
 $action = $_SERVER['SERVERNET_RELEASE_ACTION']; $lock = null;
 $compiledOwned = []; $compiledCommitted = false; $rollbackErrors = [];
+$receiptPublication = []; $receiptAttempted = false; $activationPath = null;
+$receiptWithdrawn = null; $receiptReconciliationRequired = false;
 try {
     $owner = function_exists('posix_geteuid') ? posix_geteuid() : getmyuid();
     foreach ([[dirname(AF_PRIMARY), 0700], [AF_PRIMARY, 0600], [dirname(AF_PRIMARY).'/.htaccess', 0600], [AF_STAGE, 0700]] as [$path, $mode]) {
@@ -80,7 +173,10 @@ try {
     $lockPath = AF_APP.'/storage/framework/arvan-delivery-release.lock';
     checkedRead($lockPath, $owner);
     $lock = fopen($lockPath, 'r+b');
-    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) { throw new RuntimeException('release_busy'); }
+    if (!$lock) { throw new RuntimeException('release_busy'); }
+    checkReleaseLock($lock, $owner);
+    if (!flock($lock, LOCK_EX | LOCK_NB)) { throw new RuntimeException('release_busy'); }
+    checkReleaseLock($lock, $owner);
     checkedRead(AF_STAGE.'/plan.json', $owner);
     $planHash = hash_file('sha256', AF_STAGE.'/plan.json');
     if (!hash_equals($_SERVER['SERVERNET_EXPECTED_PLAN_SHA256'], $planHash)) { throw new RuntimeException('plan_hash_changed'); }
@@ -129,7 +225,7 @@ try {
     $targets = []; $cleared = []; $activationAlreadyRecorded = false;
     $activationPath = AF_STAGE.'/activation-'.$_SERVER['HTTP_HOST'].'.json';
     if ($action !== 'observe' && is_file($activationPath)) {
-        checkedRead($activationPath, $owner); $previous = readJson($activationPath);
+        $previous = json_decode(afReadPrivate($activationPath, $owner)['bytes'], true, 128, JSON_THROW_ON_ERROR);
         if (($previous['plan_sha256'] ?? null) !== $planHash || ($previous['status'] ?? null) !== 'ok') {
             throw new RuntimeException('historical_activation_changed');
         }
@@ -143,7 +239,7 @@ try {
         $peerHost = $_SERVER['HTTP_HOST'] === 'servernet.cloud' ? 'console.servernet.cloud' : 'servernet.cloud';
         $peerPath = AF_STAGE.'/activation-'.$peerHost.'.json';
         if (is_file($peerPath)) {
-            checkedRead($peerPath, $owner); $peer = readJson($peerPath);
+            $peer = json_decode(afReadPrivate($peerPath, $owner)['bytes'], true, 128, JSON_THROW_ON_ERROR);
             if (($peer['plan_sha256'] ?? null) !== $planHash || ($peer['status'] ?? null) !== 'ok') { throw new RuntimeException('peer_activation_changed'); }
             afVerifyCompiledReceipt($peer, $compiled, $owner);
             $compiledAlreadyPrepared = true;
@@ -165,6 +261,18 @@ try {
         token_get_all($compiledBytes, TOKEN_PARSE);
         if (in_array(AF_APP.'/bootstrap/app.php', get_included_files(), true)) { throw new RuntimeException('unexpected_application_bootstrap'); }
     }
+    $compiledPrepared = [];
+    if ($action === 'activate' && !$compiledAlreadyPrepared) {
+        // Prepare every install and reversal before the first compiled rename.
+        foreach ($compiled as $row) {
+            $before = afSameCompiled($row, $owner, $row['sha256']);
+            $backup = AF_STAGE.'/compiled-before-'.bin2hex(random_bytes(12)).'.php';
+            writeNew($backup, $before['bytes']);
+            $compiledPrepared[] = $row + ['backup' => $backup, 'after' => sha($compiledBytes),
+                'rollback' => afPrepareCompiled($row, $owner, $before['bytes'], AF_STAGE),
+                'install' => afPrepareCompiled($row, $owner, $compiledBytes, AF_STAGE)];
+        }
+    }
     foreach (RELEASE_PATHS as $relative) {
         $path = AF_APP.'/'.$relative;
         $cached = $enabled && opcache_is_script_cached($path); $invalidated = false;
@@ -177,14 +285,11 @@ try {
     if ($action === 'activate' && !$activationAlreadyRecorded) {
         // The other observed pool may already have prepared the shared compiled artifact.
         // Only exact PATH-matched artifacts are replaced; retain their permissions/group.
-        foreach ($compiled as $row) {
+        foreach ($compiled as $index => $row) {
             if (!$compiledAlreadyPrepared) {
-                $before = afSameCompiled($row, $owner, $row['sha256']);
-                $backup = AF_STAGE.'/compiled-before-'.bin2hex(random_bytes(12)).'.php';
-                writeNew($backup, $before['bytes']);
-                $owned = $row + ['backup' => $backup, 'after' => sha($compiledBytes)];
-                $actual = afReplaceCompiled($row, $owner, $row['sha256'], $compiledBytes, AF_STAGE,
-                    static function () use (&$compiledOwned, $owned): void { $compiledOwned[] = $owned; });
+                $owned = $compiledPrepared[$index];
+                $actual = afReplacePreparedCompiled($row, $owner, $row['sha256'], $owned['after'], $owned['install'],
+                    static function () use (&$compiledOwned, $owned): void { $compiledOwned[] = $owned; }, $lock);
                 $cleared[] = ['basename' => basename($row['path']), 'before_sha256' => $row['sha256'], 'after_sha256' => $actual['sha256'], 'preserved_mode' => $row['mode']];
             }
             if ($enabled) {
@@ -216,6 +321,7 @@ try {
         if (in_array(false, $checks, true)) { throw new RuntimeException('runtime_definition_verification_failed'); }
     }
     foreach ($plan['files'] as $file) { sameLive($file, $owner, $installed ? 'after' : 'before'); }
+    checkReleaseLock($lock, $owner);
     $compiledVerified = [];
     foreach ($compiled as $row) {
         $afterHash = ($action === 'activate' && !$compiledAlreadyPrepared) ? sha($compiledBytes) : $row['sha256'];
@@ -231,23 +337,40 @@ try {
         'activation_already_recorded' => $activationAlreadyRecorded, 'compiled_prepared_by_prior_pool' => $compiledAlreadyPrepared, 'definition_checks' => $checks,
         'application_bootstrapped' => false, 'provider_calls' => 0, 'database_calls' => 0, 'global_cache_flush' => false];
     if ($action === 'activate' && !$activationAlreadyRecorded) {
-        $receiptBytes = json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)."\n";
-        $receiptTemp = AF_STAGE.'/activation-receipt-'.bin2hex(random_bytes(12)).'.json';
-        writeNew($receiptTemp, $receiptBytes);
-        if (file_exists($activationPath) || is_link($activationPath) || !rename($receiptTemp, $activationPath)) { throw new RuntimeException('activation_receipt_publication_failed'); }
-        $savedReceipt = checkedRead($activationPath, $owner);
-        if ($savedReceipt['sha256'] !== sha($receiptBytes) || $savedReceipt['mode'] !== 0600) { throw new RuntimeException('activation_receipt_publication_mismatch'); }
+        $receiptAttempted = true;
+        checkReleaseLock($lock, $owner);
+        afPublishReceipt($activationPath, $result, $owner, $receiptPublication, $lock);
+        checkReleaseLock($lock, $owner);
+        // Commit only when the durable receipt and every source/artifact still agree.
+        foreach ($plan['files'] as $file) { sameLive($file, $owner, 'after'); }
+        afVerifyCompiledReceipt($result, $compiledVerified, $owner);
+        afVerifyPublishedReceipt($activationPath, $receiptPublication, $owner);
+        checkReleaseLock($lock, $owner);
         $compiledCommitted = true;
     }
+    checkReleaseLock($lock, $owner);
     echo json_encode($result, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), PHP_EOL;
 } catch (Throwable $error) {
-    if (!$compiledCommitted && $compiledOwned !== []) {
-        $rollbackErrors = afRollbackCompiled($compiledOwned, $owner, AF_STAGE, static function (string $path) use ($enabled): void {
-            if ($enabled && opcache_is_script_cached($path) && !opcache_invalidate($path, true)) { throw new RuntimeException('compiled_rollback_invalidation_failed'); }
-        });
+    if (!$compiledCommitted && ($receiptAttempted || $compiledOwned !== [])) {
+        try {
+            checkReleaseLock($lock, $owner);
+            $receiptWithdrawn = afWithdrawOwnReceipt($activationPath, $receiptPublication, $owner, $lock);
+        } catch (Throwable $recoveryError) {
+            // Never alter a receipt or compiled artifact under a replaced mutex.
+            $receiptWithdrawn = false;
+        }
+        if (!$receiptWithdrawn) {
+            // A foreign receipt may describe the installed artifacts. Preserve both for review.
+            $receiptReconciliationRequired = true;
+        } elseif ($compiledOwned !== []) {
+            $rollbackErrors = afRollbackCompiled($compiledOwned, $owner, AF_STAGE, static function (string $path) use ($enabled): void {
+                if ($enabled && opcache_is_script_cached($path) && !opcache_invalidate($path, true)) { throw new RuntimeException('compiled_rollback_invalidation_failed'); }
+            }, $lock);
+        }
     }
     http_response_code(503);
     echo json_encode(['release' => AF_RELEASE, 'action' => $action, 'status' => 'stopped',
-        'compiled_rollback_errors' => $rollbackErrors, 'reason' => $error instanceof RuntimeException && preg_match('/\A[a-z_]+\z/', $error->getMessage())
+        'compiled_rollback_errors' => $rollbackErrors, 'receipt_withdrawn_or_absent' => $receiptWithdrawn,
+        'receipt_reconciliation_required' => $receiptReconciliationRequired, 'reason' => $error instanceof RuntimeException && preg_match('/\A[a-z_]+\z/', $error->getMessage())
             ? $error->getMessage() : 'inspect_private_activation_context'], JSON_THROW_ON_ERROR), PHP_EOL;
 } finally { if (is_resource($lock)) { flock($lock, LOCK_UN); fclose($lock); } }

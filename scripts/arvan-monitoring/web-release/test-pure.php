@@ -69,7 +69,7 @@ foreach ($flowCases as $case) {
             checkReleaseTest($count === 1, 'fault_injection_unique');
         }
         if (in_array($case, ['untouched_later_drift', 'owned_drift_continues_rollback'], true)) {
-            $needle = "if (\$file['before'] === \$file['after']) { continue; }";
+            $needle = "if (\$file['before'] === \$file['after']) { continue; }\n                replacePreparedSource";
             $driftPath = $case === 'untouched_later_drift' ? 'lang/tr/ui.php' : 'app/Models/CloudInstance.php';
             $hook = "if (\$file['path'] === 'lang/fa/ui.php') { file_put_contents(RELEASE_ROOT.'/".$driftPath."', \"\\n// unrelated concurrent edit\\n\", FILE_APPEND); refuse('synthetic_concurrent_drift'); }\n                ";
             $helper = str_replace($needle, $hook.$needle, $helper, $count);
