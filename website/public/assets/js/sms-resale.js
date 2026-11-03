@@ -13,7 +13,7 @@
     const text=el.querySelector('[data-sms-text]'),count=el.querySelector('[data-sms-count]'),rows=Array.from(el.querySelectorAll('[data-sms-estimate]'));
     const labels=JSON.parse(el.querySelector('[data-sms-labels]').textContent),format=new Intl.NumberFormat(root.document.documentElement.lang||'fa',{maximumFractionDigits:1});
     function render(){const n=Number(count.value),parts=segments(text.value);const error=el.querySelector('[data-sms-error]');
-      if(!count.value||!Number.isInteger(n)||n<0||n>1000000){error.textContent=labels.invalid;return;}error.textContent='';
+      if(!count.value||!Number.isInteger(n)||n<0||n>1000000){error.textContent=labels.invalid;rows.forEach(row=>{row.querySelector('[data-sms-total]').textContent='—';row.dataset.recommended='false';});el.querySelector('[data-sms-recommendation]').textContent='';el.querySelector('[data-sms-parts]').textContent='';return;}error.textContent='';
       let best=null;rows.forEach(function(row){const total=Number(row.dataset.firstIrt)*10+Number(row.dataset.rateIrr)*n*parts*12;row.querySelector('[data-sms-total]').textContent=format.format(total/10)+' '+labels.currency;row.dataset.recommended='false';if(!best||total<best.total)best={row:row,total:total};});
       if(best){best.row.dataset.recommended='true';el.querySelector('[data-sms-recommendation]').textContent=labels.recommended+' '+best.row.cells[0].textContent;}
       el.querySelector('[data-sms-parts]').textContent=labels.parts+' '+format.format(parts);

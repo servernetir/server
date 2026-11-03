@@ -22,6 +22,8 @@ class SmsResaleTest extends TestCase
 {
     use RefreshDatabase;
 
+    private int $createAttempts = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -84,6 +86,7 @@ class SmsResaleTest extends TestCase
                 return Http::response(['data' => $created ? [$user] : [], 'meta' => ['status' => true]]);
             }
             if ($path === '/v1/api/user/create') {
+                $this->createAttempts++;
                 $created = true;
                 if ($lostCreate) { throw new ConnectionException('Synthetic timeout'); }
                 return Http::response(['data' => null, 'meta' => ['status' => true]]);
@@ -182,8 +185,8 @@ class SmsResaleTest extends TestCase
         $this->assertSame(77, $s->fresh()->upstream_user_id);
         $this->assertSame('active', $s->fresh()->state);
         $this->assertSame('12345.250000', $s->fresh()->credit_irr);
-        $creates = Http::recorded(fn ($r) => str_ends_with($r->url(), '/api/user/create'));
-        $this->assertCount(1, $creates);
+        // Laravel does not record requests whose fake throws a transport exception.
+        $this->assertSame(1, $this->createAttempts);
     }
 
     public function test_missing_account_after_unknown_create_is_not_created_again(): void
