@@ -33,6 +33,15 @@ test('launch signs exact backend request and reveals only VM-console-scoped pass
 test('a login ticket cannot substitute for a console-scoped password',async()=>{
   assert.equal((await handle(launch(),env,async()=>json({session,password:grant.cookie}))).status,410);
 });
+test('current Proxmox eight-character password survives JSON without appearing in a URL',async()=>{
+  const password='!"#:$%&=';
+  const r=await handle(launch(),env,async()=>json({session,password}));
+  assert.equal(r.status,200);assert.equal((await r.json()).password,password);
+  assert.ok(!upstream(grant).includes(encodeURIComponent(password)));
+  for(const bad of ['short','123456789','1234\n678','1234 678',12345678]){
+    assert.equal((await handle(launch(),env,async()=>json({session,password:bad}))).status,410);
+  }
+});
 test('broker redirects and malformed JSON are rejected without exposing raw text',async()=>{
   const r=await handle(launch(),env,async()=>new Response('private-provider-body',{status:302,headers:{Location:'https://evil.example'}}));
   assert.equal(r.status,410); assert.ok(!(await r.text()).includes('private-provider-body'));

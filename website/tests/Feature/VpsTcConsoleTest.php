@@ -117,6 +117,33 @@ class VpsTcConsoleTest extends TestCase
         $this->assertSame(200, $this->callBroker('redeem', $ticket)->status());
     }
 
+    public function test_current_proxmox_password_is_separate_from_the_websocket_ticket(): void
+    {
+        $password = '!"#:$%&=';
+        $vnc = 'PVEVNC:fixture-modern-ticket';
+        $this->fake(['*/vncproxy' => Http::response(['data' => [
+            'port' => '5901', 'ticket' => $password.':'.$vnc, 'password' => $password]])]);
+        $redeem = $this->callBroker('redeem', $this->ticket());
+        $this->assertSame(200, $redeem->status());
+        $this->assertSame($password, $redeem->getData(true)['password']);
+        $this->assertStringNotContainsString($vnc, $redeem->getContent());
+        $upstream = $this->callBroker('claim', $redeem->getData(true)['session'])->getData(true);
+        $this->assertSame(5901, $upstream['port']);
+        $this->assertSame($vnc, $upstream['vnc']);
+        $this->assertArrayNotHasKey('password', $upstream);
+    }
+
+    public function test_malformed_modern_grants_cannot_be_redeemed(): void
+    {
+        foreach ([['port' => '5901evil'], ['port' => '05901'], ['port' => 5901.5],
+            ['ticket' => 'wrong123:PVEVNC:fixture'], ['password' => "bad\npass"],
+            ['password' => null]] as $delta) {
+            $this->fake(['*/vncproxy' => Http::response(['data' => $delta + [
+                'port' => '5901', 'ticket' => '12345678:PVEVNC:fixture', 'password' => '12345678']])]);
+            $this->assertSame(502, $this->callBroker('redeem', $this->ticket())->status());
+        }
+    }
+
     public function test_account_exposing_another_vm_is_rejected_before_starting_vnc(): void
     {
         $this->resources[] = ['vmid' => 124, 'node' => 'other', 'type' => 'qemu'];

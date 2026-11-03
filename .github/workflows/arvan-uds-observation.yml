@@ -1,0 +1,163 @@
+name: Arvan private UDS observation runner
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/*Observation*.php'
+      - 'website/app/Services/Cloud/PrivatePrometheusTrafficSource.php'
+      - 'website/app/Services/Cloud/UnixPrometheusTrafficTransport.php'
+      - 'website/app/Console/Commands/Arvan*Observation.php'
+      - 'website/app/Console/Commands/ArvanObserveTraffic.php'
+      - 'website/routes/console.php'
+      - 'website/tests/Feature/ArvanObservationRunnerTest.php'
+      - 'scripts/arvan-monitoring/**'
+      - '.github/workflows/arvan-uds-observation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-uds-observation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  observation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: incident_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        shell: bash
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      ARVAN_TRAFFIC_MARIADB: ${{ matrix.database == 'mariadb' && '1' || '0' }}
+      DB_CONNECTION: ${{ matrix.database == 'mariadb' && 'mysql' || 'sqlite' }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'incident_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      DB_SOCKET: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      BROADCAST_CONNECTION: 'null'
+      PULSE_ENABLED: 'false'
+      TELESCOPE_ENABLED: 'false'
+      NIGHTWATCH_ENABLED: 'false'
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pcntl, posix, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Lint and test pure contracts and real Unix transport without a network interface
+        run: |
+          set -euo pipefail
+          php -l website/app/Services/Cloud/UnixPrometheusTrafficTransport.php
+          php -l website/app/Services/Cloud/PrivatePrometheusTrafficSource.php
+          php -l website/app/Services/Cloud/ArvanObservationState.php
+          php -l website/app/Services/Cloud/ArvanObservationRegistry.php
+          php -l website/app/Services/Cloud/ArvanObservationApprovalFile.php
+          php -l website/app/Console/Commands/ArvanObserveTraffic.php
+          php -l website/app/Console/Commands/ArvanApproveObservation.php
+          php -l website/tests/Feature/ArvanObservationRunnerTest.php
+          php -l website/routes/console.php
+          test_php="$(command -v php)"
+          sudo unshare --net -- "$test_php" scripts/arvan-monitoring/test-traffic-observation.php
+          sudo unshare --net -- "$test_php" scripts/arvan-monitoring/test-observation-state.php
+          sudo unshare --net -- env ARVAN_UDS_REAL_TESTS=1 "$test_php" scripts/arvan-monitoring/test-unix-transport.php
+          sudo unshare --net -- env PHP_BINARY="$test_php" PYTHONDONTWRITEBYTECODE=1 \
+            python3 -B scripts/arvan-monitoring/test_query_proxy.py
+      - name: Install locked app dependencies without scripts or plugins
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Restrict the test UID to the disposable database
+        env:
+          OBSERVATION_MARIADB_CONTAINER: ${{ job.services.mariadb.id }}
+        run: |
+          set -euo pipefail
+          sudo useradd --system --no-create-home --shell /usr/sbin/nologin observation-tests
+          test_uid="$(id -u observation-tests)"
+          sudo iptables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -j REJECT
+          sudo iptables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -d 127.0.0.0/8 -j ACCEPT
+          docker inspect --format '{{range .NetworkSettings.Networks}}{{println .IPAddress}}{{end}}' "$OBSERVATION_MARIADB_CONTAINER" > "$RUNNER_TEMP/observation-db-ips"
+          test -s "$RUNNER_TEMP/observation-db-ips"
+          while IFS= read -r service_ip; do
+            if [ -n "$service_ip" ]; then
+              sudo iptables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -p tcp -d "$service_ip" --dport 3306 -j ACCEPT
+            fi
+          done < "$RUNNER_TEMP/observation-db-ips"
+          sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -j REJECT
+          sudo ip6tables -I OUTPUT 1 -m owner --uid-owner "$test_uid" -d ::1/128 -j ACCEPT
+          mkdir -p website/storage/framework/testing/observation-ci website/bootstrap/cache
+          sudo chown -R observation-tests:observation-tests "$GITHUB_WORKSPACE/website"
+          ancestor="$GITHUB_WORKSPACE"
+          while [ "$ancestor" != / ]; do
+            if command -v setfacl >/dev/null 2>&1; then
+              rights=--x
+              if [ "$ancestor" = "$GITHUB_WORKSPACE" ]; then rights=r-x; fi
+              sudo setfacl -m "u:$test_uid:$rights" "$ancestor"
+            else
+              sudo chmod o+x "$ancestor"
+            fi
+            ancestor="$(dirname "$ancestor")"
+          done
+          printf '%s\n' 'ARVAN_TRAFFIC_MARIADB,APP_ENV,APP_KEY,APP_URL,DB_CONNECTION,DB_HOST,DB_PORT,DB_DATABASE,DB_USERNAME,DB_PASSWORD,DB_URL,DB_SOCKET,CACHE_STORE,SESSION_DRIVER,QUEUE_CONNECTION,MAIL_MAILER,SMS_DRIVER,PAGE_CACHE,EXCHANGE_ENABLED,BROADCAST_CONNECTION,PULSE_ENABLED,TELESCOPE_ENABLED,NIGHTWATCH_ENABLED' > "$RUNNER_TEMP/observation-preserve-env"
+      - name: Run actual command, schedule and fresh database persistence tests
+        working-directory: website
+        run: |
+          set -euo pipefail
+          preserved="$(cat "$RUNNER_TEMP/observation-preserve-env")"
+          sudo --preserve-env="$preserved" -u observation-tests -- php artisan package:discover --ansi
+          sudo --preserve-env="$preserved" -u observation-tests -- php -r '
+          require "vendor/autoload.php";
+          $app = require "bootstrap/app.php";
+          $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+          $driver = Illuminate\Support\Facades\DB::connection()->getPdo()->getAttribute(PDO::ATTR_DRIVER_NAME);
+          if ($driver !== getenv("DB_CONNECTION")) { throw new RuntimeException("Disposable DB driver mismatch"); }
+          echo "Verified disposable PDO driver: ".$driver.PHP_EOL;
+          '
+          sudo --preserve-env="$preserved" -u observation-tests -- php -d memory_limit=512M vendor/bin/phpunit \
+            --filter ArvanObservationRunnerTest --colors=never \
+            --log-junit storage/framework/testing/observation-ci/result.xml
+          python3 <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('storage/framework/testing/observation-ci/result.xml').getroot()
+          cases = list(root.iter('testcase'))
+          if len(cases) < 20 or list(root.iter('error')) or list(root.iter('failure')) or list(root.iter('skipped')):
+              raise SystemExit('Actual database/runner tests must execute and pass without skips.')
+          print('Verified', len(cases), 'actual DB/runner tests without errors, failures or skips.')
+          PY

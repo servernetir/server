@@ -89,10 +89,21 @@ class VpsTcConsole
         $base = '/api2/json/nodes/'.$node.'/qemu/'.$vm;
         $grant = $this->pve($context['origin'], 'POST', $base.'/vncproxy', ['websocket' => 1], $ticket, $csrf);
         $port = $grant['port'] ?? null; $vnc = $grant['ticket'] ?? null;
+        // The gateway serializes ports as decimal strings. Normalize only the exact allowed range.
+        if (is_string($port) && preg_match('/\A59[0-9]{2}\z/D', $port)) { $port = (int) $port; }
+        $password = $grant['password'] ?? $vnc;
+        // Current Proxmox prepends the eight-character VNC password to its scoped ticket
+        // for old clients. Keep that password separate from the websocket ticket.
+        if (is_string($vnc) && preg_match('/\A([\x21-\x7e]{8}):(PVEVNC:[A-Za-z0-9+\/=:@_.-]+)\z/D', $vnc, $parts)) {
+            if (! is_string($password) || ! hash_equals($parts[1], $password)) { $this->unavailable(); }
+            $vnc = $parts[2];
+        }
         if (! is_int($port) || $port < 5900 || $port > 5999 || ! $this->safeSecret($vnc, 'PVEVNC:')
+            || ! is_string($password) || ! (preg_match('/\A[\x21-\x7e]{8}\z/D', $password)
+                || ($password === $vnc && $this->safeSecret($password, 'PVEVNC:')))
             || $this->context($service) !== $context) { $this->unavailable(); }
         return ['origin' => $context['origin'], 'path' => $base.'/vncwebsocket',
-            'port' => $port, 'cookie' => $ticket, 'vnc' => $vnc];
+            'port' => $port, 'cookie' => $ticket, 'vnc' => $vnc, 'password' => $password];
     }
 
     private function pve(string $origin, string $method, string $path, array $body = [], ?string $ticket = null, ?string $csrf = null): array

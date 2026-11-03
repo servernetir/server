@@ -72,11 +72,13 @@ class VpsTcConsoleBroker
                     return $this->response(['ok' => false], 410);
                 }
                 $session = bin2hex(random_bytes(32));
+                $password = $upstream['password'];
+                unset($upstream['password']);
                 Cache::put($this->key('session', $session), ['context' => $context,
                     'upstream' => Crypt::encryptString(json_encode($upstream, JSON_THROW_ON_ERROR)),
                     'expires' => now()->addSeconds(30)->timestamp], 30);
                 // Only VM-console-scoped VNC challenge material; never the PVE login cookie, CSRF or service password.
-                return $this->response(['session' => $session, 'password' => $upstream['vnc']]);
+                return $this->response(['session' => $session, 'password' => $password]);
             }
             $upstream = json_decode(Crypt::decryptString($grant['upstream']), true, 8, JSON_THROW_ON_ERROR);
             return $this->response($upstream);

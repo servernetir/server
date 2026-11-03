@@ -5,6 +5,12 @@ the [automatic Ubuntu/Debian create hook](../../docs/project/ARVAN-LINUX-FIRST-B
 Git source and isolated tests do not establish production installation, central
 enrollment, suspension or billing.
 
+The separate [account-private UDS observation runner](UDS-OBSERVATION-RUNNER.md)
+supplies real CLI/schedule and bounded per-generation state, with an explicitly
+approved [query-only collector proxy](QUERY-PROXY.md). It stays disabled until
+native transport and target enrollment are accepted. An installed exporter is
+not itself central observation or billable-traffic proof.
+
 This standalone installer is for an authorized root session inside one Debian
 or Ubuntu guest (amd64/arm64). It requires Python 3, systemd, iproute2 and current
 trusted apt metadata; it does not add repositories or refresh metadata itself.

@@ -3,6 +3,7 @@ const ORIGIN = 'https://vps-vnc.servernet.cloud';
 const PORTAL = 'https://console.servernet.cloud';
 const BROKER = PORTAL + '/system/vpstc-console-broker';
 const ID = /^[a-f0-9]{64}$/;
+const PASSWORD = /^(?:[\x21-\x7e]{8}|PVEVNC:[A-Za-z0-9+/=:@_.-]{1,4089})$/;
 const COOKIE = '__Host-sn-vpstc';
 const HEADERS = {'Cache-Control': 'no-store, private', 'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
@@ -94,7 +95,7 @@ try{
  const {default:RFB}=await import('/novnc/core/rfb.js');if(failed)return;
  const response=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(50000)});
  if(!response.ok)throw Error();const grant=await response.json();if(failed)return;
- if(!/^[a-f0-9]{64}$/.test(grant.binding||'')||!/^PVEVNC:/.test(grant.password||''))throw Error();
+ if(!/^[a-f0-9]{64}$/.test(grant.binding||'')||typeof grant.password!=='string'||!${PASSWORD}.test(grant.password))throw Error();
  rfb=new RFB(screen,'wss://'+location.host+'/socket?binding='+grant.binding,{credentials:{password:grant.password},wsProtocols:['binary']});grant.password='';
  rfb.scaleViewport=true;rfb.resizeSession=false;rfb.addEventListener('connect',()=>{if(failed)return;clearTimeout(timer);status.textContent=t.ready;cad.disabled=false;});
  rfb.addEventListener('disconnect',fail);rfb.addEventListener('securityfailure',fail);rfb.addEventListener('credentialsrequired',fail);
@@ -123,7 +124,7 @@ export async function handle(request, env = {}, fetcher = fetch, socketBridge = 
       const body = await request.text(); if (body.length > 256) return reply('Invalid request',400);
       const token = JSON.parse(body).ticket; if (typeof token !== 'string' || !ID.test(token)) return reply('Invalid request',400);
       const result = await broker('redeem', token, env, fetcher);
-      if (!result || !ID.test(result.session || '') || !/^PVEVNC:[A-Za-z0-9+/=:@_.-]{1,4089}$/.test(result.password || '')) return reply('Expired',410);
+      if (!result || !ID.test(result.session || '') || typeof result.password !== 'string' || !PASSWORD.test(result.password)) return reply('Expired',410);
       return reply(JSON.stringify({binding:await binding(result.session),password:result.password}),200,{
         'Content-Type':'application/json', 'Set-Cookie':COOKIE + '=' + result.session + '; Path=/; Max-Age=30; Secure; HttpOnly; SameSite=Strict'});
     }

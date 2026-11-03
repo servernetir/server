@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-03",
+  "source_commit": "3cad7f5d5564b031ab6213a4fbf6191394095f4d",
+  "base_commit": "3aeac46c146becbb069e9a0b07c4cc1b1ca162ea",
+  "status": "installed_and_asset_http_verified",
+  "files": [
+    {
+      "path": "servernet_app/public/assets/img/snapppay.svg",
+      "before_sha256": "07b805612d20ca90e9236b8591b01acb61067972d436721cc59c24990da5423a",
+      "after_sha256": "1cff8dbe9b689243b23c66e7609b79e8b948d6c733a17bbe7f5b23f39f100e1d",
+      "kind": "asset"
+    },
+    {
+      "path": "servernet_app/public/assets/img/snapppay-logotype.svg",
+      "before_sha256": "5fdf6346927e1719c585a2d13d854f54851ff96efca2024bae0c2da59612319e",
+      "after_sha256": "1cff8dbe9b689243b23c66e7609b79e8b948d6c733a17bbe7f5b23f39f100e1d",
+      "kind": "asset"
+    },
+    {
+      "path": "public_html/assets/img/snapppay.svg",
+      "before_sha256": "07b805612d20ca90e9236b8591b01acb61067972d436721cc59c24990da5423a",
+      "after_sha256": "1cff8dbe9b689243b23c66e7609b79e8b948d6c733a17bbe7f5b23f39f100e1d",
+      "kind": "asset"
+    },
+    {
+      "path": "public_html/assets/img/snapppay-logotype.svg",
+      "before_sha256": "5fdf6346927e1719c585a2d13d854f54851ff96efca2024bae0c2da59612319e",
+      "after_sha256": "1cff8dbe9b689243b23c66e7609b79e8b948d6c733a17bbe7f5b23f39f100e1d",
+      "kind": "asset"
+    },
+    {
+      "path": "servernet_app/resources/views/account/invoice.blade.php",
+      "before_sha256": "92c2f143916cef4b7cf0fdd42284e2c5722560c7f2a1a4c122e0bcb6d3a836da",
+      "after_sha256": "800908f5be5f9e9d85c40d114a28220b4892adb3dd3959f97c66b61e8fac99e4",
+      "kind": "view"
+    },
+    {
+      "path": "servernet_app/storage/framework/views/01289a57c12638498fb452c4d4b1f154.php",
+      "before_sha256": "82282e6484f962c436b4cc7ddb3c5811d2f46d22e05ca5ff1406cb86e1987fca",
+      "after_sha256": "e2f5d9192aab8d7300f7790d34ac96b0e19252ca68f8aedb778c469063b37682",
+      "kind": "compiled"
+    }
+  ],
+  "checks": {
+    "official_svg_byte_match": true,
+    "svg_has_no_script_or_external_resource": true,
+    "blade_compile": "passed",
+    "compiled_php_lint": "passed",
+    "production_hashes": "5 files and 1 compiled view verified",
+    "http_hosts": [
+      "servernet.cloud",
+      "console.servernet.cloud"
+    ],
+    "http_status": 200,
+    "mime": "image/svg+xml",
+    "asset_bytes": 6622,
+    "customer_invoice_browser": "Not verified: customer session is signed out",
+    "payment_demo": "Not performed",
+    "github_publication": "Explicitly authorized by owner on 2026-11-03; canonical publication is recorded in repository history"
+  },
+  "source_commit_location": "local deployment checkpoint"
+}
