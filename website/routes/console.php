@@ -778,3 +778,9 @@ Schedule::command('cloud:watch-sales')
     ->everyMinute()
     ->runInBackground()
     ->withoutOverlapping(2);
+
+// Disabled until an operator approves the private UDS and exact current enrollment.
+// Guest observations never enter supplier traffic settlement, wallet or power control.
+Schedule::command('cloud:observe-arvan --limit=20')
+    ->everyMinute()
+    ->withoutOverlapping(2);

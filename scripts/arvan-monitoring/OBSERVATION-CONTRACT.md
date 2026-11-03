@@ -1,30 +1,19 @@
 # Private traffic observation contract
 
-Status: standalone source and isolated tests only. These classes are not wired
-to any route, scheduler, delivery, billing or suspension path. No target was
-added and no tunnel, credential or server configuration was changed.
+Status: the concrete command and minute schedule are supplied by the
+[account-private UDS runner](UDS-OBSERVATION-RUNNER.md), disabled until explicit
+transport and per-service approval. No target, tunnel, credential or server
+configuration is installed by these sources. No billing or suspension path
+consumes this evidence.
 
-`PrivatePrometheusTrafficSource` accepts only an operator-configured HTTP
-loopback endpoint, for example `http://127.0.0.1:19090`. Default is disabled.
-That endpoint must already terminate a supervised, authorized SSH local-forward
-to management VM127's **loopback** Prometheus listener. The SSH transport must
-use the existing approved identity and pinned host key, with no public 9090 bind
-or SSH-agent forwarding. This code does not establish or repair that transport.
-A future HTTPS management proxy requires separate authorization, exact origin
-allowlisting, authenticated access, TLS verification and redirect rejection;
-this adapter deliberately does not accept arbitrary HTTPS or remote endpoints.
-
-**Loopback is not tenant isolation on the shared cPanel host.** Other local
-accounts can connect to a raw loopback TCP forward. Before integration, require
-an existing authorized transport with access control that excludes other host
-users and restricts access to the intended read-only query service. An
-authenticated restricted proxy, or an account-permission-protected Unix-socket
-transport supplied through the injected client, requires its own security and
-operational acceptance. The default HTTP client does not provision or supply
-that access control. Do not create an unauthenticated shared-host forward or
-enable this component on the assumption that `127.0.0.1` alone is sufficient.
-No forward or proxy is provisioned by this change; the component stays disabled
-and unwired.
+The runtime command supplies a fixed canonical account-owned0600 Unix socket
+with a0700 parent and reviewed metadata pins; there is no dummy TCP endpoint
+or TCP fallback. A separately installed SSH forward must reach the
+[query-only collector proxy](QUERY-PROXY.md) using the approved identity and
+pinned host key. This code does not establish or repair transport. The older
+loopback constructor remains for compatibility and isolated tests; it is not
+used by the app runner. Loopback TCP alone is not tenant isolation on the
+shared cPanel host and must not be exposed there without access control.
 
 Before enrollment, independently match the current service, customer, instance,
 provider reference, guest/default-route device and a newly generated enrollment
@@ -78,9 +67,10 @@ counter rollback, replay, gaps longer than150seconds or changed identities do
 not advance the checkpoint. Re-enrollment/rebaseline is a separate reviewed
 operation; never silently replace a failed checkpoint to erase an unknown gap.
 
-Preserve the old checkpoint when a result is unknown. Later integration must
-lock and revalidate current ownership/provider identity before persisting a
-checkpoint or taking an action. A disabled/failed central transport must not be
+Preserve the old checkpoint when a result is unknown. The concrete runner
+locks and revalidates current ownership/provider identity before and after I/O,
+then compares exact prior configuration/checkpoint bytes before persisting.
+A disabled/failed central transport must not be
 misinterpreted as one customer's exporter failure or trigger fleet suspension.
 
 Counters describe the selected **guest interface**, which can include private,
