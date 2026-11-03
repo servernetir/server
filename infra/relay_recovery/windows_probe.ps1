@@ -8,12 +8,17 @@ ValidateOnly verifies the public wire self-test, ACLs and configured access
 policy (strict local firewall by default; explicit source/IP-HMAC otherwise);
 it never starts the listener or curl. Native PS5.1 parser/runtime must be checked
 on Windows; static tests on Linux do not establish Windows execution success.
+Candidate probing is separately disabled unless a reviewed private
+candidate-proxy.json enrolls a fixed local/RFC1918 SOCKS endpoint. It changes no
+guest route, listener, firewall, key or default-path probe. The authenticated
+candidate request supplies only scope/digests, never a proxy, URL or command.
 #>
 param([switch]$ValidateOnly)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $Root = 'C:\ProgramData\ServerNet\RelayRecovery'
 $ConfigFile = Join-Path $Root 'config.json'
+$CandidateProxyFile = Join-Path $Root 'candidate-proxy.json'
 $KeyFile = Join-Path $Root 'probe.key'
 $NonceFile = Join-Path $Root 'nonces.json'
 $LockFile = Join-Path $Root 'nonces.lock'
@@ -95,6 +100,82 @@ function Test-PublicIPv4($Value) {
     return $true
 }
 
+function Test-CandidateProxyIPv4($Value) {
+    if ($Value -isnot [string]) { return $false }
+    $address = $null
+    if (-not [Net.IPAddress]::TryParse($Value, [ref]$address) -or $address.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork -or $address.ToString() -cne $Value) { return $false }
+    $b = $address.GetAddressBytes()
+    return $Value -ceq '127.0.0.1' -or $b[0] -eq 10 -or ($b[0] -eq 172 -and $b[1] -ge 16 -and $b[1] -le 31) -or ($b[0] -eq 192 -and $b[1] -eq 168)
+}
+
+function Get-CandidateBindingHash($Enrollment) {
+    # A fixed URL/source/profile are included in the enrolled endpoint's hash.
+    # No field of this description comes from an authenticated network request.
+    $binding = [ordered]@{ agent_id = $Enrollment.agent_id; path_profile = 'candidate_socks_v1'; probe_url = 'https://api.ipify.org'; proxy_host = $Enrollment.proxy_host; proxy_port = [int]$Enrollment.proxy_port; schema = 'servernet.relay.vm-candidate-proxy.v1'; source_ip = '10.10.10.50' }
+    return Get-Hash ($Utf8.GetBytes(($binding | ConvertTo-Json -Depth 4 -Compress)))
+}
+
+function ConvertTo-CandidateProxy($Enrollment, [string]$AgentId) {
+    Assert-Fields $Enrollment @('schema', 'enabled', 'agent_id', 'proxy_host', 'proxy_port', 'proxy_binding_sha256')
+    if ($Enrollment.schema -isnot [string] -or $Enrollment.schema -cne 'servernet.relay.vm-candidate-proxy.v1' -or $Enrollment.enabled -isnot [bool] -or -not $Enrollment.enabled -or $Enrollment.agent_id -isnot [string] -or $Enrollment.agent_id -cne $AgentId -or $Enrollment.agent_id -cnotmatch '\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z') { throw 'candidate_enrollment_disabled_or_scope' }
+    if (-not (Test-CandidateProxyIPv4 $Enrollment.proxy_host) -or -not (Test-Integer $Enrollment.proxy_port 65535) -or $Enrollment.proxy_port -lt 1024) { throw 'candidate_enrollment_endpoint' }
+    if ($Enrollment.proxy_binding_sha256 -isnot [string] -or $Enrollment.proxy_binding_sha256 -cnotmatch '\A[0-9a-f]{64}\z' -or -not (Test-FixedEqual (Get-CandidateBindingHash $Enrollment) $Enrollment.proxy_binding_sha256)) { throw 'candidate_enrollment_binding' }
+    return [PSCustomObject][ordered]@{ agent_id = $Enrollment.agent_id; enabled = $true; proxy_binding_sha256 = $Enrollment.proxy_binding_sha256; proxy_host = $Enrollment.proxy_host; proxy_port = [int]$Enrollment.proxy_port; schema = 'servernet.relay.vm-candidate-proxy.v1' }
+}
+
+function Read-CandidateProxy([string]$AgentId) {
+    # Missing enrollment is a candidate-only rejection, never implicit enable.
+    # The installer does not create this file or expand network access.
+    foreach ($directory in @('C:\ProgramData', 'C:\ProgramData\ServerNet', $Root)) {
+        if ((Get-Item -LiteralPath $directory -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'candidate_parent_reparse' }
+    }
+    Assert-PrivateAcl $Root $true
+    Assert-PrivateAcl $CandidateProxyFile
+    $stream = [IO.File]::Open($CandidateProxyFile, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        if ($stream.Length -lt 1 -or $stream.Length -gt 4096) { throw 'candidate_enrollment_size' }
+        $raw = [byte[]]::new([int]$stream.Length)
+        $offset = 0
+        while ($offset -lt $raw.Length) {
+            $count = $stream.Read($raw, $offset, $raw.Length - $offset)
+            if ($count -le 0) { throw 'candidate_enrollment_read' }
+            $offset += $count
+        }
+    } finally { $stream.Dispose() }
+    $text = $Utf8.GetString($raw)
+    $enrollment = ConvertTo-CandidateProxy ($text | ConvertFrom-Json) $AgentId
+    # PS5.1 JSON conversion collapses duplicate/case-aliased fields. Requiring
+    # canonical local bytes rejects those inputs rather than accepting the last.
+    if ($text.Trim() -cne ($enrollment | ConvertTo-Json -Depth 4 -Compress)) { throw 'candidate_enrollment_canonical_json' }
+    return $enrollment
+}
+
+function ConvertTo-CandidateRequest($Candidate, $Scope, $Target, $Enrollment) {
+    Assert-Fields $Candidate @('dependency_baseline_sha256', 'path_profile', 'proxy_binding_sha256', 'registry_sha256', 'resource_config_hash', 'resource_identity', 'restore_epoch', 'restore_hash', 'stage_profile')
+    if ($Candidate.path_profile -isnot [string] -or $Candidate.path_profile -cne 'candidate_socks_v1' -or $Candidate.stage_profile -isnot [string] -or $Candidate.stage_profile -cnotin @('trial', 'restored')) { throw 'candidate_request_profile' }
+    foreach ($name in @('dependency_baseline_sha256', 'proxy_binding_sha256', 'registry_sha256', 'resource_config_hash')) {
+        if ($Candidate.$name -isnot [string] -or $Candidate.$name -cnotmatch '\A[0-9a-f]{64}\z') { throw 'candidate_request_hash' }
+    }
+    if (-not (Test-FixedEqual $Candidate.proxy_binding_sha256 $Enrollment.proxy_binding_sha256)) { throw 'candidate_request_proxy_binding' }
+    Assert-Fields $Candidate.resource_identity @('generation', 'project_id', 'provider', 'provider_id')
+    $identity = $Candidate.resource_identity
+    if (-not (Test-Integer $identity.generation 9007199254740991) -or $identity.generation -gt $Scope.generation -or $identity.project_id -isnot [string] -or $identity.project_id -cnotmatch '\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z' -or $identity.provider -isnot [string] -or $identity.provider -cne 'hetzner' -or $identity.provider_id -isnot [string] -or $identity.provider_id -cne $Target.provider_id) { throw 'candidate_request_identity' }
+    if ($Candidate.stage_profile -ceq 'restored') {
+        if (-not (Test-Integer $Candidate.restore_epoch 9007199254740991) -or $Candidate.restore_hash -isnot [string] -or $Candidate.restore_hash -cnotmatch '\A[0-9a-f]{64}\z') { throw 'candidate_request_restore_epoch' }
+    } elseif ($null -ne $Candidate.restore_epoch -or $null -ne $Candidate.restore_hash) { throw 'candidate_request_trial_epoch' }
+    $resource = [ordered]@{ generation = [long]$identity.generation; project_id = $identity.project_id; provider = 'hetzner'; provider_id = $identity.provider_id }
+    return [ordered]@{ dependency_baseline_sha256 = $Candidate.dependency_baseline_sha256; path_profile = 'candidate_socks_v1'; proxy_binding_sha256 = $Candidate.proxy_binding_sha256; registry_sha256 = $Candidate.registry_sha256; resource_config_hash = $Candidate.resource_config_hash; resource_identity = $resource; restore_epoch = $Candidate.restore_epoch; restore_hash = $Candidate.restore_hash; stage_profile = $Candidate.stage_profile }
+}
+
+function New-CandidateReply($Candidate, $Scope, $Target, [string]$Nonce, $Observation, [string]$Policy) {
+    $good = $Observation.source_ip -ceq '10.10.10.50' -and $Observation.egress_ip -ceq $Target.host
+    # This response is sorted recursively, matching canonical_json exactly.
+    # The signed candidate schema cannot be substituted for default-path proof.
+    $reply = [ordered]@{ access_policy = $Policy; dependency_baseline_sha256 = $Candidate.dependency_baseline_sha256; egress_ip = $Observation.egress_ip; execution_origin = 'guest'; observed_at = (Get-UnixTime); ok = [bool]$good; op = 'candidate_probe'; path_profile = 'candidate_socks_v1'; probe_ok = [bool]$good; proxy_binding_sha256 = $Candidate.proxy_binding_sha256; read_only = $true; registry_sha256 = $Candidate.registry_sha256; request_nonce = $Nonce; resource_config_hash = $Candidate.resource_config_hash; resource_identity = $Candidate.resource_identity; restore_epoch = $Candidate.restore_epoch; restore_hash = $Candidate.restore_hash; schema = 'servernet.relay.vm-candidate-probe.v1'; scope = $Scope; source_ip = $Observation.source_ip; stage_profile = $Candidate.stage_profile; target = $Target; tunnel_ok = [bool]$good }
+    if ($Policy -cne 'source_ip_hmac_v1') { $reply.Remove('access_policy') }
+    return $reply
+}
+
 function Read-Body($Request) {
     if ($Request.ContentLength64 -lt 1 -or $Request.ContentLength64 -gt $MaxBody -or $Request.Headers['Transfer-Encoding']) { throw 'body_size' }
     $buffer = [byte[]]::new([int]$Request.ContentLength64)
@@ -150,7 +231,7 @@ function Claim-Nonce([string]$Nonce, [long]$Timestamp) {
     }
 }
 
-function Invoke-FixedGuestProbe {
+function Invoke-FixedGuestProbe($CandidateProxy = $null) {
     $answer = @{ source_ip = $null; egress_ip = $null }
     $process = $null
     $started = $false
@@ -162,6 +243,13 @@ function Invoke-FixedGuestProbe {
         $start.FileName = Join-Path ([Environment]::SystemDirectory) 'curl.exe'
         # -q MUST be first: no curlrc. No proxy or network-supplied arguments.
         $start.Arguments = '-q -4 --noproxy "*" --proxy "" --interface 10.10.10.50 -fsS --max-time 4 --connect-timeout 3 --max-filesize 128 --proto "=https" https://api.ipify.org'
+        if ($null -ne $CandidateProxy) {
+            # Revalidate locally enrolled numeric values before constructing
+            # argv. No URL, credentials or proxy setting is accepted on wire.
+            $enrolled = ConvertTo-CandidateProxy $CandidateProxy $Config.agent_id
+            $endpoint = $enrolled.proxy_host + ':' + [string]$enrolled.proxy_port
+            $start.Arguments = '-q -4 --noproxy "" --socks5-hostname ' + $endpoint + ' --interface 10.10.10.50 -fsS --max-time 4 --connect-timeout 3 --max-filesize 128 --proto "=https" https://api.ipify.org'
+        }
         $start.UseShellExecute = $false; $start.CreateNoWindow = $true
         $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
         foreach ($name in @('HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy', 'CURL_CA_BUNDLE', 'SSL_CERT_FILE', 'SSL_CERT_DIR')) { [void]$start.EnvironmentVariables.Remove($name) }
@@ -260,23 +348,35 @@ try {
             $now = Get-UnixTime; $stamp = [long]$timestamp
             if ($now - $stamp -gt 30 -or $stamp - $now -gt 5 -or -not (Test-FixedEqual (Get-Signature $Key 'POST' $timestamp $nonce $body) $signature)) { throw 'request_auth' }
             $data = $Utf8.GetString($body) | ConvertFrom-Json
-            Assert-Fields $data @('op', 'scope', 'target')
+            $isCandidate = $data.op -ceq 'candidate_probe'
+            if ($isCandidate) { Assert-Fields $data @('candidate', 'op', 'scope', 'target') }
+            else { Assert-Fields $data @('op', 'scope', 'target') }
             Assert-Fields $data.scope @('agent_id', 'incident_id', 'generation', 'revision', 'config_hash', 'jobs_hash')
             Assert-Fields $data.target @('host', 'port', 'provider_id')
             $s = $data.scope; $t = $data.target
-            if ($data.op -cne 'probe' -or $s.agent_id -cne $Config.agent_id -or $s.incident_id -isnot [string] -or $s.incident_id -cnotmatch '\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z' -or -not (Test-Integer $s.generation 9007199254740991) -or -not (Test-Integer $s.revision 9007199254740991) -or $s.config_hash -isnot [string] -or $s.config_hash -cnotmatch '\A[0-9a-f]{64}\z' -or $s.jobs_hash -isnot [string] -or $s.jobs_hash -cnotmatch '\A[0-9a-f]{64}\z') { throw 'request_scope' }
+            if ($data.op -cnotin @('probe', 'candidate_probe') -or $s.agent_id -cne $Config.agent_id -or $s.incident_id -isnot [string] -or $s.incident_id -cnotmatch '\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z' -or -not (Test-Integer $s.generation 9007199254740991) -or -not (Test-Integer $s.revision 9007199254740991) -or $s.config_hash -isnot [string] -or $s.config_hash -cnotmatch '\A[0-9a-f]{64}\z' -or $s.jobs_hash -isnot [string] -or $s.jobs_hash -cnotmatch '\A[0-9a-f]{64}\z') { throw 'request_scope' }
             if (-not (Test-PublicIPv4 $t.host) -or -not (Test-Integer $t.port 65535) -or $t.port -notin @(22, 443) -or $t.provider_id -isnot [string] -or $t.provider_id -cnotmatch '\A[1-9][0-9]{0,19}\z') { throw 'request_target' }
             $scope = [ordered]@{ agent_id = $s.agent_id; config_hash = $s.config_hash; generation = [long]$s.generation; incident_id = $s.incident_id; jobs_hash = $s.jobs_hash; revision = [long]$s.revision }
             $target = [ordered]@{ host = $t.host; port = [int]$t.port; provider_id = $t.provider_id }
-            $canonicalBody = [ordered]@{ op = 'probe'; scope = $scope; target = $target } | ConvertTo-Json -Depth 6 -Compress
+            $candidate = $null; $proxy = $null
+            if ($isCandidate) {
+                $proxy = Read-CandidateProxy $Config.agent_id
+                $candidate = ConvertTo-CandidateRequest $data.candidate $scope $target $proxy
+                $canonicalBody = [ordered]@{ candidate = $candidate; op = 'candidate_probe'; scope = $scope; target = $target } | ConvertTo-Json -Depth 8 -Compress
+            } else { $canonicalBody = [ordered]@{ op = 'probe'; scope = $scope; target = $target } | ConvertTo-Json -Depth 6 -Compress }
             # Reject duplicate keys, hidden fields or ambiguous/noncanonical JSON.
             if ($Utf8.GetString($body) -cne $canonicalBody) { throw 'request_canonical_json' }
             Claim-Nonce $nonce $stamp
-            $observation = Invoke-FixedGuestProbe
-            $good = $observation.source_ip -ceq '10.10.10.50' -and $observation.egress_ip -ceq $t.host
-            $reply = [ordered]@{ schema = 'servernet.relay.vm-probe.v1'; op = 'probe'; request_nonce = $nonce; scope = $scope; target = $target; observed_at = (Get-UnixTime); read_only = $true; execution_origin = 'guest'; source_ip = $observation.source_ip; egress_ip = $observation.egress_ip; tunnel_ok = [bool]$good; probe_ok = [bool]$good; ok = [bool]$good }
-            if ($AccessPolicy -ceq 'source_ip_hmac_v1') { $reply['access_policy'] = $AccessPolicy }
-            $raw = $Utf8.GetBytes(($reply | ConvertTo-Json -Depth 6 -Compress))
+            if ($isCandidate) {
+                $observation = Invoke-FixedGuestProbe -CandidateProxy $proxy
+                $reply = New-CandidateReply $candidate $scope $target $nonce $observation $AccessPolicy
+            } else {
+                $observation = Invoke-FixedGuestProbe
+                $good = $observation.source_ip -ceq '10.10.10.50' -and $observation.egress_ip -ceq $t.host
+                $reply = [ordered]@{ schema = 'servernet.relay.vm-probe.v1'; op = 'probe'; request_nonce = $nonce; scope = $scope; target = $target; observed_at = (Get-UnixTime); read_only = $true; execution_origin = 'guest'; source_ip = $observation.source_ip; egress_ip = $observation.egress_ip; tunnel_ok = [bool]$good; probe_ok = [bool]$good; ok = [bool]$good }
+                if ($AccessPolicy -ceq 'source_ip_hmac_v1') { $reply['access_policy'] = $AccessPolicy }
+            }
+            $raw = $Utf8.GetBytes(($reply | ConvertTo-Json -Depth 8 -Compress))
             $responseTimestamp = [string](Get-UnixTime); $responseNonce = New-Nonce
             $headers = @{ 'X-VM-Timestamp' = $responseTimestamp; 'X-VM-Nonce' = $responseNonce; 'X-VM-Signature' = (Get-Signature $Key 'RESPONSE' $responseTimestamp $responseNonce $raw) }
             Send-Json $context.Response 200 $raw $headers

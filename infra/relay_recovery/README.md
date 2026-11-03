@@ -35,6 +35,7 @@ to true does not complete this installation.
 | `restore_workflow.py` | Preparation through `PRE_CUTOVER_READY`; global cutover is separate |
 | `iran_stage.py`, `ct_stage.py` | Isolated CT113 trial tunnel and reviewed endpoint transactions |
 | `windows_probe*.py`, `windows_probe.ps1` | Authenticated read-only guest egress proof without QGA |
+| `windows_candidate_probe_client.py` | Explicit, default-off native candidate guest envelope; separate fixed proxy enrollment and live transport required |
 | `maintenance.py` | Bounded pruning of acknowledged, obsolete control history |
 
 Importing modules performs no provider or application operation. All credentials
@@ -105,11 +106,14 @@ a raw guest HMAC response using `servernet.relay.vm-candidate-probe.v1`. Signed
 scope binds the exact candidate identity, generation, stage profile, restore
 epoch and proxy binding. Default-path guest responses and `staged: true` alone
 cannot satisfy it; isolated evidence never proves default-path or global cutover.
-The verifier is caller-injected and remains unenrolled in the CLI. The current
-Windows runtime runs a fixed default-path curl and cannot produce this candidate
-proof. Missing native candidate probing, registry ownership, publisher coordination
-or production hooks therefore keeps the workflow on HOLD; no core profile gate
-is enabled by this contract.
+The verifier is caller-injected and remains unenrolled in the CLI. The native
+Windows runtime additionally supports an explicitly enrolled fixed candidate
+SOCKS path, disabled by default. Its separate client returns only the signed
+guest envelope; no proxy transport or production enrollment is supplied.
+[The candidate contract and validation limits](windows_candidate_probe.md)
+describe its boundary. Missing actual transport, native/live acceptance,
+registry ownership, publisher coordination or production hooks keeps the
+workflow on HOLD; no core profile gate is enabled by this contract.
 
 The combined offline checkpoint passed 641 tests, including 11 private census
 tests excluded from this branch; 91 focused cases cover these generic changes.
