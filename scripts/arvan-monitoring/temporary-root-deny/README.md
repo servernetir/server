@@ -1,0 +1,20 @@
+# Temporary Apache denial for the private Arvan release primary
+
+This separate operator tool adds one fixed, temporary `RewriteRule ... [F,L]` block immediately after a unique `RewriteEngine On` in the existing document-root `.htaccess`. It prevents the application's front-controller fallback from obscuring HTTP denial of the private release directory. The reviewed V3 source/FPM package is unchanged. Recording this tool in Git does not install it or establish live denial.
+
+The helper deliberately targets only its fixed account, native PHP 8.4, application directory and private V3 stage. Stage it privately with mode0600 beside the exact `web-release/deploy.php` it pins. Do not loosen its ownership, path or runtime guards. Its only public-file change is the fixed three-line denial block; private backups, plan, attempt and receipt files use a separate `temp-deny-*` namespace. It never bootstraps the application or calls databases, providers, FPM, cache or scheduler operations.
+
+Review and reserve the root `.htaccess` against parallel deployment before using the four explicit modes:
+
+1. `--inspect` reports current hashes/metadata without changing files.
+2. `--plan <reviewed-before-sha256>` creates private before/candidate snapshots and a plan containing the current source identity and metadata. Review the exact hunk, candidate and newly returned plan SHA.
+3. `--apply <reviewed-temp-deny-plan-sha256>` installs once, preserving the original mode/owner/group. The shared V3 mutex and fresh hash/inode/metadata checks reject observed drift. The advisory mutex requires cooperating writers across the final check/rename window.
+4. `--cleanup <fresh-reviewed-current-root-sha256>` requires the primary directory to be absent and removes only the exact uniquely owned block, preserving unrelated later edits. Never restore the complete old root file over newer changes.
+
+Any attempt or receipt already present prevents automatic apply retry. A success-receipt error after installation leaves denial installed and reports reconciliation; it does not remove protection or overwrite a foreign receipt. Keep all private evidence and inspect after interruption. Cleanup also refuses an existing primary or symlink, altered/ambiguous markers and changed metadata. Root-file permissions are preserved; private0600 files must not replace the public root with0600 mode.
+
+Before any FastCGI connection, independently require external GET and POST403 for the exact primary, directory and nonexistent child URLs. A known canonical redirect may be recorded as redirect-to-denied only after verifying its exact HTTPS destination and issuing both GET and POST there; do not let a301 silently turn the POST test into GET. Branded404, PHP guard output or failed requests are insufficient. Check ordinary page/health behavior for regressions. Keep the root rule through activation and acceptance; remove the verified primary, its denial file and empty directory before exact-block cleanup.
+
+The frozen helper SHA256 is `c84aa373b9b28dff921026b4d62acf4d22cdbd966e7b7c75a19745f9a75cbbbd`; the fixture test is `f50317f00e9c6107855f34c4ccc0c8a6a501b39fcf4d04601724f4036eb1854d`. Lint and70 assertions across24 disposable fixtures passed independently. These cover exact insertion/LF/CRLF, source/inode/mode/symlink drift, same-inode metadata changes, lock loss, receipt failures, foreign receipt preservation, cleanup ownership and preservation of outside edits. They are not production acceptance.
+
+The focused workflow copies only these two files plus the pinned V3 library into a private disposable fixture layout, then runs the synthetic test under PHP8.4 in a network namespace. The tests rewrite only copied fixture paths/account/runtime guards and never execute the unmodified production entrypoint. To reproduce, follow the fixture-copy and PHP commands in `.github/workflows/arvan-temp-root-deny.yml`; no Composer/bootstrap or real socket is required. No live plan, ledger or customer data belongs in this directory.
