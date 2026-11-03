@@ -1,0 +1,106 @@
+{
+  "source": "GA4 via Windsor.ai",
+  "property": "300424142",
+  "start": "2026-08-01",
+  "end": "2026-10-31",
+  "ctr_unit": "fraction",
+  "events": [
+    {
+      "event_name": "page_view",
+      "event_count": 37771
+    },
+    {
+      "event_name": "user_engagement",
+      "event_count": 18724
+    },
+    {
+      "event_name": "scroll",
+      "event_count": 3058
+    },
+    {
+      "event_name": "session_start",
+      "event_count": 17284
+    },
+    {
+      "event_name": "first_visit",
+      "event_count": 15213
+    },
+    {
+      "event_name": "file_download",
+      "event_count": 6
+    },
+    {
+      "event_name": "click",
+      "event_count": 120
+    },
+    {
+      "event_name": "form_start",
+      "event_count": 5640
+    },
+    {
+      "event_name": "form_submit",
+      "event_count": 5065
+    },
+    {
+      "event_name": "purchase",
+      "event_count": 275
+    },
+    {
+      "event_name": "view_search_results",
+      "event_count": 34
+    },
+    {
+      "event_name": "view_item",
+      "event_count": 2802
+    },
+    {
+      "event_name": "view_cart",
+      "event_count": 606
+    },
+    {
+      "event_name": "add_payment_info",
+      "event_count": 329
+    },
+    {
+      "event_name": "payment_attempt",
+      "event_count": 257
+    },
+    {
+      "event_name": "configure_product",
+      "event_count": 109
+    },
+    {
+      "event_name": "sign_up",
+      "event_count": 268
+    },
+    {
+      "event_name": "checkout_progress",
+      "event_count": 32
+    },
+    {
+      "event_name": "domain_search",
+      "event_count": 99
+    },
+    {
+      "event_name": "add_to_cart",
+      "event_count": 19
+    },
+    {
+      "event_name": "begin_checkout",
+      "event_count": 28
+    },
+    {
+      "event_name": "login",
+      "event_count": 178
+    },
+    {
+      "event_name": "use_tool",
+      "event_count": 205
+    },
+    {
+      "event_name": "copy_ip",
+      "event_count": 27
+    }
+  ],
+  "note": "Event counts are not verified settled orders. Revenue returned zero."
+}

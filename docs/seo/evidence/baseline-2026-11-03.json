@@ -1,0 +1,308 @@
+{
+  "source": "Windsor.ai / Google Search Console",
+  "property": "sc-domain:servernet.cloud",
+  "retrieved": "2026-11-03",
+  "current": {
+    "start": "2026-08-01",
+    "end": "2026-10-31",
+    "clicks": 3414,
+    "impressions": 99313,
+    "ctr": 0.034376164248386416,
+    "position": 31.496550009565713
+  },
+  "previous": {
+    "start": "2026-05-01",
+    "end": "2026-07-31",
+    "clicks": 84,
+    "impressions": 5945,
+    "ctr": 0.014129520605550883,
+    "position": 22.419005214465937
+  },
+  "available_from": "2026-02-12",
+  "rows": 262,
+  "queryPageRows": 6523,
+  "queryPageTotals": {
+    "clicks": 1636,
+    "impressions": 64721,
+    "ctr": 0.025277730566585808,
+    "position": 42.955424040110614
+  },
+  "devices": [
+    {
+      "device": "DESKTOP",
+      "clicks": 1856,
+      "impressions": 67557,
+      "ctr": 0.0275,
+      "position": 32.4167
+    },
+    {
+      "device": "MOBILE",
+      "clicks": 1540,
+      "impressions": 31443,
+      "ctr": 0.049,
+      "position": 29.728
+    },
+    {
+      "device": "TABLET",
+      "clicks": 18,
+      "impressions": 313,
+      "ctr": 0.0575,
+      "position": 10.5559
+    }
+  ],
+  "countries": [
+    {
+      "country": "Iran",
+      "clicks": 2629,
+      "impressions": 54430,
+      "ctr": 0.0483,
+      "position": 39.7923
+    },
+    {
+      "country": "Türkiye",
+      "clicks": 181,
+      "impressions": 10782,
+      "ctr": 0.0168,
+      "position": 20.0899
+    },
+    {
+      "country": "Germany",
+      "clicks": 73,
+      "impressions": 2128,
+      "ctr": 0.0343,
+      "position": 30.4633
+    },
+    {
+      "country": "United States",
+      "clicks": 60,
+      "impressions": 9015,
+      "ctr": 0.0067,
+      "position": 29.7615
+    },
+    {
+      "country": "India",
+      "clicks": 38,
+      "impressions": 2647,
+      "ctr": 0.0144,
+      "position": 21.8606
+    },
+    {
+      "country": "Netherlands",
+      "clicks": 35,
+      "impressions": 1198,
+      "ctr": 0.0292,
+      "position": 22.4182
+    },
+    {
+      "country": "United Kingdom",
+      "clicks": 29,
+      "impressions": 2563,
+      "ctr": 0.0113,
+      "position": 27.9212
+    },
+    {
+      "country": "France",
+      "clicks": 27,
+      "impressions": 567,
+      "ctr": 0.0476,
+      "position": 20.1323
+    },
+    {
+      "country": "Russia",
+      "clicks": 26,
+      "impressions": 638,
+      "ctr": 0.0408,
+      "position": 18.7806
+    },
+    {
+      "country": "Bangladesh",
+      "clicks": 17,
+      "impressions": 532,
+      "ctr": 0.032,
+      "position": 20.5432
+    }
+  ],
+  "appearance": [
+    {
+      "search_appearance": "TRANSLATED_RESULT",
+      "clicks": 0,
+      "impressions": 21,
+      "ctr": 0,
+      "position": 6.5714
+    },
+    {
+      "search_appearance": "PRODUCT_SNIPPETS",
+      "clicks": 243,
+      "impressions": 4627,
+      "ctr": 0.0525,
+      "position": 14.0415
+    }
+  ],
+  "monthly": [
+    {
+      "month": "2026-02",
+      "clicks": 5,
+      "impressions": 638,
+      "ctr": 0.007836990595611285,
+      "position": 7.951407836990596
+    },
+    {
+      "month": "2026-03",
+      "clicks": 20,
+      "impressions": 1431,
+      "ctr": 0.013976240391334731,
+      "position": 7.276024598183089
+    },
+    {
+      "month": "2026-04",
+      "clicks": 8,
+      "impressions": 1229,
+      "ctr": 0.006509357200976403,
+      "position": 7.795778519121237
+    },
+    {
+      "month": "2026-05",
+      "clicks": 18,
+      "impressions": 938,
+      "ctr": 0.019189765458422176,
+      "position": 10.318761727078892
+    },
+    {
+      "month": "2026-06",
+      "clicks": 20,
+      "impressions": 1509,
+      "ctr": 0.013253810470510271,
+      "position": 11.766076408217364
+    },
+    {
+      "month": "2026-07",
+      "clicks": 46,
+      "impressions": 3498,
+      "ctr": 0.013150371640937679,
+      "position": 30.25928479130932
+    },
+    {
+      "month": "2026-08",
+      "clicks": 326,
+      "impressions": 17883,
+      "ctr": 0.018229603534082647,
+      "position": 41.786776569926744
+    },
+    {
+      "month": "2026-09",
+      "clicks": 1294,
+      "impressions": 34344,
+      "ctr": 0.03767761472163988,
+      "position": 29.23357957430701
+    },
+    {
+      "month": "2026-10",
+      "clicks": 1794,
+      "impressions": 47086,
+      "ctr": 0.03810049696300387,
+      "position": 29.238964634923324
+    }
+  ],
+  "ga4Monthly": [
+    {
+      "year_month": "202511",
+      "sessions": 178,
+      "engaged_sessions": 178,
+      "conversions": 387,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202512",
+      "sessions": 197,
+      "engaged_sessions": 192,
+      "conversions": 426,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202601",
+      "sessions": 72,
+      "engaged_sessions": 71,
+      "conversions": 161,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202602",
+      "sessions": 136,
+      "engaged_sessions": 129,
+      "conversions": 298,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202603",
+      "sessions": 41,
+      "engaged_sessions": 40,
+      "conversions": 87,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202604",
+      "sessions": 84,
+      "engaged_sessions": 84,
+      "conversions": 177,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202605",
+      "sessions": 39,
+      "engaged_sessions": 39,
+      "conversions": 85,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202606",
+      "sessions": 111,
+      "engaged_sessions": 106,
+      "conversions": 294,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202607",
+      "sessions": 70,
+      "engaged_sessions": 68,
+      "conversions": 157,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202608",
+      "sessions": 25,
+      "engaged_sessions": 25,
+      "conversions": 68,
+      "ecommerce_purchases": 0,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202609",
+      "sessions": 434,
+      "engaged_sessions": 326,
+      "conversions": 668,
+      "ecommerce_purchases": 23,
+      "purchase_revenue": 0
+    },
+    {
+      "year_month": "202610",
+      "sessions": 17570,
+      "engaged_sessions": 2873,
+      "conversions": 255,
+      "ecommerce_purchases": 252,
+      "purchase_revenue": 0
+    }
+  ],
+  "appearance_window": [
+    "2026-08-03",
+    "2026-10-31"
+  ]
+}
