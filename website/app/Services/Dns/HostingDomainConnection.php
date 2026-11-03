@@ -56,12 +56,17 @@ class HostingDomainConnection
             if (count(array_unique([$ns->rcode, $a->rcode, $other->rcode])) > 1) {
                 continue; // Contradictory NXDOMAIN/no-error evidence is not a valid sample.
             }
-            $observed = array_column($ns->records('answer', 'NS', $domain), 'data');
+            $observed = array_values(array_unique(array_map(
+                fn ($value) => strtolower(rtrim((string) $value, '.')),
+                array_column($ns->records('answer', 'NS', $domain), 'data'),
+            )));
             $addresses = array_column($a->records('answer', $addressType, $domain), 'data');
             // CNAME and proxy configurations need separate verification; never guess green.
             $direct = ! $other->records('answer', $otherType, $domain) && count($addresses) > 0 && count(array_filter($addresses, fn ($v) => @inet_pton($v) === @inet_pton($ip))) === count($addresses);
             $nsMatch = count($observed) === count($expected) && ! array_diff($expected, $observed);
-            $samples[] = ['state' => $direct ? 'connected' : ($nsMatch ? 'propagating' : 'needs_setup'), 'ns' => $observed];
+            // IP-only pointing through another DNS provider is not confirmation
+            // that the assigned hosting nameservers have been configured.
+            $samples[] = ['state' => $direct && $nsMatch ? 'connected' : ($nsMatch ? 'propagating' : 'needs_setup'), 'ns' => $observed];
         }
         if (count($samples) !== 2) {
             return $this->result('unknown');
@@ -76,3 +81,4 @@ class HostingDomainConnection
         return ['state' => $state, 'observed_ns' => $observed, 'checked_at' => gmdate('c')];
     }
 }
+
