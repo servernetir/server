@@ -171,7 +171,7 @@
         @if($snapppay['show'])
           <label class="pm-card" data-m="snapppay">
             <input type="radio" name="pm" value="snapppay" hidden>
-            <span class="pm-badge sp"><img src="{{ asset('assets/img/snapppay.svg') }}" alt="Snapp! Pay" width="28" height="28"></span>
+            <span class="pm-badge sp"><img src="{{ asset('assets/img/snapppay.svg').'?v=1cff8dbe9b68' }}" alt="اسنپ‌پی" width="40" height="40"></span>
             <span class="pm-tt"><b>{{ $snapppay['title'] }}</b><small>{{ $snapppay['description'] }}</small></span>
             <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
           </label>
@@ -503,8 +503,8 @@
 .pm-badge.bk{ background:linear-gradient(135deg,#38bdf8,#2563eb); }
 /* اسنپ‌پی لوگوی خودش را دارد و گایدلاین رنگش را تعیین می‌کند — پس پس‌زمینهٔ
    گرادیانی مثل بقیه نمی‌گیرد، وگرنه لوگو روی رنگِ ما می‌نشیند. */
-.pm-badge.sp{ background:#fff; border:1px solid var(--bd,#e5e7eb); }
-.pm-badge.sp img{ width:28px; height:28px; display:block; }
+.pm-badge.sp{ width:48px; height:48px; background:#fff; border:1px solid var(--bd,#e5e7eb); }
+.pm-badge.sp img{ width:40px; height:40px; display:block; object-fit:contain; }
 .pm-badge.cr{ background:linear-gradient(135deg,#94a3b8,#64748b); }
 .pm-badge.cy{ background:linear-gradient(135deg,#26a17b,#1a7f5e); }   /* تتر */
 .pm-tt{ display:flex; flex-direction:column; gap:2px; min-width:0; }
