@@ -385,8 +385,6 @@ class ProvisioningService
      */
     private function resumeColumns(Service $service): array
     {
-        // Preserve hold changes made by the provider's power gate before merging lifecycle metadata.
-        $service->refresh();
         $meta = (array) $service->provision_meta;
         unset($meta['billing_suspend'], $meta['billing_resume'], $meta['manual_action'], $meta['staff_suspend']);
 

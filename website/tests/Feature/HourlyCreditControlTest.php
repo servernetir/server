@@ -34,6 +34,8 @@ class HourlyCreditControlTest extends TestCase
         parent::setUp();
         Http::fake();
         Setting::put('pricing_rate_override', '120000');
+        \Tests\Support\NavasanRates::store(['USD' => 120000, 'EUR' => 120000, 'USDT' => 120000]);
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([120000, 120000, 120000]);
     }
 
     private function customer(string $locale = 'fa'): Customer

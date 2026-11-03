@@ -1,259 +1,487 @@
 /* ============================================================================
-   DNSِ مدیریت‌شدهٔ سرورنت — پنلِ مشتری
+   DNSِ مدیریت‌شدهٔ سرورنت — پنلِ مشتری (نسخهٔ ۲ — بازطراحی آبان ۱۴۰۵)
    ----------------------------------------------------------------------------
-   فقط روی پنلِ مشتری بار می‌شود (site.css + panel.css)، پس توکن‌ها همان
-   نام‌های آن دو شیت‌اند: --surface-2، --line-2، --ok، --warn، --danger، --info.
+   زبانِ بصری همان «فضای کاری»ِ صفحاتِ هوش مصنوعی و API است (هیرو، کارتِ آمار،
+   کارتِ سربرگ‌دار، نشانِ گرد) ولی این شیت **خودکفاست** و account-api.css را
+   لود نمی‌کند: CssVariablesDefinedTest این فایل را مستقل می‌سنجد، پس هر
+   متغیری که این‌جا خوانده می‌شود یا در site.css/panel.css است یا همین‌جا
+   تعریف می‌شود (--dx-*).
 
-   🔴 هیچ رنگِ سخت‌کدی، نه حتی به‌عنوانِ fallbackِ var(): `CssVariablesDefinedTest`
-   قفلش کرده. رنگ مالِ تم است؛ این شیت فقط چیدمان و نقش را تعیین می‌کند.
+   🔴 هیچ رنگِ سخت‌کدی، نه حتی به‌عنوانِ fallbackِ var(). رنگ مالِ تم است.
+   🔴 هر عنصری که `display:` صریح دارد و با `hidden` خاموش می‌شود، باید زیرِ
+      قاعدهٔ `.dns [hidden]` بماند — وگرنه `hidden` بی‌اثر است (CLAUDE.md §hidden).
    ========================================================================== */
 
-.dns { display: grid; gap: 18px; }
+.dns {
+  --dx: var(--ok);
+  --dx-2: var(--info);
+  --dx-soft: color-mix(in srgb, var(--dx) 9%, transparent);
+  --dx-line: color-mix(in srgb, var(--dx) 26%, var(--line-2));
+  --dx-glow: color-mix(in srgb, var(--dx) 18%, transparent);
+  --dx-r: 18px;
+  --dx-on: var(--bg);
+  display: grid; gap: 22px; min-width: 0; color: var(--text);
+}
+.dns *, .dns *::before, .dns *::after { box-sizing: border-box; }
+.dns :is(h1, h2, h3, h4, p, ol, ul, dl) { margin: 0; }
+.dns [hidden] { display: none !important; }
+.dns :is(a, button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--dx); outline-offset: 3px; }
+.dns :is(button, input, select, textarea) { font: inherit; }
+.dns .icon { flex: none; }
 
-/* رنگِ معنایی به‌صورتِ کلاس، نه استایلِ درون‌خطی در Blade */
 .dns-t-ok   { color: var(--ok); }
 .dns-t-warn { color: var(--warn); }
 .dns-t-bad  { color: var(--danger); }
 .dns-t-dim  { color: var(--muted); }
-
+.dns-small  { font-size: 12px; line-height: 1.95; }
 .dns-ltr { direction: ltr; unicode-bidi: isolate; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── ورودِ نرمِ بخش‌ها ──────────────────────────────────────────────────── */
+
+@keyframes dns-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes dns-drop { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@keyframes dns-spin { to { transform: rotate(360deg); } }
+@keyframes dns-pulse { 0% { box-shadow: 0 0 0 0 var(--dx-glow); } 70% { box-shadow: 0 0 0 9px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes dns-ring { from { transform: scale(.55); opacity: .7; } to { transform: scale(1.35); opacity: 0; } }
+@keyframes dns-flash { from { background: var(--dx-soft); } to { background: transparent; } }
+@keyframes dns-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes dns-fill { from { width: 0; } }
+
+.dns > * { animation: dns-rise .5s var(--ease) both; }
+.dns > *:nth-child(2) { animation-delay: .05s; }
+.dns > *:nth-child(3) { animation-delay: .1s; }
+.dns > *:nth-child(4) { animation-delay: .15s; }
+.dns > *:nth-child(5) { animation-delay: .2s; }
+.dns > *:nth-child(n+6) { animation-delay: .25s; }
+
+/* ── بازگشت ──────────────────────────────────────────────────────────────── */
+
+.dns-back { display: inline-flex; align-items: center; gap: 7px; width: fit-content; font-size: 12.5px; color: var(--muted);
+  text-decoration: none; padding: 6px 12px 6px 14px; border: 1px solid var(--line); border-radius: 99px; transition: color .2s, border-color .2s, transform .2s var(--ease); }
+.dns-back:hover { color: var(--dx); border-color: var(--dx-line); transform: translateX(3px); }
+[dir='ltr'] .dns-back:hover { transform: translateX(-3px); }
+.dns-back .icon { width: 14px; height: 14px; }
+[dir='ltr'] .dns-back .icon { transform: scaleX(-1); }
+
+/* ── هیرو ───────────────────────────────────────────────────────────────── */
+
+.dns-hero { position: relative; isolation: isolate; display: flex; align-items: center; justify-content: space-between; gap: 28px;
+  padding: 32px; border: 1px solid var(--dx-line); border-radius: 24px; overflow: hidden;
+  background: radial-gradient(ellipse at 100% 0%, var(--dx-soft), transparent 65%), radial-gradient(ellipse at 0% 100%, color-mix(in srgb, var(--dx-2) 7%, transparent), transparent 60%), var(--surface); }
+.dns-hero::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: linear-gradient(var(--dx), transparent); }
+.dns-hero > div:first-child { position: relative; z-index: 1; min-width: 0; flex: 1; }
+.dns-eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--dx); font-size: 11.5px; font-weight: 700; letter-spacing: .04em; margin-block-end: 10px !important; }
+.dns-eyebrow .icon { width: 15px; height: 15px; }
+.dns-hero h1 { font: 700 clamp(22px, 2.6vw, 30px)/1.5 var(--font-disp); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.dns-hero h1.dns-ltr { font-family: inherit; }
+[dir='rtl'] :is(.dns-hero h1.dns-ltr, .dns-lead.dns-ltr) { text-align: right; }
+.dns-lead { font-size: 13px; line-height: 2; color: var(--muted); max-width: 64ch; margin-block-start: 8px !important; }
+.dns-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 12px; }
+
+/* نشانِ متحرک: کرهٔ زمین با مدارِ چرخان و موجِ رادار */
+.dns-orb { position: relative; flex: none; width: 112px; height: 112px; display: grid; place-items: center; z-index: 1; }
+.dns-orb::before, .dns-orb::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--dx-line); animation: dns-ring 3.2s ease-out infinite; }
+.dns-orb::after { animation-delay: 1.6s; }
+.dns-orb-core { position: relative; width: 74px; height: 74px; display: grid; place-items: center; border-radius: 24px; color: var(--dx);
+  border: 1px solid var(--dx-line); background: linear-gradient(145deg, var(--dx-soft), transparent); box-shadow: 0 10px 34px var(--dx-glow); }
+.dns-orb-core .icon { width: 34px; height: 34px; }
+.dns-orb-track { position: absolute; inset: 6px; border-radius: 50%; border: 1px dashed var(--dx-line); animation: dns-spin 18s linear infinite; }
+.dns-orb-track::before, .dns-orb-track::after { content: ''; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--dx); top: -4px; left: calc(50% - 4px); box-shadow: 0 0 10px var(--dx); }
+.dns-orb-track::after { background: var(--dx-2); box-shadow: 0 0 10px var(--dx-2); top: auto; bottom: -4px; }
+
+/* افزودنِ دامنه داخلِ هیرو */
+.dns-add { display: flex; align-items: stretch; gap: 10px; margin-block-start: 22px; max-width: 560px; }
+.dns-add-field { position: relative; flex: 1; min-width: 0; }
+.dns-add-field > .icon { position: absolute; left: 14px; top: 50%; translate: 0 -50%; width: 17px; height: 17px; color: var(--muted); pointer-events: none; transition: color .2s; }
+.dns-add-field:focus-within > .icon { color: var(--dx); }
+/* دامنه همیشه چپ‌به‌راست تایپ می‌شود، پس آیکون و فاصله فیزیکی‌اند نه منطقی */
+.dns-add-field input { width: 100%; min-height: 50px; padding: 12px 14px 12px 44px; font-size: 15px; border-radius: 14px; }
+.dns-add .pnl-btn { min-height: 50px; padding-inline: 22px; border-radius: 14px; font-size: 13.5px; }
+.dns-hint { display: block; font-size: 11.5px; line-height: 1.95; color: var(--muted); margin-block-start: 10px; max-width: 64ch; }
+
+/* ── دکمه‌ها (روی دکمه‌های پنل، فقط حرکت و رنگِ این بخش) ──────────────── */
+
+.dns .pnl-btn { min-height: 40px; justify-content: center; text-decoration: none; transition: border-color .2s, color .2s, background .2s, transform .2s var(--ease), box-shadow .2s; }
+.dns .pnl-btn:active { transform: scale(.97); }
+.dns .pnl-btn.primary { background: linear-gradient(110deg, var(--dx), var(--dx-2)); color: var(--dx-on); font-weight: 700; box-shadow: 0 6px 20px var(--dx-glow); }
+.dns .pnl-btn.primary:hover { color: var(--dx-on); transform: translateY(-1px); box-shadow: 0 10px 26px var(--dx-glow); }
+.dns .pnl-btn.danger { color: var(--danger); border-color: var(--danger-line); }
+.dns .pnl-btn.danger:hover { background: var(--danger-bg); }
+.dns .pnl-btn[disabled] { opacity: .5; pointer-events: none; }
+.dns-actions-bar { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ── آمار ───────────────────────────────────────────────────────────────── */
+
+.dns-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.dns-stat { position: relative; min-width: 0; padding: 20px; border: 1px solid var(--line-2); border-radius: var(--dx-r); background: var(--surface);
+  display: flex; flex-direction: column; gap: 6px; overflow: hidden; transition: border-color .25s, transform .25s var(--ease); }
+.dns-stat:hover { border-color: var(--dx-line); transform: translateY(-2px); }
+.dns-stat.is-accent { border-color: var(--dx-line); background: linear-gradient(145deg, var(--dx-soft), transparent), var(--surface); }
+.dns-stat-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: var(--dx); background: var(--dx-soft); margin-block-end: 4px; }
+.dns-stat-ic .icon { width: 16px; height: 16px; }
+.dns-stat span { font-size: 12px; color: var(--muted); }
+.dns-stat b { font-size: clamp(22px, 2.2vw, 28px); font-weight: 750; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.dns-stat.is-accent b { color: var(--dx); }
+
+/* ── کارت ───────────────────────────────────────────────────────────────── */
+
+.dns-card { min-width: 0; border: 1px solid var(--line-2); border-radius: 20px; background: var(--surface); }
+.dns-card-h { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+.dns-card-t { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.dns-card-t h2 { font-size: 15px; font-weight: 700; line-height: 1.8; }
+.dns-card-t p { font-size: 11.5px; color: var(--muted); line-height: 1.8; }
+.dns-card-ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; color: var(--dx); background: var(--dx-soft); flex: none; }
+.dns-card-ic .icon { width: 17px; height: 17px; }
+.dns-card-b { padding: 22px; min-width: 0; }
+.dns-card-b > * + * { margin-block-start: 16px; }
+.dns-count { display: inline-grid; place-items: center; min-width: 26px; height: 24px; padding: 0 8px; border-radius: 99px; font-size: 11.5px; font-weight: 700; color: var(--muted); background: var(--surface-2); font-variant-numeric: tabular-nums; }
+.dns-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.dns-grid > * { min-width: 0; }
 
 /* ── پیام‌ها ────────────────────────────────────────────────────────────── */
 
-.dns-note { padding: 12px 16px; border-radius: var(--r-sm, 10px); font-size: 13.5px; line-height: 1.9;
-  border: 1px solid var(--info-line); background: var(--info-bg); }
+.dns-note { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 14px; font-size: 13px; line-height: 1.95;
+  border: 1px solid var(--info-line); background: var(--info-bg); color: var(--text); }
+.dns-note::before { content: ''; flex: none; width: 8px; height: 8px; margin-block-start: 9px; border-radius: 50%; background: var(--info); }
 .dns-note.ok     { border-color: var(--ok-line);     background: var(--ok-bg); }
+.dns-note.ok::before { background: var(--ok); }
 .dns-note.warn   { border-color: var(--warn-line);   background: var(--warn-bg); }
+.dns-note.warn::before { background: var(--warn); }
 .dns-note.danger { border-color: var(--danger-line); background: var(--danger-bg); }
+.dns-note.danger::before { background: var(--danger); }
 .dns-note b { font-weight: 700; }
-.dns-note ul { margin: 6px 0 0; padding-inline-start: 18px; }
+.dns-note[role='status'], .dns-note[role='alert'] { animation: dns-drop .35s var(--ease) both; }
 
 /* ── نشانِ وضعیت ───────────────────────────────────────────────────────── */
 
-.dns-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
-  padding: 4px 11px; border-radius: 99px; border: 1px solid var(--line-2); white-space: nowrap; }
+.dns-pill { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; line-height: 1.7;
+  padding: 4px 11px; border-radius: 99px; border: 1px solid var(--line-2); white-space: nowrap; color: var(--muted); background: var(--surface-2); }
 .dns-pill::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .dns-pill.on   { color: var(--ok);     border-color: var(--ok-line);     background: var(--ok-bg); }
+.dns-pill.on::before { animation: dns-pulse 2.4s infinite; }
 .dns-pill.wait { color: var(--warn);   border-color: var(--warn-line);   background: var(--warn-bg); }
 .dns-pill.off  { color: var(--danger); border-color: var(--danger-line); background: var(--danger-bg); }
 .dns-pill.info { color: var(--info);   border-color: var(--info-line);   background: var(--info-bg); }
 
-/* ── کارتِ نیم‌سرور (قابلِ کپی) ───────────────────────────────────────── */
+/* ── «چطور کار می‌کند» ────────────────────────────────────────────────── */
 
-.dns-ns { display: grid; gap: 8px; }
-.dns-copy { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 10px 12px; border: 1px dashed var(--line-2); border-radius: var(--r-sm, 10px);
-  background: var(--surface-2); direction: ltr; }
-.dns-copy code { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
-.dns-copy button { flex: none; display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px;
-  padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface);
-  color: var(--muted); cursor: pointer; direction: rtl; }
-.dns-copy button:hover { color: var(--info); border-color: var(--info); }
-.dns-copy button .icon { width: 13px; height: 13px; }
-.dns-copy button.done { color: var(--ok); border-color: var(--ok-line); }
+.dns-how { display: grid; gap: 4px; counter-reset: how; list-style: none; padding: 0; }
+.dns-how li { position: relative; display: grid; grid-template-columns: 34px 1fr; gap: 14px; padding: 4px 0 18px; }
+.dns-how li:last-child { padding-block-end: 0; }
+.dns-how li::before { counter-increment: how; content: counter(how); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 12px;
+  font-weight: 800; font-size: 14px; color: var(--dx); background: var(--dx-soft); border: 1px solid var(--dx-line); }
+.dns-how li:not(:last-child)::after { content: ''; position: absolute; inset-inline-start: 16.5px; top: 42px; bottom: 4px; width: 1px; background: linear-gradient(var(--dx-line), transparent); }
+[lang='fa'] .dns-how li::before { content: counter(how, persian); }
+.dns-how b { display: block; font-size: 13.5px; line-height: 1.9; }
+.dns-how span { display: block; font-size: 12px; color: var(--muted); line-height: 1.95; }
 
-/* ── فرمِ افزودنِ دامنه ────────────────────────────────────────────────── */
+/* ── کپی ─────────────────────────────────────────────────────────────── */
 
-.dns-add { display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch; }
-.dns-add input { flex: 1 1 260px; }
-
-.dns-input, .dns select, .dns textarea {
-  width: 100%; min-width: 0; font: inherit; font-size: 13.5px; color: var(--text);
-  background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 10px; padding: 9px 12px;
-}
-.dns select { padding-inline-end: 28px; }
-.dns-input:focus, .dns select:focus, .dns textarea:focus { outline: none; border-color: var(--info); }
-.dns textarea { min-height: 76px; resize: vertical; }
-.dns .is-bad { border-color: var(--danger); }
+.dns-ns { display: grid; gap: 10px; }
+.dns-copy { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0;
+  padding: 10px 10px 10px 14px; border: 1px solid var(--line-2); border-radius: 13px; background: var(--surface-2); direction: ltr; transition: border-color .2s; }
+.dns-copy:hover { border-color: var(--dx-line); }
+.dns-copy code { font-size: 13.5px; font-weight: 650; overflow-wrap: anywhere; min-width: 0; }
+.dns-copy button { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; min-height: 34px;
+  padding: 5px 12px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); color: var(--muted); cursor: pointer; direction: rtl; transition: color .2s, border-color .2s; }
+[dir='ltr'] .dns-copy button { direction: ltr; }
+.dns-copy button:hover { color: var(--dx); border-color: var(--dx-line); }
+.dns-copy button .icon { width: 14px; height: 14px; }
+.dns-copy button.done { color: var(--ok); border-color: var(--ok-line); background: var(--ok-bg); animation: dns-pop .35s var(--ease); }
 
 /* ── فهرستِ دامنه‌ها ───────────────────────────────────────────────────── */
 
-.dns-zones { display: grid; gap: 10px; }
-.dns-zone { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 14px 16px;
-  border: 1px solid var(--line-2); border-radius: var(--r-sm, 10px); background: var(--surface-2);
-  color: inherit; text-decoration: none; transition: border-color .15s; }
-.dns-zone:hover { border-color: var(--info); }
-.dns-zone-ic { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
-  background: var(--info-bg); color: var(--info); flex: none; }
-.dns-zone-ic .icon { width: 18px; height: 18px; }
-.dns-zone-d { font-weight: 700; font-size: 15px; }
-.dns-zone-m { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
-.dns-zone-end { margin-inline-start: auto; display: flex; align-items: center; gap: 10px; }
+.dns-zones { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.dns-zone { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 18px;
+  border: 1px solid var(--line-2); border-radius: 16px; background: var(--surface-2); color: inherit; text-decoration: none; overflow: hidden;
+  transition: border-color .25s, transform .25s var(--ease), box-shadow .25s; animation: dns-rise .45s var(--ease) both; }
+.dns-zone:nth-child(2) { animation-delay: .04s; } .dns-zone:nth-child(3) { animation-delay: .08s; } .dns-zone:nth-child(4) { animation-delay: .12s; }
+.dns-zone:nth-child(5) { animation-delay: .16s; } .dns-zone:nth-child(n+6) { animation-delay: .2s; }
+.dns-zone::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, var(--dx-soft) 50%, transparent 70%); translate: -100% 0; transition: translate .6s var(--ease); pointer-events: none; }
+a.dns-zone:hover { border-color: var(--dx-line); transform: translateY(-3px); box-shadow: 0 14px 30px -18px var(--dx-glow); }
+a.dns-zone:hover::after { translate: 100% 0; }
+.dns-zone.is-muted { opacity: .6; }
+.dns-zone-ic { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: var(--dx-soft); color: var(--dx); flex: none; }
+.dns-zone-ic .icon { width: 19px; height: 19px; }
+.dns-zone-body { min-width: 0; display: grid; gap: 4px; }
+.dns-zone-d { font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[dir='rtl'] .dns-zone-d { text-align: right; }
+.dns-zone-m { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 12px; }
+.dns-zone-go { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px; color: var(--muted); border: 1px solid var(--line); transition: color .2s, border-color .2s, transform .25s var(--ease); }
+.dns-zone-go .icon { width: 14px; height: 14px; }
+[dir='rtl'] .dns-zone-go .icon { transform: scaleX(-1); }
+a.dns-zone:hover .dns-zone-go { color: var(--dx); border-color: var(--dx-line); transform: translateX(-3px); }
+[dir='ltr'] a.dns-zone:hover .dns-zone-go { transform: translateX(3px); }
 
-/* ── سرصفحهٔ zone ──────────────────────────────────────────────────────── */
+/* ── خالی ──────────────────────────────────────────────────────────────── */
 
-.dns-hero { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
-.dns-hero h1 { font-family: var(--font-disp); font-size: clamp(20px, 2.4vw, 26px); unicode-bidi: isolate; text-align: start; }
-.dns-hero-m { color: var(--muted); font-size: 12.5px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
-.dns-back { font-size: 12.5px; color: var(--info); text-decoration: none; }
+.dns-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 36px 20px; text-align: center;
+  border: 1px dashed var(--dx-line); border-radius: 16px; background: linear-gradient(145deg, var(--dx-soft), transparent); }
+.dns-empty-ic { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 17px; color: var(--dx); background: var(--dx-soft); border: 1px solid var(--dx-line); }
+.dns-empty-ic .icon { width: 24px; height: 24px; }
+.dns-empty b { font-size: 14px; }
+.dns-empty p { font-size: 12px; color: var(--muted); line-height: 1.95; max-width: 48ch; }
 
-.dns-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.dns-stat { padding: 12px 14px; border: 1px solid var(--line-2); border-radius: var(--r-sm, 10px); background: var(--surface-2); }
-.dns-stat span { display: block; color: var(--muted); font-size: 11.5px; }
-.dns-stat b { display: block; margin-top: 4px; font-size: 14px; }
-@media (max-width: 760px) { .dns-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* ── مسیرِ راه‌اندازی ─────────────────────────────────────────────────── */
 
-/* ── مراحلِ راه‌اندازی ─────────────────────────────────────────────────── */
+.dns-progress { display: grid; gap: 10px; }
+.dns-progress-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); }
+.dns-progress-top b { color: var(--dx); font-size: 14px; font-variant-numeric: tabular-nums; }
+.dns-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; }
+.dns-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--dx), var(--dx-2)); animation: dns-fill 1s var(--ease) .2s both; }
+[dir='rtl'] .dns-bar i { background: linear-gradient(270deg, var(--dx), var(--dx-2)); margin-inline-start: 0; }
 
-.dns-steps { display: grid; gap: 14px; counter-reset: s; }
-.dns-step { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start; }
-.dns-step > i { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-style: normal;
-  font-weight: 800; font-size: 13px; background: var(--surface-2); border: 1px solid var(--line-2); }
-.dns-step.done > i { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok); }
-.dns-step b { display: block; margin-bottom: 4px; }
-.dns-step p { color: var(--muted); font-size: 13px; line-height: 1.9; margin: 0 0 8px; }
+.dns-stepper { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; list-style: none; padding: 0; margin-block-start: 22px !important; }
+.dns-stepper li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; font-size: 11.5px; line-height: 1.7; color: var(--muted); }
+.dns-stepper li::after { content: ''; position: absolute; top: 16px; inset-inline-start: calc(50% + 20px); width: calc(100% - 32px); height: 2px; border-radius: 2px; background: var(--line-2); }
+.dns-stepper li:last-child::after { display: none; }
+.dns-stepper li.done::after { background: var(--dx); }
+.dns-stepper i { font-style: normal; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-weight: 700; font-size: 13px;
+  border: 2px solid var(--line-2); background: var(--surface); position: relative; z-index: 1; transition: all .3s var(--ease); }
+.dns-stepper li.done { color: var(--text); }
+.dns-stepper li.done i { border-color: var(--dx); background: var(--dx); color: var(--dx-on); animation: dns-pop .45s var(--ease) both; }
+.dns-stepper li.now { color: var(--text); font-weight: 700; }
+.dns-stepper li.now i { border-color: var(--dx); color: var(--dx); animation: dns-pulse 2s infinite; }
+
+.dns-check { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; list-style: none; padding: 0; }
+.dns-check li { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: start; padding: 13px 15px; border-radius: 13px; border: 1px solid var(--line); background: var(--surface-2); font-size: 12px; line-height: 1.9; }
+.dns-check li::before { content: ''; grid-row: span 2; width: 22px; height: 22px; margin-block-start: 2px; border-radius: 50%; border: 2px solid var(--line-2); }
+.dns-check li b { font-size: 12.5px; }
+.dns-check li span { color: var(--muted); }
+.dns-check li.is-ok::before { border-color: var(--ok); background: radial-gradient(circle, var(--ok) 0 4px, var(--ok-bg) 5px); }
+.dns-check li.is-warn, .dns-check li.is-todo, .dns-check li.is-unknown { border-color: var(--line-2); }
+.dns-check li.is-warn::before, .dns-check li.is-todo::before { border-color: var(--warn); background: var(--warn-bg); }
+.dns-check li.is-block { border-color: var(--danger-line); background: var(--danger-bg); }
+.dns-check li.is-block::before { border-color: var(--danger); background: var(--danger-bg); }
+
+.dns-ns-guide { padding: 18px; border-radius: 16px; border: 1px solid var(--dx-line); background: linear-gradient(145deg, var(--dx-soft), transparent); display: grid; gap: 12px; }
+.dns-ns-guide h3 { font-size: 14px; }
+
+/* ── نیم‌سرورها ─────────────────────────────────────────────────────────── */
+
+.dns-nodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.dns-node { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 15px; border-radius: 14px; border: 1px solid var(--line-2); background: var(--surface-2); }
+.dns-node-dot { grid-row: span 2; width: 12px; height: 12px; border-radius: 50%; background: var(--muted); }
+.dns-node-dot.on { background: var(--ok); animation: dns-pulse 2.2s infinite; }
+.dns-node-dot.wait { background: var(--warn); }
+.dns-node-dot.off { background: var(--danger); }
+.dns-node code { font-size: 12.5px; font-weight: 650; overflow-wrap: anywhere; }
+.dns-node small { font-size: 11px; color: var(--muted); }
+
+/* ── ابزارِ رکوردها ────────────────────────────────────────────────────── */
+
+.dns-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 22px; border-bottom: 1px solid var(--line); }
+.dns-search { position: relative; flex: 1 1 220px; min-width: 0; }
+.dns-search .icon { position: absolute; inset-inline-start: 12px; top: 50%; translate: 0 -50%; width: 15px; height: 15px; color: var(--muted); pointer-events: none; }
+.dns-search input { padding-inline-start: 36px; }
+.dns-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; max-width: 100%; padding-block: 2px; }
+.dns-chips::-webkit-scrollbar { display: none; }
+.dns-chip { flex: none; padding: 6px 13px; border-radius: 99px; border: 1px solid var(--line-2); background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; white-space: nowrap; transition: all .2s var(--ease); }
+.dns-chip:hover { color: var(--text); border-color: var(--dx-line); }
+.dns-chip[aria-pressed='true'] { color: var(--dx-on); background: var(--dx); border-color: var(--dx); font-weight: 700; }
+
+/* ── ورودی‌ها ──────────────────────────────────────────────────────────── */
+
+.dns-input, .dns select, .dns textarea {
+  width: 100%; min-width: 0; font-size: 13.5px; color: var(--text); min-height: 42px;
+  background: var(--surface-2); border: 1px solid var(--line-2); border-radius: 11px; padding: 9px 12px; transition: border-color .2s, box-shadow .2s, background .2s;
+}
+.dns select { padding-inline-end: 28px; }
+.dns-input:focus, .dns select:focus, .dns textarea:focus { outline: none; border-color: var(--dx); box-shadow: 0 0 0 4px var(--dx-soft); }
+.dns textarea { min-height: 84px; resize: vertical; line-height: 1.8; }
+.dns textarea.dns-zonefile { min-height: 170px; }
+.dns .is-bad { border-color: var(--danger); }
+.dns-input::placeholder, .dns textarea::placeholder { color: var(--muted); opacity: .7; }
 
 /* ── جدولِ رکوردها ─────────────────────────────────────────────────────── */
 
-.dns-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 14px 18px;
-  border-bottom: 1px solid var(--line); }
-.dns-tools .dns-input { flex: 1 1 200px; max-width: 320px; }
-.dns-chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.dns-chip { font: inherit; font-size: 12px; padding: 5px 10px; border-radius: 99px; cursor: pointer;
-  border: 1px solid var(--line-2); background: var(--surface); color: var(--muted); }
-.dns-chip[aria-pressed="true"] { color: var(--info); border-color: var(--info); background: var(--info-bg); }
-
-.dns-tbl-wrap { overflow-x: auto; }
+.dns-tbl-wrap { overflow-x: auto; scrollbar-width: thin; }
 .dns-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
-.dns-tbl th { text-align: start; font-size: 11.5px; font-weight: 700; color: var(--muted); padding: 10px 14px;
-  border-bottom: 1px solid var(--line); white-space: nowrap; }
-.dns-tbl td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-.dns-tbl tr.dns-row:hover td { background: var(--surface-2); }
-.dns-tbl tr.is-off td { opacity: .55; }
-.dns-tbl .c-name, .dns-tbl .c-val { direction: ltr; text-align: left; unicode-bidi: isolate; }
-.dns-tbl .c-val { max-width: 420px; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
-.dns-tbl .c-act { white-space: nowrap; text-align: end; }
-.dns-tbl .c-note { display: block; color: var(--muted); font-family: var(--font-body); font-size: 11.5px; margin-top: 3px; text-align: start; unicode-bidi: plaintext; }
+.dns-tbl th { text-align: start; font-size: 11px; font-weight: 600; color: var(--muted); padding: 11px 14px; white-space: nowrap; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.dns-tbl td { padding: 13px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.dns-tbl tbody tr:last-child td { border-bottom: 0; }
+.dns-row { transition: background .2s; }
+.dns-row:hover { background: var(--dx-soft); }
+.dns-row.is-off { opacity: .55; }
+.dns-row.is-new { animation: dns-flash 2.4s ease-out; }
+.dns-rec .c-name { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 650; white-space: nowrap; }
+.dns-rec .c-val { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; word-break: break-all; max-width: 420px; }
+.dns-rec .c-ttl { white-space: nowrap; color: var(--muted); font-size: 12px; }
+.dns-rec .c-act { text-align: end; white-space: nowrap; width: 1%; }
+.c-note { display: block; font-family: var(--font-body); font-size: 11.5px; color: var(--muted); margin-top: 3px; word-break: normal; }
 
-.dns-type { display: inline-block; min-width: 50px; text-align: center; font-size: 11px; font-weight: 800; letter-spacing: .3px;
-  padding: 3px 8px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line-2); direction: ltr; }
-.dns-type.t-A, .dns-type.t-AAAA { color: var(--info); border-color: var(--info-line); background: var(--info-bg); }
-.dns-type.t-CNAME { color: var(--violet); }
-.dns-type.t-MX    { color: var(--warn); border-color: var(--warn-line); background: var(--warn-bg); }
-.dns-type.t-TXT   { color: var(--ok); border-color: var(--ok-line); background: var(--ok-bg); }
+.dns-type { display: inline-grid; place-items: center; min-width: 52px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 11px; font-weight: 800;
+  padding: 4px 8px; border-radius: 8px; border: 1px solid var(--info-line); background: var(--info-bg); color: var(--info); letter-spacing: .03em; }
+.dns-type.t-A, .dns-type.t-AAAA { color: var(--ok); border-color: var(--ok-line); background: var(--ok-bg); }
+.dns-type.t-CNAME { color: var(--violet); border-color: color-mix(in srgb, var(--violet) 32%, transparent); background: color-mix(in srgb, var(--violet) 10%, transparent); }
+.dns-type.t-MX { color: var(--warn); border-color: var(--warn-line); background: var(--warn-bg); }
+.dns-type.t-TXT { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 30%, transparent); background: color-mix(in srgb, var(--blue) 10%, transparent); }
+.dns-type.t-NS, .dns-type.t-CAA, .dns-type.t-SRV { color: var(--muted); border-color: var(--line-2); background: var(--surface-2); }
 
-.dns-ic-btn { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; cursor: pointer;
-  border: 1px solid transparent; background: none; color: var(--muted); vertical-align: middle; }
-.dns-ic-btn:hover { border-color: var(--line-2); color: var(--info); }
-.dns-ic-btn.danger:hover { color: var(--danger); border-color: var(--danger-line); }
+.dns-ic-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--muted); cursor: pointer; transition: all .2s var(--ease); }
+.dns-ic-btn:hover { color: var(--dx); border-color: var(--dx-line); background: var(--dx-soft); }
+.dns-ic-btn.danger:hover { color: var(--danger); border-color: var(--danger-line); background: var(--danger-bg); }
+.dns-ic-btn[aria-expanded='true'] { color: var(--dx); border-color: var(--dx-line); background: var(--dx-soft); }
 .dns-ic-btn .icon { width: 15px; height: 15px; }
-.dns-ic-btn:focus-visible { outline: 2px solid var(--info); outline-offset: 1px; }
 .dns-inline { display: inline; }
+.dns-no-match { padding: 26px; text-align: center; color: var(--muted); font-size: 12.5px; }
 
-.dns-edit td { background: var(--surface-2); }
+/* ── فرمِ رکورد ─────────────────────────────────────────────────────────── */
 
-/* ── فرمِ رکورد ────────────────────────────────────────────────────────── */
+.dns-form-wrap { padding: 20px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg, var(--dx-soft), transparent); }
+[data-dns-panel]:not([hidden]) { animation: dns-drop .3s var(--ease) both; }
+.dns-edit td { padding: 0 !important; background: var(--surface-2); }
+.dns-edit .dns-form { padding: 18px; }
+.dns-form { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; }
+.dns-f { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.dns-f label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dns-f.w2 { grid-column: span 2; } .dns-f.w3 { grid-column: span 3; } .dns-f.w4 { grid-column: span 4; } .dns-f.w6 { grid-column: span 6; } .dns-f.w12 { grid-column: 1 / -1; }
+.dns-f .dns-hint { margin: 0; }
+.dns-err { font-size: 12px; color: var(--danger); animation: dns-drop .3s var(--ease); }
+.dns-suffix { display: flex; align-items: stretch; direction: ltr; min-width: 0; }
+.dns-suffix input { border-start-end-radius: 0; border-end-end-radius: 0; }
+.dns-suffix span { display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--line-2); border-inline-start: 0; border-radius: 0 11px 11px 0; background: var(--surface); color: var(--muted); font-size: 12px; white-space: nowrap; max-width: 46%; overflow: hidden; text-overflow: ellipsis; }
+.dns-type-help { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 12px; background: var(--surface-2); border: 1px dashed var(--line-2); font-size: 12px; color: var(--muted); line-height: 1.9; }
+.dns-type-help .icon { width: 15px; height: 15px; color: var(--dx); }
+.dns-actions { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.dns-actions .dns-hint { margin: 0; }
 
-.dns-form { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; align-items: end; }
-.dns-f { display: grid; gap: 6px; grid-column: span 3; }
-.dns-f.w2 { grid-column: span 2; }
-.dns-f.w4 { grid-column: span 4; }
-.dns-f.w6 { grid-column: span 6; }
-.dns-f.w12 { grid-column: 1 / -1; }
-.dns-f label { font-size: 12px; color: var(--muted); }
-.dns-f .dns-hint { font-size: 11.5px; color: var(--dim); line-height: 1.7; }
-.dns-f .dns-err { font-size: 12px; color: var(--danger); }
-.dns-f[hidden] { display: none; }
-.dns-actions { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.dns-suffix { display: flex; align-items: stretch; direction: ltr; }
-.dns-suffix .dns-input { border-start-end-radius: 0; border-end-end-radius: 0; }
-.dns-suffix span { display: flex; align-items: center; padding: 0 10px; font-size: 12.5px; color: var(--muted);
-  border: 1px solid var(--line-2); border-inline-start: 0; border-radius: 0 10px 10px 0; background: var(--surface); white-space: nowrap; }
-@media (max-width: 760px) {
-  .dns-f, .dns-f.w2, .dns-f.w4, .dns-f.w6 { grid-column: 1 / -1; }
+/* ── تاریخچه (خطِ زمان) ─────────────────────────────────────────────────── */
+
+.dns-log { display: grid; list-style: none; padding: 0; }
+.dns-log li { position: relative; display: flex; justify-content: space-between; gap: 14px; flex-wrap: wrap; padding: 10px 0 10px; padding-inline-start: 26px; font-size: 12.5px; line-height: 1.8; }
+.dns-log li::before { content: ''; position: absolute; inset-inline-start: 4px; top: 17px; width: 9px; height: 9px; border-radius: 50%; background: var(--surface); border: 2px solid var(--dx); }
+.dns-log li:first-child::before { background: var(--dx); }
+.dns-log li:not(:last-child)::after { content: ''; position: absolute; inset-inline-start: 8px; top: 28px; bottom: -8px; width: 1px; background: var(--line-2); }
+.dns-log time { color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+
+/* ── ناحیهٔ خطر ─────────────────────────────────────────────────────────── */
+
+.dns-danger { border: 1px solid var(--danger-line); border-radius: 18px; background: var(--surface); overflow: hidden; }
+.dns-danger > summary { display: flex; align-items: center; gap: 11px; padding: 16px 22px; cursor: pointer; list-style: none; font-size: 13.5px; font-weight: 700; color: var(--danger); }
+.dns-danger > summary::-webkit-details-marker { display: none; }
+.dns-danger > summary::after { content: '+'; margin-inline-start: auto; font: 400 22px/1 monospace; color: var(--muted); transition: transform .25s var(--ease); }
+.dns-danger[open] > summary::after { transform: rotate(45deg); }
+.dns-danger > summary .icon { width: 17px; height: 17px; }
+.dns-danger-b { padding: 0 22px 22px; display: grid; gap: 14px; animation: dns-drop .3s var(--ease); }
+.dns-danger-b form { display: flex; gap: 10px; flex-wrap: wrap; }
+.dns-danger-b form .dns-input { flex: 1 1 240px; width: auto; }
+
+/* ── تأییدِ مالکیت / واردکردن ───────────────────────────────────────────── */
+
+.dns-kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 14px; align-items: center; }
+.dns-kv > span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.dns-kv .dns-copy { width: 100%; }
+.dns-row-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.dns-row-actions form { display: contents; }
+
+.dns-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--line); }
+.dns-tab { padding: 8px 16px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 12.5px; transition: all .25s var(--ease); }
+.dns-tab[aria-selected='true'] { background: var(--surface); color: var(--text); font-weight: 700; box-shadow: 0 2px 8px var(--dx-glow); }
+
+.dns-drop { position: relative; display: grid; place-items: center; gap: 6px; padding: 26px; text-align: center; border: 2px dashed var(--line-2); border-radius: 16px; color: var(--muted); font-size: 12.5px; cursor: pointer; transition: border-color .2s, background .2s; }
+.dns-drop:hover, .dns-drop.is-over { border-color: var(--dx); background: var(--dx-soft); color: var(--text); }
+.dns-drop .icon { width: 26px; height: 26px; color: var(--dx); }
+.dns-drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.dns-drop b { color: var(--text); font-size: 13px; overflow-wrap: anywhere; }
+
+.dns-sum { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.dns-sum div { padding: 13px; border-radius: 13px; border: 1px solid var(--line-2); background: var(--surface); display: grid; gap: 2px; }
+.dns-sum span { font-size: 11px; color: var(--muted); }
+.dns-sum b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.dns-sum .s-new b { color: var(--ok); } .dns-sum .s-conflict b { color: var(--warn); } .dns-sum .s-invalid b, .dns-sum .s-unsupported b { color: var(--danger); }
+.dns-imp td:first-child, .dns-imp th:first-child { width: 1%; }
+.dns-imp input[type='checkbox'] { width: 17px; height: 17px; accent-color: var(--dx); }
+.dns-sticky { position: sticky; bottom: 12px; z-index: 5; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-radius: 16px; border: 1px solid var(--dx-line); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); box-shadow: 0 12px 30px -12px var(--dx-glow); }
+.dns-sticky span { font-size: 12.5px; color: var(--muted); }
+.dns-sticky b { color: var(--dx); }
+
+/* ── تم روشن ────────────────────────────────────────────────────────────── */
+
+html[data-theme='light'] .dns { --dx-soft: color-mix(in srgb, var(--dx) 7%, transparent); --dx-on: #fff; }
+html[data-theme='light'] :is(.dns-hero, .dns-stat, .dns-card, .dns-danger) { box-shadow: 0 4px 18px color-mix(in srgb, var(--text) 4%, transparent); }
+
+/* ── پاسخ‌گرا ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .dns-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dns-sum { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* ── پیش‌نمایشِ واردکردن ──────────────────────────────────────────────── */
-
-.dns-imp td:first-child { width: 34px; }
-.dns-imp input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--info); }
-.dns-crit { font-size: 11px; font-weight: 700; color: var(--warn); margin-inline-start: 6px; }
-
-/* ── رویدادها ─────────────────────────────────────────────────────────── */
-
-.dns-log { display: grid; gap: 0; }
-.dns-log div { display: flex; gap: 12px; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; }
-.dns-log div:last-child { border-bottom: 0; }
-.dns-log time { color: var(--muted); white-space: nowrap; }
-
-/* ── منطقهٔ خطر ───────────────────────────────────────────────────────── */
-
-.dns-danger { border-color: var(--danger-line); }
-.dns-danger .pnl-sec-h h2 { color: var(--danger); }
-
-/* فقط برای صفحه‌خوان — سرِ ستونِ عملیات نباید خالی خوانده شود */
-.dns .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-
-/* ── موبایل: هر رکورد یک کارت ───────────────────────────────────────────
-   جدولِ پنج‌ستونه در ۳۷۵px یعنی ستونِ مقدار به پهنای سه نویسه فشرده می‌شود و
-   IP حرف‌به‌حرف می‌شکند. اسکرولِ افقی هم بد است: دکمه‌های ویرایش/حذف بیرونِ
-   دید می‌مانند. پس ردیف به شبکهٔ دوخطی تبدیل می‌شود: نوع + نام + عملیات، و
-   مقدار زیرِ آن‌ها در تمامِ پهنا. */
-@media (max-width: 760px) {
-  .dns-tbl.dns-rec thead { display: none; }
-  .dns-tbl.dns-rec, .dns-tbl.dns-rec tbody { display: block; }
-  .dns-tbl.dns-rec tr.dns-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px;
-    align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-  .dns-tbl.dns-rec tr.dns-row[hidden], .dns-tbl.dns-rec tr.dns-edit[hidden] { display: none; }
-  .dns-tbl.dns-rec tr.dns-row td { padding: 0; border: 0; }
-  .dns-tbl.dns-rec tr.dns-row .c-name { font-weight: 700; overflow-wrap: anywhere; }
-  .dns-tbl.dns-rec tr.dns-row .c-val { grid-column: 1 / -1; grid-row: 2; max-width: none; }
-  .dns-tbl.dns-rec tr.dns-row .c-ttl { grid-column: 1 / -1; grid-row: 3; color: var(--muted); font-size: 11.5px; }
-  .dns-tbl.dns-rec tr.dns-edit { display: block; }
-  .dns-tbl.dns-rec tr.dns-edit td { display: block; padding: 14px; }
-  .dns-tbl.dns-imp { min-width: 560px; }
-  .dns-hero h1 { overflow-wrap: anywhere; }
+@media (max-width: 860px) {
+  .dns-grid { grid-template-columns: minmax(0, 1fr); }
+  .dns-check { grid-template-columns: minmax(0, 1fr); }
+  .dns-form { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .dns-f.w2 { grid-column: span 2; } .dns-f.w3, .dns-f.w4, .dns-f.w6 { grid-column: span 6; }
 }
 
-/* ── v2: اجزای تازه ─────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .dns { gap: 16px; }
+  .dns-hero { padding: 22px 20px; flex-direction: column; align-items: stretch; gap: 16px; border-radius: 20px; }
+  .dns-orb { position: absolute; inset-inline-end: -18px; top: -18px; width: 96px; height: 96px; opacity: .5; }
+  .dns-orb-core { width: 60px; height: 60px; border-radius: 19px; }
+  .dns-orb-core .icon { width: 26px; height: 26px; }
+  .dns-hero h1 { font-size: 22px; padding-inline-end: 56px; }
+  .dns-add { flex-direction: column; }
+  .dns-add .pnl-btn { width: 100%; }
+  .dns-actions-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dns-actions-bar .pnl-btn { flex-direction: column; gap: 4px; padding: 10px 6px; font-size: 11px; line-height: 1.5; min-height: 62px; text-align: center; }
+  .dns-actions-bar .pnl-btn .icon { width: 17px; height: 17px; }
+  .dns-actions-bar form { display: contents; }
+  .dns-stat { padding: 15px; }
+  .dns-card-h, .dns-card-b { padding: 16px; }
+  .dns-tools { padding: 12px 16px; }
+  .dns-form-wrap { padding: 16px; }
 
-.dns-small { font-size: 12.5px; line-height: 1.9; margin: 8px 0 0; }
-.dns-row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-.dns-row-actions form { margin: 0; }
-.dns-zone.is-muted { opacity: .6; cursor: default; }
-.dns-zone.is-muted:hover { border-color: var(--line-2); }
+  .dns-stepper { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .dns-stepper li { flex-direction: row; text-align: start; gap: 12px; padding-block: 6px; }
+  .dns-stepper li::after { top: 40px; inset-inline-start: 16px; width: 2px; height: calc(100% - 32px); }
 
-/* کلید/مقدارِ رکوردِ تأییدِ مالکیت */
-.dns-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; align-items: center; margin: 10px 0; }
-.dns-kv > span { color: var(--muted); font-size: 12.5px; }
-@media (max-width: 560px) { .dns-kv { grid-template-columns: 1fr; } }
+  /* جدول ← کارت: هر رکورد یک کارتِ لمسی */
+  .dns-rec thead { display: none; }
+  .dns-rec, .dns-rec tbody { display: block; }
+  .dns-rec tr.dns-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'type name ttl' 'val val val' 'act act act'; gap: 10px 12px; align-items: center;
+    padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .dns-rec tr.dns-row td { padding: 0; border: 0; }
+  .dns-rec tr.dns-row td:nth-child(1) { grid-area: type; }
+  .dns-rec tr.dns-row td:nth-child(2) { grid-area: name; overflow: hidden; text-overflow: ellipsis; justify-self: start; }
+  .dns-rec tr.dns-row td:nth-child(3) { grid-area: val; max-width: none; padding: 9px 11px; border-radius: 10px; background: var(--surface-2); }
+  .dns-rec tr.dns-row td:nth-child(4) { grid-area: ttl; }
+  .dns-rec tr.dns-row td:nth-child(5) { grid-area: act; display: flex; gap: 8px; justify-content: flex-end; width: auto; }
+  .dns-rec tr.dns-edit { display: block; }
+  .dns-rec tr.dns-edit td { display: block; }
+  .dns-ic-btn { width: 40px; height: 40px; border-color: var(--line); }
+  .dns-copy { padding: 8px 8px 8px 12px; }
+  .dns-copy code { font-size: 12.5px; }
+  .dns-copy button { padding: 5px 10px; }
 
-/* مسیرِ راه‌اندازی */
-.dns-stepper { list-style: none; margin: 0 0 16px; padding: 0; display: flex; gap: 6px; flex-wrap: wrap; counter-reset: none; }
-.dns-stepper li { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 99px;
-  border: 1px solid var(--line-2); background: var(--surface-2); font-size: 12.5px; color: var(--muted); }
-.dns-stepper li i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal;
-  font-weight: 800; font-size: 11.5px; background: var(--surface); border: 1px solid var(--line-2); }
-.dns-stepper li.done { color: var(--ok); border-color: var(--ok-line); background: var(--ok-bg); }
-.dns-stepper li.done i { color: var(--ok); border-color: var(--ok-line); }
+  .dns-imp { min-width: 620px; }
+  .dns-kv { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .dns-kv > span:not(:first-child) { margin-block-start: 8px; }
+  .dns-sum { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dns-sticky { bottom: 8px; }
+  .dns-sticky .pnl-btn { flex: 1; }
+}
 
-/* چک‌لیستِ مهاجرت */
-.dns-check { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
-.dns-check li { display: grid; grid-template-columns: minmax(110px, max-content) 1fr; gap: 10px; padding: 9px 12px;
-  border-radius: var(--r-sm, 10px); border: 1px solid var(--line-2); background: var(--surface-2); font-size: 12.5px; }
-.dns-check li b { font-weight: 700; }
-.dns-check li.is-ok    { border-color: var(--ok-line); }
-.dns-check li.is-ok b  { color: var(--ok); }
-.dns-check li.is-warn, .dns-check li.is-todo { border-color: var(--warn-line); }
-.dns-check li.is-warn b, .dns-check li.is-todo b { color: var(--warn); }
-.dns-check li.is-block { border-color: var(--danger-line); background: var(--danger-bg); }
-.dns-check li.is-block b { color: var(--danger); }
-@media (max-width: 560px) { .dns-check li { grid-template-columns: 1fr; gap: 2px; } }
+@media (max-width: 420px) {
+  .dns-stats { gap: 10px; }
+  .dns-stat b { font-size: 21px; }
+  .dns-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dns-f.w2 { grid-column: span 1; } .dns-f.w3, .dns-f.w4, .dns-f.w6 { grid-column: 1 / -1; }
+  .dns-actions .pnl-btn { flex: 1; }
+  .dns-zone { padding: 15px; gap: 12px; }
+}
 
-.dns-ns-guide { margin-top: 12px; padding: 14px; border: 1px solid var(--info-line); border-radius: var(--r-sm, 10px); background: var(--info-bg); }
-.dns-ns-guide h3 { font-size: 14px; margin: 0 0 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .dns *, .dns *::before, .dns *::after, .dns > * { animation: none !important; transition: none !important; }
+}
 
-/* وضعیتِ نیم‌سرورها */
-.dns-nodes { display: grid; gap: 8px; }
-.dns-node { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border: 1px solid var(--line-2);
-  border-radius: var(--r-sm, 10px); background: var(--surface-2); }
-.dns-node code { font-weight: 600; unicode-bidi: isolate; }
-.dns-node .dns-small { margin: 0 auto 0 0; }
-[dir="rtl"] .dns-node .dns-small { margin: 0 0 0 auto; }
+/* ── فرمِ در حالِ ارسال: دکمه می‌چرخد و دوباره‌کلیک نمی‌شود ───────────── */
 
-.dns-tbl tr.is-new td { background: var(--ok-bg); }
-.dns-zonefile { min-height: 180px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
-.dns-form-wrap { border-bottom: 1px solid var(--line); }
-.dns-stats { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
-
-.dns-actions .dns-hint { font-size: 11.5px; color: var(--dim); line-height: 1.7; }
+.dns .pnl-btn.is-busy { position: relative; color: transparent !important; pointer-events: none; }
+.dns .pnl-btn.is-busy .icon { opacity: 0; }
+.dns .pnl-btn.is-busy::after { content: ''; position: absolute; inset: 0; margin: auto; width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--dx-line); border-top-color: var(--dx); animation: dns-spin .7s linear infinite; }
+.dns .pnl-btn.primary.is-busy::after { border-color: color-mix(in srgb, var(--dx-on) 35%, transparent); border-top-color: var(--dx-on); }

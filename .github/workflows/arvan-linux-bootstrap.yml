@@ -1,0 +1,49 @@
+name: Offline Arvan Linux create bootstrap checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/ArvanClient.php'
+      - 'website/app/Services/Cloud/ArvanLinuxBootstrap.php'
+      - 'website/resources/arvan-monitoring/**'
+      - 'scripts/arvan-monitoring/install-linux-exporter.py'
+      - 'scripts/arvan-monitoring/test-create-bootstrap.php'
+      - 'scripts/arvan-monitoring/test_linux_*.py'
+      - '.github/workflows/arvan-linux-bootstrap.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-linux-bootstrap-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-linux-bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Lint sources
+        run: |
+          set -euo pipefail
+          php -l website/app/Services/Cloud/ArvanClient.php
+          php -l website/app/Services/Cloud/ArvanLinuxBootstrap.php
+          php -l scripts/arvan-monitoring/test-create-bootstrap.php
+          python3 -m py_compile website/resources/arvan-monitoring/bootstrap-linux-exporter.py
+          python3 -m py_compile website/resources/arvan-monitoring/install-linux-exporter.py
+      - name: Exercise real create payload and guest installer with no network
+        run: |
+          set -euo pipefail
+          test_php="$(command -v php)"
+          sudo unshare --net -- "$test_php" scripts/arvan-monitoring/test-create-bootstrap.php
+          sudo unshare --net -- python3 -m unittest discover -s scripts/arvan-monitoring -p 'test_linux_*.py' -v

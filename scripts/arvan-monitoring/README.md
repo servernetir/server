@@ -1,7 +1,9 @@
 # Linux guest exporter preparation
 
-Status: preparatory source and isolated tests. **No existing server has been
-installed, centrally enrolled, suspended or billed by this artifact.**
+Status: the reviewed standalone installer also supplies the pinned source for
+the [automatic Ubuntu/Debian create hook](../../docs/project/ARVAN-LINUX-FIRST-BOOT-2026-11-03.md).
+Git source and isolated tests do not establish production installation, central
+enrollment, suspension or billing.
 
 This standalone installer is for an authorized root session inside one Debian
 or Ubuntu guest (amd64/arm64). It requires Python 3, systemd, iproute2 and current

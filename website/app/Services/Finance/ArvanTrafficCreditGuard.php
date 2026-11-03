@@ -12,11 +12,53 @@ use Illuminate\Support\Str;
 /** A new traffic debit creates its stop intent in the same transaction; provider work never does. */
 final class ArvanTrafficCreditGuard
 {
-    public const KEY = 'traffic_credit_hold';
+    public const KEY = 'arvan_traffic_credit_hold:';
 
     public static function active(Service $service): bool
     {
-        return data_get($service->provision_meta, self::KEY.'.active') === true;
+        return (self::state($service)['active'] ?? null) === true;
+    }
+
+    /** No Setting cache: callers inside a transaction have already locked Customer -> Service -> Instance. */
+    public static function state(Service $service): array
+    {
+        $query = DB::table('settings')->where('key', self::KEY.$service->id);
+        $row = (DB::transactionLevel() > 0 ? $query->lockForUpdate() : $query)->first();
+
+        if (! $row) {
+            return [];
+        }
+        $state = json_decode($row->value, true, 512, JSON_THROW_ON_ERROR);
+        if (! is_array($state) || ($state['version'] ?? null) !== 1 || ! is_bool($state['active'] ?? null)
+            || ($state['service_id'] ?? null) !== (int) $service->id
+            || ! in_array($state['stop']['state'] ?? null, ['pending', 'confirmed', 'review_required', 'quarantined', 'cancelled'], true)) {
+            throw new \RuntimeException('Traffic credit control record requires reconciliation.');
+        }
+
+        return $state;
+    }
+
+    /** Indexed key range confines discovery to this dedicated state, independently of all service metadata writers. */
+    private function records()
+    {
+        $own = DB::table('settings')->where('key', '>=', self::KEY)->where('key', '<', self::KEY.'~')
+            ->select('key')->selectRaw("CASE WHEN json_valid(value) THEN value ELSE '{}' END AS payload");
+
+        return DB::query()->fromSub($own, 'traffic_holds');
+    }
+
+    private function invalidActiveSql(): string
+    {
+        return DB::getDriverName() === 'sqlite'
+            ? "COALESCE(json_type(payload, '$.active'), 'missing') NOT IN ('true', 'false')"
+            : "COALESCE(JSON_TYPE(JSON_EXTRACT(payload, '$.active')), 'MISSING') != 'BOOLEAN'";
+    }
+
+    private function canonicalKeySql(): string
+    {
+        return DB::getDriverName() === 'sqlite'
+            ? "traffic_holds.key = ? || CAST(json_extract(payload, '$.service_id') AS TEXT)"
+            : "traffic_holds.`key` = CONCAT(?, json_extract(payload, '$.service_id'))";
     }
 
     /** Caller owns Customer -> Service -> Instance locks and has just posted a positive validated traffic debit. */
@@ -29,16 +71,15 @@ final class ArvanTrafficCreditGuard
             || in_array($service->status, ['cancelled', 'terminated', 'expired'], true)) {
             return false;
         }
-        $meta = (array) $service->provision_meta;
         if (self::active($service)) {
             return false; // Preserve the original incident/receipt on subsequent traffic postings.
         }
-        $meta[self::KEY] = ['version' => 1, 'active' => true, 'reason' => 'traffic_credit_exhausted',
-            'token' => (string) Str::uuid(), 'customer_id' => (int) $service->customer_id,
+        $hold = ['version' => 1, 'active' => true, 'reason' => 'traffic_credit_exhausted',
+            'token' => (string) Str::uuid(), 'service_id' => (int) $service->id, 'customer_id' => (int) $service->customer_id,
             'instance_id' => (int) $instance->id, 'resource' => (string) $instance->provider_ref,
             'trigger_invoice_id' => $invoiceId, 'held_at' => now()->toIso8601String(),
             'stop' => ['state' => 'pending', 'attempts' => 0, 'retry_at' => null, 'inflight' => false, 'generation' => 1]];
-        $service->forceFill(['provision_meta' => $meta])->save();
+        $this->save($service, $hold);
 
         return true;
     }
@@ -61,7 +102,7 @@ final class ArvanTrafficCreditGuard
             if (! self::active($service)) {
                 return true;
             }
-            $hold = (array) data_get($service->provision_meta, self::KEY);
+            $hold = self::state($service);
             if (! $this->matches($service, $instance, $hold)) {
                 return false;
             }
@@ -83,7 +124,7 @@ final class ArvanTrafficCreditGuard
             return;
         }
         $this->locked((int) $instances[0]->service_id, function ($service, $instance) use ($ref): void {
-            $hold = (array) data_get($service?->provision_meta, self::KEY, []);
+            $hold = ($service ? self::state($service) : []);
             if (! $service || ! $instance || $instance->provider_ref !== $ref || ! self::active($service)
                 || ! $this->matches($service, $instance, $hold)) {
                 return;
@@ -100,22 +141,35 @@ final class ArvanTrafficCreditGuard
     public function process(int $limit = 20): array
     {
         $counts = ['confirmed' => 0, 'pending' => 0, 'released' => 0, 'stale' => 0, 'review_required' => 0];
-        $ids = Service::where('provision_meta->'.self::KEY.'->active', true)
-            ->whereIn('provision_meta->'.self::KEY.'->stop->state', ['pending', 'confirmed', 'review_required'])
-            ->where(fn ($q) => $q->whereNull('provision_meta->'.self::KEY.'->stop->retry_at')
-                ->orWhere('provision_meta->'.self::KEY.'->stop->retry_at', '<=', now()->toIso8601String()))
-            ->orderBy('provision_meta->'.self::KEY.'->stop->retry_at')->orderBy('id')
-            ->limit(max(1, min(100, $limit)))->pluck('id');
+        $ids = $this->records()->join('services', 'services.id', '=', DB::raw("json_extract(payload, '$.service_id')"))
+            ->whereRaw($this->canonicalKeySql(), [self::KEY])->where('payload->version', 1)
+            ->whereRaw('NOT ('.$this->invalidActiveSql().')')->where('payload->active', true)
+            ->whereIn('payload->stop->state', ['pending', 'confirmed', 'review_required'])
+            ->where(fn ($q) => $q->whereNull('payload->stop->retry_at')
+                ->orWhere('payload->stop->retry_at', '<=', now()->toIso8601String()))
+            ->orderByRaw("CASE WHEN json_extract(payload, '$.stop.attempted_at') IS NULL THEN 0 ELSE 1 END")
+            ->orderBy('payload->stop->retry_at')->orderBy('key')
+            ->limit(max(1, min(100, $limit)))->pluck('key');
         $deadline = microtime(true) + 45;
-        foreach ($ids as $id) {
+        foreach ($ids as $key) {
+            $id = substr($key, strlen(self::KEY));
+            if (! ctype_digit($id)) {
+                continue;
+            }
             if (microtime(true) >= $deadline) {
                 break;
             }
             $counts[$this->reconcile((int) $id)]++;
         }
 
-        $counts['review_required'] = max($counts['review_required'], Service::where('provision_meta->'.self::KEY.'->active', true)
-            ->whereIn('provision_meta->'.self::KEY.'->stop->state', ['quarantined', 'review_required'])->count());
+        $review = $this->records()->leftJoin('services', 'services.id', '=', DB::raw("json_extract(payload, '$.service_id')"))
+            ->where(fn ($q) => $q->whereNull('payload->version')->orWhere('payload->version', '!=', 1)
+                ->orWhereRaw($this->invalidActiveSql())->orWhereNull('payload->stop->state')
+                ->orWhereNotIn('payload->stop->state', ['pending', 'confirmed', 'review_required', 'quarantined', 'cancelled'])
+                ->orWhereNull('services.id')->orWhereRaw('NOT ('.$this->canonicalKeySql().')', [self::KEY])
+                ->orWhere(fn ($q) => $q->where('payload->active', true)
+                    ->whereIn('payload->stop->state', ['quarantined', 'review_required'])))->count();
+        $counts['review_required'] = max($counts['review_required'], $review);
 
         return $counts;
     }
@@ -129,7 +183,7 @@ final class ArvanTrafficCreditGuard
             if (! $service || ! self::active($service)) {
                 return 'stale';
             }
-            $hold = (array) data_get($service->provision_meta, self::KEY);
+            $hold = self::state($service);
             if (! $instance || ! $this->matches($service, $instance, $hold)
                 || $service->isInternalInfrastructure()
                 || in_array($service->status, ['cancelled', 'terminated', 'expired'], true)) {
@@ -195,7 +249,7 @@ final class ArvanTrafficCreditGuard
             if (! $service || ! $current) {
                 return 'stale';
             }
-            $fresh = (array) data_get($service->provision_meta, self::KEY);
+            $fresh = self::state($service);
             if (($fresh['token'] ?? null) !== $hold['token']) {
                 return 'stale';
             }
@@ -255,7 +309,7 @@ final class ArvanTrafficCreditGuard
     private function mayIssueStop(int $serviceId, array $claim): bool
     {
         return $this->locked($serviceId, function ($service, $instance) use ($claim): bool {
-            $hold = (array) data_get($service?->provision_meta, self::KEY, []);
+            $hold = ($service ? self::state($service) : []);
             if (! $service || ! $instance || ! self::active($service) || ! $this->matches($service, $instance, $hold)
                 || ($hold['token'] ?? null) !== $claim['token']
                 || ($hold['stop']['generation'] ?? 1) !== ($claim['stop']['generation'] ?? 1)) {
@@ -304,7 +358,8 @@ final class ArvanTrafficCreditGuard
 
     private function matches(Service $service, CloudInstance $instance, array $hold): bool
     {
-        return ($hold['version'] ?? null) === 1 && ($hold['reason'] ?? null) === 'traffic_credit_exhausted'
+        return ($hold['version'] ?? null) === 1 && ($hold['service_id'] ?? null) === (int) $service->id
+            && ($hold['reason'] ?? null) === 'traffic_credit_exhausted'
             && is_string($hold['token'] ?? null) && Str::isUuid($hold['token'])
             && ($hold['customer_id'] ?? null) === (int) $service->customer_id
             && ($hold['instance_id'] ?? null) === (int) $instance->id
@@ -324,9 +379,12 @@ final class ArvanTrafficCreditGuard
 
     private function save(Service $service, array $hold): void
     {
-        $meta = (array) $service->provision_meta;
-        $meta[self::KEY] = $hold;
-        $service->forceFill(['provision_meta' => $meta])->save();
+        if (DB::transactionLevel() === 0) {
+            throw new \LogicException('Traffic hold writes require the customer/service/instance transaction.');
+        }
+        DB::table('settings')->upsert([['key' => self::KEY.$service->id,
+            'value' => json_encode($hold, JSON_THROW_ON_ERROR), 'created_at' => now(), 'updated_at' => now()]],
+            ['key'], ['value', 'updated_at']);
     }
 
     private function locked(int $serviceId, callable $callback): mixed

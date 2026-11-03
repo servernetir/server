@@ -110,8 +110,7 @@ class ArvanTrafficMeterTest extends TestCase
         $this->assertSame(-1155, app(Wallet::class)->balanceOf($customer->id));
         $afterService = Service::first();
         $this->assertTrue(ArvanTrafficCreditGuard::active($afterService));
-        $this->assertSame('pending', data_get($afterService->provision_meta, 'traffic_credit_hold.stop.state'));
-        $afterService->forceFill(['provision_meta' => null])->save();
+        $this->assertSame('pending', data_get(ArvanTrafficCreditGuard::state($afterService), 'stop.state'));
         $afterRows = Service::all()->map->getRawOriginal()->all();
         foreach ($afterRows as &$serviceRow) {
             unset($serviceRow['updated_at']);
@@ -143,7 +142,7 @@ class ArvanTrafficMeterTest extends TestCase
         app(Wallet::class)->credit($customer->id, 'IRT', 1855, 'topup', null);
         app(ArvanTrafficMeter::class)->run($snapshot, true);
         $fresh = $service->fresh();
-        $hold = $fresh->provision_meta[ArvanTrafficCreditGuard::KEY];
+        $hold = ArvanTrafficCreditGuard::state($fresh);
         $this->assertSame(0, app(Wallet::class)->availableOf($customer->id));
         $this->assertTrue($hold['active']);
         $this->assertSame('pending', $hold['stop']['state']);
@@ -170,8 +169,8 @@ class ArvanTrafficMeterTest extends TestCase
         [, $service, $state, $snapshot] = $this->fixture();
         $saved = false;
         DB::listen(function (QueryExecuted $query) use (&$saved): void {
-            if (! $saved && str_starts_with(strtolower($query->sql), 'update')
-                && str_contains($query->sql, 'services')
+            if (! $saved && (str_starts_with(strtolower($query->sql), 'insert') || str_starts_with(strtolower($query->sql), 'update'))
+                && str_contains($query->sql, 'settings')
                 && collect($query->bindings)->contains(fn ($v) => is_string($v) && str_contains($v, 'traffic_credit_hold'))) {
                 $saved = true;
                 throw new RuntimeException('Synthetic failure after durable stop intent write');

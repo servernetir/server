@@ -16,6 +16,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -119,7 +120,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
         $this->assertSame(1, $posts);
         $this->assertSame('off', $instance->fresh()->status);
         $this->assertTrue(ArvanTrafficCreditGuard::active($service->fresh()));
-        $this->assertSame('confirmed', data_get($service->fresh()->provision_meta, 'traffic_credit_hold.stop.state'));
+        $this->assertSame('confirmed', data_get(ArvanTrafficCreditGuard::state($service->fresh()), 'stop.state'));
         $this->assertSame('active', $service->fresh()->status);
         $this->assertNull($service->fresh()->suspended_at);
         $this->assertSame(0, CreditEntry::count());
@@ -134,7 +135,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
             self::URL.'/power-off' => Http::response(['data' => []])]);
         $guard = app(ArvanTrafficCreditGuard::class);
         $this->assertSame('pending', $guard->reconcile($service->id));
-        $this->assertTrue(data_get($service->fresh()->provision_meta, 'traffic_credit_hold.stop.inflight'));
+        $this->assertTrue(data_get(ArvanTrafficCreditGuard::state($service->fresh()), 'stop.inflight'));
         $this->assertSame('pending', $guard->reconcile($service->id));
         Http::assertSentCount(3);
         $this->travel(6)->minutes();
@@ -192,7 +193,8 @@ class ArvanTrafficCreditGuardTest extends TestCase
         [$customer, $service] = $this->fixture();
         $posts = 0;
         $funded = false;
-        Http::fake(function ($request) use (&$posts, &$funded, $customer) {
+        $offObserved = false;
+        Http::fake(function ($request) use (&$posts, &$funded, &$offObserved, $customer) {
             if ($request->method() === 'POST') {
                 $posts++;
                 $this->fund($customer);
@@ -202,7 +204,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
                 return Http::response(['data' => []]);
             }
 
-            return Http::response($this->detail('ACTIVE'));
+            return Http::response($this->detail($offObserved ? 'SHUTOFF' : 'ACTIVE'));
         });
         $guard = app(ArvanTrafficCreditGuard::class);
         $this->assertSame('pending', $guard->reconcile($service->id));
@@ -211,7 +213,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
         $this->travel(6)->minutes();
         $this->assertSame('pending', $guard->reconcile($service->id));
         $this->assertSame(1, $posts, 'A funded ambiguous retry is GET-only');
-        Http::fake([self::URL => Http::response($this->detail('SHUTOFF'))]);
+        $offObserved = true;
         $this->travel(6)->minutes();
         $this->assertSame('released', $guard->reconcile($service->id));
         $this->assertTrue($guard->allowPower(self::REF));
@@ -261,8 +263,8 @@ class ArvanTrafficCreditGuardTest extends TestCase
             return Http::response($this->detail('SHUTOFF'));
         });
         $this->assertSame('pending', app(ArvanTrafficCreditGuard::class)->reconcile($service->id));
-        $this->assertSame('pending', data_get($service->fresh()->provision_meta, 'traffic_credit_hold.stop.state'));
-        $this->assertSame(2, data_get($service->fresh()->provision_meta, 'traffic_credit_hold.stop.generation'));
+        $this->assertSame('pending', data_get(ArvanTrafficCreditGuard::state($service->fresh()), 'stop.state'));
+        $this->assertSame(2, data_get(ArvanTrafficCreditGuard::state($service->fresh()), 'stop.generation'));
         $this->assertSame(1, $gets);
     }
 
@@ -301,7 +303,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
         $this->fund($customer);
         $this->travel(16)->minutes();
         $this->assertSame(1, $guard->process()['review_required']);
-        $hold = $service->fresh()->provision_meta['traffic_credit_hold'];
+        $hold = ArvanTrafficCreditGuard::state($service->fresh());
         $this->assertSame('review_required', $hold['stop']['state']);
         $this->assertSame('funded_account_with_unresolved_issued_stop', $hold['stop']['review_reason']);
         $this->assertFalse($guard->allowPower(self::REF));
@@ -391,7 +393,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
             $this->travel(1)->minutes();
         }
         foreach (array_merge([$first], $others) as $row) {
-            $this->assertSame(1, data_get($row->fresh()->provision_meta, 'traffic_credit_hold.stop.attempts'),
+            $this->assertSame(1, data_get(ArvanTrafficCreditGuard::state($row->fresh()), 'stop.attempts'),
                 'Never-attempted intents must run before an older ID becomes eligible for its next retry');
         }
         Http::assertNotSent(fn ($r) => $r->method() !== 'GET');
@@ -407,7 +409,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
             return Http::response($this->detail('ACTIVE'));
         });
         $this->assertSame('review_required', app(ArvanTrafficCreditGuard::class)->reconcile($service->id));
-        $this->assertSame('quarantined', data_get($service->fresh()->provision_meta, 'traffic_credit_hold.stop.state'));
+        $this->assertSame('quarantined', data_get(ArvanTrafficCreditGuard::state($service->fresh()), 'stop.state'));
         Http::assertSentCount(1);
     }
 
@@ -420,8 +422,8 @@ class ArvanTrafficCreditGuardTest extends TestCase
         $guard = app(ArvanTrafficCreditGuard::class);
         $this->assertSame(1, $guard->process(1)['review_required']);
         $this->assertSame(1, $guard->process(1)['confirmed']);
-        $this->assertSame('quarantined', data_get($stale->fresh()->provision_meta, 'traffic_credit_hold.stop.state'));
-        $this->assertSame(1, data_get($valid->fresh()->provision_meta, 'traffic_credit_hold.stop.attempts'));
+        $this->assertSame('quarantined', data_get(ArvanTrafficCreditGuard::state($stale->fresh()), 'stop.state'));
+        $this->assertSame(1, data_get(ArvanTrafficCreditGuard::state($valid->fresh()), 'stop.attempts'));
         Http::assertSentCount(1);
     }
 
@@ -441,6 +443,58 @@ class ArvanTrafficCreditGuardTest extends TestCase
         $this->assertFalse(ArvanTrafficCreditGuard::active($service->fresh()));
         $this->assertSame('off', $instance->fresh()->status);
         $this->assertSame('active', $service->fresh()->status);
+    }
+
+    public function test_stale_metadata_writes_cannot_erase_pending_or_resurrect_released_own_record(): void
+    {
+        [$customer, $service] = $this->fixture(false);
+        $stale = $service->fresh();
+        DB::transaction(function () use ($customer, $service): void {
+            Customer::whereKey($customer->id)->lockForUpdate()->first();
+            $current = Service::whereKey($service->id)->lockForUpdate()->first();
+            $instance = CloudInstance::where('service_id', $service->id)->lockForUpdate()->first();
+            app(ArvanTrafficCreditGuard::class)->holdLocked($current, $instance, 99, 0);
+        });
+        $stale->update(['provision_meta' => ['plan' => 'stale resize/warning write']]);
+        $guard = app(ArvanTrafficCreditGuard::class);
+        $this->assertTrue(ArvanTrafficCreditGuard::active($service));
+        $this->assertFalse($guard->allowPower(self::REF));
+        $this->fund($customer);
+        $this->assertTrue($guard->allowPower(self::REF));
+        $stale->update(['provision_meta' => ['plan' => 'another old lifecycle write']]);
+        $this->assertFalse(ArvanTrafficCreditGuard::active($service));
+        $this->assertArrayNotHasKey('traffic_credit_hold', $service->fresh()->provision_meta);
+        Http::assertNothingSent();
+    }
+
+    public function test_corrupt_own_record_is_reported_without_starving_valid_stop_or_reading_cached_settings(): void
+    {
+        [, $bad] = $this->fixture();
+        [, $valid] = $this->fixture();
+        DB::table('settings')->where('key', ArvanTrafficCreditGuard::KEY.$bad->id)->update(['value' => '{broken']);
+        app()->instance('settings.request-memo', [ArvanTrafficCreditGuard::KEY.$valid->id => '{stale-cache}',
+            'arvan_api_token' => Crypt::encryptString('synthetic-credit-guard-token')]);
+        Http::fake([self::URL => Http::response($this->detail('SHUTOFF'))]);
+        $result = app(ArvanTrafficCreditGuard::class)->process();
+        $this->assertSame(1, $result['confirmed']);
+        $this->assertSame(1, $result['review_required']);
+        $this->expectException(\JsonException::class);
+        ArvanTrafficCreditGuard::state($bad);
+    }
+
+    public function test_orphan_and_noncanonical_keys_are_reported_without_consuming_valid_stop_limit(): void
+    {
+        [, $orphan] = $this->fixture();
+        [, $valid] = $this->fixture();
+        $payload = json_encode(ArvanTrafficCreditGuard::state($orphan), JSON_THROW_ON_ERROR);
+        DB::table('cloud_instances')->where('service_id', $orphan->id)->delete();
+        DB::table('services')->where('id', $orphan->id)->delete();
+        Setting::create(['key' => ArvanTrafficCreditGuard::KEY.'000'.$valid->id, 'value' => $payload]);
+        Http::fake([self::URL => Http::response($this->detail('SHUTOFF'))]);
+        $result = app(ArvanTrafficCreditGuard::class)->process(1);
+        $this->assertSame(1, $result['confirmed']);
+        $this->assertSame(2, $result['review_required']);
+        Http::assertSentCount(1);
     }
 
     public function test_worker_rejects_an_outer_financial_transaction_before_any_provider_call(): void

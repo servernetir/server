@@ -957,12 +957,12 @@ class ArvanClient implements CloudProvider
      * **شخصیِ** آپلودشده را می‌دهد (اغلب صفر) — که یک بار ما را به این
      * نتیجهٔ غلط رساند که «این منطقه ایمیج ندارد».
      *
-     * @return array{byId:array<string,bool>,byLabel:array<string,string>}
+     * @return array{byId:array<string,bool>,byLabel:array<string,string>,bootstrapFamilies:array<string,?string>}
      */
     private function regionImageIndex(string $regionCode): array
     {
         return Cache::remember(
-            'arvan.imgidx.'.$regionCode,
+            'arvan.imgidx.v2.'.$regionCode,
             3600,
             function () use ($regionCode) {
                 $r = $this->req('GET', self::ECC.'/regions/'.rawurlencode($regionCode).'/images',
@@ -974,6 +974,7 @@ class ArvanClient implements CloudProvider
 
                 $byId = [];
                 $byLabel = [];
+                $bootstrapFamilies = [];
 
                 foreach ((array) $r['data'] as $group) {
                     $children = is_array($group['images'] ?? null) ? $group['images'] : [$group];
@@ -990,6 +991,10 @@ class ArvanClient implements CloudProvider
                         }
 
                         $byId[$id] = true;
+                        $family = ArvanLinuxBootstrap::family($group, $img);
+                        // Conflicting duplicate IDs never authorize a Linux script.
+                        $bootstrapFamilies[$id] = !array_key_exists($id, $bootstrapFamilies)
+                            || $bootstrapFamilies[$id] === $family ? $family : null;
                         $label = mb_strtolower((string) ($img['name'] ?? ''));
 
                         if ($label !== '' && ! isset($byLabel[$label])) {
@@ -998,7 +1003,7 @@ class ArvanClient implements CloudProvider
                     }
                 }
 
-                return $byId === [] ? [] : ['byId' => $byId, 'byLabel' => $byLabel];
+                return $byId === [] ? [] : ['byId' => $byId, 'byLabel' => $byLabel, 'bootstrapFamilies' => $bootstrapFamilies];
             }
         );
     }
@@ -1070,6 +1075,25 @@ class ArvanClient implements CloudProvider
             'ha_enabled' => false,
         ];
 
+        // Only provider-identified Ubuntu/Debian distribution images receive
+        // our fixed source. Customer init_script/user_data fields are ignored.
+        $bootstrap = null;
+        if (!str_starts_with((string) $spec['image_ref'], 'app:')) {
+            $index = $this->regionImageIndex($region);
+            $family = $index['bootstrapFamilies'][$resolvedImage] ?? null;
+            if (in_array($family, ['ubuntu', 'debian'], true)) {
+                try {
+                    $bootstrap = ArvanLinuxBootstrap::build($family);
+                } catch (\Throwable) {
+                    // No create intent or paid request exists yet. A missing
+                    // or changed deployment asset must be fixed before buying.
+                    return ['ok' => false, 'transient' => true,
+                        'message' => 'آماده‌سازی پایش سرور در دسترس نیست؛ تحویل پس از رفع مشکل ادامه می‌یابد.'] + $fail;
+                }
+                $payload['init_script'] = $bootstrap['script'];
+            }
+        }
+
         // A deterministic name is NOT an idempotency key at Arvan: duplicate
         // names are accepted. Persist intent before the network call. Never
         // expire it or clear it on a timeout, 5xx, malformed success or crash.
@@ -1101,6 +1125,7 @@ class ArvanClient implements CloudProvider
                 'raw' => [
                     'status' => (int) ($r['status'] ?? 0),
                     'detail' => (string) ($r['raw'] ?? ''),
+                    'guest_bootstrap' => $bootstrap['metadata'] ?? null,
                 ]] + $fail;
         }
 
@@ -1115,6 +1140,10 @@ class ArvanClient implements CloudProvider
         $out = $this->serverToResult($server, $region);
         // رمزِ root فقط لحظهٔ ساخت برمی‌گردد
         $out['root_password'] = $this->responsePassword($server);
+        // Submitted source is not proof of guest execution, enrollment or charging.
+        $out['raw']['guest_bootstrap'] = $bootstrap['metadata'] ?? ['version' => 1,
+            'state' => 'not_requested', 'reason' => 'unsupported_or_unverified_image', 'execution' => 'unknown',
+            'central_enrollment' => 'not_performed', 'billing' => 'not_performed'];
 
         return $out;
     }
