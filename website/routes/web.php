@@ -1,5 +1,11 @@
 <?php
 
+// Dedicated VM-console broker; HMAC replaces browser CSRF only on this exact route.
+\Illuminate\Support\Facades\Route::post('/system/vpstc-console-broker',
+    [\App\Services\Cloud\VpsTcConsoleBroker::class, 'handle'])
+    ->middleware('throttle:30,1')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class]);
+
 // Dedicated HMAC endpoint; no customer session grants broker access.
 \Illuminate\Support\Facades\Route::post('/system/arvan-console-broker',
     [\App\Services\Cloud\ArvanConsoleBroker::class, 'handle'])
