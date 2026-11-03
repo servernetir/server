@@ -38,6 +38,6 @@ After a successful probe, activate only the owner pilot. Check framebuffer, harm
 
 ## Validation and rollback
 
-Local PHP 8.3 CLI lint passes for changed PHP files; it is not the locked PHP 8.4 test runtime. Sixteen Node relay tests pass (HMAC, redirects, strict target, privacy, cookie/tab isolation, socket forwarding, frame/session bounds and language shells). Feature and existing VPS.TC tests are included in CI; final CI results must be recorded after execution.
+Local PHP 8.3 CLI lint passes for changed PHP files; it is not the locked PHP 8.4 test runtime. Sixteen Node relay tests pass (HMAC, redirects, strict target, privacy, cookie/tab isolation, socket forwarding, frame/session bounds and language shells). At code commit `ef6bf9f4cd0ad688b32934b1ca52f402dabe0f36`, GitHub Actions run https://github.com/servernetir/server/actions/runs/41605244466 passed 279 VPS.TC PHP tests / 2,369 assertions on PHP 8.4.27, 16 Node tests, and the separate 43-test / 206-assertion MariaDB attachment/complimentary regression job. These are mocked protocol and isolated database tests, not live console acceptance. Review: https://github.com/servernetir/server/pull/251 .
 
 Rollback disables Worker `ENABLED` and the dedicated pilot flag first. Remove only this Worker's route and restore only manifest-listed controller/route hunks/classes with installed-hash guards. Invalidate affected opcodes; let grants expire. Do not flush shared cache, reset APP_KEY, roll back customer records or change VM state.
