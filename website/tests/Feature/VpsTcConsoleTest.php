@@ -328,15 +328,66 @@ class VpsTcConsoleTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_unaccepted_regions_never_use_the_istanbul_gateway_and_revoke_pending_grants(): void
+    public function test_unknown_regions_never_use_another_regions_gateway_and_revoke_pending_grants(): void
     {
         $ticket = $this->ticket();
-        foreach (['us-new-york', 'unknown', null] as $location) {
+        foreach (['unknown', null] as $location) {
             $this->instance->update(['location_code' => $location]);
             $this->assertFalse($this->broker->enabledFor($this->service));
             $this->assertNull(app(VpsTcConsole::class)->context($this->service));
         }
         $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        Http::assertNothingSent();
+    }
+
+    public function test_new_york_uses_its_own_confirmed_gateway_for_the_complete_api_handshake(): void
+    {
+        $ny = 'https://nyc1.whitelabelservices.us:8006';
+        $this->instance->update(['location_code' => 'us-new-york']);
+        // A New York service must not depend on the unrelated Istanbul setting.
+        Setting::put('vpstc_console_pve_origin', 'https://unapproved.example');
+        $this->fake([
+            $ny.'/api2/json/access/ticket' => Http::response(['data' => ['ticket' => $this->pveTicket,
+                'CSRFPreventionToken' => 'ABC:fixture-csrf', 'username' => 'fixture@pve']]),
+            $ny.'/api2/json/cluster/resources?type=vm' => Http::response(['data' => $this->resources]),
+            $ny.'/api2/json/nodes/fixture-node/qemu/123/vncproxy' => Http::response(['data' => [
+                'port' => '5901', 'ticket' => '12345678:PVEVNC:fixture-ny', 'password' => '12345678']]),
+        ]);
+        $this->assertTrue($this->broker->enabledFor($this->service));
+        $redeem = $this->callBroker('redeem', $this->ticket());
+        $this->assertSame(200, $redeem->status());
+        $this->assertSame('12345678', $redeem->getData(true)['password']);
+        $claim = $this->callBroker('claim', $redeem->getData(true)['session']);
+        $this->assertSame(200, $claim->status());
+        $this->assertSame($ny, $claim->getData(true)['origin']);
+        $this->assertSame('PVEVNC:fixture-ny', $claim->getData(true)['vnc']);
+        Http::assertNotSent(fn ($r) => str_starts_with($r->url(), 'https://console.whitelabelservices.us'));
+        Http::assertSent(fn ($r) => $r->url() === $ny.'/api2/json/nodes/fixture-node/qemu/123/vncproxy'
+            && $r['websocket'] === 1 && $r->hasHeader('Cookie', 'PVEAuthCookie='.$this->pveTicket));
+        Http::assertSentCount(6);
+    }
+
+    public function test_region_changes_revoke_an_issued_grant_before_any_provider_request(): void
+    {
+        $ticket = $this->ticket();
+        $this->instance->update(['location_code' => 'us-new-york']);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        Http::assertNothingSent();
+    }
+
+    public function test_customer_policy_covers_both_regions_without_a_per_customer_allowlist(): void
+    {
+        $service = $this->customerService();
+        Setting::put('vpstc_console_enabled', '1');
+        Setting::put('vpstc_console_owner_pilot_enabled', '0');
+        foreach (['tr-istanbul', 'us-new-york'] as $location) {
+            CloudInstance::where('service_id', $service->id)->update(['location_code' => $location]);
+            $this->assertTrue($this->broker->enabledFor($service));
+            $this->actingAs($service->customer, 'customer')->post(route('account.cloud.console', $service))
+                ->assertRedirect();
+            $this->actingAs($this->service->customer, 'customer')->post(route('account.cloud.console', $service))
+                ->assertNotFound();
+        }
         Http::assertNothingSent();
     }
 

@@ -36,7 +36,8 @@ async function broker(action, token, env, fetcher) {
   return text.length <= 16384 ? JSON.parse(text) : null;
 }
 export function upstream(grant) {
-  if (!grant || !['https://console.whitelabelservices.us', 'https://console.whitelabelservices.us:8006'].includes(grant.origin)
+  if (!grant || !['https://console.whitelabelservices.us', 'https://console.whitelabelservices.us:8006',
+      'https://nyc1.whitelabelservices.us:8006'].includes(grant.origin)
       || !/^\/api2\/json\/nodes\/[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}\/qemu\/[1-9][0-9]{0,9}\/vncwebsocket$/.test(grant.path || '')
       || !Number.isInteger(grant.port) || grant.port < 5900 || grant.port > 5999
       || !/^PVE:[A-Za-z0-9+/=:@_.-]{1,4092}$/.test(grant.cookie || '')

@@ -14,10 +14,14 @@ class VpsTcConsole
 {
     public function __construct(private VpsTcApi $api) {}
 
-    public function origin(): ?string
+    public function origin(?string $location = 'tr-istanbul'): ?string
     {
+        // Provider-confirmed origins from support ticket 876841. Never use a
+        // hostname supplied by a browser, service payload or guessed fallback.
+        if ($location === 'us-new-york') { return 'https://nyc1.whitelabelservices.us:8006'; }
+        if ($location !== 'tr-istanbul') { return null; }
         $origin = (string) Setting::get('vpstc_console_pve_origin', '');
-        // Exact provider gateway observed in the owner's portal. No URL from a request or VM payload.
+        // Preserve the existing, explicitly configured Istanbul gateway.
         return in_array($origin, ['https://console.whitelabelservices.us', 'https://console.whitelabelservices.us:8006'], true)
             ? $origin : null;
     }
@@ -27,9 +31,9 @@ class VpsTcConsole
     {
         $service = Service::find($service->getKey());
         $instance = $service ? CloudInstance::where('service_id', $service->id)->first() : null;
+        $origin = $instance ? $this->origin($instance->location_code) : null;
         if (! $service || $service->status !== 'active' || ! $instance || $instance->provider !== 'vpstc'
-            // The approved gateway and live VM acceptance cover Istanbul only.
-            || $instance->location_code !== 'tr-istanbul'
+            || $origin === null
             || ! in_array($instance->status, ['running', 'off', 'stopped'], true)
             || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) $instance->provider_ref)
             || CloudInstance::where('provider', 'vpstc')->where('provider_ref', $instance->provider_ref)->count() !== 1) {
@@ -52,7 +56,7 @@ class VpsTcConsole
         }
         return ['service' => (int) $service->id, 'customer' => (int) $service->customer_id,
             'instance' => (int) $instance->id, 'ref' => (string) $instance->provider_ref,
-            'account' => $this->api->accountFingerprint(), 'origin' => $this->origin(),
+            'account' => $this->api->accountFingerprint(), 'origin' => $origin, 'location' => $instance->location_code,
             'attached_vm' => $op->action === 'attach' ? (string) ($native['vm_id'] ?? '') : null];
     }
 

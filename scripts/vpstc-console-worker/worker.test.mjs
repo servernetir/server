@@ -70,6 +70,8 @@ test('strict destination validation rejects host injection, CRLF, paths and inva
   assert.ok(upstream(grant).startsWith(grant.origin+grant.path+'?port=5901&vncticket=PVEVNC%3A'));
   for(const delta of [{origin:grant.origin+'.evil.example'}, {origin:'http://console.whitelabelservices.us'},
     {origin:grant.origin+'@evil.example'},{path:'/api2/json/nodes/n/shell'},{path:'/api2/json/nodes/../qemu/123/vncwebsocket'},
+    {origin:'https://nyc1.whitelabelservices.us'}, {origin:'https://nyc1.whitelabelservices.us:443'},
+    {origin:'https://nyc1.whitelabelservices.us.evil.example:8006'},
     {port:22},{port:'5901'},{cookie:grant.cookie+';session=other'},{cookie:grant.cookie+'\r\nX-Evil:1'}, {vnc:'PVE:login-ticket'}]) {
     assert.equal(upstream({...grant,...delta}),null,JSON.stringify(delta));
   }
@@ -82,7 +84,9 @@ test('duplicate session cookies and cross-tab binding mismatch fail before claim
   assert.equal((await handle(new Request(origin+'/socket?binding='+await binding(token),options),env,fetcher)).status,409);
   assert.equal(calls,0);
 });
-test('successful socket forwards fresh headers, no browser session or credentials',async()=>{
+for(const gateway of ['https://console.whitelabelservices.us','https://nyc1.whitelabelservices.us:8006'])
+test('socket forwards fresh region-bound headers without browser credentials: '+gateway,async()=>{
+  const regionalGrant={...grant,origin:gateway};
   const NativeResponse=globalThis.Response;
   globalThis.Response=class extends NativeResponse{constructor(body,options){if(options?.status===101)return {...options,body};super(body,options);}};
   try{
@@ -90,9 +94,9 @@ test('successful socket forwards fresh headers, no browser session or credential
     const r=await handle(new Request(origin+'/socket?binding='+await binding(session),{headers:{Origin:origin,Upgrade:'websocket',Cookie:'__Host-sn-vpstc='+session+'; portal=private',Authorization:'Bearer do-not-forward'}}),env,
       async(url,options)=>{
         calls++;
-        if(calls===1){assert.equal(JSON.parse(options.body).action,'claim');return json(grant);}
-        assert.equal(url,upstream(grant));assert.equal(options.redirect,'manual');
-        assert.deepEqual(options.headers,{Upgrade:'websocket','Sec-WebSocket-Protocol':'binary',Origin:grant.origin,Cookie:'PVEAuthCookie='+grant.cookie});
+        if(calls===1){assert.equal(JSON.parse(options.body).action,'claim');return json(regionalGrant);}
+        assert.equal(url,upstream(regionalGrant));assert.equal(options.redirect,'manual');
+        assert.deepEqual(options.headers,{Upgrade:'websocket','Sec-WebSocket-Protocol':'binary',Origin:gateway,Cookie:'PVEAuthCookie='+grant.cookie});
         return {status:101,webSocket:remoteSocket};
       },socket=>{assert.equal(socket,remoteSocket);return localSocket;});
     assert.equal(calls,2);assert.equal(r.status,101);assert.equal(r.webSocket,localSocket);
