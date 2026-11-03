@@ -53,7 +53,8 @@ function scenario() {
     const choose = issue.querySelector('[data-cloud-choose-another]');
     check(!!choose && choose.href.includes('billing_mode=hourly'), 'hourly selection preserved');
     check(new URL(choose.href).pathname.startsWith(window.fixturePrefix+'/account/'), 'locale preserved');
-    check(choose.getBoundingClientRect().height >= 44, 'accessible touch target');
+    const box=choose.getBoundingClientRect();
+    check(box.height >= 44, 'accessible touch target '+JSON.stringify({height:box.height,display:getComputedStyle(choose).display,styles:[...document.querySelectorAll('link[rel="stylesheet"]')].map(x=>x.href)}));
     choose.focus();
     check(document.activeElement === choose, 'primary action keyboard accessible');
     check(getComputedStyle(choose).outlineStyle !== 'none', 'keyboard focus visible');
@@ -106,6 +107,13 @@ test('rendered capacity card in fa/en/tr, light/dark and mobile/desktop Chromium
   const base='http://127.0.0.1:'+server.address().port;
   let cases=0, checks=0;
   try {
+    const out=path.join(root,'screenshots'); await fs.mkdir(out,{recursive:true});
+    for (const [label,width] of [['desktop',1440],['mobile',390]]) {
+      const profile=await fs.mkdtemp(path.join(os.tmpdir(),'cloud-order-shot-'));
+      const args=['--headless=new','--no-sandbox','--disable-gpu','--hide-scrollbars','--no-proxy-server','--user-data-dir='+profile,'--window-size='+width+',1100','--screenshot='+path.join(out,label+'.png'),'--virtual-time-budget=2500',base+'?locale=fa&theme=dark'];
+      await new Promise((resolve,reject)=>{const child=spawn(process.env.TEST_CHROME||'/usr/bin/google-chrome',args,{stdio:'ignore'}); child.once('error',reject);child.once('exit',code=>code===0?resolve():reject(new Error('Screenshot exit '+code)));});
+      await fs.rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:100});
+    }
     for (const locale of ['fa','en','tr']) for (const theme of ['dark','light']) for (const width of [390,1440]) {
       const profile=await fs.mkdtemp(path.join(os.tmpdir(),'cloud-order-qa-'));
       // An iframe gives the rendered page a real mobile/desktop viewport.
@@ -116,12 +124,5 @@ test('rendered capacity card in fa/en/tr, light/dark and mobile/desktop Chromium
       await fs.rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:100});
     }
     console.log(JSON.stringify({cases,checks}));
-    const out=path.join(root,'screenshots'); await fs.mkdir(out,{recursive:true});
-    for (const [label,width] of [['desktop',1440],['mobile',390]]) {
-      const profile=await fs.mkdtemp(path.join(os.tmpdir(),'cloud-order-shot-'));
-      const args=['--headless=new','--no-sandbox','--disable-gpu','--hide-scrollbars','--no-proxy-server','--user-data-dir='+profile,'--window-size='+width+',1100','--screenshot='+path.join(out,label+'.png'),'--virtual-time-budget=2500',base+'?locale=fa&theme=dark'];
-      await new Promise((resolve,reject)=>{const child=spawn(process.env.TEST_CHROME||'/usr/bin/google-chrome',args,{stdio:'ignore'}); child.once('error',reject);child.once('exit',code=>code===0?resolve():reject(new Error('Screenshot exit '+code)));});
-      await fs.rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:100});
-    }
   } finally {await new Promise(resolve=>server.close(resolve));}
 });
