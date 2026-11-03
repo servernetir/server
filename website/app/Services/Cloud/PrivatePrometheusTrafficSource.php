@@ -8,7 +8,7 @@ use Closure;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 
-/** One bounded read over an already authorized loopback SSH-forward. Never opens a tunnel. */
+/** One bounded read over an approved private transport. Never opens a tunnel. */
 final class PrivatePrometheusTrafficSource
 {
     private const METRICS = ['up', 'node_scrape_collector_success', 'node_network_receive_bytes_total',
@@ -19,11 +19,13 @@ final class PrivatePrometheusTrafficSource
     private const EVIDENCE_KIND = 'snet_observation_kind';
 
     /**
-     * endpoint is trusted operator configuration, never request data. Null is
-     * disabled. Transport injection enables isolated tests without Laravel.
+     * The application runner supplies unixTransport only. The legacy loopback
+     * endpoint remains available for isolated compatibility tests and explicit
+     * operator callers; null with no Unix transport is disabled.
      * Transport returns ['status'=>int,'body'=>string] and must never log body.
      */
-    public function __construct(private ?string $endpoint = null, private ?Closure $transport = null) {}
+    public function __construct(private ?string $endpoint = null, private ?Closure $transport = null,
+        private ?UnixPrometheusTrafficTransport $unixTransport = null) {}
 
     private function unknown(string $reason): array
     {
@@ -49,13 +51,13 @@ final class PrivatePrometheusTrafficSource
         if (!ArvanTrafficObservation::validIdentity($identity)) {
             return $this->unknown('expected_identity_invalid');
         }
-        if ($this->endpoint === null) {
+        if ($this->unixTransport === null && $this->endpoint === null) {
             return $this->unknown('private_transport_not_configured');
         }
         // No redirects, user-info, path, query, hostnames, public IP or remote
         // 9090. A separately managed verified SSH tunnel is a prerequisite.
-        if (preg_match('~\Ahttp://127\.0\.0\.1:([1-9]\d{0,4})\z~D', $this->endpoint, $port) !== 1
-            || (int) $port[1] > 65535) {
+        if ($this->unixTransport === null && (preg_match('~\Ahttp://127\.0\.0\.1:([1-9]\d{0,4})\z~D', $this->endpoint, $port) !== 1
+            || (int) $port[1] > 65535)) {
             return $this->unknown('private_loopback_endpoint_required');
         }
         $selectors = ['job="servernet-arvan"'];
@@ -83,7 +85,9 @@ final class PrivatePrometheusTrafficSource
                     .'", "scrape_timestamp", "", "")';
             }
             $query = ['query' => implode(' or ', $expressions), 'time' => (string) $now];
-            if ($this->transport !== null) {
+            if ($this->unixTransport !== null) {
+                $response = $this->unixTransport->request($query);
+            } elseif ($this->transport !== null) {
                 $response = ($this->transport)($this->endpoint.'/api/v1/query', $query);
             } else {
                 $http = Http::withOptions(['allow_redirects' => false, 'proxy' => '', 'stream' => true, 'read_timeout' => 5])
