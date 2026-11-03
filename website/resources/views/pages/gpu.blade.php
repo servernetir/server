@@ -22,6 +22,16 @@
       ? __('ui.gpu_meta_d', ['price' => $fromHourly])
       : __('ui.gpu_meta_d_nop');
 
+  // Describe the service without claiming that interruptible capacity is
+  // reserved or exposing infrastructure names. The configurator owns quotes.
+  $gpuService = [
+      'name' => __('ui.gpu_h1'),
+      'description' => $gpuMetaD,
+      'url' => lroute('gpu'),
+      'serviceType' => __('ui.gpu_h1'),
+      'provider' => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
+  ];
+
   $gpuUses = [
       ['i' => 'cpu',   't' => __('ui.gpu_use1_t'), 'd' => __('ui.gpu_use1_d')],
       ['i' => 'zap',   't' => __('ui.gpu_use2_t'), 'd' => __('ui.gpu_use2_d')],
@@ -58,6 +68,7 @@
 @section('description', $gpuMetaD)
 
 @section('content')
+<script type="application/ld+json">{!! schema_ld($gpuService, 'Service') !!}</script>
 <script type="application/ld+json">{!! schema_ld($gpuCrumbs[0], 'BreadcrumbList') !!}</script>
 
 <style>
@@ -557,3 +568,4 @@
 @endif
 @include('partials.growth-cta')
 @endsection
+
