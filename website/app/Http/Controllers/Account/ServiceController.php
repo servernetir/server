@@ -413,7 +413,7 @@ class ServiceController extends Controller
             $binding = $service->provision_meta['plesk'];
             if ($service->status !== 'active' || (int) ($binding['server_id'] ?? 0) !== (int) $service->server_id
                 || ($binding['login'] ?? null) !== $service->username
-                || ($binding['domain'] ?? null) !== $service->domain
+                || ($binding['domain'] ?? null) !== strtolower((string) $service->domain)
                 || (int) ($binding['customer_id'] ?? 0) < 1 || (int) ($binding['subscription_id'] ?? 0) < 1) {
                 return back()->withErrors(__('ui.svf_sso_na'));
             }

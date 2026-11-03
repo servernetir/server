@@ -39,7 +39,8 @@ class PleskPanelIntegrationTest extends TestCase
     }
     public function test_owner_gets_a_single_use_customer_session_with_no_password_in_url(): void
     {
-        $s=$this->service();Http::swap(new Factory);Http::preventStrayRequests();
+        $s=$this->service();$s->update(['domain'=>'Fixture.Example.Test']);
+        Http::swap(new Factory);Http::preventStrayRequests();
         Http::fake(fn()=>Http::response('<packet><server><create_session><result><status>ok</status><id>'.str_repeat('a',32).'</id></result></create_session></server></packet>',200));
         $r=$this->actingAs($s->customer,'customer')->get('/account/services/'.$s->id.'/cpanel');
         $r->assertRedirect('https://panel.example.test:8443/enterprise/rsession_init.php?PLESKSESSID='.str_repeat('a',32));
