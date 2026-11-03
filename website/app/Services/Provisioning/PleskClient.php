@@ -38,11 +38,14 @@ class PleskClient
         $base = 'https://'.$this->server->hostname.':'.$this->server->effectivePort().'/enterprise/control/agent.php';
 
         try {
-            $req = Http::withHeaders([
-                'Content-Type'     => 'text/xml',
-                'HTTP_AUTH_LOGIN'  => (string) $this->server->username,
-                'HTTP_AUTH_PASSWD' => (string) $this->server->api_token,
-            ])->timeout(app()->runningInConsole() ? 120 : 45);
+            // Explicit mode: do not guess from the shape of a password, and
+            // never retry a mutating XML request with another authentication method.
+            $auth = ($this->server->meta['plesk_auth_mode'] ?? 'password') === 'key'
+                ? ['KEY' => (string) $this->server->api_token]
+                : ['HTTP_AUTH_LOGIN' => (string) $this->server->username,
+                    'HTTP_AUTH_PASSWD' => (string) $this->server->api_token];
+            $req = Http::withHeaders(['Content-Type' => 'text/xml'] + $auth)
+                ->connectTimeout(5)->timeout(app()->runningInConsole() ? 120 : 45);
 
             if (! $this->server->verify_tls) {
                 $req = $req->withoutVerifying();
@@ -78,7 +81,8 @@ class PleskClient
         }
 
         $prev = libxml_use_internal_errors(true);
-        $sx = simplexml_load_string($body);
+        $sx = str_contains(strtoupper($body), '<!DOCTYPE') ? false
+            : simplexml_load_string($body, \SimpleXMLElement::class, LIBXML_NONET);
         libxml_clear_errors();
         libxml_use_internal_errors($prev);
 
@@ -94,7 +98,8 @@ class PleskClient
         $errText = $this->deepFind($json, 'errtext');
         $errCode = $this->deepFind($json, 'errcode');
 
-        $ok = $status === 'ok';
+        $statuses = $sx->xpath('/*/*/*/result/status | /*/system/status') ?: [];
+        $ok = count($statuses) > 0 && count(array_filter($statuses, fn ($v) => (string) $v !== 'ok')) === 0;
 
         return [
             'ok'        => $ok,
@@ -148,13 +153,13 @@ class PleskClient
     public function createCustomer(array $p): array
     {
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'
-            .'<packet><customer><add><gen-info>'
+            .'<packet><customer><add><gen_info>'
             .'<cname>'.$this->esc($p['company'] ?? $p['name'] ?? '').'</cname>'
             .'<pname>'.$this->esc($p['name'] ?? '').'</pname>'
             .'<login>'.$this->esc($p['login'] ?? '').'</login>'
             .'<passwd>'.$this->esc($p['password'] ?? '').'</passwd>'
             .'<email>'.$this->esc($p['email'] ?? '').'</email>'
-            .'</gen-info></add></customer></packet>';
+            .'</gen_info></add></customer></packet>';
 
         return $this->call($xml);
     }
@@ -171,7 +176,7 @@ class PleskClient
         $node = $reseller ? 'reseller' : 'customer';
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'
             .'<packet><'.$node.'><get><filter><login>'.$this->esc($login).'</login></filter>'
-            .'<dataset><gen-info/></dataset></get></'.$node.'></packet>';
+            .'<dataset><'.($reseller ? 'gen-info' : 'gen_info').'/></dataset></get></'.$node.'></packet>';
 
         $res = $this->call($xml);
 
@@ -193,7 +198,7 @@ class PleskClient
         // 0 = active، 16 = suspended by admin
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'
             .'<packet><'.$node.'><set><filter><login>'.$this->esc($login).'</login></filter>'
-            .'<values><gen-info><status>'.($enabled ? '0' : '16').'</status></gen-info></values>'
+            .'<values><'.($reseller ? 'gen-info' : 'gen_info').'><status>'.($enabled ? '0' : '16').'</status></'.($reseller ? 'gen-info' : 'gen_info').'></values>'
             .'</set></'.$node.'></packet>';
 
         return $this->call($xml);
@@ -206,6 +211,58 @@ class PleskClient
             .'<packet><'.$node.'><del><filter><login>'.$this->esc($login).'</login></filter></del></'.$node.'></packet>';
 
         return $this->call($xml);
+    }
+
+
+    /** Exact reads retain unknown separately from a confirmed 1013 absence. */
+    public function customerInfo(string $login): array
+    {
+        return $this->objectRead('customer', '<login>'.$this->esc($login).'</login>', '<gen_info/>');
+    }
+
+    public function subscriptionInfo(string $domain): array
+    {
+        return $this->objectRead('webspace', '<name>'.$this->esc($domain).'</name>', '<gen_info/><hosting/><subscriptions/>');
+    }
+
+    public function planInfo(string $name): array
+    {
+        return $this->objectRead('service-plan', '<name>'.$this->esc($name).'</name>', null);
+    }
+
+    private function objectRead(string $node, string $filter, ?string $dataset): array
+    {
+        $r = $this->call('<packet><'.$node.'><get><filter>'.$filter.'</filter>'
+            .($dataset === null ? '' : '<dataset>'.$dataset.'</dataset>').'</get></'.$node.'></packet>');
+        $one = $r['data'][$node]['get']['result'] ?? [];
+        if (! is_array($one) || isset($one[0])) return ['exists' => null, 'result' => [], 'reason' => 'Ambiguous object response'];
+        $exists = ($one['status'] ?? '') === 'ok' && $r['ok'] ? true
+            : (((string) ($one['errcode'] ?? '') === '1013' && ! $r['transport']) ? false : null);
+        return ['exists' => $exists, 'result' => $one, 'reason' => $r['reason']];
+    }
+
+    public function createSubscription(array $p): array
+    {
+        return $this->call('<packet><webspace><add><gen_setup>'
+            .'<name>'.$this->esc($p['domain']).'</name><owner-id>'.(int) $p['owner_id'].'</owner-id>'
+            .'<htype>vrt_hst</htype><ip_address>'.$this->esc($p['ip']).'</ip_address><status>0</status></gen_setup>'
+            .'<hosting><vrt_hst><property><name>ftp_login</name><value>'.$this->esc($p['login']).'</value></property>'
+            .'<property><name>ftp_password</name><value>'.$this->esc($p['password']).'</value></property>'
+            .'<ip_address>'.$this->esc($p['ip']).'</ip_address></vrt_hst></hosting>'
+            .'<plan-name>'.$this->esc($p['plan']).'</plan-name></add></webspace></packet>');
+    }
+
+    /** Returns a fixed-origin, single-use URL; never a password or administrator login. */
+    public function createUserSession(string $login, string $ip): ?string
+    {
+        if ($login === '' || in_array(strtolower($login), ['admin', 'root', strtolower((string) $this->server->username)], true)
+            || ! filter_var($ip, FILTER_VALIDATE_IP)) return null;
+        $r = $this->call('<packet version="1.6.9.1"><server><create_session><login>'.$this->esc($login)
+            .'</login><data><user_ip>'.$this->esc($ip).'</user_ip></data></create_session></server></packet>');
+        $token = $r['data']['server']['create_session']['result']['id'] ?? null;
+        if (! $r['ok'] || ! is_string($token) || ! preg_match('/\A[a-f0-9]{32,128}\z/iD', $token)) return null;
+        return 'https://'.$this->server->hostname.':'.$this->server->effectivePort()
+            .'/enterprise/rsession_init.php?PLESKSESSID='.rawurlencode($token);
     }
 
     private function esc(string $s): string

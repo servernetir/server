@@ -407,6 +407,22 @@ class ServiceController extends Controller
             return back()->withErrors(__('ui.svf_sso_na'));
         }
 
+        // An automated Plesk host has a verified customer/subscription binding.
+        // Keep legacy manual Plesk accounts on their existing direct-login path.
+        if ($service->server->type === 'plesk' && isset($service->provision_meta['plesk'])) {
+            $binding = $service->provision_meta['plesk'];
+            if ($service->status !== 'active' || (int) ($binding['server_id'] ?? 0) !== (int) $service->server_id
+                || ($binding['login'] ?? null) !== $service->username
+                || ($binding['domain'] ?? null) !== $service->domain
+                || (int) ($binding['customer_id'] ?? 0) < 1 || (int) ($binding['subscription_id'] ?? 0) < 1) {
+                return back()->withErrors(__('ui.svf_sso_na'));
+            }
+            $url = (new \App\Services\Provisioning\PleskClient($service->server))
+                ->createUserSession((string) $service->username, (string) $request->ip());
+            return $url ? redirect()->away($url)->withHeaders(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer'])
+                : back()->withErrors(__('ui.svf_sso_na'));
+        }
+
         // فقط WHM نشستِ ورود دارد؛ بقیه به آدرسِ کنترل‌پنل هدایت می‌شوند
         if ($service->server->type !== 'whm') {
             return $service->panel_url ? redirect()->away($service->panel_url)

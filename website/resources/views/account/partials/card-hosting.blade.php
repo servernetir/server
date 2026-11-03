@@ -127,7 +127,7 @@
       </div>
     @elseif($canLogin && $panelUrl)
       <div class="svc-quick">
-        <a class="svc-qbtn primary" href="{{ $panelUrl }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-key"/></svg><span>{{ __('ui.hst_login_panel') }}</span></a>
+        <a class="svc-qbtn primary" href="{{ $type === 'plesk' ? lroute('account.services.cpanel', $s) : $panelUrl }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-key"/></svg><span>{{ __('ui.hst_login_panel') }}</span></a>
       </div>
     @elseif($canLogin)
       <p class="svc-note warn">{{ __('ui.hst_no_panel_url') }}</p>
