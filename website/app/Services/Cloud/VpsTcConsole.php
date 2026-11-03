@@ -28,6 +28,8 @@ class VpsTcConsole
         $service = Service::find($service->getKey());
         $instance = $service ? CloudInstance::where('service_id', $service->id)->first() : null;
         if (! $service || $service->status !== 'active' || ! $instance || $instance->provider !== 'vpstc'
+            // The approved gateway and live VM acceptance cover Istanbul only.
+            || $instance->location_code !== 'tr-istanbul'
             || ! in_array($instance->status, ['running', 'off', 'stopped'], true)
             || ! preg_match('/\A[1-9][0-9]{0,17}\z/D', (string) $instance->provider_ref)
             || CloudInstance::where('provider', 'vpstc')->where('provider_ref', $instance->provider_ref)->count() !== 1) {

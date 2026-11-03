@@ -80,6 +80,9 @@ if (array_column($payload['files'] ?? [], 'path') === ['app/Http/Middleware/Secu
 if (array_column($payload['files'] ?? [], 'path') === ['app/Services/Cloud/VpsTcConsoleBroker.php']) {
     $allowed = ['app/Services/Cloud/VpsTcConsoleBroker.php'];
 }
+if (array_column($payload['files'] ?? [], 'path') === ['app/Services/Cloud/VpsTcConsole.php']) {
+    $allowed = ['app/Services/Cloud/VpsTcConsole.php'];
+}
 if (($payload['schema'] ?? null) !== 1 || array_column($payload['files'] ?? [], 'path') !== $allowed) {
     throw new RuntimeException('Unexpected release scope');
 }

@@ -36,7 +36,7 @@ class VpsTcConsoleTest extends TestCase
             'phone' => '09120000001', 'password' => 'fixture', 'status' => 'active']);
         $this->service = Service::forceCreate(['id' => 7, 'customer_id' => 1, 'name' => 'Owner fixture',
             'status' => 'active', 'cycle' => 'monthly', 'price' => 1]);
-        $this->instance = CloudInstance::forceCreate(['service_id' => 7, 'provider' => 'vpstc', 'provider_ref' => '83',
+        $this->instance = CloudInstance::forceCreate(['service_id' => 7, 'provider' => 'vpstc', 'provider_ref' => '83', 'location_code' => 'tr-istanbul',
             'status' => 'running', 'ipv4' => '192.0.2.10']);
         CloudProviderOperation::create(['operation_key' => hash('sha256', 'fixture'), 'provider' => 'vpstc',
             'action' => 'attach', 'state' => 'complete', 'resource_ref' => '83', 'payload' => [
@@ -279,7 +279,7 @@ class VpsTcConsoleTest extends TestCase
             'password' => 'fixture', 'status' => 'active']);
         $service = Service::forceCreate(['customer_id' => $customer->id, 'name' => 'Customer fixture',
             'status' => 'active', 'cycle' => 'monthly', 'price' => 1]);
-        CloudInstance::forceCreate(['service_id' => $service->id, 'provider' => 'vpstc', 'provider_ref' => '84',
+        CloudInstance::forceCreate(['service_id' => $service->id, 'provider' => 'vpstc', 'provider_ref' => '84', 'location_code' => 'tr-istanbul',
             'status' => 'running', 'ipv4' => '192.0.2.11']);
         CloudProviderOperation::create(['operation_key' => hash('sha256', 'customer-console'), 'provider' => 'vpstc',
             'action' => 'attach', 'state' => 'complete', 'resource_ref' => '84', 'payload' => [
@@ -324,6 +324,18 @@ class VpsTcConsoleTest extends TestCase
         $ticket = $this->ticket();
         $other = Service::forceCreate(['customer_id' => 1, 'name' => 'Duplicate fixture', 'status' => 'active', 'price' => 1, 'cycle' => 'monthly']);
         CloudInstance::forceCreate(['service_id' => $other->id, 'provider' => 'vpstc', 'provider_ref' => '83', 'status' => 'running']);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        Http::assertNothingSent();
+    }
+
+    public function test_unaccepted_regions_never_use_the_istanbul_gateway_and_revoke_pending_grants(): void
+    {
+        $ticket = $this->ticket();
+        foreach (['us-new-york', 'unknown', null] as $location) {
+            $this->instance->update(['location_code' => $location]);
+            $this->assertFalse($this->broker->enabledFor($this->service));
+            $this->assertNull(app(VpsTcConsole::class)->context($this->service));
+        }
         $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
         Http::assertNothingSent();
     }

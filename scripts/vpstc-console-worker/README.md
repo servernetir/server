@@ -25,6 +25,8 @@ checked. Disable that flag and the owner pilot before disabling the Worker.
 Laravel package. `--headers-only` prepares the narrow browser-policy follow-up.
 `--broker-only` promotes the installed owner pilot to the separately gated
 customer policy, preserving all other live files and keeping rollout flags unchanged.
+`--protocol-only` applies the separate Istanbul location guard to the installed
+protocol client. Unaccepted or unknown regions cannot use the Istanbul gateway.
 The private CLI helper prepares exact-byte backups, then separately accepts
 `--apply` after review. It acquires both shared account release locks and stops
 on source drift, existing class files, a route cache or a previous apply attempt.

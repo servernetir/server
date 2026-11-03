@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[2]
 BASE = '826a1e6ee62a84e44bba071e31b2a4a1a07881fd'
 BROKER_BASE = 'a81f4b0a020aab5642d120fc140f98247289e735'
 BROKER = 'app/Services/Cloud/VpsTcConsoleBroker.php'
+PROTOCOL_BASE = '0741a3d54872dc6170e57462beccbc48b08d5165'
+PROTOCOL = 'app/Services/Cloud/VpsTcConsole.php'
 NEW = ['app/Services/Cloud/VpsTcConsole.php', 'app/Services/Cloud/VpsTcConsoleBroker.php',
        'app/Console/Commands/VpsTcConsoleProbe.php']
 PATCH = ['app/Http/Controllers/Account/CloudServerController.php', 'routes/web.php', 'app/Http/Middleware/SecurityHeaders.php']
@@ -20,14 +22,14 @@ def git(*args):
 def encode(s):
     return base64.b64encode(s.encode()).decode()
 
-def build(headers_only=False, broker_only=False):
-    if headers_only and broker_only:
+def build(headers_only=False, broker_only=False, protocol_only=False):
+    if sum([headers_only, broker_only, protocol_only]) > 1:
         raise RuntimeError('Choose one release scope')
-    base = BROKER_BASE if broker_only else BASE
+    base = BROKER_BASE if broker_only else PROTOCOL_BASE if protocol_only else BASE
     files = []
-    for path in ([] if headers_only or broker_only else NEW):
+    for path in ([] if headers_only or broker_only or protocol_only else NEW):
         files.append({'path': path, 'kind': 'new', 'content': encode((ROOT / 'website' / path).read_text())})
-    for path in ([BROKER] if broker_only else ['app/Http/Middleware/SecurityHeaders.php'] if headers_only else PATCH):
+    for path in ([PROTOCOL] if protocol_only else [BROKER] if broker_only else ['app/Http/Middleware/SecurityHeaders.php'] if headers_only else PATCH):
         diff = git('diff', '--no-ext-diff', '--unified=3', base, '--', 'website/' + path)
         hunks = []
         for line in diff.splitlines(keepends=True):
@@ -69,7 +71,7 @@ if __name__ == '__main__':
     if ROOT == output or ROOT in output.parents:
         raise RuntimeError('Private release output must be outside the repository')
     output.mkdir(mode=0o700)
-    payload = build(headers_only='--headers-only' in sys.argv[2:], broker_only='--broker-only' in sys.argv[2:])
+    payload = build(headers_only='--headers-only' in sys.argv[2:], broker_only='--broker-only' in sys.argv[2:], protocol_only='--protocol-only' in sys.argv[2:])
     helper = (Path(__file__).with_name('release.php')).read_text()
     helper = helper.replace('__PAYLOAD_SHA256__', hashlib.sha256(payload).hexdigest())
     for name, data in [('payload.json', payload), ('release.php', helper.encode())]:
