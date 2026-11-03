@@ -28,7 +28,12 @@ $ip = '203.0.113.10';
 $good = ['NS' => $ns, 'A' => [$ip], 'AAAA' => []];
 $cases = [
     'both resolvers point to assigned IP' => [$good, $good, 'connected'],
-    'custom DNS with direct A is accepted' => [array_replace($good, ['NS' => ['other.example']]), array_replace($good, ['NS' => ['other.example']]), 'connected'],
+    'custom DNS with direct A still requires assigned NS' => [array_replace($good, ['NS' => ['other.example']]), array_replace($good, ['NS' => ['other.example']]), 'needs_setup'],
+    'only one assigned NS with correct A is not green' => [array_replace($good, ['NS' => [$ns[0]]]), array_replace($good, ['NS' => [$ns[0]]]), 'needs_setup'],
+    'extra nameserver with correct A is not green' => [array_replace($good, ['NS' => [...$ns, 'other.example']]), array_replace($good, ['NS' => [...$ns, 'other.example']]), 'needs_setup'],
+    'resolver disagreement on NS with correct A is pending' => [$good, array_replace($good, ['NS' => ['other.example']]), 'propagating'],
+    'NS order with correct A can be green' => [array_replace($good, ['NS' => array_reverse($ns)]), $good, 'connected'],
+    'NS case and trailing dots are normalized' => [array_replace($good, ['NS' => array_map(fn ($v) => strtoupper($v).'.', $ns)]), $good, 'connected'],
     'wrong IP with correct NS is pending' => [array_replace($good, ['A' => ['203.0.113.20']]), array_replace($good, ['A' => ['203.0.113.20']]), 'propagating'],
     'unconfigured domain needs setup' => [['NS' => [], 'A' => [], 'AAAA' => []], ['NS' => [], 'A' => [], 'AAAA' => []], 'needs_setup'],
     'NXDOMAIN needs setup' => [['NS' => 3, 'A' => 3, 'AAAA' => 3], ['NS' => 3, 'A' => 3, 'AAAA' => 3], 'needs_setup'],
@@ -56,3 +61,4 @@ foreach ([['invalid', $ns, $ip], ['website.example', [], $ip], ['website.example
     $count++;
 }
 echo $count." DNS behavior scenarios passed; zero network requests.\n";
+
