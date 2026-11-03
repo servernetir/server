@@ -48,6 +48,22 @@ class HostingDomainConnectionTest extends TestCase
         $this->getJson($url)->assertOk();
     }
 
+    public function test_old_ip_only_green_cache_is_not_reused(): void
+    {
+        Cache::setDefaultDriver('array');
+        $customer = $this->customer(); $service = $this->hosting($customer);
+        $fingerprint = hash('sha256', json_encode([
+            $service->domain, $service->server_id, $service->server_ip,
+            $service->server?->server_ip, HostingDomainConnection::nameservers($service),
+        ]));
+        Cache::put('hosting-domain:v1:'.$service->id.':'.$fingerprint, ['state' => 'connected'], 120);
+        $connection = Mockery::mock(HostingDomainConnection::class);
+        $connection->shouldReceive('inspect')->once()->andReturn(['state' => 'needs_setup', 'observed_ns' => ['other.example'], 'checked_at' => '2026-11-03T05:00:00Z']);
+        $this->app->instance(HostingDomainConnection::class, $connection);
+        $this->actingAs($customer, 'customer')->getJson('/account/services/'.$service->id.'/domain-connection')
+            ->assertOk()->assertJsonPath('state', 'needs_setup');
+    }
+
     public function test_nameservers_come_from_the_current_server_and_are_normalized(): void
     {
         $service = $this->hosting($this->customer());
@@ -79,3 +95,4 @@ class HostingDomainConnectionTest extends TestCase
         }
     }
 }
+

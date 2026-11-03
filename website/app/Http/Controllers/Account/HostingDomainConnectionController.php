@@ -20,9 +20,10 @@ class HostingDomainConnectionController extends Controller
             $service->domain, $service->server_id, $service->server_ip,
             $service->server?->server_ip, HostingDomainConnection::nameservers($service),
         ]));
-        $data = Cache::remember('hosting-domain:v1:'.$service->id.':'.$fingerprint, 120,
+        $data = Cache::remember('hosting-domain:v2:'.$service->id.':'.$fingerprint, 120,
             fn () => $connection->inspect($service));
 
         return response()->json($data)->header('Cache-Control', 'private, no-store');
     }
 }
+
