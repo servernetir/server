@@ -258,13 +258,13 @@ final class ArvanTrafficCreditGuard
                 return 'stale';
             }
             $fresh = self::state($service);
+            if (($fresh['token'] ?? null) !== $hold['token']) {
+                return 'stale';
+            }
             if (! $current) {
                 $this->quarantine($service, $fresh, 'resource_binding_became_ambiguous');
 
                 return 'review_required';
-            }
-            if (($fresh['token'] ?? null) !== $hold['token']) {
-                return 'stale';
             }
             if (! $this->matches($service, $current, $fresh) || $this->protected($service)) {
                 $this->quarantine($service, $fresh, 'resource_owner_or_service_protection_changed');
