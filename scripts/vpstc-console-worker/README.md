@@ -31,3 +31,7 @@ The private CLI helper prepares exact-byte backups, then separately accepts
 `--apply` after review. It acquires both shared account release locks and stops
 on source drift, existing class files, a route cache or a previous apply attempt.
 It does not activate flags, run migrations or flush application caches.
+
+Established console streams last up to 30 minutes. Launch grants and claim cookies
+remain short-lived and single-use; extending the stream does not extend them.
+The customer policy covers both current and future eligible Istanbul services.

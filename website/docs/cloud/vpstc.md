@@ -98,3 +98,5 @@ Existing paid-service adoption and owner-authorized offer expansion: [31 October
 
 
 Custom API console: [3 November customer release and acceptance](../../../docs/project/VPSTC-CONSOLE-2026-11-03.md). The installed customer capability is enabled for eligible receipt-bound Istanbul services; the owner pilot is off. Owner framebuffer/input, repeated FA/EN/TR launches, fullscreen fallback and session expiry passed. All three current services passed relay RFB authentication/ServerInit; other customer screens were not requested. Cross-customer access is denied. New York and unknown regions remain gated off. Current CI passed 286 PHP tests, 43 MariaDB tests and 19 Node checks. Provider-wide console capability remains false; the scoped broker decides the service capability.
+
+Session duration follow-up: the dedicated relay now prepares 30-minute sessions for new connections. This changes only the established stream deadline; launch/claim grants remain short-lived. Customer eligibility also applies to future Istanbul purchases, without a per-customer allowlist.

@@ -110,10 +110,10 @@ class Socket{
   send(data){this.sent.push(data);}close(code,reason){this.closed.push([code,reason]);}
   receive(data){this.handlers.message({data:this.binaryType==='blob'?new Blob([data]):data});}
 }
-test('relay forwards binary data and forcibly closes both sides after five minutes',()=>{
+test('relay forwards binary data and forcibly closes both sides after thirty minutes',()=>{
   const remote=new Socket(),server=new Socket(),client={};let deadline,delay,cleared=false;
   const result=bridge(remote,()=>({0:client,1:server}),{setTimeout(fn,ms){deadline=fn;delay=ms;return 1;},clearTimeout(){cleared=true;}});
-  assert.equal(result,client);assert.equal(delay,300000);assert.ok(server.accepted&&remote.accepted);
+  assert.equal(result,client);assert.equal(delay,1800000);assert.ok(server.accepted&&remote.accepted);
   const bytes=new Uint8Array([1,2,3]).buffer;remote.receive(bytes);assert.equal(server.sent[0],bytes);
   server.receive(bytes);assert.equal(remote.sent[0],bytes);
   deadline();assert.equal(remote.closed.length,1);assert.equal(server.closed.length,1);assert.ok(cleared);

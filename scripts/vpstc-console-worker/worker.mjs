@@ -6,6 +6,7 @@ const BROKER = PORTAL + '/system/vpstc-console-broker';
 const ID = /^[a-f0-9]{64}$/;
 const PASSWORD = /^(?:[\x21-\x7e]{8}|PVEVNC:[A-Za-z0-9+/=:@_.-]{1,4089})$/;
 const COOKIE = '__Host-sn-vpstc';
+const SESSION_DURATION_MS = 30 * 60 * 1000;
 const HEADERS = {'Cache-Control': 'no-store, private', 'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY',
   'Content-Security-Policy': "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
@@ -58,7 +59,7 @@ export function bridge(upstreamSocket, makePair = () => new WebSocketPair(), tim
     closed = true; timers.clearTimeout(deadline);
     for (const socket of [server, upstreamSocket]) { try { socket.close(1000, 'Console session ended'); } catch {} }
   };
-  const deadline = timers.setTimeout(end, 300000);
+  const deadline = timers.setTimeout(end, SESSION_DURATION_MS);
   // Workers dated 2026-03-17+ default to Blob. Select synchronous binary
   // delivery before accepting either socket, so frame bounds keep working.
   server.binaryType = 'arraybuffer'; upstreamSocket.binaryType = 'arraybuffer';
@@ -75,11 +76,11 @@ export function bridge(upstreamSocket, makePair = () => new WebSocketPair(), tim
   return client;
 }
 const TEXT = {
-  fa: {title:'کنسول امن سرور',brand:'سرورنت',back:'بازگشت به سرویس‌ها',wait:'در حال آماده‌سازی کنسول…',ready:'متصل',
+  fa: {title:'کنسول امن سرور',brand:'سرورنت',back:'بازگشت به سرویس‌ها',wait:'در حال آماده‌سازی کنسول…',ready:'متصل · نشست ۳۰ دقیقه‌ای',
     fail:'اتصال برقرار نشد. از صفحهٔ سرویس، کنسول تازه باز کنید.',ended:'نشست کنسول پایان یافت. برای ادامه، از صفحهٔ سرویس کنسول تازه باز کنید.',full:'تمام‌صفحه',exitFull:'خروج از تمام‌صفحه',initial:'کنسول را از صفحهٔ سرویس باز کنید.'},
-  en: {title:'Secure server console',brand:'ServerNet',back:'Back to services',wait:'Preparing console…',ready:'Connected',
+  en: {title:'Secure server console',brand:'ServerNet',back:'Back to services',wait:'Preparing console…',ready:'Connected · 30 min session',
     fail:'Connection unavailable. Open a new console from your service page.',ended:'Your console session ended. Open a new console from your service page to continue.',full:'Full screen',exitFull:'Exit full screen',initial:'Open the console from your service page.'},
-  tr: {title:'Güvenli sunucu konsolu',brand:'ServerNet',back:'Hizmetlere dön',wait:'Konsol hazırlanıyor…',ready:'Bağlandı',
+  tr: {title:'Güvenli sunucu konsolu',brand:'ServerNet',back:'Hizmetlere dön',wait:'Konsol hazırlanıyor…',ready:'Bağlandı · 30 dk oturum',
     fail:'Bağlantı kurulamadı. Hizmet sayfasından yeni konsol açın.',ended:'Konsol oturumunuz sona erdi. Devam etmek için hizmet sayfasından yeni konsol açın.',full:'Tam ekran',exitFull:'Tam ekrandan çık',initial:'Konsolu hizmet sayfasından açın.'},
 };
 const CSS = `#screen.expanded{position:fixed;inset:0;z-index:40;height:100dvh;background:#000}#exitfull{display:none;position:fixed;top:12px;right:12px;z-index:50}#screen:fullscreen #exitfull,#screen.expanded #exitfull{display:block}@font-face{font-family:IRANSans;src:url('/fonts/IRANSans-web.woff2') format('woff2');font-display:swap}:root{color-scheme:dark;font-family:IRANSans,Tahoma,Arial,sans-serif;background:#0b1220;color:#e2e8f0}*{box-sizing:border-box}body{margin:0}header{display:flex;align-items:center;gap:16px;min-height:80px;padding:14px 24px;background:#111d30;border-bottom:1px solid #28475d;flex-wrap:wrap}a{color:#22d3ee;text-decoration:none}.brand{font-weight:700;font-size:24px}button{font:inherit;padding:8px 14px;border-radius:9px;border:1px solid #22d3ee;background:#123747;color:#e2e8f0;cursor:pointer}button:disabled{opacity:.4;cursor:default}#status{margin-inline-start:auto;font-size:13px}#message{text-align:center;color:#fbbf24;padding:10px}#screen{height:calc(100dvh - 120px);direction:ltr}#screen:fullscreen{height:100dvh;background:#000}@media(max-width:600px){header{padding:10px;gap:10px}.brand{font-size:20px}#status{width:100%;margin:0}#screen{height:calc(100dvh - 180px)}}`;
