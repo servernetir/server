@@ -230,6 +230,39 @@ class VpsTcConsoleTest extends TestCase
         Http::assertNothingSent();
     }
 
+    private function cspFor(string $path): string
+    {
+        $request = Request::create('https://console.servernet.cloud/'.$path);
+        $route = new \Illuminate\Routing\Route(['GET'], $path, fn () => null);
+        $route->bind($request);
+        $route->setParameter('service', $this->service->fresh());
+        $request->setRouteResolver(fn () => $route);
+        return (new \App\Http\Middleware\SecurityHeaders)->handle($request, fn () => response('<p>Fixture</p>'))
+            ->headers->get('Content-Security-Policy');
+    }
+
+    public function test_browser_form_policy_allows_the_relay_only_on_an_eligible_owned_service_page(): void
+    {
+        $this->actingAs($this->service->customer, 'customer');
+        foreach (['account/cloud/7', 'en/account/cloud/7', 'tr/account/cloud/7'] as $path) {
+            $this->assertStringContainsString(' https://vps-vnc.servernet.cloud', $this->cspFor($path));
+        }
+        foreach (['account', 'account/cloud/7/status', 'account/cloud/7/console', 'account/invoices'] as $path) {
+            $this->assertStringNotContainsString('vps-vnc.servernet.cloud', $this->cspFor($path));
+        }
+        Setting::put('vpstc_console_owner_pilot_enabled', '0');
+        $this->assertStringNotContainsString('vps-vnc.servernet.cloud', $this->cspFor('account/cloud/7'));
+        Http::assertNothingSent();
+    }
+
+    public function test_browser_form_policy_does_not_allow_a_console_redirect_for_a_different_customer(): void
+    {
+        $other = Customer::forceCreate(['email' => 'csp@example.test', 'phone' => '09120000003', 'password' => 'fixture', 'status' => 'active']);
+        $this->actingAs($other, 'customer');
+        $this->assertStringNotContainsString('vps-vnc.servernet.cloud', $this->cspFor('account/cloud/7'));
+        Http::assertNothingSent();
+    }
+
     public function test_unapproved_origin_and_non_owner_service_never_enable_console(): void
     {
         Setting::put('vpstc_console_pve_origin', 'https://console.whitelabelservices.us.attacker.example');
