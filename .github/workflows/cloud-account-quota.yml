@@ -70,7 +70,7 @@ jobs:
       PULSE_ENABLED: 'false'
       TELESCOPE_ENABLED: 'false'
       NIGHTWATCH_ENABLED: 'false'
-      INCIDENT_CORE_FILTER: 'ArvanRamQuotaTest|CloudDeliveryPromiseTest|CloudFailedRecoveryTest|CloudAdminControlsTest|CloudSalesWatchTest|CloudFailureDetailTest|ArvanWindowsConsoleOnboardingTest|ArvanWindowsPasswordTest|ArvanConsoleBrokerTest|CloudServerPageLayoutTest'
+      INCIDENT_CORE_FILTER: 'ArvanRamQuotaTest|CloudDeliveryPromiseTest|CloudFailedRecoveryTest|CloudAdminControlsTest|CloudSalesWatchTest|CloudFailureDetailTest|ArvanWindowsConsoleOnboardingTest|ArvanWindowsPasswordTest|ArvanConsoleBrokerTest|CloudServerPageLayoutTest|CloudOperationsTest::test_traffic_usage'
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262

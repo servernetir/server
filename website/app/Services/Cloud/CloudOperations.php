@@ -651,7 +651,15 @@ class CloudOperations
             'synced_at' => now(),
         ]);
 
-        $used = round((float) ($r['traffic_used_gb'] ?? 0), 2);
+        $reportedUsage = $r['traffic_used_gb'] ?? null;
+        if ((! is_int($reportedUsage) && ! is_float($reportedUsage) && ! is_string($reportedUsage))
+            || ! is_numeric($reportedUsage) || ! is_finite((float) $reportedUsage) || (float) $reportedUsage < 0) {
+            return ['ok' => false, 'message' => self::UNAVAILABLE['traffic'],
+                'used_gb' => null, 'quota_gb' => null, 'percent' => null,
+                'unlimited' => false, 'remaining_gb' => null];
+        }
+
+        $used = round((float) $reportedUsage, 2);
         $quota = (int) ($instance->specs['traffic_gb'] ?? $service->cloudPlan?->traffic_gb ?? 0);
         $unlimited = $quota <= 0;
 
