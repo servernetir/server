@@ -1,0 +1,37 @@
+name: Offline targeted Arvan finance inspection
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/arvan-monitoring/finance-inspection/**'
+      - 'website/app/Services/Finance/ArvanTrafficSource.php'
+      - '.github/workflows/arvan-finance-inspection.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-finance-inspection-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for standalone checks
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Run evidence fixtures without a network interface
+        run: |
+          set -euo pipefail
+          test_php="$(command -v php)"
+          sudo unshare --net -- "$test_php" -l scripts/arvan-monitoring/finance-inspection/inspect-traffic-finance.php
+          sudo unshare --net -- env PHP_BINARY="$test_php" python3 -m unittest discover -s scripts/arvan-monitoring/finance-inspection -p 'test_finance_inspection.py' -v
