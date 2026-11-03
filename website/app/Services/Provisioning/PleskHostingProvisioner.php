@@ -112,7 +112,7 @@ class PleskHostingProvisioner
         $this->checkpoint($service, $intent);
         return ProvisionResult::success($login, (string) $service->password,
             'https://'.$server->hostname.':'.$server->effectivePort(), [
-                'reused' => $reused, 'server_ip' => $ip, 'plesk_intent' => $intent,
+                'reused' => $reused, 'ip' => $ip, 'server_ip' => $ip, 'plesk_intent' => $intent,
                 'plesk' => ['server_id' => (int) $server->id, 'customer_id' => $owner,
                     'subscription_id' => $subscriptionId, 'login' => $login, 'domain' => $domain, 'plan' => $plan],
             ]);

@@ -30,7 +30,10 @@ class HostingDomainConnection
     {
         $domain = strtolower(rtrim(trim((string) $service->domain), '.'));
         $expected = self::nameservers($service);
-        $ip = (string) ($service->server_ip ?: $service->server?->server_ip);
+        // Metadata remains durable on deployments where the optional server_ip
+        // column has not yet been installed. It is written by the verified driver.
+        $pleskIp = $service->server?->type === 'plesk' ? ($service->provision_meta['server_ip'] ?? null) : null;
+        $ip = (string) ($service->server_ip ?: $pleskIp ?: $service->server?->server_ip);
 
         return $this->inspectDomain($domain, $expected, $ip);
     }

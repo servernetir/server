@@ -241,8 +241,9 @@ class ProvisioningService
         }
 
         // IPِ حسابِ ساخته‌شده: اول IPِ ثبت‌شدهٔ سرور، وگرنه از میزبان resolve کن
-        $ip = $server->type === 'plesk' && filled($service->server_ip)
-            ? (string) $service->server_ip
+        $pleskIp = $service->server_ip ?: ($service->provision_meta['server_ip'] ?? null);
+        $ip = $server->type === 'plesk' && filter_var($pleskIp, FILTER_VALIDATE_IP)
+            ? (string) $pleskIp
             : (filled($server->server_ip) ? (string) $server->server_ip
                 : (string) @gethostbyname((string) $server->hostname));
 

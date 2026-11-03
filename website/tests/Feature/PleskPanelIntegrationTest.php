@@ -59,7 +59,8 @@ class PleskPanelIntegrationTest extends TestCase
     }
     public function test_plesk_free_subdomain_uses_the_service_connection_ip(): void
     {
-        $s=$this->service();$s->update(['domain'=>'fixture.servernet.cloud','server_ip'=>'192.0.2.10']);
+        $s=$this->service();$s->update(['domain'=>'fixture.servernet.cloud','server_ip'=>null,
+            'provision_meta'=>array_merge($s->provision_meta,['server_ip'=>'192.0.2.10'])]);
         $s->server->update(['server_ip'=>'192.0.2.99']);
         $dns=\Mockery::mock(\App\Services\Dns\CloudflareDns::class);
         $dns->shouldReceive('isConfigured')->once()->andReturn(true);
@@ -68,6 +69,19 @@ class PleskPanelIntegrationTest extends TestCase
         $method=new \ReflectionMethod(ProvisioningService::class,'pointFreeSubdomain');
         $method->invoke(app(ProvisioningService::class),$s->fresh(),$s->server->fresh());
         $this->assertStringContainsString('192.0.2.10',$s->fresh()->provision_meta['dns']);
+    }
+    public function test_dns_checks_use_the_verified_metadata_ip_when_the_optional_column_is_empty(): void
+    {
+        $s=$this->service();$s->update(['server_ip'=>null,'provision_meta'=>array_merge($s->provision_meta,['server_ip'=>'192.0.2.10'])]);
+        $s->server->update(['server_ip'=>'192.0.2.99']);
+        $wire=\Mockery::mock(\App\Services\Dns\Wire\DnsWireClient::class);
+        $wire->shouldReceive('query')->times(6)->andReturnUsing(function($server,$port,$domain,$type){
+            $values=match($type){'NS'=>['ns1.example.test','ns2.example.test'],'A'=>['192.0.2.10'],default=>[]};
+            $rows=array_map(fn($v)=>['name'=>$domain,'type'=>$type,'data'=>$v],$values);
+            return new \App\Services\Dns\Wire\DnsResponse(1,0,true,false,false,true,true,false,false,0,null,$rows,[],[],null);
+        });
+        $result=(new \App\Services\Dns\HostingDomainConnection($wire))->inspect($s->fresh());
+        $this->assertSame('connected',$result['state']);
     }
     public function test_other_customer_cannot_request_a_session(): void
     {
