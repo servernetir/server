@@ -25,7 +25,7 @@ class PleskPanelIntegrationTest extends TestCase
             'meta'=>['plesk_auto_enabled'=>true,'plesk_auto_ready'=>true,'plesk_auth_mode'=>'key','plesk_hosting_ip'=>'192.0.2.10']]);
         return Service::create(['customer_id'=>$this->customer()->id,'server_id'=>$server->id,'name'=>'Windows fixture',
             'domain'=>'fixture.example.test','username'=>'fixture0732','password'=>'fixture-secret','plan'=>'WIN-10',
-            'cycle'=>'monthly','price'=>1000,'status'=>'active','provision_status'=>'done',
+            'cycle'=>'monthly','currency_code'=>'IRT','price'=>1000,'status'=>'active','provision_status'=>'done',
             'provision_meta'=>['plesk'=>['server_id'=>$server->id,'customer_id'=>7,'subscription_id'=>12,
                 'login'=>'fixture0732','domain'=>'fixture.example.test','plan'=>'WIN-10']]]);
     }
