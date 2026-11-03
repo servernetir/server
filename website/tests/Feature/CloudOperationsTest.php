@@ -10,6 +10,8 @@ use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Setting;
 use App\Services\Cloud\CloudOperations;
+use App\Services\Cloud\CloudManager;
+use App\Services\Cloud\CloudProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -595,6 +597,84 @@ class CloudOperationsTest extends TestCase
         $this->assertFalse($r['ok']);
         $this->assertNull($r['used_gb']);
         $this->assertNoLeak($r['message'], 'خطای ترافیک');
+    }
+
+    public function test_traffic_usage_of_an_arvan_server_without_a_measurement_is_unknown(): void
+    {
+        Setting::putSecret('arvan_api_token', 'Apikey test-only');
+        $id = '11111111-2222-3333-4444-555555555555';
+        $service = $this->delivered('arvan', ['traffic_gb' => 0], ['provider_ref' => 'ir-example-1:'.$id]);
+        Http::fake(fn () => Http::response(['data' => ['id' => $id, 'status' => 'SHUTOFF', 'addresses' => []]], 200));
+
+        $result = $this->ops()->trafficUsage($service);
+
+        $this->assertFalse($result['ok']);
+        foreach (['used_gb', 'quota_gb', 'percent', 'remaining_gb'] as $key) {
+            $this->assertNull($result[$key], $key);
+        }
+        $this->assertFalse($result['unlimited']);
+        $this->assertArrayNotHasKey('used_label', $result);
+        $this->assertArrayNotHasKey('quota_label', $result);
+        $this->assertNoLeak($result['message'], 'مصرف نامعلوم');
+        $this->assertSame('off', $service->cloudInstance()->firstOrFail()->status,
+            'A valid provider power-status observation must still be synchronized.');
+        Http::assertSentCount(1);
+    }
+
+    private function trafficWithReportedResult(Service $service, array $result): array
+    {
+        $driver = \Mockery::mock(CloudProvider::class);
+        $driver->shouldReceive('isConfigured')->once()->andReturnTrue();
+        $driver->shouldReceive('serverStatus')->once()->with('999')->andReturn($result);
+        $manager = \Mockery::mock(CloudManager::class);
+        $manager->shouldReceive('forInstance')->once()->andReturn($driver);
+
+        return (new CloudOperations($manager))->trafficUsage($service);
+    }
+
+    public function test_traffic_usage_rejects_missing_measurements_without_inventing_zero(): void
+    {
+        Http::fake();
+        $result = $this->trafficWithReportedResult($this->delivered(), ['ok' => true, 'status' => 'running']);
+
+        $this->assertFalse($result['ok']);
+        $this->assertNull($result['used_gb']);
+        $this->assertNull($result['remaining_gb']);
+        $this->assertFalse($result['unlimited']);
+        Http::assertNothingSent();
+    }
+
+    public function test_traffic_usage_rejects_invalid_measurements(): void
+    {
+        Http::fake();
+        $service = $this->delivered();
+        foreach ([null, false, true, -1, -1.5, '-0.01', 'unknown', '1e309', INF, NAN, [], new \stdClass] as $usage) {
+            $result = $this->trafficWithReportedResult($service,
+                ['ok' => true, 'status' => 'running', 'traffic_used_gb' => $usage]);
+
+            $this->assertFalse($result['ok'], get_debug_type($usage));
+            $this->assertNull($result['used_gb']);
+            $this->assertNull($result['percent']);
+            $this->assertNull($result['remaining_gb']);
+            $this->assertFalse($result['unlimited']);
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_traffic_usage_preserves_real_zero_and_numeric_measurements(): void
+    {
+        Http::fake();
+        $service = $this->delivered();
+        foreach ([0, 0.0, '0', '0.0', 1.25, '1.25'] as $usage) {
+            $result = $this->trafficWithReportedResult($service,
+                ['ok' => true, 'status' => 'running', 'traffic_used_gb' => $usage]);
+
+            $this->assertTrue($result['ok']);
+            $this->assertSame((float) $usage, $result['used_gb']);
+            $this->assertFalse($result['unlimited']);
+            $this->assertSame(20480.0 - (float) $usage, $result['remaining_gb']);
+        }
+        Http::assertNothingSent();
     }
 
     // ═══════════════════ ایمیج‌های نصب‌شدنی ═══════════════════
