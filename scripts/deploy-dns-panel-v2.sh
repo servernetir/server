@@ -111,6 +111,7 @@ for f in "${APP_FILES[@]}"; do
 done
 cat > "$STAGE/blade-lint.php" <<'PHP'
 <?php
+require $argv[1].'/vendor/autoload.php';   // مثلِ artisan: autoload پیش از bootstrap
 $app = require $argv[1].'/bootstrap/app.php';
 $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 $c = app('blade.compiler'); $bad = 0;
