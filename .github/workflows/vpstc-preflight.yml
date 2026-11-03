@@ -12,6 +12,7 @@ on:
       - 'website/resources/views/admin/cloud-vpstc.blade.php'
       - 'website/resources/views/account/cloud-store.blade.php'
       - 'website/routes/web.php'
+      - 'scripts/vpstc-console-worker/**'
       - '.github/workflows/vpstc-preflight.yml'
   pull_request:
     branches: [develop]
@@ -23,6 +24,7 @@ on:
       - 'website/tests/Feature/VpsTc*.php'
       - 'website/resources/views/admin/cloud*.blade.php'
       - 'website/routes/web.php'
+      - 'scripts/vpstc-console-worker/**'
       - 'website/config/services.php'
       - '.github/workflows/vpstc-preflight.yml'
   workflow_dispatch:
@@ -61,6 +63,11 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Run isolated protocol, billing, lifecycle and administrator acceptance
         run: php vendor/bin/phpunit tests/Feature/VpsTc*.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify console relay security and localized shell
+        run: node --test ../scripts/vpstc-console-worker/worker.test.mjs
   attachment-mariadb:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
