@@ -18,6 +18,7 @@
      به‌علاوهٔ IP. شرطِ فقط-IP یک بار باعث شد فهرست بگوید «تحویل شد» و صفحهٔ
      مدیریتِ همان سرور بگوید «در حالِ ساخت» — دو حقیقت در یک پنل. */
   $ready = (bool) $ci?->isDelivered();
+  $serverOrderIssue = \App\Services\Cloud\CloudOrderIssue::kind($s, $ci);
 
   /* سفارشی که محافظِ سوءاستفاده نگهش داشته: نه شکست‌خورده، نه در حالِ ساخت.
      هیچ تماسی با زیرساخت نرفته و تا تصمیمِ یک آدم هم نمی‌رود. */
@@ -85,7 +86,9 @@
     @if($ci && $ready)<span class="pnl-pill {{ $ci->status === 'running' ? 'ok' : 'mute' }}">{{ $ci->statusLabel() }}</span>@endif
   </div>
 
-  @if($cloud && $onHold)
+  @if($serverOrderIssue)
+    @include('account.partials.cloud-order-issue', ['orderIssue' => $serverOrderIssue, 'issueService' => $s, 'compact' => true])
+  @elseif($cloud && $onHold)
     {{-- ── نگه‌داشته‌شده برای بازبینی ──
          🔴 فهرستِ چهارمرحله‌ای این‌جا **دروغ** بود: مرحلهٔ جاری‌اش می‌گفت
          «سفارشِ شما نزدِ زیرساخت ثبت شد» در حالی که محافظ پیش از هر تماسی

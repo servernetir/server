@@ -53,5 +53,9 @@
       && \App\Services\Cloud\GpuCapacityOrders::managed($s)) {
       $pill = ['info', 'ui.gpu_order_'.\App\Services\Cloud\GpuCapacityOrders::displayState($s)];
   }
+  $serverPillIssue = $s->isCloud() ? \App\Services\Cloud\CloudOrderIssue::kind($s, $s->cloudInstance) : null;
+  if ($serverPillIssue !== null) {
+      $pill = ['warn', 'cloud-order.'.$serverPillIssue.'.label'];
+  }
 @endphp
 <span class="pnl-pill {{ $pill[0] }}">{{ __($pill[1]) }}</span>
