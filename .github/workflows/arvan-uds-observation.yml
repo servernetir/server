@@ -157,7 +157,7 @@ jobs:
           import xml.etree.ElementTree as ET
           root = ET.parse('storage/framework/testing/observation-ci/result.xml').getroot()
           cases = list(root.iter('testcase'))
-          if len(cases) < 19 or list(root.iter('error')) or list(root.iter('failure')) or list(root.iter('skipped')):
+          if len(cases) < 20 or list(root.iter('error')) or list(root.iter('failure')) or list(root.iter('skipped')):
               raise SystemExit('Actual database/runner tests must execute and pass without skips.')
           print('Verified', len(cases), 'actual DB/runner tests without errors, failures or skips.')
           PY

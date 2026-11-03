@@ -227,6 +227,41 @@ class ArvanObservationRunnerTest extends TestCase
         $this->assertTrue($this->observationRecord(ArvanObservationRegistry::STATUS.$identity['service_id'])['result']['two_fresh_samples_verified']);
     }
 
+    public function test_current_binding_drift_during_source_io_rejects_valid_evidence_without_advancing_history(): void
+    {
+        foreach (['customer_reassigned', 'duplicate_provider_ref'] as $drift) {
+            [$customer, $service, , $identity] = $this->observationFixture();
+            // The later sample would establish a valid delta if the post-I/O binding check were missing.
+            $this->assertSame('baseline', $this->pollObservation($identity, $this->observationSample($identity, time() - 60))['status']);
+            $before = $this->rawObservationRecord($this->observationCheckpointKey($identity));
+            $otherCustomer = Customer::create(['email' => 'io-drift-'.bin2hex(random_bytes(5)).'@example.test', 'status' => 'active']);
+            $otherService = $drift === 'duplicate_provider_ref'
+                ? Service::create(['customer_id' => $customer->id, 'name' => 'Synthetic in-flight duplicate', 'currency_code' => 'IRT', 'status' => 'active']) : null;
+            $reads = 0;
+            $result = $this->registry->poll($identity['service_id'], $this->observationSource(function (array $actual) use ($drift, $service, $identity, $otherCustomer, $otherService, &$reads): array {
+                $reads++;
+                $this->assertSame(0, DB::transactionLevel(), 'Mutate the fixture only during the unlocked source read');
+                $this->assertSame($identity, $actual);
+                if ($drift === 'customer_reassigned') {
+                    DB::table('services')->where('id', $service->id)->update(['customer_id' => $otherCustomer->id]);
+                } else {
+                    CloudInstance::create(['service_id' => $otherService->id, 'provider' => 'arvan',
+                        'provider_ref' => $identity['provider_ref'], 'status' => 'running']);
+                }
+                return ['status' => 'observed', 'sample' => $this->observationSample($identity, time(), 1500, 2600)];
+            }));
+            $this->assertSame(1, $reads, $drift);
+            $this->assertSame('unknown', $result['status'], $drift);
+            $this->assertFalse($result['two_fresh_samples_verified'], $drift);
+            $this->assertSame($before, $this->rawObservationRecord($this->observationCheckpointKey($identity)), $drift);
+            $stored = $this->observationRecord(ArvanObservationRegistry::STATUS.$identity['service_id']);
+            $this->assertSame('unknown', $stored['result']['status'], $drift);
+            $this->assertFalse($stored['result']['two_fresh_samples_verified'], $drift);
+        }
+        $this->assertSame(0, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
     public function test_late_failed_poll_cannot_replace_a_newer_status_or_enrollment(): void
     {
         [, , , $identity] = $this->observationFixture(); $this->assertGreenObservation($identity); $next = array_replace($identity, ['enrollment_id' => str_repeat('b', 32)]);
