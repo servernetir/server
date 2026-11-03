@@ -273,6 +273,52 @@ class VpsTcConsoleTest extends TestCase
         Http::assertNothingSent();
     }
 
+    private function customerService(): Service
+    {
+        $customer = Customer::forceCreate(['email' => 'console@example.test', 'phone' => '09120000004',
+            'password' => 'fixture', 'status' => 'active']);
+        $service = Service::forceCreate(['customer_id' => $customer->id, 'name' => 'Customer fixture',
+            'status' => 'active', 'cycle' => 'monthly', 'price' => 1]);
+        CloudInstance::forceCreate(['service_id' => $service->id, 'provider' => 'vpstc', 'provider_ref' => '84',
+            'status' => 'running', 'ipv4' => '192.0.2.11']);
+        CloudProviderOperation::create(['operation_key' => hash('sha256', 'customer-console'), 'provider' => 'vpstc',
+            'action' => 'attach', 'state' => 'complete', 'resource_ref' => '84', 'payload' => [
+                '_account' => app(VpsTcApi::class)->accountFingerprint(), '_spec' => ['name' => 'sn-svc-'.$service->id],
+                '_native' => ['service_id' => '84', 'vm_id' => '124', 'local_service_id' => $service->id,
+                    'customer_id' => $customer->id, 'ipv4' => '192.0.2.11']]]);
+        return $service;
+    }
+
+    public function test_customer_rollout_defaults_off_and_preserves_service_ownership(): void
+    {
+        $service = $this->customerService();
+        $this->assertFalse($this->broker->enabledFor($service));
+        Setting::put('vpstc_console_enabled', '1');
+        Setting::put('vpstc_console_owner_pilot_enabled', '0');
+        $this->assertTrue($this->broker->enabledFor($service));
+        $this->actingAs($service->customer, 'customer')->post(route('en.account.cloud.console', $service))
+            ->assertRedirectContains('https://vps-vnc.servernet.cloud/en/#');
+        $this->actingAs($this->service->customer, 'customer')->post(route('account.cloud.console', $service))->assertNotFound();
+        Http::assertNothingSent();
+    }
+
+    public function test_customer_rollout_rechecks_revocation_and_persisted_receipt(): void
+    {
+        $service = $this->customerService();
+        Setting::put('vpstc_console_enabled', '1');
+        $ticket = parse_url($this->broker->issue($service, 'fa'), PHP_URL_FRAGMENT);
+        Setting::put('vpstc_console_enabled', '0');
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        Setting::put('vpstc_console_enabled', '1');
+        $ticket = parse_url($this->broker->issue($service, 'fa'), PHP_URL_FRAGMENT);
+        $service->customer->update(['status' => 'blocked']);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        $service->customer->update(['status' => 'active']);
+        $service->update(['customer_id' => 1]);
+        $this->assertFalse($this->broker->enabledFor($service));
+        Http::assertNothingSent();
+    }
+
     public function test_duplicate_local_supplier_reference_revokes_pending_launch(): void
     {
         $ticket = $this->ticket();

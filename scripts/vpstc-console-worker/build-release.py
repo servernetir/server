@@ -42,6 +42,12 @@ def build(headers_only=False):
             if not addition.endswith('\n\n'):
                 raise RuntimeError('Unexpected route block boundary')
             hunks = [{'before': '<?php\n', 'after': '<?php\n\n' + addition[:-1]}]
+        if path == 'app/Http/Middleware/SecurityHeaders.php':
+            anchor = "            $csp = implode('; ', [\n"
+            current = (ROOT / 'website' / path).read_text()
+            addition = current.split('            // The separate VPS relay', 1)[1].split(anchor, 1)[0]
+            addition = '            // The separate VPS relay' + addition
+            hunks = [{'before': anchor, 'after': addition + anchor}]
         source = git('show', BASE + ':website/' + path)
         for h in hunks:
             if not h['before'] or source.count(h['before']) != 1:

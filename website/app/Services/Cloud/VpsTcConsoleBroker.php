@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 
-/** Separate, default-off owner pilot. Public capability and supplier sales flags are untouched. */
+/** Separate, default-off console flags. Supplier sales and other providers are untouched. */
 class VpsTcConsoleBroker
 {
     public function __construct(private VpsTcConsole $console) {}
@@ -18,10 +18,13 @@ class VpsTcConsoleBroker
     public function enabledFor(Service $service): bool
     {
         // Read persisted flags so another process can revoke a pending launch.
-        return Setting::query()->whereKey('vpstc_console_owner_pilot_enabled')->value('value') === '1'
+        $ownerPilot = Setting::query()->whereKey('vpstc_console_owner_pilot_enabled')->value('value') === '1'
             && (string) $service->id === Setting::query()->whereKey('vpstc_console_owner_service_id')->value('value')
             && (int) $service->customer_id === 1
-            && Customer::whereKey(1)->where('code', 'SN-457136')->where('status', 'active')->exists()
+            && Customer::whereKey(1)->where('code', 'SN-457136')->where('status', 'active')->exists();
+        $customers = Setting::query()->whereKey('vpstc_console_enabled')->value('value') === '1'
+            && Customer::whereKey($service->customer_id)->where('status', 'active')->exists();
+        return ($ownerPilot || $customers)
             && preg_match('/\A[a-f0-9]{64}\z/D', (string) Setting::getSecret('vpstc_console_worker_key')) === 1
             && $this->console->origin() !== null
             && $this->console->context($service) !== null;
