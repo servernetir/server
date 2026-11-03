@@ -349,7 +349,8 @@ class Service extends Model
      */
     public function isManuallyDelivered(): bool
     {
-        return ! $this->isCloud() && ($this->server_id === null || ! $this->server?->isAutoProvisioned());
+        return ! \App\Services\SmsResale\Provisioner::handles($this)
+            && ! $this->isCloud() && ($this->server_id === null || ! $this->server?->isAutoProvisioned());
     }
 
     /**

@@ -236,6 +236,84 @@ class SmsResaleTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_cancelled_unknown_creation_is_reconciled_and_closed_by_scheduler(): void
+    {
+        $this->enable(); $s = $this->order();
+        $s->update(['attempted_at' => now(), 'state' => 'reconciling']);
+        $s->service->update(['status' => 'cancelled']);
+        $discovered = false;
+        $user = $this->user($s);
+        Http::fake(function ($request) use (&$discovered, &$user) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if ($path === '/v1/api/user/list') { return Http::response(['data' => $discovered ? [$user] : [], 'meta' => ['status' => true]]); }
+            if ($path === '/v1/api/user/show') { return Http::response(['data' => $user, 'meta' => ['status' => true]]); }
+            if ($path === '/v1/api/user/update') {
+                $user['status'] = $request['status'];
+                return Http::response(['data' => null, 'meta' => ['status' => true]]);
+            }
+            return Http::response([], 500);
+        });
+        $this->artisan('sms:sync-subscriptions')->assertSuccessful();
+        $this->assertSame('reconciling', $s->fresh()->state);
+        $discovered = true; $this->travel(6)->minutes();
+        $this->artisan('sms:sync-subscriptions')->assertSuccessful();
+        $this->assertSame('suspended', $s->fresh()->state);
+        $this->assertSame(77, $s->fresh()->upstream_user_id);
+        $this->assertSame('cancelled', $s->service->fresh()->status);
+        $this->assertSame('inactive', $user['status']);
+        $this->assertSame('12345.25', $user['credit']['credit']);
+        Http::assertNotSent(fn ($r) => str_ends_with(parse_url($r->url(), PHP_URL_PATH), '/create'));
+    }
+
+    public function test_suspension_during_provisioning_wins_over_active_response(): void
+    {
+        $this->enable(); $s = $this->order();
+        $s->update(['upstream_user_id' => 77, 'attempted_at' => now()]);
+        $user = $this->user($s); $changed = false;
+        Http::fake(function ($request) use ($s, &$user, &$changed) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if ($path === '/v1/api/user/show') {
+                if (! $changed) { $changed = true; $s->service->update(['status' => 'suspended']); }
+                return Http::response(['data' => $user, 'meta' => ['status' => true]]);
+            }
+            if ($path === '/v1/api/user/update') {
+                $user['status'] = $request['status'];
+                return Http::response(['data' => null, 'meta' => ['status' => true]]);
+            }
+            return Http::response([], 500);
+        });
+        $this->assertFalse(app(Provisioner::class)->provision($s->service));
+        $this->assertSame('suspended', $s->service->fresh()->status);
+        $this->assertSame('suspended', $s->fresh()->state);
+        $this->assertSame('inactive', $user['status']);
+    }
+
+    public function test_cancel_during_restoration_closes_access_again_and_retains_credit(): void
+    {
+        $this->enable(); $s = $this->order();
+        $s->update(['upstream_user_id' => 77, 'attempted_at' => now(), 'state' => 'suspended']);
+        $s->service->update(['status' => 'suspended']);
+        $user = $this->user($s, ['status' => 'inactive']); $assignments = [];
+        Http::fake(function ($request) use ($s, &$user, &$assignments) {
+            $path = parse_url($request->url(), PHP_URL_PATH);
+            if ($path === '/v1/api/user/show') { return Http::response(['data' => $user, 'meta' => ['status' => true]]); }
+            if ($path === '/v1/api/user/update') {
+                $assignments[] = $request['status']; $user['status'] = $request['status'];
+                if ($request['status'] === 'active') { $s->service->update(['status' => 'cancelled']); }
+                return Http::response(['data' => null, 'meta' => ['status' => true]]);
+            }
+            return Http::response([], 500);
+        });
+        $this->assertFalse(app(Provisioner::class)->changeAccess($s->service, true)->ok);
+        $this->assertSame(['active', 'inactive'], $assignments);
+        $this->assertSame('cancelled', $s->service->fresh()->status);
+        $this->assertSame('suspended', $s->fresh()->state);
+        $this->assertSame('12345.25', $user['credit']['credit']);
+        $this->assertSame(0, Invoice::count());
+        $this->assertSame(0, DB::table('credit_ledger')->count());
+        $this->assertFalse($s->service->isManuallyDelivered());
+    }
+
     public function test_customer_workspace_never_serializes_identity_or_secrets(): void
     {
         $this->enable(); $s = $this->order();

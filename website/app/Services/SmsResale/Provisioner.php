@@ -89,7 +89,7 @@ class Provisioner
                 ? (string) BigDecimal::of((string) $credit)->toScale(6, RoundingMode::Down) : null;
             DB::transaction(function () use ($s, $service, $quote, $plan, $until, $credit, $active) {
                 $fresh = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
-                if ($fresh->isDead()) { return; }
+                if ($fresh->isDead() || $fresh->status === 'suspended') { return; }
                 $s->update(['plan' => $plan['key'], 'quote' => $quote, 'pending_plan' => null, 'pending_quote' => null,
                     'pending_invoice_id' => null, 'state' => $active ? 'active' : 'awaiting_review',
                     'error_code' => null, 'confirmed_until' => $until, 'credit_irr' => $credit, 'checked_at' => now()]);
@@ -99,7 +99,8 @@ class Provisioner
                     'price' => $plan['renew_irt'], 'cycle' => $plan['renew_irt'] === 0 ? 'once' : 'yearly',
                     'plan' => 'sms:'.$plan['key']]);
             });
-            if ($service->fresh()->isDead()) {
+            $fresh = $service->fresh();
+            if ($fresh->isDead() || $fresh->status === 'suspended') {
                 $this->client->update($s->upstream_user_id, ['status' => 'inactive']);
                 $stopped = $this->client->show($s->upstream_user_id);
                 $this->assertBinding($s, $stopped, $marker);
@@ -126,9 +127,20 @@ class Provisioner
         $lock = Cache::lock('sms-resale:service:'.$service->id, 180);
         if (! $lock->get()) { return $result::fail(__('sms.pending')); }
         try {
+            $service->refresh();
             $s = SmsSubscription::where('service_id', $service->id)->where('customer_id', $service->customer_id)->firstOrFail();
             if (! $s->upstream_user_id) {
-                return ! $enable && ! $s->attempted_at ? $result::success(null, null, null) : $result::fail(__('sms.pending'));
+                if ($enable) { return $result::fail(__('sms.pending')); }
+                if (! $s->attempted_at) {
+                    $s->update(['state' => 'suspended', 'checked_at' => now(), 'error_code' => null]);
+                    return $result::success(null, null, null);
+                }
+                // Cancellation may follow a lost create response. Find and close that
+                // exact account; absence is uncertain and must be checked again later.
+                $rows = $this->client->users($s->username);
+                if (count($rows) !== 1) { throw new ProviderError('unknown'); }
+                $this->assertBinding($s, $rows[0], 'servernet:sms:'.$s->operation_id);
+                $s->update(['upstream_user_id' => (int) $rows[0]['user_id']]);
             }
             $user = $this->client->show($s->upstream_user_id);
             $this->assertBinding($s, $user, 'servernet:sms:'.$s->operation_id);
@@ -143,11 +155,26 @@ class Provisioner
             $verified = $this->client->show($s->upstream_user_id);
             $this->assertBinding($s, $verified, 'servernet:sms:'.$s->operation_id);
             if (($verified['status'] ?? null) !== $wanted || ($enable && ($verified['expire_time'] ?? null) !== $service->next_due_at->format('Y-m-d'))) { throw new ProviderError('unknown'); }
+            // A cancellation during the external request wins over restoration.
+            if ($enable && $service->fresh()->isDead()) {
+                $this->client->update($s->upstream_user_id, ['status' => 'inactive']);
+                $verified = $this->client->show($s->upstream_user_id);
+                $this->assertBinding($s, $verified, 'servernet:sms:'.$s->operation_id);
+                if (($verified['status'] ?? null) !== 'inactive') { throw new ProviderError('unknown'); }
+                $s->update(['state' => 'suspended', 'checked_at' => now(), 'error_code' => null]);
+                return $result::fail(__('sms.pending'));
+            }
             $s->update(['state' => $enable ? 'active' : 'suspended', 'checked_at' => now(), 'error_code' => null]);
             if (! $service->fresh()->isDead()) { $service->update(['status' => $enable ? 'active' : 'suspended']); }
             // Closing access retains the upstream account, credit and message history.
             return $result::success(null, null, null);
-        } catch (\Throwable) { return $result::fail(__('sms.pending')); }
+        } catch (\Throwable $e) {
+            if (isset($s) && $s) {
+                $s->update(['state' => $e instanceof ProviderError && $e->definite ? 'needs_attention' : 'reconciling',
+                    'error_code' => $e instanceof ProviderError ? $e->reason : 'internal_error', 'checked_at' => now()]);
+            }
+            return $result::fail(__('sms.pending'));
+        }
         finally { $lock->release(); }
     }
 
