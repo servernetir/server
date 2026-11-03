@@ -14,6 +14,7 @@ on:
       - 'website/tests/Feature/CloudOrderIssueTest.php'
       - 'website/tests/js/cloud-order-feedback.browser.cjs'
       - '.github/workflows/cloud-order-feedback.yml'
+      - 'scripts/cloud-order-feedback-release/**'
   push:
     branches: [develop]
     paths:
@@ -45,6 +46,8 @@ jobs:
           test ! -e bootstrap/cache/config.php
           composer install --prefer-dist --no-progress --no-scripts --no-plugins
           composer check-platform-reqs
+      - name: Check contextual release overlay on disposable bytes
+        run: python3 scripts/cloud-order-feedback-release/test_deploy.py
       - name: Customer outcomes and delivery regressions (fake resources only)
         working-directory: website
         env:
