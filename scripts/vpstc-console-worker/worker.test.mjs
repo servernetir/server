@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {handle, upstream, binding, signature, bridge, JS, html} from './worker.mjs';
+import {NOVNC_PATH,NOVNC_SOURCE} from './novnc-source.mjs';
 const origin = 'https://vps-vnc.servernet.cloud';
 const secret = 'a'.repeat(64), token = 'b'.repeat(64), session = 'c'.repeat(64);
 const env = {ENABLED:'1',BROKER_KEY:secret};
@@ -9,6 +10,14 @@ const grant = {origin:'https://console.whitelabelservices.us',path:'/api2/json/n
   port:5901,cookie:'PVE:fixture@pve:ABC::cookie',vnc:'PVEVNC:fixture-console'};
 const json = data => new Response(JSON.stringify(data),{headers:{'Content-Type':'application/json'}});
 const launch = (extra = {}) => new Request(origin+'/launch',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',...extra},body:JSON.stringify({ticket:token})});
+
+test('vendored browser module is served locally without upstream module fetches',async()=>{
+  const r=await handle(new Request(origin+NOVNC_PATH),{},()=>{throw Error('unexpected upstream request');});
+  assert.equal(r.status,200);assert.equal(await r.text(),NOVNC_SOURCE);
+  assert.match(r.headers.get('Cache-Control'),/immutable/);
+  assert.ok(JS.includes("import('"+NOVNC_PATH+"')"));
+  assert.ok(NOVNC_SOURCE.includes('Mozilla')&&NOVNC_SOURCE.includes('Permission is hereby granted'));
+});
 
 test('disabled relay and forged origins make no broker calls', async () => {
   let calls=0; const fetcher=()=>{calls++;throw Error();};

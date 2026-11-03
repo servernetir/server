@@ -1,4 +1,5 @@
 // Standalone relay, independent of the provider's proprietary WHMCS module.
+import {NOVNC_PATH, NOVNC_SOURCE} from './novnc-source.mjs';
 const ORIGIN = 'https://vps-vnc.servernet.cloud';
 const PORTAL = 'https://console.servernet.cloud';
 const BROKER = PORTAL + '/system/vpstc-console-broker';
@@ -95,7 +96,7 @@ document.getElementById('full').onclick=()=>screen.requestFullscreen().catch(()=
 try{
  history.replaceState(null,'',location.pathname);if(!/^[a-f0-9]{64}$/.test(ticket))throw Error();
  status.textContent=t.wait;message.textContent='';timer=setTimeout(fail,60000);
- const {default:RFB}=await import('/novnc/core/rfb.js');if(failed)return;
+ const {default:RFB}=await import('${NOVNC_PATH}');if(failed)return;
  const response=await fetch('/launch',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticket}),signal:AbortSignal.timeout(50000)});
  if(!response.ok)throw Error();const grant=await response.json();if(failed)return;
  if(!/^[a-f0-9]{64}$/.test(grant.binding||'')||typeof grant.password!=='string'||!${PASSWORD}.test(grant.password))throw Error();
@@ -115,6 +116,8 @@ export async function handle(request, env = {}, fetcher = fetch, socketBridge = 
     if (request.method === 'GET' && url.pathname === '/') return reply(html('fa'), 200, {'Content-Type':'text/html; charset=utf-8'});
     if (request.method === 'GET' && url.pathname === '/console.js') return reply(JS, 200, {'Content-Type':'text/javascript; charset=utf-8'});
     if (request.method === 'GET' && url.pathname === '/console.css') return reply(CSS, 200, {'Content-Type':'text/css; charset=utf-8'});
+    if (request.method === 'GET' && url.pathname === NOVNC_PATH) return reply(NOVNC_SOURCE,200,{
+      'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'public, max-age=31536000, immutable'});
     const asset = /^\/novnc\/(core|vendor)\/[A-Za-z0-9_./-]+\.js$/.test(url.pathname) && !url.pathname.includes('..') && !url.pathname.includes('//');
     if (request.method === 'GET' && (asset || url.pathname === '/fonts/IRANSans-web.woff2')) {
       const r = await fetcher(PORTAL + (asset ? '/assets/js' + url.pathname : '/assets/font/woff2/IRANSans-web.woff2'), {redirect:'manual',signal:AbortSignal.timeout(10000)});

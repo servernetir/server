@@ -67,7 +67,11 @@ jobs:
         with:
           node-version: '22'
       - name: Verify console relay security and localized shell
-        run: node --test ../scripts/vpstc-console-worker/worker.test.mjs
+        run: |
+          npm ci --prefix ../scripts/vpstc-console-worker --ignore-scripts --no-audit --no-fund
+          npm run build --prefix ../scripts/vpstc-console-worker
+          git diff --exit-code -- ../scripts/vpstc-console-worker/novnc-source.mjs
+          node --test ../scripts/vpstc-console-worker/worker.test.mjs
   attachment-mariadb:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
