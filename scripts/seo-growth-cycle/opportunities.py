@@ -15,7 +15,7 @@ import re
 from urllib.parse import urlsplit
 
 BRAND = re.compile(r"server[\s.-]*net|سرور\s*نت", re.I)
-COMMERCIAL = re.compile(r"vps|gpu|hosting|cloud|سرور|هاست|گرافیک|بارındırma|kirala", re.I)
+COMMERCIAL = re.compile(r"vps|gpu|hosting|cloud|سرور|هاست|گرافیک|barındırma|kirala", re.I)
 PRIVATE_QUERY = re.compile(r"@|\d{7,}")
 PUBLIC_PAGE = re.compile(r"^/(?:en/|tr/)?(?:vps|gpu|hosting|cloud)(?:/[a-z0-9-]+)?/?$")
 

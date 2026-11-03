@@ -139,6 +139,47 @@ class CommercialSeoGrowthTest extends TestCase
         $this->assertMatchesRegularExpression('~<link[^>]+href="[^"]*/hourly-explorer\.css~', $html);
     }
 
+    public function test_every_hosting_catalog_page_has_a_localized_identity_and_valid_jsonld(): void
+    {
+        foreach (['' => 'fa', '/en' => 'en', '/tr' => 'tr'] as $prefix => $locale) {
+            foreach (array_keys(config('hosting.products')) as $slug) {
+                $path = $prefix.'/hosting/'.$slug;
+                $html = $this->get($path)->assertOk()->getContent();
+                $document = new \DOMDocument;
+                $previous = libxml_use_internal_errors(true);
+                $document->loadHTML($html);
+                libxml_clear_errors();
+                libxml_use_internal_errors($previous);
+                $xpath = new \DOMXPath($document);
+                $this->assertSame(1, $xpath->query('//h1')->length, $path);
+                $this->assertSame(1, $xpath->query('//title')->length, $path);
+                $this->assertSame($locale, $document->documentElement->getAttribute('lang'), $path);
+                $this->assertSame(url($path), $xpath->evaluate('string(//link[@rel="canonical"]/@href)'), $path);
+                $this->assertNotEmpty($xpath->evaluate('string(//meta[@name="description"]/@content)'), $path);
+                $this->assertNotEmpty($this->schemas($html), $path);
+                $this->assertSame('Service', $this->service($this->schemas($html))['@type'], $path);
+            }
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_all_mapped_country_templates_are_usable_without_invented_stock(): void
+    {
+        foreach (['', '/en', '/tr'] as $prefix) {
+            foreach (\App\Services\Cloud\CloudCountry::marketingSlugs() as $slug) {
+                $path = $prefix.'/vps/'.$slug;
+                $response = $this->get($path)->assertOk();
+                $html = $response->getContent();
+                $this->assertSame([], $response->viewData('vpsRows'), $path);
+                $this->assertMatchesRegularExpression('~<meta name="robots" content="noindex,follow">~', $html, $path);
+                $this->assertStringNotContainsString('"@type":"Offer"', $html, $path);
+                $this->assertStringNotContainsString(':country', $html, $path);
+                $this->assertNotEmpty($this->schemas($html), $path);
+            }
+        }
+        Http::assertNothingSent();
+    }
+
     private function styles(?string $css): PublicPageStyles
     {
         return new class($css) extends PublicPageStyles
