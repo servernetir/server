@@ -94,6 +94,15 @@ final class ArvanTrafficCreditGuard
     /** A funded explicit restart releases ONLY this hold. No provider call or automatic restart. */
     public function allowPower(string $ref): bool
     {
+        try {
+            return $this->canPower($ref);
+        } catch (\Throwable) {
+            return false; // Missing/corrupt control state or database failure must never permit a restart.
+        }
+    }
+
+    private function canPower(string $ref): bool
+    {
         $instances = CloudInstance::where('provider', 'arvan')->where('provider_ref', $ref)->get();
         if ($instances->isEmpty()) {
             return true; // New resources without a service cannot have a traffic-debit hold.
@@ -167,7 +176,11 @@ final class ArvanTrafficCreditGuard
             if (microtime(true) >= $deadline) {
                 break;
             }
-            $counts[$this->reconcile((int) $id)]++;
+            try {
+                $counts[$this->reconcile((int) $id)]++;
+            } catch (\Throwable) {
+                $counts['review_required']++; // A concurrently damaged control row cannot poison the rest of the batch.
+            }
         }
 
         $review = $this->records()->leftJoin('services', 'services.id', '=', DB::raw("json_extract(payload, '$.service_id')"))

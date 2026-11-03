@@ -478,6 +478,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
         $result = app(ArvanTrafficCreditGuard::class)->process();
         $this->assertSame(1, $result['confirmed']);
         $this->assertSame(1, $result['review_required']);
+        $this->assertFalse(app(ArvanTrafficCreditGuard::class)->allowPower(self::REF), 'Corrupt control must deny restart without exposing a raw exception');
         $this->expectException(\JsonException::class);
         ArvanTrafficCreditGuard::state($bad);
     }
