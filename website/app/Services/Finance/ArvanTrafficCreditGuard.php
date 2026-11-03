@@ -38,10 +38,11 @@ final class ArvanTrafficCreditGuard
         return $state;
     }
 
-    /** Indexed key range confines discovery to this dedicated state, independently of all service metadata writers. */
+    /** Escaped literal prefix remains indexable under MariaDB collations; punctuation is not a safe range bound. */
     private function records()
     {
-        $own = DB::table('settings')->where('key', '>=', self::KEY)->where('key', '<', self::KEY.'~')
+        $prefix = str_replace(['!', '_', '%'], ['!!', '!_', '!%'], self::KEY).'%';
+        $own = DB::table('settings')->whereRaw("`key` LIKE ? ESCAPE '!'", [$prefix])
             ->select('key')->selectRaw("CASE WHEN json_valid(value) THEN value ELSE '{}' END AS payload");
 
         return DB::query()->fromSub($own, 'traffic_holds');
