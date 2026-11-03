@@ -58,6 +58,9 @@ export function bridge(upstreamSocket, makePair = () => new WebSocketPair(), tim
     for (const socket of [server, upstreamSocket]) { try { socket.close(1000, 'Console session ended'); } catch {} }
   };
   const deadline = timers.setTimeout(end, 300000);
+  // Workers dated 2026-03-17+ default to Blob. Select synchronous binary
+  // delivery before accepting either socket, so frame bounds keep working.
+  server.binaryType = 'arraybuffer'; upstreamSocket.binaryType = 'arraybuffer';
   server.accept(); upstreamSocket.accept();
   for (const [from, to, limit] of [[server, upstreamSocket, 65536], [upstreamSocket, server, 16777216]]) {
     from.addEventListener('message', event => {
