@@ -37,6 +37,8 @@ The owner explicitly approved the prepared Let's Encrypt issuance and requested 
 
 The pending-SSL sentence in the existing delivery reply was replaced with the verified HTTPS/automatic-renewal result. Message count remains four, with zero new messages or notifications and unchanged ticket state. The customer account, service binding and original billing remain as accepted earlier.
 
+The WHM follow-up audited all **91 accounts** (29 on core.servernet.cloud and 62 on core.servernet.ir). Both existing Let's Encrypt providers and recurring checks are active; all used feature lists enable AutoSSL. Five accounts have a null account override, which means they inherit the enabled feature-list setting. Native `verify_user_has_feature` returned `has_feature=1` for every one of those five. They were initially misclassified by a diagnostic null-to-zero cast; a precondition stopped the proposed write before any mutation, and the diagnostic was corrected. No WHM feature override, provider registration or certificate policy was changed. This confirms automatic issuance eligibility and renewal policy; it does not assert that every unrelated domain has already passed DNS validation.
+
 ## Branded default pages — production accepted, 3 November 2026
 
 The owner requested a modern ServerNet welcome page and visible links back to the main company site in both Plesk and WHM. Source is under [infra/hosting/default-page](../../infra/hosting/default-page/). It provides Persian RTL, English and Turkish, a responsive layout, text-safe hostname display, reduced-motion support and ordinary visible HTML footer anchors to `https://servernet.cloud/` without nofollow or JavaScript-only links. No search-ranking result is claimed.

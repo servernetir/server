@@ -6,7 +6,7 @@ Base: `3aeac46c146becbb069e9a0b07c4cc1b1ca162ea` (`develop`).
 
 The owner approved a custom API-based console, first on their existing VM, and a commercial follow-up. This change independently implements the Proxmox protocol, a default-off owner pilot, single-use broker, dedicated WebSocket relay and three-language shell. It does not install WHMCS, copy proprietary implementation code, buy a VM or change billing/schema.
 
-**Not deployed or enabled.** The PVE HTTPS API origin and full framebuffer/input path have not passed live acceptance. The provider's own portal launch was observed remaining at `Connecting…`; this is an observation, not a diagnosis. No working custom console is claimed.
+**Not deployed or enabled.** The gateway answered the public version API and its authenticated resource inventory exposed only the owner VM in the existing browser session. Backend credential login, console grant and the full framebuffer/input path have not passed live acceptance. The provider's own portal launch was observed remaining at `Connecting…`; this is an observation, not a diagnosis. No working custom console is claimed.
 
 The sales follow-up requesting a written rate and response date was submitted in the existing ticket. No discount is approved. The owner's Turkey relay has auto-renew Off in the native provider widget. A separate ticket reply requests keeping its paid period intact without renewal or immediate deletion. Other services were not changed. Private service/IP identifiers and screenshots are excluded from this public report.
 
@@ -24,7 +24,7 @@ Official API: https://pve.proxmox.com/pve-docs/api-viewer/index.html . Under `/a
 - Random fragment grants last 90 seconds and are consumed under a shared lock. Backend session data is encrypted for 30 seconds. Browser receives only VM-console-scoped VNC challenge material; parent/service password, PVE login cookie, CSRF, node, VM ID and upstream host stay private.
 - Worker uses a host-only Secure/HttpOnly/SameSite=Strict cookie plus per-tab binding. Duplicate cookies, reused claims and a tab whose cookie was replaced are rejected. Fresh fixed upstream headers exclude browser/portal credentials. Relay closes both sockets after five minutes and bounds client/upstream frame sizes. No raw errors, payloads, keystrokes or credentials are logged.
 - Active streams are bounded to five minutes; ownership revocation is enforced at launch/claim, not continuously during an already established stream. Reconnect requires a new launch.
-- The exact observed console gateway hostname is allowlisted, but its PVE API availability is **not verified**. A different API hostname requires provider documentation and a reviewed explicit allowlist change. Cloudflare egress/upgrade support and provider RFB authentication require live acceptance. Serial/LXC console is outside this pilot.
+- The exact observed console gateway hostname is allowlisted; public version and browser-authenticated inventory reads were verified, but fresh backend login and VNC grant/upgrade remain unverified. A different API hostname requires provider documentation and a reviewed explicit allowlist change. Cloudflare egress/upgrade support and provider RFB authentication require live acceptance. Serial/LXC console is outside this pilot.
 
 ## Installation and acceptance
 

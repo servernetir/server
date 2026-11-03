@@ -73,7 +73,7 @@ class VpsTcConsoleTest extends TestCase
         return parse_url($this->broker->issue($this->service, $locale), PHP_URL_FRAGMENT);
     }
 
-    private function call(string $action, string $token, ?string $secret = null): \Illuminate\Http\JsonResponse
+    private function callBroker(string $action, string $token, ?string $secret = null): \Illuminate\Http\JsonResponse
     {
         $body = json_encode(compact('action', 'token')); $time = (string) now()->timestamp;
         return $this->broker->handle(Request::create('/system/vpstc-console-broker', 'POST', [], [], [], [
@@ -87,7 +87,7 @@ class VpsTcConsoleTest extends TestCase
         $this->assertStringStartsWith('https://vps-vnc.servernet.cloud/tr/#', $target);
         Http::assertNothingSent();
         $ticket = parse_url($target, PHP_URL_FRAGMENT);
-        $redeem = $this->call('redeem', $ticket);
+        $redeem = $this->callBroker('redeem', $ticket);
         $this->assertSame(200, $redeem->status());
         $data = $redeem->getData(true);
         $this->assertSame(['session', 'password'], array_keys($data));
@@ -95,11 +95,11 @@ class VpsTcConsoleTest extends TestCase
         foreach (['fixture-service-password', 'fixture-parent', $this->pveTicket, 'fixture-csrf'] as $private) {
             $this->assertStringNotContainsString($private, $target.$redeem->getContent());
         }
-        $this->assertSame(410, $this->call('redeem', $ticket)->status());
-        $claim = $this->call('claim', $data['session']);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        $claim = $this->callBroker('claim', $data['session']);
         $this->assertSame(200, $claim->status());
         $this->assertSame($this->pveTicket, $claim->getData(true)['cookie']);
-        $this->assertSame(410, $this->call('claim', $data['session'])->status());
+        $this->assertSame(410, $this->callBroker('claim', $data['session'])->status());
         Http::assertSent(fn ($r) => str_ends_with($r->url(), '/vncproxy') && $r['websocket'] === 1
             && $r->hasHeader('Cookie', 'PVEAuthCookie='.$this->pveTicket));
         Http::assertSentCount(6);
@@ -108,29 +108,29 @@ class VpsTcConsoleTest extends TestCase
     public function test_bad_hmac_does_not_consume_a_valid_ticket(): void
     {
         $ticket = $this->ticket();
-        $this->assertSame(403, $this->call('redeem', $ticket, str_repeat('b', 64))->status());
+        $this->assertSame(403, $this->callBroker('redeem', $ticket, str_repeat('b', 64))->status());
         Http::assertNothingSent();
-        $this->assertSame(200, $this->call('redeem', $ticket)->status());
+        $this->assertSame(200, $this->callBroker('redeem', $ticket)->status());
     }
 
     public function test_account_exposing_another_vm_is_rejected_before_starting_vnc(): void
     {
         $this->resources[] = ['vmid' => 124, 'node' => 'other', 'type' => 'qemu'];
-        $this->assertSame(502, $this->call('redeem', $this->ticket())->status());
+        $this->assertSame(502, $this->callBroker('redeem', $this->ticket())->status());
         Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/vncproxy'));
     }
 
     public function test_supplier_vm_mismatch_cannot_open_a_different_server(): void
     {
         $this->fake(['*/api/service/83/vms' => Http::response(['vms' => [['vmid' => 124]]])]);
-        $this->assertSame(502, $this->call('redeem', $this->ticket())->status());
+        $this->assertSame(502, $this->callBroker('redeem', $this->ticket())->status());
         Http::assertNotSent(fn ($r) => str_contains($r->url(), '/api2/json/'));
     }
 
     public function test_provider_redirect_never_follows_or_leaks_credentials(): void
     {
         $this->fake(['*/api2/json/access/ticket' => Http::response('secret-response', 302, ['Location' => 'https://outside.example/'])]);
-        $response = $this->call('redeem', $this->ticket());
+        $response = $this->callBroker('redeem', $this->ticket());
         $this->assertSame(502, $response->status());
         $this->assertSame(['ok' => false], $response->getData(true));
         Http::assertNotSent(fn ($r) => str_contains($r->url(), 'outside.example'));
@@ -139,33 +139,33 @@ class VpsTcConsoleTest extends TestCase
     public function test_expired_ticket_and_session_cannot_reconnect(): void
     {
         $ticket = $this->ticket(); $this->travel(91)->seconds();
-        $this->assertSame(410, $this->call('redeem', $ticket)->status());
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
         Http::assertNothingSent();
-        $ticket = $this->ticket(); $session = $this->call('redeem', $ticket)->getData(true)['session'];
+        $ticket = $this->ticket(); $session = $this->callBroker('redeem', $ticket)->getData(true)['session'];
         $this->travel(31)->seconds();
-        $this->assertSame(410, $this->call('claim', $session)->status());
+        $this->assertSame(410, $this->callBroker('claim', $session)->status());
     }
 
     public function test_owner_or_instance_change_after_launch_revokes_access(): void
     {
         $ticket = $this->ticket();
         $this->instance->update(['provider_ref' => '84']);
-        $this->assertSame(410, $this->call('redeem', $ticket)->status());
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
         Http::assertNothingSent();
     }
 
     public function test_disabling_pilot_or_suspending_service_revokes_an_issued_session(): void
     {
-        $session = $this->call('redeem', $this->ticket())->getData(true)['session'];
+        $session = $this->callBroker('redeem', $this->ticket())->getData(true)['session'];
         $this->service->update(['status' => 'suspended']);
-        $this->assertSame(410, $this->call('claim', $session)->status());
+        $this->assertSame(410, $this->callBroker('claim', $session)->status());
         $this->service->update(['status' => 'active']);
         $ticket = $this->ticket();
         Setting::put('vpstc_console_owner_pilot_enabled', '0');
-        $this->assertSame(410, $this->call('redeem', $ticket)->status());
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
     }
 
-    public function test_parent_account_switch_and_duplicate_local_ref_fail_closed(): void
+    public function test_parent_account_switch_fails_closed(): void
     {
         $ticket = $this->ticket();
         config(['services.vpstc.username' => 'different-account']);
@@ -207,5 +207,33 @@ class VpsTcConsoleTest extends TestCase
         $this->service->update(['customer_id' => 2]);
         $this->assertFalse($this->broker->enabledFor($this->service));
         Http::assertNothingSent();
+    }
+
+    public function test_duplicate_local_supplier_reference_revokes_pending_launch(): void
+    {
+        $ticket = $this->ticket();
+        $other = Service::forceCreate(['customer_id' => 1, 'name' => 'Duplicate fixture', 'status' => 'active', 'price' => 1, 'cycle' => 'monthly']);
+        CloudInstance::forceCreate(['service_id' => $other->id, 'provider' => 'vpstc', 'provider_ref' => '83', 'status' => 'running']);
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        Http::assertNothingSent();
+    }
+
+    public function test_connection_error_is_sanitized_and_never_retried(): void
+    {
+        $this->fake(['*/api2/json/access/ticket' => fn () => throw new \Illuminate\Http\Client\ConnectionException('fixture-service-password')]);
+        $ticket = $this->ticket(); $response = $this->callBroker('redeem', $ticket);
+        $this->assertSame(502, $response->status());
+        $this->assertSame(['ok' => false], $response->getData(true));
+        $this->assertSame(410, $this->callBroker('redeem', $ticket)->status());
+        Http::assertNotSent(fn ($r) => str_ends_with($r->url(), '/vncproxy'));
+    }
+
+    public function test_owner_probe_prints_no_credentials_and_does_not_enable_pilot(): void
+    {
+        Setting::put('vpstc_console_owner_pilot_enabled', '0');
+        $this->artisan('cloud:vpstc-console-probe', ['service' => 7])
+            ->expectsOutput('Console API handshake verified; browser framebuffer and input acceptance are still required.')
+            ->assertSuccessful();
+        $this->assertSame('0', Setting::get('vpstc_console_owner_pilot_enabled'));
     }
 }
