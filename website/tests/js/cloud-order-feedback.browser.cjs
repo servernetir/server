@@ -75,7 +75,7 @@ test('rendered capacity card in fa/en/tr, light/dark and mobile/desktop Chromium
     // Preserve server-rendered layout/styles; remove all application scripts so
     // these visual fixtures can never call real routes or modify an account.
     pages.set(locale, html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/https?:\/\/(?:console\.)?servernet\.cloud(?=\/assets\/)/g, ''));
+      .replace(/https?:\/\/(?:(?:console\.)?servernet\.cloud|localhost)(?=\/assets\/)/g, ''));
   }
   const server = http.createServer(async (req, res) => {
     try {
