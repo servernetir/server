@@ -241,6 +241,10 @@ final class ArvanTrafficMeter
                 $next = $line['next'];
                 $service = Service::whereKey($next['service_id'])->lockForUpdate()->firstOrFail();
                 $instances = CloudInstance::where('service_id', $service->id)->lockForUpdate()->get();
+                $owners = CloudInstance::where('provider', 'arvan')->where('provider_ref', $next['resource'])
+                    ->orderBy('id')->lockForUpdate()->get();
+                $this->check($owners->count() === 1 && $instances->count() === 1
+                    && (int) $owners[0]->id === (int) $instances[0]->id, 'Live traffic attribution became ambiguous');
                 $this->check((int) $service->customer_id === $next['customer_id'] && $service->currency_code === 'IRT'
                     && $instances->count() === 1 && $instances[0]->provider === 'arvan'
                     && $instances[0]->provider_ref === $next['resource'], 'Live traffic ownership changed');

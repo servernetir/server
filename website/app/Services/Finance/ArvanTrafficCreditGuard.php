@@ -47,6 +47,13 @@ final class ArvanTrafficCreditGuard
         return DB::query()->fromSub($own, 'traffic_holds');
     }
 
+    private function invalidIdentitySql(): string
+    {
+        return DB::getDriverName() === 'sqlite'
+            ? "COALESCE(json_type(payload, '$.version'), 'missing') != 'integer' OR COALESCE(json_type(payload, '$.service_id'), 'missing') != 'integer'"
+            : "COALESCE(JSON_TYPE(JSON_EXTRACT(payload, '$.version')), 'MISSING') != 'INTEGER' OR COALESCE(JSON_TYPE(JSON_EXTRACT(payload, '$.service_id')), 'MISSING') != 'INTEGER'";
+    }
+
     private function invalidActiveSql(): string
     {
         return DB::getDriverName() === 'sqlite'
@@ -143,6 +150,7 @@ final class ArvanTrafficCreditGuard
         $counts = ['confirmed' => 0, 'pending' => 0, 'released' => 0, 'stale' => 0, 'review_required' => 0];
         $ids = $this->records()->join('services', 'services.id', '=', DB::raw("json_extract(payload, '$.service_id')"))
             ->whereRaw($this->canonicalKeySql(), [self::KEY])->where('payload->version', 1)
+            ->whereRaw('NOT ('.$this->invalidIdentitySql().')')
             ->whereRaw('NOT ('.$this->invalidActiveSql().')')->where('payload->active', true)
             ->whereIn('payload->stop->state', ['pending', 'confirmed', 'review_required'])
             ->where(fn ($q) => $q->whereNull('payload->stop->retry_at')
@@ -164,7 +172,7 @@ final class ArvanTrafficCreditGuard
 
         $review = $this->records()->leftJoin('services', 'services.id', '=', DB::raw("json_extract(payload, '$.service_id')"))
             ->where(fn ($q) => $q->whereNull('payload->version')->orWhere('payload->version', '!=', 1)
-                ->orWhereRaw($this->invalidActiveSql())->orWhereNull('payload->stop->state')
+                ->orWhereRaw($this->invalidIdentitySql())->orWhereRaw($this->invalidActiveSql())->orWhereNull('payload->stop->state')
                 ->orWhereNotIn('payload->stop->state', ['pending', 'confirmed', 'review_required', 'quarantined', 'cancelled'])
                 ->orWhereNull('services.id')->orWhereRaw('NOT ('.$this->canonicalKeySql().')', [self::KEY])
                 ->orWhere(fn ($q) => $q->where('payload->active', true)
@@ -246,10 +254,15 @@ final class ArvanTrafficCreditGuard
         }
 
         return $this->locked($serviceId, function ($service, $current) use ($hold, $confirmed): string {
-            if (! $service || ! $current) {
+            if (! $service) {
                 return 'stale';
             }
             $fresh = self::state($service);
+            if (! $current) {
+                $this->quarantine($service, $fresh, 'resource_binding_became_ambiguous');
+
+                return 'review_required';
+            }
             if (($fresh['token'] ?? null) !== $hold['token']) {
                 return 'stale';
             }
@@ -402,7 +415,16 @@ final class ArvanTrafficCreditGuard
             }
             $instances = CloudInstance::where('service_id', $serviceId)->lockForUpdate()->get();
 
-            return $callback($service, $instances->count() === 1 ? $instances[0] : null);
+            $instance = $instances->count() === 1 ? $instances[0] : null;
+            if ($instance?->provider === 'arvan' && filled($instance->provider_ref)) {
+                $owners = CloudInstance::where('provider', 'arvan')->where('provider_ref', $instance->provider_ref)
+                    ->orderBy('id')->lockForUpdate()->get();
+                if ($owners->count() !== 1 || (int) $owners[0]->id !== (int) $instance->id) {
+                    $instance = null;
+                }
+            }
+
+            return $callback($service, $instance);
         }, 3);
     }
 }

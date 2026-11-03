@@ -61,7 +61,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
             'currency_code' => 'IRT', 'billing_mode' => 'cycle', 'cycle' => 'monthly', 'status' => 'active',
             'provision_status' => 'done', 'provision_meta' => ['staff_marker' => 'preserve']]);
         $instance = CloudInstance::create(['service_id' => $service->id, 'provider' => 'arvan',
-            'provider_ref' => self::REF, 'status' => 'running', 'ipv4' => '192.0.2.1']);
+            'provider_ref' => 'ir-test:00000000-0000-0000-0000-'.str_pad((string) $service->id, 12, '0', STR_PAD_LEFT), 'status' => 'running', 'ipv4' => '192.0.2.1']);
         if ($held) {
             DB::transaction(function () use ($customer, $service, $instance): void {
                 Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
@@ -386,7 +386,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
             $others[] = $row;
         }
         // Distinct refs are irrelevant to this read-only outage: no POST may be issued.
-        Http::fake([self::URL => Http::response([], 503)]);
+        Http::fake(fn () => Http::response([], 503));
         $guard = app(ArvanTrafficCreditGuard::class);
         for ($i = 0; $i < 6; $i++) {
             $guard->process(1);
@@ -418,7 +418,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
         [, $stale, $old] = $this->fixture();
         [, $valid] = $this->fixture();
         $old->update(['provider_ref' => 'ir-test:replacement']);
-        Http::fake([self::URL => Http::response($this->detail('SHUTOFF'))]);
+        Http::fake(fn ($request) => Http::response($this->detail('SHUTOFF', basename(parse_url($request->url(), PHP_URL_PATH)))));
         $guard = app(ArvanTrafficCreditGuard::class);
         $this->assertSame(1, $guard->process(1)['review_required']);
         $this->assertSame(1, $guard->process(1)['confirmed']);
@@ -474,7 +474,7 @@ class ArvanTrafficCreditGuardTest extends TestCase
         DB::table('settings')->where('key', ArvanTrafficCreditGuard::KEY.$bad->id)->update(['value' => '{broken']);
         app()->instance('settings.request-memo', [ArvanTrafficCreditGuard::KEY.$valid->id => '{stale-cache}',
             'arvan_api_token' => Crypt::encryptString('synthetic-credit-guard-token')]);
-        Http::fake([self::URL => Http::response($this->detail('SHUTOFF'))]);
+        Http::fake(fn ($request) => Http::response($this->detail('SHUTOFF', basename(parse_url($request->url(), PHP_URL_PATH)))));
         $result = app(ArvanTrafficCreditGuard::class)->process();
         $this->assertSame(1, $result['confirmed']);
         $this->assertSame(1, $result['review_required']);
@@ -490,10 +490,59 @@ class ArvanTrafficCreditGuardTest extends TestCase
         DB::table('cloud_instances')->where('service_id', $orphan->id)->delete();
         DB::table('services')->where('id', $orphan->id)->delete();
         Setting::create(['key' => ArvanTrafficCreditGuard::KEY.'000'.$valid->id, 'value' => $payload]);
-        Http::fake([self::URL => Http::response($this->detail('SHUTOFF'))]);
+        Http::fake(fn ($request) => Http::response($this->detail('SHUTOFF', basename(parse_url($request->url(), PHP_URL_PATH)))));
         $result = app(ArvanTrafficCreditGuard::class)->process(1);
         $this->assertSame(1, $result['confirmed']);
         $this->assertSame(2, $result['review_required']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_duplicate_resource_added_after_hold_or_during_get_is_never_stopped(): void
+    {
+        [, $service, $instance] = $this->fixture();
+        [, $other, $second] = $this->fixture(false);
+        Http::fake(function ($request) use ($second, $instance) {
+            $this->assertSame('GET', $request->method());
+            $second->update(['provider_ref' => $instance->provider_ref]);
+
+            return Http::response($this->detail('ACTIVE'));
+        });
+        $this->assertSame('review_required', app(ArvanTrafficCreditGuard::class)->reconcile($service->id));
+        $this->assertSame('quarantined', data_get(ArvanTrafficCreditGuard::state($service), 'stop.state'));
+        $this->assertFalse(app(ArvanTrafficCreditGuard::class)->allowPower(self::REF));
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($r) => $r->method() !== 'GET');
+    }
+
+    public function test_unsupported_or_malformed_control_shape_is_reported_before_limit_without_blocking_valid_stop(): void
+    {
+        [, $bad] = $this->fixture();
+        [, $valid] = $this->fixture();
+        $state = ArvanTrafficCreditGuard::state($bad);
+        $state['version'] = 2;
+        DB::table('settings')->where('key', ArvanTrafficCreditGuard::KEY.$bad->id)->update(['value' => json_encode($state)]);
+        Http::fake(fn ($request) => Http::response($this->detail('SHUTOFF', basename(parse_url($request->url(), PHP_URL_PATH)))));
+        $result = app(ArvanTrafficCreditGuard::class)->process(1);
+        $this->assertSame(1, $result['confirmed']);
+        $this->assertSame(1, $result['review_required']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_coerced_control_types_are_reviewed_without_occupying_valid_work_limit(): void
+    {
+        $bad = [];
+        foreach (['version' => '1', 'service_id' => '1', 'active' => 1] as $key => $value) {
+            [, $row] = $this->fixture();
+            $state = ArvanTrafficCreditGuard::state($row);
+            $state[$key] = $key === 'service_id' ? (string) $row->id : $value;
+            DB::table('settings')->where('key', ArvanTrafficCreditGuard::KEY.$row->id)->update(['value' => json_encode($state)]);
+            $bad[] = $row;
+        }
+        [, $valid] = $this->fixture();
+        Http::fake(fn ($request) => Http::response($this->detail('SHUTOFF', basename(parse_url($request->url(), PHP_URL_PATH)))));
+        $result = app(ArvanTrafficCreditGuard::class)->process(1);
+        $this->assertSame(1, $result['confirmed']);
+        $this->assertSame(3, $result['review_required']);
         Http::assertSentCount(1);
     }
 
