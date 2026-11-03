@@ -264,7 +264,7 @@ class PleskClient
         if ($login === '' || in_array(strtolower($login), ['admin', 'root', strtolower((string) $this->server->username)], true)
             || ! filter_var($ip, FILTER_VALIDATE_IP)) return null;
         $r = $this->call('<packet version="1.6.9.1"><server><create_session><login>'.$this->esc($login)
-            .'</login><data><user_ip>'.$this->esc($ip).'</user_ip></data></create_session></server></packet>');
+            .'</login><data><user_ip>'.$this->esc(base64_encode($ip)).'</user_ip><source_server/></data></create_session></server></packet>');
         $token = $r['data']['server']['create_session']['result']['id'] ?? null;
         if (! $r['ok'] || ! is_string($token) || ! preg_match('/\A[a-zA-Z0-9_,-]{16,256}\z/D', $token)) return null;
         return 'https://'.$this->server->hostname.':'.$this->server->effectivePort()
