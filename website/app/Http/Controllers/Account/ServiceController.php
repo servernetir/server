@@ -419,6 +419,13 @@ class ServiceController extends Controller
             }
             $url = (new \App\Services\Provisioning\PleskClient($service->server))
                 ->createUserSession((string) $service->username, (string) $request->ip());
+            $target = match ($request->query('app')) {
+                'files' => '/smb/file-manager',
+                'db' => '/smb/database',
+                'email' => '/smb/email-address',
+                default => null,
+            };
+            if ($url && $target) $url .= '&success_redirect_url='.rawurlencode($target);
             return $url ? redirect()->away($url)->withHeaders(['Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer'])
                 : back()->withErrors(__('ui.svf_sso_na'));
         }

@@ -48,6 +48,15 @@ class PleskPanelIntegrationTest extends TestCase
         Http::assertSent(fn($request)=>str_contains($request->body(),'<login>fixture0732</login>')
             && $request->hasHeader('KEY','fake-key') && !str_contains($request->body(),'<passwd>'));
     }
+    public function test_deep_links_use_a_fixed_plesk_path_and_cannot_redirect_elsewhere(): void
+    {
+        $s=$this->service();Http::swap(new Factory);Http::preventStrayRequests();
+        Http::fake(fn()=>Http::response('<packet><server><create_session><result><status>ok</status><id>'.str_repeat('a',32).'</id></result></create_session></server></packet>',200));
+        $base='https://panel.example.test:8443/enterprise/rsession_init.php?PLESKSESSID='.str_repeat('a',32);
+        $this->actingAs($s->customer,'customer')->get('/account/services/'.$s->id.'/cpanel?app=files')
+            ->assertRedirect($base.'&success_redirect_url='.rawurlencode('/smb/file-manager'));
+        $this->get('/account/services/'.$s->id.'/cpanel?app=https%3A%2F%2Fevil.example.test')->assertRedirect($base);
+    }
     public function test_other_customer_cannot_request_a_session(): void
     {
         $s=$this->service();Http::swap(new Factory);Http::fake();
