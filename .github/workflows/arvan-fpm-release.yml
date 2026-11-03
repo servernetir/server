@@ -5,7 +5,7 @@ on:
     branches: [develop]
     paths:
       - 'scripts/arvan-monitoring/fpm-release/**'
-      - 'scripts/arvan-monitoring/web-release/deploy.php'
+      - 'scripts/arvan-monitoring/web-release/**'
       - '.github/workflows/arvan-fpm-release.yml'
 
 permissions:
@@ -17,9 +17,9 @@ concurrency:
 
 jobs:
   synthetic-checks:
-    name: Frozen artifacts and synthetic filesystem/wire checks (PHP ${{ matrix.php }})
+    name: Receipt recovery and isolated filesystem/wire checks (PHP ${{ matrix.php }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     strategy:
       fail-fast: false
       matrix:
@@ -37,25 +37,39 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: none
           tools: none
-      - name: Check frozen bytes and exercise private synthetic files and mock sockets
+      - name: Verify reviewed bytes and run fixtures without an external network interface
         shell: bash
         run: |
           set -euo pipefail
-          fixture_root="$(mktemp -d "$RUNNER_TEMP/arvan-fpm-fixtures.XXXXXX")"
-          mkdir "$fixture_root/arvan-fpm-candidate"
-          mkdir -p "$fixture_root/arvan-release-candidate/v2"
-          cp -a scripts/arvan-monitoring/fpm-release/. "$fixture_root/arvan-fpm-candidate/"
-          cp scripts/arvan-monitoring/web-release/deploy.php "$fixture_root/arvan-release-candidate/v2/deploy.php"
+          fixture_root="$(mktemp -d "$RUNNER_TEMP/arvan-v3-fixtures.XXXXXX")"
+          cp -a scripts/arvan-monitoring/web-release "$fixture_root/web-release"
+          cp -a scripts/arvan-monitoring/fpm-release "$fixture_root/fpm-release"
           cd "$fixture_root"
-          # Preserve reviewed bytes, including the test's original isolated fixture layout.
-          sha256sum --check arvan-fpm-candidate/SHA256SUMS
-          printf '%s\n' '0b9c796cda3f05e6e6092c445198ae49c25b805742f502786569f7b7ce92c75d  arvan-release-candidate/v2/deploy.php' | sha256sum --check
-          php -l arvan-fpm-candidate/fpm-activation.php
-          php -l arvan-fpm-candidate/inspect-fpm-config.php
-          php -l arvan-fpm-candidate/test-compiled-ops.php
-          # Only helper function declarations and synthetic temp files execute.
-          # No Composer, app bootstrap, FPM socket, HTTP request or production path runs.
-          php -d opcache.enable_cli=0 -d allow_url_fopen=0 \
-            -d disable_functions=exec,passthru,shell_exec,system,proc_open,popen,fsockopen,pfsockopen,stream_socket_client \
-            arvan-fpm-candidate/test-compiled-ops.php
-          python3 arvan-fpm-candidate/test-fpm-activation.py
+          sha256sum --check web-release/SHA256SUMS
+          sha256sum --check fpm-release/SHA256SUMS
+          python3 <<'PIN'
+          import hashlib, pathlib, re
+          helper = pathlib.Path('web-release/deploy.php').read_bytes()
+          primary = pathlib.Path('fpm-release/fpm-activation.php').read_text()
+          pin = re.search(r"const AF_HELPER_SHA = '([a-f0-9]{64})';", primary)
+          if not pin or pin.group(1) != hashlib.sha256(helper).hexdigest():
+              raise SystemExit('FPM primary must pin the exact reviewed web helper.')
+          print('Verified exact V3 helper binding.')
+          PIN
+          export ARVAN_TEST_PHP="$(command -v php)"
+          "$ARVAN_TEST_PHP" -l web-release/deploy.php
+          "$ARVAN_TEST_PHP" -l web-release/test-pure.php
+          "$ARVAN_TEST_PHP" -l web-release/test-receipt-flows.php
+          "$ARVAN_TEST_PHP" -l fpm-release/fpm-activation.php
+          "$ARVAN_TEST_PHP" -l fpm-release/inspect-fpm-config.php
+          "$ARVAN_TEST_PHP" -l fpm-release/test-compiled-ops.php
+          # Source/activation entrypoint guards are rewritten only in disposable fixtures.
+          # Native subprocesses run only the synthetic files, with no network interface,
+          # Composer application, real FPM socket, production credentials or app bootstrap.
+          sudo --preserve-env=ARVAN_TEST_PHP,PYTHONDONTWRITEBYTECODE unshare --net -- bash -euo pipefail <<'SYNTHETIC'
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 web-release/test-pure.php
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 web-release/test-receipt-flows.php
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 fpm-release/test-compiled-ops.php
+          python3 fpm-release/test-fpm-activation.py
+          python3 fpm-release/test-receipt-flows.py
+          SYNTHETIC

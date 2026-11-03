@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 // Synthetic filesystem checks only. No FPM, Composer, application or production paths.
-require dirname(__DIR__).'/arvan-release-candidate/v2/deploy.php';
+require dirname(__DIR__).'/web-release/deploy.php';
 $source = (string) file_get_contents(__DIR__.'/fpm-activation.php');
 $prelude = substr($source, strlen("<?php\n"), strpos($source, '// Guarded FPM entry point') - strlen("<?php\n"));
 eval($prelude);
@@ -24,7 +24,8 @@ function install(array $row, string $bytes): array {
     global $root, $owner;
     $backup = $root.'/private/before-'.bin2hex(random_bytes(6)).'.php';
     writeNew($backup, checkedRead($row['path'], $owner)['bytes']);
-    $owned = $row + ['backup' => $backup, 'after' => sha($bytes)];
+    $owned = $row + ['backup' => $backup, 'after' => sha($bytes),
+        'rollback' => afPrepareCompiled($row, $owner, checkedRead($row['path'], $owner)['bytes'], $root.'/private')];
     afReplaceCompiled($row, $owner, $row['sha256'], $bytes, $root.'/private');
     return $owned;
 }
@@ -56,9 +57,9 @@ try {
     check(hash_file('sha256', $e['path']) === $e['sha256'], 'rollback_continues');
     check(file_get_contents($f['path']) === 'concurrent own drift', 'owned_drift_preserved');
 
-    $g = fixture('backup'); $gOwned = install($g, 'new backup'); file_put_contents($gOwned['backup'], 'corrupt');
-    check(afRollbackCompiled([$gOwned], $owner, $root.'/private', static fn () => null) === ['backup.php'], 'bad_backup_refused');
-    check(file_get_contents($g['path']) === 'new backup', 'bad_backup_not_installed');
+    $g = fixture('backup'); $gOwned = install($g, 'new backup'); file_put_contents($gOwned['rollback'], 'corrupt');
+    check(afRollbackCompiled([$gOwned], $owner, $root.'/private', static fn () => null) === ['backup.php'], 'bad_prepared_rollback_refused');
+    check(file_get_contents($g['path']) === 'new backup', 'bad_prepared_rollback_not_installed');
 
     // Random private names make an interrupted no-receipt retry non-colliding.
     $h = fixture('resume'); install($h, 'new resume');

@@ -18,12 +18,12 @@ import sys
 import time
 
 sys.dont_write_bytecode = True
-RELEASE = 'arvan-delivery-20261102-v2q4m7dz'
+RELEASE = 'arvan-delivery-20261103-v3q4m7dz'
 HOME = Path('/home/servernetcloud')
 DOCROOT = HOME / 'public_html'
-DIRECTORY = DOCROOT / '_arvan_delivery_20261102_v2q4m7dz'
+DIRECTORY = DOCROOT / '_arvan_delivery_20261103_v3q4m7dz'
 PRIMARY = DIRECTORY / 'activate.php'
-SCRIPT_NAME = '/_arvan_delivery_20261102_v2q4m7dz/activate.php'
+SCRIPT_NAME = '/_arvan_delivery_20261103_v3q4m7dz/activate.php'
 MAX_OUTPUT = 1048576
 
 
