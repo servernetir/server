@@ -55,6 +55,10 @@ class VpsTcConsoleTest extends TestCase
 
     private function fake(array $extra = []): void
     {
+        // Factory::fake appends callbacks. Replace the factory so an earlier
+        // happy-path callback cannot mask this test's deliberate failure.
+        Http::swap(new \Illuminate\Http\Client\Factory);
+        Http::preventStrayRequests();
         Http::fake($extra + [
             'https://portal.vps.tc/api/login' => Http::response(['token' => 'fixture-api-token']),
             'https://portal.vps.tc/api/service/83' => Http::response(['service' => ['id' => 83, 'status' => 'Active',
