@@ -1,7 +1,11 @@
 # Crypto settlement resilience — 4 November 2026
 
-Status: repair prepared in PR #261; not installed or accepted in production.
+Status: PR #261 merged; three approved files and the targeted migration installed
+and checked in production on 4 November 2026. A new real-payment settlement was
+not exercised: no eligible checkout existed during observation.
 Base: develop 60e21fb9b76d381d035e91957e3e9ca6d5580000.
+Reviewed head: 588d48db1ae92ed67607ae8703d42296c1c8c8f6.
+Installed merge: 0c5e7f1443afb5d5d3ab26e182db70bad5277445.
 
 ## Incident and scope
 
@@ -49,40 +53,76 @@ claim uniqueness; preservation of existing references and refusal of lossy rollb
 The workflow runs PHP 8.4 against SQLite and MariaDB 11.4. MariaDB is essential:
 SQLite does not reproduce the original VARCHAR length failure.
 
-Broader legacy checks must be compared with the exact PR base. Their existing
+Broader legacy checks were compared with the exact PR base. Their existing
 failures remain visible and are not relabeled as successful tests. The comparison
 rejects new failures, new skips, changed testcase identities, empty/missing reports
 and startup failures. One original BSC failure was reproduced on the base and fixed
-on the repair in MariaDB. Final run URLs and totals belong in the PR validation.
+on the repair in MariaDB.
 
-## Production plan and boundaries
+Final PR run: https://github.com/servernetir/server/actions/runs/41826273662 .
+PHP 8.4.27: 41 focused tests / 221 assertions passed on each of SQLite and
+MariaDB 11.4. The separate 47-test legacy comparison retained six existing SQLite
+failures and seven MariaDB failures, with the original eighth MariaDB failure
+fixed. No new failure or skip was introduced. Four local Python comparison
+scenarios passed. PHP lint passed in CI and again for the staged production files
+and installer. All ancillary PR checks also passed before merge.
 
-The owner requested the repair and prevention of recurrence. Browser automatic
-approval review nevertheless denied the privileged cPanel origin. No alternate
-hosting terminal, API, SSH or workflow was used to bypass that denial.
-Production installation, the schema migration and historical reconciliation remain
-blocked until that access is authorized by the tool.
+## Production installation and evidence
 
-Once access is available:
+An earlier automatic review denied cPanel access; no alternative access path was
+used. After the owner explicitly reapproved the concrete source/log/schema read,
+installation and named migration, the origin gate accepted the cPanel Terminal.
 
-1. Read only the relevant current source hashes, actual column definition,
-   migration state and sanitized payment failure metadata. Do not read or export .env.
-2. Use the existing release locks, exact before/after hashes, a private backup and a
-   targeted schema backup. Reconcile concurrent edits instead of copying whole files.
-3. Coordinate the existing crypto job so it cannot run between incompatible release
-   steps. Do not run schedule:run, provisioning or unrelated financial commands.
-4. Install and run only the named new migration, then the reviewed reconciler/model,
-   with the verified existing PHP binary. Do not run all outstanding migrations.
-5. Resume the existing job and observe natural progress, full reference storage,
-   error counts and business state. Bootstrap/HTTP success alone is insufficient.
-6. Audit manually credited/canceled cases before any historical replay. Never apply
-   a transfer twice. Do not reopen canceled invoices or buy infrastructure to test.
-7. Keep the expanded column on code rollback. Restoring old code does not reverse
-   financial effects; every money correction requires its own reconciled ledger entry.
+The production receipt records installation at **2026-11-04 12:23:20 UTC**, using
+PHP 8.4.27 and the existing application directory. Both runtime source files
+matched the exact reviewed baseline before replacement; the new migration was
+absent. The unchanged PaymentService was checked, not replaced.
 
-No production payment, wallet adjustment, provider purchase, scheduler execution,
-schema change, global cache clear or historical backfill was performed by this repair.
-The earlier owner-approved manual support credit is a separate completed operation.
+- Both existing release file locks were held. The existing crypto:watch event's
+  five-minute CacheEventMutex was acquired only for the installation and released
+  in finally; no new cron or scheduler execution was created.
+- Private source backups, the payments table definition and hashed references
+  were saved outside webroot under crypto-resilience-0c5e7f1443af/before.
+- Only migration 2026_11_04_000100_widen_payment_reference_for_crypto was run,
+  with --path and --force. Live ref_id changed from nullable VARCHAR(64) to
+  nullable VARCHAR(128), and exactly one migration record exists.
+- All **1,012 pre-existing payment references** matched their pre-migration
+  digests. All three installed file hashes matched the reviewed bundle.
+- A session/admin/CSRF-protected temporary helper checked the two runtime hashes
+  and performed scoped bytecode activation at **12:25:24 UTC**. Neither file was
+  cached in that web pool; validate_timestamps=1 and revalidate_freq=2. No global
+  cache was cleared. The exact helper was hash-checked and removed afterward.
+- At 12:26:52 UTC the existing cron heartbeat had advanced to 12:26:03, the crypto
+  mutex was free, and the crypto rows remained 13 confirmed / 40 expired / 3 manual.
+  The separately resolved support credit remained a single entry, its balance
+  unchanged and its original unpaid invoice canceled.
+- At 12:27:45 UTC, 332 retained crypto error records were reviewed through
+  sanitized counts only; none was new since installation. The last retained
+  crypto error was 09:41 UTC. This observation is bounded by log retention.
+
+There were zero watchable checkouts and zero existing 66-character crypto payment
+references during acceptance. Thus live schema preservation, installation and
+unchanged business state are verified; successful new BSC settlement is supported
+by the MariaDB behavioral tests, not a fabricated live transfer or heartbeat.
+No money command, provider purchase, manual scheduler execution, global cache
+clear or historical backfill was performed. The earlier owner-approved support
+credit is a separate completed operation. No .env, customer identity, transfer
+hash, raw SQL or raw customer log was exported into this report.
+
+## Rollback and historical boundary
+
+The private manifest and original source backups support a hash-guarded rollback
+of these two runtime classes only. Stop if a subsequent edit changed a file.
+Keep the expanded column and migration history: shrinking it could truncate a
+later real reference. Scoped bytecode activation is required after any rollback;
+the temporary helper is removed and must not be assumed to remain installed.
+Restoring code does not reverse financial effects. Every money correction requires
+its own reconciled ledger entry and authorization.
+
+Historical checkouts outside the two-hour observation window are not replayed.
+Any historical recovery must first reconcile the transfer, original invoice,
+claim and existing credits, including canceled/manually credited cases. The repair
+does not assert that all older transfers were audited or recovered.
 
 ## Related knowledge
 
