@@ -570,4 +570,104 @@ class CollectorTests(unittest.TestCase):
                 self.adapter(NOW+11).publish(state,'ir-agent')
 
 
+class DnsHandoffPublisherTests(unittest.TestCase):
+    """Actual protected bridge/artifacts and collector; only fixed PHP pipe fake."""
+    def setUp(self):
+        from infra.relay_recovery.tests.test_dns_ownership import DnsOwnershipTests
+        self.fixture=DnsOwnershipTests();self.fixture.setUp();self.addCleanup(self.fixture.doCleanups)
+        self.root=self.fixture.root;self.cfg=self.fixture.config;self.state=self.fixture.state
+        key=self.root/'agent.key';key.write_bytes(b'k'*32);key.chmod(0o600)
+        self.cfg.update(agents={'ir-agent':dict(enabled=True,key_file=str(key))},active=self.state['active'])
+        self.cfg['binding']['ipv4']='9.9.9.9'
+        self.cfg['collector']=dict(recipes={},dns_ownership_refresh=True)
+        self.adapter=ca.Adapter(self.cfg,NOW,runner=self.fixture.runner,provider=Provider(),allow_test_paths=True)
+        self.adapter.clock=lambda:self.fixture.now
+
+    def save_state(self, state):
+        with sqlite3.connect(self.root/'controller.sqlite3') as db:
+            db.execute('UPDATE state SET body=?',(protocol.canonical_json(state).decode(),))
+
+    def test_active_handoff_is_signed_by_manifest_hash_and_never_rebound_to_candidate_scope(self):
+        self.state.update(incident_id='incident-1',candidate={**self.state['active'],
+            'provider_id':'52','generation':3,'config_hash':'e'*64,'ipv4':'8.8.8.8'})
+        self.save_state(self.state)
+        manifest=self.adapter.publish(self.state,'ir-agent');active,candidate=manifest['jobs']
+        self.assertEqual(manifest['generation'],3);self.assertEqual(manifest['config_hash'],'e'*64)
+        handoff=active['params']['dns_ownership']
+        self.assertEqual(handoff['source']['identity'],identity(self.state['active']))
+        self.assertEqual(handoff['source']['binding']['config_hash'],active['params']['resource_config_hash'])
+        self.assertEqual(handoff['source']['ipv4'],active['target']['host'])
+        self.assertEqual(handoff['artifact']['observed_at'],NOW)
+        self.assertEqual(handoff['artifact']['expires_at'],NOW+900)
+        self.assertNotIn('dns_ownership',candidate['params'])
+        self.assertEqual(manifest['jobs_hash'],protocol.manifest_hash(manifest['jobs']))
+        with self.adapter._db() as db:
+            saved=json.loads(db.execute('SELECT body FROM manifests').fetchone()['body'])
+        self.assertEqual(saved,manifest)
+        self.assertEqual(len(self.fixture.calls),1)
+
+    def test_protected_fetch_is_outside_publication_lock_and_failed_fetch_has_no_stale_fallback(self):
+        acquired=[]
+        def check_unlocked():
+            with self.adapter.publication_lock():acquired.append(True)
+        self.fixture.after_read=check_unlocked
+        first=self.adapter.publish(self.state,'ir-agent')
+        self.assertEqual(acquired,[True]);old=first['jobs'][0]['params']['dns_ownership']
+        self.fixture.after_read=None;self.fixture.now+=5;self.fixture.responses=[b'failed protected read']
+        second=self.adapter.publish(self.state,'ir-agent')
+        self.assertNotIn('dns_ownership',second['jobs'][0]['params'])
+        self.assertEqual(old['artifact']['observed_at'],NOW)
+        self.assertEqual(old['artifact']['expires_at'],NOW+900)
+        self.assertGreater(second['revision'],first['revision'])
+
+    def test_pending_effect_wins_before_any_protected_metadata_fetch(self):
+        pending=dict(agent_id='ir-agent',revision=1,jobs=[])
+        with self.adapter._db() as db:
+            db.execute('INSERT INTO iran_jobs VALUES(?,?,?,?,?,?,?,?,?,?,NULL)',
+                ('pending','driver','ir-agent','stage',1,'stage-1',NOW+1,
+                 protocol.canonical_json({'manifest':pending}).decode(),'PENDING','PREPARED'))
+        self.assertEqual(self.adapter.publish(self.state,'ir-agent'),pending)
+        self.assertEqual(self.fixture.calls,[])
+
+    def test_current_scope_drift_during_provider_get_strips_handoff_before_history(self):
+        self.state['candidate']={**self.state['active'],'provider_id':'52','generation':3,'config_hash':'e'*64}
+        self.save_state(self.state)
+        def changed(scoped):
+            actual=copy.deepcopy(self.state);actual['incident_id']='new-incident';self.save_state(actual)
+            return dict(identity=scoped,ipv4='8.8.8.8')
+        self.adapter.provider=type('ProviderReads',(),{'probe_target':staticmethod(changed)})()
+        manifest=self.adapter.publish(self.state,'ir-agent')
+        self.assertTrue(all('dns_ownership' not in job['params'] for job in manifest['jobs']))
+
+    def test_expiry_after_committed_history_holds_before_atomic_exposure(self):
+        original=self.adapter._save_manifest
+        def delayed(db,manifest):
+            original(db,manifest);self.fixture.now=NOW+901
+        with patch.object(self.adapter,'_save_manifest',side_effect=delayed):
+            with self.assertRaisesRegex(ca.CollectorError,'dns_ownership_changed_before_exposure'):
+                self.adapter.publish(self.state,'ir-agent')
+        self.assertFalse((self.root/'manifest-ir-agent.json').exists())
+        with self.adapter._db() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM manifests').fetchone()[0],1)
+
+    def test_active_address_drift_during_candidate_provider_get_strips_original_handoff(self):
+        self.state['active']['ipv4']='9.9.9.9'
+        self.state['candidate']={**self.state['active'],'provider_id':'52','generation':3,'config_hash':'e'*64}
+        self.state['candidate'].pop('ipv4');self.save_state(self.state)
+        calls=[]
+        def changed(scoped):
+            calls.append(scoped);actual=copy.deepcopy(self.state)
+            actual['active']['ipv4']='1.1.1.1';self.save_state(actual)
+            return dict(identity=scoped,ipv4='8.8.8.8')
+        self.adapter.provider=type('ProviderReads',(),{'probe_target':staticmethod(changed)})()
+        manifest=self.adapter.publish(self.state,'ir-agent')
+        self.assertEqual(len(calls),1);self.assertEqual(len(self.fixture.calls),1)
+        self.assertTrue(all('dns_ownership' not in job['params'] for job in manifest['jobs']))
+
+    def test_absent_opt_in_performs_no_protected_read_and_changes_no_static_mode(self):
+        self.adapter.options.pop('dns_ownership_refresh')
+        manifest=self.adapter.publish(self.state,'ir-agent')
+        self.assertTrue(manifest['jobs']);self.assertEqual(self.fixture.calls,[])
+        self.assertNotIn('dns_ownership',manifest['jobs'][0]['params'])
+
+
 if __name__ == '__main__': unittest.main()

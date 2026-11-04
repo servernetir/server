@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import copy
 import fcntl
 import hashlib
 import ipaddress
@@ -87,7 +88,7 @@ def _atomic(path: Path, value: dict) -> None:
 
 class Adapter:
     def __init__(self, config: dict, now: int | None = None, *, provider=None,
-                 runner=_bounded_process):
+                 runner=_bounded_process, allow_test_paths=False):
         self.config = config
         self.now = int(time.time()) if now is None else now
         started = time.monotonic()
@@ -103,6 +104,10 @@ class Adapter:
         self.options = config.get('collector', {})
         if not isinstance(self.options, dict):
             raise CollectorError('collector_config')
+        if (type(self.options.get('dns_ownership_refresh', False)) is not bool
+                or type(allow_test_paths) is not bool):
+            raise CollectorError('dns_ownership_refresh_policy')
+        self.allow_test_paths = allow_test_paths
         self.runner, self.provider = runner, provider
         self.path = self.root/'controller-evidence.sqlite3'
         if self.path.exists(): _private_db(self.path)
@@ -400,6 +405,24 @@ class Adapter:
         return {**result, **self._base(resource, state), 'observed_at': result['observed_at']}
 
     def publish(self, state: dict, agent: str) -> dict:
+        ownership = None
+        if (self.options.get('dns_ownership_refresh') is True and agent == self.policy.agent_id
+                and self.config.get('agents', {}).get(agent, {}).get('enabled') is True):
+            # A pending effect wins before any slow protected metadata read.
+            with self.publication_lock():
+                self._refresh()
+                with self._db() as db:
+                    pending = self._pending_iran_manifest(db, agent)
+                if pending is not None: return pending
+            try:
+                from .dns_ownership import DnsOwnershipBridge
+                bridge = DnsOwnershipBridge(self.config, runner=self.runner,
+                    clock=lambda: int(self.clock()), allow_test_paths=self.allow_test_paths)
+                ownership = (bridge, bridge.prepare_handoff(state))
+            except Exception:
+                # An enrolled dynamic guest has no static fallback. Missing
+                # data remains a failed DNS check, never a renewed old source.
+                ownership = None
         with self.publication_lock():
             self._refresh()
             with self._db() as db:
@@ -409,9 +432,9 @@ class Adapter:
                 # before its original file write. Only its authorized publisher
                 # owns that write; an expired/unknown effect still blocks probes.
                 return pending
-            return self._publish_probes(state, agent)
+            return self._publish_probes(state, agent, ownership=ownership)
 
-    def _publish_probes(self, state: dict, agent: str) -> dict:
+    def _publish_probes(self, state: dict, agent: str, *, ownership=None) -> dict:
         self._refresh()
         resources = [state['active']]
         if state.get('candidate'): resources.append(state['candidate'])
@@ -450,6 +473,18 @@ class Adapter:
                              'params': {'resource_identity': identity(target),
                                         'resource_config_hash': target['config_hash'],
                                         'critical_consumers': list(self.policy.critical_consumers), **restore}})
+                if ownership is not None and target is resources[0]:
+                    source = ownership[1]['source']
+                    if (canonical_json(source['identity']) == canonical_json(identity(target))
+                            and source['binding']['config_hash'] == target['config_hash']
+                            and source['ipv4'] == str(ip) and source['agent_id'] == agent):
+                        jobs[-1]['params']['dns_ownership'] = copy.deepcopy(ownership[1])
+            if ownership is not None:
+                try:
+                    ownership[0].guard_handoff(ownership[1], state)
+                except Exception:
+                    ownership = None
+                    for job in jobs: job['params'].pop('dns_ownership', None)
             manifest = {'agent_id': agent, 'incident_id': state.get('incident_id') or f'observe-{resource["generation"]}',
                         'generation': generation, 'revision': revision,
                         'config_hash': resource['config_hash'], 'jobs_hash': manifest_hash(jobs),
@@ -458,6 +493,11 @@ class Adapter:
             self._save_manifest(db, manifest)
             # Commit history BEFORE exposure: no accepted receipt can refer to
             # a manifest that was not durably authorized locally.
+        if ownership is not None and any('dns_ownership' in job['params'] for job in jobs):
+            try:
+                ownership[0].guard_handoff(ownership[1], state)
+            except Exception:
+                raise CollectorError('dns_ownership_changed_before_exposure') from None
         _atomic(self.root/f'manifest-{agent}.json', manifest)
         return manifest
 

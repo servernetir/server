@@ -58,6 +58,8 @@ except ImportError:
 
 CONFIG_SCHEMA = 'servernet.relay.dns-consumer-config.v1'
 OWNERSHIP_SCHEMA = 'servernet.relay.dns-ownership.v1'
+HANDOFF_SCHEMA = 'servernet.relay.dns-ownership-handoff.v1'
+HANDOFF_CONFIG_SCHEMA = 'servernet.relay.dns-handoff-config.v1'
 PROBE_SCHEMA = 'servernet.relay.iran-probe.v1'
 SCOPE = ('incident_id', 'generation', 'revision', 'config_hash')
 MAX_CONFIG = 8192
@@ -235,6 +237,118 @@ def validate_context(value: object, *, agent_id: str) -> dict:
     return value
 
 
+def _resource(value: object) -> dict:
+    if (not isinstance(value, dict) or set(value) != {'provider', 'project_id', 'provider_id', 'generation'}
+            or value.get('provider') != 'hetzner' or not isinstance(value.get('project_id'), str)
+            or not IDENTIFIER.fullmatch(value['project_id'])):
+        raise ProtocolError('dns_resource_identity')
+    _provider(value['provider_id'])
+    _integer(value['generation'], 1, 2**53-1, 'dns_resource_identity')
+    return dict(value)
+
+
+def load_handoff_config(path: str | Path, expected_sha256: str, *, agent_id: str,
+                        root_owned: bool = True) -> dict:
+    _hash(expected_sha256, 'dns_handoff_config_pin')
+    raw = _read_private(path, root_owned=root_owned)
+    if not hmac.compare_digest(hashlib.sha256(raw).hexdigest(), expected_sha256):
+        raise ProtocolError('dns_handoff_config_pin')
+    cfg = decode_json(raw)
+    if (raw != canonical_json(cfg) or set(cfg) != {'schema', 'agent_id', 'binding', 'source_identity',
+                                                'primary', 'secondary', 'ownership_enrollment_sha256'}
+            or cfg.get('schema') != HANDOFF_CONFIG_SCHEMA or cfg.get('agent_id') != agent_id):
+        raise ProtocolError('dns_handoff_config')
+    _binding(cfg['binding']); resource = _resource(cfg['source_identity'])
+    _hash(cfg['ownership_enrollment_sha256'], 'dns_source_enrollment')
+    if cfg['binding']['project_id'] != resource['project_id']:
+        raise ProtocolError('dns_handoff_config')
+    primary, secondary = cfg['primary'], cfg['secondary']
+    if (not isinstance(primary, dict) or set(primary) != {'ipv4', 'port', 'provider_id', 'generation'}
+            or not isinstance(secondary, dict) or set(secondary) != {'ipv4', 'port'}):
+        raise ProtocolError('dns_handoff_endpoints')
+    _ipv4(primary['ipv4'], primary=True); _ipv4(secondary['ipv4'], primary=False)
+    _provider(primary['provider_id']); _integer(primary['generation'], 1, 2**53-1, 'dns_handoff_generation')
+    for item in (primary, secondary):
+        _integer(item['port'], 1, 65535, 'dns_port')
+    if primary['provider_id'] != resource['provider_id'] or primary['generation'] != resource['generation']:
+        raise ProtocolError('dns_handoff_endpoints')
+    return cfg
+
+
+def validate_handoff(context: dict, *, agent_id: str, enrollment: dict | None = None,
+                     now: float | None = None) -> dict:
+    """One finite verifier for signed data at both transport/guest boundaries.
+
+    The agent authenticates the envelope before this call. This function does
+    not create a source, read application metadata, consume another nonce, or
+    derive ownership from a boolean. The guest is the sole SOA observer.
+    """
+    context = validate_context(context, agent_id=agent_id)
+    params = context['job'].get('params', {}); value = params.get('dns_ownership')
+    if (not isinstance(value, dict) or set(value) != {'schema', 'source', 'source_receipt_sha256',
+                                                   'artifact', 'artifact_sha256'}
+            or value.get('schema') != HANDOFF_SCHEMA or len(canonical_json(value)) > 8192):
+        raise ProtocolError('dns_handoff')
+    resource = _resource(params.get('resource_identity'))
+    resource_hash = _hash(params.get('resource_config_hash'), 'dns_resource_hash')
+    target = context['job']['target']
+    if (resource['provider_id'] != target['provider_id'] or resource['generation'] > context['generation']):
+        raise ProtocolError('dns_handoff_resource')
+    source, artifact = value['source'], value['artifact']
+    fields = {'schema','ok','read_only','internal_protected','agent_id','binding','enrollment_sha256',
+              'identity','ipv4','observed_at','received_at','catalog','zones'}
+    if (not isinstance(source, dict) or set(source) != fields
+            or source.get('schema') != 'servernet.relay.dns-ownership-source.v1'
+            or source.get('ok') is not True or source.get('read_only') is not True
+            or source.get('internal_protected') is not True or source.get('agent_id') != agent_id
+            or _resource(source.get('identity')) != resource
+            or _ipv4(source.get('ipv4'), primary=True) != target['host']):
+        raise ProtocolError('dns_handoff_source')
+    binding = _binding(source['binding'])
+    if binding['project_id'] != resource['project_id'] or binding['config_hash'] != resource_hash:
+        raise ProtocolError('dns_handoff_source')
+    _hash(source['enrollment_sha256'], 'dns_source_enrollment')
+    observed = _integer(source['observed_at'], 1, 2**53-1-MAX_ENROLLMENT_TTL, 'dns_source_clock')
+    received = _integer(source['received_at'], observed, observed+20, 'dns_source_clock')
+    _name(source['catalog'])
+    zones = source['zones']
+    if not isinstance(zones, list) or not 1 <= len(zones) <= 3:
+        raise ProtocolError('dns_handoff_zones')
+    ids, names = [], {source['catalog']}
+    for zone in zones:
+        if not isinstance(zone, dict) or set(zone) != {'id', 'name'}:
+            raise ProtocolError('dns_handoff_zone')
+        ident = _integer(zone['id'], 1, 2**53-1, 'dns_handoff_zone'); name = _name(zone['name'])
+        if ident in ids or name in names:
+            raise ProtocolError('dns_handoff_zone')
+        ids.append(ident); names.add(name)
+    if ids != sorted(ids):
+        raise ProtocolError('dns_handoff_zone')
+    source_hash = _hash(value['source_receipt_sha256'], 'dns_source_hash')
+    artifact_hash = _hash(value['artifact_sha256'], 'dns_artifact_hash')
+    expected = dict(schema=OWNERSHIP_SCHEMA, agent_id=agent_id, binding=binding,
+                    source_receipt_sha256=source_hash, observed_at=observed,
+                    expires_at=observed+MAX_ENROLLMENT_TTL, catalog=source['catalog'], zones=zones)
+    if (not isinstance(artifact, dict) or canonical_json(artifact) != canonical_json(expected)
+            or hashlib.sha256(canonical_json(source)).hexdigest() != source_hash
+            or hashlib.sha256(canonical_json(artifact)).hexdigest() != artifact_hash):
+        raise ProtocolError('dns_handoff_hash')
+    if enrollment is not None:
+        if (canonical_json(enrollment['binding']) != canonical_json(binding)
+                or enrollment['source_identity'] != resource
+                or enrollment['primary']['ipv4'] != source['ipv4']
+                or enrollment['ownership_enrollment_sha256'] != source['enrollment_sha256']):
+            raise ProtocolError('dns_handoff_enrollment')
+    if now is not None:
+        if (type(now) not in (int,float) or not math.isfinite(now)
+                or not received <= now < expected['expires_at']):
+            raise ProtocolError('dns_handoff_expired')
+        expiry = params.get('expires_at')
+        if expiry is not None and now >= expiry:
+            raise ProtocolError('dns_job_expired')
+    return decode_json(canonical_json(value))
+
+
 def _wire_name(name: str) -> bytes:
     return b''.join(bytes((len(part),)) + part.encode('ascii') for part in _name(name)[:-1].split('.')) + b'\0'
 
@@ -376,6 +490,14 @@ class DnsConsumerProbe:
         self.config_path, self.agent_id, self.root_owned = config_path, agent_id, root_owned
         self.now, self.monotonic, self.query = now, monotonic, query
 
+    def _load(self, context):
+        if 'dns_ownership' in context['job'].get('params', {}):
+            raise ProtocolError('dns_handoff_mode_required')
+        return load_config(self.config_path, agent_id=self.agent_id, root_owned=self.root_owned)
+
+    def _resource_scope(self, context):
+        return context['generation'], context['config_hash']
+
     def run(self, context: dict) -> dict:
         context = validate_context(context, agent_id=self.agent_id)
         result = dict(schema=PROBE_SCHEMA, probe_kind='dns', read_only=True, ok=False,
@@ -383,17 +505,20 @@ class DnsConsumerProbe:
                       path_profile='default_path_v1'), **{key: context[key] for key in SCOPE})
         checks = result['checks']
         try:
-            cfg = load_config(self.config_path, agent_id=self.agent_id, root_owned=self.root_owned)
+            cfg = self._load(context)
             primary, secondary, target, owned = cfg['primary'], cfg['secondary'], context['job']['target'], cfg['ownership']
+            generation, config_hash = self._resource_scope(context)
             if (primary['ipv4'] != target['host'] or primary['provider_id'] != target['provider_id']
-                    or primary['generation'] != context['generation']
-                    or cfg['binding']['config_hash'] != context['config_hash']):
+                    or primary['generation'] != generation or cfg['binding']['config_hash'] != config_hash):
                 raise ProtocolError('dns_target_binding')
             started = self.now()
             budget = min(NETWORK_BUDGET, _fresh(cfg, context, started))
             deadline = self.monotonic() + budget
             names = [owned['catalog'], *[row['name'] for row in owned['zones']]]
             checks.update(ownership_observed_at=owned['observed_at'], ownership_expires_at=owned['expires_at'])
+            if 'source_receipt_sha256' in cfg:
+                checks.update(source_receipt_sha256=cfg['source_receipt_sha256'],
+                              ownership_sha256=cfg['ownership_sha256'])
             if 'expires_at' in context['job'].get('params', {}):
                 checks['expires_at'] = context['job']['params']['expires_at']
             tasks = [(name, role, endpoint, transport) for name in names
@@ -410,8 +535,7 @@ class DnsConsumerProbe:
                     answers[futures[future]] = answer
             # A concurrent local re-enrollment must not turn observations under
             # the previous private pins into acceptance of the new enrollment.
-            if canonical_json(load_config(self.config_path, agent_id=self.agent_id,
-                                          root_owned=self.root_owned)) != canonical_json(cfg):
+            if canonical_json(self._load(context)) != canonical_json(cfg):
                 raise ProtocolError('dns_enrollment_changed')
             _fresh(cfg, context, self.now(), started=started)
             if self.monotonic() >= deadline:
@@ -428,9 +552,29 @@ class DnsConsumerProbe:
         return result
 
 
+class DnsHandoffProbe(DnsConsumerProbe):
+    def __init__(self, config_path, *, config_sha256, **kwargs):
+        super().__init__(config_path, **kwargs)
+        self.config_sha256 = config_sha256
+
+    def _load(self, context):
+        cfg = load_handoff_config(self.config_path, self.config_sha256,
+                                  agent_id=self.agent_id, root_owned=self.root_owned)
+        handoff = validate_handoff(context, agent_id=self.agent_id, enrollment=cfg, now=self.now())
+        return dict(cfg, ownership=handoff['artifact'], source_receipt_sha256=handoff['source_receipt_sha256'],
+                    ownership_sha256=handoff['artifact_sha256'])
+
+    def _resource_scope(self, context):
+        params = context['job']['params']
+        return _resource(params['resource_identity'])['generation'], params['resource_config_hash']
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config', required=True)
+    choices = parser.add_mutually_exclusive_group(required=True)
+    choices.add_argument('--config')
+    choices.add_argument('--handoff-config')
+    parser.add_argument('--config-sha256')
     parser.add_argument('--agent-id', required=True)
     args = parser.parse_args(argv)
     try:
@@ -438,7 +582,13 @@ def main(argv=None) -> int:
         if len(raw) > 16384:
             raise ProtocolError('dns_context_size')
         context = decode_json(raw)
-        result = DnsConsumerProbe(args.config, agent_id=args.agent_id).run(context)
+        if args.handoff_config:
+            result = DnsHandoffProbe(args.handoff_config, config_sha256=args.config_sha256,
+                                    agent_id=args.agent_id).run(context)
+        else:
+            if args.config_sha256 is not None:
+                raise ProtocolError('dns_static_config_selector')
+            result = DnsConsumerProbe(args.config, agent_id=args.agent_id).run(context)
     except (ProtocolError, OSError, TimeoutError):
         result = dict(schema=PROBE_SCHEMA, probe_kind='dns', read_only=True, ok=False,
                       checks=dict(consumer='dns', probe_ok=False, failure='dns_acceptance_unproven'))

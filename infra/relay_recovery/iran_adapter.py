@@ -121,7 +121,7 @@ ID_PARAMS = frozenset({'checkpoint', 'backup_checkpoint', 'consumer',
 COMBINED_HASH_PARAMS = frozenset({'isolated_trial_config_sha256', 'isolated_verifier_sha256'})
 ISOLATED_HASH_PARAMS = frozenset({'expected_registry_hash','dependency_baseline_sha256','proxy_binding_sha256'}) | COMBINED_HASH_PARAMS
 HASH_PARAMS = HASH_PARAMS | ISOLATED_HASH_PARAMS
-RESOURCE_PARAMS = frozenset({'resource_identity', 'resource_config_hash', 'critical_consumers'})
+RESOURCE_PARAMS = frozenset({'resource_identity', 'resource_config_hash', 'critical_consumers', 'dns_ownership'})
 STAGE_PARAMS = frozenset({'ssh_host_public_key', 'ssh_host_key_sha256',
                           'old_identity', 'old_ipv4', 'old_config_hash'})
 CT_STAGE_PARAMS = STAGE_PARAMS | RESOURCE_PARAMS | frozenset({
@@ -397,6 +397,12 @@ def validate_context(context: object, config: dict) -> dict:
             raise ProtocolError('adapter_critical_consumers')
     if STAGE_PARAMS & params.keys() and not combined:
         _stage_parameters(context, params)
+    if 'dns_ownership' in params:
+        try:
+            from .dns_consumer_probe import validate_handoff
+        except ImportError:
+            from dns_consumer_probe import validate_handoff
+        validate_handoff(context, agent_id=config['agent_id'])
     return context
 
 
@@ -513,7 +519,16 @@ class IranAdapter:
         probes = {**self.config['probes'], **self.config.get('consumer_probes', {})}
         def probe(name):
             try:
-                return name, self._run(probes[name], name, context, probe=True)
+                # run() already validated the complete authenticated context.
+                # Existing health/other-consumer children own no DNS metadata
+                # grammar; retain their original scope/hash/target/deadline and
+                # remove only this optional namespace. DNS receives all bytes.
+                child = context
+                params = context['job'].get('params', {})
+                if name != 'dns' and 'dns_ownership' in params:
+                    child = dict(context, job=dict(context['job'], params={
+                        key: value for key, value in params.items() if key != 'dns_ownership'}))
+                return name, self._run(probes[name], name, child, probe=True)
             except ProtocolError:
                 return name, None
         with ThreadPoolExecutor(max_workers=len(probes)) as pool:

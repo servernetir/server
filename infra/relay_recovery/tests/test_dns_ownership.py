@@ -77,6 +77,48 @@ class DnsOwnershipTests(unittest.TestCase):
         self.assertEqual([self.config['bridge'][k] for k in ('php','path','config')],self.calls[0][0])
         self.assertEqual('catalog.example.invalid.',artifact['catalog'])
 
+    def test_prepared_wire_handoff_contains_original_source_and_no_local_paths_or_new_clock(self):
+        bridge=self.bridge();handoff=bridge.prepare_handoff(self.state)
+        self.assertEqual(set(handoff),{'schema','source','source_receipt_sha256','artifact','artifact_sha256'})
+        self.assertEqual(handoff['schema'],mod.HANDOFF)
+        self.assertEqual(handoff['source'],self.source())
+        self.assertEqual(handoff['source_receipt_sha256'],hashlib.sha256(canonical_json(self.source())).hexdigest())
+        self.assertEqual(handoff['artifact_sha256'],hashlib.sha256(canonical_json(handoff['artifact'])).hexdigest())
+        encoded=canonical_json(handoff).decode();self.assertNotIn(str(self.root),encoded)
+        self.now+=20;bridge.guard_handoff(handoff,self.state)
+        self.assertEqual(handoff['artifact']['observed_at'],NOW)
+        self.assertEqual(handoff['artifact']['expires_at'],NOW+900)
+        self.assertEqual(len(self.calls),1)
+
+    def test_wire_clock_or_source_rehash_cannot_replace_immutable_protected_artifact(self):
+        bridge=self.bridge();original=bridge.prepare_handoff(self.state)
+        for change in ('artifact_clock','source_clock','zone'):
+            value=copy.deepcopy(original)
+            if change=='artifact_clock':value['artifact']['expires_at']+=1
+            elif change=='source_clock':
+                value['source']['observed_at']+=1;value['source']['received_at']+=1
+                value['artifact']['observed_at']+=1;value['artifact']['expires_at']+=1
+            else:value['source']['zones'][0]['name']='different.example.invalid.'
+            value['source_receipt_sha256']=hashlib.sha256(canonical_json(value['source'])).hexdigest()
+            value['artifact']['source_receipt_sha256']=value['source_receipt_sha256']
+            value['artifact_sha256']=hashlib.sha256(canonical_json(value['artifact'])).hexdigest()
+            with self.subTest(change=change):self.reject(lambda:bridge.guard_handoff(value,self.state))
+        self.assertEqual(len(self.calls),1)
+
+    def test_handoff_rechecks_incident_and_candidate_scope_even_while_active_unchanged(self):
+        bridge=self.bridge();handoff=bridge.prepare_handoff(self.state)
+        actual=copy.deepcopy(self.state);actual['incident_id']='new-incident'
+        with sqlite3.connect(self.root/'controller.sqlite3') as db:
+            db.execute('UPDATE state SET body=?',(canonical_json(actual).decode(),))
+        self.reject(lambda:bridge.guard_handoff(handoff,self.state))
+        self.assertEqual(len(self.calls),1)
+
+    def test_handoff_rechecks_original_bridge_config_and_immutable_bytes_before_publication(self):
+        bridge=self.bridge();handoff=bridge.prepare_handoff(self.state)
+        config=Path(self.config['bridge']['config']);config.write_bytes(b'rotated privately')
+        self.reject(lambda:bridge.guard_handoff(handoff,self.state))
+        self.assertEqual(len(self.calls),1)
+
     def test_identical_source_is_immutable_and_failure_preserves_existing_artifacts(self):
         bridge=self.bridge();first=bridge.build();before={p.name:p.read_bytes() for p in bridge.artifacts.iterdir()}
         self.assertEqual(first,bridge.build())

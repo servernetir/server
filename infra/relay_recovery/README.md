@@ -30,7 +30,8 @@ the integration.
 | `controller_adapter.py` | Receipt validation, evidence collection, probe publication and transactional Iran effect inbox routing |
 | `servernet_bridge.php` | Private CLI for the existing owner's protected logical service |
 | `crm_bridge.py` | Fixed private PHP promotion hooks, fresh bundle dispatch and actual application readback |
-| `dns_ownership.py` | Protected application ownership read and immutable canonical DNS canary artifacts; no guest refresh transport |
+| `dns_ownership.py` | Protected application ownership read, immutable artifacts and signed probe handoff |
+| `dns_guest_transport.py` | Explicit pinned SSH transport to the native DNS guest; no endpoint enrollment or installation |
 | `relay_side.py` | Restricted SSH inspection and private consistent SQLite snapshots |
 | `backup_client.py` | Pinned SSH download, strict archive validation and disk admission |
 | `cloudflare_adapter.py` | Scoped content-only DNS plans, receipts and reconciliation |
@@ -440,9 +441,9 @@ after expiry or disablement. Keep the original private bundle for reconciliation
 of new immutable claims; its historical binding never renews proof freshness.
 Real application/MariaDB transaction acceptance is still required.
 
-## DNS ownership artifact preparation
+## DNS ownership and signed default-probe handoff
 
-The first ownership-refresh component is
+The ownership source is
 `dns_ownership.DnsOwnershipBridge.build()`. Its only source is the protected,
 fixed private PHP `dns_ownership` operation, not caller-supplied metadata. Private
 `dns_ownership:{path,sha256}` pins a canonical enrollment with exactly `schema`,
@@ -469,15 +470,62 @@ writer or delivery time. Failed reads retain earlier files without renewing them
 The credential public API remains `describe`/`credentials` only; this component
 uses a separate finite op-only request on the existing pinned private pipe.
 
-This prepares ownership artifacts only. Signed manifest data carriage, a fixed
-PVE→DNS transport/receiver and an explicit dynamic-data digest mode remain absent;
-installed static config/SPEC/ownership pins are unchanged. It does not complete
-unattended refresh, native DNS acceptance, origin/publisher coverage or GLOBAL
-integration. Expired or missing ownership continues to block DNS acceptance.
-The separate offline component checks passed 83 related Python tests, including
+The explicit private option `collector.dns_ownership_refresh: true` prepares a
+fresh data-only handoff for the ordinary active probe. Missing/false preserves
+the existing publisher behavior. Pending Iran effects take priority before any
+slow source read. The fixed PHP read occurs outside the publication lock; source,
+bridge/config/enrollment pins and durable resource identities, addresses and
+incident are checked under that lock again after provider reads and immediately
+before atomic exposure. A failed refresh never reattaches an earlier artifact.
+Metadata lost before history commit is omitted; drift after commit holds exposure
+without rewriting the recorded manifest.
+
+The exact `params.dns_ownership` object has schema
+`servernet.relay.dns-ownership-handoff.v1` and fields `source`,
+`source_receipt_sha256`, `artifact`, `artifact_sha256`, plus `schema`. It carries
+protected values and hashes, never local paths. Only the matching active resource
+identity/config/IP receives it. An outer manifest's higher candidate generation
+or config cannot rebind ownership. The completed jobs hash and existing gateway
+response HMAC authenticate those bytes.
+The adapter validates that original full job first. Only DNS receives the new
+metadata namespace; copied inputs for existing non-DNS probe children remove
+only `dns_ownership`, preserving original scope/jobs hash/target/resource/deadline.
+This keeps their existing pinned finite grammar and host-control behavior intact.
+
+The optional pinned `dns_guest_transport.py` consumer SPEC uses an existing root
+SSH identity, a dedicated single-literal-host ed25519 known-hosts entry and exact
+host fingerprint. No command/path comes from a job. A fixed remote loader checks
+the installed Python, protocol, native helper and guest config pins before
+invoking the actual guest CLI. One typed source/artifact verifier is shared at
+the transport/native boundaries without extra gateway nonce consumption; actual
+authoritative SOA measurement runs once on the enrolled guest source. All four
+primary/secondary UDP/TCP answers remain required.
+
+New guest mode selects its immutable private enrollment with `--handoff-config`
+and `--config-sha256`. Original source/receipt clocks and the exact 900-second
+expiry survive delivery. Missing/expired handoff fails before SSH/query, and
+neither dynamic nor legacy static mode silently falls back to the other artifact.
+No renewable local artifact or installed static config/SPEC pin is rewritten.
+Complete config/pin shapes are in [the native DNS notes](native_dns_consumer_notes.md).
+
+Actual endpoint/key enrollment, recipe installation, live signed acceptance and
+complete catalogue/publisher/origin coverage remain necessary. The global factory
+is still blocked. Prior ownership component checks passed 83 related tests, including
 12 new ownership tests, and 293 PHP fixture assertions. The PHP fixtures exercise
 the actual protected reader with bounded query models and a real SQLite core
 journal; actual Laravel/MariaDB execution still requires deployment acceptance.
+An initial 139 handoff checks independently passed, including the real
+protected reader/artifact/publisher/gateway/Agent/adapter/guest/native parser path
+with only process/wire/DNS I/O replaced. Fixed-loader execution and changed guest
+source rejection were also independently checked offline. Three additional
+legacy-projection regressions passed, and the actual old installed validator and
+probe implementation were independently exercised through the signed route.
+These component results
+do not establish deployment or live acceptance. The subsequent full CI result is
+recorded separately in PR258; the published base result does not substitute for it.
+The final related Python run passed 627 tests across25 modules in15.294 seconds
+on Python3.12.14, including the three legacy-projection regressions. These counts
+overlap the focused checks and are not a full standard-environment CI result.
 
 ## Cold snapshot and rebuild boundaries
 
@@ -503,7 +551,7 @@ source SSH was already lost before durable fencing.
 
 ## Validation
 
-The combined source candidate based on published `ec250cd4` passed 760 related
+The prior combined source candidate based on published `ec250cd4` passed 760 related
 Python tests across 29 modules in 20.847 seconds, 293 native PHP assertions and
 both PHP entry-point lints. Input-copy checks, independent review and added-line
 privacy checks passed. The standard-environment CI for published `ec250cd4`
@@ -513,9 +561,11 @@ The full local candidate run executed 947 tests in 23.045 seconds and failed:
 two failures, nine errors and seven skips. Ten cases encounter the unchanged
 `keygen_binary_untrusted` guard in this non-root-owned runtime; one encounters
 the old writable-temporary-parent test assumption. Bootstrap/backup-client code
-and tests were not changed and no production trust check was bypassed. Fresh
-standard CI, native Windows contracts and actual deployment acceptance remain
-required; this full local run is not a passing result.
+and tests were not changed and no production trust check was bypassed. The later
+standard CI for published `383fef9` passed 947 Python tests, 293 PHP assertions and
+both native Windows contracts. The local failure above remains historical and
+was not bypassed. CI for the DNS handoff is recorded separately in PR258; actual
+deployment acceptance remains required.
 
 Run offline Python checks from the repository root:
 

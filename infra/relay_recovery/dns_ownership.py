@@ -5,8 +5,9 @@ receipt, zone, catalog, clock, SQL, URL or command can replace that read. The
 enrollment selects existing owner canary IDs under the protected relay service's
 authority; it does not assert CdnZone.service_id equals that relay service.
 
-This component does NOT refresh a DNS guest, change static pins, publish jobs,
-install SSH transports or establish full catalogue/consumer/global readiness.
+This component does not change static pins, install SSH transports or establish
+full catalogue/consumer/global readiness. Its explicit data handoff is consumed
+only by the existing signed default probe publisher and enrolled guest mode.
 Both the sanitized canonical source receipt and artifact are retained immutable
 with mode0600, outside the web root. Future signed data transport remains separate.
 """
@@ -23,7 +24,7 @@ import time
 from . import core, dns_consumer_probe as dns
 from .agent import _bounded_process
 from .production_hooks import _identity, _private_bytes
-from .provider_adapter import CredentialBridge, ProviderEffectError
+from .provider_adapter import CredentialBridge, ProviderEffectError, _pinned
 from .protocol import HEX64, IDENTIFIER, canonical_json, decode_json
 from .backup_client import _directory, trusted_file
 
@@ -31,6 +32,7 @@ from .backup_client import _directory, trusted_file
 ENROLLMENT = 'servernet.relay.dns-ownership.enrollment.v1'
 SOURCE = 'servernet.relay.dns-ownership-source.v1'
 PUBLICATION = 'servernet.relay.dns-ownership-publication.v1'
+HANDOFF = 'servernet.relay.dns-ownership-handoff.v1'
 SOURCE_FIELDS = {'schema', 'ok', 'read_only', 'internal_protected', 'agent_id', 'binding',
                  'enrollment_sha256', 'identity', 'ipv4', 'observed_at', 'received_at', 'catalog', 'zones'}
 
@@ -77,6 +79,8 @@ class DnsOwnershipBridge:
         self.allow_test_paths = allow_test_paths
         self.enrollment = load_enrollment(self.config, allow_test_paths=allow_test_paths)
         self.pipe = CredentialBridge(self.config, runner=runner)
+        self._bridge_config_sha256 = hashlib.sha256(_private_bytes(self.pipe.entry['config'],
+            limit=65536, allow_test_paths=allow_test_paths)).hexdigest()
         self.root = _directory(self.config['state_dir'], uid=os.geteuid(), allow_test_paths=allow_test_paths)
         self.artifacts = _directory(str(self.root/'dns-ownership'), uid=os.geteuid(),
                                     allow_test_paths=allow_test_paths)
@@ -88,7 +92,7 @@ class DnsOwnershipBridge:
         self.last_now = now
         return now
 
-    def _active(self):
+    def _state(self):
         path = trusted_file(str(self.root/'controller.sqlite3'), uid=os.geteuid(),
                             allow_test_paths=self.allow_test_paths)
         require(path.stat().st_nlink == 1)
@@ -99,13 +103,33 @@ class DnsOwnershipBridge:
         require(state.get('clock_unsafe') is False and type(state.get('last_now')) is int
                 and state['last_now'] <= self._now()
                 and state.get('active', {}).get('config_hash') == self.enrollment['binding']['config_hash'])
+        return state
+
+    def _active(self):
+        state = self._state()
         identity = _identity(core.identity(state['active']))
         require(identity['project_id'] == self.enrollment['binding']['project_id'])
         return identity
 
     def _guard(self, identity):
+        entry = self.pipe.entry
+        _pinned(entry['php'], entry['php_sha256'], executable=True)
+        _pinned(entry['path'], entry['sha256'])
+        require(hashlib.sha256(_private_bytes(entry['config'], limit=65536,
+            allow_test_paths=self.allow_test_paths)).hexdigest() == self._bridge_config_sha256)
         require(load_enrollment(self.config, allow_test_paths=self.allow_test_paths) == self.enrollment
                 and self._active() == identity)
+
+    @staticmethod
+    def _scope(state):
+        """The exact probe resources/incident; virtual phase changes are immaterial."""
+        require(isinstance(state, dict) and isinstance(state.get('active'), dict))
+        result = {'incident_id': state.get('incident_id')}
+        for name in ('active', 'candidate'):
+            resource = state.get(name)
+            result[name] = None if resource is None else dict(identity=_identity(core.identity(resource)),
+                **{k: resource.get(k) for k in ('config_hash', 'ipv4', 'restore_epoch', 'restore_hash', 'restore_recorded_at')})
+        return result
 
     def _source(self, value, identity, started):
         now = self._now()
@@ -167,7 +191,42 @@ class DnsOwnershipBridge:
             self._guard(identity); require(self._now() < artifact['expires_at'])
             return dict(schema=PUBLICATION, read_only=True, authenticated_source=True,
                 observed_at=artifact['observed_at'], expires_at=artifact['expires_at'],
-                artifact=artifact, path=str(path), sha256=artifact_hash,
+                source=source, artifact=artifact, path=str(path), sha256=artifact_hash,
                 source_path=str(source_path), source_receipt_sha256=digest)
+        except Exception:
+            raise DnsOwnershipError('dns_ownership_unavailable') from None
+
+    def prepare_handoff(self, state):
+        """Fetch protected metadata, never accept caller-supplied source data."""
+        published = self.build()
+        handoff = dict(schema=HANDOFF, source=published['source'],
+            source_receipt_sha256=published['source_receipt_sha256'],
+            artifact=published['artifact'], artifact_sha256=published['sha256'])
+        self.guard_handoff(handoff, state)
+        return handoff
+
+    def guard_handoff(self, handoff, state):
+        """Recheck original immutable bytes and current scope without a new clock."""
+        try:
+            require(isinstance(handoff, dict) and set(handoff) == {'schema', 'source',
+                'source_receipt_sha256', 'artifact', 'artifact_sha256'} and handoff['schema'] == HANDOFF)
+            identity = self._active(); self._guard(identity)
+            require(canonical_json(self._scope(state)) == canonical_json(self._scope(self._state())))
+            source = handoff['source']
+            self._source(source, identity, source['observed_at'])
+            raw = canonical_json(source); digest = hashlib.sha256(raw).hexdigest()
+            artifact = dict(schema=dns.OWNERSHIP_SCHEMA, agent_id=source['agent_id'], binding=source['binding'],
+                source_receipt_sha256=digest, observed_at=source['observed_at'],
+                expires_at=source['observed_at']+dns.MAX_ENROLLMENT_TTL, catalog=source['catalog'], zones=source['zones'])
+            encoded = canonical_json(artifact); artifact_hash = hashlib.sha256(encoded).hexdigest()
+            require(handoff['source_receipt_sha256'] == digest and handoff['artifact_sha256'] == artifact_hash
+                and canonical_json(handoff['artifact']) == encoded)
+            require(_private_bytes(self.artifacts/('source-'+digest+'.json'), limit=8192,
+                expected_sha256=digest, allow_test_paths=self.allow_test_paths) == raw)
+            require(_private_bytes(self.artifacts/('ownership-'+artifact_hash+'.json'), limit=8192,
+                expected_sha256=artifact_hash, allow_test_paths=self.allow_test_paths) == encoded)
+            self._guard(identity)
+            require(canonical_json(self._scope(state)) == canonical_json(self._scope(self._state()))
+                and self._now() < artifact['expires_at'])
         except Exception:
             raise DnsOwnershipError('dns_ownership_unavailable') from None
