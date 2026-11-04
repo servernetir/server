@@ -68,6 +68,7 @@ jobs:
       PAGE_CACHE: 'false'
       EXCHANGE_ENABLED: 'false'
       CRYPTO_EXPECTED_DB: ${{ matrix.database }}
+      COMPOSER_MAX_PARALLEL_HTTP: 2
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
@@ -84,7 +85,11 @@ jobs:
           set -euo pipefail
           test ! -e .env
           test ! -e bootstrap/cache/config.php
-          composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins
+          for attempt in 1 2 3; do
+            composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins && break
+            test "$attempt" -lt 3 || exit 1
+            sleep "$((attempt * 10))"
+          done
           composer check-platform-reqs
           php artisan package:discover --ansi
       - name: Lint repair files
