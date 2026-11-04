@@ -242,6 +242,17 @@ loss before that fence requires independently authenticated rescue/control or a
 complete restore-tested checkpoint with explicit data freshness policy. These
 are actual acceptance prerequisites, not successful unattended failover.
 
+## Original mutation deadlines
+
+NodeStage requires an authenticated absolute `params.expires_at` for stage,
+apply and rollback. The CT envelope uses `min(original expiry, now+25)`;
+delivery never starts a fresh lease. Push, dispatch and CT write guards retain
+that same deadline. Legacy mutation jobs without it fail closed, while their
+historical read-only reconciliation remains available. A future durable
+publisher must bind this value to the original driver and PROMOTE expiry.
+This guard does not implement the still-missing publisher/receipt integration.
+Later installation requires compatible pinned recipes and enrollment.
+
 ## Application bridge
 
 The bridge is CLI-only and must never be installed under `public_html`. It binds

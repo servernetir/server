@@ -35,7 +35,7 @@ class CtStageTests(unittest.TestCase):
 
     def context(self,op='stage',profile='trial',job_id=None):
         params=dict(stage_profile=profile,ssh_host_public_key=key(1 if profile=='trial'else 2),
-                    ssh_host_key_sha256=ct.fingerprint(key(1 if profile=='trial'else 2)))
+                    ssh_host_key_sha256=ct.fingerprint(key(1 if profile=='trial'else 2)),expires_at=NOW+30)
         if profile=='restored':params.update(restore_epoch=1,restore_hash='d'*64)
         if op in ('apply','rollback'):
             params.update(old_identity=dict(provider='hetzner',project_id='p',provider_id='111',generation=1),
@@ -163,6 +163,55 @@ class CtStageTests(unittest.TestCase):
         for args in ((path,'f'*64,nonce,'stage',NOW),(path,sha,'b'*32,'stage',NOW),(path,sha,nonce,'stage',NOW+31)):
             with self.assertRaises(ProtocolError):ct.load_job(self.cfg,*args)
         self.assertEqual(ct.load_job(self.cfg,path,sha,nonce,'reconcile',NOW+100),self.ctx)
+
+    def test_child_envelope_cannot_extend_the_controller_deadline(self):
+        self.ctx['job']['params']['expires_at']=NOW+2
+        nonce='b'*32;path=self.root/'jobs'/(nonce+'.json')
+        def envelope(expiry):
+            raw=canonical_json(dict(schema=ct.JOB_SCHEMA,nonce=nonce,created_at=NOW,
+                expires_at=expiry,action='stage',context=self.ctx))
+            path.write_bytes(raw);path.chmod(0o600)
+            return hashlib.sha256(raw).hexdigest()
+        sha=envelope(NOW+25)
+        with self.assertRaisesRegex(ProtocolError,'controller_deadline_required'):
+            ct.load_job(self.cfg,path,sha,nonce,'stage',NOW)
+        sha=envelope(NOW+2)
+        self.assertEqual(ct.load_job(self.cfg,path,sha,nonce,'stage',NOW),self.ctx)
+        self.assertEqual(self.cfg['_job_expires_at'],NOW+2)
+        self.assertEqual(ct.load_job(self.cfg,path,sha,nonce,'reconcile',NOW+100),self.ctx)
+
+    def test_mutations_without_live_controller_deadline_create_no_files_or_services(self):
+        for expiry in (None,NOW,NOW+31,True,str(NOW+10)):
+            context=copy.deepcopy(self.ctx)
+            if expiry is None:context['job']['params'].pop('expires_at')
+            else:context['job']['params']['expires_at']=expiry
+            with self.subTest(expiry=expiry),self.assertRaises(ProtocolError):self.helper().run('stage',context)
+        self.assertFalse(self.calls);self.assertFalse((self.root/'units'/ct.SERVICE).exists())
+
+    def test_original_controller_deadline_stops_restart_even_if_local_config_has_longer_lease(self):
+        self.ctx['job']['params']['expires_at']=NOW+1
+        original=ct._atomic
+        def delayed(path,data,*args,**kwargs):
+            original(path,data,*args,**kwargs)
+            if Path(path)==self.root/'units'/ct.SERVICE:self.now=NOW+1
+        with patch.object(ct,'_atomic',side_effect=delayed),self.assertRaisesRegex(ProtocolError,'stage_outcome_unknown'):
+            self.helper().run('stage',self.ctx)
+        self.assertEqual(self.cfg['_job_expires_at'],NOW+30)
+        self.assertFalse(any(call[0][:2]in (['/usr/bin/systemctl','daemon-reload'],
+            ['/usr/bin/systemctl','restart'])for call in self.calls))
+
+    def test_legacy_completed_context_without_deadline_remains_readonly_reconcilable(self):
+        self.helper().run('stage',self.ctx)
+        old_key=ct.context_key(self.ctx);legacy=copy.deepcopy(self.ctx);legacy['job']['params'].pop('expires_at')
+        with sqlite3.connect(self.root/'state'/'stage.sqlite3')as db:
+            db.execute('UPDATE operations SET id=?,context=? WHERE id=?',
+                (ct.context_key(legacy),canonical_json(legacy).decode(),old_key))
+        self.now+=100;self.calls.clear()
+        before={str(p):p.read_bytes()for p in self.root.rglob('*')if p.is_file()}
+        result=self.helper().run('reconcile',legacy)
+        self.assertTrue(result['read_only']);self.assertTrue(result['checks']['historical_outcome'])
+        self.assertEqual(before,{str(p):p.read_bytes()for p in self.root.rglob('*')if p.is_file()})
+        self.assertFalse(self.calls)
 
     def test_symlink_or_public_job_is_rejected(self):
         path=self.root/'jobs'/('a'*32+'.json');path.write_text('{}');path.chmod(0o644)

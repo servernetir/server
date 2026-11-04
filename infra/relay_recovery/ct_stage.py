@@ -29,6 +29,9 @@ Apply restarts only registry-approved units and verifies the actual global SSH
 SOCKS127.0.0.1:10819 path. Missing proofs never produce an applied success.
 
 Each mutation is journaled before any effect. Unknown outcomes do not retry.
+The authenticated context must carry its original absolute ``expires_at``;
+both the envelope and every write guard are bounded by it. Missing legacy
+deadlines block mutation but do not block read-only reconciliation.
 Reconcile reads the original immutable job, even after its TTL, and performs
 zero writes/restarts. It checks files, the actual socket/process and real egress;
 file bytes alone do not prove loaded network configuration. A known partial CAS
@@ -82,7 +85,8 @@ MUTATIONS=frozenset({'stage','apply','rollback'})
 UNIT=re.compile(r'\A[a-zA-Z0-9][a-zA-Z0-9_.@:-]{0,119}\.service\Z')
 PID=re.compile(r'\bpid=([1-9][0-9]{0,9})\b')
 PARAMS=frozenset({'stage_profile','ssh_host_public_key','ssh_host_key_sha256','restore_epoch','restore_hash',
-    'old_identity','old_ipv4','old_config_hash','expected_registry_hash','resource_identity','resource_config_hash','critical_consumers'})
+    'old_identity','old_ipv4','old_config_hash','expected_registry_hash','resource_identity','resource_config_hash','critical_consumers',
+    'expires_at'})
 
 
 def _hash(value):
@@ -153,6 +157,7 @@ def validate_context(context,agent_id='pve-ir'):
         raise ProtocolError('stage_target')
     params=job.get('params')
     if not isinstance(params,dict) or set(params)-PARAMS:raise ProtocolError('stage_params')
+    if 'expires_at'in params:_int(params['expires_at'])
     profile=params.get('stage_profile')
     if profile not in ('trial','restored'):raise ProtocolError('stage_profile')
     key=public_key(params.get('ssh_host_public_key'))
@@ -252,6 +257,10 @@ def load_job(config,path,sha,nonce,action,now):
     context=validate_context(job['context'],config['agent_id'])
     if context['job']['op']!=job['action']:raise ProtocolError('stage_action_mismatch')
     if action=='reconcile'and job['action']not in MUTATIONS:raise ProtocolError('stage_reconcile_original')
+    if action in MUTATIONS:
+        controller_expiry=context['job']['params'].get('expires_at')
+        if (type(controller_expiry)is not int or not now<controller_expiry<=now+30
+                or expires>controller_expiry):raise ProtocolError('stage_controller_deadline_required')
     config['_job_expires_at']=expires
     return context
 
@@ -284,6 +293,7 @@ class CtStage:
         self.config=config;self.root_owned=config.get('root_owned',True)
         self.root=_directory(config['state_dir'],self.root_owned);self.clock=clock;self.monotonic=monotonic
         self.runner=runner;self.path=self.root/'stage.sqlite3';self.lock=self.root/'stage.lock';self.deadline=None
+        self.authorization_expires_at=None
 
     @contextlib.contextmanager
     def locked(self,read_only=False):
@@ -330,6 +340,8 @@ class CtStage:
 
     def _write_guard(self):
         expiry=self.config.get('_job_expires_at')
+        if self.authorization_expires_at is not None:
+            expiry=min(expiry,self.authorization_expires_at)if type(expiry)is int else None
         if type(expiry)is not int or int(self.clock())>=expiry:raise ProtocolError('stage_authorization_expired')
         if self.deadline is not None and self.monotonic()>=self.deadline:raise ProtocolError('stage_deadline')
 
@@ -590,6 +602,11 @@ class CtStage:
         context=validate_context(context,self.config['agent_id'])
         if context['job']['target']['port']!=self.config['ssh_port']:raise ProtocolError('stage_ssh_port_mismatch')
         if action not in ACTIONS or (action!='reconcile'and action!=context['job']['op']):raise ProtocolError('stage_action_mismatch')
+        self.authorization_expires_at=None
+        if action in MUTATIONS:
+            expiry=context['job']['params'].get('expires_at');now=int(self.clock())
+            if type(expiry)is not int or not now<expiry<=now+30:raise ProtocolError('stage_controller_deadline_required')
+            self.authorization_expires_at=expiry
         result=self._base(action,context);key=context_key(context);self.deadline=self.monotonic()+(4 if action in ('accept','reconcile')else 14)
         with self.locked(read_only=action in ('reconcile','accept'))as db:
             row=db.execute('SELECT * FROM operations WHERE id=?',(key,)).fetchone()

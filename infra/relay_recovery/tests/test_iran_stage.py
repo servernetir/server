@@ -42,7 +42,8 @@ class NodeStageTests(unittest.TestCase):
         return dict(schema=protocol.SCHEMA,agent_id='pve-ir',incident_id='incident-1',generation=2,revision=3,
             config_hash='d'*64,jobs_hash='e'*64,job={'id':op+'-1','op':op,
                 'target':{'host':'1.1.1.1','port':22,'provider_id':'10101'},
-                'params':{'stage_profile':'trial','ssh_host_public_key':self.public,'ssh_host_key_sha256':self.fingerprint}})
+                'params':{'stage_profile':'trial','ssh_host_public_key':self.public,'ssh_host_key_sha256':self.fingerprint,
+                          'expires_at':1_800_000_030}})
 
     def nonce(self):
         self.nonce_count+=1;return f'{self.nonce_count:032x}'
@@ -94,6 +95,64 @@ class NodeStageTests(unittest.TestCase):
         self.assertTrue(all('--pass-stdin'not in c for c in commands))
         with sqlite3.connect(Path(self.cfg['state_dir'])/'node-stage.sqlite3')as db:
             self.assertEqual(db.execute('SELECT state FROM operations').fetchone()[0],'COMPLETE')
+
+    def test_delayed_arrival_cannot_start_a_new_twenty_five_second_lease(self):
+        context=self.context();self.now+=28
+        self.assertTrue(self.node().run('stage',context)['ok'])
+        envelope=protocol.decode_json(next(iter(self.remote.values())))
+        self.assertEqual(envelope['expires_at'],context['job']['params']['expires_at'])
+        self.assertEqual(envelope['expires_at']-envelope['created_at'],2)
+        invoke=[call for call in self.calls if len(call[0])>6 and call[0][6]==self.ct_wrapper]
+        self.assertEqual(invoke[0][2],2)
+
+    def test_missing_expired_invalid_or_overlong_controller_deadline_never_pushes(self):
+        for expiry in (None,self.now,self.now+31,True,str(self.now+10)):
+            context=self.context()
+            if expiry is None:context['job']['params'].pop('expires_at')
+            else:context['job']['params']['expires_at']=expiry
+            with self.subTest(expiry=expiry),self.assertRaises(protocol.ProtocolError):
+                self.node().run('stage',context)
+        self.assertFalse(self.calls);self.assertFalse(self.remote)
+
+    def test_expiry_during_pin_checks_blocks_job_creation_and_push(self):
+        original=self.runner
+        def delayed(argv,data,timeout):
+            result=original(argv,data,timeout)
+            if '/usr/bin/sha256sum'in argv:self.now+=30
+            return result
+        node=self.node();node.runner=delayed
+        with self.assertRaisesRegex(mod.StageError,'stage_dispatch_expired'):
+            node.run('stage',self.context())
+        self.assertFalse(self.remote)
+        self.assertFalse(any(call[0][1]=='push'for call in self.calls))
+
+    def test_expiry_during_push_never_invokes_ct_and_reconciles_without_retry(self):
+        original=self.runner
+        def delayed(argv,data,timeout):
+            result=original(argv,data,timeout)
+            if argv[:3]==[mod.PCT,'push','113']:self.now+=30
+            return result
+        context=self.context();node=self.node();node.runner=delayed
+        with self.assertRaisesRegex(mod.StageError,'stage_dispatch_expired'):node.run('stage',context)
+        self.assertFalse(any(len(call[0])>6 and call[0][6]==self.ct_wrapper for call in self.calls))
+        self.calls.clear();result=self.node().run('reconcile',context)
+        self.assertTrue(result['checks']['definitive_no_write']);self.assertFalse(self.calls)
+
+    def test_legacy_dispatched_job_without_controller_deadline_only_reconciles(self):
+        context=self.context();context['job']['params'].pop('expires_at');node=self.node()
+        nonce='f'*32
+        body=protocol.canonical_json(dict(schema=mod.JOB_SCHEMA,nonce=nonce,created_at=self.now,
+            expires_at=self.now+25,action='stage',context=context))
+        sha=hashlib.sha256(body).hexdigest();key=mod.ct_stage.context_key(context)
+        with node._transaction()as db:
+            db.execute('INSERT INTO operations VALUES(?,?,?,?,?,?,NULL)',
+                (key,'stage','DISPATCHED',nonce,sha,body.decode()))
+        self.remote[self.cfg['ct_job_dir']+'/'+nonce+'.json']=body
+        self.now+=100;before=copy.deepcopy(self.remote)
+        result=node.run('reconcile',context)
+        self.assertTrue(result['reconciled']);self.assertTrue(result['read_only'])
+        self.assertEqual(before,self.remote);self.assertFalse(any(c[0][1]=='push'for c in self.calls))
+        with self.assertRaisesRegex(mod.StageError,'controller_deadline_required'):node.run('stage',context)
 
     def test_pin_or_remote_private_directory_failure_prevents_even_push(self):
         for attribute in ('bad_pin','bad_permissions'):

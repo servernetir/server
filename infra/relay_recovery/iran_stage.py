@@ -24,6 +24,9 @@ command, unit name, key path or executable comes from a network request. The CT
 job contains only validated data (public host/pin/profile and approved CAS IDs).
 
 Every mutation persists PREPARED -> PUSHED -> DISPATCHED before the CT call.
+Mutations require the original absolute controller ``params.expires_at``;
+delivery never grants a new lease. The CT envelope is capped by that deadline
+and the local25-second transport limit. Legacy jobs can only reconcile.
 After ambiguous failure, only read-only reconcile is allowed. A crash before
 DISPATCHED proves no endpoint mutation was invoked. Once dispatched, missing
 job files, bad pins or unresolved CT state remain unknown. Error stdout uses a
@@ -264,7 +267,13 @@ class NodeStage:
         argv = [PCT, 'exec', '113', '--keep-env', '0', '--', self.config['ct_wrapper'],
                 '--config', self.config['ct_config'], '--job-file', remote,
                 '--job-sha256', row['sha256'], '--nonce', row['nonce'], action]
-        status, raw = self._call(argv, 14 if action in MUTATING else 4.5)
+        timeout = 14 if action in MUTATING else 4.5
+        if action in MUTATING:
+            remaining = json.loads(row['body'])['expires_at'] - self._time()
+            if remaining <= 0:
+                raise StageError('stage_dispatch_expired')
+            timeout = min(timeout, remaining)
+        status, raw = self._call(argv, timeout)
         result = decode_json(raw)
         context = json.loads(row['body'])['context']
         if (result.get('schema') != RECIPE_SCHEMA or result.get('action') != action
@@ -332,6 +341,12 @@ class NodeStage:
         original = context['job']['op']
         if action != 'reconcile' and action != original or action == 'reconcile' and original not in MUTATING:
             raise StageError('stage_action_scope')
+        controller_expiry = None
+        if action in MUTATING:
+            controller_expiry = context['job']['params'].get('expires_at')
+            now = self._time()
+            if type(controller_expiry) is not int or not now < controller_expiry <= now+30:
+                raise StageError('stage_controller_deadline_required')
         if action == 'apply' and self.config.get('ct_registry_covers_ir_consumers') is not True:
             return self._base(context, action, checks={'node_inventory_ready': False, 'generation_verified': False})
         key = ct_stage.context_key(context)
@@ -364,8 +379,11 @@ class NodeStage:
                 raise StageError('stage_nonce')
             with self._transaction() as db:
                 now = self._time(db)
+                expiry = min(now+25, controller_expiry) if controller_expiry is not None else now+25
+                if now >= expiry:
+                    raise StageError('stage_dispatch_expired')
                 body = canonical_json(dict(schema=JOB_SCHEMA, nonce=nonce, created_at=now,
-                    expires_at=now+25, action=action, context=context))
+                    expires_at=expiry, action=action, context=context))
                 if len(body) > 16384:
                     raise StageError('stage_job_size')
                 sha = hashlib.sha256(body).hexdigest()
@@ -374,6 +392,8 @@ class NodeStage:
                            (key, action, 'PREPARED', nonce, sha, body.decode()))
             row = self._row(key)
             local, remote = str(self.jobs/(nonce+'.json')), str(_path(self.config['ct_job_dir'])/(nonce+'.json'))
+            if self._time() >= json.loads(row['body'])['expires_at']:
+                raise StageError('stage_dispatch_expired')
             status, _ = self._call([PCT, 'push', '113', local, remote, '--perms', '0600', '--user', '0', '--group', '0'], 1)
             if status != 0:
                 raise OutcomeUnknown('stage_push_unknown')
