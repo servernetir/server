@@ -19,7 +19,10 @@ Private local config schema servernet.relay.iran-config.v1::
    "recipes":{"stage-v1":SPEC,"apply-v1":SPEC,"reconcile-v1":SPEC}}
 
 SPEC has action, argv (fixed strings, argv[0] absolute), executable_sha256,
-inputs:[{path:absolute,sha256:HEX64}], timeout (1..8 for probes,1..20 recipes).
+inputs:[{path:absolute,sha256:HEX64}], timeout (1..8 for probes/ordinary accept/
+reconcile,1..20 mutations). A locally declared acceptance_profile:
+isolated_candidate_v1 enables at most20 seconds only for the exact combined
+isolated accept request and its pinned local producer selector.
 Every absolute argv operand other than argv[0] MUST be an input hash pin. Python
 interpreter calls therefore pin both the interpreter and the script. Shells and
 interpreter -c/-m execution are refused. The network never supplies argv, paths,
@@ -115,7 +118,8 @@ HASH_PARAMS = frozenset({'expected_config_hash', 'bundle_hash', 'restore_hash'})
 ID_PARAMS = frozenset({'checkpoint', 'backup_checkpoint', 'consumer',
                       'expected_provider_id', 'expected_active_provider_id',
                       'acceptance_profile', 'stage_profile'})
-ISOLATED_HASH_PARAMS = frozenset({'expected_registry_hash','dependency_baseline_sha256','proxy_binding_sha256'})
+COMBINED_HASH_PARAMS = frozenset({'isolated_trial_config_sha256', 'isolated_verifier_sha256'})
+ISOLATED_HASH_PARAMS = frozenset({'expected_registry_hash','dependency_baseline_sha256','proxy_binding_sha256'}) | COMBINED_HASH_PARAMS
 HASH_PARAMS = HASH_PARAMS | ISOLATED_HASH_PARAMS
 RESOURCE_PARAMS = frozenset({'resource_identity', 'resource_config_hash', 'critical_consumers'})
 STAGE_PARAMS = frozenset({'ssh_host_public_key', 'ssh_host_key_sha256',
@@ -246,7 +250,7 @@ def _read_file(path: str | Path, root_owned: bool, *, executable=False) -> tuple
 
 
 def _spec(value: object, action: str, root_owned: bool, *, probe=False) -> dict:
-    if not isinstance(value, dict) or set(value) - {'action', 'argv', 'executable_sha256', 'inputs', 'timeout'}:
+    if not isinstance(value, dict) or set(value) - {'action', 'argv', 'executable_sha256', 'inputs', 'timeout', 'acceptance_profile'}:
         raise ProtocolError('adapter_spec')
     if value.get('action') != action:
         raise ProtocolError('adapter_spec_action')
@@ -258,7 +262,11 @@ def _spec(value: object, action: str, root_owned: bool, *, probe=False) -> dict:
     if Path(argv[0]).name in SHELLS or any(v in ('-c', '-m', '--command') for v in argv[1:]):
         raise ProtocolError('adapter_shell_forbidden')
     read_only = probe or action in {'accept', 'reconcile'}
-    timeout = _integer(value.get('timeout', 6 if read_only else 20), 1, 8 if read_only else 20, 'adapter_timeout_policy')
+    isolated_recipe = 'acceptance_profile' in value
+    if isolated_recipe and (probe or action != 'accept' or value['acceptance_profile'] != 'isolated_candidate_v1'):
+        raise ProtocolError('adapter_isolated_recipe_scope')
+    timeout = _integer(value.get('timeout', 6 if read_only else 20), 1,
+        20 if isolated_recipe or not read_only else 8, 'adapter_timeout_policy')
     pins = value.get('inputs', [])
     if not isinstance(pins, list) or len(pins) > 16:
         raise ProtocolError('adapter_inputs')
@@ -363,8 +371,15 @@ def validate_context(context: object, config: dict) -> dict:
         except ImportError:
             from isolated_acceptance import parameters
         parameters(context)
-    elif set(params) & {'dependency_baseline_sha256','proxy_binding_sha256'}:
+    elif set(params) & ({'dependency_baseline_sha256','proxy_binding_sha256'} | COMBINED_HASH_PARAMS):
         raise ProtocolError('adapter_isolated_profile_required')
+    combined = bool(COMBINED_HASH_PARAMS & params.keys())
+    if combined:
+        try:
+            from .isolated_trial import project_context
+        except ImportError:
+            from isolated_trial import project_context
+        project_context(context)
     if set(params) & {'resource_identity', 'resource_config_hash'}:
         ref = params.get('resource_identity')
         if (not isinstance(ref, dict) or set(ref) != {'provider', 'project_id', 'provider_id', 'generation'}
@@ -380,7 +395,7 @@ def validate_context(context: object, config: dict) -> dict:
                 or any(not isinstance(v, str) or not IDENTIFIER.fullmatch(v) for v in names)
                 or len(set(names)) != len(names)):
             raise ProtocolError('adapter_critical_consumers')
-    if STAGE_PARAMS & params.keys():
+    if STAGE_PARAMS & params.keys() and not combined:
         _stage_parameters(context, params)
     return context
 
@@ -420,8 +435,23 @@ class IranAdapter:
 
     def _run(self, spec: dict, action: str, context: dict, *, probe=False) -> dict:
         checked = _spec(spec, action, self.root_owned, probe=probe)
+        combined = bool(COMBINED_HASH_PARAMS & context['job'].get('params', {}).keys())
+        isolated_recipe = checked.get('acceptance_profile') == 'isolated_candidate_v1'
+        if isolated_recipe != combined:
+            raise ProtocolError('adapter_isolated_recipe_scope')
+        timeout = checked['timeout']
+        started = self.now() if combined else None
+        if combined:
+            self._combined_enrollment(context)
+            reference = self.config['isolated_trial']; argv = checked['argv']
+            for flag, value in (('--config', reference['path']), ('--config-sha256', reference['sha256'])):
+                if argv.count(flag) != 1 or argv.index(flag)+1 >= len(argv) or argv[argv.index(flag)+1] != value:
+                    raise ProtocolError('adapter_isolated_recipe_selector')
+            if argv[-1] != 'accept' or reference not in checked.get('inputs', []):
+                raise ProtocolError('adapter_isolated_recipe_selector')
+            timeout = min(timeout, self._isolated_lease(context))
         try:
-            status, output = self.runner(checked['argv'], canonical_json(context), checked['timeout'])
+            status, output = self.runner(checked['argv'], canonical_json(context), timeout)
         except (OSError, TimeoutError):
             raise ProtocolError('adapter_child_unavailable') from None
         if not isinstance(output, bytes) or len(output) > 8192:
@@ -439,7 +469,33 @@ class IranAdapter:
             raise ProtocolError('adapter_mutation_receipt')
         if type(status) is not int or (status != 0 and result['ok']):
             raise ProtocolError('adapter_child_exit')
+        if combined:
+            self._isolated_lease(context)
+            if self.now() < started:
+                raise ProtocolError('adapter_isolated_clock')
+            self._combined_enrollment(context)
         return result
+
+    def _isolated_lease(self, context):
+        now = self.now(); expiry = context['job']['params'].get('expires_at')
+        if (type(now) not in (int, float) or type(expiry) is not int
+                or not now < expiry <= now+30):
+            raise ProtocolError('adapter_isolated_lease_expired')
+        return expiry-now
+
+    def _combined_enrollment(self, context):
+        try:
+            from .isolated_trial import recipe_enrollment, _pin
+        except ImportError:
+            from isolated_trial import recipe_enrollment, _pin
+        recipe_enrollment(context, self.config.get('isolated_trial'), self.config.get('isolated_verifier'),
+            root_owned=self.root_owned)
+        if (getattr(self.isolated_verifier, 'enrollment', None)
+                != _pin(self.config.get('isolated_verifier'), root_owned=self.root_owned)
+                or not callable(getattr(self.isolated_verifier, 'guard', None))):
+            raise ProtocolError('adapter_isolated_verifier_binding')
+        self.isolated_verifier.guard()
+        self._isolated_lease(context)
 
     @staticmethod
     def _bool_checks(result: dict) -> dict:
@@ -564,7 +620,11 @@ class IranAdapter:
         # probes, or manufacture required registry/guest proofs from booleans.
         if not isinstance(self.isolated_verifier,IsolatedAcceptanceVerifier):
             result.update(ok=False,checks=checks,code='isolated_verifier_not_enrolled');return result
-        try:proof=self.isolated_verifier.verify(context,child)
+        combined = bool(COMBINED_HASH_PARAMS & context['job']['params'].keys())
+        try:
+            if combined: self._combined_enrollment(context)
+            proof=self.isolated_verifier.verify(context,child)
+            if combined: self._combined_enrollment(context)
         except ProtocolError:
             result.update(ok=False,checks=checks,code='isolated_acceptance_unverified');return result
         result.update(ok=True,checks={**checks,'accepted':True,'generation_verified':True,
@@ -589,6 +649,13 @@ def build_adapter(config, *, action, context, **options):
             from isolated_acceptance import parameters
             from isolated_verifier_enrollment import load_verifier
         parameters(context)
+        if COMBINED_HASH_PARAMS & params.keys():
+            try:
+                from .isolated_trial import recipe_enrollment
+            except ImportError:
+                from isolated_trial import recipe_enrollment
+            recipe_enrollment(context, config.get('isolated_trial'), config['isolated_verifier'],
+                root_owned=config.get('root_owned', True))
         clock = options.get('now', time.time)
         verifier = load_verifier(config['isolated_verifier'], agent_id=config['agent_id'],
             root_owned=config.get('root_owned', True), now=lambda: int(clock()))

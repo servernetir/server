@@ -5,12 +5,14 @@ No network, subprocess, VM lifecycle, key generation or production enrollment.
 import base64
 import copy
 import hashlib
+import io
 import json
 from pathlib import Path
 import sqlite3
 import struct
 import tempfile
 import threading
+from types import SimpleNamespace
 import unittest
 import uuid
 from unittest.mock import patch
@@ -165,6 +167,237 @@ class BridgeTests(unittest.TestCase):
         raw = protocol.canonical_json(dict(agent_id='ir-agent', op='poll', report=report))
         headers = protocol.sign_message(self.key, 'ir-agent', 'POST', '/relay-recovery-agent.php', raw, self.now)
         self.assertEqual(self.transport(self.agent_config['controller_url'], raw, headers)[0], 200)
+
+    def isolated_enrollment(self):
+        value=dict(schema=effects.ISOLATED_ENROLLMENT,enabled=True,agent_id='ir-agent',
+            binding={k:self.context[k] for k in ('owner_id','service_id','project_id','registry_hash','config_hash')},
+            producer_config_sha256='a'*64,verifier_sha256='b'*64,expected_registry_hash='c'*64,
+            dependency_baseline_sha256='d'*64,proxy_binding_sha256='e'*64)
+        path=self.private(self.root/'isolated-publication.json',protocol.canonical_json(value))
+        return dict(path=str(path),sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+
+    def test_isolated_accept_retains_original_stage_ssh_binding_and_uses_separate_fresh_read_lease(self):
+        original=self.publish()['manifest'];self.deliver();self.now+=40
+        reference=self.isolated_enrollment()
+        result=self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        manifest=result['manifest'];params=manifest['jobs'][0]['params']
+        self.assertEqual(manifest['expires_at'],self.now+25)
+        self.assertGreater(manifest['expires_at'],self.permit['expires_at'])
+        self.assertEqual(params['expires_at'],manifest['expires_at'])
+        for key in ('ssh_host_public_key','ssh_host_key_sha256'):
+            self.assertEqual(params[key],original['jobs'][0]['params'][key])
+        self.assertEqual(params['acceptance_profile'],effects.ISOLATED_PROFILE)
+        self.assertNotIn('critical_consumers',params)
+        row=self.publisher._row(result['publication_id']);saved=json.loads(row['body'])
+        ssh={k:params[k] for k in ('ssh_host_public_key','ssh_host_key_sha256')}
+        self.assertEqual(saved['isolated_accept']['ssh_binding_sha256'],core.digest(ssh))
+        self.assertEqual(saved['permit'],self.permit)
+        self.assertEqual(saved['isolated_accept']['stage_manifest_sha256'],core.digest(original))
+        self.now+=1
+        self.assertEqual(result,self.publisher.publish_isolated_accept(self.permit['intent_id'],reference))
+        self.assertEqual(self.publisher.reconcile(self.permit['intent_id'])['phase'],'SUCCEEDED')
+
+    def test_isolated_accept_requires_actual_terminal_stage_outcome_and_exact_private_binding(self):
+        self.publish();reference=self.isolated_enrollment()
+        with self.assertRaisesRegex(ca.CollectorError,'stage_not_succeeded'):
+            self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        self.deliver()
+        value=protocol.decode_json(Path(reference['path']).read_bytes());value['binding']['owner_id']='2'
+        raw=protocol.canonical_json(value);Path(reference['path']).write_bytes(raw)
+        reference['sha256']=hashlib.sha256(raw).hexdigest()
+        with self.assertRaisesRegex(ca.CollectorError,'enrollment_scope'):
+            self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        with self.adapter._db() as db:
+            db.execute("DELETE FROM iran_outcomes")
+        reference=self.isolated_enrollment()
+        with self.assertRaisesRegex(ca.CollectorError,'stage_outcome_missing'):
+            self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+
+    def test_default_and_isolated_accepts_never_coalesce_or_overwrite_pending_profile(self):
+        self.publish();self.deliver();reference=self.isolated_enrollment()
+        isolated=self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        raw=(self.root/'manifest-ir-agent.json').read_bytes()
+        with self.assertRaisesRegex(ca.CollectorError,'profile_pending'):
+            self.publisher.publish_accept(self.permit['intent_id'])
+        self.assertEqual(raw,(self.root/'manifest-ir-agent.json').read_bytes())
+        self.assertEqual(isolated['phase'],'PENDING')
+
+    def test_isolated_api_cannot_relabel_pending_default_accept(self):
+        self.publish();self.deliver();self.publisher.publish_accept(self.permit['intent_id'])
+        raw=(self.root/'manifest-ir-agent.json').read_bytes()
+        with self.assertRaisesRegex(ca.CollectorError,'profile_pending'):
+            self.publisher.publish_isolated_accept(self.permit['intent_id'],self.isolated_enrollment())
+        self.assertEqual(raw,(self.root/'manifest-ir-agent.json').read_bytes())
+
+    def test_isolated_enrollment_or_current_scope_drift_during_provider_read_prevents_exposure(self):
+        self.publish();self.deliver();reference=self.isolated_enrollment();before=self.provider.probe_target
+        path=self.root/'manifest-ir-agent.json';old=path.read_bytes();calls=[]
+        def changed(identity):
+            result=before(identity);calls.append(identity)
+            if len(calls)==2:
+                self.state['incident_id']='new-incident'
+                with sqlite3.connect(self.root/'controller.sqlite3') as db:
+                    db.execute('UPDATE state SET body=? WHERE id=1',(core.canonical(self.state),))
+            return result
+        with patch.object(self.provider,'probe_target',side_effect=changed):
+            with self.assertRaisesRegex(ca.CollectorError,'core_scope_changed'):
+                self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        self.assertEqual(path.read_bytes(),old)
+        with self.adapter._db() as db:
+            row=db.execute("SELECT phase,exposure FROM iran_jobs WHERE operation='accept'").fetchone()
+        self.assertEqual(tuple(row),('PENDING','PREPARED'))
+
+    def test_expired_pending_isolated_job_cannot_receive_a_new_read_revision(self):
+        self.publish();self.deliver();reference=self.isolated_enrollment()
+        pending=self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        self.now+=25
+        with self.assertRaisesRegex(ca.CollectorError,'pending_expired'):
+            self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        self.assertEqual(pending['manifest']['revision'],self.publisher._row(pending['publication_id'])['revision'])
+
+    def test_default_boolean_accept_response_cannot_succeed_for_isolated_publication(self):
+        self.publish();self.deliver()
+        isolated=self.publisher.publish_isolated_accept(self.permit['intent_id'],self.isolated_enrollment())
+        manifest=isolated['manifest'];job=manifest['jobs'][0]
+        receipt=dict(schema=protocol.SCHEMA,agent_id='ir-agent',
+            **{k:manifest[k] for k in ('incident_id','generation','revision','config_hash','jobs_hash')},
+            job_id=job['id'],op='accept',target=job['target'],ok=True,code='completed',observed_at=self.now,
+            checks={'adapter':{'accepted':True,'generation_verified':True}})
+        self.send_receipt(receipt)
+        result=self.publisher.reconcile(isolated['publication_id'])
+        self.assertEqual(result['phase'],'PENDING');self.assertFalse(result['fresh_observation'])
+        with self.adapter._db() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM receipts').fetchone()[0],0)
+
+    def native_isolated(self):
+        """Real pinned producer/CLI/backend/client/verifier; only OS/wire fake."""
+        from infra.relay_recovery.tests import test_isolated_trial as trial_tests
+        from infra.relay_recovery.tests import test_windows_candidate_probe_client as guest_tests
+        from infra.relay_recovery import isolated_trial as trial
+        fixture=trial_tests.IsolatedTrialTests();fixture.setUp();self.addCleanup(fixture.doCleanups)
+        fixture.now=self.now;fixture.ct.now=self.now
+        fixture.ct.cfg['agent_id']='ir-agent';fixture.ct.process_host=NEW;fixture.ct.egress=NEW
+        fixture.node_fixture.raw['agent_id']='ir-agent';fixture.node_fixture.cfg['agent_id']='ir-agent'
+        fixture.refs['node_stage']=fixture.pin('node.json',fixture.node_fixture.raw)
+        fixture.proxy['agent_id']='ir-agent'
+        fixture.proxy['proxy_binding_sha256']=trial.candidate.proxy_binding('ir-agent',
+            fixture.proxy['proxy_host'],fixture.proxy['proxy_port'])
+        fixture.refs['candidate_proxy']=fixture.pin('proxy.json',fixture.proxy)
+        for key in ('windows','verifier','dependencies'):
+            value=protocol.decode_json(Path(fixture.refs[key]['path']).read_bytes());value['agent_id']='ir-agent'
+            if key=='verifier':value['proxy_binding_sha256']=fixture.proxy['proxy_binding_sha256']
+            fixture.refs[key]=fixture.pin(key+'.json',value)
+        fixture.config.update(agent_id='ir-agent',**fixture.refs)
+        fixture.reference=fixture.pin('producer.json',fixture.config)
+        fixture.peer=guest_tests.CandidateGuest(fixture.proxy,trial.windows.SOURCE_HMAC_POLICY)
+        fixture.peer.response_timestamp=self.now
+        guest_clock=patch.object(guest_tests,'NOW',self.now);guest_clock.start();self.addCleanup(guest_clock.stop)
+        source=json.loads(self.publisher._row(self.permit['intent_id'])['body'])['manifest']
+        wire=dict(schema=protocol.SCHEMA,**{k:source[k] for k in
+            ('agent_id','incident_id','generation','revision','config_hash','jobs_hash')},job=source['jobs'][0])
+        fixture.ct.ctx=wire
+        self.assertTrue(fixture.ct.helper().run('stage',wire)['ok'])
+        fixture.ct.calls.clear();fixture.node_fixture.calls.clear();fixture.node_fixture.remote.clear()
+        baseline=fixture.producer().inspect_dependencies()
+        enrolled=dict(schema=effects.ISOLATED_ENROLLMENT,enabled=True,agent_id='ir-agent',
+            binding={k:self.context[k] for k in ('owner_id','service_id','project_id','registry_hash','config_hash')},
+            producer_config_sha256=fixture.reference['sha256'],verifier_sha256=fixture.refs['verifier']['sha256'],
+            expected_registry_hash=fixture.refs['dependencies']['sha256'],
+            dependency_baseline_sha256=baseline['state_sha256'],proxy_binding_sha256=fixture.proxy['proxy_binding_sha256'])
+        path=self.private(self.root/'actual-isolated-enrollment.json',protocol.canonical_json(enrolled))
+        reference=dict(path=str(path),sha256=hashlib.sha256(path.read_bytes()).hexdigest())
+        config=self.iran.config;config['isolated_trial']=fixture.reference;config['isolated_verifier']=fixture.refs['verifier']
+        spec=copy.deepcopy(config['recipes']['accept'])
+        spec.update(acceptance_profile=effects.ISOLATED_PROFILE,timeout=20,
+            inputs=[fixture.reference],argv=[spec['argv'][0],'--config',fixture.reference['path'],
+                '--config-sha256',fixture.reference['sha256'],'accept'])
+        config['recipes']['accept']=spec
+        real_producer=trial.IsolatedTrialProducer;self.cli_calls=[]
+        def runner(argv,raw,timeout):
+            self.cli_calls.append((copy.deepcopy(argv),raw,timeout))
+            output=io.BytesIO()
+            def factory(ref):return real_producer(ref,root_owned=False,clock=lambda:fixture.now,monotonic=lambda:fixture.mono)
+            with patch.object(trial,'IsolatedTrialProducer',side_effect=factory), \
+                 patch.object(trial.os,'geteuid',return_value=0), \
+                 patch.object(trial.signal,'signal'),patch.object(trial.signal,'alarm'), \
+                 patch.object(trial.sys,'stdin',SimpleNamespace(buffer=io.BytesIO(raw))), \
+                 patch.object(trial.sys,'stdout',SimpleNamespace(buffer=output)):
+                status=trial.main(argv[1:])
+            return status,output.getvalue()
+        def dispatch(action,context):
+            return iran_adapter.build_adapter(config,action=action,context=context,runner=runner,
+                now=lambda:self.now,tcp=lambda *a:True,icmp=lambda *a:None).run(action,context)
+        self.iran=SimpleNamespace(config=config,run=dispatch);self.remote=self.make_agent()
+        return fixture,reference
+
+    def test_actual_signed_pull_cli_producer_native_ct_guest_and_single_final_verifier(self):
+        self.publish();self.deliver();fixture,reference=self.native_isolated()
+        isolated=self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        self.remote.run_once(self.now);self.now+=1;self.remote.run_once(self.now)
+        result=self.publisher.reconcile(isolated['publication_id'])
+        self.assertEqual(result['phase'],'SUCCEEDED');self.assertTrue(result['authenticated'])
+        self.assertTrue(result['fresh_observation']);self.assertEqual(len(self.cli_calls),1)
+        self.assertEqual(self.cli_calls[0][2],20)
+        detail=result['receipt']['checks']['adapter'];proof=detail['isolated_candidate']
+        self.assertEqual(detail['acceptance_profile'],effects.ISOLATED_PROFILE)
+        self.assertTrue(proof['verified']);self.assertFalse(proof['default_path_verified'])
+        self.assertFalse(proof['global_cutover_performed']);self.assertEqual(len(fixture.peer.calls),1)
+        verifier=fixture.root/'verifier-state'/'isolated-guest-responses.sqlite3'
+        with sqlite3.connect(verifier) as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM replay').fetchone()[0],1)
+        encoded=protocol.canonical_json(result).decode()
+        for forbidden in ('body_base64','X-VM-Signature','fixture never used'):
+            self.assertNotIn(forbidden,encoded)
+        with self.adapter._db() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM receipts').fetchone()[0],0)
+        # A structurally matching JSON boolean must not alias numeric identity1.
+        manifest=copy.deepcopy(isolated['manifest']);job=manifest['jobs'][0]
+        candidate_detail=copy.deepcopy(detail)
+        job['params']['resource_identity']['generation']=1
+        manifest['jobs_hash']=protocol.manifest_hash([job])
+        candidate_detail['isolated_candidate']['scope']['jobs_hash']=manifest['jobs_hash']
+        candidate_detail['isolated_candidate']['resource_identity']['generation']=1
+        self.assertTrue(effects._isolated_receipt(candidate_detail,manifest,job,result['observed_at']))
+        candidate_detail['isolated_candidate']['resource_identity']['generation']=True
+        self.assertFalse(effects._isolated_receipt(candidate_detail,manifest,job,result['observed_at']))
+
+    def test_signed_isolated_accept_can_use_full_guest_budget_inside_twenty_second_recipe(self):
+        from infra.relay_recovery import windows_probe_client
+        self.publish();self.deliver();fixture,reference=self.native_isolated()
+        transport=fixture.guest_transport
+        def full_budget(*args):
+            result=transport(*args)
+            fixture.mono+=windows_probe_client.DEADLINE
+            fixture.now+=windows_probe_client.DEADLINE;self.now=fixture.now
+            return result
+        fixture.guest_transport=full_budget;self.remote.monotonic=lambda:fixture.mono
+        isolated=self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        self.remote.run_once(self.now);self.remote.run_once(self.now)
+        result=self.publisher.reconcile(isolated['publication_id'])
+        self.assertEqual(result['phase'],'SUCCEEDED');self.assertTrue(result['fresh_observation'])
+        self.assertEqual(fixture.mono,windows_probe_client.DEADLINE)
+        self.assertLess(fixture.mono,20);self.assertEqual(len(self.cli_calls),1)
+
+    def test_expiry_after_native_recipe_before_final_verifier_never_consumes_nonce_or_accepts(self):
+        self.publish();self.deliver();fixture,reference=self.native_isolated()
+        isolated=self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        original=fixture.guest_transport
+        def revoke(*args):
+            result=original(*args)
+            # The producer's own local clock remains inside its lease, but the
+            # enclosing adapter sees authority expire before final verification.
+            self.now=isolated['manifest']['expires_at']
+            return result
+        fixture.guest_transport=revoke
+        self.remote.run_once(isolated['manifest']['issued_at']);self.remote.run_once(self.now)
+        result=self.publisher.reconcile(isolated['publication_id'])
+        self.assertNotEqual(result['phase'],'SUCCEEDED')
+        with sqlite3.connect(fixture.root/'verifier-state'/'isolated-guest-responses.sqlite3') as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM replay').fetchone()[0],0)
+
+    def test_combined_request_with_different_local_verifier_fails_before_recipe_or_guest(self):
+        self.publish();self.deliver();fixture,reference=self.native_isolated()
+        self.publisher.publish_isolated_accept(self.permit['intent_id'],reference)
+        self.iran.config['isolated_verifier']={**fixture.refs['verifier'],'sha256':'f'*64}
+        self.remote.run_once(self.now)
+        self.assertFalse(self.cli_calls);self.assertFalse(fixture.peer.calls)
 
     def test_actual_signed_gateway_agent_adapter_path_executes_stage_once(self):
         publication = self.publish(); manifest = publication['manifest']

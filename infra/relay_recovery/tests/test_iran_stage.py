@@ -105,6 +105,83 @@ class NodeStageTests(unittest.TestCase):
         invoke=[call for call in self.calls if len(call[0])>6 and call[0][6]==self.ct_wrapper]
         self.assertEqual(invoke[0][2],2)
 
+    def test_fresh_accept_preserves_original_short_lease_in_pushed_job_and_invoke(self):
+        context=self.context('accept');original=copy.deepcopy(context);self.now+=28
+        result=self.node().run('accept',context,fresh_accept=True)
+        self.assertTrue(result['ok']);self.assertTrue(result['read_only'])
+        envelope=protocol.decode_json(next(iter(self.remote.values())))
+        self.assertEqual(envelope['context'],original);self.assertEqual(context,original)
+        self.assertEqual(envelope['expires_at'],original['job']['params']['expires_at'])
+        self.assertEqual(envelope['expires_at']-envelope['created_at'],2)
+        invoke=[c for c in self.calls if len(c[0])>6 and c[0][6]==self.ct_wrapper]
+        self.assertEqual(invoke[0][2],2)
+
+    def test_invalid_or_expired_explicit_fresh_accept_lease_never_pushes(self):
+        for expiry in (None,self.now,self.now+31,True,str(self.now+10)):
+            context=self.context('accept');context['job']['params']['expires_at']=expiry
+            with self.subTest(expiry=expiry),self.assertRaises(protocol.ProtocolError):
+                self.node().run('accept',context,fresh_accept=True)
+        self.assertFalse(self.calls);self.assertFalse(self.remote)
+
+    def test_fresh_accept_expiry_during_pin_checks_blocks_job_creation_and_push(self):
+        context=self.context('accept');context['job']['params']['expires_at']=self.now+2
+        original=self.runner
+        def delayed(argv,data,timeout):
+            result=original(argv,data,timeout)
+            if '/usr/bin/sha256sum'in argv:self.now+=2
+            return result
+        node=self.node();node.runner=delayed
+        with self.assertRaisesRegex(mod.StageError,'stage_dispatch_expired'):
+            node.run('accept',context,fresh_accept=True)
+        self.assertFalse(self.remote);self.assertFalse(list(node.jobs.iterdir()))
+        self.assertFalse(any(c[0][1]=='push'for c in self.calls))
+
+    def test_fresh_accept_expiry_during_push_prevents_ct_execution_and_renewal(self):
+        context=self.context('accept');context['job']['params']['expires_at']=self.now+2
+        original=self.runner
+        def delayed(argv,data,timeout):
+            result=original(argv,data,timeout)
+            if argv[:3]==[mod.PCT,'push','113']:self.now+=2
+            return result
+        node=self.node();node.runner=delayed
+        with self.assertRaisesRegex(mod.StageError,'stage_dispatch_expired'):
+            node.run('accept',context,fresh_accept=True)
+        self.assertFalse(any(len(c[0])>6 and c[0][6]==self.ct_wrapper for c in self.calls))
+        before=copy.deepcopy(self.remote);self.calls.clear()
+        with self.assertRaisesRegex(mod.StageError,'controller_deadline_required'):
+            node.run('accept',context,fresh_accept=True)
+        self.assertFalse(self.calls);self.assertEqual(before,self.remote)
+        with sqlite3.connect(node.db_path)as db:
+            self.assertEqual(db.execute('SELECT state,result FROM operations').fetchone(),('PUSHED',None))
+
+    def test_fresh_accept_late_success_is_not_recorded_as_completed(self):
+        context=self.context('accept');context['job']['params']['expires_at']=self.now+2
+        original=self.runner
+        def delayed(argv,data,timeout):
+            result=original(argv,data,timeout)
+            if len(argv)>6 and argv[6]==self.ct_wrapper:self.now+=2
+            return result
+        node=self.node();node.runner=delayed
+        with self.assertRaisesRegex(mod.OutcomeUnknown,'stage_dispatch_unknown'):
+            node.run('accept',context,fresh_accept=True)
+        with sqlite3.connect(node.db_path)as db:
+            self.assertEqual(db.execute('SELECT state,result FROM operations').fetchone(),('DISPATCHED',None))
+
+    def test_ordinary_accept_ignores_optional_old_deadline_and_remains_idempotent(self):
+        context=self.context('accept');context['job']['params']['expires_at']=self.now-1
+        node=self.node();first=node.run('accept',context)
+        self.assertTrue(first['ok'])
+        envelope=protocol.decode_json(next(iter(self.remote.values())))
+        self.assertEqual(envelope['expires_at'],self.now+25)
+        self.calls.clear();self.assertEqual(node.run('accept',context),first)
+        self.assertFalse(self.calls)
+
+    def test_direct_fresh_accept_without_explicit_lease_remains_compatible(self):
+        context=self.context('accept');context['job']['params'].pop('expires_at')
+        self.assertTrue(self.node().run('accept',context,fresh_accept=True)['ok'])
+        envelope=protocol.decode_json(next(iter(self.remote.values())))
+        self.assertEqual(envelope['expires_at'],self.now+25)
+
     def test_missing_expired_invalid_or_overlong_controller_deadline_never_pushes(self):
         for expiry in (None,self.now,self.now+31,True,str(self.now+10)):
             context=self.context()

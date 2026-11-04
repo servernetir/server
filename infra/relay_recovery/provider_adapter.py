@@ -75,7 +75,7 @@ class CredentialBridge:
                     or type(timeout) not in (int, float) or not 0 < timeout <= 20):
                 raise ProviderEffectError('bridge_failed')
             operation = request.get('op')
-            fields = ({'op'} if operation in {'describe', 'credentials'} else
+            fields = ({'op'} if operation in {'describe', 'credentials', 'dns_ownership'} else
                       {'op', 'intent_id'} if operation == 'reconcile_promotion' else
                       {'op', 'intent_id', 'continuation'} if operation == 'promote' else None)
             if (fields is None or set(request) != fields

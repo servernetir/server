@@ -55,10 +55,19 @@ The ownership artifact has exactly:
 - `zones`: one to three distinct owner-approved `{id, name}` objects with
   positive integer IDs and canonical names, distinct from the catalog.
 
-The component verifies the artifact's bytes and scope. The producer that reads
-the actual panel ownership metadata, preserves the source receipt, creates this
-artifact and refreshes its bounded lifetime is a separate enrollment integration
-requirement. Writing an arbitrary artifact does not prove service ownership.
+The component verifies the artifact's bytes and scope. The private
+`dns_ownership.DnsOwnershipBridge` now reads actual protected panel ownership,
+retains its canonical source receipt and creates the artifact with the original
+backend observation and a maximum 900-second lifetime. It reads only fixed
+privately selected owner canary IDs and the raw catalog setting through the pinned
+PHP pipe. It uses no Setting cache/default or API secrets; an explicitly stored
+internal `.invalid` catalog is not replaced with an example. The protected relay
+service authorizes the selected customer-owned canary read; nullable zone
+`service_id` is not claimed to equal that relay service. This is not full-catalogue
+coverage. Writing an arbitrary artifact does not prove ownership. Signed job data
+carriage, fixed guest transport/receiver and an explicit mutable data-digest mode
+remain separate integration work. The current installed ownership/config/SPEC
+hashes are not updated by this builder.
 The helper never refreshes either clock or substitutes a catalog/example for an
 owned service zone.
 

@@ -30,6 +30,7 @@ the integration.
 | `controller_adapter.py` | Receipt validation, evidence collection, probe publication and transactional Iran effect inbox routing |
 | `servernet_bridge.php` | Private CLI for the existing owner's protected logical service |
 | `crm_bridge.py` | Fixed private PHP promotion hooks, fresh bundle dispatch and actual application readback |
+| `dns_ownership.py` | Protected application ownership read and immutable canonical DNS canary artifacts; no guest refresh transport |
 | `relay_side.py` | Restricted SSH inspection and private consistent SQLite snapshots |
 | `backup_client.py` | Pinned SSH download, strict archive validation and disk admission |
 | `cloudflare_adapter.py` | Scoped content-only DNS plans, receipts and reconciliation |
@@ -191,6 +192,56 @@ The producer's separate offline validation passed 174 related tests, including
 17 composite tests, using actual NodeStage/CT/client/verifier code with only OS and
 guest wire transports replaced. This source delta has no live acceptance or
 new CI result yet; the older suite/CI counts below cover earlier source.
+
+The explicit `IranEffectPublisher.publish_isolated_accept(effect_id, enrollment)`
+path now connects a successful original `stage` disposition to a new signed,
+read-only accept job. It requires its original durable driver claim/outcome,
+unchanged current candidate/incident/config/registry, and the public SSH key and
+fingerprint from that original stage manifest. A pinned private controller
+enrollment has exactly `schema:"servernet.relay.isolated-publication.v1"`,
+`enabled:true`, `agent_id`, `binding`, `producer_config_sha256`, `verifier_sha256`,
+`expected_registry_hash`, `dependency_baseline_sha256`, `proxy_binding_sha256`.
+The binding is exactly `{owner_id,service_id,project_id,registry_hash,config_hash}`
+from the original driver context. These hashes must be enrolled from the actual
+PVE producer/verifier/catalogue/proxy and the measured finite dependency baseline.
+The controller enrollment contains no remote path, command or readiness flag.
+
+The combined signed params contain the existing strict guest params, that original
+SSH public key/fingerprint, `expires_at`, `isolated_trial_config_sha256` and
+`isolated_verifier_sha256`. The original scope and `jobs_hash` survive the exact
+CT/guest projections; their backend grammars are unchanged. Agent local config
+must declare `isolated_trial:{path,sha256}` and the producer's exact
+`isolated_verifier` reference. A local accept SPEC opts into the composite with
+`acceptance_profile:"isolated_candidate_v1"` and an explicit timeout at most20.
+It must select the pinned producer config through fixed `--config` and
+`--config-sha256` argv and include the config in its input pins. Pin the Python
+interpreter, `isolated_trial.py`, its complete imported source closure and all
+private referenced config artifacts in the SPEC's existing finite input list.
+Invoke the source recipe with Python `-E -S -B`, the fixed script path, those
+config arguments and final action `accept`; no job chooses these operands.
+
+The fixed CLI calls `produce_recipe()`, which returns only raw native evidence.
+The existing adapter verifier is the sole final guest nonce consumer;
+`produce()` remains a separate direct API that verifies its own result. Normal
+probes/accept/reconcile retain their eight-second limit. Only the enrolled
+combined recipe can use20 seconds; its producer reserves one second for return
+and shares the shorter original read lease through dependency reads, CT job and
+guest response. Expiry is checked again before final verification/acceptance.
+This read lease never renews a stage/apply permit or permits a mutation retry.
+
+Pending default-path and isolated reads cannot substitute for each other.
+Unknown, conflicting or expired pending reads retain their publication slot;
+retrying that API does not re-expose an ambiguous job. The authenticated inbox
+requires the exact isolated profile, typed proof scope and original proof clocks
+before recording an isolated success, and keeps it out of ordinary health
+receipts. No driver readiness translation or global factory wiring is supplied.
+Actual recipe installation, input pins, candidate transport/enrollment, complete
+dependency coverage and live signed acceptance are still required. This new
+source wiring has no deployment or new CI acceptance yet.
+The source candidate passed587 related Python tests across22 modules on
+Python3.12.14, including the real signed pull/CLI/producer/backend/client/verifier
+pipeline with only provider, OS and guest-wire transports replaced. This is an
+offline component result, not a live enrollment or fresh full CI result.
 
 The 3 November integration checkpoint passed 707 Python tests on Python 3.12.14
 and 72 PHP helper assertions on PHP 8.3.6. These are offline results; they do not
@@ -389,7 +440,82 @@ after expiry or disablement. Keep the original private bundle for reconciliation
 of new immutable claims; its historical binding never renews proof freshness.
 Real application/MariaDB transaction acceptance is still required.
 
+## DNS ownership artifact preparation
+
+The first ownership-refresh component is
+`dns_ownership.DnsOwnershipBridge.build()`. Its only source is the protected,
+fixed private PHP `dns_ownership` operation, not caller-supplied metadata. Private
+`dns_ownership:{path,sha256}` pins a canonical enrollment with exactly `schema`,
+`agent_id`, `binding`, `zone_ids`; its schema is
+`servernet.relay.dns-ownership.enrollment.v1`. Binding has the DNS helper's exact
+owner/service/project/config fields. Select 1–3 sorted distinct existing zone IDs.
+The selected zones must belong to that customer and be active published NS zones;
+the existing protected relay service authorizes this owner-canary read. A zone's
+nullable `service_id` is not assumed to equal the relay service. This selection
+does not establish coverage of the whole owner or publisher catalogue.
+
+The PHP reader checks current core identity/config and actual protected
+CloudInstance/Service/customer authority, selects only bounded zone scalars and
+the single raw `dns_catalog_zone` database value. It calls no Setting cache,
+secret accessor, ownership mutation or publisher method. Missing catalog metadata
+holds; an explicitly stored internal name ending `.invalid` is allowed and must
+still be verified against the actual primary. No example/default fills a gap.
+
+The Python component independently checks exact source/enrollment/scope and
+original backend clocks, then saves canonical source and ownership files under
+the private controller `state_dir/dns-ownership/`, with mode0600 and immutable
+hash-derived names. The artifact expiry is original `observed_at + 900`, never
+writer or delivery time. Failed reads retain earlier files without renewing them.
+The credential public API remains `describe`/`credentials` only; this component
+uses a separate finite op-only request on the existing pinned private pipe.
+
+This prepares ownership artifacts only. Signed manifest data carriage, a fixed
+PVE→DNS transport/receiver and an explicit dynamic-data digest mode remain absent;
+installed static config/SPEC/ownership pins are unchanged. It does not complete
+unattended refresh, native DNS acceptance, origin/publisher coverage or GLOBAL
+integration. Expired or missing ownership continues to block DNS acceptance.
+The separate offline component checks passed 83 related Python tests, including
+12 new ownership tests, and 293 PHP fixture assertions. The PHP fixtures exercise
+the actual protected reader with bounded query models and a real SQLite core
+journal; actual Laravel/MariaDB execution still requires deployment acceptance.
+
+## Cold snapshot and rebuild boundaries
+
+Snapshot/rebuild submission rechecks the exact old source after slow provider
+reads and before the single POST. Reconciliation captures provider IDs with GETs,
+but a successful action or available image is not cold-source proof. The source
+must still be confirmed off after action/image/candidate reads before completion.
+
+For an already submitted cold snapshot/rebuild, observing `running`, `starting`,
+`stopping`, `rebuilding`, `initializing` or `deleting` records a durable
+`source_power_state_conflict`. A later off reading cannot qualify that same
+attempt or image; provisional snapshot completeness is revoked. Unknown/migrating
+states and read errors remain temporary HOLD. Any initial non-off observation
+blocks completion during that poll even if a later GET says off; only a new fresh
+off poll can resolve temporary uncertainty. Normal graceful shutdown before
+image creation remains a separate recoverable operation. No ambiguous POST is
+retried and no provider labels or historical source snapshots are rewritten.
+
+Before candidate activation, the restore authorizer rechecks exact source
+identity/off state after SSH preflight, followed by scope and original expiry.
+This does not renew the original fence/attestation or implement recovery when
+source SSH was already lost before durable fencing.
+
 ## Validation
+
+The combined source candidate based on published `ec250cd4` passed 760 related
+Python tests across 29 modules in 20.847 seconds, 293 native PHP assertions and
+both PHP entry-point lints. Input-copy checks, independent review and added-line
+privacy checks passed. The standard-environment CI for published `ec250cd4`
+passed 882 Python tests; it covers the base, not this new candidate.
+
+The full local candidate run executed 947 tests in 23.045 seconds and failed:
+two failures, nine errors and seven skips. Ten cases encounter the unchanged
+`keygen_binary_untrusted` guard in this non-root-owned runtime; one encounters
+the old writable-temporary-parent test assumption. Bootstrap/backup-client code
+and tests were not changed and no production trust check was bypassed. Fresh
+standard CI, native Windows contracts and actual deployment acceptance remain
+required; this full local run is not a passing result.
 
 Run offline Python checks from the repository root:
 

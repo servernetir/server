@@ -290,9 +290,17 @@ class RestoreWorkflow:
             raise RestoreError('candidate_activation_unverified')
         return p
 
-    def _off(self,w):
-        raw=self._provider()._verified_server(self._provider()._client(),self._provider().store.read_resource(w['source']['provider_id']))
+    def _require_source_off(self,w):
+        self._scope(w)
+        provider=self._provider();record=provider.store.read_resource(w['source']['provider_id'])
+        if provider._identity(record)!=core.identity(w['source']):raise RestoreError('current_restore_identity_changed')
+        raw=provider._verified_server(provider._client(),record)
+        state=self._scope(w)
         if raw.get('status')!='off' or w.get('source_fenced')is not True:raise RestoreError('old_source_not_fenced_and_off')
+        return state
+
+    def _off(self,w):
+        self._require_source_off(w)
         proof=dict(source_identity=core.identity(w['source']),provider_off=True,observed_at=self.now(),
                    fence_digest=core.digest(w['proofs']['fence']))
         w['proofs']['source_off']=proof;self.store.save(w);return proof
@@ -329,6 +337,13 @@ class RestoreWorkflow:
         if row['kind']=='ACTIVATE_CANDIDATE':
             if (state['candidate'].get('restore_epoch')!=w.get('restore_epoch')
                     or state['candidate'].get('restore_hash')!=w.get('restore_hash')):return False
+            # LifecycleClient authorizes again after its SSH preflight. Re-read
+            # the old source there, without renewing the original fence proof
+            # or the attestation already bound into this exact permit.
+            state=self._require_source_off(w)
+            if (state['candidate'].get('restore_epoch')!=w.get('restore_epoch')
+                    or state['candidate'].get('restore_hash')!=w.get('restore_hash')):return False
+            if not permit['created_at']<=self.now()<permit['expires_at']:return False
         elif state['candidate'].get('restore_pending',{}).get('workflow_id')!=w['id']:return False
         if row['kind']!='FENCE_SOURCE' and w.get('source_fenced')is not True:return False
         return True
@@ -462,7 +477,8 @@ class RestoreWorkflow:
         else:
             with self.store.transaction() as db:
                 db.execute("UPDATE actions SET status='UNRESOLVED',result=? WHERE id=?",(core.canonical(result or {}),row['id']))
-            w['reason']='REPAIR_REQUIRED' if state=='failed' else 'OUTCOME_UNKNOWN_READ_ONLY_RECONCILIATION'
+            w['reason']=('SOURCE_POWER_STATE_CONFLICT' if isinstance(result,dict)and result.get('reason')=='source_power_state_conflict'
+                         else 'REPAIR_REQUIRED' if state=='failed' else 'OUTCOME_UNKNOWN_READ_ONLY_RECONCILIATION')
         w['last_at']=self.now();self.store.save(w);return self.collect()
 
     def _reconcile(self,w):

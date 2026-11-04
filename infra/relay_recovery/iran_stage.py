@@ -27,6 +27,8 @@ Every mutation persists PREPARED -> PUSHED -> DISPATCHED before the CT call.
 Mutations require the original absolute controller ``params.expires_at``;
 delivery never grants a new lease. The CT envelope is capped by that deadline
 and the local25-second transport limit. Legacy jobs can only reconcile.
+An explicitly leased fresh accept preserves the same original read deadline;
+ordinary accept delivery retains its existing idempotent behavior.
 After ambiguous failure, only read-only reconcile is allowed. A crash before
 DISPATCHED proves no endpoint mutation was invoked. Once dispatched, missing
 job files, bad pins or unresolved CT state remain unknown. Error stdout uses a
@@ -262,13 +264,13 @@ class NodeStage:
         if status != 0 or rows != expected:
             raise StageError('stage_ct_pin')
 
-    def _invoke(self, row, action):
+    def _invoke(self, row, action, *, enforce_deadline=False):
         remote = str(_path(self.config['ct_job_dir']) / (row['nonce'] + '.json'))
         argv = [PCT, 'exec', '113', '--keep-env', '0', '--', self.config['ct_wrapper'],
                 '--config', self.config['ct_config'], '--job-file', remote,
                 '--job-sha256', row['sha256'], '--nonce', row['nonce'], action]
         timeout = 14 if action in MUTATING else 4.5
-        if action in MUTATING:
+        if action in MUTATING or enforce_deadline:
             remaining = json.loads(row['body'])['expires_at'] - self._time()
             if remaining <= 0:
                 raise StageError('stage_dispatch_expired')
@@ -288,6 +290,8 @@ class NodeStage:
                 or flag is not None and result['checks'].get(flag) is not True
                 or action == 'reconcile' and result.get('reconciled') is not True):
             raise OutcomeUnknown('stage_ct_outcome_unproven')
+        if enforce_deadline and self._time() >= json.loads(row['body'])['expires_at']:
+            raise StageError('stage_dispatch_expired')
         return result
 
     def _base(self, context, action, **fields):
@@ -347,7 +351,10 @@ class NodeStage:
         if action != 'reconcile' and action != original or action == 'reconcile' and original not in MUTATING:
             raise StageError('stage_action_scope')
         controller_expiry = None
-        if action in MUTATING:
+        # Only explicitly leased fresh accepts opt in. Ordinary idempotent
+        # accept delivery and the earlier direct producer API stay unchanged.
+        leased_accept = fresh_accept and 'expires_at' in context['job']['params']
+        if action in MUTATING or leased_accept:
             controller_expiry = context['job']['params'].get('expires_at')
             now = self._time()
             if type(controller_expiry) is not int or not now < controller_expiry <= now+30:
@@ -413,7 +420,7 @@ class NodeStage:
                     raise StageError('stage_dispatch_expired')
                 db.execute("UPDATE operations SET state='DISPATCHED' WHERE key=?", (key,))
             try:
-                result = self._invoke(row, action)
+                result = self._invoke(row, action, enforce_deadline=leased_accept)
             except (ProtocolError, OSError):
                 raise OutcomeUnknown('stage_dispatch_unknown') from None
             if action in MUTATING and result['ok'] is not True:

@@ -86,6 +86,30 @@ class IranAdapterTests(unittest.TestCase):
                 old_ipv4='9.9.9.9', old_config_hash='a'*64, expected_registry_hash='c'*64)
         return context
 
+    def test_twenty_second_budget_is_only_a_locally_declared_isolated_accept_recipe(self):
+        spec=copy.deepcopy(self.cfg['recipes']['accept-v1']);spec['timeout']=20
+        with self.assertRaisesRegex(protocol.ProtocolError,'timeout_policy'):
+            mod._spec(spec,'accept',False)
+        spec['acceptance_profile']='isolated_candidate_v1'
+        self.assertEqual(mod._spec(spec,'accept',False)['timeout'],20)
+        self.cfg['recipes']['accept-v1']=spec
+        with self.assertRaisesRegex(protocol.ProtocolError,'isolated_recipe_scope'):
+            self.adapter().run('accept',self.context('accept'))
+        self.assertEqual(self.calls,[])
+
+    def test_isolated_budget_cannot_be_enabled_on_probe_reconcile_or_mutation(self):
+        for action,probe in [('host',True),('reconcile',False),('stage',False)]:
+            spec=self.make_spec('long-'+action,action)
+            spec.update(timeout=20,acceptance_profile='isolated_candidate_v1')
+            with self.subTest(action=action),self.assertRaisesRegex(protocol.ProtocolError,'isolated_recipe_scope'):
+                mod._spec(spec,action,False,probe=probe)
+
+    def test_ordinary_accept_reconcile_and_probes_keep_eight_second_limit(self):
+        for action,probe in [('host',True),('accept',False),('reconcile',False)]:
+            spec=self.make_spec('normal-'+action,action);spec['timeout']=9
+            with self.subTest(action=action),self.assertRaisesRegex(protocol.ProtocolError,'timeout_policy'):
+                mod._spec(spec,action,False,probe=probe)
+
     def staging_backend(self):
         """Real adapter -> NodeStage -> CtStage, with only OS transport faked."""
         fixtures = []

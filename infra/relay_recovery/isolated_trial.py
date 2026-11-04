@@ -1,11 +1,13 @@
 """Private read-only isolated candidate evidence producer; no scheduler wiring.
 
-The caller supplies two already authenticated accept contexts. The CT projection
+The direct API takes two already authenticated accept contexts. The CT projection
 contains the public SSH pin required by NodeStage; the guest context contains the
 strict isolated profile. Neither is an ordinary publisher accept or driver proof.
 Only fixed local/CT113 dependency reads, NodeStage.accept and the existing native
 Windows candidate client run. No stage/apply, proxy setup or default-path fallback
-is provided. Missing private candidate enrollment is a HOLD, never implicit setup.
+is provided. The fixed recipe CLI projects one explicitly combined signed accept
+and emits raw evidence for the adapter's single final verifier. Missing private
+candidate enrollment is a HOLD, never implicit setup.
 
 Dependencies are an explicitly pinned finite catalogue of files and loaded units,
 not inferred whole-host inventory. Its digest must be the authenticated request's
@@ -14,20 +16,30 @@ before and after both probes. Global coverage and factory integration are separa
 """
 from __future__ import annotations
 
+import argparse
 import copy
 import hashlib
 import hmac
 import os
 from pathlib import Path
 import re
+import signal
+import sys
 import threading
 import time
 
-from . import agent, ct_stage, iran_stage, isolated_acceptance as isolated
-from . import isolated_verifier_enrollment as verifier_enrollment
-from . import windows_candidate_probe_client as candidate
-from . import windows_probe_client as windows
-from .protocol import HEX64, IDENTIFIER, ProtocolError, canonical_json, decode_json, private_file
+try:
+    from . import agent, ct_stage, iran_stage, isolated_acceptance as isolated
+    from . import isolated_verifier_enrollment as verifier_enrollment
+    from . import windows_candidate_probe_client as candidate
+    from . import windows_probe_client as windows
+    from .protocol import HEX64, IDENTIFIER, ProtocolError, canonical_json, decode_json, private_file
+except ImportError:
+    import agent, ct_stage, iran_stage, isolated_acceptance as isolated
+    import isolated_verifier_enrollment as verifier_enrollment
+    import windows_candidate_probe_client as candidate
+    import windows_probe_client as windows
+    from protocol import HEX64, IDENTIFIER, ProtocolError, canonical_json, decode_json, private_file
 
 
 SCHEMA = 'servernet.relay.isolated-trial.config.v1'
@@ -37,6 +49,32 @@ REFS = {'node_stage', 'windows', 'candidate_proxy', 'verifier', 'dependencies'}
 UNIT = re.compile(r'\A[A-Za-z0-9_][A-Za-z0-9_.@:-]{0,118}\.(?:service|timer)\Z')
 PATH = re.compile(r'\A/[A-Za-z0-9_./@:-]{1,220}\Z')
 DEADLINE = 24
+CLI_BUDGET = 20
+WORK_BUDGET = 19  # Leave the fixed recipe process budget room to return its bytes.
+COMBINED_HASHES = {'isolated_trial_config_sha256', 'isolated_verifier_sha256'}
+SSH_FIELDS = {'ssh_host_public_key', 'ssh_host_key_sha256'}
+
+
+def project_context(context):
+    """Project one signed combined job without changing either backend grammar.
+
+    The original signed scope/jobs_hash is retained in both projections. No
+    command, path, endpoint or budget is selected by this request.
+    """
+    p = isolated.parameters(context)
+    guest_fields = candidate.PARAMS | ({'restore_epoch', 'restore_hash'} if p['stage_profile'] == 'restored' else set())
+    require(set(p) == guest_fields | SSH_FIELDS | COMBINED_HASHES | {'expires_at'},
+            'isolated_trial_combined_fields')
+    require(all(isinstance(p[k], str) and HEX64.fullmatch(p[k]) for k in COMBINED_HASHES)
+            and type(p['expires_at']) is int and 0 < p['expires_at'] <= 2**53-1,
+            'isolated_trial_combined_binding')
+    guest = copy.deepcopy(context); ct = copy.deepcopy(context)
+    guest['job']['params'] = {k: copy.deepcopy(p[k]) for k in guest_fields}
+    ct_fields = {'stage_profile', 'resource_identity', 'resource_config_hash', 'expected_registry_hash', 'expires_at'} | SSH_FIELDS
+    if p['stage_profile'] == 'restored': ct_fields |= {'restore_epoch', 'restore_hash'}
+    ct['job']['params'] = {k: copy.deepcopy(p[k]) for k in ct_fields}
+    ct_stage.validate_context(ct, context['agent_id'])
+    return guest, ct
 
 # The same fixed reader runs locally or in CT113. stdin is private catalogue
 # data, never code. Its output contains only hashes, bounded unit properties and
@@ -91,6 +129,7 @@ def require(value, code='isolated_trial_hold'):
 
 def _pin(reference, *, root_owned=True, limit=32768):
     require(isinstance(reference, dict) and set(reference) == {'path', 'sha256'}
+            and isinstance(reference['path'], str)
             and isinstance(reference['sha256'], str) and HEX64.fullmatch(reference['sha256']),
             'isolated_trial_pin')
     path = private_file(reference['path'], root_owned=root_owned)
@@ -107,6 +146,28 @@ def _pin(reference, *, root_owned=True, limit=32768):
     value = decode_json(raw)
     require(raw == canonical_json(value), 'isolated_trial_canonical')
     return value
+
+
+def recipe_enrollment(context, reference, verifier_reference, *, root_owned=True):
+    """Bind the signed hash to local argv enrollment before launching a recipe."""
+    project_context(context)
+    cfg = _pin(reference, root_owned=root_owned)
+    p = context['job']['params']
+    require(reference['sha256'] == p['isolated_trial_config_sha256']
+            and set(cfg) == {'schema', 'agent_id', 'enabled', *REFS}
+            and cfg['schema'] == SCHEMA and cfg['enabled'] is True
+            and cfg['agent_id'] == context['agent_id']
+            and cfg['verifier'] == verifier_reference
+            and isinstance(verifier_reference, dict)
+            and verifier_reference.get('sha256') == p['isolated_verifier_sha256'],
+            'isolated_trial_recipe_enrollment')
+    require(cfg['candidate_proxy'] is not None, 'isolated_trial_candidate_enrollment_missing')
+    proxy = _pin(cfg['candidate_proxy'], root_owned=root_owned, limit=4096)
+    binding = candidate.validate_enrollment(proxy, context['agent_id'])
+    require(binding == p['proxy_binding_sha256']
+            and cfg['dependencies']['sha256'] == p['expected_registry_hash'], 'isolated_trial_recipe_enrollment')
+    _registry(_pin(cfg['dependencies'], root_owned=root_owned), context['agent_id'])
+    return cfg
 
 
 def _registry(value, agent_id):
@@ -152,6 +213,7 @@ class IsolatedTrialProducer:
         self.reference = copy.deepcopy(reference)
         self.root_owned, self.clock, self.monotonic = root_owned, clock, monotonic
         self.last_now = None
+        self.authorization_expires_at = None
         self._busy = threading.Lock()
         self.config = _pin(reference, root_owned=root_owned)
         require(set(self.config) == {'schema', 'agent_id', 'enabled', *REFS}
@@ -165,6 +227,12 @@ class IsolatedTrialProducer:
         self.refs = {key: copy.deepcopy(self.config[key]) for key in REFS}
         self.pinned = {key: _pin(ref, root_owned=root_owned) for key, ref in self.refs.items()}
         self.dependencies = _registry(self.pinned['dependencies'], self.config['agent_id'])
+        enrolled = self.pinned['verifier']
+        require(set(enrolled) == verifier_enrollment.ACTIVE_FIELDS
+                and enrolled['schema'] == verifier_enrollment.SCHEMA and enrolled['enabled'] is True
+                and enrolled['agent_id'] == self.config['agent_id']
+                and enrolled['proxy_binding_sha256'] == self.proxy['proxy_binding_sha256'],
+                'isolated_trial_verifier_not_enrolled')
         guest_config = self.pinned['windows']
         require(guest_config.get('agent_id') == self.config['agent_id'], 'isolated_trial_agent_scope')
         self.node = self.guest = self.verifier = None
@@ -185,18 +253,21 @@ class IsolatedTrialProducer:
         require(remaining > 0, 'isolated_trial_deadline')
         return agent._bounded_process(argv, data, min(timeout, remaining))
 
-    def _clients(self):
+    def _clients(self, *, verify=True):
         self._node_client()
         guest_config = self.pinned['windows']
         self.guest = candidate.WindowsCandidateProbeClient(guest_config, self.proxy, clock=self._now,
             monotonic=self.monotonic, root_owned=self.root_owned)
-        self.verifier = verifier_enrollment.load_verifier(self.refs['verifier'],
-            agent_id=self.config['agent_id'], root_owned=self.root_owned, now=self._now)
-        require(self.verifier is not None, 'isolated_trial_verifier_not_enrolled')
-        require(Path(self.verifier.enrollment['state_dir']).resolve()
+        enrollment = self.pinned['verifier']
+        if verify:
+            self.verifier = verifier_enrollment.load_verifier(self.refs['verifier'],
+                agent_id=self.config['agent_id'], root_owned=self.root_owned, now=self._now)
+            require(self.verifier is not None, 'isolated_trial_verifier_not_enrolled')
+            enrollment = self.verifier.enrollment
+        require(Path(enrollment['state_dir']).resolve()
                 != Path(guest_config['state_dir']).resolve(), 'isolated_trial_replay_separation')
-        require(self.verifier.enrollment['guest_key_file'] == guest_config['key_file']
-                and self.verifier.enrollment['access_policy'] == guest_config.get('access_policy', windows.DEFAULT_ACCESS_POLICY),
+        require(enrollment['guest_key_file'] == guest_config['key_file']
+                and enrollment['access_policy'] == guest_config.get('access_policy', windows.DEFAULT_ACCESS_POLICY),
                 'isolated_trial_guest_key_policy')
 
     def _now(self):
@@ -212,6 +283,8 @@ class IsolatedTrialProducer:
             require(_pin(ref, root_owned=self.root_owned) == self.pinned[key], 'isolated_trial_pin')
         if self.verifier is not None:
             self.verifier.guard()
+        if self.authorization_expires_at is not None:
+            require(self._now() < self.authorization_expires_at, 'isolated_trial_authorization_expired')
         require(self.monotonic() < self.deadline, 'isolated_trial_deadline')
 
     def _snapshot(self):
@@ -247,6 +320,7 @@ class IsolatedTrialProducer:
         """Read the enrolled finite baseline; never a readiness observation."""
         require(self._busy.acquire(blocking=False), 'isolated_trial_busy')
         try:
+            self.authorization_expires_at = None
             self.deadline = self.monotonic() + DEADLINE
             self._guard(); self._node_client()
             digest, observed = self._snapshot()
@@ -268,7 +342,11 @@ class IsolatedTrialProducer:
         fields = {'stage_profile', 'resource_identity', 'resource_config_hash', 'expected_registry_hash'}
         if p['stage_profile'] == 'restored':
             fields |= {'restore_epoch', 'restore_hash'}
-        require(set(q) == fields | {'ssh_host_public_key', 'ssh_host_key_sha256'}
+        optional = set()
+        if 'expires_at' in q:
+            require(q['expires_at'] == self.authorization_expires_at, 'isolated_trial_deadline_binding')
+            optional = {'expires_at'}
+        require(set(q) == fields | SSH_FIELDS | optional
                 and canonical_json({k: q.get(k) for k in fields}) == canonical_json({k: p[k] for k in fields})
                 and p['expected_registry_hash'] == self.refs['dependencies']['sha256'], 'isolated_trial_context_binding')
         return p
@@ -283,8 +361,35 @@ class IsolatedTrialProducer:
 
     def _produce(self, context, ct_context):
         context, ct_context = copy.deepcopy(context), copy.deepcopy(ct_context)
+        self.authorization_expires_at = None
         self.deadline = self.monotonic() + DEADLINE
-        p = self._contexts(context, ct_context); self._guard(); self._clients()
+        recipe = self._measure(context, ct_context, verify=True)
+        self._guard()
+        proof = self.verifier.verify(context, recipe)
+        return dict(schema=OBSERVATION, verified=True, read_only=True,
+            context_hash=hashlib.sha256(canonical_json(context)).hexdigest(), observed_at=proof['observed_at'],
+            received_at=self._now(), isolated_candidate=proof,
+            default_path_verified=False, global_cutover_performed=False)
+
+    def produce_recipe(self, combined):
+        """Return raw native evidence; the adapter alone consumes final replay."""
+        require(self._busy.acquire(blocking=False), 'isolated_trial_busy')
+        try:
+            combined = copy.deepcopy(combined)
+            guest, ct = project_context(combined)
+            p = combined['job']['params']; now = self._now()
+            require(p['isolated_trial_config_sha256'] == self.reference['sha256']
+                    and p['isolated_verifier_sha256'] == self.refs['verifier']['sha256'],
+                    'isolated_trial_recipe_enrollment')
+            require(now < p['expires_at'] <= now+30, 'isolated_trial_authorization_expired')
+            self.authorization_expires_at = p['expires_at']
+            self.deadline = self.monotonic() + min(WORK_BUDGET, p['expires_at']-now)
+            return self._measure(guest, ct, verify=False)
+        finally:
+            self._busy.release()
+
+    def _measure(self, context, ct_context, *, verify):
+        p = self._contexts(context, ct_context); self._guard(); self._clients(verify=verify)
         before, before_at = self._snapshot()
         require(before == p['dependency_baseline_sha256'], 'isolated_trial_dependency_baseline')
         receipt = self.node.run('accept', ct_context, fresh_accept=True)
@@ -312,12 +417,50 @@ class IsolatedTrialProducer:
             read_only=True, coverage_complete=True, resource_count=len(self.dependencies['resources']),
             registry_sha256=p['expected_registry_hash'], before_state_sha256=before,
             after_state_sha256=after, before_observed_at=before_at, after_observed_at=after_at)
-        recipe = dict(action='accept', read_only=True, ok=True,
+        recipe = dict(schema=ct_stage.RECIPE_SCHEMA, action='accept', read_only=True, ok=True,
+            **{k: context[k] for k in ('incident_id', 'generation', 'revision', 'config_hash')},
+            target=copy.deepcopy(context['job']['target']),
             checks={'accepted': True, 'generation_verified': True},
             isolated_evidence=dict(schema=isolated.SCHEMA, ct=ct, registry=registry, guest=guest))
         self._guard()
-        proof = self.verifier.verify(context, recipe)
-        return dict(schema=OBSERVATION, verified=True, read_only=True,
-            context_hash=hashlib.sha256(canonical_json(context)).hexdigest(), observed_at=proof['observed_at'],
-            received_at=self._now(), isolated_candidate=proof,
-            default_path_verified=False, global_cutover_performed=False)
+        require(len(canonical_json(recipe)) <= 8192, 'isolated_trial_recipe_size')
+        return recipe
+
+
+def main(argv=None):
+    """Fixed local recipe CLI. Paths/hashes are reviewed SPEC argv, never stdin."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--config', required=True)
+    parser.add_argument('--config-sha256', required=True)
+    parser.add_argument('action', choices=['accept'])
+    args = parser.parse_args(argv)
+    context = {}
+    validated = False
+    def expired(*_): raise ProtocolError('isolated_trial_deadline')
+    signal.signal(signal.SIGALRM, expired); signal.alarm(CLI_BUDGET)
+    try:
+        require(os.geteuid() == 0, 'isolated_trial_root_required')
+        raw = sys.stdin.buffer.read(16385)
+        require(len(raw) <= 16384, 'isolated_trial_context_size')
+        context = decode_json(raw)
+        project_context(context); validated = True
+        result = IsolatedTrialProducer(dict(path=args.config, sha256=args.config_sha256)).produce_recipe(context)
+        sys.stdout.buffer.write(canonical_json(result))
+        return 0
+    except Exception:
+        result = dict(schema=ct_stage.RECIPE_SCHEMA, action='accept', read_only=True, ok=False,
+            checks={'accepted': False, 'generation_verified': False})
+        # Only bounded typed context metadata is echoed, never an exception or envelope.
+        if validated:
+            for key in ('incident_id', 'generation', 'revision', 'config_hash'):
+                if isinstance(context.get(key), (str, int)): result[key] = context[key]
+            target = context.get('job', {}).get('target') if isinstance(context.get('job'), dict) else None
+            if isinstance(target, dict) and set(target) == {'host', 'port', 'provider_id'}:
+                result['target'] = target
+        sys.stdout.buffer.write(canonical_json(result))
+        return 1
+    finally:
+        signal.alarm(0)
+
+
+if __name__ == '__main__': raise SystemExit(main())

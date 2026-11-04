@@ -187,6 +187,7 @@ class SnapshotTests(unittest.TestCase):
         result = self.adapter.reconcile(permit['intent_id'])
         self.assertEqual('pending', result['state'])
         self.assertFalse(result['server_off'])
+        self.assertIsNone(self.adapter.store.operation(permit['intent_id'])['result'])
         self.world.base.servers['40']['status'] = 'off'
         self.f.now += 5
         self.assertEqual('complete', self.adapter.reconcile(permit['intent_id'])['state'])
@@ -296,6 +297,229 @@ class SnapshotTests(unittest.TestCase):
         self.world.images['201']['labels']['sn-owner'] = 'other'
         self.assertEqual('unknown',self.adapter.reconcile(permit['intent_id'])['state'])
 
+    def pending_snapshot(self):
+        shutdown=self.shutdown()
+        permit=self.permit('PREPARE_SNAPSHOT',currency='EUR',max_storage_monthly_micro=1_000_000)
+        self.adapter.begin_snapshot(permit,shutdown['intent_id'])
+        self.world.calls.clear()
+        return permit
+
+    def assert_snapshot_source_unproven(self,change):
+        permit=self.pending_snapshot()
+        def after_image(method,path,body):
+            if method=='GET'and path=='/images/201':change()
+        self.world.before_request=after_image
+        result=self.adapter.reconcile(permit['intent_id'])
+        self.assertEqual('unknown',result['state'])
+        self.assertNotEqual('COMPLETE',self.adapter.store.operation(permit['intent_id'])['phase'])
+        with self.adapter.store.transaction()as db:
+            image=json.loads(db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])
+        self.assertFalse(image['complete'])
+        self.assertEqual(476_000,self.adapter.storage_inventory()['reserved_monthly_micro'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+        self.assertEqual(['GET','/servers/40'],list(self.world.calls[-1][:2]))
+        return permit
+
+    def test_source_restart_after_snapshot_read_never_finalizes_image(self):
+        permit=self.assert_snapshot_source_unproven(lambda:self.world.base.servers['40'].update(status='running'))
+        original=self.adapter.store.operation(permit['intent_id'])
+        conflict=json.loads(original['result'])
+        self.assertEqual('source_power_state_conflict',conflict['reason'])
+        self.assertIsNone(conflict['retry_at'])
+        self.world.base.servers['40']['status']='off';self.world.before_request=None
+        self.f.now+=60;self.world.calls.clear()
+        self.adapter=SnapshotAdapter(self.f.effects,now=lambda:self.f.now,authorize=lambda p:True)
+        self.assertEqual(conflict,self.adapter.reconcile(permit['intent_id']))
+        self.assertEqual(original,self.adapter.store.operation(permit['intent_id']))
+        self.assertEqual([],self.world.calls)
+        shutdown=json.loads(original['body'])['spec']['shutdown_intent_id']
+        with self.assertRaisesRegex(SnapshotError,'previous_action_outcome_unknown'):
+            self.adapter.begin_snapshot(self.permit('PREPARE_SNAPSHOT',currency='EUR',max_storage_monthly_micro=1_000_000),shutdown)
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+        self.assertEqual(476_000,self.adapter.storage_inventory()['reserved_monthly_micro'])
+        self.assertEqual(original,self.adapter.store.operation(permit['intent_id']))
+
+    def test_initial_source_on_cannot_be_laundered_by_off_during_image_get(self):
+        permit=self.pending_snapshot();self.world.base.servers['40']['status']='running'
+        def off_later(method,path,body):
+            if method=='GET'and path=='/images/201':self.world.base.servers['40']['status']='off'
+        self.world.before_request=off_later
+        result=self.adapter.reconcile(permit['intent_id'])
+        self.assertEqual('off',self.world.base.servers['40']['status'])
+        self.assertEqual('source_power_state_conflict',result['reason'])
+        self.assertEqual('KNOWN',self.adapter.store.operation(permit['intent_id'])['phase'])
+        with self.adapter.store.transaction()as db:
+            self.assertFalse(json.loads(db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])['complete'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+
+    def isolated_case(self):
+        case=SnapshotTests();case.setUp();self.addCleanup(case.doCleanups)
+        return case
+
+    def test_initial_source_lifecycle_conflicts_stick_for_snapshot_and_rebuild(self):
+        for status in ('running','starting','stopping','rebuilding','initializing','deleting'):
+            for rebuild in (False,True):
+                with self.subTest(status=status,rebuild=rebuild):
+                    case=self.isolated_case()
+                    if rebuild:
+                        case.candidate();snapshot,_=case.snapshot();permit=case.rebuild_permit()
+                        case.adapter.begin_rebuild(permit,snapshot['intent_id'],'#cloud-config\n')
+                    else:permit=case.pending_snapshot()
+                    case.world.base.servers['40']['status']=status
+                    def later_off(method,path,body):
+                        if method=='GET'and path.startswith('/actions/'):
+                            case.world.base.servers['40']['status']='off'
+                    case.world.before_request=later_off;case.world.calls.clear()
+                    result=case.adapter.reconcile(permit['intent_id'])
+                    self.assertEqual('off',case.world.base.servers['40']['status'])
+                    self.assertEqual(('unknown','source_power_state_conflict'),(result['state'],result['reason']))
+                    self.assertEqual('KNOWN',case.adapter.store.operation(permit['intent_id'])['phase'])
+                    with case.adapter.store.transaction()as db:
+                        image=json.loads(db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])
+                    self.assertIs(rebuild,image['complete'])
+                    self.assertTrue(all(m=='GET'for m,_,_ in case.world.calls))
+                    case.world.before_request=None;case.f.now+=60;case.world.calls.clear()
+                    reopened=SnapshotAdapter(case.f.effects,now=lambda:case.f.now,authorize=lambda p:True)
+                    self.assertEqual(result,reopened.reconcile(permit['intent_id']))
+                    self.assertEqual([],case.world.calls)
+
+    def test_final_source_lifecycle_conflicts_all_remain_durable(self):
+        for status in ('running','starting','stopping','rebuilding','initializing','deleting'):
+            with self.subTest(status=status):
+                case=self.isolated_case()
+                permit=case.assert_snapshot_source_unproven(lambda:case.world.base.servers['40'].update(status=status))
+                conflict=json.loads(case.adapter.store.operation(permit['intent_id'])['result'])
+                self.assertEqual('source_power_state_conflict',conflict['reason'])
+                case.world.base.servers['40']['status']='off';case.world.before_request=None;case.f.now+=60
+                self.assertEqual(conflict,case.adapter.reconcile(permit['intent_id']))
+
+    def test_initial_unknown_or_migrating_holds_this_poll_then_fresh_off_can_resolve(self):
+        for status in ('unknown','migrating'):
+            for rebuild in (False,True):
+                with self.subTest(status=status,rebuild=rebuild):
+                    case=self.isolated_case()
+                    if rebuild:
+                        case.candidate();snapshot,_=case.snapshot();permit=case.rebuild_permit()
+                        case.adapter.begin_rebuild(permit,snapshot['intent_id'],'#cloud-config\n')
+                    else:permit=case.pending_snapshot()
+                    before=case.adapter.store.operation(permit['intent_id'])
+                    case.world.base.servers['40']['status']=status
+                    def later_off(method,path,body):
+                        if method=='GET'and path.startswith('/actions/'):
+                            case.world.base.servers['40']['status']='off'
+                    case.world.before_request=later_off;case.world.calls.clear()
+                    result=case.adapter.reconcile(permit['intent_id'])
+                    self.assertEqual('unknown',result['state'])
+                    self.assertEqual('off',case.world.base.servers['40']['status'])
+                    self.assertIsNone(case.adapter.store.operation(permit['intent_id'])['result'])
+                    with case.adapter.store.transaction()as db:
+                        image=json.loads(db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])
+                    self.assertIs(rebuild,image['complete'])
+                    self.assertTrue(all(m=='GET'for m,_,_ in case.world.calls))
+                    case.world.before_request=None;case.f.now+=60;case.world.calls.clear()
+                    self.assertEqual('complete',case.adapter.reconcile(permit['intent_id'])['state'])
+                    after=case.adapter.store.operation(permit['intent_id'])
+                    self.assertEqual((before['id'],before['body'],before['claimed_at']),
+                                     (after['id'],after['body'],after['claimed_at']))
+                    self.assertTrue(all(m=='GET'for m,_,_ in case.world.calls))
+
+    def test_unknown_submission_keeps_on_evidence_across_restart_and_late_id_discovery(self):
+        shutdown=self.shutdown();self.world.timeout_commands.add('create_image')
+        permit=self.permit('PREPARE_SNAPSHOT',currency='EUR',max_storage_monthly_micro=1_000_000)
+        self.assertEqual('unknown',self.adapter.begin_snapshot(permit,shutdown['intent_id'])['state'])
+        actions,images=self.world.actions,self.world.images
+        self.world.actions={};self.world.images={};self.world.base.servers['40']['status']='running'
+        first=self.adapter.reconcile(permit['intent_id'])
+        self.assertEqual('source_power_state_conflict',first['reason'])
+        self.assertIsNone(first['action_id']);self.assertIsNone(first['image_id'])
+        saved=self.adapter.store.operation(permit['intent_id'])
+        self.world.base.servers['40']['status']='off';self.world.actions=actions;self.world.images=images
+        self.f.now+=60;self.world.calls.clear()
+        self.adapter=SnapshotAdapter(self.f.effects,now=lambda:self.f.now,authorize=lambda p:True)
+        later=self.adapter.reconcile(permit['intent_id'])
+        self.assertEqual({**first,'action_id':'501','image_id':'201'},later)
+        current=self.adapter.store.operation(permit['intent_id'])
+        self.assertEqual('KNOWN',current['phase'])
+        self.assertEqual((saved['body'],saved['claimed_at']),(current['body'],current['claimed_at']))
+        self.assertEqual(476_000,self.adapter.storage_inventory()['reserved_monthly_micro'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+        self.assertEqual(later,self.adapter.reconcile(permit['intent_id']))
+        self.assertEqual(current,self.adapter.store.operation(permit['intent_id']))
+
+    def test_positive_on_race_wins_over_image_qualification_and_completion(self):
+        permit=self.pending_snapshot();complete=self.adapter._complete
+        def competing_poll(row,**proof):
+            self.world.base.servers['40']['status']='running'
+            _,_,source=self.adapter._source(self.f.api,permit)
+            with self.assertRaisesRegex(SnapshotError,'source_no_longer_fenced_off'):
+                self.adapter._require_off(source,row)
+            return complete(row,**proof)
+        self.adapter._complete=competing_poll
+        result=self.adapter.reconcile(permit['intent_id'])
+        self.assertEqual('source_power_state_conflict',result['reason'])
+        row=self.adapter.store.operation(permit['intent_id'])
+        self.assertEqual('KNOWN',row['phase'])
+        with self.adapter.store.transaction()as db:
+            image=json.loads(db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])
+        self.assertFalse(image['complete']);self.assertNotIn('monthly_micro',image)
+        self.assertEqual(476_000,self.adapter.storage_inventory()['reserved_monthly_micro'])
+        with self.assertRaisesRegex(SnapshotError,'source_power_state_conflict'):
+            self.adapter._image(self.world.images['201'],row,final=True)
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+
+    def test_source_owner_change_after_snapshot_read_is_not_cold_proof(self):
+        self.assert_snapshot_source_unproven(lambda:self.world.base.servers['40']['labels'].update({'sn-owner':'foreign'}))
+
+    def test_source_read_failure_after_snapshot_read_is_not_cold_proof(self):
+        permit=self.assert_snapshot_source_unproven(lambda:self.world.response_status.update({('GET','/servers/40'):503}))
+        self.assertIsNone(self.adapter.store.operation(permit['intent_id'])['result'])
+        self.world.before_request=None;self.world.response_status.clear();self.f.now+=5;self.world.calls.clear()
+        self.assertEqual('complete',self.adapter.reconcile(permit['intent_id'])['state'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+
+    def test_source_scope_change_during_final_get_never_accepts_old_image(self):
+        permit=self.pending_snapshot();image_read=[]
+        def rotated(method,path,body):
+            if method=='GET'and path=='/images/201':image_read.append(True)
+            if method=='GET'and path=='/servers/40'and image_read:
+                with self.f.journal.transaction()as db:
+                    state=self.f.journal._read(db);state['active']['config_hash']='f'*64
+                    self.f.journal._write(db,state)
+        self.world.before_request=rotated
+        self.assertEqual('unknown',self.adapter.reconcile(permit['intent_id'])['state'])
+        self.assertNotEqual('COMPLETE',self.adapter.store.operation(permit['intent_id'])['phase'])
+        with self.adapter.store.transaction()as db:
+            image=json.loads(db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])
+        self.assertFalse(image['complete'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+
+    def test_unsafe_controller_clock_after_image_read_holds_without_freshening(self):
+        permit=self.pending_snapshot()
+        def unsafe(method,path,body):
+            if method=='GET'and path=='/images/201':
+                with self.f.journal.transaction()as db:
+                    state=self.f.journal._read(db);state['clock_unsafe']=True
+                    self.f.journal._write(db,state)
+        self.world.before_request=unsafe
+        self.assertEqual('unknown',self.adapter.reconcile(permit['intent_id'])['state'])
+        self.assertNotEqual('COMPLETE',self.adapter.store.operation(permit['intent_id'])['phase'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+
+    def test_available_image_with_running_action_stays_provisional(self):
+        permit=self.pending_snapshot()
+        self.world.actions['501']['status']='running'
+        self.assertEqual('pending',self.adapter.reconcile(permit['intent_id'])['state'])
+        with self.adapter.store.transaction()as db:
+            image=json.loads(db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])
+        self.assertFalse(image['complete'])
+        self.assertEqual('/images/201',self.world.calls[-1][1])
+        self.f.now+=5;self.world.actions['501']['status']='success';self.world.calls.clear()
+        self.assertEqual('complete',self.adapter.reconcile(permit['intent_id'])['state'])
+        # Exactly one new source GET follows the image read; it supplies both
+        # exact ownership and current off state in that uninterrupted boundary.
+        image_at=next(i for i,c in enumerate(self.world.calls)if c[1]=='/images/201')
+        self.assertEqual([('GET','/servers/40')],[(m,p)for m,p,_ in self.world.calls[image_at+1:]])
+
     def test_budget_currency_and_attached_volume_are_hard_blockers(self):
         shutdown = self.shutdown()
         with self.assertRaisesRegex(SnapshotError,'budget'):
@@ -338,6 +562,90 @@ class SnapshotTests(unittest.TestCase):
         self.world.base.servers['51']['public_net']['ipv6']['ip']='2001:db8:99::/64'
         self.assertEqual('unknown',self.adapter.reconcile(permit['intent_id'])['state'])
         self.assertTrue(all(m=='GET' for m,_,_ in self.world.calls))
+
+    def test_source_restart_during_final_candidate_read_blocks_rebuild_post(self):
+        self.candidate();snapshot,_=self.snapshot();permit=self.rebuild_permit()
+        candidate_reads=[]
+        def restart(method,path,body):
+            if method=='GET'and path=='/servers/51':
+                candidate_reads.append(True)
+                if len(candidate_reads)==2:self.world.base.servers['40']['status']='running'
+        self.world.before_request=restart;self.world.calls.clear()
+        with self.assertRaisesRegex(SnapshotError,'source_no_longer_fenced_off'):
+            self.adapter.begin_rebuild(permit,snapshot['intent_id'],'#cloud-config\n')
+        self.assertEqual(2,len(candidate_reads))
+        self.assertFalse(any(m=='POST'for m,_,_ in self.world.calls))
+        row=self.adapter.store.operation(permit['intent_id'])
+        self.assertEqual('KNOWN',row['phase'])
+        conflict=json.loads(row['result'])
+        self.assertEqual('source_power_state_conflict',conflict['reason'])
+        self.world.base.servers['40']['status']='off';self.world.before_request=None;self.f.now+=5
+        self.assertEqual(conflict,self.adapter.reconcile(permit['intent_id']))
+        with self.assertRaisesRegex(SnapshotError,'previous_action_outcome_unknown'):
+            self.adapter.begin_rebuild(self.rebuild_permit(),snapshot['intent_id'],'#cloud-config\n')
+        self.assertFalse(any(m=='POST'for m,_,_ in self.world.calls))
+
+    def assert_rebuild_source_unproven(self,change):
+        self.candidate();snapshot,_=self.snapshot();permit=self.rebuild_permit()
+        self.adapter.begin_rebuild(permit,snapshot['intent_id'],'#cloud-config\n')
+        def after_candidate(method,path,body):
+            if method=='GET'and path=='/servers/51':change()
+        self.world.before_request=after_candidate;self.world.calls.clear()
+        self.assertEqual('unknown',self.adapter.reconcile(permit['intent_id'])['state'])
+        self.assertNotEqual('COMPLETE',self.adapter.store.operation(permit['intent_id'])['phase'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+        self.assertEqual('/servers/40',self.world.calls[-1][1])
+        self.assertEqual('201',json.loads(self.adapter.store.operation(permit['intent_id'])['body'])['spec']['snapshot_id'])
+
+    def test_source_restart_after_candidate_read_blocks_rebuild_completion(self):
+        self.assert_rebuild_source_unproven(lambda:self.world.base.servers['40'].update(status='running'))
+        with self.adapter.store.transaction()as db:
+            rows=db.execute("SELECT * FROM operations WHERE phase='KNOWN'").fetchall()
+        self.assertEqual(1,len(rows));original=dict(rows[0]);conflict=json.loads(original['result'])
+        self.assertEqual('source_power_state_conflict',conflict['reason'])
+        self.world.base.servers['40']['status']='off';self.world.before_request=None;self.f.now+=60;self.world.calls.clear()
+        self.adapter=SnapshotAdapter(self.f.effects,now=lambda:self.f.now,authorize=lambda p:True)
+        self.assertEqual(conflict,self.adapter.reconcile(original['id']))
+        self.assertEqual(original,self.adapter.store.operation(original['id']))
+        self.assertEqual([],self.world.calls)
+        snapshot_id=json.loads(original['body'])['spec']['snapshot_intent_id']
+        with self.adapter.store.transaction()as db:
+            image_before=db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0]
+        with self.assertRaisesRegex(SnapshotError,'previous_action_outcome_unknown'):
+            self.adapter.begin_rebuild(self.rebuild_permit(),snapshot_id,'#cloud-config\n')
+        with self.adapter.store.transaction()as db:
+            self.assertEqual(image_before,db.execute('SELECT body FROM images WHERE id=?',('201',)).fetchone()[0])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+        self.assertEqual(124_950,self.adapter.storage_inventory()['reserved_monthly_micro'])
+        self.assertEqual(original,self.adapter.store.operation(original['id']))
+
+    def test_initial_source_on_cannot_be_laundered_by_off_during_rebuild_poll(self):
+        self.candidate();snapshot,_=self.snapshot();permit=self.rebuild_permit()
+        self.adapter.begin_rebuild(permit,snapshot['intent_id'],'#cloud-config\n')
+        self.world.base.servers['40']['status']='running'
+        def off_later(method,path,body):
+            if method=='GET'and path.startswith('/actions/'):self.world.base.servers['40']['status']='off'
+        self.world.before_request=off_later;self.world.calls.clear()
+        result=self.adapter.reconcile(permit['intent_id'])
+        self.assertEqual('off',self.world.base.servers['40']['status'])
+        self.assertEqual('source_power_state_conflict',result['reason'])
+        self.assertEqual('KNOWN',self.adapter.store.operation(permit['intent_id'])['phase'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+
+    def test_source_identity_change_after_candidate_read_blocks_rebuild_completion(self):
+        self.assert_rebuild_source_unproven(lambda:self.world.base.servers['40']['labels'].update({'sn-generation':'99'}))
+
+    def test_source_read_failure_after_candidate_read_blocks_rebuild_completion(self):
+        self.assert_rebuild_source_unproven(lambda:self.world.response_status.update({('GET','/servers/40'):404}))
+
+    def test_completed_snapshot_receipt_is_historical_but_rebuild_needs_current_off(self):
+        self.candidate();snapshot,completed=self.snapshot()
+        self.world.base.servers['40']['status']='running';self.f.now+=5;self.world.calls.clear()
+        self.assertEqual(completed,self.adapter.reconcile(snapshot['intent_id']))
+        self.assertEqual([],self.world.calls)
+        with self.assertRaisesRegex(SnapshotError,'rebuild_source_not_fenced_off'):
+            self.adapter.begin_rebuild(self.rebuild_permit(),snapshot['intent_id'],'#cloud-config\n')
+        self.assertFalse(any(m=='POST'for m,_,_ in self.world.calls))
 
     def test_insufficient_candidate_disk_and_active_target_cannot_rebuild(self):
         self.candidate()
@@ -418,6 +726,17 @@ class SnapshotTests(unittest.TestCase):
             self.adapter.begin_shutdown(permit)
         self.assertFalse(any(m=='POST' for m,_,_ in self.world.calls))
         self.assertEqual('not_submitted',self.adapter.reconcile(permit['intent_id'])['state'])
+
+    def test_final_source_check_cannot_spend_rebuild_permit_then_post(self):
+        self.candidate();snapshot,_=self.snapshot();permit=self.rebuild_permit();candidate_reads=[]
+        def latency(method,path,body):
+            if method=='GET'and path=='/servers/51':candidate_reads.append(True)
+            if method=='GET'and path=='/servers/40'and len(candidate_reads)==2:self.f.now+=31
+        self.world.before_request=latency;self.world.calls.clear()
+        with self.assertRaisesRegex(SnapshotError,'expired'):
+            self.adapter.begin_rebuild(permit,snapshot['intent_id'],'#cloud-config\n')
+        self.assertFalse(any(m=='POST'for m,_,_ in self.world.calls))
+        self.assertEqual('NOT_SUBMITTED',self.adapter.store.operation(permit['intent_id'])['phase'])
 
     def test_authorization_callback_cannot_return_after_expiry_then_write(self):
         permit=self.permit('PREPARE_SHUTDOWN')

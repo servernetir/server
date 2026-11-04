@@ -144,6 +144,81 @@ class IsolatedTrialTests(unittest.TestCase):
         self.context['job']['params']['dependency_baseline_sha256'] = baseline['state_sha256']
         return producer
 
+    def combined(self):
+        value=copy.deepcopy(self.context)
+        value['job']['params'].update({k:self.ct_context['job']['params'][k] for k in mod.SSH_FIELDS})
+        value['job']['params'].update(expires_at=self.now+25,
+            isolated_trial_config_sha256=self.reference['sha256'],
+            isolated_verifier_sha256=self.refs['verifier']['sha256'])
+        return value
+
+    def test_raw_recipe_preserves_strict_backend_grammars_and_consumes_final_nonce_only_in_adapter_verifier(self):
+        producer=self.ready(); combined=self.combined()
+        guest,ct=mod.project_context(combined)
+        self.assertEqual(set(guest['job']['params']),mod.candidate.PARAMS)
+        self.assertEqual(set(ct['job']['params']),set(self.ct_context['job']['params'])|{'expires_at'})
+        self.assertEqual(ct['jobs_hash'],combined['jobs_hash']);self.assertEqual(guest['jobs_hash'],combined['jobs_hash'])
+        recipe=producer.produce_recipe(combined)
+        self.assertTrue(recipe['ok']);self.assertLessEqual(len(protocol.canonical_json(recipe)),8192)
+        self.assertNotIn('verified',recipe);self.assertIsNone(producer.verifier)
+        replay=Path(self.refs['verifier']['path']).parent/'verifier-state'/mod.verifier_enrollment.REPLAY_NAME
+        self.assertFalse(replay.exists())
+        verifier=mod.verifier_enrollment.load_verifier(self.refs['verifier'],agent_id='pve-ir',root_owned=False,now=lambda:self.now)
+        proof=verifier.verify(combined,recipe)
+        self.assertTrue(proof['verified']);self.assertFalse(proof['default_path_verified'])
+        with self.assertRaises(protocol.ProtocolError):verifier.verify(combined,recipe)
+
+    def test_raw_recipe_can_complete_with_full_eight_second_guest_allowance(self):
+        producer=self.ready();combined=self.combined();transport=self.guest_transport
+        def full_budget(*args):
+            result=transport(*args);self.mono+=mod.windows.DEADLINE;return result
+        self.guest_transport=full_budget
+        self.assertTrue(producer.produce_recipe(combined)['ok'])
+        self.assertEqual(self.mono,mod.windows.DEADLINE)
+        self.assertLess(self.mono,mod.WORK_BUDGET)
+
+    def test_combined_extras_or_missing_original_deadline_reject_before_guest(self):
+        self.ready();base=self.combined()
+        for key,value in [('command','bad'),('critical_consumers',['vm109']),('url','https://invalid.invalid')]:
+            context=copy.deepcopy(base);context['job']['params'][key]=value
+            with self.subTest(key=key),self.assertRaises(protocol.ProtocolError):mod.project_context(context)
+        base['job']['params'].pop('expires_at')
+        with self.assertRaises(protocol.ProtocolError):mod.project_context(base)
+        self.assertFalse(self.peer.calls)
+
+    def test_raw_recipe_wrong_pins_and_expired_or_extended_read_lease_do_not_launch(self):
+        self.ready();base=self.combined()
+        for key,value in [('isolated_trial_config_sha256','f'*64),('isolated_verifier_sha256','f'*64),
+                          ('expires_at',self.now),('expires_at',self.now+31)]:
+            context=copy.deepcopy(base);context['job']['params'][key]=value
+            with self.subTest(key=key,value=value),self.assertRaises(protocol.ProtocolError):
+                self.producer().produce_recipe(context)
+        self.assertFalse(self.peer.calls);self.assertFalse(self.node_fixture.remote)
+
+    def test_original_read_lease_expiring_during_guest_cannot_return_recipe(self):
+        producer=self.ready();combined=self.combined();transport=self.guest_transport
+        def expired(*args):
+            result=transport(*args);self.now=combined['job']['params']['expires_at'];return result
+        self.guest_transport=expired
+        with self.assertRaisesRegex(protocol.ProtocolError,'expired|timeout'):
+            producer.produce_recipe(combined)
+        self.assertIsNone(producer.verifier)
+
+    def test_adapter_missing_or_disabled_proxy_enrollment_holds_before_key_or_final_replay_access(self):
+        from infra.relay_recovery import iran_adapter
+        for disabled in (False,True):
+            if disabled:
+                self.config['candidate_proxy']=self.pin('disabled-proxy.json',{**self.proxy,'enabled':False})
+            else:self.config['candidate_proxy']=None
+            self.reference=self.pin('producer.json',self.config)
+            combined=self.combined();self.key.unlink(missing_ok=True)
+            config=dict(agent_id='pve-ir',candidate_ports=[22,443],root_owned=False,
+                isolated_trial=self.reference,isolated_verifier=self.refs['verifier'])
+            with self.subTest(disabled=disabled),self.assertRaisesRegex(protocol.ProtocolError,'candidate.*(missing|enrolled)'):
+                iran_adapter.build_adapter(config,action='accept',context=combined,now=lambda:self.now)
+            self.assertFalse((self.root/'verifier-state'/mod.verifier_enrollment.REPLAY_NAME).exists())
+        self.assertFalse(self.peer.calls)
+
     def test_real_ct_guest_and_enrolled_verifier_make_only_fresh_isolated_proof(self):
         producer = self.ready(); result = producer.produce(self.context, self.ct_context)
         self.assertTrue(result['verified']); self.assertFalse(result['default_path_verified'])
@@ -265,6 +340,20 @@ class IsolatedTrialTests(unittest.TestCase):
         producer=self.ready();result=producer.produce(self.context,self.ct_context)
         self.assertEqual(1,result['isolated_candidate']['restore_epoch'])
         self.assertEqual('d'*64,result['isolated_candidate']['restore_hash'])
+
+    def test_combined_raw_restored_profile_preserves_both_backend_epoch_and_host_pin(self):
+        restored=self.ct.context('stage','restored','raw-stage-restored');self.ct.ctx=restored
+        self.assertTrue(self.ct.helper().run('stage',restored)['ok'])
+        for value in (self.context,self.ct_context):
+            value['job']['id']='raw-accept-restored'
+            value['job']['params'].update(stage_profile='restored',restore_epoch=1,restore_hash='d'*64)
+        self.ct_context['job']['params'].update({k:restored['job']['params'][k] for k in mod.SSH_FIELDS})
+        producer=self.ready();combined=self.combined();guest,ct=mod.project_context(combined)
+        recipe=producer.produce_recipe(combined)
+        self.assertEqual(1,recipe['isolated_evidence']['ct']['restore_epoch'])
+        self.assertEqual('d'*64,recipe['isolated_evidence']['ct']['restore_hash'])
+        self.assertEqual(guest['job']['params']['restore_hash'],ct['job']['params']['restore_hash'])
+        self.assertEqual(ct['job']['params']['ssh_host_key_sha256'],restored['job']['params']['ssh_host_key_sha256'])
 
     def test_enrolled_but_unavailable_native_candidate_transport_has_no_fallback(self):
         producer=self.ready()

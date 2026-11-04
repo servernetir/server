@@ -209,6 +209,22 @@ class RestoreTests(unittest.TestCase):
         self.assertEqual('off',self.world.base.servers['40']['status'])
         self.assertTrue(self.wf.collect()['cleanup_forbidden']);self.assertIsNone(self.wf.collect()['restore_ready'])
 
+    def test_snapshot_source_restart_remains_visible_safe_hold_after_later_off(self):
+        self.until('FINAL_SNAPSHOT');self.tick()
+        operation_id=self.wf.collect()['pending_action'];self.world.base.servers['40']['status']='running'
+        result=self.tick(5)
+        self.assertEqual('SOURCE_POWER_STATE_CONFLICT',result['reason'])
+        self.assertTrue(result['cleanup_forbidden']);self.assertIsNone(result['restore_ready'])
+        action=self.wf.store.action(operation_id);conflict=json.loads(action['result'])
+        self.assertEqual('source_power_state_conflict',conflict['reason'])
+        self.world.base.servers['40']['status']='off';self.world.calls.clear()
+        result=self.tick(60)
+        self.assertEqual('SOURCE_POWER_STATE_CONFLICT',result['reason'])
+        self.assertEqual(operation_id,result['pending_action'])
+        self.assertEqual(conflict,json.loads(self.wf.store.action(operation_id)['result']))
+        self.assertFalse(any(m!='GET'for m,_,_ in self.world.calls))
+        self.assertFalse(any(k in ('adopt_clone','activate')for k,_,_ in self.lifecycle_writes))
+
     def test_postclone_requires_actual_new_boot_and_uses_source_host_pin(self):
         self.machine_ready=False
         self.until('BOOTSTRAP_QUARANTINE')
@@ -240,6 +256,69 @@ class RestoreTests(unittest.TestCase):
         self.assertTrue(ready['pre_cutover_ready']);self.assertFalse(ready['global_cutover_complete'])
         self.assertEqual('PRE_CUTOVER_READY',self.wf.collect()['phase'])
         self.assertEqual(['fence','adopt_clone','activate'],[k for k,_,_ in self.lifecycle_writes])
+
+    def assert_activation_source_unproven(self,change):
+        self.until('ACTIVATE_CANDIDATE')
+        before=copy.deepcopy(self.wf.store.get()['proofs']['fence'])
+        client=self.clients['51'];activate=client.activate
+        def changed(permit):
+            change()
+            return activate(permit)
+        client.activate=changed;self.world.calls.clear()
+        result=self.tick()
+        self.assertFalse(any(k=='activate'for k,_,_ in self.lifecycle_writes))
+        self.assertIsNone(result['restore_ready']);self.assertTrue(result['cleanup_forbidden'])
+        self.assertTrue(result['pending_action'])
+        self.assertEqual(before,self.wf.store.get()['proofs']['fence'])
+        self.assertEqual(1,self.f.state()['candidate']['restore_epoch'])
+        self.assertTrue(all(m=='GET'for m,_,_ in self.world.calls))
+        self.assertEqual(2,sum(p=='/servers/40'for _,p,_ in self.world.calls))
+
+    def test_source_restart_after_activation_attestation_blocks_actual_authorizer(self):
+        self.assert_activation_source_unproven(lambda:self.world.base.servers['40'].update(status='running'))
+
+    def test_source_owner_change_after_activation_attestation_blocks_actual_authorizer(self):
+        self.assert_activation_source_unproven(lambda:self.world.base.servers['40']['labels'].update({'sn-owner':'foreign'}))
+
+    def test_source_read_failure_after_activation_attestation_blocks_actual_authorizer(self):
+        self.assert_activation_source_unproven(lambda:self.world.response_status.update({('GET','/servers/40'):503}))
+
+    def test_slow_activation_source_check_cannot_renew_permit_or_fence_time(self):
+        self.until('ACTIVATE_CANDIDATE')
+        fence=copy.deepcopy(self.wf.store.get()['proofs']['fence']);reads=[]
+        def latency(method,path,body):
+            if method=='GET'and path=='/servers/40':
+                reads.append(True)
+                if len(reads)==2:self.f.now+=31
+        self.world.before_request=latency;self.world.calls.clear()
+        result=self.tick()
+        self.assertEqual(2,len(reads))
+        self.assertFalse(any(k=='activate'for k,_,_ in self.lifecycle_writes))
+        self.assertTrue(result['pending_action']);self.assertIsNone(result['restore_ready'])
+        stored=self.wf.store.get()
+        self.assertEqual(fence,stored['proofs']['fence'])
+        self.assertEqual(self.f.now-31,stored['proofs']['source_off']['observed_at'])
+        action=self.wf.store.action(result['pending_action'])
+        permit=json.loads(action['body'])['permit']
+        self.assertLess(permit['expires_at'],self.f.now)
+        self.assertEqual(self.f.now-31,permit['params']['old_fence_proof_at'])
+
+    def test_restore_epoch_rotation_during_activation_source_get_blocks_old_permit(self):
+        self.until('ACTIVATE_CANDIDATE');reads=[]
+        def rotated(method,path,body):
+            if method=='GET'and path=='/servers/40':
+                reads.append(True)
+                if len(reads)==2:
+                    with self.f.journal.transaction()as db:
+                        state=self.f.journal._read(db)
+                        state['candidate'].update(restore_epoch=2,restore_hash='f'*64)
+                        self.f.journal._write(db,state)
+        self.world.before_request=rotated
+        result=self.tick()
+        self.assertEqual(2,len(reads))
+        self.assertFalse(any(k=='activate'for k,_,_ in self.lifecycle_writes))
+        self.assertTrue(result['pending_action']);self.assertIsNone(result['restore_ready'])
+        self.assertEqual(1,self.wf.store.get()['restore_epoch'])
 
     def test_old_or_replayed_green_never_accumulates_postrestore_acceptance(self):
         self.until('POST_RESTORE_VALIDATION');self.tick()

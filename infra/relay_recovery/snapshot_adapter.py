@@ -30,7 +30,7 @@ import uuid
 
 from . import core, hetzner
 from .gateway import private_file
-from .provider_adapter import ProviderEffects, _directory
+from .provider_adapter import ProviderEffects, ProviderEffectError, _directory
 
 
 KINDS = frozenset({'PREPARE_SHUTDOWN', 'PREPARE_SNAPSHOT', 'PREPARE_REBUILD', 'DELETE_SNAPSHOT'})
@@ -38,6 +38,7 @@ COMMANDS = {'PREPARE_SHUTDOWN': 'shutdown_server', 'PREPARE_SNAPSHOT': 'create_i
             'PREPARE_REBUILD': 'rebuild_server'}
 MANAGER = 'relay-recovery-snapshot-v1'
 POLL_SECONDS = 5
+SOURCE_CONFLICT_STATES = frozenset({'running', 'starting', 'stopping', 'rebuilding', 'initializing', 'deleting'})
 
 
 class SnapshotError(core.RecoveryError):
@@ -192,19 +193,25 @@ class SnapshotAdapter:
         return state
 
     def _source(self, client, permit):
-        state = self._anchor(client)
+        # The exact source GET below also supplies the ownership anchor. Do not
+        # fetch that same VM twice before any intervening provider operation.
+        state = self._state()
         if not core.same_identity(state['active'], permit['source_identity']):
             raise SnapshotError('source_is_not_current_active')
         if state['active'].get('config_hash') != permit['config_hash']:
             raise SnapshotError('source_configuration_changed')
         source = self._record(permit['source_identity'])
         raw = self.provider._verified_server(client, source)
+        current = self._state()
+        if (not core.same_identity(current['active'], permit['source_identity'])
+                or current['active'].get('config_hash') != permit['config_hash']):
+            raise SnapshotError('current_source_workflow_scope_changed')
         if raw.get('volumes'):
             raise SnapshotError('attached_volumes_are_not_snapshotted')
         if raw.get('server_type', {}).get('architecture') != 'x86':
             raise SnapshotError('source_architecture_not_x86')
         _number(raw.get('primary_disk_size'))
-        return state, source, raw
+        return current, source, raw
 
     def _addresses(self, raw):
         result = {}
@@ -224,6 +231,45 @@ class SnapshotAdapter:
         return dict(intent_id=row['id'], kind=json.loads(row['body'])['permit']['kind'], state=state,
                     action_id=row['action_id'], image_id=row['image_id'], observed_at=self.now(),
                     retry_at=self.now()+POLL_SECONDS if state in ('pending', 'unknown') else None, **extra)
+
+    @staticmethod
+    def _source_conflict_result(row):
+        result = json.loads(row['result']) if row['result'] else None
+        if (isinstance(result, dict) and result.get('state') == 'unknown'
+                and result.get('reason') == 'source_power_state_conflict'):
+            return result
+        return None
+
+    def _source_conflict(self, row):
+        # Positive source lifecycle inconsistency invalidates this original
+        # cold-snapshot/rebuild attempt. A later off GET cannot erase it.
+        with self.store.transaction() as db:
+            current = dict(db.execute('SELECT * FROM operations WHERE id=?', (row['id'],)).fetchone())
+            kind = json.loads(current['body'])['permit']['kind']
+            if (kind not in ('PREPARE_SNAPSHOT','PREPARE_REBUILD')
+                    or row['phase'] not in ('CLAIMED','KNOWN')):
+                raise SnapshotError('source_conflict_outside_submitted_snapshot_or_rebuild')
+            result = self._source_conflict_result(current)
+            if result is None:
+                result = self._result(current, 'unknown', reason='source_power_state_conflict')
+                result['retry_at'] = None
+                db.execute("UPDATE operations SET phase='KNOWN',result=? WHERE id=?",
+                           (core.canonical(result), row['id']))
+            # A concurrent poll may have qualified this same in-flight image.
+            # The conflict wins atomically; never alter a REBUILD's historical
+            # source snapshot or any provider image labels.
+            if kind == 'PREPARE_SNAPSHOT':
+                image = db.execute('SELECT id,body FROM images WHERE snapshot_intent=?', (row['id'],)).fetchone()
+                if image:
+                    provisional = json.loads(image['body']); provisional['complete'] = False
+                    for key in ('disk_size','image_size','monthly_micro'): provisional.pop(key, None)
+                    db.execute('UPDATE images SET body=? WHERE id=?', (core.canonical(provisional), image['id']))
+            return result
+
+    def _require_off(self, source, row):
+        if source.get('status') == 'off': return
+        if source.get('status') in SOURCE_CONFLICT_STATES: self._source_conflict(row)
+        raise SnapshotError('source_no_longer_fenced_off')
 
     def _new(self, permit, spec, client, target_id):
         """Persist immutable IDs/spec/baseline before the first POST claim."""
@@ -341,7 +387,7 @@ class SnapshotAdapter:
 
     def _capture(self, operation_id, *, action=None, image_id=None):
         with self.store.transaction() as db:
-            row = db.execute('SELECT action_id,image_id FROM operations WHERE id=?', (operation_id,)).fetchone()
+            row = dict(db.execute('SELECT * FROM operations WHERE id=?', (operation_id,)).fetchone())
             action_id = hetzner._identifier(action['id']) if action is not None else row['action_id']
             image_id = hetzner._identifier(image_id) if image_id is not None else row['image_id']
             if ((row['action_id'] is not None and row['action_id'] != action_id)
@@ -349,6 +395,10 @@ class SnapshotAdapter:
                 raise SnapshotError('captured_provider_id_conflict')
             db.execute("UPDATE operations SET phase='KNOWN',action_id=?,image_id=? WHERE id=?",
                        (action_id, image_id, operation_id))
+            conflict = self._source_conflict_result(row)
+            if conflict is not None:
+                conflict.update(action_id=action_id, image_id=image_id)
+                db.execute('UPDATE operations SET result=? WHERE id=?', (core.canonical(conflict), operation_id))
 
     def _action(self, raw, operation, *, image_id=None):
         body = json.loads(operation['body']); kind, spec = body['permit']['kind'], body['spec']
@@ -369,15 +419,17 @@ class SnapshotAdapter:
     def _post(self, permit, client, path, payload):
         # The callback is re-evaluated after all potentially slow provider GETs.
         try:
-            _, _, source = self._source(client, permit)
-            if permit['kind'] in ('PREPARE_SNAPSHOT','PREPARE_REBUILD') and source.get('status') != 'off':
-                raise SnapshotError('source_no_longer_fenced_off')
             if permit['kind'] == 'PREPARE_REBUILD':
                 row = self.store.operation(permit['intent_id']); spec = json.loads(row['body'])['spec']
                 target = self._record(permit['candidate_identity'])
                 current = self.provider._verified_server(client, target)
                 if self._addresses(current) != spec['public_net_before']:
                     raise SnapshotError('candidate_public_ips_changed_before_rebuild')
+            # Check the old source after the candidate read, immediately before
+            # final local scope/expiry checks and the single provider mutation.
+            _, _, source = self._source(client, permit)
+            if permit['kind'] in ('PREPARE_SNAPSHOT','PREPARE_REBUILD'):
+                self._require_off(source, self.store.operation(permit['intent_id']))
             current_state = self._state()
             if (not core.same_identity(current_state['active'], permit['source_identity'])
                     or current_state['active'].get('config_hash') != permit['config_hash']):
@@ -505,6 +557,9 @@ class SnapshotAdapter:
                 'image_size': str(size), 'monthly_micro': actual_cost, 'currency': quote['currency'],
                 'snapshot_intent_id': operation['id'], 'captured_at': self.now()}
             with self.store.transaction() as db:
+                current = dict(db.execute('SELECT * FROM operations WHERE id=?', (operation['id'],)).fetchone())
+                if self._source_conflict_result(current) is not None:
+                    raise SnapshotError('source_power_state_conflict')
                 old = db.execute('SELECT body FROM images WHERE id=?', (image_id,)).fetchone()
                 if old:
                     previous = json.loads(old['body'])
@@ -512,6 +567,7 @@ class SnapshotAdapter:
                     if previous.get('complete'): keys += ('disk_size','image_size')
                     for key in keys:
                         if previous[key] != record[key]: raise SnapshotError('snapshot_record_immutable_conflict')
+                    record['captured_at'] = previous['captured_at']
                 db.execute('UPDATE images SET body=? WHERE id=?', (core.canonical(record), image_id))
             return record
         return image_id
@@ -561,6 +617,9 @@ class SnapshotAdapter:
     def _complete(self, row, **proof):
         result = self._result(row, 'complete', **proof)
         with self.store.transaction() as db:
+            current = dict(db.execute('SELECT * FROM operations WHERE id=?', (row['id'],)).fetchone())
+            conflict = self._source_conflict_result(current)
+            if conflict is not None: return conflict
             db.execute("UPDATE operations SET phase='COMPLETE',result=? WHERE id=?", (core.canonical(result), row['id']))
         return result
 
@@ -569,16 +628,25 @@ class SnapshotAdapter:
         row = self.store.operation(intent_id)
         body = json.loads(row['body']); permit, spec = body['permit'], body['spec']
         self._permit(permit, permit['kind'], write=False)
+        conflict = self._source_conflict_result(row)
+        if (conflict is not None and row['action_id'] is not None
+                and (permit['kind'] != 'PREPARE_SNAPSHOT' or row['image_id'] is not None)):
+            return conflict
         if row['phase'] in ('PREPARED','NOT_SUBMITTED'): return self._result(row, 'not_submitted', definitive_no_write=True)
         if row['phase'] == 'FAILED': return self._result(row, 'failed', definitive_rejection=True)
         if row['phase'] == 'COMPLETE': return json.loads(row['result'])
         if row['last_poll'] is not None and self.now()-row['last_poll'] < POLL_SECONDS:
-            return self._result(row, 'pending', throttled=True)
+            return conflict if conflict is not None else self._result(row, 'pending', throttled=True)
         with self.store.transaction() as db:
             db.execute('UPDATE operations SET last_poll=? WHERE id=?', (self.now(), row['id']))
         client = self.provider._client()
         try:
-            self._anchor(client)
+            source_off_observed = True
+            if permit['kind'] in ('PREPARE_SNAPSHOT','PREPARE_REBUILD'):
+                _, _, source = self._source(client, permit)
+                source_off_observed = source.get('status') == 'off'
+                if source.get('status') in SOURCE_CONFLICT_STATES: self._source_conflict(row)
+            else: self._anchor(client)
             if permit['kind'] == 'DELETE_SNAPSHOT':
                 reply = client._request('GET', '/images/'+spec['snapshot_id'])
                 if reply.status == 404:
@@ -602,7 +670,7 @@ class SnapshotAdapter:
                     row = self.store.operation(row['id'])
                 elif len(actions) > 1:
                     raise SnapshotError('ambiguous_action_matches')
-            image_record = None
+            image = None
             if permit['kind'] == 'PREPARE_SNAPSHOT':
                 if row['image_id'] is None:
                     images = client._pages('/images', 'images', query={'type': 'snapshot'})
@@ -616,7 +684,13 @@ class SnapshotAdapter:
                 if row['image_id'] is not None:
                     image = client._ok(client._request('GET', '/images/'+row['image_id'])).get('image', {})
                     self._image(image, row, final=False)
-                    if image.get('status') == 'available': image_record = self._image(image, row, final=True)
+            conflict = self._source_conflict_result(self.store.operation(row['id']))
+            if conflict is not None: return conflict
+            # An unknown/migrating initial observation cannot qualify this poll
+            # by becoming off later. It remains retryable on a fresh off poll;
+            # only the explicit lifecycle conflicts above persist permanently.
+            if not source_off_observed:
+                return self._result(row, 'unknown', reason='provider_reconciliation_unproven')
             if action is None: return self._result(row, 'unknown')
             if action['status'] == 'error':
                 with self.store.transaction() as db:
@@ -624,7 +698,13 @@ class SnapshotAdapter:
                 return self._result(row, 'failed', provider_action_error=True)
             if action['status'] != 'success': return self._result(row, 'pending')
             if permit['kind'] == 'PREPARE_SNAPSHOT':
-                if image_record is None: return self._result(row, 'pending')
+                if image is None or image.get('status') != 'available': return self._result(row, 'pending')
+                # Availability is not proof the source stayed off. Capture the
+                # image ID provisionally, but never accept it as a cold snapshot
+                # without a new exact-source read after the action/image reads.
+                _, _, source = self._source(client, permit)
+                self._require_off(source, row)
+                image_record = self._image(image, row, final=True)
                 return self._complete(row, snapshot=image_record, image_available=True)
             record = self._record(permit['source_identity'] if permit['kind'] == 'PREPARE_SHUTDOWN'
                                   else permit['candidate_identity'])
@@ -635,9 +715,13 @@ class SnapshotAdapter:
             if (self._addresses(raw) != spec['public_net_before']
                     or str((raw.get('image') or {}).get('id')) != spec['snapshot_id']):
                 raise SnapshotError('rebuilt_candidate_identity_or_image_changed')
+            _, _, source = self._source(client, permit)
+            self._require_off(source, row)
             return self._complete(row, provider_rebuild_complete=True, public_ips_preserved=True,
                                   candidate_identity=permit['candidate_identity'], application_verified=False)
-        except (SnapshotError, hetzner.AdapterError, ValueError, KeyError, TypeError):
+        except (SnapshotError, ProviderEffectError, hetzner.AdapterError, ValueError, KeyError, TypeError):
+            conflict = self._source_conflict_result(self.store.operation(row['id']))
+            if conflict is not None: return conflict
             return self._result(row, 'unknown', reason='provider_reconciliation_unproven')
 
     def _coverage(self, permit, record, coverage):

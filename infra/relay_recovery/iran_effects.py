@@ -19,18 +19,42 @@ import uuid
 from . import core, controller_adapter as collector, ct_stage
 from .agent import validate_job
 from .production_hooks import CONTEXT_FIELDS, _identity, _ipv4, load_registry
-from .protocol import IDENTIFIER, canonical_json, manifest_hash, validate_manifest
+from .protocol import HEX64, IDENTIFIER, canonical_json, manifest_hash, validate_manifest
 
 
 PUBLICATION = 'servernet.relay.iran-publication.v1'
 OUTCOME = 'servernet.relay.iran-outcome.v1'
 MUTATIONS = {'stage': 'TRIAL_STAGE', 'apply': 'EXTERNAL_CUTOVER'}
 FLAGS = {'stage': 'staged', 'apply': 'applied', 'accept': 'accepted'}
+ISOLATED_PROFILE = 'isolated_candidate_v1'
+ISOLATED_ENROLLMENT = 'servernet.relay.isolated-publication.v1'
 
 
 def _require(condition, code):
     if not condition:
         raise collector.CollectorError(code)
+
+
+def _isolated_receipt(detail, manifest, job, observed):
+    """Recognize only the exact isolated proof from the authenticated adapter."""
+    from .isolated_acceptance import SCHEMA, PATH_PROFILE, SCOPE
+    p = job['params']; proof = detail.get('isolated_candidate')
+    if (detail.get('acceptance_profile') != ISOLATED_PROFILE or detail.get('path_profile') != PATH_PROFILE
+            or detail.get('default_path_verified') is not False or detail.get('global_cutover_performed') is not False
+            or not isinstance(proof, dict) or proof.get('schema') != SCHEMA or proof.get('verified') is not True
+            or proof.get('acceptance_profile') != ISOLATED_PROFILE or proof.get('path_profile') != PATH_PROFILE
+            or proof.get('default_path_verified') is not False or proof.get('global_cutover_performed') is not False):
+        return False
+    expected = dict(scope={k: manifest[k] for k in SCOPE}, target=job['target'],
+        stage_profile=p['stage_profile'], resource_identity=p['resource_identity'],
+        resource_config_hash=p['resource_config_hash'], restore_epoch=p.get('restore_epoch'),
+        restore_hash=p.get('restore_hash'), proxy_binding_sha256=p['proxy_binding_sha256'],
+        registry_sha256=p['expected_registry_hash'], dependency_baseline_sha256=p['dependency_baseline_sha256'])
+    clocks = [proof.get(k) for k in ('observed_at', 'ct_observed_at', 'guest_observed_at', 'registry_observed_at')]
+    return (canonical_json({k: proof.get(k) for k in expected}) == canonical_json(expected)
+        and type(observed) is int and all(type(at) is int and manifest['issued_at'] <= at <= observed+5 for at in clocks)
+        and all(isinstance(proof.get(k), str) and HEX64.fullmatch(proof[k])
+                for k in ('guest_body_sha256', 'ct_proof_sha256', 'registry_proof_sha256')))
 
 
 def route_receipt(db, agent, manifest, job, receipt, received_at):
@@ -72,6 +96,9 @@ def route_receipt(db, agent, manifest, job, receipt, received_at):
     if receipt.get('code') == 'completed' and receipt['ok'] is True:
         if detail.get('generation_verified') is True and detail.get(flag) is True:
             classification = 'succeeded'
+            if (job['op'] == 'accept' and job.get('params', {}).get('acceptance_profile') == ISOLATED_PROFILE
+                    and (historical or readback or not _isolated_receipt(detail, manifest, job, observed))):
+                classification = 'unknown'
     elif receipt.get('code') == 'check_failed' and receipt['ok'] is False:
         if job['op'] == 'accept' or readback or (detail.get('generation_verified') is True and detail.get(flag) is False):
             classification = 'failed'
@@ -213,15 +240,18 @@ class IranEffectPublisher:
             operation=row['operation'], phase=row['phase'], exposure=row['exposure'],
             context_hash=core.digest(saved['context']), manifest=copy.deepcopy(saved['manifest']))
 
-    def _prepare(self, publication, permit, context, operation, params, *, port, expiry):
+    def _prepare(self, publication, permit, context, operation, params, *, port, expiry, isolated_binding=None):
         self._enabled_agent(); now = self._now()
         _require(port in (22, 443) and type(port) is int, 'iran_effect_ssh_port')
         resolved = self.provider.probe_target(context['identity'])
         _require(resolved.get('identity') == context['identity'], 'iran_effect_provider_scope')
         address = _ipv4(resolved.get('ipv4')); values = copy.deepcopy(params)
         _require(isinstance(values, dict), 'iran_effect_params')
-        bound = dict(resource_identity=context['identity'], resource_config_hash=context['config_hash'],
-                     critical_consumers=list(self.adapter.policy.critical_consumers), expires_at=expiry)
+        isolated = operation == 'accept' and values.get('acceptance_profile') == ISOLATED_PROFILE
+        _require(isolated == (isolated_binding is not None), 'iran_isolated_publication_scope')
+        bound = dict(resource_identity=context['identity'], resource_config_hash=context['config_hash'], expires_at=expiry)
+        if not isolated:
+            bound['critical_consumers'] = list(self.adapter.policy.critical_consumers)
         if values.get('stage_profile') == 'restored':
             bound.update(restore_epoch=context['restore_epoch'], restore_hash=context['restore_hash'])
         else:
@@ -253,9 +283,15 @@ class IranEffectPublisher:
                 validate_manifest(manifest, self.agent, now)
                 wire = dict(schema='servernet.relay.recovery.v1', agent_id=self.agent,
                     **{k: manifest[k] for k in ('incident_id', 'generation', 'revision', 'config_hash', 'jobs_hash')}, job=job)
-                ct_stage.validate_context(wire, self.agent)
+                if isolated:
+                    from .isolated_trial import project_context
+                    project_context(wire)
+                else:
+                    ct_stage.validate_context(wire, self.agent)
                 self.adapter._save_manifest(db, manifest)
-                saved = core.canonical(dict(permit=permit, context=context, manifest=manifest))
+                saved = dict(permit=permit, context=context, manifest=manifest)
+                if isolated: saved['isolated_accept'] = isolated_binding
+                saved = core.canonical(saved)
                 db.execute('INSERT INTO iran_jobs VALUES(?,?,?,?,?,?,?,?,?,?,NULL)',
                     (publication, permit['intent_id'], self.agent, operation, revision, job['id'], expiry,
                      saved, 'PENDING', 'PREPARED'))
@@ -270,6 +306,8 @@ class IranEffectPublisher:
                 _require(row is not None and row['phase'] == 'PENDING' and row['exposure'] == 'PREPARED'
                     and now < row['expires_at'], 'iran_effect_exposure_not_authorized')
                 saved = json.loads(row['body'])
+                if 'isolated_accept' in saved:
+                    self._check_isolated_publication(saved, row=row)
                 if claim is not None:
                     self._claim(saved['permit'], saved['context'], row['operation'])
                 db.execute("UPDATE iran_jobs SET exposure='CLAIMED' WHERE id=?", (publication,))
@@ -330,11 +368,134 @@ class IranEffectPublisher:
             row = db.execute("SELECT * FROM iran_jobs WHERE driver_intent=? AND operation='accept' "
                 "AND phase='PENDING' AND expires_at>? ORDER BY revision DESC LIMIT 1", (effect_id, now)).fetchone()
         if row:
+            pending = json.loads(row['body'])['manifest']['jobs'][0]
+            _require('acceptance_profile' not in pending.get('params', {}), 'iran_accept_profile_pending')
             return self._description(row)
         publication = str(uuid.uuid4()); params = copy.deepcopy(saved['manifest']['jobs'][0]['params'])
         params['expires_at'] = now+ttl
         self._prepare(publication, permit, context, 'accept', params,
             port=saved['manifest']['jobs'][0]['target']['port'], expiry=now+ttl)
+        self._expose(publication)
+        return self._description(self._row(publication))
+
+    def _isolated_source(self, effect_id, reference):
+        """Current exact stage scope plus private hashes, not a readiness proof."""
+        from .isolated_trial import _pin
+        original = self._row(effect_id)
+        _require(original is not None and original['operation'] == 'stage'
+            and original['phase'] == 'SUCCEEDED' and original['terminal_hash'] is not None,
+            'iran_isolated_stage_not_succeeded')
+        saved = json.loads(original['body']); context = saved['context']
+        with self.adapter._db() as db:
+            terminal = db.execute('SELECT classification,body FROM iran_outcomes WHERE agent=? AND hash=? AND publication=?',
+                (self.agent, original['terminal_hash'], effect_id)).fetchone()
+        record = json.loads(terminal['body']) if terminal else {}
+        _require(terminal is not None and terminal['classification'] == 'succeeded'
+            and canonical_json(record.get('manifest')) == canonical_json(saved['manifest'])
+            and canonical_json(record.get('context')) == canonical_json(context)
+            and canonical_json(record.get('permit')) == canonical_json(saved['permit'])
+            and record.get('publication_id') == effect_id,
+            'iran_isolated_stage_outcome_missing')
+        self._claim(saved['permit'], context, 'stage', fresh=False)
+        self._enabled_agent(); now = self._now()
+        enrollment = _pin(reference, root_owned=not self.allow_test_paths)
+        hashes = {'producer_config_sha256', 'verifier_sha256', 'expected_registry_hash',
+                  'dependency_baseline_sha256', 'proxy_binding_sha256'}
+        binding = {k: context[k] for k in ('owner_id', 'service_id', 'project_id', 'registry_hash', 'config_hash')}
+        _require(set(enrollment) == {'schema', 'enabled', 'agent_id', 'binding', *hashes}
+            and enrollment['schema'] == ISOLATED_ENROLLMENT and enrollment['enabled'] is True
+            and enrollment['agent_id'] == self.agent and enrollment['binding'] == binding
+            and all(isinstance(enrollment[k], str) and HEX64.fullmatch(enrollment[k]) for k in hashes),
+            'iran_isolated_enrollment_scope')
+        registry = load_registry(self.config, allow_test_paths=self.allow_test_paths)
+        _require(context['registry_hash'] == self.config['production_driver']['registry']['sha256']
+            and all(context[k] == registry[k] for k in ('owner_id', 'service_id', 'project_id')),
+            'iran_isolated_registry_changed')
+        db = self._database('controller.sqlite3')
+        try:
+            row = db.execute('SELECT body FROM state WHERE id=1').fetchone()
+            state = json.loads(row['body']) if row else {}
+        finally: db.close()
+        resource = state.get('candidate')
+        _require(state.get('phase') == 'VALIDATING' and state.get('pending_action') is None
+            and state.get('clock_unsafe') is False and type(state.get('last_now')) is int
+            and state['last_now'] <= now and resource is not None
+            and isinstance(state.get('active'), dict)
+            and state.get('incident_id') == context['incident_id']
+            and canonical_json(core.identity(state.get('active'))) == canonical_json(context['source_identity'])
+            and canonical_json(core.identity(resource)) == canonical_json(context['identity'])
+            and canonical_json({k: resource.get(k) for k in ('config_hash', 'restore_epoch', 'restore_hash')})
+                == canonical_json({k: context[k] for k in ('config_hash', 'restore_epoch', 'restore_hash')}),
+            'iran_isolated_core_scope_changed')
+        manifest = saved['manifest']; job = manifest['jobs'][0]
+        stage_wire = dict(schema='servernet.relay.recovery.v1', agent_id=self.agent,
+            **{k: manifest[k] for k in ('incident_id', 'generation', 'revision', 'config_hash', 'jobs_hash')}, job=job)
+        ct_stage.validate_context(stage_wire, self.agent)
+        ssh = {k: job['params'][k] for k in ('ssh_host_public_key', 'ssh_host_key_sha256')}
+        metadata = dict(enrollment=copy.deepcopy(reference), stage_publication_id=effect_id,
+            stage_manifest_sha256=core.digest(manifest), ssh_binding_sha256=core.digest(ssh))
+        return original, saved, enrollment, metadata, ssh
+
+    def _check_isolated_publication(self, saved, *, row=None):
+        metadata = saved['isolated_accept']
+        _require(isinstance(metadata, dict) and set(metadata) == {'enrollment', 'stage_publication_id',
+            'stage_manifest_sha256', 'ssh_binding_sha256'}, 'iran_isolated_metadata')
+        _, source, enrollment, expected, ssh = self._isolated_source(
+            metadata['stage_publication_id'], metadata['enrollment'])
+        _require(metadata == expected and saved['permit'] == source['permit']
+            and saved['context'] == source['context'], 'iran_isolated_original_changed')
+        manifest = saved['manifest']; job = manifest['jobs'][0]; params = job['params']
+        values = self._isolated_params(source, enrollment, ssh, params['expires_at'])
+        validate_manifest(manifest, self.agent, self._now())
+        _require(canonical_json(params) == canonical_json(values) and job['op'] == 'accept'
+            and job['target'] == source['manifest']['jobs'][0]['target']
+            and manifest['config_hash'] == source['context']['config_hash']
+            and manifest['incident_id'] == source['context']['incident_id']
+            and manifest['generation'] >= source['manifest']['generation']
+            and manifest['revision'] > source['manifest']['revision']
+            and 0 < manifest['expires_at']-manifest['issued_at'] <= 30
+            and params['expires_at'] == manifest['expires_at'], 'iran_isolated_publication_changed')
+        if row is not None:
+            _require(row['agent'] == manifest['agent_id'] and row['operation'] == 'accept'
+                and row['driver_intent'] == source['permit']['intent_id']
+                and row['revision'] == manifest['revision'] and row['job_id'] == job['id']
+                and row['expires_at'] == manifest['expires_at'], 'iran_isolated_publication_changed')
+
+    @staticmethod
+    def _isolated_params(source, enrollment, ssh, expiry):
+        original = source['manifest']['jobs'][0]['params']; context = source['context']
+        values = dict(acceptance_profile=ISOLATED_PROFILE, stage_profile=original['stage_profile'],
+            resource_identity=context['identity'], resource_config_hash=context['config_hash'],
+            expected_registry_hash=enrollment['expected_registry_hash'],
+            dependency_baseline_sha256=enrollment['dependency_baseline_sha256'],
+            proxy_binding_sha256=enrollment['proxy_binding_sha256'],
+            isolated_trial_config_sha256=enrollment['producer_config_sha256'],
+            isolated_verifier_sha256=enrollment['verifier_sha256'], expires_at=expiry, **ssh)
+        if original['stage_profile'] == 'restored':
+            values.update(restore_epoch=context['restore_epoch'], restore_hash=context['restore_hash'])
+        return values
+
+    def publish_isolated_accept(self, effect_id, enrollment, *, ttl=25):
+        """Explicit signed read-only trial. Never renews an original mutation."""
+        _require(type(ttl) is int and 1 <= ttl <= 30, 'iran_accept_ttl')
+        original, source, enrolled, metadata, ssh = self._isolated_source(effect_id, enrollment)
+        now = self._now(); expiry = now+ttl
+        with self.adapter._db() as db:
+            row = db.execute("SELECT * FROM iran_jobs WHERE driver_intent=? AND operation='accept' "
+                "AND phase='PENDING' ORDER BY revision DESC LIMIT 1", (effect_id,)).fetchone()
+        if row:
+            pending = json.loads(row['body'])
+            _require('isolated_accept' in pending and pending['isolated_accept'] == metadata,
+                'iran_accept_profile_pending')
+            _require(now < row['expires_at'], 'iran_isolated_accept_pending_expired')
+            self._check_isolated_publication(pending)
+            return self._description(row)
+        params = self._isolated_params(source, enrolled, ssh, expiry)
+        publication = str(uuid.uuid4())
+        self._prepare(publication, source['permit'], source['context'], 'accept', params,
+            port=source['manifest']['jobs'][0]['target']['port'], expiry=expiry, isolated_binding=metadata)
+        self._verify_addresses(publication)
+        self._check_isolated_publication(json.loads(self._row(publication)['body']))
         self._expose(publication)
         return self._description(self._row(publication))
 

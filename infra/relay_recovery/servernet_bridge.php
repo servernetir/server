@@ -65,6 +65,135 @@ function bridgeCanonical(mixed $value): string {
     return json_encode($sort($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 }
 
+/** Fixed owner-canary selection. Never populated from a CLI/network request. */
+function bridgeDnsOwnershipEnrollment(array $config): array {
+    $ref = $config['dns_ownership'] ?? null;
+    if (!is_array($ref) || count($ref) !== 2 || !isset($ref['path'], $ref['sha256'])
+        || !is_string($ref['path']) || !is_string($ref['sha256'])
+        || !preg_match('/\A[a-f0-9]{64}\z/D', $ref['sha256'])) { throw new RuntimeException('dns_enrollment_pin'); }
+    $value = bridgePrivateJson($ref['path']);
+    $raw = file_get_contents($ref['path']);
+    $keys = array_keys($value); sort($keys);
+    if ($keys !== ['agent_id', 'binding', 'schema', 'zone_ids'] || !is_string($raw)
+        || !hash_equals($ref['sha256'], hash('sha256', $raw)) || $raw !== bridgeCanonical($value)
+        || $value['schema'] !== 'servernet.relay.dns-ownership.enrollment.v1'
+        || !is_string($value['agent_id']) || !preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z/D', $value['agent_id'])) {
+        throw new RuntimeException('dns_enrollment_scope');
+    }
+    $binding = $value['binding'];
+    if (!is_array($binding)) { throw new RuntimeException('dns_enrollment_binding'); }
+    $keys = array_keys($binding); sort($keys);
+    if ($keys !== ['config_hash', 'owner_id', 'project_id', 'service_id']) { throw new RuntimeException('dns_enrollment_binding'); }
+    foreach (['owner_id', 'service_id'] as $key) {
+        if (!is_int($binding[$key]) || $binding[$key] < 1 || $binding[$key] > 9007199254740991
+            || !is_int($config['binding'][$key] ?? null)
+            || (string)$binding[$key] !== (string)($config['binding'][$key] ?? '')
+            || (string)$binding[$key] !== ($config['policy'][$key] ?? null)) { throw new RuntimeException('dns_enrollment_binding'); }
+    }
+    if (!is_string($binding['project_id']) || $binding['project_id'] !== ($config['policy']['project_id'] ?? null)
+        || !preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z/D', $binding['project_id'])
+        || !is_string($binding['config_hash']) || !preg_match('/\A[a-f0-9]{64}\z/D', $binding['config_hash'])) {
+        throw new RuntimeException('dns_enrollment_binding');
+    }
+    $ids = $value['zone_ids'];
+    if (!is_array($ids) || !array_is_list($ids) || count($ids) < 1 || count($ids) > 3) { throw new RuntimeException('dns_zone_selection'); }
+    $previous = 0;
+    foreach ($ids as $id) {
+        if (!is_int($id) || $id <= $previous || $id > 9007199254740991) { throw new RuntimeException('dns_zone_selection'); }
+        $previous = $id;
+    }
+    return $value;
+}
+
+function bridgeDnsName(mixed $value): string {
+    if (!is_string($value) || $value === '' || trim($value) !== $value) { throw new RuntimeException('dns_name'); }
+    $name = strtolower(str_ends_with($value, '.') ? substr($value, 0, -1) : $value).'.';
+    if (strlen($name) > 254 || !preg_match('/\A(?:[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?\.)+\z/D', $name)) {
+        throw new RuntimeException('dns_name');
+    }
+    // A raw, explicitly stored internal catalog may legitimately use .invalid.
+    return $name;
+}
+
+/** Actual current controller identity; a static startup seed cannot refresh it. */
+function bridgeDnsOwnershipCurrent(array $config, array $enrollment): array {
+    $path = bridgePrivatePath(bridgePrivatePath((string)($config['state_dir'] ?? ''), true).'/controller.sqlite3');
+    $db = new PDO('sqlite:'.$path, null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::SQLITE_ATTR_OPEN_FLAGS => PDO::SQLITE_OPEN_READONLY]);
+    $db->exec('PRAGMA query_only=ON'); $db->exec('PRAGMA busy_timeout=2000');
+    $raw = $db->query('SELECT body FROM state WHERE id=1')->fetchColumn();
+    if (!is_string($raw)) { throw new RuntimeException('dns_controller_state'); }
+    $state = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+    $active = $state['active'] ?? [];
+    if (($state['clock_unsafe'] ?? true) !== false || !is_int($state['last_now'] ?? null)
+        || $state['last_now'] > time() || ($active['config_hash'] ?? null) !== $enrollment['binding']['config_hash']) {
+        throw new RuntimeException('dns_controller_state');
+    }
+    $identity = bridgeIdentity($active);
+    if ($identity['project_id'] !== $enrollment['binding']['project_id']) { throw new RuntimeException('dns_controller_scope'); }
+    return $identity;
+}
+
+/** Pure scalar projection; no records, service metadata, secrets or cache API. */
+function bridgeDnsOwnershipSource(array $enrollment, string $enrollmentHash, array $identity,
+    string $ipv4, array $rows, mixed $catalog, int $observed, int $received): array {
+    if ($observed < 1 || $received < $observed || $received - $observed > 20
+        || count($rows) !== count($enrollment['zone_ids'])) { throw new RuntimeException('dns_source_clock_or_rows'); }
+    $zones = []; $names = []; $catalog = bridgeDnsName($catalog);
+    foreach ($rows as $index => $row) {
+        if (!is_array($row) || bridgeDnsInteger($row['id'] ?? null) !== $enrollment['zone_ids'][$index]
+            || bridgeDnsInteger($row['customer_id'] ?? null) !== $enrollment['binding']['owner_id']
+            || ($row['mode'] ?? null) !== 'ns' || ($row['status'] ?? null) !== 'active'
+            || ($row['publish_state'] ?? null) !== 'published') { throw new RuntimeException('dns_owned_zone'); }
+        $name = bridgeDnsName($row['domain'] ?? null);
+        if ($name === $catalog || isset($names[$name])) { throw new RuntimeException('dns_zone_duplicate'); }
+        $names[$name] = true; $zones[] = ['id' => $enrollment['zone_ids'][$index], 'name' => $name];
+    }
+    if (filter_var($ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        throw new RuntimeException('dns_primary_address');
+    }
+    return ['schema' => 'servernet.relay.dns-ownership-source.v1', 'ok' => true, 'read_only' => true,
+        'internal_protected' => true, 'agent_id' => $enrollment['agent_id'], 'binding' => $enrollment['binding'],
+        'enrollment_sha256' => $enrollmentHash, 'identity' => $identity, 'ipv4' => $ipv4,
+        'observed_at' => $observed, 'received_at' => $received, 'catalog' => $catalog, 'zones' => $zones];
+}
+
+function bridgeDnsInteger(mixed $value): int {
+    if (!(is_int($value) || (is_string($value) && preg_match('/\A[1-9][0-9]{0,15}\z/D', $value)))
+        || (int)$value < 1 || (int)$value > 9007199254740991) { throw new RuntimeException('dns_integer'); }
+    return (int)$value;
+}
+
+/** Fixed actual model/database reader. No cache API or mutable model method. */
+function bridgeDnsOwnershipRead(array $config, array $enrollment, array $identity, int $observed): array {
+    $expected = $config['binding'];
+    return Illuminate\Support\Facades\DB::transaction(static function () use ($config, $expected, $enrollment, $identity, $observed): array {
+        $instance = App\Models\CloudInstance::query()->whereKey((int)$expected['instance_id'])
+            ->first(['id', 'service_id', 'provider', 'provider_ref', 'ipv4']);
+        $service = App\Models\Service::query()->whereKey((int)$expected['service_id'])
+            ->with('customer:id,code')->first(['id', 'customer_id', 'provision_meta']);
+        if (!$instance || !$service || (int)$instance->service_id !== (int)$service->id
+            || (int)$service->customer_id !== (int)$expected['owner_id']
+            || (string)$service->customer?->code !== (string)$expected['owner_code']
+            || $instance->provider !== 'hetzner' || (string)$instance->provider_ref !== $identity['provider_id']
+            || !$service->isInternalInfrastructure()
+            || !app(App\Services\Billing\ComplimentaryServices::class)->customerExempt($service->customer)) {
+            throw new RuntimeException('dns_protected_binding');
+        }
+        $rows = App\Models\CdnZone::query()->whereIn('id', $enrollment['zone_ids'])
+            ->where('customer_id', $enrollment['binding']['owner_id'])->orderBy('id')
+            ->toBase()->get(['id', 'customer_id', 'domain', 'mode', 'status', 'publish_state'])
+            ->map(static fn ($row): array => (array)$row)->all();
+        // Read ONE actual setting. Setting::get()/DnsConfig::catalog() load all
+        // settings through cache and may silently invent a fallback.
+        $catalog = Illuminate\Support\Facades\DB::table('settings')->where('key', 'dns_catalog_zone')
+            ->limit(2)->pluck('value')->all();
+        if (count($catalog) !== 1) { throw new RuntimeException('dns_catalog_missing'); }
+        return bridgeDnsOwnershipSource($enrollment, $config['dns_ownership']['sha256'], $identity,
+            (string)$instance->ipv4, $rows, $catalog[0], $observed, time());
+    });
+}
+
 /** The private PHP configuration cannot broaden the pinned application scope. */
 function bridgePanelBinding(array $config): array {
     $registry = $config['production_driver']['registry'] ?? [];
@@ -403,8 +532,17 @@ try {
     $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
     $operation = $request['op'] ?? '';
-    if (!in_array($operation, ['describe', 'credentials', 'protect', 'promote', 'reconcile_promotion'], true)) { failBridge('operation'); }
+    if (!in_array($operation, ['describe', 'credentials', 'protect', 'promote', 'reconcile_promotion', 'dns_ownership'], true)) { failBridge('operation'); }
     $now = time();
+    if ($operation === 'dns_ownership') {
+        if (array_keys($request) !== ['op']) { failBridge('dns_request_fields'); }
+        $enrollment = bridgeDnsOwnershipEnrollment($config);
+        $identity = bridgeDnsOwnershipCurrent($config, $enrollment);
+        $result = bridgeDnsOwnershipRead($config, $enrollment, $identity, $now);
+        if (bridgeDnsOwnershipEnrollment($config) !== $enrollment
+            || bridgeDnsOwnershipCurrent($config, $enrollment) !== $identity) { throw new RuntimeException('dns_scope_changed'); }
+        fwrite(STDOUT, bridgeCanonical($result)."\n"); exit(0);
+    }
     $continuation = $operation === 'promote' ? ($request['continuation'] ?? null) : null;
     $plan = in_array($operation, ['promote', 'reconcile_promotion'], true)
         ? bridgePromotionPlan($config, (string)($request['intent_id'] ?? ''), $now, $operation === 'reconcile_promotion', $continuation) : null;
