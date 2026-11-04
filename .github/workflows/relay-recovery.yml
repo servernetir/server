@@ -35,7 +35,9 @@ jobs:
           php -l infra/relay_recovery/servernet_bridge.php
           php -l infra/relay_recovery/agent-endpoint.php.tpl
           test_php="$(command -v php)"
-          sudo unshare --net -- python3 -B -m unittest discover -s infra/relay_recovery/tests -q
+          # Enable only namespace-local loopback for UDP/TCP fixture sockets.
+          sudo unshare --net -- sh -c 'set -eu; ip link set lo up; exec "$@"' sh \
+            python3 -B -m unittest discover -s infra/relay_recovery/tests -q
           sudo unshare --net -- "$test_php" infra/relay_recovery/tests/test_bridge_helpers.php
 
   native-windows-contracts:
