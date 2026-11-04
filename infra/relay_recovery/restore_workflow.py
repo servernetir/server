@@ -241,7 +241,29 @@ class RestoreWorkflow:
         if restored:
             s=self._scope(w)['candidate']
             good=good and core.Engine._restore_bound(r,s)
+        try:self._isolated_trial_deadline(r)
+        except RestoreError:return False
         return good
+
+    def _isolated_trial_deadline(self,r):
+        """Honor an explicit isolated proof; never infer/renew its deadline.
+
+        Other existing callback contracts keep their separate freshness rules.
+        A legacy callback is not relabeled as this isolated acceptance profile.
+        """
+        if not isinstance(r,dict):raise RestoreError('isolated_trial_proof_missing')
+        if ('proof_expires_at'not in r and r.get('operation')!='stage_trial'
+                and r.get('acceptance_profile')!='isolated_candidate_v1'):return None
+        expiry=r.get('proof_expires_at');observed=r.get('observed_at');received=r.get('received_at');now=self.now()
+        if (r.get('schema')!='servernet.relay.driver.observation.v1'or r.get('operation')!='stage_trial'
+                or r.get('acceptance_profile')!='isolated_candidate_v1'or r.get('path_profile')!='candidate_socks_v1'
+                or r.get('read_only')is not True or r.get('verified')is not True
+                or r.get('default_path_verified')is not False or r.get('global_cutover_performed')is not False
+                or type(expiry)is not int or type(observed)is not int or type(received)is not int
+                or not observed<expiry<=observed+30 or not now<expiry
+                or not 0<=now-observed<30 or not 0<=now-received<30):
+            raise RestoreError('isolated_trial_proof_expired_or_invalid')
+        return expiry
 
     def _callback(self,name,w):
         callback=self.callbacks.get(name)
@@ -345,6 +367,14 @@ class RestoreWorkflow:
                     or state['candidate'].get('restore_hash')!=w.get('restore_hash')):return False
             if not permit['created_at']<=self.now()<permit['expires_at']:return False
         elif state['candidate'].get('restore_pending',{}).get('workflow_id')!=w['id']:return False
+        if row['kind']=='FENCE_SOURCE':
+            trial=w.get('proofs',{}).get('trial')
+            try:deadline=self._isolated_trial_deadline(trial)
+            except RestoreError:return False
+            if deadline is not None:
+                if (core.canonical(body.get('trial_proof'))!=core.canonical(trial)
+                        or permit['expires_at']>deadline or not self._bound(trial,w)):return False
+            elif 'trial_proof'in body:return False
         if row['kind']!='FENCE_SOURCE' and w.get('source_fenced')is not True:return False
         return True
 
@@ -385,12 +415,19 @@ class RestoreWorkflow:
 
     def _mutation(self,w,kind,params=None):
         now=self.now();operation_id=str(uuid.uuid4());params=params or {}
+        trial=None;deadline=None;expiry=now+30
+        if kind=='FENCE_SOURCE':
+            trial=w.get('proofs',{}).get('trial');deadline=self._isolated_trial_deadline(trial)
+            if deadline is not None:
+                if not self._bound(trial,w):raise RestoreError('isolated_trial_scope_changed')
+                expiry=min(expiry,deadline)
+                if not self.now()<expiry:raise RestoreError('isolated_trial_proof_expired_or_invalid')
         if kind in ('FENCE_SOURCE','ADOPT_CLONE','ACTIVATE_CANDIDATE'):
             target=w['source'] if kind=='FENCE_SOURCE' else w['candidate']
             permit=dict(schema='servernet.relay.lifecycle.permit.v1',workflow_id=w['id'],intent_id=operation_id,
                 kind=STAGES[kind],service_id=self.policy.service_id,
                 target={k:target[k] for k in ('provider_id','generation','config_hash')},params=params,
-                created_at=now,expires_at=now+30);backend='lifecycle'
+                created_at=now,expires_at=expiry);backend='lifecycle'
         else:
             permit=dict(intent_id=operation_id,workflow_id=w['id'],kind=STAGES[kind],incident_id=w['incident_id'],
                 source_identity=core.identity(w['source']),config_hash=w['source']['config_hash'],created_at=now,expires_at=now+30)
@@ -400,6 +437,7 @@ class RestoreWorkflow:
                 candidate_no_writes=True,candidate_never_promoted=True)
             backend='snapshot'
         body=dict(permit=permit,backend=backend)
+        if kind=='FENCE_SOURCE'and deadline is not None:body['trial_proof']=trial
         with self.store.transaction() as db:
             db.execute('INSERT INTO actions VALUES(?,?,?,?,?,NULL)',(operation_id,w['id'],kind,core.canonical(body),'COMMITTED'))
             db.execute('INSERT INTO authorizations VALUES(?,?,?)',(str(uuid.uuid4()),operation_id,core.canonical(permit)))
@@ -627,7 +665,11 @@ class RestoreWorkflow:
             if (not self._bound(r,w) or not all(r.get(k)is True for k in READINESS) or not self._bound(trial,w)
                     or not all(trial.get(k)is True for k in ('network_ok','isolated_egress_ok','staging_isolated','live_dependencies_unchanged'))):
                 w['reason']='FENCE_PREFLIGHT_EXPIRED'
-            else:return self._mutation(w,phase)
+            else:
+                # Persist the exact latest callback proof, not the earlier
+                # VERIFY_TRIAL_NETWORK observation, before admitting FENCE.
+                w['proofs']['trial']=trial
+                return self._mutation(w,phase)
         elif phase in ('SHUTDOWN_SOURCE','FINAL_SNAPSHOT','REBUILD_CANDIDATE'):return self._mutation(w,phase)
         elif phase=='BOOTSTRAP_QUARANTINE':self._quarantine(w)
         elif phase=='ADOPT_CLONE':

@@ -53,6 +53,8 @@ class ProductionHooks:
     registry(context): live complete catalogue observation, capabilities and
     actual resource proof digests. apply(permit,context,authorizer): a write ACK.
     reconcile(permit,context): READ-ONLY observation; never repeats apply.
+    A trial observation retains proof_expires_at<=observed_at+30; general
+    receipt_max_age and a cached VERIFIED disposition cannot extend that proof.
     cutover_verify(context): fresh actual resource/critical-consumer/CRM proofs.
     retirement_verify(context): separate fresh old-reference/backup/TTL evidence.
     crm_apply/crm_reconcile: separately journaled panel transaction and actual
@@ -158,6 +160,13 @@ class ProductionDriver:
             and 0<=self.now()-value['received_at']<=self.policy.receipt_max_age
             and 0<=self.now()-value['observed_at']<=self.policy.receipt_max_age
             and value['observed_at']<=value['received_at']+5)
+
+    def _trial_current(self,value):
+        """A trial's original isolated lease is stricter than general receipts."""
+        now=self.now();expiry=value.get('proof_expires_at');observed=value.get('observed_at');received=value.get('received_at')
+        return (type(expiry)is int and type(observed)is int and type(received)is int
+                and observed<expiry<=observed+30 and now<expiry
+                and 0<=now-observed<30 and 0<=now-received<30)
 
     def _resources(self,proof):
         resources=proof.get('resource_proofs',[])
@@ -376,7 +385,11 @@ class ProductionDriver:
         row=self.store.step(parent,kind)
         body=json.loads(row['body']);permit=body['permit'];original=body['context']
         if core.canonical(original)!=core.canonical(context):raise DriverError('immutable_hook_scope_changed')
-        if row['phase']=='VERIFIED':return json.loads(row['result'])
+        # VERIFIED is durable historical disposition, not renewable health.
+        # Trial consumers must re-read the same claim's read-only evidence; a
+        # stale cache cannot bypass its original 30-second isolated deadline.
+        # No VERIFIED/DISPATCHED row can re-enter the mutation apply branch.
+        if row['phase']=='VERIFIED'and kind!='TRIAL_STAGE':return json.loads(row['result'])
         reconcile={'TRIAL_STAGE':self.hooks.trial_reconcile,'EXTERNAL_CUTOVER':self.hooks.cutover_reconcile,
                    'CRM_PROMOTION':self.hooks.crm_reconcile}[kind]
         result=reconcile(permit,original)
@@ -385,8 +398,13 @@ class ProductionDriver:
         if result.get('state')!='complete':return None
         if kind=='TRIAL_STAGE'and not all(result.get(k)is True for k in ('isolation_verified','network_verified','ct_egress_verified','live_dependencies_unchanged')):
             return None
+        if kind=='TRIAL_STAGE'and not self._trial_current(result):return None
         if kind=='CRM_PROMOTION'and result.get('panel_committed')is not True:return None
-        with self.store.transaction()as db:db.execute("UPDATE steps SET phase='VERIFIED',result=? WHERE id=?",(core.canonical(result),row['id']))
+        # Retain the first terminal observation byte-for-byte. Later fresh
+        # trial observations already have their own immutable collector history.
+        if row['phase']!='VERIFIED':
+            with self.store.transaction()as db:db.execute("UPDATE steps SET phase='VERIFIED',result=? WHERE id=?",(core.canonical(result),row['id']))
+        if kind=='TRIAL_STAGE'and not self._trial_current(result):return None
         return result
 
     def _parent(self,state):

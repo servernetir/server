@@ -69,7 +69,7 @@ class DriverTests(unittest.TestCase):
     def trial_reconcile(self,p,c):
         self.reads.append('trial');return self.observation('stage_trial',c,intent_id=p['intent_id'],
             state='complete'if self.trial_complete else'pending',isolation_verified=True,network_verified=True,
-            ct_egress_verified=True,live_dependencies_unchanged=True)
+            ct_egress_verified=True,live_dependencies_unchanged=True,proof_expires_at=self.f.now+30)
     def cutover_apply(self,p,c,authorize):
         self.f.now+=self.cutover_delay
         if self.cutover_make_bad:self.collector.bad=True
@@ -136,6 +136,38 @@ class DriverTests(unittest.TestCase):
         self.assertEqual([],self.helper.lifecycle_writes)
         row=self.driver.store.step(self.f.effects.store.read_resource('51').labels['sn-intent'],'TRIAL_STAGE')
         self.assertEqual('DISPATCHED',row['phase'])
+
+    def verified_trial(self):
+        self.tick();state=self.f.state();parent=self.f.effects.store.read_resource('51').labels['sn-intent']
+        context=self.driver._context(state,parent)
+        proof=self.driver._hook_step(parent,'TRIAL_STAGE',context)
+        self.assertEqual('VERIFIED',self.driver.store.step(parent,'TRIAL_STAGE')['phase'])
+        return parent,context,proof
+
+    def test_verified_trial_cache_cannot_outlive_original_deadline_or_redispatch(self):
+        parent,context,proof=self.verified_trial();before=self.driver.store.step(parent,'TRIAL_STAGE')
+        calls=[]
+        def read(p,c):calls.append((p,c));return copy.deepcopy(proof)
+        self.driver.hooks=dataclasses.replace(self.hooks,trial_reconcile=read)
+        self.f.now=proof['proof_expires_at']
+        self.assertIsNone(self.driver._hook_step(parent,'TRIAL_STAGE',context))
+        self.assertEqual(1,len(calls));self.assertEqual(before,self.driver.store.step(parent,'TRIAL_STAGE'))
+        self.assertEqual(['trial'],[a[0]for a in self.applies]);self.assertEqual([],self.helper.lifecycle_writes)
+
+    def test_fresh_read_after_verified_trial_preserves_terminal_history_and_permit(self):
+        parent,context,old=self.verified_trial();before=self.driver.store.step(parent,'TRIAL_STAGE')
+        self.f.now+=2
+        fresh=self.driver._hook_step(parent,'TRIAL_STAGE',context)
+        self.assertGreater(fresh['observed_at'],old['observed_at'])
+        self.assertEqual(before,self.driver.store.step(parent,'TRIAL_STAGE'))
+        self.assertEqual(['trial'],[a[0]for a in self.applies])
+
+    def test_trial_missing_or_extended_deadline_is_ineligible_even_with_policy_fresh_receipt(self):
+        parent,context,proof=self.verified_trial()
+        for value in (None,True,proof['observed_at']+31):
+            bad={**proof,'proof_expires_at':value}
+            self.driver.hooks=dataclasses.replace(self.hooks,trial_reconcile=lambda p,c:bad)
+            with self.subTest(value=value):self.assertIsNone(self.driver._hook_step(parent,'TRIAL_STAGE',context))
 
     def test_unreachable_trial_deadline_cleanup_waits_for_server_and_ip_absence(self):
         self.trial_complete=False;self.tick();self.cleanup=True

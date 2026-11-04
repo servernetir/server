@@ -14,7 +14,7 @@ import unittest
 INFRA=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(INFRA))
 from relay_recovery import core
-from relay_recovery.restore_workflow import RestoreWorkflow,READINESS
+from relay_recovery.restore_workflow import RestoreWorkflow,RestoreError,READINESS
 from relay_recovery.snapshot_adapter import SnapshotAdapter
 
 SPEC=importlib.util.spec_from_file_location('restore_snapshot_fixture',Path(__file__).with_name('test_snapshot_adapter.py'))
@@ -127,6 +127,13 @@ class RestoreTests(unittest.TestCase):
         return {**self.bound(c),'network_ok':self.trial_good,'isolated_egress_ok':self.trial_good,
                 'staging_isolated':True,'live_dependencies_unchanged':True}
 
+    def isolated_trial(self,c,remaining=30):
+        observed=self.f.now-(30-remaining)
+        return {**self.trial(c),'schema':'servernet.relay.driver.observation.v1','operation':'stage_trial',
+                'acceptance_profile':'isolated_candidate_v1','path_profile':'candidate_socks_v1','read_only':True,
+                'default_path_verified':False,'global_cutover_performed':False,
+                'observed_at':observed,'proof_expires_at':observed+30}
+
     def readiness(self,c):
         return {**self.bound(c),**{k:self.ready for k in READINESS},'host_fingerprint':c['host_fingerprint']}
 
@@ -189,6 +196,81 @@ class RestoreTests(unittest.TestCase):
         self.tick()
         self.assertEqual('fence',self.lifecycle_writes[0][0]);self.assertTrue(self.wf.collect()['cleanup_forbidden'])
         self.assertFalse(self.wf.collect()['source_rollback_allowed'])
+
+    def test_explicit_isolated_trial_cannot_use_general_ninety_second_bound(self):
+        self.until('PRE_FENCE_READINESS');w=self.wf.store.get();proof=self.isolated_trial(self.wf._context(w))
+        self.assertTrue(self.wf._bound(proof,w));self.f.now=proof['proof_expires_at']
+        self.assertLess(self.f.now-proof['received_at'],self.f.policy.receipt_max_age)
+        self.assertFalse(self.wf._bound(proof,w));self.assertEqual([],self.lifecycle_writes)
+        for expiry in (None,True,proof['observed_at']+31):
+            self.assertFalse(self.wf._bound({**proof,'proof_expires_at':expiry},w))
+
+    def test_fence_permit_is_capped_to_exact_latest_callback_proof_and_retained(self):
+        self.wf.callbacks['trial_network']=self.isolated_trial;self.until('FENCE_SOURCE')
+        proofs=[]
+        def callback(c):
+            proof=self.isolated_trial(c,remaining=4);proofs.append(copy.deepcopy(proof));return proof
+        self.wf.callbacks['trial_network']=callback;self.tick()
+        operation=self.lifecycle_writes[0][2];row=self.wf.store.action(operation);body=json.loads(row['body'])
+        self.assertEqual(body['permit']['expires_at'],proofs[0]['proof_expires_at'])
+        self.assertEqual(4,body['permit']['expires_at']-body['permit']['created_at'])
+        self.assertEqual(proofs[0],body['trial_proof']);self.assertEqual(proofs[0],self.wf.store.get()['proofs']['trial'])
+        self.assertEqual('COMPLETE',row['status'])
+
+    def test_trial_expiring_between_callback_and_consumer_never_admits_fence(self):
+        self.until('FENCE_SOURCE')
+        def delayed(c):
+            proof=self.isolated_trial(c);self.f.now+=30;return proof
+        self.wf.callbacks['trial_network']=delayed;self.tick()
+        self.assertEqual([],self.lifecycle_writes);self.assertEqual('FENCE_SOURCE',self.wf.collect()['phase'])
+        self.assertEqual('FENCE_PREFLIGHT_EXPIRED',self.wf.collect()['reason'])
+        with self.wf.store.transaction()as db:
+            self.assertEqual(0,db.execute("SELECT COUNT(*)FROM actions WHERE kind='FENCE_SOURCE'").fetchone()[0])
+
+    def test_fence_authorizer_cannot_outlive_trial_or_mint_a_second_permit(self):
+        self.wf.callbacks['trial_network']=self.isolated_trial;self.until('FENCE_SOURCE');captured=[]
+        client=self.clients['40']
+        def late(permit):
+            captured.append(copy.deepcopy(permit));self.assertTrue(self.wf.authorize_lifecycle(permit))
+            self.f.now=permit['expires_at'];self.assertFalse(self.wf.authorize_lifecycle(permit))
+            return dict(state='unknown',intent_id=permit['intent_id'])
+        client.fence=late;self.tick()
+        self.assertEqual([],self.lifecycle_writes);self.assertEqual(1,len(captured))
+        row=self.wf.store.action(captured[0]['intent_id']);original=copy.deepcopy(row)
+        self.tick();self.tick()
+        after=self.wf.store.action(captured[0]['intent_id'])
+        self.assertEqual(original['body'],after['body'])
+        with self.wf.store.transaction()as db:
+            self.assertEqual(1,db.execute("SELECT COUNT(*)FROM actions WHERE kind='FENCE_SOURCE'").fetchone()[0])
+            self.assertEqual(1,db.execute('SELECT COUNT(*)FROM authorizations WHERE action_id=?',(captured[0]['intent_id'],)).fetchone()[0])
+
+    def test_fence_authorizer_binds_original_proof_not_a_new_same_scope_timestamp(self):
+        self.wf.callbacks['trial_network']=self.isolated_trial;self.until('FENCE_SOURCE')
+        def changed(permit):
+            self.assertTrue(self.wf.authorize_lifecycle(permit));w=self.wf.store.get()
+            w['proofs']['trial']['received_at']-=1;self.wf.store.save(w)
+            self.assertFalse(self.wf.authorize_lifecycle(permit))
+            return dict(state='unknown',intent_id=permit['intent_id'])
+        self.clients['40'].fence=changed;self.tick();self.assertEqual([],self.lifecycle_writes)
+
+    def test_fence_authorizer_rejects_current_scope_and_disabled_policy(self):
+        self.wf.callbacks['trial_network']=self.isolated_trial;self.until('FENCE_SOURCE')
+        def guarded(permit):
+            self.assertTrue(self.wf.authorize_lifecycle(permit));original=self.f.state()
+            changes=[lambda s:s['candidate'].update(provider_id='99'),lambda s:s['candidate'].update(config_hash='f'*64),
+                     lambda s:s['active'].update(provider_id='99'),lambda s:s.update(incident_id='different')]
+            for change in changes:
+                state=copy.deepcopy(original);change(state)
+                with sqlite3.connect(self.f.root/'controller.sqlite3')as db:db.execute('UPDATE state SET body=?',(core.canonical(state),))
+                try:approved=self.wf.authorize_lifecycle(permit)
+                except RestoreError:approved=False
+                self.assertFalse(approved)
+            with sqlite3.connect(self.f.root/'controller.sqlite3')as db:db.execute('UPDATE state SET body=?',(core.canonical(original),))
+            prior=self.wf.policy;self.wf.policy=dataclasses.replace(prior,enabled=False)
+            self.assertFalse(self.wf.authorize_lifecycle(permit));self.wf.policy=prior
+            self.wf.options['enabled']=False;self.assertFalse(self.wf.authorize_lifecycle(permit));self.wf.options['enabled']=True
+            return dict(state='unknown',intent_id=permit['intent_id'])
+        self.clients['40'].fence=guarded;self.tick();self.assertEqual([],self.lifecycle_writes)
 
     def test_unknown_source_fence_only_reconciles_never_writes_another_uuid(self):
         self.unknown.add('fence')
