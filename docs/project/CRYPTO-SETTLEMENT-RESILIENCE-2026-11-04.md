@@ -98,7 +98,13 @@ absent. The unchanged PaymentService was checked, not replaced.
   unchanged and its original unpaid invoice canceled.
 - At 12:27:45 UTC, 332 retained crypto error records were reviewed through
   sanitized counts only; none was new since installation. The last retained
-  crypto error was 09:41 UTC. This observation is bounded by log retention.
+  crypto error was 09:14:09 UTC. This observation is bounded by log retention.
+- Final private acceptance at **12:31:28 UTC** rechecked the three hashes, the
+  single migration record and all 1,012 old reference digests. The heartbeat had
+  advanced again to 12:31:03; no new crypto error appeared, the crypto mutex was
+  free and the previously resolved credit/invoice remained unchanged. The exact
+  temporary helper was absent. The receipt is acceptance.json in the same private
+  release directory; it contains only bounded verification metadata.
 
 There were zero watchable checkouts and zero existing 66-character crypto payment
 references during acceptance. Thus live schema preservation, installation and
