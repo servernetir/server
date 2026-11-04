@@ -190,3 +190,15 @@ tests reproduced six failing interleavings before the fix; the updated suite has
 78 passing local tests, including a third check for genuine current responses.
 The tests use threads, independent Engine instances, temporary SQLite and mock
 provider calls. No VM127 installation or live provider acceptance was performed.
+
+
+## 2026-11-04: stale verification results
+
+Verification success and failure now update only the same media ID still in
+VERIFYING. A delayed failed verification cannot downgrade PUBLISHED or overwrite
+the error for a reconciled media ID; a stale success cannot attach an old media
+receipt to a new ID. Current failures remain retryable without republishing.
+Baseline 78 tests passed. Before the fix, three new regression cases reproduced
+the races. All 82 local tests now pass, including a real threaded two-worker
+interleaving and a current-failure recovery check. compileall and pip check pass.
+No VM127 installation, live publication or provider permission test was done.

@@ -529,6 +529,62 @@ class ExecutorTests(unittest.TestCase):
                 self.assertEqual(api.published, 0)
 
 
+    def test_late_verification_failure_preserves_completed_receipt(self):
+        self.engine.prepare(self.key)
+        self.engine.journal.update(self.key, "VERIFYING", media_id="999")
+        entered, release = Event(), Event()
+        def delayed_failure(*args):
+            entered.set()
+            if not release.wait(3):
+                raise RuntimeError("test_release_timeout")
+            raise Blocked("media_not_visible")
+        slow = FakeInstagram()
+        slow.verify_media = delayed_failure
+        second = Engine(self.f.policy(), FakeDrive(), FakeStore(), lambda lang: self.api, lambda: NOW)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            pending = pool.submit(self.engine.verify, self.key, slow)
+            try:
+                self.assertTrue(entered.wait(3))
+                expected = second.verify(self.key, self.api)
+                self.assertEqual(expected["state"], "PUBLISHED")
+            finally:
+                release.set()
+            self.assertEqual(pending.result(3), expected)
+        self.assertEqual(second.receipt(self.key), expected)
+        self.assertIn("untrusted_customer_content", second.read_comments(self.key))
+        self.assertEqual(self.api.published, 0)
+
+    def test_old_media_verification_failure_cannot_touch_reconciled_media(self):
+        self.engine.prepare(self.key)
+        self.engine.journal.update(self.key, "VERIFYING", media_id="999")
+        def replace_then_fail(*args):
+            self.engine.journal.update(self.key, "VERIFYING", media_id="1000", error="new_media_pending")
+            raise Blocked("old_media_failed")
+        self.api.verify_media = replace_then_fail
+        result = self.engine.verify(self.key, self.api)
+        self.assertEqual((result["media_id"], result["error"]), ("1000", "new_media_pending"))
+
+    def test_old_media_verification_success_cannot_verify_new_media(self):
+        self.engine.prepare(self.key)
+        self.engine.journal.update(self.key, "VERIFYING", media_id="999")
+        original = self.api.verify_media
+        def replace_then_succeed(*args):
+            self.engine.journal.update(self.key, "VERIFYING", media_id="1000")
+            return original(*args)
+        self.api.verify_media = replace_then_succeed
+        result = self.engine.verify(self.key, self.api)
+        self.assertEqual((result["state"], result["media_id"], result["receipt"]), ("VERIFYING", "1000", None))
+
+    def test_current_verification_failure_remains_retryable(self):
+        self.engine.prepare(self.key)
+        self.engine.journal.update(self.key, "VERIFYING", media_id="999")
+        self.api.fail_verify = True
+        result = self.engine.verify(self.key, self.api)
+        self.assertEqual((result["state"], result["error"]), ("VERIFYING", "media_not_visible"))
+        self.api.fail_verify = False
+        self.assertEqual(self.engine.verify(self.key, self.api)["state"], "PUBLISHED")
+
+
 class CommentPaginationRegressionTests(unittest.TestCase):
     def setUp(self):
         self.f = Fixture()
@@ -1088,6 +1144,7 @@ class ConfigureInstagramEncodingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

@@ -224,9 +224,18 @@ class Engine:
                 raise Blocked("published_caption_mismatch")
             evidence.pop("caption", None)
             evidence.update(username=job["username"], verified_at=self.clock().isoformat())
-            self.journal.update(key, "PUBLISHED", receipt=evidence)
+            with self.journal.db() as db:
+                # Only this media's still-pending verification may consume the result.
+                db.execute("UPDATE publications SET state='PUBLISHED',error=NULL,receipt=? "
+                           "WHERE key=? AND state='VERIFYING' AND media_id=?",
+                           (json.dumps(evidence, ensure_ascii=False), key, row["media_id"]))
         except Exception as error:
-            self.journal.update(key, "VERIFYING", error=str(error) if isinstance(error, Blocked) else "verification_pending")
+            # A slower worker must not downgrade PUBLISHED or touch reconciled media.
+            with self.journal.db() as db:
+                db.execute("UPDATE publications SET error=? "
+                           "WHERE key=? AND state='VERIFYING' AND media_id=?",
+                           (str(error) if isinstance(error, Blocked) else "verification_pending",
+                            key, row["media_id"]))
         return self.receipt(key)
 
     def reconcile(self, key):
@@ -373,6 +382,7 @@ class Engine:
         with self.journal.db() as db:
             db.execute("UPDATE comments SET state='REPLIED' WHERE id=? AND lang=?", (comment_id, job["lang"]))
         return {"comment_id": comment_id, "reply_id": reply_id, "state": "REPLIED"}
+
 
 
 
