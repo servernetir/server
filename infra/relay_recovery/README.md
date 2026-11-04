@@ -21,6 +21,7 @@ the integration.
 | `production_driver.py` | Default-off restore/cutover sequencer with separate durable external and CRM claims |
 | `production_hooks.py` | Typed Cloudflare/origin/lifecycle components; the complete global coordinator is still required |
 | `isolated_verifier_enrollment.py` | Explicit private guest verifier enrollment, pins and durable replay checks |
+| `isolated_trial.py` | Private read-only CT/dependency/native-guest composite evidence producer; no scheduler or global readiness binding |
 | `gateway.py`, `agent-endpoint.php.tpl` | Signed data exchange and durable receipt inbox |
 | `agent.py`, `protocol.py` | Root agent, replay protection, durable outbox and acknowledgement |
 | `iran_adapter.py`, `iran_probes.py` | Fixed, hash-pinned local probes and recipes |
@@ -153,6 +154,43 @@ guest envelope; no proxy transport or production enrollment is supplied.
 describe its boundary. Missing actual transport, native/live acceptance,
 registry ownership, publisher coordination or production hooks keeps the
 workflow on HOLD; no core profile gate is enabled by this contract.
+
+`isolated_trial.IsolatedTrialProducer` now supplies a finite private in-process
+producer for that evidence. It accepts separate, already authenticated isolated
+guest and CT accept contexts, requiring the same target, full scope, resource,
+profile and restore identity. Their different existing parameter grammars remain
+unchanged. It reads an enrolled dependency baseline, performs a fresh real
+`NodeStage`/CT accept, obtains the native Windows signed candidate envelope and
+reads the dependencies again, then invokes the actual enrolled isolated verifier.
+Its result contains only isolated proof; it does not implement `ProductionHooks`,
+restore callbacks or global readiness. Ordinary publisher `publish_accept` is
+still a separate operation.
+
+Its canonical, privately hash-pinned config has exactly `schema`, `agent_id`,
+`enabled` and `{path,sha256}` references named `node_stage`, `windows`,
+`candidate_proxy`, `verifier`, `dependencies`. The schema is
+`servernet.relay.isolated-trial.config.v1`. The dependency catalogue has schema
+`servernet.relay.isolated-trial.dependencies.v1`, the exact agent ID and 2–32
+resources: file entries `{id,kind:"file",location,path}` or unit entries
+`{id,kind:"unit",location,unit}`; location is only `pve` or fixed `ct113`. Both
+kinds are required. Every declared resource must be read. State hashes include
+file bytes and loaded unit/process/start-time state; no raw config is returned.
+Coverage refers to this finite catalogue and does not prove global completeness.
+
+Use `inspect_dependencies()` to measure its finite baseline, then bind that
+digest and the catalogue pin in an authenticated isolated request. `produce()`
+does not accept a caller-provided observer, guest envelope or success flag.
+Missing candidate enrollment fails before guest key/state/network access; an
+unavailable native proxy path remains a HOLD. Separate guest transport and final
+verifier replay stores are required. The composite shares a bounded deadline and
+preserves original proof clocks. Opt-in `NodeStage.run(...,fresh_accept=True)`
+rejects any existing context under its dispatch lock; cached ordinary accept
+receipts cannot become fresh CT measurements. A repeated context requires a new
+authenticated read-only job. No proxy listener or production enrollment is created.
+The producer's separate offline validation passed 174 related tests, including
+17 composite tests, using actual NodeStage/CT/client/verifier code with only OS and
+guest wire transports replaced. This source delta has no live acceptance or
+new CI result yet; the older suite/CI counts below cover earlier source.
 
 The 3 November integration checkpoint passed 707 Python tests on Python 3.12.14
 and 72 PHP helper assertions on PHP 8.3.6. These are offline results; they do not

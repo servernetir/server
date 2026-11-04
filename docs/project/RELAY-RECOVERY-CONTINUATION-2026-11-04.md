@@ -3,8 +3,9 @@
 وضعیت: **اجزای جدید کد با آزمون آفلاین و بازبینی مستقل؛ بازیابی خودکار سراسری هنوز فعال نشده است.**
 این تغییر ادامهٔ [بستهٔ ۳ نوامبر](RELAY-RECOVERY-PACKAGE-2026-11-03.md)
 در PR۲۵۸ است. انتشار کد، نصب و پذیرش محیط واقعی را اثبات نمی‌کند.
-مبنای ادامهٔ نهایی اجزا `acbf7e83bab96061720ba3119b20ac0b98a46120` است؛
-نسخهٔ نهایی Git و نتیجهٔ CI در رکورد انتشار همان PR ثبت می‌شوند.
+اجزای پل و publisher در پایهٔ منتشرشدهٔ `7cae80a54409a6a73e4aca2a1bbfcf5402af8f45`
+ثبت شده‌اند. ادامهٔ محدودِ producer ایزوله و پروب DNS روی همین پایه است؛
+این ادامه هنوز commit، نصب یا CI تازه ندارد.
 
 ## تغییر رفتار
 
@@ -59,10 +60,29 @@ process در CT از یک به سه ثانیه رسید؛ سقف هشت‌ثان
 فعال‌سازی timer را انجام نمی‌دهند. `build_integrations()` در حالت فعال همچنان
 با `production_hooks_global_integration_incomplete` متوقف می‌شود.
 
+producer جدید `isolated_trial.IsolatedTrialProducer`، زمینه‌های احرازشدهٔ جداگانهٔ
+CT و مهمان را به یک target، scope و هویت trial/restore مقید می‌کند. فهرست خصوصی
+وابستگی‌های ثبت‌شده را پیش و پس از پذیرش تازهٔ NodeStage/CT و پاسخ امضاشدهٔ
+native Windows candidate می‌خواند و verifier واقعی را اجرا می‌کند. گزینهٔ محدود
+`fresh_accept=True` زیر قفل NodeStage، پذیرش cacheشده را به مدرک تازه تبدیل
+نمی‌کند. نبود enrollment مسیر candidate پیش از دسترسی به مهمان متوقف می‌شود؛
+این جزء scheduler، راه‌اندازی proxy یا factory سراسری نیست و پوشش وابستگی‌ها
+فقط مربوط به فهرست صریح ثبت‌شده است.
+
+پروب فقط‌خواندنیِ `dns_consumer_probe.py` نیز برای قرارداد موجود
+`consumer_probes.dns` اضافه شده است. پس از تطبیق binding مالک/سرویس/پروژه،
+target و مدرک مالکیتِ پین‌شده و دارای مهلت، از IPv4 خصوصی مهمان ثبت‌شده، SOA
+مرجع و ثانویه را در هر دو UDP/TCP می‌سنجد. تطبیق کاتالوگ به‌تنهایی کافی نیست؛
+تمام zoneهای صریح متعلق به سرویس باید پاسخ معتبر و همسان بدهند. نصب این پروب،
+انتخاب واقعی zoneها، تولید/تازه‌سازی مدرک مالکیت از metadata معتبر و transport
+پین‌شده هنوز انجام نشده‌اند. جزئیات و مرزهای پذیرش در
+[راهنمای DNS](../../infra/relay_recovery/native_dns_consumer_notes.md) ثبت است.
+
 ## پذیرش‌های باقی‌مانده
 
 - ثبت کامل وابستگی‌ها و پیکربندی پروب‌های DNS، ذخیره‌سازی و VPN؛ نبودن recipe
-  به‌تنهایی خرابی سرویس را ثابت نمی‌کند.
+  به‌تنهایی خرابی سرویس را ثابت نمی‌کند. وجود producer و پروب جدید در سورس نیز
+  جای enrollment و پذیرش native امضاشدهٔ محیط واقعی را نمی‌گیرد.
 - اتصال و enrollment واقعی اجزای ایران و CRM در coordinator سراسری، همراه
   handlerهای مصرف‌کنندگان، DNS معتبر، restore و کنترل سلامت origin.
 - پذیرش تراکنش مدل‌های واقعی CRM روی MariaDB؛ آزمون pipe و قالب رسید جای این
@@ -86,9 +106,10 @@ process در CT از یک به سه ثانیه رسید؛ سقف هشت‌ثان
 بازبینی مستقل موفق بودند. آزمون‌های واقعیِ قالب رسید و DNS ناقص نیز پوشش دارند.
 اصلاح انتقال مهلت، ۴۲ آزمون backend و ۸۰ آزمون سازگاری عامل/adapter/پروتکل را
 با بازبینی مستقل گذراند؛ نتیجهٔ CI تازه در PR ثبت می‌شود.
-اجرای جامع محلی به مالک غیر root ابزار SSH و فرض قدیمی تست دربارهٔ مجوز tmp
-برخورد کرد؛ محافظ تولید ضعیف نشد. آخرین CI پیش از این تغییر نهایی، ۷۸۰ آزمون
-Python را گذرانده بود؛ CI نسخهٔ نهایی تازه هنوز در انتظار اجراست.
+اجرای جامع محلیِ مرحلهٔ قبل به مالک غیر root ابزار SSH و فرض قدیمی تست دربارهٔ
+مجوز tmp برخورد کرد؛ محافظ تولید ضعیف نشد. CI پایهٔ منتشرشدهٔ `7cae80a5`،
+۸۳۹ آزمون Python، ۱۱۲ بررسی PHP و دو آزمون native Windows را گذرانده است؛
+این نتیجه مربوط به پایه است و CI ادامهٔ تازهٔ producer/DNS هنوز اجرا نشده است.
 بازبینی نهایی اجزای تازه، ۱۱۸ آزمون مرتبط Python را مستقلاً گذراند؛ قرارداد
 پل CRM، عبور از backend واقعی stage/CT با transport ساختگی، timeout پروب،
 inbox واقعی در دو اتصال هم‌زمان و لغو مجوز حین خواندن provider پوشش دارند.
@@ -102,6 +123,21 @@ python3 -B -m unittest infra.relay_recovery.tests.test_crm_bridge infra.relay_re
 اعتبارسنجی نسخهٔ ثابت نهایی نیز ۵۲۸ آزمون Python در ۲۲ ماژول مرتبط، ۱۱۲ بررسی
 PHP و lint هر دو ورودی PHP را گذراند. این نتیجهٔ جدید، اجرای مرتبط است و نباید
 با ۷۸۰ آزمون CI قبلی جمع شود یا جای CI تازه و پذیرش واقعی معرفی شود.
+
+ادامهٔ producer/DNS روی پایهٔ `7cae80a5`، پس از انتقال دقیق هفت فایل بازبینی‌شده،
+۵۴۱ آزمون Python در ۲۱ ماژول مرتبط را روی Python 3.12.14 در ۱۱٫۶۵۷ ثانیه گذراند؛
+۱۷ آزمون producer و ۲۶ آزمون DNS نیز مستقلاً در checkout مقصد موفق بودند.
+مقایسهٔ بایت‌به‌بایت با دو checkout منبع، بررسی diff و اسکن خطوط افزوده/فایل‌های
+جدید برای اطلاعات واقعی محیط و credential موفق بودند. اجرای اول با import
+یک fixture همسایه متوقف شد؛ اجرای موفق، پوشهٔ تست را مانند discovery روی مسیر
+import قرار داد و کد تولید تغییر نکرد. دستور اجرای ترکیبی:
+
+```sh
+PYTHONPATH=infra/relay_recovery/tests:. python -B -m unittest infra.relay_recovery.tests.test_isolated_trial infra.relay_recovery.tests.test_dns_consumer_probe infra.relay_recovery.tests.test_iran_stage infra.relay_recovery.tests.test_ct_stage infra.relay_recovery.tests.test_iran_adapter infra.relay_recovery.tests.test_iran_probes infra.relay_recovery.tests.test_isolated_acceptance infra.relay_recovery.tests.test_isolated_verifier_enrollment infra.relay_recovery.tests.test_windows_candidate_probe_client infra.relay_recovery.tests.test_windows_probe_client infra.relay_recovery.tests.test_production_driver infra.relay_recovery.tests.test_production_hooks infra.relay_recovery.tests.test_permit_continuation infra.relay_recovery.tests.test_controller_adapter infra.relay_recovery.tests.test_iran_effects infra.relay_recovery.tests.test_core infra.relay_recovery.tests.test_generation_guard infra.relay_recovery.tests.test_protocol infra.relay_recovery.tests.test_agent infra.relay_recovery.tests.test_promotion_bundle infra.relay_recovery.tests.test_crm_bridge -q
+```
+
+۵۴۱ آزمون مرتبط با شمارش‌های قبل هم‌پوشانی دارد و CI کامل تازه نیست. آزمون
+native Windows یا PHP در این ادامه دوباره اجرا نشده؛ اجزای آن‌ها تغییر نکرده‌اند.
 
 آزمون‌های آفلاین به شبکه، credential و provider واقعی نیاز ندارند. بازگشت کد
 پیش از نصب محدود به Git است؛ هر نصب جداگانه باید manifest، پین، پشتیبان و

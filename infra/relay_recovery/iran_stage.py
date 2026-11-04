@@ -332,7 +332,12 @@ class NodeStage:
         self._record(key, 'reconcile', result, state=('COMPLETE' if result['ok'] else 'FAILED') if resolved else None)
         return result
 
-    def run(self, action, context):
+    def run(self, action, context, *, fresh_accept=False):
+        # A composite fresh measurement must never relabel the immutable cached
+        # result used by ordinary idempotent recipe delivery. Check under the
+        # same whole-call lock as dispatch so concurrent observers cannot race.
+        if type(fresh_accept) is not bool or fresh_accept and action != 'accept':
+            raise StageError('stage_fresh_accept_scope')
         if action not in ACTIONS:
             raise StageError('stage_action')
         context = ct_stage.validate_context(context, self.config['agent_id'])
@@ -362,6 +367,8 @@ class NodeStage:
                 return self._reconcile(context, key)
             prior = self._row(key)
             if prior:
+                if fresh_accept:
+                    raise StageError('stage_accept_already_observed')
                 if prior['state'] in {'COMPLETE', 'FAILED'} and prior['result']:
                     result = json.loads(prior['result'])
                     result.update(action=action, read_only=action in {'accept', 'reconcile'})
