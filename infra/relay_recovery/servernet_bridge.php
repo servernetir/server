@@ -65,6 +65,47 @@ function bridgeCanonical(mixed $value): string {
     return json_encode($sort($value), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
 }
 
+/** The private PHP configuration cannot broaden the pinned application scope. */
+function bridgePanelBinding(array $config): array {
+    $registry = $config['production_driver']['registry'] ?? [];
+    if (!is_string($registry['path'] ?? null) || !is_string($registry['sha256'] ?? null)
+        || !preg_match('/\A[a-f0-9]{64}\z/D', $registry['sha256'])) {
+        throw new RuntimeException('promotion_continuation_registry');
+    }
+    $path = bridgePrivatePath($registry['path']);
+    if (filesize($path) > 65536 || !is_string($raw = file_get_contents($path))
+        || !hash_equals($registry['sha256'], hash('sha256', $raw))) {
+        throw new RuntimeException('promotion_continuation_registry');
+    }
+    $catalog = json_decode($raw, true, 64, JSON_THROW_ON_ERROR);
+    if (!is_array($catalog) || ($catalog['schema'] ?? null) !== 'servernet.relay.dependency.registry.v1'
+        || !is_int($catalog['revision'] ?? null) || $catalog['revision'] < 1
+        || !is_array($catalog['resources'] ?? null) || !array_is_list($catalog['resources'])) {
+        throw new RuntimeException('promotion_continuation_registry');
+    }
+    foreach (['owner_id', 'service_id', 'project_id'] as $key) {
+        if (!is_string($catalog[$key] ?? null) || $catalog[$key] !== ($config['policy'][$key] ?? null)) {
+            throw new RuntimeException('promotion_continuation_registry');
+        }
+    }
+    $panels = array_values(array_filter($catalog['resources'],
+        static fn ($resource): bool => is_array($resource) && ($resource['kind'] ?? null) === 'panel_binding'));
+    if (count($panels) !== 1) { throw new RuntimeException('promotion_panel_pin'); }
+    $panel = $panels[0]; $keys = array_keys($panel); sort($keys, SORT_STRING);
+    $ids = $panel['exit_upstream_ids'] ?? null;
+    if ($keys !== ['exit_upstream_ids', 'id', 'instance_id', 'kind']
+        || !is_string($panel['id']) || !preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,95}\z/D', $panel['id'])
+        || !is_int($panel['instance_id']) || $panel['instance_id'] < 1
+        || !is_array($ids) || !array_is_list($ids) || count($ids) > 32
+        || count(array_unique($ids, SORT_REGULAR)) !== count($ids)) {
+        throw new RuntimeException('promotion_panel_pin');
+    }
+    foreach ($ids as $id) { if (!is_int($id) || $id < 1) { throw new RuntimeException('promotion_panel_pin'); } }
+    if (($config['binding']['instance_id'] ?? null) !== $panel['instance_id']
+        || ($config['exit_upstream_ids'] ?? null) !== $ids) { throw new RuntimeException('promotion_panel_scope'); }
+    return $panel;
+}
+
 /** A caller flag is never enough: the exact CRM claim must be durable/current. */
 function bridgePromotionContinuation(array $config, array $action, array $state,
     array $plan, array $permit, int $now): array {
@@ -113,6 +154,7 @@ function bridgePromotionContinuation(array $config, array $action, array $state,
             throw new RuntimeException('promotion_continuation_registry');
         }
     }
+    bridgePanelBinding($config);
     $context = ['schema' => 'servernet.relay.production-driver.v1',
         'owner_id' => $policy['owner_id'], 'service_id' => $policy['service_id'], 'project_id' => $policy['project_id'],
         'source_identity' => $plan['old_identity'], 'identity' => $plan['new_identity'],
@@ -198,7 +240,8 @@ function bridgePromotionPlan(array $config, string $intentId, int $now, bool $re
         $plan = ['intent_id' => $intentId, 'incident_id' => $action['incident_id'],
             'old_identity' => $old, 'new_identity' => $new, 'config_hash' => $hash,
             'gate_hash' => $action['payload']['gate_hash'], 'checkpoint' => $action['payload']['checkpoint']];
-        if (!$readOnly && $continuation !== null) {
+        if (!$readOnly) {
+            if ($continuation === null) { throw new RuntimeException('promotion_continuation_required'); }
             $plan += bridgePromotionContinuation($config, $action, $state, $plan, $continuation, $now);
         }
         return $plan;
@@ -207,11 +250,21 @@ function bridgePromotionPlan(array $config, string $intentId, int $now, bool $re
     }
 }
 
+/** A short origin/resource deadline may expire before the thirty-second cap. */
+function bridgePromotionDeadline(array $bundle, int $now): void {
+    if (!is_int($bundle['verified_at'] ?? null) || !is_int($bundle['proof_expires_at'] ?? null)
+        || $now < $bundle['verified_at'] || $now >= $bundle['proof_expires_at']
+        || $bundle['proof_expires_at'] > $bundle['verified_at'] + 30) {
+        throw new RuntimeException('promotion_proof_expired');
+    }
+}
+
 function bridgePromotionBundle(array $config, array $plan, int $now): array {
     $bundle = bridgePrivateJson(rtrim((string)$config['state_dir'], '/').'/promotion-'.$plan['intent_id'].'.json');
     foreach (['intent_id', 'incident_id', 'config_hash', 'gate_hash', 'checkpoint'] as $key) {
         if (($bundle[$key] ?? null) !== $plan[$key]) { throw new RuntimeException('promotion_bundle_scope'); }
     }
+    bridgePromotionDeadline($bundle, $now);
     if (bridgeIdentity($bundle['old_identity'] ?? []) !== $plan['old_identity']
         || bridgeIdentity($bundle['new_identity'] ?? []) !== $plan['new_identity']
         || ($bundle['all_checks_passed'] ?? null) !== true
@@ -243,9 +296,67 @@ function bridgePromotionBundle(array $config, array $plan, int $now): array {
 
 /** Recheck after row-lock waits and immediately before each application write. */
 function bridgePromotionCurrent(array $config, array $plan, array $bundle, ?array $continuation, int $now): void {
+    bridgePromotionDeadline($bundle, $now);
     if ($now - $bundle['verified_at'] < 0 || $now - $bundle['verified_at'] > 30
         || bridgePromotionPlan($config, $plan['intent_id'], $now, false, $continuation) !== $plan) {
         throw new RuntimeException('promotion_proof_changed');
+    }
+}
+
+/** Route-only snapshot: raw link credentials never enter the durable receipt. */
+function bridgeUpstreamSnapshot(array $row, string $ipv4): array {
+    if (!is_int($row['id'] ?? null) || $row['id'] < 1
+        || !in_array($row['role'] ?? null, ['relay', 'exit'], true)
+        || !in_array($row['type'] ?? null, ['ssh', 'socks', 'wireguard', 'vless', 'trojan'], true)
+        || !is_string($row['host'] ?? null) || !is_bool($row['enabled'] ?? null)) {
+        throw new RuntimeException('promotion_upstream_shape');
+    }
+    $route = static function (string $host) use ($ipv4): void {
+        if (filter_var($host, FILTER_VALIDATE_IP)) {
+            if ($host !== $ipv4) { throw new RuntimeException('promotion_upstream_route_drift'); }
+        } elseif (!preg_match('/\A(?=.{1,253}\z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/D', $host)) {
+            throw new RuntimeException('promotion_upstream_hostname');
+        }
+    };
+    $host = trim($row['host']); $linkHost = null; $linkPort = null;
+    if ($host !== '') { $route($host); }
+    if (in_array($row['type'], ['vless', 'trojan'], true)) {
+        $parsed = is_string($row['secret'] ?? null) ? parse_url($row['secret']) : false;
+        if (!is_array($parsed) || ($parsed['scheme'] ?? null) !== $row['type']
+            || !is_string($parsed['host'] ?? null) || !is_int($parsed['port'] ?? null)
+            || $parsed['port'] < 1 || $parsed['port'] > 65535) {
+            throw new RuntimeException('promotion_upstream_link');
+        }
+        $linkHost = $parsed['host']; $linkPort = $parsed['port']; $route($linkHost);
+    } elseif ($host === '' || !is_int($row['port'] ?? null) || $row['port'] < 1 || $row['port'] > 65535) {
+        throw new RuntimeException('promotion_upstream_host');
+    }
+    return ['id' => $row['id'], 'role' => $row['role'], 'type' => $row['type'], 'host' => $host,
+        'port' => $row['port'] ?? null, 'enabled' => $row['enabled'], 'link_host' => $linkHost, 'link_port' => $linkPort];
+}
+
+function bridgeModelUpstreamSnapshot(object $upstream, string $ipv4): array {
+    return bridgeUpstreamSnapshot(['id' => (int)$upstream->id, 'role' => $upstream->role,
+        'type' => $upstream->type, 'host' => (string)$upstream->host, 'port' => $upstream->port,
+        'enabled' => $upstream->enabled,
+        'secret' => in_array($upstream->type, ['vless', 'trojan'], true) ? $upstream->secretPlain() : null], $ipv4);
+}
+
+/** Call inside the application's read transaction; no saves or repairs. */
+function bridgePromotionReadback(array $config, array $receipt): void {
+    $panel = bridgePanelBinding($config);
+    if (($receipt['instance_id'] ?? null) !== $panel['instance_id']
+        || ($receipt['exit_upstream_ids'] ?? null) !== $panel['exit_upstream_ids']
+        || !is_array($receipt['upstream_bindings'] ?? null)
+        || !array_is_list($receipt['upstream_bindings'])
+        || count($receipt['upstream_bindings']) !== count($panel['exit_upstream_ids'])) {
+        throw new RuntimeException('promotion_upstream_receipt_scope');
+    }
+    foreach ($panel['exit_upstream_ids'] as $index => $id) {
+        $upstream = App\Models\ExitUpstream::query()->whereKey($id)->lockForUpdate()->first();
+        if (!$upstream || bridgeModelUpstreamSnapshot($upstream, (string)$receipt['ipv4']) !== $receipt['upstream_bindings'][$index]) {
+            throw new RuntimeException('promotion_upstream_readback_drift');
+        }
     }
 }
 
@@ -332,6 +443,7 @@ try {
         }
         if ($plan !== null) {
             if (!$service->isInternalInfrastructure()) { throw new RuntimeException('internal_protection_required'); }
+            bridgePanelBinding($config);
             $meta = $service->provision_meta ?? [];
             $previous = $meta['relay_recovery']['promotion'] ?? null;
             $new = $plan['new_identity'];
@@ -346,6 +458,8 @@ try {
                 foreach (['incident_id', 'config_hash', 'gate_hash', 'checkpoint'] as $key) {
                     if (($previous[$key] ?? null) !== $plan[$key]) { throw new RuntimeException('promotion_receipt_drift'); }
                 }
+                bridgePromotionReadback($config, $previous);
+                if ($operation === 'promote') { bridgePromotionCurrent($config, $plan, $bundle, $continuation, time()); }
                 return ['ok' => true, 'outcome' => 'promoted', 'receipt' => $previous, 'changed' => false];
             }
             if ((string)$instance->provider_ref !== $old['provider_id']) { throw new RuntimeException('promotion_old_identity_drift'); }
@@ -368,7 +482,7 @@ try {
             if (!App\Models\CloudLocation::query()->where('code', $bundle['location_code'])->exists()) {
                 throw new RuntimeException('promotion_unknown_location');
             }
-            $updatedUpstreams = [];
+            $updatedUpstreams = []; $upstreamBindings = [];
             foreach ($config['exit_upstream_ids'] as $id) {
                 $upstream = App\Models\ExitUpstream::query()->whereKey($id)->lockForUpdate()->first();
                 if (!$upstream || !in_array($upstream->role, ['relay', 'exit'], true)) { throw new RuntimeException('upstream_binding'); }
@@ -385,6 +499,7 @@ try {
                 } elseif (!in_array($upstream->type, ['ssh', 'socks', 'wireguard'], true)) {
                     throw new RuntimeException('upstream_type');
                 }
+                $upstreamBindings[] = bridgeModelUpstreamSnapshot($upstream, $bundle['ipv4']);
                 bridgePromotionCurrent($config, $plan, $bundle, $continuation, time());
                 $upstream->save();
                 $updatedUpstreams[] = $id;
@@ -397,6 +512,7 @@ try {
                 'ipv6' => $bundle['ipv6'] ?? null, 'location_code' => $bundle['location_code'],
                 'config_hash' => $plan['config_hash'], 'gate_hash' => $plan['gate_hash'],
                 'checkpoint' => $plan['checkpoint'], 'exit_upstream_ids' => $updatedUpstreams,
+                'upstream_bindings' => $upstreamBindings,
                 'committed_at' => $now];
             foreach (['continuation_id', 'continuation_sha256'] as $key) {
                 if (isset($plan[$key])) { $receipt[$key] = $plan[$key]; }
@@ -416,6 +532,7 @@ try {
             bridgePromotionCurrent($config, $plan, $bundle, $continuation, time());
             $service->save();
             if (!$service->fresh()->isInternalInfrastructure()) { throw new RuntimeException('protection_lost'); }
+            bridgePromotionReadback($config, $receipt);
             bridgePromotionCurrent($config, $plan, $bundle, $continuation, time());
             return ['ok' => true, 'outcome' => 'promoted', 'receipt' => $receipt, 'changed' => true];
         }
@@ -453,6 +570,42 @@ try {
             'previous_meta_hash' => $beforeHash,
             'protection_changed' => $changed];
     });
+    // Commit/lock waits can consume the remaining proof deadline. A committed
+    // write with an expired acknowledgement stays unknown until read-only
+    // reconciliation confirms the actual rows; it is never applied again.
+    if ($plan !== null && ($result['outcome'] ?? null) === 'promoted') {
+        $readbackStarted = time();
+        Illuminate\Support\Facades\DB::transaction(static function () use ($config, $result, $operation, $plan, $bundle, $continuation): void {
+            $receipt = $result['receipt']; $panel = bridgePanelBinding($config);
+            $instance = App\Models\CloudInstance::query()->whereKey($panel['instance_id'])->lockForUpdate()->first();
+            $service = App\Models\Service::query()->whereKey((int)$config['binding']['service_id'])->lockForUpdate()->first();
+            $meta = $service?->provision_meta ?? [];
+            if (!$instance || !$service || (int)$instance->service_id !== (int)$service->id
+                || (int)$service->customer_id !== (int)$config['binding']['owner_id']
+                || $instance->provider !== 'hetzner' || (string)$instance->provider_ref !== $plan['new_identity']['provider_id']
+                || $instance->status !== 'running' || (string)$instance->ipv4 !== ($receipt['ipv4'] ?? null)
+                || ($instance->ipv6 ?: null) !== ($receipt['ipv6'] ?? null)
+                || $instance->location_code !== ($receipt['location_code'] ?? null)
+                || (($instance->meta ?? [])['relay_recovery'] ?? null) !== $receipt
+                || ($meta['relay_recovery']['promotion'] ?? null) !== $receipt
+                || ($meta['relay_recovery']['generation'] ?? null) !== $plan['new_identity']['generation']
+                || ($meta['ip'] ?? null) !== ($receipt['ipv4'] ?? null)
+                || ($meta['ipv6'] ?? null) !== ($receipt['ipv6'] ?? null)
+                || ($meta['location'] ?? null) !== ($receipt['location_code'] ?? null)
+                || !$service->isInternalInfrastructure()) {
+                throw new RuntimeException('promotion_application_readback_drift');
+            }
+            bridgePromotionReadback($config, $result['receipt']);
+            if ($operation === 'promote') { bridgePromotionCurrent($config, $plan, $bundle, $continuation, time()); }
+        });
+        $received = time();
+        if ($received < $readbackStarted || $received - $readbackStarted > 30) {
+            throw new RuntimeException('promotion_readback_expired');
+        }
+        if ($operation === 'promote') { bridgePromotionCurrent($config, $plan, $bundle, $continuation, $received); }
+        $result += ['read_only' => $operation === 'reconcile_promotion', 'observed_at' => $readbackStarted,
+            'received_at' => $received, 'actual_upstreams_verified' => true];
+    }
     fwrite(STDOUT, json_encode($result, JSON_THROW_ON_ERROR)."\n");
 } catch (Throwable $error) {
     // Exception messages may contain SQL or credentials. Emit only a fixed code.

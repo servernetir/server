@@ -78,6 +78,9 @@ class DriverStore(SnapshotStore):
                 body TEXT NOT NULL,phase TEXT NOT NULL,result TEXT,UNIQUE(parent,kind));
                 CREATE TABLE IF NOT EXISTS promotion_gates(parent TEXT PRIMARY KEY,body TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS cutover_acceptance(parent TEXT PRIMARY KEY,body TEXT NOT NULL,proof_hash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS hook_dispatches(id TEXT PRIMARY KEY,body TEXT NOT NULL,claimed_at INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS hook_continuations(id TEXT NOT NULL,sequence INTEGER NOT NULL,
+                    previous_body TEXT NOT NULL,body TEXT NOT NULL,proof TEXT NOT NULL,PRIMARY KEY(id,sequence));
                 CREATE TABLE IF NOT EXISTS status(id INTEGER PRIMARY KEY CHECK(id=1),body TEXT NOT NULL);''')
         os.chmod(self.path,0o600)
 
@@ -240,8 +243,9 @@ class ProductionDriver:
                     or not 0<permit['expires_at']-permit['created_at']<=30):return False
             with self.store.transaction()as db:
                 row=db.execute('SELECT body,phase,parent,kind FROM steps WHERE id=?',(permit.get('intent_id'),)).fetchone()
+                dispatch=db.execute('SELECT body FROM hook_dispatches WHERE id=?',(permit.get('intent_id'),)).fetchone()
             if (row is None or row['phase']!='DISPATCHED'or row['parent']!=permit['parent_intent_id']
-                    or row['kind']!=permit['kind']):return False
+                    or row['kind']!=permit['kind']or(dispatch is not None and dispatch['body']!=row['body'])):return False
             body=json.loads(row['body']);context=body['context']
             if (core.canonical(body['permit'])!=core.canonical(permit)or permit['context_hash']!=core.digest(context)
                     or not permit['created_at']<=self.now()<permit['expires_at']
@@ -282,26 +286,84 @@ class ProductionDriver:
         raw=provider._verified_server(provider._client(),record)
         return raw.get('status')=='off'and self.now()<action['expires_at']
 
+    def _hook_expiry(self,parent,kind,context):
+        """Fresh authority to claim an undispatched step; never extends PROMOTE."""
+        if (self.options.get('enabled')is not True or not self.policy.enabled
+                or context.get('parent_intent_id')!=parent or not self._scope_action(context,kind)):return None
+        state=self._engine().snapshot();expiry=self.now()+30
+        if kind in {'EXTERNAL_CUTOVER','CRM_PROMOTION'}:
+            if (state['phase']!='CUTOVER'or state['pending_action']!=parent
+                    or not self._fresh_promotion_gate(parent,state)):return None
+            if kind=='CRM_PROMOTION'and not self._external_cutover_verified(parent,state):return None
+            with sqlite3.connect((self.root/'controller.sqlite3').as_uri()+'?mode=ro',uri=True)as db:
+                row=db.execute("SELECT body FROM actions WHERE id=? AND kind='PROMOTE'",(parent,)).fetchone()
+            if row is None:return None
+            action=json.loads(row[0]);expiry=min(expiry,action['expires_at'])
+        elif (state['phase']!='VALIDATING'or state.get('candidate')is None or state.get('pending_action')is not None):return None
+        return expiry if self.now()<expiry else None
+
+    def _prepare_hook_step(self,parent,kind,context):
+        """Commit first, leaving a restartable, conclusively undispatched row."""
+        expiry=self._hook_expiry(parent,kind,context)
+        if expiry is None:return None
+        permit=dict(schema='servernet.relay.driver.permit.v1',intent_id=str(uuid.uuid4()),parent_intent_id=parent,
+            kind=kind,context_hash=core.digest(context),created_at=self.now(),expires_at=expiry)
+        body={'permit':permit,'context':context}
+        with self.store.transaction()as db:
+            db.execute('INSERT OR IGNORE INTO steps VALUES(?,?,?,?,?,NULL)',
+                (permit['intent_id'],parent,kind,core.canonical(body),'COMMITTED'))
+        return self.store.step(parent,kind)
+
+    def _claim_hook_step(self,row,context):
+        """CAS an apply-once claim, renewing only proven never-dispatched work.
+
+        The proof is our own COMMITTED/result-NULL journal plus absence of an
+        immutable dispatch claim. Hook ACKs (even ``no_write``) cannot supply it.
+        A crash after this transaction is ambiguous and can only be reconciled.
+        """
+        if row['phase']!='COMMITTED'or row['result']is not None:return None
+        body=json.loads(row['body']);permit=body['permit'];now=self.now()
+        if (set(body)!={'permit','context'}or core.canonical(body['context'])!=core.canonical(context)
+                or set(permit)!={'schema','intent_id','parent_intent_id','kind','context_hash','created_at','expires_at'}
+                or permit.get('schema')!='servernet.relay.driver.permit.v1'
+                or permit.get('intent_id')!=row['id']or permit.get('parent_intent_id')!=row['parent']
+                or permit.get('kind')!=row['kind']or permit.get('context_hash')!=core.digest(context)
+                or type(permit.get('created_at'))is not int or type(permit.get('expires_at'))is not int
+                or not 0<permit['expires_at']-permit['created_at']<=30 or now<permit['created_at']):return None
+        expiry=self._hook_expiry(row['parent'],row['kind'],context)
+        if expiry is None:return None
+        now=self.now()
+        if not now<expiry:return None
+        renewed=now>=permit['expires_at']
+        if renewed:body={**body,'permit':{**permit,'created_at':now,'expires_at':expiry}}
+        encoded=core.canonical(body)
+        with self.store.transaction()as db:
+            current=db.execute('SELECT * FROM steps WHERE id=?',(row['id'],)).fetchone()
+            if (current is None or dict(current)!=row
+                    or db.execute('SELECT 1 FROM hook_dispatches WHERE id=?',(row['id'],)).fetchone()):return None
+            if renewed:
+                sequence=db.execute('SELECT COALESCE(MAX(sequence),0)+1 FROM hook_continuations WHERE id=?',(row['id'],)).fetchone()[0]
+                proof=dict(schema='servernet.relay.driver.no-write.v1',basis='committed_without_dispatch',
+                    previous_permit_hash=core.digest(permit),context_hash=core.digest(context),checked_at=now)
+                db.execute('INSERT INTO hook_continuations VALUES(?,?,?,?,?)',
+                    (row['id'],sequence,row['body'],encoded,core.canonical(proof)))
+            db.execute('INSERT INTO hook_dispatches VALUES(?,?,?)',(row['id'],encoded,now))
+            changed=db.execute("UPDATE steps SET body=?,phase='DISPATCHED' WHERE id=? AND body=? AND phase='COMMITTED' AND result IS NULL",
+                (encoded,row['id'],row['body'])).rowcount
+            if changed!=1:raise DriverError('driver_dispatch_claim_conflict')
+        return body
+
     def _hook_step(self,parent,kind,context):
         if kind not in HOOK_KINDS:raise DriverError('unknown_hook_kind')
         row=self.store.step(parent,kind)
         if row is None:
-            expiry=self.now()+30
-            if kind in {'EXTERNAL_CUTOVER','CRM_PROMOTION'}:
-                state=self._engine().snapshot()
-                if (state['phase']!='CUTOVER'or state['pending_action']!=parent
-                        or context.get('parent_intent_id')!=parent or not self._scope_action(context,kind)
-                        or not self._fresh_promotion_gate(parent,state)):return None
-                if kind=='CRM_PROMOTION'and not self._external_cutover_verified(parent,state):return None
-                with sqlite3.connect(self.root/'controller.sqlite3')as db:
-                    action=json.loads(db.execute('SELECT body FROM actions WHERE id=?',(parent,)).fetchone()[0])
-                expiry=min(expiry,action['expires_at'])
-            permit=dict(schema='servernet.relay.driver.permit.v1',intent_id=str(uuid.uuid4()),parent_intent_id=parent,
-                kind=kind,context_hash=core.digest(context),created_at=self.now(),expires_at=expiry)
-            body={'permit':permit,'context':context}
-            with self.store.transaction()as db:
-                db.execute('INSERT INTO steps VALUES(?,?,?,?,?,NULL)',(permit['intent_id'],parent,kind,core.canonical(body),'COMMITTED'))
-            with self.store.transaction()as db:db.execute("UPDATE steps SET phase='DISPATCHED' WHERE id=?",(permit['intent_id'],))
+            row=self._prepare_hook_step(parent,kind,context)
+            if row is None:return None
+        body=json.loads(row['body'])
+        if core.canonical(body['context'])!=core.canonical(context):raise DriverError('immutable_hook_scope_changed')
+        claimed=self._claim_hook_step(row,context)
+        if claimed is not None:
+            permit=claimed['permit']
             if not self.authorize_hook(permit):raise DriverError('driver_subpermit_not_authorized')
             apply={'TRIAL_STAGE':self.hooks.trial_apply,'EXTERNAL_CUTOVER':self.hooks.cutover_apply,
                    'CRM_PROMOTION':self.hooks.crm_apply}[kind]
@@ -309,6 +371,9 @@ class ProductionDriver:
             except Exception:result={'state':'unknown'}
             with self.store.transaction()as db:db.execute('UPDATE steps SET result=? WHERE id=?',(core.canonical(result),permit['intent_id']))
             return None
+        # Never infer no-write from a missing/ambiguous external receipt. This
+        # also covers an interrupted claim and legacy DISPATCHED journal rows.
+        row=self.store.step(parent,kind)
         body=json.loads(row['body']);permit=body['permit'];original=body['context']
         if core.canonical(original)!=core.canonical(context):raise DriverError('immutable_hook_scope_changed')
         if row['phase']=='VERIFIED':return json.loads(row['result'])

@@ -4,14 +4,13 @@ This isolated Python 3.12+ package provides a durable recovery planner, a WHM
 controller, an authenticated pull agent on Proxmox, and narrowly scoped provider
 adapters. It does not use the public customer provision/terminate queue.
 
-**Deployment status:** the framework is being installed in observation mode.
-Purchasing, promotion and retirement must remain disabled until the production
-recipes and an end-to-end recovery drill have passed. A missing recipe, guest
-probe, backup proof or fencing receipt is a blocker, never a successful check.
-The first signed agent exchange and restricted WHM-to-relay SSH inspection have
-been exercised. The Proxmox timer, Windows listener, clone guards and final
-consumer/DNS cutover integration are not yet active. Merely setting `enabled`
-to true does not complete this installation.
+**Deployment status:** installed versions and their acceptance evidence are
+tracked in the private operational checkpoint. Publication does not install or
+arm this package. Purchasing, promotion and retirement must remain disabled
+until actual production recipes and an end-to-end recovery drill have passed.
+A missing recipe, guest probe, backup proof or fencing receipt is a blocker,
+never a successful check. Merely setting `enabled` to true does not complete
+the integration.
 
 ## Components
 
@@ -226,11 +225,22 @@ original startup seed is never a fallback for a later provider ID.
 The driver and PHP bridge now share a durable `CRM_PROMOTION` claim, bound to the
 original checkpoint, gate hash and expiry; expired parent claims never authorize
 new CRM writes. Completed or unknown effects are reconciled with reads only.
-The current safe checkpoint still holds on an expired cutover claim without a
-proven no-write renewal, missing real CRM integration, or unavailable source SSH.
-A separately reviewed exact provider-fencing/restore alternative is
-required to cover complete source-control loss. These holds prevent unsafe
-writes; they are unresolved unattended-recovery cases, not successful failover.
+
+An interrupted `COMMITTED` child step can resume only when its durable row has
+no result and no immutable dispatch claim. Expired trial permission can then be
+renewed for the same intent and context; external and CRM permission remain
+bounded by the original fresh `PROMOTE` claim. Renewal and dispatch are one CAS
+transaction with immutable audit history. After dispatch, a missing receipt or
+caller-supplied `no_write` flag can only lead to read-only reconciliation. Legacy
+dispatched rows without the new audit table record also cannot repeat a write.
+
+An expired original cutover claim, missing real CRM integration, or loss of
+source control before durable fencing still causes HOLD. Provider power-off
+alone cannot persist the retired-generation tombstone. Source SSH loss after a
+verified durable fence can continue through the existing provider snapshot path;
+loss before that fence requires independently authenticated rescue/control or a
+complete restore-tested checkpoint with explicit data freshness policy. These
+are actual acceptance prerequisites, not successful unattended failover.
 
 ## Application bridge
 
@@ -246,6 +256,33 @@ the existing CloudInstance and explicitly selected ExitUpstream records in one
 database transaction. It does not create a second ambiguous instance row or
 disable the generic infrastructure termination guard.
 
+`promotion_bundle.PromotionBundleWriter` creates the private
+`promotion-<PROMOTE id>.json` consumed by the bridge. A concrete trusted
+`crm_apply` hook must invoke it immediately before the PHP transaction. It
+does not register that hook or enable the incomplete global builder. It reads
+the existing controller, driver and restore journals, requires exact fresh
+external resource and consumer readbacks, independently checks provider source
+power-off, and publishes atomically with mode0600. Missing proofs cause HOLD.
+
+Its pinned canonical private enrollment is selected by
+`production_driver.promotion_bundle:{path,sha256}`. The enrollment contains
+`schema=servernet.relay.promotion-bundle.enrollment.v1`, owner/service/project,
+`registry_hash`, and an explicit `locations` mapping from provider references
+to application location codes. Provider references are not application codes.
+The bundle deadline is bounded by every transient proof, including the
+15-second proxied-origin proof, and by the original PROMOTE and driver permit.
+An assigned IPv6 prefix requires an independently verified exact host address;
+the writer never invents a host suffix. No enrollment has been installed by
+publishing this component.
+
+Every PHP promotion write requires the exact committed CRM continuation and
+the registry's pinned instance/upstream selection. The bridge enforces the
+bundle's shorter proof deadline before writes and after commit. A late or
+unknown acknowledgement is reconciled through fresh application readback,
+including actual ExitUpstream host and parsed link authority. Route-only
+snapshots omit raw credentials. Existing receipts without this complete
+readback shape cannot silently count as verified promotions.
+
 ## Validation
 
 Run offline Python checks from the repository root:
@@ -255,10 +292,17 @@ python3 -m unittest discover -s infra/relay_recovery/tests -q
 git diff --check
 ```
 
-The sanitized publication candidate passed 724 Python tests in 174.349 seconds
-on Python 3.12 and 72 standalone PHP bridge assertions on PHP 8.3. Both PHP
+The November 3 sanitized publication candidate passed 724 Python tests in
+174.349 seconds on Python 3.12 and 72 standalone PHP bridge assertions on PHP 8.3. Both PHP
 entry points passed lint. The host-control enrollment adds 17 isolated checks;
 no live endpoint or provider credentials are used by these tests.
+
+The November 4 continuation passed 97 focused Python tests, 112 PHP bridge
+assertions, both PHP entry-point lints and independent review. The local full
+suite encountered this runtime's non-root-owned SSH binary and its mode0755
+temporary parent; production trust checks remain intact. The standard CI full
+suite is tracked separately in the pull request. Real model transactions and
+deployment acceptance remain required.
 
 The pull-request workflow also runs the standalone Linux/PHP suite without
 network access and the two native Windows PowerShell 5.1 fixture scripts.
