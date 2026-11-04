@@ -1,0 +1,58 @@
+name: Relay recovery package checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'infra/relay_recovery/**'
+      - '.github/workflows/relay-recovery.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relay-recovery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-controller:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for standalone bridge checks
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          extensions: pdo_sqlite
+      - name: Run standalone checks without network access
+        run: |
+          set -euo pipefail
+          php -l infra/relay_recovery/servernet_bridge.php
+          php -l infra/relay_recovery/agent-endpoint.php.tpl
+          test_php="$(command -v php)"
+          # Enable only namespace-local loopback for UDP/TCP fixture sockets.
+          sudo unshare --net -- sh -c 'set -eu; ip link set lo up; exec "$@"' sh \
+            python3 -B -m unittest discover -s infra/relay_recovery/tests -q
+          sudo unshare --net -- "$test_php" infra/relay_recovery/tests/test_bridge_helpers.php
+
+  native-windows-contracts:
+    runs-on: windows-2022
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Check candidate wire format in Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          & .\infra\relay_recovery\tests\test_windows_candidate_native.ps1
+      - name: Check nonce replacement and replay rejection on disposable state
+        shell: powershell
+        run: |
+          & .\infra\relay_recovery\tests\test_windows_nonce_native.ps1
