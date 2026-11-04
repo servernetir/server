@@ -1,0 +1,46 @@
+name: ServerNet Voice Android
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['mobile/voice-android/**', '.github/workflows/servernet-voice-android.yml']
+  push:
+    branches: ['feat/servernet-voice-android']
+    paths: ['mobile/voice-android/**', '.github/workflows/servernet-voice-android.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: voice-android-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: mobile/voice-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Set up Android SDK and install pinned packages
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+          log-accepted-android-sdk-licenses: false
+      - name: Test, lint and build a review APK
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assemblePreview
+      - name: Upload review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: servernet-voice-review
+          path: |
+            mobile/voice-android/app/build/outputs/apk/preview/*.apk
+            mobile/voice-android/app/build/reports/tests/testDebugUnitTest/
+            mobile/voice-android/app/build/reports/lint-results-debug.html
+            mobile/voice-android/app/build/voice-screenshots/*.png
+          if-no-files-found: warn
