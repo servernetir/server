@@ -65,10 +65,11 @@ class CryptoPayment extends Model
         return $this->belongsTo(CryptoWallet::class, 'crypto_wallet_id');
     }
 
-    /** پرداخت‌هایی که واچر باید بپاید — باز و منقضی‌نشده */
+    /** Recent expired checkouts are observed for manual review, never auto-paid. */
     public function scopeWatchable(Builder $q): Builder
     {
-        return $q->whereIn('status', ['pending', 'seen'])->where('expires_at', '>', now()->subHours(2));
+        return $q->whereIn('status', ['pending', 'seen', 'expired'])
+            ->where('expires_at', '>', now()->subHours(2));
     }
 
     public function isOpen(): bool
@@ -107,3 +108,4 @@ class CryptoPayment extends Model
         return $this->received_atomic >= $min;
     }
 }
+
