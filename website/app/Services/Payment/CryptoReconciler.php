@@ -159,14 +159,19 @@ class CryptoReconciler
                 return null;
             }
             // The database UNIQUE(chain, txid) remains the last concurrent-writer guard.
-            if (CryptoPayment::where('chain', $row->chain)->where('txid', $txid)->exists()) {
+            if (CryptoPayment::where('chain', $row->chain)
+                ->whereRaw('LOWER(txid) = ?', [strtolower($txid)])->exists()) {
                 return null;
             }
 
-            $row->received_atomic += $deposit['amount'];
             $row->txid = $txid;
             $row->confirmations = $row->chain === 'bsc'
                 ? max(0, (int) ($deposit['confirmations'] ?? 0)) : TronWatcher::MIN_CONFIRMATIONS;
+            if ($row->received_atomic > PHP_INT_MAX - $deposit['amount']) {
+                return $this->review($row, 'Deposit total exceeds integer accounting range; additional atomic amount '
+                    .$deposit['amount'].'; manual review.');
+            }
+            $row->received_atomic += $deposit['amount'];
 
             if ($timestamp <= 0 || $timestamp > now()->timestamp + self::CLOCK_SKEW_SECONDS) {
                 return $this->review($row, 'Deposit timestamp is missing or invalid; manual review.');
@@ -175,8 +180,9 @@ class CryptoReconciler
                 // Recent expired payments are observed, never automatically resurrected.
                 return $this->review($row, 'Deposit detected after checkout expiry; manual reconciliation required.');
             }
-            $slack = (int) ceil($row->amount_atomic * CryptoPayment::TOLERANCE_BP / 10000);
-            if ($row->received_atomic > $row->amount_atomic + $slack) {
+            $slack = $row->toleranceAtomic();
+            if ($row->received_atomic > $row->amount_atomic
+                && $row->received_atomic - $row->amount_atomic > $slack) {
                 return $this->review($row, 'Deposit differs from the locked quote; manual review.');
             }
             if (! $row->isPaidEnough()) {

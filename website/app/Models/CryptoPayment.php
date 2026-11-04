@@ -103,9 +103,16 @@ class CryptoPayment extends Model
      */
     public function isPaidEnough(): bool
     {
-        $min = (int) floor($this->amount_atomic * (10000 - self::TOLERANCE_BP) / 10000);
+        $min = $this->amount_atomic - $this->toleranceAtomic();
 
         return $this->received_atomic >= $min;
+    }
+
+    /** Integer-only ceil(amount * basis_points / 10000), without overflow. */
+    public function toleranceAtomic(): int
+    {
+        return intdiv($this->amount_atomic, 10000) * self::TOLERANCE_BP
+            + intdiv(($this->amount_atomic % 10000) * self::TOLERANCE_BP + 9999, 10000);
     }
 }
 

@@ -218,4 +218,42 @@ class CryptoReconciliationResilienceTest extends TestCase
         $this->assertSame(1, Payment::count());
         $this->assertSame(1, CryptoPayment::where('txid', $deposit['txid'])->count());
     }
+
+    public function test_a_legacy_uppercase_bsc_hash_cannot_be_reused_with_lowercase(): void
+    {
+        $old = $this->checkout();
+        $new = $this->checkout();
+        $deposit = $this->deposit(10);
+        $old->update(['status' => 'confirmed', 'txid' => strtoupper($deposit['txid'])]);
+        $this->watcher([$new->address => [$deposit]]);
+        app(CryptoReconciler::class)->sweep();
+        $this->assertSame('unpaid', $new->invoice->fresh()->status);
+        $this->assertSame(0, CreditEntry::count());
+        $this->assertSame(0, Payment::count());
+    }
+
+    public function test_tolerance_is_exact_near_the_integer_accounting_limit(): void
+    {
+        $cp = new CryptoPayment;
+        $cp->amount_atomic = PHP_INT_MAX;
+        $minimum = PHP_INT_MAX - intdiv(PHP_INT_MAX, 100) - 1;
+        $this->assertSame(intdiv(PHP_INT_MAX, 100) + 1, $cp->toleranceAtomic());
+        $cp->received_atomic = $minimum - 1;
+        $this->assertFalse($cp->isPaidEnough());
+        $cp->received_atomic = $minimum;
+        $this->assertTrue($cp->isPaidEnough());
+    }
+
+    public function test_deposit_total_overflow_requires_review_without_credit(): void
+    {
+        $cp = $this->checkout();
+        $cp->update(['status' => 'seen', 'amount_atomic' => PHP_INT_MAX,
+            'received_atomic' => PHP_INT_MAX - 1]);
+        $this->watcher([$cp->address => [$this->deposit(11, ['amount' => 2])]]);
+        app(CryptoReconciler::class)->sweep();
+        $this->assertSame('manual', $cp->fresh()->status);
+        $this->assertSame(PHP_INT_MAX - 1, $cp->fresh()->received_atomic);
+        $this->assertSame('unpaid', $cp->invoice->fresh()->status);
+        $this->assertSame(0, CreditEntry::count());
+    }
 }

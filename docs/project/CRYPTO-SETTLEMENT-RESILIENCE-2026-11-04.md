@@ -21,7 +21,10 @@ No customer identity, real address, hash, raw SQL or credentials are recorded he
   reported with non-secret identifiers, retained for retry, and excluded from expiry
   in that sweep. Other payments continue. RPC failures still fail closed by chain.
 - Claim uniqueness remains enforced by UNIQUE(chain, txid), with transactional row
-  locks and the canonical PaymentService settlement path.
+  locks and the canonical PaymentService settlement path. Legacy hash case variations
+  are compared case-insensitively before a new claim.
+- Atomic-unit tolerance uses integer arithmetic, including near the integer limit;
+  an overflowing deposit total is retained for review without credit.
 - Locked amount, currency, customer and remaining invoice balance must still match.
   Canceled or changed invoices require review, not resurrection or underfunded payment.
 - Legacy positive wallet entries that mention the complete transfer hash block
@@ -37,7 +40,7 @@ No customer identity, real address, hash, raw SQL or credentials are recorded he
 
 ## Verification
 
-The focused suite includes 38 tests, including nine new resilience tests: complete
+The focused suite includes 41 tests, including twelve new resilience tests: complete
 BSC reference settlement; replay; rollback after a simulated failure following a
 wallet write; progress for the next customer; retry; manual-credit exclusion;
 expired/canceled invoices; quote changes; reservation ownership; cross-invoice
