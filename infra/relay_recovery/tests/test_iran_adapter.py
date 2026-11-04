@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import copy
+import base64
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import sys
+import struct
 import tempfile
 import unittest
 import uuid
@@ -65,6 +68,64 @@ class IranAdapterTests(unittest.TestCase):
                     generation=2, revision=4, config_hash=self.bundle_hash, jobs_hash='a' * 64,
                     job=dict(id=op + '-1', op=op,
                              target=target or dict(host='1.1.1.1', port=443, provider_id='10101')))
+
+    def stage_context(self, action='stage', profile='trial'):
+        blob = struct.pack('!I', 11) + b'ssh-ed25519' + struct.pack('!I', 32) + bytes([1])*32
+        context = self.context(action, target=dict(host='1.1.1.1', port=22, provider_id='222'))
+        context['job']['params'] = dict(stage_profile=profile,
+            ssh_host_public_key='ssh-ed25519 ' + base64.b64encode(blob).decode(),
+            ssh_host_key_sha256='SHA256:' + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('='),
+            expires_at=1_800_000_030,
+            resource_identity=dict(provider='hetzner', project_id='p', provider_id='222', generation=2),
+            resource_config_hash='b'*64, critical_consumers=['proxmox', 'ct113', 'vm109'])
+        if profile == 'restored':
+            context['job']['params'].update(restore_epoch=1, restore_hash='d'*64)
+        if action in {'apply', 'rollback'}:
+            context['job']['params'].update(
+                old_identity=dict(provider='hetzner', project_id='p', provider_id='111', generation=1),
+                old_ipv4='9.9.9.9', old_config_hash='a'*64, expected_registry_hash='c'*64)
+        return context
+
+    def staging_backend(self):
+        """Real adapter -> NodeStage -> CtStage, with only OS transport faked."""
+        fixtures = []
+        for filename, name in (('test_ct_stage.py', 'CtStageTests'), ('test_iran_stage.py', 'NodeStageTests')):
+            spec = importlib.util.spec_from_file_location('adapter_' + filename[:-3], Path(__file__).with_name(filename))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            fixture = getattr(module, name)(); fixture.setUp()
+            self.addCleanup(fixture.doCleanups); fixtures.append(fixture)
+        ct_fixture, node_fixture = fixtures
+        import ct_stage
+        import iran_stage
+        original = node_fixture.runner
+        forwarded = []
+        def transport(argv, data, timeout):
+            if '--job-file' not in argv:
+                return original(argv, data, timeout)
+            node_fixture.calls.append((list(argv), data, timeout))
+            raw = node_fixture.remote[argv[argv.index('--job-file')+1]]
+            nonce = argv[argv.index('--nonce')+1]
+            path = ct_fixture.root/'jobs'/(nonce+'.json')
+            if not path.exists():
+                path.write_bytes(raw); path.chmod(0o600)
+            self.assertEqual(raw, path.read_bytes())
+            context = ct_stage.load_job(ct_fixture.cfg, path,
+                argv[argv.index('--job-sha256')+1], nonce, argv[-1], node_fixture.now)
+            forwarded.append(copy.deepcopy(context)); ct_fixture.ctx = context
+            result = ct_stage.CtStage(ct_fixture.cfg, runner=ct_fixture.runner,
+                clock=lambda: node_fixture.now, monotonic=lambda: 0).run(argv[-1], context)
+            return 0 if result['ok'] else 1, protocol.canonical_json(result)
+        node = iran_stage.NodeStage(node_fixture.cfg, runner=transport, now=lambda: node_fixture.now,
+            nonce=node_fixture.nonce, verify_pct=False)
+        def dispatch(argv, data, timeout):
+            context = protocol.decode_json(data)
+            action = Path(argv[0]).name.removesuffix('-v1')
+            if action not in iran_stage.ACTIONS:
+                return self.runner(argv, data, timeout)
+            result = node.run(action, context)
+            return 0 if result['ok'] else 1, protocol.canonical_json(result)
+        return ct_fixture, node_fixture, forwarded, self.adapter(runner=dispatch)
 
     def runner(self, argv, data, timeout):
         self.calls.append((list(argv), protocol.decode_json(data), timeout))
@@ -258,6 +319,135 @@ class IranAdapterTests(unittest.TestCase):
             with self.assertRaises(protocol.ProtocolError):
                 self.adapter().run('apply', ctx)
         self.assertFalse(self.calls)
+
+    def test_public_stage_context_dispatches_through_real_node_and_ct_contracts(self):
+        ct, node, forwarded, adapter = self.staging_backend()
+        context = self.stage_context(); original = copy.deepcopy(context)
+        self.assertTrue(adapter.run('stage', context)['ok'])
+        self.assertEqual(context, original); self.assertEqual(forwarded, [original])
+        envelope = protocol.decode_json(next(iter(node.remote.values())))
+        self.assertEqual(envelope['context'], original)
+        self.assertEqual(envelope['expires_at'], min(node.now+25, original['job']['params']['expires_at']))
+        self.assertTrue(Path(ct.helper()._stage_plan(context)['unit']).is_file())
+        self.assertTrue(any(call[0][:2] == ['/usr/bin/systemctl', 'restart'] for call in ct.calls))
+        accept = copy.deepcopy(context); accept['job'].update(id='accept-1', op='accept')
+        ct.calls.clear()
+        self.assertTrue(adapter.run('accept', accept)['ok'])
+        self.assertEqual(forwarded, [original, accept])
+        self.assertFalse(any(call[0][:2] == ['/usr/bin/systemctl', 'restart'] for call in ct.calls))
+
+    def test_restored_apply_and_rollback_reach_actual_cas_backend(self):
+        ct, node, forwarded, adapter = self.staging_backend(); ct.registry()
+        node.cfg['ct_registry_covers_ir_consumers'] = True
+        context = copy.deepcopy(ct.ctx); context['config_hash'] = self.bundle_hash
+        context['job']['params'].update(resource_identity=dict(provider='hetzner', project_id='p',
+            provider_id=context['job']['target']['provider_id'], generation=2),
+            resource_config_hash='b'*64, critical_consumers=['vm109'])
+        self.assertTrue(adapter.run('apply', context)['ok'])
+        self.assertTrue(all(Path(path).read_bytes() != raw for path, raw in ct.original.items()))
+        rollback = copy.deepcopy(context); rollback['job'].update(id='rollback-1', op='rollback')
+        ct.cfg['rollback_enabled'] = True
+        ct.process_host = ct.egress = context['job']['params']['old_ipv4']
+        self.assertTrue(adapter.run('rollback', rollback)['ok'])
+        self.assertEqual(forwarded, [context, rollback])
+        self.assertTrue(all(Path(path).read_bytes() == raw for path, raw in ct.original.items()))
+
+    def test_expired_stage_cannot_renew_during_adapter_delivery_but_reconciles(self):
+        ct, node, forwarded, adapter = self.staging_backend()
+        context = self.stage_context(); context['job']['params']['expires_at'] = node.now+2
+        self.assertTrue(adapter.run('stage', context)['ok'])
+        envelope = protocol.decode_json(next(iter(node.remote.values())))
+        self.assertEqual(envelope['expires_at'], context['job']['params']['expires_at'])
+        node.now += 100; node.calls.clear(); ct.calls.clear()
+        with self.assertRaisesRegex(protocol.ProtocolError, 'controller_deadline_required'):
+            adapter.run('stage', context)
+        result = adapter.run('reconcile', context)
+        self.assertTrue(result['ok']); self.assertTrue(result['reconciled'])
+        self.assertFalse(result['checks']['network_observation_fresh'])
+        self.assertFalse(any(call[0][1] == 'push' for call in node.calls)); self.assertFalse(ct.calls)
+        self.assertEqual(forwarded, [context, context])
+
+    def test_legacy_public_stage_without_deadline_only_reaches_readonly_reconcile(self):
+        ct, node, forwarded, adapter = self.staging_backend()
+        context = self.stage_context(); context['job']['params'].pop('expires_at')
+        with self.assertRaisesRegex(protocol.ProtocolError, 'controller_deadline_required'):
+            adapter.run('stage', context)
+        result = adapter.run('reconcile', context)
+        self.assertFalse(result['ok']); self.assertFalse(result['reconciled'])
+        self.assertTrue(result['checks']['read_only'])
+        self.assertFalse(node.calls); self.assertFalse(ct.calls); self.assertFalse(forwarded)
+
+    def test_adapter_never_shortens_or_replaces_an_overlong_backend_deadline(self):
+        ct, node, forwarded, adapter = self.staging_backend()
+        context = self.stage_context(); context['job']['params']['expires_at'] = node.now+31
+        original = copy.deepcopy(context)
+        with self.assertRaisesRegex(protocol.ProtocolError, 'controller_deadline_required'):
+            adapter.run('stage', context)
+        self.assertEqual(original, context)
+        self.assertFalse(node.calls); self.assertFalse(ct.calls); self.assertFalse(forwarded)
+
+    def test_stage_public_key_pair_is_canonical_bounded_and_matching_before_child(self):
+        baseline = self.stage_context()
+        public = baseline['job']['params']['ssh_host_public_key']
+        bad = [{'ssh_host_public_key': public+' comment'}, {'ssh_host_public_key': public+'\n'},
+            {'ssh_host_public_key': 'command="reboot" '+public}, {'ssh_host_public_key': '/root/host.key'},
+            {'ssh_host_public_key': '-----BEGIN OPENSSH PRIVATE KEY-----'},
+            {'ssh_host_public_key': 'ssh-ed25519 '+('A'*80)}, {'ssh_host_public_key': public.replace('ssh-ed25519', 'ssh-rsa')},
+            {'ssh_host_key_sha256': 'SHA256:'+'A'*43}, {'ssh_host_key_sha256': 'SHA256:'+'é'*43},
+            {'ssh_host_public_key': None}, {'ssh_host_key_sha256': None}]
+        for fields in bad:
+            context = copy.deepcopy(baseline); context['job']['params'].update(fields)
+            with self.subTest(fields=fields), self.assertRaises(protocol.ProtocolError):
+                self.adapter().run('stage', context)
+        for field in ('ssh_host_public_key', 'ssh_host_key_sha256'):
+            context = copy.deepcopy(baseline); context['job']['params'].pop(field)
+            with self.subTest(missing=field), self.assertRaises(protocol.ProtocolError):
+                self.adapter().run('stage', context)
+        self.assertFalse(self.calls)
+
+    def test_old_stage_scope_and_mixed_network_operands_are_rejected_before_child(self):
+        baseline = self.stage_context('apply', 'restored'); params = baseline['job']['params']
+        bad = [{'old_identity': {**params['old_identity'], 'provider_id': '222'}},
+            {'old_identity': {**params['old_identity'], 'generation': True}},
+            {'old_identity': {**params['old_identity'], 'generation': 3}},
+            {'old_identity': {**params['old_identity'], 'provider_id': '１'}},
+            {'old_identity': {**params['old_identity'], 'project_id': '/etc/shadow'}},
+            {'old_identity': {**params['old_identity'], 'path': '/etc/shadow'}},
+            {'old_ipv4': '1.1.1.1'}, {'old_ipv4': '10.0.0.1'}, {'old_ipv4': 'example.com'},
+            {'old_config_hash': 'not-a-hash'}, {'expires_at': True}, {'expires_at': 2**53},
+            {'argv': ['/bin/sh']}, {'ssh_private_key': 'secret'}, {'known_hosts_file': '/etc/shadow'},
+            {'checkpoint': 'not-a-ct-field'}, {'stage_profile': 'trial'}]
+        for fields in bad:
+            context = copy.deepcopy(baseline); context['job']['params'].update(fields)
+            with self.subTest(fields=fields), self.assertRaises(protocol.ProtocolError):
+                self.adapter().run('apply', context)
+        for field in ('old_identity', 'old_ipv4', 'old_config_hash', 'expected_registry_hash'):
+            context = copy.deepcopy(baseline); context['job']['params'].pop(field)
+            with self.subTest(missing=field), self.assertRaises(protocol.ProtocolError):
+                self.adapter().run('apply', context)
+        for fields in ({'old_identity': {'path': '/etc/shadow'}}, {'old_ipv4': '/etc/shadow'},
+                       {'old_config_hash': {'command': 'reboot'}}):
+            context = self.stage_context(); context['job']['params'].update(fields)
+            with self.subTest(optional=fields), self.assertRaises(protocol.ProtocolError):
+                self.adapter().run('stage', context)
+        self.assertFalse(self.calls)
+
+    def test_public_ct_stage_requires_ipv4_while_existing_ipv6_probe_still_dispatches(self):
+        target = dict(host='2606:4700:4700::1111', port=443, provider_id='222')
+        self.assertIn('candidate_tcp', self.adapter().run('probe', self.context(target=target))['checks'])
+        self.assertEqual(3, len(self.calls))
+        self.calls.clear(); context = self.stage_context(); context['job']['target'] = target
+        with self.assertRaisesRegex(protocol.ProtocolError, 'stage_ipv4'):
+            self.adapter().run('stage', context)
+        self.assertFalse(self.calls)
+
+    def test_public_ct_stage_port_is_fixed_even_when_generic_probe_port_is_enrolled(self):
+        self.cfg['candidate_ports'] = [25]
+        context = self.stage_context(); context['job']['target']['port'] = 25
+        with self.assertRaisesRegex(protocol.ProtocolError, 'stage_port'):
+            mod.validate_context(context, self.cfg)
+        probe = self.context(target=context['job']['target'])
+        self.assertEqual(probe, mod.validate_context(probe, self.cfg))
 
     def test_fixed_stage_apply_rollback_require_pinned_bundle_recipe(self):
         for action in ('stage', 'apply', 'rollback'):

@@ -189,6 +189,41 @@ class ProbeTests(unittest.TestCase):
             with self.subTest(args=args):
                 self.assertFalse(self.probes().run('ct113', self.context())['ok'])
 
+    def test_slow_process_read_keeps_exact_target_proof_within_finite_timeout(self):
+        def slow(argv, data, timeout):
+            if '/usr/bin/ps' in argv:
+                # A valid measured read can take longer than the old1s budget.
+                # Model that latency without sleeping or starting a subprocess.
+                if timeout < 1.345:
+                    raise protocol.ProtocolError('adapter_timeout')
+                self.assertEqual(timeout, 3)
+            return self.runner(argv, data, timeout)
+        probes = mod.Probes(runner=slow)
+        result = probes.run('ct113', self.context())
+        self.assertTrue(result['checks']['ssh_socks_listener'])
+        self.assertTrue(result['checks']['ssh_target_matches'])
+        self.assertTrue(result['checks']['structural_tunnel_ok']); self.assertTrue(result['ok'])
+        self.ssh_args = b'/usr/bin/ssh -N -D127.0.0.1:10819 root@9.9.9.9'
+        result = probes.run('ct113', self.context())
+        self.assertFalse(result['checks']['ssh_target_matches'])
+        self.assertFalse(result['checks']['structural_tunnel_ok']); self.assertFalse(result['ok'])
+
+    def test_process_read_exceeding_three_seconds_stays_unknown(self):
+        process_calls = []
+        def timed_out(argv, data, timeout):
+            if '/usr/bin/ps' in argv:
+                process_calls.append((list(argv), data, timeout))
+                self.assertEqual(timeout, 3)
+                raise TimeoutError('modeled process read exceeded3s')
+            return self.runner(argv, data, timeout)
+        result = mod.Probes(runner=timed_out).run('ct113', self.context())
+        self.assertEqual(1, len(process_calls))
+        self.assertTrue(result['checks']['ssh_socks_listener'])
+        self.assertIsNone(result['checks']['ssh_target_matches'])
+        self.assertIsNone(result['checks']['structural_tunnel_ok'])
+        self.assertIsNone(result['checks']['tunnel_ok']); self.assertIsNone(result['checks']['probe_ok'])
+        self.assertFalse(result['ok'])
+
     def test_ct_unavailable_or_malformed_data_is_false(self):
         self.ct_enabled = False
         self.assertFalse(self.probes().run('ct113', self.context())['ok'])

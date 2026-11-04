@@ -24,9 +24,11 @@ the integration.
 | `gateway.py`, `agent-endpoint.php.tpl` | Signed data exchange and durable receipt inbox |
 | `agent.py`, `protocol.py` | Root agent, replay protection, durable outbox and acknowledgement |
 | `iran_adapter.py`, `iran_probes.py` | Fixed, hash-pinned local probes and recipes |
+| `iran_effects.py` | Durable, claim-bound Iran stage/apply publication and authenticated outcome reconciliation; private in-process API |
 | `hetzner.py`, `provider_adapter.py` | Live quotes, explicit adoption and exact-resource cleanup |
-| `controller_adapter.py` | Receipt validation, evidence collection and probe publication |
+| `controller_adapter.py` | Receipt validation, evidence collection, probe publication and transactional Iran effect inbox routing |
 | `servernet_bridge.php` | Private CLI for the existing owner's protected logical service |
+| `crm_bridge.py` | Fixed private PHP promotion hooks, fresh bundle dispatch and actual application readback |
 | `relay_side.py` | Restricted SSH inspection and private consistent SQLite snapshots |
 | `backup_client.py` | Pinned SSH download, strict archive validation and disk admission |
 | `cloudflare_adapter.py` | Scoped content-only DNS plans, receipts and reconciliation |
@@ -37,7 +39,7 @@ the integration.
 | `iran_stage.py`, `ct_stage.py` | Isolated CT113 trial tunnel and reviewed endpoint transactions |
 | `windows_probe*.py`, `windows_probe.ps1` | Authenticated read-only guest egress proof without QGA |
 | `windows_candidate_probe_client.py` | Explicit, default-off native candidate guest envelope; separate fixed proxy enrollment and live transport required |
-| `maintenance.py` | Bounded pruning of acknowledged, obsolete control history |
+| `maintenance.py` | Bounded pruning of obsolete probe history while retaining Iran effects and their provenance |
 
 Importing modules performs no provider or application operation. All credentials
 and infrastructure inventories belong in private configuration outside this
@@ -166,6 +168,9 @@ using current project prices, IPv4, taxes and expected outgoing traffic.
 An unavailable external egress measurement produces unknown path evidence;
 it does not turn a verified SSH tunnel into an outage. Verified tunnel/target
 failure remains distinct from an unavailable Windows guest or diagnostic read.
+The CT process inspection has a three-second local timeout; the adapter's
+eight-second outer read budget remains unchanged. A valid slower inspection can
+now finish, but an exhausted outer budget still produces unknown evidence.
 
 At most two managed generations may coexist. The ledger bounds attempts in a
 rolling 24-hour window, promotions and trial spending. The currency is immutable
@@ -211,6 +216,9 @@ content-only migrations, direct-and-edge authenticated origin proof components
 and durable lifecycle enrollment. Its `build_integrations()` deliberately refuses
 enabled global execution until the actual Iran consumer/publisher, authoritative
 DNS, restore callbacks, cutover and retirement coordinators are connected.
+The finite `IranEffectPublisher` and `PromotionBridge` components below do not
+register those integrations or change the builder's refusal. Live enrollment,
+complete registry coverage and coordination remain separate work.
 The origin responder is an API, not an installed listener. The private complete
 dependency registry, real endpoint enrollment and actual application transaction
 still require installation and acceptance. No CLI flag substitutes for them.
@@ -248,10 +256,48 @@ NodeStage requires an authenticated absolute `params.expires_at` for stage,
 apply and rollback. The CT envelope uses `min(original expiry, now+25)`;
 delivery never starts a fresh lease. Push, dispatch and CT write guards retain
 that same deadline. Legacy mutation jobs without it fail closed, while their
-historical read-only reconciliation remains available. A future durable
-publisher must bind this value to the original driver and PROMOTE expiry.
-This guard does not implement the still-missing publisher/receipt integration.
-Later installation requires compatible pinned recipes and enrollment.
+historical read-only reconciliation remains available. The durable publisher
+may not renew it. `IranEffectPublisher` binds this value to the exact
+durable driver claim and, for apply, the original PROMOTE expiry. Installation
+still requires compatible pinned recipes and private enrollment.
+
+The adapter accepts a finite CT public-data grammar: a canonical Ed25519 host
+public key with its matching SHA-256 fingerprint, exact resource identity and
+configuration hash, and the original absolute deadline. Restored profiles bind
+the restore epoch/hash; apply and rollback additionally require distinct old/new
+identities and addresses plus the expected registry hash. Private key data,
+extra fields and malformed identities are rejected. This parser adds no CT
+runtime dependency and grants no write authority by itself.
+
+## Durable Iran publication and outcomes
+
+`iran_effects.IranEffectPublisher` is an explicit private in-process component,
+not a network-selected command or enabled production factory. Stage/apply
+publication requires the exact immutable dispatched driver claim, current core
+scope and live authorization. Provider reads resolve and recheck addresses;
+authorization is checked again after those reads. The exposure lock then checks
+the current claim and deadline before the one-time manifest exposure.
+
+The manifest, original permit/context and publication mapping are durable before
+exposure. A pending effect protects the agent's single manifest slot from ordinary
+probe publication. A repeated call with an existing mapping returns that original
+record; it does not renew the lease, issue another revision or retry an ambiguous
+write after interruption.
+
+The collector routes signed gateway inbox reports into the effect outcome ledger
+inside a serialized SQLite write transaction before acknowledging consumption.
+It binds the saved manifest, job, agent and revision and preserves original
+receipt clocks. Opposing terminal outcomes produce `CONFLICT`; duplicate delivery
+cannot refresh health or replace the first terminal receipt. Historical outcomes
+and read-only reconciliation establish an old effect's fate without becoming
+fresh acceptance. A separate explicit `publish_accept` after a successful effect
+requests a new read-only measurement; publication alone proves no readiness.
+
+Maintenance recognizes the exact optional effect-table pair and retains all
+effect mappings/outcomes and referenced manifests, receipts and authenticated
+non-probe reports, including consumed reports. It rejects partial or unexpected
+schemas and broken provenance rather than pruning through them. Ordinary probe
+history remains subject to the existing bounded retention rules.
 
 ## Application bridge
 
@@ -268,9 +314,10 @@ database transaction. It does not create a second ambiguous instance row or
 disable the generic infrastructure termination guard.
 
 `promotion_bundle.PromotionBundleWriter` creates the private
-`promotion-<PROMOTE id>.json` consumed by the bridge. A concrete trusted
-`crm_apply` hook must invoke it immediately before the PHP transaction. It
-does not register that hook or enable the incomplete global builder. It reads
+`promotion-<PROMOTE id>.json` consumed by the bridge. The private
+`crm_bridge.PromotionBridge.apply` hook invokes it immediately before the fixed
+PHP transaction. Neither component registers that hook or enables the incomplete
+global builder. The writer reads
 the existing controller, driver and restore journals, requires exact fresh
 external resource and consumer readbacks, independently checks provider source
 power-off, and publishes atomically with mode0600. Missing proofs cause HOLD.
@@ -294,6 +341,16 @@ including actual ExitUpstream host and parsed link authority. Route-only
 snapshots omit raw credentials. Existing receipts without this complete
 readback shape cannot silently count as verified promotions.
 
+`PromotionBridge` binds the exact durable CRM continuation, parent context,
+registry selection and historical bundle identity/address scope. Dispatch uses
+the fixed, hash-pinned private PHP pipe; the remaining proof/permit lifetime caps
+its process timeout. An acknowledgement leaves the step dispatched. Only fresh
+read-only actual row/upstream readback can produce the CRM completion observation.
+Unknown or late acknowledgements are reconciled without another mutation, even
+after expiry or disablement. Keep the original private bundle for reconciliation
+of new immutable claims; its historical binding never renews proof freshness.
+Real application/MariaDB transaction acceptance is still required.
+
 ## Validation
 
 Run offline Python checks from the repository root:
@@ -314,6 +371,15 @@ suite encountered this runtime's non-root-owned SSH binary and its mode0755
 temporary parent; production trust checks remain intact. The standard CI full
 suite is tracked separately in the pull request. Real model transactions and
 deployment acceptance remain required.
+
+The final November 4 source-component review independently passed 118 focused
+Python tests covering the CRM bridge, Iran adapter/probes and effect publisher.
+That run includes regressions for concurrent contradictory inbox outcomes and
+live authorization revoked during provider reads. The final frozen source also
+passed 528 related Python tests across 22 modules, 112 PHP helper assertions and
+both PHP entry-point lints. The previous standard-environment CI passed 780
+Python tests; CI for this final source delta is still pending. Offline checks do
+not establish installation, actual MariaDB transactions or live acceptance.
 
 The pull-request workflow also runs the standalone Linux/PHP suite without
 network access and the two native Windows PowerShell 5.1 fixture scripts.

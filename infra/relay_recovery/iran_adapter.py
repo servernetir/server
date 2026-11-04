@@ -39,6 +39,12 @@ The bundle authorizes reviewed local recipes and a target PROFILE. It must not
 pin a not-yet-known future cloud IP. The exact public literal IP, allowed port,
 positive provider ID, incident and generation instead come from the authenticated
 agent context. Every child result must bind that exact target and scope.
+CT staging contexts additionally carry a canonical public ed25519 host key and
+its matching fingerprint, with typed old-generation CAS data for apply/rollback.
+These are data only; private keys, paths and commands remain locally pinned.
+Their finite grammar is checked here without importing additional runtime code.
+The original absolute expires_at is forwarded unchanged. Backend mutation
+guards enforce its lifetime; historical reconciliation may read an expired job.
 
 Local probe stdout is bounded JSON servernet.relay.iran-probe.v1, probe_kind
 host/ct113/vm109, read_only:true, ok:boolean, target and scope, checks. Host checks:
@@ -72,6 +78,7 @@ candidate transport or supplies the CT/registry/guest evidence itself.
 from __future__ import annotations
 
 import argparse
+import base64
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
@@ -79,6 +86,7 @@ import ipaddress
 import os
 from pathlib import Path
 import stat
+import struct
 import sys
 import time
 from typing import Callable
@@ -110,6 +118,10 @@ ID_PARAMS = frozenset({'checkpoint', 'backup_checkpoint', 'consumer',
 ISOLATED_HASH_PARAMS = frozenset({'expected_registry_hash','dependency_baseline_sha256','proxy_binding_sha256'})
 HASH_PARAMS = HASH_PARAMS | ISOLATED_HASH_PARAMS
 RESOURCE_PARAMS = frozenset({'resource_identity', 'resource_config_hash', 'critical_consumers'})
+STAGE_PARAMS = frozenset({'ssh_host_public_key', 'ssh_host_key_sha256',
+                          'old_identity', 'old_ipv4', 'old_config_hash'})
+CT_STAGE_PARAMS = STAGE_PARAMS | RESOURCE_PARAMS | frozenset({
+    'stage_profile', 'restore_epoch', 'restore_hash', 'expected_registry_hash', 'expires_at'})
 DERIVED_CONSUMERS = frozenset({'proxmox', 'ct113', 'vm109', 'vpn'})
 
 
@@ -140,6 +152,67 @@ def _target(value: object, ports: list[int]) -> dict:
     if not isinstance(ref, str) or not ref.isascii() or not ref.isdigit() or not 1 <= len(ref) <= 20 or int(ref) < 1:
         raise ProtocolError('adapter_target_provider')
     return dict(value)
+
+
+def _stage_parameters(context: dict, params: dict) -> None:
+    """Finite CT public-data grammar; no new runtime dependency or authority.
+
+    Keep this parser compatible with ct_stage.validate_context using contract
+    tests. It does not choose a recipe, add a deadline or authorize any write.
+    """
+    if (set(params) - CT_STAGE_PARAMS or context['job']['op'] not in MUTATIONS | {'accept'}
+            or params.get('stage_profile') not in ('trial', 'restored')):
+        raise ProtocolError('adapter_stage_params')
+    if ipaddress.ip_address(context['job']['target']['host']).version != 4:
+        raise ProtocolError('adapter_stage_ipv4')
+    if context['job']['target']['port'] not in (22, 443):
+        raise ProtocolError('adapter_stage_port')
+    key = params.get('ssh_host_public_key')
+    if not isinstance(key, str) or len(key) > 256:
+        raise ProtocolError('adapter_stage_host_key')
+    parts = key.split()
+    if len(parts) != 2 or parts[0] != 'ssh-ed25519' or key != ' '.join(parts):
+        raise ProtocolError('adapter_stage_host_key')
+    try:
+        blob = base64.b64decode(parts[1], validate=True)
+        if (len(blob) != 51 or struct.unpack('!I', blob[:4])[0] != 11
+                or blob[4:15] != b'ssh-ed25519' or struct.unpack('!I', blob[15:19])[0] != 32
+                or base64.b64encode(blob).decode() != parts[1]):
+            raise ValueError()
+    except (ValueError, struct.error):
+        raise ProtocolError('adapter_stage_host_key') from None
+    expected = 'SHA256:' + base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip('=')
+    pin = params.get('ssh_host_key_sha256')
+    if not isinstance(pin, str) or not pin.isascii() or not hmac.compare_digest(pin, expected):
+        raise ProtocolError('adapter_stage_host_fingerprint')
+    restored = params['stage_profile'] == 'restored'
+    if restored != ('restore_epoch' in params and 'restore_hash' in params):
+        raise ProtocolError('adapter_stage_restore_scope')
+    old_fields = {'old_identity', 'old_ipv4', 'old_config_hash'}
+    if old_fields & params.keys():
+        old = params.get('old_identity')
+        if (not old_fields <= params.keys() or not isinstance(old, dict)
+                or set(old) != {'provider', 'project_id', 'provider_id', 'generation'}
+                or old.get('provider') != 'hetzner' or not isinstance(old.get('project_id'), str)
+                or not IDENTIFIER.fullmatch(old['project_id'])):
+            raise ProtocolError('adapter_stage_old_identity')
+        ref = old['provider_id']
+        if (not isinstance(ref, str) or not ref.isascii() or not ref.isdecimal()
+                or not 1 <= len(ref) <= 20 or int(ref) < 1):
+            raise ProtocolError('adapter_stage_old_identity')
+        _integer(old['generation'], 1, context['generation'], 'adapter_stage_old_generation')
+        _hash(params['old_config_hash'], 'adapter_stage_old_hash')
+        try: address = ipaddress.ip_address(params['old_ipv4'])
+        except (ValueError, TypeError): raise ProtocolError('adapter_stage_old_ipv4') from None
+        if (not isinstance(params['old_ipv4'], str) or address.version != 4
+                or not address.is_global or str(address) != params['old_ipv4']):
+            raise ProtocolError('adapter_stage_old_ipv4')
+    if context['job']['op'] in {'apply', 'rollback'}:
+        if not restored or not old_fields <= params.keys() or 'expected_registry_hash' not in params:
+            raise ProtocolError('adapter_stage_apply_scope')
+        if (params['old_identity']['provider_id'] == context['job']['target']['provider_id']
+                or params['old_ipv4'] == context['job']['target']['host']):
+            raise ProtocolError('adapter_stage_old_equals_new')
 
 
 def _secure_dir(path: object, root_owned: bool) -> Path:
@@ -271,7 +344,7 @@ def validate_context(context: object, config: dict) -> dict:
     agent.validate_job(context.get('job'), config)
     _target(context['job'].get('target'), config['candidate_ports'])
     params = context['job'].get('params', {})
-    if set(params) - (INT_PARAMS | HASH_PARAMS | ID_PARAMS | RESOURCE_PARAMS):
+    if set(params) - (INT_PARAMS | HASH_PARAMS | ID_PARAMS | RESOURCE_PARAMS | STAGE_PARAMS):
         raise ProtocolError('adapter_params')
     for key, value in params.items():
         if key in INT_PARAMS:
@@ -307,6 +380,8 @@ def validate_context(context: object, config: dict) -> dict:
                 or any(not isinstance(v, str) or not IDENTIFIER.fullmatch(v) for v in names)
                 or len(set(names)) != len(names)):
             raise ProtocolError('adapter_critical_consumers')
+    if STAGE_PARAMS & params.keys():
+        _stage_parameters(context, params)
     return context
 
 

@@ -10,7 +10,10 @@ job and observations received after that epoch may supply health/critical
 evidence. Network probes attest fresh connectivity, not snapshot/disk identity;
 that provenance is verified separately by the committed local restore workflow.
 
-Only ``probe`` jobs are published. Promotion is unavailable unless an installed,
+The ordinary collector publishes only ``probe`` jobs. The separate finite
+``iran_effects`` API binds stage/apply/readback jobs to durable driver claims;
+pending effects retain their manifest slot and their own outcome ledger.
+Promotion is unavailable unless an installed,
 hash-pinned cutover recipe implements the entire transaction and reconciliation.
 Local recipes are executable paths from private controller configuration, never
 commands from agent reports. Missing integrations remain false preflight checks.
@@ -18,6 +21,8 @@ commands from agent reports. Missing integrations remain false preflight checks.
 from __future__ import annotations
 
 import argparse
+import contextlib
+import fcntl
 import hashlib
 import ipaddress
 import json
@@ -114,6 +119,15 @@ class Adapter:
               CREATE TABLE IF NOT EXISTS ingested_reports(agent TEXT NOT NULL, report_hash TEXT NOT NULL,
                 received_at INTEGER NOT NULL, body_sha256 TEXT NOT NULL, status TEXT NOT NULL,
                 PRIMARY KEY(agent,report_hash));
+              CREATE TABLE IF NOT EXISTS iran_jobs(id TEXT PRIMARY KEY,driver_intent TEXT NOT NULL,
+                agent TEXT NOT NULL,operation TEXT NOT NULL,revision INTEGER NOT NULL,job_id TEXT NOT NULL,
+                expires_at INTEGER NOT NULL,body TEXT NOT NULL,phase TEXT NOT NULL,
+                exposure TEXT NOT NULL,terminal_hash TEXT,UNIQUE(agent,revision,job_id));
+              CREATE UNIQUE INDEX IF NOT EXISTS iran_mutation_once ON iran_jobs(driver_intent)
+                WHERE operation IN ('stage','apply');
+              CREATE TABLE IF NOT EXISTS iran_outcomes(agent TEXT NOT NULL,hash TEXT NOT NULL,
+                publication TEXT NOT NULL,received_at INTEGER NOT NULL,classification TEXT NOT NULL,
+                body TEXT NOT NULL,PRIMARY KEY(agent,hash));
             ''')
         os.chmod(self.path, 0o600)
 
@@ -122,6 +136,51 @@ class Adapter:
         db.row_factory = sqlite3.Row
         db.execute('PRAGMA synchronous=FULL')
         return db
+
+    @contextlib.contextmanager
+    def publication_lock(self):
+        """Serialize durable manifest history and its single exposed file.
+
+        Callers must not invoke the driver's authorizer under this lock: its
+        fresh gate collection can recursively call ``publish``.
+        """
+        path = self.root/'controller-publish.lock'
+        fd = os.open(path, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            info = os.fstat(fd)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+                    or info.st_mode & 0o077 or info.st_nlink != 1):
+                raise CollectorError('private_publication_lock_required')
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            yield
+        finally:
+            os.close(fd)
+
+    def _pending_iran_manifest(self, db, agent):
+        row = db.execute("SELECT body FROM iran_jobs WHERE agent=? AND phase IN ('PENDING','CONFLICT') "
+            "AND (operation IN ('stage','apply') OR expires_at>?) ORDER BY revision LIMIT 1",
+            (agent, self.now)).fetchone()
+        return json.loads(row['body'])['manifest'] if row else None
+
+    def _next_manifest_scope(self, db, agent, resource):
+        row = db.execute('SELECT revision FROM sequence WHERE agent=?', (agent,)).fetchone()
+        revision = (row[0] if row else 0) + 1
+        prior = db.execute('SELECT generation,config_hash FROM wire_generation WHERE agent=?', (agent,)).fetchone()
+        generation = resource['generation']
+        if prior:
+            generation = max(generation, prior['generation'])
+            if resource['config_hash'] != prior['config_hash']:
+                generation = max(generation, prior['generation']+1)
+        return generation, revision
+
+    @staticmethod
+    def _save_manifest(db, manifest):
+        agent, revision = manifest['agent_id'], manifest['revision']
+        db.execute('INSERT OR REPLACE INTO sequence VALUES(?,?)', (agent, revision))
+        db.execute('INSERT OR REPLACE INTO wire_generation VALUES(?,?,?)',
+                   (agent, manifest['generation'], manifest['config_hash']))
+        db.execute('INSERT INTO manifests VALUES(?,?,?,?)',
+                   (agent, revision, manifest['issued_at'], canonical_json(manifest).decode()))
 
     def _provider(self):
         if self.provider is None:
@@ -203,6 +262,10 @@ class Adapter:
         if not isinstance(jobs, list) or not 1 <= len(jobs) <= 6:
             raise CollectorError('inbox_jobs_invalid')
         with self._db() as db:
+            # Routing reads the prior effect disposition before inserting its
+            # receipt. Serialize that read/decision/write across collectors so
+            # contradictory terminal reports cannot both replace PENDING.
+            db.execute('BEGIN IMMEDIATE')
             prior = db.execute('SELECT received_at,body_sha256 FROM ingested_reports WHERE agent=? AND report_hash=?',
                                (agent, report_hash)).fetchone()
             if prior:
@@ -222,8 +285,14 @@ class Adapter:
                        for k in ('generation', 'revision', 'config_hash', 'jobs_hash', 'incident_id')):
                     continue
                 selected = [j for j in manifest['jobs'] if j['id'] == receipt.get('job_id')]
+                if (len(selected) == 1 and selected[0]['op'] in {'stage', 'apply', 'accept'}
+                        and receipt.get('op') == selected[0]['op']):
+                    from .iran_effects import route_receipt
+                    if route_receipt(db, agent, manifest, selected[0], receipt, received_at):
+                        accepted += 1
+                    continue
                 observed = receipt.get('observed_at')
-                if (len(selected) != 1 or receipt.get('op') != 'probe'
+                if (len(selected) != 1 or selected[0]['op'] != 'probe' or receipt.get('op') != 'probe'
                         or type(receipt.get('ok')) is not bool
                         or not isinstance(receipt.get('checks'), dict)
                         or type(observed) is not int or observed > received_at+5
@@ -331,6 +400,18 @@ class Adapter:
         return {**result, **self._base(resource, state), 'observed_at': result['observed_at']}
 
     def publish(self, state: dict, agent: str) -> dict:
+        with self.publication_lock():
+            self._refresh()
+            with self._db() as db:
+                pending = self._pending_iran_manifest(db, agent)
+            if pending is not None:
+                # Do not expose/re-expose a mutation here, even after a crash
+                # before its original file write. Only its authorized publisher
+                # owns that write; an expired/unknown effect still blocks probes.
+                return pending
+            return self._publish_probes(state, agent)
+
+    def _publish_probes(self, state: dict, agent: str) -> dict:
         self._refresh()
         resources = [state['active']]
         if state.get('candidate'): resources.append(state['candidate'])
@@ -342,15 +423,7 @@ class Adapter:
         if type(ttl) is not int or not 30 <= ttl <= 300: raise CollectorError('manifest_ttl')
         with self._db() as db:
             db.execute('BEGIN IMMEDIATE')
-            row = db.execute('SELECT revision FROM sequence WHERE agent=?', (agent,)).fetchone()
-            revision = (row[0] if row else 0) + 1
-            prior_wire = db.execute('SELECT generation,config_hash FROM wire_generation WHERE agent=?',
-                                    (agent,)).fetchone()
-            generation = resource['generation']
-            if prior_wire:
-                generation = max(generation, prior_wire['generation'])
-                if resource['config_hash'] != prior_wire['config_hash']:
-                    generation = max(generation, prior_wire['generation']+1)
+            generation, revision = self._next_manifest_scope(db, agent, resource)
             jobs = []
             for target in resources:
                 address = target.get('ipv4')
@@ -382,11 +455,7 @@ class Adapter:
                         'config_hash': resource['config_hash'], 'jobs_hash': manifest_hash(jobs),
                         'issued_at': self.now, 'expires_at': self.now+ttl, 'jobs': jobs}
             validate_manifest(manifest, agent, self.now)
-            db.execute('INSERT OR REPLACE INTO sequence VALUES(?,?)', (agent, revision))
-            db.execute('INSERT OR REPLACE INTO wire_generation VALUES(?,?,?)',
-                       (agent, generation, resource['config_hash']))
-            db.execute('INSERT INTO manifests VALUES(?,?,?,?)',
-                       (agent, revision, self.now, canonical_json(manifest).decode()))
+            self._save_manifest(db, manifest)
             # Commit history BEFORE exposure: no accepted receipt can refer to
             # a manifest that was not durably authorized locally.
         _atomic(self.root/f'manifest-{agent}.json', manifest)

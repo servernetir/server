@@ -5,6 +5,8 @@ directory are writable. The core journal is read-only and its worker/flock is
 held to prevent a new incident or effect racing pruning. Provider records,
 core actions/attempts/budget ledgers, manifests on disk, agent jobs/outbox and
 backup artifacts are never changed by this module.
+The optional Iran effect mapping/outcome pair and every referenced operation
+manifest or report are retained without an age-based deletion rule.
 
 Retention is at least seven days. All unconsumed inbox messages and their
 receipt/manifest references survive; current on-disk manifests, each agent's
@@ -52,6 +54,11 @@ TABLES = {
         'receipts': ('hash', 'received_at', 'body'),
         'ingested_reports': ('agent', 'report_hash', 'received_at', 'body_sha256', 'status'),
     },
+}
+IRAN_TABLES = {
+    'iran_jobs': ('id', 'driver_intent', 'agent', 'operation', 'revision', 'job_id',
+                  'expires_at', 'body', 'phase', 'exposure', 'terminal_hash'),
+    'iran_outcomes': ('agent', 'hash', 'publication', 'received_at', 'classification', 'body'),
 }
 
 
@@ -139,9 +146,14 @@ def _idle_core(path: Path, now: int) -> dict:
 
 
 def _schema(db: sqlite3.Connection, schema: str) -> None:
-    expected = TABLES[schema]
+    expected = dict(TABLES[schema])
     rows = db.execute(f"SELECT name,type FROM {schema}.sqlite_master WHERE name NOT LIKE 'sqlite_%'").fetchall()
-    if {r[0] for r in rows if r[1] == 'table'} != set(expected) or any(r[1] in ('trigger', 'view') for r in rows):
+    actual_tables = {r[0] for r in rows if r[1] == 'table'}
+    if schema == 'evidence' and actual_tables & set(IRAN_TABLES):
+        if not set(IRAN_TABLES) <= actual_tables:
+            raise MaintenanceError('HISTORY_SCHEMA_UNSAFE')
+        expected.update(IRAN_TABLES)
+    if actual_tables != set(expected) or any(r[1] in ('trigger', 'view') for r in rows):
         raise MaintenanceError('HISTORY_SCHEMA_UNSAFE')
     for table, columns in expected.items():
         actual = tuple(r[1] for r in db.execute(f'PRAGMA {schema}.table_info({table})'))
@@ -206,11 +218,40 @@ def _protected(db: sqlite3.Connection, root: Path, config: dict, now: int, guard
         # must not consume one of the last-32 preservation slots.
         for (rev,) in db.execute('SELECT revision FROM evidence.manifests WHERE agent=? ORDER BY revision DESC LIMIT 32', (agent,)):
             manifests.add((agent, rev))
-    for agent, report_hash, raw in db.execute('SELECT agent_id,report_hash,body FROM inbox WHERE consumed_at IS NULL'):
+    # Effect mappings/outcomes are deliberately never pruned. Their references
+    # must outlive ordinary probe history even after terminal disposition.
+    if db.execute("SELECT 1 FROM evidence.sqlite_master WHERE type='table' AND name='iran_jobs'").fetchone():
+        publications = set()
+        for publication, agent, revision, job_id, raw in db.execute(
+                'SELECT id,agent,revision,job_id,body FROM evidence.iran_jobs'):
+            guard()
+            saved = _json(raw); manifest = saved.get('manifest'); jobs = manifest.get('jobs') if isinstance(manifest, dict) else None
+            if (not isinstance(publication, str) or not publication or not isinstance(manifest, dict)
+                    or _scope(manifest) != (agent, revision) or not isinstance(jobs, list) or len(jobs) != 1
+                    or not isinstance(jobs[0], dict) or jobs[0].get('id') != job_id):
+                raise MaintenanceError('IRAN_HISTORY_REFERENCE_UNSAFE')
+            publications.add(publication); manifests.add((agent, revision))
+        for agent, digest, publication, received, raw in db.execute(
+                'SELECT agent,hash,publication,received_at,body FROM evidence.iran_outcomes'):
+            guard()
+            saved = _json(raw); child = saved.get('receipt'); manifest = saved.get('manifest')
+            if (publication not in publications or saved.get('agent_id') != agent
+                    or saved.get('publication_id') != publication or saved.get('received_at') != received
+                    or not isinstance(child, dict) or _canonical_hash(child) != digest
+                    or not isinstance(manifest, dict) or _scope(child, agent) != _scope(manifest)):
+                raise MaintenanceError('IRAN_HISTORY_REFERENCE_UNSAFE')
+            manifests.add(_scope(manifest)); receipts.add(digest)
+    for agent, report_hash, consumed, raw in db.execute('SELECT agent_id,report_hash,consumed_at,body FROM inbox'):
         guard()
         env = _json(raw); report = env.get('report')
         if not isinstance(report, dict) or not isinstance(report.get('jobs'), list):
             raise MaintenanceError('UNCONSUMED_REFERENCE_UNSAFE')
+        # A consumed authenticated mutation/acceptance report is provenance for
+        # the effect ledger, rather than disposable probe history. Unknown old
+        # operations also remain retained conservatively.
+        if consumed is not None and all(isinstance(job, dict) and job.get('op') == 'probe'
+                                        for job in report['jobs']):
+            continue
         reports.add((agent, report_hash))
         for receipt in report['jobs']:
             if not isinstance(receipt, dict): raise MaintenanceError('UNCONSUMED_REFERENCE_UNSAFE')
@@ -279,8 +320,9 @@ def prune_readonly_history(config: dict, now: int | None = None, *, allow_test_p
             cutoff = now-days*DAY
             counts = {}
             counts['inbox'] = db.execute('DELETE FROM inbox WHERE rowid IN '
-                '(SELECT rowid FROM inbox WHERE consumed_at IS NOT NULL AND consumed_at<? AND received_at<? '
-                'ORDER BY consumed_at,rowid LIMIT ?)', (cutoff, cutoff, batch)).rowcount
+                '(SELECT i.rowid FROM inbox i WHERE consumed_at IS NOT NULL AND consumed_at<? AND received_at<? '
+                'AND NOT EXISTS(SELECT 1 FROM keep_report k WHERE k.agent=i.agent_id AND k.hash=i.report_hash) '
+                'ORDER BY consumed_at,i.rowid LIMIT ?)', (cutoff, cutoff, batch)).rowcount
             counts['receipts'] = db.execute('DELETE FROM evidence.receipts WHERE rowid IN '
                 '(SELECT rowid FROM evidence.receipts r WHERE received_at<? '
                 'AND NOT EXISTS(SELECT 1 FROM keep_receipt k WHERE k.hash=r.hash) ORDER BY received_at,rowid LIMIT ?)',

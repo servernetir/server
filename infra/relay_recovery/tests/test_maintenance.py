@@ -231,6 +231,116 @@ class MaintenanceTests(unittest.TestCase):
             self.assertIsNotNone(db.execute('SELECT 1 FROM manifests WHERE agent=? AND revision=5', ('ir-agent',)).fetchone())
         self.preserved_scope()
 
+    def install_effect_schema(self):
+        # Use the actual collector constructor, including its partial unique
+        # index, instead of a maintenance-only approximation of the new schema.
+        from relay_recovery.controller_adapter import Adapter
+        return Adapter(self.config, now=self.now, provider=object())
+
+    def effect_history(self, publication, revision, operation, phase, *, outcome=False):
+        job_id = 'effect-'+publication
+        manifest = {'agent_id': 'ir-agent', 'revision': revision, 'generation': 2,
+            'incident_id': 'historical-incident', 'config_hash': 'a'*64, 'jobs_hash': 'b'*64,
+            'issued_at': self.old, 'expires_at': self.old+25,
+            'jobs': [{'id': job_id, 'op': operation}]}
+        receipt = {'job_id': job_id, 'op': operation, 'revision': revision, 'generation': 2,
+            'incident_id': 'historical-incident', 'config_hash': 'a'*64, 'jobs_hash': 'b'*64,
+            'observed_at': self.old+1, 'ok': phase == 'SUCCEEDED',
+            'code': 'completed' if phase == 'SUCCEEDED' else 'reconciliation_pending', 'checks': {}}
+        digest = m._canonical_hash(receipt)
+        saved = {'permit': {'intent_id': publication}, 'context': {}, 'manifest': manifest}
+        record = {'agent_id': 'ir-agent', 'publication_id': publication,
+            **saved, 'job': manifest['jobs'][0], 'receipt': receipt, 'received_at': self.old+2,
+            'fresh_observation': False}
+        with self.db('controller-evidence.sqlite3') as db:
+            db.execute('UPDATE manifests SET issued_at=?,body=? WHERE agent=? AND revision=?',
+                (self.old, json.dumps(manifest), 'ir-agent', revision))
+            db.execute('INSERT INTO iran_jobs VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+                (publication, publication, 'ir-agent', operation, revision, job_id, self.old+25,
+                 json.dumps(saved), phase, 'EXPOSED', digest if outcome else None))
+            if outcome:
+                db.execute('INSERT INTO iran_outcomes VALUES(?,?,?,?,?,?)',
+                    ('ir-agent', digest, publication, self.old+2, phase.lower(), json.dumps(record)))
+        report = {'agent_id': 'ir-agent', 'observed_at': self.old+2, 'jobs': [receipt]}
+        report_hash = m._canonical_hash(report)
+        self.inbox(report_hash, report, self.old+2, self.old+3)
+        with self.db('controller-evidence.sqlite3') as db:
+            db.execute('INSERT INTO ingested_reports VALUES(?,?,?,?,?)',
+                ('ir-agent', report_hash, self.old+2, 'f'*64, 'accepted'))
+        return revision, report_hash
+
+    def test_actual_collector_optional_effect_schema_is_accepted_without_pruning_it(self):
+        self.install_effect_schema()
+        result = self.run_maintenance()
+        self.assertTrue(result['ok'], result)
+        self.assertEqual({'inbox': 1, 'receipts': 1, 'manifests': 5, 'ingested_reports': 1}, result['deleted'])
+        with self.db('controller-evidence.sqlite3') as db:
+            self.assertEqual([], db.execute('SELECT * FROM iran_jobs').fetchall())
+            self.assertEqual([], db.execute('SELECT * FROM iran_outcomes').fetchall())
+        self.preserved_scope()
+
+    def test_effect_pair_requires_exact_columns_and_both_tables(self):
+        self.install_effect_schema()
+        with self.db('controller-evidence.sqlite3') as db:
+            db.execute('DROP TABLE iran_outcomes')
+        self.assertEqual('HISTORY_SCHEMA_UNSAFE', self.run_maintenance()['reason'])
+        self.install_effect_schema()
+        with self.db('controller-evidence.sqlite3') as db:
+            db.execute('ALTER TABLE iran_jobs ADD COLUMN undeclared TEXT')
+        self.assertEqual('HISTORY_SCHEMA_UNSAFE', self.run_maintenance()['reason'])
+        self.preserved_scope()
+
+    def test_effect_foreign_keys_or_triggers_hold_without_mutating_evidence(self):
+        self.install_effect_schema()
+        with self.db('controller-evidence.sqlite3') as db:
+            db.execute('CREATE TRIGGER new_effect_trigger BEFORE DELETE ON manifests BEGIN DELETE FROM iran_jobs; END')
+        self.assertEqual('HISTORY_SCHEMA_UNSAFE', self.run_maintenance()['reason'])
+        with self.db('controller-evidence.sqlite3') as db:
+            db.execute('DROP TRIGGER new_effect_trigger')
+            db.execute('DROP TABLE iran_outcomes')
+            db.execute('CREATE TABLE iran_outcomes(agent TEXT NOT NULL,hash TEXT NOT NULL,publication TEXT NOT NULL,'
+                'received_at INTEGER NOT NULL,classification TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(agent,hash),'
+                'FOREIGN KEY(publication) REFERENCES iran_jobs(id))')
+        self.assertEqual('HISTORY_SCHEMA_UNSAFE', self.run_maintenance()['reason'])
+        self.preserved_scope()
+
+    def test_pending_expired_unknown_and_terminal_effect_evidence_survives_retention(self):
+        self.install_effect_schema()
+        references = [self.effect_history('pending-stage', 2, 'stage', 'PENDING'),
+            self.effect_history('expired-unknown', 5, 'apply', 'PENDING', outcome=True),
+            self.effect_history('terminal-success', 6, 'apply', 'SUCCEEDED', outcome=True),
+            self.effect_history('terminal-failure', 7, 'accept', 'FAILED', outcome=True)]
+        with self.db('controller-evidence.sqlite3') as db:
+            before = {table: db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall()
+                      for table in ('iran_jobs', 'iran_outcomes')}
+            manifests = {revision: db.execute('SELECT body FROM manifests WHERE agent=? AND revision=?',
+                ('ir-agent', revision)).fetchone()[0] for revision, _ in references}
+        result = self.run_maintenance()
+        self.assertTrue(result['ok'], result)
+        with self.db('controller-evidence.sqlite3') as db:
+            for table, rows in before.items():
+                self.assertEqual(rows, db.execute('SELECT * FROM '+table+' ORDER BY rowid').fetchall())
+            for revision, report_hash in references:
+                self.assertEqual(manifests[revision], db.execute('SELECT body FROM manifests WHERE agent=? AND revision=?',
+                    ('ir-agent', revision)).fetchone()[0])
+                self.assertIsNotNone(db.execute('SELECT 1 FROM ingested_reports WHERE agent=? AND report_hash=?',
+                    ('ir-agent', report_hash)).fetchone())
+        with self.db('agent-reports.sqlite3') as db:
+            for _, report_hash in references:
+                self.assertIsNotNone(db.execute('SELECT 1 FROM inbox WHERE agent_id=? AND report_hash=?',
+                    ('ir-agent', report_hash)).fetchone())
+        self.preserved_scope()
+
+    def test_unparseable_effect_reference_holds_all_deletions(self):
+        self.install_effect_schema()
+        self.effect_history('pending-stage', 2, 'stage', 'PENDING')
+        with self.db('controller-evidence.sqlite3') as db:
+            db.execute("UPDATE iran_jobs SET body='{}'")
+        result = self.run_maintenance()
+        self.assertEqual('IRAN_HISTORY_REFERENCE_UNSAFE', result['reason'])
+        self.assertTrue(all(count == 0 for count in result['deleted'].values()))
+        self.preserved_scope()
+
     def test_vacuum_is_skipped_when_main_disk_reserve_would_be_reduced(self):
         with self.db('controller-evidence.sqlite3') as db:
             for n in range(100):

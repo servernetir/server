@@ -24,6 +24,7 @@ from typing import Callable
 from . import core, hetzner
 from .agent import _bounded_process
 from .gateway import private_file
+from .protocol import decode_json
 
 
 class ProviderEffectError(core.RecoveryError):
@@ -60,14 +61,45 @@ class CredentialBridge:
     def request(self, operation: str) -> dict:
         if operation not in {'describe', 'credentials'} or not isinstance(self.entry, dict):
             raise ProviderEffectError('bridge_not_configured')
+        return self._exchange({'op': operation})
+
+    def _exchange(self, request: dict, *, timeout: float = 20, guard: Callable | None = None) -> dict:
+        """Private fixed-pipe transport, shared by the finite CRM wrapper.
+
+        The credential public API above retains its two-operation allowlist.
+        A mutation guard runs after all local pins and immediately before the
+        process starts; it returns the remaining absolute authorization time.
+        """
         try:
+            if (not isinstance(self.entry, dict) or not isinstance(request, dict)
+                    or type(timeout) not in (int, float) or not 0 < timeout <= 20):
+                raise ProviderEffectError('bridge_failed')
+            operation = request.get('op')
+            fields = ({'op'} if operation in {'describe', 'credentials'} else
+                      {'op', 'intent_id'} if operation == 'reconcile_promotion' else
+                      {'op', 'intent_id', 'continuation'} if operation == 'promote' else None)
+            if (fields is None or set(request) != fields
+                    or (operation == 'promote' and (not callable(guard) or not isinstance(request['continuation'], dict)))
+                    or ('intent_id' in request and (not isinstance(request['intent_id'], str)
+                        or not re.fullmatch('[a-f0-9]{40}', request['intent_id'])))):
+                raise ProviderEffectError('bridge_failed')
             php = _pinned(self.entry['php'], self.entry['php_sha256'], executable=True)
             bridge = _pinned(self.entry['path'], self.entry['sha256'])
             config = Path(self.entry['config'])
             private_file(config)
+            data = json.dumps(request).encode()
+            if len(data) > 65536:
+                raise ProviderEffectError('bridge_failed')
+            if guard is not None:
+                remaining = guard()
+                if type(remaining) not in (int, float) or not 0 < remaining <= 30:
+                    raise ProviderEffectError('bridge_failed')
+                timeout = min(timeout, remaining)
             code, output = self.runner([str(php), str(bridge), str(config)],
-                                       json.dumps({'op': operation}).encode(), timeout=20)
-            result = json.loads(output)
+                                       data, timeout=timeout)
+            if not isinstance(output, bytes) or len(output) > 65536:
+                raise ProviderEffectError('bridge_failed')
+            result = decode_json(output)
             if code != 0 or not isinstance(result, dict) or result.get('ok') is not True:
                 raise ProviderEffectError('bridge_failed')
             return result

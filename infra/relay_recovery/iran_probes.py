@@ -317,7 +317,7 @@ class Probes:
             pass
         try:
             if pid is not None:
-                ok, raw = self.ct(['/usr/bin/ps', '-p', str(pid), '-o', 'args='], 1)
+                ok, raw = self.ct(['/usr/bin/ps', '-p', str(pid), '-o', 'args='], 3)
                 checks['ssh_target_matches'] = _ssh_target(raw, context['job']['target']['host']) if ok else None
         except ProtocolError:
             pass
