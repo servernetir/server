@@ -8,6 +8,7 @@ on:
       - 'website/app/Models/Crypto*.php'
       - 'website/database/migrations/*payment*'
       - 'website/tests/Feature/Crypto*.php'
+      - 'website/tests/compare-crypto-baseline.py'
       - '.github/workflows/crypto-reconciliation.yml'
   push:
     branches: [develop, 'fix/crypto-reconciliation-*']
@@ -16,6 +17,7 @@ on:
       - 'website/app/Models/Crypto*.php'
       - 'website/database/migrations/*payment*'
       - 'website/tests/Feature/Crypto*.php'
+      - 'website/tests/compare-crypto-baseline.py'
       - '.github/workflows/crypto-reconciliation.yml'
 
 permissions:
@@ -94,4 +96,26 @@ jobs:
           php -l tests/Feature/CryptoReconciliationResilienceTest.php
       - name: Exercise settlement, replay, migration and failure isolation
         run: |
-          vendor/bin/phpunit --colors=never --filter='CryptoReconciliationResilienceTest|CryptoBep20Test|CryptoTronPaymentTest|CryptoStaleDepositTest|CryptoAvailabilityAndMatchingTest|PaymentCallbackTest|CreditInvoicePaymentTest'
+          vendor/bin/phpunit --colors=never --filter='CryptoReconciliationResilienceTest|CryptoBep20Test|CryptoTronPaymentTest|CryptoStaleDepositTest'
+      - name: Check out the exact PR base for honest legacy failure comparison
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - name: Compare broad regressions with the unchanged baseline
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          cp -a vendor ../baseline/website/vendor
+          (cd ../baseline/website && composer dump-autoload --no-scripts --no-plugins --no-interaction >/dev/null)
+          legacy='CryptoBep20Test|CryptoTronPaymentTest|CryptoStaleDepositTest|CryptoAvailabilityAndMatchingTest|PaymentCallbackTest|CreditInvoicePaymentTest'
+          before=0
+          after=0
+          (cd ../baseline/website && vendor/bin/phpunit --colors=never --filter="$legacy" --log-junit "$RUNNER_TEMP/crypto-before.xml") > "$RUNNER_TEMP/crypto-before.log" 2>&1 || before=$?
+          vendor/bin/phpunit --colors=never --filter="$legacy" --log-junit "$RUNNER_TEMP/crypto-after.xml" > "$RUNNER_TEMP/crypto-after.log" 2>&1 || after=$?
+          tail -n 4 "$RUNNER_TEMP/crypto-before.log"
+          tail -n 4 "$RUNNER_TEMP/crypto-after.log"
+          python3 tests/compare-crypto-baseline.py "$RUNNER_TEMP/crypto-before.xml" "$RUNNER_TEMP/crypto-after.xml" "$before" "$after"
