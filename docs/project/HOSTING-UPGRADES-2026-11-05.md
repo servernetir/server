@@ -98,6 +98,12 @@ SQLite and MariaDB 11.4 acceptance plus actual rendered review-form checks in
 fa/en/tr, dark/light and 390/1440px Chromium. A workflow definition alone is not
 evidence of a successful run; consult the linked run for actual results.
 
+The existing callback suite deliberately writes an invalid date into a datetime
+column to simulate a settlement fault. It runs on SQLite only; MariaDB correctly
+rejects that fixture at insertion. The new upgrade tests clear configured real
+internal-service IDs so MariaDB's non-transactional sequence allocation cannot
+accidentally designate a synthetic hosting row as internal infrastructure.
+
 No production invoice, payment, reply or customer package mutation occurred.
 The cPanel terminal selected for release was owned by another browser session;
 it was not taken over or used for deployment.

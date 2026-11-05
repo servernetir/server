@@ -31,7 +31,7 @@ class HostingUpgradeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['billing.timezone' => 'UTC']);
+        config(['billing.timezone' => 'UTC', 'billing.internal_service_ids' => []]);
         $this->travelTo(now()->setDate(2026, 11, 16)->startOfDay()->addHours(12));
         Http::swap(new Factory);
         Http::preventStrayRequests();
