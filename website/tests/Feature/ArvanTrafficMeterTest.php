@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\Service;
 use App\Models\Setting;
 use App\Services\Finance\ArvanTrafficMeter;
+use App\Services\Finance\ArvanTrafficExposure;
 use App\Services\Finance\ArvanTrafficCreditGuard;
 use App\Services\Finance\ArvanTrafficSource;
 use App\Services\Finance\Wallet;
@@ -39,6 +40,7 @@ class ArvanTrafficMeterTest extends TestCase
         Http::preventStrayRequests();
         $this->travelTo(Carbon::parse('2026-11-02T12:00:00Z'));
         Setting::put('cloud_margin_pct', '5');
+        Setting::put('arvan_traffic_exposure_enabled_v1', '1');
         config(['billing.tax_percent' => 10]);
         Wallet::flushSchemaCache();
     }
@@ -73,7 +75,7 @@ class ArvanTrafficMeterTest extends TestCase
             'totalPrice' => $cost, 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => $cost,
             'items' => [['itemId' => 'synthetic-internet', 'metric' => 'cc_internet', 'amount' => $quantity,
                 'price' => $cost, 'discount' => '0', 'usedGift' => '0',
-                'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z']]];
+                'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => match ($cost) { '20000' => '2026-11-02T10:00:00Z', '30000' => '2026-11-02T10:20:00Z', '53277' => '2026-11-02T10:40:00Z', default => '2026-11-02T11:00:00Z' }]]];
         $cycle = ['id' => self::CYCLE, 'accountId' => 'synthetic-account', 'currency' => 'irr',
             'startedAt' => '2026-10-23T00:00:00Z', 'expiredAt' => '2026-11-22T00:00:00Z',
             'totalItemsPrice' => $cost, 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => $cost];
@@ -343,8 +345,8 @@ class ArvanTrafficMeterTest extends TestCase
     public function test_small_amount_is_carried_without_invoice_payment_debit_or_paid_checkpoint_advance(): void
     {
         [$customer, , $state] = $this->fixture();
-        foreach (['20000', '30000'] as $cost) {
-            $result = app(ArvanTrafficMeter::class)->run($this->snapshot($cost, 3), true);
+        foreach (['20000' => 2, '30000' => 3] as $cost => $qty) {
+            $result = app(ArvanTrafficMeter::class)->run($this->snapshot((string) $cost, $qty), true);
             $this->assertSame(0, $result['total_irt']);
             $this->assertGreaterThan(0, $result['deferred_total_irt']);
             $this->assertSame($state['checkpoints'], app(ArvanTrafficMeter::class)->state()['checkpoints']);
@@ -462,6 +464,214 @@ class ArvanTrafficMeterTest extends TestCase
             $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
             $this->assertSame(0, Invoice::count()); $this->assertSame(0, CreditEntry::count());
         }
+        Http::assertNothingSent();
+    }
+
+    public function test_pending_traffic_reserves_credit_and_stops_before_invoice_minimum_without_a_small_debit(): void
+    {
+        [$customer, $service, $state] = $this->fixture();
+        app(Wallet::class)->credit($customer->id, 'IRT', 1155, 'topup', null);
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        $this->assertSame(1155, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(0, app(Wallet::class)->availableOf($customer->id));
+        $hold = ArvanTrafficCreditGuard::state($service->fresh());
+        $this->assertTrue($hold['active']);
+        $this->assertSame('pending_traffic_credit_exhausted', $hold['reason']);
+        $this->assertSame('pending_traffic', $hold['trigger']['kind']);
+        $this->assertArrayNotHasKey('trigger_invoice_id', $hold);
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertSame($state['checkpoints'], app(ArvanTrafficMeter::class)->state()['checkpoints']);
+        $this->assertSame(0, Invoice::count()); $this->assertSame(0, Payment::count());
+        $this->assertSame(1, CreditEntry::count());
+        $token = $hold['token'];
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        $this->assertSame($token, ArvanTrafficCreditGuard::state($service->fresh())['token']);
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        Http::assertNothingSent();
+    }
+
+    public function test_pending_credit_cannot_be_spent_elsewhere_and_settlement_clears_only_its_own_reserve(): void
+    {
+        [$customer] = $this->fixture();
+        app(Wallet::class)->credit($customer->id, 'IRT', 8000, 'topup', null);
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        try { app(Wallet::class)->debit($customer->id, 'IRT', 7000, 'synthetic_other', null); $this->fail('Pending traffic credit cannot be spent twice'); }
+        catch (\App\Services\Finance\WalletException $error) { $this->assertSame('insufficient_funds', $error->errorCode); }
+        $this->assertSame(6845, app(Wallet::class)->availableOf($customer->id));
+        app(ArvanTrafficMeter::class)->run($this->snapshot('53277', 5), true);
+        $this->assertSame(0, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(3000, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(1, Invoice::count()); $this->assertSame(2, CreditEntry::count());
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($this->snapshot('53277', 5), true)['total_irt']);
+        $this->assertSame(0, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        Http::assertNothingSent();
+    }
+
+    public function test_missing_held_excluded_and_invalid_reports_preserve_existing_pending_credit(): void
+    {
+        [$customer, , , $snapshot] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        $snapshot['reports'][0]['rows'] = []; $snapshot['reports'][0]['total_items'] = 0;
+        foreach (['totalItemsPrice', 'totalPrice'] as $field) { $snapshot['reports'][0]['cycle'][$field] = '0'; }
+        app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertTrue(app(ArvanTrafficMeter::class)->state()['cycles'][self::CYCLE]['pending']);
+        $state = app(ArvanTrafficMeter::class)->state(); $state['excluded_customers'][] = $customer->id;
+        Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
+        app(ArvanTrafficMeter::class)->run($this->snapshot('30000', 3), true);
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $state['excluded_customers'] = []; Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
+        app(ArvanTrafficMeter::class)->run($this->snapshot('9000', 0.9), true);
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $snapshot['reports'][0]['cycle']['totalPrice'] = '999';
+        try { app(ArvanTrafficMeter::class)->run($snapshot, true); $this->fail('Invalid snapshot must fail'); }
+        catch (RuntimeException) {}
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(0, Invoice::count()); Http::assertNothingSent();
+    }
+
+    public function test_decreasing_unpaid_proposal_cannot_silently_release_reserved_credit(): void
+    {
+        [$customer] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('30000', 3), true);
+        try { app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true); $this->fail('Decreasing pending evidence must be reconciled'); }
+        catch (RuntimeException $error) { $this->assertStringContainsString('exposure requires reconciliation', $error->getMessage()); }
+        $this->assertSame(2310, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(0, Invoice::count()); Http::assertNothingSent();
+    }
+
+    public function test_new_resource_pending_owner_is_anchored_before_its_first_paid_checkpoint(): void
+    {
+        [$owner, $service, $state] = $this->fixture();
+        $service->forceFill(['created_at' => Carbon::parse('2026-10-26T00:00:00Z')])->save();
+        $state['checkpoints'] = [];
+        Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        $nextOwner = Customer::create(['email' => 'pending-new-owner@example.test', 'status' => 'active']);
+        $service->update(['customer_id' => $nextOwner->id]);
+        $result = app(ArvanTrafficMeter::class)->run($this->snapshot('70000', 7), true);
+        $this->assertSame('pending_traffic_owner_changed_requires_reconciliation', $result['held'][0]['reason']);
+        $this->assertSame(2310, app(ArvanTrafficExposure::class)->reservedOf($owner->id));
+        $this->assertSame(0, app(ArvanTrafficExposure::class)->reservedOf($nextOwner->id));
+        $this->assertSame(0, Invoice::count());
+        $this->assertTrue(app(ArvanTrafficMeter::class)->state()['cycles'][self::CYCLE]['pending']);
+        Http::assertNothingSent();
+    }
+
+    public function test_higher_cost_with_retracted_pending_usage_window_or_quantity_is_rejected(): void
+    {
+        [$customer] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('30000', 3), true);
+        foreach (['time', 'quantity', 'repricing'] as $change) {
+            $snapshot = $this->snapshot('70000', 7);
+            if ($change === 'time') { $snapshot['reports'][0]['rows'][0]['items'][0]['usageTo'] = '2026-11-02T10:00:00Z'; }
+            if ($change === 'quantity') { $snapshot['reports'][0]['rows'][0]['items'][0]['amount'] = 2; }
+            if ($change === 'repricing') { $snapshot['reports'][0]['rows'][0]['items'][0]['usageTo'] = '2026-11-02T10:20:00Z'; }
+            try { app(ArvanTrafficMeter::class)->run($snapshot, true); $this->fail('Retracted pending evidence cannot settle'); }
+            catch (RuntimeException $error) { $this->assertStringContainsString('exposure requires reconciliation', $error->getMessage()); }
+            $this->assertSame(2310, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+            $this->assertSame(0, Invoice::count());
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_paying_one_cycle_does_not_unpin_a_missing_unsettled_cycle(): void
+    {
+        [$customer] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        $this->travelTo(Carbon::parse('2026-12-02T12:00:00Z'));
+        $snapshot = $this->snapshot();
+        $next = $snapshot['reports'][0];
+        $nextId = '22345678-1234-1234-1234-123456789abc';
+        $next['cycle']['id'] = $nextId;
+        $next['cycle']['startedAt'] = '2026-11-22T00:00:00Z';
+        $next['cycle']['expiredAt'] = '2026-12-22T00:00:00Z';
+        $next['rows'][0]['items'][0]['usageFrom'] = '2026-11-22T00:00:00Z';
+        $next['rows'][0]['items'][0]['usageTo'] = '2026-12-02T11:00:00Z';
+        $snapshot['reports'][0]['rows'] = []; $snapshot['reports'][0]['total_items'] = 0;
+        foreach (['totalItemsPrice', 'totalPrice'] as $field) { $snapshot['reports'][0]['cycle'][$field] = '0'; }
+        $snapshot['reports'][] = $next; $snapshot['current_cycle'] = $nextId;
+        $snapshot['observed_at'] = '2026-12-02T12:00:00Z';
+        app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(1, Invoice::count());
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertTrue(app(ArvanTrafficMeter::class)->state()['cycles'][self::CYCLE]['pending']);
+        $this->assertFalse(app(ArvanTrafficMeter::class)->state()['cycles'][$nextId]['pending']);
+        Http::assertNothingSent();
+    }
+
+    public function test_failure_after_exposure_clear_rolls_back_invoice_debit_and_reserve_together(): void
+    {
+        [$customer] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        $state = app(ArvanTrafficMeter::class)->state(); $fired = false;
+        DB::listen(function (QueryExecuted $query) use (&$fired): void {
+            if ($fired || !str_contains($query->sql, 'settings') || !preg_match('/^(insert|update)/i', $query->sql)) { return; }
+            if (!collect($query->bindings)->contains(fn ($v) => is_string($v) && str_starts_with($v, ArvanTrafficExposure::PREFIX))) { return; }
+            foreach ($query->bindings as $value) {
+                if (!is_string($value)) { continue; }
+                try { $payload = json_decode(\Illuminate\Support\Facades\Crypt::decryptString($value), true); }
+                catch (\Throwable) { continue; }
+                if (isset($payload['components']) && $payload['components'] === []) {
+                    $fired = true; throw new RuntimeException('Synthetic failure after exposure clear');
+                }
+            }
+        });
+        try { app(ArvanTrafficMeter::class)->run($this->snapshot('53277', 5), true); $this->fail('Must roll back after reserve clear'); }
+        catch (RuntimeException $error) { $this->assertStringContainsString('after exposure clear', $error->getMessage()); }
+        $this->assertTrue($fired);
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
+        $this->assertSame(0, Invoice::count()); $this->assertSame(0, Payment::count()); $this->assertSame(0, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_4999_is_reserved_without_debit_and_5000_settles_exactly_once(): void
+    {
+        [$customer, , $state] = $this->fixture();
+        $key = array_key_first($state['checkpoints']);
+        $state['checkpoints'][$key]['cost_irr'] = 9950;
+        $state['checkpoints'][$key]['sell_irt'] = 1045;
+        $state['checkpoints'][$key]['tax_irt'] = 105;
+        Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
+        $snapshot = $this->snapshot('53229', 5);
+        $snapshot['reports'][0]['rows'][0]['items'][0]['usageTo'] = '2026-11-02T10:00:00Z';
+        app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(4999, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(0, Invoice::count()); $this->assertSame(0, CreditEntry::count());
+        $snapshot = $this->snapshot('53239', 6);
+        app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(5000, Invoice::first()->total);
+        $this->assertSame(0, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(-5000, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($snapshot, true)['total_irt']);
+        $this->assertSame(1, CreditEntry::count()); Http::assertNothingSent();
+    }
+
+    public function test_pausing_new_exposure_writes_keeps_existing_reserves_and_can_settle_them(): void
+    {
+        [$customer] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        Setting::put('arvan_traffic_exposure_enabled_v1', '0');
+        app(ArvanTrafficMeter::class)->run($this->snapshot('30000', 3), true);
+        $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        app(ArvanTrafficMeter::class)->run($this->snapshot('53277', 5), true);
+        $this->assertSame(0, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(1, Invoice::count()); Http::assertNothingSent();
+    }
+
+    public function test_pending_reserve_is_enforced_when_ai_reservation_schema_is_absent(): void
+    {
+        [$customer] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        Wallet::flushSchemaCache();
+        $schema = \Illuminate\Support\Facades\Schema::getFacadeRoot();
+        \Illuminate\Support\Facades\Schema::shouldReceive('hasTable')->andReturnUsing(
+            fn (string $table): bool => $table !== 'ai_reservations' && $schema->hasTable($table)
+        );
+        $this->assertSame(1155, app(Wallet::class)->reservedOf($customer->id));
+        $this->assertSame(0, app(Wallet::class)->reservedOf($customer->id, 'EUR'));
         Http::assertNothingSent();
     }
 }

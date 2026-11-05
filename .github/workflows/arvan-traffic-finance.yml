@@ -193,7 +193,7 @@ jobs:
           target = Path('app/Services/Finance/ArvanTrafficMeter.php')
           text = target.read_text()
           start = text.index('            // A manual traffic settlement may commit after the initial review')
-          end = text.index("            foreach (collect($lines)->sortBy('next.service_id')", start)
+          end = text.index("            foreach (collect($allLines)->sortBy('next.service_id')", start)
           target.write_text(text[:start] + text[end:])
           PYCODE
           preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
@@ -262,7 +262,7 @@ jobs:
           p = Path('app/Services/Finance/ArvanTrafficMeter.php')
           s = p.read_text()
           old = 'availableOf($cid, currentRead: true)'
-          if s.count(old) != 1: raise SystemExit('Expected one current spendable decision.')
+          if s.count(old) != 2: raise SystemExit('Expected current spendable decisions for settled and deferred traffic.')
           p.write_text(s.replace(old, 'availableOf($cid, currentRead: false)'))
           PYCODE
           preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
