@@ -89,13 +89,13 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
             'checkpoints' => [$cycle.'|'.$resource => $checkpoint], 'last_success' => null];
         Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
         $item = ['itemId' => 'synthetic-internet', 'metric' => 'cc_internet', 'amount' => 2,
-            'price' => '20000', 'discount' => '0', 'usedGift' => '0',
+            'price' => '70000', 'discount' => '0', 'usedGift' => '0',
             'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z'];
         $row = ['instanceId' => $native, 'region' => 'ir-test', 'scope' => 'instance', 'productName' => 'iaas',
-            'totalPrice' => '20000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '20000', 'items' => [$item]];
+            'totalPrice' => '70000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '70000', 'items' => [$item]];
         $cycleData = ['id' => $cycle, 'accountId' => 'synthetic-account', 'currency' => 'irr',
             'startedAt' => '2026-10-23T00:00:00Z', 'expiredAt' => '2026-11-22T00:00:00Z',
-            'totalItemsPrice' => '20000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '20000'];
+            'totalItemsPrice' => '70000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '70000'];
         $snapshot = ['observed_at' => '2026-11-02T12:00:00Z', 'current_cycle' => $cycle,
             'reports' => [['cycle' => $cycleData, 'rows' => [$row], 'total_items' => 1]]];
 
@@ -229,13 +229,13 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
             'checkpoints' => [$cycle.'|'.$resource => $checkpoint], 'last_success' => null];
         Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
         $item = ['itemId' => 'synthetic-internet', 'metric' => 'cc_internet', 'amount' => 2,
-            'price' => '20000', 'discount' => '0', 'usedGift' => '0',
+            'price' => '70000', 'discount' => '0', 'usedGift' => '0',
             'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z'];
         $row = ['instanceId' => $native, 'region' => 'ir-test', 'scope' => 'instance', 'productName' => 'iaas',
-            'totalPrice' => '20000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '20000', 'items' => [$item]];
+            'totalPrice' => '70000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '70000', 'items' => [$item]];
         $cycleData = ['id' => $cycle, 'accountId' => 'synthetic-account', 'currency' => 'irr',
             'startedAt' => '2026-10-23T00:00:00Z', 'expiredAt' => '2026-11-22T00:00:00Z',
-            'totalItemsPrice' => '20000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '20000'];
+            'totalItemsPrice' => '70000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '70000'];
         $snapshot = ['observed_at' => '2026-11-02T12:00:00Z', 'current_cycle' => $cycle,
             'reports' => [['cycle' => $cycleData, 'rows' => [$row], 'total_items' => 1]]];
 
@@ -256,7 +256,7 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
                     $writer->table('customers')->where('id', $customer->id)->lockForUpdate()->first();
                     $writer->table('services')->where('id', $service->id)->update(['hold_reserve_irt' => 700]);
                     $writer->table('credit_ledger')->insert(['customer_id' => $customer->id, 'currency_code' => 'IRT',
-                        'amount' => 1856, 'balance_after' => 1856, 'reason' => 'topup', 'created_at' => now(), 'updated_at' => now()]);
+                        'amount' => 7631, 'balance_after' => 7631, 'reason' => 'topup', 'created_at' => now(), 'updated_at' => now()]);
                 });
             }
         });

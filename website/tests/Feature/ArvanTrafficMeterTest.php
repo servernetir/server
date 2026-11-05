@@ -392,4 +392,29 @@ class ArvanTrafficMeterTest extends TestCase
         $this->assertCount(2, $snapshot['reports']);
         Http::assertSent(fn ($request) => str_contains($request->url(), $otherCycle.'/usage-items'));
     }
+
+    public function test_two_individually_small_cycles_settle_in_one_customer_invoice(): void
+    {
+        [$customer] = $this->fixture();
+        $this->travelTo(Carbon::parse('2026-12-02T12:00:00Z'));
+        $snapshot = $this->snapshot('30000', 3);
+        $next = $this->snapshot('30000', 3)['reports'][0];
+        $nextId = '22345678-1234-1234-1234-123456789abc';
+        $next['cycle']['id'] = $nextId;
+        $next['cycle']['startedAt'] = '2026-11-22T00:00:00Z';
+        $next['cycle']['expiredAt'] = '2026-12-22T00:00:00Z';
+        $next['rows'][0]['items'][0]['usageFrom'] = '2026-11-22T00:00:00Z';
+        $next['rows'][0]['items'][0]['usageTo'] = '2026-12-02T11:00:00Z';
+        $snapshot['reports'][] = $next;
+        $snapshot['current_cycle'] = $nextId;
+        $snapshot['observed_at'] = '2026-12-02T12:00:00Z';
+        $result = app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(5775, $result['total_irt']);
+        $this->assertSame(1, Invoice::count());
+        $this->assertSame(2, Invoice::first()->items()->count());
+        $this->assertSame(-5775, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($snapshot, true)['total_irt']);
+        $this->assertSame(1, Payment::count());
+        Http::assertNothingSent();
+    }
 }

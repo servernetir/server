@@ -32,16 +32,16 @@ class ArvanMonitoringWatchTest extends TestCase
         return [$service, $instance, $identity];
     }
 
-    private function put(string $key, array $value): void
+    private function putRecord(string $key, array $value): void
     {
         DB::table('settings')->updateOrInsert(['key' => $key], ['value' => json_encode($value, JSON_THROW_ON_ERROR)]);
     }
 
     private function green(array $identity, int $at): void
     {
-        $this->put(ArvanObservationRegistry::ENROLLMENT.$identity['service_id'], ['version' => 1, 'provider' => 'arvan',
+        $this->putRecord(ArvanObservationRegistry::ENROLLMENT.$identity['service_id'], ['version' => 1, 'provider' => 'arvan',
             'enabled' => true, 'identity' => $identity, 'operator_acceptance_sha256' => str_repeat('b', 64), 'checkpoint_sha256' => str_repeat('c', 64)]);
-        $this->put(ArvanObservationRegistry::STATUS.$identity['service_id'], ['version' => 1, 'identity' => $identity,
+        $this->putRecord(ArvanObservationRegistry::STATUS.$identity['service_id'], ['version' => 1, 'identity' => $identity,
             'result' => ['status' => 'observed', 'two_fresh_samples_verified' => true, 'checked_at' => $at]]);
     }
 
@@ -53,7 +53,7 @@ class ArvanMonitoringWatchTest extends TestCase
         $this->green($identity, time()); $this->assertSame([], $health->inspect()['issues']);
         $this->green($identity, time() - 151); $this->assertNotEmpty($health->inspect()['issues']);
         $this->green($identity, time());
-        $this->put(ArvanObservationRegistry::STATUS.$service->id, ['version' => 1, 'identity' => $identity,
+        $this->putRecord(ArvanObservationRegistry::STATUS.$service->id, ['version' => 1, 'identity' => $identity,
             'result' => ['status' => 'unknown', 'reason' => 'counter_reset_requires_rebaseline', 'checked_at' => time()]]);
         $this->assertNotEmpty($health->inspect()['issues']);
         $this->green($identity, time());
