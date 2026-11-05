@@ -294,7 +294,9 @@ final class ArvanTrafficMeter
                     && $instances[0]->provider_ref === $next['resource'], 'Live traffic ownership changed');
             }
             $exposure = app(ArvanTrafficExposure::class);
-            $exposure->observeLocked($allLines, $sourceHash);
+            $exposureEnabled = DB::table('settings')->where('key', 'arvan_traffic_exposure_enabled_v1')->value('value') === '1';
+            // Reader/settlement compatibility stays active if new reserve writes are paused.
+            $exposure->observeLocked($exposureEnabled ? $allLines : $lines, $sourceHash);
             $sequence = $state['sequence'] + 1;
             $chargedServices = [];
             foreach (collect($lines)->groupBy('next.customer_id')->sortKeys() as $group) {
@@ -346,6 +348,7 @@ final class ArvanTrafficMeter
                 app(ArvanTrafficCreditGuard::class)->holdLocked($service, $instance, $charge['invoice_id'], $spendable[$cid]);
             }
             foreach ($deferred as $line) {
+                if (!$exposureEnabled) { break; }
                 $cid = $line['next']['customer_id'];
                 $spendable[$cid] ??= app(Wallet::class)->availableOf($cid, currentRead: true);
                 $service = Service::whereKey($line['next']['service_id'])->lockForUpdate()->firstOrFail();
