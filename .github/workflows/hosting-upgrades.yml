@@ -76,5 +76,11 @@ jobs:
         if: matrix.database == 'sqlite'
         env:
           HOSTING_UPGRADE_PREVIEW_DIR: /tmp/hosting-upgrade-previews
-          TEST_CHROME: /usr/bin/google-chrome
-        run: node --test website/tests/js/hosting-upgrade.browser.cjs
+          TEST_CHROME: /tmp/hosting-test-chrome
+        run: |
+          cat > /tmp/hosting-test-chrome <<'SH'
+          #!/bin/sh
+          exec /usr/bin/google-chrome --disable-gpu --disable-dev-shm-usage --no-sandbox "$@"
+          SH
+          chmod 700 /tmp/hosting-test-chrome
+          node --test website/tests/js/hosting-upgrade.browser.cjs
