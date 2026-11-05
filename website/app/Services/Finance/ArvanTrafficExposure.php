@@ -86,6 +86,11 @@ final class ArvanTrafficExposure
                         && $next['cost_irr'] >= $old['next']['cost_irr']
                         && $next['sell_irt'] >= $old['next']['sell_irt']
                         && $next['tax_irt'] >= $old['next']['tax_irt']
+                        && \Illuminate\Support\Carbon::parse($next['to'])->gte(\Illuminate\Support\Carbon::parse($old['next']['to']))
+                        && (float) $next['gb_display'] >= (float) $old['next']['gb_display']
+                        && ($next['cost_irr'] === $old['next']['cost_irr']
+                            || (\Illuminate\Support\Carbon::parse($next['to'])->gt(\Illuminate\Support\Carbon::parse($old['next']['to']))
+                                && (float) $next['gb_display'] > (float) $old['next']['gb_display']))
                         && $amount >= $old['amount_irt']);
                 }
                 $state['components'][$key] = ['base_sha256' => self::base($line), 'source_hash' => $sourceHash,

@@ -74,7 +74,7 @@ class ArvanTrafficMeterTest extends TestCase
             'totalPrice' => $cost, 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => $cost,
             'items' => [['itemId' => 'synthetic-internet', 'metric' => 'cc_internet', 'amount' => $quantity,
                 'price' => $cost, 'discount' => '0', 'usedGift' => '0',
-                'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z']]];
+                'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => match ($cost) { '20000' => '2026-11-02T10:00:00Z', '30000' => '2026-11-02T10:20:00Z', '53277' => '2026-11-02T10:40:00Z', default => '2026-11-02T11:00:00Z' }]]];
         $cycle = ['id' => self::CYCLE, 'accountId' => 'synthetic-account', 'currency' => 'irr',
             'startedAt' => '2026-10-23T00:00:00Z', 'expiredAt' => '2026-11-22T00:00:00Z',
             'totalItemsPrice' => $cost, 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => $cost];
@@ -344,8 +344,8 @@ class ArvanTrafficMeterTest extends TestCase
     public function test_small_amount_is_carried_without_invoice_payment_debit_or_paid_checkpoint_advance(): void
     {
         [$customer, , $state] = $this->fixture();
-        foreach (['20000', '30000'] as $cost) {
-            $result = app(ArvanTrafficMeter::class)->run($this->snapshot($cost, 3), true);
+        foreach (['20000' => 2, '30000' => 3] as $cost => $qty) {
+            $result = app(ArvanTrafficMeter::class)->run($this->snapshot((string) $cost, $qty), true);
             $this->assertSame(0, $result['total_irt']);
             $this->assertGreaterThan(0, $result['deferred_total_irt']);
             $this->assertSame($state['checkpoints'], app(ArvanTrafficMeter::class)->state()['checkpoints']);
@@ -515,6 +515,7 @@ class ArvanTrafficMeterTest extends TestCase
         foreach (['totalItemsPrice', 'totalPrice'] as $field) { $snapshot['reports'][0]['cycle'][$field] = '0'; }
         app(ArvanTrafficMeter::class)->run($snapshot, true);
         $this->assertSame(1155, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertTrue(app(ArvanTrafficMeter::class)->state()['cycles'][self::CYCLE]['pending']);
         $state = app(ArvanTrafficMeter::class)->state(); $state['excluded_customers'][] = $customer->id;
         Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
         app(ArvanTrafficMeter::class)->run($this->snapshot('30000', 3), true);
@@ -537,5 +538,39 @@ class ArvanTrafficMeterTest extends TestCase
         catch (RuntimeException $error) { $this->assertStringContainsString('exposure requires reconciliation', $error->getMessage()); }
         $this->assertSame(2310, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
         $this->assertSame(0, Invoice::count()); Http::assertNothingSent();
+    }
+
+    public function test_new_resource_pending_owner_is_anchored_before_its_first_paid_checkpoint(): void
+    {
+        [$owner, $service, $state] = $this->fixture();
+        $state['checkpoints'] = [];
+        Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
+        app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
+        $nextOwner = Customer::create(['email' => 'pending-new-owner@example.test', 'status' => 'active']);
+        $service->update(['customer_id' => $nextOwner->id]);
+        $result = app(ArvanTrafficMeter::class)->run($this->snapshot('70000', 7), true);
+        $this->assertSame('pending_traffic_owner_changed_requires_reconciliation', $result['held'][0]['reason']);
+        $this->assertSame(2310, app(ArvanTrafficExposure::class)->reservedOf($owner->id));
+        $this->assertSame(0, app(ArvanTrafficExposure::class)->reservedOf($nextOwner->id));
+        $this->assertSame(0, Invoice::count());
+        $this->assertTrue(app(ArvanTrafficMeter::class)->state()['cycles'][self::CYCLE]['pending']);
+        Http::assertNothingSent();
+    }
+
+    public function test_higher_cost_with_retracted_pending_usage_window_or_quantity_is_rejected(): void
+    {
+        [$customer] = $this->fixture();
+        app(ArvanTrafficMeter::class)->run($this->snapshot('30000', 3), true);
+        foreach (['time', 'quantity', 'repricing'] as $change) {
+            $snapshot = $this->snapshot('70000', 7);
+            if ($change === 'time') { $snapshot['reports'][0]['rows'][0]['items'][0]['usageTo'] = '2026-11-02T10:00:00Z'; }
+            if ($change === 'quantity') { $snapshot['reports'][0]['rows'][0]['items'][0]['amount'] = 2; }
+            if ($change === 'repricing') { $snapshot['reports'][0]['rows'][0]['items'][0]['usageTo'] = '2026-11-02T10:20:00Z'; }
+            try { app(ArvanTrafficMeter::class)->run($snapshot, true); $this->fail('Retracted pending evidence cannot settle'); }
+            catch (RuntimeException $error) { $this->assertStringContainsString('exposure requires reconciliation', $error->getMessage()); }
+            $this->assertSame(2310, app(ArvanTrafficExposure::class)->reservedOf($customer->id));
+            $this->assertSame(0, Invoice::count());
+        }
+        Http::assertNothingSent();
     }
 }
