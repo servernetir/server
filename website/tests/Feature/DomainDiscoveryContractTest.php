@@ -138,7 +138,7 @@ class DomainDiscoveryContractTest extends TestCase
             'capabilities' => ['tlds' => ['com' => ['operations' => ['create'], 'period_months' => [24, 36]]]]]);
         $pricing = \Mockery::mock(\App\Services\Domain\DomainProcurement::class)->makePartial();
         $pricing->shouldReceive('quote')->once()->with('example.com', 'create', 24, [], null, null)
-            ->andReturn(new \App\Models\DomainQuote(['id' => 42, 'sell_toman' => 2000000, 'period_months' => 24, 'raw' => []]));
+            ->andReturn((new \App\Models\DomainQuote(['sell_toman' => 2000000, 'period_months' => 24, 'raw' => []]))->forceFill(['id' => 42]));
         $this->app->instance(\App\Services\Domain\DomainProcurement::class, $pricing);
         $rows = app(DomainSearch::class)->search('example', ['com']);
         $this->assertSame(24, $rows[0]['period_months']);
