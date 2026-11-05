@@ -784,3 +784,9 @@ Schedule::command('cloud:watch-sales')
 Schedule::command('cloud:observe-arvan --limit=20')
     ->everyMinute()
     ->withoutOverlapping(2);
+
+// Owner-requested coverage alarms remain independent of collection and financial settlement.
+Schedule::command('cloud:watch-arvan-monitoring')
+    ->everyMinute()
+    ->withoutOverlapping(2)
+    ->runInBackground();

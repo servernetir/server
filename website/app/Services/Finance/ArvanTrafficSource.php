@@ -49,7 +49,7 @@ final class ArvanTrafficSource
         $current = $this->get('current-billing-cycle')['data'];
         $ids = [$current['id']];
         foreach ($knownCycles as $id => $cycle) {
-            if (Carbon::parse($cycle['expired_at'])->gte(now()->subDays(7))) {
+            if (($cycle['pending'] ?? false) === true || Carbon::parse($cycle['expired_at'])->gte(now()->subDays(7))) {
                 $ids[] = $id;
             }
         }

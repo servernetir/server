@@ -21,6 +21,7 @@ use RuntimeException;
 final class ArvanTrafficMeter
 {
     public const KEY = 'arvan_traffic_meter_v1';
+    public const MIN_SETTLEMENT_IRT = 5_000;
 
     private function check(bool $condition, string $message): void
     {
@@ -126,12 +127,14 @@ final class ArvanTrafficMeter
             $unallocated = 0;
             $seen = [];
             $unreviewed = [];
+            $blockedCycles = [];
             foreach ($snapshot['reports'] as $report) {
                 $cycle = $report['cycle'];
                 $cycleId = $cycle['id'];
                 $account = hash('sha256', $cycle['accountId']);
                 $this->check(collect($state['cycles'])->every(fn ($c) => hash_equals($c['account_hash'], $account)), 'Supplier account changed');
-                $state['cycles'][$cycleId] = ['expired_at' => $cycle['expiredAt'], 'started_at' => $cycle['startedAt'], 'account_hash' => $account];
+                $state['cycles'][$cycleId] = ['expired_at' => $cycle['expiredAt'], 'started_at' => $cycle['startedAt'], 'account_hash' => $account,
+                    'pending' => ($state['cycles'][$cycleId]['pending'] ?? false) === true];
                 foreach ($report['rows'] as $parent) {
                     foreach ($parent['items'] as $item) {
                         if ($item['metric'] !== 'cc_internet') {
@@ -150,6 +153,7 @@ final class ArvanTrafficMeter
                         $seen[$key] = true;
                         $instances = CloudInstance::where('provider', 'arvan')->where('provider_ref', $resource)->get();
                         if ($instances->count() !== 1 || ! $instances[0]->service) {
+                            $blockedCycles[$cycleId] = true;
                             $held[] = ['reason' => 'unknown_or_ambiguous_owner'];
 
                             continue;
@@ -158,12 +162,14 @@ final class ArvanTrafficMeter
                         $cid = (int) $service->customer_id;
                         $sid = (int) $service->id;
                         if (in_array($cid, $state['excluded_customers'], true)) {
+                            $blockedCycles[$cycleId] = true;
                             $held[] = ['service_id' => $sid, 'reason' => 'owner_exclusion'];
 
                             continue;
                         }
                         $unreviewed[$cid] ??= $this->hasUnreviewedCharge($cid);
                         if ($unreviewed[$cid]) {
+                            $blockedCycles[$cycleId] = true;
                             $held[] = ['service_id' => $sid, 'reason' => 'manual_traffic_charge_requires_reconciliation'];
 
                             continue;
@@ -181,6 +187,7 @@ final class ArvanTrafficMeter
                         if ($invalid || ($old && ($old['customer_id'] !== $cid || $old['service_id'] !== $sid
                             || ! $from->eq(Carbon::parse($old['from'])) || $cost < $old['cost_irr']
                             || $to->lt(Carbon::parse($old['to'])) || (float) $qty + 0.000001 < (float) $old['gb_display']))) {
+                            $blockedCycles[$cycleId] = true;
                             $held[] = ['service_id' => $sid, 'reason' => 'changed_owner_window_counter_discount_or_gift'];
 
                             continue;
@@ -189,6 +196,7 @@ final class ArvanTrafficMeter
                         $newAfterBaseline = $service->created_at && $service->created_at->gte(Carbon::parse($state['baseline_paid_at']));
                         if (! $old && ((! $newAfterBaseline && $from->lt(Carbon::parse($state['authorized_at'])))
                             || ! $service->created_at || $from->lt($service->created_at))) {
+                            $blockedCycles[$cycleId] = true;
                             $held[] = ['service_id' => $sid, 'reason' => 'historic_resource_requires_baseline'];
 
                             continue;
@@ -197,6 +205,7 @@ final class ArvanTrafficMeter
                             continue;
                         }
                         if ($old && (! $to->gt(Carbon::parse($old['to'])) || (float) $qty <= (float) $old['gb_display'])) {
+                            $blockedCycles[$cycleId] = true;
                             $held[] = ['service_id' => $sid, 'reason' => 'late_repricing_requires_review'];
 
                             continue;
@@ -219,10 +228,35 @@ final class ArvanTrafficMeter
                     }
                 }
             }
+            // Keep paid checkpoints unchanged below the customer threshold. The
+            // supplier's cumulative report carries the unpaid delta forward.
+            // Pin deferred cycles for fetching beyond the normal seven-day tail.
+            $deferred = [];
+            $ready = [];
+            foreach (collect($lines)->groupBy('next.customer_id') as $group) {
+                if ($group->sum('subtotal_irt') + $group->sum('tax_irt') < self::MIN_SETTLEMENT_IRT) {
+                    foreach ($group as $line) {
+                        $deferred[] = $line;
+                        $state['cycles'][$line['cycle']]['pending'] = true;
+                    }
+                } else {
+                    array_push($ready, ...$group->all());
+                }
+            }
+            $deferredCycles = array_fill_keys(array_column($deferred, 'cycle'), true);
+            foreach ($snapshot['reports'] as $report) {
+                $id = $report['cycle']['id'];
+                $state['cycles'][$id]['pending'] = isset($deferredCycles[$id])
+                    || (($state['cycles'][$id]['pending'] ?? false) && isset($blockedCycles[$id]));
+            }
+            $lines = $ready;
             $total = array_sum(array_column($lines, 'subtotal_irt')) + array_sum(array_column($lines, 'tax_irt'));
             $this->check($total <= 1_000_000_000, 'Traffic batch exceeds settlement limit');
             $summary = ['mode' => $apply ? 'apply' : 'preview', 'source_hash' => $sourceHash, 'line_count' => count($lines),
-                'total_irt' => $total, 'held' => $held, 'unallocated_count' => $unallocated, 'invoices' => []];
+                'total_irt' => $total, 'held' => $held, 'unallocated_count' => $unallocated, 'invoices' => [],
+                'minimum_settlement_irt' => self::MIN_SETTLEMENT_IRT,
+                'deferred_line_count' => count($deferred),
+                'deferred_total_irt' => array_sum(array_column($deferred, 'subtotal_irt')) + array_sum(array_column($deferred, 'tax_irt'))];
             if (! $apply) {
                 return $summary;
             }
@@ -251,7 +285,7 @@ final class ArvanTrafficMeter
             }
             $sequence = $state['sequence'] + 1;
             $chargedServices = [];
-            foreach (collect($lines)->groupBy(fn ($l) => $l['cycle'].'|'.$l['next']['customer_id'])->sortKeys() as $group) {
+            foreach (collect($lines)->groupBy('next.customer_id')->sortKeys() as $group) {
                 $cid = $group->first()['next']['customer_id'];
                 $subtotal = $group->sum('subtotal_irt');
                 $tax = $group->sum('tax_irt');
@@ -306,3 +340,4 @@ final class ArvanTrafficMeter
         }, 3);
     }
 }
+
