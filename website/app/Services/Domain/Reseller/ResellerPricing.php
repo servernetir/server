@@ -157,6 +157,18 @@ class ResellerPricing
             return 0;
         }
 
+        if ($quote->supplier_account_id) {
+            // A multi-account quote already contains the complete landed cost,
+            // supplier VAT and its FX snapshot. Do not tax/convert it a second time.
+            $floor = data_get($quote->raw, 'supplier_quote.floor_toman');
+            if (! is_int($floor) || $floor < 1) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'domain' => __('domain-pricing.unavailable'),
+                ]);
+            }
+            return $floor;
+        }
+
         $minor = (int) $quote->cost_amount;      // واحدِ فرعیِ ارزِ مبدأ (×۱۰۰)
         $currency = (string) $quote->cost_currency;
 

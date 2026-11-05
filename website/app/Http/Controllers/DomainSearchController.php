@@ -69,6 +69,7 @@ class DomainSearchController extends Controller
             'reason'    => $search->lookupReason(),
             'query'     => $data['q'],
             'results'   => $results,
+            'suggestion_names' => $search->similarNames($data['q']),
         ]);
     }
 
