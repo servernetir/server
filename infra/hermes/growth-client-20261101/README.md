@@ -38,6 +38,29 @@ php infra/hermes/growth-client-20261101/preflight.php \
 
 خروجی فقط facts غیرمحرمانه و checkهای true/false است. `ready` صرفاً آمادگی نصب محلی است؛ وجود secret، پذیرش HMAC دوطرفه، سلامت VM یا اجرای کمپین را ثابت نمی‌کند. خروجی `not_ready` با exit 2 و ورودی نامعتبر با exit 64 متوقف می‌شوند.
 
+
+## caller واقعی با رسید یکتا
+
+`owner-growth-caller.php` قطعهٔ اجراییِ فقط‌خواندنی است، اما خودش هیچ کلید یا دسترسی‌ای ایجاد نمی‌کند. اپراتور باید مسیر canonical یک key-file ازپیش‌موجود با مالک دقیق و mode `0400` یا `0600` و یک پوشهٔ رسید ازپیش‌موجود با mode دقیق `0700` را بدهد. caller یک `run-id` یکتا می‌پذیرد، ابتدا `curriculum` و سپس `oversight` را حداکثر یک بار فراخوانی می‌کند و دادهٔ پاسخ را در رسید ذخیره نمی‌کند؛ فقط SHA-256 دادهٔ هر پاسخ ثبت می‌شود.
+
+```bash
+php infra/hermes/growth-client-20261101/owner-growth-caller.php \
+  --key-file=/absolute/private/path/growth.key \
+  --receipt-dir=/absolute/private/path/receipts \
+  --expected-uid=<numeric-uid> \
+  --run-id=hg-YYYYMMDDTHHMMSSZ-<unique>
+```
+
+وجود همان فایل رسید اجرای مجدد را پیش از شبکه متوقف می‌کند. `accepted` فقط پذیرش قرارداد دو پاسخ خواندنی است؛ تحویل کمپین، ارسال، فروش یا سلامت کل VM نیست. هر failure یا 503/timeout به `unknown` با `retry_allowed=false` تبدیل و رسید آن نیز نگه‌داری می‌شود تا اپراتور نتیجه را تطبیق دهد. stdout فقط run-id/status را دارد و key، امضا، response data، مسیرها و اطلاعات مشتری را چاپ نمی‌کند.
+
+آزمون ایزوله:
+
+```bash
+php infra/hermes/growth-client-20261101/cycle-test.php
+```
+
+transport ساختگی موفقیت دو عمل، رسید mode `0600`، نبود secret/data در رسید، قفل اجرای تکراری پیش از network، نتیجهٔ نامعلوم بدون retry، پاک‌سازی خطای حساس و رد key/directory ناامن را می‌سنجد.
+
 ## مرز نصب
 
 پیش از نصب باید محل دقیق caller روی VM هرمس، نسخه PHP/cURL، secret store موجود و همسان‌بودن clock بررسی شوند. کلید `growth_hermes_key` باید جداگانه توسط اپراتور مجاز در هر دو سمت تنظیم شود؛ این بسته کلید تازه یا دسترسی گسترده ایجاد نمی‌کند. پذیرش زنده نیازمند یک فراخوانی `curriculum` و یک `oversight` با رسید دوطرفه است. موفقیت CLI مصنوعی، سلامت VM یا اجرای مستقل کمپین نیست.
