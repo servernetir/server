@@ -92,7 +92,7 @@ class CloudPlan extends Model
      */
     public function supportsHourly(): bool
     {
-        // VPS.TC's account catalog is prepaid monthly; even a stale/forged hourly cost grants no sale.
+        // These providers are monthly-only; a stale or forged hourly cost cannot grant a sale.
         if (in_array($this->provider, ['vpstc', 'cloud-engine'], true)) {
             return false;
         }

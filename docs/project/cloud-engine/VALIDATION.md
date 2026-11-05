@@ -7,7 +7,7 @@ software validation, not a production deployment or hardware acceptance.
 
 ## Completed checks
 
-| Check | Result before environment restart |
+| Check | Final validated result |
 |---|---|
 | New Engine suites, SQLite | 104 tests, 855 assertions; no failures, errors or skips |
 | Same suites, MariaDB 11.8.6 | 104 tests, 855 assertions; no failures, errors or skips |
@@ -27,14 +27,21 @@ ProvisioningService paths, including duplicate confirmed renewal callbacks,
 asynchronous suspension, paid restoration and no duplicate wallet charge.
 Provider HTTP responses are fake; these tests never purchased a server.
 
-The original existing-regression baseline was verified from a separate unchanged
-source archive: 1,639 cases, 1,500 passed, 113 failures, 22 XML errors and four
-skipped. The runner classifies three XML errors as risky. The feature selection
-contained the same existing cases plus 19 new passing cases, with no changed
-existing outcomes. See [the comparison](BASELINE-COMPARISON.json). Existing
-failures were not hidden or assertions weakened; many reflect older pricing
-fixtures against the verified-FX contract. A later develop integration needs its
-own recorded baseline; it must not inherit this historical comparison silently.
+The final existing-regression baseline was independently exported from develop
+`65b425d7571d74910c466906461e9749c035da63`. It ran 1,680 cases with 9,626
+assertions: 1,546 passed, 108 failures, 22 XML errors and four skipped. The
+integrated feature selection ran 1,699 cases with 9,798 assertions: the same
+1,680 existing cases have identical outcomes, and all 19 additional matched
+feature cases passed. There are **zero new existing-test regressions**. See
+[the machine-readable comparison](BASELINE-COMPARISON.json). Existing baseline
+failures were preserved and remain purchase-gate blockers, rather than being
+hidden or converted to passes. Earlier results against the original implementation
+base are retained in local evidence, not silently reused for the final integration.
+
+After the environment restart and integration, all 104 new Engine tests again
+passed on SQLite with 855 assertions; the same final suite was also executed on
+MariaDB. Local website smoke requests again passed. No dependency lockfile or
+historical migration was rewritten.
 
 Raw JUnit/logs and independent baseline sources are retained locally under
 `/workspace/.servernet-env/`; raw diagnostic logs are not committed.
@@ -84,3 +91,17 @@ These and the failing existing baseline keep the purchase gate closed. See
 [acceptance](ACCEPTANCE.md), [security](SECURITY-REVIEW.md),
 [node operations](NODE-RUNBOOK.md) and [economics](HARDWARE-AND-ECONOMICS.md).
 Saving environment settings does not publish a snapshot or deploy the system.
+
+
+## Git and environment delivery
+
+The feature is published on `feat/servernet-cloud-engine`, targeting `develop`.
+Draft PR creation was attempted but the runtime denied the GitHub GraphQL API at
+`api.github.com`. The network addition is saved in the environment configuration
+draft; it has not been applied to the running instance. No PR number or successful
+PR creation is claimed. Review and apply the saved network setting to unblock it.
+
+Reusable install/start instructions are saved through the environment draft,
+including PHP/Composer/SQLite, locked JS dependencies, pinned gateway test
+requirements and restart instructions. Saving a draft is distinct from publishing
+an environment snapshot or validating restoration in a new task.
