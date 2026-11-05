@@ -1,0 +1,83 @@
+name: Cloud phone Voice page checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/config/solutions.php'
+      - 'website/resources/views/pages/solution.blade.php'
+      - 'website/resources/views/partials/cloud-phone-voice.blade.php'
+      - 'website/public/assets/css/cloud-phone-voice.css'
+      - 'website/public/assets/cloud-phone/**'
+      - 'website/tests/Fixtures/CloudPhoneVoicePreview.php'
+      - 'website/tests/js/cloud-phone-voice.test.cjs'
+      - 'docs/project/cloud-phone-voice-release-20261102/**'
+      - '.github/workflows/cloud-phone-voice.yml'
+  push:
+    branches: [feat/cloud-phone-voice-web]
+    paths:
+      - 'website/config/solutions.php'
+      - 'website/resources/views/**/cloud-phone-voice.blade.php'
+      - 'website/resources/views/pages/solution.blade.php'
+      - 'website/public/assets/**/cloud-phone*'
+      - 'website/public/assets/cloud-phone/**'
+      - 'website/tests/Fixtures/CloudPhoneVoicePreview.php'
+      - 'website/tests/js/cloud-phone-voice.test.cjs'
+      - 'docs/project/cloud-phone-voice-release-20261102/**'
+      - '.github/workflows/cloud-phone-voice.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cloud-phone-voice-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  presentation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked PHP dependencies without app scripts
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Lint and rehearse the fixed deployment helper
+        run: |
+          set -euo pipefail
+          php -l website/config/solutions.php
+          php -l website/tests/Fixtures/CloudPhoneVoicePreview.php
+          python3 docs/project/cloud-phone-voice-release-20261102/test-release-scope.py
+          php -l docs/project/cloud-phone-voice-release-20261102/engine.php
+          php -l docs/project/cloud-phone-voice-release-20261102/launcher.php.template
+          php -l docs/project/cloud-phone-voice-release-20261102/test-engine-native.php
+          php docs/project/cloud-phone-voice-release-20261102/test-engine-native.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Render actual solution Blade in fa en tr and check app download and schemas
+        working-directory: website
+        run: |
+          set -euo pipefail
+          npm ci --prefix tests/js --ignore-scripts
+          for locale in fa en tr; do
+            php tests/Fixtures/CloudPhoneVoicePreview.php "$locale" /tmp/cloud-phone-voice-fixtures
+          done
+          CLOUD_PHONE_VOICE_FIXTURES=/tmp/cloud-phone-voice-fixtures node --test tests/js/cloud-phone-voice.test.cjs
+      - name: Keep synthetic page previews
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-phone-voice-synthetic-preview
+          path: /tmp/cloud-phone-voice-fixtures
+          if-no-files-found: warn
+          retention-days: 7

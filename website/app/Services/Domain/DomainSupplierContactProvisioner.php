@@ -32,7 +32,7 @@ class DomainSupplierContactProvisioner
         $profile = $customer->defaultProfile(); $payload = $profile ? $this->payload($profile) : null;
         if (! $profile || ! $payload) return null;
         return DomainSupplierContactRequest::where('request_hash', $this->hash($profile, $account, $tld, $payload))
-            ->where('supplier_identity', DomainSupplierCatalogue::identity($account))->where('status', 'succeeded')
+            ->where('supplier_identity', DomainSupplierCatalogue::contactIdentity($account))->where('status', 'succeeded')
             ->whereNotNull('handle')->first();
     }
 
@@ -58,12 +58,12 @@ class DomainSupplierContactProvisioner
                 return $this->current($customer, $account, $tld) !== null;
             }
             if ($request && $request->status !== 'prepared') return $this->current($customer, $account, $tld) !== null;
-            if ($request && ! hash_equals($request->supplier_identity, DomainSupplierCatalogue::identity($account))) return false;
+            if ($request && ! hash_equals($request->supplier_identity, DomainSupplierCatalogue::contactIdentity($account))) return false;
             if (! $request) {
                 if (DomainSupplierContactRequest::where('active_key', $key)->exists()) return false;
                 $request = DB::transaction(fn () => DomainSupplierContactRequest::create([
                     'supplier_account_id' => $account->id, 'customer_profile_id' => $profile->id, 'tld' => $tld,
-                    'request_hash' => $hash, 'active_key' => $key, 'supplier_identity' => DomainSupplierCatalogue::identity($account),
+                    'request_hash' => $hash, 'active_key' => $key, 'supplier_identity' => DomainSupplierCatalogue::contactIdentity($account),
                     'payload' => $payload, 'status' => 'prepared', 'attempts' => 0]));
             }
             $claimed = DomainSupplierContactRequest::whereKey($request->id)->where('status', 'prepared')->whereNull('sent_at')
@@ -85,7 +85,7 @@ class DomainSupplierContactProvisioner
         $request->refresh();
         if (! in_array($request->status, ['submitting', 'queued', 'unknown'], true)) return;
         $account = DomainSupplierAccount::find($request->supplier_account_id);
-        if (! $account || ! hash_equals($request->supplier_identity, DomainSupplierCatalogue::identity($account))) {
+        if (! $account || ! hash_equals($request->supplier_identity, DomainSupplierCatalogue::contactIdentity($account))) {
             $request->update(['status' => 'manual_review', 'reconciled_at' => now()]); return;
         }
         try {

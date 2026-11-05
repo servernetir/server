@@ -717,4 +717,23 @@ class DomainProviderAdaptersTest extends TestCase
         (new JokerAdapter($this->account()))->quote('example.com', 'create', 12);
     }
 
+    public function test_supplier_probe_reads_documented_nested_account_currency_and_rejects_conflicts(): void
+    {
+        $currency = 'USD';
+        Http::fake([
+            '*/auth/login' => Http::response(['code' => 0, 'data' => ['token' => 'fixture-token']]),
+            '*/resellers*' => function ($request) use (&$currency) {
+                $this->assertSame('true', $request['with_settings']);
+                return Http::response(['code' => 0, 'data' => ['balance' => '100.25', 'settings' => ['currency' => 'USD']]
+                    + ($currency === 'USD' ? [] : ['currency' => $currency])]);
+            },
+        ]);
+        $adapter = new OpenProviderAdapter($this->account('openprovider'),
+            new OpenProviderClient('https://api.sandbox.openprovider.nl/v1beta', 'fixture-user', 'fixture-pass', true));
+        $this->assertSame(['healthy' => true, 'balance_minor' => 10025, 'currency' => 'USD'], $adapter->probe());
+        $currency = 'EUR';
+        $this->expectException(DomainProviderException::class);
+        $adapter->probe();
+    }
+
 }

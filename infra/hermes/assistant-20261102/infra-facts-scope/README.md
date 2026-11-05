@@ -1,0 +1,13 @@
+# Scoped provider facts follow-up
+
+This two-file layer narrows `HermesProviderReply` fact intents so mixed requests continue through the normal assistant, and hourly questions do not receive unrelated generic counts. Its Memory fallback sends unmatched sales and mixed requests to the normal assistant instead of a generic ticket report. Provider state, permissions, runtime identity and native tools are unchanged. Source validation and live acceptance are separate; this package alone does not prove installation.
+
+`release-manifest.json`, `deploy.py` and private `native-release.php` pin the installed `08f78c81…` helper baseline, the new immutable helper and Memory overlays, and reviewed deployment core. Base: `a606cf9670b2f05cedaf10dbd286f30460e323c4`. Run the staged private launcher with `prepare`, then `apply` (which also verifies), or `verify`; never serve or schedule the launcher. The real Hermes worker cache locks, shared web flocks, exact backups, source/target hashes, unchanged-cron checks and guarded rollback remain required. No schema, settings, provider action or model request occurs in the deployment core.
+
+Production acceptance at 2026-11-02T17:47:05Z: 81 fact, 33 budget and 96 routing checks passed under PHP 8.4, plus 12 isolated deployment guards. Both production destinations were installed and hash-verified. A fresh-process check of real application classes returned both original factual answers correctly and kept casual, action, mixed sales/ticket and billing-period questions on the model route. It submitted zero jobs and sent zero messages. No browser-login acceptance is claimed.
+
+## Source history and rollback
+
+The canonical `website/app/Services/Hermes/HermesProviderReply.php` follows the current implementation; this directory preserves the exact source of this patch. The preceding [facts manifest](../infra-facts/release-manifest.json) and its private installed receipts remain unchanged. A fresh preparation of that historical release requires its original `a606cf9670b2f05cedaf10dbd286f30460e323c4` checkout, where its canonical source matches `08f78c81…`; do not prepare the old release from a later canonical tree.
+
+Rollback this scope layer first, restoring helper `08f78c81…` and Memory `3ec15970…`, before rolling back the preceding facts layer or older layers. Its already-prepared private rollback validates the original manifest and restores private backups; it does not reread canonical source after preparation. Do not rewrite old manifests or receipts to relocate their source paths. Refuse newer target hashes and preserve conversations, knowledge, jobs and notification journals.

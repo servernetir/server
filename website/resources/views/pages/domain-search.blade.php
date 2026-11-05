@@ -59,6 +59,7 @@ $T = [
   */
   'tld_first'          => \App\Services\Domain\DomainSearch::firstBatch(),
   'tld_rest'           => \App\Services\Domain\DomainSearch::restBatches(),
+  'tld_unsold'         => \App\Services\Domain\DomainSearch::UNSOLD_TLDS,
   'discovery' => __('domain-discovery'),
   'locale' => app()->getLocale(),
   'all_hidden' => __('ui.dsr_f_all_hidden'),
@@ -141,6 +142,19 @@ $T = [
          روی نتیجه‌اند نه روی درخواست: همه‌چیز از قبل در صفحه است و فیلتر فقط
          نمایش را عوض می‌کند، پس بی‌درنگ است و هیچ تماسِ تازه‌ای نمی‌سازد.
          شمارندهٔ کنارِ هر گزینه هم می‌گوید فیلتر چه چیزی را پنهان می‌کند. --}}
+    <div class="dsx-sortbar" id="dm-sortbar" hidden>
+      <label class="dsx-sort">
+        <span>{{ __('domain-discovery.sort_title') }}</span>
+        <select id="f-sort">
+          <option value="best">{{ __('ui.dsr_sort_best') }}</option>
+          <option value="price">{{ __('ui.pt_sort_cheap') }}</option>
+          <option value="-price">{{ __('ui.pt_sort_dear') }}</option>
+          <option value="tld">{{ __('ui.dsr_sort_tld') }}</option>
+        </select>
+      </label>
+      <p>{{ __('domain-discovery.sort_hint') }}</p>
+    </div>
+
     <div class="dsx-filters" id="dm-filters" hidden>
       <label class="dsx-chk">
         <input type="checkbox" id="f-taken" checked>
@@ -167,17 +181,9 @@ $T = [
 
       <span class="dsx-sep" aria-hidden="true"></span>
 
-      <label class="dsx-sort">
-        <span>{{ __('ui.pt_f_sort') }}</span>
-        <select id="f-sort">
-          <option value="best">{{ __('ui.dsr_sort_best') }}</option>
-          <option value="price">{{ __('ui.pt_sort_cheap') }}</option>
-          <option value="-price">{{ __('ui.pt_sort_dear') }}</option>
-          <option value="tld">{{ __('ui.dsr_sort_tld') }}</option>
-        </select>
-      </label>
 
-      <span class="dsx-count" id="dm-count" aria-live="polite"></span>
+
+      <span class="dsx-count" id="dm-count"></span>
     </div>
 
     {{-- ============ نتایج ============ --}}
@@ -193,14 +199,15 @@ $T = [
 
     {{-- «هنوز دارد می‌آید» — بدونِ آن، کاربر فهرستِ نیمه‌کامل را کامل فرض
          می‌کند و فکر می‌کند پسوندِ موردِ نظرش را نداریم. --}}
-    <p id="dm-more" class="dsx-more" hidden aria-live="polite">
+    <p id="dm-more" class="dsx-more" hidden aria-hidden="true">
       <span class="dsx-dots"><i></i><i></i><i></i></span>{{ __('ui.dsr_more') }}
     </p>
 
     <p id="dm-empty" class="dsx-empty" hidden>{{ __('ui.dsr_f_all_hidden') }}</p>
     <div class="dsx-load" id="dm-load-wrap" hidden>
-      <button type="button" class="dsx-load-btn" id="dm-load-more">{{ __('domain-discovery.load_more') }}<span aria-hidden="true">+</span></button>
-      <p id="dm-load-note">{{ __('domain-discovery.more_hint') }}</p>
+      <div class="dsx-auto-progress"><span id="dm-auto-progress"></span><span id="dm-auto-tld" dir="ltr" aria-hidden="true"></span></div>
+      <button type="button" class="dsx-load-btn" id="dm-load-more">{{ __('domain-discovery.pause_search') }}</button>
+      <p id="dm-load-note" role="status" aria-live="polite" aria-atomic="true">{{ __('domain-discovery.auto_running') }}</p>
     </div>
     <p class="dsx-pricing-note" id="dm-pricing-note" hidden>{{ __('domain-discovery.pricing_note') }}</p>
 
@@ -319,6 +326,14 @@ $T = [
 .dsx-links-in a{display:inline-flex;align-items:center;text-decoration:none;color:var(--text);border:1px solid var(--line);transition:border-color .16s,color .16s}
 .dsx-links-in a:hover{border-color:var(--cyan);color:var(--cyan)}
 html[data-theme="light"] .dsx-row:hover{background:rgba(0,0,0,.025)}
+.dsx-sortbar{max-width:960px;margin:0 auto 12px;padding:14px 16px;display:flex;align-items:center;gap:18px;justify-content:space-between;border:1px solid var(--info-line);border-radius:12px;background:var(--info-bg)}
+.dsx-sortbar .dsx-sort{margin:0;gap:12px;font-size:12px;font-weight:700;color:var(--text);flex:none}
+.dsx-sortbar .dsx-sort select{min-height:44px;min-width:172px;max-width:none;padding:10px 12px;font-size:12px;border-color:var(--info-line)}
+.dsx-sortbar p{font-size:11px;line-height:1.8;color:var(--muted);margin:0;max-width:48ch}
+.dsx-auto-progress{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--muted)}
+#dm-auto-tld{font:500 11px ui-monospace,Menlo,monospace;color:var(--cyan)}
+@media(max-width:720px){.dsx-sortbar{display:block;padding:12px}.dsx-sortbar .dsx-sort{display:flex;justify-content:space-between;width:100%;font-size:12px}.dsx-sortbar .dsx-sort select{min-width:0;min-height:44px;max-width:62%;font-size:12px}.dsx-sortbar p{margin-top:9px;font-size:10px;max-width:none}.dsx-auto-progress{font-size:11px}}
+
 /* Scoped discovery UI. No fonts, image downloads or animation library. */
 .dsx{padding:48px 0 80px;background:radial-gradient(ellipse at 50% 0,rgba(34,211,238,.055),transparent 52%)}
 .dsx [hidden]{display:none!important}
@@ -375,7 +390,8 @@ html[data-theme="light"] .dsx-row:hover{background:rgba(0,0,0,.025)}
 .dsx-table{max-width:960px;background:var(--surface);border-radius:18px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;overflow:clip}
 .dsx-tr{grid-template-columns:minmax(210px,1.4fr) 105px minmax(180px,1fr) 130px;gap:18px;padding:19px 23px}
 .dsx-th{font-size:10px;padding-block:13px;background:var(--bg2);border-bottom-color:var(--line)}
-.dsx-row{min-height:104px;animation:dsx-card-in .26s ease both}
+.dsx-row{min-height:104px}
+.dsx-new-row{animation:dsx-card-in .26s ease both}
 .dsx-row.dsx-primary{background:rgba(34,211,238,.045);border-inline-start:3px solid var(--cyan);padding-inline-start:20px;border-bottom-color:var(--line)}
 .dsx-row.dsx-offer-row:not(.dsx-primary){background:rgba(251,191,36,.018)}
 .dsx-name{font-weight:400;min-width:0}
@@ -451,12 +467,14 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       overview = document.getElementById('dm-overview'), ideas = document.getElementById('dm-ideas'),
       ideaChips = document.getElementById('dm-idea-chips'), loadWrap = document.getElementById('dm-load-wrap'),
       loadMore = document.getElementById('dm-load-more'), loadNote = document.getElementById('dm-load-note'),
+      sortBar = document.getElementById('dm-sortbar'), progress = document.getElementById('dm-auto-progress'), currentTld = document.getElementById('dm-auto-tld'),
       priceNote = document.getElementById('dm-pricing-note'),
       spin = go.querySelector('.dm-spin'), label = go.querySelector('.dm-go-t');
   var fTaken = document.getElementById('f-taken'), fPremium = document.getElementById('f-premium'),
       fUnavail = document.getElementById('f-unavail'), fDeals = document.getElementById('f-deals'),
       fSort = document.getElementById('f-sort');
-  var rows = [], token = 0, nextBatch = 0, activeTerm = '', seen = {}, controller = null, expiryTimer = null;
+  var rows = [], token = 0, activeTerm = '', seen = {}, currentJob = null, expiryTimer = null;
+  var entranceTimers = new Set(), AUTO_DELAY_MS = 1800, REQUEST_TIMEOUT_MS = 35000, throttleUntil = 0;
   var faDigits = function (s) { return String(s).replace(/\d/g, function (d) { return '۰۱۲۳۴۵۶۷۸۹'[d]; }); };
   var num = function (n) { return T.is_fa ? faDigits(n) : String(n); };
   var esc = function (s) { var el = document.createElement('span'); el.textContent = s == null ? '' : String(s); return el.innerHTML; };
@@ -484,8 +502,10 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       && actual > 0 && regular > actual && Number.isFinite(end) && end > Date.now();
   }
   function termLabel(r) {
-    var years = Number(r.period_years || r.min_years || 1);
-    return D.first_term.replace(':years', num(Number.isInteger(years) && years > 0 ? years : 1));
+    var value = r.period_years == null ? r.min_years : r.period_years;
+    if (typeof value !== 'number' && (typeof value !== 'string' || !/^[1-9][0-9]*$/.test(value))) return '';
+    var years = Number(value);
+    return Number.isSafeInteger(years) && years > 0 ? D.first_term.replace(':years', num(years)) : '';
   }
   function render(r) {
     var promotionExpired = r.is_promotion === true && Number.isFinite(Date.parse(r.promotion_ends_at || '')) && Date.parse(r.promotion_ends_at) <= Date.now();
@@ -507,7 +527,7 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
       // The exact stored quote leads to checkout. Unknown or unpriced rows have no buy action.
       right = '<a class="dsx-buy" href="' + esc(r.quote_id ? T.panel + '/checkout/' + encodeURIComponent(r.quote_id) : T.panel + '?register=' + encodeURIComponent(r.domain)) + '">' + esc(T.register_btn) + '<span aria-hidden="true">↗</span></a>';
     }
-    var price = '<div class="dsx-price" aria-hidden="true">—</div>', badge = '';
+    var price = '<div class="dsx-price" aria-hidden="true">—</div>', badge = '', term = termLabel(r);
     if (amount !== null) {
       var previous = deal ? money(r.regular_price_toman) : null;
       if (deal && previous !== null && previous !== amount) {
@@ -515,16 +535,21 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
         badge = '<span class="dsx-offer-badge">' + esc(percent > 0 ? D.discount_badge.replace(':percent', num(percent)) : D.offer_badge) + '</span>';
         var date = new Date(r.promotion_ends_at);
         var until = date.toLocaleDateString(T.locale === 'fa' ? 'fa-IR' : (T.locale === 'tr' ? 'tr-TR' : 'en-GB'), {month: 'short', day: 'numeric', year: 'numeric'});
-        price = '<div class="dsx-price"><del aria-label="' + esc(D.regular_price) + '" dir="ltr">' + previous + '</del><strong aria-label="' + esc(D.current_price) + '" dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + ' · ' + esc(termLabel(r)) + '</small><span class="dsx-expiry">' + esc(D.promotion_until.replace(':date', until)) + '</span></div>';
+        price = '<div class="dsx-price"><del aria-label="' + esc(D.regular_price) + '" dir="ltr">' + previous + '</del><strong aria-label="' + esc(D.current_price) + '" dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + (term ? ' · ' + esc(term) : '') + '</small><span class="dsx-expiry">' + esc(D.promotion_until.replace(':date', until)) + '</span></div>';
       } else {
         el.dataset.deal = ''; el.classList.remove('dsx-offer-row');
-        price = '<div class="dsx-price"><strong dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + ' · ' + esc(termLabel(r)) + '</small></div>';
+        price = '<div class="dsx-price"><strong dir="ltr">' + amount + '</strong><small>' + esc(D.currency_unit) + (term ? ' · ' + esc(term) : '') + '</small></div>';
       }
     }
     el.innerHTML = '<div class="dsx-name"><div class="dsx-name-top">' + (r.primary ? '<span class="dsx-choice">' + esc(D.requested_domain) + '</span>' : '') + badge + '</div><b dir="ltr">' + esc(r.domain) + '</b><small>' + esc(note) + '</small></div>' + '<div class="dsx-state"><span class="dsx-pill ' + cls + '">' + esc(pill) + '</span></div>' + price + '<div class="dsx-action">' + right + '</div>';
     return el;
   }
   function apply() {
+    // A legacy API's missing campaign fields do not prove that the market has no offers.
+    var promotionData = rows.some(function (r) { return typeof r.is_promotion === 'boolean'; });
+    fDeals.closest('.dsx-deal-filter').hidden = !promotionData;
+    document.getElementById('dm-deals-count').hidden = !promotionData;
+    if (!promotionData) fDeals.checked = false;
     var hide = {taken: fTaken.checked, premium: fPremium.checked, unavail: fUnavail.checked}, n = {taken: 0, premium: 0, unavail: 0}, shown = 0, available = 0, deals = 0;
     var els = [].slice.call(box.children);
     els.forEach(function (el) {
@@ -541,15 +566,27 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
     visible.sort(function (a, b) {
       var primary = (b.dataset.primary ? 1 : 0) - (a.dataset.primary ? 1 : 0);
       if (primary) return primary;
-      var pa = +a.dataset.price || 0, pb = +b.dataset.price || 0;
-      if (mode === 'price') return (pa || 1e15) - (pb || 1e15);
-      if (mode === '-price') return pb - pa;
+      var displayedPrice = function (el) {
+        var value = Number(el.dataset.price);
+        return (el.dataset.state === 'free' || el.dataset.state === 'premium') && Number.isFinite(value) && value > 0 ? value : null;
+      };
+      var pa = displayedPrice(a), pb = displayedPrice(b);
+      if (mode === 'price' || mode === '-price') {
+        if (pa === null || pb === null) return (pa === null ? 1 : 0) - (pb === null ? 1 : 0);
+        return mode === 'price' ? pa - pb : pb - pa;
+      }
       if (mode === 'tld') return a.dataset.tld.localeCompare(b.dataset.tld);
       var rank = {free: 0, premium: 1, unchecked: 2, no_price: 3, unsupported: 4, taken: 5};
       var d = (rank[a.dataset.state] || 0) - (rank[b.dataset.state] || 0);
       return d || (pa || 1e15) - (pb || 1e15);
     });
-    visible.forEach(function (el) { box.appendChild(el); });
+    // Move only out-of-order rows. Existing results retain their nodes, focus and animation state.
+    var cursor = box.firstElementChild;
+    visible.forEach(function (el) {
+      while (cursor && cursor.classList.contains('is-hidden')) cursor = cursor.nextElementSibling;
+      if (el === cursor) cursor = cursor.nextElementSibling;
+      else box.insertBefore(el, cursor);
+    });
     document.getElementById('n-taken').textContent = num(n.taken);
     document.getElementById('n-premium').textContent = num(n.premium);
     document.getElementById('n-unavail').textContent = num(n.unavail);
@@ -566,17 +603,33 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
     var upcoming = rows.filter(activePromotion).map(function (r) { return Date.parse(r.promotion_ends_at); });
     if (!upcoming.length) return;
     expiryTimer = setTimeout(function () {
-      var fragment = document.createDocumentFragment();
-      rows.forEach(function (r) { fragment.appendChild(render(r)); });
-      box.replaceChildren(fragment); apply(); refreshExpiry();
+      rows.forEach(function (r) {
+        var node = seen[String(r.domain || '').toLowerCase()];
+        if (node && node.dataset.deal && !activePromotion(r)) updateRow(node, r);
+      });
+      apply(); refreshExpiry();
     }, Math.min(2147483647, Math.max(0, Math.min.apply(null, upcoming) - Date.now() + 30)));
   }
   function busy(on) {
-    go.disabled = on; spin.hidden = !on; label.hidden = on;
+    go.disabled = false; go.setAttribute('aria-busy', on ? 'true' : 'false'); spin.hidden = !on; label.hidden = false;
     box.setAttribute('aria-busy', on ? 'true' : 'false');
   }
   function flagLookup(d) {
     if (d && d.lookup_ok === false) { warn.textContent = T.lookup_failed; warn.hidden = false; }
+  }
+  // UI-only fallback for legacy APIs: name ideas, never availability or price.
+  // Restrict to existing ASCII labels; never alter punycode or transliterate identity.
+  function fallbackIdeas(query) {
+    var raw = String(query || '').trim().toLowerCase().replace(/^https?:\/\//, '').split(/[/?#]/)[0];
+    if (/[^\x00-\x7f]/.test(raw)) return [];
+    var parts = raw.split('.'), name = parts.shift(), ext = parts.join('.');
+    if (!name || name.length < 2 || name.length > 63 || name.indexOf('xn--') === 0 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(name)) return [];
+    if (ext.split('.').some(function (label) { return label.indexOf('xn--') === 0; })) return [];
+    var blocked = T.tld_unsold || ['ir', 'co.ir', 'ac.ir', 'org.ir', 'net.ir', 'gov.ir', 'id.ir', 'sch.ir'];
+    if (!/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/.test(ext) || ext.split('.').some(function (label) { return label.length > 63; }) || blocked.indexOf(ext) !== -1) ext = 'com';
+    return ['get' + name, 'my' + name, name + 'hub', name + 'online', 'try' + name, name + 'site'].filter(function (label) {
+      return label.length <= 63 && label.length + ext.length + 1 <= 253;
+    }).slice(0, 6).map(function (label) { return {name: label + '.' + ext}; });
   }
   function showIdeas(list) {
     ideaChips.replaceChildren();
@@ -587,77 +640,202 @@ html[data-theme="light"] .dsx-offer-badge,html[data-theme="light"] .dsx-price .d
     });
     ideas.hidden = !ideaChips.children.length;
   }
-  function append(list) {
-    var fragment = document.createDocumentFragment(), added = 0;
-    var primaryGuess = activeTerm.indexOf('.') === -1 ? activeTerm.toLowerCase().replace(/\s+/g, '') + '.' + (T.tld_first[0] || 'com') : null;
+  function canonicalName(value) {
+    try { return new URL('https://' + String(value || '').toLowerCase()).hostname.replace(/\.$/, ''); }
+    catch (_) { return String(value || '').toLowerCase().replace(/\.$/, ''); }
+  }
+  function searchPlan(term) {
+    var raw = term.trim().toLowerCase().replace(/^https?:\/\//, '').split(/[/?#]/)[0].replace(/^\.+/, '').replace(/\s+/g, '');
+    var dot = raw.indexOf('.'), label = (dot < 0 ? raw : raw.slice(0, dot)).replace(/[^\p{L}\p{N}-]/gu, '').replace(/^-+|-+$/g, '');
+    var primary = dot < 0 ? (T.tld_first[0] || 'com') : raw.slice(dot + 1).replace(/^\.+|\.+$/g, '');
+    var validTld = function (tld) { return typeof tld === 'string' && tld.length <= 24 && /^[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)*$/u.test(tld); };
+    if (!label || !validTld(primary)) return null;
+    var queue = [], added = {};
+    [primary].concat(T.tld_first, [].concat.apply([], T.tld_rest)).forEach(function (value) {
+      var tld = String(value || '').toLowerCase().replace(/^\.+|\.+$/g, '');
+      if (validTld(tld) && !added[tld]) { added[tld] = true; queue.push(tld); }
+    });
+    return {name:label, primaryFqdn:canonicalName(label + '.' + primary), queue:queue};
+  }
+  function updateRow(node, r) {
+    var replacement = render(r);
+    node.className = replacement.className;
+    Object.keys(node.dataset).forEach(function (key) { delete node.dataset[key]; });
+    Object.keys(replacement.dataset).forEach(function (key) { node.dataset[key] = replacement.dataset[key]; });
+    node.innerHTML = replacement.innerHTML;
+  }
+  function revealNew(node) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    node.classList.add('dsx-new-row');
+    var timer = setTimeout(function () { node.classList.remove('dsx-new-row'); entranceTimers.delete(timer); }, 300);
+    entranceTimers.add(timer);
+  }
+  function append(list, job) {
+    var fragment = document.createDocumentFragment(), changed = false;
     (list || []).forEach(function (r) {
       var name = String(r.domain || '').toLowerCase();
-      if (!name || seen[name]) return;
-      seen[name] = true;
-      if (primaryGuess && name === primaryGuess) r.primary = true;
-      rows.push(r); fragment.appendChild(render(r)); added++;
+      if (!name) return;
+      // Full-FQDN requests are not sent to the legacy API: it would prepend and
+      // recheck that suffix on every call. Pin the customer's name here instead.
+      r.primary = canonicalName(r.domain) === job.primaryFqdn;
+      var existing = seen[name];
+      if (existing) {
+        var index = rows.findIndex(function (old) { return String(old.domain || '').toLowerCase() === name; });
+        if (index >= 0) rows[index] = r;
+        updateRow(existing, r); changed = true;
+      } else {
+        var node = render(r); revealNew(node); seen[name] = node;
+        rows.push(r); fragment.appendChild(node); changed = true;
+      }
     });
-    if (added) { box.appendChild(fragment); table.hidden = false; filters.hidden = false; overview.hidden = false; priceNote.hidden = false; apply(); refreshExpiry(); }
+    if (fragment.childNodes.length) box.appendChild(fragment);
+    if (changed) {
+      table.hidden = false; filters.hidden = false; sortBar.hidden = false; overview.hidden = false; priceNote.hidden = false;
+      apply(); refreshExpiry();
+    }
   }
-  async function fetchBatch(term, tlds, signal) {
-    var res = await fetch(@json(lroute('domain.search.check')), {method: 'POST', headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content}, body: JSON.stringify({q: term, tlds: tlds}), signal: signal});
-    if (!res.ok) throw new Error('lookup_unavailable');
-    return res.json();
+  function retryDelay(response) {
+    var value = response && response.headers && typeof response.headers.get === 'function' ? response.headers.get('Retry-After') : null;
+    var delay = value && /^\d+(?:\.\d+)?$/.test(value) ? Number(value) * 1000 : Date.parse(value || '') - Date.now();
+    return Math.max(AUTO_DELAY_MS, Number.isFinite(delay) ? delay : AUTO_DELAY_MS);
   }
-  function updateLoad() {
-    loadWrap.hidden = !rows.length;
-    loadMore.hidden = nextBatch >= T.tld_rest.length;
-    loadNote.textContent = loadMore.hidden ? D.all_loaded : D.more_hint;
+  async function fetchTld(job, tld, signal) {
+    // Bare stem + exactly one suffix keeps the legacy endpoint to one lookup.
+    var response = await fetch(@json(lroute('domain.search.check')), {method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content},body:JSON.stringify({q:job.name,tlds:[tld]}),signal:signal});
+    if (!response.ok) {
+      var failure = new Error('lookup_unavailable'); failure.kind = response.status === 429 ? 'throttled' : 'network'; failure.delay = retryDelay(response);
+      if (failure.kind === 'throttled') throttleUntil = Math.max(throttleUntil, Date.now() + failure.delay);
+      throw failure;
+    }
+    return response.json();
   }
-  async function run() {
+  function clearJobTimer(job) { clearTimeout(job.timer); job.timer = null; }
+  function updateControls(job) {
+    if (currentJob !== job) return;
+    loadWrap.hidden = false; loadWrap.dataset.state = job.state;
+    progress.textContent = D.auto_progress.replace(':done', num(job.index)).replace(':total', num(job.queue.length));
+    currentTld.textContent = job.index < job.queue.length ? '.' + job.queue[job.index] : '';
+    var waiting = job.state === 'error' && Date.now() < job.retryAt;
+    loadMore.hidden = job.state === 'done';
+    loadMore.disabled = waiting || job.state === 'hidden' || (job.state === 'paused' && job.inFlight);
+    loadMore.textContent = job.state === 'running' ? D.pause_search : job.state === 'error' ? (waiting ? D.retry_wait : D.retry_search) : D.resume_search;
+    var text = job.state === 'done' ? D.auto_done : job.state === 'hidden' ? D.auto_hidden
+      : job.state === 'paused' ? (job.inFlight ? D.auto_pausing : D.auto_paused)
+      : job.state === 'error' ? (job.errorKind === 'throttled' ? D.auto_throttled : D.auto_error) : D.auto_running;
+    if (loadNote.textContent !== text) loadNote.textContent = text;
+    more.hidden = job.state !== 'running' || job.index >= job.queue.length;
+  }
+  function armCooldown(job) {
+    clearJobTimer(job);
+    if (job.retryAt > Date.now()) job.timer = setTimeout(function () {
+      job.timer = null;
+      if (currentJob === job && job.state === 'error') { updateControls(job); armCooldown(job); }
+    }, Math.min(2147483647, job.retryAt - Date.now() + 5));
+  }
+  function holdThrottle(job) {
+    if (currentJob !== job || Date.now() >= throttleUntil) return false;
+    clearJobTimer(job); job.state = 'error'; job.errorKind = 'throttled'; job.retryAt = Math.max(job.retryAt, throttleUntil);
+    if (job.inFlight && job.controller) job.controller.abort();
+    updateControls(job); armCooldown(job); return true;
+  }
+  function scheduleNext(job) {
+    if (currentJob !== job || job.state !== 'running' || job.inFlight || holdThrottle(job)) return;
+    clearJobTimer(job);
+    if (job.index >= job.queue.length) { job.state = 'done'; updateControls(job); return; }
+    if (document.hidden) { job.state = 'hidden'; updateControls(job); return; }
+    job.timer = setTimeout(function () { job.timer = null; perform(job); }, Math.max(0, job.nextAllowed - Date.now()));
+    updateControls(job);
+  }
+  async function perform(job) {
+    if (currentJob !== job || job.inFlight || job.state !== 'running' || holdThrottle(job)) return;
+    if (document.hidden) { job.state = 'hidden'; updateControls(job); return; }
+    job.inFlight = true; job.controller = new AbortController(); job.timedOut = false;
+    var signal = job.controller.signal;
+    job.requestTimer = setTimeout(function () { job.timedOut = true; job.controller.abort(); }, REQUEST_TIMEOUT_MS);
+    if (job.index === 0) busy(true);
+    updateControls(job);
+    try {
+      var data = await fetchTld(job, job.queue[job.index], signal);
+      if (currentJob !== job) return;
+      if (job.timedOut) throw new Error('lookup_timeout');
+      if (signal.aborted) return;
+      if (!data || data.ok !== true || !Array.isArray(data.results) || !data.results.length) throw new Error('lookup_unverified');
+      append(data.results, job); flagLookup(data);
+      if (job.index === 0) showIdeas(Array.isArray(data.suggestion_names) ? data.suggestion_names : fallbackIdeas(job.term));
+      if (!job.scrolled && rows.length) {
+        job.scrolled = true;
+        var target = ideas.hidden ? overview : ideas;
+        if (typeof target.scrollIntoView === 'function') target.scrollIntoView({block:'start',behavior:window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+      }
+      if (data.lookup_ok === false) { var lookupFailure = new Error('lookup_unverified'); lookupFailure.kind = 'lookup'; throw lookupFailure; }
+      job.index++;
+      err.hidden = true;
+      if (!rows.some(function (r) { return stateOf(r) === 'unchecked'; })) warn.hidden = true;
+      if (job.index >= job.queue.length) job.state = 'done';
+    } catch (error) {
+      if (currentJob !== job || (signal.aborted && !job.timedOut)) return;
+      job.state = 'error'; job.errorKind = error.kind || 'network';
+      job.retryAt = Date.now() + (error.delay || AUTO_DELAY_MS);
+      if (!rows.length) { err.textContent = T.err_conn; err.hidden = false; }
+    } finally {
+      clearTimeout(job.requestTimer); job.requestTimer = null; job.inFlight = false;
+      if (currentJob === job) {
+        job.nextAllowed = Date.now() + AUTO_DELAY_MS;
+        busy(false); updateControls(job);
+        if (job.state === 'running') scheduleNext(job);
+        else if (job.state === 'error') armCooldown(job);
+      }
+    }
+  }
+  function cancelJob(job) {
+    if (!job) return;
+    job.state = 'cancelled'; clearJobTimer(job); clearTimeout(job.requestTimer); job.controller && job.controller.abort();
+  }
+  function run() {
     var term = q.value.trim();
     if (!term) { q.focus(); return; }
-    if (controller) controller.abort();
-    controller = new AbortController();
-    var mine = ++token, signal = controller.signal;
-    activeTerm = term; nextBatch = 0; seen = {}; rows = []; clearTimeout(expiryTimer);
-    var shareUrl = new URL(location.href); shareUrl.searchParams.set('q', term);
-    history.replaceState(history.state, '', shareUrl);
+    // The route rate limit spans queries, not just this job's retry button.
+    // Enter, a changed name, or a suggestion cannot clear the server's cooldown.
+    if (Date.now() < throttleUntil) { if (currentJob) holdThrottle(currentJob); return; }
+    var plan = searchPlan(term);
+    // Repeated Enter/click for the same active search must not duplicate backend lookups.
+    if (plan && currentJob && (currentJob.state === 'running' || currentJob.state === 'hidden')
+      && currentJob.name === plan.name && currentJob.primaryFqdn === plan.primaryFqdn) return;
+    cancelJob(currentJob);
+    entranceTimers.forEach(function (timer) { clearTimeout(timer); }); entranceTimers.clear();
+    if (!plan) {
+      box.querySelectorAll('.dsx-new-row').forEach(function (node) { node.classList.remove('dsx-new-row'); });
+      if (currentJob) { currentJob.state = 'paused'; updateControls(currentJob); }
+      busy(false); err.textContent = D.invalid_name; err.hidden = false; q.focus(); return;
+    }
+    clearTimeout(expiryTimer);
+    var job = {token:++token,term:term,name:plan.name,primaryFqdn:plan.primaryFqdn,queue:plan.queue,index:0,state:'running',inFlight:false,nextAllowed:0,retryAt:0,timer:null,requestTimer:null,controller:null,scrolled:false};
+    currentJob = job; activeTerm = term; seen = {}; rows = [];
+    var shareUrl = new URL(location.href); shareUrl.searchParams.set('q', term); history.replaceState(history.state, '', shareUrl);
     if (window.ServerNetAnalytics) window.ServerNetAnalytics.domainSearch(term);
-    busy(true); loadMore.disabled = true;
     if (idle) { idle.hidden = true; }
-    err.hidden = true; warn.hidden = true; more.hidden = true; table.hidden = true; filters.hidden = true; overview.hidden = true; ideas.hidden = true; loadWrap.hidden = true; emptyEl.hidden = true; priceNote.hidden = true;
+    err.hidden = true; warn.hidden = true; table.hidden = true; filters.hidden = true; sortBar.hidden = true; overview.hidden = true; ideas.hidden = true; emptyEl.hidden = true; priceNote.hidden = true;
     box.replaceChildren(); document.getElementById('dm-search-term').textContent = term;
-    try {
-      var first = await fetchBatch(term, T.tld_first, signal);
-      if (mine !== token) return;
-      if (!first.ok) { err.textContent = T.err_empty; err.hidden = false; return; }
-      flagLookup(first); append(first.results); showIdeas(first.suggestion_names); updateLoad();
-      if (rows.length) {
-        var target = ideas.hidden ? overview : ideas;
-        if (typeof target.scrollIntoView === 'function') target.scrollIntoView({block:'start', behavior:window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
-      }
-      if (!rows.length) { err.textContent = T.err_empty; err.hidden = false; }
-    } catch (e) {
-      if (mine !== token || e.name === 'AbortError') return;
-      err.textContent = T.err_conn; err.hidden = false;
-    } finally {
-      if (mine === token) { more.hidden = true; busy(false); loadMore.disabled = false; }
+    updateControls(job); perform(job);
+  }
+  function controlSearch() {
+    var job = currentJob;
+    if (!job) return;
+    if (job.state === 'running') {
+      job.state = 'paused'; clearJobTimer(job); if (job.inFlight) job.controller.abort(); updateControls(job);
+    } else if ((job.state === 'paused' || job.state === 'error') && !job.inFlight && Date.now() >= job.retryAt) {
+      clearJobTimer(job); job.state = document.hidden ? 'hidden' : 'running'; updateControls(job); scheduleNext(job);
     }
   }
-  async function loadNext() {
-    if (!activeTerm || loadMore.disabled || nextBatch >= T.tld_rest.length) return;
-    var mine = token, index = nextBatch, term = activeTerm;
-    more.hidden = false; loadMore.disabled = true; loadNote.textContent = D.more_hint;
-    try {
-      var d = await fetchBatch(term, T.tld_rest[index], controller.signal);
-      if (mine !== token) return;
-      if (!d.ok) throw new Error('lookup_unavailable');
-      flagLookup(d); append(d.results); nextBatch++; updateLoad();
-    } catch (e) {
-      if (mine === token && e.name !== 'AbortError') loadNote.textContent = D.retry_more;
-    } finally {
-      if (mine === token) { more.hidden = true; loadMore.disabled = false; }
-    }
-  }
+  document.addEventListener('visibilitychange', function () {
+    var job = currentJob;
+    if (!job) return;
+    if (document.hidden && job.state === 'running') { clearJobTimer(job); job.state = 'hidden'; updateControls(job); }
+    else if (!document.hidden && job.state === 'hidden') { job.state = 'running'; updateControls(job); scheduleNext(job); }
+  });
   [fTaken, fPremium, fUnavail, fDeals, fSort].forEach(function (el) { el.addEventListener('change', apply); });
   form.addEventListener('submit', function (event) { event.preventDefault(); run(); });
-  loadMore.addEventListener('click', loadNext);
+  loadMore.addEventListener('click', controlSearch);
   document.querySelector('.dsx').addEventListener('click', function (event) {
     var btn = event.target.closest('[data-domain-query]');
     if (!btn) return;

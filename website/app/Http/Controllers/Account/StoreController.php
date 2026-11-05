@@ -135,6 +135,12 @@ class StoreController extends Controller
         $countries = $product->availableCountries();
         $cycles = $product->orderCycles();
 
+        // A stale or crafted form must not bypass panel/capacity matching by
+        // omitting country and falling back to an unrelated product server.
+        if ($product->hostingServerType() !== null && $countries === []) {
+            return back()->withInput()->withErrors(['country' => __('ui.stf_cap_full')]);
+        }
+
         $data = $request->validate([
             'country'     => [$countries === [] ? 'nullable' : 'required', \Illuminate\Validation\Rule::in($countries)],
             'cycle'       => ['required', \Illuminate\Validation\Rule::in($cycles)],

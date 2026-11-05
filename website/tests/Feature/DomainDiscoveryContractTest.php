@@ -86,6 +86,7 @@ class DomainDiscoveryContractTest extends TestCase
         Http::preventStrayRequests();
         $pricing = \Mockery::mock(\App\Services\Domain\DomainProcurement::class);
         $pricing->shouldReceive('enabled')->andReturn(true);
+        $pricing->shouldReceive('initialRegistrationMonths')->andReturn(12);
         $pricing->shouldReceive('withSearchReads')->once()->andReturnUsing(fn ($callback) => $callback());
         $quote = new \App\Models\DomainQuote(['id' => 42, 'is_premium' => false, 'sell_toman' => 1000000,
             'period_months' => 12, 'raw' => ['supplier_quote' => ['is_promotion' => true,
@@ -104,4 +105,46 @@ class DomainDiscoveryContractTest extends TestCase
         $this->assertArrayNotHasKey('supplier_account_id', $rows[0]);
         Http::assertNothingSent();
     }
+    public function test_progressive_batches_preserve_their_last_suffix_with_an_explicit_primary(): void
+    {
+        Http::preventStrayRequests();
+        $pricing = \Mockery::mock(\App\Services\Domain\DomainProcurement::class);
+        $pricing->shouldReceive('enabled')->andReturn(true);
+        $pricing->shouldReceive('withSearchReads')->andReturnUsing(fn ($callback) => $callback());
+        $pricing->shouldReceive('initialRegistrationMonths')->andReturn(12);
+        $seen = [];
+        $pricing->shouldReceive('quote')->andReturnUsing(function ($fqdn) use (&$seen) {
+            $seen[] = $fqdn;
+            throw new \App\Services\Domain\Pricing\DomainProcurementException('domain_unavailable');
+        });
+        $this->app->instance(\App\Services\Domain\DomainProcurement::class, $pricing);
+        foreach (DomainSearch::restBatches() as $batch) {
+            $rows = app(DomainSearch::class)->search('example.com', $batch);
+            foreach ($batch as $tld) $this->assertContains('example.'.$tld, array_column($rows, 'domain'));
+            $this->assertLessThanOrEqual(11, count($rows));
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_search_quotes_the_supported_two_year_minimum_for_a_suffix(): void
+    {
+        Http::preventStrayRequests();
+        config(['domain_suppliers.enabled' => true]);
+        \App\Models\DomainSupplierAccount::query()->update(['active' => false]);
+        \App\Models\DomainSupplierAccount::create(['provider' => 'joker', 'label' => 'Synthetic term', 'environment' => 'production',
+            'active' => true, 'sales_enabled' => true, 'contract_verified' => true, 'identity_verified' => true,
+            'pricing_verified' => true, 'connection_status' => 'healthy', 'health_checked_at' => now(),
+            'balance_minor' => 100000, 'balance_currency' => 'USD',
+            'capabilities' => ['tlds' => ['com' => ['operations' => ['create'], 'period_months' => [24, 36]]]]]);
+        $pricing = \Mockery::mock(\App\Services\Domain\DomainProcurement::class)->makePartial();
+        $pricing->shouldReceive('quote')->once()->with('example.com', 'create', 24, [], null, null)
+            ->andReturn(new \App\Models\DomainQuote(['id' => 42, 'sell_toman' => 2000000, 'period_months' => 24, 'raw' => []]));
+        $this->app->instance(\App\Services\Domain\DomainProcurement::class, $pricing);
+        $rows = app(DomainSearch::class)->search('example', ['com']);
+        $this->assertSame(24, $rows[0]['period_months']);
+        $this->assertSame(2, $rows[0]['period_years']);
+        $this->assertSame(42, $rows[0]['quote_id']);
+        Http::assertNothingSent();
+    }
+
 }

@@ -1,0 +1,36 @@
+<?php
+// Temporary, admin/session/CSRF protected, scoped bytecode activation.
+define('LARAVEL_START', microtime(true));
+require '/home/servernetcloud/servernet_app/vendor/autoload.php';
+$app = require '/home/servernetcloud/servernet_app/bootstrap/app.php';
+$_SERVER['SCRIPT_FILENAME'] = __DIR__.'/index.php';
+$_SERVER['SCRIPT_NAME'] = '/index.php';
+$_SERVER['PHP_SELF'] = '/index.php';
+$request = Illuminate\Http\Request::capture();
+$app->instance('request', $request);
+Illuminate\Support\Facades\Facade::clearResolvedInstance('request');
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+$kernel->bootstrap();
+Illuminate\Support\Facades\Route::match(['GET','POST'], '/servernet-crypto-resilience-activate-0c5e7f1443af.php', function (Illuminate\Http\Request $request) {
+    if ($request->isMethod('GET')) {
+        return response('<!doctype html><meta charset="utf-8"><title>Crypto release activation</title><h1>Crypto release activation</h1><p>Refresh bytecode for the two approved crypto classes.</p><form method="post">'.csrf_field().'<button type="submit">Activate crypto release</button></form>')->header('Cache-Control', 'private, no-store');
+    }
+    $manifest = json_decode(file_get_contents('/home/servernetcloud/crypto-resilience-0c5e7f1443af/manifest.json'), true, 512, JSON_THROW_ON_ERROR);
+    $cached = 0;
+    foreach (['app/Models/CryptoPayment.php', 'app/Services/Payment/CryptoReconciler.php'] as $path) {
+        $file = '/home/servernetcloud/servernet_app/'.$path;
+        abort_unless(hash_file('sha256', $file) === $manifest['files'][$path]['after'], 409);
+        if (function_exists('opcache_is_script_cached') && opcache_is_script_cached($file)) {
+            abort_unless(opcache_invalidate($file, true), 500);
+            $cached++;
+        }
+    }
+    $receipt = ['activated'=>true,'commit'=>$manifest['commit'],'cached_files_invalidated'=>$cached,'validate_timestamps'=>ini_get('opcache.validate_timestamps'),'revalidate_freq'=>ini_get('opcache.revalidate_freq'),'utc'=>gmdate('c'),'global_cache_clear'=>false];
+    $dest = '/home/servernetcloud/crypto-resilience-0c5e7f1443af/activation.json';
+    file_put_contents($dest, json_encode($receipt, JSON_THROW_ON_ERROR), LOCK_EX);
+    chmod($dest, 0600);
+    return response()->json($receipt)->header('Cache-Control', 'private, no-store');
+})->middleware(['web','auth:web','admin']);
+$response = $kernel->handle($request);
+$response->send();
+$kernel->terminate($request, $response);

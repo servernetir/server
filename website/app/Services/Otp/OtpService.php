@@ -7,6 +7,7 @@ use App\Services\Sms\SmsSender;
 use App\Services\Sms\SupportsPatterns;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 /**
  * کد یک‌بارمصرف — دروازهٔ قبل از هر کار پرهزینه.
@@ -68,7 +69,7 @@ class OtpService
     /**
      * ارسال کد. اگر چالش فعالی هست و هنوز خنک نشده، دوباره نمی‌فرستد.
      */
-    public function issue(string $channel, string $destination, string $purpose, ?string $ip): OtpIssue
+    public function issue(string $channel, string $destination, string $purpose, ?string $ip, bool $smsOnly = false, ?callable $beforeDelivery = null): OtpIssue
     {
         $destination = $this->normalize($channel, $destination);
 
@@ -89,9 +90,9 @@ class OtpService
         | ⚠️ برای مسیرهای داخلِ حساب، محافظِ واقعی جای دیگری است: کاربر باید
         | از قبل وارد شده باشد. سقفِ مقصد (پایین) هم همچنان برقرار است.
         */
-        $preAccount = in_array($purpose, ['register', 'login'], true);
+        $preAccount = in_array($purpose, ['register', 'login', 'urmia_city_login'], true);
 
-        if ($preAccount && $ip !== null && $this->countForIp($ip) >= self::MAX_PER_IP) {
+        if ($preAccount && $ip !== null && $this->countForIp($ip, $purpose) >= self::MAX_PER_IP) {
             return OtpIssue::fail(
                 'تعداد درخواست‌ها از این شبکه زیاد بوده است. اگر از اینترنت همراه استفاده می‌کنید '
                 .'شبکهٔ دیگری را امتحان کنید، یا با پشتیبانی تماس بگیرید.'
@@ -109,8 +110,9 @@ class OtpService
         if ($active !== null) {
             $since = (int) abs($active->updated_at?->diffInSeconds(now()) ?? PHP_INT_MAX);
 
-            if ($since < self::RESEND_COOLDOWN) {
-                $wait = self::RESEND_COOLDOWN - $since;
+            $wait = $smsOnly ? max(0, $active->expires_at->getTimestamp() - time()) : self::RESEND_COOLDOWN - $since;
+
+            if ($wait > 0) {
 
                 // شماره در پیام می‌آید تا اگر کاربر شماره‌اش را عوض کرده و
                 // باز این را دید، بفهمد پیام دربارهٔ کدام شماره است
@@ -124,7 +126,7 @@ class OtpService
 
         $code = $this->randomCode();
 
-        $challenge = OtpChallenge::create([
+        $challengeData = [
             'channel'     => $channel,
             'destination' => $destination,
             'purpose'     => $purpose,
@@ -133,7 +135,14 @@ class OtpService
             'resends'     => ($active->resends ?? -1) + 1,
             'ip'          => $ip,
             'expires_at'  => now()->addMinutes(self::TTL_MINUTES),
-        ]);
+        ];
+        // Persist the private caller's association atomically with the OTP, before any delivery.
+        $persist = function () use ($challengeData, $beforeDelivery) {
+            $challenge = OtpChallenge::create($challengeData);
+            if ($beforeDelivery !== null) { $beforeDelivery($challenge); }
+            return $challenge;
+        };
+        $challenge = $beforeDelivery === null ? $persist() : DB::transaction($persist);
 
         // sendOtp و نه send — مسیر الگو، که اپراتور فوری تحویل می‌دهد.
         // با مسیر پیام آزاد، کد سه‌دقیقه‌ای ما اغلب منقضی می‌رسید.
@@ -149,6 +158,11 @@ class OtpService
         };
 
         if (! $sent) {
+            // The boolean SMS contract cannot distinguish rejection from a lost relay response.
+            // Only the private SMS-only caller keeps this bounded challenge usable and never resends it.
+            if ($smsOnly && $channel === 'sms') {
+                return new OtpIssue(false, 'sms_outcome_unknown', $challenge->id, $challenge->expires_at);
+            }
             /*
             | 🔴 منقضی می‌شود، **حذف نمی‌شود**.
             |
@@ -176,7 +190,7 @@ class OtpService
 
         // بله موازی — اگر کاربر بله را وصل کرده باشد، کد آن‌جا هم می‌رود.
         // best-effort و بی‌خطر: هرگز جریان ثبت‌نام را نمی‌شکند.
-        if ($channel === 'sms') {
+        if ($channel === 'sms' && ! $smsOnly) {
             // مسیرِ اختصاصیِ کدِ سفیر — بی‌نیاز به ورودِ کاربر به ربات
             app(\App\Services\Bale\BaleNotifier::class)->otp($destination, $code);
 
@@ -362,9 +376,10 @@ class OtpService
             ->count();
     }
 
-    private function countForIp(string $ip): int
+    private function countForIp(string $ip, string $purpose): int
     {
         return OtpChallenge::where('ip', $ip)
+            ->when($purpose === 'urmia_city_login', fn ($q) => $q->where('purpose', 'urmia_city_login'), fn ($q) => $q->where('purpose', '!=', 'urmia_city_login'))
             ->where('created_at', '>=', now()->subDay())
             ->count();
     }

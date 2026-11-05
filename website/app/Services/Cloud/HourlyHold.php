@@ -76,17 +76,20 @@ final class HourlyHold
     /**
      * مجموعِ ذخیرهٔ نگهداریِ مشتری — تومان. `Wallet::reservedOf` این را می‌خواند.
      */
-    public static function heldOf(int $customerId): int
+    public static function heldOf(int $customerId, bool $currentRead = false): int
     {
         if (! self::enabled()) {
             return 0;
         }
 
-        return (int) Service::query()
+        $query = Service::query()
             ->where('customer_id', $customerId)
             ->where('billing_mode', 'hourly')
-            ->whereIn('status', self::HOLDING_STATUSES)
-            ->sum('hold_reserve_irt');
+            ->whereIn('status', self::HOLDING_STATUSES);
+
+        return $currentRead
+            ? (int) $query->orderBy('id')->lockForUpdate()->pluck('hold_reserve_irt')->sum()
+            : (int) $query->sum('hold_reserve_irt');
     }
 
     /** The reserve actually counted by Wallet, including a pending GPU restart. */

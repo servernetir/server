@@ -16,12 +16,15 @@ function __($key, array $replace = []) {
 }
 function app($name = null) { global $locale; return new class($locale) { public function __construct(private string $locale) {} public function getLocale() { return $this->locale; } }; }
 function config($key = null, $default = null) { return $default ?? []; }
+function asset_ver($path) { return '/'.$path; }
+function route($name) { global $locale; return ($locale === 'fa' ? '' : '/'.$locale).'/api/domain-check'; }
+function site_price($tld) { return app()->getLocale() === 'fa' ? '۱٬۲۵۰٬۰۰۰ تومان' : '€12.50'; }
 function cloud_eur_rate() { return 100000; }
 function lroute($name, $parameters = []) { global $locale; $prefix = $locale === 'fa' ? '' : '/'.$locale; return $prefix.match ($name) { 'domain.search.check' => '/api/domains/search', 'account.domains' => '/account/domains', default => '/domains' }; }
 function fa_num($value) { global $locale; return $locale === 'fa' ? strtr((string) $value, array_combine(range(0, 9), preg_split('//u', '۰۱۲۳۴۵۶۷۸۹', -1, PREG_SPLIT_NO_EMPTY))) : (string) $value; }
 require "$root/vendor/autoload.php";
 $compiler = new Illuminate\View\Compilers\BladeCompiler(new Illuminate\Filesystem\Filesystem, $output);
-$__env = new class { use Illuminate\View\Concerns\ManagesLoops; };
+$__env = new class { use Illuminate\View\Concerns\ManagesLoops, Illuminate\View\Concerns\ManagesStacks; protected $renderCount = 1; };
 $template = file_get_contents("$root/resources/views/pages/domain-search.blade.php");
 $template = preg_replace('/^@(?:extends|section)\([^\n]+\)\s*$/m', '', $template);
 $template = str_replace('@endsection', '', $template);
@@ -50,4 +53,25 @@ window.fetch = async function (_url, options) {
 </script>
 JS;
 file_put_contents($output."/$locale.html", '<!doctype html><html lang="'.$locale.'" dir="'.$dir.'" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="synthetic-fixture"><title>ServerNet · Domain discovery preview</title><style>'.$styles.'</style></head><body>'.$icons.'<main id="main" style="padding-top:0">'.$demo.$partial.'</main></body></html>');
-echo "Rendered domain discovery $locale\n";
+// Render only the real homepage domain section; all other homepage content is outside this fixture.
+$home = file_get_contents("$root/resources/views/pages/home.blade.php");
+$start = strpos($home, '<section class="sn-domain');
+$end = strpos($home, '</section>', $start) + strlen('</section>');
+$routePrefix = $locale === 'fa' ? '' : $locale.'.';
+$tlds = [['tld' => '.com', 'min_years' => 1], ['tld' => '.net', 'min_years' => 1], ['tld' => '.org', 'min_years' => 1]];
+ob_start();
+eval('?>'.$compiler->compileString(substr($home, $start, $end-$start)));
+$homePartial = ob_get_clean();
+file_put_contents($output."/home-partial-$locale.html", $homePartial);
+$homeCss = file_get_contents("$root/public/assets/css/domain-home-discovery.css");
+$homeJs = file_get_contents("$root/public/assets/js/domain-home-discovery.js");
+$homeDemo = <<<'JS'
+<script>
+window.fetch = async function (_url, options) {
+  const domain = JSON.parse(options.body).domain;
+  return {ok:true,json:async()=>({result:{domain:domain,state:'free',available:true,price:'12.50',cart_url:'/domains?q='+encodeURIComponent(domain)},suggestions:[],lookup_ok:true})};
+};
+</script>
+JS;
+file_put_contents($output."/home-$locale.html", '<!doctype html><html lang="'.$locale.'" dir="'.$dir.'" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="synthetic-fixture"><title>ServerNet · Home domain preview</title><style>'.$styles.$homeCss.'</style></head><body>'.$icons.'<main id="main" style="padding-top:0">'.$homePartial.'</main>'.$homeDemo.'<script>'.$homeJs.'</script></body></html>');
+echo "Rendered domain discovery and home $locale\n";

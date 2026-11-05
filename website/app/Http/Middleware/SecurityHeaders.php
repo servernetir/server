@@ -86,6 +86,17 @@ class SecurityHeaders
                 }
             }
 
+            // The separate VPS relay is a POST-redirect destination only for
+            // the eligible customer's own active service detail page.
+            if (preg_match('~^(?:(?:en|tr)/)?account/cloud/[0-9]+$~', $request->path())
+                && $consoleService instanceof \App\Models\Service
+                && \Illuminate\Support\Facades\Auth::guard('customer')->check()
+                && (int) $consoleService->customer_id === (int) \Illuminate\Support\Facades\Auth::guard('customer')->id()
+                && $consoleService->cloudInstance?->provider === 'vpstc'
+                && app(\App\Services\Cloud\VpsTcConsoleBroker::class)->enabledFor($consoleService)) {
+                $formAction .= ' https://vps-vnc.servernet.cloud';
+            }
+
             $csp = implode('; ', [
                 "default-src 'self'",
                 $scriptSrc,

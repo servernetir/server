@@ -1,0 +1,61 @@
+name: Urmia City SMS bridge
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Http/Controllers/Api/UrmiaAuthController.php'
+      - 'website/app/Http/Middleware/IdentityPrivacy.php'
+      - 'website/app/Services/Otp/OtpService.php'
+      - 'website/app/Services/Sms/**'
+      - 'website/routes/urmia-auth.php'
+      - 'website/database/migrations/*urmia_auth*'
+      - 'tests/urmia-auth-isolated.php'
+      - '.github/workflows/urmia-city-auth.yml'
+permissions:
+  contents: read
+concurrency:
+  group: urmia-city-auth-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: isolated_test_only
+          MARIADB_DATABASE: urmia_auth_fixture
+          MARIADB_USER: urmia_fixture
+          MARIADB_PASSWORD: isolated_test_only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Locked dependencies without production bootstrap
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Privacy middleware, OTP and ledger with fake SMS on SQLite
+        run: php tests/urmia-auth-isolated.php "$PWD/website/vendor/autoload.php"
+      - name: Same acceptance on disposable MariaDB
+        env:
+          URMIA_TEST_DB_DRIVER: mysql
+          URMIA_TEST_DB_NAME: urmia_auth_fixture
+          URMIA_TEST_DB_USER: urmia_fixture
+          URMIA_TEST_DB_PASS: isolated_test_only
+        run: php tests/urmia-auth-isolated.php "$PWD/website/vendor/autoload.php"

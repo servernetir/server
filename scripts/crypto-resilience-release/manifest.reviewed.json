@@ -1,0 +1,17 @@
+{
+  "commit": "0c5e7f1443afb5d5d3ab26e182db70bad5277445",
+  "files": {
+    "app/Models/CryptoPayment.php": {
+      "before": "d75b6be11fe95d9b38ad11ce055709f520de6b98c9560b13ef1ede668ac3602c",
+      "after": "edd5927621fe095ac6206172171f3fe45c3d76b1629f3f0b45ce16772ccce929"
+    },
+    "app/Services/Payment/CryptoReconciler.php": {
+      "before": "9fa8bc8fe5163db5e1e27cd7e7dfd7ab9e768ec343d198fdf53cb27df219e0d8",
+      "after": "2f19987c5d884205e62ebffd9d4ab4494f05437484d1c61daf114230a27123f3"
+    },
+    "database/migrations/2026_11_04_000100_widen_payment_reference_for_crypto.php": {
+      "before": null,
+      "after": "45d2aedee6d88a6b1f9fb0dd51b2a055407abae71293cb7a31a87f48df2bd6ea"
+    }
+  }
+}

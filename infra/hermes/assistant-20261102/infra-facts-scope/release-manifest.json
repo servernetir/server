@@ -1,0 +1,18 @@
+{
+  "release": "araz-infra-facts-scope-20261102",
+  "base_commit": "a606cf9670b2f05cedaf10dbd286f30460e323c4",
+  "files": [
+    {
+      "source": "infra/hermes/assistant-20261102/infra-facts-scope/HermesProviderReply.php",
+      "target": "app/Services/Hermes/HermesProviderReply.php",
+      "before": "08f78c81c5bbbaf458d660f308f93d3dc0d85668c06ce6c08ebfe0ae1c2668e9",
+      "after": "8146aec0d732fd72afabf1a3636f5c4c7be11e8ff021b571cc2a628b17ac9451"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/infra-facts-scope/HermesConversationMemory.php",
+      "target": "app/Services/Hermes/HermesConversationMemory.php",
+      "before": "3ec15970f5e485e15e555fe8a0b169273f88447557eb5652f8b1a82f34e1000c",
+      "after": "2fbc0e19e4ffa26de6a1a36de39d7c8fff27ba3df0e484c8b8a9973ea1673c87"
+    }
+  ]
+}

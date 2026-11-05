@@ -89,7 +89,7 @@ jobs:
       - name: Checkout immutable develop baseline
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          ref: f54256d529b6f0cbe38f687bcf82511f44bb96aa
+          ref: 9c3d8732336f4c2ae6c7c016818dd5c1b975a511
           path: baseline
           persist-credentials: false
       - name: Set up PHP 8.4

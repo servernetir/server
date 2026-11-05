@@ -1,0 +1,75 @@
+name: Arvan targeted FPM release checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/arvan-monitoring/fpm-release/**'
+      - 'scripts/arvan-monitoring/web-release/**'
+      - '.github/workflows/arvan-fpm-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-fpm-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-checks:
+    name: Receipt recovery and isolated filesystem/wire checks (PHP ${{ matrix.php }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for synthetic tests only
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Verify reviewed bytes and run fixtures without an external network interface
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture_root="$(mktemp -d "$RUNNER_TEMP/arvan-v3-fixtures.XXXXXX")"
+          cp -a scripts/arvan-monitoring/web-release "$fixture_root/web-release"
+          cp -a scripts/arvan-monitoring/fpm-release "$fixture_root/fpm-release"
+          cd "$fixture_root"
+          sha256sum --check web-release/SHA256SUMS
+          sha256sum --check fpm-release/SHA256SUMS
+          python3 <<'PIN'
+          import hashlib, pathlib, re
+          helper = pathlib.Path('web-release/deploy.php').read_bytes()
+          primary = pathlib.Path('fpm-release/fpm-activation.php').read_text()
+          pin = re.search(r"const AF_HELPER_SHA = '([a-f0-9]{64})';", primary)
+          if not pin or pin.group(1) != hashlib.sha256(helper).hexdigest():
+              raise SystemExit('FPM primary must pin the exact reviewed web helper.')
+          print('Verified exact V3 helper binding.')
+          PIN
+          export ARVAN_TEST_PHP="$(command -v php)"
+          "$ARVAN_TEST_PHP" -l web-release/deploy.php
+          "$ARVAN_TEST_PHP" -l web-release/test-pure.php
+          "$ARVAN_TEST_PHP" -l web-release/test-receipt-flows.php
+          "$ARVAN_TEST_PHP" -l fpm-release/fpm-activation.php
+          "$ARVAN_TEST_PHP" -l fpm-release/inspect-fpm-config.php
+          "$ARVAN_TEST_PHP" -l fpm-release/test-compiled-ops.php
+          # Source/activation entrypoint guards are rewritten only in disposable fixtures.
+          # Native subprocesses run only the synthetic files, with no network interface,
+          # Composer application, real FPM socket, production credentials or app bootstrap.
+          sudo --preserve-env=ARVAN_TEST_PHP,PYTHONDONTWRITEBYTECODE unshare --net -- bash -euo pipefail <<'SYNTHETIC'
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 web-release/test-pure.php
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 web-release/test-receipt-flows.php
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 fpm-release/test-compiled-ops.php
+          python3 fpm-release/test-fpm-activation.py
+          python3 fpm-release/test-receipt-flows.py
+          SYNTHETIC

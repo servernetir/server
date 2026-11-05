@@ -34,6 +34,8 @@ class HourlyCreditControlTest extends TestCase
         parent::setUp();
         Http::fake();
         Setting::put('pricing_rate_override', '120000');
+        \Tests\Support\NavasanRates::store(['USD' => 120000, 'EUR' => 120000, 'USDT' => 120000]);
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([120000, 120000, 120000]);
     }
 
     private function customer(string $locale = 'fa'): Customer
@@ -107,7 +109,9 @@ class HourlyCreditControlTest extends TestCase
         $c = $this->customer();
 
         // دقیقاً کفِ یک سرور — نه بیشتر
-        $this->topup($c, $plan->hourlyStartMinIrt());
+        $standby = \App\Services\Cloud\HourlyHold::fullReserve(
+            app(\App\Services\Cloud\HourlyHold::class)->rateForPlan($plan, $plan->hourlyIrt()), 'suspend');
+        $this->topup($c, $plan->hourlyStartMinIrt() + $standby);
 
         $this->orderHourly($c)->assertRedirect()->assertSessionHasNoErrors();
         $this->assertSame(1, Service::where('customer_id', $c->id)->count());

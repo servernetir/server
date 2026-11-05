@@ -21,7 +21,7 @@ class OpenProviderAdapter implements DomainProvider
 
     public function probe(): array
     {
-        $balance = $this->client->balance();
+        $balance = $this->client->supplierBalance();
         if (! ($balance['known'] ?? false)) { throw new DomainProviderException('balance_unavailable'); }
         $currency = strtoupper((string) $balance['currency']);
         return ['healthy' => true, 'balance_minor' => ProviderMoney::minor($balance['amount'], $currency), 'currency' => $currency];

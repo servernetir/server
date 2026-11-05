@@ -51,6 +51,21 @@ class DomainProcurement
             && Schema::hasColumn('domain_quotes', 'supplier_account_id');
     }
 
+    /** Use one supported initial term; every competing account is quoted for that exact term. */
+    public function initialRegistrationMonths(string $tld): int
+    {
+        $periods = [];
+        foreach (DomainSupplierAccount::eligibleForSales()->get() as $account) {
+            if (! $account->saleEligible()) continue;
+            $caps = (array) ($account->capabilities['tlds'][$tld] ?? []);
+            if (! in_array('create', (array) ($caps['operations'] ?? []), true)) continue;
+            foreach ((array) ($caps['period_months'] ?? []) as $months) {
+                if (is_int($months) && $months >= 12 && $months <= 120 && $months % 12 === 0) $periods[] = $months;
+            }
+        }
+        return $periods === [] ? 12 : min($periods);
+    }
+
     public function quote(string $fqdn, string $operation, int $months, array $options = [], ?Domain $bound = null, ?int $customerId = null): DomainQuote
     {
         if (! $this->enabled()) {

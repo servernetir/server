@@ -63,6 +63,10 @@
 @endif
 
 {{-- ============ PLATFORM ============ --}}
+@if($slug === 'cloud-phone')
+    @include('partials.cloud-phone-voice')
+@endif
+
 {{-- بخش‌های زیر **اختیاری**اند: تا وقتی کلیدشان در config نباشد رندر نمی‌شوند،
      پس نُه راهکارِ دیگر که این کلیدها را ندارند دست‌نخورده می‌مانند. --}}
 @if(!empty($s['platform']))
@@ -114,7 +118,7 @@
 
 {{-- ============ FEATURES ============ --}}
 @if(!empty($s['features']))
-<section class="section">
+<section class="section" @if($slug === 'cloud-phone') id="features" @endif>
   <div class="container">
     <div class="section-head reveal">
       @if(!empty($s['features_badge']))<span class="kicker">{{ $s['features_badge'] }}</span>@endif

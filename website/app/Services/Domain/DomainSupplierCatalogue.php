@@ -25,6 +25,15 @@ class DomainSupplierCatalogue
             (string) config('app.key'));
     }
 
+    /** Contact ownership depends on the login, never on prices or enabled suffixes. */
+    public static function contactIdentity(DomainSupplierAccount $account): string
+    {
+        return hash_hmac('sha256', json_encode(self::canonical([(int) $account->id, $account->provider,
+            $account->environment, (array) $account->credentials, (bool) $account->legacy_config,
+            $account->legacy_config ? \App\Services\Domain\Providers\LegacyAccountIdentity::currentFingerprint() : null]), JSON_THROW_ON_ERROR),
+            (string) config('app.key'));
+    }
+
     private static function canonical(array $value): array
     {
         if (! array_is_list($value)) ksort($value);

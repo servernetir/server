@@ -138,6 +138,16 @@ class DomainSupplierCheckoutTest extends TestCase
 
     public function test_builder_combined_invoice_keeps_the_selected_supplier_and_domain_line(): void
     {
+        $this->builderCheckout(false);
+    }
+
+    public function test_builder_reuses_cancelled_domain_after_the_winning_supplier_changes(): void
+    {
+        $this->builderCheckout(true);
+    }
+
+    private function builderCheckout(bool $reuse): void
+    {
         \Illuminate\Support\Facades\Storage::fake('local');
         \Illuminate\Support\Facades\Mail::fake();
         \Illuminate\Support\Facades\Artisan::call('products:seed-builder');
@@ -149,6 +159,14 @@ class DomainSupplierCheckoutTest extends TestCase
         \Illuminate\Support\Facades\Storage::disk('local')->put(
             \App\Services\Provisioning\BuilderSitePublisher::path('SB-TEST01'), '<!doctype html><html><body>Test</body></html>');
         $c = $this->customer(); $q = $this->quote();
+        $old = null;
+        if ($reuse) {
+            $previous = DomainSupplierAccount::create(['provider' => 'openprovider', 'environment' => 'production', 'label' => 'Previous synthetic account']);
+            $old = Domain::create(['customer_id' => $c->id, 'domain' => $q->domain, 'sld' => 'example', 'tld' => 'com',
+                'registrar' => 'openprovider', 'supplier_account_id' => $previous->id, 'supplier_object_id' => 'old-object',
+                'op_id' => 123, 'owner_handle' => 'old-owner', 'status' => 'cancelled', 'order_type' => 'transfer',
+                'transfer_status' => 'rejected', 'provision_status' => 'failed', 'provision_tries' => 9, 'provision_error' => 'old-error']);
+        }
         $this->actingAs($c, 'customer')->post('/account/builder-checkout', [
             'ref' => 'SB-TEST01', 'plan' => $product->slug, 'quote_id' => $q->id,
         ])->assertSessionHasNoErrors();
@@ -158,6 +176,17 @@ class DomainSupplierCheckoutTest extends TestCase
         $this->assertSame($invoice->id, $domain->invoice_id);
         $this->assertSame($q->id, $invoice->supplier_quote['quote_id']);
         $this->assertSame($this->account->id, $invoice->supplier_account_id);
+        $this->assertSame($this->account->id, $domain->supplier_account_id);
+        $this->assertSame('joker', $domain->registrar);
+        $this->assertNull($domain->supplier_object_id);
+        $this->assertNull($domain->op_id);
+        $this->assertNull($domain->owner_handle);
+        if ($reuse) {
+            $this->assertSame($old->id, $domain->id);
+            $this->assertSame('register', $domain->order_type);
+            $this->assertNull($domain->transfer_status);
+            $this->assertSame(0, $domain->provision_tries);
+        }
         app(\App\Services\Domain\LiveDomainPricing::class)->reviewInvoice($invoice);
         app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
     }

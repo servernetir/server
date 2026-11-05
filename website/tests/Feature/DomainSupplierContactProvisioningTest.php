@@ -173,4 +173,22 @@ class DomainSupplierContactProvisioningTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_provisioned_and_pending_contacts_survive_price_and_capability_changes(): void
+    {
+        [$c, , $a, $p, $service] = $this->fixture();
+        $p->shouldReceive('createContact')->once()->andReturn(['status' => 'queued', 'process_id' => 'p-test']);
+        $this->assertFalse($service->ensure($c, $a, 'com'));
+        $caps = $a->capabilities;
+        $caps['tlds']['net'] = ['contact_creation' => 'standard'];
+        $a->update(['settings' => ['supplier_fee_pct' => 2], 'capabilities' => $caps]);
+        $p->shouldReceive('reconcileContact')->once()->andReturn(['status' => 'succeeded', 'handle' => 'CCOM-SYNTHETIC']);
+        $this->assertTrue($service->ensure($c, $a, 'com'));
+        $a->update(['settings' => ['supplier_fee_pct' => 3]]);
+        $this->assertTrue($service->ensure($c, $a->fresh(), 'com'));
+        $this->assertSame('CCOM-SYNTHETIC', $service->current($c, $a, 'com')->handle);
+        $this->assertDatabaseCount('domain_supplier_contact_requests', 1);
+        $this->assertSame(1, DomainSupplierContactRequest::first()->attempts);
+        Http::assertNothingSent();
+    }
+
 }

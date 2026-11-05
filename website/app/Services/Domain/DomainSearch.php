@@ -279,7 +279,11 @@ class DomainSearch
             // The panel may request the full default list. Keep each response
             // within the existing progressive batch size and preserve its first,
             // explicitly requested suffix. Each quote still uses the exact name.
-            $extensions = array_slice($extensions, 0, self::BATCH);
+            // Explicit progressive batches are already bounded by their caller.
+            // Reserve one extra slot if the primary suffix was prepended, so
+            // the last requested suggestion cannot disappear silently.
+            $limit = self::BATCH + ($tlds !== [] && $ext !== '' && ! in_array($ext, $tlds, true) ? 1 : 0);
+            $extensions = array_slice($extensions, 0, $limit);
             return $procurement->withSearchReads(function () use ($extensions, $name, $customerId, $procurement) {
                 $rows = [];
                 foreach ($extensions as $extension) {
@@ -289,7 +293,8 @@ class DomainSearch
                         continue;
                     }
                     try {
-                        $quote = $procurement->quote($fqdn, 'create', 12, [], null, $customerId);
+                        $months = $procurement->initialRegistrationMonths($extension);
+                        $quote = $procurement->quote($fqdn, 'create', $months, [], null, $customerId);
                         $rows[] = $this->withState([
                             'domain' => $fqdn, 'tld' => $extension,
                             'status' => $quote->is_premium ? 'premium' : 'available',

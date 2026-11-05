@@ -1,5 +1,11 @@
 <?php
 
+// Dedicated VM-console broker; HMAC replaces browser CSRF only on this exact route.
+\Illuminate\Support\Facades\Route::post('/system/vpstc-console-broker',
+    [\App\Services\Cloud\VpsTcConsoleBroker::class, 'handle'])
+    ->middleware('throttle:30,1')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class]);
+
 // Dedicated HMAC endpoint; no customer session grants broker access.
 \Illuminate\Support\Facades\Route::post('/system/arvan-console-broker',
     [\App\Services\Cloud\ArvanConsoleBroker::class, 'handle'])
@@ -29,6 +35,7 @@ use Illuminate\Support\Facades\Route;
 
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
+require __DIR__.'/urmia-auth.php';
 require __DIR__.'/ai-growth.php';
 require __DIR__.'/domain-suppliers.php';
 require __DIR__.'/madar-admin.php';
@@ -478,6 +485,7 @@ $site = function (): void {
         // و یک حلقهٔ ساده در مرورگر می‌تواند سهمیهٔ WHM را بسوزاند. کشِ سه
         // دقیقه‌ای بیشترش را می‌گیرد، ولی کش per-service است نه per-customer.
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats')->middleware('throttle:60,1');
+        Route::get('/services/{service}/domain-connection', Account\HostingDomainConnectionController::class)->name('services.domain-connection')->middleware('throttle:20,1');
 
         // سرورساز — مشتری خودش سرورِ مجازی می‌سازد: مکان → پلن → سیستم‌عامل/
         // نرم‌افزارِ آماده → دوره → نامِ سرور → پیش‌فاکتور → پرداخت → تحویلِ خودکار.

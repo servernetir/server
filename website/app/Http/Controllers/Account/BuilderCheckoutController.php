@@ -220,9 +220,18 @@ class BuilderCheckoutController extends Controller
             } else {
                 $domain->forceFill([
                     'customer_id' => $customer->id, 'status' => 'pending',
-                    'provision_status' => 'none', 'period_years' => 1,
+                    'order_type' => 'register', 'transfer_status' => null,
+                    'provision_status' => 'none', 'provision_tries' => 0, 'provision_error' => null, 'period_years' => 1,
                     'price_toman' => (int) $liveQuote['sell_toman'], 'quote_id' => $quote->id,
                     'name_servers' => $ns,
+                ])->save();
+            }
+
+            if (isset($liveQuote['supplier_account_id'])) {
+                $domain->forceFill([
+                    'registrar' => (string) ($liveQuote['supplier_provider'] ?? $quote->registrar),
+                    'supplier_account_id' => $liveQuote['supplier_account_id'],
+                    'supplier_object_id' => null, 'op_id' => null, 'owner_handle' => null,
                 ])->save();
             }
 

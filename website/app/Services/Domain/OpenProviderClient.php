@@ -502,7 +502,7 @@ class OpenProviderClient
     public function resellerInfo(): array
     {
         if ($this->shareResellerRead && $this->resellerRead !== null) return $this->resellerRead;
-        $res = $this->call('GET', '/resellers');
+        $res = $this->call('GET', '/resellers', ['with_settings' => 'true']);
 
         $result = $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
         if ($this->shareResellerRead) $this->resellerRead = $result;
@@ -517,6 +517,12 @@ class OpenProviderClient
     public function balance(): array
     {
         return $this->parseBalance($this->resellerInfo());
+    }
+
+    /** Account-scoped supplier reads share settings/VAT only inside one bounded search. */
+    public function supplierBalance(): array
+    {
+        return $this->parseManagerBalance($this->resellerInfo());
     }
 
     /**

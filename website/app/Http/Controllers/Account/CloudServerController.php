@@ -135,6 +135,9 @@ class CloudServerController extends Controller
         if ($instance?->provider === 'arvan') {
             $caps['console'] = app(\App\Services\Cloud\ArvanConsoleBroker::class)->enabledFor($service);
         }
+        if ($instance?->provider === 'vpstc') {
+            $caps['console'] = app(\App\Services\Cloud\VpsTcConsoleBroker::class)->enabledFor($service);
+        }
 
         // آروان برای ایمیج‌های ویندوز API تغییر رمز ندارد (پاسخ زندهٔ API:
         // «Changing password ... is not possible»). قابلیتِ عمومیِ ارائه‌دهنده
@@ -385,6 +388,18 @@ class CloudServerController extends Controller
             ]);
         }
         $instance = $this->instanceOf($service);
+
+        // A definitive delivery failure is a terminal presentation state, not
+        // another build step. Return safe codes only; keep raw errors internal.
+        $orderIssue = \App\Services\Cloud\CloudOrderIssue::kind($service, $instance);
+        if ($orderIssue !== null) {
+            return response()->json([
+                'ok' => true, 'status' => 'delivery_failed', 'ready' => false,
+                'delivery_issue' => $orderIssue, 'stage' => 'delivery_failed',
+                'stage_index' => null, 'label' => __('cloud-order.'.$orderIssue.'.label'),
+                'color' => 'var(--warn)',
+            ]);
+        }
 
         // ⚠️ هنوز شناسهٔ سرور نداریم (سفارشِ دومرحله‌ای تازه ثبت شده). صفحه باید
         // «سفارش ثبت شد» ببیند، نه «نامشخص» — و مطلقاً نه «آماده».
@@ -754,6 +769,15 @@ class CloudServerController extends Controller
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
             return back()->withErrors(__('ui.cx_console_na'));
+        }
+
+        if ($instance->provider === 'vpstc') {
+            $broker = app(\App\Services\Cloud\VpsTcConsoleBroker::class);
+            if (! $broker->enabledFor($service)) { return back()->withErrors(__('ui.cx_console_na')); }
+            $target = $broker->issue($service, app()->getLocale());
+            $this->log($service, __('ui.act_cloud_console'));
+            return redirect()->away($target)->header('Cache-Control', 'no-store, private')
+                ->header('Referrer-Policy', 'no-referrer');
         }
 
         if ($instance->provider === 'arvan') {
