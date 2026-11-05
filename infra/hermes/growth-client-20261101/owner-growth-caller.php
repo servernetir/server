@@ -61,6 +61,7 @@ final class HermesGrowthOwnerCaller
         $receiptDir = self::canonicalDirectory($options['receipt-dir']);
         $expectedUid = (int) $options['expected-uid'];
 
+        clearstatcache(true, $receiptDir);
         $dirPerms = fileperms($receiptDir);
         $dirOwner = fileowner($receiptDir);
         if ($dirPerms === false || $dirOwner === false
@@ -100,6 +101,7 @@ final class HermesGrowthOwnerCaller
 
     private static function readKey(string $path, int $expectedUid): string
     {
+        clearstatcache(true, $path);
         $perms = fileperms($path);
         $owner = fileowner($path);
         $size = filesize($path);
