@@ -6,11 +6,13 @@ use App\Models\CreditEntry;
 use App\Models\Domain;
 use App\Models\Invoice;
 use App\Services\Domain\DomainRegistrar;
+use App\Services\Domain\DomainManagement;
 use App\Services\Notify\AdminNotifier;
 use App\Services\Notify\CustomerNotifier;
 use App\Support\ErrorTracker;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * `domains:resolve-stuck` — هیچ دامنه‌ای برای همیشه در صفِ دستی نمی‌مانَد.
@@ -123,6 +125,11 @@ class ResolveStuckDomains extends Command
         $waiting = 0;
 
         foreach ($stuck as $domain) {
+            if ($this->requiresSupplierReconciliation($domain)) {
+                $waiting++;
+                continue;
+            }
+
             /*
             | ── گام ۱: هنوز مانعی هست؟ ──
             |
@@ -198,6 +205,11 @@ class ResolveStuckDomains extends Command
         | بی‌صدا به‌سمتِ انقضا برود.
         */
         foreach ($stuckRenewals as $domain) {
+            if ($this->requiresSupplierReconciliation($domain)) {
+                $waiting++;
+                continue;
+            }
+
             $parkedFor = $domain->updated_at?->diffInHours(now()) ?? 0;
 
             if ($parkedFor < $hours) {
@@ -230,6 +242,11 @@ class ResolveStuckDomains extends Command
         | پرداختی (محافظِ دوباره‌رفاند داخلِ خودِ refund است) + اعلان.
         */
         foreach ($stuckTransfers as $domain) {
+            if ($this->requiresSupplierReconciliation($domain)) {
+                $waiting++;
+                continue;
+            }
+
             $awaitingEpp = $domain->transfer_status === 'pending';
 
             if ($awaitingEpp && ! $domain->hasPaidInvoice()) {
@@ -260,6 +277,26 @@ class ResolveStuckDomains extends Command
         $this->line("آزادشده: {$freed} · لغو و برگشت: {$refunded} · در مهلت: {$waiting}");
 
         return self::SUCCESS;
+    }
+
+    /** Supplier journals are resolved explicitly, never by legacy requeue/refund heuristics. */
+    private function requiresSupplierReconciliation(Domain $domain): bool
+    {
+        $journaled = Schema::hasTable('domain_supplier_operations')
+            && DB::table('domain_supplier_operations')->where('domain_id', $domain->id)->exists();
+        $meta = (array) $domain->meta;
+        $protected = ! DomainManagement::legacyCompatible($domain)
+            || filled($domain->getAttribute('supplier_quote'))
+            || isset($meta['supplier_operation_id'])
+            || $journaled;
+
+        if ($protected) {
+            ErrorTracker::noteOnce('domain',
+                'Supplier operation requires explicit reconciliation; automatic refund and requeue are held.',
+                21600, ['area' => 'supplier-reconciliation-required', 'domain_id' => $domain->id]);
+        }
+
+        return $protected;
     }
 
     /**

@@ -8,13 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** شناسهٔ ثبت دامنه نزد یک رجیستری (IRNIC، OpenProvider، …). */
 class RegistryHandle extends Model
 {
-    protected $fillable = ['customer_profile_id', 'registry', 'handle', 'role', 'status', 'meta', 'sent_data'];
+    protected $fillable = ['customer_profile_id', 'registry', 'handle', 'role', 'status', 'meta', 'sent_data', 'supplier_account_id'];
 
     /**
      * ⚠️ `sent_data` دادهٔ شخصیِ مالک است (نام، نشانی، تلفن) — از هر JSONای که
      * ممکن است به بیرون برود کنار گذاشته می‌شود.
      */
-    protected $hidden = ['sent_data'];
+    protected $hidden = ['sent_data', 'supplier_account_id', 'handle'];
 
     protected function casts(): array
     {

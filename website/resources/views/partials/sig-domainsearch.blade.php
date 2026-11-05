@@ -8,6 +8,7 @@
   <div class="domain-box" style="max-width:600px;margin:0 auto">
     <form class="domain-search" id="domain-form"
           data-endpoint="{{ route($routePrefix.'domain.check') }}"
+          data-suggestions-url="{{ lroute('domain.search') }}"
           {{-- 🔴 مسیرِ بدون‌جاوااسکریپت هم در سامانهٔ خودمان تمام می‌شود، نه سبدِ
                WHMCSِ بیرونی. (همان تغییرِ صفحهٔ اول.) --}}
           action="{{ lroute('domain.search') }}" method="get">
@@ -24,7 +25,14 @@
              {{-- سه حالتِ «نمی‌دانیم». بی اینها جاوااسکریپت رشتهٔ undefined چاپ می‌کند --}}
              data-i18n-unchecked="{{ __('ui.dsr_unchecked_note') }}"
              data-i18n-unsupported="{{ __('ui.dsr_unsupported_note') }}"
-             data-i18n-noprice="{{ __('ui.dsr_no_price_pill') }}">
+             data-i18n-noprice="{{ __('ui.dsr_no_price_pill') }}"
+             data-i18n-ideas="{{ __('domain-discovery.suggestions_button') }}"
+             data-i18n-discount="{{ __('domain-discovery.discount_badge') }}"
+             data-i18n-regular="{{ __('domain-discovery.regular_price') }}"
+             data-i18n-current="{{ __('domain-discovery.current_price') }}"
+             data-i18n-promo-until="{{ __('domain-discovery.promotion_until') }}"
+             data-i18n-term="{{ __('domain-discovery.first_term') }}"
+             data-i18n-currency="{{ __('domain-discovery.currency_unit') }}">
       <button class="btn btn-primary" type="submit">{{ __('ui.domain_btn') }}</button>
     </form>
     <div class="domain-result" id="domain-result" hidden></div>

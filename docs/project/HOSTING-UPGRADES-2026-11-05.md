@@ -1,7 +1,10 @@
 # Shared hosting upgrades — 5 November 2026
 
 Base: `9c3d8732336f4c2ae6c7c016818dd5c1b975a511` (`develop`).
-Branch: `feature/hosting-self-upgrade`.
+Local branch: `feature/hosting-self-upgrade`; remote PR branch:
+`feature/hosting-self-upgrade-ready`. Integrated concurrent develop
+`d81163c1ff0ec084b5e0634a3895541f2f8a5778`; both project-index entries and
+concurrent Invoice/domain route/schedule changes were retained.
 Status: implementation and isolated tests; **not installed/accepted in production**.
 
 ## Scope and customer contract
