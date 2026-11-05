@@ -25,6 +25,10 @@ Live preflight found four running instance rows without approved enrollment in t
 - Private release directory: `~/traffic-batch-release-20261105`; plan SHA-256 `524dd966bf7c78e4346a2a7b17dbb3f83f5490fafaf84e034ce8ddd1e58a137f`.
 - No migration, guest installation, power operation, manual live debit, cache flush, provider creation or scheduler run was used as a test. Fresh CLI processes activate these files; no FPM reset was required.
 - Natural watcher execution produced its attempt state on 5 November at 11:20:23 UTC.
+- Initial post-install supplier validation stopped without posting because identical free CDN components appeared under distinct zero-cost parents. Followup PR #265 (`a1dcc1bcd62f618ec1657abc202bf3a51198dbe7`, merged as `5db308e49256585f836b7fb5d9881b174dfcae26`) restricts canonical matching to the whole unchanged CDN component while still requiring every parent/component financial total to be zero. Changed payloads, paid parents/components and IaaS duplicates remain rejected. One source file installed from pinned Git bytes with its own private backup in `~/traffic-cdn-release-20261105`.
+- Followup isolated suite: **103 tests / 796 assertions** passed; all seven followup CI workflows passed, including the SQLite/MariaDB financial matrix. Independent review approved the source change and limited deploy helper. The real private failed report passed a read-only preview; no raw report or customer data entered Git.
+- Natural financial-meter execution succeeded at **2026-11-05 11:35:26 UTC (15:05:26 Tehran)** with `minimum_settlement_irt=5000`, `total_irt=0`, no deferred eligible lines and no new invoice. This proves the fresh CLI runtime and existing schedule use the installed minimum; exact-threshold positive charging was exercised only on synthetic fixtures.
+- Initial PR #264 merged as `d304823a27ad83f4d72b7c3443ee990617920603`. No direct production debit was run during acceptance.
 
 ## Rollback
 
