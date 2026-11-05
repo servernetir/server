@@ -11,6 +11,7 @@ on:
       - 'website/app/Http/Controllers/Account/HostingUpgradeController.php'
       - 'website/app/Console/Commands/RunHostingUpgrades.php'
       - 'website/resources/views/account/*hosting*'
+      - 'website/resources/views/account/invoice.blade.php'
       - 'website/resources/views/account/partials/card-hosting.blade.php'
       - 'website/database/migrations/*hosting_upgrades*'
       - 'website/tests/Feature/HostingUpgradeTest.php'

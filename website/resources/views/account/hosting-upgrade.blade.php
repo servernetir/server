@@ -11,7 +11,7 @@
   <p class="hu-note">{{ __('ui.hu_intro') }}</p>
   @if($open)
     <section class="hu-box" aria-live="polite">
-      <h2>{{ __('ui.hu_status_'.$open->status) }}</h2>
+      <h2>{{ __('ui.hu_status_'.($open->status === 'awaiting_payment' && $open->invoice->status === 'paid' ? 'applying' : $open->status)) }}</h2>
       <p>{{ __('ui.hu_status_help') }}</p>
       <a class="pnl-btn primary" href="{{ lroute('account.invoice', $open->invoice_id) }}">{{ __('ui.hu_view_invoice') }}</a>
     </section>

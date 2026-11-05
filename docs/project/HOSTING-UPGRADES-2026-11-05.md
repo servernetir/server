@@ -80,7 +80,7 @@ Provider references:
 ## Validation and acceptance limits
 
 Local: isolated PHP 8.4.27, existing Composer lock, SQLite in-memory and fake HTTP
-resources. Final local regression: **59 tests / 266 assertions passed**. Fifteen changed
+resources. Final local regression: **59 tests / 270 assertions passed**. Fifteen changed
 non-Blade PHP files passed syntax checks; the workflow YAML and browser-test
 JavaScript parsed successfully.
 Coverage includes arithmetic/discounts/calendar/Tehran due day, ownership and
@@ -121,7 +121,7 @@ Install the new migration file and execute only its reviewed path through the
 normal authorized migration procedure. No existing migration, relationship,
 balance or invoice is migrated. Until the table exists, the button and command
 fail closed and existing orders continue. Activate only the affected route and
-two Blade views with the approved targeted procedure, without flushing shared
+three Blade views with the approved targeted procedure, without flushing shared
 caches. Confirm the natural cron recognizes the schedule.
 
 Live acceptance first requires read-only inspection of actual existing accounts

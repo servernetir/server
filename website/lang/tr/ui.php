@@ -2,6 +2,7 @@
 
 return [
     // Self-service shared hosting upgrades.
+    'hu_status_canceled' => 'Yükseltme talebi iptal edildi.',
     'hu_title' => 'Hosting paketini yükselt',
     'hu_intro' => 'Daha yüksek bir paket seçin; kalan ödenmiş süre için yalnızca farkı ödeyin. Mevcut hesabınız ve yenileme tarihiniz korunur.',
     'hu_review' => 'Yükseltme ücret dökümü',

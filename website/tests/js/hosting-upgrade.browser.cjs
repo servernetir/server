@@ -5,8 +5,32 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 const http = require('node:http');
-const {chromiumReport} = require('./panel-navigation.browser.cjs');
+const {spawn} = require('node:child_process');
 const app = path.resolve(__dirname, '../..');
+
+async function chromiumReport(profile, reduced, url) {
+  assert.equal(new URL(url).hostname, '127.0.0.1');
+  // This static form needs no debugging socket. Chrome's native DOM export
+  // includes the report after the iframe load handler has run.
+  const args = ['--headless=new', '--no-first-run', '--no-default-browser-check',
+    '--disable-background-networking', '--disable-gpu', '--disable-dev-shm-usage',
+    '--user-data-dir='+profile, '--window-size=1480,1300', '--dump-dom',
+    '--virtual-time-budget=4000', url];
+  const output = await new Promise((resolve,reject) => {
+    const child = spawn(process.env.TEST_CHROME || '/usr/bin/google-chrome', args,
+      {stdio:['ignore','pipe','pipe']});
+    let stdout = '', stderr = '';
+    const timer = setTimeout(() => {child.kill(); reject(Error('Headless DOM export timeout: '+stderr.slice(-1000)));}, 45000);
+    child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+    child.stdout.on('data', chunk => {stdout += chunk;});
+    child.stderr.on('data', chunk => {stderr = (stderr+chunk).slice(-4000);});
+    child.once('error', error => {clearTimeout(timer); reject(error);});
+    child.once('close', code => {clearTimeout(timer); code === 0 ? resolve(stdout) : reject(Error('Chrome exited '+code+': '+stderr));});
+  });
+  const result = output.match(/<pre id="qa-result">([^<]*)<\/pre>/);
+  assert.ok(result && result[1], 'Chromium returned an actual form report');
+  return result[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
 
 function scenario() {
   const result = {passed:false, checks:0};

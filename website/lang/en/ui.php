@@ -2,6 +2,7 @@
 
 return [
     // Self-service shared hosting upgrades.
+    'hu_status_canceled' => 'The upgrade request was canceled.',
     'hu_title' => 'Upgrade hosting',
     'hu_intro' => 'Choose a higher plan and pay the difference for your remaining paid time. Your existing account and renewal date are preserved.',
     'hu_review' => 'Upgrade cost breakdown',

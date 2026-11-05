@@ -41,6 +41,22 @@
   </div>
 </div>
 
+@if($invoice->kind === 'hosting_upgrade' && app(\App\Services\Billing\HostingUpgrades::class)->ready())
+  @php
+    $hostingUpgrade = \App\Models\HostingUpgrade::where('invoice_id', $invoice->id)
+      ->whereHas('service', fn($query) => $query->where('customer_id', $invoice->customer_id))->first();
+    $hostingUpgradeStatus = $hostingUpgrade?->status;
+    if ($hostingUpgradeStatus === 'awaiting_payment' && $invoice->status === 'paid') $hostingUpgradeStatus = 'applying';
+    if ($invoice->status === 'canceled') $hostingUpgradeStatus = 'canceled';
+  @endphp
+  @if($hostingUpgrade)
+    <section class="pnl-sec"><div class="pnl-sec-b">
+      <p role="status">{{ __('ui.hu_status_'.$hostingUpgradeStatus) }}</p>
+      <a class="pnl-btn primary" href="{{ lroute('account.services.upgrade', $hostingUpgrade->service_id) }}">{{ __('ui.hu_title') }}</a>
+    </div></section>
+  @endif
+@endif
+
 @if($errors->any())
   <div class="pnl-sec" style="border-color:var(--danger-line)">
     <div class="pnl-sec-b" style="color:var(--danger);font-size:13.5px;line-height:2">

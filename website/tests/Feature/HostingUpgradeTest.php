@@ -414,6 +414,9 @@ class HostingUpgradeTest extends TestCase
         $this->assertSame(90000, (int) CreditEntry::where('customer_id', $s->customer_id)->sum('amount'));
         $this->assertSame('2026-12-01', $s->fresh()->next_due_at->toDateString());
         $this->assertSame('old-plan', $s->fresh()->plan);
+        $this->get('/account/invoices/'.$u->invoice_id)->assertOk()
+            ->assertSee('/account/services/'.$s->id.'/upgrade', false)
+            ->assertSee(__('ui.hu_status_applying'))->assertDontSee('ui.hu_');
     }
 
     public function test_renewal_expiry_does_not_make_the_upgrade_invoice_extend_service(): void
