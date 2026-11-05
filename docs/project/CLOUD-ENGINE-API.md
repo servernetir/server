@@ -1,6 +1,6 @@
 # Cloud Engine customer API
 
-Software interface, 2026-11-03. This document describes local implementation;
+Software interface, updated 2026-11-05. This document describes local implementation;
 it does not establish production deployment or real hardware acceptance.
 
 Use the existing customer API token issuance page. Server permissions require

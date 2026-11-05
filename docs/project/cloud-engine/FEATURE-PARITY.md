@@ -113,3 +113,5 @@ The saved draft includes `pve.proxmox.com`, `git.proxmox.com`,
 `download.proxmox.com`, `docs.hetzner.com` and `api.github.com`. Saving a draft
 did not apply these hosts to this runtime. Review/save/Publish the environment
 settings, then recheck runtime policy and retry the previously denied operations.
+`robot.hetzner.com` is also required to read the official Robot webservice
+documentation before implementing the dedicated-address reverse-DNS adapter.

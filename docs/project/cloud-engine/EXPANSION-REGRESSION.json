@@ -1,0 +1,42 @@
+{
+  "baseline_sha": "9192caaf4e2b58b6d9377428e3d28e3a03c27ea4",
+  "current_sha": "41341b39b4bcca4132ac30ff62f020718fe4bebc",
+  "baseline_junit": {
+    "tests": "1809",
+    "assertions": "10427",
+    "errors": "23",
+    "failures": "108",
+    "skipped": "4",
+    "time": "184.731885"
+  },
+  "current_junit": {
+    "tests": "1838",
+    "assertions": "10702",
+    "errors": "23",
+    "failures": "108",
+    "skipped": "4",
+    "time": "194.529074"
+  },
+  "baseline_outcomes": {
+    "passed": 1674,
+    "error": 23,
+    "failure": 108,
+    "skipped": 4
+  },
+  "current_outcomes": {
+    "passed": 1703,
+    "error": 23,
+    "failure": 108,
+    "skipped": 4
+  },
+  "common_tests": 1809,
+  "new_regressions": [],
+  "changed_outcomes": [],
+  "fixed": [],
+  "only_baseline": [],
+  "additional_cases": 29,
+  "changed_failure_details": 29,
+  "filter": "(Cloud|Wallet|Payment|Invoice|Provision|Credit|Billing|Lifecycle|Refund|ServiceTerminate|ServiceDelete|InternalServiceDeletion|ServerControlsCompatibility)",
+  "mode": "Local SQLite in-memory; provider HTTP mocked; not live hardware acceptance.",
+  "comparison_scope": "Per-case outcomes; equal outcomes do not certify identical internals of existing failures."
+}

@@ -120,3 +120,56 @@ Feature changes relative to the initial implementation base. No production confi
 | `website/tests/js/cloud-engine-account.test.cjs` | Behavioral, protocol, fixture or concurrency verification: cloud engine account.test. |
 | `website/tests/standalone/cloud-engine-mariadb-race.php` | Behavioral, protocol, fixture or concurrency verification: cloud engine mariadb race. |
 | `website/tests/standalone/cloud-engine-placement-race.php` | Behavioral, protocol, fixture or concurrency verification: cloud engine placement race. |
+
+## VPS expansion from c8dc7108 (implementation 181327a6)
+
+Every file changed in this expansion is listed below. Subsequent develop merges retain their original authorship and are not represented as Engine implementation.
+
+| File | Responsibility |
+|---|---|
+| `docs/project/CLOUD-ENGINE-API.md` | Current scope, API, security, acceptance or validation documentation. |
+| `docs/project/CLOUD-ENGINE-ARCHITECTURE.md` | Current scope, API, security, acceptance or validation documentation. |
+| `docs/project/cloud-engine/ACCEPTANCE.md` | Current scope, API, security, acceptance or validation documentation. |
+| `docs/project/cloud-engine/FEATURE-PARITY.md` | Current scope, API, security, acceptance or validation documentation. |
+| `docs/project/cloud-engine/NODE-RUNBOOK.md` | Current scope, API, security, acceptance or validation documentation. |
+| `docs/project/cloud-engine/README.md` | Current scope, API, security, acceptance or validation documentation. |
+| `docs/project/cloud-engine/SECURITY-REVIEW.md` | Current scope, API, security, acceptance or validation documentation. |
+| `docs/project/cloud-engine/VALIDATION.md` | Current scope, API, security, acceptance or validation documentation. |
+| `website/app/Http/Controllers/Account/CloudStoreController.php` | Existing checkout or scoped customer/admin integration for the new operations. |
+| `website/app/Http/Controllers/Account/EngineAccountController.php` | Existing checkout or scoped customer/admin integration for the new operations. |
+| `website/app/Http/Controllers/Account/ServiceController.php` | Apply Engine customer delete protection inside existing termination checks. |
+| `website/app/Http/Controllers/Admin/CloudEngineController.php` | Existing checkout or scoped customer/admin integration for the new operations. |
+| `website/app/Http/Controllers/Api/CloudEngineController.php` | Existing checkout or scoped customer/admin integration for the new operations. |
+| `website/app/Models/EngineCapacityHold.php` | Durable positive resource delta reservation model. |
+| `website/app/Services/Cloud/Engine/EngineAccountPresenter.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/app/Services/Cloud/Engine/EngineApiService.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/app/Services/Cloud/Engine/EngineBillingPolicy.php` | Exact integer prices and configured 1/3/6/12-month billing eligibility. |
+| `website/app/Services/Cloud/Engine/EngineCapacity.php` | VM plus resize-hold capacity totals with current admission reads. |
+| `website/app/Services/Cloud/Engine/EngineOperations.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/app/Services/Cloud/Engine/EnginePaidGate.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/app/Services/Cloud/Engine/EngineProvider.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/app/Services/Cloud/Engine/EnginePublicMetadata.php` | Customer labels/protection validation and isolation from internal metadata. |
+| `website/app/Services/Cloud/Engine/EngineResize.php` | Scoped resize choices, locked capacity reservation and atomic resource/contract completion. |
+| `website/app/Services/Cloud/Engine/EngineResizePhases.php` | Lease-fenced offline resize with authoritative reconciliation and no blind retries. |
+| `website/app/Services/Cloud/Engine/EngineSshKeys.php` | Validated public-key references bound to the selected customer-owned key. |
+| `website/app/Services/Cloud/Engine/EngineWorker.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/app/Services/Cloud/Engine/NodeHealth.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/app/Services/Cloud/Engine/Placement.php` | Connect the existing provider, paid gate, worker or placement to the new contracts. |
+| `website/database/migrations/2026_11_05_140000_create_cloud_engine_capacity_holds.php` | Additive capacity-hold table, indexes and foreign keys. |
+| `website/lang/en/cloud_engine.php` | Matching customer/admin translations for billing, resize, labels, protection and history. |
+| `website/lang/fa/cloud_engine.php` | Matching customer/admin translations for billing, resize, labels, protection and history. |
+| `website/lang/tr/cloud_engine.php` | Matching customer/admin translations for billing, resize, labels, protection and history. |
+| `website/public/assets/js/cloud-engine-account.js` | Safely refresh exact billing data with the existing operation polling. |
+| `website/resources/views/account/partials/cloud-engine.blade.php` | Customer/admin controls and capacity/billing/history presentation. |
+| `website/resources/views/admin/cloud-engine.blade.php` | Customer/admin controls and capacity/billing/history presentation. |
+| `website/routes/cloud-engine-account.php` | Scoped read/manage API or session/CSRF routes for the new controls. |
+| `website/routes/cloud-engine.php` | Scoped read/manage API or session/CSRF routes for the new controls. |
+| `website/tests/Feature/EngineBillingTermsTest.php` | Four-term initial/renewal settlement, replay, exact prices and overflow tests. |
+| `website/tests/Feature/EngineResizeTest.php` | Capacity holds, verified completion, ambiguous mutations and unsafe-target tests. |
+| `website/tests/Feature/EngineSshKeysTest.php` | Owned encrypted key delivery and invalid/private/foreign-key rejection. |
+| `website/tests/Feature/EngineVpsManagementTest.php` | API/session ownership, resize, metadata, protection and locale integration tests. |
+| `website/tests/js/cloud-engine-account.test.cjs` | Browser behavior tests including exact contract amounts and safe rendering. |
+| `website/tests/standalone/cloud-engine-mariadb-race.php` | Disposable concurrency tests; include holds and pre-existing InnoDB snapshots. |
+| `website/tests/standalone/cloud-engine-placement-race.php` | Disposable concurrency tests; include holds and pre-existing InnoDB snapshots. |
+| `docs/project/cloud-engine/EXPANSION-REGRESSION.json` | Fresh independent regression comparison against develop 9192caaf, including existing deletion controls. |
+| `docs/project/cloud-engine/CHANGESET.md` | Per-file delivery manifest for the current expansion. |

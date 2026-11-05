@@ -27,6 +27,29 @@ physical node, live console, backup restoration or new network operation has
 been accepted. The official Proxmox schema request remains blocked by the
 enforced environment network policy; the saved domain draft is not applied.
 
+The expansion was merged with current develop
+`9192caaf4e2b58b6d9377428e3d28e3a03c27ea4` at implementation checkpoint
+`41341b39b4bcca4132ac30ff62f020718fe4bebc`. All 125 Engine tests passed again on
+both SQLite and MariaDB after that merge. The local development database applied
+the new additive migration, and health/fa/en/tr/login requests plus 12 actual
+local CSS/JS assets passed after restarting the development server.
+
+The fresh independent regression export at that develop SHA executed 1,809
+cases / 10,427 assertions: 1,674 passed, 108 failures, 23 errors, four skipped.
+The integrated feature selection executed 1,838 cases / 10,702 assertions: the
+same 1,809 existing outcomes are unchanged and all 29 additional cases passed.
+There are no newly failing existing case outcomes. This comparison is broader
+than the prior checkpoint and includes existing termination/deletion compatibility
+tests. Existing failures still prevent a clean full-suite or purchase-gate claim.
+Failure text differs in 29 pre-existing failures (including rendered HTML and
+source locations); equal outcome does not certify identical failure internals.
+See [the fresh comparison](EXPANSION-REGRESSION.json). Raw logs stay private.
+
+The new code is registered in Git; it is not installed in production. The
+remaining parity requirements are explicit in `FEATURE-PARITY.md`. GitHub API
+access also remains blocked by the current network policy, so no new PR creation
+is claimed. Existing Git HTTPS access can publish the feature branch independently.
+
 ## Prior completed checks at c8dc7108
 
 | Check | Final validated result |
