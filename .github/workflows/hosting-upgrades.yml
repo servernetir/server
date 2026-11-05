@@ -1,0 +1,76 @@
+name: Hosting upgrades
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Billing/HostingUpgrade*.php'
+      - 'website/app/Services/Provisioning/HostingPlanChanger.php'
+      - 'website/app/Services/Provisioning/PleskClient.php'
+      - 'website/app/Models/HostingUpgrade.php'
+      - 'website/app/Models/Invoice.php'
+      - 'website/app/Http/Controllers/Account/HostingUpgradeController.php'
+      - 'website/app/Console/Commands/RunHostingUpgrades.php'
+      - 'website/resources/views/account/*hosting*'
+      - 'website/resources/views/account/partials/card-hosting.blade.php'
+      - 'website/database/migrations/*hosting_upgrades*'
+      - 'website/tests/Feature/HostingUpgradeTest.php'
+      - 'website/tests/js/hosting-upgrade.browser.cjs'
+      - 'website/routes/*.php'
+      - '.github/workflows/hosting-upgrades.yml'
+permissions:
+  contents: read
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        database: [sqlite, mysql]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: fixture-only
+          MARIADB_DATABASE: hosting_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies
+        working-directory: website
+        run: composer install --prefer-dist --no-progress --no-scripts --no-plugins
+      - name: Upgrade and panel regression
+        working-directory: website
+        env:
+          DB_CONNECTION: '${{ matrix.database }}'
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_DATABASE: '${{ matrix.database == ''sqlite'' && '':memory:'' || ''hosting_test'' }}'
+          DB_USERNAME: root
+          DB_PASSWORD: fixture-only
+          HOSTING_UPGRADE_PREVIEW_DIR: /tmp/hosting-upgrade-previews
+        run: |
+          mkdir -p /tmp/hosting-upgrade-previews
+          php -l app/Services/Billing/HostingUpgrades.php
+          php -l app/Services/Billing/HostingUpgradeFulfillment.php
+          vendor/bin/phpunit tests/Feature/HostingUpgradeTest.php tests/Feature/PleskPanelIntegrationTest.php tests/Feature/HostingPanelServerSelectionTest.php tests/Feature/PaymentCallbackTest.php tests/Feature/AccountPanelTest.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        if: matrix.database == 'sqlite'
+        with:
+          node-version: '22'
+      - name: Browser layout and review form
+        if: matrix.database == 'sqlite'
+        env:
+          HOSTING_UPGRADE_PREVIEW_DIR: /tmp/hosting-upgrade-previews
+          TEST_CHROME: /usr/bin/google-chrome
+        run: node --test website/tests/js/hosting-upgrade.browser.cjs

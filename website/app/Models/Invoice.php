@@ -206,6 +206,7 @@ class Invoice extends Model
 
     public function isPayable(): bool
     {
+        if ($this->kind === 'hosting_upgrade' && ($this->due_at === null || ! $this->due_at->isFuture())) return false;
         return in_array($this->status, ['unpaid', 'draft'], true) && $this->due() > 0;
     }
 

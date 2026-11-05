@@ -1,0 +1,126 @@
+# Shared hosting upgrades — 5 November 2026
+
+Base: `9c3d8732336f4c2ae6c7c016818dd5c1b975a511` (`develop`).
+Branch: `feature/hosting-self-upgrade`.
+Status: implementation and isolated tests; **not installed/accepted in production**.
+
+## Scope and customer contract
+
+Ordinary Windows/Plesk and Linux/cPanel hosting can move to a higher compatible
+catalog plan on the same server and account. No account recreation or file
+migration. Resellers, DirectAdmin, cloud/storage, internal infrastructure,
+external/unverified billing, non-IRT billing and cross-family/location changes
+are excluded. The exact source package must resolve uniquely to a catalog
+product. Destinations require higher catalog rank and cycle price, matching
+category, currency, location, panel type and server pinning.
+
+Authenticated fa/en/tr account routes:
+
+- GET `/account/services/{service}/upgrade`: list and selected-plan preview.
+- POST at the same path: create invoice and redirect to normal payment.
+
+Both inherit normal account/IP/CSRF protection; ownership is checked before any
+lookup or panel access. Responses are private/no-store. The UI shows full new
+cycle price, elapsed/remaining days, unused old-plan credit, prorated new-plan
+cost, difference, tax and total. Before invoice creation, remote preflight must
+confirm the bound account, exact source plan and available destination plan.
+
+The old rate is the service's contracted cycle price. The new rate uses existing
+`Product::priceForCycle`, including cycle discount and location pricing. Prorated
+components and tax use integer currency units, remaining seconds and half-up
+rounding. There is no setup charge or extra full-cycle charge. Calendar steps
+are replayed from activation using renewal's no-overflow behavior; inconsistent
+manual anchors fail closed. The end is `RenewalTerms::serviceDeadline`, including
+the full local paid due day in the configured billing timezone. Displayed day
+fractions are approximate; amounts do not use those rounded labels.
+
+The complete preview is signed, stored in session, valid for 15 minutes and
+revalidated against service/catalog state. Its exact reviewed amounts become
+the invoice. Payment deadline: 24 hours or the existing service deadline,
+whichever is earlier. Late or mismatched paid invoices require reconciliation.
+
+## Financial isolation and fulfillment
+
+The only new schema is `hosting_upgrades`: immutable quote, unique invoice,
+nullable unique open-service slot, statuses and durable attempt/check/completion
+timestamps. The service row lock and unique slot serialize duplicate requests.
+Invoice kind is `hosting_upgrade`; `service_id` is deliberately null, so payment
+settlement cannot extend/suspend the existing host. The upgrade record and invoice
+line bind it to the service. Normal gateway/wallet settlement, cancellation,
+revenue and invoice expiry remain in use. Upgrade lines are not marketing-
+eligible. An expired upgrade invoice cannot start payment.
+
+`hosting:upgrades` runs each minute with scheduler/per-service cache locks;
+unresolved checks are spaced five minutes apart. Only a fully paid, correctly
+bound invoice reaches the provider. A changed fingerprint or outstanding service
+invoice (including a concurrently created renewal) requires support review.
+
+An attempt is committed BEFORE the external mutation. Subsequent crash/timeout
+recovery is read-only: it may finish a confirmed remote change but never resend
+the mutation. Unknown ownership/package, Plesk locked/unsynced or add-on ambiguity,
+and unapplied settings cannot be successful. `review` retains the unique slot
+and creates an internal error event. Attempted review records continue read-only
+reconciliation. Do not clear `attempted_at` to force a retry.
+
+Exact remote readback must confirm account/domain, target package, and Plesk
+subscription owner/login/sync. Then one transaction updates package, display
+name, recurring price and Plesk plan metadata, records activity and completion,
+and releases the slot. Renewal date, domain, server and credentials stay fixed.
+An upgrade invoice is never a reason to suspend a paid host.
+
+Provider references:
+
+- [Plesk plan switch](https://docs.plesk.com/en-US/obsidian/api-rpc/about-xml-api/reference/managing-subscriptions/switching-a-subscription-to-a-different-service-plan.66391/)
+- [Plesk subscription states](https://docs.plesk.com/en-US/obsidian/api-rpc/about-xml-api/reference/managing-subscriptions/subscription-settings/subscription-statuses-and-associated-plans.66383/)
+- [WHM API privileges](https://api.docs.cpanel.net/guides/guide-to-whm-plugins/guide-to-whm-plugins-acl-reference-chart)
+
+## Validation and acceptance limits
+
+Local: isolated PHP 8.4.27, existing Composer lock, SQLite in-memory and fake HTTP
+resources. Final local regression: **59 tests / 266 assertions passed**. Fifteen changed
+non-Blade PHP files passed syntax checks; the workflow YAML and browser-test
+JavaScript parsed successfully.
+Coverage includes arithmetic/discounts/calendar/Tehran due day, ownership and
+scope, signed previews, wallet payment, duplicate callbacks, one remote change,
+Plesk XML, timeout reconciliation, cancellation/late payments and renewal races.
+New PHP is Pint-formatted; JS syntax, workflow YAML and Git whitespace checked.
+
+Three failures in the historical domain `CreditInvoicePaymentTest` were
+reproduced at the unchanged base. The new hosting invoice's real wallet endpoint
+passes. This release does not alter that unrelated domain pricing baseline.
+
+Local Chromium was unable to launch because the environment denied its singleton
+socket. No local visual acceptance is claimed. The dedicated PR workflow runs
+SQLite and MariaDB 11.4 acceptance plus actual rendered review-form checks in
+fa/en/tr, dark/light and 390/1440px Chromium. A workflow definition alone is not
+evidence of a successful run; consult the linked run for actual results.
+
+No production invoice, payment, reply or customer package mutation occurred.
+The cPanel terminal selected for release was owned by another browser session;
+it was not taken over or used for deployment.
+
+## Limited installation and rollback
+
+Follow `DEPLOYMENT.md`: exclusive coordination, fresh destination inventory,
+private backups and before/after hash guards. Reconcile concurrent routes,
+translations, Invoice model and Plesk client edits rather than replacing them.
+App paths under `website/app`, `routes`, `lang`, `resources`, plus the ONE new
+migration map to matching `servernet_app` paths. There are no public assets or
+new dependencies. Tests/docs/CI are not deployment targets.
+
+Install the new migration file and execute only its reviewed path through the
+normal authorized migration procedure. No existing migration, relationship,
+balance or invoice is migrated. Until the table exists, the button and command
+fail closed and existing orders continue. Activate only the affected route and
+two Blade views with the approved targeted procedure, without flushing shared
+caches. Confirm the natural cron recognizes the schedule.
+
+Live acceptance first requires read-only inspection of actual existing accounts
+and destination packages and the real customer preview. Do not create/pay a
+customer invoice or mutate a package as a smoke test. Full paid live acceptance
+requires an authorized account/invoice scope and has not occurred here.
+
+Rollback: stop new upgrade requests/button and command first. Preserve the table
+and financial records. Restore only guarded release files after checking for
+newer changes. Reconcile all paid/attempted upgrades before removing the processor.
+Do not drop the table or downgrade remote accounts as a code rollback.
