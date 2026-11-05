@@ -233,6 +233,7 @@ final class ArvanTrafficMeter
             // Pin deferred cycles for fetching beyond the normal seven-day tail.
             $deferred = [];
             $ready = [];
+            $allLines = $lines;
             foreach (collect($lines)->groupBy('next.customer_id') as $group) {
                 if ($group->sum('subtotal_irt') + $group->sum('tax_irt') < self::MIN_SETTLEMENT_IRT) {
                     foreach ($group as $line) {
@@ -261,17 +262,17 @@ final class ArvanTrafficMeter
                 return $summary;
             }
             // Global private state lock serializes meters; customer locks keep normal Wallet/hourly writes compatible.
-            foreach (collect($lines)->pluck('next.customer_id')->unique()->sort() as $cid) {
+            foreach (collect($allLines)->pluck('next.customer_id')->unique()->sort() as $cid) {
                 Customer::whereKey($cid)->lockForUpdate()->firstOrFail();
             }
             // A manual traffic settlement may commit after the initial review
             // above but before we acquire the same customer lock used by Wallet.
             // Recheck under that lock before writing ANY invoice/checkpoint.
-            foreach (collect($lines)->pluck('next.customer_id')->unique()->sort() as $cid) {
+            foreach (collect($allLines)->pluck('next.customer_id')->unique()->sort() as $cid) {
                 $this->check(! $this->hasUnreviewedCharge((int) $cid, true),
                     'Manual traffic charge changed during lock acquisition; reconciliation required');
             }
-            foreach (collect($lines)->sortBy('next.service_id') as $line) {
+            foreach (collect($allLines)->sortBy('next.service_id') as $line) {
                 $next = $line['next'];
                 $service = Service::whereKey($next['service_id'])->lockForUpdate()->firstOrFail();
                 $instances = CloudInstance::where('service_id', $service->id)->lockForUpdate()->get();
@@ -283,6 +284,8 @@ final class ArvanTrafficMeter
                     && $instances->count() === 1 && $instances[0]->provider === 'arvan'
                     && $instances[0]->provider_ref === $next['resource'], 'Live traffic ownership changed');
             }
+            $exposure = app(ArvanTrafficExposure::class);
+            $exposure->observeLocked($allLines, $sourceHash);
             $sequence = $state['sequence'] + 1;
             $chargedServices = [];
             foreach (collect($lines)->groupBy('next.customer_id')->sortKeys() as $group) {
@@ -320,6 +323,7 @@ final class ArvanTrafficMeter
                     $state['checkpoints'][$line['key']] = $line['next'];
                     $chargedServices[$line['next']['service_id']] = ['customer_id' => $cid, 'invoice_id' => $invoice->id];
                 }
+                $exposure->settleLocked($cid, $group->values()->all());
             }
             // Only services with a NEW validated positive posting in this transaction may acquire a traffic hold.
             // Locking Wallet reads escape the earlier InnoDB planning snapshot, including every live reserve.
@@ -330,6 +334,14 @@ final class ArvanTrafficMeter
                 $service = Service::whereKey($sid)->lockForUpdate()->firstOrFail();
                 $instance = CloudInstance::where('service_id', $sid)->lockForUpdate()->sole();
                 app(ArvanTrafficCreditGuard::class)->holdLocked($service, $instance, $charge['invoice_id'], $spendable[$cid]);
+            }
+            foreach ($deferred as $line) {
+                $cid = $line['next']['customer_id'];
+                $spendable[$cid] ??= app(Wallet::class)->availableOf($cid, currentRead: true);
+                $service = Service::whereKey($line['next']['service_id'])->lockForUpdate()->firstOrFail();
+                $instance = CloudInstance::where('service_id', $service->id)->lockForUpdate()->sole();
+                app(ArvanTrafficCreditGuard::class)->holdPendingLocked($service, $instance, $sourceHash,
+                    ArvanTrafficExposure::base($line), $line['subtotal_irt'] + $line['tax_irt'], $spendable[$cid]);
             }
             $state['sequence'] = $sequence;
             $state['last_success'] = now()->toIso8601String();
