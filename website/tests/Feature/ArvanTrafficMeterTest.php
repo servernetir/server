@@ -417,4 +417,51 @@ class ArvanTrafficMeterTest extends TestCase
         $this->assertSame(1, Payment::count());
         Http::assertNothingSent();
     }
+
+    private function repeatedFreeCdn(): array
+    {
+        $snapshot = $this->snapshot();
+        $item = ['itemId' => 'synthetic-free-cdn', 'metric' => 'cdn_plan_basic', 'amount' => 1,
+            'price' => '0', 'discount' => '0', 'usedGift' => '0',
+            'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z'];
+        foreach (['synthetic-cdn-a', 'synthetic-cdn-b'] as $parent) {
+            $snapshot['reports'][0]['rows'][] = ['instanceId' => $parent, 'scope' => 'instance', 'region' => 'synthetic-cdn',
+                'productName' => 'cdn', 'totalPrice' => '0', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '0', 'items' => [$item]];
+        }
+        $snapshot['reports'][0]['total_items'] = 3;
+        return $snapshot;
+    }
+
+    public function test_identical_free_cdn_components_under_distinct_zero_parents_do_not_block_iaas_settlement(): void
+    {
+        $this->fixture();
+        $result = app(ArvanTrafficMeter::class)->run($this->repeatedFreeCdn(), true);
+        $this->assertSame(6930, $result['total_irt']);
+        $this->assertSame(1, Invoice::first()->items()->count());
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($this->repeatedFreeCdn(), true)['total_irt']);
+        $this->assertSame(1, Payment::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_changed_free_cdn_payload_and_paid_duplicate_still_stop_before_any_write(): void
+    {
+        [, , $state] = $this->fixture();
+        foreach (['amount', 'paid_component', 'paid_parent'] as $change) {
+            $snapshot = $this->repeatedFreeCdn();
+            $parent = &$snapshot['reports'][0]['rows'][2];
+            if ($change === 'amount') { $parent['items'][0]['amount'] = 2; }
+            elseif ($change === 'paid_component') { $parent['items'][0]['price'] = '1'; }
+            else { $parent['items'][] = array_replace($parent['items'][0], ['itemId' => 'other-paid-item', 'price' => '1']); }
+            if ($change !== 'amount') {
+                $parent['totalPrice'] = $parent['netPrice'] = '1';
+                $snapshot['reports'][0]['cycle']['totalItemsPrice'] = $snapshot['reports'][0]['cycle']['totalPrice'] = '70001';
+            }
+            unset($parent);
+            try { app(ArvanTrafficMeter::class)->run($snapshot, true); $this->fail('Changed or paid duplicate must be rejected'); }
+            catch (RuntimeException $error) { $this->assertStringContainsString('Duplicate or missing supplier component', $error->getMessage()); }
+            $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
+            $this->assertSame(0, Invoice::count()); $this->assertSame(0, CreditEntry::count());
+        }
+        Http::assertNothingSent();
+    }
 }
