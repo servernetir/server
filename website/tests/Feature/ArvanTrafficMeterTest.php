@@ -666,7 +666,10 @@ class ArvanTrafficMeterTest extends TestCase
         [$customer] = $this->fixture();
         app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2), true);
         Wallet::flushSchemaCache();
-        \Illuminate\Support\Facades\Schema::partialMock()->shouldReceive('hasTable')->with('ai_reservations')->andReturn(false);
+        $schema = \Illuminate\Support\Facades\Schema::getFacadeRoot();
+        \Illuminate\Support\Facades\Schema::shouldReceive('hasTable')->andReturnUsing(
+            fn (string $table): bool => $table !== 'ai_reservations' && $schema->hasTable($table)
+        );
         $this->assertSame(1155, app(Wallet::class)->reservedOf($customer->id));
         $this->assertSame(0, app(Wallet::class)->reservedOf($customer->id, 'EUR'));
         Http::assertNothingSent();
