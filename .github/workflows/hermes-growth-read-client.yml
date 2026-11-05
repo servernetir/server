@@ -37,8 +37,12 @@ jobs:
           php -l infra/hermes/growth-client-20261101/test.php
           php -l infra/hermes/growth-client-20261101/preflight.php
           php -l infra/hermes/growth-client-20261101/preflight-test.php
+          php -l infra/hermes/growth-client-20261101/GrowthReadCycle.php
+          php -l infra/hermes/growth-client-20261101/owner-growth-caller.php
+          php -l infra/hermes/growth-client-20261101/cycle-test.php
           php infra/hermes/growth-client-20261101/test.php
           php infra/hermes/growth-client-20261101/preflight-test.php
+          php infra/hermes/growth-client-20261101/cycle-test.php
       - name: Exercise the real no-secret filesystem probe
         run: |
           set -euo pipefail
@@ -56,4 +60,4 @@ jobs:
           php -r '$result=json_decode(file_get_contents($argv[1]), true, 32, JSON_THROW_ON_ERROR); if (($result["status"] ?? null) !== "ready") { exit(1); }' "$RUNNER_TEMP/hermes-growth-preflight.json"
       - name: Record acceptance boundary
         if: always()
-        run: echo 'Synthetic HMAC contract and local no-secret readiness only; no credential, live request, VM install, customer data, send, finance or scheduler change.' >> "$GITHUB_STEP_SUMMARY"
+        run: echo 'Synthetic HMAC contract, local no-secret readiness and receipt-bound caller only; no credential creation, live request, VM install, customer data, send, finance or scheduler change.' >> "$GITHUB_STEP_SUMMARY"
