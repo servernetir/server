@@ -99,27 +99,13 @@ class DomainCheckController extends Controller
                 ? ($primary['state'] ?? DomainSearch::stateOf($primary))
                 : DomainSearch::STATE_UNCHECKED,
             'price'     => $this->priceLabel($primary),
-            'cart_url'  => $this->buyUrl($fqdn),
-        ];
+            'cart_url'  => $this->checkoutUrl($primary, $fqdn),
+            'period_label' => $this->periodLabel(['min_years' => max(1, (int) ($primary['period_years'] ?? 1))]),
+        ] + $this->promotionFields($primary);
 
-        /*
-        | 🔴 قیمتِ پیشنهادها از **کش** می‌آید، نه از پاسخِ زنده.
-        |
-        | `TldPriceBook` هر ۶ ساعت کاتالوگِ واقعیِ پسوندها را می‌خواند و
-        | قیمتِ دورهٔ کمینهٔ هر پسوند را نگه می‌دارد. سه سود:
-        |
-        |  ۱) **یکسانی** — همان عددی که در `/domain/popular-tlds` نشان می‌دهیم
-        |     این‌جا هم می‌آید. دو قیمتِ متفاوت برای یک پسوند در یک سایت،
-        |     اعتماد را می‌بَرد.
-        |  ۲) **مقاومت** — اگر پاسخِ زنده برای پسوندی فیلدِ قیمت نداشته باشد،
-        |     پیشنهاد بی‌قیمت نمی‌مانَد.
-        |  ۳) کلیدِ کش شاملِ حاشیهٔ سود و نرخِ ارز است، پس تغییرِ تنظیمات
-        |     بلافاصله اثر می‌کند و قیمتِ کهنه نمی‌مانَد.
-        |
-        | ⚠️ برای دامنهٔ **اصلی** عمداً قیمتِ زنده مقدم است: اگر خودِ آن نام
-        | پرمیوم باشد، قیمتش ده‌ها برابرِ قیمتِ پایه است و نشان‌دادنِ عددِ پایه
-        | یعنی قیمتی که مشتری نمی‌تواند بخرد.
-        */
+        // Exact live quotes win for every name. Cached catalogue prices are
+        // estimates only when the exact quote is missing, never a replacement
+        // for a cheaper confirmed offer or a premium quote.
         $book = $this->priceBook($book, $tlds);
 
         if ($result['price'] === null && ! ($primary['is_premium'] ?? false)) {
@@ -154,11 +140,12 @@ class DomainCheckController extends Controller
                 $suggestions[] = [
                     'domain'    => $r['domain'],
                     'available' => true,
-                    // کش اول، پاسخِ زنده به‌عنوانِ پشتیبان
-                    'price'     => $cached !== null ? cloud_price($cached['register']) : $this->priceLabel($r),
-                    'period_label' => $cached !== null ? $this->periodLabel($cached) : null,
-                    'cart_url'  => $this->buyUrl((string) $r['domain']),
-                ];
+                    'price' => $this->priceLabel($r) ?? ($cached !== null ? cloud_price($cached['register']) : null),
+                    'period_label' => $this->priceLabel($r) !== null
+                        ? $this->periodLabel(['min_years' => max(1, (int) ($r['period_years'] ?? 1))])
+                        : ($cached !== null ? $this->periodLabel($cached) : null),
+                    'cart_url' => $this->checkoutUrl($r, (string) $r['domain']),
+                ] + $this->promotionFields($r);
             }
         }
 
@@ -169,7 +156,8 @@ class DomainCheckController extends Controller
             // را از «گرفته‌شده» جدا کند بی‌آنکه ردیف‌به‌ردیف حدس بزند.
             'lookup_ok'   => $search->lookupOk(),
             // «…» → صفحهٔ کاملِ جستجوی خودمان، نه دامنه‌چکرِ WHMCS
-            'more_url'    => $this->buyUrl($name),
+            'more_url'    => $this->buyUrl($fqdn),
+            'suggestion_names' => $search->similarNames($fqdn),
         ]);
     }
 
@@ -221,6 +209,26 @@ class DomainCheckController extends Controller
         $toman = (int) ($row['price_toman'] ?? 0);
 
         return $toman > 0 ? cloud_price($toman) : null;
+    }
+
+    private function promotionFields(?array $row): array
+    {
+        $regular = $row['regular_price_toman'] ?? null;
+        $current = $row['price_toman'] ?? null;
+        $ends = $row['promotion_ends_at'] ?? null;
+        $until = is_string($ends) ? strtotime($ends) : false;
+        $active = ($row['is_promotion'] ?? false) === true && is_int($regular) && is_int($current)
+            && $regular > $current && $current > 0 && $until !== false && $until > now()->timestamp;
+        return ['is_promotion' => $active, 'regular_price' => $active ? cloud_price($regular) : null,
+            'discount_percent' => $active ? intdiv(($regular - $current) * 100, $regular) : null,
+            'promotion_ends_at' => $active ? $ends : null];
+    }
+
+    private function checkoutUrl(?array $row, string $fqdn): string
+    {
+        $quoteId = (int) ($row['quote_id'] ?? 0);
+        return ($row['orderable'] ?? false) && $quoteId > 0
+            ? lroute('account.domains').'/checkout/'.$quoteId : $this->buyUrl($fqdn);
     }
 
     /** خرید در کنسولِ خودمان تمام می‌شود، نه سبدِ WHMCS */

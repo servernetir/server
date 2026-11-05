@@ -89,13 +89,13 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
             'checkpoints' => [$cycle.'|'.$resource => $checkpoint], 'last_success' => null];
         Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
         $item = ['itemId' => 'synthetic-internet', 'metric' => 'cc_internet', 'amount' => 2,
-            'price' => '20000', 'discount' => '0', 'usedGift' => '0',
+            'price' => '70000', 'discount' => '0', 'usedGift' => '0',
             'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z'];
         $row = ['instanceId' => $native, 'region' => 'ir-test', 'scope' => 'instance', 'productName' => 'iaas',
-            'totalPrice' => '20000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '20000', 'items' => [$item]];
+            'totalPrice' => '70000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '70000', 'items' => [$item]];
         $cycleData = ['id' => $cycle, 'accountId' => 'synthetic-account', 'currency' => 'irr',
             'startedAt' => '2026-10-23T00:00:00Z', 'expiredAt' => '2026-11-22T00:00:00Z',
-            'totalItemsPrice' => '20000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '20000'];
+            'totalItemsPrice' => '70000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '70000'];
         $snapshot = ['observed_at' => '2026-11-02T12:00:00Z', 'current_cycle' => $cycle,
             'reports' => [['cycle' => $cycleData, 'rows' => [$row], 'total_items' => 1]]];
 
@@ -229,13 +229,13 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
             'checkpoints' => [$cycle.'|'.$resource => $checkpoint], 'last_success' => null];
         Setting::putSecret(ArvanTrafficMeter::KEY, json_encode($state, JSON_THROW_ON_ERROR));
         $item = ['itemId' => 'synthetic-internet', 'metric' => 'cc_internet', 'amount' => 2,
-            'price' => '20000', 'discount' => '0', 'usedGift' => '0',
+            'price' => '70000', 'discount' => '0', 'usedGift' => '0',
             'usageFrom' => '2026-10-28T00:00:00Z', 'usageTo' => '2026-11-02T11:00:00Z'];
         $row = ['instanceId' => $native, 'region' => 'ir-test', 'scope' => 'instance', 'productName' => 'iaas',
-            'totalPrice' => '20000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '20000', 'items' => [$item]];
+            'totalPrice' => '70000', 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => '70000', 'items' => [$item]];
         $cycleData = ['id' => $cycle, 'accountId' => 'synthetic-account', 'currency' => 'irr',
             'startedAt' => '2026-10-23T00:00:00Z', 'expiredAt' => '2026-11-22T00:00:00Z',
-            'totalItemsPrice' => '20000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '20000'];
+            'totalItemsPrice' => '70000', 'totalItemsDiscount' => '0', 'totalUsedGift' => '0', 'totalVatPrice' => '0', 'totalPrice' => '70000'];
         $snapshot = ['observed_at' => '2026-11-02T12:00:00Z', 'current_cycle' => $cycle,
             'reports' => [['cycle' => $cycleData, 'rows' => [$row], 'total_items' => 1]]];
 
@@ -256,7 +256,7 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
                     $writer->table('customers')->where('id', $customer->id)->lockForUpdate()->first();
                     $writer->table('services')->where('id', $service->id)->update(['hold_reserve_irt' => 700]);
                     $writer->table('credit_ledger')->insert(['customer_id' => $customer->id, 'currency_code' => 'IRT',
-                        'amount' => 1856, 'balance_after' => 1856, 'reason' => 'topup', 'created_at' => now(), 'updated_at' => now()]);
+                        'amount' => 7631, 'balance_after' => 7631, 'reason' => 'topup', 'created_at' => now(), 'updated_at' => now()]);
                 });
             }
         });
@@ -271,6 +271,57 @@ class ArvanTrafficMeterMariaDbTest extends TestCase
             'Meter must not create a traffic hold when current spendable remains positive');
         $this->assertSame(1, Invoice::count());
         $this->assertSame(2, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
+
+    public function test_ordinary_debit_sees_new_exposure_and_ledger_commit_after_old_snapshot(): void
+    {
+        Http::preventStrayRequests();
+        Wallet::flushSchemaCache();
+        $cfg = config('database.connections.'.config('database.default'));
+        $customer = Customer::create(['email' => 'pending-exposure-race@example.test', 'status' => 'active']);
+        app(Wallet::class)->credit($customer->id, 'IRT', 10000, 'topup', null);
+        config(['database.connections.traffic_exposure_writer' => $cfg]);
+        DB::purge('traffic_exposure_writer');
+        $writer = DB::connection('traffic_exposure_writer');
+        DB::statement('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+        $key = \App\Services\Finance\ArvanTrafficExposure::PREFIX.$customer->id;
+        $payload = ['version' => 1, 'customer_id' => $customer->id, 'currency' => 'IRT',
+            'components' => ['synthetic-cycle|synthetic-resource' => [
+                'base_sha256' => str_repeat('a', 64), 'source_hash' => str_repeat('b', 64),
+                'amount_irt' => 1155, 'next' => ['customer_id' => $customer->id, 'service_id' => 1,
+                    'cost_irr' => 20000, 'sell_irt' => 2100, 'tax_irt' => 210]]]];
+        $cipher = \Illuminate\Support\Facades\Crypt::encryptString(json_encode($payload, JSON_THROW_ON_ERROR));
+        try {
+            DB::transaction(function () use ($customer, $writer, $key, $cipher): void {
+                $wallet = app(Wallet::class);
+                $this->assertSame(10000, $wallet->availableOf($customer->id), 'Establish an old snapshot with no exposure row');
+                $writer->transaction(function () use ($writer, $customer, $key, $cipher): void {
+                    $writer->table('customers')->where('id', $customer->id)->lockForUpdate()->first();
+                    $writer->table('settings')->insert(['key' => $key, 'value' => $cipher, 'created_at' => now(), 'updated_at' => now()]);
+                    $writer->table('credit_ledger')->insert(['customer_id' => $customer->id, 'currency_code' => 'IRT',
+                        'amount' => -500, 'balance_after' => 9500, 'reason' => 'synthetic_other_usage',
+                        'created_at' => now(), 'updated_at' => now()]);
+                });
+                $this->assertSame(10000, $wallet->availableOf($customer->id), 'Plain reads still see the old snapshot');
+                try {
+                    $wallet->debit($customer->id, 'IRT', 9000, 'synthetic_purchase', null);
+                    $this->fail('Ordinary debit must protect newly committed pending traffic');
+                } catch (\App\Services\Finance\WalletException $error) {
+                    $this->assertSame('insufficient_funds', $error->errorCode);
+                }
+                $this->assertSame(8345, $wallet->availableOf($customer->id, currentRead: true));
+                $wallet->debit($customer->id, 'IRT', 8345, 'synthetic_affordable_purchase', null);
+                $this->assertSame(0, $wallet->availableOf($customer->id, currentRead: true));
+            });
+        } finally {
+            DB::purge('traffic_exposure_writer');
+        }
+        $this->assertSame(1155, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(1155, app(\App\Services\Finance\ArvanTrafficExposure::class)->reservedOf($customer->id));
+        $this->assertSame(0, CreditEntry::where('reason', 'synthetic_purchase')->count());
+        $this->assertSame(3, CreditEntry::count());
         Http::assertNothingSent();
     }
 

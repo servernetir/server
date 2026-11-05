@@ -49,7 +49,7 @@ final class ArvanTrafficSource
         $current = $this->get('current-billing-cycle')['data'];
         $ids = [$current['id']];
         foreach ($knownCycles as $id => $cycle) {
-            if (Carbon::parse($cycle['expired_at'])->gte(now()->subDays(7))) {
+            if (($cycle['pending'] ?? false) === true || Carbon::parse($cycle['expired_at'])->gte(now()->subDays(7))) {
                 $ids[] = $id;
             }
         }
@@ -152,7 +152,8 @@ final class ArvanTrafficSource
                         && $p === 0 && $d === 0 && $g === 0
                         && self::integer($row['totalPrice']) === 0 && self::integer($row['totalDiscount']) === 0
                         && self::integer($row['totalUsedGift']) === 0 && self::integer($row['netPrice']) === 0;
-                    // Exact repeated zero-cost CDN parents cannot change the IaaS bill.
+                    // Exact repeated zero-cost CDN components under different
+                    // zero-cost parents cannot change the IaaS bill.
                     // Paid duplicates, changed payloads, other products and IaaS internet remain rejected.
                     $freeCdn = ($row['productName'] ?? '') === 'cdn'
                         && str_starts_with((string) ($item['metric'] ?? ''), 'cdn_')
@@ -160,9 +161,9 @@ final class ArvanTrafficSource
                         && self::integer($row['totalPrice']) === 0 && self::integer($row['totalDiscount']) === 0
                         && self::integer($row['totalUsedGift']) === 0 && self::integer($row['netPrice']) === 0;
                     $repeatableZero = $freeSend || $freeCdn;
-                    $fingerprint = hash('sha256', json_encode([
+                    $fingerprint = hash('sha256', json_encode($freeCdn ? ['free_cdn', $this->canonicalCycle($item)] : [
                         $row['scope'] ?? null, $row['productName'] ?? null, $row['region'] ?? null,
-                        $row['instanceId'] ?? null, $this->canonicalCycle($item), $freeCdn ? $this->canonicalCycle($row) : null,
+                        $row['instanceId'] ?? null, $this->canonicalCycle($item), null,
                     ], JSON_THROW_ON_ERROR));
                     if (isset($seenItems[$id]) && (! $repeatableZero || ! $seenItems[$id]['repeatable_zero']
                         || ! hash_equals($seenItems[$id]['fingerprint'], $fingerprint))) {

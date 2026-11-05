@@ -11,7 +11,7 @@ class RefreshTldPriceBook extends Command
 {
     // Retain --strict for existing operational callers; incomplete refreshes always fail.
     protected $signature = 'domains:price-book {--strict : فقط انتشار دفترچهٔ کامل}';
-    protected $description = 'همگام‌سازی قیمت واقعی تمام پسوندهای قابل‌فروش Openprovider';
+    protected $description = 'همگام‌سازی قیمت واقعی تمام پسوندهای قابل‌فروش از حساب‌های واجد شرایط';
 
     public function handle(TldPriceBook $book): int
     {
