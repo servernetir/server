@@ -4,8 +4,10 @@ namespace App\Services\Billing;
 
 use App\Models\ActivityLog;
 use App\Models\BankTransferReceipt;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\Payment\PaymentService;
+use Illuminate\Support\Facades\DB;
 
 /**
  * بررسیِ رسیدِ واریزِ بانکی — **یک** تعریف، دو فراخوان (پنل و رباتِ بله).
@@ -35,11 +37,25 @@ class BankReceiptReviewer
      */
     public function approve(BankTransferReceipt $receipt, ?int $byUserId = null, $request = null): array
     {
+        // A stale panel/bot request must not review the same receipt twice.
+        return DB::transaction(function () use ($receipt, $byUserId, $request) {
+            $receipt = BankTransferReceipt::whereKey($receipt->id)->lockForUpdate()->firstOrFail();
+
+            return $this->approveLocked($receipt, $byUserId, $request);
+        });
+    }
+
+    private function approveLocked(BankTransferReceipt $receipt, ?int $byUserId, $request): array
+    {
         if (! $receipt->isPending()) {
             return ['ok' => false, 'message' => 'این رسید قبلاً بررسی شده است.'];
         }
 
-        $invoice = $receipt->invoice;
+        $invoice = Invoice::whereKey($receipt->invoice_id)->lockForUpdate()->first();
+
+        if ($invoice === null || (int) $invoice->customer_id !== (int) $receipt->customer_id) {
+            return ['ok' => false, 'message' => 'فاکتور معتبر و متعلق به مشتری این رسید پیدا نشد؛ رسید تأیید نشد.'];
+        }
 
         /*
         | 🔴 فاکتورِ غیرقابلِ‌پرداخت ⇒ **رد**، نه تأییدِ ساکت.
@@ -53,6 +69,10 @@ class BankReceiptReviewer
                 'message' => 'فاکتورِ این رسید دیگر قابلِ پرداخت نیست (لغو یا تسویه‌شده). '
                     .'رسید دست‌نخورده مانْد — تکلیفِ پول را دستی روشن کنید.',
             ];
+        }
+
+        if ((int) $receipt->amount <= 0 || (int) $receipt->amount !== $invoice->due()) {
+            return ['ok' => false, 'message' => 'مبلغ رسید با ماندهٔ فاکتور برابر نیست؛ رسید برای تطبیق دستی باز ماند.'];
         }
 
         if ($invoice !== null) {
@@ -74,9 +94,27 @@ class BankReceiptReviewer
                 ],
             );
 
+            // A reference can already belong to another invoice or gateway.
+            // Never settle that payment, or treat its paid status as this receipt's success.
+            if ((int) $payment->invoice_id !== (int) $invoice->id
+                || (int) $payment->customer_id !== (int) $receipt->customer_id
+                || $payment->gateway !== 'bank_transfer'
+                || $payment->currency_code !== $invoice->currency_code
+                || (int) $payment->amount !== (int) $receipt->amount) {
+                return ['ok' => false, 'message' => 'شناسهٔ پیگیری این رسید با پرداخت دیگری تعارض دارد؛ فاکتور و اعتبار تغییر نکرد و رسید تأیید نشد.'];
+            }
+
             // پرداختِ قبلاً تسویه‌شده دوباره تسویه نمی‌شود (اعتبارِ دوباره ندهد)
             if (! $payment->isPaid()) {
-                app(PaymentService::class)->settleConfirmed($payment, $receipt->reference);
+                $outcome = app(PaymentService::class)->settleConfirmed($payment, $receipt->reference);
+
+                if (! $outcome->ok) {
+                    return ['ok' => false, 'message' => 'تسویهٔ این پرداخت تأیید نشد؛ رسید برای بررسی باز ماند.'];
+                }
+            }
+
+            if (! $payment->fresh()->isPaid() || $invoice->fresh()->status !== 'paid') {
+                return ['ok' => false, 'message' => 'تسویهٔ فاکتور این رسید کامل نشده است؛ رسید تأیید نشد.'];
             }
         }
 
