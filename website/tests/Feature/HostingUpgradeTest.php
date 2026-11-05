@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Server;
 use App\Models\Service;
+use App\Models\User;
 use App\Services\Billing\HostingUpgradeFulfillment;
 use App\Services\Billing\HostingUpgrades;
 use App\Services\Billing\InvoiceCanceller;
@@ -458,5 +459,66 @@ class HostingUpgradeTest extends TestCase
         $this->assertSame('review', $u->fresh()->status);
         $this->assertSame('old-plan', $s->fresh()->plan);
         Http::assertNothingSent();
+    }
+
+    public function test_early_renewal_upgrades_current_and_prepaid_cycles_without_extending_again(): void
+    {
+        [$s, $target] = $this->fixtures();
+        $renewal = Invoice::create(['customer_id' => $s->customer_id, 'service_id' => $s->id,
+            'currency_code' => 'IRT', 'kind' => 'service', 'total' => 649000, 'status' => 'unpaid']);
+        $payment = Payment::create(['invoice_id' => $renewal->id, 'customer_id' => $s->customer_id,
+            'gateway' => 'credit', 'currency_code' => 'IRT', 'amount' => 649000, 'status' => 'pending']);
+        app(PaymentService::class)->settleConfirmed($payment, 'early-renewal-fixture');
+        $this->assertSame('2027-01-01', $s->fresh()->next_due_at->toDateString());
+        $q = app(HostingUpgrades::class)->quote($s->fresh(), $target);
+        $this->assertCount(2, $q['periods']);
+        $this->assertSame(885000, $q['credit']);
+        $this->assertSame(1185000, $q['debit']);
+        $this->assertSame(330000, $q['total']);
+        $u = $this->issue($s->fresh(), $target);
+        $this->pay($u);
+        $changer = \Mockery::mock(HostingPlanChanger::class);
+        $changer->shouldReceive('inspect')->once()->andReturn(['state' => 'source']);
+        $changer->shouldReceive('change')->once();
+        $changer->shouldReceive('inspect')->once()->andReturn(['state' => 'target']);
+        (new HostingUpgradeFulfillment(app(HostingUpgrades::class), $changer))->process($u);
+        $this->assertSame('complete', $u->fresh()->status);
+        $this->assertSame('2027-01-01', $s->fresh()->next_due_at->toDateString());
+        $this->assertSame(790000, $s->fresh()->price);
+    }
+
+    public function test_expired_wallet_form_cannot_debit_before_the_expiry_job_runs(): void
+    {
+        [$s, $target] = $this->fixtures();
+        $u = $this->issue($s, $target);
+        CreditEntry::create(['customer_id' => $s->customer_id, 'currency_code' => 'IRT',
+            'amount' => 200000, 'balance_after' => 200000, 'reason' => 'adjustment', 'note' => 'fixture']);
+        $this->travel(25)->hours();
+        foreach (['unpaid', 'partial'] as $status) {
+            $u->invoice->update(['status' => $status, 'paid' => $status === 'partial' ? 1000 : 0]);
+            $this->actingAs($s->customer, 'customer')->post('/account/invoices/'.$u->invoice_id.'/pay-credit')
+                ->assertSessionHasErrors();
+            $this->assertSame(200000, (int) CreditEntry::where('customer_id', $s->customer_id)->sum('amount'));
+        }
+        $this->assertSame(0, Payment::where('invoice_id', $u->invoice_id)->count());
+        $this->assertSame('old-plan', $s->fresh()->plan);
+    }
+
+    public function test_upgrade_invoice_and_customer_audit_records_cannot_be_deleted(): void
+    {
+        [$s, $target] = $this->fixtures();
+        $u = $this->issue($s, $target);
+        $admin = User::create(['name' => 'Fixture admin', 'email' => 'upgrade-admin@example.test',
+            'password' => 'fixture-only', 'role' => 'admin']);
+        foreach (['unpaid', 'canceled'] as $status) {
+            $u->invoice->update(['status' => $status]);
+            $this->assertFalse($u->invoice->fresh()->isDeletable());
+            $this->actingAs($admin, 'web')->post('/admin/invoices/'.$u->invoice_id.'/delete')->assertSessionHasErrors();
+            $this->assertNotNull(Invoice::find($u->invoice_id));
+        }
+        $this->post('/admin/customers/'.$s->customer_id.'/delete')->assertSessionHasErrors();
+        $this->assertNotNull(Customer::find($s->customer_id));
+        $this->assertNotNull(Service::find($s->id));
+        $this->assertNotNull($u->fresh());
     }
 }

@@ -94,35 +94,42 @@ class HostingUpgrades
         // one month from Nov 30 cannot recover an Oct 31 first-cycle anchor.
         $start = $s->activated_at->copy();
         $cursor = $start->copy()->startOfDay();
+        $at = now();
+        $periods = [];
         $matched = false;
         for ($step = 0; $step < 1200; $step++) {
             $next = $cursor->copy()->addMonthsNoOverflow(Service::monthsIn($s->cycle));
+            if ($next->gt($dueDate)) {
+                break;
+            }
+            $periodEnd = Carbon::parse($next->toDateString(), RenewalTerms::timezone())->endOfDay()->utc();
+            if ($periodEnd->gt($at)) {
+                $periods[] = ['start' => $start->toIso8601String(), 'end' => $periodEnd->toIso8601String(),
+                    'seconds' => $periodEnd->timestamp - $start->timestamp,
+                    'remaining' => $periodEnd->timestamp - max($at->timestamp, $start->timestamp)];
+            }
             if ($next->eq($dueDate)) {
                 $matched = true;
                 break;
             }
-            if ($next->gt($dueDate)) {
-                break;
-            }
             $cursor = $next;
-            $start = Carbon::parse($next->toDateString(), RenewalTerms::timezone())->endOfDay()->utc();
+            $start = $periodEnd;
         }
-        if (! $matched) {
+        if (! $matched || $periods === [] || $s->activated_at->gt($at)) {
             $this->invalid();
         }
-        $at = now();
-        if ($start->gt($at) || $end->lte($at)) {
-            $this->invalid();
-        }
-        $seconds = $end->timestamp - $start->timestamp;
-        $remaining = $end->timestamp - $at->timestamp;
+        $start = Carbon::parse($periods[0]['start']);
+        $seconds = array_sum(array_column($periods, 'seconds'));
+        $remaining = array_sum(array_column($periods, 'remaining'));
         $newPrice = $target->priceForCycle($s->cycle, $s->server->country);
         if ($newPrice <= $s->price) {
             $this->invalid();
         }
         // Round each displayed component in stored currency units so the breakdown adds up.
-        $prorate = fn (int $price) => BigInteger::of($price)->multipliedBy($remaining)
-            ->dividedBy($seconds, RoundingMode::HalfUp)->toInt();
+        // Early renewal prepays complete future cycles. Charge each remaining
+        // cycle at its own calendar denominator rather than rejecting its future start.
+        $prorate = fn (int $price) => array_sum(array_map(fn ($period) => BigInteger::of($price)
+            ->multipliedBy($period['remaining'])->dividedBy($period['seconds'], RoundingMode::HalfUp)->toInt(), $periods));
         $credit = $prorate((int) $s->price);
         $debit = $prorate($newPrice);
         $subtotal = $debit - $credit;
@@ -135,7 +142,7 @@ class HostingUpgrades
         return ['version' => 1, 'from' => $this->fingerprint($s), 'product_id' => $target->id,
             'plan' => $target->plan, 'name' => $target->name, 'price' => $newPrice,
             'quoted_at' => $at->toIso8601String(), 'period_start' => $start->toIso8601String(),
-            'period_end' => $end->toIso8601String(), 'seconds' => $seconds, 'remaining' => $remaining,
+            'period_end' => $end->toIso8601String(), 'periods' => $periods, 'seconds' => $seconds, 'remaining' => $remaining,
             'credit' => $credit, 'debit' => $debit, 'subtotal' => $subtotal, 'tax' => $tax, 'total' => $subtotal + $tax];
     }
 

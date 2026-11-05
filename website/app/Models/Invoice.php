@@ -221,6 +221,7 @@ class Invoice extends Model
      */
     public function isDeletable(): bool
     {
+        if ($this->kind === 'hosting_upgrade') return false;
         return $this->paid <= 0
             && in_array($this->status, ['draft', 'unpaid', 'overdue', 'canceled'], true);
     }

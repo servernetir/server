@@ -34,7 +34,9 @@ components and tax use integer currency units, remaining seconds and half-up
 rounding. There is no setup charge or extra full-cycle charge. Calendar steps
 are replayed from activation using renewal's no-overflow behavior; inconsistent
 manual anchors fail closed. The end is `RenewalTerms::serviceDeadline`, including
-the full local paid due day in the configured billing timezone. Displayed day
+the full local paid due day in the configured billing timezone. Early renewal
+is supported: the remaining current cycle and every fully prepaid future cycle
+are prorated separately using their own calendar lengths. Displayed day
 fractions are approximate; amounts do not use those rounded labels.
 
 The complete preview is signed, stored in session, valid for 15 minutes and
@@ -51,7 +53,10 @@ Invoice kind is `hosting_upgrade`; `service_id` is deliberately null, so payment
 settlement cannot extend/suspend the existing host. The upgrade record and invoice
 line bind it to the service. Normal gateway/wallet settlement, cancellation,
 revenue and invoice expiry remain in use. Upgrade lines are not marketing-
-eligible. An expired upgrade invoice cannot start payment.
+eligible. An expired upgrade invoice cannot start payment. The wallet endpoint repeats
+this check under the invoice lock before debiting, even for a stale open form or
+a partial invoice. Upgrade invoices and their customer audit records cannot be
+hard-deleted; normal cancellation remains available.
 
 `hosting:upgrades` runs each minute with scheduler/per-service cache locks;
 unresolved checks are spaced five minutes apart. Only a fully paid, correctly
@@ -80,7 +85,7 @@ Provider references:
 ## Validation and acceptance limits
 
 Local: isolated PHP 8.4.27, existing Composer lock, SQLite in-memory and fake HTTP
-resources. Final local regression: **59 tests / 270 assertions passed**. Fifteen changed
+resources. Final local regression: **67 tests / 312 assertions passed**. Seventeen changed
 non-Blade PHP files passed syntax checks; the workflow YAML and browser-test
 JavaScript parsed successfully.
 Coverage includes arithmetic/discounts/calendar/Tehran due day, ownership and
@@ -96,7 +101,10 @@ Local Chromium was unable to launch because the environment denied its singleton
 socket. No local visual acceptance is claimed. The dedicated PR workflow runs
 SQLite and MariaDB 11.4 acceptance plus actual rendered review-form checks in
 fa/en/tr, dark/light and 390/1440px Chromium. A workflow definition alone is not
-evidence of a successful run; consult the linked run for actual results.
+evidence of a successful run; consult the linked run for actual results. The
+previous revision passed both database jobs and 12 rendered Chromium cases
+(three locales, two themes, mobile/desktop); the final review fixes rerun these
+checks. Native headless DOM export avoids a flaky debugging-socket startup.
 
 The existing callback suite deliberately writes an invalid date into a datetime
 column to simulate a settlement fault. It runs on SQLite only; MariaDB correctly

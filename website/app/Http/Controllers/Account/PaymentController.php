@@ -760,6 +760,9 @@ class PaymentController extends Controller
 
                 /** @var Invoice $fresh */
                 $fresh = Invoice::whereKey($invoice->id)->lockForUpdate()->first();
+                if ($fresh->kind === 'hosting_upgrade' && ($fresh->due_at === null || ! $fresh->due_at->isFuture())) {
+                    return ['ok' => false, 'msg' => __('panel.invoice_not_payable')];
+                }
                 app(\App\Services\Marketing\DiscountEngine::class)->assertPayable($fresh);
                 $due = $fresh->due();
 
