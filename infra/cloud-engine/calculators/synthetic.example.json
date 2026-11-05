@@ -1,0 +1,30 @@
+{
+  "currency": "IRT",
+  "quote_date": "2026-11-03",
+  "quote_source": "SYNTHETIC TEST INPUTS. Not a Hetzner quotation or measured hardware result.",
+  "synthetic_inputs": true,
+  "assumptions": "No CPU or RAM overcommit. IOPS/network/traffic are synthetic workload budgets, replace with measurements. Disk is usable mirrored capacity, not sum of raw drives.",
+  "node": {
+    "physical_cores": 32, "logical_threads": 64, "reserved_physical_cores": 4,
+    "cpu_allocation_ratio": "1", "ram_gib": 128, "reserved_ram_gib": 16,
+    "usable_mirrored_disk_gib": 1800, "reserved_disk_gib": 300,
+    "measured_sustained_iops": 20000, "reserved_iops": 5000,
+    "sustained_network_mbps": 1000, "reserved_network_mbps": 200,
+    "monthly_traffic_budget_gb": 20000, "usable_guest_ipv4": 29
+  },
+  "workload": {
+    "vm_overhead_gib": "0.15", "disk_gib_per_vm": 40,
+    "sustained_iops_per_vm": 200, "sustained_mbps_per_vm": 20,
+    "monthly_traffic_gb_per_vm": 500
+  },
+  "commercial": {
+    "retail_monthly_irt": 1000000, "eur_to_irt": "100000",
+    "rental_eur": "100", "subnet_monthly_eur": "30", "primary_ipv4_eur": "2",
+    "ipv4_per_customer_eur": "0", "node_setup_eur": "100", "subnet_setup_eur": "50",
+    "setup_amortization_months": 12, "supplier_vat_percent": "19", "sales_vat_percent": "0",
+    "storage_eur": "0", "backup_eur": "10", "network_base_eur": "0",
+    "included_traffic_gb_per_node": 20000, "traffic_overage_eur_per_gb": "0.001",
+    "node_overhead_eur": "10", "fleet_overhead_eur": "20",
+    "payment_fee_percent": "1", "payment_fee_fixed_irt": 0
+  }
+}

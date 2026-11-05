@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "catalog_version": "2026-11-03.1",
+  "status": "evaluation-candidates-not-saleable",
+  "images": [
+    {"key": "ubuntu-22.04", "family": "ubuntu", "version": "22.04 LTS", "architecture": "amd64", "source_index": "https://cloud-images.ubuntu.com/releases/jammy/", "initialization": "cloud-init", "source_url": null, "sha256": null, "accepted": false},
+    {"key": "ubuntu-24.04", "family": "ubuntu", "version": "24.04 LTS", "architecture": "amd64", "source_index": "https://cloud-images.ubuntu.com/releases/noble/", "initialization": "cloud-init", "source_url": null, "sha256": null, "accepted": false},
+    {"key": "debian-12", "family": "debian", "version": "12", "architecture": "amd64", "source_index": "https://cloud.debian.org/images/cloud/bookworm/", "initialization": "cloud-init", "source_url": null, "sha256": null, "accepted": false},
+    {"key": "debian-13", "family": "debian", "version": "13", "architecture": "amd64", "source_index": "https://cloud.debian.org/images/cloud/trixie/", "initialization": "cloud-init", "source_url": null, "sha256": null, "accepted": false},
+    {"key": "almalinux-9", "family": "almalinux", "version": "9", "architecture": "amd64", "source_index": "https://repo.almalinux.org/almalinux/9/cloud/x86_64/images/", "initialization": "cloud-init", "source_url": null, "sha256": null, "accepted": false},
+    {"key": "rocky-9", "family": "rocky", "version": "9", "architecture": "amd64", "source_index": "https://download.rockylinux.org/pub/rocky/9/images/x86_64/", "initialization": "cloud-init", "source_url": null, "sha256": null, "accepted": false},
+    {"key": "windows-2019", "family": "windows", "version": "2019", "architecture": "amd64", "source_index": "https://www.microsoft.com/licensing/", "initialization": "cloudbase-init-and-guest-agent", "source_url": null, "sha256": null, "license_evidence": null, "accepted": false},
+    {"key": "windows-2022", "family": "windows", "version": "2022", "architecture": "amd64", "source_index": "https://www.microsoft.com/licensing/", "initialization": "cloudbase-init-and-guest-agent", "source_url": null, "sha256": null, "license_evidence": null, "accepted": false},
+    {"key": "windows-2025", "family": "windows", "version": "2025", "architecture": "amd64", "source_index": "https://www.microsoft.com/licensing/", "initialization": "cloudbase-init-and-guest-agent", "source_url": null, "sha256": null, "license_evidence": null, "commercial_support": "unverified", "accepted": false}
+  ]
+}

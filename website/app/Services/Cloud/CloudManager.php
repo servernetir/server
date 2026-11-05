@@ -28,6 +28,7 @@ class CloudManager
         'hetzner-robot' => HetznerRobotClient::class,
         'lightnode' => LightNodeClient::class,
         'vpstc' => VpsTcClient::class,
+        'cloud-engine' => \App\Services\Cloud\Engine\EngineProvider::class,
     ];
 
     /**
@@ -52,6 +53,7 @@ class CloudManager
         'hetzner-robot' => 'Hetzner Robot (Dedicated)',
         'lightnode' => 'LightNode',
         'vpstc' => 'VPS.TC',
+        'cloud-engine' => 'ServerNet Dedicated Cloud Engine',
     ];
 
     /** @var array<string, CloudProvider> */

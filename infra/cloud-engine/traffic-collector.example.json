@@ -1,0 +1,7 @@
+{
+  "endpoint": "https://console.example.invalid/api/v1/cloud-engine/internal/nodes/1/traffic",
+  "secret_file": "/etc/servernet-engine/traffic.secret",
+  "state_file": "/var/lib/servernet-engine/traffic.json",
+  "interval_seconds": 10,
+  "assignments": [{"vm_uuid": "REPLACE-WITH-ENGINE-VM-UUID", "vmid": 1000}]
+}

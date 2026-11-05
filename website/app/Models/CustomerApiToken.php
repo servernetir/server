@@ -28,6 +28,9 @@ class CustomerApiToken extends Model
         'domains:manage' => 'تغییرِ نام‌سرور و تمدیدِ خودکارِ دامنه‌های موجود',
         'tunnel:read'    => 'خواندنِ اکانت‌های تونلِ WireGuard-روی-TCP سرورِ اکسیت',
         'tunnel:write'   => 'ساخت و حذفِ اکانتِ تونل — کلیدِ خصوصی فقط یک بار برمی‌گردد',
+        'servers:read'   => 'خواندنِ سرورهای ابری، عملیات و مصرف',
+        'servers:write'  => 'تحویلِ سفارشِ پرداخت‌شدهٔ سرور ابری',
+        'servers:manage' => 'مدیریت و حذفِ سرورهای ابری موجود',
     ];
 
     /**
@@ -167,6 +170,15 @@ class CustomerApiToken extends Model
 
     public function can(string $ability): bool
     {
+        // New infrastructure controls require explicit opt-in. A historical
+        // wildcard must never silently gain destructive server permissions.
+        if (str_starts_with($ability, 'servers:')) {
+            $abilities = (array) ($this->abilities ?? []);
+            return in_array($ability, ['servers:read', 'servers:write', 'servers:manage'], true)
+                && (in_array($ability, $abilities, true) || ($ability === 'servers:read'
+                    && (in_array('servers:write', $abilities, true) || in_array('servers:manage', $abilities, true))));
+        }
+
         /*
         | 🔴 مرزِ AI — پیش از همهٔ منطقِ وایلدکارد. دامنهٔ «ai:*» از «*»
         | نمی‌آید و از سلسله‌مراتبِ domains هم نمی‌آید: توکنی که روزی «*»

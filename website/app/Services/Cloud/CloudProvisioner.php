@@ -52,6 +52,7 @@ class CloudProvisioner
      * cadence this allows two observations before the operation is failed.
      */
     private const LIFECYCLE_PENDING_DEADLINES = [
+        'cloud-engine' => 30,
         // LightNode exposes a durable async receipt.  Other providers have
         // different lifecycle contracts and must not inherit this deadline.
         'lightnode' => 30,
@@ -60,6 +61,7 @@ class CloudProvisioner
 
     /** Provider-accepted deletion may be asynchronous, but not indefinitely. */
     private const RELEASE_PENDING_DEADLINES = [
+        'cloud-engine' => 30,
         // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
         'arvan' => 15,
         'vpstc' => 30,
@@ -175,9 +177,11 @@ class CloudProvisioner
         //    سرویسِ ساعتی را روی ارزان‌ترینِ ماهانه‌فروش بگذارد و سفارش رد شود.
         $hourly = $service->isHourly();
 
-        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager, $hourly)
+        // Dedicated-engine products opt in to an explicit infrastructure pool.
+        // A stale image/capacity observation must not move this order to a rental.
+        $plan = $ordered->provider === 'cloud-engine' ? $ordered : ($this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager, $hourly)
             ?? CloudPlan::bestForSlug((string) $ordered->slug, $hourly)
-            ?? $ordered;
+            ?? $ordered);
 
         /*
         | 🔴 شاخهٔ `?? $ordered` **قرنطینه را دور می‌زد**.
@@ -224,7 +228,7 @@ class CloudProvisioner
         if ($imageRef === null) {
             // نبودِ همان سیستم‌عامل روی این زیرساخت: به‌جای شکست، سراغِ
             // زیرساختِ دیگری برو که داردش. مشتری اوبونتو خواسته، نه یک برند.
-            $alt = $this->planWithImage((string) $ordered->slug, $imageKey, $hourly);
+            $alt = $ordered->provider === 'cloud-engine' ? null : $this->planWithImage((string) $ordered->slug, $imageKey, $hourly);
 
             if ($alt === null) {
                 $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
@@ -2296,7 +2300,8 @@ class CloudProvisioner
 
     public function unsuspend(Service $service): bool
     {
-        return $this->act($service, fn ($d, $ref) => $d->power($ref, 'on'), 'running');
+        return $this->act($service, fn ($d, $ref) => $d instanceof \App\Services\Cloud\Engine\EngineProvider
+            ? $d->resumeBilling($ref) : $d->power($ref, 'on'), 'running');
     }
 
     /**

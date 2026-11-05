@@ -47,7 +47,9 @@ class ConsoleHost
         'account', 'account/*',
         'admin', 'admin/*',
         'en/admin/identity-api', 'en/admin/identity-api/*',
+        'en/admin/cloud-engine', 'en/admin/cloud-engine/*',
         'tr/admin/identity-api', 'tr/admin/identity-api/*',
+        'tr/admin/cloud-engine', 'tr/admin/cloud-engine/*',
         'en/login', 'en/login/*', 'en/logout', 'en/register', 'en/register/*', 'en/account', 'en/account/*',
         'tr/login', 'tr/login/*', 'tr/logout', 'tr/register', 'tr/register/*', 'tr/account', 'tr/account/*',
     ];

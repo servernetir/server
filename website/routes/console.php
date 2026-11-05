@@ -772,3 +772,10 @@ Schedule::command('cloud:watch-sales')
     ->everyMinute()
     ->runInBackground()
     ->withoutOverlapping(2);
+
+// Infrastructure operations have their own persisted leases and bounded phases.
+// No reservations exist until an explicitly enabled node and a paid order enter.
+Schedule::command('cloud-engine:work --limit=25')->everyTenSeconds()->withoutOverlapping(10)
+    ->appendOutputTo(storage_path('logs/cloud-engine-worker.log'));
+Schedule::command('cloud-engine:health')->everyMinute()->withoutOverlapping(5)
+    ->appendOutputTo(storage_path('logs/cloud-engine-health.log'));

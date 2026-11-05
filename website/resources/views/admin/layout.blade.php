@@ -137,6 +137,7 @@
 
       <div class="ad-nav-sep">سرور</div>
       <a href="/admin/cloud" class="@yield('nav_cloud')"><svg class="icon"><use href="#i-cloud"/></svg>زیرساختِ ابری</a>
+      <a href="{{ lroute('admin.engine.index') }}" class="@yield('nav_engine')"><svg class="icon"><use href="#i-server"/></svg>{{ __('cloud_engine.title') }}</a>
       {{-- «ناوگان» جدا از «زیرساختِ ابری» است و باید بماند: آن‌جا کاتالوگ و
            توکن تنظیم می‌شود، این‌جا ماشین‌های واقعی و پولی که بابتشان می‌رود. --}}
       <a href="/admin/fleet" class="@yield('nav_fleet')"><svg class="icon"><use href="#i-server"/></svg>ناوگان زیرساخت</a>

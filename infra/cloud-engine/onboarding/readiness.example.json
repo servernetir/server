@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "status": "pending-no-hardware-purchase-or-sales-activation",
+  "checks": {
+    "architecture": {"result": "pending"},
+    "application": {"result": "pending"},
+    "migrations": {"result": "pending"},
+    "api_tests": {"result": "pending"},
+    "existing_tests": {"result": "pending"},
+    "provisioning_tests": {"result": "pending"},
+    "security_tests": {"result": "pending"},
+    "network_design": {"result": "pending"},
+    "ip_subnet_design": {"result": "pending"},
+    "images_prepared": {"result": "pending", "reason": "Pinned artifacts and individual image acceptance remain outstanding"},
+    "console_mock_tests": {"result": "pending"},
+    "traffic_mock_tests": {"result": "pending"},
+    "deployment_tools": {"result": "pending"},
+    "monitoring": {"result": "pending"},
+    "backup_runbook": {"result": "pending"},
+    "capacity_model": {"result": "pending", "reason": "Synthetic examples are not measured capacity"},
+    "commercial_model": {"result": "pending", "reason": "Current supplier quotation and dated FX inputs required"},
+    "node_install": {"result": "pending", "mode": "real"},
+    "real_network_isolation": {"result": "pending", "mode": "real"},
+    "real_image_initialization": {"result": "pending", "mode": "real"},
+    "real_console": {"result": "pending", "mode": "real"},
+    "generated_traffic_accuracy": {"result": "pending", "mode": "real"},
+    "backup_restore": {"result": "pending", "mode": "real"},
+    "pilot_order_lifecycle": {"result": "pending", "mode": "real"}
+  }
+}

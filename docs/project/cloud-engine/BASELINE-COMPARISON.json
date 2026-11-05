@@ -1,0 +1,23 @@
+{
+  "baseline_sha": "dddea6407d52c44bd0c0853a1bb148235ea11e17",
+  "baseline": {
+    "tests": "1639",
+    "assertions": "9064",
+    "errors": "22",
+    "failures": "113",
+    "skipped": "4",
+    "time": "128.680815"
+  },
+  "final_selection": {
+    "tests": "1658",
+    "assertions": "9236",
+    "errors": "22",
+    "failures": "113",
+    "skipped": "4",
+    "time": "138.838977"
+  },
+  "existing_cases_compared": 1639,
+  "changed_existing_outcomes": [],
+  "new_cases_in_regression_selection": 19,
+  "new_nonpassing": []
+}

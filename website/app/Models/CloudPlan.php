@@ -93,7 +93,7 @@ class CloudPlan extends Model
     public function supportsHourly(): bool
     {
         // VPS.TC's account catalog is prepaid monthly; even a stale/forged hourly cost grants no sale.
-        if ($this->provider === 'vpstc') {
+        if (in_array($this->provider, ['vpstc', 'cloud-engine'], true)) {
             return false;
         }
         if ($this->provider === 'arvan') {
@@ -133,7 +133,7 @@ class CloudPlan extends Model
     {
         $arvanEnabled = Setting::get('arvan_hourly_sales_enabled') === '1';
 
-        return $q->where('provider', '!=', 'vpstc')->where(function (Builder $qq) use ($arvanEnabled) {
+        return $q->whereNotIn('provider', ['vpstc', 'cloud-engine'])->where(function (Builder $qq) use ($arvanEnabled) {
             $qq->whereNotIn('provider', [...self::TERM_BASED_PROVIDERS, 'arvan'])
                 ->when($arvanEnabled, fn (Builder $q2) => $q2->orWhere(
                     fn (Builder $q3) => $q3->where('provider', 'arvan')

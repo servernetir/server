@@ -138,6 +138,9 @@ return [
             "domains:manage" => "modify nameservers and the auto-renew flag on existing domains",
             "tunnel:read" => "read the WireGuard-over-TCP accounts of your exit server",
             "tunnel:write" => "create and remove tunnel accounts — the private key is returned once and never stored",
+            "servers:read" => "read cloud servers, operations and usage",
+            "servers:write" => "provision an existing confirmed-paid cloud server order",
+            "servers:manage" => "manage and delete existing cloud servers",
         ],
         "tr" => [
             "read" => "hesap profili, hizmetler, faturalar ve kredi bakiyesini okuma",
@@ -146,6 +149,9 @@ return [
             "domains:manage" => "mevcut alan adlarinda ad sunucu ve otomatik yenileme degisikligi",
             "tunnel:read" => "cikis sunucunuzun WireGuard-over-TCP hesaplarini okuma",
             "tunnel:write" => "tunel hesabi olusturma ve silme — ozel anahtar yalnizca bir kez doner",
+            "servers:read" => "bulut sunucularini, islemleri ve kullanimi okuma",
+            "servers:write" => "odenmis mevcut bulut sunucu siparisini saglama",
+            "servers:manage" => "mevcut bulut sunucularini yonetme ve silme",
         ],
     ],
 

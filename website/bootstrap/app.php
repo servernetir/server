@@ -10,6 +10,10 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            \Illuminate\Support\Facades\Route::middleware('api')
+                ->group(base_path('routes/cloud-engine-internal.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
@@ -130,7 +134,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // دو ورود مستقل داریم: مدیر (/admin) و مشتری (/login با نسخهٔ زبانی).
         // بدون این تفکیک، مشتریِ وارد نشده به صفحهٔ ورود مدیر پرتاب می‌شود.
         $middleware->redirectGuestsTo(function (Request $request) {
-            if ($request->is('admin', 'admin/*', 'en/admin/identity-api*', 'tr/admin/identity-api*')) {
+            if ($request->is('admin', 'admin/*', 'en/admin/identity-api*', 'tr/admin/identity-api*', 'en/admin/cloud-engine*', 'tr/admin/cloud-engine*')) {
                 return route('admin.login');
             }
 
@@ -147,6 +151,14 @@ return Application::configure(basePath: dirname(__DIR__))
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontFlash(['token_secret']);
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if ($request->is('api/v1/servers', 'api/v1/servers/*', 'api/v1/operations/*', 'api/v1/cloud-engine/internal/*')) {
+                return \App\Http\Middleware\CloudEnginePrivacy::failure($e)
+                    ->header('Cache-Control', 'private, no-store');
+            }
+            return null;
+        });
         $exceptions->render(function (\Throwable $e, Request $request) {
             if (!\App\Http\Middleware\IdentityPrivacy::sensitive($request)) return null;
             if ($e instanceof \Illuminate\Auth\AuthenticationException && !$request->is('api/v1/identity*') && !$request->expectsJson()) return null;

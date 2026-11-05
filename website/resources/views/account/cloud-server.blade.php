@@ -4,6 +4,9 @@
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/cloud-request.css') }}">
 <script src="{{ asset_ver('assets/js/gpu-request-expiry.js') }}" defer></script>
+@if($engine ?? null)
+<script src="{{ asset_ver('assets/js/cloud-engine-account.js') }}" defer></script>
+@endif
 @endpush
 
 {{-- Live customer server details. Pending requests use their own presentation;
@@ -157,6 +160,10 @@
      ⚠️ همان الگوی پنلِ پرداختِ رمزارز (`cy-box` در account/invoice.blade.php):
      صفحه **خودش تصمیم نمی‌گیرد** آماده شده یا نه — فقط وضعیتی را که سرور
      می‌گوید نشان می‌دهد. حکم مالِ زیرساخت است. الگوی دوم نمی‌سازیم. --}}
+@if($engine ?? null)
+  @include('account.partials.cloud-engine', ['engine' => $engine])
+@endif
+
 @if($closed)
   <section class="pnl-sec" data-gpu-closed>
     <div class="pnl-sec-h"><h2>{{ __($fundingExpired ? 'ui.gpu_request_expired_h' : 'ui.cs_closed_h') }}</h2></div>

@@ -132,6 +132,18 @@ class CloudServerController extends Controller
 
         $instance = $this->instanceOf($service);
         $caps = $instance ? $this->manager->capabilitiesFor($instance) : [];
+        $engine = null;
+        if ($instance?->provider === 'cloud-engine') {
+            $data = request()->validate(['engine_month' => ['nullable', 'date_format:Y-m']]);
+            try {
+                $engine = app(\App\Services\Cloud\Engine\EngineAccountPresenter::class)->snapshot($service, $data['engine_month'] ?? null);
+            } catch (\Throwable $e) {
+                \App\Support\ErrorTracker::noteOnce('cloud_engine_browser', 'Customer server panel requires review', 300, ['exception_class' => $e::class]);
+            }
+            // Engine controls use their durable operation journal and accepted
+            // per-image capabilities through a dedicated session/CSRF partial.
+            $caps['console'] = $caps['rebuild'] = $caps['reset_password'] = false;
+        }
         if ($instance?->provider === 'arvan') {
             $caps['console'] = app(\App\Services\Cloud\ArvanConsoleBroker::class)->enabledFor($service);
         }
@@ -171,7 +183,8 @@ class CloudServerController extends Controller
             'service' => $service,
             'instance' => $instance,
             'caps' => $caps,
-            'powerActions' => $this->powerActions($instance),
+            'engine' => $engine,
+            'powerActions' => $instance?->provider === 'cloud-engine' ? [] : $this->powerActions($instance),
             'password' => $password,
             'canReveal' => $canReveal,
             'osList' => $instance ? CloudImage::catalog('os', $instance->provider)->whereIn('key', $rebuildKeys)->values() : collect(),
@@ -493,12 +506,28 @@ class CloudServerController extends Controller
 
         // نمودار گران‌ترین تماسِ این حوزه است (بازهٔ زمانی + گامِ نمونه‌برداری)
         // و دادهٔ ۲۴ ساعت با دو دقیقه تأخیر هیچ تفاوتی برای کاربر ندارد.
-        $r = Cache::remember(
-            'cloud-mx:'.$instance->id.':'.$window,
-            now()->addMinutes(2),
-            fn () => $driver?->metrics((string) $instance->provider_ref, $window)
-                ?? ['ok' => false, 'series' => [], 'message' => '']
-        );
+        try {
+            $r = Cache::remember(
+                'cloud-mx:'.$instance->id.':'.$window,
+                now()->addMinutes(2),
+                fn () => $driver?->metrics((string) $instance->provider_ref, $window)
+                    ?? ['ok' => false, 'series' => [], 'message' => '']
+            );
+        } catch (\Throwable $e) {
+            if ($instance->provider !== 'cloud-engine') {
+                throw $e;
+            }
+            \App\Support\ErrorTracker::noteOnce('cloud_engine_browser', 'Customer monitoring requires review', 300, ['exception_class' => $e::class]);
+
+            return response()->json(['ok' => false, 'series' => [], 'current' => []], 503)->header('Cache-Control', 'private, no-store');
+        }
+
+        if ($instance->provider === 'cloud-engine') {
+            $safe = app(\App\Services\Cloud\Engine\EngineApiService::class)->metricsDto($r);
+
+            return response()->json(['ok' => (bool) $r['ok'], 'series' => $safe['series'], 'current' => $safe['current']])
+                ->header('Cache-Control', 'private, no-store');
+        }
 
         return response()->json(['ok' => (bool) $r['ok'], 'series' => $r['series'] ?? []]);
     }
@@ -545,6 +574,9 @@ class CloudServerController extends Controller
     public function power(Request $request, Service $service): RedirectResponse
     {
         $this->ownedService($service);
+        if ($this->instanceOf($service)?->provider === 'cloud-engine') {
+            return app(EngineAccountController::class)->power($request, $service);
+        }
 
         $action = (string) $request->input('action');
 
@@ -601,6 +633,9 @@ class CloudServerController extends Controller
     public function rebuild(Request $request, Service $service): RedirectResponse
     {
         $this->ownedService($service);
+        if ($this->instanceOf($service)?->provider === 'cloud-engine') {
+            return app(EngineAccountController::class)->rebuild($request, $service);
+        }
 
         if ($denied = $this->denyIfNotWritable($service)) {
             return $denied;
@@ -671,6 +706,9 @@ class CloudServerController extends Controller
     public function resetPassword(Service $service): RedirectResponse
     {
         $this->ownedService($service);
+        if ($this->instanceOf($service)?->provider === 'cloud-engine') {
+            return app(EngineAccountController::class)->resetPassword(request(), $service);
+        }
 
         if ($denied = $this->denyIfNotWritable($service)) {
             return $denied;
@@ -740,6 +778,9 @@ class CloudServerController extends Controller
     public function console(Service $service): RedirectResponse
     {
         $this->ownedService($service);
+        if ($this->instanceOf($service)?->provider === 'cloud-engine') {
+            return app(EngineAccountController::class)->console(request(), $service);
+        }
 
         if ($denied = $this->denyIfNotWritable($service)) {
             return $denied;

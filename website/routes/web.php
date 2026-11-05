@@ -29,6 +29,7 @@ use Illuminate\Support\Facades\Route;
 
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
+require __DIR__.'/cloud-engine-admin.php';
 require __DIR__.'/urmia-auth.php';
 require __DIR__.'/ai-growth.php';
 require __DIR__.'/madar-admin.php';
@@ -405,6 +406,7 @@ $site = function (): void {
 
     Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
         require __DIR__.'/madar-account.php';
+        require __DIR__.'/cloud-engine-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
         Route::post('/offers/preferences', [Account\OfferController::class, 'preferences'])->name('offers.preferences')->middleware('throttle:10,1');
@@ -3701,3 +3703,5 @@ Route::prefix('agent')->group(function () {
 // Tracking stores no public PII and never redeems a grant.
 Route::get('/m/{token}', [\App\Http\Controllers\Account\OfferController::class, 'track'])
     ->where('token', '[a-f0-9]{48}')->middleware('throttle:60,1');
+
+require __DIR__.'/cloud-engine.php';
