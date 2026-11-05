@@ -26,6 +26,9 @@ class CountryLandingSeo
             'description' => $replace($copy['description']),
             'h1' => $replace($copy['h1']),
             'intro' => $replace($copy['intro']),
+            'hourly_title' => $replace($copy['hourly_title']),
+            'hourly_text' => $replace($copy['hourly_text']),
+            'hourly_link' => $copy['hourly_link'],
             'profile' => $replace($copy['profiles'][$iso] ?? $copy['profile_default']),
             'network_title' => $copy['network_title'],
             'network' => $copy['network'],
@@ -40,3 +43,4 @@ class CountryLandingSeo
         ];
     }
 }
+

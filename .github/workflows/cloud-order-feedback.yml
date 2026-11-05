@@ -1,0 +1,75 @@
+name: Cloud order feedback checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/CloudOrderIssue.php'
+      - 'website/app/Http/Controllers/Account/CloudServerController.php'
+      - 'website/resources/views/account/cloud-server.blade.php'
+      - 'website/resources/views/account/partials/cloud-order-issue.blade.php'
+      - 'website/resources/views/account/partials/card-server.blade.php'
+      - 'website/resources/views/account/partials/status-pill.blade.php'
+      - 'website/lang/*/cloud-order.php'
+      - 'website/public/assets/css/cloud-order-issue.css'
+      - 'website/tests/Feature/CloudOrderIssueTest.php'
+      - 'website/tests/js/cloud-order-feedback.browser.cjs'
+      - '.github/workflows/cloud-order-feedback.yml'
+      - 'scripts/cloud-order-feedback-release/**'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/CloudOrderIssue.php'
+      - '.github/workflows/cloud-order-feedback.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cloud-order-feedback-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  feedback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked test dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Check contextual release overlay on disposable bytes
+        run: python3 scripts/cloud-order-feedback-release/test_deploy.py
+      - name: Customer outcomes and delivery regressions (fake resources only)
+        working-directory: website
+        env:
+          CLOUD_ORDER_PREVIEWS: /tmp/cloud-order-previews
+        run: |
+          set -euo pipefail
+          php -l app/Services/Cloud/CloudOrderIssue.php
+          php -l app/Http/Controllers/Account/CloudServerController.php
+          vendor/bin/phpunit tests/Feature/CloudOrderIssueTest.php tests/Feature/CloudServerPageLayoutTest.php tests/Feature/CloudServiceRowTest.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify real rendered pages in Chromium
+        env:
+          CLOUD_ORDER_PREVIEWS: /tmp/cloud-order-previews
+          TEST_CHROME: /usr/bin/google-chrome
+        run: node --test website/tests/js/cloud-order-feedback.browser.cjs
+      - name: Save synthetic UI screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cloud-order-feedback-previews
+          path: /tmp/cloud-order-previews/screenshots/*.png
+          if-no-files-found: error
+          retention-days: 14

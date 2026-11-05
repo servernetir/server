@@ -1,0 +1,13 @@
+name = "servernet-vpstc-console"
+main = "worker.mjs"
+compatibility_date = "2026-11-03"
+workers_dev = false
+
+[build]
+command = "node build.mjs"
+
+# Add the dedicated vps-vnc.servernet.cloud route only during approved activation.
+# Do not replace the existing Arvan console Worker, route, bindings or secrets.
+[vars]
+ENABLED = "0"
+# BROKER_KEY must be a Worker secret and a separate encrypted Laravel setting.

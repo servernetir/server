@@ -1,0 +1,386 @@
+{
+  "checked_at_date": "2026-11-03",
+  "timezone": "Asia/Tehran",
+  "code_commit": "9b31f79a516970773d4ed9b3c6136c792317e8ab",
+  "ci": {
+    "run_url": "https://github.com/servernetir/server/actions/runs/41594849962",
+    "job_id": 125779694685,
+    "php": "8.4.27",
+    "phpunit_tests": 63,
+    "phpunit_assertions": 2251,
+    "python_tests": 7,
+    "scope": "isolated SQLite data; no production credentials, provider requests or deployment",
+    "composer_notes": "Existing standalone fixture PSR-4 warnings during autoload generation; PHPUnit --fail-on-warning passed."
+  },
+  "pagespeed": {
+    "url": "https://pagespeed.web.dev/analysis/https-servernet-cloud-vps-hourly/2xezv7b3dl?form_factor=mobile",
+    "target": "https://servernet.cloud/vps/hourly",
+    "captured_at": "2026-11-03T10:28:27+03:30",
+    "mobile_lab": {
+      "performance": 87,
+      "accessibility": 99,
+      "best_practices": 96,
+      "seo": 100,
+      "lcp_seconds": 1.9,
+      "fcp_seconds": 1.2,
+      "tbt_ms": 500,
+      "cls": 0,
+      "speed_index_seconds": 1.8
+    },
+    "field": {
+      "scope": "ORIGIN; page-specific This URL tab disabled",
+      "window": "latest 28-day period shown by PSI",
+      "lcp_seconds": 3.1,
+      "inp_ms": 163,
+      "cls": 0,
+      "fcp_seconds": 2.8,
+      "ttfb_seconds": 1.9,
+      "assessment": "Failed"
+    },
+    "blocking_widget": {
+      "asset": "assets/css/hourly-explorer.css",
+      "transfer_bytes": 1935,
+      "reported_duration_ms": 590
+    },
+    "note": "One before-deployment lab run, not an after result. Individual request duration is not an estimated LCP gain."
+  },
+  "sitemap": {
+    "total": 5451,
+    "url": "https://servernet.cloud/sitemap.xml",
+    "urls": [
+      "https://servernet.cloud/vps/hourly",
+      "https://servernet.cloud/en/vps/hourly",
+      "https://servernet.cloud/tr/vps/hourly",
+      "https://servernet.cloud/vps/germany",
+      "https://servernet.cloud/en/vps/germany",
+      "https://servernet.cloud/tr/vps/germany",
+      "https://servernet.cloud/vps/finland",
+      "https://servernet.cloud/en/vps/finland",
+      "https://servernet.cloud/tr/vps/finland",
+      "https://servernet.cloud/vps/usa",
+      "https://servernet.cloud/en/vps/usa",
+      "https://servernet.cloud/tr/vps/usa",
+      "https://servernet.cloud/vps/singapore",
+      "https://servernet.cloud/en/vps/singapore",
+      "https://servernet.cloud/tr/vps/singapore",
+      "https://servernet.cloud/vps/iran",
+      "https://servernet.cloud/en/vps/iran",
+      "https://servernet.cloud/tr/vps/iran",
+      "https://servernet.cloud/vps/france",
+      "https://servernet.cloud/en/vps/france",
+      "https://servernet.cloud/tr/vps/france",
+      "https://servernet.cloud/vps/austria",
+      "https://servernet.cloud/en/vps/austria",
+      "https://servernet.cloud/tr/vps/austria",
+      "https://servernet.cloud/vps/england",
+      "https://servernet.cloud/en/vps/england",
+      "https://servernet.cloud/tr/vps/england",
+      "https://servernet.cloud/vps/russia",
+      "https://servernet.cloud/en/vps/russia",
+      "https://servernet.cloud/tr/vps/russia",
+      "https://servernet.cloud/vps/taiwan",
+      "https://servernet.cloud/en/vps/taiwan",
+      "https://servernet.cloud/tr/vps/taiwan",
+      "https://servernet.cloud/vps/ecuador",
+      "https://servernet.cloud/en/vps/ecuador",
+      "https://servernet.cloud/tr/vps/ecuador",
+      "https://servernet.cloud/vps/romania",
+      "https://servernet.cloud/en/vps/romania",
+      "https://servernet.cloud/tr/vps/romania",
+      "https://servernet.cloud/vps/hong-kong",
+      "https://servernet.cloud/en/vps/hong-kong",
+      "https://servernet.cloud/tr/vps/hong-kong",
+      "https://servernet.cloud/vps/indonesia",
+      "https://servernet.cloud/en/vps/indonesia",
+      "https://servernet.cloud/tr/vps/indonesia",
+      "https://servernet.cloud/vps/bulgaria",
+      "https://servernet.cloud/en/vps/bulgaria",
+      "https://servernet.cloud/tr/vps/bulgaria",
+      "https://servernet.cloud/vps/canada",
+      "https://servernet.cloud/en/vps/canada",
+      "https://servernet.cloud/tr/vps/canada",
+      "https://servernet.cloud/vps/thailand",
+      "https://servernet.cloud/en/vps/thailand",
+      "https://servernet.cloud/tr/vps/thailand",
+      "https://servernet.cloud/vps/vietnam",
+      "https://servernet.cloud/en/vps/vietnam",
+      "https://servernet.cloud/tr/vps/vietnam",
+      "https://servernet.cloud/vps/greece",
+      "https://servernet.cloud/en/vps/greece",
+      "https://servernet.cloud/tr/vps/greece",
+      "https://servernet.cloud/vps/malaysia",
+      "https://servernet.cloud/en/vps/malaysia",
+      "https://servernet.cloud/tr/vps/malaysia",
+      "https://servernet.cloud/vps/bahrain",
+      "https://servernet.cloud/en/vps/bahrain",
+      "https://servernet.cloud/tr/vps/bahrain",
+      "https://servernet.cloud/vps/brazil",
+      "https://servernet.cloud/en/vps/brazil",
+      "https://servernet.cloud/tr/vps/brazil",
+      "https://servernet.cloud/vps/chile",
+      "https://servernet.cloud/en/vps/chile",
+      "https://servernet.cloud/tr/vps/chile",
+      "https://servernet.cloud/vps/argentina",
+      "https://servernet.cloud/en/vps/argentina",
+      "https://servernet.cloud/tr/vps/argentina",
+      "https://servernet.cloud/vps/kuwait",
+      "https://servernet.cloud/en/vps/kuwait",
+      "https://servernet.cloud/tr/vps/kuwait",
+      "https://servernet.cloud/vps/bangladesh",
+      "https://servernet.cloud/en/vps/bangladesh",
+      "https://servernet.cloud/tr/vps/bangladesh",
+      "https://servernet.cloud/vps/iraq",
+      "https://servernet.cloud/en/vps/iraq",
+      "https://servernet.cloud/tr/vps/iraq",
+      "https://servernet.cloud/vps/egypt",
+      "https://servernet.cloud/en/vps/egypt",
+      "https://servernet.cloud/tr/vps/egypt",
+      "https://servernet.cloud/vps/mexico",
+      "https://servernet.cloud/en/vps/mexico",
+      "https://servernet.cloud/tr/vps/mexico",
+      "https://servernet.cloud/vps/saudi-arabia",
+      "https://servernet.cloud/en/vps/saudi-arabia",
+      "https://servernet.cloud/tr/vps/saudi-arabia",
+      "https://servernet.cloud/vps/myanmar",
+      "https://servernet.cloud/en/vps/myanmar",
+      "https://servernet.cloud/tr/vps/myanmar",
+      "https://servernet.cloud/vps/international",
+      "https://servernet.cloud/en/vps/international",
+      "https://servernet.cloud/tr/vps/international",
+      "https://servernet.cloud/vps/trading",
+      "https://servernet.cloud/en/vps/trading",
+      "https://servernet.cloud/tr/vps/trading",
+      "https://servernet.cloud/vps/gpu",
+      "https://servernet.cloud/en/vps/gpu",
+      "https://servernet.cloud/tr/vps/gpu",
+      "https://servernet.cloud/vps/cloud",
+      "https://servernet.cloud/en/vps/cloud",
+      "https://servernet.cloud/tr/vps/cloud",
+      "https://servernet.cloud/vps/linux",
+      "https://servernet.cloud/en/vps/linux",
+      "https://servernet.cloud/tr/vps/linux",
+      "https://servernet.cloud/vps/windows",
+      "https://servernet.cloud/en/vps/windows",
+      "https://servernet.cloud/tr/vps/windows"
+    ]
+  },
+  "live_examples": {
+    "germany": {
+      "canonical": "https://servernet.cloud/vps/germany",
+      "description": "پلن‌های سرور مجازی آلمان را از نظر CPU، رم، دیسک و شبکه مقایسه کنید. قیمت و ظرفیت جاری، راهنمای انتخاب و شرایط هر پلن را پیش از سفارش ببینید.",
+      "h1": [
+        "سرور مجازی آلمان"
+      ],
+      "schemas": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList",
+        "ItemList",
+        "FAQPage"
+      ],
+      "tableRows": 32,
+      "title": "خرید سرور مجازی آلمان | پلن و قیمت جاری | سرورنت"
+    },
+    "gpu": {
+      "canonical": "https://servernet.cloud/gpu",
+      "cards": 54,
+      "description": "اجاره GPU ساعتی از ۸,۳۰۰ تومان؛ کارت گرافیک و برنامه سازگار را انتخاب کنید. شرایط اعتبار شروع، دیسک موقت و دسترسی HTTPS را پیش از درخواست بررسی کنید.",
+      "h1": [
+        "سرور گرافیکی ساعتی"
+      ],
+      "schemas": [
+        "Organization",
+        "WebSite",
+        "BreadcrumbList"
+      ],
+      "title": "اجاره GPU و سرور گرافیکی ساعتی | ComfyUI و Jupyter"
+    },
+    "hourly": {
+      "title": "خرید سرور مجازی ساعتی | تعرفه و شرایط مصرف — سرورنت",
+      "schema_before": "Product with shippingDetails and rolling priceValidUntil",
+      "canonical": "https://servernet.cloud/vps/hourly",
+      "h1_count": 1,
+      "desktop_overflow": false
+    },
+    "windows": {
+      "title": "هاست ویندوز — سرورنت کلاود",
+      "description": "میزبانی حرفه‌ای ASP.NET Core و MS SQL Server با کنترل‌پنل Plesk Obsidian — پایداری سازمانی برای اپلیکیشن‌های ویندوزی شما در ایران و اروپا.",
+      "canonical": "https://servernet.cloud/hosting/windows",
+      "h1_count": 1
+    }
+  },
+  "stability": [
+    {
+      "query": "سرور گرافیکی",
+      "page": "https://servernet.cloud/gpu",
+      "days": 56,
+      "early": {
+        "clicks": 2,
+        "impressions": 41,
+        "ctr": 0.04878048780487805,
+        "position": 18.195131707317074
+      },
+      "late": {
+        "clicks": 8,
+        "impressions": 250,
+        "ctr": 0.032,
+        "position": 9.659993199999999
+      },
+      "min": 5.6,
+      "max": 60
+    },
+    {
+      "query": "وی پی اس ساعتی",
+      "page": "https://servernet.cloud/vps/hourly",
+      "days": 56,
+      "early": {
+        "clicks": 0,
+        "impressions": 27,
+        "ctr": 0,
+        "position": 30.148140740740743
+      },
+      "late": {
+        "clicks": 0,
+        "impressions": 112,
+        "ctr": 0,
+        "position": 12.26785625
+      },
+      "min": 7,
+      "max": 57
+    },
+    {
+      "query": "سرور مجازی سنگاپور",
+      "page": "https://servernet.cloud/vps/singapore",
+      "days": 52,
+      "early": {
+        "clicks": 0,
+        "impressions": 20,
+        "ctr": 0,
+        "position": 16.750004999999998
+      },
+      "late": {
+        "clicks": 0,
+        "impressions": 50,
+        "ctr": 0,
+        "position": 17.7
+      },
+      "min": 11.6667,
+      "max": 25.5
+    },
+    {
+      "query": "سرور مجازی لینوکس ساعتی",
+      "page": "https://servernet.cloud/vps/hourly",
+      "days": 41,
+      "early": {
+        "clicks": 0,
+        "impressions": 26,
+        "ctr": 0,
+        "position": 14.307692307692308
+      },
+      "late": {
+        "clicks": 0,
+        "impressions": 85,
+        "ctr": 0,
+        "position": 11.635301176470586
+      },
+      "min": 6,
+      "max": 30
+    },
+    {
+      "query": "هاست ابری ساعتی",
+      "page": "https://servernet.cloud/vps/hourly",
+      "days": 38,
+      "early": {
+        "clicks": 0,
+        "impressions": 35,
+        "ctr": 0,
+        "position": 15.085714285714285
+      },
+      "late": {
+        "clicks": 0,
+        "impressions": 63,
+        "ctr": 0,
+        "position": 14.841273015873018
+      },
+      "min": 10,
+      "max": 30
+    },
+    {
+      "query": "python hosting satın al",
+      "page": "https://servernet.cloud/tr/hosting/python",
+      "days": 77,
+      "early": {
+        "clicks": 0,
+        "impressions": 78,
+        "ctr": 0,
+        "position": 38.474356410256405
+      },
+      "late": {
+        "clicks": 0,
+        "impressions": 156,
+        "ctr": 0,
+        "position": 7.9166673076923075
+      },
+      "min": 4,
+      "max": 74.5
+    }
+  ],
+  "followup": {
+    "commit": "baf0a69cd8dbb100833379426d7be686170f2e78",
+    "run_url": "https://github.com/servernetir/server/actions/runs/41595309272",
+    "phpunit_tests": 65,
+    "phpunit_assertions": 3495,
+    "php": "8.4.27",
+    "scope": "All 12 configured hosting products in fa/en/tr; every mapped country template with an empty catalog; targeted hourly/GPU/currency/metadata/analytics/style regressions."
+  },
+  "gsc_indexing": {
+    "retrieved": "2026-11-03",
+    "last_updated": "2026-10-23",
+    "indexed_display": "4.4k",
+    "not_indexed_display": "7.79k",
+    "noindex": 733,
+    "not_found": 56,
+    "different_canonical": 120,
+    "blocked_robots": 2999,
+    "alternate_canonical": 298,
+    "redirect": 168,
+    "unauthorised": 1,
+    "crawled_not_indexed": 202,
+    "redirect_error": 1,
+    "server_error": 1,
+    "note": "10 of 11 non-indexing reason rows were visible; counts displayed in thousands are not exact totals."
+  },
+  "gsc_sitemaps": {
+    "main": {
+      "last_read": "2026-11-02",
+      "discovered": 5454,
+      "status": "Success"
+    },
+    "hardware": {
+      "last_read": "2026-10-26",
+      "discovered": 2115,
+      "status": "Success"
+    }
+  },
+  "gsc_merchant": {
+    "last_update": "2026-11-01",
+    "invalid": 251,
+    "valid": 108,
+    "image_issue": 251,
+    "validation": "Started",
+    "note": "This report predates today's commits and does not establish an effect of those commits."
+  },
+  "gsc_cwv": {
+    "last_updated": "2026-11-01",
+    "mobile": {
+      "poor": 0,
+      "needs_improvement": 148,
+      "good": 0
+    },
+    "desktop": {
+      "poor": 0,
+      "needs_improvement": 0,
+      "good": 148
+    }
+  }
+}

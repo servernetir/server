@@ -62,3 +62,23 @@ The earlier 43 Laravel/256 assertion, 17 DNS, 43 native-release and seven JS res
 Rollback: use the same private fixed engine/payload and verified state, with the documented guarded rollback phase. It rejects newer source/compiled drift, restores the card before its partial dependency, and preserves private evidence; do not replace the whole application or restore a database.
 
 Supplemental acceptance and public-helper cleanup: [3 November live receipt](HOSTING-DOMAIN-LIVE-RELEASE-2026-11-03.md), including the fourteen before/after hashes and the separately verified ticket-response follow-up.
+
+
+## Strict delegation status follow-up — 3 November 2026
+
+PR235 merged at `31a311e904741f8b58f462824a83c9745731b23f`. It supersedes the earlier IP-only connected rule: green now requires both the assigned NS set and exclusive matching address records at both resolvers. NS order/case/trailing dots/duplicates are normalized, and the endpoint uses scoped v2 cache keys to avoid old green results. Focused hosting CI passed, including the new delegation cases and old-cache regression; historical StoreOrder baseline comparison also passed.
+
+Production follow-up used a separate private `hosting-domain-release-20261103-dns` stage, preserving the first installation backup. Preview reported fourteen checked destinations and ten PHP/compiled lint checks; apply wrote two PHP sources and one compiled view, and verify passed exact source/compiled hashes and fresh routes. Four unrelated protected files were hash guarded; no global cache flush or supplier operation occurred. The temporary launcher was retired to the private stage. This is installed/verified file state; post-patch customer browser acceptance still needs a fresh read.
+
+Plesk readiness is separate: the current server-wide DNS template was observed to use `ns1windows.servernet.cloud` and `ns2windows.servernet.cloud`, both resolving to its public Windows IP. An existing live subscription instead retains older domain-specific NS; do not copy a customer's nameserver names to another customer or equate an old zone with the current template.
+
+The priority service was not recreated, moved, deleted or relabeled by this follow-up. Its Linux account was inspected read-only: two web files, a directory, no databases and no actual mailboxes (the initial basic mail listing included the system entry). The correct 10GB Plesk plan exists, but Plesk automatic provisioning remains off. The stored API authentication did not establish working access (REST read returned401; XML ownership lookup was unknown). Do not enable the existing incomplete Plesk driver or dispatch an unverified create.
+
+Pending safety cleanup: only the Plesk customer-recipient checkboxes for customer creation and site creation were temporarily disabled for a quiet, owner-requested correction; a fresh settings read confirmed them off. Customer creation then remained blocked by automatic browser approval review over an unsaved form. **Restoration of these two checkboxes has not been confirmed.** A later attempt to observe the Plesk page was also rejected for the same unsaved-state reason. Preserve the open form and obtain user resolution/authorization before resuming; do not bypass the denial through another browser or transport. No customer response or successful delivery is claimed.
+
+
+## Notification restoration and cross-thread delivery verification — 3 November 2026
+
+The owner explicitly authorized continuing the pending form while retaining its data. A fresh read found the customer and exact 10GB subscription already created by the separate Plesk continuation; no duplicate was submitted. The live ServerNet admin card now identifies the Plesk allocation and its final nameservers, and the existing ticket contains the verified delivery notice. See [the current Plesk readiness/SSO receipt](PLESK-AUTOMATION-2026-11-03.md) for its remaining installation boundaries. The admin card still displayed the historical Linux IP; source automation, verified-IP propagation and actual single-use-login acceptance must not be inferred from the allocation label alone.
+
+Both temporarily disabled customer-recipient checkboxes (customer creation and site creation) were restored, saved, and read back from a fresh Plesk settings request as checked. This resolves the earlier notification-restoration warning; no new customer message or duplicate host was created by this verification.

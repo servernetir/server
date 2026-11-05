@@ -1,6 +1,9 @@
 <?php
 
 return [
+'hourly_title' => 'Saatlik :country VPS mi aylık ödeme mi?',
+'hourly_text' => 'Saatlik seçeneği olan planların saatlik ve aylık fiyatlarını bu sayfadaki tabloda karşılaştırın. Kaynak maliyeti seçilen planın saatlik ücretiyle hesaplanır; siparişten önce trafik, kapatma ve silme koşullarını da inceleyin.',
+'hourly_link' => 'Saatlik VPS maliyet hesaplayıcı ve ödeme rehberi',
 'title' => ':place VPS | Güncel Paketler ve Fiyatlar | ServerNet',
 'description' => ':place VPS paketlerini CPU, RAM, disk ve ağ koşullarına göre karşılaştırın. Siparişten önce güncel fiyatları, kapasiteyi ve konum seçimi rehberini inceleyin.',
 'h1' => ':place VPS sunucu',
@@ -76,3 +79,4 @@ return [
 'AT' => 'Avusturya kitlesi için mevcut Avusturya şehirleri ile Frankfurt seçeneklerini karşılaştırın. Mağaza, API veya geliştirme ortamında kullanıcı ağındaki yanıt süresi ve veritabanı rotası ülke adından daha önemlidir. İkinci konum bir ağ karşılaştırma adayıdır; kapasite ve fiyatını kendi sayfasında kontrol edin.'
 ]
 ];
+

@@ -70,7 +70,7 @@ jobs:
       PULSE_ENABLED: 'false'
       TELESCOPE_ENABLED: 'false'
       NIGHTWATCH_ENABLED: 'false'
-      INCIDENT_CORE_FILTER: 'ArvanTrafficMeterTest|ArvanTrafficSettlementTest'
+      INCIDENT_CORE_FILTER: 'ArvanTrafficMeterTest|ArvanTrafficSettlementTest|ArvanTrafficCreditGuardTest|WalletReservationIsolationTest|HourlyBillingHoldTest|HourlyCreditControlTest|HourlyRuntimeCreditTest'
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -247,6 +247,39 @@ jobs:
           if 'Committed manual traffic debit must be seen' not in ''.join(failures[0].itertext()):
               raise SystemExit('Unexpected MariaDB negative-control failure.')
           print('Verified another plain reread misses the independently committed manual debit.')
+          PYCODE
+          sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php
+          trap - EXIT
+      - name: Prove actual meter credit protection requires current Wallet reads
+        if: matrix.database == 'mariadb'
+        run: |
+          set -euo pipefail
+          fixed="$RUNNER_TEMP/arvan-traffic-meter-credit-current.php"
+          cp app/Services/Finance/ArvanTrafficMeter.php "$fixed"
+          trap 'sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php' EXIT
+          sudo -u incident-tests -- python3 <<'PYCODE'
+          from pathlib import Path
+          p = Path('app/Services/Finance/ArvanTrafficMeter.php')
+          s = p.read_text()
+          old = 'availableOf($cid, currentRead: true)'
+          if s.count(old) != 1: raise SystemExit('Expected one current spendable decision.')
+          p.write_text(s.replace(old, 'availableOf($cid, currentRead: false)'))
+          PYCODE
+          preserved="$(cat "$RUNNER_TEMP/incident-preserve-env")"
+          if sudo --preserve-env="$preserved" -u incident-tests -- php -d memory_limit=512M vendor/bin/phpunit \
+              --filter 'ArvanTrafficMeterMariaDbTest::test_meter_uses_current_spendable_after_committed_topup_and_reserve_race' \
+              --colors=never --log-junit storage/framework/testing/incident-ci/negative-credit-current.xml; then
+            echo 'A stale spendable decision unexpectedly passed.'
+            exit 1
+          fi
+          python3 <<'PYCODE'
+          import xml.etree.ElementTree as ET
+          doc = ET.parse('storage/framework/testing/incident-ci/negative-credit-current.xml')
+          failures = list(doc.iter('failure'))
+          if len(list(doc.iter('testcase'))) != 1 or len(failures) != 1 or list(doc.iter('error')):
+              raise SystemExit('Credit negative control must fail its one intended assertion.')
+          if 'Meter must not create a traffic hold' not in ''.join(failures[0].itertext()):
+              raise SystemExit('Unexpected credit negative-control failure.')
           PYCODE
           sudo cp "$fixed" app/Services/Finance/ArvanTrafficMeter.php
           trap - EXIT

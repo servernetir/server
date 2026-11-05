@@ -50,6 +50,7 @@
   $fundingExpired = ($capacityOrder['closed_reason'] ?? '') === 'payment_expired';
   $closed = in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
   $ready = $ready && ! $closed;
+  $deliveryIssue = \App\Services\Cloud\CloudOrderIssue::kind($service, $inst);
 
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
      🔴 عمداً هیچ درصدی نیست. مشتری‌ای که روی «۷۰٪» گیر کند نتیجه می‌گیرد سایت
@@ -130,11 +131,11 @@
       @if($loc){{ $loc->label() }} · @endif{{ \App\Support\PanelText::text($osLbl) }}
     </p>
   </div>
-  <span class="pnl-pill {{ (! $closed && ($capacityWaiting || $gpuAwaitingInvoice)) ? 'warn' : ($inst?->status === 'running' ? 'ok' : '') }}" id="st-pill"
-        style="font-size:12.5px;padding:7px 15px;color:{{ (! $closed && ($capacityWaiting || $gpuAwaitingInvoice)) ? 'var(--warn)' : ($inst?->statusColor() ?? 'var(--dim)') }}">
+  <span class="pnl-pill {{ ($deliveryIssue || (! $closed && ($capacityWaiting || $gpuAwaitingInvoice))) ? 'warn' : ($inst?->status === 'running' ? 'ok' : '') }}" id="st-pill"
+        style="font-size:12.5px;padding:7px 15px;color:{{ ($deliveryIssue || (! $closed && ($capacityWaiting || $gpuAwaitingInvoice))) ? 'var(--warn)' : ($inst?->statusColor() ?? 'var(--dim)') }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
-    {{ $closed ? __($fundingExpired ? 'ui.gpu_order_expired' : 'ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
+    {{ $deliveryIssue ? __('cloud-order.'.$deliveryIssue.'.label') : ($closed ? __($fundingExpired ? 'ui.gpu_order_expired' : 'ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing'))))) }}
   </span>
 </div>
 
@@ -172,6 +173,8 @@
       <a class="pnl-btn" href="{{ lroute('account.services') }}">{{ __('ui.svc_page_title') }}</a>
     </div>
   </section>
+@elseif($deliveryIssue)
+  @include('account.partials.cloud-order-issue', ['orderIssue' => $deliveryIssue, 'issueService' => $service])
 @elseif(! $ready && $gpuAwaitingInvoice)
   <section class="pnl-sec" data-gpu-payment-wait>
     <div class="pnl-sec-h"><h2>{{ __('ui.gpu_order_awaiting_payment') }}</h2></div>
@@ -1112,6 +1115,7 @@
   // پرسیدن سهمیهٔ زیرساخت را خرج نمی‌کند.
   var capacityWaiting = {{ ($capacityWaiting || $gpuAwaitingInvoice) ? 'true' : 'false' }};
   var capacityState = {{ Illuminate\Support\Js::from($capacityDisplayState) }};
+  var deliveryIssue = {{ Illuminate\Support\Js::from($deliveryIssue) }};
   var tick = capacityWaiting ? 60000 : (building ? 5000 : 30000);
   var tries = 0;
 
@@ -1123,6 +1127,13 @@
       .then(function(d){
         if (!d) { return; }
         if (d.closed === true) {
+          window.location.reload();
+          return;
+        }
+        // The customer may be watching while provisioning fails or recovers.
+        // Reload once when the safe issue code changes, then keep polling so
+        // an admin reconciliation can restore the normal delivery screen.
+        if ((d.delivery_issue || null) !== deliveryIssue) {
           window.location.reload();
           return;
         }

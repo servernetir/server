@@ -30,6 +30,17 @@ class PublicPageStyles
     /** Keep page and widget CSS in their original cascade positions. */
     public function auxiliary(string $asset): ?string
     {
+        // This small widget stylesheet is independently safe to inline even
+        // when the complete page/font bundle falls back to external assets.
+        if ($asset === 'assets/css/hourly-explorer.css') {
+            $path = preg_replace('~^(?:en|tr)(?:/|$)~', '', trim(request()->path(), '/'));
+            if ($path !== 'vps/hourly') {
+                return null;
+            }
+            $css = $this->readStylesheet($asset);
+
+            return $css === null ? null : $this->prepare($css);
+        }
         $key = ['assets/css/vps-catalog.css' => 'vps-catalog', 'assets/css/chat-morph.css' => 'chat-morph'][$asset] ?? null;
         if ($key === null) {
             return null;
@@ -179,3 +190,4 @@ class PublicPageStyles
         return ! $unsafe && $urls === $count && is_string($prepared) ? $prepared : null;
     }
 }
+

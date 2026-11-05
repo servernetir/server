@@ -2300,6 +2300,12 @@ class CloudProvisioner
 
     public function unsuspend(Service $service): bool
     {
+        $instance = $service->cloudInstance;
+        if ($instance?->provider === 'arvan'
+            && ! app(\App\Services\Finance\ArvanTrafficCreditGuard::class)->allowPower((string) $instance->provider_ref)) {
+            return false;
+        }
+
         return $this->act($service, fn ($d, $ref) => $d instanceof \App\Services\Cloud\Engine\EngineProvider
             ? $d->resumeBilling($ref) : $d->power($ref, 'on'), 'running');
     }

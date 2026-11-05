@@ -24,10 +24,14 @@
 <section class="section vpsc-plans" id="pricing"><div class="container">
   @include('partials.vps-plan-table', ['hourlyPage' => false])
 </div></section>
-@include('partials.country-selection-guide', ['countrySeo' => $seo])
+@include('partials.country-selection-guide', [
+  'countrySeo' => $seo,
+  'hasHourlyPlans' => collect($vpsRows)->contains(fn (array $row) => !empty($row['hourly_url'])),
+])
 <section class="section"><div class="container vpsc-info">
   <h2>{{ __('vps-catalog.faq') }}</h2>
   @foreach($seo['faq'] as $faq)<details><summary>{{ $faq['q'] }}</summary><p>{{ $faq['a'] }}</p></details>@endforeach
   <script type="application/ld+json">{!! schema_ld($seo['faq_ld'], 'FAQPage') !!}</script>
 </div></section>
 @endsection
+

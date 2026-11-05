@@ -1,0 +1,87 @@
+name: Commercial SEO growth checks
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/PublicPageStyles.php'
+      - 'website/app/Services/Cloud/CountryLandingSeo.php'
+      - 'website/resources/views/pages/*.blade.php'
+      - 'website/resources/views/partials/*.blade.php'
+      - 'website/lang/**/hosting-seo.php'
+      - 'website/lang/**/country-seo.php'
+      - 'website/tests/Feature/CommercialSeoGrowthTest.php'
+      - 'scripts/seo-growth-cycle/opportunities.py'
+      - 'scripts/seo-growth-cycle/test_opportunities.py'
+      - '.github/workflows/seo-commercial-growth.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/PublicPageStyles.php'
+      - 'website/app/Services/Cloud/CountryLandingSeo.php'
+      - 'website/resources/views/pages/*.blade.php'
+      - 'website/resources/views/partials/*.blade.php'
+      - 'website/lang/**/hosting-seo.php'
+      - 'website/lang/**/country-seo.php'
+      - 'website/tests/Feature/CommercialSeoGrowthTest.php'
+      - 'scripts/seo-growth-cycle/*opportunities.py'
+      - '.github/workflows/seo-commercial-growth.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seo-commercial-growth-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Verify offline opportunity analysis
+        run: python3 -m unittest discover -s scripts/seo-growth-cycle -p test_opportunities.py -v
+      - name: Install locked dependencies in isolated checkout
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          php -v
+          git rev-parse HEAD
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Lint and exercise commercial pages without provider requests
+        working-directory: website
+        run: |
+          set -euo pipefail
+          php -l app/Services/PublicPageStyles.php
+          php -l app/Services/Cloud/CountryLandingSeo.php
+          php -l tests/Feature/CommercialSeoGrowthTest.php
+          find lang -name hosting-seo.php -print0 | xargs -0 -n1 php -l
+          vendor/bin/phpunit --filter='CommercialSeoGrowthTest|HourlyVpsPageTest|GpuPageTest|CountryLandingSeoTest|CountryVpsServiceSchemaTest|PublicPageStylesTest|SeoMetadataAndEntityTest|AnalyticsDataLayerCatalogTest|AnalyticsSessionEventConsumptionTest' --display-warnings --fail-on-warning --colors=never
