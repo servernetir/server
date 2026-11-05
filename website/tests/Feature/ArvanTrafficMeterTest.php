@@ -67,7 +67,7 @@ class ArvanTrafficMeterTest extends TestCase
         return [$customer, $service, $state, $this->snapshot()];
     }
 
-    private function snapshot(string $cost = '20000', float $quantity = 2): array
+    private function snapshot(string $cost = '70000', float $quantity = 2): array
     {
         $row = ['instanceId' => self::NATIVE, 'region' => 'ir-test', 'scope' => 'instance', 'productName' => 'iaas',
             'totalPrice' => $cost, 'totalDiscount' => '0', 'totalUsedGift' => '0', 'netPrice' => $cost,
@@ -87,7 +87,7 @@ class ArvanTrafficMeterTest extends TestCase
         [, , $state, $snapshot] = $this->fixture();
         $result = app(ArvanTrafficMeter::class)->run($snapshot);
         $this->assertSame('preview', $result['mode']);
-        $this->assertSame(1155, $result['total_irt']);
+        $this->assertSame(6930, $result['total_irt']);
         $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
         $this->assertSame(0, Invoice::count());
         $this->assertSame(0, CreditEntry::count());
@@ -101,13 +101,13 @@ class ArvanTrafficMeterTest extends TestCase
         $instances = CloudInstance::all()->map->getRawOriginal()->all();
         $first = app(ArvanTrafficMeter::class)->run($snapshot, true);
         $second = app(ArvanTrafficMeter::class)->run($snapshot, true);
-        $this->assertSame(1155, $first['total_irt']);
+        $this->assertSame(6930, $first['total_irt']);
         $this->assertSame(0, $second['total_irt']);
         $this->assertSame(1, Invoice::count());
         $this->assertSame(1, Payment::count());
         $this->assertSame(1, CreditEntry::count());
         $this->assertSame(2, BusinessEntry::count());
-        $this->assertSame(-1155, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(-6930, app(Wallet::class)->balanceOf($customer->id));
         $afterService = Service::first();
         $this->assertTrue(ArvanTrafficCreditGuard::active($afterService));
         $this->assertSame('pending', data_get(ArvanTrafficCreditGuard::state($afterService), 'stop.state'));
@@ -127,7 +127,7 @@ class ArvanTrafficMeterTest extends TestCase
     {
         [$customer, $service, , $snapshot] = $this->fixture();
         $service->update(['billing_mode' => 'hourly', 'hold_reserve_irt' => 700, 'hourly_rate_irt' => 10000]);
-        app(Wallet::class)->credit($customer->id, 'IRT', 1856, 'topup', null);
+        app(Wallet::class)->credit($customer->id, 'IRT', 7631, 'topup', null);
         app(ArvanTrafficMeter::class)->run($snapshot, true);
         $this->assertSame(1, app(Wallet::class)->availableOf($customer->id));
         $this->assertFalse(ArvanTrafficCreditGuard::active($service->fresh()), '24-hour start minimum must not replace the ongoing positive-credit policy');
@@ -139,7 +139,7 @@ class ArvanTrafficMeterTest extends TestCase
         [$customer, $service, , $snapshot] = $this->fixture();
         $service->update(['billing_mode' => 'hourly', 'hold_reserve_irt' => 700,
             'provision_meta' => ['hourly_billing_hold' => ['active' => true], 'staff_marker' => 'keep']]);
-        app(Wallet::class)->credit($customer->id, 'IRT', 1855, 'topup', null);
+        app(Wallet::class)->credit($customer->id, 'IRT', 7630, 'topup', null);
         app(ArvanTrafficMeter::class)->run($snapshot, true);
         $fresh = $service->fresh();
         $hold = ArvanTrafficCreditGuard::state($fresh);
@@ -337,6 +337,84 @@ class ArvanTrafficMeterTest extends TestCase
         $this->assertStringContainsString('--apply', $events[0]->command);
         $this->assertTrue($events[0]->withoutOverlapping);
         $this->assertTrue($events[0]->runInBackground);
+        Http::assertNothingSent();
+    }
+
+    public function test_small_amount_is_carried_without_invoice_payment_debit_or_paid_checkpoint_advance(): void
+    {
+        [$customer, , $state] = $this->fixture();
+        foreach (['20000', '30000'] as $cost) {
+            $result = app(ArvanTrafficMeter::class)->run($this->snapshot($cost, 3), true);
+            $this->assertSame(0, $result['total_irt']);
+            $this->assertGreaterThan(0, $result['deferred_total_irt']);
+            $this->assertSame($state['checkpoints'], app(ArvanTrafficMeter::class)->state()['checkpoints']);
+        }
+        $this->assertTrue(app(ArvanTrafficMeter::class)->state()['cycles'][self::CYCLE]['pending']);
+        $this->assertSame(0, Invoice::count()); $this->assertSame(0, Payment::count());
+        $this->assertSame(0, CreditEntry::count()); $this->assertSame(0, BusinessEntry::count());
+        $this->assertSame(0, app(Wallet::class)->balanceOf($customer->id));
+        $result = app(ArvanTrafficMeter::class)->run($this->snapshot('53277', 5), true);
+        $this->assertSame(5000, $result['total_irt']);
+        $this->assertFalse(app(ArvanTrafficMeter::class)->state()['cycles'][self::CYCLE]['pending']);
+        $this->assertSame(1, Invoice::count());
+        $this->assertSame(-5000, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($this->snapshot('53277', 5), true)['total_irt']);
+        $this->assertSame(1, Payment::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_preview_below_minimum_has_no_state_or_financial_writes(): void
+    {
+        [, , $state] = $this->fixture();
+        $result = app(ArvanTrafficMeter::class)->run($this->snapshot('20000', 2));
+        $this->assertSame(0, $result['total_irt']);
+        $this->assertSame(1155, $result['deferred_total_irt']);
+        $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
+        $this->assertSame(0, Invoice::count());
+    }
+
+    public function test_source_keeps_a_deferred_expired_cycle_beyond_seven_days(): void
+    {
+        $this->fakeSupplier($this->snapshot());
+        $otherCycle = '22345678-1234-1234-1234-123456789abc';
+        $report = $this->snapshot()['reports'][0];
+        $report['cycle']['id'] = $otherCycle;
+        $report['cycle']['expiredAt'] = '2026-10-01T00:00:00Z';
+        Http::fake([
+            'https://napi.arvancloud.ir/resid/v1/billing-cycles/'.$otherCycle => Http::response(['data' => $report['cycle']]),
+            'https://napi.arvancloud.ir/resid/v1/billing-cycles/'.$otherCycle.'/usage-items*' => Http::response([
+                'data' => $report['rows'], 'meta' => ['pagination' => ['totalItems' => 1, 'totalPages' => 1, 'current' => 1]],
+            ]),
+        ]);
+        $snapshot = app(ArvanTrafficSource::class)->fetch([
+            $otherCycle => ['expired_at' => '2026-10-01T00:00:00Z', 'pending' => true],
+        ]);
+        $this->assertCount(2, $snapshot['reports']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), $otherCycle.'/usage-items'));
+    }
+
+    public function test_two_individually_small_cycles_settle_in_one_customer_invoice(): void
+    {
+        [$customer] = $this->fixture();
+        $this->travelTo(Carbon::parse('2026-12-02T12:00:00Z'));
+        $snapshot = $this->snapshot('30000', 3);
+        $next = $this->snapshot('30000', 3)['reports'][0];
+        $nextId = '22345678-1234-1234-1234-123456789abc';
+        $next['cycle']['id'] = $nextId;
+        $next['cycle']['startedAt'] = '2026-11-22T00:00:00Z';
+        $next['cycle']['expiredAt'] = '2026-12-22T00:00:00Z';
+        $next['rows'][0]['items'][0]['usageFrom'] = '2026-11-22T00:00:00Z';
+        $next['rows'][0]['items'][0]['usageTo'] = '2026-12-02T11:00:00Z';
+        $snapshot['reports'][] = $next;
+        $snapshot['current_cycle'] = $nextId;
+        $snapshot['observed_at'] = '2026-12-02T12:00:00Z';
+        $result = app(ArvanTrafficMeter::class)->run($snapshot, true);
+        $this->assertSame(5775, $result['total_irt']);
+        $this->assertSame(1, Invoice::count());
+        $this->assertSame(2, Invoice::first()->items()->count());
+        $this->assertSame(-5775, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, app(ArvanTrafficMeter::class)->run($snapshot, true)['total_irt']);
+        $this->assertSame(1, Payment::count());
         Http::assertNothingSent();
     }
 }

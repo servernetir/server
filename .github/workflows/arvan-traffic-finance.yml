@@ -70,7 +70,7 @@ jobs:
       PULSE_ENABLED: 'false'
       TELESCOPE_ENABLED: 'false'
       NIGHTWATCH_ENABLED: 'false'
-      INCIDENT_CORE_FILTER: 'ArvanTrafficMeterTest|ArvanTrafficSettlementTest|ArvanTrafficCreditGuardTest|WalletReservationIsolationTest|HourlyBillingHoldTest|HourlyCreditControlTest|HourlyRuntimeCreditTest'
+      INCIDENT_CORE_FILTER: 'ArvanMonitoringWatchTest|ArvanTrafficMeterTest|ArvanTrafficSettlementTest|ArvanTrafficCreditGuardTest|WalletReservationIsolationTest|HourlyBillingHoldTest|HourlyCreditControlTest|HourlyRuntimeCreditTest'
     steps:
       - name: Checkout without persisted credentials
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
