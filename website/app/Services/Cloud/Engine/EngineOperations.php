@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class EngineOperations
 {
-    public const ACTIONS = ['create', 'power', 'delete', 'reset_password', 'hostname', 'rebuild'];
+    public const ACTIONS = ['create', 'power', 'delete', 'reset_password', 'hostname', 'rebuild', 'resize', 'metadata'];
 
     public function submit(EngineVm $vm, string $action, array $payload, string $idempotencyKey): EngineOperation
     {
@@ -23,13 +23,15 @@ class EngineOperations
             || ! preg_match('/\A(?=.{1,253}\z)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\z/D', $payload['hostname']))) {
             throw new \InvalidArgumentException('invalid_hostname');
         }
+        if ($action === 'metadata') $payload = app(EnginePublicMetadata::class)->validate($payload);
         ksort($payload);
         $fingerprint = hash('sha256', json_encode([$vm->uuid, $action, $payload], JSON_THROW_ON_ERROR));
         $key = hash('sha256', $vm->service_id.'|'.$idempotencyKey);
 
         return DB::transaction(function () use ($vm, $action, $payload, $fingerprint, $key) {
             // The VM row is the serialization point for all operations on this guest.
-            EngineVm::whereKey($vm->id)->lockForUpdate()->firstOrFail();
+            \App\Models\Service::whereKey($vm->service_id)->lockForUpdate()->firstOrFail();
+            $vm = EngineVm::whereKey($vm->id)->lockForUpdate()->firstOrFail();
             $existing = EngineOperation::where('idempotency_key', $key)->first();
             if ($existing) {
                 if (! hash_equals($existing->fingerprint, $fingerprint)) {
@@ -73,6 +75,7 @@ class EngineOperations
                 $payload['password'] = bin2hex(random_bytes(24));
             }
             if ($action === 'reset_password') { $payload['password'] = bin2hex(random_bytes(24)); }
+            if ($action === 'resize') { $payload = app(EngineResize::class)->prepare($vm, $payload); }
             $operation = EngineOperation::create([
                 'vm_id' => $vm->id, 'action' => $action, 'idempotency_key' => $key,
                 'fingerprint' => $fingerprint, 'payload' => $payload, 'phase' => 'queued',
@@ -83,6 +86,6 @@ class EngineOperations
                 'error_code' => null, 'created_at' => now(),
             ]);
             return $operation;
-        });
+        }, 3);
     }
 }

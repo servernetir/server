@@ -4,6 +4,17 @@ This records the threat model and required evidence for this change. It is not
 a completed penetration test, live firewall review or production approval.
 Final commit/test results and independent review belong in the release evidence.
 
+The 2026-11-05 expansion adds owned SSH-key references, integer-only cycle prices,
+lease-fenced offline resize and separate customer labels/protection. Resize never
+reposts a mutation after a lost receipt, frees no uncertain capacity, and commits
+the future price only alongside verified resources and successful operation state.
+Current locking capacity reads cover pre-existing InnoDB snapshots. Public labels
+cannot overwrite node, image, lease, credential or receipt metadata. Protection
+checks cover both the scoped API and existing browser termination under its
+service lock; expiry cleanup remains trusted. Expired customers can disable their
+own protection without receiving more entitlement. These controls passed local
+mock/database tests, not a real-node or independent security acceptance.
+
 | Boundary | Threat | Required control and validation |
 |---|---|---|
 | Customer API | Cross-customer VM/control/credentials | Existing scoped bearer token checks plus explicit Customer ownership on each request; sanitized DTOs; negative owner/scopes/expiry/replay tests |

@@ -79,6 +79,7 @@ function setupRace(string $directory, int $capacity): void
     $migration = require dirname(__DIR__, 2).'/database/migrations/2026_11_03_100100_create_cloud_engine_inventory.php';
     $migration->up();
     (require dirname(__DIR__, 2).'/database/migrations/2026_11_03_100150_guard_cloud_engine_node_identity.php')->up();
+    (require dirname(__DIR__, 2).'/database/migrations/2026_11_05_140000_create_cloud_engine_capacity_holds.php')->up();
     DB::table('services')->insert([['id' => 1, 'status' => 'awaiting_provision'], ['id' => 2, 'status' => 'awaiting_provision']]);
     $plan = CloudPlan::create(['provider' => 'cloud-engine', 'location_code' => 'de-fsn', 'arch' => 'x86',
         'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 10]);

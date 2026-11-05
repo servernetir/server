@@ -5,7 +5,29 @@ Implementation began on 2026-11-03 from develop
 after the managed execution environment restarted. This report concerns local
 software validation, not a production deployment or hardware acceptance.
 
-## Completed checks
+## VPS expansion checkpoint, 2026-11-05
+
+The follow-up starts at `c8dc710842c566c59198610dc083c5617ef28331`. It adds exact
+1/3/6/12-month initial and renewal settlement/replay coverage, owned SSH keys,
+offline resize with durable capacity holds, safe contract completion, public
+labels, delete/rebuild protection, scoped operation history and fa/en/tr controls.
+See [feature parity](FEATURE-PARITY.md) for the explicit incomplete feature set.
+
+| Expansion check | Executed result |
+|---|---|
+| Complete Engine suite, SQLite | 125 tests / 1,086 assertions; zero failures/errors/skips |
+| Same suite, MariaDB 11.8.6 | 125 tests / 1,086 assertions; zero failures/errors/skips |
+| Seven Engine migrations on MariaDB | Up/down/up passed in disposable schemas |
+| InnoDB race with an existing read snapshot before the node lock | Three two-process scenarios / 18 invariants passed; actual lock waits observed |
+| File-SQLite allocation race | Three two-process scenarios / 18 invariants passed |
+| Customer JavaScript, including exact billing amount and escaped text | Five jsdom tests passed |
+
+HTTP calls in these tests are mocked/prevented. No new official API schema,
+physical node, live console, backup restoration or new network operation has
+been accepted. The official Proxmox schema request remains blocked by the
+enforced environment network policy; the saved domain draft is not applied.
+
+## Prior completed checks at c8dc7108
 
 | Check | Final validated result |
 |---|---|
@@ -70,7 +92,7 @@ separate local MariaDB startup/test helpers and PHP configuration.
 
 No hardware was purchased or activated, no production migration/scheduler was
 run, and no live customer service was changed. The new provider defaults disabled
-and supports monthly VPS billing only; existing providers remain available.
+and supports 1/3/6/12-month VPS billing; existing providers remain available.
 
 Outstanding items include current official API/schema review, pinned verified OS
 artifacts, licensed Windows provenance and native firstboot execution, current

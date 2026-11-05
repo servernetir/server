@@ -112,10 +112,9 @@ class Placement
 
     private function hasCapacity(EngineNode $node, CloudPlan $plan): bool
     {
-        $usage = EngineVm::where('node_id', $node->id)->where('status', '!=', 'deleted')
-            ->selectRaw('COALESCE(SUM(vcpu), 0) AS vcpu, COALESCE(SUM(ram_mb), 0) AS ram_mb, COALESCE(SUM(disk_gb), 0) AS disk_gb')->first();
+        $usage = app(EngineCapacity::class)->usage($node, true);
         foreach (['vcpu', 'ram_mb', 'disk_gb'] as $resource) {
-            if ((int) $node->{$resource.'_capacity'} - (int) $node->{$resource.'_reserve'} - (int) $usage->{$resource} < (int) $plan->{$resource}) {
+            if ((int) $node->{$resource.'_capacity'} - (int) $node->{$resource.'_reserve'} - $usage[$resource] < (int) $plan->{$resource}) {
                 return false;
             }
         }
@@ -128,8 +127,8 @@ class Placement
         $min = max(100, (int) $node->vmid_min);
         $max = min(999999999, (int) $node->vmid_max);
         // Never reuse IDs, even after deletion: a delayed receipt must not target a newer guest.
-        $used = EngineVm::where('node_id', $node->id)->whereBetween('vmid', [$min, $max])->pluck('vmid')->all();
-        $templates = EngineImage::where('node_id', $node->id)->pluck('template_vmid')->all();
+        $used = EngineVm::where('node_id', $node->id)->whereBetween('vmid', [$min, $max])->lockForUpdate()->pluck('vmid')->all();
+        $templates = EngineImage::where('node_id', $node->id)->lockForUpdate()->pluck('template_vmid')->all();
         $taken = array_fill_keys(array_map('intval', array_merge($used, $templates)), true);
         for ($id = $min; $id <= $max; $id++) {
             if (! isset($taken[$id])) {

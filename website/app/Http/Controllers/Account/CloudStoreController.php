@@ -111,6 +111,9 @@ class CloudStoreController extends Controller
      */
     public static function priceForCycle(CloudPlan $plan, string $cycle, array $addons = []): int
     {
+        if ($plan->provider === 'cloud-engine') {
+            return app(\App\Services\Cloud\Engine\EngineBillingPolicy::class)->quote($plan, $cycle, $addons);
+        }
         if ($plan->provider === 'vpstc' && $cycle !== 'monthly') {
             return 0;
         }

@@ -188,6 +188,9 @@ class ServiceController extends Controller
      */
     private function terminable(Service $service): bool
     {
+        $engineVm = $service->cloudPlan?->provider === 'cloud-engine' && Schema::hasTable('cloud_engine_vms')
+            ? \App\Models\EngineVm::where('service_id', $service->id)->first() : null;
+        if ($engineVm && app(\App\Services\Cloud\Engine\EnginePublicMetadata::class)->protected($engineVm, 'delete')) return false;
         return ! $service->hasUnverifiedBillingTerms() && ! $service->isInternalInfrastructure()
             && in_array($service->status, ['active', 'suspended', 'expired'], true)
             && $service->provision_status !== 'failed'

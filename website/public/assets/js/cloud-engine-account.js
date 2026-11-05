@@ -30,6 +30,12 @@
         const body = await response.json();
         if (!body.ok || !body.data || !body.data.traffic) return;
         const data = body.data, operation = data.operation;
+        if (data.billing) {
+          if (typeof data.billing.label === 'string') text('[data-engine-billing-cycle]', data.billing.label);
+          const amount = bytes(data.billing.amount);
+          if (amount !== null) text('[data-engine-billing-amount]', amount);
+          if (typeof data.billing.next_due_at === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.billing.next_due_at)) text('[data-engine-billing-due]', data.billing.next_due_at);
+        }
         text('[data-engine-operation-action]', operation ? labels.actions[operation.action] || labels.none : labels.none);
         text('[data-engine-operation-status]', operation ? labels.statuses[operation.status] || labels.statuses.pending_review : '');
         text('[data-engine-coverage]', labels.coverage[data.traffic.coverage] || labels.coverage.unknown);

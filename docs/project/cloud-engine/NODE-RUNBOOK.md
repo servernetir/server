@@ -5,7 +5,7 @@ and simulation execute only renderers/tests. Do not run the existing Iran
 inventory or production scheduler against this node. All phases preserve the
 existing Hetzner Cloud fallback and existing customer services.
 
-The first engine rollout offers monthly VPS only. Do not enable hourly Cloud
+Engine billing supports monthly, quarterly, semiannual and yearly VPS (1/3/6/12 months). Do not enable hourly Cloud
 Engine products or infer hourly support from another provider's existing flow.
 
 ## 1. Preconditions and official interfaces
@@ -96,6 +96,14 @@ the actual PVE firewall compiler/API schema, inspect the resulting rules and tes
 traffic. Do not infer an applied firewall from a successful renderer test.
 
 ## 4. Least privilege, images and application registration
+
+Install application migrations before enabling the updated worker/catalog. The
+seven Engine migrations include
+`2026_11_05_140000_create_cloud_engine_capacity_holds.php`; the new capacity
+service depends on that table. Take a consistent backup first. A rollback must
+stop new sales and fence workers, then reconcile every reserved resize hold and
+remote mutation before reverting code. Never drop a hold table containing
+unresolved operations or roll back disk growth; disk expansion is irreversible.
 
 Create a dedicated privilege-separated Proxmox user/token with the API viewer's
 minimum pool/VM/datastore permissions for the enabled actions. Start with the

@@ -29,8 +29,9 @@ class NodeHealth
             $network = $this->transport->request($node, 'GET', $base.'/network');
             $inventory = $this->transport->request($node, 'GET', $base.'/qemu');
             $usage = $node->vms()->where('status', '!=', 'deleted')->get();
-            $remainingDisk = max(0, (int) $node->disk_gb_capacity - (int) $node->disk_gb_reserve - (int) $usage->sum('disk_gb'));
-            $remainingRam = max(0, (int) $node->ram_mb_capacity - (int) $node->ram_mb_reserve - (int) $usage->sum('ram_mb'));
+            $reserved = app(EngineCapacity::class)->usage($node);
+            $remainingDisk = max(0, (int) $node->disk_gb_capacity - (int) $node->disk_gb_reserve - $reserved['disk_gb']);
+            $remainingRam = max(0, (int) $node->ram_mb_capacity - (int) $node->ram_mb_reserve - $reserved['ram_mb']);
             $s = $storage['data'] ?? [];
             if (! ($storage['ok'] ?? false) || ! is_array($s) || ($s['active'] ?? 0) != 1
                 || ! is_numeric($s['total'] ?? null) || ! is_numeric($s['avail'] ?? null)

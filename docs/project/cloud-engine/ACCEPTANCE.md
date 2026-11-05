@@ -5,7 +5,7 @@ existing customer or provider is migrated/disabled. The one-working-day delivery
 target is unconfirmed until an actual approved node passes the full matrix with
 recorded start/finish timestamps.
 
-Initial dedicated-engine products support monthly VPS billing only. Existing
+Dedicated-engine products support monthly, quarterly, semiannual and yearly VPS billing (1/3/6/12 months). Existing
 non-engine hourly products retain their own behavior. Dedicated hourly checkout
 and API requests must fail closed; asynchronous billing holds and interrupted
 delivery recovery require a separately tested integration before hourly sales.

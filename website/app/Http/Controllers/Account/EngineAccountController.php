@@ -76,6 +76,28 @@ class EngineAccountController extends Controller
         return $this->mutate($request, $service, 'hostname', ['hostname' => strtolower($data['hostname'])]);
     }
 
+    public function resize(Request $request, Service $service)
+    {
+        $data = $request->validate(['plan' => ['required', 'string', 'max:100'], 'upgrade_disk' => ['sometimes', 'boolean']]);
+        return $this->mutate($request, $service, 'resize', ['plan' => $data['plan'], 'upgrade_disk' => (bool) ($data['upgrade_disk'] ?? true)]);
+    }
+
+    public function metadata(Request $request, Service $service)
+    {
+        $data = $request->validate(['labels_text' => ['present', 'nullable', 'string', 'max:16384'],
+            'protect_delete' => ['required', 'boolean'], 'protect_rebuild' => ['required', 'boolean']]);
+        $labels = [];
+        foreach (preg_split('/\R/u', (string) $data['labels_text']) as $line) {
+            if (trim($line) === '') continue;
+            $pair = explode('=', $line, 2);
+            $key = trim($pair[0]);
+            if (count($pair) !== 2 || array_key_exists($key, $labels)) return back()->withErrors(__('cloud_engine.customer_labels_invalid'));
+            $labels[$key] = trim($pair[1]);
+        }
+        return $this->mutate($request, $service, 'metadata', ['labels' => $labels,
+            'protection' => ['delete' => (bool) $data['protect_delete'], 'rebuild' => (bool) $data['protect_rebuild']]]);
+    }
+
     private function mutate(Request $request, Service $service, string $action, array $payload)
     {
         $vm = $this->owned($service);

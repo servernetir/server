@@ -11,6 +11,7 @@ use App\Services\Cloud\Engine\EngineApiError;
 use App\Services\Cloud\Engine\EngineApiService;
 use App\Services\Cloud\Engine\EngineConsoleService;
 use App\Services\Cloud\Engine\EngineProvider;
+use App\Services\Cloud\Engine\EngineResize;
 use App\Services\Cloud\Engine\EngineTrafficService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -97,6 +98,34 @@ class CloudEngineController extends Controller
         $data = $request->validate(['hostname' => ['required', 'string', 'max:253', 'regex:/\A(?=.{1,253}\z)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\z/D']]);
 
         return $this->mutation($request, $server, 'hostname', ['hostname' => strtolower($data['hostname'])]);
+    }
+
+    public function resize(Request $request, string $server): JsonResponse
+    {
+        $data = $request->validate(['plan' => ['required', 'string', 'max:100'], 'upgrade_disk' => ['sometimes', 'boolean']]);
+        return $this->mutation($request, $server, 'resize', ['plan' => $data['plan'], 'upgrade_disk' => (bool) ($data['upgrade_disk'] ?? true)]);
+    }
+
+    public function metadata(Request $request, string $server): JsonResponse
+    {
+        return $this->mutation($request, $server, 'metadata', $request->json()->all());
+    }
+
+    public function resizeOptions(Request $request, string $server): JsonResponse
+    {
+        $vm = $this->api->owned($this->customer($request), $server);
+        return response()->json(['ok' => true, 'data' => ['plans' => app(EngineResize::class)->options($vm),
+            'currency' => $vm->service->currency_code ?: 'IRT', 'cycle' => $vm->service->cycle,
+            'price_effective' => 'next_renewal', 'disk_shrink_supported' => false]]);
+    }
+
+    public function history(Request $request, string $server): JsonResponse
+    {
+        $data = $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
+        $vm = $this->api->owned($this->customer($request), $server);
+        $operations = EngineOperation::where('vm_id', $vm->id)->latest('id')->paginate(50, ['*'], 'page', $data['page'] ?? 1);
+        return response()->json(['ok' => true, 'data' => $operations->getCollection()->map(fn ($op) => $this->api->operationDto($op)),
+            'pagination' => ['page' => $operations->currentPage(), 'last_page' => $operations->lastPage(), 'total' => $operations->total()]]);
     }
 
     private function mutation(Request $request, string $server, string $action, array $payload): JsonResponse

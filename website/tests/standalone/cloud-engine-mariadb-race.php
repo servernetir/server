@@ -76,7 +76,7 @@ if (($argv[1] ?? '') === 'child') {
     bootMysqlRace($directory, $database);
     $synchronized = false;
     DB::listen(function ($query) use ($directory, $slot, &$synchronized) {
-        if (! $synchronized && str_contains($query->sql, 'COALESCE(SUM(vcpu)')) {
+        if (! $synchronized && str_contains($query->sql, '`cloud_engine_nodes`') && str_contains(strtolower($query->sql), 'for update')) {
             $synchronized = true;
             touch($directory.'/read-'.$slot);
             // Hold the actual node lock while the competing connection blocks.
@@ -84,11 +84,17 @@ if (($argv[1] ?? '') === 'child') {
             mysqlAwait($directory.'/write');
         }
     });
-    touch($directory.'/ready-'.$slot);
-    mysqlAwait($directory.'/start');
-    touch($directory.'/attempt-'.$slot);
     try {
-        $vm = app(Placement::class)->reserve(Service::findOrFail((int) $serviceId), CloudPlan::firstOrFail(), 'ubuntu-24.04');
+        $vm = DB::transaction(function () use ($directory, $slot, $serviceId) {
+            // Simulate the existing API/payment transaction: its consistent
+            // read snapshot exists BEFORE waiting for the competing node lock.
+            $service = Service::findOrFail((int) $serviceId);
+            $plan = CloudPlan::firstOrFail();
+            touch($directory.'/ready-'.$slot);
+            mysqlAwait($directory.'/start');
+            touch($directory.'/attempt-'.$slot);
+            return app(Placement::class)->reserve($service, $plan, 'ubuntu-24.04');
+        }, 3);
         echo json_encode(['outcome' => 'reserved', 'id' => $vm->id, 'uuid' => $vm->uuid,
             'vmid' => $vm->vmid, 'address' => $vm->address->address], JSON_THROW_ON_ERROR);
     } catch (DomainException $e) {
@@ -107,7 +113,8 @@ function setupMysqlRace(string $directory, string $database, int $capacity, bool
         $t->id(); $t->string('provider'); $t->string('location_code'); $t->string('arch');
         $t->integer('vcpu'); $t->integer('ram_mb'); $t->integer('disk_gb'); $t->timestamps();
     });
-    $paths = glob(dirname(__DIR__, 2).'/database/migrations/2026_11_03_100*.php') ?: [];
+    $paths = array_merge(glob(dirname(__DIR__, 2).'/database/migrations/2026_11_03_100*.php') ?: [],
+        glob(dirname(__DIR__, 2).'/database/migrations/*create_cloud_engine_capacity_holds.php') ?: []);
     sort($paths);
     if (count($paths) < 6) throw new RuntimeException('Expected the complete new engine migration set.');
     $migrations = array_map(static fn ($path) => require $path, $paths);

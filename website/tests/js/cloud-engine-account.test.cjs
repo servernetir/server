@@ -50,6 +50,20 @@ test('HTTP and malformed polling responses retain the last observed state instea
   assert.equal(x.panel.querySelectorAll('img').length, 0);
 });
 
+test('billing polling preserves exact contract amounts and renders labels as text', async t => {
+  const x = setup(async () => ({ok: true, json: async () => ({ok: true, data: {
+    operation: null, traffic: {coverage: 'unknown', in_bytes: '0', out_bytes: '0'},
+    billing: {label: '<img src=x onerror=alert(1)>', amount: '9007199254740993', next_due_at: '2027-01-31'}
+  }})}));
+  t.after(() => x.dom.window.close());
+  x.panel.insertAdjacentHTML('beforeend', '<b data-engine-billing-cycle></b><b data-engine-billing-amount></b><b data-engine-billing-due></b>');
+  await x.refresh();
+  assert.equal(x.panel.querySelector('[data-engine-billing-amount]').textContent, '9,007,199,254,740,993');
+  assert.equal(x.panel.querySelector('[data-engine-billing-cycle]').textContent, '<img src=x onerror=alert(1)>');
+  assert.equal(x.panel.querySelector('[data-engine-billing-due]').textContent, '2027-01-31');
+  assert.equal(x.panel.querySelectorAll('img').length, 0);
+});
+
 test('cross-origin endpoints are rejected and Persian digits preserve the full integer', async t => {
   const rejected = setup(async () => {throw Error('must not send');}, 'https://other.example.test/status');
   t.after(() => rejected.dom.window.close());

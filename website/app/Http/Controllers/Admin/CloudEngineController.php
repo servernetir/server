@@ -30,7 +30,8 @@ class CloudEngineController extends Controller
         $traffic = $vms->getCollection()->mapWithKeys(fn ($vm) => [$vm->id => app(EngineTrafficService::class)->report($vm)]);
 
         return response()->view('admin.cloud-engine', [
-            'nodes' => EngineNode::withCount('vms')->orderBy('id')->get(),
+            'nodes' => EngineNode::withCount('vms')->orderBy('id')->get()->each(fn ($node) =>
+                $node->setAttribute('resource_usage', app(\App\Services\Cloud\Engine\EngineCapacity::class)->usage($node))),
             'editing' => $request->integer('node') ? EngineNode::findOrFail($request->integer('node')) : null,
             'vms' => $vms,
             'traffic' => $traffic,

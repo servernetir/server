@@ -4,7 +4,7 @@
   $formatBytes = fn ($value) => fa_num(preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', (string) $value));
   $labels = [
     'statuses' => collect(['pending','running','succeeded','failed','pending_review'])->mapWithKeys(fn ($status) => [$status => __('cloud_engine.status_'.$status)])->all(),
-    'actions' => collect(['create','power','delete','rebuild','reset_password','hostname'])->mapWithKeys(fn ($action) => [$action => __('cloud_engine.action_'.$action)])->all(),
+    'actions' => collect(['create','power','delete','rebuild','reset_password','hostname','resize','metadata'])->mapWithKeys(fn ($action) => [$action => __('cloud_engine.action_'.$action)])->all(),
     'coverage' => collect(['unknown','incomplete','observed_intervals_only'])->mapWithKeys(fn ($status) => [$status => __('cloud_engine.coverage_'.$status)])->all(),
     'none' => __('cloud_engine.customer_no_operation'),
   ];
@@ -17,6 +17,9 @@
   <div class="pnl-sec-h"><h2>{{ __('cloud_engine.customer_title') }}</h2></div>
   <div class="pnl-sec-b">
     <div class="cs-grid" aria-live="polite">
+      <div class="cs-kv"><small>{{ __('cloud_engine.customer_billing_cycle') }}</small><b data-engine-billing-cycle>{{ $engine['billing']['label'] }}</b></div>
+      <div class="cs-kv"><small>{{ __('cloud_engine.customer_contract_amount') }}</small><b><span data-engine-billing-amount>{{ $formatBytes($engine['billing']['amount']) }}</span> {{ $engine['billing']['currency'] }}</b></div>
+      <div class="cs-kv"><small>{{ __('cloud_engine.customer_next_due') }}</small><b dir="ltr" data-engine-billing-due>{{ $engine['billing']['next_due_at'] ?? '—' }}</b></div>
       <div class="cs-kv"><small>{{ __('cloud_engine.customer_operation') }}</small>
         <b data-engine-operation-action>{{ $operation ? ($labels['actions'][$operation['action']] ?? $labels['none']) : $labels['none'] }}</b>
         <span data-engine-operation-status>{{ $operation ? ($labels['statuses'][$operation['status']] ?? $labels['statuses']['pending_review']) : '' }}</span>
@@ -63,6 +66,50 @@
       <form method="post" action="{{ lroute('account.cloud.engine.console', $service) }}" target="_blank" rel="noopener noreferrer" style="margin:16px 0">
         @csrf<button class="pnl-btn" type="submit">{{ __('cloud_engine.customer_console') }}</button>
       </form>
+    @endif
+    @if($engine['capabilities']['resize'])
+      <details style="margin:16px 0">
+        <summary>{{ __('cloud_engine.action_resize') }}</summary>
+        <p>{{ __('cloud_engine.customer_resize_note') }}</p>
+        <form method="post" action="{{ lroute('account.cloud.engine.resize', $service) }}" style="display:grid;gap:10px">
+          @csrf
+          <input type="hidden" name="request_key" value="{{ bin2hex(random_bytes(16)) }}">
+          <label>{{ __('cloud_engine.customer_target_plan') }}<select name="plan" required class="pnl-input">
+            @foreach($engine['resize_plans'] as $plan)
+              <option value="{{ $plan['ref'] }}">{{ $plan['name'] }} — {{ fa_num($plan['vcpu']) }} vCPU / {{ fa_num($plan['ram_mb']) }} MiB / {{ fa_num($plan['disk_gb']) }} GiB — {{ $formatBytes($plan['amount']) }} {{ $engine['billing']['currency'] }} / {{ $engine['billing']['label'] }}</option>
+            @endforeach
+          </select></label>
+          <input type="hidden" name="upgrade_disk" value="0">
+          <label><input type="checkbox" name="upgrade_disk" value="1" checked> {{ __('cloud_engine.customer_expand_disk') }}</label>
+          <button class="pnl-btn" type="submit" data-engine-mutation>{{ __('cloud_engine.action_resize') }}</button>
+        </form>
+      </details>
+    @endif
+    @if($engine['capabilities']['metadata'])
+      <details style="margin:16px 0">
+        <summary>{{ __('cloud_engine.action_metadata') }}</summary>
+        <form method="post" action="{{ lroute('account.cloud.engine.metadata', $service) }}" style="display:grid;gap:10px">
+          @csrf
+          <input type="hidden" name="request_key" value="{{ bin2hex(random_bytes(16)) }}">
+          <label>{{ __('cloud_engine.customer_labels') }}<textarea name="labels_text" class="pnl-input" rows="4" dir="ltr" maxlength="16384">{{ collect((array) $engine['labels'])->map(fn ($value, $key) => $key.'='.$value)->implode("\n") }}</textarea></label>
+          <p>{{ __('cloud_engine.customer_labels_hint') }}</p>
+          <input type="hidden" name="protect_delete" value="0"><input type="hidden" name="protect_rebuild" value="0">
+          <label><input type="checkbox" name="protect_delete" value="1" @checked($engine['protection']['delete'])> {{ __('cloud_engine.customer_protect_delete') }}</label>
+          <label><input type="checkbox" name="protect_rebuild" value="1" @checked($engine['protection']['rebuild'])> {{ __('cloud_engine.customer_protect_rebuild') }}</label>
+          <p>{{ __('cloud_engine.customer_protection_note') }}</p>
+          <button class="pnl-btn" type="submit" data-engine-mutation>{{ __('cloud_engine.customer_save_metadata') }}</button>
+        </form>
+      </details>
+    @endif
+    @if($engine['history'])
+      <details style="margin:16px 0">
+        <summary>{{ __('cloud_engine.customer_history') }}</summary>
+        <table class="pnl-table"><thead><tr><th>{{ __('cloud_engine.customer_operation') }}</th><th>{{ __('cloud_engine.status') }}</th><th>{{ __('cloud_engine.customer_history_date') }}</th></tr></thead><tbody>
+          @foreach($engine['history'] as $entry)
+            <tr><td>{{ $labels['actions'][$entry['action']] ?? $labels['none'] }}</td><td>{{ $labels['statuses'][$entry['status']] ?? $labels['statuses']['pending_review'] }}</td><td dir="ltr">{{ $entry['created_at'] }}</td></tr>
+          @endforeach
+        </tbody></table>
+      </details>
     @endif
     @if($engine['capabilities']['hostname'])
       <form method="post" action="{{ lroute('account.cloud.engine.hostname', $service) }}" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:16px 0">

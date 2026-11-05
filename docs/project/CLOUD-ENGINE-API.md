@@ -11,9 +11,9 @@ use browser sessions or CSRF cookies.
 
 | Permission | Access |
 | --- | --- |
-| `servers:read` | List/show servers, operation status, metrics and traffic |
+| `servers:read` | List/show servers, operation status/history, resize options, metrics and traffic |
 | `servers:write` | Bind an existing confirmed-paid order to delivery; includes server read |
-| `servers:manage` | Power, rebuild, password reset, hostname, console and deletion; includes server read |
+| `servers:manage` | Power, rebuild, password reset, hostname, resize, labels/protection, console and deletion; includes server read |
 
 Write and manage permissions do not imply each other. Every server and operation
 lookup checks the bearer customer's ownership independently of browser login.
@@ -31,6 +31,10 @@ have 50 rows per page and accept a positive integer `page`.
 | `GET /servers/{uuid}` | — | Customer server DTO |
 | `POST /servers` | `{"service_id":123}` | Existing delivery operation |
 | `GET /operations/{id}` | — | Owned operation status |
+| `GET /servers/{uuid}/operations` | `?page=1` | Owned operation history, newest first, 50 per page |
+| `GET /servers/{uuid}/resize-options` | — | Public plan slugs and next-renewal contract prices; current location/architecture/node only |
+| `POST /servers/{uuid}/resize` | `{"plan":"public-plan-slug","upgrade_disk":true}` | Queued offline resize; disk expansion is permanent |
+| `PATCH /servers/{uuid}/metadata` | `{"labels":{"environment":"production"},"protection":{"delete":true,"rebuild":true}}` | Queued local labels/protection update; omitted fields retain their value |
 | `POST /servers/{uuid}/power` | `{"action":"on"}` | Queued operation; also `off`, `reboot`, `reset`, `shutdown` |
 | `POST /servers/{uuid}/rebuild` | `{"image":"ubuntu-24.04","confirm":true}` | Queued destructive operation; same reserved VM identity and IPv4 |
 | `POST /servers/{uuid}/reset-password` | `{"confirm":true}` | Queued guest credential reset |
@@ -57,9 +61,10 @@ outcomes remain under review and do not free reservations.
 `POST /servers` creates no invoice, wallet debit or parallel order. First use the
 existing checkout/payment flow. The service must belong to this customer, use an
 engine plan, have existing confirmed invoice payment evidence,
-and remain eligible for delivery. Initial engine sales are monthly only; hourly
+and remain eligible for delivery. Engine sales support configured monthly,
+quarterly, semiannual and yearly cycles (1/3/6/12 months); hourly
 service records are rejected even when historical wallet debit evidence exists.
-Monthly invoices may still be paid from the existing wallet. Fraud review and instance lifecycle remain in
+Cycle invoices may still be paid from the existing wallet. Fraud review and instance lifecycle remain in
 the existing provisioner. A review hold returns `409 provisioning_pending_review`
 and preserves that hold; it does not pretend that a server was delivered.
 
@@ -69,6 +74,25 @@ use the existing refund service. An active or uncertain infrastructure intent
 may return `409 operation_in_progress`; it must be reconciled through the existing
 journal before another destructive operation can proceed. A timeout is not proof
 that a clone never happened.
+
+Server DTOs include `billing` (`cycle`, `months`, `currency`, exact decimal-string
+`contract_amount`, `next_due_at`), public `labels`, and boolean `protection` for
+`delete`/`rebuild`. Labels are replaced as a set when supplied; protection updates
+merge only the supplied booleans. Up to 50 labels are allowed, keys start with a
+Latin letter and contain at most 63 letters/digits/`.`/`_`/`/`/`-`; values have at
+most 256 characters and no control characters. Unknown metadata fields are rejected.
+Protection blocks customer destructive operations with `403 server_protected`.
+Expired/suspended owners may update metadata to disable protection without
+renewing or powering on a server. Trusted billing expiry cleanup is unaffected.
+
+Resize is currently supported for IRT contracts on the same accepted node and
+architecture, with the server confirmed off. CPU/RAM may change in either
+direction within the image minima; disks never shrink. `upgrade_disk:false`
+retains the actual disk. Capacity holds remain reserved while a mutation outcome
+is uncertain. New specifications and the existing service contract commit only
+after verified completion. Options return `price_effective:"next_renewal"`;
+the shared billing policy issues no immediate pro-rata invoice, changes no paid
+invoice and preserves the next due date. EUR resize is explicitly unavailable.
 
 Rebuild requires an accepted compatible image on the reserved node. Password and
 hostname changes require explicit verified guest-agent image capability;

@@ -23,9 +23,9 @@ class EngineProvider implements CloudProvider
 
     public function capabilities(): array
     {
-        return ['console' => false, 'rebuild' => true, 'resize' => false, 'snapshot' => false,
+        return ['console' => false, 'rebuild' => true, 'resize' => true, 'snapshot' => false,
             'metrics' => true, 'reset_password' => true, 'ipv6' => false, 'rescue' => false,
-            'ssh_key' => false, 'extra_ip' => false, 'hostname' => true];
+            'ssh_key' => true, 'extra_ip' => false, 'hostname' => true];
     }
 
     public function testConnection(): array
@@ -91,10 +91,9 @@ class EngineProvider implements CloudProvider
                 && (int) $image->min_disk_gb <= $plan->disk_gb && (int) $image->min_ram_mb <= $plan->ram_mb)) {
             return false;
         }
-        $usage = EngineVm::where('node_id', $node->id)->where('status', '!=', 'deleted')
-            ->selectRaw('COALESCE(SUM(vcpu),0) vcpu, COALESCE(SUM(ram_mb),0) ram_mb, COALESCE(SUM(disk_gb),0) disk_gb')->first();
+        $usage = app(EngineCapacity::class)->usage($node);
         foreach (['vcpu', 'ram_mb', 'disk_gb'] as $resource) {
-            if ((int) $node->{$resource.'_capacity'} - (int) $node->{$resource.'_reserve'} - (int) $usage->{$resource} < (int) $plan->{$resource}) {
+            if ((int) $node->{$resource.'_capacity'} - (int) $node->{$resource.'_reserve'} - $usage[$resource] < (int) $plan->{$resource}) {
                 return false;
             }
         }
@@ -126,12 +125,15 @@ class EngineProvider implements CloudProvider
             }
             $imageRef = (string) ($spec['image_ref'] ?? '');
             $image = CloudImage::where('provider', $this->slug())->where('provider_ref', $imageRef)->first();
-            $vm = DB::transaction(function () use ($service, $plan, $image, $imageRef, $spec) {
+            $sshKeys = app(EngineSshKeys::class)->resolve($service, array_values($spec['ssh_keys'] ?? []));
+            $vm = DB::transaction(function () use ($service, $plan, $image, $imageRef, $sshKeys) {
                 $vm = $this->placement->reserve($service, $plan, $image?->key ?? $imageRef);
                 $vm = EngineVm::whereKey($vm->id)->lockForUpdate()->firstOrFail();
+                if ($sshKeys !== [] && strtolower($vm->image->family) === 'windows'
+                    && ($vm->image->metadata['ssh_verified'] ?? false) !== true) throw new \DomainException('image_ssh_not_verified');
                 if (empty($vm->credentials['password'])) {
                     $vm->update(['credentials' => ['username' => $vm->image->family === 'windows' ? 'Administrator' : 'root',
-                        'password' => bin2hex(random_bytes(24)), 'ssh_keys' => array_values($spec['ssh_keys'] ?? [])]]);
+                        'password' => bin2hex(random_bytes(24)), 'ssh_keys' => $sshKeys]]);
                 }
                 $this->operations->submit($vm, 'create', [], 'create:'.$service->id);
                 return $vm->load('address');
@@ -322,8 +324,17 @@ class EngineProvider implements CloudProvider
     public function resetPassword(string $ref): array { return $this->enqueue($ref, 'reset_password', []) + ['root_password' => null]; }
     public function changeHostname(string $ref, string $hostname): array { return $this->enqueue($ref, 'hostname', ['hostname' => $hostname]); }
     public function console(string $ref): array { return $this->unsupported() + ['url' => null, 'password' => null]; }
-    public function resize(string $ref, string $planRef, bool $upgradeDisk = true): array { return $this->unsupported(); }
-    public function uploadSshKey(string $name, string $publicKey): array { return $this->unsupported() + ['ref' => null]; }
+    public function resize(string $ref, string $planRef, bool $upgradeDisk = true): array
+    {
+        $vm = EngineVm::where('uuid', $ref)->first();
+        $plan = $vm ? CloudPlan::where('provider', $this->slug())->where('provider_ref', $planRef)
+            ->where('location_code', $vm->node->location_code)->first() : null;
+        if (! $plan) return $this->unsupported();
+        $r = $this->enqueue($ref, 'resize', ['plan' => $plan->slug, 'upgrade_disk' => $upgradeDisk]);
+        // Legacy billing must not commit a new contract before remote verification.
+        return ['ok' => false, 'pending' => (bool) ($r['ok'] ?? false), 'message' => $r['message']];
+    }
+    public function uploadSshKey(string $name, string $publicKey): array { return app(EngineSshKeys::class)->upload($publicKey); }
     public function addExtraIps(string $ref, int $count): array { return $this->unsupported() + ['ips' => []]; }
     private function unsupported(): array { return ['ok' => false, 'message' => 'This operation is not available for this server.']; }
 }

@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 /** One persisted phase per lease. No automatic resubmission after an uncertain mutation. */
 class EngineWorker
 {
+    use EngineResizePhases;
     private ?EngineOperation $currentOperation = null;
     public function __construct(private ProxmoxTransport $transport, private Ipam $ipam) {}
 
@@ -57,11 +58,11 @@ class EngineWorker
                 $this->transition($operation, $operation->phase, 'blocked', 'confirmed_payment_required');
                 return true;
             }
-            if ($operation->action !== 'delete' && $vm->service?->isDead()) {
+            if (! in_array($operation->action, ['delete', 'metadata'], true) && $vm->service?->isDead()) {
                 $this->transition($operation, $operation->phase, 'blocked', 'service_inactive');
                 return true;
             }
-            if (! in_array($operation->action, ['create', 'delete'], true)
+            if (! in_array($operation->action, ['create', 'delete', 'metadata'], true)
                 && ! $this->billingResume($operation, $vm->service)
                 && ($vm->service?->status !== 'active' || $vm->service?->cancelled_at !== null || $vm->status === 'deleting')) {
                 $this->transition($operation, $operation->phase, 'blocked', 'service_inactive');
@@ -115,6 +116,24 @@ class EngineWorker
 
     private function advance(EngineOperation $op, EngineVm $vm): void
     {
+        if ($op->action === 'metadata') {
+            DB::transaction(function () use ($op, $vm) {
+                $service = \App\Models\Service::whereKey($vm->service_id)->lockForUpdate()->firstOrFail();
+                $vm = EngineVm::whereKey($vm->id)->lockForUpdate()->firstOrFail();
+                $this->assertLease($op);
+                if (! app(EnginePublicMetadata::class)->editable($service, $vm)) {
+                    $this->transition($op, $op->phase, 'blocked', 'service_inactive'); return;
+                }
+                $metadata = $vm->metadata ?? [];
+                if (array_key_exists('labels', $op->payload)) $metadata['customer_labels'] = $op->payload['labels'];
+                if (array_key_exists('protection', $op->payload)) $metadata['customer_protection'] = [
+                    ...($metadata['customer_protection'] ?? []), ...$op->payload['protection']];
+                $vm->update(['metadata' => $metadata]);
+                $this->transition($op, 'completed', 'succeeded');
+            }, 3);
+            return;
+        }
+        if ($op->action === 'resize') { $this->advanceResize($op, $vm); return; }
         if ($op->phase === 'queued') {
             if ($op->action === 'create') {
                 $this->transition($op, 'clone_prepare');
@@ -618,7 +637,7 @@ class EngineWorker
         if ($op->action === 'delete') { return; }
         if ($service->isDead() || $service->cancelled_at !== null
             || ($service->status === 'suspended' && ! $this->billingResume($op, $service))
-            || (in_array($op->action, ['create', 'rebuild'], true) && ! app(EnginePaidGate::class)->allows($service))) {
+            || (in_array($op->action, ['create', 'rebuild', 'resize'], true) && ! app(EnginePaidGate::class)->allows($service))) {
             throw new \RuntimeException('service_inactive');
         }
     }

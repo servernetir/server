@@ -163,7 +163,7 @@ explicit inputs, not invented supplier offers.
 
 ## Implemented release scope and open gates
 
-The first release is monthly VPS only. Existing Wallet/invoice settlement and
+Engine billing supports monthly, quarterly, semiannual and yearly VPS (1/3/6/12 months). Existing Wallet/invoice settlement and
 renewal remain authoritative; both the PHP capability method and SQL catalog
 scope reject engine hourly offers, and the paid gate rejects forged hourly
 records. The synchronous hourly credit hold/resume path needs a separate
@@ -183,7 +183,10 @@ and fresh trusted firstboot receipt. Its PowerShell implementation has not been
 executed on Windows in this environment. Every candidate OS image remains
 inactive until its artifact provenance and actual initialization are accepted.
 
-Resize, additional public IPs, provider-side rDNS, cross-node IP migration,
+Offline resize with capacity holds, owned SSH keys, public labels, customer
+deletion/rebuild protection and operation history are implemented; see
+[feature parity](cloud-engine/FEATURE-PARITY.md) for their validation boundaries.
+Additional public IPs, provider-side rDNS, cross-node IP migration,
 snapshots and rescue are not advertised as implemented engine capabilities.
 Console access uses the dedicated gateway service; the generic legacy adapter
 URL method remains unavailable so it cannot leak an upstream credential URL.

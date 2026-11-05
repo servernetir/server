@@ -6,13 +6,14 @@ Hetzner Cloud/Robot and Iran Proxmox services retain their existing lifecycle.
 Code in Git, a generated configuration and mocked tests are separate from a
 production installation or physical-node acceptance.
 
-The initial Cloud Engine sales scope is **monthly VPS only** through the existing
+Cloud Engine sales support **monthly, quarterly, semiannual and yearly VPS** (1/3/6/12 months) through the existing
 invoice/Wallet settlement and renewal flow. Hourly orders are blocked even when
 submitted with forged price fields. Hourly delivery needs explicit asynchronous
 billing-hold/recovery integration and separate acceptance before it can be offered.
 
 | Deliverable | Entry point |
 |---|---|
+| VPS parity, implemented capabilities and remaining work | [Feature parity](FEATURE-PARITY.md) |
 | Dedicated node preparation, network, TLS, backup and recovery | [Node runbook](NODE-RUNBOOK.md) |
 | Software versus physical acceptance and rollout gates | [Acceptance](ACCEPTANCE.md) |
 | Security review and remaining real-node work | [Security review](SECURITY-REVIEW.md) |

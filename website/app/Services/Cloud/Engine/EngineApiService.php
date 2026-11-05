@@ -47,22 +47,26 @@ class EngineApiService
 
     public function mutate(Customer $customer, string $uuid, string $action, array $payload, string $key): EngineOperation
     {
+        if ($action === 'metadata') $payload = app(EnginePublicMetadata::class)->validate($payload);
         ksort($payload);
 
         return $this->request($customer, $key, [$action, $uuid, $payload], function () use ($customer, $uuid, $action, $payload, $key) {
             $vm = $this->owned($customer, $uuid);
             $service = Service::whereKey($vm->service_id)->lockForUpdate()->firstOrFail();
-            if ($service->billing_mode === 'hourly' && $action !== 'delete') {
+            $vm->refresh(); // The service lock also serializes metadata commits and customer cancellation.
+            if (app(EnginePublicMetadata::class)->protected($vm, $action)) throw new EngineApiError('server_protected', 403);
+            if (! app(EngineBillingPolicy::class)->accepts($service) && ! in_array($action, ['delete', 'metadata'], true)) {
                 throw new EngineApiError('service_not_available');
             }
-            if ($service->isDead() || $service->cancelled_at !== null
-                || ($service->next_due_at !== null && $service->next_due_at->copy()->endOfDay()->isPast())) {
+            if ($service->cancelled_at !== null || ($action !== 'metadata' && ($service->isDead()
+                || ($service->next_due_at !== null && $service->next_due_at->copy()->endOfDay()->isPast())))) {
                 throw new EngineApiError('service_not_available');
             }
             if ($service->isInternalInfrastructure()) {
                 throw new EngineApiError('service_protected', 403);
             }
-            if ($action !== 'delete' && ($service->status !== 'active' || ! in_array($vm->status, ['running', 'off'], true))) {
+            if (($action === 'metadata' && ! app(EnginePublicMetadata::class)->editable($service, $vm))
+                || (! in_array($action, ['delete', 'metadata'], true) && ($service->status !== 'active' || ! in_array($vm->status, ['running', 'off'], true)))) {
                 throw new EngineApiError('server_not_ready');
             }
             if (! in_array($action, EngineOperations::ACTIONS, true)) {
@@ -71,7 +75,8 @@ class EngineApiService
             try {
                 $operation = app(EngineOperations::class)->submit($vm, $action, $payload, 'api:'.$customer->id.':'.$key);
             } catch (\RuntimeException $e) {
-                if (in_array($e->getMessage(), ['unsupported_operation', 'destructive_confirmation_required'], true)) {
+                if (in_array($e->getMessage(), ['unsupported_operation', 'destructive_confirmation_required',
+                    'resize_requires_paid_off_server', 'resize_target_unavailable', 'resize_currency_unavailable', 'insufficient_capacity'], true)) {
                     throw new EngineApiError($e->getMessage(), 422);
                 }
                 if (in_array($e->getMessage(), ['idempotency_conflict', 'operation_in_progress'], true)) {
@@ -149,7 +154,11 @@ class EngineApiService
             'ipv4' => $vm->status === 'deleted' ? null : $vm->address?->address,
             'resources' => ['vcpu' => (int) $vm->vcpu, 'ram_mb' => (int) $vm->ram_mb, 'disk_gb' => (int) $vm->disk_gb],
             'image' => ['key' => $vm->image?->key, 'family' => $vm->image?->family, 'version' => $vm->image?->version],
+            'billing' => ['cycle' => $vm->service->cycle, 'months' => Service::monthsIn($vm->service->cycle),
+                'currency' => $vm->service->currency_code ?: 'IRT', 'contract_amount' => (string) $vm->service->price,
+                'next_due_at' => $vm->service->next_due_at?->toDateString()],
             'created_at' => $vm->created_at?->toIso8601String(),
+            ...app(EnginePublicMetadata::class)->present($vm),
         ];
     }
 

@@ -19,15 +19,19 @@ Route::prefix('api/v1')->withoutMiddleware([
         Route::get('servers/{server}', [$controller, 'show'])->whereUuid('server');
         Route::get('servers/{server}/metrics', [$controller, 'metrics'])->whereUuid('server');
         Route::get('servers/{server}/traffic', [$controller, 'traffic'])->whereUuid('server');
+        Route::get('servers/{server}/resize-options', [$controller, 'resizeOptions'])->whereUuid('server');
+        Route::get('servers/{server}/operations', [$controller, 'history'])->whereUuid('server');
         Route::get('operations/{operation}', [$controller, 'operation'])->whereNumber('operation');
     });
     Route::post('servers', [$controller, 'store'])->middleware([$auth.':servers:write', 'throttle:10,1']);
     Route::middleware([$auth.':servers:manage', 'throttle:20,1'])->group(function () use ($controller) {
+        Route::patch('servers/{server}/metadata', [$controller, 'metadata'])->whereUuid('server');
         Route::delete('servers/{server}', [$controller, 'destroy'])->whereUuid('server');
         Route::post('servers/{server}/power', [$controller, 'power'])->whereUuid('server');
         Route::post('servers/{server}/rebuild', [$controller, 'rebuild'])->whereUuid('server');
         Route::post('servers/{server}/reset-password', [$controller, 'resetPassword'])->whereUuid('server');
         Route::post('servers/{server}/hostname', [$controller, 'hostname'])->whereUuid('server');
+        Route::post('servers/{server}/resize', [$controller, 'resize'])->whereUuid('server');
         Route::post('servers/{server}/console', [$controller, 'console'])->whereUuid('server');
     });
 });
