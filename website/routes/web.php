@@ -409,7 +409,8 @@ $site = function (): void {
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
-    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
+    // Register both interfaces from one route definition: guards and actions stay identical.
+    $accountRoutes = function (): void {
         require __DIR__.'/madar-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
@@ -748,7 +749,17 @@ $site = function (): void {
         Route::post('/tickets/{ticket}/reply', [Account\TicketController::class, 'reply'])->name('ticket.reply')->middleware('throttle:forms');
         Route::post('/tickets/{ticket}/close', [Account\TicketController::class, 'close'])->name('ticket.close');
         Route::get('/tickets/{ticket}/att/{attachment}', [Account\TicketController::class, 'attachment'])->name('ticket.attachment');
-    });
+    };
+
+    $accountMiddleware = [
+        'auth:customer',
+        \App\Http\Middleware\EnsureCustomerActive::class,
+        \App\Http\Middleware\EnforceCustomerIp::class,
+        \App\Http\Middleware\PrepareBirthdayReward::class,
+    ];
+    Route::middleware($accountMiddleware)->prefix('account')->name('account.')->group($accountRoutes);
+    Route::middleware([\App\Http\Middleware\ConsoleNext::class, ...$accountMiddleware])
+        ->prefix('account/next')->name('account.next.')->group($accountRoutes);
 };
 
 Route::middleware('locale:fa')->group($site);

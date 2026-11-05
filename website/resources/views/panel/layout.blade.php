@@ -3,13 +3,14 @@
   از همان layouts/site.blade.php ارث می‌برد تا هدر، فوتر، فونت و تم یکی باشند —
   پنل باید ادامهٔ سایت حس شود، نه یک محصول جدا.
 --}}
-@extends('layouts.site')
+@extends(request()->attributes->get('console_next') ? 'panel.next' : 'layouts.site')
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/panel.css') }}">
 <link rel="stylesheet" href="{{ asset_ver('assets/css/birthday-rewards.css') }}">
 @endpush
 
+@unless(request()->attributes->get('console_next'))
 @section('content')
 {{-- نوارِ «جای مشتری نشسته‌اید» اینجا نیست — به partials/header.blade.php منتقل
      شد تا در صفحاتِ سایتِ اصلی هم دیده شود و زیرِ هدرِ ثابت نرود.
@@ -91,3 +92,4 @@
 <script src="{{ asset_ver('assets/js/panel-navigation.js') }}" defer></script>
 @include('partials.ui-dialog')
 @endsection
+@endunless

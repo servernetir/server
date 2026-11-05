@@ -23,6 +23,12 @@ return Application::configure(basePath: dirname(__DIR__))
             // API سرور-به‌سرورِ آغاز تیکت توسط اتوماسیون پشتیبانی.
             'support.ticket.api' => \App\Http\Middleware\SupportTicketApiToken::class,
         ]);
+        // This request-local wrapper must also cover authentication redirects.
+        // Routes without ConsoleNext keep their existing middleware order.
+        $middleware->prependToPriorityList(
+            \Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests::class,
+            \App\Http\Middleware\ConsoleNext::class,
+        );
         // کنسول قبل از هر چیز — تا ریدایرکت میزبان زودتر از رندر انجام شود
         $middleware->prepend(\App\Http\Middleware\ConsoleHost::class);
 

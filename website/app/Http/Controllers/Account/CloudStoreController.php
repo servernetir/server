@@ -1481,7 +1481,7 @@ class CloudStoreController extends Controller
             $notifier->fire('invoice', $customer, [
                 'number' => (string) $invoice->number,
                 'amount' => $amountText,
-                'link'   => lroute('account.invoice', $invoice),
+                'link'   => console_lroute('account.invoice', $invoice),
             ], 'پیش‌فاکتور '.$invoice->number.' به مبلغ '.$amountText.' صادر شد.');
         } catch (\Throwable $e) {
             // اعلان نباید سفارش را بشکند — ولی سکوت هم نباید بکند

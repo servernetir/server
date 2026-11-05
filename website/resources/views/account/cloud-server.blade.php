@@ -866,7 +866,7 @@
     </div>
     <p style="margin:14px 0 0;font-size:12.5px;color:var(--dim);line-height:1.9">
       {{ __('ui.cs_next_due') }} <b>{{ $service->next_due_at ? sdate($service->next_due_at) : '—' }}</b>
-      · <a href="{{ route('account.invoices') }}" style="color:var(--info)">{{ __('ui.cs_invoices') }}</a>
+      · <a href="{{ \App\Support\ConsoleNext::active() ? lroute('account.invoices') : route('account.invoices') }}" style="color:var(--info)">{{ __('ui.cs_invoices') }}</a>
     </p>
   </div>
 </section>

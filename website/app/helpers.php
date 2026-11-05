@@ -387,7 +387,7 @@ if (! function_exists('lroute')) {
     {
         $prefix = \App\Providers\AppServiceProvider::LOCALES[app()->getLocale()] ?? '';
 
-        return route($prefix.$name, $params);
+        return route(\App\Support\ConsoleNext::routeName($prefix.$name), $params);
     }
 }
 

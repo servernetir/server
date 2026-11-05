@@ -74,7 +74,7 @@ class SecurityHeaders
                 $formAction .= $this->snappPayHosts();
             }
             $consoleService = $request->route('service');
-            if (preg_match('~^(?:(?:en|tr)/)?account/cloud/[0-9]+$~', $request->path())
+            if (preg_match('~^(?:(?:en|tr)/)?account/(?:next/)?cloud/[0-9]+$~', $request->path())
                 && $consoleService instanceof \App\Models\Service
                 && (int) $consoleService->customer_id === (int) \Illuminate\Support\Facades\Auth::guard('customer')->id()
                 && \Illuminate\Support\Facades\Auth::guard('customer')->check()
@@ -88,7 +88,7 @@ class SecurityHeaders
 
             // The separate VPS relay is a POST-redirect destination only for
             // the eligible customer's own active service detail page.
-            if (preg_match('~^(?:(?:en|tr)/)?account/cloud/[0-9]+$~', $request->path())
+            if (preg_match('~^(?:(?:en|tr)/)?account/(?:next/)?cloud/[0-9]+$~', $request->path())
                 && $consoleService instanceof \App\Models\Service
                 && \Illuminate\Support\Facades\Auth::guard('customer')->check()
                 && (int) $consoleService->customer_id === (int) \Illuminate\Support\Facades\Auth::guard('customer')->id()
@@ -179,6 +179,8 @@ class SecurityHeaders
     private function isCloudConsole(Request $request): bool
     {
         return $request->is('account/cloud/*/console/view')
-            || $request->is('*/account/cloud/*/console/view');
+            || $request->is('*/account/cloud/*/console/view')
+            || $request->is('account/next/cloud/*/console/view')
+            || $request->is('en/account/next/cloud/*/console/view', 'tr/account/next/cloud/*/console/view');
     }
 }
