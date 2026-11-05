@@ -142,7 +142,7 @@ chmod($keyFile, 0600);
 
 chmod($receipts, 0750);
 $unsafeDirectory = $base;
-$unsafeDirectory['run-id'] = 'hg-20261105T095504Z-dir';
+$unsafeDirectory['run-id'] = 'hg-20261105T095504Z-dirx';
 $expect(
     static fn () => HermesGrowthOwnerCaller::execute($unsafeDirectory, $factory, $clock),
     'growth_receipt_directory_unsafe',
