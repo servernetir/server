@@ -563,6 +563,97 @@ class BillingRenewalSafetyTest extends TestCase
         $this->assertSame('2026-11-09', $service->fresh()->next_due_at->toDateString());
     }
 
+    public function test_existing_storage_billing_suspension_restores_only_after_full_verified_payment(): void
+    {
+        Carbon::setTestNow('2026-10-31 12:00:00');
+        $server = Server::create(['name' => 'Fixture backup endpoint', 'type' => 'hetzner_storage',
+            'hostname' => 'api.hetzner.com', 'api_token' => 'fixture-only', 'status' => 'active']);
+        $pending = ['kind' => 'suspend', 'origin' => 'billing', 'note' => 'Fixture pending supplier work',
+            'at' => '2026-10-28T10:00:00Z'];
+        $binding = ['version' => 1, 'box_id' => 4711, 'provider_writes' => false,
+            'access_settings' => ['reachable_externally' => true, 'ssh_enabled' => true,
+                'samba_enabled' => true, 'webdav_enabled' => true]];
+        $service = $this->service(['server_id' => $server->id, 'username' => 'u123456', 'activated_at' => null,
+            'provisioned_at' => null, 'next_due_at' => '2026-10-28', 'provision_status' => 'done',
+            'provision_meta' => ['driver' => 'hetzner_storage', 'hetzner_box_id' => 4711,
+                'host' => 'u123456.your-storagebox.de', 'manual_action' => $pending, 'existing_storage_binding' => $binding]]);
+        $binding += ['service_id' => $service->id, 'customer_id' => $service->customer_id, 'server_id' => $server->id];
+        $service->forceFill(['provision_meta' => array_merge($service->provision_meta, ['existing_storage_binding' => $binding])])->save();
+        $invoice = $this->invoice($service);
+        $beforeInvoice = $invoice->fresh()->getRawOriginal();
+        Http::swap(new Factory); Http::preventStrayRequests(); $updates = [];
+        $state = $binding['access_settings'];
+        Http::fake(function ($request) use (&$updates, &$state) {
+            if ($request->method() === 'GET') {
+                $this->assertSame('https://api.hetzner.com/v1/storage_boxes/4711', $request->url());
+                return Http::response(['storage_box' => ['id' => 4711, 'access_settings' => $state]]);
+            }
+            $this->assertSame('POST', $request->method());
+            $this->assertSame('https://api.hetzner.com/v1/storage_boxes/4711/actions/update_access_settings', $request->url());
+            $updates[] = $request->data();
+            if (count($updates) === 1) $state = $request->data(); // Suspension applies before its readback.
+            return Http::response(['action' => ['status' => 'running']], 201);
+        });
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertSame($pending, $service->fresh()->pendingManualAction());
+        Http::assertNothingSent();
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($admin)->post('/admin/services/'.$service->id.'/suspend')->assertRedirect();
+        $this->assertSame(['reachable_externally' => false, 'ssh_enabled' => false,
+            'samba_enabled' => false, 'webdav_enabled' => false], $updates[0]);
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertSame($pending, $service->fresh()->pendingManualAction());
+        $this->assertSame($beforeInvoice, $invoice->fresh()->getRawOriginal());
+
+        // An operator acknowledges only after independently verifying provider completion.
+        $this->post('/admin/services/'.$service->id.'/ack-manual')->assertRedirect();
+        $this->assertNull($service->fresh()->pendingManualAction());
+        $this->assertNotEmpty($service->fresh()->provision_meta['billing_suspend']['confirmed_at']);
+        $this->assertNotNull($service->fresh()->suspended_at);
+        $this->assertEmpty($service->fresh()->provision_meta['staff_suspend'] ?? null);
+        $this->assertSame($binding, $service->fresh()->provision_meta['existing_storage_binding']);
+
+        $settle = function (int $amount, string $ref) use ($service, $invoice): Payment {
+            $payment = Payment::create(['invoice_id' => $invoice->id, 'customer_id' => $service->customer_id,
+                'gateway' => 'bale', 'currency_code' => 'IRT', 'amount' => $amount, 'status' => 'redirected', 'external_ref' => $ref]);
+            app(PaymentService::class)->settleConfirmed($payment, $ref);
+            return $payment;
+        };
+        $settle(40000, 'fixture-partial');
+        $this->assertSame(60000, $invoice->fresh()->due());
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertSame('2026-10-28', $service->fresh()->next_due_at->toDateString());
+        $this->assertCount(1, $updates);
+
+        $payment = $settle(60000, 'fixture-final');
+        app(PaymentService::class)->settleConfirmed($payment, 'fixture-final');
+        $this->assertSame('paid', $invoice->fresh()->status);
+        $this->assertSame('suspended', $service->fresh()->status);
+        $this->assertSame('2026-11-28', $service->fresh()->next_due_at->toDateString());
+        $this->assertSame('done', $service->fresh()->provision_status);
+        $this->assertNull($service->fresh()->pendingManualAction());
+        $this->artisan('provision:run')->assertSuccessful();
+        $this->assertCount(1, $updates);
+        $this->artisan('services:lifecycle')->assertFailed();
+        $this->assertSame(['reachable_externally' => true, 'ssh_enabled' => true,
+            'samba_enabled' => true, 'webdav_enabled' => true], $updates[1]);
+        $this->assertSame('suspended', $service->fresh()->status);
+        $state = $updates[1]; // The asynchronous update finishes before the next normal retry.
+        $this->travel(16)->minutes();
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertNull($service->fresh()->suspended_at);
+        $this->assertNull($service->fresh()->provisioned_at);
+        $this->assertNull($service->fresh()->password);
+        $this->assertSame($binding, $service->fresh()->provision_meta['existing_storage_binding']);
+        $this->assertEmpty($service->fresh()->provision_meta['billing_suspend'] ?? null);
+        $this->artisan('services:lifecycle')->assertSuccessful();
+        $this->assertCount(2, $updates); // The retry confirms with GET and never resends the POST.
+        $this->assertSame(1, $service->invoices()->count());
+    }
+
     public function test_real_hourly_hold_migration_preserves_existing_reserves(): void
     {
         $this->assertTrue(HourlyHold::enabled());

@@ -1,0 +1,30 @@
+{
+  "release": "nava-assistant-ui-20261102",
+  "base_commit": "6443ab136e52ae51d1af73347971dd07ead10cb1",
+  "files": [
+    {
+      "source": "infra/hermes/assistant-20261102/ui-followup/HermesAssistantContext.php",
+      "target": "app/Services/Hermes/HermesAssistantContext.php",
+      "before": "561ccb90f03ace6ef11518edab619a7c4b93f223f810c9781f0c102f3220b233",
+      "after": "d75c9aad90c1b69204f4c3dc6f4b3f1d6c6b107cd2fbe0711dc28b8b3d6c05fc"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/ui-followup/HermesRelayMonitor.php",
+      "target": "app/Services/Hermes/HermesRelayMonitor.php",
+      "before": "968efeaa7e3d24628e788ca39104e7874895ea93dadc6ac020c7608a4037bb57",
+      "after": "c308c899a6f26da64c1f811b573f77e6797473d001b13333219f63e2595709bd"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/ui-followup/HermesConversationMemory.php",
+      "target": "app/Services/Hermes/HermesConversationMemory.php",
+      "before": "eb4382007c12f7eeac185a3e2962969f2fef68559c04ca60dfed84f282500a53",
+      "after": "1b5f01c23a37b4ec67790aac22e8983f12a3508a28f6734e2e28c7c7036b1848"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/ui-followup/hermes.blade.php",
+      "target": "resources/views/bale/hermes.blade.php",
+      "before": "5101a4669ead8159363efd237f60b9393e6ecf6ec39ec7b14b03d64e62c1efbf",
+      "after": "8a4e9d240ba8c9bd9bfaff8175d20d4dc9ef0050b659c28ba5b1708f982869a5"
+    }
+  ]
+}

@@ -9,6 +9,7 @@
   <h1 style="font-size:19px">بررسی سایت و ارسال گزارش</h1>
 </div>
 <p class="ad-note">گزارشِ سئو/سلامت را برای مشتری بفرست، یا یک فهرست از سایت‌ها را بررسی کن و به صاحبانشان اطلاع بده.</p>
+@if(session('seo_status'))<div class="ad-panel"><p style="padding:14px;color:#34d399">{{ session('seo_status') }}</p></div>@endif
 
 @unless($ready)
   <div class="ad-panel"><p style="padding:20px;color:#fbbf24">
@@ -127,7 +128,7 @@
           <tr data-id="{{ $c->id }}">
             <td>
               <input type="checkbox" class="sx-pick" value="{{ $c->id }}"
-                     @disabled($c->status !== 'pending' || ! $c->audit_report_id || $c->unsubscribed_at)>
+                     @disabled($c->status !== 'pending' || ! $c->audit_report_id || $c->unsubscribed_at || ! $c->report?->isAccessible())>
             </td>
             <td dir="ltr">{{ $c->host }}</td>
             <td dir="ltr" style="color:var(--muted)">{{ $c->email }}</td>
@@ -138,7 +139,19 @@
               @if($c->unsubscribed_at)<span class="ad-badge" style="background:rgba(255,107,107,.12);color:#ff6b6b">لغو اشتراک</span>@endif
               @if($c->error)<div class="sx-err" dir="ltr">{{ \Illuminate\Support\Str::limit($c->error, 90) }}</div>@endif
             </td>
-            <td>@if($c->report)<a class="sx-link" href="{{ $c->report->url() }}" target="_blank" rel="noopener">دیدن</a>@else <span style="color:var(--dim)">—</span> @endif</td>
+            <td>
+              @if($c->report?->isAccessible())
+                <a class="sx-link" href="{{ $c->report->url() }}" target="_blank" rel="noopener">دیدن</a>
+                <form method="post" action="{{ route('admin.seo.reports.revoke', $c->report) }}" style="display:inline">
+                  @csrf
+                  <button class="sx-link" type="submit" style="border:0;background:none;color:#ff6b6b;cursor:pointer">ابطال لینک</button>
+                </form>
+              @elseif($c->report)
+                <span style="color:var(--dim)">{{ $c->report->revoked_at ? 'باطل' : 'منقضی' }}</span>
+              @else
+                <span style="color:var(--dim)">—</span>
+              @endif
+            </td>
             <td dir="ltr" style="color:var(--muted)">{{ $c->sent_at ? sdate($c->sent_at) : sdate($c->created_at) }}</td>
           </tr>
         @endforeach

@@ -10,6 +10,7 @@ use App\Services\Cloud\CloudCatalogSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
+use Tests\Support\NavasanRates;
 
 /**
  * ابزارهای مدیریتیِ کاتالوگِ ابری: فیلتر، مرتب‌سازی و خاموش/روشن.
@@ -25,8 +26,10 @@ class CloudAdminControlsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Setting::put('pricing_rate_override', '100000');
+        Http::preventStrayRequests();
+        NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
         Setting::put('cloud_margin_pct', '50');
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([100000, 100000, 100000]);
     }
 
     private function admin(): User

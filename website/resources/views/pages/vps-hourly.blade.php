@@ -72,7 +72,7 @@
   /*
   | دادهٔ ساختاریافته.
   |
-  | Product + Offer با UnitPriceSpecification (unitCode HUR = ساعت) تا موتور
+  | Service + Offer با UnitPriceSpecification (unitCode HUR = ساعت) تا موتور
   | جست‌وجو و مدل‌های زبانی بفهمند این قیمت **ساعتی** است، نه ماهانه. IRR یعنی
   | ریال، پس عددِ تومانی ×۱۰ می‌شود (همان قاعدهٔ hosting.blade). بدونِ قیمتِ ارزی
   | روی en/tr، اصلاً Offer ساخته نمی‌شود — نشانه‌گذاریِ نبود از غلط بهتر است.
@@ -84,8 +84,7 @@
       if ($hvRaw === null || $hvRaw <= 0) {
           continue;
       }
-      // + schema_offer_extras: هشدارهای Merchant listings (ممیزی ۲۴ اوت ۲۰۲۶)
-      $hvOffers[] = schema_offer_extras($hvCur) + [
+      $hvOffers[] = [
           '@type' => 'Offer',
           'name' => $hvF['name'].' — '.$hvF['city'],
           'priceCurrency' => $hvCur,
@@ -97,18 +96,16 @@
               'unitCode' => 'HUR',
               'unitText' => $isFa ? 'ساعت' : 'hour',
           ],
-          'priceValidUntil' => now()->addDays(30)->toDateString(),
           'availability' => 'https://schema.org/InStock',
-          'url' => url()->current(),
+          'url' => $hvF['buy_url'],
       ];
   }
-  $hvProduct = [
+  $hvService = [
       'name' => __('ui.hv_badge'),
       'description' => $hvMetaD,
       'url' => url()->current(),
-      // image: بدونش Merchant listings آیتم را invalid می‌کند.
-      'image' => [asset('assets/img/og.png')],
-      'brand' => ['@type' => 'Brand', 'name' => __('ui.brand')],
+      'serviceType' => __('ui.hv_badge'),
+      'provider' => ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'],
       'offers' => $hvOffers,
   ];
   $hvFaqLd = [];
@@ -131,9 +128,7 @@
 
 @section('content')
 
-@if($hvOffers)
-<script type="application/ld+json">{!! schema_ld($hvProduct, 'Product') !!}</script>
-@endif
+<script type="application/ld+json">{!! schema_ld($hvService, 'Service') !!}</script>
 <script type="application/ld+json">{!! schema_ld(['mainEntity' => $hvFaqLd], 'FAQPage') !!}</script>
 <script type="application/ld+json">{!! schema_ld($hvCrumbs, 'BreadcrumbList') !!}</script>
 <script type="application/ld+json">{!! schema_ld($hvHowLd, 'HowTo') !!}</script>
@@ -261,7 +256,9 @@
       <p>{{ __('ui.hv_rates_d') }}</p>
     </div>
 
-    @if($countries)
+    @include('partials.vps-plan-table', ['hourlyPage' => true])
+
+    @if($countries || ($unavailableCountries ?? []))
       <div class="hv-filter" data-hourly-enhance hidden>
         <label for="hourly-country-search">{{ $hvUx['search'] }}<input id="hourly-country-search" type="search" autocomplete="off" aria-controls="hourly-rates-body"></label>
         <p id="hourly-country-status" role="status" aria-live="polite"></p>
@@ -285,6 +282,12 @@
                 <td data-label="{{ __('ui.hv_th_monthly') }}">{{ $c['monthly'] }}</td>
                 <td data-label="{{ __('ui.hv_th_plans') }}">{{ $isFa ? fa_num($c['plans']) : $c['plans'] }}</td>
                 <td class="hv-td-buy"><a class="hv-link" href="{{ $c['url'] }}">{{ $isFa ? 'سرور مجازی '.$c['label'] : $c['label'].' VPS' }}</a></td>
+              </tr>
+            @endforeach
+            @foreach($unavailableCountries ?? [] as $c)
+              <tr data-hourly-country="{{ $c['label'] }} {{ $c['iso'] }}" aria-disabled="true" style="filter:grayscale(1);opacity:.6">
+                <td>@include('partials.flag', ['flagSrc' => $c['flag_svg'], 'flagEmoji' => $c['flag'], 'flagSize' => 18]) {{ $c['label'] }}</td>
+                <td colspan="4">{{ __('ui.choice_country_hourly') }}</td>
               </tr>
             @endforeach
           </tbody>
@@ -386,7 +389,12 @@
 @include('partials.product-guides', ['guidesCat' => config('blog.product_guides.cloud')])
 
 @push('head')
+@php $hourlyExplorerCss = app(\App\Services\PublicPageStyles::class)->auxiliary('assets/css/hourly-explorer.css'); @endphp
+@if($hourlyExplorerCss !== null)
+<style id="hourly-explorer-css">{!! $hourlyExplorerCss !!}</style>
+@else
 <link rel="stylesheet" href="{{ asset_ver('assets/css/hourly-explorer.css') }}">
+@endif
 <style>
 /* صفحهٔ سرور ساعتی — استایلِ درجا با پیشوندِ hv- */
 .hv-top{ padding-bottom:30px }
@@ -499,3 +507,4 @@
 <script src="{{ asset_ver('assets/js/hourly-explorer.js') }}" defer></script>
 @include('partials.growth-cta')
 @endsection
+

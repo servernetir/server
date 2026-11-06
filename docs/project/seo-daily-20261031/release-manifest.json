@@ -1,0 +1,107 @@
+{
+  "date_tehran": "2026-10-31",
+  "status": "production_applied_and_public_mobile_acceptance_verified",
+  "scope": "Two additive localized links to the existing token-usage planner; two source Blade templates and only their corresponding compiled views.",
+  "repository": "servernetir/server",
+  "authoritative_branch": "develop",
+  "source_base_sha": "7425ecf9e639d3a4f231d1f6f6ded46c35ec113f",
+  "source_head_sha": "e8cf8def219dbb6628f608bd81ec62c1c3adbdb0",
+  "pull_request": "https://github.com/servernetir/server/pull/165",
+  "merge_sha": "ad3cdbb32671578b8a5b8ee2e5defb35264f1dd0",
+  "unrelated_develop_changes": "PR164 preserved; no repository reset or unrelated source overwrite.",
+  "ci": {
+    "run_id": "41177733526",
+    "url": "https://github.com/servernetir/server/actions/runs/41177733526",
+    "sqlite": "success",
+    "mariadb": "success"
+  },
+  "local_tests": {
+    "total": 29,
+    "passed": 28,
+    "skipped": 1,
+    "assertions": 1105,
+    "receipt": "ai-planner-test-receipt.json",
+    "skip_reason": "Existing Bria ready-contract case requires a trusted video decoder unavailable in the local fixture.",
+    "helper_integration_test_claimed": false
+  },
+  "independent_review": "Application source and private helper reviewed and accepted; helper integration execution coverage is not claimed.",
+  "preview_at_utc": "2026-10-31T06:43:40Z",
+  "applied_at_utc": "2026-10-31T06:47:21Z",
+  "private_helper": {
+    "path": "/home/servernetcloud/.seo-ai-planner-20261031/release.php",
+    "sha256": "c995c2a78e7dfdd6133aa8629345bf954c86489b24da3cc904bcfbd2f169b557",
+    "cli_only": true,
+    "shared_lock": "/home/servernetcloud/.codex-web-deploy.lock",
+    "stateful_rerun_guard": "Existing preview/install intent requires inspection; do not blindly re-run."
+  },
+  "files": [
+    {
+      "source_path": "website/resources/views/pages/ai/card.blade.php",
+      "live_source_path": "/home/servernetcloud/servernet_app/resources/views/pages/ai/card.blade.php",
+      "before_sha256": "d5382d1c84685ecbb732902b8f39de5b4b5e5decd7fc5522a303d43fc79274fc",
+      "after_sha256": "ab05b448a6035c5d2b1bea03041998d43b0375de7575ebb1c98b416f369c880f",
+      "compiled_path": "/home/servernetcloud/servernet_app/storage/framework/views/2565dbaa2bba5b286f69586a4eb84459.php",
+      "compiled_before_sha256": "5abf784f438eafd22ea5eff699ca70be72e7a6de8850ee1b87f60d6b4a26d9ac",
+      "compiled_after_sha256": "b9672e7fa6371b02e3d3ce087e1b9d188b4b563d10bb8eeabe2b528a32e401d7",
+      "source_backup": "/home/servernetcloud/.seo-ai-planner-20261031/before-0.blade.php",
+      "compiled_backup": "/home/servernetcloud/.seo-ai-planner-20261031/before-compiled-0.php",
+      "source_mode": 420,
+      "compiled_mode": 493
+    },
+    {
+      "source_path": "website/resources/views/pages/ai/model.blade.php",
+      "live_source_path": "/home/servernetcloud/servernet_app/resources/views/pages/ai/model.blade.php",
+      "before_sha256": "15f92c99462829df1c411b0ba9b11627f3d689ad280b30757d12ecbedc674f66",
+      "after_sha256": "0b99d7b95e97c1afde701379af9882b60ad626706c0162f843c2c21bcfc37944",
+      "compiled_path": "/home/servernetcloud/servernet_app/storage/framework/views/542379869b59478dc81d9572ef12f7db.php",
+      "compiled_before_sha256": "d3fe0242749cc3b0edef293e1a88cd03d0dc0ff16c0d81e2ec1a1f8ae9574f0a",
+      "compiled_after_sha256": "f55488d03761c6a7ed1b102359b6e31c1baf5a09844c24c50bd5b1f24014633a",
+      "source_backup": "/home/servernetcloud/.seo-ai-planner-20261031/before-1.blade.php",
+      "compiled_backup": "/home/servernetcloud/.seo-ai-planner-20261031/before-compiled-1.php",
+      "source_mode": 420,
+      "compiled_mode": 493
+    }
+  ],
+  "validation": {
+    "compiled_lint": true,
+    "public_before_gets": 9,
+    "public_after_gets": 9,
+    "all_public_responses": "200/BYPASS",
+    "definitive_comparison": "ai-planner-public-comparison.json",
+    "public_comparison_failures": 0,
+    "retained_public_prices_model_ids_old_links_h1_canonical_hreflang_jsonld": "unchanged",
+    "comparison_correction": "Unordered PowerShell map serialization affected initial hashes; offline fixed-key projection of retained field values resolved warnings without additional GETs or rewriting original snapshots.",
+    "mobile_receipt": "ai-planner-mobile.json",
+    "mobile_screenshot": "ai-planner-mobile.png",
+    "mobile_width": 390,
+    "mobile_font": "IRANSans",
+    "mobile_target_below_fixed_header": true,
+    "mobile_session": "Existing authorized browser session; no account/customer data saved or modified.",
+    "local_calculator_input": "10000 to20000 requests; displayed total10000 to20000; input restored10000; error element hidden."
+  },
+  "no_broad_cache_flush": true,
+  "no_database_mutation": true,
+  "no_price_quote_eligibility_account_api_change": true,
+  "no_infrastructure_cron_network_change": true,
+  "no_paid_ai_or_real_purchase": true,
+  "rollback": {
+    "executed": false,
+    "scope": "Only these two source templates and their matching compiled views from private before backups.",
+    "guard": "Shared lock plus all-source/all-compiled before/after hashes validated before restoring either template; stop on newer unrelated drift; preserve source/compiled modes.",
+    "whole_repository_or_database_restore": false
+  },
+  "indexing_submission": {
+    "url": "https://servernet.cloud/ai/models/di-xiaomimimomimo-v26-pro-14810b5543",
+    "attempt_count": 1,
+    "status": "failed_service",
+    "accepted": false,
+    "secondary_error": "Could not connect to reCAPTCHA service",
+    "retry": false
+  },
+  "limits": [
+    "Public HTML and local calculator interaction do not establish Google indexing, traffic uplift, calculation-quality improvement or field CWV pass.",
+    "No paid inference or real purchase/fulfilment was performed; Google Analytics event delivery was not verified.",
+    "Search metrics end2026-10-28 before the29–31October releases.",
+    "Raw Google/account/session observations, raw HTML, deployment command staging and private backups are excluded from durable evidence."
+  ]
+}

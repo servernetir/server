@@ -45,9 +45,10 @@ class CustomerApiController extends Controller
                 'id'       => $s->id,
                 'name'     => $s->name,
                 'status'   => $s->status,
-                'price'    => (int) $s->price,
+                'price'    => $s->hasUnverifiedBillingTerms() ? null : (int) $s->price,
                 'currency' => $s->currency_code,
-                'cycle'    => $s->cycle,
+                'cycle'    => $s->hasUnverifiedBillingTerms() ? null : $s->cycle,
+                'billing_terms' => $s->hasUnverifiedBillingTerms() ? 'unverified' : 'recorded',
             ])
             : collect();
 

@@ -1,0 +1,36 @@
+name: Arvan meter source release flows
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/arvan-monitoring/meter-release/**'
+      - '.github/workflows/arvan-meter-source-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-meter-source-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-source-release:
+    name: Twenty isolated source release flows (PHP 8.4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP 8.4 without project dependencies
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Verify frozen artifacts and run isolated release flows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/arvan-monitoring/meter-release/ci-test.py

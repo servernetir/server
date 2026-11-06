@@ -1,5 +1,6 @@
 @php
-  $discountEntryEnabled = app(\App\Services\Marketing\DiscountEntryVisibility::class)->enabled(auth('customer')->user());
+  $discountEntryEnabled = app(\App\Services\Marketing\DiscountEntryVisibility::class)->enabled(auth('customer')->user())
+      && ! app(\App\Services\Birthday\BirthdayInvoices::class)->hasDiscount($invoice);
   $offerRedemption = \Illuminate\Support\Facades\Schema::hasTable('marketing_redemptions')
       ? \App\Models\MarketingRedemption::where('invoice_id', $invoice->id)->where('customer_id', auth('customer')->id())->first()
       : null;
@@ -24,6 +25,7 @@
       @elseif($invoice->total === 0 && $offerRedemption->expires_at->isFuture())
         <form method="post" action="{{ lroute('account.invoice.offer.free', $invoice) }}">
           @csrf
+          @include('account.partials.birthday-price-token', ['invoice' => $invoice])
           <button class="pnl-btn" type="submit">{{ __('marketing.free') }}</button>
         </form>
       @endif
@@ -39,6 +41,7 @@
       @if($showCodeEntry)
         <form method="post" action="{{ lroute('account.invoice.offer', $invoice) }}" class="invoice-discount-form">
           @csrf
+          @include('account.partials.birthday-price-token', ['invoice' => $invoice])
           <label class="invoice-discount-field" for="invoice-discount-code">{{ __('marketing.code') }}
             <input id="invoice-discount-code" class="pnl-input" name="code" dir="ltr" maxlength="40" required
                    value="{{ old('code', session('marketing_coupon', '')) }}" autocomplete="off" autocapitalize="characters" spellcheck="false">
@@ -49,6 +52,7 @@
       @if($showGiftEntry)
         <form method="post" action="{{ lroute('account.invoice.coupon', $invoice) }}" class="invoice-discount-gift">
           @csrf
+          @include('account.partials.birthday-price-token', ['invoice' => $invoice])
           <input type="hidden" name="code" value="{{ $giftCoupon->code }}">
           <span>{{ __('ui.iv_cp_lead', ['amount' => invoice_money($giftCoupon->amount, 'IRT'), 'hours' => fa_num((string) $giftCoupon->hoursLeft())]) }}</span>
           <button class="pnl-btn" type="submit">{{ __('ui.iv_cp_btn') }}</button>

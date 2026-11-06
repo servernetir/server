@@ -122,7 +122,7 @@
         @else
           <a class="login-btn" href="{{ console_lroute('login') }}"><svg class="icon" style="width:16px;height:16px"><use href="#i-user"/></svg><span>{{ __('ui.nav_login') }}</span></a>
         @endif
-        <button class="hamburger" id="hamburger" aria-label="{{ __('ui.menu') }}" aria-expanded="false"><span class="hb-bar hb-bar-1" aria-hidden="true"></span><span class="hb-bar hb-bar-2" aria-hidden="true"></span><span class="hb-bar hb-bar-3" aria-hidden="true"></span><span class="hb-node" aria-hidden="true"></span></button>
+        <button type="button" class="hamburger" id="hamburger" aria-label="{{ __('ui.menu') }}" aria-expanded="false" aria-controls="drawer" aria-haspopup="dialog"><span class="hb-bar hb-bar-1" aria-hidden="true"></span><span class="hb-bar hb-bar-2" aria-hidden="true"></span><span class="hb-bar hb-bar-3" aria-hidden="true"></span><span class="hb-node" aria-hidden="true"></span></button>
       </div>
     </div>
 
@@ -323,11 +323,11 @@
 </div>
 
 {{-- ===== منوی موبایل: کشوی تمام‌صفحه ===== --}}
-<div class="drawer-backdrop" id="drawer-backdrop"></div>
-<aside class="drawer" id="drawer" aria-label="{{ __('ui.menu') }}">
+<div class="drawer-backdrop" id="drawer-backdrop" aria-hidden="true"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="{{ __('ui.menu') }}" aria-hidden="true" tabindex="-1" inert>
   <div class="drawer-head">
     <a href="{{ $homeUrl }}" class="logo"><span class="logo-mark"><svg class="icon"><use href="#i-server"/></svg></span> {{ $isFa ? 'سرورنت' : 'ServerNet' }}</a>
-    <button class="drawer-close" id="drawer-close" aria-label="{{ __('ui.close') }}"><svg class="icon"><use href="#i-x"/></svg></button>
+    <button type="button" class="drawer-close" id="drawer-close" aria-label="{{ __('ui.close') }}"><svg class="icon"><use href="#i-x"/></svg></button>
   </div>
   {{-- کارتِ هویتِ کاربرِ واردشده — بالای کشو، لینک مستقیم به پنل (RTL-first) --}}
   @if($cust ?? null)

@@ -1,0 +1,5 @@
+02c952a7ba3ac370e88081898c43be2b2b91ff200e894ce927c5e8bc7da8c93e  web-release/deploy.php
+59d21b9b2b3d131d7cbcc51d1d20b16798ccfabb1c7459a807a3ee40ff5053ed  web-release/patchdata.json
+120a6fabce48b03543494c0c697f7abf1a7434cf8d52440377c81ff99627521e  web-release/test-pure.php
+0533fe6b9829415fa4e0ffce02b19961245157199015267cc1599bb261f7136a  web-release/test-receipt-flows.php
+647a6730611568b9b42ec1898234a1af4628d73c72b34886b9c06d9f8435d9af  web-release/README.md

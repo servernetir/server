@@ -167,7 +167,10 @@ class PaymentController extends Controller
         $this->authorizeInvoice($invoice);
 
         try {
+            app(\App\Services\Birthday\BirthdayInvoices::class)->synchronize($invoice);
+            app(\App\Services\Birthday\BirthdayInvoices::class)->prepare($invoice, true);
             app(\App\Services\Domain\LiveDomainPricing::class)->reviewInvoice($invoice);
+            app(\App\Services\Birthday\BirthdayInvoices::class)->prepare($invoice, true);
         } catch (\Illuminate\Validation\ValidationException $e) {
             view()->share('errors', (new \Illuminate\Support\ViewErrorBag)
                 ->put('default', new \Illuminate\Support\MessageBag($e->errors())));
@@ -257,6 +260,7 @@ class PaymentController extends Controller
     public function cryptoIssue(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         if (! $invoice->isPayable()) {
             return back()->withErrors(['crypto' => __('ui.cy_not_payable')]);
@@ -335,6 +339,7 @@ class PaymentController extends Controller
     public function bankTransfer(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         if (! $invoice->isPayable()) {
             return back()->withErrors(['reference' => __('ui.iv_not_payable')]);
@@ -346,6 +351,7 @@ class PaymentController extends Controller
             'note'      => ['nullable', 'string', 'max:500'],
             'payment_account_id' => ['nullable', 'integer'],
             'sent_amount' => ['nullable', 'numeric', 'min:0'],
+            'receipt_evidence' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'mimetypes:image/jpeg,image/png,application/pdf', 'max:5120'],
         ], [], ['reference' => __('panel.field_reference')]);
 
         /*
@@ -372,8 +378,20 @@ class PaymentController extends Controller
         $exists = BankTransferReceipt::where('invoice_id', $invoice->id)
             ->where('status', 'pending')->exists();
 
+        if ($exists && $request->hasFile('receipt_evidence')) {
+            return back()->withErrors(['receipt_evidence' => __('ui.receipt_evidence_pending')]);
+        }
+
         if (! $exists) {
-            BankTransferReceipt::create([
+            $evidence = [];
+            if ($request->hasFile('receipt_evidence')) {
+                if (\App\Models\Setting::get('bale_manager_policy_v2_enabled') !== '1'
+                    || ! \Illuminate\Support\Facades\Schema::hasColumn('bank_transfer_receipts', 'evidence_path')) {
+                    return back()->withErrors(['receipt_evidence' => __('ui.receipt_evidence_unavailable')]);
+                }
+                $evidence = app(\App\Services\Billing\BankReceiptEvidence::class)->store($request->file('receipt_evidence'), (int) $invoice->customer_id);
+            }
+            $receipt = BankTransferReceipt::create([
                 'customer_id' => $invoice->customer_id,
                 'invoice_id'  => $invoice->id,
                 'amount'      => $invoice->due(),
@@ -387,7 +405,7 @@ class PaymentController extends Controller
                 'payment_account_id' => $account?->id,
                 'sent_amount'   => isset($data['sent_amount']) ? (int) round((float) $data['sent_amount'] * 100) : null,
                 'sent_currency' => $account?->currency_code,
-            ]);
+            ] + $evidence);
 
             /*
             | 🔴 مدیر باید بداند — این رسید **منتظرِ اوست**.
@@ -421,6 +439,7 @@ class PaymentController extends Controller
                 [
                     __('panel.field_reference') => (string) $data['reference'],
                     'به حساب'      => $account?->label,
+                    'رسید' => $receipt->id, 'شناسه مشتری' => $invoice->customer_id,
                 ],
                 url('/admin/bank-transfers'),
                 '🧾',
@@ -461,6 +480,7 @@ class PaymentController extends Controller
     public function pay(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         $request->validate(['gateway' => ['required', 'string', 'max:24']]);
 
@@ -717,6 +737,7 @@ class PaymentController extends Controller
     public function payCredit(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->authorizeInvoice($invoice);
+        app(\App\Services\Domain\DomainSaleAuthorization::class)->record($invoice, Auth::guard('customer')->user(), 'panel');
 
         if ($invoice->kind === 'topup') {
             return back()->withErrors(__('ui.iv_credit_self'));
@@ -832,6 +853,9 @@ class PaymentController extends Controller
         abort_unless(app(\App\Services\Marketing\DiscountEntryVisibility::class)->enabled(Auth::guard('customer')->user()), 403);
 
         $data = $request->validate(['code' => ['required', 'string', 'max:32']]);
+        if (app(\App\Services\Birthday\BirthdayInvoices::class)->hasDiscount($invoice)) {
+            return back()->withErrors(__('marketing.stacking'));
+        }
         $code = \App\Models\GiftCoupon::normalize($data['code']);
         if (\Illuminate\Support\Facades\Schema::hasTable('marketing_grants') && str_starts_with($code, 'SN-')) {
             return app(OfferController::class)->apply($request, $invoice, app(\App\Services\Marketing\DiscountEngine::class));
@@ -979,6 +1003,8 @@ class PaymentController extends Controller
     {
         abort_if($invoice->customer_id !== Auth::guard('customer')->id(), 404);
         if (! request()->isMethod('GET') && ! str_ends_with((string) request()->route()?->getName(), '.cancel')) {
+            app(\App\Services\Birthday\BirthdayInvoices::class)
+                ->assertPresented($invoice, (string) request()->input('birthday_price_token', ''));
             app(\App\Services\Marketing\DiscountEngine::class)->assertPayable($invoice);
             app(\App\Services\Domain\LiveDomainPricing::class)->assertInvoice($invoice);
             app(\App\Services\Provisioning\StorageOrderReadiness::class)->assertInvoice($invoice);

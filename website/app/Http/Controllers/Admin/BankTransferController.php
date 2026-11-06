@@ -60,6 +60,15 @@ class BankTransferController extends Controller
         ]);
     }
 
+    public function evidence(BankTransferReceipt $receipt)
+    {
+        $path = app(\App\Services\Billing\BankReceiptEvidence::class)->path($receipt);
+        abort_unless($path !== null, 404);
+        return response()->download($path, basename((string) $receipt->evidence_name), [
+            'Content-Type' => (string) $receipt->evidence_mime, 'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff']);
+    }
+
     /**
      * ⚠️ منطقِ واقعی در `BankReceiptReviewer` است، نه این‌جا: کنسولِ بله هم
      * همین کار را می‌کند و دو پیاده‌سازی روزی واگرا می‌شوند — با پولِ مشتری

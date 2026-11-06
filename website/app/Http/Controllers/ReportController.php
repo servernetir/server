@@ -20,6 +20,7 @@ class ReportController extends Controller
         abort_unless(Schema::hasTable('audit_reports'), 404);
 
         $report = AuditReport::where('token', $token)->firstOrFail();
+        abort_unless($report->isAccessible(), 404);
 
         return response()->view('pages.report', ['report' => $report])
             ->header('Cache-Control', 'private, no-store')

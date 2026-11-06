@@ -241,6 +241,11 @@
                   <span class="cvl-price"><b>{{ $r['hourly_price'] }}</b>{{ __('ui.hv_per_hour') }}</span>
                   <a class="cvl-buy" href="{{ $r['hourly_buy_url'] }}" rel="nofollow">{{ __('ui.cloud_buy_hourly') }}</a>
                 </div>
+              @else
+                <div class="cvl-billing" aria-disabled="true" style="filter:grayscale(1);opacity:.6;display:flex;flex-direction:column;gap:.4rem">
+                  <button type="button" class="cvl-buy" disabled>{{ __('ui.cloud_buy_hourly') }}</button>
+                  <small>{{ __('ui.choice_hourly') }}</small>
+                </div>
               @endif
             </footer>
           </article>

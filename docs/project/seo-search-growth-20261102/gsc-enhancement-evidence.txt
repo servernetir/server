@@ -1,0 +1,511 @@
+- heading "Sitemaps" [level=1]
+- main:
+  - generic: Add a new sitemap
+  - textbox "Enter sitemap URL" [active]
+  - generic: Enter sitemap URL
+  - button "Submit" [disabled]:
+    - generic: Submit
+  - heading "Submitted sitemaps" [level=1]:
+    - generic: Submitted sitemaps
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "Sitemap Type Submitted Last read Status Discovered pages Discovered videos":
+        - columnheader "Sitemap":
+          - text: Sitemap
+        - columnheader "Type":
+          - text: Type
+        - columnheader "Submitted":
+          - text: Submitted
+        - columnheader "Last read":
+          - text: Last read
+        - columnheader "Status":
+          - text: Status
+        - columnheader "Discovered pages":
+          - text: Discovered pages
+        - columnheader "Discovered videos":
+          - text: Discovered videos
+        - columnheader
+    - rowgroup:
+      - row "https://servernet.cloud/sitemap.xml Sitemap 18 Oct 2026 31 Oct 2026 Success 5,457 0":
+        - cell "https://servernet.cloud/sitemap.xml"
+        - cell "Sitemap"
+        - cell "18 Oct 2026"
+        - cell "31 Oct 2026"
+        - cell "Success":
+          - generic: Success
+        - cell "5,457"
+        - cell "0"
+        - cell:
+          - button:
+            - generic: 
+      - row "https://servernet.cloud/hardware-sitemap.xml Sitemap 14 Oct 2026 26 Oct 2026 Success 2,115 0":
+        - cell "https://servernet.cloud/hardware-sitemap.xml"
+        - cell "Sitemap"
+        - cell "14 Oct 2026"
+        - cell "26 Oct 2026"
+        - cell "Success":
+          - generic: Success
+        - cell "2,115"
+        - cell "0"
+        - cell:
+          - button:
+            - generic: 
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-2 of 2
+  - generic: 
+  - generic: 
+
+- navigation "Breadcrumbs":
+  - heading "Product snippets" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- generic: "Last update: 31/10/2026"
+- main:
+  - button "Invalid 0 No critical issues":
+    - generic "Invalid":
+      - generic: 
+      - generic: Invalid
+    - generic "0"
+    - generic: No critical issues
+  - button "null":
+    - generic: 
+  - button "Valid 408":
+    - generic "Valid":
+      - generic: 
+      - generic: Valid
+    - generic "408"
+  - button "null":
+    - generic: 
+  - checkbox "Impressions"
+  - generic: Impressions
+  - generic: Items
+  - link "View data about valid items":
+    - /url: ./search-console/r/product/drilldown?resource_id=sc-domain%3Aservernet.cloud
+    - generic: check_circle
+    - generic: View data about valid items
+    - generic: 
+  - generic: error
+  - generic: Why items are invalid
+  - generic: Invalid items can't be used to generate rich results on Google
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "Issue Validation Trend Items":
+        - columnheader "Issue":
+          - generic: Issue
+        - columnheader "Validation":
+          - generic: Validation
+        - columnheader "Trend":
+          - generic: Trend
+        - columnheader "Items":
+          - generic: Items
+    - rowgroup:
+      - row "Either 'offers', 'review' or 'aggregateRating' should be specified Passed 0":
+        - cell "Either 'offers', 'review' or 'aggregateRating' should be specified":
+          - generic: Either 'offers', 'review' or 'aggregateRating' should be specified
+        - cell "Passed":
+          - generic: 
+          - text: Passed
+        - cell:
+        - cell "0":
+          - generic: "0"
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-1 of 1
+  - generic: 
+  - generic: 
+  - generic: warning
+  - generic: Improve item appearance
+  - generic: Items with these issues are valid, but could be presented with more features or be optimised for more relevant queries
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "Issue Validation Trend Items":
+        - columnheader "Issue":
+          - generic: Issue
+        - columnheader "Validation":
+          - generic: Validation
+        - columnheader "Trend":
+          - generic: Trend
+        - columnheader "Items":
+          - generic: Items
+    - rowgroup:
+      - row "Missing field 'aggregateRating' Not Started 408":
+        - cell "Missing field 'aggregateRating'":
+          - generic: Missing field 'aggregateRating'
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "408":
+          - generic: "408"
+      - row "Missing field 'review' Not Started 408":
+        - cell "Missing field 'review'":
+          - generic: Missing field 'review'
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "408":
+          - generic: "408"
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-2 of 2
+  - generic: 
+  - generic: 
+- generic: Product snippets
+- generic: Product snippets
+
+- navigation "Breadcrumbs":
+  - heading "Merchant listings" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- generic: "Last update: 31/10/2026"
+- main:
+  - button "Invalid 299 1 critical issue":
+    - generic "Invalid":
+      - generic: 
+      - generic: Invalid
+    - generic "299"
+    - generic: 1 critical issue
+  - button "null":
+    - generic: 
+  - button "Valid 109":
+    - generic "Valid":
+      - generic: 
+      - generic: Valid
+    - generic "109"
+  - button "null":
+    - generic: 
+  - checkbox "Impressions"
+  - generic: Impressions
+  - generic: Items
+  - link "View data about valid items":
+    - /url: ./search-console/r/merchant-listings/drilldown?resource_id=sc-domain%3Aservernet.cloud
+    - generic: check_circle
+    - generic: View data about valid items
+    - generic: 
+  - generic: error
+  - generic: Why items are invalid
+  - generic: Invalid items can't be used to generate rich results on Google
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "Issue Validation Trend Items":
+        - columnheader "Issue":
+          - generic: Issue
+        - columnheader "Validation":
+          - generic: Validation
+        - columnheader "Trend":
+          - generic: Trend
+        - columnheader "Items":
+          - generic: Items
+    - rowgroup:
+      - row "Missing field 'image' Not Started 299":
+        - cell "Missing field 'image'":
+          - generic: Missing field 'image'
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "299":
+          - generic: "299"
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-1 of 1
+  - generic: 
+  - generic: 
+  - generic: warning
+  - generic: Improve item appearance
+  - generic: Items with these issues are valid, but could be presented with more features or be optimised for more relevant queries
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "Issue Validation Trend Items":
+        - columnheader "Issue":
+          - generic: Issue
+        - columnheader "Validation":
+          - generic: Validation
+        - columnheader "Trend":
+          - generic: Trend
+        - columnheader "Items":
+          - generic: Items
+    - rowgroup:
+      - row "Missing field 'hasMerchantReturnPolicy' (in 'offers') Not Started 394":
+        - cell "Missing field 'hasMerchantReturnPolicy' (in 'offers')":
+          - generic: Missing field 'hasMerchantReturnPolicy' (in 'offers')
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "394":
+          - generic: "394"
+      - row "Missing field 'shippingDetails' (in 'offers') Not Started 299":
+        - cell "Missing field 'shippingDetails' (in 'offers')":
+          - generic: Missing field 'shippingDetails' (in 'offers')
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "299":
+          - generic: "299"
+      - row "No global identifier provided (e.g. gtin, brand) Not Started 299":
+        - cell "No global identifier provided (e.g. gtin, brand)":
+          - generic: No global identifier provided (e.g. gtin, brand)
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "299":
+          - generic: "299"
+      - row "Missing field 'description' Not Started 299":
+        - cell "Missing field 'description'":
+          - generic: Missing field 'description'
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "299":
+          - generic: "299"
+      - row "Missing field 'returnMethod' (in 'offers.hasMerchantReturnPolicy') Not Started 1":
+        - cell "Missing field 'returnMethod' (in 'offers.hasMerchantReturnPolicy')":
+          - generic: Missing field 'returnMethod' (in 'offers.hasMerchantReturnPolicy')
+        - cell "Not Started":
+          - generic: 
+          - text: Not Started
+        - cell:
+        - cell "1":
+          - generic: "1"
+      - row "Missing field 'validFrom' (in 'offers') N/A 0":
+        - cell "Missing field 'validFrom' (in 'offers')":
+          - generic: Missing field 'validFrom' (in 'offers')
+        - cell "N/A":
+          - generic: N/A
+        - cell:
+        - cell "0":
+          - generic: "0"
+      - row "Invalid value in field 'category' N/A 0":
+        - cell "Invalid value in field 'category'":
+          - generic: Invalid value in field 'category'
+        - cell "N/A":
+          - generic: N/A
+        - cell:
+        - cell "0":
+          - generic: "0"
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-7 of 7
+  - generic: 
+  - generic: 
+- generic: Merchant listings
+- generic: Merchant listings
+
+- navigation "Breadcrumbs":
+  - link "Merchant listings":
+    - /url: ./search-console/r/merchant-listings?resource_id=sc-domain%3Aservernet.cloud
+  - generic: 
+  - heading "Missing field 'image'" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- button "Get shareable link.":
+  - generic: 
+  - generic: SHARE
+- generic: "Last update: 31/10/2026"
+- main:
+  - generic: error
+  - generic: Missing field 'image'
+  - generic: Items with this issue are invalid. Invalid items are not eligible for Google Search's rich results
+  - link "Link to more extensive documentation":
+    - /url: https://developers.google.com/search/docs/appearance/structured-data/merchant-listing
+    - generic: Learn more
+  - generic: "First detected: 04/08/2026"
+  - generic: Finished fixing?
+  - button "validate fix":
+    - generic: validate fix
+  - generic "Affected items"
+  - generic "299"
+  - generic: Examples
+  - button "null":
+    - generic: 
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "URL Item name Last crawled":
+        - columnheader "URL":
+          - generic: URL
+        - columnheader "Item name":
+          - generic: Item name
+        - columnheader "Last crawled":
+          - generic: Last crawled
+    - rowgroup:
+      - row "https://servernet.cloud/vps/philippines CV-1-2 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-1-2 — فیلیپین — مانیل":
+          - generic: CV-1-2 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-1-2 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-1-2 — فیلیپین — مانیل":
+          - generic: CV-1-2 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-1-2 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-1-2 — فیلیپین — مانیل":
+          - generic: CV-1-2 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-16-32 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-16-32 — فیلیپین — مانیل":
+          - generic: CV-16-32 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-16-32 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-16-32 — فیلیپین — مانیل":
+          - generic: CV-16-32 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-2-4 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-2-4 — فیلیپین — مانیل":
+          - generic: CV-2-4 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-2-4 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-2-4 — فیلیپین — مانیل":
+          - generic: CV-2-4 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-4-8 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-4-8 — فیلیپین — مانیل":
+          - generic: CV-4-8 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-4-8 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-4-8 — فیلیپین — مانیل":
+          - generic: CV-4-8 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+      - row "https://servernet.cloud/vps/philippines CV-8-16 — فیلیپین — مانیل 31 Oct 2026":
+        - cell "https://servernet.cloud/vps/philippines":
+          - generic "https://servernet.cloud/vps/philippines":
+            - generic: https://servernet.cloud/vps/philippines
+        - cell "CV-8-16 — فیلیپین — مانیل":
+          - generic: CV-8-16 — فیلیپین — مانیل
+        - cell "31 Oct 2026":
+          - generic: 31 Oct 2026
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-10 of 299
+  - generic: 
+  - generic: 
+- generic: Merchant listings
+
+- navigation "Breadcrumbs":
+  - heading "Breadcrumbs" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- generic: "Last update: 31/10/2026"
+- main:
+  - button "Invalid 0 No critical issues":
+    - generic "Invalid":
+      - generic: 
+      - generic: Invalid
+    - generic "0"
+    - generic: No critical issues
+  - button "null":
+    - generic: 
+  - button "Valid 105":
+    - generic "Valid":
+      - generic: 
+      - generic: Valid
+    - generic "105"
+  - button "null":
+    - generic: 
+  - generic: Items
+  - link "View data about valid items":
+    - /url: ./search-console/r/breadcrumbs/drilldown?resource_id=sc-domain%3Aservernet.cloud
+    - generic: check_circle
+    - generic: View data about valid items
+    - generic: 
+  - generic: Good job!
+  - generic: No issues detected in the last 90 days
+- generic: Breadcrumbs

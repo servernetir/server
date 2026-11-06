@@ -32,6 +32,7 @@
       <form method="POST" action="{{ lroute('account.invoice.cancel', $invoice) }}" style="display:inline"
             data-confirm="{{ __('ui.inv_cancel_confirm') }}" data-confirm-danger data-confirm-title="{{ __('ui.inv_cancel') }}" data-confirm-ok="{{ __('ui.inv_cancel_ok') }}">
         @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
         <button type="submit" class="pnl-btn" style="color:var(--danger);border-color:var(--danger-line)">
           <svg class="icon"><use href="#i-x"/></svg>{{ __('ui.inv_cancel') }}
         </button>
@@ -101,6 +102,7 @@
   </div>
 </section>
 
+@include('account.partials.birthday-discount')
 @include('account.partials.campaign-discount')
 
 @if($invoice->isPayable())
@@ -124,6 +126,7 @@
       <form method="POST" action="{{ lroute('account.invoice.paycredit', $invoice) }}"
             style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--panel-2,rgba(0,0,0,.04));border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:16px">
         @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
         <span style="font-size:13.5px;line-height:2">
           {{ __('ui.inv_credit_lead') }}
           <b>{{ invoice_money($creditBalance, 'IRT') }}</b>
@@ -168,7 +171,7 @@
         @if($snapppay['show'])
           <label class="pm-card" data-m="snapppay">
             <input type="radio" name="pm" value="snapppay" hidden>
-            <span class="pm-badge sp"><img src="{{ asset('assets/img/snapppay.svg') }}" alt="Snapp! Pay" width="28" height="28"></span>
+            <span class="pm-badge sp"><img src="{{ asset('assets/img/snapppay.svg').'?v=1cff8dbe9b68' }}" alt="اسنپ‌پی" width="40" height="40"></span>
             <span class="pm-tt"><b>{{ $snapppay['title'] }}</b><small>{{ $snapppay['description'] }}</small></span>
             <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
           </label>
@@ -245,7 +248,7 @@
       @if(! empty($cryptoAssets))
         @php
           $cyAllBusy = collect($cryptoAssets)->every(fn ($s) => $s['state'] === \App\Services\Payment\CryptoIssuer::BUSY);
-          $cyCodes = implode(' · ', array_keys($cryptoAssets));
+          $cyCodes = implode(' · ', array_column($cryptoAssets, 'label'));
         @endphp
         @if($cyAllBusy && ! $cryptoOpen)
           <label class="pm-card is-off" data-m="crypto" title="{{ __('ui.cy_busy_hint') }}">
@@ -258,7 +261,7 @@
           <label class="pm-card" data-m="crypto">
             <input type="radio" name="pm" value="crypto" hidden @if($cryptoOpen) checked @endif>
             <span class="pm-badge cy"><svg class="icon"><use href="#i-coins"/></svg></span>
-            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $cyCodes }} · TRC20</small></span>
+            <span class="pm-tt"><b>{{ __('ui.inv_crypto') }}</b><small dir="ltr">{{ $cyCodes }}</small></span>
             <span class="pm-tick"><svg class="icon"><use href="#i-check"/></svg></span>
           </label>
         @endif
@@ -275,7 +278,8 @@
 
       @if(isset($gateways['zarinpal']))
         <form class="pm-pane" id="pane-zarinpal" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-          @csrf<input type="hidden" name="gateway" value="zarinpal">
+          @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="gateway" value="zarinpal">
           <div class="pm-pane-h"><b>{{ __('ui.inv_zp_pane_title') }}</b></div>
           <p class="pm-note">{{ __('ui.inv_zp_note') }}</p>
           <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_pay_btn') }} {{ invoice_money($invoice->due(), $invoice->currency_code) }}</button>
@@ -285,7 +289,8 @@
       @if($snapppay['show'])
         {{-- توضیحِ پنل هم همان متنِ اسنپ‌پی است، نه نوشتهٔ ما. --}}
         <form class="pm-pane" id="pane-snapppay" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-          @csrf<input type="hidden" name="gateway" value="snapppay">
+          @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="gateway" value="snapppay">
           <div class="pm-pane-h"><b>{{ $snapppay['title'] }}</b></div>
           <p class="pm-note">{{ $snapppay['description'] }}</p>
           <button type="submit" class="pnl-btn primary" style="justify-content:center">{{ __('ui.inv_pay_btn') }} {{ invoice_money($invoice->due(), $invoice->currency_code) }}</button>
@@ -294,7 +299,8 @@
 
       @if(isset($gateways['bale']))
         <form class="pm-pane" id="pane-bale" method="POST" action="{{ lroute('account.invoice.pay', $invoice) }}" hidden>
-          @csrf<input type="hidden" name="gateway" value="bale">
+          @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="gateway" value="bale">
           <div class="pm-pane-h"><b>{{ __('ui.inv_bale_pane_title') }}</b></div>
           <p class="pm-note">{{ __('ui.inv_bale_note') }}</p>
           @php $baleUser = config('services.bale.username'); @endphp
@@ -331,10 +337,15 @@
           <p class="pm-note">
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
           </p>
-          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+          <form method="POST" enctype="multipart/form-data" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             <input type="text" name="reference" required maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_ref_ph') }}" class="bank-input">
             <input type="text" name="paid_from" maxlength="120" dir="ltr" placeholder="{{ __('ui.inv_bank_from_ph') }}" class="bank-input">
+            @if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && \Illuminate\Support\Facades\Schema::hasColumn('bank_transfer_receipts', 'evidence_path'))
+              <label>{{ __('ui.receipt_evidence_label') }}<input type="file" name="receipt_evidence" accept="image/jpeg,image/png,application/pdf" class="bank-input"></label>
+              <small>{{ __('ui.receipt_evidence_hint') }}</small>
+            @endif
             <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
           </form>
         @endif
@@ -371,8 +382,9 @@
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
           </p>
 
-          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+          <form method="POST" enctype="multipart/form-data" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             @if($wireAccounts->count() === 1)
               <input type="hidden" name="payment_account_id" value="{{ $wireAccounts->first()->id }}">
             @else
@@ -389,6 +401,10 @@
                    placeholder="{{ __('ui.inv_wire_amount_ph', ['cur' => $wireAccounts->pluck('currency_code')->map(fn ($c) => strtoupper($c))->unique()->implode('/')]) }}">
             <input type="text" name="paid_from" maxlength="120" dir="ltr" class="bank-input"
                    placeholder="{{ __('ui.inv_wire_from_ph') }}">
+            @if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && \Illuminate\Support\Facades\Schema::hasColumn('bank_transfer_receipts', 'evidence_path'))
+              <label>{{ __('ui.receipt_evidence_label') }}<input type="file" name="receipt_evidence" accept="image/jpeg,image/png,application/pdf" class="bank-input"></label>
+              <small>{{ __('ui.receipt_evidence_hint') }}</small>
+            @endif
             <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
           </form>
         @endif
@@ -421,8 +437,9 @@
             {!! __('ui.inv_bank_deposit_instr', ['amount' => '<b class="pnl-num">'.invoice_money($invoice->due(), $invoice->currency_code).'</b>']) !!}
           </p>
 
-          <form method="POST" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
+          <form method="POST" enctype="multipart/form-data" action="{{ lroute('account.invoice.bank', $invoice) }}" style="display:flex;flex-direction:column;gap:10px">
             @csrf
+        @include('account.partials.birthday-price-token', ['invoice' => $invoice])
             <input type="hidden" name="payment_account_id" value="{{ $acc->id }}">
             <input type="text" name="reference" required maxlength="120" dir="ltr" class="bank-input"
                    placeholder="{{ $acc->isCrypto() ? __('ui.inv_cy_txid_ph') : __('ui.inv_wire_ref_ph') }}">
@@ -431,6 +448,10 @@
                    placeholder="{{ __('ui.inv_wire_amount_ph', ['cur' => strtoupper($acc->currency_code)]) }}">
             <input type="text" name="paid_from" maxlength="120" dir="ltr" class="bank-input"
                    placeholder="{{ $acc->isCrypto() ? __('ui.inv_cy_from_ph') : __('ui.inv_wire_from_ph') }}">
+            @if(\App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && \Illuminate\Support\Facades\Schema::hasColumn('bank_transfer_receipts', 'evidence_path'))
+              <label>{{ __('ui.receipt_evidence_label') }}<input type="file" name="receipt_evidence" accept="image/jpeg,image/png,application/pdf" class="bank-input"></label>
+              <small>{{ __('ui.receipt_evidence_hint') }}</small>
+            @endif
             <button type="submit" class="pnl-btn" style="justify-content:center">{{ __('ui.inv_bank_submit') }}</button>
           </form>
         @endif
@@ -482,8 +503,8 @@
 .pm-badge.bk{ background:linear-gradient(135deg,#38bdf8,#2563eb); }
 /* اسنپ‌پی لوگوی خودش را دارد و گایدلاین رنگش را تعیین می‌کند — پس پس‌زمینهٔ
    گرادیانی مثل بقیه نمی‌گیرد، وگرنه لوگو روی رنگِ ما می‌نشیند. */
-.pm-badge.sp{ background:#fff; border:1px solid var(--bd,#e5e7eb); }
-.pm-badge.sp img{ width:28px; height:28px; display:block; }
+.pm-badge.sp{ width:48px; height:48px; background:#fff; border:1px solid var(--bd,#e5e7eb); }
+.pm-badge.sp img{ width:40px; height:40px; display:block; object-fit:contain; }
 .pm-badge.cr{ background:linear-gradient(135deg,#94a3b8,#64748b); }
 .pm-badge.cy{ background:linear-gradient(135deg,#26a17b,#1a7f5e); }   /* تتر */
 .pm-tt{ display:flex; flex-direction:column; gap:2px; min-width:0; }

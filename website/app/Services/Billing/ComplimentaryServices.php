@@ -29,7 +29,7 @@ class ComplimentaryServices
     /** Advance the existing billing anchor; never reactivate a closed service. */
     public function renew(Service $service, int $days = 5): bool
     {
-        if (! $this->applies($service) || $service->isHourly()
+        if ($service->isInternalInfrastructure() || ! $this->applies($service) || $service->isHourly()
             || Service::monthsIn((string) $service->cycle) <= 0) {
             return false;
         }

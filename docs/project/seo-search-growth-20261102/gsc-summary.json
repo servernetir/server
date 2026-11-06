@@ -1,0 +1,76 @@
+{
+  "observed_at_utc": "2026-11-02T06:22:27.342081+00:00",
+  "source": "Authenticated Google Search Console UI, Web",
+  "current": [
+    "2026-10-03",
+    "2026-10-30"
+  ],
+  "previous": [
+    "2026-09-05",
+    "2026-10-02"
+  ],
+  "totals": {
+    "clicks": 1613,
+    "previous_clicks": 1237,
+    "impressions": 43331,
+    "previous_impressions": 31896,
+    "ctr_percent": 3.722508135053426,
+    "previous_ctr_percent": 3.878229245046401,
+    "position_ui": 29.5,
+    "previous_position_ui": 28.4
+  },
+  "brand": {
+    "regex": "(سرور[ ]*نت|server[ ]*net)",
+    "clicks": 215,
+    "previous_clicks": 295,
+    "impressions": 581,
+    "previous_impressions": 790
+  },
+  "nonbrand": {
+    "clicks": 520,
+    "previous_clicks": 336,
+    "impressions": 24494,
+    "previous_impressions": 19335
+  },
+  "indexing": {
+    "snapshot_date": "2026-10-23",
+    "indexed": 4398,
+    "not_indexed": 7788,
+    "reasons": {
+      "discovered": 3209,
+      "crawled": 202,
+      "noindex": 733,
+      "robots": 2999,
+      "404": 56,
+      "different_canonical": 120,
+      "alternate": 298,
+      "redirect": 168,
+      "401": 1,
+      "redirect_error": 1,
+      "5xx": 1
+    }
+  },
+  "merchant": {
+    "snapshot_date": "2026-10-31",
+    "invalid_items": 299,
+    "valid_items": 109,
+    "critical_issue": "Missing image on rental VPS Product items, sample /vps/philippines"
+  },
+  "cwv": {
+    "snapshot_date": "2026-10-31",
+    "mobile_needs_improvement_urls": 154,
+    "mobile_good": 0,
+    "mobile_poor": 0,
+    "desktop_good": 154,
+    "lcp_group_seconds": 3.1,
+    "example": "https://servernet.cloud/en/blog/php-version-upgrade-guide",
+    "inp_issue_urls": 0
+  },
+  "limits": [
+    "Query tables and regex filters omit anonymized queries; not additive to totals.",
+    "Page/country files contain top10 only; query file499 rendered rows.",
+    "Indexing snapshot stale; directly inspected AI sample is now indexed.",
+    "GSC Wizard trial expired; no purchase.",
+    "No GA4 real purchase/revenue acceptance or SEO attribution."
+  ]
+}

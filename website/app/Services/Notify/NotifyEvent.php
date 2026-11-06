@@ -70,6 +70,10 @@ final class NotifyEvent
             'title' => 'خوش‌آمد پس از ثبت‌نام', 'group' => 'account',
             'audience' => self::CUSTOMER, 'vars' => ['name'], 'wired' => true,
         ],
+        'lead_reviewed' => [
+            'title' => 'بررسی درخواست متقاضی توسط مدیر', 'group' => 'account',
+            'audience' => self::CUSTOMER, 'vars' => ['code'], 'wired' => true,
+        ],
         'password_changed' => [
             'title' => 'تغییر رمز عبور', 'group' => 'account',
             'audience' => self::CUSTOMER, 'vars' => [], 'wired' => true,

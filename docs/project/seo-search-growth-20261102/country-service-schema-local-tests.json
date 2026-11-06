@@ -1,0 +1,39 @@
+{
+  "status": "local_checks_passed_not_published",
+  "base_commit": "d3be9c422fa37f77a48aca05065421d56108dec4",
+  "observed_at_utc": "2026-11-02T06:10:44.1941509Z",
+  "scope": "Nested ItemList ListItem item @type Product to Service only. Offers, amounts, currency, positions, URLs, eligibility and sale markup unchanged.",
+  "files": [
+    "website/app/Http/Controllers/CountryVpsController.php",
+    "website/tests/Feature/CountryVpsServiceSchemaTest.php"
+  ],
+  "sha256": {
+    "test": "b23749da8f373c60c2fdc48c92c58c6e0241a0d3e1a55103f9bb8bf67330824d",
+    "controller": "7056b9ee9290b6ff19834aff2797e7dd6d6d6d50bd5d1e47ed109893c10f7420"
+  },
+  "baseline": {
+    "tests": 3,
+    "reason": "Current emitted Product type versus expected Service, isolated reproduction before source change",
+    "failed": 2,
+    "receipt": "country-service-schema-baseline.txt",
+    "passed": 1
+  },
+  "final": {
+    "duration_ms": 2985,
+    "command": "C:\\Users\\admin\\.codex\\.tmp\\server-menu-php84\\php.exe vendor/bin/phpunit tests/Feature/CountryVpsServiceSchemaTest.php tests/Feature/UnifiedVpsCountryTest.php tests/Feature/CountryLandingSeoTest.php --colors=never",
+    "tests": 16,
+    "receipt": "country-service-schema-final-tests.txt",
+    "assertions": 844,
+    "passed": 16
+  },
+  "other_checks": [
+    "Pint --test dedicated test passed",
+    "PHP lint passed",
+    "git diff --check passed"
+  ],
+  "limits": [
+    "GSC missing-image issue supplied and verified by parent; no GSC interactions by this agent.",
+    "No Google validation/resolution, production publication, real purchase or ranking uplift claim.",
+    "No Product image, GTIN, rating, shipping or returns fields added."
+  ]
+}

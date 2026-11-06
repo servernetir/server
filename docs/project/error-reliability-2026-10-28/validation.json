@@ -1,0 +1,131 @@
+{
+  "base_sha": "63567f56dbfbf9da164e05e27ade06000f5a1096",
+  "status": "prepared_not_installed",
+  "prior_release": {
+    "production_files_observed": 13,
+    "exact_matches": 11,
+    "reviewed_differences_preserved": 2,
+    "files": [
+      {
+        "path": "website/app/Console/Commands/ProcessCatalogRefresh.php",
+        "git_sha256": "f74bc1a9dc81990a7a136751484c5b84f1e011311abb133d84fb8fbbd97e6ab0",
+        "observed_live_sha256": "f74bc1a9dc81990a7a136751484c5b84f1e011311abb133d84fb8fbbd97e6ab0",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/app/Console/Commands/SyncCloudCatalog.php",
+        "git_sha256": "2f61fbfd8e24382404c328e979d33ba8450956491d1c23d0dba3b9c01e8633f8",
+        "observed_live_sha256": "2f61fbfd8e24382404c328e979d33ba8450956491d1c23d0dba3b9c01e8633f8",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/app/Http/Controllers/Admin/CloudController.php",
+        "git_sha256": "92a3096a2e9f9b2ef17d9ecc25d78415d430efb14b046cfd1881f891b61ce059",
+        "observed_live_sha256": "4d6e7957eec794c8c064d6ff08d770d0442017b75151599a15448ebdb4053aeb",
+        "result": "reviewed_concurrent_difference_preserved"
+      },
+      {
+        "path": "website/app/Http/Controllers/Admin/ErrorLogController.php",
+        "git_sha256": "818020ab0b6588e67bd3c279b8cf2e7cd6cad846e49fca22afd0abc86876a3da",
+        "observed_live_sha256": "818020ab0b6588e67bd3c279b8cf2e7cd6cad846e49fca22afd0abc86876a3da",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/app/Services/Cloud/CatalogRefreshBusy.php",
+        "git_sha256": "930ccd577446c3814af26911389b38d5b3629ac1f8023560d1a16c7946aa3000",
+        "observed_live_sha256": "930ccd577446c3814af26911389b38d5b3629ac1f8023560d1a16c7946aa3000",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/app/Services/Cloud/CatalogRefreshRequests.php",
+        "git_sha256": "452879322992ea8dc9d8c1ce15ced28173245a408d4e11b35d6e5028877d10c4",
+        "observed_live_sha256": "452879322992ea8dc9d8c1ce15ced28173245a408d4e11b35d6e5028877d10c4",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/app/Services/Cloud/CloudCatalogSync.php",
+        "git_sha256": "bfb834a1511a0199a91b1f5767c9d469694d73f2b30420b387897dd44a6601d6",
+        "observed_live_sha256": "bfb834a1511a0199a91b1f5767c9d469694d73f2b30420b387897dd44a6601d6",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/app/Services/SystemHealth.php",
+        "git_sha256": "7f4d148be054f8464412046340daba15b9db26b18a4763dd6a4c756d3639ad08",
+        "observed_live_sha256": "7f4d148be054f8464412046340daba15b9db26b18a4763dd6a4c756d3639ad08",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/app/Support/ErrorTracker.php",
+        "git_sha256": "178f9a54c0b64f4c5297d49da61e4d425a01c7b90ff13247ae3963b7888804f1",
+        "observed_live_sha256": "178f9a54c0b64f4c5297d49da61e4d425a01c7b90ff13247ae3963b7888804f1",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/bootstrap/app.php",
+        "git_sha256": "a0a4d5363a1cfdd9741cf6ea3ae27544e4e46244dfa99cf1c8c4bffa77a9835e",
+        "observed_live_sha256": "a0a4d5363a1cfdd9741cf6ea3ae27544e4e46244dfa99cf1c8c4bffa77a9835e",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/resources/views/admin/cloud.blade.php",
+        "git_sha256": "c9618a323f52ef6cf74848afbcd0ccfc99476c0c284e820e1cc1cf290002c2fa",
+        "observed_live_sha256": "c9618a323f52ef6cf74848afbcd0ccfc99476c0c284e820e1cc1cf290002c2fa",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/resources/views/admin/errors.blade.php",
+        "git_sha256": "0107a1bb74104d523275e1dd1378e3c70c9f713fb9a676e76de2f4fe334a9714",
+        "observed_live_sha256": "0107a1bb74104d523275e1dd1378e3c70c9f713fb9a676e76de2f4fe334a9714",
+        "result": "exact_match"
+      },
+      {
+        "path": "website/routes/console.php",
+        "git_sha256": "b7f64fd45db880b70a1f5641aaffd668a3129a37ca753fa7cc3410d8afeab012",
+        "observed_live_sha256": "c57d61960c5a578566aa37ff3b97c79d9fc03a654b36dbf21c52fafffc6b959d",
+        "result": "reviewed_concurrent_difference_preserved"
+      }
+    ]
+  },
+  "tests": {
+    "tool": "phpunit",
+    "result": "passed",
+    "tests": 69,
+    "passed": 69,
+    "assertions": 380,
+    "duration_ms": 8575,
+    "php_version": "8.4.27",
+    "database": "isolated SQLite",
+    "network": "IPv4/IPv6 sockets denied; inherited by child processes",
+    "new_command_tests": 12,
+    "suites": [
+      "HermesBackgroundReliabilityTest",
+      "ErrorTrackerTest",
+      "CatalogRefreshRequestsTest",
+      "SystemHealthTest",
+      "HermesSupportLearningIntegrationTest",
+      "HermesOperatingContextTest"
+    ],
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "HermesKnowledgeRefresh.php": "passed",
+    "HermesOperationsReview.php": "passed"
+  },
+  "production_mutations": {
+    "runtime_files_installed": 0,
+    "cron_entries_before": 11,
+    "cron_entries_after": 11,
+    "probe_jobs_present": 0,
+    "probe_files_present": 0,
+    "manual_hermes_execution": false,
+    "financial_or_infrastructure_changes": false
+  },
+  "remaining": [
+    "Actual cause of the naturally scheduled knowledge refresh failure is not established.",
+    "Install the two-file package only after explicit installation scope approval and fresh hash comparison.",
+    "Observe the existing natural schedule; do not manually invoke commands that can send digests or use the model.",
+    "No whole-project suite, real provider, model or digest delivery validation in this session."
+  ]
+}

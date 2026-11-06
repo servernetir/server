@@ -26,16 +26,7 @@ class CrmSuppression extends Model
      */
     public static function blocks(?string $email): bool
     {
-        if (blank($email)) {
-            return true;   // نشانیِ خالی = ارسال نکن
-        }
-
-        $email  = mb_strtolower(trim($email));
-        $domain = str_contains($email, '@') ? substr(strrchr($email, '@'), 1) : null;
-
-        return static::where('email', $email)
-            ->when($domain, fn ($q) => $q->orWhere('domain', $domain))
-            ->exists();
+        return \App\Services\Crm\OutboundSuppression::blocks($email);
     }
 
     /** افزودن به فهرست — اگر بود، دست نمی‌خورد (دلیلِ اولیه محفوظ می‌ماند). */

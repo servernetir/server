@@ -14,15 +14,27 @@ class SiteController extends Controller
     public function home(): View
     {
         $tlds = $this->tlds();
-        $offers = CloudPlan::offers()->values();
+        $offers = \Illuminate\Support\Facades\Schema::hasTable('cloud_plans')
+            ? CloudPlan::offers()->values() : collect();
+        if (! \App\Services\Customer\IranSalesVisibility::allowsCountry('IR')) {
+            $iranLocations = \Illuminate\Support\Facades\Schema::hasTable('cloud_locations')
+                ? \App\Models\CloudLocation::where('country', 'IR')->pluck('code')->all() : [];
+            $offers = $offers->reject(fn (CloudPlan $plan) =>
+                in_array((string) $plan->location_code, $iranLocations, true)
+                || \App\Services\Customer\IranSalesGate::isIranTarget((string) $plan->location_code)
+            )->values();
+        }
+        $publicQuotes = app(\App\Services\Cloud\CloudPublicQuote::class);
+        $pricedOffers = $offers->filter(fn (CloudPlan $plan) => $publicQuotes->monthlyPrice($plan) > 0)
+            ->sortBy(fn (CloudPlan $plan) => $publicQuotes->monthlyPrice($plan))->values();
         $products = (array) config('servernet.products', []);
         $catalog = app(CatalogPricing::class);
         $quotes = [
             $catalog->minimumQuote('linux'),
             $catalog->minimumQuote('wordpress'),
-            $this->cloudQuote($offers->first(fn (CloudPlan $plan) => ! $plan->isMetal())),
-            $this->cloudQuote($offers->first(fn (CloudPlan $plan) => $plan->isMetal())),
-            $this->cloudQuote($offers->first()),
+            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => ! $plan->isMetal())),
+            $this->cloudQuote($pricedOffers->first(fn (CloudPlan $plan) => $plan->isMetal())),
+            $this->cloudQuote($pricedOffers->first()),
             $tlds[0] ?? ['contact' => true, 'quote' => true],
         ];
         foreach ($products as $index => $product) {
@@ -44,20 +56,21 @@ class SiteController extends Controller
 
     private function cloudQuote(?CloudPlan $plan): array
     {
-        if (! $plan || (int) $plan->price_irt <= 0) {
-            return ['contact' => true, 'quote' => true];
-        }
-        $factor = 1 - ((int) config('billing.cycles.yearly.discount_pct', 0) / 100);
-        $yearly = (int) (ceil(((int) $plan->price_irt * $factor) / 10_000) * 10_000);
-        return ['irt' => (int) $plan->price_irt, 'yearly_irt' => $yearly, 'final_irt' => true];
+        return app(\App\Services\Cloud\CloudPublicQuote::class)->quote($plan);
     }
 
     private function homeCloudPlans(Collection $offers): array
     {
-        return $offers->take(4)->values()->map(function (CloudPlan $plan, int $index) {
+        $plans = new \Illuminate\Database\Eloquent\Collection($offers->take(4)->all());
+        $plans->loadMissing('location');
+
+        return $plans->values()->map(function (CloudPlan $plan, int $index) {
             $name = trim((string) $plan->public_name) ?: 'Cloud '.($index + 1);
             return $this->cloudQuote($plan) + [
                 'pid' => $plan->id,
+                'slug' => (string) $plan->slug,
+                'location_code' => (string) $plan->location_code,
+                'location_label' => $plan->location?->label(),
                 'cpu' => $plan->vcpu.' vCPU',
                 'ram' => $plan->ramLabel(),
                 'ssd' => $plan->diskLabel(),
@@ -445,30 +458,30 @@ class SiteController extends Controller
         // سرورِ گرافیکی — خطِ محصولِ مستقل، روتِ صریح
         $add('gpu');
 
-        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')) {
-            /*
-            | فقط مکان‌هایی که واقعاً پلنِ قابل‌فروش دارند. ردیف‌های میراثیِ
-            | syncِ قدیمی (ru-intel، de-shared، ws-dedicated…) فعال مانده‌اند
-            | ولی «۰ پلن، از —» رندر می‌کنند؛ Search Console همین‌ها را
-            | «Duplicate, Google chose different canonical» گزارش کرد (۲۱
-            | صفحه، ممیزی ۲۴ اوت ۲۰۲۶). صفحهٔ خالی در نقشهٔ سایت = دعوتِ
-            | خزنده به محتوای هیچ.
-            */
-            $sellableLocs = \App\Models\CloudPlan::query()->sellable()
-                ->distinct()->pluck('location_code')->all();
+        $globallyAvailableVpsCountries = [];
+        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')
+            && \Illuminate\Support\Facades\Schema::hasTable('cloud_plans')) {
+            // XML describes global stock, independently of the current visitor's
+            // Iran visibility. A raw sellable row is insufficient: bare metal,
+            // GPU locations and unusable monthly quotes are not VPS shelves.
+            $monthlyQuotes = app(\App\Services\Cloud\CloudPublicQuote::class);
+            $sellableLocs = \App\Models\CloudPlan::query()->sellable()->get()
+                ->filter(fn (\App\Models\CloudPlan $plan) => ! $plan->isMetal()
+                    && $monthlyQuotes->monthlyPrice($plan) > 0)
+                ->pluck('location_code')->unique()->all();
             foreach (\App\Models\CloudLocation::where('is_active', true)
-                ->whereIn('code', $sellableLocs)->pluck('code') as $code) {
-                /*
-                | ممیزی ۷، یافتهٔ ۱: نسلِ دومِ همان باگ — کدِ کشورِ دوبل
-                | (de-de-dedicated…) که **پلنِ فروختنی دارد** و برای همین از
-                | فیلترِ بالا رد می‌شود. صفحه‌اش ۳۰۱ به صفحهٔ کشور است؛
-                | sitemap فقط URLِ ۲۰۰ اعلام می‌کند.
-                */
-                if (\App\Models\CloudLocation::isLegacyCode((string) $code)
-                    || \App\Models\CloudLocation::isGpuCode((string) $code)) {
+                ->whereIn('code', $sellableLocs)->get(['code', 'country']) as $location) {
+                if (\App\Models\CloudLocation::isGpuCode((string) $location->code)) {
                     continue;
                 }
-                $add('cloud.location', $code);
+                $iso = strtoupper(trim((string) $location->country));
+                $slug = \App\Services\Cloud\CloudCountry::marketingSlug($iso);
+                if ($slug !== null) {
+                    $globallyAvailableVpsCountries[$iso] = true;
+                    // Legacy city/product codes still lead to their country;
+                    // only the canonical country URL is emitted.
+                    $add('catalog', ['category' => 'vps', 'slug' => $slug]);
+                }
             }
         }
         $add('blog.index');
@@ -560,6 +573,10 @@ class SiteController extends Controller
         }
         foreach (config('catalog') as $category => $products) {
             foreach (array_keys($products) as $slug) {
+                $country = $category === 'vps' ? \App\Services\Cloud\CloudCountry::isoForSlug((string) $slug) : null;
+                if ($country !== null && ! isset($globallyAvailableVpsCountries[$country])) {
+                    continue; // Do not reintroduce an unavailable country through legacy config.
+                }
                 $add('catalog', ['category' => $category, 'slug' => $slug]);
             }
         }
@@ -607,7 +624,7 @@ class SiteController extends Controller
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
             .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
-        foreach ($urls as $u) {
+        foreach (collect($urls)->unique('loc') as $u) {
             $xml .= '  <url><loc>'.htmlspecialchars($u['loc'], ENT_XML1).'</loc>';
 
             if (! empty($u['lastmod'])) {

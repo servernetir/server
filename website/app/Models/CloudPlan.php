@@ -176,7 +176,9 @@ class CloudPlan extends Model
             $off[] = 'vpstc';
         }
 
-        return $q->where('is_active', true)
+        $unverifiedPrices = \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds();
+        return $q->when($unverifiedPrices !== [], fn ($qq) => $qq->whereNotIn('cloud_plans.id', $unverifiedPrices))
+            ->where('is_active', true)
             ->where('cost_eur_cents', '>', 0)
             ->where('in_stock', true)
             ->where('price_irt', '>', 0)
@@ -240,7 +242,7 @@ class CloudPlan extends Model
         return static::query()
             ->sellable()
             ->when($hourly, fn ($q) => $q->hourlyCapable())
-            ->when($locationCode, fn ($q) => $q->where('location_code', $locationCode))
+            ->when($locationCode, fn ($q) => $q->whereIn('location_code', CloudLocation::cityCodes($locationCode)))
             ->orderBy('cost_eur_cents')
             ->get()
             ->groupBy('slug')
@@ -276,7 +278,8 @@ class CloudPlan extends Model
             return 'stock';
         }
 
-        if ((int) $this->price_irt <= 0 || (int) $this->cost_eur_cents <= 0
+        if (in_array((int) $this->id, \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds(), true)
+            || (int) $this->price_irt <= 0 || (int) $this->cost_eur_cents <= 0
             || ! app(\App\Services\Cloud\CloudPricingSnapshot::class)->current((string) $this->provider)) {
             return 'price';
         }
@@ -309,7 +312,7 @@ class CloudPlan extends Model
             ->where('is_active', true)
             ->where('admin_disabled', false)
             ->when($off !== [], fn ($qq) => $qq->whereNotIn('provider', $off))
-            ->when($locationCode, fn ($q) => $q->where('location_code', $locationCode))
+            ->when($locationCode, fn ($q) => $q->whereIn('location_code', CloudLocation::cityCodes($locationCode)))
             ->orderBy('cost_eur_cents')
             ->get()
             ->groupBy('slug')
@@ -371,7 +374,42 @@ class CloudPlan extends Model
     public function trafficLabel(?string $locale = null): string
     {
         $locale = $locale ?: app()->getLocale();
+        // Metered Iranian traffic must never inherit the global unlimited label.
+        if ($this->provider === 'arvan') {
+            return match ($locale) {
+                'en' => 'Metered; traffic billed separately',
+                'tr' => 'Kullanıma göre; trafik ayrıca ücretlendirilir',
+                default => 'مصرفی؛ ترافیک جداگانه محاسبه می‌شود',
+            };
+        }
         if ($this->provider === 'vpstc') {
+            $terms = (array) $this->network_terms;
+            if (($terms['charge_mode'] ?? '') === 'throttled' && ($terms['extra_charges'] ?? null) === false
+                && ($terms['counting'] ?? '') === 'combined' && ($terms['period'] ?? '') === 'monthly'
+                && $this->traffic_gb > 0 && is_int($terms['overuse_mbps'] ?? null)
+                && $terms['overuse_mbps'] > 0 && $terms['overuse_mbps'] <= 100000) {
+                $speed = $terms['overuse_mbps'];
+                return match ($locale) {
+                    'en' => $this->traffic_gb.' GB/month total in + out; then approx. '.$speed.' Mbit/s; no metered overage fee',
+                    'tr' => $this->traffic_gb.' GB/ay toplam gelen + giden; sonra yaklaşık '.$speed.' Mbit/sn; aşım ücreti yok',
+                    default => fa_num($this->traffic_gb).' گیگابایت ماهانه مجموع رفت‌وبرگشت؛ سپس حدود '.fa_num($speed).' مگابیت؛ بدون هزینهٔ مصرف مازاد',
+                };
+            }
+            if (! in_array($terms['charge_mode'] ?? '', ['hard_cap', 'unmetered'], true)
+                || ($terms['extra_charges'] ?? null) !== false) {
+                if ($this->traffic_gb <= 0) {
+                    return match ($locale) {
+                        'en' => 'Traffic terms require confirmation',
+                        'tr' => 'Trafik koşulları için bilgi alın',
+                        default => 'شرایط ترافیک با هماهنگی پشتیبانی',
+                    };
+                }
+                return match ($locale) {
+                    'en' => $this->traffic_gb.' GB included; extra traffic by arrangement',
+                    'tr' => $this->traffic_gb.' GB dahil; ek trafik için iletişime geçin',
+                    default => fa_num($this->traffic_gb).' گیگابایت ترافیک پایه؛ مصرف بیشتر با هماهنگی',
+                };
+            }
             if (($this->network_terms['charge_mode'] ?? '') === 'unmetered'
                 && ($this->network_terms['extra_charges'] ?? null) === false) {
                 return match ($locale) {
@@ -578,30 +616,9 @@ class CloudPlan extends Model
     }
 
     /**
-     * 🔴 **تنها منبعِ کفِ اعتبارِ شروعِ ساعتی.** (تصمیمِ کارفرما، مرداد ۱۴۰۵:
-     * «۱۲ ساعت حداقل پولشو داشته باشه رو پنلش.»)
-     *
-     * ⚠️ این عدد پیش‌تر **دو بار** نوشته شده بود: یکی این‌جا (که فقط *نمایش* را
-     * تغذیه می‌کرد) و یکی سخت‌کد در `CloudStoreController::orderHourly()` که
-     * تنها چیزی بود که واقعاً خرید را می‌بست. عوض‌کردنِ یکی و نه دیگری یعنی یا
-     * مشتری‌ای که دقیقاً همان‌قدر که صفحه خواسته شارژ کرده رد می‌شود، یا هشدارِ
-     * «اعتبار کم است» روی خریدی که موفق خواهد شد روشن می‌مانَد.
-     *
-     * ⚠️ رشته‌های سه‌زبانه هم عدد را چاپ می‌کنند؛ جای‌نگهدارِ `:hours` از همین
-     * ثابت پر می‌شود تا متن هرگز از عدد جدا نیفتد.
-     *
-     * ⚠️ ترتیبِ عملیات: این کف **پیش** از کسرِ ساعتِ اول سنجیده می‌شود، پس
-     * «۲۴ ساعت اعتبار در لحظهٔ خرید» است نه «۲۴ ساعت دوامِ پس از خرید»
-     * (خریدِ دقیقاً ۲۴× نرخ، ۲۳ ساعت دوام باقی می‌گذارد). اگر روزی معنیِ دوم
-     * خواسته شد، فقط همین عدد ۲۵ می‌شود.
-     *
-     * 🔴 چرا ۲۴ و نه ۱۲: این عدد باید با `CloudMeterHourly::SUSPEND_GRACE_HOURS`
-     * برابر بمانَد. آن مهلت، ساعت‌هایی است که پس از تمام‌شدنِ اعتبار ماشین را
-     * تعلیق‌شده نگه می‌داریم و اجاره‌اش را **ما** می‌دهیم. اگر کف از مهلت کمتر
-     * شود، هر مشتری می‌تواند کمتر از آنچه رایگان نگه می‌داریم پرداخت کند و
-     * تفاوتش از جیبِ ما می‌رود؛ اگر بیشتر شود، مشتری پولی می‌دهد که بابتش
-     * سرویسی نمی‌گیرد. برابری، تنها نقطه‌ای است که هیچ‌کدام ضرر نمی‌کنند.
-     * **این دو عدد را همیشه با هم عوض کن.**
+     * Credit required before starting a new hourly server, before its first-hour
+     * debit. This is neither a minimum purchase nor a continuing balance floor.
+     * Paid standby is funded separately; free standby needs no retention deposit.
      */
     public const HOURLY_START_MIN_HOURS = 24;
 

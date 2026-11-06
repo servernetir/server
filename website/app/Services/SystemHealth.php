@@ -79,7 +79,10 @@ class SystemHealth
             ['cloud_delivery', 'تحویلِ سرورِ ابری', 'undeliveredCloud'],
             ['aeza_control', 'کنترل Aeza', 'aezaControlContract'],
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
+            ['cloud_release_untracked', 'حذف‌های خارج از صف', 'untrackedCloudRelease'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
+            ['gpu_sales', 'فروش GPU', 'gpuSales'],
+            ['catalogue_refresh', 'همگام‌سازی درخواستی کاتالوگ', 'catalogueRefresh'],
             ['mailboxes', 'صندوق‌های ایمیل', 'mailboxes'],
             ['content', 'صف محتوا', 'contentQueue'],
             ['errors', 'خطاها', 'recentErrors'],
@@ -98,6 +101,39 @@ class SystemHealth
         }
 
         return $checks;
+    }
+
+    private function gpuSales(): array
+    {
+        $check = app(\App\Services\Cloud\GpuSalesHealth::class)->snapshot();
+        return $this->row('gpu_sales', $check['ok'], $check['ok'] ? 'ok' : 'fail', 'فروش GPU',
+            ! $check['enabled'] ? 'روی این نصب فعال نیست.' : ($check['ok']
+                ? 'عرضهٔ GPU با قیمت معتبر و برنامهٔ قابل سفارش موجود است.'
+                : 'هیچ GPU قابل سفارش نیست؛ snapshot قیمت، تنظیم فروش، موجودی و برنامه‌ها را بررسی کنید.'),
+            [['label' => 'کاتالوگ', 'url' => '/admin/cloud']]);
+    }
+
+    private function catalogueRefresh(): array
+    {
+        $state = app(\App\Services\Cloud\CatalogRefreshRequests::class)->snapshot();
+        $title = 'همگام‌سازی درخواستی کاتالوگ';
+        if ($state === null) {
+            return $this->row('catalogue_refresh', true, 'ok', $title, 'درخواست همگام‌سازی ثبت نشده است.');
+        }
+        $status = $state['state'];
+        $stalled = ($status === 'queued' && Carbon::parse($state['requested_at'])->addMinutes(15)->isPast())
+            || ($status === 'running' && Carbon::parse($state['started_at'] ?? $state['requested_at'])->addHour()->isPast());
+        $attention = $stalled || in_array($status, ['failed', 'partial', 'unavailable'], true);
+        $detail = $stalled ? 'درخواست در موعد اجرا یا تکمیل نشده است؛ زمان‌بند و رسید اجرا را بررسی کنید.'
+            : match ($status) {
+                'completed' => 'آخرین درخواست تکمیل شده است.',
+                'queued' => 'درخواست در صف اجراست؛ هنوز همگام‌سازی انجام نشده است.',
+                'running' => 'درخواست در حال اجراست؛ نتیجه هنوز تأیید نشده است.',
+                default => 'آخرین درخواست ناموفق، ناقص یا ناخوانا است؛ رسید اجرا نیازمند بررسی است.',
+            };
+
+        return $this->row('catalogue_refresh', ! $attention, $attention ? 'warn' : 'ok', $title, $detail,
+            [['url' => '/admin/cloud', 'label' => 'وضعیت همگام‌سازی']]);
     }
 
     /** از بازنویسیِ درایور کنترل Aeza با مسیر قدیمی پس از انتشار خبر می‌دهد. */
@@ -801,6 +837,38 @@ class SystemHealth
              خوانده نشده؛ `fx:dollar` و اتصال تامین‌کننده را بررسی کنید.');
     }
 
+    /** Read-only reconciliation: protected or legacy rows must not disappear from monitoring. */
+    private function untrackedCloudRelease(): array
+    {
+        if (! Schema::hasTable('services') || ! Schema::hasTable('cloud_instances')
+            || ! Schema::hasColumn('services', 'provision_status')) {
+            return $this->row('cloud_release_untracked', true, 'ok', 'حذف‌های خارج از صف',
+                'روی این نصب فعال نیست.');
+        }
+
+        $query = Service::query()->whereIn('status', Service::DEAD_STATUSES)
+            ->where(fn ($q) => $q->whereNull('provision_status')
+                ->orWhere('provision_status', '!=', Service::PROVISION_RELEASING))
+            ->whereHas('cloudInstance', fn ($q) => $q->whereNotNull('provider_ref')
+                ->where('provider_ref', '!=', '')
+                ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'deleted')));
+        $count = (clone $query)->count();
+
+        if ($count === 0) {
+            return $this->row('cloud_release_untracked', true, 'ok', 'حذف‌های خارج از صف',
+                'سرویس بسته‌شده‌ای با ماشین تعیین‌تکلیف‌نشده خارج از صف پیدا نشد.');
+        }
+
+        $rows = $query->orderBy('id')->limit(self::NAME_LIMIT)
+            ->with('customer:id,code,email')->get(['id', 'name', 'customer_id']);
+
+        return $this->row('cloud_release_untracked', false, 'fail', 'حذف‌های خارج از صف',
+            fa_num($count).' سرویس بسته شده ولی ماشین آن حذف‌شده ثبت نشده و در صف آزادسازی هم نیست: '
+            .$rows->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
+            .'. وضعیت واقعی زیرساخت و محافظت داخلی را بررسی کنید؛ این هشدار هیچ ماشینی را خودکار حذف نمی‌کند.',
+            $this->serviceLinks($rows));
+    }
+
     private function cloudRelease(): array
     {
         try {
@@ -823,7 +891,7 @@ class SystemHealth
 
         if ($allRows->isEmpty()) {
             return $this->row('cloud_release', true, 'ok', 'آزادسازیِ سرور',
-                'هر سرویسِ بسته‌شده‌ای نزدِ زیرساخت هم آزاد شده.');
+                'صفِ تلاشِ دوبارهٔ آزادسازی خالی است؛ موارد خارج از صف جداگانه بررسی می‌شوند.');
         }
 
         $freshPending = $allRows->filter(function (Service $service) {
@@ -965,7 +1033,7 @@ class SystemHealth
             $since = now()->subHours($hours);
             $n = 0;
 
-            foreach (ErrorTracker::recent(400, 'error') as $e) {
+            foreach (ErrorTracker::recent(1200, 'error') as $e) {
                 if (! $match($e)) {
                     continue;
                 }

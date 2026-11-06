@@ -3,6 +3,7 @@
 
 @push('head')
 <link rel="stylesheet" href="{{ asset_ver('assets/css/cloud-request.css') }}">
+<script src="{{ asset_ver('assets/js/gpu-request-expiry.js') }}" defer></script>
 @endpush
 
 {{-- Live customer server details. Pending requests use their own presentation;
@@ -43,8 +44,10 @@
   $gpuAwaitingInvoice = ($capacityOrder['version'] ?? null) === 1
       && ($capacityOrder['state'] ?? '') === 'awaiting_payment' && $service->status === 'pending';
   if ($capacityWaiting) { $stage = 'allocating'; $stageIdx = 2; }
+  $fundingExpired = ($capacityOrder['closed_reason'] ?? '') === 'payment_expired';
   $closed = in_array($service->status, \App\Models\Service::DEAD_STATUSES, true);
   $ready = $ready && ! $closed;
+  $deliveryIssue = \App\Services\Cloud\CloudOrderIssue::kind($service, $inst);
 
   /* مرحله‌ها — هر چهار مرحله از یک واقعیتِ قابلِ اثبات می‌آیند.
      🔴 عمداً هیچ درصدی نیست. مشتری‌ای که روی «۷۰٪» گیر کند نتیجه می‌گیرد سایت
@@ -125,11 +128,11 @@
       @if($loc){{ $loc->label() }} · @endif{{ \App\Support\PanelText::text($osLbl) }}
     </p>
   </div>
-  <span class="pnl-pill {{ (! $closed && ($capacityWaiting || $gpuAwaitingInvoice)) ? 'warn' : ($inst?->status === 'running' ? 'ok' : '') }}" id="st-pill"
-        style="font-size:12.5px;padding:7px 15px;color:{{ (! $closed && ($capacityWaiting || $gpuAwaitingInvoice)) ? 'var(--warn)' : ($inst?->statusColor() ?? 'var(--dim)') }}">
+  <span class="pnl-pill {{ ($deliveryIssue || (! $closed && ($capacityWaiting || $gpuAwaitingInvoice))) ? 'warn' : ($inst?->status === 'running' ? 'ok' : '') }}" id="st-pill"
+        style="font-size:12.5px;padding:7px 15px;color:{{ ($deliveryIssue || (! $closed && ($capacityWaiting || $gpuAwaitingInvoice))) ? 'var(--warn)' : ($inst?->statusColor() ?? 'var(--dim)') }}">
     {{-- تا پیش از تحویل، نشانگر **مرحله** را می‌گوید نه رشتهٔ خامِ زیرساخت؛
          وگرنه مشتری روی سرورِ در حالِ ساخت کلمهٔ «نامشخص» می‌دید. --}}
-    {{ $closed ? __('ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing')))) }}
+    {{ $deliveryIssue ? __('cloud-order.'.$deliveryIssue.'.label') : ($closed ? __($fundingExpired ? 'ui.gpu_order_expired' : 'ui.cs_closed_h') : (($capacityWaiting || $gpuAwaitingInvoice) ? __('ui.gpu_order_'.$capacityDisplayState) : ($ready ? $inst->statusLabel() : ($inst ? __('ui.cs_stage_'.$stage) : __('ui.cs_status_preparing'))))) }}
   </span>
 </div>
 
@@ -157,12 +160,14 @@
      می‌گوید نشان می‌دهد. حکم مالِ زیرساخت است. الگوی دوم نمی‌سازیم. --}}
 @if($closed)
   <section class="pnl-sec" data-gpu-closed>
-    <div class="pnl-sec-h"><h2>{{ __('ui.cs_closed_h') }}</h2></div>
+    <div class="pnl-sec-h"><h2>{{ __($fundingExpired ? 'ui.gpu_request_expired_h' : 'ui.cs_closed_h') }}</h2></div>
     <div class="pnl-sec-b">
-      <p class="cb-lead">{{ __(data_get($service->provision_meta, 'gpu_delivery_recovery') ? 'ui.cs_closed_refund_p' : 'ui.cs_closed_p') }}</p>
+      <p class="cb-lead">{{ __($fundingExpired ? 'ui.gpu_request_expired_p' : (data_get($service->provision_meta, 'gpu_delivery_recovery') ? 'ui.cs_closed_refund_p' : 'ui.cs_closed_p')) }}</p>
       <a class="pnl-btn" href="{{ lroute('account.services') }}">{{ __('ui.svc_page_title') }}</a>
     </div>
   </section>
+@elseif($deliveryIssue)
+  @include('account.partials.cloud-order-issue', ['orderIssue' => $deliveryIssue, 'issueService' => $service])
 @elseif(! $ready && $gpuAwaitingInvoice)
   <section class="pnl-sec" data-gpu-payment-wait>
     <div class="pnl-sec-h"><h2>{{ __('ui.gpu_order_awaiting_payment') }}</h2></div>
@@ -273,6 +278,9 @@
       $gpuTok  = $gpuApp ? $inst->accessToken() : null;
       $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;
       $windows = ! $gpuApp && $inst->isWindows();
+      $windowsConsoleSetup = $windows && $inst->provider === 'arvan' && ! $inst->hasPassword()
+          && ($caps['console'] ?? false)
+          && $inst->arvanWindowsConsoleAvailable();
     @endphp
 
     @if($gpuApp)
@@ -361,13 +369,12 @@
       </div>
     @endif
 
-    {{-- رمز فقط **یک بار** نشان داده می‌شود. صفحهٔ همیشه‌بازِ پنل روی لپ‌تاپِ
-         مشترک، رمزِ root را به هر رهگذری می‌دهد. --}}
+    {{-- Credentials stay hidden until an explicit, repeatable owner request. --}}
     @if($password)
       {{--
         رمز **پنهان** نشان داده می‌شود؛ چشم بازش می‌کند، کپی می‌بردش.
 
-        ⚠️ چرا پنهانِ پیش‌فرض: همان دلیلی که «یک بار» را ساخت — صفحهٔ بازِ پنل
+        ⚠️ چرا پنهانِ پیش‌فرض: صفحهٔ بازِ پنل
         روی لپ‌تاپِ مشترک یا وسطِ اشتراکِ صفحه، رمزِ root را به هر بیننده‌ای
         می‌دهد. حالا کاربر می‌تواند کپی کند **بی‌آنکه** رمز روی صفحه دیده شود.
 
@@ -419,16 +426,7 @@
       </p>
       @endunless
     @elseif($canReveal ?? false)
-      {{--
-        🔴 دکمه، نه نمایشِ خودکار.
-
-        تا امروز رمز با **بارگذاریِ صفحه** نشان داده و همان‌جا سوزانده می‌شد.
-        یعنی یک رفرش، یک prefetchِ مرورگر، یا ورودِ مدیر به پنلِ مشتری برای
-        عیب‌یابی، پرچم را روشن می‌کرد و مشتری هیچ‌وقت چیزی نمی‌دید — سرور
-        داشت و راهی به داخلش نداشت.
-
-        قاعدهٔ «یک بار» سرِ جایش است؛ فقط لحظه‌اش را حالا کاربر انتخاب می‌کند.
-      --}}
+      {{-- The existing owner-only POST and CSRF token also permit later re-display. --}}
       <form method="post" action="{{ lroute('account.cloud.reveal', $service) }}" style="margin:14px 0 0">
         @csrf
         <button class="btn btn-glass" type="submit">{{ __('ui.cs_pw_reveal') }}</button>
@@ -445,6 +443,18 @@
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
         {{ __('ui.cs_pw_missing') }}
       </p>
+    @elseif($windowsConsoleSetup)
+      <div class="dm-note" style="margin-top:14px" data-windows-console-setup>
+        <strong>{{ __('ui.cs_windows_console_setup_h') }}</strong>
+        <ol style="margin:8px 0;padding-inline-start:22px;line-height:1.9">
+          <li>{{ __('ui.cs_windows_console_setup_password') }}</li>
+          <li>{{ __('ui.cs_windows_console_setup_rdp') }}</li>
+        </ol>
+        <p style="margin:8px 0;font-size:12.5px;line-height:1.9">{{ __('ui.cs_windows_console_setup_note') }}</p>
+        <form method="post" action="{{ lroute('account.cloud.console', $service) }}" target="_blank" rel="noopener noreferrer">
+          @csrf<button class="pnl-btn" type="submit"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.cs_console') }}</button>
+        </form>
+      </div>
     @elseif($windows && ! $inst->hasPassword())
       <p style="margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9">
         {{ __('ui.cs_windows_pw_unavailable') }}
@@ -537,7 +547,7 @@
       @endif
     </div>
 
-    @if($windows && ! ($caps['console'] ?? false))
+    @if($windows && $inst->hasPassword() && ! ($caps['console'] ?? false))
       <p class="dm-note" style="margin-top:12px">{{ __('ui.cs_console_unavailable_rdp') }}</p>
     @endif
 
@@ -597,7 +607,9 @@
       </p>
     @endif
 
-    @if(! empty($creditOut))
+    @if($service->isHourly() && (bool) $service->cloudPlan?->is_interruptible)
+      <p class="dm-note">{{ __('ui.gpu_hourly_lifecycle') }}</p>
+    @elseif(! empty($creditOut))
       <form method="post" action="{{ lroute('account.cloud.credit-out', $service) }}" style="margin-top:16px">
         @csrf
         <div class="pnl-acts" style="align-items:center">
@@ -1096,6 +1108,7 @@
   // پرسیدن سهمیهٔ زیرساخت را خرج نمی‌کند.
   var capacityWaiting = {{ ($capacityWaiting || $gpuAwaitingInvoice) ? 'true' : 'false' }};
   var capacityState = {{ Illuminate\Support\Js::from($capacityDisplayState) }};
+  var deliveryIssue = {{ Illuminate\Support\Js::from($deliveryIssue) }};
   var tick = capacityWaiting ? 60000 : (building ? 5000 : 30000);
   var tries = 0;
 
@@ -1107,6 +1120,13 @@
       .then(function(d){
         if (!d) { return; }
         if (d.closed === true) {
+          window.location.reload();
+          return;
+        }
+        // The customer may be watching while provisioning fails or recovers.
+        // Reload once when the safe issue code changes, then keep polling so
+        // an admin reconciliation can restore the normal delivery screen.
+        if ((d.delivery_issue || null) !== deliveryIssue) {
           window.location.reload();
           return;
         }

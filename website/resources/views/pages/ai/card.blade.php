@@ -15,5 +15,12 @@
         <div class="ai-price"><div>{{ __('ai_model.native_unit_ceiling') }}<strong>{{ number_format($unitPrice['sell']) }}</strong></div></div>
         <small class="ai-muted">{{ $unitPrice['quantity'] }} {{ __('ai_model.units.'.$unitPrice['unit']) }} · {{ __('ai_model.native_price_note') }}</small>
     @else<p>{{ __('ai.prices_pending') }}</p>@endif
-<div class="ai-card-foot"><a class="ai-btn" href="{{ lroute('ai.model', $m->slug) }}">{{ __('ai_experience.see_model') }} ↗</a><button type="button" class="ai-btn" data-ai-compare-add="{{ $m->slug }}" aria-pressed="false" hidden>{{ __('ai_experience.pick') }}</button><noscript><a class="ai-btn" href="{{ lroute('ai.compare', ['models' => $m->slug]) }}">{{ __('ai_experience.compare') }}</a></noscript></div>
+<div class="ai-card-foot">
+    <a class="ai-btn" href="{{ lroute('ai.model', $m->slug) }}">{{ __('ai_experience.see_model') }} ↗</a>
+    @if($tokenOperation && $s['quote'])
+    <a class="ai-btn" href="{{ lroute('ai.model', $m->slug) }}#usage-planner">{{ __('ai_experience.estimator') }}</a>
+    @endif
+    <button type="button" class="ai-btn" data-ai-compare-add="{{ $m->slug }}" aria-pressed="false" hidden>{{ __('ai_experience.pick') }}</button>
+    <noscript><a class="ai-btn" href="{{ lroute('ai.compare', ['models' => $m->slug]) }}">{{ __('ai_experience.compare') }}</a></noscript>
+</div>
 </article>

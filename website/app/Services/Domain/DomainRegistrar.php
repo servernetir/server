@@ -10,6 +10,7 @@ use App\Services\Bale\Admin\AdminBaleRouter;
 use App\Services\Dns\DomainZoneProvisioner;
 use App\Services\Finance\BusinessLedger;
 use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\BaleManagerPolicy;
 use App\Services\Notify\Notifier;
 use App\Support\ErrorTracker;
 use Illuminate\Support\Carbon;
@@ -445,6 +446,9 @@ class DomainRegistrar
      */
     public function registrationBlocker(Domain $domain): ?string
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return DomainSupplierLifecycle::hasUnresolvedOperation($domain) ? __('domain-suppliers.review_required') : null;
+        }
         if (! $this->op->enabled()) {
             return 'اتصالِ رجیسترار پیکربندی نشده است.';
         }
@@ -471,6 +475,10 @@ class DomainRegistrar
 
     public function register(Domain $domain): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'create', max(1, (int) $domain->period_years) * 12);
+        }
+
         // ── قفلِ اتمی: فقط یک اجرا می‌تواند این دامنه را بردارد ──
         //
         // 🔴 بدونِ این، کرونِ هر-دقیقه و کلیکِ دستیِ مدیر می‌توانند هم‌زمان
@@ -686,6 +694,8 @@ class DomainRegistrar
             'expires_at' => $this->parseDate($expires) ?: $domain->expires_at,
         ])->save();
 
+        DomainSupplierLifecycle::bindLegacyResult($domain, $remote);
+
         $until = $domain->fresh()?->expires_at;
 
         $this->announce('domain_registered', $domain,
@@ -718,6 +728,9 @@ class DomainRegistrar
     private function announce(string $event, Domain $domain, string $text): void
     {
         try {
+            if (BaleManagerPolicy::enabled() && in_array($event, ['domain_registered', 'domain_renewed'], true)) {
+                BaleManagerPolicy::clearDomainFundingAttempt($domain->domain, $this->noticeCustomer($domain));
+            }
             app(Notifier::class)->fire(
                 $event,
                 $domain->customer,
@@ -764,6 +777,8 @@ class DomainRegistrar
             'provision_error' => mb_substr($message, 0, 500),
         ])->save();
 
+        if (! $manual) { $this->earlyFundingNotice($domain, $message, 'admin.domain_register_failed', 'create'); }
+
         /*
         |----------------------------------------------------------------------
         | 🔴 پارک‌شدنِ یک دامنهٔ **پرداخت‌شده** نباید بی‌صدا باشد
@@ -797,6 +812,7 @@ class DomainRegistrar
                 app(AdminNotifier::class)->event(
                     'ثبتِ دامنه خودکار انجام نشد',
                     ['دامنه' => $domain->domain,
+                        'رجیسترار' => 'Openprovider',
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
@@ -830,6 +846,10 @@ class DomainRegistrar
     /** @return array{ok:bool, message:string} */
     public function renew(Domain $domain, int $years = 1): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'renew', max(1, $years) * 12);
+        }
+
         if (! $domain->op_id) {
             return ['ok' => false, 'message' => 'این دامنه شناسهٔ رجیسترار ندارد.'];
         }
@@ -853,6 +873,7 @@ class DomainRegistrar
         // چون دورهٔ واقعی ممکن است با آنچه خواستیم فرق کند.
         $detail = $this->op->getDomain((int) $domain->op_id);
         $expires = $this->parseDate(data_get($detail, 'data.expiration_date'));
+        DomainSupplierLifecycle::bindLegacyResult($domain, (array) ($detail['data'] ?? []));
 
         $domain->forceFill([
             'status' => 'active',
@@ -880,6 +901,10 @@ class DomainRegistrar
      */
     public function renewPaid(Domain $domain): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'renew', $domain->renewYears() * 12);
+        }
+
         $claimed = DB::table('domains')
             ->where('id', $domain->id)
             ->where('status', 'active')
@@ -957,6 +982,8 @@ class DomainRegistrar
             'provision_error' => mb_substr('تمدید: '.$message, 0, 300),
         ])->save();
 
+        if (! $manual) { $this->earlyFundingNotice($domain, $message, 'admin.domain_renew_failed', 'renew'); }
+
         ErrorTracker::note('provision', 'تمدیدِ دامنه ناموفق: '.$message, [
             'domain' => $domain->domain,
             'tries' => $tries,
@@ -973,6 +1000,7 @@ class DomainRegistrar
                 app(AdminNotifier::class)->event(
                     'تمدیدِ دامنه خودکار انجام نشد',
                     ['دامنه' => $domain->domain,
+                        'رجیسترار' => 'Openprovider',
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
@@ -1012,6 +1040,10 @@ class DomainRegistrar
      */
     public function restorePaid(Domain $domain): array
     {
+        if (DomainSupplierLifecycle::handles($domain)) {
+            return app(DomainSupplierLifecycle::class)->execute($domain, 'restore', $domain->renewYears() * 12);
+        }
+
         $claimed = DB::table('domains')
             ->where('id', $domain->id)
             ->where('status', 'expired')
@@ -1118,6 +1150,8 @@ class DomainRegistrar
             'provision_error' => mb_substr('بازیابی: '.$message, 0, 300),
         ])->save();
 
+        if (! $manual) { $this->earlyFundingNotice($domain, $message, 'admin.domain_recover_failed', 'restore'); }
+
         ErrorTracker::note('provision', 'بازیابیِ دامنه ناموفق: '.$message, [
             'domain' => $domain->domain,
             'tries' => $tries,
@@ -1128,6 +1162,7 @@ class DomainRegistrar
                 app(AdminNotifier::class)->event(
                     'بازیابیِ دامنهٔ منقضی انجام نشد',
                     ['دامنه' => $domain->domain,
+                        'رجیسترار' => 'Openprovider',
                         'مشتری' => trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')'),
                         'علت' => mb_substr($message, 0, 160)],
                     null,
@@ -1140,5 +1175,27 @@ class DomainRegistrar
         }
 
         return ['ok' => false, 'manual' => $manual, 'message' => $message];
+    }
+
+    private function noticeCustomer(Domain $domain): string
+    {
+        return trim(($domain->customer?->displayName() ?? '').' ('.($domain->customer?->code ?? $domain->customer_id).')');
+    }
+
+    /** Notify the first paid funding failure without changing any delivery/retry state. */
+    private function earlyFundingNotice(Domain $domain, string $message, string $key, string $operation): void
+    {
+        if (! BaleManagerPolicy::enabled() || ! BaleManagerPolicy::isRegistrarFundingFailure($message)) { return; }
+        try {
+            $invoiceId = $operation === 'create' ? (int) $domain->invoice_id : (int) data_get($domain->meta, $operation.'_invoice_id');
+            if ($invoiceId <= 0 || ! \App\Models\Invoice::whereKey($invoiceId)->where('domain_id', $domain->id)
+                ->where('customer_id', $domain->customer_id)->where('status', 'paid')->exists()) { return; }
+            app(AdminNotifier::class)->baleIncident($key, \App\Support\AdminAlerts::EVENTS[$key][0], [
+                'دامنه' => $domain->domain, 'رجیسترار' => 'Openprovider', 'مشتری' => $this->noticeCustomer($domain),
+                'علت' => mb_substr($message, 0, 160),
+            ], [[['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$domain->customer_id]]]);
+        } catch (\Throwable $e) {
+            ErrorTracker::note('notify', $e, ['area' => 'domain-funding-notice']);
+        }
     }
 }

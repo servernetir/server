@@ -3,11 +3,13 @@
 namespace App\Services\Marketing;
 
 use App\Models\Customer;
+use App\Models\MadarMission;
 use App\Models\MarketingCampaign;
 use App\Models\MarketingGrant;
 use App\Models\MarketingRedemption;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -97,7 +99,9 @@ class CampaignManager
         return DB::transaction(function () use ($data, $actor, $campaign) {
             if ($campaign) {
                 $campaign = MarketingCampaign::whereKey($campaign->id)->lockForUpdate()->firstOrFail();
-                if (MarketingGrant::where('campaign_id', $campaign->id)->exists()) {
+                if (MarketingGrant::where('campaign_id', $campaign->id)->exists()
+                    || (Schema::hasTable('madar_missions')
+                        && MadarMission::where('reward_campaign_id', $campaign->id)->exists())) {
                     throw ValidationException::withMessages(['campaign' => 'Issued promises are immutable. Create a new campaign version.']);
                 }
                 $campaign->fill($data)->forceFill(['status' => 'draft', 'approved_at' => null, 'approved_by' => null,
@@ -152,7 +156,7 @@ class CampaignManager
             // Personal guarantees reserve their maximum commitment at issuance.
             $liability = min($c->rule['max_discount'], $c->rule['type'] === 'fixed' ? $c->rule['value'] : PHP_INT_MAX);
             if (! $public) {
-                $customerUses = \App\Models\MarketingRedemption::where('campaign_id', $c->id)
+                $customerUses = MarketingRedemption::where('campaign_id', $c->id)
                     ->where('customer_id', $customer->id)->whereIn('status', ['reserved', 'committed', 'reconciliation', 'refunded']);
                 $customerPromises = MarketingGrant::where('campaign_id', $c->id)->where('customer_id', $customer->id)
                     ->where('budget_held', true);

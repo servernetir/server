@@ -51,6 +51,7 @@
     @endphp
     <nav class="ad-nav">
       @if($navAdmin)<a href="/admin/ai-growth" class="@yield('nav_growth')"><svg class="icon"><use href="#i-sparkles"/></svg>{{ __('growth.center') }}</a>@endif
+      @if($navAdmin)<a href="/admin/madar" class="@yield('nav_madar')"><svg class="icon"><use href="#i-users"/></svg>{{ __('madar.nav') }}</a>@endif
       <a href="/admin" class="@yield('nav_dash')"><svg class="icon"><use href="#i-layout"/></svg>داشبورد</a>
       @unless($navSup)
         <a href="/admin/posts?type=blog" class="@yield('nav_blog')"><svg class="icon"><use href="#i-book"/></svg>بلاگ</a>
@@ -158,6 +159,7 @@
       {{-- [ai-admin-nav:end] --}}
       <div class="ad-nav-sep">دامنه</div>
       <a href="/admin/domains" class="@yield('nav_domains')"><svg class="icon"><use href="#i-globe"/></svg>دامنه‌ها</a>
+      <a href="{{ route('admin.domain-suppliers') }}" class="@yield('nav_domain_suppliers')"><svg class="icon"><use href="#i-server"/></svg>{{ __('domain-suppliers.title') }}</a>
       {{-- [managed-dns:start] --}}
       <a href="/admin/dns" class="@yield('nav_dns')"><svg class="icon"><use href="#i-link"/></svg>مدیریت DNS</a>
       {{-- [managed-dns:end] --}}

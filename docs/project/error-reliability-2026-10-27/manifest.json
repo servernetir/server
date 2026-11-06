@@ -1,0 +1,114 @@
+{
+  "base_sha": "3eba2d2e9d1580a7f37186b19158889f875cc999",
+  "status": "prepared_not_installed",
+  "production_hashes_observed": false,
+  "precondition": "Reconcile every production difference; abort instead of overwriting concurrent changes. Expected hashes below are from Git, not a production observation.",
+  "files": [
+    {
+      "source_path": "website/app/Console/Commands/ProcessCatalogRefresh.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/ProcessCatalogRefresh.php",
+      "expected_before_sha256": null,
+      "expected_before_absent": true,
+      "after_sha256": "f74bc1a9dc81990a7a136751484c5b84f1e011311abb133d84fb8fbbd97e6ab0",
+      "operation": "create"
+    },
+    {
+      "source_path": "website/app/Console/Commands/SyncCloudCatalog.php",
+      "destination_relative_to_home": "servernet_app/app/Console/Commands/SyncCloudCatalog.php",
+      "expected_before_sha256": "25c85185846d4e91e0559e0c37f657fd6e1a2472ff9f44b219491ffc80ebdb95",
+      "expected_before_absent": false,
+      "after_sha256": "2f61fbfd8e24382404c328e979d33ba8450956491d1c23d0dba3b9c01e8633f8",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/app/Http/Controllers/Admin/CloudController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Admin/CloudController.php",
+      "expected_before_sha256": "f10c9c342887dbc803a97467017c52e4e0d9feab2c878d4b119d1482ba39d730",
+      "expected_before_absent": false,
+      "after_sha256": "0d0bbff1d4f6c401984481e16372c5223291d4e6ede8d20527816251b2155374",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/app/Http/Controllers/Admin/ErrorLogController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/Admin/ErrorLogController.php",
+      "expected_before_sha256": "4e4c1108ecf2d27a14294f832b86d50c89198ae3a570a55808e9568db7c38fad",
+      "expected_before_absent": false,
+      "after_sha256": "818020ab0b6588e67bd3c279b8cf2e7cd6cad846e49fca22afd0abc86876a3da",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/app/Services/Cloud/CatalogRefreshBusy.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/CatalogRefreshBusy.php",
+      "expected_before_sha256": null,
+      "expected_before_absent": true,
+      "after_sha256": "930ccd577446c3814af26911389b38d5b3629ac1f8023560d1a16c7946aa3000",
+      "operation": "create"
+    },
+    {
+      "source_path": "website/app/Services/Cloud/CatalogRefreshRequests.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/CatalogRefreshRequests.php",
+      "expected_before_sha256": null,
+      "expected_before_absent": true,
+      "after_sha256": "452879322992ea8dc9d8c1ce15ced28173245a408d4e11b35d6e5028877d10c4",
+      "operation": "create"
+    },
+    {
+      "source_path": "website/app/Services/Cloud/CloudCatalogSync.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/CloudCatalogSync.php",
+      "expected_before_sha256": "b8c7cdb5e53eb4a91bd46fb4482be08cb810cc6caab06960aba40cceb2febbcc",
+      "expected_before_absent": false,
+      "after_sha256": "bfb834a1511a0199a91b1f5767c9d469694d73f2b30420b387897dd44a6601d6",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/app/Services/SystemHealth.php",
+      "destination_relative_to_home": "servernet_app/app/Services/SystemHealth.php",
+      "expected_before_sha256": "69aa4cabc2dc7f00dae850ef59ef717e36e7c6e6a67dcc1df1237c3304cf51e0",
+      "expected_before_absent": false,
+      "after_sha256": "7f4d148be054f8464412046340daba15b9db26b18a4763dd6a4c756d3639ad08",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/app/Support/ErrorTracker.php",
+      "destination_relative_to_home": "servernet_app/app/Support/ErrorTracker.php",
+      "expected_before_sha256": "a6c8c2b0dbc2a8637890a748983d36c9f8a9c574dc08ffc7378b65137308c112",
+      "expected_before_absent": false,
+      "after_sha256": "48d4ae0d3ea34ede04e55e95c258fcf1ad6bbefb7fb373ef67d1e9b60b7427b0",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/bootstrap/app.php",
+      "destination_relative_to_home": "servernet_app/bootstrap/app.php",
+      "expected_before_sha256": "49a45654faad3db2cf49f643abec304bf5443fdf6fd1628a9f0a866d174c8566",
+      "expected_before_absent": false,
+      "after_sha256": "a0a4d5363a1cfdd9741cf6ea3ae27544e4e46244dfa99cf1c8c4bffa77a9835e",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/resources/views/admin/cloud.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/cloud.blade.php",
+      "expected_before_sha256": "a78d15e8f9ecbc99ba680ef189e497eaf83fe45e2522f40570b5abe96fb61dc5",
+      "expected_before_absent": false,
+      "after_sha256": "c316228d554fe522f045ed7d5ad79d09b6cc8609e0fa41391e62020e36897424",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/resources/views/admin/errors.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/admin/errors.blade.php",
+      "expected_before_sha256": "6df2d18ecc2e1cc712ee48c83ebe273b1de7860f61f1bb17df96cb4cb8610b4f",
+      "expected_before_absent": false,
+      "after_sha256": "c72b6cecb49d90c9d224226543941399159b827448a113a8f2f51b10644b984f",
+      "operation": "replace"
+    },
+    {
+      "source_path": "website/routes/console.php",
+      "destination_relative_to_home": "servernet_app/routes/console.php",
+      "expected_before_sha256": "f2437f723ea817221e7366a27630298ac4f758efa3a064182416a893ee6d3fc8",
+      "expected_before_absent": false,
+      "after_sha256": "b7f64fd45db880b70a1f5641aaffd668a3129a37ca753fa7cc3410d8afeab012",
+      "operation": "replace"
+    }
+  ],
+  "migration_required": false,
+  "host_cron_change_required": false
+}

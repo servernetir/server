@@ -1,0 +1,33 @@
+{
+  "release": "analytics-consume-once-20261030",
+  "source_head": "2034e47eb752f7ac109e1e3cc948e0f3ae9c77a6",
+  "develop_merge": "bf2e5b01ae3c82d9186cd543aedd58739db2a63f",
+  "pr": "https://github.com/servernetir/server/pull/153",
+  "files": [
+    {
+      "source": "website/resources/views/partials/gtm-head.blade.php",
+      "target": "/home/servernetcloud/servernet_app/resources/views/partials/gtm-head.blade.php",
+      "before_sha256": "48a56951d810d796b18730a3a540f9bd99fd940301a3409eb4e4c315fe8ce6d7",
+      "after_sha256": "451f5dc904895fbf43318fb6a8471a724b00cecd380b2713e4c8a7d6f8ea4583"
+    }
+  ],
+  "private_release_dir": "/home/servernetcloud/.seo-analytics-20261030",
+  "helper_sha256": "d0510df2c22ed322415bb29a8696c2aa410fabeb0e8eca5644517dccb0ad46a0",
+  "lock": "/home/servernetcloud/.codex-web-deploy.lock",
+  "compiled_partial_only": true,
+  "broad_cache_flush": false,
+  "production_status": "source_and_compiled_template_installed; public_HTML_marker_and_mobile_verified; private_array_session_event_counts_1_then_0",
+  "installed_at_utc": "2026-10-30T06:55:11Z",
+  "ci": {
+    "head": "2034e47eb752f7ac109e1e3cc948e0f3ae9c77a6",
+    "sqlite": "success",
+    "mariadb": "success",
+    "run": "https://github.com/servernetir/server/actions/runs/41016192355",
+    "annotations": "runner image migration notice only"
+  },
+  "rollback": "Private release.php rollback under same lock accepts only known before/after source and compiled hashes; restores source and compiled backup; no database restore. Not executed.",
+  "limitations": [
+    "No actual payment, Google purchase dispatch, revenue reconciliation or field CWV acceptance.",
+    "Fix prevents this same-request flash replay path; it is not a global exactly-once guarantee across concurrent requests or independent callback retries."
+  ]
+}

@@ -17,7 +17,7 @@
   @else
 
   <div style="padding:2px 18px 14px;display:flex;gap:10px;flex-wrap:wrap">
-    <a class="btn btn-glass" style="font-size:12.5px" href="/admin/cloud/vpstc">آماده‌سازی اتصال VPS.TC</a>
+    <a class="btn btn-glass" style="font-size:12.5px" href="/admin/settings?tab=infra#infra-vpstc">تنظیمات VPS.TC</a>
     <form method="post" action="/admin/cloud/test" style="display:inline">
       @csrf<button class="btn btn-glass" style="font-size:12.5px"><svg class="icon"><use href="#i-server"/></svg>آزمونِ اتصال</button>
     </form>
@@ -33,6 +33,31 @@
     <a class="btn btn-glass" style="font-size:12.5px" href="/admin/cloud/attach"><svg class="icon"><use href="#i-plus"/></svg>اتصالِ سرورِ موجود</a>
     <a class="btn btn-glass" style="font-size:12.5px" href="/admin/cloud/probe"><svg class="icon"><use href="#i-code"/></svg>ساختارِ خامِ پاسخ</a>
   </div>
+
+  @if(!empty($catalogRefresh))
+    @php
+      $refreshStates = ['queued' => 'در صف اجرای پس‌زمینه', 'running' => 'در حال اجرا',
+        'completed' => 'تکمیل شد', 'partial' => 'تکمیل ناقص؛ نیازمند بررسی',
+        'failed' => 'ناموفق؛ نیازمند بررسی', 'unavailable' => 'وضعیت قابل خواندن نیست'];
+      $refreshResult = $catalogRefresh['result'] ?? [];
+    @endphp
+    <div style="margin:0 18px 16px;padding:14px;border:1px solid var(--line);border-radius:10px;font-size:13px;line-height:1.9" role="status">
+      <b>آخرین همگام‌سازی درخواستی:</b> {{ $refreshStates[$catalogRefresh['state']] ?? 'وضعیت نامشخص' }}
+      @if(!empty($catalogRefresh['id']))<span dir="ltr"> · {{ $catalogRefresh['id'] }}</span>@endif
+      @if(!empty($catalogRefresh['requested_at']))<div>زمان درخواست: <span dir="ltr">{{ $catalogRefresh['requested_at'] }}</span></div>@endif
+      @if(!empty($catalogRefresh['finished_at']))<div>زمان پایان: <span dir="ltr">{{ $catalogRefresh['finished_at'] }}</span></div>@endif
+      @if(isset($refreshResult['plans']))<div>تعداد پلن‌های پردازش‌شده: {{ fa_num($refreshResult['plans']) }}</div>@endif
+      @foreach($refreshResult['warnings'] ?? [] as $warning)<div>{{ $warning }}</div>@endforeach
+      @if(!empty($refreshResult['failed_providers']))<div>زیرساخت‌های ناموفق: {{ implode('، ', $refreshResult['failed_providers']) }}</div>@endif
+      @if(($refreshResult['rate_available'] ?? true) === false)<div>نرخ معتبر ارز در دسترس نبود؛ قیمت‌های تومانی تازه تأیید نشدند.</div>@endif
+      @if(($refreshResult['reason'] ?? '') === 'interrupted')<div>اجرای قبلی قطع شد. پس از بررسی نتیجهٔ آن، درخواست تازه ثبت کنید.</div>@endif
+      @if(($refreshResult['reason'] ?? '') === 'expired')<div>زمان‌بند ظرف ۱۵ دقیقه درخواست را اجرا نکرد. زمان‌بند را بررسی و سپس دوباره درخواست کنید.</div>@endif
+      @if(($refreshResult['reason'] ?? '') === 'exception')<div>اجرا با خطا متوقف شد؛ شناسهٔ این درخواست در ردیاب خطا ثبت شده است.</div>@endif
+      @if(($refreshResult['reason'] ?? '') === 'no_providers')<div>هیچ زیرساخت قابل پردازشی در دسترس نبود؛ تنظیمات اتصال را بررسی کنید.</div>@endif
+      @if(($refreshResult['reason'] ?? '') === 'pricing_unavailable')<div>جدول کاتالوگ یا نرخ معتبر یورو در دسترس نبود؛ بازقیمت‌گذاری انجام نشد.</div>@endif
+      @if(in_array($catalogRefresh['state'], ['queued', 'running'], true))<div>برای دیدن وضعیت تازه صفحه را دوباره بارگذاری کنید. ثبت دوبارهٔ فرم، درخواست تکراری نمی‌سازد.</div>@endif
+    </div>
+  @endif
 
   {{-- وضعیتِ زیرساخت‌ها. عمداً «زیرساختِ ۱/۲» نام‌گذاری شده‌اند تا حتی در پنلِ
        مدیریت هم عادتِ نوشتنِ نامِ ارائه‌دهنده در رابط شکل نگیرد. --}}

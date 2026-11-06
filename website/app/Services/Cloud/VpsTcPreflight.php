@@ -19,21 +19,21 @@ class VpsTcPreflight
 
     public function __construct(private VpsTcApi $api) {}
 
-    public function inspect(?string $productId = null, ?string $categoryId = null): array
+    public function inspect(?string $productId = null, ?string $categoryId = null, bool $billingOnly = false): array
     {
-        $scope = $productId !== null ? 'product' : ($categoryId !== null ? 'category' : 'representative_catalog');
-        $formLimit = $productId !== null ? 1 : ($categoryId !== null ? self::MAX_CATEGORY_ORDER_READS : self::MAX_ORDER_READS);
-        $quoteLimit = $productId !== null ? 1 : ($categoryId !== null ? self::MAX_CATEGORY_QUOTE_READS : 0);
+        $scope = $billingOnly ? 'billing_only' : ($productId !== null ? 'product' : ($categoryId !== null ? 'category' : 'representative_catalog'));
+        $formLimit = $billingOnly ? 0 : ($productId !== null ? 1 : ($categoryId !== null ? self::MAX_CATEGORY_ORDER_READS : self::MAX_ORDER_READS));
+        $quoteLimit = $billingOnly ? 0 : ($productId !== null ? 1 : ($categoryId !== null ? self::MAX_CATEGORY_QUOTE_READS : 0));
         $report = [
             'ok' => false, 'connection_ok' => false, 'sales_ready' => false,
-            'checked_at' => now()->toIso8601String(), 'currency' => null,
+            'checked_at' => now()->toIso8601String(), 'currency' => null, 'account_read_code' => null,
             'categories_seen' => null, 'leaf_categories_seen' => 0, 'categories_inspected' => 0,
             'products_seen' => 0, 'monthly_offers_seen' => 0, 'fixed_monthly_candidates_seen' => 0,
             'metered_candidates_seen' => 0, 'unknown_paytype_candidates_seen' => 0,
             'order_form_checked' => false, 'order_forms_checked' => 0,
             'scope' => $scope, 'scope_product_id' => $productId, 'scope_category_id' => $categoryId,
-            'order_forms_scope' => $productId !== null ? 'explicit_product'
-                : ($categoryId !== null ? 'all_fixed_monthly_in_category' : 'representative_per_category'),
+            'order_forms_scope' => $billingOnly ? 'not_requested' : ($productId !== null ? 'explicit_product'
+                : ($categoryId !== null ? 'all_fixed_monthly_in_category' : 'representative_per_category')),
             'order_forms_eligible' => 0, 'order_forms_expected' => 0, 'order_forms_attempted' => 0,
             'order_forms_complete' => false,
             'quotes_expected' => 0, 'quotes_attempted' => 0, 'quotes_checked' => 0,
@@ -42,7 +42,7 @@ class VpsTcPreflight
             'quote_diagnostics_scope' => $quoteLimit > 0 ? 'checked_prepaid_vps_forms' : 'not_requested',
             'raw_unit_verified' => false,
             'credit_payment_method_id' => null,
-            'payment_methods_seen' => 0, 'payment_fees_verified' => false,
+            'payment_methods_seen' => 0, 'payment_fees_verified' => false, 'credit_payment_fee_free' => false,
             'catalog_complete' => false, 'discovery_complete' => false, 'truncated' => false,
             'categories' => [], 'candidates' => [],
             'limits' => ['category_nodes' => self::MAX_CATEGORY_NODES, 'category_depth' => self::MAX_CATEGORY_DEPTH,
@@ -67,16 +67,20 @@ class VpsTcPreflight
         if (! ($balance['ok'] ?? false) || ! is_array($details)
             || $this->decimal($details['acc_credit'] ?? null, true) === null
             || $this->decimal($details['acc_balance'] ?? null, true) === null) {
+            $code = $balance['code'] ?? null;
+            $report['account_read_code'] = in_array($code, ['not_configured', 'authentication_failed', 'access_denied',
+                'redirect_rejected', 'rate_limited', 'provider_error', 'invalid_response', 'connection_failed'], true)
+                ? $code : 'invalid_response';
             $this->block($report, 'account_read_failed');
             return $report;
         }
         $report['connection_ok'] = true;
         $currency = $details['currency'] ?? null;
         $money = class_exists(VpsTcMoneyContract::class) ? new VpsTcMoneyContract($this->api) : null;
-        if (is_string($currency) && preg_match('/\A[A-Z]{3}\z/D', $currency)) {
+        if (in_array($currency, ['TRY', 'USD', 'EUR', 'USDT'], true)) {
             $report['currency'] = $currency;
             $report['currency_source'] = 'api_balance';
-        } elseif ($currency === '' && $money !== null && ($resolved = $money->resolveCurrency($balance)) !== null) {
+        } elseif (! $billingOnly && $currency === '' && $money !== null && ($resolved = $money->resolveCurrency($balance)) !== null) {
             // A literal blank is resolved only against a freshly re-read,
             // account-bound reviewed invoice/service anchor. Symbols and null
             // never inherit that currency by fallback.
@@ -86,14 +90,73 @@ class VpsTcPreflight
             $this->block($report, 'account_currency_not_verified');
         }
 
+        $complete = true;
+        $payments = $this->api->paymentMethods();
+        if (($payments['ok'] ?? false) && is_array($payments['data']['payments'] ?? null)) {
+            $report['payment_methods_seen'] = count($payments['data']['payments']);
+            $methods = $this->creditMethods($payments['data']['payments']);
+            if (count($methods) === 1) { $report['credit_payment_method_id'] = $methods[0]; }
+            else { $this->block($report, $methods === [] ? 'credit_payment_method_not_verified' : 'credit_payment_method_ambiguous'); }
+        } else {
+            $complete = false; $this->block($report, 'payment_method_read_failed');
+        }
+        $fees = $this->api->paymentFees();
+        if (! ($fees['ok'] ?? false) || ! is_array($fees['data']['payments'] ?? null)) {
+            $complete = false; $this->block($report, 'payment_fee_read_failed');
+        } else {
+            $verified = $fees['data']['payments'] !== [] && array_is_list($fees['data']['payments']);
+            $seenFees = [];
+            foreach ($fees['data']['payments'] as $fee) {
+                if (! is_array($fee) || ! $this->id($fee['id'] ?? null) || isset($seenFees[(string) $fee['id']])) {
+                    $verified = false; $this->block($report, 'payment_fee_schema_not_verified');
+                    continue;
+                }
+                $seenFees[(string) $fee['id']] = true;
+                if ((string) $fee['id'] === (string) $report['credit_payment_method_id']) {
+                    $fixed = $this->decimal($fee['fixed_fee'] ?? null, true);
+                    $percent = $this->decimal($fee['percent_fee'] ?? null, true);
+                    $report['credit_payment_fee_free'] = $fixed !== null && $percent !== null
+                        && BigDecimal::of($fixed)->isZero() && BigDecimal::of($percent)->isZero();
+                }
+                foreach (['fixed_fee', 'percent_fee'] as $field) {
+                    if (($fee[$field] ?? null) === 'Array') {
+                        $verified = false; $this->block($report, 'payment_fees_literal_array');
+                    } elseif ($this->decimal($fee[$field] ?? null, true) === null) {
+                        $verified = false; $this->block($report, 'payment_fee_amount_not_verified');
+                    }
+                }
+            }
+            $report['payment_fees_verified'] = $verified;
+            $report['credit_payment_fee_free'] = $verified && $report['credit_payment_fee_free'];
+            if (! $verified) { $this->block($report, 'payment_fees_not_verified'); }
+        }
+
+        if ($billingOnly) {
+            // Confirm the two repaired native responses without catalog reads,
+            // calculated quotes, a currency fallback, or any spending operation.
+            $report['ok'] = $report['connection_ok'] && $report['currency_source'] === 'api_balance'
+                && $report['payment_fees_verified'] && $report['credit_payment_fee_free'];
+            if (! $report['credit_payment_fee_free']) { $this->block($report, 'credit_payment_fee_not_free'); }
+            $expected = \App\Models\Setting::get('vpstc_currency');
+            if (filled($expected) && $report['currency'] !== $expected) {
+                $report['ok'] = false;
+                $this->block($report, 'account_currency_not_verified');
+            }
+            $report['message'] = $report['ok']
+                ? 'Native account currency and numeric zero credit-payment fees verified; gross quotes and lifecycle remain separate.'
+                : 'Native billing response fixes have not been verified for this account.';
+            return $report;
+        }
+
         $categories = $this->api->categories();
         $items = $categories['data']['categories'] ?? null;
         if (! ($categories['ok'] ?? false) || ! is_array($items)) {
             $this->block($report, 'category_read_failed');
             return $report;
         }
-        $complete = ! $this->partial($categories['data'] ?? [], count($items));
-        if (! $complete) { $this->block($report, 'category_list_incomplete'); }
+        $categoryComplete = ! $this->partial($categories['data'] ?? [], count($items));
+        $complete = $complete && $categoryComplete;
+        if (! $categoryComplete) { $this->block($report, 'category_list_incomplete'); }
         $tree = []; $nodes = 0;
         $this->walkCategories($items, null, 0, $tree, $nodes, $complete, $report);
         $report['categories_seen'] = count($tree);
@@ -147,37 +210,6 @@ class VpsTcPreflight
             $tree[$id] = $category;
         }
         $report['products_seen'] = count($records);
-
-        $payments = $this->api->paymentMethods();
-        if (($payments['ok'] ?? false) && is_array($payments['data']['payments'] ?? null)) {
-            $report['payment_methods_seen'] = count($payments['data']['payments']);
-            $methods = $this->creditMethods($payments['data']['payments']);
-            if (count($methods) === 1) { $report['credit_payment_method_id'] = $methods[0]; }
-            else { $this->block($report, $methods === [] ? 'credit_payment_method_not_verified' : 'credit_payment_method_ambiguous'); }
-        } else {
-            $complete = false; $this->block($report, 'payment_method_read_failed');
-        }
-        $fees = $this->api->paymentFees();
-        if (! ($fees['ok'] ?? false) || ! is_array($fees['data']['payments'] ?? null)) {
-            $complete = false; $this->block($report, 'payment_fee_read_failed');
-        } else {
-            $verified = $fees['data']['payments'] !== [];
-            foreach ($fees['data']['payments'] as $fee) {
-                if (! is_array($fee) || ! $this->id($fee['id'] ?? null)) {
-                    $verified = false; $this->block($report, 'payment_fee_schema_not_verified');
-                    continue;
-                }
-                foreach (['fixed_fee', 'percent_fee'] as $field) {
-                    if (($fee[$field] ?? null) === 'Array') {
-                        $verified = false; $this->block($report, 'payment_fees_literal_array');
-                    } elseif ($this->decimal($fee[$field] ?? null, true) === null) {
-                        $verified = false; $this->block($report, 'payment_fee_amount_not_verified');
-                    }
-                }
-            }
-            $report['payment_fees_verified'] = $verified;
-            if (! $verified) { $this->block($report, 'payment_fees_not_verified'); }
-        }
 
         $orderIds = [];
         $eligible = array_values(array_filter($records, fn ($candidate) =>

@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActivityLog;
 use App\Models\CloudInstance;
 use App\Models\Customer;
 use App\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -24,13 +27,19 @@ use Tests\TestCase;
  * مرورگرها GET را آزادانه تکرار و پیش‌بارگذاری می‌کنند؛ هر چیزِ یک‌بارمصرف
  * باید پشتِ کنشِ صریح باشد.
  *
- * خودِ قاعدهٔ «یک بار» درست است و می‌مانَد — فقط لحظه‌اش را کاربر انتخاب می‌کند.
+ * نمایش صریح باید قابل تکرار باشد؛ قطع پاسخ یا رفرش نباید مشتری را از رمز محروم کند.
  */
 class CloudRootPasswordRevealTest extends TestCase
 {
     use RefreshDatabase;
 
     private const PW = 'Sup3r-S3cret-Root-Pw';
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Http::preventStrayRequests();
+    }
 
     private function setup1(): array
     {
@@ -49,7 +58,7 @@ class CloudRootPasswordRevealTest extends TestCase
 
         $i = new CloudInstance(['service_id' => $s->id, 'provider' => 'hetzner',
             'provider_ref' => '123', 'hostname' => 'sn-svc-'.$s->id, 'ipv4' => '203.0.113.9',
-            'status' => 'active']);
+            'status' => 'running']);
         $i->setPassword(self::PW);           // password_seen → false
         $i->service_id = $s->id;
         $i->save();
@@ -91,29 +100,114 @@ class CloudRootPasswordRevealTest extends TestCase
             'کنترلر اجازهٔ نمایشِ رمز را نمی‌دهد، پس دکمه هرگز رندر نمی‌شود');
     }
 
-    /** کنشِ صریح رمز را می‌دهد و همان‌جا می‌سوزاند */
-    public function test_an_explicit_action_reveals_it_once(): void
+    /** درخواست صریح رمز را فقط برای همان نمونه در نشست می‌گذارد. */
+    public function test_an_explicit_action_reveals_the_stored_password_without_changing_it(): void
     {
         [$c, $s, $i] = $this->setup1();
 
-        $this->actingAs($c, 'customer')
+        $ciphertext = $i->root_password_enc;
+        $response = $this->actingAs($c, 'customer')
             ->post('/account/cloud/'.$s->id.'/reveal-password')
-            ->assertRedirect()
-            ->assertSessionHas('revealed_root_password', self::PW);
+            ->assertRedirect(route('account.cloud.show', $s))
+            ->assertSessionHas('revealed_root_password_'.$i->id, self::PW)
+            ->assertSessionMissing('revealed_root_password');
 
         $this->assertTrue((bool) $i->refresh()->password_seen);
+        $this->assertSame($ciphertext, $i->root_password_enc);
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
     }
 
-    /** بارِ دوم دیگر نمی‌دهد — قاعدهٔ «یک بار» سرِ جایش است */
-    public function test_a_second_reveal_is_refused(): void
+    public function test_previously_seen_password_can_be_revealed_repeatedly(): void
+    {
+        [$c, $s, $i] = $this->setup1();
+        $i->update(['password_seen' => true]);
+        $ciphertext = $i->root_password_enc;
+
+        $this->actingAs($c, 'customer')->get('/account/cloud/'.$s->id)
+            ->assertOk()->assertViewHas('canReveal', true)->assertViewHas('password', fn ($value) => $value === null);
+
+        foreach ([1, 2] as $attempt) {
+            $this->post('/account/cloud/'.$s->id.'/reveal-password')
+                ->assertRedirect()->assertSessionHasNoErrors()
+                ->assertSessionHas('revealed_root_password_'.$i->id, self::PW);
+            $this->get('/account/cloud/'.$s->id)
+                ->assertOk()->assertViewHas('password', self::PW);
+            $this->get('/account/cloud/'.$s->id)
+                ->assertOk()->assertViewHas('password', fn ($value) => $value === null)->assertViewHas('canReveal', true);
+        }
+        $this->assertSame($ciphertext, $i->fresh()->root_password_enc);
+    }
+
+    public function test_password_flash_is_consumed_only_by_its_instance_and_get_is_not_cacheable(): void
+    {
+        [$c, $s, $i] = $this->setup1();
+        [, $otherService] = $this->setup1();
+        $otherService->update(['customer_id' => $c->id]);
+        $key = 'revealed_root_password_'.$i->id;
+
+        $this->actingAs($c, 'customer')->withSession([$key => self::PW])
+            ->get('/account/cloud/'.$otherService->id)
+            ->assertOk()->assertViewHas('password', fn ($value) => $value === null)->assertDontSee(self::PW)
+            ->assertSessionHas($key, self::PW);
+        $response = $this->get('/account/cloud/'.$s->id)
+            ->assertOk()->assertViewHas('password', self::PW)->assertSessionMissing($key);
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->assertStringContainsString('private', (string) $response->headers->get('Cache-Control'));
+        $this->get('/account/cloud/'.$s->id)->assertOk()->assertViewHas('password', fn ($value) => $value === null)->assertDontSee(self::PW);
+    }
+
+    public function test_a_lost_flash_can_be_recovered_without_resetting_the_server_password(): void
+    {
+        [$c, $s, $i] = $this->setup1();
+        $this->actingAs($c, 'customer')->post('/account/cloud/'.$s->id.'/reveal-password');
+        session()->forget('revealed_root_password_'.$i->id);
+        $this->post('/account/cloud/'.$s->id.'/reveal-password')
+            ->assertSessionHasNoErrors()->assertSessionHas('revealed_root_password_'.$i->id, self::PW);
+        $this->assertSame(self::PW, $i->fresh()->password());
+    }
+
+    public function test_missing_or_undecryptable_password_is_not_recorded_as_revealed(): void
+    {
+        foreach ([null, 'invalid-ciphertext', Crypt::encryptString('')] as $ciphertext) {
+            [$c, $s, $i] = $this->setup1();
+            $i->update(['root_password_enc' => $ciphertext]);
+            $this->actingAs($c, 'customer')->post('/account/cloud/'.$s->id.'/reveal-password')
+                ->assertSessionHasErrors()->assertSessionMissing('revealed_root_password_'.$i->id);
+            $this->assertFalse($i->fresh()->password_seen);
+            $this->assertSame($ciphertext, $i->fresh()->root_password_enc);
+            $this->assertFalse(ActivityLog::where('service_id', $s->id)->where('action', 'password_reveal')->exists());
+        }
+    }
+
+    public function test_reveal_audit_distinguishes_customer_and_impersonating_staff_without_secrets(): void
     {
         [$c, $s] = $this->setup1();
+        $url = '/account/cloud/'.$s->id.'/reveal-password';
+        $this->actingAs($c, 'customer')->post($url)->assertSessionHasNoErrors();
+        $customerLog = ActivityLog::where('service_id', $s->id)->where('action', 'password_reveal')->firstOrFail();
+        $this->assertSame('customer', $customerLog->actor);
+        $this->assertStringNotContainsString(self::PW, json_encode($customerLog->getAttributes(), JSON_THROW_ON_ERROR));
 
-        $this->actingAs($c, 'customer')->post('/account/cloud/'.$s->id.'/reveal-password');
+        $this->withSession(['impersonator_id' => 501])->post($url)->assertSessionHasNoErrors();
+        $staffLog = ActivityLog::where('service_id', $s->id)->where('action', 'impersonate')->firstOrFail();
+        $this->assertSame('staff', $staffLog->actor);
+        $this->assertStringNotContainsString(self::PW, json_encode($staffLog->getAttributes(), JSON_THROW_ON_ERROR));
+        $this->assertFalse(ActivityLog::visibleToCustomer()->whereKey($staffLog->id)->exists());
+    }
 
-        $this->actingAs($c, 'customer')
-            ->post('/account/cloud/'.$s->id.'/reveal-password')
-            ->assertSessionHasErrors();
+    public function test_lightnode_delivery_gate_remains_in_effect_for_previously_seen_passwords(): void
+    {
+        [$c, $s, $i] = $this->setup1();
+        $i->update(['provider' => 'lightnode', 'status' => 'building', 'password_seen' => true]);
+        $url = '/account/cloud/'.$s->id.'/reveal-password';
+        $this->actingAs($c, 'customer')->post($url)
+            ->assertSessionHasErrors()->assertSessionMissing('revealed_root_password_'.$i->id);
+        $i->update(['status' => 'running']);
+        $this->post($url)->assertSessionHasErrors()->assertSessionMissing('revealed_root_password_'.$i->id);
+        $i->update(['ready_notified_at' => now()]);
+        session()->forget('errors');
+        $this->post($url)->assertSessionHasNoErrors()->assertSessionHas('revealed_root_password_'.$i->id, self::PW);
     }
 
     /** ⚠️ رمز هرگز نباید در URL برود — لاگِ سرور و کلادفلر و تاریخچهٔ مرورگر */

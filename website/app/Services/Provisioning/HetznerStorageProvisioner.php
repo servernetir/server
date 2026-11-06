@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\DB;
  */
 class HetznerStorageProvisioner implements Provisioner
 {
+    private const ACCESS_KEYS = ['reachable_externally', 'ssh_enabled', 'samba_enabled', 'webdav_enabled'];
+
     public function slug(): string
     {
         return 'hetzner_storage';
@@ -263,15 +265,76 @@ class HetznerStorageProvisioner implements Provisioner
         $client = new HetznerStorageClient($server);
 
         $settings = $open
-            ? $this->accessSettings()
+            ? $this->resumeAccessSettings($service)
             : ['reachable_externally' => false, 'ssh_enabled' => false, 'samba_enabled' => false, 'webdav_enabled' => false];
 
+        $before = $this->readAccessSettings($client, $id);
+        if ($before === null) {
+            return ProvisionResult::fail('وضعیت دسترسی باکس خوانده نشد؛ درخواست تغییر دسترسی ارسال نشد.');
+        }
+        if ($before === $settings) {
+            return ProvisionResult::success((string) $service->username ?: null, null, null,
+                ['access' => $open ? 'open' : 'closed', 'already_in_requested_state' => true]);
+        }
         $r = $client->updateAccessSettings($id, $settings);
 
-        $complete = $r['ok'] && ($r['data']['action']['status'] ?? null) === 'success';
+        // Updates are asynchronous. Read the exact box; a later retry observes
+        // completion before sending another POST, even after an ambiguous reply.
+        $complete = $this->readAccessSettings($client, $id) === $settings;
         return $complete
             ? ProvisionResult::success((string) $service->username ?: null, null, null, ['access' => $open ? 'open' : 'closed'])
             : ProvisionResult::fail(($open ? 'بازکردن' : 'بستن').'ِ دسترسیِ باکس هنوز تأیید نشده: '.$r['reason']);
+    }
+
+    /** Only a scoped, complete snapshot may override the normal access policy. */
+    private function resumeAccessSettings(Service $service): array
+    {
+        $fallback = $this->accessSettings();
+        $meta = (array) $service->provision_meta;
+        $binding = $meta['existing_storage_binding'] ?? null;
+        $id = $meta['hetzner_box_id'] ?? null;
+        $user = $service->username;
+        if (! $service->exists || $service->server?->type !== 'hetzner_storage'
+            || ($meta['driver'] ?? null) !== $this->slug()
+            || ! (is_int($id) || is_string($id)) || ! preg_match('/\A[1-9][0-9]*\z/D', (string) $id)
+            || ! is_string($user) || ! preg_match('/\Au[0-9]+\z/D', $user)
+            || ($meta['host'] ?? null) !== $user.'.your-storagebox.de'
+            || ! is_array($binding) || ($binding['version'] ?? null) !== 1) {
+            return $fallback;
+        }
+        foreach (['service_id' => $service->id, 'customer_id' => $service->customer_id,
+            'server_id' => $service->server_id, 'box_id' => $id] as $key => $expected) {
+            $actual = $binding[$key] ?? null;
+            if (! (is_int($actual) || is_string($actual)) || (string) $actual !== (string) $expected) {
+                return $fallback;
+            }
+        }
+        $snapshot = $binding['access_settings'] ?? null;
+        if (! is_array($snapshot) || count($snapshot) !== count(self::ACCESS_KEYS)) return $fallback;
+        $settings = [];
+        foreach (self::ACCESS_KEYS as $key) {
+            if (! array_key_exists($key, $snapshot) || ! is_bool($snapshot[$key])) return $fallback;
+            $settings[$key] = $snapshot[$key];
+        }
+        return $settings;
+    }
+
+    /** Unknown or malformed readback cannot confirm a provider state change. */
+    private function readAccessSettings(HetznerStorageClient $client, int|string $id): ?array
+    {
+        $result = $client->getBox($id);
+        $box = $result['data']['storage_box'] ?? null;
+        if (! $result['ok'] || ! is_array($box)
+            || ! (is_int($box['id'] ?? null) || is_string($box['id'] ?? null))
+            || (string) $box['id'] !== (string) $id) return null;
+        $snapshot = $box['access_settings'] ?? null;
+        if (! is_array($snapshot)) return null;
+        $settings = [];
+        foreach (self::ACCESS_KEYS as $key) {
+            if (! array_key_exists($key, $snapshot) || ! is_bool($snapshot[$key])) return null;
+            $settings[$key] = $snapshot[$key];
+        }
+        return $settings;
     }
 
     /** خاتمه = حذفِ واقعی نزدِ هتزنر، وگرنه اجارهٔ باکسِ بی‌مشتری را ما می‌دهیم */

@@ -12,6 +12,6 @@ class FinanceVoucher extends Model
 
     protected function casts(): array
     {
-        return ['occurred_at' => 'date', 'owns_business_entry' => 'boolean', 'amount_irt' => 'integer', 'original_minor' => 'integer', 'settlement_minor' => 'integer', 'input_vat_irt' => 'integer'];
+        return ['occurred_at' => 'date', 'owns_business_entry' => 'boolean', 'amount_irt' => 'integer', 'original_minor' => 'integer', 'settlement_minor' => 'integer', 'input_vat_irt' => 'integer', 'related_voucher_id' => 'integer'];
     }
 }

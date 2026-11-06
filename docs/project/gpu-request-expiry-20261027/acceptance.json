@@ -1,0 +1,78 @@
+{
+  "source_sha": "ca80a7a8aa6389aec6b928502be4dd862e8fc6fb",
+  "release_id": "pending-request-ui-expiry-20261027-ca80a7a8",
+  "status": "installed-and-scoped-production-acceptance-passed",
+  "tests": {
+    "php": {
+      "passed": 106,
+      "assertions": 738,
+      "runtime": "PHP 8.4.26; SQLite memory"
+    },
+    "js_passed": 7,
+    "synthetic_browser_cases_passed": 30,
+    "multiprocess_mariadb_tested": false
+  },
+  "preflight": {
+    "files": 12,
+    "live_writes": 0,
+    "lint": "passed"
+  },
+  "install": {
+    "files": 12,
+    "hashes_verified": true,
+    "targeted_blade_compilation": true
+  },
+  "config": {
+    "order_expiry_hours": 24,
+    "invoice_hold_hours": 48
+  },
+  "before": {
+    "checked_at_utc": "2026-10-27T05:26:34Z",
+    "eligible_unfunded": 5,
+    "past_deadline_unfunded": 3,
+    "payment_expired_total": 0,
+    "truncated": false
+  },
+  "natural_queue": {
+    "started_at_utc": "2026-10-27T05:27:03Z",
+    "finished_at_utc": "2026-10-27T05:27:05Z",
+    "candidates": 19,
+    "outcomes": {
+      "skip": 14,
+      "expired": 3,
+      "waiting": 2
+    },
+    "status": "ok"
+  },
+  "after": {
+    "checked_at_utc": "2026-10-27T05:29:52Z",
+    "eligible_unfunded": 2,
+    "past_deadline_unfunded": 0,
+    "payment_expired_total": 3,
+    "truncated": false
+  },
+  "public_assets": {
+    "hosts": [
+      "servernet.cloud",
+      "console.servernet.cloud"
+    ],
+    "assets": [
+      "assets/css/cloud-request.css",
+      "assets/js/gpu-request-expiry.js"
+    ],
+    "all_http_status": 200,
+    "all_match_installed": true
+  },
+  "synthetic_live_render": {
+    "locales": [
+      "fa",
+      "en",
+      "tr"
+    ],
+    "deadline_notice": true,
+    "raw_translation_keys": false,
+    "db_write_queries": 0
+  },
+  "customer_authenticated_browser_tested": false,
+  "manual_financial_or_provisioning_commands_run": false
+}

@@ -96,19 +96,14 @@ class DomainSearchPageStateTest extends TestCase
         );
     }
 
-    /**
-     * ⚠️ نیمهٔ دومِ قاعده: خاموش‌شدنِ چرخنده باید **بعد از پایانِ همهٔ دسته‌ها**
-     * باشد، نه بعد از دستهٔ اول. بی‌این، «هنوز دارد بارگذاری می‌کند» به دروغِ
-     * برعکس تبدیل می‌شود: کاربر فکر می‌کند فهرست کامل است در حالی که نیست.
-     */
-    public function test_the_spinner_is_only_cleared_after_every_batch_finishes(): void
+    /** Terminal/pause/error visibility is exercised by the actual Blade JS behavior suite. */
+    public function test_the_spinner_starts_hidden_before_any_search(): void
     {
         $html = $this->page();
-
-        $this->assertMatchesRegularExpression(
-            '/finally\s*\{[^}]*more\.hidden\s*=\s*true/s',
-            $html,
-            'خاموش‌کردنِ چرخنده باید در finally باشد تا دستهٔ ناموفق هم آن را ببندد'
-        );
+        $document = new \DOMDocument();
+        @$document->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $spinner = (new \DOMXPath($document))->query('//*[@id="dm-more"]')->item(0);
+        $this->assertNotNull($spinner);
+        $this->assertTrue($spinner->hasAttribute('hidden'));
     }
 }

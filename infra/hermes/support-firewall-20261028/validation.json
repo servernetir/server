@@ -1,0 +1,237 @@
+{
+  "baseline_sha": "755cb72e7d3bd8f951a0f0513e7c796da627e83d",
+  "final_combined": {
+    "assertions": 160,
+    "failure_identity_matches_baseline": true,
+    "tests": 80,
+    "failures": 11,
+    "errors": 14
+  },
+  "legacy_failure_identity_unchanged": true,
+  "new_tests": {
+    "assertions": 61,
+    "tests": 23,
+    "passed": true
+  },
+  "php": "8.4.26",
+  "legacy": {
+    "baseline-exact": {
+      "assertions": 99,
+      "tests": 57,
+      "skipped": 0,
+      "errors": 14,
+      "failing_cases": [
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_the_create_request_carries_a_security_group",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_the_default_group_wins_over_order",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_it_falls_back_to_the_first_group",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_it_sends_the_provider_id_not_either_name",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_it_uses_the_id_when_real_name_is_absent",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_an_unresolved_manual_name_fails_closed",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_an_explicit_manual_uuid_can_be_used_when_discovery_is_unavailable",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_a_validation_error_reaches_the_admin_readable",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_an_image_from_another_region_is_translated",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_a_valid_image_is_left_alone",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_catalog_maps_toman_price_to_euro_cents",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_full_country_name_is_normalized_to_iso2",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_dedicated_cpu_share_is_detected",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_images_are_mapped_to_unified_keys",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_sync_uses_the_strictest_ram_requirement_across_regions",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_hourly_only_plan_is_included",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_promo_size_is_included_by_default",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_non_creatable_region_is_excluded",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_datacenter_codename_maps_to_city",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_goethe_germany_region_is_excluded",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_create_server_encodes_region_in_ref",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_stale_regional_flavor_is_replaced_only_by_an_exact_live_match",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_create_transport_failure_is_explicitly_retryable",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_full_sync_creates_iranian_plans",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_arvan_brand_never_leaks",
+          "kind": "error"
+        }
+      ],
+      "failures": 11
+    },
+    "changed-arvan": {
+      "assertions": 99,
+      "tests": 57,
+      "skipped": 0,
+      "errors": 14,
+      "failing_cases": [
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_the_create_request_carries_a_security_group",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_the_default_group_wins_over_order",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_it_falls_back_to_the_first_group",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_it_sends_the_provider_id_not_either_name",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_it_uses_the_id_when_real_name_is_absent",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_an_unresolved_manual_name_fails_closed",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_an_explicit_manual_uuid_can_be_used_when_discovery_is_unavailable",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_a_validation_error_reaches_the_admin_readable",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_an_image_from_another_region_is_translated",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.ArvanSecurityGroupTest::test_a_valid_image_is_left_alone",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_catalog_maps_toman_price_to_euro_cents",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_full_country_name_is_normalized_to_iso2",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_dedicated_cpu_share_is_detected",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_images_are_mapped_to_unified_keys",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_sync_uses_the_strictest_ram_requirement_across_regions",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_hourly_only_plan_is_included",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_promo_size_is_included_by_default",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_non_creatable_region_is_excluded",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_datacenter_codename_maps_to_city",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_goethe_germany_region_is_excluded",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_create_server_encodes_region_in_ref",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_stale_regional_flavor_is_replaced_only_by_an_exact_live_match",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_create_transport_failure_is_explicitly_retryable",
+          "kind": "error"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_full_sync_creates_iranian_plans",
+          "kind": "failure"
+        },
+        {
+          "test": "Tests.Feature.CloudArvanTest::test_arvan_brand_never_leaks",
+          "kind": "error"
+        }
+      ],
+      "failures": 11
+    }
+  }
+}

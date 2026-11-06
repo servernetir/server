@@ -1,0 +1,2823 @@
+<?php
+
+namespace App\Services\Cloud;
+
+use App\Mail\ServiceReadyMail;
+use App\Models\ActivityLog;
+use App\Models\CloudImage;
+use App\Models\CloudInstance;
+use App\Models\CloudLocation;
+use App\Models\CloudPlan;
+use App\Models\CloudSshKey;
+use App\Models\CreditEntry;
+use App\Models\Service;
+use App\Services\Bale\Admin\AdminBaleRouter;
+use App\Services\Dns\CloudflareDns;
+use App\Services\Notify\AdminNotifier;
+use App\Services\Notify\CustomerNotifier;
+use App\Services\Notify\Notifier;
+use App\Support\ErrorTracker;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+
+/**
+ * تحویلِ خودکارِ سرورِ ابری — از «پرداخت شد» به «سرورِ روشن».
+ *
+ * چرا کلاسِ جدا و نه یک درایورِ `Provisioner`: قراردادِ موجود حولِ مدلِ `Server`
+ * (سرورهای WHM/DirectAdmin که مدیر دستی ثبت می‌کند) ساخته شده، ولی سرورِ ابری
+ * **پیش از خرید وجود ندارد** و لحظهٔ تحویل ساخته می‌شود. زور زدن به آن قرارداد،
+ * ردیف‌های قلابی در `servers` می‌خواست.
+ *
+ * ═══ idempotency: مهم‌ترین بخشِ این فایل ═══
+ *
+ * `provision:run` هر دقیقه می‌دود و می‌تواند روی یک سرویس دو بار بیفتد. اگر
+ * محافظت نکنیم، **دو سرور می‌خریم و پولِ واقعی می‌سوزد**. سه لایه محافظ:
+ *
+ *  ۱) قفلِ وضعیتیِ اتمی (pending → running با یک UPDATE شرطی)، همان الگوی
+ *     `ProvisioningService`.
+ *  ۲) نامِ سرور **قطعی** است (`sn-svc-{id}`) نه تصادفی. اگر تلاشِ اول سرور را
+ *     ساخت ولی پاسخ به ما نرسید، تلاشِ دوم خطای «نامِ تکراری» می‌گیرد و درایور
+ *     همان سرورِ موجود را برمی‌گرداند — نه اینکه دومی بخرد.
+ *  ۳) ردیفِ `cloud_instances` **قبل** از تماسِ API ساخته می‌شود؛ اگر وسطِ کار
+ *     برق برود، دفعهٔ بعد می‌دانیم سراغِ کدام سرویس رفته بودیم.
+ */
+class CloudProvisioner
+{
+    /**
+     * An accepted provider mutation may be asynchronous, but it may not stop
+     * billing/error escalation forever.  With the 15-minute reconciliation
+     * cadence this allows two observations before the operation is failed.
+     */
+    private const LIFECYCLE_PENDING_DEADLINES = [
+        // LightNode exposes a durable async receipt.  Other providers have
+        // different lifecycle contracts and must not inherit this deadline.
+        'lightnode' => 30,
+        'vpstc' => 30,
+    ];
+
+    /** Provider-accepted deletion may be asynchronous, but not indefinitely. */
+    private const RELEASE_PENDING_DEADLINES = [
+        // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
+        'arvan' => 15,
+        'vpstc' => 30,
+    ];
+
+    public function __construct(
+        private CloudManager $manager,
+        private CloudAddons $addons,
+    ) {}
+
+    /** آیا این سرویس، سرورِ ابری است؟ */
+    public static function handles(Service $service): bool
+    {
+        return filled($service->cloud_plan_id);
+    }
+
+    /**
+     * تلاش برای تحویل. هرگز استثنا پرت نمی‌کند.
+     *
+     * @return bool موفقیت
+     */
+    public function provision(Service $service): bool
+    {
+        if (in_array($service->fresh()?->status, Service::DEAD_STATUSES, true)) {
+            return false;
+        }
+        if ($service->provision_status === 'done') {
+            return true;
+        }
+
+        // ── لایهٔ ۱: قفلِ اتمی ──
+        $claimed = Service::whereKey($service->id)
+            ->whereNotIn('status', Service::DEAD_STATUSES)
+            ->where(function ($q) {
+                $q->whereIn('provision_status', ['pending', 'failed', 'manual'])
+                    ->orWhereNull('provision_status')
+                    // قفلِ کهنه: پروسهٔ قبلی وسطِ کار مرده است. بی‌این، سرویس
+                    // تا ابد در 'running' گیر می‌کرد و هیچ‌کس بیرونش نمی‌آورد.
+                    ->orWhere(fn ($s) => $s->where('provision_status', 'running')
+                        ->where('updated_at', '<', now()->subMinutes(15)));
+            })
+            ->update(['provision_status' => 'running']);
+
+        if ($claimed === 0) {
+            return $service->fresh()?->provision_status === 'done';
+        }
+
+        $service->refresh();
+
+        try {
+            return $this->deliver($service);
+        } catch (\Throwable $e) {
+            Log::error('cloud.provision.failed', ['service' => $service->id, 'err' => $e->getMessage()]);
+            // «تحویل شکست نمی‌خورد، فقط اتفاق نمی‌افتد» — بدترین نوعِ خرابی
+            // در این پروژه. باید در /admin/errors دیده شود، نه فقط در
+            // laravel.logِ غیرقابلِ‌خواندن روی cPanel.
+            ErrorTracker::note('provision', $e, ['service' => $service->id]);
+            $this->fail($service, 'خطای غیرمنتظره: '.mb_substr($e->getMessage(), 0, 160));
+
+            return false;
+        }
+    }
+
+    private function deliver(Service $service): bool
+    {
+        // ── 🔴 محافظِ سوءاستفاده، پیش از هر تماسِ پولی ──
+        //
+        // تحویل کاملاً خودکار است، پس هر حسابِ تازه یک دکمهٔ مستقیم به APIِ
+        // زیرساختِ خارجی دارد. با کارتِ دزدیده‌شده می‌شود در چند دقیقه ده‌ها
+        // سرور گرفت؛ بعد chargeback می‌خورد و هم صورتحساب پای ماست هم گزارشِ
+        // abuse — و بدتر، حسابِ مادرِ ما تعلیق می‌شود که یعنی سرورِ **همهٔ**
+        // مشتریانِ خارج هم‌زمان می‌رود.
+        //
+        // عمداً «رد» نمی‌کند: به صفِ بازبینیِ دستی می‌رود تا مدیر ببیند. یک
+        // تأخیرِ کوتاه برای مشتریِ واقعی، از قطعِ فروش خیلی ارزان‌تر است.
+        /*
+        | ⚠️ نبودِ مشتری یعنی **نگه دار**، نه «رد شو».
+        |
+        | `services.customer_id` کلیدِ خارجیِ واقعی ندارد، پس مشتریِ حذف‌شده یک
+        | سرویسِ یتیم جا می‌گذارد. شکلِ قبلی (`if ($service->customer !== null)`)
+        | آن سرویس را **بی‌هیچ بررسیِ سوءاستفاده‌ای** مستقیم به تماسِ پولی
+        | می‌رساند. تنها مسیرِ باقی‌مانده به پولِ واقعی که هیچ‌کس نگاهش نمی‌کرد.
+        */
+        $verdict = $service->customer !== null
+            ? app(CloudFraudGuard::class)->check($service->customer)
+            : ['hold' => true, 'reason' => 'مشتریِ این سفارش پیدا نشد'];
+
+        if ($verdict['hold'] && ! $this->consumeOverride($service, (string) $verdict['reason'])) {
+            $this->needsReview($service, (string) $verdict['reason']);
+
+            return false;
+        }
+
+        // ── انتخابِ زیرساخت در **لحظهٔ تحویل**، نه لحظهٔ سفارش ──
+        // بین سفارش و پرداخت ممکن است ارزان‌ترین زیرساخت پر شده باشد. با انتخابِ
+        // دیرهنگام، خودکار سراغِ بعدی می‌رویم و مشتری هیچ تفاوتی نمی‌بیند.
+        $ordered = CloudPlan::find($service->cloud_plan_id);
+
+        if ($ordered === null) {
+            $this->fail($service, 'پلنِ سفارش‌شده پیدا نشد.');
+
+            return false;
+        }
+
+        // انتخابِ دیرهنگامِ زیرساخت — با دو قید: موجودی، و توانِ تحویلِ
+        // **افزودنی‌های خریده‌شده**. اگر مشتری IP اضافه خریده و ارزان‌ترین
+        // زیرساخت آن را نمی‌دهد، سراغِ بعدی می‌رویم؛ وگرنه پولِ چیزی را گرفته‌ایم
+        // که تحویلش ممکن نیست.
+        $wanted = $this->addons->sanitize($service->cloud_addons);
+
+        // ⚠️ قیدِ دوم: **ترمِ صورت‌حساب**. سرویسِ ساعتی فقط روی ردیفی می‌نشیند
+        //    که زیرساخت واقعاً ساعتی می‌فروشدش؛ وگرنه انتخابِ دیرهنگام می‌تواند
+        //    سرویسِ ساعتی را روی ارزان‌ترینِ ماهانه‌فروش بگذارد و سفارش رد شود.
+        $hourly = $service->isHourly();
+
+        $plan = $this->addons->bestPlanFor((string) $ordered->slug, $wanted, $this->manager, $hourly)
+            ?? CloudPlan::bestForSlug((string) $ordered->slug, $hourly)
+            ?? $ordered;
+
+        /*
+        | 🔴 شاخهٔ `?? $ordered` **قرنطینه را دور می‌زد**.
+        |
+        | هر دو انتخاب‌کنندهٔ بالا `sellable()` می‌زنند و پلنِ `admin_disabled`
+        | را کنار می‌گذارند — ولی وقتی هیچ‌کدام چیزی پیدا نکنند، همان ردیفِ
+        | سفارش‌شده برمی‌گردد، حتی اگر خودِ سیستم چند دقیقه پیش تصمیم گرفته باشد
+        | فروشِ آن زیرساخت امن نیست. یعنی «تلاشِ دوباره»ی مدیر روی سرویسِ ۶ یا
+        | ۱۳ دقیقاً از همان زیرساختی سفارش می‌داد که به‌خاطرِ همان سفارش بسته
+        | شده بود.
+        |
+        | ⚠️ فقط قرنطینهٔ **خودکار** این‌جا جلوی کار را می‌گیرد. پلنی که مدیر
+        | آگاهانه بسته، همچنان برای سرویسِ فروخته‌شده تحویل می‌شود — بستنِ فروش
+        | یعنی «تازه نفروش»، نه «سفارشِ پرداخت‌شده را تحویل نده».
+        */
+        if ($plan->is($ordered) && $ordered->admin_disabled
+            && str_starts_with((string) $ordered->admin_note, self::QUARANTINE_PREFIX)) {
+            $this->fail($service, 'زیرساختِ این پلن پس از یک خطای ساختاری خودکار بسته شده؛ '
+                .'تا بازبینیِ مدیر دوباره سفارش داده نمی‌شود.');
+
+            return false;
+        }
+
+        $driver = $this->manager->forPlan($plan);
+
+        if ($driver === null || ! $driver->isConfigured()) {
+            // «pending» می‌مانَد تا کرونِ بعدی دوباره تلاش کند — چون این خرابیِ
+            // ما است نه خطای مشتری، و با وارد کردنِ توکن خودش حل می‌شود.
+            $this->retryLater($service, 'زیرساختِ تحویل در دسترس نیست؛ تلاشِ خودکار ادامه دارد.');
+
+            return false;
+        }
+
+        if (! $plan->in_stock) {
+            $this->retryLater($service, 'ظرفیتِ این پلن موقتاً تمام است؛ تلاشِ خودکار ادامه دارد.');
+
+            return false;
+        }
+
+        // ── سیستم‌عاملِ انتخابیِ مشتری → شناسهٔ بومیِ همین زیرساخت ──
+        $imageKey = (string) ($service->cloud_image_key ?: config('cloud.default_image', 'ubuntu-24.04'));
+        $imageRef = CloudImage::compatibleRefFor($plan, $imageKey);
+
+        if ($imageRef === null) {
+            // نبودِ همان سیستم‌عامل روی این زیرساخت: به‌جای شکست، سراغِ
+            // زیرساختِ دیگری برو که داردش. مشتری اوبونتو خواسته، نه یک برند.
+            $alt = $this->planWithImage((string) $ordered->slug, $imageKey, $hourly);
+
+            if ($alt === null) {
+                $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
+
+                return false;
+            }
+
+            $plan = $alt;
+            $driver = $this->manager->forPlan($plan);
+            $imageRef = CloudImage::compatibleRefFor($plan, $imageKey);
+
+            if ($driver === null || $imageRef === null) {
+                $this->fail($service, 'سیستم‌عاملِ انتخابی برای این پلن در دسترس نیست.');
+
+                return false;
+            }
+        }
+
+        if ($plan->provider === 'salad'
+            && ! app(GpuCapacityOrders::class)->allowAllocation($service, $plan)) {
+            return false;
+        }
+
+        // ── لایهٔ ۳: ردیفِ نمونه پیش از تماس ──
+        $instance = CloudInstance::firstOrNew(['service_id' => $service->id]);
+        $instance->fill([
+            'provider' => $plan->provider,
+            'location_code' => $plan->location_code,
+            'image_key' => $imageKey,
+            'hostname' => $this->serverName($service),
+            'status' => 'building',
+            'specs' => [
+                'vcpu' => $plan->vcpu, 'ram_mb' => $plan->ram_mb,
+                'disk_gb' => $plan->disk_gb, 'disk_type' => $plan->disk_type,
+                'traffic_gb' => $plan->traffic_gb, 'cpu_kind' => $plan->cpu_kind,
+                'plan_name' => $plan->public_name,
+            ],
+        ]);
+        $instance->save();
+
+        // ── لایهٔ ۲الف: اگر از قبل سرور خریده‌ایم، دوباره نخر ──
+        //
+        // 🔴 چرا صریح لازم است: محافظِ «نامِ تکراری» فقط روی زیرساختی کار می‌کند
+        // که نامِ سرور را یکتا می‌گیرد و خطای uniqueness می‌دهد. زیرساختِ دوم
+        // سفارش‌محور است و هر POST یک **سفارشِ تازه و پولِ تازه** است. سناریوی
+        // واقعی: تماسِ اول در سمتِ آنها موفق می‌شود ولی پاسخ به ما نمی‌رسد
+        // (تایم‌اوت) → ما 'failed' ثبت می‌کنیم → ادمین «تلاش دوباره» می‌زند →
+        // سرورِ دوم خریده می‌شود و سرورِ اول یتیم می‌مانَد و اجاره‌اش تا ابد از
+        // حسابِ ما کم می‌شود، بی‌آنکه کسی بفهمد.
+        //
+        // پس اگر شناسه‌ای داریم، فقط وضعیت را می‌گیریم و همان را ادامه می‌دهیم.
+        if (filled($instance->provider_ref)) {
+            return $this->adoptExisting($service, $instance, $plan, $driver);
+        }
+
+        // ── کلیدِ SSH ──
+        // باید **پیش** از ساختِ سرور در حسابِ ما نزدِ زیرساخت باشد، چون سرِ ساخت
+        // فقط اشاره به کلیدِ موجود پذیرفته می‌شود نه متنِ کلید.
+        $sshRefs = $this->sshKeyRefs($service, $plan);
+
+        /*
+        | 🔴 آخرین خط: ساعتی روی زیرساختی که ساعتی نمی‌فروشد سفارش داده نشود.
+        |
+        | ⚠️ عمداً **همین‌جا** است، نه بالاتر کنارِ انتخابِ اول. `$plan` تا این
+        | خط **سه** بار می‌تواند عوض شود: `bestPlanFor`، `bestForSlug` (که
+        | وقتی چیزی پیدا نکند به `$ordered` برمی‌گردد) و شاخهٔ «زیرساختی که
+        | ایمیج را دارد». گاردی که پیش از آخرین جابه‌جایی بنشیند، از پشت دور
+        | زده می‌شود — و اولین نسخهٔ همین گارد دقیقاً همان‌طور دور خورد؛ تستِ
+        | `..._moves_to_the_hourly_capable_row_...` گرفتش.
+        |
+        | ⚠️ `fail` نه `retryLater`: تکرار درستش نمی‌کند؛ یا کاتالوگ باید عوض
+        | شود یا سفارش ماهانه شود. تلاشِ بی‌پایان فقط صف را کثیف می‌کند.
+        */
+        if ($hourly && ! $plan->supportsHourly()) {
+            $this->fail($service, 'این پلن نزدِ زیرساخت صورت‌حسابِ ساعتی ندارد و ساعتی سفارش داده نمی‌شود؛ '
+                .'سفارش باید ماهانه باشد یا از مکان/زیرساختِ دیگری انتخاب شود.');
+
+            return false;
+        }
+
+        // The last provider selected at delivery may cost more than the
+        // customer's locked hourly rate. Never buy that machine at a loss.
+        if ($hourly) {
+            $eurToman = (int) app(CloudPricing::class)->eurToToman();
+            $costMicro = $plan->hourlyCostEurMicro();
+            if ($eurToman <= 0 || $costMicro <= 0
+                || (int) $service->hourly_rate_irt < (int) ceil($costMicro * $eurToman / 1_000_000)) {
+                $existingRef = $this->findByDeterministicName($service, $instance);
+                if (is_string($existingRef)) {
+                    $instance->update(['provider_ref' => $existingRef]);
+
+                    return $this->adoptExisting($service, $instance->fresh(), $plan, $driver);
+                }
+
+                $instance->update(['status' => 'error', 'last_error' => 'تحویل برای جلوگیری از خریدِ زیرِ بها متوقف شد.']);
+                $this->needsReview($service,
+                    'بهایِ ساعتیِ زیرساختِ منتخب از نرخِ قفل‌شدهٔ مشتری بیشتر است یا نرخِ ارز/بها در دسترس نیست؛ پیش از خرید، قیمت و مسیر تحویل بررسی شود.');
+
+                return false;
+            }
+        }
+
+        // ── لایهٔ ۲: نامِ قطعی ──
+        $result = $driver->createServer([
+            'name' => $this->serverName($service),
+            'plan_ref' => (string) $plan->provider_ref,
+            'location_ref' => (string) ($plan->provider_location ?: $plan->location_code),
+            'image_ref' => $imageRef,
+            // آروان flavorهای منطقه‌ای را گاهی با شناسهٔ تازه منتشر می‌کند.
+            // مشخصات را هم می‌فرستیم تا درایور بتواند پیش از خرید، شناسهٔ
+            // ذخیره‌شده را با فهرست زنده تطبیق دهد؛ تطبیق باید دقیق باشد.
+            'vcpu' => (int) $plan->vcpu,
+            'ram_mb' => (int) $plan->ram_mb,
+            'cpu_kind' => (string) $plan->cpu_kind,
+            'ssh_keys' => $sshRefs,
+            // بعضی زیرساخت‌ها (آروان) اندازهٔ دیسک را جدا می‌خواهند
+            'disk_gb' => (int) $plan->disk_gb,
+            'labels' => ['snet-service' => (string) $service->id],
+
+            /*
+            | 🔴 چرخهٔ خریدِ ما از زیرساخت باید همان چرخهٔ فروش به مشتری باشد.
+            |
+            | بی‌این، سرویسِ ساعتی از زیرساخت **ماهانه** خریده می‌شد: مشتری یک
+            | ساعت پول می‌داد و ما یک ماه. زیرساختی که این را نپذیرد خودش
+            | `month` می‌گیرد (درایور هر مقدارِ ناشناخته را به `month` می‌برد)،
+            | پس فرستادنش برای همه بی‌خطر است.
+            */
+            'term' => $service->isHourly() ? 'hour' : 'month',
+            'max_cost_eur_cents' => (int) $plan->cost_eur_cents,
+            'monthly_revenue_irt' => (int) floor((int) $service->price / max(1, Service::MONTHS_FALLBACK[$service->cycle] ?? 1)),
+        ]);
+
+        if (($result['manual'] ?? false) === true) {
+            $why = mb_substr((string) ($result['message'] ?? 'تحویل این سفارش نیازمند بررسی مدیر است.'), 0, 500);
+            $instance->update(['status' => 'building', 'last_error' => $why]);
+            $this->needsReview($service, $why);
+            return false;
+        }
+
+        if (! ($result['ok'] ?? false)) {
+            /*
+            | 🔴 علتِ واقعی در `raw.detail` است، نه فقط در `message`.
+            |
+            | درایورهایی که پیام را فارسی می‌پیچند (Proxmox: «ساختِ ماشین از
+            | قالب انجام نشد») متنِ خامِ زیرساخت را در detail می‌گذارند. تا
+            | امروز همین‌جا دور ریخته می‌شد — سرویس #74 با «قالب انجام نشد»ِ
+            | خالی ماند و مدیر هیچ راهی برای فهمیدنِ علت نداشت؛ و قرنطینهٔ
+            | خودکار هم که روی همین متن مچ می‌کند، برای آن درایورها هرگز
+            | نمی‌توانست permission/quota را ببیند.
+            */
+            $detail = trim((string) ($result['raw']['detail'] ?? ''));
+            $why = trim((string) $result['message'].($detail !== '' ? ' — '.$detail : ''));
+
+            $instance->update(['status' => 'error', 'last_error' => mb_substr($why, 0, 500)]);
+
+            /*
+            | قطع ارتباط، rate-limit و 5xx «رد سفارش» نیستند. پیش‌تر همهٔ
+            | خروجی‌های ok=false به failed می‌رفتند و provision:run عمداً
+            | failed را برنمی‌دارد؛ حاصلش همان سفارش‌های پرداخت‌شده‌ای بود که
+            | پس از یک timeout تا دخالت مدیر تحویل نمی‌شدند.
+            |
+            | درایور قبل از POST نام قطعی sn-svc-{id} را جست‌وجو می‌کند؛ پس
+            | اجرای بعدی ابتدا ماشینِ احتمالاً ساخته‌شده را می‌پذیرد و فقط در
+            | نبودنش دوباره می‌سازد. خطاهای ساختاری/اعتبار/پلن همچنان پایین‌تر
+            | failed و قرنطینه می‌شوند و کورکورانه تکرار نخواهند شد.
+            */
+            if (($result['transient'] ?? false) === true) {
+                $this->retryLater($service,
+                    'ارتباط موقت با زیرساخت برقرار نشد؛ تطبیق و تلاش خودکار ادامه دارد.');
+
+                return false;
+            }
+
+            // 🔴 اگر ایرادْ **نداشتنِ تعرفهٔ ساعتی روی همین محصول** است، همان
+            //    ردیف را از فروشِ ساعتی بردار — نه کلِ زیرساخت را
+            $this->disableHourlyIfRefused($plan, $why);
+
+            /*
+            | 🔴 اگر ایراد **همین ترکیبِ نوع/مکان** است، فقط همین ردیف بسته شود.
+            |
+            | ترتیب مهم است: این پیش از `quarantineProvider` می‌آید و اگر بگیرد،
+            | آن اصلاً صدا زده نمی‌شود. وگرنه فردا کسی «unsupported location» را
+            | به فهرستِ ساختاری اضافه می‌کند و کلِ خطِ زیرساخت به‌خاطرِ یک مکانِ
+            | نامعتبر بسته می‌شود — همان اتفاقی که بارِ قبل ۲۲۱ پلن را بست.
+            */
+            if (! $this->disableCombinationIfUnsupported($plan, $why)) {
+                // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
+                $this->quarantineProvider($plan, $why);
+            }
+
+            $this->fail($service, mb_substr('تحویلِ سرور ناموفق: '.$why, 0, 290));
+
+            return false;
+        }
+
+        // ── رمزِ root ──
+        // زیرساختِ ۱ رمز را در پاسخِ ساخت می‌دهد؛ زیرساختِ ۲ نمی‌دهد، پس همان‌جا
+        // یکی ست می‌کنیم. بی‌این، مشتری سرور دارد ولی راهی به داخلش ندارد.
+        $password = $result['root_password'] ?? null;
+
+        // ⚠️ اگر کلیدِ SSH داده شده، زیرساخت عمداً رمز نمی‌سازد — و ما هم نباید
+        // بسازیم. ساختنِ رمز برای سروری که کلید دارد، همان امنیتی را که مشتری با
+        // انتخابِ کلید خواسته بود پس می‌گیرد (ورودِ رمزی باز می‌مانَد).
+        $keyOnly = $sshRefs !== [];
+
+        if (! $keyOnly && $this->supportsAutomaticPasswordReset($instance)
+            && blank($password) && filled($result['ref'] ?? null)
+            && ! str_starts_with((string) $result['ref'], 'order:')) {
+            $pw = $driver->resetPassword((string) $result['ref']);
+            $password = $pw['root_password'] ?? null;
+        }
+
+        $instance->fill([
+            'provider_ref' => $result['ref'] ?? null,
+            'ipv4' => $result['ipv4'] ?? null,
+            'ipv6' => $result['ipv6'] ?? null,
+            'status' => $result['status'] ?? 'building',
+            'last_error' => null,
+            'synced_at' => now(),
+        ]);
+
+        if (filled($password)) {
+            $instance->setPassword($password);
+        }
+
+        $instance->save();
+
+        if ($instance->provider === 'vpstc' && in_array($result['status'] ?? '', ['running', 'off'], true)
+            && is_string($result['username'] ?? null) && trim($result['username']) !== '') {
+            // The supplier may return an OS-specific login. Preserve the
+            // verified identity alongside the password before final delivery.
+            $service->forceFill(['username' => $result['username']])->save();
+            $instance->refresh();
+            $meta = $instance->meta ?? [];
+            if (! isset($meta['vpstc_supplier_due_at']) && is_string($result['supplier_due_at'] ?? null)
+                && preg_match('/\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z/D', $result['supplier_due_at'])) {
+                $meta['vpstc_supplier_due_at'] = $result['supplier_due_at'];
+                $instance->update(['meta' => $meta]);
+            }
+        }
+
+        // ── IP اضافه ──
+        // بعد از ساختِ سرور، چون به شناسه‌اش بسته می‌شود. شکستش تحویل را
+        // شکست‌خورده **نمی‌کند** (سرور کار می‌کند و مشتری منتظرش است)، ولی مدیر
+        // خبردار می‌شود تا دستی کامل کند — وگرنه چیزی که پولش گرفته شده بی‌صدا
+        // تحویل نمی‌شود.
+        $this->attachExtraIps($service, $instance, $driver, $wanted);
+
+        $this->finalize($service, $instance, $plan, $password);
+
+        return true;
+    }
+
+    /**
+     * شناسهٔ کلیدِ SSH مشتری نزدِ این زیرساخت — با بارگذاریِ یک‌بارهٔ تنبل.
+     *
+     * @return array<int,string>
+     */
+    private function sshKeyRefs(Service $service, CloudPlan $plan): array
+    {
+        if (blank($service->cloud_ssh_key_id)) {
+            return [];
+        }
+
+        $key = CloudSshKey::find($service->cloud_ssh_key_id);
+
+        if ($key === null || (int) $key->customer_id !== (int) $service->customer_id) {
+            return [];                       // کلیدِ حذف‌شده یا مالِ کسِ دیگر
+        }
+
+        $provider = (string) $plan->provider;
+
+        // از قبل بارگذاری شده؟ همان را بزن.
+        if ($ref = $key->refFor($provider)) {
+            return [$ref];
+        }
+
+        $driver = $this->manager->forPlan($plan);
+
+        if ($driver === null || ! ($driver->capabilities()['ssh_key'] ?? false)) {
+            return [];
+        }
+
+        // نامِ یکتا نزدِ زیرساخت: نامِ دلخواهِ مشتری می‌تواند با نامِ مشتریِ
+        // دیگری یکی باشد و «تکراری» بخورد.
+        $r = $driver->uploadSshKey('snet-'.$key->customer_id.'-'.$key->id, (string) $key->public_key);
+
+        if (! ($r['ok'] ?? false) || blank($r['ref'] ?? null)) {
+            Log::warning('cloud.sshkey.upload', ['key' => $key->id, 'err' => $r['message'] ?? '']);
+
+            return [];
+        }
+
+        $key->rememberRef($provider, (string) $r['ref']);
+        $key->update(['last_used_at' => now()]);
+
+        return [(string) $r['ref']];
+    }
+
+    /** IPهای اضافهٔ خریداری‌شده را به سرور ببند و در نمونه ثبت کن */
+    private function attachExtraIps(Service $service, CloudInstance $instance, CloudProvider $driver, array $wanted): void
+    {
+        $count = (int) ($wanted['extra_ipv4'] ?? 0);
+
+        if ($count < 1 || blank($instance->provider_ref)
+            || str_starts_with((string) $instance->provider_ref, 'order:')) {
+            return;
+        }
+
+        $r = $driver->addExtraIps((string) $instance->provider_ref, $count);
+        $ips = (array) ($r['ips'] ?? []);
+
+        $meta = (array) ($instance->meta ?? []);
+        $meta['extra_ips'] = $ips;
+        $instance->update(['meta' => $meta]);
+
+        if (count($ips) === $count) {
+            return;
+        }
+
+        try {
+            app(AdminNotifier::class)->event(
+                'IP اضافه کامل تحویل نشد',
+                [
+                    'سرویس' => $service->name.' (#'.$service->id.')',
+                    'خریداری‌شده' => (string) $count,
+                    'تحویل‌شده' => (string) count($ips),
+                    'علت' => mb_substr((string) ($r['message'] ?? '—'), 0, 160),
+                ],
+                url('/admin/services'),
+                '⚠️'
+            );
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * ثبتِ نهاییِ تحویل — تنها جایی که سرویس «done» می‌شود.
+     *
+     * عمداً یک متدِ مشترک است تا مسیرِ ساختِ تازه و مسیرِ «به فرزندی گرفتن» دقیقاً
+     * یک کار بکنند. دو نسخهٔ موازیِ این منطق، همان‌جایی است که تفاوت‌های ریز
+     * (مثلاً یادنکردنِ panel_url در یک شاخه) بی‌صدا می‌نشینند.
+     */
+    private function finalize(Service $service, CloudInstance $instance, CloudPlan $plan, ?string $password): void
+    {
+        DB::transaction(function () use ($service, $instance, $plan, $password) {
+            $current = Service::whereKey($service->id)->lockForUpdate()->firstOrFail();
+            if (in_array($current->status, Service::DEAD_STATUSES, true)) {
+                $service->refresh();
+                return;
+            }
+            if ($instance->provider === 'arvan' && $instance->isWindows()) {
+                // Only the credential supplied by this create call is eligible.
+                // A retained instance secret has no generation proof: same-image
+                // rebuild/restore can leave it unchanged. Never recover it on
+                // retry or replace existing service ciphertext (even unreadable).
+                $credentialFields = [];
+                if (filled($password) && blank($current->getRawOriginal('password'))
+                    && $current->provision_status === 'running'
+                    && $current->provisioned_at === null && $current->activated_at === null
+                    && (int) $current->customer_id === (int) $service->customer_id
+                    && (string) $current->cloud_image_key === (string) $instance->image_key) {
+                    $captured = CloudInstance::whereKey($instance->id)->lockForUpdate()->first();
+                    if ($captured !== null && (int) $captured->service_id === (int) $current->id
+                        && $captured->provider === 'arvan'
+                        && filled($captured->provider_ref)
+                        && $captured->provider_ref === $instance->provider_ref
+                        && $captured->image_key === $instance->image_key
+                        && $captured->status !== 'deleted'
+                        && ! $captured->password_seen && $captured->ready_notified_at === null) {
+                        $capturedPassword = $captured->password();
+                        if (is_string($capturedPassword) && hash_equals($password, $capturedPassword)) {
+                            $credentialFields['password'] = $password;
+                        }
+                    }
+                }
+            } else {
+                $credentialFields = ['password' => $password ?: $current->password];
+            }
+            $service->setRawAttributes($current->getAttributes(), true);
+            $service->forceFill([
+                'cloud_plan_id' => $plan->id,      // زیرساختِ واقعیِ تحویل
+                /*
+                | 🔴 برنامهٔ GPU کاربرِ root ندارد و ipv4‌اش `ssh_ip`ِ زیرساخت است.
+                | ذخیرهٔ این دو یعنی پنلِ مدیریت «کاربر: root» نشان دهد و هر سطحی
+                | که از ردیفِ سرویس می‌خوانَد همان SSHِ ناموجود را تکرار کند.
+                */
+                'username' => $instance->provider === 'vpstc' ? $current->username
+                    : ($instance->isGpuApp() ? null
+                        : (in_array($instance->provider, ['arvan', 'lightnode'], true) && $instance->isWindows() ? 'Administrator' : 'root')),
+                ...$credentialFields,
+                'domain' => $service->domain ?: ($instance->isGpuApp()
+                    ? ($instance->accessHost() ?: null)
+                    : ($instance->ipv4 ?: null)),
+                'panel_url' => url('/account/cloud/'.$service->id),
+                'provision_status' => 'done',
+                'provision_error' => null,
+                'provisioned_at' => now(),
+                'provision_meta' => [
+                    ...($service->provision_meta ?? []),
+                    'kind' => 'cloud',
+                    // آدرسِ رو به مشتری، نه ستونِ خام — ماشینِ پشتِ NAT
+                    // آدرسِ عمومی‌اش «IP:پورت» است.
+                    'ip' => $instance->isGpuApp()
+                        ? $instance->accessHost()
+                        : ($instance->address() ?: $instance->ipv4),
+                    'ipv6' => $instance->ipv6,
+                    'plan' => $plan->public_name,
+                    'location' => $plan->location_code,
+                ],
+                'status' => 'active',
+                'activated_at' => $service->activated_at ?? now(),
+            ])->save();
+        });
+
+        $this->notifyIfReady($service, $instance);
+    }
+
+    /**
+     * اعلانِ مشتری فقط وقتی سرور **واقعاً** آماده است؛ وگرنه بدهی ثبت می‌شود.
+     *
+     * ═══ 🔴 باگِ واقعی که این‌جا بسته شد ═══
+     *
+     * `notify()` بی‌قید همین‌جا صدا زده می‌شد. زیرساختِ ۱ در پاسخِ ساخت IP
+     * می‌دهد، ولی زیرساختِ ۲ نه: ماشین `activating` است و IP چند ده ثانیه بعد
+     * می‌آید. پس مشتری ایمیلی می‌گرفت با `IP: —` و بی‌هیچ رمزی — و کد از قبل
+     * می‌دانست که ممکن است IP نباشد، چون خودش `?: '—'` نوشته بود.
+     *
+     * حالا «سفارش پذیرفته شد» با «سرور آماده شد» یکی گرفته نمی‌شود:
+     *
+     *   آماده  → همین‌جا بفرست
+     *   نه     → `ready_notified_at` نال می‌مانَد ⇒ بدهی. کرونِ هر-دقیقه‌ای
+     *            (`cloud:sync-instances`) به‌محضِ رسیدنِ IP می‌فرستد.
+     *
+     * ⚠️ مدیر در **هر دو** حالت خبردار می‌شود، ولی با متنِ درست. اگر این‌جا هم
+     * سکوت می‌کردیم، هیچ‌کس نمی‌فهمید سفارشی ثبت شده و در صف مانده است — همان
+     * الگوی «شکست نمی‌خورد، فقط اتفاق نمی‌افتد».
+     */
+    /**
+     * 🔴 دروازهٔ وب برای ماشینِ پشتِ NAT — وگرنه سرورِ فروخته‌شده نمی‌تواند سایت
+     * سرو کند.
+     *
+     * تیکتِ مشتری SN-978603: «به پورت ۸۰ وصل می‌شوم صفحهٔ Nginx Proxy Manager
+     * باز می‌شود». علتش این بود که IPv4 مشترک است و ۸۰/۴۴۳ به پروکسیِ مرکزی
+     * می‌روند؛ از هر ماشین فقط SSH فوروارد می‌شد. یعنی محصولی می‌فروختیم که
+     * کارِ اصلی‌اش را نمی‌توانست بکند.
+     *
+     * ⚠️ هیچ شکستی این‌جا تحویل را نمی‌شکند: سرور بدونِ نامِ عمومی هم قابلِ
+     * استفاده است (SSH کار می‌کند)، ولی سرویسی که به‌خاطرِ خطای پروکسی اصلاً
+     * تحویل نشود، پولِ گرفته‌شده و مشتریِ بی‌سرور است. پس فقط ثبت می‌کنیم.
+     *
+     * ⚠️ گواهی عمداً جدا و بی‌قید است: صدورش به انتشارِ DNS وابسته است و
+     * ممکن است چند دقیقه دیرتر جواب دهد.
+     */
+    private function ensureWebGateway(Service $service, CloudInstance $instance): void
+    {
+        if (! $instance->hasPrivateIp() || filled(($instance->meta ?? [])['public_domain'] ?? null)) {
+            return;
+        }
+
+        // Enabling this integration must not expose historical private guests.
+        $since = \App\Models\Setting::get('npm_gateway_enabled_after');
+        if (filled($since)) {
+            try {
+                if (! $instance->created_at || $instance->created_at->lt(\Illuminate\Support\Carbon::parse($since))) {
+                    return;
+                }
+            } catch (\Throwable) {
+                return;
+            }
+        }
+
+        try {
+            $npm = app(NpmClient::class);
+
+            if (! $npm->isConfigured() || $npm->baseDomain() === '') {
+                return;                       // قابلیت خاموش است — نه خطا
+            }
+
+            $code = (string) ($service->customer?->code ?? '');
+
+            // ⚠️ سرورِ دومِ همان مشتری نباید نامِ اولی را بدزدد
+            $others = CloudInstance::whereHas('service', fn ($q) => $q->where('customer_id', $service->customer_id))
+                ->where('id', '!=', $instance->id)
+                ->whereNotNull('meta')
+                ->get(['meta'])
+                ->contains(fn ($r) => filled(($r->meta ?? [])['public_domain'] ?? null));
+
+            $host = $npm->hostnameFor($code, $service->id, ! $others);
+
+            if ($host === null) {
+                return;
+            }
+
+            /*
+            | 🔴 رکوردِ DNS **پیش از** پروکسی‌هاست.
+            |
+            | صدور گواهیِ Let's Encrypt چالشِ HTTP-01 می‌زند و آن چالش تا وقتی
+            | نام به IP ما اشاره نکند شکست می‌خورد. ترتیبِ برعکس یعنی گواهی
+            | همیشه بارِ اول رد شود.
+            |
+            | ⚠️ شکستِ DNS جلوی ساختِ پروکسی‌هاست را نمی‌گیرد: نام ممکن است با
+            | وایلدکارد یا رکوردِ دستی از قبل حل شود، و در آن حالت همه‌چیز کار
+            | می‌کند. فقط ثبت می‌شود.
+            */
+            $cf = app(CloudflareDns::class);
+
+            if ($cf->isConfigured()) {
+                $dns = $cf->pointSubdomain($host, CloudInstance::publicHost());
+
+                if (! ($dns['ok'] ?? false)) {
+                    ErrorTracker::note('provision',
+                        'رکوردِ DNS «'.$host.'» ساخته نشد: '.($dns['reason'] ?? '—'),
+                        ['service' => $service->id]);
+                }
+            }
+
+            $r = $npm->ensureProxyHost($host, (string) $instance->ipv4, 80);
+
+            if (! ($r['ok'] ?? false)) {
+                ErrorTracker::note('provision',
+                    'دروازهٔ وب ساخته نشد: '.($r['message'] ?? '—'),
+                    ['service' => $service->id, 'host' => $host]);
+
+                return;
+            }
+
+            $meta = (array) ($instance->meta ?? []);
+            $meta['public_domain'] = $host;
+            $instance->update(['meta' => $meta]);
+
+            if (($r['id'] ?? 0) > 0) {
+                $npm->requestCertificate((int) $r['id'], $host);
+            }
+        } catch (\Throwable $e) {
+            ErrorTracker::note('provision', $e, ['service' => $service->id]);
+        }
+    }
+
+    /**
+     * برچیدنِ دروازهٔ وب هنگامِ آزادسازیِ سرور.
+     *
+     * ⚠️ شکستش مسیرِ آزادسازی را نمی‌شکند ولی **بی‌صدا هم نمی‌مانَد**: میزبانی
+     * که برچیده نشده به IPِ داخلیِ آزادشده اشاره می‌کند، و آن IP بعداً به
+     * مشتریِ دیگری می‌رسد. یعنی نامِ مشتریِ قبلی روی سرورِ مشتریِ تازه —
+     * نشتِ داده، نه آشغال.
+     */
+    private function removeWebGateway(CloudInstance $instance): void
+    {
+        $host = (($instance->meta ?? [])['public_domain'] ?? null);
+
+        if (blank($host)) {
+            return;
+        }
+
+        try {
+            $npm = app(NpmClient::class);
+
+            if (! $npm->isConfigured()) {
+                ErrorTracker::note('provision',
+                    'دروازهٔ وبِ «'.$host.'» برچیده نشد: اتصالِ NPM تنظیم نیست. '
+                    .'تا برچیده نشود، این نام به IP داخلیِ آزادشده اشاره می‌کند.',
+                    ['instance' => $instance->id]);
+
+                return;
+            }
+
+            $r = $npm->removeProxyHost((string) $host);
+
+            if (! ($r['ok'] ?? false)) {
+                ErrorTracker::note('provision',
+                    'دروازهٔ وبِ «'.$host.'» برچیده نشد: '.($r['message'] ?? '—'),
+                    ['instance' => $instance->id]);
+
+                return;
+            }
+
+            // و رکوردِ DNS — وگرنه نامِ مشتریِ رفته برای همیشه در زون می‌مانَد
+            $cf = app(CloudflareDns::class);
+
+            if ($cf->isConfigured()) {
+                $dns = $cf->removeSubdomain((string) $host);
+
+                if (! ($dns['ok'] ?? false)) {
+                    ErrorTracker::note('provision',
+                        'رکوردِ DNS «'.$host.'» برداشته نشد: '.($dns['reason'] ?? '—'),
+                        ['instance' => $instance->id]);
+                }
+            }
+
+            $meta = (array) ($instance->meta ?? []);
+            unset($meta['public_domain']);
+            $instance->update(['meta' => $meta]);
+        } catch (\Throwable $e) {
+            ErrorTracker::note('provision', $e, ['instance' => $instance->id]);
+        }
+    }
+
+    private function notifyIfReady(Service $service, CloudInstance $instance): void
+    {
+        if (in_array($service->fresh()?->status, Service::DEAD_STATUSES, true)) {
+            return;
+        }
+        $this->ensureWebGateway($service, $instance);
+
+        if ($instance->readyForNotice()) {
+            $this->notify($service, $instance);
+
+            return;
+        }
+
+        try {
+            ActivityLog::forService($service, 'provision',
+                __('ui.act_prov_ordered', [], $service->customer?->locale ?: 'fa'), 'system');
+        } catch (\Throwable) {
+        }
+
+        try {
+            app(AdminNotifier::class)->event(
+                'سفارشِ سرورِ ابری ثبت شد — در حالِ آماده‌سازی',
+                [
+                    'سرویس' => $service->name.' (#'.$service->id.')',
+                    'مشتری' => $service->customer?->name ?? '—',
+                    'مکان' => $instance->location_code ?: '—',
+                    'وضعیت' => $instance->statusLabel('fa'),
+                ],
+                null,
+                '⏳',
+                [[
+                    ['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                    ['text' => '🧾 سرویس', 'data' => AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
+                ]]
+            );
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * ایمیل‌های تحویلِ **بدهی‌مانده** را بفرست — بی‌هیچ تماسِ API.
+     *
+     * چرا یک گذرِ جدا و نه ادامهٔ حلقهٔ وضعیت: ممکن است IP را حلقهٔ بالا کشف
+     * نکرده باشد. صفحهٔ خودِ مشتری هم هر چند ثانیه وضعیت را می‌پرسد و ردیف را
+     * به‌روز می‌کند؛ در آن حالت ردیف دیگر `building` نیست، پس از پرس‌وجوی حلقهٔ
+     * بالا بیرون می‌افتد و ایمیل **تا ابد** نفرستاده می‌مانْد. این پرس‌وجو فقط
+     * از «بدهی» می‌پرسد، پس هر راهی که IP از آن آمده باشد پوشش دارد.
+     *
+     * @return int تعداد اعلانِ فرستاده‌شده
+     */
+    public function deliverOwedNotices(int $limit = 40): int
+    {
+        $sent = 0;
+
+        /*
+        | 🔴 `LIVE_STATUSES` و نه `READY_STATUSES` — و این تفاوت یک باگِ واقعی
+        | را می‌بندد.
+        |
+        | `READY_STATUSES` فقط `running` است. یعنی مشتری‌ای که سرورش را **پیش
+        | از رسیدنِ ایمیل خاموش کند**، اعلانِ «سرورت آماده شد» را هرگز نمی‌گیرد
+        | — نه آن دقیقه، نه هیچ‌وقت. `ready_notified_at` نال می‌مانَد، کرون هر
+        | دقیقه ردش می‌کند، و مشتری صاحبِ سروری است که رمزِ rootش را ندارد.
+        |
+        | روی پروداکشن دقیقاً همین رخ داد (سرویس‌های #۱۱۸ و #۱۲۰): ردیف‌ها
+        | ساعت‌به‌ساعت در `CloudDeliveryWatch` قرمز بودند و هیچ‌کس نمی‌فهمید چرا،
+        | چون «سرور آماده است» درست بود و فقط ایمیلش نرفته بود.
+        |
+        | ⚠️ محتوای این ایمیل (آدرس و رمز) هیچ ربطی به **روشن‌بودن** ماشین
+        | ندارد؛ فقط به **وجود داشتنش** ربط دارد. `LIVE_STATUSES` دقیقاً همان
+        | مفهوم است و از قبل برای صورت‌حساب هم همین را می‌گوید.
+        |
+        | ⚠️ `building` همچنان بیرون می‌مانَد: آن‌جا IP هنوز واقعی نیست و
+        | `address()` پایین‌تر هم جداگانه رد می‌کند.
+        */
+        $rows = CloudInstance::query()
+            ->whereNull('ready_notified_at')
+            ->whereIn('status', CloudInstance::LIVE_STATUSES)
+            ->where(fn ($q) => $q->whereNotNull('ipv4')
+                ->orWhere(fn ($gpu) => $gpu->where('provider', 'salad')->where('hostname', 'like', '%.%')))
+            ->orderBy('id')
+            ->limit($limit)
+            ->get();
+
+        foreach ($rows as $instance) {
+            /*
+            | 🔴 داشتنِ `ipv4` هنوز یعنی «آدرسِ قابلِ استفاده داریم» نیست.
+            |
+            | ماشینِ پشتِ NAT آدرسِ خصوصی دارد و تا وقتی پورت‌فورواردش ساخته
+            | نشده هیچ راهی از اینترنت به آن نیست. اعلانِ «سرورت آماده شد» با
+            | آدرسِ `10.10.10.x` یعنی وعدهٔ چیزی که وجود ندارد — و چون
+            | `ready_notified_at` همان لحظه قفل می‌شود، اعلانِ **درست** هم
+            | دیگر هرگز نمی‌رود. یک تیکتِ واقعی از همین‌جا آمد.
+            |
+            | پس صبر می‌کنیم: کرونِ هر-دقیقه دوباره سراغش می‌آید و به‌محضِ
+            | ساخته‌شدنِ فوروارد، اعلان با آدرسِ درست می‌رود.
+            */
+            if ($instance->address() === null) {
+                continue;
+            }
+
+            // ⚠️ هر ردیف در try خودش: یک ردیفِ خراب (مشتریِ حذف‌شده، ایمیلِ
+            // بدشکل) نباید بقیه را زمین بزند — و مهم‌تر، نباید استثنا به
+            // `schedule:run` برسد. یک استثنا آن دقیقه را کامل می‌کشد و با آن
+            // تحویلِ سرور و ثبتِ دامنه هم می‌ایستد (حادثهٔ مستندشده).
+            try {
+                $service = $instance->service;
+
+                // سرویسی که تحویلش تمام نشده هنوز «آماده» نیست؛ سرویسِ مرده هم
+                // اعلان نمی‌خواهد (لغوشده/خاتمه‌یافته).
+                if ($service === null || $service->provision_status !== 'done' || $service->isDead()) {
+                    continue;
+                }
+
+                if ($this->notify($service, $instance)) {
+                    $sent++;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('cloud.owed-notice', ['instance' => $instance->id, 'err' => $e->getMessage()]);
+            }
+        }
+
+        return $sent;
+    }
+
+    /**
+     * تازه‌کردنِ وضعیتِ نمونه‌های زنده + **بستنِ سفارش‌های نیمه‌کاره**.
+     *
+     * ⚠️ چرا حیاتی است: زیرساختِ ۲ دومرحله‌ای است — `POST orders` یک سفارش
+     * می‌سازد و شناسهٔ سرویس چند لحظه بعد در `createdServiceIds` ظاهر می‌شود.
+     * اگر در همان چند ثانیه نرسد، `provider_ref` با پیشوندِ `order:` ذخیره
+     * می‌شود. بی‌این متد، آن ref **برای همیشه** `order:…` می‌ماند:
+     * `isActionable()` نادرست است، پس مشتری سرورِ پول‌داده‌اش را هرگز نمی‌تواند
+     * روشن/خاموش کند و IP هم ندارد. یک تحویلِ «موفقِ» بی‌فایده.
+     *
+     * هم‌زمان وضعیتِ `building` را پی می‌گیرد تا وقتی سرور بالا آمد، IP و
+     * وضعیتِ درست در پنل بنشیند بی‌آنکه مشتری منتظرِ کلیکِ خودش بماند.
+     *
+     * @return array{resolved:int,refreshed:int,failed:int,notified:int,stuck:int}
+     */
+    public function syncInstances(int $limit = 40): array
+    {
+        // ⚠️ `stuck` عمداً یک شمارندهٔ جداست. پیش از این، ردیفی که شناسه‌اش
+        // نهایی نمی‌شد فقط `continue` می‌خورد و **هیچ شمارنده‌ای** را تکان
+        // نمی‌داد؛ فرمان هم خروجی‌اش را پشتِ `array_sum($r) > 0` گذاشته بود، پس
+        // خروجی کاملاً خالی بود. یعنی همان ردیفِ گیرکرده هر دقیقه دیده می‌شد و
+        // هر دقیقه بی‌صدا رد می‌شد.
+        $out = ['resolved' => 0, 'refreshed' => 0, 'failed' => 0, 'notified' => 0, 'stuck' => 0];
+
+        // ⚠️ گروه‌بندیِ شرط لازم است: بی‌آن، اگر روزی شرطِ دیگری (مثلِ محدودکردن
+        // به یک مشتری) اضافه شود، `OR` آن را دور می‌زند و روی **همهٔ** ردیف‌ها
+        // می‌دود.
+        $rows = CloudInstance::query()
+            ->where(function ($q) {
+                $q->whereIn('status', ['building', 'unknown'])
+                    ->orWhere('provider_ref', 'like', 'order:%')
+                    // 🔴 ردیفِ **بی‌شناسه** هم باید دیده شود. پیش از این از
+                    // پرس‌وجو بیرون بود و بعد هم با `blank()` رد می‌شد، پس
+                    // سروری که شناسه‌اش را از پاسخ بیرون نکشیده بودیم برای
+                    // همیشه گم می‌شد — با سرویسی که «تحویل‌شده» ثبت شده بود.
+                    ->orWhereNull('provider_ref')
+                    ->orWhere('provider_ref', '')
+                    /*
+                    | 🔴 «بالا آمده ولی آدرس ندارد» هم یک حالتِ گیرکرده است.
+                    |
+                    | صف فقط `building`/`unknown`/بی‌شناسه را برمی‌داشت، پس
+                    | نمونه‌ای که همان اول `running` ثبت شده بود ولی IP نداشت
+                    | هرگز دوباره پرسیده نمی‌شد — و هیچ مسیرِ دیگری هم IP را
+                    | نمی‌نویسد. یعنی حالتی که سیستم خودش می‌سازد و خودش
+                    | هرگز از آن بیرون نمی‌آید.
+                    |
+                    | دقیقاً همین رخ داد: «اتصالِ سرورِ موجود»ِ Proxmox نمونه را
+                    | با IPِ خالی می‌ساخت ⇒ نه آدرس در پرتالِ مشتری، نه
+                    | پورت‌فورواردِ عمومی (که نمونهٔ بی‌IP را رد می‌کند) — بی‌هیچ
+                    | خطایی. سرویسِ پول‌داده‌ای که هرگز کار نمی‌کرد.
+                    |
+                    | ⚠️ `whereNotIn('status', ['deleted'])`ِ پایین جلوی
+                    | برداشتنِ ماشینِ حذف‌شده را می‌گیرد، پس این شرط صف را با
+                    | ردیف‌های مرده پر نمی‌کند.
+                    */
+                    ->orWhereNull('ipv4')
+                    ->orWhere('ipv4', '');
+            })
+            ->whereNotIn('status', ['deleted'])
+            ->orderBy('updated_at')
+            ->limit($limit)
+            ->get();
+
+        foreach ($rows as $instance) {
+            $driver = $this->manager->forInstance($instance);
+
+            if ($driver === null) {
+                $out['stuck']++;
+
+                continue;
+            }
+
+            try {
+                // ① سفارشِ نیمه‌کاره (یا ردیفِ بی‌شناسه) → شناسهٔ سرویسِ واقعی
+                $ref = (string) $instance->provider_ref;
+
+                if (($ref === '' || str_starts_with($ref, 'order:'))
+                    && $driver instanceof AezaClient) {
+                    // نامِ قطعیِ `sn-svc-{id}` دومین راه است و به شکلِ پاسخِ
+                    // سفارش وابسته نیست — بی‌آن، مسیرِ استنتاجیِ خواندنِ سفارش
+                    // تنها امیدِ ما بود و شکستش یعنی بن‌بستِ ابدی.
+                    $real = $driver->resolveOrder($ref, $instance->hostname);
+
+                    if ($real === null) {
+                        $out['stuck']++;        // هنوز آماده نیست؛ دفعهٔ بعد — ولی **شمرده** می‌شود
+
+                        continue;
+                    }
+
+                    $instance->update(['provider_ref' => $real]);
+                    $out['resolved']++;
+
+                    // 🔴 رمز: سفارشِ دومرحله‌ای لحظهٔ ساخت رمز نمی‌گیرد (سرور هنوز
+                    // وجود ندارد). اگر همین‌جا نسازیم، مشتری سرورِ روشن و IP دارد
+                    // ولی **هیچ رمزی** — نه در ایمیل نه در پنل — و بلوکِ رمز در
+                    // ویو هم چون hasPassword نادرست است اصلاً رندر نمی‌شود.
+                    if (! $instance->hasPassword()) {
+                        $pw = $driver->resetPassword($real);
+
+                        if (filled($pw['root_password'] ?? null)) {
+                            $instance->setPassword($pw['root_password']);
+                            $instance->save();
+
+                            $instance->service?->forceFill(['password' => $pw['root_password']])->save();
+                        }
+                    }
+                }
+
+                // ② وضعیتِ زنده
+                // ⚠️ با شناسهٔ خالی نپرس: بعضی درایورها `/servers/` را «فهرست»
+                // می‌فهمند و پاسخِ بی‌ربط می‌دهد که روی ردیفِ مشتری می‌نشیند.
+                if (blank($instance->provider_ref)) {
+                    $out['stuck']++;
+
+                    continue;
+                }
+
+                $ovhWasBuilding = $instance->provider === 'ovh' && $instance->status === 'building';
+                $r = $driver->serverStatus((string) $instance->provider_ref);
+
+                if (! ($r['ok'] ?? false)) {
+                    $out['failed']++;
+
+                    continue;
+                }
+
+                // This driver durably adopts access credentials and the first
+                // supplier due date while reconciling. Do not overwrite those
+                // fields with metadata loaded before that reconciliation.
+                if (in_array($instance->provider, ['vpstc','ovh'], true)) { $instance->refresh(); }
+
+                $wasBuilding = $ovhWasBuilding || $instance->status === 'building';
+
+                $instance->update([
+                    'status' => $r['status'],
+                    'ipv4' => $r['ipv4'] ?: $instance->ipv4,
+                    'ipv6' => $r['ipv6'] ?: $instance->ipv6,
+                    // زیرساختِ دروازه‌ای (GPU) نشانیِ HTTPS را همین‌جا می‌دهد —
+                    // برای مشتری همین «آدرسِ سرور» است، نه IP.
+                    'hostname' => filled($r['hostname'] ?? null) ? $r['hostname'] : $instance->hostname,
+                    'synced_at' => now(),
+                    'meta' => array_merge($instance->meta ?? [], isset($r['build'])
+                        ? ['gpu_build' => $r['build']] : []),
+                ]);
+                $out['refreshed']++;
+
+                // تازه بالا آمد و IP گرفت → مشخصاتِ سرویس را کامل کن.
+                if ($wasBuilding && $instance->readyForNotice()) {
+                    $service = $instance->service;
+
+                    if ($service) {
+                        $meta = (array) ($service->provision_meta ?? []);
+                        $address = $instance->isGpuApp() ? $instance->accessHost() : $instance->ipv4;
+                        $meta['ip'] = $address;
+                        $meta['ipv6'] = $instance->ipv6;
+
+                        $service->forceFill([
+                            'domain' => $service->domain ?: $address,
+                            'provision_meta' => $meta,
+                        ])->save();
+                    }
+                }
+            } catch (\Throwable $e) {
+                // یک نمونهٔ خراب نباید بقیه را بخواباند
+                Log::warning('cloud.sync-instance', ['id' => $instance->id, 'err' => $e->getMessage()]);
+                $out['failed']++;
+            }
+        }
+
+        /*
+        | ═══ ایمیل‌های بدهی‌مانده ═══
+        |
+        | ⚠️ عمداً **بیرونِ** حلقهٔ بالا و با پرس‌وجوی خودش. حلقهٔ بالا فقط
+        | ردیف‌های `building`/`unknown`/`order:` را می‌بیند؛ ردیفی که وضعیتش را
+        | خودِ صفحهٔ مشتری تازه کرده از آن فهرست بیرون است و اگر اعلانش این‌جا
+        | بند بود، **هرگز** فرستاده نمی‌شد.
+        |
+        | قبلاً شرطِ «فرستاده شد یا نه» استنتاجِ `provision_meta['ip']` بود؛ حالا
+        | `ready_notified_at` است — یک واقعیتِ ثبت‌شده، نه یک نتیجه‌گیری.
+        */
+        $out['notified'] = $this->deliverOwedNotices($limit);
+        $this->warnAboutStalledDeliveries();
+
+        return $out;
+    }
+
+    /**
+     * 🔴 اگر ایمیلی **گیر** کرد، کسی باید بفهمد.
+     *
+     * ایمیل حالا شرطی است: تا زیرساخت نگوید بالا آمده و IP ندهد، نمی‌رود. این
+     * درست است، ولی یک حفرهٔ خاموشِ تازه می‌سازد — اگر ماشینی در وضعیتی گیر کند
+     * که هرگز به `running` نرسد (رشتهٔ ناشناخته از سمتِ زیرساخت، خرابیِ واقعیِ
+     * ساخت)، ایمیل **هیچ‌وقت** نمی‌رود و هیچ خطایی هم تولید نمی‌شود. دقیقاً همان
+     * الگویی که این پروژه سه بار خورده: «شکست نمی‌خورد، فقط اتفاق نمی‌افتد».
+     *
+     * ⚠️ گلوگاه‌دار (ساعتی یک بار): بی‌آن، یک ردیفِ گیرکرده روزی ۱۴۴۰ هشدار
+     * می‌ساخت و هشدارهای واقعی را زیرِ نویز دفن می‌کرد — از نداشتنِ هشدار بدتر.
+     */
+    private function warnAboutStalledDeliveries(): void
+    {
+        try {
+            // یک تعریف برای همهٔ ناظرها. پرس‌وجوی دست‌نویسِ موازی همان چیزی است
+            // که روزی بی‌صدا کهنه می‌شود و می‌گوید «چیزی گیر نکرده».
+            $stalled = CloudDeliveryWatch::stalled();
+
+            if ($stalled->isEmpty()) {
+                return;
+            }
+
+            /*
+            | 🔴 گلوگاه هست، ولی روی **فایل** — نه روی کش.
+            |
+            | نسخهٔ قبلی `Cache::has()` می‌زد. کشِ پیش‌فرضِ این پروژه روی
+            | **دیتابیس** است و کلِ متد در یک `catch` است که فقط `Log::warning`
+            | می‌کند — یعنی یک قطعیِ گذرای همان دیتابیس (که در همین ردیاب ۱۹ بار
+            | ثبت شده) این هشدار را کاملاً می‌بلعید. همان قاعدهٔ CLAUDE.md:
+            | «هیچ چیزی که قرار است از مرگِ یک وابستگی خبر دهد، نباید روی همان
+            | وابستگی بنشیند.» گلوگاهِ فایلی به هیچ سرویسی وابسته نیست و اگر
+            | خودش هم خطا بدهد **باز می‌شود** (پیامِ تکراری بهتر از پیامِ نرفته).
+            |
+            | ⚠️ ولی گلوگاه لازم است: این متد هر دقیقه می‌دود و پنجرهٔ ردیاب
+            | ۴۰۰ خط است. یک ردیفِ گیرکرده بی‌گلوگاه روزی ۱۴۴۰ خط می‌نوشت و
+            | همان خطاهایی را که باید کنارش دیده شوند بیرون می‌انداخت — دقیقاً
+            | خرابیِ سیلِ ۴۰۴.
+            |
+            | ⚠️ امضا شاملِ **کدام** سرویس‌ها گیر کرده‌اند است، نه فقط «چیزی گیر
+            | کرده». همان درسِ `SystemHealthCheck`: با گلوگاهِ ساعتیِ بی‌امضا،
+            | مشتریِ دومی که ده دقیقه بعد گیر می‌کرد تا یک ساعت هیچ ردی
+            | نمی‌ساخت — و آن یک ساعت، ساعتی است که ماشینش پول می‌سوزاند.
+            |
+            | ⚠️ سکوتِ این متد بینِ دو شلیک بی‌خطر است، چون
+            | `SystemHealth::undeliveredCloud()` همان وضعیت را **دائمی** بالای
+            | `/admin/errors` قرمز نگه می‌دارد و به هیچ گلوگاهی بند نیست.
+            */
+            if (! $this->shoutAllowed('cloud-stalled-notice', 3600,
+                md5($stalled->pluck('id')->sort()->implode(',')))) {
+                return;
+            }
+
+            $reasons = [];
+
+            foreach ($stalled as $service) {
+                $why = CloudDeliveryWatch::reasonFor($service) ?? '—';
+                $reasons[$why] = ($reasons[$why] ?? 0) + 1;
+            }
+
+            $detail = [];
+            foreach ($reasons as $why => $n) {
+                $detail[] = $n.'× '.$why;
+            }
+
+            ErrorTracker::note(
+                'provision',
+                $stalled->count().' سرویسِ ابریِ پرداخت‌شده تحویل نشده — '.implode(' · ', $detail),
+                ['services' => implode(',', $stalled->pluck('id')->take(10)->all())]
+            );
+
+            /*
+            | پیامِ بله باید **کاربردی** باشد (خواستِ صریحِ کارفرما، ۶ شهریور):
+            | نسخهٔ قبلی فقط «#۶۰، #۶۱» و لینکِ inventory می‌داد — نه معلوم بود
+            | کدام مشتری، نه چه پلنی، و لینک هم روی موبایل به دردِ هیچ کاری
+            | نمی‌خورد. حالا هر سرویس یک سطرِ کامل دارد (مشتری، پلن، مکان،
+            | ساعتی/ماهانه، عمرِ انتظار، علت) و دو دکمهٔ عملیاتی: پروفایلِ
+            | مشتری و «تلاشِ دوبارهٔ تحویل» — همان کاری که مدیر واقعاً می‌کند.
+            | سقفِ ۴ سرویس تا پیام و کیبورد از حدِ بله بیرون نزند.
+            */
+            $rows = [];
+            $buttons = [];
+
+            foreach ($stalled->take(4) as $service) {
+                $why = CloudDeliveryWatch::reasonFor($service) ?? '—';
+                $customer = $service->customer;
+                $plan = $service->cloud_plan_id ? CloudPlan::find($service->cloud_plan_id) : null;
+                $loc = $plan?->location_code
+                    ? CloudLocation::where('code', $plan->location_code)->first()?->label('fa')
+                    : null;
+                $since = $service->cloudInstance?->created_at ?? $service->created_at;
+
+                $rows['#'.$service->id] =
+                    ($customer ? $customer->displayName().' ('.$customer->code.')' : 'مشتری؟')
+                    .' · '.((string) ($plan?->public_name ?: $service->plan ?: '—'))
+                    .($plan ? ' — '.fa_num((int) $plan->vcpu).' هسته/'.$plan->ramLabel() : '')
+                    .($loc ? ' · '.$loc : '')
+                    .' · '.($service->isHourly() ? 'ساعتی' : 'ماهانه')
+                    .($plan?->provider ? ' · '.(CloudManager::REAL_NAMES[$plan->provider] ?? $plan->provider) : '')
+                    .($since ? ' · از '.$since->diffForHumans() : '')
+                    .' — '.$why;
+
+                $buttons[] = [
+                    ['text' => '👤 مشتری #'.$service->id, 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                    ['text' => '🔁 تحویلِ دوباره #'.$service->id, 'data' => AdminBaleRouter::CB_PREFIX.'spa:'.$service->id],
+                ];
+            }
+
+            if ($stalled->count() > 4) {
+                $rows['و'] = fa_num((string) ($stalled->count() - 4)).' سرویسِ دیگر — فهرستِ کامل در /admin/cloud/inventory';
+            }
+
+            // ثبت و پیام با **یک** گلوگاه می‌روند: هر دو یک خبرند و جداکردنشان
+            // فقط دو حالتِ ناهماهنگ می‌ساخت (ردی که هست و پیامی که نیست).
+            app(AdminNotifier::class)->event(
+                // ⚠️ عبارتِ «گیر کرده» عمداً در عنوان مانده: تستِ
+                // `CloudDeliveryReadinessTest` همین را می‌جوید و آن گارد باید
+                // زنده بماند.
+                '🔴 سرورِ پول‌داده تحویل نشده — تحویل گیر کرده',
+                $rows,
+                null,
+                '🔴',
+                $buttons,
+                key: 'admin.cloud_stuck',
+            );
+        } catch (\Throwable $e) {
+            // ⚠️ هیچ‌چیزِ این متد نباید به `schedule:run` برسد: یک استثنا کلِ آن
+            // دقیقه را می‌کشد و با آن تحویلِ سرور و ثبتِ دامنه هم می‌ایستد.
+            Log::warning('cloud.stalled-notice', ['err' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * گلوگاهِ زمانیِ **فایل‌محور** — عمداً نه `Cache`.
+     *
+     * ⚠️ کش در این پروژه روی دیتابیس است و همان دیتابیس گاهی قطع می‌شود. یک
+     * گلوگاهی که با مرگِ دیتابیس بیفتد یعنی هشدار دقیقاً در بدترین لحظه ساکت
+     * می‌شود. اگر نوشتن/خواندنِ فایل هم شکست بخورد، پیش‌فرض **اجازه دادن** است:
+     * پیامِ تکراری آزاردهنده است، پیامِ نرفته گران.
+     */
+    private function shoutAllowed(string $key, int $seconds, string $signature = ''): bool
+    {
+        return ErrorTracker::throttlePassed($key, $seconds, $signature);
+    }
+
+    /**
+     * سرورِ ازقبل‌خریده‌شده را «به فرزندی بگیر» به‌جای خریدنِ دوباره.
+     *
+     * برای سفارشِ نیمه‌کارهٔ دومرحله‌ای (`order:…`) هم کار می‌کند: اول تلاش
+     * می‌کند شناسهٔ واقعی را بگیرد، و اگر هنوز آماده نیست، `pending` می‌گذارد تا
+     * `cloud:sync-instances` پی‌اش را بگیرد.
+     */
+    private function adoptExisting(Service $service, CloudInstance $instance, CloudPlan $plan, CloudProvider $driver): bool
+    {
+        $ref = (string) $instance->provider_ref;
+
+        if (str_starts_with($ref, 'order:') && $driver instanceof AezaClient) {
+            // ⚠️ نامِ قطعی این‌جا هم داده می‌شود و نه فقط در کرون: این همان مسیری
+            // است که دکمهٔ «تلاشِ دوباره»ی مدیر می‌رود، یعنی اولین کاری که
+            // کارفرما روی یک سفارشِ گیرکرده انجام می‌دهد. بی‌آن، دکمه هر بار
+            // «هنوز آماده نیست» می‌گفت و هیچ‌وقت جلو نمی‌رفت.
+            $real = $driver->resolveOrder($ref, $instance->hostname);
+
+            if ($real === null) {
+                $this->retryLater($service, 'سرور در حالِ آماده‌سازیِ زیرساخت است؛ پی‌گیری خودکار ادامه دارد.');
+
+                return false;
+            }
+
+            $instance->update(['provider_ref' => $real]);
+            $ref = $real;
+        }
+
+        $info = $driver->serverStatus($ref);
+
+        if (! ($info['ok'] ?? false)) {
+            $this->retryLater($service, 'وضعیتِ سرور خوانده نشد؛ تلاشِ خودکار ادامه دارد.');
+
+            return false;
+        }
+
+        if ($instance->provider === 'ovh') {$instance->refresh();}
+
+        // رمز اگر نداریم، همین‌جا یکی بساز — وگرنه مشتری سرور دارد و راهی
+        // به داخلش ندارد.
+        $password = null;
+
+        if (! $instance->hasPassword() && $this->supportsAutomaticPasswordReset($instance)) {
+            $pw = $driver->resetPassword($ref);
+            $password = $pw['root_password'] ?? null;
+
+            if (filled($password)) {
+                $instance->setPassword($password);
+            }
+        }
+
+        $instance->fill([
+            'ipv4' => $info['ipv4'] ?: $instance->ipv4,
+            'ipv6' => $info['ipv6'] ?: $instance->ipv6,
+            'hostname' => filled($info['hostname'] ?? null) ? $info['hostname'] : $instance->hostname,
+            'status' => $info['status'],
+            'last_error' => null,
+            'synced_at' => now(),
+        ])->save();
+
+        $this->finalize($service, $instance, $plan, $password);
+
+        Log::info('cloud.provision.adopted', ['service' => $service->id, 'ref' => $ref]);
+
+        return true;
+    }
+
+    private function supportsAutomaticPasswordReset(CloudInstance $instance): bool
+    {
+        if ($instance->provider === 'ovh') {return false;}
+        if ($instance->provider !== 'arvan') {
+            return true;
+        }
+
+        // The provider endpoint is Linux-only. Missing/ambiguous catalogue
+        // metadata must not be interpreted as permission to reset Windows.
+        $families = CloudImage::where('provider', 'arvan')->where('key', $instance->image_key)
+            ->pluck('family')->map(fn ($family) => strtolower((string) $family))->unique();
+
+        return $families->count() === 1 && in_array($families->first(), [
+            'ubuntu', 'debian', 'centos', 'centos-stream', 'rocky', 'rocky-linux',
+            'almalinux', 'alma-linux', 'fedora', 'alpine', 'arch', 'arch-linux',
+            'opensuse', 'opensuse-leap', 'opensuse-tumbleweed', 'rhel',
+            'red-hat-enterprise-linux', 'oracle-linux', 'linux',
+        ], true);
+    }
+
+    /** پلنِ هم‌اسلاگ روی زیرساختی که این سیستم‌عامل را دارد */
+    private function planWithImage(string $slug, string $imageKey, bool $hourly = false): ?CloudPlan
+    {
+        $providers = CloudImage::query()->usable()->where('key', $imageKey)->pluck('provider')->unique();
+
+        if ($providers->isEmpty()) {
+            return null;
+        }
+
+        // «زیرساخت این کلید را دارد» کافی نیست: یک اسلاگ می‌تواند هم پلنِ x86
+        // داشته باشد هم arm (مشخصاتشان یکی است و معماری در اسلاگ نیست)، و ممکن
+        // است ایمیج فقط برای یکی از آن دو موجود باشد. پس ارزان‌ترین پلنی را
+        // برمی‌داریم که ایمیج **برای معماریِ خودش** واقعاً موجود باشد.
+        return CloudPlan::query()
+            ->sellable()
+            // ⚠️ سومین مسیرِ انتخابِ دیرهنگام است و باید همان قیدهای دو تای
+            //    دیگر را داشته باشد؛ وگرنه «سراغِ زیرساختی که ایمیج را دارد
+            //    برو» می‌تواند سرویسِ ساعتی را روی ردیفی بنشاند که ساعتی
+            //    نمی‌فروشد — و گاردِ بالادست را از پشت دور بزند.
+            ->when($hourly, fn ($q) => $q->hourlyCapable())
+            ->where('slug', $slug)
+            ->whereIn('provider', $providers)
+            ->orderBy('cost_eur_cents')
+            ->get()
+            ->when($hourly, fn ($rows) => $rows->sortBy(fn (CloudPlan $p) => $p->hourlyCostEurMicro() ?: PHP_INT_MAX))
+            ->first(fn (CloudPlan $p) => CloudImage::compatibleRefFor($p, $imageKey) !== null);
+    }
+
+    /**
+     * نامِ قطعیِ سرور — پایهٔ idempotency.
+     *
+     * قواعدِ نامِ میزبان: حروفِ کوچک، رقم و خط تیره؛ باید با حرف شروع شود. با
+     * شناسهٔ سرویس، تلاشِ دوباره همان نام را می‌سازد و «تکراری» می‌خورد، پس
+     * سرورِ دومی خریده نمی‌شود.
+     */
+    /**
+     * ماشینی با نامِ قطعیِ این سرویس نزدِ زیرساخت هست؟
+     *
+     * سه‌حالته و عمداً بی‌ابهام — چون هر سه حالت رفتارِ متفاوتی لازم دارند و
+     * یکی‌گرفتنِ «نیست» با «نتوانستم بپرسم» یا ماشینِ یتیم می‌سازد یا هشدارِ
+     * دروغینِ ابدی:
+     *
+     *   string  → هست، شناسه‌اش این است
+     *   null    → قطعاً نیست (فهرست خوانده شد و نامی نبود)
+     *   false   → نتوانستیم بپرسیم (قطعیِ API، توکنِ منقضی، …)
+     *
+     * ⚠️ `listServers()` بر اساسِ قراردادش صفحه‌بندی را تا ته می‌رود؛ اگر روزی
+     * درایوری فهرستِ ناقص بدهد، این متد یک ماشینِ موجود را «نیست» می‌خوانَد.
+     * برای همین `ok=false` هرگز به `null` ترجمه نمی‌شود.
+     */
+    private function findByDeterministicName(Service $service, CloudInstance $instance): string|null|false
+    {
+        $driver = $this->manager->forInstance($instance);
+
+        if ($driver === null) {
+            return false;
+        }
+
+        try {
+            $list = $driver->listServers();
+        } catch (\Throwable) {
+            return false;
+        }
+
+        if (! ($list['ok'] ?? false)) {
+            return false;
+        }
+
+        $want = mb_strtolower($this->serverName($service));
+
+        foreach ((array) ($list['servers'] ?? []) as $s) {
+            if (mb_strtolower(trim((string) ($s['name'] ?? ''))) === $want) {
+                $ref = trim((string) ($s['ref'] ?? ''));
+
+                return $ref !== '' ? $ref : false;
+            }
+        }
+
+        // A partial list cannot prove this machine is absent.
+        if (filled($list['message'] ?? null)) {
+            return false;
+        }
+
+        return null;
+    }
+
+    private function serverName(Service $service): string
+    {
+        return 'sn-svc-'.$service->id;
+    }
+
+    // ───────────────────────── وضعیت‌ها ─────────────────────────
+
+    /**
+     * پلن‌های یک زیرساخت را از فروش بردار، وقتی خودِ **حساب** خراب است.
+     *
+     * ═══ 🔴 چرا این لازم شد ═══
+     *
+     * دو سفارشِ واقعی شکست خوردند با این پیام‌ها:
+     *
+     *   «You don't have enough permissions for this action»
+     *   «Proxy internal server error» (HTTP 500)
+     *
+     * هیچ‌کدام گذرا نبودند: توکن دسترسی نداشت و حساب اعتبار نداشت. ولی پلن‌ها
+     * سرِ جایشان در فروشگاه ماندند، پس **هر مشتریِ بعدی هم همان تجربه را
+     * می‌گرفت**: پول از کیفِ پول کسر می‌شد و سروری تحویل نمی‌شد.
+     *
+     * قاعده‌ای که کارفرما گذاشت و درست است: «یا حتماً تحویل شود، یا اصلاً برای
+     * فروش موجود نباشد.» این متد نیمهٔ دومش را خودکار می‌کند.
+     *
+     * ⚠️ فقط برای خطاهای **ساختاری**. خطای گذرا (ظرفیتِ لحظه‌ای، تایم‌اوت) نباید
+     * کاتالوگ را ببندد، وگرنه یک قطعیِ دو دقیقه‌ای فروشِ یک زیرساخت را تا
+     * دخالتِ دستی می‌خواباند.
+     *
+     * ⚠️ `admin_disabled` عمداً ست می‌شود نه `is_active`: کرونِ سینک هرگز
+     * `admin_disabled` را لمس نمی‌کند، پس تصمیم تا وقتی مدیر بازش نکند
+     * برنمی‌گردد. با `is_active`، سینکِ دو روزه بی‌صدا دوباره بازش می‌کرد.
+     */
+    /**
+     * پیشوندِ یادداشتی که قرنطینهٔ **خودکار** می‌گذارد.
+     *
+     * 🔴 چرا یک ثابتِ مشترک و نه یک رشته در دو جا: فرمانِ بازکردن
+     * (`cloud:reopen`) باید بتواند پلنی را که **این متد** بست از پلنی که
+     * **مدیر آگاهانه** بست تشخیص دهد. اگر این دو رشته روزی از هم بیفتند،
+     * فرمان یا هیچ‌چیز باز نمی‌کند یا — بدتر — پکیجی را باز می‌کند که مدیر
+     * عمداً بسته بود.
+     */
+    public const QUARANTINE_PREFIX = 'خودکار بسته شد:';
+
+    /**
+     * 🔴 «این محصول ساعتی ندارد» — یک ردیف، نه یک زیرساخت.
+     *
+     * `quarantineProvider()` **همهٔ** پلن‌های آن زیرساخت را می‌بندد؛ برای این
+     * خطا فاجعه است: نداشتنِ تعرفهٔ ساعتیِ یک محصول نباید ۱۰۱ پلنِ ماهانهٔ سالم
+     * را از فروش بردارد. پس مسیرِ جدا.
+     *
+     * کاری که می‌کند عمداً «پرچمِ تازه» نیست: `cost_hour_eur_micro` را خالی
+     * می‌کند — یعنی همان چیزی را می‌نویسد که زیرساخت همین حالا دربارهٔ خودش
+     * گفت. `supportsHourly()` بلافاصله false می‌شود و عرضهٔ ساعتی محو می‌شود، و
+     * `cloud:sync` بعدی حقیقتِ روز را دوباره از API می‌نویسد — اگر تعرفهٔ ساعتی
+     * اضافه شد خودش برمی‌گردد. هیچ حالتِ دستیِ ماندگاری ساخته نمی‌شود.
+     *
+     * ⚠️ فقط برای زیرساختِ ترم‌دار معنا دارد؛ برای بقیه این ستون کفِ قیمت است
+     * نه مجوزِ فروش، و پاک‌کردنش بی‌دلیل قیمت را خراب می‌کند.
+     */
+    private function disableHourlyIfRefused(CloudPlan $plan, string $message): void
+    {
+        $needle = mb_strtolower($message);
+
+        $refused = str_contains($needle, "term 'hour'")
+            || str_contains($needle, 'term "hour"')
+            || (str_contains($needle, 'not support') && str_contains($needle, 'hourly'));
+
+        /*
+        | ⚠️ `isTermBased` شرطِ **اول** است و اختیاری نیست: روی زیرساختِ بی‌ترم
+        | این ستون کفِ بهاست نه مجوزِ فروش، و پاک‌کردنش کف را برمی‌دارد ⇒ فروشِ
+        | ساعتی زیرِ بها. همان خطِ قرمزی که sn-svc-76 با آن بسته شد.
+        */
+        if (! $refused || ! $plan->isTermBased() || ! $plan->supportsHourly()) {
+            return;
+        }
+
+        $plan->forceFill(['cost_hour_eur_micro' => null])->save();
+
+        ErrorTracker::note('provision',
+            'زیرساخت گفت این پلن تعرفهٔ ساعتی ندارد؛ از فروشِ ساعتی برداشته شد '
+            .'(پلنِ '.$plan->id.'). فروشِ ماهانه‌اش دست‌نخورده است.',
+            ['plan' => $plan->id, 'provider' => (string) $plan->provider]);
+    }
+
+    /**
+     * ترکیبِ «نوعِ سرور × مکان» که زیرساخت اصلاً عرضه‌اش نمی‌کند.
+     *
+     * 🔴 رخدادِ ۱۴ شهریور ۱۴۰۵: یک مشتری در یک‌ساعت‌ونیم **۱۶ بار** در
+     * کشورهای مختلف سرور خرید و هر بار
+     * `[invalid_input] unsupported location for server type` گرفت. هیچ‌کدام از
+     * کلیدهای `quarantineProvider` این متن را نمی‌گرفت، پس ردیفِ مقصر در فروش
+     * می‌مانْد و **مشتریِ بعدی دقیقاً همان شکست را می‌خرید** — سومین تکرارِ همان
+     * الگو، بعد از `firewall` و `resource_limit`.
+     *
+     * ⚠️ چرا این‌جا و نه در فهرستِ `$structural`: آن متد
+     * `where('provider', …)->update(['admin_disabled' => true])` می‌زند، یعنی
+     * به‌خاطرِ **یک** ترکیبِ نامعتبر کلِ خطِ آن زیرساخت (بارِ قبل ۲۲۱ پلن)
+     * بسته می‌شد. عیبْ حسابِ زیرساخت نیست، همین یک ردیف است.
+     *
+     * ⚠️ و ردیف `is_active` نمی‌شود، `admin_disabled` می‌شود: `cloud:sync`
+     * دوروزه `is_active` را برمی‌گردانَد و بسته‌شدن بی‌صدا خنثی می‌شد. با
+     * پیشوندِ قرنطینه، `cloud:reopen` و دکمهٔ پنل هم می‌توانند بازش کنند.
+     */
+    private function disableCombinationIfUnsupported(CloudPlan $plan, string $message): bool
+    {
+        $needle = mb_strtolower($message);
+
+        $unsupported = str_contains($needle, 'unsupported location')
+            // آروان گاهی flavor موجود در GET /sizes را هنگام POST ساخت
+            // نمی‌پذیرد. این خرابی متعلق به همین ردیف است، نه کل حساب؛ همان
+            // ردیف را ببند تا مشتری بعدی قربانی تکرار خطای provider نشود.
+            || str_contains($needle, 'requested plan not found')
+            || (str_contains($needle, 'server type') && str_contains($needle, 'not available'))
+            || (str_contains($needle, 'server type') && str_contains($needle, 'not supported'));
+
+        if (! $unsupported) {
+            return false;
+        }
+
+        // ردیفی که مدیر خودش بسته دست نمی‌خورد — همان قاعدهٔ `cloud:reopen`.
+        if (! $plan->admin_disabled) {
+            $plan->forceFill([
+                'admin_disabled' => true,
+                'in_stock' => false,
+                'admin_note' => self::QUARANTINE_PREFIX
+                    .' این نوعِ سرور در این مکان عرضه نمی‌شود ('.mb_substr($message, 0, 120).')',
+            ])->save();
+        }
+
+        ErrorTracker::note('provision',
+            'ترکیبِ نوع/مکان را زیرساخت عرضه نمی‌کند؛ فقط همین ردیف از فروش برداشته شد '
+            .'(پلنِ '.$plan->id.' · '.(string) $plan->location_code.'). '
+            .'بقیهٔ مکان‌های همین زیرساخت دست‌نخورده‌اند.',
+            ['plan' => $plan->id, 'provider' => (string) $plan->provider,
+                'location' => (string) $plan->location_code]);
+
+        return true;
+    }
+
+    private function quarantineProvider(CloudPlan $plan, string $message): void
+    {
+        $structural = [
+            'permission',      // توکن دسترسیِ لازم را ندارد
+            'unauthor',        // unauthorized / unauthenticated
+            'forbidden',
+            'invalid token',
+            'proxy_internal_server_error',
+            'insufficient',    // موجودیِ حساب
+            'balance',
+            'payment',
+            'quota',
+            /*
+            | 🔴 «پیکربندیِ ناقصِ سفارش» هم ساختاری است، نه گذرا.
+            |
+            | آروان بی‌گروهِ امنیتی می‌گوید «At least one firewall should be
+            | selected». تا امروز این پیام در هیچ‌کدام از کلیدهای بالا نمی‌افتاد،
+            | پس قرنطینه نمی‌گرفت و پلن‌ها در فروش می‌ماندند — و **هر مشتریِ
+            | بعدی همان شکست را می‌خرید**. چند روز همین‌طور تکرار شد.
+            |
+            | معیارِ ساختاری‌بودن «چه کسی مقصر است» نیست؛ این است که آیا
+            | تلاشِ دوباره بی‌تغییرِ چیزی جواب می‌دهد یا نه. این یکی نمی‌دهد.
+            */
+            'firewall',
+            'security group',
+            'security_group',
+            /*
+            | 🔴 «سقفِ حسابِ ما پر شده» هم ساختاری است.
+            |
+            | ۱۱ شهریور ۱۴۰۵، سرویس #۱۰۵: هتزنر `[resource_limit_exceeded]
+            | server limit reached` داد. فهرست `quota` را داشت ولی نه `limit`
+            | را، پس قرنطینه نگرفت و ۱۱۴ پلنِ فالکن‌اشتاین در فروش ماندند —
+            | یعنی مشتریِ بعدی هم دقیقاً همان شکست را می‌خرید. کارفرما مجبور شد
+            | دستی زیرساخت را خاموش کند.
+            |
+            | معیار همان است: آیا تلاشِ دوباره بی‌تغییرِ چیزی جواب می‌دهد؟
+            | سقفِ حساب تا بالا نرود، نه.
+            */
+            'limit reached',
+            'resource_limit',
+            'limit exceeded',
+        ];
+
+        $needle = mb_strtolower($message);
+        $hit = null;
+
+        foreach ($structural as $s) {
+            if (str_contains($needle, $s)) {
+                $hit = $s;
+                break;
+            }
+        }
+
+        /*
+        | ═══ 🔴 شکلِ **بافاصله**ی همان خطا، که هرگز نمی‌گرفت ═══
+        |
+        | فهرستِ بالا فقط `proxy_internal_server_error` (اسلاگِ زیرِ خطی) را
+        | می‌شناخت. ولی چیزی که درایور واقعاً برمی‌گرداند پیامِ خامِ گیت‌وی است:
+        | «Proxy internal server error (see traceId)» — بی‌هیچ اسلاگی. پس
+        | سرویس‌های ۶ و ۱۳ با دقیقاً همین متن شکست خوردند و قرنطینه **نگرفت**؛
+        | پلن‌ها در فروشگاه ماندند و مشتریِ بعدی همان تجربه را می‌گرفت.
+        |
+        | تستِ موجود هم نمی‌توانست بگیردش: خودش اسلاگ را به ورودی می‌چسباند و
+        | روی همان اسلاگی که خودش ساخته بود سبز می‌شد.
+        |
+        | ⚠️ ولی این شکل **مبهم** است: همین متن هم «شکلِ درخواستت را نمی‌شناسم»
+        | است هم «سرورِ من خراب است». پس بر خلافِ بقیهٔ فهرست، **بارِ اول
+        | قرنطینه نمی‌کند** — یک قطعیِ دو دقیقه‌ای نباید ۲۲۱ پلن را تا دخالتِ
+        | دستی ببندد. بارِ دوم در نیم‌ساعت یعنی «گذرا نبود» و بسته می‌شود.
+        |
+        | (این متد فقط از شاخهٔ شکستِ `createServer()` صدا زده می‌شود، پس
+        | استعلامِ کاتالوگ هرگز به این‌جا نمی‌رسد.)
+        */
+        if ($hit === null && str_contains($needle, 'proxy internal server error')) {
+            $key = 'cloud:gateway500:'.$plan->provider;
+
+            if (! Cache::get($key)) {
+                Cache::put($key, 1, now()->addMinutes(30));
+
+                ErrorTracker::note('cloud',
+                    'زیرساخت سرِ سفارش «Proxy internal server error» داد. اگر در نیم‌ساعت تکرار شود، '
+                    .'فروشِ پلن‌هایش خودکار بسته می‌شود.', ['provider' => $plan->provider]);
+
+                return;
+            }
+
+            $hit = 'proxy internal server error';
+        }
+
+        if ($hit === null) {
+            return;
+        }
+
+        $note = self::QUARANTINE_PREFIX.' زیرساخت سفارش را نپذیرفت ('.mb_substr($message, 0, 120).')';
+
+        $closed = CloudPlan::query()
+            ->where('provider', $plan->provider)
+            ->where('admin_disabled', false)
+            ->update(['admin_disabled' => true, 'admin_note' => mb_substr($note, 0, 250)]);
+
+        if ($closed === 0) {
+            return;
+        }
+
+        ErrorTracker::note('cloud',
+            'فروشِ '.$closed.' پلنِ یک زیرساخت خودکار بسته شد — '.$note);
+
+        try {
+            app(AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
+                'زیرساخت' => CloudManager::REAL_NAMES[$plan->provider] ?? $plan->provider,
+                'تعداد پلن' => (string) $closed,
+                'علت' => mb_substr($message, 0, 200),
+                // ⚠️ بی‌این جمله، مدیر باید ۲۲۱ ردیف را تک‌تک در پنل باز کند —
+                // که یک‌بار واقعاً پیش آمد و عملاً یعنی راهی نبود.
+                'اقدام' => 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید. '
+                    .'پس از یک سفارشِ واقعیِ موفق، همه را با «php artisan cloud:reopen» باز کنید '
+                    .'(یا ردیف‌به‌ردیف از /admin/cloud).',
+            ], url('/admin/cloud'), '🛑');
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * پولِ کسرشده را برگردان، وقتی تحویل انجام نشد.
+     *
+     * 🔴 `orderHourly()` ساعتِ اول را **پیش از** تحویل از کیفِ پول کم می‌کند.
+     * اگر تحویل شکست بخورد و برنگردانیم، مشتری پول داده و چیزی نگرفته — بدترین
+     * تجربهٔ ممکن، و از دستِ خودش هم کاری برنمی‌آید.
+     *
+     * ⚠️ فقط یک بار: کرون ممکن است چند بار `fail()` بزند و بی‌این محافظ، هر بار
+     * یک برگشتِ تازه می‌خورد و اعتبارِ مشتری بی‌دلیل بالا می‌رفت.
+     */
+    private function refundIfPrepaid(Service $service): void
+    {
+        // GPU recovery refunds actual debits together with cancellation after a live check.
+        if (str_starts_with((string) $service->cloud_image_key, 'gpu-')) {
+            return;
+        }
+        if ($service->billing_mode !== 'hourly' || (int) $service->hourly_rate_irt <= 0) {
+            return;
+        }
+
+        if ($service->customer === null) {
+            return;
+        }
+
+        try {
+            DB::transaction(function () use ($service): void {
+                $customer = \App\Models\Customer::whereKey($service->customer_id)->lockForUpdate()->first();
+                $locked = Service::whereKey($service->id)->lockForUpdate()->first();
+
+                if ($customer === null || $locked === null) {
+                    return;
+                }
+
+                $debits = abs((int) CreditEntry::where('source_type', Service::class)
+                    ->where('source_id', $locked->id)
+                    ->whereIn('reason', ['cloud_hourly', 'cloud_hourly_convert'])
+                    ->where('amount', '<', 0)
+                    ->sum('amount'));
+                $already = (int) CreditEntry::where('source_type', Service::class)
+                    ->where('source_id', $locked->id)
+                    ->whereIn('reason', ['cloud_hourly_refund', 'refund'])
+                    ->where('amount', '>', 0)
+                    ->sum('amount');
+                $amount = max(0, $debits - $already);
+
+                if ($amount < 1) {
+                    return;
+                }
+
+                CreditEntry::create([
+                    'customer_id' => $locked->customer_id,
+                    'currency_code' => 'IRT',
+                    'amount' => $amount,
+                    'balance_after' => $customer->creditBalance('IRT') + $amount,
+                    'reason' => 'cloud_hourly_refund',
+                    'source_type' => Service::class,
+                    'source_id' => $locked->id,
+                    'note' => 'بازگشتِ کسر ساعتی — تحویل انجام نشد (سرویس #'.$locked->id.')',
+                ]);
+            });
+        } catch (\Throwable $e) {
+            ErrorTracker::note('cloud', $e, ['area' => 'hourly-refund', 'service' => $service->id]);
+        }
+    }
+
+    private function fail(Service $service, string $reason): void
+    {
+        $updated = Service::whereKey($service->id)->whereNotIn('status', Service::DEAD_STATUSES)->update([
+            'provision_status' => 'failed',
+            'provision_error' => mb_substr($reason, 0, 290),
+            'status' => 'awaiting_provision',
+        ]);
+        if (! $updated) {
+            return;
+        }
+        $service->refresh();
+
+        try {
+            // ⚠️ `forService` و نه `record(null,…)`: با نال، ردیف به سرویس
+            //    نمی‌چسبد و در `/admin/services/{id}/history` **دیده نمی‌شود**.
+            //    یعنی تنها جایی که مدیر دنبالِ علت می‌گردد، خالی می‌مانَد.
+            ActivityLog::forService($service, 'provision',
+                __('ui.act_prov_failed', ['reason' => $reason], $service->customer?->locale ?: 'fa'), 'system');
+        } catch (\Throwable) {
+        }
+
+        /*
+        | 🔴 دو حفرهٔ خاموش که این‌جا بسته شد.
+        |
+        | قبلاً `fail()` فقط ستونِ ردیف و `ActivityLog` را می‌نوشت. نتیجه:
+        |
+        |   • `/admin/errors` هیچ‌چیز نشان نمی‌داد — مدیر فقط می‌دید «سرور
+        |     ساخته نشد» و برای یافتنِ علت باید ستونِ `provision_error` را در
+        |     دیتابیس می‌خواند.
+        |   • **مشتری هیچ خبری نمی‌گرفت** — پولش رفته بود، سروری نبود، و تنها
+        |     نشانه سکوت بود.
+        |
+        | ⚠️ علتِ فنی فقط به مدیر می‌رود: پیامِ خامِ زیرساخت ممکن است نامِ
+        | تأمین‌کننده را لو بدهد و سفیدبرچسبی را بشکند.
+        */
+        // پولِ پیش‌گرفته‌شده برگردد — پیش از هر اعلانی، تا اگر اعلان شکست
+        // خورد هم مشتری پولش را پس گرفته باشد
+        $this->refundIfPrepaid($service);
+
+        ErrorTracker::note('provision',
+            'تحویلِ سرورِ ابری ناموفق: '.$reason, ['service' => $service->id]);
+
+        try {
+            if ($service->customer !== null) {
+                app(Notifier::class)->fire(
+                    'service_failed', $service->customer,
+                    ['service' => (string) $service->name],
+                    'تحویلِ «'.$service->name.'» انجام نشد. تیمِ پشتیبانی در حالِ بررسی است؛ مبلغی از دست نمی‌رود.',
+                    [
+                        'سرویس' => '#'.$service->id.' — '.$service->name,
+                        'پلن' => (string) $service->plan,
+                        'علت' => $reason,
+                    ],
+                    null, '⚠️',
+                    // «مشکل را رفع کردم، همان‌جا دوباره تحویل بده» — تأییدِ
+                    // نهایی در spa/sp است تا کلیکِ اتفاقی سرورِ واقعی نخرد
+                    [
+                        [['text' => '🔁 تلاشِ دوبارهٔ تحویل', 'data' => AdminBaleRouter::CB_PREFIX.'spa:'.$service->id]],
+                        [['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id]],
+                    ],
+                );
+            }
+        } catch (\Throwable $e) {
+            ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-failed']);
+        }
+    }
+
+    /** خرابیِ گذرا: pending بمان تا کرونِ بعدی دوباره تلاش کند */
+    /**
+     * صفِ بازبینیِ دستی — نه شکست، نه تحویل.
+     *
+     * `provision_status = 'manual'` را کرونِ `provision:run` برنمی‌دارد (فقط
+     * 'pending' را می‌گیرد)، پس تا وقتی مدیر تصمیم نگیرد هیچ پولی خرج نمی‌شود.
+     */
+    private function needsReview(Service $service, string $reason): void
+    {
+        $service->forceFill([
+            'provision_status' => 'manual',
+            'status' => 'awaiting_provision',
+            'provision_error' => mb_substr('نیازمندِ تأییدِ دستی: '.$reason, 0, 290),
+        ])->save();
+
+        /*
+        | 🔴 تنها جایی که مدیر دنبالِ **علت** می‌گردد، تا امروز خالی بود.
+        |
+        | `fail()` پایین‌تر `ActivityLog::forService` می‌نویسد، ولی این متد
+        | نمی‌نوشت. یعنی `/admin/services/{id}/history` برای یک سفارشِ پارک‌شده
+        | هیچ‌چیز نداشت و تنها ردِ ماجرا در ردیابِ خطا بود — همان‌جایی که
+        | کارفرما گفت «فقط چون خودم بازش کردم فهمیدم».
+        */
+        try {
+            ActivityLog::forService($service, 'provision',
+                __('ui.act_prov_manual', ['reason' => $reason], $service->customer?->locale ?: 'fa'), 'system');
+        } catch (\Throwable) {
+        }
+
+        ErrorTracker::note('fraud-guard',
+            'سفارشِ سرور به بازبینیِ دستی رفت: '.$reason, ['service' => $service->id]);
+
+        /*
+        | ═══ 🔴 شکستنِ سکوت ═══
+        |
+        | تا امروز فقط مدیر خبردار می‌شد (آن هم بی‌لینک و بی‌ایموجی، پس بینِ
+        | بقیهٔ 🔔ها گم می‌شد) و **مشتری هیچ‌چیز نمی‌شنید**: پولش رفته بود،
+        | سروری نمی‌آمد، و پنل هم‌زمان وعده می‌داد «کمتر از دو دقیقه».
+        |
+        | حالا یک رویدادِ کاتالوگ (`service_hold`، مخاطب: هر دو) شلیک می‌شود:
+        | مشتری متنِ صادق و بی‌عدد می‌گیرد، مدیر همان لحظه سطرِ «علت» و لینکِ
+        | مستقیمِ سرویس را.
+        |
+        | ⚠️ علتِ فنی **فقط** به مدیر می‌رود. متنِ زندهٔ محافظ «بیش از ۵ سرور در
+        | ۲۴ ساعت» است؛ نشان‌دادنش به مشتری یعنی به مهاجم یاد بدهیم یکی زیرِ
+        | سقف بماند. متغیرهای الگوی مشتری هم به همین دلیل فقط `service` است.
+        |
+        | ⚠️ **دقیقاً یک بار**: `provision:run` و «تلاشِ دوباره»ی مدیر هر دو
+        | می‌توانند بارها این‌جا برسند. بی‌قفل، مشتری به‌ازای هر تلاش یک پیام
+        | می‌گرفت — همان «هرگز دو بار»ی که برای ایمیلِ تحویل هم نوشته شده.
+        */
+        if (! $this->claimHoldNotice($service)) {
+            return;
+        }
+
+        try {
+            app(Notifier::class)->fire(
+                'service_hold',
+                $service->customer,
+                ['service' => (string) $service->name],
+                'سفارشِ «'.$service->name.'» برای بررسیِ کوتاهِ امنیتی نگه داشته شد. '
+                .'تیمِ ما آن را بازبینی می‌کند و نتیجه را به شما اطلاع می‌دهیم؛ مبلغی از دست نمی‌رود.',
+                ['سرویس' => '#'.$service->id.' — '.$service->name, 'علت' => $reason],
+                url('/admin/services/'.$service->id.'/history'),
+                '🛑',
+            );
+        } catch (\Throwable $e) {
+            ErrorTracker::note('notify', $e, ['area' => 'cloud-provision-hold']);
+        }
+    }
+
+    /**
+     * قفلِ «یک بار به مشتری خبر بده» برای یک سفارشِ پارک‌شده.
+     *
+     * ⚠️ روی خودِ ردیف قفل می‌شود، نه روی کش: کشِ پروداکشن روی همان دیتابیسی
+     * می‌نشیند که بارها لرزیده، و از دست رفتنِ کلید یعنی سیلِ پیامِ تکراری.
+     *
+     * علامت در `provision_meta` می‌نشیند. `finalize()` این ستون را یکجا
+     * بازنویسی می‌کند — که این‌جا دقیقاً رفتارِ درست است: تحویلِ موفق پروندهٔ
+     * «نگه‌داشته شده» را می‌بندد، و اگر روزی همان سرویس دوباره پارک شود، باید
+     * دوباره خبر برود.
+     *
+     * @return bool آیا این فراخوان حقِ فرستادن را گرفت
+     */
+    private function claimHoldNotice(Service $service): bool
+    {
+        try {
+            return (bool) DB::transaction(function () use ($service) {
+                $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
+
+                if ($fresh === null) {
+                    return false;
+                }
+
+                $meta = (array) ($fresh->provision_meta ?? []);
+
+                if (filled($meta['hold_notified_at'] ?? null)) {
+                    return false;
+                }
+
+                $meta['hold_notified_at'] = now()->toIso8601String();
+                $fresh->forceFill(['provision_meta' => $meta])->save();
+                $service->provision_meta = $meta;
+
+                return true;
+            });
+        } catch (\Throwable $e) {
+            ErrorTracker::note('provision', $e, ['area' => 'hold-notice-claim', 'service' => $service->id]);
+
+            return false;   // مطمئن‌تر: پیامِ نرفته از پیامِ تکراری بهتر است
+        }
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 🔴 رهاسازیِ دستیِ یک سفارشِ پارک‌شده — «می‌دانم، بساز»
+    |--------------------------------------------------------------------------
+    |
+    | مسئله‌ای که حل می‌کند، اندازه‌گیری‌شده روی پروداکشن: محافظ سفارش را نگه
+    | می‌داشت و **تنها درِ خروج** («تلاشِ دوباره»ی مدیر) از خودِ همان محافظ رد
+    | می‌شد. پس سفارش هرگز بیرون نمی‌آمد و پیامِ خطا به مدیر می‌گفت «نیازمندِ
+    | تأییدِ دستی» در حالی که هیچ افورد‌نسِ تأییدی در محصول وجود نداشت.
+    |
+    | طراحی، و چراییِ هر قید:
+    |
+    |  • **تک‌سرویس و یک‌بارمصرف.** علامتی در `provision_meta` می‌نشیند و در
+    |    همان شاخهٔ محافظ **مصرف** می‌شود. کلیدِ سراسریِ «محافظ خاموش» وجود
+    |    ندارد، چون خاموشیِ سراسری همان چیزی است که این کلاس برای نداشتنش
+    |    نوشته شد.
+    |  • **فقط شاخهٔ محافظ.** هرچه زیرِ آن است — درایورِ پیکربندی‌شده، موجودی،
+    |    در دسترس بودنِ سیستم‌عامل — دست‌نخورده می‌مانَد. رهاسازی‌ای که از روی
+    |    آنها بپرد، بن‌بست را با «پولِ چیزی که تحویل‌شدنی نیست» عوض می‌کند.
+    |  • **نمی‌تواند دو بار بخرد.** این متد چیزی نمی‌خرد؛ فقط ردیف را به
+    |    `pending` برمی‌گرداند. خریدْ همان مسیرِ همیشگی است و هر سه لایهٔ
+    |    ضدِ خریدِ دوباره سرِ جایشان‌اند: قفلِ اتمیِ `provision()` (دو رهاسازیِ
+    |    هم‌زمان، یک برنده)، شاخهٔ `adoptExisting()` وقتی `provider_ref` پر
+    |    باشد، و نامِ قطعیِ `sn-svc-{id}`.
+    |  • **از سمتِ مشتری غیرقابلِ دسترس.** روتش پشتِ `auth:web` + `admin` است،
+    |    در فهرستِ سفیدِ نویسنده نیست، کنترلر دوباره `isAdmin()` می‌سنجد، و
+    |    مشتری اصلاً روی گاردِ `web` نیست.
+    */
+
+    /**
+     * ثبتِ درخواستِ رهاسازی روی یک سرویس (فقط علامت‌گذاری؛ چیزی تحویل نمی‌دهد).
+     *
+     * @param  string  $by  نامِ مدیرِ تصمیم‌گیرنده — برای ردِ حسابرسی
+     */
+    public static function requestOverride(Service $service, string $by): void
+    {
+        $meta = (array) ($service->provision_meta ?? []);
+
+        $meta['fraud_override'] = [
+            'pending' => true,
+            'by' => $by,
+            'at' => now()->toIso8601String(),
+            'flagged' => mb_substr((string) $service->provision_error, 0, 200),
+        ];
+
+        $service->forceFill(['provision_meta' => $meta])->save();
+    }
+
+    /** آیا روی این سرویس رهاسازیِ مصرف‌نشده هست؟ (فقط برای نمایش) */
+    public static function overrideRequested(Service $service): bool
+    {
+        return ($service->provision_meta['fraud_override']['pending'] ?? false) === true;
+    }
+
+    /**
+     * مصرفِ یک‌بارهٔ علامتِ رهاسازی — اتمی، زیرِ قفلِ ردیف.
+     *
+     * ⚠️ سندِ حسابرسی در `ActivityLog` و ردیابِ خطا نوشته می‌شود نه فقط در
+     * `provision_meta`: `finalize()` آن ستون را در لحظهٔ تحویلِ موفق یکجا
+     * بازنویسی می‌کند، یعنی دقیقاً وقتی «چه کسی اجازه داد» بیشترین ارزش را
+     * دارد، از بین می‌رفت.
+     */
+    private function consumeOverride(Service $service, string $reason): bool
+    {
+        try {
+            $mark = DB::transaction(function () use ($service) {
+                $fresh = Service::whereKey($service->id)->lockForUpdate()->first();
+
+                if ($fresh === null) {
+                    return null;
+                }
+
+                $meta = (array) ($fresh->provision_meta ?? []);
+
+                if ((($meta['fraud_override']['pending'] ?? false) !== true)) {
+                    return null;
+                }
+
+                $mark = (array) $meta['fraud_override'];
+
+                unset($meta['fraud_override']);
+                $meta['fraud_override_used'] = [
+                    'by' => $mark['by'] ?? '—',
+                    'at' => now()->toIso8601String(),
+                ];
+
+                $fresh->forceFill(['provision_meta' => $meta])->save();
+                $service->provision_meta = $meta;
+
+                return $mark;
+            });
+        } catch (\Throwable $e) {
+            ErrorTracker::note('provision', $e, ['area' => 'override-consume', 'service' => $service->id]);
+
+            return false;
+        }
+
+        if ($mark === null) {
+            return false;
+        }
+
+        $who = (string) ($mark['by'] ?? '—');
+
+        try {
+            ActivityLog::forService($service, 'provision',
+                'محافظِ سوءاستفاده با تأییدِ صریحِ مدیر ('.$who.') کنار گذاشته شد — نشانهٔ محافظ: '.$reason,
+                'staff');
+        } catch (\Throwable) {
+        }
+
+        ErrorTracker::note('fraud-guard',
+            'رهاسازیِ دستیِ سفارش توسط مدیر ('.$who.') — نشانهٔ محافظ: '.$reason,
+            ['service' => $service->id, 'by' => $who]);
+
+        return true;
+    }
+
+    /**
+     * خرابیِ گذرا: `pending` بمان تا کرونِ بعدی دوباره تلاش کند.
+     *
+     * ═══ 🔴 چرا دیگر ساکت نیست ═══
+     *
+     * این متد هیچ ردی نمی‌گذاشت. برای یک شکستِ گذرا درست است — ولی اگر خرابی
+     * **پایدار** باشد (توکنِ منقضی، پلنِ ناموجود نزدِ زیرساخت، ظرفیتِ تمام‌شده)،
+     * کرون هر دقیقه تلاش می‌کند، هر بار شکست می‌خورد، و سرویس تا ابد «در حالِ
+     * آماده‌سازی» می‌مانَد: مشتری پول داده، سروری نیست، و **هیچ‌جا هیچ خطایی
+     * ثبت نمی‌شود**. دقیقاً همان چیزی که کارفرما گزارش کرد.
+     *
+     * ⚠️ ثبت **گلوگاه‌دار** است: بی‌آن، یک سرویسِ گیرکرده روزی ۱۴۴۰ ردیف در
+     * ردیابِ خطا می‌ریخت و هشدارهای واقعی را زیرِ نویز دفن می‌کرد — که از
+     * نداشتنِ هشدار بدتر است.
+     */
+    private function retryLater(Service $service, string $reason): void
+    {
+        $service->forceFill([
+            'provision_status' => 'pending',
+            'provision_error' => mb_substr($reason, 0, 290),
+            'status' => 'awaiting_provision',
+        ])->save();
+
+        $key = 'provision:stuck:'.$service->id;
+
+        // اولین تلاشِ ناموفق زمان را ثبت می‌کند؛ اگر بعد از این آستانه هنوز
+        // گیر باشد، یعنی «گذرا» نبوده و باید دیده شود.
+        $since = Cache::get($key);
+
+        if ($since === null) {
+            Cache::put($key, now()->toIso8601String(), now()->addDay());
+
+            return;
+        }
+
+        if (Carbon::parse($since)->gt(now()->subMinutes(10))) {
+            return;   // هنوز در پنجرهٔ «شاید واقعاً گذرا باشد»
+        }
+
+        // ⚠️ فقط یک بار در ساعت، وگرنه ردیاب پر می‌شود
+        $shout = 'provision:stuck-shout:'.$service->id;
+
+        if (Cache::has($shout)) {
+            return;
+        }
+
+        Cache::put($shout, 1, now()->addHour());
+
+        ErrorTracker::note('provision',
+            'سرویس #'.$service->id.' بیش از ۱۰ دقیقه در صفِ تحویل گیر کرده: '.$reason,
+            ['service' => $service->id]);
+
+        try {
+            app(AdminNotifier::class)->event('سرویس در صفِ تحویل گیر کرده', [
+                'سرویس' => '#'.$service->id.' — '.$service->name,
+                'مشتری' => (string) ($service->customer?->code ?? $service->customer_id),
+                'علت' => mb_substr($reason, 0, 200),
+            ], null, '⏳', [[
+                ['text' => '👤 پروفایلِ مشتری', 'data' => AdminBaleRouter::CB_PREFIX.'c:'.$service->customer_id],
+                ['text' => '🧾 سرویس', 'data' => AdminBaleRouter::CB_PREFIX.'s:'.$service->id],
+            ]]);
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * اعلانِ «سرورت آماده شد» — دقیقاً یک بار در عمرِ هر سرویس.
+     *
+     * ═══ چرا «ثبتِ فرستادن» **پیش** از فرستادن است ═══
+     *
+     * قفلِ اتمی (`whereNull → update`) اول برداشته می‌شود و بعد ایمیل می‌رود.
+     * ترتیبش عمدی است: `cloud:sync-instances` و `provision:run` هر دو هر دقیقه
+     * می‌دوند و می‌توانند هم‌زمان روی یک ردیف بیفتند. اگر اول بفرستیم و بعد
+     * علامت بزنیم، مشتری دو (یا در حالتِ گیرکردن، ده) ایمیلِ یکسان می‌گیرد —
+     * و کارفرما صریح گفت «هرگز دو بار».
+     *
+     * بهایش این است که یک خرابیِ گذرای SMTP ایمیل را می‌سوزاند. آن هزینه
+     * پذیرفته است چون مشتری هر چیزی که در ایمیل بود را در پنل هم دارد، و ردِ
+     * ماجرا در `ActivityLog` می‌مانَد؛ در حالی که سیلِ ایمیلِ تکراری هم اعتماد
+     * را می‌برد هم دامنهٔ فرستنده را.
+     *
+     * @return bool آیا این فراخوان اعلان را فرستاد (false = قبلاً فرستاده شده)
+     */
+    private function notify(Service $service, CloudInstance $instance): bool
+    {
+        // ── قفلِ اتمیِ «یک بار» ──
+        $claimed = CloudInstance::whereKey($instance->id)
+            ->whereNull('ready_notified_at')
+            ->update(['ready_notified_at' => now()]);
+
+        if ($claimed === 0) {
+            return false;
+        }
+
+        $instance->ready_notified_at = now();
+
+        try {
+            // ⚠️ متغیرها باید پاس داده شوند وگرنه الگوی /admin/templates بی‌اثر
+            // است: `NotificationTemplate::body()` اگر بعد از جایگزینی هنوز
+            // `{service}` ببیند عمداً متنِ کد را می‌فرستد. یعنی مدیر متن را
+            // ویرایش می‌کرد و هیچ اتفاقی نمی‌افتاد.
+            app(CustomerNotifier::class)->event(
+                $service->customer, 'service_ready',
+                /*
+                | 🔴 آدرسی که به مشتری می‌گوییم باید همانی باشد که واقعاً
+                | کار می‌کند. `ipv4`ِ ماشینِ پشتِ NAT خصوصی است و مشتری با آن
+                | به جایی نمی‌رسد — تیکتِ «آی‌پی خصوصی است» دقیقاً از همین
+                | خط آمد. `address()` یا آدرسِ عمومیِ قابلِ‌استفاده می‌دهد یا
+                | `null`، و پایین‌تر جلوی فرستادنِ اعلانِ بی‌آدرس گرفته می‌شود.
+                */
+                /*
+                | 🔴 برای GPU «آدرس» یعنی نشانیِ دروازه، نه `ssh_ip`. نامِ متغیر
+                | عمداً همان `ip` ماند: الگوهای ذخیره‌شدهٔ مدیر در /admin/templates با
+                | `{ip}` نوشته شده‌اند و تغییرِ نام بی‌صدا از کارشان می‌انداخت.
+                */
+                ['service' => $service->name, 'ip' => $instance->isGpuApp()
+                    ? (string) $instance->accessHost()
+                    : (string) $instance->address()],
+                $instance->isGpuApp()
+                    ? 'سرویسِ «'.$service->name.'» شما آماده شد. نشانی: '.$instance->gatewayUrl()
+                        .' — توکنِ دسترسی در صفحهٔ مدیریتِ سرویس در پنل است.'
+                    : 'سرورِ «'.$service->name.'» شما آماده شد. آدرس: '.$instance->address()
+            );
+        } catch (\Throwable) {
+            // اعلان نباید تحویل را بشکند
+        }
+
+        try {
+            $customer = $service->customer;
+
+            if ($customer && filled($customer->email)) {
+                Mail::mailer('smtp')->to($customer->email)->send(
+                    /*
+                    | خطِ GPU (برنامهٔ آماده روی دروازه): «root» و IP دروغ است —
+                    | نه SSH دارد نه کاربرِ سیستمی. نشانیِ برندشدهٔ دروازه
+                    | می‌رود و راهنمای SSH خاموش می‌شود.
+                    */
+                    ($gpuApp = str_starts_with((string) $instance->image_key, 'gpu-'))
+                        ? new ServiceReadyMail(
+                            $service->name,
+                            $instance->accessHost() ?: ($instance->ipv4 ?: $service->domain),
+                            $service->panel_url ?: url('/account/cloud/'.$service->id),
+                            null,
+                            null,
+                            $customer->locale ?: 'fa',
+                            /*
+                            | 🔴 `passwordInPanel: false`. این خط اصلاً رمزی
+                            | ندارد — نه در ایمیل، نه در پنل. تا امروز
+                            | `true` بود و ایمیل وعدهٔ «رمز یک بار در پنل»
+                            | می‌داد؛ مشتری می‌گشت، نمی‌یافت، تیکت می‌زد.
+                            */
+                            passwordInPanel: false,
+                            withSshGuide: false,
+                            gatewayAccess: true,
+                        )
+                        : new ServiceReadyMail(
+                            $service->name,
+                            $instance->ipv4 ?: $service->domain,
+                            $service->panel_url ?: url('/account/cloud/'.$service->id),
+                            $instance->isWindows() ? 'Administrator' : 'root',
+                            /*
+                            | 🔴 رمزِ root عمداً در ایمیل **نیست**.
+                            |
+                            | قاعدهٔ این حوزه از قبل این بود که رمز فقط یک بار در پنل
+                            | دیده شود (`password_seen`)، ولی ایمیل نسخهٔ دومی از همان
+                            | رمز را برای همیشه در اینباکس می‌گذاشت — یعنی همان قاعده
+                            | از درِ پشتی شکسته می‌شد.
+                            |
+                            | ⚠️ ولی سکوت هم جواب نبود: کارفرما گزارش داد مشتری فکر
+                            | می‌کند «چیزی جا افتاده». پس `passwordInPanel` صریح
+                            | می‌گوید رمز کجاست و چرا یک بار است.
+                            */
+                            null,
+                            $customer->locale ?: 'fa',
+                            passwordInPanel: ! $instance->isWindows() || $instance->hasPassword(),
+                            withSshGuide: ! $instance->isWindows(),
+                        )
+                );
+            }
+        } catch (\Throwable) {
+        }
+
+        try {
+            ActivityLog::forService($service, 'provision',
+                __('ui.act_prov_mail', ['ip' => $instance->ipv4], $service->customer?->locale ?: 'fa'), 'system');
+        } catch (\Throwable) {
+        }
+
+        try {
+            app(AdminNotifier::class)->event(
+                'سرورِ ابری تحویل شد',
+                [
+                    'سرویس' => $service->name,
+                    'مشتری' => $service->customer?->name ?? '—',
+                    'IP' => $instance->ipv4 ?: '—',
+                    'مکان' => $instance->location_code ?: '—',
+                ],
+                url('/admin/services'),
+                '🖥️'
+            );
+        } catch (\Throwable) {
+        }
+
+        return true;
+    }
+
+    // ───────────────────────── چرخهٔ عمر ─────────────────────────
+
+    /**
+     * تعلیق = خاموش کردن.
+     *
+     * سرورِ ابری «تعلیقِ نرم» ندارد (مثلِ cPanel که حساب می‌ماند و دسترسی بسته
+     * می‌شود). خاموش کردن نزدیک‌ترین معادل است: داده سرِ جایش می‌ماند و با
+     * پرداخت، روشن می‌شود. **حذف نمی‌کنیم** — مشتریِ بدهکار هم حقِ داده‌اش را
+     * دارد و ما هنوز اجارهٔ سرور را می‌دهیم؛ خاتمه تصمیمِ آگاهانهٔ مدیر است.
+     */
+    public function suspend(Service $service): bool
+    {
+        if ($service->isInternalInfrastructure()) {
+            return false;
+        }
+
+        return $this->act($service, fn ($d, $ref) => $d->power($ref, 'off'), 'off');
+    }
+
+    public function unsuspend(Service $service): bool
+    {
+        return $this->act($service, fn ($d, $ref) => $d->power($ref, 'on'), 'running');
+    }
+
+    /**
+     * The provider accepted the lifecycle command, but its eventual state has
+     * not been observed yet.  Callers must retry reconciliation without
+     * turning an asynchronous success into a hard billing/infrastructure
+     * error.  A real provider rejection never sets this marker.
+     */
+    public function lifecyclePending(Service $service, string $expectStatus): bool
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        return $instance !== null
+            && data_get($instance->meta, 'lifecycle_pending.expect') === $expectStatus
+            && blank(data_get($instance->meta, 'lifecycle_pending.timed_out_at'));
+    }
+
+    /** The provider accepted deletion and exact-resource absence is still pending. */
+    public function releasePending(Service $service): bool
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        return $instance !== null
+            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])
+            && filled(data_get($instance->meta, 'release_pending.accepted_at'))
+            && blank(data_get($instance->meta, 'release_pending.timed_out_at'));
+    }
+
+    /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
+    public function terminate(Service $service, bool $reportFailure = true): bool
+    {
+        if ($service->isInternalInfrastructure()) {
+            return false;
+        }
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        /*
+        | ═══ 🔴 «چیزی برای حذف نیست» با «نمی‌دانم چه چیزی را حذف کنم» یکی نیست ═══
+        |
+        | این شاخه بی‌قید `true` می‌داد و فراخوان آن را «موفق» ثبت می‌کرد:
+        | `provision_status='none'` و صفِ آزادسازی بسته. برای سرویسی که هرگز
+        | سفارشی نداده درست است — ولی برای سرویسی که ردیفِ نمونه دارد و شناسه‌اش
+        | هنوز حل نشده (`order:…`، یا تماسِ ساخت که پاسخش به ما نرسید)، یعنی یک
+        | ماشینِ احتمالاً **زندهٔ** یتیم که اجاره‌اش پای ماست و هیچ‌جا ردی ندارد.
+        | این دقیقاً همان دکمهٔ حذفی است که «بی‌صدا هیچ کاری نمی‌کرد».
+        |
+        | ⚠️ ولی جهتِ مخالف هم باگ است: اگر نبودِ واقعیِ ماشین را «شکست» بخوانیم،
+        | صفِ `releasing` و چکِ سلامت پر از کاری می‌شود که وجود ندارد — زنگِ
+        | همیشه‌قرمزی که زنگِ بعدی را خفه می‌کند. پس فقط دو حالت جدا شده‌اند:
+        | «هیچ سفارشی ثبت نشده» ⇒ موفق · «سفارش هست ولی شناسه‌اش را نداریم» ⇒ ناموفق.
+        */
+        if ($instance === null) {
+            return true;                              // هرگز سفارشی ثبت نشد
+        }
+
+        if (blank($instance->provider_ref)) {
+            /*
+            |------------------------------------------------------------------
+            | 🔴 «شناسه ندارم» دلیلِ کافی برای تلاشِ بی‌پایان نیست — **بپرس**
+            |------------------------------------------------------------------
+            |
+            | رخدادِ واقعی (سرویس ۲۹، مرداد ۱۴۰۵): تحویل با
+            | `resource_unavailable` شکست خورد — یعنی زیرساخت اصلاً ماشینی
+            | نساخت. ولی ردیفِ نمونه **پیش از** تماسِ API ساخته می‌شود (لایهٔ ۳
+            | محافظِ «دو بار نخر»)، پس `provider_ref` خالی مانْد و این شاخه هر
+            | ساعت `false` می‌داد: `cloud:release-retry` تا ابد تلاش می‌کرد و
+            | ردیابِ خطا را با یک هشدارِ **دروغین** پر می‌کرد.
+            |
+            | و آن دروغ گران است: مدیر هر بار می‌خواند «ماشین احتمالاً زنده است
+            | و اجاره‌اش پای ماست» و هیچ ماشینی وجود نداشت. زنگی که هر ساعت
+            | بی‌دلیل بزند، زنگِ واقعیِ بعدی را خفه می‌کند.
+            |
+            | ⚠️ ولی جهتِ مخالف هم باگ است: اگر بی‌پرسش «چیزی نیست» بگوییم، یک
+            | ماشینِ واقعاً ساخته‌شده که پاسخش به ما نرسید برای همیشه یتیم
+            | می‌شود و اجاره‌اش را می‌دهیم.
+            |
+            | پس **می‌پرسیم**. نامِ قطعیِ `sn-svc-{id}` را خودمان داده‌ایم، پس
+            | همیشه در دست است و به هیچ حدسی وابسته نیست:
+            |
+            |   زیرساخت می‌شناسدش  ⇒ شناسه‌اش را برمی‌داریم و حذف می‌کنیم
+            |   نمی‌شناسد          ⇒ چیزی برای حذف نیست، پرونده بسته
+            |   پرسیدن شکست خورد   ⇒ همان رفتارِ قبلی (فریاد + تلاشِ دوباره)
+            |
+            | ⚠️ شاخهٔ سوم عمداً محافظه‌کار است: قطعیِ گذرای API نباید به
+            | «ماشینی وجود ندارد» ترجمه شود.
+            */
+            $found = $this->findByDeterministicName($service, $instance);
+
+            if ($found === false) {
+                $why = 'ردیفِ نمونه ساخته شده ولی شناسه‌ای ثبت نشده و پرسیدن از زیرساخت هم '
+                    .'ممکن نشد. نامِ قطعیِ «'.$this->serverName($service).'» را در پنلِ '
+                    .'زیرساخت جستجو کنید.';
+                $instance->update(['last_error' => $why]);
+                if ($reportFailure) {
+                    $this->shoutAboutLingeringMachine(
+                        'حذفِ سرور ممکن نشد: شناسهٔ ماشین نزدِ زیرساخت در دست نیست',
+                        $service, $instance, $why
+                    );
+                }
+
+                return false;
+            }
+
+            if ($found === null) {
+                // زیرساخت چنین ماشینی نمی‌شناسد ⇒ هرگز ساخته نشد
+                $instance->update([
+                    'status' => 'deleted',
+                    'last_error' => null,
+                ]);
+
+                return true;
+            }
+
+            $instance->update(['provider_ref' => $found]);
+            $instance->refresh();
+        }
+
+        $driver = $this->manager->forInstance($instance);
+
+        if ($driver === null) {
+            $instance->update(['last_error' => 'درایورِ زیرساخت برای آزادسازی در دسترس نیست.']);
+
+            return false;
+        }
+
+        // 🔴 دروازهٔ وب **پیش از** حذفِ ماشین برچیده می‌شود.
+        //
+        // اگر بعد از حذف می‌آمد و حذفِ ماشین شکست می‌خورد، این خط اجرا نمی‌شد و
+        // پروکسی‌هاست تا ابد می‌مانْد. ترتیب عمدی است: چیزی که رو به اینترنت
+        // است زودتر بسته شود.
+        $this->removeWebGateway($instance);
+
+        $r = $driver->deleteServer((string) $instance->provider_ref);
+
+        if ($r['ok'] ?? false) {
+            $attributes = $this->clearReleasePending($instance, [
+                'status' => 'deleted', 'last_error' => null,
+            ]);
+
+            // The Arvan driver only returns ok after GET of this exact resource
+            // is 404.  Persist that proof so fallback inventory can distinguish
+            // verified deletion from legacy rows that may only be SOFT_DELETED.
+            if ($instance->provider === 'arvan') {
+                $attributes['meta']['provider_absence_verified_at'] = now()->toIso8601String();
+            }
+
+            $instance->update($attributes);
+
+            return true;
+        }
+
+        if (($r['pending'] ?? false) === true
+            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])) {
+            $pending = data_get($instance->meta, 'release_pending');
+            $acceptedAt = is_array($pending)
+                ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
+                : null;
+            $deadlineMinutes = self::RELEASE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
+
+            if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
+                $message = 'حذف اجباری پذیرفته شد، اما نبودن منبع تا پایان مهلت '
+                    .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
+                $meta = (array) $instance->meta;
+                $meta['release_pending'] = [
+                    'accepted_at' => $acceptedAt->toIso8601String(),
+                    'timed_out_at' => $pending['timed_out_at'] ?? now()->toIso8601String(),
+                ];
+                $instance->update(['last_error' => $message, 'meta' => $meta]);
+
+                return false;
+            }
+
+            $meta = (array) $instance->meta;
+            $meta['release_pending'] = [
+                // Preserve first acceptance; otherwise an hourly retry could
+                // reset the clock forever and suppress a real billing leak.
+                'accepted_at' => ($acceptedAt ?? now())->toIso8601String(),
+            ];
+            $instance->update(['last_error' => null, 'meta' => $meta]);
+
+            return false;
+        }
+
+        $failure = $this->clearReleasePending($instance, [
+            'last_error' => mb_substr((string) $r['message'], 0, 500),
+        ]);
+        $instance->update($failure);
+
+        /*
+        | 🔴 حذفِ ناموفق **گران‌ترین سکوتِ این حوزه** است.
+        |
+        | تنها ردی که می‌گذاشت یک ستونِ `last_error` بود؛ هیچ‌کس آن ستون را
+        | نمی‌خوانَد. و فراخوان (`CloudMeterHourly::creditOut()`) مقدارِ برگشتی را
+        | دور می‌ریزد و سرویس را «خاتمه‌یافته» می‌نویسد. نتیجه: در پنلِ ما سرویس
+        | مرده است، نزدِ زیرساخت ماشین **زنده** است و اجاره‌اش هر ماه از حسابِ ما
+        | می‌رود — بی‌مشتری، بی‌درآمد، بی‌هیچ هشداری. تا رسیدنِ صورت‌حساب هیچ‌کس
+        | نمی‌فهمد، و صورت‌حساب هم فقط جمعِ کل را می‌گوید.
+        */
+        if ($reportFailure) {
+            $this->shoutAboutLingeringMachine(
+                'حذفِ سرور نزدِ زیرساخت انجام نشد',
+                $service, $instance, (string) $r['message']
+            );
+        }
+
+        return false;
+    }
+
+    /**
+     * 🔴 حذفی که زیرساخت نپذیرفت — شمارنده‌ها را بنویس و بلند بگو.
+     *
+     * فراخوانش `ProvisioningService::releaseAndTrack()` است، برای **هر دو** نوعِ
+     * سرویس (ابری و WHM/DA)؛ ردیفِ غیرابری نمونه ندارد و شمارنده‌ها فقط برای
+     * ابری نوشته می‌شوند، ولی فریادش یکی است.
+     *
+     * شمارنده‌ها در `cloud_instances.meta` می‌نشینند (ستونِ JSONِ موجود، در
+     * `$fillable` و cast‌شده) — بی‌هیچ مهاجرتی. سؤالی که به آنها پاسخ می‌دهند:
+     * «این نشتی از کی شروع شده و چند بار تلاش کرده‌ایم؟»
+     */
+    public function recordReleaseFailure(Service $service, string $why): void
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+        $attempt = 1;
+
+        if ($instance !== null) {
+            $meta = (array) ($instance->meta ?? []);
+            $attempt = (int) ($meta['release_attempts'] ?? 0) + 1;
+
+            $meta['release_attempts'] = $attempt;
+            $meta['release_first_failed_at'] ??= now()->toIso8601String();
+            $meta['release_last_failed_at'] = now()->toIso8601String();
+
+            $instance->update(['meta' => $meta]);
+        }
+
+        $this->shoutAboutLingeringMachine(
+            'حذفِ سرور نزدِ زیرساخت انجام نشد', $service, $instance, $why, $attempt
+        );
+    }
+
+    /**
+     * تعلیقی که زیرساخت نپذیرفت — ماشینی که ما «خاموش» می‌دانیم و روشن است.
+     *
+     * ارزان‌تر از حذفِ ناموفق ولی هر ساعت تکرارشونده: مشتری چیزی نمی‌پردازد
+     * (اعتبارش تمام شده) و اجاره را ما می‌دهیم. کرانش `SUSPEND_GRACE_HOURS` است،
+     * چون پس از آن مسیرِ حذف می‌دود و اگر آن هم شکست بخورد ردیف در صفِ
+     * `releasing` می‌نشیند.
+     */
+    public function recordSuspendFailure(Service $service): void
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        if ($instance !== null) {
+            $meta = (array) ($instance->meta ?? []);
+            $meta['suspend_failed_at'] = now()->toIso8601String();
+            $instance->update(['meta' => $meta]);
+        }
+
+        $this->shoutAboutLingeringMachine(
+            'خاموش‌کردنِ سرور نزدِ زیرساخت انجام نشد', $service, $instance,
+            (string) ($instance?->last_error ?: 'دلیلِ نامعلوم')
+        );
+    }
+
+    /**
+     * ماشینی که وضعیتِ محلی‌اش با واقعیت نمی‌خوانَد — بلند بگو.
+     *
+     * ⚠️ گلوگاه با امضای «سرویس + پیام» است، نه زمانِ خالی: خطای **تازه** روی
+     * همان سرویس فوراً دیده می‌شود، ولی تلاشِ ساعتیِ تکراری ردیاب را پر نمی‌کند.
+     *
+     * ⚠️ شمارهٔ تلاش در امضا **سطلی** است (۱، ۲، ۳، ۴، ۸، ۱۶، ۳۲…): تلاشِ
+     * ساعتیِ `cloud:release-retry` نباید روزی ۲۴ خط بنویسد و پنجرهٔ ۴۰۰ خطیِ
+     * ردیاب را خالی کند (همان خرابیِ «سیلِ ۴۰۴»)، ولی نباید هم بعد از اولین
+     * ساعت برای همیشه ساکت شود — نشتی که دو هفته ادامه دارد باید دوباره فریاد
+     * بزند. `SystemHealth` مستقل از این گلوگاه، وضعیت را دائمی قرمز نگه می‌دارد.
+     */
+    private function shoutAboutLingeringMachine(string $what, Service $service, ?CloudInstance $instance, string $why, ?int $attempt = null): void
+    {
+        try {
+            // ⚠️ ثبت هم زیرِ همین گلوگاه است: مدیری که ده بار «تلاشِ دوباره» را
+            // می‌زند نباید پنجرهٔ ۴۰۰ خطیِ ردیاب را با یک خبر پر کند. امضا شاملِ
+            // علت است، پس خطای **متفاوتِ** بعدی فوراً می‌نشیند.
+            /*
+            | 🔴 هرچه تلاش‌ها بیشتر، هشدار کم‌تر.
+            |
+            | ۴۶ بار «تلاشِ ۴۶اُم ناموفق بود» خبر نیست، نویز است. و بدتر: از
+            | جایی به بعد کارفرما همهٔ پیام‌های 🔴 را نادیده می‌گیرد — یعنی
+            | هشداری که برای دیده‌شدن ساخته شده، دقیقاً چیزی می‌شود که
+            | دیده‌نشدن را یاد می‌دهد. همان درسی که در `SystemHealth` ثبت است.
+            |
+            | خبرِ واقعی همان شکستِ نخست است؛ تکرارِ همان علت در تلاشِ دوم خبر
+            | تازه نیست. تا تلاشِ دهم یادآوری هر شش ساعت و پس از آن روزی یک بار
+            | کافی است. علتِ تازه به‌خاطر امضای جدا فوراً اعلام می‌شود.
+            */
+            $window = match (true) {
+                $attempt === null => 3600,                       // تعلیقِ بی‌شمارنده
+                $attempt <= 10 => 6 * 3600,                      // تلاشِ نخست فوری، سپس هر ۶ ساعت
+                default => 24 * 3600,                            // روزی یک بار
+            };
+
+            // شمارنده عمداً در امضا نیست: تلاشِ ۱۱ یا ۱۶ علتِ تازه‌ای نیست و
+            // نباید فقط با عبور از یک عدد، پنجرهٔ روزانه را دور بزند.
+            if (! $this->shoutAllowed('cloud-lingering-'.$service->id, $window, md5($what.'|'.$why))) {
+                return;
+            }
+
+            ErrorTracker::note('provision',
+                $what.' — ماشین احتمالاً هنوز زنده است و اجاره‌اش از حسابِ ما می‌رود. علت: '
+                .mb_substr($why, 0, 200),
+                ['service' => $service->id, 'instance' => $instance?->id, 'attempt' => $attempt]
+            );
+
+            app(AdminNotifier::class)->event(
+                '🔴 '.$what,
+                array_filter($this->lingeringFields($service, $instance, $why, $attempt)),
+                url('/admin/cloud/inventory'),
+                '🔴',
+                // ⚠️ کلیدِ صریح چون عنوان ساخته می‌شود و از رویش پیدا نمی‌شود.
+                key: 'admin.cloud_lingering',
+            );
+        } catch (\Throwable $e) {
+            Log::warning('cloud.lingering-notice', ['err' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * فیلدهای هشدارِ «ماشینِ رهاشده».
+     *
+     * ═══ 🔴 چرا این‌قدر فیلد ═══
+     *
+     * نسخهٔ اول فقط نام و شمارهٔ سرویس را می‌گفت. کارفرما پیامِ ساعتی می‌گرفت
+     * و برای فهمیدنِ **کدام ماشین**، باید پنل را باز می‌کرد، سرویس را پیدا
+     * می‌کرد، و IP را می‌دید — روی موبایل، وسطِ کار. عملاً یعنی هشدار خوانده
+     * نمی‌شد.
+     *
+     * حالا هر چیزی که برای اقدام لازم است در خودِ پیام است: IP برای پیداکردنِ
+     * ماشین در پنلِ دیتاسنتر، نامِ مشتری برای فهمیدنِ اینکه مالِ کیست، و دامنه
+     * و سرور برای ردیف‌های غیرابری.
+     *
+     * ⚠️ `provider` در `$hidden`ِ مدل است (نباید در JSON بیرون برود) ولی
+     * این‌جا پیامِ داخلیِ مدیر است، نه پاسخِ API.
+     *
+     * @return array<string,string|null>
+     */
+    private function lingeringFields(Service $service, ?CloudInstance $instance, string $why, ?int $attempt): array
+    {
+        $ip = $instance?->ipv4 ?: ($service->server_ip ?: null);
+
+        $where = array_filter([
+            $instance?->provider,
+            $instance?->location_code,
+        ]);
+
+        return [
+            'سرویس' => $service->name.' (#'.$service->id.')',
+            'مشتری' => optional($service->customer)->displayName(),
+            'IP' => $ip,
+            'شناسه نزدِ ارائه‌دهنده' => $instance?->provider_ref,
+            'زیرساخت' => $where === [] ? null : implode(' · ', $where),
+            'دامنه' => $service->domain ?: null,
+            'سرور' => optional($service->server)->name,
+            'علت' => mb_substr($why, 0, 200),
+            'تلاش' => $attempt === null ? null : fa_num($attempt).'اُم',
+            'خطر' => 'ماشین ممکن است زنده مانده باشد و هزینه‌اش را ما بدهیم.',
+            /*
+            | ⚠️ راهِ خاموش‌کردن **در خودِ هشدار** است.
+            |
+            | کارفرما ماشین را دستی از پنلِ دیتاسنتر پاک کرده بود و هشدار
+            | همچنان می‌آمد — چون هیچ‌جا نگفته بودیم چطور می‌شود گفت «تمام شد».
+            | هشداری که راهِ بستنش را نگوید، فقط انتظار می‌سازد.
+            */
+            'اگر خودتان پاکش کرده‌اید' => 'در ربات بله → کارتِ همین سرویس → «✅ آزادسازی دستی انجام شد»',
+        ];
+    }
+
+    private function act(Service $service, callable $fn, string $expectStatus): bool
+    {
+        $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        if ($instance === null || blank($instance->provider_ref)) {
+            return false;
+        }
+
+        $driver = $this->manager->forInstance($instance);
+
+        if ($driver === null) {
+            return false;
+        }
+
+        // A retry may find the previous asynchronous request already completed.
+        $actual = $driver->serverStatus((string) $instance->provider_ref);
+        if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
+            $instance->update($this->clearLifecyclePending($instance, [
+                'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),
+            ]));
+
+            return true;
+        }
+
+        $pending = data_get($instance->meta, 'lifecycle_pending');
+        $acceptedAt = is_array($pending) && ($pending['expect'] ?? null) === $expectStatus
+            ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
+            : null;
+        $deadlineMinutes = self::LIFECYCLE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
+        if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
+            $message = 'فرمان پذیرفته شد، اما وضعیت نهایی تا پایان مهلت '
+                .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
+            $meta = (array) $instance->meta;
+            $meta['lifecycle_pending'] = [
+                'expect' => $expectStatus,
+                'accepted_at' => $acceptedAt->toIso8601String(),
+                'timed_out_at' => $pending['timed_out_at'] ?? now()->toIso8601String(),
+            ];
+            $instance->update(['last_error' => $message, 'meta' => $meta]);
+
+            return false;
+        }
+
+        $r = $fn($driver, (string) $instance->provider_ref);
+
+        if ($r['ok'] ?? false) {
+            $actual = $driver->serverStatus((string) $instance->provider_ref);
+            if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
+                $instance->update($this->clearLifecyclePending($instance, [
+                    'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),
+                ]));
+
+                return true;
+            }
+            // LightNode may accept an asynchronous mutation and then report a
+            // definitive failed receipt during this immediate confirmation
+            // poll.  That is not an unresolved transition: keep it on the
+            // normal failure path so metering cannot silently defer the alert.
+            if (($actual['terminal_failure'] ?? false) === true) {
+                $message = (string) ($actual['message'] ?? $r['message'] ?? 'عملیات نزد زیرساخت ناموفق بود.');
+                $instance->update($this->clearLifecyclePending($instance, [
+                    'last_error' => mb_substr($message, 0, 500),
+                ]));
+                $this->shoutAboutLingeringMachine(
+                    'تغییرِ وضعیتِ سرور نزدِ زیرساخت انجام نشد',
+                    $service, $instance, $message
+                );
+
+                return false;
+            }
+            // The provider driver may have persisted an operation receipt or
+            // other metadata while issuing/polling the command.  Merge into a
+            // fresh row so the lifecycle marker never erases that state.
+            $instance->refresh();
+            $meta = (array) $instance->meta;
+            $previousPending = (array) ($meta['lifecycle_pending'] ?? []);
+            $previousAcceptedAt = ($previousPending['expect'] ?? null) === $expectStatus
+                ? $this->parseLifecycleAcceptedAt($previousPending['accepted_at'] ?? null)
+                : null;
+            $meta['lifecycle_pending'] = [
+                'expect' => $expectStatus,
+                // Preserve the first acceptance time across receipt polls;
+                // otherwise a permanently pending task can never age out.
+                'accepted_at' => ($previousAcceptedAt ?? now())->toIso8601String(),
+            ];
+            $waiting = [
+                'last_error' => 'فرمان پذیرفته شد؛ وضعیت نهایی هنوز تأیید نشده است.',
+                'meta' => $meta,
+            ];
+            if ($r['pending'] ?? false) {
+                $waiting['status'] = 'building';
+                $waiting['synced_at'] = now();
+            }
+            $instance->update($waiting);
+
+            return false;
+        }
+
+        $instance->update($this->clearLifecyclePending($instance, [
+            'last_error' => mb_substr((string) $r['message'], 0, 500),
+        ]));
+
+        // تعلیقِ ناموفق = ما فکر می‌کنیم خاموش است و مشتری چیزی نمی‌پردازد، ولی
+        // ماشین روشن است و اجاره‌اش می‌رود. همان سکوتِ `terminate()`، ارزان‌تر
+        // ولی هر ماه تکرارشونده.
+        $this->shoutAboutLingeringMachine(
+            'تغییرِ وضعیتِ سرور نزدِ زیرساخت انجام نشد',
+            $service, $instance, (string) $r['message']
+        );
+
+        return false;
+    }
+
+    private function parseLifecycleAcceptedAt(mixed $value): ?Carbon
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function clearLifecyclePending(CloudInstance $instance, array $attributes): array
+    {
+        $instance->refresh();
+        $meta = (array) $instance->meta;
+        unset($meta['lifecycle_pending']);
+
+        return ['meta' => $meta] + $attributes;
+    }
+
+    private function clearReleasePending(CloudInstance $instance, array $attributes): array
+    {
+        $instance->refresh();
+        $meta = (array) $instance->meta;
+        unset($meta['release_pending']);
+
+        return ['meta' => $meta] + $attributes;
+    }
+}

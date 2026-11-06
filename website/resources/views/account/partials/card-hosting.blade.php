@@ -68,11 +68,18 @@
       @if($s->username)
         <div class="svc-fact"><small>{{ __('ui.svc_cred_username') }}</small><b dir="ltr" class="copyable" title="{{ __('ui.svc_copy_title') }}">{{ $s->username }}</b></div>
       @endif
-      @if(! $s->isHourly())
+      @if($s->hasUnverifiedBillingTerms())
+        <div class="svc-fact"><small>{{ __('ui.svc_th_amount') }}</small><b>{{ __('ui.svc_billing_terms_pending') }}</b></div>
+        <div class="svc-fact"><small>{{ __('ui.svc_valid_until') }}</small><b>{{ sdate($s->managementValidUntil()) }}</b></div>
+      @elseif(! $s->isHourly())
         <div class="svc-fact"><small>{{ __('ui.svc_th_due') }}</small><b>{{ sdate($s->next_due_at) }}</b></div>
         <div class="svc-fact"><small>{{ __('ui.svc_th_amount') }}</small><b>{{ invoice_money($s->total(), $s->currency_code) }} <em>{{ $s->cycleLabel() }}</em></b></div>
       @endif
     </div>
+
+    @if($s->domain && in_array($type, ['whm', 'plesk', 'directadmin'], true) && ! $s->isDead())
+      @include('account.partials.hosting-domain-connection', ['s' => $s])
+    @endif
 
     {{-- ── اطلاعاتِ ورود ──
          ⚠️ این بلوک هرگز روی کارتِ سرورِ ابری نمی‌آید: `CloudProvisioner` رمزِ
@@ -118,9 +125,16 @@
         <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=webmail" target="_blank" rel="noopener"><svg class="icon"><use href="#i-send"/></svg><span>{{ __('ui.svc_webmail') }}</span></a>
         <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=dns" target="_blank" rel="noopener"><svg class="icon"><use href="#i-globe"/></svg><span>{{ __('ui.svc_dns') }}</span></a>
       </div>
+    @elseif($canLogin && $type === 'plesk' && isset($s->provision_meta['plesk']))
+      <div class="svc-quick">
+        <a class="svc-qbtn primary" href="{{ lroute('account.services.cpanel', $s) }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-key"/></svg><span>{{ __('ui.hst_login_panel') }}</span></a>
+        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=files" target="_blank" rel="noopener"><svg class="icon"><use href="#i-file"/></svg><span>{{ __('ui.svc_file_manager') }}</span></a>
+        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=db" target="_blank" rel="noopener"><svg class="icon"><use href="#i-db"/></svg><span>{{ __('ui.svc_databases') }}</span></a>
+        <a class="svc-qbtn" href="{{ lroute('account.services.cpanel', $s) }}?app=email" target="_blank" rel="noopener"><svg class="icon"><use href="#i-mail"/></svg><span>{{ __('ui.svc_emails') }}</span></a>
+      </div>
     @elseif($canLogin && $panelUrl)
       <div class="svc-quick">
-        <a class="svc-qbtn primary" href="{{ $panelUrl }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-key"/></svg><span>{{ __('ui.hst_login_panel') }}</span></a>
+        <a class="svc-qbtn primary" href="{{ $type === 'plesk' ? lroute('account.services.cpanel', $s) : $panelUrl }}" target="_blank" rel="noopener"><svg class="icon"><use href="#i-key"/></svg><span>{{ __('ui.hst_login_panel') }}</span></a>
       </div>
     @elseif($canLogin)
       <p class="svc-note warn">{{ __('ui.hst_no_panel_url') }}</p>

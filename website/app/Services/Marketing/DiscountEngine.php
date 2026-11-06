@@ -29,11 +29,20 @@ class DiscountEngine
             if ((int) $i->customer_id !== (int) $customer->id || ! $customer->isActive()) {
                 $this->fail('unknown');
             }
+            if (app(\App\Services\Birthday\BirthdayInvoices::class)->hasDiscount($i)) {
+                $this->fail('stacking');
+            }
             $code = GiftCoupon::normalize($code);
             $g = MarketingGrant::where('code', $code)
                 ->where(fn ($q) => $q->where('customer_id', $customer->id)->orWhereNull('customer_id'))->first();
             if (! $g) {
                 $this->fail('unknown');
+            }
+            // A reserved Madar offer is earned only after the submitted work is approved.
+            // Enforce this in the shared engine too, including direct invoice/code requests.
+            if (Schema::hasTable('madar_participations') && DB::table('madar_participations')
+                ->where('grant_id', $g->id)->where('status', '!=', 'rewarded')->exists()) {
+                $this->fail('scope');
             }
             $c = MarketingCampaign::whereKey($g->campaign_id)->lockForUpdate()->firstOrFail();
             $g = MarketingGrant::whereKey($g->id)->lockForUpdate()->firstOrFail();
@@ -236,6 +245,7 @@ class DiscountEngine
     /** Protect wallet/bank/gateway starts as well as the coupon form. */
     public function assertPayable(Invoice $invoice): void
     {
+        app(\App\Services\Birthday\BirthdayInvoices::class)->prepare($invoice);
         if (! Schema::hasTable('marketing_redemptions')) {
             return;
         }

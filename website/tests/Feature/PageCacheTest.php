@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -17,6 +18,8 @@ use Tests\TestCase;
  */
 class PageCacheTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -140,4 +143,40 @@ class PageCacheTest extends TestCase
         $this->assertStringContainsString('lang="fa"', $fa->getContent());
         $this->assertStringContainsString('lang="en"', $en->getContent());
     }
+
+    public function test_front_controller_alias_cannot_replace_the_clean_urls_cached_html(): void
+    {
+        $middleware = app(\App\Http\Middleware\PageCache::class);
+        $alias = \Illuminate\Http\Request::create(
+            'https://servernet.cloud/index.php/parts/ram',
+            'GET', [], [], [],
+            ['SCRIPT_FILENAME' => '/var/www/index.php', 'SCRIPT_NAME' => '/index.php', 'PHP_SELF' => '/index.php/parts/ram']
+        );
+        $clean = \Illuminate\Http\Request::create('https://servernet.cloud/parts/ram', 'GET');
+        // Establish the collision that caused the defect, rather than assuming
+        // the URI still contains the script after Symfony normalizes path().
+        $this->assertSame('/index.php', $alias->getBaseUrl());
+        $this->assertSame('', $clean->getBaseUrl());
+        $this->assertSame($alias->path(), $clean->path());
+        foreach ([$alias, $clean] as $request) {
+            $request->setRouteResolver(fn () => \Illuminate\Support\Facades\Route::getRoutes()->getByName('home'));
+        }
+        $render = fn ($request) => response(
+            '<link rel="canonical" href="'.$request->url().'">',
+            200, ['Content-Type' => 'text/html; charset=UTF-8']
+        );
+
+        $firstAlias = $middleware->handle($alias, $render);
+        $this->assertSame('MISS', $firstAlias->headers->get('X-Cache'));
+        $firstClean = $middleware->handle($clean, $render);
+        $this->assertSame('MISS', $firstClean->headers->get('X-Cache'));
+        $this->assertSame('<link rel="canonical" href="https://servernet.cloud/parts/ram">', $firstClean->getContent());
+
+        foreach ([$alias, $clean] as $request) {
+            $hit = $middleware->handle($request, $render);
+            $this->assertSame('HIT', $hit->headers->get('X-Cache'));
+            $this->assertSame('<link rel="canonical" href="'.$request->url().'">', $hit->getContent());
+        }
+    }
+
 }

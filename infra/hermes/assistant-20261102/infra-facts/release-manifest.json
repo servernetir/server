@@ -1,0 +1,18 @@
+{
+  "release": "araz-infra-facts-20261102",
+  "base_commit": "1d08a1d32821d047c34aae3c86ef369aa51e207c",
+  "files": [
+    {
+      "source": "website/app/Services/Hermes/HermesProviderReply.php",
+      "target": "app/Services/Hermes/HermesProviderReply.php",
+      "before": null,
+      "after": "08f78c81c5bbbaf458d660f308f93d3dc0d85668c06ce6c08ebfe0ae1c2668e9"
+    },
+    {
+      "source": "infra/hermes/assistant-20261102/infra-facts/HermesConversationMemory.php",
+      "target": "app/Services/Hermes/HermesConversationMemory.php",
+      "before": "585e61979ad6e7e8672bc2242a03948e29ddebff271edaab1ec46c404a96055f",
+      "after": "3ec15970f5e485e15e555fe8a0b169273f88447557eb5652f8b1a82f34e1000c"
+    }
+  ]
+}

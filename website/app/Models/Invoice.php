@@ -20,12 +20,17 @@ class Invoice extends Model
     protected $fillable = [
         'customer_id', 'service_id', 'domain_id', 'number', 'kind', 'currency_code',
         'subtotal', 'discount', 'discount_note', 'tax', 'total', 'paid', 'status', 'note',
-        'issued_at', 'due_at', 'paid_at',
+        'issued_at', 'due_at', 'paid_at', 'supplier_account_id', 'supplier_quote', 'supplier_payment_ledger_id',
     ];
+
+    protected $hidden = ['supplier_account_id', 'supplier_quote', 'supplier_payment_ledger_id'];
 
     protected function casts(): array
     {
         return [
+            'supplier_account_id' => 'integer',
+            'supplier_payment_ledger_id' => 'integer',
+            'supplier_quote' => 'array',
             'subtotal' => 'integer',
             'discount' => 'integer',
             'tax' => 'integer',
@@ -82,8 +87,14 @@ class Invoice extends Model
                 \Illuminate\Support\Facades\Schema::hasTable('marketing_redemptions')) {
                 app(\App\Services\Marketing\DiscountEngine::class)->sync($invoice);
             }
+            if ($invoice->wasChanged('status') && \Illuminate\Support\Facades\Schema::hasTable('birthday_redemptions')) {
+                app(\App\Services\Birthday\BirthdayInvoices::class)->synchronize($invoice);
+            }
         });
         static::creating(function (self $i) {
+            if ($i->service_id && Service::find($i->service_id)?->hasUnverifiedBillingTerms()) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['service' => __('ui.svc_billing_terms_required')]);
+            }
             if (blank($i->number)) {
                 $i->number = self::nextNumber();
             }

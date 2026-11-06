@@ -199,6 +199,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 \App\Support\ErrorTracker::noteOnce('identity_api','Inquiry failure requires review',300,['exception_class'=>$e::class]);
                 return false; // Never log raw SQL bindings, HTTP messages or identity request context.
             }
-            \App\Support\ErrorTracker::exception($e, request());
+            \App\Support\ErrorTracker::exception($e, app()->runningInConsole() ? null : request());
         });
     })->create();

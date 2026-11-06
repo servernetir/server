@@ -54,16 +54,29 @@ class CloudCountry
         'GB' => 'england',
     ];
 
+    /** Stable existing URLs plus one country URL for every supported geography. */
+    public static function marketingSlugs(): array
+    {
+        $slugs = self::MARKETING_SLUG;
+        foreach (CloudLocation::COUNTRIES as $iso => $labels) {
+            if ($iso !== 'XX') {
+                $slugs[$iso] ??= \Illuminate\Support\Str::slug($labels['en']);
+            }
+        }
+
+        return $slugs;
+    }
+
     /** اسلاگِ صفحهٔ بازاریابیِ این کشور، یا null اگر صفحه‌ای ندارد */
     public static function marketingSlug(string $iso): ?string
     {
-        return self::MARKETING_SLUG[strtoupper(trim($iso))] ?? null;
+        return self::marketingSlugs()[strtoupper(trim($iso))] ?? null;
     }
 
     /** کدِ کشورِ یک اسلاگِ بازاریابی */
     public static function isoForSlug(string $slug): ?string
     {
-        $iso = array_search(strtolower(trim($slug)), self::MARKETING_SLUG, true);
+        $iso = array_search(strtolower(trim($slug)), self::marketingSlugs(), true);
 
         return $iso === false ? null : $iso;
     }
@@ -118,7 +131,7 @@ class CloudCountry
 
                 $row['plans']++;
 
-                $city = trim((string) $loc->city);
+                $city = CloudLocation::canonicalCode($loc->code) === 'tr-istanbul' ? 'Istanbul' : trim((string) $loc->city);
 
                 if ($city !== '' && ! in_array($city, $row['cities'], true)) {
                     $row['cities'][] = $city;
@@ -176,10 +189,10 @@ class CloudCountry
             return [];
         }
 
-        $offers = CloudPlan::offers()->groupBy('location_code');
+        $offers = CloudPlan::offers()->groupBy(fn ($plan) => CloudLocation::canonicalCode($plan->location_code));
         $out = [];
 
-        foreach ($locations as $loc) {
+        foreach ($locations->filter(fn ($loc) => CloudLocation::canonicalCode($loc->code) === $loc->code) as $loc) {
             $rows = $offers[$loc->code] ?? collect();
 
             if ($rows->isEmpty()) {
@@ -232,7 +245,7 @@ class CloudCountry
                     && ! CloudLocation::isGpuCode((string) $code));
 
         return $first
-            ? lroute('cloud.location', ['location' => $first])
+            ? lroute('cloud.location', ['location' => CloudLocation::canonicalCode($first)])
             : lroute('cloud.index');
     }
 

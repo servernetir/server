@@ -1,5 +1,11 @@
 <?php
 
+// Dedicated VM-console broker; HMAC replaces browser CSRF only on this exact route.
+\Illuminate\Support\Facades\Route::post('/system/vpstc-console-broker',
+    [\App\Services\Cloud\VpsTcConsoleBroker::class, 'handle'])
+    ->middleware('throttle:30,1')
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class]);
+
 // Dedicated HMAC endpoint; no customer session grants broker access.
 \Illuminate\Support\Facades\Route::post('/system/arvan-console-broker',
     [\App\Services\Cloud\ArvanConsoleBroker::class, 'handle'])
@@ -29,7 +35,10 @@ use Illuminate\Support\Facades\Route;
 
 // Register private identity routes before the broad uppercase-locale redirect below.
 require __DIR__.'/identity-api.php';
+require __DIR__.'/urmia-auth.php';
 require __DIR__.'/ai-growth.php';
+require __DIR__.'/domain-suppliers.php';
+require __DIR__.'/madar-admin.php';
 
 // Private n8n registration callback: dedicated Bearer credential, no browser session.
 Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestController::class)
@@ -401,7 +410,9 @@ $site = function (): void {
 
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
-    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class])->prefix('account')->name('account.')->group(function () {
+    Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
+        require __DIR__.'/domain-management.php';
+        require __DIR__.'/madar-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
         Route::get('/offers', [Account\OfferController::class, 'index'])->name('offers');
         Route::post('/offers/preferences', [Account\OfferController::class, 'preferences'])->name('offers.preferences')->middleware('throttle:10,1');
@@ -474,6 +485,7 @@ $site = function (): void {
         // و یک حلقهٔ ساده در مرورگر می‌تواند سهمیهٔ WHM را بسوزاند. کشِ سه
         // دقیقه‌ای بیشترش را می‌گیرد، ولی کش per-service است نه per-customer.
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats')->middleware('throttle:60,1');
+        Route::get('/services/{service}/domain-connection', Account\HostingDomainConnectionController::class)->name('services.domain-connection')->middleware('throttle:20,1');
 
         // سرورساز — مشتری خودش سرورِ مجازی می‌سازد: مکان → پلن → سیستم‌عامل/
         // نرم‌افزارِ آماده → دوره → نامِ سرور → پیش‌فاکتور → پرداخت → تحویلِ خودکار.
@@ -2987,6 +2999,11 @@ Route::prefix('admin')->group(function () {
         */
         Route::get('/bale', [\App\Http\Controllers\Admin\BaleAdminController::class, 'index'])
             ->name('admin.bale')->middleware('admin');
+        Route::get('/bale/reporting', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'index'])->name('admin.bale.reporting')->middleware('admin');
+        Route::post('/bale/reporting/configure', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'configure'])->middleware(['admin', 'throttle:forms']);
+        Route::get('/bale/reporting/connect', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'connect'])->middleware('admin');
+        Route::post('/bale/reporting/disconnect', [\App\Http\Controllers\Admin\ManagerReportingController::class, 'disconnect'])->middleware(['admin', 'throttle:forms']);
+        Route::post('/bale/review-sms', [\App\Http\Controllers\Admin\BaleAdminController::class, 'reviewSms'])->middleware(['admin', 'throttle:forms'])->name('admin.bale.review-sms');
         Route::post('/bale/pair', [\App\Http\Controllers\Admin\BaleAdminController::class, 'pair'])
             ->middleware(['admin', 'throttle:6,1']);
         Route::post('/bale/revoke', [\App\Http\Controllers\Admin\BaleAdminController::class, 'revoke'])
@@ -3168,6 +3185,12 @@ Route::prefix('admin')->group(function () {
 
         Route::get('/cloud', [\App\Http\Controllers\Admin\CloudController::class, 'index'])->name('admin.cloud')->middleware('admin');
         Route::post('/cloud/test', [\App\Http\Controllers\Admin\CloudController::class, 'test'])->middleware('admin');
+        // Action URLs are POST-only. A browser/history/expired form must return
+        // to the catalogue instead of exposing Laravel's generic 405 page.
+        // This GET never queues or executes provider work.
+        Route::get('/cloud/sync', fn () => redirect()->route('admin.cloud', status: 303)
+            ->with('err', 'درخواست همگام‌سازی از مسیر امن اجرا نشد و هیچ تغییری اعمال نشد. از دکمهٔ همگام‌سازی همین صفحه استفاده کنید.'))
+            ->middleware('admin');
         Route::post('/cloud/sync', [\App\Http\Controllers\Admin\CloudController::class, 'sync'])->middleware('admin');
         // ابزارِ عیب‌یابیِ ساختارِ پاسخ — نگاشتِ فیلدهای زیرساختِ ۲ کاملاً قطعی نیست
         // اتصالِ سرورِ ازقبل‌ساخته‌شده به مشتری — سرور نمی‌سازد، فقط ثبت می‌کند.
@@ -3349,6 +3372,7 @@ Route::prefix('admin')->group(function () {
         Route::post('/seo/list-own', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'importOwn']);
         Route::post('/seo/scan-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'scanNext']);
         Route::post('/seo/send-next', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'sendNext']);
+        Route::post('/seo/reports/{report}/revoke', [\App\Http\Controllers\Admin\SeoOutreachController::class, 'revokeReport'])->name('admin.seo.reports.revoke');
 
         /*
          * اتصالِ تقویمِ گوگل — **per-user**. هر کاربرِ پنل حسابِ خودش را وصل
@@ -3449,6 +3473,8 @@ Route::prefix('admin')->group(function () {
 
         // واریز به حساب — صف تأیید پرداخت‌های دستی
         Route::get('/bank-transfers', [\App\Http\Controllers\Admin\BankTransferController::class, 'index'])->name('admin.bank_transfers')->middleware('admin');
+        Route::get('/customers/{customer}/evidence', [\App\Http\Controllers\Admin\CustomerController::class, 'evidence'])->middleware('admin')->name('admin.customer.evidence');
+        Route::get('/bank-transfers/{receipt}/evidence', [\App\Http\Controllers\Admin\BankTransferController::class, 'evidence'])->middleware('admin')->name('admin.bank-transfers.evidence');
         Route::post('/bank-transfers/{receipt}/approve', [\App\Http\Controllers\Admin\BankTransferController::class, 'approve'])->middleware('admin');
         Route::post('/bank-transfers/{receipt}/reject', [\App\Http\Controllers\Admin\BankTransferController::class, 'reject'])->middleware('admin');
 
@@ -3470,6 +3496,8 @@ Route::prefix('admin')->group(function () {
         Route::post('/settings', [\App\Http\Controllers\Admin\SettingsController::class, 'update'])->middleware('admin');
         Route::post('/settings/payment-visibility', [\App\Http\Controllers\Admin\SettingsController::class, 'paymentVisibility'])->middleware('admin');
         Route::post('/settings/discount-entry', [\App\Http\Controllers\Admin\DiscountVisibilityController::class, 'updateDefault'])->middleware('admin');
+        Route::post('/settings/birthday-rewards', [\App\Http\Controllers\Admin\BirthdayRewardsController::class, 'update'])->middleware('admin');
+        Route::post('/settings/birthday-costs', [\App\Http\Controllers\Admin\BirthdayRewardsController::class, 'cost'])->middleware('admin');
     });
 });
 

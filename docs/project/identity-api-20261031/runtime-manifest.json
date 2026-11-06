@@ -1,0 +1,61 @@
+{
+  "status": "prepared_not_deployed",
+  "base_sha": "fc68971351fd17f2f5e18a3852f000108e56531a",
+  "live_hash_verification_required": true,
+  "entries": [
+    {
+      "source": "website/app/Console/Commands/IdentitySyncCatalog.php",
+      "destination": "servernet_app/app/Console/Commands/IdentitySyncCatalog.php",
+      "before_git_sha256": "05947ae5d393620d9022b3967e8f501bd2d2b0d3694e64ef172878d4f0b23d02",
+      "after_sha256": "c2b3c03de3b918fad35d136844f04902b9b4303025d983727dac75365644f9fa"
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/IdentityController.php",
+      "destination": "servernet_app/app/Http/Controllers/Admin/IdentityController.php",
+      "before_git_sha256": "4aea436e34ed568f8a9f82694583c9a39252cfa5c0a17e5ee427658e5739030d",
+      "after_sha256": "96dcf929f0f0f19fa005dac4fbb2c7b0b8f5cc55310eee61258d45bdacf05e89"
+    },
+    {
+      "source": "website/lang/en/identity.php",
+      "destination": "servernet_app/lang/en/identity.php",
+      "before_git_sha256": "4d1830dacb7da822e16f590bcc01b986f42f3753e994dda8bd35c009bf99315d",
+      "after_sha256": "7b8eb8ee2681b8a95784690900eabe980f92c5b9157908066e4f643ea6fa1339"
+    },
+    {
+      "source": "website/lang/fa/identity.php",
+      "destination": "servernet_app/lang/fa/identity.php",
+      "before_git_sha256": "5d978594febc2f247dfb3e8f38dcc58f125b199233c905d9915438406953eb21",
+      "after_sha256": "bdd6575c9a1e17476f6819861e697061da365f7ee6b3993000ed475e6c2f2478"
+    },
+    {
+      "source": "website/lang/tr/identity.php",
+      "destination": "servernet_app/lang/tr/identity.php",
+      "before_git_sha256": "203adc580f2f4cd0fbe8026e82b327a653835760ca45808bed815f6ffc179e9c",
+      "after_sha256": "aac36e76d00aabfc156bc5a71f78cebec1280cc1801aaf6960193697525c79b0"
+    },
+    {
+      "source": "website/resources/identity/catalog.json",
+      "destination": "servernet_app/resources/identity/catalog.json",
+      "before_git_sha256": "88407d340e4645860033be75cb4b5974e02fb4f65a19e6c49a0d5368593e1d0b",
+      "after_sha256": "a741336dedc72ab53ffd05d90b29bf4cbdc214a1b51df9539fc6ee39dbb00261"
+    },
+    {
+      "source": "website/resources/identity/openapi.json",
+      "destination": "servernet_app/resources/identity/openapi.json",
+      "before_git_sha256": "c99536f6e3084072c65f70c0aca9ecf9aefc23dc7c6c7e62e9639b70c45fd160",
+      "after_sha256": "6edb9f54015b3c8d32277955cbf8491ecd330bd91c83ddbadd12d35fd3e452b8"
+    },
+    {
+      "source": "website/resources/views/admin/identity.blade.php",
+      "destination": "servernet_app/resources/views/admin/identity.blade.php",
+      "before_git_sha256": "fbe2a47c234ed1b9adb2d25197a21431148b73e2f4f79a9051efea98f5d88cfa",
+      "after_sha256": "320abeb14595f5a316351b25e82e76ff29d5f5f543caca84452e8be9ddad86bc"
+    },
+    {
+      "source": "website/app/Services/IdentityApi/TariffRenewal.php",
+      "destination": "servernet_app/app/Services/IdentityApi/TariffRenewal.php",
+      "before_git_sha256": null,
+      "after_sha256": "a0a2463564eafd7caa76018cafaf9590195eb333420262933c2a26766da1d3a9"
+    }
+  ]
+}

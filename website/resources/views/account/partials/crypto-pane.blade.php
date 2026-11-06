@@ -16,7 +16,7 @@
 --}}
 @php
   $cyReady = collect($cryptoAssets)->filter(fn ($s) => $s['state'] !== \App\Services\Payment\CryptoIssuer::BUSY);
-  $cyDefault = $cyReady->has('USDT') ? 'USDT' : $cyReady->keys()->first();
+  $cyDefault = $cyReady->has('USDT_BEP20') ? 'USDT_BEP20' : $cyReady->keys()->first();
 @endphp
 <div class="pm-pane cyx" id="pane-crypto" @unless($cryptoOpen) hidden @endunless>
   <div class="pm-pane-h"><b>{{ __('ui.inv_crypto_pane') }}</b></div>
@@ -57,7 +57,8 @@
         <b>{{ __('ui.cy_expired_title') }}</b>
         <p>{{ __('ui.cy_expired') }}</p>
         <form method="POST" action="{{ lroute('account.invoice.crypto', $invoice) }}">
-          @csrf<input type="hidden" name="asset" value="{{ $cy->asset }}">
+          @csrf
+          @include('account.partials.birthday-price-token', ['invoice' => $invoice])<input type="hidden" name="asset" value="{{ \App\Services\Payment\CryptoIssuer::selectionFor($cy) }}">
           <button type="submit" class="pnl-btn primary">{{ __('ui.cy_new_address') }}</button>
         </form>
       </div>
@@ -117,6 +118,7 @@
   @elseif($cyDefault !== null)
     <form method="POST" action="{{ lroute('account.invoice.crypto', $invoice) }}" class="cyx-pick" id="cy-pick">
       @csrf
+          @include('account.partials.birthday-price-token', ['invoice' => $invoice])
       <label class="cyx-label" for="cy-asset">{{ __('ui.cy_choose_coin') }}</label>
 
       {{-- بدونِ JS همین select کار می‌کند؛ JS آن را به فهرستِ کشوییِ نشان‌دار تبدیل می‌کند --}}
@@ -124,9 +126,9 @@
         @foreach($cryptoAssets as $code => $spec)
           @php $busy = $spec['state'] === \App\Services\Payment\CryptoIssuer::BUSY; @endphp
           <option value="{{ $code }}" @selected($code === $cyDefault) @disabled($busy)
-                  data-net="{{ $spec['network'] }}" data-window="{{ $spec['window'] }}"
+                  data-asset="{{ $spec['asset'] }}" data-net="{{ $spec['network'] }}" data-window="{{ $spec['window'] }}"
                   data-est="{{ $spec['estimate'] ?? '' }}" data-busy="{{ $busy ? '1' : '' }}">
-            {{ $code }} — {{ $spec['network'] }}{{ $busy ? ' · '.__('ui.cy_busy') : '' }}
+            {{ $spec['label'] }}{{ $code === 'USDT_BEP20' ? ' · '.__('ui.cy_recommended') : '' }}{{ $busy ? ' · '.__('ui.cy_busy') : '' }}
           </option>
         @endforeach
       </select>
@@ -142,8 +144,8 @@
             <li role="option" data-value="{{ $code }}" aria-selected="{{ $code === $cyDefault ? 'true' : 'false' }}"
                 @if($busy) aria-disabled="true" @endif tabindex="-1">
               <span class="cyx-opt-main">
-                @include('account.partials.crypto-coin', ['code' => $code, 'size' => 30])
-                <span class="cyx-opt-t"><b dir="ltr">{{ $code }}</b><small dir="ltr">{{ $spec['network'] }}</small></span>
+                @include('account.partials.crypto-coin', ['code' => $spec['asset'], 'size' => 30])
+                <span class="cyx-opt-t"><b dir="ltr">{{ $spec['asset'] }}</b><small dir="ltr">{{ $spec['network'] }}@if($code === 'USDT_BEP20') · <span dir="auto">{{ __('ui.cy_recommended') }}</span>@endif</small></span>
               </span>
               @if($busy)
                 <span class="cyx-opt-busy">{{ __('ui.cy_busy') }}</span>
@@ -159,7 +161,7 @@
         <div><span>{{ __('ui.cy_invoice_amount') }}</span><b>{{ invoice_money($invoice->due(), $invoice->currency_code) }}</b></div>
         <div id="cy-est-row" @if(empty($cryptoAssets[$cyDefault]['estimate'])) hidden @endif>
           <span>{{ __('ui.cy_approx_label') }}</span>
-          <b dir="ltr" id="cy-est">≈ {{ $cryptoAssets[$cyDefault]['estimate'] ?? '' }} {{ $cyDefault }}</b>
+          <b dir="ltr" id="cy-est">≈ {{ $cryptoAssets[$cyDefault]['estimate'] ?? '' }} {{ $cryptoAssets[$cyDefault]['asset'] }}</b>
         </div>
       </div>
 
@@ -201,7 +203,7 @@
       opts.forEach(function (x) { x.setAttribute('aria-selected', x === o ? 'true' : 'false'); });
       trigger.querySelector('[data-slot="main"]').innerHTML = o.querySelector('.cyx-opt-main').innerHTML;
       var sel = native.options[native.selectedIndex];
-      if (est) { est.textContent = '≈ ' + (sel.dataset.est || '') + ' ' + code; estRow.hidden = !sel.dataset.est; }
+      if (est) { est.textContent = '≈ ' + (sel.dataset.est || '') + ' ' + sel.dataset.asset; estRow.hidden = !sel.dataset.est; }
       if (intro) intro.textContent = intro.dataset.tpl.replace('__MIN__', num(sel.dataset.window));
       if (focus) trigger.focus();
     }

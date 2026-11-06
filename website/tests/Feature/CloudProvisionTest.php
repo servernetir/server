@@ -689,7 +689,7 @@ class CloudProvisionTest extends TestCase
     }
 
     /**
-     * رمز فقط **یک بار** — ولی لحظه‌اش را کاربر انتخاب می‌کند.
+     * رمز با درخواست صریح کاربر و در مراجعه‌های بعدی هم قابل نمایش است.
      *
      * 🔴 نسخهٔ قبلیِ همین تست، خودِ باگ را قفل کرده بود: ادعا می‌کرد
      * «بارگذاریِ اول رمز را نشان می‌دهد و بارگذاریِ دوم نه» — یعنی یک **GET**
@@ -700,10 +700,10 @@ class CloudProvisionTest extends TestCase
      * `password_seen` را روشن می‌کرد و مشتری هیچ‌وقت چیزی نمی‌دید.
      *
      * ⚠️ درسِ این تست: تستی که رفتارِ **موجود** را توصیف می‌کند، اگر آن رفتار
-     * غلط باشد، تبدیل به نگهبانِ باگ می‌شود. ادعای درست «یک بار» است — نه
-     * «بارگذاریِ اول».
+     * غلط باشد، تبدیل به نگهبانِ باگ می‌شود. درخواست صریح قابل تکرار است؛
+     * بارگذاری عادی صفحه نباید رمز را افشا کند.
      */
-    public function test_root_password_is_revealed_only_once(): void
+    public function test_root_password_is_revealed_on_repeatable_explicit_requests(): void
     {
         $service = $this->delivered();
         $customer = $service->customer;
@@ -717,15 +717,19 @@ class CloudProvisionTest extends TestCase
                 'بارگذاریِ صفحه رمز را نشان داد — یعنی همان‌جا هم سوزاندش');
         }
 
-        // کنشِ صریح: یک بار می‌دهد
-        $this->actingAs($customer, 'customer')
-            ->post(route('account.cloud.reveal', $service))
-            ->assertSessionHas('revealed_root_password', 'GeneratedRootPw9');
+        $instance = $service->cloudInstance;
+        $key = 'revealed_root_password_'.$instance->id;
+        $ciphertext = $instance->root_password_enc;
 
-        // و بارِ دوم نه
+        // کنش صریح در هر مراجعه مجاز است و رمز سرور را تغییر نمی‌دهد.
         $this->actingAs($customer, 'customer')
             ->post(route('account.cloud.reveal', $service))
-            ->assertSessionHasErrors();
+            ->assertSessionHasNoErrors()->assertSessionHas($key, 'GeneratedRootPw9');
+
+        $this->actingAs($customer, 'customer')
+            ->post(route('account.cloud.reveal', $service))
+            ->assertSessionHasNoErrors()->assertSessionHas($key, 'GeneratedRootPw9');
+        $this->assertSame($ciphertext, $instance->fresh()->root_password_enc);
     }
 
     /** سرورِ دیگران با حدسِ شناسه دیده نشود — ۴۰۴ نه ۴۰۳ (وجودش هم لو نرود) */

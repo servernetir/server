@@ -1,0 +1,50 @@
+name: Plesk hosting delivery
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Provisioning/Plesk*.php'
+      - 'website/app/Services/Provisioning/ProvisioningService.php'
+      - 'website/app/Services/Dns/HostingDomainConnection.php'
+      - 'website/app/Models/Server.php'
+      - 'website/app/Http/Controllers/Account/ServiceController.php'
+      - 'website/resources/views/account/partials/card-hosting.blade.php'
+      - 'website/tests/Feature/PleskPanelIntegrationTest.php'
+      - 'website/tests/standalone/plesk-provisioning.php'
+      - '.github/workflows/plesk-hosting.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Provisioning/Plesk*.php'
+      - 'website/app/Services/Provisioning/ProvisioningService.php'
+      - 'website/app/Services/Dns/HostingDomainConnection.php'
+      - 'website/tests/Feature/PleskPanelIntegrationTest.php'
+      - '.github/workflows/plesk-hosting.yml'
+permissions:
+  contents: read
+jobs:
+  plesk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked test dependencies
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Provisioning and panel acceptance with fake resources
+        working-directory: website
+        run: |
+          php tests/standalone/plesk-provisioning.php
+          vendor/bin/phpunit tests/Feature/PleskPanelIntegrationTest.php tests/Feature/AccountPanelTest.php tests/Feature/HostingPanelServerSelectionTest.php tests/Feature/ExistingHostingAdoptionTest.php

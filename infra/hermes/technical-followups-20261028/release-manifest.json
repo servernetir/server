@@ -1,0 +1,90 @@
+{
+  "last_natural_run_failures": 0,
+  "development_base": "dd0944eccc27c9ea593c8209cd50f1962cea4c7c",
+  "limitations": [
+    "A future real customer continuation has not occurred during acceptance.",
+    "Existing bounded read-only diagnostics do not prove guest or application health.",
+    "Bale API acceptance is not a read receipt; ambiguous deliveries retain existing retry limitations."
+  ],
+  "feature_flag": "hermes_technical_followup_enabled",
+  "privacy": "No customer identifiers, ticket bodies, addresses, owner binding or private receipts included",
+  "policy_scope": "all existing and future technical tickets, new customer continuation after staff reply",
+  "owner_bale_setup_notice": "sent",
+  "feature_enabled": true,
+  "native_sequence_after": 6052,
+  "executor": "existing hermes:support-review every minute",
+  "current_open_snapshot": {
+    "checked": 2,
+    "eligible_count": 0,
+    "sensitive_count": 0,
+    "bounded_at": 200
+  },
+  "tests": {
+    "full_suite_run": false,
+    "assertions": 152,
+    "php": "8.4.26",
+    "passed": 68,
+    "environment": "isolated checkout; synthetic HTTP; no production credentials"
+  },
+  "deployed_files": {
+    "app/Services/Hermes/HermesTechnicalFollowup.php": {
+      "before": null,
+      "after": "44851f5197f874e4286443fbf9467e441eeeb5e12583b3c66a91b21fd98b62e6",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    },
+    "app/Services/Hermes/HermesSupportReviewService.php": {
+      "before": "08e0c8c6e315cb96564dc9c27bc92eea4744014426bc8771fd07f7a0742359b1",
+      "after": "d0d51e180feb7c68a1b5930c873b4a60c834217345c4732e7d8114e4db71953b",
+      "lint_ok": true,
+      "opcache_invalidated": true
+    }
+  },
+  "native_processor_fixture": {
+    "first": "review_required",
+    "duplicate": "review_required",
+    "drafts": 1,
+    "internal_notes": 1,
+    "customer_dispatches": 0,
+    "no_database_ticket_created": true
+  },
+  "status": "production_verified",
+  "date": "2026-10-28",
+  "new_timers": 0,
+  "live_evidence_simulation": {
+    "infrastructure_change_executed": false,
+    "simulation_only": true,
+    "customer_reply_ready": false,
+    "owned_service_matches": true,
+    "kind": "technical_continuation"
+  },
+  "native_sequence_before": 6050,
+  "offline_dependencies": {
+    "HermesSupportState": "cbebb383d64382561d654fac93d3052a94716e18f26431dfa259a96b17a539bf",
+    "HermesSupportProcessor": "c94d75ca725457bcfb805cc93f3fc0f19e2ad02e211da6a4767f9c1b3a0389e4"
+  },
+  "vm_knowledge": {
+    "copies": 2,
+    "document_sha256": "0423ad795e8fb0ff73c2440fbebe3c4b60b942a1d388e4df96f2c79cb4da0d64",
+    "broker_readback_matches": true,
+    "indexes_updated": 4
+  },
+  "final_verification": {
+    "utc": "2026-10-28T16:11:03+03:30",
+    "enabled": true,
+    "owner_bound": true,
+    "operations_enabled": true,
+    "scope": "all_existing_and_future_technical_tickets",
+    "native_sequence": 6056,
+    "last_success_age_seconds": 32,
+    "last_run_failures": 0,
+    "source_hashes": {
+      "HermesTechnicalFollowup": "44851f5197f874e4286443fbf9467e441eeeb5e12583b3c66a91b21fd98b62e6",
+      "HermesSupportReviewService": "d0d51e180feb7c68a1b5930c873b4a60c834217345c4732e7d8114e4db71953b",
+      "HermesSupportOwnerReview": "45c854efd3655a4faddeda3c6476fc22983e35d6281c0aed90315123bc3b6b06",
+      "HermesSupportProcessor": "c94d75ca725457bcfb805cc93f3fc0f19e2ad02e211da6a4767f9c1b3a0389e4"
+    },
+    "public_delivery_flag_hard_off": true,
+    "global_reference_retrieved": true
+  }
+}

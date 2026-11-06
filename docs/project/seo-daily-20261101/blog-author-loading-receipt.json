@@ -1,0 +1,56 @@
+{
+  "reviewed_at_utc": "2026-11-01T06:38:44Z",
+  "base_commit": "891a9235",
+  "branch": "codex/seo-daily-20261101",
+  "status": "implemented_and_tested_locally_not_committed_or_deployed",
+  "source_scope": [
+    "website/app/Services/BlogRepository.php:index",
+    "website/tests/Feature/BlogIndexAuthorLoadingTest.php"
+  ],
+  "source_change": "Eager-load author:id,name alongside translations in the existing cached metadata index; no other repository method changed.",
+  "runtime": "PHP 8.4.26; PHPUnit testing configuration; SQLite :memory:; array cache; stray HTTP requests forbidden",
+  "baseline": {
+    "receipt": "blog-author-loading-baseline.txt",
+    "tests": 6,
+    "expected_performance_failures": 6,
+    "metadata_and_warm_cache_assertions_passed_before_query_count_failure": true,
+    "cold_fixture": {
+      "fa": {"rows": 8, "author_queries": 7, "total_queries": 9},
+      "en": {"rows": 7, "author_queries": 6, "total_queries": 8},
+      "tr": {"rows": 7, "author_queries": 6, "total_queries": 8}
+    },
+    "growth_fixture_author_queries_per_locale": {"3_posts": 3, "15_posts": 15}
+  },
+  "after": {
+    "cold_fixture_per_locale": {"author_queries": 1, "total_queries": 3},
+    "warm_fixture_sql_queries_per_locale": 0,
+    "growth_fixture_author_queries_per_locale": {"3_posts": 1, "15_posts": 1},
+    "complete_expected_metadata_matches": true,
+    "locales": ["fa", "en", "tr"]
+  },
+  "final_regression_run": {
+    "receipt": "blog-author-loading-regression.txt",
+    "tests": 31,
+    "passed": 31,
+    "assertions": 124,
+    "duration_ms": 14899,
+    "files": [
+      "tests/Feature/BlogIndexAuthorLoadingTest.php",
+      "tests/Feature/RelatedPostsClusterTest.php",
+      "tests/Feature/BlogListingCanonicalTest.php",
+      "tests/Feature/BlogSitemapLastmodTest.php"
+    ]
+  },
+  "checks": {"php_lint_both_files": "passed", "git_diff_check": "passed", "external_http_calls": 0},
+  "sha256": {
+    "website/app/Services/BlogRepository.php": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+    "website/tests/Feature/BlogIndexAuthorLoadingTest.php": "f70fee1d8eee8aed9c49f26bf23c7e11ebbcbf9131e2547474b95cff0264b184"
+  },
+  "limitations": [
+    "No production requests, deployment, database mutation or cache flush performed.",
+    "No Lighthouse, browser or field LCP measurement performed; no impact on the 129-URL 2.9-second field group is claimed.",
+    "No production author population or cold-cache frequency measured.",
+    "MariaDB CI has not been run by this agent."
+  ],
+  "rollback": "Restore only the previous index eager-load line from the reviewed current live source, guarded against concurrent edits; cache keys, TTL and output are unchanged, so no broad cache flush or data rollback is required."
+}

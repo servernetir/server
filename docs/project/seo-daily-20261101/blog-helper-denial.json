@@ -1,0 +1,14 @@
+[
+  {
+    "host": "servernet.cloud",
+    "status": 404,
+    "contentType": "text/html; charset=utf-8",
+    "helperOutput": false
+  },
+  {
+    "host": "console.servernet.cloud",
+    "status": 301,
+    "contentType": "text/html; charset=utf-8",
+    "helperOutput": false
+  }
+]

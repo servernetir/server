@@ -1,0 +1,39 @@
+name: Finance release tool checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/finance-release-20261102/**'
+      - '.github/workflows/finance-release-tools.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'scripts/finance-release-20261102/**'
+      - '.github/workflows/finance-release-tools.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up PHP for isolated helper checks
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Check PHP syntax and synthetic release guards
+        run: |
+          set -euo pipefail
+          for source in scripts/finance-release-20261102/*.php; do
+            php -n -l "$source"
+          done
+          php -n scripts/finance-release-20261102/test-operations.php

@@ -1,0 +1,49 @@
+{
+  "base": "3fdc6cba86667a77e7390976c29ecd0493cd4454",
+  "head": "db39c514d47e3adbd1ca666abab089acc98f125a",
+  "files": [
+    {
+      "target": "/home/servernetcloud/servernet_app/app/Services/Cloud/CloudOfferSelection.php",
+      "rel": "app/Services/Cloud/CloudOfferSelection.php",
+      "before": "191c90e57a7a1beb34f7a30294f46d77f0c2ff2634ab9dc74f7fc1f78deeaa1c",
+      "after": "3cd4d64e90dc49d9656df226ee165f0bc0dda3193a40b819682a01c5d3215c3d",
+      "mode": 420,
+      "current": "3cd4d64e90dc49d9656df226ee165f0bc0dda3193a40b819682a01c5d3215c3d"
+    },
+    {
+      "target": "/home/servernetcloud/servernet_app/app/Http/Controllers/CloudCatalogController.php",
+      "rel": "app/Http/Controllers/CloudCatalogController.php",
+      "before": "1437d428e93c34005730b4d5b44c06a85fc55bd70d6eacfaddad63f738126ba9",
+      "after": "0512d55aea1bfebe69284c1e83871d47f63b6b3df099391fc98e73038a1b604c",
+      "mode": 384,
+      "current": "0512d55aea1bfebe69284c1e83871d47f63b6b3df099391fc98e73038a1b604c"
+    },
+    {
+      "target": "/home/servernetcloud/servernet_app/resources/views/pages/cloud.blade.php",
+      "rel": "resources/views/pages/cloud.blade.php",
+      "before": "6e8482cbd57b2268361cd2259ea13dd7c06ccb45a882b2bac0852027cacdd6a9",
+      "after": "8374c799d3e1bae52e54968d02d5e7164c87fe7b635e1e1fb2ffc61e2a2ce63c",
+      "mode": 420,
+      "current": "8374c799d3e1bae52e54968d02d5e7164c87fe7b635e1e1fb2ffc61e2a2ce63c"
+    }
+  ],
+  "status": "production_verified",
+  "installed_at": "2026-10-28T09:48:08.621740+00:00",
+  "verified_at": "2026-10-28T09:52:35.891498+00:00",
+  "git_merge": "db1a30b1b23a67eed2de817ab12cca11dbef9892",
+  "acceptance": {
+    "http_cloud": 200,
+    "browser_rows": 825,
+    "initial_visible_rows": 50,
+    "page2_visible_rows": 50,
+    "germany_matched": 84,
+    "germany_page2_visible": 34,
+    "pagination_focus": "clp-results-title",
+    "sort_descending": true,
+    "links_preserved": true,
+    "font": "IRANSans",
+    "tracking_loader_markers_present": true,
+    "purchase_transaction_executed": false,
+    "ga4_conversion_validated": false
+  }
+}

@@ -147,7 +147,7 @@ class BaleSender
      * ⚠️ `callback_data` سقفِ ۶۴ بایت دارد (مثلِ تلگرام). پس هرگز متن یا شناسهٔ
      * بلند داخلش نگذار — فقط فعل و یک عدد.
      *
-     * @param  array<int,array<int,array{text:string,data:string}>>  $rows
+     * @param  array<int,array<int,array{text:string,data?:string,url?:string}>>  $rows
      * @return int|null  message_id در صورتِ موفقیت (برای ویرایشِ بعدی)
      */
     public function sendButtons(string $chatId, string $text, array $rows): ?int
@@ -162,6 +162,23 @@ class BaleSender
             $line = [];
 
             foreach ($row as $btn) {
+                // Bale permits exactly one action per inline button. Report links
+                // are restricted to the authenticated console; existing callback
+                // buttons keep their original representation and limits.
+                if (array_key_exists('url', $btn)) {
+                    $url = (string) $btn['url'];
+                    $parts = parse_url($url);
+                    $path = is_array($parts) ? (string) ($parts['path'] ?? '') : '';
+                    if (array_key_exists('data', $btn) || ! is_array($parts)
+                        || ($parts['scheme'] ?? '') !== 'https' || ($parts['host'] ?? '') !== 'console.servernet.cloud'
+                        || isset($parts['user']) || isset($parts['pass']) || isset($parts['port'])
+                        || preg_match('~^/admin(?:/|$)~D', $path) !== 1
+                        || str_contains($path, '\\') || str_contains($path, '%')
+                        || preg_match('~(?:^|/)\.{1,2}(?:/|$)~', $path)
+                        || preg_match('/[\x00-\x20\x7f]/', $url)) { continue; }
+                    $line[] = ['text' => (string) $btn['text'], 'url' => $url];
+                    continue;
+                }
                 $line[] = [
                     'text'          => (string) $btn['text'],
                     'callback_data' => mb_substr((string) $btn['data'], 0, 64),

@@ -1,0 +1,451 @@
+{
+  "release": "seo-blog-authors-20261101",
+  "source_scope": [
+    "app/Services/BlogRepository.php"
+  ],
+  "receipts": {
+    "stage-verified.json": {
+      "status": "stage_verified_no_app_change",
+      "archive_sha256": "747b5b2d20131652285da1ec3606d4570f3645463d1af3ea3d8f37712af23888",
+      "manifest_sha256": "060c5a0630dc6b49acc7761963cb781b801f94290320490cceb5e53232f43882",
+      "files": 10,
+      "at": "2026-11-01T06:55:22+00:00"
+    },
+    "preview.json": {
+      "status": "preview",
+      "at": "2026-11-01T06:55:35+00:00",
+      "target": "app/Services/BlogRepository.php",
+      "before": "78d4310b9262476e25fb7d77df174c0c38a6fc0872d5bbad9aaa03ac0d2e0117",
+      "after": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "source_mode": 384,
+      "baseline": {
+        "source_sha256": "78d4310b9262476e25fb7d77df174c0c38a6fc0872d5bbad9aaa03ac0d2e0117",
+        "locales": {
+          "fa": {
+            "cold": {
+              "rows": 205,
+              "sql_queries": 9,
+              "author_queries": 7,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016"
+            },
+            "warm": {
+              "rows": 205,
+              "sql_queries": 0,
+              "author_queries": 0,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016"
+            }
+          },
+          "en": {
+            "cold": {
+              "rows": 205,
+              "sql_queries": 9,
+              "author_queries": 7,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53"
+            },
+            "warm": {
+              "rows": 205,
+              "sql_queries": 0,
+              "author_queries": 0,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53"
+            }
+          },
+          "tr": {
+            "cold": {
+              "rows": 205,
+              "sql_queries": 9,
+              "author_queries": 7,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912"
+            },
+            "warm": {
+              "rows": 205,
+              "sql_queries": 0,
+              "author_queries": 0,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912"
+            }
+          }
+        },
+        "cache": "array",
+        "external_http_requests": 0,
+        "database_mutation": false,
+        "metadata_plaintext_emitted": false,
+        "sapi": "cli",
+        "php": "8.4.27"
+      },
+      "candidate_lint": true
+    },
+    "intent.json": {
+      "status": "installing",
+      "at": "2026-11-01T06:57:03+00:00",
+      "target": "app/Services/BlogRepository.php",
+      "before": "78d4310b9262476e25fb7d77df174c0c38a6fc0872d5bbad9aaa03ac0d2e0117",
+      "after": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "preview_sha256": "0c257e8019fb4888a912ceb18402d6a17a8377647d2ff2bec0a3923590bc6c6b"
+    },
+    "applied.json": {
+      "status": "installed_cli_verified_pending_web_acceptance",
+      "at": "2026-11-01T06:57:04+00:00",
+      "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "comparison": {
+        "fa": {
+          "rows": 205,
+          "author_queries_before": 7,
+          "author_queries_after": 1,
+          "metadata_unchanged": true
+        },
+        "en": {
+          "rows": 205,
+          "author_queries_before": 7,
+          "author_queries_after": 1,
+          "metadata_unchanged": true
+        },
+        "tr": {
+          "rows": 205,
+          "author_queries_before": 7,
+          "author_queries_after": 1,
+          "metadata_unchanged": true
+        }
+      },
+      "after_probe": {
+        "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+        "locales": {
+          "fa": {
+            "cold": {
+              "rows": 205,
+              "sql_queries": 3,
+              "author_queries": 1,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016"
+            },
+            "warm": {
+              "rows": 205,
+              "sql_queries": 0,
+              "author_queries": 0,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016"
+            }
+          },
+          "en": {
+            "cold": {
+              "rows": 205,
+              "sql_queries": 3,
+              "author_queries": 1,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53"
+            },
+            "warm": {
+              "rows": 205,
+              "sql_queries": 0,
+              "author_queries": 0,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53"
+            }
+          },
+          "tr": {
+            "cold": {
+              "rows": 205,
+              "sql_queries": 3,
+              "author_queries": 1,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912"
+            },
+            "warm": {
+              "rows": 205,
+              "sql_queries": 0,
+              "author_queries": 0,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912"
+            }
+          }
+        },
+        "cache": "array",
+        "external_http_requests": 0,
+        "database_mutation": false,
+        "metadata_plaintext_emitted": false,
+        "sapi": "cli",
+        "php": "8.4.27"
+      },
+      "web_opcache_activated": false,
+      "shared_cache_flushed": false,
+      "database_mutation": false
+    },
+    "fpm-1-activate.json": {
+      "action": "activate",
+      "at": "2026-11-01T06:57:23+00:00",
+      "comparison": [],
+      "database_mutation": false,
+      "opcache": {
+        "cached_after": true,
+        "cached_before": false,
+        "compiled": true,
+        "enable": "1",
+        "invalidated": false,
+        "revalidate_freq": "2",
+        "validate_timestamps": "1"
+      },
+      "phase": "after",
+      "php": "8.4.27",
+      "probe": null,
+      "release": "seo-blog-authors-20261101",
+      "sapi": "fpm-fcgi",
+      "shared_cache_flushed": false,
+      "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "status": "ok",
+      "target": "app/Services/BlogRepository.php"
+    },
+    "fpm-1-before.json": {
+      "action": "observe",
+      "at": "2026-11-01T06:56:34+00:00",
+      "comparison": [],
+      "database_mutation": false,
+      "opcache": {
+        "cached_after": true,
+        "cached_before": true,
+        "compiled": false,
+        "enable": "1",
+        "invalidated": false,
+        "revalidate_freq": "2",
+        "validate_timestamps": "1"
+      },
+      "phase": "before",
+      "php": "8.4.27",
+      "probe": null,
+      "release": "seo-blog-authors-20261101",
+      "sapi": "fpm-fcgi",
+      "shared_cache_flushed": false,
+      "source_sha256": "78d4310b9262476e25fb7d77df174c0c38a6fc0872d5bbad9aaa03ac0d2e0117",
+      "status": "ok",
+      "target": "app/Services/BlogRepository.php"
+    },
+    "fpm-1-verify.json": {
+      "action": "verify",
+      "at": "2026-11-01T06:57:23+00:00",
+      "comparison": {
+        "en": {
+          "author_queries": 1,
+          "metadata_unchanged": true,
+          "rows": 205
+        },
+        "fa": {
+          "author_queries": 1,
+          "metadata_unchanged": true,
+          "rows": 205
+        },
+        "tr": {
+          "author_queries": 1,
+          "metadata_unchanged": true,
+          "rows": 205
+        }
+      },
+      "database_mutation": false,
+      "opcache": {
+        "cached_after": true,
+        "cached_before": true,
+        "compiled": false,
+        "enable": "1",
+        "invalidated": false,
+        "revalidate_freq": "2",
+        "validate_timestamps": "1"
+      },
+      "phase": "after",
+      "php": "8.4.27",
+      "probe": {
+        "cache": "array",
+        "database_mutation": false,
+        "external_http_requests": 0,
+        "locales": {
+          "en": {
+            "cold": {
+              "author_queries": 1,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53",
+              "rows": 205,
+              "sql_queries": 3
+            },
+            "warm": {
+              "author_queries": 0,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53",
+              "rows": 205,
+              "sql_queries": 0
+            }
+          },
+          "fa": {
+            "cold": {
+              "author_queries": 1,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016",
+              "rows": 205,
+              "sql_queries": 3
+            },
+            "warm": {
+              "author_queries": 0,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016",
+              "rows": 205,
+              "sql_queries": 0
+            }
+          },
+          "tr": {
+            "cold": {
+              "author_queries": 1,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912",
+              "rows": 205,
+              "sql_queries": 3
+            },
+            "warm": {
+              "author_queries": 0,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912",
+              "rows": 205,
+              "sql_queries": 0
+            }
+          }
+        },
+        "metadata_plaintext_emitted": false,
+        "php": "8.4.27",
+        "sapi": "fpm-fcgi",
+        "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df"
+      },
+      "release": "seo-blog-authors-20261101",
+      "sapi": "fpm-fcgi",
+      "shared_cache_flushed": false,
+      "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "status": "ok",
+      "target": "app/Services/BlogRepository.php"
+    },
+    "fpm-2-activate.json": {
+      "action": "activate",
+      "at": "2026-11-01T06:57:23+00:00",
+      "comparison": [],
+      "database_mutation": false,
+      "opcache": {
+        "cached_after": true,
+        "cached_before": true,
+        "compiled": true,
+        "enable": "1",
+        "invalidated": true,
+        "revalidate_freq": "2",
+        "validate_timestamps": "1"
+      },
+      "phase": "after",
+      "php": "8.4.27",
+      "probe": null,
+      "release": "seo-blog-authors-20261101",
+      "sapi": "fpm-fcgi",
+      "shared_cache_flushed": false,
+      "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "status": "ok",
+      "target": "app/Services/BlogRepository.php"
+    },
+    "fpm-2-before.json": {
+      "action": "observe",
+      "at": "2026-11-01T06:56:34+00:00",
+      "comparison": [],
+      "database_mutation": false,
+      "opcache": {
+        "cached_after": true,
+        "cached_before": true,
+        "compiled": false,
+        "enable": "1",
+        "invalidated": false,
+        "revalidate_freq": "2",
+        "validate_timestamps": "1"
+      },
+      "phase": "before",
+      "php": "8.4.27",
+      "probe": null,
+      "release": "seo-blog-authors-20261101",
+      "sapi": "fpm-fcgi",
+      "shared_cache_flushed": false,
+      "source_sha256": "78d4310b9262476e25fb7d77df174c0c38a6fc0872d5bbad9aaa03ac0d2e0117",
+      "status": "ok",
+      "target": "app/Services/BlogRepository.php"
+    },
+    "fpm-2-verify.json": {
+      "action": "verify",
+      "at": "2026-11-01T06:57:24+00:00",
+      "comparison": {
+        "en": {
+          "author_queries": 1,
+          "metadata_unchanged": true,
+          "rows": 205
+        },
+        "fa": {
+          "author_queries": 1,
+          "metadata_unchanged": true,
+          "rows": 205
+        },
+        "tr": {
+          "author_queries": 1,
+          "metadata_unchanged": true,
+          "rows": 205
+        }
+      },
+      "database_mutation": false,
+      "opcache": {
+        "cached_after": true,
+        "cached_before": true,
+        "compiled": false,
+        "enable": "1",
+        "invalidated": false,
+        "revalidate_freq": "2",
+        "validate_timestamps": "1"
+      },
+      "phase": "after",
+      "php": "8.4.27",
+      "probe": {
+        "cache": "array",
+        "database_mutation": false,
+        "external_http_requests": 0,
+        "locales": {
+          "en": {
+            "cold": {
+              "author_queries": 1,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53",
+              "rows": 205,
+              "sql_queries": 3
+            },
+            "warm": {
+              "author_queries": 0,
+              "metadata_sha256": "5ca198e88a9fef9c036bcd70d5388d9abcf0feea3c5c8f2d1f174d499bf8fd53",
+              "rows": 205,
+              "sql_queries": 0
+            }
+          },
+          "fa": {
+            "cold": {
+              "author_queries": 1,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016",
+              "rows": 205,
+              "sql_queries": 3
+            },
+            "warm": {
+              "author_queries": 0,
+              "metadata_sha256": "e2470f19b15f1a21c2293583c77344909a4afefe2d3bf8317d4033fb24590016",
+              "rows": 205,
+              "sql_queries": 0
+            }
+          },
+          "tr": {
+            "cold": {
+              "author_queries": 1,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912",
+              "rows": 205,
+              "sql_queries": 3
+            },
+            "warm": {
+              "author_queries": 0,
+              "metadata_sha256": "df4987d808d07f3d9aec7c3f1375e5218b965d68f2fc7fb759bdffdced39a912",
+              "rows": 205,
+              "sql_queries": 0
+            }
+          }
+        },
+        "metadata_plaintext_emitted": false,
+        "php": "8.4.27",
+        "sapi": "fpm-fcgi",
+        "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df"
+      },
+      "release": "seo-blog-authors-20261101",
+      "sapi": "fpm-fcgi",
+      "shared_cache_flushed": false,
+      "source_sha256": "8769aff87efe64a7871a0f399d6e806d6d1027337fdf973c71df2c5a67a765df",
+      "status": "ok",
+      "target": "app/Services/BlogRepository.php"
+    },
+    "fpm-cleanup.json": {
+      "status": "retired_to_private_stage",
+      "public_http_404_verified": false,
+      "private_backups_retained": true
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "base": "755cb72e7d3bd8f951a0f0513e7c796da627e83d",
+  "head": "6862cbae31d2cb0875d95ed5e009448ed85874c9",
+  "files": [
+    {
+      "rel": "app/Services/Cloud/CloudOfferSelection.php",
+      "target": "/home/servernetcloud/servernet_app/app/Services/Cloud/CloudOfferSelection.php",
+      "before": "3cd4d64e90dc49d9656df226ee165f0bc0dda3193a40b819682a01c5d3215c3d",
+      "after": "b5e72983ee91caa3829574da68e5c86fa97193651822d70057ad9a5e459133b8",
+      "mode": 420,
+      "current": "b5e72983ee91caa3829574da68e5c86fa97193651822d70057ad9a5e459133b8"
+    },
+    {
+      "rel": "app/Services/Cloud/CloudDominance.php",
+      "target": "/home/servernetcloud/servernet_app/app/Services/Cloud/CloudDominance.php",
+      "before": "6cbe98baed0af3860583849d9e13f76e774ce2abb80005f7b083e6519cc72529",
+      "after": "43b2b44d92c8fb5b8042c9150f2741834f2889b1ecd9f3db4bc9dbf82a5aecbe",
+      "mode": 384,
+      "current": "43b2b44d92c8fb5b8042c9150f2741834f2889b1ecd9f3db4bc9dbf82a5aecbe"
+    },
+    {
+      "rel": "app/Http/Controllers/CloudCatalogController.php",
+      "target": "/home/servernetcloud/servernet_app/app/Http/Controllers/CloudCatalogController.php",
+      "before": "0512d55aea1bfebe69284c1e83871d47f63b6b3df099391fc98e73038a1b604c",
+      "after": "ed6ba59b864c5b367906a539db88ffeadbaec111327029e8ffc8b1aa7fc4caaf",
+      "mode": 384,
+      "current": "ed6ba59b864c5b367906a539db88ffeadbaec111327029e8ffc8b1aa7fc4caaf"
+    },
+    {
+      "rel": "resources/views/pages/cloud.blade.php",
+      "target": "/home/servernetcloud/servernet_app/resources/views/pages/cloud.blade.php",
+      "before": "8374c799d3e1bae52e54968d02d5e7164c87fe7b635e1e1fb2ffc61e2a2ce63c",
+      "after": "e17d13ac7a8e1027a57ad41e0afe91e379209594dd56e3e76b826518161f7551",
+      "mode": 420,
+      "current": "e17d13ac7a8e1027a57ad41e0afe91e379209594dd56e3e76b826518161f7551"
+    }
+  ],
+  "status": "production_verified",
+  "installed_at": "2026-10-28T10:43:42.474637+00:00",
+  "merge": "09e76f1be69876dd2a5d0fb2e8c867fa788ae59d",
+  "verified_at": "2026-10-28T10:46:43.965982+00:00",
+  "acceptance": {
+    "http_samples": 7,
+    "http_all_200": true,
+    "canonical_self": true,
+    "h1_each": 1,
+    "browser_rows": 825,
+    "visible_rows": 50,
+    "pager_focus": "clp-results-title",
+    "mobile_hint_visible": true,
+    "keyboard_region_focus": true,
+    "keyboard_scroll_left_px": -40,
+    "keyboard_scroll_right_px": 0,
+    "table_width_px": 1035.796875,
+    "page_scroll_width_px": 375,
+    "viewport_width_px": 390,
+    "font": "IRANSans",
+    "tracking_loaders_present": true,
+    "purchase_executed": false,
+    "ga4_conversion_validated": false
+  }
+}

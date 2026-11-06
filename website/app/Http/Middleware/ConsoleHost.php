@@ -60,6 +60,9 @@ class ConsoleHost
         'payment/*',
         // AJAX پنل (وضعیت دامنه و…) نباید ۳۰۱ شود
         'api/*',
+        // OpenAI-compatible clients also use the console host. A 301 changes
+        // POST to GET and may strip Bearer auth before /chat/completions.
+        'v1/*',
         // وب‌هوک‌ها و پل‌های سرور-به-سرور باید روی هر میزبانی کار کنند
         'bale/webhook/*', 'system/*',
     ];

@@ -29,6 +29,12 @@
 <form method="POST" action="{{ $action }}" class="dns-form" data-dns-form>
   @csrf
 
+  @foreach($types as $t)
+    @if(\Illuminate\Support\Facades\Lang::has('dns.ux.type_help.'.$t))
+      <p class="dns-type-help" data-types="{{ $t }}" @unless($type === $t) hidden @endunless><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><span>{{ __('dns.ux.type_help.'.$t) }}</span></p>
+    @endif
+  @endforeach
+
   <div class="dns-f w2">
     <label for="{{ $id }}-type">{{ __('dns.form.type') }}</label>
     <select id="{{ $id }}-type" name="type" data-dns-type>

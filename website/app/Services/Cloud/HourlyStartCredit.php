@@ -5,7 +5,7 @@ namespace App\Services\Cloud;
 use App\Models\CloudPlan;
 use App\Models\Service;
 
-/** The 24-hour wallet requirement for adding or restarting an hourly server. */
+/** Initial funding only. Existing servers never need to restore 24 running hours. */
 class HourlyStartCredit
 {
     /**

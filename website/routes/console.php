@@ -217,6 +217,18 @@ Schedule::call(fn () => File::put(
 */
 Schedule::command('system:health')
     ->everyFifteenMinutes()
+    ->when(fn () => ! \App\Services\Notify\BaleManagerPolicy::enabled())
+    ->withoutOverlapping(30);
+
+// Owner-selected cadence. Same watchdog and persisted incident state.
+Schedule::command('system:health')
+    ->everyThirtyMinutes()
+    ->when(fn () => \App\Services\Notify\BaleManagerPolicy::enabled())
+    ->withoutOverlapping(30);
+
+Schedule::command('bale:manager-digest')
+    ->dailyAt('09:00')->timezone('Asia/Tehran')
+    ->when(fn () => \App\Services\Notify\BaleManagerPolicy::enabled())
     ->withoutOverlapping(30);
 
 // صفِ تحویلِ سرویس — سرویس‌هایِ پرداخت‌شده که منتظرِ ساختِ خودکار روی سرورند.
@@ -467,6 +479,13 @@ Schedule::command('cloud:sync')
     ->cron('30 22 */2 * *')
     ->withoutOverlapping(60);
 
+// Supplier pagination belongs in CLI, outside the web worker's 30-second budget.
+// Reuse the existing scheduler; no new host cron or database queue is needed.
+Schedule::command('cloud:refresh-requested')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping(10);
+
 // بازمحاسبهٔ پشتیبانِ قیمت محصولات — روزانه با بهای تازه برای زیرساخت غیرِیورویی.
 // جدا از سینکِ کامل است چون نرخِ ارز روزانه می‌جنبد ولی مشخصاتِ پلن‌ها ماه‌ها
 // ثابت می‌مانند؛ بی‌این، قیمتِ تومانی تا سینکِ بعدی کهنه می‌ماند.
@@ -683,10 +702,6 @@ Schedule::command('links:content --scheduled')
 | ۰۳:۰۰ UTC (۶:۳۰ صبحِ تهران)، بعد از خزندهٔ لینک و قبل از شروعِ روز؛ قرمز ⇒
 | noteOnce در /admin/errors. در چک‌لیستِ انتشار هم دستی اجرا می‌شود.
 */
-Schedule::command('site:gate')
-    ->dailyAt('03:00')
-    ->withoutOverlapping(60);
-
 // [managed-dns:start]
 /*
 |--------------------------------------------------------------------------
@@ -717,12 +732,69 @@ Schedule::command('dns:reconcile')
     ->hourlyAt(17)
     ->withoutOverlapping(30);
 // [managed-dns:end]
+Schedule::command('site:gate')
+    ->dailyAt('03:00')
+    ->withoutOverlapping(60);
 
-// Growth has its own durable jobs, approval gates and pause switch; safe before migration.
+// Hermes owner review; all customer replies require explicit approval.
+\Illuminate\Support\Facades\Schedule::command('hermes:support-review')->everyMinute()->withoutOverlapping(45)->name('hermes:support-review');
+
+// Owner-only read-only inventory/cost audit and daily report.
+\Illuminate\Support\Facades\Schedule::command('hermes:operations')->hourly()->withoutOverlapping(45)->name('hermes:operations');
+\Illuminate\Support\Facades\Schedule::command('hermes:operations --digest')->dailyAt('09:00')->timezone('Asia/Tehran')->withoutOverlapping(45)->name('hermes:operations-digest');
+
+// Update recorded infrastructure/work hourly; official news feeds at most once per six hours.
+// Does not process tickets, send messages, invoke a model or change infrastructure.
+\Illuminate\Support\Facades\Schedule::command('hermes:knowledge-refresh')->hourlyAt(10)->withoutOverlapping(10)->name('hermes:knowledge-refresh');
+// Read-only audit; existing Hermes digest owns owner notifications. No duplicate ticket review.
+\Illuminate\Support\Facades\Schedule::command('hermes:business-review')->everyFifteenMinutes()->withoutOverlapping(45)->name('hermes:business-review');
+
+// Owner-authorized incremental traffic settlement; supplier reports can lag actual usage.
+Schedule::command('finance:meter-arvan-traffic --apply')
+    ->everyFiveMinutes()
+    ->timezone('Asia/Tehran')
+    ->withoutOverlapping(45)
+    ->runInBackground();
+
+// Retry only durable traffic-debit stop intents; independent from the supplier fetch and hourly retention.
+Schedule::command('cloud:traffic-credit-guard')
+    ->everyMinute()
+    ->withoutOverlapping(10)
+    ->runInBackground();
+
+// Growth Center uses the existing scheduler; disabled and zero-budget after migration.
 \Illuminate\Support\Facades\Schedule::command('growth:run --limit=3')->everyMinute()->withoutOverlapping(15);
+
+Schedule::command('birthday:rewards')->everyMinute()->withoutOverlapping(10);
 
 Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
     ->appendOutputTo(storage_path('logs/marketing-scheduler.log'));
 
 // Bounded knowledge/receipt supervision; independently paused until explicitly enabled.
-Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);
+\Illuminate\Support\Facades\Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);
+
+// Read-only account health/balance refresh. Disabled multi-provider feature makes this a no-op.
+Schedule::command('domains:suppliers-probe')->everyFiveMinutes()->withoutOverlapping(5);
+
+// Poll only persisted submissions; never buy, renew, transfer, or repeat a request.
+Schedule::command('domains:supplier-reconcile --limit=25')->everyFiveMinutes()->withoutOverlapping(5);
+
+// Sends only a persisted, exact owner-approved paid operation; feature remains off by default.
+Schedule::command('domains:supplier-dispatch-approved --limit=10')->everyMinute()->withoutOverlapping(5);
+// Infrastructure sales must be checked independently of supplier sync and digest cadence.
+Schedule::command('cloud:watch-sales')
+    ->everyMinute()
+    ->runInBackground()
+    ->withoutOverlapping(2);
+
+// Disabled until an operator approves the private UDS and exact current enrollment.
+// Guest observations never enter supplier traffic settlement, wallet or power control.
+Schedule::command('cloud:observe-arvan --limit=20')
+    ->everyMinute()
+    ->withoutOverlapping(2);
+
+// Owner-requested coverage alarms remain independent of collection and financial settlement.
+Schedule::command('cloud:watch-arvan-monitoring')
+    ->everyMinute()
+    ->withoutOverlapping(2)
+    ->runInBackground();

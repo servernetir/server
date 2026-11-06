@@ -16,6 +16,7 @@ use App\Models\Service;
 use App\Models\TaxRate;
 use App\Services\Cloud\CloudAddons;
 use App\Services\Cloud\HourlyStartCredit;
+use App\Services\Cloud\HourlyHold;
 use App\Services\Finance\Wallet;
 use App\Services\Finance\WalletException;
 use App\Services\Notify\AdminNotifier;
@@ -58,7 +59,7 @@ use Illuminate\View\View;
  *    دیگرِ همان اسلاگ می‌رود. پس «قابلِ تحویل» یعنی: ایمیج روی دستِ‌کم یکی
  *    از زیرساخت‌هایی که همین اسلاگ را می‌فروشند موجود باشد، معماری‌اش با پلن
  *    بخواند و `min_disk_gb` از دیسکِ پلن بیشتر نباشد. گزینه‌ای که تحویل
- *    نمی‌شود، **نباید** به مشتری نشان داده شود — وگرنه پول می‌گیریم و
+ *    نمی‌شود، باید با دلیل غیرفعال نمایش داده شود و قابل سفارش نباشد — وگرنه پول می‌گیریم و
  *    ساختش شکست می‌خورد.
  */
 class CloudStoreController extends Controller
@@ -278,6 +279,7 @@ class CloudStoreController extends Controller
      */
     private function groupsFor(Collection $codes): array
     {
+        $codes = $codes->map(fn ($code) => CloudLocation::canonicalCode($code))->unique()->values();
         if ($codes->isEmpty()) {
             return [];
         }
@@ -552,9 +554,10 @@ class CloudStoreController extends Controller
             ->groupBy('location_code')->get();
 
         foreach ($rows as $r) {
-            $out[(string) $r->location_code] = [
-                'irt' => (int) $r->min_irt,
-                'cores' => (int) $r->max_vcpu,
+            $code = CloudLocation::canonicalCode((string) $r->location_code);
+            $out[$code] = [
+                'irt' => min($out[$code]['irt'] ?? PHP_INT_MAX, (int) $r->min_irt),
+                'cores' => max($out[$code]['cores'] ?? 0, (int) $r->max_vcpu),
             ];
         }
 
@@ -694,6 +697,40 @@ class CloudStoreController extends Controller
         return $out;
     }
 
+    /**
+     * The same deliverability check for a public, slug-unique offer list.
+     * Image rows are shared only within this call. Provider eligibility is
+     * still queried per offer, with the original SQL slug comparison and gates.
+     *
+     * @param  Collection<int|string, CloudPlan>  $offers
+     * @return array<string, array<int, string>>
+     */
+    public static function imageKeysForOffers(Collection $offers, string $kind = 'os'): array
+    {
+        if ($offers->isEmpty()) {
+            return [];
+        }
+
+        $byKey = CloudImage::query()->usable()->where('kind', $kind)->get()->groupBy('key');
+        $catalog = CloudImage::catalog($kind);
+        $out = [];
+
+        foreach ($offers as $offer) {
+            $providers = CloudPlan::query()->sellable()
+                ->where('slug', (string) $offer->slug)
+                ->pluck('provider')->unique()->values()->all();
+            $keys = [];
+            foreach ($catalog as $image) {
+                if (self::deliverable($offer, $providers, $byKey->get((string) $image->key, collect()))) {
+                    $keys[] = (string) $image->key;
+                }
+            }
+            $out[(string) $offer->slug] = $keys;
+        }
+
+        return $out;
+    }
+
     // ═════════════════════════ نمایش ═════════════════════════
 
     public function index(Request $request): View
@@ -727,11 +764,14 @@ class CloudStoreController extends Controller
         | `CloudCountry::served()` هم شهرهای خام را حساس‌به‌حروف می‌شمارد.
         */
         $anchors = self::priceAnchors();
+        $hourlyCodes = CloudPlan::sellable()->hourlyCapable()->where('slug', 'not like', 'cbm-%')->pluck('location_code')
+            ->map(fn ($c) => CloudLocation::canonicalCode($c))->unique()->all();
 
         foreach ($groups as $i => $g) {
             $cities = self::cityBuckets($g['locations'], $openCodes, $anchors);
 
             $groups[$i]['cities'] = $cities;
+            $groups[$i]['hourlyAvailable'] = collect($g['locations'])->contains(fn ($l) => in_array($l->code, $hourlyCodes, true));
             $groups[$i]['openCities'] = count(array_filter($cities, fn ($c) => $c['open']));
             $groups[$i]['region'] = self::regionOf((string) $g['country']);
 
@@ -793,7 +833,7 @@ class CloudStoreController extends Controller
         // اخطار می‌دهد؛ لاراول اخطار را به استثنا تبدیل می‌کند و صفحه ۵۰۰ می‌شود.
         // یک خزندهٔ بدرفتار نباید صفحهٔ فروش را بخواباند.
         $wanted = $request->query('location') ?? $request->query('loc') ?? '';
-        $wanted = is_string($wanted) ? $wanted : '';
+        $wanted = is_string($wanted) ? CloudLocation::canonicalCode($wanted) : '';
 
         /*
         | 🔴 «هنوز کشوری انتخاب نشده» یک وضعیتِ **واقعی** است، نه یک شاخهٔ مرده.
@@ -908,6 +948,8 @@ class CloudStoreController extends Controller
         $manager = app(\App\Services\Cloud\CloudManager::class);
         $offerSelection = new \App\Services\Cloud\CloudOfferSelection;
 
+        $imageReasons = [];
+        $availability = app(\App\Services\Cloud\CloudChoiceAvailability::class);
         $imageMap = [];     // slug => ['os' => [key,…], 'app' => [key,…]]
         $priceMap = [];     // slug => cycle => ['cycle','per','first','save']
         $planCards = [];    // دادهٔ نمایشیِ امن (بی‌هیچ ستونِ زیرساخت)
@@ -930,6 +972,8 @@ class CloudStoreController extends Controller
                 foreach ($catalog as $img) {
                     if (self::deliverable($offer, $slugProviders, $rowsByKey->get((string) $img->key, collect()))) {
                         $keys[] = (string) $img->key;
+                    } else {
+                        $imageReasons[$slug][$img->key] = $availability->imageReason($offer, $rowsByKey->get((string) $img->key, collect()), $rows);
                     }
                 }
 
@@ -1004,12 +1048,18 @@ class CloudStoreController extends Controller
             | که `store()` بعداً ردش می‌کرد.
             */
             $hourlyRow = $offerSelection->representative($rows->filter(fn (CloudPlan $p) =>
-                (string) $p->location_code === (string) $code && $p->supportsHourly()), true);
+                CloudLocation::canonicalCode((string) $p->location_code) === (string) $code && $p->supportsHourly()), true);
+
+            if ($hourlyRow && ! app(HourlyHold::class)->fundablePlan($hourlyRow, $hourlyRow->hourlyIrt())) {
+                $hourlyRow = null;
+            }
 
             $hourlyMap[(string) $slug] = [
                 'rate' => $hourlyRow?->hourlyIrt() ?? 0,
                 'min' => $hourlyRow ? $hourlyRow->hourlyStartMinIrt() + $existingHourlyMinimum : 0,
                 'existing' => $existingHourlyMinimum,
+                'retention' => $hourlyRow && HourlyHold::enabled()
+                    ? HourlyHold::fullReserve(app(HourlyHold::class)->rateForPlan($hourlyRow, $hourlyRow->hourlyIrt()), 'suspend') : 0,
             ];
 
             // ⚠️ به‌ازای **هر اسلاگ**، نه فقط اسلاگِ انتخابی. قبلاً یک بولینِ واحد
@@ -1052,8 +1102,7 @@ class CloudStoreController extends Controller
         // به HTML نمی‌رود. اگر فقط با CSS پنهانش می‌کردیم، در سورس دیده می‌شد و
         // بدتر: با یک دستکاریِ ساده قابلِ ارسال بود.
         $union = collect($imageMap);
-        $osCatalog = $osCatalog
-            ->whereIn('key', $union->pluck('os')->flatten()->unique()->all())->values();
+        // Keep known OS choices visible; eligibility remains in imageMap/order().
         $appCatalog = $appCatalog
             ->whereIn('key', $union->pluck('app')->flatten()->unique()->all())->values();
 
@@ -1074,6 +1123,7 @@ class CloudStoreController extends Controller
             'osCatalog' => $osCatalog,
             'appCatalog' => $appCatalog,
             'imageMap' => $imageMap,
+            'imageReasons' => $imageReasons,
             'priceMap' => $priceMap,
             'cycles' => $cycles,
             'cycleLabels' => collect($cycles)->mapWithKeys(fn ($c) => [$c => Service::labelFor($c)])->all(),
@@ -1460,7 +1510,7 @@ class CloudStoreController extends Controller
         $hourly = $offer->hourlyIrt();
         $hourlyEur = $offer->hourlyEurCents();
 
-        if ($hourly <= 0) {
+        if ($hourly <= 0 || ! app(HourlyHold::class)->fundablePlan($offer, $hourly)) {
             return back()->withInput()->withErrors(['plan' => __('ui.cvb_e_hourly_price')]);
         }
 
@@ -1488,7 +1538,8 @@ class CloudStoreController extends Controller
                 | می‌خوانیم تا دو سفارشِ هم‌زمان از یک موجودی عبور نکنند.
                 */
                 Customer::whereKey($customer->id)->lockForUpdate()->firstOrFail();
-                $minStart = $credit->minimum($customer->id, $hourly);
+                $minStart = $credit->minimum($customer->id, $hourly) + (HourlyHold::enabled()
+                    ? HourlyHold::fullReserve(app(HourlyHold::class)->rateForPlan($offer, $hourly), $onCreditOut) : 0);
                 $balance = $wallet->availableOf($customer->id);
                 if ($balance < $minStart) {
                     return null;
@@ -1518,6 +1569,9 @@ class CloudStoreController extends Controller
                     'plan'             => (string) $offer->public_name,
                 ]);
 
+                // Protect paid standby before the first debit, not at a later meter tick.
+                app(HourlyHold::class)->syncRunning($service);
+
                 /*
                 | کسرِ ساعتِ اول از کیفِ پول (پرداختِ لحظهٔ خرید).
                 |
@@ -1534,22 +1588,25 @@ class CloudStoreController extends Controller
                 | اگر رزروِ هم‌زمانِ AI وجهِ ساعتی را قفل کرده باشد، استثنای
                 | Wallet کلِ تراکنش و ساخت سرویس را برمی‌گرداند.
                 */
+                $firstHour = app(\App\Services\Birthday\BirthdayHourly::class)->rates($service, now(), 1, $hourly)[0];
+                $birthdayNote = $firstHour < $hourly ? ' — '.__('birthday.usage_discount', ['amount' => invoice_money($hourly - $firstHour, 'IRT')]) : '';
                 $wallet->debit(
-                    $customer->id, 'IRT', $hourly,
+                    $customer->id, 'IRT', $firstHour,
                     'cloud_hourly', $service,
-                    'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name
+                    'ساعتِ اولِ سرورِ ساعتی — '.$offer->public_name.$birthdayNote
                 );
 
                 return $service;
             });
         } catch (WalletException) {
             $service = null;
-            $minStart = $credit->minimum($customer->id, $hourly);
+            $minStart = $credit->minimum($customer->id, $hourly) + (HourlyHold::enabled()
+                    ? HourlyHold::fullReserve(app(HourlyHold::class)->rateForPlan($offer, $hourly), $onCreditOut) : 0);
             $balance = $wallet->availableOf($customer->id);
         }
 
         if ($service === null) {
-            $message = $minStart > $offer->hourlyStartMinIrt()
+            $message = $credit->existingRate($customer->id) > 0
                 ? 'ui.cvb_e_hourly_credit_combined' : 'ui.cvb_e_hourly_credit';
             return back()->withInput()->withErrors(['billing_mode' => __($message, [
                 'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),

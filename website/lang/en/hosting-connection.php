@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'title' => 'Connect your domain',
+    'lead' => 'One step closer to going live',
+    'location' => 'Hosting location',
+    'nameservers' => 'Nameservers for this service',
+    'copy' => 'Copy',
+    'copied' => 'Copied',
+    'copy_failed' => 'Select and copy the text',
+    'checking' => 'Checking DNS…',
+    'connected' => 'Domain points to your hosting',
+    'needs_setup' => 'Nameserver setup needed',
+    'propagating' => 'DNS propagation or alignment pending',
+    'unknown' => 'Check temporarily unavailable',
+    'unconfigured' => 'Connection details need review',
+    'refresh' => 'Check again',
+    'checked' => 'Last checked',
+    'observed' => 'Observed nameservers',
+    'intro' => 'These nameservers belong to your assigned hosting server. Enter both at your domain registrar.',
+    'guide' => 'Connection and website setup guide',
+    'step1' => 'Open the Name Servers section at your domain registrar. For an ir domain, sign in at nic.ir and select the domain under your domains.',
+    'step2' => 'Replace the current nameservers with the values above and save. If the domain already has a live website or email, migrate its DNS records before changing nameservers.',
+    'step3' => 'After propagation, select Check again. Results are cached for up to 2 minutes; DNS propagation can take up to 48 hours.',
+    'start_whm' => 'Open File Manager and upload your website into public_html. For WordPress, use the WordPress installer in cPanel if one is available.',
+    'start_other' => 'Open your control panel and use its file manager and setup guide; the website folder depends on the panel.',
+    'note' => 'This checks DNS pointing to the hosting IP. Website, SSL and email health are separate. If you use Cloudflare or custom DNS, contact support before changing nameservers.',
+];

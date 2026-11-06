@@ -88,7 +88,7 @@
         <p style="margin:0">{{ __('ui.dpg_restore_paid') }}</p>
       @elseif($domain->provision_status === 'manual')
         <p style="margin:0">{{ __('ui.dpg_restore_manual') }}</p>
-      @elseif($domain->op_id)
+      @elseif(app(\App\Services\Domain\DomainManagement::class)->registered($domain))
         <p style="margin-top:0">
           {{ __('domain-pricing.note') }}
           <b>{{ __('ui.dpg_restore_urgent') }}</b>
@@ -144,7 +144,7 @@
   <div class="pnl-sec-h"><h2>{{ __('ui.dpg_renew_h') }}</h2></div>
   <div class="pnl-sec-b">
     @php $dmRenewUnit = (int) ($renewUnit ?? 0); @endphp
-    @if($domain->op_id)
+    @if(app(\App\Services\Domain\DomainManagement::class)->registered($domain))
       <p style="font-size:13px;color:var(--dim);line-height:2;margin-top:0">
         {{ __('domain-pricing.note') }}
       </p>
@@ -229,5 +229,7 @@
   </div>
 </section>
 @endif
+
+@include('account.domain-management')
 
 @endsection

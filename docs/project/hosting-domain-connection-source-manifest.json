@@ -1,0 +1,88 @@
+{
+  "status": "source-only-not-installed",
+  "base": "2a2e7452e4fd8aacc3473e64de7a1daa814925b5",
+  "files": [
+    {
+      "source": "website/app/Services/Dns/HostingDomainConnection.php",
+      "source_sha256": "04999310608f22ae536bb00a510ce1feeca45ed2abd6a615fd655a1a5762819d",
+      "destinations": [
+        "servernet_app/app/Services/Dns/HostingDomainConnection.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/app/Http/Controllers/Account/HostingDomainConnectionController.php",
+      "source_sha256": "bc9df5efa5b0fd72b14b7f0f26b7f66bc6f96deb0a950cc500f3515907a4da85",
+      "destinations": [
+        "servernet_app/app/Http/Controllers/Account/HostingDomainConnectionController.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/routes/web.php",
+      "source_sha256": "138aaf164d8ec045bfa815090ddaa52749224ebedfb5e05467b99adad8d9054b",
+      "destinations": [
+        "servernet_app/routes/web.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/resources/views/account/partials/card-hosting.blade.php",
+      "source_sha256": "d22739e68020ba9c3689ba015c4c4a9cb1669348878b6d29d422b130b34a198b",
+      "destinations": [
+        "servernet_app/resources/views/account/partials/card-hosting.blade.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/resources/views/account/partials/hosting-domain-connection.blade.php",
+      "source_sha256": "9610abde3f83550dfb416b49f870f51176b08cefc7e22eef5a901be3c045043d",
+      "destinations": [
+        "servernet_app/resources/views/account/partials/hosting-domain-connection.blade.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/lang/fa/hosting-connection.php",
+      "source_sha256": "7a49578aa6c53b033db1636f4a153f6c5a3d8b13db3d6853e4759883c94b5dbc",
+      "destinations": [
+        "servernet_app/lang/fa/hosting-connection.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/lang/en/hosting-connection.php",
+      "source_sha256": "3704929d11438b9f7bf5d4a32530ed481c54b85814d1367fb6dca414a11c410e",
+      "destinations": [
+        "servernet_app/lang/en/hosting-connection.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/lang/tr/hosting-connection.php",
+      "source_sha256": "a0d8b82e5d8ce789d3e663c67e307ba943bb39ae59a334e2442b517ae09c777f",
+      "destinations": [
+        "servernet_app/lang/tr/hosting-connection.php"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/public/assets/css/hosting-connection.css",
+      "source_sha256": "4d077165e75c08a9703cbd8f667a9dabe6cc7869fb012930d5f7606a3ea37773",
+      "destinations": [
+        "servernet_app/public/assets/css/hosting-connection.css",
+        "public_html/assets/css/hosting-connection.css"
+      ],
+      "expected_before_sha256": null
+    },
+    {
+      "source": "website/public/assets/js/hosting-connection.js",
+      "source_sha256": "f02566587ed37159249c7ab71aff4611e1c9b33849f3ea5ecfc74c7fff8a9fc1",
+      "destinations": [
+        "servernet_app/public/assets/js/hosting-connection.js",
+        "public_html/assets/js/hosting-connection.js"
+      ],
+      "expected_before_sha256": null
+    }
+  ]
+}

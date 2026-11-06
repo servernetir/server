@@ -1,0 +1,28 @@
+{
+  "at": "2026-10-31T06:48:50.609Z",
+  "catalogue": {
+    "width": 390,
+    "documentWidth": 390,
+    "font": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+    "plannerLinkCount": 10
+  },
+  "target": {
+    "documentWidth": 390,
+    "font": "IRANSans, system-ui, \"Segoe UI\", sans-serif",
+    "headerBottom": 148,
+    "plannerTop": 151.5625,
+    "targetCount": 1,
+    "total": "۱۰٬۰۰۰",
+    "url": "https://servernet.cloud/ai/models/di-sentence-transformersall-minilm-l12-v2-787be1395e#usage-planner",
+    "width": 390,
+    "y": 4024
+  },
+  "changedRequests": {
+    "total": "۲۰٬۰۰۰",
+    "errorHidden": true
+  },
+  "restoredRequests": 10000,
+  "accountContext": "Existing authorized browser session; no account/customer data saved or modified.",
+  "noPaidAiCall": true,
+  "targetBelowFixedHeader": true
+}

@@ -15,7 +15,7 @@ use App\Models\TunnelJob;
 use App\Services\Cloud\CloudManager;
 use App\Services\Cloud\CloudOperations;
 use App\Services\Cloud\HourlyCycleConverter;
-use App\Services\Cloud\HourlyStartCredit;
+use App\Services\Cloud\HourlyGpuStart;
 use App\Services\Cloud\InterruptibleBillingClock;
 use App\Services\Finance\Wallet;
 use App\Support\ExitCountries;
@@ -126,7 +126,7 @@ class CloudServerController extends Controller
 
     // ───────────────────────── نمایش ─────────────────────────
 
-    public function show(Service $service): View
+    public function show(Service $service): \Illuminate\Http\Response
     {
         $this->ownedService($service);
 
@@ -134,6 +134,9 @@ class CloudServerController extends Controller
         $caps = $instance ? $this->manager->capabilitiesFor($instance) : [];
         if ($instance?->provider === 'arvan') {
             $caps['console'] = app(\App\Services\Cloud\ArvanConsoleBroker::class)->enabledFor($service);
+        }
+        if ($instance?->provider === 'vpstc') {
+            $caps['console'] = app(\App\Services\Cloud\VpsTcConsoleBroker::class)->enabledFor($service);
         }
 
         // آروان برای ایمیج‌های ویندوز API تغییر رمز ندارد (پاسخ زندهٔ API:
@@ -148,32 +151,10 @@ class CloudServerController extends Controller
             $caps['rebuild'] = false;
         }
 
-        // رمز فقط **یک بار** نشان داده می‌شود. دلیل: صفحهٔ همیشه‌بازِ پنل روی یک
-        // لپ‌تاپِ مشترک، رمزِ root را به هر رهگذری می‌دهد. بعد از اولین دیدن،
-        // مشتری باید «رمزِ تازه بساز» بزند.
-        /*
-        |----------------------------------------------------------------------
-        | 🔴 رمز با **دیدنِ صفحه** سوخته نمی‌شود — فقط با کلیکِ صریح
-        |----------------------------------------------------------------------
-        |
-        | رخدادِ واقعی: مشتری سرور خرید و در پنل هیچ رمزی ندید، پس اصلاً
-        | نمی‌توانست وصل شود.
-        |
-        | علت: این‌جا یک **GET** پرچمِ `password_seen` را می‌زد. یعنی هر
-        | بارگذاریِ صفحه رمز را می‌سوزاند — یک رفرش، یک prefetchِ مرورگر، یا
-        | ورودِ مدیر به پنلِ مشتری برای عیب‌یابی. کاربر هیچ‌وقت چیزی ندید و
-        | پرچم روشن شد.
-        |
-        | ⚠️ قاعدهٔ عمومی: **GET نباید حالت را عوض کند.** مرورگرها GET را آزادانه
-        | تکرار و پیش‌بارگذاری می‌کنند؛ هر چیزی که یک‌بارمصرف است باید پشتِ یک
-        | کنشِ صریح باشد.
-        |
-        | خودِ قاعدهٔ «یک بار» درست است و می‌مانَد (صفحهٔ همیشه‌بازِ پنل روی
-        | لپ‌تاپِ مشترک)، ولی حالا لحظه‌اش را **کاربر** انتخاب می‌کند:
-        | `revealPassword()` با POST.
-        */
-        $password = session('revealed_root_password');
-        $canReveal = $instance && ! $instance->password_seen && $instance->hasPassword();
+        // Explicit POST reveals are repeatable. GET never decrypts credentials.
+        // Scope the transient value to this instance and consume it on display.
+        $password = $instance ? session()->pull('revealed_root_password_'.$instance->id) : null;
+        $canReveal = $instance && $instance->hasPassword();
         if ($instance?->provider === 'lightnode'
             && (! $instance->ready_notified_at || ! in_array($instance->status, ['running', 'off'], true))) {
             $password = null; $canReveal = false;
@@ -189,7 +170,7 @@ class CloudServerController extends Controller
 
         // پوستهٔ پنل (منو، هویتِ کاربر) از همان منبعِ بقیهٔ صفحات می‌آید؛ بی‌آن،
         // layout به متغیرِ نبود می‌خورد و کلِ صفحه ۵۰۰ می‌شود.
-        return view('account.cloud-server', AccountController::shell('servers') + [
+        return response()->view('account.cloud-server', AccountController::shell('servers') + [
             'service' => $service,
             'instance' => $instance,
             'caps' => $caps,
@@ -227,7 +208,7 @@ class CloudServerController extends Controller
             'cycleConvert' => $this->cycleConvertView($service),
             'creditOut' => $service->billing_mode === 'hourly' && ! $service->isDead()
                 ? ((string) $service->on_credit_out ?: 'suspend') : null,
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     /**
@@ -316,6 +297,9 @@ class CloudServerController extends Controller
             return back()->withErrors(__('panel.credit_out_na'));
         }
 
+        if ((bool) $service->cloudPlan?->is_interruptible) {
+            $mode = 'suspend';
+        }
         $service->forceFill(['on_credit_out' => $mode])->save();
 
         ActivityLog::forService($service, 'settings',
@@ -405,6 +389,18 @@ class CloudServerController extends Controller
         }
         $instance = $this->instanceOf($service);
 
+        // A definitive delivery failure is a terminal presentation state, not
+        // another build step. Return safe codes only; keep raw errors internal.
+        $orderIssue = \App\Services\Cloud\CloudOrderIssue::kind($service, $instance);
+        if ($orderIssue !== null) {
+            return response()->json([
+                'ok' => true, 'status' => 'delivery_failed', 'ready' => false,
+                'delivery_issue' => $orderIssue, 'stage' => 'delivery_failed',
+                'stage_index' => null, 'label' => __('cloud-order.'.$orderIssue.'.label'),
+                'color' => 'var(--warn)',
+            ]);
+        }
+
         // ⚠️ هنوز شناسهٔ سرور نداریم (سفارشِ دومرحله‌ای تازه ثبت شده). صفحه باید
         // «سفارش ثبت شد» ببیند، نه «نامشخص» — و مطلقاً نه «آماده».
         if ($instance === null || blank($instance->provider_ref)) {
@@ -430,7 +426,14 @@ class CloudServerController extends Controller
         $r = Cache::remember(
             'cloud-st:'.$instance->id,
             now()->addSeconds(20),
-            fn () => $driver->serverStatus((string) $instance->provider_ref)
+            function () use ($driver, $instance): array {
+                $observedAt = now()->toISOString();
+
+                $snapshot = $driver->serverStatus((string) $instance->provider_ref);
+                $snapshot['_observed_at'] = $observedAt;
+
+                return $snapshot;
+            }
         );
 
         if ($r['ok']) {
@@ -444,7 +447,7 @@ class CloudServerController extends Controller
                 'synced_at' => now(),
                 'meta' => array_merge($instance->meta ?? [], isset($r['build'])
                     ? ['gpu_build' => $r['build']] : []),
-            ]);
+            ], observedAt: isset($r['_observed_at']) ? \Illuminate\Support\Carbon::parse($r['_observed_at']) : null);
         }
 
         return response()->json(
@@ -523,17 +526,7 @@ class CloudServerController extends Controller
      * توجه: «خاموش» در درایور به `shutdown` نرم (ACPI) نگاشت می‌شود نه کشیدنِ
      * برق — روی سرورِ دیتابیس‌دار، قطعِ ناگهانی داده را خراب می‌کند.
      */
-    /**
-     * نمایشِ یک‌بارهٔ رمزِ root — با کنشِ صریحِ کاربر.
-     *
-     * ⚠️ POST و نه GET: مرورگر GET را آزادانه تکرار و پیش‌بارگذاری می‌کند، و
-     * تا امروز همان باعث می‌شد رمز پیش از دیده‌شدن بسوزد و مشتری هیچ راهی به
-     * سرورش نداشته باشد.
-     *
-     * ⚠️ رمز در **session flash** برمی‌گردد نه در URL: هرچه در آدرس باشد در
-     * لاگِ سرور، لاگِ کلادفلر و تاریخچهٔ مرورگر می‌نشیند — همان قاعده‌ای که
-     * برای `DEPLOY_TOKEN` هم داریم.
-     */
+    /** Reveal the stored credential on explicit owner request, including repeat requests. */
     public function revealPassword(Request $request, Service $service): RedirectResponse
     {
         $this->ownedService($service);
@@ -548,14 +541,20 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_not_ready'));
         }
 
-        if ($instance->password_seen) {
-            return back()->withErrors(__('ui.cx_pass_seen'));
+        $password = $instance->password();
+        if (! is_string($password) || $password === '') {
+            return back()->withErrors(__('ui.cx_no_pass'));
         }
 
-        $password = $instance->password();
+        // Retain the legacy marker for provisioning compatibility, not eligibility.
         $instance->update(['password_seen' => true]);
+        $staff = $request->session()->has('impersonator_id');
+        ActivityLog::forService($service, $staff ? 'impersonate' : 'password_reveal',
+            'درخواست نمایش رمز ورود سرور ثبت شد.', $staff ? 'staff' : 'customer', $request);
 
-        return back()->with('revealed_root_password', $password);
+        return redirect()->to(lroute('account.cloud.show', $service))
+            ->with('revealed_root_password_'.$instance->id, $password)
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function power(Request $request, Service $service): RedirectResponse
@@ -580,39 +579,17 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_op_na'));
         }
 
-        // خریدِ سرورِ دوم وقتی GPU قبلی خاموش است مجاز می‌ماند؛ هنگام روشن‌کردن
-        // دوباره باید اعتبارِ ۲۴ ساعتِ مجموعِ سرورهای در حال مصرف موجود باشد.
+        // An existing GPU needs one funded hour; the 24-hour gate is only for creation.
         $claimedInstanceId = null;
         if ($action === 'on' && $service->billing_mode === 'hourly'
             && (bool) $service->cloudPlan?->is_interruptible) {
-            // The customer lock is shared with hourly checkout. Claiming an off
-            // instance as building makes a concurrent checkout/start count it.
-            $start = DB::transaction(function () use ($service): array {
-                Customer::whereKey($service->customer_id)->lockForUpdate()->firstOrFail();
-                $instance = CloudInstance::where('service_id', $service->id)->lockForUpdate()->first();
-                if ($instance?->status === 'building') {
-                    return ['pending' => true];
-                }
-                if ($instance?->status !== 'off') {
-                    return [];
-                }
-                $minimum = app(HourlyStartCredit::class)->minimum(
-                    (int) $service->customer_id, (int) $service->hourly_rate_irt, (int) $service->id
-                );
-                $available = app(Wallet::class)->availableOf((int) $service->customer_id);
-                if ($available < $minimum) {
-                    return ['minimum' => $minimum, 'available' => $available];
-                }
-                $instance->update(['status' => 'building']);
-
-                return ['claimed' => $instance->id];
-            });
+            $start = app(HourlyGpuStart::class)->claim($service);
             if ($start['pending'] ?? false) {
                 return back()->withErrors(__('ui.cx_not_ready'));
             }
             if (isset($start['minimum'])) {
                 return back()->withErrors(__('ui.cx_e_hourly_credit', [
-                    'hours' => fa_num(CloudPlan::HOURLY_START_MIN_HOURS),
+                    'hours' => fa_num(1),
                     'min' => cloud_price($start['minimum']),
                     'bal' => cloud_price($start['available']),
                 ]));
@@ -794,6 +771,15 @@ class CloudServerController extends Controller
             return back()->withErrors(__('ui.cx_console_na'));
         }
 
+        if ($instance->provider === 'vpstc') {
+            $broker = app(\App\Services\Cloud\VpsTcConsoleBroker::class);
+            if (! $broker->enabledFor($service)) { return back()->withErrors(__('ui.cx_console_na')); }
+            $target = $broker->issue($service, app()->getLocale());
+            $this->log($service, __('ui.act_cloud_console'));
+            return redirect()->away($target)->header('Cache-Control', 'no-store, private')
+                ->header('Referrer-Policy', 'no-referrer');
+        }
+
         if ($instance->provider === 'arvan') {
             $broker = app(\App\Services\Cloud\ArvanConsoleBroker::class);
             if (! $broker->enabledFor($service) || ! $broker->eligible($service)) {
@@ -903,20 +889,28 @@ class CloudServerController extends Controller
         $driver = $instance ? $this->manager->forInstance($instance) : null;
 
         if ($instance === null || $driver === null || blank($instance->provider_ref)) {
-            $this->releasePowerOnClaim($claimedInstanceId);
+            $this->releasePowerOnClaim($claimedInstanceId, $service);
             return back()->withErrors(__('ui.cx_not_ready'));
+        }
+
+        if ($powerAction !== null) {
+            Cache::forget('cloud-st:'.$instance->id);
         }
 
         try {
             $r = $fn($driver, (string) $instance->provider_ref);
         } catch (\Throwable $e) {
-            $this->releasePowerOnClaim($claimedInstanceId);
+            $this->releasePowerOnClaim($claimedInstanceId, $service);
             throw $e;
+        }
+
+        if ($powerAction !== null) {
+            Cache::forget('cloud-st:'.$instance->id);
         }
 
         if (! ($r['ok'] ?? false)) {
             $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
-            $this->releasePowerOnClaim($claimedInstanceId);
+            $this->releasePowerOnClaim($claimedInstanceId, $service);
 
             return back()->withErrors(__('ui.cx_action_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
         }
@@ -925,6 +919,10 @@ class CloudServerController extends Controller
             $instance->update(['status' => 'building', 'last_error' => null, 'synced_at' => now()]);
             $this->log($service, $logAction);
             return back()->with('ok', __('ui.cx_async_accepted'));
+        }
+
+        if ($powerAction === 'off' && $this->billingClock->applies($service)) {
+            app(HourlyGpuStart::class)->release($service);
         }
 
         if ($powerAction !== null && $this->billingClock->applies($service)) {
@@ -946,9 +944,10 @@ class CloudServerController extends Controller
         return back()->with('ok', $okMessage);
     }
 
-    private function releasePowerOnClaim(?int $instanceId): void
+    private function releasePowerOnClaim(?int $instanceId, Service $service): void
     {
         if ($instanceId !== null) {
+            app(HourlyGpuStart::class)->release($service);
             CloudInstance::whereKey($instanceId)->where('status', 'building')->update(['status' => 'off']);
         }
     }

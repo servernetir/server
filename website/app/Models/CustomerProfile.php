@@ -157,7 +157,7 @@ class CustomerProfile extends Model
 
     public function documents(): HasMany
     {
-        return $this->hasMany(CustomerDocument::class);
+        return $this->hasMany(CustomerDocument::class)->where('status', '!=', 'superseded');
     }
 
     public function registryHandles(): HasMany

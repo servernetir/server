@@ -176,7 +176,7 @@ final class HourlyCycleConverter
     /** پولِ قابلِ خرج برای تبدیل: «در دسترس» + ذخیرهٔ نگهداریِ همین سرور (با تبدیل آزاد می‌شود) */
     public function spendable(Service $service): int
     {
-        $own = HourlyHold::enabled() ? (int) $service->hold_reserve_irt : 0;
+        $own = HourlyHold::reservedFor($service);
 
         return $this->wallet->availableOf((int) $service->customer_id) + $own;
     }

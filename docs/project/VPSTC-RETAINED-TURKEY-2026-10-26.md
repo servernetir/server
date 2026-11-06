@@ -1,33 +1,35 @@
-# VPS.tc — one retained Turkey server, 26 October 2026
+# VPS.tc — one retained Turkey server
+
+Owner scope dated 26 October; execution status updated 27 October 2026.
 
 ## Current owner instruction
 
 This instruction supersedes the earlier proposed New York creation/renewal/cancellation test. The owner requests **one cheapest suitable Turkey server**, native hourly billing if actually available and cheaper for the intended retained use, otherwise monthly. **Keep the server for use. Do not delete or cancel it after testing.** No extra server, manual renewal, paid add-on or destructive test is authorized by this instruction.
 
-The previously verified candidate is Istanbul product **351**, 1 vCPU / 1GB RAM / 20GB NVMe, Ubuntu 24.04, advertised 2TB transfer / 2×25 Gbit. Its Regular/PrePay VPS contract is monthly. The last calculated price was **TRY 125.55 net + 20% tax = TRY 150.66 for one month**, with no extra storage/backups, two default snapshots and zero setup. That is historical quote evidence, not a new purchase receipt. Re-read native availability, resources, exact options, taxes and full gross before the single purchase; do not accept a more expensive alternative silently.
+The retained server is Istanbul product **351**, 1 vCPU / 1 GB RAM / 20 GB disk, Ubuntu 24.04. Its Regular/PrePay VPS contract is monthly. The accepted quote and paid invoice reconcile **TRY 125.55 net + 20% tax = TRY 150.66 for one month**, with no extra storage/backups, the included two-snapshot configuration and zero setup. The public 2 TB traffic advertisement does not establish a hard cap or a no-overage contract; see the [public cost check](VPSTC-TRANSFER-COST-CHECK-2026-10-27.md).
 
 The separate Metered Cloud product is not automatically a cheap hourly equivalent. Its native billing unit, resource configuration, setup/minimum charges and continuing retained cost need a fresh complete quote. Do not invent an hourly price by dividing the VPS monthly price, or choose Metered solely from an extremely small raw amount.
 
 ## Execution state
 
-**Prepared; purchase not performed in this follow-up.** The local Chrome Browser tool is unavailable in this turn. The earlier account connection and installed money contract are historical acceptance, not evidence of a currently controllable browser or a newly created server. No attempt is made to bypass that missing connection with extracted session credentials, a public execution endpoint or a new broad production credential.
+**Exactly one supplier purchase completed; retain the server.** Creation was observed on 27 October at 05:24 UTC; by 05:31 UTC the parent was Active/Monthly and its single VM was running, built and unlocked. The supplier due date is **27 November 2026**. The invoice is Paid with zero remaining due and TRY 150.66 consumed credit. Supplier identifiers, IPs, hostname, access secrets, account balance and raw responses are kept out of public repository evidence.
 
-The implementation and prior installed evidence remain in [money-contract acceptance](VPSTC-MONEY-CONTRACT-2026-10-26.md). A current signed-in connection is needed to execute the authorized purchase with the encrypted account credentials already held by the application.
+This verifies the supplier SDK purchase and native read-back. **The ServerNet customer retail checkout-to-delivery flow has not been tested, and public VPS.tc sales remain off.** No sales flag or owner pricing preference was changed. The implementation and earlier currency evidence remain in [money-contract acceptance](VPSTC-MONEY-CONTRACT-2026-10-26.md); current results are in [27 October retained-server acceptance](VPSTC-RETAINED-TURKEY-ACCEPTANCE-2026-10-27.md). A read-only SSH command was submitted, but its result remains unconfirmed after Chrome lost the originating context; read the existing private result before any further command.
 
-## Single-purchase safeguards
+## Safeguards for the completed single purchase
 
-1. Read current category/form/full quote for the exact retained configuration and resolve account units through the reviewed money contract. Check credit without changing other owner financial settings or public sales flags.
-2. Record the immutable product/options/hostname, account binding, gross cost ceiling and retention rule in a durable private operation journal **before the first order POST**. `/api/order/{id}` may consume credit immediately.
-3. Submit exactly one order. A timeout or missing receipt never authorizes a second order. Reconcile the original parent/invoice/VM or stop for review.
-4. Directly read the exact native invoice and prove Paid status, parent linkage and full gross (`total + credit`) within the agreed quote. A zero due amount does not mean zero cost. Avoid automatic credit payment while receipt/payment status is unknown.
-5. Record the exact parent service, VM, invoice, due date and encrypted access details privately. Preserve the resource after all checks. Its continued monthly rental is expected; no test cleanup may cancel it.
+1. Bind the exact configuration, current quote, reviewed account units and gross ceiling in the private journal; do not change owner financial settings or public sales flags.
+2. Preserve the immutable request and accepted receipt. `/api/order/{id}` can consume credit immediately; the completed order must not be submitted again.
+3. Reconcile the original parent, invoice and single VM. A timeout, later missing response or failed optional endpoint never authorizes another purchase.
+4. Keep native Paid status and full gross (`total + credit`) as separate payment evidence. Zero remaining due does not mean zero procurement cost; do not apply credit again to the paid invoice.
+5. Keep exact identifiers and encrypted access details private. Preserve the resource after all checks. Its continued monthly rental is expected; no test cleanup may cancel it.
 
 ## Permitted live checks on that server
 
 - Service Active/Monthly status, invoice currency/tax/gross, immutable due anchor and exact parent/VM relationship.
 - VM count/identity, purchased CPU/RAM/disk, IP addresses and selected Ubuntu template. Optional SSH commands read OS/version/architecture/resources/network identity only; no package installation, benchmark or traffic load is required.
 - Exact-parent GET endpoints for resources, permitted methods, templates, usage, traffic, networks/IPs, tasks and snapshot/backup/schedule lists. Validate units, period, scope and capability errors; unknown or unsupported data is not displayed as zero.
-- Power actions only if actual entitlement and included price are established for this account/product, while the fresh server is still in the test window and its starting state can be restored.
+- Power actions remain untested because an included-price contract has not been established. Do not infer that a listed method is free.
 
 The app's `serverStatus()` is not assumed to be purely observational: its payment reconciliation can apply credit to an unpaid invoice. Establish native Paid status with direct invoice GET before using a poller that may reconcile payment.
 
@@ -43,6 +45,8 @@ The saved official Swagger `4.20261019` was classified across all **129 paths / 
 
 Native method permission does not prove an action has zero cost. New resources, snapshots/backups, disk/IP changes, restores, rebuilds and financial operations retain their separate price/data safeguards. In this retained test, destructive cases remain simulated and unimplemented endpoint families remain documented as unverified; no broad loop may execute all Swagger operations.
 
-## Completion evidence still required
+## Remaining acceptance
 
-Actual order receipt and paid invoice, retained service/VM identity and resource/access checks, a scoped live endpoint result matrix and confirmation that the same resource remains active afterward. No retained server exists merely because this plan is committed. General VPS.tc sales, unproven traffic costs and optional customer capabilities retain their independent acceptance gates.
+The retained purchase, paid gross, Active/Monthly parent, single running VM and scoped 14-GET matrix are now recorded. The submitted read-only SSH command has an unconfirmed result; no SSH pass/failure is claimed and no blind retry is authorized. Seven GET responses were successfully observed; seven routes returned 404 for this service. Two successful responses use native root JSON lists and require endpoint-specific parsing before future application exposure; the generic financial decoder was not broadened.
+
+General VPS.tc sales, the untested customer retail flow, traffic overage policy and optional operation costs retain their independent acceptance gates. No renewal purchase, cancellation or deletion is authorized by this acceptance.

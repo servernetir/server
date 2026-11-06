@@ -1,0 +1,118 @@
+- navigation "Breadcrumbs":
+  - link "Page indexing":
+    - /url: ./search-console/index?resource_id=sc-domain%3Aservernet.cloud&pages=ALL_URLS
+  - generic: 
+  - heading "Not found (404)" [level=1]
+- button "EXPORT":
+  - generic: 
+  - generic: EXPORT
+- button "Get shareable link.":
+  - generic: 
+  - generic: SHARE
+- listbox:
+  - option "All known pages" [selected]
+  - option "All submitted pages"
+  - option "Unsubmitted pages only"
+  - option "https://servernet.cloud/hardware-sitemap.xml"
+  - option "https://servernet.cloud/sitemap.xml"
+- generic: "Last update: 23/10/2026"
+- main:
+  - generic: info
+  - generic: Not found (404)
+  - generic: These pages aren't indexed or served on Google
+  - link "Link to more extensive documentation":
+    - /url: https://support.google.com/webmasters/answer/7440203#not_found_404
+    - generic: Learn more
+  - generic: 
+  - generic: Validation Failed
+  - generic: "Started: 17/09/2026"
+  - generic: "Failed: 19/09/2026"
+  - button "see details":
+    - generic: see details
+  - generic "Affected pages"
+  - generic "56"
+  - generic: Examples
+  - button "null":
+    - generic: 
+  - button "Filter table rows":
+    - generic: 
+  - table:
+    - rowgroup:
+      - row "URL Last crawled":
+        - columnheader "URL":
+          - generic: URL
+        - columnheader "Last crawled":
+          - generic: Last crawled
+    - rowgroup:
+      - row "https://servernet.cloud/en/vps/discord 24 Oct 2026":
+        - cell "https://servernet.cloud/en/vps/discord":
+          - generic "https://servernet.cloud/en/vps/discord":
+            - generic: https://servernet.cloud/en/vps/discord
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://mail.servernet.cloud/assets/js/snet-analytics-worker-0.15.0-snet3/ 24 Oct 2026":
+        - cell "https://mail.servernet.cloud/assets/js/snet-analytics-worker-0.15.0-snet3/":
+          - generic "https://mail.servernet.cloud/assets/js/snet-analytics-worker-0.15.0-snet3/":
+            - generic: https://mail.servernet.cloud/assets/js/snet-analytics-worker-0.15.0-snet3/
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/vps/discord 24 Oct 2026":
+        - cell "https://servernet.cloud/vps/discord":
+          - generic "https://servernet.cloud/vps/discord":
+            - generic: https://servernet.cloud/vps/discord
+        - cell "24 Oct 2026":
+          - generic: 24 Oct 2026
+      - row "https://servernet.cloud/tr/vps/discord 23 Oct 2026":
+        - cell "https://servernet.cloud/tr/vps/discord":
+          - generic "https://servernet.cloud/tr/vps/discord":
+            - generic: https://servernet.cloud/tr/vps/discord
+        - cell "23 Oct 2026":
+          - generic: 23 Oct 2026
+      - row "https://mail.servernet.cloud/* 23 Oct 2026":
+        - cell "https://mail.servernet.cloud/*":
+          - generic "https://mail.servernet.cloud/*":
+            - generic: https://mail.servernet.cloud/*
+        - cell "23 Oct 2026":
+          - generic: 23 Oct 2026
+      - row "https://servernet.cloud/8-ویژگی-منحصر-به-فرد-گوشی-های-هوشمند-گوش/ 23 Oct 2026":
+        - cell "https://servernet.cloud/8-ویژگی-منحصر-به-فرد-گوشی-های-هوشمند-گوش/":
+          - generic "https://servernet.cloud/8-ویژگی-منحصر-به-فرد-گوشی-های-هوشمند-گوش/":
+            - generic: https://servernet.cloud/8-ویژگی-منحصر-به-فرد-گوشی-های-هوشمند-گوش/
+        - cell "23 Oct 2026":
+          - generic: 23 Oct 2026
+      - row "https://www.servernet.cloud/cgi-bin/ 22 Oct 2026":
+        - cell "https://www.servernet.cloud/cgi-bin/":
+          - generic "https://www.servernet.cloud/cgi-bin/":
+            - generic: https://www.servernet.cloud/cgi-bin/
+        - cell "22 Oct 2026":
+          - generic: 22 Oct 2026
+      - row "https://cp.servernet.cloud:2083/ 21 Oct 2026":
+        - cell "https://cp.servernet.cloud:2083/":
+          - generic "https://cp.servernet.cloud:2083/":
+            - generic: https://cp.servernet.cloud:2083/
+        - cell "21 Oct 2026":
+          - generic: 21 Oct 2026
+      - row "https://servernet.cloud/ساخت-اپلیکیشن-موبایل-در-ارومیه 21 Oct 2026":
+        - cell "https://servernet.cloud/ساخت-اپلیکیشن-موبایل-در-ارومیه":
+          - generic "https://servernet.cloud/ساخت-اپلیکیشن-موبایل-در-ارومیه":
+            - generic: https://servernet.cloud/ساخت-اپلیکیشن-موبایل-در-ارومیه
+        - cell "21 Oct 2026":
+          - generic: 21 Oct 2026
+      - row "https://servernet.cloud/سرور-وی-پی-ان/ 21 Oct 2026":
+        - cell "https://servernet.cloud/سرور-وی-پی-ان/":
+          - generic "https://servernet.cloud/سرور-وی-پی-ان/":
+            - generic: https://servernet.cloud/سرور-وی-پی-ان/
+        - cell "21 Oct 2026":
+          - generic: 21 Oct 2026
+  - generic: "Rows per page:"
+  - listbox "Number of rows per page":
+    - option "5"
+    - option "10" [selected]
+    - option "25"
+    - option "50"
+    - option "100"
+    - option "250"
+    - option "500"
+  - generic: 1-10 of 56
+  - generic: 
+  - generic: 

@@ -205,7 +205,7 @@ class InfrastructureSettingsUiTest extends TestCase
             ->assertRedirect('/admin/settings?tab=infra#infra-vpstc');
         $this->assertSame('fixture-user', Setting::getSecret('cloud_vpstc_username'));
         $this->post('/admin/cloud/vpstc', ['api_origin' => 'https://portal.vps.tc', 'return_to' => 'https://evil.test'])
-            ->assertRedirect('/admin/cloud/vpstc');
+            ->assertRedirect('/admin/settings?tab=infra#infra-vpstc');
         Http::assertNothingSent();
     }
 

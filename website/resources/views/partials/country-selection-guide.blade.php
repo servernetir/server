@@ -20,7 +20,13 @@
         <li>{{ $check }}</li>
       @endforeach
     </ul>
+    @if($hasHourlyPlans ?? false)
+      <h3>{{ $countrySeo['hourly_title'] }}</h3>
+      <p>{{ $countrySeo['hourly_text'] }}</p>
+      <p><a href="{{ lroute('vps.hourly') }}#hourly-calculator">{{ $countrySeo['hourly_link'] }}</a></p>
+    @endif
     <h3>{{ $countrySeo['network_title'] }}</h3>
     <p>{{ $countrySeo['network'] }}</p>
   </div>
 </section>
+

@@ -2,3 +2,5 @@ graphify-out/graph.json merge=graphify
 *.sh text eol=lf
 infra/ansible/roles/proxmox_host/files/* text eol=lf
 scripts/seo-analytics-health-wrapper.js text eol=lf
+# Unified-patch blank context lines contain a required space marker.
+docs/project/hourly-runtime-credit-20261031/runtime.patch whitespace=-blank-at-eol,-blank-at-eof

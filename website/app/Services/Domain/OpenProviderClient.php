@@ -17,6 +17,16 @@ use Illuminate\Support\Facades\Log;
  */
 class OpenProviderClient
 {
+    private bool $shareResellerRead = false;
+    private ?array $resellerRead = null;
+
+    /** Search-local read reuse; financial preflight never enables this scope. */
+    public function shareResellerRead(bool $enabled): void
+    {
+        $this->shareResellerRead = $enabled;
+        $this->resellerRead = null;
+    }
+
     private const TOKEN_KEY = 'openprovider.token';
 
     /**
@@ -41,6 +51,7 @@ class OpenProviderClient
         private ?string $base = null,
         private ?string $username = null,
         private ?string $password = null,
+        private bool $accountScoped = false,
     ) {
         $cfg = config('services.openprovider');
         $this->base     ??= rtrim($cfg['base_url'] ?? 'https://api.openprovider.eu/v1beta', '/');
@@ -53,6 +64,18 @@ class OpenProviderClient
         return filled($this->username) && filled($this->password);
     }
 
+    private function cacheKey(string $key): string
+    {
+        return $this->accountScoped ? $key.':'.$this->accountFingerprint() : $key;
+    }
+
+    /** Bind read-only manager observations to this exact client account. */
+    public function accountFingerprint(): string
+    {
+        return hash_hmac('sha256', implode("\0", [(string) $this->base,
+            (string) $this->username, (string) $this->password]), (string) config('app.key'));
+    }
+
     /**
      * توکن معتبر. OpenProvider توکن را حدود ۱۲ ساعت زنده نگه می‌دارد؛
      * ما محافظه‌کارانه ۶ ساعت کش می‌کنیم.
@@ -63,12 +86,12 @@ class OpenProviderClient
             return null;
         }
 
-        if (! $forceFresh && ($cached = Cache::get(self::TOKEN_KEY))) {
+        if (! $forceFresh && ($cached = Cache::get($this->cacheKey(self::TOKEN_KEY)))) {
             return $cached;
         }
 
         // مدار باز است؟ لاگینِ تازه نزن — پاسخ تا دخالتِ انسان عوض نمی‌شود.
-        if (Cache::get(self::AUTH_DOWN_KEY)) {
+        if (Cache::get($this->cacheKey(self::AUTH_DOWN_KEY))) {
             return null;
         }
 
@@ -80,12 +103,12 @@ class OpenProviderClient
         $token = data_get($res, 'data.token');
 
         if (blank($token)) {
-            Cache::put(self::AUTH_DOWN_KEY, (int) data_get($res, 'code', -1),
+            Cache::put($this->cacheKey(self::AUTH_DOWN_KEY), (int) data_get($res, 'code', -1),
                 now()->addMinutes(self::AUTH_DOWN_MINUTES));
 
             Log::warning('OpenProvider login failed', [
                 'code' => data_get($res, 'code'),
-                'desc' => data_get($res, 'desc'),
+                'account' => $this->accountFingerprint(),
             ]);
 
             /*
@@ -96,7 +119,7 @@ class OpenProviderClient
             try {
                 \App\Support\ErrorTracker::noteOnce('domain',
                     'ورود به OpenProvider رد شد (کد '.data_get($res, 'code', '؟').') — فروش و تمدیدِ دامنه خوابیده است.',
-                    900, ['desc' => mb_substr((string) data_get($res, 'desc', ''), 0, 160)]);
+                    900, ['code' => (int) data_get($res, 'code', -1)]);
             } catch (\Throwable) {
                 // ردیاب هرگز مسیرِ اصلی را نمی‌شکند
             }
@@ -104,8 +127,8 @@ class OpenProviderClient
             return null;
         }
 
-        Cache::forget(self::AUTH_DOWN_KEY);
-        Cache::put(self::TOKEN_KEY, $token, now()->addHours(6));
+        Cache::forget($this->cacheKey(self::AUTH_DOWN_KEY));
+        Cache::put($this->cacheKey(self::TOKEN_KEY), $token, now()->addHours(6));
 
         return $token;
     }
@@ -200,6 +223,7 @@ class OpenProviderClient
         int $period = 1,
         bool $autoRenew = false,
         array $additional = [],
+        ?string $acceptPremiumFee = null,
     ): array {
         $payload = [
             'domain'         => ['name' => $name, 'extension' => ltrim($extension, '.')],
@@ -218,6 +242,7 @@ class OpenProviderClient
         if ($additional !== []) {
             $payload['additional_data'] = $additional;
         }
+        if ($acceptPremiumFee !== null) { $payload['accept_premium_fee'] = (float) $acceptPremiumFee; }
 
         $res = $this->call('POST', '/domains', $payload);
 
@@ -368,6 +393,7 @@ class OpenProviderClient
         string $authCode,
         array $nameServers = [],
         int $period = 1,
+        ?string $acceptPremiumFee = null,
     ): array {
         $payload = [
             'domain'         => ['name' => $name, 'extension' => ltrim($extension, '.')],
@@ -383,6 +409,7 @@ class OpenProviderClient
         if ($nameServers !== []) {
             $payload['name_servers'] = array_values(array_map(fn ($ns) => ['name' => $ns], $nameServers));
         }
+        if ($acceptPremiumFee !== null) { $payload['accept_premium_fee'] = (float) $acceptPremiumFee; }
 
         $res = $this->call('POST', '/domains/transfer', $payload);
 
@@ -474,9 +501,12 @@ class OpenProviderClient
      */
     public function resellerInfo(): array
     {
-        $res = $this->call('GET', '/resellers');
+        if ($this->shareResellerRead && $this->resellerRead !== null) return $this->resellerRead;
+        $res = $this->call('GET', '/resellers', ['with_settings' => 'true']);
 
-        return $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+        $result = $this->result($res, ['data' => (array) data_get($res, 'data', [])]);
+        if ($this->shareResellerRead) $this->resellerRead = $result;
+        return $result;
     }
 
     /**
@@ -486,8 +516,121 @@ class OpenProviderClient
      */
     public function balance(): array
     {
-        $info = $this->resellerInfo();
+        return $this->parseBalance($this->resellerInfo());
+    }
 
+    /** Account-scoped supplier reads share settings/VAT only inside one bounded search. */
+    public function supplierBalance(): array
+    {
+        return $this->parseManagerBalance($this->resellerInfo());
+    }
+
+    /**
+     * Manager-only read using an account-bound token. The legacy purchase token
+     * cache is global and may belong to previous credentials; it must not make a
+     * different account's balance look fresh. Never alter purchase auth/retries.
+     *
+     * @return array{known:bool,amount:float,currency:string}
+     */
+    public function managerBalance(): array
+    {
+        $unknown = ['known' => false, 'amount' => 0.0, 'currency' => ''];
+        if (! $this->enabled()) { return $unknown; }
+        $key = 'openprovider.manager-balance:'.$this->accountFingerprint();
+        if (Cache::has($key.':auth-down')) { return $unknown; }
+        $token = Cache::get($key.':token');
+        $token = is_string($token) && $token !== '' ? $token : $this->managerToken($key);
+        if ($token === null) { return $unknown; }
+        $result = $this->managerRequest('/resellers', $token);
+        if ((int) ($result['code'] ?? -1) === 196) {
+            Cache::forget($key.':token');
+            $token = $this->managerToken($key);
+            if ($token === null) { return $unknown; }
+            $result = $this->managerRequest('/resellers', $token);
+            if ((int) ($result['code'] ?? -1) === 196) {
+                Cache::forget($key.':token');
+                Cache::put($key.':auth-down', true, now()->addMinutes(self::AUTH_DOWN_MINUTES));
+            }
+        }
+
+        return $this->parseManagerBalance(['ok' => ($result['code'] ?? null) === 0,
+            'data' => is_array($result['data'] ?? null) ? $result['data'] : []]);
+    }
+
+    private function managerToken(string $key): ?string
+    {
+        $result = $this->managerRequest('/auth/login');
+        $token = $result['data']['token'] ?? null;
+        if (($result['code'] ?? null) !== 0 || ! is_string($token) || $token === ''
+            || strlen($token) > 8192 || preg_match('/[\x00-\x20\x7f]/', $token)) {
+            Cache::put($key.':auth-down', true, now()->addMinutes(self::AUTH_DOWN_MINUTES));
+
+            return null;
+        }
+        Cache::put($key.':token', $token, now()->addHours(6));
+
+        return $token;
+    }
+
+    /** Only login and the documented existing reseller read; no paid API route. */
+    private function managerRequest(string $path, ?string $token = null): array
+    {
+        try {
+            $http = Http::acceptJson()->asJson()->withoutRedirecting()->timeout(10)->connectTimeout(3);
+            $response = $path === '/auth/login'
+                ? $http->post($this->base.'/auth/login', ['username' => $this->username, 'password' => $this->password])
+                : $http->withToken($token)->get($this->base.'/resellers', ['with_settings' => 'true']);
+            // Openprovider business errors can use HTTP 500; code is decisive.
+            if (strlen($response->body()) > 500000) { return []; }
+            $body = $response->json();
+
+            return is_array($body) && array_key_exists('code', $body) ? $body : [];
+        } catch (\Throwable) {
+            // Never publish or log credential-bearing request/exception details.
+            return [];
+        }
+    }
+
+    /**
+     * The documented account balance and its account currency are at different
+     * paths: data.balance and data.settings.currency (with_settings=true).
+     * reserved_balance, payment-limit currency keys and locale are not evidence
+     * of the currency for this amount. Legacy balance() parsing is unchanged.
+     *
+     * @see https://github.com/openprovider/api-documentation/blob/v1beta/swagger/reseller-customer.swagger.json
+     */
+    private function parseManagerBalance(array $info): array
+    {
+        $unknown = ['known' => false, 'amount' => 0.0, 'currency' => ''];
+        $data = $info['data'];
+        if (! $info['ok'] || ! is_numeric($data['balance'] ?? null)) { return $unknown; }
+        $amount = (float) $data['balance'];
+        if (! is_finite($amount)) { return $unknown; }
+        $currencies = [];
+        $fields = [];
+        if (is_array($data['settings'] ?? null) && array_key_exists('currency', $data['settings'])) {
+            $fields[] = $data['settings']['currency'];
+        }
+        // Older response shapes can carry an explicit sibling currency. If two
+        // explicit sources disagree, neither is chosen and the snapshot is unknown.
+        foreach (['currency', 'balance_currency'] as $field) {
+            if (array_key_exists($field, $data)) { $fields[] = $data[$field]; }
+        }
+        foreach ($fields as $field) {
+            if (! is_string($field) || preg_match('/\A[A-Z]{3}\z/D', strtoupper(trim($field))) !== 1) {
+                return ['known' => true, 'amount' => $amount, 'currency' => ''];
+            }
+            $currencies[] = strtoupper(trim($field));
+        }
+        $currencies = array_values(array_unique($currencies));
+
+        return ['known' => true, 'amount' => $amount,
+            'currency' => count($currencies) === 1 ? $currencies[0] : ''];
+    }
+
+    /** Same parser as the pre-existing health check; unknown is not observed zero. */
+    private function parseBalance(array $info): array
+    {
         if (! $info['ok']) {
             return ['known' => false, 'amount' => 0.0, 'currency' => ''];
         }
@@ -560,7 +703,7 @@ class OpenProviderClient
         */
         if ((int) data_get($res, 'code') === 196
             && data_get($res, 'desc') !== 'No token available') {
-            Cache::forget(self::TOKEN_KEY);
+            Cache::forget($this->cacheKey(self::TOKEN_KEY));
             $res = $this->raw($method, $path, $payload, forceFreshToken: true);
 
             /*
@@ -569,7 +712,7 @@ class OpenProviderClient
             | برگردند؛ وگرنه هر کالِ منطقی دو درخواست + یک لاگین می‌سوزانْد.
             */
             if ((int) data_get($res, 'code') === 196) {
-                Cache::put(self::AUTH_DOWN_KEY, 196, now()->addMinutes(self::AUTH_DOWN_MINUTES));
+                Cache::put($this->cacheKey(self::AUTH_DOWN_KEY), 196, now()->addMinutes(self::AUTH_DOWN_MINUTES));
             }
         }
 
@@ -595,12 +738,12 @@ class OpenProviderClient
         | روی پاسخی که رجیسترار **آگاهانه** داده هیچ‌وقت جواب نمی‌دهد؛ فقط
         | هزینهٔ اعتبارِ حساب است.
         */
-        $req = Http::acceptJson()->asJson()->timeout(25)->retry(
-            2,
-            400,
-            fn ($e) => $e instanceof \Illuminate\Http\Client\ConnectionException,
-            throw: false,
-        );
+        $req = Http::acceptJson()->asJson()->timeout(25);
+        // A financial POST can have committed before a transport failure.
+        // Retry only read requests (domain checks are read-only POSTs).
+        if (in_array(strtoupper($method), ['GET', 'HEAD'], true) || $path === '/domains/check') {
+            $req = $req->retry(2, 400, fn ($e) => $e instanceof \Illuminate\Http\Client\ConnectionException, throw: false);
+        }
 
         if ($withToken) {
             $token = $this->token($forceFreshToken);
@@ -624,8 +767,8 @@ class OpenProviderClient
         try {
             $response = $req->send($method, $this->base.$path, $options);
         } catch (\Throwable $e) {
-            Log::warning('OpenProvider transport error', ['path' => $path, 'err' => $e->getMessage()]);
-            return ['code' => -1, 'desc' => 'transport: '.$e->getMessage()];
+            Log::warning('OpenProvider transport error', ['path' => $path, 'error_class' => get_class($e)]);
+            return ['code' => -1, 'desc' => 'transport_failure'];
         }
 
         $body = $response->json();
@@ -639,7 +782,7 @@ class OpenProviderClient
             Log::info('OpenProvider API error', [
                 'path' => $path,
                 'code' => $body['code'] ?? null,
-                'desc' => $body['desc'] ?? null,
+                'account' => $this->accountFingerprint(),
             ]);
         }
 

@@ -41,7 +41,7 @@ class KycReview
             $profile->save();
 
             CustomerDocument::where('customer_profile_id', $profile->id)
-                ->update(['status' => 'approved', 'reviewed_by' => $byUserId, 'reviewed_at' => now()]);
+                ->where('status', '!=', 'superseded')->update(['status' => 'approved', 'reviewed_by' => $byUserId, 'reviewed_at' => now()]);
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('kyc', $e, ['profile' => $profile->id]);
 
@@ -82,7 +82,7 @@ class KycReview
             $profile->save();
 
             CustomerDocument::where('customer_profile_id', $profile->id)
-                ->update(['status' => 'rejected', 'reviewed_by' => $byUserId, 'reviewed_at' => now()]);
+                ->where('status', '!=', 'superseded')->update(['status' => 'rejected', 'reviewed_by' => $byUserId, 'reviewed_at' => now()]);
         } catch (\Throwable $e) {
             \App\Support\ErrorTracker::note('kyc', $e, ['profile' => $profile->id]);
 

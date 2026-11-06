@@ -26,6 +26,9 @@ class ProductInvoiceIssuer
 {
     public function issue(Service $service, Product $product): Invoice
     {
+        if ($service->hasUnverifiedBillingTerms()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['service' => __('ui.svc_billing_terms_required')]);
+        }
         app(\App\Services\ProductPricing::class)->assertAvailable();
         if ((int) $service->price <= 0 || $product->effectivePrice() <= 0) {
             throw \Illuminate\Validation\ValidationException::withMessages(['product' => __('ui.cvb_e_price')]);
@@ -64,7 +67,9 @@ class ProductInvoiceIssuer
         ]);
 
         if ($setupFee > 0) {
-            InvoiceItem::create([
+            InvoiceItem::create((\Illuminate\Support\Facades\Schema::hasColumn('invoice_items', 'marketing_context')
+                ? ['marketing_context' => ['eligible' => false, 'birthday_component' => 'setup',
+                    'birthday_product_id' => $product->id, 'billing_cycle' => $service->cycle]] : []) + [
                 'invoice_id'  => $invoice->id,
                 'title'       => 'هزینهٔ راه‌اندازی — '.$product->name,
                 'quantity'    => 1,

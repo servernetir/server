@@ -32,5 +32,5 @@ Route::prefix('admin/ai-growth')->middleware(['auth:web', 'admin'])->group(funct
     Route::post('/knowledge/import/commit', [GrowthKnowledgeController::class, 'import']);
 });
 Route::post('/api/internal/growth/knowledge/{action}', [HermesKnowledgeController::class, 'handle'])
-    ->whereIn('action', ['search', 'solution', 'suggest', 'candidate', 'feedback', 'products', 'changes'])
+    ->whereIn('action', ['search', 'solution', 'suggest', 'candidate', 'feedback', 'products', 'changes', 'curriculum', 'oversight', 'assess'])
     ->middleware('throttle:30,1')->withoutMiddleware([PreventRequestForgery::class]);

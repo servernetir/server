@@ -51,4 +51,60 @@ class DataLayerServiceTest extends TestCase
         $this->assertSame('invoice_item:19', $payload['ecommerce']['items'][0]['item_id']);
         $this->assertSame(2_500_000, $payload['ecommerce']['items'][0]['price']);
     }
+
+    public function test_wallet_funding_is_not_an_ecommerce_purchase(): void
+    {
+        $invoice = new Invoice(['kind' => 'topup', 'currency_code' => 'IRT']);
+        $invoice->id = 12;
+        $payment = new Payment(['invoice_id' => 12, 'currency_code' => 'IRT', 'amount' => 100_000]);
+        $payment->id = 44;
+        $payment->setRelation('invoice', $invoice);
+
+        $payload = DataLayerService::purchasePayload($payment);
+
+        $this->assertSame([
+            'event' => 'wallet_topup',
+            'funding_reference' => 'payment:44',
+            'funding_amount' => 100_000,
+            'funding_currency' => 'IRT',
+        ], $payload);
+        $this->assertArrayNotHasKey('ecommerce', $payload);
+        $this->assertArrayNotHasKey('value', $payload);
+        $this->assertArrayNotHasKey('currency', $payload);
+    }
+
+    public function test_funding_then_spending_wallet_credit_has_only_one_purchase(): void
+    {
+        $events = [];
+        foreach (['topup', 'service'] as $index => $kind) {
+            $invoice = new Invoice(['kind' => $kind, 'currency_code' => 'IRT', 'total' => 100_000]);
+            $invoice->id = 12 + $index;
+            $invoice->setRelation('items', new Collection());
+            $payment = new Payment(['invoice_id' => $invoice->id, 'currency_code' => 'IRT', 'amount' => 100_000]);
+            $payment->id = 44 + $index;
+            $payment->setRelation('invoice', $invoice);
+            $events[] = DataLayerService::purchasePayload($payment);
+        }
+
+        $this->assertSame(['wallet_topup', 'purchase'], array_column($events, 'event'));
+        $this->assertSame('payment:45', $events[1]['ecommerce']['transaction_id']);
+        $this->assertSame('IRR', $events[1]['ecommerce']['currency']);
+        $this->assertSame(1_000_000, $events[1]['ecommerce']['value']);
+        $this->assertSame(100_000, $events[0]['funding_amount']);
+    }
+
+    public function test_funding_falls_back_to_invoice_currency_without_changing_its_unit(): void
+    {
+        $invoice = new Invoice(['kind' => 'topup', 'currency_code' => 'USD']);
+        $invoice->id = 12;
+        $payment = new Payment(['invoice_id' => 12, 'amount' => 25]);
+        $payment->id = 44;
+        $payment->setRelation('invoice', $invoice);
+
+        $payload = DataLayerService::purchasePayload($payment);
+
+        $this->assertSame('USD', $payload['funding_currency']);
+        $this->assertSame(25, $payload['funding_amount']);
+        $this->assertArrayNotHasKey('ecommerce', $payload);
+    }
 }

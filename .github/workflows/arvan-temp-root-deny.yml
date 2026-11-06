@@ -1,0 +1,58 @@
+name: Arvan temporary root denial checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/arvan-monitoring/temporary-root-deny/**'
+      - 'scripts/arvan-monitoring/web-release/deploy.php'
+      - '.github/workflows/arvan-temp-root-deny.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-temp-root-deny-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-checks:
+    name: Temporary denial fixture checks (PHP 8.4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for synthetic tests only
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Verify frozen bytes and run disposable fixtures without a network interface
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture_root="$(mktemp -d "$RUNNER_TEMP/arvan-temp-deny.XXXXXX")"
+          mkdir -p "$fixture_root/arvan-fpm-discovery" "$fixture_root/arvan-release-v3/web-release"
+          cp scripts/arvan-monitoring/temporary-root-deny/temporary-root-deny.php "$fixture_root/arvan-fpm-discovery/"
+          cp scripts/arvan-monitoring/temporary-root-deny/test-temporary-root-deny.php "$fixture_root/arvan-fpm-discovery/"
+          cp scripts/arvan-monitoring/web-release/deploy.php "$fixture_root/arvan-release-v3/web-release/"
+          cd "$fixture_root"
+          sha256sum --check <<'PINS'
+          c84aa373b9b28dff921026b4d62acf4d22cdbd966e7b7c75a19745f9a75cbbbd  arvan-fpm-discovery/temporary-root-deny.php
+          f50317f00e9c6107855f34c4ccc0c8a6a501b39fcf4d04601724f4036eb1854d  arvan-fpm-discovery/test-temporary-root-deny.php
+          02c952a7ba3ac370e88081898c43be2b2b91ff200e894ce927c5e8bc7da8c93e  arvan-release-v3/web-release/deploy.php
+          PINS
+          export ARVAN_TEST_PHP="$(command -v php)"
+          "$ARVAN_TEST_PHP" -l arvan-fpm-discovery/temporary-root-deny.php
+          "$ARVAN_TEST_PHP" -l arvan-fpm-discovery/test-temporary-root-deny.php
+          "$ARVAN_TEST_PHP" -l arvan-release-v3/web-release/deploy.php
+          # Only copied synthetic paths execute; the fixed native entrypoint is never run.
+          # There is no application bootstrap, credential, real FPM socket or provider call.
+          sudo --preserve-env=ARVAN_TEST_PHP unshare --net -- bash -euo pipefail <<'SYNTHETIC'
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 arvan-fpm-discovery/test-temporary-root-deny.php
+          SYNTHETIC

@@ -18,6 +18,7 @@ class ReportConsultationController extends Controller
             abort_unless(Schema::hasTable($table), 503);
         }
         $report = AuditReport::where('token', $token)->firstOrFail();
+        abort_unless($report->isAccessible(), 404);
         $destination = $report->url().'#consultation';
         if ($report->isStale()) {
             return redirect($destination)->withErrors(['consultation' => __('conversion.report_stale')], 'reportConsultation');

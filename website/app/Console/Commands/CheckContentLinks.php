@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\PostTranslation;
+use App\Models\Setting;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
@@ -29,6 +30,13 @@ use Illuminate\Support\Facades\Schema;
  */
 class CheckContentLinks extends Command
 {
+    /** Only static assets may bypass Laravel; a PHP file must actually execute. */
+    private const STATIC_ASSET_EXTENSIONS = [
+        'css', 'js', 'mjs', 'map', 'svg', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'ico',
+        'woff', 'woff2', 'ttf', 'otf', 'eot', 'pdf', 'txt', 'xml', 'json', 'webmanifest',
+        'html', 'htm', 'md', 'mp4', 'webm', 'ogg', 'mp3', 'wav', 'zip', 'gz',
+    ];
+
     protected $signature = 'links:content
         {--limit=0 : سقفِ پست‌ها، ۰ یعنی همه}
         {--scheduled : اجرای کرونی — یافته گزارش می‌شود ولی کدِ خروجی موفق است}';
@@ -145,8 +153,50 @@ class CheckContentLinks extends Command
      */
     public static function resolves(string $path, array $known): bool
     {
+        $decoded = rawurldecode($path);
+        if (! str_starts_with($decoded, '/') || str_starts_with($decoded, '//')
+            || preg_match('/[\x00-\x1f\x7f]/', $decoded) || str_contains($decoded, '\\')
+            || preg_match('~(?:^|/)\.{1,2}(?:/|$)~', $decoded)) {
+            return false;
+        }
+
         if (isset($known[rtrim($path, '/') ?: '/'])) {
             return true;
+        }
+
+        // Apache serves public assets without entering Laravel. Sending a real
+        // favicon, stylesheet or font through the HTTP kernel creates a false
+        // 404. Resolve only regular files inside the configured public root;
+        // an outside symlink or a traversal is not proof of a public asset.
+        // cPanel can serve a separate public_html copy. This audit-only setting
+        // names that authoritative directory without changing Laravel's global
+        // public path. A bad override must never fall back to an unserved copy.
+        try {
+            $configuredRoot = trim((string) Setting::get('link_audit_public_root', ''));
+            $root = $configuredRoot === '' ? public_path() : $configuredRoot;
+            if (preg_match('/[\x00-\x1f\x7f]/', $root)
+                || (! str_starts_with($root, '/') && ! preg_match('~^[a-z]:[\\\\/]~i', $root))) {
+                return false;
+            }
+            $publicRoot = realpath($root);
+            if ($publicRoot === false || ! is_dir($publicRoot) || ! is_readable($publicRoot)) {
+                return false;
+            }
+            $publicFile = realpath(rtrim($publicRoot, '\\/').DIRECTORY_SEPARATOR.ltrim($decoded, '/'));
+        } catch (\Throwable) {
+            return false;
+        }
+        if ($publicFile !== false) {
+            if ($publicFile !== $publicRoot
+                && ! str_starts_with($publicFile, rtrim($publicRoot, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR)) {
+                return false;
+            }
+            $extension = strtolower(pathinfo($decoded, PATHINFO_EXTENSION));
+            if (! preg_match('~(?:^|/)\.~', $decoded)
+                && in_array($extension, self::STATIC_ASSET_EXTENSIONS, true)
+                && is_file($publicFile) && is_readable($publicFile)) {
+                return true;
+            }
         }
 
         try {
@@ -168,9 +218,15 @@ class CheckContentLinks extends Command
             return null;
         }
 
+        if (str_starts_with($href, '//')) {
+            $href = 'https:'.$href;
+        }
+
         if (preg_match('~^https?://~i', $href)) {
             $host = parse_url($href, PHP_URL_HOST);
-            if ($host !== parse_url(config('app.url'), PHP_URL_HOST)) {
+            $siteHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+            if (! is_string($host) || ! is_string($siteHost)
+                || strcasecmp($host, $siteHost) !== 0) {
                 return null;                    // بیرونی — قضاوتش کارِ این فرمان نیست
             }
             $href = (string) parse_url($href, PHP_URL_PATH);

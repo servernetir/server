@@ -1209,6 +1209,7 @@ class CloudProvisioner
                     .($plan ? ' — '.fa_num((int) $plan->vcpu).' هسته/'.$plan->ramLabel() : '')
                     .($loc ? ' · '.$loc : '')
                     .' · '.($service->isHourly() ? 'ساعتی' : 'ماهانه')
+                    .($plan?->provider ? ' · '.(CloudManager::REAL_NAMES[$plan->provider] ?? $plan->provider) : '')
                     .($since ? ' · از '.$since->diffForHumans() : '')
                     .' — '.$why;
 
@@ -1566,6 +1567,13 @@ class CloudProvisioner
 
     private function quarantineProvider(CloudPlan $plan, string $message): void
     {
+        // Arvan's account-wide RAM quota error does not contain "quota",
+        // "limit reached" or "limit exceeded". Catalogue stock is not evidence
+        // of remaining account quota. Keep the supplier switch closed too, so
+        // newly discovered plans cannot bypass the quarantined catalogue rows.
+        $ramQuota = $plan->provider === 'arvan'
+            && str_contains(mb_strtolower($message), 'you have reached ram size limit');
+
         $structural = [
             'permission',      // توکن دسترسیِ لازم را ندارد
             'unauthor',        // unauthorized / unauthenticated
@@ -1605,6 +1613,7 @@ class CloudProvisioner
             'limit reached',
             'resource_limit',
             'limit exceeded',
+            'you have reached ram size limit',
         ];
 
         $needle = mb_strtolower($message);
@@ -1659,27 +1668,40 @@ class CloudProvisioner
 
         $note = self::QUARANTINE_PREFIX.' زیرساخت سفارش را نپذیرفت ('.mb_substr($message, 0, 120).')';
 
+        $newCapacityBlock = $ramQuota && ! CloudPlan::providerIsDisabled((string) $plan->provider);
+        if ($ramQuota) {
+            CloudPlan::setProviderDisabled((string) $plan->provider, true);
+        }
+
         $closed = CloudPlan::query()
             ->where('provider', $plan->provider)
             ->where('admin_disabled', false)
             ->update(['admin_disabled' => true, 'admin_note' => mb_substr($note, 0, 250)]);
 
-        if ($closed === 0) {
+        if ($closed === 0 && ! $newCapacityBlock) {
             return;
         }
+
+        \App\Services\SiteMenu::forget();
+        CloudCountry::forget();
 
         ErrorTracker::note('cloud',
             'فروشِ '.$closed.' پلنِ یک زیرساخت خودکار بسته شد — '.$note);
 
         try {
             app(AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
+                'زیرساخت' => CloudManager::REAL_NAMES[$plan->provider] ?? $plan->provider,
                 'تعداد پلن' => (string) $closed,
                 'علت' => mb_substr($message, 0, 200),
                 // ⚠️ بی‌این جمله، مدیر باید ۲۲۱ ردیف را تک‌تک در پنل باز کند —
                 // که یک‌بار واقعاً پیش آمد و عملاً یعنی راهی نبود.
-                'اقدام' => 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید. '
-                    .'پس از یک سفارشِ واقعیِ موفق، همه را با «php artisan cloud:reopen» باز کنید '
-                    .'(یا ردیف‌به‌ردیف از /admin/cloud).',
+                'اقدام' => $ramQuota
+                    ? 'سهمیهٔ RAM حساب پر شده؛ پس از تأیید ظرفیت، قرنطینهٔ خودکار همین زیرساخت را '
+                        .'با «php artisan cloud:reopen arvan» بازبینی کنید، سپس فروشش را در /admin/cloud روشن کنید. '
+                        .'پیش از تلاش مجدد، نتیجهٔ همان سفارش را تطبیق دهید.'
+                    : 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید. '
+                        .'پس از یک سفارشِ واقعیِ موفق، همه را با «php artisan cloud:reopen» باز کنید '
+                        .'(یا ردیف‌به‌ردیف از /admin/cloud).',
             ], url('/admin/cloud'), '🛑');
         } catch (\Throwable) {
         }
@@ -2274,6 +2296,12 @@ class CloudProvisioner
 
     public function unsuspend(Service $service): bool
     {
+        $instance = $service->cloudInstance;
+        if ($instance?->provider === 'arvan'
+            && ! app(\App\Services\Finance\ArvanTrafficCreditGuard::class)->allowPower((string) $instance->provider_ref)) {
+            return false;
+        }
+
         return $this->act($service, fn ($d, $ref) => $d->power($ref, 'on'), 'running');
     }
 

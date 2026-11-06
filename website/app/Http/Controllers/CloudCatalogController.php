@@ -321,6 +321,12 @@ class CloudCatalogController extends Controller
         'cloud_th_loc' => ['fa' => 'مکان', 'en' => 'Location', 'tr' => 'Konum'],
         'cloud_th_price' => ['fa' => 'قیمت ماهانه', 'en' => 'Monthly price', 'tr' => 'Aylık fiyat'],
         'cloud_shown_n' => ['fa' => ':n پلن نمایش داده می‌شود', 'en' => ':n plans shown', 'tr' => ':n paket gösteriliyor'],
+        'cloud_matched_n' => ['fa' => ':n پلن مطابق فیلترها', 'en' => ':n matching plans', 'tr' => 'Filtrelere uyan :n paket'],
+        'cloud_page_prev' => ['fa' => 'صفحهٔ قبل', 'en' => 'Previous page', 'tr' => 'Önceki sayfa'],
+        'cloud_page_next' => ['fa' => 'صفحهٔ بعد', 'en' => 'Next page', 'tr' => 'Sonraki sayfa'],
+        'cloud_page_label' => ['fa' => 'صفحه‌های پلن‌ها', 'en' => 'Plan pages', 'tr' => 'Paket sayfaları'],
+        'cloud_page_summary' => ['fa' => 'صفحهٔ :page از :pages · پلن‌های :from تا :to از :total', 'en' => 'Page :page of :pages · plans :from–:to of :total', 'tr' => 'Sayfa :page / :pages · :total paketten :from–:to'],
+        'cloud_scroll_hint' => ['fa' => 'برای دیدن همهٔ مشخصات، قیمت و دکمهٔ خرید، جدول را افقی حرکت دهید.', 'en' => 'Scroll the table horizontally to see all specifications, prices and purchase buttons.', 'tr' => 'Tüm özellikleri, fiyatları ve satın alma düğmelerini görmek için tabloyu yatay kaydırın.'],
         'cloud_nomatch' => [
             'fa' => 'با این فیلترها پلنی پیدا نشد. یکی از فیلترها را روی «همه» بگذارید.',
             'en' => 'No plan matches these filters. Set one of them back to “All”.',
@@ -458,6 +464,9 @@ class CloudCatalogController extends Controller
         | پیش از هر پرس‌وجوی DB می‌آید: ردیفِ legacyِ دارای پلن هنوز فعال است
         | (پلن‌هایش باید فروختنی بمانند) ولی صفحه‌اش نباید رندر شود.
         */
+        if (CloudLocation::canonicalCode($location) !== $location) {
+            return redirect()->to(\App\Services\Cloud\CloudCountry::url(strtoupper(substr($location, 0, 2))), 301);
+        }
         if (CloudLocation::isLegacyCode($location)) {
             $cc = substr($location, 0, 2);
 
@@ -474,6 +483,10 @@ class CloudCatalogController extends Controller
             ->where('is_active', true)
             ->first();
 
+        if ($loc !== null && \App\Services\Cloud\CloudCountry::marketingSlug((string) $loc->country) !== null) {
+            return redirect()->to(\App\Services\Cloud\CloudCountry::url((string) $loc->country), 301);
+        }
+
         if ($loc === null) {
             return $this->legacyCloudPage($location);
         }
@@ -485,7 +498,7 @@ class CloudCatalogController extends Controller
         $locLabel = $loc->label();
         $cityLabel = $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel();
 
-        $rows = $this->planRows($offers, collect([$loc->code => $loc]), CloudPlan::offers($loc->code, hourly: true));
+        $rows = $this->planRows($offers, $this->activeLocations(), CloudPlan::offers($loc->code, hourly: true));
 
         return view('pages.cloud-location', [
             't' => $t,
@@ -553,7 +566,7 @@ class CloudCatalogController extends Controller
      */
     private function continentTree(Collection $offers, Collection $locations): array
     {
-        $byLoc = $offers->groupBy('location_code');
+        $byLoc = $offers->groupBy(fn ($plan) => CloudLocation::canonicalCode($plan->location_code));
         $tree = [];
 
         foreach ($byLoc as $code => $plans) {
@@ -654,21 +667,46 @@ class CloudCatalogController extends Controller
     private function planRows(Collection $offers, Collection $locations, ?Collection $hourlyOffers = null): array
     {
         $rows = [];
+        $locationPresentation = [];
 
-        foreach ($offers as $p) {
-            $loc = $locations->get($p->location_code);
+        foreach (\App\Services\Cloud\CloudDominance::prune($offers->values()) as $p) {
+            $locationCode = (string) $p->location_code;
+            $loc = $locations->get($locationCode);
             if ($loc === null) {
                 continue;
+            }
+            // These labels are pure display data for the current locale. Keep
+            // original aliases separate, and reuse only within this mapping.
+            if (! isset($locationPresentation[$locationCode])) {
+                $city = $loc->cityLabel();
+                $countryLabel = $loc->countryLabel();
+                $locationPresentation[$locationCode] = [
+                    'loc_code' => CloudLocation::canonicalCode($locationCode),
+                    'loc' => $loc->label(),
+                    'city' => $city !== '' ? $city : $countryLabel,
+                    'country' => strtoupper((string) $loc->country),
+                    'country_label' => $countryLabel,
+                    'flag' => $loc->flagEmoji(),
+                    'flag_svg' => $loc->flagSvg(),
+                    'loc_url' => $this->locUrl($locationCode),
+                ];
             }
 
             // Resolve hourly offers separately: the cheapest monthly alias may
             // have no hourly contract. Use the same sellable selection as checkout.
             $hourly = $hourlyOffers?->get($p->slug);
-            $hasHourly = $hourly !== null && ! $hourly->isMetal() && $hourly->hourlyIrt() > 0 && $hourly->hourlyEurCents() > 0;
+            $hourlyIrt = $hourlyEur = 0;
+            if ($hourly !== null && ! $hourly->isMetal()) {
+                $hourlyIrt = $hourly->hourlyIrt();
+                if ($hourlyIrt > 0) {
+                    $hourlyEur = $hourly->hourlyEurCents();
+                }
+            }
+            $hasHourly = $hourlyIrt > 0 && $hourlyEur > 0;
             $hourlyPrice = $hasHourly
                 ? (app()->getLocale() === 'fa'
-                    ? fa_num(number_format($hourly->hourlyIrt())).' تومان'
-                    : '€'.number_format($hourly->hourlyEurCents() / 100, 2))
+                    ? fa_num(number_format($hourlyIrt)).' تومان'
+                    : '€'.number_format($hourlyEur / 100, 2))
                 : null;
 
             $rows[] = [
@@ -683,14 +721,7 @@ class CloudCatalogController extends Controller
                 'price' => $p->priceLabel(),
                 'price_n' => (int) $p->price_irt,
                 'eur' => (int) $p->price_eur_cents,
-                'loc_code' => (string) $p->location_code,
-                'loc' => $loc->label(),
-                'city' => $loc->cityLabel() !== '' ? $loc->cityLabel() : $loc->countryLabel(),
-                'country' => strtoupper((string) $loc->country),
-                'country_label' => $loc->countryLabel(),
-                'flag' => $loc->flagEmoji(),
-                'flag_svg' => $loc->flagSvg(),
-                'loc_url' => $this->locUrl((string) $p->location_code),
+                ...$locationPresentation[$locationCode],
                 'buy_url' => $this->buyUrl((string) $p->location_code, (string) $p->slug),
                 'hourly_price' => $hourlyPrice,
                 'hourly_buy_url' => $hasHourly ? $this->buyUrl((string) $p->location_code, (string) $p->slug, 'hourly') : null,
@@ -1024,6 +1055,7 @@ class CloudCatalogController extends Controller
      */
     private function locUrl(string $code): string
     {
+        $code = CloudLocation::canonicalCode($code);
         /*
         | ممیزی ۷: کدِ legacy (گروهِ محصول به‌جای شهر) صفحهٔ خودش را ندارد —
         | `/cloud/{code}`اش ۳۰۱ است. لینک باید مستقیم به مقصدِ نهایی برود

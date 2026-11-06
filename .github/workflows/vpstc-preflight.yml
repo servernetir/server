@@ -12,6 +12,7 @@ on:
       - 'website/resources/views/admin/cloud-vpstc.blade.php'
       - 'website/resources/views/account/cloud-store.blade.php'
       - 'website/routes/web.php'
+      - 'scripts/vpstc-console-worker/**'
       - '.github/workflows/vpstc-preflight.yml'
   pull_request:
     branches: [develop]
@@ -23,6 +24,7 @@ on:
       - 'website/tests/Feature/VpsTc*.php'
       - 'website/resources/views/admin/cloud*.blade.php'
       - 'website/routes/web.php'
+      - 'scripts/vpstc-console-worker/**'
       - 'website/config/services.php'
       - '.github/workflows/vpstc-preflight.yml'
   workflow_dispatch:
@@ -61,3 +63,56 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Run isolated protocol, billing, lifecycle and administrator acceptance
         run: php vendor/bin/phpunit tests/Feature/VpsTc*.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify console relay security and localized shell
+        run: |
+          npm ci --prefix ../scripts/vpstc-console-worker --ignore-scripts --no-audit --no-fund
+          npm run build --prefix ../scripts/vpstc-console-worker
+          git diff --exit-code -- ../scripts/vpstc-console-worker/novnc-source.mjs
+          node --test ../scripts/vpstc-console-worker/worker.test.mjs
+  attachment-mariadb:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: vpstc_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: vpstc_testing
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      EXCHANGE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_mysql, sodium, zip
+          tools: composer:v2
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: php vendor/bin/phpunit tests/Feature/VpsTcAttachmentTest.php tests/Feature/CloudAttachExistingServerTest.php tests/Feature/InternalServiceDeletionTest.php tests/Feature/ComplimentaryServicesTest.php

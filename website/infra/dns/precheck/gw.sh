@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# فقط‌خواندنی — پیش‌بررسیِ سرورِ Gateway در آلمان (91.107.173.226) برای primaryِ پنهان
+# فقط‌خواندنی — پیش‌بررسیِ سرورِ Gateway در ترکیه (155.103.69.128) برای primaryِ پنهان
 # و نیم‌سرورِ derek. هیچ چیزی را تغییر نمی‌دهد و هیچ راز/کلیدی چاپ نمی‌کند.
 #
 # اجرا (با root، روی خودِ Gateway — نه WHM):
@@ -10,7 +10,7 @@ set -u
 H="$(hostname -f 2>/dev/null || hostname)"
 OS="$(grep -E '^PRETTY_NAME=' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"')"
 case "$H $OS" in
-  *core.servernet.cloud*|*AlmaLinux*) echo "STOP: this is the WHM server ($H, $OS), not Gateway. Log in to 91.107.173.226 first."; exit 1;;
+  *core.servernet.cloud*|*AlmaLinux*) echo "STOP: this is the WHM server ($H, $OS), not Gateway. Log in to 155.103.69.128 first."; exit 1;;
 esac
 sec(){ printf '\n===== %s =====\n' "$1"; }
 sec "host"; echo "$H"; date -u; echo "$OS"; uname -r; id -un

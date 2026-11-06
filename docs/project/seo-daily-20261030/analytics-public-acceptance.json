@@ -1,0 +1,89 @@
+{
+  "observed_at_utc": "2026-10-30T06:56:27.8755269Z",
+  "request_count": 6,
+  "checks": [
+    {
+      "path": "/vps/hourly",
+      "status": 200,
+      "cache": "BYPASS",
+      "new_partial_marker": true,
+      "gtm_loader": true,
+      "analytics_helper": true,
+      "h1_count": 1,
+      "canonical": [
+        "https://servernet.cloud/vps/hourly"
+      ],
+      "purchase_event_in_public_html": false,
+      "font_reference": true
+    },
+    {
+      "path": "/en/vps/hourly",
+      "status": 200,
+      "cache": "BYPASS",
+      "new_partial_marker": true,
+      "gtm_loader": true,
+      "analytics_helper": true,
+      "h1_count": 1,
+      "canonical": [
+        "https://servernet.cloud/en/vps/hourly"
+      ],
+      "purchase_event_in_public_html": false,
+      "font_reference": true
+    },
+    {
+      "path": "/tr/vps/hourly",
+      "status": 200,
+      "cache": "BYPASS",
+      "new_partial_marker": true,
+      "gtm_loader": true,
+      "analytics_helper": true,
+      "h1_count": 1,
+      "canonical": [
+        "https://servernet.cloud/tr/vps/hourly"
+      ],
+      "purchase_event_in_public_html": false,
+      "font_reference": true
+    },
+    {
+      "path": "/gpu",
+      "status": 200,
+      "cache": "BYPASS",
+      "new_partial_marker": true,
+      "gtm_loader": true,
+      "analytics_helper": true,
+      "h1_count": 1,
+      "canonical": [
+        "https://servernet.cloud/gpu"
+      ],
+      "purchase_event_in_public_html": false,
+      "font_reference": true
+    },
+    {
+      "path": "/cloud/ph-manila",
+      "status": 200,
+      "cache": "BYPASS",
+      "new_partial_marker": true,
+      "gtm_loader": true,
+      "analytics_helper": true,
+      "h1_count": 1,
+      "canonical": [
+        "https://servernet.cloud/cloud/ph-manila"
+      ],
+      "purchase_event_in_public_html": false,
+      "font_reference": true
+    },
+    {
+      "path": "/cloud/ae-dubai",
+      "status": 200,
+      "cache": "BYPASS",
+      "new_partial_marker": true,
+      "gtm_loader": true,
+      "analytics_helper": true,
+      "h1_count": 1,
+      "canonical": [],
+      "purchase_event_in_public_html": false,
+      "font_reference": true
+    }
+  ],
+  "limits": "Six anonymous HTTP/HTML checks; no synthetic Google events, actual checkout, purchase or GA4 revenue acceptance."
+}

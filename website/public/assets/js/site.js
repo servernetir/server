@@ -315,18 +315,73 @@
   const backdrop = document.getElementById('drawer-backdrop');
   const burger = document.getElementById('hamburger');
   if (drawer && backdrop && burger) {
-    const setDrawer = (open) => {
+    const closeButton = document.getElementById('drawer-close');
+    let previousFocus = null, previousOverflow = '', background = [];
+    const focusable = () => Array.from(drawer.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')).filter((el) =>
+      !el.disabled && el.tabIndex >= 0 && !el.closest('[hidden],[inert]') && el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden');
+    const focusInside = () => (closeButton || focusable()[0] || drawer).focus({ preventScroll: true });
+    const recoverDrawerFocus = () => {
+      if (drawer.classList.contains('open') && !drawer.contains(document.activeElement)) focusInside();
+    };
+    const setDrawer = (open, restoreFocus = true) => {
+      if (open === drawer.classList.contains('open')) return;
+      if (open) {
+        previousFocus = document.activeElement;
+        previousOverflow = document.body.style.overflow;
+        drawer.removeAttribute('inert');
+        drawer.setAttribute('aria-hidden', 'false');
+      } else {
+        background.forEach(([el, wasInert]) => { if (!wasInert) el.removeAttribute('inert'); });
+        background = [];
+        document.body.style.overflow = previousOverflow;
+      }
       drawer.classList.toggle('open', open);
       backdrop.classList.toggle('open', open);
       burger.classList.toggle('active', open);
       burger.setAttribute('aria-expanded', String(open));
-      document.body.style.overflow = open ? 'hidden' : '';
+      if (open) {
+        // Move focus before hiding its previous ancestor from assistive technology.
+        focusInside();
+        background = Array.from(document.body.children).filter((el) => el !== drawer && el !== backdrop && !el.contains(drawer) && !['SCRIPT', 'STYLE', 'LINK'].includes(el.tagName)).map((el) => [el, el.hasAttribute('inert')]);
+        background.forEach(([el]) => el.setAttribute('inert', ''));
+        document.body.style.overflow = 'hidden';
+        // A visibility transition can reject the synchronous focus attempt.
+        // Retry after layout, without moving focus a user already placed inside.
+        requestAnimationFrame(recoverDrawerFocus);
+      } else {
+        if (restoreFocus && previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
+        else if (drawer.contains(document.activeElement)) document.querySelector('.header-wrap a[href]')?.focus({ preventScroll: true });
+        drawer.setAttribute('inert', '');
+        drawer.setAttribute('aria-hidden', 'true');
+      }
     };
     burger.addEventListener('click', () => setDrawer(!drawer.classList.contains('open')));
-    document.getElementById('drawer-close')?.addEventListener('click', () => setDrawer(false));
+    closeButton?.addEventListener('click', () => setDrawer(false));
     backdrop.addEventListener('click', () => setDrawer(false));
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawer(false); });
-    drawer.querySelectorAll('.acc-head').forEach((head) => {
+    document.addEventListener('keydown', (e) => {
+      if (!drawer.classList.contains('open')) return;
+      if (e.key === 'Escape') { e.preventDefault(); setDrawer(false); return; }
+      if (e.key !== 'Tab') return;
+      const items = focusable(), first = items[0], last = items[items.length - 1];
+      if (!first) { e.preventDefault(); drawer.focus(); }
+      else if (!drawer.contains(document.activeElement)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    document.addEventListener('focusin', (e) => {
+      if (drawer.classList.contains('open') && !drawer.contains(e.target)) focusInside();
+    });
+    drawer.addEventListener('transitionend', (e) => { if (e.target === drawer) recoverDrawerFocus(); });
+    window.addEventListener('resize', () => { if (window.innerWidth > 1020) setDrawer(false, false); }, { passive: true });
+    const heads = Array.from(drawer.querySelectorAll('.acc-head'));
+    const syncAccordions = () => heads.forEach((head) => {
+      const body = head.parentElement.querySelector('.acc-body'), open = head.parentElement.classList.contains('open');
+      head.setAttribute('aria-expanded', String(open));
+      if (body) { body.toggleAttribute('inert', !open); body.setAttribute('aria-hidden', String(!open)); }
+    });
+    heads.forEach((head, index) => {
+      const body = head.parentElement.querySelector('.acc-body');
+      if (body) { body.id ||= 'drawer-section-' + (index + 1); head.setAttribute('aria-controls', body.id); }
       head.addEventListener('click', () => {
         const acc = head.parentElement;
         const wasOpen = acc.classList.contains('open');
@@ -336,8 +391,10 @@
           // آکاردئون بازشده بیاید بالای دید تا همه‌ی گروه‌ها قابل‌دیدن باشند
           setTimeout(() => acc.scrollIntoView({ behavior: 'smooth', block: 'start' }), 380);
         }
+        syncAccordions();
       });
     });
+    syncAccordions();
   }
 
   /* ---- FOOTER ACCORDION (mobile) ---- */
@@ -390,34 +447,54 @@
   if (dForm && dInput && dResult) {
     const t = dInput.dataset;
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
-    let checking = false;
+    let requestId = 0;
+    let activeRequest;
+    let promotionTimer;
 
     dForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const q = dInput.value.trim();
-      if (!q || checking) return;
-      checking = true;
+      if (!q) return;
+      activeRequest?.abort();
+      clearTimeout(promotionTimer);
+      const id = ++requestId;
+      activeRequest = new AbortController();
       dResult.hidden = false;
+      dResult.setAttribute('aria-busy', 'true');
       dResult.className = 'domain-result';
-      dResult.innerHTML = `<div class="dr-row"><span class="dr-spin"></span><span class="dr-msg">${t.i18nChecking}</span></div>`;
+      dResult.innerHTML = `<div class="dr-row"><span class="dr-spin"></span><span class="dr-msg">${esc(t.i18nChecking)}</span></div>`;
       try {
         const res = await fetch(dForm.dataset.endpoint, {
-          method: 'POST',
+          method: 'POST', signal: activeRequest.signal,
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
           body: JSON.stringify({ domain: q }),
         });
         if (!res.ok) throw new Error(res.status);
         const data = await res.json();
-        renderResult(data);
+        if (id === requestId) renderResult(data);
       } catch (err) {
+        if (err.name === 'AbortError' || id !== requestId) return;
         dResult.className = 'domain-result no';
-        dResult.innerHTML = `<div class="dr-row"><span class="dr-msg">${t.i18nError}</span></div>`;
+        dResult.innerHTML = `<div class="dr-row"><span class="dr-msg">${esc(t.i18nError)}</span></div>` + ideasLink();
       } finally {
-        checking = false;
+        if (id === requestId) dResult.setAttribute('aria-busy', 'false');
       }
     });
 
-    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+    function ideasLink(data) {
+      const base = t.suggestionsUrl || dForm.action;
+      const url = data?.more_url || base + (base.includes('?') ? '&' : '?') + 'q=' + encodeURIComponent(dInput.value.trim());
+      return `<div class="dr-actions"><a class="btn btn-outline dr-ideas" href="${esc(url)}">${esc(t.i18nIdeas || t.i18nSuggest)}<span aria-hidden="true">↗</span></a></div>`;
+    }
+    function promo(r) {
+      const end = Date.parse(r.promotion_ends_at);
+      if (r.is_promotion !== true || !r.regular_price || !Number.isFinite(end) || end <= Date.now()) return '';
+      const percent = Number(r.discount_percent);
+      const badge = Number.isInteger(percent) && percent > 0 && percent < 100
+        ? `<span class="dr-discount">${esc((t.i18nDiscount || ':percent%').replace(':percent', faDigits(percent)))}</span>` : '';
+      return `<span class="dr-reference"><del aria-label="${esc(t.i18nRegular)}">${faDigits(esc(r.regular_price))}</del>${badge}</span>`;
+    }
 
     /*
      * 🔴 سه حالت، نه دو تا.
@@ -433,23 +510,31 @@
      * تنها وقتی «گرفته‌شده» خوانده می‌شود که استعلام موفق بوده باشد.
      */
     function renderResult(data) {
-      const r = data.result;
-      const st = r.state || (r.available ? 'free' : (data.lookup_ok === false ? 'unchecked' : 'taken'));
+      const r = data.result || {};
+      const discovery = ideasLink(data);
+      clearTimeout(promotionTimer);
+      const campaignEnd = Date.parse(r.promotion_ends_at || '');
+      const expired = r.is_promotion === true && (!Number.isFinite(campaignEnd) || campaignEnd <= Date.now());
+      const st = expired ? 'no_price' : r.state || (r.available ? 'free' : (data.lookup_ok === false ? 'unchecked' : 'taken'));
 
       if (st === 'free' || st === 'premium') {
         dResult.className = 'domain-result ok';
+        if (r.is_promotion === true && Number.isFinite(campaignEnd)) {
+          const id = requestId;
+          promotionTimer = setTimeout(() => { if (id === requestId) renderResult(data); }, Math.min(campaignEnd - Date.now() + 25, 2147483647));
+        }
         dResult.innerHTML =
           `<div class="dr-row">
              <span class="dr-domain">${esc(r.domain)}</span>
              <span class="dr-msg">${t.i18nFree}</span>
-             ${r.price ? `<span class="dr-price">${faDigits(esc(r.price))} <small>${esc(r.period_label || t.i18nYear)}</small></span>` : ''}
+             ${r.price ? `<span class="dr-price">${promo(r)}${faDigits(esc(r.price))} <small>${esc(r.period_label || t.i18nYear)}</small></span>` : ''}
              <a class="btn btn-primary" href="${esc(r.cart_url)}" target="_blank" rel="noopener">${t.i18nCart}</a>
-           </div>`;
+           </div>` + discovery;
         return;
       }
 
       let alts = (data.suggestions || []).slice(0, 3).map((s) =>
-        `<a class="dr-alt" href="${esc(s.cart_url)}" target="_blank" rel="noopener"><b>${esc(s.domain)}</b>${s.price ? `<i>${esc(s.price)}${s.period_label ? ` <small>${esc(s.period_label)}</small>` : ''}</i>` : ''}</a>`).join('');
+        `<a class="dr-alt" href="${esc(s.cart_url)}" target="_blank" rel="noopener"><b>${esc(s.domain)}</b>${s.price ? `<i>${promo(s)}${faDigits(esc(s.price))}${s.period_label ? ` <small>${esc(s.period_label)}</small>` : ''}</i>` : ''}</a>`).join('');
       if (alts && data.more_url) {
         alts += `<a class="dr-alt dr-more" href="${esc(data.more_url)}" target="_blank" rel="noopener" aria-label="more">…</a>`;
       }
@@ -458,7 +543,7 @@
       if (st === 'taken') {
         dResult.className = 'domain-result no';
         dResult.innerHTML =
-          `<div class="dr-row"><span class="dr-domain">${esc(r.domain)}</span><span class="dr-msg">${t.i18nTaken}</span></div>` + suggest;
+          `<div class="dr-row"><span class="dr-domain">${esc(r.domain)}</span><span class="dr-msg">${t.i18nTaken}</span></div>` + suggest + discovery;
         return;
       }
 
@@ -469,7 +554,7 @@
 
       dResult.className = 'domain-result warn';
       dResult.innerHTML =
-        `<div class="dr-row"><span class="dr-domain">${esc(r.domain)}</span><span class="dr-msg">${msg}</span></div>` + suggest;
+        `<div class="dr-row"><span class="dr-domain">${esc(r.domain)}</span><span class="dr-msg">${msg}</span></div>` + suggest + discovery;
     }
   }
 

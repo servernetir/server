@@ -1,0 +1,43 @@
+name: Offline Arvan provider report checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/ArvanProviderReportObservation.php'
+      - 'website/app/Services/Cloud/ArvanProviderReportSource.php'
+      - 'scripts/arvan-monitoring/test-provider-reports.php'
+      - '.github/workflows/arvan-provider-reports.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-provider-reports-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-provider-reports:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Lint standalone sources
+        run: |
+          set -euo pipefail
+          php -l website/app/Services/Cloud/ArvanProviderReportObservation.php
+          php -l website/app/Services/Cloud/ArvanProviderReportSource.php
+          php -l scripts/arvan-monitoring/test-provider-reports.php
+      - name: Run synthetic reports without a network interface
+        run: |
+          set -euo pipefail
+          test_php="$(command -v php)"
+          sudo unshare --net -- "$test_php" scripts/arvan-monitoring/test-provider-reports.php

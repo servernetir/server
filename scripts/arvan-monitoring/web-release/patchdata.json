@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "base_commit": "d757b2e",
+  "candidate_commit": "f54256d529b6f0cbe38f687bcf82511f44bb96aa",
+  "files": [
+    {
+      "path": "app/Services/Cloud/ArvanConsoleBroker.php",
+      "base_sha256": "2948cca51ac9dbf0ddc41482338549d9dec1c5f518f3d60e8290ed6fcd099028",
+      "candidate_sha256": "edcdd79fed5cf524471e565c7a2d574757ebece695c067447b2285f2a381e771",
+      "hunks": [
+        {
+          "id": 1,
+          "old": "    {\n        return Setting::get('arvan_console_worker_enabled') === '1'\n            && preg_match('/\\A[a-f0-9]{64}\\z/', (string) Setting::getSecret('arvan_console_worker_key')) === 1;\n    }\n\n    /** Owner-only pilot is separate from the public capability and defaults off. */\n",
+          "new": "    {\n        return Setting::get('arvan_console_worker_enabled') === '1'\n            && preg_match('/\\A[a-f0-9]{64}\\z/', (string) Setting::getSecret('arvan_console_worker_key')) === 1;\n    }\n\n    /** A locally accepted transport path, not proof of a live provider handshake. */\n    public function configuredSocketPath(): ?string\n    {\n        $path = Setting::get('arvan_console_worker_socket_path');\n\n        return in_array($path, ['/ir-tbz-sh1/websockify', '/ir-tbz-sh1/vnc_lite.html/websockify'], true)\n            ? $path : null;\n    }\n\n    /** Owner-only pilot is separate from the public capability and defaults off. */\n"
+        },
+        {
+          "id": 2,
+          "old": "            }\n            $upstream = $this->validateUrl(Crypt::decryptString($grant['url']), explode(':', $instance->provider_ref, 2)[0]);\n            // Set only after the exact path is observed in a successful provider handshake.\n            $path = Setting::get('arvan_console_worker_socket_path');\n            if (! in_array($path, ['/ir-tbz-sh1/websockify', '/ir-tbz-sh1/vnc_lite.html/websockify'], true)) {\n                return $this->response(['ok' => false], 503);\n            }\n\n",
+          "new": "            }\n            $upstream = $this->validateUrl(Crypt::decryptString($grant['url']), explode(':', $instance->provider_ref, 2)[0]);\n            // Set only after the exact path is observed in a successful provider handshake.\n            $path = $this->configuredSocketPath();\n            if ($path === null) {\n                return $this->response(['ok' => false], 503);\n            }\n\n"
+        }
+      ]
+    },
+    {
+      "path": "app/Models/CloudInstance.php",
+      "base_sha256": "3008e5ae5d3e1eab7e747f9d9a2bfef679ce7a7f2899e48cf03f220882772bfe",
+      "candidate_sha256": "d000255cd23241d26a48d96249df95724ce35db50fd6c50ff8e09b10f8ee71d1",
+      "hunks": [
+        {
+          "id": 1,
+          "old": "            ->exists();\n    }\n\n    /** فرمان آمادهٔ Remote Desktop برای سرورهای ویندوزی. */\n    public function rdpCommand(): ?string\n    {\n",
+          "new": "            ->exists();\n    }\n\n    /** Policy eligibility only; this does not prove a live console handshake or Windows logon. */\n    public function arvanWindowsConsoleAvailable(): bool\n    {\n        if ($this->provider !== 'arvan' || ! $this->isWindows()) {\n            return false;\n        }\n\n        $service = Service::find($this->service_id);\n        if ($service === null) {\n            return false;\n        }\n\n        // eligible() reads the service's current instance. Never let a stale\n        // object borrow console eligibility from a replacement or rebuilt VM.\n        $current = self::where('service_id', $service->id)->first();\n        if ($current === null || ! $this->exists\n            || (int) $current->getKey() !== (int) $this->getKey()\n            || (int) $current->service_id !== (int) $this->service_id\n            || $current->provider !== $this->provider\n            || $current->provider_ref !== $this->provider_ref\n            || $current->image_key !== $this->image_key\n            || $current->status !== $this->status) {\n            return false;\n        }\n\n        $broker = app(\\App\\Services\\Cloud\\ArvanConsoleBroker::class);\n\n        return $broker->enabledFor($service) && $broker->configuredSocketPath() !== null\n            && $broker->eligible($service);\n    }\n\n    /** فرمان آمادهٔ Remote Desktop برای سرورهای ویندوزی. */\n    public function rdpCommand(): ?string\n    {\n"
+        },
+        {
+          "id": 2,
+          "old": "    /**\n     * آیا ایمیل/پیامِ «سرورت آماده شد» مجاز است؟\n     *\n     * ⚠️ دو شرط، و **هر دو** لازم است:\n     *   • زیرساخت بگوید بالا است (`active` → `running`)\n     *   • IPv4 داشته باشیم\n     *\n     * شرطِ دوم عمداً مستقل است، چون کلِ خرابیِ گزارش‌شده همین بود: ایمیلی که\n     * `IP: —` داشت. اگر ماشین `active` شد ولی IP نرسیده، یک دقیقهٔ دیگر صبر\n",
+          "new": "    /**\n     * آیا ایمیل/پیامِ «سرورت آماده شد» مجاز است؟\n     *\n     * ⚠️ دو شرط پایه، و **هر دو** لازم است:\n     *   • زیرساخت بگوید بالا است (`active` → `running`)\n     *   • IPv4 داشته باشیم\n     * ویندوز آروان علاوه بر این‌ها، رمز خواندنی یا مسیر کنسول مجاز لازم دارد.\n     *\n     * شرطِ دوم عمداً مستقل است، چون کلِ خرابیِ گزارش‌شده همین بود: ایمیلی که\n     * `IP: —` داشت. اگر ماشین `active` شد ولی IP نرسیده، یک دقیقهٔ دیگر صبر\n"
+        },
+        {
+          "id": 3,
+          "old": "        if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {\n            return false;\n        }\n        return in_array($this->status, self::READY_STATUSES, true) && ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4));\n    }\n\n    /**\n",
+          "new": "        if ($this->isGpuApp() && $this->service && GpuCapacityOrders::unpaid($this->service)) {\n            return false;\n        }\n        if (! in_array($this->status, self::READY_STATUSES, true)\n            || ! ($this->isGpuApp() ? filled($this->accessHost()) : filled($this->ipv4))) {\n            return false;\n        }\n\n        // A running Windows VM without a usable credential or an eligible\n        // console must not receive a ready notice solely because it has an IP.\n        // Retain the delivered-page/console path so first sign-in stays possible.\n        // A readable stored password is not proof of a live Windows logon or\n        // password freshness after a customer change; no credential is reset here.\n        if ($this->provider === 'arvan' && $this->isWindows()) {\n            return filled($this->password()) || $this->arvanWindowsConsoleAvailable();\n        }\n\n        return true;\n    }\n\n    /**\n"
+        }
+      ]
+    },
+    {
+      "path": "lang/fa/ui.php",
+      "base_sha256": "0fbc841a3ff9e8970eb9325985f79dfa255d54bc21d1871f34c910775c48523d",
+      "candidate_sha256": "dd50b6341fe90a30a9002931cdcfa7a9419d61ae79d481bfa5a0cd8d530793ac",
+      "hunks": [
+        {
+          "id": 1,
+          "old": "    'svc_terminate_locked' => 'در حال تحویل — پس از اتمام قابل حذف است',\n    'cs_pw_missing' => 'هنوز رمز ورود برای این سرور ساخته نشده است. از بخش «کنترل سرور» رمز تازه بسازید؛ بعداً هم می‌توانید آن را از همین بخش ببینید.',\n    'cs_windows_pw_unavailable' => 'رمز ورود ویندوز از زیرساخت دریافت نشده است؛ تا زمان نمایش رمز یا اعلام پشتیبانی، تحویل این سرور کامل محسوب نمی‌شود.',\n    'cs_js_stage_wait' => 'در انتظارِ وضعیتِ زیرساخت…',\n    'cs_access_h' => 'دسترسی به سرور',\n    'cs_user' => 'کاربر',\n",
+          "new": "    'svc_terminate_locked' => 'در حال تحویل — پس از اتمام قابل حذف است',\n    'cs_pw_missing' => 'هنوز رمز ورود برای این سرور ساخته نشده است. از بخش «کنترل سرور» رمز تازه بسازید؛ بعداً هم می‌توانید آن را از همین بخش ببینید.',\n    'cs_windows_pw_unavailable' => 'رمز ورود ویندوز از زیرساخت دریافت نشده است؛ تا زمان نمایش رمز یا اعلام پشتیبانی، تحویل این سرور کامل محسوب نمی‌شود.',\n    'cs_windows_console_setup_h' => 'نخستین ورود به ویندوز از طریق کنسول',\n    'cs_windows_console_setup_password' => 'سرور را روشن کنید و کنسول را باز کنید. در صفحهٔ ورود، Ctrl+Alt+Del را از ابزار کنسول بفرستید. اگر ویندوز تعیین رمز اولیه را درخواست کرد، یک رمز قوی برای Administrator انتخاب و تأیید کنید.',\n    'cs_windows_console_setup_rdp' => 'پس از ورود، در Server Manager → Local Server فعال‌بودن Remote Desktop را بررسی کنید. سپس با نشانی بالا، کاربر Administrator و رمزی که در ویندوز تعیین کرده‌اید، از طریق Remote Desktop متصل شوید.',\n    'cs_windows_console_setup_note' => 'اگر قبلاً رمز را تعیین کرده‌اید، از همان رمز فعلی استفاده کنید. سرورنت رمز انتخاب‌شده داخل ویندوز را دریافت نمی‌کند؛ آن را در محل امن نگه دارید. اگر کنسول باز نشد یا وارد ویندوز نشدید، به پشتیبانی اطلاع دهید.',\n    'cs_js_stage_wait' => 'در انتظارِ وضعیتِ زیرساخت…',\n    'cs_access_h' => 'دسترسی به سرور',\n    'cs_user' => 'کاربر',\n"
+        }
+      ]
+    },
+    {
+      "path": "lang/en/ui.php",
+      "base_sha256": "ccb46ad776c1e18106545a08ec3f7b5587492f90c805d395c20e1b024598366f",
+      "candidate_sha256": "6b4b9395d0b29e7d3291aef53a9107b290ba24c6d51681e2a090a77039daf044",
+      "hunks": [
+        {
+          "id": 1,
+          "old": "    'svc_terminate_locked' => 'Delivery in progress — you can delete it once that finishes',\n    'cs_pw_missing' => 'No login password has been created for this server yet. Generate one under Server control; you can view it here again later.',\n    'cs_windows_pw_unavailable' => 'The Windows login password was not received from the infrastructure. Delivery is not complete until a password is shown or support confirms access.',\n    'cs_js_stage_wait' => 'Waiting for the infrastructure status…',\n    'cs_access_h' => 'Server access',\n    'cs_user' => 'User',\n",
+          "new": "    'svc_terminate_locked' => 'Delivery in progress — you can delete it once that finishes',\n    'cs_pw_missing' => 'No login password has been created for this server yet. Generate one under Server control; you can view it here again later.',\n    'cs_windows_pw_unavailable' => 'The Windows login password was not received from the infrastructure. Delivery is not complete until a password is shown or support confirms access.',\n    'cs_windows_console_setup_h' => 'First Windows sign-in through the console',\n    'cs_windows_console_setup_password' => 'Power on the server and open the console. At the sign-in screen, send Ctrl+Alt+Del using the console controls. If Windows asks you to set the initial password, choose and confirm a strong Administrator password.',\n    'cs_windows_console_setup_rdp' => 'After signing in, check that Remote Desktop is enabled in Server Manager → Local Server. Then connect using Remote Desktop with the address above, username Administrator and the password you set in Windows.',\n    'cs_windows_console_setup_note' => 'If you have already set a password, use your current password. ServerNet does not receive the password you choose inside Windows; keep it somewhere safe. Contact support if the console does not open or you cannot sign in.',\n    'cs_js_stage_wait' => 'Waiting for the infrastructure status…',\n    'cs_access_h' => 'Server access',\n    'cs_user' => 'User',\n"
+        }
+      ]
+    },
+    {
+      "path": "lang/tr/ui.php",
+      "base_sha256": "6e5f8b4b4131f35ea6daa0beb29d4d4e7a0e82dd2fcad1d091fcd0ebacb016ff",
+      "candidate_sha256": "eecfabfddda6115df65248de01ac6c6928fa2ddf0afab2adcd451db707a666af",
+      "hunks": [
+        {
+          "id": 1,
+          "old": "    'svc_terminate_locked' => 'Teslimat sürüyor — tamamlandıktan sonra silebilirsiniz',\n    'cs_pw_missing' => 'Bu sunucu için henüz giriş parolası oluşturulmadı. Sunucu kontrolünden yeni parola oluşturun; daha sonra buradan tekrar görüntüleyebilirsiniz.',\n    'cs_windows_pw_unavailable' => 'Windows oturum parolası altyapıdan alınamadı. Parola gösterilene veya destek erişimi doğrulayana kadar teslimat tamamlanmış sayılmaz.',\n    'cs_js_stage_wait' => 'Altyapı durumu bekleniyor…',\n    'cs_access_h' => 'Sunucu erişimi',\n    'cs_user' => 'Kullanıcı',\n",
+          "new": "    'svc_terminate_locked' => 'Teslimat sürüyor — tamamlandıktan sonra silebilirsiniz',\n    'cs_pw_missing' => 'Bu sunucu için henüz giriş parolası oluşturulmadı. Sunucu kontrolünden yeni parola oluşturun; daha sonra buradan tekrar görüntüleyebilirsiniz.',\n    'cs_windows_pw_unavailable' => 'Windows oturum parolası altyapıdan alınamadı. Parola gösterilene veya destek erişimi doğrulayana kadar teslimat tamamlanmış sayılmaz.',\n    'cs_windows_console_setup_h' => 'Windows’a konsoldan ilk giriş',\n    'cs_windows_console_setup_password' => 'Sunucuyu açın ve konsolu açın. Giriş ekranında konsol araçlarıyla Ctrl+Alt+Del gönderin. Windows ilk parolayı belirlemenizi isterse Administrator için güçlü bir parola seçip doğrulayın.',\n    'cs_windows_console_setup_rdp' => 'Giriş yaptıktan sonra Server Manager → Local Server bölümünde Remote Desktop’ın etkin olduğunu kontrol edin. Ardından yukarıdaki adres, Administrator kullanıcı adı ve Windows’ta belirlediğiniz parola ile Uzak Masaüstü üzerinden bağlanın.',\n    'cs_windows_console_setup_note' => 'Daha önce parola belirlediyseniz mevcut parolanızı kullanın. ServerNet, Windows içinde seçtiğiniz parolayı almaz; güvenli bir yerde saklayın. Konsol açılmazsa veya giriş yapamazsanız destek ekibine bildirin.',\n    'cs_js_stage_wait' => 'Altyapı durumu bekleniyor…',\n    'cs_access_h' => 'Sunucu erişimi',\n    'cs_user' => 'Kullanıcı',\n"
+        }
+      ]
+    },
+    {
+      "path": "resources/views/account/cloud-server.blade.php",
+      "base_sha256": "aef7cd97763cad5643f07ab0d0520c8f386632cf75e60c73a8b4f0dde64a9a3b",
+      "candidate_sha256": "09b74c5177b556096583279b1eeccf168716092152627839b419ffc436cc6375",
+      "hunks": [
+        {
+          "id": 1,
+          "old": "      $gpuTok  = $gpuApp ? $inst->accessToken() : null;\n      $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;\n      $windows = ! $gpuApp && $inst->isWindows();\n    @endphp\n\n    @if($gpuApp)\n",
+          "new": "      $gpuTok  = $gpuApp ? $inst->accessToken() : null;\n      $gpuUrl = $gpuHost ? 'https://'.$gpuHost : null;\n      $windows = ! $gpuApp && $inst->isWindows();\n      $windowsConsoleSetup = $windows && $inst->provider === 'arvan' && ! $inst->hasPassword()\n          && ($caps['console'] ?? false)\n          && $inst->arvanWindowsConsoleAvailable();\n    @endphp\n\n    @if($gpuApp)\n"
+        },
+        {
+          "id": 2,
+          "old": "      <p style=\"margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9\">\n        {{ __('ui.cs_pw_missing') }}\n      </p>\n    @elseif($windows && ! $inst->hasPassword())\n      <p style=\"margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9\">\n        {{ __('ui.cs_windows_pw_unavailable') }}\n",
+          "new": "      <p style=\"margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9\">\n        {{ __('ui.cs_pw_missing') }}\n      </p>\n    @elseif($windowsConsoleSetup)\n      <div class=\"dm-note\" style=\"margin-top:14px\" data-windows-console-setup>\n        <strong>{{ __('ui.cs_windows_console_setup_h') }}</strong>\n        <ol style=\"margin:8px 0;padding-inline-start:22px;line-height:1.9\">\n          <li>{{ __('ui.cs_windows_console_setup_password') }}</li>\n          <li>{{ __('ui.cs_windows_console_setup_rdp') }}</li>\n        </ol>\n        <p style=\"margin:8px 0;font-size:12.5px;line-height:1.9\">{{ __('ui.cs_windows_console_setup_note') }}</p>\n        <form method=\"post\" action=\"{{ lroute('account.cloud.console', $service) }}\" target=\"_blank\" rel=\"noopener noreferrer\">\n          @csrf<button class=\"pnl-btn\" type=\"submit\"><svg class=\"icon\"><use href=\"#i-monitor\"/></svg>{{ __('ui.cs_console') }}</button>\n        </form>\n      </div>\n    @elseif($windows && ! $inst->hasPassword())\n      <p style=\"margin:14px 0 0;font-size:12.5px;color:var(--warn);line-height:1.9\">\n        {{ __('ui.cs_windows_pw_unavailable') }}\n"
+        },
+        {
+          "id": 3,
+          "old": "      @endif\n    </div>\n\n    @if($windows && ! ($caps['console'] ?? false) && ! $ownerAcceptanceConsole)\n      <p class=\"dm-note\" style=\"margin-top:12px\">{{ __('ui.cs_console_unavailable_rdp') }}</p>\n    @endif\n\n",
+          "new": "      @endif\n    </div>\n\n    @if($windows && $inst->hasPassword() && ! ($caps['console'] ?? false) && ! $ownerAcceptanceConsole)\n      <p class=\"dm-note\" style=\"margin-top:12px\">{{ __('ui.cs_console_unavailable_rdp') }}</p>\n    @endif\n\n"
+        }
+      ]
+    }
+  ],
+  "live_context_revision": "v2_preserve_owner_acceptance_console_clause",
+  "live_view_observed_before_sha256": "a11a8ebd3da182704c1df2754b4466b13a76a261e1037bc646a895a4dc50c5d4"
+}

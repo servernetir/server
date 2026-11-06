@@ -1368,7 +1368,9 @@
         "type": "object",
         "properties": {
           "national_code": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 10
           },
           "nationality_type": {
             "type": "integer"

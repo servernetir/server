@@ -44,6 +44,17 @@ final class FinanceAudit
             ->whereNotIn('source_type', [(new Payment)->getMorphClass(), (new Invoice)->getMorphClass(), (new SnappPayOrderEvent)->getMorphClass()])->count();
         $out['unallocated_costs'] = $scope->apply(BusinessEntry::query())->where('kind', 'expense')->whereNull('category')->count();
 
+        if (Schema::hasTable('finance_vouchers')) {
+            $documented = \App\Models\FinanceVoucher::whereNull('reversal_of')
+                ->whereNotIn('id', \App\Models\FinanceVoucher::whereNotNull('reversal_of')->select('reversal_of'));
+            $documentedCosts = (clone $documented)->whereNotNull('business_entry_id')->pluck('business_entry_id')
+                ->merge((clone $documented)->whereNotNull('adjusts_entry_id')->pluck('adjusts_entry_id'))->unique();
+            // Review candidates only: an automatic cost estimate is not proof of a supplier debit.
+            $out['supplier_costs_unreconciled'] = $scope->apply(BusinessEntry::query())
+                ->where('kind', 'expense')->whereIn('category', ['server', 'domain_wholesale', 'api_kyc', 'api_sms'])
+                ->whereNotIn('id', $documentedCosts)->count();
+        }
+
         return $out;
     }
 }

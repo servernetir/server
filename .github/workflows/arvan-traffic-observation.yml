@@ -1,0 +1,47 @@
+name: Private Arvan traffic observation checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Cloud/ArvanTrafficObservation.php'
+      - 'website/app/Services/Cloud/PrivatePrometheusTrafficSource.php'
+      - 'scripts/arvan-monitoring/**'
+      - '.github/workflows/arvan-traffic-observation.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-traffic-observation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-observation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for standalone checks
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+      - name: Lint standalone observation sources
+        run: |
+          set -euo pipefail
+          php -l website/app/Services/Cloud/ArvanTrafficObservation.php
+          php -l website/app/Services/Cloud/PrivatePrometheusTrafficSource.php
+          php -l scripts/arvan-monitoring/test-traffic-observation.php
+      - name: Run observation and installer fixtures without a network interface
+        run: |
+          set -euo pipefail
+          test_php="$(command -v php)"
+          # Only these child processes enter an empty network namespace. No
+          # composer/app bootstrap, production secrets, package installations,
+          # guest/provider requests, host network or service changes occur.
+          sudo unshare --net -- "$test_php" scripts/arvan-monitoring/test-traffic-observation.php
+          sudo unshare --net -- python3 -m unittest discover -s scripts/arvan-monitoring -p 'test_linux_exporter.py' -v

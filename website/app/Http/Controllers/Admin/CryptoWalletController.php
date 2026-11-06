@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\CryptoPayment;
 use App\Models\CryptoWallet;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 
 /**
  * استخرِ آدرس‌های دریافت + پرداخت‌های نیازمندِ بازبینی.
@@ -25,13 +23,13 @@ class CryptoWalletController extends Controller
      */
     public function index(): RedirectResponse
     {
-        return redirect()->to("/admin/settings?tab=accounts");
+        return redirect()->to('/admin/settings?tab=accounts');
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'chain' => ['required', 'string', 'max:16'],
+            'chain' => ['required', 'string', 'in:tron,bsc'],
             'addresses' => ['required', 'string', 'max:20000'],
         ]);
 
@@ -52,17 +50,28 @@ class CryptoWalletController extends Controller
             */
             if ($data['chain'] === 'tron' && ! preg_match('~^T[1-9A-HJ-NP-Za-km-z]{33}$~', $addr)) {
                 $skipped++;
+
                 continue;
+            }
+
+            if ($data['chain'] === 'bsc') {
+                if (! preg_match('/^0x[0-9a-fA-F]{40}$/D', $addr) || strtolower($addr) === '0x'.str_repeat('0', 40)) {
+                    $skipped++;
+
+                    continue;
+                }
+                $addr = strtolower($addr);
             }
 
             if ($addr === '') {
                 continue;
             }
 
-            $exists = CryptoWallet::where('chain', $data['chain'])->where('address', $addr)->exists();
+            $exists = CryptoWallet::where('chain', $data['chain'])->whereRaw('LOWER(address) = ?', [strtolower($addr)])->exists();
 
             if ($exists) {
                 $skipped++;
+
                 continue;
             }
 

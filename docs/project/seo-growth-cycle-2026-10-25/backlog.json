@@ -20,44 +20,81 @@
     "next_run_note": "Tool next_run_time is null; first scheduled occurrence is derived from the recorded DTSTART, not a recorded run.",
     "last_state_verified_date_tehran": "2026-10-25"
   },
-  "active_run": null,
+  "active_run": {
+    "run_id": "search-growth-20261102",
+    "phase": "production_verified_observing_google_validation",
+    "pull_request": 202,
+    "code_commit": "ee3f188ce929b28390d73b9e0b65e57caa5481f3",
+    "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+    "production_verified": true,
+    "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+    "access_note": "Owner-provided fresh Chrome cPanel session superseded prior access blocker; no API token used or created and no new SSH key/access created.",
+    "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+    "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+    "render_receipt": "docs/project/seo-search-growth-20261102/release-render.json",
+    "release_tools": "docs/project/seo-daily-20261102/release-tools/README.md",
+    "merchant_validation": {
+      "state": "started_pending_recrawl_and_completion",
+      "started_date": "2026-11-02",
+      "affected_items_still_reported": 299,
+      "receipt": "docs/project/seo-search-growth-20261102/gsc-validation-started.json"
+    },
+    "limitations": "Public HTML and GPU mobile rendering accepted; no proof of real GA4 purchase/revenue, Google validation completion or LCP improvement. No traffic impact attributed to release.",
+    "merge_sha": "b47bb98a122fb4bc9c5ead79daaf6f21ed7e532e",
+    "git_status": "merged_into_develop"
+  },
   "last_run": {
-    "run_id": "growth-cycle-20261026-0629-git-guide-finalize",
-    "task_id": "git-deployment-guide-safe-example",
-    "base_sha": "198199258bb761e0964a96d844d80711dc9f1d9d",
-    "started_at_utc": "2026-10-26T06:28:54Z",
+    "run_id": "daily-seo-20261101-blog-author-loading",
+    "task_id": "blog-index-author-eager-loading",
+    "base_sha": "891a92350a2e332b81373a1968a83092214c1884",
     "phase": "completed",
-    "outcome": "merged_pending_deployment",
-    "completed_at_utc": "2026-10-26T06:36:47Z",
-    "feature_branch": "seo/20261026-git-deployment-guide",
-    "tested_head_sha": "6effc23d8026a589686dad1f3b70cb9a321fd56f",
-    "pull_request": 132,
+    "outcome": "production_verified",
+    "completed_at_utc": "2026-11-01T06:58:59Z",
+    "feature_branch": "codex/seo-daily-20261101",
+    "tested_head_sha": "6527322db2911ca73d6dcd93af4384facd3eebcc",
+    "pull_request": 196,
     "implementation_merged": true,
-    "implementation_merge_sha": "81c12f6650a7b44a5360feeda58eb89dc2699300",
-    "merged_at_utc": "2026-10-26T06:35:51Z",
-    "installed_at_utc": null,
-    "production_verified": false,
-    "receipt": "docs/project/seo-growth-cycle-2026-10-26/git-guide-finalization.json",
-    "completed_task_ids": [],
-    "completed_gates": ["three-language source precision corrections", "six source/local-Git tests", "nineteen PHP tests with 522 assertions", "fifteen bounded public HTML checks", "independent automated Codex review without findings", "PR132 merged preserving concurrent develop changes"],
-    "blockers": ["authorized_private_production_execution_unavailable"],
-    "traffic_impact": "not_measured; source merged but not published"
+    "implementation_merge_sha": "ecc2f93266845b423811b3b3de916dbbadd00ab3",
+    "installed_at_utc": "2026-11-01T06:57:04Z",
+    "production_verified": true,
+    "receipt": "docs/project/seo-daily-20261101/blog-release-summary.json",
+    "acceptance_receipt": "docs/project/seo-daily-20261101/blog-public-comparison.json",
+    "report": "SEO-DAILY-2026-11-01.md",
+    "completed_task_ids": [
+      "blog-index-author-eager-loading"
+    ],
+    "blockers": [
+      "Separate P0 catalogue availability recovery needs explicit pricing/stock scope; no sales guard bypass."
+    ],
+    "traffic_impact": "Not attributable; GSC window ends before release. Field LCP, actual GA4 delivery/revenue and purchase remain open."
   },
   "run_receipts": [
     {"run_id": "growth-cycle-20261025-initial", "completed_at_utc": "2026-10-25T16:24:33.603756+00:00", "path": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json", "outcome": "production_verified"},
     {"run_id": "growth-cycle-20261026-0202-git-guide", "completed_at_utc": "2026-10-26T05:24:41Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-validation.json", "outcome": "validated_pending_review_and_deployment", "pull_request": 132},
-    {"run_id": "growth-cycle-20261026-0629-git-guide-finalize", "completed_at_utc": "2026-10-26T06:36:47Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-finalization.json", "outcome": "merged_pending_deployment", "pull_request": 132}
+    {"run_id": "growth-cycle-20261026-0629-git-guide-finalize", "completed_at_utc": "2026-10-26T06:36:47Z", "path": "docs/project/seo-growth-cycle-2026-10-26/git-guide-finalization.json", "outcome": "merged_pending_deployment", "pull_request": 132},
+    {"run_id": "growth-cycle-20261029-git-guide-publication", "completed_at_utc": "2026-10-29T07:00:52Z", "path": "docs/project/seo-daily-20261029/git-guide-applied.json", "acceptance_path": "docs/project/seo-daily-20261029/git-guide-public-acceptance.json", "outcome": "production_verified", "pull_request": 132},
+    {"run_id": "daily-seo-20261030-analytics-flash-consumption", "completed_at_utc": "2026-10-30T07:02:37.690395+00:00", "outcome": "production_verified", "pull_request": 153, "path": "docs/project/seo-daily-20261030/analytics-applied.json"},
+    {
+      "run_id": "weekly-seo-20261031-ai-planner",
+      "completed_at_utc": "2026-10-31T06:51:23.036575+00:00",
+      "outcome": "production_verified",
+      "pull_request": 165,
+      "path": "docs/project/seo-daily-20261031/ai-planner-applied.json",
+      "acceptance_path": "docs/project/seo-daily-20261031/ai-planner-public-comparison.json"
+    },
+    {"run_id": "daily-seo-20261101-blog-author-loading", "completed_at_utc": "2026-11-01T06:58:59Z", "outcome": "production_verified", "pull_request": 196, "path": "docs/project/seo-daily-20261101/blog-release-summary.json", "acceptance_path": "docs/project/seo-daily-20261101/blog-public-comparison.json"},
+    {"run_id": "search-growth-20261102", "published_at_utc": "2026-11-02T06:49:08.764411+00:00", "outcome": "production_verified_google_validation_pending", "pull_request": 202, "path": "docs/project/seo-search-growth-20261102/release-applied-summary.json", "acceptance_path": "docs/project/seo-search-growth-20261102/acceptance-review.json", "render_path": "docs/project/seo-search-growth-20261102/release-render.json", "google_validation_path": "docs/project/seo-search-growth-20261102/gsc-validation-started.json"}
   ],
   "measurement": {
     "gsc_max_fetches_per_day": 1,
     "comparison_days": 28,
-    "google_login": "deferred_by_owner",
+    "google_login": "Authenticated GSC Chrome2026-11-02; GA4 not rechecked",
     "repeat_google_login_requests": false,
-    "latest_known_report": "docs/project/seo-growth-cycle-2026-10-25/gsc-baseline.json",
-    "latest_known_complete_end_date": "2026-10-22",
+    "latest_known_report": "docs/project/seo-search-growth-20261102/gsc-summary.json",
+    "latest_known_complete_end_date": "2026-10-30",
     "triage_end_date": "2026-10-17",
     "do_not_mix_baseline_windows": true,
-    "last_gsc_fetch_date_tehran": "2026-10-25",
+    "last_gsc_fetch_date_tehran": "2026-11-02",
     "latest_targeted_baseline": "docs/project/seo-growth-cycle-2026-10-25/gsc-baseline.json"
   },
   "completed_baseline": [
@@ -143,7 +180,7 @@
       "acceptance": ["Read current official MySQL/MariaDB backup and client credential guidance before replacing examples.", "Use least-privilege example credentials outside command-line arguments; explicit pipeline/error checks.", "No retention deletion unless a new backup and independent recovery verification satisfy documented policy; work only on disposable fixtures.", "Cover engine/consistency constraints and tested restore, not a DB-size threshold or guaranteed recovery time.", "Inspect fa/tr bodies before deciding scope; preserve original publication dates and URLs."], "owner_note": "Observed by content reviewer in this initial session; article is not modified or accepted yet."
     },
     {
-      "id": "git-deployment-guide-safe-example", "priority": "P1", "state": "merged_pending_deployment", "urls": ["/blog/git-basics-for-deployment", "/en/blog/git-basics-for-deployment", "/tr/blog/git-basics-for-deployment"],
+      "id": "git-deployment-guide-safe-example", "priority": "P1", "state": "production_verified", "urls": ["/blog/git-basics-for-deployment", "/en/blog/git-basics-for-deployment", "/tr/blog/git-basics-for-deployment"],
       "reason": "Fresh article-body review found a public deploy.php example with an unenforced IP allowlist, unconditional shell_exec git-pull, and query-token fallback. This is a defect in published guidance, not proof that such an endpoint is deployed on ServerNet.", "evidence": "docs/project/seo-growth-cycle-2026-10-25/technical-links.md",
       "acceptance": ["Replace executable public deployment examples with an authenticated, least-privilege, auditable workflow supported by current primary Git/hosting documentation.", "No secrets in URLs or shell commands; no generic public shell endpoint.", "Explain reviewed commit/release, allowed paths, atomicity limits, backup and rollback.", "Inspect all three language bodies and preserve their URLs/publication dates; test any example only in a disposable local fixture."],
       "feature_branch": "seo/20261026-git-deployment-guide",
@@ -154,10 +191,15 @@
       "implementation_merged": true,
       "implementation_merge_sha": "81c12f6650a7b44a5360feeda58eb89dc2699300",
       "merged_at_utc": "2026-10-26T06:35:51Z",
-      "production_installed": false,
-      "production_verified": false,
-      "next_action": "Publish the merged source only after authorized private production access, fresh CMS/source snapshots, private backups and a real shared release lock. Do not redraft or duplicate PR132. If access remains unavailable, retain this gate and choose another bounded independent task.",
-      "owner_note": "Final head passed 6 Python tests and 19 PHP tests/522 assertions in isolated Actions runs 40280377150/40280380793. Independent Codex review completed without findings. 15 existing public pages passed HTTP200/X-Cache BYPASS; not new-source publication. Concurrent PR133 documentation preserved. No production CMS/file write, no Google login, no GSC fetch by this run. Reservation released."
+      "production_installed": true,
+      "production_verified": true,
+      "published_at_utc": "2026-10-29T06:57:14Z",
+      "source_sha256": "40b94a1ccdadfb655ed39c30d3331d3359c5cdc69c7c9f4bcd538343d1b8c025",
+      "publication_receipt": "docs/project/seo-daily-20261029/git-guide-applied.json",
+      "acceptance_receipt": "docs/project/seo-daily-20261029/git-guide-public-acceptance.json",
+      "publication_report": "SEO-DAILY-2026-10-29.md",
+      "next_action": "Observe this accepted revision for a complete comparable GSC window. Do not redraft, republish or duplicate PR132 without a concrete defect or new evidence. Preserve financial/catalog eligibility guards; no traffic uplift measured yet.",
+      "owner_note": "Published 2026-10-29 with reviewed source/command hashes, shared deployment lock, private raw backup and fresh expected CMS snapshot. Exactly three translations changed; original post metadata/publication date preserved. Local PHP19/522 plus helper4/26 and lint passed; repeated runs are not additive. Four bounded public GETs verified exact three localized bodies, HTTP200/BYPASS, canonical/H1/4hreflang/schema/hourly links and Oct29 sitemap lastmod. Browser and 390px mobile rendering with IRANSans accepted. Loader presence is not analytics delivery; no real purchase, conversion or fresh CWV acceptance. Reservation remains released; no prices, stock, sales gates or infrastructure changed."
     },
     {
       "id": "staging-guide-accurate-workflow", "priority": "P1", "state": "ready_for_research", "urls": ["/en/blog/staging-environment-setup"],
@@ -168,6 +210,117 @@
       "id": "storage-purchase-conditions-copy", "priority": "P2", "state": "ready_for_observation", "urls": ["/cloud/object-storage", "/cloud/block-storage"],
       "reason": "Desktop QA observed Object Storage plan purchase buttons alongside service-conditions text referring to a future purchase activation. This is an apparent copy/readiness inconsistency, not proof of payment or provisioning behavior.", "evidence": "docs/project/seo-growth-cycle-2026-10-25/validation-summary.json",
       "acceptance": ["Read actual catalog/readiness state and localized conditions before proposing wording.", "If a mismatch is confirmed, align copy only with current supported behavior; keep prices, sales gates, payments and provisioning unchanged.", "Verify all affected locales and the existing sales-safety tests; do not place a real order."]
+    },
+    {
+      "id": "analytics-flash-one-render",
+      "priority": "P0",
+      "state": "production_verified",
+      "reason": "Reproduced session flash replay when a callback flashes and renders in the same request; consume only at enabled analytics render.",
+      "evidence": "docs/project/seo-daily-20261030/analytics-event-consumption-test-receipt.json",
+      "pull_request": 153,
+      "published_at_utc": "2026-10-30T06:55:11Z",
+      "publication_report": "SEO-DAILY-2026-10-30.md",
+      "production_verified": true,
+      "next_action": "Observe; do not republish without new evidence. This closes only this HTML replay defect. Real GA4 delivery/revenue, concurrent callback/session behavior and attribution remain separate acceptance work.",
+      "owner_note": "One partial deployed; payment/auth/consent/worker/prices unchanged. Synthetic private array-session render has 1 then 0 purchase emissions, with no JavaScript or Google dispatch; six public marker/HTTP checks and 390px IRANSans rendering passed."
+    },
+    {
+      "id": "ai-usage-planner-discovery",
+      "priority": "P1",
+      "state": "production_verified",
+      "reason": "Public AI cards and model jump navigation did not expose the existing token calculator. Same existence gate and localized HTML links added.",
+      "evidence": "docs/project/seo-daily-20261031/ai-planner-test-receipt.json",
+      "pull_request": 165,
+      "published_at_utc": "2026-10-31T06:47:21Z",
+      "publication_report": "SEO-DAILY-2026-10-31.md",
+      "production_verified": true,
+      "next_action": "Observe after a comparable complete window; do not republish. AI cohort indexing, field LCP and actual GA4 delivery/revenue remain separate acceptance work.",
+      "owner_note": "Only two views and their compiled outputs deployed; pricing, eligibility, calculation and tracking unchanged. 28 tests passed, one existing skip; both CI checks passed; public before/after and mobile acceptance passed."
+    },
+    {
+      "id": "blog-index-author-eager-loading",
+      "priority": "P1",
+      "state": "production_verified",
+      "pull_request": 196,
+      "reason": "Cold blog index loaded each CMS author separately; eager load id/name preserves complete public metadata.",
+      "evidence": "docs/project/seo-daily-20261101/blog-release-summary.json",
+      "acceptance_receipt": "docs/project/seo-daily-20261101/blog-public-comparison.json",
+      "published_at_utc": "2026-11-01T06:57:04Z",
+      "publication_report": "SEO-DAILY-2026-11-01.md",
+      "next_action": "Observe; do not redeploy. Actual production cold SQL9 to3, author7 to1 in all locales,205 rows unchanged,warm0. This is not stable LCP or purchase evidence."
+    },
+    {
+      "id": "catalogue-pricing-snapshot-availability",
+      "priority": "P0",
+      "state": "recovered_separate_release",
+      "urls": [
+        "/vps/hourly",
+        "/gpu",
+        "/vps/uae",
+        "/vps/philippines",
+        "/vps/germany"
+      ],
+      "reason": "Live snapshot00:08:34 differs from valid FX fetched06:00:14; global snapshot false blocks sellable offers.928base-eligible rows,0sellable.",
+      "evidence": "docs/project/GPU-SALES-RECOVERY-2026-11-01.md",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "next_action": "PR198 isolated supplier failure; Nov2 public hourly/GPU/DE/PH forms recovered. Do not repeat repricing. Iran geo and UAE remain separate; no financial policy changed in SEO run."
+    },
+    {
+      "id": "empty-catalogue-jump-targets",
+      "priority": "P1",
+      "state": "observe",
+      "urls": [
+        "/vps/hourly",
+        "/gpu"
+      ],
+      "evidence": "docs/project/seo-daily-20261101/public-health-summary.md",
+      "reason": "Hourly #plans and GPU #gpu-configure are missing when offers are empty.",
+      "next_action": "Nov2 recovered catalogue samples have no missing fragment targets. No new empty-state patch today; retain empty-state regression concern for genuine recurrence.",
+      "latest_evidence": "docs/project/seo-search-growth-20261102/public-health-summary.md"
+    },
+    {
+      "id": "country-sitemap-legacy-eligibility",
+      "priority": "P1",
+      "state": "production_verified",
+      "pull_request": 202,
+      "reason": "Empty country reinsertion by legacy catalogue loop",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
+      "production_verified": true,
+      "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+      "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+      "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+      "next_action": "Observe Google sitemap recrawl and comparable-window country cohort. Live XML removes all3 Sweden URLs; Austria, Iran and Philippines retained in all3 locales. Do not change Iran visitor-dependent visibility or bypass unavailable/noindex guards. Net XML5460 to5454 includes3 other removals not attributed by this receipt."
+    },
+    {
+      "id": "vps-service-schema",
+      "priority": "P1",
+      "state": "production_verified",
+      "pull_request": 202,
+      "reason": "299 Merchant items caused by VPS rentals emitted as Product",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
+      "production_verified": true,
+      "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+      "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+      "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+      "google_validation_receipt": "docs/project/seo-search-growth-20261102/gsc-validation-started.json",
+      "next_action": "Validate Fix clicked once after accepted live Service schema; Google UI started2026-11-02. Await recrawl/completion;299 affected items remain reported and are not299 pages or verified fixed items. No fake product image/rating/GTIN or physical-product schema changes."
+    },
+    {
+      "id": "gpu-workload-selection-guide",
+      "priority": "P1",
+      "state": "production_verified",
+      "pull_request": 202,
+      "reason": "Fresh GSC commercial intent supports useful selection guidance and relevant existing links",
+      "report": "SEO-SEARCH-GROWTH-2026-11-02.md",
+      "evidence": "docs/project/seo-search-growth-20261102/local-validation.json",
+      "production_verified": true,
+      "published_at_utc": "2026-11-02T06:49:08.764411+00:00",
+      "publication_receipt": "docs/project/seo-search-growth-20261102/release-applied-summary.json",
+      "acceptance_receipt": "docs/project/seo-search-growth-20261102/acceptance-review.json",
+      "render_receipt": "docs/project/seo-search-growth-20261102/release-render.json",
+      "next_action": "Observe country/GPU cohort only after Google recrawl and a full comparable window. Three localized guides and real internal links accepted at390px with IRANSans, present CTA and no horizontal overflow. Form/analytics-loader HTML parity does not establish real purchase, GA4 delivery/revenue or mobile LCP improvement."
     }
   ]
 }

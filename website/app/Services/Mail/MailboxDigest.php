@@ -34,6 +34,9 @@ class MailboxDigest
      */
     public function send(bool $dry = false): array
     {
+        if (\App\Services\Notify\BaleManagerPolicy::enabled() && ! $dry) {
+            return ['reported' => 0, 'skipped' => 0, 'sent' => false, 'reason' => 'included_in_manager_digest'];
+        }
         $quiet = (array) config('mailboxes.quiet_categories', []);
 
         $pending = MailboxMessage::unreported()

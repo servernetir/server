@@ -1,6 +1,12 @@
 @extends('layouts.site')
 
 @php
+  $hostingSeo = ($category ?? 'hosting') === 'hosting' && in_array($slug ?? '', ['windows', 'linux'], true)
+      ? trans('hosting-seo.'.$slug) : null;
+  if (is_array($hostingSeo)) {
+      $product[app()->getLocale()]['seo_t'] = $hostingSeo['title'];
+      $product[app()->getLocale()]['seo_d'] = $hostingSeo['description'];
+  }
   $countryIso = ($category ?? '') === 'vps' ? \App\Services\Cloud\CloudCountry::isoForSlug($slug ?? '') : null;
   $countrySeo = $countryIso ? app(\App\Services\Cloud\CountryLandingSeo::class)->content($countryIso) : null;
   if ($countrySeo) {
@@ -39,9 +45,8 @@
   موتور جست‌وجو و مدل‌های زبانی فقط «متن» بود. با نشانه‌گذاری، قیمت و پاسخ‌ها
   قابلِ نقل‌قول می‌شوند.
 
-  ⚠️ `priceValidUntil` عمداً هست. در بازارِ تورمی، عددها زود عوض می‌شوند و
-  بدونِ تاریخ، ChatGPT و Perplexity قیمتِ امروز را ماه‌ها بعد نقل می‌کنند —
-  آن‌وقت یا باید عددِ منسوخ را بپذیریم یا مشتری سرِ خرید احساسِ فریب می‌کند.
+  قیمت اجاره، عکس کاتالوگ جاری است؛ تاریخ تضمین‌شده ساختگی یا اطلاعات
+  ارسال کالای فیزیکی برای خدمت میزبانی اعلام نمی‌شود.
 
   ⚠️⚠️ آرایه‌ها اول در بلوکِ php ساخته می‌شوند، نه درون‌خطی: آرایهٔ درون‌خطی
   پارسرِ Blade را می‌شکند. و در همین کامنت هم نامِ دایرکتیوها با علامتِ «at»
@@ -55,6 +60,7 @@
   // با عددِ صفحه فرق می‌کرد و همان تناقض به موتور جست‌وجو گزارش می‌شد.
   $sdIsFa = app()->getLocale() === 'fa';
   $sdCur  = $sdIsFa ? 'IRR' : 'EUR';
+  $sdIsService = in_array($category, ['hosting', 'vps', 'dedicated'], true);
 
   $sdOffers = [];
   foreach ($product['plans'] as $sdP) {
@@ -86,9 +92,10 @@
           continue;
       }
 
-      // + schema_offer_extras: سه هشدارِ Merchant listings (validFrom،
-      //   return policy، shipping) را برای هر Offer می‌بندد.
-      $sdOffers[] = schema_offer_extras($sdCur) + [
+      // Rental services do not have parcel shipping or an invented quote expiry.
+      $sdOffers[] = ($sdIsService ? [] : schema_offer_extras($sdCur) + [
+          'priceValidUntil' => now()->addDays(30)->toDateString(),
+      ]) + [
           '@type'           => 'Offer',
           'name'            => $sdP['name'] ?? '',
           // 🔴 IRR یعنی **ریال**، پس عدد باید ریال باشد نه تومان.
@@ -99,7 +106,6 @@
           // با این صفحات نمی‌خواندند. حالا یک منبعِ واحد.
           'price'           => $sdPrice,
           'priceCurrency'   => $sdCur,
-          'priceValidUntil' => now()->addDays(30)->toDateString(),
           'availability'    => 'https://schema.org/InStock',
           'url'             => url()->current(),
       ];
@@ -130,9 +136,14 @@
       'brand'       => ['@type' => 'Brand', 'name' => __('ui.brand')],
       'offers'      => $sdOffers,
   ];
+  if ($sdIsService) {
+      unset($sdProduct['brand'], $sdProduct['image']);
+      $sdProduct['serviceType'] = $sdName;
+      $sdProduct['provider'] = ['@'.'id' => rtrim((string) config('app.url'), '/').'/#organization'];
+  }
 @endphp
-@if($sdOffers)
-<script type="application/ld+json">{!! schema_ld($sdProduct, 'Product') !!}</script>
+@if($sdIsService || $sdOffers)
+<script type="application/ld+json">{!! schema_ld($sdProduct, $sdIsService ? 'Service' : 'Product') !!}</script>
 @endif
 @if($sdFaq)
 <script type="application/ld+json">{!! schema_ld(['mainEntity' => $sdFaq], 'FAQPage') !!}</script>
@@ -173,7 +184,7 @@
     <div class="section-head reveal">
       <span class="badge">{{ __('ui.hp_plans_badge') }}</span>
       <h2>{{ __('ui.hp_plans_title') }}</h2>
-      <p>{{ isset($product['plan_note']) ? lc($product['plan_note']) : __('ui.hp_plans_sub') }}</p>
+      <p>{{ isset($product['plan_note']) ? lc($product['plan_note']) : __($category === 'domain' ? 'ui.hp_domain_plans_sub' : 'ui.hp_plans_sub') }}</p>
     </div>
     @php
       // سرورِ مجازی/اختصاصی با پلنِ زنده = **جدولِ کامل**، نه کارت.
@@ -543,6 +554,9 @@
 @if($category === 'hosting' && $slug === 'python')
 @include('partials.seo-python-fit')
 @endif
+@if($category === 'hosting' && is_array($hostingSeo))
+@include('partials.hosting-stack-guide', ['copy' => $hostingSeo])
+@endif
 
 {{-- ============ BAND (پیشنهاد مرتبط، مثل ایمیل تراکنشی) ============ --}}
 @isset($product['band'])
@@ -742,3 +756,4 @@
 @include('partials.growth-cta')
 @endif
 @endsection
+

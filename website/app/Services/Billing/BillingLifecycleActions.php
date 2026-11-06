@@ -13,7 +13,7 @@ class BillingLifecycleActions
     public static function run(Service $service, string $action, ProvisioningService $provisioner): string
     {
         $service->refresh();
-        if ($service->isInternalInfrastructure() || ! empty($service->provision_meta['staff_suspend'])) {
+        if ($service->hasUnverifiedBillingTerms() || $service->isInternalInfrastructure() || ! empty($service->provision_meta['staff_suspend'])) {
             return 'deferred';
         }
         if ($action === 'suspend' && (RenewalTerms::serviceDeadline($service)?->isFuture()

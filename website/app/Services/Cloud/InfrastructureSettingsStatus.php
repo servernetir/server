@@ -52,7 +52,13 @@ class InfrastructureSettingsStatus
                 $detail = 'اطلاعات اتصال کامل نشده است.';
             } elseif ($disabled) {
                 $state = 'inactive';
-                $detail = 'فروش این زیرساخت غیرفعال است؛ سرویس‌های موجود جداگانه مدیریت می‌شوند.';
+                $detail = match ($provider) {
+                    'ovh' => 'اتصال قابل آزمون است؛ خرید سرور جدید در این درایور هنوز دستی است و فروش خودکار بسته است.',
+                    'proxmox' => 'فروش بسته است؛ قالب، ظرفیت و مسیر شبکهٔ تحویل باید پیش از بازکردن بررسی شوند.',
+                    default => 'فروش این زیرساخت غیرفعال است؛ سرویس‌های موجود جداگانه مدیریت می‌شوند.',
+                };
+            } elseif (in_array($provider, app(CloudPricingSnapshot::class)->excludedProviders(), true)) {
+                $detail = 'اتصال حساب و قیمت‌گذاری جدا هستند؛ قیمت‌های این زیرساخت باید تازه و تأیید شوند.';
             } elseif ($provider === 'vpstc' && (! app(VpsTcSales::class)->enabled()
                 || ! app(CloudPricingSnapshot::class)->current('vpstc'))) {
                 $detail = 'اتصال، کاتالوگ و قیمت‌گذاری ماهانه باید تکمیل و همگام شوند.';

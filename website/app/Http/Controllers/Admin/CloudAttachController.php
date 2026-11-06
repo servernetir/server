@@ -71,8 +71,9 @@ class CloudAttachController extends Controller
             'plans'     => CloudPlan::query()
                 ->orderBy('provider')->orderBy('sort')
                 ->get(['id', 'provider', 'public_name', 'slug', 'location_code', 'vcpu', 'ram_mb', 'disk_gb', 'price_irt']),
-            'customers' => Customer::query()->orderBy('id', 'desc')->limit(500)
-                ->get(['id', 'code', 'email', 'phone']),
+            'customers' => Customer::query()->orderBy('id', 'desc')->limit(500)->get(['id', 'code', 'email', 'phone'])
+                ->merge(Customer::whereKey((int) $request->query('customer_id', 0))->get(['id', 'code', 'email', 'phone']))->unique('id'),
+            'prefillCustomer' => (int) $request->query('customer_id', 0),
             // بدونِ 'once' — کرونِ تمدید نمی‌بیندش و سرویس هرگز فاکتور نمی‌شود
             'cycles'    => array_keys(config('billing.cycles')),
             'prefill'   => $request->query('ref', ''),
@@ -104,6 +105,8 @@ class CloudAttachController extends Controller
             'provider_ref' => ['required', 'string', 'max:120'],
             'name'         => ['required', 'string', 'max:150'],
             'price'        => ['required', 'integer', 'min:0', 'max:100000000000'],
+            'expected_ipv4' => ['nullable', 'ipv4'],
+            'internal_infrastructure' => ['sometimes', 'boolean'],
             // 'once' عمداً بیرون است: کرونِ صورت‌حساب فقط دوره‌های
             // `config/billing.cycles` را می‌بیند و 'once' جزوشان نیست. سرویسی که
             // با آن ثبت شود هرگز فاکتور نمی‌شود — یعنی دقیقاً همان «ماهِ بعد
@@ -148,6 +151,17 @@ class CloudAttachController extends Controller
 
         $plan = CloudPlan::findOrFail($data['cloud_plan_id']);
         $ref = trim($data['provider_ref']);
+
+        if ($plan->provider === 'vpstc') {
+            $data['provider_ref'] = $ref;
+            $data['internal_infrastructure'] = ! empty($data['internal_infrastructure']);
+            $customer = Customer::findOrFail($data['customer_id']);
+            app(\App\Services\Cloud\VpsTcAttachment::class)->attach($customer, $plan, $data, $request->user()?->id);
+            return redirect('/admin/customers/'.$customer->id)->with('ok', 'سرور موجود، دسترسی و سررسید واقعی به حساب متصل شد؛ تراکنش پرداخت تازه‌ای ثبت نشد.');
+        }
+        if (! empty($data['internal_infrastructure'])) {
+            return back()->withInput()->withErrors('ثبت زیرساخت داخلی در این مسیر فقط برای اتصال تأییدشدهٔ VPS.TC حساب مالک پشتیبانی می‌شود.');
+        }
 
         // ── همان سرور واقعاً نزدِ زیرساخت هست؟ ──
         $driver = $this->manager->driver($plan->provider);

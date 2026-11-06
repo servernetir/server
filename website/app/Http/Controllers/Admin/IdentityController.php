@@ -42,7 +42,7 @@ class IdentityController extends Controller
         $d = $request->validate(['key' => ['required', 'string', 'max:100'], 'value' => ['nullable', 'string', 'max:200']]);
         $key = $d['key'];
         $value = $d['value'] ?? '';
-        if (in_array($key, ['enabled', 'egress_verified', 'notifications_enabled'], true) || str_starts_with($key, 'service:')) {
+        if (in_array($key, ['enabled', 'egress_verified', 'notifications_enabled', 'price_sync_enabled'], true) || str_starts_with($key, 'service:')) {
             if (str_starts_with($key, 'service:')) {
                 $catalog->find(substr($key, 8));
             }
@@ -88,6 +88,7 @@ class IdentityController extends Controller
         $d['daily_quota'] = 1; // Retained schema metadata; no customer daily count limit.
         $d['created_by'] = Auth::id();
         DB::transaction(function () use ($d, $controls) {
+            DB::table('identity_controls')->where('key', 'provider_mutex')->lockForUpdate()->firstOrFail();
             $p = IdentityPrice::create($d);
             $controls->audit(Auth::id(), 'price_version', ['id' => $p->id, 'service' => $p->service]);
         });

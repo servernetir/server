@@ -47,6 +47,27 @@ class VpsTcSalesTest extends TestCase
             ]]];
     }
 
+    public function test_monthly_only_public_country_and_hourly_shelves_match_checkout(): void
+    {
+        $this->manifest();
+        $this->snapshot();
+        Setting::put('vpstc_sales_enabled', '1');
+        $plan = $this->plan();
+        $expected = CloudStoreController::priceForCycle($plan, 'monthly');
+        $country = $this->get('/vps/turkiye')->assertOk();
+        $rows = $country->viewData('vpsRows');
+        $this->assertCount(1, $rows);
+        $this->assertSame($expected, $rows[0]['monthly']);
+        $this->assertGreaterThan(0, $rows[0]['monthly']);
+        $this->assertSame(0, $rows[0]['hourly']);
+        $this->assertNull($rows[0]['hourly_url']);
+        $country->assertSee(cloud_price($expected))->assertDontSee('vpstc');
+        $hourly = $this->get('/vps/hourly')->assertOk();
+        $this->assertCount(1, $hourly->viewData('vpsRows'));
+        $hourly->assertSee(__('vps-catalog.monthly_only'));
+        Http::assertNothingSent();
+    }
+
     private function admin(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
@@ -151,7 +172,7 @@ class VpsTcSalesTest extends TestCase
         $plan = $this->plan(['cost_hour_eur_micro' => 999999]);
         $this->snapshot();
         $this->post('/admin/cloud/vpstc/sales', ['enabled' => 1])
-            ->assertRedirect('/admin/cloud/vpstc')->assertSessionHasNoErrors();
+            ->assertRedirect('/admin/settings?tab=infra#infra-vpstc')->assertSessionHasNoErrors();
         $this->assertSame('1', Setting::get('vpstc_sales_enabled'));
         $this->assertTrue(CloudPlan::sellable()->whereKey($plan->id)->exists());
         $this->assertCount(1, CloudPlan::offers());
@@ -243,7 +264,7 @@ class VpsTcSalesTest extends TestCase
             'https://portal.vps.tc/api/payment/fees' => Http::response(['payments' => [
                 ['id' => 120, 'fixed_fee' => '0', 'percent_fee' => '0']]]),
         ]);
-        $this->post('/admin/cloud/vpstc/catalog')->assertRedirect('/admin/cloud/vpstc')->assertSessionHasNoErrors();
+        $this->post('/admin/cloud/vpstc/catalog')->assertRedirect('/admin/settings?tab=infra#infra-vpstc')->assertSessionHasNoErrors();
         $plan = CloudPlan::where('provider', 'vpstc')->sole();
         $this->assertSame(176, $plan->cost_eur_cents);
         $this->assertGreaterThan(0, $plan->price_irt);
@@ -256,6 +277,23 @@ class VpsTcSalesTest extends TestCase
         Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET'
             && $request->url() !== 'https://portal.vps.tc/api/login');
         $this->post('/admin/cloud/vpstc/sales', ['enabled' => 1])->assertSessionHasNoErrors();
+        $values = app(\App\Services\Cloud\VpsTcPricing::class)->values();
+        $requestsBeforeProfitEdit = Http::recorded()->count();
+        $this->post('/admin/cloud/vpstc/pricing', array_replace($values, ['cloud_margin_pct_vpstc' => '40']))
+            ->assertSessionHasNoErrors();
+        $this->assertSame($requestsBeforeProfitEdit, Http::recorded()->count());
+        $this->assertSame('40', Setting::get('cloud_margin_pct_vpstc'));
+        $this->assertTrue($snapshot->current('vpstc'));
+        $this->assertTrue(CloudPlan::sellable()->whereKey($plan->id)->exists());
+        $this->assertGreaterThan($plan->price_irt, $plan->fresh()->price_irt);
+        $price = $plan->fresh()->price_irt;
+        $this->mock(\App\Services\Cloud\CloudCatalogSync::class, fn ($mock) => $mock->shouldReceive('sync')->once()->with('vpstc')->andThrow(new \RuntimeException('supplier unavailable')));
+        $this->post('/admin/cloud/vpstc/pricing', array_replace($values, ['cloud_margin_pct_vpstc' => '50', 'pricing_fx_fee_pct_vpstc' => '6']))
+            ->assertSessionHasErrors('pricing');
+        $this->assertSame('40', Setting::get('cloud_margin_pct_vpstc'));
+        $this->assertSame($price, $plan->fresh()->price_irt);
+        $this->assertTrue($snapshot->current('vpstc'));
+
         $this->assertTrue(CloudPlan::sellable()->whereKey($plan->id)->exists());
     }
 
@@ -301,4 +339,42 @@ class VpsTcSalesTest extends TestCase
         $this->assertSame(fa_num(500).' گیگابایت ماهانه با سقف قطعی', $plan->trafficLabel('fa'));
         Http::assertNothingSent();
     }
+    public function test_repeated_offer_checks_validate_the_local_manifest_once_without_supplier_calls(): void
+    {
+        $this->manifest();
+        Setting::put('vpstc_sales_enabled', '1');
+        $this->mock(VpsTcCatalog::class, fn ($mock) => $mock->shouldReceive('manifest')
+            ->once()->andReturn(['products' => []]));
+
+        // The container normally creates a new gate for each row. The local
+        // validation budget must hold across those transient instances too.
+        for ($i = 0; $i < 200; $i++) {
+            $this->assertTrue(app(VpsTcSales::class)->enabled());
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_request_memo_cannot_reuse_another_account_or_a_changed_manifest(): void
+    {
+        $this->manifest();
+        Setting::put('vpstc_sales_enabled', '1');
+        $raw = Setting::get('vpstc_catalog_manifest');
+        $this->assertTrue(app(VpsTcSales::class)->enabled());
+
+        Setting::putSecret('cloud_vpstc_password', 'rotated-fixture-secret');
+        $this->assertFalse(app(VpsTcSales::class)->enabled());
+        Setting::putSecret('cloud_vpstc_password', 'fixture-secret');
+        $this->assertTrue(app(VpsTcSales::class)->enabled());
+
+        Setting::put('vpstc_catalog_manifest', '{"products":[]}');
+        $this->assertFalse(app(VpsTcSales::class)->enabled());
+        Setting::put('vpstc_catalog_manifest', $raw);
+        $this->assertTrue(app(VpsTcSales::class)->enabled());
+
+        Setting::put('vpstc_sales_enabled', '0');
+        $this->assertFalse(app(VpsTcSales::class)->enabled());
+        Http::assertNothingSent();
+    }
+
 }

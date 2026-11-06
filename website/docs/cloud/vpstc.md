@@ -1,10 +1,18 @@
 # VPS.TC reseller integration
 
-Current continuation, 26 October 2026: the owner saved credentials and authenticated reads succeeded; all 16 monthly VPS forms were read. The [money-contract follow-up](../../../docs/project/VPSTC-MONEY-CONTRACT-2026-10-26.md) reconciles the raw base/account units through reviewed invoice, credit, tax and current calculated-price evidence. Empty API currency and malformed fee fields remain visible defects; they are never guessed into free costs. Sales remain closed pending catalog/network and real lifecycle acceptance. See [sales acceptance](../../../docs/project/VPSTC-SALES-PREPARATION-2026-10-26.md).
+Current contract, 31 October 2026: [supplier ticket 154596 and corrective release](../../../docs/project/VPSTC-TICKET-154596-2026-10-31.md) supersedes earlier statements about unavailable routes, traffic and the reported currency/fee defects. The seven-file correction is installed. Production CLI and protected admin billing-only checks verified native TRY and numeric zero credit-payment fees on 31 October. A numeric TRY balance does not normalize raw USD order prices or establish a guaranteed gross quote.
 
-The [settings/rate/offer follow-up](../../../docs/project/INFRASTRUCTURE-SETTINGS-PRICING-2026-10-26.md) adds compact numbered infrastructure settings, a shared inline VPS.tc panel, central Navasan TRY by default with the existing six-hour job, and retail comparison of verified equivalent offers. A manual supplier rate is optional. Independent purchase tax, funding fee and profit remain separate. A TRY-only change or expiry invalidates VPS.tc pricing until fresh repricing.
+Monthly sales were opened with explicit owner approval on 27 October; see [commercial launch](../../../docs/project/VPSTC-COMMERCIAL-LAUNCH-2026-10-27.md). That approval remains configuration-bound. Every new service still needs its Service Auto Renewal switch manually turned Off and checked in the provider portal. Auto-apply credit Off is not a spending lock. Native unpaid-invoice lookup does not make concurrent renewal retries safe; keep the local journal, preflight invoice scan and reconciliation.
 
-The [27-capability and cost matrix](../../../docs/project/VPSTC-CAPABILITIES-2026-10-26.md) is the current capability inventory. Console requires supplier browser-session context; independent guest-password change exists but is not accepted as free forced recovery. Optional reinstall/resize/backup/IP features remain unavailable until entitlement and costs are verified. Power requires a matching creation journal and account-bound `power_cost_mode=included` proof; unknown price is not zero. Parent cancellation remains independent. No paid supplier operation has been performed.
+The corrective code requires numeric zero credit-payment fees, provides a billing-only read check, adds `serviceResources()`, and stops known-unregistered VM usage calls locally. It supports reviewed combined monthly allowances with speed reduction in fa/en/tr. Existing production mappings are not silently rewritten. Unknown exact byte units/reset time stay unknown; resource allowances are not measured usage. Snapshot/password/console routes remain disabled even though corresponding portal functions exist.
+
+```text
+php artisan cloud:vpstc-preflight --billing-only
+```
+
+This checks balance, payment methods and fees, with authentication only as needed. It does not read catalog forms, calculate quotes, import/reprice plans, enable sales or submit orders/renewals/payments. It requires native currency and numeric zero fees for the identified Credit Balance method. A report failure includes a fixed safe category rather than the provider's raw message.
+
+[Money normalization](../../../docs/project/VPSTC-MONEY-CONTRACT-2026-10-26.md), [pricing/settings](../../../docs/project/INFRASTRUCTURE-SETTINGS-PRICING-2026-10-26.md), and the [capability history with current overrides](../../../docs/project/VPSTC-CAPABILITIES-2026-10-26.md) retain the underlying implementation and historical evidence. Code registered in Git is not a production deployment; use the 31 October release record for current validation and installation status.
 
 ## Historical read-only preparation
 
@@ -85,3 +93,10 @@ Deploy only from fresh exact-byte production snapshots: SettingsController and r
 The proposal uses application files and encrypted settings only, with no migration or scheduler. No customer plan, service, invoice or provider resource is created by preparation. Guests, network routes, NAT/firewall, DNS, host cron and routing/port-forward agent state were not changed.
 
 For a future installed release, restore only its manifest files with installed-hash guards, remove only its dedicated routes/link and invalidate affected caches. Preserve unrelated application changes and existing customer services. Retain encrypted settings unless the administrator explicitly removes those three specific keys. Do not rotate APP_KEY or roll back network state.
+
+Existing paid-service adoption and owner-authorized offer expansion: [31 October report](../../../docs/project/VPSTC-ATTACH-CATALOG-2026-10-31.md). Import preserves the actual VM, access and supplier due anchor; it does not manufacture a purchase or repeat a payment. Both requested guests are attached; 16 monthly offers in Istanbul and New York are installed, priced and publicly visible. Included power is enabled only for the verified reference product.
+
+
+Custom API console: [3 November provider-wide routing, release and acceptance](../../../docs/project/VPSTC-CONSOLE-2026-11-03.md). The shared customer capability is enabled for eligible receipt-bound VPS services in both offered regions, Istanbul and New York, including future purchases. Location selects its exact provider-confirmed gateway; location changes revoke pending grants and unknown locations stay denied. The owner pilot is off. Istanbul owner framebuffer/input and all three current VM RFB handshakes passed. Both regions' public APIs/TLS were verified from production; New York has full isolated API/relay coverage but no live NY VM screen/authentication test. Current CI passed 289 PHP tests, 43 MariaDB tests and 20 Node checks. Provider-wide driver capability remains false; the scoped broker decides each service capability.
+
+New console streams last up to 30 minutes. Short-lived single-use launch/claim grants, customer ownership and private upstream credentials are retained. No per-customer activation is needed in either offered region.

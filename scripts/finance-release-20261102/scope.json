@@ -1,0 +1,254 @@
+{
+  "schema_version": 1,
+  "release_id": "finance-funding-20261102",
+  "status": "source-candidate-production-unverified",
+  "source_commit": "190ff59cc1531399c7cdbd8b928b54d3c7727ae6",
+  "product_validation": {
+    "source_commit": "d058df95f7a27a622d33d0861b1ea929c907a32c",
+    "run": "https://github.com/servernetir/server/actions/runs/41396096976",
+    "pull_requests": [
+      194,
+      195,
+      201
+    ]
+  },
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/Admin/AccountingController.php",
+      "destinations": [
+        "servernet_app/app/Http/Controllers/Admin/AccountingController.php"
+      ]
+    },
+    {
+      "source": "website/app/Http/Controllers/Admin/WalletRefundController.php",
+      "destinations": [
+        "servernet_app/app/Http/Controllers/Admin/WalletRefundController.php"
+      ]
+    },
+    {
+      "source": "website/app/Models/FinanceAccount.php",
+      "destinations": [
+        "servernet_app/app/Models/FinanceAccount.php"
+      ]
+    },
+    {
+      "source": "website/app/Models/FinanceVoucher.php",
+      "destinations": [
+        "servernet_app/app/Models/FinanceVoucher.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/AccountingReport.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/AccountingReport.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/BankReconciliation.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/BankReconciliation.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/BusinessLedger.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/BusinessLedger.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/DocumentedAccounting.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/DocumentedAccounting.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/FinanceAccountRegistry.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/FinanceAccountRegistry.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/FinanceAudit.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/FinanceAudit.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/SupplierCreditReconciliation.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/SupplierCreditReconciliation.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/TaxEvidenceBundle.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/TaxEvidenceBundle.php"
+      ]
+    },
+    {
+      "source": "website/app/Services/Finance/WalletRefunds.php",
+      "destinations": [
+        "servernet_app/app/Services/Finance/WalletRefunds.php"
+      ]
+    },
+    {
+      "source": "website/database/migrations/2026_10_31_180000_add_bank_identity_to_finance_accounts.php",
+      "destinations": [
+        "servernet_app/database/migrations/2026_10_31_180000_add_bank_identity_to_finance_accounts.php"
+      ]
+    },
+    {
+      "source": "website/database/migrations/2026_10_31_230100_add_related_voucher_to_finance_vouchers.php",
+      "destinations": [
+        "servernet_app/database/migrations/2026_10_31_230100_add_related_voucher_to_finance_vouchers.php"
+      ]
+    },
+    {
+      "source": "website/lang/en/finance.php",
+      "destinations": [
+        "servernet_app/lang/en/finance.php"
+      ]
+    },
+    {
+      "source": "website/lang/en/refund.php",
+      "destinations": [
+        "servernet_app/lang/en/refund.php"
+      ]
+    },
+    {
+      "source": "website/lang/fa/finance.php",
+      "destinations": [
+        "servernet_app/lang/fa/finance.php"
+      ]
+    },
+    {
+      "source": "website/lang/fa/refund.php",
+      "destinations": [
+        "servernet_app/lang/fa/refund.php"
+      ]
+    },
+    {
+      "source": "website/lang/tr/finance.php",
+      "destinations": [
+        "servernet_app/lang/tr/finance.php"
+      ]
+    },
+    {
+      "source": "website/lang/tr/refund.php",
+      "destinations": [
+        "servernet_app/lang/tr/refund.php"
+      ]
+    },
+    {
+      "source": "website/public/assets/css/admin-wallet-refund.css",
+      "destinations": [
+        "servernet_app/public/assets/css/admin-wallet-refund.css",
+        "public_html/assets/css/admin-wallet-refund.css"
+      ]
+    },
+    {
+      "source": "website/public/assets/css/finance-funding.css",
+      "destinations": [
+        "servernet_app/public/assets/css/finance-funding.css",
+        "public_html/assets/css/finance-funding.css"
+      ]
+    },
+    {
+      "source": "website/resources/views/admin/accounting-voucher.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/admin/accounting-voucher.blade.php"
+      ]
+    },
+    {
+      "source": "website/resources/views/admin/accounting.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/admin/accounting.blade.php"
+      ]
+    },
+    {
+      "source": "website/resources/views/admin/wallet-refund.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/admin/wallet-refund.blade.php"
+      ]
+    }
+  ],
+  "required_shared_dependencies": [
+    {
+      "source": "website/public/assets/css/site-select.css",
+      "destinations": [
+        "servernet_app/public/assets/css/site-select.css",
+        "public_html/assets/css/site-select.css"
+      ]
+    },
+    {
+      "source": "website/public/assets/js/site-select.js",
+      "destinations": [
+        "servernet_app/public/assets/js/site-select.js",
+        "public_html/assets/js/site-select.js"
+      ]
+    },
+    {
+      "source": "website/public/assets/js/finance-dates.js",
+      "destinations": [
+        "servernet_app/public/assets/js/finance-dates.js",
+        "public_html/assets/js/finance-dates.js"
+      ]
+    },
+    {
+      "source": "website/public/assets/css/admin.css",
+      "destinations": [
+        "servernet_app/public/assets/css/admin.css",
+        "public_html/assets/css/admin.css"
+      ]
+    },
+    {
+      "source": "website/public/assets/css/jdate.css",
+      "destinations": [
+        "servernet_app/public/assets/css/jdate.css",
+        "public_html/assets/css/jdate.css"
+      ]
+    },
+    {
+      "source": "website/public/assets/js/jdate.js",
+      "destinations": [
+        "servernet_app/public/assets/js/jdate.js",
+        "public_html/assets/js/jdate.js"
+      ]
+    },
+    {
+      "source": "website/resources/views/admin/layout.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/admin/layout.blade.php"
+      ]
+    },
+    {
+      "source": "website/resources/views/admin/partials/finance-periods.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/admin/partials/finance-periods.blade.php"
+      ]
+    },
+    {
+      "source": "website/resources/views/components/admin-jdate.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/components/admin-jdate.blade.php"
+      ]
+    }
+  ],
+  "migrations": [
+    "website/database/migrations/2026_10_31_180000_add_bank_identity_to_finance_accounts.php",
+    "website/database/migrations/2026_10_31_230100_add_related_voucher_to_finance_vouchers.php"
+  ],
+  "blade_views": [
+    "website/resources/views/admin/accounting-voucher.blade.php",
+    "website/resources/views/admin/accounting.blade.php",
+    "website/resources/views/admin/wallet-refund.blade.php"
+  ],
+  "production_preconditions": [
+    "Reconcile current live files and existing accounts before writes.",
+    "Hold the existing release locks; record per-destination before hashes and private backups.",
+    "Apply only the two planned additive migrations before dependent code; preserve APP_KEY.",
+    "Register or update verified existing account IDs; no financial entries or balances are created by identity registration.",
+    "Verify installed hashes, both CSS destinations and shared select dependencies; recompile only the three changed views.",
+    "Do not infer installation, account registration or tax acceptance from this source archive."
+  ]
+}

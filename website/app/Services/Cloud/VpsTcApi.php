@@ -15,6 +15,7 @@ final class VpsTcApi
     private string $password;
     private ?string $token = null;
     private ?string $refresh = null;
+    private ?int $authenticationStatus = null;
 
     public function __construct(?string $origin = null, ?string $username = null, ?string $password = null)
     {
@@ -107,6 +108,12 @@ final class VpsTcApi
     public function serviceMethods(string $serviceId): array
     {
         return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/methods', 'methods'));
+    }
+
+    /** Purchased allowances, not usage counters or permission to buy additional resources. */
+    public function serviceResources(string $serviceId): array
+    {
+        return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/resources', 'resources'));
     }
 
     /** Calculate one monthly configuration; this route never submits an order or payment. */
@@ -248,6 +255,14 @@ final class VpsTcApi
         return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId, 'service'));
     }
 
+    /** Billing identity may remain readable while the hypervisor manager is offline.
+     * This method is not evidence of VM availability or successful provisioning.
+     */
+    public function serviceBilling(string $serviceId): array
+    {
+        return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId, 'service', null, true));
+    }
+
     public function templates(string $serviceId): array
     {
         return $this->withIds([$serviceId], fn () => $this->read('/api/service/'.$serviceId.'/templates', 'templates'));
@@ -265,7 +280,9 @@ final class VpsTcApi
 
     public function vmUsage(string $serviceId, string $vmId): array
     {
-        return $this->withVm($serviceId, $vmId, fn () => $this->read('/api/service/'.$serviceId.'/vms/'.$vmId.'/usage', 'usage'));
+        // Supplier ticket 154596 confirms this advertised route is not registered.
+        // Keep the callable for compatibility, without repeatedly probing a known 404.
+        return $this->withVm($serviceId, $vmId, fn () => $this->failure('unsupported_usage', 'Usage statistics are not exposed by the verified service API.'));
     }
 
     public function power(string $serviceId, string $vmId, string $action): array
@@ -292,7 +309,7 @@ final class VpsTcApi
 
     public function console(string $serviceId, string $vmId): array
     {
-        return $this->withVm($serviceId, $vmId, fn () => $this->failure('unsupported_console', 'This console requires a supplier browser session and is unavailable through the server API.'));
+        return $this->withVm($serviceId, $vmId, fn () => $this->failure('unsupported_console', 'No reseller console grant is exposed by the verified service API.'));
     }
 
     private function withVm(string $serviceId, string $vmId, callable $operation): array
@@ -318,7 +335,7 @@ final class VpsTcApi
             return $this->failure('not_configured', 'VPS.TC credentials and an approved HTTPS API origin are required.');
         }
         if ($this->token === null && ! $this->authenticate(false)) {
-            return $this->failure('authentication_failed', 'VPS.TC authentication failed. No service operation was submitted.');
+            return $this->failure($this->authenticationFailureCode(), 'VPS.TC authentication could not complete. No service operation was submitted.');
         }
         try {
             $response = $this->request('POST', $path, $payload, true);
@@ -372,13 +389,13 @@ final class VpsTcApi
         return $operation();
     }
 
-    private function read(string $path, string $expectedKey, ?array $calculation = null): array
+    private function read(string $path, string $expectedKey, ?array $calculation = null, bool $billingIdentityOnly = false): array
     {
         if (! $this->isConfigured()) {
             return $this->failure('not_configured', 'VPS.TC credentials and an approved HTTPS API origin are required.');
         }
         if ($this->token === null && ! $this->authenticate(false)) {
-            return $this->failure('authentication_failed', 'VPS.TC authentication failed. Check the reseller credentials and API origin.');
+            return $this->failure($this->authenticationFailureCode(), 'VPS.TC authentication could not complete. Inspect the safe failure code before changing credentials.');
         }
         try {
             // The only POST read is the fixed /quote calculation above.
@@ -387,7 +404,7 @@ final class VpsTcApi
             // One auth recovery per read/calculation; never a business mutation.
             if ($response->status() === 401) {
                 if (! $this->authenticate(true)) {
-                    return $this->failure('authentication_failed', 'VPS.TC authentication could not be renewed.');
+                    return $this->failure($this->authenticationFailureCode(), 'VPS.TC authentication could not be renewed.');
                 }
                 $response = $this->request($method, $path, $calculation, true);
             }
@@ -404,7 +421,12 @@ final class VpsTcApi
                 return $this->failure('provider_error', 'VPS.TC could not complete the read-only request.');
             }
             $data = $this->decode($response);
-            if ($data === null || ! array_key_exists($expectedKey, $data) || ! is_array($data[$expectedKey]) || $this->hasApiError($data)) {
+            $billingAdvisory = $billingIdentityOnly && $expectedKey === 'service'
+                && preg_match('~\A/api/service/[1-9][0-9]{0,17}\z~D', $path)
+                && ($data['error'] ?? null) === ['management_offline']
+                && ($data['success'] ?? true) !== false && ($data['status'] ?? true) !== false;
+            if ($data === null || ! array_key_exists($expectedKey, $data) || ! is_array($data[$expectedKey])
+                || ($this->hasApiError($data) && ! $billingAdvisory)) {
                 return $this->failure('invalid_response', 'VPS.TC returned an unsupported response.');
             }
 
@@ -416,6 +438,7 @@ final class VpsTcApi
 
     private function authenticate(bool $renew): bool
     {
+        $this->authenticationStatus = null;
         try {
             $useRefresh = $renew && $this->refresh !== null;
             $response = $this->request(
@@ -424,6 +447,7 @@ final class VpsTcApi
                 $useRefresh ? ['refresh_token' => $this->refresh] : ['username' => $this->username, 'password' => $this->password],
                 false
             );
+            $this->authenticationStatus = $response->status();
             if (! $response->successful()) {
                 $this->token = null;
 
@@ -444,6 +468,16 @@ final class VpsTcApi
 
             return false;
         }
+    }
+
+    private function authenticationFailureCode(): string
+    {
+        $status = $this->authenticationStatus;
+        if ($status === null) { return 'connection_failed'; }
+        if ($status >= 500 && $status <= 599) { return 'upstream_http_'.$status; }
+        if ($status === 429) { return 'rate_limited'; }
+        if ($status >= 300 && $status < 400) { return 'redirect_rejected'; }
+        return 'authentication_failed';
     }
 
     private function request(string $method, string $path, ?array $payload, bool $authenticated): Response

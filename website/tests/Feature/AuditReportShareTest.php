@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Admin\SeoOutreachController;
 use App\Mail\AuditReportMail;
 use App\Models\AuditReport;
 use App\Models\OutreachContact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -111,6 +113,77 @@ class AuditReportShareTest extends TestCase
     public function test_an_unknown_token_is_a_404(): void
     {
         $this->get('/report/'.str_repeat('a', 32))->assertNotFound();
+    }
+
+    public function test_report_link_expires_and_refuses_consultation_without_creating_a_lead(): void
+    {
+        $report = $this->report();
+        $report->forceFill(['expires_at' => now()->subMinute()])->save();
+
+        $this->get('/report/'.$report->token)->assertNotFound();
+        $this->post('/report/'.$report->token.'/consultation', [
+            'consultation_name' => 'Owner',
+            'consultation_email' => 'owner@example.test',
+            'consultation_message' => 'Please help',
+            'consultation_consent' => '1',
+        ])->assertNotFound();
+        $this->assertDatabaseCount('crm_leads', 0);
+    }
+
+    public function test_legacy_report_without_an_explicit_expiry_uses_the_ninety_day_limit(): void
+    {
+        $report = $this->report();
+        $report->forceFill([
+            'created_at' => now()->subDays(AuditReport::ACCESS_DAYS)->subMinute(),
+            'expires_at' => null,
+        ])->save();
+
+        $this->get('/report/'.$report->token)->assertNotFound();
+    }
+
+    public function test_admin_can_revoke_a_link_idempotently_and_stop_pending_delivery(): void
+    {
+        Mail::fake();
+        $report = $this->report('revoked.example');
+        $contact = OutreachContact::create([
+            'host' => 'revoked.example', 'email' => 'verified@revoked.example',
+            'audit_report_id' => $report->id,
+        ]);
+        $admin = $this->admin();
+
+        $request = Request::create('/admin/seo/reports/'.$report->id.'/revoke', 'POST');
+        $request->setLaravelSession(app('session.store'));
+        $request->setUserResolver(fn () => $admin);
+        $this->app->instance('request', $request);
+        $response = app(SeoOutreachController::class)->revokeReport($report);
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertNotNull($report->fresh()->revoked_at);
+        $this->assertSame('skipped', $contact->fresh()->status);
+        $this->assertSame('report_revoked', $contact->fresh()->error);
+        $this->get('/report/'.$report->token)->assertNotFound();
+
+        $this->assertSame(302, app(SeoOutreachController::class)->revokeReport($report->fresh())->getStatusCode());
+        Mail::assertNothingSent();
+    }
+
+    public function test_expired_or_revoked_report_is_not_sendable_even_with_a_pending_contact(): void
+    {
+        Mail::fake();
+        $expired = $this->report('expired.example');
+        $expired->forceFill(['expires_at' => now()->subMinute()])->save();
+        $contact = OutreachContact::create([
+            'host' => 'expired.example', 'email' => 'verified@expired.example',
+            'audit_report_id' => $expired->id,
+        ]);
+
+        $request = Request::create('/admin/seo/send-next', 'POST', ['ids' => [$contact->id]]);
+        $response = app(SeoOutreachController::class)->sendNext($request);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('skipped', $response->getData(true)['status']);
+        $this->assertSame('report_unavailable', $contact->fresh()->error);
+        Mail::assertNothingSent();
     }
 
     // ═══════════════ ۳) ابزارِ عمومی ═══════════════

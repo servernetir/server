@@ -328,6 +328,19 @@ class CustomerController extends Controller
         return in_array($per, self::ACTIVITY_SIZES, true) ? $per : 100;
     }
 
+    public function evidence(Request $request, Customer $customer): View
+    {
+        abort_unless($request->user()?->isAdmin() && \App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1', 403);
+        return view('admin.customer-evidence', [
+            'c' => $customer,
+            'documents' => \App\Models\CustomerDocument::whereHas('profile', fn ($q) => $q->where('customer_id', $customer->id))
+                ->with('profile')->orderByDesc('id')->paginate(30, ['*'], 'documents_page')->withQueryString(),
+            'receipts' => Schema::hasColumn('bank_transfer_receipts', 'evidence_path')
+                ? \App\Models\BankTransferReceipt::where('customer_id', $customer->id)->whereNotNull('evidence_path')
+                    ->orderByDesc('id')->paginate(30, ['*'], 'receipts_page')->withQueryString() : null,
+        ]);
+    }
+
     public function show(Request $request, Customer $customer): View
     {
         $load = [
@@ -357,6 +370,13 @@ class CustomerController extends Controller
 
         return view('admin.customer', [
             'c' => $customer,
+            'managerEvidenceProfiles' => \App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1'
+                ? \App\Models\CustomerProfile::where('customer_id', $customer->id)->orderByDesc('id')->limit(20)->get()->map(function ($profile) {
+                    $profile->setRelation('dossierDocuments', \App\Models\CustomerDocument::where('customer_profile_id', $profile->id)->orderByDesc('id')->limit(30)->get());
+                    return $profile;
+                }) : collect(),
+            'managerEvidenceReceipts' => \App\Models\Setting::get('bale_manager_policy_v2_enabled') === '1' && Schema::hasColumn('bank_transfer_receipts', 'evidence_path')
+                ? \App\Models\BankTransferReceipt::where('customer_id', $customer->id)->whereNotNull('evidence_path')->orderByDesc('id')->limit(30)->get() : collect(),
             'walletRefundHistory' => app(\App\Services\Finance\WalletRefunds::class)->hasHistory($customer->id),
             'statusChanges' => $customer->statusChanges()->limit(25)->get(),
             'creditBalance' => $customer->creditBalance(),

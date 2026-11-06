@@ -1,0 +1,62 @@
+{
+  "integrated_base_sha": "3eba2d2e9d1580a7f37186b19158889f875cc999",
+  "original_base_sha": "3613a1303e4177f4b53a13e273abee4e2b739b7f",
+  "php": "8.4.27",
+  "database": "isolated SQLite in memory",
+  "network": "seccomp socket/send denial, IPv4/IPv6 verified, inherited by subprocesses",
+  "baseline": {
+    "tool": "phpunit",
+    "result": "failed",
+    "tests": 124,
+    "passed": 107,
+    "assertions": 410,
+    "duration_ms": 8190,
+    "failed": 8,
+    "errors": 1,
+    "skipped": 8
+  },
+  "baseline_failures": [
+    "Tests\\Feature\\CloudCatalogTest::test_price_applies_margin_and_rounds_up",
+    "Tests\\Feature\\CloudCatalogTest::test_ipv4_cost_is_added_to_cost_price",
+    "Tests\\Feature\\CloudCatalogTest::test_offers_deduplicate_and_pick_the_cheapest_provider",
+    "Tests\\Feature\\CloudCatalogTest::test_admin_settings_page_renders_with_cloud_section",
+    "Tests\\Feature\\CloudCatalogTest::test_reprice_updates_toman_when_rate_changes",
+    "Tests\\Feature\\CloudAdminControlsTest::test_toggle_back_reopens_the_plan",
+    "Tests\\Feature\\CloudAdminControlsTest::test_disabling_a_provider_removes_its_plans_from_sale",
+    "Tests\\Feature\\CloudAdminControlsTest::test_delivery_skips_a_disabled_provider",
+    "Tests\\Feature\\CloudCatalogTest::test_delivery_falls_back_when_cheapest_is_out_of_stock"
+  ],
+  "final": {
+    "tool": "phpunit",
+    "result": "passed",
+    "tests": 145,
+    "passed": 137,
+    "assertions": 541,
+    "duration_ms": 11524,
+    "skipped": 8
+  },
+  "suites": [
+    "CatalogRefreshRequestsTest",
+    "ErrorTrackerTest",
+    "CloudCatalogTest",
+    "CloudCatalogRepricingTest",
+    "CloudAdminControlsTest",
+    "SystemHealthTest",
+    "HealthProbesTheActivePathTest",
+    "AiMediaRelayTest",
+    "NavasanCloudPricingSnapshotTest",
+    "FetchDollarTest"
+  ],
+  "skips": "8 tests require the trusted video input decoder unavailable in this runtime.",
+  "production_status": "not_installed",
+  "not_run": [
+    "MariaDB acceptance",
+    "Browser acceptance of new UI",
+    "Live supplier operations",
+    "Production deployment"
+  ],
+  "automatic_review_blocks": [
+    "Production cPanel administrative file read; no alternate access attempted after rejection.",
+    "Unmocked SMS connection in the original broad test run; subsequent tests denied network sockets."
+  ]
+}

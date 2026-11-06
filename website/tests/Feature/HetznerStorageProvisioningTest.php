@@ -346,7 +346,12 @@ class HetznerStorageProvisioningTest extends TestCase
         $server = $this->server();
         $service = $this->service($server, ['provision_meta' => ['hetzner_box_id' => 4711]]);
 
-        Http::fake(['api.hetzner.com/*' => Http::response(['action' => ['status' => 'success']], 200)]);
+        $state = ['reachable_externally' => true, 'ssh_enabled' => true, 'samba_enabled' => false, 'webdav_enabled' => true];
+        Http::fake(function ($req) use (&$state) {
+            if ($req->method() === 'GET') return Http::response(['storage_box' => ['id' => 4711, 'access_settings' => $state]]);
+            $state = $req->data();
+            return Http::response(['action' => ['status' => 'running']]);
+        });
 
         $r = (new HetznerStorageProvisioner())->suspend($service);
 
@@ -360,6 +365,47 @@ class HetznerStorageProvisioningTest extends TestCase
 
         // تعلیق نباید هیچ‌وقت DELETE بزند — دادهٔ مشتریِ بدهکار پاک نمی‌شود
         Http::assertNotSent(fn ($req) => $req->method() === 'DELETE');
+    }
+
+    public function test_invalid_or_cross_scoped_existing_snapshot_uses_normal_access_policy(): void
+    {
+        $server = $this->server();
+        $service = $this->service($server, ['username' => 'u123456']);
+        $normal = ['reachable_externally' => true, 'ssh_enabled' => true, 'samba_enabled' => false, 'webdav_enabled' => true];
+        config(['provisioning.hetzner_storage.access' => $normal]);
+        $original = ['driver' => 'hetzner_storage', 'hetzner_box_id' => 4711, 'host' => 'u123456.your-storagebox.de',
+            'existing_storage_binding' => ['version' => 1, 'service_id' => $service->id, 'customer_id' => $service->customer_id,
+                'server_id' => $server->id, 'box_id' => 4711, 'access_settings' => array_merge($normal, ['samba_enabled' => true])]];
+        $state = []; $updates = [];
+        Http::fake(function ($request) use (&$state, &$updates) {
+            if ($request->method() === 'GET') return Http::response(['storage_box' => ['id' => 4711, 'access_settings' => $state]]);
+            $updates[] = $request->data(); $state = $request->data();
+            return Http::response(['action' => ['status' => 'running']]);
+        });
+        foreach (['driver' => 'generic', 'host' => 'u654321.your-storagebox.de',
+            'existing_storage_binding.version' => 2, 'existing_storage_binding.customer_id' => $service->customer_id + 1,
+            'existing_storage_binding.service_id' => $service->id + 1, 'existing_storage_binding.server_id' => $server->id + 1,
+            'existing_storage_binding.box_id' => 4712, 'existing_storage_binding.access_settings.samba_enabled' => 'true',
+            'existing_storage_binding.access_settings' => ['reachable_externally' => true],
+            'existing_storage_binding.access_settings.extra' => true, 'existing_storage_binding' => null] as $key => $bad) {
+            $meta = $original; data_set($meta, $key, $bad);
+            $service->forceFill(['provision_meta' => $meta])->save();
+            $state = array_fill_keys(array_keys($normal), false);
+            $this->assertTrue((new HetznerStorageProvisioner)->unsuspend($service)->ok, $key);
+            $this->assertSame($normal, end($updates), $key);
+        }
+        Http::assertNotSent(fn ($request) => $request->method() === 'DELETE' || str_contains($request->url(), 'reset_password'));
+    }
+
+    public function test_access_toggle_requires_valid_readback_before_writing_or_confirming(): void
+    {
+        $service = $this->service($this->server(), ['provision_meta' => ['hetzner_box_id' => 4711]]);
+        Http::fake(['api.hetzner.com/*' => Http::response(['storage_box' => ['id' => 4712,
+            'access_settings' => ['reachable_externally' => false, 'ssh_enabled' => false, 'samba_enabled' => false, 'webdav_enabled' => false]]])]);
+        $result = (new HetznerStorageProvisioner)->suspend($service);
+        $this->assertFalse($result->ok);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
     }
 
     public function test_deleting_a_box_that_is_already_gone_counts_as_success(): void

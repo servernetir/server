@@ -1,0 +1,15 @@
+{
+  "status": "applied",
+  "source_sha256": "451f5dc904895fbf43318fb6a8471a724b00cecd380b2713e4c8a7d6f8ea4583",
+  "compiled_after": "7de9f19a3cd63cd4fbfd126d43095df7aaad585f9b6a7d79d8bedc7b5fc0e399",
+  "at": "2026-10-30T06:55:11+00:00",
+  "isolated_event_counts": [
+    1,
+    0
+  ],
+  "no_google_dispatch": true,
+  "no_real_payment": true,
+  "compiled_path": "/home/servernetcloud/servernet_app/storage/framework/views/d72b09cd7f7d3bd6d07bcc18ff1aeaf4.php",
+  "backup_sha256": "48a56951d810d796b18730a3a540f9bd99fd940301a3409eb4e4c315fe8ce6d7",
+  "private_session": "array"
+}

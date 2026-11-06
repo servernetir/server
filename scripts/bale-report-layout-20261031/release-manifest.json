@@ -1,0 +1,30 @@
+{
+  "release": "bale-report-layout-20261031",
+  "base_commit": "0861aab6d5452db065a7e1cbaaa3c9d3cd0bddeb",
+  "files": [
+    {
+      "source": "website/app/Services/Bale/Management/ManagerBusinessCalendarSnapshot.php",
+      "target": "app/Services/Bale/Management/ManagerBusinessCalendarSnapshot.php",
+      "before": null,
+      "after": "5d54db44072d3c30cd067e7572080fd72790e5e4eb520202b751626662ec323e"
+    },
+    {
+      "source": "website/app/Services/Bale/BaleSender.php",
+      "target": "app/Services/Bale/BaleSender.php",
+      "before": "b6127d4e9fe90313e3519690142b7345d33439834b2c3d2fd0a94f7f9ff9426b",
+      "after": "20183f573f39f29efeac329ceedfc370545fc8f00e3624431258536e55139c4e"
+    },
+    {
+      "source": "website/app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "target": "app/Services/Bale/Management/BaleManagerDailyDigest.php",
+      "before": "33a351d019bf28bd82da44fc3f8e7d22ca0d592a9bcd1f6850a882f055a8b9a9",
+      "after": "f3d5f7364393d4690c0cae5433178172ae0641c548bb75da42bf0c942bc1b74d"
+    },
+    {
+      "source": "website/app/Services/Bale/Admin/AdminBaleRouter.php",
+      "target": "app/Services/Bale/Admin/AdminBaleRouter.php",
+      "before": "427923cfe9e3324af4ac13b39883a3fcb9100627033df29e42360ff1de789de5",
+      "after": "b2d120dbf0dcb7cdad23095b366de8115564ffb818985c704a5cc110befc98c2"
+    }
+  ]
+}

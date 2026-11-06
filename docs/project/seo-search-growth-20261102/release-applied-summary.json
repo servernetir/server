@@ -1,0 +1,88 @@
+{
+  "release": "seo-search-growth-20261102",
+  "status": "production_verified",
+  "installed_at_utc": "2026-11-02T06:49:08.764411+00:00",
+  "preview_at_utc": "2026-11-02T06:48:42.406528+00:00",
+  "recorded_at_utc": "2026-11-02T06:58:45.008838+00:00",
+  "receipt_source": "cPanel Terminal visible applied.json output and subsequent read-only source/backup SHA-256 verification; not a downloaded raw receipt.",
+  "pull_request": 202,
+  "git_merge": "b47bb98a122fb4bc9c5ead79daaf6f21ed7e532e",
+  "private_stage": "/home/servernetcloud/.seo-search-growth-20261102",
+  "private_stage_mode": "0700",
+  "application": "/home/servernetcloud/servernet_app",
+  "files": [
+    {
+      "target": "app/Http/Controllers/CountryVpsController.php",
+      "before_sha256": "c89ee3e6e502b845fb897cb7b7895d0a35e528a5f76c3b4fc84db12de9c7dfeb",
+      "after_sha256": "7056b9ee9290b6ff19834aff2797e7dd6d6d6d50bd5d1e47ed109893c10f7420",
+      "backup_matches_before": true,
+      "live_matches_after": true,
+      "owner_uid": 1020,
+      "mode": "0644"
+    },
+    {
+      "target": "app/Http/Controllers/SiteController.php",
+      "before_sha256": "5141b44173bb172aeb51f1af5a5d60111963239a127b340457735577844e02bf",
+      "after_sha256": "660dc4ad756f6f865d6f9fcd70277927fb092e1d366be17b0a198f2d3499e830",
+      "backup_matches_before": true,
+      "live_matches_after": true,
+      "owner_uid": 1020,
+      "mode": "0644"
+    },
+    {
+      "target": "resources/views/pages/gpu.blade.php",
+      "before_sha256": "b7f3e4a547e1c66676690fc0969ae609c87371a450e3b2a0160e50bbc6edf02e",
+      "after_sha256": "d326884263cf14e542119fb00ac0e592af41cb3e779e6bd66b9b6ebfac367f82",
+      "backup_matches_before": true,
+      "live_matches_after": true,
+      "owner_uid": 1020,
+      "mode": "0644"
+    }
+  ],
+  "guards": [
+    "fresh live snapshot",
+    "three ordered account release locks",
+    "private per-file backup",
+    "unique scoped hunks with reverse round-trip",
+    "standalone PHP/Blade lint",
+    "immediate pre-write source/mode/owner and candidate hash check",
+    "single-use apply intent"
+  ],
+  "preserved_overlay": "Live SiteController home/CloudPublicQuote differences retained; no whole-file Git overwrite.",
+  "activation": "No explicit cache, compiled-view or FPM/OPcache flush. Public responses demonstrated new schema, sitemap membership and GPU guide in all three locales.",
+  "app_bootstrapped_by_installer": false,
+  "database_mutation_by_installer": false,
+  "public_helpers_created": false,
+  "new_credentials_created": false,
+  "rollback": {
+    "command": "python3 /home/servernetcloud/.seo-search-growth-20261102/deploy.py rollback",
+    "executed": false,
+    "rule": "Only known installed sources with matching private backups; refuses unknown later edits, mode/owner drift. Reconcile first if guard stops. Repeat HTTP/render acceptance after rollback."
+  },
+  "acceptance": {
+    "http_before": 9,
+    "http_after": 9,
+    "all_http_200": true,
+    "independent_comparison_checks": 46,
+    "evidence": [
+      "release-public-before.json",
+      "release-public-after.json",
+      "acceptance-review.json",
+      "release-render.json",
+      "gsc-validation-started.json"
+    ],
+    "application_tests": {
+      "tests": 48,
+      "assertions": 1471
+    },
+    "installer_fixtures": 7,
+    "code_github_checks_passed": 4
+  },
+  "limits": [
+    "No real purchase or GA4 event transport/revenue acceptance.",
+    "No fresh lab LCP/TBT or field-speed improvement established.",
+    "Google validation started; issue counts not yet cleared.",
+    "Public comparison did not capture title/description or Offer price values. Preserved pricing established by scoped source change/tests, not a live transaction.",
+    "Sitemap count moved 5460 to 5454; observed Sweden removal accounts for three URLs only; no attribution of other three from sampled membership receipt."
+  ]
+}

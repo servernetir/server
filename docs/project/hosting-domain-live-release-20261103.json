@@ -1,0 +1,118 @@
+{
+  "release": "hosting-domain-20261102",
+  "status": "verified",
+  "verified_at_utc": "2026-11-03T05:04:39+00:00",
+  "runtime_source_sha": "09b7efdc25021b1d53fa4e17bc75858d1ade426f",
+  "develop_merge_sha": "3ea104337c7efea4aa7f05a5aa6b4398fe8b3461",
+  "payload_sha256": "c4c7a3bc45be55d7ba55c567eebff56baf398ac95a3d3fb7785273e42fcafca0",
+  "engine_sha256": "93bb9973f50ee3f1dc485c279253a47c2a4b816eeb6b2178291e1a36d6a2564a",
+  "verification": "Authenticated admin browser inventory matched all fourteen installed hashes; current application customer-scoped DNS/UI acceptance passed.",
+  "entries": [
+    {
+      "destination": "servernet_app/app/Services/Dns/HostingDomainConnection.php",
+      "before_sha256": "absent",
+      "after_sha256": "04999310608f22ae536bb00a510ce1feeca45ed2abd6a615fd655a1a5762819d",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/app/Http/Controllers/Account/HostingDomainConnectionController.php",
+      "before_sha256": "absent",
+      "after_sha256": "bc9df5efa5b0fd72b14b7f0f26b7f66bc6f96deb0a950cc500f3515907a4da85",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/routes/web.php",
+      "before_sha256": "99fd5165c8235b3895037e6dcafcb3af90c16e0158ec99eb8e14fa9ba6a38e1a",
+      "after_sha256": "1666b7fddcfbf378e25c9f5ce39b7e326e5bba9457d02e75b63f2da42c6f3f21",
+      "before_mode": 420,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/resources/views/account/partials/card-hosting.blade.php",
+      "before_sha256": "7ad874f0941b613e298b11b51cbdfc01d459588f906121da63bbc9398963e616",
+      "after_sha256": "d22739e68020ba9c3689ba015c4c4a9cb1669348878b6d29d422b130b34a198b",
+      "before_mode": 384,
+      "mode": 384
+    },
+    {
+      "destination": "servernet_app/resources/views/account/partials/hosting-domain-connection.blade.php",
+      "before_sha256": "absent",
+      "after_sha256": "9610abde3f83550dfb416b49f870f51176b08cefc7e22eef5a901be3c045043d",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/lang/fa/hosting-connection.php",
+      "before_sha256": "absent",
+      "after_sha256": "7a49578aa6c53b033db1636f4a153f6c5a3d8b13db3d6853e4759883c94b5dbc",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/lang/en/hosting-connection.php",
+      "before_sha256": "absent",
+      "after_sha256": "3704929d11438b9f7bf5d4a32530ed481c54b85814d1367fb6dca414a11c410e",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/lang/tr/hosting-connection.php",
+      "before_sha256": "absent",
+      "after_sha256": "a0d8b82e5d8ce789d3e663c67e307ba943bb39ae59a334e2442b517ae09c777f",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/public/assets/css/hosting-connection.css",
+      "before_sha256": "absent",
+      "after_sha256": "4d077165e75c08a9703cbd8f667a9dabe6cc7869fb012930d5f7606a3ea37773",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "public_html/assets/css/hosting-connection.css",
+      "before_sha256": "absent",
+      "after_sha256": "4d077165e75c08a9703cbd8f667a9dabe6cc7869fb012930d5f7606a3ea37773",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/public/assets/js/hosting-connection.js",
+      "before_sha256": "absent",
+      "after_sha256": "f02566587ed37159249c7ab71aff4611e1c9b33849f3ea5ecfc74c7fff8a9fc1",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "public_html/assets/js/hosting-connection.js",
+      "before_sha256": "absent",
+      "after_sha256": "f02566587ed37159249c7ab71aff4611e1c9b33849f3ea5ecfc74c7fff8a9fc1",
+      "before_mode": null,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/app/Models/Product.php",
+      "before_sha256": "817b15232cacad4e58bda8add2c3a24eed09279c7f49f7818a1ec3ed58724022",
+      "after_sha256": "91bc62b3fb21b241e22de3cbca0071ef1c36f8e46870b06abaee6fcde3c03144",
+      "before_mode": 420,
+      "mode": 420
+    },
+    {
+      "destination": "servernet_app/app/Http/Controllers/Account/StoreController.php",
+      "before_sha256": "d64bb2bae82dd19b4a9067cb1f524aecd6a3b20430f6d863ee76e02bad5a4504",
+      "after_sha256": "484167bc62118b456a7aab53ee9f233809a5f66b9438b3640ee37077c960d67a",
+      "before_mode": 384,
+      "mode": 384
+    }
+  ],
+  "cleanup": {
+    "completed": true,
+    "operation": "authenticated cPanel move to private release directory",
+    "former_public_path": "public_html/servernet-hosting-domain-release-20261103.php",
+    "retired_private_path": "hosting-domain-release-20261102/launcher-20261103-retired.php",
+    "former_public_url_unauthenticated_http_status": 404
+  },
+  "supplemental_observation_scope": "This session verified real customer DNS/retry and trilingual synthetic component behavior. Primary installation record separately documents actual 390px mobile viewport with 375px scroll width and real Turkish connected acceptance."
+}

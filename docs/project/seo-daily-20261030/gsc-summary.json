@@ -1,0 +1,481 @@
+{
+  "property": "sc-domain:servernet.cloud",
+  "observed_date": "2026-10-30",
+  "source": "Authenticated Google Search Console Chrome UI, Web Search; dates verified in comparison dialog; exact totals from UI and device rows",
+  "current": {
+    "start": "2026-09-30",
+    "end": "2026-10-27",
+    "clicks": 1456,
+    "impressions": 39954,
+    "ctr_percent_derived": 3.644190819442359,
+    "position_ui": 29.4
+  },
+  "previous": {
+    "start": "2026-09-02",
+    "end": "2026-09-29",
+    "clicks": 1228,
+    "impressions": 32257,
+    "ctr_percent_derived": 3.806925628545742,
+    "position_ui": 29.2
+  },
+  "change_percent_derived": {
+    "clicks": 18.566775244299684,
+    "impressions": 23.86148742908516
+  },
+  "pair_order": "current, previous",
+  "devices": {
+    "desktop": {
+      "clicks": [
+        854,
+        638
+      ],
+      "impressions": [
+        27820,
+        21112
+      ]
+    },
+    "mobile": {
+      "clicks": [
+        596,
+        580
+      ],
+      "impressions": [
+        12024,
+        11013
+      ]
+    },
+    "tablet": {
+      "clicks": [
+        6,
+        10
+      ],
+      "impressions": [
+        110,
+        132
+      ]
+    }
+  },
+  "brand": {
+    "regex": "(سرور[ ]*نت|server[ ]*net)",
+    "clicks": [
+      207,
+      310
+    ],
+    "impressions": [
+      582,
+      798
+    ],
+    "position_ui": [
+      3.1,
+      3.0
+    ]
+  },
+  "nonbrand": {
+    "complement_of_brand_regex": true,
+    "clicks": [
+      442,
+      331
+    ],
+    "impressions_derived_from_device_rows": [
+      22369,
+      19963
+    ],
+    "position_ui": [
+      45.3,
+      42.4
+    ]
+  },
+  "top_pages": [
+    {
+      "path": "/vps/hourly",
+      "clicks": [
+        331,
+        155
+      ],
+      "impressions": [
+        3153,
+        1608
+      ]
+    },
+    {
+      "path": "/gpu",
+      "clicks": [
+        253,
+        155
+      ],
+      "impressions": [
+        1779,
+        1046
+      ]
+    },
+    {
+      "path": "/",
+      "clicks": [
+        219,
+        357
+      ],
+      "impressions": [
+        438,
+        632
+      ]
+    },
+    {
+      "path": "/en/vps/hourly",
+      "clicks": [
+        97,
+        53
+      ],
+      "impressions": [
+        1350,
+        487
+      ]
+    },
+    {
+      "path": "/en/blog/php-version-upgrade-guide",
+      "clicks": [
+        49,
+        8
+      ],
+      "impressions": [
+        2181,
+        308
+      ]
+    },
+    {
+      "path": "/en",
+      "clicks": [
+        33,
+        19
+      ],
+      "impressions": [
+        1058,
+        1207
+      ]
+    },
+    {
+      "path": "/en/lookup/global-ping",
+      "clicks": [
+        19,
+        3
+      ],
+      "impressions": [
+        236,
+        28
+      ]
+    },
+    {
+      "path": "/blog/iranian-discord-servers",
+      "clicks": [
+        15,
+        58
+      ],
+      "impressions": [
+        311,
+        832
+      ]
+    },
+    {
+      "path": "/en/vps/discord",
+      "clicks": [
+        14,
+        1
+      ],
+      "impressions": [
+        499,
+        29
+      ]
+    },
+    {
+      "path": "/tr/gpu",
+      "clicks": [
+        14,
+        8
+      ],
+      "impressions": [
+        104,
+        104
+      ]
+    }
+  ],
+  "top_countries": [
+    {
+      "country": "Iran",
+      "clicks": [
+        1092,
+        985
+      ],
+      "impressions": [
+        20081,
+        19919
+      ]
+    },
+    {
+      "country": "Turkey",
+      "clicks": [
+        81,
+        56
+      ],
+      "impressions": [
+        4527,
+        2934
+      ]
+    },
+    {
+      "country": "United States",
+      "clicks": [
+        32,
+        11
+      ],
+      "impressions": [
+        3846,
+        2686
+      ]
+    },
+    {
+      "country": "Germany",
+      "clicks": [
+        25,
+        33
+      ],
+      "impressions": [
+        767,
+        516
+      ]
+    },
+    {
+      "country": "Netherlands",
+      "clicks": [
+        21,
+        6
+      ],
+      "impressions": [
+        572,
+        282
+      ]
+    },
+    {
+      "country": "United Kingdom",
+      "clicks": [
+        17,
+        6
+      ],
+      "impressions": [
+        1122,
+        663
+      ]
+    },
+    {
+      "country": "Russia",
+      "clicks": [
+        16,
+        7
+      ],
+      "impressions": [
+        290,
+        200
+      ]
+    },
+    {
+      "country": "India",
+      "clicks": [
+        12,
+        15
+      ],
+      "impressions": [
+        1114,
+        659
+      ]
+    },
+    {
+      "country": "France",
+      "clicks": [
+        12,
+        9
+      ],
+      "impressions": [
+        260,
+        137
+      ]
+    },
+    {
+      "country": "Philippines",
+      "clicks": [
+        9,
+        1
+      ],
+      "impressions": [
+        248,
+        116
+      ]
+    }
+  ],
+  "top_queries": [
+    {
+      "query": "سرورنت",
+      "clicks": [
+        76,
+        147
+      ],
+      "impressions": [
+        87,
+        167
+      ]
+    },
+    {
+      "query": "سرور نت",
+      "clicks": [
+        75,
+        116
+      ],
+      "impressions": [
+        91,
+        142
+      ]
+    },
+    {
+      "query": "سرور مجازی ساعتی",
+      "clicks": [
+        60,
+        47
+      ],
+      "impressions": [
+        393,
+        305
+      ]
+    },
+    {
+      "query": "سرور ساعتی",
+      "clicks": [
+        44,
+        22
+      ],
+      "impressions": [
+        453,
+        287
+      ]
+    },
+    {
+      "query": "servernet",
+      "clicks": [
+        36,
+        42
+      ],
+      "impressions": [
+        197,
+        239
+      ]
+    },
+    {
+      "query": "سرور ساعتی ایران",
+      "clicks": [
+        27,
+        10
+      ],
+      "impressions": [
+        116,
+        63
+      ]
+    },
+    {
+      "query": "اجاره gpu",
+      "clicks": [
+        25,
+        14
+      ],
+      "impressions": [
+        158,
+        157
+      ]
+    },
+    {
+      "query": "خرید سرور ساعتی",
+      "clicks": [
+        21,
+        2
+      ],
+      "impressions": [
+        249,
+        82
+      ]
+    },
+    {
+      "query": "سرور گرافیکی ساعتی",
+      "clicks": [
+        20,
+        22
+      ],
+      "impressions": [
+        72,
+        51
+      ]
+    },
+    {
+      "query": "servernet cloud",
+      "clicks": [
+        17,
+        1
+      ],
+      "impressions": [
+        26,
+        2
+      ]
+    }
+  ],
+  "indexing": {
+    "snapshot_date": "2026-10-23",
+    "indexed_ui_rounded": "4.4K",
+    "excluded_ui_rounded": "7.79K",
+    "reason_counts": {
+      "noindex": 733,
+      "not_found": 56,
+      "google_chose_different_canonical": 120,
+      "robots_blocked": 2999,
+      "alternate_canonical": 298,
+      "redirect": 168,
+      "unauthorized_401": 1,
+      "crawled_not_indexed": 202,
+      "redirect_error": 1,
+      "server_error": 1,
+      "discovered_not_indexed": 3209
+    },
+    "indexed_without_content": 1,
+    "indexed_though_robots_blocked": 3,
+    "targeted_inspections_today": 0
+  },
+  "sitemaps": [
+    {
+      "path": "/sitemap.xml",
+      "status": "Success",
+      "last_read": "2026-10-29",
+      "discovered": 5496,
+      "live_unique": 5493
+    },
+    {
+      "path": "/hardware-sitemap.xml",
+      "status": "Success",
+      "last_read": "2026-10-26",
+      "discovered": 2115,
+      "live_unique": 2115
+    }
+  ],
+  "cwv": {
+    "snapshot_date": "2026-10-26",
+    "mobile": {
+      "needs_improvement": 125,
+      "poor": 0,
+      "good": 0
+    },
+    "desktop": {
+      "needs_improvement": 0,
+      "poor": 0,
+      "good": 125
+    }
+  },
+  "limitations": [
+    "Query filters are partial; brand and nonbrand totals cannot be added into property totals.",
+    "Performance window ends before October 28-30 releases; no causal attribution.",
+    "GSC Wizard returned payment_required; no purchase or subscription; Chrome UI remained available.",
+    "No fresh GA4 transaction/revenue acceptance, target URL inspection or mobile field/lab benchmark.",
+    "Sitemap discovered counts and live XML counts describe different snapshots; neither is an indexed count."
+  ]
+}

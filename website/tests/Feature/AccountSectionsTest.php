@@ -7,6 +7,7 @@ use App\Models\CloudLocation;
 use App\Models\CloudPlan;
 use App\Models\Customer;
 use App\Models\Domain;
+use App\Models\Invoice;
 use App\Models\Server;
 use App\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -135,6 +136,83 @@ class AccountSectionsTest extends TestCase
     {
         return $this->actingAs($c, 'customer')
             ->get(route($route, [], false))->assertOk()->getContent();
+    }
+
+    private function boundStorage(Customer $c): Service
+    {
+        $s = $this->service($c, ['name' => 'Fixture backup account', 'server_id' => $this->server('hetzner_storage')->id,
+            'username' => 'u123456', 'status' => 'suspended', 'password' => 'fixture-password-never-render',
+            'panel_url' => 'https://untrusted-panel.example.test']);
+        $s->forceFill(['provision_meta' => ['driver' => 'hetzner_storage', 'hetzner_box_id' => 4711,
+            'host' => 'u123456.your-storagebox.de',
+            'manual_action' => ['action' => 'suspend', 'origin' => 'billing', 'at' => '2020-01-01T00:00:00Z'],
+            'existing_storage_binding' => ['version' => 1, 'customer_id' => $c->id, 'service_id' => $s->id,
+                'server_id' => $s->server_id, 'box_id' => 4711,
+                'access_settings' => ['reachable_externally' => true, 'ssh_enabled' => true, 'webdav_enabled' => true]]]])->save();
+        return $s;
+    }
+
+    public function test_recorded_storage_connections_keep_payment_status_and_manual_work_unchanged(): void
+    {
+        $c = $this->customer(); $s = $this->boundStorage($c);
+        $invoice = Invoice::create(['customer_id' => $c->id, 'service_id' => $s->id, 'kind' => 'service',
+            'currency_code' => 'IRT', 'subtotal' => 100000, 'tax' => 0, 'total' => 100000, 'paid' => 0, 'status' => 'unpaid']);
+        $beforeService = $s->fresh()->getRawOriginal(); $beforeInvoice = $invoice->fresh()->getRawOriginal();
+        foreach (['account.services', 'account.other'] as $page) {
+            $html = $this->html($c, $page);
+            $this->assertStringContainsString('data-storage-connection', $html);
+            $this->assertStringContainsString('u123456.your-storagebox.de', $html);
+            $this->assertStringContainsString('sftp -P 23 u123456@u123456.your-storagebox.de', $html);
+            $this->assertStringContainsString('href="https://u123456.your-storagebox.de"', $html);
+            $this->assertStringContainsString(route('account.invoice', $invoice, false).'"', $html);
+            $this->assertStringContainsString(invoice_money($s->total(), $s->currency_code), $html);
+            $this->assertStringContainsString(sdate($s->next_due_at), $html);
+            foreach (['fixture-password-never-render', 'untrusted-panel.example.test', 'data-stats=', '/services/'.$s->id.'/cpanel'] as $hidden) {
+                $this->assertStringNotContainsString($hidden, $html);
+            }
+        }
+        $this->assertSame('other', $s->kind());
+        $this->assertSame($beforeService, $s->fresh()->getRawOriginal());
+        $this->assertSame($beforeInvoice, $invoice->fresh()->getRawOriginal());
+        Http::assertNothingSent();
+    }
+
+    public function test_storage_connection_rejects_unverified_identity_and_unsafe_hosts(): void
+    {
+        $c = $this->customer(); $s = $this->boundStorage($c); $original = $s->provision_meta;
+        foreach (['driver' => 'generic', 'host' => 'u123456.your-storagebox.de.evil.test',
+            'host-user' => 'u654321.your-storagebox.de', 'id' => 'invalid', 'version' => 2,
+            'customer' => $c->id + 1, 'service' => $s->id + 1, 'server' => $s->server_id + 1, 'box' => 4712] as $case => $value) {
+            $meta = $original;
+            if (in_array($case, ['driver', 'host'], true)) $meta[$case] = $value;
+            elseif ($case === 'host-user') $meta['host'] = $value;
+            elseif ($case === 'id') $meta['hetzner_box_id'] = $value;
+            elseif ($case === 'version') $meta['existing_storage_binding']['version'] = $value;
+            else $meta['existing_storage_binding'][$case.'_id'] = $value;
+            $s->forceFill(['provision_meta' => $meta])->save();
+            $html = $this->html($c, 'account.other');
+            $this->assertStringNotContainsString('data-storage-connection', $html, $case);
+            $this->assertStringNotContainsString('sftp -P 23', $html, $case);
+            $this->assertStringNotContainsString('href="https://u123456.your-storagebox.de"', $html, $case);
+        }
+        Http::assertNothingSent();
+    }
+
+    public function test_recorded_storage_protocols_require_exact_enabled_flags_and_owner_scope(): void
+    {
+        $c = $this->customer(); $s = $this->boundStorage($c); $original = $s->provision_meta;
+        foreach ([['reachable_externally' => false, 'ssh_enabled' => true, 'webdav_enabled' => true],
+            ['reachable_externally' => true, 'ssh_enabled' => 'true', 'webdav_enabled' => 'true'], []] as $access) {
+            $meta = $original; $meta['existing_storage_binding']['access_settings'] = $access;
+            $s->forceFill(['provision_meta' => $meta])->save();
+            $html = $this->html($c, 'account.other');
+            $this->assertStringContainsString('data-storage-connection', $html);
+            $this->assertStringNotContainsString('sftp -P 23', $html);
+            $this->assertStringNotContainsString('href="https://u123456.your-storagebox.de"', $html);
+        }
+        $html = $this->html($this->customer(), 'account.other');
+        $this->assertStringNotContainsString('u123456.your-storagebox.de', $html);
+        Http::assertNothingSent();
     }
 
     // ═══════════════ ۱) هر اتاق فقط نوعِ خودش ═══════════════

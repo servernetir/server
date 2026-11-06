@@ -21,6 +21,77 @@ class VpsTcApiTest extends TestCase
         return new VpsTcApi('https://api.vps.tc', 'test-reseller', 'test-password');
     }
 
+    public function test_upstream_login_outage_is_not_reported_as_a_bad_password_or_retried_as_a_purchase(): void
+    {
+        Http::fake(['*/api/login' => Http::response('upstream timeout', 522)]);
+        $result = $this->api()->balance();
+        $this->assertFalse($result['ok']);
+        $this->assertSame('upstream_http_522', $result['code']);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => ! str_ends_with($request->url(), '/api/login'));
+    }
+
+    public function test_purchased_resources_use_the_supported_get_route_with_bearer_only(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/301/resources' => Http::response(['resources' => ['data_combined' => 2048]]),
+        ]);
+        $this->assertSame(2048, $this->api()->serviceResources('301')['data']['resources']['data_combined']);
+        Http::assertSent(fn (Request $r) => $r->url() === 'https://api.vps.tc/api/service/301/resources'
+            && $r->method() === 'GET' && $r->hasHeader('Authorization', 'Bearer fixture-token')
+            && ! str_contains($r->url(), '?'));
+        Http::assertSentCount(2);
+    }
+
+    public function test_known_unregistered_usage_and_console_routes_never_authenticate_or_probe(): void
+    {
+        $api = $this->api();
+        $this->assertSame('unsupported_usage', $api->vmUsage('301', '991')['code']);
+        $this->assertSame('unsupported_console', $api->console('301', '991')['code']);
+        $this->assertSame('invalid_id', $api->serviceResources('../301')['code']);
+        $this->assertSame('invalid_id', $api->vmUsage('301', '../991')['code']);
+        Http::assertNothingSent();
+    }
+
+    public function test_resources_rejects_a_usage_shape_instead_of_reporting_a_zero_allowance(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/301/resources' => Http::response(['usage' => ['data_combined' => 0]]),
+        ]);
+        $this->assertSame('invalid_response', $this->api()->serviceResources('301')['code']);
+    }
+
+    public function test_management_offline_advisory_allows_billing_identity_but_never_service_readiness(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/351' => Http::response(['service' => ['id' => '351', 'name' => 'Monthly VPS'],
+                'error' => ['management_offline']]),
+        ]);
+        $api = $this->api();
+        $this->assertTrue($api->serviceBilling('351')['ok']);
+        $this->assertSame('invalid_response', $api->service('351')['code']);
+    }
+
+    public function test_billing_identity_advisory_never_ignores_other_errors_or_missing_service_data(): void
+    {
+        Http::fake([
+            '*/api/login' => Http::response(['token' => 'fixture-token']),
+            '*/api/service/351' => Http::sequence()
+                ->push(['service' => [], 'error' => ['management_offline', 'access_denied']])
+                ->push(['service' => [], 'error' => ['management_offline'], 'success' => false])
+                ->push(['service' => [], 'error' => ['management_offline'], 'status' => false])
+                ->push(['error' => ['management_offline']]),
+        ]);
+        $api = $this->api();
+        for ($i = 0; $i < 4; $i++) {
+            $this->assertFalse($api->serviceBilling('351')['ok']);
+        }
+        Http::assertNotSent(fn (Request $request) => $request->method() !== 'GET' && ! str_ends_with($request->url(), '/login'));
+    }
+
     public function test_only_approved_bare_https_origins_are_accepted(): void
     {
         foreach (['https://vps.tc', 'https://api.vps.tc/', 'https://whitelabelservices.us', 'https://portal.whitelabelservices.us'] as $origin) {

@@ -10,7 +10,9 @@ use Throwable;
 /** Compare customer prices only after the deliverable contracts match. */
 class CloudOfferSelection
 {
-    private ?Collection $images = null;
+    private ?Collection $imagesByProvider = null;
+    private array $imageFactsByProvider = [];
+    private array $regionalImages = [];
     private array $imageSets = [];
     private array $capabilities = [];
     private array $prices = [];
@@ -21,6 +23,8 @@ class CloudOfferSelection
         $best = $rows->first();
         if (! $best instanceof CloudPlan) { return null; }
         foreach ($rows as $candidate) {
+            // Comparing an offer to itself cannot select another supplier.
+            if ($candidate === $best) { continue; }
             if ($candidate instanceof CloudPlan && $this->sameContract($candidate, $best, true)
                 && $this->priceDominates($candidate, $best, $hourly)) {
                 $best = $candidate;
@@ -34,7 +38,7 @@ class CloudOfferSelection
     {
         if ((! is_array($a->network_terms) && $a->network_terms !== null)
             || (! is_array($b->network_terms) && $b->network_terms !== null)) { return false; }
-        if ((string) $a->location_code === '' || (string) $a->location_code !== (string) $b->location_code
+        if ((string) $a->location_code === '' || \App\Models\CloudLocation::canonicalCode((string) $a->location_code) !== \App\Models\CloudLocation::canonicalCode((string) $b->location_code)
             || (string) $a->arch !== (string) $b->arch || (string) $a->cpu_kind !== (string) $b->cpu_kind
             || $a->isMetal() !== $b->isMetal() || (bool) $a->is_interruptible !== (bool) $b->is_interruptible
             || strtolower(trim((string) $a->gpu_model)) !== strtolower(trim((string) $b->gpu_model))
@@ -122,28 +126,74 @@ class CloudOfferSelection
     {
         $key = spl_object_id($plan);
         if (isset($this->imageSets[$key])) { return $this->imageSets[$key]; }
-        $this->images ??= CloudImage::query()->usable()->get();
+        // Plan inputs are fixed for this predicate call; do not resolve the
+        // same Eloquent attributes for every image in the catalogue.
+        $provider = (string) $plan->provider;
+        $reference = (string) $plan->provider_ref;
+        $arch = $plan->arch;
+        $ram = (int) $plan->ram_mb;
+        $bootDiskValue = $plan->boot_disk_gb;
+        $bootDisk = (int) ($bootDiskValue ?? $plan->disk_gb);
+        $cpu = (int) $plan->vcpu;
+        $location = (string) $plan->provider_location;
+        $gpu = (string) $plan->gpu_model;
+        $prefix = match ($provider) {
+            'lightnode' => explode('|', $reference)[0].'|',
+            'vpstc' => $reference.'|',
+            default => null,
+        };
         $out = [];
-        foreach ($this->images as $image) {
-            if ((string) $image->provider !== (string) $plan->provider
-                || ! CloudImage::providerAccessIsAutomated((string) $plan->provider, $image)
-                || (filled($image->arch) && filled($plan->arch) && $image->arch !== $plan->arch)
-                || (int) $image->min_ram_mb > (int) $plan->ram_mb
-                || (int) $image->min_disk_gb > (int) ($plan->boot_disk_gb ?? $plan->disk_gb)) { continue; }
-            if ($plan->provider === 'vpstc' && ! str_starts_with((string) $image->provider_ref, $plan->provider_ref.'|')) { continue; }
-            if ($plan->provider === 'lightnode') {
-                $region = explode('|', (string) $plan->provider_ref)[0];
-                if (! str_starts_with((string) $image->provider_ref, $region.'|')
-                    || ($image->family === 'windows' && ((int) $plan->vcpu < 2 || (int) $plan->ram_mb < 4096))) { continue; }
+        foreach ($this->candidateImages($provider, $prefix) as $image) {
+            if ($image['provider'] !== $provider
+                // This access gate remains live and precedes compatibility checks.
+                || ! CloudImage::providerAccessIsAutomated($provider, $image['model'])
+                || (filled($image['arch']) && filled($arch) && $image['arch'] !== $arch)
+                || $image['min_ram'] > $ram
+                || $image['min_disk'] > $bootDisk) { continue; }
+            if ($provider === 'vpstc' && ! str_starts_with($image['reference'], $prefix)) { continue; }
+            if ($provider === 'lightnode') {
+                if (! str_starts_with($image['reference'], $prefix)
+                    || ($image['family'] === 'windows' && ($cpu < 2 || $ram < 4096))) { continue; }
             }
-            if ($plan->provider === 'arvan' && $image->kind === 'app'
-                && (ArvanApplicationImages::imageId((string) $plan->provider_location, (string) $image->provider_ref) === null
-                    || (int) $plan->vcpu < ArvanApplicationImages::minCpu((string) $image->family))) { continue; }
-            if ($plan->provider === 'salad' && ! SaladClient::imageSupportsGpu((string) $image->provider_ref, (string) $plan->gpu_model)) { continue; }
-            $out[] = implode('|', [(string) $image->kind, (string) $image->key, (string) $image->family, (string) $image->version]);
+            if ($provider === 'arvan' && $image['kind'] === 'app'
+                && (ArvanApplicationImages::imageId($location, $image['reference']) === null
+                    || $cpu < ArvanApplicationImages::minCpu((string) $image['family']))) { continue; }
+            if ($provider === 'salad' && ! SaladClient::imageSupportsGpu($image['reference'], $gpu)) { continue; }
+            $out[] = $image['key'];
         }
         sort($out, SORT_STRING);
         return $this->imageSets[$key] = array_values(array_unique($out));
+    }
+
+    /** Narrow the once-loaded image catalogue before applying the full contract predicate. */
+    private function candidateImages(string $provider, ?string $prefix): Collection
+    {
+        $this->imagesByProvider ??= CloudImage::query()->usable()->get()
+            ->groupBy(fn ($image) => (string) $image->provider);
+        // Snapshot scalar fields only for providers this selection visits;
+        // unrelated suppliers need no additional attribute resolution.
+        $images = $this->imageFactsByProvider[$provider] ??= $this->imagesByProvider->get($provider, collect())
+            ->map(static fn (CloudImage $image) => [
+                'model' => $image,
+                'provider' => (string) $image->provider,
+                'reference' => (string) $image->provider_ref,
+                'arch' => $image->arch,
+                'min_ram' => (int) $image->min_ram_mb,
+                'min_disk' => (int) $image->min_disk_gb,
+                'kind' => $image->kind,
+                'family' => $image->family,
+                'key' => implode('|', [(string) $image->kind, (string) $image->key, (string) $image->family, (string) $image->version]),
+            ]);
+        if ($prefix === null) {
+            return $images;
+        }
+
+        // LightNode uses a region prefix; VPS.TC's prefix is the entire
+        // product reference and can itself contain a separator. Keep those
+        // existing prefix semantics, including empty/malformed references.
+        return $this->regionalImages[$provider][$prefix] ??= $images
+            ->filter(fn ($image) => str_starts_with($image['reference'], $prefix))
+            ->values();
     }
 
     private function hasWindows(CloudPlan $plan): bool

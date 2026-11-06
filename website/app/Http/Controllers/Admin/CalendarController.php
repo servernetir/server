@@ -555,6 +555,15 @@ class CalendarController extends Controller
     /** بازگشت از گوگل */
     public function googleCallback(Request $request, GoogleCalendarClient $google): RedirectResponse
     {
+        // A separate read-only reporting grant shares the registered redirect URI.
+        // Dispatch only its exact session-bound state; Calendar's flow is unchanged.
+        $reportingState = $request->session()->get(ManagerReportingController::STATE);
+        $suppliedState = $request->query('state');
+        if (is_string($reportingState) && $reportingState !== '' && is_string($suppliedState)
+            && hash_equals($reportingState, $suppliedState)) {
+            return app(ManagerReportingController::class)->callback($request,
+                app(\App\Services\Bale\Management\ManagerGoogleReporting::class));
+        }
         $expected = $request->session()->pull('google_calendar_state');
 
         // ⚠️ مقایسهٔ زمان‌ثابت، و ردِ حالتی که اصلاً stateی در نشست نبوده

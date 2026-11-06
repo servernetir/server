@@ -43,9 +43,7 @@ class OutreachContact extends Model
      */
     public static function isSuppressed(string $email): bool
     {
-        return static::where('email', Str::lower(trim($email)))
-            ->whereNotNull('unsubscribed_at')
-            ->exists();
+        return \App\Services\Crm\OutboundSuppression::blocks($email);
     }
 
     public static function suppress(string $email): int
@@ -59,6 +57,8 @@ class OutreachContact extends Model
     public function isSendable(): bool
     {
         return $this->audit_report_id !== null
+            && $this->report !== null
+            && $this->report->isAccessible()
             && $this->status === 'pending'
             && $this->unsubscribed_at === null
             && ! static::isSuppressed($this->email);

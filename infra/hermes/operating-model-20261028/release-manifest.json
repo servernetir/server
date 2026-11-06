@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "base_sha": "e76c4f7e7681ca6157a8414b486b139efd3f536e",
+  "observed_at": "2026-10-28T14:33:30.526197+00:00",
+  "status": "prepared_not_installed",
+  "files": [
+    {
+      "source": "website/app/Services/Hermes/HermesOperatingContext.php",
+      "destination": "app/Services/Hermes/HermesOperatingContext.php",
+      "before_sha256": null,
+      "after_sha256": "b74d69ffb7a4dbbb334a7cca5f8b95e7273211923b529ffa6ff35e5975c76990",
+      "operation": "create"
+    },
+    {
+      "source": "infra/hermes/operating-model-20261028/HermesConversationMemory.php",
+      "destination": "app/Services/Hermes/HermesConversationMemory.php",
+      "before_sha256": "2fb2386353c0b89d442e57504c5da43a221df5a6218599fead376aa8398dc6e8",
+      "after_sha256": "43cf25964410931da60d5c59424d2e0ea3ee306172ef2cead4efcb11c049cdd2",
+      "operation": "replace"
+    }
+  ]
+}

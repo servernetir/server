@@ -1,0 +1,102 @@
+name: Madar participation hub
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/**/Madar*.php'
+      - 'website/app/Services/Marketing/DiscountEngine.php'
+      - 'website/app/Services/Growth/HermesSectionOversight.php'
+      - 'website/config/madar.php'
+      - 'website/config/hermes_growth.php'
+      - 'website/database/migrations/*madar*'
+      - 'website/lang/*/madar.php'
+      - 'website/resources/views/**/madar/**'
+      - 'website/resources/views/madar/**'
+      - 'website/public/assets/css/madar.css'
+      - 'website/public/assets/js/madar.js'
+      - 'website/routes/madar-*.php'
+      - 'website/routes/web.php'
+      - 'website/tests/Feature/Madar*.php'
+      - 'website/tests/js/madar.browser.cjs'
+      - '.github/workflows/madar.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: madar-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: madar_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      MADAR_PREVIEW_DIR: /tmp/madar-preview
+      MADAR_SCREENSHOTS: /tmp/madar-screenshots
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked PHP dependencies
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+          mkdir -p "$MADAR_PREVIEW_DIR"
+      - name: Test workflow, ownership, CSRF, budget, redemption and Hermes
+        working-directory: website
+        run: vendor/bin/phpunit --filter='MadarHubTest|MadarFixedMissionTest|MarketingCampaignEngineTest|MarketingCampaignConcurrencyTest|MarketingDiscountMathTest|DiscountEntryVisibilityTest|InvoiceOnlyDiscountAccessTest|HermesSectionOversightTest|HermesGrowthPolicyTest' --fail-on-warning --colors=never
+      - name: Test additive migration and unique claims on disposable MariaDB
+        working-directory: website
+        env:
+          MADAR_MARIADB_DATABASE: madar_testing
+          MADAR_MARIADB_PASSWORD: ci-test-only
+        run: vendor/bin/phpunit --filter=MadarMariaDbSchemaTest --fail-on-warning --colors=never
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install isolated browser test harness
+        run: npm install --prefix "$RUNNER_TEMP/madar-node" --no-save --ignore-scripts playwright@1.62.1
+      - name: Verify actual PHP-rendered UI in Chromium
+        env:
+          TEST_CHROME: /usr/bin/google-chrome
+        run: |
+          TEST_PLAYWRIGHT="$RUNNER_TEMP/madar-node/node_modules/playwright" node --test website/tests/js/madar.browser.cjs
+      - name: Save synthetic UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: madar-preview
+          path: /tmp/madar-screenshots
+          if-no-files-found: ignore

@@ -1,0 +1,82 @@
+[
+  {
+    "url": "https://servernet.cloud/up",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": null,
+    "expected_sha256": null,
+    "passed": true
+  },
+  {
+    "url": "https://console.servernet.cloud/up",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": null,
+    "expected_sha256": null,
+    "passed": true
+  },
+  {
+    "url": "https://servernet.cloud/assets/css/wallet-refunds.css",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": "422ace59ebd952e74753a99146643233c2f0d422b91361bec9db4790f6fe14c5",
+    "expected_sha256": "422ace59ebd952e74753a99146643233c2f0d422b91361bec9db4790f6fe14c5",
+    "passed": true
+  },
+  {
+    "url": "https://servernet.cloud/assets/js/panel-navigation.js",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": "22f5dd500c44a01ca2eac7cc05cad7df05aeba953c424b6dd53a50a0e343e11f",
+    "expected_sha256": "22f5dd500c44a01ca2eac7cc05cad7df05aeba953c424b6dd53a50a0e343e11f",
+    "passed": true
+  },
+  {
+    "url": "https://servernet.cloud/assets/css/panel.css",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": "29a3dab6cdcd31e5481563f5264e1ee2758c28e40821ec2b123171a46a7aa05e",
+    "expected_sha256": "29a3dab6cdcd31e5481563f5264e1ee2758c28e40821ec2b123171a46a7aa05e",
+    "passed": true
+  },
+  {
+    "url": "https://console.servernet.cloud/assets/css/wallet-refunds.css",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": "422ace59ebd952e74753a99146643233c2f0d422b91361bec9db4790f6fe14c5",
+    "expected_sha256": "422ace59ebd952e74753a99146643233c2f0d422b91361bec9db4790f6fe14c5",
+    "passed": true
+  },
+  {
+    "url": "https://console.servernet.cloud/assets/js/panel-navigation.js",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": "22f5dd500c44a01ca2eac7cc05cad7df05aeba953c424b6dd53a50a0e343e11f",
+    "expected_sha256": "22f5dd500c44a01ca2eac7cc05cad7df05aeba953c424b6dd53a50a0e343e11f",
+    "passed": true
+  },
+  {
+    "url": "https://console.servernet.cloud/assets/css/panel.css",
+    "status": 200,
+    "expected_status": 200,
+    "sha256": "29a3dab6cdcd31e5481563f5264e1ee2758c28e40821ec2b123171a46a7aa05e",
+    "expected_sha256": "29a3dab6cdcd31e5481563f5264e1ee2758c28e40821ec2b123171a46a7aa05e",
+    "passed": true
+  },
+  {
+    "url": "https://servernet.cloud/servernet-wallet-panel-preview-20261031.php",
+    "status": 404,
+    "expected_status": 404,
+    "sha256": null,
+    "expected_sha256": null,
+    "passed": true
+  },
+  {
+    "url": "https://servernet.cloud/servernet-wallet-panel-activate-20261031.php",
+    "status": 404,
+    "expected_status": 404,
+    "sha256": null,
+    "expected_sha256": null,
+    "passed": true
+  }
+]

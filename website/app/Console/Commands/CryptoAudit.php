@@ -34,7 +34,7 @@ class CryptoAudit extends Command
         {--days=90 : بازهٔ بررسی بر حسبِ روز}
         {--notify : اگر پروندهٔ بازی بود به مدیر آژیر بده (برای کرون)}';
 
-    protected $description = 'یافتنِ پرداخت‌های رمزارز که با واریزیِ قدیمی‌تر از خودشان تسویه شده‌اند';
+    protected $description = 'یافتنِ پرداخت‌های ترون که با واریزیِ قدیمی‌تر از خودشان تسویه شده‌اند';
 
     public function handle(TronWatcher $tron): int
     {
@@ -44,7 +44,7 @@ class CryptoAudit extends Command
             return self::SUCCESS;
         }
 
-        $rows = CryptoPayment::where('status', 'confirmed')
+        $rows = CryptoPayment::where('chain', 'tron')->where('status', 'confirmed')
             ->whereNotNull('txid')
             ->where('created_at', '>=', now()->subDays((int) $this->option('days')))
             ->orderBy('id')

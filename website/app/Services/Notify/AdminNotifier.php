@@ -56,7 +56,12 @@ class AdminNotifier
         | ⚠️ عنوانِ ناشناخته ⇒ `null` ⇒ رفتارِ امروز. جهتِ خرابی امن است:
         | اعلان می‌رود، فقط مدیریت‌پذیر نیست.
         */
-        $key ??= \App\Support\AdminAlerts::keyFor($title);
+        // Source keys serve the Bale policy only; legacy template/email switches
+        // still resolve exactly as they did before this policy was enabled.
+        $policyKey = $key;
+        $key = $key !== null && str_starts_with($key, 'event:')
+            ? \App\Support\AdminAlerts::keyFor($title)
+            : ($key ?? \App\Support\AdminAlerts::keyFor($title));
 
         if ($key !== null && ! $this->wanted($key)) {
             return;
@@ -100,7 +105,21 @@ class AdminNotifier
             );
         }
 
-        $this->sendBale($text, $buttons);
+        if (BaleManagerPolicy::enabled()) {
+            $policy = app(BaleManagerPolicy::class);
+            $decision = $policy->decide($policyKey ?? $key, $title, $rows, $url);
+            if ($policy->claim($decision)) {
+                if ($buttons === [] && $decision['event_key'] === 'bank_receipt') {
+                    $buttons = $this->receiptButtons($rows);
+                }
+                if ($buttons === [] && $title === 'درخواست عودت موجودی کیف پول') {
+                    $buttons = $this->refundButtons($url);
+                }
+                $this->sendBale($decision['text'] ?? $text, $buttons);
+            }
+        } else {
+            $this->sendBale($text, $buttons);
+        }
         $this->sendMail($title, $text);
     }
 
@@ -149,6 +168,21 @@ class AdminNotifier
         return $out;
     }
 
+    /** Additional early incident on Bale only; legacy manager emails stay independent. */
+    public function baleIncident(string $key, string $title, array $rows, array $buttons = []): void
+    {
+        if (! BaleManagerPolicy::enabled() || ! $this->wanted($key)) { return; }
+        try {
+            $policy = app(BaleManagerPolicy::class);
+            $decision = $policy->decide($key, $title, $rows);
+            if ($policy->claim($decision) && $decision['text'] !== null) {
+                $this->sendBale($decision['text'], $buttons);
+            }
+        } catch (\Throwable $e) {
+            \App\Support\ErrorTracker::note('notify', $e, ['to' => 'admin', 'channel' => 'bale-incident']);
+        }
+    }
+
     /** Internal chat lead alert; existing n8n email delivery remains independent. */
     public function baleEvent(string $title, array $rows, string $url): void
     {
@@ -159,7 +193,43 @@ class AdminNotifier
             }
         }
         $lines[] = $url;
-        $this->sendBale(implode("\n", $lines));
+        $buttons = [];
+        if (BaleManagerPolicy::enabled()
+            && preg_match('#^/admin/marketing/([1-9][0-9]*)/?$#D', (string) parse_url($url, PHP_URL_PATH), $match)) {
+            $buttons = [[['text' => 'بررسی و تماس', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'ld:'.$match[1]]]];
+        }
+        $this->sendBale(implode("\n", $lines), $buttons);
+    }
+
+    /** Read-only card; financial approval still runs through the existing guarded worker. */
+    private function receiptButtons(array $rows): array
+    {
+        $id = $this->positiveId($rows['رسید'] ?? null);
+        if ($id === null) { return []; }
+        $prefix = \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX;
+        $buttons = [[['text' => 'بررسی رسید', 'data' => $prefix.'r:'.$id],
+            ['text' => 'فایل رسید', 'data' => $prefix.'rd:'.$id]]];
+        $customer = $this->positiveId($rows['شناسه مشتری'] ?? null);
+        if ($customer !== null) { $buttons[] = [['text' => 'پرونده مشتری', 'data' => $prefix.'c:'.$customer]]; }
+        return $buttons;
+    }
+
+    private function positiveId(mixed $value): ?int
+    {
+        if (! is_int($value) && (! is_string($value) || ! ctype_digit($value))) { return null; }
+        $id = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        return $id === false ? null : $id;
+    }
+
+    /** Read-only card; financial approval still runs through the existing guarded worker. */
+    private function refundButtons(?string $url): array
+    {
+        $path = (string) parse_url($url ?? '', PHP_URL_PATH);
+        if (! preg_match('#^/admin/wallet-refunds/([a-zA-Z0-9-]{1,80})/?$#D', $path, $match)) { return []; }
+        try {
+            $id = \App\Models\WalletRefundRequest::where('public_id', $match[1])->value('id');
+            return $id ? [[['text' => 'بررسی درخواست عودت', 'data' => \App\Services\Bale\Admin\AdminBaleRouter::CB_PREFIX.'rf:'.$id]]] : [];
+        } catch (\Throwable) { return []; }
     }
 
     private function sendBale(string $text, array $buttons = []): void

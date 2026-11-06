@@ -294,6 +294,9 @@ class ServiceController extends Controller
 
     public function issueInvoice(Service $service, $issuedAt = null): Invoice
     {
+        if ($service->hasUnverifiedBillingTerms()) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['service' => __('ui.svc_billing_terms_required')]);
+        }
         $complimentary = app(ComplimentaryServices::class);
         $freeRenewal = $complimentary->applies($service)
             && in_array($service->status, ['active', 'suspended'], true);
@@ -544,6 +547,7 @@ class ServiceController extends Controller
 
     public function setDue(Request $request, Service $service): RedirectResponse
     {
+        if ($service->hasUnverifiedBillingTerms()) { return back()->withErrors(__('ui.svc_billing_terms_required')); }
         $data = $request->validate([
             'next_due_at' => ['required', 'date', 'after:today'],
         ], [
@@ -566,6 +570,7 @@ class ServiceController extends Controller
     /** صدور دستیِ فاکتور تمدید برای یک سرویس (وقتی کارفرما زودتر می‌خواهد) */
     public function renew(Service $service): RedirectResponse
     {
+        if ($service->hasUnverifiedBillingTerms()) { return back()->withErrors(__('ui.svc_billing_terms_required')); }
         if (! $service->isRecurring()) {
             return back()->withErrors('این سرویس دوره‌ای نیست و تمدید ندارد.');
         }
@@ -581,6 +586,7 @@ class ServiceController extends Controller
     /** ساختِ فوری/تلاشِ دوبارهٔ تحویل روی سرور (بدونِ صبر برای کرون) */
     public function provision(Request $request, Service $service): RedirectResponse
     {
+        if ($service->hasUnverifiedBillingTerms()) { return back()->withErrors(__('ui.svc_existing_no_reprovision')); }
         abort_unless($request->user()->isAdmin(), 403);
 
         // اگر سرویس هنوز سرور/پلن/دامنه ندارد، همین‌جا تعیین می‌شود (رفعِ سفارشی

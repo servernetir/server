@@ -19,6 +19,9 @@ class CampaignRunner
 {
     public function issueDue(MarketingCampaign $campaign, Customer $customer, bool $dry = false): bool
     {
+        if ($campaign->trigger === 'birthday' && app(\App\Services\Birthday\BirthdayProgram::class)->enabled()) {
+            return false; // The automatic at-cost window replaces new birthday coupons.
+        }
         $audience = app(CampaignAudience::class);
         if (! $audience->matches($customer, $campaign->audience) || ! $audience->due($campaign, $customer)) {
             return false;

@@ -1,6 +1,9 @@
 <?php
 
 return [
+'hourly_title' => 'Hourly :country VPS or monthly billing?',
+'hourly_text' => 'For plans with an hourly option, compare the hourly rate and monthly price in this page’s table. Hourly resource cost uses the selected plan’s rate; also check traffic, power-off and deletion terms before ordering.',
+'hourly_link' => 'Hourly VPS cost calculator and billing guide',
 'title' => ':place VPS Hosting | Current Plans & Prices | ServerNet',
 'description' => 'Compare :place VPS plans by CPU, RAM, storage and network terms. Check current prices and capacity, location selection guidance and plan conditions before ordering.',
 'h1' => ':place VPS hosting',
@@ -76,3 +79,4 @@ return [
 'AT' => 'For an audience in Austria, compare available Austrian cities with Frankfurt. For a store, API or development environment, user-network response time and the route to your database matter more than the country label. The second location is a network comparison candidate; check its own page for capacity and price.'
 ]
 ];
+

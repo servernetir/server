@@ -1,0 +1,56 @@
+/* Page-scoped additions for documented funding and supplier reconciliation. */
+:root{--line-2:var(--line2);--bg2:var(--surface2);--surface-2:var(--surface);--info:var(--cyan);--info-bg:rgba(34,211,238,.12);--danger:var(--red);--font-body:var(--font);--ease:cubic-bezier(.22,.61,.36,1)}
+/* Finance page titles and operator names share the mobile header without forcing its width. */
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top{flex-wrap:wrap;gap:12px}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top h1{min-width:0;max-width:100%;overflow-wrap:anywhere}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top .ad-top-side{min-width:0;max-width:100%;flex-wrap:wrap}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top .ad-user{min-width:0;max-width:100%;flex-wrap:wrap}
+.ad-main:has(.ff-guide,.ff-voucher)>.ad-top .ad-user>span{min-width:0;overflow-wrap:anywhere}
+.acc-panel,.ff-voucher{min-width:0}
+.acc-panel .acc-form{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+.acc-form>*{min-width:0}
+.acc-form input,.acc-form select,.acc-form textarea{min-width:0;max-width:100%;line-height:1.9}
+.acc-form input[type="file"]{width:100%;font-size:12px}
+.acc-form label>small{color:var(--muted);font-size:11px;line-height:1.95;font-weight:400}
+.acc-muted{color:var(--muted)}
+.ff-masked{display:grid;gap:4px;font-size:11px;color:var(--muted);margin-block-start:8px;max-width:260px;overflow-wrap:anywhere}
+.ff-account-edit{min-width:160px}
+.ff-account-edit summary,.ff-account-create summary{color:var(--cyan);cursor:pointer;font-size:12px;line-height:2}
+.ff-account-edit[open]{min-width:280px;max-width:600px}
+.ff-account-edit>.acc-muted{margin-block:12px;font-size:11px}
+.ff-account-form{grid-template-columns:minmax(0,1fr)}
+.ff-account-create{border-block-start:1px solid var(--line);margin-block-start:22px;padding-block-start:18px}
+.ff-account-create>.acc-form{margin-block-start:16px}
+.ff-account-form .ad-input{padding:9px 11px;font-size:12px}
+.ff-guide{background:linear-gradient(110deg,rgba(34,211,238,.045),rgba(139,92,246,.045)),var(--surface)}
+.ff-guide-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-block-start:22px}
+.ff-guide-grid article{min-width:0;padding:20px;border:1px solid var(--line2);border-radius:13px;background:var(--surface)}
+.ff-step{display:inline-grid;place-items:center;width:32px;height:32px;border:1px solid var(--line2);border-radius:9px;background:var(--surface2);color:var(--cyan);font-size:11px;font-variant-numeric:tabular-nums}
+.ff-guide-grid h3{font-size:13px;line-height:1.9;margin-block:12px 6px}
+.ff-guide-grid p,.ff-guide-note{font-size:12px;line-height:2;color:var(--muted);overflow-wrap:anywhere}
+.ff-guide-note{padding:15px 17px;margin-block:18px;border:1px solid var(--line2);border-radius:11px;background:var(--surface2)}
+.ff-supplier{border-color:var(--line2);background:var(--surface)}
+.ff-supplier>.acc-form{margin-block-start:20px}
+.ff-supplier .acc-btn{justify-self:start}
+.ff-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-block:20px}
+.ff-identity-card{min-width:0;padding:19px;border:1px solid var(--line2);border-radius:13px;background:var(--surface2)}
+.ff-identity-card h3{margin-block-end:14px;font-size:13px}
+.ff-identity-card p{font-size:12px;line-height:2;margin-block:5px;overflow-wrap:anywhere}
+.ff-identity-card small,.ff-evidence-help{display:block;font-size:11px;color:var(--muted);line-height:1.95;margin-block-start:12px}
+.ff-identity-card[data-account-evidence="snapshot"]{border-inline-start:3px solid var(--cyan)}
+.ff-voucher-chain{display:flex;flex-wrap:wrap;gap:10px 20px;font-size:12px;line-height:2;padding-block:12px}
+.ff-voucher-chain a{color:var(--cyan);text-decoration:underline;text-underline-offset:4px}
+.ff-voucher>.ad-table{width:100%;table-layout:fixed}
+.ff-voucher>.ad-table th{width:35%}
+.ff-voucher td,.ff-voucher p,.ff-voucher small{overflow-wrap:anywhere}
+.ff-voucher h3{margin-block:22px 12px}
+.ff-voucher form{display:grid;gap:14px;margin-block-start:18px}
+.ff-voucher form label{display:grid;gap:7px;font-size:12px}
+.ff-voucher form input[type="file"]{max-width:100%}
+.ff-voucher form button{justify-self:start}
+.ff-voucher a:focus-visible,.acc-panel a:focus-visible,.acc-panel summary:focus-visible,.ff-voucher summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+html[data-theme="light"] .ff-step,html[data-theme="light"] .ff-account-edit summary,html[data-theme="light"] .ff-account-create summary,html[data-theme="light"] .ff-voucher-chain a{color:#0e7490}
+@media(max-width:1100px){.ff-guide-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:650px){.ff-identity-grid{grid-template-columns:minmax(0,1fr)}.ff-guide-grid article{padding:16px}.ff-voucher>.ad-table{font-size:12px}.ff-voucher>.ad-table th{width:40%}.ff-voucher>.ad-table td,.ff-voucher>.ad-table th{padding:9px}.ff-account-edit[open]{min-width:220px}}
+@media(prefers-reduced-motion:reduce){.ff-guide *,.ff-voucher *,.ff-supplier *,.ff-account-form *{transition:none!important;animation:none!important}}
+@media print{.ff-account-create,.ff-account-edit,.ff-supplier{display:none}.ff-guide-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.ff-identity-card{break-inside:avoid}}

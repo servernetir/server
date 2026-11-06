@@ -12,8 +12,9 @@
   <p style="padding:0 18px 14px;color:var(--muted);font-size:13px;line-height:1.9">
     سروری که <b>دستی نزد زیرساخت ساخته‌اید</b> را این‌جا به مشتری وصل کنید — مثلاً وقتی
     مشتری تلفنی سفارش داده و پول را جدا گرفته‌اید.
-    <br>پس از ثبت: در پنل خودِ مشتری دیده می‌شود، کنسول و روشن/خاموش و رمز و نصب دوباره
-    برایش کار می‌کند، و <b>سررسید تمدید</b> می‌گیرد تا کرون صورت‌حساب سرِ موعد فاکتور بسازد.
+    <br>پس از ثبت، در پنل مشتری دیده می‌شود و <b>سررسید تمدید</b> می‌گیرد.
+    امکانات مدیریت مطابق قابلیت تأییدشدهٔ زیرساخت نمایش داده می‌شوند؛ کنسول و نصب مجدد برای همهٔ زیرساخت‌ها موجود نیستند.
+    برای VPS.TC، IP، منابع، تاریخ شروع و سررسید باید با سرویس موجود یکسان باشند؛ مبلغ تمدید از قیمت جاری سایت تطبیق داده می‌شود.
     <br><b>این فرم سرور نمی‌سازد</b> — فقط چیزی را که هست ثبت می‌کند، و پیش از ثبت وجودش را
     از خودِ زیرساخت می‌پرسد.
   </p>
@@ -87,7 +88,7 @@
         <select class="ad-input" name="customer_id" required>
           <option value="">— انتخاب کنید —</option>
           @foreach($customers as $c)
-            <option value="{{ $c->id }}" @selected(old('customer_id') == $c->id)>
+            <option value="{{ $c->id }}" @selected(old('customer_id', $prefillCustomer ?? 0) == $c->id)>
               {{ $c->code ?: ('#'.$c->id) }} — {{ $c->email ?: $c->phone }}
             </option>
           @endforeach
@@ -108,6 +109,14 @@
         </select>
       </div>
     </div>
+
+    <div class="ad-field">
+      <label>IP تأییدشدهٔ سرور موجود (برای VPS.TC الزامی)</label>
+      <input class="ad-input" type="text" name="expected_ipv4" dir="ltr" value="{{ old('expected_ipv4') }}">
+    </div>
+    <label style="display:block;margin:12px 0"><input type="checkbox" name="internal_infrastructure" value="1" @checked(old('internal_infrastructure'))>
+      رله یا زیرساخت داخلی حساب مالک؛ بدون صورتحساب مشتری و با حفاظت از حذف و تعلیق خودکار
+    </label>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 18px">
       <div class="ad-field">

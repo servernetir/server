@@ -48,6 +48,13 @@ class CloudFairHourlyMeteringTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // MariaDB keeps AUTO_INCREMENT across transaction rollbacks: a fixture
+        // may receive production's protected service ID 20. These are billable
+        // test servers; internal-resource protection has its own dedicated suite.
+        config(['billing.internal_service_ids' => []]);
+        // Anchor creation and post-command assertions must use the same clock,
+        // including when MariaDB work crosses a real wall-clock minute.
+        Carbon::setTestNow(now()->startOfSecond());
         Http::fake(function ($request) {
             if (! str_contains($request->url(), 'api.salad.com/')) {
                 return Http::response([], 200);
@@ -515,7 +522,7 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'));
 
         $this->artisan('cloud:meter')->assertOk();
-        $this->assertSame(120_000, $c->creditBalance('IRT'));
+        $this->assertSame(115_000, $c->creditBalance('IRT')); // Verified restart prepays one hour.
     }
 
     public function test_failed_power_on_releases_the_credit_claim(): void

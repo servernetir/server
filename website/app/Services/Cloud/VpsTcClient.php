@@ -42,6 +42,13 @@ class VpsTcClient implements CloudProvider
             $key = hash('sha256', 'vpstc:create:'.$name);
             $op = CloudProviderOperation::where('operation_key', $key)->first();
             $identity = $this->specIdentity($spec);
+            if (! $op) {
+                $attached = CloudInstance::where('service_id', $id)->where('provider', 'vpstc')->first();
+                if ($attached && filled($attached->provider_ref)) {
+                    $op = $this->purchase((string) $attached->provider_ref);
+                    if (! $op) { return $this->pending('سرور موجود رسید اتصال معتبر ندارد؛ خرید تازه انجام نمی‌شود.') + $fail; }
+                }
+            }
             if ($op) {
                 if (($op->payload['_account'] ?? '') !== $this->api->accountFingerprint()
                     || ($op->payload['_spec'] ?? []) !== $identity) {
@@ -148,7 +155,7 @@ class VpsTcClient implements CloudProvider
     {
         $base = ['ok' => true, 'message' => 'سفارش پذیرفته شد و در حال آماده‌سازی است.', 'status' => 'building',
             'ipv4' => null, 'ipv6' => null, 'root_password' => null];
-        if (! $this->verifiedInvoice($op)) {
+        if ($op->action === 'attach' ? ! $this->attachmentContext($op) : ! $this->verifiedInvoice($op)) {
             return $base;
         }
         $status = $this->serverStatus((string) $op->resource_ref);
@@ -235,15 +242,17 @@ class VpsTcClient implements CloudProvider
             if ($op && ($op->payload['_account'] ?? '') !== $this->api->accountFingerprint()) { return $base; }
             $r = $this->api->service($ref); $service = $r['data']['service'] ?? [];
             if (! $r['ok'] || (string) ($service['id'] ?? '') !== $ref) { return $base; }
-            if ($op && ((isset($service['domain']) && $service['domain'] !== ($op->payload['request']['domain'] ?? null))
+            $domain = $op?->action === 'attach' ? ($op->payload['_native']['domain'] ?? null) : ($op?->payload['request']['domain'] ?? null);
+            if ($op && ((isset($service['domain']) && $service['domain'] !== $domain)
                 || (isset($service['billingcycle']) && $service['billingcycle'] !== 'Monthly'))) { return $base; }
+            if ($op?->action === 'attach' && ! $this->attachmentContext($op)) { return $base; }
             if (in_array($service['status'] ?? '', ['Cancelled', 'Terminated'], true)) {
                 return array_replace($base, ['ok' => true, 'message' => '', 'status' => 'deleted']);
             }
             if (($service['status'] ?? '') !== 'Active') {
                 return array_replace($base, ['ok' => true, 'message' => '', 'status' => 'building']);
             }
-            if ($op && ! $this->verifiedInvoice($op)) {
+            if ($op && $op->action !== 'attach' && ! $this->verifiedInvoice($op)) {
                 return array_replace($base, ['ok' => true, 'message' => 'پرداخت تأمین‌کننده هنوز تأیید نشده است.', 'status' => 'building']);
             }
             if ($op && ! isset($op->payload['_supplier_due_at'])
@@ -261,6 +270,8 @@ class VpsTcClient implements CloudProvider
             if ($vm === null) { return array_replace($base, ['ok' => true, 'status' => 'building']); }
             $detail = $this->api->vm($ref, $vm); $row = $detail['data']['vm'] ?? [];
             if (! $detail['ok'] || ! $this->vmIdentity($row, $vm)) { return $base; }
+            if ($op?->action === 'attach' && ((string) ($op->payload['_native']['vm_id'] ?? '') !== $vm
+                || $this->ip($row['ipv4'] ?? null, FILTER_FLAG_IPV4) !== ($op->payload['_native']['ipv4'] ?? null))) { return $base; }
             $ipv4 = $this->ip($row['ipv4'] ?? null, FILTER_FLAG_IPV4);
             $ipv6 = $this->ip($row['ipv6'] ?? null, FILTER_FLAG_IPV6);
             $built = in_array($row['built'] ?? null, [true, 1, '1'], true);
@@ -335,7 +346,24 @@ class VpsTcClient implements CloudProvider
 
     private function purchase(string $ref): ?CloudProviderOperation
     {
-        return CloudProviderOperation::where('provider', $this->slug())->where('action', 'create')->where('resource_ref', $ref)->first();
+        return CloudProviderOperation::where('provider', $this->slug())->whereIn('action', ['create', 'attach'])->where('resource_ref', $ref)->first();
+    }
+
+    /** A real import receipt binds the original guest to its one authorized local owner. */
+    private function attachmentContext(CloudProviderOperation $op): bool
+    {
+        $native = (array) ($op->payload['_native'] ?? []);
+        $instance = CloudInstance::where('provider', 'vpstc')->where('provider_ref', $op->resource_ref)->first();
+        $service = $instance?->service;
+        return $op->action === 'attach' && $op->state === 'complete' && $service !== null
+            && ($op->payload['_account'] ?? '') === $this->api->accountFingerprint()
+            && (string) ($native['service_id'] ?? '') === (string) $op->resource_ref
+            && (int) ($native['local_service_id'] ?? 0) === (int) $service->id
+            && (int) ($native['customer_id'] ?? 0) === (int) $service->customer_id
+            && (string) ($native['ipv4'] ?? '') === (string) $instance->ipv4
+            && ($op->payload['_spec']['name'] ?? '') === 'sn-svc-'.$service->id
+            && (string) ($op->payload['_spec']['plan_ref'] ?? '') === (string) $service->cloudPlan?->provider_ref
+            && CloudInstance::where('provider', 'vpstc')->where('provider_ref', $op->resource_ref)->count() === 1;
     }
 
     public function listServers(): array
@@ -436,6 +464,7 @@ class VpsTcClient implements CloudProvider
                 || ($purchase->payload['_spec']['name'] ?? '') !== 'sn-svc-'.$instance->service_id)) {
                 return false;
             }
+            if ($purchase->action === 'attach' && ! $this->attachmentContext($purchase)) { return false; }
             // An admin in another process can revoke an included operation
             // while supplier reads are running. Request-memoized settings
             // must not authorize the final mutation after that revocation.

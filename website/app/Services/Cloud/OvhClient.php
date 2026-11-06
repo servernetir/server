@@ -87,6 +87,55 @@ class OvhClient implements CloudProvider
         return filled($this->appKey()) && filled($this->appSecret()) && filled($this->consumerKey());
     }
 
+    /** Account-bound cache identity; credentials are never returned to callers. */
+    public function accountFingerprint(): string
+    {
+        return hash_hmac('sha256', implode("\0", [
+            $this->base(), (string) $this->appKey(),
+            (string) $this->appSecret(), (string) $this->consumerKey(),
+        ]), (string) config('app.key'));
+    }
+
+    /**
+     * Read the active prepaid account's reported balance, without crediting it.
+     * The official schema defines billing.OvhAccount.balance as order.Price
+     * (value + currencyCode). Promotional credits and availableAfterCredit are
+     * deliberately excluded. Multiple accounts need an explicit future mapping.
+     *
+     * @see https://eu.api.ovh.com/1.0/me.json
+     * @return array{known:bool,amount?:mixed,currency?:mixed,reason?:string}
+     */
+    public function accountBalance(): array
+    {
+        $list = $this->req('GET', '/me/ovhAccount');
+        $ids = $list['body'] ?? null;
+        if (! $list['ok'] || ! is_array($ids) || ! array_is_list($ids)) {
+            return ['known' => false, 'reason' => 'balance_unavailable'];
+        }
+        if (count($ids) !== 1) {
+            return ['known' => false, 'reason' => $ids === [] ? 'no_prepaid_account' : 'ambiguous_accounts'];
+        }
+        $id = $ids[0];
+        if (! is_string($id) || $id === '' || strlen($id) > 128) {
+            return ['known' => false, 'reason' => 'balance_unavailable'];
+        }
+        $result = $this->req('GET', '/me/ovhAccount/'.rawurlencode($id));
+        $account = $result['body'] ?? null;
+        if (! $result['ok'] || ! is_array($account)) {
+            return ['known' => false, 'reason' => 'balance_unavailable'];
+        }
+        if (($account['isActive'] ?? null) !== true) {
+            return ['known' => false, 'reason' => 'prepaid_account_inactive'];
+        }
+        $price = $account['balance'] ?? null;
+        if (! is_array($price)) {
+            return ['known' => false, 'reason' => 'balance_unavailable'];
+        }
+
+        return ['known' => true, 'amount' => $price['value'] ?? null,
+            'currency' => $price['currencyCode'] ?? null];
+    }
+
     public function capabilities(): array
     {
         return [
