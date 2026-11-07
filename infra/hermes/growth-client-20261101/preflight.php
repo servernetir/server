@@ -5,7 +5,7 @@
  *
  * This script never reads environment variables or a shared key and never
  * performs a network request. It validates only the local runtime, the exact
- * client/caller files and an operator-supplied peer epoch.
+ * client/cycle/caller files and an operator-supplied peer epoch.
  */
 final class HermesGrowthReadPreflight
 {
@@ -16,8 +16,10 @@ final class HermesGrowthReadPreflight
     {
         $validated = self::validateOptions($options);
         $client = self::inspectFile($validated['client']);
+        $cycle = self::inspectFile($validated['cycle']);
         $caller = self::inspectFile($validated['caller']);
         $clockSkew = abs(time() - $validated['peer_epoch']);
+        $runtimePaths = [$client['realpath'], $cycle['realpath'], $caller['realpath']];
 
         $checks = [
             'php_84_or_newer' => PHP_VERSION_ID >= self::MIN_PHP_VERSION_ID,
@@ -28,11 +30,16 @@ final class HermesGrowthReadPreflight
             'client_not_group_or_world_writable' => $client['safe_permissions'],
             'client_expected_owner' => $client['uid'] === $validated['expected_uid'],
             'client_expected_sha256' => hash_equals($validated['expected_client_sha'], $client['sha256']),
+            'cycle_canonical_regular_file' => $cycle['canonical_regular_file'],
+            'cycle_not_group_or_world_writable' => $cycle['safe_permissions'],
+            'cycle_expected_owner' => $cycle['uid'] === $validated['expected_uid'],
+            'cycle_expected_sha256' => hash_equals($validated['expected_cycle_sha'], $cycle['sha256']),
             'caller_canonical_regular_file' => $caller['canonical_regular_file'],
             'caller_not_group_or_world_writable' => $caller['safe_permissions'],
             'caller_expected_owner' => $caller['uid'] === $validated['expected_uid'],
             'caller_expected_sha256' => hash_equals($validated['expected_caller_sha'], $caller['sha256']),
             'client_and_caller_are_distinct' => $client['realpath'] !== $caller['realpath'],
+            'runtime_files_are_distinct' => count(array_unique($runtimePaths)) === count($runtimePaths),
         ];
 
         return [
@@ -44,17 +51,20 @@ final class HermesGrowthReadPreflight
                 'max_skew_seconds' => $validated['max_skew'],
                 'expected_uid' => $validated['expected_uid'],
                 'client' => self::publicFileFacts($client),
+                'cycle' => self::publicFileFacts($cycle),
                 'caller' => self::publicFileFacts($caller),
             ],
         ];
     }
 
-    /** @return array{client: string, expected_client_sha: string, caller: string, expected_caller_sha: string, expected_uid: int, peer_epoch: int, max_skew: int} */
+    /** @return array{client: string, expected_client_sha: string, cycle: string, expected_cycle_sha: string, caller: string, expected_caller_sha: string, expected_uid: int, peer_epoch: int, max_skew: int} */
     private static function validateOptions(array $options): array
     {
         $required = [
             'client',
             'expected-client-sha',
+            'cycle',
+            'expected-cycle-sha',
             'caller',
             'expected-caller-sha',
             'expected-uid',
@@ -67,8 +77,10 @@ final class HermesGrowthReadPreflight
         }
 
         $expectedClientSha = strtolower($options['expected-client-sha']);
+        $expectedCycleSha = strtolower($options['expected-cycle-sha']);
         $expectedCallerSha = strtolower($options['expected-caller-sha']);
         if (preg_match('/^[a-f0-9]{64}$/D', $expectedClientSha) !== 1
+            || preg_match('/^[a-f0-9]{64}$/D', $expectedCycleSha) !== 1
             || preg_match('/^[a-f0-9]{64}$/D', $expectedCallerSha) !== 1) {
             throw new InvalidArgumentException('invalid_sha256');
         }
@@ -89,6 +101,8 @@ final class HermesGrowthReadPreflight
         return [
             'client' => $options['client'],
             'expected_client_sha' => $expectedClientSha,
+            'cycle' => $options['cycle'],
+            'expected_cycle_sha' => $expectedCycleSha,
             'caller' => $options['caller'],
             'expected_caller_sha' => $expectedCallerSha,
             'expected_uid' => (int) $options['expected-uid'],
@@ -141,6 +155,8 @@ if (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) {
         $options = getopt('', [
             'client:',
             'expected-client-sha:',
+            'cycle:',
+            'expected-cycle-sha:',
             'caller:',
             'expected-caller-sha:',
             'expected-uid:',
