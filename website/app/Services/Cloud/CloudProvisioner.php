@@ -8,6 +8,7 @@ use App\Models\CloudImage;
 use App\Models\CloudInstance;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\CloudProviderOperation;
 use App\Models\CloudSshKey;
 use App\Models\CreditEntry;
 use App\Models\Service;
@@ -63,6 +64,7 @@ class CloudProvisioner
         // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
         'arvan' => 15,
         'vpstc' => 30,
+        'lightnode' => 30,
     ];
 
     public function __construct(
@@ -1051,6 +1053,8 @@ class CloudProvisioner
                     continue;
                 }
 
+                app(AezaLifecycleReview::class)->observe($instance, $r);
+
                 // This driver durably adopts access credentials and the first
                 // supplier due date while reconciling. Do not overwrite those
                 // fields with metadata loaded before that reconciliation.
@@ -1285,6 +1289,11 @@ class CloudProvisioner
         }
 
         $info = $driver->serverStatus($ref);
+
+        if (($review = app(AezaLifecycleReview::class)->observe($instance, $info)) !== null) {
+            $service->forceFill(['provision_status' => 'failed', 'provision_error' => $review['message']])->save();
+            return false;
+        }
 
         if (! ($info['ok'] ?? false)) {
             $this->retryLater($service, 'وضعیتِ سرور خوانده نشد؛ تلاشِ خودکار ادامه دارد.');
@@ -2324,20 +2333,39 @@ class CloudProvisioner
     public function releasePending(Service $service): bool
     {
         $instance = CloudInstance::where('service_id', $service->id)->first();
+        return $instance !== null && self::releasePendingUntil($instance)?->isFuture() === true;
+    }
 
-        return $instance !== null
-            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])
-            && filled(data_get($instance->meta, 'release_pending.accepted_at'))
-            && blank(data_get($instance->meta, 'release_pending.timed_out_at'));
+    /** Shared by queue processing and health; foreign/stale markers are not receipts. */
+    public static function releasePendingUntil(CloudInstance $instance): ?Carbon
+    {
+        $minutes = self::RELEASE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
+        $pending = data_get($instance->meta, 'release_pending');
+        if ($minutes === null || ! is_array($pending) || blank($pending['accepted_at'] ?? null)
+            || filled($pending['timed_out_at'] ?? null)) { return null; }
+        if ($instance->provider === 'lightnode' && ! CloudProviderOperation::where('provider', 'lightnode')
+            ->where('action', 'release')->where('resource_ref', $instance->provider_ref)
+            ->whereIn('state', ['pending', 'success'])->whereNotNull('task_ref')->where('task_ref', '!=', '')->exists()) {
+            return null;
+        }
+        try { return Carbon::parse($pending['accepted_at'])->addMinutes($minutes); }
+        catch (\Throwable) { return null; }
     }
 
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
-    public function terminate(Service $service, bool $reportFailure = true): bool
+    public function terminate(Service $service, bool $reportFailure = true, bool $confirmOnly = false): bool
     {
         if ($service->isInternalInfrastructure()) {
             return false;
         }
         $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        // Receipt-only processing never discovers another resource, removes a
+        // gateway or enters another provider's mutation implementation.
+        if ($confirmOnly && (! $service->isDead() || $instance?->provider !== 'lightnode'
+            || blank($instance->provider_ref))) {
+            return false;
+        }
 
         /*
         | ═══ 🔴 «چیزی برای حذف نیست» با «نمی‌دانم چه چیزی را حذف کنم» یکی نیست ═══
@@ -2433,9 +2461,13 @@ class CloudProvisioner
         // اگر بعد از حذف می‌آمد و حذفِ ماشین شکست می‌خورد، این خط اجرا نمی‌شد و
         // پروکسی‌هاست تا ابد می‌مانْد. ترتیب عمدی است: چیزی که رو به اینترنت
         // است زودتر بسته شود.
-        $this->removeWebGateway($instance);
-
-        $r = $driver->deleteServer((string) $instance->provider_ref);
+        if ($confirmOnly) {
+            if (! $driver instanceof LightNodeClient) { return false; }
+            $r = $driver->confirmRelease((string) $instance->provider_ref);
+        } else {
+            $this->removeWebGateway($instance);
+            $r = $driver->deleteServer((string) $instance->provider_ref);
+        }
 
         if ($r['ok'] ?? false) {
             $attributes = $this->clearReleasePending($instance, [
@@ -2445,7 +2477,7 @@ class CloudProvisioner
             // The Arvan driver only returns ok after GET of this exact resource
             // is 404.  Persist that proof so fallback inventory can distinguish
             // verified deletion from legacy rows that may only be SOFT_DELETED.
-            if ($instance->provider === 'arvan') {
+            if (in_array($instance->provider, ['arvan', 'lightnode'], true)) {
                 $attributes['meta']['provider_absence_verified_at'] = now()->toIso8601String();
             }
 
@@ -2460,10 +2492,11 @@ class CloudProvisioner
             $acceptedAt = is_array($pending)
                 ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
                 : null;
+            $acceptedAt ??= $this->parseLifecycleAcceptedAt($r['accepted_at'] ?? null);
             $deadlineMinutes = self::RELEASE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
 
             if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
-                $message = 'حذف اجباری پذیرفته شد، اما نبودن منبع تا پایان مهلت '
+                $message = 'حذف پذیرفته شد، اما نبودن منبع تا پایان مهلت '
                     .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
                 $meta = (array) $instance->meta;
                 $meta['release_pending'] = [
@@ -2554,6 +2587,9 @@ class CloudProvisioner
     public function recordSuspendFailure(Service $service): void
     {
         $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        // These states require lifecycle review, not a live-machine cost alert.
+        if (AezaLifecycleReview::forService($service) !== null) { return; }
 
         if ($instance !== null) {
             $meta = (array) ($instance->meta ?? []);
@@ -2694,6 +2730,9 @@ class CloudProvisioner
 
         // A retry may find the previous asynchronous request already completed.
         $actual = $driver->serverStatus((string) $instance->provider_ref);
+        if (app(AezaLifecycleReview::class)->observe($instance, $actual) !== null) {
+            return false;
+        }
         if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
             $instance->update($this->clearLifecyclePending($instance, [
                 'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),
@@ -2725,6 +2764,9 @@ class CloudProvisioner
 
         if ($r['ok'] ?? false) {
             $actual = $driver->serverStatus((string) $instance->provider_ref);
+            if (app(AezaLifecycleReview::class)->observe($instance, $actual) !== null) {
+                return false;
+            }
             if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
                 $instance->update($this->clearLifecyclePending($instance, [
                     'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),

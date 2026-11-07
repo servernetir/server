@@ -751,17 +751,12 @@ class LightNodeClient implements CloudProvider
                 }
                 if (! $this->taskSucceeded($op)) {
                     return ['ok' => false, 'pending' => $op->state !== 'failed' && filled($op->task_ref),
-                        'transient' => $op->state !== 'failed', 'message' => 'عملیات هنوز نزد زیرساخت تأیید نشده است.'];
+                        'transient' => $op->state !== 'failed',
+                        'accepted_at' => filled($op->task_ref) ? $op->created_at->toIso8601String() : null,
+                        'message' => 'عملیات هنوز نزد زیرساخت تأیید نشده است.'];
                 }
                 if ($action === 'release') {
-                    $purchase = CloudProviderOperation::where('provider', $this->slug())->where('action', 'create')
-                        ->where('resource_ref', $ref)->first();
-                    $region = $purchase?->payload['packageConfig']['regionCode'] ?? null;
-                    $zone = $purchase?->payload['packageConfig']['zoneCode'] ?? null;
-                    $list = $region && $zone ? $this->regionalServers($region, $zone) : $this->listServers();
-                    if (! $list['ok'] || collect($list['servers'])->contains('ref', $ref)) {
-                        return ['ok' => false, 'transient' => true, 'message' => 'حذف ماشین هنوز در موجودی کامل تأیید نشده است.'];
-                    }
+                    return $this->confirmReleaseAbsence($op);
                 }
                 if (in_array($action, ['password', 'reinstall'], true)) {
                     // Even an immediately completed task must keep the encrypted
@@ -786,6 +781,49 @@ class LightNodeClient implements CloudProvider
     private function accepted(array $result): array
     {
         return ($result['pending'] ?? false) ? array_replace($result, ['ok' => true]) : $result;
+    }
+
+    /** Reconcile an existing release receipt; this path never issues a mutation. */
+    public function confirmRelease(string $ref): array
+    {
+        $lock = Cache::lock('lightnode-resource-'.hash('sha256', $ref), 120);
+        if (! $lock->get()) {
+            return ['ok' => false, 'pending' => true, 'message' => 'تأیید حذف در حال بررسی است.'];
+        }
+        try {
+            $op = CloudProviderOperation::where('provider', $this->slug())
+                ->where('action', 'release')->where('resource_ref', $ref)->first();
+            if ($op === null || blank($op->task_ref)) {
+                return ['ok' => false, 'message' => 'رسید پذیرفته‌شدهٔ حذف در دسترس نیست؛ بررسی مدیر لازم است.'];
+            }
+            if (! $this->taskSucceeded($op)) {
+                return ['ok' => false, 'pending' => $op->state !== 'failed',
+                    'accepted_at' => $op->created_at->toIso8601String(),
+                    'message' => $op->state === 'failed'
+                        ? 'عملیات حذف نزد زیرساخت ناموفق بود.'
+                        : 'عملیات حذف هنوز نزد زیرساخت تأیید نشده است.'];
+            }
+            return $this->confirmReleaseAbsence($op);
+        } catch (\Throwable) {
+            return ['ok' => false, 'pending' => true, 'message' => 'تأیید حذف موقتاً قابل بررسی نیست.'];
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function confirmReleaseAbsence(CloudProviderOperation $op): array
+    {
+        $purchase = CloudProviderOperation::where('provider', $this->slug())->where('action', 'create')
+            ->where('resource_ref', $op->resource_ref)->first();
+        $region = data_get($purchase?->payload, 'packageConfig.regionCode');
+        $zone = data_get($purchase?->payload, 'packageConfig.zoneCode');
+        $list = $region && $zone ? $this->regionalServers($region, $zone) : $this->listServers();
+        if (! $list['ok'] || collect($list['servers'] ?? [])->contains('ref', $op->resource_ref)) {
+            return ['ok' => false, 'pending' => true, 'transient' => true,
+                'accepted_at' => $op->created_at->toIso8601String(),
+                'message' => 'حذف ماشین هنوز در موجودی کامل تأیید نشده است.'];
+        }
+        return ['ok' => true, 'message' => 'رسید حذف و نبود منبع تأیید شد.'];
     }
 
     public function deleteServer(string $ref): array { return $this->mutate($ref, 'release', '/instance/release'); }

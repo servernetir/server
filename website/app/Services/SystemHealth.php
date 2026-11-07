@@ -78,8 +78,10 @@ class SystemHealth
             ['billing_jobs', 'اجرای تمدید و تعلیق', 'billingJobs'],
             ['cloud_delivery', 'تحویلِ سرورِ ابری', 'undeliveredCloud'],
             ['aeza_control', 'کنترل Aeza', 'aezaControlContract'],
+            ['provider_lifecycle', 'تطبیق وضعیت و سررسید زیرساخت', 'providerLifecycle'],
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
             ['cloud_release_untracked', 'حذف‌های خارج از صف', 'untrackedCloudRelease'],
+            ['infrastructure_audit', 'پایش منابع زیرساخت', 'infrastructureAudit'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
             ['gpu_sales', 'فروش GPU', 'gpuSales'],
             ['catalogue_refresh', 'همگام‌سازی درخواستی کاتالوگ', 'catalogueRefresh'],
@@ -837,6 +839,43 @@ class SystemHealth
              خوانده نشده؛ `fx:dollar` و اتصال تامین‌کننده را بررسی کنید.');
     }
 
+    /** Cached supplier evidence is separate from the customer's paid-through date. */
+    private function providerLifecycle(): array
+    {
+        $title = 'تطبیق وضعیت و سررسید زیرساخت';
+        if (! Schema::hasTable('services') || ! Schema::hasTable('cloud_instances')) {
+            return $this->row('provider_lifecycle', true, 'ok', $title, 'روی این نصب فعال نیست.');
+        }
+        $services = Service::whereIn('status', ['active', 'suspended'])
+            ->whereHas('cloudInstance', fn ($q) => $q->where('provider', 'aeza'))
+            ->with(['cloudInstance', 'customer:id,code,email'])->get();
+        $issues = collect();
+        foreach ($services as $service) {
+            if ($service->isInternalInfrastructure()) { continue; }
+            $meta = (array) $service->cloudInstance->meta;
+            $reason = data_get($meta, 'provider_lifecycle_review.reason');
+            if (in_array($reason, ['deleted', 'expired'], true)) {
+                $issues->push($service);
+                continue;
+            }
+            $expiresAt = data_get($meta, 'provider_billing_observation.expires_at');
+            if ($service->isHourly() || $service->hasUnverifiedBillingTerms() || ! $service->next_due_at || ! $expiresAt) { continue; }
+            try {
+                $supplierDate = Carbon::parse($expiresAt)->timezone(\App\Services\Billing\RenewalTerms::timezone())->toDateString();
+                if ($supplierDate < $service->next_due_at->toDateString()) { $issues->push($service); }
+            } catch (\Throwable) { $issues->push($service); }
+        }
+        if ($issues->isEmpty()) {
+            return $this->row('provider_lifecycle', true, 'ok', $title,
+                'در مشاهدات ثبت‌شده، حذف/انقضا یا اختلاف سررسید نیازمند بررسی پیدا نشد.');
+        }
+        return $this->row('provider_lifecycle', false, 'fail', $title,
+            fa_num($issues->count()).' سرویس نیازمند بررسی حذف، تمدید یا اختلاف سررسید تأمین‌کننده است: '
+            .$issues->take(self::NAME_LIMIT)->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
+            .'. تاریخ و تعهد مالی مشتری خودکار کوتاه نمی‌شود؛ این مورد به معنی تأیید هزینهٔ جاری نیست.',
+            $this->serviceLinks($issues->take(self::NAME_LIMIT)));
+    }
+
     /** Read-only reconciliation: protected or legacy rows must not disappear from monitoring. */
     private function untrackedCloudRelease(): array
     {
@@ -852,21 +891,56 @@ class SystemHealth
             ->whereHas('cloudInstance', fn ($q) => $q->whereNotNull('provider_ref')
                 ->where('provider_ref', '!=', '')
                 ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'deleted')));
-        $count = (clone $query)->count();
+        $all = $query->with(['cloudInstance', 'customer:id,code,email'])->orderBy('id')->get();
+        $stopped = $all->filter(fn ($service) => \App\Services\Cloud\ClosedInfrastructureAudit::confirmedStopped($service->cloudInstance));
+        $unresolved = $all->reject(fn ($service) => \App\Services\Cloud\ClosedInfrastructureAudit::confirmedStopped($service->cloudInstance));
+        $count = $unresolved->count();
 
         if ($count === 0) {
+            if ($stopped->isNotEmpty()) {
+                return $this->row('cloud_release_untracked', true, 'warn', 'حذف‌های خارج از صف',
+                    fa_num($stopped->count()).' گروه GPU با استعلام تازه متوقف و بدون نمونه است؛ مصرف پردازشی جاری ندارد. '
+                    .'پیکربندی باقی مانده و حذف‌شده محسوب نمی‌شود؛ تصمیم پاک‌سازی جداست.',
+                    $this->serviceLinks($stopped->take(self::NAME_LIMIT)));
+            }
             return $this->row('cloud_release_untracked', true, 'ok', 'حذف‌های خارج از صف',
                 'سرویس بسته‌شده‌ای با ماشین تعیین‌تکلیف‌نشده خارج از صف پیدا نشد.');
         }
 
-        $rows = $query->orderBy('id')->limit(self::NAME_LIMIT)
-            ->with('customer:id,code,email')->get(['id', 'name', 'customer_id']);
+        $rows = $unresolved->take(self::NAME_LIMIT);
 
         return $this->row('cloud_release_untracked', false, 'fail', 'حذف‌های خارج از صف',
             fa_num($count).' سرویس بسته شده ولی ماشین آن حذف‌شده ثبت نشده و در صف آزادسازی هم نیست: '
             .$rows->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
             .'. وضعیت واقعی زیرساخت و محافظت داخلی را بررسی کنید؛ این هشدار هیچ ماشینی را خودکار حذف نمی‌کند.',
             $this->serviceLinks($rows));
+    }
+
+    private function infrastructureAudit(): array
+    {
+        $title = 'پایش منابع زیرساخت';
+        $closed = Cache::get(\App\Services\Cloud\ClosedInfrastructureAudit::LAST_SCAN_KEY);
+        $fleet = \App\Services\Cloud\FleetScanner::lastScan();
+        $fresh = function ($value, int $minutes): bool {
+            if (! is_array($value) || ! is_string($value['at'] ?? null)) { return false; }
+            try {
+                $at = Carbon::parse($value['at']);
+                return $at->lte(now()) && $at->gte(now()->subMinutes($minutes));
+            } catch (\Throwable) { return false; }
+        };
+        if (! $fresh($closed, 30) || ! $fresh($fleet, 120) || ! empty($fleet['errors']) || (int) ($closed['unknown'] ?? 0) > 0) {
+            return $this->row('infrastructure_audit', false, 'warn', $title,
+                'اسکن منابع بسته‌شده یا موجودی کامل تازه/معتبر نیست. هزینهٔ نامعلوم صفر محسوب نمی‌شود؛ اتصال و اجرای پایش را بررسی کنید.');
+        }
+        $needsDecision = \App\Models\InfraAsset::query()->whereIn('link_state', \App\Models\InfraAsset::LEAKING_STATES)
+            ->whereNull('acknowledged_at')->whereNotIn('role', \App\Models\InfraAsset::OWNED_ROLES)->count();
+        if ($needsDecision > 0) {
+            return $this->row('infrastructure_audit', false, 'warn', $title,
+                fa_num($needsDecision).' منبع بی‌سرویس زنده در دفتر ناوگان نیازمند تصمیم است؛ '
+                .'مبالغ کاتالوگ برآورد ریسک هستند و رسید هزینهٔ واقعی نیستند. خاموشی برای همهٔ زیرساخت‌ها رایگان نیست.');
+        }
+        return $this->row('infrastructure_audit', true, 'ok', $title,
+            'استعلام منابع بسته‌شده و موجودی کامل تازه است؛ منبع بی‌سرویسِ نیازمند تصمیم ثبت نشده است.');
     }
 
     private function cloudRelease(): array
@@ -877,7 +951,7 @@ class SystemHealth
             }
 
             $allRows = Service::query()->awaitingRelease()
-                ->with('cloudInstance:id,service_id,provider,meta')
+                ->with('cloudInstance:id,service_id,provider,provider_ref,meta')
                 ->orderBy('id')->get(['id', 'name', 'customer_id']);
             // The full queue decides severity.  Limit only what is rendered as
             // operator links so a failure after 50 fresh pending rows cannot be
@@ -895,32 +969,16 @@ class SystemHealth
         }
 
         $freshPending = $allRows->filter(function (Service $service) {
-            // release_pending is an Arvan-only contract.  A stale or foreign
-            // marker must not downgrade a potentially billable failure.
-            if ($service->cloudInstance?->provider !== 'arvan') {
-                return false;
-            }
-
-            $pending = data_get($service->cloudInstance?->meta, 'release_pending');
-
-            if (! is_array($pending) || blank($pending['accepted_at'] ?? null)
-                || filled($pending['timed_out_at'] ?? null)) {
-                return false;
-            }
-
-            try {
-                return Carbon::parse((string) ($pending['accepted_at'] ?? ''))
-                    ->gt(now()->subMinutes(15));
-            } catch (\Throwable) {
-                return false;
-            }
+            $instance = $service->cloudInstance;
+            return $instance !== null
+                && \App\Services\Cloud\CloudProvisioner::releasePendingUntil($instance)?->isFuture() === true;
         });
 
         if ($freshPending->count() === $allRows->count()) {
             return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
                 fa_num($allRows->count()).' حذف نزدِ زیرساخت پذیرفته شده و تأیید نهایی آن در جریان است (سرویسِ '
                 .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
-                .'). اگر بیش از ۱۵ دقیقه بماند به خطای واقعی ارتقا می‌یابد.',
+                .'). پایان مهلت تأیید هر زیرساخت، این وضعیت را به خطای واقعی ارتقا می‌دهد.',
                 $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
         }
 

@@ -50,6 +50,9 @@ class CloudReleaseRetryTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // MariaDB auto-increment IDs survive rolled-back test transactions.
+        // A synthetic customer service may get the production-only internal ID 20.
+        config(['billing.internal_service_ids' => []]);
         \Illuminate\Support\Facades\Mail::fake();
 
         Setting::putSecret('aeza_api_token', 'aeza-key');

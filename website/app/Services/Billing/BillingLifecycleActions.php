@@ -38,10 +38,12 @@ class BillingLifecycleActions
             $result = $provisioner->{$action}($service);
             $confirmed = $result->ok && ! $result->manual;
             $manual = $result->manual;
+            $review = ($result->meta['review'] ?? false) === true;
             $error = $result->error;
         } catch (\Throwable $e) {
             $confirmed = false;
             $manual = false;
+            $review = false;
             $error = $e::class;
         }
 
@@ -54,15 +56,17 @@ class BillingLifecycleActions
             'attempted_at' => now()->toIso8601String(),
             'confirmed_at' => $confirmed ? now()->toIso8601String() : null,
             'manual' => $manual,
+            'review_required' => $review,
             'error' => $confirmed ? null : mb_substr((string) $error, 0, 290),
-            'retry_at' => $confirmed ? null : now()->addMinutes(max(1, (int) config('billing.lifecycle_retry_minutes', 15)))->toIso8601String(),
+            'retry_at' => $confirmed ? null : now()->addMinutes($review ? 360
+                : max(1, (int) config('billing.lifecycle_retry_minutes', 15)))->toIso8601String(),
         ];
         $service->forceFill(['provision_meta' => $meta])->save();
 
-        if (! $confirmed && ! $manual) {
+        if (! $confirmed && ! $manual && ! $review) {
             ErrorTracker::noteOnce('billing', 'عملیات '.$action.' سرویس #'.$service->id.' تأیید نشد؛ تلاش مجدد زمان‌بندی شد.', 900, ['service' => $service->id]);
         }
 
-        return $confirmed ? 'confirmed' : ($manual ? 'pending' : 'failed');
+        return $confirmed ? 'confirmed' : (($manual || $review) ? 'pending' : 'failed');
     }
 }
