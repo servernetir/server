@@ -23,7 +23,7 @@ HOME = Path('/home/servernetcloud')
 DOCROOT = HOME / 'public_html'
 DIRECTORY = DOCROOT / '_traffic_exposure_20261105'
 PRIMARY = DIRECTORY / 'activate.php'
-SCRIPT_NAME = '/__private_traffic_exposure_activation.php'
+SCRIPT_NAME = '/_traffic_exposure_20261105/activate.php'
 MAX_OUTPUT = 1048576
 EXPECTED_PRIMARY_HASH = '5e67bfc65a1c8da4b6b272a71c000127b95cfd4e7ae7a5e6e99e34f1048723b0'
 

@@ -1,58 +1,61 @@
-# Arvan pending traffic reserves: release state, 5 November 2026
+# Arvan pending traffic reserves — accepted 7 November 2026
 
-## Verified implementation
+## Current production state
 
-PR [266](https://github.com/servernetir/server/pull/266), merged as `d95bbcf0bbe31b532ffabcc4e72bfca4be987257`, adds encrypted per-customer pending-traffic reserves. Below the 5,000 IRT invoice minimum, eligible supplier traffic reduces spendable credit without a small invoice, payment or ledger debit. Exact paid components clear atomically on settlement; missing/excluded/held evidence does not release reserves. Ownership anchors and retained cycle pins prevent reassignment or missing-report double charging. Pending credit exhaustion records a typed hold for the existing worker.
+The reserve feature is **enabled**, after native runtime verification and cleanup. This closes the activation blocker recorded on5November; it does not establish full fleet monitoring.
 
-The activation key is `arvan_traffic_exposure_enabled_v1`. New deferred reserves and their stop intents require literal value `1`. Preserve the exposure-aware Wallet and settlement reader during rollback after any reserves exist. Flag off does not release existing reserves or cancel existing holds.
+- Financial implementation: PR266, merge `d95bbcf0bbe31b532ffabcc4e72bfca4be987257`; tested candidate `70402800682f6636ff9a7d7741857ae5de2369f4`.
+- Four live PHP files matched the pinned installed candidate again on7November: Exposure, Wallet, CreditGuard, Meter. Composer permits PSR-4 discovery.
+- Native PHP8.4.27/FPM: both recorded same-account pool sockets completed activate, then separate verify requests; all four classes/source hashes verified in each. No Laravel bootstrap, database/provider operation or global cache reset occurred in these requests.
+- Flag `arvan_traffic_exposure_enabled_v1=1` enabled at **2026-11-07T05:34:13Z (09:04:13Tehran)** under the existing source-release/meter locks, with native receipt/source checks and a guarded setting transaction.
+- Natural scheduled apply completed **05:35:47UTC (09:05:47Tehran)**: deferred3lines, total3,887IRT, billed0IRT. A separate application read confirmed3reserve accounts, total3,887IRT, enabled1. No artificial live debit/invoice was used as a test.
 
-Guest counters remain nonfinancial evidence. This does not enable node-counter charging or duplicate the existing supplier-finance meter.
+## Financial behavior
 
-## Tests and review
+Accrued eligible supplier traffic below5,000IRT reduces spendable credit through encrypted per-customer reserves, without a small invoice, payment or ledger debit. At or above the minimum, the existing tax-inclusive customer batch settles once and clears only its exact paid reserve components in the same transaction. Missing, held or excluded evidence preserves existing reserves and cycle pins.
 
-- Candidate `70402800682f6636ff9a7d7741857ae5de2369f4`.
-- Isolated PHP 8.4.27 / SQLite host suite: 114 tests, 876 assertions passed.
-- GitHub finance run 42040394593: SQLite and disposable MariaDB passed; MariaDB 119 tests, 1,050 assertions.
-- MariaDB includes actual ordinary Wallet debit after an old REPEATABLE READ snapshot and a second connection commits a new encrypted exposure plus another ledger debit. An unaffordable debit fails, an exactly fundable debit succeeds, the reserve survives.
-- Existing negative controls reproduce failure when locking/current reads are removed. All seven candidate PR workflows passed.
-- Independent review found the three previous blockers fixed: regressed time/quantity/repricing, first-baseline ownership transfer, and losing a missing cycle pin when another cycle settles.
+Ownership anchors reject reassignment before the first paid baseline. Regressed time/quantity, decreased amounts and same-evidence repricing require reconciliation. A valid pending-credit exhaustion records a typed hold for the existing worker without fabricating an invoice. Guest counters remain nonfinancial evidence and do not become a second charging source.
 
-## Actual source installation; activation NOT complete
+Flag off pauses new deferred reserves/stop intents; it does not release existing reserves, erase checkpoints or cancel existing holds. Preserve the exposure-aware Wallet, Exposure class and settlement reader after any reserves exist.
 
-Four production files were installed in order: Exposure, Wallet, CreditGuard, Meter. The source release takes the existing release and meter locks, checks the exact old source against develop `9c3d8732336f4c2ae6c7c016818dd5c1b975a511`, saves private backups, lints staged PHP, performs limited atomic replacements and verifies all four installed hashes against candidate704028.
+## Validation
 
-- Private source release: `/home/servernetcloud/traffic-exposure-release-20261105`.
-- Source plan SHA-256: `ef286f7029c201b69117a443cd0866b90aab149abfdcf25c573dda04706277df`.
-- Apply returned `installed_sources_activation_pending`; separate source verification returned `verified`, four files.
-- Pre-install application read: flag absent, zero exposure rows; Composer classmap-authoritative false.
-- No migration, artificial live invoice/debit, scheduler invocation, guest mutation or power operation was used as a test.
-- Native FPM activation has NOT passed. The account-private primary was rejected by the selected FPM listener with “Unable to open primary script ... (No such file or directory)”. This is not a successful activation receipt.
-- A temporary denied primary was staged at `/home/servernetcloud/public_html/_traffic_exposure_20261105/activate.php`, parent0700, PHP0600, .htaccess0600 with exact bytes `Require all denied\n`. External browser reads reached the site's 404 page on both domains; this does NOT establish the required Apache403 denial and activation must not proceed on that evidence.
-- Public-primary canonical one-newline PHP SHA-256 is `5e67bfc65a1c8da4b6b272a71c000127b95cfd4e7ae7a5e6e99e34f1048723b0`. The private attempted primary hash is `95667090422b1410e4f88cafd890aefb7b1303ddf4432b8e6e623ed38a85e49b`.
-- At the end of this session cPanel terminal disconnected, reconnect reported a failed WebSocket handshake, and loading cPanel itself returned ERR_CONNECTION_CLOSED. The final public-primary observe result could not be obtained. No activation or new exposure enablement is claimed.
-- Temporary-primary cleanup remains required once access returns. Remove only the exact owned hash/mode/listing-verified primary and .htaccess, then its empty directory; retain private plans/backups/receipts. No broad recursive removal.
-- The open WHM at core.servernet.ir has no servernetcloud account and was not used to modify FPM or application files. Do not infer it is the application host because both shells say core.
+- Isolated host PHP8.4.27/SQLite:114tests/876assertions passed.
+- GitHub finance run42040394593 passed SQLite and disposable MariaDB; MariaDB119tests/1,050assertions. All seven candidate PR workflows passed.
+- MariaDB covers actual ordinary debit after an old REPEATABLE READ snapshot while another connection commits a new encrypted reserve and ledger debit; an unaffordable debit is refused, an exactly affordable debit succeeds and the reserve survives.
+- Independent accounting/source-release/native activation review completed. The three prior blockers were fixed: monotonic evidence, first-baseline ownership binding and retaining a missing cycle's pin while another settles.
+- Live preflight preview:3deferred rows/3,887IRT;10held items (one prior owner exclusion and nine historical resources needing a verified baseline), one unallocated item. Those decisions were not overridden or silently treated as paid.
 
-## Live monitoring findings
+## Source release and native acceptance
 
-All four running services444,530,544,613 lacked current transport/enrollment/status records in the new application observation registry. They were created before the Nov3 Linux first-boot bootstrap. Attaching a bootstrap to new orders does not enroll existing guests.
+Private release directory: `/home/servernetcloud/traffic-exposure-release-20261105`. Plan SHA-256:`ef286f7029c201b69117a443cd0866b90aab149abfdcf25c573dda04706277df`.
 
-Service613:
-- Authenticated read-only guest inventory confirmed root access, Ubuntu/systemd, default deviceeth0.
-- Legacy servernet-node-exporter is running, bound only to guest loopback9100; it is not the newer managed19100 installation.
-- Through the already authenticated Proxmox UI and qemu guest agent, VM127's servernet-prometheus and servernet-arvan-613-tunnel were confirmed active.
-- The legacy arvan-node target reports up=1 every60seconds; RX/TX and netdev success are present through the existing loopback tunnel.
-- Legacy target labels/job are incompatible with the new servernet-arvan/snet_* enrollment contract, and node_boot_time_seconds is absent. Do not fabricate boot evidence or label this as full new consumer coverage.
-- Existing exporter/tunnel/Prometheus configuration was read, not replaced. No new SSH key/user, listener, firewall rule or private transport was created.
+The four-file installer used exact old/new hashes, private backups, PHP lint, existing locks and limited atomic replacements. Source-install receipt and a separate four-file hash verification were successful before runtime activation.
 
-Services444/530: bounded authenticated-inventory attempts did not obtain a shell and answered zero password prompts. This does not prove exporter absence. Service544 still needs a fresh authenticated path; no password/key reset was attempted.
+The original private FastCGI primary remained invisible to FPM. A temporary primary at `/home/servernetcloud/public_html/_traffic_exposure_20261105/activate.php` was used instead, with canonical directory0700, PHP/.htaccess0600 and exact source pin. The working caller must use matching SCRIPT_NAME/REQUEST_URI `/_traffic_exposure_20261105/activate.php`; the former unrelated virtual script name caused the initial failure.
 
-## Remaining acceptance
+Canonical primary SHA-256:`5e67bfc65a1c8da4b6b272a71c000127b95cfd4e7ae7a5e6e99e34f1048723b0`.
 
-1. Restore access to the correct application cPanel. Recheck installed four hashes, current flag, exposure rows and concurrent deployment changes before any continuation.
-2. Complete native activation and a separate verify request through each actual serving FPM pool; do not guess a listener from the host header. Resolve public-root/FPM visibility and prove HTTP denial before using any temporary public primary. Clean up only verified own temporary files afterward.
-3. Enable deferred reserves only after runtime and current data acceptance. Observe a natural meter run; no fabricated live financial test.
-4. Complete secure central query-only transport, real target identity/labels/device and enrollment, then two strictly newer coherent samples. Keep613's working legacy tunnel until replacement is accepted.
-5. Obtain legitimate existing guest access for444/530/544, verify/install monitoring and enroll them. Do not reset credentials or claim they have no exporter from a failed SSH attempt.
-6. Delivery gating and monitoring-gap enforcement are not implemented by PR266. Central failure must remain unknown and must not cause a fleet-wide stop. Any individual hold policy requires fresh identity-bound evidence, a guarded grace period and protected-service exclusions.
-7. Continue supplier-cost reconciliation and preserve prior manual-charge/excluded-account decisions. No zero-loss or fleet-coverage guarantee has been established.
+Do **not** claim Apache403 was proved. A scoped root rewrite-deny block did not yield403 through the current frontend: exact console GET/POST returned301 and site GET/POST404, without redirect following, with TLS verification and no helper payload. Acceptance instead used the reviewed native FastCGI guard before any action:
+- missing native parameters, wrong native plan pin and spoofed HTTP headers all returned stopped on both sockets (six native negative controls);
+- four external GET/POST requests with correct-looking spoofed HTTP headers returned no helper payload;
+- both pools then passed actual activation plus independent verification (four successful requests).
+
+Ordinary HTTP headers become HTTP_SERVERNET_* and cannot satisfy the fixed native SERVERNET_* guard. This was independently reviewed as the isolation boundary, without weakening server configuration. No credential or HTTP activation token was placed in a URL.
+
+Exact hash/mode/owner/listing-guarded cleanup removed the temporary primary, child .htaccess and empty directory. Only the known prepended root deny block was removed, preserving all remaining bytes; private evidence/backups remain. Cleanup receipt:`cleanup-20261107.json`. Native and boundary receipts:`native-acceptance-20261107.json`, `boundary-acceptance-20261107.json`.
+
+## Monitoring findings and remaining work
+
+The four running services444/530/544/613 lacked approved new observation transport/enrollment/status records. They predate the Nov3 bootstrap; new-order first-boot attachment does not retroactively enroll older guests.
+
+Fresh bounded authenticated inventory on7November:
+-613: root/Ubuntu/systemd, default deviceeth0, legacy servernet-node-exporter active, guest loopback9100 only; no newer managed19100 manifest. Existing VM127 Prometheus/tunnel had been confirmed healthy under legacy job/labels, with RX/TX and netdev success but no boot-time series. This is not acceptance by the strict new consumer.
+-444/530: no authenticated shell, zero password prompts answered. This does not prove exporter absence.
+-544: still requires fresh authenticated access; no key/password reset attempted.
+
+Central query-only transport, trusted bindings/enrollment and two fresh coherent samples remain to be accepted. Existing legacy collector/tunnel were not replaced by the financial rollout. Delivery gating, guarded monitoring-gap enforcement, future enrollment and historical supplier reconciliation remain open. A central outage must not become an inferred customer fault or a fleet-wide stop.
+
+## Recovery
+
+Pause new reserves by setting the feature flag to0 under the same deployment/meter locks if necessary; keep readers/settlement compatible with existing reserves. Do not restore financial/database snapshots or remove reserves to make spendable credit look larger. Runtime rollback must account for cached Wallet code before removing Exposure. Recheck all current hashes and concurrent changes before restoring any source from this release's backups.
