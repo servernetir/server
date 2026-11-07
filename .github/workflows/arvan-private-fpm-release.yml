@@ -1,0 +1,71 @@
+name: Arvan private-stage FPM release checks
+
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'scripts/arvan-monitoring/private-fpm-release/**'
+      - 'scripts/arvan-monitoring/web-release/deploy.php'
+      - '.github/workflows/arvan-private-fpm-release.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: arvan-private-fpm-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-checks:
+    name: Private transport receipt and guard fixtures (PHP 8.4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Set up PHP for synthetic tests only
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Verify frozen private transport and run isolated filesystem/protocol fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          fixture_root="$(mktemp -d "$RUNNER_TEMP/arvan-private-fpm.XXXXXX")"
+          cp -a scripts/arvan-monitoring/private-fpm-release "$fixture_root/arvan-private-fpm-release"
+          mkdir -p "$fixture_root/arvan-release-v3/web-release"
+          cp scripts/arvan-monitoring/web-release/deploy.php "$fixture_root/arvan-release-v3/web-release/"
+          cd "$fixture_root"
+          sha256sum --check arvan-private-fpm-release/SHA256SUMS
+          test "$(sha256sum arvan-release-v3/web-release/deploy.php | cut -d' ' -f1)" = 02c952a7ba3ac370e88081898c43be2b2b91ff200e894ce927c5e8bc7da8c93e
+          python3 <<'PINS'
+          import ast, hashlib, pathlib
+          base = pathlib.Path('arvan-private-fpm-release')
+          source = (base / 'private-fpm-activation.py').read_text()
+          values = {node.targets[0].id: ast.literal_eval(node.value) for node in ast.parse(source).body
+                    if isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name) and node.targets[0].id == 'PRIMARY_SHA256'}
+          assert values['PRIMARY_SHA256'] == hashlib.sha256((base / 'private-fpm-activation.php').read_bytes()).hexdigest()
+          for path in base.glob('*.py'):
+              ast.parse(path.read_text(), filename=str(path))
+          print('Private PHP hard pin and Python syntax verified.')
+          PINS
+          export ARVAN_TEST_PHP="$(command -v php)"
+          "$ARVAN_TEST_PHP" -l arvan-private-fpm-release/private-fpm-activation.php
+          "$ARVAN_TEST_PHP" -l arvan-private-fpm-release/test-compiled-ops.php
+          "$ARVAN_TEST_PHP" -l arvan-release-v3/web-release/deploy.php
+          # Only disposable transformed CLI copies, metadata fixtures and in-memory wire data run.
+          # No native entrypoint, application bootstrap, real socket or production action executes.
+          sudo --preserve-env=ARVAN_TEST_PHP,PYTHONDONTWRITEBYTECODE unshare --net -- bash -euo pipefail <<'SYNTHETIC'
+          "$ARVAN_TEST_PHP" -d allow_url_fopen=0 arvan-private-fpm-release/test-compiled-ops.php
+          python3 arvan-private-fpm-release/test-receipt-flows.py
+          python3 arvan-private-fpm-release/test-fpm-activation.py
+          python3 arvan-private-fpm-release/test-private-guards.py
+          SYNTHETIC
