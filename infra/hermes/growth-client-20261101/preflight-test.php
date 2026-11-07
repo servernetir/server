@@ -16,15 +16,20 @@ if (! mkdir($temporary, 0700) && ! is_dir($temporary)) {
 }
 
 $client = $temporary.'/HermesGrowthReadClient.php';
+$cycle = $temporary.'/GrowthReadCycle.php';
 $caller = $temporary.'/owner-growth-caller.php';
 file_put_contents($client, "<?php\nfinal class SyntheticGrowthClient {}\n");
+file_put_contents($cycle, "<?php\nfinal class SyntheticGrowthCycle {}\n");
 file_put_contents($caller, "<?php\n// Synthetic owner caller.\n");
 chmod($client, 0644);
+chmod($cycle, 0644);
 chmod($caller, 0644);
 
 $base = [
     'client' => realpath($client),
     'expected-client-sha' => hash_file('sha256', $client),
+    'cycle' => realpath($cycle),
+    'expected-cycle-sha' => hash_file('sha256', $cycle),
     'caller' => realpath($caller),
     'expected-caller-sha' => hash_file('sha256', $caller),
     'expected-uid' => (string) fileowner($client),
@@ -39,9 +44,12 @@ $assert($ready['checks']['curl_loaded'] === true);
 $assert($ready['checks']['crypto_available'] === true);
 $assert($ready['checks']['clock_within_limit'] === true);
 $assert($ready['checks']['client_expected_sha256'] === true);
+$assert($ready['checks']['cycle_expected_sha256'] === true);
 $assert($ready['checks']['caller_expected_sha256'] === true);
 $assert($ready['checks']['client_and_caller_are_distinct'] === true);
+$assert($ready['checks']['runtime_files_are_distinct'] === true);
 $assert($ready['observed']['client']['mode'] === '0644');
+$assert($ready['observed']['cycle']['path'] === realpath($cycle));
 $assert($ready['observed']['caller']['path'] === realpath($caller));
 
 $wrongHash = $base;
@@ -49,15 +57,27 @@ $wrongHash['expected-client-sha'] = str_repeat('0', 64);
 $assert(HermesGrowthReadPreflight::inspect($wrongHash)['status'] === 'not_ready');
 $assert(HermesGrowthReadPreflight::inspect($wrongHash)['checks']['client_expected_sha256'] === false);
 
+$wrongCycleHash = $base;
+$wrongCycleHash['expected-cycle-sha'] = str_repeat('0', 64);
+$assert(HermesGrowthReadPreflight::inspect($wrongCycleHash)['status'] === 'not_ready');
+$assert(HermesGrowthReadPreflight::inspect($wrongCycleHash)['checks']['cycle_expected_sha256'] === false);
+
 $wrongOwner = $base;
 $wrongOwner['expected-uid'] = (string) (fileowner($client) + 1);
 $assert(HermesGrowthReadPreflight::inspect($wrongOwner)['status'] === 'not_ready');
 $assert(HermesGrowthReadPreflight::inspect($wrongOwner)['checks']['caller_expected_owner'] === false);
+$assert(HermesGrowthReadPreflight::inspect($wrongOwner)['checks']['cycle_expected_owner'] === false);
 
 $staleClock = $base;
 $staleClock['peer-epoch'] = (string) (time() - 61);
 $assert(HermesGrowthReadPreflight::inspect($staleClock)['status'] === 'not_ready');
 $assert(HermesGrowthReadPreflight::inspect($staleClock)['checks']['clock_within_limit'] === false);
+
+chmod($cycle, 0664);
+$unsafeCycle = HermesGrowthReadPreflight::inspect($base);
+$assert($unsafeCycle['status'] === 'not_ready');
+$assert($unsafeCycle['checks']['cycle_not_group_or_world_writable'] === false);
+chmod($cycle, 0644);
 
 chmod($caller, 0664);
 $unsafe = HermesGrowthReadPreflight::inspect($base);
@@ -70,14 +90,30 @@ $sameFile['caller'] = $base['client'];
 $sameFile['expected-caller-sha'] = $base['expected-client-sha'];
 $assert(HermesGrowthReadPreflight::inspect($sameFile)['status'] === 'not_ready');
 $assert(HermesGrowthReadPreflight::inspect($sameFile)['checks']['client_and_caller_are_distinct'] === false);
+$assert(HermesGrowthReadPreflight::inspect($sameFile)['checks']['runtime_files_are_distinct'] === false);
+
+$sameCycle = $base;
+$sameCycle['cycle'] = $base['client'];
+$sameCycle['expected-cycle-sha'] = $base['expected-client-sha'];
+$assert(HermesGrowthReadPreflight::inspect($sameCycle)['status'] === 'not_ready');
+$assert(HermesGrowthReadPreflight::inspect($sameCycle)['checks']['runtime_files_are_distinct'] === false);
 
 $invalidSha = $base;
-$invalidSha['expected-client-sha'] = 'not-a-sha';
+$invalidSha['expected-cycle-sha'] = 'not-a-sha';
 try {
     HermesGrowthReadPreflight::inspect($invalidSha);
     throw new RuntimeException('missing_invalid_sha_exception');
 } catch (InvalidArgumentException $exception) {
     $assert($exception->getMessage() === 'invalid_sha256');
+}
+
+$missingCycle = $base;
+unset($missingCycle['cycle']);
+try {
+    HermesGrowthReadPreflight::inspect($missingCycle);
+    throw new RuntimeException('missing_cycle_exception');
+} catch (InvalidArgumentException $exception) {
+    $assert($exception->getMessage() === 'missing_cycle');
 }
 
 $relativePath = $base;
@@ -90,6 +126,7 @@ try {
 }
 
 unlink($client);
+unlink($cycle);
 unlink($caller);
 rmdir($temporary);
 

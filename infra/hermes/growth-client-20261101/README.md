@@ -23,12 +23,14 @@ transport ساختگی امضای دقیق و URL بدون query را بازبی
 
 ## preflight بدون راز
 
-پیش از هر نصب، `preflight.php` فقط آمادگی محلی را fail-closed می‌سنجد: PHP 8.4+، cURL و primitiveهای رمزنگاری، اختلاف ساعت با epoch همتای احرازشده، مسیر canonical و غیر symlink، hash دقیق، مالک مورد انتظار و ممنوع‌بودن write برای group/world روی هر دو فایل client و caller. هیچ env، secret یا credential خوانده نمی‌شود و هیچ درخواست شبکه‌ای انجام نمی‌شود.
+پیش از هر نصب، `preflight.php` فقط آمادگی محلی را fail-closed می‌سنجد: PHP 8.4+، cURL و primitiveهای رمزنگاری، اختلاف ساعت با epoch همتای احرازشده، مسیر canonical و غیر symlink، hash دقیق، مالک مورد انتظار و ممنوع‌بودن write برای group/world روی هر سه فایل client، cycle و caller. هیچ env، secret یا credential خوانده نمی‌شود و هیچ درخواست شبکه‌ای انجام نمی‌شود.
 
 ```bash
 php infra/hermes/growth-client-20261101/preflight.php \
   --client=/absolute/path/HermesGrowthReadClient.php \
   --expected-client-sha=<sha256> \
+  --cycle=/absolute/path/GrowthReadCycle.php \
+  --expected-cycle-sha=<sha256> \
   --caller=/absolute/path/owner-growth-caller.php \
   --expected-caller-sha=<sha256> \
   --expected-uid=<numeric-uid> \
@@ -36,7 +38,7 @@ php infra/hermes/growth-client-20261101/preflight.php \
   --max-skew=60
 ```
 
-خروجی فقط facts غیرمحرمانه و checkهای true/false است. `ready` صرفاً آمادگی نصب محلی است؛ وجود secret، پذیرش HMAC دوطرفه، سلامت VM یا اجرای کمپین را ثابت نمی‌کند. خروجی `not_ready` با exit 2 و ورودی نامعتبر با exit 64 متوقف می‌شوند.
+خروجی فقط facts غیرمحرمانه و checkهای true/false است. `ready` صرفاً آمادگی نصب محلی است؛ وجود secret، پذیرش HMAC دوطرفه، سلامت VM یا اجرای کمپین را ثابت نمی‌کند. هر سه فایل runtime که caller بارگذاری می‌کند باید مسیر canonical، مالک، مجوز و SHA-256 مورد انتظار داشته باشند. خروجی `not_ready` با exit 2 و ورودی نامعتبر با exit 64 متوقف می‌شوند.
 
 
 ## caller واقعی با رسید یکتا
