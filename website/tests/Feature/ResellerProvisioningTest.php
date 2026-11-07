@@ -194,6 +194,9 @@ class ResellerProvisioningTest extends TestCase
         $this->assertStringContainsString('account_limit=25', $lim->url());
         $this->assertStringContainsString('enable_account_limit=1', $lim->url());
         $this->assertStringContainsString('diskspace_limit=25600', $lim->url());
+        $this->assertStringContainsString('bandwidth_limit=99999999', $lim->url(),
+            'An unlimited traffic companion must not become a zero allowance in WHM');
+        $this->assertStringNotContainsString('bandwidth_limit=0', $lim->url());
     }
 
     /**

@@ -36,3 +36,107 @@ The owner explicitly requested monitoring on existing and future Arvan servers, 
 CI adds installer stub tests and the Windows onboarding/password/console/layout regression suites on isolated PHP 8.4 with SQLite and MariaDB. Record actual outcomes in the release/PR; locally available PHP 8.3 can lint but cannot execute the locked Laravel dependency set. No production test may run the scheduler, financial meter, or provisioning queue as a diagnostic shortcut.
 
 Deploy only the model, console broker, account view and three changed language files after live hash comparison, private backups and reconciliation of concurrent changes. Install translations and the broker helper before the model and view; reverse this order on a guarded rollback to avoid a missing helper during partial activation. The installer stays outside the web release. Restore only this release's exact previous files if no newer change exists; do not roll back the entire application or financial data. Guest removal/rollback requires the installer's exact managed-file inventory and must preserve unrelated monitoring.
+
+## Pilot acceptance — 7 November 2026
+
+One existing Linux guest was inspected through its pre-existing pinned root
+access. The authenticated inventory found an active legacy exporter on loopback,
+not an absent exporter. Its effective command disabled default collectors and
+enabled only netdev. A separate existing collector tunnel was active.
+
+The pilot exporter was repaired using a new owned systemd drop-in that adds
+`--collector.stat` to its exact verified command. The base unit and pinned
+binary were preserved. Only the exporter was restarted. Current service/owner,
+provider reference/IP uniqueness, known-host pins, canonical root-owned
+executable ancestry and exact pre-change unit/binary hashes were checked before
+mutation. No password reset, guest SSH key, firewall or public listener was
+introduced.
+
+The private receipt `stat-repair-v2-20261107.json` records nested repair status
+`verified`, with boot, network and loopback checks all true. Actual
+`node_boot_time_seconds` matched `/proc/stat` btime, selected-interface RX/TX
+were present, netdev/stat collectors succeeded, and the sole exporter listener
+remained IPv4 loopback. A preceding attempt refused before creating a drop-in;
+it must not be described as an installation. The repair's guarded rollback was
+reviewed but was not exercised on the live guest because acceptance succeeded.
+
+Local verification included complete assembled remote compilation, actual
+systemd payload newlines, representative effective-command parsing and metric
+fixtures. Wrong boot identity, duplicate metrics, incomplete result schema and
+out-of-scope guests were rejected. Host-side PHP lint and full assembled remote
+compilation passed before execution. Independent review covered executable
+ancestry, bounded commands, rollback identity/configuration checks and the
+requirement to accept the nested result rather than the outer SSH exit code.
+
+### Central collection is still incomplete
+
+A fresh native collector check confirmed the old tunnel and Prometheus were
+active. The tunnel exposes the new boot metric. However, the effective legacy
+scrape URL explicitly requests only `collect[]=netdev`; its boot-time query
+therefore still had no series. Legacy job labels also differ from the strict
+application observation contract. Neither an exporter process nor this tunnel
+is accepted application enrollment.
+
+A separate identity-bound job, query-only proxy and supervised account-private
+Unix forward were prepared for review, **not installed**. The collector
+installer still needs complete tracked-artifact rollback and a guarded path for
+native acceptance failure. Do not execute that intermediate draft. An
+application-private forward key and prospective enrollment identity were
+created, but no public key was authorized on the collector/jump host and no
+new access, transport approval or enrollment was activated.
+
+The connected browser became unavailable before further collector work. Before
+resuming, obtain a fresh native inventory, preserve the working legacy
+exporter/tunnel, inspect the private staged artifacts, and reconcile current
+application ownership again. Do not rerun the successful repair as a blind
+retry or erase generation history.
+
+The other fleet guests still require authenticated inventory/installation or
+repair. New-delivery enrollment, missing-monitoring lifecycle enforcement and
+historical financial reconciliation remain open. Guest telemetry is still
+nonbillable operational evidence; supplier settlement and the historical owner
+exclusion remain separate. This pilot does not establish fleet coverage or a
+hard loss cap.
+
+### Central acceptance attempts — 7 November 2026
+
+Two subsequent bounded collector installations were attempted, and **both
+automatically rolled back** after native query acceptance failed. The paired
+rollback reported all steps successful, including verification that Prometheus
+loaded its pre-install runtime configuration. Owned proxy unit/source/binding
+files were removed; the legacy scrape and guest tunnel were preserved. No
+application transport approval or enrollment was activated. This is a
+rolled-back release, not a completed central deployment.
+
+The installer now records owned artifacts by inode/metadata/hash, checks current
+configuration again before replacement, verifies proxy PID/UID and its sole
+loopback listener, preserves runtime files if stopping fails, independently
+restores the collector configuration, and supports repeated recovery. Eight
+isolated behavioral tests passed: five rollback cases and three fixed-wire HTTP
+framing cases. Test filesystem ownership/chown was adapted to the disposable
+test user; those tests do not establish production UID permissions. Independent
+review found no blocker in the reviewed guarded installer and fixed-wire diff.
+
+The first native acceptance helper used a general HTTP client with implicit
+headers. It was replaced by a bounded fixed HTTP/1.0 request matching the
+application transport. Acceptance still failed. A subsequent **read-only direct
+upstream check** identified the actual strict query-proxy refusal at the
+duplicate-header check in `headers()` (line169 of the unchanged proxy source).
+The exact repeated field has **not** been captured. Do not weaken duplicate
+Content-Length, Transfer-Encoding, request-header or framing validation based
+on a guessed header name.
+
+Before another installation, capture bounded response-header metadata from the
+actual upstream without recording telemetry bodies or credentials; determine
+whether the repeated field is a legitimate repeatable response field; add a
+narrow reviewed compatibility change and regression fixtures if necessary.
+Then repeat native acceptance and only afterwards configure the separately
+restricted SSH/Unix transport and two-sample application enrollment.
+
+Further diagnosis stopped when the selected Chrome browser reported
+`ERR_CONNECTION_CLOSED` for Proxmox. This was a network/page-access failure,
+not evidence of an invalid root login or missing exporter. The older console
+also did not return a usable response. The application-private forward key
+remains unregistered on the jump/collector hosts. Reconcile current config,
+private receipts and ownership before resuming; do not blindly rerun an
+interrupted or rolled-back installer.

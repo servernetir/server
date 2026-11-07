@@ -68,7 +68,8 @@ def canonical_query(identity):
         expressions.append(selector)
         expressions.append('label_replace(label_replace(timestamp(' + selector + '), "snet_observed_metric", "'
                            + metric + '", "", ""), "snet_observation_kind", "scrape_timestamp", "", "")')
-    query = ' or '.join(expressions)
+    # Default set matching ignores metric names and would collapse raw counters.
+    query = ' or on(__name__, snet_observed_metric, snet_observation_kind) '.join(expressions)
     if len(query) > MAX_QUERY:
         raise Refused()
     return query
@@ -138,7 +139,7 @@ def receive(sock, deadline, maximum, clock=time.monotonic):
     return sock.recv(maximum)
 
 
-def headers(sock, deadline, first_line_limit, clock=time.monotonic):
+def headers(sock, deadline, first_line_limit, clock=time.monotonic, *, response_vary=False):
     data = bytearray()
     while b'\r\n\r\n' not in data:
         chunk = receive(sock, deadline, min(4096, first_line_limit + MAX_HEADERS + 5 - len(data)), clock)
@@ -165,9 +166,19 @@ def headers(sock, deadline, first_line_limit, clock=time.monotonic):
         if any(byte < 32 or byte == 127 for byte in value):
             raise Refused()
         key = key.decode('ascii').lower()
-        if key in out:
-            raise Refused()
-        out[key] = value.decode('ascii')
+        if response_vary and key == 'vary':
+            # RFC 9110: Vary is a response list field. It never affects framing
+            # and is not forwarded or cached by this query-only proxy.
+            if not re.fullmatch(rb"[!#$%&'*+.^_`|~0-9A-Za-z-]+(?: *, *[!#$%&'*+.^_`|~0-9A-Za-z-]+)*", value):
+                raise Refused()
+            combined = (out[key] + ', ' if key in out else '') + value.decode('ascii')
+            if len(combined) > 2048:
+                raise Refused()
+            out[key] = combined
+        else:
+            if key in out:
+                raise Refused()
+            out[key] = value.decode('ascii')
     return lines[0].decode('ascii'), out, rest
 
 
@@ -210,7 +221,7 @@ def upstream_query(params, socket_factory=socket.socket, clock=time.monotonic):
             raise Refused()
         sock.settimeout(remaining)
         sock.sendall(wire)
-        line, values, rest = headers(sock, deadline, 256, clock)
+        line, values, rest = headers(sock, deadline, 256, clock, response_vary=True)
         if (re.fullmatch(r'HTTP/1\.[01] 200(?: [\x20-\x7e]*)?', line) is None
                 or 'transfer-encoding' in values or values.get('content-encoding', 'identity') != 'identity'
                 or 'location' in values

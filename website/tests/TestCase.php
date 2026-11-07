@@ -84,8 +84,10 @@ abstract class TestCase extends BaseTestCase
             self::$trackerCleanupRegistered = true;
 
             register_shutdown_function(static function () use ($dir) {
-                foreach ((array) @glob($dir.'/{logs,app}/*', GLOB_BRACE) as $f) {
-                    @unlink($f);
+                foreach (['logs', 'app'] as $sub) {
+                    foreach ((array) @glob($dir.'/'.$sub.'/*') as $f) {
+                        @unlink($f);
+                    }
                 }
                 foreach (['logs', 'app', ''] as $sub) {
                     @rmdir(rtrim($dir.'/'.$sub, '/'));

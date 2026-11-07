@@ -141,5 +141,8 @@
     @endif
   @endif
 
+  @if(app(\App\Services\Billing\HostingUpgrades::class)->eligible($s))
+    <div class="svc-quick"><a class="svc-qbtn primary" href="{{ lroute('account.services.upgrade', $s) }}">{{ __('ui.hu_title') }}</a></div>
+  @endif
   @include('account.partials.svc-actions', ['s' => $s, 'kind' => 'hosting'])
 </article>

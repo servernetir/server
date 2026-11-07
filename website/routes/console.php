@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
 
+Schedule::command('hosting:upgrades')->everyMinute()->withoutOverlapping(20);
+
 // Storage tariffs refresh through the existing application scheduler; this never buys resources.
 Schedule::command('hetzner:storage-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
 Schedule::command('hetzner:object-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
@@ -774,6 +776,14 @@ Schedule::command('marketing:tick')->everyMinute()->withoutOverlapping(10)
 // Bounded knowledge/receipt supervision; independently paused until explicitly enabled.
 \Illuminate\Support\Facades\Schedule::command('hermes:supervise')->hourly()->withoutOverlapping(10);
 
+// Read-only account health/balance refresh. Disabled multi-provider feature makes this a no-op.
+Schedule::command('domains:suppliers-probe')->everyFiveMinutes()->withoutOverlapping(5);
+
+// Poll only persisted submissions; never buy, renew, transfer, or repeat a request.
+Schedule::command('domains:supplier-reconcile --limit=25')->everyFiveMinutes()->withoutOverlapping(5);
+
+// Sends only a persisted, exact owner-approved paid operation; feature remains off by default.
+Schedule::command('domains:supplier-dispatch-approved --limit=10')->everyMinute()->withoutOverlapping(5);
 // Infrastructure sales must be checked independently of supplier sync and digest cadence.
 Schedule::command('cloud:watch-sales')
     ->everyMinute()
@@ -785,4 +795,10 @@ Schedule::command('cloud:watch-sales')
 Schedule::command('cloud:observe-arvan --limit=20')
     ->everyMinute()
     ->withoutOverlapping(2);
+
+// Owner-requested coverage alarms remain independent of collection and financial settlement.
+Schedule::command('cloud:watch-arvan-monitoring')
+    ->everyMinute()
+    ->withoutOverlapping(2)
+    ->runInBackground();
 

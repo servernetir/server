@@ -247,6 +247,12 @@ class PleskClient
         return ['exists' => $exists, 'result' => $one, 'reason' => $r['reason']];
     }
 
+    public function switchSubscription(int $id, string $planGuid): array
+    {
+        return $this->call('<packet><webspace><switch-subscription><filter><id>'.$id.'</id></filter>'
+            .'<plan-guid>'.$this->esc($planGuid).'</plan-guid></switch-subscription></webspace></packet>');
+    }
+
     public function createSubscription(array $p): array
     {
         return $this->call('<packet><webspace><add><gen_setup>'

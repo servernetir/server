@@ -59,6 +59,7 @@ class Wallet
      */
     public function reservedOf(int $customerId, string $currency = 'IRT', ?int $excludingReservationId = null, ?int $excludingIdentityRequestId = null, bool $currentRead = false): int
     {
+        $traffic = $currency === 'IRT' ? app(ArvanTrafficExposure::class)->reservedOf($customerId, $currentRead) : 0;
         $refunds = Schema::hasTable('wallet_refund_requests')
             ? $this->total(\App\Models\WalletRefundRequest::where('customer_id', $customerId)->where('currency_code', $currency)
                 ->whereIn('status', \App\Models\WalletRefundRequest::OPEN), 'amount_irt', $currentRead) : 0;
@@ -79,7 +80,7 @@ class Wallet
         | بی‌صدا برمی‌گردد.
         */
         if (! self::aiReservationsTable()) {
-            return $identity + $refunds + ($currency === 'IRT' ? HourlyHold::heldOf($customerId, $currentRead) : 0);
+            return $traffic + $identity + $refunds + ($currency === 'IRT' ? HourlyHold::heldOf($customerId, $currentRead) : 0);
         }
 
         $q = AiReservation::where('customer_id', $customerId)
@@ -98,7 +99,7 @@ class Wallet
         */
         $hold = $currency === 'IRT' ? HourlyHold::heldOf($customerId, $currentRead) : 0;
 
-        return $this->total($q, 'amount_irt', $currentRead) + $hold + $identity + $refunds;
+        return $traffic + $this->total($q, 'amount_irt', $currentRead) + $hold + $identity + $refunds;
     }
 
     /** جدولِ رزروِ AI یک بار در هر پروسه پرسیده می‌شود (سرِ راهِ هر کسر است) */
@@ -204,11 +205,9 @@ class Wallet
                 throw new WalletException('account_missing', 'حساب پیدا نشد.');
             }
 
-            $balance = (int) CreditEntry::where('customer_id', $customerId)
-                ->where('currency_code', $currency)
-                ->sum('amount');
+            $balance = $this->balanceOf($customerId, $currency, currentRead: true);
 
-            $reserved = $this->reservedOf($customerId, $currency, $excludingReservationId, $excludingIdentityRequestId);
+            $reserved = $this->reservedOf($customerId, $currency, $excludingReservationId, $excludingIdentityRequestId, currentRead: true);
 
             if ($requireAvailable && ($balance + $signed - $reserved) < 0) {
                 throw new WalletException('insufficient_funds',
