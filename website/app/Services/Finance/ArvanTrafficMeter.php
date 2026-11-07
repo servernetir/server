@@ -161,6 +161,13 @@ final class ArvanTrafficMeter
                         $service = $instances[0]->service;
                         $cid = (int) $service->customer_id;
                         $sid = (int) $service->id;
+                        $anchor = $state['pending_components'][$key] ?? null;
+                        if ($anchor !== null && (($anchor['customer_id'] ?? null) !== $cid
+                            || ($anchor['service_id'] ?? null) !== $sid || ($anchor['resource'] ?? null) !== $resource)) {
+                            $blockedCycles[$cycleId] = true;
+                            $held[] = ['service_id' => $sid, 'reason' => 'pending_traffic_owner_changed_requires_reconciliation'];
+                            continue;
+                        }
                         if (in_array($cid, $state['excluded_customers'], true)) {
                             $blockedCycles[$cycleId] = true;
                             $held[] = ['service_id' => $sid, 'reason' => 'owner_exclusion'];
@@ -225,6 +232,8 @@ final class ArvanTrafficMeter
                             'subtotal_irt' => $deltaSell, 'tax_irt' => $deltaTax,
                             'from' => $old['to'] ?? $item['usageFrom'], 'to' => $item['usageTo'],
                             'gb' => number_format(max(0, (float) $qty - (float) ($old['gb_display'] ?? 0)), 6, '.', '')];
+                        $state['pending_components'][$key] = ['cycle' => $cycleId, 'customer_id' => $cid,
+                            'service_id' => $sid, 'resource' => $resource];
                     }
                 }
             }
@@ -233,6 +242,7 @@ final class ArvanTrafficMeter
             // Pin deferred cycles for fetching beyond the normal seven-day tail.
             $deferred = [];
             $ready = [];
+            $allLines = $lines;
             foreach (collect($lines)->groupBy('next.customer_id') as $group) {
                 if ($group->sum('subtotal_irt') + $group->sum('tax_irt') < self::MIN_SETTLEMENT_IRT) {
                     foreach ($group as $line) {
@@ -261,17 +271,17 @@ final class ArvanTrafficMeter
                 return $summary;
             }
             // Global private state lock serializes meters; customer locks keep normal Wallet/hourly writes compatible.
-            foreach (collect($lines)->pluck('next.customer_id')->unique()->sort() as $cid) {
+            foreach (collect($allLines)->pluck('next.customer_id')->unique()->sort() as $cid) {
                 Customer::whereKey($cid)->lockForUpdate()->firstOrFail();
             }
             // A manual traffic settlement may commit after the initial review
             // above but before we acquire the same customer lock used by Wallet.
             // Recheck under that lock before writing ANY invoice/checkpoint.
-            foreach (collect($lines)->pluck('next.customer_id')->unique()->sort() as $cid) {
+            foreach (collect($allLines)->pluck('next.customer_id')->unique()->sort() as $cid) {
                 $this->check(! $this->hasUnreviewedCharge((int) $cid, true),
                     'Manual traffic charge changed during lock acquisition; reconciliation required');
             }
-            foreach (collect($lines)->sortBy('next.service_id') as $line) {
+            foreach (collect($allLines)->sortBy('next.service_id') as $line) {
                 $next = $line['next'];
                 $service = Service::whereKey($next['service_id'])->lockForUpdate()->firstOrFail();
                 $instances = CloudInstance::where('service_id', $service->id)->lockForUpdate()->get();
@@ -283,6 +293,10 @@ final class ArvanTrafficMeter
                     && $instances->count() === 1 && $instances[0]->provider === 'arvan'
                     && $instances[0]->provider_ref === $next['resource'], 'Live traffic ownership changed');
             }
+            $exposure = app(ArvanTrafficExposure::class);
+            $exposureEnabled = DB::table('settings')->where('key', 'arvan_traffic_exposure_enabled_v1')->value('value') === '1';
+            // Reader/settlement compatibility stays active if new reserve writes are paused.
+            $exposure->observeLocked($exposureEnabled ? $allLines : $lines, $sourceHash);
             $sequence = $state['sequence'] + 1;
             $chargedServices = [];
             foreach (collect($lines)->groupBy('next.customer_id')->sortKeys() as $group) {
@@ -318,8 +332,10 @@ final class ArvanTrafficMeter
                 $summary['invoices'][] = ['invoice_id' => $invoice->id, 'total_irt' => $invoice->total];
                 foreach ($group as $line) {
                     $state['checkpoints'][$line['key']] = $line['next'];
+                    unset($state['pending_components'][$line['key']]);
                     $chargedServices[$line['next']['service_id']] = ['customer_id' => $cid, 'invoice_id' => $invoice->id];
                 }
+                $exposure->settleLocked($cid, $group->values()->all());
             }
             // Only services with a NEW validated positive posting in this transaction may acquire a traffic hold.
             // Locking Wallet reads escape the earlier InnoDB planning snapshot, including every live reserve.
@@ -331,6 +347,22 @@ final class ArvanTrafficMeter
                 $instance = CloudInstance::where('service_id', $sid)->lockForUpdate()->sole();
                 app(ArvanTrafficCreditGuard::class)->holdLocked($service, $instance, $charge['invoice_id'], $spendable[$cid]);
             }
+            foreach ($deferred as $line) {
+                if (!$exposureEnabled) { break; }
+                $cid = $line['next']['customer_id'];
+                $spendable[$cid] ??= app(Wallet::class)->availableOf($cid, currentRead: true);
+                $service = Service::whereKey($line['next']['service_id'])->lockForUpdate()->firstOrFail();
+                $instance = CloudInstance::where('service_id', $service->id)->lockForUpdate()->sole();
+                app(ArvanTrafficCreditGuard::class)->holdPendingLocked($service, $instance, $sourceHash,
+                    ArvanTrafficExposure::base($line), $line['subtotal_irt'] + $line['tax_irt'], $spendable[$cid]);
+            }
+            // Durable per-resource anchors retain cycles through missing rows,
+            // held costs and ownership changes until their exact components settle.
+            $unsettledCycles = array_fill_keys(array_column($state['pending_components'] ?? [], 'cycle'), true);
+            foreach ($state['cycles'] as $id => &$cycleState) {
+                if (isset($unsettledCycles[$id])) { $cycleState['pending'] = true; }
+            }
+            unset($cycleState);
             $state['sequence'] = $sequence;
             $state['last_success'] = now()->toIso8601String();
             $state['last_result'] = $summary;

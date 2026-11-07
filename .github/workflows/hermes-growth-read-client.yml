@@ -48,7 +48,7 @@ jobs:
           set -euo pipefail
           root="$PWD/infra/hermes/growth-client-20261101"
           client="$root/HermesGrowthReadClient.php"
-          caller="$root/test.php"
+          caller="$root/owner-growth-caller.php"
           php "$root/preflight.php" \
             --client="$client" \
             --expected-client-sha="$(sha256sum "$client" | cut -d' ' -f1)" \
@@ -57,7 +57,7 @@ jobs:
             --expected-uid="$(id -u)" \
             --peer-epoch="$(date +%s)" \
             --max-skew=60 > "$RUNNER_TEMP/hermes-growth-preflight.json"
-          php -r '$result=json_decode(file_get_contents($argv[1]), true, 32, JSON_THROW_ON_ERROR); if (($result["status"] ?? null) !== "ready") { exit(1); }' "$RUNNER_TEMP/hermes-growth-preflight.json"
+          php -r '$result=json_decode(file_get_contents($argv[1]), true, 32, JSON_THROW_ON_ERROR); if (($result["status"] ?? null) !== "ready" || basename((string) ($result["observed"]["caller"]["path"] ?? "")) !== "owner-growth-caller.php") { exit(1); }' "$RUNNER_TEMP/hermes-growth-preflight.json"
       - name: Record acceptance boundary
         if: always()
         run: echo 'Synthetic HMAC contract, local no-secret readiness and receipt-bound caller only; no credential creation, live request, VM install, customer data, send, finance or scheduler change.' >> "$GITHUB_STEP_SUMMARY"

@@ -7,6 +7,42 @@ Local branch: `feature/hosting-self-upgrade`; remote PR branch:
 concurrent Invoice/domain route/schedule changes were retained.
 Status: implementation and isolated tests; **not installed/accepted in production**.
 
+## Follow-up — 7 November 2026
+
+Integrated current develop `5a9d28c06c95f333d4bd560c2b51e1dd5866023c`
+without replacing concurrent traffic, domain or social changes. The two remaining
+payment-review findings are addressed:
+
+- The gift-coupon endpoint checks the hosting-upgrade deadline again under the
+  invoice row lock, before claiming or consuming a coupon. Wallet and gateway
+  protections remain in place.
+- After the deadline, partially paid upgrades enter explicit support review.
+  The scheduler includes both `unpaid` with a positive paid amount (the actual
+  settlement engine's partial-payment representation) and legacy `partial`
+  invoices. It rechecks the invoice under a row lock. No panel mutation,
+  cancellation, gift-to-wallet conversion or automatic refund occurs. Payment
+  and coupon provenance and the open service slot remain until support resolves
+  the received payment. Both customer pages show the amount, invoice number and
+  a direct support action. This is an operator reconciliation path, not an
+  automatic refund feature.
+- Test tracker cleanup uses ordinary per-directory globs, preserving cleanup on
+  PHP runtimes that do not expose the optional libc `GLOB_BRACE` constant.
+
+Fresh local validation on PHP 8.4.12: **88 tests / 464 assertions passed**
+(upgrade, Plesk, panel selection/account, admin deletion, gift coupon, discount
+visibility and payment callbacks). The three-language preview fixture separately
+passed. Local Chromium launch was attempted and failed at its singleton socket
+with `Operation not permitted`; no local rendered-browser success is claimed.
+The dedicated CI includes SQLite/MariaDB and its rendered Chromium matrix; its
+new run must pass before merging this revision.
+
+Production release and live customer preview are still outstanding. The owner
+application's cPanel session requires sign-in again. No real upgrade invoice,
+payment or hosting plan mutation was performed in this follow-up. Deployment
+must retain the same limited manifest, locks, backups and single new migration
+described below. Support must not tell customers the button is live until the
+actual customer preview is verified.
+
 ## Scope and customer contract
 
 Ordinary Windows/Plesk and Linux/cPanel hosting can move to a higher compatible

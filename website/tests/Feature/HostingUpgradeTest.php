@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CreditEntry;
 use App\Models\Customer;
+use App\Models\GiftCoupon;
 use App\Models\HostingUpgrade;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -520,5 +521,60 @@ class HostingUpgradeTest extends TestCase
         $this->assertNotNull(Customer::find($s->customer_id));
         $this->assertNotNull(Service::find($s->id));
         $this->assertNotNull($u->fresh());
+    }
+
+    public function test_expired_upgrade_cannot_consume_a_gift_coupon(): void
+    {
+        [$s, $target] = $this->fixtures();
+        $u = $this->issue($s, $target);
+        $s->customer->forceFill(['discount_entry_visibility' => 'enabled'])->save();
+        $coupon = GiftCoupon::create(['customer_id' => $s->customer_id, 'code' => GiftCoupon::freshCode(),
+            'currency_code' => 'IRT', 'amount' => 200000, 'min_invoice' => 0,
+            'reason' => 'fixture', 'expires_at' => now()->addDays(3)]);
+        $this->travel(25)->hours();
+        foreach (['unpaid', 'partial'] as $status) {
+            $paid = $status === 'partial' ? 1000 : 0;
+            $u->invoice->update(['status' => $status, 'paid' => $paid]);
+            $this->actingAs($s->customer, 'customer')->post('/account/invoices/'.$u->invoice_id.'/coupon', ['code' => $coupon->code])
+                ->assertSessionHasErrors();
+            $this->assertNull($coupon->fresh()->used_at);
+            $this->assertSame($paid, $u->invoice->fresh()->paid);
+        }
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertSame(0, CreditEntry::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_expired_partial_payment_reaches_review_with_payment_and_coupon_provenance_preserved(): void
+    {
+        [$s, $target] = $this->fixtures();
+        $u = $this->issue($s, $target);
+        $s->customer->forceFill(['discount_entry_visibility' => 'enabled'])->save();
+        $coupon = GiftCoupon::create(['customer_id' => $s->customer_id, 'code' => GiftCoupon::freshCode(),
+            'currency_code' => 'IRT', 'amount' => 1000, 'min_invoice' => 0,
+            'reason' => 'fixture', 'expires_at' => now()->addDays(3)]);
+        $this->actingAs($s->customer, 'customer')->post('/account/invoices/'.$u->invoice_id.'/coupon', ['code' => $coupon->code])
+            ->assertRedirect()->assertSessionHasNoErrors();
+        $this->assertNotNull($coupon->fresh()->used_at);
+        $this->assertSame('unpaid', $u->invoice->fresh()->status);
+        $this->artisan('hosting:upgrades')->assertSuccessful();
+        $this->assertSame('awaiting_payment', $u->fresh()->status);
+        $this->travel(25)->hours();
+        $this->artisan('hosting:upgrades')->assertSuccessful();
+        $this->artisan('hosting:upgrades')->assertSuccessful();
+        $this->assertSame('review', $u->fresh()->status);
+        $this->assertSame($s->id, $u->fresh()->open_service_id);
+        $this->assertNull($u->fresh()->attempted_at);
+        $this->assertSame(1000, $u->invoice->fresh()->paid);
+        $this->assertSame($u->invoice_id, $coupon->fresh()->used_invoice_id);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertSame(0, CreditEntry::count());
+        $this->assertSame('old-plan', $s->fresh()->plan);
+        $this->assertSame('2026-12-01', $s->fresh()->next_due_at->toDateString());
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/account/services/'.$s->id.'/upgrade')->assertOk()
+                ->assertSee($prefix.'/account/tickets/new', false);
+        }
+        Http::assertNothingSent();
     }
 }

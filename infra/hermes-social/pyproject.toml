@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "servernet-hermes-social"
+version = "0.1.0"
+description = "Bounded Drive and Instagram publishing tools for Hermes"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=1.12,<2", "httpx>=0.28,<1", "google-auth>=2.40,<3",
+  "google-auth-oauthlib>=1.2,<2", "boto3>=1.35,<2", "Pillow>=11,<13", "tzdata>=2025.2,<2027"
+]
+
+[project.scripts]
+hermes-social = "hermes_social.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

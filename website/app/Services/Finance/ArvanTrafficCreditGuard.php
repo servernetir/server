@@ -93,6 +93,28 @@ final class ArvanTrafficCreditGuard
     }
 
     /** A funded explicit restart releases ONLY this hold. No provider call or automatic restart. */
+    public function holdPendingLocked(Service $service, CloudInstance $instance, string $sourceHash,
+        string $baseHash, int $amount, int $available): bool
+    {
+        if (DB::transactionLevel() === 0) { throw new \LogicException('Pending traffic holds require the customer transaction.'); }
+        if ($available > 0 || $amount <= 0 || $service->isInternalInfrastructure()
+            || in_array($service->status, ['cancelled', 'terminated', 'expired'], true) || self::active($service)) {
+            return false;
+        }
+        if (preg_match('/\A[a-f0-9]{64}\z/D', $sourceHash) !== 1 || preg_match('/\A[a-f0-9]{64}\z/D', $baseHash) !== 1) {
+            throw new \RuntimeException('Pending traffic trigger requires reconciliation.');
+        }
+        $hold = ['version' => 1, 'active' => true, 'reason' => 'pending_traffic_credit_exhausted',
+            'token' => (string) Str::uuid(), 'service_id' => (int) $service->id, 'customer_id' => (int) $service->customer_id,
+            'instance_id' => (int) $instance->id, 'resource' => (string) $instance->provider_ref,
+            'trigger' => ['kind' => 'pending_traffic', 'source_hash' => $sourceHash, 'base_sha256' => $baseHash, 'amount_irt' => $amount],
+            'held_at' => now()->toIso8601String(),
+            'stop' => ['state' => 'pending', 'attempts' => 0, 'retry_at' => null, 'inflight' => false, 'generation' => 1]];
+        $this->save($service, $hold);
+        return true;
+    }
+
+    /** A funded explicit restart releases ONLY this hold. No provider call or automatic restart. */
     public function allowPower(string $ref): bool
     {
         try {
@@ -385,8 +407,14 @@ final class ArvanTrafficCreditGuard
 
     private function matches(Service $service, CloudInstance $instance, array $hold): bool
     {
+        $triggerValid = ($hold['reason'] ?? null) === 'traffic_credit_exhausted'
+            || (($hold['reason'] ?? null) === 'pending_traffic_credit_exhausted'
+                && data_get($hold, 'trigger.kind') === 'pending_traffic'
+                && preg_match('/\A[a-f0-9]{64}\z/D', (string) data_get($hold, 'trigger.source_hash')) === 1
+                && preg_match('/\A[a-f0-9]{64}\z/D', (string) data_get($hold, 'trigger.base_sha256')) === 1
+                && is_int(data_get($hold, 'trigger.amount_irt')) && data_get($hold, 'trigger.amount_irt') > 0);
         return ($hold['version'] ?? null) === 1 && ($hold['service_id'] ?? null) === (int) $service->id
-            && ($hold['reason'] ?? null) === 'traffic_credit_exhausted'
+            && $triggerValid
             && is_string($hold['token'] ?? null) && Str::isUuid($hold['token'])
             && ($hold['customer_id'] ?? null) === (int) $service->customer_id
             && ($hold['instance_id'] ?? null) === (int) $instance->id

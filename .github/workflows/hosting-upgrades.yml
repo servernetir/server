@@ -66,7 +66,7 @@ jobs:
           mkdir -p /tmp/hosting-upgrade-previews
           php -l app/Services/Billing/HostingUpgrades.php
           php -l app/Services/Billing/HostingUpgradeFulfillment.php
-          vendor/bin/phpunit tests/Feature/HostingUpgradeTest.php tests/Feature/PleskPanelIntegrationTest.php tests/Feature/HostingPanelServerSelectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/AdminDeleteTest.php
+          vendor/bin/phpunit tests/Feature/HostingUpgradeTest.php tests/Feature/PleskPanelIntegrationTest.php tests/Feature/HostingPanelServerSelectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/AdminDeleteTest.php tests/Feature/GiftCouponOnInvoiceTest.php tests/Feature/DiscountEntryVisibilityTest.php
       - name: Legacy malformed-date callback regression (SQLite fixture)
         if: matrix.database == 'sqlite'
         working-directory: website

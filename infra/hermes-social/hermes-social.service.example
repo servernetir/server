@@ -1,0 +1,16 @@
+[Unit]
+Description=ServerNet approved social publishing tick
+
+[Service]
+Type=oneshot
+# Adjust these paths to the dedicated user's actual home. This is a USER unit.
+ExecStart=/home/hermes/.local/lib/servernet-social/venv/bin/python -m hermes_social.cli --config /home/hermes/.config/servernet-social/config.json tick
+Environment=PYTHONDONTWRITEBYTECODE=1
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/hermes/.local/share/servernet-social/state
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+TimeoutStartSec=600

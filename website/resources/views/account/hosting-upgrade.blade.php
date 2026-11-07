@@ -13,6 +13,10 @@
     <section class="hu-box" aria-live="polite">
       <h2>{{ __('ui.hu_status_'.($open->status === 'awaiting_payment' && $open->invoice->status === 'paid' ? 'applying' : $open->status)) }}</h2>
       <p>{{ __('ui.hu_status_help') }}</p>
+      @if($open->status === 'review')
+        <p>{{ __('ui.hu_review_help', ['paid' => invoice_money($open->invoice->paid, $open->invoice->currency_code), 'invoice' => $open->invoice->number]) }}</p>
+        <a class="pnl-btn" href="{{ lroute('account.ticket.new') }}">{{ __('ui.hu_contact_support') }}</a>
+      @endif
       <a class="pnl-btn primary" href="{{ lroute('account.invoice', $open->invoice_id) }}">{{ __('ui.hu_view_invoice') }}</a>
     </section>
   @else

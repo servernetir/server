@@ -2,6 +2,8 @@
 
 return [
     // Self-service shared hosting upgrades.
+    'hu_contact_support' => 'Contact support',
+    'hu_review_help' => 'Payment of :paid is recorded on invoice :invoice. Support must reconcile this payment before another upgrade can be requested. Send the invoice number using the support button. Your current hosting remains unchanged.',
     'hu_status_canceled' => 'The upgrade request was canceled.',
     'hu_title' => 'Upgrade hosting',
     'hu_intro' => 'Choose a higher plan and pay the difference for your remaining paid time. Your existing account and renewal date are preserved.',

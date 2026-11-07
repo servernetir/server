@@ -23,7 +23,10 @@ class RunHostingUpgrades extends Command
             ->where(fn ($q) => $q->whereIn('status', ['awaiting_payment', 'applying'])
                 ->orWhere(fn ($review) => $review->where('status', 'review')->whereNotNull('attempted_at')))
             ->where(fn ($q) => $q->whereNull('checked_at')->orWhere('checked_at', '<=', now()->subMinutes(5)))
-            ->whereHas('invoice', fn ($q) => $q->whereIn('status', ['paid', 'canceled', 'refunded']))
+            ->whereHas('invoice', fn ($q) => $q->whereIn('status', ['paid', 'canceled', 'refunded'])
+                ->orWhere(fn ($partial) => $partial->where('kind', HostingUpgrades::KIND)
+                    ->whereIn('status', ['unpaid', 'partial'])->where('paid', '>', 0)
+                    ->whereColumn('paid', '<', 'total')->where('due_at', '<=', now())))
             ->orderBy('id')->limit(max(1, min(500, (int) $this->option('limit'))))->get()
             ->each(function ($u) use ($fulfillment) {
                 try {

@@ -2,6 +2,8 @@
 
 return [
     // Self-service shared hosting upgrades.
+    'hu_contact_support' => 'Desteğe başvurun',
+    'hu_review_help' => ':invoice numaralı faturada :paid ödeme kayıtlıdır. Yeni bir yükseltme talebinden önce destek bu ödemeyi incelemelidir. Destek düğmesiyle fatura numarasını bize iletin. Mevcut hosting hizmetiniz değişmez.',
     'hu_status_canceled' => 'Yükseltme talebi iptal edildi.',
     'hu_title' => 'Hosting paketini yükselt',
     'hu_intro' => 'Daha yüksek bir paket seçin; kalan ödenmiş süre için yalnızca farkı ödeyin. Mevcut hesabınız ve yenileme tarihiniz korunur.',

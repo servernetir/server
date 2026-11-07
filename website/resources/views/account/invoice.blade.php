@@ -52,6 +52,10 @@
   @if($hostingUpgrade)
     <section class="pnl-sec"><div class="pnl-sec-b">
       <p role="status">{{ __('ui.hu_status_'.$hostingUpgradeStatus) }}</p>
+      @if($hostingUpgradeStatus === 'review')
+        <p>{{ __('ui.hu_review_help', ['paid' => invoice_money($invoice->paid, $invoice->currency_code), 'invoice' => $invoice->number]) }}</p>
+        <a class="pnl-btn" href="{{ lroute('account.ticket.new') }}">{{ __('ui.hu_contact_support') }}</a>
+      @endif
       <a class="pnl-btn primary" href="{{ lroute('account.services.upgrade', $hostingUpgrade->service_id) }}">{{ __('ui.hu_title') }}</a>
     </div></section>
   @endif

@@ -4,6 +4,7 @@ namespace App\Services\Billing;
 
 use App\Models\ActivityLog;
 use App\Models\HostingUpgrade;
+use App\Models\Invoice;
 use App\Models\Service;
 use App\Services\Provisioning\HostingPlanChanger;
 use App\Support\ErrorTracker;
@@ -20,6 +21,32 @@ class HostingUpgradeFulfillment
             $u = $upgrade->fresh(['invoice', 'service.server']);
             if (! $u->open_service_id || in_array($u->status, ['complete', 'canceled'], true)
                 || ($u->status === 'review' && ! $u->attempted_at)) {
+                return;
+            }
+            // A partial payment cannot complete after the quote deadline. Keep
+            // the original payment/coupon provenance for an explicit support
+            // disposition; never silently convert a gift into cash or release
+            // the service slot while the received amount is unresolved.
+            $expiredPartial = DB::transaction(function () use ($u) {
+                $invoice = Invoice::whereKey($u->invoice_id)->lockForUpdate()->firstOrFail();
+                if ($invoice->kind !== HostingUpgrades::KIND || ! in_array($invoice->status, ['unpaid', 'partial'], true)
+                    || $invoice->paid <= 0 || $invoice->paid >= $invoice->total
+                    || ! $invoice->due_at || $invoice->due_at->isFuture()) {
+                    return false;
+                }
+                $locked = HostingUpgrade::whereKey($u->id)->lockForUpdate()->firstOrFail();
+                if (! $locked->open_service_id || $locked->attempted_at
+                    || ! in_array($locked->status, ['awaiting_payment', 'applying'], true)) {
+                    return false;
+                }
+                $locked->update(['status' => 'review', 'checked_at' => now()]);
+
+                return true;
+            });
+            if ($expiredPartial) {
+                ErrorTracker::noteOnce('hosting-upgrade', 'Expired partially paid hosting upgrade requires payment reconciliation.', 3600,
+                    ['upgrade' => $u->id, 'service' => $u->service_id, 'invoice' => $u->invoice_id]);
+
                 return;
             }
             $i = $u->invoice;
