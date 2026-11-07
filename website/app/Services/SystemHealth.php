@@ -81,6 +81,7 @@ class SystemHealth
             ['provider_lifecycle', 'تطبیق وضعیت و سررسید زیرساخت', 'providerLifecycle'],
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
             ['cloud_release_untracked', 'حذف‌های خارج از صف', 'untrackedCloudRelease'],
+            ['infrastructure_audit', 'پایش منابع زیرساخت', 'infrastructureAudit'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
             ['gpu_sales', 'فروش GPU', 'gpuSales'],
             ['catalogue_refresh', 'همگام‌سازی درخواستی کاتالوگ', 'catalogueRefresh'],
@@ -890,21 +891,56 @@ class SystemHealth
             ->whereHas('cloudInstance', fn ($q) => $q->whereNotNull('provider_ref')
                 ->where('provider_ref', '!=', '')
                 ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'deleted')));
-        $count = (clone $query)->count();
+        $all = $query->with(['cloudInstance', 'customer:id,code,email'])->orderBy('id')->get();
+        $stopped = $all->filter(fn ($service) => \App\Services\Cloud\ClosedInfrastructureAudit::confirmedStopped($service->cloudInstance));
+        $unresolved = $all->reject(fn ($service) => \App\Services\Cloud\ClosedInfrastructureAudit::confirmedStopped($service->cloudInstance));
+        $count = $unresolved->count();
 
         if ($count === 0) {
+            if ($stopped->isNotEmpty()) {
+                return $this->row('cloud_release_untracked', true, 'warn', 'حذف‌های خارج از صف',
+                    fa_num($stopped->count()).' گروه GPU با استعلام تازه متوقف و بدون نمونه است؛ مصرف پردازشی جاری ندارد. '
+                    .'پیکربندی باقی مانده و حذف‌شده محسوب نمی‌شود؛ تصمیم پاک‌سازی جداست.',
+                    $this->serviceLinks($stopped->take(self::NAME_LIMIT)));
+            }
             return $this->row('cloud_release_untracked', true, 'ok', 'حذف‌های خارج از صف',
                 'سرویس بسته‌شده‌ای با ماشین تعیین‌تکلیف‌نشده خارج از صف پیدا نشد.');
         }
 
-        $rows = $query->orderBy('id')->limit(self::NAME_LIMIT)
-            ->with('customer:id,code,email')->get(['id', 'name', 'customer_id']);
+        $rows = $unresolved->take(self::NAME_LIMIT);
 
         return $this->row('cloud_release_untracked', false, 'fail', 'حذف‌های خارج از صف',
             fa_num($count).' سرویس بسته شده ولی ماشین آن حذف‌شده ثبت نشده و در صف آزادسازی هم نیست: '
             .$rows->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
             .'. وضعیت واقعی زیرساخت و محافظت داخلی را بررسی کنید؛ این هشدار هیچ ماشینی را خودکار حذف نمی‌کند.',
             $this->serviceLinks($rows));
+    }
+
+    private function infrastructureAudit(): array
+    {
+        $title = 'پایش منابع زیرساخت';
+        $closed = Cache::get(\App\Services\Cloud\ClosedInfrastructureAudit::LAST_SCAN_KEY);
+        $fleet = \App\Services\Cloud\FleetScanner::lastScan();
+        $fresh = function ($value, int $minutes): bool {
+            if (! is_array($value) || ! is_string($value['at'] ?? null)) { return false; }
+            try {
+                $at = Carbon::parse($value['at']);
+                return $at->lte(now()) && $at->gte(now()->subMinutes($minutes));
+            } catch (\Throwable) { return false; }
+        };
+        if (! $fresh($closed, 30) || ! $fresh($fleet, 120) || ! empty($fleet['errors']) || (int) ($closed['unknown'] ?? 0) > 0) {
+            return $this->row('infrastructure_audit', false, 'warn', $title,
+                'اسکن منابع بسته‌شده یا موجودی کامل تازه/معتبر نیست. هزینهٔ نامعلوم صفر محسوب نمی‌شود؛ اتصال و اجرای پایش را بررسی کنید.');
+        }
+        $needsDecision = \App\Models\InfraAsset::query()->whereIn('link_state', \App\Models\InfraAsset::LEAKING_STATES)
+            ->whereNull('acknowledged_at')->whereNotIn('role', \App\Models\InfraAsset::OWNED_ROLES)->count();
+        if ($needsDecision > 0) {
+            return $this->row('infrastructure_audit', false, 'warn', $title,
+                fa_num($needsDecision).' منبع بی‌سرویس زنده در دفتر ناوگان نیازمند تصمیم است؛ '
+                .'مبالغ کاتالوگ برآورد ریسک هستند و رسید هزینهٔ واقعی نیستند. خاموشی برای همهٔ زیرساخت‌ها رایگان نیست.');
+        }
+        return $this->row('infrastructure_audit', true, 'ok', $title,
+            'استعلام منابع بسته‌شده و موجودی کامل تازه است؛ منبع بی‌سرویسِ نیازمند تصمیم ثبت نشده است.');
     }
 
     private function cloudRelease(): array

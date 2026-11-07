@@ -472,6 +472,11 @@ Schedule::command('cloud:release-retry --confirm-pending --limit=25')
     ->everyMinute()
     ->withoutOverlapping(5);
 
+// GET-only audit of legacy closed rows; never creates a release or changes money.
+Schedule::command('cloud:audit-closed --limit=50')
+    ->everyTenMinutes()
+    ->withoutOverlapping(10);
+
 // کاتالوگ و قیمتِ سرورِ ابری — کارفرما: «هر دو روز یک‌بار، ۲ شب، هم قیمت هم
 // پکیج‌ها».
 //
@@ -535,10 +540,9 @@ Schedule::command('cloud:hourly-audit --notify')
 // سرویسی را نمی‌بندد. اگر جدول هنوز ساخته نشده باشد بی‌صدا و با کدِ موفق
 // برمی‌گردد، تا سروری که مهاجرت نخورده هر روز ایمیلِ شکست نفرستد.
 //
-// ۰۴:۵۰ UTC ≈ ۰۸:۲۰ تهران: پیش از اینکه مدیر صفحه را باز کند، و بیرونِ پنجرهٔ
-// شلوغِ سینکِ کاتالوگ.
+// دقیقهٔ ۵۰ هر ساعت: شناسایی منابع بی‌صاحب تا نوبت روز بعد عقب نمی‌افتد.
 Schedule::command('fleet:scan')
-    ->dailyAt('04:50')
+    ->hourlyAt(50)
     ->withoutOverlapping(30);
 
 // یادآوریِ روزانهٔ تقویم به مدیر (بله + ایمیل).

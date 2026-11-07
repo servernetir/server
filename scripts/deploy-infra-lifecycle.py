@@ -31,6 +31,18 @@ LAYERS = {
         'app/Services/Billing/BillingLifecycleActions.php',
         'app/Services/SystemHealth.php',
     ),
+    'lifecycle-audit': (
+        'app/Services/Cloud/AezaLifecycleReview.php',
+        'app/Services/Cloud/ClosedInfrastructureAudit.php',
+        'app/Services/Cloud/AezaClient.php',
+        'app/Services/Cloud/CloudProvisioner.php',
+        'app/Services/Cloud/SaladOperations.php',
+        'app/Services/Provisioning/ProvisioningService.php',
+        'app/Services/Billing/BillingLifecycleActions.php',
+        'app/Services/SystemHealth.php',
+        'app/Console/Commands/CloudAuditClosed.php',
+        'routes/console.php',
+    ),
 }
 
 
@@ -46,7 +58,9 @@ def main():
     spec.loader.exec_module(core)
     core.BASE = core.validate_sha(args.base)
     core.RUNTIME_PATHS = LAYERS[args.layer]
-    core.NEW_PATHS = frozenset({'app/Services/Cloud/AezaLifecycleReview.php'}) & set(core.RUNTIME_PATHS)
+    core.NEW_PATHS = frozenset({'app/Services/Cloud/AezaLifecycleReview.php',
+        'app/Services/Cloud/ClosedInfrastructureAudit.php',
+        'app/Console/Commands/CloudAuditClosed.php'}) & set(core.RUNTIME_PATHS)
     repository = Path(__file__).resolve().parents[1]
 
     def git_source(commit, relative):

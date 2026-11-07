@@ -1290,14 +1290,14 @@ class CloudProvisioner
 
         $info = $driver->serverStatus($ref);
 
-        if (! ($info['ok'] ?? false)) {
-            $this->retryLater($service, 'وضعیتِ سرور خوانده نشد؛ تلاشِ خودکار ادامه دارد.');
-
+        if (($review = app(AezaLifecycleReview::class)->observe($instance, $info)) !== null) {
+            $service->forceFill(['provision_status' => 'failed', 'provision_error' => $review['message']])->save();
             return false;
         }
 
-        if (($review = app(AezaLifecycleReview::class)->observe($instance, $info)) !== null) {
-            $service->forceFill(['provision_status' => 'failed', 'provision_error' => $review['message']])->save();
+        if (! ($info['ok'] ?? false)) {
+            $this->retryLater($service, 'وضعیتِ سرور خوانده نشد؛ تلاشِ خودکار ادامه دارد.');
+
             return false;
         }
 
