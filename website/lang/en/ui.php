@@ -3432,4 +3432,6 @@ return [
     "cvb_retention_pre" => "Included in the starting balance: ",
     "cvb_retention_suf" => " reserved for up to 24 hours of powered-off storage. Running credit is separate. Only elapsed retention is charged; unused funds stay in your wallet.",
     "gpu_hourly_lifecycle" => "First start: 24 hours of available credit, billed hourly once ready. Restart: only one hour of credit. No credit: power off, keep free for 24 hours, then delete the server and its data if not topped up.",
+    'gpu_fund_request' => 'Fund the initial 24 hours',
+    'gpu_fund_request_hint' => 'Pay only the current credit shortfall. After invoice payment, automatic checks and provisioning continue; usage is charged once the app is ready.',
 ];

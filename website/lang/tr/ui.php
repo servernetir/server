@@ -3432,4 +3432,6 @@ return [
     "cvb_retention_pre" => "Başlangıç bakiyesine dahil: ",
     "cvb_retention_suf" => " kapalı sunucunun en fazla 24 saat saklanması için ayrılır. Kullanım kredisi ayrıdır. Yalnızca geçen saklama süresi ücretlendirilir; kullanılmayan tutar cüzdanda kalır.",
     "gpu_hourly_lifecycle" => "İlk başlatma: 24 saatlik kredi; hazır olduktan sonra saatlik kesinti. Yeniden açma: yalnızca bir saatlik kredi. Kredi bittiğinde kapatılır, 24 saat ücretsiz saklanır; yükleme yapılmazsa sunucu ve verileri otomatik silinir.",
+    'gpu_fund_request' => 'İlk 24 saat için bakiye yükle',
+    'gpu_fund_request_hint' => 'Yalnızca mevcut bakiye eksiğini ödeyin. Fatura ödendikten sonra otomatik kontrol ve kurulum devam eder; kullanım ücreti uygulama hazır olduğunda alınır.',
 ];

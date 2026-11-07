@@ -109,11 +109,16 @@
       </form>
     @endif
 
-    @if(($capacityOrder['state'] ?? '') === 'insufficient_credit')
-      <div class="cr-actions">
-        <a class="pnl-btn primary cr-primary" href="{{ lroute('account.topup') }}"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>{{ __('ui.gpu_topup') }}</a>
-        <p>{{ __('ui.gpu_request_credit_hint') }}</p>
-      </div>
+    @if($requestNeedsFunding && $capacityDisplayState !== 'price_changed')
+      <form class="cr-actions" method="post" action="{{ lroute('account.topup.start') }}">
+        @csrf
+        <input type="hidden" name="gpu_service_id" value="{{ $service->id }}">
+        <button class="pnl-btn primary cr-primary" type="submit">
+          <svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>
+          {{ __('ui.gpu_fund_request') }} — {{ cloud_price($fundingWindow['topup_amount']) }}
+        </button>
+        <p>{{ __('ui.gpu_fund_request_hint') }}</p>
+      </form>
     @endif
   </div>
 

@@ -649,8 +649,51 @@ class PaymentController extends Controller
      * سند داشته باشد. حسابداریِ بدون سند، همان چیزی است که بعداً قابل
      * ممیزی نیست.
      */
+    /** Fund a GPU request from its current server-side shortfall, in the normal invoice flow. */
+    private function topupGpuRequest(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['gpu_service_id' => ['required', 'integer', 'min:1']]);
+        $customerId = (int) Auth::guard('customer')->id();
+        $invoice = DB::transaction(function () use ($customerId, $data) {
+            \App\Models\Customer::whereKey($customerId)->lockForUpdate()->firstOrFail();
+            $service = \App\Models\Service::where('customer_id', $customerId)
+                ->whereKey($data['gpu_service_id'])->lockForUpdate()->firstOrFail();
+            $window = \App\Services\Cloud\GpuCapacityOrders::fundingWindow($service);
+            // A second click after funding or allocation must not produce another invoice.
+            if ($window === null || $window['funded']) {
+                return null;
+            }
+            abort_if(now()->gte($window['deadline'])
+                || data_get($service->provision_meta, 'gpu_capacity_order.state') === 'price_changed', 409);
+            $amount = (int) $window['topup_amount'];
+            abort_if($amount < 1000 || $amount > self::MAX_TOPUP, 422);
+            $existing = Invoice::where('customer_id', $customerId)->where('kind', 'topup')
+                ->where('currency_code', 'IRT')->where('status', 'unpaid')->where('paid', 0)
+                ->where('total', $amount)->where('issued_at', '>=', now()->subHour())
+                ->latest('id')->first();
+            if ($existing) {
+                return $existing;
+            }
+            $invoice = Invoice::create([
+                'customer_id' => $customerId, 'kind' => 'topup', 'currency_code' => 'IRT',
+                'subtotal' => $amount, 'tax' => 0, 'total' => $amount,
+                'status' => 'unpaid', 'issued_at' => now(),
+            ]);
+            InvoiceItem::create([
+                'invoice_id' => $invoice->id, 'title' => __('ui.top_item_title'),
+                'quantity' => 1, 'unit_price' => $amount, 'line_total' => $amount,
+            ]);
+            return $invoice;
+        }, 3);
+
+        return $invoice ? redirect()->route($this->rp().'account.invoice', $invoice) : back();
+    }
+
     public function topup(Request $request): RedirectResponse
     {
+        if ($request->has('gpu_service_id')) {
+            return $this->topupGpuRequest($request);
+        }
         $customer = Auth::guard('customer')->user();
 
         /*

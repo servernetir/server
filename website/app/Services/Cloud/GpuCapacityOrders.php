@@ -90,8 +90,10 @@ class GpuCapacityOrders
             return null;
         }
         $minimum = app(HourlyStartCredit::class)->minimum($service->customer_id, (int) $service->hourly_rate_irt, $service->id);
+        $available = app(Wallet::class)->availableOf($service->customer_id);
         return ['deadline' => $deadline, 'hours' => OrderPaymentWindow::hours(), 'required_credit' => $minimum,
-            'funded' => app(Wallet::class)->availableOf($service->customer_id) >= $minimum];
+            'funded' => $available >= $minimum,
+            'topup_amount' => $available >= $minimum ? 0 : max(1000, $minimum - $available)];
     }
 
     /** Never closes a paid, allocated, invoice-backed, or staff-created service. */
@@ -208,6 +210,10 @@ class GpuCapacityOrders
     public function candidates(int $limit = 20): \Illuminate\Support\Collection
     {
         return Service::where('provision_meta->gpu_capacity_order->version', 1)
+            // Closed orders must not occupy every batch and starve live requests.
+            // Keep dead orders only while their provider stop still needs confirmation.
+            ->where(fn ($q) => $q->whereNotIn('status', Service::DEAD_STATUSES)
+                ->orWhere('provision_meta->gpu_capacity_order->stop_pending', true))
             ->where(fn ($q) => $q->where('provision_status', '!=', 'running')->orWhereNull('provision_status')
                 ->orWhere('updated_at', '<=', now()->subMinutes(15)))
             ->where(function ($q) {
