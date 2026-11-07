@@ -877,7 +877,7 @@ class SystemHealth
             }
 
             $allRows = Service::query()->awaitingRelease()
-                ->with('cloudInstance:id,service_id,provider,meta')
+                ->with('cloudInstance:id,service_id,provider,provider_ref,meta')
                 ->orderBy('id')->get(['id', 'name', 'customer_id']);
             // The full queue decides severity.  Limit only what is rendered as
             // operator links so a failure after 50 fresh pending rows cannot be
@@ -895,32 +895,16 @@ class SystemHealth
         }
 
         $freshPending = $allRows->filter(function (Service $service) {
-            // release_pending is an Arvan-only contract.  A stale or foreign
-            // marker must not downgrade a potentially billable failure.
-            if ($service->cloudInstance?->provider !== 'arvan') {
-                return false;
-            }
-
-            $pending = data_get($service->cloudInstance?->meta, 'release_pending');
-
-            if (! is_array($pending) || blank($pending['accepted_at'] ?? null)
-                || filled($pending['timed_out_at'] ?? null)) {
-                return false;
-            }
-
-            try {
-                return Carbon::parse((string) ($pending['accepted_at'] ?? ''))
-                    ->gt(now()->subMinutes(15));
-            } catch (\Throwable) {
-                return false;
-            }
+            $instance = $service->cloudInstance;
+            return $instance !== null
+                && \App\Services\Cloud\CloudProvisioner::releasePendingUntil($instance)?->isFuture() === true;
         });
 
         if ($freshPending->count() === $allRows->count()) {
             return $this->row('cloud_release', false, 'warn', 'آزادسازیِ سرور',
                 fa_num($allRows->count()).' حذف نزدِ زیرساخت پذیرفته شده و تأیید نهایی آن در جریان است (سرویسِ '
                 .$rows->pluck('id')->take(10)->map(fn ($i) => '#'.fa_num($i))->implode('، ')
-                .'). اگر بیش از ۱۵ دقیقه بماند به خطای واقعی ارتقا می‌یابد.',
+                .'). پایان مهلت تأیید هر زیرساخت، این وضعیت را به خطای واقعی ارتقا می‌دهد.',
                 $this->serviceLinks($rows->take(self::NAME_LIMIT)->load('customer:id,code,email')));
         }
 

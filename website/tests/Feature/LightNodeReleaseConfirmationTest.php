@@ -45,8 +45,8 @@ class LightNodeReleaseConfirmationTest extends TestCase
         $customer = Customer::create(['name' => 'Release fixture',
             'email' => uniqid('release-').'@example.test', 'password' => 'fixture-only', 'status' => 'active']);
         CloudLocation::firstOrCreate(['code' => 'us-fixture'], ['country' => 'US', 'city' => 'Fixture']);
-        $plan = CloudPlan::create(['provider' => $provider, 'provider_ref' => 'fixture-r|fixture-z|fixture-p',
-            'provider_location' => 'fixture-r|fixture-z', 'location_code' => 'us-fixture',
+        $plan = CloudPlan::firstOrCreate(['provider' => $provider, 'provider_ref' => 'fixture-r|fixture-z|fixture-p',
+            'location_code' => 'us-fixture'], ['provider_location' => 'fixture-r|fixture-z',
             'public_name' => 'Fixture', 'slug' => uniqid('fixture-'), 'vcpu' => 2, 'ram_mb' => 4096,
             'disk_gb' => 50, 'disk_type' => 'ssd', 'price_irt' => 100000, 'is_active' => true, 'in_stock' => true]);
         $service = Service::create(['customer_id' => $customer->id, 'name' => 'Release fixture',
@@ -99,6 +99,8 @@ class LightNodeReleaseConfirmationTest extends TestCase
         $this->assertNull($service->cloudInstance->fresh()->last_error);
         $this->assertSame([], ErrorTracker::recent(50, 'error'));
         $this->assertCount(1, Http::recorded(fn ($r) => $r->method() === 'POST'));
+        $health = collect(app(\App\Services\SystemHealth::class)->checks())->keyBy('key');
+        $this->assertSame('warn', $health['cloud_release']['level']);
 
         $this->fake();
         $this->artisan('cloud:release-retry --confirm-pending')->assertSuccessful();

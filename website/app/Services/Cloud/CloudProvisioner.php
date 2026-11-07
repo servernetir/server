@@ -8,6 +8,7 @@ use App\Models\CloudImage;
 use App\Models\CloudInstance;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\CloudProviderOperation;
 use App\Models\CloudSshKey;
 use App\Models\CreditEntry;
 use App\Models\Service;
@@ -2325,11 +2326,23 @@ class CloudProvisioner
     public function releasePending(Service $service): bool
     {
         $instance = CloudInstance::where('service_id', $service->id)->first();
+        return $instance !== null && self::releasePendingUntil($instance)?->isFuture() === true;
+    }
 
-        return $instance !== null
-            && isset(self::RELEASE_PENDING_DEADLINES[(string) $instance->provider])
-            && filled(data_get($instance->meta, 'release_pending.accepted_at'))
-            && blank(data_get($instance->meta, 'release_pending.timed_out_at'));
+    /** Shared by queue processing and health; foreign/stale markers are not receipts. */
+    public static function releasePendingUntil(CloudInstance $instance): ?Carbon
+    {
+        $minutes = self::RELEASE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
+        $pending = data_get($instance->meta, 'release_pending');
+        if ($minutes === null || ! is_array($pending) || blank($pending['accepted_at'] ?? null)
+            || filled($pending['timed_out_at'] ?? null)) { return null; }
+        if ($instance->provider === 'lightnode' && ! CloudProviderOperation::where('provider', 'lightnode')
+            ->where('action', 'release')->where('resource_ref', $instance->provider_ref)
+            ->whereIn('state', ['pending', 'success'])->whereNotNull('task_ref')->where('task_ref', '!=', '')->exists()) {
+            return null;
+        }
+        try { return Carbon::parse($pending['accepted_at'])->addMinutes($minutes); }
+        catch (\Throwable) { return null; }
     }
 
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
