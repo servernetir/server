@@ -136,3 +136,21 @@ PHP_BINARY=/path/to/php PYTHONDONTWRITEBYTECODE=1 \
 The tests never start the proxy or connect to Prometheus, SSH, guests or a
 provider. They do not bootstrap the application or establish production
 permissions, sockets, identity bindings or scrape compatibility.
+
+## Response Vary compatibility — 7 November 2026
+
+A read-only check of the actual Prometheus HTTP/1.0 response found two Vary
+field lines: Accept-Encoding and Origin. The strict duplicate-field parser had
+rejected this otherwise valid JSON response. Only the upstream response reader
+now permits valid token-list Vary values, combined in received order with a
+2048-byte combined cap, following [RFC 9110 section 5.3](https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3).
+The request reader still rejects every duplicate field. Duplicate Content-Length,
+Content-Type and other response fields, chunked/compressed data, redirects,
+body limits and absolute deadlines retain their prior guards. Vary is neither
+forwarded nor used for caching; proxy responses remain no-store.
+
+Focused local Python regressions passed (21 tests); the unchanged PHP query
+contract remains a separate CI gate. A native read-only check of the corrected
+upstream reader accepted the real Prometheus response (three existing up
+series). This does not establish proxy installation, identity-bound ten-row
+acceptance, private transport approval, two-sample enrollment or fleet coverage.
