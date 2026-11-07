@@ -97,3 +97,46 @@ historical financial reconciliation remain open. Guest telemetry is still
 nonbillable operational evidence; supplier settlement and the historical owner
 exclusion remain separate. This pilot does not establish fleet coverage or a
 hard loss cap.
+
+### Central acceptance attempts — 7 November 2026
+
+Two subsequent bounded collector installations were attempted, and **both
+automatically rolled back** after native query acceptance failed. The paired
+rollback reported all steps successful, including verification that Prometheus
+loaded its pre-install runtime configuration. Owned proxy unit/source/binding
+files were removed; the legacy scrape and guest tunnel were preserved. No
+application transport approval or enrollment was activated. This is a
+rolled-back release, not a completed central deployment.
+
+The installer now records owned artifacts by inode/metadata/hash, checks current
+configuration again before replacement, verifies proxy PID/UID and its sole
+loopback listener, preserves runtime files if stopping fails, independently
+restores the collector configuration, and supports repeated recovery. Eight
+isolated behavioral tests passed: five rollback cases and three fixed-wire HTTP
+framing cases. Test filesystem ownership/chown was adapted to the disposable
+test user; those tests do not establish production UID permissions. Independent
+review found no blocker in the reviewed guarded installer and fixed-wire diff.
+
+The first native acceptance helper used a general HTTP client with implicit
+headers. It was replaced by a bounded fixed HTTP/1.0 request matching the
+application transport. Acceptance still failed. A subsequent **read-only direct
+upstream check** identified the actual strict query-proxy refusal at the
+duplicate-header check in `headers()` (line169 of the unchanged proxy source).
+The exact repeated field has **not** been captured. Do not weaken duplicate
+Content-Length, Transfer-Encoding, request-header or framing validation based
+on a guessed header name.
+
+Before another installation, capture bounded response-header metadata from the
+actual upstream without recording telemetry bodies or credentials; determine
+whether the repeated field is a legitimate repeatable response field; add a
+narrow reviewed compatibility change and regression fixtures if necessary.
+Then repeat native acceptance and only afterwards configure the separately
+restricted SSH/Unix transport and two-sample application enrollment.
+
+Further diagnosis stopped when the selected Chrome browser reported
+`ERR_CONNECTION_CLOSED` for Proxmox. This was a network/page-access failure,
+not evidence of an invalid root login or missing exporter. The older console
+also did not return a usable response. The application-private forward key
+remains unregistered on the jump/collector hosts. Reconcile current config,
+private receipts and ownership before resuming; do not blindly rerun an
+interrupted or rolled-back installer.
