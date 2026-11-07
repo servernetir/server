@@ -38,6 +38,43 @@ Observed production acceptance:
   provider switching, expiry and partial-payment review were tested with
   fixtures; the customer can now choose and pay their actual upgrade.
 
+## WHM Iran and Germany acceptance — 7 November
+
+The owner explicitly requested parity for cPanel hosting on both delivery
+servers. At 10:27–10:28 UTC, the active production application was inspected
+through its normal Laravel bootstrap and existing encrypted WHM credentials.
+Both nodes were active and returned successful native package inventories.
+Every upgrade destination offered to an eligible ordinary shared-hosting
+service existed on that service's own node; no missing target package was
+found. No native package creation or configuration change was needed.
+
+| Location | Native account preflight | Customer panel acceptance |
+|---|---|---|
+| Germany | Exact existing account/domain/source plan verified; LX-5 → LX-10 target present on the same node | Hosting-card upgrade action, higher-plan list and prorated annual quote verified |
+| Iran | Exact existing account/domain/source plan verified; LX-2 → LX-5 target present on the same node | Hosting-card upgrade action, higher-plan list and prorated monthly quote verified |
+
+These were read-only production previews. The final invoice/payment button
+was not submitted; no real upgrade invoice, payment or package change was
+created for testing. Each inspected service had zero upgrade records before
+the preview. The normal impersonation flow was exited after each inspection.
+The already-installed shared upgrade runtime covers both WHM nodes, so this
+follow-up does not introduce another runtime overlay or migration.
+
+The WHM fulfillment regression now runs independently for Iran and Germany
+with distinct fixture API origins and node/location-pinned destinations. It
+asserts that every provider read and package change uses the service's own
+origin, exactly one change occurs, and the account and due date remain fixed.
+Two additional cases verify that a missing destination on either node never
+attempts a package change and leaves the paid upgrade awaiting verified
+panel access. The existing exclusions for reseller, external/unverified
+billing and catalog/panel mismatches remain in force.
+
+Fresh local PHP 8.4.12 regression: **91 tests / 504 assertions passed** across
+hosting upgrades, Plesk integration, panel selection/account, deletion, gifts,
+discount visibility and payment callbacks. Pint and Git whitespace checks
+passed. The associated PR's hosting CI provides the fresh MariaDB/rendered
+results; local SQLite alone is not represented as a MariaDB run.
+
 ## Validation
 
 - PHP 8.4.12 locally: 88 tests / 464 assertions passed across hosting upgrades,
