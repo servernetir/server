@@ -5,7 +5,8 @@ Local branch: `feature/hosting-self-upgrade`; remote PR branch:
 `feature/hosting-self-upgrade-ready`. Integrated concurrent develop
 `d81163c1ff0ec084b5e0634a3895541f2f8a5778`; both project-index entries and
 concurrent Invoice/domain route/schedule changes were retained.
-Status: implementation and isolated tests; **not installed/accepted in production**.
+Status (7 November): **installed in production; real customer preview verified**.
+See [the production release record](SUPPORT-HOSTING-RELEASE-2026-11-07.md).
 
 ## Follow-up — 7 November 2026
 
@@ -36,12 +37,16 @@ with `Operation not permitted`; no local rendered-browser success is claimed.
 The dedicated CI includes SQLite/MariaDB and its rendered Chromium matrix; its
 new run must pass before merging this revision.
 
-Production release and live customer preview are still outstanding. The owner
-application's cPanel session requires sign-in again. No real upgrade invoice,
-payment or hosting plan mutation was performed in this follow-up. Deployment
-must retain the same limited manifest, locks, backups and single new migration
-described below. Support must not tell customers the button is live until the
-actual customer preview is verified.
+Production follow-through: PR #267 merged as
+`95f9733bd95873ac9705d2a501711b885a751e7e`; all 15 associated workflow runs
+passed. The hosting-specific CI passed SQLite, MariaDB and rendered fa/en/tr
+desktop/mobile dark/light previews. The bounded 19-file runtime overlay and
+single new-table migration were installed with private backups and drift
+guards. The real customer hosting card, compatible plan list and prorated
+quote render in the production browser. No real upgrade invoice or payment
+was created for testing; the customer's actual paid upgrade remains their
+next action. The operational record distinguishes provider reads from a real
+paid fulfillment.
 
 ## Scope and customer contract
 

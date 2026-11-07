@@ -236,8 +236,13 @@ class WhmClient
         $hasResource = $diskMb !== null || $bwMb !== null;
         $p['enable_resource_limits'] = $hasResource ? 1 : 0;
         if ($hasResource) {
-            $p['diskspace_limit'] = $diskMb ?? 0;
-            $p['bandwidth_limit'] = $bwMb ?? 0;
+            // WHM shares one resource-limit switch and accepts no unlimited
+            // value for either quota. A zero companion quota blocks account
+            // creation. cPanel documents using a large numeric companion
+            // value when only disk or bandwidth is limited.
+            // docs.cpanel.net/whm/resellers/edit-reseller-nameservers-and-privileges/#limit-by-resource-usage
+            $p['diskspace_limit'] = $diskMb ?? 99999999;
+            $p['bandwidth_limit'] = $bwMb ?? 99999999;
         }
 
         return $this->call('setresellerlimits', $p);
