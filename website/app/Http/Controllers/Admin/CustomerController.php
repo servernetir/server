@@ -773,7 +773,9 @@ class CustomerController extends Controller
         $anyCredit = (int) CreditEntry::where('customer_id', $customer->id)->sum('amount');
 
         $hasRefundHistory = app(\App\Services\Finance\WalletRefunds::class)->hasHistory($customer->id);
-        if ($hasPaid || $anyCredit !== 0 || $hasRefundHistory) {
+        $hasUpgradeHistory = Schema::hasTable('hosting_upgrades') && \App\Models\HostingUpgrade::whereHas('service',
+            fn ($q) => $q->where('customer_id', $customer->id))->exists();
+        if ($hasPaid || $anyCredit !== 0 || $hasRefundHistory || $hasUpgradeHistory) {
             return back()->withErrors(
                 'این مشتری سابقهٔ مالی (فاکتور پرداخت‌شده یا ماندهٔ اعتبار) دارد و حذف نمی‌شود. '
                 .'برای مسدودسازی، وضعیت حساب را روی «بسته» بگذارید.'
@@ -811,6 +813,10 @@ class CustomerController extends Controller
     public function destroyInvoice(Request $request, Invoice $invoice): RedirectResponse
     {
         abort_unless($request->user()->isAdmin(), 403);
+
+        if ($invoice->kind === 'hosting_upgrade') {
+            return back()->withErrors('فاکتور ارتقای هاست برای حفظ سابقهٔ مالی حذف نمی‌شود؛ در صورت نیاز آن را لغو کنید.');
+        }
 
         if (! $invoice->isDeletable()) {
             return back()->withErrors('این فاکتور پرداخت‌شده یا جزئی است و حذف نمی‌شود. فقط فاکتورِ پرداخت‌نشده حذف می‌شود.');

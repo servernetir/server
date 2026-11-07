@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schedule;
 
+Schedule::command('hosting:upgrades')->everyMinute()->withoutOverlapping(20);
+
 // Storage tariffs refresh through the existing application scheduler; this never buys resources.
 Schedule::command('hetzner:storage-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
 Schedule::command('hetzner:object-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
