@@ -1053,6 +1053,8 @@ class CloudProvisioner
                     continue;
                 }
 
+                app(AezaLifecycleReview::class)->observe($instance, $r);
+
                 // This driver durably adopts access credentials and the first
                 // supplier due date while reconciling. Do not overwrite those
                 // fields with metadata loaded before that reconciliation.
@@ -1291,6 +1293,11 @@ class CloudProvisioner
         if (! ($info['ok'] ?? false)) {
             $this->retryLater($service, 'وضعیتِ سرور خوانده نشد؛ تلاشِ خودکار ادامه دارد.');
 
+            return false;
+        }
+
+        if (($review = app(AezaLifecycleReview::class)->observe($instance, $info)) !== null) {
+            $service->forceFill(['provision_status' => 'failed', 'provision_error' => $review['message']])->save();
             return false;
         }
 
@@ -2581,6 +2588,9 @@ class CloudProvisioner
     {
         $instance = CloudInstance::where('service_id', $service->id)->first();
 
+        // These states require lifecycle review, not a live-machine cost alert.
+        if (AezaLifecycleReview::forService($service) !== null) { return; }
+
         if ($instance !== null) {
             $meta = (array) ($instance->meta ?? []);
             $meta['suspend_failed_at'] = now()->toIso8601String();
@@ -2720,6 +2730,9 @@ class CloudProvisioner
 
         // A retry may find the previous asynchronous request already completed.
         $actual = $driver->serverStatus((string) $instance->provider_ref);
+        if (app(AezaLifecycleReview::class)->observe($instance, $actual) !== null) {
+            return false;
+        }
         if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
             $instance->update($this->clearLifecyclePending($instance, [
                 'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),
@@ -2751,6 +2764,9 @@ class CloudProvisioner
 
         if ($r['ok'] ?? false) {
             $actual = $driver->serverStatus((string) $instance->provider_ref);
+            if (app(AezaLifecycleReview::class)->observe($instance, $actual) !== null) {
+                return false;
+            }
             if (($actual['ok'] ?? false) && ($actual['status'] ?? null) === $expectStatus) {
                 $instance->update($this->clearLifecyclePending($instance, [
                     'status' => $expectStatus, 'last_error' => null, 'synced_at' => now(),

@@ -78,6 +78,7 @@ class SystemHealth
             ['billing_jobs', 'اجرای تمدید و تعلیق', 'billingJobs'],
             ['cloud_delivery', 'تحویلِ سرورِ ابری', 'undeliveredCloud'],
             ['aeza_control', 'کنترل Aeza', 'aezaControlContract'],
+            ['provider_lifecycle', 'تطبیق وضعیت و سررسید زیرساخت', 'providerLifecycle'],
             ['cloud_release', 'آزادسازیِ سرور', 'cloudRelease'],
             ['cloud_release_untracked', 'حذف‌های خارج از صف', 'untrackedCloudRelease'],
             ['catalogue_price', 'قیمتِ کاتالوگ', 'unsellableCatalogue'],
@@ -835,6 +836,43 @@ class SystemHealth
             'همهٔ پلن‌های '.$names.' قیمتِ صفر دارند، پس از فروشگاه **کاملاً غیب**
              شده‌اند — بی‌هیچ خطایی. معمولاً یعنی نرخِ نوسان یا هزینهٔ تامین‌کننده
              خوانده نشده؛ `fx:dollar` و اتصال تامین‌کننده را بررسی کنید.');
+    }
+
+    /** Cached supplier evidence is separate from the customer's paid-through date. */
+    private function providerLifecycle(): array
+    {
+        $title = 'تطبیق وضعیت و سررسید زیرساخت';
+        if (! Schema::hasTable('services') || ! Schema::hasTable('cloud_instances')) {
+            return $this->row('provider_lifecycle', true, 'ok', $title, 'روی این نصب فعال نیست.');
+        }
+        $services = Service::whereIn('status', ['active', 'suspended'])
+            ->whereHas('cloudInstance', fn ($q) => $q->where('provider', 'aeza'))
+            ->with(['cloudInstance', 'customer:id,code,email'])->get();
+        $issues = collect();
+        foreach ($services as $service) {
+            if ($service->isInternalInfrastructure()) { continue; }
+            $meta = (array) $service->cloudInstance->meta;
+            $reason = data_get($meta, 'provider_lifecycle_review.reason');
+            if (in_array($reason, ['deleted', 'expired'], true)) {
+                $issues->push($service);
+                continue;
+            }
+            $expiresAt = data_get($meta, 'provider_billing_observation.expires_at');
+            if ($service->isHourly() || $service->hasUnverifiedBillingTerms() || ! $service->next_due_at || ! $expiresAt) { continue; }
+            try {
+                $supplierDate = Carbon::parse($expiresAt)->timezone(\App\Services\Billing\RenewalTerms::timezone())->toDateString();
+                if ($supplierDate < $service->next_due_at->toDateString()) { $issues->push($service); }
+            } catch (\Throwable) { $issues->push($service); }
+        }
+        if ($issues->isEmpty()) {
+            return $this->row('provider_lifecycle', true, 'ok', $title,
+                'در مشاهدات ثبت‌شده، حذف/انقضا یا اختلاف سررسید نیازمند بررسی پیدا نشد.');
+        }
+        return $this->row('provider_lifecycle', false, 'fail', $title,
+            fa_num($issues->count()).' سرویس نیازمند بررسی حذف، تمدید یا اختلاف سررسید تأمین‌کننده است: '
+            .$issues->take(self::NAME_LIMIT)->pluck('id')->map(fn ($id) => '#'.fa_num($id))->implode('، ')
+            .'. تاریخ و تعهد مالی مشتری خودکار کوتاه نمی‌شود؛ این مورد به معنی تأیید هزینهٔ جاری نیست.',
+            $this->serviceLinks($issues->take(self::NAME_LIMIT)));
     }
 
     /** Read-only reconciliation: protected or legacy rows must not disappear from monitoring. */

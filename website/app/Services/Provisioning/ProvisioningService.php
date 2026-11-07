@@ -320,7 +320,7 @@ class ProvisioningService
 
             return $ok
                 ? ProvisionResult::success(null, null, null)
-                : ProvisionResult::fail('خاموش‌شدن سرور تأیید نشد؛ تلاش بعدی لازم است.');
+                : $this->cloudLifecycleFailure($service, 'خاموش‌شدن سرور تأیید نشد؛ تلاش بعدی لازم است.');
         }
 
         /*
@@ -354,7 +354,7 @@ class ProvisioningService
 
             return $ok
                 ? ProvisionResult::success(null, null, null)
-                : ProvisionResult::fail('سرور روشن نشد؛ از پنل دستی روشنش کنید.');
+                : $this->cloudLifecycleFailure($service, 'سرور روشن نشد؛ از پنل دستی روشنش کنید.');
         }
 
         if (! $service->server) {
@@ -370,6 +370,13 @@ class ProvisioningService
         }
 
         return $r;
+    }
+
+    private function cloudLifecycleFailure(Service $service, string $fallback): ProvisionResult
+    {
+        $review = \App\Services\Cloud\AezaLifecycleReview::forService($service);
+        return $review === null ? ProvisionResult::fail($fallback)
+            : ProvisionResult::fail($review['message'], ['review' => true, 'reason' => $review['reason']]);
     }
 
     /**
