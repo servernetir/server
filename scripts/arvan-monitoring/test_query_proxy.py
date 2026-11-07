@@ -159,6 +159,31 @@ $s->read($i,(int)$argv[3]);'''
     def test_upstream_http10_eof_body_works(self):
         self.assertEqual(self.upstream(response(length=False))[0], SUCCESS)
 
+    def test_real_prometheus_repeatable_vary_response_is_accepted(self):
+        value = response(extra=b'Vary: Accept-Encoding\r\nVary: Origin\r\n')
+        self.assertEqual(self.upstream(value)[0], SUCCESS)
+        wire = Wire(value)
+        _, fields, _ = NS['headers'](wire, 5, 256, lambda: 1, response_vary=True)
+        self.assertEqual(fields['vary'], 'Accept-Encoding, Origin')
+
+    def test_duplicate_vary_is_never_accepted_on_requests(self):
+        self.assertEqual(self.call(request(extra=b'Vary: Accept-Encoding\r\nVary: Origin\r\n'))[1], [])
+        with self.assertRaises(NS['Refused']):
+            NS['headers'](Wire(request(extra=b'Vary: a\r\nVary: b\r\n')), 5, 16384, lambda: 1)
+
+    def test_vary_does_not_relax_other_duplicate_response_headers(self):
+        for fields in (b'Content-Length: '+str(len(SUCCESS)).encode()+b'\r\n',
+                       b'Content-Type: application/json\r\n',
+                       b'Date: x\r\nDate: x\r\n',
+                       b'Transfer-Encoding: chunked\r\n'):
+            with self.assertRaises(NS['Refused']):
+                self.upstream(response(extra=b'Vary: a\r\nVary: b\r\n'+fields))
+
+    def test_response_vary_has_valid_token_list_and_combined_bound(self):
+        for fields in (b'Vary: \r\n', b'Vary: a/b\r\n', b'Vary: a,,b\r\n',
+                       b'Vary: a\x00b\r\n', b'Vary: '+b'a'*1500+b'\r\nVary: '+b'b'*1500+b'\r\n'):
+            with self.assertRaises(NS['Refused']): self.upstream(response(extra=fields))
+
     def test_redirect_error_and_write_responses_never_forwarded(self):
         for value in (response(status='302 Found', extra=b'Location: http://example.com\r\n'),
                       response(status='500 Internal Server Error'), response(body=b'{"status":"error","error":"SECRET"}'),
@@ -216,3 +241,4 @@ $s->read($i,(int)$argv[3]);'''
 
 if __name__ == '__main__':
     unittest.main()
+
