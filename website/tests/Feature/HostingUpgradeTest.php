@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class HostingUpgradeTest extends TestCase
@@ -121,14 +122,23 @@ class HostingUpgradeTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_paid_whm_upgrade_is_verified_on_the_same_account_and_applied_once(): void
+    public static function whmRegions(): array
+    {
+        return ['Iran' => ['IR', 'iran.example.test'], 'Germany' => ['DE', 'germany.example.test']];
+    }
+
+    #[DataProvider('whmRegions')]
+    public function test_paid_whm_upgrade_is_verified_on_the_same_account_and_applied_once(string $country, string $hostname): void
     {
         [$s, $p] = $this->fixtures();
+        $s->server->update(['country' => $country, 'hostname' => $hostname]);
+        $p->update(['locations' => [$country], 'server_id' => $s->server_id]);
         $u = $this->issue($s, $p);
         $this->pay($u);
         $plan = 'old-plan';
         $mutations = 0;
-        Http::fake(function ($r) use (&$plan, &$mutations) {
+        Http::fake(function ($r) use (&$plan, &$mutations, $hostname) {
+            $this->assertSame($hostname, parse_url($r->url(), PHP_URL_HOST));
             $data = [];
             if (str_contains($r->url(), 'accountsummary')) {
                 $data = ['acct' => [['user' => 'fixtureuser', 'domain' => 'site.example.test', 'suspended' => 0, 'plan' => $plan]]];
@@ -154,7 +164,35 @@ class HostingUpgradeTest extends TestCase
         $this->assertSame(790000, $s->fresh()->price);
         $this->assertSame('2026-12-01', $s->fresh()->next_due_at->toDateString());
         $this->assertSame('fixtureuser', $s->fresh()->username);
+        $this->assertSame($country, $s->fresh()->server->country);
+        $this->assertSame($hostname, $s->fresh()->server->hostname);
         $this->assertSame(1, Service::count());
+    }
+
+    #[DataProvider('whmRegions')]
+    public function test_whm_destination_must_exist_on_the_service_node(string $country, string $hostname): void
+    {
+        [$s, $p] = $this->fixtures();
+        $s->server->update(['country' => $country, 'hostname' => $hostname]);
+        $u = $this->issue($s, $p);
+        $this->pay($u);
+        Http::fake(function ($r) use ($hostname) {
+            $this->assertSame($hostname, parse_url($r->url(), PHP_URL_HOST));
+            $data = match (parse_url($r->url(), PHP_URL_PATH)) {
+                '/json-api/accountsummary' => ['acct' => [['user' => 'fixtureuser', 'domain' => 'site.example.test', 'suspended' => 0, 'plan' => 'old-plan']]],
+                '/json-api/listpkgs' => ['pkg' => [['name' => 'another-plan']]],
+                default => $this->fail('A missing destination must never trigger a package mutation'),
+            };
+
+            return Http::response(['metadata' => ['result' => 1], 'data' => $data]);
+        });
+        app(HostingUpgradeFulfillment::class)->process($u);
+        $this->assertSame('applying', $u->fresh()->status);
+        $this->assertNull($u->fresh()->attempted_at);
+        $this->assertSame('old-plan', $s->fresh()->plan);
+        $this->assertSame('2026-12-01', $s->fresh()->next_due_at->toDateString());
+        Http::assertSentCount(2);
+        Http::assertNotSent(fn ($r) => str_contains($r->url(), 'changepackage'));
     }
 
     public function test_unpaid_and_partial_payment_never_contact_the_panel(): void
