@@ -52,6 +52,16 @@ def response(body=SUCCESS, status='200 OK', extra=b'', length=True):
 
 
 class QueryProxyTest(unittest.TestCase):
+    def test_promql_engine_fixture_uses_actual_canonical_query(self):
+        fixture = json.loads((HERE/'query-union-fixture.json').read_text())
+        checks = fixture['tests'][0]['promql_expr_test']
+        self.assertEqual(checks[0]['expr'], 'count(('+QUERY+'))')
+        self.assertEqual([c['exp_samples'][0]['value'] for c in checks], [10, 1, 1])
+        self.assertTrue(all(QUERY in c['expr'] for c in checks))
+        duplicate = fixture['tests'][1]['promql_expr_test']
+        self.assertEqual([c['exp_samples'][0]['value'] for c in duplicate], [12, 2])
+        self.assertTrue(all(QUERY in c['expr'] for c in duplicate))
+
     def call(self, data, upstream=None):
         wire = Wire(data)
         seen = []

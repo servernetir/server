@@ -68,7 +68,8 @@ def canonical_query(identity):
         expressions.append(selector)
         expressions.append('label_replace(label_replace(timestamp(' + selector + '), "snet_observed_metric", "'
                            + metric + '", "", ""), "snet_observation_kind", "scrape_timestamp", "", "")')
-    query = ' or '.join(expressions)
+    # Default set matching ignores metric names and would collapse raw counters.
+    query = ' or on(__name__, snet_observed_metric, snet_observation_kind) '.join(expressions)
     if len(query) > MAX_QUERY:
         raise Refused()
     return query
