@@ -66,9 +66,24 @@ invalid/stale/future runner records, transport changes during inspection,
 hash-bound history corruption, fresh checks masking stale/preapproval samples,
 and central-failure coalescing without false recovery.
 
-The code correction requires its own CI and bounded two-file CLI deployment.
-Publication is not installation. Keep the private runtime acceptance/approval
-receipts and guarded backups on their original hosts.
+PR280 merged as `30d188078ae6ec037e16ca61d1d7c45bd516b7f4` after all six
+applicable workflows succeeded, including the SQLite/MariaDB Arvan financial
+regression matrix. Both CLI classes were installed separately from publication
+using an independently reviewed installer, exact before/after bytes, private
+backups, native PHP lint and same-directory atomic replacement. No global cache
+flush, FPM restart, finance source or customer power action was required.
+
+The native acceptance at **11:49:33 UTC (15:19:33 Tehran)** reported current
+central transport and a still-observed pilot with two fresh samples. A read-only
+check at **11:51:37 UTC (15:21:37 Tehran)** confirmed the natural watcher's
+11:51:13 UTC attempt signature exactly matched the corrected reader's current
+three-target incident. This is an attempt record, not proof of Bale delivery.
+Private acceptance receipts and guarded backups remain on the original host.
+
+Existing app-console access for a remaining target was attempted, without
+reading a guest password or changing guest access. No guest session was
+established. The provider panel requires an interactive owner login in the
+selected browser; trusted guest access remains a real dependency.
 
 Fleet-wide enrollment, unattended recovery, future delivery gating and supplier
 reconciliation remain unfinished. Existing minimum settlement, wallet exposure
