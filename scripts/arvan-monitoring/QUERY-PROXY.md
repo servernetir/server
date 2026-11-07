@@ -154,3 +154,25 @@ contract remains a separate CI gate. A native read-only check of the corrected
 upstream reader accepted the real Prometheus response (three existing up
 series). This does not establish proxy installation, identity-bound ten-row
 acceptance, private transport approval, two-sample enrollment or fleet coverage.
+
+## Preserve all five metrics in PromQL set union — 7 November 2026
+
+A read-only comparison at the same stored evaluation time returned eight rows
+with default `or`, and ten with explicit matching on `__name__`,
+`snet_observed_metric` and `snet_observation_kind`. Default matching suppressed
+raw TX and boot metrics whose ordinary labels matched earlier branches. PHP and
+the proxy now emit the same explicit set matching; identity selectors, values,
+direct-selector timestamp evidence, response bounds and duplicate-series
+rejection remain unchanged.
+
+The synthetic `query-union-fixture.json` runs through `promtool test rules`.
+Five engine assertions passed against the installed Prometheus3.13.5 tool:
+normal count10, rawTX count1, rawboot count1, and duplicateRX counts12/2.
+Replacing the explicit matching with old default matching failed as expected.
+Fixtures contain synthetic bindings only and used a disposable directory,
+without querying production or changing its rules. The existing PHP adapter
+negative checks still require duplicate_target_or_counter for duplicates.
+
+The Python fixture guard ties these expressions to the actual canonical query;
+the full PHP/Python equality check remains in CI. These query checks do not
+establish installation, transport approval, two fresh samples or fleet coverage.

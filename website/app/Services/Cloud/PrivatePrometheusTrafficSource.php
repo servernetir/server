@@ -84,7 +84,8 @@ final class PrivatePrometheusTrafficSource
                     .self::EVIDENCE_METRIC.'", "'.$metric.'", "", ""), "'.self::EVIDENCE_KIND
                     .'", "scrape_timestamp", "", "")';
             }
-            $query = ['query' => implode(' or ', $expressions), 'time' => (string) $now];
+            // Preserve distinct raw metric names and timestamp evidence in set union.
+            $query = ['query' => implode(' or on(__name__, snet_observed_metric, snet_observation_kind) ', $expressions), 'time' => (string) $now];
             if ($this->unixTransport !== null) {
                 $response = $this->unixTransport->request($query);
             } elseif ($this->transport !== null) {
