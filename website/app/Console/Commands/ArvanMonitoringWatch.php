@@ -25,14 +25,23 @@ final class ArvanMonitoringWatch extends Command
             $path = $directory.'/last-attempt.json';
             $old = is_file($path) ? json_decode(file_get_contents($path), true) : [];
             $bad = $report['issues'] !== [];
-            $signature = hash('sha256', json_encode($report['issues'], JSON_THROW_ON_ERROR));
+            $centralUnavailable = $bad && ($report['central_status'] ?? null) === 'unverified';
+            $signature = hash('sha256', json_encode(['central_status' => $report['central_status'] ?? 'unverified',
+                'central_reason' => $report['central_reason'] ?? null, 'issues' => $report['issues']], JSON_THROW_ON_ERROR));
             $recovered = !$bad && $report['checked'] > 0 && ($old['bad'] ?? false) === true;
             $due = $bad && (($old['signature'] ?? '') !== $signature || time() - ($old['attempted_at'] ?? 0) >= 1800);
             if ($due || $recovered) {
-                $notify->baleEvent($bad ? '⚠️ پایش ترافیک آروان در دسترس نیست' : '✅ پایش ترافیک آروان دوباره برقرار شد',
-                    $bad ? ['سرویس‌ها' => $report['summary'], 'وضعیت' => 'دادهٔ نامعتبر یا قطع پایش، مصرف صفر محسوب نمی‌شود.',
-                        'اقدام' => 'اتصال Node Exporter و جمع‌آورنده را بررسی کنید.']
-                        : ['وضعیت' => 'برای تمام سرورهای در حال اجرا، دادهٔ تازه و منطبق با همان سرور ثبت شده است.'],
+                $title = $centralUnavailable ? '⚠️ اتصال مرکزی پایش ترافیک آروان تأیید نشد'
+                    : ($bad ? '⚠️ پایش ترافیک آروان ناقص است' : '✅ پایش ترافیک آروان دوباره برقرار شد');
+                $rows = $centralUnavailable
+                    ? ['علت' => $report['central_summary'], 'دامنه' => $report['checked'].' سرویس فعال',
+                        'وضعیت' => 'قطع مسیر مرکزی، نبودن عامل روی سرورها یا مصرف صفر را ثابت نمی‌کند.',
+                        'اقدام' => 'اتصال خصوصی و اجرای دقیقه‌ای پایش مرکزی را بررسی کنید.']
+                    : ($bad ? ['سرویس‌ها' => $report['summary'],
+                        'وضعیت' => 'ثبت‌نشدن پایش مرکزی، نبودن Node Exporter را ثابت نمی‌کند؛ مصرف نامعلوم صفر نیست.',
+                        'اقدام' => 'ثبت پایش مرکزی، اتصال جمع‌آورنده و سپس عامل همان سرور را بررسی کنید.']
+                        : ['وضعیت' => 'برای تمام سرورهای در حال اجرا، دادهٔ تازه و منطبق با همان سرور ثبت شده است.']);
+                $notify->baleEvent($title, $rows,
                     'https://console.servernet.cloud/admin/errors');
                 // This records an attempt, not a delivery receipt. Retry an open incident every 30 minutes.
                 File::put($path, json_encode(['bad' => $bad, 'signature' => $signature, 'attempted_at' => time()], JSON_THROW_ON_ERROR));
