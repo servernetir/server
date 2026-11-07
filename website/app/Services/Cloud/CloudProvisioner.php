@@ -63,6 +63,7 @@ class CloudProvisioner
         // Arvan's force delete can remain SOFT_DELETED briefly after HTTP 2xx.
         'arvan' => 15,
         'vpstc' => 30,
+        'lightnode' => 30,
     ];
 
     public function __construct(
@@ -2332,12 +2333,19 @@ class CloudProvisioner
     }
 
     /** خاتمه = حذفِ واقعیِ سرور نزدِ زیرساخت (وگرنه هزینه‌اش را ما می‌دهیم) */
-    public function terminate(Service $service, bool $reportFailure = true): bool
+    public function terminate(Service $service, bool $reportFailure = true, bool $confirmOnly = false): bool
     {
         if ($service->isInternalInfrastructure()) {
             return false;
         }
         $instance = CloudInstance::where('service_id', $service->id)->first();
+
+        // Receipt-only processing never discovers another resource, removes a
+        // gateway or enters another provider's mutation implementation.
+        if ($confirmOnly && (! $service->isDead() || $instance?->provider !== 'lightnode'
+            || blank($instance->provider_ref))) {
+            return false;
+        }
 
         /*
         | ═══ 🔴 «چیزی برای حذف نیست» با «نمی‌دانم چه چیزی را حذف کنم» یکی نیست ═══
@@ -2433,9 +2441,13 @@ class CloudProvisioner
         // اگر بعد از حذف می‌آمد و حذفِ ماشین شکست می‌خورد، این خط اجرا نمی‌شد و
         // پروکسی‌هاست تا ابد می‌مانْد. ترتیب عمدی است: چیزی که رو به اینترنت
         // است زودتر بسته شود.
-        $this->removeWebGateway($instance);
-
-        $r = $driver->deleteServer((string) $instance->provider_ref);
+        if ($confirmOnly) {
+            if (! $driver instanceof LightNodeClient) { return false; }
+            $r = $driver->confirmRelease((string) $instance->provider_ref);
+        } else {
+            $this->removeWebGateway($instance);
+            $r = $driver->deleteServer((string) $instance->provider_ref);
+        }
 
         if ($r['ok'] ?? false) {
             $attributes = $this->clearReleasePending($instance, [
@@ -2445,7 +2457,7 @@ class CloudProvisioner
             // The Arvan driver only returns ok after GET of this exact resource
             // is 404.  Persist that proof so fallback inventory can distinguish
             // verified deletion from legacy rows that may only be SOFT_DELETED.
-            if ($instance->provider === 'arvan') {
+            if (in_array($instance->provider, ['arvan', 'lightnode'], true)) {
                 $attributes['meta']['provider_absence_verified_at'] = now()->toIso8601String();
             }
 
@@ -2460,10 +2472,11 @@ class CloudProvisioner
             $acceptedAt = is_array($pending)
                 ? $this->parseLifecycleAcceptedAt($pending['accepted_at'] ?? null)
                 : null;
+            $acceptedAt ??= $this->parseLifecycleAcceptedAt($r['accepted_at'] ?? null);
             $deadlineMinutes = self::RELEASE_PENDING_DEADLINES[(string) $instance->provider] ?? null;
 
             if ($deadlineMinutes !== null && $acceptedAt?->lte(now()->subMinutes($deadlineMinutes))) {
-                $message = 'حذف اجباری پذیرفته شد، اما نبودن منبع تا پایان مهلت '
+                $message = 'حذف پذیرفته شد، اما نبودن منبع تا پایان مهلت '
                     .$deadlineMinutes.' دقیقه‌ای تأیید نشد.';
                 $meta = (array) $instance->meta;
                 $meta['release_pending'] = [

@@ -403,17 +403,21 @@ class ProvisioningService
      * می‌شود و برچسب عوض می‌شود. پس نیمهٔ «کارِ واقعی» را جدا می‌کنیم تا هر
      * فراخوان وضعیتِ خودش را بنویسد.
      */
-    public function releaseServer(Service $service, bool $reportFailure = true): ProvisionResult
+    public function releaseServer(Service $service, bool $reportFailure = true, bool $confirmOnly = false): ProvisionResult
     {
         if ($service->isInternalInfrastructure()) {
             return ProvisionResult::fail('زیرساخت داخلی از آزادسازی خودکار معاف است.');
+        }
+        if ($confirmOnly && (! $service->isDead() || ! CloudProvisioner::handles($service)
+            || $service->cloudInstance?->provider !== 'lightnode')) {
+            return ProvisionResult::fail('این سرویس رسید حذف قابل تأیید ندارد.');
         }
         // خاتمهٔ سرورِ ابری = حذفِ واقعی نزدِ زیرساخت. اگر نکنیم، اجارهٔ سروری را
         // می‌دهیم که هیچ‌کس پولش را نمی‌دهد.
         if (CloudProvisioner::handles($service)) {
             $cloud = app(CloudProvisioner::class);
 
-            if (! $cloud->terminate($service, $reportFailure)) {
+            if (! $cloud->terminate($service, $reportFailure, $confirmOnly)) {
                 // Arvan accepted force deletion, but its exact resource still
                 // exists (normally SOFT_DELETED).  Keep the retry queue open
                 // without calling it a provider failure or alerting twice; a
@@ -525,10 +529,15 @@ class ProvisioningService
      * حسابِ cPanel واقعاً هنوز هست و ظرفیتِ آن سرور واقعاً مصرف است.
      * `releaseServer()` آن decrement را با نوشتنِ `none` جفت کرده؛ جدا نکن.
      */
-    public function releaseAndTrack(Service $service): ProvisionResult
+    public function releaseAndTrack(Service $service, bool $confirmOnly = false): ProvisionResult
     {
         if ($service->isInternalInfrastructure()) {
             return ProvisionResult::fail('زیرساخت داخلی از آزادسازی صورتحساب معاف است.');
+        }
+        if ($confirmOnly && (! $service->isDead()
+            || $service->provision_status !== Service::PROVISION_RELEASING
+            || ! CloudProvisioner::handles($service) || $service->cloudInstance?->provider !== 'lightnode')) {
+            return ProvisionResult::fail('این سرویس رسید حذف قابل تأیید ندارد.');
         }
         /*
         | ⚠️ «این حساب در ظرفیتِ سرور شمرده شده بود» را **پیش از** اولین تلاش
@@ -549,7 +558,7 @@ class ProvisioningService
 
         try {
             // This wrapper records the attempt and emits its alert once, with the provider reason.
-            $r = $this->releaseServer($service, reportFailure: false);
+            $r = $this->releaseServer($service, reportFailure: false, confirmOnly: $confirmOnly);
         } catch (\Throwable $e) {
             ErrorTracker::note('provision', $e, ['area' => 'release', 'service' => $service->id]);
             $r = ProvisionResult::fail(mb_substr($e->getMessage(), 0, 200));

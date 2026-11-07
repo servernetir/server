@@ -36,7 +36,8 @@ use Illuminate\Support\Facades\Schema;
  */
 class CloudReleaseRetry extends Command
 {
-    protected $signature = 'cloud:release-retry {--limit=25}';
+    protected $signature = 'cloud:release-retry {--limit=25}
+        {--confirm-pending : فقط تأیید خواندنی رسیدهای حذف پذیرفته‌شده؛ بدون ارسال فرمان حذف}';
 
     protected $description = 'تلاشِ دوبارهٔ حذفِ سرورهایی که خاتمه‌شان نزدِ زیرساخت تأیید نشده';
 
@@ -46,8 +47,12 @@ class CloudReleaseRetry extends Command
             return self::SUCCESS;
         }
 
-        $rows = Service::query()
-            ->awaitingRelease()
+        $confirmOnly = (bool) $this->option('confirm-pending');
+        $rows = Service::query()->awaitingRelease()
+            ->when($confirmOnly, fn ($q) => $q->whereHas('cloudInstance', fn ($i) => $i
+                ->where('provider', 'lightnode')
+                ->whereNotNull('meta->release_pending->accepted_at')
+                ->whereNull('meta->release_pending->timed_out_at')))
             ->orderBy('id')
             ->limit(max(1, (int) $this->option('limit')))
             ->get();
@@ -62,14 +67,15 @@ class CloudReleaseRetry extends Command
         $still = 0;
 
         foreach ($rows as $service) {
-            $r = $prov->releaseAndTrack($service);
+            $r = $prov->releaseAndTrack($service, confirmOnly: $confirmOnly);
 
             if ($r->ok || $r->manual) {
                 $done++;
 
                 try {
                     ActivityLog::forService($service, 'terminate',
-                        'حذفِ سرور نزدِ زیرساخت در تلاشِ دوبارهٔ خودکار انجام شد', 'system');
+                        $confirmOnly ? 'رسید حذف و نبود منبع در بررسی خواندنی خودکار تأیید شد'
+                            : 'حذفِ سرور نزدِ زیرساخت در تلاشِ دوبارهٔ خودکار انجام شد', 'system');
                 } catch (\Throwable) {
                 }
 

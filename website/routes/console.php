@@ -467,6 +467,11 @@ Schedule::command('cloud:release-retry')
     ->hourly()
     ->withoutOverlapping(30);
 
+// Accepted LightNode deletions are receipt/inventory reads, never another DELETE.
+Schedule::command('cloud:release-retry --confirm-pending --limit=25')
+    ->everyMinute()
+    ->withoutOverlapping(5);
+
 // کاتالوگ و قیمتِ سرورِ ابری — کارفرما: «هر دو روز یک‌بار، ۲ شب، هم قیمت هم
 // پکیج‌ها».
 //
