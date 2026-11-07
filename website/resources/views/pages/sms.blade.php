@@ -1,0 +1,21 @@
+@extends('layouts.site')
+@section('title', __('sms.meta_title'))
+@section('description', __('sms.meta_description'))
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/sms-resale.css') }}">
+@endpush
+@section('content')
+@php
+$smsLabels = ['parts'=>__('sms.parts_label'),'recommended'=>__('sms.recommended'),'invalid'=>__('sms.invalid_input'),'currency'=>__('sms.toman')];
+@endphp
+<main class="sms-product" data-sms-calculator>
+  <section class="sms-hero"><div><p class="sms-eyebrow">SERVERNET / CLOUD COMMUNICATIONS</p><h1>{{ __('sms.hero') }}</h1><p class="sms-lead">{{ __('sms.intro') }}</p><div class="sms-actions"><a class="sms-button" href="#sms-plans">{{ __('sms.choose') }}</a><a class="sms-link" href="{{ console_lroute('account.sms') }}">{{ __('sms.my_panel') }} ↗</a></div><p class="sms-fine">{{ __('sms.iran_only') }}</p></div><aside class="sms-message" aria-label="{{ __('sms.preview') }}"><span>SERVERNET SMS</span><p>{{ __('sms.message_preview') }}</p><strong dir="ltr">846 219</strong><small>{{ __('sms.message_hint') }}</small></aside></section>
+  <section class="sms-section" id="sms-plans"><p class="sms-eyebrow">{{ __('sms.plans') }}</p><h2>{{ __('sms.plan_heading') }}</h2><p>{{ __('sms.price_explanation') }}</p><div class="sms-plans">
+  @foreach($plans as $plan)<article class="sms-plan {{ $plan['key']==='growth'?'sms-plan-featured':'' }}"><h3>{{ __('sms.plan_'.$plan['key']) }}</h3><p>{{ __('sms.use_'.$plan['key']) }}</p><div class="sms-price"><b>{{ number_format($plan['first_irt']) }}</b> {{ __('sms.toman') }}</div><small>{{ __('sms.first_year') }}</small><dl><div><dt>{{ __('sms.renewal') }}</dt><dd>{{ number_format($plan['renew_irt']) }} {{ __('sms.toman') }}</dd></div><div><dt>{{ $plan['available']?__('sms.base_rate'):__('sms.proposed_rate') }}</dt><dd>{{ number_format($plan['rate_irr']/10, 1) }} {{ __('sms.toman') }}</dd></div></dl>@if($plan['available'])<a class="sms-button" href="{{ console_lroute('account.sms') }}?plan={{ $plan['key'] }}">{{ __('sms.choose') }}</a>@else<p class="sms-status">{{ __('sms.unavailable') }}</p>@endif</article>@endforeach
+  </div><p class="sms-fine">{{ __('sms.credit_separate') }} {{ __('sms.initial_topup') }} {{ __('sms.extras') }}</p></section>
+  <section class="sms-section sms-estimator" aria-labelledby="sms-estimator-title"><div><p class="sms-eyebrow">{{ __('sms.estimator') }}</p><h2 id="sms-estimator-title">{{ __('sms.estimator_title') }}</h2><p>{{ __('sms.estimate_note') }}</p><label>{{ __('sms.message') }}<textarea rows="3" maxlength="2000" data-sms-text>{{ __('sms.default_message') }}</textarea></label><label>{{ __('sms.monthly_recipients') }}<input data-sms-count type="number" min="0" max="1000000" step="1" value="2000" inputmode="numeric"></label></div><div><p data-sms-error role="alert"></p><p data-sms-parts aria-live="polite"></p><div class="sms-table"><table><thead><tr><th>{{ __('sms.plans') }}</th><th>{{ __('sms.annual_estimate') }}</th></tr></thead><tbody>@foreach($plans as $plan)<tr data-sms-estimate="{{ $plan['key'] }}" data-rate-irr="{{ $plan['rate_irr'] }}" data-first-irt="{{ $plan['first_irt'] }}"><td>{{ __('sms.plan_'.$plan['key']) }}</td><td data-sms-total>—</td></tr>@endforeach</tbody></table></div><p data-sms-recommendation aria-live="polite"></p></div></section>
+  <section class="sms-section"><h2>{{ __('sms.how') }}</h2><ol class="sms-steps">@foreach([1,2,3,4] as $step)<li><strong>{{ __('sms.step_'.$step) }}</strong><p>{{ __('sms.step_'.$step.'_body') }}</p></li>@endforeach</ol></section>
+  <section class="sms-section"><h2>{{ __('sms.faq') }}</h2>@foreach([1,2,3,4] as $i)<details><summary>{{ __('sms.faq_'.$i) }}</summary><p>{{ __('sms.answer_'.$i) }}</p></details>@endforeach</section>
+  <script type="application/json" data-sms-labels>@json($smsLabels)</script>
+</main><script defer src="{{ asset_ver('assets/js/sms-resale.js') }}"></script>
+@endsection

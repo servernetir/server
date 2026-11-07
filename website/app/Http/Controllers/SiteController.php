@@ -600,6 +600,7 @@ class SiteController extends Controller
 
         $add('ai.home');
         $add('identity.home');
+        $add('sms.home');
         $add('identity.docs');
         $add('identity.terms');
         $add('ai.models');
@@ -658,3 +659,5 @@ class SiteController extends Controller
         return $out;
     }
 }
+
+

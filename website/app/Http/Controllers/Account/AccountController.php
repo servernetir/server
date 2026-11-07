@@ -175,6 +175,7 @@ class AccountController extends Controller
                         ? [['key' => 'dns', 'icon' => 'link', 'label' => __('dns.nav'), 'url' => lroute('account.dns')]]
                         : []),
                     // [managed-dns:end]
+                    ['key' => 'sms', 'icon' => 'mail', 'label' => __('sms.title'), 'url' => lroute('account.sms')],
                     ['key' => 'other', 'icon' => 'wrench', 'label' => __('ui.nav_other_services'), 'url' => lroute('account.other')],
                 ]],
                 /*
@@ -216,3 +217,5 @@ class AccountController extends Controller
         ];
     }
 }
+
+

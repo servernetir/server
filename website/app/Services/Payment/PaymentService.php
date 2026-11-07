@@ -322,7 +322,8 @@ class PaymentService
                         // هر مسیرِ تحویلِ تازه‌ای که اضافه شد، باید **هر سه جا** به‌روز
                         // شود: همین شرط، UPDATEِ خامِ داخلِ catch پایین، و پرس‌وجوی
                         // کرون در RunProvisioning.
-                        $autoDelivered = $service->server_id !== null || $service->isCloud();
+                        $autoDelivered = $service->server_id !== null || $service->isCloud()
+                            || \App\Services\SmsResale\Provisioner::handles($service);
 
                         /*
                         | 🔴 چهارمین بار به همان تله: **لایسنس**.
@@ -463,7 +464,7 @@ class PaymentService
                             $hasCloud = Schema::hasColumn('services', 'cloud_plan_id');
 
                             $base()->where(function ($q) use ($hasCloud) {
-                                $q->whereNotNull('server_id');
+                                $q->whereNotNull('server_id')->orWhere('plan', 'like', 'sms:%');
 
                                 if ($hasCloud) {
                                     $q->orWhereNotNull('cloud_plan_id');
@@ -472,7 +473,7 @@ class PaymentService
                                 'status' => 'awaiting_provision', 'provision_status' => 'pending', 'updated_at' => now(),
                             ]);
 
-                            $manual = $base()->whereNull('server_id');
+                            $manual = $base()->whereNull('server_id')->where(fn ($q) => $q->whereNull('plan')->orWhere('plan', 'not like', 'sms:%'));
 
                             if ($hasCloud) {
                                 $manual->whereNull('cloud_plan_id');
@@ -775,3 +776,5 @@ final readonly class SettleOutcome
         public bool $canceled = false,
     ) {}
 }
+
+

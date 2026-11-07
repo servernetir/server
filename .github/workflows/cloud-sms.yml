@@ -1,0 +1,87 @@
+name: Cloud SMS checks
+on:
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/**'
+      - '.github/workflows/cloud-sms.yml'
+permissions:
+  contents: read
+concurrency:
+  group: cloud-sms-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  sms:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Locked dependencies, no application install scripts
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Lint SMS and integration files
+        run: |
+          set -euo pipefail
+          for file in website/app/Services/SmsResale/*.php website/app/Http/Controllers/{Account,Admin}/SmsController.php website/app/Http/Controllers/SmsStorefrontController.php website/app/Models/SmsSubscription.php website/app/Console/Commands/SyncSmsSubscriptions.php website/config/sms_resale.php website/routes/sms-*.php website/database/migrations/2026_11_03_160000_create_sms_subscriptions_table.php website/lang/{fa,en,tr}/sms.php; do php -l "$file"; done
+          php -l website/routes/web.php
+          php -l website/app/Services/Payment/PaymentService.php
+          php -l website/app/Services/Provisioning/ProvisioningService.php
+      - name: Isolated financial, identity, delivery and page tests
+        working-directory: website
+        env:
+          SMS_UI_PREVIEW_DIR: /tmp/sms-ui-preview
+        run: vendor/bin/phpunit tests/Feature/SmsResaleTest.php
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: SMS segment boundaries
+        working-directory: website
+        run: node --test tests/js/sms-resale.test.cjs
+      - name: Browser verification of actual SMS Blade components
+        env:
+          SMS_UI_PREVIEW_DIR: /tmp/sms-ui-preview
+          SMS_PLAYWRIGHT_MODULE: /tmp/sms-browser/node_modules/playwright
+        run: |
+          npm install --prefix /tmp/sms-browser --ignore-scripts --no-audit --no-fund playwright@1.56.1
+          /tmp/sms-browser/node_modules/.bin/playwright install chromium
+          node website/tests/js/sms-resale-browser.cjs
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: sms-baseline
+          persist-credentials: false
+      - name: Compare existing StoreOrderTest with clean base
+        run: |
+          set -euo pipefail
+          cd sms-baseline/website
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          set +e
+          vendor/bin/phpunit tests/Feature/StoreOrderTest.php --log-junit /tmp/store-baseline.xml
+          baseline_exit=$?
+          cd ../../website
+          vendor/bin/phpunit tests/Feature/StoreOrderTest.php --log-junit /tmp/store-current.xml
+          current_exit=$?
+          set -e
+          echo "StoreOrderTest baseline exit: $baseline_exit; current exit: $current_exit"
+          python3 tests/compare-sms-store-baseline.py /tmp/store-baseline.xml /tmp/store-current.xml
+      - name: Keep synthetic rendered pages
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sms-synthetic-pages
+          path: /tmp/sms-ui-preview
+          if-no-files-found: warn
+          retention-days: 7
