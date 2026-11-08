@@ -1,6 +1,23 @@
 <?php
 
 return [
+'restricted' => [
+    'title' => 'Iran VPS | Identity Verification & Selection Guide | ServerNet',
+    'description' => 'Plan an Iran VPS deployment with guidance on network testing and application resources. Viewing Iran plans and ordering requires an identity-verified account. Contact support for verification guidance.',
+    'intro' => 'For an application serving users in Iran, test user network routes, database connectivity and your independent backup plan. Viewing plans and ordering services hosted in Iran requires sign-in and identity verification.',
+    'heading' => 'Access Iran plans after identity verification',
+    'access_note' => 'Sign in with an identity-verified account to review available plans and prices when capacity is available. Capacity, specifications and the final amount are checked again during ordering.',
+    'faq' => [
+        ['q' => 'Who can view and order Iran VPS plans?',
+         'a' => 'Services hosted in Iran are currently available only to identity-verified customers. Sign in with a verified account; contact support for guidance on identity verification.'],
+        ['q' => 'Where can I check Iran VPS prices and capacity?',
+         'a' => 'After signing in with an identity-verified account, available plans and prices are shown from the current catalogue. Capacity can change; stock, specifications and the final amount are checked again during ordering.'],
+        ['q' => 'Does a server in Iran always have low latency?',
+         'a' => 'No. Operator routes, test time and user locations affect latency. Test network and application response times from actual user connections and to application dependencies. We do not publish a guaranteed latency figure.'],
+        ['q' => 'What should I establish before choosing an Iran VPS?',
+         'a' => 'Establish CPU and RAM load, disk space, traffic, compatible operating systems and a backup plan. After verification, compare these needs with the selected plan; do not assume every plan has the same features.'],
+    ],
+],
 'hourly_title' => 'Hourly :country VPS or monthly billing?',
 'hourly_text' => 'For plans with an hourly option, compare the hourly rate and monthly price in this page’s table. Hourly resource cost uses the selected plan’s rate; also check traffic, power-off and deletion terms before ordering.',
 'hourly_link' => 'Hourly VPS cost calculator and billing guide',

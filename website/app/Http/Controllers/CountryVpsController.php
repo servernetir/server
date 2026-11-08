@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\CloudLocation;
 use App\Services\Cloud\CountryLandingSeo;
+use App\Services\Cloud\CountryVpsEligibility;
 use App\Services\Cloud\PublicVpsCatalog;
+use App\Services\Customer\IranSalesVisibility;
 use Illuminate\View\View;
 
 class CountryVpsController extends Controller
@@ -14,6 +16,11 @@ class CountryVpsController extends Controller
         abort_unless(isset(CloudLocation::COUNTRIES[$iso]) && $iso !== 'XX', 404);
 
         $rows = app(PublicVpsCatalog::class)->rows($iso);
+        $catalogRestricted = $iso === 'IR' && IranSalesVisibility::restricted();
+        // An access-restricted Iran landing is still useful public guidance.
+        // Only genuine stock can make this empty-row exception indexable.
+        $indexable = $rows !== [] || ($catalogRestricted
+            && isset(app(CountryVpsEligibility::class)->countries()[$iso]));
         $url = \App\Services\Cloud\CloudCountry::url($iso);
         $country = CloudLocation::COUNTRIES[$iso][app()->getLocale()] ?? CloudLocation::COUNTRIES[$iso]['en'];
         $items = [];
@@ -35,7 +42,9 @@ class CountryVpsController extends Controller
             'country' => $country,
             'flag' => CloudLocation::COUNTRIES[$iso]['flag'],
             'flag_svg' => CloudLocation::flagSvgFor($iso),
-            'seo' => app(CountryLandingSeo::class)->content($iso),
+            'seo' => app(CountryLandingSeo::class)->content($iso, catalogRestricted: $catalogRestricted),
+            'catalogRestricted' => $catalogRestricted,
+            'indexable' => $indexable,
             'vpsRows' => $rows,
             'ld' => [
                 'list' => ['itemListElement' => $items],

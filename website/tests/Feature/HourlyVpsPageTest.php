@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Http\Controllers\HourlyVpsController;
 use App\Models\CloudLocation;
 use App\Models\CloudPlan;
+use App\Models\Setting;
 use App\Services\Cloud\CountryLandingSeo;
 use App\Services\Cloud\CloudPricingSnapshot;
+use App\Services\Customer\IranSalesGate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -231,6 +233,9 @@ class HourlyVpsPageTest extends TestCase
 
     public function test_key_vps_and_domain_pages_carry_transactional_titles(): void
     {
+        // Transactional metadata is for the publicly open catalogue. The
+        // default restricted Iran landing has its own verified-access copy.
+        Setting::put(IranSalesGate::SETTING, '1');
         $this->assertMatchesRegularExpression('~<title>خرید سرور مجازی ایران~u', $this->get('/vps/iran')->getContent());
         $this->assertMatchesRegularExpression('~<title>خرید سرور مجازی آلمان~u', $this->get('/vps/germany')->getContent());
         $this->assertMatchesRegularExpression('~<title>خرید سرور مجازی \(VPS\)~u', $this->get('/cloud')->getContent());
@@ -240,6 +245,7 @@ class HourlyVpsPageTest extends TestCase
 
     public function test_seo_description_wins_over_hero_copy_on_product_pages(): void
     {
+        Setting::put(IranSalesGate::SETTING, '1');
         $html = $this->get('/vps/iran')->getContent();
 
         $description = app(CountryLandingSeo::class)->content('IR')['description'];
