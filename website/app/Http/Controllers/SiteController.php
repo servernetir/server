@@ -564,31 +564,11 @@ class SiteController extends Controller
         // سرورِ گرافیکی — خطِ محصولِ مستقل، روتِ صریح
         $add('gpu');
 
-        $globallyAvailableVpsCountries = [];
-        if (\Illuminate\Support\Facades\Schema::hasTable('cloud_locations')
-            && \Illuminate\Support\Facades\Schema::hasTable('cloud_plans')) {
-            // XML describes global stock, independently of the current visitor's
-            // Iran visibility. A raw sellable row is insufficient: bare metal,
-            // GPU locations and unusable monthly quotes are not VPS shelves.
-            $monthlyQuotes = app(\App\Services\Cloud\CloudPublicQuote::class);
-            $sellableLocs = \App\Models\CloudPlan::query()->sellable()->get()
-                ->filter(fn (\App\Models\CloudPlan $plan) => ! $plan->isMetal()
-                    && $monthlyQuotes->monthlyPrice($plan) > 0)
-                ->pluck('location_code')->unique()->all();
-            foreach (\App\Models\CloudLocation::where('is_active', true)
-                ->whereIn('code', $sellableLocs)->get(['code', 'country']) as $location) {
-                if (\App\Models\CloudLocation::isGpuCode((string) $location->code)) {
-                    continue;
-                }
-                $iso = strtoupper(trim((string) $location->country));
-                $slug = \App\Services\Cloud\CloudCountry::marketingSlug($iso);
-                if ($slug !== null) {
-                    $globallyAvailableVpsCountries[$iso] = true;
-                    // Legacy city/product codes still lead to their country;
-                    // only the canonical country URL is emitted.
-                    $add('catalog', ['category' => 'vps', 'slug' => $slug]);
-                }
-            }
+        $globallyAvailableVpsCountries = app(\App\Services\Cloud\CountryVpsEligibility::class)->countries();
+        foreach (array_keys($globallyAvailableVpsCountries) as $iso) {
+            // Legacy city/product codes still lead to their country;
+            // only the canonical country URL is emitted.
+            $add('catalog', ['category' => 'vps', 'slug' => \App\Services\Cloud\CloudCountry::marketingSlug($iso)]);
         }
         $add('blog.index');
 

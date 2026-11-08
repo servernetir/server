@@ -1,6 +1,23 @@
 <?php
 
 return [
+'restricted' => [
+    'title' => 'İran VPS | Kimlik Doğrulama ve Seçim Rehberi | ServerNet',
+    'description' => 'İran VPS seçimi için ağ testi ve uygulama kaynakları rehberi. İran planlarını görüntülemek ve sipariş vermek için kimliği doğrulanmış hesap gerekir. Doğrulama konusunda destekle iletişime geçin.',
+    'intro' => 'İran’daki kullanıcılara hizmet veren bir uygulama için kullanıcı ağ rotalarını, veritabanı bağlantısını ve bağımsız yedekleme planınızı inceleyin. İran’da barındırılan hizmetlerin planlarını görüntülemek ve sipariş vermek için giriş ve kimlik doğrulama gerekir.',
+    'heading' => 'Kimlik doğrulamasından sonra İran planlarına erişin',
+    'access_note' => 'Kapasite varsa sunulan planları ve fiyatları incelemek için kimliği doğrulanmış hesabınızla giriş yapın. Kapasite, özellikler ve son tutar sipariş sırasında yeniden kontrol edilir.',
+    'faq' => [
+        ['q' => 'İran VPS planlarını kimler görüntüleyebilir ve sipariş verebilir?',
+         'a' => 'İran’da barındırılan hizmetler şu anda yalnızca kimliği doğrulanmış müşterilere açıktır. Doğrulanmış hesabınızla giriş yapın; kimlik doğrulama konusunda destekle iletişime geçin.'],
+        ['q' => 'İran VPS fiyatlarını ve kapasitesini nereden kontrol edebilirim?',
+         'a' => 'Kimliği doğrulanmış hesabınızla giriş yaptıktan sonra sunulan planlar ve fiyatları güncel katalogdan gösterilir. Kapasite değişebilir; stok, özellikler ve son tutar sipariş sırasında yeniden kontrol edilir.'],
+        ['q' => 'İran’daki bir sunucu her zaman düşük gecikme sağlar mı?',
+         'a' => 'Hayır. Operatör rotaları, test saati ve kullanıcı konumları gecikmeyi etkiler. Ağ ve uygulama yanıt süresini gerçek kullanıcı bağlantılarından ve uygulamanın bağlı olduğu hizmetlere kadar ölçün. Garantili bir gecikme değeri yayımlamıyoruz.'],
+        ['q' => 'İran VPS seçmeden önce hangi ihtiyaçları belirlemeliyim?',
+         'a' => 'CPU ve RAM yükünü, disk alanını, trafiği, uyumlu işletim sistemlerini ve yedekleme planını belirleyin. Doğrulamadan sonra bu ihtiyaçları seçilen planın özellikleriyle karşılaştırın; her planın aynı özelliklere sahip olduğunu varsaymayın.'],
+    ],
+],
 'hourly_title' => 'Saatlik :country VPS mi aylık ödeme mi?',
 'hourly_text' => 'Saatlik seçeneği olan planların saatlik ve aylık fiyatlarını bu sayfadaki tabloda karşılaştırın. Kaynak maliyeti seçilen planın saatlik ücretiyle hesaplanır; siparişten önce trafik, kapatma ve silme koşullarını da inceleyin.',
 'hourly_link' => 'Saatlik VPS maliyet hesaplayıcı ve ödeme rehberi',

@@ -2,7 +2,7 @@
 @section('title', $seo['title'])
 @section('description', $seo['description'])
 @php $hasHourlyPlans = collect($vpsRows)->contains(fn (array $row) => !empty($row['hourly_url'])); @endphp
-@if(!$vpsRows)
+@if(!$indexable)
 @section('noindex', 'y')
 @endif
 @section('content')

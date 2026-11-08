@@ -10,6 +10,14 @@
 @endpush
 @endonce
 <div class="vpsc-catalog" data-vps-catalog>
+  @if($catalogRestricted ?? false)
+  <div class="vpsc-info" data-vps-access-notice>
+    <h2>{{ __('country-seo.restricted.heading') }}</h2>
+    <p>{{ __('ui.iran_gate_blocked') }}</p>
+    <p>{{ __('country-seo.restricted.access_note') }}</p>
+    <p><a class="btn btn-primary" href="{{ lroute('login') }}">{{ __('ui.auth_do_login') }}</a> <a class="btn btn-glass" href="{{ lroute('contact') }}">{{ __('ui.nav_contact') }}</a></p>
+  </div>
+  @else
   <div class="section-head"><span class="badge">{{ __('vps-catalog.live') }}</span><h2>{{ __('vps-catalog.plans') }}</h2><p>{{ __('vps-catalog.intro') }}</p></div>
   @if($vpsRows)
   <form class="vpsc-filters" data-vps-filters role="search">
@@ -41,4 +49,5 @@
   <button type="button" class="btn btn-glass vpsc-more" data-vps-more hidden>{{ __('vps-catalog.more') }}</button>
   <p class="vpsc-footnote">{{ __('vps-catalog.tax_note') }}</p>
   @else<p class="vpsc-empty">{{ __('vps-catalog.unavailable') }}</p>@endif
+  @endif
 </div>
