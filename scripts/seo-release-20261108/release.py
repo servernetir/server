@@ -170,6 +170,11 @@ def validate_payload(payload: dict):
             insist(row['source'] == 'app/Services/PublicPageStyles.php'
                    and sha(row['absent_dependency_content'].encode()) == row['reviewed_tree_sha256'],
                    'absent_dependency_scope_invalid')
+        if 'reviewed_before_sha256' in row or 'reviewed_after_sha256' in row:
+            insist(row['kind'] == 'patch' and row['source'] == 'resources/views/pages/hosting.blade.php'
+                   and re.fullmatch('[0-9a-f]{64}', row.get('reviewed_before_sha256', ''))
+                   and re.fullmatch('[0-9a-f]{64}', row.get('reviewed_after_sha256', '')),
+                   'reviewed_preimage_override_scope_invalid')
 
 
 @contextlib.contextmanager
@@ -404,6 +409,9 @@ def run(home: Path, stage: Path, payload: dict, payload_sha: str, phase: str,
                 before = signature(target)
                 insist(before is None or before['uid'] == uid, 'source_owner_invalid:' + spec['source'])
                 data = target.read_bytes() if before is not None else None
+                if 'reviewed_before_sha256' in spec:
+                    insist(before is not None and before['sha256'] == spec['reviewed_before_sha256'],
+                           'reviewed_preimage_drift:' + spec['source'])
                 if spec['kind'] == 'new':
                     desired = spec['content'].encode()
                     insist(data is None or normalized(data)[0] == desired,
@@ -418,6 +426,9 @@ def run(home: Path, stage: Path, payload: dict, payload_sha: str, phase: str,
                             candidate, applied, present = apply_hunks(data, spec['hunks'])
                         except Stop as error:
                             raise Stop(str(error) + ':' + spec['source']) from error
+                if 'reviewed_after_sha256' in spec:
+                    insist(sha(candidate) == spec['reviewed_after_sha256'],
+                           'reviewed_candidate_drift:' + spec['source'])
                 backup = 'before/' + str(index)
                 saved = 'candidate/' + str(index)
                 if data is not None:

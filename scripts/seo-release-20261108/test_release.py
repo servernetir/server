@@ -59,6 +59,16 @@ class HunkTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(core.Stop):
                 core.apply_hunks(value, [{'old': 'old', 'new': 'new'}])
 
+    def test_hosting_prefix_insertion_preserves_interleaved_iran_sales_restriction(self):
+        prefix = "@extends('layouts.site')\n\n@php\n"
+        restriction = "  $countryIso = 'IR';\n  $iranPurchaseRestricted = true;\n  $countrySeo = null;\n"
+        addition = "  $hostingSeo = trans('hosting-seo.linux');\n"
+        before = (prefix + restriction).encode()
+        result, applied, present = core.apply_hunks(before, [{'old': prefix, 'new': prefix + addition}])
+        self.assertEqual(result, (prefix + addition + restriction).encode())
+        self.assertEqual((applied, present), ([0], []))
+        self.assertEqual(core.apply_hunks(result, [{'old': prefix, 'new': prefix + addition}]), (result, [], [0]))
+
 
 class ReleaseFixture(unittest.TestCase):
     def setUp(self):
@@ -175,6 +185,47 @@ class ReleaseFixture(unittest.TestCase):
         self.run_phase('apply')
         self.assertTrue((self.home / css['destination']).is_file())
         self.assertFalse((self.home / 'servernet_app/public/assets/css/tool-next-step.css').exists())
+
+    def reviewed_hosting_row(self):
+        row = next(row for row in self.payload['files']
+                   if row['source'] == 'resources/views/pages/hosting.blade.php')
+        row['reviewed_before_sha256'] = row['curated_before_sha256']
+        row['reviewed_after_sha256'] = row['curated_after_sha256']
+        return row
+
+    def test_reviewed_hosting_override_requires_exact_preimage_and_candidate(self):
+        row = self.reviewed_hosting_row()
+        self.preview()
+        self.run_phase('apply')
+        self.assertEqual(core.sha((self.home / row['destination']).read_bytes()), row['reviewed_after_sha256'])
+        self.run_phase('rollback')
+        self.assert_baseline()
+
+    def test_reviewed_hosting_preimage_rejects_even_unrelated_later_edit(self):
+        row = self.reviewed_hosting_row()
+        target = self.home / row['destination']
+        target.write_bytes(target.read_bytes() + b'\nindependent later work outside the hunk\n')
+        before = self.application_state()
+        with self.assertRaisesRegex(core.Stop, 'reviewed_preimage_drift:resources/views/pages/hosting.blade.php'):
+            self.preview()
+        self.assertEqual(self.application_state(), before)
+        self.assertFalse((self.stage / 'intent.json').exists())
+
+    def test_reviewed_hosting_candidate_hash_mismatch_stops_preview(self):
+        row = self.reviewed_hosting_row()
+        row['reviewed_after_sha256'] = '0' * 64
+        before = self.application_state()
+        with self.assertRaisesRegex(core.Stop, 'reviewed_candidate_drift:resources/views/pages/hosting.blade.php'):
+            self.preview()
+        self.assertEqual(self.application_state(), before)
+
+    def test_reviewed_preimage_override_cannot_expand_to_other_source(self):
+        row = next(row for row in self.payload['files'] if row['source'] == 'config/hosting.php')
+        row['reviewed_before_sha256'] = row['curated_before_sha256']
+        row['reviewed_after_sha256'] = row['curated_after_sha256']
+        with self.assertRaisesRegex(core.Stop, 'reviewed_preimage_override_scope_invalid'):
+            self.preview()
+        self.assert_baseline()
 
     def test_live_crlf_and_unrelated_support_copy_survive_installation(self):
         source = 'resources/views/pages/gpu.blade.php'

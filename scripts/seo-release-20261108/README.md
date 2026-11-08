@@ -7,6 +7,26 @@ Existing files receive coalesced, unique old/new hunks; no complete target
 snapshot replaces an existing shared file. The route payload adds only the
 approved alias, preserving other live routes and sitemap changes.
 
+The alternate `payload-live-v2.json` reconciles one observed hosting-view drift.
+Its deterministic builder is `reconcile_hosting.py`; it requires the exact
+original payload hash and captured live SHA-256
+`dd2ab08e4d305016c28ea3e367964a3aa171cb3647bc880f41794d1de19d6f1d`.
+Only hosting hunk 0 is reanchored to the unique opening Blade/PHP prefix, so the
+live Iran purchase restriction between country variables remains unchanged.
+The other seven hosting hunks and other 33 file rows remain identical. Preview
+requires the exact reviewed hosting preimage and candidate hashes; the generic
+unique-hunk guard is unchanged. `hosting-reconciliation-v2.json` records the
+scope and reverse-byte proof without storing the full live template.
+
+```sh
+python3 scripts/seo-release-20261108/reconcile_hosting.py --live-source /private/path/live-hosting.blade.php
+```
+
+Use the alternate payload and its printed SHA with the current helper for this
+reviewed live state. The original payload remains a historical artifact bound
+to its original helper; do not regenerate or silently replace it when building
+this exact-preimage reconciliation.
+
 `build_payload.py` operates offline against fixed full Git hashes. It replays
 only those commit deltas, then proves baseline-to-candidate reconstruction.
 `payload.json` binds source/reference hashes and the two execution helper hashes.
