@@ -1,6 +1,6 @@
 # SEO continuation — 8 November 2026
 
-Status: code prepared and tested; application production installation is still pending. This record supersedes older queue assumptions where stated below. Base: `59ee1fef3978121bace294ff05741c80376c2801` on `develop`.
+Current status: the scoped main package was installed and verified later on 8 November; see the [production receipt](production-release-2026-11-08.md). The pending-installation observations below are the earlier review snapshot, not the final production state. The independent nine-file Iran marketing release was also installed and accepted later; its separate 13-GET receipt is linked there. Full-layout style integration and analytics revenue acceptance remain open. Review base: `59ee1fef3978121bace294ff05741c80376c2801` on `develop`.
 
 ## Reconciled state
 
