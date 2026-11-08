@@ -20,6 +20,7 @@ final class HermesGrowthReadPreflight
         $caller = self::inspectFile($validated['caller']);
         $clockSkew = abs(time() - $validated['peer_epoch']);
         $runtimePaths = [$client['realpath'], $cycle['realpath'], $caller['realpath']];
+        $runtimeDirectories = array_map('dirname', $runtimePaths);
 
         $checks = [
             'php_84_or_newer' => PHP_VERSION_ID >= self::MIN_PHP_VERSION_ID,
@@ -40,6 +41,7 @@ final class HermesGrowthReadPreflight
             'caller_expected_sha256' => hash_equals($validated['expected_caller_sha'], $caller['sha256']),
             'client_and_caller_are_distinct' => $client['realpath'] !== $caller['realpath'],
             'runtime_files_are_distinct' => count(array_unique($runtimePaths)) === count($runtimePaths),
+            'runtime_files_share_directory' => count(array_unique($runtimeDirectories)) === 1,
         ];
 
         return [
