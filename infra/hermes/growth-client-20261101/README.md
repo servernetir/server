@@ -23,7 +23,7 @@ transport ساختگی امضای دقیق و URL بدون query را بازبی
 
 ## preflight بدون راز
 
-پیش از هر نصب، `preflight.php` فقط آمادگی محلی را fail-closed می‌سنجد: PHP 8.4+، cURL و primitiveهای رمزنگاری، اختلاف ساعت با epoch همتای احرازشده، مسیر canonical و غیر symlink، hash دقیق، مالک مورد انتظار و ممنوع‌بودن write برای group/world روی هر سه فایل client، cycle و caller. هیچ env، secret یا credential خوانده نمی‌شود و هیچ درخواست شبکه‌ای انجام نمی‌شود.
+پیش از هر نصب، `preflight.php` فقط آمادگی محلی را fail-closed می‌سنجد: PHP 8.4+، cURL و primitiveهای رمزنگاری، اختلاف ساعت با epoch همتای احرازشده، مسیر canonical و غیر symlink، hash دقیق، مالک مورد انتظار و ممنوع‌بودن write برای group/world روی هر سه فایل client، cycle و caller. هر سه فایل باید در یک پوشهٔ canonical مشترک باشند تا `require`های مبتنی بر `__DIR__` در caller به نسخهٔ دیگری اشاره نکنند. هیچ env، secret یا credential خوانده نمی‌شود و هیچ درخواست شبکه‌ای انجام نمی‌شود.
 
 ```bash
 php infra/hermes/growth-client-20261101/preflight.php \
