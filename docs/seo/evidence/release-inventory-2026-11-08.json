@@ -1,6 +1,6 @@
 {
-  "base_commit": "59ee1fef3978121bace294ff05741c80376c2801",
-  "source": "reviewed PR tree; verify exact file hashes",
+  "base_commit": "f3f6ed21d740751baea267585fe399bed160b0fe",
+  "source": "current reviewed release tree; verify each exact file hash; live baselines required",
   "created_date": "2026-11-08",
   "deployment_performed": false,
   "inventory_only": true,
@@ -67,7 +67,7 @@
     {
       "source": "website/config/hosting.php",
       "destination_relative_to_home": "servernet_app/config/hosting.php",
-      "sha256": "e940676eecc217deee83fbd66a7b165d97c7eb03ab7f6e218ddaa838219397ab",
+      "sha256": "5a1e19fa7bffcdd8cf1d0bab684c3449ea913b7eee43016f9ca17eb5d9cdffcf",
       "expected_before_sha256": null,
       "status": "candidate; live reconciliation required"
     },
