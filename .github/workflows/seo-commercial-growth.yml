@@ -8,7 +8,10 @@ on:
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
       - 'website/app/Http/Middleware/PageCache.php'
+      - 'website/app/Http/Controllers/SiteController.php'
       - 'website/config/pagecache.php'
+      - 'website/config/hosting.php'
+      - 'website/config/catalog/vps.php'
       - 'website/resources/views/pages/*.blade.php'
       - 'website/resources/views/partials/*.blade.php'
       - 'website/lang/**/hosting-seo.php'
@@ -22,6 +25,8 @@ on:
       - 'website/tests/Feature/*ToolProductCta*'
       - 'website/tests/js/tool-next-step.test.cjs'
       - 'website/tests/Feature/CommercialSeoGrowthTest.php'
+      - 'website/tests/Feature/SitemapIndexTest.php'
+      - 'website/tests/Feature/Audit7RegressionTest.php'
       - 'scripts/seo-growth-cycle/opportunities.py'
       - 'scripts/seo-growth-cycle/test_opportunities.py'
       - '.github/workflows/seo-commercial-growth.yml'
@@ -32,7 +37,10 @@ on:
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
       - 'website/app/Services/InternalLinks.php'
       - 'website/app/Http/Middleware/PageCache.php'
+      - 'website/app/Http/Controllers/SiteController.php'
       - 'website/config/pagecache.php'
+      - 'website/config/hosting.php'
+      - 'website/config/catalog/vps.php'
       - 'website/resources/views/pages/*.blade.php'
       - 'website/resources/views/partials/*.blade.php'
       - 'website/lang/**/hosting-seo.php'
@@ -46,6 +54,8 @@ on:
       - 'website/tests/Feature/*ToolProductCta*'
       - 'website/tests/js/tool-next-step.test.cjs'
       - 'website/tests/Feature/CommercialSeoGrowthTest.php'
+      - 'website/tests/Feature/SitemapIndexTest.php'
+      - 'website/tests/Feature/Audit7RegressionTest.php'
       - 'scripts/seo-growth-cycle/*opportunities.py'
       - '.github/workflows/seo-commercial-growth.yml'
 
@@ -106,9 +116,17 @@ jobs:
           php -l app/Services/Cloud/CountryLandingSeo.php
           php -l app/Services/InternalLinks.php
           php -l app/Http/Middleware/PageCache.php
+          php -l app/Http/Controllers/SiteController.php
           php -l config/pagecache.php
+          php -l config/hosting.php
+          php -l config/catalog/vps.php
           php -l tests/Feature/CommercialSeoGrowthTest.php
+          php -l tests/Feature/SitemapIndexTest.php
+          php -l tests/Feature/Audit7RegressionTest.php
           find lang -name hosting-seo.php -print0 | xargs -0 -n1 php -l
-          vendor/bin/phpunit tests/Feature/CommercialSeoGrowthTest.php tests/Feature/HourlyVpsPageTest.php tests/Feature/GpuPageTest.php tests/Feature/CountryLandingSeoTest.php tests/Feature/CountryVpsServiceSchemaTest.php tests/Feature/PublicPageStylesTest.php tests/Feature/SeoMetadataAndEntityTest.php tests/Feature/AnalyticsDataLayerCatalogTest.php tests/Feature/AnalyticsSessionEventConsumptionTest.php tests/Feature/PageCacheTest.php tests/Feature/OrderSummaryIndexingTest.php tests/Feature/InternalLinkCommercialTargetsTest.php tests/Feature/ToolProductCtaTest.php --display-warnings --fail-on-warning --colors=never
+          vendor/bin/phpunit tests/Feature/CommercialSeoGrowthTest.php tests/Feature/HourlyVpsPageTest.php tests/Feature/GpuPageTest.php tests/Feature/CountryLandingSeoTest.php tests/Feature/CountryVpsServiceSchemaTest.php tests/Feature/PublicPageStylesTest.php tests/Feature/SeoMetadataAndEntityTest.php tests/Feature/AnalyticsDataLayerCatalogTest.php tests/Feature/AnalyticsSessionEventConsumptionTest.php tests/Feature/PageCacheTest.php tests/Feature/OrderSummaryIndexingTest.php tests/Feature/InternalLinkCommercialTargetsTest.php tests/Feature/ToolProductCtaTest.php tests/Feature/SitemapIndexTest.php --display-warnings --fail-on-warning --colors=never
       - name: Verify tool conversion click contract
         run: node website/tests/js/tool-next-step.test.cjs
+      - name: Verify order handoff remains excluded from sitemap discovery
+        working-directory: website
+        run: vendor/bin/phpunit tests/Feature/Audit7RegressionTest.php --filter test_order_summary_is_noindex_and_excluded_from_the_sitemap --display-warnings --fail-on-warning --colors=never

@@ -1,0 +1,250 @@
+{
+  "base_commit": "59ee1fef3978121bace294ff05741c80376c2801",
+  "source": "reviewed PR tree; verify exact file hashes",
+  "created_date": "2026-11-08",
+  "deployment_performed": false,
+  "inventory_only": true,
+  "excluded": [
+    "routes/web.php",
+    "public/robots.txt",
+    "production config/secrets",
+    "tests/docs/scripts",
+    "migrations",
+    "customer state"
+  ],
+  "note": "Controller contains owner sitemap section methods; routes/robots are independent existing owner changes and must be reconciled separately. This inventory does not authorize copying the full controller over live drift. No installer or before-hash invented.",
+  "file_count": 33,
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/OrderSummaryController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/OrderSummaryController.php",
+      "sha256": "0c4fab242fdba071f2ce019b07eaff7598353e1581f2b94d0eff76919d640407",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/app/Http/Controllers/SiteController.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Controllers/SiteController.php",
+      "sha256": "ce1a280c48860a6f223700b3ff6ebfd596104f6f4679b9f20c18404b12632d63",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/app/Http/Middleware/PageCache.php",
+      "destination_relative_to_home": "servernet_app/app/Http/Middleware/PageCache.php",
+      "sha256": "a482693da6920c866f879acb32d978c8e090c6ee4b0b19d0f2c645b9a207ecd4",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/app/Services/Cloud/CountryLandingSeo.php",
+      "destination_relative_to_home": "servernet_app/app/Services/Cloud/CountryLandingSeo.php",
+      "sha256": "cb43ef9e16f8b727ca1fdff4dcefdd2133934fad10fb035d31b94ffb59503316",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/app/Services/InternalLinks.php",
+      "destination_relative_to_home": "servernet_app/app/Services/InternalLinks.php",
+      "sha256": "ca6d26d2a9f0a762981aa6deecd7197dae2e61716466b777ccbb33655258b53c",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/app/Services/PublicPageStyles.php",
+      "destination_relative_to_home": "servernet_app/app/Services/PublicPageStyles.php",
+      "sha256": "70916584b27eb585f202708482b0f47ec203c6e4516f913033fc6418e570c0ac",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/config/catalog/vps.php",
+      "destination_relative_to_home": "servernet_app/config/catalog/vps.php",
+      "sha256": "1cdc9b57b2a34599e81c602b9778934340b3a863806f7e63a6e775f2c89feb5a",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/config/hosting.php",
+      "destination_relative_to_home": "servernet_app/config/hosting.php",
+      "sha256": "e940676eecc217deee83fbd66a7b165d97c7eb03ab7f6e218ddaa838219397ab",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/config/pagecache.php",
+      "destination_relative_to_home": "servernet_app/config/pagecache.php",
+      "sha256": "01ac88e02ad3475c343d22dc58417544caae37d5cc6ca27484f28f360d711dea",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/en/country-seo.php",
+      "destination_relative_to_home": "servernet_app/lang/en/country-seo.php",
+      "sha256": "3424fea8e692350ee7a995284ceadcfb2707a2e8429f3e793f266732bd0499c4",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/en/hosting-seo.php",
+      "destination_relative_to_home": "servernet_app/lang/en/hosting-seo.php",
+      "sha256": "fbf415c8197323f71d03823dc04ee86cc8f4fbdf398efb0601be57541742b710",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/en/tool-next-step.php",
+      "destination_relative_to_home": "servernet_app/lang/en/tool-next-step.php",
+      "sha256": "7128484291f309a9135fc9a6c144e676ecd4760605095957f5195962c3f4c2f6",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/en/vps-guide.php",
+      "destination_relative_to_home": "servernet_app/lang/en/vps-guide.php",
+      "sha256": "252894522e678deac975426259d09839bd8ace35bffe4bb0ea29c0ef5548e3cf",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/fa/country-seo.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/country-seo.php",
+      "sha256": "20d3846a78b2379c914c067106fbfd871e7ee0ce4b4b454f0f8bb532b6f4cd5c",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/fa/hosting-seo.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/hosting-seo.php",
+      "sha256": "f4c2fb7ca926b45f8a2e79d0e4971f6d39969f354d382c72914cd6939132dbc6",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/fa/tool-next-step.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/tool-next-step.php",
+      "sha256": "85e9ae43f0d454b7d348a308e2e187b68f9f09834e2e27902307ad95f1a68b67",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/fa/vps-guide.php",
+      "destination_relative_to_home": "servernet_app/lang/fa/vps-guide.php",
+      "sha256": "3e22f7e86f3098b14b9c1241c4bbc057c8141f13f756e81186da88c6e0b169d3",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/tr/country-seo.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/country-seo.php",
+      "sha256": "1aa070261ae224c690811c960e195614bd95ffe99bc88b3f4b9c1ef480049d60",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/tr/hosting-seo.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/hosting-seo.php",
+      "sha256": "c7501f25253c1422b0107a964a7ef5acb03d09538555dacf16b3d777cb30c638",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/tr/tool-next-step.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/tool-next-step.php",
+      "sha256": "da5595c2062b99df3146c086f91c3b44f2c4420ad9de13cd7914bc9976877ba2",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/lang/tr/vps-guide.php",
+      "destination_relative_to_home": "servernet_app/lang/tr/vps-guide.php",
+      "sha256": "bc416d16c6f850434b280b4b0df16d7bf6cf505222f9b6d4e4d6ff21a09c6873",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/public/assets/css/tool-next-step.css",
+      "destination_relative_to_home": "public_html/assets/css/tool-next-step.css",
+      "sha256": "0652e16aa33d38efa1778d97d83cd0191bbfd65e06f18daed2fca212b2f46085",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/pages/gpu.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/gpu.blade.php",
+      "sha256": "d296366988d6d4e72c7fb0c7f3991946081305db710f412d39605adb24f0d719",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/pages/hosting.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/hosting.blade.php",
+      "sha256": "1ccb5ee694b2f0f5bc0b63d31917ad50fdb85696fd423e3c6237fb8b9c9ff083",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/pages/order-summary.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/order-summary.blade.php",
+      "sha256": "c3e395e74e71157765fe48d243c82b88a3c8dde83008aae7ecfb1795b11d0bb0",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/pages/tool.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/tool.blade.php",
+      "sha256": "27e4ee287adc0e6c2a74aeb9830fa98a6080f40c1745d69deb2fae8ee154c938",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/pages/vps-country.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/vps-country.blade.php",
+      "sha256": "24ad86a52a1e54f1319f29a4f4b03fca28b9be72dc3c45de35e9f08f68a9163e",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/pages/vps-hourly.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/vps-hourly.blade.php",
+      "sha256": "a1e1174590665ed9c8eeaad80aac68ee2cab5a2741f1650774950689996c9613",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/pages/webtool.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/pages/webtool.blade.php",
+      "sha256": "3000f098a85eeab340619386367532cf49267496f5bed29e58014f972990ae67",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/partials/country-selection-guide.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/partials/country-selection-guide.blade.php",
+      "sha256": "f002218773822a34595fb1005d86a6600306ab1d3d47718304857992d817442a",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/partials/country-workloads.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/partials/country-workloads.blade.php",
+      "sha256": "69e258b14ba4f3c0da68b5543239694734c93313ba3ab09600215964f28d538e",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/partials/hosting-stack-guide.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/partials/hosting-stack-guide.blade.php",
+      "sha256": "ab82994f7c7ed4aec6661fa8891251084d7774257f33a70700a89769dacc5ef7",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    },
+    {
+      "source": "website/resources/views/partials/tool-next-step.blade.php",
+      "destination_relative_to_home": "servernet_app/resources/views/partials/tool-next-step.blade.php",
+      "sha256": "8ef2a15822885a3e0398e7401295b5b289775473e468c0ca06419ecf817c6a29",
+      "expected_before_sha256": null,
+      "status": "candidate; live reconciliation required"
+    }
+  ]
+}

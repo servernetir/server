@@ -694,15 +694,9 @@ class SiteController extends Controller
         */
         $urls[] = ['loc' => rtrim(config('app.url'), '/').'/llms.txt', 'lastmod' => null];
 
-        /*
-        | صفحاتِ سفارش — ممیزی ۷ قلم ۲ («۶۴ از ۶۴ در sitemap») تصمیمِ
-        | «فقط پرچم‌دار»ِ ممیزی ۶ را برگرداند: هر SKUی فعال صفحهٔ سفارشِ
-        | ایندکس‌پذیر با عنوانِ تراکنشیِ یکتا و اسکیمای Product/AggregateOffer
-        | دارد — تنها قلمِ رودمپ که مستقیم روی درآمد اثر دارد.
-        */
-        foreach (\App\Models\Product::orderableSlugs() as $sku) {
-            $add('order.summary', $sku);
-        }
+        // Order handoffs are noindex,follow. Discover products through their
+        // indexable landing pages; neither full nor sectional sitemaps should
+        // advertise a checkout URL that asks search engines not to index it.
 
         $add('ai.home');
         $add('identity.home');

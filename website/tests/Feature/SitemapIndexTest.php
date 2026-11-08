@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\SiteController;
+use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -63,6 +65,36 @@ class SitemapIndexTest extends TestCase
     public function test_unknown_section_is_404(): void
     {
         $this->get('/sitemaps/nope.xml')->assertNotFound();
+    }
+
+    public function test_noindex_order_handoffs_are_excluded_from_all_sitemaps(): void
+    {
+        Http::preventStrayRequests();
+        $product = Product::create([
+            'name' => 'Linux hosting', 'slug' => 'sitemap-linux', 'category' => 'shared',
+            'group' => 'linux', 'price' => 250000, 'setup_fee' => 0, 'cycle' => 'monthly',
+            'tax_percent' => 10, 'is_active' => true,
+        ]);
+
+        $full = $this->locs($this->get('/sitemap.xml')->assertOk()->getContent());
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $path = $prefix.'/order/'.$product->slug;
+            $this->get($path)->assertOk()->assertSee('noindex,follow', false);
+            $this->assertNotContains(url($path), $full);
+            $this->assertContains(url($prefix.'/hosting/linux'), $full);
+        }
+        foreach ($full as $loc) {
+            $this->assertDoesNotMatchRegularExpression('~/(?:en/|tr/)?order/~', $loc);
+        }
+        $index = $this->get('/sitemap-index.xml')->assertOk()->getContent();
+        $this->assertStringNotContainsString('/sitemaps/orders.xml', $index);
+        foreach ($this->locs($index) as $sectionUrl) {
+            foreach ($this->locs($this->get(parse_url($sectionUrl, PHP_URL_PATH))->assertOk()->getContent()) as $loc) {
+                $this->assertDoesNotMatchRegularExpression('~/(?:en/|tr/)?order/~', $loc);
+            }
+        }
+        $this->get('/sitemaps/orders.xml')->assertNotFound();
+        Http::assertNothingSent();
     }
 
     public function test_language_prefix_does_not_change_the_section(): void
