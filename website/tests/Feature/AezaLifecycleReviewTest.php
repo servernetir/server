@@ -255,6 +255,33 @@ class AezaLifecycleReviewTest extends TestCase
         Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
     }
 
+    public function test_adoption_does_not_write_failure_state_for_a_late_remapped_snapshot(): void
+    {
+        $service = $this->service();
+        $instance = $service->cloudInstance;
+        $beforeService = $service->getAttributes();
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(function () use ($instance) {
+            CloudInstance::whereKey($instance->id)->update(['provider_ref' => 'replacement-resource']);
+            return Http::response(['data' => ['items' => [[
+                'id' => $instance->provider_ref, 'currentStatus' => 'deleted',
+            ]]]]);
+        });
+
+        $adopt = new \ReflectionMethod(\App\Services\Cloud\CloudProvisioner::class, 'adoptExisting');
+        $this->assertFalse($adopt->invoke(
+            app(\App\Services\Cloud\CloudProvisioner::class),
+            $service, $instance,
+            CloudPlan::findOrFail($service->cloud_plan_id),
+            app(AezaClient::class)
+        ));
+        $this->assertSame($beforeService, $service->fresh()->getAttributes());
+        $this->assertSame('replacement-resource', $instance->fresh()->provider_ref);
+        $this->assertNull(data_get($instance->fresh()->meta, 'provider_lifecycle_review'));
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    }
+
     public function test_internal_service_is_not_acted_on_or_counted_as_customer_lifecycle_failure(): void
     {
         $service = $this->service();

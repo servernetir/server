@@ -47,6 +47,7 @@ LAYERS = {
 # Reconcile concurrent scheduler changes separately from installed application code.
 LAYERS['lifecycle-code'] = tuple(p for p in LAYERS['lifecycle-audit'] if p != 'routes/console.php')
 LAYERS['scheduler'] = ('routes/console.php',)
+LAYERS['fleet-estimates'] = ('app/Http/Controllers/Admin/FleetController.php', 'resources/views/admin/fleet.blade.php')
 
 
 def main():

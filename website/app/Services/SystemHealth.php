@@ -928,7 +928,19 @@ class SystemHealth
                 return $at->lte(now()) && $at->gte(now()->subMinutes($minutes));
             } catch (\Throwable) { return false; }
         };
-        $expectedProviders = array_keys(app(CloudManager::class)->configured());
+        // Credential removal cannot erase known resources from required coverage.
+        // Stopped/internal/acknowledged resources may still cost; only an explicit
+        // deleted status removes a tracked resource's coverage requirement.
+        $knownInstanceProviders = Schema::hasTable('cloud_instances')
+            ? \App\Models\CloudInstance::query()->whereNotNull('provider_ref')->where('provider_ref', '!=', '')
+                ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'deleted'))
+                ->distinct()->pluck('provider')->all() : [];
+        $knownAssetProviders = Schema::hasTable('infra_assets')
+            ? \App\Models\InfraAsset::query()->where('provider_status', '!=', 'deleted')
+                ->distinct()->pluck('provider')->all() : [];
+        $expectedProviders = array_values(array_unique(array_merge(
+            array_keys(app(CloudManager::class)->configured()), $knownInstanceProviders, $knownAssetProviders
+        )));
         $completeInventory = is_array($fleet) && ($fleet['ok'] ?? false) === true
             && is_array($fleet['checked'] ?? null) && is_array($fleet['errors'] ?? null)
             && $fleet['errors'] === [] && array_diff($expectedProviders, $fleet['checked']) === [];

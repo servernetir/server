@@ -188,6 +188,72 @@ class ClosedInfrastructureAuditTest extends TestCase
         $this->assertSame('warn', $check()['level']);
     }
 
+    public function test_a_late_snapshot_cannot_modify_an_instance_reassigned_to_an_active_service(): void
+    {
+        $closed = $this->service('aeza');
+        $active = $this->service('aeza', 'active');
+        // Discard only the target fixture's separate instance, permitting a transfer.
+        $active->cloudInstance->delete();
+        $instance = $closed->cloudInstance;
+        Http::fake(function () use ($instance, $active) {
+            CloudInstance::whereKey($instance->id)->update([
+                'service_id' => $active->id,
+                'meta' => json_encode(['keep' => true, 'concurrent_change' => true]),
+            ]);
+            return Http::response(['data' => ['items' => [[
+                'id' => $instance->provider_ref, 'currentStatus' => 'deleted',
+            ]]]]);
+        });
+
+        $result = app(ClosedInfrastructureAudit::class)->run();
+        $this->assertSame(0, $result['checked']);
+        $this->assertSame(1, $result['skipped']);
+        $current = $instance->fresh();
+        $this->assertSame((string) $active->id, (string) $current->service_id);
+        $this->assertSame('running', $current->status);
+        $this->assertTrue($current->meta['concurrent_change']);
+        $this->assertNull(data_get($current->meta, 'closed_audit'));
+        $this->assertNull(data_get($current->meta, 'provider_deleted_verified_at'));
+        $this->assertSame('active', $active->fresh()->status);
+        $this->assertSame('terminated', $closed->fresh()->status);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    }
+
+    public function test_inventory_requires_coverage_of_an_unconfigured_nondeleted_instance_provider(): void
+    {
+        $instance = $this->service('hetzner')->cloudInstance;
+        $check = fn () => collect(app(SystemHealth::class)->checks())->firstWhere('key', 'infrastructure_audit');
+        \Illuminate\Support\Facades\Cache::put(ClosedInfrastructureAudit::LAST_SCAN_KEY,
+            ['at' => now()->toIso8601String(), 'unknown' => 0]);
+        \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\FleetScanner::LAST_SCAN_KEY,
+            ['at' => now()->toIso8601String(), 'ok' => true, 'checked' => ['aeza', 'salad'], 'errors' => []]);
+        $this->assertSame('warn', $check()['level']);
+
+        $instance->update(['status' => 'deleted']);
+        $this->assertSame('ok', $check()['level']);
+        Http::assertNothingSent();
+    }
+
+    public function test_owned_stopped_assets_require_coverage_but_deleted_ghosts_do_not(): void
+    {
+        $asset = \App\Models\InfraAsset::create([
+            'provider' => 'ovh', 'provider_ref' => 'unconfigured-fixture',
+            'provider_status' => 'off', 'link_state' => 'attached',
+            'role' => 'internal', 'acknowledged_at' => now(),
+        ]);
+        $check = fn () => collect(app(SystemHealth::class)->checks())->firstWhere('key', 'infrastructure_audit');
+        \Illuminate\Support\Facades\Cache::put(ClosedInfrastructureAudit::LAST_SCAN_KEY,
+            ['at' => now()->toIso8601String(), 'unknown' => 0]);
+        \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\FleetScanner::LAST_SCAN_KEY,
+            ['at' => now()->toIso8601String(), 'ok' => true, 'checked' => ['aeza', 'salad'], 'errors' => []]);
+        $this->assertSame('warn', $check()['level']);
+
+        $asset->update(['provider_status' => 'deleted', 'link_state' => 'ghost']);
+        $this->assertSame('ok', $check()['level']);
+        Http::assertNothingSent();
+    }
+
     public function test_read_failure_replaces_a_previous_witness_and_404_does_not_mean_deleted(): void
     {
         $service = $this->service();

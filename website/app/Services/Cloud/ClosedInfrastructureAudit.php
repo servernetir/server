@@ -53,6 +53,7 @@ class ClosedInfrastructureAudit
                 $current = CloudInstance::whereKey($instance->id)->lockForUpdate()->first();
                 if (! $service || ! $service->isDead() || $service->isInternalInfrastructure()
                     || $service->provision_status === 'releasing' || ! $current
+                    || (string) $current->service_id !== (string) $instance->service_id
                     || $current->provider !== $instance->provider || $current->provider_ref !== $instance->provider_ref
                     || $this->ambiguous($current)) { return false; }
                 $meta = (array) $current->meta;

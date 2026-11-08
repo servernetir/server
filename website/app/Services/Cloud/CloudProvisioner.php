@@ -1295,6 +1295,7 @@ class CloudProvisioner
         $info = $driver->serverStatus($ref);
 
         if (($review = app(AezaLifecycleReview::class)->observe($instance, $info)) !== null) {
+            if (($review['reason'] ?? null) === 'identity_unverified') { return false; }
             $service->forceFill(['provision_status' => 'failed', 'provision_error' => $review['message']])->save();
             return false;
         }
