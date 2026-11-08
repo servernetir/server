@@ -138,6 +138,56 @@ class ClosedInfrastructureAuditTest extends TestCase
         }
     }
 
+    public function test_skipped_oldest_rows_do_not_consume_the_supplier_lookup_limit(): void
+    {
+        $internal = $this->service();
+        $ambiguous = $this->service();
+        $duplicate = $this->service(status: 'active');
+        $duplicate->cloudInstance->update(['provider_ref' => $ambiguous->cloudInstance->provider_ref]);
+        $first = $this->service();
+        $second = $this->service();
+        config(['billing.internal_service_ids' => [$internal->id]]);
+        $this->salad($first);
+        $this->salad($second);
+
+        Carbon::setTestNow(now()->addMinute());
+        $result = app(ClosedInfrastructureAudit::class)->run(1);
+        $this->assertSame(2, $result['skipped']);
+        $this->assertSame(1, $result['checked']);
+        $this->assertTrue(ClosedInfrastructureAudit::confirmedStopped($first->cloudInstance->fresh()));
+        $this->assertSame('running', $second->cloudInstance->fresh()->status);
+        Http::assertSentCount(2);
+
+        Carbon::setTestNow(now()->addMinute());
+        $result = app(ClosedInfrastructureAudit::class)->run(1);
+        $this->assertSame(2, $result['skipped']);
+        $this->assertSame(1, $result['checked']);
+        $this->assertTrue(ClosedInfrastructureAudit::confirmedStopped($second->cloudInstance->fresh()));
+        Http::assertSentCount(4);
+        foreach ([$internal, $ambiguous] as $service) {
+            $instance = $service->cloudInstance->fresh();
+            $this->assertSame('running', $instance->status);
+            $this->assertNull(data_get($instance->meta, 'closed_audit'));
+        }
+        Http::assertNotSent(fn ($r) => $r->method() !== 'GET');
+    }
+
+    public function test_a_scoped_inventory_cannot_claim_full_provider_coverage(): void
+    {
+        $check = fn () => collect(app(SystemHealth::class)->checks())->firstWhere('key', 'infrastructure_audit');
+        \Illuminate\Support\Facades\Cache::put(ClosedInfrastructureAudit::LAST_SCAN_KEY,
+            ['at' => now()->toIso8601String(), 'unknown' => 0]);
+        $fleet = ['at' => now()->toIso8601String(), 'ok' => true, 'checked' => ['aeza'], 'errors' => []];
+        \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\FleetScanner::LAST_SCAN_KEY, $fleet);
+        $this->assertSame('warn', $check()['level']);
+        $fleet['checked'][] = 'salad';
+        \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\FleetScanner::LAST_SCAN_KEY, $fleet);
+        $this->assertSame('ok', $check()['level']);
+        $fleet['ok'] = false;
+        \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\FleetScanner::LAST_SCAN_KEY, $fleet);
+        $this->assertSame('warn', $check()['level']);
+    }
+
     public function test_read_failure_replaces_a_previous_witness_and_404_does_not_mean_deleted(): void
     {
         $service = $this->service();
@@ -157,7 +207,7 @@ class ClosedInfrastructureAuditTest extends TestCase
         \Illuminate\Support\Facades\Cache::put(ClosedInfrastructureAudit::LAST_SCAN_KEY,
             ['at' => now()->toIso8601String(), 'unknown' => 0]);
         \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\FleetScanner::LAST_SCAN_KEY,
-            ['at' => now()->toIso8601String(), 'errors' => []]);
+            ['at' => now()->toIso8601String(), 'ok' => true, 'checked' => ['aeza', 'salad'], 'errors' => []]);
         $this->assertSame('ok', $check()['level']);
         Carbon::setTestNow(now()->addMinutes(31));
         $this->assertSame('warn', $check()['level']);

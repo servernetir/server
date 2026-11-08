@@ -1053,7 +1053,11 @@ class CloudProvisioner
                     continue;
                 }
 
-                app(AezaLifecycleReview::class)->observe($instance, $r);
+                $review = app(AezaLifecycleReview::class)->observe($instance, $r);
+                if (($review['reason'] ?? null) === 'identity_unverified') {
+                    $out['failed']++;
+                    continue;
+                }
 
                 // This driver durably adopts access credentials and the first
                 // supplier due date while reconciling. Do not overwrite those

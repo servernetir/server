@@ -175,6 +175,86 @@ class AezaLifecycleReviewTest extends TestCase
         $this->assertSame(0, Invoice::count());
     }
 
+    public function test_missing_supplier_identity_cannot_confirm_or_issue_a_power_action(): void
+    {
+        $service = $this->service();
+        $before = $service->cloudInstance->getAttributes();
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(['*/services/*' => Http::response(['data' => ['items' => [[
+            'currentStatus' => 'stopped', 'expiresAt' => '2026-11-05T00:00:00Z',
+        ]]]])]);
+
+        $snapshot = app(AezaClient::class)->serverStatus($service->cloudInstance->provider_ref);
+        $this->assertFalse($snapshot['ok']);
+        $this->assertSame('unknown', $snapshot['status']);
+        $this->assertTrue($snapshot['identity_error']);
+        $this->assertFalse(app(ProvisioningService::class)->suspend($service)->ok);
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertSame($before, $service->cloudInstance->fresh()->getAttributes());
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    }
+
+    public function test_a_late_snapshot_cannot_overwrite_a_remapped_resource(): void
+    {
+        $service = $this->service();
+        $instance = $service->cloudInstance;
+        $beforeService = $service->getAttributes();
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(function () use ($instance) {
+            CloudInstance::whereKey($instance->id)->update([
+                'provider_ref' => 'replacement-resource',
+                'meta' => json_encode(['keep' => true, 'concurrent_change' => true]),
+            ]);
+            return Http::response(['data' => ['items' => [[
+                'id' => $instance->provider_ref, 'currentStatus' => 'deleted',
+                'expiresAt' => '2026-11-05T00:00:00Z', 'autoProlong' => false,
+            ]]]]);
+        });
+
+        $this->assertFalse(app(ProvisioningService::class)->suspend($service)->ok);
+        $current = $instance->fresh();
+        $this->assertSame('replacement-resource', $current->provider_ref);
+        $this->assertSame('running', $current->status);
+        $this->assertTrue($current->meta['concurrent_change']);
+        $this->assertNull(data_get($current->meta, 'provider_lifecycle_review'));
+        $this->assertNull(data_get($current->meta, 'provider_deleted_verified_at'));
+        $this->assertNull(data_get($current->meta, 'provider_billing_observation'));
+        $this->assertSame($beforeService, $service->fresh()->getAttributes());
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    }
+
+    public function test_instance_sync_does_not_write_a_late_snapshot_after_remapping(): void
+    {
+        $service = $this->service();
+        $instance = $service->cloudInstance;
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        Http::fake(function () use ($instance) {
+            CloudInstance::whereKey($instance->id)->update([
+                'provider_ref' => 'replacement-resource',
+                'meta' => json_encode(['keep' => true, 'concurrent_change' => true]),
+            ]);
+            return Http::response(['data' => ['items' => [[
+                'id' => $instance->provider_ref, 'currentStatus' => 'deleted',
+                'expiresAt' => '2026-11-05T00:00:00Z', 'autoProlong' => false,
+            ]]]]);
+        });
+
+        $result = app(\App\Services\Cloud\CloudProvisioner::class)->syncInstances();
+        $this->assertSame(1, $result['failed']);
+        $this->assertSame(0, $result['refreshed']);
+        $current = $instance->fresh();
+        $this->assertSame('replacement-resource', $current->provider_ref);
+        $this->assertSame('running', $current->status);
+        $this->assertTrue($current->meta['concurrent_change']);
+        $this->assertNull(data_get($current->meta, 'provider_lifecycle_review'));
+        $this->assertNull(data_get($current->meta, 'provider_deleted_verified_at'));
+        $this->assertNull(data_get($current->meta, 'provider_billing_observation'));
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    }
+
     public function test_internal_service_is_not_acted_on_or_counted_as_customer_lifecycle_failure(): void
     {
         $service = $this->service();

@@ -44,7 +44,7 @@
       <h2 style="margin:0">ناوگان زیرساخت</h2>
       <p style="margin:6px 0 0;color:var(--muted);font-size:12.5px;line-height:1.9;max-width:70ch">
         هر ماشینی که پولش را ما به یک زیرساخت می‌دهیم — و اینکه کدامشان درآمد دارند.
-        داده از آخرین اسکن خوانده می‌شود، نه زنده؛ برای همین سریع است و تاریخش همیشه این‌جاست.
+        داده از آخرین اسکن خوانده می‌شود و مبالغ از نرخ کاتالوگ برآورد می‌شوند؛ هزینهٔ قطعی و توقف هزینه فقط با رسید تأمین‌کننده قابل تأیید است.
       </p>
     </div>
 
@@ -107,20 +107,20 @@
     </div>
     <div class="ad-stat" style="border-color:rgba(255,107,107,.4)">
       <b style="color:var(--red);font-size:22px">{!! $eur($s['leak_cents'] ?? 0) !!}</b>
-      <span>نشتیِ ماهانه — پولی که بی‌درآمد می‌رود</span>
+      <span>برآورد هزینهٔ ماهانهٔ منابع بدون سرویس زنده</span>
     </div>
   </div>
 
   <div style="display:flex;flex-wrap:wrap;gap:9px;font-size:12.5px">
     <span class="ad-badge" style="background:rgba(148,163,184,.14);color:var(--muted);padding:7px 12px">
-      کلِ هزینهٔ ماهانهٔ ناوگان: {!! $eur($s['monthly_cents'] ?? 0) !!}
+      برآورد هزینهٔ ماهانهٔ ناوگان با نرخ کاتالوگ: {!! $eur($s['monthly_cents'] ?? 0) !!}
     </span>
     <span class="ad-badge" style="background:rgba(255,107,107,.12);color:var(--red);padding:7px 12px">
-      تا امروز بابتِ ماشین‌های رهاشده داده‌ایم: {!! $eur($s['wasted_cents'] ?? 0) !!}
+      برآورد هزینهٔ دورهٔ رهاشدگی با نرخ فعلی: {!! $eur($s['wasted_cents'] ?? 0) !!}
     </span>
     @if(($s['owned_cents'] ?? 0) > 0)
       <span class="ad-badge" style="background:rgba(34,211,238,.12);color:var(--cyan);padding:7px 12px">
-        زیرساختِ داخلیِ خودمان: {!! $eur($s['owned_cents']) !!} در ماه
+        برآورد ماهانهٔ زیرساختِ داخلی: {!! $eur($s['owned_cents']) !!} در ماه
       </span>
     @endif
     @if(($s['todo'] ?? 0) > 0)
@@ -131,7 +131,7 @@
     @endif
     @if(($s['unpriced'] ?? 0) > 0)
       <span class="ad-badge" style="background:rgba(148,163,184,.14);color:var(--dim);padding:7px 12px">
-        بهایِ {{ fa_num($s['unpriced']) }} ماشین را نمی‌دانیم — اعدادِ بالا از واقع کمترند
+        بهایِ {{ fa_num($s['unpriced']) }} ماشین نامعلوم است؛ این مبالغ رسید هزینهٔ واقعی نیستند
       </span>
     @endif
   </div>
@@ -148,7 +148,7 @@
                 border-radius:12px;padding:12px 15px;min-width:190px;display:block">
         <div style="font-size:13px;font-weight:700;color:var(--text)">{{ $p['label'] }}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:5px">
-          {{ fa_num($p['n']) }} ماشین · {!! $eur($p['cost']) !!} در ماه
+          {{ fa_num($p['n']) }} ماشین · برآورد {!! $eur($p['cost']) !!} در ماه
         </div>
         @if($p['leaking'] > 0)
           <div style="font-size:11.5px;color:var(--red);margin-top:4px">
@@ -251,7 +251,7 @@
           <th>وضعیت</th>
           <th>اتصال</th>
           <th>مشتری / سرویس</th>
-          <th>هزینهٔ ماهانه</th>
+          <th>برآورد ماهانه</th>
           <th>بی‌صاحب از</th>
           <th></th>
         </tr>
@@ -332,7 +332,7 @@
               @else
                 <b style="color:{{ $idle >= 7 ? 'var(--red)' : 'var(--amber)' }}">{{ fa_num($idle) }} روز</b>
                 @if($a->wastedEurCents() > 0)
-                  <div style="font-size:11px;color:var(--red)">{!! $eur($a->wastedEurCents()) !!} سوخته</div>
+                  <div style="font-size:11px;color:var(--red)">{!! $eur($a->wastedEurCents()) !!} برآورد</div>
                 @endif
               @endif
             </td>

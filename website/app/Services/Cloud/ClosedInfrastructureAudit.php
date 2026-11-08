@@ -18,17 +18,21 @@ class ClosedInfrastructureAudit
     {
         $result = ['checked' => 0, 'deleted' => 0, 'stopped_empty' => 0,
             'unknown' => 0, 'present' => 0, 'skipped' => 0, 'at' => now()->toIso8601String()];
+        $remaining = max(1, min(200, $limit));
         $instances = CloudInstance::whereIn('provider', ['aeza', 'salad', 'lightnode'])
             ->whereNotNull('provider_ref')->where('provider_ref', '!=', '')
             ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'deleted'))
             ->whereHas('service', fn ($q) => $q->whereIn('status', Service::DEAD_STATUSES)
                 ->where(fn ($q) => $q->whereNull('provision_status')->orWhere('provision_status', '!=', 'releasing')))
-            ->with('service.customer')->orderBy('updated_at')->orderBy('id')->limit(max(1, min(200, $limit)))->get();
+            ->orderBy('updated_at')->orderBy('id')->cursor();
         foreach ($instances as $instance) {
-            if ($instance->service->isInternalInfrastructure() || $this->ambiguous($instance)) {
+            if (! $instance->service || $instance->service->isInternalInfrastructure() || $this->ambiguous($instance)) {
                 $result['skipped']++;
                 continue;
             }
+            // Bound supplier reads, not rows inspected: protected or ambiguous
+            // oldest identities must never starve later eligible resources.
+            if ($remaining-- <= 0) { break; }
             $outcome = 'unknown';
             try {
                 if ($instance->provider === 'aeza') {

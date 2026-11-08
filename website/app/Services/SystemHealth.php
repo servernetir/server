@@ -928,7 +928,11 @@ class SystemHealth
                 return $at->lte(now()) && $at->gte(now()->subMinutes($minutes));
             } catch (\Throwable) { return false; }
         };
-        if (! $fresh($closed, 30) || ! $fresh($fleet, 120) || ! empty($fleet['errors']) || (int) ($closed['unknown'] ?? 0) > 0) {
+        $expectedProviders = array_keys(app(CloudManager::class)->configured());
+        $completeInventory = is_array($fleet) && ($fleet['ok'] ?? false) === true
+            && is_array($fleet['checked'] ?? null) && is_array($fleet['errors'] ?? null)
+            && $fleet['errors'] === [] && array_diff($expectedProviders, $fleet['checked']) === [];
+        if (! $fresh($closed, 30) || ! $fresh($fleet, 120) || ! $completeInventory || (int) ($closed['unknown'] ?? 0) > 0) {
             return $this->row('infrastructure_audit', false, 'warn', $title,
                 'اسکن منابع بسته‌شده یا موجودی کامل تازه/معتبر نیست. هزینهٔ نامعلوم صفر محسوب نمی‌شود؛ اتصال و اجرای پایش را بررسی کنید.');
         }
