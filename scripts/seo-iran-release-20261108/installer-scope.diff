@@ -1,0 +1,54 @@
+--- main-release-d74869fc.py
++++ iran-release.py
+@@ -15,33 +15,19 @@
+ import tempfile
+ from datetime import datetime, timezone
+ 
+-RELEASE = 'seo-release-20261108'
++RELEASE = 'seo-iran-release-20261108'
+ LOCKS = ('.servernet-web-release.lock', 'servernet-release.lock', '.codex-web-deploy.lock')
+-INVENTORY_SOURCES = (
+-    'app/Http/Controllers/OrderSummaryController.php',
++SOURCES = (
++    'app/Http/Controllers/CountryVpsController.php',
+     'app/Http/Controllers/SiteController.php',
+-    'app/Http/Middleware/PageCache.php',
+     'app/Services/Cloud/CountryLandingSeo.php',
+-    'app/Services/InternalLinks.php',
+-    'app/Services/PublicPageStyles.php',
+-    'config/catalog/vps.php', 'config/hosting.php', 'config/pagecache.php',
+-    'lang/en/country-seo.php', 'lang/en/hosting-seo.php',
+-    'lang/en/tool-next-step.php', 'lang/en/vps-guide.php',
+-    'lang/fa/country-seo.php', 'lang/fa/hosting-seo.php',
+-    'lang/fa/tool-next-step.php', 'lang/fa/vps-guide.php',
+-    'lang/tr/country-seo.php', 'lang/tr/hosting-seo.php',
+-    'lang/tr/tool-next-step.php', 'lang/tr/vps-guide.php',
+-    'public/assets/css/tool-next-step.css',
+-    'resources/views/pages/gpu.blade.php', 'resources/views/pages/hosting.blade.php',
+-    'resources/views/pages/order-summary.blade.php', 'resources/views/pages/tool.blade.php',
+-    'resources/views/pages/vps-country.blade.php', 'resources/views/pages/vps-hourly.blade.php',
+-    'resources/views/pages/webtool.blade.php',
+-    'resources/views/partials/country-selection-guide.blade.php',
+-    'resources/views/partials/country-workloads.blade.php',
+-    'resources/views/partials/hosting-stack-guide.blade.php',
+-    'resources/views/partials/tool-next-step.blade.php',
++    'app/Services/Cloud/CountryVpsEligibility.php',
++    'lang/en/country-seo.php',
++    'lang/fa/country-seo.php',
++    'lang/tr/country-seo.php',
++    'resources/views/pages/vps-country.blade.php',
++    'resources/views/partials/vps-plan-table.blade.php',
+ )
+-SOURCES = INVENTORY_SOURCES + ('routes/web.php',)
+ LAYOUT = 'servernet_app/resources/views/layouts/site.blade.php'
+ LAYOUT_MARKERS = {
+     'noindex_section': "@hasSection('noindex')",
+@@ -383,7 +369,7 @@
+     insist(str(home) == payload['home'] and os.geteuid() == payload['account_uid'], 'account_identity_invalid')
+     real_directory(home)
+     insist(home.stat().st_uid == os.geteuid(), 'home_owner_invalid')
+-    insist(stage.parent == home and re.fullmatch(r'\.seo-release-20261108-[a-z0-9-]+', stage.name),
++    insist(stage.parent == home and re.fullmatch(r'\.seo-iran-release-20261108-[a-z0-9-]+', stage.name),
+            'stage_outside_private_home')
+     uid = os.geteuid()
+     with lock_context(home, uid):
