@@ -1,7 +1,10 @@
 # Jupyter Server Proxy startup candidate
 
 `startup-command.json` is an operator-reviewed command override for the pinned
-Docker Stacks image. It ensures `jupyter-server-proxy==4.6.0` is installed,
+Docker Stacks image. Its exact linux/amd64 OCI configuration was checked: the
+original entrypoint is `tini -g -- start.sh`, with CMD `start-notebook.py`.
+Salad replaces both ENTRYPOINT and CMD, so the override explicitly preserves
+that entrypoint before running the bootstrap. It ensures `jupyter-server-proxy==4.6.0` is installed,
 registers the server extension **before** Jupyter starts, then replaces the
 wrapper with the image's normal `start-notebook.py` launcher. Existing token,
 network, user and launcher settings are inherited. Authentication is not disabled.
@@ -31,14 +34,15 @@ python relay/jupyter/test_startup.py
 ```
 
 The test reproduces a missing handler with the installed extension unloaded,
-executes the actual candidate command with a local launcher shim, and uses real
+executes the actual candidate command with local entrypoint/launcher shims, and uses real
 Jupyter HTTP proxy/authentication. It checks GET, Persian JSON POST, invalid-token
-rejection and preservation of an application's own 404. It has no GPU, provider
+rejection, entrypoint argument forwarding and preservation of an application's own 404. It has no GPU, provider
 credentials or customer files. Docker image entrypoint, public TLS, gateway,
 relay, billing, timeouts and effective upload limits still require a separately
 authorized production test followed by verified service stop.
 
 References:
 
+- https://docs.salad.com/container-engine/how-to-guides/specifying-a-command
 - https://jupyter-server-proxy.readthedocs.io/en/latest/arbitrary-ports-hosts.html
 - https://jupyter-docker-stacks.readthedocs.io/en/latest/using/common.html

@@ -102,11 +102,26 @@ class StartupIntegration(unittest.TestCase):
             baseline.terminate()  # Disposable local test process, never a customer service.
             baseline.wait(timeout=15)
 
-            # A launcher shim stands in for Docker Stacks' start-notebook.py.
-            # It invokes the real Jupyter Server; it does not emulate proxy/auth.
+            # Entrypoint/launcher shims stand in for the Docker Stacks image.
+            # They invoke the real Jupyter Server; they do not emulate proxy/auth.
             cls.port = unused_port()
             shim_directory = cls.root / "bin"
             shim_directory.mkdir()
+            cls.entrypoint_record = cls.root / "entrypoint.jsonl"
+            for name, prefix in [("tini", ["-g", "--"]), ("start.sh", [])]:
+                entrypoint = shim_directory / name
+                entrypoint.write_text(
+                    "#!" + sys.executable + "\n"
+                    "import json, os, sys\n"
+                    "args=sys.argv[1:]\n"
+                    "prefix=" + repr(prefix) + "\n"
+                    "assert args[:len(prefix)] == prefix\n"
+                    "args=args[len(prefix):]\n"
+                    "with open(os.environ['PROXY_TEST_ENTRYPOINT_RECORD'],'a') as f: "
+                    "f.write(json.dumps({'name':" + repr(name) + ", 'next':args[0]})+'\\n')\n"
+                    "os.execvp(args[0],args)\n"
+                )
+                entrypoint.chmod(0o700)
             cls.launcher_record = cls.root / "launcher.json"
             shim = shim_directory / "start-notebook.py"
             shim.write_text(
@@ -124,6 +139,7 @@ class StartupIntegration(unittest.TestCase):
             enabled_env.update({
                 "PATH": str(shim_directory) + os.pathsep + cls.env["PATH"],
                 "PROXY_TEST_LAUNCHER_RECORD": str(cls.launcher_record),
+                "PROXY_TEST_ENTRYPOINT_RECORD": str(cls.entrypoint_record),
                 "PROXY_TEST_SERVER_ARGS": json.dumps(cls.server_args(cls.port)),
             })
             cls.enabled = cls.spawn(cls.command, enabled_env, "enabled")
@@ -203,6 +219,13 @@ class StartupIntegration(unittest.TestCase):
         status, body = self.request(self.port, "/does-not-exist")
         self.assertEqual(status, 404)
         self.assertEqual(json.loads(body), {"error": "application_route_not_found"})
+
+    def test_original_image_entrypoint_chain_is_preserved(self):
+        records = [json.loads(line) for line in self.entrypoint_record.read_text().splitlines()]
+        self.assertEqual(records, [
+            {"name": "tini", "next": "start.sh"},
+            {"name": "start.sh", "next": "/bin/bash"},
+        ])
 
     def test_launcher_keeps_the_existing_auth_and_network_environment(self):
         record = json.loads(self.launcher_record.read_text())
