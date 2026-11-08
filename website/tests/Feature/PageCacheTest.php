@@ -94,15 +94,200 @@ class PageCacheTest extends TestCase
             'توکنِ نفرِ اول هنوز جایی در HTML مانده');
     }
 
-    public function test_a_session_cookie_bypasses_the_cache(): void
+    public function test_an_ordinary_guest_session_cookie_can_hit_with_its_own_token(): void
     {
-        // پر کردن کش با یک مهمان
-        $this->get('/')->assertHeader('X-Cache', 'MISS');
+        $first = $this->get('/')->assertHeader('X-Cache', 'MISS');
+        preg_match('/name="csrf-token" content="([^"]+)"/', $first->getContent(), $match);
+        $firstToken = $match[1];
+        $secondToken = 'GuestSessionToken'.str_repeat('z', 23);
 
-        $withCookie = $this->withUnencryptedCookie((string) config('session.cookie'), 'x')
+        $withCookie = $this->withSession([
+            '_token' => $secondToken,
+            '_previous' => ['url' => 'https://servernet.cloud/blog', 'route' => 'blog.index'],
+            '_flash' => ['old' => [], 'new' => []],
+        ])->withUnencryptedCookie((string) config('session.cookie'), 'guest-session-id')
             ->get('/');
 
-        $withCookie->assertHeader('X-Cache', 'BYPASS');
+        $withCookie->assertHeader('X-Cache', 'HIT');
+        $withCookie->assertSee('name="csrf-token" content="'.$secondToken.'"', false);
+        $this->assertStringNotContainsString($firstToken, $withCookie->getContent());
+        $this->assertStringContainsString('private', $withCookie->headers->get('Cache-Control'));
+        $this->assertStringContainsString('Cookie', $withCookie->headers->get('Vary'));
+        $this->assertStringNotContainsString('public', $withCookie->headers->get('Cache-Control'));
+    }
+
+    public function test_personal_session_state_bypasses_warm_cache(): void
+    {
+        $this->get('/')->assertHeader('X-Cache', 'MISS');
+
+        // Even empty or unknown business keys are unsafe: future page code may
+        // use their presence. Do not limit this to today's known private keys.
+        $privateData = [
+            'errors' => (new \Illuminate\Support\ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['email' => ['Visitor-specific error']])),
+            'url' => ['intended' => 'https://servernet.cloud/account/order/vps'],
+            'snet_analytics' => ['event' => 'visitor-only'],
+            'pending_order' => 'visitor-only',
+            'future_key' => '',
+        ];
+        foreach ($privateData as $key => $value) {
+            $this->withSession([$key => $value])->get('/')
+                ->assertHeader('X-Cache', 'BYPASS');
+            session()->forget($key);
+        }
+    }
+
+    public function test_encrypted_response_cookie_reloads_the_guest_session_on_a_fresh_request(): void
+    {
+        // A persisted session and a new Store on every request avoid the test
+        // client's usual in-memory session shortcut. Replay exactly the issued
+        // encrypted cookie through EncryptCookies and StartSession.
+        $directory = storage_path('framework/testing/cache-cookie-'.getmypid());
+        mkdir($directory, 0777, true);
+        config(['session.driver' => 'file', 'session.files' => $directory]);
+        $freshSession = function (): void {
+            app('session')->forgetDrivers();
+            app()->forgetInstance('session.store');
+            app('auth')->forgetGuards();
+        };
+
+        try {
+            $freshSession();
+            $first = $this->get('/')->assertOk()->assertHeader('X-Cache', 'MISS');
+            $cookieName = (string) config('session.cookie');
+            $cookie = $first->getCookie($cookieName, false);
+            $this->assertNotNull($cookie);
+            $firstId = session()->getId();
+            $firstStore = app('session')->driver();
+            $firstToken = session()->token();
+            $this->assertNotSame($firstId, $cookie->getValue(), 'Response cookie must actually be encrypted');
+
+            $freshSession();
+            $second = $this->withUnencryptedCookie($cookieName, $cookie->getValue())
+                ->get('/')->assertOk()->assertHeader('X-Cache', 'HIT');
+            $this->assertNotSame($firstStore, app('session')->driver());
+            $this->assertSame($firstId, session()->getId());
+            $this->assertSame($firstToken, session()->token());
+            $second->assertSee('name="csrf-token" content="'.$firstToken.'"', false);
+
+            $this->unencryptedCookies = [];
+            $freshSession();
+            $otherVisitor = $this->get('/')->assertOk()->assertHeader('X-Cache', 'HIT');
+            $this->assertNotSame($firstId, session()->getId());
+            $this->assertNotSame($firstToken, session()->token());
+            $otherVisitor->assertSee('name="csrf-token" content="'.session()->token().'"', false);
+            $this->assertStringNotContainsString($firstToken, $otherVisitor->getContent());
+        } finally {
+            foreach ((array) glob($directory.'/*') as $file) {
+                unlink($file);
+            }
+            rmdir($directory);
+        }
+    }
+
+    public function test_flash_state_bypasses_warm_cache_until_consumed(): void
+    {
+        $this->get('/')->assertHeader('X-Cache', 'MISS');
+        session()->flash('comment_status', 'pending');
+
+        $this->get('/')->assertHeader('X-Cache', 'BYPASS');
+        $this->get('/')->assertHeader('X-Cache', 'BYPASS');
+        $this->get('/')->assertHeader('X-Cache', 'HIT');
+    }
+
+    public function test_both_authenticated_guards_bypass_warm_cache(): void
+    {
+        $staff = \App\Models\User::factory()->create();
+        $customer = \App\Models\Customer::create([
+            'email' => 'guest-cache@example.test', 'password' => 'cache-test-password',
+            'status' => 'active', 'locale' => 'fa',
+        ]);
+        $this->get('/')->assertHeader('X-Cache', 'MISS');
+
+        $this->actingAs($staff, 'web')->get('/')->assertHeader('X-Cache', 'BYPASS');
+        auth('web')->logout();
+        $this->actingAs($customer, 'customer')->get('/')
+            ->assertHeader('X-Cache', 'BYPASS');
+    }
+
+    public function test_authorization_header_bypasses_warm_cache(): void
+    {
+        $this->get('/')->assertHeader('X-Cache', 'MISS');
+        $this->withHeader('Authorization', 'Bearer guest-cache-test')->get('/')
+            ->assertHeader('X-Cache', 'BYPASS');
+    }
+
+    public function test_state_added_during_render_is_not_saved_for_another_guest(): void
+    {
+        $middleware = app(\App\Http\Middleware\PageCache::class);
+        $request = \Illuminate\Http\Request::create('https://servernet.cloud/blog', 'GET');
+        $request->setRouteResolver(fn () => \Illuminate\Support\Facades\Route::getRoutes()->getByName('blog.index'));
+        $request->setLaravelSession(app('session')->driver());
+        $request->session()->flush();
+        $request->session()->regenerateToken();
+
+        $first = $middleware->handle($request, function ($request) {
+            $request->session()->put('new_private_state', 'visitor-secret');
+
+            return response('<p>visitor-secret</p>', 200, ['Content-Type' => 'text/html']);
+        });
+        $this->assertSame('MISS', $first->headers->get('X-Cache'));
+
+        $request->session()->forget('new_private_state');
+        $second = $middleware->handle($request, fn () => response('<p>public</p>', 200, ['Content-Type' => 'text/html']));
+        $this->assertSame('MISS', $second->headers->get('X-Cache'));
+        $this->assertStringNotContainsString('visitor-secret', $second->getContent());
+    }
+
+    public function test_guest_session_reuse_can_be_disabled_without_disabling_page_cache(): void
+    {
+        $this->get('/')->assertHeader('X-Cache', 'MISS');
+        config(['pagecache.guest_sessions' => false]);
+
+        $this->withUnencryptedCookie((string) config('session.cookie'), 'guest-session-id')
+            ->get('/')->assertHeader('X-Cache', 'BYPASS');
+    }
+
+    public function test_render_time_private_state_cannot_be_replaced_with_a_stale_copy(): void
+    {
+        config(['pagecache.ttl' => -1]);
+        $middleware = app(\App\Http\Middleware\PageCache::class);
+        $request = \Illuminate\Http\Request::create('https://servernet.cloud/blog', 'GET');
+        $request->setRouteResolver(fn () => \Illuminate\Support\Facades\Route::getRoutes()->getByName('blog.index'));
+        $request->setLaravelSession(app('session')->driver());
+        $request->session()->flush();
+        $request->session()->regenerateToken();
+
+        $middleware->handle($request, fn () => response('<p>public copy</p>', 200, ['Content-Type' => 'text/html']));
+        $failed = $middleware->handle($request, function ($request) {
+            $request->session()->put('private_result', 'visitor-only');
+
+            return response('<p>private failure</p>', 503, ['Content-Type' => 'text/html']);
+        });
+        $this->assertSame(503, $failed->getStatusCode());
+        $this->assertSame('MISS', $failed->headers->get('X-Cache'));
+        $this->assertStringNotContainsString('public copy', $failed->getContent());
+
+        $request->session()->forget('private_result');
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('private rendering failed');
+        $middleware->handle($request, function ($request) {
+            $request->session()->put('private_result', 'visitor-only');
+
+            throw new \RuntimeException('private rendering failed');
+        });
+    }
+
+    public function test_a_cookie_without_an_initialized_session_fails_closed(): void
+    {
+        $request = \Illuminate\Http\Request::create('https://servernet.cloud/', 'GET', [], [
+            (string) config('session.cookie') => 'unresolved-session',
+        ]);
+        $request->setRouteResolver(fn () => \Illuminate\Support\Facades\Route::getRoutes()->getByName('home'));
+
+        $response = app(\App\Http\Middleware\PageCache::class)->handle($request,
+            fn () => response('<p>public</p>', 200, ['Content-Type' => 'text/html']));
+
+        $this->assertSame('BYPASS', $response->headers->get('X-Cache'));
     }
 
     public function test_query_strings_and_unlisted_routes_bypass(): void

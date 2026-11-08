@@ -38,9 +38,9 @@ use Illuminate\View\View;
  *
  * ═══ آنچه ممیزی ۷ عوض کرد ═══
  *
- * · «فقط پرچم‌دار در sitemap»ِ ممیزی ۶ برگشت: **همهٔ** صفحاتِ سفارشِ فعال
- *   ایندکس و در sitemap‌اند (معیارِ پذیرش: ۶۴ از ۶۴) و همه عنوان/توضیحِ
- *   تراکنشیِ یکتا می‌گیرند. پرچم‌دارها فقط برای llms.txt مانده‌اند.
+ * · صفحاتِ سفارشِ فعال عنوان/توضیحِ تراکنشیِ یکتا می‌گیرند؛ در برنامهٔ رشد
+ *   ۸ نوامبر ۲۰۲۶ خلاصهٔ سفارش noindex,follow شد تا کشفِ جستجو روی صفحات
+ *   محصول و دسته متمرکز بماند. دسترسی و قیمت/تحویل سفارش تغییر نکرده‌اند.
  * · CTA به /go/pay می‌رود (متد pay همین کلاس): شمارشِ هر کلیک در اکسس‌لاگ و
  *   Funnel + امضای تازه در لحظهٔ کلیک — قلم ۳ رودمپِ ممیزی ۷.
  *
@@ -146,12 +146,7 @@ class OrderSummaryController extends Controller
             'vatVerified' => $this->vatVerified(),
             'sells'       => $this->sellsInCurrentLocale(),
             'schema'      => $this->schema($product, $rows),
-            /*
-            | ممیزی ۷ (قلم ۲ رودمپ) تصمیمِ «فقط پرچم‌دارها ایندکس» ممیزی ۶ را
-            | برگرداند: معیارِ پذیرش «۶۴ از ۶۴ در sitemap» است — تنها قلمی که
-            | مستقیم روی درآمد اثر دارد. عنوان/توضیحِ هر SKU تراکنشی و یکتاست
-            | (نام + قیمت)، پس شرطِ new_page_gate (عنوانِ یکتا) هم برقرار است.
-            */
+            // Keep the handoff title useful for shoppers even though the view is noindex.
             'metaTitle'   => __('ui.os_meta_title', ['name' => $product->displayName(), 'price' => cloud_price($lowestMonthly)]),
             'metaDesc'    => __('ui.os_meta_desc', ['name' => $product->displayName(), 'price' => cloud_price($lowest)]),
         ]);

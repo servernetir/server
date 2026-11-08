@@ -67,6 +67,12 @@
 </section>
 @endif
 
+@if(in_array($slug, ['seo', 'whois', 'ip', 'domain-ideas', 'speedtest'], true))
+<div class="container"><div class="tool-result-wrap">
+  @include('partials.tool-next-step')
+</div></div>
+@endif
+
 {{-- ============ CROSS-SELL: سایر ابزارها ============ --}}
 <section class="section" style="padding-top:20px;padding-bottom:70px">
   <div class="container">

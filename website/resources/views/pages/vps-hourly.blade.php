@@ -281,7 +281,7 @@
                 <td class="hv-td-p" data-label="{{ __('ui.hv_th_hourly') }}"><b>{{ $c['hourly'] }}</b> <small>{{ __('ui.hv_per_hour') }}</small></td>
                 <td data-label="{{ __('ui.hv_th_monthly') }}">{{ $c['monthly'] }}</td>
                 <td data-label="{{ __('ui.hv_th_plans') }}">{{ $isFa ? fa_num($c['plans']) : $c['plans'] }}</td>
-                <td class="hv-td-buy"><a class="hv-link" href="{{ $c['url'] }}">{{ $isFa ? 'سرور مجازی '.$c['label'] : $c['label'].' VPS' }}</a></td>
+                <td class="hv-td-buy"><a class="hv-link" href="{{ $c['url'] }}">{{ __('vps-guide.country_link', ['country' => $c['label']]) }}</a></td>
               </tr>
             @endforeach
             @foreach($unavailableCountries ?? [] as $c)

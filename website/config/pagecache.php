@@ -6,12 +6,12 @@
 |--------------------------------------------------------------------------
 | نسخهٔ «کوچک‌ترینِ ممکن»ی که CTO در ممیزی ۳ خواست، ولی در لایهٔ اپ:
 | روی cPanel به nginx/فایلِ کانفیگ لبه دسترسی نداریم، پس همان قرارداد
-| (TTL کوتاه، BYPASS برای کاربرِ نشست‌دار، هدرِ X-Cache همیشه) این‌جا
+| (TTL کوتاه، BYPASS برای نشستِ خصوصی، هدرِ X-Cache همیشه) این‌جا
 | پیاده می‌شود. Cloudflare جلوی ما HTML را کش نمی‌کند (فقط استاتیک)، پس
 | این لایه TTFB واقعی صفحات پرتردد را پایین می‌آورد.
 |
 | تعریفِ «انجام شد» (از خودِ ممیزی): دو `curl -I` پیاپی روی یک URL از این
-| فهرست، دومی `X-Cache: HIT` بدهد؛ و صفحهٔ نشست‌دار `BYPASS`.
+| فهرست، دومی `X-Cache: HIT` بدهد؛ و صفحهٔ نشستِ خصوصی `BYPASS`.
 |
 | ⚠️ فقط GETِ بی‌رشتهٔ کوئری و بی‌احراز هویت کش می‌شود؛ جزئیات و دلیلِ
 | تعویضِ توکنِ CSRF در خودِ PageCache مستند است.
@@ -19,6 +19,11 @@
 
 return [
     'enabled' => env('PAGE_CACHE', true),
+
+    // Reuse application HTML for anonymous sessions containing only Laravel
+    // bookkeeping. Auth, flash, errors and every unknown session key bypass.
+    // HTML stays private: the middleware replaces CSRF tokens for each visitor.
+    'guest_sessions' => env('PAGE_CACHE_GUEST_SESSIONS', true),
 
     // ثانیه. کوتاه عمدی است: صفحهٔ کهنه‌ی حداکثر یک‌دقیقه‌ای، در ازای حذفِ
     // رندرِ کامل برای پربازدیدترین صفحات. (همان 60sِ نسخهٔ nginx ممیزی)

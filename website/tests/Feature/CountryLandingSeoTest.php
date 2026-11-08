@@ -76,4 +76,22 @@ class CountryLandingSeoTest extends TestCase
         $this->assertStringContainsString('&lt;SCRIPT&gt;', $html);
         $this->assertStringContainsString('network', strtolower($html));
     }
+
+    public function test_country_workload_links_keep_the_locale_and_only_offer_hourly_comparison_when_available(): void
+    {
+        foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+            $html = $this->get($prefix.'/vps/germany')->assertOk()->getContent();
+            $this->assertSame(1, preg_match('~<section[^>]+id="vps-use-cases"[^>]*>(.*?)</section>~s', $html, $guide));
+            foreach (['/hosting/linux', '/docs/connecting-to-linux-server-ssh', '/gpu', '/cloud'] as $target) {
+                $this->assertStringContainsString('href="'.url($prefix.$target).'"', $guide[1]);
+            }
+            $this->assertStringNotContainsString('hourly-calculator', $guide[1]);
+            $this->assertStringNotContainsString('vps-guide.', $guide[1]);
+            $this->assertStringContainsString('id="vps-country-faq"', $html);
+            $this->assertStringContainsString('href="#vps-country-faq"', $html);
+
+            $withHourly = view('partials.country-workloads', ['country' => 'Test Country', 'hasHourlyPlans' => true])->render();
+            $this->assertStringContainsString('href="'.url($prefix.'/vps/hourly').'#hourly-calculator"', $withHourly);
+        }
+    }
 }
