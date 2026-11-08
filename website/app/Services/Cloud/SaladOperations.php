@@ -875,6 +875,28 @@ trait SaladOperations
             'stopped' => $state === 'stopped' && $nodes['ok'] && count($this->items($nodes['body'])) === 0];
     }
 
+    /** Exact group identity and an empty, valid instance list; no power/delete call. */
+    public function closedBillingState(string $ref): array
+    {
+        $group = $this->req('GET', $this->proj('/'.rawurlencode($ref)));
+        if (! $group['ok'] || (string) data_get($group['body'], 'name', '') !== $ref) {
+            return ['ok' => false, 'outcome' => 'unknown'];
+        }
+        $state = strtolower((string) data_get($group['body'], 'current_state.status', ''));
+        $nodes = $this->req('GET', $this->proj('/'.rawurlencode($ref).'/instances'));
+        $instances = data_get($nodes['body'], 'instances');
+        if (! $nodes['ok'] || ! is_array($instances) || ! array_is_list($instances)) {
+            return ['ok' => false, 'outcome' => 'unknown'];
+        }
+        $counts = data_get($group['body'], 'current_state.instance_status_counts');
+        $countsValid = is_array($counts) && $counts !== [];
+        foreach ((array) $counts as $count) {
+            if (! is_numeric($count) || (float) $count !== 0.0) { $countsValid = false; }
+        }
+        return ['ok' => true, 'outcome' => $state === 'stopped' && $instances === [] && $countsValid
+            ? 'stopped_empty' : 'present', 'state' => $state, 'instance_count' => count($instances)];
+    }
+
     public function serverStatus(string $ref): array
     {
         $r = $this->req('GET', $this->proj('/'.rawurlencode($ref)));

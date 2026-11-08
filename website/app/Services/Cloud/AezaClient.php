@@ -2098,13 +2098,23 @@ class AezaClient implements CloudProvider
 
         $s = (array) (data_get($r['body'], 'data.items.0') ?? data_get($r['body'], 'data') ?? $r['body']);
 
+        if (! isset($s['id']) || (! is_string($s['id']) && ! is_int($s['id']))
+            || (string) $s['id'] !== $ref) {
+            return ['ok' => false, 'message' => 'هویت منبع در پاسخ زیرساخت تطبیق ندارد.',
+                'status' => 'unknown', 'identity_error' => true] + $none;
+        }
+
         return [
             'ok' => true, 'message' => '',
             'status'          => $this->mapStatus((string) ($s['currentStatus'] ?? $s['status'] ?? '')),
             'ipv4'            => $this->firstIp($s, 4),
             'ipv6'            => $this->firstIp($s, 6),
             'traffic_used_gb' => null,
-            'raw'             => ['status' => $s['status'] ?? null, 'name' => $s['name'] ?? null],
+            'raw'             => ['status' => $s['status'] ?? null, 'name' => $s['name'] ?? null,
+                'current_status' => $s['currentStatus'] ?? $s['status'] ?? null,
+                'identity_verified' => true, 'resource_ref' => (string) $s['id'],
+                'expires_at' => $s['expiresAt'] ?? null,
+                'auto_prolong' => is_bool($s['autoProlong'] ?? null) ? $s['autoProlong'] : null],
         ];
     }
 

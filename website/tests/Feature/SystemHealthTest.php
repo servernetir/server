@@ -57,6 +57,12 @@ class SystemHealthTest extends TestCase
         foreach (['services:renew-due', 'services:lifecycle', 'cloud:meter'] as $job) {
             \App\Services\Billing\BillingRunMonitor::record($job, 0);
         }
+        // Recovery needs successful fresh infrastructure reads, even with an empty fleet.
+        \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\ClosedInfrastructureAudit::LAST_SCAN_KEY,
+            ['at' => now()->toIso8601String(), 'unknown' => 0]);
+        \Illuminate\Support\Facades\Cache::put(\App\Services\Cloud\FleetScanner::LAST_SCAN_KEY,
+            ['at' => now()->toIso8601String(), 'ok' => true,
+                'checked' => array_keys(app(\App\Services\Cloud\CloudManager::class)->configured()), 'errors' => []]);
     }
 
     private function beat(?\Carbon\Carbon $at = null): void
