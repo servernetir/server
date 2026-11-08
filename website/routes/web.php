@@ -836,6 +836,7 @@ foreach ([
     '/privacy-policy'     => '/privacy',
     '/guide/privacy.php'  => '/privacy',
     '/services'           => '/solutions',
+    '/ساخت-اپلیکیشن-موبایل-در-ارومیه' => '/urmia/app-development',
     '/marketing'          => '/solutions',
     '/home'               => '/',
     '/cart'               => '/',
