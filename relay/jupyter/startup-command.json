@@ -1,0 +1,8 @@
+{
+  "image": "quay.io/jupyter/pytorch-notebook:cuda12-2026-10-05",
+  "command": [
+    "/bin/bash",
+    "-c",
+    "set -euo pipefail; python -c 'from importlib.metadata import version; assert version(\"jupyter-server-proxy\") == \"4.6.0\"' 2>/dev/null || python -m pip install --disable-pip-version-check --no-input --no-cache-dir 'jupyter-server-proxy==4.6.0'; python -c 'from importlib.metadata import version; assert version(\"jupyter-server-proxy\") == \"4.6.0\"; import jupyter_server_proxy'; python -m jupyter server extension enable --sys-prefix jupyter_server_proxy; exec start-notebook.py"
+  ]
+}
