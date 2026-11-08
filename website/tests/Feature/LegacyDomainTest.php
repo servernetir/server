@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
@@ -18,6 +19,16 @@ use Tests\TestCase;
 class LegacyDomainTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Host exemptions dispatch /system/health inside this process. Keep
+        // its provider probes synthetic; these tests only assert redirects.
+        Http::preventStrayRequests();
+        Http::fake(fn () => Http::response([], 503));
+    }
 
     private function on(string $host, string $uri, string $method = 'GET')
     {
