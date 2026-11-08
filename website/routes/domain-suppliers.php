@@ -7,6 +7,8 @@ Route::prefix('admin/domain-suppliers')->middleware(['auth:web', 'admin'])->grou
     Route::post('/operations/{supplierOperation}/refresh-quote', [DomainSupplierController::class, 'refreshQuote'])->whereNumber('supplierOperation')->middleware('throttle:10,1');
     Route::post('/operations/{supplierOperation}/approve', [DomainSupplierController::class, 'approve'])->whereNumber('supplierOperation')->middleware('throttle:10,1');
     Route::get('/', [DomainSupplierController::class, 'index'])->name('admin.domain-suppliers');
+    // Read-only supplier catalogue pull; each run is several paged API reads, so keep it rare.
+    Route::post('/catalogue/refresh', [DomainSupplierController::class, 'refreshCatalogue'])->middleware('throttle:3,1');
     Route::post('/', [DomainSupplierController::class, 'store'])->middleware('throttle:20,1');
     Route::post('/{supplierAccount}', [DomainSupplierController::class, 'update'])->whereNumber('supplierAccount')->middleware('throttle:20,1');
     Route::post('/{supplierAccount}/contacts', [DomainSupplierController::class, 'contact'])->whereNumber('supplierAccount')->middleware('throttle:10,1');
