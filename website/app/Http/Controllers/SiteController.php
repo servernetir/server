@@ -318,6 +318,112 @@ class SiteController extends Controller
 
     public function sitemap(): \Illuminate\Http\Response
     {
+        return $this->urlsetResponse($this->sitemapEntries());
+    }
+
+    /*
+    | نقشه‌های بخش‌بندی‌شده — `/sitemap-index.xml` و `/sitemaps/{section}.xml`.
+    |
+    | چرا: نقشهٔ یک‌تکه ~۵۵۰۰ نشانی دارد و Search Console برای آن فقط **یک**
+    | عددِ «ایندکس‌شده» می‌دهد. وقتی صفحاتِ فروش ایندکس نشوند و قطعاتِ سخت‌افزار
+    | بشوند، آن یک عدد سالم به‌نظر می‌رسد. با نقشهٔ جدا برای هر بخش، گزارشِ
+    | Pages به‌ازای هر بخش جدا می‌شود و دقیقاً پیدا می‌شود کدام بخش ایندکس نشده.
+    |
+    | ⚠️ `/sitemap.xml` عمداً همان urlsetِ کامل ماند و index نشد: site:gate،
+    | `CheckSiteLinks` و ده‌ها تست آن را به‌عنوان فهرستِ مرجعِ نشانی‌ها می‌خوانند.
+    | هر دو از **همان** `sitemapEntries()` ساخته می‌شوند، پس هرگز از هم جدا
+    | نمی‌شوند؛ آمدنِ یک نشانی در دو نقشه برای گوگل مجاز و بی‌ضرر است.
+    */
+    public const SITEMAP_SECTIONS = ['products', 'orders', 'blog', 'docs', 'tools', 'hardware', 'ai', 'pages'];
+
+    public function sitemapIndex(): \Illuminate\Http\Response
+    {
+        $groups = $this->sitemapGroups();
+        $base = rtrim(config('app.url'), '/');
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
+            .'<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+        foreach (self::SITEMAP_SECTIONS as $section) {
+            if (empty($groups[$section])) {
+                continue; // نقشهٔ خالی اعلام نمی‌شود
+            }
+            $xml .= '  <sitemap><loc>'.htmlspecialchars($base.'/sitemaps/'.$section.'.xml', ENT_XML1).'</loc>';
+            // lastmod فقط از تاریخ‌های واقعیِ همان بخش؛ بخشِ بی‌تاریخ، lastmod
+            // ساختگی نمی‌گیرد (همان قاعدهٔ urlset).
+            $dates = array_filter(array_column($groups[$section], 'lastmod'));
+            if ($dates !== []) {
+                $xml .= '<lastmod>'.htmlspecialchars(max($dates), ENT_XML1).'</lastmod>';
+            }
+            $xml .= '</sitemap>'."\n";
+        }
+        $xml .= '</sitemapindex>'."\n";
+
+        return response($xml, 200, ['Content-Type' => 'application/xml']);
+    }
+
+    public function sitemapSection(string $section): \Illuminate\Http\Response
+    {
+        abort_unless(in_array($section, self::SITEMAP_SECTIONS, true), 404);
+        $entries = $this->sitemapGroups()[$section] ?? [];
+        abort_if($entries === [], 404);
+
+        return $this->urlsetResponse($entries);
+    }
+
+    /** بخشِ هر نشانی از اولین تکهٔ مسیرش، بعد از برداشتنِ پیشوندِ زبان. */
+    public static function sitemapSectionFor(string $loc): string
+    {
+        $path = trim((string) parse_url($loc, PHP_URL_PATH), '/');
+        $segments = $path === '' ? [] : explode('/', $path);
+        if (in_array($segments[0] ?? '', ['en', 'tr'], true)) {
+            array_shift($segments);
+        }
+
+        return match ($segments[0] ?? '') {
+            'vps', 'cloud', 'dedicated', 'hosting', 'gpu', 'domain', 'domains', 'services', 'solutions' => 'products',
+            'order' => 'orders',
+            'blog' => 'blog',
+            'docs', 'knowledge' => 'docs',
+            'webtools', 'lookup', 'tools', 'dns', 'network' => 'tools',
+            'parts', 'servers' => 'hardware',
+            'ai', 'identity-api' => 'ai',
+            default => 'pages',
+        };
+    }
+
+    /** @return array<string, list<array{loc:string, lastmod:?string}>> */
+    private function sitemapGroups(): array
+    {
+        $groups = [];
+        foreach ($this->sitemapEntries() as $entry) {
+            $groups[self::sitemapSectionFor($entry['loc'])][] = $entry;
+        }
+
+        return $groups;
+    }
+
+    /** @param list<array{loc:string, lastmod:?string}> $entries */
+    private function urlsetResponse(array $entries): \Illuminate\Http\Response
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
+            .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
+        foreach ($entries as $u) {
+            $xml .= '  <url><loc>'.htmlspecialchars($u['loc'], ENT_XML1).'</loc>';
+
+            if (! empty($u['lastmod'])) {
+                $xml .= '<lastmod>'.htmlspecialchars($u['lastmod'], ENT_XML1).'</lastmod>';
+            }
+
+            $xml .= '</url>'."\n";
+        }
+        $xml .= '</urlset>'."\n";
+
+        return response($xml, 200, ['Content-Type' => 'application/xml']);
+    }
+
+    /** @return list<array{loc:string, lastmod:?string}> */
+    private function sitemapEntries(): array
+    {
         $locales = \App\Providers\AppServiceProvider::LOCALES;
         $urls = [];
 
@@ -607,35 +713,26 @@ class SiteController extends Controller
         $add('ai.docs');
         // Category listings have distinct guidance and crawlable links to their models.
         // Only advertise categories with an active model; search-result filters stay out.
-        $activeAiCategories = \App\Models\AiModel::where('status', 'active')->distinct()->pluck('category')->all();
-        foreach (\App\Models\AiModel::CATEGORIES as $category) {
-            if (in_array($category, $activeAiCategories, true)) {
-                $add('ai.models', ['type' => $category]);
+        // ⚠️ پشتِ `hasTable` مثلِ بقیهٔ بخش‌ها: بی‌آن، نصبِ مهاجرت‌نخورده (و چند
+        //    تستِ موجود) کلِ نقشهٔ سایت را ۵۰۰ می‌گرفت — نه فقط بخشِ هوش مصنوعی.
+        if (\Illuminate\Support\Facades\Schema::hasTable('ai_models')) {
+            $activeAiCategories = \App\Models\AiModel::where('status', 'active')->distinct()->pluck('category')->all();
+            foreach (\App\Models\AiModel::CATEGORIES as $category) {
+                if (in_array($category, $activeAiCategories, true)) {
+                    $add('ai.models', ['type' => $category]);
+                }
             }
-        }
-        foreach (\App\Models\AiModel::where('status', '!=', 'deprecated')->get() as $aiModel) {
-            // Informational pages can be indexed while a route is preparing. Retired models cannot.
-            if (\App\Services\Ai\AiModelPage::indexable($aiModel)) {
-                $add('ai.model', $aiModel->slug);
+            foreach (\App\Models\AiModel::where('status', '!=', 'deprecated')->get() as $aiModel) {
+                // Informational pages can be indexed while a route is preparing. Retired models cannot.
+                if (\App\Services\Ai\AiModelPage::indexable($aiModel)) {
+                    $add('ai.model', $aiModel->slug);
+                }
             }
         }
 
         $add('official');
 
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n"
-            .'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
-        foreach (collect($urls)->unique('loc') as $u) {
-            $xml .= '  <url><loc>'.htmlspecialchars($u['loc'], ENT_XML1).'</loc>';
-
-            if (! empty($u['lastmod'])) {
-                $xml .= '<lastmod>'.htmlspecialchars($u['lastmod'], ENT_XML1).'</lastmod>';
-            }
-
-            $xml .= '</url>'."\n";
-        }
-        $xml .= '</urlset>'."\n";
-
-        return response($xml, 200, ['Content-Type' => 'application/xml']);
+        return collect($urls)->unique('loc')->values()->all();
     }
 
     /** Cached real registration totals for each TLD's minimum term. */

@@ -1013,6 +1013,9 @@ Route::post('/cloud-phone/webhook/{token}', \App\Http\Controllers\CloudPhoneWebh
     ->middleware('throttle:600,1')->where('token', '[A-Za-z0-9_-]{16,80}');
 
 Route::get('/sitemap.xml', [SiteController::class, 'sitemap']);
+// نقشه‌های بخش‌بندی‌شده برای گزارشِ ایندکسِ جدا در Search Console — توضیح در SiteController::SITEMAP_SECTIONS
+Route::get('/sitemap-index.xml', [SiteController::class, 'sitemapIndex']);
+Route::get('/sitemaps/{section}.xml', [SiteController::class, 'sitemapSection'])->where('section', '[a-z]+');
 Route::get('/hardware-sitemap.xml', [ServerShopController::class, 'sitemap']);
 // Legacy WordPress/SEO-plugin sitemap entry points still receive crawler hits.
 // One permanent hop preserves discovery without filling the 404 tracker with

@@ -181,3 +181,4 @@ Disallow: /healthz
 Disallow: /up
 
 Sitemap: https://servernet.cloud/sitemap.xml
+Sitemap: https://servernet.cloud/sitemap-index.xml
