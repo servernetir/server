@@ -198,9 +198,9 @@ class Audit7RegressionTest extends TestCase
         $this->assertStringContainsString('"cycle":"yearly"', $rows);
     }
 
-    // Existing sitemap selection is outside this change; order handoffs are noindex.
+    // Order handoffs remain accessible but are excluded from search discovery.
 
-    public function test_order_summary_is_noindex_without_changing_existing_sitemap_selection(): void
+    public function test_order_summary_is_noindex_and_excluded_from_the_sitemap(): void
     {
         Product::create([
             'name' => 'پکیج آ', 'slug' => 'wp-a-1', 'group' => 'wordpress', 'category' => 'shared',
@@ -215,7 +215,7 @@ class Audit7RegressionTest extends TestCase
 
         $xml = $this->get('/sitemap.xml')->assertOk()->getContent();
 
-        $this->assertStringContainsString('/order/wp-a-1', $xml);
+        $this->assertStringNotContainsString('/order/wp-a-1', $xml);
         $this->assertStringNotContainsString('/order/wp-b-1', $xml);
 
         $html = $this->get('/order/wp-a-1')->assertOk()->getContent();
