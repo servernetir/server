@@ -1,0 +1,26 @@
+{
+  "added_lines": 24,
+  "after_bytes": 44021,
+  "application_writes": 0,
+  "base_payload_sha256": "3545d847dd414151ce173d413edb22f1194efc93f2b58e855890ff548861fbe5",
+  "before_bytes": 43419,
+  "helpers": {
+    "compile-blade.php": "15c41d553785c0bd26fff98cb62581f87ed4dd9ecca48abc2dde9d62c8f1b910",
+    "release.py": "d74869fc16fc470ba9446b92892d785950f710b9312ae1a622f2e1455e1a405d"
+  },
+  "hosting_hunks": 8,
+  "hosting_hunks_reanchored": [
+    0
+  ],
+  "iran_purchase_restriction_preserved": true,
+  "other_hosting_hunks_unchanged": 7,
+  "other_payload_rows_unchanged": 33,
+  "payload_sha256": "ac1cd0095b31940f772806436fdf3ef22ac443baadcd9b484e89872873516946",
+  "release": "seo-release-20261108",
+  "removed_lines": 9,
+  "reverse_byte_proof": true,
+  "reviewed_after_sha256": "233501312e99e8048390dc23335fc3b85d6b9288c559e23d5500c8edb7644316",
+  "reviewed_before_sha256": "dd2ab08e4d305016c28ea3e367964a3aa171cb3647bc880f41794d1de19d6f1d",
+  "scope": "The same approved hostingSeo insertion, reanchored before the unchanged live Iran purchase restriction; all seven other approved hosting hunks unchanged.",
+  "source": "resources/views/pages/hosting.blade.php"
+}
