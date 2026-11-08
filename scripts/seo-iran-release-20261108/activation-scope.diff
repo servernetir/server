@@ -1,0 +1,43 @@
+--- main/seo-activate.php
++++ IR/activate.php
+@@ -5,7 +5,7 @@
+  * argv: phase stage preview-sha payload payload-sha coordinator-pid release.py
+  * The caller must keep the inspected release.py session alive until acceptance.
+  */
+-const SA_RELEASE = 'seo-release-20261108';
++const SA_RELEASE = 'seo-iran-release-20261108';
+ const SA_HOME = '/home/servernetcloud';
+ const SA_APP = SA_HOME.'/servernet_app';
+ const SA_LOCKS = ['.servernet-web-release.lock', 'servernet-release.lock', '.codex-web-deploy.lock'];
+@@ -72,8 +72,7 @@
+ }
+ function saSource(array $preview,bool $restored): void {
+     foreach ($preview['files'] as $row) {
+-        saCheck(is_string($row['destination']) && (str_starts_with($row['destination'],'servernet_app/')
+-            || $row['destination']==='public_html/assets/css/tool-next-step.css'),'source_scope');
++        saCheck(is_string($row['destination']) && str_starts_with($row['destination'],'servernet_app/'),'source_scope');
+         $path=SA_HOME.'/'.$row['destination']; saCheck(saSig($path)==($restored?$row['before']:$row['after']),'source_identity_drift');
+     }
+     saCheck(saSig(SA_APP.'/resources/views/layouts/site.blade.php')==$preview['layout_dependency']['signature'],'layout_identity_drift');
+@@ -134,7 +133,7 @@
+     saCheck(in_array($phase,['activate','rollback'],true) && ctype_digit($pidText),'arguments');
+     foreach ([$previewSha,$payloadSha] as $hash) saCheck(preg_match('/\A[a-f0-9]{64}\z/D',$hash)===1,'hash_argument');
+     saSafe($stage,true); $st=stat($stage);
+-    saCheck(dirname($stage)===SA_HOME && preg_match('/\A\.seo-release-20261108-[a-z0-9-]+\z/D',basename($stage))===1
++    saCheck(dirname($stage)===SA_HOME && preg_match('/\A\.seo-iran-release-20261108-[a-z0-9-]+\z/D',basename($stage))===1
+         && is_array($st) && $st['uid']===1020 && ($st['mode']&07777)===0700,'stage_identity');
+     $payloadRaw=saPrivate($payloadPath); saCheck(saSha($payloadRaw)===$payloadSha,'payload_hash');
+     $payload=json_decode($payloadRaw,true,64,JSON_THROW_ON_ERROR);
+@@ -142,10 +141,10 @@
+         && saSha(saPrivate($helper))===$payload['helpers']['release.py'],'payload_identity');
+     $raw=saPrivate($stage.'/preview.json'); saCheck(saSha($raw)===$previewSha,'preview_hash');
+     $preview=json_decode($raw,true,64,JSON_THROW_ON_ERROR);
+-    saCheck($preview['release']===SA_RELEASE && $preview['payload_sha256']===$payloadSha && count($preview['files'])===34,'preview_identity');
++    saCheck($preview['release']===SA_RELEASE && $preview['payload_sha256']===$payloadSha && count($preview['files'])===9,'preview_identity');
+     $expected=[]; foreach ($payload['files'] as $r) $expected[$r['source']]=$r['destination'];
+     foreach ($preview['files'] as $r) saCheck(($expected[$r['source']]??null)===$r['destination'],'preview_scope');
+-    saCheck(count(array_unique(array_column($preview['files'],'source')))===34,'preview_duplicate_source');
++    saCheck(count(array_unique(array_column($preview['files'],'source')))===9,'preview_duplicate_source');
+     $intent=saReadJson($stage.'/intent.json');
+     saCheck($intent['preview_sha256']===$previewSha && $intent['payload_sha256']===$payloadSha,'install_intent');
+     $restored=$phase==='rollback';
