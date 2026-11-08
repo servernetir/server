@@ -48,6 +48,7 @@ $assert($ready['checks']['cycle_expected_sha256'] === true);
 $assert($ready['checks']['caller_expected_sha256'] === true);
 $assert($ready['checks']['client_and_caller_are_distinct'] === true);
 $assert($ready['checks']['runtime_files_are_distinct'] === true);
+$assert($ready['checks']['runtime_files_share_directory'] === true);
 $assert($ready['observed']['client']['mode'] === '0644');
 $assert($ready['observed']['cycle']['path'] === realpath($cycle));
 $assert($ready['observed']['caller']['path'] === realpath($caller));
@@ -98,6 +99,22 @@ $sameCycle['expected-cycle-sha'] = $base['expected-client-sha'];
 $assert(HermesGrowthReadPreflight::inspect($sameCycle)['status'] === 'not_ready');
 $assert(HermesGrowthReadPreflight::inspect($sameCycle)['checks']['runtime_files_are_distinct'] === false);
 
+$otherDirectory = $temporary.'-other';
+if (! mkdir($otherDirectory, 0700) && ! is_dir($otherDirectory)) {
+    throw new RuntimeException('other_temp_directory_failed');
+}
+$otherCycle = $otherDirectory.'/GrowthReadCycle.php';
+if (! copy($cycle, $otherCycle)) {
+    throw new RuntimeException('other_cycle_copy_failed');
+}
+chmod($otherCycle, 0644);
+$splitDirectory = $base;
+$splitDirectory['cycle'] = realpath($otherCycle);
+$splitDirectory['expected-cycle-sha'] = hash_file('sha256', $otherCycle);
+$splitDirectoryResult = HermesGrowthReadPreflight::inspect($splitDirectory);
+$assert($splitDirectoryResult['status'] === 'not_ready');
+$assert($splitDirectoryResult['checks']['runtime_files_share_directory'] === false);
+
 $invalidSha = $base;
 $invalidSha['expected-cycle-sha'] = 'not-a-sha';
 try {
@@ -128,6 +145,8 @@ try {
 unlink($client);
 unlink($cycle);
 unlink($caller);
+unlink($otherCycle);
+rmdir($otherDirectory);
 rmdir($temporary);
 
 echo "Hermes Growth preflight: {$assertions} assertions passed.\n";
