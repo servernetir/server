@@ -1,0 +1,303 @@
+{
+  "release": "seo-release-20261108",
+  "status": "production_verified",
+  "receipt_kind": "sanitized operator receipt and public GET summaries",
+  "documentation_base_commit": "f01df01c746df97a1f2ae5e9931472fc981683bb",
+  "source_target_commit": "ca7184db35e2ae5b0ba1504a368b795956b118fc",
+  "curated_commits": [
+    "9b31f79a516970773d4ed9b3c6136c792317e8ab",
+    "00d9c94bf205cd7d0fb16fa9eeff05c2494399e7",
+    "c5b42391ec74490b9d1a3d9cb1fc4e17fce340cc",
+    "2fd0c2168626e63b083a76bb04093841be91960a",
+    "f1ef751cd00a57adda8fd028929dcdfca70fd479"
+  ],
+  "source_scope": {
+    "destinations": 34,
+    "inventory_destinations": 33,
+    "additional_destination": "routes/web.php: exact Urmia legacy alias",
+    "source_manifest": "scripts/seo-release-20261108/payload-live-v2.json",
+    "source_manifest_sha256": "ac1cd0095b31940f772806436fdf3ef22ac443baadcd9b484e89872873516946",
+    "preview_sha256": "2a658ae5ad78fa04093348dd6ae506da575124d083c3c4a23a88187dedb0833c",
+    "release_helper_sha256": "d74869fc16fc470ba9446b92892d785950f710b9312ae1a622f2e1455e1a405d",
+    "hosting_before_sha256": "dd2ab08e4d305016c28ea3e367964a3aa171cb3647bc880f41794d1de19d6f1d",
+    "hosting_after_sha256": "233501312e99e8048390dc23335fc3b85d6b9288c559e23d5500c8edb7644316",
+    "unrelated_live_drift_preserved": true,
+    "layout_installed": false
+  },
+  "private_source_receipt_summary": {
+    "provenance": "release operator observed session output; private preview/applied/finished receipts remain outside repository",
+    "files_changed": 34,
+    "files_verified_at_finish": 34,
+    "all_three_release_locks_held_through_activation_and_initial_acceptance": true,
+    "session_finished": true,
+    "locks_released_after_finish": true
+  },
+  "activation": {
+    "provenance": "release operator observed private activation.json",
+    "at": "2026-11-08T10:33:58+00:00",
+    "status": "activation_complete_pending_http",
+    "helper_repository_path": "scripts/seo-release-20261108/activate.php",
+    "helper_sha256": "bbf6616dadf6b0806919d9dac060d63e8ea2d948d7bead9d276e66e7adca311e",
+    "compiled_views": 11,
+    "framework_bootstraps": 1,
+    "cache_store": "file",
+    "generation_before": 4670,
+    "generation_after": 4671,
+    "broad_cache_flush": false,
+    "opcache_activation_claimed": false
+  },
+  "public_evidence": {
+    "after.json": {
+      "sha256": "cbd3581e57a17b8077ea564b9a832d4f9c95f489ab1670bed7f0a1ee24f49b80",
+      "captured_at": "2026-11-08T10:35:47.254836+00:00"
+    },
+    "console-after.json": {
+      "sha256": "0e0db9660565137b050b688b4360a7d71fdb916e6c07adcd3abf29bd4be40617",
+      "captured_at": "2026-11-08T10:36:24.779975+00:00"
+    },
+    "sitemap-after.json": {
+      "sha256": "4ffcc9be010db7db9253bbdd621c2cde0aa5f243e56d9ef4b1515c2028e10821",
+      "captured_at": "2026-11-08T10:38:17.038406+00:00"
+    }
+  },
+  "public_acceptance": {
+    "get_count_total": 32,
+    "get_count_before_session_finish": 31,
+    "page_gets": 24,
+    "cache_gets": 4,
+    "legacy_gets": 1,
+    "console_gets": 2,
+    "additional_sitemap_gets_after_finish": 1,
+    "page_failures": 0,
+    "page_statuses": {
+      "200": 24
+    },
+    "one_title_and_h1_per_page": true,
+    "jsonld_parse_errors": 0,
+    "order_noindex_locales": [
+      "fa",
+      "en",
+      "tr"
+    ],
+    "order_canonical_and_hreflang_suppressed": true,
+    "legacy_alias": {
+      "status": 301,
+      "location": "/urmia/app-development",
+      "passes": true,
+      "normalized_location": "https://servernet.cloud/urmia/app-development"
+    },
+    "catalog_comparisons": 16,
+    "catalog_changed_paths": [],
+    "catalog_scope": "Measured counts and samples only; not complete inventory or immutable pricing"
+  },
+  "cache_acceptance": {
+    "all_responses_200": true,
+    "independent_session_tokens_differ": true,
+    "same_session_tokens_stable": true,
+    "response_token_fields_consistent": true,
+    "one_current_meta_token_per_response": true,
+    "private_cache_control": true,
+    "observed_form_token_fields": 0,
+    "same_session_cached_hit_observed": true,
+    "session_a": [
+      "HIT",
+      "HIT"
+    ],
+    "session_b": [
+      "MISS",
+      "MISS"
+    ],
+    "session_b_cause": "unknown; concurrent global page:gen purges are possible, not proven",
+    "scope": "Meta-token and anonymous-session checks only; no hidden form token fields observed; not a cache-hit-rate or latency guarantee"
+  },
+  "console_acceptance": {
+    "login_status": 200,
+    "login_private": true,
+    "login_x_cache": "BYPASS",
+    "login_x_robots_tag": "noindex, nofollow",
+    "order_status": 301,
+    "order_location": "https://servernet.cloud/order/python-1"
+  },
+  "sitemap_acceptance": {
+    "root_type": "urlset",
+    "status": 200,
+    "url_count": 5169,
+    "order_url_count": 0,
+    "errors": [],
+    "all_three_locales_present": [
+      "germany",
+      "netherlands",
+      "iran"
+    ],
+    "all_three_locales_absent": [
+      "turkiye",
+      "philippines"
+    ]
+  },
+  "visual_acceptance": {
+    "provenance": "separate release-operator browser observation; not provided by GET JSON",
+    "sample": "hourly page desktop and 375px mobile",
+    "guide_and_inline_hourly_css_observed": true,
+    "mobile_document_overflow": false
+  },
+  "not_claimed": [
+    "authenticated or form-submission acceptance",
+    "synthetic or real purchase/payment",
+    "provider or customer-state operation",
+    "complete full-layout PublicPageStyles integration/performance acceptance",
+    "FPM OPcache reset",
+    "GA4 revenue verification or SEO traffic uplift"
+  ],
+  "private_rollback": {
+    "stage": "/home/servernetcloud/.seo-release-20261108-run2",
+    "bundle": "/home/servernetcloud/.seo-release-20261108-bundle-v2",
+    "reference": "scripts/seo-release-20261108/README.md: Continuous release session and Activation and rollback boundary",
+    "requirements": "Review any later overlapping release first. Reopen exact pinned session with --preview-sha256, keep all three locks; guarded source rollback, targeted activate.php rollback using current coordinator PID, HTTP acceptance, verify/finish. Never blindly reapply."
+  },
+  "iran_release": {
+    "release": "seo-iran-release-20261108",
+    "status": "production_verified",
+    "independent_of_main_release": true,
+    "source_pr": 292,
+    "source_merge_commit": "475f530435a961e1fd1ef5eb662c12d2f91b31f2",
+    "source_target_commit": "b687f92a3f1ef300d1a8ae6f4890ec3ea5bdbc88",
+    "source_curated_commit": "b6e9206c56710587fa9c1d1c004cec5e410ad7dc",
+    "tools_pr": 294,
+    "tools_merge_commit": "0f1274d8f51c43981bd2dd7d15cc70e90a47b726",
+    "source_scope": {
+      "destinations": 9,
+      "patches": 8,
+      "new_service_files": 1,
+      "main_release_overlapping_paths": 6,
+      "manifest_repository_path": "scripts/seo-iran-release-20261108/payload.json",
+      "payload_sha256": "bce884a9b94360fb4a465293db767d08253580694c1f7b41430389e54d4c875c",
+      "preview_sha256": "615b7eb4a3d3b4c9461e1a700b7982c13ea00333052a79294bd1ca5390799b1d",
+      "release_helper_sha256": "ddb72008eb6ac4611af06762f048fc86c38148e084415209c573a42d49f29bec",
+      "activation_helper_sha256": "ef5477b40b55ddda97181cb2b1d3d6d9c40dd6dca94674148c5b569fefd30216"
+    },
+    "private_source_receipt_summary": {
+      "provenance": "release operator observed private session output",
+      "files_changed": 9,
+      "files_verified_at_finish": 9,
+      "all_three_locks_held_through_activation_acceptance_and_finish": true,
+      "session_finished": true,
+      "locks_released_after_finish": true
+    },
+    "activation": {
+      "provenance": "release operator observed private activation receipt",
+      "at": "2026-11-08T10:43:30+00:00",
+      "compiled_views": 2,
+      "generation_before": 4691,
+      "generation_after": 4692,
+      "framework_bootstraps": 1,
+      "cache_store": "file",
+      "broad_cache_flush": false,
+      "opcache_activation_claimed": false
+    },
+    "public_evidence": {
+      "after.json": {
+        "sha256": "8ddc186b746bfb53edbfbf06e17a5ea2455804fd4f8ad8f5e21ededa0536630a",
+        "captured_at": "2026-11-08T10:43:55.644873+00:00"
+      },
+      "after-retry.json": {
+        "sha256": "0178cec5d32752f14486cfac6177fe4ef21b9b6e01528bedbacff8be83d248b6",
+        "captured_at": "2026-11-08T10:44:50.224876+00:00"
+      },
+      "after-final.json": {
+        "sha256": "c944ae45184befb9c2fcf539f9503680d21aadb63bb8f9662aea86e94bf8a4c4",
+        "captured_at": "2026-11-08T10:43:55.644873+00:00"
+      }
+    },
+    "public_acceptance": {
+      "planned_gets": 10,
+      "targeted_retry_gets": 3,
+      "actual_gets": 13,
+      "effective_country_locale_pages": 9,
+      "effective_page_statuses": {
+        "200": 9
+      },
+      "effective_failures": 0,
+      "passes": true,
+      "final_captured_at": "2026-11-08T10:44:50.224876+00:00",
+      "initial_failures": [
+        {
+          "path": "/en/vps/turkiye",
+          "status": 503
+        },
+        {
+          "path": "/vps/turkiye",
+          "status": 503
+        },
+        {
+          "path": "/sitemap.xml",
+          "status": 503
+        }
+      ],
+      "retry_result": "Exactly initial fa/en Turkiye and sitemap requests retried once; all returned 200",
+      "initial_failure_classification": "503 text/plain with no app cache/timing headers; source cause unclassified, no proxy attribution"
+    },
+    "country_acceptance": {
+      "iran": {
+        "locales": 3,
+        "indexable": true,
+        "canonical_per_page": 1,
+        "hreflang_per_page": 4,
+        "guest_plan_rows": 0,
+        "guest_price_attribute_rows": 0,
+        "guest_offers": 0,
+        "guest_itemlists": 0,
+        "guest_buy_urls": 0,
+        "guest_cities_empty": true,
+        "verification_notice_and_login_contact_ctas": true,
+        "visible_faq_matches_source": true
+      },
+      "netherlands": {
+        "locales": 3,
+        "indexable": true,
+        "plan_rows_per_page": 12,
+        "offers_per_page": 12
+      },
+      "turkiye": {
+        "locales": 3,
+        "plan_rows": 0,
+        "robots": "noindex,follow",
+        "canonical_per_page": 0,
+        "hreflang_per_page": 0
+      }
+    },
+    "sitemap_acceptance": {
+      "status": 200,
+      "root_type": "urlset",
+      "url_count": 5169,
+      "order_url_count": 0,
+      "country_url_counts": {
+        "IR": 3,
+        "TR": 0,
+        "NL": 3
+      }
+    },
+    "visual_acceptance": {
+      "provenance": "separate release-operator browser observation",
+      "sample": "Iran public page desktop and 375px mobile",
+      "localized_guide_notice_and_ctas_visible": true,
+      "mobile_document_overflow": false
+    },
+    "limitations": [
+      "Guest public rendering only; authenticated KYC enforcement was not actively exercised",
+      "No cookie, login, form, KYC, provider or purchase action",
+      "Main32GET receipt remains a separate completed check; six overlapping source paths now have the later IR overlay"
+    ],
+    "private_rollback": {
+      "stage": "/home/servernetcloud/.seo-iran-release-20261108-run1",
+      "bundle": "/home/servernetcloud/.seo-iran-release-20261108-bundle",
+      "reference": "scripts/seo-iran-release-20261108/README.md",
+      "order": "Guarded IR source rollback and targeted activation/HTTP acceptance must precede main release rollback because six source paths overlap; keep all three locks and use fresh coordinator PID"
+    }
+  },
+  "field_speed_data": {
+    "status": "unavailable",
+    "provenance": "release operator tool observation",
+    "reason": "GSC Wizard payment_required/subscription_required; trial ended/no active plan",
+    "paid_action": false
+  }
+}
