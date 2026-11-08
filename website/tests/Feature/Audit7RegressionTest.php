@@ -198,9 +198,9 @@ class Audit7RegressionTest extends TestCase
         $this->assertStringContainsString('"cycle":"yearly"', $rows);
     }
 
-    // ── قلم ۲: همهٔ صفحاتِ سفارش در sitemap، با عنوانِ تراکنشیِ یکتا ────────
+    // Existing sitemap selection is outside this change; order handoffs are noindex.
 
-    public function test_every_active_order_page_is_in_the_sitemap_and_indexable(): void
+    public function test_order_summary_is_noindex_without_changing_existing_sitemap_selection(): void
     {
         Product::create([
             'name' => 'پکیج آ', 'slug' => 'wp-a-1', 'group' => 'wordpress', 'category' => 'shared',
@@ -219,7 +219,7 @@ class Audit7RegressionTest extends TestCase
         $this->assertStringNotContainsString('/order/wp-b-1', $xml);
 
         $html = $this->get('/order/wp-a-1')->assertOk()->getContent();
-        $this->assertStringNotContainsString('name="robots" content="noindex', $html);
+        $this->assertStringContainsString('name="robots" content="noindex,follow"', $html);
     }
 
     public function test_order_titles_are_transactional_and_distinct_per_sku(): void

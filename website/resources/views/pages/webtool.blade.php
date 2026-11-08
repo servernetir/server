@@ -79,6 +79,8 @@
     </div>
     @endif
 
+    @include('partials.tool-next-step')
+
     {{-- ابزارهای هم‌گروه --}}
     @if(count($siblings))
     <div class="wt-more">

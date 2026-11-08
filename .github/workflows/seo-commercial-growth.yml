@@ -6,10 +6,21 @@ on:
     paths:
       - 'website/app/Services/PublicPageStyles.php'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
+      - 'website/app/Services/InternalLinks.php'
+      - 'website/app/Http/Middleware/PageCache.php'
+      - 'website/config/pagecache.php'
       - 'website/resources/views/pages/*.blade.php'
       - 'website/resources/views/partials/*.blade.php'
       - 'website/lang/**/hosting-seo.php'
       - 'website/lang/**/country-seo.php'
+      - 'website/lang/**/vps-guide.php'
+      - 'website/lang/**/tool-next-step.php'
+      - 'website/public/assets/css/tool-next-step.css'
+      - 'website/tests/Feature/*PageCache*'
+      - 'website/tests/Feature/*OrderSummary*'
+      - 'website/tests/Feature/*InternalLinkCommercial*'
+      - 'website/tests/Feature/*ToolProductCta*'
+      - 'website/tests/js/tool-next-step.test.cjs'
       - 'website/tests/Feature/CommercialSeoGrowthTest.php'
       - 'scripts/seo-growth-cycle/opportunities.py'
       - 'scripts/seo-growth-cycle/test_opportunities.py'
@@ -19,10 +30,21 @@ on:
     paths:
       - 'website/app/Services/PublicPageStyles.php'
       - 'website/app/Services/Cloud/CountryLandingSeo.php'
+      - 'website/app/Services/InternalLinks.php'
+      - 'website/app/Http/Middleware/PageCache.php'
+      - 'website/config/pagecache.php'
       - 'website/resources/views/pages/*.blade.php'
       - 'website/resources/views/partials/*.blade.php'
       - 'website/lang/**/hosting-seo.php'
       - 'website/lang/**/country-seo.php'
+      - 'website/lang/**/vps-guide.php'
+      - 'website/lang/**/tool-next-step.php'
+      - 'website/public/assets/css/tool-next-step.css'
+      - 'website/tests/Feature/*PageCache*'
+      - 'website/tests/Feature/*OrderSummary*'
+      - 'website/tests/Feature/*InternalLinkCommercial*'
+      - 'website/tests/Feature/*ToolProductCta*'
+      - 'website/tests/js/tool-next-step.test.cjs'
       - 'website/tests/Feature/CommercialSeoGrowthTest.php'
       - 'scripts/seo-growth-cycle/*opportunities.py'
       - '.github/workflows/seo-commercial-growth.yml'
@@ -82,6 +104,11 @@ jobs:
           set -euo pipefail
           php -l app/Services/PublicPageStyles.php
           php -l app/Services/Cloud/CountryLandingSeo.php
+          php -l app/Services/InternalLinks.php
+          php -l app/Http/Middleware/PageCache.php
+          php -l config/pagecache.php
           php -l tests/Feature/CommercialSeoGrowthTest.php
           find lang -name hosting-seo.php -print0 | xargs -0 -n1 php -l
-          vendor/bin/phpunit --filter='CommercialSeoGrowthTest|HourlyVpsPageTest|GpuPageTest|CountryLandingSeoTest|CountryVpsServiceSchemaTest|PublicPageStylesTest|SeoMetadataAndEntityTest|AnalyticsDataLayerCatalogTest|AnalyticsSessionEventConsumptionTest' --display-warnings --fail-on-warning --colors=never
+          vendor/bin/phpunit tests/Feature/CommercialSeoGrowthTest.php tests/Feature/HourlyVpsPageTest.php tests/Feature/GpuPageTest.php tests/Feature/CountryLandingSeoTest.php tests/Feature/CountryVpsServiceSchemaTest.php tests/Feature/PublicPageStylesTest.php tests/Feature/SeoMetadataAndEntityTest.php tests/Feature/AnalyticsDataLayerCatalogTest.php tests/Feature/AnalyticsSessionEventConsumptionTest.php tests/Feature/PageCacheTest.php tests/Feature/OrderSummaryIndexingTest.php tests/Feature/InternalLinkCommercialTargetsTest.php tests/Feature/ToolProductCtaTest.php --display-warnings --fail-on-warning --colors=never
+      - name: Verify tool conversion click contract
+        run: node website/tests/js/tool-next-step.test.cjs

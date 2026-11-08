@@ -1,6 +1,7 @@
 @extends('layouts.site')
 @section('title', $seo['title'])
 @section('description', $seo['description'])
+@php $hasHourlyPlans = collect($vpsRows)->contains(fn (array $row) => !empty($row['hourly_url'])); @endphp
 @if(!$vpsRows)
 @section('noindex', 'y')
 @endif
@@ -19,6 +20,11 @@
       <p>{{ $seo['intro'] }}</p>
     </div>
     <div class="vpsc-cities">@foreach(collect($vpsRows)->pluck('city')->unique() as $city)<span>{{ $city }}</span>@endforeach</div>
+    <nav class="vps-workload-links" aria-label="{{ __('vps-guide.jump') }}">
+      <a href="#pricing">{{ __('vps-guide.plans') }}</a>
+      <a href="#country-selection">{{ __('vps-guide.selection') }}</a>
+      <a href="#vps-country-faq">{{ __('vps-guide.faq') }}</a>
+    </nav>
   </div>
 </section>
 <section class="section vpsc-plans" id="pricing"><div class="container">
@@ -26,9 +32,10 @@
 </div></section>
 @include('partials.country-selection-guide', [
   'countrySeo' => $seo,
-  'hasHourlyPlans' => collect($vpsRows)->contains(fn (array $row) => !empty($row['hourly_url'])),
+  'hasHourlyPlans' => $hasHourlyPlans,
 ])
-<section class="section"><div class="container vpsc-info">
+@include('partials.country-workloads')
+<section class="section" id="vps-country-faq"><div class="container vpsc-info">
   <h2>{{ __('vps-catalog.faq') }}</h2>
   @foreach($seo['faq'] as $faq)<details><summary>{{ $faq['q'] }}</summary><p>{{ $faq['a'] }}</p></details>@endforeach
   <script type="application/ld+json">{!! schema_ld($seo['faq_ld'], 'FAQPage') !!}</script>

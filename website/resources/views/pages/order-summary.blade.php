@@ -2,8 +2,8 @@
 
 @section('title', $metaTitle.' — '.__('ui.brand'))
 @section('description', $metaDesc)
-{{-- ممیزی ۷ (قلم ۲ رودمپ): همهٔ صفحاتِ سفارش ایندکس و در sitemap — تصمیمِ
-     «فقط پرچم‌دار»ِ ممیزی ۶ برگشت. عنوانِ هر SKU تراکنشی و یکتاست (نام+قیمت). --}}
+{{-- The order handoff remains accessible; product and category pages carry search discovery. --}}
+@section('noindex', '1')
 
 {{-- خلاصهٔ سفارشِ پیش از ورود — بازطراحیِ ممیزی ۶ (UX):
      رادیوگروپ به‌جای جدول (جدولِ چهارستونه روی موبایلِ RTL تقریباً همیشه

@@ -14,8 +14,8 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * ═══ قرارداد ═══
  *
- *   · فقط GET، فقط روت‌های config/pagecache.php، بی‌رشتهٔ کوئری، بی‌کوکیِ
- *     نشست، بی‌احراز هویت، فقط پاسخِ 200ِ HTML.
+ *   · فقط GET، فقط روت‌های config/pagecache.php، بی‌رشتهٔ کوئری و بی‌احراز
+ *     هویت؛ نشست مهمان فقط با داده‌های پایهٔ Laravel مجاز است. فقط 200ِ HTML.
  *   · هدرِ `X-Cache: HIT|MISS|BYPASS|STALE` — همیشه، تا با یک curl سنجیدنی باشد.
  *   · توکنِ CSRF در لحظهٔ HIT با توکنِ نشستِ جاری تعویض می‌شود (دلیل کامل
  *     پایین، بالای handle).
@@ -38,9 +38,10 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * ═══ برای QA (ریسکِ «کش رگرسیون را پنهان می‌کند») ═══
  *
- * هر تستِ دستی/خودکارِ سایتِ زنده باید یا رشتهٔ کوئری داشته باشد (?qa=1 ⇒
- * BYPASS) یا کوکی بفرستد. تستِ بی‌کوکیِ بی‌کوئری ممکن است نسخهٔ سالمِ کهنه
- * را ببیند و بیلدِ خراب را پاس کند. (CLAUDE.md §۱۳)
+ * هر تستِ دستی/خودکارِ رندر تازهٔ سایت باید رشتهٔ کوئری داشته باشد (?qa=1 ⇒
+ * BYPASS). کوکیِ مهمان به‌تنهایی دیگر کش را دور نمی‌زند؛ برگشتِ موقتِ آن رفتار
+ * با PAGE_CACHE_GUEST_SESSIONS=false ممکن است. تستِ بی‌کوئری ممکن است نسخهٔ
+ * سالمِ کهنه را ببیند و بیلدِ خراب را پاس کند. (CLAUDE.md §۱۳)
  */
 class PageCache
 {
@@ -81,7 +82,7 @@ class PageCache
         try {
             $response = $next($request);
         } catch (\Throwable $e) {
-            if ($hasCopy) {
+            if ($hasCopy && $this->publicSession($request)) {
                 report($e);
 
                 return $this->tag($this->serve($hit, $request), 'STALE');
@@ -90,11 +91,13 @@ class PageCache
             throw $e;
         }
 
-        if ($response->getStatusCode() >= 500 && $hasCopy) {
+        if ($response->getStatusCode() >= 500 && $hasCopy && $this->publicSession($request)) {
             return $this->tag($this->serve($hit, $request), 'STALE');
         }
 
-        if ($this->storable($response)) {
+        // A controller can add visitor-specific state during rendering. Never
+        // publish that response into the shared application cache.
+        if ($this->storable($response) && $this->publicSession($request)) {
             try {
                 $store->put($key, [
                     'html'        => $response->getContent(),
@@ -207,19 +210,9 @@ class PageCache
             }
         }
 
-        /*
-        | 🔴 کوکیِ نشست = BYPASS — همان قاعدهٔ نسخهٔ nginxِ ممیزی
-        | (`map $http_cookie … session … ⇒ bypass`) و دلیلش این‌جا مشخص‌تر است:
-        | صفحه‌ای که برای کاربرِ نشست‌دار رندر می‌شود می‌تواند محتوای همان نشست
-        | را حمل کند (پیامِ flashِ «نظرت ثبت شد»، سبدِ در جریان…). ذخیره‌اش یعنی
-        | پیامِ خصوصیِ یک نفر برای بقیه؛ سروِ کش به او یعنی بلعیدنِ flash.
-        |
-        | ⚠️ ممیزی ۴ (زیرساخت) درست دید که «کوکیِ ساختگی = دورزدنِ کش و رسیدن
-        | به origin». پذیرفته و عمدی است — همان رفتارِ نسخهٔ nginx — چون بدیلش
-        | (اعتبارسنجیِ نشست پیش از BYPASS) یعنی نشست‌خوانی برای هر درخواست و
-        | خطرِ سروِ flashِ دیگران. سپرِ حجمی، Cloudflare جلوی ماست.
-        */
-        if ($request->cookies->has((string) config('session.cookie'))) {
+        // Explicit credentials are never a public request, even when neither
+        // of the session guards recognises the credential.
+        if ($request->headers->has('Authorization')) {
             return false;
         }
 
@@ -228,7 +221,38 @@ class PageCache
             return false;
         }
 
-        return true;
+        return $this->publicSession($request);
+    }
+
+    /**
+     * StartSession already ran before this middleware. A normal guest receives
+     * a session cookie on their first visit; its presence alone must not disable
+     * caching for every subsequent page. Only Laravel's navigation and CSRF
+     * bookkeeping are reusable. Unknown keys, validation errors, pending orders,
+     * analytics events and both generations of flash data stay private.
+     */
+    private function publicSession(Request $request): bool
+    {
+        if (! $request->hasSession()) {
+            return ! $request->cookies->has((string) config('session.cookie'));
+        }
+
+        if (! config('pagecache.guest_sessions', true)
+            && $request->cookies->has((string) config('session.cookie'))) {
+            return false;
+        }
+
+        $data = $request->session()->all();
+        $flash = $data['_flash'] ?? [];
+
+        if (! is_array($flash) || array_diff(array_keys($flash), ['old', 'new']) !== []
+            || ! empty($flash['old']) || ! empty($flash['new'])) {
+            return false;
+        }
+
+        unset($data['_token'], $data['_previous'], $data['_flash']);
+
+        return $data === [];
     }
 
     private function storable(Response $response): bool

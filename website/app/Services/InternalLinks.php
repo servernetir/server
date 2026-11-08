@@ -51,6 +51,8 @@ class InternalLinks
         ],
         'cloud' => [
             ['/cloud', 'سرور ابری سرورنت'],
+            ['/vps/hourly', 'سرور مجازی ساعتی'],
+            ['/gpu', 'اجاره GPU ساعتی'],
             ['/cloud/iaas', 'زیرساخت ابری (IaaS)'],
             ['/cloud/kubernetes', 'کوبرنتیز مدیریت‌شده'],
             ['/cloud/object-storage', 'فضای ذخیره‌سازی آبجکت'],
@@ -69,11 +71,14 @@ class InternalLinks
         ],
         'tutorial' => [
             ['/docs', 'مستندات سرورنت'],
+            ['/vps/hourly', 'سرور مجازی ساعتی برای توسعه و آزمایش'],
             ['/webtools', 'ابزارهای رایگان'],
             ['/hosting/linux', 'هاست لینوکس'],
         ],
         'tech' => [
             ['/cloud', 'سرور ابری'],
+            ['/vps/hourly', 'سرور مجازی ساعتی'],
+            ['/gpu', 'سرور گرافیکی ساعتی'],
             ['/servers', 'سرور فیزیکی'],
             ['/lookup', 'ابزارهای شبکه'],
         ],
@@ -85,7 +90,7 @@ class InternalLinks
 
         /* ——— بخش‌های مستندات (config/docs.php) ——— */
         'getting-started' => [['/docs', 'مستندات سرورنت'], ['/solutions', 'راهکارها']],
-        'servers'         => [['/servers', 'سرور اختصاصی'], ['/cloud', 'سرور ابری']],
+        'servers'         => [['/servers', 'سرور اختصاصی'], ['/cloud', 'سرور ابری'], ['/vps/hourly', 'سرور مجازی ساعتی']],
         'domains'         => [['/domains', 'جستجو و ثبت دامنه'], ['/lookup', 'بررسی رکوردهای DNS']],
         'email'           => [['/lookup', 'بررسی رکورد MX'], ['/docs', 'مستندات']],
         'tools'           => [['/webtools', 'ابزارهای وب‌مستر'], ['/lookup', 'ابزارهای DNS و شبکه']],
