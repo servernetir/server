@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\PageCache;
 use App\Models\Domain;
 use App\Models\DomainSupplierAccount;
 use App\Models\DomainSupplierOperation;
 use App\Models\DomainSupplierContact;
+use App\Services\Domain\DomainProcurement;
+use App\Services\Domain\DomainSupplierCatalogue;
 use App\Services\Domain\DomainSupplierLifecycle;
 use App\Services\Domain\DomainSupplierProbe;
+use App\Services\Domain\TldPriceBook;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +23,12 @@ use Illuminate\View\View;
 /** Account configuration and read-only checks; never registration, payment or renewal. */
 class DomainSupplierController extends Controller
 {
-    public function index(): View
+    /** Shown first in the comparison; the rest stay one click away, not off the page. */
+    public const POPULAR_TLDS = ['com', 'net', 'org', 'info', 'biz', 'io', 'co', 'me', 'ai', 'app', 'dev', 'xyz',
+        'online', 'site', 'store', 'shop', 'tech', 'cloud', 'pro', 'de', 'eu', 'uk', 'co.uk', 'us', 'ca', 'nl', 'fr',
+        'ch', 'at', 'tr', 'com.tr', 'ae', 'in'];
+
+    public function index(DomainSupplierCatalogue $catalogue): View
     {
         $installed = Schema::hasTable('domain_supplier_accounts');
         return view('admin.domain-suppliers.index', [
@@ -29,7 +38,47 @@ class DomainSupplierController extends Controller
                 ->whereNotIn('status', ['succeeded'])->latest('id')->limit(100)->get() : collect(),
             'canApprove' => in_array((int) auth('web')->id(), (array) config('domain_suppliers.approver_user_ids', []), true),
             'enabled' => (bool) config('domain_suppliers.enabled', false),
+            'comparison' => $installed ? $catalogue->comparison() : null,
+            'popular' => self::POPULAR_TLDS,
         ]);
+    }
+
+    /**
+     * Read-only catalogue pull from every active production account, then an
+     * atomic snapshot replace. Needed after any capability edit (the snapshot
+     * is bound to the account identity, capabilities included) and right
+     * before turning the feature on, or public prices stay empty until the
+     * six-hourly fx:dollar run.
+     *
+     * With the flag off it also refreshes the legacy OpenProvider book. That
+     * book is not refreshed while the flag is on, so after a day of multi-
+     * supplier sales it is stale; this button is the rollback's second step.
+     */
+    public function refreshCatalogue(DomainSupplierCatalogue $catalogue, DomainProcurement $procurement,
+        TldPriceBook $book): RedirectResponse
+    {
+        abort_unless(Schema::hasTable('domain_supplier_accounts'), 503);
+        $flash = [];
+        try {
+            $result = $catalogue->refresh();
+            $flash['ok'] = __('domain-suppliers.catalogue_refreshed', ['total' => $result['total'],
+                'count' => $result['count'], 'excluded' => $result['excluded']]);
+        } catch (\Throwable $e) {
+            report($e);
+            $flash['err'] = __('domain-suppliers.catalogue_refresh_failed');
+        }
+        if (! $procurement->enabled()) {
+            try {
+                $legacy = $book->refreshAll();
+                $flash['ok'] = trim(($flash['ok'] ?? '').' '.__('domain-suppliers.legacy_book_refreshed', ['count' => $legacy['count']]));
+            } catch (\Throwable $e) {
+                report($e);
+                $flash['err'] = trim(($flash['err'] ?? '').' '.__('domain-suppliers.legacy_book_failed'));
+            }
+        }
+        // Public pages are page-cached; without this the new prices wait for the TTL.
+        PageCache::purge();
+        return back()->with($flash);
     }
 
     public function store(Request $request): RedirectResponse
@@ -48,7 +97,7 @@ class DomainSupplierController extends Controller
         // Validate a local copy and never flash the submitted credential into session old-input.
         $input = $request->only(['provider', 'environment', 'label', 'username', 'password', 'api_key',
             'active', 'contract_verified', 'identity_verified', 'pricing_verified',
-            'capabilities', 'supplier_vat_pct', 'supplier_fee_pct']);
+            'capabilities', 'standard_profile', 'supplier_vat_pct', 'supplier_fee_pct']);
         $validator = Validator::make($input, [
             'provider' => ['required', 'in:openprovider,joker'],
             'environment' => ['required', 'in:production,ote'],
@@ -59,6 +108,7 @@ class DomainSupplierController extends Controller
             'active' => ['sometimes', 'boolean'], 'contract_verified' => ['sometimes', 'boolean'],
             'identity_verified' => ['sometimes', 'boolean'], 'pricing_verified' => ['sometimes', 'boolean'],
             'capabilities' => ['nullable', 'string', 'max:50000'],
+            'standard_profile' => ['sometimes', 'boolean'],
             'supplier_vat_pct' => ['nullable', 'numeric', 'between:0,100'],
             'supplier_fee_pct' => ['nullable', 'numeric', 'between:0,100'],
         ]);
@@ -71,6 +121,7 @@ class DomainSupplierController extends Controller
             if (! is_array($capabilities) || array_is_list($capabilities) && $capabilities !== []) {
                 throw new \InvalidArgumentException;
             }
+            $capabilities = $this->withDefaultProfile($capabilities, (bool) ($data['standard_profile'] ?? false));
         } catch (\Throwable) {
             return back()->withErrors(['capabilities' => __('domain-suppliers.invalid_capabilities')]);
         }
@@ -120,7 +171,37 @@ class DomainSupplierController extends Controller
     public function probe(DomainSupplierAccount $supplierAccount, DomainSupplierProbe $probe): RedirectResponse
     {
         $healthy = $probe->check($supplierAccount);
-        return back()->with($healthy ? 'ok' : 'error', __('domain-suppliers.'.($healthy ? 'probe_ok' : 'probe_failed')));
+        // The layout prints `err`, not `error`: the failure message used to vanish silently.
+        return back()->with($healthy ? 'ok' : 'err', __('domain-suppliers.'.($healthy ? 'probe_ok' : 'probe_failed')));
+    }
+
+    /**
+     * The checkbox owns only the standard profile: ticked writes it, unticked
+     * removes it. A hand-written default (anything else) is kept as typed.
+     * A malformed default or exclude list is rejected, never coerced.
+     */
+    private function withDefaultProfile(array $capabilities, bool $standard): array
+    {
+        $probe = new DomainSupplierAccount(['capabilities' => $capabilities]);
+        if ($standard) $capabilities['default'] = DomainSupplierAccount::STANDARD_PROFILE;
+        elseif ($probe->usesStandardProfile()) unset($capabilities['default']);
+        if (array_key_exists('default', $capabilities)
+            && (! is_array($capabilities['default']) || array_is_list($capabilities['default']))) {
+            throw new \InvalidArgumentException;
+        }
+        if (array_key_exists('exclude', $capabilities)) {
+            if (! is_array($capabilities['exclude']) || ! array_is_list($capabilities['exclude'])) throw new \InvalidArgumentException;
+            $exclude = [];
+            foreach ($capabilities['exclude'] as $tld) {
+                if (! is_string($tld) || ! preg_match('/^[a-z0-9-]+(?:\.[a-z0-9-]+)*$/D', $tld = strtolower(trim($tld, " \t.")))) {
+                    throw new \InvalidArgumentException;
+                }
+                $exclude[$tld] = true;
+            }
+            $capabilities['exclude'] = array_keys($exclude);
+            sort($capabilities['exclude']);
+        }
+        return $capabilities;
     }
 
     /** Record an existing handle after owner verification; never create or edit registry contacts. */

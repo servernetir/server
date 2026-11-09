@@ -25,6 +25,8 @@ class DomainProcurement
 {
     /** One FX evidence row per currency throughout a comparison. */
     private array $quoteRates = [];
+    /** One rounding step per comparison, like the FX evidence; read once, not once per offer. */
+    private ?int $roundingStep = null;
     private bool $searchReads = false;
     private array $searchProviders = [];
     private array $searchBalances = [];
@@ -57,7 +59,7 @@ class DomainProcurement
         $periods = [];
         foreach (DomainSupplierAccount::eligibleForSales()->get() as $account) {
             if (! $account->saleEligible()) continue;
-            $caps = (array) ($account->capabilities['tlds'][$tld] ?? []);
+            $caps = $account->tldCapabilities($tld);
             if (! in_array('create', (array) ($caps['operations'] ?? []), true)) continue;
             foreach ((array) ($caps['period_months'] ?? []) as $months) {
                 if (is_int($months) && $months >= 12 && $months <= 120 && $months % 12 === 0) $periods[] = $months;
@@ -71,7 +73,7 @@ class DomainProcurement
         if (! $this->enabled()) {
             throw new DomainProcurementException('supplier_feature_disabled');
         }
-        $this->quoteRates = [];
+        $this->quoteRates = []; $this->roundingStep = null;
         [$fqdn, $tld] = $this->request($fqdn, $operation, $months);
         $options = $this->options($options);
         // A restore may not extend an expired registration. Until restore plus
@@ -132,7 +134,7 @@ class DomainProcurement
         if (! $this->enabled()) {
             throw new DomainProcurementException('supplier_feature_disabled');
         }
-        $this->quoteRates = [];
+        $this->quoteRates = []; $this->roundingStep = null;
         [$fqdn, $tld] = $this->request($fqdn, 'transfer', $months);
         $options = $this->options($options);
         // A locally managed asset has a separate transfer authorization flow.
@@ -270,7 +272,7 @@ class DomainProcurement
 
     private function validatedSnapshot(DomainQuote $quote, ?Domain $bound = null): array
     {
-        $this->quoteRates = [];
+        $this->quoteRates = []; $this->roundingStep = null;
         if (! $this->enabled() || ! $quote->isHonourable()) {
             throw new DomainProcurementException('supplier_quote_expired');
         }
@@ -322,7 +324,7 @@ class DomainProcurement
             if (($found['found'] ?? null) !== false) {
                 throw new DomainProcurementException('transfer_destination_portfolio_unverified');
             }
-            $transferResult = $account->capabilities['tlds'][$tld]['transfer_result_months'] ?? null;
+            $transferResult = $account->tldCapabilities($tld)['transfer_result_months'] ?? null;
             if (! is_int($transferResult) || $transferResult < 0 || $transferResult > 120) {
                 throw new DomainProcurementException('transfer_result_period_unverified');
             }
@@ -357,7 +359,7 @@ class DomainProcurement
             || ! preg_match('/\A[A-Z]{3}\z/D', (string) ($q['currency'] ?? ''))) {
             throw new DomainProcurementException('supplier_quote_invalid');
         }
-        if ($q['premium'] && ($account->capabilities['tlds'][$tld]['premium'] ?? false) !== true) {
+        if ($q['premium'] && ($account->tldCapabilities($tld)['premium'] ?? false) !== true) {
             throw new DomainProcurementException('premium_not_supported');
         }
         if (isset($options['premium']) && $options['premium'] !== $q['premium']) {
@@ -412,7 +414,7 @@ class DomainProcurement
     /** Public catalogue projections, from private account evidence only. No network requests. */
     public function cataloguePrices(array $catalogues): array
     {
-        $this->quoteRates = []; $groups = [];
+        $this->quoteRates = []; $this->roundingStep = null; $groups = [];
         foreach ($catalogues as $entry) {
             $account = $entry['account'];
             foreach ($entry['offers'] as $offer) {
@@ -455,6 +457,57 @@ class DomainProcurement
         ksort($out); return $out;
     }
 
+    /**
+     * Owner-only cost comparison from the same private snapshot. Same landed
+     * cost, FX, margin and rounding as the public catalogue, but without the
+     * sales/readiness gate: the point is to see prices *before* deciding to
+     * sell. `covered` is the capability half of eligibility, so it says
+     * exactly whether that account would compete for the suffix once ready.
+     * Never rendered to customers; no network.
+     */
+    public function compareCatalogues(array $catalogues, string $operation = 'create', int $months = 12): array
+    {
+        $this->quoteRates = []; $this->roundingStep = null; $rows = [];
+        foreach ($catalogues as $entry) {
+            $account = $entry['account'];
+            foreach ($entry['offers'] as $offer) {
+                try {
+                    $tld = $offer['tld'] ?? null;
+                    if (! is_string($tld) || ! DomainSearch::sells($tld) || ($offer['operation'] ?? null) !== $operation
+                        || ($offer['period_months'] ?? null) !== $months
+                        || ($offer['premium'] ?? null) !== false || ($offer['tax_included'] ?? null) !== true
+                        || ! is_string($offer['valid_until'] ?? null) || ! Carbon::parse($offer['valid_until'])->isFuture()) continue;
+                    $priced = $this->costedOffer($tld, $offer);
+                    $old = $rows[$tld]['offers'][$account->id] ?? null;
+                    if ($old !== null && ! $this->cheaper($priced, $old)) continue;
+                    try {
+                        $this->capabilityGate($account, $tld, $operation, $months, 'none', 'catalogue.'.$tld);
+                        $covered = true;
+                    } catch (DomainProcurementException) { $covered = false; }
+                    $rows[$tld]['offers'][$account->id] = $priced + ['amount_minor' => $offer['amount_minor'],
+                        'currency' => $offer['currency'], 'promotion' => ($offer['promotion'] ?? false) === true,
+                        'covered' => $covered];
+                } catch (\Throwable) { /* An unpriceable offer is absent, never zero. */ }
+            }
+        }
+        foreach ($rows as $tld => &$row) {
+            $winner = null;
+            foreach ($row['offers'] as $id => $offer) {
+                if ($winner === null || $this->cheaper($offer, $row['offers'][$winner])) $winner = $id;
+            }
+            $costs = array_column($row['offers'], 'wholesale_toman');
+            $row['winner'] = $winner;
+            $row['spread_toman'] = count($costs) > 1 ? max($costs) - min($costs) : null;
+            foreach ($row['offers'] as &$offer) {
+                $offer = array_intersect_key($offer, array_flip(['wholesale_toman', 'sell_toman', 'amount_minor',
+                    'currency', 'promotion', 'covered']));
+            }
+            unset($offer);
+        }
+        unset($row);
+        ksort($rows); return $rows;
+    }
+
     /** Identical landed-cost FX/profit/floor arithmetic for exact quotes and catalogue offers. */
     private function costedOffer(string $tld, array $q): array
     {
@@ -464,7 +517,7 @@ class DomainProcurement
         $numerator = DomainMoney::multiply($q['amount_minor'], $fx['numerator']);
         $wholesale = DomainMoney::ceilRatio($numerator, $fx['denominator']);
         $margin = $this->margin($tld); $floorMargin = DomainMoney::percentUnits(config('domain_reseller.min_margin_pct', 0));
-        $step = max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
+        $step = $this->roundingStep ??= max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
         $priced = ['fx_snapshot' => $fx, 'comparison_numerator' => $numerator, 'comparison_denominator' => $fx['denominator'],
             'wholesale_toman' => $wholesale, 'floor_toman' => DomainMoney::roundUp(DomainMoney::addPercent($wholesale, $floorMargin), $step),
             'sell_toman' => DomainMoney::roundUp(DomainMoney::addPercent($wholesale, max($margin, $floorMargin)), $step),
@@ -496,10 +549,17 @@ class DomainProcurement
             || $account->health_checked_at->lt(now()->subSeconds((int) config('domain_suppliers.health_max_age_seconds', 300)))) {
             throw new DomainProcurementException('supplier_account_ineligible');
         }
-        $caps = (array) ($account->capabilities['tlds'][$tld] ?? []);
+        $this->capabilityGate($account, $tld, $operation, $months, $options['privacy'], $fqdn);
+    }
+
+    /** Evidence half of eligibility, shared with the owner's comparison so "covered" means one thing. */
+    private function capabilityGate(DomainSupplierAccount $account, string $tld, string $operation, int $months,
+        string $privacy, string $fqdn): void
+    {
+        $caps = $account->tldCapabilities($tld);
         if (! in_array($operation, (array) ($caps['operations'] ?? []), true)
             || ! in_array($months, (array) ($caps['period_months'] ?? []), true)
-            || ! in_array($options['privacy'], (array) ($caps['privacy'] ?? []), true)) {
+            || ! in_array($privacy, (array) ($caps['privacy'] ?? []), true)) {
             throw new DomainProcurementException('supplier_capability_missing');
         }
         foreach (['nameservers', 'lock', 'contacts'] as $action) {

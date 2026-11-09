@@ -40,7 +40,7 @@ class DomainSupplierContactProvisioner
     {
         if ($this->current($customer, $account, $tld)) return true;
         if (! config('domain_suppliers.contact_provisioning_enabled', false) || ! $account->saleEligible()
-            || ($account->capabilities['tlds'][$tld]['contact_creation'] ?? null) !== 'standard'
+            || ($account->tldCapabilities($tld)['contact_creation'] ?? null) !== 'standard'
             || ! Schema::hasTable('domain_supplier_contact_requests') || $customer->status !== 'active') return false;
         $profile = $customer->defaultProfile(); $payload = $profile ? $this->payload($profile) : null;
         if (! $profile || ! $payload) return false;

@@ -7,7 +7,10 @@ return [
     'contact_provisioning_enabled' => env('DOMAIN_SUPPLIER_CONTACT_PROVISIONING_ENABLED', false),
     // Explicit destination for a customer-requested incoming transfer; never infer it from cheapest create.
     'transfer_account_id' => (int) env('DOMAIN_SUPPLIER_TRANSFER_ACCOUNT_ID', 0),
-    'health_max_age_seconds' => 300,
+    // Three probe intervals (domains:suppliers-probe runs every five minutes).
+    // Equal to one interval, every account went stale for a moment each cycle
+    // and one missed cron run removed every domain price from the site.
+    'health_max_age_seconds' => 900,
     'quote_ttl_seconds' => 900,
     'fx_max_age_seconds' => 172800,
     // Pilot remains the default. Production is a separate, bounded release decision.

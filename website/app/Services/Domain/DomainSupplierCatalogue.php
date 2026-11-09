@@ -145,4 +145,61 @@ class DomainSupplierCatalogue
             return $this->pricing->cataloguePrices($catalogues);
         } catch (\Throwable) { return []; }
     }
+
+    /**
+     * Owner-only: every account in the snapshot, sellable or not, priced the
+     * same way the public catalogue would price it. No network. Returns null
+     * when there is no snapshot yet, so the page can say "refresh first"
+     * instead of showing an empty table that reads as "nobody sells anything".
+     */
+    public function comparison(string $operation = 'create', int $months = 12): ?array
+    {
+        try {
+            if (! Storage::disk('local')->exists(self::PATH)) return null;
+            $snapshot = json_decode(Storage::disk('local')->get(self::PATH), true, 512, JSON_THROW_ON_ERROR);
+            if (($snapshot['version'] ?? null) !== 1 || ! is_array($snapshot['accounts'] ?? null)
+                || ! is_string($snapshot['fetched_at'] ?? null)) return null;
+        } catch (\Throwable) { return null; }
+        $accounts = []; $catalogues = [];
+        foreach ($snapshot['accounts'] as $id => $stored) {
+            $account = DomainSupplierAccount::find((int) $id);
+            if (! $account || ! is_array($stored['offers'] ?? null)) continue;
+            // A changed login/settings/capabilities profile invalidates the public use of this
+            // snapshot; the owner still sees the prices, marked so they refresh before trusting them.
+            $accounts[(int) $id] = ['label' => $account->label, 'provider' => $account->provider,
+                'current' => is_string($stored['identity'] ?? null) && hash_equals(self::identity($account), $stored['identity']),
+                'fetched_at' => $stored['fetched_at'] ?? null, 'suffixes' => count((array) ($stored['suffixes'] ?? []))];
+            $catalogues[] = ['account' => $account, 'offers' => $stored['offers']];
+        }
+        $rows = $this->pricing->compareCatalogues($catalogues, $operation, $months);
+        $exponents = [];
+        $summary = ['compared' => 0, 'wins' => array_fill_keys(array_keys($accounts), 0),
+            'only' => array_fill_keys(array_keys($accounts), 0),
+            'covered' => array_fill_keys(array_keys($accounts), 0)];
+        foreach ($rows as &$row) {
+            foreach ($row['offers'] as $id => &$offer) {
+                $exp = $exponents[$offer['currency']] ??= max(0, min(6, (int) (\App\Models\Currency::find($offer['currency'])?->exponent ?? 2)));
+                $offer['amount'] = self::decimal($offer['amount_minor'], $exp).' '.$offer['currency'];
+                if ($offer['covered']) $summary['covered'][$id]++;
+            }
+            unset($offer);
+            if (count($row['offers']) > 1) {
+                $summary['compared']++;
+                $summary['wins'][$row['winner']]++;
+            } else {
+                $summary['only'][$row['winner']]++;
+            }
+        }
+        unset($row);
+        return ['fetched_at' => $snapshot['fetched_at'], 'stale' => Carbon::parse($snapshot['fetched_at'])->lt(now()->subDay()),
+            'operation' => $operation, 'months' => $months, 'accounts' => $accounts, 'rows' => $rows, 'summary' => $summary];
+    }
+
+    /** Integer minor units to a display string; money math never goes through float. */
+    private static function decimal(int $minor, int $exponent): string
+    {
+        if ($exponent === 0) return number_format($minor);
+        $sign = $minor < 0 ? '-' : ''; $minor = abs($minor); $scale = 10 ** $exponent;
+        return $sign.number_format(intdiv($minor, $scale)).'.'.str_pad((string) ($minor % $scale), $exponent, '0', STR_PAD_LEFT);
+    }
 }
