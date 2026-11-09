@@ -106,6 +106,26 @@ class CloudPlanFailureIsolationTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_failed_eur_cost_sync_stays_closed_through_repricing_until_successful_sync(): void
+    {
+        $bad = $this->plan('hetzner', 'bad'); $good = $this->plan('hetzner', 'good');
+        $driver = \Mockery::mock(CloudProvider::class);
+        $driver->shouldReceive('fetchCatalog')->once()->ordered()->andReturn(['ok' => true,
+            'locations' => [], 'images' => [], 'plans' => [$this->quote($bad, ['cost_eur_cents' => 0]), $this->quote($good)]]);
+        $driver->shouldReceive('fetchCatalog')->once()->ordered()->andReturn(['ok' => true,
+            'locations' => [], 'images' => [], 'plans' => [$this->quote($bad), $this->quote($good)]]);
+        $this->mock(CloudManager::class)->shouldReceive('configured')->twice()->andReturn(['hetzner' => $driver]);
+        app(CloudCatalogSync::class)->sync('hetzner');
+        $this->assertFalse($bad->fresh()->is_active);
+        app(CloudCatalogRepricer::class)->run();
+        $this->assertFalse(CloudPlan::sellable()->whereKey($bad->id)->exists());
+        $this->assertTrue(CloudPlan::sellable()->whereKey($good->id)->exists());
+        app(CloudCatalogSync::class)->sync('hetzner');
+        app(CloudCatalogRepricer::class)->run();
+        $this->assertTrue($bad->fresh()->is_active);
+        $this->assertTrue(CloudPlan::sellable()->whereKey($bad->id)->exists());
+    }
+
     #[DataProvider('suppliers')]
     public function test_rejected_order_quarantines_exactly_one_plan_for_every_supplier(string $provider): void
     {
@@ -158,7 +178,10 @@ class CloudPlanFailureIsolationTest extends TestCase
         $result = app(CloudCatalogSync::class)->sync($provider);
         $this->assertTrue($result['providers'][$provider]['ok']);
         $this->assertSame(1, $result['providers'][$provider]['plans']);
-        $this->assertSame($before, $bad->fresh()->getRawOriginal());
+        $after = $bad->fresh()->getRawOriginal();
+        $this->assertFalse($bad->fresh()->is_active);
+        unset($before['is_active'], $before['updated_at'], $after['is_active'], $after['updated_at']);
+        $this->assertSame($before, $after);
         $this->assertSame([$bad->id], CloudPricingSnapshot::excludedPlanIds());
         $this->assertSame(2000, (int) $good->fresh()->cost_eur_cents);
         $this->assertTrue(app(CloudPricingSnapshot::class)->current($provider));

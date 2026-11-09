@@ -376,6 +376,9 @@ class CloudCatalogSync
                 $id = CloudPlan::query()->where('provider', $provider)->where('provider_ref', $ref)
                     ->where('location_code', $code)->value('id');
                 if ($id !== null) {
+                    // Persist until a successful sync revalidates this exact product.
+                    // Repricing stored EUR costs must never reopen a failed sync row.
+                    CloudPlan::query()->whereKey($id)->update(['is_active' => false]);
                     app(CloudPricingSnapshot::class)->excludePlans([(int) $id]);
                 }
                 \App\Support\ErrorTracker::noteOnce('pricing',
@@ -394,6 +397,7 @@ class CloudCatalogSync
                         try {
                             $p->update(['is_active' => false]);
                         } catch (\Throwable) {
+                            CloudPlan::query()->whereKey($p->id)->update(['is_active' => false]);
                             app(CloudPricingSnapshot::class)->excludePlans([(int) $p->id]);
                             \App\Support\ErrorTracker::noteOnce('pricing',
                                 'Product retirement requires revalidation: '.$provider.' #'.$p->id,
