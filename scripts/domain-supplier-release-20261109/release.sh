@@ -171,9 +171,20 @@ accept() {
     "200|https://servernet.cloud/en/domains" \
     "200|https://servernet.cloud/"
   do
-    local want=${probe%%|*} url=${probe#*|} got
-    got=$(curl -s -o /dev/null -w '%{http_code}' -m 25 "$url")
-    [ "$got" = "$want" ] && echo "OK   $got  $url" || echo "CHECK $got (want $want)  $url"
+    local want=${probe%%|*} url=${probe#*|} got='' attempt=1
+    # OPcache revalidates on a timer (opcache.revalidate_freq, 2s by default),
+    # so a probe fired right after the write can still see the old route table.
+    # Retry before calling it a failure.
+    while : ; do
+      got=$(curl -s -o /dev/null -w '%{http_code}' -m 25 "$url")
+      { [ "$got" = "$want" ] || [ "$attempt" -ge 4 ]; } && break
+      attempt=$((attempt + 1)); sleep 3
+    done
+    if [ "$got" = "$want" ]; then
+      [ "$attempt" -eq 1 ] && echo "OK   $got  $url" || echo "OK   $got  $url (after $attempt tries; code was revalidating)"
+    else
+      echo "CHECK $got (want $want) after $attempt tries  $url"
+    fi
   done
   echo "A 405 on catalogue/refresh means the new POST-only route is live (404 means it is not)."
 }
