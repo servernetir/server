@@ -68,8 +68,9 @@ class GenerateServiceRenewals extends Command
                     continue;
                 }
 
-                RenewalTerms::ensureInvoice($service);
-                $made++;
+                if (RenewalTerms::ensureInvoice($service) !== null) {
+                    $made++;
+                }
             } catch (\Throwable $e) {
                 $errors++;
                 ErrorTracker::noteOnce('billing', 'صدور تمدید سرویس #'.$service->id.' ناموفق بود؛ سایر سرویس‌ها ادامه یافتند.', 900, ['service' => $service->id, 'exception' => $e::class]);

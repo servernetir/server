@@ -109,6 +109,26 @@ class VpsTcRenewalTest extends TestCase
         ]);
     }
 
+    public function test_paid_pending_supplier_period_does_not_issue_another_renewal_invoice(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        app(VpsTcRenewal::class)->queue($service, $invoice);
+        $this->assertNull(\App\Services\Billing\RenewalTerms::ensureInvoice($service));
+        $this->artisan('services:renew-due')->expectsOutput('فاکتور تمدید صادرشده: 0')->assertSuccessful();
+        $this->assertSame(1, Invoice::where('service_id', $service->id)->count());
+        Http::assertNothingSent();
+    }
+
+    public function test_stale_scheduler_selection_cannot_invoice_an_already_advanced_period(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $stale = Service::findOrFail($service->id);
+        $service->update(['next_due_at' => '2026-11-30']);
+        $this->assertNull(\App\Services\Billing\RenewalTerms::ensureInvoice($stale));
+        $this->assertSame(1, Invoice::where('service_id', $service->id)->count());
+        Http::assertNothingSent();
+    }
+
     public function test_bank_reference_collision_settles_and_supplier_renewal_confirms_once(): void
     {
         [$service, $invoice] = $this->invoice();

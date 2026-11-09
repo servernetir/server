@@ -5,6 +5,8 @@ on:
     branches: [develop, 'fix/bank-receipt-settlement-*']
     paths:
       - 'website/app/Services/Billing/BankReceiptReviewer.php'
+      - 'website/app/Services/Billing/RenewalTerms.php'
+      - 'website/app/Console/Commands/GenerateServiceRenewals.php'
       - 'website/app/Console/Commands/ReconcileBankReceipts.php'
       - 'website/app/Http/Controllers/Admin/BankTransferController.php'
       - 'website/tests/Feature/BankTransfer*.php'
@@ -14,6 +16,8 @@ on:
     branches: [develop]
     paths:
       - 'website/app/Services/Billing/BankReceiptReviewer.php'
+      - 'website/app/Services/Billing/RenewalTerms.php'
+      - 'website/app/Console/Commands/GenerateServiceRenewals.php'
       - 'website/app/Console/Commands/ReconcileBankReceipts.php'
       - 'website/app/Http/Controllers/Admin/BankTransferController.php'
       - 'website/tests/Feature/BankTransfer*.php'
