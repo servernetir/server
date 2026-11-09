@@ -166,4 +166,39 @@ class CloudPlanFailureIsolationTest extends TestCase
         $this->assertFalse($good->fresh()->admin_disabled);
         Http::assertNothingSent();
     }
+
+    public function test_lightnode_package_conflict_does_not_discard_another_package(): void
+    {
+        Setting::putSecret('lightnode_api_token', 'fixture-only');
+        $good = ['packageCode' => 'good', 'regionCode' => 'region-one', 'zoneCode' => 'zone-one', 'cpu' => 1];
+        $bad = array_replace($good, ['packageCode' => 'bad']);
+        Http::fake(['*/package/list*' => Http::response(['packages' => [
+            $good, $bad, array_replace($bad, ['cpu' => 2]), $bad,
+        ]])]);
+        $driver = app(\App\Services\Cloud\LightNodeClient::class);
+        $result = (new \ReflectionMethod($driver, 'packages'))->invoke($driver, 'region-one', 'zone-one');
+        $this->assertTrue($result['ok']);
+        $this->assertSame([$good], $result['rows']);
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+    }
+
+    public function test_vpstc_catalog_preserves_a_valid_quote_when_another_product_cannot_be_quoted(): void
+    {
+        $quote = ['product_id' => 'good', 'location_ref' => 'region-one', 'country' => 'DE', 'city' => 'Falkenstein',
+            'vcpu' => 1, 'ram_mb' => 1024, 'disk_gb' => 20, 'disk_type' => 'nvme', 'cpu_kind' => 'shared',
+            'arch' => 'x86', 'traffic_gb' => 1000, 'network_terms' => [], 'cost_eur_cents' => 2000,
+            'setup_eur_cents' => 0, 'in_stock' => true, 'images' => []];
+        $catalog = \Mockery::mock(\App\Services\Cloud\VpsTcCatalog::class, [
+            app(\App\Services\Cloud\VpsTcApi::class), app(VpsTcPricing::class),
+        ])->makePartial();
+        $catalog->shouldReceive('manifest')->once()->andReturn(['products' => [['product_id' => 'good'], ['product_id' => 'bad']]]);
+        $catalog->shouldReceive('quote')->with('good')->once()->andReturn($quote);
+        $catalog->shouldReceive('quote')->with('bad')->once()->andReturnNull();
+        $result = $catalog->fetch();
+        $this->assertTrue($result['ok']);
+        $this->assertCount(1, $result['plans']);
+        $this->assertSame('good', $result['plans'][0]['provider_ref']);
+        Http::assertNothingSent();
+    }
 }
