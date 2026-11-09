@@ -49,6 +49,9 @@ $assert($ready['checks']['caller_expected_sha256'] === true);
 $assert($ready['checks']['client_and_caller_are_distinct'] === true);
 $assert($ready['checks']['runtime_files_are_distinct'] === true);
 $assert($ready['checks']['runtime_files_share_directory'] === true);
+$assert($ready['checks']['client_expected_basename'] === true);
+$assert($ready['checks']['cycle_expected_basename'] === true);
+$assert($ready['checks']['caller_expected_basename'] === true);
 $assert($ready['observed']['client']['mode'] === '0644');
 $assert($ready['observed']['cycle']['path'] === realpath($cycle));
 $assert($ready['observed']['caller']['path'] === realpath($caller));
@@ -115,6 +118,19 @@ $splitDirectoryResult = HermesGrowthReadPreflight::inspect($splitDirectory);
 $assert($splitDirectoryResult['status'] === 'not_ready');
 $assert($splitDirectoryResult['checks']['runtime_files_share_directory'] === false);
 
+$renamedClient = $temporary.'/HermesGrowthReadClient-renamed.php';
+if (! copy($client, $renamedClient)) {
+    throw new RuntimeException('renamed_client_copy_failed');
+}
+chmod($renamedClient, 0644);
+$wrongBasename = $base;
+$wrongBasename['client'] = realpath($renamedClient);
+$wrongBasename['expected-client-sha'] = hash_file('sha256', $renamedClient);
+$wrongBasenameResult = HermesGrowthReadPreflight::inspect($wrongBasename);
+$assert($wrongBasenameResult['status'] === 'not_ready');
+$assert($wrongBasenameResult['checks']['client_expected_basename'] === false);
+$assert($wrongBasenameResult['checks']['runtime_files_share_directory'] === true);
+
 $invalidSha = $base;
 $invalidSha['expected-cycle-sha'] = 'not-a-sha';
 try {
@@ -146,6 +162,7 @@ unlink($client);
 unlink($cycle);
 unlink($caller);
 unlink($otherCycle);
+unlink($renamedClient);
 rmdir($otherDirectory);
 rmdir($temporary);
 
