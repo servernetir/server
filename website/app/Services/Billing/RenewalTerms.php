@@ -45,6 +45,13 @@ class RenewalTerms
                 return null;
             }
 
+            // A paid supplier renewal still owns this period until its read-back confirms it.
+            // Also reject a stale scheduler selection after another worker advanced the period.
+            if (app(\App\Services\Cloud\VpsTcRenewal::class)->pending($locked)
+                || $locked->next_due_at?->toDateString() !== $service->next_due_at?->toDateString()) {
+                return null;
+            }
+
             return self::openInvoice($locked)
                 ?? app(ServiceController::class)->issueInvoice($locked);
         });
