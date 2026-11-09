@@ -59,7 +59,7 @@ class CloudCatalogRepricingTest extends TestCase
     {
         $plan = $this->plan('salad', ['in_stock' => false, 'admin_note' => 'Keep this note']);
         $this->provider('salad', [
-            $this->quote($plan, ['in_stock' => true, 'name' => 'Changed', 'vcpu' => 100]),
+            $this->quote($plan, ['in_stock' => true, 'name' => 'Changed', 'vcpu' => 1]),
             ['provider_ref' => 'new-ignored', 'location_code' => 'xx-new', 'cost_eur_cents' => 500],
         ]);
 
@@ -135,7 +135,8 @@ class CloudCatalogRepricingTest extends TestCase
         $this->provider('salad', []);
 
         app(CloudCatalogSync::class)->reprice();
-        $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
+        $this->assertTrue(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
+        $this->assertSame([$plan->id], \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds());
         $this->assertSame(1500000, (int) $plan->fresh()->price_irt);
     }
 
@@ -145,11 +146,12 @@ class CloudCatalogRepricingTest extends TestCase
         $this->provider('salad', [$this->quote($plan, ['cost_hour_eur_micro' => null])]);
 
         app(CloudCatalogSync::class)->reprice();
-        $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
+        $this->assertTrue(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('salad'));
+        $this->assertSame([$plan->id], \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds());
         $this->assertSame(14000, (int) $plan->fresh()->cost_hour_eur_micro);
     }
 
-    public function test_invalid_second_quote_discards_all_staged_costs_of_only_that_supplier(): void
+    public function test_invalid_second_quote_quarantines_only_that_product_and_keeps_verified_supplier_quotes(): void
     {
         $peer = $this->plan('hetzner');
         $one = $this->plan('salad');
@@ -158,12 +160,13 @@ class CloudCatalogRepricingTest extends TestCase
         $this->provider('salad', [$this->quote($one), $this->quote($two, ['cost_eur_cents' => -1])]);
         NavasanRates::store(['USD' => 110000, 'EUR' => 200000, 'USDT' => 150000]);
         app(CloudCatalogSync::class)->reprice();
-        $this->assertSame($before, [$one->fresh()->getRawOriginal(), $two->fresh()->getRawOriginal()]);
+        $this->assertSame(2000, (int) $one->fresh()->cost_eur_cents);
+        $this->assertSame($before[1], $two->fresh()->getRawOriginal());
         $this->assertSame(3000000, (int) $peer->fresh()->price_irt);
         $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
         $this->assertTrue($snapshot->current('hetzner'));
-        $this->assertFalse($snapshot->current('salad'));
-        $this->assertSame('invalid_quote', $snapshot->exclusionReasons()['salad']);
+        $this->assertTrue($snapshot->current('salad'));
+        $this->assertSame([$two->id], \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds());
         Http::assertNothingSent();
     }
 

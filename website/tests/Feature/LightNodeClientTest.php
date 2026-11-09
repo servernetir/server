@@ -837,7 +837,9 @@ class LightNodeClientTest extends TestCase
         $this->assertCount(1, $this->client()->fetchCatalog()['plans']);
         $changed = $p; $changed['memory'] = 8;
         $this->fake(['*/package/list*' => Http::response(['packages' => [$p, $changed]])]); $this->manifest();
-        $this->assertFalse($this->client()->fetchCatalog()['ok']);
+        $catalog = $this->client()->fetchCatalog();
+        $this->assertTrue($catalog['ok']);
+        $this->assertCount(0, $catalog['plans']);
         $this->assertFalse($this->client()->createServer($this->spec())['ok']);
         Http::assertNotSent(fn ($r) => $r->method() === 'POST');
     }

@@ -249,122 +249,142 @@ class CloudCatalogSync
         $n = 0;
 
         foreach ($rows as $r) {
+            if (! is_array($r)) { continue; }
+            if ((! is_string($r['provider_ref'] ?? null) && ! is_int($r['provider_ref'] ?? null))
+                || ! is_string($r['location_code'] ?? null)) { continue; }
             $ref = (string) ($r['provider_ref'] ?? '');
             $code = (string) ($r['location_code'] ?? '');
-            $cost = (int) ($r['cost_eur_cents'] ?? 0);
-
-            if ($ref === '' || $code === '' || $cost <= 0) {
-                continue;
-            }
-
-            $vcpu = max(1, (int) ($r['vcpu'] ?? 1));
-            $ram = max(128, (int) ($r['ram_mb'] ?? 1024));
-            $disk = max(1, (int) ($r['disk_gb'] ?? 10));
-            $cpuKind = ($r['cpu_kind'] ?? 'shared') === 'dedicated' ? 'dedicated' : 'shared';
-
-            $price = $this->pricing->priceFor($cost, $provider);
-
-            // ── ردگیریِ تغییرِ بها ──
-            // ⚠️ چرا لازم است: قیمتِ فروشِ سرویس‌های فعال سرِ سفارش قفل شده و
-            // خودکار تمدید می‌شود. اگر زیرساخت بها را بالا ببرد و ما نفهمیم،
-            // هر تمدید ضررِ خالص است و هیچ‌جا صدا در نمی‌آورد.
-            $existing = CloudPlan::query()
-                ->where('provider', $provider)
-                ->where('provider_ref', $ref)
-                ->where('location_code', $code)
-                ->first(['id', 'cost_eur_cents']);
-
-            $costTrack = [];
-
-            if ($existing !== null && (int) $existing->cost_eur_cents !== $cost
-                && (int) $existing->cost_eur_cents > 0) {
-                $costTrack = [
-                    'previous_cost_eur_cents' => (int) $existing->cost_eur_cents,
-                    'cost_changed_at'         => now(),
-                ];
-            }
-
-            $gpuModel = filled($r['gpu_model'] ?? null) ? (string) $r['gpu_model'] : null;
-            $gpuCount = $gpuModel !== null ? max(1, (int) ($r['gpu_count'] ?? 1)) : null;
-            // برمتال (سرورِ فیزیکی) — باید به نام و اسلاگ برسد وگرنه با VPSِ
-            // هسته‌اختصاصیِ هم‌مشخصات یک گروه می‌شود (توضیح در CloudNaming).
-            $metal = (bool) ($r['metal'] ?? false);
-            $networkTerms = in_array($provider, ['lightnode', 'vpstc'], true) ? ($r['network_terms'] ?? null) : null;
-            $planSlug = CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount, $metal);
-            if ($provider === 'lightnode') {
-                // Different network contracts cannot be interchangeable offers.
-                $planSlug .= '-net-'.substr(hash('sha256', json_encode($networkTerms)), 0, 12);
-            }
-            if ($provider === 'vpstc') {
-                // A monthly parent service with its own network contract cannot
-                // become an interchangeable hourly/long-cycle fallback.
-                $planSlug .= '-monthly-net-'.substr(hash('sha256', json_encode($networkTerms)), 0, 12);
-            }
-
-            CloudPlan::updateOrCreate(
-                ['provider' => $provider, 'provider_ref' => $ref, 'location_code' => $code],
-                [
-                    'provider_location' => $r['provider_location'] ?? null,
-                    'public_name'       => CloudNaming::planName($vcpu, $ram, $cpuKind, $metal),
-                    /*
-                    | 🔴 GPU **باید** به اسلاگ برسد.
-                    |
-                    | اسلاگ کلیدِ گروه‌بندیِ `offers()` است و `bestForSlug()`
-                    | ارزان‌ترینِ گروه را برمی‌دارد. بی‌این آرگومان، یک RTX 3060
-                    | و یک H100 با vCPU/رم/دیسکِ یکسان اسلاگِ یکسان می‌گیرند و
-                    | مشتری پولِ گران را می‌دهد و ارزان را تحویل می‌گیرد.
-                    |
-                    | ⚠️ افزودنِ پارامتر به `planSlug()` به‌تنهایی کافی نبود —
-                    | تا وقتی **این فراخوان** آن را پاس ندهد، گارد هرگز اجرا
-                    | نمی‌شود. همان تلهٔ ثبت‌شده: تستی که خودش تابع را مستقیم
-                    | صدا می‌زند، سیم‌کشی را نمی‌سنجد.
-                    */
-                    'slug'              => $planSlug,
-                    'vcpu'              => $vcpu,
-                    'ram_mb'            => $ram,
-                    'disk_gb'           => $disk,
-                    'disk_type'         => (string) ($r['disk_type'] ?? 'nvme'),
-                    'traffic_gb'        => max(0, (int) ($r['traffic_gb'] ?? 0)),
-                    'cpu_kind'          => $cpuKind,
-                    'arch'              => (string) ($r['arch'] ?? 'x86'),
-                    'cost_eur_cents'    => $cost,
-                    'price_eur_cents'   => $price['eur_cents'],
-                    'price_irt'         => $price['irt'],
-                    'is_active'         => true,
-                    'in_stock'          => (bool) ($r['in_stock'] ?? true),
-                    // مرتب‌سازیِ طبیعی: کوچک به بزرگ. ۱۰۰۰ ضربِ ثابت است تا
-                    // پلنِ ۸هسته/۱۶گیگ بعد از ۸هسته/۸گیگ بیاید.
-                    'sort'              => min(65535, $vcpu * 1000 + (int) ($ram / 1024)),
-                    'synced_at'         => now(),
-                    // ستون‌های GPU — برای پلنِ بی‌کارت `null` می‌مانند، و
-                    // `null` این‌جا یعنی «کارت ندارد» نه «نمی‌دانیم».
-                    'gpu_model'         => $gpuModel,
-                    'gpu_count'         => $gpuCount,
-                    'gpu_vram_mb'       => ($v = (int) ($r['gpu_vram_mb'] ?? 0)) > 0 ? $v : null,
-                    'is_interruptible'  => (bool) ($r['is_interruptible'] ?? false),
-                    // ⚠️ `admin_disabled` و `admin_note` عمداً این‌جا **نیستند**.
-                    // اگر بودند، هر اجرای کرون تصمیمِ مدیر را پاک می‌کرد و پکیجِ
-                    // عمداً بسته، دو روز بعد خودش باز می‌شد.
-                ] + $costTrack
-                + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'network_terms')
-                    ? ['network_terms' => $networkTerms,
-                        'boot_disk_gb' => $provider === 'lightnode' ? ($r['boot_disk_gb'] ?? null) : null,
-                        'data_disk_gb' => $provider === 'lightnode' ? ($r['data_disk_gb'] ?? null) : null] : [])
-                // بهایِ ساعتیِ واقعیِ زیرساخت (درسِ sn-svc-76) — فقط اگر ستونش
-                // ساخته شده باشد، تا syncِ پیش از مهاجرت نشکند.
-                + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'cost_hour_eur_micro')
-                    ? ['cost_hour_eur_micro' => (int) ($r['cost_hour_eur_micro'] ?? 0) > 0
-                        ? (int) $r['cost_hour_eur_micro'] : null]
-                    : [])
-                // هزینهٔ راه‌اندازیِ یک‌باره (سرورِ اختصاصی) — null یعنی «ندارد»
-                + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'setup_eur_cents')
-                    ? ['setup_eur_cents' => (int) ($r['setup_eur_cents'] ?? 0) > 0
-                        ? (int) $r['setup_eur_cents'] : null]
-                    : [])
-            );
-
+            if ($ref === '' || $code === '') { continue; }
             $seen[] = $ref.'@'.$code;
-            $n++;
+            try {
+                $cost = (int) ($r['cost_eur_cents'] ?? 0);
+                if ($cost <= 0) {
+                    throw new \UnexpectedValueException('Invalid product cost.');
+                }
+
+                $vcpu = max(1, (int) ($r['vcpu'] ?? 1));
+                $ram = max(128, (int) ($r['ram_mb'] ?? 1024));
+                $disk = max(1, (int) ($r['disk_gb'] ?? 10));
+                $cpuKind = ($r['cpu_kind'] ?? 'shared') === 'dedicated' ? 'dedicated' : 'shared';
+
+                $price = $this->pricing->priceFor($cost, $provider);
+                if ($price['irt'] <= 0 || $price['eur_cents'] <= 0) {
+                    throw new \UnexpectedValueException('Invalid product sale price.');
+                }
+
+                // ── ردگیریِ تغییرِ بها ──
+                // ⚠️ چرا لازم است: قیمتِ فروشِ سرویس‌های فعال سرِ سفارش قفل شده و
+                // خودکار تمدید می‌شود. اگر زیرساخت بها را بالا ببرد و ما نفهمیم،
+                // هر تمدید ضررِ خالص است و هیچ‌جا صدا در نمی‌آورد.
+                $existing = CloudPlan::query()
+                    ->where('provider', $provider)
+                    ->where('provider_ref', $ref)
+                    ->where('location_code', $code)
+                    ->first(['id', 'cost_eur_cents']);
+
+                $costTrack = [];
+
+                if ($existing !== null && (int) $existing->cost_eur_cents !== $cost
+                    && (int) $existing->cost_eur_cents > 0) {
+                    $costTrack = [
+                        'previous_cost_eur_cents' => (int) $existing->cost_eur_cents,
+                        'cost_changed_at'         => now(),
+                    ];
+                }
+
+                $gpuModel = filled($r['gpu_model'] ?? null) ? (string) $r['gpu_model'] : null;
+                $gpuCount = $gpuModel !== null ? max(1, (int) ($r['gpu_count'] ?? 1)) : null;
+                // برمتال (سرورِ فیزیکی) — باید به نام و اسلاگ برسد وگرنه با VPSِ
+                // هسته‌اختصاصیِ هم‌مشخصات یک گروه می‌شود (توضیح در CloudNaming).
+                $metal = (bool) ($r['metal'] ?? false);
+                $networkTerms = in_array($provider, ['lightnode', 'vpstc'], true) ? ($r['network_terms'] ?? null) : null;
+                $planSlug = CloudNaming::planSlug($vcpu, $ram, $disk, $code, $cpuKind, $gpuModel, $gpuCount, $metal);
+                if ($provider === 'lightnode') {
+                    // Different network contracts cannot be interchangeable offers.
+                    $planSlug .= '-net-'.substr(hash('sha256', json_encode($networkTerms)), 0, 12);
+                }
+                if ($provider === 'vpstc') {
+                    // A monthly parent service with its own network contract cannot
+                    // become an interchangeable hourly/long-cycle fallback.
+                    $planSlug .= '-monthly-net-'.substr(hash('sha256', json_encode($networkTerms)), 0, 12);
+                }
+
+                CloudPlan::updateOrCreate(
+                    ['provider' => $provider, 'provider_ref' => $ref, 'location_code' => $code],
+                    [
+                        'provider_location' => $r['provider_location'] ?? null,
+                        'public_name'       => CloudNaming::planName($vcpu, $ram, $cpuKind, $metal),
+                        /*
+                        | 🔴 GPU **باید** به اسلاگ برسد.
+                        |
+                        | اسلاگ کلیدِ گروه‌بندیِ `offers()` است و `bestForSlug()`
+                        | ارزان‌ترینِ گروه را برمی‌دارد. بی‌این آرگومان، یک RTX 3060
+                        | و یک H100 با vCPU/رم/دیسکِ یکسان اسلاگِ یکسان می‌گیرند و
+                        | مشتری پولِ گران را می‌دهد و ارزان را تحویل می‌گیرد.
+                        |
+                        | ⚠️ افزودنِ پارامتر به `planSlug()` به‌تنهایی کافی نبود —
+                        | تا وقتی **این فراخوان** آن را پاس ندهد، گارد هرگز اجرا
+                        | نمی‌شود. همان تلهٔ ثبت‌شده: تستی که خودش تابع را مستقیم
+                        | صدا می‌زند، سیم‌کشی را نمی‌سنجد.
+                        */
+                        'slug'              => $planSlug,
+                        'vcpu'              => $vcpu,
+                        'ram_mb'            => $ram,
+                        'disk_gb'           => $disk,
+                        'disk_type'         => (string) ($r['disk_type'] ?? 'nvme'),
+                        'traffic_gb'        => max(0, (int) ($r['traffic_gb'] ?? 0)),
+                        'cpu_kind'          => $cpuKind,
+                        'arch'              => (string) ($r['arch'] ?? 'x86'),
+                        'cost_eur_cents'    => $cost,
+                        'price_eur_cents'   => $price['eur_cents'],
+                        'price_irt'         => $price['irt'],
+                        'is_active'         => true,
+                        'in_stock'          => (bool) ($r['in_stock'] ?? true),
+                        // مرتب‌سازیِ طبیعی: کوچک به بزرگ. ۱۰۰۰ ضربِ ثابت است تا
+                        // پلنِ ۸هسته/۱۶گیگ بعد از ۸هسته/۸گیگ بیاید.
+                        'sort'              => min(65535, $vcpu * 1000 + (int) ($ram / 1024)),
+                        'synced_at'         => now(),
+                        // ستون‌های GPU — برای پلنِ بی‌کارت `null` می‌مانند، و
+                        // `null` این‌جا یعنی «کارت ندارد» نه «نمی‌دانیم».
+                        'gpu_model'         => $gpuModel,
+                        'gpu_count'         => $gpuCount,
+                        'gpu_vram_mb'       => ($v = (int) ($r['gpu_vram_mb'] ?? 0)) > 0 ? $v : null,
+                        'is_interruptible'  => (bool) ($r['is_interruptible'] ?? false),
+                        // ⚠️ `admin_disabled` و `admin_note` عمداً این‌جا **نیستند**.
+                        // اگر بودند، هر اجرای کرون تصمیمِ مدیر را پاک می‌کرد و پکیجِ
+                        // عمداً بسته، دو روز بعد خودش باز می‌شد.
+                    ] + $costTrack
+                    + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'network_terms')
+                        ? ['network_terms' => $networkTerms,
+                            'boot_disk_gb' => $provider === 'lightnode' ? ($r['boot_disk_gb'] ?? null) : null,
+                            'data_disk_gb' => $provider === 'lightnode' ? ($r['data_disk_gb'] ?? null) : null] : [])
+                    // بهایِ ساعتیِ واقعیِ زیرساخت (درسِ sn-svc-76) — فقط اگر ستونش
+                    // ساخته شده باشد، تا syncِ پیش از مهاجرت نشکند.
+                    + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'cost_hour_eur_micro')
+                        ? ['cost_hour_eur_micro' => (int) ($r['cost_hour_eur_micro'] ?? 0) > 0
+                            ? (int) $r['cost_hour_eur_micro'] : null]
+                        : [])
+                    // هزینهٔ راه‌اندازیِ یک‌باره (سرورِ اختصاصی) — null یعنی «ندارد»
+                    + (\Illuminate\Support\Facades\Schema::hasColumn('cloud_plans', 'setup_eur_cents')
+                        ? ['setup_eur_cents' => (int) ($r['setup_eur_cents'] ?? 0) > 0
+                            ? (int) $r['setup_eur_cents'] : null]
+                        : [])
+                );
+
+                $n++;
+            } catch (\Throwable $e) {
+                $id = CloudPlan::query()->where('provider', $provider)->where('provider_ref', $ref)
+                    ->where('location_code', $code)->value('id');
+                if ($id !== null) {
+                    // Persist until a successful sync revalidates this exact product.
+                    // Repricing stored EUR costs must never reopen a failed sync row.
+                    CloudPlan::query()->whereKey($id)->update(['is_active' => false]);
+                    app(CloudPricingSnapshot::class)->excludePlans([(int) $id]);
+                }
+                \App\Support\ErrorTracker::noteOnce('pricing',
+                    'Product sync requires revalidation: '.$provider.' #'.($id ?? 'new'),
+                    1800, ['provider' => $provider, 'plan' => $id, 'reason' => 'product_sync_failed']);
+            }
         }
 
         // پلنی که این بار نیامد = برداشته شده. غیرفعال می‌شود تا از فروشگاه
@@ -372,9 +392,17 @@ class CloudCatalogSync
         if ($seen !== [] || in_array($provider, ['lightnode', 'vpstc'], true)) {
             CloudPlan::where('provider', $provider)
                 ->get(['id', 'provider_ref', 'location_code', 'is_active'])
-                ->each(function (CloudPlan $p) use ($seen) {
+                ->each(function (CloudPlan $p) use ($seen, $provider) {
                     if (! in_array($p->provider_ref.'@'.$p->location_code, $seen, true) && $p->is_active) {
-                        $p->update(['is_active' => false]);
+                        try {
+                            $p->update(['is_active' => false]);
+                        } catch (\Throwable) {
+                            CloudPlan::query()->whereKey($p->id)->update(['is_active' => false]);
+                            app(CloudPricingSnapshot::class)->excludePlans([(int) $p->id]);
+                            \App\Support\ErrorTracker::noteOnce('pricing',
+                                'Product retirement requires revalidation: '.$provider.' #'.$p->id,
+                                1800, ['provider' => $provider, 'plan' => $p->id, 'reason' => 'product_retirement_failed']);
+                        }
                     }
                 });
         }

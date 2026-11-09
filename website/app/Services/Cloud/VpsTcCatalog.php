@@ -30,11 +30,14 @@ class VpsTcCatalog
             return $empty;
         }
         $locations = $plans = $images = [];
+        $failedProducts = 0;
         foreach ($manifest['products'] as $mapping) {
             $quote = $this->quote((string) ($mapping['product_id'] ?? ''));
             if ($quote === null) {
-                // A partial read must not silently retire unrelated products.
-                return array_replace($empty, ['reason' => $this->lastQuoteReason ?? 'supplier_cost_read_failed']);
+                // Keep independently reviewed quotes. The missing exact product
+                // is quarantined by the repricer or retired by the full sync.
+                $failedProducts++;
+                continue;
             }
             $code = CloudNaming::locationCode($quote['country'], $quote['city'], $quote['location_ref']);
             $locations[$code] = ['code' => $code, 'country' => $quote['country'],
@@ -53,6 +56,9 @@ class VpsTcCatalog
                     'label' => $image['label'], 'arch' => $quote['arch'],
                     'min_ram_mb' => $image['min_ram_mb'], 'min_disk_gb' => $image['min_disk_gb']];
             }
+        }
+        if ($plans === [] && $failedProducts > 0) {
+            return array_replace($empty, ['reason' => $this->lastQuoteReason ?? 'supplier_cost_read_failed']);
         }
         return ['ok' => true, 'message' => 'فقط قراردادهای ماهانهٔ بررسی‌شده وارد شدند؛ فروش ساعتی پشتیبانی نمی‌شود.',
             'locations' => array_values($locations), 'plans' => $plans, 'images' => array_values($images)];

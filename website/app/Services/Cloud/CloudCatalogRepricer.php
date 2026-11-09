@@ -165,27 +165,34 @@ class CloudCatalogRepricer
                     if (isset($unavailable[$plan->id]) || in_array((int) $plan->id, $unverifiedPlans, true)) {
                         continue;
                     }
-                    $row = $quotes[$this->key($plan->provider_ref, $plan->location_code)] ?? null;
-                    if (! is_array($row)) {
-                        throw new \RuntimeException('Price refresh is missing an existing supplier plan: '.$provider);
+                    try {
+                        $row = $quotes[$this->key($plan->provider_ref, $plan->location_code)] ?? null;
+                        if (! is_array($row)) {
+                            throw new \UnexpectedValueException('Missing or ambiguous product quote.');
+                        }
+                        $this->assertProduct($row, $plan);
+                        $cost = $this->amount($row['cost_eur_cents'] ?? null, false, $provider);
+                        $hourly = $row['cost_hour_eur_micro'] ?? null;
+                        if ($hourly === null && (int) $plan->cost_hour_eur_micro > 0) {
+                            throw new \UnexpectedValueException('Missing hourly product cost.');
+                        }
+                        $setup = $row['setup_eur_cents'] ?? null;
+                        if ($setup === null && (int) $plan->setup_eur_cents > 0) {
+                            throw new \UnexpectedValueException('Missing product setup cost.');
+                        }
+                        $nativeCosts[$plan->id] = [
+                            'cost_eur_cents' => $cost,
+                            'cost_hour_eur_micro' => $hourly === null ? null : $this->amount($hourly, false, $provider),
+                            'setup_eur_cents' => $this->amount($setup ?? 0, true, $provider),
+                        ];
+                    } catch (\UnexpectedValueException $e) {
+                        // Product evidence is independent. Never discard verified
+                        // peer quotes because this one product changed or vanished.
+                        $unverifiedPlans[] = (int) $plan->id;
+                        \App\Support\ErrorTracker::noteOnce('pricing',
+                            'Product quote requires revalidation: '.$provider.' #'.$plan->id,
+                            1800, ['provider' => $provider, 'plan' => $plan->id, 'reason' => 'invalid_product_quote']);
                     }
-                    if ($regionalArvan && ($row['provider_location'] ?? null) !== $plan->provider_location) {
-                        throw new \RuntimeException('Arvan price belongs to a different region.');
-                    }
-                    $cost = $this->amount($row['cost_eur_cents'] ?? null, false, $provider);
-                    $hourly = $row['cost_hour_eur_micro'] ?? null;
-                    if ($hourly === null && (int) $plan->cost_hour_eur_micro > 0) {
-                        throw new \RuntimeException('Price refresh is missing an hourly supplier cost: '.$provider);
-                    }
-                    $setup = $row['setup_eur_cents'] ?? null;
-                    if ($setup === null && (int) $plan->setup_eur_cents > 0) {
-                        throw new \RuntimeException('Price refresh is missing a supplier setup cost: '.$provider);
-                    }
-                    $nativeCosts[$plan->id] = [
-                        'cost_eur_cents' => $cost,
-                        'cost_hour_eur_micro' => $hourly === null ? null : $this->amount($hourly, false, $provider),
-                        'setup_eur_cents' => $this->amount($setup ?? 0, true, $provider),
-                    ];
                 }
                 if ($provider === 'vpstc' && $active->isNotEmpty()) {
                     if ($vpstcInput !== app(VpsTcPricing::class)->fingerprint()) {
@@ -387,14 +394,16 @@ class CloudCatalogRepricer
     {
         $quotes = [];
         foreach ($rows as $row) {
-            if (! is_array($row)) {
-                throw new \RuntimeException('Price refresh received an invalid supplier row: '.$provider);
+            if (! is_array($row) || ! is_string($row['provider_ref'] ?? null)
+                || ! is_string($row['location_code'] ?? null)
+                || $row['provider_ref'] === '' || $row['location_code'] === '') {
+                // An unidentifiable row cannot authorize any product. Existing
+                // products without an independent quote are quarantined below.
+                continue;
             }
             $key = $this->key((string) ($row['provider_ref'] ?? ''), (string) ($row['location_code'] ?? ''));
-            if (isset($quotes[$key])) {
-                throw new \RuntimeException('Price refresh received duplicate supplier rows: '.$provider);
-            }
-            $quotes[$key] = $row;
+            // Keep ambiguity for this exact identity; never pick first or last.
+            $quotes[$key] = array_key_exists($key, $quotes) ? null : $row;
         }
         return $quotes;
     }
@@ -404,8 +413,27 @@ class CloudCatalogRepricer
         if (! is_numeric($value) || ! is_finite((float) $value)
             || (float) $value !== floor((float) $value)
             || (float) $value < ($zeroAllowed ? 0 : 1) || (float) $value > PHP_INT_MAX) {
-            throw new \RuntimeException('Price refresh received an invalid supplier amount: '.$provider);
+            throw new \UnexpectedValueException('Invalid product amount: '.$provider);
         }
         return (int) $value;
+    }
+
+    /** A price-only refresh must not silently substitute changed hardware. */
+    private function assertProduct(array $row, CloudPlan $plan): void
+    {
+        foreach (['vcpu', 'ram_mb', 'disk_gb', 'gpu_count', 'gpu_vram_mb', 'boot_disk_gb', 'data_disk_gb'] as $field) {
+            if (! array_key_exists($field, $row)) { continue; }
+            $value = $row[$field];
+            if (($value !== null && (! is_numeric($value) || ! is_finite((float) $value)
+                    || (float) $value !== floor((float) $value)))
+                || (int) $value !== (int) $plan->{$field}) {
+                throw new \UnexpectedValueException('Changed product specifications.');
+            }
+        }
+        foreach (['provider_location', 'cpu_kind', 'arch', 'gpu_model', 'network_terms'] as $field) {
+            if (array_key_exists($field, $row) && $row[$field] !== $plan->{$field}) {
+                throw new \UnexpectedValueException('Changed product identity or contract.');
+            }
+        }
     }
 }

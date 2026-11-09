@@ -106,15 +106,22 @@ class LightNodeClient implements CloudProvider
         $r = $this->rows('/package/list', 'packages', $query);
         if (! $r['ok']) { return $r; }
         $unique = [];
+        $invalid = [];
         foreach ($r['rows'] as $p) {
             $ref = $p['packageCode'] ?? null;
-            if (! $ref || ($p['regionCode'] ?? '') !== $region || ($p['zoneCode'] ?? '') !== $zone) {
-                return ['ok' => false, 'message' => 'هویت بستهٔ منطقه معتبر نیست.'];
+            if ((! is_string($ref) && ! is_int($ref)) || (string) $ref === '') { continue; }
+            if (isset($invalid[$ref])) { continue; }
+            if (($p['regionCode'] ?? '') !== $region || ($p['zoneCode'] ?? '') !== $zone) {
+                $invalid[$ref] = true;
+                unset($unique[$ref]);
+                continue;
             }
             // Live Quito returns identical package rows twice. Conflicting rows
             // for one identity are unsafe; identical duplicates are harmless.
             if (isset($unique[$ref]) && $unique[$ref] != $p) {
-                return ['ok' => false, 'message' => 'مشخصات یک شناسهٔ بسته متناقض است.'];
+                $invalid[$ref] = true;
+                unset($unique[$ref]);
+                continue;
             }
             $unique[$ref] = $p;
         }
