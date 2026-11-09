@@ -73,21 +73,25 @@ survey() {
   echo "--- BASE=$n_base TARGET=$n_target DRIFT=$n_drift MISSING=$n_missing ---"
 }
 
-# A concurrent release holding any of the three shared locks stops this one.
+# The project's shared release protocol (scripts/seo-release-20261108/release.py)
+# is an advisory flock held on three persistent files, acquired in this exact
+# order. The files are created once and never removed, so their presence proves
+# nothing and deleting one would silently break mutual exclusion for a release
+# that is holding it right now. The lock dies with this process, nothing to clean.
 take_locks() {
-  local held=()
+  command -v flock >/dev/null || die "flock missing — the shared release protocol needs it"
+  local index=0
   for lock in "${LOCKS[@]}"; do
-    if ( set -o noclobber; echo "domain-supplier-release-20261109 $$ $STAMP" > "$lock" ) 2>/dev/null; then
-      held+=("$lock")
-    else
-      for taken in "${held[@]:-}"; do [ -n "$taken" ] && rm -f "$taken"; done
-      if [ -e "$lock" ]; then
-        die "release lock held: $lock (holder: $(cat "$lock" 2>/dev/null)). If that run is dead, remove the file and retry."
-      fi
-      die "cannot create lock file — check home directory and permissions: $lock"
-    fi
+    [ -L "$lock" ] && die "release lock is a symlink, refusing to follow it: $lock"
+    case $index in
+      0) exec 200>>"$lock" || die "cannot open lock: $lock"; flock -n 200 || die "shared release lock busy, another release is running: $lock" ;;
+      1) exec 201>>"$lock" || die "cannot open lock: $lock"; flock -n 201 || die "shared release lock busy, another release is running: $lock" ;;
+      2) exec 202>>"$lock" || die "cannot open lock: $lock"; flock -n 202 || die "shared release lock busy, another release is running: $lock" ;;
+    esac
+    { [ -f "$lock" ] && [ -O "$lock" ]; } || die "lock is not a regular file owned by this user: $lock"
+    index=$((index + 1))
   done
-  trap 'for lock in "${LOCKS[@]}"; do rm -f "$lock"; done' EXIT
+  echo "locks: three shared release locks held (advisory flock; files are kept, never removed)"
 }
 
 fetch_candidates() {
