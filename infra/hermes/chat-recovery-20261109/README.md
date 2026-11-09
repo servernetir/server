@@ -1,6 +1,6 @@
 # Araz chat rendering and uncertain-result indicator
 
-Status: source candidate; **not installed or verified in production**.
+Status: the one-view UI change is **installed and verified by hash and three public locale responses**. Engine response recovery and authenticated Bale interaction remain unverified. See the [production receipt](../../../docs/project/ARAZ-CHAT-RECOVERY-2026-11-09.md).
 
 The reported miniapp screenshot shows several uncertain outcomes and a processing
 indicator. The last verified view source in the repository is
@@ -34,10 +34,13 @@ history, memory, command IDs and the prohibition on automatic replay remain.
   local socket creation returned `Operation not permitted`. Browser behavior and
   mobile appearance are **not verified**. `test-browser.cjs` is provided for a
   capable environment (`CHROMIUM_PATH` selects the installed executable).
-- PHP CLI is absent in this executor. Native-launcher lint and compilation of
-  the Blade view remain required on the authorized target before installation.
+- PHP CLI is absent in the executor. On the authorized production host, the
+  native launcher and compiled candidate passed PHP lint, the candidate view
+  compiled, seven deployment tests and 42 Node behavior cases passed, and the
+  installed view was compiled and verified. The initial target-side Node run
+  lacked its baseline fixture; the pinned fixture was staged and the rerun passed.
 
-No real AI request or customer/provider call was made by these tests.
+No real AI request or customer/provider call was made by the automated tests. A separate short engine canary was attempted through guest-exec; the management call timed out without a definitive result and was not replayed.
 
 ## Deployment and remaining diagnosis
 
@@ -58,8 +61,11 @@ No cache flush, model reset, schema or service/network change is included.
 For rollback, use the same launcher with `rollback`; the core refuses newer
 target edits. Recompile the affected view. Do not restore job/history databases.
 
-On 2026-11-09, the available browser showed the admin and cPanel login pages;
-there was no authenticated production session. Today's worker/engine logs,
-queue state, persisted results and upstream request failures have not been read.
-Inspect those with minimal redacted output and correlate the original request
-IDs before any runtime repair. Do not resend an uncertain command as a diagnostic.
+The connected Chrome session supplied an existing WHM terminal for installation
+and Proxmox access for read-only runtime diagnosis. Three original requests
+returned persisted failed_or_uncertain results. Engine logs contained a 405
+GET/POST route error; current unauthenticated requests show no redirect.
+The QEMU guest agent later stopped responding, the VM remains running, existing
+SSH key authentication is denied, and noVNC remains Connecting. The short canary
+has no definitive receipt. Restore authenticated in-guest access and reconcile
+that canary before further model tests. Do not resend an uncertain command.
