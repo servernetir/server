@@ -109,6 +109,30 @@ class VpsTcRenewalTest extends TestCase
         ]);
     }
 
+    public function test_bank_reference_collision_settles_and_supplier_renewal_confirms_once(): void
+    {
+        [$service, $invoice] = $this->invoice();
+        $invoice->update(['status' => 'unpaid', 'paid' => 0, 'paid_at' => null]);
+        $oldInvoice = Invoice::create(['customer_id' => $service->customer_id, 'kind' => 'topup',
+            'currency_code' => 'IRT', 'subtotal' => 100000, 'total' => 100000, 'paid' => 100000,
+            'status' => 'paid', 'issued_at' => now()]);
+        Payment::create(['invoice_id' => $oldInvoice->id, 'customer_id' => $service->customer_id,
+            'gateway' => 'bank_transfer', 'currency_code' => 'IRT', 'amount' => 100000,
+            'status' => 'paid', 'external_ref' => 'repeated-bank-reference']);
+        $receipt = \App\Models\BankTransferReceipt::create(['customer_id' => $service->customer_id,
+            'invoice_id' => $invoice->id, 'amount' => 720000, 'status' => 'pending',
+            'reference' => 'repeated-bank-reference']);
+        $this->supplier();
+        $this->assertTrue(app(\App\Services\Billing\BankReceiptReviewer::class)->approve($receipt)['ok']);
+        $this->assertSame('paid', $invoice->fresh()->status);
+        $renewal = app(VpsTcRenewal::class);
+        $this->assertTrue($renewal->process($invoice->fresh()));
+        $this->assertTrue($renewal->process($invoice->fresh()));
+        $this->assertSame('2026-11-30', $service->fresh()->next_due_at->toDateString());
+        $this->assertSame(1, CloudProviderOperation::where('action', 'renew')->count());
+        $this->assertSame(1, Payment::where('invoice_id', $invoice->id)->count());
+    }
+
     public function test_queue_makes_no_supplier_request_and_preserves_local_period(): void
     {
         [$service, $invoice] = $this->invoice();

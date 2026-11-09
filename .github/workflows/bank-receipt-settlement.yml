@@ -1,0 +1,104 @@
+name: Bank receipt settlement checks
+
+on:
+  push:
+    branches: [develop, 'fix/bank-receipt-settlement-*']
+    paths:
+      - 'website/app/Services/Billing/BankReceiptReviewer.php'
+      - 'website/app/Console/Commands/ReconcileBankReceipts.php'
+      - 'website/app/Http/Controllers/Admin/BankTransferController.php'
+      - 'website/tests/Feature/BankTransfer*.php'
+      - 'website/tests/Feature/VpsTcRenewalTest.php'
+      - '.github/workflows/bank-receipt-settlement.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Billing/BankReceiptReviewer.php'
+      - 'website/app/Console/Commands/ReconcileBankReceipts.php'
+      - 'website/app/Http/Controllers/Admin/BankTransferController.php'
+      - 'website/tests/Feature/BankTransfer*.php'
+      - 'website/tests/Feature/VpsTcRenewalTest.php'
+      - '.github/workflows/bank-receipt-settlement.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bank-receipt-settlement-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regressions:
+    name: Bank receipt settlement (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: bank_receipt_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    defaults:
+      run:
+        working-directory: website
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: http://localhost
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'bank_receipt_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      SMS_DRIVER: log
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      BANK_RECEIPT_EXPECTED_DB: ${{ matrix.database }}
+      COMPOSER_MAX_PARALLEL_HTTP: 2
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: bcmath, curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without project install scripts
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          for attempt in 1 2 3; do
+            composer install --no-interaction --prefer-dist --no-progress --no-scripts --no-plugins && break
+            test "$attempt" -lt 3 || exit 1
+            sleep "$((attempt * 10))"
+          done
+          composer check-platform-reqs
+          php artisan package:discover --ansi
+      - name: Lint settlement and audit source
+        run: |
+          php -l app/Services/Billing/BankReceiptReviewer.php
+          php -l app/Console/Commands/ReconcileBankReceipts.php
+          php -l app/Http/Controllers/Admin/BankTransferController.php
+          php -l tests/Feature/BankTransferApproveRetryTest.php
+          php -l tests/Feature/VpsTcRenewalTest.php
+      - name: Run bank receipt, renewal and wallet regressions
+        run: |
+          vendor/bin/phpunit --colors=never --filter='BankTransferApproveRetryTest|BankTransferTest|BillingPeriodAnchorTest|VpsTcRenewalTest|BillingRenewalSafetyTest' --log-junit /tmp/bank-receipts.xml
