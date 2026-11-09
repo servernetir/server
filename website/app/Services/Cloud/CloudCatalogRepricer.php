@@ -41,7 +41,7 @@ class CloudCatalogRepricer
     /** Refresh only this supplier without quoting or changing other suppliers. */
     public function runForProvider(string $provider, bool $persist = true): int
     {
-        if ($provider !== 'lightnode') {
+        if (! in_array($provider, ['lightnode', 'arvan'], true)) {
             throw new \InvalidArgumentException('Unsupported isolated supplier refresh.');
         }
         return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performRun($persist, $provider));
@@ -117,6 +117,25 @@ class CloudCatalogRepricer
                             throw new \RuntimeException('Unverified or conflicting unavailable Arvan product.');
                         }
                         $unavailable[$matches->first()->id] = true;
+                    }
+                }
+                if ($regionalArvan) {
+                    $identities = $catalog['unverified'] ?? [];
+                    if (! is_array($identities) || ! array_is_list($identities)) {
+                        throw new \RuntimeException('Invalid unverified Arvan product list.');
+                    }
+                    foreach ($identities as $identity) {
+                        if (! is_array($identity)) {
+                            throw new \RuntimeException('Invalid unverified Arvan product identity.');
+                        }
+                        $key = $this->key((string) ($identity['provider_ref'] ?? ''), (string) ($identity['location_code'] ?? ''));
+                        $matches = $active->filter(fn (CloudPlan $plan) => $this->key($plan->provider_ref, $plan->location_code) === $key
+                            && $plan->provider_location === ($identity['provider_location'] ?? null));
+                        if ($matches->count() !== 1 || isset($quotes[$key]) || isset($unavailable[$matches->first()->id])
+                            || in_array((int) $matches->first()->id, $unverifiedPlans, true)) {
+                            throw new \RuntimeException('Unverified or conflicting Arvan product quarantine.');
+                        }
+                        $unverifiedPlans[] = (int) $matches->first()->id;
                     }
                 }
                 if ($provider === 'lightnode' && $driver instanceof LightNodeClient) {

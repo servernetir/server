@@ -108,7 +108,9 @@ class ArvanRegionalPricingTest extends TestCase
             Http::swap(new Factory);
             Http::fake(['*/sizes' => Http::response(['data' => [array_replace($this->supplierSize(), $change)]])]);
             $result = app(ArvanClient::class)->fetchExistingPlanCosts([$plan]);
-            $this->assertFalse($result['ok']);
+            $this->assertTrue($result['ok']);
+            $this->assertSame([], $result['plans']);
+            $this->assertCount(1, $result['unverified']);
             $this->assertSame([], $result['unavailable']);
         }
     }
@@ -167,5 +169,81 @@ class ArvanRegionalPricingTest extends TestCase
         app(CloudCatalogRepricer::class)->run();
         $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('arvan'));
         $this->assertTrue($old->fresh()->in_stock);
+    }
+
+    public function test_changed_flavor_quarantines_only_itself_and_verified_offers_still_sell(): void
+    {
+        $changed = $this->plan('changed');
+        $changed->update(['disk_gb' => 200]);
+        $live = $this->plan('live');
+        $before = $changed->fresh()->getAttributes();
+        Http::fake(['*/sizes' => Http::response(['data' => [
+            $this->supplierSize(), array_replace($this->supplierSize(), ['id' => 'changed']),
+        ]])]);
+        $this->driver();
+        app(CloudCatalogRepricer::class)->run();
+        $this->assertSame($before, $changed->fresh()->getAttributes());
+        $this->assertSame([$changed->id], \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds());
+        $this->assertTrue(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('arvan'));
+        $this->assertSame([$live->id], CloudPlan::sellable()->pluck('id')->all());
+        $this->assertSame(1500000, (int) $live->fresh()->price_irt);
+    }
+
+    public function test_changed_flavor_preview_preserves_products_and_snapshot(): void
+    {
+        $changed = $this->plan('changed');
+        $changed->update(['disk_gb' => 200]);
+        $this->plan('live');
+        $before = CloudPlan::orderBy('id')->get()->map->getAttributes()->all();
+        $snapshot = Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY);
+        Http::fake(['*/sizes' => Http::response(['data' => [
+            $this->supplierSize(), array_replace($this->supplierSize(), ['id' => 'changed']),
+        ]])]);
+        $this->driver();
+        $this->assertSame(1, app(CloudCatalogRepricer::class)->run(false));
+        $this->assertSame($before, CloudPlan::orderBy('id')->get()->map->getAttributes()->all());
+        $this->assertSame($snapshot, Setting::get(\App\Services\Cloud\CloudPricingSnapshot::KEY));
+    }
+
+    public function test_isolated_arvan_recovery_preserves_peer_quotes_and_manual_decisions(): void
+    {
+        $changed = $this->plan('changed');
+        $changed->update(['disk_gb' => 200]);
+        $live = $this->plan('live');
+        $peer = $this->plan('euro', 'hetzner');
+        $manual = $this->plan('manual');
+        $manual->update(['admin_disabled' => true, 'admin_note' => 'manual hold']);
+        $snapshot = app(\App\Services\Cloud\CloudPricingSnapshot::class);
+        $snapshot->publish([100000, 100000, 100000], ['arvan'], [], [$peer->id]);
+        $peerBefore = $peer->fresh()->getAttributes();
+        Http::fake(['*/sizes' => Http::response(['data' => [
+            $this->supplierSize(), array_replace($this->supplierSize(), ['id' => 'changed']),
+        ]])]);
+        $this->driver();
+        app(CloudCatalogRepricer::class)->runForProvider('arvan');
+        $this->assertTrue($snapshot->current('arvan'));
+        $this->assertSame([$peer->id, $changed->id], \App\Services\Cloud\CloudPricingSnapshot::excludedPlanIds());
+        $this->assertSame($peerBefore, $peer->fresh()->getAttributes());
+        $this->assertTrue($manual->fresh()->admin_disabled);
+        $this->assertSame('manual hold', $manual->fresh()->admin_note);
+        $this->assertSame([$live->id], CloudPlan::sellable()->pluck('id')->all());
+    }
+
+    public function test_conflicting_or_wrong_region_quarantine_does_not_publish_quotes(): void
+    {
+        $plan = $this->plan('live');
+        foreach (['ir-thr-ba1', 'another-region'] as $region) {
+            $driver = \Mockery::mock(ArvanClient::class);
+            $driver->shouldReceive('isConfigured')->andReturnTrue();
+            $driver->shouldReceive('fetchExistingPlanCosts')->andReturn(['ok' => true,
+                'plans' => [['provider_ref' => 'live', 'location_code' => $plan->location_code,
+                    'provider_location' => $plan->provider_location, 'cost_eur_cents' => 1000]],
+                'unavailable' => [], 'unverified' => [['provider_ref' => 'live',
+                    'location_code' => $plan->location_code, 'provider_location' => $region]]]);
+            $this->mock(CloudManager::class)->shouldReceive('driver')->with('arvan')->andReturn($driver);
+            app(CloudCatalogRepricer::class)->run();
+            $this->assertFalse(app(\App\Services\Cloud\CloudPricingSnapshot::class)->current('arvan'));
+            $this->assertSame(750000, (int) $plan->fresh()->price_irt);
+        }
     }
 }
