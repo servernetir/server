@@ -11,6 +11,12 @@ final class HermesGrowthReadPreflight
 {
     private const MIN_PHP_VERSION_ID = 80400;
 
+    private const EXPECTED_BASENAMES = [
+        'client' => 'HermesGrowthReadClient.php',
+        'cycle' => 'GrowthReadCycle.php',
+        'caller' => 'owner-growth-caller.php',
+    ];
+
     /** @return array{status: string, checks: array<string, bool>, observed: array<string, mixed>} */
     public static function inspect(array $options): array
     {
@@ -28,14 +34,17 @@ final class HermesGrowthReadPreflight
             'crypto_available' => function_exists('hash_hmac') && function_exists('random_bytes'),
             'clock_within_limit' => $clockSkew <= $validated['max_skew'],
             'client_canonical_regular_file' => $client['canonical_regular_file'],
+            'client_expected_basename' => basename($client['realpath']) === self::EXPECTED_BASENAMES['client'],
             'client_not_group_or_world_writable' => $client['safe_permissions'],
             'client_expected_owner' => $client['uid'] === $validated['expected_uid'],
             'client_expected_sha256' => hash_equals($validated['expected_client_sha'], $client['sha256']),
             'cycle_canonical_regular_file' => $cycle['canonical_regular_file'],
+            'cycle_expected_basename' => basename($cycle['realpath']) === self::EXPECTED_BASENAMES['cycle'],
             'cycle_not_group_or_world_writable' => $cycle['safe_permissions'],
             'cycle_expected_owner' => $cycle['uid'] === $validated['expected_uid'],
             'cycle_expected_sha256' => hash_equals($validated['expected_cycle_sha'], $cycle['sha256']),
             'caller_canonical_regular_file' => $caller['canonical_regular_file'],
+            'caller_expected_basename' => basename($caller['realpath']) === self::EXPECTED_BASENAMES['caller'],
             'caller_not_group_or_world_writable' => $caller['safe_permissions'],
             'caller_expected_owner' => $caller['uid'] === $validated['expected_uid'],
             'caller_expected_sha256' => hash_equals($validated['expected_caller_sha'], $caller['sha256']),
