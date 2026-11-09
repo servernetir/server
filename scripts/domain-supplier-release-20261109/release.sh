@@ -129,8 +129,19 @@ install_files() {
 
 activate() {
   cd "$APP" || die "cannot enter $APP"
-  # Compiled Blade for the two admin views must be rebuilt.
-  $PHP artisan view:clear >/dev/null 2>&1 && echo "activate: view cache cleared"
+  # Blade recompiles by itself once the source mtime is newer, so a site-wide
+  # view:clear is never needed here and would make every other view recompile
+  # at once on a live site. Drop only the compiled copies of the two changed
+  # views, found by the absolute source path Blade stamps into each of them.
+  local dropped=0
+  for blade in resources/views/admin/domain-suppliers/form.blade.php \
+               resources/views/admin/domain-suppliers/index.blade.php; do
+    while IFS= read -r compiled; do
+      [ -n "$compiled" ] || continue
+      rm -f "$compiled" && dropped=$((dropped + 1))
+    done <<< "$(grep -rl -F -- "$APP/$blade ENDPATH" "$APP/storage/framework/views" 2>/dev/null)"
+  done
+  echo "activate: dropped $dropped compiled copy/copies of the two changed admin views (other views untouched)"
   # Only regenerate caches that actually exist; creating them is a separate decision.
   if [ -f "$APP/bootstrap/cache/config.php" ]; then
     $PHP artisan config:cache >/dev/null 2>&1 && echo "activate: config cache rebuilt (health_max_age_seconds 300 -> 900)" \
