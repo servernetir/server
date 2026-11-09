@@ -23,7 +23,7 @@ transport ساختگی امضای دقیق و URL بدون query را بازبی
 
 ## preflight بدون راز
 
-پیش از هر نصب، `preflight.php` فقط آمادگی محلی را fail-closed می‌سنجد: PHP 8.4+، cURL و primitiveهای رمزنگاری، اختلاف ساعت با epoch همتای احرازشده، مسیر canonical و غیر symlink، hash دقیق، مالک مورد انتظار و ممنوع‌بودن write برای group/world روی هر سه فایل client، cycle و caller. هر سه فایل باید در یک پوشهٔ canonical مشترک باشند تا `require`های مبتنی بر `__DIR__` در caller به نسخهٔ دیگری اشاره نکنند. هیچ env، secret یا credential خوانده نمی‌شود و هیچ درخواست شبکه‌ای انجام نمی‌شود.
+پیش از هر نصب، `preflight.php` فقط آمادگی محلی را fail-closed می‌سنجد: PHP 8.4+، cURL و primitiveهای رمزنگاری، اختلاف ساعت با epoch همتای احرازشده، مسیر canonical و غیر symlink، hash دقیق، مالک مورد انتظار و ممنوع‌بودن write برای group/world روی هر سه فایل client، cycle و caller. هر سه فایل باید در یک پوشهٔ canonical مشترک و با نام‌های دقیق `HermesGrowthReadClient.php`، `GrowthReadCycle.php` و `owner-growth-caller.php` باشند تا `require`های مبتنی بر `__DIR__` در caller به نسخهٔ دیگری یا فایل قدیمی اشاره نکنند. هیچ env، secret یا credential خوانده نمی‌شود و هیچ درخواست شبکه‌ای انجام نمی‌شود.
 
 ```bash
 php infra/hermes/growth-client-20261101/preflight.php \
@@ -38,7 +38,7 @@ php infra/hermes/growth-client-20261101/preflight.php \
   --max-skew=60
 ```
 
-خروجی فقط facts غیرمحرمانه و checkهای true/false است. `ready` صرفاً آمادگی نصب محلی است؛ وجود secret، پذیرش HMAC دوطرفه، سلامت VM یا اجرای کمپین را ثابت نمی‌کند. هر سه فایل runtime که caller بارگذاری می‌کند باید مسیر canonical، مالک، مجوز و SHA-256 مورد انتظار داشته باشند. خروجی `not_ready` با exit 2 و ورودی نامعتبر با exit 64 متوقف می‌شوند.
+خروجی فقط facts غیرمحرمانه و checkهای true/false است. `ready` صرفاً آمادگی نصب محلی است؛ وجود secret، پذیرش HMAC دوطرفه، سلامت VM یا اجرای کمپین را ثابت نمی‌کند. هر سه فایل runtime که caller بارگذاری می‌کند باید نام دقیق، مسیر canonical، مالک، مجوز و SHA-256 مورد انتظار داشته باشند. خروجی `not_ready` با exit 2 و ورودی نامعتبر با exit 64 متوقف می‌شوند.
 
 
 ## caller واقعی با رسید یکتا
