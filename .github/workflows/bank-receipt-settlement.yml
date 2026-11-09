@@ -101,4 +101,25 @@ jobs:
           php -l tests/Feature/VpsTcRenewalTest.php
       - name: Run bank receipt, renewal and wallet regressions
         run: |
-          vendor/bin/phpunit --colors=never --filter='BankTransferApproveRetryTest|BankTransferTest|BillingPeriodAnchorTest|VpsTcRenewalTest|BillingRenewalSafetyTest' --log-junit /tmp/bank-receipts.xml
+          vendor/bin/phpunit --colors=never --filter='BankTransferApproveRetryTest|BankTransferTest|BillingPeriodAnchorTest|VpsTcRenewalTest' --log-junit /tmp/bank-receipts.xml
+      - name: Check out the exact PR base for baseline comparison
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+      - name: Compare broader lifecycle regressions against unchanged code
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          cp -a vendor ../baseline/website/vendor
+          (cd ../baseline/website && composer dump-autoload --no-scripts --no-plugins --no-interaction >/dev/null)
+          before=0
+          after=0
+          (cd ../baseline/website && vendor/bin/phpunit --colors=never --filter='BillingRenewalSafetyTest' --log-junit "$RUNNER_TEMP/bank-before.xml") > "$RUNNER_TEMP/bank-before.log" 2>&1 || before=$?
+          vendor/bin/phpunit --colors=never --filter='BillingRenewalSafetyTest' --log-junit "$RUNNER_TEMP/bank-after.xml" > "$RUNNER_TEMP/bank-after.log" 2>&1 || after=$?
+          tail -n 4 "$RUNNER_TEMP/bank-before.log"
+          tail -n 4 "$RUNNER_TEMP/bank-after.log"
+          python3 tests/compare-crypto-baseline.py "$RUNNER_TEMP/bank-before.xml" "$RUNNER_TEMP/bank-after.xml" "$before" "$after"
