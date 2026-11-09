@@ -404,7 +404,7 @@ class CloudProvisioner
             | نامعتبر بسته می‌شود — همان اتفاقی که بارِ قبل ۲۲۱ پلن را بست.
             */
             if (! $this->disableCombinationIfUnsupported($plan, $why)) {
-                // 🔴 اگر ایراد **حسابِ زیرساخت** است، فروشِ آن پلن‌ها را ببند
+                // A failed order only establishes a problem with this exact product.
                 $this->quarantineProvider($plan, $why);
             }
 
@@ -1486,7 +1486,7 @@ class CloudProvisioner
     /**
      * 🔴 «این محصول ساعتی ندارد» — یک ردیف، نه یک زیرساخت.
      *
-     * `quarantineProvider()` **همهٔ** پلن‌های آن زیرساخت را می‌بندد؛ برای این
+     * `quarantineProvider()` اکنون فقط همان پلن را می‌بندد؛ برای این
      * خطا فاجعه است: نداشتنِ تعرفهٔ ساعتیِ یک محصول نباید ۱۰۱ پلنِ ماهانهٔ سالم
      * را از فروش بردارد. پس مسیرِ جدا.
      *
@@ -1581,12 +1581,9 @@ class CloudProvisioner
 
     private function quarantineProvider(CloudPlan $plan, string $message): void
     {
-        // Arvan's account-wide RAM quota error does not contain "quota",
-        // "limit reached" or "limit exceeded". Catalogue stock is not evidence
-        // of remaining account quota. Keep the supplier switch closed too, so
-        // newly discovered plans cannot bypass the quarantined catalogue rows.
-        $ramQuota = $plan->provider === 'arvan'
-            && str_contains(mb_strtolower($message), 'you have reached ram size limit');
+        // Historical method name retained for callers. One rejected product
+        // never proves that all products, regions or sizes must be withdrawn.
+        // Supplier-wide controls remain independent administrative decisions.
 
         $structural = [
             'permission',      // توکن دسترسیِ لازم را ندارد
@@ -1598,6 +1595,12 @@ class CloudProvisioner
             'balance',
             'payment',
             'quota',
+            'invalid plan',
+            'invalid flavor',
+            'flavor not found',
+            'price changed',
+            'invalid price',
+            'invalid size',
             /*
             | 🔴 «پیکربندیِ ناقصِ سفارش» هم ساختاری است، نه گذرا.
             |
@@ -1661,14 +1664,14 @@ class CloudProvisioner
         | استعلامِ کاتالوگ هرگز به این‌جا نمی‌رسد.)
         */
         if ($hit === null && str_contains($needle, 'proxy internal server error')) {
-            $key = 'cloud:gateway500:'.$plan->provider;
+            $key = 'cloud:gateway500:'.$plan->provider.':'.$plan->getKey();
 
             if (! Cache::get($key)) {
                 Cache::put($key, 1, now()->addMinutes(30));
 
                 ErrorTracker::note('cloud',
                     'زیرساخت سرِ سفارش «Proxy internal server error» داد. اگر در نیم‌ساعت تکرار شود، '
-                    .'فروشِ پلن‌هایش خودکار بسته می‌شود.', ['provider' => $plan->provider]);
+                    .'فقط فروش همین پلن متوقف می‌شود.', ['provider' => $plan->provider, 'plan' => $plan->id]);
 
                 return;
             }
@@ -1680,19 +1683,15 @@ class CloudProvisioner
             return;
         }
 
-        $note = self::QUARANTINE_PREFIX.' زیرساخت سفارش را نپذیرفت ('.mb_substr($message, 0, 120).')';
-
-        $newCapacityBlock = $ramQuota && ! CloudPlan::providerIsDisabled((string) $plan->provider);
-        if ($ramQuota) {
-            CloudPlan::setProviderDisabled((string) $plan->provider, true);
-        }
+        $note = self::QUARANTINE_PREFIX.' فقط همین پلن: زیرساخت سفارش را نپذیرفت ('.mb_substr($message, 0, 120).')';
 
         $closed = CloudPlan::query()
+            ->whereKey($plan->getKey())
             ->where('provider', $plan->provider)
             ->where('admin_disabled', false)
             ->update(['admin_disabled' => true, 'admin_note' => mb_substr($note, 0, 250)]);
 
-        if ($closed === 0 && ! $newCapacityBlock) {
+        if ($closed === 0) {
             return;
         }
 
@@ -1700,22 +1699,16 @@ class CloudProvisioner
         CloudCountry::forget();
 
         ErrorTracker::note('cloud',
-            'فروشِ '.$closed.' پلنِ یک زیرساخت خودکار بسته شد — '.$note);
+            'فقط فروش پلنِ '.$plan->id.' متوقف شد؛ سایر پلن‌ها دست‌نخورده ماندند — '.$note);
 
         try {
-            app(AdminNotifier::class)->event('فروشِ پلن‌های یک زیرساخت بسته شد', [
+            app(AdminNotifier::class)->event('فروش یک پلن متوقف شد', [
                 'زیرساخت' => CloudManager::REAL_NAMES[$plan->provider] ?? $plan->provider,
-                'تعداد پلن' => (string) $closed,
+                'پلن' => (string) $plan->id,
+                'مکان' => (string) $plan->location_code,
                 'علت' => mb_substr($message, 0, 200),
-                // ⚠️ بی‌این جمله، مدیر باید ۲۲۱ ردیف را تک‌تک در پنل باز کند —
-                // که یک‌بار واقعاً پیش آمد و عملاً یعنی راهی نبود.
-                'اقدام' => $ramQuota
-                    ? 'سهمیهٔ RAM حساب پر شده؛ پس از تأیید ظرفیت، قرنطینهٔ خودکار همین زیرساخت را '
-                        .'با «php artisan cloud:reopen arvan» بازبینی کنید، سپس فروشش را در /admin/cloud روشن کنید. '
-                        .'پیش از تلاش مجدد، نتیجهٔ همان سفارش را تطبیق دهید.'
-                    : 'اعتبار و دسترسیِ توکن را در پنلِ آن زیرساخت بررسی کنید. '
-                        .'پس از یک سفارشِ واقعیِ موفق، همه را با «php artisan cloud:reopen» باز کنید '
-                        .'(یا ردیف‌به‌ردیف از /admin/cloud).',
+                'اقدام' => 'فقط همین پلن را از نظر قیمت، مشخصات، منطقه و اعتبار لازم بررسی کنید. '
+                    .'سایر پلن‌های زیرساخت بسته نشده‌اند. پیش از تلاش مجدد، نتیجه همان سفارش را تطبیق دهید.',
             ], url('/admin/cloud'), '🛑');
         } catch (\Throwable) {
         }
