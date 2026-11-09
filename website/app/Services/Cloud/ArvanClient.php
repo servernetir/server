@@ -438,6 +438,7 @@ class ArvanClient implements CloudProvider
         }
         $quotes = [];
         $unavailable = [];
+        $unverified = [];
         foreach ($groups as $region => $products) {
             $response = $this->req('GET', self::ECC.'/regions/'.rawurlencode($region).'/sizes');
             if (! ($response['ok'] ?? false) || ! ($response['json_valid'] ?? false)
@@ -464,13 +465,16 @@ class ArvanClient implements CloudProvider
                     || (int) $quote['ram_mb'] !== (int) $plan->ram_mb
                     || (int) $quote['disk_gb'] !== (int) $plan->disk_gb
                     || $quote['cpu_kind'] !== $plan->cpu_kind) {
-                    return $fail('An existing Arvan flavor has invalid prices or changed specifications.');
+                    // One changed flavor must not withdraw independently verified offers.
+                    $unverified[] = ['provider_ref' => $plan->provider_ref,
+                        'provider_location' => $region, 'location_code' => $plan->location_code];
+                    continue;
                 }
                 $quotes[] = $quote;
             }
         }
 
-        return ['ok' => true, 'plans' => $quotes, 'unavailable' => $unavailable, 'message' => ''];
+        return ['ok' => true, 'plans' => $quotes, 'unavailable' => $unavailable, 'unverified' => $unverified, 'message' => ''];
     }
 
     /** فقط مناطقی که واقعاً می‌شود در آنها سرور ساخت */
