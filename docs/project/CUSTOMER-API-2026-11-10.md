@@ -1,6 +1,6 @@
 # Customer API: GPU/VPS management and product coverage
 
-Base: `b12fb50fd333c95a99e5836939f9993c3c6f0397`, `develop`. Status: release candidate; production installation and live acceptance are separate.
+Base: `b12fb50fd333c95a99e5836939f9993c3c6f0397`, `develop`. Status: installed and verified in production on 10 November 2026. PR #307 merged into `develop` as `1b7fe1b88f6c0a4474ee0a8f7ea441d673e21291`; deployed source head `f9cfd5b362c076efac5cdd859b1775a8bff9d536`.
 
 ## Shipped contract
 
@@ -50,3 +50,12 @@ SQLite/PHP 8.4.27: 63 tests / 734 assertions passed, including the new API, migr
 Install only the explicit changed web files with expected-before hashes, private backups and the shared deployment lock. Preserve production-only overlays through a reviewed three-way merge. Run only the new `2026_11_10_000100_create_customer_api_operations.php` migration, never all pending migrations. It adds a new operation ledger and nullable token resource restriction; no existing financial tables or token permissions are rewritten. Activate only affected routes/views/OPcache, then verify hashes, three locales, token denials and authenticated read-only requests. Do not Start/Stop a customer's GPU for deployment testing.
 
 Rollback: restore only manifest files after checking no newer edits. Keep additive schema and operation receipts; do not run migration down on production, discard audit history, alter customer wallets or reset pending funded hours. Reconcile ambiguous operations before reopening any affected automation.
+
+## Production acceptance — 10 November 2026
+
+- Twenty-five explicit destinations installed, all post-install hashes verified; existing production-only `routes/web.php` overlays preserved. Three shared release locks, private backups and expected-before guards were used. Only the new additive operation-ledger/token-resource migration ran; four affected Blade sources were compiled. No broad cache flush or FPM restart.
+- Six actual external authenticated read requests returned HTTP 200 and `ok=true`: inventory, owned cloud details/status, owned service, wallet and invoices. Observed status was Off; supported actions Start/Stop and paused off-time billing were confirmed for the inspected hourly GPU. A foreign service returned 404 and missing Bearer returned 401. Temporary read-only key was revoked. Wallet ledger count, balance, service state and restart reservation remained unchanged; no power request or paid provider operation was sent. Existing restart policy was enabled.
+- Account navigation and developer workspace, security scope checkboxes, optional resource restriction, expiry and CSRF fields were inspected in the live customer view. Public fa/en/tr references rendered; desktop and 390px mobile checks found no page overflow. Staff impersonation ended after inspection. Customer support response was sent after acceptance; no token was included.
+- Expanded local PHP 8.4.27 suite: **112 tests / 958 assertions passed**. Dedicated cloud API checks passed on **both SQLite and MariaDB 11.4** in CI; the broader triggered workflow checks, including hourly funding/birthday and Arvan finance, passed. A legacy metering fixture was corrected to model an actually stopped provider before Start and a later verified Running response, retaining its charging assertions.
+- Remaining product-operation coverage is tracked in [issue #308](https://github.com/servernetir/server/issues/308). This release completes the requested existing-GPU Start/Stop/Status use case and establishes the shared API foundation; it does not declare unfinished purchase/renewal/DNS/SMS/phone controls available.
+- Public entry point: https://servernet.cloud/developers/platform ; account workspace: https://console.servernet.cloud/account/api . Private installation/acceptance receipts and backups are retained outside webroot. Rollback remains limited to release files and targeted compiled templates, retaining the additive schema and audit receipts.
