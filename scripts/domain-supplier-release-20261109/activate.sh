@@ -29,10 +29,15 @@ case "$MODE" in on|off) ;; *) echo "usage: bash $0 {on|off}" >&2; exit 1 ;; esac
 WANT=$([ "$MODE" = on ] && echo true || echo false)
 KEY=DOMAIN_MULTI_PROVIDER_ENABLED
 
-# PR #298 raised the health window to 900s. Without it, arming sales walks
-# straight into the activation traps that release was written to close.
-AGE=$($PHP -r '$c = require $argv[1]."/config/domain_suppliers.php"; echo (int) ($c["health_max_age_seconds"] ?? 0);' "$APP")
-[ "$AGE" = 900 ] || { echo "STOP: config/domain_suppliers.php reports health_max_age_seconds=$AGE, expected 900 — install PR #298 first" >&2; exit 1; }
+# Arming sales on a build without PR #298 walks straight into the activation
+# traps that release was written to close. Check the two markers it added.
+# The config file cannot simply be require()d to read the value: it calls
+# env(), a framework helper that does not exist outside a booted app.
+grep -q "catalogue/refresh" "$APP/routes/domain-suppliers.php" 2>/dev/null \
+  || { echo "STOP: routes/domain-suppliers.php has no catalogue/refresh route — install PR #298 first" >&2; exit 1; }
+grep -qE "'health_max_age_seconds'[[:space:]]*=>[[:space:]]*900" "$APP/config/domain_suppliers.php" 2>/dev/null \
+  || { echo "STOP: config/domain_suppliers.php does not set health_max_age_seconds to 900 — install PR #298 first" >&2; exit 1; }
+echo "PR #298 markers present (catalogue/refresh route, 900s health window)"
 
 echo "=== 1. $KEY -> $WANT ==="
 BACKUP="$APP/.env.bak-$(date -u +%Y%m%dT%H%M%SZ)"
