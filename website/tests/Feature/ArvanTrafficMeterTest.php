@@ -41,7 +41,9 @@ class ArvanTrafficMeterTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-02T12:00:00Z'));
         Setting::put('cloud_margin_pct', '5');
         Setting::put('arvan_traffic_exposure_enabled_v1', '1');
-        config(['billing.tax_percent' => 10]);
+        // MariaDB keeps auto-increment gaps across rolled-back fixtures. A
+        // synthetic ID must never acquire production's ID-20 infrastructure exemption.
+        config(['billing.tax_percent' => 10, 'billing.internal_service_ids' => []]);
         Wallet::flushSchemaCache();
     }
 
@@ -340,6 +342,45 @@ class ArvanTrafficMeterTest extends TestCase
         $this->assertTrue($events[0]->withoutOverlapping);
         $this->assertTrue($events[0]->runInBackground);
         Http::assertNothingSent();
+    }
+
+    public function test_repeated_reconciliation_does_not_evict_other_incidents_but_changed_issues_alert_immediately(): void
+    {
+        [$customer, $service, $state, $snapshot] = $this->fixture(true);
+        $this->fakeSupplier($snapshot);
+        $originalStorage = storage_path();
+        $storage = storage_path('framework/testing/arvan-meter-notices-'.bin2hex(random_bytes(6)));
+        mkdir($storage.'/logs', 0700, true);
+        mkdir($storage.'/app', 0700, true);
+        $this->app->useStoragePath($storage);
+        \App\Support\ErrorTracker::useDirectory($storage);
+        try {
+            foreach (range(1, 3) as $run) {
+                $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
+                $this->assertStringContainsString('owner_exclusion', Artisan::output());
+            }
+            $notices = fn () => array_values(array_filter(\App\Support\ErrorTracker::recent(50, 'error'),
+                fn ($row) => ($row['message'] ?? '') === 'Traffic items require reconciliation'));
+            $this->assertCount(1, $notices());
+            $other = Customer::create(['email' => 'changed-notice-owner@example.test', 'status' => 'active']);
+            $service->update(['customer_id' => $other->id]);
+            $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
+            $this->assertCount(2, $notices(), 'Changed ownership/reason must bypass the stable-incident delay');
+            foreach (glob($storage.'/app/throttle-arvan-traffic-reconciliation-*') as $path) {
+                touch($path, time() - 1801);
+                clearstatcache(true, $path);
+            }
+            $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
+            $this->assertCount(3, $notices(), 'An unresolved hold must be reminded after thirty minutes');
+            $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
+            $this->assertSame(0, Invoice::count());
+            $this->assertSame(0, CreditEntry::count());
+            Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+        } finally {
+            \App\Support\ErrorTracker::useDirectory(null);
+            $this->app->useStoragePath($originalStorage);
+            \Illuminate\Support\Facades\File::deleteDirectory($storage);
+        }
     }
 
     public function test_small_amount_is_carried_without_invoice_payment_debit_or_paid_checkpoint_advance(): void

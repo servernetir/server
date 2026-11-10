@@ -120,8 +120,13 @@ class DomainSupplierCatalogue
                     throw new \RuntimeException('supplier_catalogue_storage');
                 }
             } finally { if (is_file($tmp)) unlink($tmp); }
+            // prices() decodes the stored snapshot again and revalidates current
+            // account eligibility. Release the first complete copy before that
+            // read; retaining both copies can exhaust the web worker's 128MB.
+            $fetchedAt = $snapshot['fetched_at'];
+            unset($catalogue, $accounts, $snapshot, $json);
             return ['count' => count($this->prices()), 'total' => count($suffixes), 'excluded' => $excluded,
-                'fetched_at' => $snapshot['fetched_at']];
+                'fetched_at' => $fetchedAt];
         } finally { $lock->release(); }
     }
 
