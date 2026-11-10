@@ -22,6 +22,8 @@ class CustomerApiToken extends Model
 {
     /** دسترسی‌های شناخته‌شده — رابطِ صدور و مستنداتِ API از همین می‌خوانند. */
     public const ABILITIES = [
+        'cloud:read'     => 'Read GPU and VPS status, billing and metrics',
+        'cloud:power'    => 'Start, stop and reboot GPU/VPS; starting enables usage charges',
         'read'           => 'خواندنِ حساب، سرویس‌ها، فاکتورها و اعتبار',
         'domains:read'   => 'خواندنِ دامنه‌ها، استعلامِ قیمت و موجودی',
         'domains:write'  => 'ثبت و تمدیدِ دامنه — **از اعتبارِ حساب خرج می‌کند**',
@@ -89,7 +91,7 @@ class CustomerApiToken extends Model
     protected $fillable = [
         'customer_id', 'name', 'token_hash', 'abilities', 'allowed_cidrs',
         'expires_at', 'revoked_at', 'daily_spend_cap_irt', 'ai_project_id',
-        'last_used_at', 'last_used_ip', 'identity_application_id',
+        'last_used_at', 'last_used_ip', 'identity_application_id', 'cloud_service_ids',
     ];
 
     /**
@@ -102,6 +104,7 @@ class CustomerApiToken extends Model
     {
         return [
             'abilities'     => 'array',
+            'cloud_service_ids' => 'array',
             'allowed_cidrs' => 'array',
             'last_used_at'  => 'datetime',
             'expires_at'    => 'datetime',
@@ -183,6 +186,10 @@ class CustomerApiToken extends Model
         if (str_starts_with($ability, 'identity:') || str_starts_with($ability, 'inquiry:')) {
             return isset(self::IDENTITY_ABILITIES[$ability]) && $this->identity_application_id !== null
                 && in_array($ability, (array) $this->abilities, true);
+        }
+
+        if (str_starts_with($ability, 'cloud:')) {
+            return in_array($ability, (array) $this->abilities, true);
         }
 
         $a = (array) ($this->abilities ?? []);

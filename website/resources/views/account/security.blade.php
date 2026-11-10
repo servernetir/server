@@ -262,6 +262,7 @@
   <div class="pnl-sec-h"><h2>{{ __('ui.sec_api_h') }}</h2></div>
   <div class="pnl-sec-b">
     <p class="sec-note">{{ __('ui.sec_api_note') }}</p>
+    @if(\Illuminate\Support\Facades\Route::has('account.api'))<p><a href="{{ lroute('account.api') }}">{{ __('customer-api.title') }}</a></p>@endif
 
     @if(session('new_token'))
       <div class="sec-newtok">
@@ -326,7 +327,7 @@
         @foreach(\App\Models\CustomerApiToken::ABILITIES as $key => $desc)
           <label class="sec-chk">
             <input type="checkbox" name="abilities[]" value="{{ $key }}" @checked($key === 'read')>
-            <span><code dir="ltr">{{ $key }}</code> — {{ __('panel.ability_'.str_replace(':', '_', $key)) }}</span>
+            <span><code dir="ltr">{{ $key }}</code> — {{ str_starts_with($key, 'cloud:') ? __('customer-api.scope_'.str_replace(':', '_', $key)) : __('panel.ability_'.str_replace(':', '_', $key)) }}</span>
           </label>
         @endforeach
       </div>
@@ -361,6 +362,10 @@
         </label>
       @endif
 
+      <label>{{ __('customer-api.service_ids') }}
+        <input name="cloud_service_ids" dir="ltr" maxlength="1000" placeholder="123, 456">
+        <small class="sec-note">{{ __('customer-api.service_ids_note') }}</small>
+      </label>
       @include('account.partials.identity-token-fields')
       <label>{{ __('ui.sec_api_cidrs') }}
         <input type="text" name="cidrs" dir="ltr" placeholder="185.10.20.30, 2001:db8::/64" maxlength="500">
