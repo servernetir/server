@@ -82,4 +82,4 @@ jobs:
               node.set('value', os.environ[key]); node.set('force', 'true')
           tree.write('.customer-api-ci.xml', encoding='unicode')
           PY
-          php vendor/bin/phpunit -c .customer-api-ci.xml --filter='CustomerCloudApiTest|CustomerCloudApiMigrationTest|HourlyRuntimeCreditTest|CloudPoweredOffStillBilledTest' --fail-on-warning
+          php vendor/bin/phpunit -c .customer-api-ci.xml --filter='CustomerCloudApiTest|CustomerCloudApiMigrationTest|HourlyRuntimeCreditTest|CloudFairHourlyMeteringTest|CloudPoweredOffStillBilledTest' --fail-on-warning
