@@ -18,6 +18,19 @@ final class PrivatePrometheusTrafficSource
     private const EVIDENCE_METRIC = 'snet_observed_metric';
     private const EVIDENCE_KIND = 'snet_observation_kind';
 
+    /** Fixed reason classes only: never persist/log an upstream body or exception. */
+    public static function diagnosticReason(mixed $reason): string
+    {
+        return match ($reason) {
+            'private_transport_unavailable' => 'transport_unavailable',
+            'private_transport_protocol_invalid' => 'source_protocol_invalid',
+            'target_or_counter_missing', 'target_or_netdev_down', 'scrape_timestamp_evidence_missing' => 'target_metrics_unavailable',
+            'metric_timestamps_stale_or_incoherent' => 'target_metrics_stale',
+            'target_identity_mismatch', 'counter_device_mismatch' => 'source_identity_mismatch',
+            default => 'source_unavailable',
+        };
+    }
+
     /**
      * The application runner supplies unixTransport only. The legacy loopback
      * endpoint remains available for isolated compatibility tests and explicit
@@ -187,8 +200,23 @@ final class PrivatePrometheusTrafficSource
 
             return ['status' => 'observed', 'reason' => 'fresh_identity_bound_sample', 'sample' => $sample,
                 'financial_action_performed' => false, 'lifecycle_action_performed' => false];
-        } catch (Throwable) {
+        } catch (Throwable $error) {
             // No body, provider reference, token, query or raw exception in output/logs.
+            if ($error instanceof \RuntimeException && in_array($error->getMessage(), [
+                'unix_transport_connect_failed', 'unix_transport_deadline', 'unix_transport_read_failed',
+                'unix_transport_pin_changed', 'unix_transport_metadata_invalid',
+                'unix_transport_write_failed', 'unix_transport_header_incomplete',
+                'unix_transport_body_incomplete', 'unix_transport_timeout_unavailable',
+            ], true)) {
+                return $this->unknown('private_transport_unavailable');
+            }
+            if ($error instanceof \RuntimeException && in_array($error->getMessage(), [
+                'unix_transport_header_limit', 'unix_transport_status_invalid', 'unix_transport_header_invalid',
+                'unix_transport_duplicate_header', 'unix_transport_response_forbidden',
+                'unix_transport_content_type_invalid', 'unix_transport_body_limit',
+            ], true)) {
+                return $this->unknown('private_transport_protocol_invalid');
+            }
             return $this->unknown('private_prometheus_read_failed');
         }
     }

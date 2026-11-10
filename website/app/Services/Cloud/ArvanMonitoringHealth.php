@@ -76,6 +76,19 @@ final class ArvanMonitoringHealth
                         $result = $status['result'] ?? [];
                         $now = time();
                         $reason = 'missing_or_stale_observation';
+                        if (($status['version'] ?? null) === 1 && is_array($status['identity'] ?? null)
+                            && ArvanTrafficObservation::sameIdentity($identity, $status['identity'])
+                            && ($result['status'] ?? null) === 'unknown' && is_int($result['checked_at'] ?? null)
+                            && $result['checked_at'] <= $now && $now - $result['checked_at'] <= ArvanTrafficObservation::MAX_AGE_SECONDS) {
+                            $reason = match ($result['source_reason'] ?? null) {
+                                'transport_unavailable' => 'central_query_unavailable',
+                                'target_metrics_unavailable' => 'target_metrics_unavailable',
+                                'target_metrics_stale' => 'target_metrics_stale',
+                                'source_identity_mismatch' => 'source_identity_mismatch',
+                                'source_protocol_invalid' => 'source_protocol_invalid',
+                                default => $reason,
+                            };
+                        }
                         $sample = $checkpoint['sample'] ?? null;
                         $sampleAt = is_array($sample) ? ($sample['sample_at'] ?? null) : null;
                         $collectedAt = is_array($sample) ? ($sample['collected_at'] ?? null) : null;
@@ -112,6 +125,11 @@ final class ArvanMonitoringHealth
         }
         ksort($issues);
         $labels = ['missing_enrollment' => 'ثبت پایش مرکزی تأیید نشده',
+            'central_query_unavailable' => 'اتصال جمع‌آورنده پاسخ نمی‌دهد؛ فایل سوکت به‌تنهایی نشانهٔ اتصال نیست',
+            'source_protocol_invalid' => 'پاسخ مسیر جمع‌آوری نامعتبر است؛ قرارداد ارتباط بررسی شود',
+            'target_metrics_unavailable' => 'دادهٔ عامل یا رابط شبکه در جمع‌آورنده موجود نیست',
+            'target_metrics_stale' => 'نمونهٔ واقعی جمع‌آورنده کهنه است',
+            'source_identity_mismatch' => 'هویت دادهٔ جمع‌آورنده با این سرور تطبیق ندارد',
             'central_transport_unavailable' => 'اتصال خصوصی پایش تأیید نشده',
             'central_runner_unavailable' => 'اجرای تازهٔ پایش مرکزی ثبت نشده',
             'central_transport_changed' => 'اتصال پایش هنگام بررسی تغییر کرده',

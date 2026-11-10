@@ -342,6 +342,36 @@ class ArvanTrafficMeterTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_repeated_reconciliation_does_not_evict_other_incidents_but_changed_issues_alert_immediately(): void
+    {
+        [$customer, $service, $state, $snapshot] = $this->fixture(true);
+        $this->fakeSupplier($snapshot);
+        $storage = storage_path('framework/testing/arvan-meter-notices-'.bin2hex(random_bytes(6)));
+        mkdir($storage, 0700, true);
+        $this->app->useStoragePath($storage);
+        \App\Support\ErrorTracker::useDirectory($storage);
+        try {
+            foreach (range(1, 3) as $run) {
+                $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
+                $this->assertStringContainsString('owner_exclusion', Artisan::output());
+            }
+            $notices = fn () => array_values(array_filter(\App\Support\ErrorTracker::recent(50, 'error'),
+                fn ($row) => ($row['message'] ?? '') === 'Traffic items require reconciliation'));
+            $this->assertCount(1, $notices());
+            $other = Customer::create(['email' => 'changed-notice-owner@example.test', 'status' => 'active']);
+            $service->update(['customer_id' => $other->id]);
+            $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
+            $this->assertCount(2, $notices(), 'Changed ownership/reason must bypass the stable-incident delay');
+            $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
+            $this->assertSame(0, Invoice::count());
+            $this->assertSame(0, CreditEntry::count());
+            Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
+        } finally {
+            \App\Support\ErrorTracker::useDirectory(null);
+            \Illuminate\Support\Facades\File::deleteDirectory($storage);
+        }
+    }
+
     public function test_small_amount_is_carried_without_invoice_payment_debit_or_paid_checkpoint_advance(): void
     {
         [$customer, , $state] = $this->fixture();
