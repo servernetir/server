@@ -220,6 +220,8 @@ $site = function (): void {
     | خطاهایش را JSON برمی‌گرداند — یعنی یک ۵۰۴ ساده به‌جای صفحهٔ خطای سایت،
     | یک بلوکِ JSON به بازدیدکننده نشان می‌دهد.
     */
+    Route::get('/developers/platform', [\App\Http\Controllers\CustomerApiDocsController::class, 'publicDocs'])->name('developers.platform');
+    Route::get('/developers/platform/openapi.json', [\App\Http\Controllers\CustomerApiDocsController::class, 'openapi'])->name('developers.platform.openapi');
     Route::get('/developers', fn () => view('pages.developers'))->name('developers');
 
     /*
@@ -672,6 +674,7 @@ $site = function (): void {
         Route::post('/security/ip', [Account\SecurityController::class, 'ipStore'])->name('security.ip')->middleware('throttle:forms');
         Route::post('/security/ip/{rule}/delete', [Account\SecurityController::class, 'ipDestroy'])->name('security.ip.delete');
         Route::post('/security/ip-mode', [Account\SecurityController::class, 'ipMode'])->name('security.ipmode')->middleware('throttle:forms');
+        Route::get('/api', [\App\Http\Controllers\CustomerApiDocsController::class, 'account'])->name('api');
         Route::post('/security/api-token', [Account\SecurityController::class, 'tokenStore'])->name('security.token')->middleware('throttle:forms');
         Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
 
@@ -3509,11 +3512,10 @@ Route::prefix('admin')->group(function () {
 
 /*
  * APIِ مشتری — نسخهٔ ۱، احراز با توکنِ Bearer (بدونِ نشست). خطاها JSON‌اند
- * (bootstrap: shouldRenderJsonWhen is('api/*')). فعلاً فقط‌خواندنی؛ زیرساختِ
- * ability طوری است که بعداً روت‌های نوشتنی (ساختِ سرویس/دامنه) با توکنِ
- * دارای دسترسیِ نوشتن اضافه شوند.
+ * (bootstrap: shouldRenderJsonWhen is('api/*')). خواندن حساب، دامنه و تونل
+ * و مدیریت برق GPU/VPS با مجوزهای مستقل؛ بدون ورود به نشست مشتری.
  */
-Route::prefix('api/v1')
+Route::prefix('api/v1')->middleware(\App\Http\Middleware\CustomerApiResponse::class)
     // بی‌نشست: تماس‌گیرنده با توکنِ Bearer می‌آید نه کوکی؛ بدونِ حذفِ این‌ها،
     // StartSession روی هر تماسِ بی‌کوکی یک ردیفِ نشستِ تازه در SQLite می‌نویسد.
     ->withoutMiddleware([
@@ -3524,6 +3526,7 @@ Route::prefix('api/v1')
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
     ])
     ->group(function () {
+        require __DIR__.'/customer-cloud-api.php';
         $api = \App\Http\Middleware\CustomerApiToken::class;
         $rate = (array) config('domain_reseller.limits.rate', []);
 
@@ -3548,6 +3551,9 @@ Route::prefix('api/v1')
             ->group(function () {
                 Route::get('/me', [\App\Http\Controllers\Api\CustomerApiController::class, 'me']);
                 Route::get('/services', [\App\Http\Controllers\Api\CustomerApiController::class, 'services']);
+                Route::get('/services/{service}', [\App\Http\Controllers\Api\CustomerApiController::class, 'service'])->whereNumber('service');
+                Route::get('/invoices/{invoice}', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoice'])->whereNumber('invoice');
+                Route::get('/wallet', [\App\Http\Controllers\Api\CustomerApiController::class, 'wallet']);
                 Route::get('/invoices', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoices']);
                 Route::get('/credit', [\App\Http\Controllers\Api\CustomerApiController::class, 'credit']);
 
