@@ -41,7 +41,9 @@ class ArvanTrafficMeterTest extends TestCase
         $this->travelTo(Carbon::parse('2026-11-02T12:00:00Z'));
         Setting::put('cloud_margin_pct', '5');
         Setting::put('arvan_traffic_exposure_enabled_v1', '1');
-        config(['billing.tax_percent' => 10]);
+        // MariaDB keeps auto-increment gaps across rolled-back fixtures. A
+        // synthetic ID must never acquire production's ID-20 infrastructure exemption.
+        config(['billing.tax_percent' => 10, 'billing.internal_service_ids' => []]);
         Wallet::flushSchemaCache();
     }
 
