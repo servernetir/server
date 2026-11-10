@@ -346,8 +346,10 @@ class ArvanTrafficMeterTest extends TestCase
     {
         [$customer, $service, $state, $snapshot] = $this->fixture(true);
         $this->fakeSupplier($snapshot);
+        $originalStorage = storage_path();
         $storage = storage_path('framework/testing/arvan-meter-notices-'.bin2hex(random_bytes(6)));
-        mkdir($storage, 0700, true);
+        mkdir($storage.'/logs', 0700, true);
+        mkdir($storage.'/app', 0700, true);
         $this->app->useStoragePath($storage);
         \App\Support\ErrorTracker::useDirectory($storage);
         try {
@@ -362,12 +364,19 @@ class ArvanTrafficMeterTest extends TestCase
             $service->update(['customer_id' => $other->id]);
             $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
             $this->assertCount(2, $notices(), 'Changed ownership/reason must bypass the stable-incident delay');
+            foreach (glob($storage.'/app/throttle-arvan-traffic-reconciliation-*') as $path) {
+                touch($path, time() - 1801);
+                clearstatcache(true, $path);
+            }
+            $this->assertSame(0, Artisan::call('finance:meter-arvan-traffic'));
+            $this->assertCount(3, $notices(), 'An unresolved hold must be reminded after thirty minutes');
             $this->assertSame($state, app(ArvanTrafficMeter::class)->state());
             $this->assertSame(0, Invoice::count());
             $this->assertSame(0, CreditEntry::count());
             Http::assertNotSent(fn ($request) => $request->method() !== 'GET');
         } finally {
             \App\Support\ErrorTracker::useDirectory(null);
+            $this->app->useStoragePath($originalStorage);
             \Illuminate\Support\Facades\File::deleteDirectory($storage);
         }
     }
