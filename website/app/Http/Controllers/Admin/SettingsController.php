@@ -444,6 +444,20 @@ class SettingsController extends Controller
             $liveRates[$currency] = $fx->current($currency);
         }
 
+        /*
+        | سودِ مؤثرِ دامنه برای خطِ راهنمای فرم.
+        |
+        | ⚠️ عمداً اینجا و نه در Blade: این فایل از فرمِ تک‌خطیِ `@php(...)`
+        | استفاده می‌کند، و افزودنِ یک بلوکِ `@php`/`@endphp` به همان فایل،
+        | الگوی رابلاکِ لاراول (`/(?<!@)@php(.*?)@endphp/s`) را وادار می‌کند
+        | اولین `@php` را به آن `@endphp` جفت کند و هرچه بینشان است —
+        | ده‌ها خط HTML — داخلِ یک بلوکِ PHP ببلعد. نتیجه، یک صفحهٔ ۵۰۰ با
+        | «unexpected end of file» است. محاسبه در کنترلر این تله را ندارد.
+        */
+        $domainMarginRaw = $ready ? Setting::get('domain_margin_pct') : null;
+        $domainMargin = ($domainMarginRaw !== null && $domainMarginRaw !== '') ? max(0, (float) $domainMarginRaw) : 0.0;
+        $domainFloor = \App\Services\Domain\DomainSearch::floorMarginPct();
+
         return [
             'pricing' => [
                 'pricing_fx_fee_pct'        => $ready ? Setting::get('pricing_fx_fee_pct') : null,
@@ -457,8 +471,12 @@ class SettingsController extends Controller
                 'cloud_margin_pct_salad' => $ready ? Setting::get('cloud_margin_pct_salad') : null,
                 'domain_margin_pct'     => $ready ? Setting::get('domain_margin_pct') : null,
                 'domain_min_margin_pct' => $ready ? Setting::get('domain_min_margin_pct') : null,
-                // The form states the percentage that actually reaches the price.
+                // The form states the percentage that actually reaches the price,
+                // and which of the two fields above it came from.
                 'domain_margin_floor_default' => \App\Services\Domain\DomainSearch::floorMarginDefaultPct(),
+                'domain_margin_effective_pct' => max($domainMargin, $domainFloor),
+                'domain_margin_from_floor'    => $domainFloor > $domainMargin,
+                'domain_margin_entered_pct'   => $domainMargin,
                 'cloud_ipv4_eur_cents'  => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
                 'ai_margin_pct'          => $ready ? Setting::get('ai_margin_pct') : null,
                 'ai_sales_open'          => $ready ? Setting::get('ai_sales_open') : null,
