@@ -265,6 +265,7 @@ class HourlyRuntimeCreditTest extends TestCase
 
     public function test_restart_needs_one_hour_not_twenty_four_and_prepaid_hour_is_not_cut_short(): void
     {
+        $this->liveStatus = 'off';
         $customer = $this->funded(1000);
         $service = $this->server($customer);
         $service->cloudInstance->update(['status' => 'off']);
@@ -277,6 +278,7 @@ class HourlyRuntimeCreditTest extends TestCase
         $provider->shouldReceive('suspend')->once()->andReturnTrue();
         $provider->shouldNotReceive('unsuspend', 'terminate');
         $this->app->instance(CloudProvisioner::class, $provider);
+        $this->liveStatus = 'running';
         $this->artisan('cloud:meter')->assertSuccessful();
         $this->artisan('cloud:meter')->assertSuccessful();
         $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
@@ -292,6 +294,7 @@ class HourlyRuntimeCreditTest extends TestCase
 
     public function test_restart_below_one_hour_rejects_before_sending_a_power_command(): void
     {
+        $this->liveStatus = 'off';
         $customer = $this->funded(999);
         $service = $this->server($customer);
         $service->cloudInstance->update(['status' => 'off']);
@@ -365,6 +368,7 @@ class HourlyRuntimeCreditTest extends TestCase
 
     public function test_restart_cannot_spend_another_financial_reservation(): void
     {
+        $this->liveStatus = 'off';
         $customer = $this->funded(2000);
         $service = $this->server($customer);
         $service->cloudInstance->update(['status' => 'off']);
@@ -377,12 +381,16 @@ class HourlyRuntimeCreditTest extends TestCase
 
     public function test_cancelled_pending_start_returns_its_reserved_hour(): void
     {
+        $this->liveStatus = 'off';
         $customer = $this->funded(1000);
         $service = $this->server($customer);
         $service->cloudInstance->update(['status' => 'off']);
         $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
             ->assertSessionHasNoErrors();
         $this->post(route('account.cloud.power', $service), ['action' => 'off'])->assertSessionHasNoErrors();
+        $this->assertSame(0, app(Wallet::class)->availableOf($customer->id));
+        $this->travel(1)->seconds();
+        $this->get(route('account.cloud.status', $service))->assertOk();
         $this->assertSame(1000, app(Wallet::class)->availableOf($customer->id));
         $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
         $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly')->count());
@@ -414,6 +422,7 @@ class HourlyRuntimeCreditTest extends TestCase
 
     public function test_cached_running_reply_from_before_restart_never_spends_the_reserved_hour(): void
     {
+        $this->liveStatus = 'off';
         $customer = $this->funded(1000);
         $service = $this->server($customer);
         $instance = $service->cloudInstance;
@@ -431,6 +440,7 @@ class HourlyRuntimeCreditTest extends TestCase
         $this->assertSame(1000, app(Wallet::class)->balanceOf($customer->id));
         $this->assertSame(1000, HourlyGpuStart::pending($service->fresh()));
         $this->assertSame('building', $instance->fresh()->status);
+        $this->liveStatus = 'running';
         $this->travel(21)->seconds();
         $this->get(route('account.cloud.status', $service))->assertOk();
         $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
@@ -454,6 +464,7 @@ class HourlyRuntimeCreditTest extends TestCase
 
     public function test_confirmed_restart_honors_the_usage_discount_and_releases_its_unused_hold(): void
     {
+        $this->liveStatus = 'off';
         $customer = $this->funded(1000);
         $service = $this->server($customer);
         $service->cloudInstance->update(['status' => 'off']);
@@ -463,6 +474,7 @@ class HourlyRuntimeCreditTest extends TestCase
         $this->app->instance(\App\Services\Birthday\BirthdayHourly::class, $calculator);
         $this->actingAs($customer, 'customer')->post(route('account.cloud.power', $service), ['action' => 'on'])
             ->assertSessionHasNoErrors();
+        $this->liveStatus = 'running';
         $this->artisan('cloud:meter')->assertSuccessful();
         $this->artisan('cloud:meter')->assertSuccessful();
         $this->assertSame(200, app(Wallet::class)->availableOf($customer->id));

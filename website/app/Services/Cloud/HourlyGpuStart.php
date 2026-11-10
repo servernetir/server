@@ -39,6 +39,7 @@ class HourlyGpuStart
                 return compact('minimum', 'available');
             }
             $meta = (array) $current->provision_meta;
+            unset($meta['hourly_stop_requested_at']);
             $meta['hourly_restart'] = ['amount_irt' => $minimum, 'claimed_at' => now()->toISOString(), 'observation_version' => 1];
             $meta['hourly_power_at'] = $meta['hourly_restart']['claimed_at'];
             $current->update(['provision_meta' => $meta, 'hold_rate_irt' => 0, 'hold_reserve_irt' => $minimum]);

@@ -80,4 +80,50 @@ class CustomerApiController extends Controller
             'balance' => ['IRT' => $c->creditBalance('IRT')],
         ]]);
     }
+    /** Every product appears through its owned service; private provisioning data is excluded. */
+    public function service(Request $request, string $service): JsonResponse
+    {
+        $s = $this->customer($request)->services()->findOrFail($service);
+        return response()->json(['ok' => true, 'data' => [
+            'id' => $s->id, 'name' => $s->name, 'product' => $s->kind(), 'status' => $s->status,
+            'billing_mode' => $s->billing_mode, 'currency' => $s->currency_code,
+            'price' => $s->hasUnverifiedBillingTerms() ? null : (int) $s->price,
+            'tax_percent' => $s->hasUnverifiedBillingTerms() ? null : (int) $s->tax_percent,
+            'cycle' => $s->hasUnverifiedBillingTerms() ? null : $s->cycle,
+            'next_due_at' => $s->next_due_at?->toDateString(),
+        ]]);
+    }
+
+    public function invoice(Request $request, string $invoice): JsonResponse
+    {
+        $i = $this->customer($request)->invoices()->with('items')->findOrFail($invoice);
+        return response()->json(['ok' => true, 'data' => [
+            'id' => $i->id, 'number' => $i->number, 'kind' => $i->kind, 'status' => $i->status,
+            'currency' => $i->currency_code, 'subtotal' => (int) $i->subtotal, 'discount' => (int) $i->discount,
+            'tax' => (int) $i->tax, 'total' => (int) $i->total, 'paid' => (int) $i->paid, 'due' => $i->due(),
+            'issued_at' => $i->issued_at?->toIso8601String(), 'due_at' => $i->due_at?->toIso8601String(),
+            'amount_exponent' => \App\Models\Currency::find($i->currency_code)?->exponent,
+            'items' => $i->items->map(fn ($item) => ['title' => $item->title, 'description' => $item->description,
+                'quantity' => $item->quantity, 'unit_price' => (int) $item->unit_price,
+                'discount' => (int) $item->discount, 'tax_amount' => (int) $item->tax_amount, 'line_total' => (int) $item->line_total]),
+        ]]);
+    }
+
+    public function wallet(Request $request): JsonResponse
+    {
+        $c = $this->customer($request);
+        $wallet = app(\App\Services\Finance\Wallet::class);
+        $currencies = \App\Models\CreditEntry::where('customer_id', $c->id)->distinct()->pluck('currency_code')->push('IRT')->unique();
+        $balances = \Illuminate\Support\Facades\DB::transaction(function () use ($c, $wallet, $currencies) {
+            Customer::whereKey($c->id)->lockForUpdate()->firstOrFail();
+            return $currencies->mapWithKeys(function ($currency) use ($c, $wallet) {
+                $balance = $wallet->balanceOf($c->id, $currency, currentRead: true);
+                $reserved = $wallet->reservedOf($c->id, $currency, currentRead: true);
+                return [$currency => ['amount_exponent' => \App\Models\Currency::find($currency)?->exponent,
+                    'balance' => $balance, 'reserved' => $reserved, 'available' => $balance - $reserved]];
+            });
+        });
+        return response()->json(['ok' => true, 'data' => $balances]);
+    }
+
 }
