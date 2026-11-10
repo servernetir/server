@@ -92,6 +92,37 @@
                value="{{ $pricing['domain_margin_pct'] }}" placeholder="۰ (پیش‌فرض)">
         <small>روی ثبت، تمدید و انتقال. صفر یعنی دقیقاً به بهای تمام‌شده — برای جذبِ مشتری.</small></label>
 
+      {{-- کفِ سودِ دامنه. تا پیش از این فقط در `config/domain_reseller.php`
+           می‌نشست، پس درصدِ بالا می‌توانست بی‌اثر باشد بی‌آنکه فرم چیزی بگوید:
+           کارفرما ۱ گذاشت و ۸ گرفت. حالا هر دو عدد این‌جایند و خطِ پایین
+           می‌گوید کدام‌شان به قیمت می‌رسد. --}}
+      @php
+          $domainMargin = (float) ($pricing['domain_margin_pct'] ?? 0);
+          $domainFloorDefault = (float) ($pricing['domain_margin_floor_default'] ?? 8);
+          $domainFloorSet = $pricing['domain_min_margin_pct'] ?? null;
+          $domainFloor = ($domainFloorSet !== null && $domainFloorSet !== '')
+              ? (float) $domainFloorSet : $domainFloorDefault;
+          $domainEffective = max($domainMargin, $domainFloor);
+      @endphp
+      <label class="set-f">کفِ سودِ دامنه (٪)
+        <input type="number" name="domain_min_margin_pct" dir="ltr" step="0.5" min="0" max="500"
+               value="{{ $pricing['domain_min_margin_pct'] }}"
+               placeholder="{{ rtrim(rtrim(number_format($domainFloorDefault, 1, '.', ''), '0'), '.') }} (پیش‌فرضِ کد)">
+        <small>
+          قیمت هرگز زیر این درصد نمی‌رود، حتی اگر «دامنه (٪)» کمتر باشد.
+          محافظِ نوسانِ ارز بینِ لحظهٔ استعلام و لحظهٔ پرداختِ مشتری است.
+          <b>سودِ مؤثر الان: {{ rtrim(rtrim(number_format($domainEffective, 2, '.', ''), '0'), '.') }}٪</b>
+          @if ($domainFloor > $domainMargin)
+            — از کف می‌آید، چون «دامنه (٪)» روی
+            {{ rtrim(rtrim(number_format($domainMargin, 2, '.', ''), '0'), '.') }} کمتر از کف است.
+          @else
+            — از «دامنه (٪)» می‌آید، چون از کف بیشتر است.
+          @endif
+          @if ($domainEffective <= 0)
+            <br>🔴 سودِ مؤثرِ صفر یعنی فروش دقیقاً به بها؛ یک نوسانِ کوچکِ ارز بینِ استعلام و پرداخت، فروش را زیرِ بها می‌برد.
+          @endif
+        </small></label>
+
       <label class="set-f">هزینهٔ IPv4 (سنتِ یورو، ماهانه)
         <input type="number" name="cloud_ipv4_eur_cents" dir="ltr" step="1" min="-1" max="10000"
                value="{{ $pricing['cloud_ipv4_eur_cents'] }}" placeholder="خالی = خودکار از زیرساخت">

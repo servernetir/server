@@ -96,6 +96,72 @@ class DomainMarginAndSuggestTest extends TestCase
         $this->assertSame(2160000, $this->first()['price_toman']);
     }
 
+    // ═══════════════ کفِ سود، از پنل ═══════════════
+    //
+    // 🔴 چرا اضافه شد: کارفرما `domain_margin_pct` را ۱ گذاشت و روی `.com`
+    // حدود ۸٪ دید. رفتار درست بود (کف از سود بزرگ‌تر است) ولی عددِ کف فقط در
+    // `config/domain_reseller.php` بود، پس درصدِ پنل بی‌صدا بی‌اثر می‌شد.
+
+    /** مدیر باید بتواند کف را هم از پنل عوض کند */
+    public function test_the_admin_setting_drives_the_minimum_cost_floor(): void
+    {
+        Setting::put('domain_min_margin_pct', '3');
+        Setting::put('domain_margin_pct', '0');
+        $this->fake(10.0);
+
+        // ۱۰ یورو × ۲۰۰k × ۱٫۰۳ — نه ۱٫۰۸ ِ ثابتِ کد.
+        $this->assertSame(2060000, $this->first()['price_toman']);
+    }
+
+    /** خالی‌بودن کف یعنی همان ثابتِ کد، نه صفر */
+    public function test_an_empty_floor_setting_keeps_the_code_default(): void
+    {
+        Setting::put('domain_min_margin_pct', '');
+        Setting::put('domain_margin_pct', '0');
+        $this->fake(10.0);
+
+        $this->assertSame(2160000, $this->first()['price_toman']);
+    }
+
+    /** کفِ پایین‌تر، سودِ بالاترِ مدیر را پایین نمی‌کشد */
+    public function test_a_lower_floor_does_not_pull_down_a_higher_margin(): void
+    {
+        Setting::put('domain_min_margin_pct', '3');
+        Setting::put('domain_margin_pct', '12');
+        $this->fake(10.0);
+
+        $this->assertSame(2240000, $this->first()['price_toman']);
+    }
+
+    /** کفِ صفر آگاهانه مجاز است: فروش دقیقاً به بها */
+    public function test_an_explicit_zero_floor_allows_selling_at_cost(): void
+    {
+        Setting::put('domain_min_margin_pct', '0');
+        Setting::put('domain_margin_pct', '0');
+        $this->fake(10.0);
+
+        $this->assertSame(2000000, $this->first()['price_toman']);
+    }
+
+    /** یک خواننده بیشتر ندارد: هیچ مسیری نباید مستقیم به config برسد */
+    public function test_the_floor_has_exactly_one_reader(): void
+    {
+        $offenders = [];
+        $base = dirname(__DIR__, 2).'/app';
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($base));
+        foreach ($files as $file) {
+            if (! $file->isFile() || $file->getExtension() !== 'php') continue;
+            $body = (string) file_get_contents($file->getPathname());
+            // The call itself, not prose that happens to name the key.
+            if (! preg_match("/config\(\s*['\"]domain_reseller\.min_margin_pct/", $body)) continue;
+            if (str_contains($body, 'public static function floorMarginDefaultPct')) continue;
+            $offenders[] = str_replace($base.DIRECTORY_SEPARATOR, '', $file->getPathname());
+        }
+
+        $this->assertSame([], $offenders,
+            'Read the domain margin floor through DomainSearch::floorMarginPct() so the panel value cannot be bypassed.');
+    }
+
     // ═══════════════ ثبت، تمدید، انتقال ═══════════════
 
     /** 🔴 هر سه قیمت باید در لحظه استعلام شوند و حاشیه بخورند */

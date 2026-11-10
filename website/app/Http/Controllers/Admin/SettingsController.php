@@ -156,6 +156,10 @@ class SettingsController extends Controller
             'cloud_margin_pct_salad' => ['nullable', 'numeric', 'min:0', 'max:500'],
             // صفر مجاز است: فروشِ دامنه به بهای تمام‌شده یک استراتژیِ جذب است
             'domain_margin_pct'     => ['nullable', 'numeric', 'min:0', 'max:500'],
+            // کفِ همان سود. خالی = ثابتِ کد در پیکربندیِ نمایندگیِ دامنه.
+            // صفر مجاز است ولی یعنی هیچ محافظی در برابر نوسانِ ارز بینِ
+            // استعلام و پرداخت نمانده؛ فرم همان‌جا هشدار می‌دهد.
+            'domain_min_margin_pct' => ['nullable', 'numeric', 'min:0', 'max:500'],
             'cloud_ipv4_eur_cents'  => ['nullable', 'integer', 'min:-1', 'max:10000'],
             /*
             | دروازهٔ AI (M5). حاشیه **کفِ صفر ندارد و پیش‌فرض هم ندارد**: خالی یعنی
@@ -452,6 +456,9 @@ class SettingsController extends Controller
                 'cloud_storage_margin_pct' => $ready ? Setting::get('cloud_storage_margin_pct') : null,
                 'cloud_margin_pct_salad' => $ready ? Setting::get('cloud_margin_pct_salad') : null,
                 'domain_margin_pct'     => $ready ? Setting::get('domain_margin_pct') : null,
+                'domain_min_margin_pct' => $ready ? Setting::get('domain_min_margin_pct') : null,
+                // The form states the percentage that actually reaches the price.
+                'domain_margin_floor_default' => \App\Services\Domain\DomainSearch::floorMarginDefaultPct(),
                 'cloud_ipv4_eur_cents'  => $ready ? Setting::get('cloud_ipv4_eur_cents') : null,
                 'ai_margin_pct'          => $ready ? Setting::get('ai_margin_pct') : null,
                 'ai_sales_open'          => $ready ? Setting::get('ai_sales_open') : null,
