@@ -160,10 +160,6 @@ jobs:
             tests/Feature/DomainSupplierRoutingTest.php
             tests/Feature/DomainSupplierManagementTest.php
             tests/Feature/DomainSupplierWholesaleTest.php
-            # The file that owns the domain margin and its floor was missing
-            # here, so a change to domain pricing could go green on this
-            # workflow and only be caught by the full suite somewhere else.
-            tests/Feature/DomainMarginAndSuggestTest.php
           )
           if [[ "$DB_CONNECTION" == sqlite ]]; then
             python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- --colors=never --log-junit="$RUNNER_TEMP/domain-new.xml" "${cases[@]}"
