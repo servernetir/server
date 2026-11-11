@@ -59,7 +59,7 @@ class LiveDomainPricing
         }
         $gross = $net * $this->supplierMultiplier();
         $wholesale = (int) ceil($gross * $rate);
-        $margin = max(0, (float) config('domain_reseller.min_margin_pct', 8));
+        $margin = DomainSearch::floorMarginPct();
         $step = $roundingStep ?? max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
         if ($step < 1) {
             $this->unavailable();

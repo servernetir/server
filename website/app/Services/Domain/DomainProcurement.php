@@ -516,7 +516,7 @@ class DomainProcurement
         $fx = $this->rate($q['currency']);
         $numerator = DomainMoney::multiply($q['amount_minor'], $fx['numerator']);
         $wholesale = DomainMoney::ceilRatio($numerator, $fx['denominator']);
-        $margin = $this->margin($tld); $floorMargin = DomainMoney::percentUnits(config('domain_reseller.min_margin_pct', 0));
+        $margin = $this->margin($tld); $floorMargin = DomainMoney::percentUnits(DomainSearch::floorMarginPct());
         $step = $this->roundingStep ??= max(1, (int) (Currency::find('IRT')?->rounding_step ?: 1000));
         $priced = ['fx_snapshot' => $fx, 'comparison_numerator' => $numerator, 'comparison_denominator' => $fx['denominator'],
             'wholesale_toman' => $wholesale, 'floor_toman' => DomainMoney::roundUp(DomainMoney::addPercent($wholesale, $floorMargin), $step),
