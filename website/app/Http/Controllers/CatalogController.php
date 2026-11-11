@@ -32,11 +32,40 @@ class CatalogController extends Controller
      * «بکاپِ روزانه»، «API و CLI کامل» — هیچ‌کدام برای GPU تحویل‌دادنی نبود).
      * جانشین: خطِ واقعیِ /gpu.
      */
-    private const GONE_TO_GPU = ['gpuaas', 'gpu-platform'];
+    /**
+     * صفحاتی که در `/gpu` ادغام شده‌اند و باید ۳۰۱ بخورند.
+     *
+     * 🔴 `vps/gpu` آبان ۱۴۰۵ اضافه شد. دو صفحهٔ ایندکس‌پذیر سرِ یک موضوع
+     *    می‌جنگیدند و Search Console نتیجه‌اش را دقیق نشان می‌داد: عبارت‌های
+     *    متمایز که فقط `/gpu` داشت در جایگاه ۵ بودند («اجاره GPU» ۵.۷،
+     *    «اجاره کارت گرافیک» ۵.۱)، ولی عبارت‌های اصلی که هر دو صفحه مدعی‌اش
+     *    بودند در ته نتایج: «سرور گرافیکی» ۲۵.۰، «خرید سرور gpu» ۴۲.۶،
+     *    «سرور gpu» ۵۱.۸ — روی هم بیش از هزار نمایش با CTR زیر ۳٪.
+     *
+     *    `/gpu` می‌مانَد چون پرترافیک‌ترین صفحهٔ کلِ سایت است (۷۹۵ کلیک در سه
+     *    ماه) و قیمت و فرم سفارش زنده دارد؛ `/vps/gpu` قیمت نداشت و اسکیمای
+     *    Offer هم نمی‌داد.
+     *
+     * ⚠️ ورودی `gpu` در `config/catalog/vps.php` عمداً پاک **نشد**: مگامنو و
+     *    پیوندهای داخلی از همان config ساخته می‌شوند و حذفش یعنی لینک‌های
+     *    شکسته. فقط دیگر رندر نمی‌شود و از نقشهٔ سایت بیرون است.
+     *
+     * @var array<string,array<int,string>> دسته ⇒ اسلاگ‌هایی که ۳۰۱ می‌خورند
+     */
+    public const MERGED_TO_GPU = [
+        'cloud' => ['gpuaas', 'gpu-platform'],
+        'vps'   => ['gpu'],
+    ];
+
+    /** آیا این صفحه در `/gpu` ادغام شده است؟ */
+    public static function mergedToGpu(string $category, string $slug): bool
+    {
+        return in_array($slug, self::MERGED_TO_GPU[$category] ?? [], true);
+    }
 
     public function show(string $category, string $slug): View|\Illuminate\Http\RedirectResponse
     {
-        if ($category === 'cloud' && in_array($slug, self::GONE_TO_GPU, true)) {
+        if (self::mergedToGpu($category, $slug)) {
             return redirect()->to(lroute('gpu'), 301);
         }
 
@@ -315,7 +344,14 @@ class CatalogController extends Controller
             'product'  => $product,
             'features' => $features,
             'faqs'     => $faqs,
-            'related'  => array_diff_key($products, [$slug => null]),
+            // ⚠️ صفحهٔ ادغام‌شده در /gpu از نوار «مرتبط» هم بیرون می‌رود: لینکِ
+            //    داخلی به نشانیِ ۳۰۱ هم یک پرشِ اضافه برای بازدیدکننده است هم
+            //    بودجهٔ خزشِ سوخته. (منو و نقشهٔ سایت از همین ثابت رد می‌شوند.)
+            'related'  => array_filter(
+                array_diff_key($products, [$slug => null]),
+                fn ($rSlug) => ! self::mergedToGpu($category, (string) $rSlug),
+                ARRAY_FILTER_USE_KEY
+            ),
             'tlds'     => $tlds,
             // خریدِ سرورِ مجازی/اختصاصی → **کنسولِ خودمان**، نه WHMCSِ بیرونی.
             // مکانِ همین کشور از قبل انتخاب می‌شود تا کاربر دوباره کشور نبیند.

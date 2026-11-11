@@ -366,7 +366,10 @@
                   <b class="pt-price-v">{{ cloud_price((int) ($p['irt'] ?? 0)) }}</b><span>{{ __('ui.mo') }}</span>
                 </td>
                 <td class="pt-buy">
-                  <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}">{{ __('ui.choose') }}</a>
+                  {{-- هر دو مقصد زیرِ `/account/` و مسدودِ robots.txt‌اند، پس
+                       این یکی بی‌قیدوشرط nofollow است. دلیلِ کامل کنارِ
+                       `$storeRel` پایین‌تر. --}}
+                  <a class="btn btn-primary" href="{{ $planHrefs[$i] ?? $cloudStoreHref }}" rel="nofollow">{{ __('ui.choose') }}</a>
                 </td>
               </tr>
               @endforeach
@@ -419,6 +422,32 @@
             ?: (($category === 'hosting')
                 ? (isset($orderable[$orderSlug]) ? lroute('order.summary', $orderSlug) : null)
                 : (($planHrefs[$i] ?? null) ?: ($cloudStoreHref ?? null)));
+
+        /*
+        | 🔴 لینک به `/account/*` باید nofollow باشد — وگرنه بودجهٔ خزش را
+        |    می‌خورد و هیچ‌چیز برنمی‌گرداند.
+        |
+        | `robots.txt` کلِ `/account` را Disallow کرده، ولی هر پلن یک نشانیِ
+        | **یکتا** می‌سازد (`?location=…&plan=…&cycle=…`). گوگل آن‌ها را کشف
+        | می‌کند، نمی‌تواند بخزدشان، و در صفِ «Blocked by robots.txt» می‌نشاندشان:
+        | در ۱۰ نوامبر ۲۰۲۶ **۳٬۳۳۷** نشانی — تقریباً هم‌اندازهٔ ۳٬۱۴۷ صفحهٔ
+        | واقعی‌ای که هنوز «Discovered – currently not indexed» بودند و هرگز
+        | خزیده نشدند. یعنی ظرفیتِ خزشِ سایت صرفِ درهای قفل می‌شد.
+        |
+        | ⚠️ `/cloud` و `/cloud/{location}` و `/vps/hourly` از قبل nofollow
+        |    داشتند؛ فقط همین قالب جا مانده بود (۳۴ لینک روی `/vps/germany`،
+        |    ضربدر ۱۷ صفحه و ۳ زبان).
+        |
+        | 🔴 شرطی و نه بی‌قیدوشرط: همین دکمه برای هاست و لایسنس به
+        |    `/order/{sku}` می‌رود — صفحه‌ای که ممیزی ۷ عمداً ایندکس‌پذیر و در
+        |    نقشهٔ سایت کرد. nofollowِ کور، تنها لینکِ داخلیِ آن صفحات را هم
+        |    می‌بست و دقیقاً همان کاری را می‌کرد که اینجا می‌خواهیم جلویش را
+        |    بگیریم، فقط روی صفحاتِ ارزشمند.
+        */
+        $storeRel = ($storeHref && str_contains((string) $storeHref, '/account/')) ? 'nofollow' : null;
+            ?: (($category === 'hosting')
+                ? (isset($orderable[$orderSlug]) ? lroute('order.summary', $orderSlug) : null)
+                : (($planHrefs[$i] ?? null) ?: ($cloudStoreHref ?? null)));
       @endphp
       <article class="plan {{ ($p['popular'] ?? false) ? 'popular' : '' }} reveal" style="transition-delay:{{ $i * 80 }}ms">
         @if($p['popular'] ?? false)<span class="pop-badge">{{ __('ui.popular') }}</span>@endif
@@ -462,7 +491,7 @@
         <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}"
            href="{{ lroute($p['route'][0], $p['route'][1] ?? []) }}">{{ lc($p['cta'] ?? []) ?: __('ui.choose') }}</a>
         @elseif($storeHref)
-        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ $storeHref }}">{{ __('ui.choose') }}</a>
+        <a class="btn {{ ($p['popular'] ?? false) ? 'btn-primary' : 'btn-glass' }}" href="{{ $storeHref }}" @if($storeRel) rel="{{ $storeRel }}" @endif>{{ __('ui.choose') }}</a>
         @else
         {{-- 🔴 این‌جا قبلاً دو شاخهٔ `buy_url()` بود که به سبدِ WHMCSِ بیرونی
              می‌رفتند. خزندهٔ لینکِ ممیزیِ سوم (مرداد ۱۴۰۵) نشان داد آن مقصد
@@ -662,6 +691,14 @@
            صفحاتِ هم‌خانواده به صفحهٔ فرود برسد. --}}
       @if($category === 'vps')
       <a class="loc" href="{{ lroute('vps.hourly') }}"><svg class="icon"><use href="#i-clock"/></svg>{{ __('ui.hv_badge') }}</a>
+      {{-- ⚠️ `/gpu` هم روتِ صریح دارد و از آبان ۱۴۰۵ `/vps/gpu` در آن ادغام
+           شده، پس از `$related` حذف می‌شود. بی‌این خط، خطِ محصولِ گرافیکی
+           یک‌باره هیچ لینکِ داخلی‌ای از خانوادهٔ VPS نمی‌گرفت — درست همان
+           صفحه‌ای که پرترافیک‌ترینِ سایت است. --}}
+      {{-- ⚠️ `ui.gpu_h1` و نه کلیدِ تازه: هر سه فایل زبان باید دقیقاً برابر
+           بمانند و کلیدِ جاافتاده روی سایت زنده متنِ خام چاپ می‌کند. این یکی
+           از قبل در هر سه هست و لنگرش هم همان عبارتی است که برایش رتبه داریم. --}}
+      <a class="loc" href="{{ lroute('gpu') }}"><svg class="icon"><use href="#i-monitor"/></svg>{{ __('ui.gpu_h1') }}</a>
       @endif
       @foreach($related as $rSlug => $r)
       <a class="loc" href="{{ $category === 'hosting' ? lroute('hosting', $rSlug) : lroute('catalog', ['category' => $category, 'slug' => $rSlug]) }}"><svg class="icon"><use href="#i-{{ $r['icon'] }}"/></svg>{{ lc($r)['t'] }}</a>

@@ -32,6 +32,30 @@ class ConsoleHost
 {
     private const CONSOLE = 'https://console.servernet.cloud/';
     private const MAIN    = 'https://servernet.cloud/';
+    private const APEX    = 'servernet.cloud';
+
+    /**
+     * تنها زیردامنه‌هایی که اجازه دارند این اپ را سرو کنند.
+     *
+     * ⚠️ فهرستِ سفید است نه سیاه: زیردامنهٔ تازه‌ای که در cPanel ساخته شود
+     * (webmail، autodiscover، هر رکوردِ آزمایشی) خودبه‌خود ۳۰۱ می‌خورد و
+     * نسخهٔ دومِ ایندکس‌شدنی نمی‌سازد. اگر روزی میزبانی واقعاً باید سایت را
+     * سرو کند، این‌جا اضافه‌اش کن — نه این که شرط را بردای.
+     */
+    private const SERVING_HOSTS = ['console.servernet.cloud'];
+
+    /**
+     * مسیرهایی که روی **هر** میزبانی باید پاسخ بدهند، نه ۳۰۱.
+     *
+     * 🔴 `.well-known/*` حیاتی است: تمدیدِ خودکارِ گواهیِ SSL زیردامنه‌ها از
+     *    همان‌جا اعتبارسنجی می‌شود و ۳۰۱ یعنی گواهیِ منقضی. `up` و `healthz`
+     *    هم پایشگرها هستند — پایشگری که ۳۰۱ بگیرد یا «پایین» گزارش می‌کند یا
+     *    سلامتِ میزبانِ دیگری را می‌سنجد.
+     */
+    private const HOST_NEVER = [
+        '.well-known/*', 'up', 'healthz',
+        'api/*', 'system/*', 'payment/*', 'bale/webhook/*', 'cloud-phone/webhook/*',
+    ];
 
     /** مسیرهای پنلی — روی کنسول مجازند، روی دامنهٔ اصلی به کنسول می‌روند */
     private const PANEL = [
@@ -117,13 +141,25 @@ class ConsoleHost
             return $this->onConsole($request, $next);
         }
 
-        // ── www → دامنهٔ اصلی ────────────────────────────────────────────────
+        // ── هر زیردامنهٔ غیرکانونیکال → دامنهٔ اصلی ──────────────────────────
         //
         // 🔴 هر دو میزبان کلِ سایتِ سه‌زبانه را سرو می‌کردند و
         // `layouts/site.blade.php` تگِ canonical را از `url()->current()` — یعنی
         // از میزبانِ خودِ درخواست — می‌سازد. نتیجه: هر صفحه دو نسخهٔ
         // ایندکس‌شدنی داشت که هرکدام خودش را canonical معرفی می‌کرد و با دیگری
         // بر سرِ همان کلیدواژه رقابت می‌کرد؛ اعتبارِ لینک‌ها هم بینشان نصف می‌شد.
+        //
+        // ⚠️ این شرط تا آبان ۱۴۰۵ فقط `www` را می‌گرفت — و همان باریکی هزینه
+        //    داد. Search Console در ۱۰ نوامبر ۲۰۲۶ **۳۱۳** نشانی در سطلِ
+        //    «Duplicate, Google chose different canonical» داشت و **همه‌اش**
+        //    `mail.servernet.cloud/*` بود: `/privacy`، `/speed`، `/terms`،
+        //    `/aup`، `/sla`، `/badge`، `/lookup/*` … هر کدام ۲۰۰ با canonicalِ
+        //    خودارجاع به `mail.…` و hreflangِ خودارجاع. زیردامنهٔ ایمیل روی
+        //    همان vhost می‌نشیند، پس هر مسیری که لایهٔ بالادست (Cloudflare/
+        //    Apache) پوشش نداده بود مستقیم به لاراول می‌رسید و سالم سرو می‌شد.
+        //    یک میزبانِ نام‌برده بس نیست: مقصر دفعهٔ بعد `webmail` یا هر رکوردِ
+        //    تازه‌ای است که کسی در cPanel می‌سازد. پس قاعده وارونه شد —
+        //    **هر** میزبانِ زیرِ دامنه که در فهرستِ سفید نباشد ۳۰۱ می‌خورد.
         //
         // فقط GET و HEAD: تغییرِ متد روی 301 بدنهٔ POST را دور می‌ریزد و فرمی که
         // به www فرستاده شده بی‌صدا خالی می‌رسید.
@@ -134,7 +170,7 @@ class ConsoleHost
         // درحالی‌که مرورگر ۳۰۱ می‌گرفت — یعنی همان دو-نسخه‌ایِ سئویی که این
         // ریدایرکت برای رفعش نوشته شد، فقط برای خزنده‌ها باقی می‌ماند.
         if ($request->isMethodSafe() && ! $request->isMethod('OPTIONS')
-            && strtolower($request->getHost()) === 'www.servernet.cloud') {
+            && $this->isStrayHost($request) && ! $request->is(self::HOST_NEVER)) {
             return redirect()->away(self::MAIN.ltrim($request->getRequestUri(), '/'), 301);
         }
 
@@ -173,6 +209,26 @@ class ConsoleHost
     private function isConsole(Request $request): bool
     {
         return str_starts_with(strtolower($request->getHost()), 'console.');
+    }
+
+    /**
+     * میزبانی زیرِ دامنهٔ ما که مجاز نیست سایت را سرو کند.
+     *
+     * 🔴 عمداً فقط زیردامنه‌های `servernet.cloud` را می‌سنجد و نه «هر میزبانی
+     *    که apex نیست»: `localhost`، `127.0.0.1`، `*.test` و میزبانِ تست باید
+     *    دست‌نخورده بمانند، وگرنه کلِ توسعهٔ محلی و سوئیتِ تست به پروداکشن
+     *    ۳۰۱ می‌خورد. `servernet.ir` هم این‌جا نیست — آن را `LegacyDomain`
+     *    می‌گیرد و رلهٔ پیامکش استثناهای خودش را دارد.
+     *
+     * نقطهٔ پایانی و بزرگی/کوچکیِ حروف نرمال می‌شوند؛ هر دو شکلِ معتبرِ همان
+     * میزبان‌اند و بی‌این، یک خزنده با `mail.servernet.cloud.` از محافظ رد می‌شد.
+     */
+    private function isStrayHost(Request $request): bool
+    {
+        $host = rtrim(strtolower($request->getHost()), '.');
+
+        return str_ends_with($host, '.'.self::APEX)
+            && ! in_array($host, self::SERVING_HOSTS, true);
     }
 
     /** فقط دامنهٔ واقعی تولید — localhost و تست مستثنا */

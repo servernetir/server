@@ -434,9 +434,22 @@ return [
                     ['route' => ['servers.generation', 'gen10'], 'fa' => 'قطعات HP نسل ۱۰', 'en' => 'HP Gen10 parts', 'tr' => 'HP Gen10 parçaları'],
                     ['route' => ['parts.index', []], 'fa' => 'همهٔ قطعات سرور', 'en' => 'All server parts', 'tr' => 'Tüm sunucu parçaları'],
                 ]],
+                /*
+                | ⚠️ این فهرست دستی است و صفحهٔ کاربردیِ تازه خودبه‌خود واردش
+                | نمی‌شود. صفحه‌ای که از هیچ‌جای سایت لینک نگیرد ممکن است هرگز
+                | ایندکس نشود — همان هشداری که §۵ راهنما دربارهٔ `webdesign`
+                | می‌دهد. هر ورودی تازه در `config/catalog/vps.php` باید این‌جا
+                | هم بیاید.
+                */
                 ['fa' => 'بر اساس کاربرد', 'en' => 'By use case', 'tr' => 'Kullanım amacına göre', 'items' => [
                     ['slug' => 'trading', 'fa' => 'سرور مجازی ترید', 'en' => 'Trading VPS', 'tr' => 'Trade VPS'],
-                    ['slug' => 'gpu',     'fa' => 'سرور مجازی گرافیکی', 'en' => 'GPU VPS', 'tr' => 'GPU VPS'],
+                    /*
+                    | ⚠️ `route` و نه `slug`: از آبان ۱۴۰۵ ‏`/vps/gpu` در `/gpu`
+                    | ادغام شد و ۳۰۱ می‌دهد. لینکِ منو به نشانیِ ۳۰۱ یعنی هر
+                    | خزش از مگامنو یک پرشِ اضافه می‌خورد و بازدیدکننده هم.
+                    */
+                    ['route' => ['gpu', []], 'fa' => 'سرور گرافیکی و اجاره GPU', 'en' => 'GPU servers', 'tr' => 'GPU sunucular'],
+                    ['slug' => 'discord', 'fa' => 'هاست بات دیسکورد', 'en' => 'Discord bot hosting', 'tr' => 'Discord bot hosting'],
                     ['slug' => 'cloud',   'fa' => 'سرور مجازی ابری', 'en' => 'Cloud VPS', 'tr' => 'Bulut VPS'],
                 ]],
                 // ⚠️ این گروه را SiteMenu با کشورهای **زندهٔ** کاتالوگ پر می‌کند.

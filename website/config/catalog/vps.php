@@ -493,6 +493,86 @@ return [
         ],
     ],
 
+    /*
+    | میزبانی بات دیسکورد — آبان ۱۴۰۵، از گزارش Search Console.
+    |
+    | خوشهٔ «دیسکورد» حدود ۷۰۰ نمایش در جایگاه ۵.۸ تا ۷.۳ داشت و همه‌اش روی
+    | `/blog/iranian-discord-servers` می‌نشست — یک مطلب آموزشی، نه صفحهٔ خرید.
+    | هم‌زمان گوگل هر سه زبانِ `/vps/discord` را می‌خزید و ۴۰۴ می‌گرفت، و
+    | `/en/vps/discord` با ۸۳ نمایش در AI Overviews ظاهر می‌شد — برای نشانی‌ای
+    | که هرگز وجود نداشت.
+    |
+    | 🔴 زاویهٔ صفحه عمداً «میزبانی بات» است، نه «دسترسی به دیسکورد». بند ۷
+    |    AUP ارائه یا بازفروشِ «سرویس عبور» روی زیرساخت ایران را منع می‌کند، و
+    |    صفحه‌ای که وعدهٔ دسترسی بدهد همان بند را زیر پا می‌گذارد.
+    |
+    | ⚠️ و یک واقعیت فنی که رقبا مبهم رهایش می‌کنند: Gateway دیسکورد از داخل
+    |    ایران در دسترس نیست، پس بات روی سرورِ ایران بالا نمی‌آید. این صفحه
+    |    صریح همین را می‌گوید و مقصد را «خارج» می‌گذارد. وعدهٔ بی‌پشتوانه اینجا
+    |    یعنی مشتری پول بدهد و باتش هرگز آنلاین نشود.
+    */
+    'discord' => [
+        'icon' => 'bot', 'group' => 'use',
+        'fa' => ['t' => 'هاست بات دیسکورد',
+            'seo_t' => 'هاست بات دیسکورد | سرور همیشه‌روشن برای discord.js و discord.py',
+            'seo_d' => 'میزبانی بات دیسکورد روی سرور مجازی خارج با دسترسی مستقیم به Gateway؛ Node.js و Python آماده، اجرای دائم با pm2 و systemd، بدون خواب خودکار هاست رایگان. تحویل آنی، پرداخت ساعتی یا ماهانه و پشتیبانی فارسی.',
+            'tag' => 'discord.js · discord.py · ۲۴/۷',
+            'hero_t' => 'بات دیسکورد شما،', 'hero_g' => 'هیچ‌وقت آفلاین نمی‌شود.',
+            'hero_d' => 'سروری که فقط برای بات شماست: Node.js و Python از پیش آماده، اجرای دائم با pm2 و systemd، و بدون خواب خودکاری که هاست‌های رایگان بعد از نیم‌ساعت بی‌فعالیتی اعمال می‌کنند.'],
+        'en' => ['t' => 'Discord Bot Hosting',
+            'seo_t' => 'Discord bot hosting | always-on VPS for discord.js and discord.py',
+            'seo_d' => 'Host your Discord bot on a VPS with direct Gateway access; Node.js and Python ready, kept alive by pm2 and systemd, with none of the idle-sleep of free tiers. Instant delivery, hourly or monthly billing.',
+            'tag' => 'discord.js · discord.py · 24/7',
+            'hero_t' => 'Your Discord bot,', 'hero_g' => 'never offline again.',
+            'hero_d' => 'A server that exists for your bot: Node.js and Python preinstalled, kept running by pm2 and systemd, and none of the idle-sleep free tiers apply after thirty quiet minutes.'],
+        'tr' => ['t' => 'Discord Bot Hosting', 'tag' => 'discord.js · discord.py · 7/24',
+            'hero_t' => 'Discord botunuz,', 'hero_g' => 'bir daha çevrimdışı olmasın.',
+            'hero_d' => 'Sadece botunuz için bir sunucu: Node.js ve Python kurulu, pm2 ve systemd ile sürekli çalışır, ücretsiz planların uyku moduna geçmesi olmadan.'],
+        'chips' => ['discord.js v14', 'discord.py 2.x', 'Node 22 · Python 3.12', 'pm2 + systemd', 'Always-On'],
+        'signature' => ['type' => 'bars',
+            'fa' => ['t' => 'یک بات دیسکورد چقدر رم می‌خواهد؟', 'd' => 'مصرف تقریبی حافظه به تفکیک نوع بات — پلن را از روی همین انتخاب کنید، نه از روی حدس'],
+            'en' => ['t' => 'How much RAM does a Discord bot need?', 'd' => 'Typical memory use by bot type — size your plan from this instead of guessing'],
+            'tr' => ['t' => 'Bir Discord botu ne kadar RAM ister?', 'd' => 'Bot türüne göre tipik bellek kullanımı — planınızı buna göre seçin'],
+            'items' => [
+                ['fa' => 'بات دستوری ساده', 'en' => 'Simple command bot', 'tr' => 'Basit komut botu', 'val' => '~80 MB', 'w' => '7%'],
+                ['fa' => 'بات مدیریت سرور + دیتابیس', 'en' => 'Moderation bot + database', 'tr' => 'Moderasyon botu + veritabanı', 'val' => '~250 MB', 'w' => '21%'],
+                ['fa' => 'بات موزیک با ffmpeg', 'en' => 'Music bot with ffmpeg', 'tr' => 'ffmpeg ile müzik botu', 'val' => '~450 MB', 'w' => '38%'],
+                ['fa' => 'چند بات + Redis + داشبورد', 'en' => 'Several bots + Redis + dashboard', 'tr' => 'Birkaç bot + Redis + panel', 'val' => '~1.2 GB', 'w' => '100%', 'hl' => true],
+            ]],
+        'plans' => [
+            $mk('DC-1', 240, 590000, 5.90, ['1 vCPU / 2 GB RAM', '25 GB NVMe', ['fa' => 'Node.js و Python آماده', 'en' => 'Node.js and Python ready', 'tr' => 'Node.js ve Python kurulu'], ['fa' => 'مناسب ۱ تا ۳ بات سبک', 'en' => 'Fits 1–3 light bots', 'tr' => '1–3 hafif bot için'], $root]),
+            $mk('DC-2', 241, 1090000, 10.90, ['2 vCPU / 4 GB RAM', '50 GB NVMe', ['fa' => 'Node.js و Python آماده', 'en' => 'Node.js and Python ready', 'tr' => 'Node.js ve Python kurulu'], ['fa' => 'بات موزیک یا چند بات هم‌زمان', 'en' => 'Music bot or several bots', 'tr' => 'Müzik botu veya birkaç bot'], $root], true),
+            $mk('DC-3', 242, 1990000, 19.90, ['4 vCPU / 8 GB RAM', '100 GB NVMe', ['fa' => 'Node.js و Python آماده', 'en' => 'Node.js and Python ready', 'tr' => 'Node.js ve Python kurulu'], ['fa' => 'چند بات + Redis + داشبورد وب', 'en' => 'Several bots + Redis + web dashboard', 'tr' => 'Birkaç bot + Redis + web paneli'], $root]),
+        ],
+        'features' => ['instant', 'root', 'hourly', 'uptime', 'support',
+            ['icon' => 'bot',
+                'fa' => ['t' => 'بدون خواب خودکار', 'd' => 'پلن رایگان Replit و Railway بعد از چند دقیقه بی‌فعالیتی بات را می‌خواباند. اینجا پردازش شماست و تا وقتی خودتان نخواهید متوقف نمی‌شود.'],
+                'en' => ['t' => 'No idle sleep', 'd' => 'Free Replit and Railway tiers suspend a bot after a few quiet minutes. Here the process is yours and stops only when you stop it.'],
+                'tr' => ['t' => 'Uyku modu yok', 'd' => 'Ücretsiz Replit ve Railway planları botu birkaç dakika sonra askıya alır. Burada süreç sizindir ve siz durdurmadıkça durmaz.']],
+            ['icon' => 'restore',
+                'fa' => ['t' => 'بالا آمدن خودکار بعد از ریستارت', 'd' => 'بات با pm2 یا یونیت systemd اجرا می‌شود، پس بعد از کرش یا ریبوت سرور خودش برمی‌گردد — بدون اینکه کسی دستی چیزی بزند.'],
+                'en' => ['t' => 'Comes back on its own', 'd' => 'Your bot runs under pm2 or a systemd unit, so it restarts itself after a crash or reboot — nobody has to log in.'],
+                'tr' => ['t' => 'Kendi kendine geri gelir', 'd' => 'Botunuz pm2 veya systemd altında çalışır; çökme veya yeniden başlatma sonrası kendini toparlar.']],
+        ],
+        'faqs' => ['activation',
+            ['fa' => ['q' => 'چرا سرور ایران برای بات دیسکورد پیشنهاد نمی‌شود؟', 'a' => 'چون Gateway دیسکورد از داخل ایران در دسترس نیست و بات روی سرور ایران اصلاً به دیسکورد وصل نمی‌شود. پس پلن‌های این صفحه روی مکان‌های خارج تحویل می‌شوند. اگر جایی خلافش را دیدید، پیش از خرید بپرسید — این یک محدودیت شبکه است، نه موضوع تنظیمات.'],
+             'en' => ['q' => 'Why not host a Discord bot on an Iranian server?', 'a' => 'The Discord gateway is not reachable from inside Iran, so a bot on an Iranian server never connects. Plans on this page are delivered in international locations. If a provider tells you otherwise, ask before you pay — this is a network reality, not a configuration setting.'],
+             'tr' => ['q' => 'Neden İran sunucusu önerilmiyor?', 'a' => 'Discord gateway İran içinden erişilebilir değil, bu yüzden bot hiç bağlanmaz. Bu sayfadaki planlar uluslararası konumlarda teslim edilir.']],
+            /*
+            | ⚠️ هیچ تگ HTML در متن پاسخ نگذارید: قالب FAQ با `{{ }}` رندر
+            | می‌کند و `{{ }}` همه‌چیز را escape می‌کند، پس `<code>` عیناً روی
+            | صفحه چاپ می‌شود و خواننده یک تگ خام می‌بیند.
+            */
+            ['fa' => ['q' => 'بات را چطور روی سرور بالا بیاورم؟', 'a' => 'با SSH وارد شوید، کد را از گیت بکشید، npm install یا pip install -r requirements.txt بزنید و با pm2 start index.js (یا یک یونیت systemd برای پایتون) اجرا کنید. توکن بات را در فایل محیطی بگذارید، نه داخل کد. اگر جایی گیر کردید، پشتیبانی همان مسیر را با شما می‌رود.'],
+             'en' => ['q' => 'How do I get my bot running?', 'a' => 'SSH in, pull your code from Git, run npm install or pip install -r requirements.txt, then start it with pm2 start index.js (or a systemd unit for Python). Keep the bot token in an environment file, never in the code. Support will walk the same path with you if anything sticks.'],
+             'tr' => ['q' => 'Botumu nasıl çalıştırırım?', 'a' => 'SSH ile bağlanın, kodu Git\'ten çekin, npm install veya pip install -r requirements.txt çalıştırın ve pm2 start index.js ile başlatın. Token\'ı kodda değil ortam dosyasında tutun.']],
+            ['fa' => ['q' => 'بات موزیک هم می‌شود اجرا کرد؟', 'a' => 'بله. ffmpeg نصب می‌شود و پخش صوت روی پلن DC-2 به بالا بدون لکنت کار می‌کند. حواستان باشد پخش هم‌زمان در چند سرور دیسکورد مصرف CPU و پهنای باند را چند برابر می‌کند — برای بیش از چند سرور هم‌زمان DC-3 را بگیرید.'],
+             'en' => ['q' => 'Can it run a music bot?', 'a' => 'Yes. ffmpeg is installed and audio streaming runs smoothly from DC-2 upward. Note that streaming to several guilds at once multiplies CPU and bandwidth — for more than a handful of concurrent guilds, take DC-3.'],
+             'tr' => ['q' => 'Müzik botu çalışır mı?', 'a' => 'Evet. ffmpeg kurulu ve DC-2\'den itibaren sorunsuz çalışır. Aynı anda birçok sunucuya yayın CPU ve bant genişliğini katlar; yoğun kullanım için DC-3 alın.']],
+            'upgrade', 'refund',
+        ],
+    ],
+
     'gpu' => [
         'icon' => 'monitor', 'group' => 'use',
         'fa' => ['t' => 'سرور مجازی گرافیکی',

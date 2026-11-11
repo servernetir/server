@@ -133,6 +133,11 @@ class SiteController extends Controller
             $items = $cat === 'hosting' ? config('hosting.products', []) : config("catalog.$cat", []);
 
             foreach ((array) $items as $slug => $p) {
+                // صفحهٔ ادغام‌شده در /gpu ۳۰۱ می‌دهد؛ نشانیِ ۳۰۱ در llms.txt
+                // یعنی مدلِ زبانی صفحه‌ای را نقل می‌کند که دیگر وجود ندارد.
+                if (\App\Http\Controllers\CatalogController::mergedToGpu((string) $cat, (string) $slug)) {
+                    continue;
+                }
                 $title = $p['fa']['t'] ?? ($p['en']['t'] ?? $slug);
                 $path = $cat === 'hosting' ? "/hosting/$slug" : "/$cat/$slug";
                 $lines[] = "- [{$title}]({$base}{$path})";
@@ -492,8 +497,18 @@ class SiteController extends Controller
         foreach (array_keys(config('hosting.products')) as $slug) {
             $add('hosting', $slug);
         }
+        /*
+        | ⚠️ صفحهٔ ادغام‌شده در `/gpu` ۳۰۱ می‌خورد و نشانیِ ۳۰۱ در نقشهٔ سایت
+        | یعنی گوگل هر بار می‌رود، ریدایرکت می‌گیرد و بودجهٔ خزش را همان‌جا
+        | می‌سوزاند — همان درسی که بخش ارومیه بالاتر ثبت کرده. فهرست از **همان**
+        | ثابتی خوانده می‌شود که خودِ کنترلر برای ۳۰۱ استفاده می‌کند، تا دو
+        | تعریف موازی نشوند.
+        */
         foreach (config('catalog') as $category => $products) {
             foreach (array_keys($products) as $slug) {
+                if (\App\Http\Controllers\CatalogController::mergedToGpu((string) $category, (string) $slug)) {
+                    continue;
+                }
                 $add('catalog', ['category' => $category, 'slug' => $slug]);
             }
         }
