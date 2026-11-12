@@ -56,6 +56,9 @@ class ProvisioningService
      */
     public function provision(Service $service): bool
     {
+        if (\App\Services\SmsResale\Provisioner::handles($service)) {
+            return app(\App\Services\SmsResale\Provisioner::class)->provision($service);
+        }
         // سرورِ ابری مسیرِ خودش را دارد: پیش از خرید وجود ندارد، پس نه
         // `server_id` دارد و نه ظرفیتی که بشود از قبل سنجید.
         if (CloudProvisioner::handles($service)) {
@@ -307,6 +310,9 @@ class ProvisioningService
 
     public function suspend(Service $service): ProvisionResult
     {
+        if (\App\Services\SmsResale\Provisioner::handles($service)) {
+            return app(\App\Services\SmsResale\Provisioner::class)->changeAccess($service, false);
+        }
         if ($service->isInternalInfrastructure()) {
             return ProvisionResult::fail('زیرساخت داخلی از تعلیق صورتحساب معاف است.');
         }
@@ -346,6 +352,9 @@ class ProvisioningService
 
     public function unsuspend(Service $service): ProvisionResult
     {
+        if (\App\Services\SmsResale\Provisioner::handles($service)) {
+            return app(\App\Services\SmsResale\Provisioner::class)->changeAccess($service, true);
+        }
         if (CloudProvisioner::handles($service)) {
             $ok = app(CloudProvisioner::class)->unsuspend($service);
             if ($ok) {
@@ -412,6 +421,9 @@ class ProvisioningService
      */
     public function releaseServer(Service $service, bool $reportFailure = true, bool $confirmOnly = false): ProvisionResult
     {
+        if (\App\Services\SmsResale\Provisioner::handles($service)) {
+            return app(\App\Services\SmsResale\Provisioner::class)->changeAccess($service, false);
+        }
         if ($service->isInternalInfrastructure()) {
             return ProvisionResult::fail('زیرساخت داخلی از آزادسازی خودکار معاف است.');
         }
@@ -887,3 +899,5 @@ class ProvisioningService
         ActivityLog::record(null, 'service', $text, null, 'system');
     }
 }
+
+
