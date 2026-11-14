@@ -13,18 +13,18 @@
     <div class="ad-panel-h"><h2>نرخِ دلار، یورو، تتر و لیر ترکیه</h2></div>
     <p class="set-lead">
       منبع نرخ‌ها: <a href="https://www.navasan.net/" target="_blank" rel="noopener noreferrer">نوسان</a>،
-      جدول «نرخ فروش حواله و ارز دیجیتال»؛ دلار آمریکا (شخص)، یورو حواله، تتر و حواله لیر ترکیه.
+      جدول «نرخ فروش حواله و ارز دیجیتال»؛ دلار آمریکا (شخص)، یورو حواله، تتر و حواله لیر ترکیه. در نبود نرخ معتبر حوالهٔ لیر، قیمت پایانیِ آخرین کندل معتبرِ نمودار اسکناس لیر در خود نوسان استفاده می‌شود.
       نرخ‌ها هر <b>۶ ساعت</b> دریافت می‌شوند و پس از دریافت موفق، قیمت محصولات همگام می‌شود.
     </p>
     <div class="set-rate" style="flex-wrap:wrap;gap:18px">
       @foreach(['USD' => 'دلار آمریکا (شخص)', 'EUR' => 'یورو حواله', 'USDT' => 'تتر', 'TRY' => 'لیر ترکیه (حواله)'] as $currency => $label)
         @php($rateRow = $liveRates[$currency] ?? null)
         <div>
-          <small>{{ $label }} ({{ $currency }})</small>
+          <small>{{ $currency === 'TRY' && ($rateRow['source_kind'] ?? '') === 'cash_daily_chart' ? 'لیر ترکیه (اسکناس؛ نمودار نوسان)' : $label }} ({{ $currency }})</small>
           @if($rateRow)
             <b dir="ltr">{{ fa_num(number_format($rateRow['rate_toman'])) }} <span>تومان</span></b>
             <small>دریافت: <time dir="ltr">{{ $rateRow['at'] ?? 'نامشخص' }}</time></small>
-            <small>زمان اعلام منبع: <time dir="ltr">{{ $rateRow['source_at'] ?? 'نامشخص' }}</time></small>
+            <small>{{ ($rateRow['source_kind'] ?? '') === 'cash_daily_chart' ? 'زمان کندل منبع:' : 'زمان اعلام منبع:' }} <time dir="ltr">{{ $rateRow['source_at'] ?? 'نامشخص' }}</time></small>
             <small>منبع: {{ $rateRow['source'] ?? 'نامشخص' }}{{ !empty($rateRow['stale']) ? ' — آخرین نرخ معتبر؛ دریافت تازه انجام نشده' : '' }}</small>
           @else
             <b>نرخ در دسترس نیست</b>

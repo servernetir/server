@@ -15,6 +15,7 @@ class ExchangeRate
     // This is the JSON feed used by #Ctable2. Initial page HTML contains
     // unrelated placeholder numbers and must never be used for pricing.
     public const SOURCE_URL = 'https://www.navasan.net/aed_based_rates.php';
+    public const TRY_CHART_URL = 'https://www.navasan.net/item_sell.php';
     public const SOURCE_ITEMS = [
         'USD' => 'usd_shakhs', // دلار آمریکا شخص — owner's selected buying rate
         'EUR' => 'eur_hav',
@@ -169,6 +170,13 @@ class ExchangeRate
             if ($rows === null) {
                 Log::warning('Navasan rates invalid or stale; keeping previous prices');
                 return null;
+            }
+            // The public remittance TRY row can be malformed while Navasan's
+            // cash TRY chart remains available. Read its numeric dated series,
+            // never the shuffled placeholder numbers in initial page HTML.
+            if (! isset($rows['TRY'])) {
+                $cash = $this->fetchTryChart();
+                if ($cash !== null) { $rows['TRY'] = $cash; }
             }
 
             foreach ($rows as $currency => $row) {
@@ -327,6 +335,51 @@ class ExchangeRate
             && (int) $rate >= $minimum && (int) $rate <= $maximum;
     }
 
+    private function fetchTryChart(): ?array
+    {
+        try {
+            $response = Http::acceptJson()->withHeaders([
+                'Referer' => 'https://www.navasan.net/dayRates.php?item=try',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])->connectTimeout(10)->timeout(20)->get(self::TRY_CHART_URL, [
+                'item' => 'try', '_' => now('Asia/Tehran')->dayOfWeek,
+            ]);
+            return $response->successful() ? $this->extractTryChart($response->body()) : null;
+        } catch (\Throwable) {
+            return null; // Optional TRY cannot suppress independently verified core rates.
+        }
+    }
+
+    /** Navasan's dated cash TRY OHLC series: [id, epoch_seconds, open, high, low, close]. */
+    public function extractTryChart(string $json): ?array
+    {
+        if (strlen($json) > 2_000_000) { return null; }
+        try { $points = json_decode($json, true, 16, JSON_THROW_ON_ERROR); }
+        catch (\JsonException) { return null; }
+        if (! is_array($points) || ! array_is_list($points) || $points === [] || count($points) > 30000) { return null; }
+        $previous = 0;
+        foreach ($points as $point) {
+            if (! is_array($point) || ! array_is_list($point) || count($point) !== 6
+                || ! is_int($point[0]) || $point[0] <= 0 || ! is_int($point[1]) || $point[1] <= $previous) {
+                return null;
+            }
+            $previous = $point[1];
+        }
+        $last = $points[array_key_last($points)];
+        if (! $this->validTime($last[1])) { return null; }
+        foreach (array_slice($last, 2) as $value) {
+            if (! $this->validRate($value, 'TRY')) { return null; }
+        }
+        [$id, $timestamp, $open, $high, $low, $close] = $last;
+        if ($low > min($open, $close) || $high < max($open, $close) || $low > $high) { return null; }
+        return ['currency' => 'TRY', 'rate_toman' => (int) $close, 'unit' => 'IRT',
+            'source' => 'navasan.net', 'source_item' => 'try',
+            'source_url' => self::TRY_CHART_URL.'?item=try', 'source_kind' => 'cash_daily_chart',
+            // Candle opening time is a conservative age bound, not a fabricated last-trade time.
+            'source_at' => Carbon::createFromTimestampUTC($timestamp)->toIso8601String(),
+            'at' => now()->toIso8601String()];
+    }
+
     private function validTime(mixed $value): bool
     {
         if ((! is_string($value) && ! is_int($value)) || $value === '') {
@@ -343,7 +396,10 @@ class ExchangeRate
     private function validStoredRate(array $row, string $currency): bool
     {
         return ($row['source'] ?? null) === 'navasan.net'
-            && ($row['source_item'] ?? null) === self::SOURCE_ITEMS[$currency]
+            && (($row['source_item'] ?? null) === self::SOURCE_ITEMS[$currency]
+                || ($currency === 'TRY' && ($row['source_item'] ?? null) === 'try'
+                    && ($row['source_kind'] ?? null) === 'cash_daily_chart'
+                    && ($row['source_url'] ?? null) === self::TRY_CHART_URL.'?item=try'))
             && ($row['currency'] ?? null) === $currency
             && ($currency !== 'TRY' || ($row['unit'] ?? null) === 'IRT')
             && (! isset($row['unit']) || $row['unit'] === 'IRT')
