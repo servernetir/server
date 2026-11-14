@@ -7,6 +7,10 @@ on:
       - 'website/app/Services/Billing/ServiceRenewals.php'
       - 'website/app/Http/Controllers/Account/ServiceRenewalController.php'
       - 'website/tests/Feature/ServiceRenewalCyclesTest.php'
+      - 'website/resources/views/account/service-renewal.blade.php'
+      - 'website/public/assets/css/hosting-renewal.css'
+      - 'website/lang/*/renewal.php'
+      - 'website/tests/js/hosting-renewal.browser.cjs'
       - 'website/app/Services/Provisioning/HostingPlanChanger.php'
       - 'website/app/Services/Provisioning/PleskClient.php'
       - 'website/app/Models/HostingUpgrade.php'
@@ -65,8 +69,9 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: fixture-only
           HOSTING_UPGRADE_PREVIEW_DIR: /tmp/hosting-upgrade-previews
+          HOSTING_RENEWAL_PREVIEW_DIR: /tmp/hosting-renewal-previews
         run: |
-          mkdir -p /tmp/hosting-upgrade-previews
+          mkdir -p /tmp/hosting-upgrade-previews /tmp/hosting-renewal-previews
           php -l app/Services/Billing/HostingUpgrades.php
           php -l app/Services/Billing/HostingUpgradeFulfillment.php
           vendor/bin/phpunit tests/Feature/ServiceRenewalCyclesTest.php tests/Feature/BillingPeriodAnchorTest.php tests/Feature/HostingUpgradeTest.php tests/Feature/PleskPanelIntegrationTest.php tests/Feature/HostingPanelServerSelectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/AdminDeleteTest.php tests/Feature/GiftCouponOnInvoiceTest.php tests/Feature/DiscountEntryVisibilityTest.php
@@ -82,6 +87,7 @@ jobs:
         if: matrix.database == 'sqlite'
         env:
           HOSTING_UPGRADE_PREVIEW_DIR: /tmp/hosting-upgrade-previews
+          HOSTING_RENEWAL_PREVIEW_DIR: /tmp/hosting-renewal-previews
           TEST_CHROME: /tmp/hosting-test-chrome
         run: |
           cat > /tmp/hosting-test-chrome <<'SH'
@@ -89,4 +95,4 @@ jobs:
           exec /usr/bin/google-chrome --disable-gpu --disable-dev-shm-usage --no-sandbox "$@"
           SH
           chmod 700 /tmp/hosting-test-chrome
-          node --test website/tests/js/hosting-upgrade.browser.cjs
+          node --test website/tests/js/hosting-upgrade.browser.cjs website/tests/js/hosting-renewal.browser.cjs
