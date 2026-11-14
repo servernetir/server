@@ -63,3 +63,32 @@ Rollback: restore only matching installed hashes from the private release
 backup, recompile the three affected views, and invalidate only related PHP
 bytecode. Preserve later changes and all financial records; never restore the
 whole database. Script: `scripts/renewal-cycles-release-20261114.py`.
+
+
+## Final production acceptance
+
+Runtime source `22742b3334f8a46d11aadae782f40464a66d012a` is installed.
+The initial nine-file release and five-file follow-up both passed expected-before
+guards, private backups, native lint, targeted view compilation and final hash
+verification. There were no migrations, scheduler runs, provider operations,
+blanket cache flushes or new customer payment/invoice records from acceptance.
+
+The exact affected customer's existing unpaid invoice exposes the renewal link.
+The authenticated renewal page displays all four periods with positive prices,
+tax, contract-basis disclosure and a selection/issue form. Persian, English and
+Turkish were read from the real production page. Normal customer checkout was
+not submitted: the customer chooses their preferred term and pays themselves.
+The current suspension and original due date were retained.
+
+All **13 GitHub workflows succeeded** at runtime head `22742b3`, including the
+hosting SQLite/MariaDB matrix with the new renewal regressions. Local final
+validation remains 46 tests / 333 assertions. A later mobile viewport check timed
+out and reset the browser connection; mobile rendering is **not verified**.
+The browser connection also prevented returning from the ordinary impersonation
+view; the owner can use the existing return-to-admin control. No credentials were
+changed and no persistent access was granted.
+
+The independent upstream TRY/FX failure remains outside this release; no stale
+rate was relabeled fresh. Renewals of known monthly hosting contracts can proceed
+using the explicitly disclosed contracted monthly amount, while unknown prepaid
+pricing remains unavailable until a valid catalog quote exists.
