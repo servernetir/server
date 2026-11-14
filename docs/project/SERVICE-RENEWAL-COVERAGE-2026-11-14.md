@@ -28,6 +28,15 @@ The shared renewal page uses generic service copy in Persian, English and Turkis
 
 ## Production status and narrow release
 
-Source preparation and tests do not mean production installation. The pending design from PR312 and this coverage extension have not been installed: the connected cPanel browser is unavailable. Existing production renewal source was accepted at `22742b3334f8a46d11aadae782f40464a66d012a`.
+Production accepted at 2026-11-14 08:43 UTC. Immutable release `3f176c8f443382f1932f1035511f4adf423ee10b` installed both the pending PR312 design and PR313 service coverage. Nine sources / ten destinations passed final SHA-256 verification with no drift. The three-way merge preserved the live cloud management page overlay; private backups and receipts were retained. No schema or financial mutation occurred.
 
 `scripts/renewal-service-coverage-release-20261114.py` stages both pending layers relative to that known production source: nine app sources / ten destinations (CSS in app public and public_html). It uses the three release locks, preserves live overlays by three-way merge, refuses conflicts/symlinks/hash changes, creates private backups, lints PHP/Blade, and compiles only affected views. It needs an immutable release SHA for prepare, manifest review, then apply. No migration, global cache clear or route-cache mutation is needed. Verify authenticated previews/actions in all three locales and an actual supported server read-only after installation; do not create a financial operation merely as a live smoke test.
+
+### Live acceptance
+
+- Authenticated customer hosting preview rendered all four periods in Persian, English and Turkish with resolved translations; the new design and current catalog pricing were visible.
+- A real delivered Hetzner Cloud service exposed the selector from the server list; its web preview rendered four periods, four POST forms, the server-list return link and cloud pricing explanation. Read-only production quote checks also returned all four cycles for an existing Arvan allocation.
+- A VPS.TC sample had no valid current quote and therefore exposed no purchasable period, as intended; code support remains monthly-only when pricing and native renewal prerequisites are valid.
+- The original customer's service remained monthly with the original due boundary; its prior invoice remained unpaid with zero paid amount. No selection/issue/payment/provision action was submitted during acceptance. The browser was returned from customer impersonation to administration.
+- Actual web execution of the new controller and ServiceRenewals class was confirmed by successful previews calling the newly added `unavailableReason` method. No manual OPcache reset, generic cache clear or route-cache mutation was performed. The attempted same-account FastCGI observation could not open its temporary primary and did not invalidate anything; the HTTP-denied temporary directory was moved back outside public_html. Do not report that attempt as successful FPM activation.
+- Screenshots were used internally for visual inspection; customer identity/payment screenshots were not committed or saved as deliverables.

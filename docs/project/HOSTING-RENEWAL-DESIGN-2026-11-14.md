@@ -1,5 +1,7 @@
 # Hosting renewal workspace design — 14 November 2026
 
+Production update, 2026-11-14 08:43 UTC: the pending design was installed with service coverage from immutable release `3f176c8f443382f1932f1035511f4adf423ee10b`. All ten destinations matched their reviewed hashes; authenticated hosting previews passed in fa/en/tr and a real cloud server preview passed in fa. This supersedes the pending-installation status below. See [service renewal acceptance](SERVICE-RENEWAL-COVERAGE-2026-11-14.md).
+
 Base develop: `37ad17bcea7363e38ac1c501c4def8322b2fdbf2`.
 
 The owner requested the renewal period page to match the existing `/account/ai`
