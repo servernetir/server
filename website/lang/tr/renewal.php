@@ -1,9 +1,16 @@
 <?php
 
 return [
+    'cloud_manage' => 'Bu sunucunun yenilenebilir dönemlerini ve toplam tutarını inceleyin. Yenileme, ödeme sonrasında desteklenen süreçle yapılır.',
+    'cloud_price_basis' => 'Fiyat, bu sunucunun kendi paketi, kayıtlı ekleri, geçerli indirimleri ve güncel maliyet tabanlarıyla hesaplanır. Yeni kurulum ücreti alınmaz.',
+    'cloud_quote_unavailable' => 'Bu sunucu için geçerli yenileme fiyatı şu anda alınamıyor. Daha sonra tekrar kontrol edin veya destekle iletişime geçin.',
+    'supplier_review' => 'Bu hizmetin bu sayfadan otomatik yenilenmesi henüz doğrulanmadı. Desteklenen dönemler için destekle iletişime geçin.',
+    'hourly_notice' => 'Bu hizmet saatlik ücretlendirilir ve hesabınızdaki bakiyeyle devam eder. Destekleniyorsa faturalama türünü sunucu yönetimi sayfasından değiştirebilirsiniz.',
+    'available_periods_notice' => 'Bu hizmetin yenilenmesi için yalnızca burada gösterilen dönemler desteklenir.',
+
     'select' => 'Dönemi seç',
     'currency' => 'tümen',
-    'eyebrow' => 'Hosting hizmetiniz, seçtiğiniz dönem',
+    'eyebrow' => 'Hizmetiniz, seçtiğiniz dönem',
     'lead' => 'Planlarınıza uygun dönemi seçin. Daha uzun süre, daha fazla tasarruf ve alıştığınız hizmet.',
     'overview' => 'Mevcut hizmet bilgileri',
     'payment_label' => 'Yeni dönem başlangıcı',
@@ -14,7 +21,7 @@ return [
     'month_unit' => 'ay',
     'discount' => '%:percent indirim',
     'current_badge' => 'Mevcut dönem',
-    'period_caption' => 'Tek ödemeyle :months aylık hosting',
+    'period_caption' => 'Tek ödemeyle :months aylık hizmet',
     'includes_tax' => 'Vergi dahil toplam tutar',
     'saving' => 'Tasarruf',
     'compared_monthly' => 'Aylık ödemeye kıyasla, vergi hariç',

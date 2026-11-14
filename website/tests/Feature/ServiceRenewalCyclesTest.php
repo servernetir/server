@@ -42,7 +42,7 @@ class ServiceRenewalCyclesTest extends TestCase
             'password' => 'fixture', 'status' => 'active', 'locale' => 'fa']);
         $server = Server::create(['name' => 'Fixture', 'type' => $type, 'hostname' => 'panel.example.test',
             'username' => 'admin', 'api_token' => 'fixture', 'status' => 'active', 'country' => 'IR']);
-        $p = Product::create(['name' => 'Fixture plan', 'slug' => 'fixture-hosting-'.uniqid(), 'category' => 'shared',
+        $p = Product::create(['name' => 'Fixture plan', 'slug' => 'fixture-hosting-'.uniqid(), 'category' => $type === 'directadmin' ? 'directadmin' : 'shared',
             'group' => $type === 'plesk' ? 'windows' : 'woocommerce', 'plan' => 'fixture-plan-'.uniqid(), 'currency_code' => 'IRT',
             'base_price_eur' => '5.90', 'base_setup_eur' => '8', 'tax_percent' => 10, 'cycle' => 'monthly', 'is_active' => true]);
         $s = Service::create(['customer_id' => $c->id, 'server_id' => $server->id, 'name' => $p->name,
@@ -61,7 +61,7 @@ class ServiceRenewalCyclesTest extends TestCase
 
     public function test_catalog_periods_use_exact_purchase_price_discount_and_tax_without_setup(): void
     {
-        foreach (['whm', 'plesk'] as $type) {
+        foreach (['whm', 'plesk', 'directadmin'] as $type) {
             [$s, $p] = $this->fixtures($type);
             $r = app(ServiceRenewals::class);
             $options = $r->options($s);

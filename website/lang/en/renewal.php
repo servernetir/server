@@ -1,9 +1,16 @@
 <?php
 
 return [
+    'cloud_manage' => 'Review the available renewal periods and final price for this server. Renewal follows its supported process after payment.',
+    'cloud_price_basis' => 'Pricing uses this server’s own plan, recorded addons, applicable discounts and current cost floors. No new setup fee is charged.',
+    'cloud_quote_unavailable' => 'A valid renewal quote for this server is temporarily unavailable. Please check again later or contact support.',
+    'supplier_review' => 'Automatic renewal through this page is not yet verified for this service. Contact support to review available renewal periods.',
+    'hourly_notice' => 'This service is billed hourly and continues using your account balance. Where supported, change its billing mode from the server management page.',
+    'available_periods_notice' => 'Only the periods displayed here are supported for renewing this service.',
+
     'select' => 'Choose period',
     'currency' => 'toman',
-    'eyebrow' => 'Your hosting. Your next chapter.',
+    'eyebrow' => 'Your service. Your next chapter.',
     'lead' => 'Choose a period that fits your plans. More time, more savings, and the same familiar service.',
     'overview' => 'Current service details',
     'payment_label' => 'Your new period starts',
@@ -14,7 +21,7 @@ return [
     'month_unit' => '{1} month|[2,*] months',
     'discount' => ':percent% off',
     'current_badge' => 'Current period',
-    'period_caption' => '{1} One month of hosting, one payment|[2,*] :months months of hosting, one payment',
+    'period_caption' => '{1} One month of service, one payment|[2,*] :months months of service, one payment',
     'includes_tax' => 'Final amount, including tax',
     'saving' => 'Save',
     'compared_monthly' => 'Versus monthly payments, before tax',
