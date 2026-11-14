@@ -493,6 +493,9 @@ Schedule::command('cloud:sync')
 
 // Supplier pagination belongs in CLI, outside the web worker's 30-second budget.
 // Reuse the existing scheduler; no new host cron or database queue is needed.
+// Recovery never buys or bills: independent backoff for rejected catalogue/FX reads.
+Schedule::command('cloud:recover-sales')->everyFiveMinutes()->runInBackground()->withoutOverlapping(30);
+
 Schedule::command('cloud:refresh-requested')
     ->everyMinute()
     ->runInBackground()

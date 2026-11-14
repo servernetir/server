@@ -34,11 +34,12 @@ class ExchangeRate
     public static function withPreparedRates(array $rows, callable $callback): mixed
     {
         $validator = new self;
-        if (count($rows) !== count(self::SOURCE_ITEMS)) {
+        if (array_diff(['USD', 'EUR', 'USDT'], array_keys($rows)) !== []
+            || array_diff(array_keys($rows), array_keys(self::SOURCE_ITEMS)) !== []) {
             throw new \InvalidArgumentException('A complete prepared Navasan batch is required.');
         }
-        foreach (self::SOURCE_ITEMS as $currency => $item) {
-            if (! is_array($rows[$currency] ?? null) || ! $validator->validStoredRate($rows[$currency], $currency)) {
+        foreach ($rows as $currency => $row) {
+            if (! is_array($row) || ! $validator->validStoredRate($rows[$currency], $currency)) {
                 throw new \InvalidArgumentException('Prepared Navasan rate is invalid.');
             }
         }
@@ -164,7 +165,7 @@ class ExchangeRate
                 return null;
             }
 
-            $rows = $this->extractRates($response->body());
+            $rows = $this->extractRates($response->body(), true);
             if ($rows === null) {
                 Log::warning('Navasan rates invalid or stale; keeping previous prices');
                 return null;
@@ -174,6 +175,7 @@ class ExchangeRate
                 $previous = $this->current($currency);
                 if (isset($previous['source_at'])
                     && Carbon::parse($row['source_at'])->lt(Carbon::parse($previous['source_at']))) {
+                    if ($currency === 'TRY') { unset($rows[$currency]); continue; }
                     Log::warning('Navasan returned an older quote; keeping previous prices', ['currency' => $currency]);
                     return null;
                 }
@@ -271,7 +273,7 @@ class ExchangeRate
     }
 
     /** Parse data, never execute upstream JavaScript or guess from HTML. */
-    public function extractRates(string $json): ?array
+    public function extractRates(string $json, bool $isolateTry = false): ?array
     {
         try {
             $payload = json_decode($json, true, 32, JSON_THROW_ON_ERROR);
@@ -291,6 +293,10 @@ class ExchangeRate
                 || ! is_numeric($timestamp)
                 || (float) $timestamp !== (float) (int) $timestamp
                 || ! $this->validTime((int) $timestamp)) {
+                // An invalid TRY quote cannot invalidate verified USD/EUR procurement.
+                // Never normalize or publish the rejected rate; its bounded last-known
+                // quote and TRY-dependent suppliers retain their own safety gates.
+                if ($isolateTry && $currency === 'TRY') { continue; }
                 return null;
             }
 
