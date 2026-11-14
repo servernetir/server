@@ -1,6 +1,24 @@
 <?php
 
 return [
+    'sr_contract' => 'A fresh catalog quote is unavailable. This amount uses your existing monthly contract and the applicable term discount, without a new setup fee.',
+    // Customer-selected catalog renewal periods.
+    'sr_title' => 'Renew and choose billing period',
+    'sr_intro' => 'Choose from the periods available to purchase for this plan. Each amount uses the current catalog price and applicable term discount.',
+    'sr_current' => 'Current period',
+    'sr_due' => 'Current due date',
+    'sr_notice' => 'Selecting a period saves your future billing preference and replaces the previous unpaid invoice. Your due date and service status change through the usual process after payment.',
+    'sr_catalog' => 'Catalog term discounts are included in the final price. No new setup fee.',
+    'sr_subtotal' => 'Period price after discount',
+    'sr_tax' => 'Tax',
+    'sr_total' => 'Total to pay',
+    'sr_select' => 'Select and create invoice',
+    'sr_back' => 'Back to services',
+    'sr_unavailable' => 'No renewable catalog period is currently available for this service. Please contact support.',
+    'sr_busy' => 'This service has a payment, receipt, applied discount or upgrade in progress. Resolve it first or contact support.',
+    'sr_changed' => 'The price or service state changed, or the preview expired. Refresh the page and select again.',
+    'sr_replaced' => 'Replaced after customer selected a renewal period',
+
     // Self-service shared hosting upgrades.
     'hu_contact_support' => 'Contact support',
     'hu_review_help' => 'Payment of :paid is recorded on invoice :invoice. Support must reconcile this payment before another upgrade can be requested. Send the invoice number using the support button. Your current hosting remains unchanged.',

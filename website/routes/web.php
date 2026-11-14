@@ -488,6 +488,8 @@ $site = function (): void {
         // دقیقه‌ای بیشترش را می‌گیرد، ولی کش per-service است نه per-customer.
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats')->middleware('throttle:60,1');
         Route::get('/services/{service}/domain-connection', Account\HostingDomainConnectionController::class)->name('services.domain-connection')->middleware('throttle:20,1');
+        Route::get('/services/{service}/renew', [Account\ServiceRenewalController::class, 'show'])->name('services.renew')->middleware('throttle:20,1');
+        Route::post('/services/{service}/renew', [Account\ServiceRenewalController::class, 'store'])->name('services.renew.store')->middleware('throttle:10,1');
         Route::get('/services/{service}/upgrade', [Account\HostingUpgradeController::class, 'show'])->name('services.upgrade')->middleware('throttle:20,1');
         Route::post('/services/{service}/upgrade', [Account\HostingUpgradeController::class, 'store'])->name('services.upgrade.store')->middleware('throttle:10,1');
 

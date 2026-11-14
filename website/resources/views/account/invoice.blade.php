@@ -22,6 +22,9 @@
     @endif
   </div>
   <div class="pnl-acts">
+    @if($invoice->service && in_array($invoice->status, ['unpaid', 'draft'], true) && app(\App\Services\Billing\ServiceRenewals::class)->eligible($invoice->service))
+      <a class="pnl-btn primary" href="{{ lroute('account.services.renew', $invoice->service) }}">{{ __('ui.sr_title') }}</a>
+    @endif
     <a class="pnl-btn {{ $invoice->status === 'paid' ? 'primary' : '' }}" href="{{ lroute('account.invoice.print', $invoice) }}" target="_blank" rel="noopener">
       <svg class="icon"><use href="#i-file"/></svg>{{ $invoice->status === 'paid' ? __('ui.inv_download_receipt') : __('ui.inv_download_proforma') }}
     </a>

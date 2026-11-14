@@ -75,6 +75,10 @@
     <a class="pnl-btn primary" href="{{ lroute('account.invoice', $unpaid) }}">{{ __('ui.svc_pay') }}</a>
   @endif
 
+  @if(app(\App\Services\Billing\ServiceRenewals::class)->eligible($s))
+    <a class="pnl-btn" href="{{ lroute('account.services.renew', $s) }}">{{ __('ui.sr_title') }}</a>
+  @endif
+
   @if($cancellable)
     <form method="post" action="{{ lroute('account.services.cancel', $s) }}"
           data-confirm="{{ __('ui.svc_cancel_confirm') }}" data-confirm-danger>
