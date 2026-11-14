@@ -31,8 +31,10 @@ class ServiceRenewalController extends Controller
         }
         $request->session()->put('service_renewal.'.$service->id, ['at' => now()->timestamp, 'quotes' => $quotes]);
 
-        return response()->view('account.service-renewal', AccountController::shell('hosting')
-            + compact('service', 'options', 'quotes', 'blocked', 'renewals'))->header('Cache-Control', 'private, no-store');
+        $returnUrl = lroute($service->isCloud() ? 'account.servers' : 'account.hosting');
+        $unavailableMessage = $renewals->unavailableReason($service);
+        return response()->view('account.service-renewal', AccountController::shell($service->isCloud() ? 'servers' : 'hosting')
+            + compact('service', 'options', 'quotes', 'blocked', 'renewals', 'returnUrl', 'unavailableMessage'))->header('Cache-Control', 'private, no-store');
     }
 
     public function store(Request $request, Service $service, ServiceRenewals $renewals)

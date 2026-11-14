@@ -8,12 +8,13 @@
 @section('panel')
 @php
   $monthlyOption = $options['monthly'] ?? null;
+  $cloudBasis = collect($options)->contains(fn ($option) => $option['basis'] === 'cloud_catalog');
   $contractBasis = collect($options)->contains(fn ($option) => $option['basis'] === 'contract');
 @endphp
 <div class="api-workspace rn-workspace" data-renewal-workspace>
   <header class="aw-hero rn-hero">
     <div class="rn-hero-copy">
-      <a class="rn-back" href="{{ lroute('account.hosting') }}"><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg>{{ __('ui.sr_back') }}</a>
+      <a class="rn-back" href="{{ $returnUrl }}"><svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg>{{ __('ui.sr_back') }}</a>
       <p class="aw-eyebrow"><span class="rn-live-dot" aria-hidden="true"></span>{{ __('renewal.eyebrow') }}</p>
       <h1>{{ __('ui.sr_title') }}</h1>
       <p class="aw-lead">{{ __('renewal.lead') }}</p>
@@ -37,6 +38,8 @@
   @if($blocked || $errors->any())
     <div class="aw-alert is-warn" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div>@if($blocked)<p>{{ $blocked }}</p>@endif @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div></div>
   @endif
+
+  @if(count($options) === 1)<div class="aw-alert"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><p>{{ __('renewal.available_periods_notice') }}</p></div>@endif
 
   @if($options)
     <section class="rn-periods" aria-labelledby="rn-periods-title">
@@ -73,10 +76,10 @@
       </div>
     </section>
 
-    <aside class="rn-price-note"><span class="aw-card-icon" aria-hidden="true"><svg class="icon"><use href="#i-info"/></svg></span><div><h2>{{ __('renewal.price_basis') }}</h2><p>{{ __($contractBasis ? 'ui.sr_contract' : 'ui.sr_catalog') }}</p></div></aside>
+    <aside class="rn-price-note"><span class="aw-card-icon" aria-hidden="true"><svg class="icon"><use href="#i-info"/></svg></span><div><h2>{{ __('renewal.price_basis') }}</h2><p>{{ __($cloudBasis ? 'renewal.cloud_price_basis' : ($contractBasis ? 'ui.sr_contract' : 'ui.sr_catalog')) }}</p></div></aside>
     <section class="aw-card rn-next" aria-labelledby="rn-next-title"><div class="aw-card-head"><h2 id="rn-next-title">{{ __('renewal.next_title') }}</h2></div><ol class="rn-steps">@foreach(['choose','invoice','activate'] as $step)<li><span>{{ fa_num($loop->iteration) }}</span><div><h3>{{ __('renewal.step_'.$step) }}</h3><p>{{ __('renewal.step_'.$step.'_note') }}</p></div></li>@endforeach</ol></section>
   @else
-    <section class="aw-empty rn-empty"><span class="aw-empty-icon" aria-hidden="true"><svg class="icon"><use href="#i-clock"/></svg></span><h2>{{ __('renewal.empty_title') }}</h2><p>{{ __('ui.sr_unavailable') }}</p><div class="aw-actions"><a class="pnl-btn primary aw-btn" href="{{ lroute('account.ticket.new') }}">{{ __('renewal.contact') }}</a><a class="pnl-btn aw-btn" href="{{ lroute('account.hosting') }}">{{ __('ui.sr_back') }}</a></div></section>
+    <section class="aw-empty rn-empty"><span class="aw-empty-icon" aria-hidden="true"><svg class="icon"><use href="#i-clock"/></svg></span><h2>{{ __('renewal.empty_title') }}</h2><p>{{ $unavailableMessage }}</p><div class="aw-actions"><a class="pnl-btn primary aw-btn" href="{{ lroute('account.ticket.new') }}">{{ __('renewal.contact') }}</a><a class="pnl-btn aw-btn" href="{{ $returnUrl }}">{{ __('ui.sr_back') }}</a></div></section>
   @endif
 </div>
 @endsection

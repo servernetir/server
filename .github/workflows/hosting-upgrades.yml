@@ -6,6 +6,7 @@ on:
       - 'website/app/Services/Billing/HostingUpgrade*.php'
       - 'website/app/Services/Billing/ServiceRenewals.php'
       - 'website/app/Http/Controllers/Account/ServiceRenewalController.php'
+      - 'website/tests/Feature/ServiceRenewalCoverageTest.php'
       - 'website/tests/Feature/ServiceRenewalCyclesTest.php'
       - 'website/resources/views/account/service-renewal.blade.php'
       - 'website/public/assets/css/hosting-renewal.css'
@@ -74,7 +75,7 @@ jobs:
           mkdir -p /tmp/hosting-upgrade-previews /tmp/hosting-renewal-previews
           php -l app/Services/Billing/HostingUpgrades.php
           php -l app/Services/Billing/HostingUpgradeFulfillment.php
-          vendor/bin/phpunit tests/Feature/ServiceRenewalCyclesTest.php tests/Feature/BillingPeriodAnchorTest.php tests/Feature/HostingUpgradeTest.php tests/Feature/PleskPanelIntegrationTest.php tests/Feature/HostingPanelServerSelectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/AdminDeleteTest.php tests/Feature/GiftCouponOnInvoiceTest.php tests/Feature/DiscountEntryVisibilityTest.php
+          vendor/bin/phpunit tests/Feature/ServiceRenewalCoverageTest.php tests/Feature/ServiceRenewalCyclesTest.php tests/Feature/BillingPeriodAnchorTest.php tests/Feature/HostingUpgradeTest.php tests/Feature/PleskPanelIntegrationTest.php tests/Feature/HostingPanelServerSelectionTest.php tests/Feature/AccountPanelTest.php tests/Feature/AdminDeleteTest.php tests/Feature/GiftCouponOnInvoiceTest.php tests/Feature/DiscountEntryVisibilityTest.php
       - name: Legacy malformed-date callback regression (SQLite fixture)
         if: matrix.database == 'sqlite'
         working-directory: website

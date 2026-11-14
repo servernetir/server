@@ -75,7 +75,7 @@
     <a class="pnl-btn primary" href="{{ lroute('account.invoice', $unpaid) }}">{{ __('ui.svc_pay') }}</a>
   @endif
 
-  @if(app(\App\Services\Billing\ServiceRenewals::class)->eligible($s))
+  @if(empty($hideRenewal) && app(\App\Services\Billing\ServiceRenewals::class)->eligible($s))
     <a class="pnl-btn" href="{{ lroute('account.services.renew', $s) }}">{{ __('ui.sr_title') }}</a>
   @endif
 
