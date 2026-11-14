@@ -1,6 +1,23 @@
 <?php
 
 return [
+    // Customer-selected catalog renewal periods.
+    'sr_title' => 'Yenile ve dönem seç',
+    'sr_intro' => 'Bu paket için satın alınabilen dönemlerden birini seçin. Tutarlar güncel katalog fiyatını ve geçerli dönem indirimini içerir.',
+    'sr_current' => 'Mevcut dönem',
+    'sr_due' => 'Mevcut son ödeme tarihi',
+    'sr_notice' => 'Seçim, sonraki faturalama tercihinizi kaydeder ve önceki ödenmemiş faturanın yerine yenisini oluşturur. Hizmet süresi ve durumu ödeme sonrasında normal süreçle güncellenir.',
+    'sr_catalog' => 'Geçerli katalog dönem indirimi fiyata dahildir. Yeniden kurulum ücreti alınmaz.',
+    'sr_subtotal' => 'İndirim sonrası dönem tutarı',
+    'sr_tax' => 'Vergi',
+    'sr_total' => 'Ödenecek toplam',
+    'sr_select' => 'Seç ve fatura oluştur',
+    'sr_back' => 'Hizmetlere dön',
+    'sr_unavailable' => 'Bu hizmet için şu anda yenilenebilir bir katalog dönemi bulunmuyor. Lütfen destekle iletişime geçin.',
+    'sr_busy' => 'Bu hizmette devam eden ödeme, dekont, uygulanmış indirim veya yükseltme var. Önce sonuçlandırın veya desteğe başvurun.',
+    'sr_changed' => 'Fiyat veya hizmet durumu değişti ya da önizlemenin süresi doldu. Sayfayı yenileyip tekrar seçin.',
+    'sr_replaced' => 'Müşterinin yenileme dönemi seçimiyle değiştirildi',
+
     // Self-service shared hosting upgrades.
     'hu_contact_support' => 'Desteğe başvurun',
     'hu_review_help' => ':invoice numaralı faturada :paid ödeme kayıtlıdır. Yeni bir yükseltme talebinden önce destek bu ödemeyi incelemelidir. Destek düğmesiyle fatura numarasını bize iletin. Mevcut hosting hizmetiniz değişmez.',
