@@ -238,4 +238,36 @@ class ServiceRenewalCyclesTest extends TestCase
         $this->assertDatabaseCount('invoices', 0);
     }
 
+    public function test_workspace_renders_real_forms_and_protected_states_in_three_languages(): void
+    {
+        [$s, $product] = $this->fixtures();
+        $product->update(['base_price_eur' => '24.5']);
+        $s->update(['price' => 2450000]);
+        foreach (['catalog', 'contract', 'blocked', 'empty'] as $state) {
+            if ($state === 'contract') {
+                $pricing = \Mockery::mock(ProductPricing::class)->makePartial();
+                $pricing->shouldReceive('rate')->andReturn(null);
+                $this->app->instance(ProductPricing::class, $pricing);
+            }
+            if ($state === 'blocked') {
+                $invoice = Invoice::create(['customer_id' => $s->customer_id, 'service_id' => $s->id,
+                    'kind' => 'service', 'currency_code' => 'IRT', 'total' => 2695000, 'status' => 'unpaid']);
+                Payment::create(['invoice_id' => $invoice->id, 'customer_id' => $s->customer_id,
+                    'gateway' => 'zarinpal', 'currency_code' => 'IRT', 'amount' => 2695000, 'status' => 'redirected']);
+            }
+            if ($state === 'empty') { $product->update(['is_active' => false]); }
+            foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
+                $response = $this->actingAs($s->customer, 'customer')->get($prefix.'/account/services/'.$s->id.'/renew');
+                $response->assertOk()->assertDontSee('renewal.choose_title')->assertDontSee('ui.sr_');
+                $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+                if ($directory = getenv('HOSTING_RENEWAL_PREVIEW_DIR')) {
+                    file_put_contents($directory.'/'.$locale.'-'.$state.'.html', $response->getContent());
+                }
+            }
+        }
+        $this->assertSame('monthly', $s->fresh()->cycle);
+        $this->assertSame('2026-11-30', $s->fresh()->next_due_at->toDateString());
+        Http::assertNothingSent();
+    }
+
 }
