@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'sr_contract' => 'A fresh catalog quote is unavailable. This amount uses your existing monthly contract and the applicable term discount, without a new setup fee.',
     // Customer-selected catalog renewal periods.
     'sr_title' => 'Renew and choose billing period',
     'sr_intro' => 'Choose from the periods available to purchase for this plan. Each amount uses the current catalog price and applicable term discount.',

@@ -13,7 +13,7 @@
 @forelse($options as $cycle => $option)
   <section class="pnl-sec" style="margin:0"><div class="pnl-sec-b">
     <h2>{{ \App\Models\Service::labelFor($cycle) }}</h2>
-    <p>{{ __('ui.sr_catalog') }}</p>
+    <p>{{ __($option['basis'] === 'contract' ? 'ui.sr_contract' : 'ui.sr_catalog') }}</p>
     <p>{{ __('ui.sr_subtotal') }}: <b>{{ invoice_money($option['price'], $service->currency_code) }}</b></p>
     <p>{{ __('ui.sr_tax') }}: {{ invoice_money($option['tax'], $service->currency_code) }}</p>
     <p>{{ __('ui.sr_total') }}: <b>{{ invoice_money($option['total'], $service->currency_code) }}</b></p>

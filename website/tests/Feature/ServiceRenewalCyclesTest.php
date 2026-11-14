@@ -197,7 +197,7 @@ class ServiceRenewalCyclesTest extends TestCase
         }
     }
 
-    public function test_missing_fx_ambiguous_catalog_and_unverified_or_hourly_services_offer_no_periods(): void
+    public function test_missing_fx_uses_only_known_monthly_contract_and_other_unsafe_services_offer_no_periods(): void
     {
         [$s, $p] = $this->fixtures();
         $r = app(ServiceRenewals::class);
@@ -215,7 +215,15 @@ class ServiceRenewalCyclesTest extends TestCase
         $pricing = \Mockery::mock(ProductPricing::class)->makePartial();
         $pricing->shouldReceive('rate')->andReturn(null);
         $this->app->instance(ProductPricing::class, $pricing);
-        $this->assertSame([], $r->options($s));
+        $options = $r->options($s);
+        $this->assertSame('contract', $options['quarterly']['basis']);
+        $this->assertSame(1681500, $options['quarterly']['price']);
+        $invoice = $this->issue($s);
+        $this->assertSame(1849650, $invoice->total);
+        $this->assertSame('2026-11-30', $s->fresh()->next_due_at->toDateString());
+        $s->refresh();
+        $this->assertSame([], $r->options($s)); // Old prepaid discounts are not reconstructed.
+        Http::assertNothingSent();
     }
 
     public function test_expired_or_tampered_preview_cannot_issue_invoice(): void

@@ -7,6 +7,8 @@ use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Models\Service;
+use Brick\Math\BigInteger;
+use Brick\Math\RoundingMode;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -45,9 +47,20 @@ class ServiceRenewals
         foreach ($product->orderCycles() as $cycle) {
             if (Service::monthsIn($cycle) <= 0) { continue; }
             $price = $product->priceForCycle($cycle, $s->server->country);
+            $basis = 'catalog';
+            // A known monthly hosting contract can renew without inventing FX.
+            // Never reconstruct an old prepaid discount or use this for new sales.
+            if ($price <= 0 && $s->cycle === 'monthly' && Service::monthsIn('monthly') === 1
+                && (int) config('billing.cycles.monthly.discount_pct', 0) === 0 && $s->price > 0) {
+                $discount = (int) config('billing.cycles.'.$cycle.'.discount_pct', 0);
+                if ($discount < 0 || $discount >= 100) { continue; }
+                $price = BigInteger::of($s->price)->multipliedBy(Service::monthsIn($cycle))
+                    ->multipliedBy(100 - $discount)->dividedBy(100, RoundingMode::HalfUp)->toInt();
+                $basis = 'contract';
+            }
             if ($price <= 0 || $product->tax_percent < 0 || $product->tax_percent > 100) { continue; }
             $tax = (int) round($price * $product->tax_percent / 100);
-            $out[$cycle] = ['cycle' => $cycle, 'product_id' => (int) $product->id,
+            $out[$cycle] = ['cycle' => $cycle, 'basis' => $basis, 'product_id' => (int) $product->id,
                 'price' => $price, 'tax_percent' => (int) $product->tax_percent,
                 'tax' => $tax, 'total' => $price + $tax];
         }
@@ -114,8 +127,10 @@ class ServiceRenewals
             if ($invoice->subtotal !== $fresh['price'] || $invoice->total !== $fresh['total']) {
                 $this->invalid('sr_changed');
             }
-            $invoice->items()->first()?->forceFill(app(\App\Services\Marketing\InvoiceContext::class)
-                ->attributes($s, 'renewal', $this->product($s)))->save();
+            $item = $invoice->items()->first();
+            $item?->forceFill(app(\App\Services\Marketing\InvoiceContext::class)
+                ->attributes($s, 'renewal', $this->product($s))
+                + ($fresh['basis'] === 'contract' ? ['description' => trim((string) $item->description.' '. __('ui.sr_contract'))] : []))->save();
             $meta = (array) $s->provision_meta;
             $meta['renewal_selection'] = ['hash' => $hash, 'invoice_id' => $invoice->id];
             $s->forceFill(['provision_meta' => $meta])->save();

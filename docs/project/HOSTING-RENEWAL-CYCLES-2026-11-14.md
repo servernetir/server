@@ -17,7 +17,7 @@ no time and keeps the selected future billing preference.
 
 The feature covers catalog-matched WHM, Plesk and DirectAdmin hosting (including
 catalog reseller hosting). It rejects hourly/cloud/internal/complimentary or
-unverified services, inactive or ambiguous catalog matches and unavailable FX.
+unverified services, inactive or ambiguous catalog matches and unknown prepaid pricing when FX is unavailable.
 Cloud supplier prepaid renewal is outside this change; its supplier term must
 be handled through its own reconciliation process.
 
@@ -31,7 +31,7 @@ late-payment-to-wallet behavior. No schema, cron or provider configuration chang
 ## Validation and release
 
 Native PHP 8.4.27, isolated checkout with separate copied dependencies, SQLite
-in memory, fake mail and HTTP stray-request protection: **46 tests / 328
+in memory, fake mail and HTTP stray-request protection: **46 tests / 333
 assertions passed**, across ServiceRenewalCyclesTest, BillingPeriodAnchorTest
 and HostingUpgradeTest. Test fixture errors (nonunique catalog slug and missing
 bank reference) were corrected before this final run. No production data or
@@ -41,7 +41,23 @@ suite for SQLite and MariaDB; its result is recorded separately from local tests
 Nine runtime destinations were prepared through the release script; all PHP
 sources and three staged Blade compilations passed native lint. Existing
 production-only invoice and route overlays were merged and preserved. There is
-no route cache at preflight. Installation and browser acceptance are pending.
+no route cache at preflight. The nine destinations were installed and hash-verified, and only the three
+changed views were compiled. Browser acceptance exposed an independent stale-FX
+condition: the official feed returned an invalid TRY row, so all-or-none refresh
+correctly refused the batch. Global FX validation was not weakened.
+
+A second bounded layer permits an existing **monthly hosting contract only** to
+renew using its recorded monthly recurring amount times the selected catalog
+months and valid catalog term discount, with integer rounding. This never guesses
+an exchange rate, affects new sales, or reconstructs unknown historical prepaid
+discounts. The invoice and preview explicitly identify this contract basis.
+When valid catalog FX is available, the ordinary catalog quote takes precedence.
+No time or restoration is granted before payment. Five changed destinations are
+prepared separately by `renewal-contract-fallback-release-20261114.py`.
+
+At the initial feature head all 13 CI workflows succeeded, including the hosting
+SQLite/MariaDB matrix. Final fallback source passed the isolated 46-test suite
+with 333 assertions; its fresh CI and browser acceptance are recorded below.
 
 Rollback: restore only matching installed hashes from the private release
 backup, recompile the three affected views, and invalidate only related PHP

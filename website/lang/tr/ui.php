@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'sr_contract' => 'Güncel katalog fiyatı alınamıyor. Tutar, mevcut aylık sözleşmeniz ve geçerli dönem indirimiyle hesaplanmıştır. Yeni kurulum ücreti yoktur.',
     // Customer-selected catalog renewal periods.
     'sr_title' => 'Yenile ve dönem seç',
     'sr_intro' => 'Bu paket için satın alınabilen dönemlerden birini seçin. Tutarlar güncel katalog fiyatını ve geçerli dönem indirimini içerir.',
