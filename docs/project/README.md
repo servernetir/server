@@ -425,3 +425,5 @@ endpointهای مستثنا از CSRF همچنان احراز جایگزین م�
 
 
 تمدید دوره‌ای سرویس‌ها،۱۴نوامبر: [پوشش هاست و سرورهای پشتیبانی‌شده و محدودیت دورهٔ زیرساخت](SERVICE-RENEWAL-COVERAGE-2026-11-14.md)؛ طراحی و پوشش سرویس‌ها در تولید نصب و در ۱۴نوامبر ۰۸:۴۳UTC تأیید شد؛ پیش‌نمایش سه زبان هاست و یک سرور واقعی،۱۰هش منطبق، بدون تغییر مالی.
+
+- [Automatic Google blog discovery](GOOGLE-BLOG-DISCOVERY-2026-11-16.md) — dedicated sitemap submission grant, persistent trilingual receipts and indexing monitoring.

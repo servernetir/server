@@ -279,7 +279,15 @@ class DailyBlogPublisher
             unset($state['source']['text']);
             $this->save($key, $state);
             GrowthAudit::record('daily_blog.published', $key, null, ['post_id' => $post->id, 'policy' => 'native-trilingual-v1']);
-            DB::afterCommit(fn () => BlogRepository::flush());
+            DB::afterCommit(function () use ($post) {
+                BlogRepository::flush();
+                try {
+                    app(GoogleDiscovery::class)->enqueue($post->fresh('translations'));
+                } catch (\Throwable) {
+                    // The independent scanner will recover this enqueue; publication is already committed.
+                    GrowthAudit::record('google_discovery.enqueue_deferred', 'post:'.$post->id);
+                }
+            });
 
             return $state;
         });
