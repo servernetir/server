@@ -81,12 +81,17 @@ class DailyBlogPublisher
                     try {
                         $recent = PostTranslation::where('locale', 'en')->latest('id')->limit(60)->pluck('title')->all();
                         $best = null;
-                        foreach (array_slice(config('ai_growth.autopilot_text_models', []), 0, 8) as $model) {
+                        $control = DB::table('growth_controls')->find(1);
+                        $jobs = app(GrowthJobs::class);
+                        $remaining = min($control->daily_irt - $jobs->spend(now()->startOfDay()), $control->monthly_irt - $jobs->spend(now()->startOfMonth()));
+                        $models = array_unique(array_merge(config('daily_blog.preferred_models', []), config('ai_growth.autopilot_text_models', [])));
+                        foreach (array_slice($models, 0, 8) as $model) {
                             try {
                                 $payload = app(DailyBlogArticle::class)->payload($model, $source, $recent);
                                 $quote = app(GrowthGateway::class)->estimate($payload, 'text');
-                                if ($quote['max_cost_irt'] > 0 && (! $best || $quote['max_cost_irt'] < $best['quote']['max_cost_irt'])) {
+                                if ($quote['max_cost_irt'] > 0 && $quote['max_cost_irt'] <= $remaining) {
                                     $best = compact('payload', 'quote');
+                                    break;
                                 }
                             } catch (\Throwable) {
                             }
