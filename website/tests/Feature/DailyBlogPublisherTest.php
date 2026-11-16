@@ -235,4 +235,21 @@ class DailyBlogPublisherTest extends TestCase
         }
     }
 
+    public function test_metadata_and_existing_heading_styles_are_normalized_without_regeneration(): void
+    {
+        $data = $this->article();
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            $data['translations'][$locale]['excerpt'] = str_repeat($data['translations'][$locale]['excerpt'].' ', 3);
+        }
+        $data['translations']['tr']['body'] = preg_replace('/^## (.+)$/mu', '**$1**', $data['translations']['tr']['body']);
+        $this->fakeArticle($data);
+        $state = app(DailyBlogPublisher::class)->tick();
+        $this->assertSame('published', $state['stage']);
+        foreach (Post::findOrFail($state['post_id'])->translations as $tr) {
+            $this->assertLessThanOrEqual(158, mb_strlen($tr->excerpt));
+            $this->assertGreaterThanOrEqual(3, substr_count($tr->content, '<h2'));
+        }
+        Http::assertSentCount(3);
+    }
+
 }
