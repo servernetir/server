@@ -28,7 +28,7 @@ class DailyBlogPublisherTest extends TestCase
     {
         parent::setUp();
         $this->travelTo(now('UTC')->setDate(2026, 11, 16)->setTime(6, 0));
-        $this->sellableCatalog(modelOver: ['max_output_tokens' => 16000]);
+        $this->sellableCatalog(modelOver: ['max_output_tokens' => 4096]);
         [, $plain] = $this->greenKey();
         $actor = User::factory()->create(['role' => 'admin']);
         Setting::putSecret('growth_gateway_key', $plain);
@@ -83,10 +83,10 @@ class DailyBlogPublisherTest extends TestCase
             $this->assertStringContainsString($this->source['url'], $tr->content);
             $this->assertStringContainsString('https://servernet.cloud'.($tr->locale === 'fa' ? '' : '/'.$tr->locale).'/gpu', $tr->content);
         }
-        $this->assertNull(GrowthContent::sole()->approved_by);
-        $this->assertGreaterThan(0, GrowthJob::sole()->actual_cost_irt);
-        $this->assertDatabaseCount('growth_jobs', 1);
-        Http::assertSentCount(1);
+        $this->assertNull(GrowthContent::where('locale', 'fa')->sole()->approved_by);
+        $this->assertGreaterThan(0, GrowthJob::orderBy('id')->firstOrFail()->actual_cost_irt);
+        $this->assertDatabaseCount('growth_jobs', 3);
+        Http::assertSentCount(3);
     }
 
     public function test_incomplete_language_never_publishes_any_locale_and_never_recharges(): void
@@ -97,7 +97,7 @@ class DailyBlogPublisherTest extends TestCase
         $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
         app(DailyBlogPublisher::class)->tick();
         $this->assertDatabaseCount('posts', 0);
-        Http::assertSentCount(1);
+        Http::assertSentCount(3);
     }
 
     public function test_budget_failure_never_sends_inference(): void
@@ -138,8 +138,9 @@ class DailyBlogPublisherTest extends TestCase
         $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
         $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
         $this->assertDatabaseCount('posts', 0);
-        $this->assertDatabaseCount('growth_jobs', 1);
-        $this->assertSame(1, GrowthJob::sole()->attempts);
+        $this->assertDatabaseCount('growth_jobs', 3);
+        $this->assertSame(1, GrowthJob::orderBy('id')->firstOrFail()->attempts);
+        $this->assertSame(2, GrowthJob::where('status', 'cancelled')->where('actual_cost_irt', 0)->count());
     }
 
     public function test_missing_source_retries_only_after_backoff_without_inference(): void
@@ -196,10 +197,42 @@ class DailyBlogPublisherTest extends TestCase
             $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
             $this->assertDatabaseCount('posts', 0);
             $this->assertDatabaseCount('post_translations', 0);
-            $this->assertSame('completed', GrowthJob::sole()->status);
-            $this->assertGreaterThan(0, GrowthJob::sole()->actual_cost_irt);
+            $this->assertSame('completed', GrowthJob::orderBy('id')->firstOrFail()->status);
+            $this->assertGreaterThan(0, GrowthJob::orderBy('id')->firstOrFail()->actual_cost_irt);
         } finally {
             \App\Models\PostTranslation::flushEventListeners();
         }
     }
+    public function test_reviewed_retry_keeps_paid_receipts_and_default_tick_never_retries(): void
+    {
+        $data = $this->article();
+        unset($data['translations']['tr']);
+        $this->fakeArticle($data);
+        $publisher = app(DailyBlogPublisher::class);
+        $old = $publisher->tick();
+        $this->assertSame('blocked', $old['stage']);
+        $this->assertSame(3, GrowthJob::count());
+        $publisher->tick();
+        $this->assertSame(3, GrowthJob::count());
+        $this->fakeArticle();
+        $new = $publisher->retryReviewed((int) Setting::get('daily_blog_actor_id'));
+        $this->assertSame('queued', $new['stage']);
+        $this->assertSame(6, GrowthJob::count());
+        $this->assertSame('published', $publisher->tick()['stage']);
+        $this->assertDatabaseCount('posts', 1);
+        $this->assertSame(6, GrowthJob::where('status', 'completed')->count());
+        $this->assertSame(array_values($old['locale_jobs']), $new['prior_job_ids']);
+    }
+
+    public function test_each_request_targets_one_language_within_actual_model_cap(): void
+    {
+        $this->assertSame('published', app(DailyBlogPublisher::class)->tick()['stage']);
+        foreach (GrowthJob::orderBy('id')->get() as $job) {
+            $locale = GrowthContent::findOrFail($job->content_id)->locale;
+            $this->assertSame(4096, $job->payload['max_tokens']);
+            $this->assertSame(['type' => 'json_object'], $job->payload['response_format']);
+            $this->assertStringContainsString('Write ONLY the '.$locale.' version', $job->payload['messages'][0]['content']);
+        }
+    }
+
 }

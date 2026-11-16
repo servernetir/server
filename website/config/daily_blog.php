@@ -11,5 +11,5 @@ return [
     'product_paths' => ['/gpu', '/ai', '/vps/hourly', '/hosting/linux'],
     // Prefer the lower-latency model for the three-language bundle; the existing pool remains fallback.
     'preferred_models' => ['di-googlegemini-25-flash-cd62f9d5ea'],
-    'max_output_tokens' => 9000,
+    'max_output_tokens' => 4096,
 ];
