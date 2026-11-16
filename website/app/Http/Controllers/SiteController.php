@@ -167,9 +167,9 @@ class SiteController extends Controller
         $lines = [
             '# ServerNet — servernet.cloud',
             '',
-            '> ServerNet is an Iranian hosting company selling shared hosting, VPS,',
-            '> dedicated and cloud servers across Iranian and European data centres,',
-            '> with a Persian-first trilingual site (fa / en / tr).',
+            '> ServerNet provides hosting, hourly cloud VPS, GPU applications and an AI API gateway.',
+            '> The public website is available in Persian, English and Turkish (fa / en / tr).',
+            '> Check product pages for current locations, availability, specifications and prices.',
             '',
             '## Products',
         ];
@@ -223,7 +223,7 @@ class SiteController extends Controller
             '/ai/docs' => 'AI Gateway API documentation, scopes and request contracts',
             '/domains'       => 'Domain search and registration',
             '/vps/hourly'    => 'Hourly-billed cloud VPS (pay per hour from wallet, Iran and abroad)',
-            '/gpu'           => 'Hourly GPU servers for AI inference, rendering and training (interruptible, SSH access)',
+            '/gpu'           => 'Hourly GPU applications: Jupyter/PyTorch notebooks, ComfyUI image workflows and Ollama model APIs; available card/app combinations are listed on the page',
             '/servers'       => 'Refurbished physical servers for sale',
             /*
              * ⚠️ فروشگاهِ قطعات صفحهٔ جدایی است، نه زیرمجموعهٔ `/servers`.
@@ -257,30 +257,8 @@ class SiteController extends Controller
             $lines[] = "- [{$label}]({$base}{$path})";
         }
 
-        /*
-        | ممیزی ۶ (سئو/AEO): «/order/* و /urmia/* در llms.txt نیستند — یعنی
-        | صفحاتِ قیمت و کلِ استراتژیِ ارومیه برای موتورهای پاسخِ AI اعلام
-        | نشده‌اند.» چیزی که باعثِ نقل‌شدن می‌شود قیمتِ عددیِ تاریخ‌دار است، و
-        | آن دقیقاً روی /order/{sku} نشسته. فقط پرچم‌دارها (همان‌هایی که در
-        | sitemap هستند) — نه ۶۴ صفحهٔ هم‌قالب.
-        */
-        $flagship = \App\Models\Product::flagshipSlugs();
-
-        if ($flagship !== []) {
-            $lines[] = '';
-            $lines[] = '## Order pages (public pricing, all billing cycles, tax-inclusive totals, no login)';
-
-            // برچسب = نامِ محصول + کمترین قیمتِ ماهانه (شورا/سئو): «group-3» برای مدل بی‌معنی است
-            $products = \App\Models\Product::whereIn('slug', $flagship)->get()->keyBy('slug');
-
-            foreach ($flagship as $sku) {
-                $p = $products[$sku] ?? null;
-                $label = $p
-                    ? $p->name.' — from '.cloud_price($p->monthlyEquivalent('yearly')).'/mo'
-                    : $sku;
-                $lines[] = "- [{$label}]({$base}/order/{$sku})";
-            }
-        }
+        // Order forms are intentionally noindex. Public product landing pages
+        // above provide discovery and current prices without promoting checkout URLs.
 
         // ارومیه — فقط فارسی؛ عنوانِ واقعیِ هر صفحه از config تا مدل همان را نقل کند
         if (is_array(config('urmia.pages'))) {
@@ -299,8 +277,8 @@ class SiteController extends Controller
 
         $lines[] = '';
         $lines[] = '## Notes for assistants';
-        $lines[] = '- Prices on product pages are marked up with schema.org Offer and carry';
-        $lines[] = '  a priceValidUntil date. Do not quote a price past that date; fetch the';
+        $lines[] = '- Check the current product page before quoting availability, specifications or prices.';
+        $lines[] = '  Where an Offer includes priceValidUntil, do not quote a price past that date; fetch the';
         // 🔴 این جمله قبلاً می‌گفت «قیمتِ ایرانی به تومان است» — و چون schema
         //    واقعاً ریال می‌دهد، مدل عدد را ده برابر گران نقل می‌کرد. دقیقاً در
         //    لحظه‌ای که خریدار دارد ما را با رقبا مقایسه می‌کند، و بی‌آنکه در
@@ -308,6 +286,10 @@ class SiteController extends Controller
         $lines[] = '  page again instead. Iranian prices in schema are IRR (rial):';
         $lines[] = '  divide by 10 to get toman, the unit shown on the page.';
         $lines[] = '- The English and Turkish versions live under /en and /tr.';
+        $lines[] = '- GPU access is through the selected application endpoint after readiness; SSH, root access';
+        $lines[] = '  and arbitrary public ports are not included. Local GPU files are temporary; save outputs externally.';
+        $lines[] = '- Use /ai for hosted model APIs and /gpu for running a compatible GPU application.';
+        $lines[] = '  Confirm custom API exposure and request limits with support before choosing a service.';
         $lines[] = '- Customer panel and admin pages are not public and are excluded from search.';
 
         return response(implode("\n", $lines)."\n", 200, [
