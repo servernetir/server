@@ -158,6 +158,54 @@ class GoogleDiscoveryTest extends TestCase
         }
     }
 
+    public function test_real_client_sends_only_fixed_sitemap_and_readonly_url_inspections_and_refreshes(): void
+    {
+        $tokens = 0;
+        Http::fake(function ($request) use (&$tokens) {
+            if ($request->url() === 'https://oauth2.googleapis.com/token') {
+                $tokens++;
+                return Http::response(['access_token' => 'access-'.$tokens, 'refresh_token' => 'refresh-'.$tokens,
+                    'expires_in' => 3600, 'scope' => SearchConsoleClient::SCOPE]);
+            }
+            if ($request->url() === 'https://openidconnect.googleapis.com/v1/userinfo') {
+                return Http::response(['email_verified' => true, 'email' => 'owner@example.com']);
+            }
+            if ($request->method() === 'PUT') {
+                $this->assertSame('https://www.googleapis.com/webmasters/v3/sites/sc-domain%3Aservernet.cloud/sitemaps/'.rawurlencode(SearchConsoleClient::SITEMAP), $request->url());
+                $this->assertSame('', $request->body());
+                $this->assertSame('Bearer access-2', $request->header('Authorization')[0]);
+                return Http::response('', 204);
+            }
+            if ($request->url() === 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect') {
+                $this->assertSame(SearchConsoleClient::SITE, $request['siteUrl']);
+                $this->assertSame('https://servernet.cloud/tr/blog/example', $request['inspectionUrl']);
+                return Http::response(['inspectionResult' => ['indexStatusResult' => ['verdict' => 'PASS', 'coverageState' => 'Indexed']]]);
+            }
+            if ($request->method() === 'GET' && str_starts_with($request->url(), 'https://www.googleapis.com/webmasters/v3/sites/')) {
+                return Http::response(['siteUrl' => SearchConsoleClient::SITE, 'permissionLevel' => 'siteOwner']);
+            }
+            throw new \RuntimeException('Unexpected request');
+        });
+        $client = app(SearchConsoleClient::class);
+        $client->exchange('code', 'verifier', 'https://console.servernet.cloud/admin/calendar/google/callback');
+        $this->travel(61)->minutes();
+        $client->submitSitemap();
+        $this->assertSame('PASS', $client->inspect('https://servernet.cloud/tr/blog/example')['verdict']);
+        $this->assertSame(2, $tokens);
+        $this->assertSame('refresh-2', json_decode(Setting::getSecret(SearchConsoleClient::KEY), true)['refresh_token']);
+    }
+
+    public function test_admin_page_renders_in_three_languages_without_credentials(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            app()->setLocale($locale);
+            $html = $this->actingAs($admin)->get('/admin/ai-growth/google-discovery')->assertOk()->getContent();
+            $this->assertStringNotContainsString('test-secret', $html);
+            $this->assertStringNotContainsString('google-discovery.', $html);
+        }
+    }
+
     public function test_admin_oauth_uses_pkce_and_existing_callback_and_rejects_expired_state(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
