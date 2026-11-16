@@ -1,3 +1,5 @@
+> Update: this scope was installed and verified on 16 November. See the [production receipt](../seo/production-release-2026-11-16.md) for exact files, guards, database metadata, checks and remaining limitations. Earlier unconfirmed statuses below describe the preparation phase.
+
 # Search and AI discovery corrections — 16 November 2026
 
 Base: `1f8b8e15399d91132253e6aeda9144662bd97f5c`, branch `develop`.
