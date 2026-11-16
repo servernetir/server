@@ -27,7 +27,7 @@ class GoogleDiscoveryTest extends TestCase
 
     private function articlePost(): Post
     {
-        $post = Post::create(['slug' => 'discovery-example', 'type' => 'blog', 'status' => 'published', 'published_at' => now()->subMinute()]);
+        $post = Post::create(['slug' => 'discovery-example', 'type' => 'blog', 'category' => 'news', 'status' => 'published', 'published_at' => now()->subMinute()]);
         foreach (['fa', 'en', 'tr'] as $locale) {
             $post->translations()->create(['locale' => $locale, 'title' => 'Example '.$locale, 'content' => '<p>Complete article</p>']);
         }
