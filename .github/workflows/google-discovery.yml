@@ -1,0 +1,47 @@
+name: Google blog discovery
+
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['website/app/Services/Growth/**', 'website/app/Console/Commands/PublishDailyBlog.php', 'website/config/daily_blog.php', 'website/tests/Feature/GoogleDiscoveryTest.php', 'website/app/Http/Controllers/Admin/SearchConsoleController.php', 'website/app/Http/Controllers/Admin/CalendarController.php', 'website/routes/ai-growth.php', '.github/workflows/google-discovery.yml']
+  push:
+    branches: [develop]
+    paths: ['website/app/Services/Growth/**', 'website/app/Console/Commands/PublishDailyBlog.php', 'website/config/daily_blog.php', 'website/tests/Feature/GoogleDiscoveryTest.php', 'website/app/Http/Controllers/Admin/SearchConsoleController.php', 'website/app/Http/Controllers/Admin/CalendarController.php', 'website/routes/ai-growth.php', '.github/workflows/google-discovery.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies
+        working-directory: website
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Verify isolated native publishing and existing review gates
+        working-directory: website
+        run: |
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          vendor/bin/phpunit --filter 'GoogleDiscoveryTest|DailyBlog|AdminCalendarGoogleTest|ManagerGoogleReportingTest'
