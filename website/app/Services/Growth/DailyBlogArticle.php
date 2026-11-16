@@ -23,6 +23,7 @@ class DailyBlogArticle
         $raw = preg_replace('/^```(?:json)?\s*|\s*```$/', '', trim($raw));
         $data = json_decode($raw, true, 32, JSON_THROW_ON_ERROR);
         $out = [];
+        $seenBodies = [];
         foreach (['fa', 'en', 'tr'] as $locale) {
             $tr = $data['translations'][$locale] ?? null;
             if (! is_array($tr)) {
@@ -35,6 +36,11 @@ class DailyBlogArticle
                 $tr[$field] = trim($tr[$field]);
             }
             $plain = strip_tags($tr['body']);
+            $fingerprint = hash('sha256', mb_strtolower(preg_replace('/\s+/u', ' ', $plain)));
+            if (in_array($fingerprint, $seenBodies, true)) {
+                throw new \RuntimeException('duplicate_translation');
+            }
+            $seenBodies[] = $fingerprint;
             $letters = preg_match_all('/\p{L}/u', $plain);
             $matching = preg_match_all($locale === 'fa' ? '/\p{Arabic}/u' : '/\p{Latin}/u', $plain);
             if (mb_strlen($tr['title']) < 15 || mb_strlen($tr['title']) > 100

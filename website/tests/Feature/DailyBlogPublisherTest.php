@@ -75,7 +75,7 @@ class DailyBlogPublisherTest extends TestCase
         $first = $publisher->tick();
         $this->assertSame('published', $first['stage']);
         $this->assertSame($first, $publisher->tick());
-        $post = Post::where('slug', 'daily-insight-2026-11-16')->sole();
+        $post = Post::where('slug', 'daily-insight-2026-11-16-new-gpu-inference-guide')->sole();
         $this->assertSame('published', $post->status);
         $this->assertSame(['en', 'fa', 'tr'], $post->translations()->orderBy('locale')->pluck('locale')->all());
         foreach ($post->translations as $tr) {
@@ -159,5 +159,47 @@ class DailyBlogPublisherTest extends TestCase
         $this->fakeArticle($data);
         $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
         $this->assertDatabaseCount('posts', 0);
+    }
+
+    public function test_english_body_cannot_be_reused_as_turkish(): void
+    {
+        $data = $this->article();
+        $data['translations']['tr']['body'] = $data['translations']['en']['body'];
+        $this->fakeArticle($data);
+        $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
+        $this->assertDatabaseCount('posts', 0);
+    }
+
+    public function test_revoked_program_cannot_be_generated_by_shared_growth_worker(): void
+    {
+        $actor = (int) Setting::get('daily_blog_actor_id');
+        $item = app(\App\Services\Growth\ContentWorkflow::class)->create(['title' => 'Queued daily news', 'locale' => 'fa',
+            'channel' => 'blog', 'format' => 'article', 'objective' => 'education', 'brief' => 'Public source facts'], $actor);
+        $job = app(GrowthJobs::class)->enqueue($item->id, 'text', ['model' => $this->model->slug, 'max_tokens' => 100,
+            'messages' => [['role' => 'user', 'content' => 'Public source facts']]], 500, $item->version,
+            hash('sha256', 'daily-blog:trilingual-v1:'.$item->id), $actor);
+        Setting::put('daily_blog_enabled', '0');
+        app(GrowthJobs::class)->run($job);
+        $this->assertSame('queued', $job->fresh()->status);
+        $this->assertSame(0, $job->fresh()->attempts);
+        Http::assertNothingSent();
+    }
+
+    public function test_translation_write_failure_rolls_back_post_and_preserves_cost_receipt(): void
+    {
+        \App\Models\PostTranslation::creating(function ($tr) {
+            if ($tr->locale === 'tr') {
+                throw new \RuntimeException('translation_write_failed');
+            }
+        });
+        try {
+            $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
+            $this->assertDatabaseCount('posts', 0);
+            $this->assertDatabaseCount('post_translations', 0);
+            $this->assertSame('completed', GrowthJob::sole()->status);
+            $this->assertGreaterThan(0, GrowthJob::sole()->actual_cost_irt);
+        } finally {
+            \App\Models\PostTranslation::flushEventListeners();
+        }
     }
 }

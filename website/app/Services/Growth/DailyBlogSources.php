@@ -2,6 +2,7 @@
 
 namespace App\Services\Growth;
 
+use App\Models\Post;
 use DOMDocument;
 use DOMXPath;
 use Illuminate\Support\Carbon;
@@ -12,7 +13,7 @@ class DailyBlogSources
 {
     public function discover(): array
     {
-        $used = [];
+        $used = Post::whereNotNull('source')->pluck('source')->all();
         foreach (DB::table('growth_automation_runs')->where('run_key', 'like', 'daily-blog:%')->get() as $run) {
             $url = json_decode($run->summary, true)['source']['url'] ?? null;
             if ($url) {

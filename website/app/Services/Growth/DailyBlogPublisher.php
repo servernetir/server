@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\BlogRepository;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class DailyBlogPublisher
 {
@@ -167,7 +168,7 @@ class DailyBlogPublisher
             if ($item->status !== 'draft' || $item->version !== $job->content_version + 1) {
                 throw new \RuntimeException('operator_changed_content');
             }
-            $slug = 'daily-insight-'.now('Asia/Tehran')->toDateString();
+            $slug = 'daily-insight-'.now('Asia/Tehran')->toDateString().'-'.(Str::slug(mb_substr($state['source']['title'], 0, 65)) ?: 'technology');
             if (Post::where('slug', $slug)->exists()) {
                 throw new \RuntimeException('publication_slug_already_exists');
             }
