@@ -1,3 +1,5 @@
+> **Production acceptance completed:** on 2026-11-16 the native server worker published Post 560 with separate fa/en/tr translations. All three public GETs, canonical, hreflang, one H1, schema and source links passed at 11:08:47 UTC; the three rendered pages and localized headings were also read in the browser. Historical failures and receipts below remain recorded.
+
 > **Update after requested manual acceptance:** v2 generates one bounded JSON response per locale because the live Gemini registry caps a request at 4096 output tokens including thinking. All three calls are quoted and reserved together, receipts remain separate, and the post still publishes atomically only after all three bodies pass quality checks. Default cron never retries a blocked/uncertain call. `--retry-reviewed --actor=ID` is an explicit operator action that preserves prior receipts, refuses active work, is idempotent while queued/published, and allows at most two reviewed retries. Historical single-call references below describe the pre-acceptance version. No global model limits or customer budget settings are changed.
 
 # Native daily trilingual blog — 2026-11-16
@@ -40,9 +42,27 @@ The 15-minute cadence is for resuming source backoff and work. The native daily 
 ### First live run: blocked, not published
 The source probe fetched a dated NVIDIA Developer article and compared nine relevant fresh feed candidates. Live Gateway quotes were within the existing caps. The initial cheapest Qwen trilingual generation timed out at the Gateway's 240-second boundary and entered unknown_pending. The program correctly kept the cost ceiling reserved, left the article unpublished and did not send it again. The refinement prefers the existing lower-latency Gemini Flash model for future days; the unknown operation was not cleared, replayed or replaced. A subsequent production tick retained the same single attempt. Final status was read at 2026-11-16T10:29:58Z.
 
-**No successful live trilingual publication or public-page acceptance is claimed yet.** The first post-timeout Gemini execution is still pending a future scheduled day. The regular Gateway recovery/reconciliation process retains ownership of the uncertain receipt.
+This was the initial pre-acceptance failure, not the final current status. The regular Gateway recovery/reconciliation process retains ownership of its receipt. Subsequent requested manual acceptance and successful publication are recorded below.
 
 ### Tests and rollback
 - Isolated PHP 8.4.27 / SQLite CI passed 46 tests and 593 assertions, including existing Growth review gates and new source, publication, rollback, budget and uncertain-call cases. The latency refinement's native regression job also passed; other triggered regression workflows passed. No paid provider was called by tests.
 - Runtime dependencies remain the site's existing model Gateway, wallet/budget controls and public official feeds. Provider outages, uncertain paid receipts and failed automatic quality checks can prevent a day's publication; they must not be reported as success.
 - Private deployment evidence and rollback preimages: /home/servernetcloud/.native-blog-20261116/. Pause daily_blog_enabled before rollback. Restore only manifest-owned files, retain cost/run receipts and existing posts. Remove only the cron entry bearing servernet-native-daily-blog-v1 if retiring the program.
+
+## Requested manual acceptance and successful publication
+- The owner explicitly requested a manual run, delayed verification and the three public links.
+- The reviewed Gemini single-response attempt completed but hit the registry's 4096-token output cap (including reasoning); its incomplete output remained unpublished. Its paid receipt was retained.
+- PR [320](https://github.com/servernetir/server/pull/320), implementation e4b297a70fe60f57a0ce450dc8f2f97a63270913, merged as b3e654998d4ab2ba450cffec259fedcf1399172d: quote/reserve each locale separately under the existing total budget, generate bounded locale responses, and atomically publish only after all three pass. All four runtime files were linted, backed up, installed and hash verified. CI: 48 tests / 613 assertions passed.
+- All three locale requests completed. Their longer-than-requested excerpts and Turkish H3 markup triggered the strict quality gate, so they remained unpublished pending formatting normalization.
+- PR [321](https://github.com/servernetir/server/pull/321), implementation c5b14ab1cdbc62c1c2010eb0252636b486a4482e, merged as 96f2a1d7d36aae722eaeb52dd89b26428d8d0aae: locally bound Unicode metadata at word boundaries and normalize existing editorial heading labels. Body language, claims, unsafe content, length and three-locale gates remain enforced. CI: 49 tests / 627 assertions passed; all other triggered regression workflows passed.
+- The parser was installed with a baseline guard, private preimage and lint. Final parser SHA256: 6301132190acc1ad38c483d9f9b0deac9bfd731404db61b5d262a1d6621feb61.
+- Reviewed formatting resume reused the three completed, version-checked provider responses. No new inference was sent for that resume. The same daily receipt was advanced through the native validator and publisher; no direct bypass of validation or partial-language publication.
+- **Published Post 560**; server public acceptance recorded at 2026-11-16T11:08:47Z. Each URL returned 200 with its own canonical, one H1, four language alternates, three JSON-LD blocks, a matching localized title and source link. Text sizes: fa 4683, en 4115, tr 4266 characters. Browser review confirmed separate English/Turkish text, normalized H2s, source attribution and locale-specific GPU/AI links; Persian latest-posts navigation includes the new article.
+
+- Persian: https://servernet.cloud/blog/daily-insight-2026-11-16-manage-kubernetes-clusters-for-gpu-infrastructure-with-nvidia-kub
+- English: https://servernet.cloud/en/blog/daily-insight-2026-11-16-manage-kubernetes-clusters-for-gpu-infrastructure-with-nvidia-kub
+- Turkish: https://servernet.cloud/tr/blog/daily-insight-2026-11-16-manage-kubernetes-clusters-for-gpu-infrastructure-with-nvidia-kub
+
+Private production evidence: locale-fix-installed.json, format-installed.json, completed-run.receipt.json, public-acceptance.json and resume-existing.log under the existing private release directory. Raw provider responses, credentials and customer data are not committed. The public-acceptance receipt's single job-cost fields describe its primary locale only, not the total cost of all three locales.
+
+The daily publishing runtime remains the native cron. A one-time **read-only** public recheck was scheduled at the owner's request; it must not publish, call a paid model, access cPanel or create a ChatGPT publishing dependency.
