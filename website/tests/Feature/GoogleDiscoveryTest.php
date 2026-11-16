@@ -25,7 +25,7 @@ class GoogleDiscoveryTest extends TestCase
         Setting::putSecret('google_client_secret', 'test-secret');
     }
 
-    private function post(): Post
+    private function articlePost(): Post
     {
         $post = Post::create(['slug' => 'discovery-example', 'type' => 'blog', 'status' => 'published', 'published_at' => now()->subMinute()]);
         foreach (['fa', 'en', 'tr'] as $locale) {
@@ -41,7 +41,7 @@ class GoogleDiscoveryTest extends TestCase
 
     public function test_complete_languages_and_published_date_are_required_and_revisions_are_unique(): void
     {
-        $post = $this->post();
+        $post = $this->articlePost();
         $service = app(GoogleDiscovery::class);
         $first = $service->enqueue($post);
         $this->assertCount(3, $first['urls']);
@@ -58,7 +58,7 @@ class GoogleDiscoveryTest extends TestCase
     public function test_missing_grant_stays_queued_without_network_and_pause_does_no_work(): void
     {
         $service = app(GoogleDiscovery::class);
-        $service->enqueue($this->post());
+        $service->enqueue($this->articlePost());
         $service->run();
         $this->assertSame('waiting_authorization', $this->receipt()['stage']);
         $this->assertSame(0, $this->receipt()['attempts']);
@@ -70,7 +70,7 @@ class GoogleDiscoveryTest extends TestCase
     public function test_sitemap_submission_then_three_inspections_do_not_claim_instant_indexing(): void
     {
         $service = app(GoogleDiscovery::class);
-        $receipt = $service->enqueue($this->post());
+        $receipt = $service->enqueue($this->articlePost());
         $xml = '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">';
         foreach ($receipt['urls'] as $url) {
             $xml .= '<url><loc>'.$url.'</loc><lastmod>'.now()->toDateString().'</lastmod></url>';
@@ -94,7 +94,7 @@ class GoogleDiscoveryTest extends TestCase
     public function test_missing_sitemap_locale_retries_without_sending_to_google(): void
     {
         $service = app(GoogleDiscovery::class);
-        $service->enqueue($this->post());
+        $service->enqueue($this->articlePost());
         Http::fake([SearchConsoleClient::SITEMAP => Http::response('<urlset/>')]);
         $client = $this->mock(SearchConsoleClient::class);
         $client->shouldReceive('status')->andReturn(['connected' => true]);
@@ -108,7 +108,7 @@ class GoogleDiscoveryTest extends TestCase
 
     public function test_unpublished_or_replaced_post_cannot_be_submitted(): void
     {
-        $post = $this->post();
+        $post = $this->articlePost();
         app(GoogleDiscovery::class)->enqueue($post);
         $post->update(['status' => 'draft']);
         app(GoogleDiscovery::class)->run();
