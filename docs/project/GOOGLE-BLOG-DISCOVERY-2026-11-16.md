@@ -14,4 +14,10 @@ Cron target after verified installation: */5 * * * * cd /home/servernetcloud/ser
 
 Rollback: disable google_discovery_enabled first, remove only the marked cron entry with a crontab preimage retained, restore only unchanged release files under shared locks. Do not revoke the shared Google OAuth client. Existing receipts remain auditable.
 
-Status at preparation: implemented; CI, production installation, OAuth consent and first real sitemap acceptance still pending. Update this section only from observed evidence.
+## Verified Git delivery, 16 November 2026
+
+PR #322 merged into develop without conflicts as 8fa30688c36323b6f472d13f2f6b304c047ae6c4. Tested head: 6ba73753050a5f4230930cfa87d7abf7b7af1518. PHP 8.4.27 isolated CI: GoogleDiscoveryTest, DailyBlog, AdminCalendarGoogleTest and ManagerGoogleReportingTest passed 79 tests / 499 assertions (run 43859480269); native publishing and growth review gates separately passed 49 tests / 627 assertions (run 43859480319). Route source integrity and customer cloud API contract also passed. Other repository regression workflows were still running at merge; this report does not claim full repository health.
+
+Production status: NOT INSTALLED. No feature setting, token, production file or cron entry was changed for this discovery feature. The previously authorized ServerNet cPanel terminal stopped responding. Another open cPanel account was identified as a different customer and was not modified. Automatic access review rejected opening a broader WHM administration session; no root workaround was attempted after rejection. Resume only through an active servernetcloud account session.
+
+Remaining acceptance: scoped installation with live baseline checks and preimages; enable feature and preserve existing cron entries; queue existing published post 560; complete one-time site-owner Google webmasters consent; observe actual empty-success sitemap PUT and the persisted accepted receipt. Until then, no automatic submission or indexing is claimed. The publication cron from the earlier native-blog release is a separate existing feature.
