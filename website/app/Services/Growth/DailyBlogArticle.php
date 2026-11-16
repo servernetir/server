@@ -46,6 +46,17 @@ class DailyBlogArticle
                 }
                 $tr[$field] = trim($tr[$field]);
             }
+            // Count Unicode metadata locally; provider character limits are advisory.
+            foreach (['title' => 95, 'excerpt' => 158] as $field => $limit) {
+                $tr[$field] = trim(preg_replace('/\s+/u', ' ', strip_tags($tr[$field])));
+                if (mb_strlen($tr[$field]) > $limit) {
+                    $cut = mb_substr($tr[$field], 0, $limit - 1);
+                    $tr[$field] = rtrim(preg_replace('/\s+\S*$/u', '', $cut)).'…';
+                }
+            }
+            // Retain actual section labels while normalizing Markdown heading styles.
+            $tr['body'] = preg_replace('/^#{3,6}\s+(.+)$/mu', '## $1', $tr['body']);
+            $tr['body'] = preg_replace('/^\*\*([^*\r\n]{3,150})\*\*\s*:?$/mu', '## $1', $tr['body']);
             $plain = strip_tags($tr['body']);
             $fingerprint = hash('sha256', mb_strtolower(preg_replace('/\s+/u', ' ', $plain)));
             if (in_array($fingerprint, $seenBodies, true)) {
