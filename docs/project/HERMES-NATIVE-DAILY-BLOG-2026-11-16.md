@@ -1,3 +1,5 @@
+> **Update after requested manual acceptance:** v2 generates one bounded JSON response per locale because the live Gemini registry caps a request at 4096 output tokens including thinking. All three calls are quoted and reserved together, receipts remain separate, and the post still publishes atomically only after all three bodies pass quality checks. Default cron never retries a blocked/uncertain call. `--retry-reviewed --actor=ID` is an explicit operator action that preserves prior receipts, refuses active work, is idempotent while queued/published, and allows at most two reviewed retries. Historical single-call references below describe the pre-acceptance version. No global model limits or customer budget settings are changed.
+
 # Native daily trilingual blog — 2026-11-16
 
 Owner authorization: replace the ChatGPT publishing task with a server cron that researches and publishes automatically. The previous ChatGPT task has been disabled.
