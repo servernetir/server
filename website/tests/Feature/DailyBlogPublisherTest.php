@@ -11,6 +11,7 @@ use App\Services\Growth\DailyBlogPublisher;
 use App\Services\Growth\DailyBlogSources;
 use App\Services\Growth\GrowthJobs;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -62,6 +63,8 @@ class DailyBlogPublisherTest extends TestCase
 
     private function fakeArticle(?array $data = null): void
     {
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
         Http::fake(['*/chat/completions' => Http::response(['choices' => [['message' => ['content' => json_encode($data ?? $this->article(), JSON_UNESCAPED_UNICODE)]]],
             'usage' => ['prompt_tokens' => 30, 'completion_tokens' => 100, 'total_tokens' => 130]])]);
     }
@@ -129,6 +132,8 @@ class DailyBlogPublisherTest extends TestCase
 
     public function test_uncertain_or_lost_call_is_never_replayed(): void
     {
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
         Http::fake(['*/chat/completions' => Http::failedConnection()]);
         $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);
         $this->assertSame('blocked', app(DailyBlogPublisher::class)->tick()['stage']);

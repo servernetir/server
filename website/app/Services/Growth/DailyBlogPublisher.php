@@ -14,6 +14,12 @@ use Illuminate\Support\Facades\DB;
 
 class DailyBlogPublisher
 {
+    public function __construct()
+    {
+        // A scoped config file also works on installations with a pre-existing config cache.
+        config(['daily_blog' => require config_path('daily_blog.php')]);
+    }
+
     public function status(): array
     {
         $key = 'daily-blog:'.now('Asia/Tehran')->toDateString();
