@@ -1,4 +1,6 @@
 # Hermes/Araz daily trilingual blog
+
+> Superseded in this same session: the owner requested a server cron with no ChatGPT dependency. The ChatGPT task has been disabled. See [native worker](HERMES-NATIVE-DAILY-BLOG-2026-11-16.md) for the replacement; the historical setup below is not the current execution path.
 Registered: 2026-11-16. Owner explicitly authorized research, writing and automatic publication.
 
 ## Execution and current status

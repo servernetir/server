@@ -68,6 +68,10 @@ final class GrowthJobs
             || ! User::whereKey((int) Setting::get('growth_autopilot_actor_id', '0'))->where('role', 'admin')->exists())) {
             return;
         }
+        if (hash_equals(hash('sha256', 'daily-blog:trilingual-v1:'.$job->content_id), $job->request_key)
+            && ! app(DailyBlogPublisher::class)->enabled()) {
+            return;
+        }
         if (! GrowthJob::whereKey($job->id)->where('status', 'queued')->update(['status' => 'processing', 'started_at' => now(),
             'attempts' => DB::raw('attempts + 1')])) {
             return;
