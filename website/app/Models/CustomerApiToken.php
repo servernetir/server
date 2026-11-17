@@ -76,6 +76,7 @@ class CustomerApiToken extends Model
      *    خواندنِ مدل‌ها) و باید در رابطِ صدور **انتخاب** شود، نه پیش‌فرض.
      */
     public const AI_ABILITIES = [
+        'ai:wallet:read' => 'خواندن موجودی و مصرف حساب برای ServerNet Studio',
         'ai:models:read' => 'خواندنِ فهرستِ مدل‌های قابلِ خریدِ دروازهٔ AI',
         'ai:chat'        => 'تکمیلِ چت — پول خرج می‌کند (سرِ هر توکن)',
         'ai:embedding'   => 'بردار متنی — هزینه بر اساس توکن ورودی',

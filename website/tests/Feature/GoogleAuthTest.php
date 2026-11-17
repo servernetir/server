@@ -53,6 +53,84 @@ class GoogleAuthTest extends TestCase
         return $this->get($prefix.'/login/google/callback?'.http_build_query(['state' => $state, 'code' => 'test-code']));
     }
 
+    private function studioEntry(string $prefix = ''): string
+    {
+        config(['studio.enabled' => true, 'studio.client_id' => 'servernet-studio',
+            'studio.client_secret' => str_repeat('s', 48),
+            'studio.redirect_uri' => 'https://studio.servernet.test/auth/callback']);
+        $data = ['client_id' => 'servernet-studio', 'redirect_uri' => config('studio.redirect_uri'),
+            'state' => str_repeat('a', 43), 'code_challenge' => str_repeat('v', 43),
+            'code_challenge_method' => 'S256'];
+        $target = $prefix.'/account/studio/authorize?'.http_build_query($data);
+        $this->get($prefix.'/login/studio?'.http_build_query($data + ['login_method' => 'google']))
+            ->assertRedirect($prefix.'/login/google')->assertSessionHas('url.intended', $target);
+        return $target;
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('studioLocales')]
+    public function test_studio_google_signin_returns_existing_account_to_consent(string $prefix): void
+    {
+        $c = $this->customer();
+        $this->fakeGoogle();
+        $target = $this->studioEntry($prefix);
+        $this->runCallback($prefix)->assertRedirect($target);
+        $this->assertAuthenticatedAs($c, 'customer');
+        $this->assertSame(1, Customer::count());
+        $this->get($target)->assertOk()->assertSee('ServerNet Studio');
+        $this->assertSame(0, DB::table('studio_authorization_codes')->count());
+        $this->assertSame(0, $c->apiTokens()->count());
+    }
+
+    public static function studioLocales(): array
+    {
+        return [[''], ['/en'], ['/tr']];
+    }
+
+    public function test_studio_google_signin_preserves_two_factor_and_return_destination(): void
+    {
+        $c = $this->customer();
+        $secret = $c->startTwoFactorSetup();
+        $c->forceFill(['two_factor_confirmed_at' => now()])->save();
+        $this->fakeGoogle();
+        $target = $this->studioEntry();
+        $this->runCallback()->assertRedirect('/login/2fa');
+        $this->assertGuest('customer');
+        $this->assertSame(0, $c->apiTokens()->count());
+        $this->post('/login/2fa', ['code' => Totp::code($secret)])->assertRedirect($target);
+        $this->assertAuthenticatedAs($c, 'customer');
+    }
+
+    public function test_studio_google_registration_keeps_site_sms_identity_terms_and_return(): void
+    {
+        $this->legalDocuments('fa');
+        $this->expectIranianIdentity();
+        $this->fakeGoogle();
+        $target = $this->studioEntry();
+        $this->runCallback()->assertRedirect('/register');
+        $this->post('/register', ['phone' => '09121234567', 'type' => 'individual'])
+            ->assertRedirect('/register/verify');
+        $this->post('/register/finish', ['password' => 'test-password', 'password_confirmation' => 'test-password', 'terms' => '1'])
+            ->assertRedirect('/register');
+        $this->assertGuest('customer');
+        $this->post('/register/verify', ['code' => $this->codes['09121234567']])->assertRedirect('/register/identity');
+        $this->post('/register/identity', ['national_id' => '0084575948', 'birth_date' => '1370/05/12'])
+            ->assertRedirect('/register/finish');
+        $this->post('/register/finish', ['password' => 'test-password', 'password_confirmation' => 'test-password'])
+            ->assertSessionHasErrors('terms');
+        $this->assertGuest('customer');
+        $this->post('/register/finish', ['password' => 'test-password', 'password_confirmation' => 'test-password', 'terms' => '1'])
+            ->assertRedirect($target);
+        $c = Customer::firstOrFail();
+        $this->assertSame(1, Customer::count());
+        $this->assertAuthenticatedAs($c, 'customer');
+        $this->assertSame('100200300', $c->google_subject);
+        $this->assertNotNull($c->phone_verified_at);
+        $this->assertTrue($c->isVerified());
+        $this->assertSame(2, DB::table('legal_acceptances')->where('customer_id', $c->id)->count());
+        $this->get($target)->assertOk();
+        $this->assertSame(0, DB::table('studio_authorization_codes')->count());
+    }
+
     private function customer(array $attrs = []): Customer
     {
         $c = Customer::create(['email' => 'google-test@gmail.com', 'phone' => '09121234567',

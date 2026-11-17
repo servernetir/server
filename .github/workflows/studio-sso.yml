@@ -1,0 +1,28 @@
+name: ServerNet Studio SSO
+on:
+  pull_request:
+    branches: [develop]
+    paths: ['website/app/Services/Studio/StudioDownloads.php', 'website/app/Http/Controllers/Ai/StudioDownloadsController.php', 'website/resources/views/studio/download.blade.php', 'website/lang/*/studio_download.php', 'website/tests/Feature/StudioDownloadsTest.php', 'website/routes/web.php', 'website/app/Http/Controllers/Auth/GoogleController.php', 'website/app/Http/Controllers/Auth/RegisterController.php', 'website/app/Http/Controllers/Auth/LoginController.php', 'website/tests/Feature/GoogleAuthTest.php', 'website/app/Http/Middleware/StudioRateLimit.php', 'website/app/Services/Studio/**', 'website/app/Http/Controllers/Ai/StudioController.php', 'website/app/Models/CustomerApiToken.php', 'website/routes/studio-*.php', 'website/tests/Feature/StudioSsoTest.php', 'website/config/studio.php', 'website/database/migrations/*studio_authorization*', '.github/workflows/studio-sso.yml']
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - run: composer install --prefer-dist --no-progress --no-scripts --no-plugins
+        working-directory: website
+      - run: vendor/bin/phpunit tests/Feature/StudioSsoTest.php tests/Feature/GoogleAuthTest.php tests/Feature/StudioDownloadsTest.php tests/Feature/V1ChatTest.php
+        working-directory: website
+        env:
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'

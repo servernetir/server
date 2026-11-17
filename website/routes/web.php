@@ -48,6 +48,7 @@ Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestCont
 $site = function (): void {
     require __DIR__.'/identity-site.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
+    Route::get('/studio/download', \App\Http\Controllers\Ai\StudioDownloadsController::class)->name('studio.download');
     // [ai-storefront:start]
     Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
     Route::get('/ai/models', [\App\Http\Controllers\AiStorefrontController::class, 'models'])->name('ai.models');
@@ -378,6 +379,7 @@ $site = function (): void {
     | اعداد سخت‌گیرانه‌اند چون هر ثبت‌نام ایرانی ۸۱٬۰۰۰ تومان استعلام دارد؛
     | سقف واقعی داخل OtpService و RegisterController است و این فقط لایهٔ اول.
     */
+    Route::get('/login/studio', [\App\Http\Controllers\Ai\StudioController::class, 'start'])->name('studio.start')->middleware('throttle:signin');
     Route::middleware('guest:customer')->group(function () {
         Route::get('/login/google', [Auth\GoogleController::class, 'start'])->name('google.start')->middleware('throttle:signin');
         Route::get('/register/google-phone', [Auth\GoogleController::class, 'phone'])->name('google.phone')->middleware('throttle:signin');
@@ -413,6 +415,7 @@ $site = function (): void {
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
     Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
+        require __DIR__.'/studio-account.php';
         require __DIR__.'/domain-management.php';
         require __DIR__.'/madar-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
@@ -3723,3 +3726,5 @@ Route::prefix('agent')->group(function () {
 // Tracking stores no public PII and never redeems a grant.
 Route::get('/m/{token}', [\App\Http\Controllers\Account\OfferController::class, 'track'])
     ->where('token', '[a-f0-9]{48}')->middleware('throttle:60,1');
+
+require __DIR__.'/studio-api.php';
