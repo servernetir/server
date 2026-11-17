@@ -48,6 +48,7 @@ Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestCont
 $site = function (): void {
     require __DIR__.'/identity-site.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
+    Route::get('/studio/download', \App\Http\Controllers\Ai\StudioDownloadsController::class)->name('studio.download');
     // [ai-storefront:start]
     Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
     Route::get('/ai/models', [\App\Http\Controllers\AiStorefrontController::class, 'models'])->name('ai.models');
