@@ -66,6 +66,10 @@ class StudioSsoTest extends TestCase
             $this->get($path.'/login/studio?'.http_build_query($data + ['login_method' => 'google']))
                 ->assertRedirect($path.'/login');
         }
+    }
+
+    public function test_malformed_entry_never_replaces_the_intended_destination(): void
+    {
         $this->withSession(['url.intended' => '/account/invoices']);
         foreach ([['redirect_uri' => 'https://attacker.test/callback'], ['login_method' => 'evil'],
             ['login_method' => ['google']], ['code_challenge_method' => 'plain']] as $over) {
