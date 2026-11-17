@@ -1,0 +1,128 @@
+{
+  "base_commit": "311acf8cfecfd0e06cfb02aa0c3eba9134dcfc70",
+  "status": "not_installed",
+  "files": [
+    {
+      "source": "website/app/Http/Controllers/Account/GpuCapacityController.php",
+      "destinations": [
+        "servernet_app/app/Http/Controllers/Account/GpuCapacityController.php"
+      ],
+      "expected_before_sha256": "4a6098b7c4ddb7fb1de5315dd6d52aa63bc69703e005792618b12133a3f02a4d",
+      "after_sha256": "a005d4b055b03f04c82c51369aa9db2dd5ef934e5e17a5100008ebd3abb938a9"
+    },
+    {
+      "source": "website/app/Services/Cloud/GpuCapacityAlternatives.php",
+      "destinations": [
+        "servernet_app/app/Services/Cloud/GpuCapacityAlternatives.php"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "a4842b5e600748fe27983d54e8efbc0262596ee0dc630be8f75538f4d3d06c51"
+    },
+    {
+      "source": "website/app/Services/Cloud/GpuCapacityOrders.php",
+      "destinations": [
+        "servernet_app/app/Services/Cloud/GpuCapacityOrders.php"
+      ],
+      "expected_before_sha256": "f898f36b010035c1e86d61d6bf6c365300002084960123687304526555f331f6",
+      "after_sha256": "0a893de409eec2c4e33f8e4fc3318af854953cf51d90a4d26460910f7b129378"
+    },
+    {
+      "source": "website/lang/en/gpu-alternatives.php",
+      "destinations": [
+        "servernet_app/lang/en/gpu-alternatives.php"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "ff99a94f228e11461073e6d7bf3a404396e2f0b847be05df610f61daa6b869b8"
+    },
+    {
+      "source": "website/lang/fa/gpu-alternatives.php",
+      "destinations": [
+        "servernet_app/lang/fa/gpu-alternatives.php"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "b0d10c5e6cbfc2d924ab77b7840b074a28ad5f0b90e5bd0afa04d9020d3d7ebd"
+    },
+    {
+      "source": "website/lang/tr/gpu-alternatives.php",
+      "destinations": [
+        "servernet_app/lang/tr/gpu-alternatives.php"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "83c01fb58e141368bb2cea1127c97818f12cbbed8476477458da7412eb3c8b50"
+    },
+    {
+      "source": "website/public/assets/css/gpu-alternatives.css",
+      "destinations": [
+        "servernet_app/public/assets/css/gpu-alternatives.css",
+        "public_html/assets/css/gpu-alternatives.css"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "b7bbc7d569a67d22d0370913eaa32772f1028a5ddc9100014de9ce01fa887bac"
+    },
+    {
+      "source": "website/public/assets/js/gpu-live-capacity.js",
+      "destinations": [
+        "servernet_app/public/assets/js/gpu-live-capacity.js",
+        "public_html/assets/js/gpu-live-capacity.js"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "32ff71bb6f2f66a950f0d339578ed097df2bba6c54612c364e1f217ea7495cf9"
+    },
+    {
+      "source": "website/resources/views/account/cloud-store.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/account/cloud-store.blade.php"
+      ],
+      "expected_before_sha256": "8e83fd04873951bc53e088bccee20743b3224c5b69d240546c0c68adf6471996",
+      "after_sha256": "160a99f559fa2424364f4eb57194d6a7c6922a1a6620d29506bb9388e864e7c8"
+    },
+    {
+      "source": "website/resources/views/account/gpu-alternative-confirm.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/account/gpu-alternative-confirm.blade.php"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "258d72c7369d0516c7525cb8c807be39d8bbc72e72fc97a6c4be846c20fa3cfb"
+    },
+    {
+      "source": "website/resources/views/account/gpu-alternatives.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/account/gpu-alternatives.blade.php"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "1894b3cda7e26aadca363c0a78c03bc89021fa4d9208f1aa7ef97ce6afed949a"
+    },
+    {
+      "source": "website/resources/views/account/partials/gpu-capacity-wait.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/account/partials/gpu-capacity-wait.blade.php"
+      ],
+      "expected_before_sha256": "be44fc413c7300c0ead69956743add55a82b0ac568ad052e8c0105c7590c7e8c",
+      "after_sha256": "6d090e4999d4dbe5c99a438a28b5e868a48380d43596ff410fb98ddb3f1c1dc8"
+    },
+    {
+      "source": "website/resources/views/account/partials/gpu-live-capacity.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/account/partials/gpu-live-capacity.blade.php"
+      ],
+      "expected_before_sha256": null,
+      "after_sha256": "490dd4d105abc072122ed8fb94f51eae35e3d8e3cdc043db4eae41e56a7adc0e"
+    },
+    {
+      "source": "website/resources/views/pages/gpu.blade.php",
+      "destinations": [
+        "servernet_app/resources/views/pages/gpu.blade.php"
+      ],
+      "expected_before_sha256": "d296366988d6d4e72c7fb0c7f3991946081305db710f412d39605adb24f0d719",
+      "after_sha256": "59fb7d4da77e1ccf90ae6d1b7f183807ffdbeed621b79209b5a51f5a2206c759"
+    },
+    {
+      "source": "website/routes/web.php",
+      "destinations": [
+        "servernet_app/routes/web.php"
+      ],
+      "expected_before_sha256": "62825b13be2134728b1484ed409dfe4eecb714196998df9c39dfa65b43c53ebd",
+      "after_sha256": "90c762f5a9219b184ff60dd6c2dc1447aa5df1d662d63331b2d0cd58f8ce610b"
+    }
+  ]
+}
