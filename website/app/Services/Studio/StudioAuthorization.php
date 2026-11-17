@@ -6,7 +6,6 @@ use App\Models\AiProject;
 use App\Models\Customer;
 use App\Models\CustomerApiToken;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 final class StudioAuthorization
 {
@@ -24,13 +23,15 @@ final class StudioAuthorization
     public function validateRequest(array $data): array
     {
         abort_unless($this->configured(), 404);
-        $valid = validator($data, [
+        $validator = validator($data, [
             'client_id' => ['required', 'string'],
             'redirect_uri' => ['required', 'string', 'max:512'],
             'state' => ['required', 'string', 'regex:/\A[A-Za-z0-9_-]{32,128}\z/'],
             'code_challenge' => ['required', 'string', 'regex:/\A[A-Za-z0-9_-]{43}\z/'],
             'code_challenge_method' => ['required', 'in:S256'],
-        ])->validate();
+        ]);
+        abort_if($validator->fails(), 400);
+        $valid = $validator->validated();
         abort_unless(hash_equals((string) config('studio.client_id'), $valid['client_id'])
             && hash_equals((string) config('studio.redirect_uri'), $valid['redirect_uri']), 400);
         return $valid;

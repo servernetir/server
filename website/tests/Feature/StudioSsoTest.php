@@ -70,7 +70,7 @@ class StudioSsoTest extends TestCase
         $this->actingAs($customer, 'customer')->get('/account/studio/authorize?'.http_build_query(
             ['redirect_uri' => 'https://attacker.test/callback'] + $this->requestData()))->assertStatus(400);
         $this->getJson('/account/studio/authorize?'.http_build_query(
-            ['code_challenge_method' => 'plain'] + $this->requestData()))->assertStatus(422);
+            ['code_challenge_method' => 'plain'] + $this->requestData()))->assertStatus(400);
         $this->assertSame(0, DB::table('studio_authorization_codes')->count());
     }
 
