@@ -7,6 +7,7 @@ use App\Models\AiUsage;
 use App\Models\Customer;
 use App\Models\CustomerApiToken;
 use App\Services\Ai\AiAdmission;
+use App\Services\Auth\GoogleIdentity;
 use App\Services\Finance\Wallet;
 use App\Services\Studio\StudioAuthorization;
 use Illuminate\Http\Request;
@@ -15,6 +16,26 @@ use Illuminate\Support\Facades\DB;
 
 final class StudioController extends Controller
 {
+    public function start(Request $request, StudioAuthorization $service)
+    {
+        $data = $service->validateRequest($request->query());
+        $method = $request->query('login_method', 'account');
+        abort_unless(in_array($method, ['account', 'google', 'register'], true), 400);
+        $prefix = app()->getLocale() === 'fa' ? '' : app()->getLocale().'.';
+        $intended = route($prefix.'account.studio.authorize', $data, false);
+        if (Auth::guard('customer')->check()) {
+            $target = $intended;
+        } else {
+            $request->session()->put('url.intended', $intended);
+            $route = $method === 'register' ? 'register' :
+                ($method === 'google' && GoogleIdentity::configured() ? 'google.start' : 'login');
+            $target = route($prefix.$route);
+        }
+        return redirect($target)->withHeaders([
+            'Cache-Control' => 'no-store', 'Referrer-Policy' => 'no-referrer',
+        ]);
+    }
+
     public function authorizePage(Request $request, StudioAuthorization $service)
     {
         $data = $service->validateRequest($request->query());

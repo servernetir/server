@@ -378,6 +378,7 @@ $site = function (): void {
     | اعداد سخت‌گیرانه‌اند چون هر ثبت‌نام ایرانی ۸۱٬۰۰۰ تومان استعلام دارد؛
     | سقف واقعی داخل OtpService و RegisterController است و این فقط لایهٔ اول.
     */
+    Route::get('/login/studio', [\App\Http\Controllers\Ai\StudioController::class, 'start'])->name('studio.start')->middleware('throttle:signin');
     Route::middleware('guest:customer')->group(function () {
         Route::get('/login/google', [Auth\GoogleController::class, 'start'])->name('google.start')->middleware('throttle:signin');
         Route::get('/register/google-phone', [Auth\GoogleController::class, 'phone'])->name('google.phone')->middleware('throttle:signin');

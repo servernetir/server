@@ -50,6 +50,39 @@ class StudioSsoTest extends TestCase
     {
         config(['studio.enabled' => false]);
         $this->exchange(str_repeat('c', 43))->assertNotFound();
+        $this->get('/login/studio?'.http_build_query($this->requestData()))->assertNotFound();
+    }
+
+    public function test_login_entry_preserves_only_validated_internal_destination(): void
+    {
+        foreach (['' => '', '/en' => 'en.', '/tr' => 'tr.'] as $path => $name) {
+            $data = $this->requestData();
+            $this->get($path.'/login/studio?'.http_build_query($data))
+                ->assertRedirect($path.'/login')->assertSessionHas('url.intended',
+                    route($name.'account.studio.authorize', $data, false));
+            $this->get($path.'/login/studio?'.http_build_query($data + ['login_method' => 'register']))
+                ->assertRedirect($path.'/register');
+            config(['google-auth.enabled' => false]);
+            $this->get($path.'/login/studio?'.http_build_query($data + ['login_method' => 'google']))
+                ->assertRedirect($path.'/login');
+        }
+        $this->withSession(['url.intended' => '/account/invoices']);
+        foreach ([['redirect_uri' => 'https://attacker.test/callback'], ['login_method' => 'evil'],
+            ['login_method' => ['google']], ['code_challenge_method' => 'plain']] as $over) {
+            $this->get('/login/studio?'.http_build_query($over + $this->requestData()))->assertStatus(400)
+                ->assertSessionHas('url.intended', '/account/invoices');
+        }
+        $this->assertSame(0, DB::table('studio_authorization_codes')->count());
+    }
+
+    public function test_existing_console_session_goes_to_consent_without_google_roundtrip(): void
+    {
+        [$customer] = $this->greenKey();
+        $data = $this->requestData();
+        $this->actingAs($customer, 'customer')->get('/login/studio?'.http_build_query($data + ['login_method' => 'google']))
+            ->assertRedirect(route('account.studio.authorize', $data, false));
+        $this->assertNull(session('google_oauth'));
+        $this->assertSame(0, DB::table('studio_authorization_codes')->count());
     }
 
     public function test_console_login_and_explicit_consent_are_required(): void

@@ -2,7 +2,7 @@ name: ServerNet Studio SSO
 on:
   pull_request:
     branches: [develop]
-    paths: ['website/app/Http/Middleware/StudioRateLimit.php', 'website/app/Services/Studio/**', 'website/app/Http/Controllers/Ai/StudioController.php', 'website/app/Models/CustomerApiToken.php', 'website/routes/studio-*.php', 'website/tests/Feature/StudioSsoTest.php', 'website/config/studio.php', 'website/database/migrations/*studio_authorization*', '.github/workflows/studio-sso.yml']
+    paths: ['website/routes/web.php', 'website/app/Http/Controllers/Auth/GoogleController.php', 'website/app/Http/Controllers/Auth/RegisterController.php', 'website/app/Http/Controllers/Auth/LoginController.php', 'website/tests/Feature/GoogleAuthTest.php', 'website/app/Http/Middleware/StudioRateLimit.php', 'website/app/Services/Studio/**', 'website/app/Http/Controllers/Ai/StudioController.php', 'website/app/Models/CustomerApiToken.php', 'website/routes/studio-*.php', 'website/tests/Feature/StudioSsoTest.php', 'website/config/studio.php', 'website/database/migrations/*studio_authorization*', '.github/workflows/studio-sso.yml']
 permissions:
   contents: read
 jobs:
@@ -21,7 +21,7 @@ jobs:
           tools: composer:v2
       - run: composer install --prefer-dist --no-progress --no-scripts --no-plugins
         working-directory: website
-      - run: vendor/bin/phpunit tests/Feature/StudioSsoTest.php tests/Feature/V1ChatTest.php
+      - run: vendor/bin/phpunit tests/Feature/StudioSsoTest.php tests/Feature/GoogleAuthTest.php tests/Feature/V1ChatTest.php
         working-directory: website
         env:
           DB_CONNECTION: sqlite
