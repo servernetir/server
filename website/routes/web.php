@@ -413,6 +413,7 @@ $site = function (): void {
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
     Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
+        require __DIR__.'/studio-account.php';
         require __DIR__.'/domain-management.php';
         require __DIR__.'/madar-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
@@ -3723,3 +3724,5 @@ Route::prefix('agent')->group(function () {
 // Tracking stores no public PII and never redeems a grant.
 Route::get('/m/{token}', [\App\Http\Controllers\Account\OfferController::class, 'track'])
     ->where('token', '[a-f0-9]{48}')->middleware('throttle:60,1');
+
+require __DIR__.'/studio-api.php';
