@@ -145,4 +145,16 @@ class StudioSsoTest extends TestCase
             ->assertJsonPath('wallet.available',$balance)->assertJsonPath('ai.prompt_tokens_month',10)
             ->assertJsonPath('ai.completion_tokens_month',5);
     }
+    public function test_wallet_rate_limit_is_per_key_behind_shared_studio_egress(): void
+    {
+        [, $plain, $token] = $this->greenKey();
+        $token->update(['abilities'=>StudioAuthorization::SCOPES]);
+        for ($i=0; $i<60; $i++) {
+            $this->withToken($plain)->getJson('/v1/studio/account')->assertOk();
+        }
+        $this->withToken($plain)->getJson('/v1/studio/account')->assertStatus(429);
+        [, $other, $otherToken] = $this->greenKey();
+        $otherToken->update(['abilities'=>StudioAuthorization::SCOPES]);
+        $this->withToken($other)->getJson('/v1/studio/account')->assertOk();
+    }
 }

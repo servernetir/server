@@ -2,7 +2,7 @@ name: ServerNet Studio SSO
 on:
   pull_request:
     branches: [develop]
-    paths: ['website/app/Services/Studio/**', 'website/app/Http/Controllers/Ai/StudioController.php', 'website/app/Models/CustomerApiToken.php', 'website/routes/studio-*.php', 'website/tests/Feature/StudioSsoTest.php', 'website/config/studio.php', 'website/database/migrations/*studio_authorization*', '.github/workflows/studio-sso.yml']
+    paths: ['website/app/Http/Middleware/StudioRateLimit.php', 'website/app/Services/Studio/**', 'website/app/Http/Controllers/Ai/StudioController.php', 'website/app/Models/CustomerApiToken.php', 'website/routes/studio-*.php', 'website/tests/Feature/StudioSsoTest.php', 'website/config/studio.php', 'website/database/migrations/*studio_authorization*', '.github/workflows/studio-sso.yml']
 permissions:
   contents: read
 jobs:
