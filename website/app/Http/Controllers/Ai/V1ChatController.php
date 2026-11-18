@@ -170,7 +170,12 @@ final class V1ChatController extends Controller
         */
         $idempotencyKey = trim((string) ($request->header('Idempotency-Key') ?? ''));
 
-        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null, $operation, $operation==='native');
+        $ceiling = $operation === 'native' ? $request->header('X-ServerNet-Max-Hold-Irt') : null;
+        if ($ceiling !== null && (filter_var($ceiling, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) === false)) {
+            return $this->fail('invalid_payload', 'Invalid reservation limit.', 422);
+        }
+        $outcome = app(AiCaller::class)->handle($auth, $payload, $idempotencyKey !== '' ? $idempotencyKey : null,
+            $operation, $operation === 'native', $ceiling === null ? null : (int) $ceiling);
 
         /*
         | بدنهٔ ارائه‌دهنده در M5.1b بی‌تفسیر برمی‌گردد (بازنویسیِ نام و شناسه مالِ M5.2

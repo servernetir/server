@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\AiProject;
+use App\Models\AiUsage;
 use App\Models\CreditEntry;
 use App\Models\CustomerApiToken;
 use App\Services\Studio\StudioAuthorization;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\Feature\Concerns\AiGatewayFixture;
 use Tests\TestCase;
 
@@ -197,5 +199,57 @@ class StudioSsoTest extends TestCase
         [, $other, $otherToken] = $this->greenKey();
         $otherToken->update(['abilities'=>StudioAuthorization::SCOPES]);
         $this->withToken($other)->getJson('/v1/studio/account')->assertOk();
+    }
+
+    public function test_media_quote_creates_no_usage_and_the_ceiling_blocks_a_charge(): void
+    {
+        [, $key, $token] = $this->greenKey();
+        $name = 'black-forest-labs/FLUX-1-schnell';
+        $contracts = json_decode(file_get_contents(resource_path('content/ai-native-contracts.json')), true, flags: JSON_THROW_ON_ERROR);
+        $this->model->update(['category'=>'image','upstream_model'=>$name,
+            'capabilities'=>['native_tariff_hash'=>$contracts[$this->provider->slug.':'.$name]['tariff_hash']]]);
+        $body = ['model'=>$this->model->slug,'prompt'=>'A blue square.','width'=>1024,'height'=>1024];
+        Http::fake();
+        $this->withToken($key)->postJson('/v1/studio/media/quote', $body)->assertForbidden();
+        $token->update(['abilities'=>StudioAuthorization::SCOPES]);
+        $quote = $this->withToken($key)->postJson('/v1/studio/media/quote', $body)->assertOk()->json('max_hold_irt');
+        $this->assertGreaterThan(0, $quote);
+        $this->withToken($key)->postJson('/v1/inference', $body, ['X-ServerNet-Max-Hold-Irt'=>(string) ($quote - 1)])
+            ->assertConflict()->assertJsonPath('code','quote_changed');
+        $this->assertSame(0, AiUsage::count());
+        Http::assertNothingSent();
+    }
+
+    public function test_free_chat_has_no_wallet_charge_or_paid_provider_fallback(): void
+    {
+        [$customer, $key, $token] = $this->greenKey();
+        $token->update(['abilities'=>StudioAuthorization::SCOPES]);
+        $body = ['model'=>'studio-free-chat','messages'=>[['role'=>'user','content'=>'Hi']]];
+        $this->withToken($key)->postJson('/v1/studio/free/chat', $body)->assertNotFound();
+        config(['studio.free_openrouter_key'=>str_repeat('k', 36)]);
+        Http::fake(['https://openrouter.ai/api/v1/chat/completions'=>Http::response([
+            'choices'=>[['message'=>['content'=>'Hello']]], 'usage'=>['cost'=>0,'prompt_tokens'=>4,'completion_tokens'=>2],
+        ])]);
+        $before = $this->balance($customer);
+        $this->withToken($key)->postJson('/v1/studio/free/chat', $body)->assertOk()
+            ->assertJsonPath('charge_irt',0)->assertJsonPath('text','Hello');
+        Http::assertSent(fn ($request) => $request['model']==='openrouter/free' && $request['provider']['max_price']['completion']===0);
+        $this->assertSame($before,$this->balance($customer));
+        $this->assertSame(0,AiUsage::count());
+    }
+
+    public function test_mcp_is_bearer_authenticated_and_only_offers_read_only_models(): void
+    {
+        $init = ['jsonrpc'=>'2.0','id'=>1,'method'=>'initialize','params'=>['protocolVersion'=>'2025-11-25']];
+        $this->postJson('/v1/studio/mcp', $init)->assertUnauthorized();
+        [, $key, $token] = $this->greenKey();
+        $token->update(['abilities'=>StudioAuthorization::SCOPES]);
+        $this->withToken($key)->postJson('/v1/studio/mcp',$init,['Origin'=>'https://untrusted.test'])->assertForbidden();
+        $this->withToken($key)->postJson('/v1/studio/mcp',$init)->assertOk()->assertJsonPath('result.protocolVersion','2025-11-25');
+        $this->withToken($key)->postJson('/v1/studio/mcp',['jsonrpc'=>'2.0','id'=>2,'method'=>'tools/list'])
+            ->assertOk()->assertJsonPath('result.tools.0.name','list_models')->assertJsonPath('result.tools.0.annotations.readOnlyHint',true);
+        $this->withToken($key)->postJson('/v1/studio/mcp',['jsonrpc'=>'2.0','id'=>3,'method'=>'tools/call',
+            'params'=>['name'=>'list_models','arguments'=>['category'=>'chat']]])->assertOk()->assertJsonPath('result.content.0.type','text');
+        $this->assertSame(0,AiUsage::count());
     }
 }

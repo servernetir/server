@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 final class StudioAuthorization
 {
-    public const SCOPES = ['ai:models:read', 'ai:chat', 'ai:wallet:read'];
+    public const SCOPES = ['ai:models:read', 'ai:chat', 'ai:wallet:read', 'ai:native'];
 
     public function configured(): bool
     {
