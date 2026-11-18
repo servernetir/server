@@ -125,7 +125,7 @@ class AiGatewayController extends Controller
         } elseif (filled($data['api_key'] ?? null)) {
             \App\Models\Setting::putSecret('ai_provider_'.$provider->slug.'_key', trim((string) $data['api_key']));
         }
-        if (filled($data['base_url'] ?? null)) {
+        if ($provider->slug !== AiProvider::DIRECT_OPENAI && filled($data['base_url'] ?? null)) {
             \App\Models\Setting::put('ai_provider_'.$provider->slug.'_base_url', rtrim((string) $data['base_url'], '/'));
         }
 
@@ -150,7 +150,7 @@ class AiGatewayController extends Controller
             'hasFeeColumn' => Schema::hasColumn('ai_providers', 'fx_fee_bp'),
             'hasM5Columns' => Schema::hasColumn('ai_providers', 'paused_at'),
             'hasKey' => $provider !== null && \App\Models\Setting::getSecret('ai_provider_'.$provider->slug.'_key') !== null,
-            'baseUrl' => $provider !== null ? \App\Models\Setting::get('ai_provider_'.$provider->slug.'_base_url') : null,
+            'baseUrl' => $provider?->apiBaseUrl(),
         ]);
     }
 

@@ -68,7 +68,9 @@
       @endif
       <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">
         آدرسِ پایهٔ API (سازگار با OpenAI)
-        <input type="url" name="base_url" dir="ltr" maxlength="255" value="{{ old('base_url', $baseUrl) }}"
+        <input type="url" name="base_url" dir="ltr" maxlength="255"
+               value="{{ $provider->slug === \App\Models\AiProvider::DIRECT_OPENAI ? $baseUrl : old('base_url', $baseUrl) }}"
+               @readonly($provider->slug === \App\Models\AiProvider::DIRECT_OPENAI)
                placeholder="https://api.deepinfra.com/v1/openai" class="ad-input" style="padding:8px">
       </label>
       <label style="display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)">

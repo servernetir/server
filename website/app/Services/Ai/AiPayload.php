@@ -3,6 +3,7 @@
 namespace App\Services\Ai;
 
 use App\Models\AiModel;
+use App\Models\AiProvider;
 
 /**
  * پاک‌سازیِ بدنهٔ /v1 پیش از هر پولی (m5-spec §4.A2–A3، §7).
@@ -111,10 +112,13 @@ final class AiPayload
         $omitted = $asked === [];
         $output = min($omitted ? $cap : min($asked), $cap);
 
+        $directOpenAi = $model->provider?->slug === AiProvider::DIRECT_OPENAI;
+        $allowed = $directOpenAi ? array_diff(self::ALLOWED, ['top_k', 'min_p', 'repetition_penalty', 'stop',
+            'temperature', 'top_p', 'presence_penalty', 'frequency_penalty', 'seed', 'logprobs', 'top_logprobs']) : self::ALLOWED;
         $forward = [];
         $dropped = [];
         foreach ($client as $k => $v) {
-            if (in_array($k, self::ALLOWED, true)) {
+            if (in_array($k, $allowed, true)) {
                 $forward[$k] = $v;
             } elseif (! in_array($k, ['model', 'max_tokens', 'max_completion_tokens', 'n', 'stream', 'stream_options'], true)) {
                 $dropped[] = (string) $k;
@@ -135,7 +139,7 @@ final class AiPayload
         if ($model->provider?->slug === 'deepinfra' && $model->upstream_model === 'nvidia/Nemotron-Content-Safety-3.5') {
             $input += 1024; // Verified 469 prompt tokens for a short request: internal safety template.
         }
-        $tierLimit = $model->capabilities['pricing_context_limit'] ?? null;
+        $tierLimit = $directOpenAi ? OpenAiCatalog::CONTEXT_LIMIT : ($model->capabilities['pricing_context_limit'] ?? null);
         if (is_int($tierLimit) && $input + $output > $tierLimit) {
             throw new AiRequestException('request_too_large', 'Input and output exceed this model pricing tier limit.', 413);
         }

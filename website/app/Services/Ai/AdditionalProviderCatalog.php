@@ -20,18 +20,26 @@ final class AdditionalProviderCatalog
 
     public function sync(string $slug): array
     {
-        if (! in_array($slug, ['gapgpt', 'deepseek'], true)) {
+        if (! in_array($slug, ['gapgpt', 'deepseek', AiProvider::DIRECT_OPENAI], true)) {
             throw new \InvalidArgumentException('Unsupported catalogue provider.');
         }
         $provider = AiProvider::where('slug', $slug)->firstOrFail();
-        if (blank($provider->apiKey())) {
+        $key = $provider->apiKey();
+        if (blank($key)) {
             throw new \RuntimeException('Catalogue credentials are missing.');
         }
-        return Cache::lock('ai:'.$slug.':catalogue', 180)->block(5, function () use ($provider, $slug) {
+        return Cache::lock('ai:'.$slug.':catalogue', 180)->block(5, function () use ($provider, $slug, $key) {
             // Fixed official hosts: credentials never go to an editable documentation URL.
-            $base = $slug === 'gapgpt' ? 'https://api.gapgpt.app/v1' : 'https://api.deepseek.com';
-            $models = Http::withToken($provider->apiKey())->connectTimeout(10)->timeout(45)
-                ->get($base.'/models')->throw()->json('data');
+            $base = match ($slug) {
+                'gapgpt' => 'https://api.gapgpt.app/v1',
+                'deepseek' => 'https://api.deepseek.com',
+                AiProvider::DIRECT_OPENAI => AiProvider::DIRECT_OPENAI_URL,
+            };
+            $request = Http::withToken($key)->connectTimeout(10)->timeout(45);
+            if ($slug === AiProvider::DIRECT_OPENAI) {
+                $request->withoutRedirecting();
+            }
+            $models = $request->get($base.'/models')->throw()->json('data');
             if (! is_array($models) || ! array_is_list($models) || $models === []) {
                 throw new \RuntimeException('Incomplete model discovery.');
             }
@@ -43,9 +51,13 @@ final class AdditionalProviderCatalog
                 }
                 $ids[$id] = true;
             }
-            $response = Http::withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])->connectTimeout(10)->timeout(45)
-                ->get($slug === 'gapgpt' ? self::GAPGPT_PRICES : self::DEEPSEEK_PRICES)->throw();
-            $rows = $slug === 'gapgpt' ? self::gapRows($response->body()) : self::deepseekRows($response->body());
+            if ($slug === AiProvider::DIRECT_OPENAI) {
+                $rows = app(OpenAiCatalog::class)->discoverPrices($ids);
+            } else {
+                $response = Http::withOptions(['curl' => [CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]])->connectTimeout(10)->timeout(45)
+                    ->get($slug === 'gapgpt' ? self::GAPGPT_PRICES : self::DEEPSEEK_PRICES)->throw();
+                $rows = $slug === 'gapgpt' ? self::gapRows($response->body()) : self::deepseekRows($response->body());
+            }
             return DB::transaction(fn () => $this->import($provider, $ids, $rows));
         });
     }
@@ -160,6 +172,7 @@ final class AdditionalProviderCatalog
 
     private function import(AiProvider $provider, array $ids, array $rows): array
     {
+        $direct = $provider->slug === AiProvider::DIRECT_OPENAI;
         $seen = [];
         $counts = ['imported' => 0, 'execution_ready' => 0, 'pending' => 0];
         foreach ($rows as $id => $row) {
@@ -170,16 +183,20 @@ final class AdditionalProviderCatalog
             if ($nativePrice) $ready=isset($ids[$id]) && AiNative::candidate($provider->slug,$id,$nativePrice)!==null;
             $caps = $model->capabilities ?? [];
             $model->fill([
-                'name' => $id, 'vendor' => $row['vendor'], 'category' => $row['category'],
-                'context_tokens' => $provider->slug === 'deepseek' ? 1_000_000 : 4096,
-                'max_output_tokens' => $provider->slug === 'deepseek' ? 4096 : 1024,
-                'docs_url' => $provider->slug === 'deepseek' ? self::DEEPSEEK_PRICES : 'https://gapgpt.app/platform-v2/pricing',
+                'name' => $row['name'] ?? $id, 'vendor' => $row['vendor'], 'category' => $row['category'],
+                'context_tokens' => match ($provider->slug) {
+                    AiProvider::DIRECT_OPENAI => OpenAiCatalog::CONTEXT_LIMIT,
+                    'deepseek' => 1_000_000,
+                    default => 4096,
+                },
+                'max_output_tokens' => $direct || $provider->slug === 'deepseek' ? 4096 : 1024,
+                'docs_url' => $row['docs_url'] ?? ($provider->slug === 'deepseek' ? self::DEEPSEEK_PRICES : 'https://gapgpt.app/platform-v2/pricing'),
                 'capabilities' => array_merge($caps, [
                     'catalogue_source' => $provider->slug, 'catalogue_at' => now()->toIso8601String(),
                     'execution_ready' => $ready, 'streaming' => $ready && $row['category'] === 'chat',
                     'pending_reason' => $ready ? null : (isset($ids[$id]) ? 'endpoint_or_metering_pending' : 'model_unavailable'),
                     'native_tariff_hash'=>$nativePrice ? AiNative::fingerprint($nativePrice) : null,
-                ]),
+                ], $direct ? ['vision' => false] : []),
             ]);
             if ($new) {
                 $model->slug = substr($provider->slug.'-'.Str::slug($id), 0, 67).'-'.substr(hash('sha256', $id), 0, 10);
