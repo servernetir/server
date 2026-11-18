@@ -4,7 +4,6 @@ namespace App\Services\AiProviders;
 
 use App\Models\AiModel;
 use App\Models\AiProvider;
-use App\Models\Setting;
 use GuzzleHttp\TransferStats;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -47,9 +46,7 @@ class OpenAiCompatibleDriver implements AiProviderDriver
     /** آدرسِ پایه — از تنظیم‌های سرویس؛ نال یعنی ارائه‌دهنده پیکربندی نشده */
     public function baseUrl(): ?string
     {
-        $url = Setting::get('ai_provider_'.$this->provider->slug.'_base_url');
-
-        return filled($url) ? rtrim((string) $url, '/') : null;
+        return $this->provider->apiBaseUrl();
     }
 
     /**
@@ -73,6 +70,18 @@ class OpenAiCompatibleDriver implements AiProviderDriver
             // اسلاگِ عمومیِ ما هرگز به بالادست نمی‌رود — نامِ واقعیِ مدل
             'model' => $model->upstream_model,
         ]);
+
+        $directOpenAi = $this->provider->slug === AiProvider::DIRECT_OPENAI;
+        if ($directOpenAi) {
+            if ($model->category !== AiModel::CATEGORY_CHAT || ! is_int($payload['max_tokens'] ?? null)) {
+                throw new AiProviderCallException('provider_unconfigured', 'Only bounded chat is enabled for this provider.', sent: false);
+            }
+            // OpenAI includes reasoning in this output ceiling. Keep standard pricing and disable API storage.
+            $body['max_completion_tokens'] = $payload['max_tokens'];
+            $body['service_tier'] = 'default';
+            $body['store'] = false;
+            unset($body['max_tokens']);
+        }
 
         // GapGPT's compatibility translator uses the completion-token field for
         // these routes. Keep both equal for reasoning providers until a bounded
@@ -103,7 +112,7 @@ class OpenAiCompatibleDriver implements AiProviderDriver
                 ->acceptJson()
                 ->withOptions(['stream' => ($payload['stream'] ?? false) === true, 'read_timeout' => 30, 'on_stats' => function (TransferStats $s) use (&$uploaded) {
                     $uploaded = (int) ($s->getHandlerStats()['size_upload'] ?? 0);
-                }])
+                }] + ($directOpenAi ? ['allow_redirects' => false] : []))
                 ->post(match ($model->category) {
                     'embedding' => $baseUrl.'/embeddings',
                     'rerank' => $this->provider->slug === 'deepinfra'

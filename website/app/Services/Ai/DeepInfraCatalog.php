@@ -187,7 +187,11 @@ final class DeepInfraCatalog
     public static function isFresh(AiModel $model): bool
     {
         $caps = $model->capabilities ?? [];
-        if (! in_array($caps['catalogue_source'] ?? null, ['deepinfra', 'deepseek', 'gapgpt'], true)) {
+        $source = $caps['catalogue_source'] ?? null;
+        if ($model->provider?->slug === AiProvider::DIRECT_OPENAI && $source !== AiProvider::DIRECT_OPENAI) {
+            return false;
+        }
+        if (! in_array($source, ['deepinfra', 'deepseek', 'gapgpt', AiProvider::DIRECT_OPENAI], true)) {
             return true;
         }
         try {

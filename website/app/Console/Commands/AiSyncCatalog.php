@@ -9,18 +9,19 @@ use Illuminate\Console\Command;
 
 class AiSyncCatalog extends Command
 {
-    protected $signature = 'ai:sync-catalog {--provider=all : all, deepinfra, deepseek or gapgpt}';
+    protected $signature = 'ai:sync-catalog {--provider=all : all, deepinfra, deepseek, gapgpt or openai}';
     protected $description = 'Import official provider catalogues and versioned prices';
 
     public function handle(DeepInfraCatalog $catalog): int
     {
         $selected = (string) $this->option('provider');
-        if (! in_array($selected, ['all', 'deepinfra', 'deepseek', 'gapgpt'], true)) {
+        $providers = ['deepinfra', 'deepseek', 'gapgpt', AiProvider::DIRECT_OPENAI];
+        if ($selected !== 'all' && ! in_array($selected, $providers, true)) {
             $this->error('Unsupported provider.');
             return self::FAILURE;
         }
         $failed = false;
-        foreach ($selected === 'all' ? ['deepinfra', 'deepseek', 'gapgpt'] : [$selected] as $slug) {
+        foreach ($selected === 'all' ? $providers : [$selected] as $slug) {
             if ($slug !== 'deepinfra' && ! AiProvider::where('slug', $slug)->where('enabled', true)->exists()) continue;
             try {
                 $result = $slug === 'deepinfra' ? $catalog->sync() : app(AdditionalProviderCatalog::class)->sync($slug);

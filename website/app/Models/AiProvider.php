@@ -17,6 +17,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class AiProvider extends Model
 {
+    public const DIRECT_OPENAI = 'openai';
+    public const DIRECT_OPENAI_URL = 'https://api.openai.com/v1';
+
     public const STATUS_NONE = 'none';
     public const STATUS_REQUESTED = 'requested';
     public const STATUS_SIGNED = 'signed';
@@ -84,6 +87,17 @@ class AiProvider extends Model
     public function apiKey(): ?string
     {
         return Setting::getSecret('ai_provider_'.$this->slug.'_key');
+    }
+
+    public function apiBaseUrl(): ?string
+    {
+        if ($this->slug === self::DIRECT_OPENAI) {
+            return self::DIRECT_OPENAI_URL;
+        }
+
+        $url = Setting::get('ai_provider_'.$this->slug.'_base_url');
+
+        return filled($url) ? rtrim((string) $url, '/') : null;
     }
 
     public static function bySlug(string $slug): ?self

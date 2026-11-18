@@ -48,9 +48,21 @@ class StudioDownloadsTest extends TestCase
 
     public function test_missing_release_shows_honest_preparation_state_in_every_language(): void
     {
-        foreach (['' => 'در حال آماده‌سازی', '/en' => 'In preparation', '/tr' => 'Hazırlanıyor'] as $prefix => $label) {
-            $this->get($prefix.'/studio/download')->assertOk()->assertSee($label)->assertDontSee('.exe')->assertDontSee('.dmg');
+        $languages = [
+            '' => ['در حال آماده‌سازی', 'باز کردن استودیو در مرورگر'],
+            '/en' => ['In preparation', 'Open Studio in browser'],
+            '/tr' => ['Hazırlanıyor', 'Studio’yu tarayıcıda aç'],
+        ];
+        foreach ($languages as $prefix => [$status, $launch]) {
+            $this->get($prefix.'/studio/download')->assertOk()
+                ->assertSee($status)->assertSee($launch)
+                ->assertSee('href="https://studio.servernet.cloud/"', false)
+                ->assertDontSee('.exe')->assertDontSee('.dmg');
         }
+
+        config(['studio.enabled' => false]);
+        $this->get('/studio/download')->assertOk()
+            ->assertDontSee('href="https://studio.servernet.cloud/"', false);
     }
 
     public function test_ai_landing_opens_the_web_studio_before_the_signed_installer_is_ready(): void

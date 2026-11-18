@@ -49,6 +49,24 @@ was rejected and why (§0 of the spec disposes of every flaw the judges raised).
 - Streaming (SSE) is a **launch blocker** — nothing is sold before it works with
   exact billing.
 
+## Direct OpenAI chat
+
+The `openai` provider registers with sales and live calls disabled. In the
+existing AI provider settings, store a ServerNet-owned OpenAI API project key
+and enable technical discovery. `php artisan ai:sync-catalog --provider=openai`
+reads the project's model access and the official standard token prices. It
+imports GPT-5.5, GPT-5.4 and GPT-5.4 mini when available and leaves newly imported
+models disabled. The scheduled catalogue refresh keeps price versions current.
+
+Before enabling customer traffic, confirm the OpenAI project and customers are
+eligible under [OpenAI's supported territories](https://developers.openai.com/api/docs/supported-countries),
+configure the actual funding fee and approved spend controls, and use the
+existing provider and model activation settings. The route uses OpenAI's global
+Chat Completions endpoint with the standard tier and a bounded text request.
+Wallet settlement uses provider-reported token usage, including reasoning
+already counted in completion tokens. Disable sales for this provider to roll
+back serving it while retaining usage and price history.
+
 ## Historical launch prerequisites — current resolution above
 
 1. `ai_margin_pct` — owner confirmed 5%; configured and verified on all quotes.

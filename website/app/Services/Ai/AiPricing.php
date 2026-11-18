@@ -203,7 +203,7 @@ final class AiPricing
         if (blank($p->apiKey())) {
             $gates[] = 'provider_key_missing';
         }
-        if (blank(Setting::get('ai_provider_'.$p->slug.'_base_url'))) {
+        if ($p->apiBaseUrl() === null) {
             $gates[] = 'provider_base_missing';
         }
         if (Setting::get('ai_sales_open') !== '1') {
