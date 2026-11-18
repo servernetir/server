@@ -125,6 +125,12 @@
 
     <div class="dev-doc">
 
+      <section class="dev-note" aria-labelledby="project-guide">
+        <h2 id="project-guide">{{ $L('project_guide_title') }}</h2>
+        <p>{{ $L('project_guide_summary') }}</p>
+        <a href="https://github.com/servernetir/server/blob/develop/README.md">{{ $L('project_guide_link') }}</a>
+      </section>
+
       {{-- مسیرِ صفحهٔ دوم. بی‌این، مشتریِ سرورِ اکسیت که به این صفحه هدایت شده
            هیچ‌وقت نمی‌فهمد مرجعِ کارِ خودش جای دیگری است. --}}
       <div class="dev-note">
