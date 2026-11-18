@@ -41,10 +41,17 @@ class CloudCatalogRepricer
     /** Refresh only this supplier without quoting or changing other suppliers. */
     public function runForProvider(string $provider, bool $persist = true): int
     {
-        if (! in_array($provider, ['lightnode', 'arvan'], true)) {
+        if (! array_key_exists($provider, CloudManager::DRIVERS)) {
             throw new \InvalidArgumentException('Unsupported isolated supplier refresh.');
         }
-        return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performRun($persist, $provider));
+        return app(CatalogRefreshRequests::class)->exclusive(function () use ($provider, $persist): int {
+            $count = $this->performRun($persist, $provider);
+            if ($persist) {
+                \App\Services\SiteMenu::forget();
+            }
+
+            return $count;
+        });
     }
 
     private function performRun(bool $persist, ?string $only = null, bool $prepareOnly = false): int|\Closure
@@ -74,8 +81,11 @@ class CloudCatalogRepricer
         $providerInputs = $only !== null && $snapshot->current('vpstc')
             ? ['vpstc' => app(VpsTcPricing::class)->fingerprint()] : [];
         $unavailable = [];
-        $unverifiedPlans = $only === null ? []
-            : array_values(array_diff(CloudPricingSnapshot::excludedPlanIds(), $plans->modelKeys()));
+        // Only a successful sync can revalidate an inactive product. A price
+        // refresh must retain its quarantine so the recovery job still sees it.
+        $previouslyExcludedPlans = CloudPricingSnapshot::excludedPlanIds();
+        $repriceableIds = $plans->filter(fn (CloudPlan $plan) => $plan->is_active && ! $plan->admin_disabled)->modelKeys();
+        $unverifiedPlans = array_values(array_diff($previouslyExcludedPlans, $repriceableIds));
 
         foreach ($plans->whereIn('provider', self::NORMALIZED_PROVIDERS)->groupBy('provider') as $provider => $group) {
             $vpstcInput = null;
@@ -139,8 +149,10 @@ class CloudCatalogRepricer
                     }
                 }
                 if ($provider === 'lightnode' && $driver instanceof LightNodeClient) {
+                    $unverifiedLocations = $catalog['unverified_locations'] ?? [];
                     $missing = $active->filter(fn (CloudPlan $plan) =>
-                        ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
+                        ! LightNodeClient::hasUnverifiedLocation($plan, $unverifiedLocations)
+                        && ! isset($quotes[$this->key($plan->provider_ref, $plan->location_code)]));
                     if ($missing->isNotEmpty()) {
                         // Public quote reads can transiently omit individual plans.
                         // Retry only those exact products, with fresh quotes and specs.
@@ -204,7 +216,10 @@ class CloudCatalogRepricer
             } catch (\Throwable $e) {
                 if ($only !== null) { throw $e; }
                 foreach ($group as $plan) { unset($nativeCosts[$plan->id], $unavailable[$plan->id]); }
-                $unverifiedPlans = array_values(array_diff($unverifiedPlans, $group->modelKeys()));
+                $unverifiedPlans = array_values(array_unique([
+                    ...$unverifiedPlans,
+                    ...array_intersect($group->modelKeys(), $previouslyExcludedPlans),
+                ]));
                 unset($providerInputs[$provider]);
                 $code = $this->failureReason($e);
                 $reasons[$provider] = $code;

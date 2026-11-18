@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\{CloudPlan, Setting};
-use App\Services\Cloud\{CatalogRefreshBusy, CloudCatalogSync, CloudManager, CloudPricingSnapshot};
+use App\Services\Cloud\{CatalogRefreshBusy, CloudCatalogRepricer, CloudCatalogSync, CloudManager, CloudPricingSnapshot};
 use App\Services\ExchangeRate;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
@@ -24,10 +24,10 @@ class RecoverCloudSales extends Command
             $state = json_decode((string) Setting::get(self::STATE_KEY, '{}'), true);
             $state = is_array($state) ? $state : [];
             if ($snapshot->rates() === null || (Setting::get('vpstc_currency') === 'TRY' && $fx->toToman('TRY') === null)) {
-                $this->attempt($state, 'fx', function () use ($snapshot): bool {
+                $this->attempt($state, 'fx', function () use ($snapshot, $fx): bool {
                     $this->call('fx:dollar');
-                    // An optional rejected TRY must not hide core recovery failure/success.
-                    return $snapshot->current() && app(ExchangeRate::class)->toToman('TRY') !== null;
+                    return $snapshot->current()
+                        && (Setting::get('vpstc_currency') !== 'TRY' || $fx->toToman('TRY') !== null);
                 });
             } else { unset($state['fx']); }
             if (! $snapshot->current()) {
@@ -55,10 +55,10 @@ class RecoverCloudSales extends Command
                 if ($budget <= 0 || ! $this->due($state, $provider)) { continue; }
                 $budget--;
                 $this->attempt($state, $provider, function () use ($catalog, $snapshot, $provider): bool {
-                    $report = $catalog->sync($provider);
+                    $report = $catalog->sync($provider, preserveVerifiedOffers: true);
                     if (($report['providers'][$provider]['ok'] ?? false) !== true) { return false; }
                     // A successful catalogue read alone does not publish a usable quote.
-                    $catalog->reprice();
+                    app(CloudCatalogRepricer::class)->runForProvider($provider);
                     return $snapshot->current($provider)
                         && CloudPlan::where('provider', $provider)->sellable()->exists()
                         && ! CloudPlan::where('provider', $provider)->where('admin_disabled', false)

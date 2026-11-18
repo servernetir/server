@@ -117,6 +117,40 @@ class LightNodeClientTest extends TestCase
         Http::assertSent(fn ($r) => $r->header('x-open-token') === ['test-token'] && ! $r->hasHeader('Authorization'));
     }
 
+    public function test_unavailable_image_region_quarantines_only_its_offers_through_sync_and_repricing(): void
+    {
+        config(['lightnode.sales_enabled' => true]);
+        $this->fake([
+            '*/region/list*' => Http::response(['regions' => [
+                ['regionCode' => 'failed', 'zones' => [['zoneCode' => 'failed-a']]],
+                ['regionCode' => 'ph-test', 'zones' => [['zoneCode' => 'ph-test-a']]],
+            ]]),
+            '*/image/list*' => fn ($request) => str_contains($request->url(), 'regionCode=failed')
+                ? Http::response([], 503)
+                : Http::response(['images' => [$this->image()]]),
+        ]);
+        $this->manifest();
+        $manifest = json_decode(Setting::get('lightnode_manifest'), true);
+        $manifest['regions']['failed'] = ['country' => 'DE', 'city' => 'Frankfurt', 'location_code' => 'de-frankfurt'];
+        Setting::put('lightnode_manifest', json_encode($manifest, JSON_THROW_ON_ERROR));
+        $failed = CloudPlan::create(['provider' => 'lightnode', 'provider_ref' => 'failed|failed-a|sample-package',
+            'provider_location' => 'failed|failed-a', 'location_code' => 'de-frankfurt', 'slug' => 'failed',
+            'public_name' => 'Regional plan', 'vcpu' => 2, 'ram_mb' => 4096, 'disk_gb' => 50,
+            'cost_eur_cents' => 1000, 'price_eur_cents' => 1500, 'price_irt' => 1500000,
+            'is_active' => true, 'in_stock' => true]);
+        $before = $failed->fresh()->getRawOriginal();
+        $this->assertTrue(app(CloudCatalogSync::class)->sync('lightnode')['ok']);
+        $this->assertSame([$failed->id], CloudPricingSnapshot::excludedPlanIds());
+        app(\App\Services\Cloud\CloudCatalogRepricer::class)->runForProvider('lightnode');
+
+        $this->assertSame($before, $failed->fresh()->getRawOriginal());
+        $this->assertSame([$failed->id], CloudPricingSnapshot::excludedPlanIds());
+        $this->assertTrue(app(CloudPricingSnapshot::class)->current('lightnode'));
+        $this->assertSame(['ph-manila'], CloudPlan::sellable()->where('provider', 'lightnode')->pluck('location_code')->all());
+        Http::assertNotSent(fn ($request) => $request->method() !== 'GET'
+            || (str_contains($request->url(), '/package/list') && str_contains($request->url(), 'regionCode=failed')));
+    }
+
     public function test_transient_read_recovers_without_retrying_rejected_authentication(): void
     {
         $this->fake(['*/region/list*' => Http::sequence()->pushFailedConnection()->push(['regions' => []])]);
