@@ -53,6 +53,18 @@ class StudioDownloadsTest extends TestCase
         }
     }
 
+    public function test_ai_landing_opens_the_web_studio_before_the_signed_installer_is_ready(): void
+    {
+        foreach (['', '/en', '/tr'] as $prefix) {
+            $this->get($prefix.'/ai')->assertOk()
+                ->assertSee('href="https://studio.servernet.cloud/"', false)
+                ->assertDontSeeText(__('ai_studio.download'));
+        }
+
+        config(['studio.enabled' => false]);
+        $this->get('/ai')->assertOk()->assertDontSee('href="https://studio.servernet.cloud/"', false);
+    }
+
     public function test_approved_complete_release_has_only_fixed_servernet_download_urls(): void
     {
         $this->write($this->manifest());
