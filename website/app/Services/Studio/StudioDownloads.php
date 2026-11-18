@@ -16,9 +16,13 @@ final class StudioDownloads
             || ! preg_match('/\A[0-9]+\.[0-9]+\.[0-9]+\z/', $data['version'] ?? '')
             || ! preg_match('/\A[a-f0-9]{40}\z/', $data['source_sha'] ?? '')) return null;
         $expected = ['windows_x64' => 'win-x64.exe', 'macos_arm64' => 'mac-arm64.dmg', 'macos_x64' => 'mac-x64.dmg'];
+        if ($data['files'] === [] || array_diff(array_keys($data['files']), array_keys($expected))) return null;
         $downloads = [];
         foreach ($expected as $key => $suffix) {
-            $file = $data['files'][$key] ?? [];
+            // A platform is published only when explicitly included and verified.
+            // Windows can ship while the Mac packages are still in preparation.
+            if (! array_key_exists($key, $data['files'])) continue;
+            $file = $data['files'][$key];
             if (! is_array($file) || ! is_string($file['sha256'] ?? null)) return null;
             $name = 'ServerNet-Studio-'.$data['version'].'-'.$suffix;
             $local = rtrim(config('studio.downloads_directory'), '/').'/'.$name;

@@ -81,4 +81,41 @@ class StudioDownloadsTest extends TestCase
         $this->write($baseline);
         $this->assertNull(app(StudioDownloads::class)->release());
     }
+
+    public function test_windows_can_publish_before_either_mac_package_in_every_language(): void
+    {
+        $data = $this->manifest();
+        unset($data['files']['macos_arm64'], $data['files']['macos_x64']);
+        $this->write($data);
+        $this->assertSame(['windows_x64'], array_keys(app(StudioDownloads::class)->release()['downloads']));
+        foreach (['' => 'در حال آماده‌سازی', '/en' => 'In preparation', '/tr' => 'Hazırlanıyor'] as $prefix => $label) {
+            $response = $this->get($prefix.'/studio/download')->assertOk()
+                ->assertSee('https://servernet.cloud/downloads/studio/ServerNet-Studio-0.2.0-win-x64.exe')
+                ->assertSee($label)->assertDontSee('.dmg');
+            $this->assertSame(2, substr_count($response->getContent(), 'class="studio-pending"'));
+        }
+    }
+
+    public function test_partial_release_still_requires_a_signed_present_windows_installer(): void
+    {
+        $data = $this->manifest();
+        unset($data['files']['macos_arm64'], $data['files']['macos_x64']);
+        $unsigned = $data;
+        $unsigned['files']['windows_x64']['signed'] = false;
+        $this->write($unsigned);
+        $this->assertNull(app(StudioDownloads::class)->release());
+        $this->write($data);
+        unlink($this->directory.'/'.$data['files']['windows_x64']['file']);
+        $this->assertNull(app(StudioDownloads::class)->release());
+    }
+
+    public function test_empty_unknown_and_null_platforms_cannot_create_a_public_release(): void
+    {
+        $data = $this->manifest();
+        foreach ([[], ['linux_x64' => $data['files']['windows_x64']], ['windows_x64' => null]] as $files) {
+            $data['files'] = $files;
+            $this->write($data);
+            $this->assertNull(app(StudioDownloads::class)->release());
+        }
+    }
 }
