@@ -93,8 +93,12 @@ class StudioSsoTest extends TestCase
     {
         $this->get('/account/studio/authorize?'.http_build_query($this->requestData()))->assertRedirect();
         [$customer] = $this->greenKey();
-        $this->actingAs($customer, 'customer')->get('/account/studio/authorize?'.http_build_query($this->requestData()))
+        $consent = $this->actingAs($customer, 'customer')->get('/account/studio/authorize?'.http_build_query($this->requestData()))
             ->assertOk()->assertSee('ServerNet Studio')->assertSee('code_challenge');
+        $this->assertMatchesRegularExpression(
+            '~form-action [^;]+ https://studio\.servernet\.test(?: |;)~',
+            $consent->headers->get('Content-Security-Policy') ?? ''
+        );
         $this->assertSame(0, DB::table('studio_authorization_codes')->count());
         $response = $this->post('/account/studio/authorize', $this->requestData())->assertRedirect();
         $this->assertStringStartsWith('https://studio.servernet.test/auth/callback?code=', $response->headers->get('Location'));
