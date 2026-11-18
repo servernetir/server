@@ -76,6 +76,13 @@
       </div>
     </div>
 
+    @if(\App\Services\Cloud\GpuCapacityOrders::replaceable($service))
+      <div class="cr-actions">
+        <a class="pnl-btn primary" href="{{ lroute('account.cloud.gpu-alternatives', $service) }}">{{ __('gpu-alternatives.choose') }}</a>
+        <p>{{ __('gpu-alternatives.choose_note') }}</p>
+      </div>
+    @endif
+
     @if($service->billing_mode === 'hourly')
       <section class="cr-wallet-policy" data-hourly-wallet-policy aria-labelledby="gpu-wallet-policy-heading">
         <h3 id="gpu-wallet-policy-heading"><svg class="icon" aria-hidden="true"><use href="#i-coins"/></svg>{{ __('ui.gpu_request_wallet_heading') }}</h3>

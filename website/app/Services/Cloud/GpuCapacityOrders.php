@@ -34,6 +34,12 @@ class GpuCapacityOrders
         return self::managed($service) && data_get($service->provision_meta, 'gpu_capacity_order.charge_pending') === true;
     }
 
+    /** Only an unallocated customer intent may be replaced; never a delivered resource. */
+    public static function replaceable(Service $service): bool
+    {
+        return $service->provision_status === self::WAIT && self::isUnallocatedHourlyIntent($service);
+    }
+
     /** Presentation only: retain the provider's real state and all allocation/billing gates. */
     public static function displayState(Service $service): string
     {

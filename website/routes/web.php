@@ -101,6 +101,8 @@ $site = function (): void {
     | «پکیجِ نمایندگی که cPanelِ ساده تحویل می‌داد».
     */
     Route::get('/gpu', [\App\Http\Controllers\GpuController::class, 'show'])->name('gpu');
+    Route::get('/gpu/capacity', [\App\Http\Controllers\Account\GpuCapacityController::class, 'check'])
+        ->name('gpu.capacity')->middleware('throttle:60,1');
     Route::post('/gpu/order', [\App\Http\Controllers\GpuOrderController::class, 'start'])->name('gpu.order')->middleware('throttle:12,1');
     /*
     | «نشان سرورنت» — موتورِ لینک‌سازیِ مشتری‌ها (ممیزی بک‌لینک ۲۵ اوت: لینکِ
@@ -508,6 +510,12 @@ $site = function (): void {
             ->name('gpu.capacity')->middleware('throttle:30,1');
         Route::post('/cloud/{service}/gpu-price', [Account\GpuCapacityController::class, 'confirmPrice'])
             ->name('cloud.gpu-price')->middleware('throttle:12,1');
+        Route::get('/cloud/{service}/gpu-alternatives', [Account\GpuCapacityController::class, 'alternatives'])
+            ->name('cloud.gpu-alternatives');
+        Route::get('/cloud/{service}/gpu-alternatives/{plan}', [Account\GpuCapacityController::class, 'previewAlternative'])
+            ->name('cloud.gpu-alternative-preview')->middleware('throttle:12,1');
+        Route::post('/cloud/{service}/gpu-alternatives', [Account\GpuCapacityController::class, 'replaceAlternative'])
+            ->name('cloud.gpu-alternative-replace')->middleware('throttle:12,1');
         Route::post('/cloud-store', [Account\CloudStoreController::class, 'order'])
             ->name('cloud.store.place')->middleware('throttle:12,1');
 

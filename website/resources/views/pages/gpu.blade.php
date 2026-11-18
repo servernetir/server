@@ -66,6 +66,10 @@
 
 @section('title', __('ui.gpu_meta_t'))
 @section('description', $gpuMetaD)
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/gpu-alternatives.css') }}">
+<script src="{{ asset_ver('assets/js/gpu-live-capacity.js') }}" defer></script>
+@endpush
 
 @section('content')
 <script type="application/ld+json">{!! schema_ld($gpuService, 'Service') !!}</script>
@@ -261,6 +265,7 @@
                 <input type="hidden" name="quotes[{{ $c['slug'] }}]" value="{{ $c['hourly_raw'] }}">
                 <span>
                   <b>{{ $c['gpu'] }}@if($c['gpu_count'] > 1)<span class="gpu-badge">{{ $isFa ? fa_num((string) $c['gpu_count']) : $c['gpu_count'] }} {{ __('ui.gpu_cards_n') }}</span>@endif</b>
+                  @include('account.partials.gpu-live-capacity', ['capacitySlug' => $c['slug'], 'capacityUrl' => lroute('gpu.capacity')])
                   <span class="gpu-spec">
                     {{ $isFa ? fa_num((string) $c['vcpu']) : $c['vcpu'] }} {{ __('ui.gpu_spec_cpu') }}
                     · {{ $isFa ? fa_num((string) $c['ram_gb']) : $c['ram_gb'] }}GB {{ __('ui.gpu_spec_ram') }}

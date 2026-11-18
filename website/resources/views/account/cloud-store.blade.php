@@ -1,5 +1,11 @@
 @extends('panel.layout')
 @section('title', __(($gpuMode ?? false) ? 'ui.cvb_gpu_title' : 'ui.cvb_title'))
+@if($gpuMode ?? false)
+@push('head')
+<link rel="stylesheet" href="{{ asset_ver('assets/css/gpu-alternatives.css') }}">
+<script src="{{ asset_ver('assets/js/gpu-live-capacity.js') }}" defer></script>
+@endpush
+@endif
 
 {{-- «برگهٔ سرور» — سرورساز به‌شکلِ یک رسید که خودش را پر می‌کند.
 
@@ -560,7 +566,13 @@
                   <label class="cvb-plan @if($p['slug'] === $curSlug) on @endif" data-slug="{{ $p['slug'] }}" data-kind="{{ $p['cpuKind'] }}" data-ord="{{ $loop->index }}" data-sv="{{ $p['vcpu'] }}" data-sr="{{ $p['ramMb'] }}" data-sd="{{ $p['diskGb'] }}"@if(! $uniNet) data-sn="{{ $p['trafficGb'] }}"@endif>
                     <input type="radio" name="plan" value="{{ $p['slug'] }}" @checked($p['slug'] === $curSlug)>
                     <span class="cvb-pn">
-                      {{ ($p['gpu'] ?? '') !== '' ? $p['gpu'] : $p['name'] }}
+                      @if(($p['gpu'] ?? '') !== '')
+                        <span class="ga-plan-name">{{ $p['gpu'] }}
+                          @include('account.partials.gpu-live-capacity', ['capacitySlug' => $p['slug'], 'capacityUrl' => lroute('account.gpu.capacity')])
+                        </span>
+                      @else
+                        {{ $p['name'] }}
+                      @endif
                       <span class="cvb-tick"><svg class="icon"><use href="#i-check"/></svg></span>
                     </span>
                     <span class="cvb-c cvb-c-cpu"><span class="cvb-sr">{{ __('ui.cvb_cores') }} </span>{{ fa_num($p['vcpu']) }} vCPU</span>
