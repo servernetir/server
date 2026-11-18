@@ -120,10 +120,59 @@ class CloudPlanFailureIsolationTest extends TestCase
         app(CloudCatalogRepricer::class)->run();
         $this->assertFalse(CloudPlan::sellable()->whereKey($bad->id)->exists());
         $this->assertTrue(CloudPlan::sellable()->whereKey($good->id)->exists());
+        $this->assertSame([$bad->id], CloudPricingSnapshot::excludedPlanIds());
         app(CloudCatalogSync::class)->sync('hetzner');
         app(CloudCatalogRepricer::class)->run();
         $this->assertTrue($bad->fresh()->is_active);
         $this->assertTrue(CloudPlan::sellable()->whereKey($bad->id)->exists());
+        $this->assertSame([], CloudPricingSnapshot::excludedPlanIds());
+    }
+
+    public function test_recovery_preserves_verified_offers_after_timeout_then_reprices_only_the_target_supplier(): void
+    {
+        $bad = $this->plan('hetzner', 'bad', ['is_active' => false]);
+        $good = $this->plan('hetzner', 'good');
+        $peer = $this->plan('arvan', 'peer');
+        $before = $peer->fresh()->getRawOriginal();
+        $snapshot = app(CloudPricingSnapshot::class);
+        $snapshot->excludePlans([$bad->id]);
+
+        $driver = \Mockery::mock(CloudProvider::class);
+        $driver->shouldReceive('fetchCatalog')->once()->ordered()->andThrow(new \Illuminate\Http\Client\ConnectionException);
+        $driver->shouldReceive('fetchCatalog')->once()->ordered()->andReturn(['ok' => true,
+            'locations' => [], 'images' => [], 'plans' => [$this->quote($bad), $this->quote($good)]]);
+        $manager = $this->mock(CloudManager::class);
+        $manager->shouldReceive('configured')->times(4)->andReturn(['hetzner' => $driver]);
+        $manager->shouldNotReceive('driver')->with('arvan');
+        Setting::put('vpstc_currency', 'EUR');
+
+        $this->artisan('cloud:recover-sales')->assertSuccessful();
+        $this->assertTrue($snapshot->current('hetzner'));
+        $this->assertTrue(CloudPlan::sellable()->whereKey($good->id)->exists());
+        $this->assertFalse(CloudPlan::sellable()->whereKey($bad->id)->exists());
+
+        $this->travel(5)->minutes();
+        $this->artisan('cloud:recover-sales')->assertSuccessful();
+        $this->assertTrue(CloudPlan::sellable()->whereKey($bad->id)->exists());
+        $this->assertTrue(CloudPlan::sellable()->whereKey($peer->id)->exists());
+        $this->assertSame($before, $peer->fresh()->getRawOriginal());
+        $this->assertSame([], CloudPricingSnapshot::excludedPlanIds());
+        Http::assertNothingSent();
+    }
+
+    public function test_confirmed_supplier_authentication_failure_can_still_close_sales_during_recovery(): void
+    {
+        $plan = $this->plan('hetzner', 'existing');
+        $driver = \Mockery::mock(CloudProvider::class);
+        $driver->shouldReceive('fetchCatalog')->once()
+            ->andReturn(['ok' => false, 'reason' => 'authentication_failed']);
+        $this->mock(CloudManager::class)->shouldReceive('configured')->once()->andReturn(['hetzner' => $driver]);
+
+        app(CloudCatalogSync::class)->sync('hetzner', preserveVerifiedOffers: true);
+
+        $snapshot = app(CloudPricingSnapshot::class);
+        $this->assertSame('authentication_failed', $snapshot->exclusionReasons()['hetzner']);
+        $this->assertFalse(CloudPlan::sellable()->whereKey($plan->id)->exists());
     }
 
     #[DataProvider('suppliers')]

@@ -52,14 +52,21 @@ class LightNodeClient implements CloudProvider
             if (! $response->successful() || ! is_array($body)
                 || ($body['success'] ?? true) === false
                 || (isset($body['httpStatus']) && (int) $body['httpStatus'] >= 400)) {
-                return ['ok' => false, 'message' => 'پاسخ زیرساخت معتبر نیست (HTTP '.$response->status().').',
+                $status = (int) ($body['httpStatus'] ?? $response->status());
+                $reason = match ($status) {
+                    401 => 'authentication_failed',
+                    403 => 'access_denied',
+                    429 => 'rate_limited',
+                    default => $status >= 500 && $status <= 599 ? 'upstream_http_'.$status : 'invalid_quote',
+                };
+                return ['ok' => false, 'message' => 'پاسخ زیرساخت معتبر نیست (HTTP '.$status.').', 'reason' => $reason,
                     'http_status' => $response->status(),
                     'transient' => $response->status() === 429 || $response->serverError()];
             }
             return ['ok' => true, 'message' => '', 'data' => $body];
         } catch (\Throwable) {
             // Exception text and provider bodies may contain credentials.
-            return ['ok' => false, 'message' => 'ارتباط با زیرساخت برقرار نشد.', 'transient' => true];
+            return ['ok' => false, 'message' => 'ارتباط با زیرساخت برقرار نشد.', 'reason' => 'connection_failed', 'transient' => true];
         }
     }
 
@@ -326,7 +333,8 @@ class LightNodeClient implements CloudProvider
         if ($usd <= 0 || $eur <= 0) {
             return ['ok' => false, 'message' => 'نرخ معتبر دلار و یورو برای قیمت‌گذاری در دسترس نیست.'] + $empty;
         }
-        $locations = []; $plans = []; $images = [];
+        $locations = []; $plans = []; $images = []; $unverifiedLocations = [];
+        $firstFailure = null;
         foreach ($regions['rows'] as $region) {
             $regionCode = (string) ($region['regionCode'] ?? '');
             $meta = $manifest['regions'][$regionCode] ?? null;
@@ -337,7 +345,11 @@ class LightNodeClient implements CloudProvider
             $locations[$code] = ['code' => $code, 'country' => $meta['country'], 'city' => $meta['city'],
                 'provider_location' => $regionCode, 'latitude' => null, 'longitude' => null];
             $imageRows = $this->rows('/image/list', 'images', ['regionCode' => $regionCode, 'imageType' => 'System'], true);
-            if (! $imageRows['ok']) { return $imageRows + $empty; }
+            if (! $imageRows['ok']) {
+                $firstFailure ??= $imageRows;
+                $unverifiedLocations[] = $regionCode;
+                continue;
+            }
             foreach ($imageRows['rows'] as $image) {
                 if (($image['imageType'] ?? '') !== 'System' || empty($image['imageResourceUUID'])) { continue; }
                 $label = (string) ($image['osVersionDetail'] ?? $image['imageName'] ?? '');
@@ -362,7 +374,11 @@ class LightNodeClient implements CloudProvider
                 $zoneCode = (string) ($zone['zoneCode'] ?? '');
                 if ($zoneCode === '') { continue; }
                 $packageRows = $this->packages($regionCode, $zoneCode);
-                if (! $packageRows['ok']) { return $packageRows + $empty; }
+                if (! $packageRows['ok']) {
+                    $firstFailure ??= $packageRows;
+                    $unverifiedLocations[] = $regionCode.'|'.$zoneCode;
+                    continue;
+                }
                 foreach ($packageRows['rows'] as $p) {
                     if (($p['regionCode'] ?? '') !== $regionCode || ($p['zoneCode'] ?? '') !== $zoneCode
                         || (int) ($p['cpu'] ?? 0) <= 0 || (int) ($p['memory'] ?? 0) <= 0
@@ -400,8 +416,19 @@ class LightNodeClient implements CloudProvider
                 }
             }
         }
+        if ($plans === [] && $firstFailure !== null) {
+            return $firstFailure + $empty;
+        }
         return ['ok' => true, 'message' => count($plans).' پلن با بهای تأییدشده؛ عرضه فقط پس از تأیید تحویل باز می‌شود.',
-            'locations' => array_values($locations), 'plans' => $plans, 'images' => $images];
+            'locations' => array_values($locations), 'plans' => $plans, 'images' => $images,
+            'unverified_locations' => $unverifiedLocations];
+    }
+
+    public static function hasUnverifiedLocation(CloudPlan $plan, array $locations): bool
+    {
+        $zone = (string) $plan->provider_location;
+        $region = explode('|', $zone, 2)[0];
+        return in_array($zone, $locations, true) || in_array($region, $locations, true);
     }
 
     public function packageSpec(array $p): array

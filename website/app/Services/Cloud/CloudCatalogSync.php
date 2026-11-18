@@ -34,12 +34,12 @@ class CloudCatalogSync
     /**
      * @return array{ok:bool,providers:array<string,array{ok:bool,message:string,locations:int,plans:int,images:int}>,rate:int}
      */
-    public function sync(?string $only = null): array
+    public function sync(?string $only = null, bool $preserveVerifiedOffers = false): array
     {
-        return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performSync($only));
+        return app(CatalogRefreshRequests::class)->exclusive(fn () => $this->performSync($only, $preserveVerifiedOffers));
     }
 
-    private function performSync(?string $only): array
+    private function performSync(?string $only, bool $preserveVerifiedOffers): array
     {
         if (! Schema::hasTable('cloud_plans')) {
             return ['ok' => false, 'providers' => [], 'rate' => 0, 'message' => 'جدول‌های ابری ساخته نشده‌اند — اول مهاجرت را بزنید.'];
@@ -54,7 +54,7 @@ class CloudCatalogSync
             }
 
             try {
-                $report[$slug] = $this->syncOne($slug, $driver);
+                $report[$slug] = $this->syncOne($slug, $driver, $preserveVerifiedOffers);
             } catch (\Throwable $e) {
                 // یک ارائه‌دهندهٔ خراب نباید سینکِ دیگری را بخواباند
                 app(CloudPricingSnapshot::class)->excludeProvider($slug, 'supplier_cost_read_failed');
@@ -92,12 +92,27 @@ class CloudCatalogSync
     }
 
     /** @return array{ok:bool,message:string,locations:int,plans:int,images:int} */
-    private function syncOne(string $provider, CloudProvider $driver): array
+    private function syncOne(string $provider, CloudProvider $driver, bool $preserveVerifiedOffers): array
     {
-        $cat = $driver->fetchCatalog();
+        try {
+            $cat = $driver->fetchCatalog();
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            if (! $preserveVerifiedOffers) { throw $e; }
+            $cat = ['ok' => false, 'reason' => 'connection_failed'];
+        }
 
         if (! ($cat['ok'] ?? false)) {
-            app(CloudPricingSnapshot::class)->excludeProvider($provider, 'supplier_cost_read_failed');
+            $reason = $cat['reason'] ?? 'supplier_cost_read_failed';
+            // A retry for one quarantined product can fail to read the catalog.
+            // Keep offers already verified against the current pricing snapshot.
+            $transient = in_array($reason, ['connection_failed', 'rate_limited'], true)
+                || (is_string($reason) && preg_match('/^upstream_http_5[0-9]{2}$/D', $reason));
+            $snapshot = app(CloudPricingSnapshot::class);
+            if (! $preserveVerifiedOffers || ! $transient || ! $snapshot->current($provider)
+                || ! CloudPlan::where('provider', $provider)->sellable()->exists()) {
+                $safeReason = $transient || in_array($reason, ['authentication_failed', 'access_denied', 'account_currency_unverified'], true);
+                $snapshot->excludeProvider($provider, $safeReason ? $reason : 'supplier_cost_read_failed');
+            }
             return [
                 'ok' => false, 'message' => (string) ($cat['message'] ?? 'کاتالوگ خوانده نشد.'),
                 'locations' => 0, 'plans' => 0, 'images' => 0,
@@ -105,8 +120,9 @@ class CloudCatalogSync
         }
 
         $locations = $this->syncLocations((array) $cat['locations']);
-        $images    = $this->syncImages($provider, (array) $cat['images']);
-        $plans     = $this->syncPlans($provider, (array) $cat['plans']);
+        $unverifiedLocations = $provider === 'lightnode' ? ($cat['unverified_locations'] ?? []) : [];
+        $images    = $this->syncImages($provider, (array) $cat['images'], $unverifiedLocations);
+        $plans     = $this->syncPlans($provider, (array) $cat['plans'], $unverifiedLocations);
 
         return [
             // پیامِ توضیحیِ درایور را نگه می‌داریم: «۴۰ محصول خوانده شد ولی هیچ
@@ -173,7 +189,7 @@ class CloudCatalogSync
 
     // ───────────────────────── ایمیج‌ها ─────────────────────────
 
-    private function syncImages(string $provider, array $rows): int
+    private function syncImages(string $provider, array $rows, array $unverifiedLocations): int
     {
         $seen = [];
         $requirements = [];
@@ -233,9 +249,14 @@ class CloudCatalogSync
 
         // ایمیجِ برداشته‌شده: غیرفعال، نه حذف (ممکن است سرورِ فعالی رویش باشد)
         if ($seen !== []) {
-            CloudImage::where('provider', $provider)
-                ->whereNotIn('provider_ref', $seen)
-                ->update(['is_active' => false]);
+            $missing = CloudImage::where('provider', $provider)->whereNotIn('provider_ref', $seen);
+            if ($unverifiedLocations !== []) {
+                $unverifiedImages = (clone $missing)->pluck('provider_ref')->filter(
+                    fn (string $ref) => in_array(explode('|', $ref, 2)[0], $unverifiedLocations, true)
+                );
+                $missing->whereNotIn('provider_ref', $unverifiedImages);
+            }
+            $missing->update(['is_active' => false]);
         }
 
         return $n;
@@ -243,7 +264,7 @@ class CloudCatalogSync
 
     // ───────────────────────── پلن‌ها ─────────────────────────
 
-    private function syncPlans(string $provider, array $rows): int
+    private function syncPlans(string $provider, array $rows, array $unverifiedLocations = []): int
     {
         $seen = [];
         $n = 0;
@@ -390,10 +411,15 @@ class CloudCatalogSync
         // پلنی که این بار نیامد = برداشته شده. غیرفعال می‌شود تا از فروشگاه
         // بیرون برود، ولی ردیفش می‌ماند چون سرویسِ فعالِ مشتری به آن اشاره دارد.
         if ($seen !== [] || in_array($provider, ['lightnode', 'vpstc'], true)) {
+            $unverifiedIds = [];
             CloudPlan::where('provider', $provider)
-                ->get(['id', 'provider_ref', 'location_code', 'is_active'])
-                ->each(function (CloudPlan $p) use ($seen, $provider) {
+                ->get(['id', 'provider_ref', 'provider_location', 'location_code', 'is_active'])
+                ->each(function (CloudPlan $p) use ($seen, $provider, $unverifiedLocations, &$unverifiedIds) {
                     if (! in_array($p->provider_ref.'@'.$p->location_code, $seen, true) && $p->is_active) {
+                        if ($unverifiedLocations !== [] && LightNodeClient::hasUnverifiedLocation($p, $unverifiedLocations)) {
+                            $unverifiedIds[] = (int) $p->id;
+                            return;
+                        }
                         try {
                             $p->update(['is_active' => false]);
                         } catch (\Throwable) {
@@ -405,6 +431,9 @@ class CloudCatalogSync
                         }
                     }
                 });
+            if ($unverifiedIds !== []) {
+                app(CloudPricingSnapshot::class)->excludePlans($unverifiedIds);
+            }
         }
 
         return $n;

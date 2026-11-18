@@ -34,7 +34,7 @@ class CloudSalesRecoveryTest extends TestCase
     public function test_failed_catalogue_reads_retry_at_separate_intervals_without_touching_services(): void
     {
         $this->setupFailedSupplier();
-        $this->mock(CloudCatalogSync::class)->shouldReceive('sync')->with('salad')->times(3)
+        $this->mock(CloudCatalogSync::class)->shouldReceive('sync')->with('salad', true)->times(3)
             ->andReturn(['providers' => ['salad' => ['ok' => false]]]);
         $this->artisan('cloud:recover-sales')->assertSuccessful();
         $first = json_decode(Setting::get(RecoverCloudSales::STATE_KEY), true)['salad'];
