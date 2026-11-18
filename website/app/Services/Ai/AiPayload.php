@@ -16,7 +16,7 @@ use App\Models\AiModel;
  *  • ورودی: `I` از **بایت**‌های خودِ بدنهٔ ارسالی سنجیده می‌شود (≤ ۱ توکن به ازای هر
  *    بایتِ UTF-8 برای BPE ِ بایتی) + ۱۶ به ازای هر پیام + ۲۵۶ برای قالبِ چت. ابزارها،
  *    `response_format` و همه‌چیزِ دیگرِ بدنه هم شمرده می‌شوند؛ «÷۴» ِ قدیمی نه.
- *  • `n>1`، `best_of`، صدا/تصویر: ۴۰۰ — هر کدام مصرف را از سقف بیرون می‌برد.
+ *  • `n>1`، `best_of` و رسانهٔ بدون قرارداد: ۴۰۰. تصویر Flash سقف مستند جدا دارد.
  *  • فقط کلیدهای فهرستِ سفید به بالادست می‌روند؛ بقیه (مثلِ `user` که هویتِ مشتری را به
  *    ارائه‌دهنده نشت می‌دهد) بی‌صدا حذف و در سربرگ نام برده می‌شوند.
  *
@@ -78,8 +78,13 @@ final class AiPayload
         if (! is_array($messages) || $messages === [] || ! array_is_list($messages)) {
             throw new AiRequestException('invalid_request', 'فیلدِ «messages» باید فهرستی ناخالی باشد.', 400);
         }
+        $image = null;
         foreach ($messages as $i => $m) {
-            $this->checkMessage($m, $i);
+            $part = $this->checkMessage($m, $i, $model);
+            if ($part !== null) {
+                if ($image !== null) throw new AiRequestException('invalid_payload', 'Only one image per request is supported.', 422);
+                $image = $part;
+            }
         }
         if (isset($client['tools'])) {
             if (! is_array($client['tools']) || ! array_is_list($client['tools'])) {
@@ -126,7 +131,7 @@ final class AiPayload
         }
 
         $bytes = strlen((string) json_encode($forward, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $input = $bytes + 16 * count($messages) + 256;
+        $input = $bytes - ($image['bytes'] ?? 0) + ($image['tokens'] ?? 0) + 16 * count($messages) + 256;
         if ($model->provider?->slug === 'deepinfra' && $model->upstream_model === 'nvidia/Nemotron-Content-Safety-3.5') {
             $input += 1024; // Verified 469 prompt tokens for a short request: internal safety template.
         }
@@ -226,7 +231,7 @@ final class AiPayload
         return array_map(self::canonical(...), $v);
     }
 
-    private function checkMessage(mixed $m, int $i): void
+    private function checkMessage(mixed $m, int $i, AiModel $model): ?array
     {
         if (! is_array($m) || ! in_array($m['role'] ?? null, self::ROLES, true)) {
             throw new AiRequestException('invalid_request', "پیامِ {$i} نقشِ معتبر ندارد.", 400);
@@ -237,17 +242,23 @@ final class AiPayload
 
         $content = $m['content'] ?? null;
         if ($content === null || is_string($content)) {
-            return;
+            return null;
         }
         if (! is_array($content) || ! array_is_list($content)) {
             throw new AiRequestException('invalid_request', "محتوای پیامِ {$i} معتبر نیست.", 400);
         }
+        $image = null;
         foreach ($content as $part) {
-            // تصویر/صدا/فایل هزینهٔ جدا دارند و در سقفِ بایتی نمی‌گنجند ⇒ رد، نه حدس
+            if (is_array($part) && ($part['type'] ?? null) === 'image_url' && ($m['role'] ?? '') === 'user' && $image === null) {
+                $bound = AiStudioVision::inputBound($part, $model);
+                $image = ['tokens' => $bound, 'bytes' => strlen($part['image_url']['url'])];
+                continue;
+            }
             if (! is_array($part) || ($part['type'] ?? null) !== 'text' || ! is_string($part['text'] ?? null)
                 || array_diff(array_keys($part), ['type', 'text']) !== []) {
                 throw new AiRequestException('unsupported_parameter', 'فقط محتوای متنی پشتیبانی می‌شود.', 400);
             }
         }
+        return $image;
     }
 }

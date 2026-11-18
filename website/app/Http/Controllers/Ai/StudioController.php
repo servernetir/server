@@ -7,6 +7,7 @@ use App\Models\AiUsage;
 use App\Models\Customer;
 use App\Models\CustomerApiToken;
 use App\Services\Ai\AiAdmission;
+use App\Services\Ai\AiFx;
 use App\Services\Auth\GoogleIdentity;
 use App\Services\Finance\Wallet;
 use App\Services\Studio\StudioAuthorization;
@@ -62,7 +63,8 @@ final class StudioController extends Controller
     {
         [$token, $auth] = $this->authorizeKey($request);
         if (! $auth->ok) return V1ChatController::error($auth->code, $auth->message, V1ChatController::statusFor($auth->code));
-        return DB::transaction(function () use ($auth) {
+        $eurRate = app(AiFx::class)->displayRate();
+        return DB::transaction(function () use ($auth, $token, $eurRate) {
             $customer = Customer::whereKey($auth->customer->id)->lockForUpdate()->firstOrFail();
             $wallet = app(Wallet::class);
             $balance = $wallet->balanceOf($customer->id, 'IRT', true);
@@ -77,6 +79,7 @@ final class StudioController extends Controller
                     'prompt_tokens_month' => (int) (clone $usage)->sum('prompt_tokens'),
                     'completion_tokens_month' => (int) (clone $usage)->sum('completion_tokens')],
                 'console_url' => 'https://console.servernet.cloud/account/ai',
+                'display' => ['eur_rate_irt' => $eurRate, 'native' => $token->can('ai:native')],
             ], 200, ['Cache-Control' => 'no-store']);
         });
     }

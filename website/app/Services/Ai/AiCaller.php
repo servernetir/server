@@ -59,7 +59,7 @@ final class AiCaller
     /**
      * @param  array  $client  بدنهٔ خامِ مشتری، **همراهِ** `model`
      */
-    public function handle(AiAuthContext $auth, array $client, ?string $idempotencyKey = null, string $operation = 'chat', bool $deferNative = false): AiCallOutcome
+    public function handle(AiAuthContext $auth, array $client, ?string $idempotencyKey = null, string $operation = 'chat', bool $deferNative = false, ?int $maxHoldIrt = null): AiCallOutcome
     {
         if (! $auth->ok) {
             return AiCallOutcome::fail($auth->code, $auth->message !== '' ? $auth->message : 'دسترسی پذیرفته نشد.', 403);
@@ -133,6 +133,10 @@ final class AiCaller
             return $this->pricingFailure($e);
         } catch (AiGateRefusal $r) {
             return $r->outcome;
+        }
+
+        if ($maxHoldIrt !== null && $hold['total'] > $maxHoldIrt) {
+            return AiCallOutcome::fail('quote_changed', 'The reservation limit changed. Review a fresh quote.', 409);
         }
 
         // ── A7: قفلِ مشتری ──
