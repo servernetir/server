@@ -20,7 +20,7 @@
     <section class="studio-platform">
       <h2>{{ __('studio_download.'.$platform) }}</h2>
       <p>{{ __('studio_download.'.$platform.'_requirements') }}</p>
-      @if($release)
+      @if(isset($release['downloads'][$platform]))
         <a href="{{ $release['downloads'][$platform]['url'] }}" download>{{ __('studio_download.download') }}</a>
         <details><summary>SHA-256</summary><code>{{ $release['downloads'][$platform]['sha256'] }}</code></details>
       @else<span class="studio-pending">{{ __('studio_download.soon') }}</span>@endif
