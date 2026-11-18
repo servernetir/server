@@ -73,6 +73,13 @@ class SecurityHeaders
             if (config('snapppay.enabled')) {
                 $formAction .= $this->snappPayHosts();
             }
+            if ($request->isMethod('GET') && $response->getStatusCode() === 200
+                && $request->routeIs('account.studio.authorize', 'en.account.studio.authorize', 'tr.account.studio.authorize')
+                && preg_match('~\A(https://[a-z0-9.-]+(?::[0-9]{1,5})?)/auth/callback\z~i',
+                    (string) config('studio.redirect_uri'), $studioCallback) === 1) {
+                // Chromium also checks the redirect after the console consent POST.
+                $formAction .= ' '.$studioCallback[1];
+            }
             $consoleService = $request->route('service');
             if (preg_match('~^(?:(?:en|tr)/)?account/cloud/[0-9]+$~', $request->path())
                 && $consoleService instanceof \App\Models\Service
