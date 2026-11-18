@@ -131,7 +131,7 @@ class StudioSsoTest extends TestCase
         $this->assertSame($customer->id, $token->customer_id);
         $this->assertSame('servernet-studio', $token->aiProject->slug);
         $this->assertFalse($token->can('domains:write'));
-        $this->assertFalse($token->can('ai:native'));
+        $this->assertTrue($token->can('ai:native'));
         $this->assertNotSame($plain, $token->token_hash);
         $this->exchange($code)->assertStatus(400);
         $this->assertSame(2, $customer->apiTokens()->count());
