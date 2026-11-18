@@ -21,14 +21,28 @@ class GpuCapacityAlternatives
             return collect();
         }
         $source = $service->cloudPlan;
+        $requiredVram = self::vramMb($source);
+        if ($requiredVram === null) {
+            return collect();
+        }
         return CloudPlan::sellable()->hourlyCapable()->where('provider', 'salad')
             ->where('id', '!=', $source->id)->where('location_code', $source->location_code)
             ->where('vcpu', '>=', $source->vcpu)->where('ram_mb', '>=', $source->ram_mb)
             ->where('disk_gb', '>=', $source->disk_gb)
-            ->where('gpu_vram_mb', '>=', (int) $source->gpu_vram_mb)
             ->get()->filter(fn (CloudPlan $plan) => $plan->hourlyIrt() > 0
+                && self::vramMb($plan) !== null && self::vramMb($plan) >= $requiredVram
                 && CloudImage::compatibleRefFor($plan, (string) $service->cloud_image_key) !== null)
             ->sortBy(fn (CloudPlan $plan) => $plan->hourlyIrt())->values();
+    }
+
+    /** Legacy Salad rows encode VRAM in the catalogue label; SQL NULL is not zero. */
+    private static function vramMb(CloudPlan $plan): ?int
+    {
+        if ((int) $plan->gpu_vram_mb > 0) {
+            return (int) $plan->gpu_vram_mb;
+        }
+        return preg_match('/\(([1-9][0-9]*)\s*GB\)\s*$/iD', trim((string) $plan->gpu_model), $match)
+            ? (int) $match[1] * 1024 : null;
     }
 
     private function candidate(Service $service, int $planId): CloudPlan

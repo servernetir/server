@@ -112,6 +112,34 @@ class GpuCapacityAlternativesTest extends TestCase
         Http::assertNothingSent(); $this->assertNoPurchase();
     }
 
+    public function test_legacy_null_vram_rows_use_explicit_catalogue_memory_without_mutating_plans(): void
+    {
+        $this->sourcePlan->update(['gpu_vram_mb' => null]);
+        $this->target->update(['gpu_vram_mb' => null]);
+        $this->assertSame([$this->target->id], app(GpuCapacityAlternatives::class)
+            ->candidates($this->source->fresh())->pluck('id')->all());
+        $this->assertNull($this->target->fresh()->gpu_vram_mb);
+        $this->assertNull($this->sourcePlan->fresh()->gpu_vram_mb);
+        $this->assertNoPurchase();
+    }
+
+    public function test_legacy_catalogue_memory_does_not_offer_smaller_or_unknown_vram(): void
+    {
+        $this->sourcePlan->update(['gpu_vram_mb' => null]);
+        $this->target->update(['gpu_vram_mb' => null, 'gpu_model' => 'Example GPU (2 GB)']);
+        $this->assertCount(0, app(GpuCapacityAlternatives::class)->candidates($this->source->fresh()));
+        $this->target->update(['gpu_model' => 'Example GPU']);
+        $this->assertCount(0, app(GpuCapacityAlternatives::class)->candidates($this->source->fresh()));
+        $this->assertNoPurchase();
+    }
+
+    public function test_structured_vram_takes_precedence_over_catalogue_label(): void
+    {
+        $this->target->update(['gpu_vram_mb' => 2048, 'gpu_model' => 'Example GPU (24 GB)']);
+        $this->assertCount(0, app(GpuCapacityAlternatives::class)->candidates($this->source->fresh()));
+        $this->assertNoPurchase();
+    }
+
     public function test_confirmation_preview_shows_current_rate_capacity_and_shortfall_without_changing_the_request(): void
     {
         $rate = $this->rate();

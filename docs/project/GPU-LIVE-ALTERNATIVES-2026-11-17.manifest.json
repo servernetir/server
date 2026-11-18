@@ -1,6 +1,6 @@
 {
   "base_commit": "311acf8cfecfd0e06cfb02aa0c3eba9134dcfc70",
-  "status": "not_installed",
+  "status": "production_installed_public_and_customer_preview_verified_2026_11_18",
   "files": [
     {
       "source": "website/app/Http/Controllers/Account/GpuCapacityController.php",
@@ -16,7 +16,7 @@
         "servernet_app/app/Services/Cloud/GpuCapacityAlternatives.php"
       ],
       "expected_before_sha256": null,
-      "after_sha256": "a4842b5e600748fe27983d54e8efbc0262596ee0dc630be8f75538f4d3d06c51"
+      "after_sha256": "b96e292cb6174acce3e7719910439918a0e361c06cba40382d4b1140ab3f47f7"
     },
     {
       "source": "website/app/Services/Cloud/GpuCapacityOrders.php",
@@ -124,5 +124,9 @@
       "expected_before_sha256": "62825b13be2134728b1484ed409dfe4eecb714196998df9c39dfa65b43c53ebd",
       "after_sha256": "90c762f5a9219b184ff60dd6c2dc1447aa5df1d662d63331b2d0cd58f8ce610b"
     }
+  ],
+  "production_overlays_preserved": [
+    "website/routes/web.php",
+    "website/resources/views/account/cloud-store.blade.php"
   ]
 }
