@@ -23,10 +23,12 @@
   <article class="ai-card">
    <h3>{{ __('ai_studio.name') }}</h3>
    <p>{{ __('ai_studio.description') }}</p>
-   @if(isset(app(\App\Services\Studio\StudioDownloads::class)->release()['downloads']['windows_x64']))
+   @if(app(\App\Services\Studio\StudioAuthorization::class)->configured())
     <div class="ai-actions">
      <a class="ai-btn primary" href="https://studio.servernet.cloud/">{{ __('ai_studio.open') }}</a>
-     <a class="ai-btn" href="{{ lroute('studio.download') }}">{{ __('ai_studio.download') }}</a>
+     @if(isset(app(\App\Services\Studio\StudioDownloads::class)->release()['downloads']['windows_x64']))
+      <a class="ai-btn" href="{{ lroute('studio.download') }}">{{ __('ai_studio.download') }}</a>
+     @endif
     </div>
    @else
     <p class="ai-muted">{{ __('studio_download.soon') }}</p>
