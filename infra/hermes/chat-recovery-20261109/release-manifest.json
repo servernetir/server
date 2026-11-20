@@ -1,0 +1,12 @@
+{
+  "release": "araz-chat-recovery-20261109",
+  "base_commit": "17a3c89eeaebeb522e4a37995388ee0de0b9cf07",
+  "files": [
+    {
+      "source": "infra/hermes/chat-recovery-20261109/hermes.blade.php",
+      "target": "resources/views/bale/hermes.blade.php",
+      "before": "f499f6e1ccc01b2dd18cc33a0d58c765568e54b2c84f93ffbb53349da2d8ffa2",
+      "after": "a5ccd081516a280acfe6edddef777f1cfae793dc484e2eb8d0971e9710f51a1f"
+    }
+  ]
+}
