@@ -246,6 +246,10 @@ html[data-theme="light"] .studio-download {
 .studio-download .sd-card details { margin-block-start: 12px; color: var(--sd-muted); font-size: .78rem; }
 .studio-download .sd-card summary { inline-size: fit-content; min-block-size: 32px; padding: 5px 2px; }
 .studio-download .sd-card code { display: block; direction: ltr; text-align: start; overflow-wrap: anywhere; }
+.studio-download .sd-preview-status { border-color: var(--sd-line); color: var(--sd-ink); }
+.studio-download .sd-preview-description { margin-block-end: 12px; }
+.studio-download .sd-preview-meta { display: block; }
+.studio-download .sd-source-sha { direction: ltr; overflow-wrap: anywhere; }
 .studio-download .sd-steps { list-style: none; counter-reset: studio-step; }
 .studio-download .sd-steps li {
   counter-increment: studio-step;
@@ -318,6 +322,9 @@ html[data-theme="light"] .studio-download {
   </section>
 
   <section id="studio-installers" class="sd-downloads" aria-labelledby="studio-installers-title">
+    @php
+      $previewDownloads = array_diff_key($preview['downloads'] ?? [], $release['downloads'] ?? []);
+    @endphp
     <div class="sd-section-head">
       <h2 id="studio-installers-title">{{ __('studio_download.installers') }}</h2>
       @if($release)
@@ -327,13 +334,22 @@ html[data-theme="light"] .studio-download {
     @if(!$release)
       <p class="sd-note" role="status"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>{{ __($studioAvailable ? 'studio_download.preparing_web' : 'studio_download.preparing') }}</p>
     @endif
+    @if($previewDownloads)
+      <p class="sd-note" role="status"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>{{ __('studio_download.preview_notice') }}</p>
+      <details class="sd-note sd-preview-meta"><summary>{{ __('studio_download.preview_source') }}</summary><code class="sd-source-sha" dir="ltr">{{ $preview['source_sha'] }}</code></details>
+    @endif
     <div class="sd-grid">
       @foreach(['windows_x64' => 'monitor', 'macos_arm64' => 'cpu', 'macos_x64' => 'cpu'] as $platform => $icon)
-        @php($package = $release['downloads'][$platform] ?? null)
+        @php
+          $isPreview = isset($previewDownloads[$platform]);
+          $package = $release['downloads'][$platform] ?? $previewDownloads[$platform] ?? null;
+        @endphp
         <section class="sd-card" aria-labelledby="studio-{{ $platform }}">
           <div class="sd-card-head">
             <span class="sd-platform-icon" aria-hidden="true"><svg class="icon"><use href="#i-{{ $icon }}"/></svg></span>
-            @if(!$package)
+            @if($isPreview)
+              <span class="sd-version sd-preview-status">{{ __('studio_download.preview_version', ['version' => $preview['version']]) }}</span>
+            @elseif(!$package)
               <span class="studio-pending"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg>{{ __('studio_download.soon') }}</span>
             @endif
           </div>
@@ -341,8 +357,11 @@ html[data-theme="light"] .studio-download {
           <p>{{ __('studio_download.'.$platform.'_requirements') }}</p>
           @if($package)
             <div class="sd-card-action">
+              @if($isPreview)
+                <p class="sd-preview-description">{{ __('studio_download.preview_verified') }}</p>
+              @endif
               <a class="sd-link sd-link-download" href="{{ $package['url'] }}" download aria-describedby="studio-{{ $platform }}">
-                <svg class="icon" aria-hidden="true"><use href="#i-box"/></svg>{{ __('studio_download.download') }}
+                <svg class="icon" aria-hidden="true"><use href="#i-box"/></svg>{{ __($isPreview ? ($platform === 'windows_x64' ? 'studio_download.preview_windows' : 'studio_download.preview_mac') : 'studio_download.download') }}
               </a>
               <details><summary dir="ltr">SHA-256</summary><code dir="ltr">{{ $package['sha256'] }}</code></details>
             </div>
