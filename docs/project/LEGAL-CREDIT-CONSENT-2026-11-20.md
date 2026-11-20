@@ -21,3 +21,9 @@ Published on 20 November 2026. PR #335 was merged into develop as `2339074a591ce
 ## Rollback
 
 Restore only manifest-listed files from their `.before` snapshots after confirming that installed hashes still match. New legal versions should remain as historical records once any customer has accepted them; never delete or rewrite customer acceptances. Restore article fields from the private article snapshot only after guarding against newer edits. Account transactions and historical legal records require no rollback because publication does not change them.
+
+## Registration wording correction
+
+The owner requested a short linked registration notice only: “ثبت‌نام در سایت به‌منزله پذیرش قوانین سایت است.” The contact form uses a complete localized sentence with a link on “قوانین سایت”; the explicit refund explanation and additional refund-policy checkbox sentence are removed from the finish form. The ordinary required terms/privacy checkbox, validation and acceptance recording remain. All policy details stay on the terms page. Three locale files are supplied under `lang/*/auth_notice.php`.
+
+Validation: 19 registration/consent tests, 140 assertions passed. Published on 20 November 2026 through authenticated cPanel File Manager. Both Blade templates were checked against their expected previous contents before replacement; the saved templates were read back and matched the prepared sources exactly. The three new locale files were read back. The live Persian registration page displayed only the short sentence with the correct terms link; a browser screenshot confirmed its placement above the submit button. No real signup or OTP was submitted.

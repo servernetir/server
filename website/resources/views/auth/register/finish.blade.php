@@ -50,7 +50,6 @@
     <span class="msg">{{ __('ui.auth_pw_mismatch') }}</span>
   </div>
 
-  <p class="auth-legal-notice" style="font-size:13px;line-height:1.9">{{ __('ui.auth_credit_policy') }}</p>
   <label class="auth-check">
     <input type="checkbox" name="terms" value="1" required aria-describedby="terms-error">
     {{-- یک جملهٔ کامل با جای‌نگهدار، نه چند تکهٔ به‌هم‌چسبیده — چون ترتیب
@@ -67,7 +66,7 @@
         $privacyLink = '<a href="'.lroute('privacy').'" target="_blank" rel="noopener">'.e(__('ui.auth_privacy')).'</a>';
         $termsLine   = __('ui.auth_terms_accept', ['terms' => $termsLink, 'privacy' => $privacyLink]);
     @endphp
-    <span>{!! $termsLine !!} {{ __('ui.auth_credit_accept') }}</span>
+    <span>{!! $termsLine !!}</span>
   </label>
   @error('terms')<p id="terms-error" role="alert">{{ $message }}</p>@enderror
 
