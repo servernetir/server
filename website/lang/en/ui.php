@@ -187,7 +187,7 @@ return [
     'hp_inc2' => 'Daily backups',
     'hp_inc3' => 'Instant activation',
     'hp_inc4' => 'Free migration',
-    'hp_inc5' => '14-day guarantee for eligible Iran hosting only',
+    'hp_inc5' => '14-day eligible Iran hosting cancellation; account credit',
     'hp_inc6' => '24/7 support',
     'hp_feat_badge' => 'Features',
     'hp_feat_title' => 'Why :name by ServerNet?',
@@ -1797,6 +1797,8 @@ return [
     'auth_no_account' => 'No account yet?',
     'auth_do_register' => 'Create one',
     'auth_lockout' => 'After several failed attempts the account is <b>temporarily locked</b>.',
+    'auth_credit_policy' => 'Approved discretionary refunds are issued only as account credit for other eligible purchases or renewals, with no bank withdrawal. Legally required monetary refunds are excepted.',
+    'auth_credit_accept' => 'I also accept the cancellation and account-credit refund policy, subject to mandatory statutory refunds.',
     'auth_terms_accept' => 'I have read and accept the :terms and the :privacy.',
     'auth_pw_show' => 'Show password',
     'auth_pw_hide' => 'Hide password',
@@ -3067,7 +3069,7 @@ return [
     'ab_sla' => 'Response commitment: automatic acknowledgement · handling starts within 2 business days · active phishing/malware: 4 business hours target.',
 
     /* Network force majeure in SLA (audit r4 — legal draft) */
-    'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network or international routes, including decisions of competent authorities; status is announced on the status page. The voluntary 14-day guarantee applies only to eligible Iran hosting under the terms; mandatory statutory rights remain unaffected.',
+    'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network or international routes, including competent-authority decisions, is announced on the status page. Eligible Iran hosting cancellations are reviewed within the 14-day window under the terms; approved discretionary amounts are returned as account credit. Mandatory statutory rights remain unaffected.',
 
     /* Company registration identifiers on About (audit r4) */
     'about_reg_t' => 'Company registration identifiers',
@@ -3158,7 +3160,7 @@ return [
     'os_tax_neutral' => 'This is the final amount payable; statutory taxes and duties are included.',
     'os_refund_policy' => 'Refund policy',
     'os_no_refund' => 'This service is outside the voluntary money-back guarantee',
-    'server_no_refund_notice' => 'Server purchases are non-refundable after infrastructure allocation. The infrastructure cost is settled in its original currency at purchase; cancellation, deletion or non-use does not refund the amount paid in cash or account credit. The voluntary 14-day guarantee is only for eligible hosting on ServerNet infrastructure in Iran; mandatory statutory rights remain unaffected.',
+    'server_no_refund_notice' => 'Cancellation or non-use of a server alone does not create a refund entitlement. Actual usage and non-recoverable commitments disclosed before purchase are considered. If a discretionary refund is approved, the eligible amount is issued only as account credit for other services. Legally required monetary refunds are excepted.',
     'os_total_label' => 'Total',
     'os_cta_quote' => 'Request a quote',
     'eu_data_title' => 'Where your data is held',
