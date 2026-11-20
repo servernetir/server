@@ -34,13 +34,16 @@ class RegistrationLegalPolicyTest extends TestCase
         return ['password' => 'test-only-password', 'password_confirmation' => 'test-only-password'];
     }
 
-    public function test_explicit_consent_and_credit_notice_are_present_in_each_language(): void
+    public function test_registration_shows_only_a_short_terms_notice_and_preserves_explicit_consent(): void
     {
         foreach (['fa' => '', 'en' => '/en', 'tr' => '/tr'] as $locale => $prefix) {
-            $this->get($prefix.'/register')->assertOk()->assertSee(trans('ui.auth_credit_policy', [], $locale));
+            $this->get($prefix.'/register')->assertOk()
+                ->assertSee(trans('auth_notice.terms', [], $locale))
+                ->assertDontSee(trans('ui.auth_credit_policy', [], $locale));
             $response = $this->withSession(['reg' => $this->registration()])
                 ->get($prefix.'/register/finish')->assertOk()
-                ->assertSee(trans('ui.auth_credit_accept', [], $locale));
+                ->assertDontSee(trans('ui.auth_credit_policy', [], $locale))
+                ->assertDontSee(trans('ui.auth_credit_accept', [], $locale));
             $this->assertMatchesRegularExpression('/name="terms" value="1" required/', $response->getContent());
             $this->assertDoesNotMatchRegularExpression('/name="terms"[^>]*checked/', $response->getContent());
         }
