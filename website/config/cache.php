@@ -32,6 +32,14 @@ return [
     |
     */
 
+    'file_prune' => [
+        'grace_seconds' => 300,
+        'alert_size_mb' => (int) env('CACHE_FILE_ALERT_SIZE_MB', 4096),
+        'alert_growth_mb' => (int) env('CACHE_FILE_ALERT_GROWTH_MB', 1024),
+        'alert_disk_percent' => (int) env('CACHE_FILE_ALERT_DISK_PERCENT', 90),
+        'state_path' => storage_path('app/cache-file-prune.lock'),
+    ],
+
     'stores' => [
 
         'array' => [
