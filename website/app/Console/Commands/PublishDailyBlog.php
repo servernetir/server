@@ -8,12 +8,18 @@ use Illuminate\Console\Command;
 
 class PublishDailyBlog extends Command
 {
-    protected $signature = 'growth:daily-blog {--retry-reviewed : Explicitly authorize a new bounded attempt after reviewing prior cost receipts} {--actor= : Existing delegated admin ID for reviewed retry} {--status : Read-only execution status} {--discover : Read-only official-source preview; no paid generation}';
+    protected $signature = 'growth:daily-blog {--retry-reviewed : Explicitly authorize a new bounded attempt after reviewing prior cost receipts} {--actor= : Existing delegated admin ID for reviewed retry} {--resume= : Revalidate saved completed responses for a date without paid generation} {--status : Read-only execution status} {--discover : Read-only official-source preview; no paid generation}';
 
     protected $description = 'Research and automatically publish one complete Persian/English/Turkish blog post per Tehran day.';
 
     public function handle(DailyBlogPublisher $publisher): int
     {
+        if ($this->option('resume')) {
+            $result = $publisher->resumeSaved((string) $this->option('resume'), (int) $this->option('actor'));
+            $this->line(json_encode($result, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+
+            return ($result['stage'] ?? '') === 'published' ? self::SUCCESS : self::FAILURE;
+        }
         if ($this->option('retry-reviewed')) {
             $publisher->retryReviewed((int) $this->option('actor'));
         }

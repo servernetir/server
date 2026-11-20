@@ -43,6 +43,7 @@ class GrowthController extends Controller
         abort_unless(in_array($calendarTimezone, ['Asia/Tehran', 'UTC', 'Europe/Berlin', 'Europe/Istanbul'], true), 422);
 
         return view('admin.growth.index', [
+            'dailyBlog' => in_array($tab, ['seo', 'automation'], true) ? app(\App\Services\Growth\DailyBlogPublisher::class)->status() : null,
             'autopilot' => app(GrowthAutopilot::class)->status(),
             'supervisor' => in_array($tab, ['hermes', 'automation'], true) ? app(HermesSupervisor::class)->status() : null,
             'tab' => $tab, 'items' => $items, 'calendar' => $tab === 'calendar' ? app(GrowthCalendar::class)->month($calendarDate, $calendarTimezone) : null, 'campaigns' => GrowthCampaign::orderByDesc('id')->get(),

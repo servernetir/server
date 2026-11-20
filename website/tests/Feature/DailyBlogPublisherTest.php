@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\GrowthContent;
 use App\Models\GrowthJob;
 use App\Models\Post;
+use App\Models\PostTranslation;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Growth\ContentWorkflow;
 use App\Services\Growth\DailyBlogPublisher;
 use App\Services\Growth\DailyBlogSources;
 use App\Services\Growth\GrowthJobs;
@@ -33,6 +35,7 @@ class DailyBlogPublisherTest extends TestCase
         $actor = User::factory()->create(['role' => 'admin']);
         Setting::putSecret('growth_gateway_key', $plain);
         Setting::put('daily_blog_enabled', '1');
+        Setting::put('daily_blog_quality_repair', '0');
         Setting::put('daily_blog_actor_id', (string) $actor->id);
         config(['ai_growth.autopilot_text_models' => [$this->model->slug]]);
         DB::table('growth_controls')->where('id', 1)->update(['enabled' => true, 'daily_irt' => 50000, 'monthly_irt' => 1000000]);
@@ -174,7 +177,7 @@ class DailyBlogPublisherTest extends TestCase
     public function test_revoked_program_cannot_be_generated_by_shared_growth_worker(): void
     {
         $actor = (int) Setting::get('daily_blog_actor_id');
-        $item = app(\App\Services\Growth\ContentWorkflow::class)->create(['title' => 'Queued daily news', 'locale' => 'fa',
+        $item = app(ContentWorkflow::class)->create(['title' => 'Queued daily news', 'locale' => 'fa',
             'channel' => 'blog', 'format' => 'article', 'objective' => 'education', 'brief' => 'Public source facts'], $actor);
         $job = app(GrowthJobs::class)->enqueue($item->id, 'text', ['model' => $this->model->slug, 'max_tokens' => 100,
             'messages' => [['role' => 'user', 'content' => 'Public source facts']]], 500, $item->version,
@@ -188,7 +191,7 @@ class DailyBlogPublisherTest extends TestCase
 
     public function test_translation_write_failure_rolls_back_post_and_preserves_cost_receipt(): void
     {
-        \App\Models\PostTranslation::creating(function ($tr) {
+        PostTranslation::creating(function ($tr) {
             if ($tr->locale === 'tr') {
                 throw new \RuntimeException('translation_write_failed');
             }
@@ -200,9 +203,10 @@ class DailyBlogPublisherTest extends TestCase
             $this->assertSame('completed', GrowthJob::orderBy('id')->firstOrFail()->status);
             $this->assertGreaterThan(0, GrowthJob::orderBy('id')->firstOrFail()->actual_cost_irt);
         } finally {
-            \App\Models\PostTranslation::flushEventListeners();
+            PostTranslation::flushEventListeners();
         }
     }
+
     public function test_reviewed_retry_keeps_paid_receipts_and_default_tick_never_retries(): void
     {
         $data = $this->article();
@@ -252,4 +256,102 @@ class DailyBlogPublisherTest extends TestCase
         Http::assertSentCount(3);
     }
 
+    public function test_repairs_only_the_invalid_locale_once_inside_existing_budget(): void
+    {
+        Setting::put('daily_blog_quality_repair', '1');
+        $bad = $this->article();
+        $bad['translations']['en']['body'] = str_replace('## Next steps', 'Next steps', $bad['translations']['en']['body']);
+        $this->fakeArticle($bad);
+        $publisher = app(DailyBlogPublisher::class);
+        $state = $publisher->tick();
+        $this->assertSame('quality_repair_queued', $state['code']);
+        $this->assertSame(['en' => 'quality_en_section_headings'], $state['validation_failures']);
+        $this->assertCount(1, $state['repair_jobs']);
+        $this->assertDatabaseCount('growth_jobs', 4);
+        $this->assertDatabaseCount('posts', 0);
+        Http::assertSentCount(3);
+        $this->fakeArticle();
+        $final = $publisher->tick();
+        $this->assertSame('published', $final['stage']);
+        $this->assertSame($state['locale_jobs']['fa'], $final['locale_jobs']['fa']);
+        $this->assertSame($state['locale_jobs']['tr'], $final['locale_jobs']['tr']);
+        $this->assertDatabaseCount('growth_jobs', 4);
+        $this->assertDatabaseCount('posts', 1);
+        Http::assertSentCount(1);
+    }
+
+    public function test_second_quality_failure_is_terminal_without_more_paid_calls(): void
+    {
+        Setting::put('daily_blog_quality_repair', '1');
+        $bad = $this->article();
+        $bad['translations']['en']['body'] = 'too short';
+        $this->fakeArticle($bad);
+        $publisher = app(DailyBlogPublisher::class);
+        $this->assertSame('queued', $publisher->tick()['stage']);
+        $this->assertSame('quality_repair_exhausted', $publisher->tick()['code']);
+        $this->assertSame('blocked', $publisher->tick()['stage']);
+        $this->assertDatabaseCount('growth_jobs', 4);
+        $this->assertDatabaseCount('posts', 0);
+        Http::assertSentCount(4);
+    }
+
+    public function test_saved_resume_preserves_original_day_and_makes_no_model_calls(): void
+    {
+        $publisher = app(DailyBlogPublisher::class);
+        $state = $publisher->tick();
+        $post = Post::findOrFail($state['post_id']);
+        $post->translations()->delete();
+        $post->delete();
+        GrowthContent::query()->update(['status' => 'draft', 'post_id' => null, 'publication_url' => null]);
+        $state['stage'] = 'blocked';
+        unset($state['post_id'], $state['urls']);
+        DB::table('growth_automation_runs')->where('run_key', 'daily-blog:2026-11-16')->update(['summary' => json_encode($state)]);
+        $this->travelTo(now()->addDay());
+        Http::swap(new Factory);
+        Http::preventStrayRequests();
+        $final = $publisher->resumeSaved('2026-11-16', (int) Setting::get('daily_blog_actor_id'));
+        $this->assertSame('published', $final['stage']);
+        $this->assertStringContainsString('daily-insight-2026-11-16-', $final['urls'][0]);
+        $this->assertArrayNotHasKey('text', $final['source']);
+        $this->assertSame($final['post_id'], $publisher->resumeSaved('2026-11-16', (int) Setting::get('daily_blog_actor_id'))['post_id']);
+        Http::assertNothingSent();
+    }
+
+    public function test_resume_does_not_overwrite_operator_edits(): void
+    {
+        $publisher = app(DailyBlogPublisher::class);
+        $state = $publisher->tick();
+        $state['stage'] = 'blocked';
+        DB::table('growth_automation_runs')->where('run_key', 'daily-blog:2026-11-16')->update(['summary' => json_encode($state)]);
+        GrowthContent::query()->increment('version');
+        $this->expectExceptionMessage('completed_unchanged_bundle_required');
+        $publisher->resumeSaved('2026-11-16', (int) Setting::get('daily_blog_actor_id'));
+    }
+
+    public function test_status_redacts_snapshots_and_admin_page_exposes_actual_daily_receipts(): void
+    {
+        app(DailyBlogPublisher::class)->tick();
+        $status = app(DailyBlogPublisher::class)->status();
+        $this->assertArrayNotHasKey('text', $status['today']['source']);
+        $this->assertArrayNotHasKey('text', $status['recent'][0]['source']);
+        $this->actingAs(User::findOrFail((int) Setting::get('daily_blog_actor_id')))
+            ->get('/admin/ai-growth?tab=seo')->assertOk()->assertSee('daily-blog:2026-11-16')
+            ->assertSee('daily-insight-2026-11-16-new-gpu-inference-guide');
+    }
+
+    public function test_repair_cannot_exceed_remaining_budget(): void
+    {
+        Setting::put('daily_blog_quality_repair', '1');
+        $publisher = app(DailyBlogPublisher::class);
+        $state = $publisher->tick();
+        $state['stage'] = 'queued';
+        $state['source'] = $this->source;
+        GrowthContent::query()->update(['status' => 'draft']);
+        DB::table('growth_automation_runs')->where('run_key', 'daily-blog:2026-11-16')->update(['summary' => json_encode($state)]);
+        GrowthContent::where('locale', 'en')->update(['body' => json_encode(['translations' => ['en' => ['title' => 'Invalid draft for testing', 'excerpt' => str_repeat('E', 80), 'body' => 'Short']]])]);
+        DB::table('growth_controls')->where('id', 1)->update(['daily_irt' => 1]);
+        $this->assertSame('quality_repair_budget_unavailable', $publisher->tick()['code']);
+        $this->assertDatabaseCount('growth_jobs', 3);
+        Http::assertSentCount(3);
+    }
 }
