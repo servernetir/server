@@ -187,7 +187,7 @@ return [
     'hp_inc2' => 'Günlük yedekleme',
     'hp_inc3' => 'Anında aktivasyon',
     'hp_inc4' => 'Ücretsiz taşıma',
-    'hp_inc5' => '14 gün garanti yalnızca uygun İran hosting için',
+    'hp_inc5' => 'Uygun İran hosting için 14 günlük iptal; hesap kredisi',
     'hp_inc6' => '7/24 destek',
     'hp_feat_badge' => 'Özellikler',
     'hp_feat_title' => 'Neden ServerNet :name?',
@@ -1797,6 +1797,8 @@ return [
     'auth_no_account' => 'Hesabınız yok mu?',
     'auth_do_register' => 'Hesap oluşturun',
     'auth_lockout' => 'Birkaç başarısız denemeden sonra hesap <b>geçici olarak kilitlenir</b>.',
+    'auth_credit_policy' => 'Onaylanan isteğe bağlı iadeler, diğer uygun hizmetlerin satın alınması veya yenilenmesi için yalnızca hesap kredisi olarak yapılır; bankaya çekilemez. Zorunlu yasal parasal iadeler istisnadır.',
+    'auth_credit_accept' => 'Zorunlu yasal iadeler saklı kalmak üzere iptal ve hesap kredisi iade politikasını da kabul ediyorum.',
     'auth_terms_accept' => ':terms ve :privacy metinlerini okudum ve kabul ediyorum.',
     'auth_pw_show' => 'Parolayı göster',
     'auth_pw_hide' => 'Parolayı gizle',
@@ -3067,7 +3069,7 @@ return [
     'ab_sla' => 'Yanıt taahhüdü: otomatik alındı bilgisi · en geç 2 iş günü içinde inceleme başlangıcı · aktif phishing/zararlı yazılım: 4 iş saati hedefi.',
 
     /* SLA ağ mücbir sebebi (denetim r4 — hukuk taslağı) */
-    'sla_fm5' => 'Ülke altyapı ağı veya uluslararası rotalarda yetkili makam kararları dahil kesinti, kısıtlama veya bant genişliği azalması; durum, durum sayfasında duyurulur. Ticari 14 günlük garanti yalnızca şartlardaki uygun İran hosting için geçerlidir; emredici yasal haklar saklıdır.',
+    'sla_fm5' => 'Ülke ağı veya uluslararası rotalarda yetkili makam kararları dahil kesinti, kısıtlama ya da bant genişliği azalması durum sayfasında duyurulur. Uygun İran hosting iptalleri şartlardaki 14 günlük sürede incelenir; onaylanan isteğe bağlı tutar hesap kredisine eklenir. Emredici yasal haklar saklıdır.',
 
     /* Hakkında sayfasında şirket kayıt kimlikleri (denetim r4) */
     'about_reg_t' => 'Şirket kayıt kimlikleri',
@@ -3158,7 +3160,7 @@ return [
     'os_tax_neutral' => 'Bu, ödenecek nihai tutardır; yasal vergi ve harçlar dahildir.',
     'os_refund_policy' => 'İade koşulları',
     'os_no_refund' => 'Bu hizmet ticari para iade garantisi kapsamında değildir',
-    'server_no_refund_notice' => 'Altyapı tahsisinden sonra sunucu alımları iade edilmez. Altyapı maliyeti satın alma sırasında kaynak para birimiyle ödenir; iptal, silme veya kullanmama, ödenen tutarın nakit ya da hesap kredisi olarak iadesini sağlamaz. Ticari 14 günlük garanti yalnızca ServerNet altyapısında İran içindeki uygun hosting içindir; emredici yasal haklar saklıdır.',
+    'server_no_refund_notice' => 'Sunucuyu iptal etmek veya kullanmamak tek başına iade hakkı doğurmaz. Gerçek kullanım ve satın alma öncesi açıklanan geri alınamayan yükümlülükler dikkate alınır. İsteğe bağlı iade onaylanırsa uygun tutar diğer hizmetlerde kullanılmak üzere yalnızca hesap kredisi olarak eklenir. Zorunlu yasal parasal iadeler istisnadır.',
     'os_total_label' => 'Toplam',
     'os_cta_quote' => 'Teklif isteyin',
     'eu_data_title' => 'Verileriniz nerede tutuluyor',
