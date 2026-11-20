@@ -195,6 +195,7 @@ final class ArvanObservationRegistry
                 $read['sample'] ?? null, time());
             if (($read['status'] ?? null) !== 'observed') {
                 $advance['result'] = ArvanObservationState::unknown('source_evidence_unavailable', time());
+                $advance['result']['source_reason'] = PrivatePrometheusTrafficSource::diagnosticReason($read['reason'] ?? null);
                 $advance['checkpoint'] = null;
             }
             return DB::transaction(function () use ($snapshot, $advance, $serviceId): array {

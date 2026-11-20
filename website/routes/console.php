@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('hosting:upgrades')->everyMinute()->withoutOverlapping(20);
 
+// Expired file-cache entries otherwise remain on disk until the same key is read.
+Schedule::command('cache:prune-expired-file')->hourlyAt(37)->withoutOverlapping(60)->runInBackground();
+
 // Storage tariffs refresh through the existing application scheduler; this never buys resources.
 Schedule::command('hetzner:storage-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
 Schedule::command('hetzner:object-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
@@ -493,6 +496,9 @@ Schedule::command('cloud:sync')
 
 // Supplier pagination belongs in CLI, outside the web worker's 30-second budget.
 // Reuse the existing scheduler; no new host cron or database queue is needed.
+// Recovery never buys or bills: independent backoff for rejected catalogue/FX reads.
+Schedule::command('cloud:recover-sales')->everyFiveMinutes()->runInBackground()->withoutOverlapping(30);
+
 Schedule::command('cloud:refresh-requested')
     ->everyMinute()
     ->runInBackground()

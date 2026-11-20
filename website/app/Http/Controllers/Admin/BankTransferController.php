@@ -92,12 +92,11 @@ class BankTransferController extends Controller
             'reject_reason' => ['nullable', 'string', 'max:300'],
         ]);
 
-        $receipt->forceFill([
-            'status'        => 'rejected',
-            'reject_reason' => $data['reject_reason'] ?? null,
-            'reviewed_by'   => $request->user()?->id,
-            'reviewed_at'   => now(),
-        ])->save();
+        $result = app(\App\Services\Billing\BankReceiptReviewer::class)
+            ->reject($receipt, $data['reject_reason'] ?? '', $request->user()?->id, $request);
+        if (! $result['ok']) {
+            return back()->withErrors($result['message']);
+        }
 
         // اطلاع به مشتری — پیامک و بله
         if ($receipt->customer !== null) {

@@ -112,6 +112,22 @@ class ArvanMonitoringWatchTest extends TestCase
         $this->assertSame('active', $service->fresh()->status); Http::assertNothingSent();
     }
 
+    public function test_fresh_transport_failure_is_distinguished_from_missing_agent_and_stale_diagnosis(): void
+    {
+        [$service, , $identity] = $this->fixture(); $this->green($identity, time());
+        $status = ['version' => 1, 'identity' => $identity, 'result' => ['status' => 'unknown',
+            'source_reason' => 'transport_unavailable', 'checked_at' => time()]];
+        $this->putRecord(ArvanObservationRegistry::STATUS.$service->id, $status);
+        $report = app(ArvanMonitoringHealth::class)->inspect();
+        $this->assertSame('central_query_unavailable', $report['issues'][$service->id]);
+        $this->assertStringContainsString('فایل سوکت', $report['summary']);
+        $status['result']['checked_at'] = time() - 151;
+        $this->putRecord(ArvanObservationRegistry::STATUS.$service->id, $status);
+        $this->assertSame('missing_or_stale_observation', app(ArvanMonitoringHealth::class)->inspect()['issues'][$service->id]);
+        $this->assertSame('active', $service->fresh()->status);
+        Http::assertNothingSent();
+    }
+
     public function test_repeated_failure_is_coalesced_changed_cause_immediate_and_recovery_once(): void
     {
         [, , $identity] = $this->fixture();

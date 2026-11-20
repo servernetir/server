@@ -560,6 +560,16 @@
 {{-- ═══ نحوهٔ پرداخت: ساعتی → دوره‌ای (TK-261018-5379) ═══
      دکمه فقط وقتی دیده می‌شود که تبدیل واقعاً شدنی است (HourlyCycleConverter::blocker)؛
      دکمه‌ای که بعد از کلیک خطا بدهد همان تیکتی را می‌سازد که این بخش برای حذفش است. --}}
+@if(app(\App\Services\Billing\ServiceRenewals::class)->eligible($service))
+<section class="pnl-sec" id="billing-renewal">
+  <div class="pnl-sec-h"><h2>{{ __('ui.sr_title') }}</h2></div>
+  <div class="pnl-sec-b">
+    <p class="dm-note">{{ __('renewal.cloud_manage') }}</p>
+    <a class="pnl-btn primary" href="{{ lroute('account.services.renew', $service) }}">{{ __('ui.sr_title') }}</a>
+  </div>
+</section>
+@endif
+
 @if(! empty($cycleConvert) || ! empty($creditOut))
 <section class="pnl-sec" id="billing-mode">
   <div class="pnl-sec-h"><h2>{{ __('panel.cycle_convert_h') }}</h2></div>
@@ -946,13 +956,13 @@
     <h2 id="gpu-cancel-heading">{{ __('ui.gpu_request_cancel_heading') }}</h2>
     <p>{{ __('ui.gpu_request_cancel_hint') }}</p>
   </div>
-  @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server'])
+  @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server', 'hideRenewal' => true])
 </section>
 @else
 <section class="pnl-sec cs-danger" id="service-lifecycle">
   <div class="pnl-sec-h"><h2>{{ __('ui.svc_terminate') }}</h2></div>
   <div class="pnl-sec-b">
-    @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server'])
+    @include('account.partials.svc-actions', ['s' => $service, 'kind' => 'server', 'hideRenewal' => true])
   </div>
 </section>
 @endif

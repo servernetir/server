@@ -210,6 +210,7 @@ class AccountController extends Controller
                     ['key' => 'profile', 'icon' => 'user', 'label' => __('ui.nav_profile'), 'url' => lroute('account.profile')],
                     ['key' => 'ai', 'icon' => 'code', 'label' => __('ai.usage'), 'url' => lroute('account.ai')],
                     ['key' => 'identity', 'icon' => 'shield', 'label' => __('identity.menu'), 'url' => lroute('account.identity')],
+                    ...(\Illuminate\Support\Facades\Route::has('account.api') ? [['key' => 'api', 'icon' => 'code', 'label' => __('customer-api.title'), 'url' => lroute('account.api')]] : []),
                     ['key' => 'security', 'icon' => 'shield', 'label' => __('ui.nav_security'), 'url' => lroute('account.security')],
                 ]],
             ],

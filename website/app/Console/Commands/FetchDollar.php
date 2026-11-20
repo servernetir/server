@@ -55,6 +55,10 @@ class FetchDollar extends Command
 
         $labels = [];
         foreach (array_keys(ExchangeRate::SOURCE_ITEMS) as $currency) {
+            if (! isset($rates[$currency])) {
+                $this->warn($currency.': quote rejected; dependent sales remain guarded.');
+                continue;
+            }
             $labels[] = $currency.': '.number_format($rates[$currency]['rate_toman']).' تومان';
         }
         $this->info('نرخ به‌روز شد — '.implode(' · ', $labels));

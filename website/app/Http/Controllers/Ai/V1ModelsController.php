@@ -7,6 +7,10 @@ use App\Models\AiModel;
 use App\Models\CustomerApiToken;
 use App\Services\Ai\AiAdmission;
 use App\Services\Ai\AiAvailability;
+use App\Services\Ai\AiNative;
+use App\Services\Ai\AiPricingException;
+use App\Services\Ai\AiVat;
+use App\Services\Studio\StudioCatalog;
 use Illuminate\Http\Request;
 
 class V1ModelsController extends Controller
@@ -21,12 +25,31 @@ class V1ModelsController extends Controller
         if (! $auth->ok) {
             return V1ChatController::error($auth->code, $auth->message, V1ChatController::statusFor($auth->code));
         }
-        $data = AiModel::with('provider')->where('status', 'active')->orderBy('slug')->get()
-            ->filter(fn ($m) => app(AiAvailability::class)->inspect($m)['ready'])
-            ->map(fn ($m) => ['id' => $m->slug, 'object' => 'model', 'created' => $m->created_at->timestamp,
-                'owned_by' => 'servernet', 'category' => $m->category] + (\App\Services\Ai\AiNative::isNative($m)
-                    ? ['endpoint'=>'/v1/inference','scope'=>'ai:native','billing_unit'=>\App\Services\Ai\AiNative::definition($m)['pricing']['type']]
-                    : ['context_length'=>$m->context_tokens,'max_output_tokens'=>$m->max_output_tokens]))->values();
+        $studio = $request->boolean('studio');
+        $vat = $studio ? app(AiVat::class)->resolve($auth->customer)['bp'] : 0;
+        $data = [];
+        foreach (AiModel::with('provider')->where('status', 'active')->orderBy('slug')->get() as $model) {
+            $availability = app(AiAvailability::class)->inspect($model);
+            if (! $availability['ready']) continue;
+            $native = AiNative::isNative($model);
+            $entry = ['id' => $model->slug, 'object' => 'model', 'created' => $model->created_at->timestamp,
+                'owned_by' => 'servernet', 'category' => $model->category] + ($native
+                    ? ['endpoint' => '/v1/inference', 'scope' => 'ai:native', 'billing_unit' => $availability['quote']->native['pricing']['type']]
+                    : ['context_length' => $model->context_tokens, 'max_output_tokens' => $model->max_output_tokens]);
+            if ($studio) {
+                try {
+                    $entry += StudioCatalog::model($model, $availability['quote'], $vat, $token->can('ai:native'));
+                } catch (AiPricingException) {
+                    continue;
+                }
+            }
+            $data[] = $entry;
+        }
+        if ($studio && $token->can('ai:chat') && StudioFreeController::available()) {
+            array_unshift($data, ['id'=>StudioFreeController::MODEL,'object'=>'model','owned_by'=>'servernet',
+                'category'=>'chat','name'=>'Free Chat','endpoint'=>'/v1/studio/free/chat','vision'=>false,
+                'pricing'=>['unit'=>'tokens','quantity'=>1_000_000,'input_irt'=>0,'output_irt'=>0], 'free'=>true]);
+        }
         return response()->json(['object' => 'list', 'data' => $data], 200, ['Cache-Control' => 'no-store']);
     }
 }

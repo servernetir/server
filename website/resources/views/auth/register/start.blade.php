@@ -68,6 +68,7 @@
     <small id="hint-email">{{ __('ui.auth_email_hint') }}</small>
   </div>
 
+  <p class="auth-legal-notice" style="font-size:13px;line-height:1.9">{{ __('ui.auth_credit_policy') }} <a href="{{ lroute('terms') }}" target="_blank" rel="noopener">{{ __('ui.auth_terms') }}</a></p>
   <button type="submit" class="auth-btn"><span class="spin"></span><span>{{ session('google_registration') && !$iranian ? __('google.continue_registration') : __('ui.auth_send_code') }}</span></button>
 </form>
 @endsection

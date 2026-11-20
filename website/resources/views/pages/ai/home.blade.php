@@ -17,6 +17,34 @@
     <div class="ai-network-caption">{{ __('ai_experience.choose_route') }} · {{ __('ai_experience.ready_count') }}</div>
   </div>
 </section>
+<section class="ai-section" aria-labelledby="ai-use-title">
+ <div class="ai-section-title"><h2 id="ai-use-title">{{ __('ai_studio.heading') }}</h2></div>
+ <div class="ai-grid">
+  <article class="ai-card">
+   <h3>{{ __('ai_studio.name') }}</h3>
+   <p>{{ __('ai_studio.description') }}</p>
+   @if(app(\App\Services\Studio\StudioAuthorization::class)->configured())
+    <div class="ai-actions">
+     <a class="ai-btn primary" href="https://studio.servernet.cloud/">{{ __('ai_studio.open') }}</a>
+     @php
+        $studioPackages = app(\App\Services\Studio\StudioDownloads::class);
+        $studioReleaseAvailable = (bool) $studioPackages->release();
+     @endphp
+     @if($studioReleaseAvailable || $studioPackages->previews())
+      <a class="ai-btn" href="{{ lroute('studio.download') }}">{{ __($studioReleaseAvailable ? 'ai_studio.download' : 'studio_download.preview_page') }}</a>
+     @endif
+    </div>
+   @else
+    <p class="ai-muted">{{ __('studio_download.soon') }}</p>
+   @endif
+  </article>
+  <article class="ai-card">
+   <h3>{{ __('ai_studio.api_name') }}</h3>
+   <p>{{ __('ai_studio.api_description') }}</p>
+   <div class="ai-actions"><a class="ai-btn" href="{{ lroute('ai.docs') }}">{{ __('ai.docs') }}</a></div>
+  </article>
+ </div>
+</section>
 <div class="ai-note">{{ __('ai.status_note') }}</div>
 <section class="ai-section" id="choose-task">
  <div class="ai-section-title"><div><span class="ai-label">01 / {{ __('ai_experience.workspace') }}</span><h2>{{ __('ai_experience.selection_title') }}</h2></div><p>{{ __('ai_experience.selection_lead') }}</p></div>

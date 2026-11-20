@@ -21,6 +21,8 @@
   <label>{{ __('domain-suppliers.supplier_fee_pct') }}<input name="supplier_fee_pct" type="number" min="0" max="100" step="0.001" value="{{ $account?->settings['supplier_fee_pct'] ?? '' }}"></label>
   <p>{{ __('domain-suppliers.capability_note') }}</p>
   <label>{{ __('domain-suppliers.capabilities') }}<textarea name="capabilities" rows="8" dir="ltr" maxlength="50000">{{ json_encode((array) $account?->capabilities, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</textarea></label>
+  <label><input type="checkbox" name="standard_profile" value="1" @checked($account?->usesStandardProfile())> {{ __('domain-suppliers.standard_profile') }}</label>
+  <p>{{ __('domain-suppliers.standard_profile_note') }}</p>
   <label><input type="checkbox" name="active" value="1" @checked(!$account || $account->active)> {{ __('domain-suppliers.active') }}</label>
   <p>{{ __('domain-suppliers.verification_note') }}</p>
   @foreach(['contract_verified', 'identity_verified', 'pricing_verified'] as $flag)

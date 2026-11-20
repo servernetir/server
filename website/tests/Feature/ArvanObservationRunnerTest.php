@@ -199,6 +199,27 @@ class ArvanObservationRunnerTest extends TestCase
         $this->assertSame('unknown', $this->observationRecord(ArvanObservationRegistry::STATUS.$identity['service_id'])['result']['status']);
     }
 
+    public function test_source_failure_retains_only_fixed_diagnostic_classes_without_resetting_history(): void
+    {
+        [, , , $identity] = $this->observationFixture(); $this->assertGreenObservation($identity);
+        $before = $this->rawObservationRecord($this->observationCheckpointKey($identity));
+        foreach (['private_transport_unavailable' => 'transport_unavailable',
+            'private_transport_protocol_invalid' => 'source_protocol_invalid',
+            'target_or_counter_missing' => 'target_metrics_unavailable',
+            'metric_timestamps_stale_or_incoherent' => 'target_metrics_stale',
+            'target_identity_mismatch' => 'source_identity_mismatch',
+            'SECRET_TOKEN_AND_RAW_URL' => 'source_unavailable'] as $reason => $expected) {
+            $result = $this->registry->poll($identity['service_id'], $this->observationSource(
+                static fn () => ['status' => 'unknown', 'reason' => $reason, 'sample' => null]));
+            $this->assertSame('unknown', $result['status']);
+            $this->assertSame($expected, $result['source_reason']);
+            $this->assertFalse($result['two_fresh_samples_verified']);
+            $this->assertStringNotContainsString('SECRET_TOKEN_AND_RAW_URL', json_encode($result));
+            $this->assertSame($before, $this->rawObservationRecord($this->observationCheckpointKey($identity)));
+        }
+        Http::assertNothingSent();
+    }
+
     public function test_owner_change_and_duplicate_provider_ref_are_rejected_before_any_source_read(): void
     {
         [$customer, $service, , $identity] = $this->observationFixture(); $this->assertGreenObservation($identity); $reads = $this->reads;

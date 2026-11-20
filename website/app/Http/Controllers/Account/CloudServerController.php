@@ -58,7 +58,7 @@ class CloudServerController extends Controller
 
     private function ownedService(Service $service): Service
     {
-        $customer = Auth::guard('customer')->user();
+        $customer = request()->attributes->get('api_customer') ?? Auth::guard('customer')->user();
         abort_unless($customer && $service->customer_id === $customer->id, 404);
 
         return $service;
@@ -108,20 +108,7 @@ class CloudServerController extends Controller
 
     private function powerActions(?CloudInstance $instance): array
     {
-        $driver = $instance ? $this->manager->forInstance($instance) : null;
-        if ($instance === null || $driver === null) {
-            return [];
-        }
-        if ($instance->provider === 'vpstc'
-            && (! $driver instanceof \App\Services\Cloud\VpsTcClient || ! $driver->canPower($instance))) {
-            return [];
-        }
-
-        return match ($instance->provider) {
-            'salad' => ['on', 'off'],
-            'hetzner-robot' => ['reboot'],
-            default => ['on', 'off', 'reboot'],
-        };
+        return app(\App\Services\Cloud\CloudPower::class)->actions($instance);
     }
 
     // ───────────────────────── نمایش ─────────────────────────
@@ -458,7 +445,7 @@ class CloudServerController extends Controller
             | بقیهٔ درایورها کلید را ندارند ⇒ null ⇒ صفحه چیزی اضافه نشان
             | نمی‌دهد — همان قاعدهٔ «عددِ من‌درآوردی ممنوع».
             */
-            + ['traffic' => $r['traffic_used_gb'] ?? null, 'build' => $r['build'] ?? null]
+            + ['traffic' => $r['traffic_used_gb'] ?? null, 'build' => $r['build'] ?? null, 'observed_at' => $r['_observed_at'] ?? null]
         );
     }
 
@@ -561,49 +548,8 @@ class CloudServerController extends Controller
     {
         $this->ownedService($service);
 
-        $action = (string) $request->input('action');
-
-        if (! in_array($action, ['on', 'off', 'reboot'], true)) {
-            return back()->withErrors(__('ui.cx_bad_op'));
-        }
-
-        if ($denied = $this->denyIfNotWritable($service)) {
-            return $denied;
-        }
-
-        if ($limited = $this->rateLimit($service, 'power', 12)) {
-            return $limited;
-        }
-
-        if (! in_array($action, $this->powerActions($this->instanceOf($service)), true)) {
-            return back()->withErrors(__('ui.cx_op_na'));
-        }
-
-        // An existing GPU needs one funded hour; the 24-hour gate is only for creation.
-        $claimedInstanceId = null;
-        if ($action === 'on' && $service->billing_mode === 'hourly'
-            && (bool) $service->cloudPlan?->is_interruptible) {
-            $start = app(HourlyGpuStart::class)->claim($service);
-            if ($start['pending'] ?? false) {
-                return back()->withErrors(__('ui.cx_not_ready'));
-            }
-            if (isset($start['minimum'])) {
-                return back()->withErrors(__('ui.cx_e_hourly_credit', [
-                    'hours' => fa_num(1),
-                    'min' => cloud_price($start['minimum']),
-                    'bal' => cloud_price($start['available']),
-                ]));
-            }
-            $claimedInstanceId = $start['claimed'] ?? null;
-        }
-
-        return $this->run($service, function ($driver, $ref) use ($action) {
-            return $driver->power($ref, $action);
-        }, match ($action) {
-            'on' => __('activity.power_on'),
-            'off' => __('activity.power_off'),
-            default => __('activity.power_reboot'),
-        }, 'power:'.$action, $action, $claimedInstanceId);
+        $result = app(\App\Services\Cloud\CloudPower::class)->execute($service, (string) $request->input('action'));
+        return $result['ok'] ? back()->with('ok', $result['message']) : back()->withErrors($result['message']);
     }
 
     /**
@@ -876,81 +822,6 @@ class CloudServerController extends Controller
     }
 
     // ───────────────────────── کمکی ─────────────────────────
-
-    private function run(
-        Service $service,
-        callable $fn,
-        string $okMessage,
-        string $logAction,
-        ?string $powerAction = null,
-        ?int $claimedInstanceId = null,
-    ): RedirectResponse {
-        $instance = $this->instanceOf($service);
-        $driver = $instance ? $this->manager->forInstance($instance) : null;
-
-        if ($instance === null || $driver === null || blank($instance->provider_ref)) {
-            $this->releasePowerOnClaim($claimedInstanceId, $service);
-            return back()->withErrors(__('ui.cx_not_ready'));
-        }
-
-        if ($powerAction !== null) {
-            Cache::forget('cloud-st:'.$instance->id);
-        }
-
-        try {
-            $r = $fn($driver, (string) $instance->provider_ref);
-        } catch (\Throwable $e) {
-            $this->releasePowerOnClaim($claimedInstanceId, $service);
-            throw $e;
-        }
-
-        if ($powerAction !== null) {
-            Cache::forget('cloud-st:'.$instance->id);
-        }
-
-        if (! ($r['ok'] ?? false)) {
-            $instance->update(['last_error' => mb_substr((string) $r['message'], 0, 500)]);
-            $this->releasePowerOnClaim($claimedInstanceId, $service);
-
-            return back()->withErrors(__('ui.cx_action_fail', ['msg' => $this->safeMessage((string) $r['message'], $instance)]));
-        }
-
-        if ($r['pending'] ?? false) {
-            $instance->update(['status' => 'building', 'last_error' => null, 'synced_at' => now()]);
-            $this->log($service, $logAction);
-            return back()->with('ok', __('ui.cx_async_accepted'));
-        }
-
-        if ($powerAction === 'off' && $this->billingClock->applies($service)) {
-            app(HourlyGpuStart::class)->release($service);
-        }
-
-        if ($powerAction !== null && $this->billingClock->applies($service)) {
-            // start فقط پذیرشِ فرمان است، نه اثباتِ Running. building باعث می‌شود
-            // سینک/وضعیت، لحظهٔ شروع واقعی را ببیند و متر از زمان تخصیص پول نگیرد.
-            $status = $powerAction === 'off' ? 'off' : 'building';
-            $this->billingClock->record(
-                $service,
-                $instance,
-                $status,
-                ['last_error' => null, 'synced_at' => now()],
-                forceNewRun: true,
-            );
-        } else {
-            $instance->update(['last_error' => null, 'synced_at' => now()]);
-        }
-        $this->log($service, $logAction);
-
-        return back()->with('ok', $okMessage);
-    }
-
-    private function releasePowerOnClaim(?int $instanceId, Service $service): void
-    {
-        if ($instanceId !== null) {
-            app(HourlyGpuStart::class)->release($service);
-            CloudInstance::whereKey($instanceId)->where('status', 'building')->update(['status' => 'off']);
-        }
-    }
 
     // ────────────────── اکانت‌های تونلِ TCP ──────────────────
 

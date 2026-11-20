@@ -304,6 +304,8 @@ class CloudUnsupportedLocationTest extends TestCase
      */
     public function test_an_unsupported_combination_closes_only_its_own_row(): void
     {
+        \Tests\Support\NavasanRates::store(['USD' => 100000, 'EUR' => 100000, 'USDT' => 100000]);
+        app(\App\Services\Cloud\CloudPricingSnapshot::class)->publish([100000, 100000, 100000]);
         $bad = $this->makePlan('fi-helsinki');
         $good = $this->makePlan('de-falkenstein');
 

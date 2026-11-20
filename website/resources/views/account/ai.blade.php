@@ -18,6 +18,9 @@
       <h1>{{ __('ai.usage') }}</h1>
       <p class="aw-lead">{{ __('ai.workspace_lead') }}</p>
       <div class="aw-actions">
+        @if(app(\App\Services\Studio\StudioAuthorization::class)->configured())
+          <a class="pnl-btn primary aw-btn" href="{{ lroute('account.studio.launch') }}">ServerNet Studio</a>
+        @endif
         <a class="pnl-btn primary aw-btn" href="{{ lroute('account.security') }}#sec-ai"><svg class="icon" aria-hidden="true"><use href="#i-key"/></svg>{{ __('ai.key') }}</a>
         <a class="pnl-btn aw-btn" href="{{ lroute('account.topup') }}"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg>{{ __('ai.topup') }}</a>
       </div>

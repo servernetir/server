@@ -1,0 +1,29 @@
+{
+  "base_sha": "b12fb50fd333c95a99e5836939f9993c3c6f0397",
+  "sources": [
+    "website/app/Http/Controllers/Account/AccountController.php",
+    "website/app/Http/Controllers/Account/CloudServerController.php",
+    "website/app/Http/Controllers/Account/SecurityController.php",
+    "website/app/Http/Controllers/Api/CloudApiController.php",
+    "website/app/Http/Controllers/Api/CustomerApiController.php",
+    "website/app/Http/Controllers/CustomerApiDocsController.php",
+    "website/app/Http/Middleware/CustomerApiResponse.php",
+    "website/app/Models/CustomerApiToken.php",
+    "website/app/Services/Cloud/CloudPower.php",
+    "website/app/Services/Cloud/HourlyGpuStart.php",
+    "website/app/Services/Cloud/InterruptibleBillingClock.php",
+    "website/app/Services/CustomerApi/Catalog.php",
+    "website/app/Services/CustomerApi/Operations.php",
+    "website/database/migrations/2026_11_10_000100_create_customer_api_operations.php",
+    "website/lang/en/customer-api.php",
+    "website/lang/fa/customer-api.php",
+    "website/lang/tr/customer-api.php",
+    "website/public/assets/css/customer-api.css",
+    "website/resources/views/account/api.blade.php",
+    "website/resources/views/account/partials/api-reference.blade.php",
+    "website/resources/views/account/security.blade.php",
+    "website/resources/views/pages/developers-platform.blade.php",
+    "website/routes/customer-cloud-api.php",
+    "website/routes/web.php"
+  ]
+}

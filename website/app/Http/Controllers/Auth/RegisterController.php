@@ -505,19 +505,23 @@ class RegisterController extends Controller
                 return redirect()->route($this->rp().'register')->withErrors(['email' => __('google.failed')]);
             }
         }
-        $customer = $this->pendingCustomer($reg);
+        $customer = \DB::transaction(function () use ($reg, $request) {
+            $customer = $this->pendingCustomer($reg);
 
-        $customer->forceFill([
-            'password'           => Hash::make($request->string('password')->toString()),
-            'status'             => 'active',
-            'phone_verified_at'  => ($reg['iranian'] || ! empty($reg['phone_ok']))
-                ? now() : $customer->phone_verified_at,
-            'email_verified_at'  => ($reg['iranian'] && empty($reg['email_ok'])) ? $customer->email_verified_at : now(),
-            'google_subject' => $reg['google_subject'] ?? $customer->google_subject,
-        ])->save();
+            $customer->forceFill([
+                'password'           => Hash::make($request->string('password')->toString()),
+                'status'             => 'active',
+                'phone_verified_at'  => ($reg['iranian'] || ! empty($reg['phone_ok']))
+                    ? now() : $customer->phone_verified_at,
+                'email_verified_at'  => ($reg['iranian'] && empty($reg['email_ok'])) ? $customer->email_verified_at : now(),
+                'google_subject' => $reg['google_subject'] ?? $customer->google_subject,
+            ])->save();
 
-        $this->ensureProfile($customer, $reg);
-        $this->recordAcceptance($customer, $request);
+            $this->ensureProfile($customer, $reg);
+            $this->recordAcceptance($customer, $request);
+
+            return $customer;
+        });
 
         // اعلانِ «مشتریِ جدید» به مدیر — best-effort، ثبت‌نام را نمی‌شکند
         app(\App\Services\Notify\AdminNotifier::class)->event('مشتریِ جدید ثبت‌نام کرد', [
@@ -698,13 +702,7 @@ class RegisterController extends Controller
     {
         $locale = app()->getLocale();
 
-        $docs = \DB::table('legal_documents')
-            ->whereIn('kind', ['terms', 'privacy'])
-            ->where('locale', $locale)
-            ->whereNotNull('published_at')
-            ->orderByDesc('published_at')
-            ->get()
-            ->unique('kind');
+        $docs = app(\App\Services\Legal\LegalDocuments::class)->publishCurrent($locale);
 
         foreach ($docs as $doc) {
             \DB::table('legal_acceptances')->updateOrInsert(

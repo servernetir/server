@@ -66,6 +66,25 @@ class CloudPricingSnapshot
         });
     }
 
+    /** Quarantine exact products without changing supplier or manual switches. */
+    public function excludePlans(array $ids): void
+    {
+        if (! $this->validPlanExclusions($ids)) {
+            throw new \InvalidArgumentException('Invalid product quarantine identities.');
+        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($ids) {
+            $value = \Illuminate\Support\Facades\DB::table('settings')->where('key', self::KEY)->lockForUpdate()->value('value');
+            $stored = json_decode((string) $value, true);
+            if (! is_array($stored)) { return; } // A missing snapshot already blocks sales.
+            $merged = array_values(array_unique([...(array) ($stored['excluded_plans'] ?? []), ...$ids]));
+            if (! $this->validPlanExclusions($merged)) {
+                throw new \RuntimeException('Invalid product quarantine snapshot.');
+            }
+            $stored['excluded_plans'] = $merged;
+            Setting::put(self::KEY, json_encode($stored, JSON_THROW_ON_ERROR));
+        });
+    }
+
     /** Read-only plan quarantine; old snapshots without this field remain compatible. */
     public static function excludedPlanIds(): array
     {

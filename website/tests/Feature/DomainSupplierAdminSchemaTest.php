@@ -77,7 +77,7 @@ class DomainSupplierAdminSchemaTest extends TestCase
         $account->environment = 'ote';
         $this->assertFalse($account->saleEligible());
         $account->environment = 'production';
-        $account->health_checked_at = now()->subSeconds(301);
+        $account->health_checked_at = now()->subSeconds((int) config('domain_suppliers.health_max_age_seconds') + 1);
         $this->assertFalse($account->saleEligible());
         $account->health_checked_at = now();
         $account->balance_minor = 0;

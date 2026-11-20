@@ -60,8 +60,15 @@ final class MeterArvanTraffic extends Command
             File::put($dir.'/last-result.json', json_encode(['at' => now()->toIso8601String(), 'source_file' => basename($path), 'result' => $result], JSON_THROW_ON_ERROR));
             chmod($dir.'/last-result.json', 0600);
             if ($result['held'] !== []) {
-                ErrorTracker::note('billing', 'Traffic items require reconciliation', ['held_count' => count($result['held']),
-                    'reasons' => array_values(array_unique(array_column($result['held'], 'reason')))]);
+                // Keep each full result privately, but do not evict unrelated
+                // incidents with the same unresolved rows every five minutes.
+                $issues = array_map(fn ($row) => [(int) ($row['service_id'] ?? 0), (string) ($row['reason'] ?? 'unknown')], $result['held']);
+                sort($issues);
+                $signature = hash('sha256', json_encode($issues, JSON_THROW_ON_ERROR));
+                if (ErrorTracker::throttlePassed('arvan-traffic-reconciliation', 1800, $signature)) {
+                    ErrorTracker::note('billing', 'Traffic items require reconciliation', ['held_count' => count($result['held']),
+                        'reasons' => array_values(array_unique(array_column($result['held'], 'reason')))]);
+                }
             }
             $this->line(json_encode($result, JSON_THROW_ON_ERROR));
 

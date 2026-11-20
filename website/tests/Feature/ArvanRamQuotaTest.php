@@ -45,7 +45,7 @@ class ArvanRamQuotaTest extends TestCase
             ->invoke(app(CloudProvisioner::class), $plan, $message);
     }
 
-    public function test_exact_provider_response_closes_only_its_account_and_preserves_manual_notes(): void
+    public function test_ram_size_rejection_closes_only_the_requested_plan_and_preserves_manual_notes(): void
     {
         $small = $this->plan();
         $large = $this->plan(['provider_ref' => 'large', 'ram_mb' => 65536, 'slug' => 'large']);
@@ -54,25 +54,26 @@ class ArvanRamQuotaTest extends TestCase
 
         $this->quarantine($small);
 
-        $this->assertTrue(CloudPlan::providerIsDisabled('arvan'));
+        $this->assertFalse(CloudPlan::providerIsDisabled('arvan'));
         $this->assertFalse(CloudPlan::providerIsDisabled('hetzner'));
-        foreach ([$small, $large] as $plan) {
+        foreach ([$small] as $plan) {
             $this->assertTrue($plan->fresh()->admin_disabled);
             $this->assertTrue($plan->fresh()->is_active);
             $this->assertStringStartsWith(CloudProvisioner::QUARANTINE_PREFIX, $plan->fresh()->admin_note);
         }
+        $this->assertFalse($large->fresh()->admin_disabled);
         $this->assertSame('manual decision', $manual->fresh()->admin_note);
         $this->assertFalse($peer->fresh()->admin_disabled);
-        $this->assertSame([$peer->id], CloudPlan::sellable()->pluck('id')->all());
+        $this->assertSame([$large->id, $peer->id], CloudPlan::sellable()->pluck('id')->all());
     }
 
-    public function test_new_catalogue_rows_and_previously_loaded_checkout_cannot_bypass_quota_block(): void
+    public function test_new_catalogue_rows_stay_open_but_failed_plan_checkout_cannot_bypass_its_block(): void
     {
         $plan = $this->plan();
         $this->assertTrue(CloudPlan::offers()->has($plan->slug));
         $this->quarantine($plan);
         $new = $this->plan(['provider_ref' => 'newly-synced', 'slug' => 'newly-synced']);
-        $this->assertFalse(CloudPlan::offers()->has($new->slug));
+        $this->assertTrue(CloudPlan::offers()->has($new->slug));
         $this->assertNull(CloudPlan::bestForSlug($plan->slug, true));
 
         $customer = Customer::create(['email' => 'quota@example.test', 'password' => 'test-only', 'status' => 'active', 'locale' => 'fa']);
@@ -105,7 +106,7 @@ class ArvanRamQuotaTest extends TestCase
 
         $this->assertFalse(app(CloudProvisioner::class)->provision($service));
         $this->assertSame('failed', $service->fresh()->provision_status);
-        $this->assertTrue(CloudPlan::providerIsDisabled('arvan'));
+        $this->assertFalse(CloudPlan::providerIsDisabled('arvan'));
         $this->assertFalse(app(CloudProvisioner::class)->provision($service->fresh()));
         $this->assertSame(1, CloudInstance::where('service_id', $service->id)->count());
     }
@@ -118,7 +119,7 @@ class ArvanRamQuotaTest extends TestCase
         $this->assertFalse($plan->fresh()->admin_disabled);
     }
 
-    public function test_repeated_ram_error_is_idempotent_and_reopening_requires_both_existing_controls(): void
+    public function test_repeated_ram_error_is_idempotent_and_reopening_is_per_plan(): void
     {
         $plan = $this->plan();
         $this->quarantine($plan);

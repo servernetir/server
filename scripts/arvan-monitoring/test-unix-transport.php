@@ -136,7 +136,7 @@ namespace {
         $source=new Source('http://127.0.0.1:19090',static function()use(&$tcpCalls){$tcpCalls++; throw new RuntimeException('must_not_fallback');},$transport);
         $identity=['service_id'=>613,'instance_id'=>77,'customer_id'=>42,'provider_ref'=>'ir-tbz-sh1:00000000-0000-0000-0000-000000000001','enrollment_id'=>str_repeat('a',32),'device'=>'ens3'];
         $read=$source->read($identity,1793638800);
-        utCheck($read['status']==='unknown' && $read['reason']==='private_prometheus_read_failed' && $read['sample']===null && $tcpCalls===0,'uds_failure_no_tcp_fallback_or_sample');
+        utCheck($read['status']==='unknown' && $read['reason']==='private_transport_protocol_invalid' && $read['sample']===null && $tcpCalls===0,'uds_failure_no_tcp_fallback_or_sample');
         $labels=['job'=>'servernet-arvan']; $rows=[]; $now=1793638800;
         foreach (['service_id','instance_id','customer_id','provider_ref','enrollment_id'] as $key) $labels['snet_'.$key]=(string)$identity[$key];
         foreach (['up'=>'1','node_scrape_collector_success'=>'1','node_network_receive_bytes_total'=>'1000','node_network_transmit_bytes_total'=>'2000','node_boot_time_seconds'=>(string)($now-86400)] as $name=>$value) {

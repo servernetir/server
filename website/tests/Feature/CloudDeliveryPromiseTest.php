@@ -48,8 +48,8 @@ class CloudDeliveryPromiseTest extends TestCase
         ], $over));
     }
 
-    /** خطای ساختاری ⇒ فروشِ **همهٔ** پلن‌های آن زیرساخت بسته می‌شود */
-    public function test_a_structural_provider_error_closes_that_providers_plans(): void
+    /** A rejected order quarantines only its exact product identity. */
+    public function test_a_structural_order_error_closes_only_the_failed_plan(): void
     {
         $bad = $this->plan('aeza');
         $alsoBad = $this->plan('aeza');
@@ -58,7 +58,7 @@ class CloudDeliveryPromiseTest extends TestCase
         $this->invokeQuarantine($bad, "You don't have enough permissions for this action");
 
         $this->assertTrue($bad->fresh()->admin_disabled, 'پلنِ خرابه هنوز فروخته می‌شود');
-        $this->assertTrue($alsoBad->fresh()->admin_disabled, 'بقیهٔ پلن‌های همان زیرساخت بسته نشدند');
+        $this->assertFalse($alsoBad->fresh()->admin_disabled, 'خطای یک سفارش نباید پلن سالم همان زیرساخت را ببندد');
         $this->assertFalse($healthy->fresh()->admin_disabled,
             'زیرساختِ سالم هم بسته شد — یک خطا نباید کلِ فروش را بخواباند');
     }

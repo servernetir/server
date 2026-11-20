@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin/ai-growth')->middleware(['auth:web', 'admin'])->group(function () {
     Route::get('/', [GrowthController::class, 'index'])->name('admin.growth');
+    Route::get('/google-discovery', [\App\Http\Controllers\Admin\SearchConsoleController::class, 'index']);
+    Route::post('/google-discovery/configure', [\App\Http\Controllers\Admin\SearchConsoleController::class, 'configure']);
+    Route::post('/google-discovery/connect', [\App\Http\Controllers\Admin\SearchConsoleController::class, 'connect'])->middleware('throttle:6,1');
+    Route::post('/google-discovery/disconnect', [\App\Http\Controllers\Admin\SearchConsoleController::class, 'disconnect']);
     Route::post('/content', [GrowthController::class, 'store'])->middleware('throttle:30,1');
     Route::get('/content/{content}', [GrowthController::class, 'show']);
     Route::post('/content/{content}/edit', [GrowthController::class, 'edit']);

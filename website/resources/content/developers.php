@@ -54,6 +54,24 @@ return [
 
     // ═══════════════════════ فهرست کناری ═══════════════════════
 
+    "project_guide_title" => [
+        "fa" => "راهنمای توسعهٔ پروژهٔ سرورنت",
+        "en" => "Contributing to ServerNet",
+        "tr" => "ServerNet projesine katkı",
+    ],
+
+    "project_guide_summary" => [
+        "fa" => "برای توسعهٔ سایت، از شاخهٔ develop در GitHub یک شاخهٔ کاری بسازید، تغییر را در مسیر مربوط در پروژه پیاده‌سازی و آزمایش کنید و Pull Request بفرستید. راهنمای مخزن، مسیر فایل‌ها، انتشار و روش بازگشت را توضیح می‌دهد.",
+        "en" => "To work on the website, branch from develop on GitHub, implement and test the change in its project directory, then open a pull request. The repository guide covers file locations, deployment, and rollback.",
+        "tr" => "Site üzerinde çalışmak için GitHub'da develop dalından bir çalışma dalı açın. Değişikliği ilgili proje dizininde uygulayıp test edin ve bir pull request oluşturun. Depo rehberinde dosya konumları, yayınlama ve geri alma adımları yer alır.",
+    ],
+
+    "project_guide_link" => [
+        "fa" => "راهنمای مخزن در GitHub",
+        "en" => "Repository guide on GitHub",
+        "tr" => "GitHub depo rehberi",
+    ],
+
     "tunnel_link" => [
         "fa" => "دنبال مدیریت کاربران تونل سرور اکسیت هستید؟ آن رابط مرجع خودش را دارد:",
         "en" => "Looking for exit server tunnel user management? That interface has its own reference:",

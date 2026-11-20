@@ -506,7 +506,7 @@ class CloudFairHourlyMeteringTest extends TestCase
     public function test_customer_power_on_resets_the_clock_before_the_next_meter_run(): void
     {
         Carbon::setTestNow(now()->startOfSecond());
-        $this->fakeInterruptibleStatus('running');
+        $this->fakeInterruptibleStatus('off');
         $c = $this->customer(120_000);
         $s = $this->service($c, [
             'cloud_plan_id' => $this->interruptiblePlan()->id,
@@ -521,6 +521,7 @@ class CloudFairHourlyMeteringTest extends TestCase
         $this->assertSame('building', $s->cloudInstance()->first()->status);
         $this->assertSame(now()->format('Y-m-d H:i:s'), $s->fresh()->last_metered_at->format('Y-m-d H:i:s'));
 
+        $this->fakeInterruptibleStatus('running');
         $this->artisan('cloud:meter')->assertOk();
         $this->assertSame(115_000, $c->creditBalance('IRT')); // Verified restart prepays one hour.
     }

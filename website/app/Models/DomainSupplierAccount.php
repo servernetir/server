@@ -17,6 +17,22 @@ class DomainSupplierAccount extends Model
 
     protected $hidden = ['credentials', 'settings'];
 
+    /**
+     * The owner's one-click profile for ordinary suffixes. It claims only what
+     * both adapters implement for every suffix (create/renew, the three
+     * management actions, no privacy add-on). Transfer is deliberately absent:
+     * its resulting term differs by registry and must be stated per suffix.
+     */
+    public const STANDARD_PROFILE = [
+        'operations' => ['create', 'renew'],
+        'period_months' => [12, 24, 36, 48, 60, 72, 84, 96, 108, 120],
+        'privacy' => ['none'],
+        'management' => ['nameservers', 'lock', 'contacts'],
+        'contact_creation' => 'standard',
+        'idn' => false,
+        'premium' => false,
+    ];
+
     protected function casts(): array
     {
         return [
@@ -50,6 +66,32 @@ class DomainSupplierAccount extends Model
             $issues[] = 'balance_unknown';
         }
         return $issues;
+    }
+
+    /**
+     * The single reader of per-suffix evidence. An explicit `tlds` entry wins
+     * outright (no merge: a narrower owner statement must never be widened by
+     * the default); otherwise `default` applies unless the suffix is listed in
+     * `exclude`. Nothing here makes a suffix sellable on its own — the account
+     * must still price it in its own catalogue or live quote.
+     */
+    public function tldCapabilities(string $tld): array
+    {
+        $caps = (array) $this->capabilities;
+        $tld = strtolower(trim($tld, " \t."));
+        if (is_array($caps['tlds'][$tld] ?? null)) return $caps['tlds'][$tld];
+        if (! is_array($caps['default'] ?? null) || in_array($tld, (array) ($caps['exclude'] ?? []), true)) return [];
+        return $caps['default'];
+    }
+
+    public function usesStandardProfile(): bool
+    {
+        // Key order is not evidence; a JSON column may hand the object back reordered.
+        $default = ((array) $this->capabilities)['default'] ?? null;
+        if (! is_array($default)) return false;
+        $standard = self::STANDARD_PROFILE;
+        ksort($default); ksort($standard);
+        return $default === $standard;
     }
 
     public function saleEligible(): bool

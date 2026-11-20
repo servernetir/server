@@ -555,6 +555,12 @@ class CalendarController extends Controller
     /** بازگشت از گوگل */
     public function googleCallback(Request $request, GoogleCalendarClient $google): RedirectResponse
     {
+        $discovery = $request->session()->get(SearchConsoleController::STATE);
+        if (is_array($discovery) && is_string($discovery['state'] ?? null) && is_string($request->query('state'))
+            && hash_equals($discovery['state'], $request->query('state'))) {
+            return app(SearchConsoleController::class)->callback($request,
+                app(\App\Services\Growth\SearchConsoleClient::class));
+        }
         // A separate read-only reporting grant shares the registered redirect URI.
         // Dispatch only its exact session-bound state; Calendar's flow is unchanged.
         $reportingState = $request->session()->get(ManagerReportingController::STATE);

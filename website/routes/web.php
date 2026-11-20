@@ -48,6 +48,7 @@ Route::post('/api/internal/chat-leads', \App\Http\Controllers\ChatLeadIngestCont
 $site = function (): void {
     require __DIR__.'/identity-site.php';
     Route::get('/', [SiteController::class, 'home'])->name('home');
+    Route::get('/studio/download', \App\Http\Controllers\Ai\StudioDownloadsController::class)->name('studio.download');
     // [ai-storefront:start]
     Route::get('/ai', [\App\Http\Controllers\AiStorefrontController::class, 'home'])->name('ai.home');
     Route::get('/ai/models', [\App\Http\Controllers\AiStorefrontController::class, 'models'])->name('ai.models');
@@ -220,6 +221,8 @@ $site = function (): void {
     | خطاهایش را JSON برمی‌گرداند — یعنی یک ۵۰۴ ساده به‌جای صفحهٔ خطای سایت،
     | یک بلوکِ JSON به بازدیدکننده نشان می‌دهد.
     */
+    Route::get('/developers/platform', [\App\Http\Controllers\CustomerApiDocsController::class, 'publicDocs'])->name('developers.platform');
+    Route::get('/developers/platform/openapi.json', [\App\Http\Controllers\CustomerApiDocsController::class, 'openapi'])->name('developers.platform.openapi');
     Route::get('/developers', fn () => view('pages.developers'))->name('developers');
 
     /*
@@ -376,6 +379,7 @@ $site = function (): void {
     | اعداد سخت‌گیرانه‌اند چون هر ثبت‌نام ایرانی ۸۱٬۰۰۰ تومان استعلام دارد؛
     | سقف واقعی داخل OtpService و RegisterController است و این فقط لایهٔ اول.
     */
+    Route::get('/login/studio', [\App\Http\Controllers\Ai\StudioController::class, 'start'])->name('studio.start')->middleware('throttle:signin');
     Route::middleware('guest:customer')->group(function () {
         Route::get('/login/google', [Auth\GoogleController::class, 'start'])->name('google.start')->middleware('throttle:signin');
         Route::get('/register/google-phone', [Auth\GoogleController::class, 'phone'])->name('google.phone')->middleware('throttle:signin');
@@ -411,6 +415,7 @@ $site = function (): void {
     Route::post('/logout', [Auth\LoginController::class, 'logout'])->name('logout');
 
     Route::middleware(['auth:customer', \App\Http\Middleware\EnsureCustomerActive::class, \App\Http\Middleware\EnforceCustomerIp::class, \App\Http\Middleware\PrepareBirthdayReward::class])->prefix('account')->name('account.')->group(function () {
+        require __DIR__.'/studio-account.php';
         require __DIR__.'/domain-management.php';
         require __DIR__.'/madar-account.php';
         Route::get('/', [Account\AccountController::class, 'home'])->name('home');
@@ -486,6 +491,8 @@ $site = function (): void {
         // دقیقه‌ای بیشترش را می‌گیرد، ولی کش per-service است نه per-customer.
         Route::get('/services/{service}/stats', [Account\ServiceController::class, 'stats'])->name('services.stats')->middleware('throttle:60,1');
         Route::get('/services/{service}/domain-connection', Account\HostingDomainConnectionController::class)->name('services.domain-connection')->middleware('throttle:20,1');
+        Route::get('/services/{service}/renew', [Account\ServiceRenewalController::class, 'show'])->name('services.renew')->middleware('throttle:20,1');
+        Route::post('/services/{service}/renew', [Account\ServiceRenewalController::class, 'store'])->name('services.renew.store')->middleware('throttle:10,1');
         Route::get('/services/{service}/upgrade', [Account\HostingUpgradeController::class, 'show'])->name('services.upgrade')->middleware('throttle:20,1');
         Route::post('/services/{service}/upgrade', [Account\HostingUpgradeController::class, 'store'])->name('services.upgrade.store')->middleware('throttle:10,1');
 
@@ -672,6 +679,7 @@ $site = function (): void {
         Route::post('/security/ip', [Account\SecurityController::class, 'ipStore'])->name('security.ip')->middleware('throttle:forms');
         Route::post('/security/ip/{rule}/delete', [Account\SecurityController::class, 'ipDestroy'])->name('security.ip.delete');
         Route::post('/security/ip-mode', [Account\SecurityController::class, 'ipMode'])->name('security.ipmode')->middleware('throttle:forms');
+        Route::get('/api', [\App\Http\Controllers\CustomerApiDocsController::class, 'account'])->name('api');
         Route::post('/security/api-token', [Account\SecurityController::class, 'tokenStore'])->name('security.token')->middleware('throttle:forms');
         Route::post('/security/api-token/{token}/delete', [Account\SecurityController::class, 'tokenDestroy'])->name('security.token.delete');
 
@@ -3509,11 +3517,10 @@ Route::prefix('admin')->group(function () {
 
 /*
  * APIِ مشتری — نسخهٔ ۱، احراز با توکنِ Bearer (بدونِ نشست). خطاها JSON‌اند
- * (bootstrap: shouldRenderJsonWhen is('api/*')). فعلاً فقط‌خواندنی؛ زیرساختِ
- * ability طوری است که بعداً روت‌های نوشتنی (ساختِ سرویس/دامنه) با توکنِ
- * دارای دسترسیِ نوشتن اضافه شوند.
+ * (bootstrap: shouldRenderJsonWhen is('api/*')). خواندن حساب، دامنه و تونل
+ * و مدیریت برق GPU/VPS با مجوزهای مستقل؛ بدون ورود به نشست مشتری.
  */
-Route::prefix('api/v1')
+Route::prefix('api/v1')->middleware(\App\Http\Middleware\CustomerApiResponse::class)
     // بی‌نشست: تماس‌گیرنده با توکنِ Bearer می‌آید نه کوکی؛ بدونِ حذفِ این‌ها،
     // StartSession روی هر تماسِ بی‌کوکی یک ردیفِ نشستِ تازه در SQLite می‌نویسد.
     ->withoutMiddleware([
@@ -3524,6 +3531,7 @@ Route::prefix('api/v1')
         \Illuminate\Foundation\Http\Middleware\PreventRequestForgery::class,
     ])
     ->group(function () {
+        require __DIR__.'/customer-cloud-api.php';
         $api = \App\Http\Middleware\CustomerApiToken::class;
         $rate = (array) config('domain_reseller.limits.rate', []);
 
@@ -3548,6 +3556,9 @@ Route::prefix('api/v1')
             ->group(function () {
                 Route::get('/me', [\App\Http\Controllers\Api\CustomerApiController::class, 'me']);
                 Route::get('/services', [\App\Http\Controllers\Api\CustomerApiController::class, 'services']);
+                Route::get('/services/{service}', [\App\Http\Controllers\Api\CustomerApiController::class, 'service'])->whereNumber('service');
+                Route::get('/invoices/{invoice}', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoice'])->whereNumber('invoice');
+                Route::get('/wallet', [\App\Http\Controllers\Api\CustomerApiController::class, 'wallet']);
                 Route::get('/invoices', [\App\Http\Controllers\Api\CustomerApiController::class, 'invoices']);
                 Route::get('/credit', [\App\Http\Controllers\Api\CustomerApiController::class, 'credit']);
 
@@ -3715,3 +3726,5 @@ Route::prefix('agent')->group(function () {
 // Tracking stores no public PII and never redeems a grant.
 Route::get('/m/{token}', [\App\Http\Controllers\Account\OfferController::class, 'track'])
     ->where('token', '[a-f0-9]{48}')->middleware('throttle:60,1');
+
+require __DIR__.'/studio-api.php';

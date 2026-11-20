@@ -1,0 +1,168 @@
+{
+  "config/pages.php": [
+    [
+      "'با استفاده از خدمات سرورنت، این شرایط را می‌پذیرید. لطفاً پیش از خرید مطالعه کنید. آخرین به‌روزرسانی: ۲۶ مهر ۱۴۰۵ (۱۸ اکتبر ۲۰۲۶).'",
+      "'با استفاده از خدمات سرورنت، این شرایط را می‌پذیرید. لطفاً پیش از ثبت‌نام، شارژ حساب و خرید مطالعه کنید. آخرین به‌روزرسانی: ۲۹ آبان ۱۴۰۵ (۲۰ نوامبر ۲۰۲۶).'"
+    ],
+    [
+      "'استفاده از هر یک از سرویس‌های سرورنت به‌منزله پذیرش کامل این قوانین است. اگر با بخشی از این شرایط موافق نیستید، لطفاً از خدمات استفاده نکنید.'",
+      "'برای تکمیل ثبت‌نام، پذیرش صریح شرایط استفاده و حریم خصوصی الزامی است. نسخه و متن اسناد پذیرفته‌شده، زبان، زمان پذیرش، نشانی IP و مشخصات مرورگر برای ثبت سابقه نگهداری می‌شود. پذیرش قوانین به معنی صرف‌نظر از حقوق الزامی قانونی نیست. تغییرات جدید، حقوق ناشی از شرایط پذیرفته‌شده سفارش‌های قبلی را به‌صورت عطف‌به‌ماسبق تغییر نمی‌دهند.'"
+    ],
+    [
+      "'ضمانت بازگشت وجه'",
+      "'سیاست لغو و بازگشت به اعتبار حساب'"
+    ],
+    [
+      "'ضمانت تجاری ۱۴ روزه فقط برای هاست و نمایندگی هاستِ مشمول که مستقیماً روی زیرساخت سرورنت در ایران ارائه می‌شوند است. خرید سرور مجازی، ابری، ساعتی یا اختصاصی مشمول این ضمانت نیست؛ پس از خرید و تخصیص زیرساخت، لغو سفارش موجب استرداد نقدی یا بازگشت مبلغ به اعتبار حساب نمی‌شود. جزئیات و حقوق الزامی قانونی در بند «لغو سفارش و بازگشت وجه — استثنای هاست ایران» همین صفحه آمده است.'",
+      "'بازپرداخت‌های اختیاری مورد موافقت سرورنت صرفاً به اعتبار حساب کاربری انجام می‌شوند؛ این اعتبار برای خرید یا تمدید سایر خدمات قابل پرداخت با موجودی حساب قابل استفاده است و قابل برداشت بانکی نیست. لغو یا عدم استفاده به‌تنهایی حق بازپرداخت ایجاد نمی‌کند. شرایط محاسبه، مهلت هاست‌های مشمول و استثناهای الزامی قانونی در بند «لغو سرویس، محاسبه مبلغ و شیوه بازپرداخت» آمده است.'"
+    ],
+    [
+      "'لغو سفارش و بازگشت وجه — استثنای هاست ایران'",
+      "'لغو سرویس، محاسبه مبلغ و شیوه بازپرداخت'"
+    ],
+    [
+      "'سیاست تجاری لغو: با خرید سرور، هزینه تأمین زیرساخت در همان زمان به ارز مبدأ با تأمین‌کننده تسویه می‌شود. پس از خرید و تخصیص زیرساخت، سرور مجازی، ابری، ساعتی و اختصاصی در هیچ لوکیشنی مشمول ضمانت تجاری بازگشت وجه نیستند؛ لغو، حذف، خاموش‌کردن یا عدم استفاده، موجب استرداد مبلغ پرداخت‌شده، نقدی یا به اعتبار حساب، نمی‌شود. توقف هزینه‌های آینده تابع نوع سرویس، وضعیت حذف و شرایط همان سفارش است. استثنا فقط هاست و نمایندگی هاست است که مستقیماً روی زیرساخت سرورنت در ایران ارائه می‌شوند: درخواست لغو در ۱۴ روز نخست پس از تحویل و فقط برای دوره نخست خرید (نه تمدید)، حداکثر یک بار برای هر مشتری و هر نوع خدمت، قابل رسیدگی است. هاست خارج از ایران، سرورها، لایسنس و پنل مستقل، ثبت/تمدید/انتقال دامنه، SSL صادرشده، IP اضافه، هزینه راه‌اندازی و خدمات پروژه‌ای آغازشده مشمول این ضمانت تجاری نیستند. درخواست از پنل یا تیکت ثبت می‌شود؛ رسیدگی حداکثر ۷ روز کاری و استرداد تأییدشده با همان روش پرداخت حداکثر ۱۴ روز کاری انجام می‌شود. این سیاست، حقوق الزامی ناشی از قوانین لازم‌الاجرا و رسیدگی به پرداخت تکراری، پرداخت اشتباهی یا عدم تحویل خدمت را ساقط نمی‌کند. این نسخه از زمان انتشار در ۲۶ مهر ۱۴۰۵ (۱۸ اکتبر ۲۰۲۶) برای سفارش‌های جدید اعمال می‌شود؛ شرایط ثبت‌شده هنگام خرید سفارش‌های پیشین با این ویرایش تغییر نمی‌کند.'",
+      "'لغو، حذف، خاموش‌کردن یا عدم استفاده از سرویس به‌تنهایی به معنی استحقاق بازپرداخت کل مبلغ نیست. درخواست لغو از پنل یا تیکت ثبت و بر اساس شرایط همان سفارش بررسی می‌شود؛ نتیجه بررسی حداکثر ظرف ۷ روز کاری اعلام می‌شود. در صورت موافقت با بازپرداخت اختیاری، مبلغ قابل برگشت پس از کسر هزینه مصرف واقعی و تعهدات غیرقابل‌برگشت تأمین‌کننده که پیش از خرید اعلام شده‌اند، محاسبه و فقط به اعتبار همان حساب کاربری اضافه می‌شود. اعتبار برای خرید یا تمدید سایر خدمات قابل پرداخت با موجودی حساب قابل استفاده است و بازپرداخت اختیاری به حساب بانکی، کارت یا به‌صورت نقدی انجام نمی‌شود. مهلت بررسی لغو تجاری هاست و نمایندگی هاست مشمول روی زیرساخت سرورنت در ایران، ۱۴ روز نخست پس از تحویل و فقط دوره نخست خرید (نه تمدید)، حداکثر یک بار برای هر مشتری و هر نوع خدمت است؛ برای سفارش‌های جدید، مبلغ تأییدشده این موارد نیز به اعتبار حساب اضافه می‌شود. دامنه، SSL صادرشده، لایسنس تحویل‌شده، هزینه راه‌اندازی و خدمات پروژه‌ای آغازشده ضمانت لغو اختیاری ندارند؛ وضعیت سرورها و تعهدات زیرساخت بر اساس سفارش بررسی می‌شود. توقف هزینه‌های آینده تابع نوع سرویس و تأیید پایان آن است. استثنا: این سیاست حق انصراف قانونی در موارد مشمول، الزام قانونی به استرداد وجه، پرداخت تکراری یا اشتباهی و حقوق ناشی از عدم امکان تحویل خدمت را محدود نمی‌کند؛ در موارد استرداد الزامی، اعتبار داخلی به‌اجبار جایگزین وجه نقد نمی‌شود و رسیدگی مطابق قانون انجام می‌شود. این ویرایش از زمان انتشار در ۲۰ نوامبر ۲۰۲۶ برای سفارش‌های جدید اعمال می‌شود و تعهدات پذیرفته‌شده سفارش‌های قبلی را تغییر نمی‌دهد.'"
+    ],
+    [
+      "'افزایش اختیاری موجودی حساب کاربری برای استفاده از خدمات سرورنت انجام می‌شود و سپرده بانکی یا وجه نقد قابل برداشت محسوب نمی‌شود. با توجه به پرداخت‌های ارزی از جمله یورو و دلار و تعهدات مالی سرورنت به تأمین‌کنندگان زیرساخت، مانده شارژ اختیاری حساب به درخواست کاربر قابل برداشت، تبدیل به وجه نقد یا استرداد به حساب بانکی نیست. اعتبار استفاده‌نشده در حساب باقی می‌ماند و می‌توان از آن، طبق تعرفه‌ها و شرایط جاری، برای خرید یا تمدید سایر خدمات قابل پرداخت با اعتبار حساب در سرورنت استفاده کرد. لطفاً پیش از افزایش اعتبار، مبلغ موردنیاز را بررسی کنید. این محدودیت مانع رسیدگی به پرداخت تکراری یا اشتباهی، موارد استرداد الزامی به موجب قوانین لازم‌الاجرا یا حقوق ناشی از ضمانت بازگشت وجه خدمات مشمول طبق بند مربوط در همین صفحه نیست.'",
+      "'افزایش اختیاری موجودی حساب کاربری برای استفاده از خدمات سرورنت انجام می‌شود و سپرده بانکی یا وجه نقد قابل برداشت محسوب نمی‌شود. با توجه به پرداخت‌های ارزی از جمله یورو و دلار و تعهدات مالی سرورنت به تأمین‌کنندگان زیرساخت، مانده شارژ اختیاری حساب به درخواست کاربر قابل برداشت، تبدیل به وجه نقد یا استرداد به حساب بانکی نیست. اعتبار استفاده‌نشده در حساب باقی می‌ماند و می‌توان از آن، طبق تعرفه‌ها و شرایط جاری، برای خرید یا تمدید سایر خدمات قابل پرداخت با اعتبار حساب در سرورنت استفاده کرد. لطفاً پیش از افزایش اعتبار، مبلغ موردنیاز را بررسی کنید. این محدودیت، استرداد الزامی قانونی و حقوق ناشی از پرداخت تکراری یا اشتباهی و عدم امکان تحویل خدمت را محدود نمی‌کند؛ جزئیات در بند لغو و بازپرداخت آمده است.'"
+    ],
+    [
+      "'By using ServerNet\\'s services you accept these terms. Please read them before ordering. Last updated: 18 October 2026.'",
+      "'Please read these terms before registering, topping up or purchasing ServerNet services. Last updated: 20 November 2026.'"
+    ],
+    [
+      "'Using any ServerNet service constitutes full acceptance of these terms. If you disagree with any part, please do not use the services.'",
+      "'Registration requires explicit acceptance of the Terms of Service and Privacy Policy. We retain the accepted document versions and text, language, acceptance time, IP address and browser information as evidence of acceptance. Acceptance does not waive mandatory statutory rights. Later changes do not retroactively alter rights under the terms accepted for earlier orders.'"
+    ],
+    [
+      "'Money-back guarantee'",
+      "'Cancellation and account-credit policy'"
+    ],
+    [
+      "'The voluntary 14-day guarantee applies only to eligible hosting and reseller hosting delivered directly on ServerNet infrastructure in Iran. VPS, cloud, hourly and dedicated server purchases are excluded; after purchase and infrastructure allocation, cancellation does not result in a cash refund or an account-credit refund. See \"Cancellation and refunds — Iran hosting exception\" on this page for details and mandatory statutory rights.'",
+      "'Discretionary refunds approved by ServerNet are issued only as account credit, usable for purchasing or renewing other services that accept account credit; this credit is not withdrawable to a bank account. Cancellation or non-use alone does not create a refund entitlement. Calculation rules, the eligible-hosting window and mandatory legal exceptions are set out under \"Service cancellation, calculation and refund method\".'"
+    ],
+    [
+      "'Cancellation and refunds — Iran hosting exception'",
+      "'Service cancellation, calculation and refund method'"
+    ],
+    [
+      "'Commercial cancellation policy: when a server is purchased, the infrastructure cost is settled with the supplier immediately in the infrastructure currency. After purchase and infrastructure allocation, VPS, cloud, hourly and dedicated servers in every location are outside the voluntary money-back guarantee. Cancellation, deletion, shutdown or non-use does not refund the amount paid, either in cash or as account credit. Stopping future charges depends on the service type, deletion status and the terms of that order. The only exception is eligible hosting and reseller hosting delivered directly on ServerNet infrastructure in Iran: cancellation requests can be reviewed within 14 days of delivery, only for the first billing period (not renewals), at most once per customer per service type. Hosting outside Iran, servers, licences and standalone panels, domain registration/renewal/transfer, issued SSL certificates, additional IPs, setup fees and project work already started are excluded. Submit requests through the panel or a ticket; review takes up to 7 business days and approved refunds are returned through the original payment method within 14 business days. This policy does not remove mandatory statutory rights or the review of duplicate payments, mistaken payments or services not delivered. This version applies to new orders from its publication on 18 October 2026; it does not change the terms recorded when earlier orders were purchased.'",
+      "'Cancellation, deletion, shutdown or non-use alone does not entitle the customer to a full refund. Submit cancellation requests through the panel or a support ticket; requests are assessed under the terms of the order and a decision is communicated within 7 business days. If a discretionary refund is approved, the eligible amount is calculated after actual usage costs and non-recoverable supplier commitments disclosed before purchase, then added only to the same customer account as credit. Credit can purchase or renew other services that accept account credit. Discretionary refunds are not paid to bank accounts, cards or in cash. Eligible hosting and reseller hosting on ServerNet infrastructure in Iran retain a 14-day commercial cancellation review window from delivery, for the first billing period only (not renewals), once per customer per service type; for new orders, any approved amount is also returned as account credit. Domains, issued SSL certificates, delivered licences, setup fees and project work already started have no discretionary cancellation guarantee; server and infrastructure commitments are assessed under the order. Stopping future charges depends on the service type and confirmed termination. Exception: this policy does not limit statutory withdrawal rights where applicable, legally required refunds, duplicate or mistaken payments, or rights arising when a service cannot be delivered. Account credit is not imposed in place of cash where a monetary refund is legally required; such cases are handled under applicable law. This revision applies to new orders from publication on 20 November 2026 and does not change commitments accepted for earlier orders.'"
+    ],
+    [
+      "'Voluntary account top-ups are intended for purchasing ServerNet services and do not constitute a bank deposit or a cash-withdrawable balance. Because ServerNet incurs foreign-currency costs, including euro and US-dollar payments and financial commitments to infrastructure suppliers, unused voluntarily topped-up credit cannot be withdrawn, converted to cash or refunded to the customer’s bank account on request. Unused credit remains available in the account and may be used, under current rates and service conditions, to purchase or renew other ServerNet services that accept account credit. Please check the amount before topping up. This restriction does not prevent the handling of duplicate or mistaken payments, refunds required by applicable law, or rights under the money-back guarantee for eligible services set out elsewhere on this page.'",
+      "'Voluntary account top-ups are intended for purchasing ServerNet services and do not constitute a bank deposit or a cash-withdrawable balance. Because ServerNet incurs foreign-currency costs, including euro and US-dollar payments and financial commitments to infrastructure suppliers, unused voluntarily topped-up credit cannot be withdrawn, converted to cash or refunded to the customer’s bank account on request. Unused credit remains available in the account and may be used, under current rates and service conditions, to purchase or renew other ServerNet services that accept account credit. Please check the amount before topping up. Mandatory statutory refunds and rights arising from duplicate or mistaken payments or inability to deliver a service remain unaffected; see the cancellation and refund section.'"
+    ],
+    [
+      "'ServerNet hizmetlerini kullanarak bu şartları kabul edersiniz. Sipariş öncesi okuyun. Son güncelleme: 18 Ekim 2026.'",
+      "'ServerNet hesabı açmadan, bakiye yüklemeden veya sipariş vermeden önce bu şartları okuyun. Son güncelleme: 20 Kasım 2026.'"
+    ],
+    [
+      "'Herhangi bir ServerNet hizmetini kullanmak bu şartların tam kabulü anlamına gelir.'",
+      "'Kayıt işlemini tamamlamak için Hizmet Şartları ve Gizlilik Politikası açıkça kabul edilmelidir. Kabul edilen belgelerin sürümleri ve metinleri, dil, kabul zamanı, IP adresi ve tarayıcı bilgileri kabul kaydı olarak saklanır. Kabul, emredici yasal haklardan vazgeçme anlamına gelmez. Yeni değişiklikler önceki siparişlerin kabul edilmiş şartlarından doğan hakları geriye dönük değiştirmez.'"
+    ],
+    [
+      "'Para iade garantisi'",
+      "'İptal ve hesap kredisi politikası'"
+    ],
+    [
+      "'Ticari 14 günlük garanti yalnızca doğrudan ServerNet altyapısında İran içinde sunulan uygun hosting ve bayi hosting hizmetlerini kapsar. VPS, bulut, saatlik ve fiziksel sunucu alımları kapsam dışıdır; satın alma ve altyapı tahsisinden sonra iptal, nakit veya hesap kredisi iadesi doğurmaz. Ayrıntılar ve emredici yasal haklar için bu sayfadaki \"İptal ve iadeler — İran hosting istisnası\" maddesine bakın.'",
+      "'ServerNet tarafından onaylanan isteğe bağlı iadeler yalnızca hesap kredisi olarak yapılır. Bu kredi, hesap bakiyesiyle ödenebilen diğer hizmetlerin satın alınması veya yenilenmesinde kullanılabilir; banka hesabına çekilemez. İptal veya kullanmama tek başına iade hakkı doğurmaz. Hesaplama, uygun hosting süresi ve zorunlu yasal istisnalar \"Hizmet iptali, hesaplama ve iade yöntemi\" bölümündedir.'"
+    ],
+    [
+      "'İptal ve iadeler — İran hosting istisnası'",
+      "'Hizmet iptali, hesaplama ve iade yöntemi'"
+    ],
+    [
+      "'Ticari iptal politikası: sunucu satın alındığında altyapı maliyeti aynı anda altyapının para birimiyle tedarikçiye ödenir. Satın alma ve altyapı tahsisinden sonra her konumdaki VPS, bulut, saatlik ve fiziksel sunucular ticari para iade garantisi dışındadır. İptal, silme, kapatma veya kullanmama, ödenen tutarın nakit ya da hesap kredisi olarak iadesini sağlamaz. Sonraki ücretlerin durması hizmet türüne, silinme durumuna ve sipariş şartlarına bağlıdır. Tek istisna, doğrudan ServerNet altyapısında İran içinde sunulan uygun hosting ve bayi hosting hizmetleridir: teslimattan sonraki 14 gün içinde, yalnızca ilk dönem için (yenilemeler hariç), müşteri ve hizmet türü başına en fazla bir kez iptal talebi incelenebilir. İran dışındaki hosting, sunucular, lisans ve bağımsız paneller, alan adı kaydı/yenileme/transfer, düzenlenmiş SSL, ek IP, kurulum ücretleri ve başlanmış proje işleri kapsam dışıdır. Talepler panel veya destek biletiyle yapılır; inceleme en fazla 7 iş günü, onaylanmış iadenin aynı ödeme yöntemiyle yapılması en fazla 14 iş günüdür. Bu politika emredici yasal hakları veya mükerrer ödeme, hatalı ödeme ya da teslim edilmeyen hizmetlerin incelenmesini ortadan kaldırmaz. Bu sürüm 18 Ekim 2026 tarihinde yayımlanmasından itibaren yeni siparişler için geçerlidir; önceki siparişlerin satın alındığı sırada kaydedilen şartları değiştirmez.'",
+      "'İptal, silme, kapatma veya kullanmama tek başına tam iade hakkı doğurmaz. İptal talepleri panel veya destek biletiyle iletilir, sipariş şartlarına göre değerlendirilir ve sonuç en fazla 7 iş günü içinde bildirilir. İsteğe bağlı iade onaylanırsa gerçek kullanım bedeli ve satın alma öncesinde açıklanan geri alınamayan tedarikçi yükümlülükleri düşüldükten sonra uygun tutar yalnızca aynı müşteri hesabına kredi olarak eklenir. Kredi, hesap bakiyesiyle ödenebilen diğer hizmetlerin satın alınması veya yenilenmesinde kullanılabilir. İsteğe bağlı iadeler banka hesabına, karta veya nakit olarak ödenmez. İran içinde ServerNet altyapısında sunulan uygun hosting ve bayi hosting için ticari iptal inceleme süresi, teslimattan itibaren ilk 14 gün, yalnızca ilk dönem (yenilemeler hariç) ve müşteri ile hizmet türü başına bir kezdir; yeni siparişlerde onaylanan tutar da hesap kredisi olarak eklenir. Alan adları, düzenlenmiş SSL sertifikaları, teslim edilmiş lisanslar, kurulum bedelleri ve başlanmış projeler isteğe bağlı iptal garantisi dışındadır; sunucu ve altyapı yükümlülükleri siparişe göre incelenir. Sonraki ücretlerin durması hizmet türüne ve sona ermenin doğrulanmasına bağlıdır. İstisna: bu politika, uygulanabildiği durumlarda yasal cayma hakkını, zorunlu parasal iadeleri, mükerrer veya hatalı ödemeleri ve hizmetin teslim edilememesinden doğan hakları sınırlamaz. Parasal iadenin yasal olarak zorunlu olduğu durumlarda hesap kredisi nakit yerine dayatılmaz; işlem yürürlükteki mevzuata göre yürütülür. Bu değişiklik 20 Kasım 2026 tarihinde yayımlanmasından itibaren yeni siparişlere uygulanır; önceki siparişler için kabul edilmiş taahhütleri değiştirmez.'"
+    ],
+    [
+      "'Hesaba isteğe bağlı yüklenen tutarlar ServerNet hizmetlerini satın almak içindir; banka mevduatı veya nakit olarak çekilebilir bakiye niteliğinde değildir. ServerNet altyapı tedarikçilerine avro ve ABD doları dahil yabancı para birimleriyle ödeme yaptığı ve mali yükümlülükler üstlendiği için, isteğe bağlı yüklemelerden kalan kullanılmamış bakiye müşterinin talebiyle nakit olarak çekilemez, paraya dönüştürülemez veya banka hesabına iade edilemez. Kullanılmayan kredi hesapta kalır ve güncel tarifeler ile hizmet şartlarına göre hesap bakiyesiyle ödenebilen diğer ServerNet hizmetlerini satın almak veya yenilemek için kullanılabilir. Lütfen yükleme yapmadan önce tutarı kontrol edin. Bu kısıtlama mükerrer veya hatalı ödemelerin incelenmesini, yürürlükteki mevzuatın zorunlu kıldığı iadeleri ya da bu sayfada belirtilen uygun hizmetler için para iade garantisinden doğan hakları ortadan kaldırmaz.'",
+      "'Hesaba isteğe bağlı yüklenen tutarlar ServerNet hizmetlerini satın almak içindir; banka mevduatı veya nakit olarak çekilebilir bakiye niteliğinde değildir. ServerNet altyapı tedarikçilerine avro ve ABD doları dahil yabancı para birimleriyle ödeme yaptığı ve mali yükümlülükler üstlendiği için, isteğe bağlı yüklemelerden kalan kullanılmamış bakiye müşterinin talebiyle nakit olarak çekilemez, paraya dönüştürülemez veya banka hesabına iade edilemez. Kullanılmayan kredi hesapta kalır ve güncel tarifeler ile hizmet şartlarına göre hesap bakiyesiyle ödenebilen diğer ServerNet hizmetlerini satın almak veya yenilemek için kullanılabilir. Lütfen yükleme yapmadan önce tutarı kontrol edin. Zorunlu yasal iadeler ile mükerrer veya hatalı ödeme ya da hizmetin teslim edilememesinden doğan haklar saklıdır; iptal ve iade bölümüne bakın.'"
+    ]
+  ],
+  "lang/fa/ui.php": [
+    [
+      "    'auth_terms_accept' =>",
+      "    'auth_credit_policy' => 'بازپرداخت اختیاری تأییدشده فقط به اعتبار حساب انجام می‌شود و برای خرید یا تمدید سایر خدمات قابل استفاده است؛ برداشت بانکی ندارد. موارد استرداد الزامی قانونی مستثنا هستند.',\n    'auth_terms_accept' =>"
+    ],
+    [
+      "    'auth_terms_accept' =>",
+      "    'auth_credit_accept' => 'سیاست لغو و بازپرداخت به اعتبار حساب، با حفظ موارد استرداد الزامی قانونی را نیز می‌پذیرم.',\n    'auth_terms_accept' =>"
+    ],
+    [
+      "    'hp_inc5' => 'ضمانت ۱۴ روزه فقط برای هاست مشمول ایران',",
+      "    'hp_inc5' => 'لغو ۱۴روزه هاست مشمول ایران؛ بازگشت به اعتبار حساب',"
+    ],
+    [
+      "    'sla_fm5' => 'قطع، محدودسازی یا کاهش پهنای باند شبکه زیرساخت کشور یا مسیرهای بین‌الملل، از جمله تصمیم مراجع ذی‌صلاح؛ وضعیت در صفحه وضعیت اعلام می‌شود. ضمانت تجاری ۱۴ روزه فقط برای هاست‌های مشمول ایران طبق قوانین است و این بند حقوق الزامی قانونی را ساقط نمی‌کند.',",
+      "    'sla_fm5' => 'قطع، محدودسازی یا کاهش پهنای باند شبکه زیرساخت کشور یا مسیرهای بین‌الملل، از جمله تصمیم مراجع ذی‌صلاح؛ وضعیت در صفحه وضعیت اعلام می‌شود. لغو تجاری هاست‌های مشمول ایران در مهلت ۱۴روزه طبق قوانین بررسی و مبلغ تأییدشده به اعتبار حساب اضافه می‌شود؛ حقوق الزامی قانونی محفوظ است.',"
+    ],
+    [
+      "    'server_no_refund_notice' => 'خرید سرور پس از تخصیص زیرساخت مشمول استرداد نیست. هزینه زیرساخت هنگام خرید به ارز مبدأ تسویه می‌شود؛ لغو، حذف یا عدم استفاده، موجب بازگشت مبلغ پرداخت‌شده به‌صورت نقدی یا اعتبار حساب نمی‌شود. ضمانت تجاری ۱۴ روزه فقط برای هاست‌های مشمول روی زیرساخت سرورنت در ایران است؛ حقوق الزامی قانونی محفوظ است.',",
+      "    'server_no_refund_notice' => 'لغو یا عدم استفاده از سرور به‌تنهایی حق بازپرداخت ایجاد نمی‌کند. هزینه مصرف واقعی و تعهدات غیرقابل‌برگشت اعلام‌شده پیش از خرید لحاظ می‌شوند؛ در صورت موافقت با بازپرداخت اختیاری، مبلغ قابل برگشت فقط به اعتبار حساب اضافه می‌شود تا برای خدمات دیگر استفاده شود. موارد استرداد الزامی قانونی مستثنا هستند.',"
+    ]
+  ],
+  "lang/en/ui.php": [
+    [
+      "    'auth_terms_accept' =>",
+      "    'auth_credit_policy' => 'Approved discretionary refunds are issued only as account credit for other eligible purchases or renewals, with no bank withdrawal. Legally required monetary refunds are excepted.',\n    'auth_terms_accept' =>"
+    ],
+    [
+      "    'auth_terms_accept' =>",
+      "    'auth_credit_accept' => 'I also accept the cancellation and account-credit refund policy, subject to mandatory statutory refunds.',\n    'auth_terms_accept' =>"
+    ],
+    [
+      "    'hp_inc5' => '14-day guarantee for eligible Iran hosting only',",
+      "    'hp_inc5' => '14-day eligible Iran hosting cancellation; account credit',"
+    ],
+    [
+      "    'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network or international routes, including decisions of competent authorities; status is announced on the status page. The voluntary 14-day guarantee applies only to eligible Iran hosting under the terms; mandatory statutory rights remain unaffected.',",
+      "    'sla_fm5' => 'Interruption, restriction or bandwidth reduction of the national network or international routes, including competent-authority decisions, is announced on the status page. Eligible Iran hosting cancellations are reviewed within the 14-day window under the terms; approved discretionary amounts are returned as account credit. Mandatory statutory rights remain unaffected.',"
+    ],
+    [
+      "    'server_no_refund_notice' => 'Server purchases are non-refundable after infrastructure allocation. The infrastructure cost is settled in its original currency at purchase; cancellation, deletion or non-use does not refund the amount paid in cash or account credit. The voluntary 14-day guarantee is only for eligible hosting on ServerNet infrastructure in Iran; mandatory statutory rights remain unaffected.',",
+      "    'server_no_refund_notice' => 'Cancellation or non-use of a server alone does not create a refund entitlement. Actual usage and non-recoverable commitments disclosed before purchase are considered. If a discretionary refund is approved, the eligible amount is issued only as account credit for other services. Legally required monetary refunds are excepted.',"
+    ]
+  ],
+  "lang/tr/ui.php": [
+    [
+      "    'auth_terms_accept' =>",
+      "    'auth_credit_policy' => 'Onaylanan isteğe bağlı iadeler, diğer uygun hizmetlerin satın alınması veya yenilenmesi için yalnızca hesap kredisi olarak yapılır; bankaya çekilemez. Zorunlu yasal parasal iadeler istisnadır.',\n    'auth_terms_accept' =>"
+    ],
+    [
+      "    'auth_terms_accept' =>",
+      "    'auth_credit_accept' => 'Zorunlu yasal iadeler saklı kalmak üzere iptal ve hesap kredisi iade politikasını da kabul ediyorum.',\n    'auth_terms_accept' =>"
+    ],
+    [
+      "    'hp_inc5' => '14 gün garanti yalnızca uygun İran hosting için',",
+      "    'hp_inc5' => 'Uygun İran hosting için 14 günlük iptal; hesap kredisi',"
+    ],
+    [
+      "    'sla_fm5' => 'Ülke altyapı ağı veya uluslararası rotalarda yetkili makam kararları dahil kesinti, kısıtlama veya bant genişliği azalması; durum, durum sayfasında duyurulur. Ticari 14 günlük garanti yalnızca şartlardaki uygun İran hosting için geçerlidir; emredici yasal haklar saklıdır.',",
+      "    'sla_fm5' => 'Ülke ağı veya uluslararası rotalarda yetkili makam kararları dahil kesinti, kısıtlama ya da bant genişliği azalması durum sayfasında duyurulur. Uygun İran hosting iptalleri şartlardaki 14 günlük sürede incelenir; onaylanan isteğe bağlı tutar hesap kredisine eklenir. Emredici yasal haklar saklıdır.',"
+    ],
+    [
+      "    'server_no_refund_notice' => 'Altyapı tahsisinden sonra sunucu alımları iade edilmez. Altyapı maliyeti satın alma sırasında kaynak para birimiyle ödenir; iptal, silme veya kullanmama, ödenen tutarın nakit ya da hesap kredisi olarak iadesini sağlamaz. Ticari 14 günlük garanti yalnızca ServerNet altyapısında İran içindeki uygun hosting içindir; emredici yasal haklar saklıdır.',",
+      "    'server_no_refund_notice' => 'Sunucuyu iptal etmek veya kullanmamak tek başına iade hakkı doğurmaz. Gerçek kullanım ve satın alma öncesi açıklanan geri alınamayan yükümlülükler dikkate alınır. İsteğe bağlı iade onaylanırsa uygun tutar diğer hizmetlerde kullanılmak üzere yalnızca hesap kredisi olarak eklenir. Zorunlu yasal parasal iadeler istisnadır.',"
+    ]
+  ],
+  "config/hosting.php": [
+    [
+      "'ضمانت تجاری ۱۴ روزه فقط شامل هاست و نمایندگی هاست مشمول روی زیرساخت خود سرورنت در ایران و دوره نخست خرید است. سرور مجازی، ابری، ساعتی و اختصاصی و هاست خارج از ایران مشمول نیستند؛ پس از خرید و تخصیص زیرساخت، لغو باعث بازگشت مبلغ نقدی یا اعتباری نمی‌شود، چون هزینه زیرساخت به ارز مبدأ تسویه شده است. شرایط کامل و حقوق الزامی قانونی در صفحه قوانین آمده است.'",
+      "'برای هاست و نمایندگی هاست مشمول روی زیرساخت سرورنت در ایران، درخواست لغو تا ۱۴ روز پس از تحویل و فقط برای دوره نخست خرید بررسی می‌شود. بازپرداخت اختیاری تأییدشده به اعتبار حساب اضافه می‌شود و برای سایر خدمات قابل پرداخت با موجودی حساب قابل استفاده است؛ برداشت بانکی ندارد. لغو سایر خدمات تابع شرایط سفارش و هزینه مصرف و تعهدات اعلام‌شده است. موارد استرداد الزامی قانونی مستثنا هستند؛ جزئیات در صفحه قوانین آمده است.'"
+    ],
+    [
+      "'The voluntary 14-day guarantee applies only to eligible hosting and reseller hosting on ServerNet infrastructure in Iran, for the first billing period. VPS, cloud, hourly and dedicated servers and hosting outside Iran are excluded. After purchase and infrastructure allocation, cancellation does not refund cash or account credit because the infrastructure cost has been settled in its original currency. See the terms for full conditions and mandatory statutory rights.'",
+      "'Eligible hosting and reseller hosting on ServerNet infrastructure in Iran have a 14-day cancellation review window from delivery, for the first billing period only. Approved discretionary refunds are issued as account credit for other services that accept it, with no bank withdrawal. Cancellation of other services follows the order terms, actual usage and disclosed commitments. Legally required monetary refunds are excepted; see the terms for details.'"
+    ],
+    [
+      "'Ticari 14 günlük garanti yalnızca ServerNet altyapısında İran içinde sunulan uygun hosting ve bayi hosting hizmetlerinin ilk dönemini kapsar. VPS, bulut, saatlik ve fiziksel sunucular ile İran dışındaki hosting kapsam dışıdır. Satın alma ve altyapı tahsisinden sonra iptal, nakit veya hesap kredisi iadesi sağlamaz; altyapı maliyeti kaynak para birimiyle ödenmiştir. Ayrıntılar ve emredici yasal haklar hizmet şartlarındadır.'",
+      "'İran içinde ServerNet altyapısında sunulan uygun hosting ve bayi hosting için teslimattan itibaren ilk 14 gün, yalnızca ilk dönem için iptal incelemesi yapılır. Onaylanan isteğe bağlı tutar, diğer uygun hizmetlerde kullanılabilen hesap kredisine eklenir; bankaya çekilemez. Diğer hizmetlerin iptali sipariş şartları, gerçek kullanım ve açıklanan yükümlülüklere bağlıdır. Zorunlu yasal parasal iadeler istisnadır; ayrıntılar hizmet şartlarındadır.'"
+    ]
+  ]
+}

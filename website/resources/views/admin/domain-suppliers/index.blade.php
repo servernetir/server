@@ -13,6 +13,78 @@
 @if(!$installed)
   <div class="ad-panel" style="padding:20px">{{ __('domain-suppliers.not_installed') }}</div>
 @else
+  <section class="ad-panel" style="padding:20px;margin-bottom:20px;overflow:auto" id="supplier-comparison">
+    <h2>{{ __('domain-suppliers.comparison') }}</h2>
+    <p>{{ __('domain-suppliers.comparison_note') }}</p>
+    <form method="post" action="{{ url('/admin/domain-suppliers/catalogue/refresh') }}" style="margin-bottom:12px">@csrf
+      <button class="btn" type="submit">{{ __('domain-suppliers.refresh_catalogue') }}</button>
+    </form>
+    @if(!$comparison)
+      <p>{{ __('domain-suppliers.comparison_empty') }}</p>
+    @else
+      @php
+        $cmpAccounts = $comparison['accounts'];
+        $cmpRows = $comparison['rows'];
+        $popularRows = [];
+        foreach ($popular as $popularTld) {
+            if (isset($cmpRows[$popularTld])) $popularRows[$popularTld] = $cmpRows[$popularTld];
+        }
+        $cmpTables = [
+            ['title' => __('domain-suppliers.popular_tlds'), 'rows' => $popularRows, 'open' => true],
+            ['title' => __('domain-suppliers.all_tlds'), 'rows' => $cmpRows, 'open' => false],
+        ];
+      @endphp
+      <p>{{ __('domain-suppliers.fetched_at') }}: <span dir="ltr">{{ $comparison['fetched_at'] }}</span></p>
+      @if($comparison['stale'])<p role="alert"><strong>{{ __('domain-suppliers.comparison_stale') }}</strong></p>@endif
+      <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 20px">
+        <dt>{{ __('domain-suppliers.compared_count') }}</dt><dd>{{ number_format($comparison['summary']['compared']) }}</dd>
+        @foreach($cmpAccounts as $cmpId => $cmpAccount)
+          <dt>{{ $cmpAccount['label'] }} <small dir="ltr">{{ $cmpAccount['provider'] }}</small></dt>
+          <dd>
+            {{ __('domain-suppliers.wins') }}: {{ number_format($comparison['summary']['wins'][$cmpId] ?? 0) }} ·
+            {{ __('domain-suppliers.only_here') }}: {{ number_format($comparison['summary']['only'][$cmpId] ?? 0) }} ·
+            {{ __('domain-suppliers.covered_count') }}: {{ number_format($comparison['summary']['covered'][$cmpId] ?? 0) }}
+            @unless($cmpAccount['current'])<br><strong>{{ __('domain-suppliers.comparison_account_changed') }}</strong>@endunless
+          </dd>
+        @endforeach
+      </dl>
+      @foreach($cmpTables as $cmpTable)
+        <details style="margin-top:12px" @if($cmpTable['open']) open @endif>
+          <summary>{{ $cmpTable['title'] }} ({{ number_format(count($cmpTable['rows'])) }})</summary>
+          <table style="width:100%;min-width:720px;text-align:start">
+            <thead><tr>
+              <th>{{ __('domain-suppliers.tld') }}</th>
+              @foreach($cmpAccounts as $cmpAccount)<th>{{ $cmpAccount['label'] }}</th>@endforeach
+              <th>{{ __('domain-suppliers.cheapest') }}</th>
+              <th>{{ __('domain-suppliers.spread') }}</th>
+            </tr></thead>
+            <tbody>
+            @foreach($cmpTable['rows'] as $cmpTld => $cmpRow)
+              <tr>
+                <td dir="ltr">.{{ $cmpTld }}</td>
+                @foreach($cmpAccounts as $cmpId => $cmpAccount)
+                  @php $cmpOffer = $cmpRow['offers'][$cmpId] ?? null; @endphp
+                  <td @if($cmpRow['winner'] === $cmpId && count($cmpRow['offers']) > 1) style="font-weight:700" @endif>
+                    @if($cmpOffer)
+                      {{ number_format($cmpOffer['wholesale_toman']) }} {{ __('domain-suppliers.toman') }}
+                      <br><small dir="ltr">{{ $cmpOffer['amount'] }}</small>
+                      @if($cmpOffer['promotion'])<br><small>{{ __('domain-suppliers.promotion') }}</small>@endif
+                      @unless($cmpOffer['covered'])<br><small>{{ __('domain-suppliers.not_covered') }}</small>@endunless
+                    @else
+                      —
+                    @endif
+                  </td>
+                @endforeach
+                <td>{{ $cmpAccounts[$cmpRow['winner']]['label'] ?? '—' }}</td>
+                <td>{{ $cmpRow['spread_toman'] === null ? '—' : number_format($cmpRow['spread_toman']).' '.__('domain-suppliers.toman') }}</td>
+              </tr>
+            @endforeach
+            </tbody>
+          </table>
+        </details>
+      @endforeach
+    @endif
+  </section>
   <section class="ad-panel" style="padding:20px;margin-bottom:20px;overflow:auto">
     <h2>{{ __('domain-suppliers.operations') }}</h2>
     <p>{{ __('domain-suppliers.operation_note') }}</p>

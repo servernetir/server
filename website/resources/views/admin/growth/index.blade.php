@@ -20,7 +20,7 @@
   @if($tab==='calendar')@include('admin.growth.calendar')@endif
   @if(in_array($tab,['overview','sociality','calendar','creative','seo'],true))
     @if($tab==='creative')<p class="gc-notice">{{ __('growth.media_note') }}</p>@endif
-    @if($tab==='seo')<p class="gc-notice">{{ __('growth.seo_note') }} <a href="/admin/posts?type=blog">CMS</a></p>@endif
+    @if($tab==='seo')<p class="gc-notice">{{ __('growth.seo_note') }} <a href="/admin/posts?type=blog">CMS</a> · <a href="/admin/ai-growth/google-discovery">{{ __('google-discovery.title') }}</a></p>@endif
     <div class="gc-grid">
       <section class="gc-card gc-wide">
         <h3>{{ __('growth.'.($tab==='calendar'?'calendar':'sociality')) }}</h3>

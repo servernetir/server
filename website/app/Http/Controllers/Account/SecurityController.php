@@ -173,6 +173,7 @@ class SecurityController extends Controller
             'abilities.*' => ['string', Rule::in([...array_keys(CustomerApiToken::ABILITIES), ...array_keys(CustomerApiToken::AI_ABILITIES), ...array_keys(CustomerApiToken::IDENTITY_ABILITIES)])],
             'identity_application_id'=>['nullable','integer','min:1'],
             'cidrs'       => ['nullable', 'string', 'max:500'],
+            'cloud_service_ids' => ['nullable', 'string', 'max:1000'],
             'expires_days'=> ['nullable', 'integer', 'min:1', 'max:1825'],
 
             /* ── مالِ M2 — کلیدِ AI: پروژهٔ bound + نردبانِ ai:* ── */
@@ -190,6 +191,24 @@ class SecurityController extends Controller
         // ⚠️ پیش‌فرضِ `read` می‌مانَد: فرمی که تیک نخورده نباید ناخواسته توکنِ
         //    نوشتنی بسازد. دسترسیِ خطرناک باید **انتخاب** شود، نه پیش‌فرض باشد.
         $abilities = array_values(array_unique($data['abilities'] ?? [])) ?: ['read'];
+        $cloudServiceIds = null;
+        if (array_intersect($abilities, ['cloud:read', 'cloud:power'])) {
+            if (! \Illuminate\Support\Facades\Schema::hasColumn('customer_api_tokens', 'cloud_service_ids')
+                || ! \Illuminate\Support\Facades\Schema::hasTable('customer_api_operations')) {
+                return back()->withErrors(['name' => __('customer-api.not_ready')])->withFragment('sec-api');
+            }
+            $rawIds = trim((string) ($data['cloud_service_ids'] ?? ''));
+            if ($rawIds !== '') {
+                $parts = preg_split('/[\s,]+/', $rawIds);
+                if (count($parts) > 100 || array_filter($parts, fn ($id) => ! ctype_digit($id) || (int) $id < 1)) {
+                    return back()->withErrors(['cloud_service_ids' => __('customer-api.bad_services')])->withFragment('sec-api');
+                }
+                $cloudServiceIds = array_values(array_unique(array_map('intval', $parts)));
+                if (\App\Models\Service::where('customer_id', $c->id)->whereHas('cloudInstance')->whereIn('id', $cloudServiceIds)->count() !== count($cloudServiceIds)) {
+                    return back()->withErrors(['cloud_service_ids' => __('customer-api.bad_services')])->withFragment('sec-api');
+                }
+            }
+        }
         $identityApplication=null;
         if (array_intersect($abilities,array_keys(CustomerApiToken::IDENTITY_ABILITIES))) {
             abort_unless(app(\App\Services\IdentityApi\Controls::class)->ready(),503);
@@ -274,6 +293,10 @@ class SecurityController extends Controller
         );
         if ($aiProject !== null) {
             $issued->forceFill(['daily_spend_cap_irt' => $data['daily_spend_cap_irt'] ?? 0])->save();
+        }
+
+        if ($cloudServiceIds !== null) {
+            $issued->forceFill(['cloud_service_ids' => $cloudServiceIds])->save();
         }
 
         // متنِ خامِ توکن فقط همین یک‌بار نشان داده می‌شود

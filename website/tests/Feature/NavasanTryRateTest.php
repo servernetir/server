@@ -54,7 +54,7 @@ class NavasanTryRateTest extends TestCase
         Http::assertSentCount(1);
     }
 
-    public function test_missing_malformed_wrong_unit_or_stale_try_preserves_the_previous_complete_batch(): void
+    public function test_invalid_try_does_not_block_core_rates_or_replace_the_last_verified_try(): void
     {
         Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($this->payload())]);
         $fx = app(ExchangeRate::class);
@@ -86,8 +86,11 @@ class NavasanTryRateTest extends TestCase
             Http::swap(new Factory);
             Http::preventStrayRequests();
             Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($payload)]);
-            $this->assertNull($fx->refreshAll());
-            $this->assertSame($previous, Cache::get('fx.navasan.rates'));
+            $rows = $fx->refreshAll();
+            $this->assertSame(['USD', 'EUR', 'USDT'], array_keys($rows));
+            $this->assertSame($rows, Cache::get('fx.navasan.rates'));
+            $this->assertSame($previous['TRY']['rate_toman'], $fx->current('TRY')['rate_toman']);
+            $this->assertSame($previous['TRY']['source_at'], $fx->current('TRY')['source_at']);
             $this->assertSame($stored, Setting::whereIn('key', array_keys($stored))->pluck('value', 'key')->all());
             Http::assertSentCount(1);
         }
@@ -113,6 +116,26 @@ class NavasanTryRateTest extends TestCase
         Setting::put('fx_last_try', json_encode($row, JSON_THROW_ON_ERROR));
         $this->assertNull(app(ExchangeRate::class)->toToman('TRY'));
         Http::assertNothingSent();
+    }
+
+    public function test_rejected_try_allows_coordinated_core_publication_without_publishing_an_unverified_try(): void
+    {
+        $payload = $this->payload();
+        $payload['try_hav']['value'] = 369720;
+        Http::fake([ExchangeRate::SOURCE_URL.'*' => Http::response($payload)]);
+        $fx = app(ExchangeRate::class);
+        $applied = false;
+        $rows = $fx->refreshAll(function (array $rates) use (&$applied): \Closure {
+            $this->assertSame(['USD', 'EUR', 'USDT'], array_keys($rates));
+            $this->assertSame(305110, app(ExchangeRate::class)->toToman('EUR'));
+            $this->assertNull(app(ExchangeRate::class)->toToman('TRY'));
+            return static function () use (&$applied): void { $applied = true; };
+        });
+        $this->assertTrue($applied);
+        $this->assertSame(305110, $fx->toToman('EUR'));
+        $this->assertNull($fx->toToman('TRY'));
+        $this->assertNull(Setting::get('fx_last_try'));
+        $this->assertArrayNotHasKey('TRY', $rows);
     }
 
     public function test_try_reads_never_fetch_or_extend_an_expired_quote(): void

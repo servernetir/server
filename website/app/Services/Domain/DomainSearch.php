@@ -884,6 +884,40 @@ class DomainSearch
     }
 
     /**
+     * کفِ درصد سود دامنه — درصدی که قیمت هرگز زیر آن نمی‌رود.
+     *
+     * 🔴 چرا این هم باید از پنل خوانده شود: کارفرما `domain_margin_pct` را ۱
+     * گذاشت و روی `.com` حدود ۸٪ دید. دلیلش درست بود — کف از سود بزرگ‌تر بود —
+     * ولی هیچ‌جا نوشته نبود و عدد کف فقط در `config/domain_reseller.php`
+     * می‌نشست، جایی که تغییرش یک انتشار می‌خواهد. یک درصدِ بی‌اثر در فرم،
+     * بدتر از نبودنِ آن فیلد است.
+     *
+     * خالی یعنی همان ثابتِ کد. صفر یعنی «کف ندارم» و آگاهانه پذیرفته می‌شود؛
+     * فرم کنارش هشدار می‌دهد، چون کفِ صفر یعنی نوسانِ ارز بینِ استعلام و
+     * پرداخت می‌تواند فروش را زیرِ بها ببرد.
+     *
+     * این تنها خوانندهٔ کف است؛ هر دو مسیرِ قیمت‌گذاری (`LiveDomainPricing`
+     * برای دفترچهٔ قدیمی و `DomainProcurement` برای چندتأمین‌کننده) از همین
+     * می‌خوانند تا دو مسیر بی‌صدا از هم جدا نیفتند.
+     */
+    public static function floorMarginPct(): float
+    {
+        $override = Setting::get('domain_min_margin_pct');
+
+        if ($override !== null && $override !== '') {
+            return max(0, (float) $override);
+        }
+
+        return self::floorMarginDefaultPct();
+    }
+
+    /** کفِ ثابتِ کد — فقط برای نمایشِ placeholder در فرمِ تنظیمات. */
+    public static function floorMarginDefaultPct(): float
+    {
+        return max(0, (float) config('domain_reseller.min_margin_pct', 8));
+    }
+
+    /**
      * دامنهٔ **اصلیِ** یک جستجو — همان که کاربر واقعاً تایپ کرده.
      *
      * 🔴 چرا لازم شد: صفحهٔ /domains نتیجه‌ها را با «بهترین» مرتب می‌کند و

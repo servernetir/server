@@ -153,7 +153,7 @@ class DomainController extends Controller
             'transferUnpaid' => $openInvoice,
             'renewUnit'      => $renewUnit,
             'managementCaps' => config('domain_suppliers.enabled', false) && $domain->supplier_account_id
-                ? (array) (($domain->supplierAccount?->capabilities['tlds'][$domain->tld] ?? [])['management'] ?? []) : [],
+                ? (array) ($domain->supplierAccount?->tldCapabilities((string) $domain->tld)['management'] ?? []) : [],
             'verifiedContacts' => config('domain_suppliers.enabled', false) && $domain->supplier_account_id
                 ? \App\Models\DomainSupplierContact::where('supplier_account_id', $domain->supplier_account_id)
                     ->where('customer_profile_id', auth('customer')->user()?->defaultProfile()?->id ?? 0)

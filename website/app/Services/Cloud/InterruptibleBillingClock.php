@@ -46,6 +46,10 @@ class InterruptibleBillingClock
             Customer::whereKey($service->customer_id)->lockForUpdate()->first();
             $current = Service::whereKey($service->id)->lockForUpdate()->first();
             $currentInstance = CloudInstance::whereKey($instance->id)->lockForUpdate()->firstOrFail();
+            if ($current !== null && ($current->customer_id !== $service->customer_id
+                || $currentInstance->service_id !== $service->id || $currentInstance->provider_ref !== $instance->provider_ref)) {
+                return;
+            }
             if ($current !== null && $this->applies($current)) {
                 $meta = (array) $current->provision_meta;
                 $powerAt = data_get($meta, 'hourly_power_at') ?: data_get($meta, 'hourly_restart.claimed_at');
@@ -55,7 +59,7 @@ class InterruptibleBillingClock
                 // Cached or in-flight replies from an older power operation are
                 // neither delivery evidence nor permission to advance billing.
                 if (! $forceNewRun && ($pending || filled($powerAt))
-                    && ($observedAt === null || ($needsAcceptance && blank($acceptedAt))
+                    && ($observedAt === null || ($needsAcceptance && $status === 'running' && blank($acceptedAt))
                         || (filled($powerAt) && $observedAt->lt(Carbon::parse($powerAt)))
                         || (filled($acceptedAt) && $observedAt->lt(Carbon::parse($acceptedAt))))) {
                     $restartClock = true;
@@ -76,6 +80,12 @@ class InterruptibleBillingClock
             if ($current !== null && $current->status === 'active' && $this->applies($current)
                 && $status === 'running' && ! $forceNewRun && ! $current->hourlyBillingHeld()) {
                 app(HourlyGpuStart::class)->settle($current);
+            }
+            if ($current !== null && $this->applies($current) && $status === 'off'
+                && ! $forceNewRun && $observedAt !== null && HourlyGpuStart::pending($current) > 0
+                && filled($stopAt = data_get($current->provision_meta, 'hourly_stop_requested_at'))
+                && $observedAt->gte(Carbon::parse($stopAt))) {
+                app(HourlyGpuStart::class)->release($current);
             }
             if ($restartClock) {
                 Service::whereKey($service->id)->update(['last_metered_at' => $at]);
