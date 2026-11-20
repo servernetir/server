@@ -2,6 +2,8 @@
 
 return [
     // Official editorial feeds only; content cannot introduce arbitrary fetch targets.
+    'quality_repair' => true,
+    'trend_signals' => true,
     'feeds' => [
         'https://developer.nvidia.com/blog/feed/',
         'https://blog.cloudflare.com/rss/',

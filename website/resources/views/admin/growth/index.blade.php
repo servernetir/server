@@ -17,6 +17,7 @@
   </div>
 
   @if(in_array($tab,['hermes','automation'],true))@include('admin.growth.hermes-supervisor')@endif
+  @if(in_array($tab,['seo','automation'],true))@include('admin.growth.daily-blog')@endif
   @if($tab==='calendar')@include('admin.growth.calendar')@endif
   @if(in_array($tab,['overview','sociality','calendar','creative','seo'],true))
     @if($tab==='creative')<p class="gc-notice">{{ __('growth.media_note') }}</p>@endif

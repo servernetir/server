@@ -11,7 +11,7 @@ final class GrowthClaims
         $rules = [
             'price' => '/(?:[\p{N}][\p{N}.,٬٫ ]{0,22}\s*(?:تومان|ریال|دلار|یورو|لیر|IRT|IRR|USD|EUR|TRY)(?![\p{L}\p{N}_])|[$€₺]\s*\p{N})/iu',
             'traffic' => '/(?:ترافیک[^.\n]{0,60}نامحدود(?!\s*(?:نیست|ندارد))|unlimited\s+(?:traffic|bandwidth)|sınırsız\s+trafik)/iu',
-            'sla' => '/(?:[9۹٩]{2}[.,٫][9۹٩]{1,4}\s*[%٪]|(?:uptime|SLA)[^.\n]{0,25}\p{N})/iu',
+            'sla' => '/(?:[9۹٩]{2}[.,٫][9۹٩]{1,4}\s*[%٪]|(?<![\p{L}\p{N}_])(?:uptime|SLA)(?![\p{L}_])[^.\n]{0,25}\p{N})/iu',
             'delivery' => '/(?:(?:کمتر از|در کمتر از|حداکثر)\s*\p{N}+\s*دقیقه|(?:within|under)\s+\p{N}+\s+minutes?|\p{N}+\s*dakika\s+içinde)/iu',
             'coverage' => '/(?:بیش از\s*\p{N}+\s*کشور|\p{N}+\s*(?:countries|ülke))/iu',
         ];

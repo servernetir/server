@@ -3,10 +3,10 @@ name: Native daily blog
 on:
   pull_request:
     branches: [develop]
-    paths: ['website/app/Services/Growth/**', 'website/app/Console/Commands/PublishDailyBlog.php', 'website/config/daily_blog.php', 'website/tests/Feature/DailyBlog*', '.github/workflows/daily-blog.yml']
+    paths: ['website/app/Services/Growth/**', 'website/app/Console/Commands/PublishDailyBlog.php', 'website/config/daily_blog.php', 'website/tests/Feature/DailyBlog*', 'website/tests/Unit/GrowthClaimsBoundaryTest.php', '.github/workflows/daily-blog.yml']
   push:
     branches: [develop]
-    paths: ['website/app/Services/Growth/**', 'website/app/Console/Commands/PublishDailyBlog.php', 'website/config/daily_blog.php', 'website/tests/Feature/DailyBlog*', '.github/workflows/daily-blog.yml']
+    paths: ['website/app/Services/Growth/**', 'website/app/Console/Commands/PublishDailyBlog.php', 'website/config/daily_blog.php', 'website/tests/Feature/DailyBlog*', 'website/tests/Unit/GrowthClaimsBoundaryTest.php', '.github/workflows/daily-blog.yml']
 
 permissions:
   contents: read
@@ -44,4 +44,4 @@ jobs:
         run: |
           test ! -e .env
           test ! -e bootstrap/cache/config.php
-          vendor/bin/phpunit --filter 'DailyBlog|GrowthAutopilotTest|GrowthGatewayTest|GrowthArticlePublishingTest'
+          vendor/bin/phpunit --filter 'DailyBlog|GrowthClaimsBoundaryTest|GrowthAutopilotTest|GrowthGatewayTest|GrowthArticlePublishingTest'

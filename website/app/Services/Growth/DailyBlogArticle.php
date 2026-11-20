@@ -8,6 +8,7 @@ class DailyBlogArticle
     {
         $schema = $locale ? '{"translations":{"'.$locale.'":{"title":"...","excerpt":"...","body":"Markdown..."}}}' : '{"translations":{"fa":{"title":"...","excerpt":"...","body":"Markdown..."},"en":{...},"tr":{...}}}';
         $task = $locale ? 'Write ONLY the '.$locale.' version of this useful news analysis. The other languages are generated separately from this same source. ' : 'Write ONE useful news analysis in three complete localized versions: Persian, English and Turkish. ';
+
         return ['response_format' => ['type' => 'json_object'], 'model' => $model, 'max_tokens' => (int) config('daily_blog.max_output_tokens', 12000), 'messages' => [
             ['role' => 'system', 'content' => 'You are the ServerNet technology editorial writer. Return ONLY valid JSON with correctly escaped newlines: '.$schema.'. '
                 .$task.'Each body should be about 350-500 words and at least 1800 characters, with at least three ## headings, clear practical implications, limitations and a short actionable conclusion. Keep internal deliberation short so the entire JSON fits in the output cap. '
@@ -27,15 +28,30 @@ class DailyBlogArticle
         if (! is_array($data)) {
             throw new \RuntimeException('invalid_article_shape');
         }
+
         return $data;
     }
 
-    public function parse(string $raw, array $source): array
+    public function failures(array $bundle, array $source): array
+    {
+        $failures = [];
+        foreach (['fa', 'en', 'tr'] as $locale) {
+            try {
+                $this->parse(json_encode(['translations' => $bundle], JSON_THROW_ON_ERROR), $source, [$locale]);
+            } catch (\Throwable $e) {
+                $failures[$locale] = $e instanceof \RuntimeException ? $e->getMessage() : 'invalid_article_shape';
+            }
+        }
+
+        return $failures;
+    }
+
+    public function parse(string $raw, array $source, array $locales = ['fa', 'en', 'tr']): array
     {
         $data = $this->decode($raw);
         $out = [];
         $seenBodies = [];
-        foreach (['fa', 'en', 'tr'] as $locale) {
+        foreach ($locales as $locale) {
             $tr = $data['translations'][$locale] ?? null;
             if (! is_array($tr)) {
                 throw new \RuntimeException('incomplete_translations');
@@ -65,14 +81,19 @@ class DailyBlogArticle
             $seenBodies[] = $fingerprint;
             $letters = preg_match_all('/\p{L}/u', $plain);
             $matching = preg_match_all($locale === 'fa' ? '/\p{Arabic}/u' : '/\p{Latin}/u', $plain);
-            if (mb_strlen($tr['title']) < 15 || mb_strlen($tr['title']) > 100
-                || mb_strlen($tr['excerpt']) < 70 || mb_strlen($tr['excerpt']) > 180
-                || mb_strlen($plain) < 1800 || mb_strlen($plain) > 18000
-                || ! $letters || $matching / $letters < ($locale === 'fa' ? 0.7 : 0.9)
-                || preg_match_all('/^##\s+\S/mu', $tr['body']) < 3
-                || preg_match('/^#\s|<[^>]+>|https?:|!\[|\]\s*\(|\]\s*\[|\[.*?\]:/mu', $tr['body'])
-                || app(GrowthClaims::class)->findings($tr['title'].' '.$tr['excerpt'].' '.$plain)) {
-                throw new \RuntimeException('article_quality_rejected');
+            $checks = [
+                'title_length' => mb_strlen($tr['title']) < 15 || mb_strlen($tr['title']) > 100,
+                'excerpt_length' => mb_strlen($tr['excerpt']) < 70 || mb_strlen($tr['excerpt']) > 180,
+                'body_length' => mb_strlen($plain) < 1800 || mb_strlen($plain) > 18000,
+                'language_script' => ! $letters || $matching / $letters < ($locale === 'fa' ? 0.7 : 0.9),
+                'section_headings' => preg_match_all('/^##\s+\S/mu', $tr['body']) < 3,
+                'unsafe_markup_or_links' => (bool) preg_match('/^#\s|<[^>]+>|https?:|!\[|\]\s*\(|\]\s*\[|\[.*?\]:/mu', $tr['body']),
+                'business_claims' => (bool) app(GrowthClaims::class)->findings($tr['title'].' '.$tr['excerpt'].' '.$plain),
+            ];
+            foreach ($checks as $reason => $failed) {
+                if ($failed) {
+                    throw new \RuntimeException('quality_'.$locale.'_'.$reason);
+                }
             }
             $sourceLabel = ['fa' => 'منبع و تاریخ خبر', 'en' => 'Source and news date', 'tr' => 'Kaynak ve haber tarihi'][$locale];
             $relatedLabel = ['fa' => 'خدمات مرتبط سرورنت', 'en' => 'Related ServerNet services', 'tr' => 'İlgili ServerNet hizmetleri'][$locale];
@@ -89,7 +110,7 @@ class DailyBlogArticle
             }
             $out[$locale] = ['title' => $tr['title'], 'excerpt' => $tr['excerpt'], 'content' => ContentWorkflow::html($body)];
         }
-        if ($out['en']['content'] === $out['tr']['content']) {
+        if (isset($out['en'], $out['tr']) && $out['en']['content'] === $out['tr']['content']) {
             throw new \RuntimeException('duplicate_translation');
         }
 
