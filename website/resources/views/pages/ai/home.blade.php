@@ -26,8 +26,12 @@
    @if(app(\App\Services\Studio\StudioAuthorization::class)->configured())
     <div class="ai-actions">
      <a class="ai-btn primary" href="https://studio.servernet.cloud/">{{ __('ai_studio.open') }}</a>
-     @if(isset(app(\App\Services\Studio\StudioDownloads::class)->release()['downloads']['windows_x64']))
-      <a class="ai-btn" href="{{ lroute('studio.download') }}">{{ __('ai_studio.download') }}</a>
+     @php
+        $studioPackages = app(\App\Services\Studio\StudioDownloads::class);
+        $studioReleaseAvailable = (bool) $studioPackages->release();
+     @endphp
+     @if($studioReleaseAvailable || $studioPackages->previews())
+      <a class="ai-btn" href="{{ lroute('studio.download') }}">{{ __($studioReleaseAvailable ? 'ai_studio.download' : 'studio_download.preview_page') }}</a>
      @endif
     </div>
    @else
