@@ -564,7 +564,7 @@ class AppServiceProvider extends ServiceProvider
         foreach ($models as $model) {
             if (class_exists($model)) {
                 if ($model === \App\Models\Setting::class) {
-                    $model::saved(function (\App\Models\Setting $setting) use ($purge): void {
+                    $model::created(function (\App\Models\Setting $setting) use ($purge): void {
                         // Agent heartbeats and mailbox sync state never appear on public pages.
                         // Purging the whole page cache for each heartbeat keeps hot pages at MISS.
                         $key = (string) $setting->key;
@@ -572,7 +572,14 @@ class AppServiceProvider extends ServiceProvider
                             return;
                         }
 
-                        if ($setting->wasRecentlyCreated || $setting->wasChanged('value')) {
+                        $purge();
+                    });
+                    $model::updated(function (\App\Models\Setting $setting) use ($purge): void {
+                        $key = (string) $setting->key;
+                        if (str_starts_with($key, 'agent_seen_') || $key === 'mailbox_sync_state') {
+                            return;
+                        }
+                        if ($setting->wasChanged(['value', 'key'])) {
                             $purge();
                         }
                     });
@@ -581,7 +588,19 @@ class AppServiceProvider extends ServiceProvider
                     continue;
                 }
 
-                $model::saved($purge);
+                $model::created($purge);
+                $model::updated(function (\Illuminate\Database\Eloquent\Model $record) use ($purge): void {
+                    // Supplier sync repeatedly updates timestamps on unchanged plans.
+                    // Only a changed business/content field invalidates the public cache.
+                    $ignored = [$record->getUpdatedAtColumn()];
+                    if ($record instanceof \App\Models\CloudPlan) {
+                        $ignored[] = 'synced_at';
+                    }
+
+                    if (array_diff(array_keys($record->getChanges()), $ignored) !== []) {
+                        $purge();
+                    }
+                });
                 $model::deleted($purge);
             }
         }

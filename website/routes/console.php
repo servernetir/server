@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Schedule;
 
 Schedule::command('hosting:upgrades')->everyMinute()->withoutOverlapping(20);
 
+// Expired file-cache entries otherwise remain on disk until the same key is read.
+Schedule::command('cache:prune-expired-file')->hourlyAt(37)->withoutOverlapping(60)->runInBackground();
+
 // Storage tariffs refresh through the existing application scheduler; this never buys resources.
 Schedule::command('hetzner:storage-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
 Schedule::command('hetzner:object-catalog --sync')->everySixHours()->withoutOverlapping(20)->runInBackground();
