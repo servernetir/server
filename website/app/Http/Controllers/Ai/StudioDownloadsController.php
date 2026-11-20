@@ -12,6 +12,7 @@ final class StudioDownloadsController extends Controller
     {
         return response()->view('studio.download', [
             'release' => $downloads->release(),
+            'preview' => $downloads->previews(),
             'studioAvailable' => $authorization->configured(),
         ], 200, ['Cache-Control' => 'no-store']);
     }
