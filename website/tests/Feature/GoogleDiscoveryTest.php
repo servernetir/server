@@ -200,10 +200,14 @@ class GoogleDiscoveryTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         foreach (['fa', 'en', 'tr'] as $locale) {
             app()->setLocale($locale);
-            $html = $this->actingAs($admin)->get('/admin/ai-growth/google-discovery')->assertOk()->getContent();
+            $page = $this->actingAs($admin)->get('/admin/ai-growth/google-discovery')->assertOk();
+            $this->assertMatchesRegularExpression("~form-action [^;]* https://accounts\\.google\\.com(?: |;)~", $page->headers->get('Content-Security-Policy'));
+            $html = $page->getContent();
             $this->assertStringNotContainsString('test-secret', $html);
             $this->assertStringNotContainsString('google-discovery.', $html);
         }
+        $other = $this->actingAs($admin)->get('/admin/ai-growth')->assertOk();
+        $this->assertStringNotContainsString('https://accounts.google.com', $other->headers->get('Content-Security-Policy'));
     }
 
     public function test_admin_oauth_uses_pkce_and_existing_callback_and_rejects_expired_state(): void

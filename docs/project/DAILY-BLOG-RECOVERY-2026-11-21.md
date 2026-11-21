@@ -36,7 +36,7 @@ Local PHP 8.4.24 and copied locked dependencies, isolated `.env`-free worktrees,
 - Added behavior checks cover selective one-locale repair, terminal repair failure, budget refusal, idempotent no-inference historical resumption, operator-edit refusal, snapshot redaction/admin receipts, observed exact-URL popularity and SLA word boundaries.
 - The real saved 20 November texts were checked locally without paid inference; all three pass after the SLA correction.
 
-## Production acceptance and rollback — pending
+## Pre-deployment checkpoint (historical; superseded below)
 
 Production code, cron and database state have not been changed in this work. Automatic browser review rejected opening the signed-in cPanel origin, citing the owner's earlier explicit prohibition. No workaround was attempted. Explicit owner authorization to enter cPanel is required before continuing live deployment.
 
@@ -63,6 +63,27 @@ Native no-inference resumption published the saved 18 November bundle as Post 58
 
 A follow-up adds `--resume=YYYY-MM-DD --repair-saved --actor=ID`. The default `--resume` remains inference-free, but now records malformed JSON as a locale validation failure instead of aborting the entire inspection. The explicit repair path uses the existing one-per-locale quoted repair and existing budget caps; passing locales and paid receipts remain unchanged. It processes the saved daily key, including historical dates, and retains original URL dates. Repair instructions omit numeric prices/promises rather than weakening the commercial-claim filter. No automatic historical backfill is added to the ordinary cron.
 
-Regression coverage includes truncated fa JSON with passing en/tr and an idempotent historical correction. The follow-up must pass CI before live installation and any corrective provider call. Subsequent publication, cron, authorization and sitemap acceptance results are recorded separately; reaching the connection UI does not prove Google authorization or submission.
+Regression coverage includes truncated fa JSON with passing en/tr and an idempotent historical correction. Both the Native daily blog and Google discovery CI passed at `d44607450beab208fc671c078b046649f9a649f4`; PR340 merged as `9badc635d5c9c7bce040ad0ef2427c76af0c8e0b`. Its two runtime files were installed with verified original preimages, backups, shared release/Growth locks, PHP lint and after-hashes before any corrective provider call.
 
 Private installation receipts and rollback preimages: `deploy-backups/blog-20261121/`. Temporary source staging is outside the account root. The small preview/install tools are retained in `scripts/daily-blog-release-20261121/`; they never contain credentials or live data. The original installed manifest must be retained even when a guarded follow-up changes two of its files.
+
+## Production acceptance — 21 November 2026
+
+The existing native cron is present exactly once (every 15 minutes, original one-per-Tehran-day gate after 08:00). Exactly one marked five-minute `seo:google-discovery` cron was installed, preserving all other crontab entries and a private before/after backup. These jobs run on the server and do not depend on ChatGPT automations.
+
+| Saved day | Published post | Recovery |
+| --- | --- | --- |
+| 18 November | 580 | Existing three-language outputs, no inference |
+| 19 November | 582 | One bounded repair each for fa/en; passing tr retained |
+| 20 November | 581 | Existing three-language outputs, no inference |
+| 21 November | 583 | One bounded fa repair for truncated JSON; passing en/tr retained |
+
+Repair jobs 34/35/36 completed, actual costs 2,862 / 2,647 / 3,325 IRT respectively (8,834 IRT total). Existing caps and original receipts were retained. The native status reports enabled=true and today's post published. No repair was repeated after success.
+
+Public acceptance passed 12/12 recovered pages: HTTP 200, unchanged final URL, one H1, self canonical, fa/en/tr/x-default alternates, correct HTML language, appropriate main-text script, official source link and blog-sitemap membership. English and Turkish did not fall back to Persian. The detailed private receipt is `public-acceptance-final.json` alongside `resume-results.json`, `repair-results.json` and the guarded `repair-v2.json` hashes.
+
+Today's post: [Persian](https://servernet.cloud/blog/daily-insight-2026-11-21-how-cloudflare-waf-protects-against-ruby2shell-cve-2026-132825), [English](https://servernet.cloud/en/blog/daily-insight-2026-11-21-how-cloudflare-waf-protects-against-ruby2shell-cve-2026-132825), [Turkish](https://servernet.cloud/tr/blog/daily-insight-2026-11-21-how-cloudflare-waf-protects-against-ruby2shell-cve-2026-132825). Its original selected Cloudflare source was published 20 November at 20:24:38 UTC; do not claim it has verified popularity evidence because its source selection preceded the new trend probe. Future selection has the optional bounded signal enabled and explicitly falls back to freshness/relevance when evidence is absent.
+
+Discovery is enabled and posts 560/563/580/581/582/583 have queued or waiting-authorization receipts. No `sitemap_accepted_at` has been observed: a separate persistent owner write grant is still required. Do not claim a submitted sitemap or indexed article.
+
+Live UI testing also exposed a CSP form-action restriction that silently blocks the Google OAuth POST redirect. The final follow-up permits only `https://accounts.google.com` on a successful authenticated admin GET of the exact discovery page; other pages retain their existing policy. Regression checks assert both the consent-page allowance and the absence on another admin page. Apply this as a guarded one-file scoped release, preserving all unrelated security policy changes. The owner must confirm the new write grant at the final Google consent step.
