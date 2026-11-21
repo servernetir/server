@@ -16,6 +16,7 @@
   .er-stat small{color:var(--muted);font-size:11.5px;line-height:1.6;display:block}
   .er-stat-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;color:var(--er-accent);background:rgba(34,211,238,.09);flex:0 0 auto}
   .er-stat-icon.review{color:var(--er-review);background:rgba(251,191,36,.11)}.er-stat-icon.neutral{color:var(--muted);background:var(--surface2)}
+  .er-stat-icon.verified{color:var(--er-accent);background:rgba(34,211,238,.09)}.er-stat-icon.rejected,.er-stat-icon.revoked{color:var(--red);background:rgba(255,107,107,.09)}
   .er-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px;min-width:0}
   .er-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
   .er-head{display:flex;align-items:center;gap:12px;margin-bottom:19px}.er-head .er-icon{width:22px;height:22px;color:var(--er-accent)}
@@ -47,6 +48,10 @@
   .er-history-head h3{font-size:17px;font-weight:750}.er-history-head p{margin-top:5px;font-size:12.5px}
   .er-pill{display:inline-flex;align-items:center;gap:7px;line-height:1.55;padding:5px 11px;border:1px solid rgba(251,191,36,.24);background:rgba(251,191,36,.09);color:var(--er-review);font-weight:650;font-size:11px;border-radius:999px;max-width:100%;white-space:normal}
   .er-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+  .er-pill.verified{color:var(--er-accent);background:rgba(34,211,238,.08);border-color:rgba(34,211,238,.23)}
+  .er-pill.rejected,.er-pill.revoked{color:var(--red);background:rgba(255,107,107,.08);border-color:rgba(255,107,107,.24)}
+  html[data-theme="light"] .er-pill.rejected,html[data-theme="light"] .er-pill.revoked{color:#991b1b}
+  .er-review-link{white-space:nowrap;font-size:12px;text-decoration:none}
   .er-count-pill{font-weight:650;padding:5px 12px;border-radius:99px;border:1px solid var(--line2);background:var(--surface2);font-size:12px;color:var(--muted);white-space:nowrap}
   .er-table-scroll{overflow-x:auto;border-top:1px solid var(--line)}.er .ad-table{min-width:660px}
   .er .ad-table th{background:var(--surface2);font-size:11.5px;padding:14px 20px;text-transform:none;color:var(--muted)}
@@ -61,6 +66,10 @@
   @media(prefers-reduced-motion:reduce){.er a,.er button,.er input{transition:none}}
 </style>
 
+@php
+  $reviewReady = $evidenceReviewReady ?? false;
+  $reviewCounts = $evidenceCounts ?? ['pending' => $records->total(), 'verified' => 0, 'rejected' => 0, 'revoked' => 0];
+@endphp
 <div class="er" id="evidence" data-evidence-overview>
   <section class="er-hero" aria-labelledby="er-title">
     <div class="er-hero-copy">
@@ -82,14 +91,28 @@
       <span class="er-stat-icon"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span>
     </div>
     <div class="er-stat">
-      <div><dt>{{ __('email-evidence-review.pending_records') }}</dt><dd data-evidence-pending="{{ $records->total() }}">{{ number_format($records->total()) }}</dd><small>{{ __('email-evidence-review.pending_note') }}</small></div>
+      <div><dt>{{ __('email-evidence-review.pending_records') }}</dt><dd data-evidence-pending="{{ $reviewCounts['pending'] }}">{{ number_format($reviewCounts['pending']) }}</dd><small>{{ __('email-evidence-review.pending_note') }}</small></div>
       <span class="er-stat-icon review"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
     </div>
+    @if($reviewReady)
+      @foreach(['verified','rejected','revoked'] as $decision)
+        <div class="er-stat">
+          <div><dt>{{ __('email-evidence-review.'.$decision.'_records') }}</dt><dd data-evidence-{{ $decision }}="{{ $reviewCounts[$decision] }}">{{ number_format($reviewCounts[$decision]) }}</dd><small>{{ __('email-evidence-review.'.$decision.'_note') }}</small></div>
+          <span class="er-stat-icon {{ $decision }}"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/>@if($decision === 'verified')<path d="m8 12 3 3 5-6"/>@else<path d="m9 9 6 6m0-6-6 6"/>@endif</svg></span>
+        </div>
+      @endforeach
+    @endif
     <div class="er-stat">
       <div><dt>{{ __('email-evidence-review.eligible_records') }}</dt><dd data-evidence-eligible="0">0</dd><small>{{ __('email-evidence-review.eligible_note') }}</small></div>
       <span class="er-stat-icon neutral"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="m8 8 8 8m0-8-8 8"/></svg></span>
     </div>
   </dl>
+
+  @if($reviewReady)
+    <div class="er-note"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><p>{{ __('email-evidence-review.review_workflow_notice') }}</p></div>
+  @else
+    <div class="er-note"><svg class="er-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><p>{{ __('email-evidence-review.review_unavailable') }}</p></div>
+  @endif
 
   @if(is_array(session('evidence_result')))
     <section class="er-card er-import-result" role="status" aria-labelledby="er-result-title">
@@ -158,6 +181,7 @@
             <th scope="col">{{ __('email-evidence-review.consent_date') }}</th>
             <th scope="col">{{ __('email-evidence-review.imported_at') }}</th>
             <th scope="col">{{ __('email-evidence-review.state') }}</th>
+            @if($reviewReady)<th scope="col">{{ __('email-evidence-review.review_action') }}</th>@endif
           </tr></thead>
           <tbody>
             @foreach($records as $record)
@@ -165,7 +189,11 @@
                 <td><span class="er-contact-id" dir="ltr">{{ $record->contact_id }}</span></td>
                 <td><span dir="ltr">{{ $record->consent_date->format('Y-m-d') }}</span></td>
                 <td>{{ sdate($record->created_at) }}</td>
-                <td><span class="er-pill">{{ __('email-evidence-review.review_only') }}</span></td>
+                @php($decision = $reviewReady ? ($record->latestDecision?->decision ?? 'pending') : 'pending')
+                <td><span class="er-pill {{ $decision }}" data-evidence-state="{{ $decision }}">{{ $decision === 'pending' ? __('email-evidence-review.review_only') : __('email-evidence-review.state_'.$decision) }}</span></td>
+                @if($reviewReady)
+                  <td><a data-evidence-review-link class="btn btn-glass er-review-link" href="{{ route('admin.email-marketing.evidence.review', ['review' => $record->id]) }}">{{ __('email-evidence-review.review_action') }}</a></td>
+                @endif
               </tr>
             @endforeach
           </tbody>
