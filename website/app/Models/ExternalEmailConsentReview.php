@@ -37,6 +37,11 @@ class ExternalEmailConsentReview extends Model
         return $this->hasOne(ExternalEmailConsentReviewEvent::class, 'review_id')->latestOfMany();
     }
 
+    public function sharedDocumentItem(): HasOne
+    {
+        return $this->hasOne(ExternalEmailConsentDocumentItem::class, 'review_id');
+    }
+
     protected static function booted(): void
     {
         static::updating(static function (): void {

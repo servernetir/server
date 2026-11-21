@@ -40,8 +40,20 @@ class EmailEvidenceDecisionController extends Controller
             ->with('reviewer:id,name')->latest('id')->get();
         $state = $events->first()?->decision ?? 'pending';
         $expectedEvent = $events->first()?->id ?? 0;
+        $sharedDocument = null;
+        if (Schema::hasTable('external_email_consent_document_batches') && Schema::hasTable('external_email_consent_document_items')) {
+            $batch = $record->sharedDocumentItem()->with('batch')->first()?->batch;
+            if ($batch) {
+                try {
+                    // Admin-only individual detail, never a list of raw references or addresses.
+                    $sharedDocument = ['batch_id' => $batch->id, 'reference' => $batch->document_reference, 'created_at' => $batch->created_at];
+                } catch (DecryptException) {
+                    $sharedDocument = ['batch_id' => $batch->id, 'reference' => null, 'created_at' => $batch->created_at];
+                }
+            }
+        }
 
-        return response()->view('admin.email-evidence-review-detail', compact('record', 'events', 'state', 'expectedEvent'))
+        return response()->view('admin.email-evidence-review-detail', compact('record', 'events', 'state', 'expectedEvent', 'sharedDocument'))
             ->withHeaders($this->headers());
     }
 
