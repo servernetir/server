@@ -171,7 +171,7 @@ return [
 
     // پیش‌فرض روی پروداکشن true است تا اگر متغیر محیطی ست نشده باشد،
     // کوکی سشن روی HTTP بدون رمزنگاری فرستاده نشود.
-    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV', 'production') === 'production'),
 
     /*
     |--------------------------------------------------------------------------
