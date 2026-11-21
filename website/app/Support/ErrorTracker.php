@@ -253,6 +253,7 @@ class ErrorTracker
     private static function requestUrl(?Request $request): ?string
     {
         if ($request && \App\Http\Middleware\IdentityPrivacy::sensitive($request)) return $request->getSchemeAndHttpHost().'/identity-api/[redacted]';
+        if (EmailMarketingPrivacy::sensitive($request)) return $request->getSchemeAndHttpHost().'/email-marketing/[redacted]';
         // These opaque IDs and signatures are temporary supplier credentials, including on 404s.
         return $request?->is('api/ai-media/*') ? $request->getSchemeAndHttpHost().'/api/ai-media/[redacted]' : self::safeUrl($request);
     }
@@ -345,8 +346,10 @@ class ErrorTracker
                 'at'      => now()->toIso8601String(),
                 'ip'      => $request?->ip(),
                 'ua'      => mb_substr((string) $request?->userAgent(), 0, 120),
-                'referer' => str_contains((string) $request?->headers->get('referer'), '/api/ai-media/')
-                    ? '[redacted supplier media]' : (mb_substr((string) $request?->headers->get('referer'), 0, 200) ?: null),
+                'referer' => EmailMarketingPrivacy::sensitiveUrl((string) $request?->headers->get('referer'))
+                    ? '[redacted email preferences]'
+                    : (str_contains((string) $request?->headers->get('referer'), '/api/ai-media/')
+                        ? '[redacted supplier media]' : (mb_substr((string) $request?->headers->get('referer'), 0, 200) ?: null)),
                 'who'     => ($row['source'] ?? '') === 'console' ? 'console' : self::who(),
             ] + $row;
 
