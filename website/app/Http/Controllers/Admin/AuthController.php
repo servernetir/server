@@ -16,10 +16,8 @@ use Illuminate\View\View;
  * ورود مدیر — دومرحله‌ای.
  *
  * مرحلهٔ ۱: ایمیل + رمز. رمز درست تأیید می‌شود ولی نشست هنوز برقرار نمی‌شود.
- * مرحلهٔ ۲: یک کد یک‌بارمصرف به ایمیلِ مدیر می‌رود؛ فقط بعد از تأیید کد،
- * نشستِ مدیر ساخته می‌شود. کلیدِ گذارِ مرحله‌ها در نشست است تا مرحلهٔ دو
- * دستکاری‌ناپذیر باشد. (کاربران users شماره‌موبایل ندارند، پس کانالِ کد ایمیل
- * است — همان موتور OtpService که ورود مشتری استفاده می‌کند، با purpose جدا.)
+ * مرحلهٔ ۲: یکی از ایمیل، شمارهٔ پیامک تأییدشده یا Authenticator تأییدشده.
+ * نشست تا تأیید روش انتخابی برقرار نمی‌شود؛ مقصد و صاحب چالش از نشست سرور می‌آیند.
  */
 class AuthController extends Controller
 {
@@ -74,13 +72,16 @@ class AuthController extends Controller
         return view('admin.login');
     }
 
-    /** مرحلهٔ ۱: تأیید رمز → ارسال کد به ایمیل → صفحهٔ کد */
+    /** تأیید رمز، سپس شروع روش انتخاب‌شدهٔ ورود. */
     public function login(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'email'    => 'required|email',
             'password' => 'required|string',
+            'method' => 'sometimes|in:email,sms,totp',
         ]);
+
+        $request->session()->forget(['admin_2fa', 'admin_totp']);
 
         $user = User::where('email', $data['email'])->first();
 
@@ -89,14 +90,32 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'ایمیل یا رمز عبور نادرست است.'])->onlyInput('email');
         }
 
-        // نشانگرِ گذار در نشست — مرحلهٔ دو نمی‌تواند کاربر را عوض کند
-        $request->session()->put('admin_2fa', [
+        $method = $data['method'] ?? 'email';
+        if (($method === 'totp' && ! $user->hasTwoFactor())
+            || ($method === 'sms' && ! $user->hasSmsLogin())) {
+            return back()->withErrors(['method' => 'این روش برای حساب شما فعال نیست؛ از روش دیگری وارد شوید و در امنیت حساب آن را فعال کنید.'])
+                ->withInput($request->only('email', 'method'));
+        }
+        $request->session()->regenerate();
+        // The password is never stored; a credential change invalidates this pending login.
+        $ctx = [
             'user_id'  => $user->id,
             'email'    => $user->email,
             'remember' => $request->boolean('remember'),
-        ]);
+            'method' => $method,
+            'expires_at' => now()->addMinutes(10)->timestamp,
+            'password_signature' => hash('sha256', $user->password),
+            // Preserve the previous combined flow for old clients that do not select a method.
+            'legacy_totp' => ! $request->has('method'),
+        ];
+        if ($method === 'totp') {
+            $request->session()->put('admin_totp', $ctx);
+            return redirect()->route('admin.login.totp');
+        }
+        $ctx['destination'] = $method === 'sms' ? $user->login_sms_phone : $user->email;
+        $request->session()->put('admin_2fa', $ctx);
 
-        $issue = $this->otp->issue('email', $user->email, 'admin_login', $request->ip());
+        $issue = $this->otp->issue($method, $ctx['destination'], $this->purpose($ctx), $request->ip(), smsOnly: $method === 'sms');
 
         // شکستِ سختِ ارسال (سرویس ایمیل پایین) — cooldown یعنی کد قبلی هنوز هست
         // و اشکالی ندارد، پس فقط شکستِ واقعی را متوقف می‌کنیم
@@ -114,11 +133,17 @@ class AuthController extends Controller
     {
         $ctx = $request->session()->get('admin_2fa');
 
-        if (! is_array($ctx)) {
+        if (! is_array($ctx) || ! $this->pendingUser($ctx)) {
+            $request->session()->forget('admin_2fa');
             return redirect('/admin/login');
         }
 
-        return view('admin.login-otp', ['masked' => $this->maskEmail($ctx['email'])]);
+        return view('admin.login-otp', [
+            'channel' => $ctx['method'],
+            'masked' => $ctx['method'] === 'sms'
+                ? substr($ctx['destination'], 0, 3).'****'.substr($ctx['destination'], -4)
+                : $this->maskEmail($ctx['destination']),
+        ]);
     }
 
     /** مرحلهٔ ۲ (ثبت): کد → ورود واقعی */
@@ -128,17 +153,18 @@ class AuthController extends Controller
 
         $ctx = $request->session()->get('admin_2fa');
 
-        if (! is_array($ctx)) {
+        if (! is_array($ctx) || ! ($user = $this->pendingUser($ctx))) {
+            $request->session()->forget('admin_2fa');
             return redirect('/admin/login')->withErrors(['email' => 'نشست منقضی شد. دوباره وارد شوید.']);
         }
 
-        $check = $this->otp->verify('email', $ctx['email'], 'admin_login', $data['code']);
+        $check = $this->otp->verify($ctx['method'], $ctx['destination'], $this->purpose($ctx), $data['code']);
 
         if (! $check->ok) {
             return back()->withErrors(['code' => $check->error]);
         }
 
-        $user = User::find($ctx['user_id']);
+        $user = $this->pendingUser($ctx);
 
         if (! $user) {
             $request->session()->forget('admin_2fa');
@@ -156,12 +182,10 @@ class AuthController extends Controller
         | ⚠️ کلیدِ نشست همان `admin_2fa` نیست: کلیدِ جدا یعنی یک درخواستِ
         | جامانده از مرحلهٔ دو نمی‌تواند مرحلهٔ سه را رد کند.
         */
-        if ($user->hasTwoFactor()) {
+        if ($user->hasTwoFactor() && ($ctx['legacy_totp'] ?? false)) {
             $request->session()->forget('admin_2fa');
-            $request->session()->put('admin_totp', [
-                'user_id'  => $user->id,
-                'remember' => (bool) ($ctx['remember'] ?? false),
-            ]);
+            $ctx['method'] = 'totp';
+            $request->session()->put('admin_totp', $ctx);
 
             return redirect()->route('admin.login.totp');
         }
@@ -174,7 +198,9 @@ class AuthController extends Controller
     /** مرحلهٔ ۳ (نمایش): فرمِ کدِ اپلیکیشن */
     public function showTotp(Request $request): View|RedirectResponse
     {
-        if (! is_array($request->session()->get('admin_totp'))) {
+        $ctx = $request->session()->get('admin_totp');
+        if (! is_array($ctx) || ! $this->pendingUser($ctx, true)) {
+            $request->session()->forget('admin_totp');
             return redirect('/admin/login');
         }
 
@@ -189,16 +215,9 @@ class AuthController extends Controller
 
         $ctx = $request->session()->get('admin_totp');
 
-        if (! is_array($ctx)) {
-            return redirect('/admin/login')->withErrors(['email' => 'نشست منقضی شد. دوباره وارد شوید.']);
-        }
-
-        $user = User::find($ctx['user_id']);
-
-        if (! $user || ! $user->hasTwoFactor()) {
+        if (! is_array($ctx) || ! ($user = $this->pendingUser($ctx, true))) {
             $request->session()->forget('admin_totp');
-
-            return redirect('/admin/login')->withErrors(['email' => 'حساب مدیر پیدا نشد.']);
+            return redirect('/admin/login')->withErrors(['email' => 'نشست منقضی شد. دوباره وارد شوید.']);
         }
 
         if (! $user->verifyTwoFactorCode($data['code'], $reason)) {
@@ -215,6 +234,7 @@ class AuthController extends Controller
     /** برقراریِ نشستِ کارکنان — نقطهٔ واحدِ «از این‌جا به بعد واقعاً وارد است» */
     private function completeLogin(Request $request, User $user, bool $remember): RedirectResponse
     {
+        $request->session()->forget(['admin_2fa', 'admin_totp']);
         Auth::login($user, $remember);
         $request->session()->regenerate();
 
@@ -226,21 +246,45 @@ class AuthController extends Controller
     {
         $ctx = $request->session()->get('admin_2fa');
 
-        if (! is_array($ctx)) {
+        if (! is_array($ctx) || ! $this->pendingUser($ctx)) {
+            $request->session()->forget('admin_2fa');
             return redirect('/admin/login');
         }
 
         // 🔴 مثلِ مسیرِ مشتری: نتیجه باید خوانده شود، وگرنه مدیر پنج بار
         //    «ارسال دوباره» می‌زند، هر بار تأیید می‌گیرد، و بی‌خبر به سقف
         //    می‌خورد — و آن‌وقت از پنلِ خودش قفل می‌شود.
-        $issue = $this->otp->issue('email', $ctx['email'], 'admin_login', $request->ip());
+        $issue = $this->otp->issue($ctx['method'], $ctx['destination'], $this->purpose($ctx), $request->ip(), smsOnly: $ctx['method'] === 'sms');
 
         if (! $issue->ok) {
             return redirect()->route('admin.login.otp')
                 ->with($issue->retryAfter === null ? 'err' : 'ok', $issue->error);
         }
 
-        return redirect()->route('admin.login.otp')->with('ok', 'کد دوباره به ایمیل شما فرستاده شد.');
+        return redirect()->route('admin.login.otp')->with('ok', 'کد از طریق روش انتخاب‌شده دوباره فرستاده شد.');
+    }
+
+    private function purpose(array $ctx): string
+    {
+        return $ctx['method'] === 'sms' ? 'admin_login_sms:'.$ctx['user_id'] : 'admin_login';
+    }
+
+    private function pendingUser(array $ctx, bool $totp = false): ?User
+    {
+        if (($ctx['expires_at'] ?? 0) < now()->timestamp
+            || ! in_array($ctx['method'] ?? '', $totp ? ['totp'] : ['email', 'sms'], true)) {
+            return null;
+        }
+        $user = User::find($ctx['user_id'] ?? 0);
+        if (! $user || ($ctx['email'] ?? null) !== $user->email
+            || ! hash_equals(hash('sha256', $user->password), (string) ($ctx['password_signature'] ?? ''))) {
+            return null;
+        }
+        if ($ctx['method'] === 'totp') {
+            return $user->hasTwoFactor() ? $user : null;
+        }
+        $destination = $ctx['method'] === 'sms' ? ($user->hasSmsLogin() ? $user->login_sms_phone : null) : $user->email;
+        return $destination !== null && $destination === ($ctx['destination'] ?? null) ? $user : null;
     }
 
     public function logout(Request $request): RedirectResponse

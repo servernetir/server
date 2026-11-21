@@ -5,7 +5,7 @@
   <div class="ad-brand"><span class="m"><svg class="icon"><use href="#i-server"/></svg></span> سرورنت</div>
   <h2>تأیید ورود مدیر</h2>
   <p style="margin:-6px 0 16px;color:var(--muted);font-size:13.5px;line-height:1.9">
-    یک کد تأیید به ایمیل <b dir="ltr">{{ $masked }}</b> فرستادیم. برای تکمیل ورود، کد را وارد کنید.
+    یک کد تأیید به {{ ($channel ?? 'email') === 'sms' ? 'شماره موبایل' : 'ایمیل' }} <b dir="ltr">{{ $masked }}</b> فرستادیم. برای تکمیل ورود، کد را وارد کنید.
   </p>
 
   @if(session('ok'))<div class="ad-flash ok" style="background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.35);color:#34d399">{{ session('ok') }}</div>@endif

@@ -505,6 +505,7 @@ $site = function (): void {
         // سفارش یک سرویسِ pending و یک پیش‌فاکتورِ واقعی می‌سازد.
         Route::get('/cloud-store', [Account\CloudStoreController::class, 'index'])->name('cloud.store');
         Route::get('/gpu/continue', [\App\Http\Controllers\GpuOrderController::class, 'resume'])->name('gpu.resume');
+        Route::get('/gpu/recover', [\App\Http\Controllers\GpuOrderController::class, 'recover'])->name('gpu.recover');
         Route::post('/gpu/continue', [\App\Http\Controllers\GpuOrderController::class, 'complete'])->name('gpu.complete')->middleware('throttle:12,1');
         Route::get('/gpu-capacity', [Account\GpuCapacityController::class, 'check'])
             ->name('gpu.capacity')->middleware('throttle:30,1');
@@ -2850,6 +2851,8 @@ Route::prefix('admin')->group(function () {
             | باشند که نمی‌توانند از خودشان محافظت کنند.
             */
             Route::get('/security', [AdminSecurity::class, 'index'])->name('admin.security');
+            Route::post('/security/sms/start', [AdminSecurity::class, 'startSms'])->middleware('throttle:resend');
+            Route::post('/security/sms/confirm', [AdminSecurity::class, 'confirmSms'])->middleware('throttle:otp');
             Route::post('/security/2fa/start', [AdminSecurity::class, 'start'])->middleware('throttle:forms');
             Route::post('/security/2fa/confirm', [AdminSecurity::class, 'confirm'])->middleware('throttle:otp');
             Route::post('/security/2fa/cancel', [AdminSecurity::class, 'cancel'])->middleware('throttle:forms');

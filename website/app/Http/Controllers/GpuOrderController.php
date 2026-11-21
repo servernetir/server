@@ -104,14 +104,19 @@ class GpuOrderController extends \App\Http\Controllers\Account\AccountController
             $request->replace($data);
             $response = $store->order($request);
         } catch (ValidationException $e) {
-            return redirect(lroute('gpu'))->withInput($data)->withErrors($e->errors());
+            return redirect(lroute('account.gpu.recover'))->withInput($data)->withErrors($e->errors());
         }
         if (app(GpuCapacityOrders::class)->replay((int) Auth::guard('customer')->id(), $data['gpu_request_key'])) {
             $request->session()->put(self::SESSION.'.customer_id', Auth::guard('customer')->id());
             return $response;
         }
         // Errors must return to editable choices, never an auto-submit loop.
-        return redirect(lroute('gpu'))->withInput($data);
+        return redirect(lroute('account.gpu.recover'))->withInput($data);
+    }
+
+    public function recover(GpuController $catalog)
+    {
+        return response($catalog->show())->header('Cache-Control', 'private, no-store');
     }
 
     private function intent(Request $request): array
@@ -119,8 +124,9 @@ class GpuOrderController extends \App\Http\Controllers\Account\AccountController
         $intent = $request->session()->get(self::SESSION);
         if (! is_array($intent) || ($intent['expires_at'] ?? 0) < now()->timestamp
             || (isset($intent['customer_id']) && (int) $intent['customer_id'] !== (int) Auth::guard('customer')->id())) {
+            $request->session()->forget(self::SESSION);
             throw new \Illuminate\Http\Exceptions\HttpResponseException(
-                redirect(lroute('gpu'))->withErrors(['plan' => __('gpu.intent_expired')])
+                redirect(lroute('account.gpu.recover'))->withErrors(['plan' => __('gpu.intent_expired')])
             );
         }
         return $intent;

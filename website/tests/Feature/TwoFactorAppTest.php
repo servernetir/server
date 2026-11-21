@@ -509,8 +509,11 @@ class TwoFactorAppTest extends TestCase
         $this->withSession(['login_2fa' => ['customer_id' => $c->id, 'channel' => 'sms']])
             ->get('/login/2fa')->assertOk()->assertDontSee('ui.tfa_');
 
-        $this->withSession(['admin_totp' => ['user_id' => $u->id, 'remember' => false]])
-            ->get('/admin/login/totp')->assertOk()->assertSee('تأیید دومرحله‌ای');
+        $this->withTwoFactor($u->fresh());
+        Auth::guard('web')->logout();
+        $this->post('/admin/login', ['email' => $u->email, 'password' => 'secret1234', 'method' => 'totp'])
+            ->assertRedirect(route('admin.login.totp'));
+        $this->get('/admin/login/totp')->assertOk()->assertSee('تأیید دومرحله‌ای');
     }
 
     /**

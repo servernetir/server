@@ -248,7 +248,7 @@ class NetworkTools
             return ['ok' => false, 'error' => 'invalid_domain'];
         }
 
-        $ip = $this->resolveIp($host);
+        $ip = $this->resolveIp($host, true);
         if ($ip === null) {
             return ['ok' => false, 'error' => 'invalid_domain'];
         }
@@ -261,11 +261,10 @@ class NetworkTools
             'peer_name'               => $host,
         ]]);
 
-        $client = @stream_socket_client(
-            'ssl://'.$ip.':'.$port,
-            $errno, $errstr, 10,
-            STREAM_CLIENT_CONNECT, $ctx
-        );
+        $errno = 0;
+        $errstr = '';
+        $address = str_contains($ip, ':') ? '['.$ip.']' : $ip;
+        $client = $this->connectSsl('ssl://'.$address.':'.$port, $ctx, $errno, $errstr);
         if (! $client) {
             return ['ok' => false, 'error' => 'no_ssl', 'message' => $errstr ?: null];
         }
@@ -809,7 +808,7 @@ class NetworkTools
     /* ============================================================= helpers */
 
     /** پرس‌وجوی DoH و بازگرداندن پاسخ JSON دیکود‌شده */
-    private function doh(string $endpoint, string $name, string $type, bool $dnssec = false): ?array
+    protected function doh(string $endpoint, string $name, string $type, bool $dnssec = false): ?array
     {
         $url = $endpoint.'?name='.urlencode($name).'&type='.urlencode($type).($dnssec ? '&do=1' : '');
         $ch = curl_init($url);
@@ -868,7 +867,7 @@ class NetworkTools
     }
 
     /** دامنه یا IP → IP */
-    private function resolveIp(string $input): ?string
+    private function resolveIp(string $input, bool $includeIpv6 = false): ?string
     {
         $s = trim($input);
         $s = preg_replace('~^https?://~', '', $s);
@@ -883,16 +882,40 @@ class NetworkTools
             return null;
         }
         // ابتدا از DoH (پورتابل)، سپس fallback بومی
-        $ans = $this->doh(self::RESOLVERS['google']['url'], $host, 'A');
-        $a = $ans !== null ? $this->extract($ans, 'A') : [];
-        if ($a) {
-            $ip = $a[0]['data'];
+        foreach ($includeIpv6 ? ['A', 'AAAA'] : ['A'] as $type) {
+            $ans = $this->doh(self::RESOLVERS['google']['url'], $host, $type);
+            $answers = $ans !== null ? $this->extract($ans, $type) : [];
+            if ($answers) {
+                foreach ($answers as $answer) {
+                    if (! SafeUrl::isPublicIp($answer['data'])) {
+                        return null;
+                    }
+                }
 
-            return SafeUrl::isPublicIp($ip) ? $ip : null;
+                return $answers[0]['data'];
+            }
         }
         $ip = @gethostbyname($host);
+        if ($ip && SafeUrl::isPublicIp($ip)) {
+            return $ip;
+        }
+        if ($includeIpv6) {
+            $answers = @dns_get_record($host, DNS_AAAA) ?: [];
+            foreach ($answers as $answer) {
+                if (empty($answer['ipv6']) || ! SafeUrl::isPublicIp($answer['ipv6'])) {
+                    return null;
+                }
+            }
 
-        return ($ip && SafeUrl::isPublicIp($ip)) ? $ip : null;
+            return $answers[0]['ipv6'] ?? null;
+        }
+
+        return null;
+    }
+
+    protected function connectSsl(string $address, $context, int &$errno, string &$errstr): mixed
+    {
+        return @stream_socket_client($address, $errno, $errstr, 10, STREAM_CLIENT_CONNECT, $context);
     }
 
     /** ساخت نام PTR از IPv4/IPv6 */

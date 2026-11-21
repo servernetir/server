@@ -236,10 +236,10 @@
       </div>
     @endif
 
+    @if($errors->any())
+      <div class="gpu-errors" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>
+    @endif
     @if($cards)
-      @if($errors->any())
-        <div class="gpu-errors" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>
-      @endif
       <form class="gpu-cfg" id="gpu-configure" method="post" action="{{ lroute('gpu.order') }}">
         @csrf
 

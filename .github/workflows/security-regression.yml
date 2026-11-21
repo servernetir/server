@@ -42,6 +42,7 @@ jobs:
             tests/Feature/SessionCookieDomainTest.php \
             tests/Feature/ConsoleHostTest.php \
             tests/Feature/AdminAuthOtpTest.php \
+            tests/Feature/AdminLoginMethodsTest.php \
             tests/Feature/TwoFactorAppTest.php \
             tests/Feature/GoogleAuthTest.php \
             tests/Feature/OtpLoginTest.php \
@@ -57,7 +58,9 @@ jobs:
             tests/Feature/TicketAttachmentTest.php \
             tests/Feature/N8nSmsRelayTest.php \
             tests/Feature/ErrorTrackerTest.php \
-            tests/Unit/SafeUrlTest.php
+            tests/Feature/WebProbeTest.php \
+            tests/Unit/SafeUrlTest.php \
+            tests/Unit/NetworkToolsSslTest.php
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'

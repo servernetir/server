@@ -211,8 +211,49 @@ class GpuPublicOrderTest extends TestCase
         $key = $this->start();
         $this->plan->update(['price_irt' => 4000000]);
         $this->actingAs($this->customer, 'customer')->post(route('account.gpu.complete'), ['intent_key' => $key])
-            ->assertRedirect(route('gpu'))->assertSessionHasErrors('plan');
+            ->assertRedirect(route('account.gpu.recover'))->assertSessionHasErrors('plan');
         $this->assertDatabaseCount('services', 0);
+        $this->assertNoPurchase();
+    }
+
+    #[DataProvider('checkoutLocales')]
+    public function test_console_recovery_renders_price_errors_and_selected_choices(string $prefix): void
+    {
+        $path = $prefix === '' ? '' : '/'.rtrim($prefix, '.');
+        $origin = 'https://console.servernet.cloud'.$path;
+        $this->get($origin.'/login')->assertOk();
+        $this->actingAs($this->customer, 'customer')->post($origin.'/gpu/order', $this->choices())
+            ->assertRedirect($origin.'/account/gpu/continue');
+        $key = session('gpu_public_order.data.gpu_request_key');
+        $this->plan->update(['price_irt' => 4000000]);
+        $this->post($origin.'/account/gpu/continue', ['intent_key' => $key])
+            ->assertRedirect($origin.'/account/gpu/recover')->assertSessionHasErrors('plan');
+        // Laravel's test client does not carry response cookies automatically.
+        // Keep the same JSON session as the browser on this same-host redirect.
+        $response = $this->withCookie(config('session.cookie'), session()->getId())
+            ->get($origin.'/account/gpu/recover')->assertOk()
+            ->assertSee(__('ui.cvb_gpu_price_changed'))->assertSee('value="my-notebook"', false)
+            ->assertSee('value="gpu-jupyter"', false)->assertSee($this->plan->slug)
+            ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
+        $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $this->assertDatabaseCount('services', 0);
+        $this->assertNoPurchase();
+    }
+
+    #[DataProvider('checkoutLocales')]
+    public function test_console_recovery_shows_unavailable_app_error_even_with_no_cards(string $prefix): void
+    {
+        $path = $prefix === '' ? '' : '/'.rtrim($prefix, '.');
+        $origin = 'https://console.servernet.cloud'.$path;
+        $this->get($origin.'/login')->assertOk();
+        $this->actingAs($this->customer, 'customer')->post($origin.'/gpu/order', $this->choices())
+            ->assertRedirect($origin.'/account/gpu/continue');
+        $key = session('gpu_public_order.data.gpu_request_key');
+        Setting::put('salad_jupyter_sales_paused', '1');
+        $this->post($origin.'/account/gpu/continue', ['intent_key' => $key])
+            ->assertRedirect($origin.'/account/gpu/recover')->assertSessionHasErrors('image');
+        $this->withCookie(config('session.cookie'), session()->getId())
+            ->get($origin.'/account/gpu/recover')->assertOk()->assertSee(__('ui.cvb_e_image'));
         $this->assertNoPurchase();
     }
 
@@ -221,7 +262,7 @@ class GpuPublicOrderTest extends TestCase
         $key = $this->start();
         Setting::put('salad_jupyter_sales_paused', '1');
         $this->actingAs($this->customer, 'customer')->post(route('account.gpu.complete'), ['intent_key' => $key])
-            ->assertRedirect(route('gpu'))->assertSessionHasErrors('image');
+            ->assertRedirect(route('account.gpu.recover'))->assertSessionHasErrors('image');
         $this->assertDatabaseCount('services', 0);
         $this->assertNoPurchase();
     }
@@ -231,7 +272,7 @@ class GpuPublicOrderTest extends TestCase
         $key = $this->start();
         $this->actingAs($this->customer, 'customer')->post(route('account.gpu.complete'), ['intent_key' => 'wrong'])->assertStatus(419);
         $this->travel(31)->minutes();
-        $this->post(route('account.gpu.complete'), ['intent_key' => $key])->assertRedirect(route('gpu'))->assertSessionHasErrors();
+        $this->post(route('account.gpu.complete'), ['intent_key' => $key])->assertRedirect(route('account.gpu.recover'))->assertSessionHasErrors();
         $this->assertDatabaseCount('services', 0);
         $this->assertNoPurchase();
     }
@@ -242,7 +283,7 @@ class GpuPublicOrderTest extends TestCase
         $key = $this->start();
         $other = Customer::create(['email' => 'other-gpu@example.com', 'password' => 'test-only-password', 'status' => 'active']);
         $this->actingAs($other, 'customer')->post(route('account.gpu.complete'), ['intent_key' => $key])
-            ->assertRedirect(route('gpu'))->assertSessionHasErrors();
+            ->assertRedirect(route('account.gpu.recover'))->assertSessionHasErrors();
         $this->assertDatabaseCount('services', 0);
     }
 

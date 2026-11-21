@@ -60,6 +60,8 @@ class ConsoleHost
         // بازگشت درگاه پرداخت: اگر پرداخت روی کنسول شروع شده، callback هم
         // باید روی کنسول بنشیند وگرنه وسط تسویه به دامنهٔ اصلی پرت می‌شود
         'payment/*',
+        // The private GPU recovery form starts its next intent on this host.
+        'gpu/order', 'en/gpu/order', 'tr/gpu/order',
         // AJAX پنل (وضعیت دامنه و…) نباید ۳۰۱ شود
         'api/*',
         // OpenAI-compatible clients also use the console host. A 301 changes
