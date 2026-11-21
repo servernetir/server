@@ -69,6 +69,11 @@ class SecurityHeaders
             // the official console host on an owned Arvan service detail page;
             // never widen every account page, payment page or console origin.
             $formAction = "form-action 'self' https://console.servernet.cloud https://*.zarinpal.com https://zarinpal.com";
+            if ($request->isMethod('GET') && $response->getStatusCode() === 200
+                && $request->routeIs('passport.authorizations.authorize')
+                && \App\Services\Mcp\AdminAccess::allowed($request->user('web'))) {
+                $formAction .= ' https://chatgpt.com';
+            }
             // The Search Console consent form redirects its POST to Google.
             // Permit that destination only on the authenticated discovery page.
             if ($request->isMethod('GET') && $response->getStatusCode() === 200

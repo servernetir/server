@@ -56,6 +56,8 @@ class ConsoleHost
 
     /** روی کنسول اینها هم مجازند (علاوه بر پنل) */
     private const CONSOLE_EXTRA = [
+        '.well-known/oauth-protected-resource', '.well-known/oauth-protected-resource/*',
+        '.well-known/oauth-authorization-server',
         'assets/*', 'favicon.ico', 'favicon.svg', 'robots.txt', 'up',
         // بازگشت درگاه پرداخت: اگر پرداخت روی کنسول شروع شده، callback هم
         // باید روی کنسول بنشیند وگرنه وسط تسویه به دامنهٔ اصلی پرت می‌شود

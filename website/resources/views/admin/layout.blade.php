@@ -212,6 +212,7 @@
       {{-- «الگوی پیام‌ها» هم به تنظیمات رفت (تبِ پیام‌ها). --}}
       <a href="/admin/settings" class="@yield('nav_settings')"><svg class="icon"><use href="#i-wrench"/></svg>تنظیمات</a>
       <a href="/admin/users" class="@yield('nav_users')"><svg class="icon"><use href="#i-user"/></svg>کاربران پنل</a>
+      <a href="/admin/mcp"><svg class="icon"><use href="#i-lock"/></svg>{{ __('mcp_admin.title') }}</a>
       @endif
       @endunless {{-- پایانِ بخش‌های غیرپشتیبانی (از «هاست» تا این‌جا) --}}
       {{-- بیرونِ گاردِ isAdmin: امنیتِ حسابِ خودِ کاربر برای هر نقشی لازم است --}}
