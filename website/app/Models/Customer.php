@@ -70,6 +70,13 @@ class Customer extends Authenticatable
                 $c->code = 'SN-'.str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT);
             }
         });
+        // Verification belongs to the verified address, not the account alone.
+        // Any future address-change flow must verify the new address separately.
+        static::updating(function (self $c): void {
+            if ($c->isDirty('email')) {
+                $c->email_verified_at = null;
+            }
+        });
     }
 
     public function statusChanges(): HasMany
