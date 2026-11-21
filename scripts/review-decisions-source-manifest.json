@@ -1,0 +1,72 @@
+{
+  "base_commit": "b263eaee50404bbf4ad734368134dd98632c9769",
+  "target_commit": "741a88685f3cc4123faa07097703ff7481ab1cbb",
+  "files": [
+    {
+      "path": "app/Models/ExternalEmailConsentReview.php",
+      "status": "modified",
+      "before": "810e4d945f9e47a83ffdeb4db1cc545b7d6d007f7f039bec08a6ecd7fd609046",
+      "after": "48d7ced0edd514c6ab186d28736bee7ac318e0c7422f75af246a5efe7cc5ca0f"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/EmailMarketingController.php",
+      "status": "modified",
+      "before": "e3c55877dfd97fdb375684278e95484533432f12291f56bf69faad4246231815",
+      "after": "5318e6640cf88838282fb3cf541697df7ff1f7de6a1e2024456c4d710fd763b6"
+    },
+    {
+      "path": "routes/email-marketing-admin.php",
+      "status": "modified",
+      "before": "33656f47a5ba0fd1b81818c3e31411b52ad94e1b39fefe94ace30c60fe4f1b87",
+      "after": "5293e5696153f08a8880149c0eeafeb9b86c3fb5d5ee8805d24e6154127f3ce1"
+    },
+    {
+      "path": "resources/views/admin/email-evidence-review.blade.php",
+      "status": "modified",
+      "before": "8d056600367e1a1095ecd2ae6004f04b278d4d7b37cc0537b211cc08f5cc8979",
+      "after": "974b2436472e07e620beae82995c0a993237e5641969448746890d47ca7c4460"
+    },
+    {
+      "path": "lang/fa/email-evidence-review.php",
+      "status": "modified",
+      "before": "8fb3b382ff1e67fa51e03a267cf692faad48d3e53f09a2aec1d2d929b64f6472",
+      "after": "e2d10ba4bba5d1f2d41a7fcfe712a721b54dc53ac3362fffab657e9c9b2980eb"
+    },
+    {
+      "path": "lang/en/email-evidence-review.php",
+      "status": "modified",
+      "before": "3a4b51b105b0cdcf981a2bc3b6a49b40701333710971a32df5c74e3509938cd6",
+      "after": "a24dfb8d0806640e11af8b0bdece1cb23bb7fdc9de96432be206212e1469f7ab"
+    },
+    {
+      "path": "lang/tr/email-evidence-review.php",
+      "status": "modified",
+      "before": "9a66a15972536cd46f7cfa67e64c586713829afd6deecdecfed2bdb940865b48",
+      "after": "f531e0d8072d546482c56bad50132889dab3bcebdfeaa0c7f889b7118aeff144"
+    },
+    {
+      "path": "database/migrations/2026_11_21_140000_create_external_email_consent_review_events.php",
+      "status": "added",
+      "before": null,
+      "after": "0ab035de7e30c488270884e525b748a707efb87603313d44eb009703cb4c531d"
+    },
+    {
+      "path": "app/Models/ExternalEmailConsentReviewEvent.php",
+      "status": "added",
+      "before": null,
+      "after": "113239d4ce1b4dd544cb4e2b6acab52ef13dc932d4025da6164cda8a72c84787"
+    },
+    {
+      "path": "app/Http/Controllers/Admin/EmailEvidenceDecisionController.php",
+      "status": "added",
+      "before": null,
+      "after": "79d7118ccb30a8f415be81fde2e8fcf65c9f916555ab197b0d3c064ea9e06332"
+    },
+    {
+      "path": "resources/views/admin/email-evidence-review-detail.blade.php",
+      "status": "added",
+      "before": null,
+      "after": "26a78e03ea67288bd5493f682d1bcae7917daf41db030c93386f7d1883be284d"
+    }
+  ]
+}
