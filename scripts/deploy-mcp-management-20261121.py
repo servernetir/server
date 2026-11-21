@@ -63,7 +63,7 @@ def run_release(mode,commit,stage):
             if r['before'] is not None:
                 b=stage/'backup'/r['path'];assert b.is_file() and sha(b.read_bytes())==r['before'], 'Invalid rollback backup: '+r['path']
         # Remove registration first, restore existing dependencies next, remove new inert classes last.
-        ordered=sorted(records,key=lambda r:(r['path']!='app/Mcp/AdminInfrastructureServer.php',r['before'] is None))
+        ordered=list(reversed(sorted(records,key=lambda r:(r['before'] is not None,r['path']=='app/Mcp/AdminInfrastructureServer.php'))))
         for r in ordered:
             p=ROOT/r['path']
             if r['before'] is not None: write(p,(stage/'backup'/r['path']).read_bytes(),r['mode'])
