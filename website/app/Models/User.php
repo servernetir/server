@@ -12,7 +12,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['name', 'name_latin', 'email', 'password', 'role', 'phone_extension'])]
-#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery', 'login_sms_phone', 'login_sms_confirmed_at'])]
 class User extends Authenticatable implements \Laravel\Passport\Contracts\OAuthenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -36,6 +36,11 @@ class User extends Authenticatable implements \Laravel\Passport\Contracts\OAuthe
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    public function hasSmsLogin(): bool
+    {
+        return filled($this->login_sms_phone) && $this->login_sms_confirmed_at !== null;
     }
 
     public function isSupport(): bool
@@ -130,6 +135,8 @@ class User extends Authenticatable implements \Laravel\Passport\Contracts\OAuthe
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'login_sms_phone' => 'encrypted',
+            'login_sms_confirmed_at' => 'datetime',
 
             // دومرحله‌ای — رمزنگاری در سطحِ مدل، دقیقاً مثلِ Customer: مقدارِ
             // خام هرگز وارد دیتابیس نمی‌شود، پس دسترسیِ خواندنی به دیتابیس

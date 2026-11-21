@@ -2,59 +2,66 @@
 
 namespace Tests\Feature;
 
-use App\Providers\AppServiceProvider;
+use App\Models\Customer;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
-/**
- * دامنهٔ کوکیِ نشست — تا کاربرِ واردشده در کنسول روی سایتِ اصلی هم شناخته شود.
- *
- * پنل روی console.servernet.cloud است و سایت روی servernet.cloud؛ اگر کوکی
- * host-only بماند، هدرِ سایتِ اصلی نامِ کاربر را نشان نمی‌دهد.
- */
 class SessionCookieDomainTest extends TestCase
 {
-    /** میزبان‌های خودمان کوکیِ مشترک می‌گیرند */
-    public function test_our_hosts_get_the_shared_cookie_domain(): void
+    use RefreshDatabase;
+
+    public function test_console_overrides_parent_domain_configuration(): void
     {
-        foreach (['servernet.cloud', 'console.servernet.cloud', 'CONSOLE.SERVERNET.CLOUD', 'www.servernet.cloud'] as $host) {
-            $this->assertSame('.servernet.cloud', AppServiceProvider::cookieDomainFor($host), $host);
-        }
+        config(['session.domain' => '.servernet.cloud', 'session.secure' => false]);
+        $response = $this->get('https://console.servernet.cloud/login')->assertOk();
+        $cookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie) => $cookie->getName() === '__Host-servernet_session');
+        $this->assertNotNull($cookie);
+        $this->assertNull($cookie->getDomain());
+        $this->assertSame('/', $cookie->getPath());
+        $this->assertTrue($cookie->isSecure());
+        $this->assertTrue($cookie->isHttpOnly());
     }
 
-    /** محلی دست‌نخورده می‌ماند، وگرنه ورودِ محلی می‌شکند */
-    public function test_local_hosts_are_untouched(): void
+    public function test_local_cookie_settings_remain_usable(): void
     {
-        foreach (['localhost', '127.0.0.1', 'localhost:8000'] as $host) {
-            $this->assertNull(AppServiceProvider::cookieDomainFor($host), $host);
-        }
+        config(['session.cookie' => 'local_session', 'session.domain' => null, 'session.secure' => false]);
+        $response = $this->get('/login')->assertOk();
+        $cookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie) => $cookie->getName() === 'local_session');
+        $this->assertNotNull($cookie);
+        $this->assertFalse($cookie->isSecure());
     }
 
-    /**
-     * دامنهٔ شبیه‌سازی‌شده نباید کوکیِ ما را بگیرد — اگر با «پایان‌یافتن با
-     * servernet.cloud» (بدون نقطه) می‌سنجیدیم، evil-servernet.cloud هم جا می‌افتاد.
-     */
-    public function test_lookalike_domains_do_not_get_our_cookie(): void
+    public function test_remembered_login_uses_a_host_bound_cookie(): void
     {
-        foreach (['evil-servernet.cloud', 'notservernet.cloud', 'servernet.cloud.attacker.com', 'servernet.cloudx'] as $host) {
-            $this->assertNull(AppServiceProvider::cookieDomainFor($host), $host);
-        }
+        $customer = Customer::create(['email' => 'cookie@example.test', 'phone' => '09121230001',
+            'password' => bcrypt('test-password'), 'status' => 'active']);
+        Route::middleware('web')->get('/account/cookie-check', function () use ($customer) {
+            Auth::guard('customer')->login($customer, true);
+
+            return response('ok');
+        });
+        $response = $this->get('https://console.servernet.cloud/account/cookie-check')->assertOk();
+        $cookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie) => str_starts_with($cookie->getName(), '__Host-remember_customer_'));
+        $this->assertNotNull($cookie);
+        $this->assertNull($cookie->getDomain());
+        $this->assertTrue($cookie->isSecure());
+        $this->assertTrue($cookie->isHttpOnly());
     }
 
-    /**
-     * حلقهٔ آخرِ زنجیره: مقدارِ config در زمانِ اجرا واقعاً دامنهٔ کوکیِ نشستِ
-     * پاسخ را عوض می‌کند. (provider در boot ست می‌کند و StartSession بعد از آن
-     * می‌خواند — این تست همان را ثابت می‌کند، نه فرض.)
-     */
-    public function test_runtime_config_actually_changes_the_emitted_cookie_domain(): void
+    public function test_parent_domain_session_is_retired(): void
     {
-        config(['session.domain' => '.servernet.cloud']);
-
-        $response = $this->get('/');
-        $name = config('session.cookie');
-
-        $cookie = collect($response->headers->getCookies())->first(fn ($c) => $c->getName() === $name);
-
-        $this->assertNotNull($cookie, 'کوکیِ نشست در پاسخ نبود');
+        $response = $this->withCookie('snet_session', 'obsolete-test-cookie')
+            ->get('https://console.servernet.cloud/login')->assertOk();
+        $cookie = collect($response->headers->getCookies())
+            ->first(fn ($cookie) => $cookie->getName() === 'snet_session');
+        $this->assertNotNull($cookie);
         $this->assertSame('.servernet.cloud', $cookie->getDomain());
+        $this->assertLessThan(time(), $cookie->getExpiresTime());
+        $this->assertGuest('customer');
     }
 }

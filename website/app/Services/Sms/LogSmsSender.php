@@ -7,15 +7,13 @@ use Illuminate\Support\Facades\Log;
 /**
  * فرستندهٔ توسعه: پیامک را در لاگ می‌نویسد.
  *
- * تا وقتی ارائه‌دهندهٔ واقعی تنظیم نشده، این جای آن می‌نشیند تا جریان ثبت‌نام
- * قابل تست باشد. عمداً true برمی‌گرداند — چون از دید کد بالادست پیام
- * «فرستاده شده» است و رفتار در توسعه و تولید یکسان می‌ماند.
+ * فقط در محیط توسعه و آزمون فعال است.
  */
 class LogSmsSender implements SmsSender
 {
     public function enabled(): bool
     {
-        return true;
+        return app()->environment(['local', 'testing']);
     }
 
     public function name(): string
@@ -25,6 +23,10 @@ class LogSmsSender implements SmsSender
 
     public function send(string $mobile, string $text): bool
     {
+        if (! $this->enabled()) {
+            return false;
+        }
+
         Log::channel(config('services.sms.log_channel', 'stack'))
             ->info('SMS (درایور لاگ)', ['to' => $mobile, 'text' => $text]);
 

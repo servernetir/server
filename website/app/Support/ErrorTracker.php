@@ -263,9 +263,9 @@ class ErrorTracker
     private static function safeUrl(?Request $request): ?string
     {
         return $request === null ? null : preg_replace(
-            '~(/bale/webhook/)[a-f0-9]{32}~i',
+            '~(/(?:bale/webhook|cloud-phone/webhook|system/content|system/mariadb)/)[^/]+~i',
             '$1[redacted]',
-            $request->fullUrl()
+            $request->url()
         );
     }
 
@@ -340,6 +340,25 @@ class ErrorTracker
 
     // ─────────────────────────────── درونی ───────────────────────────────
 
+    private static function refererOrigin(?Request $request): ?string
+    {
+        $referer = (string) $request?->headers->get('referer');
+        if (EmailMarketingPrivacy::sensitiveUrl($referer)) {
+            return '[redacted email preferences]';
+        }
+        if (str_contains($referer, '/api/ai-media/')) {
+            return '[redacted supplier media]';
+        }
+        $parts = parse_url($referer);
+        if (! is_array($parts) || empty($parts['host'])
+            || ! in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true)) {
+            return null;
+        }
+
+        return mb_substr($parts['scheme'].'://'.$parts['host']
+            .(isset($parts['port']) ? ':'.$parts['port'] : ''), 0, 200);
+    }
+
     private static function write(array $row, ?Request $request, bool $includeRequestContext = true): void
     {
         try {
@@ -347,10 +366,7 @@ class ErrorTracker
                 'at'      => now()->toIso8601String(),
                 'ip'      => $request?->ip(),
                 'ua'      => mb_substr((string) $request?->userAgent(), 0, 120),
-                'referer' => EmailMarketingPrivacy::sensitiveUrl((string) $request?->headers->get('referer'))
-                    ? '[redacted email preferences]'
-                    : (str_contains((string) $request?->headers->get('referer'), '/api/ai-media/')
-                        ? '[redacted supplier media]' : (mb_substr((string) $request?->headers->get('referer'), 0, 200) ?: null)),
+                'referer' => self::refererOrigin($request),
                 'who'     => ($row['source'] ?? '') === 'console' ? 'console' : ($includeRequestContext ? self::who() : 'system'),
             ] + $row;
 

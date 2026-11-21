@@ -77,8 +77,7 @@ class BaleRelaySender extends SignedRelaySender
         // ⚠️ بله مثلِ خیلی از APIهای این حوزه روی خطا هم ۲۰۰ می‌دهد؛
         //    نتیجهٔ واقعی در فیلدِ `ok` بدنه است.
         if (! $res->successful() || $res->json('ok') !== true) {
-            throw new \RuntimeException('بله پیام را نپذیرفت ('.$res->status().'): '
-                .mb_substr($res->body(), 0, 200));
+            throw new RelayDeliveryException('bale_http_'.$res->status());
         }
 
         return true;

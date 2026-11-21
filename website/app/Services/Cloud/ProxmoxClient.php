@@ -145,7 +145,7 @@ class ProxmoxClient implements CloudProvider
      * ⚠️ سه نکتهٔ Proxmox:
      *  • احراز با هدرِ `Authorization: PVEAPIToken=<token_id>=<token_secret>`
      *    (نه Bearer). این توکنِ API است، پس نه نشست لازم است نه CSRF.
-     *  • گواهیِ TLS خودامضا است، پس `withoutVerifying()`.
+     *  • گواهی و نام میزبان بررسی می‌شوند. CA خصوصی از تنظیمات خوانده می‌شود.
      *  • پاسخ‌ها در `{"data": …}` می‌آیند و کدِ HTTP درست داده می‌شود.
      *
      * @return array{ok:bool,status:int,body:array,message:string}
@@ -160,7 +160,23 @@ class ProxmoxClient implements CloudProvider
         $url = $this->baseUrl().$path;
 
         try {
-            $http = Http::withoutVerifying()             // گواهیِ خودامضا
+            if (strtolower((string) parse_url($url, PHP_URL_SCHEME)) !== 'https'
+                || ! parse_url($url, PHP_URL_HOST)
+                || parse_url($url, PHP_URL_USER) !== null
+                || parse_url($url, PHP_URL_PASS) !== null) {
+                throw new \RuntimeException('Invalid Proxmox HTTPS origin.');
+            }
+            $caBundle = trim((string) config('services.proxmox.ca_bundle'));
+            if ($caBundle !== '' && (! is_file($caBundle) || ! is_readable($caBundle))) {
+                throw new \RuntimeException('Proxmox CA file is unavailable.');
+            }
+            $connection = $this->connectionTarget($url);
+            $url = $connection['url'];
+            $http = Http::withOptions([
+                'verify' => $caBundle === '' ? true : $caBundle,
+                'allow_redirects' => false,
+                ...$connection['options'],
+            ])
                 ->withHeaders(['Authorization' => 'PVEAPIToken='.$this->tokenId().'='.$this->tokenSecret()])
                 ->acceptJson()
                 ->timeout(30)
@@ -176,7 +192,7 @@ class ProxmoxClient implements CloudProvider
                 default  => throw new \InvalidArgumentException($method),
             };
         } catch (\Throwable $e) {
-            Log::warning('proxmox.transport', ['path' => $path, 'err' => $e->getMessage()]);
+            Log::warning('proxmox.transport', ['method' => $method, 'exception' => $e::class]);
 
             return ['ok' => false, 'status' => 0, 'body' => [], 'message' => 'ارتباط با زیرساخت برقرار نشد.'];
         }
@@ -194,6 +210,27 @@ class ProxmoxClient implements CloudProvider
             : (string) ($body['message'] ?? ('خطای زیرساخت (HTTP '.$res->status().')'));
 
         return ['ok' => false, 'status' => $res->status(), 'body' => $body, 'message' => $msg];
+    }
+
+    /** Verify the configured certificate name while retaining an existing numeric node origin. */
+    private function connectionTarget(string $url): array
+    {
+        $ip = trim((string) parse_url($url, PHP_URL_HOST), '[]');
+        $name = trim((string) Setting::get('proxmox_tls_server_name', ''));
+        if ($name === '' || filter_var($ip, FILTER_VALIDATE_IP) === false) {
+            return ['url' => $url, 'options' => []];
+        }
+        if (filter_var($name, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) === false
+            || filter_var($name, FILTER_VALIDATE_IP) !== false
+            || parse_url($url, PHP_URL_QUERY) !== null || parse_url($url, PHP_URL_FRAGMENT) !== null) {
+            throw new \RuntimeException('Invalid Proxmox certificate hostname.');
+        }
+        $port = (int) (parse_url($url, PHP_URL_PORT) ?: 443);
+        $address = str_contains($ip, ':') ? '['.$ip.']' : $ip;
+        $target = 'https://'.$name.':'.$port.(string) parse_url($url, PHP_URL_PATH);
+
+        return ['url' => $target, 'options' => ['proxy' => '',
+            'curl' => [CURLOPT_RESOLVE => [$name.':'.$port.':'.$address]]]];
     }
 
     public function testConnection(): array

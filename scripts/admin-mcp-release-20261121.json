@@ -12,7 +12,7 @@
     },
     {
       "path": "app/Http/Middleware/ConsoleHost.php",
-      "sha256": "9ca2bc9255212640f1746e0b8b7c581ba7df7d00e9add8ff48f5b8116b37e40d",
+      "sha256": "4b601e7f515668911ad9ca6cbe725a702e73d5a0a37932556dcb1cb11e6408f0",
       "kind": "patch",
       "patches": [
         {
@@ -94,16 +94,16 @@
     },
     {
       "path": "app/Models/User.php",
-      "sha256": "2dea811fac4953ced2f4a41c7ff9241e992a6cc92cd81f53b9c3546092e50ec8",
+      "sha256": "b38b993b7953af9e43535a42770e7ff7959d7ae11e62c94858f79ef1317dec83",
       "kind": "patch",
       "patches": [
         {
-          "before": "#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery'])]\nclass User extends Authenticatable\n{\n",
-          "after": "#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery'])]\nclass User extends Authenticatable implements \\Laravel\\Passport\\Contracts\\OAuthenticatable\n{\n"
+          "before": "class User extends Authenticatable\n",
+          "after": "class User extends Authenticatable implements \\Laravel\\Passport\\Contracts\\OAuthenticatable\n"
         },
         {
-          "before": "    use HasFactory, HasTwoFactor, Notifiable;\n\n",
-          "after": "    use HasFactory, HasTwoFactor, Notifiable;\n    use \\Laravel\\Passport\\HasApiTokens;\n\n"
+          "before": "    use HasFactory, HasTwoFactor, Notifiable;\n",
+          "after": "    use HasFactory, HasTwoFactor, Notifiable;\n    use \\Laravel\\Passport\\HasApiTokens;\n"
         }
       ]
     },
@@ -155,12 +155,12 @@
     },
     {
       "path": "composer.lock",
-      "sha256": "435a698147fe5fb33c2d8ad61eb271b7425d40b64ed13f48bd99467bddaf1814",
+      "sha256": "353c606e833d8f49588520fdc7f7b79812ec491574ab27b0e01cea6d65213349",
       "kind": "replace"
     },
     {
       "path": "config/auth.php",
-      "sha256": "86de7a2ff5fc19c49b7306dae2745fc4aef7612ccd82f022a16394113b707f05",
+      "sha256": "1c53ee64adfdd9b2b70fcd5d9db11601f3992e8f26a5b8699553ec62533d132e",
       "kind": "patch",
       "patches": [
         {

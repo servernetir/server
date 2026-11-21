@@ -39,7 +39,7 @@ class BaleSender
                 ['chat_id' => $chatId, 'text' => $text],
             );
         } catch (\Throwable $e) {
-            Log::warning('بله در دسترس نبود', ['error' => $e->getMessage()]);
+            Log::warning('بله در دسترس نبود', ['exception' => $e::class]);
 
             return false;
         }
@@ -51,7 +51,7 @@ class BaleSender
 
         Log::warning('بله پیام را رد کرد', [
             'http' => $res->status(),
-            'desc' => $res->json('description') ?: mb_substr($res->body(), 0, 150),
+            'desc' => 'provider_rejected',
         ]);
 
         return false;
@@ -119,7 +119,7 @@ class BaleSender
                 $body,
             );
         } catch (\Throwable $e) {
-            Log::warning("بله ({$method}) در دسترس نبود", ['error' => $e->getMessage()]);
+            Log::warning("بله ({$method}) در دسترس نبود", ['exception' => $e::class]);
 
             return false;
         }
@@ -130,7 +130,7 @@ class BaleSender
 
         Log::warning("بله ({$method}) رد کرد", [
             'http' => $res->status(),
-            'desc' => $res->json('description') ?: mb_substr($res->body(), 0, 150),
+            'desc' => 'provider_rejected',
         ]);
 
         return false;
@@ -200,7 +200,7 @@ class BaleSender
                 ],
             );
         } catch (\Throwable $e) {
-            Log::warning('بله (دکمهٔ شیشه‌ای) در دسترس نبود', ['error' => $e->getMessage()]);
+            Log::warning('بله (دکمهٔ شیشه‌ای) در دسترس نبود', ['exception' => $e::class]);
 
             return null;
         }
@@ -208,7 +208,7 @@ class BaleSender
         if ($res->json('ok') !== true) {
             Log::warning('بله دکمهٔ شیشه‌ای را رد کرد', [
                 'http' => $res->status(),
-                'desc' => $res->json('description') ?: mb_substr($res->body(), 0, 150),
+                'desc' => 'provider_rejected',
             ]);
 
             return null;
@@ -239,7 +239,7 @@ class BaleSender
                     'caption' => $caption !== '' ? mb_substr($caption, 0, 190) : null,
                 ], fn ($v) => $v !== null));
         } catch (\Throwable $e) {
-            Log::warning('بله (sendDocument) در دسترس نبود', ['error' => $e->getMessage()]);
+            Log::warning('بله (sendDocument) در دسترس نبود', ['exception' => $e::class]);
 
             return false;
         }
@@ -250,7 +250,7 @@ class BaleSender
 
         Log::warning('بله سند را رد کرد', [
             'http' => $res->status(),
-            'desc' => $res->json('description') ?: mb_substr($res->body(), 0, 150),
+            'desc' => 'provider_rejected',
         ]);
 
         return false;
@@ -312,7 +312,7 @@ class BaleSender
 
             return $res->json('ok') === true;
         } catch (\Throwable $e) {
-            Log::warning('بله (دکمهٔ تماس) در دسترس نبود', ['error' => $e->getMessage()]);
+            Log::warning('بله (دکمهٔ تماس) در دسترس نبود', ['exception' => $e::class]);
 
             return false;
         }

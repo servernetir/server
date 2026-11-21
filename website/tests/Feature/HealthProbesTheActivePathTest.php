@@ -25,6 +25,12 @@ use Tests\TestCase;
  */
 class HealthProbesTheActivePathTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->actingAs(\App\Models\User::factory()->make(['role' => 'admin']));
+    }
+
     private function useN8n(): void
     {
         config([

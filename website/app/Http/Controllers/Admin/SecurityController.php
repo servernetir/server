@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\Security\QrCode;
+use App\Services\Otp\OtpService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
 
 /**
  * امنیتِ حسابِ خودِ کاربرِ پنل — `/admin/security`.
@@ -24,17 +25,67 @@ use Illuminate\View\View;
  */
 class SecurityController extends Controller
 {
-    public function index(): View
+    public function index(): Response
     {
         $user = Auth::user();
 
-        return view('admin.security', [
+        return response()->view('admin.security', [
             'user'      => $user,
             'qr'        => $user->twoFactorPending() ? QrCode::svg($user->twoFactorUri()) : null,
             'secret'    => $user->twoFactorPending() ? $user->two_factor_secret : null,
             'recovery'  => session('tfa_recovery'),
             'leftCodes' => count($user->twoFactorRecoveryCodes()),
+            'smsPending' => $this->smsContext(request()) !== null,
+        ])->header('Cache-Control', 'private, no-store')->header('Referrer-Policy', 'no-referrer');
+    }
+
+    public function startSms(Request $request, OtpService $otp): RedirectResponse
+    {
+        $data = $request->validate([
+            'phone' => 'required|string|max:32',
+            'current_password' => 'required|current_password:web',
         ]);
+        $phone = $otp->normalize('sms', $data['phone']);
+        if (! preg_match('/^09[0-9]{9}$/D', $phone)) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['phone' => 'شماره موبایل ایران معتبر وارد کنید.']);
+        }
+        $user = Auth::user();
+        $issue = $otp->issue('sms', $phone, 'admin_sms_setup:'.$user->id, $request->ip(), smsOnly: true);
+        if (! $issue->ok && $issue->retryAfter === null) {
+            return redirect('/admin/security')->with('err', $issue->error);
+        }
+        $request->session()->put('admin_sms_enrollment', [
+            'user_id' => $user->id, 'phone' => $phone, 'expires_at' => now()->addMinutes(5)->timestamp,
+            'password_signature' => hash('sha256', $user->password),
+        ]);
+        return redirect('/admin/security')->with('ok', 'کد تأیید شماره فرستاده شد. تا تأیید آن، شمارهٔ قبلی تغییر نمی‌کند.');
+    }
+
+    public function confirmSms(Request $request, OtpService $otp): RedirectResponse
+    {
+        $data = $request->validate(['code' => 'required|string|max:12']);
+        $ctx = $this->smsContext($request);
+        if ($ctx === null) {
+            return redirect('/admin/security')->with('err', 'مهلت تأیید شماره تمام شده است. دوباره شروع کنید.');
+        }
+        $user = Auth::user();
+        $check = $otp->verify('sms', $ctx['phone'], 'admin_sms_setup:'.$user->id, $data['code']);
+        if (! $check->ok) {
+            return redirect('/admin/security')->with('err', $check->error);
+        }
+        $user->forceFill(['login_sms_phone' => $ctx['phone'], 'login_sms_confirmed_at' => now()])->save();
+        $request->session()->forget('admin_sms_enrollment');
+        return redirect('/admin/security')->with('ok', 'شماره تأیید شد. اکنون در صفحهٔ ورود می‌توانید روش پیامک را انتخاب کنید.');
+    }
+
+    private function smsContext(Request $request): ?array
+    {
+        $ctx = $request->session()->get('admin_sms_enrollment');
+        $user = Auth::user();
+        return is_array($ctx) && (int) ($ctx['user_id'] ?? 0) === (int) $user->id
+            && ($ctx['expires_at'] ?? 0) >= now()->timestamp
+            && hash_equals(hash('sha256', $user->password), (string) ($ctx['password_signature'] ?? ''))
+            ? $ctx : null;
     }
 
     public function start(): RedirectResponse

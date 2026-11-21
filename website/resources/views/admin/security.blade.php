@@ -12,8 +12,8 @@
 
   <div style="padding:16px 18px">
     <p class="ad-hint" style="margin:0 0 6px">
-      علاوه بر رمز عبور و کدی که به ایمیلتان می‌رود، یک کد شش‌رقمی هم از اپلیکیشن روی
-      گوشی خودتان خواسته می‌شود. با Google Authenticator، Microsoft Authenticator،
+      در صفحهٔ ورود می‌توانید پس از رمز عبور، به‌جای OTP ایمیل یا پیامک، کد اپلیکیشن
+      گوشی خودتان را انتخاب کنید. با Google Authenticator، Microsoft Authenticator،
       Authy و هر اپلیکیشن استاندارد دیگری کار می‌کند.
     </p>
     <p class="ad-hint" style="margin:0 0 4px">
@@ -29,8 +29,8 @@
           @foreach($recovery as $rc)<code dir="ltr">{{ $rc }}</code>@endforeach
         </div>
         <p class="ad-hint" style="margin:10px 0 0">
-          اگر گوشی‌تان گم شود، این کدها تنها راه ورود شما هستند. هر کد فقط یک بار کار
-          می‌کند. بعد از ترک این صفحه دیگر نشان داده نمی‌شوند.
+          اگر به اپلیکیشن دسترسی نداشته باشید، می‌توانید از این کدها یا روش ایمیل و پیامکِ
+          تأییدشده استفاده کنید. هر کد بازیابی فقط یک بار کار می‌کند و بعد از ترک این صفحه نشان داده نمی‌شود.
         </p>
       </div>
     @endif
@@ -94,6 +94,28 @@
     @else
       <form method="post" action="/admin/security/2fa/start" style="margin-top:16px">
         @csrf<button class="btn btn-primary" type="submit">فعال‌سازی</button>
+      </form>
+    @endif
+  </div>
+</div>
+
+<div class="ad-panel" style="margin:20px 0;max-width:760px">
+  <div class="ad-panel-h"><h3>ورود با OTP پیامک</h3><span class="ad-badge {{ $user->hasSmsLogin() ? 'pub' : 'draft' }}">{{ $user->hasSmsLogin() ? 'روشن' : 'خاموش' }}</span></div>
+  <div style="padding:16px 18px">
+    <p class="ad-hint">شماره را با رمز عبور فعلی و کدی که به همان شماره می‌رسد تأیید کنید. سپس می‌توانید هنگام ورود، پیامک را به‌جای ایمیل یا Authenticator انتخاب کنید.</p>
+    @if($user->hasSmsLogin())<p>شمارهٔ تأییدشده: <b dir="ltr">{{ substr($user->login_sms_phone, 0, 3).'****'.substr($user->login_sms_phone, -4) }}</b></p>@endif
+    @if($errors->any())<div class="ad-flash err">{{ $errors->first() }}</div>@endif
+    <form method="post" action="/admin/security/sms/start">
+      @csrf
+      <div class="ad-field"><label>شماره موبایل شخصی</label><input class="ad-input" name="phone" type="tel" inputmode="tel" autocomplete="tel" dir="ltr" required value="{{ old('phone') }}" placeholder="09xxxxxxxxx"></div>
+      <div class="ad-field"><label>رمز عبور فعلی</label><input class="ad-input" name="current_password" type="password" autocomplete="current-password" required></div>
+      <button class="btn btn-primary" type="submit">ارسال کد تأیید شماره</button>
+    </form>
+    @if($smsPending ?? false)
+      <form method="post" action="/admin/security/sms/confirm" style="margin-top:16px">
+        @csrf
+        <div class="ad-field"><label>کد تأیید پیامک</label><input class="ad-input" name="code" inputmode="numeric" autocomplete="one-time-code" dir="ltr" maxlength="12" required></div>
+        <button class="btn btn-primary" type="submit">تأیید شماره و فعال‌سازی پیامک</button>
       </form>
     @endif
   </div>

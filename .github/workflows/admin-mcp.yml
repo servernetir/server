@@ -82,4 +82,4 @@ jobs:
               node.set('value', os.environ[key]); node.set('force', 'true')
           tree.write('.mcp-ci.xml', encoding='unicode')
           PY
-          php vendor/bin/phpunit -c .mcp-ci.xml tests/Feature/AdminMcpOAuthTest.php tests/Feature/AdminMcpCommandsTest.php tests/Feature/AdminMcpSshTest.php tests/Feature/AdminAuthOtpTest.php tests/Feature/AdminRoleBoundaryTest.php tests/Feature/SupportRoleTest.php tests/Feature/TwoFactorAppTest.php tests/Feature/ConsoleHostTest.php --fail-on-warning
+          php vendor/bin/phpunit -c .mcp-ci.xml tests/Feature/AdminMcpOAuthTest.php tests/Feature/AdminMcpCommandsTest.php tests/Feature/AdminMcpSshTest.php tests/Feature/AdminAuthOtpTest.php tests/Feature/AdminLoginMethodsTest.php tests/Feature/AdminRoleBoundaryTest.php tests/Feature/SupportRoleTest.php tests/Feature/TwoFactorAppTest.php tests/Feature/ConsoleHostTest.php --fail-on-warning

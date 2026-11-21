@@ -3,6 +3,7 @@
 use App\Models\User;
 
 return [
+    'admin_bootstrap_token' => env('ADMIN_BOOTSTRAP_TOKEN'),
 
     /*
     |--------------------------------------------------------------------------
@@ -41,14 +42,14 @@ return [
         'mcp_admin' => ['driver' => 'passport', 'provider' => 'users'],
         // کارکنان و ادمین — دست‌نخورده
         'web' => [
-            'driver' => 'session',
+            'driver' => 'host-session',
             'provider' => 'users',
         ],
 
         // مشتریان پنل. عمداً guard و جدول جدا: یک باگ در منطق نقش نباید
         // بتواند مشتری را به پنل مدیریت برساند و برعکس.
         'customer' => [
-            'driver' => 'session',
+            'driver' => 'host-session',
             'provider' => 'customers',
         ],
     ],

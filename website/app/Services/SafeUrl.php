@@ -25,17 +25,7 @@ class SafeUrl
     /** آیا این آدرس برای درخواست سرور-ساید امن است؟ */
     public static function allowed(string $url): bool
     {
-        $parts = parse_url($url);
-        if (! $parts || empty($parts['host'])) {
-            return false;
-        }
-
-        $scheme = strtolower($parts['scheme'] ?? '');
-        if (! in_array($scheme, ['http', 'https'], true)) {
-            return false;
-        }
-
-        return self::hostResolvesPublicly($parts['host']);
+        return self::validatedAddresses($url) !== [];
     }
 
     /** هاست به آدرس عمومی resolve می‌شود؟ (اگر خودش IP باشد، همان بررسی می‌شود) */
@@ -68,8 +58,46 @@ class SafeUrl
         return (bool) filter_var(
             $ip,
             FILTER_VALIDATE_IP,
-            FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE
+            FILTER_FLAG_GLOBAL_RANGE
         );
+    }
+
+    private static function validatedAddresses(string $url): array
+    {
+        $parts = parse_url($url);
+        if (! $parts || empty($parts['host'])
+            || ! in_array(strtolower($parts['scheme'] ?? ''), ['http', 'https'], true)
+            || isset($parts['user']) || isset($parts['pass'])) {
+            return [];
+        }
+        $host = trim($parts['host'], '[]');
+        $ips = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : self::resolveAll($host);
+        foreach ($ips as $ip) {
+            if (! self::isPublicIp($ip)) {
+                return [];
+            }
+        }
+
+        return array_values($ips);
+    }
+
+    /** Pin the actual connection to an address from this validation, retaining Host and TLS SNI. */
+    public static function curlOptionsFor(string $url): ?array
+    {
+        $ips = self::validatedAddresses($url);
+        if ($ips === []) {
+            return null;
+        }
+        $parts = parse_url($url);
+        $host = trim($parts['host'], '[]');
+        $port = $parts['port'] ?? (strtolower($parts['scheme']) === 'https' ? 443 : 80);
+        $options = self::curlOptions() + [CURLOPT_PROXY => ''];
+        if (! filter_var($host, FILTER_VALIDATE_IP)) {
+            $ip = str_contains($ips[0], ':') ? '['.$ips[0].']' : $ips[0];
+            $options[CURLOPT_RESOLVE] = [$host.':'.$port.':'.$ip];
+        }
+
+        return $options;
     }
 
     /** همه‌ی رکوردهای A و AAAA هاست */
@@ -134,7 +162,11 @@ class SafeUrl
             if (! $next) {
                 return $url;                      // ریدایرکتی نبود
             }
-            $url = self::absolutize($url, $next);
+            try {
+                $url = self::absolutize($url, $next);
+            } catch (\InvalidArgumentException) {
+                return null;
+            }
         }
 
         return null;                              // حلقه‌ی ریدایرکت
@@ -142,12 +174,8 @@ class SafeUrl
 
     private static function absolutize(string $base, string $next): string
     {
-        if (preg_match('~^https?://~i', $next)) {
-            return $next;
-        }
-        $p = parse_url($base);
-        $root = ($p['scheme'] ?? 'https').'://'.($p['host'] ?? '');
-
-        return $root.'/'.ltrim($next, '/');
+        return (string) \GuzzleHttp\Psr7\UriResolver::resolve(
+            new \GuzzleHttp\Psr7\Uri($base), new \GuzzleHttp\Psr7\Uri($next)
+        );
     }
 }
