@@ -9,6 +9,8 @@ final class AdminAccess
 {
     public const READ = 'infrastructure:read';
     public const EXECUTE = 'infrastructure:execute';
+    public const MANAGEMENT_READ = 'management:read';
+    public const TICKET_REPLY = 'management:tickets:reply';
 
     public static function enabled(): bool
     {
@@ -29,6 +31,7 @@ final class AdminAccess
 
     public static function scopes(): array
     {
-        return [self::READ => 'mcp_admin.scope_read', self::EXECUTE => 'mcp_admin.scope_execute'];
+        return [self::READ => 'mcp_admin.scope_read', self::EXECUTE => 'mcp_admin.scope_execute',
+            self::MANAGEMENT_READ => 'mcp_admin.scope_management_read', self::TICKET_REPLY => 'mcp_admin.scope_ticket_reply'];
     }
 }

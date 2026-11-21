@@ -6,7 +6,7 @@ use App\Models\Server;
 use App\Models\Setting;
 use App\Services\Provisioning\WhmClient;
 use App\Services\Provisioning\PleskClient;
-use Illuminate\Support\Facades\Http;
+use App\Services\Cloud\ProxmoxClient;
 
 final class InfrastructureRead
 {
@@ -41,19 +41,14 @@ final class InfrastructureRead
 
     private function proxmox(): array
     {
-        $base = rtrim((string) Setting::get('proxmox_api_url', ''), '/');
-        $secret = Setting::getSecret('proxmox_token_secret');
-        $id = Setting::get('proxmox_token_id', '');
-        if (! $secret || ! $id || ! filter_var($base, FILTER_VALIDATE_URL)
-            || parse_url($base, PHP_URL_SCHEME) !== 'https'
-            || parse_url($base, PHP_URL_USER) || parse_url($base, PHP_URL_QUERY)) {
+        if (! app(ProxmoxClient::class)->isConfigured()) {
             return ['ok' => false, 'code' => 'configuration_required'];
         }
         try {
-            $r = Http::acceptJson()->connectTimeout(5)->timeout(15)
-                ->withHeaders(['Authorization' => 'PVEAPIToken='.$id.'='.$secret])->get($base.'/cluster/resources', ['type' => 'vm']);
-            $data = $r->json('data');
-            if (! $r->successful() || ! is_array($data)) {
+            $r = app(ProxmoxClient::class)->guestInventory();
+            $data = $r['data'];
+            if (! $r['ok'] || ! is_array($data) || ! array_is_list($data)
+                || array_filter($data, fn ($v) => ! is_array($v))) {
                 return ['ok' => false, 'code' => 'upstream_unavailable'];
             }
             $rows = array_map(fn ($v) => array_intersect_key($v, array_flip([

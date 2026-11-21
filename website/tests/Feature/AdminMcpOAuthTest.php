@@ -165,6 +165,22 @@ class AdminMcpOAuthTest extends TestCase
             ->assertJsonStructure(['error']);
     }
 
+    public function test_management_scopes_are_explicit_and_do_not_expand_infrastructure_grants(): void
+    {
+        [, , $tokens] = $this->issue(scope: AdminAccess::READ.' '.AdminAccess::MANAGEMENT_READ);
+        $names = array_column($this->rpc($tokens['access_token'])->assertOk()->json('result.tools'), 'name');
+        $this->assertContains('admin_overview', $names);
+        $this->assertContains('admin_ticket', $names);
+        $this->assertNotContains('admin_ticket_reply', $names);
+        $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'admin_ticket_reply', 'arguments' => []])->assertJsonStructure(['error']);
+    }
+
+    public function test_management_reply_scope_must_be_granted_separately(): void
+    {
+        [, , $tokens] = $this->issue(scope: AdminAccess::READ.' '.AdminAccess::MANAGEMENT_READ.' '.AdminAccess::TICKET_REPLY);
+        $this->assertContains('admin_ticket_reply', array_column($this->rpc($tokens['access_token'])->assertOk()->json('result.tools'), 'name'));
+    }
+
     public function test_authorization_code_cannot_be_replayed_or_exchanged_for_another_resource(): void
     {
         [, , , $data] = $this->issue();
