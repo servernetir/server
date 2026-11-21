@@ -57,6 +57,8 @@ class EmailMarketingController extends Controller
         // The evidence table is optional and never contributes to eligibility.
         $evidenceRecords = null;
         $evidenceReviewReady = false;
+        $evidenceDocumentReady = false;
+        $evidenceDocumentAvailable = 0;
         $evidenceCounts = ['pending' => 0, 'verified' => 0, 'rejected' => 0, 'revoked' => 0];
         if (config('email-marketing.evidence_review_enabled') && Schema::hasTable('external_email_consent_reviews')) {
             $evidenceReviewReady = Schema::hasTable('external_email_consent_review_events');
@@ -68,6 +70,13 @@ class EmailMarketingController extends Controller
                     $evidenceCounts[$decision] = ExternalEmailConsentReview::query()
                         ->whereHas('latestDecision', fn ($q) => $q->where('decision', $decision))->count();
                 }
+                $evidenceDocumentReady = Schema::hasTable('external_email_consent_document_batches')
+                    && Schema::hasTable('external_email_consent_document_items');
+                if ($evidenceDocumentReady) {
+                    $evidenceQuery->with('sharedDocumentItem');
+                    $evidenceDocumentAvailable = ExternalEmailConsentReview::query()
+                        ->doesntHave('decisions')->doesntHave('sharedDocumentItem')->count();
+                }
             }
             $evidenceRecords = $evidenceQuery->paginate(35, ['*'], 'evidence_page')->withQueryString()->fragment('evidence');
             if (! $evidenceReviewReady) {
@@ -75,7 +84,7 @@ class EmailMarketingController extends Controller
             }
         }
 
-        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state', 'evidenceRecords', 'evidenceReviewReady', 'evidenceCounts'))
+        return response()->view('admin.email-marketing', compact('records', 'eligible', 'counts', 'masked', 'state', 'evidenceRecords', 'evidenceReviewReady', 'evidenceCounts', 'evidenceDocumentReady', 'evidenceDocumentAvailable'))
             ->withHeaders(['Cache-Control' => 'private, no-store', 'Referrer-Policy' => 'no-referrer', 'X-Robots-Tag' => 'noindex, nofollow']);
     }
 
