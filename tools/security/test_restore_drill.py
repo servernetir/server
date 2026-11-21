@@ -124,6 +124,7 @@ class RecoveryBoundaries(unittest.TestCase):
 
     def test_local_socket_is_recorded_as_ephemeral_and_never_read_as_a_file(self):
         endpoint = self.home/'servernet_app/storage/app/query.sock'
+        endpoint.parent.mkdir(parents=True, exist_ok=True)
         try:
             server = socket.socket(socket.AF_UNIX)
         except PermissionError:
