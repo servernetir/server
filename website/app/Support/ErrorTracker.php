@@ -104,8 +104,9 @@ class ErrorTracker
      *
      * @param  string  $area  حوزه: `payment` / `provision` / `notify` / …
      * @param  array<string,scalar|null>  $ctx  شناسه‌هایی که برای پیگیری لازم است
+     * @param  bool  $includeRequestContext  false omits ambient request and actor metadata.
      */
-    public static function note(string $area, Throwable|string $what, array $ctx = []): void
+    public static function note(string $area, Throwable|string $what, array $ctx = [], bool $includeRequestContext = true): void
     {
         $isThrowable = $what instanceof Throwable;
 
@@ -133,7 +134,7 @@ class ErrorTracker
                 : null,
             'frame'   => $isThrowable ? self::firstAppFrame($what) : null,
             'ctx'     => $ctx === [] ? null : $ctx,
-        ], request());
+        ], $includeRequestContext ? request() : null, $includeRequestContext);
     }
 
     /** پیشوندِ فایل‌های گلوگاه — تستْ همین را پاک می‌کند */
@@ -154,7 +155,7 @@ class ErrorTracker
      * ⚠️ اگر گلوگاه خودش خطا داد، پیش‌فرض **ثبت‌کردن** است: خطِ تکراری آزارنده
      * است، خطِ نوشته‌نشده گران.
      */
-    public static function noteOnce(string $area, Throwable|string $what, int $seconds = 900, array $ctx = []): void
+    public static function noteOnce(string $area, Throwable|string $what, int $seconds = 900, array $ctx = [], bool $includeRequestContext = true): void
     {
         $key = $area.'-'.md5($what instanceof Throwable ? $what->getMessage() : $what);
 
@@ -162,7 +163,7 @@ class ErrorTracker
             return;
         }
 
-        self::note($area, $what, $ctx);
+        self::note($area, $what, $ctx, $includeRequestContext);
     }
 
     /**
@@ -339,7 +340,7 @@ class ErrorTracker
 
     // ─────────────────────────────── درونی ───────────────────────────────
 
-    private static function write(array $row, ?Request $request): void
+    private static function write(array $row, ?Request $request, bool $includeRequestContext = true): void
     {
         try {
             $row = [
@@ -350,7 +351,7 @@ class ErrorTracker
                     ? '[redacted email preferences]'
                     : (str_contains((string) $request?->headers->get('referer'), '/api/ai-media/')
                         ? '[redacted supplier media]' : (mb_substr((string) $request?->headers->get('referer'), 0, 200) ?: null)),
-                'who'     => ($row['source'] ?? '') === 'console' ? 'console' : self::who(),
+                'who'     => ($row['source'] ?? '') === 'console' ? 'console' : ($includeRequestContext ? self::who() : 'system'),
             ] + $row;
 
             $line = json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE).PHP_EOL;

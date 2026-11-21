@@ -475,7 +475,7 @@ class CloudInstance extends Model
                 'pulling' => 'preparing',
                 'allocating' => 'allocating',
                 'downloading' => 'downloading',
-                'creating', 'starting' => 'starting',
+                'creating', 'starting', 'gateway' => 'starting',
                 default => 'ordered',
             };
         }

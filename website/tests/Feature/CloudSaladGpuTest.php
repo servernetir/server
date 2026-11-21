@@ -115,6 +115,7 @@ class CloudSaladGpuTest extends TestCase
             ], 200),
             'api.salad.com/*' => Http::response([
                 'current_state' => ['status' => 'running', 'description' => ''],
+                'networking' => ['dns' => 'ready.salad.cloud'],
             ], 200),
         ]);
 
@@ -141,7 +142,8 @@ class CloudSaladGpuTest extends TestCase
             ['state' => 'starting', 'ready' => true, 'started' => true]] as $node) {
             Http::fake([
                 'api.salad.com/*/instances' => Http::response(['instances' => $node ? [$node] : []]),
-                'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+                'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running'],
+                    'networking' => ['dns' => 'ready.salad.cloud']]),
             ]);
             $this->assertSame('building', app(SaladClient::class)->serverStatus('sn-svc-9')['status']);
         }
@@ -155,12 +157,31 @@ class CloudSaladGpuTest extends TestCase
                 ['state' => 'starting', 'ready' => false, 'started' => false, 'ssh_ip' => '203.0.113.7'],
                 ['state' => 'running', 'ready' => true, 'started' => true, 'ssh_ip' => '203.0.113.8'],
             ]]),
-            'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running']]),
+            'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running'],
+                'networking' => ['dns' => 'ready.salad.cloud']]),
         ]);
         $r = app(SaladClient::class)->serverStatus('sn-svc-9');
         $this->assertSame('running', $r['status']);
         $this->assertSame('203.0.113.8', $r['ipv4']);
         $this->assertNull($r['build']);
+    }
+
+    public function test_ready_replica_with_invalid_gateway_dns_is_not_ready(): void
+    {
+        $this->configure();
+        Http::preventStrayRequests();
+        Http::fake([
+            'api.salad.com/*/instances' => Http::response(['instances' => [
+                ['state' => 'running', 'started' => true, 'ready' => true],
+            ]]),
+            'api.salad.com/*' => Http::response(['current_state' => ['status' => 'running'],
+                'networking' => ['dns' => 'not-a-provider-host.example.com', 'port' => 11434]]),
+        ]);
+        $result = app(SaladClient::class)->serverStatus('test-only');
+        $this->assertSame('building', $result['status']);
+        $this->assertNull($result['hostname']);
+        $this->assertSame('gateway', $result['build']['phase']);
+        $this->assertFalse(app(SaladClient::class)->gpuDeliveryState('test-only')['ready']);
     }
 
     public function test_failed_instance_lookup_does_not_deliver_a_running_group(): void

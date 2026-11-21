@@ -26,15 +26,15 @@ async function tokenFor(label) {
 }
 
 /** Worker را با یک بالادستِ ساختگی اجرا می‌کند و درخواستِ رسیده به کانتینر را برمی‌گرداند */
-async function run({ cookie, upstream } = {}) {
+async function run({ cookie, upstream, path = '/api/tags', headers: extraHeaders = {}, method = 'GET' } = {}) {
   const token = await tokenFor(LABEL);
   let seen = null;
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (req) => { seen = req; return upstream ? upstream() : new Response('ok'); };
   try {
-    const headers = { 'X-SN-Token': token };
+    const headers = { 'X-SN-Token': token, ...extraHeaders };
     if (cookie) headers.Cookie = cookie;
-    const resp = await worker.fetch(new Request(`https://${HOST}/api/tags`, { headers }), ENV);
+    const resp = await worker.fetch(new Request(`https://${HOST}${path}`, { headers, method }), ENV);
     return { resp, seen, token };
   } finally {
     globalThis.fetch = realFetch;
@@ -172,4 +172,132 @@ test('the gate still refuses a request with no token', async () => {
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+const BROWSER_DOCUMENT = {
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Dest': 'document',
+};
+
+function providerPage(status, headers = {}) {
+  return new Response(`<!doctype html><html><body><b>Salad</b>
+    <h1>Error ${status} Detected</h1><h2>What this means</h2>
+    <p>The request lacks the required credentials to access the resource.</p>
+    <h2>What you can do</h2></body></html>`, {
+    status, headers: { 'Content-Type': 'text/html; charset=utf-8', ...headers },
+  });
+}
+
+test('a browser document without authorization receives a branded 401 and never reaches the upstream', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('must not reach the upstream'); };
+  try {
+    const resp = await worker.fetch(new Request(`https://${HOST}/`, {
+      headers: { ...BROWSER_DOCUMENT, 'Accept-Language': 'fa-IR,fa;q=0.9,en;q=0.8' },
+    }), ENV);
+    assert.equal(resp.status, 401);
+    assert.match(resp.headers.get('Content-Type'), /^text\/html/);
+    assert.match(resp.headers.get('Cache-Control'), /no-store/);
+    const page = await resp.text();
+    assert.match(page, /<html lang="fa" dir="rtl">/);
+    assert.match(page, /احراز هویت/);
+    assert.match(page, /https:\/\/console\.servernet\.cloud\/account\/servers/);
+    assert.ok(!page.includes(HOST), 'customer address was exposed in the error document');
+    assert.ok(!page.includes('<script'), 'error page must not run scripts');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('API authorization failures remain a branded JSON 401', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('must not reach the upstream'); };
+  try {
+    const resp = await worker.fetch(new Request(`https://${HOST}/api/tags`, {
+      headers: { Accept: 'application/json' },
+    }), ENV);
+    assert.equal(resp.status, 401);
+    assert.equal(resp.headers.get('Content-Type'), 'application/json');
+    assert.equal((await resp.json()).error, 'unauthorized');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test('a recognized provider 403 browser page becomes generic ServerNet unavailable HTML, retaining 403', async () => {
+  const { resp, token } = await run({
+    path: '/', headers: BROWSER_DOCUMENT, upstream: () => providerPage(403),
+  });
+  assert.equal(resp.status, 403);
+  const page = await resp.text();
+  assert.match(page, /GPU access is currently unavailable/);
+  assert.match(page, /may be stopped, starting, or experiencing a connectivity issue/);
+  assert.ok(!/salad/i.test(page));
+  assert.ok(!page.includes(HOST));
+  assert.ok(!page.includes(token));
+  assert.ok(!page.includes(SECRET));
+  assert.ok(!page.includes(RELAY_KEY));
+});
+
+test('a recognized provider 503 browser page preserves 503 and Retry-After, with Turkish copy', async () => {
+  const { resp } = await run({
+    path: '/', headers: { ...BROWSER_DOCUMENT, 'Accept-Language': 'tr-TR' },
+    upstream: () => providerPage(503, { 'Retry-After': '120' }),
+  });
+  assert.equal(resp.status, 503);
+  assert.equal(resp.headers.get('Retry-After'), '120');
+  assert.match(await resp.text(), /GPU erişimi şu anda kullanılamıyor/);
+});
+
+test('provider pages for API or non-document requests remain untouched', async () => {
+  for (const request of [
+    { path: '/api/tags', headers: { Accept: 'application/json' } },
+    { path: '/docs', headers: { Accept: 'text/html' } },
+    { path: '/', headers: BROWSER_DOCUMENT, method: 'POST' },
+  ]) {
+    const original = providerPage(403);
+    const { resp } = await run({ ...request, upstream: () => original });
+    assert.equal(resp, original);
+    assert.match(await resp.text(), /Salad/);
+  }
+});
+
+test('app-generated browser 403/503 pages are preserved unless the known provider template is present', async () => {
+  for (const status of [403, 503]) {
+    const original = new Response('<html><h1>Application permission denied</h1><p>Contact your project owner.</p></html>', {
+      status, headers: { 'Content-Type': 'text/html', 'X-App-Error': 'kept' },
+    });
+    const { resp } = await run({ path: '/lab', headers: BROWSER_DOCUMENT, upstream: () => original });
+    assert.equal(resp, original);
+    assert.equal(resp.headers.get('X-App-Error'), 'kept');
+    assert.match(await resp.text(), /Application permission denied/);
+  }
+});
+
+test('slow streaming HTML errors are returned unchanged after the bounded inspection', async () => {
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode('<html><h1>Application error</h1>'));
+      // A deliberately stalled app body, not a real request.
+    },
+  });
+  const original = new Response(stream, { status: 503, headers: { 'Content-Type': 'text/html' } });
+  const started = Date.now();
+  const { resp } = await run({ path: '/lab', headers: BROWSER_DOCUMENT, upstream: () => original });
+  assert.equal(resp, original);
+  assert.ok(Date.now() - started < 2000, 'inspection must not wait for the entire app stream');
+  const reader = resp.body.getReader();
+  const first = await reader.read();
+  assert.match(new TextDecoder().decode(first.value), /Application error/);
+  void reader.cancel().catch(() => {});
+});
+
+test('a normal HTML browser reply is returned unchanged', async () => {
+  const original = new Response('<html><h1>Healthy app</h1></html>', {
+    status: 200, headers: { 'Content-Type': 'text/html' },
+  });
+  const { resp } = await run({ path: '/', headers: BROWSER_DOCUMENT, upstream: () => original });
+  assert.equal(resp, original);
+  assert.match(await resp.text(), /Healthy app/);
 });

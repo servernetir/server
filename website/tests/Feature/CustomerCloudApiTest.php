@@ -15,6 +15,7 @@ use App\Services\Cloud\HourlyGpuStart;
 use App\Services\Cloud\HourlyHold;
 use App\Services\Cloud\InterruptibleBillingClock;
 use App\Services\Finance\Wallet;
+use App\Support\ErrorTracker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +81,11 @@ class CustomerCloudApiTest extends TestCase
     private function power(Service $service, string $plain, string $action = 'start', string $key = 'unique-command-000001')
     {
         return $this->postJson('/api/v1/cloud/'.$service->id.'/actions/'.$action, [], $this->headers($plain, $key));
+    }
+
+    private function powerDenialNotes(): array
+    {
+        return collect(ErrorTracker::recent(100))->where('area', 'cloud_power')->values()->all();
     }
 
     public function test_cloud_requires_an_explicit_scope_and_is_stateless_even_with_a_panel_login(): void
@@ -161,6 +167,7 @@ class CustomerCloudApiTest extends TestCase
         $s->update(['status' => 'suspended']);
         $this->power($s, $plain, 'start', 'unique-command-000002')->assertConflict()->assertJsonPath('error', 'service_not_active');
         $this->assertCount(0, $this->commands);
+        $this->assertSame([], $this->powerDenialNotes(), 'Expected credit and eligibility denials must not generate incidents.');
     }
 
     public function test_start_on_running_preserves_the_paid_runtime_anchor_in_both_transports(): void
@@ -263,6 +270,123 @@ class CustomerCloudApiTest extends TestCase
         $s->update(['provision_meta' => ['hourly_billing_hold' => ['active' => true]]]);
         $this->actingAs($c, 'customer')->post(route('account.cloud.power', $s), ['action' => 'off'])->assertSessionHasNoErrors();
         $this->assertCount(1, $this->commands);
+    }
+
+    public function test_power_busy_and_unconfirmed_status_have_distinct_safe_messages(): void
+    {
+        app()->setLocale('en');
+        [$customer, $service] = $this->fixture();
+        $power = app(CloudPower::class);
+        $lock = Cache::lock('cloud-power:'.$service->id, 300);
+        $this->assertTrue($lock->get());
+        try {
+            $busy = $power->execute($service, 'on');
+            $this->assertSame('operation_in_progress', $busy['error']);
+            $this->assertSame(409, $busy['http_status']);
+            $this->assertSame(__('ui.cx_power_busy'), $busy['message']);
+        } finally {
+            $lock->release();
+        }
+        $this->assertSame([], $this->powerDenialNotes(), 'Do not log pre-admission lock denials.');
+        $this->liveStatus = 'building';
+        $unknown = $power->execute($service, 'on');
+        $this->assertSame('status_unavailable', $unknown['error']);
+        $this->assertSame(503, $unknown['http_status']);
+        $this->assertSame(__('ui.cx_power_status_unconfirmed'), $unknown['message']);
+        $this->assertNotSame($busy['message'], $unknown['message']);
+        $this->assertCount(0, $this->commands);
+        $this->assertSame(1000, app(Wallet::class)->availableOf($customer->id));
+    }
+
+    public function test_power_status_denials_log_only_a_throttled_sanitized_service_diagnostic(): void
+    {
+        [$customer, $service] = $this->fixture();
+        request()->headers->set('Referer', 'https://example.test/?token=private-referrer-secret');
+        request()->headers->set('User-Agent', 'private-useragent-secret');
+        request()->headers->set('Authorization', 'Bearer private-authorization-secret');
+        $this->liveStatus = 'building';
+        $power = app(CloudPower::class);
+
+        for ($i = 0; $i < 2; $i++) {
+            $result = $power->execute($service, 'on');
+            $this->assertSame('status_unavailable', $result['error']);
+            $this->assertSame(503, $result['http_status']);
+        }
+
+        $notes = $this->powerDenialNotes();
+        $this->assertCount(1, $notes, 'Repeated status failures should be throttled.');
+        $this->assertSame(['service_id' => $service->id, 'reason' => 'status_unavailable'], $notes[0]['ctx']);
+        $this->assertNull($notes[0]['referer']);
+        $this->assertNull($notes[0]['ip']);
+        $this->assertSame('', $notes[0]['ua']);
+        $this->assertSame('system', $notes[0]['who']);
+        $serialized = json_encode($notes, JSON_THROW_ON_ERROR);
+        foreach (['private-provider-data', 'never-public', 'private-referrer-secret', 'private-useragent-secret',
+            'private-authorization-secret', 'private-ref-'.$service->id, 'key_hash', 'available_irt'] as $secret) {
+            $this->assertStringNotContainsString($secret, $serialized);
+        }
+        $this->assertCount(0, $this->commands);
+        $this->assertSame(1000, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame(0, CreditEntry::where('reason', 'cloud_hourly')->count());
+    }
+
+    public function test_unresolved_restart_has_a_clear_message_and_cannot_dispatch_twice(): void
+    {
+        app()->setLocale('en');
+        [$customer, $service] = $this->fixture();
+        $power = app(CloudPower::class);
+        $this->assertTrue($power->execute($service, 'on')['ok']);
+        $this->travel(1)->seconds();
+        $pending = $power->execute($service, 'on');
+        $this->assertSame('operation_in_progress', $pending['error']);
+        $this->assertSame(409, $pending['http_status']);
+        $this->assertSame(__('ui.cx_power_restart_pending'), $pending['message']);
+        $this->assertSame('operation_in_progress', $power->execute($service, 'on')['error']);
+        $this->assertCount(1, $this->commands);
+        $this->assertSame(1000, HourlyGpuStart::pending($service->fresh()));
+        $this->assertSame(1000, app(Wallet::class)->balanceOf($customer->id));
+        $this->assertSame(0, app(Wallet::class)->availableOf($customer->id));
+        $notes = $this->powerDenialNotes();
+        $this->assertCount(1, $notes);
+        $this->assertSame(['service_id' => $service->id, 'reason' => 'restart_pending'], $notes[0]['ctx']);
+    }
+
+    public function test_reconciliation_denial_has_a_sanitized_diagnostic_and_never_dispatches(): void
+    {
+        [$customer, $service, $token] = $this->fixture();
+        DB::table('customer_api_operations')->insert(['public_id' => (string) \Illuminate\Support\Str::uuid(),
+            'customer_id' => $customer->id, 'token_id' => $token->id, 'service_id' => $service->id,
+            'key_hash' => hash('sha256', 'example-key'), 'fingerprint' => hash('sha256', 'example-fingerprint'),
+            'action' => 'on', 'state' => 'uncertain', 'created_at' => now(), 'updated_at' => now()]);
+
+        $result = app(CloudPower::class)->execute($service, 'on');
+        $this->assertSame('reconciliation_required', $result['error']);
+        $this->assertSame(409, $result['http_status']);
+        $notes = $this->powerDenialNotes();
+        $this->assertCount(1, $notes);
+        $this->assertSame(['service_id' => $service->id, 'reason' => 'reconciliation_required'], $notes[0]['ctx']);
+        $this->assertCount(0, $this->commands);
+        $this->assertSame(1000, app(Wallet::class)->availableOf($customer->id));
+        $this->assertSame(0, HourlyGpuStart::pending($service->fresh()));
+    }
+
+    public function test_changed_resource_has_a_clear_message_without_dispatch(): void
+    {
+        app()->setLocale('en');
+        [, $service] = $this->fixture();
+        $start = \Mockery::mock(HourlyGpuStart::class);
+        $start->shouldReceive('claim')->once()->andReturnUsing(function () use ($service) {
+            // Model a concurrent resource replacement after a status check.
+            CloudInstance::where('service_id', $service->id)->update(['provider_ref' => 'replaced-test-resource']);
+            return [];
+        });
+        $this->app->instance(HourlyGpuStart::class, $start);
+        $changed = app(CloudPower::class)->execute($service, 'on');
+        $this->assertSame('resource_changed', $changed['error']);
+        $this->assertSame(409, $changed['http_status']);
+        $this->assertSame(__('ui.cx_power_resource_changed'), $changed['message']);
+        $this->assertCount(0, $this->commands);
     }
 
     public static function locales(): array { return [['fa', ''], ['en', '/en'], ['tr', '/tr']]; }

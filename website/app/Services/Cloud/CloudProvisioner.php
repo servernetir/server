@@ -903,13 +903,20 @@ class CloudProvisioner
             if ($instance->address() === null) {
                 continue;
             }
-
             // ⚠️ هر ردیف در try خودش: یک ردیفِ خراب (مشتریِ حذف‌شده، ایمیلِ
             // بدشکل) نباید بقیه را زمین بزند — و مهم‌تر، نباید استثنا به
             // `schedule:run` برسد. یک استثنا آن دقیقه را کامل می‌کشد و با آن
             // تحویلِ سرور و ثبتِ دامنه هم می‌ایستد (حادثهٔ مستندشده).
             try {
                 $service = $instance->service;
+
+                // A GPU cannot be first-delivered by a hostname alone, or while
+                // stopped. Keep retrying an owed notice for a previously verified
+                // GPU which the customer intentionally stopped.
+                if ($instance->isGpuApp() && ! $instance->readyForNotice()
+                    && ! ($instance->status === 'off' && filled(data_get($instance->meta, 'gpu_first_ready_at')))) {
+                    continue;
+                }
 
                 // سرویسی که تحویلش تمام نشده هنوز «آماده» نیست؛ سرویسِ مرده هم
                 // اعلان نمی‌خواهد (لغوشده/خاتمه‌یافته).

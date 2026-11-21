@@ -212,7 +212,7 @@ export default {
         // ورودِ مرورگری: توکن از URL برداشته، کوکی و 302 — توکن در نوارِ
         // آدرس و تاریخچه نمی‌مانَد و assetهای بعدی از کوکی رد می‌شوند.
         if (!safeEqual(fromQuery, expected)) {
-          return unauthorized();
+          return unauthorized(request);
         }
         url.searchParams.delete('sn_token');
         return new Response(null, {
@@ -230,7 +230,7 @@ export default {
         || readCookie(request, 'sn_token');
 
       if (!given || !safeEqual(given, expected)) {
-        return unauthorized();
+        return unauthorized(request);
       }
     }
 
@@ -242,7 +242,9 @@ export default {
         host: brandedHost,
         path: url.pathname,
       }));
-      return new Response('GPU gateway is temporarily unavailable', { status: 503 });
+      return isBrowserDocument(request)
+        ? gatewayPage(request, 503, 'unavailable')
+        : new Response('GPU gateway is temporarily unavailable', { status: 503 });
     }
 
     url.hostname = new URL(GPU_RELAY_URL).hostname;
@@ -321,6 +323,15 @@ export default {
       brandedHost
     );
 
+    // Only a recognized infrastructure error page on a full HTML navigation
+    // is replaced. A 403/503 alone cannot prove that the customer's GPU is off.
+    // Application errors, API replies and upstream status codes stay intact.
+    if (isBrowserDocument(request) && await isInfrastructureErrorPage(resp)) {
+      const retryAfter = resp.headers.get('Retry-After');
+      if (resp.body) { void resp.body.cancel().catch(() => {}); }
+      return gatewayPage(request, resp.status, 'unavailable', retryAfter);
+    }
+
     /*
      * اگر برنامه Locationِ مطلق با میزبانِ زیرساخت بدهد، به دامنهٔ برندشده
      * برگردانده می‌شود — هم سفیدبرچسبی حفظ می‌شود، هم مشتریِ داخلِ مرورگر به
@@ -342,10 +353,160 @@ function bearerOf(request) {
   return a.startsWith('Bearer ') ? a.slice(7) : null;
 }
 
-function unauthorized() {
+function unauthorized(request) {
+  if (isBrowserDocument(request)) {
+    return gatewayPage(request, 401, 'authorization');
+  }
   /* پیامِ خنثی و برندشده — نه نامی از زیرساخت، نه سرنخی از فرمولِ توکن */
   return new Response(
     JSON.stringify({ error: 'unauthorized', message: 'Valid access token required. Find yours in your ServerNet panel.' }),
     { status: 401, headers: { 'Content-Type': 'application/json' } }
   );
+}
+
+/** AJAX, SDK, API and form requests must retain the original error contract. */
+function isBrowserDocument(request) {
+  return request.method === 'GET'
+    && request.headers.get('Sec-Fetch-Mode') === 'navigate'
+    && request.headers.get('Sec-Fetch-Dest') === 'document'
+    && /(?:^|,)\s*text\/html(?:\s*[;,]|$)/i.test(request.headers.get('Accept') || '');
+}
+
+/**
+ * Inspect a bounded prefix of a cloned, HTML gateway error only. An ordinary
+ * app 403/503 is not enough. Require the recognized infrastructure branding
+ * and error-template headings before taking over the browser error rendering.
+ */
+async function isInfrastructureErrorPage(response) {
+  const limit = 65536;
+  if (![403, 503].includes(response.status)
+      || !/^text\/html(?:\s*;|$)/i.test(response.headers.get('Content-Type') || '')
+      || Number(response.headers.get('Content-Length') || 0) > limit
+      || !response.body) {
+    return false;
+  }
+  try {
+    const copy = response.clone();
+    const reader = copy.body.getReader();
+    const decoder = new TextDecoder();
+    let bytes = 0;
+    let html = '';
+    let timedOut = false;
+    // An ordinary tenant HTML error may stream indefinitely. Inspect it for
+    // at most half a second; then return the unaltered original response.
+    const timer = setTimeout(() => {
+      timedOut = true;
+      void reader.cancel().catch(() => {});
+    }, 500);
+    try {
+      while (bytes < limit) {
+        const { value, done } = await reader.read();
+        if (done) { break; }
+        const chunk = value.subarray(0, limit - bytes);
+        bytes += chunk.byteLength;
+        html += decoder.decode(chunk, { stream: true });
+      }
+      html += decoder.decode();
+    } finally {
+      clearTimeout(timer);
+      // Do not await cancellation of a tee branch while its original response
+      // may still be consumed by the browser.
+      void reader.cancel().catch(() => {});
+      reader.releaseLock();
+    }
+    if (timedOut) { return false; }
+    const words = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').toLowerCase();
+    return /\bsalad\b/i.test(html)
+      && words.includes('error ' + response.status + ' detected')
+      && words.includes('what this means')
+      && words.includes('what you can do')
+      && (response.status !== 403 || words.includes('required credentials'));
+  } catch {
+    // Unknown or unreadable response: preserve it rather than masking it.
+    return false;
+  }
+}
+
+const GATEWAY_COPY = {
+  fa: {
+    dir: 'rtl', panel: 'مدیریت سرویس‌های من', service: 'خدمات GPU سرورنت',
+    authorization: {
+      title: 'برای ورود به سرویس، ابتدا احراز هویت کنید',
+      body: 'این نشانی محافظت شده است. از صفحه مدیریت سرویس GPU خود در پنل سرورنت، دکمهٔ ورود به برنامه یا مستندات را انتخاب کنید.',
+      note: 'این پیام به معنای خاموش بودن دستگاه شما نیست.',
+    },
+    unavailable: {
+      title: 'دسترسی به سرویس موقتاً فراهم نیست',
+      body: 'سرویس ممکن است خاموش، در حال راه‌اندازی یا با مشکل اتصال روبه‌رو باشد. وضعیت واقعی دستگاه را در پنل سرورنت بررسی کنید.',
+      note: 'اگر در پنل روشن است و خطا ادامه دارد، با پشتیبانی سرورنت تماس بگیرید.',
+    },
+  },
+  en: {
+    dir: 'ltr', panel: 'Manage my services', service: 'ServerNet GPU Services',
+    authorization: {
+      title: 'Sign in to access your GPU service',
+      body: 'This address is protected. Use the application or documentation button on your GPU service page in the ServerNet panel.',
+      note: 'This message does not mean your GPU is stopped.',
+    },
+    unavailable: {
+      title: 'GPU access is currently unavailable',
+      body: 'Your GPU may be stopped, starting, or experiencing a connectivity issue. Check the actual service status in the ServerNet panel.',
+      note: 'If the panel shows your GPU is running and this error persists, contact ServerNet support.',
+    },
+  },
+  tr: {
+    dir: 'ltr', panel: 'Hizmetlerimi yönet', service: 'ServerNet GPU Hizmetleri',
+    authorization: {
+      title: 'GPU hizmetinize erişmek için giriş yapın',
+      body: 'Bu adres korumalıdır. ServerNet panelindeki GPU hizmet sayfanızdan uygulama veya dokümantasyon düğmesini kullanın.',
+      note: 'Bu mesaj GPU sunucunuzun kapalı olduğu anlamına gelmez.',
+    },
+    unavailable: {
+      title: 'GPU erişimi şu anda kullanılamıyor',
+      body: 'GPU kapalı, başlatılıyor veya bir bağlantı sorunu yaşıyor olabilir. Hizmetin gerçek durumunu ServerNet panelinden kontrol edin.',
+      note: 'Panel GPU hizmetinizin çalıştığını gösteriyorsa ve hata devam ediyorsa ServerNet destek ekibiyle iletişime geçin.',
+    },
+  },
+};
+
+/** Static branded page: no request URL, host, token, provider, JS or external assets. */
+function gatewayPage(request, status, kind, retryAfter = null) {
+  const languages = (request.headers.get('Accept-Language') || '').split(',');
+  const lang = languages.map(v => v.split(';')[0].trim().toLowerCase().split('-')[0])
+    .find(v => Object.hasOwn(GATEWAY_COPY, v)) || 'en';
+  const copy = GATEWAY_COPY[lang];
+  const message = copy[kind];
+  const headers = new Headers({
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-store, private',
+    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'X-Frame-Options': 'DENY',
+    'Vary': 'Accept, Accept-Language, Sec-Fetch-Mode, Sec-Fetch-Dest',
+  });
+  if (retryAfter) { headers.set('Retry-After', retryAfter); }
+  return new Response(`<!doctype html>
+<html lang="${lang}" dir="${copy.dir}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>${message.title} | ServerNet</title>
+<style>
+:root{color-scheme:dark;--muted:#a7b6cc;--accent:#63e6dc;--line:#26364e}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;min-height:100svh;display:grid;align-items:center;justify-items:center;padding:24px;background:radial-gradient(ellipse at 18% 0%,#15354a 0%,#101a2c 36%,#0b1220 75%);color:#f4f7fc;font:16px/1.8 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+main{width:100%;max-width:570px;border:1px solid var(--line);background:#111f32;border-radius:24px;padding:clamp(24px,6vw,48px);box-shadow:0 22px 64px #050a1670}
+.brand{display:flex;gap:12px;align-items:center;color:var(--muted);font-weight:650;font-size:14px}
+.mark{border:1px solid #2b7686;background:#173d50;border-radius:10px;width:36px;height:36px;display:grid;place-items:center;color:var(--accent);font-weight:800;letter-spacing:-1px;flex:none}
+.status{display:inline-flex;margin-top:32px;padding:4px 10px;color:#f0cf8a;background:#413522;border:1px solid #645130;border-radius:8px;font-size:13px;font-weight:700;direction:ltr}
+h1{font-size:clamp(24px,5vw,34px);line-height:1.5;margin:16px 0 12px}
+p{color:var(--muted);margin:0 0 22px}
+a{display:inline-flex;align-items:center;justify-content:center;width:100%;min-height:52px;padding:12px 18px;border-radius:12px;background:var(--accent);color:#092534;font-weight:750;text-decoration:none;margin:2px 0 22px}
+a:focus-visible{outline:3px solid white;outline-offset:4px}
+.note{font-size:13px;border-top:1px solid var(--line);padding-top:18px;margin-bottom:0}
+</style></head><body><main>
+<div class="brand"><span class="mark" aria-hidden="true">SN</span><span>${copy.service}</span></div>
+<div class="status">HTTP ${status}</div><h1>${message.title}</h1><p>${message.body}</p>
+<a href="https://console.servernet.cloud/account/servers" rel="noreferrer">${copy.panel}</a>
+<p class="note">${message.note}</p></main></body></html>`, { status, headers });
 }
