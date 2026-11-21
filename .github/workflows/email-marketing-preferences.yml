@@ -1,0 +1,134 @@
+name: Email preference consent checks
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Marketing/EmailMarketingPreferences.php'
+      - 'website/app/Models/EmailMarketingPreference.php'
+      - 'website/app/Models/Customer.php'
+      - 'website/app/Support/EmailMarketingPrivacy.php'
+      - 'website/app/Support/ErrorTracker.php'
+      - 'website/app/Http/Controllers/**/*Email*Controller.php'
+      - 'website/config/email-marketing.php'
+      - 'website/config/pagecache.php'
+      - 'website/database/migrations/*email_marketing_preferences.php'
+      - 'website/lang/**/email-marketing.php'
+      - 'website/resources/views/**/email-*.blade.php'
+      - 'website/resources/views/email-marketing/**'
+      - 'website/routes/**'
+      - 'website/bootstrap/**'
+      - 'website/tests/Feature/EmailMarketingPreferences*Test.php'
+      - 'website/composer.*'
+      - 'scripts/run-php-tests-offline.py'
+      - '.github/workflows/email-marketing-preferences.yml'
+  pull_request:
+    branches: [develop]
+    paths:
+      - 'website/app/Services/Marketing/EmailMarketingPreferences.php'
+      - 'website/app/Models/EmailMarketingPreference.php'
+      - 'website/app/Models/Customer.php'
+      - 'website/app/Support/EmailMarketingPrivacy.php'
+      - 'website/app/Support/ErrorTracker.php'
+      - 'website/app/Http/Controllers/**/*Email*Controller.php'
+      - 'website/config/email-marketing.php'
+      - 'website/config/pagecache.php'
+      - 'website/database/migrations/*email_marketing_preferences.php'
+      - 'website/lang/**/email-marketing.php'
+      - 'website/resources/views/**/email-*.blade.php'
+      - 'website/resources/views/email-marketing/**'
+      - 'website/routes/**'
+      - 'website/bootstrap/**'
+      - 'website/tests/Feature/EmailMarketingPreferences*Test.php'
+      - 'website/composer.*'
+      - 'scripts/run-php-tests-offline.py'
+      - '.github/workflows/email-marketing-preferences.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: email-preference-consent-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  consent:
+    name: Isolated consent and withdrawal tests (${{ matrix.database }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, mariadb]
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: ci-test-only
+          MARIADB_DATABASE: email_marketing_testing
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+    env:
+      APP_ENV: testing
+      APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+      APP_URL: 'http://localhost'
+      DB_CONNECTION: ${{ matrix.database }}
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: ${{ matrix.database == 'sqlite' && ':memory:' || 'email_marketing_testing' }}
+      DB_USERNAME: root
+      DB_PASSWORD: ci-test-only
+      DB_URL: ''
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      MAIL_MAILER: array
+      QUEUE_CONNECTION: sync
+      PAGE_CACHE: 'false'
+      EXCHANGE_ENABLED: 'false'
+      COMPOSER_NO_INTERACTION: '1'
+    steps:
+      - name: Checkout exact revision without persisted credentials
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Set up isolated PHP runtime
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962
+        with:
+          php-version: '8.4'
+          extensions: curl, dom, fileinfo, gd, intl, mbstring, pdo_sqlite, pdo_mysql, sodium, zip
+          coverage: none
+          tools: composer:v2
+      - name: Install locked dependencies without production configuration
+        working-directory: website
+        run: |
+          set -euo pipefail
+          test ! -e .env
+          test ! -e bootstrap/cache/config.php
+          composer install --prefer-dist --no-progress --no-scripts --no-plugins
+          composer check-platform-reqs
+      - name: Check consent, withdrawal and import isolation without network
+        if: matrix.database == 'sqlite'
+        working-directory: website
+        run: |
+          set -euo pipefail
+          python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- \
+            tests/Feature/EmailMarketingPreferencesTest.php --display-warnings --fail-on-warning --colors=never
+          python3 ../scripts/run-php-tests-offline.py --php "$(command -v php)" -- \
+            tests/Feature/EmailMarketingPreferencesRoutesTest.php --display-warnings --fail-on-warning --colors=never
+      - name: Check same constraints against disposable MariaDB
+        if: matrix.database == 'mariadb'
+        working-directory: website
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os, xml.etree.ElementTree as ET
+          tree = ET.parse('phpunit.xml')
+          for key in ['DB_CONNECTION', 'DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD']:
+              node = tree.find('./php/env[@name="'+key+'"]')
+              if node is None: node = ET.SubElement(tree.find('php'), 'env', name=key)
+              node.set('value', os.environ[key]); node.set('force', 'true')
+          tree.write('.email-marketing-ci.xml', encoding='unicode')
+          PY
+          php vendor/bin/phpunit -c .email-marketing-ci.xml --filter='EmailMarketingPreferences(Test|RoutesTest)' --display-warnings --fail-on-warning --colors=never
