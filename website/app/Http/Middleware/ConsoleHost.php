@@ -45,6 +45,8 @@ class ConsoleHost
     private const PANEL = [
         'login', 'login/*', 'logout', 'register', 'register/*',
         'account', 'account/*',
+        // Campaign continuation belongs to the same host-only session as login.
+        'm/*',
         'admin', 'admin/*',
         'en/admin/identity-api', 'en/admin/identity-api/*',
         'tr/admin/identity-api', 'tr/admin/identity-api/*',
@@ -81,11 +83,8 @@ class ConsoleHost
      * `servernet.cloud/admin/impersonate/stop` پست می‌کرد: یک کنشِ مدیریتی روی
      * میزبانِ بازاریابی، جایی که هیچ مسیرِ پنلی نباید بنشیند.
      *
-     * امروز نشست بین دو میزبان مشترک است (`SESSION_DOMAIN=.servernet.cloud`)
-     * پس معمولاً کار می‌کند؛ ولی این یک **وابستگیِ نانوشته** به یک تنظیمِ
-     * `.env` است. اگر آن تنظیم روزی برداشته شود، دکمه بی‌صدا به صفحهٔ ورود
-     * می‌رود و مدیر داخلِ حسابِ مشتری گیر می‌افتد — همان خرابی که یک بار
-     * (به علتِ z-index) رخ داد و در کامنتِ همان فایل ثبت است.
+     * نشست تولید اکنون به میزبان محدود است؛ فرم باید مستقیماً به کنسول
+     * ارسال شود تا همان نشست مدیریتی استفاده شود و مدیر در حساب مشتری نماند.
      *
      * ⚠️ روی localhost و تست عمداً مسیرِ نسبی برمی‌گردد، وگرنه دکمهٔ محلی به
      * کنسولِ **پروداکشن** پست می‌کرد.

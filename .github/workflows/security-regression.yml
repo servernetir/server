@@ -51,6 +51,7 @@ jobs:
             tests/Feature/SystemDiagnosticsGuardTest.php \
             tests/Feature/SecurityControlsTest.php \
             tests/Feature/CloudProxmoxTest.php \
+            tests/Feature/MarketingCampaignEngineTest.php \
             tests/Feature/PaymentCallbackTest.php \
             tests/Feature/WalletPrimitivesTest.php \
             tests/Feature/TicketAttachmentTest.php \
