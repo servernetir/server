@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\EmailMarketingPreference;
+use App\Models\ExternalEmailConsentDocumentBatch;
+use App\Models\ExternalEmailConsentDocumentItem;
 use App\Models\ExternalEmailConsentReview;
 use App\Models\ExternalEmailConsentReviewEvent;
 use App\Models\User;
@@ -116,6 +118,36 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
     private function decisionUrl(ExternalEmailConsentReview $review): string
     {
         return '/admin/email-marketing/evidence/'.$review->getKey().'/decision';
+    }
+
+    private function documentUrl(): string
+    {
+        return '/admin/email-marketing/evidence/documents';
+    }
+
+    private function documentPayload(array $reviewIds, array $overrides = []): array
+    {
+        return array_replace([
+            'selection' => 'selected',
+            'review_ids' => $reviewIds,
+            'document_reference' => 'document-archive-group-001',
+            'acknowledge' => '1',
+        ], $overrides);
+    }
+
+    private function postDocument(array $payload)
+    {
+        // Keep the real 3/minute throttle active; separate synthetic operations
+        // into successive time windows to test the controller's atomic checks.
+        $this->travel(65)->seconds();
+
+        return $this->post($this->documentUrl(), $payload);
+    }
+
+    private function reviewPreimages(): array
+    {
+        return DB::table('external_email_consent_reviews')->orderBy('id')->get()
+            ->map(fn ($row) => (array) $row)->all();
     }
 
     private function verificationPayload(
@@ -492,6 +524,345 @@ class EmailMarketingPreferencesEvidenceReviewTest extends TestCase
         $this->assertSame(['review'], $decisionRoute->parameterNames());
         $this->assertDatabaseCount('external_email_consent_review_events', 0);
         $this->assertReviewOnly();
+    }
+
+    public function test_shared_document_links_selected_pending_records_without_approving_any_consent(): void
+    {
+        $admin = $this->admin();
+        $date = now()->subDays(7)->toDateString();
+        $this->upload(self::HEADER
+            ."member@external.example.test,{$date},archive-original-001\n"
+            ."second@external.example.test,{$date},archive-original-002\n"
+            ."third@external.example.test,{$date},archive-original-003\n")->assertRedirect();
+        $records = ExternalEmailConsentReview::query()->orderBy('id')->get();
+        $before = $this->reviewPreimages();
+
+        $page = $this->get('/admin/email-marketing')->assertOk()
+            ->assertDontSee('@external.example.test')->assertDontSee('archive-original-001');
+        $dom = $this->pageDom((string) $page->getContent());
+        $formPath = '//*[@id="evidence"]//form[@id="evidence-document-group"]';
+        $form = $this->element($dom, $formPath);
+        $this->assertSame(url($this->documentUrl()), $form->getAttribute('action'));
+        $this->assertSame('post', strtolower($form->getAttribute('method')));
+        $this->assertNotEmpty($this->element($dom, $formPath.'//input[@name="_token" and @type="hidden"]')->getAttribute('value'));
+        $this->element($dom, $formPath.'//input[@name="selection" and @value="selected"]');
+        $this->element($dom, $formPath.'//input[@name="selection" and @value="all_pending"]');
+        $this->assertSame('3', $this->element($dom, $formPath.'//input[@name="expected_count"]')->getAttribute('value'));
+        $pointer = $this->element($dom, $formPath.'//input[@name="document_reference"]');
+        $this->assertTrue($pointer->hasAttribute('required'));
+        $this->assertSame('', $pointer->getAttribute('value'));
+        $this->assertSame('160', $pointer->getAttribute('maxlength'));
+        $ack = $this->element($dom, $formPath.'//input[@name="acknowledge" and @type="checkbox"]');
+        $this->assertTrue($ack->hasAttribute('required'));
+        $this->assertSame('1', $ack->getAttribute('value'));
+        $this->assertFalse($ack->hasAttribute('checked'));
+        foreach ($records as $record) {
+            $input = $this->element($dom, '//*[@data-evidence-row="'.$record->contact_id.'"]//input[@name="review_ids[]"]');
+            $this->assertSame((string) $record->id, $input->getAttribute('value'));
+            $this->assertSame('evidence-document-group', $input->getAttribute('form'));
+            $this->assertFalse($input->hasAttribute('checked'));
+            $this->assertFalse($input->hasAttribute('disabled'));
+        }
+        $this->assertSame(0, $this->elements($dom, '//*[@id="evidence"]//form[contains(@action, "/decision")]')->length);
+
+        // One document pointer is shared for two records; the omitted record stays unlinked.
+        $ids = [(int) $records[0]->id, (int) $records[2]->id];
+        $this->postDocument($this->documentPayload($ids))
+            ->assertRedirect(route('admin.email-marketing.index').'#evidence')
+            ->assertSessionHas('document_success')->assertSessionMissing('_old_input');
+        $raw = DB::table('external_email_consent_document_batches')->sole();
+        $this->assertSame(2, (int) $raw->record_count);
+        $this->assertSame((int) $admin->id, (int) $raw->created_by);
+        $this->assertSame(now()->toDateString(), substr((string) $raw->created_at, 0, 10));
+        $this->assertNotEmpty($raw->document_reference);
+        $this->assertStringNotContainsString('document-archive-group-001', (string) $raw->document_reference);
+        $this->assertStringNotContainsString('@external.example.test', json_encode($raw));
+        $this->assertStringNotContainsString('archive-original-001', json_encode($raw));
+        $this->assertStringNotContainsString('document-archive-group-001', json_encode(session()->all()));
+        $batch = ExternalEmailConsentDocumentBatch::query()->sole();
+        $this->assertSame('document-archive-group-001', $batch->document_reference);
+        $this->assertArrayNotHasKey('document_reference', $batch->toArray());
+        $items = ExternalEmailConsentDocumentItem::query()->orderBy('review_id')->get();
+        $this->assertCount(2, $items);
+        $this->assertSame($ids, $items->map(fn ($item) => (int) $item->review_id)->all());
+        $this->assertSame([(int) $batch->id], $items->map(fn ($item) => (int) $item->batch_id)->unique()->values()->all());
+
+        $this->assertSame($before, $this->reviewPreimages());
+        $this->assertEvidenceCounts(3, 0, 0, 0);
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $list = $this->get('/admin/email-marketing')->assertOk()
+            ->assertDontSee('document-archive-group-001')
+            ->assertDontSee('@external.example.test')
+            ->assertDontSee('archive-original-001');
+        $dom = $this->pageDom((string) $list->getContent());
+        $remaining = $this->elements($dom, '//*[@id="evidence"]//input[@name="review_ids[]" and not(@disabled)]');
+        $this->assertSame(1, $remaining->length);
+        $this->assertSame((string) $records[1]->id, $remaining->item(0)->getAttribute('value'));
+        $this->assertSame('1', $this->element($dom, $formPath.'//input[@name="expected_count"]')->getAttribute('value'));
+
+        // The shared pointer is visible only in the detail of its specific linked record.
+        $detail = $this->get($this->reviewUrl($records[0]))->assertOk()
+            ->assertSee('document-archive-group-001')
+            ->assertDontSee('member@external.example.test')->assertDontSee('archive-original-001');
+        $detail->assertHeader('Referrer-Policy', 'no-referrer');
+        $this->assertStringContainsString('no-store', $detail->headers->get('Cache-Control'));
+        $this->get($this->reviewUrl($records[1]))->assertOk()->assertDontSee('document-archive-group-001');
+        $detailDom = $this->pageDom((string) $detail->getContent());
+        $this->assertSame('pending', $this->element($detailDom, '//*[@data-evidence-state]')->getAttribute('data-evidence-state'));
+        $this->element($detailDom, '//*[@data-evidence-audit-empty]');
+        $verifyPath = '//form[.//input[@name="decision" and @value="verified"]]';
+        foreach (['source_email', 'source_date', 'source_reference', 'review_reference'] as $field) {
+            $input = $this->element($detailDom, $verifyPath.'//input[@name="'.$field.'"]');
+            $this->assertTrue($input->hasAttribute('required'));
+            $this->assertSame('', $input->getAttribute('value'), 'Shared linkage must not prefill '.$field);
+        }
+        // A group document number cannot replace this recipient's independent proof.
+        $this->post($this->decisionUrl($records[0]), [
+            'decision' => 'verified', 'expected_event' => '0', 'acknowledge' => '1',
+            'review_reference' => 'document-archive-group-001',
+        ])->assertSessionHas('review_error')->assertSessionMissing('_old_input');
+        $this->post($this->decisionUrl($records[0]), $this->verificationPayload($records[0], [
+            'source_reference' => 'document-archive-group-001',
+        ]))->assertSessionHas('review_error')->assertSessionMissing('_old_input');
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $this->assertSame($before, $this->reviewPreimages());
+        $this->assertReviewOnly();
+    }
+
+    public function test_all_pending_document_selection_spans_pages_but_excludes_reviewed_or_already_linked_records(): void
+    {
+        $this->admin();
+        $date = now()->subDays(8)->toDateString();
+        $csv = self::HEADER."member@external.example.test,{$date},archive-synthetic-1\n";
+        for ($i = 2; $i <= 42; $i++) {
+            $csv .= "synthetic-{$i}@external.example.test,{$date},archive-synthetic-{$i}\n";
+        }
+        $this->upload($csv)->assertRedirect();
+        $records = ExternalEmailConsentReview::query()->orderBy('id')->get();
+        $this->assertCount(42, $records);
+        $before = $this->reviewPreimages();
+        $this->post($this->decisionUrl($records[0]), $this->verificationPayload($records[0]))->assertSessionHas('review_success');
+        $this->post($this->decisionUrl($records[1]), [
+            'decision' => 'rejected', 'reason' => 'not_marketing_consent',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ])->assertSessionHas('review_success');
+        $this->post($this->decisionUrl($records[2]), [
+            'decision' => 'revoked', 'reason' => 'administrative_prevent',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ])->assertSessionHas('review_success');
+        $this->postDocument($this->documentPayload([$records[3]->id], [
+            'document_reference' => 'separate-document-002',
+        ]))->assertSessionHas('document_success');
+        $originalBatch = ExternalEmailConsentDocumentBatch::query()->sole();
+        $priorEvents = DB::table('external_email_consent_review_events')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+
+        // The hidden expected count is the complete eligible set, not the first page.
+        $firstPage = $this->get('/admin/email-marketing?evidence_page=1')->assertOk();
+        $dom = $this->pageDom((string) $firstPage->getContent());
+        $this->assertSame(35, $this->elements($dom, '//*[@id="evidence"]//input[@name="review_ids[]" and not(@disabled)]')->length);
+        $this->assertSame('38', $this->element($dom, '//*[@id="evidence-document-group"]//input[@name="expected_count"]')->getAttribute('value'));
+        $nextPage = $this->get('/admin/email-marketing?evidence_page=2')->assertOk();
+        $dom = $this->pageDom((string) $nextPage->getContent());
+        $enabled = $this->elements($dom, '//*[@id="evidence"]//input[@name="review_ids[]" and not(@disabled)]');
+        $this->assertSame(3, $enabled->length);
+        foreach ($records->take(4) as $ineligible) {
+            $this->assertSame(0, $this->elements($dom, '//*[@data-evidence-row="'.$ineligible->contact_id.'"]//input[@name="review_ids[]" and not(@disabled)]')->length);
+        }
+        $this->assertSame('38', $this->element($dom, '//*[@id="evidence-document-group"]//input[@name="expected_count"]')->getAttribute('value'));
+
+        $this->postDocument([
+            'selection' => 'all_pending', 'expected_count' => '38',
+            'document_reference' => 'document-archive-all-003', 'acknowledge' => '1',
+        ])->assertRedirect(route('admin.email-marketing.index').'#evidence')
+            ->assertSessionHas('document_success')->assertSessionMissing('_old_input');
+        $this->assertDatabaseCount('external_email_consent_document_batches', 2);
+        $this->assertDatabaseCount('external_email_consent_document_items', 39);
+        $batch = ExternalEmailConsentDocumentBatch::query()->latest('id')->firstOrFail();
+        $this->assertSame('document-archive-all-003', $batch->document_reference);
+        $this->assertSame(38, (int) $batch->record_count);
+        $linked = ExternalEmailConsentDocumentItem::query()->where('batch_id', $batch->id)->orderBy('review_id')
+            ->pluck('review_id')->map(fn ($id) => (int) $id)->all();
+        $this->assertSame($records->skip(4)->map(fn ($record) => (int) $record->id)->values()->all(), $linked);
+        $this->assertDatabaseHas('external_email_consent_document_items', [
+            'batch_id' => $originalBatch->id, 'review_id' => $records[3]->id,
+        ]);
+        $this->assertSame($before, $this->reviewPreimages());
+        $this->assertSame($priorEvents, DB::table('external_email_consent_review_events')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all());
+        $this->assertEvidenceCounts(39, 1, 1, 1);
+        $this->assertReviewOnly();
+    }
+
+    public function test_shared_document_stale_selections_fail_atomically_and_existing_link_remains_immutable(): void
+    {
+        $this->admin();
+        $date = now()->subDays(7)->toDateString();
+        $this->upload(self::HEADER
+            ."member@external.example.test,{$date},archive-original-001\n"
+            ."second@external.example.test,{$date},archive-original-002\n"
+            ."third@external.example.test,{$date},archive-original-003\n")->assertRedirect();
+        $records = ExternalEmailConsentReview::query()->orderBy('id')->get();
+        $before = $this->reviewPreimages();
+        $this->postDocument($this->documentPayload([$records[0]->id]))->assertSessionHas('document_success');
+        $originalBatch = (array) DB::table('external_email_consent_document_batches')->sole();
+        $originalItem = (array) DB::table('external_email_consent_document_items')->sole();
+
+        $failed = [
+            // An input formed before the first linkage may not silently link a different set.
+            ['selection' => 'all_pending', 'expected_count' => '3', 'document_reference' => 'other-document-002', 'acknowledge' => '1'],
+            $this->documentPayload([$records[0]->id, $records[1]->id], ['document_reference' => 'other-document-002']),
+            $this->documentPayload([$records[1]->id, $records[2]->id + 100000], ['document_reference' => 'other-document-002']),
+            $this->documentPayload([$records[1]->id, $records[1]->id], ['document_reference' => 'other-document-002']),
+        ];
+        foreach ($failed as $payload) {
+            $this->postDocument($payload)
+                ->assertRedirect(route('admin.email-marketing.index').'#evidence')
+                ->assertSessionHas('document_error')->assertSessionMissing('_old_input');
+            $this->assertStringNotContainsString('other-document-002', json_encode(session()->all()));
+            $this->assertSame($originalBatch, (array) DB::table('external_email_consent_document_batches')->sole());
+            $this->assertSame($originalItem, (array) DB::table('external_email_consent_document_items')->sole());
+        }
+        $this->post($this->decisionUrl($records[1]), [
+            'decision' => 'rejected', 'reason' => 'missing_evidence',
+            'acknowledge' => '1', 'expected_event' => '0',
+        ])->assertSessionHas('review_success');
+        $this->postDocument($this->documentPayload([$records[1]->id, $records[2]->id]))
+            ->assertSessionHas('document_error')->assertSessionMissing('_old_input');
+        $this->assertSame($originalBatch, (array) DB::table('external_email_consent_document_batches')->sole());
+        $this->assertSame($originalItem, (array) DB::table('external_email_consent_document_items')->sole());
+
+        $batch = ExternalEmailConsentDocumentBatch::query()->sole();
+        $item = ExternalEmailConsentDocumentItem::query()->sole();
+        try {
+            $batch->forceFill(['record_count' => 2])->save();
+            $this->fail('A document batch must not overwrite its historical count.');
+        } catch (DomainException) {
+            $this->assertSame($originalBatch, (array) DB::table('external_email_consent_document_batches')->sole());
+        }
+        try {
+            $batch->fresh()->delete();
+            $this->fail('A document batch must not be deleted.');
+        } catch (DomainException) {
+            $this->assertDatabaseCount('external_email_consent_document_batches', 1);
+        }
+        try {
+            $item->forceFill(['review_id' => $records[2]->id])->save();
+            $this->fail('A document association must not be edited.');
+        } catch (DomainException) {
+            $this->assertSame($originalItem, (array) DB::table('external_email_consent_document_items')->sole());
+        }
+        try {
+            $item->fresh()->delete();
+            $this->fail('A document association must not be deleted.');
+        } catch (DomainException) {
+            $this->assertDatabaseCount('external_email_consent_document_items', 1);
+        }
+        $this->assertSame($before, $this->reviewPreimages());
+        $this->assertDatabaseCount('external_email_consent_review_events', 1);
+        $this->assertEvidenceCounts(2, 0, 1, 0);
+        $this->assertReviewOnly();
+    }
+
+    #[DataProvider('invalidDocumentSelections')]
+    public function test_invalid_group_document_input_never_links_records_or_flashes_sensitive_values(array $overrides): void
+    {
+        $this->admin();
+        $review = $this->stageReview();
+        $before = $this->reviewPreimages();
+        $payload = $this->documentPayload([$review->id], $overrides);
+        $this->postDocument($payload)
+            ->assertRedirect(route('admin.email-marketing.index').'#evidence')
+            ->assertSessionHas('document_error')->assertSessionMissing('_old_input');
+        $session = json_encode(session()->all());
+        $this->assertStringNotContainsString('document-archive-group-001', $session);
+        $this->assertStringNotContainsString('private@external.example.test', $session);
+        $this->assertDatabaseCount('external_email_consent_document_batches', 0);
+        $this->assertDatabaseCount('external_email_consent_document_items', 0);
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $this->assertSame($before, $this->reviewPreimages());
+        $this->assertReviewOnly();
+    }
+
+    public static function invalidDocumentSelections(): array
+    {
+        return [
+            'missing acknowledgment' => [['acknowledge' => '0']],
+            'unknown selection' => [['selection' => 'approve_all']],
+            'missing selection' => [['selection' => '']],
+            'empty selected list' => [['review_ids' => []]],
+            'nonnumeric selected id' => [['review_ids' => ['not-a-number']]],
+            'zero selected id' => [['review_ids' => [0]]],
+            'too many selected ids' => [['review_ids' => range(1, 1001)]],
+            'missing expected total' => [['selection' => 'all_pending', 'expected_count' => null]],
+            'invalid expected total' => [['selection' => 'all_pending', 'expected_count' => '0']],
+            'oversized expected total' => [['selection' => 'all_pending', 'expected_count' => '1001']],
+            'missing document reference' => [['document_reference' => '']],
+            'oversized document reference' => [['document_reference' => str_repeat('x', 161)]],
+            'email rather than pointer' => [['document_reference' => 'private@external.example.test']],
+            'multiline document reference' => [['document_reference' => "archive-line-1\narchive-line-2"]],
+            'markup rather than pointer' => [['document_reference' => '<b>archive</b>']],
+        ];
+    }
+
+    public function test_document_linkage_requires_admin_flags_csrf_and_throttling(): void
+    {
+        $admin = $this->admin();
+        $review = $this->stageReview();
+        $payload = $this->documentPayload([$review->id]);
+        $author = User::factory()->create(['role' => 'author']);
+        $this->actingAs($author, 'web');
+        $this->postDocument($payload)->assertForbidden();
+        $this->actingAs($admin, 'web');
+        foreach (['email-marketing.enabled', 'email-marketing.evidence_review_enabled'] as $flag) {
+            config([$flag => false]);
+            $this->postDocument($payload)->assertNotFound();
+            config([$flag => true]);
+        }
+        $route = Route::getRoutes()->getByName('admin.email-marketing.evidence.documents');
+        $this->assertNotNull($route);
+        $this->assertSame([], $route->parameterNames());
+        $this->assertContains('POST', $route->methods());
+        $this->assertNotContains(PreventRequestForgery::class, $route->excludedMiddleware());
+        $this->assertTrue(collect($route->gatherMiddleware())->contains(fn (string $middleware): bool => str_starts_with($middleware, 'throttle:')));
+        $this->assertDatabaseCount('external_email_consent_document_batches', 0);
+        $this->assertDatabaseCount('external_email_consent_document_items', 0);
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $this->assertReviewOnly();
+    }
+
+    public function test_shared_document_link_cannot_create_customer_consent_or_reverse_withdrawal(): void
+    {
+        $new = Customer::create(['email' => 'existing@example.test', 'password' => 'test-password-not-real', 'status' => 'active', 'locale' => 'fa', 'timezone' => 'Asia/Tehran']);
+        $new->forceFill(['email_verified_at' => now()])->save();
+        $withdrawn = Customer::create(['email' => 'withdrawn@example.test', 'password' => 'test-password-not-real', 'status' => 'active', 'locale' => 'fa', 'timezone' => 'Asia/Tehran']);
+        $withdrawn->forceFill(['email_verified_at' => now()])->save();
+        $service = app(EmailMarketingPreferences::class);
+        $this->actingAs($withdrawn, 'customer');
+        $pref = $service->setConsent($withdrawn, false);
+        Auth::guard('customer')->logout();
+        $previousPrefs = DB::table('email_marketing_preferences')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+        $previousEvents = DB::table('email_marketing_preference_events')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
+        $customerCount = Customer::count();
+
+        $this->admin();
+        $date = now()->subDays(3)->toDateString();
+        $this->upload(self::HEADER."existing@example.test,{$date},archive-existing\nwithdrawn@example.test,{$date},archive-withdrawn\n")->assertRedirect();
+        $this->postDocument([
+            'selection' => 'all_pending', 'expected_count' => '2',
+            'document_reference' => 'shared-document-accounts-001', 'acknowledge' => '1',
+        ])->assertSessionHas('document_success');
+        $this->assertDatabaseCount('external_email_consent_document_items', 2);
+        $this->assertDatabaseCount('external_email_consent_review_events', 0);
+        $this->assertEvidenceCounts(2, 0, 0, 0);
+
+        $this->assertNull($service->preferenceFor($new));
+        $this->assertFalse($service->eligible($new));
+        $this->assertSame(EmailMarketingPreference::STATE_WITHDRAWN, $pref->fresh()->state);
+        $this->assertFalse($service->eligible($withdrawn));
+        $this->assertSame($previousPrefs, DB::table('email_marketing_preferences')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all());
+        $this->assertSame($previousEvents, DB::table('email_marketing_preference_events')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all());
+        $this->assertDatabaseCount('customers', $customerCount);
+        Mail::assertNothingSent();
+        Mail::assertNothingQueued();
     }
 
     public function test_evidence_dashboard_has_an_accessible_review_only_form_and_empty_state(): void
