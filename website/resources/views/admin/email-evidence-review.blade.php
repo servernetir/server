@@ -52,6 +52,12 @@
   .er-pill.rejected,.er-pill.revoked{color:var(--red);background:rgba(255,107,107,.08);border-color:rgba(255,107,107,.24)}
   html[data-theme="light"] .er-pill.rejected,html[data-theme="light"] .er-pill.revoked{color:#991b1b}
   .er-review-link{white-space:nowrap;font-size:12px;text-decoration:none}
+  .er-document-group{margin:0 24px 20px;padding:18px;border:1px solid var(--line2);border-radius:14px;background:var(--surface2);display:grid;gap:15px}
+  .er-document-group h4{font-size:15px;color:var(--text);margin:0 0 6px}.er-document-group p{font-size:12.5px}.er-document-group .er-form{gap:13px}
+  .er-document-options{display:grid;gap:10px;border:0;margin:0;padding:0}.er-document-options legend{font-size:12px;font-weight:700;margin-bottom:8px}
+  .er-document-option{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--text);line-height:1.65}.er-document-option input,.er-document-select{width:17px;height:17px;accent-color:var(--er-accent);flex-shrink:0;cursor:pointer}.er-document-option input{margin:3px 0 0}.er-document-option input:disabled,.er-document-select:disabled{cursor:not-allowed}
+  .er-document-field{display:grid;gap:7px;max-width:640px}.er-document-field label{font-weight:650;font-size:13px;color:var(--text)}.er-document-field input{width:100%;min-height:42px;font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line2);border-radius:9px;padding:9px 12px}.er-document-field small{font-size:11.5px;line-height:1.7;color:var(--muted)}
+  .er-document-marker{display:inline-block;font-size:11.5px;line-height:1.6;color:var(--muted);border:1px solid var(--line2);background:var(--surface2);padding:5px 9px;border-radius:8px;white-space:normal}
   .er-count-pill{font-weight:650;padding:5px 12px;border-radius:99px;border:1px solid var(--line2);background:var(--surface2);font-size:12px;color:var(--muted);white-space:nowrap}
   .er-table-scroll{overflow-x:auto;border-top:1px solid var(--line)}.er .ad-table{min-width:660px}
   .er .ad-table th{background:var(--surface2);font-size:11.5px;padding:14px 20px;text-transform:none;color:var(--muted)}
@@ -62,13 +68,15 @@
   .er-pagination{padding:14px 24px;border-top:1px solid var(--line)}
   @media(max-width:1100px){.er-grid{grid-template-columns:minmax(0,1fr)}}
   @media(max-width:780px){.er-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.er-hero-mark{width:76px;height:76px;flex-basis:76px;border-radius:19px}.er-hero-mark .er-icon{width:36px;height:36px}.er-stat{padding:14px}}
-  @media(max-width:520px){.er{gap:15px}.er-hero{padding:19px;align-items:flex-start;gap:12px}.er-hero-mark{display:none}.er-stats,.er-result-stats{grid-template-columns:minmax(0,1fr)}.er-stat{padding:14px 17px}.er-stat dd{font-size:25px}.er-card{padding:18px}.er-history{padding:0}.er-history-head{padding:17px 18px;align-items:flex-start;flex-wrap:wrap}.er-download{align-items:stretch;flex-direction:column}.er-file-area{padding:12px}.er-submit button{width:100%}.er-empty{padding:34px 16px}.er-pagination{padding:14px}}
+  @media(max-width:520px){.er{gap:15px}.er-hero{padding:19px;align-items:flex-start;gap:12px}.er-hero-mark{display:none}.er-stats,.er-result-stats{grid-template-columns:minmax(0,1fr)}.er-stat{padding:14px 17px}.er-stat dd{font-size:25px}.er-card{padding:18px}.er-history{padding:0}.er-history-head{padding:17px 18px;align-items:flex-start;flex-wrap:wrap}.er-download{align-items:stretch;flex-direction:column}.er-file-area{padding:12px}.er-submit button{width:100%}.er-empty{padding:34px 16px}.er-pagination{padding:14px}.er-document-group{margin:0 14px 16px;padding:14px}}
   @media(prefers-reduced-motion:reduce){.er a,.er button,.er input{transition:none}}
 </style>
 
 @php
   $reviewReady = $evidenceReviewReady ?? false;
   $reviewCounts = $evidenceCounts ?? ['pending' => $records->total(), 'verified' => 0, 'rejected' => 0, 'revoked' => 0];
+  $documentReady = $reviewReady && ($evidenceDocumentReady ?? false);
+  $documentAvailable = $documentReady ? (int) ($evidenceDocumentAvailable ?? 0) : 0;
 @endphp
 <div class="er" id="evidence" data-evidence-overview>
   <section class="er-hero" aria-labelledby="er-title">
@@ -173,24 +181,70 @@
       <div><h3 id="er-history-title">{{ __('email-evidence-review.history_title') }}</h3><p>{{ __('email-evidence-review.history_note') }}</p></div>
       <span class="er-count-pill">{{ number_format($records->total()) }} {{ __('email-evidence-review.records_label') }}</span>
     </div>
+    @if($documentReady)
+      <section class="er-document-group" aria-labelledby="er-document-title">
+        <div><h4 id="er-document-title">{{ __('email-evidence-review.document_title') }}</h4><p>{{ __('email-evidence-review.document_intro') }}</p></div>
+        @if(session('document_error'))
+          <div role="alert" class="er-alert is-error"><p>{{ session('document_error') }}</p></div>
+        @endif
+        @if(session('document_success'))
+          <div role="status" class="er-alert"><p>{{ session('document_success') }}</p></div>
+        @endif
+        @if($documentAvailable > 0)
+          <form id="evidence-document-group" name="evidence-document-group" class="er-form" method="post" action="{{ route('admin.email-marketing.evidence.documents') }}" autocomplete="off">
+            @csrf
+            <input type="hidden" name="expected_count" value="{{ $documentAvailable }}">
+            <fieldset class="er-document-options">
+              <legend>{{ __('email-evidence-review.document_selection') }}</legend>
+              <label class="er-document-option"><input type="radio" name="selection" value="selected" checked required><span>{{ __('email-evidence-review.document_selected') }}</span></label>
+              <label class="er-document-option"><input type="radio" name="selection" value="all_pending" @disabled($documentAvailable > 1000)><span>{{ __('email-evidence-review.document_all_pending', ['count' => number_format($documentAvailable)]) }}</span></label>
+              @if($documentAvailable > 1000)
+                <p>{{ __('email-evidence-review.document_limit') }}</p>
+              @endif
+            </fieldset>
+            <div class="er-document-field">
+              <label for="er-document-reference">{{ __('email-evidence-review.document_reference') }}</label>
+              <input id="er-document-reference" type="text" name="document_reference" dir="auto" maxlength="160" autocomplete="off" spellcheck="false" aria-describedby="er-document-reference-help" required>
+              <small id="er-document-reference-help">{{ __('email-evidence-review.document_reference_help') }}</small>
+            </div>
+            <label class="er-confirm" for="er-document-ack"><input id="er-document-ack" type="checkbox" name="acknowledge" value="1" required><span>{{ __('email-evidence-review.document_ack') }}</span></label>
+            <div class="er-submit"><button class="btn btn-primary" type="submit">{{ __('email-evidence-review.document_button') }}</button></div>
+          </form>
+        @else
+          <p>{{ __('email-evidence-review.document_empty') }}</p>
+        @endif
+      </section>
+    @endif
     @if($records->count() > 0)
       <div class="er-table-scroll">
         <table class="ad-table">
           <thead><tr>
+            @if($documentReady)<th scope="col">{{ __('email-evidence-review.document_select_record') }}</th>@endif
             <th scope="col">{{ __('email-evidence-review.contact_id') }}</th>
             <th scope="col">{{ __('email-evidence-review.consent_date') }}</th>
             <th scope="col">{{ __('email-evidence-review.imported_at') }}</th>
             <th scope="col">{{ __('email-evidence-review.state') }}</th>
+            @if($documentReady)<th scope="col">{{ __('email-evidence-review.document_group') }}</th>@endif
             @if($reviewReady)<th scope="col">{{ __('email-evidence-review.review_action') }}</th>@endif
           </tr></thead>
           <tbody>
             @foreach($records as $record)
+              @php
+                $decision = $reviewReady ? ($record->latestDecision?->decision ?? 'pending') : 'pending';
+                $documentItem = $documentReady ? $record->sharedDocumentItem : null;
+                $canLinkDocument = $documentReady && $record->latestDecision === null && $documentItem === null && $documentAvailable > 0;
+              @endphp
               <tr data-evidence-row="{{ $record->contact_id }}">
+                @if($documentReady)
+                  <td><input type="checkbox" class="er-document-select" @if($canLinkDocument) data-evidence-document-select name="review_ids[]" form="evidence-document-group" value="{{ $record->id }}" @else disabled @endif aria-label="{{ __('email-evidence-review.document_select_id', ['id' => $record->contact_id]) }}"></td>
+                @endif
                 <td><span class="er-contact-id" dir="ltr">{{ $record->contact_id }}</span></td>
                 <td><span dir="ltr">{{ $record->consent_date->format('Y-m-d') }}</span></td>
                 <td>{{ sdate($record->created_at) }}</td>
-                @php($decision = $reviewReady ? ($record->latestDecision?->decision ?? 'pending') : 'pending')
                 <td><span class="er-pill {{ $decision }}" data-evidence-state="{{ $decision }}">{{ $decision === 'pending' ? __('email-evidence-review.review_only') : __('email-evidence-review.state_'.$decision) }}</span></td>
+                @if($documentReady)
+                  <td>@if($documentItem)<span class="er-document-marker" data-evidence-document-batch="{{ $documentItem->batch_id }}">{{ __('email-evidence-review.document_batch', ['id' => $documentItem->batch_id]) }}</span>@else — @endif</td>
+                @endif
                 @if($reviewReady)
                   <td><a data-evidence-review-link class="btn btn-glass er-review-link" href="{{ route('admin.email-marketing.evidence.review', ['review' => $record->id]) }}">{{ __('email-evidence-review.review_action') }}</a></td>
                 @endif
@@ -210,4 +264,23 @@
       <div class="er-pagination">{{ $records->links() }}</div>
     @endif
   </section>
+  @if($documentReady && $documentAvailable > 0)
+    <script>
+      (function () {
+        const form = document.getElementById('evidence-document-group');
+        if (!form) return;
+        const syncSelection = function () {
+          const all = form.querySelector('input[name="selection"][value="all_pending"]').checked;
+          document.querySelectorAll('[data-evidence-document-select][form="evidence-document-group"]').forEach(function (box) {
+            if (all) box.checked = false;
+            box.disabled = all;
+          });
+        };
+        form.querySelectorAll('input[name="selection"]').forEach(function (radio) {
+          radio.addEventListener('change', syncSelection);
+        });
+        syncSelection();
+      })();
+    </script>
+  @endif
 </div>
